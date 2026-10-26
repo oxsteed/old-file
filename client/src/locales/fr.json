@@ -24111,6 +24111,30 @@
         "cancelled": "Annulée",
         "withdrawn": "Retirée"
       }
+    },
+    "offlineCard": {
+      "title": "Paiements par carte hors ligne à vérifier",
+      "intro": "Paiements par carte pris pendant une panne qui ont dépassé une limite, ne correspondent pas à leur commande ou n'ont jamais été remontés. Accepter conserve un paiement confirmé par Stripe. Annuler n'est possible que si Stripe n'a aucun débit.",
+      "order": "Commande n° {{id}}",
+      "reasons": "Pourquoi une vérification est nécessaire",
+      "note": "Note (obligatoire)",
+      "noteRequired": "Ajoutez d'abord une courte note.",
+      "accept": "Accepter le paiement",
+      "void": "Annuler (aucun débit)",
+      "accepted": "Paiement accepté.",
+      "voided": "Paiement annulé.",
+      "failed": "Impossible de traiter ce paiement.",
+      "reason": {
+        "over_transaction_limit": "Dépasse la limite hors ligne par vente",
+        "over_lease_budget": "Dépasse le budget hors ligne de cette caisse",
+        "outside_lease_window": "Pris en dehors de la période hors ligne",
+        "amount_differs_from_order": "Le montant diffère du total de la commande",
+        "order_already_paid": "Commande déjà payée autrement (double débit possible)",
+        "order_already_has_offline_card": "La commande a déjà un paiement par carte hors ligne",
+        "order_not_found": "Commande introuvable pour ce magasin",
+        "not_reported": "La caisse n'a jamais remonté ce paiement",
+        "other": "Vérification par un responsable requise"
+      }
     }
   },
   "network": {

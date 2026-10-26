@@ -53,3 +53,56 @@ exports.reconcile=async(req,res,next)=>{try{
   if(!permit)throw new AppError('Permit not found',404,'terminal_offline_permit_not_found');scope(restaurant,permit.location_id);
   res.json(await offline.reconcileForwarded({restaurantId:restaurant.id,permitId:req.params.permitId,intentId:req.body.intentId}));
 }catch(error){next(error);}};
+
+// F-08 outage mode: device-held leases, payment registration on reconnect,
+// and the manager review queue.
+const leases=require('../services/restaurantTerminalOfflineLeases');
+async function posDevice(req,restaurant,locationId){
+  const deviceId=v.integer(req.body.deviceId,'deviceId');
+  const device=await require('../services/restaurantDeviceCredentials').authenticateRegistryDevice(pool,{restaurantId:restaurant.id,registryId:deviceId,token:req.get('X-Device-Token')});
+  if((locationId!=null&&device.locationId!==locationId)||device.role!=='pos')throw new AppError('A store POS is required',403,'pos_device_required');
+  return {deviceId,device};
+}
+const leaseView=l=>({id:l.id,locationId:Number(l.location_id),stripeAccount:l.provider_account_id,currencyCode:l.currency_code,budgetCents:Number(l.budget_cents),
+  maxTransactionCents:Number(l.max_transaction_cents),consumedCents:Number(l.consumed_cents),allowedBrands:l.allowed_card_brands,expiresAt:l.expires_at,status:l.status,
+  captureMethod:'manual',metadataKeys:['offlineId','offlineLeaseId']});
+exports.lease=async(req,res,next)=>{try{
+  const restaurant=await access(req,'pos.use');
+  const locationId=v.integer(req.body.locationId,'locationId');scope(restaurant,locationId);
+  const {deviceId}=await posDevice(req,restaurant,locationId);
+  const budget=req.body.budgetCents==null?null:v.integer(req.body.budgetCents,'budgetCents',1,1000000);
+  const lease=await leases.issueLease({restaurantId:restaurant.id,locationId,deviceId,shiftId:v.integer(req.body.shiftId,'shiftId'),userId:req.user.id,budgetCents:budget});
+  await logBusinessAction(req,{business_id:restaurant.business_id,action:'restaurant.terminal.offline_lease_issued',target_type:'location',target_id:locationId,
+    after_state:{leaseId:lease.id,budgetCents:Number(lease.budget_cents),maxTransactionCents:Number(lease.max_transaction_cents),deviceId}});
+  res.set('Cache-Control','no-store').json({lease:leaseView(lease)});
+}catch(error){next(error);}};
+exports.closeLease=async(req,res,next)=>{try{
+  const restaurant=await access(req,'pos.use');
+  const {deviceId}=await posDevice(req,restaurant,null);
+  res.json({lease:leaseView(await leases.closeLease({restaurantId:restaurant.id,leaseId:req.params.leaseId,deviceId}))});
+}catch(error){next(error);}};
+exports.registerPayment=async(req,res,next)=>{try{
+  const restaurant=await access(req,'pos.use');
+  const {deviceId}=await posDevice(req,restaurant,null);
+  const b=req.body||{};
+  const result=await leases.registerPayment({restaurantId:restaurant.id,deviceId,leaseId:req.params.leaseId,offlineId:b.offlineId,intentId:b.intentId??null,
+    amountCents:b.amountCents,collectedAt:b.collectedAt,screenTicketId:b.screenTicketId??null,foodOrderId:b.foodOrderId??null});
+  const status=(await pool.query('SELECT status,review_reasons FROM restaurant_terminal_offline_payments WHERE offline_id=$1',[b.offlineId])).rows[0];
+  res.status(result.attached?200:202).json({offlineId:b.offlineId,attached:Boolean(result.attached),settled:Boolean(result.settled),
+    waitingForTicket:Boolean(result.waiting),status:status?.status||null,reviewReasons:status?.review_reasons||[]});
+}catch(error){next(error);}};
+exports.openQueue=async(req,res,next)=>{try{
+  const restaurant=await access(req,'pos.manage');
+  res.set('Cache-Control','no-store').json(await leases.listOpen({restaurantId:restaurant.id,locationIds:restaurant.scope.mode==='assigned'?restaurant.scope.location_ids:null}));
+}catch(error){next(error);}};
+exports.resolve=async(req,res,next)=>{try{
+  const restaurant=await access(req,'pos.manage');
+  if(!/^[a-f0-9-]{36}$/i.test(req.params.offlineId))throw new AppError('Invalid offline identity',400,'validation_failed');
+  const {rows:[row]}=await pool.query(`SELECT location_id FROM restaurant_terminal_offline_payments WHERE offline_id=$1 AND restaurant_id=$2
+    UNION ALL SELECT location_id FROM restaurant_terminal_offline_permits WHERE id=$1 AND restaurant_id=$2 LIMIT 1`,[req.params.offlineId,restaurant.id]);
+  if(!row)throw new AppError('Offline payment not found',404,'terminal_offline_payment_not_found');scope(restaurant,row.location_id);
+  const result=await leases.resolve({restaurantId:restaurant.id,offlineId:req.params.offlineId,action:req.body.action,note:req.body.note,userId:req.user.id});
+  await logBusinessAction(req,{business_id:restaurant.business_id,action:`restaurant.terminal.offline_payment_${req.body.action==='void'?'voided':'accepted'}`,
+    target_type:'offline_payment',target_id:req.params.offlineId,after_state:{note:String(req.body.note||'').slice(0,500)}});
+  res.json(result);
+}catch(error){next(error);}};

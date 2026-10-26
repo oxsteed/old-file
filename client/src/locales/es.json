@@ -24111,6 +24111,30 @@
         "cancelled": "Cancelada",
         "withdrawn": "Retirada"
       }
+    },
+    "offlineCard": {
+      "title": "Pagos con tarjeta sin conexión por revisar",
+      "intro": "Pagos con tarjeta tomados durante una caída que superaron un límite, no coincidieron con su pedido o nunca se reportaron. Aceptar conserva un pago que Stripe confirma. Anular solo es posible si Stripe no tiene ningún cargo.",
+      "order": "Pedido n.º {{id}}",
+      "reasons": "Por qué necesita revisión",
+      "note": "Nota (obligatoria)",
+      "noteRequired": "Primero agrega una nota breve.",
+      "accept": "Aceptar pago",
+      "void": "Anular (sin cargo)",
+      "accepted": "Pago aceptado.",
+      "voided": "Pago anulado.",
+      "failed": "No se pudo resolver este pago.",
+      "reason": {
+        "over_transaction_limit": "Supera el límite por venta sin conexión",
+        "over_lease_budget": "Supera el presupuesto sin conexión de esta caja",
+        "outside_lease_window": "Tomado fuera del período sin conexión",
+        "amount_differs_from_order": "El monto no coincide con el total del pedido",
+        "order_already_paid": "El pedido ya se pagó de otra forma (posible cobro doble)",
+        "order_already_has_offline_card": "El pedido ya tiene un pago con tarjeta sin conexión",
+        "order_not_found": "No se encontró el pedido en esta tienda",
+        "not_reported": "La caja nunca reportó este pago",
+        "other": "Requiere revisión de un gerente"
+      }
     }
   },
   "network": {

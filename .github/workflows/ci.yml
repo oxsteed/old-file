@@ -263,7 +263,7 @@ jobs:
             finally { await db.end(); }
           })().catch(error => { console.error(error.message); process.exitCode = 1; });
           NODE
-          npx jest --runInBand __tests__/restaurantStoreIsolation.db.test.js __tests__/restaurantServiceCycle.db.test.js __tests__/restaurantIntegrationRuntime.db.test.js
+          npx jest --runInBand __tests__/restaurantStoreIsolation.db.test.js __tests__/restaurantServiceCycle.db.test.js __tests__/restaurantIntegrationRuntime.db.test.js __tests__/restaurantTerminalOfflineLeases.db.test.js
 
       - name: Restaurant time clock and POS discount PostgreSQL regressions
         working-directory: server

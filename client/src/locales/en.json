@@ -24111,6 +24111,30 @@
         "cancelled": "Cancelled",
         "withdrawn": "Withdrawn"
       }
+    },
+    "offlineCard": {
+      "title": "Offline card payments to review",
+      "intro": "Card payments taken during an outage that broke a limit, didn't match their order, or were never reported back. Accept keeps a payment Stripe confirms. Void is only possible when Stripe has no charge.",
+      "order": "Order #{{id}}",
+      "reasons": "Why it needs review",
+      "note": "Note (required)",
+      "noteRequired": "Add a short note first.",
+      "accept": "Accept payment",
+      "void": "Void (no charge)",
+      "accepted": "Payment accepted.",
+      "voided": "Payment voided.",
+      "failed": "Couldn't resolve this payment.",
+      "reason": {
+        "over_transaction_limit": "Over the per-sale offline limit",
+        "over_lease_budget": "Over this register's offline budget",
+        "outside_lease_window": "Taken outside the offline window",
+        "amount_differs_from_order": "Amount differs from the order total",
+        "order_already_paid": "Order was already paid another way (possible double charge)",
+        "order_already_has_offline_card": "Order already has an offline card payment",
+        "order_not_found": "Order not found for this store",
+        "not_reported": "Register never reported this payment",
+        "other": "Needs a manager check"
+      }
     }
   },
   "network": {

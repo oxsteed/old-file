@@ -14,6 +14,8 @@
   "gift.refresh",
   "gift.statement-first",
   "gift.statement-next",
+  "restaurant.offline_card.accept",
+  "restaurant.offline_card.void",
   "restaurant_discount_create",
   "restaurant_discount_threshold_save",
   "restaurant_discount_toggle_active",

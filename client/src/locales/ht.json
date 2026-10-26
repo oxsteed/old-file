@@ -24111,6 +24111,30 @@
         "cancelled": "Anile",
         "withdrawn": "Retire"
       }
+    },
+    "offlineCard": {
+      "title": "Peman kat san entènèt pou revize",
+      "intro": "Peman kat yo te pran pandan yon pàn ki depase yon limit, ki pa koresponn ak kòmand yo, oswa ki pa janm rapòte. Aksepte kenbe yon peman Stripe konfime. Anile posib sèlman lè Stripe pa gen okenn chaj.",
+      "order": "Kòmand #{{id}}",
+      "reasons": "Poukisa li bezwen revizyon",
+      "note": "Nòt (obligatwa)",
+      "noteRequired": "Ajoute yon ti nòt anvan.",
+      "accept": "Aksepte peman",
+      "void": "Anile (pa gen chaj)",
+      "accepted": "Peman aksepte.",
+      "voided": "Peman anile.",
+      "failed": "Nou pa t kapab rezoud peman sa a.",
+      "reason": {
+        "over_transaction_limit": "Depase limit pa vant san entènèt",
+        "over_lease_budget": "Depase bidjè san entènèt kès sa a",
+        "outside_lease_window": "Pran andeyò peryòd san entènèt la",
+        "amount_differs_from_order": "Montan an pa menm ak total kòmand lan",
+        "order_already_paid": "Kòmand lan te deja peye yon lòt jan (posib doub chaj)",
+        "order_already_has_offline_card": "Kòmand lan deja gen yon peman kat san entènèt",
+        "order_not_found": "Nou pa jwenn kòmand lan pou magazen sa a",
+        "not_reported": "Kès la pa janm rapòte peman sa a",
+        "other": "Bezwen yon manadjè verifye"
+      }
     }
   },
   "network": {

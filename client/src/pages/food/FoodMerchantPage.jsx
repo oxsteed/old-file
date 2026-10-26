@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard, Building2, Network, WifiOff } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import api from '../../api/axios';
+import RestaurantOfflineCardQueue from './RestaurantOfflineCardQueue';
 import {
   listMyFoodRestaurants,
   createFoodRestaurant,
@@ -2745,7 +2746,10 @@ export default function FoodMerchantPage() {
             {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}
             {selected && tab === 'menu' && <RestaurantMenuManager t={t} restaurant={selected} />}
             {selected && tab === 'payouts' && (
-              <RestaurantFinanceWorkspace key={selected.id} restaurant={selected} canManagePayouts={canManagePayouts} canManageCredit={canManageCredit} />
+              <>
+                <RestaurantFinanceWorkspace key={selected.id} restaurant={selected} canManagePayouts={canManagePayouts} canManageCredit={canManageCredit} />
+                {canManageRestaurant && <RestaurantOfflineCardQueue key={`offline-${selected.id}`} restaurant={selected} />}
+              </>
             )}
             {selected && tab === 'settings' && canViewSettings && (
               <SettingsTab
