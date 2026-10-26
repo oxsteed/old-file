@@ -24397,7 +24397,22 @@
         "regionRoot": "Rejyon rasin",
         "regionCreate": "Ajoute rejyon",
         "regionStores": "{{count}} magazen",
-        "regionChild": "Rejyon andedan"
+        "regionChild": "Rejyon andedan",
+        "labor": {
+          "title": "Travay pa magazen",
+          "overtimeNote": "Lè siplemantè yo konte èdtan chak moun nan tout magazen ou yo, epi yo parèt nan magazen kote yo te travay yo.",
+          "store": "Magazen",
+          "hours": "Èdtan travay",
+          "scheduled": "Pwograme",
+          "overtime": "Èdtan siplemantè",
+          "cost": "Kou travay",
+          "percent": "% travay",
+          "staff": "Anplwaye",
+          "total": "Tout magazen",
+          "missingWages_one": "{{count}} san salè",
+          "missingWages_other": "{{count}} san salè",
+          "mixedCurrency": "Plizyè lajan"
+        }
       },
       "brandHq": {
         "title": "Katye jeneral mak la",

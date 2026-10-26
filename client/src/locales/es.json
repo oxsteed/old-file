@@ -24397,7 +24397,22 @@
         "regionRoot": "Región raíz",
         "regionCreate": "Añadir región",
         "regionStores": "{{count}} tienda(s)",
-        "regionChild": "Región anidada"
+        "regionChild": "Región anidada",
+        "labor": {
+          "title": "Mano de obra por tienda",
+          "overtimeNote": "Las horas extra cuentan las horas de cada persona en todas tus tiendas y se muestran en la tienda donde se trabajaron.",
+          "store": "Tienda",
+          "hours": "Horas trabajadas",
+          "scheduled": "Programadas",
+          "overtime": "Horas extra",
+          "cost": "Costo de mano de obra",
+          "percent": "% de mano de obra",
+          "staff": "Personal",
+          "total": "Todas las tiendas",
+          "missingWages_one": "{{count}} sin salario",
+          "missingWages_other": "{{count}} sin salario",
+          "mixedCurrency": "Monedas mixtas"
+        }
       },
       "brandHq": {
         "title": "Central de marca",

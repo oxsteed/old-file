@@ -181,6 +181,8 @@ exports.laborRollup = async (req, res, next) => {
     let totalHours = 0;
     let totalLaborCostCents = 0;
     let totalRevenueCents = 0;
+    let totalOvertimeHours = 0;
+    const currencies = new Set();
     for (const store of accessible) {
       const labor = await payroll.computeLabor({
         restaurant: anchor,
@@ -191,6 +193,10 @@ exports.laborRollup = async (req, res, next) => {
       totalHours += labor.total_hours || 0;
       totalLaborCostCents += labor.labor_cost_cents || 0;
       totalRevenueCents += labor.revenue_cents || 0;
+      // S-18: overtime is computed on each person's hours across every store
+      // of the business, then attributed to the store where it was worked.
+      totalOvertimeHours += labor.overtime_hours || 0;
+      if (labor.currency) currencies.add(labor.currency);
       stores.push({
         location_id: Number(store.id),
         display_name: store.display_name,
@@ -210,9 +216,12 @@ exports.laborRollup = async (req, res, next) => {
       scope: { businessId: Number(anchor.business_id), restaurantId: Number(anchor.id), storeCount: stores.length, from: range.from, to: range.to, timezone: range.timezone },
       totals: {
         total_hours: Math.round(totalHours * 100) / 100,
-        labor_cost_cents: totalLaborCostCents,
-        revenue_cents: totalRevenueCents,
-        labor_percent: totalRevenueCents > 0 ? Math.round((totalLaborCostCents / totalRevenueCents) * 1000) / 10 : null,
+        overtime_hours: Math.round(totalOvertimeHours * 100) / 100,
+        // Money totals only make sense in one currency.
+        currency: currencies.size <= 1 ? [...currencies][0] || null : null,
+        labor_cost_cents: currencies.size <= 1 ? totalLaborCostCents : null,
+        revenue_cents: currencies.size <= 1 ? totalRevenueCents : null,
+        labor_percent: currencies.size <= 1 && totalRevenueCents > 0 ? Math.round((totalLaborCostCents / totalRevenueCents) * 1000) / 10 : null,
       },
       stores,
     });

@@ -219,6 +219,10 @@ export const deleteTaxRule = (restaurantId, ruleId) =>
 export const getRestaurantHQRollup = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/hq/rollup`, { params }).then((r) => r.data || { stores: [], scope: null });
 
+// S-18: per-store labor, overtime and labor % for HQ (needs payroll.view).
+export const getRestaurantHQLaborRollup = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/hq/labor-rollup`, { params }).then((r) => r.data || { stores: [], totals: null });
+
 export const publishRestaurantHQMenu = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/hq/menu/publish`, payload).then((r) => r.data);
 export const listRestaurantHQRegions = (restaurantId) =>

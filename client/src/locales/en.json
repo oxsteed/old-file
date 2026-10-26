@@ -24847,7 +24847,22 @@
         "regionRoot": "Root region",
         "regionCreate": "Add region",
         "regionStores": "{{count}} store(s)",
-        "regionChild": "Nested region"
+        "regionChild": "Nested region",
+        "labor": {
+          "title": "Labor by store",
+          "overtimeNote": "Overtime counts each person's hours across all your stores, then shows it at the store where it was worked.",
+          "store": "Store",
+          "hours": "Hours worked",
+          "scheduled": "Scheduled",
+          "overtime": "Overtime hours",
+          "cost": "Labor cost",
+          "percent": "Labor %",
+          "staff": "Staff",
+          "total": "All stores",
+          "missingWages_one": "{{count}} without a wage",
+          "missingWages_other": "{{count}} without a wage",
+          "mixedCurrency": "Mixed currencies"
+        }
       },
       "brandHq": {
         "title": "Brand HQ",

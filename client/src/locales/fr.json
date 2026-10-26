@@ -24397,7 +24397,22 @@
         "regionRoot": "Région racine",
         "regionCreate": "Ajouter une région",
         "regionStores": "{{count}} magasin(s)",
-        "regionChild": "Région imbriquée"
+        "regionChild": "Région imbriquée",
+        "labor": {
+          "title": "Main-d'œuvre par magasin",
+          "overtimeNote": "Les heures supplémentaires comptent les heures de chaque personne dans tous vos magasins, puis s'affichent dans le magasin où elles ont été faites.",
+          "store": "Magasin",
+          "hours": "Heures travaillées",
+          "scheduled": "Planifiées",
+          "overtime": "Heures supplémentaires",
+          "cost": "Coût de main-d'œuvre",
+          "percent": "% main-d'œuvre",
+          "staff": "Personnel",
+          "total": "Tous les magasins",
+          "missingWages_one": "{{count}} sans salaire",
+          "missingWages_other": "{{count}} sans salaire",
+          "mixedCurrency": "Devises mixtes"
+        }
       },
       "brandHq": {
         "title": "QG de la marque",

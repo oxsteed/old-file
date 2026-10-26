@@ -24408,7 +24408,26 @@
         "regionRoot": "منطقة جذرية",
         "regionCreate": "إضافة منطقة",
         "regionStores": "{{count}} متجر",
-        "regionChild": "منطقة فرعية"
+        "regionChild": "منطقة فرعية",
+        "labor": {
+          "title": "العمالة حسب المتجر",
+          "overtimeNote": "تُحسب ساعات العمل الإضافية من ساعات كل شخص في جميع متاجرك، ثم تظهر في المتجر الذي عُملت فيه.",
+          "store": "المتجر",
+          "hours": "ساعات العمل",
+          "scheduled": "المجدولة",
+          "overtime": "ساعات إضافية",
+          "cost": "تكلفة العمالة",
+          "percent": "نسبة العمالة",
+          "staff": "الموظفون",
+          "total": "جميع المتاجر",
+          "missingWages_zero": "{{count}} دون أجر",
+          "missingWages_one": "{{count}} دون أجر",
+          "missingWages_two": "{{count}} دون أجر",
+          "missingWages_few": "{{count}} دون أجر",
+          "missingWages_many": "{{count}} دون أجر",
+          "missingWages_other": "{{count}} دون أجر",
+          "mixedCurrency": "عملات مختلطة"
+        }
       },
       "brandHq": {
         "title": "المركز الرئيسي للعلامة",

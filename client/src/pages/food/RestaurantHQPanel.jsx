@@ -6,6 +6,7 @@ import {
   createRestaurantHQRegion,
   updateRestaurantHQRegion,
   getRestaurantHQRollup,
+  getRestaurantHQLaborRollup,
   listRestaurantHQRegions,
   publishRestaurantHQMenu,
 } from "../../api/food";
@@ -16,7 +17,8 @@ const pct = (value) => (value == null ? "—" : `${Number(value).toFixed(1)}%`);
 export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
   const { i18n } = useTranslation(),
     shared = (key) => t(`restaurants.ops.shared.${key}`),
-    canManage = permits(restaurant, "settings.manage");
+    canManage = permits(restaurant, "settings.manage"),
+    canViewPayroll = permits(restaurant, "payroll.view");
   const today = localDate(restaurant.timezone || "UTC");
   const [from, setFrom] = useState(() =>
       new Date(Date.parse(`${today}T00:00Z`) - 30 * 86400000)
@@ -24,6 +26,7 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
         .slice(0, 10),
     ),
     [to, setTo] = useState(today);
+  const [labor, setLabor] = useState(null);
   const [stores, setStores] = useState([]),
     [regions, setRegions] = useState([]),
     [regionError, setRegionError] = useState(""),
@@ -58,6 +61,13 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
           ? current
           : String(report.stores?.[0]?.id || ""),
       );
+      if (canViewPayroll) {
+        try {
+          setLabor(await getRestaurantHQLaborRollup(restaurant.id, { from, to }));
+        } catch {
+          setLabor(null);
+        }
+      }
       if (canManage) {
         try {
           setRegions(await listRestaurantHQRegions(restaurant.id));
@@ -70,7 +80,7 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
     } finally {
       setLoading(false);
     }
-  }, [restaurant.id, from, to, t, canManage]);
+  }, [restaurant.id, from, to, t, canManage, canViewPayroll]);
   useEffect(() => {
     let active = true;
     load();
@@ -199,6 +209,59 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
           </section>
         ))}
       </div>
+      {labor && labor.stores?.length > 0 && (
+        <section aria-labelledby="hq-labor-title">
+          <h4 id="hq-labor-title">{t("restaurants.ops.hq.labor.title")}</h4>
+          <p className="fd-muted">{t("restaurants.ops.hq.labor.overtimeNote")}</p>
+          <div style={{ overflowX: "auto" }}>
+            <table className="fd-table">
+              <caption className="sr-only">{t("restaurants.ops.hq.labor.title")}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t("restaurants.ops.hq.labor.store")}</th>
+                  <th scope="col">{t("restaurants.ops.hq.labor.hours")}</th>
+                  <th scope="col">{t("restaurants.ops.hq.labor.scheduled")}</th>
+                  <th scope="col">{t("restaurants.ops.hq.labor.overtime")}</th>
+                  <th scope="col">{t("restaurants.ops.hq.labor.cost")}</th>
+                  <th scope="col">{t("restaurants.ops.hq.labor.percent")}</th>
+                  <th scope="col">{t("restaurants.ops.hq.labor.staff")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {labor.stores.map((row) => (
+                  <tr key={row.location_id}>
+                    <th scope="row">{row.display_name}</th>
+                    <td>{Number(row.total_hours || 0).toFixed(1)}</td>
+                    <td>{Number(row.scheduled_hours || 0).toFixed(1)}</td>
+                    <td>{Number(row.overtime_hours || 0).toFixed(1)}</td>
+                    <td>
+                      {row.labor_cost_cents == null ? "—" : moneyMinor(row.labor_cost_cents, row.currency || "USD", i18n.language)}
+                      {row.missing_wage_count > 0 && (
+                        <span className="fd-muted"> · {t("restaurants.ops.hq.labor.missingWages", { count: row.missing_wage_count })}</span>
+                      )}
+                    </td>
+                    <td>{pct(row.labor_percent)}</td>
+                    <td>{row.employee_count || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+              {labor.totals && (
+                <tfoot>
+                  <tr>
+                    <th scope="row">{t("restaurants.ops.hq.labor.total")}</th>
+                    <td>{Number(labor.totals.total_hours || 0).toFixed(1)}</td>
+                    <td>—</td>
+                    <td>{Number(labor.totals.overtime_hours || 0).toFixed(1)}</td>
+                    <td>{labor.totals.labor_cost_cents == null ? t("restaurants.ops.hq.labor.mixedCurrency") : moneyMinor(labor.totals.labor_cost_cents, labor.totals.currency || "USD", i18n.language)}</td>
+                    <td>{pct(labor.totals.labor_percent)}</td>
+                    <td>—</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </section>
+      )}
       {canManage && (
         <>
           <h4>{t("restaurants.ops.hq.regionsTitle")}</h4>
