@@ -163,7 +163,11 @@ async function createOffer(db, { app, access, actor, body, settings }) {
 async function notifyOfferMade(db, app, offer) {
   await notifyApplicant(db, app, {
     type: 'career_offer_received',
-    params: { openingTitle: app.opening_title, employerName: app.employer_name, pay: formatPay(offer.pay_cents, offer.pay_period, offer.currency_code, app.locale), guest: !app.user_id },
+    params: {
+      openingTitle: app.opening_title, employerName: app.employer_name, guest: !app.user_id,
+      pay: formatPay(offer.pay_cents, offer.pay_period, offer.currency_code, app.locale),
+      expiresAt: offer.expires_at, timeZone: app.opening_timezone || app.timezone || 'UTC',
+    },
     actionUrl: app.user_id ? `/careers/me?offer=${offer.id}` : '/signup?next=/careers/me',
     deliveryKey: `career_offer:${offer.id}`,
   });
@@ -260,7 +264,7 @@ async function decideOffer(db, { offerId, user, decision, startRun }) {
   const offer = await loadOfferForUpdate(db, offerId);
   const { rows: [app] } = await db.query(
     `SELECT a.*, o.title AS opening_title, o.employer_type, o.business_id, o.created_by AS opening_created_by,
-            o.location_ids AS opening_location_ids,
+            o.location_ids AS opening_location_ids, o.timezone AS opening_timezone,
             CASE WHEN o.employer_type = 'platform' THEN 'OxSteed' ELSE b.business_name END AS employer_name
        FROM career_applications a JOIN career_openings o ON o.id = a.opening_id
        LEFT JOIN businesses b ON b.id = o.business_id
@@ -300,7 +304,7 @@ async function decideOffer(db, { offerId, user, decision, startRun }) {
   const conditional = (offer.conditions || []).includes('background_check');
   if (conditional && !(await backgroundCheckClear(db, offer.id))) {
     await notifyHiringTeam(db, openingShape(app), {
-      type: 'career_offer_accepted', params: { openingTitle: app.opening_title, applicantNumber: app.applicant_number, conditional: true },
+      type: 'career_offer_accepted_conditional', params: { openingTitle: app.opening_title, applicantNumber: app.applicant_number },
       deliveryKey: `career_offer_accepted:${offer.id}`,
     });
     return { offer: updated, application: app, hire: null, pendingConditions: ['background_check'] };
@@ -342,7 +346,7 @@ async function sweepOffers(db) {
   for (const o of expired) {
     const { rows: [app] } = await db.query(
       `SELECT a.*, o.title AS opening_title, o.employer_type, o.business_id, o.created_by AS opening_created_by,
-              o.location_ids AS opening_location_ids,
+              o.location_ids AS opening_location_ids, o.timezone AS opening_timezone,
               CASE WHEN o.employer_type = 'platform' THEN 'OxSteed' ELSE b.business_name END AS employer_name
          FROM career_applications a JOIN career_openings o ON o.id = a.opening_id LEFT JOIN businesses b ON b.id = o.business_id
         WHERE a.id = $1`,
@@ -351,24 +355,25 @@ async function sweepOffers(db) {
     if (!app) continue;
     await recordEvent(db, { applicationId: app.id, actorId: null, from: app.stage, to: app.stage, metadata: { offer_id: o.id, expired: true } });
     await notifyApplicant(db, app, { type: 'career_offer_expired', params: { openingTitle: app.opening_title, employerName: app.employer_name }, deliveryKey: `career_offer_expired:${o.id}` });
-    await notifyHiringTeam(db, openingShape(app), { type: 'career_offer_expired', params: { openingTitle: app.opening_title, employerName: app.employer_name }, deliveryKey: `career_offer_expired_team:${o.id}` });
+    await notifyHiringTeam(db, openingShape(app), { type: 'career_offer_expired_team', params: { openingTitle: app.opening_title, employerName: app.employer_name }, deliveryKey: `career_offer_expired_team:${o.id}` });
   }
   const { rows: warn } = await db.query(
     `UPDATE career_offers SET expiry_warned_at = NOW()
       WHERE status = 'pending' AND expiry_warned_at IS NULL AND expires_at > NOW() AND expires_at <= NOW() + INTERVAL '24 hours'
-      RETURNING id, application_id`
+      RETURNING id, application_id, expires_at`
   );
   for (const o of warn) {
     const { rows: [app] } = await db.query(
-      `SELECT a.*, o.title AS opening_title, o.employer_type, o.business_id, o.created_by AS opening_created_by, o.location_ids AS opening_location_ids,
+      `SELECT a.*, o.title AS opening_title, o.employer_type, o.business_id, o.created_by AS opening_created_by, o.location_ids AS opening_location_ids, o.timezone AS opening_timezone,
               CASE WHEN o.employer_type = 'platform' THEN 'OxSteed' ELSE b.business_name END AS employer_name
          FROM career_applications a JOIN career_openings o ON o.id = a.opening_id LEFT JOIN businesses b ON b.id = o.business_id
         WHERE a.id = $1`,
       [o.application_id]
     );
     if (!app) continue;
-    await notifyApplicant(db, app, { type: 'career_offer_expiring', params: { openingTitle: app.opening_title, employerName: app.employer_name }, deliveryKey: `career_offer_expiring:${o.id}` });
-    await notifyHiringTeam(db, openingShape(app), { type: 'career_offer_expiring', params: { openingTitle: app.opening_title, employerName: app.employer_name }, deliveryKey: `career_offer_expiring_team:${o.id}` });
+    const params = { openingTitle: app.opening_title, employerName: app.employer_name, expiresAt: o.expires_at, timeZone: app.opening_timezone || 'UTC' };
+    await notifyApplicant(db, app, { type: 'career_offer_expiring', params, deliveryKey: `career_offer_expiring:${o.id}` });
+    await notifyHiringTeam(db, openingShape(app), { type: 'career_offer_expiring', params, deliveryKey: `career_offer_expiring_team:${o.id}` });
   }
   const { rowCount: invitationsExpired } = await db.query(
     `UPDATE career_invitations SET status = 'expired' WHERE status IN ('sent','viewed') AND expires_at <= NOW()`

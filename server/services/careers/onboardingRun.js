@@ -109,6 +109,9 @@ const handlers = {
     await db.query('UPDATE career_onboarding_runs SET member_id = $2, updated_at = NOW() WHERE id = $1', [ctx.id, result.member.id]);
     ctx.member_id = result.member.id;
     if (result.created) {
+      // Growth hook (spec 5.3): the hire gained a business role. Account
+      // level only; no job-seeking signal leaves Careers (Q14).
+      await require('../../growth/emit').emitDomainEvent(db, 'account.role_added', { role: 'business' }, { userId: ctx.user_id });
       await logBusinessAction({ user: actor, headers: {} }, {
         business_id: ctx.business_id,
         actor_role: access.role,
@@ -268,14 +271,14 @@ const handlers = {
     const open = steps.filter((s) => s.status === 'needs_action').map((s) => s.step);
     await notifyUser(db, {
       userId: ctx.user_id,
-      type: 'career_onboarding_needs_action',
-      params: { employerName: ctx.business_name, steps: open, welcome: true },
+      type: 'career_onboarding_welcome',
+      params: { employerName: ctx.business_name, steps: open },
       actionUrl: `/careers/me/onboarding/${ctx.id}`,
       deliveryKey: `career_onboarding_welcome:${ctx.id}`,
     });
     await notifyHiringTeam(db, { employer_type: 'business', business_id: ctx.business_id, created_by: ctx.offer_created_by, location_ids: ctx.location_id ? [ctx.location_id] : [] }, {
       type: 'career_onboarding_needs_action',
-      params: { employerName: ctx.business_name, steps: open, manager: true },
+      params: { employerName: ctx.business_name, openingTitle: ctx.opening_title, steps: open },
       actionUrl: `/business/${ctx.business_id}/careers/onboarding/${ctx.id}`,
       deliveryKey: `career_onboarding_manager:${ctx.id}`,
     });

@@ -37,6 +37,30 @@ function pick(map, code, lang) {
 const careerReasonText = (code, lang = 'en') => pick(reasonText, code, lang);
 const careerCheckStatusText = (code, lang = 'en') => pick(checkStatusText, code, lang);
 
+
+const factText = {
+  completed_jobs: L('completed jobs', 'trabajos completados', 'missions réalisées', 'travay ki fini', 'الأعمال المكتملة'),
+  avg_rating: L('average rating', 'calificación promedio', 'note moyenne', 'nòt mwayèn', 'متوسط التقييم'),
+  on_time_rate: L('on-time rate', 'puntualidad', 'taux de ponctualité', 'to alè', 'نسبة الالتزام بالمواعيد'),
+  response_rate: L('response rate', 'tasa de respuesta', 'taux de réponse', 'to repons', 'معدل الاستجابة'),
+  training_completed: L('training completed', 'capacitación completada', 'formation terminée', 'fòmasyon fini', 'التدريب المكتمل'),
+  certificate: L('certificates', 'certificados', 'certificats', 'sètifika', 'الشهادات'),
+  badge: L('skill badges', 'insignias de habilidad', 'badges de compétence', 'badj konpetans', 'شارات المهارات'),
+  shifts_worked: L('shifts worked', 'turnos trabajados', 'services effectués', 'kwen travay', 'الورديات المنجزة'),
+  tenure: L('time worked at OxSteed businesses', 'tiempo trabajado en negocios de OxSteed', 'temps travaillé dans des entreprises OxSteed', 'tan travay nan biznis OxSteed', 'مدة العمل لدى أنشطة OxSteed'),
+  id_verified: L('identity verification', 'verificación de identidad', 'vérification d\'identité', 'verifikasyon idantite', 'التحقق من الهوية'),
+};
+
+const invitationReasonText = {
+  worked_with_us: L('you have worked with them', 'ya trabajaste con ellos', 'vous avez déjà travaillé avec eux', 'ou te deja travay avè yo', 'عملت معهم من قبل'),
+  great_reviews: L('of your great reviews', 'tus excelentes reseñas', 'de vos excellents avis', 'bèl evalyasyon ou yo', 'تقييماتك الممتازة'),
+  certified: L('you hold the certificates they need', 'tienes los certificados que necesitan', 'vous avez les certificats demandés', 'ou gen sètifika yo bezwen', 'لديك الشهادات التي يحتاجونها'),
+  skills_match: L('your skills match the role', 'tus habilidades encajan con el puesto', 'vos compétences correspondent au poste', 'konpetans ou koresponn ak pòs la', 'مهاراتك تناسب الوظيفة'),
+  nearby: L('you live nearby', 'vives cerca', 'vous habitez à proximité', 'ou rete toupre', 'تسكن بالقرب منهم'),
+};
+const careerFactText = (code, lang = 'en') => pick(factText, code, lang);
+const careerInvitationReasonText = (code, lang = 'en') => pick(invitationReasonText, code, lang);
+
 const careerNotifications = {
   career_application_received: {
     title: L('Application sent to {employerName}', 'Solicitud enviada a {employerName}', 'Candidature envoyée à {employerName}', 'Aplikasyon voye bay {employerName}', 'تم إرسال الطلب إلى {employerName}'),
@@ -88,7 +112,11 @@ const careerNotifications = {
   },
   career_offer_accepted: {
     title: L('Offer accepted for {openingTitle}', 'Oferta aceptada para {openingTitle}', 'Offre acceptée pour {openingTitle}', 'Òf aksepte pou {openingTitle}', 'تم قبول العرض لوظيفة {openingTitle}'),
-    body: L('{candidateName} accepted. Onboarding has started.', '{candidateName} aceptó. La incorporación comenzó.', '{candidateName} a accepté. L\'intégration a commencé.', '{candidateName} aksepte. Entegrasyon an kòmanse.', 'قبل {candidateName}. بدأت إجراءات الانضمام.'),
+    body: L('Applicant #{applicantNumber} accepted. Onboarding has started.', 'El candidato n.º {applicantNumber} aceptó. La incorporación comenzó.', 'Le candidat n° {applicantNumber} a accepté. L\'intégration a commencé.', 'Kandida #{applicantNumber} aksepte. Entegrasyon an kòmanse.', 'قبل المتقدم رقم {applicantNumber}. بدأت إجراءات الانضمام.'),
+  },
+  career_offer_accepted_conditional: {
+    title: L('Offer accepted for {openingTitle}', 'Oferta aceptada para {openingTitle}', 'Offre acceptée pour {openingTitle}', 'Òf aksepte pou {openingTitle}', 'تم قبول العرض لوظيفة {openingTitle}'),
+    body: L('Applicant #{applicantNumber} accepted. The hire completes when the background check is clear.', 'El candidato n.º {applicantNumber} aceptó. La contratación se completa cuando la verificación de antecedentes salga sin observaciones.', 'Le candidat n° {applicantNumber} a accepté. L\'embauche sera finalisée quand la vérification des antécédents sera concluante.', 'Kandida #{applicantNumber} aksepte. Anbochaj la ap fini lè verifikasyon dosye a klè.', 'قبل المتقدم رقم {applicantNumber}. يكتمل التوظيف عندما يكون فحص الخلفية سليمًا.'),
   },
   career_offer_declined: {
     title: L('Offer declined for {openingTitle}', 'Oferta rechazada para {openingTitle}', 'Offre refusée pour {openingTitle}', 'Òf refize pou {openingTitle}', 'تم رفض العرض لوظيفة {openingTitle}'),
@@ -100,7 +128,7 @@ const careerNotifications = {
   },
   career_invitation_received: {
     title: L('{employerName} invited you to apply', '{employerName} te invitó a postularte', '{employerName} vous invite à postuler', '{employerName} envite ou aplike', 'دعاك {employerName} للتقديم'),
-    body: L('They think you are a good fit for {openingTitle}. Applying is your choice.', 'Creen que encajas en {openingTitle}. Postularte es tu decisión.', 'Ils pensent que vous convenez pour {openingTitle}. Postuler reste votre choix.', 'Yo panse ou bon pou {openingTitle}. Se ou ki deside si w ap aplike.', 'يرون أنك مناسب لوظيفة {openingTitle}. التقديم قرارك.'),
+    body: L('They invited you because {invitationReason}. Applying is your choice, and you go through the same steps as everyone else.', 'Te invitaron porque {invitationReason}. Postularte es tu decisión y pasas por los mismos pasos que todos.', 'Ils vous ont invité parce que {invitationReason}. Postuler reste votre choix, avec les mêmes étapes que tout le monde.', 'Yo envite ou paske {invitationReason}. Se ou ki deside aplike, epi w ap pase menm etap ak tout moun.', 'دعوك لأن {invitationReason}. التقديم قرارك، وتمر بالخطوات نفسها مثل الجميع.'),
   },
   career_background_check_invited: {
     title: L('Background check for {openingTitle}', 'Verificación de antecedentes para {openingTitle}', 'Vérification des antécédents pour {openingTitle}', 'Verifikasyon dosye pou {openingTitle}', 'فحص الخلفية لوظيفة {openingTitle}'),
@@ -122,10 +150,29 @@ const careerNotifications = {
     title: L('Your fact dispute was reviewed', 'Revisamos tu disputa', 'Votre contestation a été examinée', 'Nou revize kontestasyon ou', 'تمت مراجعة اعتراضك'),
     body: L('Open your career profile to see the result.', 'Abre tu perfil profesional para ver el resultado.', 'Ouvrez votre profil carrière pour voir le résultat.', 'Louvri pwofil karyè ou pou wè rezilta a.', 'افتح ملفك المهني لرؤية النتيجة.'),
   },
+  career_application_rejected_fact: {
+    title: L('Update on {openingTitle}', 'Novedades sobre {openingTitle}', 'Mise à jour pour {openingTitle}', 'Nouvèl sou {openingTitle}', 'تحديث بشأن {openingTitle}'),
+    body: L('{employerName} is not moving forward because {reason}. The decision used this fact from your OxSteed profile: {fact}. If it is wrong, dispute it from your career profile; you have the right to see what was shared and to have errors corrected within 30 days.', '{employerName} no continuará porque {reason}. La decisión usó este dato de tu perfil de OxSteed: {fact}. Si es incorrecto, dispútalo desde tu perfil profesional; tienes derecho a ver lo que se compartió y a que se corrijan los errores en 30 días.', '{employerName} ne poursuit pas car {reason}. La décision s\'appuie sur cette donnée de votre profil OxSteed : {fact}. Si elle est fausse, contestez-la depuis votre profil carrière ; vous avez le droit de voir ce qui a été partagé et de faire corriger les erreurs sous 30 jours.', '{employerName} pap kontinye paske {reason}. Desizyon an te itilize enfòmasyon sa a nan pwofil OxSteed ou: {fact}. Si li pa kòrèk, konteste l nan pwofil karyè ou; ou gen dwa wè sa yo te pataje epi fè yo korije erè nan 30 jou.', 'لن يواصل {employerName} لأن {reason}. استند القرار إلى هذه المعلومة من ملفك على OxSteed: {fact}. إذا كانت خاطئة فاعترض عليها من ملفك المهني؛ يحق لك الاطلاع على ما تمت مشاركته وتصحيح الأخطاء خلال 30 يومًا.'),
+  },
+  career_guest_confirm: {
+    title: L('Confirm your application for {openingTitle}', 'Confirma tu solicitud para {openingTitle}', 'Confirmez votre candidature pour {openingTitle}', 'Konfime aplikasyon ou pou {openingTitle}', 'أكّد طلبك لوظيفة {openingTitle}'),
+    body: L('Open the link to send your application to {employerName}. It works once and expires in 24 hours. If you did not ask for this, ignore this email.', 'Abre el enlace para enviar tu solicitud a {employerName}. Funciona una vez y vence en 24 horas. Si no lo pediste, ignora este correo.', 'Ouvrez le lien pour envoyer votre candidature à {employerName}. Il ne fonctionne qu\'une fois et expire dans 24 heures. Si vous n\'êtes pas à l\'origine de cette demande, ignorez cet e-mail.', 'Louvri lyen an pou voye aplikasyon ou bay {employerName}. Li mache yon sèl fwa epi li ekspire nan 24 èdtan. Si se pa ou ki te mande l, pa okipe imèl sa a.', 'افتح الرابط لإرسال طلبك إلى {employerName}. يعمل مرة واحدة وتنتهي صلاحيته خلال 24 ساعة. إذا لم تطلب ذلك فتجاهل هذه الرسالة.'),
+  },
+  career_onboarding_welcome: {
+    title: L('Welcome to {employerName}', 'Bienvenido a {employerName}', 'Bienvenue chez {employerName}', 'Byenveni nan {employerName}', 'مرحبًا بك في {employerName}'),
+    body: L('Your onboarding checklist is ready: set your store PIN, start your training and add any documents still needed.', 'Tu lista de incorporación está lista: crea tu PIN de tienda, empieza tu capacitación y agrega los documentos que falten.', 'Votre liste d\'intégration est prête : créez votre code PIN de magasin, commencez votre formation et ajoutez les documents manquants.', 'Lis entegrasyon ou pare: mete PIN magazen ou, kòmanse fòmasyon ou epi ajoute dokiman ki manke yo.', 'قائمة الانضمام جاهزة: عيّن رمز PIN للمتجر وابدأ تدريبك وأضف أي مستندات مطلوبة.'),
+  },
+  career_offer_expired_team: {
+    title: L('An offer expired', 'Una oferta venció', 'Une offre a expiré', 'Yon òf ekspire', 'انتهت صلاحية عرض'),
+    body: L('The offer for {openingTitle} expired without an answer. You can make a new offer or close the application.', 'La oferta para {openingTitle} venció sin respuesta. Puedes hacer una nueva oferta o cerrar la solicitud.', 'L\'offre pour {openingTitle} a expiré sans réponse. Vous pouvez faire une nouvelle offre ou clore la candidature.', 'Òf pou {openingTitle} ekspire san repons. Ou ka fè yon nouvo òf oswa fèmen aplikasyon an.', 'انتهى عرض {openingTitle} دون رد. يمكنك تقديم عرض جديد أو إغلاق الطلب.'),
+  },
   career_ranking_disabled: {
     title: L('AI ranking turned off in {scope}', 'Clasificación con IA desactivada en {scope}', 'Classement IA désactivé dans {scope}', 'Klasman IA etenn nan {scope}', 'أُوقف الترتيب بالذكاء الاصطناعي في {scope}'),
     body: L('The impact ratio fell to {ratio}, below the 0.8 limit. A person must review before it can be turned back on.', 'La proporción de impacto bajó a {ratio}, por debajo del límite de 0.8. Una persona debe revisarlo antes de reactivarla.', 'Le ratio d\'impact est tombé à {ratio}, sous la limite de 0,8. Une personne doit l\'examiner avant de le réactiver.', 'Rapò enpak la desann a {ratio}, anba limit 0.8 la. Yon moun dwe revize l anvan yo limen l ankò.', 'انخفضت نسبة التأثير إلى {ratio} وهي أقل من حد 0.8. يجب أن يراجعها شخص قبل إعادة التشغيل.'),
   },
 };
 
-module.exports = { careerNotifications, careerReasonText, careerCheckStatusText, reasonText, checkStatusText };
+module.exports = {
+  careerNotifications, careerReasonText, careerCheckStatusText, careerFactText, careerInvitationReasonText,
+  reasonText, checkStatusText, factText, invitationReasonText,
+};

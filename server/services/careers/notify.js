@@ -9,7 +9,7 @@ const pool = require('../../db');
 const logger = require('../../utils/logger');
 const { tNotif } = require('../../utils/i18n');
 const { sendEmail } = require('../../utils/email');
-const { careerReasonText, careerCheckStatusText } = require('../../utils/careerNotificationTemplates');
+const { careerReasonText, careerCheckStatusText, careerFactText, careerInvitationReasonText } = require('../../utils/careerNotificationTemplates');
 const { normalizeLocale } = require('./validation');
 
 const APP_URL = () => String(process.env.CLIENT_URL || process.env.APP_URL || 'https://oxsteed.com').replace(/\/+$/, '');
@@ -24,8 +24,18 @@ function renderParams(params, lang) {
   const out = { ...(params || {}) };
   if (out.reasonCode) out.reason = careerReasonText(out.reasonCode, lang);
   if (out.statusCode) out.status = careerCheckStatusText(out.statusCode, lang);
+  if (out.factType) out.fact = careerFactText(out.factType, lang);
+  if (out.invitationReasonCode) out.invitationReason = careerInvitationReasonText(out.invitationReasonCode, lang);
+  if (out.expiresAt) {
+    try {
+      out.expires = new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeStyle: 'short', timeZone: out.timeZone || 'UTC' }).format(new Date(out.expiresAt));
+    } catch { out.expires = new Date(out.expiresAt).toISOString(); }
+  }
   delete out.reasonCode;
   delete out.statusCode;
+  delete out.factType;
+  delete out.invitationReasonCode;
+  delete out.expiresAt;
   return out;
 }
 

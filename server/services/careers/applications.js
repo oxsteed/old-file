@@ -505,7 +505,7 @@ async function changeStage(db, { app, actor, toStage, body }) {
   const params = { openingTitle: app.opening_title, employerName: app.employer_name };
   if (toStage === 'rejected') {
     await notifyApplicant(db, app, {
-      type: 'career_application_rejected',
+      type: factType ? 'career_application_rejected_fact' : 'career_application_rejected',
       // FCRA (§12.8): when a shared fact was the reason, the notice says
       // which fact and links to the dispute flow from My applications.
       params: { ...params, reasonCode, factType, requirement },

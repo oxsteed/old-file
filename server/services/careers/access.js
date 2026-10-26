@@ -22,26 +22,18 @@ const { canActOnRole } = require('../../utils/teamRanks');
 const MANAGE_HIRING = 'careers.manage_hiring';
 const APPROVE_ABOVE_RANGE = 'careers.approve_above_range';
 
-async function hasAdminGrant(user, permission, db = pool) {
+// Same grant semantics as requirePermission (direct and delegated global
+// grants); super_admins hold every permission.
+async function hasAdminGrant(user, permission) {
   if (!user) return false;
   if (user.role === 'super_admin') return true;
   if (user.role !== 'admin') return false;
-  const { rows } = await db.query(
-    `SELECT 1
-       FROM admin_permission_grants
-      WHERE grantee_id = $1
-        AND permissions ? $2
-        AND region_id IS NULL
-        AND expires_at > NOW()
-        AND revoked_at IS NULL
-      LIMIT 1`,
-    [user.id, permission]
-  );
-  return rows.length > 0;
+  // eslint-disable-next-line global-require
+  return require('../../middleware/adminAuth').hasGlobalGrant(user.id, permission);
 }
 
-const canManagePlatformHiring = (user, db) => hasAdminGrant(user, 'manage_hiring', db);
-const canModerateCareers = (user, db) => hasAdminGrant(user, 'moderate_careers', db);
+const canManagePlatformHiring = (user) => hasAdminGrant(user, 'manage_hiring');
+const canModerateCareers = (user) => hasAdminGrant(user, 'moderate_careers');
 
 async function loadScope(db, { businessId, membershipId }) {
   const { rows: scopes } = await db.query(

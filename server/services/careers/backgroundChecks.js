@@ -172,7 +172,7 @@ async function applyWebhook(db, event, { finalize }) {
   await recordEvent(db, { applicationId: app.id, actorId: null, from: app.stage, to: app.stage, metadata: { background_check: mapped.status, check_id: check.id } });
   await notifyHiringTeam(db, openingShape(app), {
     type: 'career_background_check_update',
-    params: { openingTitle: app.opening_title, applicantNumber: app.applicant_number, status: mapped.status },
+    params: { openingTitle: app.opening_title, applicantNumber: app.applicant_number, statusCode: mapped.status },
     deliveryKey: `career_bgc:${check.id}:${mapped.status}`,
   });
   if (mapped.status === 'pre_adverse_sent') {

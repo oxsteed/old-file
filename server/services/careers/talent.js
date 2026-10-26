@@ -291,7 +291,7 @@ async function sendInvitation(db, { access, actor, body }) {
   await notifyUser(db, {
     userId,
     type: 'career_invitation_received',
-    params: { employerName: access.businessName, reasonCode: reason },
+    params: { employerName: access.businessName, invitationReasonCode: reason },
     actionUrl: `/careers/me?invitation=${invitation.id}`,
     deliveryKey: `career_invitation:${invitation.id}`,
     email: prefs ? prefs.email_invitations !== false : true,
