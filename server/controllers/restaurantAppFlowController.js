@@ -149,11 +149,11 @@ const POS_PAYMENT_TYPE_ALIASES = {
   comp: 'comp',
   refund: 'refund',
 };
-const STANDARD_POS_DISCOUNTS = new Map([
-  ['WELCOME10', 1000],
-  ['LUNCH15', 1500],
-  ['VIP20', 2000],
-]);
+// F-15: there are no platform-wide discount codes any more. Staff without
+// POS manage rights apply only the restaurant's own discount definitions
+// (restaurant_discount_definitions, managed in Settings > Discounts);
+// migration 99990 turned the old WELCOME10 / LUNCH15 / VIP20 codes into
+// definitions for the restaurants that had used them.
 const PRINTER_JOB_TYPES = new Set(['kitchen_ticket', 'receipt', 'expo_label', 'runner_handoff']);
 const PRINTER_JOB_STATUSES = new Set(['queued', 'sent', 'printed', 'failed', 'cancelled']);
 const RUNNER_SETTLEMENT_STATUSES = new Set(['pending', 'approved', 'paid', 'disputed', 'voided']);
@@ -296,14 +296,12 @@ function normalizeDiscountLines(body, subtotalCents, { allowManual = false } = {
   let total = parseCents(body.discountCents ?? body.discount_cents, 'discountCents');
   const rootCode = normalizeString(body.discountCode || body.discount_code, 80);
   const rootLabel = normalizeString(body.discountLabel || body.discount_label, 160);
-  if (!allowManual && (total > 0 || rootCode || rootLabel)) {
-    const expectedBps = rootCode ? STANDARD_POS_DISCOUNTS.get(rootCode.toUpperCase()) : null;
-    const expectedAmount = expectedBps === null || expectedBps === undefined
-      ? 0
-      : Math.round(subtotalCents * expectedBps / 10000);
-    if (!expectedBps || total !== expectedAmount) {
-      throw new AppError('Only approved POS discounts may be applied by this role', 403, 'pos_discount_approval_required');
-    }
+  if (!allowManual && (total > 0 || rootCode || rootLabel || lines.length)) {
+    throw new AppError(
+      "Choose one of this restaurant's discounts. Other discounts need a manager.",
+      403,
+      'pos_discount_definition_required'
+    );
   }
   if (total > 0 || rootCode || rootLabel) {
     normalized.push({
@@ -321,23 +319,6 @@ function normalizeDiscountLines(body, subtotalCents, { allowManual = false } = {
     const percentBps = line.percentBps ?? line.percent_bps;
     const percentOff = line.percentOff ?? line.percent_off;
     let amount = parseCents(line.amountCents ?? line.amount_cents, `discountLines.${index}.amountCents`);
-    if (!allowManual) {
-      const expectedBps = code ? STANDARD_POS_DISCOUNTS.get(code.toUpperCase()) : null;
-      const expectedAmount = expectedBps === null || expectedBps === undefined
-        ? 0
-        : Math.round(subtotalCents * expectedBps / 10000);
-      const suppliedBps = percentBps === undefined || percentBps === null || percentBps === ''
-        ? null
-        : Number(percentBps);
-      const suppliedRate = percentOff === undefined || percentOff === null || percentOff === ''
-        ? null
-        : Number(percentOff) * 10000;
-      if (!expectedBps || (amount > 0 && amount !== expectedAmount)
-        || (suppliedBps !== null && suppliedBps !== expectedBps)
-        || (suppliedRate !== null && suppliedRate !== expectedBps)) {
-        throw new AppError('Only approved POS discounts may be applied by this role', 403, 'pos_discount_approval_required');
-      }
-    }
     if (amount === 0 && percentBps !== undefined && percentBps !== null && percentBps !== '') {
       const bps = parseOptionalInteger(percentBps, `discountLines.${index}.percentBps`, 0, 10000) || 0;
       amount = Math.round(subtotalCents * bps / 10000);
@@ -2129,6 +2110,14 @@ exports.updatePublishing = async (req, res, next) => {
         throw new AppError('Only the restaurant owner can change the approval policy', 403, 'forbidden');
       }
       for (const [action, override] of Object.entries(policyPatch)) {
+        // F-15: the discount-definition approval threshold is a plain
+        // non-negative cents value (null removes it).
+        if (action === 'discountAboveCents' || action === 'discount_above_cents') {
+          if (override !== null && !(Number.isInteger(override) && override >= 0 && override <= 100000000)) {
+            throw new AppError('Validation failed', 400, 'validation_failed', { 'settings.posApprovalPolicy.discountAboveCents': 'Must be a whole number of cents or null' });
+          }
+          continue;
+        }
         if (!override || typeof override !== 'object' || Array.isArray(override)) {
           throw new AppError('Validation failed', 400, 'validation_failed', { 'settings.posApprovalPolicy': `Invalid override for "${action}"` });
         }
@@ -2137,6 +2126,14 @@ exports.updatePublishing = async (req, res, next) => {
         }
       }
       posApprovalPolicyPatch = policyPatch;
+      // settings is merged shallowly (settings || patch), which replaced the
+      // whole policy object and silently dropped every other action's
+      // override. Merge per action key here so a single change (e.g. the
+      // F-15 discountAboveCents threshold) keeps the rest of the policy.
+      settingsPatch.posApprovalPolicy = {
+        ...safeJson(safeJson(restaurant.settings, {}).posApprovalPolicy, {}),
+        ...policyPatch,
+      };
     }
     const operatingHours = safeJson(req.body.operatingHours ?? req.body.operating_hours, null);
     const locationPatch = normalizeLocationPatch(req.body.primaryLocation || req.body.primary_location || req.body.location);

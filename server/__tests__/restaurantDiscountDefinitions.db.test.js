@@ -19,8 +19,9 @@
  *         PIN, and with a manager PIN the approval is consumed through
  *         restaurant_pos_approvals (action 'discount') inside the order
  *         transaction. Managers never need the PIN.
- *   Legacy global codes (WELCOME10 etc.) are untouched when no
- *   definition id is sent.
+ *   There are no platform-wide codes any more (F-15 follow-up): staff
+ *   without POS manage rights must use a definition; WELCOME10 & co.
+ *   are refused with pos_discount_definition_required.
  *
  * Run with:
  *   RESTAURANT_DISCOUNT_TEST_DATABASE_URL=postgresql://...@127.0.0.1:5432/st_f15
@@ -88,6 +89,7 @@ function staffApp(userId) {
   app.get('/api/restaurants/:restaurantId/app/bootstrap', appFlow.getBootstrap);
   app.post('/api/restaurants/:restaurantId/pos/staff-pins', appFlow.setStaffPin);
   app.post('/api/restaurants/:restaurantId/pos/orders', appFlow.createPosOrder);
+  app.patch('/api/restaurants/:restaurantId/publishing', appFlow.updatePublishing);
   app.use(errorHandler);
   return app;
 }
@@ -370,13 +372,12 @@ ddescribe('F-15 discount definitions + S-07 discount approval (st_f15)', () => {
       expect(cross.status).not.toBe(201);
     });
 
-    test('legacy global code path is unchanged when no definition id is sent', async () => {
+    test('former platform codes are refused for staff without a definition', async () => {
       const res = await createOrderAs(F.employee, {
         discountLines: [{ code: 'WELCOME10', label: 'Welcome 10%', percent_bps: 1000 }],
       });
-      expect(res.status).toBe(201);
-      expect(Number(res.body.order.discount_cents)).toBe(200);
-      expect(res.body.order.metadata.posDiscounts[0].source).toBe('pos_discount');
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('pos_discount_definition_required');
     });
   });
 
@@ -506,12 +507,38 @@ ddescribe('F-15 discount definitions + S-07 discount approval (st_f15)', () => {
       expect(codes).not.toContain('TEMP5');
     });
 
-    test('the discounts endpoint returns legacy codes and definitions together', async () => {
+    test('the discounts endpoint returns only the restaurant definitions', async () => {
       const res = await request(staffApp(F.employee))
         .get(`/api/restaurants/${F.restaurantId}/pos/discounts`);
       expect(res.status).toBe(200);
-      expect(res.body.discounts.map((d) => d.code)).toContain('WELCOME10');
+      expect(res.body.discounts).toEqual([]);
       expect(res.body.discountDefinitions.map((d) => d.code)).toContain('STAFF25');
+    });
+  });
+
+  describe('F-15 approval threshold setting', () => {
+    test('owner sets discountAboveCents without dropping other policy actions', async () => {
+      await pool.query(
+        `UPDATE food_restaurants
+            SET settings = jsonb_set(COALESCE(settings,'{}'::jsonb), '{posApprovalPolicy}', '{"void":{"always":true}}'::jsonb)
+          WHERE id = $1`, [F.restaurantId]);
+      const res = await request(staffApp(F.owner))
+        .patch(`/api/restaurants/${F.restaurantId}/publishing`)
+        .send({ settings: { posApprovalPolicy: { discountAboveCents: 2500 } } });
+      expect(res.status).toBe(200);
+      const { rows: [row] } = await pool.query('SELECT settings FROM food_restaurants WHERE id = $1', [F.restaurantId]);
+      expect(row.settings.posApprovalPolicy).toEqual({ void: { always: true }, discountAboveCents: 2500 });
+    });
+
+    test('threshold must be whole cents or null; non-owners cannot change it', async () => {
+      const bad = await request(staffApp(F.owner))
+        .patch(`/api/restaurants/${F.restaurantId}/publishing`)
+        .send({ settings: { posApprovalPolicy: { discountAboveCents: -5 } } });
+      expect(bad.status).toBe(400);
+      const manager = await request(staffApp(F.manager || F.employee))
+        .patch(`/api/restaurants/${F.restaurantId}/publishing`)
+        .send({ settings: { posApprovalPolicy: { discountAboveCents: null } } });
+      expect(manager.status).toBe(403);
     });
   });
 });

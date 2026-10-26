@@ -41,6 +41,7 @@ import RestaurantMyShiftPanel from './RestaurantMyShiftPanel';
 import { AuditsPanel } from './RestaurantAuditPanels';
 import { ReportsPanel } from './RestaurantReportsPanel';
 import PrinterSettingsPanel from './PrinterSettingsPanel';
+import RestaurantDiscountsPanel from './RestaurantDiscountsPanel';
 import GiftCardProductsPanel from './GiftCardProductsPanel';
 import DisplayFleetPanel from './DisplayFleetPanel';
 import RestaurantHostingPanel from './RestaurantHostingPanel';
@@ -1910,6 +1911,17 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
           wide
         >
           <PromotionsPanel t={t} restaurant={restaurant} bare />
+        </SettingsCard>
+
+        <SettingsCard
+          icon={Tag}
+          title={t('restaurantDiscounts.title')}
+          desc={t('restaurantDiscounts.desc')}
+          cardKey="pos-discounts"
+          registerRef={registerCard}
+          wide
+        >
+          <RestaurantDiscountsPanel t={t} restaurant={restaurant} />
         </SettingsCard>
 
         <PrinterSettingsPanel t={t} restaurant={restaurant} />
