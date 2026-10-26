@@ -13,7 +13,6 @@
 --       B2B outreach rules on jurisdiction_rules (unreviewed = closed).
 -- D21   Amazon Associates campaign-level results (Amazon reports by tracking
 --       tag only; there is no per-click attribution).
--- D-ENG-06 provider-agnostic age verification ledger (no vendor chosen).
 -- D16   admin operational notices + geo-source switch history for rollback.
 -- N-04  backup kind (full / incremental) for the daily+weekly schedule.
 
@@ -175,23 +174,6 @@ CREATE TABLE IF NOT EXISTS amazon_campaign_results (
 CREATE INDEX IF NOT EXISTS amazon_campaign_results_campaign_idx ON amazon_campaign_results(campaign_id);
 ALTER TABLE marketplace_products
   ADD COLUMN IF NOT EXISTS partner_refreshed_at TIMESTAMPTZ;
-
--- ── D-ENG-06 age verification (provider-agnostic) ──────────────────────
-CREATE TABLE IF NOT EXISTS growth_age_verifications (
-  id BIGSERIAL PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  method TEXT NOT NULL CHECK (method IN ('provider','signup_self_attestation','in_app_self_attestation','admin_review')),
-  provider TEXT,
-  outcome TEXT NOT NULL CHECK (outcome IN ('adult','minor','unknown','revoked')),
-  evidence_ref TEXT NOT NULL,
-  policy_version TEXT NOT NULL,
-  minimum_age SMALLINT NOT NULL CHECK (minimum_age BETWEEN 13 AND 25),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS growth_age_verifications_user_idx ON growth_age_verifications(user_id, id DESC);
-ALTER TABLE growth_subject_eligibility
-  ADD COLUMN IF NOT EXISTS age_method TEXT,
-  ADD COLUMN IF NOT EXISTS age_policy_version TEXT;
 
 -- ── D16 admin notices + geo-source switch history ──────────────────────
 CREATE TABLE IF NOT EXISTS admin_operational_notices (
