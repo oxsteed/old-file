@@ -89,10 +89,27 @@ async function resolveBusinesses(userId, businessIdFilter) {
 async function restaurantsForBusiness(businessId, tableExists) {
   if (!(await tableExists('food_restaurants'))) return [];
   const { rows } = await pool.query(
-    'SELECT id, display_name FROM food_restaurants WHERE business_id = $1',
+    'SELECT id, display_name FROM food_restaurants WHERE business_id = $1 ORDER BY id ASC',
     [businessId]
   );
   return rows.map((r) => ({ id: Number(r.id), name: r.display_name }));
+}
+
+// F-02: null = all stores (owner, or a member with no store assignment,
+// which is the staged all-store default); otherwise the assigned store ids
+// across every restaurant of the business.
+async function assignedLocationIds(businessId, userId, tableExists) {
+  if (!(await tableExists('restaurant_location_memberships'))) return null;
+  const { rows } = await pool.query(
+    `SELECT DISTINCT lm.location_id
+       FROM restaurant_location_memberships lm
+       JOIN business_members bm ON bm.id = lm.membership_id
+      WHERE bm.business_id = $1 AND bm.member_id = $2
+        AND bm.status = 'active' AND lm.status = 'active'
+      ORDER BY lm.location_id`,
+    [businessId, userId]
+  );
+  return rows.length ? rows.map((r) => Number(r.location_id)) : null;
 }
 
 /**
@@ -203,6 +220,8 @@ async function collectAttention(opts) {
       role,
       canSeeFinance,
       business,
+      // F-02: store-assigned staff only see their stores' orders.
+      locationIds: role === 'owner' ? null : await assignedLocationIds(business.id, userId, tableExists),
     };
 
     const runnable = CATEGORIES.filter((c) => canSeeFinance || !FINANCE_CATEGORIES.has(c));

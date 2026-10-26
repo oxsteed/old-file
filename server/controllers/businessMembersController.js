@@ -633,7 +633,7 @@ async function rehireMember(req, res) {
           WHERE a.user_id = $1 AND a.restaurant_id IN (
             SELECT id FROM food_restaurants WHERE business_id = $2
           )
-          ORDER BY c.completed_at DESC
+          ORDER BY c.completed_at DESC, c.id DESC
           LIMIT 50`,
         [user.id, biz.id]
       );

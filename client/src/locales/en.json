@@ -23672,7 +23672,8 @@
       "refundSuccess": "Refund issued",
       "refundError": "Unable to issue refund.",
       "cardPartialRefundUnsupported": "Partial refunds are not available for online card orders. Refund the full order or ask support for help.",
-      "cardRefundUseCancel": "Card orders are refunded by cancelling the order. The card refund happens automatically."
+      "cardRefundUseCancel": "Card orders are refunded by cancelling the order. The card refund happens automatically.",
+      "addAnotherRestaurant": "Add another restaurant"
     },
     "onboarding": {
       "eyebrow": "Opening Night",
@@ -36657,5 +36658,15 @@
       "rolledBackTitle": "Regional analytics geo source rolled back",
       "rolledBackBody": "Regional analytics are back on the previous location source. Numbers return to the earlier basis."
     }
+  },
+  "restaurantPermissionDenied": {
+    "pos": "You don't have permission to use the register (POS) here. Ask a manager to add POS access to your role.",
+    "kitchen": "You don't have permission to update the kitchen display here. Ask a manager to add kitchen access to your role.",
+    "runner": "You don't have permission to update deliveries and runners here. Ask a manager to add runner access to your role.",
+    "menu": "You don't have permission to change the menu here. Ask a manager for menu access.",
+    "settings": "You don't have permission to change this restaurant's settings. Ask the owner or a manager.",
+    "refunds": "You don't have permission to issue refunds here. Ask a manager to approve the refund.",
+    "display": "You don't have permission to manage displays here. Ask a manager for display access.",
+    "orders": "You don't have permission to manage orders here. Ask a manager to add order access to your role."
   }
 }

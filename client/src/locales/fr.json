@@ -23672,7 +23672,8 @@
       "refundSuccess": "Remboursement émis",
       "refundError": "Impossible d’émettre le remboursement.",
       "cardPartialRefundUnsupported": "Les remboursements partiels ne sont pas disponibles pour les commandes payées par carte en ligne. Remboursez la commande entière ou demandez de l'aide au support.",
-      "cardRefundUseCancel": "Les commandes par carte sont remboursées en annulant la commande. Le remboursement sur la carte est automatique."
+      "cardRefundUseCancel": "Les commandes par carte sont remboursées en annulant la commande. Le remboursement sur la carte est automatique.",
+      "addAnotherRestaurant": "Ajouter un autre restaurant"
     },
     "onboarding": {
       "eyebrow": "Nuit d'ouverture",
@@ -36657,5 +36658,15 @@
       "rolledBackTitle": "Source géographique des analyses régionales rétablie",
       "rolledBackBody": "Les analyses régionales utilisent de nouveau la source de localisation précédente. Les chiffres reviennent à l’ancienne base."
     }
+  },
+  "restaurantPermissionDenied": {
+    "pos": "Vous n’avez pas l’autorisation d’utiliser la caisse (POS) ici. Demandez à un responsable d’ajouter l’accès POS à votre rôle.",
+    "kitchen": "Vous n’avez pas l’autorisation de mettre à jour l’écran cuisine ici. Demandez à un responsable d’ajouter l’accès cuisine à votre rôle.",
+    "runner": "Vous n’avez pas l’autorisation de mettre à jour les livraisons et les coursiers ici. Demandez cet accès à un responsable.",
+    "menu": "Vous n’avez pas l’autorisation de modifier le menu ici. Demandez l’accès au menu à un responsable.",
+    "settings": "Vous n’avez pas l’autorisation de modifier les paramètres de ce restaurant. Adressez-vous au propriétaire ou à un responsable.",
+    "refunds": "Vous n’avez pas l’autorisation d’émettre des remboursements ici. Demandez à un responsable d’approuver le remboursement.",
+    "display": "Vous n’avez pas l’autorisation de gérer les écrans ici. Demandez l’accès aux écrans à un responsable.",
+    "orders": "Vous n’avez pas l’autorisation de gérer les commandes ici. Demandez à un responsable d’ajouter l’accès aux commandes à votre rôle."
   }
 }

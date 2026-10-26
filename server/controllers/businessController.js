@@ -51,7 +51,7 @@ async function ensureDraftFoodRestaurantForBusiness(client, business, ownerUserI
   if (!business || business.business_mode !== 'food') return null;
 
   const { rows: existing } = await client.query(
-    `SELECT id FROM food_restaurants WHERE business_id = $1 LIMIT 1`,
+    `SELECT id FROM food_restaurants WHERE business_id = $1 ORDER BY id ASC LIMIT 1`,
     [business.id]
   );
   if (existing[0]) return existing[0];

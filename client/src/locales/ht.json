@@ -23672,7 +23672,8 @@
       "refundSuccess": "Ranbousman bay",
       "refundError": "Pa ka bay ranbousman an.",
       "cardPartialRefundUnsupported": "Ranbousman pasyèl pa disponib pou kòmann kat sou entènèt. Ranbouse tout kòmann lan oswa mande sipò èd.",
-      "cardRefundUseCancel": "Kòmann kat yo ranbouse lè ou anile kòmann lan. Ranbousman kat la fèt otomatikman."
+      "cardRefundUseCancel": "Kòmann kat yo ranbouse lè ou anile kòmann lan. Ranbousman kat la fèt otomatikman.",
+      "addAnotherRestaurant": "Ajoute yon lòt restoran"
     },
     "onboarding": {
       "eyebrow": "Sware Ouvèti",
@@ -36657,5 +36658,15 @@
       "rolledBackTitle": "Sous jeyografik analiz rejyonal yo retounen",
       "rolledBackBody": "Analiz rejyonal yo retounen sou sous lokalizasyon anvan an. Chif yo retounen sou ansyen baz la."
     }
+  },
+  "restaurantPermissionDenied": {
+    "pos": "Ou pa gen pèmisyon pou itilize kès la (POS) isit la. Mande yon manadjè ajoute aksè POS nan wòl ou.",
+    "kitchen": "Ou pa gen pèmisyon pou mete ekran kwizin nan ajou isit la. Mande yon manadjè ajoute aksè kwizin nan wòl ou.",
+    "runner": "Ou pa gen pèmisyon pou mete livrezon ak kourè yo ajou isit la. Mande yon manadjè aksè sa a.",
+    "menu": "Ou pa gen pèmisyon pou chanje meni an isit la. Mande yon manadjè aksè meni.",
+    "settings": "Ou pa gen pèmisyon pou chanje paramèt restoran sa a. Mande pwopriyetè a oswa yon manadjè.",
+    "refunds": "Ou pa gen pèmisyon pou bay ranbousman isit la. Mande yon manadjè apwouve ranbousman an.",
+    "display": "Ou pa gen pèmisyon pou jere ekran yo isit la. Mande yon manadjè aksè ekran.",
+    "orders": "Ou pa gen pèmisyon pou jere kòmand yo isit la. Mande yon manadjè ajoute aksè kòmand nan wòl ou."
   }
 }

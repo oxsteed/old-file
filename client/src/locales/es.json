@@ -23672,7 +23672,8 @@
       "refundSuccess": "Reembolso emitido",
       "refundError": "No se pudo emitir el reembolso.",
       "cardPartialRefundUnsupported": "Los reembolsos parciales no están disponibles para pedidos con tarjeta en línea. Reembolsa el pedido completo o pide ayuda a soporte.",
-      "cardRefundUseCancel": "Los pedidos con tarjeta se reembolsan cancelando el pedido. El reembolso a la tarjeta es automático."
+      "cardRefundUseCancel": "Los pedidos con tarjeta se reembolsan cancelando el pedido. El reembolso a la tarjeta es automático.",
+      "addAnotherRestaurant": "Agregar otro restaurante"
     },
     "onboarding": {
       "eyebrow": "Noche de apertura",
@@ -36657,5 +36658,15 @@
       "rolledBackTitle": "Se revirtió la fuente geográfica de la analítica regional",
       "rolledBackBody": "La analítica regional volvió a la fuente de ubicación anterior. Las cifras vuelven a la base previa."
     }
+  },
+  "restaurantPermissionDenied": {
+    "pos": "No tienes permiso para usar la caja (POS) aquí. Pide a un gerente que agregue acceso al POS a tu rol.",
+    "kitchen": "No tienes permiso para actualizar la pantalla de cocina aquí. Pide a un gerente que agregue acceso a cocina a tu rol.",
+    "runner": "No tienes permiso para actualizar entregas y repartidores aquí. Pide a un gerente que agregue ese acceso a tu rol.",
+    "menu": "No tienes permiso para cambiar el menú aquí. Pide acceso al menú a un gerente.",
+    "settings": "No tienes permiso para cambiar la configuración de este restaurante. Pregunta al propietario o a un gerente.",
+    "refunds": "No tienes permiso para emitir reembolsos aquí. Pide a un gerente que apruebe el reembolso.",
+    "display": "No tienes permiso para administrar pantallas aquí. Pide acceso a pantallas a un gerente.",
+    "orders": "No tienes permiso para gestionar pedidos aquí. Pide a un gerente que agregue acceso a pedidos a tu rol."
   }
 }

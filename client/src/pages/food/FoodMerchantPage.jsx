@@ -2634,6 +2634,17 @@ export default function FoodMerchantPage() {
               >
                 {t('food.merchant.openSetupGuide')}
               </button>
+              {/* F-02: a second restaurant is its own business workspace
+                  (own payouts, tax and staff); stores inside one restaurant
+                  are added under Settings > Locations. */}
+              <button
+                type="button"
+                className="fd-btn fd-btn-secondary fd-btn-sm"
+                onClick={() => navigate('/business-hub?create=restaurant')}
+                data-track="food_merchant_add_another_restaurant"
+              >
+                {t('food.merchant.addAnotherRestaurant')}
+              </button>
             </div>
           )}
         </div>

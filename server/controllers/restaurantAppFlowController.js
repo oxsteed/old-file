@@ -1014,7 +1014,40 @@ async function assertRestaurantPermission(restaurant, userId, allowedPermissions
   });
   const permissions = new Set(permissionResult.permissions || []);
   if (permissions.has('*') || allowedPermissions.some((permission) => permissions.has(permission))) return;
-  throw new AppError('You do not have permission to update this kitchen', 403, 'forbidden');
+  const area = restaurantPermissionArea(allowedPermissions);
+  throw new AppError(RESTAURANT_PERMISSION_DENIALS[area], 403, 'forbidden', {
+    permission_area: area,
+    required_any_of: allowedPermissions.slice(),
+  });
+}
+
+// N-07: denials name the area the staff member lacks access to instead of
+// "update this kitchen" for every POS, runner, menu and settings action.
+// The code stays 'forbidden' (clients key on it); permission_area lets the
+// client show the localized restaurantPermissionDenied.<area> copy.
+const RESTAURANT_PERMISSION_DENIALS = Object.freeze({
+  pos: 'You do not have permission to use the register (POS) at this restaurant',
+  kitchen: 'You do not have permission to update the kitchen display at this restaurant',
+  runner: 'You do not have permission to update deliveries and runners at this restaurant',
+  menu: 'You do not have permission to change the menu at this restaurant',
+  settings: 'You do not have permission to change settings at this restaurant',
+  refunds: 'You do not have permission to issue refunds at this restaurant',
+  display: 'You do not have permission to manage displays at this restaurant',
+  orders: 'You do not have permission to manage orders at this restaurant',
+});
+
+function restaurantPermissionArea(allowedPermissions = []) {
+  const list = allowedPermissions.map(String);
+  const first = list.find((p) => !['orders.manage', 'restaurant.manage'].includes(p)) || list[0] || '';
+  if (list.includes('issue_refunds')) return 'refunds';
+  const domain = first.split('.')[0];
+  if (domain === 'pos') return 'pos';
+  if (domain === 'kitchen') return 'kitchen';
+  if (domain === 'runner') return 'runner';
+  if (domain === 'menu') return 'menu';
+  if (domain === 'settings' || domain === 'restaurant') return 'settings';
+  if (domain === 'display') return 'display';
+  return 'orders';
 }
 
 async function hasRestaurantPermission(restaurant, userId, permission) {
@@ -10492,3 +10525,6 @@ exports.requireScreenStaff = async (userId, restaurantId, manage = false) => {
  return restaurant;
 };
 exports.publicScreenDevice = publicDevice;
+// N-07 test seam.
+exports._restaurantPermissionArea = restaurantPermissionArea;
+exports._RESTAURANT_PERMISSION_DENIALS = RESTAURANT_PERMISSION_DENIALS;
