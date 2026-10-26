@@ -35,9 +35,26 @@ No overlapping tables.
 No overlapping tables or constraints.
 
 ## Rule going forward
-New migrations must use the next free number in the current migration
-directory.
-`docs/` checks or CI filename-uniqueness lint would catch repeats early.
+New migrations must use an unused prefix **and sort after the current last
+filename**. Do not fill historical gaps: the runner preserves lexical order.
+CI runs `scripts/check-migration-history.cjs` against the pull request base or
+previous push and rejects edits/removals, new duplicate prefixes and additions
+that would run before the historical tail. The next PostgreSQL prefix is
+currently 99988. Changing to numeric sorting requires a full-history rehearsal;
+existing 1551/610b-style ordering must not silently change on fresh installs.
+
+The [2026-10-25 inventory](migration-prefix-inventory-2026-10-25.json) records
+all **33 duplicate numeric-prefix groups** across 1,007 SQL files and the
+**28 gap ranges** in the current source. This supersedes the pasted audit's
+34-group count; suffix/leading-zero conventions affect such counts. No source
+or deployment evidence currently explains 99915. Its absence is recorded,
+not treated as permission to manufacture or rename an applied migration.
+
+Rows with a NULL legacy checksum receive the current source checksum on the
+next migration run, with an explicit warning that historical applied bytes
+remain unverified. That establishes a forward baseline only. Inspect historical
+deployment/migration records separately when reconciling previously edited
+files such as 99983; this work does not certify their old contents.
 
 ## Growth-era numbering note (2026-10-20)
 

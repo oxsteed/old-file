@@ -31,6 +31,7 @@ function buildSchedule() {
 
   return [
     ...require('../growth/workerSchedule').entries(),
+    ['cancellationStatsRefresh', () => require('../services/cancellationStatsRefresh').refresh(), 60 * 60 * 1000, {}],
     ['incidentNotificationDispatch', options => require('../jobs/incidentNotificationDispatch').dispatchPendingIncidentNotifications(options), 60 * 1000, { limit: 50 }],
     ['safetySOSEscalation', options => require('../services/safetySOSService').escalateUnacknowledgedSOS(options), 60 * 1000, { limit: 50 }],
     ['ccpaErasure', options => require('../services/ccpaErasureService').processErasureJobs(options), 60 * 1000, { limit: 10 }],

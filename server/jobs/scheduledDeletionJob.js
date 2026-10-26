@@ -63,6 +63,11 @@ async function findCreditRetentionTables() {
     'oxsteed_credit_settlement_reversals',
     'oxsteed_credit_audit_events',
     'oxsteed_credit_notification_outbox',
+    'food_customer_wallet_accounts',
+    'food_customer_wallet_ledger',
+    'food_restaurants',
+    'money_movement_approvals',
+    'restaurant_payouts',
   ];
   const exists = await Promise.all(candidates.map((table) => tableExists(table)));
   return candidates.filter((_, index) => exists[index]);
@@ -88,6 +93,12 @@ async function hasCreditRecords(client, userId, tables) {
   if (tables.includes('oxsteed_credit_settlement_reversals')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_settlement_reversals WHERE actor_user_id = $1)');
   if (tables.includes('oxsteed_credit_audit_events')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_audit_events WHERE actor_user_id = $1)');
   if (tables.includes('oxsteed_credit_notification_outbox')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_notification_outbox WHERE user_id = $1)');
+  if (tables.includes('food_customer_wallet_accounts')) predicates.push('EXISTS (SELECT 1 FROM food_customer_wallet_accounts WHERE customer_id = $1)');
+  if (tables.includes('food_customer_wallet_ledger')) predicates.push('EXISTS (SELECT 1 FROM food_customer_wallet_ledger WHERE customer_id = $1 OR created_by_user_id = $1)');
+  // Deleting an owner cascades through restaurants and their customers' wallets.
+  if (tables.includes('food_restaurants')) predicates.push('EXISTS (SELECT 1 FROM food_restaurants WHERE owner_user_id = $1 OR business_id IN (SELECT id FROM businesses WHERE user_id = $1))');
+  if (tables.includes('money_movement_approvals')) predicates.push('EXISTS (SELECT 1 FROM money_movement_approvals WHERE requested_by = $1)');
+  if (tables.includes('restaurant_payouts')) predicates.push('EXISTS (SELECT 1 FROM restaurant_payouts WHERE requested_by = $1)');
   const { rows } = await client.query(`SELECT ${predicates.join(' OR ')} AS has_credit_records`, [String(userId)]);
   return rows[0]?.has_credit_records === true;
 }
@@ -115,7 +126,8 @@ async function anonymizeCreditCustomer(client, userId, { hasNotificationOutbox =
             state = NULL,
             zip_code = NULL,
             address_line1 = NULL,
-            country = NULL,
+            country = 'ZZ',
+            country_confirmed = FALSE,
             password_hash = 'DELETED',
             totp_secret = NULL,
             totp_enabled = FALSE,
@@ -126,35 +138,45 @@ async function anonymizeCreditCustomer(client, userId, { hasNotificationOutbox =
       WHERE id::text = $1`,
     [String(userId)],
   );
+  // Migration 908 confirms any country change. Clear that derived evidence
+  // separately, without updating its trigger columns, in the same transaction.
+  await client.query(`UPDATE users SET country_confirmed=FALSE,country_confirmed_at=NULL,
+    country_confirmation_source=NULL WHERE id::text=$1`, [String(userId)]);
 }
 
 async function hardDeleteExpiredAccounts() {
   logger.info('scheduledDeletionJob: starting');
   if (process.env.NODE_ENV !== 'test') await cleanupExpiredSessionData();
 
-  const { rows: candidates } = await pool.query(
-    `SELECT id, email, first_name, last_name, deletion_scheduled_at
-     FROM users
-     WHERE deletion_type = 'admin'
-       AND deletion_scheduled_at IS NOT NULL
-       AND deletion_scheduled_at <= NOW()
-       AND deleted_at IS NOT NULL
-     ORDER BY deletion_scheduled_at ASC
-     LIMIT 50`
-  );
+  let cursor = null, examined = 0;
+  for (;;) {
+    const { rows: candidates } = await pool.query(
+      `SELECT id, email, first_name, last_name, deletion_scheduled_at, COUNT(*) OVER()::int AS remaining_due
+       FROM users
+       WHERE deletion_type = 'admin'
+         AND deletion_scheduled_at IS NOT NULL
+         AND deletion_scheduled_at <= NOW()
+         AND deleted_at IS NOT NULL
+         AND ($1::timestamptz IS NULL OR (deletion_scheduled_at,id) > ($1::timestamptz,$2::uuid))
+       ORDER BY deletion_scheduled_at ASC, id ASC
+       LIMIT 50`, [cursor?.deletion_scheduled_at || null, cursor?.id || null]
+    );
 
-  if (!candidates.length) {
-    logger.info('scheduledDeletionJob: no accounts due for hard deletion');
-    return;
+    if (!candidates.length) {
+      if (!examined) logger.info('scheduledDeletionJob: no accounts due for hard deletion');
+      break;
+    }
+
+    if (!cursor) logger.info('scheduledDeletionJob: accounts due for hard deletion', { totalDue: candidates[0].remaining_due ?? candidates.length });
+
+    for (const user of candidates) {
+      await hardDeleteUser(user);
+      examined++;
+    }
+    cursor = candidates.at(-1);
+    if (candidates.length < 50) break;
   }
-
-  logger.info(`scheduledDeletionJob: ${candidates.length} account(s) due for hard deletion`);
-
-  for (const user of candidates) {
-    await hardDeleteUser(user);
-  }
-
-  logger.info('scheduledDeletionJob: complete');
+  logger.info('scheduledDeletionJob: complete', { examined });
 }
 
 async function cleanupExpiredSessionData() {
@@ -229,6 +251,14 @@ async function hardDeleteUser(user, { throwOnError = false } = {}) {
 
   try {
     await client.query('BEGIN');
+    await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [userId]);
+    const blockers = await require('../services/accountDeletionGuard').findFinancialBlockers(userId, client);
+    if (blockers.length) {
+      const error = new Error('Stored value or pending money requires resolution before deletion');
+      error.code = 'account_financial_review';
+      error.statusCode = 409;
+      throw error;
+    }
     await require('../services/privacyActivityData').erase(client,userId);
     if(process.env.GROWTH_SUBJECT_PEPPER)await require('../growth/rights').erase(client,userId);
 
@@ -277,6 +307,8 @@ async function hardDeleteUser(user, { throwOnError = false } = {}) {
     await reassignToSentinel('admin_audit_log', 'admin_id');
     await reassignToSentinel('admin_user_action_log', 'admin_id');
     await reassignToSentinel('admin_user_action_log', 'target_user_id');
+    await reassignToSentinel('business_events', 'created_by');
+    await reassignToSentinel('support_ai_reply_drafts', 'requested_by');
     await nullify('platform_settings', 'updated_by');
     await nullify('feature_flags', 'updated_by');
     await nullify('content_reports', 'reviewed_by');
@@ -360,22 +392,15 @@ async function hardDeleteUser(user, { throwOnError = false } = {}) {
       // Complete the privacy request without deleting immutable evidence. The
       // account is anonymized and disabled while retained audit rows remain.
       try {
-        await pool.query(
-          `UPDATE users
-              SET first_name = 'Deleted', last_name = 'User',
-                  email = CONCAT('deleted_', id::text, '@oxsteed.removed'),
-                  phone = NULL, phone_number = NULL, bio = NULL,
-                  profile_photo_url = NULL, city = NULL, state = NULL,
-                  zip_code = NULL, address_line1 = NULL, country = NULL,
-                  password_hash = 'DELETED', totp_secret = NULL,
-                  totp_enabled = FALSE, backup_codes = NULL,
-                  is_active = FALSE, deletion_scheduled_at = NULL,
-                  updated_at = NOW()
-            WHERE id::text = $1`,
-          [String(userId)],
-        );
+        await client.query('BEGIN');
+        await anonymizeCreditCustomer(client, userId);
+        await client.query('COMMIT');
+        await require('../services/incidentStore').recordIncident({ type: 'account_erasure_retained', severity: 'high',
+          message: 'Account retained because a restricted reference requires operator review',
+          dedupeKey: `account-erasure-retained:${userId}`, details: { userId, code: 'restricted_reference' } });
         logger.info('scheduledDeletionJob: anonymized user while retaining audit evidence', { userId });
       } catch (anonymizeErr) {
+        await client.query('ROLLBACK');
         logger.error('scheduledDeletionJob: audit-retained anonymization failed', { userId, error: anonymizeErr.message });
       }
     } else {

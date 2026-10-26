@@ -181,7 +181,7 @@ exports.getHealth = async (req, res) => {
     if (await tableExists('disputes')) {
       const { rows } = await db.query(
         `SELECT COUNT(*)::INT AS dispute_count,
-                SUM(CASE WHEN status IN ('open', 'under_review') THEN 1 ELSE 0 END)::INT AS open_disputes
+                SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END)::INT AS open_disputes
          FROM disputes WHERE opened_by = $1::UUID OR against_user = $1::UUID`,
         [userId]
       );

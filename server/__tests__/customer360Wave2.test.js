@@ -12,6 +12,7 @@
 
 const DISPOSABLE_PATTERN = (() => {
   const raw = process.env.CUSTOMER360_TEST_DATABASE_URL
+    || process.env.STATEMENT_TEST_DATABASE_URL
     || 'postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable';
   let url;
   try { url = new URL(raw); } catch { throw new Error('Requires a disposable localhost test database'); }

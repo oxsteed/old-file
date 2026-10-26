@@ -11,6 +11,7 @@ const { CANCEL_RISK_THRESHOLDS, cancelRiskLevelCaseSql } = require('../analytics
 exports.getCustomerCancellationStats = async (req, res, next) => {
   try {
     const { userId } = req.params;
+    const freshness = await require('../services/cancellationStatsRefresh').freshness('customer_cancellation_stats');
 
     const result = await pool.query(
       `
@@ -41,6 +42,7 @@ exports.getCustomerCancellationStats = async (req, res, next) => {
       return res.json({
         success: true,
         data: {
+          ...freshness,
           client_id: userId,
           cancellations_total: 0,
           cancellations_6m: 0,
@@ -84,6 +86,7 @@ exports.getCustomerCancellationStats = async (req, res, next) => {
       success: true,
       data: {
         ...stats,
+        ...freshness,
         cancellation_pattern: pattern,
         risk_level: calculateRiskLevel(stats)
       }
@@ -105,6 +108,7 @@ exports.getCustomerCancellationStats = async (req, res, next) => {
 exports.getHelperCancellationStats = async (req, res, next) => {
   try {
     const { userId } = req.params;
+    const freshness = await require('../services/cancellationStatsRefresh').freshness('helper_cancellation_stats');
 
     const result = await pool.query(
       `
@@ -129,6 +133,7 @@ exports.getHelperCancellationStats = async (req, res, next) => {
       return res.json({
         success: true,
         data: {
+          ...freshness,
           assigned_helper_id: userId,
           accepted_job_cancellations: 0,
           accepted_job_cancellations_6m: 0,
@@ -144,7 +149,7 @@ exports.getHelperCancellationStats = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: result.rows[0]
+      data: { ...result.rows[0], ...freshness }
     });
   } catch (error) {
     logger.error('Error fetching helper cancellation stats', {
@@ -162,6 +167,7 @@ exports.getHelperCancellationStats = async (req, res, next) => {
 exports.getCustomerCancellationSummary = async (req, res, next) => {
   try {
     const { userId } = req.params;
+    const freshness = await require('../services/cancellationStatsRefresh').freshness('customer_cancellation_stats');
 
     const result = await pool.query(
       `
@@ -182,6 +188,7 @@ exports.getCustomerCancellationSummary = async (req, res, next) => {
       return res.json({
         success: true,
         data: {
+          ...freshness,
           reliability_score: 'new_user',
           message: 'New customer with no job history'
         }
@@ -205,6 +212,7 @@ exports.getCustomerCancellationSummary = async (req, res, next) => {
     res.json({
       success: true,
       data: {
+        ...freshness,
         reliability_score: riskLevel,
         cancellation_rate: stats.cancellation_rate_percent,
         message,
@@ -292,23 +300,13 @@ function calculateRiskLevel(stats) {
 exports.refreshCancellationStats = async (req, res, next) => {
   try {
     // Require admin or system token
-    if (!req.user || (req.user.role !== 'admin' && !req.headers['x-system-token'])) {
+    if (!req.user || !['admin','super_admin'].includes(req.user.role)) {
       throw new AppError('Unauthorized', 403);
     }
 
     const client = await pool.connect();
     try {
-      await client.query('REFRESH MATERIALIZED VIEW CONCURRENTLY customer_cancellation_stats');
-      logger.info('Refreshed customer_cancellation_stats');
-
-      await client.query('REFRESH MATERIALIZED VIEW CONCURRENTLY helper_cancellation_stats');
-      logger.info('Refreshed helper_cancellation_stats');
-
-      // Update refresh log
-      await client.query(
-        `UPDATE mv_refresh_log SET last_refreshed_at = NOW(), next_refresh_at = NOW() + interval '1 hour'
-         WHERE view_name IN ('customer_cancellation_stats', 'helper_cancellation_stats')`
-      );
+      await require('../services/cancellationStatsRefresh').refresh(client);
 
       res.json({
         success: true,

@@ -47,9 +47,10 @@ const CHECKS = [
   {
     code: 'food_wallet_balance',
     table: 'food_customer_wallet_accounts',
-    sql: `SELECT COALESCE(SUM(balance_cents),0)::bigint AS balance
+    sql: `SELECT COALESCE(SUM(balance_cents),0)::bigint AS balance,
+                 COALESCE(SUM(reserved_cents),0)::bigint AS reserved
             FROM food_customer_wallet_accounts WHERE customer_id = $1`,
-    blocked: (r) => Number(r.balance) !== 0,
+    blocked: (r) => Number(r.balance || 0) !== 0 || Number(r.reserved || 0) !== 0,
   },
   {
     code: 'food_wallet_hold',

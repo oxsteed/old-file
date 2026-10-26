@@ -48,6 +48,8 @@ async function run() {
     "growth-nightly",
     async (fence) => {
       const day = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      // The fenced run owns the job now; old running rows belong to lost leases.
+      await fence.db.query("UPDATE growth_rollup_runs SET status='failed',completed_at=NOW() WHERE status='running' AND started_at<NOW()-interval '1 hour'");
       const { rows: done } = await fence.db.query(
         "SELECT id FROM growth_rollup_runs WHERE day=$1 AND status='complete'",
         [day],
@@ -69,6 +71,7 @@ async function run() {
       };
       const demandEvents = new Map(); // true event counts, event path only
       let profiles = 0;
+      let jobEventsCollected = false;
       if (process.env.GROWTH_CLICKHOUSE_URL) {
         const client = require("../growth/clickhouse").getClient("nightly");
         const result = await client.query({
@@ -196,6 +199,7 @@ async function run() {
             }
           }
       }
+      if (process.env.GROWTH_CLICKHOUSE_URL) jobEventsCollected = true;
       const domain = await collectDomainDay(fence.db, day, shared);
       let propensity = null;
       await fence.fencedTransaction(async (conn) => {
@@ -277,17 +281,18 @@ async function run() {
         propensity = { error: err.code || err.message || "unknown" };
       }
       await fence.db.query(
-        "UPDATE growth_rollup_runs SET status='complete',completed_at=NOW(),counts=$2 WHERE id=$1",
+        "UPDATE growth_rollup_runs SET status=$3,completed_at=NOW(),counts=$2 WHERE id=$1",
         [
           run.id,
           {
             demand_cells: shared.demand.size,
             supply_cells: shared.supply.size,
             profiles,
-            coverage: "job_events+domain_tables",
+            coverage: jobEventsCollected ? "job_events+domain_tables" : "domain_tables",
             sources: domain.sources,
             propensity,
           },
+          propensity?.error ? 'partial' : 'complete',
         ],
       );
       return {

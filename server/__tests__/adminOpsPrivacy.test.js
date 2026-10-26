@@ -23,7 +23,7 @@ test.each(['completed','denied','awaiting_user'])('completion skips %s records',
 });
 test.each([true,false])('failed/blocked erasure keeps the privacy request incomplete (financial blocker: %s)', async blocked => {
   const db = { query: jest.fn().mockResolvedValueOnce({ rows: [{ request_id: 5, subject_id: 'subject', attempts: 1 }] })
-    .mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] }) };
+    .mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ count: 0 }] }) };
   mockQuery.mockImplementation(async sql => ({ rows: sql.startsWith('SELECT id,role') ? [{ id: 'subject', role: 'customer' }] : [] }));
   guard.findFinancialBlockers.mockResolvedValue(blocked ? ['credit_balance'] : []);
   deletion.hardDeleteUser.mockRejectedValue(new Error('storage failure'));

@@ -20,6 +20,7 @@ const PAIRWISE_DEPRECATION = Object.freeze({
   replacement: 'comparison=linear',
   message: 'Pairwise suspect comparison is deprecated and will be removed in the next release. Use the default linear comparison (each member against the group reference).',
 });
+const MAX_PAIRWISE_GROUP_SIZE = 100;
 
 function comparisonMode(raw) {
   const value = String(raw || '').trim().toLowerCase();
@@ -51,6 +52,12 @@ function linkSignalGroups(groups, mode = 'linear') {
     const referenceUserId = ids[0];
     outGroups.push({ signalType: g.signalType, label: g.label, weight: g.weight, referenceUserId, memberIds: ids, size: ids.length });
     if (mode === 'pairwise') {
+      if (ids.length > MAX_PAIRWISE_GROUP_SIZE) {
+        const error = new Error('Pairwise comparison is limited to groups of 100; use linear comparison.');
+        error.statusCode = 400;
+        error.code = 'pairwise_group_too_large';
+        throw error;
+      }
       for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) push(ids[i], ids[j], g, null);
     } else {
       for (let i = 1; i < ids.length; i++) push(referenceUserId, ids[i], g, referenceUserId);
@@ -59,4 +66,4 @@ function linkSignalGroups(groups, mode = 'linear') {
   return { pairs, groups: outGroups };
 }
 
-module.exports = { COMPARISON_MODES, PAIRWISE_DEPRECATION, comparisonMode, linkSignalGroups };
+module.exports = { COMPARISON_MODES, PAIRWISE_DEPRECATION, comparisonMode, linkSignalGroups, MAX_PAIRWISE_GROUP_SIZE };

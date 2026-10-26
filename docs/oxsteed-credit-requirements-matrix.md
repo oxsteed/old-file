@@ -1,5 +1,21 @@
 # OxSteed Credit Requirements Matrix
 
+## 2026-10-25 integrity follow-up
+
+Default-branch source now guards scheduled/admin deletion against unresolved
+restaurant-wallet value/reserves, retains zero-balance financial history, and
+defers dual-posting replay when the rail switches off. Local full-history
+PostgreSQL tests prove retained wallet/account/ledger identity and that racing
+driver-payout transitions preserve the winning payment reference. No production
+rail/activation changes or real value movements were performed. Full audit
+dispositions, fixture limitations and the next exact actions are recorded in
+[the Sunday integrity follow-up](reviews/data-integrity-2026-10-25.md). Remaining
+actions: convert reduced legacy financial fixtures or enforce schema parity;
+reconcile historical migration checksums with deployment evidence; verify the
+new source in remote CI and deployment independently.
+
+## Earlier evidence (historical)
+
 Updated 2026-09-22. This matrix is the engineering evidence gate for the
 code-completion goal. A row marked `environment` is implemented in code but
 cannot be called production-ready until the listed isolated or live check has

@@ -4,10 +4,10 @@
  * The Learn page's Ask AI buttons prefill the support chat with a
  * guide-scoped question. The first user to ask about a given guide+step in a
  * given language triggers a real AI provider call; the answer is then cached
- * in Redis for one year so identical requests never hit the provider again.
+ * in Redis for seven days to bound stale guidance after content changes.
  *
  * Keyspace: ox:ai:guide:<guide-revision>:<guideId>:step:<n>:lang:<xx>
- * TTL: 31536000 seconds (1 year).
+ * TTL: 604800 seconds (7 days).
  *
  * All functions fail open: a missing/unreachable Redis client simply skips
  * the cache and the request falls through to the AI provider.
@@ -15,9 +15,9 @@
 
 const logger = require('../utils/logger');
 
-const GUIDE_CACHE_TTL_SECONDS = 365 * 24 * 60 * 60; // 1 year
+const GUIDE_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
 const { GUIDE_REVISION } = require('./assistantGuide');
-const CACHE_VERSION = `v2-${GUIDE_REVISION}`;
+const CACHE_VERSION = `v3-${GUIDE_REVISION}`; // Retire previously year-long entries immediately.
 // Skip caching very large replies so one answer cannot crowd out the cache.
 const MAX_CACHED_REPLY_BYTES = 16 * 1024;
 

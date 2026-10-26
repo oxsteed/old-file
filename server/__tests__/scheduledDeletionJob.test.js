@@ -25,33 +25,12 @@ test('anonymizes users with OxSteed Credit records instead of deleting financial
     last_name: 'Example',
     deletion_scheduled_at: '2026-09-12T03:00:00.000Z',
   };
-  mockQuery
-    .mockResolvedValueOnce({ rows: [user] })
-    .mockResolvedValueOnce({ rows: [] })
-    // Account privacy cleanup: site visits, Discover searches, own Promote rows.
-    .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-    .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-    .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ exists: true }] })
-    .mockResolvedValueOnce({ rows: [{ has_credit_records: true }] })
-    .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [] });
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.includes('COUNT(*) OVER()')) return { rows: [user] };
+    if (sql.includes('information_schema.tables')) return { rows: [{ exists: true }] };
+    if (sql.includes('AS has_credit_records')) return { rows: [{ has_credit_records: true }] };
+    return { rows: [], rowCount: 0 };
+  });
 
   await hardDeleteExpiredAccounts();
 

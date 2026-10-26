@@ -530,7 +530,7 @@ async function replayDualPostingBackfill(pool, { limit = 100 } = {}) {
         }
       }
       try {
-        await postFoodWalletDualEntry(client, {
+        const posting = await postFoodWalletDualEntry(client, {
           ledgerEntryId: row.ledger_entry_id,
           restaurantId: row.restaurant_id,
           customerId: row.customer_id,
@@ -546,6 +546,10 @@ async function replayDualPostingBackfill(pool, { limit = 100 } = {}) {
           requestIp: row.request_ip,
           metadata: row.metadata || {},
         });
+        if (!posting?.posted && !posting?.skipped) {
+          deferred += 1;
+          continue;
+        }
         await client.query(
           `UPDATE credit_dual_posting_backfill
               SET status = 'processed', processed_at = NOW(), attempts = attempts + 1

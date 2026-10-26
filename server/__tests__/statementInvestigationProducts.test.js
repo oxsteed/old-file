@@ -43,7 +43,7 @@ test('suite targets only the disposable credit_statement_test database', () => {
 });
 
 if (CAN_RUN_DB) {
-  process.env.DATABASE_URL = 'postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test';
+  process.env.DATABASE_URL = RAW_URL;
   process.env.NODE_ENV = 'test';
   process.env.LOG_LEVEL = 'error';
 }

@@ -1711,6 +1711,8 @@ exports.cancelCustomerWalletLoadRequest = async (req, res, next) => {
 
 exports.getCustomerWalletReconciliation = async (req, res, next) => {
   try {
+    const auditLimit = Math.min(100, Math.max(1, parseInt(req.query.auditLimit, 10) || 25));
+    const auditOffset = Math.max(0, parseInt(req.query.auditOffset, 10) || 0);
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     if (!restaurantId) {
       throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -1773,9 +1775,9 @@ exports.getCustomerWalletReconciliation = async (req, res, next) => {
           WHERE restaurant_id = $1
             AND created_at >= $2
             AND created_at <= $3
-          ORDER BY created_at DESC
-          LIMIT 25`,
-        [restaurantId, from.toISOString(), to.toISOString()]
+          ORDER BY created_at DESC, id DESC
+          LIMIT $4 OFFSET $5`,
+        [restaurantId, from.toISOString(), to.toISOString(), auditLimit + 1, auditOffset]
       ),
       pool.query(
         `SELECT COALESCE(o.currency_code, fr.currency_code, p.metadata->>'currencyCode', 'USD') AS currency_code,
@@ -1893,7 +1895,7 @@ exports.getCustomerWalletReconciliation = async (req, res, next) => {
       totalCents: Number(row.total_cents || 0),
       lastEventAt: row.last_event_at || null,
     }));
-    const recentAuditEvents = auditEvents.rows.map((row) => ({
+    const recentAuditEvents = auditEvents.rows.slice(0, auditLimit).map((row) => ({
       id: String(row.id),
       walletAccountId: row.wallet_account_id ? String(row.wallet_account_id) : null,
       customerId: row.customer_id,
@@ -1993,6 +1995,9 @@ exports.getCustomerWalletReconciliation = async (req, res, next) => {
         unbalancedCurrencies: unbalancedCurrencies.map((row) => row.currencyCode),
       },
       auditEvents: recentAuditEvents,
+      auditPagination: { limit: auditLimit, offset: auditOffset,
+        hasMore: auditEvents.rows.length > auditLimit,
+        nextOffset: auditEvents.rows.length > auditLimit ? auditOffset + auditLimit : null },
       requiresAttention: totals.suspendedAccounts > 0
         || staleActiveQrSessions > 0
         || unbalancedCurrencies.length > 0

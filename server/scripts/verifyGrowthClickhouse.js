@@ -23,6 +23,12 @@ async function verify() {
     throw new Error("Refusing to modify a non-test cluster");
   await migrate(admin);
   await migrate(admin);
+  for (const table of ["activity_events", "activity_hourly", "subject_activity_daily"]) {
+    const [definition] = await read(admin, "SELECT create_table_query FROM system.tables WHERE database='growth' AND name={table:String}", { table });
+    if (!/TTL[\s\S]*toIntervalDay\(90\)/.test(definition?.create_table_query || "")) {
+      throw new Error(`growth_retention_mismatch:${table}`);
+    }
+  }
   const password = "synthetic-growth-role-only";
   const clients = [];
   try {
@@ -72,6 +78,18 @@ async function verify() {
       is_bot: false,
       is_internal: false,
     };
+    const oldTime = new Date(Date.now() - 91 * 86400000).toISOString();
+    const expired = { ...row, day: oldTime.slice(0,10), event_id: crypto.randomUUID(),
+      occurred_at: oldTime.replace('T',' ').replace('Z',''),
+      subject_key: crypto.randomBytes(32).toString('hex'), element_key: `expired.${subject.slice(0,16)}` };
+    await writer.insert({ table: 'growth.activity_events', values: [expired], format: 'JSONEachRow' });
+    for (const table of ['activity_events','activity_hourly','subject_activity_daily']) {
+      await admin.command({ query: `ALTER TABLE growth.${table} ON CLUSTER growth MATERIALIZE TTL`, clickhouse_settings: { mutations_sync: '2' } });
+      const where = table === 'activity_hourly' ? 'element_key={element:String}' : 'subject_key={subject:String}';
+      const [count] = await read(admin, `SELECT count() AS remaining FROM growth.${table} FINAL WHERE ${where}`,
+        { subject: expired.subject_key, element: expired.element_key });
+      if (Number(count.remaining) !== 0) throw new Error(`growth_retention_expiry_failed:${table}`);
+    }
     await writer.insert({
       table: "growth.activity_events",
       values: [row],

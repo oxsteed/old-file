@@ -18,8 +18,18 @@
  */
 const { withFencedJobLock } = require("./jobLockingService");
 async function run() {
-  if (!process.env.GROWTH_CLICKHOUSE_URL && !process.env.GROWTH_REDIS_URL)
-    return { skipped: true };
+  if (!process.env.GROWTH_CLICKHOUSE_URL) {
+    // Preserve requests even after configuration is removed. Never discard an
+    // erasure merely because its historical event store is currently offline.
+    const { rows } = await require('../db').query("SELECT COUNT(*)::int AS pending FROM growth_erasure_queue WHERE status<>'complete'");
+    const pending = Number(rows[0]?.pending || 0);
+    if (pending) await require('../services/incidentStore').recordIncident({
+      type: 'growth_erasure_unavailable', severity: 'high',
+      message: 'Growth erasure is pending while ClickHouse is unconfigured',
+      dedupeKey: 'growth:erasure:unconfigured', details: { pending },
+    });
+    return { skipped: true, reason: 'clickhouse_unconfigured', pending };
+  }
   return withFencedJobLock(
     "growth-erasure",
     async (fence) => {

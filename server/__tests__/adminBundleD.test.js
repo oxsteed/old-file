@@ -128,9 +128,8 @@ describe('ADM-045: CCPA export never leaks credential columns', () => {
       .expect(200);
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    const options = sendEmail.mock.calls[0][2];
-    expect(options.template).toBe('ccpa_data_delivery');
-    const profile = options.data.profile;
+    const options = sendEmail.mock.calls[0][0];
+    const profile = JSON.parse(options.text).profile;
     expect(profile).toBeDefined();
     // Credential/secret columns must not be present
     for (const secret of ['password_hash', 'totp_secret', 'reset_token', 'reset_token_expires',
@@ -148,6 +147,7 @@ describe('ADM-045: CCPA export never leaks credential columns', () => {
       if (/FROM ccpa_data_requests/.test(sql)) {
         return { rows: [{ id: 7, user_id: 'user-1', request_type: 'access', email: 'u@e.com', status: 'completed' }], rowCount: 1 };
       }
+      if (/FROM users WHERE id/.test(sql)) return { rows: [{ id: 'user-1', email: 'u@e.com' }], rowCount: 1 };
       return { rows: [], rowCount: 0 };
     });
     await request(app)

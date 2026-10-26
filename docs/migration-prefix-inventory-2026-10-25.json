@@ -1,0 +1,254 @@
+{
+  "recorded_at": "2026-10-25",
+  "identity": "full filename; historical lexical order",
+  "duplicate_prefixes": {
+    "26": [
+      "026_fix_auth_schema.sql",
+      "026b_add_tier_to_users.sql"
+    ],
+    "29": [
+      "029_add_pending_reg_user_tracking.sql",
+      "029b_onboarding_tiers_tier3.sql"
+    ],
+    "52": [
+      "052_admin_fixes.sql",
+      "052b_helper_profile_content_tables.sql"
+    ],
+    "73": [
+      "073_invoice_public_tokens.sql",
+      "073b_tool_favorites.sql"
+    ],
+    "74": [
+      "074_helper_scoped_invoices.sql",
+      "074b_tool_reviews.sql"
+    ],
+    "75": [
+      "075_business_independence_phase1.sql",
+      "075_credential_removals.sql",
+      "075b_tool_booking.sql"
+    ],
+    "76": [
+      "076_analytics_events.sql",
+      "076b_business_leads_phase5.sql"
+    ],
+    "77": [
+      "077_section_visibility.sql",
+      "077b_contact_history_notifications.sql"
+    ],
+    "78": [
+      "078_business_reviews.sql",
+      "078b_tool_enhancements.sql"
+    ],
+    "79": [
+      "079_business_skills.sql",
+      "079b_option_c_payment_system.sql"
+    ],
+    "88": [
+      "088_didit_enforcement_optional_skip.sql",
+      "088b_platform_ledger_user_id_fkey_drop.sql"
+    ],
+    "119": [
+      "119_allow_null_membership_tier_for_customers.sql",
+      "119_super_admin_regions.sql"
+    ],
+    "137": [
+      "137_payout_methods.sql",
+      "137_support_agents.sql"
+    ],
+    "139": [
+      "139_ab_testing.sql",
+      "139_support_conversations.sql"
+    ],
+    "140": [
+      "140_create_support_messages.sql",
+      "140_knowledge_base.sql"
+    ],
+    "167": [
+      "167_appointment_job_source.sql",
+      "167_template_free_trial.sql"
+    ],
+    "168": [
+      "168_helper_availability.sql",
+      "168_remove_lifetime_template_pricing.sql"
+    ],
+    "169": [
+      "169_bid_availability_reschedule.sql",
+      "169_reputation_and_reports.sql"
+    ],
+    "173": [
+      "173_cancellation_fees_stripe_columns.sql",
+      "173_enforcement_appeals.sql"
+    ],
+    "218": [
+      "218_business_product_pricing.sql",
+      "218zz_business_workspace_filename_reconciliation.sql"
+    ],
+    "247": [
+      "247_franchise_programs.sql",
+      "247_oxsteed_logistics.sql"
+    ],
+    "278": [
+      "278_access_gate_rate_limit.sql",
+      "278_internal_employee_logistics_roles.sql"
+    ],
+    "365": [
+      "365_food_wallet_qr_payment_sessions.sql",
+      "365_main_app_payment_request_confirmation.sql"
+    ],
+    "366": [
+      "366_country_pack_launch_payment_methods.sql",
+      "366_food_wallet_bank_like_operations.sql"
+    ],
+    "561": [
+      "561_guest_chat_access_codes.sql",
+      "561_one_year_pro_trial.sql"
+    ],
+    "610": [
+      "610_audit_chain_target_key_awareness.sql",
+      "610b_direct_catalog_categories_operational_columns.sql"
+    ],
+    "691": [
+      "691_restaurant_payout_external_state.sql",
+      "691_settlement_issuance_schema.sql"
+    ],
+    "699": [
+      "699_hold_crew_size.sql",
+      "699_jobs_moderation_metadata.sql"
+    ],
+    "700": [
+      "700_business_launch_archived_status.sql",
+      "700_direct_audit_indexes.sql"
+    ],
+    "714": [
+      "714_backfill_restaurant_connect_accounts.sql",
+      "714_tool_rental_invoice_payment_encryption.sql"
+    ],
+    "715": [
+      "715_business_invoice_payment_reminders.sql",
+      "715_session_chain_columns_final_fix.sql"
+    ],
+    "716": [
+      "716_consulting_invoice_customer_fields.sql",
+      "716_session_trigger_dual_flags.sql"
+    ],
+    "753": [
+      "753_media_public_video_without_csam.sql",
+      "753_oxsteed_media_community_last_seen.sql"
+    ]
+  },
+  "unallocated_or_unexplained_gap_ranges": [
+    [
+      2,
+      4
+    ],
+    [
+      6,
+      9
+    ],
+    [
+      120,
+      120
+    ],
+    [
+      255,
+      266
+    ],
+    [
+      271,
+      271
+    ],
+    [
+      381,
+      384
+    ],
+    [
+      573,
+      573
+    ],
+    [
+      607,
+      607
+    ],
+    [
+      621,
+      621
+    ],
+    [
+      625,
+      625
+    ],
+    [
+      658,
+      660
+    ],
+    [
+      807,
+      807
+    ],
+    [
+      811,
+      811
+    ],
+    [
+      816,
+      819
+    ],
+    [
+      823,
+      823
+    ],
+    [
+      835,
+      836
+    ],
+    [
+      838,
+      843
+    ],
+    [
+      846,
+      846
+    ],
+    [
+      848,
+      849
+    ],
+    [
+      851,
+      852
+    ],
+    [
+      857,
+      857
+    ],
+    [
+      867,
+      867
+    ],
+    [
+      874,
+      876
+    ],
+    [
+      938,
+      938
+    ],
+    [
+      943,
+      943
+    ],
+    [
+      999,
+      99899
+    ],
+    [
+      99915,
+      99915
+    ],
+    [
+      99927,
+      99979
+    ]
+  ],
+  "note_99915": "Absent from the current source tree. Historical allocation/deployment is unverified; do not fill the gap or infer a missing applied migration."
+}

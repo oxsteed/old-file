@@ -11,6 +11,10 @@ verification evidence in the relevant document under `docs/`.
 - `server/migrations/`: the only SQL directory read by `server/migrate.js`.
   Inspect existing filenames before assigning a new migration number. Do not
   renumber, replace, or repurpose migrations already applied to a database.
+  Preserve the historical lexical order. New files must sort after the current
+  last filename and use an unused numeric prefix (currently 99988 or later).
+  CI checks immutability and append order; do not switch the historical runner
+  to numeric sorting without a full-history rehearsal and a reviewed transition.
 - `docs/archive/`: historical notes and retired root-level code. Do not import
   it, execute its SQL, or treat old status/test-count claims as current evidence.
 - Preserve existing uncommitted changes and unrelated work.

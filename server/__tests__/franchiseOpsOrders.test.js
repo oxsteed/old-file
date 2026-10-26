@@ -128,7 +128,12 @@ function mockOrderSuccess() {
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
+  // "00:00–23:59" excludes the final minute; use a stable midday clock
+  // rather than intermittently failing daypart tests at the UTC boundary.
+  jest.useFakeTimers({ doNotFake: ['nextTick','setImmediate','clearImmediate','setTimeout','clearTimeout','setInterval','clearInterval','queueMicrotask','performance','hrtime'] });
+  jest.setSystemTime(Date.parse('2026-10-20T12:00:00Z'));
 });
+afterEach(() => jest.useRealTimers());
 
 describe('F-11 daypart enforcement', () => {
   test('quoteOrder rejects an item outside its daypart window', async () => {

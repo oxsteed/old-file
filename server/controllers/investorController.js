@@ -223,11 +223,13 @@ exports.getKpis = async (req, res) => {
 // ── GET /api/investor/revenue-chart ─────────────────────────────────────
 exports.getRevenueChart = async (req, res) => {
   try {
+    const currency = String(req.query.currency || 'USD').toUpperCase();
+    if (!/^[A-Z]{3}$/.test(currency)) return res.status(400).json({ error: 'Invalid currency. Use a 3-letter ISO code.' });
     const period = PERIODS[req.query.period] ? req.query.period : '30d';
     const { interval, trunc } = PERIODS[period];
 
     const hasLedger = await tableExists('platform_ledger');
-    if (!hasLedger) return res.json({ chart: [], period });
+    if (!hasLedger) return res.json({ chart: [], period, currency });
 
     const rows = await safeQuery(`
       SELECT
@@ -236,10 +238,10 @@ exports.getRevenueChart = async (req, res) => {
         COALESCE(SUM(CASE WHEN source_type = 'subscription' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0)     AS subscription_cents,
         COALESCE(SUM(CASE WHEN source_type = 'refund'                             THEN ABS(amount_cents) ELSE 0 END), 0) AS refunds_cents
       FROM platform_ledger
-      WHERE created_at >= now() - $2::interval
+      WHERE created_at >= now() - $2::interval AND UPPER(currency) = UPPER($3)
       GROUP BY 1
       ORDER BY 1 ASC
-    `, [trunc, interval]);
+    `, [trunc, interval, currency]);
 
     const totals = rows.reduce((acc, r) => ({
       job_fee:      acc.job_fee      + safeInt(r.job_fee_cents),
@@ -247,7 +249,7 @@ exports.getRevenueChart = async (req, res) => {
       refunds:      acc.refunds      + safeInt(r.refunds_cents),
     }), { job_fee: 0, subscription: 0, refunds: 0 });
 
-    res.json({ chart: rows, totals, period });
+    res.json({ chart: rows, totals, period, currency });
   } catch (err) {
     logger.error('[investor] getRevenueChart error', { err: err.message });
     res.status(500).json({ error: 'Failed to load revenue chart' });

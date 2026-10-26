@@ -27,6 +27,9 @@ describe('decision 10: One Truth linear comparison', () => {
     expect(pairs[0].referenceUserId).toBeUndefined();
     expect(PAIRWISE_DEPRECATION.deprecated).toBe(true);
   });
+  test('pairwise mode rejects a large NAT group before creating quadratic pairs', () => {
+    expect(() => linkSignalGroups([group(ids(5000))], 'pairwise')).toThrow('limited to groups of 100');
+  });
 
   test('comparison mode defaults to linear', () => {
     expect(comparisonMode(undefined)).toBe('linear');

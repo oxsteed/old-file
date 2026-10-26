@@ -98,6 +98,7 @@ describeDb('kitchen device-or-staff authorization', () => {
     // reads the expiry/previous-hash columns, so the schema must have them.
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/944_display_pairing_token_expiry.sql'), 'utf8'));
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/975_display_pairing_locations.sql'), 'utf8'));
+    await require('./helpers/displayRegistryFixture').applyDisplayRegistryFixture(db, schema);
 
     const businessId = (
       await db.query(`INSERT INTO ${schema}.businesses (user_id) VALUES ($1) RETURNING id`, [OWNER_ID])

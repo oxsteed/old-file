@@ -57,6 +57,7 @@ describe('CCPA request routes', () => {
       .filter((layer) => layer.route)
       .map((layer) => `${Object.keys(layer.route.methods).join(',').toUpperCase()} ${layer.route.path}`);
     expect(routes).toContain('GET /ccpa-requests/:requestId');
+    expect(routes).toContain('GET /ccpa-erasure-review');
     expect(routes).toContain('POST /ccpa-requests/bulk/mark-completed');
   });
 
@@ -111,7 +112,7 @@ describe('CCPA request routes', () => {
   test('POST /ccpa-requests/bulk/mark-completed completes requests as admin', async () => {
     mockQuery.mockImplementation(async (text, params) => {
       const sql = String(text);
-      if (sql.includes('SELECT * FROM ccpa_data_requests WHERE id=$1 FOR UPDATE')) return { rows: [{ id: params[0], status: 'pending', request_type: 'access', email: 'fixture@example.invalid' }] };
+      if (sql.includes('SELECT * FROM ccpa_data_requests WHERE id=$1 FOR UPDATE')) return { rows: [{ id: params[0], status: 'pending', request_type: 'access', email: 'fixture@example.invalid', data_provided: { delivery: { status: 'accepted', provider_reference: 'synthetic-receipt', accepted_at: '2026-10-25T00:00:00Z', sha256: 'a'.repeat(64) } } }] };
       if (sql.includes('UPDATE ccpa_data_requests')) return { rows: [{ id: 1 }, { id: 2 }] };
       if (sql.includes('INSERT INTO legal_audit_log')) return { rows: [] };
       return { rows: [], rowCount: 0 };

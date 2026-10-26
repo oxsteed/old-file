@@ -24,7 +24,6 @@ const INTERNAL_EMAIL_SUFFIX = '@oxsteed.internal';
 // platform_ledger rows carry their own currency. Revenue math must never sum
 // mixed currencies, must classify by source event type (not amount sign),
 // and must not divide zero-decimal currencies (JPY, KRW, ...) by 100.
-const REVENUE_SOURCE_TYPES = ['job_fee', 'subscription', 'protection_fee', 'broker_fee'];
 const ZERO_DECIMAL_CURRENCIES = new Set([
   'bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga',
   'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf',
@@ -473,8 +472,10 @@ exports.getDashboardStats = async (req, res) => {
 
 exports.getRevenueChart = async (req, res) => {
   try {
+    const { currency, error } = parseRevenueCurrency(req.query);
+    if (error) return res.status(400).json({ error });
     const hasLedger = await tableExists('platform_ledger');
-    if (!hasLedger) return res.json({ chart: [], totals: { job_fee: 0, subscription: 0, refunds: 0 }, period: req.query.period || '30d' });
+    if (!hasLedger) return res.json({ chart: [], totals: { job_fee: 0, subscription: 0, refunds: 0 }, period: req.query.period || '30d', currency });
 
     const period = PERIOD_INTERVAL[req.query.period] ? req.query.period : '30d';
     const { interval, trunc } = PERIOD_INTERVAL[period];
@@ -486,10 +487,10 @@ exports.getRevenueChart = async (req, res) => {
         COALESCE(SUM(CASE WHEN source_type = 'subscription' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0)  AS subscription_cents,
         COALESCE(SUM(CASE WHEN source_type = 'refund'                            THEN ABS(amount_cents) ELSE 0 END), 0) AS refunds_cents
       FROM platform_ledger
-      WHERE created_at >= now() - $2::interval
+      WHERE created_at >= now() - $2::interval AND UPPER(currency) = UPPER($3)
       GROUP BY 1
       ORDER BY 1 ASC
-    `, [trunc, interval]);
+    `, [trunc, interval, currency]);
 
     // Aggregate totals for the summary line
     const totals = rows.reduce((acc, r) => ({
@@ -498,7 +499,7 @@ exports.getRevenueChart = async (req, res) => {
       refunds:      acc.refunds      + parseInt(r.refunds_cents, 10),
     }), { job_fee: 0, subscription: 0, refunds: 0 });
 
-    res.json({ chart: rows, totals, period });
+    res.json({ chart: rows, totals, period, currency });
   } catch (err) {
     logger.error('getRevenueChart error', { err });
     res.status(500).json({ error: 'Failed to load revenue chart.' });
@@ -1752,36 +1753,20 @@ exports.getRevenueSummary = async (req, res) => {
       '90d': { interval: '90 days',  prev: '180 days' },
       '1y':  { interval: '1 year',   prev: '2 years'  },
     };
-    const { interval, prev } = intervalMap[period] || intervalMap['30d'];
+    const { interval } = intervalMap[period] || intervalMap['30d'];
 
     const hasLedger = await tableExists('platform_ledger');
     if (!hasLedger) {
       return res.json({ stats: { totalRevenue: 0, subscriptionRevenue: 0, jobFeeRevenue: 0, refunds: 0, growth: 0, currency }, transactions: [], currencies: [] });
     }
 
-    // Current period totals, classified by source event type (not amount sign):
-    // revenue buckets only count revenue source types; refunds only count
-    // source_type = 'refund'. A negative adjustment or payout is an outflow of
-    // its own kind, never a refund and never revenue.
-    const { rows: totals } = await db.query(`
-      SELECT
-        COALESCE(SUM(amount_cents) FILTER (WHERE source_type = ANY($3) AND amount_cents > 0), 0)::float / $4::float AS total_revenue,
-        COALESCE(SUM(amount_cents) FILTER (WHERE source_type = 'subscription' AND amount_cents > 0), 0)::float / $4::float AS subscription_revenue,
-        COALESCE(SUM(amount_cents) FILTER (WHERE source_type = 'job_fee' AND amount_cents > 0), 0)::float / $4::float AS job_fee_revenue,
-        COALESCE(SUM(ABS(amount_cents)) FILTER (WHERE source_type = 'refund'), 0)::float / $4::float AS refunds
-      FROM platform_ledger
-      WHERE created_at >= now() - $1::interval AND currency = $2
-    `, [interval, currency, REVENUE_SOURCE_TYPES, divisor]);
-
-    // Previous period for growth calc (same classification + currency).
-    const { rows: prevTotals } = await db.query(`
-      SELECT COALESCE(SUM(amount_cents) FILTER (WHERE source_type = ANY($4) AND amount_cents > 0), 0)::float / $5::float AS total_revenue
-      FROM platform_ledger
-      WHERE created_at >= now() - $1::interval AND created_at < now() - $2::interval AND currency = $3
-    `, [prev, interval, currency, REVENUE_SOURCE_TYPES, divisor]);
-
-    const current = totals[0].total_revenue;
-    const previous = prevTotals[0].total_revenue;
+    const revenue = await metricsRegistry.platformRevenue(db, interval, currency);
+    const totals = [{ total_revenue: Number(revenue.period_cents) / divisor,
+      subscription_revenue: Number(revenue.subscription_period_cents) / divisor,
+      job_fee_revenue: (Number(revenue.period_cents) - Number(revenue.subscription_period_cents)) / divisor,
+      refunds: Number(revenue.refunds_period_cents) / divisor }];
+    const current = Number(revenue.period_cents);
+    const previous = Number(revenue.prev_cents);
     const growth = previous > 0 ? ((current - previous) / previous) * 100 : 0;
 
     // Recent transactions
@@ -1883,7 +1868,7 @@ exports.getMoneyOverview = async (req, res) => {
       '90d': { interval: '90 days', prev: '180 days' },
       '1y': { interval: '1 year', prev: '2 years' },
     };
-    const { interval, prev } = intervalMap[period] || intervalMap['30d'];
+    const { interval } = intervalMap[period] || intervalMap['30d'];
 
     const [
       hasLedger,
@@ -2248,39 +2233,15 @@ exports.getMoneyOverview = async (req, res) => {
       }, {});
     }
 
-    let previousTrackedRevenueCents = 0;
-    if (hasLedger) {
-      const { rows } = await db.query(`
-        SELECT
-          COALESCE(SUM(CASE
-            WHEN source_type IN ('subscription', 'job_fee', 'protection_fee', 'broker_fee', 'marketing', 'adjustment')
-             AND amount_cents > 0
-            THEN amount_cents
-            ELSE 0
-          END), 0) AS total_cents
-        FROM platform_ledger
-        WHERE created_at >= now() - $1::interval
-          AND created_at < now() - $2::interval
-      `, [prev, interval]);
-      previousTrackedRevenueCents += safeInt(rows[0]?.total_cents);
-    }
-    if (hasConsultingPayments) {
-      const { rows } = await db.query(`
-        SELECT
-          COALESCE(SUM(amount_cents), 0) AS total_cents
-        FROM consulting_payments
-        WHERE status = 'completed'
-          AND created_at >= now() - $1::interval
-          AND created_at < now() - $2::interval
-      `, [prev, interval]);
-      previousTrackedRevenueCents += safeInt(rows[0]?.total_cents);
-    }
-
-    const trackedRevenuePeriodCents = ledgerRevenuePeriodCents + consulting.completedPeriodCents;
-    const trackedRevenueLifetimeCents = ledgerRevenueLifetimeCents + consulting.completedLifetimeCents;
+    // The headline shares the registry definition and currency with dashboard
+    // cards. Vertical payment volumes remain separately named below.
+    const canonicalRevenue = hasLedger ? await metricsRegistry.platformRevenue(db, interval, REPORTING_CURRENCY)
+      : { period_cents: 0, total_cents: 0, prev_cents: 0 };
+    const previousTrackedRevenueCents = Number(canonicalRevenue.prev_cents);
+    const trackedRevenuePeriodCents = Number(canonicalRevenue.period_cents);
+    const trackedRevenueLifetimeCents = Number(canonicalRevenue.total_cents);
     const trackedGrowth = previousTrackedRevenueCents > 0
-      ? ((trackedRevenuePeriodCents - previousTrackedRevenueCents) / previousTrackedRevenueCents) * 100
-      : 0;
+      ? ((trackedRevenuePeriodCents - previousTrackedRevenueCents) / previousTrackedRevenueCents) * 100 : 0;
 
     const serviceFeeSources = ['job_fee', 'protection_fee', 'broker_fee'];
     const serviceFeesPeriodCents = serviceFeeSources.reduce(
@@ -2871,6 +2832,12 @@ exports.deleteUser = async (req, res) => {
     }
 
     // ── Pre-deletion guards ────────────────────────────────────────────────
+
+    const financialBlockers = await require('../services/accountDeletionGuard').findFinancialBlockers(userId, db);
+    if (financialBlockers.length) return res.status(409).json({
+      error: 'Stored value or pending money must be resolved before deletion.',
+      code: 'account_financial_review', blockers: financialBlockers, canForce: false,
+    });
 
     // Check active jobs (correct column names: client_id / assigned_helper_id)
     const jobsExist = await tableExists('jobs');

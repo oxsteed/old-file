@@ -75,8 +75,7 @@ function entries(env = process.env) {
       ],
     );
   // Erasure continues while collection and campaign sending are off.
-  if (env.GROWTH_CLICKHOUSE_URL || env.GROWTH_REDIS_URL)
-    rows.push([
+  rows.push([
       "growthErasure",
       () => require("../jobs/growthErasure").run(),
       60 * 60 * 1000,

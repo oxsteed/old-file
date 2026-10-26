@@ -436,6 +436,17 @@ router.get('/audit-log/export/csv',
   }
 );
 
+router.get('/ccpa-erasure-review', authenticate, requireAdmin, requirePermission('manage_operations'), async (req, res, next) => {
+  try {
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const { rows } = await require('../db').query(`SELECT request_id,status,attempts,last_error,created_at,
+      COUNT(*) OVER()::int AS total FROM ccpa_erasure_jobs WHERE status='needs_review'
+      ORDER BY created_at,request_id LIMIT $1 OFFSET $2`, [limit, offset]);
+    res.json({ rows, pagination: { limit, offset, total: rows[0]?.total || 0, hasMore: offset + rows.length < Number(rows[0]?.total || 0) } });
+  } catch (err) { next(err); }
+});
+
 router.get('/ccpa-requests',
   authenticate,
   requireAdmin, requirePermission('manage_operations'),

@@ -307,7 +307,10 @@ async function updateCCPARequest(req, res, next) {
         if (result.skipped) throw new AppError('Request status changed', 409, 'ccpa_invalid_transition');
         return res.status(202).json({ success: true, requestId, status: 'processing', erasureQueued: true });
       }
+      require('../services/ccpaErasureService').assertAccessDelivery(request);
     }
+    if (dataProvided && Object.hasOwn(dataProvided, 'delivery')) throw new AppError('Delivery receipts are recorded by the delivery endpoint', 400, 'ccpa_delivery_server_owned');
+    if (dataProvided && (typeof dataProvided !== 'object' || Array.isArray(dataProvided))) throw new AppError('Invalid data-provided metadata', 400, 'invalid_input');
     if (status && status !== 'processing' && status !== 'completed') {
       const erasure = await pool.query("SELECT request_id FROM ccpa_erasure_jobs WHERE request_id=$1 AND status IN ('pending','processing')", [requestId]);
       if (erasure.rows.length) throw new AppError('Erasure is already queued',409,'ccpa_erasure_in_progress');
@@ -340,7 +343,7 @@ async function updateCCPARequest(req, res, next) {
     }
 
     if (dataProvided) {
-      updateFields.push(`data_provided = $${paramCount}`);
+      updateFields.push(`data_provided = COALESCE(data_provided,'{}'::jsonb) || $${paramCount}::jsonb`);
       updateParams.push(JSON.stringify(dataProvided));
       paramCount++;
     }
@@ -418,18 +421,20 @@ async function sendCCPANotification(req, res, next) {
     const userEmail = request.email;
 
     try {
-      if (attachData && request.status === 'completed') {
+      if (attachData && request.request_type === 'access' && ['pending','processing','completed'].includes(request.status)) {
         // Compile user data
         const userData = await compileUserData(request.user_id, request.request_type);
-
-        // Send with attachment
-        await sendEmail(userEmail, 'Your Requested Data is Ready for Download', {
-          template: 'ccpa_data_delivery',
-          subject: 'Your Data Access Request - Files Ready',
-          requestType: request.request_type,
-          data: userData,
-          requestId
-        });
+        if (!userData.profile || userData.profile.email?.toLowerCase() !== userEmail?.toLowerCase()) {
+          throw new AppError('Verified delivery account does not match the request', 409, 'ccpa_subject_required');
+        }
+        const content = JSON.stringify(userData, null, 2);
+        const sha256 = require('crypto').createHash('sha256').update(content).digest('hex');
+        const subjects = { en: 'Your requested privacy data', es: 'Tus datos de privacidad solicitados', fr: 'Vos données personnelles demandées', ht: 'Done konfidansyalite ou te mande yo', ar: 'بيانات الخصوصية التي طلبتها' };
+        const sent = await sendEmail({ to: userEmail, subject: `${subjects[userData.profile.preferred_language] || subjects.en} #${requestId}`,
+          text: content, idempotencyKey: `ccpa-access:${requestId}:${sha256}` });
+        if (!sent?.success || !sent.id) throw new AppError('Data delivery was not accepted', 503, 'ccpa_data_delivery_failed');
+        await pool.query(`UPDATE ccpa_data_requests SET data_provided=jsonb_set(COALESCE(data_provided,'{}'::jsonb),'{delivery}',$2::jsonb),updated_at=NOW() WHERE id=$1`,
+          [requestId, JSON.stringify({ status: 'accepted', provider_reference: sent.id, accepted_at: new Date().toISOString(), sha256 })]);
       } else if (denialReason) {
         // Send denial notification
         await sendEmail(userEmail, 'CCPA Request Status Update', {
@@ -462,6 +467,7 @@ async function sendCCPANotification(req, res, next) {
         requestId
       });
     } catch (emailErr) {
+      if (emailErr.isOperational) throw emailErr;
       throw new AppError(`Failed to send email: ${emailErr.message}`, 500, 'email_failed');
     }
   } catch (err) {
@@ -587,23 +593,25 @@ async function compileUserData(userId, requestType) {
 
       // Messages
       const messagesResult = await pool.query(
-        'SELECT * FROM messages WHERE sender_id = $1 OR receiver_id = $1 ORDER BY created_at DESC LIMIT 10000',
+        'SELECT * FROM messages WHERE sender_id = $1 OR receiver_id = $1 ORDER BY created_at DESC LIMIT 10001',
         [userId]
       );
+      if (messagesResult.rows.length > 10000) throw new AppError('Access export requires a larger delivery workflow', 409, 'ccpa_export_limit');
       userData.messages = messagesResult.rows;
 
       // Payments
       const paymentsResult = await pool.query(
-        'SELECT * FROM payments WHERE payer_id = $1 OR payee_id = $1 ORDER BY created_at DESC LIMIT 1000',
+        'SELECT * FROM payments WHERE payer_id = $1 OR payee_id = $1 ORDER BY created_at DESC LIMIT 1001',
         [userId]
       );
+      if (paymentsResult.rows.length > 1000) throw new AppError('Access export requires a larger delivery workflow', 409, 'ccpa_export_limit');
       userData.payments = paymentsResult.rows;
     }
 
     return userData;
   } catch (err) {
     logger.error('Failed to compile user data', { userId, error: err.message });
-    return {};
+    throw err;
   }
 }
 

@@ -37,7 +37,7 @@ async function exportData(conn, userId) {
     "promotion_link_events",
     (
       await conn.query(
-        `SELECT event_type,source,medium,campaign,content,occurred_at FROM promotion_link_events WHERE ${ownVisit} OR (event_type='share' AND owner_user_id=$1) ORDER BY occurred_at LIMIT ${EXPORT_ROW_CAP + 1}`,
+        `SELECT event_type,source,medium,campaign,content,occurred_at FROM promotion_link_events WHERE ${ownVisit} OR (event_type='share' AND owner_user_id=$1::uuid) ORDER BY occurred_at LIMIT ${EXPORT_ROW_CAP + 1}`,
         [userId],
       )
     ).rows,
@@ -52,7 +52,7 @@ async function erase(conn, userId) {
     ).rowCount;
   summary.promotion_link_events = (
     await conn.query(
-      `DELETE FROM promotion_link_events WHERE ${ownVisit} OR (event_type='share' AND owner_user_id=$1)`,
+      `DELETE FROM promotion_link_events WHERE ${ownVisit} OR (event_type='share' AND owner_user_id=$1::uuid)`,
       [userId],
     )
   ).rowCount;

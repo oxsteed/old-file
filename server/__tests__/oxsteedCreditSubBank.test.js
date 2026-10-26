@@ -538,13 +538,15 @@ describe('dual-posting backfill replay', () => {
     };
   }
 
-  function makeReplayPool({ railEnabled = true, backfillRows = [] } = {}) {
+  function makeReplayPool({ railEnabled = true, backfillRows = [], disableAfterFirstRead = false } = {}) {
     const dual = makeDualPostMock({ railEnabled: true });
     const updates = [];
+    let railReads = 0;
     const handleQuery = jest.fn(async (text, params = []) => {
       const sql = String(text);
       if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') return { rows: [] };
       if (sql.includes("FROM feature_flags WHERE key = 'oxsteed_credit_enabled'")) {
+        if (disableAfterFirstRead && railReads++ > 0) return { rows: [{ is_enabled: false }] };
         return railEnabled ? { rows: [{ is_enabled: true }] } : { rows: [{ is_enabled: false }] };
       }
       if (sql.includes('FROM credit_dual_posting_backfill')) return { rows: backfillRows };
@@ -577,6 +579,13 @@ describe('dual-posting backfill replay', () => {
     expect(result).toMatchObject({ replayed: 0, skipped: 'rail_disabled' });
     expect(dual.issued).toHaveLength(0);
     expect(updates).toHaveLength(0);
+  });
+  test('a mid-sweep rail shutdown leaves the replay pending without consuming attempts', async () => {
+    const { pool, updates, dual } = makeReplayPool({ disableAfterFirstRead: true, backfillRows: [makeBackfillRow()] });
+    const result = await replayDualPostingBackfill(pool);
+    expect(result).toMatchObject({ replayed: 0, failed: 0, deferred: 1 });
+    expect(updates).toHaveLength(0);
+    expect(dual.issued).toHaveLength(0);
   });
 
   test('replay retries a failing row and keeps it pending', async () => {

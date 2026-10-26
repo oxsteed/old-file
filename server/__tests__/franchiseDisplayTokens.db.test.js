@@ -112,6 +112,7 @@ describeDb('F-27 display fleet managers and token expiry', () => {
     for (const file of ['911_display_pairings.sql', '913_display_pairing_device_role.sql', '944_display_pairing_token_expiry.sql', '975_display_pairing_locations.sql']) {
       await db.query(fs.readFileSync(path.join(__dirname, '../migrations', file), 'utf8'));
     }
+    await require('./helpers/displayRegistryFixture').applyDisplayRegistryFixture(db, schema);
 
     businessId = (await db.query(`INSERT INTO ${schema}.businesses (user_id) VALUES ($1) RETURNING id`, [OWNER_ID])).rows[0].id;
     restaurantId = (
@@ -150,6 +151,7 @@ describeDb('F-27 display fleet managers and token expiry', () => {
 
   afterAll(async () => {
     await db.query(`DROP SCHEMA ${schema} CASCADE`);
+    await db.end();
   });
 
   test('a manager with display.manage can claim, and the token gets a 90-day expiry', async () => {

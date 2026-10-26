@@ -168,7 +168,7 @@ test.each([
   ['ingestOrder', 'ingestOrder', { order: { id: 1, status: 'received' }, replayed: false }],
 ])('marketplace %s rolls back if its audit cannot be persisted', async (handler, method, result) => {
   jest.spyOn(marketplaceService, method).mockResolvedValue(result);
-  mockQuery.mockImplementation(async (sql) => { if (sql.includes('INSERT INTO business_audit_log')) throw new Error('audit unavailable'); return { rows: [], rowCount: 1 }; });
-  expect((await invoke(marketplace[handler], req({ provider: 'uber_eats' }))).error.message).toBe('audit unavailable');
+  mockQuery.mockImplementation(async (sql) => { if (sql.includes('INSERT INTO business_audit_log')) throw new Error('audit unavailable'); if (sql.includes('SELECT id FROM restaurant_locations')) return { rows: [{ id: 7 }] }; return { rows: [], rowCount: 1 }; });
+  expect((await invoke(marketplace[handler], req({ provider: 'uber_eats', locationId: 7 }))).error.message).toBe('audit unavailable');
   expect(mockQuery.mock.calls.map(([sql]) => sql)).toContain('ROLLBACK');
 });

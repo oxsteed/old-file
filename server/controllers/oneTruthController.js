@@ -1275,7 +1275,7 @@ exports.getStats = async (req, res) => {
       `SELECT ${await buildUserSelect(client)}
        FROM users u
        WHERE ${suspectWhereParts.join(' AND ')}
-       ORDER BY u.created_at ASC
+       ORDER BY u.created_at DESC
        -- Keep the duplicate investigation bounded. A complete enterprise
        -- review must use an indexed/async suspect job rather than allowing a
        -- dashboard request to materialize the whole user table.

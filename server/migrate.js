@@ -101,6 +101,11 @@ async function migrate({ through = null } = {}) {
         if (state.checksum && state.checksum !== checksum) {
           throw new Error(`Migration ${file} checksum changed after it was applied; restore the original file or add a new migration.`);
         }
+        if (!state.checksum) {
+          // Establish a forward baseline, not proof of historically applied bytes.
+          await lockClient.query('UPDATE _migrations SET checksum=$2 WHERE filename=$1 AND checksum IS NULL', [file, checksum]);
+          logger.warn('Legacy migration checksum baseline recorded; historical applied bytes remain unverified', { filename: file });
+        }
         logger.info('Migration already applied, skipping', { filename: file });
         continue;
       }

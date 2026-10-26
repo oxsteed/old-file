@@ -42,9 +42,9 @@ async function accrueDriverPayout(client, job) {
   return payout || null;
 }
 
-async function getPayout(client, payoutId) {
+async function getPayout(client, payoutId, { lock = false } = {}) {
   const { rows: [payout] } = await client.query(
-    'SELECT * FROM delivery_driver_payouts WHERE id = $1',
+    `SELECT * FROM delivery_driver_payouts WHERE id = $1${lock ? ' FOR UPDATE' : ''}`,
     [payoutId]
   );
   if (!payout) fail('Driver payout not found', 'driver_payout_not_found', 404);
@@ -59,8 +59,9 @@ function assertTransition(payout, nextStatus) {
 }
 
 async function approvePayout(client, payoutId, approverUserId, note) {
-  const payout = await getPayout(client, payoutId);
+  const payout = await getPayout(client, payoutId, { lock: true });
   assertTransition(payout, 'approved');
+  if (payout.status === 'approved') return payout;
   const { rows: [updated] } = await client.query(
     `UPDATE delivery_driver_payouts
         SET status = 'approved',
@@ -68,20 +69,25 @@ async function approvePayout(client, payoutId, approverUserId, note) {
             approved_at = NOW(),
             note = COALESCE($3, note),
             updated_at = NOW()
-      WHERE id = $1
+      WHERE id = $1 AND status = 'accrued'
       RETURNING *`,
     [payoutId, approverUserId, note ? String(note).slice(0, 1000) : null]
   );
+  if (!updated) fail('Payout status changed concurrently');
   return updated;
 }
 
 // Fails closed: marking paid requires a payment reference that proves the
 // money actually moved through the provider rail. No reference, no payout.
 async function markPayoutPaid(client, payoutId, payerUserId, paymentReference, note) {
-  const payout = await getPayout(client, payoutId);
+  const payout = await getPayout(client, payoutId, { lock: true });
   assertTransition(payout, 'paid');
   const reference = String(paymentReference || '').trim().slice(0, 200);
   if (!reference) fail('A payment reference is required to mark a payout paid', 'driver_payout_reference_required', 400);
+  if (payout.status === 'paid') {
+    if (payout.payment_reference !== reference) fail('Payout already recorded with a different reference');
+    return payout;
+  }
   const { rows: [updated] } = await client.query(
     `UPDATE delivery_driver_payouts
         SET status = 'paid',
@@ -90,25 +96,28 @@ async function markPayoutPaid(client, payoutId, payerUserId, paymentReference, n
             payment_reference = $3,
             note = COALESCE($4, note),
             updated_at = NOW()
-      WHERE id = $1
+      WHERE id = $1 AND status = 'approved'
       RETURNING *`,
     [payoutId, payerUserId, reference, note ? String(note).slice(0, 1000) : null]
   );
+  if (!updated) fail('Payout status changed concurrently');
   return updated;
 }
 
 async function voidPayout(client, payoutId, actorUserId, note) {
-  const payout = await getPayout(client, payoutId);
+  const payout = await getPayout(client, payoutId, { lock: true });
   assertTransition(payout, 'voided');
+  if (payout.status === 'voided') return payout;
   const { rows: [updated] } = await client.query(
     `UPDATE delivery_driver_payouts
         SET status = 'voided',
             note = COALESCE($2, note),
             updated_at = NOW()
-      WHERE id = $1
+      WHERE id = $1 AND status IN ('accrued','approved')
       RETURNING *`,
     [payoutId, note ? String(note).slice(0, 1000) : null]
   );
+  if (!updated) fail('Payout status changed concurrently');
   return updated;
 }
 

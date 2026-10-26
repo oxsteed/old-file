@@ -64,12 +64,21 @@ async function completeRequest(requestId, adminId, fulfillmentDate) {
       await queueErasure(client, request, adminId);
       return { queued: true, request };
     }
+    assertAccessDelivery(request);
     await client.query(`UPDATE ccpa_data_requests SET status='completed',completed_at=NOW(),
       fulfillment_date=$2,fulfilled_by_id=$3,updated_at=NOW() WHERE id=$1`, [request.id, fulfillmentDate || new Date(), adminId]);
     await client.query(`INSERT INTO legal_audit_log(action_type,actor_id,actor_role,resource_id,resource_type,status,metadata)
       VALUES('ccpa_completed',$2,'admin',$1,'ccpa_request','completed','{}'::jsonb)`, [String(request.id), adminId]);
     return { completed: true, request };
   }, 'ccpa_complete');
+}
+function assertAccessDelivery(request) {
+  if (request.request_type !== 'access') return;
+  const delivery = request.data_provided?.delivery;
+  if (delivery?.status !== 'accepted' || !delivery.provider_reference ||
+      !/^[a-f0-9]{64}$/.test(delivery.sha256 || '') || !Number.isFinite(Date.parse(delivery.accepted_at))) {
+    throw new AppError('Record accepted data delivery before completing an access request', 409, 'ccpa_data_delivery_required');
+  }
 }
 async function assertErasureSafe(userId) {
   const guard = require('./accountDeletionGuard');
@@ -128,6 +137,12 @@ async function processErasureJobs({ db = pool, limit = 10 } = {}) {
       await db.query('UPDATE ccpa_erasure_jobs SET notification_sent_at=NOW() WHERE request_id=$1', [request.id]);
     } catch (err) { logger.error('CCPA completion notification pending', { requestId: request.id }); }
   }
+  const review = await db.query("SELECT COUNT(*)::int AS count, MIN(created_at) AS oldest FROM ccpa_erasure_jobs WHERE status='needs_review'");
+  if (Number(review.rows[0]?.count) > 0) await require('./incidentStore').recordIncident({
+    type: 'privacy_erasure_needs_review', severity: 'high',
+    message: 'Privacy erasure requests require operator review', dedupeKey: 'privacy:erasure:needs-review',
+    details: { count: Number(review.rows[0].count), oldest: review.rows[0].oldest, queue: '/api/legal/ccpa-erasure-review' },
+  });
   return { examined: rows.length };
 }
-module.exports = { queueErasure, completeRequest, notifyCompleted, notifyDenied, processErasureJobs };
+module.exports = { queueErasure, completeRequest, notifyCompleted, notifyDenied, processErasureJobs, assertAccessDelivery };

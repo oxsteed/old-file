@@ -93,6 +93,7 @@ describeDb('restaurant display pairing (migration 911)', () => {
     // read/write the token expiry columns, so the schema must have them too.
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/944_display_pairing_token_expiry.sql'), 'utf8'));
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/975_display_pairing_locations.sql'), 'utf8'));
+    await require('./helpers/displayRegistryFixture').applyDisplayRegistryFixture(db, schema);
     businessId = (await db.query(`INSERT INTO ${schema}.businesses (user_id) VALUES ($1) RETURNING id`, [OWNER_ID])).rows[0].id;
     restaurantId = (
       await db.query(
