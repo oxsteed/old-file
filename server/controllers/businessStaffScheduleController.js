@@ -817,6 +817,15 @@ exports.publishShifts = async (req, res, next) => {
     }
 
     where += workforce.clause(storeContext,'',params);
+    // Careers §4.6 step 10: an employer-of-record hire's first shift stays a
+    // draft until the EOR partner reports the worker ready to work.
+    where += ` AND NOT EXISTS (
+      SELECT 1 FROM career_onboarding_runs cr
+        JOIN career_offers co ON co.id = cr.offer_id
+       WHERE cr.id = business_staff_shifts.career_onboarding_run_id
+         AND co.employer_model = 'oxsteed_eor'
+         AND NOT EXISTS (SELECT 1 FROM career_eor_assignments ea
+                          WHERE ea.application_id = cr.application_id AND ea.status IN ('ready','active')))`;
     params.push(req.user.id);
     const { rows: published } = await pool.query(
       `UPDATE business_staff_shifts

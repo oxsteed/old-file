@@ -194,11 +194,11 @@ async function factsForViewer(db, userId, { businessId = null, includeHidden = f
   const employerFacts = [];
   if (businessId) {
     const { rows: [left] } = await runner.query(
-      `SELECT removed_at, reason, rehired_at FROM staff_offboarding_records
+      `SELECT removed_at, rehired_at, rehire_eligible FROM staff_offboarding_records
         WHERE business_id = $1 AND user_id = $2 ORDER BY removed_at DESC LIMIT 1`,
       [businessId, userId]
     );
-    if (left) employerFacts.push({ fact_type: 'rehire_eligible', value: { worked_here: true, left_at: left.removed_at, rehired: Boolean(left.rehired_at) }, source: 'offboarding' });
+    if (left) employerFacts.push({ fact_type: 'rehire_eligible', value: { worked_here: true, eligible: left.rehire_eligible !== false, left_at: left.removed_at, rehired: Boolean(left.rehired_at) }, source: 'offboarding' });
     const { rows: [check] } = await runner.query(
       `SELECT status, completed_at FROM career_background_checks
         WHERE business_id = $1 AND user_id = $2 AND status <> 'cancelled'
