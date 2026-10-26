@@ -1294,7 +1294,7 @@ router.post(
         const {
           rows: [s],
         } = await conn.query(
-          "SELECT created_by FROM growth_segment_versions WHERE id=$1",
+          "SELECT created_by,definition FROM growth_segment_versions WHERE id=$1",
           [id(b.segment_version_id)],
         );
         const boundary = await access.scope(req.user, "manage_marketing");
@@ -1302,6 +1302,10 @@ router.post(
           throw Object.assign(new Error("segment_access_denied"), {
             status: 403,
           });
+        // N-01: "not personalized" is derived from the segment, never
+        // trusted from the request. A broad label on an activity-based
+        // segment would skip Do-not-sell-or-share, so it is refused.
+        campaigns.assertPersonalizationLabel(b.is_personalized, s.definition);
         const {
           rows: [c],
         } = await conn.query(

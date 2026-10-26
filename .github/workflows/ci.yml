@@ -541,6 +541,15 @@ jobs:
           GROWTH_CLICKHOUSE_ADMIN_PASSWORD: synthetic-growth-only
         run: node scripts/verifyGrowthClickhouse.js
 
+      - name: Verify encrypted daily/weekly backups and the restore check
+        working-directory: server
+        env:
+          NODE_ENV: test
+          GROWTH_CLICKHOUSE_URL: http://127.0.0.1:8123
+          GROWTH_CLICKHOUSE_ADMIN_USER: default
+          GROWTH_CLICKHOUSE_ADMIN_PASSWORD: synthetic-growth-only
+        run: node scripts/verifyGrowthClickhouseBackups.js
+
       - name: Remove ClickHouse fixture
         if: always()
         run: docker rm -f oxsteed-growth-clickhouse-ci >/dev/null 2>&1 || true

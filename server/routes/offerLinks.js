@@ -16,8 +16,10 @@ router.get("/:token", generalLimiter, async (req, res) => {
     const {
       rows: [offer],
     } = await db.query(
-      `SELECT o.*,c.is_personalized,p.link_domains_allowlist,p.status AS partner_status,r.user_id
+      `SELECT o.*,(c.is_personalized IS NOT FALSE OR COALESCE(sv.is_personalized,TRUE)) AS is_personalized,
+      c.amazon_tracking_tag,p.network AS partner_network,p.link_domains_allowlist,p.status AS partner_status,r.user_id
       FROM offer_campaign_deliveries d JOIN offer_campaigns c ON c.id=d.campaign_id JOIN offers o ON o.id=c.offer_id
+      LEFT JOIN growth_segment_versions sv ON sv.id=c.segment_version_id
       JOIN offer_campaign_recipients r ON r.id=d.recipient_id
       JOIN affiliate_partners p ON p.id=o.partner_id WHERE d.id=$1 AND o.id=$2 AND d.status='sent'`,
       [token.delivery_id, token.offer_id],

@@ -8,4 +8,17 @@
   </keeper_server>
   <zookeeper><node><host>127.0.0.1</host><port>9181</port></node></zookeeper>
   <remote_servers><growth><shard><replica><host>127.0.0.1</host><port>9000</port><user>default</user><password>synthetic-growth-only</password></replica></shard></growth></remote_servers>
+  <!-- N-03/N-04 rehearsal: a server-side encrypted backup disk. The key is a
+       synthetic CI-only value; production keys live in the ClickHouse
+       server's secret store, never in the application. -->
+  <storage_configuration>
+    <disks>
+      <growth_backups_plain><type>local</type><path>/var/lib/clickhouse/growth-backups/</path></growth_backups_plain>
+      <growth_backups><type>encrypted</type><disk>growth_backups_plain</disk><path>encrypted/</path><key>synthetic-ci-key</key></growth_backups>
+    </disks>
+  </storage_configuration>
+  <backups>
+    <allowed_disk>growth_backups</allowed_disk>
+    <allowed_disk>growth_backups_plain</allowed_disk>
+  </backups>
 </clickhouse>

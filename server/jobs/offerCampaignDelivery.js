@@ -13,11 +13,13 @@ async function deliver(conn, d, deps = {}) {
   const {
     rows: [ctx],
   } = await conn.query(
-    `SELECT r.user_id,c.status AS campaign_status,c.approved_by,c.copy,c.channels,c.is_personalized,
+    `SELECT r.user_id,c.status AS campaign_status,c.approved_by,c.copy,c.channels,
+    (c.is_personalized IS NOT FALSE OR COALESCE(sv.is_personalized,TRUE)) AS is_personalized,
     o.type,o.status AS offer_status,o.expires_at,o.partner_id,o.countries,o.channels AS allowed_channels,
     p.offer_push,p.offer_in_app,p.timezone,u.preferred_language,u.created_at,
     np.push_notifications,np.web_push_enabled
     FROM offer_campaign_recipients r JOIN offer_campaigns c ON c.id=r.campaign_id JOIN offers o ON o.id=c.offer_id
+    LEFT JOIN growth_segment_versions sv ON sv.id=c.segment_version_id
     JOIN users u ON u.id=r.user_id LEFT JOIN offer_preferences p ON p.user_id=r.user_id
     LEFT JOIN notification_preferences np ON np.user_id=r.user_id WHERE r.id=$1 FOR UPDATE OF c`,
     [d.recipient_id],

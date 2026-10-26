@@ -43,6 +43,211 @@ async function resolveFailure(operation, details = {}) {
   }
 }
 
+// ── Backups (D11/D12, N-03, N-04, N-11) ────────────────────────────────
+// Backups are written to a ClickHouse disk that ClickHouse itself encrypts
+// (`type: encrypted` in the server's storage configuration, key held in the
+// server's secret store). The application never sees or sends the key, so
+// nothing secret is spliced into SQL text or written to query_log.
+// ClickHouse does not accept query parameters inside BACKUP SETTINGS, which
+// is why the old zip-password approach could only interpolate the key.
+//
+// Schedule: the job ticks hourly for health, but a backup runs at most once
+// per UTC day, at or after GROWTH_CLICKHOUSE_BACKUP_HOUR_UTC (default 3):
+// a full backup on GROWTH_CLICKHOUSE_BACKUP_FULL_WEEKDAY (0 = Sunday,
+// default) or whenever no full backup exists in the last 7 days, and an
+// incremental backup on the other days whose base is that week's full.
+// GROWTH_CLICKHOUSE_BACKUP_MODE=daily_full takes a full backup every day
+// instead (strict 7-day residency, roughly double the storage).
+// Retention: see docs/growth/clickhouse-runbook.md (bucket lifecycle on the
+// `growth-` prefix: 14 days for weekly_full_daily_incremental so every
+// backup inside the 7-day restore window keeps its base, 7 days for
+// daily_full).
+const DAY = 24 * 60 * 60 * 1000;
+function intEnv(value, min, max, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  const n = Number(value);
+  return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
+}
+function backupConfig(env = process.env) {
+  const mode = env.GROWTH_CLICKHOUSE_BACKUP_MODE === "daily_full"
+    ? "daily_full"
+    : "weekly_full_daily_incremental";
+  return {
+    disk: safeName(env.GROWTH_CLICKHOUSE_BACKUP_DISK, ""),
+    mode,
+    fullWeekday: intEnv(env.GROWTH_CLICKHOUSE_BACKUP_FULL_WEEKDAY, 0, 6, 0),
+    hourUtc: intEnv(env.GROWTH_CLICKHOUSE_BACKUP_HOUR_UTC, 0, 23, 3),
+    retentionDays: 7,
+    legacyKeyConfigured: Boolean(env.GROWTH_CLICKHOUSE_BACKUP_ENCRYPTION_KEY),
+  };
+}
+const utcDate = (d) => new Date(d).toISOString().slice(0, 10);
+function backupRef(kind, now, baseDate) {
+  const today = utcDate(now);
+  return kind === "full"
+    ? `growth-${today}-full`
+    : `growth-${baseDate}-inc-${today}`;
+}
+// Pure scheduling decision so it can be tested without ClickHouse.
+// `history` holds completed backups, newest first:
+// [{ backup_ref, backup_kind, started_at }].
+function planBackup(now, history, cfg) {
+  const nowDate = new Date(now);
+  if (!cfg.disk) return { action: "skip", reason: "backup_disk_unconfigured" };
+  if (history.some((row) => utcDate(row.started_at) === utcDate(nowDate)))
+    return { action: "skip", reason: "already_backed_up_today" };
+  if (nowDate.getUTCHours() < cfg.hourUtc)
+    return { action: "skip", reason: "not_due" };
+  if (cfg.mode === "daily_full")
+    return { action: "full", ref: backupRef("full", nowDate) };
+  const latestFull = history.find(
+    (row) =>
+      (row.backup_kind || "full") === "full" &&
+      nowDate - new Date(row.started_at) < 7 * DAY,
+  );
+  if (!latestFull || nowDate.getUTCDay() === cfg.fullWeekday)
+    return { action: "full", ref: backupRef("full", nowDate) };
+  return {
+    action: "incremental",
+    base: latestFull.backup_ref,
+    ref: backupRef("incremental", nowDate, utcDate(latestFull.started_at)),
+  };
+}
+
+async function diskIsEncrypted(client, disk) {
+  const result = await client.query({
+    query: "SELECT is_encrypted FROM system.disks WHERE name = {disk:String}",
+    query_params: { disk },
+    format: "JSONEachRow",
+  });
+  const [row] = await result.json();
+  return Boolean(row && Number(row.is_encrypted) === 1);
+}
+
+async function completedBackups(db) {
+  const { rows } = await db.query(
+    `SELECT backup_ref, COALESCE(backup_kind,'full') AS backup_kind, started_at
+       FROM growth_ops_runs
+      WHERE operation='backup' AND status='complete' AND backup_ref IS NOT NULL
+        AND started_at > NOW() - interval '8 days'
+      ORDER BY started_at DESC
+      LIMIT 20`,
+  );
+  return rows;
+}
+
+async function runBackup(db, client, { now = Date.now(), env = process.env } = {}) {
+  const cfg = backupConfig(env);
+  const plan = planBackup(now, await completedBackups(db), cfg);
+  if (plan.action === "skip") {
+    // A missing disk is a configuration gap worth recording once per run;
+    // "not due"/"already done" are normal hourly ticks and stay silent.
+    if (plan.reason === "backup_disk_unconfigured")
+      await record(db, "backup", "skipped", { reason: plan.reason });
+    return { skipped: true, reason: plan.reason };
+  }
+  let encrypted = false;
+  try {
+    encrypted = await diskIsEncrypted(client, cfg.disk);
+  } catch (error) {
+    encrypted = false;
+  }
+  if (!encrypted) {
+    // Refuse to write an unencrypted backup and raise an incident instead of
+    // skipping quietly (N-11).
+    const details = {
+      reason: "backup_disk_not_encrypted",
+      legacy_zip_password_ignored: cfg.legacyKeyConfigured,
+    };
+    await record(db, "backup", "failed", details);
+    await alertFailure("backup", details);
+    return { complete: false, reason: details.reason };
+  }
+  await db.query(
+    `INSERT INTO growth_ops_runs(operation,status,backup_ref,backup_kind,base_backup_ref,details)
+     VALUES('backup','started',$1,$2,$3,$4::jsonb)`,
+    [plan.ref, plan.action, plan.base || null, JSON.stringify({ mode: cfg.mode })],
+  );
+  // disk and refs are restricted to [A-Za-z0-9_.-] by safeName/backupRef,
+  // so they cannot break out of the quoted literal.
+  const target = `Disk('${cfg.disk}','${safeName(plan.ref, "")}')`;
+  const settings = plan.action === "incremental"
+    ? ` SETTINGS base_backup = Disk('${cfg.disk}','${safeName(plan.base, "")}')`
+    : "";
+  try {
+    await client.command({
+      query: `BACKUP DATABASE growth TO ${target}${settings}`,
+      clickhouse_settings: { distributed_ddl_task_timeout: "120" },
+    });
+    await db.query(
+      `INSERT INTO growth_ops_runs(operation,status,completed_at,backup_ref,backup_kind,base_backup_ref,details)
+       VALUES('backup','complete',NOW(),$1,$2,$3,$4::jsonb)`,
+      [
+        plan.ref,
+        plan.action,
+        plan.base || null,
+        JSON.stringify({ mode: cfg.mode, retention_days: cfg.retentionDays }),
+      ],
+    );
+    await resolveFailure("backup", { ref: plan.ref });
+    return { complete: true, ref: plan.ref, kind: plan.action, base: plan.base || null };
+  } catch (error) {
+    const details = { code: String(error.code || "unknown"), kind: plan.action };
+    await record(db, "backup", "failed", details, plan.ref);
+    await alertFailure("backup", details);
+    return { complete: false };
+  }
+}
+
+// N-03: the restore check restores the newest complete backup (or an
+// explicitly configured ref) into a throwaway database named with a
+// backtick-quoted identifier, verifies that tables came back, then drops it.
+// It runs at most once per UTC day.
+async function runRestoreCheck(db, client, { now = Date.now(), env = process.env } = {}) {
+  const cfg = backupConfig(env);
+  if (!cfg.disk) return { skipped: true, reason: "backup_disk_unconfigured" };
+  const { rows: done } = await db.query(
+    `SELECT 1 FROM growth_ops_runs
+      WHERE operation='restore_check' AND status='complete'
+        AND started_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+      LIMIT 1`,
+  );
+  if (done[0]) return { skipped: true, reason: "already_checked_today" };
+  let ref = safeName(env.GROWTH_CLICKHOUSE_RESTORE_REF, "");
+  if (!ref) ref = (await completedBackups(db))[0]?.backup_ref || "";
+  if (!ref) {
+    await record(db, "restore_check", "skipped", { reason: "no_backup_to_check" });
+    return { skipped: true, reason: "no_backup_to_check" };
+  }
+  const database = `growth_restore_check_${Math.floor(now / 1000)}`;
+  await record(db, "restore_check", "started", {}, ref);
+  try {
+    await client.command({
+      query: `RESTORE DATABASE growth AS \`${database}\` FROM Disk('${cfg.disk}','${ref}')`,
+    });
+    const tables = await client.query({
+      query: "SELECT count() AS tables FROM system.tables WHERE database = {database:String}",
+      query_params: { database },
+      format: "JSONEachRow",
+    });
+    const restoredTables = Number((await tables.json())[0]?.tables || 0);
+    await client.command({ query: `DROP DATABASE IF EXISTS \`${database}\` SYNC` });
+    if (restoredTables < 1) throw Object.assign(new Error("restore_empty"), { code: "restore_empty" });
+    await record(db, "restore_check", "complete", { database, tables: restoredTables }, ref);
+    await resolveFailure("restore_check", { ref });
+    return { complete: true, ref, tables: restoredTables };
+  } catch (error) {
+    try {
+      await client.command({ query: `DROP DATABASE IF EXISTS \`${database}\` SYNC` });
+    } catch {
+      // best effort cleanup; the incident below carries the failure
+    }
+    await record(db, "restore_check", "failed", { code: String(error.code || "unknown") }, ref);
+    await alertFailure("restore_check", { code: String(error.code || "unknown"), ref });
+    return { complete: false };
+  }
+}
+
 async function run() {
   if (!process.env.GROWTH_CLICKHOUSE_URL)
     return { skipped: true, reason: "clickhouse_unconfigured" };
@@ -67,50 +272,9 @@ async function run() {
       results.health = { failed: true };
     }
 
-    const disk = safeName(process.env.GROWTH_CLICKHOUSE_BACKUP_DISK, "");
-    const backupPassword = process.env.GROWTH_CLICKHOUSE_BACKUP_ENCRYPTION_KEY || "";
-    if (disk && backupPassword && !/[\r\n']/u.test(backupPassword)) {
-      const ref = `${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
-      await record(fence.db, "backup", "started", {}, ref);
-      try {
-        await client.command({
-          query: `BACKUP DATABASE growth TO Disk('${disk}','${ref}') SETTINGS password='${backupPassword}'`,
-          clickhouse_settings: { distributed_ddl_task_timeout: "120" },
-        });
-        await record(fence.db, "backup", "complete", { retention_days: 7 }, ref);
-        await resolveFailure("backup", { ref });
-        results.backup = { complete: true, ref };
-      } catch (error) {
-        await record(fence.db, "backup", "failed", { code: String(error.code || "unknown") }, ref);
-        await alertFailure("backup", { code: String(error.code || "unknown") });
-        results.backup = { complete: false };
-      }
-    } else {
-      await record(fence.db, "backup", "skipped", {
-        reason: disk ? "backup_encryption_key_unconfigured" : "backup_disk_unconfigured",
-      });
-    }
-
-    if (process.env.GROWTH_CLICKHOUSE_RESTORE_CHECK_ENABLED === "true" && disk) {
-      const ref = safeName(process.env.GROWTH_CLICKHOUSE_RESTORE_REF, "");
-      if (ref) {
-        const database = `growth_restore_check_${Date.now()}`;
-        await record(fence.db, "restore_check", "started", {}, ref);
-        try {
-          await client.command({ query: `RESTORE DATABASE growth AS '${database}' FROM Disk('${disk}','${ref}')` });
-          await client.command({ query: `DROP DATABASE IF EXISTS '${database}' SYNC` });
-          await record(fence.db, "restore_check", "complete", { database }, ref);
-          await resolveFailure("restore_check", { ref });
-          results.restore_check = { complete: true };
-        } catch (error) {
-          await record(fence.db, "restore_check", "failed", { code: String(error.code || "unknown") }, ref);
-          await alertFailure("restore_check", { code: String(error.code || "unknown"), ref });
-          results.restore_check = { complete: false };
-        }
-      } else {
-        await record(fence.db, "restore_check", "skipped", { reason: "restore_ref_unconfigured" });
-      }
-    }
+    results.backup = await runBackup(fence.db, client);
+    if (process.env.GROWTH_CLICKHOUSE_RESTORE_CHECK_ENABLED === "true")
+      results.restore_check = await runRestoreCheck(fence.db, client);
 
     if (process.env.GROWTH_CLICKHOUSE_UPGRADE_ENABLED === "true") {
       await record(fence.db, "upgrade", "started");
@@ -128,4 +292,13 @@ async function run() {
     return results;
   }, 300);
 }
-module.exports = { run, safeName, alertFailure, resolveFailure };
+module.exports = {
+  run,
+  safeName,
+  alertFailure,
+  resolveFailure,
+  backupConfig,
+  planBackup,
+  runBackup,
+  runRestoreCheck,
+};

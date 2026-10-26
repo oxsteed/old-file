@@ -281,6 +281,27 @@ function compile(def, boundary = { global: false, regions: [] }, resolved = {}) 
     params,
   };
 }
+// N-01 / D10: whether a segment definition targets people by their
+// activity. Intents, activity facts, propensity scores, behavioural clusters
+// and recent-activity lifecycle clauses are personalized; role, country,
+// region/postal area, language, account age and verification are broad.
+// Mirrored in SQL by growth_segment_is_personalized() (migration 99989),
+// which forces offer_campaigns.is_personalized for these segments.
+function isPersonalized(def) {
+  if (!def || typeof def !== "object") return true;
+  return Boolean(
+    (Array.isArray(def.intents) && def.intents.length > 0) ||
+      (Array.isArray(def.facts) && def.facts.length > 0) ||
+      (def.propensity && typeof def.propensity === "object") ||
+      def.area?.type === "cluster" ||
+      typeof def.lifecycle?.last_active_within_days === "number",
+  );
+}
+// The campaign flag can only make a campaign MORE protective: a broad
+// label on a personalized segment is ignored.
+function effectivePersonalized(flag, def) {
+  return flag !== false || isPersonalized(def);
+}
 async function evaluate(
   conn,
   definition,
@@ -288,6 +309,7 @@ async function evaluate(
   purpose = "activity_offers",
   { userId, personalized = true } = {},
 ) {
+  personalized = effectivePersonalized(personalized, definition);
   const gate = require("../gate");
   if (!gate.rolloutAllows(await gate.runtimePolicy(conn)).allowed) return [];
   const resolved = await resolveArea(conn, definition);
@@ -316,4 +338,4 @@ async function evaluate(
   }
   return approved;
 }
-module.exports = { validate, compile, evaluate, resolveArea, FACT_TEMPLATES: TEMPLATES };
+module.exports = { validate, compile, evaluate, resolveArea, isPersonalized, effectivePersonalized, FACT_TEMPLATES: TEMPLATES };
