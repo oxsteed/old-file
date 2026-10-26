@@ -23,6 +23,7 @@ test('mode navbar renders responsive priorities, accessible disclosures and work
     '../context/ThemeContext': `import React from 'react'; export const ThemeContext=React.createContext({}); export const useTheme=()=>React.useContext(ThemeContext);`,
     '../hooks/useSocket': `export const useSocket=()=>({socket:window.fixtureSocket});`,
     '../api/axios': `export default {get: async path => ({data: path==='/notifications' ? [] : path==='/messages/conversations' ? [{unread_count:window.unreadCount}] : path==='/messages/guest-inquiries' ? [{unread_count:window.unreadCount}] : path==='/me/businesses' ? {data:{items:window.fixtureBusinesses}} : {data:window.fixtureSupport?[{}]:[]}})};`,
+    '../api/accountSnapshot': `import api from '../api/axios'; export function getAccountSnapshot(userId, path, params) { return api.get(path, params ? { params } : undefined); } export function invalidateAccountSnapshots() {};`,
     '../api/businesses': `export const listBusinesses=async()=>[]; export const listManagedBusinesses=async()=>[];`,
     '../api/vortex': `export const getMyBusinesses=async()=>({items:window.fixtureBusinesses}); export const setWorkspaceContext=async id=>{window.fixtureWorkspace=id;};`,
     './PrefetchLink': `export {Link as default} from 'react-router-dom';`,
