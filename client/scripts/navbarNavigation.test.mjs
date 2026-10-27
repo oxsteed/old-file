@@ -56,6 +56,14 @@ test('nested routes highlight messages, work, settings and workspace without pre
   assert.equal(navbarLinkActive({id:'messages',to:'/messages'}, '/messages-extra'), false);
   assert.equal(navbarLinkActive({id:'workspace',to:'/business-hub'}, '/business/2'), false);
 });
+test('the operational homepage highlights work without marking customer discovery as a dashboard', () => {
+  assert.equal(navbarLinkActive({ id: 'myWork', to: '/helper-dashboard' }, '/', 'helper'), true);
+  for (const mode of ['business_owner', 'business_manager', 'business_representative', 'business_employee']) {
+    assert.equal(navbarLinkActive({ id: 'dashboard', to: '/dashboard' }, '/', mode), true);
+    assert.equal(navbarLinkActive({ id: 'workspace', to: '/business-hub' }, '/', mode), false);
+  }
+  assert.equal(navbarLinkActive({ id: 'dashboard', to: '/dashboard' }, '/', 'customer'), false);
+});
 test('new labels have matching legacy and namespaced translations in every language', async () => {
   for (const language of ['en', 'es', 'fr', 'ht', 'ar']) {
     const legacy = JSON.parse(await readFile(new URL(`../src/locales/${language}.json`, import.meta.url)));

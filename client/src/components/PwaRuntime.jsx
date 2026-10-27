@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useContext, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
@@ -13,6 +13,9 @@ import {
   subscribeConnection,
 } from '../utils/pwaRuntime';
 import { observeMobileViewport } from '../utils/mobileViewport';
+import { CookieConsentContext } from '../context/CookieConsentContext';
+import { getWaitingWorker, subscribeWorkerUpdate } from '../utils/serviceWorkerRegistration';
+import { usePwaNoticeCoordination } from '../hooks/usePwaNoticeCoordination';
 import '../styles/PwaExperience.css';
 
 export default function PwaRuntime() {
@@ -25,6 +28,10 @@ export default function PwaRuntime() {
     connectionSnapshot,
     connectionSnapshot,
   );
+  const waitingWorker = useSyncExternalStore(subscribeWorkerUpdate, getWaitingWorker, getWaitingWorker);
+  const cookies = useContext(CookieConsentContext);
+  const { modalOpen } = usePwaNoticeCoordination({ pathname, waitingWorker,
+    cookiesOpen: Boolean(cookies?.showBanner || cookies?.showSettings), connectionStatus: state.status });
   const current = useRef(auth),
     coordinator = useRef();
   current.current = auth;
@@ -60,7 +67,7 @@ export default function PwaRuntime() {
     /^\/(restaurants|food)\/(kitchen|queue|kiosk|screens)\//.test(pathname);
   // Healthy connections need no persistent overlay. Keep the shared state
   // and resume coordinator active; show recovery controls only when needed.
-  const showConnection = !displayRoute && state.status !== 'online';
+  const showConnection = !displayRoute && !modalOpen && state.status !== 'online';
   useEffect(() => {
     document.documentElement.classList.toggle(
       'pwa-connection-present',

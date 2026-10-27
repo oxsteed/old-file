@@ -303,7 +303,7 @@ export default function Navbar() {
             {user ? (
               <>
                 {navigation.primary.map(item => (
-                  <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname)} primary={item.primary}>
+                  <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname, currentMode)} primary={item.primary}>
                     {t(item.labelKey)}
                     {item.id === 'messages' && <UnreadBadge count={unreadMsgs} />}
                   </NavLink>
@@ -465,7 +465,7 @@ export default function Navbar() {
             {user ? (
               <>
                 {navigation.primary.map(item => (
-                  <MobileNavLink key={item.id} to={item.to} onClick={() => setMobileOpen(false)} active={navbarLinkActive(item, location.pathname)} primary={item.primary}>
+                  <MobileNavLink key={item.id} to={item.to} onClick={() => setMobileOpen(false)} active={navbarLinkActive(item, location.pathname, currentMode)} primary={item.primary}>
                     {t(item.labelKey)}
                     {item.id === 'messages' && <UnreadBadge count={unreadMsgs} />}
                   </MobileNavLink>
@@ -473,7 +473,7 @@ export default function Navbar() {
                 <div className="ox-nav-account-section">
                   <span className="ox-nav-section-label">{t('nav.account')}</span>
                   {navigation.account.map(item => (
-                    <MobileNavLink key={item.id} to={item.to} onClick={() => setMobileOpen(false)} active={navbarLinkActive(item, location.pathname)}>
+                    <MobileNavLink key={item.id} to={item.to} onClick={() => setMobileOpen(false)} active={navbarLinkActive(item, location.pathname, currentMode)}>
                       {t(item.labelKey)}
                     </MobileNavLink>
                   ))}
@@ -620,7 +620,7 @@ function AccountDisclosure({ items, mode, logout }) {
       {open && (
         <div id={panelId} className="ox-nav-account-panel">
           {items.map(item => (
-            <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname)}>{t(item.labelKey)}</NavLink>
+            <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname, mode)}>{t(item.labelKey)}</NavLink>
           ))}
           <button type="button" className="ox-nav-signout" onClick={logout} data-track="ui.0b9e115b87.5">{t('nav.signOut')}</button>
         </div>

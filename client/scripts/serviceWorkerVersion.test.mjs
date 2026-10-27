@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { appUpdatesDeferred, deferAppUpdates, isUpdateSensitivePath } from '../src/utils/appUpdateSafety.js';
 
 const moduleUrl = new URL('../src/utils/serviceWorkerRegistration.js', import.meta.url);
 let importCount = 0;
@@ -66,7 +67,7 @@ test('production builds inject one build id for every entry and route', async ()
   assert.equal(resolveBuildId({}, () => ''), '');
 });
 
-function fakeServiceWorkerEnv({ marker = null } = {}) {
+function fakeServiceWorkerEnv({ marker = null, pathname = '/' } = {}) {
   const listeners = {};
   const posted = [];
   const announced = [];
@@ -78,7 +79,7 @@ function fakeServiceWorkerEnv({ marker = null } = {}) {
   const define = (key, value) => Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
   let reloads = 0;
   define('window', {
-    location: { origin: 'https://oxsteed.com', reload: () => { reloads += 1; } },
+    location: { origin: 'https://oxsteed.com', pathname, reload: () => { reloads += 1; } },
     addEventListener: (type, fn) => { (listeners[type] ||= []).push(fn); },
     removeEventListener: (type, fn) => { listeners[type] = (listeners[type] || []).filter((f) => f !== fn); },
   });
@@ -107,6 +108,41 @@ function fakeServiceWorkerEnv({ marker = null } = {}) {
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+test('payment, booking, operational and restored-cart pages never update silently', async () => {
+  for (const pathname of ['/checkout', '/post-job', '/wallet', '/helpers/42/book', '/logistics/orders/42/checkout', '/agreements/42', '/restaurants/merchant', '/restaurants/r/42']) {
+    const env = fakeServiceWorkerEnv({ pathname });
+    try {
+      const mod = await freshModule();
+      mod.subscribeWorkerUpdate(worker => env.announced.push(worker));
+      mod.registerServiceWorker();
+      await settle();
+      assert.deepEqual(env.posted, [], pathname);
+      assert.deepEqual(env.announced, [env.worker], pathname);
+      if (isUpdateSensitivePath(pathname)) assert.equal(mod.applyWorkerUpdate(), false);
+      assert.deepEqual(env.posted, [], pathname);
+    } finally { env.restore(); }
+  }
+});
+
+test('workflow guards prevent explicit refresh and remain independent', async () => {
+  const env = fakeServiceWorkerEnv();
+  const releaseFirst = deferAppUpdates(), releaseSecond = deferAppUpdates();
+  try {
+    const mod = await freshModule();
+    mod.registerServiceWorker();
+    await settle();
+    assert.equal(mod.applyWorkerUpdate(), false);
+    assert.deepEqual(env.posted, []);
+    releaseFirst(); releaseFirst();
+    assert.equal(appUpdatesDeferred(), true, 'releasing a guard twice cannot release another workflow');
+    assert.equal(mod.applyWorkerUpdate(), false);
+    releaseSecond();
+    assert.equal(appUpdatesDeferred(), false);
+    assert.equal(mod.applyWorkerUpdate(), true);
+    assert.deepEqual(env.posted, [{ type: 'SKIP_WAITING' }]);
+  } finally { releaseFirst(); releaseSecond(); env.restore(); }
+});
 
 test('a waiting worker found on a fresh, untouched load is applied silently once', async () => {
   const env = fakeServiceWorkerEnv();

@@ -11,13 +11,13 @@ authorization, privacy, deployment-secret, and production-data safeguards.
 | # | Improvement and required outcome | Evidence required for completion | Current state / next action |
 | --- | --- | --- | --- |
 | 1 | Deploy without interrupting users: keep the current app serving until its replacement is ready; retain a working release when a candidate fails. | Isolated successful and failed promotions; production transition sampled for HTML, readiness, and representative reads; correct release identity; storage, session, realtime, shutdown, and worker continuity. | In progress. Earlier deploys returned 503. Current Coolify target uses Docker Compose, which lacks application rolling replacement. Inspect persistent mounts, configuration, proxy routing, and worker overlap safety; prepare and rehearse the deployment change before applying it. |
-| 2 | Smoother navigation: retain usable navigation while route content loads, avoid downloading unrelated screens and large inactive workspace panels, and measure real transitions. | Bundle comparison, cold/warm route timing, delayed-chunk/recovery checks, correct mode/authorization behavior, and representative live navigation. | Partial: `11518817` split dashboard modes and prefetched primary links. Inspect current route fallback, workspace imports, and browser navigation; add timing evidence and remove remaining transition bottlenecks. |
-| 3 | Homepage follows the active mode: business activity for owners, work for helpers, discovery/bookings for customers. | Customer, Helper, Business Owner, and supported team-mode browser checks; logged-out discovery remains useful; authorized destinations; five-language parity. | Not complete. Inspect HomePage and existing dashboard/attention APIs; reuse trusted mode and permission models and present the highest-priority actions first. |
-| 4 | Consistent design across Food, Direct, Messages, and business workspaces: headers, spacing, buttons, forms, and loading states. | Shared component/token adoption and desktop/mobile, light/dark, keyboard, and Arabic rendering across all four surfaces. | Partial: restaurant directory alignment shipped in `51f7e04e`. Audit current surfaces and consolidate repeated patterns without flattening mode-specific priorities. |
+| 2 | Smoother navigation: retain usable navigation while route content loads, avoid downloading unrelated screens and large inactive workspace panels, and measure real transitions. | Bundle comparison, cold/warm route timing, delayed-chunk/recovery checks, correct mode/authorization behavior, and representative live navigation. | Partial: `11518817` split dashboard modes and prefetched primary links. The shared loading fallback now keeps navigation available; a held real route chunk was tested. Provider home routes avoid downloading customer discovery. Next: split inactive workspace panels and measure representative cold/warm transitions without competing browser suites. |
+| 3 | Homepage follows the active mode: business activity for owners, work for helpers, discovery/bookings for customers. | Customer, Helper, Business Owner, and supported team-mode browser checks; logged-out discovery remains useful; authorized destinations; five-language parity. | Implemented in package 2: operational home uses the existing mode dashboard behind the existing verification/error boundaries, while customers/visitors retain discovery and customers get a bookings shortcut. Fourteen built-app role/viewport cases pass, including Arabic and active navigation. Await publication and cross-check transient authentication recovery under item 7 before final acceptance. |
+| 4 | Consistent design across Food, Direct, Messages, and business workspaces: headers, spacing, buttons, forms, and loading states. | Shared component/token adoption and desktop/mobile, light/dark, keyboard, and Arabic rendering across all four surfaces. | Partial: restaurant directory alignment shipped in `51f7e04e`; package 2 adds one localized, themed loading state for ordinary routes and preserves immersive operation layouts. Next: audit and consolidate headers/forms/spacing across Direct, Messages, and business workspaces, including main-landmark semantics. |
 | 5 | Clear restaurant discovery: location, opening hours, ordering options, and a useful small-inventory layout without repeated restaurant shelves. | Real-data contract checks, location/filter and empty-state behavior, accurate hours/fulfillment labels, pagination and no-duplicate shelf checks, and live directory verification. | Not complete. Inspect current restaurant response contracts and visible controls; avoid invented availability or unsupported ordering options. |
 | 6 | Business workspaces lead with today's bookings, unanswered messages, overdue invoices, and required tasks; detailed analytics are secondary. | Ownership/team-permission scenarios, authoritative counts, task destinations, empty/error/loading states, and responsive browser checks. | Not complete. Inspect workspace overview data and existing attention services; retain financial/account/currency separation. |
 | 7 | Reliable sessions and unfinished work: investigate unexpected sign-outs and preserve work during transient outages, reconnects, and updates. | Expired versus transient refresh cases; resume/update/navigation/reload with drafts; account-switch isolation; concurrent-tab behavior; no stale private data or financial replay. | Not complete. Inspect authentication bootstrap/refresh and existing draft/reconnect coordinators. Do not weaken session verification or authentication. |
-| 8 | Less persistent screen clutter: connection, AI support, update notices, and cookie controls do not compete with primary actions. | Online/offline/reconnecting and recovery checks; checkout/dirty-work update deferral; support/cookie/update combinations; mobile keyboard and desktop/RTL clearance; accessible recovery controls. | In progress: removed the persistent healthy-connection badge while preserving offline/reconnecting retry and resume behavior. Browser recovery checks pass. Current source already has a dismissible update notice, stable release IDs, early safe-update handling, and cookie-height stacking. Next: coordinate prompts with checkout/dirty work and other open overlays, then verify clearance and live behavior. |
+| 8 | Less persistent screen clutter: connection, AI support, update notices, and cookie controls do not compete with primary actions. | Online/offline/reconnecting and recovery checks; checkout/dirty-work update deferral; support/cookie/update combinations; mobile keyboard and desktop/RTL clearance; accessible recovery controls. | Package 2 implements critical-work/edited-form/cart deferral, modal/cookie priority, launcher/action-bar clearance, and offline/keyboard launcher suppression. Browser geometry and real draft-update/reconnect checks pass. Await published runtime verification; retain the wider unfinished-work/session audit under item 7. |
 
 ## Execution and evidence rules
 
@@ -75,3 +75,51 @@ No item is marked complete at goal creation.
 
 This package is partial progress. None of the eight broad requirements is yet
 accepted as complete; live publication/CI evidence is separate from these checks.
+
+## Package 2 - mode homepages, loading, and overlay coordination
+
+- `ModeHomeRoute` chooses a mode before importing its page. Providers reuse the
+  existing role dashboard and its authorization/verification/error boundaries;
+  customer discovery code and location effects do not run for those routes.
+  Customer mode remains discovery even with an older helper role value.
+- Customer discovery links directly to bookings. Existing translated strings
+  are reused; no untranslated production copy was introduced.
+- Operational homepages highlight Dashboard/My Work in desktop and mobile
+  navigation. The shared localized loading state keeps ordinary navigation
+  available, respects reduced motion and theme tokens, and leaves immersive
+  display/media routes with their dedicated layout.
+- Waiting updates remain available without interrupting critical routes, active
+  restaurant carts, edited/focused fields, cookie controls, or modal workflows.
+  Guards contain no field values. Explicit updates recheck protection before
+  activation; restored carts and critical paths also block silent startup
+  activation.
+- Healthy browsing remains quiet. Recovery controls take priority over the AI
+  launcher; cookie banners and floating restaurant-cart actions publish enough
+  space for notices. Coordinate observers run only when notices need them.
+- Registration/safety, route/mode, and navigation unit checks pass. The full
+  client `npm run build:ci` passes with 1,099 emitted assets.
+- `npm run test:pwa:unit`: 35 passed.
+- `npm run test:pwa:browser`: 5 passed after serializing browser files with
+  `--test-concurrency=1`. A prior parallel run had two 30-second test timeouts;
+  the serial run keeps the same assertions and timeout limits and passes in
+  about 20 seconds.
+- `npm run test:home-mode-browser`: passed 14 real built-app mode/viewport
+  combinations, including Arabic mobile customer/helper/owner views, correct
+  active navigation, no viewport overflow, and no customer HomePage download for
+  provider modes. A delayed discovery chunk retained navigation and one main
+  landmark. Logged cold times are synthetic functional-run diagnostics under
+  concurrent host load, not production performance or a before/after benchmark.
+- Installed-mode recovery checks passed desktop and Android-sized Chromium and
+  iPad-sized WebKit. The update test now proves deferral while editing, activation after
+  leaving the workflow, then restoration of draft text and photos; reconnect,
+  checkout notes, sharing, and real-expiry account isolation remain covered.
+- Package 1 remote CI (`40592469444`, commit `79e21933`) passed client build,
+  browser and installed-mode checks. The overall run failed one server source
+  scan: `p2-session-direct-schema.test.js` reports the existing
+  `services/creditCompliance/amlRules.js` sessions query. It had 911 passing
+  server suites and one failure. This is separate from package 2 validation;
+  no server source changed in either experience package.
+
+Remaining work: requirements 1, 2, 4, 5, 6, and 7 still require implementation
+and acceptance evidence. Requirements 3 and 8 require publication verification
+and their final cross-cutting recovery audit. The overall goal remains active.

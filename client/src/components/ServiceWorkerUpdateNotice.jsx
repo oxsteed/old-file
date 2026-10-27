@@ -1,22 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   applyWorkerUpdate,
   getWaitingWorker,
   subscribeWorkerUpdate,
 } from '../utils/serviceWorkerRegistration';
+import { appUpdatesDeferred, subscribeUpdateSafety } from '../utils/appUpdateSafety';
 
 export default function ServiceWorkerUpdateNotice() {
   const { t } = useTranslation();
   const [worker, setWorker] = useState(getWaitingWorker);
   const [dismissedWorker, setDismissedWorker] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const deferred = useSyncExternalStore(subscribeUpdateSafety, appUpdatesDeferred, appUpdatesDeferred);
   useEffect(() => {
     const unsubscribe = subscribeWorkerUpdate(setWorker);
     setWorker(getWaitingWorker());
     return unsubscribe;
   }, []);
-  if (!worker || worker === dismissedWorker) return null;
+  if (!worker || worker === dismissedWorker || deferred) return null;
   return (
     <aside
       role="status"
@@ -35,8 +37,7 @@ export default function ServiceWorkerUpdateNotice() {
         type="button"
         disabled={updating}
         onClick={() => {
-          setUpdating(true);
-          applyWorkerUpdate();
+          if (applyWorkerUpdate()) setUpdating(true);
         }}
         className="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white disabled:opacity-60"
         data-track="pwa.refresh-update"

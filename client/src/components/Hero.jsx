@@ -1,10 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import PrefetchLink from './PrefetchLink';
 import { useAuth } from '../context/AuthContext';
+import { navbarMode } from '../utils/navbarNavigation';
 
 export default function Hero({ search }) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const helper = navbarMode(user) === 'helper';
 
   return (
     <div className="hp-hero-inner">
@@ -24,16 +26,16 @@ export default function Hero({ search }) {
         {user ? (
           <>
             <PrefetchLink
-              to={user.role === 'helper' ? '/jobs' : '/post-job'}
+              to={helper ? '/jobs' : '/post-job'}
               className="hp-btn hp-btn-primary hp-btn-lg"
             >
-              {user.role === 'helper' ? t('nav.browseJobs') : t('hero.postJob')}
+              {helper ? t('nav.browseJobs') : t('hero.postJob')}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </PrefetchLink>
-            <PrefetchLink to="/dashboard" className="hp-btn hp-btn-outline hp-btn-lg">
-              {t('nav.dashboard')}
+            <PrefetchLink to={helper ? '/helper-dashboard' : '/my-bookings'} className="hp-btn hp-btn-outline hp-btn-lg">
+              {helper ? t('nav.myWork') : t('toolRentals.myBookings')}
             </PrefetchLink>
           </>
         ) : (

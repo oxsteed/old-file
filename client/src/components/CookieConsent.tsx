@@ -85,7 +85,7 @@ export default function CookieConsent() {
   // ─── Settings Panel ──────────────────────────────────────────────
   if (showSettings) {
     return (
-      <div className="cookie-consent-overlay" role="presentation">
+      <div className="cookie-consent-overlay" role="presentation" data-update-transient="true">
         <div ref={dialog} className="cookie-consent-settings" role="dialog" aria-modal="true" aria-labelledby={titleId}>
           <div className="cookie-consent-settings__header">
             <h3 id={titleId}>{t('cookieConsent.title')}</h3>

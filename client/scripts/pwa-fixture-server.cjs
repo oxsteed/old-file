@@ -23,6 +23,7 @@ exports.startPwaFixture = async () => {
     draft: null,
     requests: [],
     writes: [],
+    readResponses: {},
   };
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -34,6 +35,8 @@ exports.startPwaFixture = async () => {
       res.end(JSON.stringify(data));
     };
     if (url.pathname.startsWith('/api/')) {
+      if (req.method === 'GET' && Object.hasOwn(state.readResponses, url.pathname))
+        return json(state.readResponses[url.pathname]);
       if (!['GET', 'HEAD'].includes(req.method)) {
         let body = '';
         for await (const part of req) body += part;

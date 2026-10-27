@@ -12,7 +12,8 @@ html {
   position: fixed;
   inset-inline-start: 0.75rem;
   bottom: calc(
-    0.75rem + env(safe-area-inset-bottom, 0px) + var(--pwa-keyboard-inset)
+    max(0.75rem, var(--cookie-banner-height, 0px) + 0.75rem, var(--pwa-action-clearance, 0px)) +
+      env(safe-area-inset-bottom, 0px) + var(--pwa-keyboard-inset)
   );
   z-index: 110;
   display: flex;
@@ -42,9 +43,23 @@ html {
   /* Sit above the cookie-consent banner while it is shown (its height is
      published by CookieConsent), otherwise above the mobile bottom nav. */
   bottom: calc(
-    max(3.75rem, var(--cookie-banner-height, 0px) + 0.75rem) +
+    max(3.75rem, var(--cookie-banner-height, 0px) + 0.75rem, var(--pwa-support-clearance, 0px)) +
       env(safe-area-inset-bottom, 0px) + var(--pwa-keyboard-inset, 0px)
   ) !important;
+}
+.fixed[data-pwa-support-launcher] {
+  --pwa-support-bottom: 5.5rem;
+  bottom: calc(max(var(--pwa-support-bottom), var(--cookie-banner-height, 0px) + 0.75rem, var(--pwa-action-clearance, 0px)) + env(safe-area-inset-bottom, 0px));
+}
+.rp-float-cart[data-pwa-bottom-actions] {
+  --pwa-action-bottom: 1.5rem;
+  bottom: calc(max(var(--pwa-action-bottom), var(--cookie-banner-height, 0px) + 0.75rem) + env(safe-area-inset-bottom, 0px));
+}
+.pwa-connection-present [data-pwa-support-launcher],
+.pwa-keyboard-open [data-pwa-support-launcher] { display: none; }
+@media (min-width: 640px) {
+  .fixed[data-pwa-support-launcher] { --pwa-support-bottom: 1.5rem; }
+  .rp-float-cart[data-pwa-bottom-actions] { --pwa-action-bottom: 2rem; }
 }
 @media (pointer: coarse) {
   input:not([type='checkbox']):not([type='radio']),

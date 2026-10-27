@@ -857,6 +857,7 @@ function markProactiveDismissed() {
       {/* ── FAB ── */}
       {(!open || !isMobile) && (
         <button
+          data-pwa-support-launcher
           onClick={() => { setOpen(true); setMinimized(false); setUnread(0); }}
           aria-label={t('supportWidget.openAssistant')}
           className={`${isMediaPage ? 'media-support-launcher ' : ''}fixed bottom-20 end-4 sm:bottom-6 sm:end-6 z-40 flex items-center gap-2 px-3.5 py-2.5 bg-action hover:bg-action-hover text-on-action rounded-full shadow-md shadow-orange-500/20 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm`}

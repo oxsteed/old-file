@@ -213,10 +213,15 @@ for (const profile of profiles)
         await page.evaluate(async () => {
           await (await navigator.serviceWorker.getRegistration()).update();
         });
+        await page.waitForFunction(async () => !!(await navigator.serviceWorker.getRegistration()).waiting);
+        assert.equal(await page.getByRole('button', { name: 'Refresh to update', exact: true }).count(), 0,
+          'updates are deferred while authoring a job');
+        assert.equal(await title.inputValue(), 'Keep draft through update');
+        await page.locator('.ox-navbar').getByRole('link', { name: 'OxSteed', exact: true }).click();
+        await page.waitForURL(fixture.origin + '/');
         await page
           .getByRole('button', { name: 'Refresh to update', exact: true })
           .waitFor();
-        assert.equal(await title.inputValue(), 'Keep draft through update');
         // Prove that refresh replaced the document, then wait for the actual
         // form below. The window load event also waits for unrelated resources
         // and can stall on mobile Chromium after a worker takeover.
@@ -225,6 +230,7 @@ for (const profile of profiles)
           .getByRole('button', { name: 'Refresh to update', exact: true })
           .click();
         await page.waitForFunction(() => !window.__pwaBeforeUpdateDocument);
+        await page.goto(fixture.origin + '/post-job');
         await title.waitFor();
         await page.waitForTimeout(800);
         await page.waitForFunction(

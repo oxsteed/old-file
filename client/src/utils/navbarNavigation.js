@@ -50,7 +50,8 @@ export function navbarNavigation(user, { dashboardPath = '/dashboard', workspace
   return { mode, primary, account, showBusinessSwitcher: business && canAccessBusinessHub(effectiveUser) };
 }
 
-export function navbarLinkActive(item, pathname) {
+export function navbarLinkActive(item, pathname, mode) {
+  if (pathname === '/' && mode && mode !== 'customer' && ['dashboard', 'myWork'].includes(item.id)) return true;
   if (item.id === 'workspace') return pathname === '/business-hub' || /^\/business\/[^/]+\/workspace(?:\/|$)/.test(pathname);
   if (item.id === 'myWork') return pathname === '/helper-dashboard' || pathname === '/dashboard';
   if (item.id === 'messages') return ['/messages', '/helper/messages'].some(path => pathname === path || pathname.startsWith(`${path}/`));

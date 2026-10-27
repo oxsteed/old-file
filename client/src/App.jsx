@@ -1,5 +1,7 @@
 import PwaRuntime from './components/PwaRuntime';
 import PageShell from './components/PageShell';
+import PageLoadingState from './components/PageLoadingState';
+import ModeHomeRoute from './components/ModeHomeRoute';
 import LogisticsRouteBoundary from './components/logistics/LogisticsRouteBoundary';
 import { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
@@ -321,11 +323,11 @@ function OrderIdRedirect() {
 }
 
 function RouteLoadingFallback() {
-  return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-950 text-gray-300" aria-live="polite">
-      Loading...
-    </main>
-  );
+  const { pathname } = useLocation();
+  const immersive = /^\/(?:media(?:\/|$)|(?:restaurants|food)\/(?:kitchen|queue|kiosk|screens|pos)(?:\/|$))/.test(pathname);
+  return immersive
+    ? <main id="main-content"><PageLoadingState /></main>
+    : <PageShell><PageLoadingState /></PageShell>;
 }
 
 function LaunchScopeRouteGate({ children }) {
@@ -421,7 +423,7 @@ export default function App() {
                     {/* ── Impersonation landing (super-admin only, new tab) ── */}
                     <Route path="/impersonate"             element={<ImpersonatePage />} />
                     {/* ── Public routes ────────────────────────────────────── */}
-                    <Route path="/"                        element={<Guarded>{isStatusHost ? <StatusPage /> : <HomePage />}</Guarded>} />
+                    <Route path="/"                        element={<Guarded>{isStatusHost ? <StatusPage /> : <ModeHomeRoute DiscoveryPage={HomePage} DashboardPage={SmartDashboard} LoadingState={RouteLoadingFallback} />}</Guarded>} />
                     <Route path="/status"                  element={<Guarded><StatusPage /></Guarded>} />
                     <Route path="/login"                   element={<Guarded><Login /></Guarded>} />
                     <Route path="/investor/login"          element={<Guarded><InvestorLoginPage /></Guarded>} />

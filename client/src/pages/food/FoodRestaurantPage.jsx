@@ -2559,7 +2559,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
 
         {/* ── Floating cart ── */}
         {hasCart && !cartOpen && !modalItem && (
-          <div className="rp-float-cart">
+          <div className="rp-float-cart" data-update-defer="true" data-pwa-bottom-actions>
             <button onClick={() => { setCartOpen(true); setCartStep('cart'); }} style={{ display: 'flex', alignItems: 'center', gap: 14, background: accent, color: '#fff', border: 'none', borderRadius: 16, padding: '14px 22px', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: `0 8px 28px ${accentShadow}`, minWidth: 240, justifyContent: 'space-between' }} data-track="ui.a612ceb6f0.24">
               <span style={{ background: 'rgba(0,0,0,0.18)', borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 700 }}>{cartCount}</span>
               <span>{t('food.restaurant.viewCart')}</span>

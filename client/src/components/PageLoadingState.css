@@ -1,0 +1,24 @@
+.ox-loading-state {
+  min-height: clamp(12rem, 45vh, 28rem);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+.ox-loading-state p { margin: 0; }
+.ox-loading-state__spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid var(--color-border-strong);
+  border-top-color: var(--color-action);
+  border-radius: 50%;
+  animation: ox-page-loading .8s linear infinite;
+}
+@keyframes ox-page-loading { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ox-loading-state__spinner { animation: none; }
+}

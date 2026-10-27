@@ -1,3 +1,5 @@
+import { appUpdatesDeferred, isSilentUpdateSensitivePath, isUpdateSensitivePath } from './appUpdateSafety.js';
+
 const RECOVERY_KEY = 'oxsteed:i18n-bootstrap-recovery';
 
 function hashFingerprint(value) {
@@ -75,6 +77,7 @@ function writeSilentUpdateMarker(value) {
 }
 
 function trySilentUpdate(worker) {
+  if (appUpdatesDeferred() || isSilentUpdateSensitivePath(window.location.pathname)) return false;
   if (pageInteracted || Date.now() > silentUpdateDeadline) return false;
   const id = worker.scriptURL || 'waiting';
   // One silent attempt per worker per tab session: if the reload comes back
@@ -101,14 +104,15 @@ function announceUpdate(worker) {
 }
 
 export function applyWorkerUpdate() {
-  if (!waitingWorker) return;
+  if (!waitingWorker || appUpdatesDeferred() || isUpdateSensitivePath(window.location.pathname)) return false;
   // Another tab may already have accepted this worker. Refresh this page
   // only when its own user presses the button.
-  if (waitingWorker.state === 'activated') { window.location.reload(); return; }
+  if (waitingWorker.state === 'activated') { window.location.reload(); return true; }
   // Only the page whose user requested the update reloads. Other tabs keep
   // their in-progress forms and are never forcibly reloaded on controllerchange.
   navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true });
   waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+  return true;
 }
 
 export function registerServiceWorker() {
