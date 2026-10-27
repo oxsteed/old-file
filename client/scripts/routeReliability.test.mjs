@@ -4,6 +4,11 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { transformSync } from 'esbuild';
+import React from 'react';
+import { renderToPipeableStream } from 'react-dom/server';
+import { Writable } from 'node:stream';
+import { dashboardKeyForMode } from '../src/utils/modeAccess.js';
+import { normalizeLaunchDashboardMode } from '../src/utils/launchScope.js';
 
 const root = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 const repo = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
@@ -65,6 +70,10 @@ test('common route loaders are shared by prefetching and route definitions', () 
   const loaders = root('src/utils/routePrefetch.js');
   const app = repo('client/src/App.jsx');
   for (const [name, route] of [
+    ['dashboard', 'routeLoaders.dashboard'],
+    ['businessWorkspace', 'routeLoaders.businessWorkspace'],
+    ['messages', 'routeLoaders.messages'],
+    ['helperMessages', 'routeLoaders.helperMessages'],
     ['logistics', 'routeLoaders.logistics'],
     ['restaurants', 'routeLoaders.restaurants'],
     ['qrGenerator', 'routeLoaders.qrGenerator'],
@@ -91,6 +100,96 @@ test('prefetching honors connection constraints and deduplicates loaders', () =>
   assert.match(source, /slow-2g/);
   assert.match(source, /routePromises/);
   assert.match(source, /routePromises\.has/);
+});
+
+function prefetchFixture() {
+  const requested = [];
+  const navigator = { onLine: true, connection: { saveData: false, effectiveType: '4g' } };
+  const module = { exports: {} };
+  const code = transformSync(root('src/utils/routePrefetch.js'), {
+    format: 'cjs', supported: { 'dynamic-import': false },
+  }).code;
+  vm.runInNewContext(code, { module, exports: module.exports, navigator, require(name) {
+    if (name === '@sentry/react') return {};
+    if (name === './lazyWithRetry') return { isChunkLoadError: () => false };
+    if (name.startsWith('../pages/')) { requested.push(name); return { default() {} }; }
+    throw new Error(`Unexpected import: ${name}`);
+  } });
+  return { ...module.exports, navigator, requested };
+}
+
+test('primary navigation starts the correct shared download once before navigation', async () => {
+  for (const [path, name, moduleName] of [
+    ['/dashboard?from=nav', 'dashboard', 'SmartDashboard'],
+    ['/business/4/workspace', 'businessWorkspace', 'BusinessHubPage'],
+    ['/business/4/workspace/calendar', 'businessWorkspace', 'BusinessHubPage'],
+    ['/business-hub', 'businessWorkspace', 'BusinessHubPage'],
+    ['/messages', 'messages', 'MessagesPage'],
+    ['/helper/messages#inbox', 'helperMessages', 'HelperInboxPage'],
+  ]) {
+    const f = prefetchFixture();
+    const pending = f.prefetchPath(path);
+    assert.ok(pending, `${path} must prefetch`);
+    assert.equal(pending, f.routeLoaders[name](), 'navigation must reuse the same download');
+    await pending;
+    assert.deepEqual(f.requested, [`../pages/${moduleName}`]);
+  }
+});
+
+test('navigation prefetching avoids wrong screens and respects offline and data-saving connections', () => {
+  const f = prefetchFixture();
+  for (const path of ['/messages/conversation-4', '/helper/messages/conversation-4', '/business/4', '/dashboard-other']) {
+    assert.equal(f.prefetchPath(path), null, path);
+  }
+  f.navigator.onLine = false;
+  assert.equal(f.prefetchPath('/dashboard'), null);
+  f.navigator.onLine = true;
+  f.navigator.connection.saveData = true;
+  assert.equal(f.prefetchPath('/business/4/workspace'), null);
+  f.navigator.connection.saveData = false;
+  f.navigator.connection.effectiveType = '2g';
+  assert.equal(f.prefetchPath('/helper/messages'), null);
+  assert.deepEqual(f.requested, []);
+});
+
+test('dashboard downloads and renders only the active account mode', async () => {
+  const require = createRequire(import.meta.url);
+  const code = transformSync(root('src/pages/SmartDashboard.jsx'), {
+    loader: 'jsx', format: 'cjs', jsx: 'automatic', supported: { 'dynamic-import': false },
+  }).code;
+  for (const [mode, expected] of [
+    ['customer', 'Dashboard'], ['helper', 'HelperDashboard'],
+    ['business_owner', 'BusinessOwnerDashboard'], ['business_manager', 'BusinessManagerDashboard'],
+    ['business_representative', 'BusinessRepresentativeDashboard'], ['business_employee', 'BusinessEmployeeDashboard'],
+  ]) {
+    const loaded = [];
+    const module = { exports: {} };
+    vm.runInNewContext(code, { module, exports: module.exports, require(name) {
+      if (name === 'react-router-dom') return { useNavigate: () => () => {} };
+      if (name === '../hooks/useAuth') return { useAuth: () => ({ user: { default_mode: mode }, loading: false }) };
+      if (name === '../utils/lazyWithRetry') return { lazyWithRetry: React.lazy };
+      if (name === '../utils/modeAccess') return { dashboardKeyForMode };
+      if (name === '../utils/launchScope') return { normalizeLaunchDashboardMode };
+      if (name === '../growth/OfferCard') return { default: () => null, __esModule: true };
+      if (name.startsWith('./')) {
+        const page = name.slice(2);
+        loaded.push(page);
+        return { __esModule: true, default: () => React.createElement('h1', null, page) };
+      }
+      return require(name);
+    } });
+    const html = await new Promise((resolve, reject) => {
+      let output = '';
+      const sink = new Writable({ write(chunk, encoding, done) { output += chunk; done(); } });
+      sink.on('finish', () => resolve(output));
+      sink.on('error', reject);
+      const stream = renderToPipeableStream(React.createElement(module.exports.default), {
+        onAllReady() { stream.pipe(sink); }, onError: reject,
+      });
+    });
+    assert.match(html, new RegExp(`<h1>${expected}</h1>`));
+    assert.deepEqual(loaded, [expected], `${mode} must not download other modes`);
+  }
 });
 
 test('service worker is release-versioned and does not cache arbitrary HTML navigations', () => {

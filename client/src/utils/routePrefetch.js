@@ -17,6 +17,10 @@ function createLoader(name, importer) {
 }
 
 export const routeLoaders = Object.freeze({
+  dashboard: createLoader('dashboard', () => import('../pages/SmartDashboard')),
+  businessWorkspace: createLoader('businessWorkspace', () => import('../pages/BusinessHubPage')),
+  messages: createLoader('messages', () => import('../pages/MessagesPage')),
+  helperMessages: createLoader('helperMessages', () => import('../pages/HelperInboxPage')),
   logistics: createLoader('logistics', () => import('../pages/logistics/LogisticsHomePage')),
   restaurants: createLoader('restaurants', () => import('../pages/food/FoodHomePage')),
   qrGenerator: createLoader('qrGenerator', () => import('../pages/QRCodeGeneratorPage')),
@@ -26,6 +30,10 @@ export const routeLoaders = Object.freeze({
 });
 
 const routeByPath = [
+  [/^\/dashboard\/?$/, 'dashboard'],
+  [/^\/(?:business-hub\/?|business\/[^/]+\/workspace(?:\/[^/]+)?\/?)$/, 'businessWorkspace'],
+  [/^\/messages\/?$/, 'messages'],
+  [/^\/helper\/messages\/?$/, 'helperMessages'],
   [/^\/logistics(?:\/|$)/, 'logistics'],
   [/^\/(?:restaurants|food)(?:\/|$)/, 'restaurants'],
   [/^\/qr-generator(?:\/|$)/, 'qrGenerator'],

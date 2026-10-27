@@ -7,22 +7,26 @@
 // keeps the legacy customer/helper experience working until those users
 // touch the account-type panel.
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import Dashboard from './Dashboard';
-import HelperDashboard from './HelperDashboard';
-import LifeDashboard from './LifeDashboard';
-import ToolOwnerDashboard from './ToolOwnerDashboard';
-import FranchiseApplicantDashboard from './FranchiseApplicantDashboard';
-import BusinessOwnerDashboard from './BusinessOwnerDashboard';
-import ConsultantContractorDashboard from './ConsultantContractorDashboard';
-import BusinessManagerDashboard from './BusinessManagerDashboard';
-import BusinessRepresentativeDashboard from './BusinessRepresentativeDashboard';
-import BusinessEmployeeDashboard from './BusinessEmployeeDashboard';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { dashboardKeyForMode } from '../utils/modeAccess';
 import { normalizeLaunchDashboardMode } from '../utils/launchScope';
 import OfferCard from '../growth/OfferCard';
+
+// Download only the active mode's dashboard. Other modes stay available
+// without adding their screens and dependencies to every dashboard visit.
+const Dashboard = lazyWithRetry(() => import('./Dashboard'));
+const HelperDashboard = lazyWithRetry(() => import('./HelperDashboard'));
+const LifeDashboard = lazyWithRetry(() => import('./LifeDashboard'));
+const ToolOwnerDashboard = lazyWithRetry(() => import('./ToolOwnerDashboard'));
+const FranchiseApplicantDashboard = lazyWithRetry(() => import('./FranchiseApplicantDashboard'));
+const BusinessOwnerDashboard = lazyWithRetry(() => import('./BusinessOwnerDashboard'));
+const ConsultantContractorDashboard = lazyWithRetry(() => import('./ConsultantContractorDashboard'));
+const BusinessManagerDashboard = lazyWithRetry(() => import('./BusinessManagerDashboard'));
+const BusinessRepresentativeDashboard = lazyWithRetry(() => import('./BusinessRepresentativeDashboard'));
+const BusinessEmployeeDashboard = lazyWithRetry(() => import('./BusinessEmployeeDashboard'));
 
 function Spinner() {
   return (
@@ -67,7 +71,7 @@ export default function SmartDashboard() {
       <div className="px-4 pt-4">
         <OfferCard />
       </div>
-      {dashboard}
+      <Suspense fallback={<Spinner />}>{dashboard}</Suspense>
     </>
   );
 

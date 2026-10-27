@@ -39,7 +39,7 @@ const BusinessLaunchStatusPage = lazyWithRetry(() => import('./pages/BusinessLau
 const FranchiseIntakePage = lazyWithRetry(() => import('./pages/FranchiseIntakePage'));
 const FranchiseApplicantDashboard = lazyWithRetry(() => import('./pages/FranchiseApplicantDashboard'));
 const FranchiseTerritoryOpsPage = lazyWithRetry(() => import('./pages/FranchiseTerritoryOpsPage'));
-const SmartDashboard = lazyWithRetry(() => import('./pages/SmartDashboard'));
+const SmartDashboard = lazyWithRetry(routeLoaders.dashboard, { name: 'dashboard' });
 const HelperDashboard = lazyWithRetry(() => import('./pages/HelperDashboard'));
 const ClientManagementPage = lazyWithRetry(routeLoaders.clientManagement, { name: 'clientManagement' });
 const UpgradePage = lazyWithRetry(() => import('./pages/UpgradePage'));
@@ -86,9 +86,9 @@ const HelperBusinessProfilePage = lazyWithRetry(() => import('./pages/HelperBusi
 const HelpersDirectoryPage = lazyWithRetry(() => import('./pages/HelpersDirectoryPage'));
 const DisputeCenter = lazyWithRetry(() => import('./pages/disputes/DisputeCenter'));
 const DisputeDetail = lazyWithRetry(() => import('./pages/disputes/DisputeDetail'));
-const MessagesPage = lazyWithRetry(() => import('./pages/MessagesPage'));
+const MessagesPage = lazyWithRetry(routeLoaders.messages, { name: 'messages' });
 const ConversationPage = lazyWithRetry(() => import('./pages/ConversationPage'));
-const HelperInboxPage = lazyWithRetry(() => import('./pages/HelperInboxPage'));
+const HelperInboxPage = lazyWithRetry(routeLoaders.helperMessages, { name: 'helperMessages' });
 const HelperConversationPage = lazyWithRetry(() => import('./pages/HelperConversationPage'));
 const HelperGuestInquiryPage = lazyWithRetry(() => import('./pages/HelperGuestInquiryPage'));
 const PlannedNeedsPage = lazyWithRetry(() => import('./pages/PlannedNeedsPage'));
@@ -162,7 +162,7 @@ const LogisticsCheckoutPage = lazyWithRetry(() => import('./pages/logistics/Chec
 const LogisticsOperationsFinancePage=lazyWithRetry(()=>import('./pages/logistics/OperationsFinancePage'));
 const AllocationDetailPage=lazyWithRetry(()=>import('./pages/logistics/AllocationDetailPage'));
 const LogisticsPaymentsPage = lazyWithRetry(() => import('./pages/logistics/LogisticsPaymentsPage'));
-const BusinessHubPage = lazyWithRetry(() => import('./pages/BusinessHubPage'));
+const BusinessHubPage = lazyWithRetry(routeLoaders.businessWorkspace, { name: 'businessWorkspace' });
 const BusinessOnboardingPage = lazyWithRetry(() => import('./pages/BusinessOnboardingPage'));
 const CreditApplyPage = lazyWithRetry(() => import('./pages/CreditApplyPage'));
 const VortexPage = lazyWithRetry(() => import('./pages/VortexPage'));
