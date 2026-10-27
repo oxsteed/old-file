@@ -895,7 +895,43 @@ const staffPinAttemptLimiter = rateLimit({
   },
 });
 
+// Careers (spec §6.2, §4.8): applying, guest apply and talent search.
+// The service layer enforces the per-email/per-IP daily guest caps and the
+// 50/day invitation cap; these limiters stop bursts and scraping.
+const careersApplyLimiter = rateLimit({
+  ...createStoreOption('rl:careers_apply:'),
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => (req.user?.id ? `user:${req.user.id}` : `ip:${req.ip}`),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many applications sent. Please try again later.', code: 'careers_apply_rate_limited' },
+});
+
+const careersGuestLimiter = rateLimit({
+  ...createStoreOption('rl:careers_guest:'),
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => `ip:${req.ip}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests sent. Please try again later.', code: 'careers_guest_rate_limited' },
+});
+
+const careersTalentLimiter = rateLimit({
+  ...createStoreOption('rl:careers_talent:'),
+  windowMs: 60 * 60 * 1000,
+  max: 60,
+  keyGenerator: (req) => (req.user?.id ? `user:${req.user.id}` : `ip:${req.ip}`),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many searches. Please try again later.', code: 'careers_talent_rate_limited' },
+});
+
 module.exports = {
+  careersApplyLimiter,
+  careersGuestLimiter,
+  careersTalentLimiter,
   createStoreOption,
   getVerifiedBearerUserId,
   getVerifiedAuthUserId,

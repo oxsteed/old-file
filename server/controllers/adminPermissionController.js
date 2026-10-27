@@ -30,6 +30,8 @@ const PERMISSION_SCOPES = {
   manage_disputes:       'Run the dispute lifecycle: evidence review and resolutions',
   manage_support:        'Work support tickets, restaurant support cases, and safety/SOS triage',
   manage_marketing:      'Manage discount codes, promotions, and campaigns',
+  manage_hiring:         'Run OxSteed HR hiring in Careers: platform openings, applicants, offers, retention rules and EOR',
+  moderate_careers:      'Moderate careers openings, fact disputes, fairness reports and the AI-ranking gate',
 };
 
 const VALID_PERMISSIONS = Object.keys(PERMISSION_SCOPES);

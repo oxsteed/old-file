@@ -260,6 +260,7 @@ async function hardDeleteUser(user, { throwOnError = false } = {}) {
       throw error;
     }
     await require('../services/privacyActivityData').erase(client,userId);
+    await require('../services/careers/privacy').erase(client,userId);
     if(process.env.GROWTH_SUBJECT_PEPPER)await require('../growth/rights').erase(client,userId);
 
     const q = (sql, params) => client.query(sql, params);

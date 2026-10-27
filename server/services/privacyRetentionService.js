@@ -81,6 +81,7 @@ function stripSql(column) {
 
 async function eraseUser(client, userId) {
   const summary = await require('./privacyActivityData').erase(client,userId);
+  Object.assign(summary, await require('./careers/privacy').erase(client,userId));
   if(process.env.GROWTH_SUBJECT_PEPPER) {
     const growthSummary = await require('../growth/rights').erase(client,userId);
     summary.growth = growthSummary;

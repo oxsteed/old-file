@@ -282,3 +282,48 @@ html:not(.dark) .ox-careers-error,
 [data-theme='light'] .ox-careers-error {
   color: #b91c1c;
 }
+
+/* ── Careers hub additions (logical properties keep RTL layouts correct) ── */
+.ox-careers-tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-block: 0 1.25rem; border-block-end: 1px solid rgba(148, 163, 184, 0.18); padding-block-end: 0.5rem; }
+.ox-careers-tab { background: transparent; border: 1px solid transparent; color: inherit; padding-block: 0.45rem; padding-inline: 0.8rem; border-radius: 0.7rem; cursor: pointer; font-weight: 600; }
+.ox-careers-tab.active { border-color: rgba(249, 115, 22, 0.6); color: #fb923c; }
+.ox-careers-badge { margin-inline-start: 0.4rem; background: #ea580c; color: #fff; border-radius: 999px; padding-inline: 0.45rem; font-size: 0.7rem; }
+.ox-careers-field { margin-block-end: 0.75rem; }
+.ox-careers-hint { font-size: 0.75rem; color: #94a3b8; margin-block: 0.25rem 0; }
+.ox-careers-check { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.88rem; margin-block: 0.35rem; cursor: pointer; }
+.ox-careers .ox-careers-check input { width: auto; margin-block-start: 0.2rem; }
+.ox-careers-yesno { border: 0; padding: 0; margin-block: 0 0.75rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+.ox-careers-yesno legend { font-size: 0.85rem; margin-block-end: 0.35rem; width: 100%; }
+.ox-careers-notice { border-radius: 0.9rem; padding-block: 0.7rem; padding-inline: 0.9rem; margin-block: 0.75rem; border: 1px solid rgba(148, 163, 184, 0.25); background: rgba(30, 41, 59, 0.6); font-size: 0.88rem; line-height: 1.5; }
+.ox-careers-notice.warn { border-color: rgba(234, 179, 8, 0.5); }
+.ox-careers-notice.error { border-color: rgba(248, 113, 113, 0.6); }
+.ox-careers-notice.success { border-color: rgba(34, 197, 94, 0.55); }
+.ox-careers-empty { color: #94a3b8; font-style: italic; }
+.ox-careers-btn.danger { border-color: rgba(248, 113, 113, 0.6); color: #f87171; }
+.ox-careers-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; }
+.ox-careers-split { display: grid; grid-template-columns: minmax(16rem, 22rem) 1fr; gap: 1rem; align-items: start; }
+@media (max-width: 860px) { .ox-careers-split { grid-template-columns: 1fr; } }
+.ox-careers-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.ox-careers-list-item { text-align: start; width: 100%; }
+.ox-careers-list-item.selected { border-color: rgba(249, 115, 22, 0.6); }
+.ox-careers-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.ox-careers-table th, .ox-careers-table td { text-align: start; padding-block: 0.45rem; padding-inline: 0.5rem; border-block-end: 1px solid rgba(148, 163, 184, 0.14); vertical-align: top; }
+.ox-careers-facts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-block: 0.4rem; }
+.ox-careers-steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.35rem; }
+.ox-careers-steps li { display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.ox-careers-section { margin-block: 1.25rem; }
+.ox-careers-section h3 { margin-block: 0 0.5rem; font-size: 1rem; }
+.ox-careers-chip.stage-hired, .ox-careers-chip.ok { border-color: rgba(34, 197, 94, 0.55); }
+.ox-careers-chip.stage-rejected, .ox-careers-chip.stage-withdrawn, .ox-careers-chip.bad { border-color: rgba(248, 113, 113, 0.55); }
+.ox-careers-chip.warn { border-color: rgba(234, 179, 8, 0.55); }
+.ox-careers-subtle { color: #94a3b8; font-size: 0.82rem; }
+html:not(.dark) .ox-careers-notice, [data-theme='light'] .ox-careers-notice { background: #f8fafc; color: #273449; }
+html:not(.dark) .ox-careers-tab.active, [data-theme='light'] .ox-careers-tab.active { color: #c2410c; }
+
+/* Applicant board (kanban) view */
+.ox-careers-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(14rem, 1fr); gap: 0.75rem; overflow-x: auto; padding-block-end: 0.5rem; }
+.ox-careers-board-col { border: 1px solid var(--ox-border, rgba(0,0,0,0.12)); border-radius: 0.5rem; padding: 0.5rem; min-block-size: 6rem; }
+.ox-careers-board-col h4 { margin-block: 0 0.5rem; font-size: 0.9rem; }
+/* Offer letter preview */
+.ox-careers-letter { border-inline-start: 3px solid var(--ox-accent, #2563eb); padding-inline-start: 0.75rem; margin-block: 0.75rem; }
+.ox-careers-letter h4 { margin-block: 0 0.25rem; }

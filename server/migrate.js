@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const logger = require('./utils/logger');
+const { sortMigrationFiles } = require('./migrationOrder');
 const {
   classifyDatabaseError,
   describeDatabaseTarget,
@@ -26,9 +27,11 @@ function migrationChecksum(sql) {
 }
 
 function listMigrationFiles(migrationsDir, through = null) {
-  const files = fs.readdirSync(migrationsDir)
-    .filter((file) => file.endsWith('.sql'))
-    .sort();
+  // Q11: numeric leading-prefix order (identical to the historical text
+  // order for every pre-existing file; see migrationOrder.js).
+  const files = sortMigrationFiles(
+    fs.readdirSync(migrationsDir).filter((file) => file.endsWith('.sql'))
+  );
   if (through === null) return files;
   const last = files.indexOf(through);
   if (last < 0) throw new Error(`Unknown migration boundary: ${through}`);

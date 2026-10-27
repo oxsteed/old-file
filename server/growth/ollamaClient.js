@@ -8,15 +8,20 @@ async function generate({
   fetchImpl = fetch,
 }) {
   const base = resolveOllamaUrl(process.env.GROWTH_OLLAMA_URL);
-  const model =
-    task === "rank"
-      ? process.env.GROWTH_OLLAMA_RANK_MODEL
-      : process.env.GROWTH_OLLAMA_MODEL;
+  // Careers tasks have their own pinned model and digest (careers spec
+  // §10.2) so a growth model change never silently changes hiring tools.
+  const TASK_ENV = {
+    rank: ["GROWTH_OLLAMA_RANK_MODEL", "GROWTH_OLLAMA_RANK_DIGEST"],
+    careers_extract: ["CAREERS_OLLAMA_MODEL", "CAREERS_OLLAMA_MODEL_DIGEST"],
+    careers_rank: ["CAREERS_OLLAMA_RANK_MODEL", "CAREERS_OLLAMA_RANK_DIGEST"],
+  };
+  const [modelEnv, digestEnv] = TASK_ENV[task] || [
+    "GROWTH_OLLAMA_MODEL",
+    "GROWTH_OLLAMA_DIGEST",
+  ];
+  const model = process.env[modelEnv];
   // Deployment pins the tag to a reviewed digest; missing pins degrade to rules.
-  const digest =
-    process.env[
-      task === "rank" ? "GROWTH_OLLAMA_RANK_DIGEST" : "GROWTH_OLLAMA_DIGEST"
-    ];
+  const digest = process.env[digestEnv];
   if (!base || !model || !/^(?:sha256:)?[a-f0-9]{64}$/.test(digest || ""))
     return null;
   const prompt = JSON.stringify(data);
@@ -66,7 +71,7 @@ async function generate({
       model,
       digest,
       prompt_hash: crypto.createHash("sha256").update(prompt).digest("hex"),
-      prompt_version: "growth-v1",
+      prompt_version: String(task).startsWith("careers_") ? "careers-v1" : "growth-v1",
     };
   } catch {
     return null;

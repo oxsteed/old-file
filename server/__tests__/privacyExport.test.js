@@ -2,6 +2,14 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 
+// The careers section has its own real-database coverage
+// (careers.db.test.js); here it is stubbed so the mocked query order of
+// the core export stays stable.
+jest.mock('../services/careers/privacy', () => ({
+  exportData: jest.fn().mockResolvedValue({ careers: { applications: [] } }),
+  erase: jest.fn().mockResolvedValue({}),
+}));
+
 // L3: export verification HMAC fails closed without a dedicated secret.
 process.env.EXPORT_VERIFICATION_SECRET = 'test-export-verification-secret';
 

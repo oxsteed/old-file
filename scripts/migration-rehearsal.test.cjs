@@ -8,8 +8,14 @@ test('lists migration files in sorted order', () => {
   const files = listMigrations();
   assert.ok(files.length > 600, `expected 600+ migrations, got ${files.length}`);
   assert.ok(files.every((f) => f.endsWith('.sql')));
-  const sorted = [...files].sort();
-  assert.deepEqual(files, sorted);
+  // Same order as server/migrate.js: numeric prefix, so timestamp-named
+  // migrations (YYYYMMDDHHMMSS_name.sql, careers Q11) run after 3-digit ones.
+  const prefixes = files.map((f) => BigInt(f.match(/^(\d+)/)[1]));
+  for (let i = 1; i < prefixes.length; i++) {
+    assert.ok(prefixes[i] >= prefixes[i - 1], `${files[i - 1]} must run before ${files[i]}`);
+  }
+  const firstStamp = files.findIndex((f) => /^\d{14}_/.test(f));
+  if (firstStamp !== -1) assert.ok(files.slice(firstStamp).every((f) => /^\d{14}_/.test(f)), 'timestamp migrations sort after numbered ones');
   assert.ok(files.some((f) => f.startsWith('601_')), 'new guard migrations are listed');
 });
 

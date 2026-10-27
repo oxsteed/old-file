@@ -77,7 +77,7 @@ const REQUIRED_HOOKS = {
     "controllers/vortexController.js": 1,
     "controllers/businessAccessCodesController.js": 1,
     "controllers/businessController.js": 1,
-    "controllers/careerController.js": 1,
+    "services/careers/onboardingRun.js": 1,
     "controllers/superAdminUserController.js": 1,
   },
   "account.tier_changed": { "controllers/webhookController.js": 1 },

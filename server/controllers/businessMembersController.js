@@ -12,6 +12,7 @@ const { logBusinessAction } = require('../services/businessAuditLog');
 const { applyStaffOffboarding } = require('../services/staffOffboarding');
 const { canActOnRole, resolveActorRole } = require('../utils/teamRanks');
 const emailUtils = require('../utils/email');
+const teamMembership = require('../services/team/membership');
 
 // Roles that can be assigned through the email invite flow (S-03). The
 // catalog can also express owner, but ownership is never invitable.
@@ -168,13 +169,8 @@ async function inviteMember(req, res) {
     const jobRoleCode = req.body.job_role || req.body.jobRole || null;
     let jobRolePreset = null;
     if (jobRoleCode) {
-      const { rows } = await pool.query(
-        `SELECT code, name, base_role, permission_codes
-           FROM team_job_roles WHERE code = $1`,
-        [String(jobRoleCode)]
-      );
-      if (!rows.length) return res.status(400).json({ error: 'Unknown job role' });
-      jobRolePreset = rows[0];
+      jobRolePreset = await teamMembership.loadJobRolePreset(pool, jobRoleCode);
+      if (!jobRolePreset) return res.status(400).json({ error: 'Unknown job role' });
     }
 
     // S-03: optional pay rate captured at invite time (consumed by payroll
@@ -221,18 +217,8 @@ async function inviteMember(req, res) {
       );
 
       // S-03: a job-role preset applies its permission codes as allow
-      // overrides on the new membership, on top of the base role defaults.
-      if (jobRolePreset && Array.isArray(jobRolePreset.permission_codes) && jobRolePreset.permission_codes.length) {
-        await client.query(
-          `INSERT INTO membership_permission_overrides
-             (membership_id, permission_id, effect, granted_by_user_id)
-           SELECT $1, p.id, 'allow', $2
-             FROM team_permissions p
-            WHERE p.code = ANY($3)
-           ON CONFLICT (membership_id, permission_id) DO NOTHING`,
-          [created.id, req.user.id, jobRolePreset.permission_codes]
-        );
-      }
+      // overrides on the new membership (shared with the careers onboarding run).
+      await teamMembership.applyJobRolePreset(client, created.id, jobRolePreset, req.user.id);
 
       // Send an in-app notification if the invitee already has an account.
       // S-01: same transaction as the invite insert, correct columns — a
