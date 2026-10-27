@@ -148,7 +148,10 @@
     "paymentStateCol": "Payment status",
     "restaurantSettlementDisclaimer": "This document is a restaurant settlement statement, not a bank statement. Partner settlements and payout outcomes are linked activity, not terms of the journal equation.",
     "helperEarningsDisclaimer": "This document summarizes helper earnings from job records. It is not a tax form, payroll record, or proof of employment. Unpaid amounts are owed, not received.",
-    "businessDisclaimer": "This document summarizes the business's receivables and payables activity. Collected amounts are derived because invoice payments carry no per-payment timestamp. No cross-entity consolidation is applied."
+    "businessDisclaimer": "This document summarizes the business's receivables and payables activity. Collected amounts are derived because invoice payments carry no per-payment timestamp. No cross-entity consolidation is applied.",
+    "escheatment": "Unclaimed balance transferred",
+    "escheat_reclaim": "Unclaimed balance returned",
+    "escheat_remittance": "Unclaimed funds sent to the authority"
   },
   "es": {
     "title": "Estado de cuenta",
@@ -299,7 +302,10 @@
     "paymentStateCol": "Estado del pago",
     "restaurantSettlementDisclaimer": "Este documento es un estado de liquidación de restaurante, no un estado bancario. Las liquidaciones de socios y los resultados de pagos son actividad vinculada, no forman parte de la conciliación del diario.",
     "helperEarningsDisclaimer": "Este documento resume los ingresos del ayudante según los registros de trabajos. No es un formulario fiscal, un registro de nómina ni una prueba de empleo. Los importes no pagados son adeudados, no recibidos.",
-    "businessDisclaimer": "Este documento resume la actividad de cuentas por cobrar y por pagar del negocio. Los montos cobrados son derivados porque los pagos de facturas no tienen marca de tiempo por pago. No se aplica consolidación entre entidades."
+    "businessDisclaimer": "Este documento resume la actividad de cuentas por cobrar y por pagar del negocio. Los montos cobrados son derivados porque los pagos de facturas no tienen marca de tiempo por pago. No se aplica consolidación entre entidades.",
+    "escheatment": "Saldo no reclamado transferido",
+    "escheat_reclaim": "Saldo no reclamado devuelto",
+    "escheat_remittance": "Fondos no reclamados enviados a la autoridad"
   },
   "fr": {
     "title": "Relevé de compte",
@@ -450,7 +456,10 @@
     "paymentStateCol": "Statut du paiement",
     "restaurantSettlementDisclaimer": "Ce document est un relevé de règlement de restaurant, pas un relevé bancaire. Les règlements des partenaires et les résultats de paiements sont des activités liées, pas des termes de l'équation du journal.",
     "helperEarningsDisclaimer": "Ce document résume les gains de l'aidant d'après les registres de missions. Ce n'est pas un formulaire fiscal, un bulletin de paie ni une preuve d'emploi. Les montants impayés sont dus, non reçus.",
-    "businessDisclaimer": "Ce document résume l'activité des créances et des dettes de l'entreprise. Les montants encaissés sont dérivés car les paiements de factures n'ont pas d'horodatage par paiement. Aucune consolidation inter-entités n'est appliquée."
+    "businessDisclaimer": "Ce document résume l'activité des créances et des dettes de l'entreprise. Les montants encaissés sont dérivés car les paiements de factures n'ont pas d'horodatage par paiement. Aucune consolidation inter-entités n'est appliquée.",
+    "escheatment": "Solde non réclamé transféré",
+    "escheat_reclaim": "Solde non réclamé restitué",
+    "escheat_remittance": "Fonds non réclamés versés à l’autorité"
   },
   "ht": {
     "title": "Eta kont",
@@ -601,7 +610,10 @@
     "paymentStateCol": "Estati peman an",
     "restaurantSettlementDisclaimer": "Dokiman sa a se yon eta règleman restoran, se pa yon eta labank. Règleman patnè yo ak rezilta peman yo se aktivite ki lye, yo pa fè pati ekwasyon jounal la.",
     "helperEarningsDisclaimer": "Dokiman sa a rezime kòb èdè a dapre dosye travay yo. Se pa yon fòmilè taks, yon fich peye, oswa yon prèv travay. Kòb yo poko peye yo dwe, yo pa resevwa.",
-    "businessDisclaimer": "Dokiman sa a rezime aktivite kòb pou resevwa ak kòb pou peye biznis lan. Kòb yo kolekte yo kalkile paske peman fakti yo pa gen dat pa peman. Pa gen konsolidasyon ant antite yo."
+    "businessDisclaimer": "Dokiman sa a rezime aktivite kòb pou resevwa ak kòb pou peye biznis lan. Kòb yo kolekte yo kalkile paske peman fakti yo pa gen dat pa peman. Pa gen konsolidasyon ant antite yo.",
+    "escheatment": "Balans pa reklame transfere",
+    "escheat_reclaim": "Balans pa reklame retounen",
+    "escheat_remittance": "Lajan pa reklame voye bay otorite a"
   },
   "ar": {
     "title": "كشف الحساب",
@@ -752,6 +764,9 @@
     "paymentStateCol": "حالة الدفع",
     "restaurantSettlementDisclaimer": "هذا المستند كشف تسوية مطعم وليس كشف حساب مصرفي. تسويات الشركاء ونتائج الدفعات أنشطة مرتبطة وليست من حدود معادلة الدفتر.",
     "helperEarningsDisclaimer": "يلخص هذا المستند أرباح المساعد وفق سجلات المهام. وهو ليس نموذجًا ضريبيًا ولا سجل رواتب ولا إثبات توظيف. المبالغ غير المدفوعة مستحقة وليست مستلمة.",
-    "businessDisclaimer": "يلخص هذا المستند نشاط المستحقات والمدفوعات للنشاط التجاري. المبالغ المحصلة مشتقة لأن مدفوعات الفواتير لا تحمل طابعًا زمنيًا لكل دفعة. لا يُطبَّق أي دمج بين الكيانات."
+    "businessDisclaimer": "يلخص هذا المستند نشاط المستحقات والمدفوعات للنشاط التجاري. المبالغ المحصلة مشتقة لأن مدفوعات الفواتير لا تحمل طابعًا زمنيًا لكل دفعة. لا يُطبَّق أي دمج بين الكيانات.",
+    "escheatment": "تحويل رصيد غير مُطالَب به",
+    "escheat_reclaim": "إعادة رصيد غير مُطالَب به",
+    "escheat_remittance": "إرسال الأموال غير المُطالَب بها إلى الجهة المختصة"
   }
 }

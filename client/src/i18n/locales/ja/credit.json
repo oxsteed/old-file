@@ -2351,5 +2351,8 @@
     "submitted": "資金証明を提出し、レビュー中です。",
     "submitFailed": "資金証明を提出できませんでした。",
     "reviewNote": "OxSteedが証明を確認し、確認後に準備金にクレジットします。"
-  }
+  },
+  "transactionEscheatment": "未請求残高の移管",
+  "transactionEscheatReclaim": "未請求残高の返還",
+  "transactionEscheatRemittance": "未請求資金を当局へ送金"
 }

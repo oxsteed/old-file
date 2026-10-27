@@ -2403,5 +2403,8 @@
     "submitted": "Preuve de financement soumise pour examen.",
     "submitFailed": "Impossible de soumettre la preuve de financement.",
     "reviewNote": "OxSteed examine votre preuve et crédite votre réserve une fois vérifiée."
-  }
+  },
+  "transactionEscheatment": "Solde non réclamé transféré",
+  "transactionEscheatReclaim": "Solde non réclamé restitué",
+  "transactionEscheatRemittance": "Fonds non réclamés versés à l’autorité"
 }

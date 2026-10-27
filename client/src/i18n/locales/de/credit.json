@@ -2351,5 +2351,8 @@
     "submitted": "Der Aufladenachweis wurde zur Prüfung eingereicht.",
     "submitFailed": "Der Aufladenachweis konnte nicht eingereicht werden.",
     "reviewNote": "OxSteed prüft Ihren Nachweis und schreibt Ihre Reserve nach der Verifizierung gut."
-  }
+  },
+  "transactionEscheatment": "Nicht beanspruchtes Guthaben übertragen",
+  "transactionEscheatReclaim": "Nicht beanspruchtes Guthaben zurückerstattet",
+  "transactionEscheatRemittance": "Nicht beanspruchte Mittel an die Behörde überwiesen"
 }

@@ -2351,5 +2351,8 @@
     "submitted": "Comprovante de financiamento enviado para revisão.",
     "submitFailed": "Não foi possível enviar o comprovante de financiamento.",
     "reviewNote": "A OxSteed revisa seu comprovante e credita sua reserva após verificação."
-  }
+  },
+  "transactionEscheatment": "Saldo não reclamado transferido",
+  "transactionEscheatReclaim": "Saldo não reclamado devolvido",
+  "transactionEscheatRemittance": "Fundos não reclamados enviados à autoridade"
 }

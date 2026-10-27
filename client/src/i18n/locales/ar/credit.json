@@ -2403,5 +2403,8 @@
     "submitted": "تم إرسال إثبات التمويل للمراجعة.",
     "submitFailed": "تعذّر إرسال إثبات التمويل.",
     "reviewNote": "يراجع OxSteed إثباتك ويضيف المبلغ إلى احتياطيك عند التحقق."
-  }
+  },
+  "transactionEscheatment": "تحويل رصيد غير مُطالَب به",
+  "transactionEscheatReclaim": "إعادة رصيد غير مُطالَب به",
+  "transactionEscheatRemittance": "إرسال الأموال غير المُطالَب بها إلى الجهة المختصة"
 }

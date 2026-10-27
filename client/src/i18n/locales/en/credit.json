@@ -2403,5 +2403,8 @@
     "submitted": "Funding proof submitted for review.",
     "submitFailed": "Could not submit funding proof.",
     "reviewNote": "OxSteed reviews your proof and credits your reserve once verified."
-  }
+  },
+  "transactionEscheatment": "Unclaimed balance transferred",
+  "transactionEscheatReclaim": "Unclaimed balance returned",
+  "transactionEscheatRemittance": "Unclaimed funds sent to the authority"
 }

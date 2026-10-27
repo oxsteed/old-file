@@ -2351,5 +2351,8 @@
     "submitted": "Prova di finanziamento inviata per la revisione.",
     "submitFailed": "Impossibile inviare la prova di finanziamento.",
     "reviewNote": "OxSteed esamina la tua prova e accredita la tua riserva una volta verificata."
-  }
+  },
+  "transactionEscheatment": "Saldo non reclamato trasferito",
+  "transactionEscheatReclaim": "Saldo non reclamato restituito",
+  "transactionEscheatRemittance": "Fondi non reclamati versati all'autorità"
 }

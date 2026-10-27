@@ -2351,5 +2351,8 @@
     "submitted": "充值凭证已提交，等待审核。",
     "submitFailed": "充值凭证提交失败。",
     "reviewNote": "OxSteed 会审核您的凭证，核实无误后将金额计入您的保证金。"
-  }
+  },
+  "transactionEscheatment": "未认领余额已转移",
+  "transactionEscheatReclaim": "未认领余额已退回",
+  "transactionEscheatRemittance": "未认领资金已上缴主管机关"
 }

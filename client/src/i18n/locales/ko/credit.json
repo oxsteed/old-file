@@ -2351,5 +2351,8 @@
     "submitted": "자금 증빙이 심사를 위해 제출되었습니다.",
     "submitFailed": "자금 증빙을 제출할 수 없습니다.",
     "reviewNote": "OxSteed에서 증빙을 심사하고 확인되면 준비금이 입금됩니다."
-  }
+  },
+  "transactionEscheatment": "미청구 잔액 이전",
+  "transactionEscheatReclaim": "미청구 잔액 반환",
+  "transactionEscheatRemittance": "미청구 자금 당국 송금"
 }

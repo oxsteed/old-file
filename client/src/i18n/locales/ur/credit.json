@@ -2351,5 +2351,8 @@
     "submitted": "فنڈنگ کا ثبوت جائزے کے لیے جمع کرا دیا گیا۔",
     "submitFailed": "فنڈنگ کا ثبوت جمع نہیں ہو سکا۔",
     "reviewNote": "OxSteed آپ کے ثبوت کا جائزہ لیتا ہے اور تصدیق کے بعد آپ کے ریزرو میں رقم جمع کرتا ہے۔"
-  }
+  },
+  "transactionEscheatment": "غیر دعویٰ شدہ بیلنس منتقل",
+  "transactionEscheatReclaim": "غیر دعویٰ شدہ بیلنس واپس",
+  "transactionEscheatRemittance": "غیر دعویٰ شدہ رقم اتھارٹی کو بھیجی گئی"
 }
