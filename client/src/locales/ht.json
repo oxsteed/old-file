@@ -28,7 +28,8 @@
     "storageFailed": "Aparèy la pa t ka sove bouyon an. Kenbe paj sa a louvri."
   },
   "pwaShell": {
-    "updateReady": "Gen yon mizajou ki pare. Fini kòmann oswa peman ou anvan ou rafrechi.",
+    "updateReady": "Gen yon nouvo vèsyon ki disponib.",
+    "later": "Pita",
     "refresh": "Rafrechi pou mete ajou",
     "updating": "Ap rafrechi…",
     "sharedReady": "Foto ou pataje yo atache. Verifye detay yo anvan ou pibliye.",

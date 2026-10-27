@@ -28,7 +28,8 @@
     "storageFailed": "No se pudo guardar el borrador. Mantén esta página abierta."
   },
   "pwaShell": {
-    "updateReady": "Hay una actualización lista. Termina tu pedido o pago antes de actualizar.",
+    "updateReady": "Hay una nueva versión disponible.",
+    "later": "Más tarde",
     "refresh": "Actualizar ahora",
     "updating": "Actualizando…",
     "sharedReady": "Las fotos compartidas están adjuntas. Revisa los detalles antes de publicar.",

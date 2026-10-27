@@ -28,7 +28,8 @@
     "storageFailed": "This device could not save your draft. Keep this page open."
   },
   "pwaShell": {
-    "updateReady": "An update is ready. Finish your current order or checkout before refreshing.",
+    "updateReady": "A new version is available.",
+    "later": "Later",
     "refresh": "Refresh to update",
     "updating": "Refreshing…",
     "sharedReady": "Shared photos are attached. Review the details before posting.",

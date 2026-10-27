@@ -28,7 +28,8 @@
     "storageFailed": "Impossible d’enregistrer le brouillon. Gardez cette page ouverte."
   },
   "pwaShell": {
-    "updateReady": "Une mise à jour est prête. Terminez votre commande ou paiement avant de rafraîchir.",
+    "updateReady": "Une nouvelle version est disponible.",
+    "later": "Plus tard",
     "refresh": "Actualiser maintenant",
     "updating": "Actualisation…",
     "sharedReady": "Les photos partagées sont jointes. Vérifiez les détails avant de publier.",

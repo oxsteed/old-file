@@ -29,7 +29,7 @@ test(
               namespace: 'fixture',
             }));
             p.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({
-              contents: `export const useTranslation=()=>({t:key=>key==='pwaShell.refresh'?'Refresh to update':key});`,
+              contents: `export const useTranslation=()=>({t:key=>({'pwaShell.refresh':'Refresh to update','pwaShell.later':'Later','pwaShell.updateReady':'A new version is available.'}[key]||key)});`,
             }));
           },
         },
@@ -148,6 +148,10 @@ test(
       assert.ok(invalid.includes('share_error=invalid'));
       const second = await context.newPage();
       await second.goto(origin);
+      const dismissed = await context.newPage();
+      await dismissed.goto(origin);
+      await dismissed.getByRole('textbox', { name: 'Order notes' }).fill('Keep my draft');
+      await dismissed.evaluate(() => (window.keepOpen = true));
       await second
         .getByRole('textbox', { name: 'Order notes' })
         .fill('Other checkout');
@@ -161,6 +165,11 @@ test(
           await (await navigator.serviceWorker.getRegistration()).update(),
       );
       await page.getByRole('button', { name: 'Refresh to update' }).waitFor();
+      await dismissed.getByRole('button', { name: 'Later', exact: true }).click();
+      assert.equal(await dismissed.getByRole('status').count(), 0);
+      assert.equal(await dismissed.getByRole('textbox', { name: 'Order notes' }).inputValue(), 'Keep my draft');
+      assert.equal(await dismissed.evaluate(() => window.keepOpen), true);
+      assert.ok(await dismissed.evaluate(async () => !!(await navigator.serviceWorker.getRegistration()).waiting));
       assert.equal(
         await page.getByRole('textbox', { name: 'Order notes' }).inputValue(),
         'Leave checkout open',
@@ -178,6 +187,10 @@ test(
         'Other checkout',
       );
       assert.equal(await second.evaluate(() => window.keepOpen), true);
+      assert.equal(await dismissed.getByRole('textbox', { name: 'Order notes' }).inputValue(), 'Keep my draft');
+      assert.equal(await dismissed.evaluate(() => window.keepOpen), true);
+      assert.equal(await dismissed.getByRole('status').count(), 0);
+      await dismissed.close();
       await Promise.all([
         second.waitForEvent('load'),
         second.getByRole('button', { name: 'Refresh to update' }).click(),
