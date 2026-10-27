@@ -9,6 +9,10 @@ const { assertReserveFloorForPosting } = require('./oxsteedCreditReserveService'
 const {
   assertSurfaceAllowed,
 } = require('./creditParticipantService');
+// Licence readiness (review bug 3): caps resolve per currency (and, where
+// data says so, per country) instead of one raw minor-unit number applied
+// to every currency. USD with no data rule keeps the historical env value.
+const { resolveLimitMinor } = require('./creditCompliance/limitRules');
 
 const CREDIT_CURRENCY = 'USD';
 // Credit amounts are stored as integer minor units. Keep this map explicit:
@@ -99,6 +103,12 @@ const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   // Restaurant wallet-earnings payouts: debit restaurant_sub_bank, credit
   // platform_treasury, paired with a Stripe Transfer to the Connect account.
   'sub_bank_payout',
+  // Platform fee on a Credit job payment (creditRail.postPlatformFee):
+  // partner_payable -> platform_revenue. Was missing, so the fee leg failed.
+  'fee',
+  // Dormancy / escheat (licence readiness item 8): dormant balances move to
+  // an unclaimed_property liability, back on reclaim, and out on remittance.
+  'escheatment', 'escheat_reclaim', 'escheat_remittance',
 ]);
 
 function positiveEnv(name, fallback) {
@@ -157,17 +167,28 @@ function normalizeMetadata(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
-function parseAmountCents(value, fieldName = 'amountCents') {
+function limitCurrency(currencyCode) {
+  const code = normalizeCurrency(currencyCode);
+  return code && /^[A-Z]{3}$/.test(code) ? code : CREDIT_CURRENCY;
+}
+
+// currencyCode === null means "not known yet" (partner-priced flows); the
+// per-currency max is then enforced by postJournalTransaction once the
+// real currency is resolved, instead of misapplying USD cents to it.
+
+function parseAmountCents(value, fieldName = 'amountCents', currencyCode = CREDIT_CURRENCY) {
   const amount = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
   if (!Number.isSafeInteger(amount) || amount <= 0) {
     throw new AppError('Validation failed', 400, 'validation_failed', {
       [fieldName]: 'Must be a positive integer number of cents',
     });
   }
-  if (amount > MAX_TRANSACTION_CENTS) {
+  if (currencyCode === null) return amount;
+  const maxTransaction = resolveLimitMinor('max_transaction', { currency: limitCurrency(currencyCode) });
+  if (amount > maxTransaction) {
     throw new AppError('Credit transaction limit exceeded', 400, 'credit_transaction_limit_exceeded', {
       amountCents: String(amount),
-      maxTransactionCents: String(MAX_TRANSACTION_CENTS),
+      maxTransactionCents: String(maxTransaction),
     });
   }
   return amount;
@@ -331,6 +352,27 @@ async function assertCreditRailEnabled(client, { bypassFreeze = false } = {}) {
  * state, not a failure — there is no credit activity to process.
  * Returns true when the caller should skip its run.
  */
+/**
+ * Licence readiness (review bug 4): the kill switch stops money MOVEMENT,
+ * never OVERSIGHT. Reconciliation, ledger integrity, external
+ * reconciliation, AML/compliance monitoring and dispute SLA monitoring keep
+ * running while the rail is off as long as the ledger holds anything to
+ * oversee. They skip only when the rail is off AND nothing was ever posted
+ * (a fresh install), which keeps quiet environments quiet.
+ */
+async function skipOversightJobWhenIdle(jobName, client = pool) {
+  if (await isCreditRailEnabled(client)) return false;
+  const { rows } = await client.query(
+    `SELECT EXISTS (SELECT 1 FROM oxsteed_credit_transactions WHERE status = 'posted') AS has_ledger`
+  );
+  if (rows && rows[0] && rows[0].has_ledger === true) {
+    logger.info('[Credit] oversight job running while the rail is disabled', { jobName });
+    return false;
+  }
+  logger.info('[Credit] oversight job skipped: rail disabled and ledger empty', { jobName });
+  return true;
+}
+
 async function skipCreditJobWhenRailDisabled(jobName) {
   const enabled = await isCreditRailEnabled(pool);
   if (!enabled) {
@@ -809,7 +851,7 @@ async function findExistingCreditHoldForReplay(client, { customerId, partnerId, 
 
 async function ensureAccount(client, { accountType, customerId = null, partnerId = null, restaurantId = null, currencyCode = CREDIT_CURRENCY, allowNonCustomerOwner = false }) {
   const currency = assertSupportedCreditCurrency(currencyCode);
-  if (!['customer_wallet', 'partner_payable', 'partner_reserve', 'platform_treasury', 'platform_revenue', 'restaurant_sub_bank'].includes(accountType)) {
+  if (!['customer_wallet', 'partner_payable', 'partner_reserve', 'platform_treasury', 'platform_revenue', 'restaurant_sub_bank', 'unclaimed_property'].includes(accountType)) {
     throw new AppError('Unsupported credit account type', 400, 'credit_account_type_invalid');
   }
   if (accountType === 'restaurant_sub_bank') {
@@ -1003,7 +1045,7 @@ async function assertIssuanceCapacity(client, amountCents, currencyCode = CREDIT
       WHERE account_type = 'customer_wallet' AND currency_code = $1`,
     [currency]
   );
-  if (Number(rows[0]?.total_cents || 0) + amountCents > MAX_TOTAL_ISSUANCE_CENTS) {
+  if (Number(rows[0]?.total_cents || 0) + amountCents > resolveLimitMinor('max_total_issuance', { currency })) {
     throw new AppError('OxSteed Credit issuance limit reached', 409, 'credit_total_issuance_limit');
   }
   if (customerId) {
@@ -1022,11 +1064,12 @@ async function assertIssuanceCapacity(client, amountCents, currencyCode = CREDIT
       [currency, customerId]
     );
     const dailyIssuedCents = Number(dailyRows[0]?.total_cents || 0);
-    if (dailyIssuedCents + amountCents > MAX_DAILY_CUSTOMER_ISSUANCE_CENTS) {
+    const maxDailyIssuance = resolveLimitMinor('daily_customer_issuance', { currency });
+    if (dailyIssuedCents + amountCents > maxDailyIssuance) {
       throw new AppError('Daily OxSteed Credit issuance limit reached for this customer', 409, 'credit_daily_issuance_limit', {
         issuedTodayCents: String(dailyIssuedCents),
         requestedCents: String(amountCents),
-        maxDailyIssuanceCents: String(MAX_DAILY_CUSTOMER_ISSUANCE_CENTS),
+        maxDailyIssuanceCents: String(maxDailyIssuance),
       });
     }
   }
@@ -1061,14 +1104,15 @@ async function assertCustomerTransferCapacity(client, { customerId, amountCents,
   );
   const transferCount = Number(rows[0]?.transfer_count || 0);
   const transferredCents = Number(rows[0]?.total_cents || 0);
+  const maxDailyTransfer = resolveLimitMinor('daily_customer_transfer', { currency });
   if (transferCount >= MAX_DAILY_CUSTOMER_TRANSFER_COUNT
-    || transferredCents + amountCents > MAX_DAILY_CUSTOMER_TRANSFER_CENTS) {
+    || transferredCents + amountCents > maxDailyTransfer) {
     throw new AppError('Daily OxSteed Credit transfer limit reached for this customer', 409, 'credit_daily_transfer_limit', {
       transfersToday: String(transferCount),
       transferredTodayCents: String(transferredCents),
       requestedCents: String(amountCents),
       maxDailyTransferCount: String(MAX_DAILY_CUSTOMER_TRANSFER_COUNT),
-      maxDailyTransferCents: String(MAX_DAILY_CUSTOMER_TRANSFER_CENTS),
+      maxDailyTransferCents: String(maxDailyTransfer),
     });
   }
 }
@@ -1107,14 +1151,15 @@ async function assertCustomerSpendCapacity(client, { customerId, amountCents, cu
   );
   const movementCount = Number(rows[0]?.movement_count || 0);
   const movementCents = Number(rows[0]?.movement_cents || 0);
+  const maxDailySpend = resolveLimitMinor('daily_customer_spend', { currency });
   if (movementCount >= MAX_DAILY_CUSTOMER_SPEND_COUNT
-    || movementCents + amountCents > MAX_DAILY_CUSTOMER_SPEND_CENTS) {
+    || movementCents + amountCents > maxDailySpend) {
     throw new AppError('Daily OxSteed Credit spending limit reached for this customer', 409, 'credit_daily_spend_limit', {
       movementsToday: String(movementCount),
       committedTodayCents: String(movementCents),
       requestedCents: String(amountCents),
       maxDailySpendCount: String(MAX_DAILY_CUSTOMER_SPEND_COUNT),
-      maxDailySpendCents: String(MAX_DAILY_CUSTOMER_SPEND_CENTS),
+      maxDailySpendCents: String(maxDailySpend),
     });
   }
 }
@@ -1154,7 +1199,7 @@ async function enqueueCreditTransactionNotifications(client, { transaction, debi
 }
 
 async function postJournalTransaction(client, input) {
-  const amountCents = parseAmountCents(input.amountCents);
+  const amountCents = parseAmountCents(input.amountCents, 'amountCents', input.currencyCode);
   const idempotencyKey = normalizeString(input.idempotencyKey, 160);
   if (!idempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
   if (!POSTABLE_CREDIT_TRANSACTION_TYPES.includes(input.transactionType)) {
@@ -1171,11 +1216,12 @@ async function postJournalTransaction(client, input) {
     agreement_id: input.agreementId || null,
     reference_type: normalizeString(input.referenceType, 80),
     reference_id: normalizeString(input.referenceId, 160),
-    ...(input.bindIdempotencySemantics === true ? {
-      reason: normalizeString(input.reason, 500),
-      description: normalizeString(input.description, 255),
-      metadata: normalizeMetadata(input.metadata),
-    } : {}),
+    // Licence readiness (review bug 9): a replay must match the full
+    // payload, not only the money fields, for every caller. The legacy
+    // bindIdempotencySemantics opt-in is now always on.
+    reason: normalizeString(input.reason, 500),
+    description: normalizeString(input.description, 255),
+    metadata: normalizeMetadata(input.metadata),
   };
   const existing = input.existingTransaction || await getExistingTransaction(client, idempotencyKey);
   if (existing) {
@@ -1219,13 +1265,41 @@ async function postJournalTransaction(client, input) {
     // A cash-out is the mirror of a 'load': value leaves the customer wallet
     // and returns to platform_treasury, representing the physical cash a
     // kiosk has just dispensed against that balance.
-    const validDirection = debitAccount.account_type === 'customer_wallet' && creditAccount.account_type === 'platform_treasury';
+    // Helpers cash out wages from their own partner_payable account; the
+    // partner id must match that account (mirrors the DB trigger).
+    const hasPartner = input.partnerId !== null && input.partnerId !== undefined;
+    const customerCashOut = debitAccount.account_type === 'customer_wallet' && !hasPartner;
+    const helperCashOut = debitAccount.account_type === 'partner_payable'
+      && hasPartner && String(debitAccount.partner_id) === String(input.partnerId);
+    const validDirection = creditAccount.account_type === 'platform_treasury' && (customerCashOut || helperCashOut);
+    if (
+      !validDirection
+      || (input.agreementId !== null && input.agreementId !== undefined)
+    ) {
+      throw new AppError('Credit cash-out account direction is invalid', 400, 'credit_cash_out_direction_invalid');
+    }
+  }
+  if (input.transactionType === 'fee') {
+    const validDirection = debitAccount.account_type === 'partner_payable'
+      && creditAccount.account_type === 'platform_revenue'
+      && input.partnerId !== null && input.partnerId !== undefined
+      && String(debitAccount.partner_id) === String(input.partnerId);
+    if (!validDirection || (input.agreementId !== null && input.agreementId !== undefined)) {
+      throw new AppError('Credit fee account direction is invalid', 400, 'credit_fee_direction_invalid');
+    }
+  }
+  if (['escheatment', 'escheat_reclaim', 'escheat_remittance'].includes(input.transactionType)) {
+    const t = input.transactionType;
+    const validDirection =
+      (t === 'escheatment' && debitAccount.account_type === 'customer_wallet' && creditAccount.account_type === 'unclaimed_property')
+      || (t === 'escheat_reclaim' && debitAccount.account_type === 'unclaimed_property' && creditAccount.account_type === 'customer_wallet')
+      || (t === 'escheat_remittance' && debitAccount.account_type === 'unclaimed_property' && creditAccount.account_type === 'platform_treasury');
     if (
       !validDirection
       || (input.partnerId !== null && input.partnerId !== undefined)
       || (input.agreementId !== null && input.agreementId !== undefined)
     ) {
-      throw new AppError('Credit cash-out account direction is invalid', 400, 'credit_cash_out_direction_invalid');
+      throw new AppError('Credit escheat account direction is invalid', 400, 'credit_escheat_direction_invalid');
     }
   }
   if (input.transactionType === 'withdrawal_fee' || input.transactionType === 'transfer_fee') {
@@ -1317,9 +1391,20 @@ async function postJournalTransaction(client, input) {
 
   const nextDebitBalance = Number(debitAccount.balance_cents || 0) - amountCents;
   const nextCreditBalance = Number(creditAccount.balance_cents || 0) + amountCents;
-  if (creditAccount.account_type === 'customer_wallet' && nextCreditBalance > MAX_CUSTOMER_BALANCE_CENTS) {
+  const maxCustomerBalance = resolveLimitMinor('max_customer_balance', { currency: requested.currency_code });
+  if (creditAccount.account_type === 'customer_wallet' && nextCreditBalance > maxCustomerBalance) {
     throw new AppError('Customer credit balance limit exceeded', 409, 'credit_balance_limit_exceeded', {
-      maxBalanceCents: String(MAX_CUSTOMER_BALANCE_CENTS),
+      maxBalanceCents: String(maxCustomerBalance),
+    });
+  }
+  // Licence readiness (review bug 2): a helper's wage balance can never go
+  // negative. The DB CHECK (non_negative_balance) is the backstop; this
+  // fails earlier with a clear code, counting reserved (in-flight cash-out)
+  // funds as unavailable.
+  if (debitAccount.non_negative_balance === true && amountCents > availableDebit) {
+    throw new AppError('Insufficient available helper Credit balance', 409, 'credit_helper_balance_insufficient', {
+      availableBalanceCents: String(Math.max(0, availableDebit)),
+      requestedCents: String(amountCents),
     });
   }
   // Partner reserve floor (Phase 3 reserve regime). Both locked rows are
@@ -1679,7 +1764,7 @@ async function getCustomerCreditEligibility({ customerId, restaurantId, currency
   }
   const normalizedAmount = amountCents === undefined || amountCents === null || String(amountCents).trim() === ''
     ? 0
-    : parseAmountCents(amountCents);
+    : parseAmountCents(amountCents, 'amountCents', currencyCode);
   const normalizedCategories = Array.isArray(categories)
     ? categories.filter(Boolean).map((value) => String(value).trim()).filter(Boolean).slice(0, 100)
     : [];
@@ -1760,7 +1845,7 @@ async function getGuestCreditEligibility({ restaurantId, currencyCode = CREDIT_C
   }
   const normalizedAmount = amountCents === undefined || amountCents === null || String(amountCents).trim() === ''
     ? 0
-    : parseAmountCents(amountCents);
+    : parseAmountCents(amountCents, 'amountCents', currencyCode);
 
   const guestCaps = {
     maxTicketCents: guestPolicy.GUEST_MAX_TICKET_CENTS,
@@ -2026,6 +2111,8 @@ async function getCustomerCreditLimitSummary(customerId, currencyCode = CREDIT_C
   const spendCents = Number(row.spend_cents || 0);
   const transferCount = Number(row.transfer_count || 0);
   const transferCents = Number(row.transfer_cents || 0);
+  const spendLimitCents = resolveLimitMinor('daily_customer_spend', { currency });
+  const transferLimitCents = resolveLimitMinor('daily_customer_transfer', { currency });
   return {
     currencyCode: currency,
     resetsAt: row.resets_at || null,
@@ -2034,8 +2121,8 @@ async function getCustomerCreditLimitSummary(customerId, currencyCode = CREDIT_C
       countLimit: MAX_DAILY_CUSTOMER_SPEND_COUNT,
       countRemaining: Math.max(0, MAX_DAILY_CUSTOMER_SPEND_COUNT - spendCount),
       centsUsed: spendCents,
-      centsLimit: MAX_DAILY_CUSTOMER_SPEND_CENTS,
-      centsRemaining: Math.max(0, MAX_DAILY_CUSTOMER_SPEND_CENTS - spendCents),
+      centsLimit: spendLimitCents,
+      centsRemaining: Math.max(0, spendLimitCents - spendCents),
     },
     transfers: {
       enabled: CUSTOMER_TRANSFERS_ENABLED,
@@ -2043,8 +2130,8 @@ async function getCustomerCreditLimitSummary(customerId, currencyCode = CREDIT_C
       countLimit: MAX_DAILY_CUSTOMER_TRANSFER_COUNT,
       countRemaining: Math.max(0, MAX_DAILY_CUSTOMER_TRANSFER_COUNT - transferCount),
       centsUsed: transferCents,
-      centsLimit: MAX_DAILY_CUSTOMER_TRANSFER_CENTS,
-      centsRemaining: Math.max(0, MAX_DAILY_CUSTOMER_TRANSFER_CENTS - transferCents),
+      centsLimit: transferLimitCents,
+      centsRemaining: Math.max(0, transferLimitCents - transferCents),
     },
   };
 }
@@ -2062,7 +2149,7 @@ async function listCustomerCreditAccounts(customerId) {
 }
 
 async function loadCustomerCredit({ customerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, reason, referenceType = 'admin_load', referenceId, correlationId, requestIp, metadata = {} }) {
-  const amount = parseAmountCents(amountCents);
+  const amount = parseAmountCents(amountCents, 'amountCents', currencyCode);
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
@@ -2132,7 +2219,7 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
 }
 
 async function purchaseWithCreditInTransaction(client, { customerId, partnerId, participantId = null, surface = 'food_online', agreementId = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, excludeHoldId = null, referenceType = 'food_order', referenceId, correlationId, requestIp, description, actorType, metadata = {} }) {
-  const amount = parseAmountCents(amountCents);
+  const amount = parseAmountCents(amountCents, 'amountCents', currencyCode);
   const normalizedActorType = normalizeString(actorType, 32) || (actorUserId ? 'user' : 'system');
   if (['user', 'customer'].includes(normalizedActorType)) {
     requireCustomerActor(actorUserId, customerId, 'The Credit purchase actor must be the customer spending the balance', 'credit_purchase_actor_required');
@@ -2276,7 +2363,7 @@ async function purchaseWithGuestCreditInTransaction(client, {
   metadata = {},
 }) {
   const guestPolicy = require('./creditGuestPolicy');
-  const amount = parseAmountCents(amountCents);
+  const amount = parseAmountCents(amountCents, 'amountCents', currencyCode);
   const fingerprint = String(guestFingerprint || '').trim();
   if (!fingerprint) {
     throw new AppError('Guest session fingerprint is required', 400, 'credit_guest_session_required');
@@ -2441,7 +2528,7 @@ async function transferCreditInTransaction(client, { senderCustomerId, recipient
   if (!CUSTOMER_TRANSFERS_ENABLED) throw new AppError('Customer-to-customer OxSteed Credit transfers are disabled', 403, 'credit_transfers_disabled');
   if (senderCustomerId === recipientCustomerId) throw new AppError('Cannot transfer credit to the same customer', 400, 'credit_transfer_same_customer');
   requireCustomerActor(actorUserId, senderCustomerId, 'The Credit transfer actor must be the customer sending the balance', 'credit_transfer_actor_required');
-  const amount = parseAmountCents(amountCents);
+  const amount = parseAmountCents(amountCents, 'amountCents', currencyCode);
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
@@ -2673,7 +2760,7 @@ async function settleCreatorCreditInTransaction(client, {
     throw new AppError('Cannot settle creator Credit to the same account', 400, 'credit_transfer_same_customer');
   }
   requireCustomerActor(actorUserId, senderCustomerId, 'The Credit settlement actor must be the customer sending the balance', 'credit_transfer_actor_required');
-  const amount = parseAmountCents(amountCents);
+  const amount = parseAmountCents(amountCents, 'amountCents', currencyCode);
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedKey = normalizeString(idempotencyKey, 160);
   if (!normalizedKey) throw new AppError('Idempotency-Key is required for creator settlements', 400, 'credit_idempotency_key_required');
@@ -2757,7 +2844,7 @@ async function chargeCreatorBoostInTransaction(client, {
   metadata = {},
 }) {
   requireCustomerActor(actorUserId, senderCustomerId, 'The boost payment actor must be the customer paying the balance', 'credit_transfer_actor_required');
-  const amount = parseAmountCents(amountCents);
+  const amount = parseAmountCents(amountCents, 'amountCents', currencyCode);
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedKey = normalizeString(idempotencyKey, 160);
   if (!normalizedKey) throw new AppError('Idempotency-Key is required for boost payments', 400, 'credit_idempotency_key_required');
@@ -2817,7 +2904,7 @@ async function chargeCreatorBoost(args) {
 }
 
 async function adjustCustomerCreditInTransaction(client, { customerId, amountCents, currencyCode = CREDIT_CURRENCY, direction = 'credit', idempotencyKey, actorUserId, actorType = 'admin', reason, referenceType = 'admin_adjustment', referenceId, correlationId, requestIp, metadata = {}, allowMediaCreatorOwner = false }) {
-  const amount = parseAmountCents(amountCents);
+  const amount = parseAmountCents(amountCents, 'amountCents', currencyCode);
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedActorType = normalizeString(actorType, 32) || 'admin';
   if (!['admin', 'system'].includes(normalizedActorType)) throw new AppError('Invalid credit adjustment actor', 400, 'credit_adjustment_actor_invalid');
@@ -2904,7 +2991,7 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
 
 async function createCreditHoldInTransaction(client, { customerId, partnerId, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, requestIp, expiresAt, metadata = {} }) {
   requireCustomerActor(actorUserId, customerId, 'The Credit hold owner must create the hold', 'credit_hold_actor_required');
-  const amount = parseAmountCents(amountCents);
+  const amount = parseAmountCents(amountCents, 'amountCents', currencyCode);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit holds', 400, 'credit_idempotency_key_required');
   const requestedExpiry = resolveHoldExpiry(expiresAt);
@@ -3172,7 +3259,7 @@ async function captureCreditHoldInTransaction(client, { holdId, amountCents, cur
   if (hold.capture_idempotency_key && hold.capture_idempotency_key !== captureKey) {
     throw new AppError('Credit hold capture already used a different idempotency key', 409, 'credit_hold_capture_idempotency_conflict');
   }
-  const requestedAmount = amountCents === undefined || amountCents === null ? Number(hold.amount_cents) : parseAmountCents(amountCents);
+  const requestedAmount = amountCents === undefined || amountCents === null ? Number(hold.amount_cents) : parseAmountCents(amountCents, 'amountCents', hold.currency_code);
   // Locked decision #3 (POS debit-then-adjust): when allowAmountAdjust is set,
   // the final debit may differ from the held estimate. Otherwise the capture
   // amount must match the reservation exactly (legacy/admin behavior).
@@ -3418,7 +3505,7 @@ async function expireCreditHolds({ limit = 100, actorUserId = null } = {}) {
 }
 
 async function refundCreditInTransaction(client, { purchaseTransactionId, amountCents, idempotencyKey, actorUserId, actorType = 'admin', reason, correlationId, requestIp, metadata = {} }) {
-  const amount = parseAmountCents(amountCents);
+  const amount = parseAmountCents(amountCents, 'amountCents', null);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   const normalizedActorType = normalizeString(actorType, 32) || 'admin';
   const normalizedReason = normalizeString(reason, 500);
@@ -4371,6 +4458,7 @@ module.exports = {
   assertCreditRailEnabled,
   assertCreditRailNotFrozen,
   skipCreditJobWhenRailDisabled,
+  skipOversightJobWhenIdle,
   isCreditRailFrozen,
   getOpenCreditRailFreeze,
   freezeCreditRail,

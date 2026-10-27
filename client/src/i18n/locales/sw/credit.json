@@ -2351,5 +2351,8 @@
     "submitted": "Uthibitisho wa ufadhili umetumwa kwa ukaguzi.",
     "submitFailed": "Imeshindwa kutuma uthibitisho wa ufadhili.",
     "reviewNote": "OxSteed hukagua uthibitisho wako na kuingiza akiba yako mara inapothibitishwa."
-  }
+  },
+  "transactionEscheatment": "Salio lisilodaiwa limehamishwa",
+  "transactionEscheatReclaim": "Salio lisilodaiwa limerudishwa",
+  "transactionEscheatRemittance": "Fedha zisizodaiwa zimetumwa kwa mamlaka"
 }

@@ -186,6 +186,15 @@ const TRACKING_WORKER_SCHEDULE = SCHEDULED_WORKERS;
 const runWorker = async () => {
   if (pollInterval || translationInterval || trackingIntervals.length > 0) return;
   stopping = false;
+  // Credit limits are data; keep this process's snapshot warm (fail closed
+  // in production until loaded).
+  try {
+    const creditLimits = require('./services/creditCompliance/limitRules');
+    creditLimits.warmLimitRules().catch((err) => logger.warn('Credit limit rules initial load failed', { message: err.message }));
+    creditLimits.startLimitRuleRefresh(logger);
+  } catch (err) {
+    logger.warn('Credit limit rules unavailable in worker', { message: err.message });
+  }
   const queueList = Object.values(QUEUES);
   let queueIndex = 0;
 
@@ -227,6 +236,7 @@ const shutdown = async (signal) => {
   }
   trackingIntervals = [];
   trackingInFlight.clear();
+  try { require('./services/creditCompliance/limitRules').stopLimitRuleRefresh(); } catch { /* not loaded */ }
 
   shutdownPromise = (async () => {
   logger.info(`Received ${signal}, shutting down worker gracefully...`);

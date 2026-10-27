@@ -2403,5 +2403,8 @@
     "submitted": "Prèv finansman an soumèt pou revizyon.",
     "submitFailed": "Nou pa t kapab soumèt prèv finansman an.",
     "reviewNote": "OxSteed ap revize prèv ou epi kredite rezèv ou lè li verifye."
-  }
+  },
+  "transactionEscheatment": "Balans pa reklame transfere",
+  "transactionEscheatReclaim": "Balans pa reklame retounen",
+  "transactionEscheatRemittance": "Lajan pa reklame voye bay otorite a"
 }

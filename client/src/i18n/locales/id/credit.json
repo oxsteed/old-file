@@ -2351,5 +2351,8 @@
     "submitted": "Bukti pendanaan dikirim untuk ditinjau.",
     "submitFailed": "Tidak dapat mengirimkan bukti pendanaan.",
     "reviewNote": "OxSteed meninjau bukti Anda dan mengkredit cadangan Anda setelah terverifikasi."
-  }
+  },
+  "transactionEscheatment": "Saldo tak diklaim dipindahkan",
+  "transactionEscheatReclaim": "Saldo tak diklaim dikembalikan",
+  "transactionEscheatRemittance": "Dana tak diklaim dikirim ke otoritas"
 }

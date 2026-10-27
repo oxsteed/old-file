@@ -610,6 +610,11 @@ router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSup
     next(err);
   }
 });
+// Licence readiness: oversight (two-admin), sanctions lists, safeguarding,
+// SARs, KYC, limits, bank payout rail, FX reference rates.
+router.use('/super/credit-licence', requireSuperAdmin, rejectImpersonated,
+  (req, res, next) => (req.method === 'GET' ? next() : creditAdminMutationLimiter(req, res, next)),
+  require('./creditLicenceAdmin'));
 // Phase 7 (gap 9): maker-checker queue endpoints.
 router.post('/super/oxsteed-credit/pending-actions', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.requestAdminPendingAction);
 router.get('/super/oxsteed-credit/pending-actions', requireSuperAdmin, rejectImpersonated, oxsteedCreditCtrl.listAdminPendingActions);

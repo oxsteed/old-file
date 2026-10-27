@@ -30,6 +30,18 @@ const CASE_TYPES = Object.freeze([
   'new_destination_payout',
   'sanctions_hit',
   'manual',
+  // Licence readiness (migration 20261027110300).
+  'payout_destination_review',
+  'cashout_review',
+  'helper_balance_anomaly',
+  'cross_border_pattern',
+  'device_linkage',
+  'shared_destination',
+  'large_payout',
+  'kyc_reverification',
+  'safeguarding_shortfall',
+  'sar_candidate',
+  'dispute_pattern',
 ]);
 
 const CASE_STATUSES = Object.freeze(['open', 'investigating', 'resolved', 'escalated']);
@@ -89,8 +101,8 @@ async function openComplianceCase(client, {
   assignedTo = null,
 }) {
   if (!CASE_TYPES.includes(caseType)) throw new AppError(`Unknown compliance case type '${caseType}'`, 400, 'credit_case_type_invalid');
-  if (subjectType !== 'customer' && subjectType !== 'partner') {
-    throw new AppError('Case subject type must be customer or partner', 400, 'credit_case_subject_invalid');
+  if (subjectType !== 'customer' && subjectType !== 'partner' && subjectType !== 'platform') {
+    throw new AppError('Case subject type must be customer, partner or platform', 400, 'credit_case_subject_invalid');
   }
   if (!subjectId) throw new AppError('Case subject is required', 400, 'credit_case_subject_required');
   const key = normalizeString(dedupeKey, 200);

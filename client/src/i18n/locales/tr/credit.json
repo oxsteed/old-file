@@ -2351,5 +2351,8 @@
     "submitted": "Fonlama kanıtı incelemeye gönderildi.",
     "submitFailed": "Fonlama kanıtı gönderilemedi.",
     "reviewNote": "OxSteed kanıtınızı inceler ve doğrulandığında rezervinizi kredilendirir."
-  }
+  },
+  "transactionEscheatment": "Talep edilmemiş bakiye aktarıldı",
+  "transactionEscheatReclaim": "Talep edilmemiş bakiye iade edildi",
+  "transactionEscheatRemittance": "Talep edilmemiş fonlar yetkili makama gönderildi"
 }

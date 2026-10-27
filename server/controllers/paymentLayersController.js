@@ -141,10 +141,66 @@ exports.listCashouts = wrap(async (req, res) => {
 
 exports.requestCashout = wrap(async (req, res) => {
   const result = await cashout.requestCashout({
-    user: req.user, amountMinor: req.body?.amount_minor, destinationRef: req.body?.destination_ref,
+    user: req.user, amountMinor: req.body?.amount_minor, destinationId: req.body?.destination_id,
     idempotencyKey: idempotencyKey(req), isImpersonated: Boolean(req.isImpersonated),
+    stepupChallengeId: req.body?.stepup_challenge_id || null, stepupCode: req.body?.stepup_code || null,
+    requestIp: req.ip || null,
   });
   res.status(201).json({ cashout: result });
+});
+
+exports.cancelCashout = wrap(async (req, res) => {
+  res.json({ cashout: await cashout.cancelCashout({ user: req.user, cashoutId: req.params.id }) });
+});
+
+// Large helper cash-outs need an emailed step-up code (licence readiness §5).
+exports.issueCashoutStepup = wrap(async (req, res) => {
+  requireFlag('CREDIT_CASHOUT');
+  const e = await cashout.getEligibility(require('../db'), req.user.id);
+  const amount = Number(req.body?.amount_minor);
+  if (!e.currency || !Number.isSafeInteger(amount) || amount <= 0) throw new AppError('Enter an amount', 400, 'validation_failed');
+  if (amount < Number(e.stepup_from_minor)) throw new AppError('A code is not needed for this amount', 400, 'credit_stepup_not_required');
+  const { issueStepupChallenge } = require('../services/stepupChallengeService');
+  const { challenge, delivery } = await issueStepupChallenge({
+    actorUserId: req.user.id, actorEmail: req.user.email, actionType: 'helper_cashout', amountCents: amount, currencyCode: e.currency,
+  });
+  res.status(201).json({ challenge: { id: challenge.id, expiresAt: challenge.expiresAt }, delivery });
+});
+
+const destinations = require('../services/creditPayoutDestinationService');
+
+exports.listPayoutDestinations = wrap(async (req, res) => {
+  requireFlag('CREDIT_CASHOUT');
+  res.json({ destinations: await destinations.listDestinations(req.user), cooling_off_days: destinations.COOLING_OFF_DAYS });
+});
+
+exports.addPayoutDestination = wrap(async (req, res) => {
+  requireFlag('CREDIT_CASHOUT');
+  const b = req.body || {};
+  const destination = await destinations.addDestination({
+    user: req.user,
+    input: {
+      countryCode: b.country_code, currencyCode: b.currency_code, holderName: b.holder_name, bankName: b.bank_name,
+      bankCode: b.bank_code, accountNumber: b.account_number, verificationMethod: b.verification_method,
+    },
+    isImpersonated: Boolean(req.isImpersonated),
+    requestIp: req.ip || null,
+  });
+  res.status(201).json({ destination });
+});
+
+exports.verifyPayoutDestination = wrap(async (req, res) => {
+  requireFlag('CREDIT_CASHOUT');
+  const destination = await destinations.verifyDestination({
+    user: req.user, destinationId: req.params.id, amounts: req.body?.amounts_minor || null, code: req.body?.code || null,
+    isImpersonated: Boolean(req.isImpersonated), requestIp: req.ip || null,
+  });
+  res.json({ destination });
+});
+
+exports.removePayoutDestination = wrap(async (req, res) => {
+  requireFlag('CREDIT_CASHOUT');
+  res.json({ destination: await destinations.disableDestination({ user: req.user, destinationId: req.params.id, isImpersonated: Boolean(req.isImpersonated) }) });
 });
 
 exports.requestErasure = wrap(async (req, res) => {

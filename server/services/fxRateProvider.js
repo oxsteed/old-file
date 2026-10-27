@@ -3,8 +3,13 @@
 /**
  * Live FX rate provider for OxSteed Credit currency quotes.
  *
- * Current provider: Frankfurter (https://api.frankfurter.app/latest).
- * It is free and needs no API key.
+ * Providers:
+ *   - Frankfurter (https://api.frankfurter.app/latest, ECB data), free, no
+ *     API key, for every currency the ECB publishes;
+ *   - official central-bank reference rates for currencies the ECB does not
+ *     cover (HTG: Banque de la République d'Haïti), fetched by an in-house
+ *     adapter into credit_fx_reference_rates and used only while fresh
+ *     (FX_REFERENCE_MAX_AGE_DAYS, default 4). Crosses go through USD.
  *
  * Environment:
  *   FX_RATE_PROVIDER   - logical provider name. Informational only; this
@@ -16,8 +21,9 @@
  * Design rules:
  *   - Fail closed: ANY provider failure (network error, timeout/abort,
  *     non-200 status, malformed payload, unsupported currency) throws
- *     AppError 502 'fx_rate_unavailable'. There is no fallback rate and no
- *     cached rate.
+ *     AppError 502 'fx_rate_unavailable'. There is no fallback rate; the
+ *     only stored rates are dated official reference rates, refused once
+ *     stale.
  *   - Never logs or throws secrets: Frankfurter needs no API key, and no
  *     request/response field handled here is secret.
  */
@@ -64,6 +70,101 @@ function assertCurrencyPair(fromCurrency, toCurrency) {
  */
 async function getFxQuote(fromCurrency, toCurrency) {
   assertCurrencyPair(fromCurrency, toCurrency);
+  if (OFFICIAL_SOURCES[fromCurrency] || OFFICIAL_SOURCES[toCurrency]) {
+    return getOfficialCrossQuote(fromCurrency, toCurrency);
+  }
+  return getFrankfurterQuote(fromCurrency, toCurrency);
+}
+
+// ── Official central-bank reference rates (licence readiness bug 7) ─────
+// Currencies the ECB feed does not cover are priced from the issuing
+// central bank's published reference rate, stored by an in-house adapter.
+// HTG: Banque de la République d'Haïti (services/fx/brhReferenceRate.js).
+const OFFICIAL_SOURCES = Object.freeze({ HTG: 'brh' });
+
+function referenceMaxAgeDays() {
+  const parsed = Number(process.env.FX_REFERENCE_MAX_AGE_DAYS);
+  // BRH publishes on business days; 4 days covers a long weekend.
+  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 14) : 4;
+}
+
+function decimalToFraction(text) {
+  const m = String(text).trim().match(/^(\d+)(?:\.(\d+))?$/);
+  if (!m) return null;
+  const frac = m[2] || '';
+  return { n: BigInt(m[1] + frac), d: 10n ** BigInt(frac.length) };
+}
+
+function roundDiv(n, d) {
+  return (2n * n + d) / (2n * d);
+}
+
+async function loadOfficialUnitsPerUsd(currency) {
+  const db = require('../db');
+  const maxAge = referenceMaxAgeDays();
+  const latest = async () => {
+    const { rows } = await db.query(
+      `SELECT units_per_base, rate_date, source FROM credit_fx_reference_rates
+        WHERE quote_currency = $1 AND base_currency = 'USD'
+          AND rate_date >= (CURRENT_DATE - $2::int)
+        ORDER BY rate_date DESC, fetched_at DESC LIMIT 1`,
+      [currency, maxAge]
+    );
+    return rows && rows[0] ? rows[0] : null;
+  };
+  let row = await latest().catch(() => null);
+  if (!row && OFFICIAL_SOURCES[currency] === 'brh') {
+    try {
+      await require('./fx/brhReferenceRate').refreshBrhReferenceRate(db);
+      row = await latest();
+    } catch (error) {
+      row = null;
+    }
+  }
+  if (!row) {
+    throw new AppError(`No fresh official reference rate for ${currency}`, 502, 'fx_rate_unavailable', { currency, source: OFFICIAL_SOURCES[currency] });
+  }
+  const fraction = decimalToFraction(String(row.units_per_base));
+  if (!fraction || fraction.n <= 0n) throw new AppError('Stored reference rate is invalid', 502, 'fx_rate_unavailable');
+  return { ...fraction, source: row.source, rateDate: row.rate_date };
+}
+
+async function getOfficialCrossQuote(fromCurrency, toCurrency) {
+  // rate = units of `to` per 1 unit of `from`, as an exact fraction.
+  let n = 1n;
+  let d = 1n;
+  const sources = [];
+  if (fromCurrency !== 'USD') {
+    if (OFFICIAL_SOURCES[fromCurrency]) {
+      const f = await loadOfficialUnitsPerUsd(fromCurrency); // from per USD
+      n *= f.d; d *= f.n; sources.push(`${f.source}:${fromCurrency}`);
+    } else {
+      const q = await getFrankfurterQuote(fromCurrency, 'USD');
+      n *= BigInt(q.rateNumerator); d *= BigInt(q.rateDenominator); sources.push(PROVIDER_NAME);
+    }
+  }
+  if (toCurrency !== 'USD') {
+    if (OFFICIAL_SOURCES[toCurrency]) {
+      const f = await loadOfficialUnitsPerUsd(toCurrency); // to per USD
+      n *= f.n; d *= f.d; sources.push(`${f.source}:${toCurrency}`);
+    } else {
+      const q = await getFrankfurterQuote('USD', toCurrency);
+      n *= BigInt(q.rateNumerator); d *= BigInt(q.rateDenominator); sources.push(PROVIDER_NAME);
+    }
+  }
+  const rateNumerator = roundDiv(n * BigInt(RATE_DENOMINATOR), d);
+  if (rateNumerator <= 0n || rateNumerator > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new AppError('FX reference rate is out of range', 502, 'fx_rate_unavailable');
+  }
+  return {
+    rateNumerator: rateNumerator.toString(),
+    rateDenominator: String(RATE_DENOMINATOR),
+    quotedAt: new Date().toISOString(),
+    provider: sources.join('+'),
+  };
+}
+
+async function getFrankfurterQuote(fromCurrency, toCurrency) {
   const timeoutMs = getTimeoutMs();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -104,4 +205,4 @@ async function getFxQuote(fromCurrency, toCurrency) {
   }
 }
 
-module.exports = { getFxQuote };
+module.exports = { getFxQuote, OFFICIAL_SOURCES, decimalToFraction };

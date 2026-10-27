@@ -11,7 +11,7 @@ jest.mock('../db', () => ({
 }));
 
 const db = require('../db');
-const { skipCreditJobWhenRailDisabled } = require('../services/oxsteedCreditService');
+const { skipCreditJobWhenRailDisabled, skipOversightJobWhenIdle } = require('../services/oxsteedCreditService');
 const { runOxsteedCreditTopupExpiry } = require('../jobs/oxsteedCreditTopupExpiry');
 
 describe('credit worker rail-disabled skip', () => {
@@ -25,6 +25,26 @@ describe('credit worker rail-disabled skip', () => {
   test('skipCreditJobWhenRailDisabled returns false when the rail is on', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ is_enabled: true }] });
     await expect(skipCreditJobWhenRailDisabled('test-job')).resolves.toBe(false);
+  });
+
+  // Licence readiness (review bug 4): the kill switch never stops oversight.
+  test('oversight jobs keep running while the rail is off when the ledger has postings', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ is_enabled: false }] })
+      .mockResolvedValueOnce({ rows: [{ has_ledger: true }] });
+    await expect(skipOversightJobWhenIdle('oxsteed-credit-reconciliation')).resolves.toBe(false);
+  });
+
+  test('oversight jobs skip only when the rail is off and nothing was ever posted', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ is_enabled: false }] })
+      .mockResolvedValueOnce({ rows: [{ has_ledger: false }] });
+    await expect(skipOversightJobWhenIdle('oxsteed-credit-integrity')).resolves.toBe(true);
+  });
+
+  test('oversight jobs run normally when the rail is on', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ is_enabled: true }] });
+    await expect(skipOversightJobWhenIdle('oxsteed-credit-compliance-monitor')).resolves.toBe(false);
   });
 
   test('topup-expiry worker returns early without failing when the rail is disabled', async () => {

@@ -2403,5 +2403,8 @@
     "submitted": "Comprobante de fondeo enviado para revisión.",
     "submitFailed": "No se pudo enviar el comprobante de fondeo.",
     "reviewNote": "OxSteed revisa tu comprobante y acredita tu reserva una vez verificado."
-  }
+  },
+  "transactionEscheatment": "Saldo no reclamado transferido",
+  "transactionEscheatReclaim": "Saldo no reclamado devuelto",
+  "transactionEscheatRemittance": "Fondos no reclamados enviados a la autoridad"
 }

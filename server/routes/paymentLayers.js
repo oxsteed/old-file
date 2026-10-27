@@ -33,6 +33,13 @@ router.post('/jobs/:id/tips', authenticate, rejectImpersonated, checkRestriction
 router.get('/cashout/eligibility', authenticate, ctrl.getCashoutEligibility);
 router.get('/cashout', authenticate, ctrl.listCashouts);
 router.post('/cashout', authenticate, rejectImpersonated, paymentsLimiter, ctrl.requestCashout);
+router.post('/cashout/stepup-challenges', authenticate, rejectImpersonated, paymentsLimiter, ctrl.issueCashoutStepup);
+router.post('/cashout/:id/cancel', authenticate, rejectImpersonated, paymentsLimiter, ctrl.cancelCashout);
+// Verified payout destinations (micro-deposit / one-time code, 3-day cooling-off).
+router.get('/payout-destinations', authenticate, ctrl.listPayoutDestinations);
+router.post('/payout-destinations', authenticate, rejectImpersonated, paymentsLimiter, ctrl.addPayoutDestination);
+router.post('/payout-destinations/:id/verify', authenticate, rejectImpersonated, paymentsLimiter, ctrl.verifyPayoutDestination);
+router.delete('/payout-destinations/:id', authenticate, rejectImpersonated, paymentsLimiter, ctrl.removePayoutDestination);
 
 router.get('/privacy/erasure', authenticate, ctrl.getErasureStatus);
 router.post('/privacy/erasure', authenticate, rejectImpersonated, ctrl.requestErasure);

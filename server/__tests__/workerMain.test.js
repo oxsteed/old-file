@@ -94,7 +94,8 @@ test('shutdown clears polling intervals and prevents new work from being claimed
   queueMocks.getNextJob.mockResolvedValue(null);
 
   await runWorker();
-  expect(jest.getTimerCount()).toBe(2 + TRACKING_WORKER_SCHEDULE.length);
+  // poll + translation + Credit limit-rule refresh + tracking workers
+  expect(jest.getTimerCount()).toBe(3 + TRACKING_WORKER_SCHEDULE.length);
 
   await shutdown('SIGTERM');
   jest.advanceTimersByTime(3000);

@@ -46,6 +46,7 @@ jest.mock('../services/oxsteedCreditService', () => {
   return {
     ...actual,
     isCreditRailEnabled: jest.fn(async () => true),
+    skipOversightJobWhenIdle: jest.fn(async () => false),
     freezeCreditRail: jest.fn(async () => ({
       freeze: { id: 'freeze-1' },
       engaged: true,
@@ -67,6 +68,7 @@ const {
   unfreezeCreditRail,
   isCreditRailEnabled,
   freezeCreditRail,
+  skipOversightJobWhenIdle,
 } = require('../services/oxsteedCreditService');
 const { recordException } = require('../services/reconciliationExceptions');
 const { recordIncident } = require('../services/incidentStore');
@@ -586,12 +588,11 @@ describe('operator freeze behavior', () => {
 });
 
 describe('scheduled job', () => {
-  test('rail disabled: job skips cleanly without locking or heartbeats', async () => {
-    isCreditRailEnabled.mockResolvedValue(false);
+  test('rail disabled with an empty ledger: job skips cleanly without locking or heartbeats', async () => {
+    skipOversightJobWhenIdle.mockResolvedValueOnce(true);
 
     const result = await runOxsteedCreditExternalReconciliation({ now: NOW });
-    expect(result.skipped).toBe('rail_disabled');
-    expect(result.locked).toBe(false);
+    expect(result.skipped).toBe('rail_disabled_idle');
     expect(withFencedJobLock).not.toHaveBeenCalled();
     expect(recordIncident).not.toHaveBeenCalled();
     expect(recordOxsteedCreditWorkerRun).not.toHaveBeenCalled();

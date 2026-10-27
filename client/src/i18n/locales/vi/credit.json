@@ -2351,5 +2351,8 @@
     "submitted": "Đã gửi bằng chứng nạp tiền để xem xét.",
     "submitFailed": "Không thể gửi bằng chứng nạp tiền.",
     "reviewNote": "OxSteed sẽ xem xét bằng chứng của quý khách và ghi có vào quỹ sau khi xác minh."
-  }
+  },
+  "transactionEscheatment": "Chuyển số dư không được nhận",
+  "transactionEscheatReclaim": "Hoàn trả số dư không được nhận",
+  "transactionEscheatRemittance": "Tiền không được nhận đã chuyển cho cơ quan"
 }

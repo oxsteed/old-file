@@ -463,15 +463,72 @@ const ACTION_EXECUTORS = {
 const ACTION_TYPES = Object.freeze(Object.keys(ACTION_EXECUTORS));
 
 /**
+ * Licence-readiness OVERSIGHT actions (safeguarding balance entries, limit
+ * rule changes, SAR filing, held cash-out release, sanctions list
+ * activation, escheat runs, wind-down, access-review sign-off, ...).
+ *
+ * They share the maker-checker table and its rules with two differences:
+ *  - they keep working while the Credit rail kill switch is off, because
+ *    reconciliation, AML and wind-down must continue when money movement
+ *    is stopped (readiness review bug 4), and
+ *  - the single-super-admin break-glass NEVER applies: two distinct
+ *    administrators are always required.
+ * Modules register their executors at load time; each executor runs inside
+ * the decision transaction with { client, payload, actorUserId, requestedBy }.
+ */
+const OVERSIGHT_EXECUTORS = new Map();
+
+function registerOversightAction(actionType, executor) {
+  const type = normalizeText(actionType, 60);
+  if (!type || typeof executor !== 'function') throw new Error('Oversight action needs a type and an executor');
+  if (ACTION_EXECUTORS[type]) throw new Error(`Oversight action ${type} collides with a money action`);
+  OVERSIGHT_EXECUTORS.set(type, executor);
+}
+
+function isOversightAction(actionType) {
+  ensureOversightLoaded();
+  return OVERSIGHT_EXECUTORS.has(actionType);
+}
+
+function listOversightActionTypes() {
+  ensureOversightLoaded();
+  return [...OVERSIGHT_EXECUTORS.keys()].sort();
+}
+
+function loadOversightModules() {
+  // Lazy so the registry does not create require cycles at boot.
+  for (const mod of [
+    './creditCompliance/limitRules',
+    './creditCashoutService',
+    './creditCompliance/oversightActions',
+  ]) {
+    try {
+      const loaded = require(mod);
+      if (loaded && typeof loaded.registerOversightActions === 'function') loaded.registerOversightActions(registerOversightAction);
+    } catch (error) {
+      if (error.code !== 'MODULE_NOT_FOUND' || !String(error.message).includes(mod.split('/').pop())) throw error;
+    }
+  }
+}
+let oversightLoaded = false;
+function ensureOversightLoaded() {
+  if (!oversightLoaded) {
+    oversightLoaded = true;
+    loadOversightModules();
+  }
+}
+
+/**
  * Request a pending action (the maker half). Fails closed when the rail is
  * disabled. Every money movement queues for a distinct checker to decide;
  * there is no amount or environment bypass for maker-checker. The caller's
  * Idempotency-Key makes replays return the existing receipt.
  */
 async function requestPendingAction({ actionType, payload, requestedBy, idempotencyKey, requestIp, correlationId }) {
-  await assertCreditRailEnabled(pool);
+  ensureOversightLoaded();
   const normalizedType = normalizeText(actionType, 60);
-  if (!ACTION_EXECUTORS[normalizedType]) {
+  if (!OVERSIGHT_EXECUTORS.has(normalizedType)) await assertCreditRailEnabled(pool);
+  if (!ACTION_EXECUTORS[normalizedType] && !OVERSIGHT_EXECUTORS.has(normalizedType)) {
     throw new AppError('Unsupported pending action type', 400, 'credit_pending_action_type_invalid');
   }
   if (!requestedBy) throw new AppError('A requesting administrator is required', 403, 'credit_pending_action_actor_required');
@@ -479,6 +536,10 @@ async function requestPendingAction({ actionType, payload, requestedBy, idempote
   if (!key) throw new AppError('An Idempotency-Key is required to request a pending action', 400, 'credit_pending_action_idempotency_required');
 
   const storedPayload = { ...(payload || {}), idempotencyKey: key };
+  // Oversight executors may expose validate(payload) so a malformed request
+  // is refused at maker time instead of waiting for the checker.
+  const oversightExecutor = OVERSIGHT_EXECUTORS.get(normalizedType);
+  if (oversightExecutor && typeof oversightExecutor.validate === 'function') oversightExecutor.validate(storedPayload);
   // The amount is recorded in the audit trail for traceability. There is no
   // threshold bypass: every money movement requires a distinct checker.
   const amountCents = await resolveActionAmountCents(normalizedType, storedPayload);
@@ -544,8 +605,22 @@ async function requestPendingAction({ actionType, payload, requestedBy, idempote
  * the same commit. Re-approving an approved action returns the stored
  * refs as a no-op.
  */
-async function decidePendingAction({ actionId, decidedBy, decision, reason, stepupChallengeId, stepupCode, requestIp, correlationId }) {
+async function decidePendingAction(params) {
   await assertCreditRailEnabled(pool);
+  return decidePendingActionCore(params, { oversightOnly: false });
+}
+
+/**
+ * Checker half for oversight actions: no rail gate (they must work while
+ * the kill switch is off) and no break-glass self-approval.
+ */
+async function decideOversightAction(params) {
+  ensureOversightLoaded();
+  return decidePendingActionCore(params, { oversightOnly: true });
+}
+
+async function decidePendingActionCore({ actionId, decidedBy, decision, reason, stepupChallengeId, stepupCode, requestIp, correlationId }, { oversightOnly }) {
+  ensureOversightLoaded();
   // ADM-080: fail closed on unrecognized decisions. The old code defaulted
   // anything that was not an explicit rejection spelling to 'approved', so a
   // typo or malformed client value approved a money movement.
@@ -570,6 +645,10 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
     const action = rows[0];
     if (!action) throw new AppError('Pending action was not found', 404, 'credit_pending_action_not_found');
 
+    if (oversightOnly && !OVERSIGHT_EXECUTORS.has(action.action_type)) {
+      throw new AppError('This endpoint only decides oversight actions', 400, 'credit_pending_action_type_invalid');
+    }
+    const oversightAction = OVERSIGHT_EXECUTORS.has(action.action_type);
     if (action.status === 'approved') {
       // Double-approve after a successful execution: replay the stored
       // execution refs; the executor does not run again.
@@ -603,7 +682,8 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
       // opens only when the feature flag is ON and fewer than 2 active super
       // admins exist; the step-up challenge below still applies and the
       // decision is audit-marked selfApproved.
-      if (!(await singleAdminBreakGlassAllowed(client))) {
+      // Oversight actions never allow break-glass self-approval.
+      if (oversightAction || !(await singleAdminBreakGlassAllowed(client))) {
         throw new AppError('The requesting administrator cannot approve their own action', 403, 'credit_self_approval_forbidden');
       }
       selfApproved = true;
@@ -645,7 +725,7 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
       code: stepupCode,
     });
 
-    const executor = ACTION_EXECUTORS[action.action_type];
+    const executor = ACTION_EXECUTORS[action.action_type] || OVERSIGHT_EXECUTORS.get(action.action_type);
     if (!executor) throw new AppError('Unsupported pending action type', 400, 'credit_pending_action_type_invalid');
     const storedPayload = { ...(action.payload || {}), idempotencyKey: action.idempotency_key };
     // ADM-019/ADM-114 + P3-10-F01 (auth audit item 2): the compliance choke
@@ -668,6 +748,7 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
     const executionResult = await executor({
       client,
       payload: storedPayload,
+      requestedBy: action.requested_by,
       actorUserId: decidedBy,
       requestIp: requestIp || null,
       correlationId: correlationId || null,
@@ -728,9 +809,13 @@ async function expireStalePendingActions() {
   return { expired: rows.length };
 }
 
-async function listPendingActions({ status = null, limit = 50, offset = 0 } = {}) {
+async function listPendingActions({ status = null, limit = 50, offset = 0, actionTypes = null } = {}) {
   const where = [];
   const params = [];
+  if (Array.isArray(actionTypes) && actionTypes.length) {
+    params.push(actionTypes);
+    where.push(`action_type = ANY($${params.length}::text[])`);
+  }
   if (status && PENDING_ACTION_STATUSES.includes(status)) {
     params.push(status);
     where.push(`status = $${params.length}`);
@@ -754,6 +839,10 @@ module.exports = {
   PENDING_ACTION_STATUSES,
   requestPendingAction,
   decidePendingAction,
+  decideOversightAction,
+  registerOversightAction,
+  isOversightAction,
+  listOversightActionTypes,
   getPendingAction,
   listPendingActions,
   expireStalePendingActions,

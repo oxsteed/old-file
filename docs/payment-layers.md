@@ -77,7 +77,8 @@ retention sweep. Each task is a no-op while its flag is off.
 - Per-country tax review (`tax_review_cleared`) — required before `enabled`.
 - Legal clearance flags: `credit_payment_legal_cleared`, `local_methods_legal_cleared`, `platform_hold_legal_cleared` (holding customer funds may need an e-money / payment-institution licence or an agent-of-payee opinion per country).
 - Stripe: Connect cross-border / `on_behalf_of` settlement-merchant setup per country; local method activation (e.g. M-Pesa is not a Stripe method today — needs a PSP).
-- Cash-out partners (stubs, `partner_integration_pending`): Safaricom M-Pesa B2C (KE), Digicel MonCash (HT), Wise Platform (GB/IE/CA). Contracts, KYB and credentials required; adapters must implement `submitPayout` / `getPayoutStatus`.
+- Cash-out partners (stubs, `partner_integration_pending`): Safaricom M-Pesa B2C (KE), Wise Platform (GB/IE/CA). Contracts, KYB and credentials required; adapters must implement `submitPayout` / `getPayoutStatus` and accept the stable `idempotencyKey`.
+- Haiti (and any country in `OXSTEED_BANK_PAYOUT_COUNTRIES`) pays through the in-house bank rail `oxsteed_bank_payout`: verified destinations, a 3-day cooling-off, CSV export to the safeguarding bank and two-administrator settlement. MonCash is no longer a cash-out partner.
 - Twilio sender registration per country (alphanumeric sender IDs need pre-registration in KE; HT carriers vary).
 - Privacy: confirm retention periods (24 months EU edit history, 90-day private-field strip) with counsel; DPA updates.
 

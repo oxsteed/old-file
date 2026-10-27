@@ -17,11 +17,11 @@ const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { withFencedJobLock } = require('./jobLockingService');
-const { isCreditRailEnabled, SUPPORTED_CREDIT_CURRENCIES } = require('../services/oxsteedCreditService');
+const { SUPPORTED_CREDIT_CURRENCIES } = require('../services/oxsteedCreditService');
 const { reconcileCreditExternal } = require('../services/oxsteedCreditExternalReconciliation');
 const incidentStore = require('../services/incidentStore');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
-const { skipCreditJobWhenRailDisabled } = require('../services/oxsteedCreditService');
+const { skipOversightJobWhenIdle } = require('../services/oxsteedCreditService');
 
 const CRON_EXPRESSION = process.env.OXSTEED_CREDIT_EXTERNAL_RECON_CRON || '30 2 * * *';
 const CRON_TIMEZONE = 'UTC';
@@ -57,16 +57,9 @@ async function recordLockFailure(error, period) {
 }
 
 async function runOxsteedCreditExternalReconciliation({ now = new Date(), currencyCodes = CURRENCY_CODES, getStripe } = {}) {
-  if (await skipCreditJobWhenRailDisabled(JOB_NAME)) {
-    return { skipped: 'rail_disabled' };
-  }
-  // Fail-open on the rail toggle: a scheduled job must not page nightly
-  // while the rail is intentionally off. Checked before the lock so an
-  // off rail never contends or records heartbeats. The operator freeze is
-  // independent of this toggle and is enforced inside the money paths.
-  if (!(await isCreditRailEnabled(pool))) {
-    logger.info('OxSteed Credit external reconciliation skipped: credit rail disabled');
-    return { locked: false, skipped: 'rail_disabled' };
+  // Review bug 4: oversight keeps running while the rail is off.
+  if (await skipOversightJobWhenIdle(JOB_NAME)) {
+    return { skipped: 'rail_disabled_idle' };
   }
   const period = previousUtcDay(now);
   let locked = false;
