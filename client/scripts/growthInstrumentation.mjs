@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import ts from 'typescript';
+import { routePageReferences } from './growthRouteReferences.mjs';
 const root = path.resolve(import.meta.dirname, '..');
 const routes = new Set(
   JSON.parse(fs.readFileSync(path.join(root, 'src/growth/routes.json'))),
@@ -32,9 +33,11 @@ function visit(node) {
       const element = attrs.find(
         (a) => ts.isJsxAttribute(a) && a.name.getText(app) === 'element',
       );
-      if (element)
-        for (const match of element.getText(app).matchAll(/<([A-Z][\w]*)/g))
-          components.add(match[1]);
+      if (element) {
+        // Route composition can pass a lazy page as a prop, for example
+        // DiscoveryPage={HomePage}. Follow those references as well as tags.
+        for (const reference of routePageReferences(element)) components.add(reference);
+      }
     }
   }
   ts.forEachChild(node, visit);

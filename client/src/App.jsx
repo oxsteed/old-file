@@ -2,6 +2,7 @@ import PwaRuntime from './components/PwaRuntime';
 import PageShell from './components/PageShell';
 import PageLoadingState from './components/PageLoadingState';
 import ModeHomeRoute from './components/ModeHomeRoute';
+import SessionRecoveryBoundary from './components/SessionRecoveryBoundary';
 import LogisticsRouteBoundary from './components/logistics/LogisticsRouteBoundary';
 import { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
@@ -417,6 +418,7 @@ export default function App() {
                 <PwaInstallPrompt />
                 <PushSoftAsk />
                 <TermsGate>
+                  <SessionRecoveryBoundary>
                   <LaunchScopeRouteGate>
                   <Suspense fallback={<RouteLoadingFallback />}>
                   <Routes>
@@ -780,6 +782,7 @@ export default function App() {
                   </Routes>
                   </Suspense>
                   </LaunchScopeRouteGate>
+                  </SessionRecoveryBoundary>
                 </TermsGate>
                 {!isStatusHost && <CookieConsent />}
                 {!isStatusHost && <SupportWidgetGate />}

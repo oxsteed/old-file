@@ -37668,5 +37668,10 @@
     "thresholdOwnerOnly": "Se sèlman pwopriyetè a ki ka chanje limit apwobasyon an.",
     "thresholdNone": "Pa gen limit",
     "saveThreshold": "Anrejistre limit la"
+  },
+  "sessionRecovery": {
+    "title": "Nou pa t kapab verifye sesyon ou a",
+    "description": "Tcheke koneksyon ou epi eseye ankò. Paj ou ye a ak travay ou te anrejistre yo ap rete la.",
+    "retry": "Eseye ankò"
   }
 }

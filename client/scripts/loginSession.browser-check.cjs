@@ -14,12 +14,15 @@ async function fixture({ refreshable = false, legacyOnly = false, refreshFailure
   const calls = [];
   let accessExpired = false;
   let refreshCount = 0;
+  let meFailure = null;
+  let delayedMe = null;
   const mocks = {
     'react-i18next': `export const useTranslation=()=>({t:key=>key});`,
     './LanguageContext': `const syncLanguageFromServer=()=>{};
       export const useLanguage=()=>({syncLanguageFromServer});`,
     '../components/AuthNavbar': `export default ()=>null;`,
     '../components/Footer': `export default ()=>null;`,
+    './PageShell': `export default ({children})=>children;`,
     '@simplewebauthn/browser': `export const startAuthentication=async()=>({id:'synthetic-passkey'});`,
   };
   const bundle = await build({
@@ -29,14 +32,16 @@ async function fixture({ refreshable = false, legacyOnly = false, refreshFailure
       import {AuthProvider,useAuth} from './src/context/AuthContext.jsx';
       import Login from './src/pages/Login.jsx';
       import ProtectedRoute from './src/components/ProtectedRoute.jsx';
+      import SessionRecoveryBoundary from './src/components/SessionRecoveryBoundary.jsx';
+      function Controls(){const auth=useAuth();window.fixtureAuth=auth;return null;}
       function Dashboard(){const {user}=useAuth();return <main><h1>Helper dashboard</h1>
         <p data-user>{user?.id||'Not authenticated'}</p></main>;}
       createRoot(document.getElementById('root')).render(<BrowserRouter><AuthProvider>
-        <Routes><Route path="/login" element={<Login/>}/>
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard/></ProtectedRoute>}/></Routes>
+        <Controls/><SessionRecoveryBoundary><Routes><Route path="/login" element={<Login/>}/>
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard/></ProtectedRoute>}/></Routes></SessionRecoveryBoundary>
       </AuthProvider></BrowserRouter>);
     ` },
-    bundle: true, write: false, jsx: 'automatic', define: { 'import.meta.env': '{}' },
+    bundle: true, write: false, jsx: 'automatic', define: { 'import.meta.env': '{}' }, loader: { '.css': 'empty' },
     plugins: [{ name: 'synthetic-login-services', setup(plugin) {
       plugin.onResolve({ filter: /.*/ }, args => mocks[args.path]
         ? { path: args.path, namespace: 'fixture' } : undefined);
@@ -57,6 +62,9 @@ async function fixture({ refreshable = false, legacyOnly = false, refreshFailure
     calls.push({ path: url.pathname, method: req.method, body });
     res.setHeader('Content-Type', 'application/json');
     if (url.pathname === '/api/auth/me') {
+      const failure = meFailure;
+      if (delayedMe) await delayedMe;
+      if (failure) { res.statusCode = failure;res.end('{"error":"Synthetic unavailable"}');return; }
       if (accessExpired || !req.headers.cookie?.includes('fixture_access=valid')) {
         res.statusCode = 401;res.end('{"error":"No token provided"}');return;
       }
@@ -100,6 +108,9 @@ async function fixture({ refreshable = false, legacyOnly = false, refreshFailure
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   return { browser, calls, url: `http://127.0.0.1:${server.address().port}`,
     expireAccess() { accessExpired = true; },
+    setMeFailure(status) { meFailure = status; },
+    setRefreshFailure(failure) { refreshFailure = failure; },
+    delayMe() { let release;delayedMe = new Promise(resolve => { release = resolve; });return () => { delayedMe = null;release(); }; },
     async close() { await browser.close();await new Promise(resolve => server.close(resolve)); } };
 }
 
@@ -127,6 +138,63 @@ test('password login reaches the authenticated dashboard with exactly one creden
     // A reload still recognizes the cookie-established session.
     await page.reload();
     await page.waitForFunction(() => document.querySelector('[data-user]')?.textContent === 'synthetic');
+  } finally { await env.close(); }
+});
+
+test('unavailable startup keeps the destination unverified until a visible retry succeeds', async () => {
+  const env = await fixture({ refreshable:true });
+  try {
+    const page = await env.browser.newPage();
+    await seedCookieSession(page, env.url);
+    env.setMeFailure(503);
+    await page.goto(`${env.url}/dashboard`);
+    await page.getByRole('heading',{name:'sessionRecovery.title'}).waitFor();
+    assert.ok(page.url().endsWith('/dashboard'));
+    assert.equal(await page.locator('[data-user]').count(), 0);
+    assert.equal(await page.locator('#email').count(), 0);
+    env.setMeFailure(null);
+    await page.getByRole('button',{name:'sessionRecovery.retry'}).click();
+    await page.getByRole('heading',{name:'Helper dashboard'}).waitFor();
+    assert.equal(await page.locator('[data-user]').innerText(), 'synthetic');
+  } finally { await env.close(); }
+});
+
+test('transient explicit refresh preserves the verified user; real expiry still clears it', async () => {
+  const env = await fixture({refreshable:true});
+  try {
+    const page = await env.browser.newPage();
+    await seedCookieSession(page, env.url);
+    await page.goto(`${env.url}/dashboard`);
+    await page.locator('[data-user]').waitFor();
+    for (const status of [408,429,503]) {
+      env.setRefreshFailure({status,code:'temporary'});
+      await page.evaluate(()=>window.fixtureAuth.refreshSession().catch(()=>{}));
+      assert.equal(await page.locator('[data-user]').innerText(),'synthetic');
+    }
+    env.setRefreshFailure({status:401,code:'revoked'});
+    await page.evaluate(()=>window.fixtureAuth.refreshSession().catch(()=>{}));
+    await page.waitForURL('**/login');
+    assert.equal(await page.locator('[data-user]').count(),0);
+  } finally { await env.close(); }
+});
+
+test('an older verification failure cannot clear a newer verified account', async () => {
+  const env = await fixture({refreshable:true});
+  try {
+    const page = await env.browser.newPage();
+    await seedCookieSession(page, env.url);
+    await page.goto(`${env.url}/dashboard`);
+    await page.locator('[data-user]').waitFor();
+    env.setMeFailure(403);
+    const release = env.delayMe();
+    const before = env.calls.length;
+    await page.evaluate(()=>{window.pendingVerification=window.fixtureAuth.refreshUser().catch(()=>{});});
+    await page.waitForTimeout(100);
+    assert.ok(env.calls.slice(before).some(call=>call.path==='/api/auth/me'));
+    await page.evaluate(()=>window.fixtureAuth.setUser({id:'new-account',role:'helper',email_verified:true,didit_status:'verified'}));
+    release();
+    await page.evaluate(()=>window.pendingVerification);
+    assert.equal(await page.locator('[data-user]').innerText(),'new-account');
   } finally { await env.close(); }
 });
 

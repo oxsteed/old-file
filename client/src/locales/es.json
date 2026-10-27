@@ -37668,5 +37668,10 @@
     "thresholdOwnerOnly": "Solo el propietario puede cambiar el límite de aprobación.",
     "thresholdNone": "Sin límite",
     "saveThreshold": "Guardar límite"
+  },
+  "sessionRecovery": {
+    "title": "No pudimos comprobar tu sesión",
+    "description": "Revisa tu conexión e inténtalo de nuevo. Tu página actual y el trabajo guardado permanecerán aquí.",
+    "retry": "Intentar de nuevo"
   }
 }

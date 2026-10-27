@@ -42,9 +42,9 @@ export default function PwaRuntime() {
       connectionChanged('reconnecting');
       try {
         const account = current.current.user?.id;
-        if (account) {
+        if (account || current.current.sessionRecovering) {
           const verified = await current.current.refreshUser();
-          if (!verified || String(verified.id) !== String(account)) return;
+          if (account && (!verified || String(verified.id) !== String(account))) return;
         } else await api.get('/config/capabilities', { timeout: 8000 });
         connectionChanged('online', true);
         await Promise.allSettled([
@@ -67,7 +67,7 @@ export default function PwaRuntime() {
     /^\/(restaurants|food)\/(kitchen|queue|kiosk|screens)\//.test(pathname);
   // Healthy connections need no persistent overlay. Keep the shared state
   // and resume coordinator active; show recovery controls only when needed.
-  const showConnection = !displayRoute && !modalOpen && state.status !== 'online';
+  const showConnection = !displayRoute && !modalOpen && !auth.sessionRecovering && state.status !== 'online';
   useEffect(() => {
     document.documentElement.classList.toggle(
       'pwa-connection-present',

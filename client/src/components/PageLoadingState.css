@@ -9,7 +9,20 @@
   background: var(--color-bg);
   color: var(--color-text-muted);
 }
-.ox-loading-state p { margin: 0; }
+.ox-loading-state h1 { margin: 0; font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 700; color: var(--color-text); }
+.ox-loading-state p { margin: 0; max-width: 40rem; line-height: 1.6; }
+.ox-loading-state__retry {
+  border: 0;
+  border-radius: .75rem;
+  padding: .75rem 1.25rem;
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ox-loading-state__retry:disabled { opacity: .65; cursor: wait; }
+.ox-loading-state__retry:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; }
 .ox-loading-state__spinner {
   width: 2rem;
   height: 2rem;

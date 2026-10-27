@@ -5430,5 +5430,10 @@
       "restaurant": "Restaurant"
     },
     "analyticsStorageDescription": "In the EEA, UK, Switzerland and Québec, activity tracking and activity-based offers each require your consent. You can withdraw it in Settings. Applicable US states have a Do not sell or share control, including Global Privacy Control. Elsewhere the Analytics toggle controls Google Analytics and persistent device storage; activity is covered by this notice."
+  },
+  "sessionRecovery": {
+    "title": "We couldn’t check your session",
+    "description": "Check your connection and try again. Your current page and saved work will stay here.",
+    "retry": "Try again"
   }
 }

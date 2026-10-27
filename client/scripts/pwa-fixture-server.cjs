@@ -24,6 +24,7 @@ exports.startPwaFixture = async () => {
     requests: [],
     writes: [],
     readResponses: {},
+    failures: {},
   };
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -35,6 +36,7 @@ exports.startPwaFixture = async () => {
       res.end(JSON.stringify(data));
     };
     if (url.pathname.startsWith('/api/')) {
+      if (state.failures[url.pathname]) return json({ error: 'Synthetic API unavailable' }, state.failures[url.pathname]);
       if (req.method === 'GET' && Object.hasOwn(state.readResponses, url.pathname))
         return json(state.readResponses[url.pathname]);
       if (!['GET', 'HEAD'].includes(req.method)) {

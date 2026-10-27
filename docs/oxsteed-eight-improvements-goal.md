@@ -16,7 +16,7 @@ authorization, privacy, deployment-secret, and production-data safeguards.
 | 4 | Consistent design across Food, Direct, Messages, and business workspaces: headers, spacing, buttons, forms, and loading states. | Shared component/token adoption and desktop/mobile, light/dark, keyboard, and Arabic rendering across all four surfaces. | Partial: restaurant directory alignment shipped in `51f7e04e`; package 2 adds one localized, themed loading state for ordinary routes and preserves immersive operation layouts. Next: audit and consolidate headers/forms/spacing across Direct, Messages, and business workspaces, including main-landmark semantics. |
 | 5 | Clear restaurant discovery: location, opening hours, ordering options, and a useful small-inventory layout without repeated restaurant shelves. | Real-data contract checks, location/filter and empty-state behavior, accurate hours/fulfillment labels, pagination and no-duplicate shelf checks, and live directory verification. | Not complete. Inspect current restaurant response contracts and visible controls; avoid invented availability or unsupported ordering options. |
 | 6 | Business workspaces lead with today's bookings, unanswered messages, overdue invoices, and required tasks; detailed analytics are secondary. | Ownership/team-permission scenarios, authoritative counts, task destinations, empty/error/loading states, and responsive browser checks. | Not complete. Inspect workspace overview data and existing attention services; retain financial/account/currency separation. |
-| 7 | Reliable sessions and unfinished work: investigate unexpected sign-outs and preserve work during transient outages, reconnects, and updates. | Expired versus transient refresh cases; resume/update/navigation/reload with drafts; account-switch isolation; concurrent-tab behavior; no stale private data or financial replay. | Not complete. Inspect authentication bootstrap/refresh and existing draft/reconnect coordinators. Do not weaken session verification or authentication. |
+| 7 | Reliable sessions and unfinished work: investigate unexpected sign-outs and preserve work during transient outages, reconnects, and updates. | Expired versus transient refresh cases; resume/update/navigation/reload with drafts; account-switch isolation; concurrent-tab behavior; no stale private data or financial replay. | Package 3 fixes temporary bootstrap/refresh failures being treated as sign-out. Unverified sessions retain the destination with a localized retry; verified forms remain mounted. Nine browser checks cover expiry, two tabs, text/photos, stale verification and no financial replay. Next: published recovery checks and remaining cross-tab expiry/account-change races, including the Axios expiration event boundary. |
 | 8 | Less persistent screen clutter: connection, AI support, update notices, and cookie controls do not compete with primary actions. | Online/offline/reconnecting and recovery checks; checkout/dirty-work update deferral; support/cookie/update combinations; mobile keyboard and desktop/RTL clearance; accessible recovery controls. | Package 2 implements critical-work/edited-form/cart deferral, modal/cookie priority, launcher/action-bar clearance, and offline/keyboard launcher suppression. Browser geometry and real draft-update/reconnect checks pass. Await published runtime verification; retain the wider unfinished-work/session audit under item 7. |
 
 ## Execution and evidence rules
@@ -123,3 +123,52 @@ accepted as complete; live publication/CI evidence is separate from these checks
 Remaining work: requirements 1, 2, 4, 5, 6, and 7 still require implementation
 and acceptance evidence. Requirements 3 and 8 require publication verification
 and their final cross-cutting recovery audit. The overall goal remains active.
+
+## Publication of package 2
+
+- Pushed `1c48a170` to the verified default branch. Coolify deployment
+  `qjuvphuzxjxe1ifvv1a5pazl` reports that exact commit finished; public `/ready`
+  returned ready with all checks passing.
+- A fresh public Chrome tab loaded `/assets/main-D6FRd8pm.js`; after accepting
+  the waiting update on the safe homepage, it showed one main landmark, no
+  company card, no healthy connection badge, and no repeated update prompt.
+  Navigation to the restaurant directory succeeded. This public check does
+  not replace the synthetic authenticated mode matrix with live account proof.
+- CI `40597490276` stopped at the instrumentation registry check. Its route
+  scanner omitted `HomePage` when supplied as `DiscoveryPage={HomePage}` rather
+  than a JSX tag. Package 3 fixes that graph traversal and retains the existing
+  key registry; no tracking keys or telemetry payloads were added.
+
+## Package 3 - temporary session failure recovery
+
+- Bootstrap no longer treats a timeout, throttling, or unavailable identity API
+  as a signed-out session. The current destination remains behind verification,
+  with a retry screen translated in both catalogs for all five required
+  languages. A browser-stored profile is never used as authentication proof.
+- A verified user keeps their mounted form when an explicit session refresh
+  fails temporarily. Real authentication rejection still clears account state.
+  Verification failures carry the existing account epoch so an older request
+  cannot clear a newer verified identity in the provider.
+- Resume/retry rechecks an unverified session as well as an authenticated one.
+  The full-page recovery action suppresses the duplicate connection badge;
+  update safety and the shared connection lifecycle remain active.
+- `npm run test:session-recovery`: 9 passed using real AuthProvider/Axios and
+  the built app. Coverage includes cookie rotation/legacy migration, password
+  and passkey sign-in, 408/429/503 refresh preservation, real expiry, a stale
+  verification rejection, two-tab outage/retry, saved draft text/photos, an
+  unsent edit through reconnect, account isolation and no financial-write replay.
+  The fault is injected at the synthetic API server so the service worker
+  cannot bypass it; an earlier page-interception version did not exercise the
+  outage and was corrected.
+- The instrumentation scanner now follows capitalized component references
+  through route props. Its two regression tests pass, and `--check` reports
+  2,665 of 2,665 eligible controls named, zero files needing annotation, and an
+  unchanged key registry. The session retry action is explicitly private.
+- Final `npm run build:ci`: passed, including the new scanner regressions,
+  localization, TypeScript, production compilation and 1,099 emitted assets.
+  The final built-app recovery, connection-notice and overlay geometry check
+  run passed all three tests serially in about 19 seconds. Publication and
+  remote CI evidence remain separate from these local checks.
+
+This package addresses a concrete recovery bug. It does not complete the wider
+session/account race audit or the remaining eight-part goal.

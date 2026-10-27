@@ -5430,5 +5430,10 @@
       "restaurant": "Restaurant"
     },
     "analyticsStorageDescription": "Dans l’EEE, au Royaume-Uni, en Suisse et au Québec, le suivi et les offres fondées sur l’activité exigent des consentements distincts, révocables dans les paramètres. Les États américains concernés proposent le refus de vente ou de partage et Global Privacy Control. Ailleurs, le réglage analytique concerne Google Analytics et le stockage persistant ; l’activité relève de cet avis."
+  },
+  "sessionRecovery": {
+    "title": "Impossible de vérifier votre session",
+    "description": "Vérifiez votre connexion et réessayez. Votre page actuelle et votre travail enregistré resteront ici.",
+    "retry": "Réessayer"
   }
 }

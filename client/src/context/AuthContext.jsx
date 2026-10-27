@@ -5,6 +5,7 @@ import { authAPI, clearStoredSession } from '../api/auth';
 import api from '../api/axios';
 import { setDisplayDeviceStaffSession } from '../api/food';
 import { useLanguage } from './LanguageContext';
+import { isTransientRefreshFailure } from '../api/authRefreshPolicy';
 
 export const AuthContext = createContext(null);
 
@@ -39,6 +40,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [sessionRecovering, setSessionRecovering] = useState(false);
   const { syncLanguageFromServer } = useLanguage();
 
   const persistUser = useCallback((nextUser) => {
@@ -48,6 +50,7 @@ export function AuthProvider({ children }) {
     setDraftAccount(nextId);
     setNavigationAccount(nextId);
     setUser(nextUser || null);
+    setSessionRecovering(false);
     return nextUser || null;
   }, []);
 
@@ -57,6 +60,7 @@ export function AuthProvider({ children }) {
     setDraftAccount(null);
     setNavigationAccount(null);
     setUser(null);
+    setSessionRecovering(false);
   }, []);
 
   // Kitchen displays authorize with the pairing token only when no staff
@@ -83,21 +87,22 @@ export function AuthProvider({ children }) {
     return fullUser;
   }, [persistUser, syncLanguageFromServer]);
 
+  const handleVerificationFailure = useCallback((error, epoch) => {
+    // An older request must not clear or recover a newer login/logout.
+    if (epoch !== sessionEpoch.current) return;
+    if (!isTransientRefreshFailure(error)) clearAuthState();
+    else if (identity.current === null) setSessionRecovering(true);
+  }, [clearAuthState]);
+
   useEffect(() => {
     let mounted = true;
 
     const initAuth = async () => {
+      const epoch = sessionEpoch.current;
       try {
         await fetchMe();
       } catch (err) {
-        const status = err?.response?.status;
-
-        if (status === 401 || status === 403) {
-          clearAuthState();
-        } else {
-          console.warn('Could not verify session:', err?.message);
-          clearAuthState();
-        }
+        handleVerificationFailure(err, epoch);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -111,7 +116,7 @@ export function AuthProvider({ children }) {
     return () => {
       mounted = false;
     };
-  }, [fetchMe, clearAuthState]);
+  }, [fetchMe, handleVerificationFailure]);
 
   const login = useCallback(async (credentials) => {
     const { data } = await authAPI.login(credentials);
@@ -177,27 +182,26 @@ export function AuthProvider({ children }) {
   }, [fetchMe, clearAuthState]);
 
   const refreshUser = useCallback(async () => {
+    const epoch = sessionEpoch.current;
     try {
       return await fetchMe();
     } catch (err) {
-      const status = err?.response?.status;
-      if (status === 401 || status === 403) {
-        clearAuthState();
-      }
+      handleVerificationFailure(err, epoch);
       throw err;
     }
-  }, [fetchMe, clearAuthState]);
+  }, [fetchMe, handleVerificationFailure]);
 
   const refreshSession = useCallback(async () => {
+    const epoch = sessionEpoch.current;
     try {
-      const response = await authAPI.refresh();
-      const fullUser = await fetchMe();
-      return fullUser || normalizeUserPayload(response.data);
+      await authAPI.refresh();
+      if (epoch !== sessionEpoch.current) return null;
+      return await fetchMe();
     } catch (err) {
-      clearAuthState();
+      handleVerificationFailure(err, epoch);
       throw err;
     }
-  }, [fetchMe, clearAuthState]);
+  }, [fetchMe, handleVerificationFailure]);
 
   // Unified mode + role switcher. Accepts a mode string (see
   // server/utils/modeRole.js for the catalog). Legacy 'helper' / 'customer'
@@ -240,6 +244,7 @@ export function AuthProvider({ children }) {
     user,
     loading,
     initialized,
+    sessionRecovering,
     isAuthenticated: !!user,
     isHelper,
     isCustomer,
@@ -266,6 +271,7 @@ export function AuthProvider({ children }) {
     user,
     loading,
     initialized,
+    sessionRecovering,
     isHelper,
     isCustomer,
     membershipTier,

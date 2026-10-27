@@ -5430,5 +5430,10 @@
       "restaurant": "Restoran"
     },
     "analyticsStorageDescription": "Nan EEE, Wayòm Ini, Swis ak Kebèk, swivi ak òf ki baze sou aktivite bezwen konsantman separe; ou ka retire yo nan Anviwònman. Eta ameriken ki konsène yo gen kontwòl Pa vann ni pataje ak Global Privacy Control. Lòt kote, bouton analiz la kontwole Google Analytics ak depo pèmanan; avi sa a kouvri aktivite."
+  },
+  "sessionRecovery": {
+    "title": "Nou pa t kapab verifye sesyon ou a",
+    "description": "Tcheke koneksyon ou epi eseye ankò. Paj ou ye a ak travay ou te anrejistre yo ap rete la.",
+    "retry": "Eseye ankò"
   }
 }

@@ -37668,5 +37668,10 @@
     "thresholdOwnerOnly": "Only the owner can change the approval threshold.",
     "thresholdNone": "No threshold",
     "saveThreshold": "Save threshold"
+  },
+  "sessionRecovery": {
+    "title": "We couldn’t check your session",
+    "description": "Check your connection and try again. Your current page and saved work will stay here.",
+    "retry": "Try again"
   }
 }

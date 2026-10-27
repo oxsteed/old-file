@@ -5430,5 +5430,10 @@
       "restaurant": "Restaurante"
     },
     "analyticsStorageDescription": "En el EEE, Reino Unido, Suiza y Quebec, el seguimiento y las ofertas basadas en la actividad requieren consentimientos separados, revocables en Configuración. Los estados estadounidenses aplicables disponen del control No vender ni compartir y de Global Privacy Control. En otras regiones, el ajuste de analítica controla Google Analytics y el almacenamiento persistente; la actividad está cubierta por este aviso."
+  },
+  "sessionRecovery": {
+    "title": "No pudimos comprobar tu sesión",
+    "description": "Revisa tu conexión e inténtalo de nuevo. Tu página actual y el trabajo guardado permanecerán aquí.",
+    "retry": "Intentar de nuevo"
   }
 }

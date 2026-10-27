@@ -37668,5 +37668,10 @@
     "thresholdOwnerOnly": "Seul le propriétaire peut modifier le seuil d’approbation.",
     "thresholdNone": "Aucun seuil",
     "saveThreshold": "Enregistrer le seuil"
+  },
+  "sessionRecovery": {
+    "title": "Impossible de vérifier votre session",
+    "description": "Vérifiez votre connexion et réessayez. Votre page actuelle et votre travail enregistré resteront ici.",
+    "retry": "Réessayer"
   }
 }
