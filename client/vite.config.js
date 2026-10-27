@@ -62,7 +62,7 @@ export default defineConfig(({ mode }) => {
   define: {
     // Empty in dev/test without a release; the client then falls back to the
     // entry-script fingerprint from the served HTML.
-    __APP_BUILD_ID__: JSON.stringify(mode === 'production' ? resolveBuildId() : ''),
+    'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify(mode === 'production' ? resolveBuildId() : ''),
   },
   plugins: [
     react(),

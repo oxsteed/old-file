@@ -23,7 +23,7 @@ async function bundle(buildId) {
     bundle: true,
     write: false,
     format: 'esm',
-    define: { 'import.meta.env': '{}', __APP_BUILD_ID__: JSON.stringify(buildId) },
+    define: { 'import.meta.env': JSON.stringify({ VITE_APP_BUILD_ID: buildId }) },
     plugins: [{
       name: 'translations',
       setup(p) {

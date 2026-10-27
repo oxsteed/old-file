@@ -36,14 +36,12 @@ export function getAssetReleaseId() {
 /**
  * The service-worker version is one deterministic id per build, shared by
  * every route and both entries (index.html and admin.html). vite.config.js
- * injects __APP_BUILD_ID__ from the release env (VITE_APP_VERSION, Sentry
+ * injects import.meta.env.VITE_APP_BUILD_ID from the release env (VITE_APP_VERSION, Sentry
  * release, commit SHA) or git HEAD.
  */
 export function getServiceWorkerVersion() {
-  // eslint-disable-next-line no-undef
-  const injected = typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : '';
   const env = import.meta.env || {};
-  const configured = injected || env.VITE_APP_VERSION || env.VITE_SENTRY_RELEASE || '';
+  const configured = env.VITE_APP_BUILD_ID || env.VITE_APP_VERSION || env.VITE_SENTRY_RELEASE || '';
   return String(configured || getAssetReleaseId());
 }
 

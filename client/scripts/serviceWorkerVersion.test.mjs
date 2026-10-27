@@ -58,7 +58,7 @@ test('a new entry bundle (a real deployment) changes the fallback version', asyn
 
 test('production builds inject one build id for every entry and route', async () => {
   const config = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf8');
-  assert.match(config, /__APP_BUILD_ID__: JSON\.stringify\(/);
+  assert.match(config, /'import\.meta\.env\.VITE_APP_BUILD_ID': JSON\.stringify\(/);
   const { resolveBuildId } = await import(new URL('../vite.config.js', import.meta.url).href);
   assert.equal(resolveBuildId({ VITE_APP_VERSION: ' rel-1 ', COMMIT_SHA: 'abc' }, () => 'git'), 'rel-1');
   assert.equal(resolveBuildId({ COMMIT_SHA: 'abc123' }, () => 'git'), 'abc123');
