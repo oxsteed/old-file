@@ -486,7 +486,13 @@ function registerOversightAction(actionType, executor) {
 }
 
 function isOversightAction(actionType) {
+  ensureOversightLoaded();
   return OVERSIGHT_EXECUTORS.has(actionType);
+}
+
+function listOversightActionTypes() {
+  ensureOversightLoaded();
+  return [...OVERSIGHT_EXECUTORS.keys()].sort();
 }
 
 function loadOversightModules() {
@@ -803,9 +809,13 @@ async function expireStalePendingActions() {
   return { expired: rows.length };
 }
 
-async function listPendingActions({ status = null, limit = 50, offset = 0 } = {}) {
+async function listPendingActions({ status = null, limit = 50, offset = 0, actionTypes = null } = {}) {
   const where = [];
   const params = [];
+  if (Array.isArray(actionTypes) && actionTypes.length) {
+    params.push(actionTypes);
+    where.push(`action_type = ANY($${params.length}::text[])`);
+  }
   if (status && PENDING_ACTION_STATUSES.includes(status)) {
     params.push(status);
     where.push(`status = $${params.length}`);
@@ -832,6 +842,7 @@ module.exports = {
   decideOversightAction,
   registerOversightAction,
   isOversightAction,
+  listOversightActionTypes,
   getPendingAction,
   listPendingActions,
   expireStalePendingActions,

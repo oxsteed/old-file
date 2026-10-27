@@ -101,8 +101,8 @@ async function openComplianceCase(client, {
   assignedTo = null,
 }) {
   if (!CASE_TYPES.includes(caseType)) throw new AppError(`Unknown compliance case type '${caseType}'`, 400, 'credit_case_type_invalid');
-  if (subjectType !== 'customer' && subjectType !== 'partner') {
-    throw new AppError('Case subject type must be customer or partner', 400, 'credit_case_subject_invalid');
+  if (subjectType !== 'customer' && subjectType !== 'partner' && subjectType !== 'platform') {
+    throw new AppError('Case subject type must be customer, partner or platform', 400, 'credit_case_subject_invalid');
   }
   if (!subjectId) throw new AppError('Case subject is required', 400, 'credit_case_subject_required');
   const key = normalizeString(dedupeKey, 200);
