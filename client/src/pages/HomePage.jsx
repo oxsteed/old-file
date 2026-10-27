@@ -639,8 +639,7 @@ export default function HomePage() {
       {/* -- Recently viewed helpers (continue where you left off) -- */}
       <RecentlyViewedStrip kind="helpers" className="hp-section hp-container" />
 
-      {/* -- Direct catalog -- */}
-      <HomeCompanySection />
+      {/* -- Browse by skill -- */}
       <section className="hp-section">
         <div className="hp-container">
           <div className="hp-section-head">
