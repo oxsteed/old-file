@@ -129,7 +129,7 @@ for (const profile of profiles)
           ),
         );
         await page.waitForFunction(() =>
-          document.querySelector('.pwa-connection-online'),
+          !document.querySelector('.pwa-connection'),
         );
         await page.waitForTimeout(500);
         assert.ok(
@@ -145,7 +145,7 @@ for (const profile of profiles)
         assert.equal(await title.inputValue(), 'Repair faucet while offline');
         await context.setOffline(false);
         await page.evaluate(() => window.dispatchEvent(new Event('online')));
-        await page.locator('.pwa-connection-online').waitFor();
+        await page.locator('.pwa-connection').waitFor({ state: 'detached' });
         await page.reload();
         await title.waitFor();
         await page.waitForFunction(
@@ -177,7 +177,7 @@ for (const profile of profiles)
         await notes.fill('Alex pickup updated');
         await context.setOffline(false);
         await page.evaluate(() => window.dispatchEvent(new Event('online')));
-        await page.locator('.pwa-connection-online').waitFor();
+        await page.locator('.pwa-connection').waitFor({ state: 'detached' });
         assert.equal(await notes.inputValue(), 'Alex pickup updated');
         // Sharing runs through the real worker, then the normal authenticated form.
         const sharedId = await page.evaluate(async () => {

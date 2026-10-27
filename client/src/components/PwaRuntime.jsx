@@ -58,15 +58,18 @@ export default function PwaRuntime() {
   }, [query]);
   const displayRoute =
     /^\/(restaurants|food)\/(kitchen|queue|kiosk|screens)\//.test(pathname);
+  // Healthy connections need no persistent overlay. Keep the shared state
+  // and resume coordinator active; show recovery controls only when needed.
+  const showConnection = !displayRoute && state.status !== 'online';
   useEffect(() => {
     document.documentElement.classList.toggle(
       'pwa-connection-present',
-      !displayRoute,
+      showConnection,
     );
     return () =>
       document.documentElement.classList.remove('pwa-connection-present');
-  }, [displayRoute]);
-  if (displayRoute) return null;
+  }, [showConnection]);
+  if (!showConnection) return null;
   return (
     <aside
       className={`pwa-connection pwa-connection-${state.status}`}
