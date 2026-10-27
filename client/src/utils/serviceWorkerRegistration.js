@@ -10,14 +10,17 @@ function hashFingerprint(value) {
 }
 
 /**
- * Hashed Vite assets are the deployment manifest for this page. Including
- * every current script/preload in the service-worker version prevents a
- * long-lived cache from mixing an old shell with new locale chunks.
+ * Fallback release id when no build id was injected (local builds without a
+ * release env or git). Only the entry module scripts written into the served
+ * HTML are fingerprinted: their hashed names change whenever any chunk they
+ * import changes. Runtime-injected tags (Vite's dynamic-import
+ * `<link rel="modulepreload">`, lazy CSS) are route-specific and must never
+ * feed the version, or every landing route and tab registers a "new" worker.
  */
 export function getAssetReleaseId() {
   if (typeof document === 'undefined') return 'dev';
-  const assets = Array.from(document.querySelectorAll('script[src], link[rel="modulepreload"][href]'))
-    .map((element) => element.src || element.href)
+  const assets = Array.from(document.querySelectorAll('script[type="module"][src]'))
+    .map((element) => element.getAttribute('src') || '')
     .map((value) => {
       try {
         return new URL(value, window.location.origin).pathname;
@@ -30,6 +33,61 @@ export function getAssetReleaseId() {
   return assets.length ? `assets-${hashFingerprint(assets.join('|'))}` : 'dev';
 }
 
+/**
+ * The service-worker version is one deterministic id per build, shared by
+ * every route and both entries (index.html and admin.html). vite.config.js
+ * injects __APP_BUILD_ID__ from the release env (VITE_APP_VERSION, Sentry
+ * release, commit SHA) or git HEAD.
+ */
+export function getServiceWorkerVersion() {
+  // eslint-disable-next-line no-undef
+  const injected = typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : '';
+  const env = import.meta.env || {};
+  const configured = injected || env.VITE_APP_VERSION || env.VITE_SENTRY_RELEASE || '';
+  return String(configured || getAssetReleaseId());
+}
+
+export function getServiceWorkerUrl() {
+  return `/sw.js?v=${encodeURIComponent(getServiceWorkerVersion())}`;
+}
+
+// A waiting worker found this soon after load, before the user has touched
+// the page, is applied silently: nothing can be lost and the reload is
+// indistinguishable from the page still loading.
+export const SILENT_UPDATE_WINDOW_MS = 10000;
+const SILENT_UPDATE_KEY = 'oxsteed:sw-silent-update';
+let pageInteracted = false;
+let silentUpdateDeadline = 0;
+
+function trackInteraction() {
+  if (typeof window === 'undefined') return;
+  const mark = () => {
+    pageInteracted = true;
+    ['pointerdown', 'keydown', 'input'].forEach((type) => window.removeEventListener(type, mark, true));
+  };
+  ['pointerdown', 'keydown', 'input'].forEach((type) => window.addEventListener(type, mark, true));
+}
+
+function readSilentUpdateMarker() {
+  try { return sessionStorage.getItem(SILENT_UPDATE_KEY); } catch { return null; }
+}
+
+function writeSilentUpdateMarker(value) {
+  try { sessionStorage.setItem(SILENT_UPDATE_KEY, value); return true; } catch { return false; }
+}
+
+function trySilentUpdate(worker) {
+  if (pageInteracted || Date.now() > silentUpdateDeadline) return false;
+  const id = worker.scriptURL || 'waiting';
+  // One silent attempt per worker per tab session: if the reload comes back
+  // to the same waiting worker, fall back to the visible notice (no loops).
+  if (readSilentUpdateMarker() === id) return false;
+  if (!writeSilentUpdateMarker(id)) return false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true });
+  worker.postMessage({ type: 'SKIP_WAITING' });
+  return true;
+}
+
 let waitingWorker = null;
 const updateListeners = new Set();
 export const getWaitingWorker = () => waitingWorker;
@@ -38,6 +96,8 @@ export function subscribeWorkerUpdate(listener) {
   return () => updateListeners.delete(listener);
 }
 function announceUpdate(worker) {
+  if (waitingWorker === worker) return;
+  if (trySilentUpdate(worker)) return;
   waitingWorker = worker;
   updateListeners.forEach(listener => listener(worker));
 }
@@ -55,13 +115,11 @@ export function applyWorkerUpdate() {
 
 export function registerServiceWorker() {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
-  const configuredVersion = import.meta.env.VITE_APP_VERSION || import.meta.env.VITE_SENTRY_RELEASE;
-  const version = configuredVersion
-    ? `${configuredVersion}-${getAssetReleaseId()}`
-    : getAssetReleaseId();
+  trackInteraction();
   const register = () => {
+    silentUpdateDeadline = Date.now() + SILENT_UPDATE_WINDOW_MS;
     try { localStorage.setItem('oxsteed:last-opened', String(Date.now())); } catch { /* optional */ }
-    navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(version)}`, {
+    navigator.serviceWorker.register(getServiceWorkerUrl(), {
       updateViaCache: 'none',
     }).then(registration => {
       const detectWaiting = () => {

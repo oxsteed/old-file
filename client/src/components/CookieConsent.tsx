@@ -7,6 +7,7 @@ import '../styles/CookieConsent.css';
 export default function CookieConsent() {
   const { t } = useTranslation();
   const dialog = useRef<HTMLDivElement>(null);
+  const banner = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const gpc = hasGlobalPrivacyControl();
   const {
@@ -39,6 +40,22 @@ export default function CookieConsent() {
       });
     }
   }, [showSettings, preferences, gpc]);
+
+  // Publish the banner's height so other bottom-fixed notices (the app
+  // update notice) can stack above it instead of covering it on phones.
+  useEffect(() => {
+    const node = banner.current;
+    const root = document.documentElement;
+    if (!node) return undefined;
+    const publish = () => root.style.setProperty('--cookie-banner-height', `${Math.ceil(node.getBoundingClientRect().height)}px`);
+    publish();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(publish);
+    observer?.observe(node);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty('--cookie-banner-height');
+    };
+  }, [showBanner, showSettings]);
 
   useEffect(() => {
     if (!showSettings) return;
@@ -127,7 +144,7 @@ export default function CookieConsent() {
 
   // ─── Banner ────────────────────────────────────────────────────
   return (
-    <div className="cookie-consent-banner" role="region" aria-label={t('cookieConsent.title')}>
+    <div ref={banner} className="cookie-consent-banner" role="region" aria-label={t('cookieConsent.title')}>
       <div className="cookie-consent-banner__inner">
         <div className="cookie-consent-banner__copy">
           <p>
