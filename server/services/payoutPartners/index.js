@@ -8,9 +8,11 @@
  *   countries            ISO country codes the partner can pay out in
  *   requiredEnv          env vars holding the partner's real credentials
  *   isConfigured()       true when every requiredEnv is set
- *   submitPayout({ requestId, amountMinor, currency, destinationRef, userId })
+ *   submitPayout({ client, requestId, amountMinor, currency, destination, userId, idempotencyKey })
  *        → { status: 'submitted' | 'paid' | 'failed', reference, failureCode? }
- *   getPayoutStatus({ reference })
+ *        idempotencyKey is stable per cash-out request (partner_idempotency_key)
+ *        and MUST be forwarded to the partner so a retried call never pays twice.
+ *   getPayoutStatus({ requestId, reference })
  *        → { status: 'submitted' | 'paid' | 'failed', failureCode? }
  *
  * No real partner integration ships here: credentials and contracts do not
@@ -76,11 +78,55 @@ registerPartner(stubPartner({
   requiredEnv: ['MPESA_B2C_CONSUMER_KEY', 'MPESA_B2C_CONSUMER_SECRET', 'MPESA_B2C_SHORTCODE', 'MPESA_B2C_INITIATOR_NAME', 'MPESA_B2C_SECURITY_CREDENTIAL', 'MPESA_B2C_RESULT_URL'],
   docs: 'Safaricom Daraja B2C (licensed PSP agreement required)',
 }));
-registerPartner(stubPartner({
-  name: 'moncash', countries: ['HT'],
-  requiredEnv: ['MONCASH_CLIENT_ID', 'MONCASH_CLIENT_SECRET', 'MONCASH_BUSINESS_KEY'],
-  docs: 'Digicel MonCash business payouts',
-}));
+// MonCash was removed as Haiti's partner (licence readiness review bug 8):
+// Haiti pays out through OxSteed's own bank payout rail below.
+
+/**
+ * OxSteed in-house bank payout rail (services/creditBankPayoutService.js).
+ * submitPayout files an instruction for the treasury team's bank export;
+ * the payout settles only when two different administrators confirm it
+ * against the bank statement. Off unless OXSTEED_BANK_PAYOUT_ENABLED=true
+ * and OXSTEED_BANK_PAYOUT_SOURCE_ACCOUNT is set.
+ */
+function bankPayoutCountries() {
+  return String(process.env.OXSTEED_BANK_PAYOUT_COUNTRIES || 'HT')
+    .split(',').map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c));
+}
+
+const oxsteedBankPayout = Object.freeze({
+  name: 'oxsteed_bank_payout',
+  get countries() { return bankPayoutCountries(); },
+  requiredEnv: ['OXSTEED_BANK_PAYOUT_ENABLED', 'OXSTEED_BANK_PAYOUT_SOURCE_ACCOUNT'],
+  docs: 'OxSteed in-house bank transfer rail (two-administrator confirmation)',
+  integrated: true,
+  inHouse: true,
+  requiresVerifiedDestination: true,
+  credentialsPresent() {
+    return this.requiredEnv.every((key) => Boolean(process.env[key]));
+  },
+  isConfigured() {
+    return require('../creditBankPayoutService').isRailConfigured();
+  },
+  // Called by the cash-out worker inside its lease. `client` is the
+  // worker's transaction so the instruction and the 'submitted' state
+  // commit together (outbox: nothing external happens here).
+  async submitPayout({ client, requestId, amountMinor, destination, idempotencyKey }) {
+    const bank = require('../creditBankPayoutService');
+    const { instruction } = await bank.createInstruction(client, {
+      purpose: 'cashout',
+      idempotencyKey,
+      destination,
+      amountMinor,
+      paymentReference: `OXSTEED CO ${requestId}`,
+      cashoutId: requestId,
+    });
+    return { status: 'submitted', reference: `bank-instruction:${instruction.id}` };
+  },
+  async getPayoutStatus({ requestId }) {
+    return require('../creditBankPayoutService').getInstructionStatusByCashout(requestId);
+  },
+});
+registerPartner(oxsteedBankPayout);
 registerPartner(stubPartner({
   name: 'wise_payouts', countries: ['GB', 'IE', 'CA'],
   requiredEnv: ['WISE_API_TOKEN', 'WISE_PROFILE_ID', 'WISE_WEBHOOK_PUBLIC_KEY'],

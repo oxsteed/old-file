@@ -220,6 +220,11 @@ const ENTRIES = [
     rationale: 'Write-once registry of cash-out partner adapters populated at module load (tests may register fakes). Holds no money state; payouts are recorded in credit_cashout_requests.',
   },
   {
+    file: 'services/oxsteedCreditPendingActionService.js', name: 'OVERSIGHT_EXECUTORS',
+    classification: 'constant', shared: 'none',
+    rationale: 'Write-once registry of Credit licence oversight executors (limit rules, FX reference rates, held cash-out release, sanctions, safeguarding, SAR, wind-down) populated on module load. Holds no state; requests and approvals live in oxsteed_credit_pending_actions. Unknown types fail closed.',
+  },
+  {
     file: 'services/dualApprovalService.js', name: 'executors',
     classification: 'constant', shared: 'none',
     rationale: 'Write-once registry of money-movement executors keyed by movement type (job_refund, marketplace_refund, dispute_refund, restaurant_payout, affiliate_payout), populated at server startup. Holds no money state; pending movements live in the money_movement_approvals table. Unknown types fail closed.',

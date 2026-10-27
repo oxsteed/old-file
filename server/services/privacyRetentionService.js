@@ -57,7 +57,33 @@ async function getErasureStatus(user) {
     'SELECT id, status, blocked_reason, requested_at, processed_at FROM privacy_erasure_requests WHERE user_id = $1 ORDER BY id DESC LIMIT 1',
     [user.id]
   );
-  return rows[0] || null;
+  const request = rows[0] || null;
+  if (request && request.blocked_reason === 'positive_credit_balance') {
+    request.credit_balances = await creditBalancesFor(pool, user.id);
+    request.resolution_options = ['redeem', 'unclaimed_property'];
+  }
+  return request;
+}
+
+/** Positive Credit balances a person still holds (wallets and wages). */
+async function creditBalancesFor(db, userId) {
+  const { rows } = await db.query(
+    `SELECT a.account_type, a.currency_code, a.balance_cents, a.reserved_cents
+       FROM oxsteed_credit_accounts a
+      WHERE a.account_type = 'customer_wallet' AND a.customer_id = $1 AND (a.balance_cents > 0 OR a.reserved_cents > 0)
+     UNION ALL
+     SELECT a.account_type, a.currency_code, a.balance_cents, a.reserved_cents
+       FROM oxsteed_credit_accounts a
+       JOIN credit_participants p ON p.partner_id = a.partner_id AND p.user_id = $1
+      WHERE a.account_type IN ('partner_payable', 'partner_reserve') AND (a.balance_cents > 0 OR a.reserved_cents > 0)`,
+    [userId]
+  );
+  return (rows || []).map((r) => ({
+    account_type: r.account_type,
+    currency: String(r.currency_code).trim(),
+    balance_minor: Number(r.balance_cents),
+    reserved_minor: Number(r.reserved_cents),
+  }));
 }
 
 async function blockerFor(client, userId) {
@@ -66,7 +92,21 @@ async function blockerFor(client, userId) {
     ['held_payments', `SELECT 1 FROM payments WHERE (payer_id = $1 OR payee_id = $1) AND status IN ('pending', 'authorized') LIMIT 1`],
     ['held_credit', `SELECT 1 FROM job_credit_payments WHERE (customer_id = $1 OR helper_id = $1) AND status = 'held' LIMIT 1`],
     ['open_disputes', `SELECT 1 FROM disputes d JOIN jobs j ON j.id = d.job_id WHERE (j.client_id = $1 OR j.assigned_helper_id = $1) AND d.status IN ('open', 'under_review', 'in_progress') LIMIT 1`],
-    ['pending_cashout', `SELECT 1 FROM credit_cashout_requests WHERE user_id = $1 AND status IN ('requested', 'submitted') LIMIT 1`],
+    ['pending_cashout', `SELECT 1 FROM credit_cashout_requests WHERE user_id = $1 AND status IN ('requested', 'held_for_review', 'submitting', 'submitted') LIMIT 1`],
+    // Licence readiness (review bug 6): erasing a person who still holds
+    // OxSteed Credit would destroy the record of money owed to them. A
+    // positive (or reserved) wallet or helper wage balance blocks erasure
+    // until it is redeemed (cash-out / withdrawal) or, with the owner's
+    // consent, moved to the unclaimed-property liability (escheat path).
+    ['positive_credit_balance', `SELECT 1 FROM oxsteed_credit_accounts a
+       WHERE a.account_type = 'customer_wallet' AND a.customer_id = $1
+         AND (a.balance_cents > 0 OR a.reserved_cents > 0)
+      UNION ALL
+      SELECT 1 FROM oxsteed_credit_accounts a
+        JOIN credit_participants p ON p.partner_id = a.partner_id AND p.user_id = $1
+       WHERE a.account_type IN ('partner_payable', 'partner_reserve')
+         AND (a.balance_cents > 0 OR a.reserved_cents > 0)
+      LIMIT 1`],
   ];
   for (const [reason, sql] of checks) {
     const { rows } = await client.query(sql, [userId]);
@@ -183,6 +223,7 @@ async function retentionSweep() {
 }
 
 module.exports = {
+  creditBalancesFor,
   PRIVATE_FIELDS,
   PRIVATE_STRIP_DAYS,
   GDPR_HISTORY_MONTHS,

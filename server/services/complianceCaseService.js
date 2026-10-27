@@ -30,6 +30,18 @@ const CASE_TYPES = Object.freeze([
   'new_destination_payout',
   'sanctions_hit',
   'manual',
+  // Licence readiness (migration 20261027110300).
+  'payout_destination_review',
+  'cashout_review',
+  'helper_balance_anomaly',
+  'cross_border_pattern',
+  'device_linkage',
+  'shared_destination',
+  'large_payout',
+  'kyc_reverification',
+  'safeguarding_shortfall',
+  'sar_candidate',
+  'dispute_pattern',
 ]);
 
 const CASE_STATUSES = Object.freeze(['open', 'investigating', 'resolved', 'escalated']);

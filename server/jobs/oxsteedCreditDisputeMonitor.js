@@ -16,11 +16,10 @@ const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { withFencedJobLock } = require('./jobLockingService');
-const { isCreditRailEnabled } = require('../services/oxsteedCreditService');
 const { checkDisputeSla } = require('../services/oxsteedCreditDisputeService');
 const incidentStore = require('../services/incidentStore');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
-const { skipCreditJobWhenRailDisabled } = require('../services/oxsteedCreditService');
+const { skipOversightJobWhenIdle } = require('../services/oxsteedCreditService');
 
 const CRON_EXPRESSION = process.env.OXSTEED_CREDIT_DISPUTE_MONITOR_CRON || '30 4 * * *';
 const CRON_TIMEZONE = 'UTC';
@@ -42,15 +41,9 @@ async function recordLockFailure(error) {
 }
 
 async function runOxsteedCreditDisputeMonitor({ now = new Date(), getPool = null } = {}) {
-  if (await skipCreditJobWhenRailDisabled(JOB_NAME)) {
-    return { skipped: 'rail_disabled' };
-  }
-  // Fail-open on the rail toggle: checked before the lock so an off rail
-  // never contends or records heartbeats.
-  const poolToUse = getPool || pool;
-  if (!(await isCreditRailEnabled(poolToUse))) {
-    logger.info('OxSteed Credit dispute monitor skipped: credit rail disabled');
-    return { locked: false, skipped: 'rail_disabled' };
+  // Review bug 4: oversight keeps running while the rail is off.
+  if (await skipOversightJobWhenIdle(JOB_NAME, getPool || pool)) {
+    return { skipped: 'rail_disabled_idle' };
   }
   let locked = false;
   let outcome = null;

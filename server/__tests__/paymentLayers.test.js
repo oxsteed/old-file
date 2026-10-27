@@ -197,9 +197,23 @@ describe('localized notifications', () => {
 describe('cash-out partners (decision #14)', () => {
   test('stub partners never count as configured and refuse to move money', async () => {
     const list = partners.listPartners();
-    expect(list.map((p) => p.name).sort()).toEqual(['moncash', 'mpesa_b2c', 'wise_payouts']);
-    expect(list.every((p) => p.configured === false && p.integrated === false && p.requiredEnv.length > 0)).toBe(true);
+    expect(list.map((p) => p.name).sort()).toEqual(['mpesa_b2c', 'oxsteed_bank_payout', 'wise_payouts']);
+    const stubs = list.filter((p) => p.name !== 'oxsteed_bank_payout');
+    expect(stubs.every((p) => p.configured === false && p.integrated === false && p.requiredEnv.length > 0)).toBe(true);
     await expect(partners.getPartner('mpesa_b2c').submitPayout({})).rejects.toMatchObject({ code: 'partner_integration_pending' });
+  });
+  test('MonCash is gone and Haiti uses the in-house bank rail, off by default', () => {
+    expect(partners.getPartner('moncash')).toBeNull();
+    const bank = partners.getPartner('oxsteed_bank_payout');
+    expect(bank.countries).toContain('HT');
+    const saved = { e: process.env.OXSTEED_BANK_PAYOUT_ENABLED, a: process.env.OXSTEED_BANK_PAYOUT_SOURCE_ACCOUNT };
+    delete process.env.OXSTEED_BANK_PAYOUT_ENABLED;
+    expect(bank.isConfigured()).toBe(false);
+    process.env.OXSTEED_BANK_PAYOUT_ENABLED = 'true';
+    process.env.OXSTEED_BANK_PAYOUT_SOURCE_ACCOUNT = 'BRH-TEST-1';
+    expect(bank.isConfigured()).toBe(true);
+    if (saved.e === undefined) delete process.env.OXSTEED_BANK_PAYOUT_ENABLED; else process.env.OXSTEED_BANK_PAYOUT_ENABLED = saved.e;
+    if (saved.a === undefined) delete process.env.OXSTEED_BANK_PAYOUT_SOURCE_ACCOUNT; else process.env.OXSTEED_BANK_PAYOUT_SOURCE_ACCOUNT = saved.a;
   });
   test('a real adapter can be registered against the interface', () => {
     const fake = { name: 'test_partner', countries: ['GB'], isConfigured: () => true, submitPayout: jest.fn(), getPayoutStatus: jest.fn() };

@@ -34,7 +34,7 @@ jest.mock('../services/oxsteedCreditService', () => {
   // Rail guard pinned to "enabled": these suites exercise job logic, not the
   // rail-disabled skip path (covered in oxsteedCreditRailDisabled.test.js).
   const actual = jest.requireActual('../services/oxsteedCreditService');
-  return { ...actual, skipCreditJobWhenRailDisabled: jest.fn().mockResolvedValue(false) };
+  return { ...actual, skipCreditJobWhenRailDisabled: jest.fn().mockResolvedValue(false), skipOversightJobWhenIdle: jest.fn().mockResolvedValue(false) };
 });
 
 const pool = require('../db');
@@ -51,11 +51,22 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
+// Routes the batched integrity queries by SQL text.
+function routeQueries({ entries, accounts, invalidAudit }) {
+  pool.query.mockImplementation(async (sql, params) => {
+    if (/FROM oxsteed_credit_accounts/.test(sql)) return { rows: Number(params?.[0] || 0) === 0 ? accounts : [] };
+    if (/FROM oxsteed_credit_transaction_entries/.test(sql)) return { rows: entries };
+    if (/compute_oxsteed_credit_audit_event_hash/.test(sql)) return { rows: [{ invalid_count: String(invalidAudit) }] };
+    return { rows: [] };
+  });
+}
+
 test('verifies the complete posted journal and account heads under a distributed lock', async () => {
-  pool.query
-    .mockResolvedValueOnce({ rows: [{ transaction_id: 'tx-1', account_id: 7, sequence: 1 }] })
-    .mockResolvedValueOnce({ rows: [{ id: 7, ledger_version: 1, last_entry_hash: 'hash-1' }] })
-    .mockResolvedValueOnce({ rows: [{ invalid_count: '0' }] });
+  routeQueries({
+    entries: [{ transaction_id: 'tx-1', account_id: 7, sequence: 1 }],
+    accounts: [{ id: 7, ledger_version: 1, last_entry_hash: 'hash-1' }],
+    invalidAudit: 0,
+  });
   verifyEntryHashes.mockReturnValueOnce({ invalidEntryHashes: 0, invalidHashChains: 0, invalidAccountHashHeads: 0 });
 
   const result = await runOxsteedCreditIntegrity();
@@ -71,10 +82,11 @@ test('verifies the complete posted journal and account heads under a distributed
 });
 
 test('records a critical incident when the journal hash chain is invalid', async () => {
-  pool.query
-    .mockResolvedValueOnce({ rows: [{ transaction_id: 'tx-2', account_id: 8, sequence: 2 }] })
-    .mockResolvedValueOnce({ rows: [{ id: 8, ledger_version: 2, last_entry_hash: 'hash-2' }] })
-    .mockResolvedValueOnce({ rows: [{ invalid_count: '0' }] });
+  routeQueries({
+    entries: [{ transaction_id: 'tx-2', account_id: 8, sequence: 2 }],
+    accounts: [{ id: 8, ledger_version: 2, last_entry_hash: 'hash-2' }],
+    invalidAudit: 0,
+  });
   verifyEntryHashes.mockReturnValueOnce({ invalidEntryHashes: 1, invalidHashChains: 0, invalidAccountHashHeads: 1 });
 
   const result = await verifyCreditLedger();
@@ -89,10 +101,7 @@ test('records a critical incident when the journal hash chain is invalid', async
 });
 
 test('records a critical incident when the audit event hash chain is invalid', async () => {
-  pool.query
-    .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [{ invalid_count: '1' }] });
+  routeQueries({ entries: [], accounts: [], invalidAudit: 1 });
   verifyEntryHashes.mockReturnValueOnce({ invalidEntryHashes: 0, invalidHashChains: 0, invalidAccountHashHeads: 0 });
 
   const result = await verifyCreditLedger();

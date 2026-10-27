@@ -114,7 +114,10 @@ async function assertDailyWithdrawalCapacity(client, { customerId, amountCents, 
     [customerId, currencyCode]
   );
   const dayTotal = Number(rows[0]?.day_total || 0);
-  if (dayTotal + Number(amountCents) > DAILY_WITHDRAWAL_CAP_CENTS) {
+  // Licence readiness: the cap is data (credit_limit_rules 'withdrawal_daily'),
+  // resolved per currency; the env value is only the seed default.
+  const cap = require('./creditCompliance/limitRules').resolveLimitMinor('withdrawal_daily', { currency: currencyCode });
+  if (dayTotal + Number(amountCents) > cap) {
     fail('Daily withdrawal limit exceeded', 'credit_withdrawal_daily_cap_exceeded', 429);
   }
 }

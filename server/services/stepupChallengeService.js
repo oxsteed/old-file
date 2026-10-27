@@ -101,6 +101,9 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   // Auth audit item 16: admin card issuance creates a spendable instrument
   // immediately; a fresh step-up is required.
   'credit_card_issue',
+  // Licence readiness §5: a helper cash-out at or above the (per-currency)
+  // step-up threshold needs a fresh emailed code.
+  'helper_cashout',
 ]);
 
 // Auth-audit item 12 (product decision): the admin credit step-up action

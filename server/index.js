@@ -963,6 +963,16 @@ async function startServer() {
   } catch (err) {
     logger.warn('FeeService initial load failed; using safe defaults', { message: err.message });
   }
+  // Licence readiness: Credit limits are data (per currency / country).
+  // Load them before serving; money paths fail closed (503) until loaded.
+  try {
+    const creditLimits = require('./services/creditCompliance/limitRules');
+    await creditLimits.warmLimitRules();
+    creditLimits.startLimitRuleRefresh(logger);
+  } catch (err) {
+    logger.error('Credit limit rules failed to load; Credit money paths fail closed until the refresh succeeds', { message: err.message });
+    try { require('./services/creditCompliance/limitRules').startLimitRuleRefresh(logger); } catch { /* module load failure already logged */ }
+  }
   await listen();
   runtime.markListening();
   // Restaurant Media video pipeline worker: starts only after the server is
