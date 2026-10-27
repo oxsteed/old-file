@@ -4,6 +4,7 @@ import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { execSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -29,6 +30,27 @@ function largeChunkAudit() {
   };
 }
 
+/**
+ * One deterministic id per build for the service-worker URL. It must not be
+ * derived from the DOM at runtime: Vite injects route-specific modulepreload
+ * links, so a DOM fingerprint differs per landing route and tab and makes the
+ * browser treat the same deployment as a new worker.
+ */
+export function resolveBuildId(env = process.env, readGitSha = gitHeadSha) {
+  const configured = [env.VITE_APP_VERSION, env.VITE_SENTRY_RELEASE, env.SENTRY_RELEASE, env.COMMIT_SHA, env.SOURCE_COMMIT, env.GIT_SHA]
+    .map((value) => String(value || '').trim())
+    .find(Boolean);
+  return configured || readGitSha() || '';
+}
+
+function gitHeadSha() {
+  try {
+    return execSync('git rev-parse HEAD', { cwd: __dirname, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return '';
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
   const sentryOrg = process.env.SENTRY_ORG;
@@ -37,6 +59,11 @@ export default defineConfig(({ mode }) => {
     mode === 'production' && sentryAuthToken && sentryOrg && sentryProject;
 
   return {
+  define: {
+    // Empty in dev/test without a release; the client then falls back to the
+    // entry-script fingerprint from the served HTML.
+    'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify(mode === 'production' ? resolveBuildId() : ''),
+  },
   plugins: [
     react(),
     largeChunkAudit(),

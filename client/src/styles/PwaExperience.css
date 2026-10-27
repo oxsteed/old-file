@@ -39,8 +39,11 @@ html {
   text-decoration: underline;
 }
 .pwa-update-notice {
+  /* Sit above the cookie-consent banner while it is shown (its height is
+     published by CookieConsent), otherwise above the mobile bottom nav. */
   bottom: calc(
-    3.75rem + env(safe-area-inset-bottom, 0px) + var(--pwa-keyboard-inset)
+    max(3.75rem, var(--cookie-banner-height, 0px) + 0.75rem) +
+      env(safe-area-inset-bottom, 0px) + var(--pwa-keyboard-inset, 0px)
   ) !important;
 }
 @media (pointer: coarse) {
