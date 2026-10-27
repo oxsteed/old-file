@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic sample in the published SEMA consolidated list layout
+     (data-set/record). Names are fictitious test data. -->
+<data-set>
+  <record>
+    <Country>Haiti</Country>
+    <LastName>Testlisted</LastName>
+    <GivenName>Jean Baptiste</GivenName>
+    <EntityOrShip></EntityOrShip>
+    <ShipIMONumber></ShipIMONumber>
+    <DateOfBirthOrShipBuildDate>1970-01-01</DateOfBirthOrShipBuildDate>
+    <Schedule>1</Schedule>
+    <Item>901</Item>
+    <Aliases>Ti Jean Testlisted</Aliases>
+  </record>
+  <record>
+    <Country>Haiti</Country>
+    <LastName></LastName>
+    <GivenName></GivenName>
+    <EntityOrShip>Fictitious Gang Holding SA</EntityOrShip>
+    <ShipIMONumber></ShipIMONumber>
+    <DateOfBirthOrShipBuildDate></DateOfBirthOrShipBuildDate>
+    <Schedule>1</Schedule>
+    <Item>902</Item>
+    <Aliases></Aliases>
+  </record>
+</data-set>

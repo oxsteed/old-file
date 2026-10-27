@@ -111,8 +111,20 @@ const manualReviewProvider = {
   },
 };
 
+// In-house provider over the public official lists (licence readiness:
+// no paid vendor). Selected with OXSTEED_CREDIT_SANCTIONS_PROVIDER=
+// in_house_lists once the lists are ingested; it fails closed ('error')
+// whenever a required list is missing or stale.
+const inHouseListsProvider = {
+  name: 'in_house_lists',
+  screenSubject(args) {
+    return require('./creditCompliance/sanctionsListService').inHouseListProvider.screenSubject(args);
+  },
+};
+
 const SCREENING_PROVIDERS = Object.freeze({
   manual_review: manualReviewProvider,
+  in_house_lists: inHouseListsProvider,
 });
 
 function getScreeningProvider(name) {
@@ -125,15 +137,21 @@ async function getLatestScreening(client, { subjectType, subjectId }) {
   const { rows } = await client.query(
     `SELECT * FROM oxsteed_credit_sanctions_screenings
       WHERE subject_type = $1 AND subject_id = $2
-      ORDER BY screened_at DESC
+      ORDER BY (confirmed_at IS NOT NULL AND cleared_at IS NULL) DESC, screened_at DESC
       LIMIT 1`,
     [subjectType, subjectId]
   );
   return rows[0] || null;
 }
 
+function isConfirmedBlock(screening) {
+  return Boolean(screening && screening.confirmed_at && !screening.cleared_at);
+}
+
 function isScreeningFresh(screening, now = new Date()) {
   if (!screening) return false;
+  // A confirmed true match never expires into a rescreen that could clear it.
+  if (isConfirmedBlock(screening)) return true;
   const screenedAt = new Date(screening.screened_at);
   return now.getTime() - screenedAt.getTime() < SCREENING_TTL_HOURS * 60 * 60 * 1000;
 }
@@ -220,15 +238,16 @@ async function resolveNotifyUserId(client, { subjectType, subjectId }) {
  * Run the provider when no fresh screening exists and persist the row.
  * Returns the screening row (fresh or newly created).
  */
-async function screenSubjectIfStale(client, { subjectType, subjectId, attributes = {} }) {
+async function screenSubjectIfStale(client, { subjectType, subjectId, attributes = {}, force = false, triggerReason = null }) {
   const existing = await getLatestScreening(client, { subjectType, subjectId });
-  if (isScreeningFresh(existing)) return existing;
+  if (isConfirmedBlock(existing)) return existing;
+  if (!force && isScreeningFresh(existing)) return existing;
   const provider = getScreeningProvider();
   const subjectAttributes = await loadSubjectAttributes(client, { subjectType, subjectId });
   const providerAttributes = { ...subjectAttributes, ...(attributes || {}) };
   let outcome;
   try {
-    outcome = await provider.screenSubject({ subjectType, subjectId, attributes: providerAttributes });
+    outcome = await provider.screenSubject({ subjectType, subjectId, attributes: providerAttributes, client });
   } catch (error) {
     outcome = { result: 'error', reference: null, hitContext: null, details: { error: error.message } };
   }
@@ -249,6 +268,11 @@ async function screenSubjectIfStale(client, { subjectType, subjectId, attributes
       SANCTIONS_REVIEW_SLA_HOURS,
     ]
   );
+  if (outcome && outcome.evidence && rows[0]) {
+    await require('./creditCompliance/sanctionsListService').recordScreeningEvidence(client, rows[0], {
+      subjectType, subjectId, evidence: outcome.evidence, triggerReason,
+    });
+  }
   return rows[0];
 }
 
@@ -351,7 +375,13 @@ async function decideSanctionsScreening({ screeningId, decision, actorUserId, re
       });
       return { screening: formatScreening(updated[0]) };
     }
-    // Confirm: keep blocking and open a case for investigation.
+    // Confirm: keep blocking (sticky: rescreens cannot replace it) and open
+    // a case for investigation.
+    await client.query(
+      `UPDATE oxsteed_credit_sanctions_screenings SET confirmed_at = NOW(), confirmed_by = $2
+        WHERE id = $1 AND confirmed_at IS NULL`,
+      [screeningId, actorUserId]
+    );
     const { openComplianceCase } = require('./complianceCaseService');
     const opened = await openComplianceCase(client, {
       caseType: 'sanctions_hit',
@@ -430,6 +460,7 @@ module.exports = {
   getLatestScreening,
   loadSubjectAttributes,
   isScreeningFresh,
+  isConfirmedBlock,
   screenSubjectIfStale,
   assertSanctionsClear,
   decideSanctionsScreening,

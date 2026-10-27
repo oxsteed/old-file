@@ -530,6 +530,10 @@ async function requestPendingAction({ actionType, payload, requestedBy, idempote
   if (!key) throw new AppError('An Idempotency-Key is required to request a pending action', 400, 'credit_pending_action_idempotency_required');
 
   const storedPayload = { ...(payload || {}), idempotencyKey: key };
+  // Oversight executors may expose validate(payload) so a malformed request
+  // is refused at maker time instead of waiting for the checker.
+  const oversightExecutor = OVERSIGHT_EXECUTORS.get(normalizedType);
+  if (oversightExecutor && typeof oversightExecutor.validate === 'function') oversightExecutor.validate(storedPayload);
   // The amount is recorded in the audit trail for traceability. There is no
   // threshold bypass: every money movement requires a distinct checker.
   const amountCents = await resolveActionAmountCents(normalizedType, storedPayload);

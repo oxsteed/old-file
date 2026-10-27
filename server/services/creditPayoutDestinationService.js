@@ -156,7 +156,19 @@ async function addDestination({ user, input, isImpersonated = false, requestIp =
       [fingerprint, user.id]
     );
     const sharedWithOthers = Number(shared[0]?.n || 0) > 0;
-    const reviewReason = sharedWithOthers ? 'shared_destination' : matchScore < HOLDER_NAME_MATCH_THRESHOLD ? 'holder_name_mismatch' : null;
+    // Sanctions: the holder name is screened against the in-house lists once
+    // they exist. A match holds the account for review (evidence recorded).
+    let sanctionsMatch = false;
+    const lists = require('./creditCompliance/sanctionsListService');
+    if (await lists.counterpartyScreeningActive(client)) {
+      const screened = await lists.screenCounterpartyName({
+        name: v.holderName, context: { reason: 'payout_destination', customerId: user.id, country: v.countryCode },
+      });
+      sanctionsMatch = !screened.clear;
+    }
+    const reviewReason = sanctionsMatch ? 'sanctions_name_match'
+      : sharedWithOthers ? 'shared_destination'
+        : matchScore < HOLDER_NAME_MATCH_THRESHOLD ? 'holder_name_mismatch' : null;
     const encrypted = encrypt(JSON.stringify({ accountNumber: v.accountNumber, bankCode: v.bankCode, bankName: v.bankName, holderName: v.holderName }));
     const { rows } = await client.query(
       `INSERT INTO credit_payout_destinations
@@ -171,7 +183,7 @@ async function addDestination({ user, input, isImpersonated = false, requestIp =
     );
     const row = rows[0];
     if (reviewReason) {
-      await openReviewCase(client, { userId: user.id, destinationId: row.id, reason: reviewReason, details: { matchScore, sharedWithOthers } });
+      await openReviewCase(client, { userId: user.id, destinationId: row.id, reason: reviewReason, details: { matchScore, sharedWithOthers, sanctionsMatch } });
     }
     await queueVerification(client, row);
     await insertComplianceAudit(client, {

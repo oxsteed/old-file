@@ -27,6 +27,8 @@ function tasks() {
       () => optional('../services/creditCompliance/sanctionsListService', 'refreshAllSources')],
     ['credit-sanctions-rescreen', process.env.CREDIT_SANCTIONS_RESCREEN_CRON || '50 */6 * * *', 3600,
       () => optional('../services/creditCompliance/sanctionsListService', 'rescreenAfterListChanges')],
+    ['credit-sanctions-queue', process.env.CREDIT_SANCTIONS_QUEUE_CRON || '*/2 * * * *', 600,
+      () => optional('../services/creditCompliance/sanctionsListService', 'processScreeningQueue')],
     ['credit-safeguarding-reconciliation', process.env.CREDIT_SAFEGUARDING_CRON || '30 3 * * *', 900,
       () => optional('../services/creditCompliance/safeguardingService', 'runDailyReconciliation')],
     ['credit-aml-monitor', process.env.CREDIT_AML_MONITOR_CRON || '10 * * * *', 900,

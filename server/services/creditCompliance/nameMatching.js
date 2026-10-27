@@ -93,12 +93,14 @@ function tokenSetScore(aTokens, bTokens) {
       if (s > best) { best = s; bestIdx = idx; }
     });
     if (bestIdx >= 0) used.add(bestIdx);
-    total += best;
+    // Tokens that are not close ("marie" vs "martelly") count for little:
+    // otherwise any shared surname lifts two different people over the bar.
+    total += best >= 0.85 ? best : best * 0.5;
   }
   const avg = total / short.length;
   const coverage = short.length / long.length;
   // A single-token name matching one token of a 4-token name is weak.
-  const coveragePenalty = short.length === 1 && long.length > 1 ? 0.12 : (1 - coverage) * 0.08;
+  const coveragePenalty = short.length === 1 && long.length > 1 ? 0.12 : (1 - coverage) * 0.15;
   return Math.max(0, avg - coveragePenalty);
 }
 
@@ -118,7 +120,9 @@ function nameSimilarity(a, b, { entity = false } = {}) {
   const sortedA = tokens(a, { entity }).sort().join('');
   const sortedB = tokens(b, { entity }).sort().join('');
   const sortedWhole = sortedA && sortedB ? jaroWinkler(sortedA, sortedB) : 0;
-  return Math.min(1, Math.max(whole * 0.97, full, noParticles * 0.98, sortedWhole * 0.97));
+  // Whole-string comparisons catch merged/split tokens ("abdulrahman") but are
+  // prefix-heavy, so they are discounted more than the token alignment.
+  return Math.min(1, Math.max(whole * 0.92, full, noParticles * 0.98, sortedWhole * 0.92));
 }
 
 /** Search key used for trigram candidate retrieval in Postgres. */

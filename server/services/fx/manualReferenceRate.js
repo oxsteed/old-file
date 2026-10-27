@@ -42,6 +42,8 @@ async function applyManualReferenceRate({ client, payload, requestedBy, actorUse
   return { id: String(rows[0].id), ...v };
 }
 
+applyManualReferenceRate.validate = validate;
+
 function registerOversightActions(register) {
   register('credit_fx_reference_rate_entry', applyManualReferenceRate);
 }

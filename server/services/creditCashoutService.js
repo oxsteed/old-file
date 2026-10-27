@@ -222,10 +222,13 @@ async function requestCashout({ user, amountMinor, destinationId, idempotencyKey
 
     const destinations = require('./creditPayoutDestinationService');
     const destination = await destinations.loadPayableDestination(client, { userId: user.id, destinationId: destId, currency: e.currency, countryCode: e.country });
-    const sanctions = require('./sanctionsScreeningService');
-    if (typeof sanctions.assertCounterpartyNameClear === 'function') {
-      await sanctions.assertCounterpartyNameClear(client, {
-        subjectType: 'payout_destination', subjectId: String(destination.row.id), name: destination.row.holder_name, country: destination.row.country_code, ownerUserId: user.id,
+    // The account holder is screened too: a listed name never receives a
+    // payout, even through a clean customer.
+    const lists = require('./creditCompliance/sanctionsListService');
+    if (await lists.counterpartyScreeningActive(client)) {
+      await lists.assertCounterpartyNameClear(client, {
+        name: destination.row.holder_name,
+        context: { reason: 'cashout', customerId: user.id, destinationId: String(destination.row.id), country: destination.row.country_code },
       });
     }
 
