@@ -100,7 +100,7 @@ async function fixture() {
     '../hooks/useAuth': `export {useAuth} from 'fixture-auth'; import {useAuth as ua} from 'fixture-auth'; export default ua;`,
     '../api/auth': `export const persistSessionPayload = () => {}; export default { get: async () => ({ data: {} }), post: async () => ({ data: {} }), put: async () => ({ data: {} }) };`,
     '../components/AuthNavbar': `import React from 'react';import {Link} from 'react-router-dom';export default ({cta}) => <nav><Link to={cta.to}>{cta.label}</Link></nav>;`,
-    'react-i18next': `import React from 'react'; export const useTranslation = () => ({ t: window.translate, i18n: { language: window.language } }); export const Trans = ({ children }) => React.createElement(React.Fragment, null, children);`,
+    'react-i18next': `export const useTranslation = () => ({ t: window.translate, i18n: { language: window.language } }); export const Trans = ({children}) => children;`,
     '../../context/AuthContext': `import React from 'react'; export {useAuth} from 'fixture-auth'; export const AuthContext = React.createContext(null);`,
     '../context/AuthContext': `import React from 'react'; export {useAuth} from 'fixture-auth'; export const AuthContext = React.createContext(null);`,
     '../components/PageMeta': `export default () => null;`,

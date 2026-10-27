@@ -10,7 +10,7 @@ const root = path.resolve(__dirname, '..');
 const screenshots = fs.mkdtempSync('/tmp/oxsteed-signup-design-');
 async function fixture() {
   const mocks = {
-    'react-i18next': `import React from 'react'; export const useTranslation = () => ({ t:window.translate, i18n:{language:window.language} }); export const initReactI18next = { type: '3rdParty', init: () => {} }; export const Trans = ({ children }) => React.createElement(React.Fragment, null, children);`,
+    'react-i18next': `export const useTranslation = () => ({ t:window.translate, i18n:{language:window.language} }); export const Trans = ({children}) => children; export const initReactI18next = { type: '3rdParty', init: () => {} };`,
     '../context/AuthContext': `import React from 'react'; export const AuthContext = React.createContext(null); export const useAuth=()=>({user:null,setUser:user=>{window.registeredUser=user;}});`,
     '../hooks/useAuth': `export {useAuth} from '../context/AuthContext'; import {useAuth as ua} from '../context/AuthContext'; export default ua;`,
     '../api/auth': `export const persistSessionPayload=()=>{}; export const authAPI = { post: async () => ({}) }; export const clearStoredSession = () => {}; export default { get: async () => ({ data: {} }), post: async () => ({ data: {} }), put: async () => ({ data: {} }) };`,
