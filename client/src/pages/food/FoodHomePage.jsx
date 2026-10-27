@@ -484,7 +484,6 @@ export default function FoodHomePage() {
           <span className="rd-eyebrow"><Utensils size={16} aria-hidden="true" />{t('food.home.redesign.eyebrow')}</span>
           <h1 className="fd-home-hero-title">{t('food.home.redesign.headline')} <em>{t('food.home.redesign.headlineAccent')}</em></h1>
           <p className="fd-home-hero-sub">{t('food.home.redesign.subtitle')}</p>
-          <p className="rd-platform-note"><Store size={18} aria-hidden="true" />{t('food.home.redesign.independent')}</p>
 
           {/* Search bar lives inside the hero */}
           <form className="fd-home-searchbar" onSubmit={search} data-track="ui.703b3d5218.1">
@@ -505,26 +504,26 @@ export default function FoodHomePage() {
               {t('food.home.searchBtn')}<ArrowRight size={18} aria-hidden="true" />
             </button>
           </form>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-start' }}>
+          <div className="rd-search-tools">
+            <div className="rd-location-row">
+              <button
+                type="button"
+                className="fd-btn fd-btn-secondary fd-home-near-btn"
+                onClick={useMyLocation}
+                disabled={locating} data-track="ui.703b3d5218.3"
+              >
+                <MapPin size={16} aria-hidden="true" />{locating ? t('food.home.locating') : t('food.home.nearMe')}
+              </button>
+              <span role="status">{t(geo ? 'food.home.redesign.locationOn' : 'food.home.redesign.locationHint')}</span>
+            </div>
             <SaveSearchButton
               searchType="food"
               query={query}
               filters={{ cuisine: activeCuisine, sort }}
-              dark
             />
           </div>
-          <div className="rd-location-row">
-            <button
-              type="button"
-              className="fd-btn fd-btn-secondary fd-home-near-btn"
-              onClick={useMyLocation}
-              disabled={locating} data-track="ui.703b3d5218.3"
-            >
-              <MapPin size={16} aria-hidden="true" />{locating ? t('food.home.locating') : t('food.home.nearMe')}
-            </button>
-            <span role="status">{t(geo ? 'food.home.redesign.locationOn' : 'food.home.redesign.locationHint')}</span>
-          </div>
           {locationError && <p className="rd-location-error" role="alert">{t('food.home.redesign.locationError')}</p>}
+          <p className="rd-platform-note"><Store size={16} aria-hidden="true" />{t('food.home.redesign.independent')}</p>
           </div>
           <div className="rd-table-art" aria-hidden="true">
             <div className="rd-table-orbit" />
@@ -537,7 +536,18 @@ export default function FoodHomePage() {
 
       <div className="rd-browse-heading">
         <div><span className="rd-eyebrow">{t('food.home.redesign.explore')}</span><h2>{t('food.home.redesign.browseTitle')}</h2></div>
-        <a href="#restaurant-owners" className="rd-owner-shortcut" data-track="ui.703b3d5218.4"><Store size={17} aria-hidden="true" />{t('food.home.redesign.forOwners')}<ArrowDown size={15} aria-hidden="true" /></a>
+        <div className="rd-browse-actions">
+          <a href="#restaurant-owners" className="rd-owner-shortcut" data-track="ui.703b3d5218.4"><Store size={17} aria-hidden="true" />{t('food.home.redesign.forOwners')}<ArrowDown size={15} aria-hidden="true" /></a>
+          {hasMapData && <button
+            type="button"
+            className="fd-btn fd-btn-secondary fd-btn-sm"
+            onClick={() => setShowMap((v) => !v)}
+            aria-expanded={showMap}
+            aria-controls="restaurant-discovery-map" data-track="ui.703b3d5218.7"
+          >
+            <Map size={16} aria-hidden="true" />{t(showMap ? 'food.home.hideMap' : 'food.home.showMap')}
+          </button>}
+        </div>
       </div>
       {hasDiscoveryFilter && <div className="rd-active-filters" aria-live="polite">
         <SlidersHorizontal size={16} aria-hidden="true" />
@@ -565,19 +575,6 @@ export default function FoodHomePage() {
           })}
         </div>
       )}
-
-      {/* ── Map toggle ── */}
-      {hasMapData && <div className="fd-map-toggle-row">
-        <button
-          type="button"
-          className="fd-btn fd-btn-secondary fd-btn-sm"
-          onClick={() => setShowMap((v) => !v)}
-          aria-expanded={showMap}
-          aria-controls="restaurant-discovery-map" data-track="ui.703b3d5218.7"
-        >
-          <Map size={16} aria-hidden="true" />{t(showMap ? 'food.home.hideMap' : 'food.home.showMap')}
-        </button>
-      </div>}
 
       {showMap && hasMapData && (
         <div className="fd-map-wrap" id="restaurant-discovery-map">
