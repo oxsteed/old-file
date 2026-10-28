@@ -133,3 +133,28 @@ current commit, image digest, and deployment ID. No production metadata write
 or host installation has been performed at this stage. Publish through a PR
 and require green CI under `deployment-ci.md` before applying the reviewed
 host bundle; then verify public readiness against actual container identity.
+
+## Release identity applied - 2026-10-28
+
+PR #635 passed all four required CI jobs and merged with merge commit
+`6b408a29df2ff05b3c852ae1ce00116302296a1b`. The reviewed host bundle was
+installed as this user's LaunchAgent, every 300 seconds, without overwriting
+an existing installation or modifying application credentials. The initial
+run and two scheduled runs report successful metadata and backup reconciliation;
+the scheduled runs report no metadata change. The error log is empty.
+
+Public `/ready` is ready with all checks passing and now reports the actual
+running release:
+
+- Git SHA: `1e584da3472b2719c3813ab9be1869d253fa8794`.
+- Image digest: `sha256:5d282faae62c5b47fe6e2ec74b8b0cfd188782fc96ffa6880a24b74b165d5b1b`.
+- Deployment: `5vpuledaj0xg5y1b0vqgczh6`.
+
+These match the inspected running container and deployment receipt. The
+automatic app deployment for merge commit `6b408a29`, queue
+`6io6mbzuirdsfeptt9jdz1au`, failed during a GitHub connection timeout. The
+previous app remains healthy; the host repair is live, while a new app-image
+deployment is not proven. A build-fetch failure retaining the old release does
+not prove safe candidate startup failure or uninterrupted promotion. Worker
+isolation/handoff and routing rehearsals remain required before requirement 1
+can be accepted.

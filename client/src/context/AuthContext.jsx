@@ -6,6 +6,7 @@ import api from '../api/axios';
 import { setDisplayDeviceStaffSession } from '../api/food';
 import { useLanguage } from './LanguageContext';
 import { isTransientRefreshFailure } from '../api/authRefreshPolicy';
+import { advanceAuthEpoch, currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
 
 export const AuthContext = createContext(null);
 
@@ -42,10 +43,15 @@ export function AuthProvider({ children }) {
   const [initialized, setInitialized] = useState(false);
   const [sessionRecovering, setSessionRecovering] = useState(false);
   const { syncLanguageFromServer } = useLanguage();
+  const captureEpoch = useCallback(() => ({ local: sessionEpoch.current, transport: currentAuthEpoch() }), []);
+  const isCurrentEpoch = useCallback(epoch => epoch.local === sessionEpoch.current && isCurrentAuthEpoch(epoch.transport), []);
 
   const persistUser = useCallback((nextUser) => {
     const nextId = nextUser?.id == null ? null : String(nextUser.id);
-    if (nextId !== identity.current) sessionEpoch.current++;
+    if (nextId !== identity.current) {
+      sessionEpoch.current++;
+      advanceAuthEpoch();
+    }
     identity.current = nextId;
     setDraftAccount(nextId);
     setNavigationAccount(nextId);
@@ -56,6 +62,7 @@ export function AuthProvider({ children }) {
 
   const clearAuthState = useCallback(() => {
     sessionEpoch.current++;
+    advanceAuthEpoch();
     identity.current = null;
     setDraftAccount(null);
     setNavigationAccount(null);
@@ -78,27 +85,27 @@ export function AuthProvider({ children }) {
   }, [clearAuthState]);
 
   const fetchMe = useCallback(async () => {
-    const epoch = sessionEpoch.current;
+    const epoch = captureEpoch();
     const res = await api.get('/auth/me', { withCredentials: true, timeout: 10000 });
-    if (epoch !== sessionEpoch.current) return null;
+    if (!isCurrentEpoch(epoch)) return null;
     const fullUser = normalizeUserPayload(res.data);
     syncLanguageFromServer?.(fullUser?.preferred_language);
     persistUser(fullUser);
     return fullUser;
-  }, [persistUser, syncLanguageFromServer]);
+  }, [persistUser, syncLanguageFromServer, captureEpoch, isCurrentEpoch]);
 
   const handleVerificationFailure = useCallback((error, epoch) => {
     // An older request must not clear or recover a newer login/logout.
-    if (epoch !== sessionEpoch.current) return;
+    if (!isCurrentEpoch(epoch)) return;
     if (!isTransientRefreshFailure(error)) clearAuthState();
     else if (identity.current === null) setSessionRecovering(true);
-  }, [clearAuthState]);
+  }, [clearAuthState, isCurrentEpoch]);
 
   useEffect(() => {
     let mounted = true;
 
     const initAuth = async () => {
-      const epoch = sessionEpoch.current;
+      const epoch = captureEpoch();
       try {
         await fetchMe();
       } catch (err) {
@@ -116,7 +123,7 @@ export function AuthProvider({ children }) {
     return () => {
       mounted = false;
     };
-  }, [fetchMe, handleVerificationFailure]);
+  }, [fetchMe, handleVerificationFailure, captureEpoch]);
 
   const login = useCallback(async (credentials) => {
     const { data } = await authAPI.login(credentials);
@@ -127,27 +134,30 @@ export function AuthProvider({ children }) {
       return data;
     }
 
+    const epoch = captureEpoch();
     try {
       const fullUser = await fetchMe();
       return { ...(data ?? {}), user: fullUser };
     } catch (err) {
-      clearAuthState();
+      if (isCurrentEpoch(epoch)) clearAuthState();
       throw err;
     }
-  }, [fetchMe, clearAuthState]);
+  }, [fetchMe, clearAuthState, captureEpoch, isCurrentEpoch]);
 
   const completeTwoFactor = useCallback(async (payload) => {
     const { data } = await authAPI.loginWith2FA(payload);
-
+    const epoch = captureEpoch();
     try {
       const fullUser = await fetchMe();
       return { ...(data ?? {}), user: fullUser };
     } catch (err) {
-      clearStoredSession();
-      clearAuthState();
+      if (isCurrentEpoch(epoch)) {
+        clearStoredSession();
+        clearAuthState();
+      }
       throw err;
     }
-  }, [fetchMe, clearAuthState]);
+  }, [fetchMe, clearAuthState, captureEpoch, isCurrentEpoch]);
 
   const logout = useCallback(async () => {
     try {
@@ -165,7 +175,7 @@ export function AuthProvider({ children }) {
 
   const verifyOTP = useCallback(async (data) => {
     const response = await authAPI.verifyOTP(data);
-
+    const epoch = captureEpoch();
     try {
       const fullUser = await fetchMe();
       return {
@@ -176,32 +186,32 @@ export function AuthProvider({ children }) {
         },
       };
     } catch (err) {
-      clearAuthState();
+      if (isCurrentEpoch(epoch)) clearAuthState();
       throw err;
     }
-  }, [fetchMe, clearAuthState]);
+  }, [fetchMe, clearAuthState, captureEpoch, isCurrentEpoch]);
 
   const refreshUser = useCallback(async () => {
-    const epoch = sessionEpoch.current;
+    const epoch = captureEpoch();
     try {
       return await fetchMe();
     } catch (err) {
       handleVerificationFailure(err, epoch);
       throw err;
     }
-  }, [fetchMe, handleVerificationFailure]);
+  }, [fetchMe, handleVerificationFailure, captureEpoch]);
 
   const refreshSession = useCallback(async () => {
-    const epoch = sessionEpoch.current;
+    const epoch = captureEpoch();
     try {
       await authAPI.refresh();
-      if (epoch !== sessionEpoch.current) return null;
+      if (!isCurrentEpoch(epoch)) return null;
       return await fetchMe();
     } catch (err) {
       handleVerificationFailure(err, epoch);
       throw err;
     }
-  }, [fetchMe, handleVerificationFailure]);
+  }, [fetchMe, handleVerificationFailure, captureEpoch, isCurrentEpoch]);
 
   // Unified mode + role switcher. Accepts a mode string (see
   // server/utils/modeRole.js for the catalog). Legacy 'helper' / 'customer'

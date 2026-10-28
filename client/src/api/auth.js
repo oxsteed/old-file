@@ -3,6 +3,7 @@ import { createAdminChallengeHandler } from './adminChallenge.mjs';
 import { withCrossTabRefreshLock } from './authRefreshCoordinator';
 import { isTransientRefreshFailure } from './authRefreshPolicy';
 import { clearSupportChatStorage } from '../lib/supportChatStorage';
+import { advanceAuthEpoch, currentAuthEpoch, isCurrentAuthEpoch, assertCurrentAuthEpoch, isCredentialRequest } from './authSessionEpoch';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -33,6 +34,7 @@ function setStoredUser(user) {
 }
 
 function clearStoredSession() {
+  advanceAuthEpoch();
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
@@ -42,12 +44,14 @@ function clearStoredSession() {
   delete api.defaults.headers.common.Authorization;
 }
 
-function persistSessionPayload(data = {}) {
-  if (data.accessToken) {
+function persistSessionPayload(data = {}, { sessionTransition = true } = {}) {
+  if (sessionTransition && (data.user || data.accessToken || data.refreshToken)) advanceAuthEpoch();
+  // Web responses intentionally omit raw tokens. A verified cookie handoff
+  // must still retire pre-cookie credentials, or a later no-cookie fallback
+  // can reuse a revoked legacy token.
+  const establishedSession = data.user || data.success || data.accessToken || data.refreshToken;
+  if (establishedSession) {
     setStoredAccessToken(data.accessToken);
-  }
-
-  if (data.refreshToken) {
     setStoredRefreshToken(data.refreshToken);
   }
 
@@ -82,31 +86,51 @@ export function getStoredUser() {
   }
 }
 
-let refreshPromise = null;
+let refreshFlight = null;
+const REFRESH_TIMEOUT_MS = 10000;
+function requireRefreshProof(response) {
+  if (!response.data?.success && !response.data?.user && !response.data?.accessToken) {
+    const error = new Error('Refresh response did not verify the session.');
+    error.code = 'AUTH_REFRESH_UNVERIFIED';
+    throw error;
+  }
+}
 const handleAdminChallenge = typeof window === 'undefined'
   ? () => {}
   : createAdminChallengeHandler(window.location);
 
 async function requestSessionRefresh() {
-  return withCrossTabRefreshLock(performSessionRefresh);
+  const epoch = currentAuthEpoch();
+  if (refreshFlight?.epoch === epoch) return refreshFlight.promise;
+  const promise = withCrossTabRefreshLock(() => {
+    assertCurrentAuthEpoch(epoch);
+    return performSessionRefresh(epoch);
+  });
+  refreshFlight = { epoch, promise };
+  const clear = () => { if (refreshFlight?.promise === promise) refreshFlight = null; };
+  promise.then(clear, clear);
+  return promise;
 }
 
-async function performSessionRefresh() {
+async function performSessionRefresh(epoch) {
   let response;
   try {
     // The current HttpOnly cookie is authoritative. A legacy body token can
     // otherwise shadow it and revoke a perfectly valid newly signed-in session.
-    response = await api.post('/auth/refresh', {});
+    response = await api.post('/auth/refresh', {}, { timeout: REFRESH_TIMEOUT_MS });
   } catch (error) {
+    assertCurrentAuthEpoch(epoch);
     const legacyToken = getRefreshToken();
     // Migrate an old browser only when the server explicitly has no cookie.
     // Never fall back after expiry, reuse, revocation, throttling or an outage.
     if (error.response?.status !== 401 || error.response?.data?.code !== 'no_token' || !legacyToken) {
       throw error;
     }
-    response = await api.post('/auth/refresh', { refreshToken: legacyToken });
+    response = await api.post('/auth/refresh', { refreshToken: legacyToken }, { timeout: REFRESH_TIMEOUT_MS });
   }
-  persistSessionPayload(response.data);
+  assertCurrentAuthEpoch(epoch);
+  requireRefreshProof(response);
+  persistSessionPayload(response.data, { sessionTransition: false });
   return response;
 }
 
@@ -125,29 +149,18 @@ api.interceptors.response.use(
     if (
       error.response?.status !== 401 ||
       originalRequest._retry ||
-      isRefreshRequest
+      isRefreshRequest || isCredentialRequest(originalRequest.url)
     ) {
       return Promise.reject(error);
     }
 
     originalRequest._retry = true;
+    const epoch = originalRequest._authEpoch;
+    if (!isCurrentAuthEpoch(epoch)) return Promise.reject(error);
 
     try {
-      refreshPromise =
-        refreshPromise ||
-        requestSessionRefresh();
-
-      const response = await refreshPromise;
-      // Review P1-114: web responses no longer carry raw tokens; the
-      // rotated httpOnly cookies are the credential. A successful refresh is
-      // signalled by success/user.
-      const refreshed = Boolean(response.data?.success || response.data?.user || response.data?.accessToken);
-
-      if (!refreshed) {
-        clearStoredSession();
-        return Promise.reject(error);
-      }
-
+      const response = await requestSessionRefresh();
+      assertCurrentAuthEpoch(epoch);
       // The server rotated the httpOnly cookies (access + refresh). The retry
       // below authenticates via the cookie automatically (withCredentials);
       // nothing is written to localStorage (XSS vector).
@@ -164,7 +177,7 @@ api.interceptors.response.use(
     } catch (refreshError) {
       // Keep the refresh token for transient outages so a visible retry can
       // recover the current page once the API/database is healthy again.
-      if (!isTransientRefreshFailure(refreshError)) {
+      if (isCurrentAuthEpoch(epoch) && !isTransientRefreshFailure(refreshError)) {
         clearStoredSession();
         // Tell the React auth state the session is dead. clearStoredSession
         // only wipes storage; without this the in-memory user survives and
@@ -175,8 +188,6 @@ api.interceptors.response.use(
       }
       // Don't hard-redirect - let ProtectedRoute handle navigation
       return Promise.reject(refreshError);
-    } finally {
-      refreshPromise = null;
     }
   },
 );
@@ -206,9 +217,15 @@ export const authAPI = {
 
   refresh: async (refreshToken) => {
     if (!refreshToken) return requestSessionRefresh();
-    const response = await api.post('/auth/refresh', { refreshToken });
-    persistSessionPayload(response.data);
-    return response;
+    const epoch = currentAuthEpoch();
+    return withCrossTabRefreshLock(async () => {
+      assertCurrentAuthEpoch(epoch);
+      const response = await api.post('/auth/refresh', { refreshToken }, { timeout: REFRESH_TIMEOUT_MS });
+      assertCurrentAuthEpoch(epoch);
+      requireRefreshProof(response);
+      persistSessionPayload(response.data, { sessionTransition: false });
+      return response;
+    });
   },
 
   me: async () => {

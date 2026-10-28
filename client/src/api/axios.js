@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { existingPromotionVisitorId, isPromotionConversionRequest } from '../utils/promotionVisitor';
+import { currentAuthEpoch, advanceAuthEpoch, assertCurrentAuthEpoch, startsAuthSessionTransition } from './authSessionEpoch';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -47,6 +48,10 @@ function getDeviceFingerprint() {
 // (XSS vector). Impersonation sessions store a short-lived token in
 // sessionStorage so the admin's normal session is never disturbed.
 api.interceptors.request.use((config) => {
+  if (config._retry) assertCurrentAuthEpoch(config._authEpoch);
+  // Fence earlier work before a credential-changing response can set cookies.
+  if (startsAuthSessionTransition(config.url)) config._authEpoch = advanceAuthEpoch();
+  else config._authEpoch ??= currentAuthEpoch();
   const token = sessionStorage.getItem('oxs:impersonation_token');
 
   // Only add Authorization header for impersonation; the normal session
