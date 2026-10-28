@@ -217,3 +217,19 @@ session/account race audit or the remaining eight-part goal.
 Package 4 remains pending publication verification. Requirements 1, 2, 4, 6,
 and the remaining session/overlay acceptance work remain open; the full goal
 has not been reduced or completed.
+
+## CI session-reader classification repair
+
+- The repeated CI failure came from treating the historical AML device-linkage
+  aggregate as an authorization query. Limiting that evidence to valid/live
+  sessions would lose revoked-session history. Runtime AML and authentication
+  code were not changed.
+- The session scan now names that single audited historical reader explicitly,
+  checks that it still has exactly one session read, and retains the dual-flag
+  requirement for every other reader. A separate monitoring regression checks
+  the 30-day/IP scope, absence of live-session flag predicates, case creation,
+  empty results, and absence of session writes.
+- Targeted Jest validation: `p2-session-direct-schema.test.js`,
+  `amlSessionHistory.test.js`, and `oxsteedCreditCompliance.test.js`: 3 suites,
+  40 tests passed. This is a unit/query-contract check, not a new live financial
+  exercise or PostgreSQL integration claim. Full remote CI remains pending.

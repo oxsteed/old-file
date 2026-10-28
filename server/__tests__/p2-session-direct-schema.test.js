@@ -8,7 +8,7 @@
  *     invalidate_previous_sessions() trigger dual-writes
  *     is_revoked = TRUE AND is_valid = FALSE (migration 200 itself is
  *     already applied and must stay untouched).
- *   - Every read path on the sessions table must treat a session as dead
+ *   - Every authorization read on the sessions table must treat a session as dead
  *     if EITHER flag says so.
  *   - Review P3-14-F01: migration 824 drops the trigger entirely. The
  *     trigger silently enforced single-live-session-per-user (every new
@@ -70,7 +70,11 @@ describe('P2 #15 / P3-14-F01: session invalidation trigger lifecycle', () => {
 
 // ─── #15b: read side treats a session as dead if EITHER flag says so ────────
 
-describe('P2 #15: session read paths honor both flags', () => {
+describe('P2 #15: session authorization paths honor both flags', () => {
+  // This hourly AML aggregate opens review cases; it does not authenticate a
+  // session. Revocation must not erase historical device-linkage evidence.
+  // Keep the exception explicit and paired with amlSessionHistory.test.js.
+  const historicalReaders = new Set(['services/creditCompliance/amlRules.js']);
   function serverFilesReadingSessions() {
     const hits = [];
     const walk = (dir) => {
@@ -89,13 +93,21 @@ describe('P2 #15: session read paths honor both flags', () => {
     return hits;
   }
 
-  test('no sessions read path checks only one flag', () => {
+  test('no session authorization reader checks only one flag', () => {
     const readers = serverFilesReadingSessions();
     expect(readers.length).toBeGreaterThan(0);
+    expect(readers.filter(({ file }) => historicalReaders.has(path.relative(SERVER_DIR, file).split(path.sep).join('/')))).toHaveLength(1);
     for (const { file, src } of readers) {
+      const relative = path.relative(SERVER_DIR, file).split(path.sep).join('/');
+      if (historicalReaders.has(relative)) {
+        // A second session query in this module needs another explicit audit.
+        expect(src.match(/FROM\s+sessions\b/gi)).toHaveLength(1);
+        expect(src).toMatch(/async function runBatchRules/);
+        continue;
+      }
       const mentionsValid = /\bis_valid\b/.test(src);
       const mentionsRevoked = /\bis_revoked\b/.test(src);
-      // A sessions read that honors only one flag would let a half-dead
+      // An authorization read that honors only one flag would let a half-dead
       // session through: fail loudly naming the file.
       if (!(mentionsValid && mentionsRevoked)) {
         throw new Error(
