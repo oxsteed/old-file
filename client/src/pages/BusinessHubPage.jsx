@@ -25,10 +25,10 @@ const BusinessMediaTab = lazyDefault(() => import('../components/businessHub/Bus
 const MessagingWorkspace = lazyDefault(() => import('../components/messaging/MessagingWorkspace'));
 const AppointmentCalendarView = lazyNamed(() => import('../components/businessHub/AppointmentCalendarView'), 'AppointmentCalendarView');
 const BusinessServicesTab = lazyNamed(() => import('../components/businessHub/BusinessServicesTab'), 'BusinessServicesTab');
-import { PricingRulesManager } from '../components/businessHub/PricingRulesManager';
-import MemberPermissionsEditor from '../components/businessHub/MemberPermissionsEditor';
-import { ProductManagement } from '../components/businessHub/ProductManagement';
-import { ProductPricingManager } from '../components/businessHub/ProductPricingManager';
+const PricingRulesManager = lazyNamed(() => import('../components/businessHub/PricingRulesManager'), 'PricingRulesManager');
+const MemberPermissionsEditor = lazyDefault(() => import('../components/businessHub/MemberPermissionsEditor'));
+const ProductManagement = lazyNamed(() => import('../components/businessHub/ProductManagement'), 'ProductManagement');
+const ProductPricingManager = lazyNamed(() => import('../components/businessHub/ProductPricingManager'), 'ProductPricingManager');
 const CustomerLoyaltyManager = lazyNamed(() => import('../components/businessHub/CustomerLoyaltyManager'), 'CustomerLoyaltyManager');
 const BusinessIntegrations = lazyNamed(() => import('../components/businessHub/BusinessIntegrations'), 'BusinessIntegrations');
 const ExpenseTracker = lazyNamed(() => import('../components/businessHub/ExpenseTracker'), 'ExpenseTracker');
@@ -42,7 +42,7 @@ const ServicePackagesManager = lazyNamed(() => import('../components/businessHub
 const HealthAlertsDashboard = lazyNamed(() => import('../components/businessHub/HealthAlertsDashboard'), 'HealthAlertsDashboard');
 const LeadPipeline = lazyNamed(() => import('../components/businessHub/LeadPipeline'), 'LeadPipeline');
 const MessageTemplatesManager = lazyNamed(() => import('../components/businessHub/MessageTemplatesManager'), 'MessageTemplatesManager');
-import BusinessCreationWizard from '../components/businessHub/BusinessCreationWizard';
+const BusinessCreationWizard = lazyDefault(() => import('../components/businessHub/BusinessCreationWizard'));
 const PropertyOperationsTab = lazyDefault(() => import('../components/businessHub/PropertyOperationsTab'));
 const TradesOperationsTab = lazyDefault(() => import('../components/businessHub/TradesOperationsTab'));
 const BeautyOperationsTab = lazyDefault(() => import('../components/businessHub/BeautyOperationsTab'));
@@ -50,7 +50,7 @@ const CreativeOperationsTab = lazyDefault(() => import('../components/businessHu
 const ProfessionalOperationsTab = lazyDefault(() => import('../components/businessHub/ProfessionalOperationsTab'));
 const ContinuityOperationsTab = lazyDefault(() => import('../components/businessHub/ContinuityOperationsTab'));
 const TemplateWorkflowSystemTab = lazyDefault(() => import('../components/businessHub/TemplateWorkflowSystemTab'));
-import BusinessProfileEditor from '../components/businessHub/BusinessProfileEditor';
+const BusinessProfileEditor = lazyDefault(() => import('../components/businessHub/BusinessProfileEditor'));
 import {
   listBusinesses, updateBusiness, uploadBusinessPhotos,
   completeBusinessOnboarding,
@@ -141,6 +141,30 @@ const DEFAULT_INV_FORM   = {
   line_items: [{ description: '', quantity: 1, unit_price: '', type: 'item' }],
 };
 const DEFAULT_GOAL_FORM  = { title: '', goal_type: 'revenue', period: 'monthly', target_value: '', current_value: '' };
+
+function WorkspaceDialogLoading({ onClose }) {
+  const { t } = useTranslation();
+  const cancel = useRef(null);
+  useEffect(() => {
+    const previous = document.activeElement;
+    cancel.current?.focus();
+    return () => { if (previous?.isConnected) previous.focus(); };
+  }, []);
+  return (
+    <div className="bh-modal-overlay">
+      <div className="bh-modal" role="dialog" aria-modal="true" aria-label={t('businessHub.rooms.loadingWorkspace')}
+        onKeyDown={event => {
+          if (event.key === 'Escape') { event.preventDefault(); onClose(); }
+          if (event.key === 'Tab') { event.preventDefault(); cancel.current?.focus(); }
+        }}>
+        <p role="status">{t('businessHub.rooms.loadingWorkspace')}</p>
+        <div className="bh-modal-actions">
+          <button ref={cancel} type="button" className="bh-btn" onClick={onClose} data-track-private>{t('businessHub.btnCancel')}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── main component ────────────────────────────────────────────────────────────
 export default function BusinessHubPage() {
@@ -2303,12 +2327,14 @@ function BusinessHubInner() {
 
         {/* ── Modal: Add Business ───────────────────────────────────── */}
         {modal === 'add-biz' && (
+          <Suspense fallback={<WorkspaceDialogLoading onClose={closeModal} />}>
           <BusinessCreationWizard
             initialCountry={user?.country || 'US'}
             initialKind={requestedCreateKind}
             onCancel={closeModal}
             onCreated={handleBusinessCreated}
           />
+          </Suspense>
         )}
 
         {/* ── Modal: Add / Edit Invoice ─────────────────────────────── */}
@@ -2560,13 +2586,14 @@ function BusinessHubInner() {
         )}
         {/* ── S-08: per-member permission overrides editor ──────────── */}
         {permissionsMember && (
+          <Suspense fallback={<WorkspaceDialogLoading onClose={() => setPermissionsMember(null)} />}>
           <MemberPermissionsEditor
             businessId={bizId}
             member={permissionsMember}
             onClose={() => setPermissionsMember(null)}
             onSaved={() => { setPermissionsMember(null); loadTeam(); }}
           />
-
+          </Suspense>
         )}
 
         {/* ── Service Modal ────────────────────────────────────────────── */}
