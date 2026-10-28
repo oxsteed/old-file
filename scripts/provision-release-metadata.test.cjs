@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { observeMetadata, provisionReleaseMetadata } = require('./provision-release-metadata.cjs');
+const { observeMetadata, provisionReleaseMetadata, findApplicationContainer } = require('./provision-release-metadata.cjs');
 const { getReleaseMetadata } = require('../server/utils/release');
 
 const applicationUuid = 'app123';
@@ -112,9 +112,44 @@ test('provisions only the dedicated volume with an isolated immutable-image writ
   assert.ok(write.args.some((arg) => arg.includes('renameSync')));
 });
 
+test('provisions the actual Coolify-prefixed mount without creating a second volume', () => {
+  const volume = `${applicationUuid}_oxsteed-release-metadata`;
+  const f = fixture({ mounts: [{ ...container.mounts[0], Name: volume }] });
+  const result = provisionReleaseMetadata({ applicationUuid, docker: f.docker });
+  assert.equal(result.canProvision, true);
+  assert.equal(result.metadataVolumeName, volume);
+  assert.ok(f.calls.at(-1).args.includes(`type=volume,source=${volume},target=/metadata`));
+  assert.ok(!f.calls.at(-1).args.includes('type=volume,source=oxsteed-release-metadata,target=/metadata'));
+});
+
+test('an explicit immutable candidate can be provisioned during overlap, while default discovery stays ambiguous', () => {
+  const f = fixture();
+  const docker = (args, input) => args[0] === 'ps' ? `${container.hostname}\n${'e'.repeat(12)}` : f.docker(args, input);
+  assert.throws(() => findApplicationContainer({ applicationUuid, docker }), /exactly one/);
+  const result = provisionReleaseMetadata({ applicationUuid, docker, expectedContainerId: container.containerId,
+    expected: { gitSha: sha, deploymentId: 'deploy123' } });
+  assert.equal(result.containerId, container.containerId);
+  assert.equal(result.provisioned, true);
+  for (const expectedContainerId of [container.hostname, 'app-name', 'e'.repeat(64)]) {
+    assert.throws(() => provisionReleaseMetadata({ applicationUuid, docker, expectedContainerId }));
+  }
+});
+
+test('a pinned candidate still rejects a different inspected container or deployment receipt', () => {
+  const f = fixture({ containerId: 'd'.repeat(63) + 'e' });
+  assert.throws(() => provisionReleaseMetadata({ applicationUuid, docker: f.docker, expectedContainerId: container.containerId }), /changed/);
+  assert.ok(f.calls.every(({args}) => args[0] !== 'run'));
+  const good = fixture();
+  assert.throws(() => provisionReleaseMetadata({ applicationUuid, docker: good.docker, expectedContainerId: container.containerId,
+    expected: { deploymentId: 'different-candidate' } }), /deployment/);
+  assert.ok(good.calls.every(({args}) => args[0] !== 'run'));
+});
+
 test('ambiguous containers or missing/writable/foreign volumes fail before writes', () => {
   assert.throws(() => provisionReleaseMetadata({ applicationUuid, docker: () => 'abc def' }));
-  for (const mounts of [[], [{ ...container.mounts[0], RW: true }], [{ ...container.mounts[0], Name: 'uploads' }]]) {
+  for (const mounts of [[], [{ ...container.mounts[0], RW: true }], [{ ...container.mounts[0], Name: 'uploads' }],
+    [{ ...container.mounts[0], Name: 'other-app_oxsteed-release-metadata' }],
+    [container.mounts[0], container.mounts[0]]]) {
     const f = fixture({ mounts });
     assert.throws(() => provisionReleaseMetadata({ applicationUuid, docker: f.docker }), /volume/);
     assert.ok(f.calls.every((call) => call.args[0] !== 'run'));

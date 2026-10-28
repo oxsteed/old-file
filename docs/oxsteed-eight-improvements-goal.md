@@ -24,7 +24,9 @@ authorization, privacy, deployment-secret, and production-data safeguards.
 1. Work in coherent packages, keep all eight requirements intact, and record
    source, test, browser, CI, and live evidence separately.
 2. Use the actual default branch and preserve unrelated local work. Commit and
-   push completed packages; group changes to avoid needless production restarts.
+   push completed packages through PRs, require all four CI jobs to pass, and
+   use merge commits as required by `deployment-ci.md`. Group changes to avoid
+   needless production restarts.
 3. Run relevant behavioral tests. Browser changes require `client/`'s
    `npm run build:ci`; deployment scripts use the repository's Node tests.
 4. Rehearse infrastructure changes with disposable resources. Preserve the
@@ -288,3 +290,20 @@ Next on requirement 1: finish cron/in-flight and per-process refresh ownership,
 choose and rehearse safe worker/web separation or handoff, repair mounted release
 identity, and test candidate promotion/failure before changing live routing.
 This remains a prerequisite package; uninterrupted deployment is not complete.
+
+## Package 6 - mounted release identity
+
+- Provision release records into the actual verified read-only metadata volume,
+  including Coolify's application prefix. Reject foreign, duplicate, or writable
+  mounts. An explicit full container ID supports candidate-specific records;
+  automatic discovery still refuses overlapping app containers.
+- Include the backup adapter's missing restore-verification profile module in
+  the installed host bundle. Portable metadata/reconciliation tests now run in
+  the existing deployment-command CI step.
+- All 39 related Node tests passed. An opt-in Docker rehearsal passed with two
+  disposable containers on a dedicated prefixed volume, proving idempotency,
+  ambiguity rejection, and independent records. Fixture resources were removed.
+- Production check mode now derives all three identity fields from the current
+  app and accepts its actual mount. No live metadata write or host installation
+  has been performed yet. Require green PR CI before applying and checking the
+  public readiness fields. Deployment topology and routing remain unchanged.

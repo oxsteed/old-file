@@ -44,7 +44,12 @@ function observeMetadata(container, image, applicationUuid, expected = {}) {
   const digests = [...new Set((image.repoDigests || [])
     .filter((entry) => entry.startsWith(`${repository}@`))
     .map((entry) => imageDigest(entry.slice(entry.lastIndexOf('@') + 1))).filter(Boolean))];
-  const mount = (container.mounts || []).find((entry) => entry.Destination === DIRECTORY);
+  const mounts = (container.mounts || []).filter((entry) => entry.Destination === DIRECTORY);
+  const mount = mounts.length === 1 ? mounts[0] : null;
+  // Coolify prefixes named Compose volumes with the verified application
+  // UUID. Use the mounted volume, never create a new unprefixed substitute.
+  const canProvision = mount?.Type === 'volume' && mount.RW === false
+    && [VOLUME, `${applicationUuid}_${VOLUME}`].includes(mount.Name);
   return {
     metadata: {
       schemaVersion: 1,
@@ -55,7 +60,8 @@ function observeMetadata(container, image, applicationUuid, expected = {}) {
       deploymentId: observedDeployment,
     },
     hostname: container.hostname,
-    canProvision: mount?.Type === 'volume' && mount.Name === VOLUME && mount.RW === false,
+    canProvision,
+    metadataVolumeName: canProvision ? mount.Name : null,
   };
 }
 
@@ -76,11 +82,17 @@ function validateApplicationUuid(applicationUuid) {
   return applicationUuid;
 }
 
-function findApplicationContainer({ applicationUuid, docker = runDocker } = {}) {
+function findApplicationContainer({ applicationUuid, docker = runDocker, expectedContainerId = null } = {}) {
   validateApplicationUuid(applicationUuid);
-  const ids = docker(['ps', '--filter', `label=com.docker.compose.project=${applicationUuid}`, '--filter', 'label=com.docker.compose.service=app', '--format', '{{.ID}}'])
+  if (expectedContainerId && !/^[a-f0-9]{64}$/.test(expectedContainerId)) {
+    throw new Error('Pin an immutable full container ID, not a name or short prefix.');
+  }
+  const runningIds = docker(['ps', '--filter', `label=com.docker.compose.project=${applicationUuid}`, '--filter', 'label=com.docker.compose.service=app', '--format', '{{.ID}}'])
     .split(/\s+/).filter(Boolean);
-  if (ids.length !== 1 || !/^[a-f0-9]{12,64}$/.test(ids[0])) {
+  if (runningIds.some(id => !/^[a-f0-9]{12,64}$/.test(id))) throw new Error('Docker app identifiers could not be verified.');
+  const ids = expectedContainerId ? runningIds.filter(id => expectedContainerId.startsWith(id)) : runningIds;
+  if (ids.length !== 1) {
+    if (expectedContainerId) throw new Error('The pinned app container changed or is no longer running; retry reconciliation.');
     throw new Error('Expected exactly one running Coolify app container; provisioning stopped.');
   }
   const container = JSON.parse(docker(['inspect', ids[0], '--format', CONTAINER_FORMAT]));
@@ -89,12 +101,15 @@ function findApplicationContainer({ applicationUuid, docker = runDocker } = {}) 
       !/^\/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(container.name || '')) {
     throw new Error('Running app container identity could not be verified.');
   }
+  if (expectedContainerId && container.containerId !== expectedContainerId) {
+    throw new Error('The pinned app container changed during inspection; retry reconciliation.');
+  }
   return { ...container, name: container.name.slice(1) };
 }
 
 function provisionReleaseMetadata({ applicationUuid, expected = {}, checkOnly = false, docker = runDocker,
   expectedContainerId = null } = {}) {
-  const container = findApplicationContainer({ applicationUuid, docker });
+  const container = findApplicationContainer({ applicationUuid, docker, expectedContainerId });
   if (expectedContainerId && container.containerId !== expectedContainerId) {
     throw new Error('The app container changed during reconciliation; retry the next cycle.');
   }
@@ -113,11 +128,12 @@ function provisionReleaseMetadata({ applicationUuid, expected = {}, checkOnly = 
       // application mounts this volume read-only. Rename makes reads atomic.
       const writer = "const fs=require('node:fs');let input='';process.stdin.setEncoding('utf8');process.stdin.on('data',c=>input+=c);process.stdin.on('end',()=>{const p='/metadata/'+process.argv[1]+'.json';fs.writeFileSync(p+'.tmp',input,{mode:0o644});fs.renameSync(p+'.tmp',p);});";
       docker(['run', '--rm', '--pull', 'never', '--network', 'none', '--read-only', '--cap-drop', 'ALL',
-        '--security-opt', 'no-new-privileges', '--mount', `type=volume,source=${VOLUME},target=/metadata`,
+        '--security-opt', 'no-new-privileges', '--mount', `type=volume,source=${observed.metadataVolumeName},target=/metadata`,
         '--entrypoint', 'node', '-i', container.imageId, '-e', writer, observed.hostname], `${JSON.stringify(observed.metadata)}\n`);
     }
   }
   return { ...observed.metadata, provisioned: !checkOnly, changed, canProvision: observed.canProvision,
+    metadataVolumeName: observed.metadataVolumeName,
     missing: ['gitSha', 'imageDigest', 'deploymentId'].filter((key) => !observed.metadata[key]) };
 }
 
