@@ -236,5 +236,8 @@ The source Compose resource's configured destination network is `coolify`,
 while the actual app also joins `twsam5aiyvm0w1l2jqxx9ih3` and its application
 network. A future web resource must use the inspected shared app/database/scanner
 network, not blindly reuse the source destination setting. Production still
-serves the existing combined container. No app topology, routing, automatic
-deployment ownership or production storage was changed by this package.
+serves the existing combined container. An inactive private web resource is
+now prepared; public routing, the running production topology, automatic
+deployment ownership and underlying production storage remain unchanged.
+See `reviews/web-continuity-2026-10-28.md` for the final rehearsal, the CI update
+navigation failure and repair, and the exact remaining promotion checks.

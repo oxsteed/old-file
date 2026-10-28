@@ -1,8 +1,17 @@
 import { lazy } from 'react';
 import * as Sentry from '@sentry/react';
+import { appUpdatesDeferred, documentIsLeaving, markDocumentLeaving, recentDocumentReload, observePendingChunkNavigation, isSilentUpdateSensitivePath } from './appUpdateSafety.js';
 
 const RETRY_PREFIX = 'oxs:lazy-retry:';
 const RETRY_TTL_MS = 10 * 60 * 1000;
+let automaticReloadStarted = false;
+
+function canAutomaticallyReload(startedHref) {
+  return typeof window !== 'undefined' && !automaticReloadStarted && !documentIsLeaving() && !recentDocumentReload()
+    && window.navigator?.onLine !== false && !appUpdatesDeferred()
+    && !isSilentUpdateSensitivePath(window.location.pathname)
+    && (!startedHref || startedHref === window.location.href);
+}
 
 function getRelease() {
   return import.meta.env.VITE_APP_VERSION
@@ -43,21 +52,14 @@ function hasFreshRetryMarker(key) {
 
 function setRetryMarker(key) {
   const storage = safeSessionStorage();
-  if (!storage) return;
+  if (!storage) return false;
   try {
-    storage.setItem(key, String(Date.now()));
+    const value = String(Date.now());
+    storage.setItem(key, value);
+    return storage.getItem(key) === value;
   } catch {
-    // Storage can be unavailable in private browsing.
-  }
-}
-
-function clearRetryMarker(key) {
-  const storage = safeSessionStorage();
-  if (!storage) return;
-  try {
-    storage.removeItem(key);
-  } catch {
-    // Ignore storage failures.
+    // Without a durable marker, a missing asset could cause a reload loop.
+    return false;
   }
 }
 
@@ -80,6 +82,7 @@ export function forceChunkReload() {
   }
 
   if (typeof window === 'undefined') return;
+  markDocumentLeaving();
   const url = new URL(window.location.href);
   url.searchParams.set('chunk-retry', 'manual');
   window.location.replace(url.toString());
@@ -91,7 +94,6 @@ function reportChunkFailure(error, name) {
     scope.setTag('route', getPathname());
     scope.setTag('chunk_name', name);
     scope.setTag('release', getRelease());
-    scope.setExtra('asset_url', typeof window !== 'undefined' ? window.location.href : null);
     Sentry.captureException(error);
   });
 }
@@ -107,6 +109,7 @@ const GLOBAL_RELOAD_KEY = 'oxs:chunk-reload:global';
  */
 export function installGlobalChunkReload() {
   if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  documentIsLeaving();
   const onUnhandledRejection = (event) => {
     let error = null;
     try {
@@ -115,22 +118,9 @@ export function installGlobalChunkReload() {
       return;
     }
     if (!isChunkLoadError(error)) return;
-
-    const storage = safeSessionStorage();
-    let shouldReload = true;
-    if (storage) {
-      try {
-        const last = Number(storage.getItem(GLOBAL_RELOAD_KEY));
-        if (Number.isFinite(last) && Date.now() - last < RETRY_TTL_MS) {
-          shouldReload = false;
-        } else {
-          storage.setItem(GLOBAL_RELOAD_KEY, String(Date.now()));
-        }
-      } catch {
-        // Storage unavailable; allow the single reload attempt.
-      }
-    }
-    if (!shouldReload) return;
+    if (!canAutomaticallyReload() || hasFreshRetryMarker(GLOBAL_RELOAD_KEY) || !setRetryMarker(GLOBAL_RELOAD_KEY)) return;
+    automaticReloadStarted = true;
+    markDocumentLeaving();
 
     try {
       if (typeof event?.preventDefault === 'function') event.preventDefault();
@@ -152,19 +142,25 @@ export function installGlobalChunkReload() {
 
 export function lazyWithRetry(loader, options = {}) {
   const name = options.name || loader.name || 'route';
+  documentIsLeaving();
 
   return lazy(async () => {
+    const startedHref = typeof window === 'undefined' ? null : window.location.href;
+    const stopObserving = observePendingChunkNavigation();
     try {
       const module = await loader();
-      clearRetryMarker(retryKey(name));
+      // Keep the bounded attempt marker even when another lazy component
+      // succeeds. Anonymous loaders can share a route key; clearing it here
+      // could let a persistently missing sibling reload every new document.
       return module;
     } catch (error) {
       if (!isChunkLoadError(error)) throw error;
 
       reportChunkFailure(error, name);
       const key = retryKey(name);
-      if (!hasFreshRetryMarker(key) && typeof window !== 'undefined') {
-        setRetryMarker(key);
+      if (canAutomaticallyReload(startedHref) && !hasFreshRetryMarker(key) && setRetryMarker(key)) {
+        automaticReloadStarted = true;
+        markDocumentLeaving();
         const url = new URL(window.location.href);
         url.searchParams.set('chunk-retry', 'auto');
         window.location.replace(url.toString());
@@ -172,6 +168,6 @@ export function lazyWithRetry(loader, options = {}) {
       }
 
       throw error;
-    }
+    } finally { stopObserving(); }
   });
 }

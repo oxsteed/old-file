@@ -67,7 +67,7 @@
     "test:frontend-references": "node --test scripts/frontendReferences.test.mjs",
     "verify:frontend-references": "node scripts/verify-frontend-references.mjs",
     "test:frontend-crash-browser": "node --test scripts/frontendCrashRegression.browser-check.cjs",
-    "test:route-reliability": "node --test scripts/routeReliability.test.mjs",
+    "test:route-reliability": "node --test scripts/routeReliability.test.mjs scripts/lazyChunkRecovery.test.mjs",
     "test:admin-providers": "node --test scripts/admin-providers.test.mjs",
     "test:admin-route-contracts": "node --test scripts/adminRouteContracts.test.mjs",
     "test:provider-health-page": "node --test scripts/providerHealthPage.test.mjs",
