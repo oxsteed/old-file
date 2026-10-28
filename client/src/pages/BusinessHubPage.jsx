@@ -159,7 +159,7 @@ function WorkspaceDialogLoading({ onClose }) {
         }}>
         <p role="status">{t('businessHub.rooms.loadingWorkspace')}</p>
         <div className="bh-modal-actions">
-          <button ref={cancel} type="button" className="bh-btn" onClick={onClose} data-track="private">{t('businessHub.btnCancel')}</button>
+          <button ref={cancel} type="button" className="bh-btn" onClick={onClose} data-track-private>{t('businessHub.btnCancel')}</button>
         </div>
       </div>
     </div>

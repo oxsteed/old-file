@@ -31,8 +31,8 @@ while loading; Escape cancels, and closing restores the previous focus.
 
 | Additional workspace JavaScript | Before | After | Reduction |
 | --- | ---: | ---: | ---: |
-| Raw bytes | 263,445 | 171,808 | 91,637 (34.8%) |
-| Sum of individually gzipped assets | 66,818 | 40,741 | 26,077 (39.0%) |
+| Raw bytes | 263,445 | 171,809 | 91,636 (34.8%) |
+| Sum of individually gzipped assets | 66,818 | 40,747 | 26,071 (39.0%) |
 | Static assets outside the shell | 27 | 11 | 16 |
 
 The baseline was measured from the pre-change build; its workspace source is
@@ -42,6 +42,12 @@ site-wide latency reduction. Local cold/warm browser timing is diagnostic only:
 unthrottled localhost, synthetic responses, and the current host workload.
 Production transition timing, slower networks, and the wider navigation audit
 remain open. This source change has not yet been merged or live verified.
+
+CI initially rejected the loading-dialog Cancel control's `data-track="private"`
+value because it appeared as a new tracking key. The control now uses the
+project's actual privacy exclusion, `data-track-private`. The instrumentation
+check passes with full coverage, no annotations required, and unchanged key
+registries. No telemetry payload or tracking key was added.
 
 ## Follow-up observed during verification
 
