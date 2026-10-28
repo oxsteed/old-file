@@ -20,6 +20,7 @@ const BUNDLE_FILES = [
   'server/utils/release.js',
   'scripts/sync-coolify-backup-monitor.cjs',
   'server/services/coolifyBackupEvidence.js',
+  'server/services/restoreVerificationProfiles.js',
   'server/scripts/export-coolify-backup-evidence.sql',
 ];
 
