@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
-const { validateApplicationUuid } = require('./provision-release-metadata.cjs');
+const { validateApplicationUuid, validateRuntime } = require('./provision-release-metadata.cjs');
 
 const USER_HOME = '/Users/oxsteed';
 const SOURCE_ROOT = '/Users/oxsteed/Documents/GitHub/6';
@@ -17,6 +17,7 @@ const NODE_PATHS = ['/usr/local/bin/node', '/opt/homebrew/bin/node'];
 const BUNDLE_FILES = [
   'scripts/reconcile-coolify-host.cjs',
   'scripts/provision-release-metadata.cjs',
+  'scripts/reconcile-rejected-web-candidates.cjs',
   'server/utils/release.js',
   'scripts/sync-coolify-backup-monitor.cjs',
   'server/services/coolifyBackupEvidence.js',
@@ -36,14 +37,21 @@ function installPaths(applicationUuid) {
     stdoutPath: `${installRoot}/reconciliation.out.log`, stderrPath: `${installRoot}/reconciliation.err.log` };
 }
 
-function createInstallPlan({ applicationUuid, nodePath = NODE_PATHS[0], fsImpl = fs } = {}) {
+function createInstallPlan({ applicationUuid, runtime = 'compose', backgroundApplicationUuid, nodePath = NODE_PATHS[0], fsImpl = fs } = {}) {
   if (path.resolve(__dirname, '..') !== SOURCE_ROOT || !NODE_PATHS.includes(nodePath)) {
     throw new Error('Use the reviewed checkout and an allowlisted absolute Node path.');
   }
   const paths = installPaths(applicationUuid);
+  validateRuntime(runtime);
+  if (runtime === 'web') {
+    validateApplicationUuid(backgroundApplicationUuid);
+    if (backgroundApplicationUuid === applicationUuid) throw new Error('Web fallback must identify the existing background resource.');
+  }
+  const intervalSeconds = runtime === 'web' ? 5 : 300;
   const substitutions = { LABEL: paths.label, NODE: nodePath,
     SCRIPT: `${paths.installRoot}/scripts/reconcile-coolify-host.cjs`, APPLICATION_UUID: applicationUuid,
-    INSTALL_ROOT: paths.installRoot, STDOUT: paths.stdoutPath, STDERR: paths.stderrPath };
+    INSTALL_ROOT: paths.installRoot, STDOUT: paths.stdoutPath, STDERR: paths.stderrPath, RUNTIME: runtime,
+    INTERVAL: String(intervalSeconds), BACKGROUND_APPLICATION: backgroundApplicationUuid || '' };
   const template = fsImpl.readFileSync(`${SOURCE_ROOT}/scripts/com.oxsteed.host-reconciliation.plist`, 'utf8');
   const plist = template.replace(/__([A-Z_]+)__/g, (_, key) => {
     if (!Object.hasOwn(substitutions, key)) throw new Error('Unknown installer template field.');
@@ -54,7 +62,7 @@ function createInstallPlan({ applicationUuid, nodePath = NODE_PATHS[0], fsImpl =
     contents: fsImpl.readFileSync(`${SOURCE_ROOT}/${relative}`, 'utf8'),
   }));
   files.push({ destination: paths.plistPath, contents: plist });
-  return { applicationUuid, nodePath, ...paths, intervalSeconds: 300, files };
+  return { applicationUuid, runtime, backgroundApplicationUuid, nodePath, ...paths, intervalSeconds, files };
 }
 
 function assertNoSymlinks(target, fsImpl) {
@@ -76,9 +84,9 @@ function assertNoSymlinks(target, fsImpl) {
   }
 }
 
-function installReconciler({ applicationUuid, nodePath = NODE_PATHS[0], apply = false,
+function installReconciler({ applicationUuid, runtime = 'compose', backgroundApplicationUuid, nodePath = NODE_PATHS[0], apply = false,
   fsImpl = fs, run = spawnSync, uid = process.getuid(), userHome = os.homedir() } = {}) {
-  const plan = createInstallPlan({ applicationUuid, nodePath, fsImpl });
+  const plan = createInstallPlan({ applicationUuid, runtime, backgroundApplicationUuid, nodePath, fsImpl });
   if (!apply) return { ...plan, applied: false };
   if (userHome !== USER_HOME || !Number.isInteger(uid) || uid <= 0 || fsImpl.statSync(USER_HOME).uid !== uid) {
     throw new Error('Install only as the owner of the fixed user home, never as root.');
@@ -115,8 +123,8 @@ function installReconciler({ applicationUuid, nodePath = NODE_PATHS[0], apply = 
     if (loaded.error || loaded.status !== 0) throw new Error('LaunchAgent registration failed; reviewed files were preserved.');
     registered = true;
   }
-  return { applicationUuid, label: plan.label, plistPath: plan.plistPath, installRoot: plan.installRoot,
-    intervalSeconds: 300, applied: true, registered };
+  return { applicationUuid, runtime, label: plan.label, plistPath: plan.plistPath, installRoot: plan.installRoot,
+    intervalSeconds: plan.intervalSeconds, applied: true, registered };
 }
 
 module.exports = { createInstallPlan, installReconciler, installPaths, assertNoSymlinks, BUNDLE_FILES, USER_HOME, SOURCE_ROOT };
@@ -124,11 +132,18 @@ module.exports = { createInstallPlan, installReconciler, installPaths, assertNoS
 if (require.main === module) {
   const [mode, flag, applicationUuid, ...rest] = process.argv.slice(2);
   try {
-    if (!['--plan', '--apply'].includes(mode) || flag !== '--application' ||
-        !(rest.length === 0 || rest.length === 2 && rest[0] === '--node-path')) {
-      throw new Error('Usage: node scripts/install-coolify-host-reconciler.cjs --plan|--apply --application <uuid> [--node-path /usr/local/bin/node|/opt/homebrew/bin/node]');
+    const options = {};
+    for (let i = 0; i < rest.length; i += 2) {
+      const key = rest[i] === '--runtime' ? 'runtime' : rest[i] === '--node-path' ? 'nodePath'
+        : rest[i] === '--background-application' ? 'backgroundApplicationUuid' : null;
+      if (!key || !rest[i + 1] || options[key]) throw new Error('Invalid installer options');
+      options[key] = rest[i + 1];
     }
-    const result = installReconciler({ applicationUuid, nodePath: rest[1], apply: mode === '--apply' });
+    if (!['--plan', '--apply'].includes(mode) || flag !== '--application' ||
+        rest.length % 2 !== 0) {
+      throw new Error('Usage: node scripts/install-coolify-host-reconciler.cjs --plan|--apply --application <uuid> [--node-path /usr/local/bin/node|/opt/homebrew/bin/node] [--runtime compose|web]');
+    }
+    const result = installReconciler({ applicationUuid, ...options, apply: mode === '--apply' });
     // Output destinations and generated public configuration only, never
     // copied backup evidence/source contents or process environments.
     console.log(JSON.stringify({ ...result, files: result.files?.map(({ source, destination }) => ({ source, destination })),

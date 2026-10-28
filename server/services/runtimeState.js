@@ -4,6 +4,7 @@ const state = {
   acceptingTraffic: false,
   realtimeReady: false,
   workersReady: false,
+  workerMode: 'combined',
   shuttingDown: false,
   startedAt: null,
 };
@@ -21,6 +22,7 @@ function reset() {
   state.acceptingTraffic = false;
   state.realtimeReady = false;
   state.workersReady = false;
+  state.workerMode = 'combined';
   state.shuttingDown = false;
   state.startedAt = null;
 }

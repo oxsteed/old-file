@@ -315,6 +315,21 @@ describe('shared realtime server', () => {
     })).toThrow('already been initialized');
   });
 
+  test('shutdown disconnects only local sockets on every namespace', async () => {
+    const display = await connect(`${baseUrl}/restaurant-display`);
+    clients.push(display);
+    const disconnected = once(display, 'disconnect');
+    const adapters = Object.values(realtime.namespaces).map(namespace => jest.spyOn(namespace.adapter, 'disconnectSockets'));
+    const clusterDisconnect = jest.spyOn(realtime.io, 'disconnectSockets');
+    await realtime.close();
+    await disconnected;
+    expect(clusterDisconnect).not.toHaveBeenCalled();
+    for (const adapter of adapters) {
+      expect(adapter).toHaveBeenCalledWith(expect.objectContaining({ flags: expect.objectContaining({ local: true }) }), true);
+    }
+    expect(display.connected).toBe(false);
+  });
+
   test('refreshes a connected socket role before sensitive events', async () => {
     pool.query.mockImplementation(async (sql) => {
       if (sql.includes('FROM users')) return { rows: [{ is_active: true, role: 'customer' }] };

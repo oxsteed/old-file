@@ -143,7 +143,7 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
       creditRail: { ok: true, enabled: false, requiresSharedRedis: false },
       statementArtifacts: statementArtifactReadiness(),
       realtime: { ok: runtime.realtimeReady },
-      workers: { ok: runtime.workersReady },
+      workers: { ok: runtime.workersReady, mode: runtime.workerMode },
       traffic: { ok: includeTrafficState ? runtime.acceptingTraffic : true },
       shutdown: { ok: !runtime.shuttingDown },
     },

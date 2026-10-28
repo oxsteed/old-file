@@ -3,7 +3,8 @@
 const logger = require('../utils/logger');
 const runtimeState = require('../services/runtimeState');
 const { checkReadiness } = require('../services/readinessService');
-const { BackgroundWorkers } = require('./backgroundWorkers');
+const { runtimeRole } = require('../utils/runtimeRole');
+const { setTimeout: delay } = require('node:timers/promises');
 
 function closeHttpServer(server) {
   if (!server.listening) return Promise.resolve();
@@ -19,7 +20,7 @@ async function closeRedis(redis) {
 }
 
 class ApplicationRuntime {
-  constructor({ httpServer, realtime, pool, redis, log = logger, workers } = {}) {
+  constructor({ httpServer, realtime, pool, redis, log = logger, workers, drain } = {}) {
     if (!httpServer || !realtime || !pool) {
       throw new TypeError('ApplicationRuntime requires httpServer, realtime, and pool');
     }
@@ -28,12 +29,28 @@ class ApplicationRuntime {
     this.pool = pool;
     this.redis = redis;
     this.log = log;
-    this.workers = workers || new BackgroundWorkers({ log });
+    this.role = runtimeRole();
+    // Web routing checks /ready every second. Keep existing HTTP requests and
+    // connections alive while the proxy withdraws this instance from routing.
+    this.drain = drain || (() => this.role === 'web' ? delay(5000) : Promise.resolve());
+    // Do not import the job registry into a web-only replacement. Imported
+    // job modules must not accidentally register consumers before prepare().
+    this.workers = workers || (this.role === 'web'
+      ? new (require('./delegatedWorkers').DelegatedWorkers)()
+      : new (require('./backgroundWorkers').BackgroundWorkers)({ log }));
     this.shutdownPromise = null;
-    runtimeState.update({ realtimeReady: true });
+    runtimeState.update({ realtimeReady: typeof realtime.ready !== 'function' });
   }
 
   async prepare() {
+    if (this.role === 'web' && !process.env.REDIS_URL) {
+      throw new Error('Web replacements require shared Redis for cross-process realtime and session coordination.');
+    }
+    if (typeof this.realtime.ready === 'function') {
+      const ready = await this.realtime.ready();
+      runtimeState.update({ realtimeReady: ready === true });
+      if (!ready) throw new Error('Realtime coordination is not ready; application startup refused.');
+    }
     const dependencies = await checkReadiness({
       pool: this.pool,
       redis: this.redis,
@@ -48,8 +65,8 @@ class ApplicationRuntime {
       throw new Error(`Application dependencies are not ready: ${JSON.stringify(dependencies.checks)}`);
     }
 
-    this.workers.start();
-    runtimeState.update({ workersReady: true });
+    await this.workers.start();
+    runtimeState.update({ workersReady: true, workerMode: this.role === 'web' ? 'delegated' : 'combined' });
   }
 
   markListening() {
@@ -66,6 +83,7 @@ class ApplicationRuntime {
       runtimeState.update({ acceptingTraffic: false, workersReady: false, shuttingDown: true });
       this.log.info('Graceful shutdown started', { signal });
 
+      if (this.httpServer.listening) await this.drain();
       await this.workers.stop();
       await this.realtime.close();
       runtimeState.update({ realtimeReady: false });

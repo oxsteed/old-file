@@ -11,6 +11,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { resolveSocketAccessToken } = require('../utils/accessCookie');
+const runtimeState = require('../services/runtimeState');
 
 const REALTIME_INSTANCE = Symbol.for('oxsteed.realtime.instance');
 
@@ -30,6 +31,8 @@ function attachSharedAdapter(io, { supportService, log }) {
     return null;
   }
   let createAdapter;
+  runtimeState.update({ realtimeReady: false });
+  supportService.setRealtimeHealth?.(false);
   try {
     ({ createAdapter } = require('@socket.io/redis-adapter'));
   } catch (err) {
@@ -46,28 +49,41 @@ function attachSharedAdapter(io, { supportService, log }) {
   };
   const pubClient = new Redis(process.env.REDIS_URL, clientOptions);
   const subClient = new Redis(process.env.REDIS_URL, clientOptions);
+  let attached = false;
+  let closed = false;
+  let healthy = false;
 
   const markUnhealthy = (reason) => {
     log.error('Realtime: adapter unhealthy, delivery will be refused (fail-closed)', { reason });
     supportService.setRealtimeHealth?.(false);
+    healthy = false;
+    runtimeState.update({ realtimeReady: false });
   };
-  const markHealthy = () => supportService.setRealtimeHealth?.(true);
+  const markHealthy = () => {
+    healthy = !closed && attached && pubClient.status === 'ready' && subClient.status === 'ready';
+    supportService.setRealtimeHealth?.(healthy);
+    runtimeState.update({ realtimeReady: healthy });
+  };
 
   for (const client of [pubClient, subClient]) {
     client.on('error', (err) => markUnhealthy(err.message));
     client.on('reconnecting', () => markUnhealthy('reconnecting'));
+    client.on('end', () => markUnhealthy('closed'));
     client.on('ready', () => markHealthy());
   }
 
-  Promise.all([pubClient.ping(), subClient.ping()])
+  const ready = Promise.all([pubClient.ping(), subClient.ping()])
     .then(() => {
+      if (closed) return false;
       io.adapter(createAdapter(pubClient, subClient));
+      attached = true;
       log.info('Realtime: shared Redis adapter attached (cross-process delivery enabled)');
       markHealthy();
+      return healthy;
     })
-    .catch((err) => markUnhealthy(`attach failed: ${err.message}`));
+    .catch((err) => { markUnhealthy(`attach failed: ${err.message}`); return false; });
 
-  return { pubClient, subClient };
+  return { pubClient, subClient, ready: async () => { await ready; return healthy; }, stop: () => { closed = true; healthy = false; } };
 }
 
 function createRealtimeServer({
@@ -188,15 +204,21 @@ function createRealtimeServer({
     return {
       io,
       namespaces: { chat, support, restaurantDisplay, media },
+      async ready() {
+        return !closed && (!process.env.REDIS_URL || (adapterClients ? await adapterClients.ready() : false));
+      },
       async close() {
         if (closed) return;
         closed = true;
+        adapterClients?.stop();
+        runtimeState.update({ realtimeReady: false });
         supportService.shutdown?.();
         socketService.shutdown?.();
-        // Disconnect sockets BEFORE quitting Redis: disconnectSockets publishes
-        // to other nodes via the Redis adapter, which fails with "Connection is
-        // closed" if the pub/sub clients are already quit.
-        try { io.disconnectSockets(true); } catch (err) { log.warn('Realtime: disconnectSockets failed', { error: err.message }); }
+        // Drain only this process. A cluster-wide disconnect would kick users
+        // already connected to the healthy replacement during a rolling update.
+        for (const namespace of [chat, support, restaurantDisplay, media]) {
+          try { namespace.local.disconnectSockets(true); } catch (err) { log.warn('Realtime: local disconnect failed', { error: err.message }); }
+        }
         await new Promise((resolve) => io.close(resolve));
         for (const client of [adapterClients?.pubClient, adapterClients?.subClient]) {
           try { await client?.quit(); } catch (err) { log.warn('Realtime: adapter client quit failed', { error: err.message }); }
@@ -212,4 +234,4 @@ function createRealtimeServer({
   }
 }
 
-module.exports = { createRealtimeServer, REALTIME_INSTANCE };
+module.exports = { createRealtimeServer, attachSharedAdapter, REALTIME_INSTANCE };

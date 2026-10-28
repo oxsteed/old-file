@@ -145,6 +145,26 @@ test('a pinned candidate still rejects a different inspected container or deploy
   assert.ok(good.calls.every(({args}) => args[0] !== 'run'));
 });
 
+test('web discovery requires explicit mode, resource marker and exact generated service identity', () => {
+  const name = `${applicationUuid}-20261028T210700`;
+  const web = fixture({ service: name, name: `/${name}`, runtimeRole: 'web' });
+  assert.throws(() => findApplicationContainer({ applicationUuid, docker: web.docker }), /identity/);
+  assert.equal(findApplicationContainer({ applicationUuid, runtime: 'web', docker: web.docker }).name, name);
+  assert.ok(web.calls.at(-2).args.includes('label=com.oxsteed.runtime=web'));
+  for (const overrides of [{ runtimeRole: '' }, { runtimeRole: 'combined' }, { service: 'postgres' },
+    { service: 'other-20261028T210700' }, { name: '/another-name' }]) {
+    const bad = fixture({ service: name, name: `/${name}`, runtimeRole: 'web', ...overrides });
+    assert.throws(() => findApplicationContainer({ applicationUuid, runtime: 'web', docker: bad.docker }), /identity/);
+  }
+  assert.throws(() => findApplicationContainer({ applicationUuid, runtime: 'unknown', docker: web.docker }), /Runtime/);
+});
+
+test('Dockerfile image tags retain commit provenance without accepting another repository', () => {
+  const webImage = { ...image, repoDigests: [`${applicationUuid}@${digest}`] };
+  assert.equal(observeMetadata({ ...container, imageReference: `${applicationUuid}:${sha}` }, webImage, applicationUuid).metadata.gitSha, sha);
+  assert.equal(observeMetadata({ ...container, imageReference: `other:${sha}` }, webImage, applicationUuid).metadata.gitSha, null);
+});
+
 test('ambiguous containers or missing/writable/foreign volumes fail before writes', () => {
   assert.throws(() => provisionReleaseMetadata({ applicationUuid, docker: () => 'abc def' }));
   for (const mounts of [[], [{ ...container.mounts[0], RW: true }], [{ ...container.mounts[0], Name: 'uploads' }],

@@ -10,14 +10,17 @@
     <string>--apply</string>
     <string>--application</string>
     <string>__APPLICATION_UUID__</string>
+    <string>--runtime</string>
+    <string>__RUNTIME__</string>
   </array>
-  <key>StartInterval</key><integer>300</integer>
+  <key>StartInterval</key><integer>__INTERVAL__</integer>
   <key>RunAtLoad</key><true/>
   <key>ProcessType</key><string>Background</string>
   <key>WorkingDirectory</key><string>__INSTALL_ROOT__</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>DOCKER_CONTEXT</key><string>colima</string>
+    <key>OXSTEED_BACKGROUND_APPLICATION</key><string>__BACKGROUND_APPLICATION__</string>
     <key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
   <key>StandardOutPath</key><string>__STDOUT__</string>
