@@ -23,6 +23,7 @@ function fixture({ provisionError = false, backupError = false, replacement = fa
   const calls = [];
   let inspectCount = 0;
   return { calls, options: { applicationUuid, apply: true,
+    cleanup: () => ({ removed: [], preserved: [] }),
     docker: (args) => {
       calls.push(['docker', args]);
       if (args[0] === 'ps') return 'a'.repeat(12);
@@ -62,6 +63,20 @@ test('check mode does not apply release records or invoke backup delivery', () =
   assert.equal(report.applied, false);
   assert.equal(f.calls.find(([kind]) => kind === 'provision')[1].checkOnly, true);
   assert.ok(f.calls.every(([kind]) => kind !== 'backup'));
+});
+
+test('web mode preserves pinned provenance and delegates backup evidence to the background resource', () => {
+  const f = fixture();
+  const service = `${applicationUuid}-20261028T210700`;
+  const docker = args => args[0] === 'inspect'
+    ? JSON.stringify({ ...container, service, name: `/${service}`, runtimeRole: 'web' }) : f.options.docker(args);
+  const report = reconcileHost({ ...f.options, runtime: 'web', docker });
+  assert.equal(report.ok, true);
+  assert.equal(report.runtime, 'web');
+  assert.equal(f.calls.find(([kind]) => kind === 'provision')[1].runtime, 'web');
+  assert.equal(f.calls.find(([kind]) => kind === 'backup'), undefined);
+  assert.equal(report.backup.skipped, true);
+  assert.ok(f.calls.filter(([kind]) => kind === 'docker').every(([, args]) => args.includes('label=com.oxsteed.runtime=web')));
 });
 
 test('metadata failure still attempts backup synchronization and redacts errors', () => {

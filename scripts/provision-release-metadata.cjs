@@ -13,7 +13,7 @@ const { gitSha, imageDigest, deploymentId } = require('../server/utils/release')
 
 const DIRECTORY = '/app/server/runtime/release-metadata';
 const VOLUME = 'oxsteed-release-metadata';
-const CONTAINER_FORMAT = '{"containerId":{{json .Id}},"name":{{json .Name}},"running":{{json .State.Running}},"service":{{json (index .Config.Labels "com.docker.compose.service")}},"imageId":{{json .Image}},"imageReference":{{json .Config.Image}},"hostname":{{json .Config.Hostname}},"project":{{json (index .Config.Labels "com.docker.compose.project")}},"configFiles":{{json (index .Config.Labels "com.docker.compose.project.config_files")}},"mounts":{{json .Mounts}}}';
+const CONTAINER_FORMAT = '{"containerId":{{json .Id}},"name":{{json .Name}},"running":{{json .State.Running}},"service":{{json (index .Config.Labels "com.docker.compose.service")}},"runtimeRole":{{json (index .Config.Labels "com.oxsteed.runtime")}},"imageId":{{json .Image}},"imageReference":{{json .Config.Image}},"hostname":{{json .Config.Hostname}},"project":{{json (index .Config.Labels "com.docker.compose.project")}},"configFiles":{{json (index .Config.Labels "com.docker.compose.project.config_files")}},"mounts":{{json .Mounts}}}';
 const IMAGE_FORMAT = '{"imageId":{{json .Id}},"repoDigests":{{json .RepoDigests}},"revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}}}';
 
 function observeMetadata(container, image, applicationUuid, expected = {}) {
@@ -30,7 +30,7 @@ function observeMetadata(container, image, applicationUuid, expected = {}) {
   const reference = String(container.imageReference || '');
   const tag = reference.slice(reference.lastIndexOf(':') + 1);
   // Coolify's local Compose image name is <application-uuid>_<service>:<commit>.
-  const taggedSha = reference.startsWith(`${applicationUuid}_`) ? gitSha(tag) : null;
+  const taggedSha = (reference.startsWith(`${applicationUuid}_`) || reference.startsWith(`${applicationUuid}:`)) ? gitSha(tag) : null;
   const revision = gitSha(image.revision);
   if (revision && taggedSha && revision !== taggedSha) throw new Error('Image revision and Coolify image tag disagree.');
   const sha = revision || taggedSha;
@@ -82,12 +82,19 @@ function validateApplicationUuid(applicationUuid) {
   return applicationUuid;
 }
 
-function findApplicationContainer({ applicationUuid, docker = runDocker, expectedContainerId = null } = {}) {
+function validateRuntime(runtime) {
+  if (!['compose', 'web'].includes(runtime)) throw new Error('Runtime must be compose or web.');
+  return runtime;
+}
+
+function findApplicationContainer({ applicationUuid, docker = runDocker, expectedContainerId = null, runtime = 'compose' } = {}) {
   validateApplicationUuid(applicationUuid);
+  validateRuntime(runtime);
   if (expectedContainerId && !/^[a-f0-9]{64}$/.test(expectedContainerId)) {
     throw new Error('Pin an immutable full container ID, not a name or short prefix.');
   }
-  const runningIds = docker(['ps', '--filter', `label=com.docker.compose.project=${applicationUuid}`, '--filter', 'label=com.docker.compose.service=app', '--format', '{{.ID}}'])
+  const roleFilter = runtime === 'web' ? 'label=com.oxsteed.runtime=web' : 'label=com.docker.compose.service=app';
+  const runningIds = docker(['ps', '--filter', `label=com.docker.compose.project=${applicationUuid}`, '--filter', roleFilter, '--format', '{{.ID}}'])
     .split(/\s+/).filter(Boolean);
   if (runningIds.some(id => !/^[a-f0-9]{12,64}$/.test(id))) throw new Error('Docker app identifiers could not be verified.');
   const ids = expectedContainerId ? runningIds.filter(id => expectedContainerId.startsWith(id)) : runningIds;
@@ -96,7 +103,10 @@ function findApplicationContainer({ applicationUuid, docker = runDocker, expecte
     throw new Error('Expected exactly one running Coolify app container; provisioning stopped.');
   }
   const container = JSON.parse(docker(['inspect', ids[0], '--format', CONTAINER_FORMAT]));
-  if (container.project !== applicationUuid || container.service !== 'app' || container.running !== true ||
+  const serviceMatches = runtime === 'compose' ? container.service === 'app'
+    : container.runtimeRole === 'web' && container.name === `/${container.service}`
+      && new RegExp(`^${applicationUuid}-[0-9]{8}T[0-9]{6}$`).test(container.service || '');
+  if (container.project !== applicationUuid || !serviceMatches || container.running !== true ||
       !/^[a-f0-9]{64}$/.test(container.containerId || '') || !container.containerId.startsWith(ids[0]) ||
       !/^\/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(container.name || '')) {
     throw new Error('Running app container identity could not be verified.');
@@ -108,8 +118,8 @@ function findApplicationContainer({ applicationUuid, docker = runDocker, expecte
 }
 
 function provisionReleaseMetadata({ applicationUuid, expected = {}, checkOnly = false, docker = runDocker,
-  expectedContainerId = null } = {}) {
-  const container = findApplicationContainer({ applicationUuid, docker, expectedContainerId });
+  expectedContainerId = null, runtime = 'compose' } = {}) {
+  const container = findApplicationContainer({ applicationUuid, docker, expectedContainerId, runtime });
   if (expectedContainerId && container.containerId !== expectedContainerId) {
     throw new Error('The app container changed during reconciliation; retry the next cycle.');
   }
@@ -137,15 +147,15 @@ function provisionReleaseMetadata({ applicationUuid, expected = {}, checkOnly = 
     missing: ['gitSha', 'imageDigest', 'deploymentId'].filter((key) => !observed.metadata[key]) };
 }
 
-module.exports = { observeMetadata, provisionReleaseMetadata, findApplicationContainer, validateApplicationUuid, runDocker };
+module.exports = { observeMetadata, provisionReleaseMetadata, findApplicationContainer, validateApplicationUuid, validateRuntime, runDocker };
 
 if (require.main === module) {
   const [mode, flag, applicationUuid, ...extra] = process.argv.slice(2);
   try {
-    if (!['--check', '--provision'].includes(mode) || flag !== '--application' || extra.length) {
-      throw new Error('Usage: node scripts/provision-release-metadata.cjs --check|--provision --application <uuid>');
+    if (!['--check', '--provision'].includes(mode) || flag !== '--application' || !(extra.length === 0 || extra.length === 2 && extra[0] === '--runtime')) {
+      throw new Error('Usage: node scripts/provision-release-metadata.cjs --check|--provision --application <uuid> [--runtime compose|web]');
     }
-    console.log(JSON.stringify(provisionReleaseMetadata({ applicationUuid, checkOnly: mode === '--check' }), null, 2));
+    console.log(JSON.stringify(provisionReleaseMetadata({ applicationUuid, runtime: extra[1] || 'compose', checkOnly: mode === '--check' }), null, 2));
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

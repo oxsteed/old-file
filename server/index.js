@@ -938,6 +938,7 @@ app.use(errorHandler);
 
 // ── APPLICATION LIFECYCLE ─────────────────────────────────────
 const { ApplicationRuntime } = require('./bootstrap/applicationRuntime');
+const { runsBackgroundWorkers } = require('./utils/runtimeRole');
 const runtime = new ApplicationRuntime({ httpServer, realtime, pool, redis });
 
 async function listen() {
@@ -955,9 +956,11 @@ async function startServer() {
   await runtime.prepare();
   // Dependencies/migrations are ready before the durable export worker starts.
   // BackgroundWorkers owns its stop handle before pool/Redis teardown.
-  const statementExportJobs = require('./services/statementExportJobService');
-  statementExportJobs.start();
-  runtime.workers.handles.push({stop:()=>statementExportJobs.stop()});
+  if (runsBackgroundWorkers()) {
+    const statementExportJobs = require('./services/statementExportJobService');
+    statementExportJobs.start();
+    runtime.workers.handles.push({stop:()=>statementExportJobs.stop()});
+  }
   try {
     await reloadFeeConfig();
   } catch (err) {
@@ -973,10 +976,13 @@ async function startServer() {
     logger.error('Credit limit rules failed to load; Credit money paths fail closed until the refresh succeeds', { message: err.message });
     try { require('./services/creditCompliance/limitRules').startLimitRuleRefresh(logger); } catch { /* module load failure already logged */ }
   }
+  runtime.workers.handles.push({stop:()=>require('./services/creditCompliance/limitRules').stopLimitRuleRefresh()});
   await listen();
   runtime.markListening();
   // Preserve post-listen startup, with every stop owned by the shared runtime.
-  require('./bootstrap/auxiliaryWorkers').startAuxiliaryWorkers({ workers: runtime.workers, log: logger });
+  if (runsBackgroundWorkers()) {
+    require('./bootstrap/auxiliaryWorkers').startAuxiliaryWorkers({ workers: runtime.workers, log: logger });
+  }
   logger.info(`OxSteed v2 server running on port ${PORT}`, {
     env: process.env.NODE_ENV || 'development',
     realtimeNamespaces: ['/chat', '/support', '/restaurant-display'],

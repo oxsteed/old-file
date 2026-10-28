@@ -158,3 +158,86 @@ deployment is not proven. A build-fetch failure retaining the old release does
 not prove safe candidate startup failure or uninterrupted promotion. Worker
 isolation/handoff and routing rehearsals remain required before requirement 1
 can be accepted.
+
+## Web isolation and proxy drain prerequisites - 2026-10-28
+
+`OXSTEED_RUNTIME_ROLE=web` now selects a web runtime that never imports the
+background job registry and skips export and auxiliary consumers. The default
+remains `combined`. Web startup requires shared Redis and a healthy, explicitly
+configured private `BACKGROUND_READINESS_URL` such as `http://app:5000/ready`.
+It refuses liveness-only responses, another delegated web process, missing
+dependencies, invalid roles, and unbounded observation settings. Readiness
+reports `workers.mode=delegated`; the existing background process stays running.
+Per-process Credit limit cache refresh remains active and has an owned stop.
+
+Realtime startup now waits for both adapter connections and shared adapter
+installation. Losing either connection withdraws realtime readiness. Shutdown
+disconnects local sockets on each namespace rather than broadcasting a cluster
+disconnect that would also remove replacement connections. A web process
+withdraws readiness and waits five seconds before closing HTTP/realtime. The
+web proxy must actively check `/ready` every second with a one-second timeout;
+Docker discovery alone left a sampled request stuck during old-container removal.
+Those labels are a deployment prerequisite, not applied production settings.
+
+Host metadata discovery adds an explicit `--runtime web` option. It requires
+the exact resource project, generated service/container identity, and
+`com.oxsteed.runtime=web` marker. It retains ambiguity rejection, immutable
+container pinning and the dedicated read-only metadata volume checks. The new
+resource can have a separate host reconciler; the installed background resource
+reconciler is unchanged. The installer still accepts only the fixed reviewed
+checkout and does not overwrite existing bundles.
+
+Local checks: eight lifecycle/readiness/realtime suites passed 46 tests. The
+real entry-point check additionally passed, proving that web HTTP startup starts
+no cron, export or auxiliary consumers. Its synthetic empty Credit-rule result
+logs the expected fail-closed error. Deployment/provenance/reconciler Node tests
+passed 33 tests before the additional web-backup propagation regression.
+
+`scripts/rehearse-coolify-continuity.cjs` creates a synthetic Coolify app on a
+new network, without copying environments, databases, uploads or volumes. It
+samples user traffic through the installed proxy and checks both queue results
+and remaining container count. A preliminary native rolling run passed slow,
+failed and cancelled cases (310 requests), but a repeat exposed one request
+timeout during promotion. With readiness withdrawal and proxy health checks,
+slow promotion passed 105 requests with no failures. A subsequent run passed
+110 slow-promotion and 180 failed-candidate requests, with exactly one remaining
+running release after cleanup. Cancellation cleanup is still being checked;
+these are prerequisite/rehearsal results, not production acceptance. Rejected
+candidate removal must be verified independently of terminal queue status.
+
+The cancellation check reproduced a leftover startup container in Coolify
+4.5.3. `reconcile-rejected-web-candidates.cjs` now follows the controller's
+failed/cancelled receipt and removes only its pinned web candidate. It verifies
+the project, runtime marker, generated name, immutable image/container,
+deployment path and fresh rejection decision. Removal requires a healthy
+finished web release or the explicitly configured background fallback sharing
+the candidate's enabled public proxy rule. Healthy releases with a later
+bookkeeping failure and sole candidates without a routable fallback remain
+untouched. Concurrent controller removal is accepted only after verified
+absence. No deployment is initiated by this guard.
+
+New web host installations run provenance/rejection reconciliation every five
+seconds and leave shared backup evidence to the existing five-minute background
+job. Existing installations are not overwritten. Installer tests now simulate
+the fixed reviewed location with source reads mapped to the worktree; apply
+tests still fake filesystem/launchctl operations. A separate test proves the
+actual installer continues to reject an unreviewed worktree location. All
+portable deployment/installer/provenance tests now run in CI.
+
+The guard rehearsal passed slow replacement (100 requests), failed readiness
+(180), and cancelled startup (50): zero failed traffic samples, exactly one
+running release after each case, and successful fixture/network cleanup. An
+additional repeat checks the final public-route fallback guard. The current
+local deployment suite passes 53 Node tests; server lifecycle/realtime tests
+and the entry check pass 47 tests across nine suites. These remain separate
+from remote CI and actual production transition evidence.
+
+The source Compose resource's configured destination network is `coolify`,
+while the actual app also joins `twsam5aiyvm0w1l2jqxx9ih3` and its application
+network. A future web resource must use the inspected shared app/database/scanner
+network, not blindly reuse the source destination setting. Production still
+serves the existing combined container. An inactive private web resource is
+now prepared; public routing, the running production topology, automatic
+deployment ownership and underlying production storage remain unchanged.
+See `reviews/web-continuity-2026-10-28.md` for the final rehearsal, the CI update
+navigation failure and repair, and the exact remaining promotion checks.

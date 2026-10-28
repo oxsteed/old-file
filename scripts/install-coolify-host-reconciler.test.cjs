@@ -6,10 +6,30 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const test = require('node:test');
-const { createInstallPlan, installReconciler, installPaths, BUNDLE_FILES, USER_HOME, SOURCE_ROOT } = require('./install-coolify-host-reconciler.cjs');
+const { createRequire, wrap } = require('node:module');
+const vm = require('node:vm');
+const checkoutRoot = path.resolve(__dirname, '..');
+const reviewedRoot = '/Users/oxsteed/Documents/GitHub/6';
+const sourceFile = path.join(__dirname, 'install-coolify-host-reconciler.cjs');
+// Simulate the fixed reviewed location in this unit boundary. Source reads map
+// to this checkout; all apply tests still use fake filesystem/launchctl APIs.
+// Production code keeps its fixed-path guard, including in a managed worktree.
+const sourceFs = Object.create(fs);
+sourceFs.readFileSync = (file, ...args) => fs.readFileSync(typeof file === 'string' && file.startsWith(`${reviewedRoot}/`)
+  ? path.join(checkoutRoot, path.relative(reviewedRoot, file)) : file, ...args);
+const requireFromSource = createRequire(sourceFile);
+const subject = { exports: {} };
+vm.runInThisContext(wrap(fs.readFileSync(sourceFile, 'utf8')), { filename: sourceFile })(
+  subject.exports, name => name === 'node:fs' ? sourceFs : requireFromSource(name), subject,
+  `${reviewedRoot}/scripts/install-coolify-host-reconciler.cjs`, `${reviewedRoot}/scripts`);
+const { createInstallPlan, installReconciler, installPaths, BUNDLE_FILES, USER_HOME, SOURCE_ROOT } = subject.exports;
 
 const applicationUuid = 'app123';
 const absent = () => Object.assign(new Error('missing'), { code: 'ENOENT' });
+
+test('the actual installer still refuses an unreviewed worktree location', { skip: checkoutRoot === reviewedRoot }, () => {
+  assert.throws(() => require('./install-coolify-host-reconciler.cjs').createInstallPlan({ applicationUuid }), /reviewed checkout/);
+});
 
 function fixture({ loaded = false, symlink = null, conflict = null, lintFailure = false } = {}) {
   const files = new Map();
@@ -18,7 +38,7 @@ function fixture({ loaded = false, symlink = null, conflict = null, lintFailure 
   const directories = new Set();
   const fsImpl = {
     readFileSync: (file) => {
-      if (file.startsWith(`${SOURCE_ROOT}/`)) return fs.readFileSync(file, 'utf8');
+      if (file.startsWith(`${SOURCE_ROOT}/`)) return sourceFs.readFileSync(file, 'utf8');
       if (!files.has(file)) throw absent();
       return files.get(file);
     },
@@ -28,7 +48,7 @@ function fixture({ loaded = false, symlink = null, conflict = null, lintFailure 
       if (directories.has(file) || file === '/' || file === '/Users' || file === USER_HOME) {
         return { isSymbolicLink: () => false, isDirectory: () => true };
       }
-      if (file.startsWith(SOURCE_ROOT)) return fs.lstatSync(file);
+      if (file.startsWith(SOURCE_ROOT)) return fs.lstatSync(path.join(checkoutRoot, path.relative(SOURCE_ROOT, file)));
       throw absent();
     },
     statSync: () => ({ uid: 501 }),
@@ -69,6 +89,17 @@ test('generated plist passes the native macOS parser', { skip: process.platform 
   const plan = createInstallPlan({ applicationUuid });
   const output = execFileSync('/usr/bin/plutil', ['-lint', '-'], { input: plan.files.at(-1).contents, encoding: 'utf8', timeout: 10000 });
   assert.match(output, /OK/);
+});
+
+test('a new web resource installs an explicit role without changing the Compose default', () => {
+  const f = fixture();
+  const web = createInstallPlan({ ...f.options, runtime: 'web', backgroundApplicationUuid: 'background123' });
+  assert.match(web.files.at(-1).contents, /<string>--runtime<\/string>\s*<string>web<\/string>/);
+  assert.equal(createInstallPlan(f.options).runtime, 'compose');
+  assert.equal(web.intervalSeconds, 5);
+  assert.match(web.files.at(-1).contents, /<string>background123<\/string>/);
+  assert.throws(() => createInstallPlan({ ...f.options, runtime: 'web' }));
+  assert.throws(() => createInstallPlan({ ...f.options, runtime: 'unknown' }));
 });
 
 test('apply copies only the reviewed dependency bundle and registers a new job without restart', () => {
