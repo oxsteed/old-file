@@ -10,11 +10,11 @@ authorization, privacy, deployment-secret, and production-data safeguards.
 
 | # | Improvement and required outcome | Evidence required for completion | Current state / next action |
 | --- | --- | --- | --- |
-| 1 | Deploy without interrupting users: keep the current app serving until its replacement is ready; retain a working release when a candidate fails. | Isolated successful and failed promotions; production transition sampled for HTML, readiness, and representative reads; correct release identity; storage, session, realtime, shutdown, and worker continuity. | In progress. Earlier deploys returned 503. Current Coolify target uses Docker Compose, which lacks application rolling replacement. Inspect persistent mounts, configuration, proxy routing, and worker overlap safety; prepare and rehearse the deployment change before applying it. |
+| 1 | Deploy without interrupting users: keep the current app serving until its replacement is ready; retain a working release when a candidate fails. | Isolated successful and failed promotions; production transition sampled for HTML, readiness, and representative reads; correct release identity; storage, session, realtime, shutdown, and worker continuity. | In progress. Package 5 makes six post-listen workers drain through the shared runtime before dependencies close. Compose still stops the old app before replacement; cron callback ownership, safe worker isolation/handoff, mounted release metadata and candidate routing/rehearsals remain required. |
 | 2 | Smoother navigation: retain usable navigation while route content loads, avoid downloading unrelated screens and large inactive workspace panels, and measure real transitions. | Bundle comparison, cold/warm route timing, delayed-chunk/recovery checks, correct mode/authorization behavior, and representative live navigation. | Partial: `11518817` split dashboard modes and prefetched primary links. The shared loading fallback now keeps navigation available; a held real route chunk was tested. Provider home routes avoid downloading customer discovery. Next: split inactive workspace panels and measure representative cold/warm transitions without competing browser suites. |
 | 3 | Homepage follows the active mode: business activity for owners, work for helpers, discovery/bookings for customers. | Customer, Helper, Business Owner, and supported team-mode browser checks; logged-out discovery remains useful; authorized destinations; five-language parity. | Implemented in package 2: operational home uses the existing mode dashboard behind the existing verification/error boundaries, while customers/visitors retain discovery and customers get a bookings shortcut. Fourteen built-app role/viewport cases pass, including Arabic and active navigation. Await publication and cross-check transient authentication recovery under item 7 before final acceptance. |
 | 4 | Consistent design across Food, Direct, Messages, and business workspaces: headers, spacing, buttons, forms, and loading states. | Shared component/token adoption and desktop/mobile, light/dark, keyboard, and Arabic rendering across all four surfaces. | Partial: restaurant directory alignment shipped in `51f7e04e`; package 2 adds one localized, themed loading state for ordinary routes and preserves immersive operation layouts. Next: audit and consolidate headers/forms/spacing across Direct, Messages, and business workspaces, including main-landmark semantics. |
-| 5 | Clear restaurant discovery: location, opening hours, ordering options, and a useful small-inventory layout without repeated restaurant shelves. | Real-data contract checks, location/filter and empty-state behavior, accurate hours/fulfillment labels, pagination and no-duplicate shelf checks, and live directory verification. | Implemented in package 4: one grid, compact small-result layout, real featured badges, localized server hours and configured public ordering modes. Near me sorts by distance; clearing location retains search/cuisine. Local functional/visual checks pass; publication verification remains before acceptance. |
+| 5 | Clear restaurant discovery: location, opening hours, ordering options, and a useful small-inventory layout without repeated restaurant shelves. | Real-data contract checks, location/filter and empty-state behavior, accurate hours/fulfillment labels, pagination and no-duplicate shelf checks, and live directory verification. | Implemented and live verified in package 4: one grid, compact small-result layout, real featured badges, localized server hours and configured public ordering modes. Near me sorts by distance; clearing location retains search/cuisine. Five-language functional/visual checks and live API/card comparison pass. The CI browser fixture's typeahead/result-request race is corrected; remote recheck is pending. |
 | 6 | Business workspaces lead with today's bookings, unanswered messages, overdue invoices, and required tasks; detailed analytics are secondary. | Ownership/team-permission scenarios, authoritative counts, task destinations, empty/error/loading states, and responsive browser checks. | Not complete. Inspect workspace overview data and existing attention services; retain financial/account/currency separation. |
 | 7 | Reliable sessions and unfinished work: investigate unexpected sign-outs and preserve work during transient outages, reconnects, and updates. | Expired versus transient refresh cases; resume/update/navigation/reload with drafts; account-switch isolation; concurrent-tab behavior; no stale private data or financial replay. | Package 3 fixes temporary bootstrap/refresh failures being treated as sign-out. Unverified sessions retain the destination with a localized retry; verified forms remain mounted. Nine browser checks cover expiry, two tabs, text/photos, stale verification and no financial replay. Next: published recovery checks and remaining cross-tab expiry/account-change races, including the Axios expiration event boundary. |
 | 8 | Less persistent screen clutter: connection, AI support, update notices, and cookie controls do not compete with primary actions. | Online/offline/reconnecting and recovery checks; checkout/dirty-work update deferral; support/cookie/update combinations; mobile keyboard and desktop/RTL clearance; accessible recovery controls. | Package 2 implements critical-work/edited-form/cart deferral, modal/cookie priority, launcher/action-bar clearance, and offline/keyboard launcher suppression. Browser geometry and real draft-update/reconnect checks pass. Await published runtime verification; retain the wider unfinished-work/session audit under item 7. |
@@ -214,7 +214,7 @@ session/account race audit or the remaining eight-part goal.
   three links to that same restaurant, including a Featured shelf and a blank
   history entry. See `reviews/restaurant-discovery-2026-10-28.md` for evidence.
 
-Package 4 remains pending publication verification. Requirements 1, 2, 4, 6,
+Package 4 publication was verified below. Requirements 1, 2, 4, 6,
 and the remaining session/overlay acceptance work remain open; the full goal
 has not been reduced or completed.
 
@@ -233,3 +233,58 @@ has not been reduced or completed.
   `amlSessionHistory.test.js`, and `oxsteedCreditCompliance.test.js`: 3 suites,
   40 tests passed. This is a unit/query-contract check, not a new live financial
   exercise or PostgreSQL integration claim. Full remote CI remains pending.
+
+## Package 4 publication - 2026-10-28
+
+- Pushed the discovery change (`438354c1`) and CI classification repair together
+  at `fb59a317`. Coolify deployment `j3ibtx6ohbq9a0wepzfe7qox` finished at that
+  commit. Public readiness reports ready with all checks passing.
+- Public Chrome loads `/assets/main-CK_F6due.js`, has one main landmark, one
+  compact restaurant card and exactly one link to restaurant 2. The former
+  Featured and blank history duplicates are gone. Card copy reads
+  `Opens at 8:00 AM` and `Takeout · Dine in`, matching the current public API
+  structured hours and configured public modes. A live screenshot was reviewed.
+- Release provenance still needs repair under requirement 1: `/ready` reports
+  `content-8451b87cccd3f9a4` with null Git SHA/image/deployment metadata. The queue
+  commit plus changed live entry/behavior establishes this publication check;
+  it is not a claim that runtime commit provenance is complete.
+- CI `40663239667` failed one client browser assertion: it sampled the last
+  restaurant endpoint request, which can be the unfiltered `limit=10`
+  autocomplete call. The test now inspects `limit=24` result-grid requests and
+  additionally asserts the active cuisine remains visible. The corrected full
+  five-language discovery matrix passes locally. The full remote run stopped
+  before server verification, so the server scan repair is not yet remotely
+  confirmed.
+
+## Package 5 - owned auxiliary worker drains
+
+- Six post-listen workers now use a drainable poller: restaurant/Media
+  transcode, Media cleanup, abandoned recovery, Direct draft cleanup and chat
+  payment-request expiry. Stops cancel future/queued ticks synchronously and
+  await active work; restart is refused during drain. Batch workers stop taking
+  another job after shutdown is requested. Existing enablement, quarantine,
+  scheduling intervals and delayed recovery startup remain in place.
+- `auxiliaryWorkers` registers each stop handle before starting it. Existing
+  `BackgroundWorkers.stop()` invokes all those stops before awaiting them;
+  `ApplicationRuntime` keeps the pool/Redis/realtime resources open until they
+  settle. Partial startup is owned too. Shutdown still has the existing
+  process-level 15-second deadline; this does not establish unlimited graceful
+  completion of long transcodes or safe overlapping worker replicas.
+- Targeted validation: 9 Jest suites passed, 60 tests passed, one real-FFmpeg
+  rendition test excluded from the selected check. Tests cover actual service
+  exports, stop/restart/error/delayed-start behavior, dependency drain ordering,
+  a real sweeper waiting on its storage pass, and existing media/cleanup gates.
+- The excluded rendition test was also run with a temporary copy of the
+  unchanged committed worker. It reproduces the same local static-FFmpeg
+  mismatch (1280x720 versus expected 960x720); temporary files were removed.
+  It remains an explicit local limitation, not a passing test. Default
+  `/usr/bin/ffmpeg` is absent on this Mac; the focused run uses the verified
+  user-local binary. `node --check server/index.js` and `git diff --check` pass.
+- The discovery CI fixture correction is included without changing production
+  filter behavior. Runtime worker topology, production configuration and
+  financial activation controls have not been changed.
+
+Next on requirement 1: finish cron/in-flight and per-process refresh ownership,
+choose and rehearse safe worker/web separation or handoff, repair mounted release
+identity, and test candidate promotion/failure before changing live routing.
+This remains a prerequisite package; uninterrupted deployment is not complete.

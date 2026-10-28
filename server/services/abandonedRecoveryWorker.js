@@ -14,6 +14,7 @@
  * Money never moves here; these are pure re-engagement nudges.
  * Transactional by nature (user-initiated intent), exempt from the promo cap.
  */
+const { createDrainablePoller } = require('../utils/drainablePoller');
 const db = require('../db');
 const logger = require('../utils/logger');
 const { sendNotification } = require('./notificationService');
@@ -21,8 +22,6 @@ const { sendNotification } = require('./notificationService');
 const POLL_MS = 15 * 60 * 1000;
 const BATCH_LIMIT = 100;
 
-let timer = null;
-let running = false;
 
 async function recoverAbandonedCheckouts() {
   const { rows } = await db.query(
@@ -92,38 +91,20 @@ async function recoverStaleDrafts() {
   if (rows.length) logger.info('[AbandonedRecovery] draft recovery batch', { count: rows.length });
 }
 
-async function tick() {
-  if (running) return;
-  running = true;
-  try {
+const poller = createDrainablePoller({
+  run: async ({ isStopping }) => {
     await recoverAbandonedCheckouts();
-    await recoverStaleDrafts();
-  } catch (err) {
-    logger.error('[AbandonedRecovery] tick failed', { error: err.message });
-  } finally {
-    running = false;
-  }
-}
-
+    if (!isStopping()) await recoverStaleDrafts();
+  },
+  onError: err => logger.error('[AbandonedRecovery] tick failed', { error: err.message }),
+});
 function startAbandonedRecoveryWorker() {
-  if (timer) return;
-  // Stagger the first run so boot isn't thundered.
-  timer = setTimeout(() => {
-    tick();
-    timer = setInterval(tick, POLL_MS);
-    if (timer.unref) timer.unref();
-  }, 60 * 1000);
-  if (timer.unref) timer.unref();
-  logger.info('[AbandonedRecovery] worker started');
-}
-
-function stopAbandonedRecoveryWorker() {
-  if (timer) {
-    clearTimeout(timer);
-    clearInterval(timer);
-    timer = null;
+  // Preserve the existing stagger so boot is not thundered.
+  if (poller.start({ intervalMs: POLL_MS, initialDelayMs: 60 * 1000 })) {
+    logger.info('[AbandonedRecovery] worker started');
   }
 }
+function stopAbandonedRecoveryWorker() { return poller.stop(); }
 
 module.exports = {
   startAbandonedRecoveryWorker,

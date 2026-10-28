@@ -47,6 +47,7 @@
  *   VIDEO_WORKER_POLL_MS   poll interval (default 15000).
  */
 
+const { createDrainablePoller } = require('../utils/drainablePoller');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const os = require('os');
@@ -480,9 +481,9 @@ async function runOnce() {
 }
 
 // Drain up to `limit` jobs (sequential; ffmpeg is the bottleneck anyway).
-async function runBatch(limit = 5) {
+async function runBatch(limit = 5, { isStopping = () => false } = {}) {
   let processed = 0;
-  for (let i = 0; i < limit; i += 1) {
+  for (let i = 0; i < limit && !isStopping(); i += 1) {
     const job = await runOnce();
     if (!job) break;
     processed += 1;
@@ -492,8 +493,10 @@ async function runBatch(limit = 5) {
 
 // ── Lifecycle ────────────────────────────────────────────────────────────────
 
-let interval = null;
-let running = false;
+const poller = createDrainablePoller({
+  run: ({ isStopping }) => runBatch(5, { isStopping }),
+  onError: err => logger.error('Video worker tick failed', { message: err.message }),
+});
 
 function startVideoTranscodeWorker() {
   if (!workerEnabled()) {
@@ -504,32 +507,13 @@ function startVideoTranscodeWorker() {
     logger.warn('Video transcode worker not started: ffmpeg missing; uploads stay quarantined');
     return { started: false, reason: 'ffmpeg_missing' };
   }
-  if (interval) return { started: true, reason: 'already_running' };
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
-      await runBatch();
-    } catch (err) {
-      logger.error('Video worker tick failed', { message: err.message });
-    } finally {
-      running = false;
-    }
-  };
-  interval = setInterval(tick, pollMs());
-  if (typeof interval.unref === 'function') interval.unref();
-  // Kick off one pass immediately so uploads do not wait a full interval.
-  tick();
+  if (!poller.start({ intervalMs: pollMs() })) return { started: true, reason: 'already_running' };
   logger.info('Video transcode worker started', { pollMs: pollMs() });
   return { started: true };
 }
 
 function stopVideoTranscodeWorker() {
-  if (interval) {
-    clearInterval(interval);
-    interval = null;
-  }
-  return { stopped: true };
+  return poller.stop().then(() => ({ stopped: true }));
 }
 
 module.exports = {

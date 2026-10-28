@@ -59,6 +59,19 @@ to `/restaurants/r/2`. Public API fields matched the controller's contract.
 Local checks above do not establish publication; exact deployment identity,
 readiness and the live card/count must be checked after pushing this package.
 
+Publication checked: Coolify deployment `j3ibtx6ohbq9a0wepzfe7qox` finished at
+`fb59a317`, public `/ready` returned ready, and Chrome loaded
+`/assets/main-CK_F6due.js`. The live page has one compact card and one link to
+restaurant 2, with `Opens at 8:00 AM` and `Takeout · Dine in` matching the API.
+The runtime still lacks commit/image/deployment provenance fields; that remains
+under the deployment-continuity requirement, separately from this visible check.
+
+Remote CI `40663239667` found a race in this package's test fixture: its last
+request could be the independent `limit=10` typeahead call rather than the
+filtered `limit=24` grid request. The assertion now selects grid requests and
+checks the visible active cuisine. The five-language matrix passes locally;
+remote verification of that correction is pending.
+
 The broader navigation work still needs workspace-panel splitting and measured
 cold/warm transitions. A pre-existing font URL warning also remains under the
 shared-design audit; these discovery checks do not claim it was repaired.

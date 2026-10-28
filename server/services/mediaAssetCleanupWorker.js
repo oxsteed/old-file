@@ -3,6 +3,7 @@
 // Best-effort cleanup for revoked Media assets. Revocation is committed in the
 // database first; this worker removes origin objects and purges any known CDN
 // URLs later, so a storage provider outage cannot make unsafe media public.
+const { createDrainablePoller } = require('../utils/drainablePoller');
 const pool = require('../db');
 const storage = require('../utils/storage');
 const logger = require('../utils/logger');
@@ -10,8 +11,6 @@ const { buildCloudflarePublicAssetUrl } = require('./mediaCloudflareDelivery');
 
 const DEFAULT_POLL_MS = 30000;
 const MAX_ATTEMPTS = 12;
-let timer = null;
-let running = false;
 
 // P3-6-F03: revoked media must not linger in storage by default. The worker
 // runs unless explicitly paused (e.g. MEDIA_ASSET_CLEANUP_WORKER_ENABLED=false),
@@ -104,26 +103,15 @@ async function runOnce() {
   return true;
 }
 
+const poller = createDrainablePoller({
+  run: async ({ isStopping }) => { while (!isStopping() && await runOnce()) { /* drain ready work */ } },
+  onError: error => logger.warn('Media asset cleanup worker tick failed', { message: error.message }),
+});
 function startMediaAssetCleanupWorker() {
-  if (!enabled() || timer) return { started: false, reason: enabled() ? 'already_started' : 'disabled' };
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try { while (await runOnce()) { /* drain ready work */ } }
-    catch (error) { logger.warn('Media asset cleanup worker tick failed', { message: error.message }); }
-    finally { running = false; }
-  };
-  timer = setInterval(tick, pollMs());
-  timer.unref?.();
-  tick();
-  return { started: true };
+  if (!enabled()) return { started: false, reason: 'disabled' };
+  return poller.start({ intervalMs: pollMs() }) ? { started: true } : { started: false, reason: 'already_started' };
 }
-
-function stopMediaAssetCleanupWorker() {
-  if (timer) clearInterval(timer);
-  timer = null;
-  running = false;
-}
+function stopMediaAssetCleanupWorker() { return poller.stop(); }
 
 module.exports = {
   enabled, pollMs, claimJob, purgeCloudflare, processJob, runOnce,

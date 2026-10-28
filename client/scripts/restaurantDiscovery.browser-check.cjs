@@ -103,8 +103,11 @@ test('built restaurant discovery has one useful grid, truthful details and worki
           assert.ok(queries.some(query=>query.lat==='0'&&query.lng==='0'&&query.sort==='distance'));
           await page.getByRole('button',{name:catalog.food.home.discovery.clearLocation,exact:true}).click();
           await page.getByRole('heading',{name:'Fixture Kitchen 1',exact:true}).waitFor();
-          const last=queries.at(-1);
+          // Typeahead shares this endpoint with limit=10 and intentionally
+          // searches outside the active cuisine. Inspect the result-grid call.
+          const last=queries.filter(query=>Number(query.limit)===24).at(-1);
           assert.equal(last.q,'Kitchen');assert.equal(last.cuisine,'Caribbean');assert.equal(last.sort,'recommended');assert.equal(last.lat,undefined);assert.equal(last.lng,undefined);
+          await page.locator('.rd-active-filters').getByText('Caribbean',{exact:true}).waitFor();
           assert.equal(await search.inputValue(),'Kitchen');
           // API failure and an empty result remain recoverable through the same controls.
           fixture.state.failures['/api/food/restaurants']=503;

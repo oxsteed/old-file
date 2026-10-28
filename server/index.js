@@ -975,62 +975,8 @@ async function startServer() {
   }
   await listen();
   runtime.markListening();
-  // Restaurant Media video pipeline worker: starts only after the server is
-  // listening (DB pool + runtime dependencies ready). Gated on
-  // VIDEO_WORKER_ENABLED=1; when disabled or ffmpeg is missing the worker
-  // does not run and uploaded videos stay quarantined (never published).
-  try {
-    const { startVideoTranscodeWorker } = require('./services/videoTranscodeWorker');
-    startVideoTranscodeWorker();
-  } catch (err) {
-    logger.warn('Video transcode worker failed to start; uploads stay quarantined', {
-      message: err.message,
-    });
-  }
-  try {
-    const { startMediaTranscodeWorker } = require('./services/mediaTranscodeWorker');
-    startMediaTranscodeWorker();
-  } catch (err) {
-    logger.warn('OxSteed Media video worker failed to start; uploads stay quarantined', {
-      message: err.message,
-    });
-  }
-  try {
-    const { startMediaAssetCleanupWorker } = require('./services/mediaAssetCleanupWorker');
-    startMediaAssetCleanupWorker();
-  } catch (err) {
-    logger.warn('Media asset cleanup worker failed to start; revoked delivery remains blocked', {
-      message: err.message,
-    });
-  }
-
-  // Abandoned checkout / draft recovery pushes. Pure re-engagement; never
-  // touches money. A failure here must not affect boot.
-  try {
-    const { startAbandonedRecoveryWorker } = require('./services/abandonedRecoveryWorker');
-    startAbandonedRecoveryWorker();
-  } catch (err) {
-    logger.warn('Abandoned recovery worker failed to start', { message: err.message });
-  }
-
-  // Abandoned Direct draft assets (review P3-6-F19). On by default
-  // (DIRECT_DRAFT_ASSET_SWEEPER_DISABLED=1 pauses it); best-effort: a
-  // failure here must not affect boot.
-  try {
-    const { startDirectDraftAssetSweeper } = require('./services/directDraftAssetSweeper');
-    startDirectDraftAssetSweeper();
-  } catch (err) {
-    logger.warn('Direct draft asset sweeper failed to start', { message: err.message });
-  }
-  // Expired chat payment requests (review P2-10-F01). Env-gated
-  // (CHAT_PAYMENT_REQUEST_SWEEPER_ENABLED, default on) and best-effort:
-  // a failure here must not affect boot.
-  try {
-    const { startChatPaymentRequestExpirySweeper } = require('./services/chatPaymentRequestExpirySweeper');
-    startChatPaymentRequestExpirySweeper();
-  } catch (err) {
-    logger.warn('Chat payment request expiry sweeper failed to start', { message: err.message });
-  }
+  // Preserve post-listen startup, with every stop owned by the shared runtime.
+  require('./bootstrap/auxiliaryWorkers').startAuxiliaryWorkers({ workers: runtime.workers, log: logger });
   logger.info(`OxSteed v2 server running on port ${PORT}`, {
     env: process.env.NODE_ENV || 'development',
     realtimeNamespaces: ['/chat', '/support', '/restaurant-display'],
@@ -1054,30 +1000,6 @@ async function terminate(signal, exitCode = 0, cause) {
   forceExit.unref();
 
   try {
-    try {
-      const { stopVideoTranscodeWorker } = require('./services/videoTranscodeWorker');
-      stopVideoTranscodeWorker();
-    } catch { /* worker may never have started */ }
-    try {
-      const { stopMediaTranscodeWorker } = require('./services/mediaTranscodeWorker');
-      stopMediaTranscodeWorker();
-    } catch { /* worker may never have started */ }
-    try {
-      const { stopMediaAssetCleanupWorker } = require('./services/mediaAssetCleanupWorker');
-      stopMediaAssetCleanupWorker();
-    } catch { /* worker may never have started */ }
-    try {
-      const { stopAbandonedRecoveryWorker } = require('./services/abandonedRecoveryWorker');
-      stopAbandonedRecoveryWorker();
-    } catch { /* worker may never have started */ }
-    try {
-      const { stopDirectDraftAssetSweeper } = require('./services/directDraftAssetSweeper');
-      stopDirectDraftAssetSweeper();
-    } catch { /* worker may never have started */ }
-    try {
-      const { stopChatPaymentRequestExpirySweeper } = require('./services/chatPaymentRequestExpirySweeper');
-      stopChatPaymentRequestExpirySweeper();
-    } catch { /* worker may never have started */ }
     await runtime.shutdown(signal);
     clearTimeout(forceExit);
     process.exit(exitCode);

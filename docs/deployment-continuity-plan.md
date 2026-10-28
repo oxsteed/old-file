@@ -82,3 +82,24 @@ Inventory and preserve the scanner database volume and network aliases too.
   release provenance are preserved and verified.
 
 The deployment configuration has not been changed by this planning package.
+
+## Runtime prerequisites implemented - 2026-10-28
+
+Six workers started after listening now have stop handles owned by the shared
+runtime, and their polling loops await an active pass on shutdown. They stop
+accepting ticks and subsequent batch claims before dependency teardown. The
+existing 15-second forced-shutdown deadline remains; a long media job can still
+require durable recovery. This is source-level drain preparation, not proof of
+safe overlapping replicas or uninterrupted production deployment.
+
+Nine focused Jest suites passed (60 tests; one real-FFmpeg rendition case
+excluded after reproducing its dimensions failure on the unchanged committed
+worker). A real Direct draft-cleanup pass was held at storage to verify that
+stop waits; lifecycle tests hold the pool/Redis open until all owned stops drain.
+
+Remaining audit includes cron callbacks started by `BackgroundWorkers`,
+per-process limit/cache refresh timers, the dedicated payment worker topology,
+strict mounted release metadata, and candidate readiness/routing. Current live
+`/ready` still has null Git SHA/image/deployment provenance, despite the Coolify
+queue recording a finished commit and the browser showing changed assets.
+No topology/configuration change has been applied from this prerequisite work.

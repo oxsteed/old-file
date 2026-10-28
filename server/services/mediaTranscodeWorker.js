@@ -11,6 +11,7 @@
  * media_processing_jobs queue and Media asset state.
  */
 
+const { createDrainablePoller } = require('../utils/drainablePoller');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const os = require('os');
@@ -273,17 +274,19 @@ async function runOnce() {
   return job;
 }
 
-async function runBatch(limit = 5) {
+async function runBatch(limit = 5, { isStopping = () => false } = {}) {
   let count = 0;
-  for (let index = 0; index < limit; index += 1) {
+  for (let index = 0; index < limit && !isStopping(); index += 1) {
     if (!await runOnce()) break;
     count += 1;
   }
   return count;
 }
 
-let interval = null;
-let running = false;
+const poller = createDrainablePoller({
+  run: ({ isStopping }) => runBatch(5, { isStopping }),
+  onError: error => logger.error('OxSteed Media worker tick failed', { message: error.message }),
+});
 
 function startMediaTranscodeWorker() {
   if (!workerEnabled()) {
@@ -294,24 +297,13 @@ function startMediaTranscodeWorker() {
     logger.warn('OxSteed Media video worker not started: ffmpeg missing');
     return { started: false, reason: 'ffmpeg_missing' };
   }
-  if (interval) return { started: true, reason: 'already_running' };
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try { await runBatch(); } catch (error) { logger.error('OxSteed Media worker tick failed', { message: error.message }); }
-    finally { running = false; }
-  };
-  interval = setInterval(tick, pollMs());
-  if (typeof interval.unref === 'function') interval.unref();
-  tick();
+  if (!poller.start({ intervalMs: pollMs() })) return { started: true, reason: 'already_running' };
   logger.info('OxSteed Media video worker started', { pollMs: pollMs() });
   return { started: true };
 }
 
 function stopMediaTranscodeWorker() {
-  if (interval) clearInterval(interval);
-  interval = null;
-  return { stopped: true };
+  return poller.stop().then(() => ({ stopped: true }));
 }
 
 module.exports = { startMediaTranscodeWorker, stopMediaTranscodeWorker, runOnce, runBatch, workerEnabled, pollMs, csamVendorCertified };

@@ -22,10 +22,10 @@ beforeEach(() => {
   delete process.env.DIRECT_DRAFT_ASSET_TTL_DAYS;
 });
 
-afterEach(() => {
+afterEach(async () => {
   delete process.env.DIRECT_DRAFT_ASSET_SWEEPER_ENABLED;
   delete process.env.DIRECT_DRAFT_ASSET_SWEEPER_DISABLED;
-  sweeper.stopDirectDraftAssetSweeper();
+  await sweeper.stopDirectDraftAssetSweeper();
 });
 
 function obj(key, ageDays) {
@@ -110,4 +110,19 @@ test('start/stop lifecycle', () => {
   process.env.DIRECT_DRAFT_ASSET_SWEEPER_DISABLED = '1';
   expect(sweeper.startDirectDraftAssetSweeper()).toEqual({ started: false, reason: 'disabled' });
   delete process.env.DIRECT_DRAFT_ASSET_SWEEPER_DISABLED;
+});
+
+test('stop waits for an active storage pass and prevents more work being scheduled', async () => {
+  let release;
+  storage.listObjectsByPrefix.mockReturnValue(new Promise(resolve => { release = resolve; }));
+  sweeper.startDirectDraftAssetSweeper();
+  for (let i=0;i<4;i++) await Promise.resolve();
+  expect(storage.listObjectsByPrefix).toHaveBeenCalledTimes(1);
+  let stopped=false;
+  const stopping=sweeper.stopDirectDraftAssetSweeper().then(()=>{stopped=true;});
+  await Promise.resolve();
+  expect(stopped).toBe(false);
+  release([]);await stopping;
+  expect(stopped).toBe(true);
+  expect(storage.deleteFile).not.toHaveBeenCalled();
 });

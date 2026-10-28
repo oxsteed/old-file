@@ -21,6 +21,7 @@
  * of the tick.
  */
 
+const { createDrainablePoller } = require('../utils/drainablePoller');
 const pool = require('../db');
 const storage = require('../utils/storage');
 const logger = require('../utils/logger');
@@ -30,8 +31,6 @@ const DEFAULT_TTL_DAYS = 30;
 const DEFAULT_POLL_MS = 24 * 60 * 60 * 1000; // daily
 const MAX_KEYS_PER_SWEEP = 5000;
 
-let timer = null;
-let running = false;
 
 function enabled() {
   const disabled = String(process.env.DIRECT_DRAFT_ASSET_SWEEPER_DISABLED || '').trim().toLowerCase();
@@ -119,26 +118,15 @@ async function runOnce() {
   }
 }
 
+const poller = createDrainablePoller({
+  run: () => runOnce(),
+  onError: error => logger.warn('Direct draft asset sweeper tick failed', { message: error.message }),
+});
 function startDirectDraftAssetSweeper() {
-  if (!enabled() || timer) return { started: false, reason: enabled() ? 'already_started' : 'disabled' };
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try { await runOnce(); }
-    catch (error) { logger.warn('Direct draft asset sweeper tick failed', { message: error.message }); }
-    finally { running = false; }
-  };
-  timer = setInterval(tick, pollMs());
-  timer.unref?.();
-  tick();
-  return { started: true };
+  if (!enabled()) return { started: false, reason: 'disabled' };
+  return poller.start({ intervalMs: pollMs() }) ? { started: true } : { started: false, reason: 'already_started' };
 }
-
-function stopDirectDraftAssetSweeper() {
-  if (timer) clearInterval(timer);
-  timer = null;
-  running = false;
-}
+function stopDirectDraftAssetSweeper() { return poller.stop(); }
 
 module.exports = {
   enabled,

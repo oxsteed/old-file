@@ -12,14 +12,13 @@
  * CHAT_PAYMENT_REQUEST_SWEEPER_POLL_MS (default hourly, min 60s).
  */
 
+const { createDrainablePoller } = require('../utils/drainablePoller');
 const pool = require('../db');
 const logger = require('../utils/logger');
 
 const DEFAULT_POLL_MS = 60 * 60 * 1000; // hourly
 const MAX_PER_SWEEP = 1000;
 
-let timer = null;
-let running = false;
 
 function enabled() {
   const raw = process.env.CHAT_PAYMENT_REQUEST_SWEEPER_ENABLED;
@@ -53,32 +52,18 @@ async function expirePaymentRequestsOnce({ limit = MAX_PER_SWEEP } = {}) {
   return rows.length;
 }
 
-async function tick() {
-  if (running) return;
-  running = true;
-  try {
+const poller = createDrainablePoller({
+  run: async () => {
     const expired = await expirePaymentRequestsOnce();
     if (expired) logger.info('[chatPaymentRequestExpiry] expired payment requests', { expired });
-  } catch (err) {
-    logger.warn('[chatPaymentRequestExpiry] sweep failed', { error: err.message });
-  } finally {
-    running = false;
-  }
-}
-
+  },
+  onError: err => logger.warn('[chatPaymentRequestExpiry] sweep failed', { error: err.message }),
+});
 function startChatPaymentRequestExpirySweeper() {
-  if (timer || !enabled()) return { started: false };
-  tick();
-  timer = setInterval(tick, pollMs());
-  if (timer.unref) timer.unref();
-  return { started: true };
+  if (!enabled()) return { started: false };
+  return { started: poller.start({ intervalMs: pollMs() }) };
 }
-
-function stopChatPaymentRequestExpirySweeper() {
-  if (timer) clearInterval(timer);
-  timer = null;
-  running = false;
-}
+function stopChatPaymentRequestExpirySweeper() { return poller.stop(); }
 
 module.exports = {
   enabled,
