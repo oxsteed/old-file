@@ -8,9 +8,11 @@ import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
  * Reads from the client-side store maintained by recordView() in
  * useRecentlyViewed.js. Renders nothing when there is nothing to resume.
  */
-export default function RecentlyViewedStrip({ kind, className = '' }) {
+export default function RecentlyViewedStrip({ kind, className = '', excludeIds = [] }) {
   const { t } = useTranslation();
-  const items = useRecentlyViewed(kind);
+  const recent = useRecentlyViewed(kind);
+  const excluded = new Set(excludeIds.map(String));
+  const items = recent.filter(item => typeof item.title === 'string' && item.title.trim() && !excluded.has(String(item.id)));
 
   if (items.length === 0) return null;
 

@@ -10,6 +10,7 @@ export function usePwaNoticeCoordination({ pathname, cookiesOpen, connectionStat
   const [fieldFocused, setFieldFocused] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [protectedWork, setProtectedWork] = useState(false);
+  const [localRecovery, setLocalRecovery] = useState(false);
 
   useLayoutEffect(() => {
     const editable = target => target?.matches?.(EDITABLE)
@@ -39,6 +40,7 @@ export function usePwaNoticeCoordination({ pathname, cookiesOpen, connectionStat
     const inspect = () => {
       setModalOpen([...document.querySelectorAll(MODALS)].some(visible));
       setProtectedWork([...document.querySelectorAll('[data-update-defer="true"]')].some(visible));
+      setLocalRecovery([...document.querySelectorAll('[data-pwa-connection-recovery]')].some(visible));
       const actionClearance = Math.max(0, ...[...document.querySelectorAll('[data-pwa-bottom-actions]')]
         .filter(visible).map(element => Math.max(0, window.innerHeight - element.getBoundingClientRect().top + 12)));
       document.documentElement.style.setProperty('--pwa-action-clearance', `${Math.ceil(actionClearance)}px`);
@@ -50,7 +52,7 @@ export function usePwaNoticeCoordination({ pathname, cookiesOpen, connectionStat
     inspect();
     const observer = new MutationObserver(inspect);
     observer.observe(document.body, { childList: true, subtree: true, attributes: true,
-      attributeFilter: ['open', 'hidden', 'aria-hidden', 'aria-modal', 'data-update-defer'] });
+      attributeFilter: ['open', 'hidden', 'aria-hidden', 'aria-modal', 'data-update-defer', 'data-pwa-connection-recovery'] });
     const root = document.documentElement;
     let cookieHeight = root.style.getPropertyValue('--cookie-banner-height');
     const rootObserver = new MutationObserver(records => {
@@ -78,5 +80,5 @@ export function usePwaNoticeCoordination({ pathname, cookiesOpen, connectionStat
     if (!deferred) return undefined;
     return deferAppUpdates();
   }, [deferred]);
-  return { modalOpen };
+  return { modalOpen, localRecovery };
 }

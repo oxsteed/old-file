@@ -331,7 +331,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     if (!restaurantId || !restaurant) return;
     recordView('restaurants', {
       id: restaurantId,
-      title: restaurant.name || '',
+      title: restaurant.display_name || restaurant.name || '',
       subtitle: '',
       image: restaurant.cover_photo_url || restaurant.logo_url || null,
       href: `/restaurants/r/${restaurantId}`,

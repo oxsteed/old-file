@@ -101,6 +101,7 @@ test('restaurant survives loading, deduplicates dish suggestions, and recovers f
     await page.waitForFunction(() => document.querySelector('h1') || window.renderFailure);
     assert.equal(await page.evaluate(() => window.renderFailure), undefined, 'async loading must not change hook order');
     await page.getByRole('heading', { name: 'Hook-safe Kitchen' }).waitFor();
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('oxs:recentlyViewed') || '{}').restaurants?.[0]?.title === 'Hook-safe Kitchen');
     const search = page.getByRole('combobox', { name: 'food.restaurant.searchMenu' });
     await search.fill('rice');
     await page.getByRole('option').waitFor();

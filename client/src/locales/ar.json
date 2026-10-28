@@ -22766,6 +22766,13 @@
         "ownerTitle": "مطعمك. هويتك.",
         "ownerBody": "أدرج مطعمك المستقل أو أدره على OxSteed. قدم قائمتك وعلامتك التجارية للعملاء.",
         "ownerAction": "مساحة صاحب المطعم"
+      },
+      "discovery": {
+        "hoursNotListed": "ساعات العمل غير مُعلنة",
+        "hoursLocalTime": "تُعرض الساعات بالتوقيت المحلي لكل مطعم.",
+        "ordersPaused": "الطلبات متوقفة مؤقتًا",
+        "onlineUnavailable": "الطلب عبر الإنترنت غير متاح",
+        "clearLocation": "مسح الموقع"
       }
     },
     "restaurant": {

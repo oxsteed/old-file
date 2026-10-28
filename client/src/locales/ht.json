@@ -22755,6 +22755,13 @@
         "ownerTitle": "Restoran ou. Idantite ou.",
         "ownerBody": "Enskri oswa jere restoran endepandan ou sou OxSteed. Prezante meni ak mak ou bay kliyan yo.",
         "ownerAction": "Espas pwopriyetè restoran"
+      },
+      "discovery": {
+        "hoursNotListed": "Orè yo pa afiche",
+        "hoursLocalTime": "Orè yo parèt nan lè lokal chak restoran.",
+        "ordersPaused": "Kòmann yo an poz",
+        "onlineUnavailable": "Kòmann sou entènèt pa disponib",
+        "clearLocation": "Efase pozisyon"
       }
     },
     "restaurant": {

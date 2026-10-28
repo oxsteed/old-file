@@ -5264,6 +5264,15 @@
         "promo_changed": "تغيّر خصم الترويج. راجع طلبك وحاول مرة أخرى."
       },
       "promoApplied": "تم تطبيق الترويج: −{{amount}}"
+    },
+    "home": {
+      "discovery": {
+        "hoursNotListed": "ساعات العمل غير مُعلنة",
+        "hoursLocalTime": "تُعرض الساعات بالتوقيت المحلي لكل مطعم.",
+        "ordersPaused": "الطلبات متوقفة مؤقتًا",
+        "onlineUnavailable": "الطلب عبر الإنترنت غير متاح",
+        "clearLocation": "مسح الموقع"
+      }
     }
   },
   "growthInsights": {

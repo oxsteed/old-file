@@ -24,11 +24,12 @@ exports.startPwaFixture = async () => {
     requests: [],
     writes: [],
     readResponses: {},
+    readHandlers: {},
     failures: {},
   };
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
-    state.requests.push({ method: req.method, path: url.pathname });
+    state.requests.push({ method: req.method, path: url.pathname, search: url.search });
     res.setHeader('Cache-Control', 'no-store');
     const json = (data, status = 200) => {
       res.statusCode = status;
@@ -37,6 +38,8 @@ exports.startPwaFixture = async () => {
     };
     if (url.pathname.startsWith('/api/')) {
       if (state.failures[url.pathname]) return json({ error: 'Synthetic API unavailable' }, state.failures[url.pathname]);
+      if (req.method === 'GET' && Object.hasOwn(state.readHandlers, url.pathname))
+        return json(state.readHandlers[url.pathname](url));
       if (req.method === 'GET' && Object.hasOwn(state.readResponses, url.pathname))
         return json(state.readResponses[url.pathname]);
       if (!['GET', 'HEAD'].includes(req.method)) {

@@ -22755,6 +22755,13 @@
         "ownerTitle": "Votre restaurant. Votre identité.",
         "ownerBody": "Inscrivez ou gérez votre restaurant indépendant sur OxSteed. Présentez votre menu et votre marque aux clients.",
         "ownerAction": "Espace restaurateur"
+      },
+      "discovery": {
+        "hoursNotListed": "Horaires non renseignés",
+        "hoursLocalTime": "Les horaires sont indiqués dans le fuseau horaire de chaque restaurant.",
+        "ordersPaused": "Commandes en pause",
+        "onlineUnavailable": "Commande en ligne indisponible",
+        "clearLocation": "Effacer la localisation"
       }
     },
     "restaurant": {

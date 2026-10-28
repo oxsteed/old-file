@@ -22755,6 +22755,13 @@
         "ownerTitle": "Your restaurant. Your identity.",
         "ownerBody": "List or manage your independently owned restaurant on OxSteed. Bring your menu and your brand to customers.",
         "ownerAction": "Restaurant owner workspace"
+      },
+      "discovery": {
+        "hoursNotListed": "Hours not listed",
+        "hoursLocalTime": "Hours are shown in each restaurant’s local time.",
+        "ordersPaused": "Orders paused",
+        "onlineUnavailable": "Online ordering unavailable",
+        "clearLocation": "Clear location"
       }
     },
     "restaurant": {

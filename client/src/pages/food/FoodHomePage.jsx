@@ -2,7 +2,7 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getFeaturedRestaurants, listFoodRestaurantsPage, listMyFoodOrders, trackFeaturedPlacementClick } from '../../api/food';
+import { listFoodRestaurantsPage, listMyFoodOrders, trackFeaturedPlacementClick } from '../../api/food';
 import { getNearbyPlaces } from '../../api/geo';
 import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
@@ -18,6 +18,9 @@ import {
   DISCOVERY_PAGE_SIZE,
   buildRestaurantDiscoveryParams,
   mergeUniqueRestaurants,
+  isFeaturedRestaurant,
+  restaurantHoursLabel,
+  restaurantFulfillmentLabels,
 } from './restaurantDiscovery';
 import '../../styles/FoodPages.css';
 import '../../styles/RestaurantDiscovery.css';
@@ -69,15 +72,14 @@ function SkeletonCard() {
   );
 }
 
-/** Restaurant card — used in grid and horizontal scroll sections. */
-function RestaurantCard({ r, t }) {
+/** One restaurant card in the discovery results. */
+function RestaurantCard({ r, t, locale }) {
   const cover = r.cover_photo_url || r.image_url;
   const cityLine = [r.address_city, r.address_state, r.address_country].filter(Boolean).join(', ');
   // Campaign analytics (Phase 2, Item 10): clicking an effectively-featured
   // card fires a best-effort click beacon; it never blocks navigation.
-  const isEffectivelyFeatured =
-    Boolean(r.is_featured) &&
-    (!r.featured_until || new Date(r.featured_until).getTime() > Date.now());
+  const isEffectivelyFeatured = isFeaturedRestaurant(r);
+  const fulfillment = restaurantFulfillmentLabels(r, t);
   const handleClick = () => {
     if (isEffectivelyFeatured) trackFeaturedPlacementClick(r.id);
   };
@@ -100,6 +102,7 @@ function RestaurantCard({ r, t }) {
             </span>
           )}
         </h3>
+        {isEffectivelyFeatured && <span className="fd-tag fd-tag-featured">{t('food.home.featuredTitle')}</span>}
         {(r.cuisine_tags || []).length > 0 && (
           <div className="fd-card-chips">
             {(r.cuisine_tags || []).slice(0, 3).map((tag) => (
@@ -114,12 +117,12 @@ function RestaurantCard({ r, t }) {
               <span className="fd-card-rating-count"> ({Number(r.review_count)})</span>
             </span>
           )}
-          {typeof r.is_open === 'boolean' && <span className={`fd-tag ${r.is_open === false ? 'fd-tag-closed' : 'fd-tag-open'}`}>
-            {r.is_open === false ? t('food.home.closed') : t('food.home.open')}
-          </span>}
         </div>
+        <span className="fd-card-hours">{restaurantHoursLabel(r, t, locale)}</span>
+        {fulfillment.length > 0 && <span className="fd-card-meta">{fulfillment.join(' · ')}</span>}
+        {r.accepts_online_orders === false && <span className="fd-card-meta">{t('food.home.discovery.onlineUnavailable')}</span>}
         {cityLine && <span className="fd-card-meta">{cityLine}</span>}
-        {r.distance_km != null && (
+        {r.distance_km != null && Number.isFinite(Number(r.distance_km)) && Number(r.distance_km) >= 0 && (
           <span className="fd-card-meta">
             {t('food.home.kmAway', { km: Number(r.distance_km).toFixed(1) })}
           </span>
@@ -146,7 +149,7 @@ function ExternalPlaceCard({ place, t }) {
 }
 
 export default function FoodHomePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -173,8 +176,6 @@ export default function FoodHomePage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
 
-  const [featured, setFeatured] = useState([]);
-  const isFirstLoad = useRef(true);
   const requestSequence = useRef(0);
 
   const load = useCallback(async (params = {}, options = {}) => {
@@ -195,7 +196,7 @@ export default function FoodHomePage() {
       if (sequence !== requestSequence.current) return;
       const rows = Array.isArray(page.restaurants) ? page.restaurants : [];
       setRestaurants((current) => {
-        if (reset) return rows;
+        if (reset) return mergeUniqueRestaurants([], rows);
         return mergeUniqueRestaurants(current, rows);
       });
       setPagination(page.pagination || {
@@ -205,22 +206,6 @@ export default function FoodHomePage() {
         hasMore: false,
         nextOffset: null,
       });
-      if (reset && isFirstLoad.current && !params.q && !params.cuisine && !params.lat && !params.lng) {
-        isFirstLoad.current = false;
-        // The featured shelf shows admin-approved featured placements (no fee). When
-        // nothing is currently featured, fall back to top-rated so the
-        // shelf is never empty while restaurants exist.
-        const fallback = rows.length > 0
-          ? [...rows].sort((a, b) => Number(b.avg_rating || 0) - Number(a.avg_rating || 0)).slice(0, 8)
-          : [];
-        getFeaturedRestaurants({ limit: 8 }).then((shelf) => {
-          if (sequence !== requestSequence.current) return;
-          setFeatured(Array.isArray(shelf) && shelf.length > 0 ? shelf : fallback);
-        }).catch(() => {
-          if (sequence !== requestSequence.current) return;
-          setFeatured(fallback);
-        });
-      }
     } catch {
       if (sequence !== requestSequence.current) return;
       if (reset) setError(true);
@@ -235,7 +220,9 @@ export default function FoodHomePage() {
   useEffect(() => { load({ sort: 'recommended' }, { reset: true }); }, [load]);
 
   useEffect(() => {
-    if (!user) return;
+    let active = true;
+    setRecentOrders([]);
+    if (!user) return undefined;
     listMyFoodOrders()
       .then((data) => {
         const orders = data?.orders || [];
@@ -247,9 +234,10 @@ export default function FoodHomePage() {
             return true;
           })
           .slice(0, 5);
-        setRecentOrders(deduped);
+        if (active) setRecentOrders(deduped);
       })
       .catch(() => {});
+    return () => { active = false; };
   }, [user]);
 
   useEffect(() => {
@@ -319,7 +307,8 @@ export default function FoodHomePage() {
         const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setGeo(next);
         setLocating(false);
-        const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, geo: next, sort });
+        setSort('distance');
+        const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, geo: next, sort: 'distance' });
         load(params, { reset: true });
       },
       () => { setLocating(false); setLocationError(true); },
@@ -335,11 +324,10 @@ export default function FoodHomePage() {
   }, [geo, restaurants]);
 
   const cuisinesFromData = useMemo(() => {
-    const all = [...restaurants, ...featured];
     const tags = new Set();
-    all.forEach((r) => (r.cuisine_tags || []).forEach((tag) => tags.add(tag)));
+    restaurants.forEach((r) => (r.cuisine_tags || []).forEach((tag) => tags.add(tag)));
     return Array.from(tags).slice(0, 14);
-  }, [restaurants, featured]);
+  }, [restaurants]);
 
   // Typeahead items for the shared SuggestDropdown: loaded restaurant names
   // (with cuisine meta) plus the cuisine tags present in the current market.
@@ -408,30 +396,20 @@ export default function FoodHomePage() {
     return restaurants;
   }, [restaurants]);
 
-  const nearbyRestaurants = useMemo(() => {
-    if (!geo) return [];
-    return [...restaurants]
-      .filter((r) => r.distance_km != null)
-      .sort((a, b) => Number(a.distance_km) - Number(b.distance_km))
-      .slice(0, 8);
-  }, [geo, restaurants]);
-
   const reorderRestaurants = useMemo(() => {
     if (!user || !recentOrders.length) return [];
-    return recentOrders.map((order) => {
-      const full = restaurants.find((r) => String(r.id) === String(order.restaurant_id));
-      return full || {
+    const displayed = new Set(restaurants.map(r => String(r.id)));
+    return recentOrders.filter(order => !displayed.has(String(order.restaurant_id))).map((order) => ({
         id: order.restaurant_id,
         display_name: order.restaurant_name || t('food.home.restaurant'),
         logo_url: order.restaurant_logo || null,
-      };
-    });
+      }));
   }, [recentOrders, restaurants, user, t]);
 
   const isSearching = !!submittedQuery;
-  const hasReorder = reorderRestaurants.length > 0;
-  const hasFeatured = !isSearching && !activeCuisine && featured.length > 0;
-  const hasNearby = !isSearching && nearbyRestaurants.length > 0;
+  const showResume = !isSearching && !activeCuisine && !geo && restaurants.length >= 6;
+  const hasReorder = showResume && reorderRestaurants.length > 0;
+  const resumeExclusions = [...restaurants.map(r => r.id), ...reorderRestaurants.map(r => r.id)];
   const hasData = restaurants.length > 0;
   const hasMapData = hasData || externalPlaces.length > 0;
   const hasDiscoveryFilter = isSearching || !!activeCuisine || !!geo;
@@ -452,6 +430,14 @@ export default function FoodHomePage() {
     setSubmittedQuery('');
     const params = buildRestaurantDiscoveryParams({ query: '', cuisine: activeCuisine, geo, sort });
     load(params, { reset: true });
+  };
+
+  const clearLocation = () => {
+    setGeo(null);
+    setLocationError(false);
+    const nextSort = sort === 'distance' ? 'recommended' : sort;
+    setSort(nextSort);
+    load(buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, sort: nextSort }), { reset: true });
   };
 
   // Cuisine strip is driven by live restaurant data only — no hardcoded
@@ -515,6 +501,7 @@ export default function FoodHomePage() {
                 <MapPin size={16} aria-hidden="true" />{locating ? t('food.home.locating') : t('food.home.nearMe')}
               </button>
               <span role="status">{t(geo ? 'food.home.redesign.locationOn' : 'food.home.redesign.locationHint')}</span>
+              {geo && <button type="button" className="rd-clear-location" onClick={clearLocation} data-track="ui.703b3d5218.13">{t('food.home.discovery.clearLocation')}</button>}
             </div>
             <SaveSearchButton
               searchType="food"
@@ -610,7 +597,7 @@ export default function FoodHomePage() {
           </div>
         </div>
       ) : error ? (
-        <div className="fd-home-empty">
+        <div className="fd-home-empty" data-pwa-connection-recovery>
           <p role="alert">{t('food.home.redesign.errorHint')}</p>
           <h2>{t('food.common.loadError')}</h2>
           <button type="button" className="fd-btn" onClick={search} data-track="ui.703b3d5218.8">
@@ -676,31 +663,7 @@ export default function FoodHomePage() {
           )}
 
           {/* Recently viewed restaurants (continue where you left off) */}
-          <RecentlyViewedStrip kind="restaurants" className="fd-section" />
-
-          {/* Featured */}
-          {hasFeatured && (
-            <div className="fd-section">
-              <h2 className="fd-section-label">⭐ {t('food.home.featuredTitle')}</h2>
-              <div className="fd-h-scroll">
-                <div className="fd-h-scroll-inner">
-                  {featured.map((r) => <RestaurantCard key={r.id} r={r} t={t} />)}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Nearby */}
-          {hasNearby && (
-            <div className="fd-section">
-              <h2 className="fd-section-label">📍 {t('food.home.nearbyTitle')}</h2>
-              <div className="fd-h-scroll">
-                <div className="fd-h-scroll-inner">
-                  {nearbyRestaurants.map((r) => <RestaurantCard key={r.id} r={r} t={t} />)}
-                </div>
-              </div>
-            </div>
-          )}
+          {showResume && <RecentlyViewedStrip kind="restaurants" className="fd-section" excludeIds={resumeExclusions} />}
 
           {externalPlaces.length > 0 && (
             <div className="fd-section" aria-labelledby="external-places-title">
@@ -719,9 +682,10 @@ export default function FoodHomePage() {
             <h2 className="fd-section-label">
               {isSearching ? t('food.home.resultsTitle') : t('food.home.allTitle')}
             </h2>
+            {displayedRestaurants.length > 0 && <p className="fd-card-meta fd-hours-note">{t('food.home.discovery.hoursLocalTime')}</p>}
             {displayedRestaurants.length > 0 ? (
-              <div className="fd-grid">
-                {displayedRestaurants.map((r) => <RestaurantCard key={r.id} r={r} t={t} />)}
+              <div className={`fd-grid${displayedRestaurants.length <= 2 ? ' fd-grid--compact' : ''}`}>
+                {displayedRestaurants.map((r) => <RestaurantCard key={r.id} r={r} t={t} locale={i18n.resolvedLanguage || i18n.language} />)}
               </div>
             ) : (
               <div className="fd-empty-filter fd-empty-search">

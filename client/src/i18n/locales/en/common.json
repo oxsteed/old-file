@@ -5264,6 +5264,15 @@
         "promo_changed": "The promo discount changed. Review your order and try again."
       },
       "promoApplied": "Promo applied: −{{amount}}"
+    },
+    "home": {
+      "discovery": {
+        "hoursNotListed": "Hours not listed",
+        "hoursLocalTime": "Hours are shown in each restaurant’s local time.",
+        "ordersPaused": "Orders paused",
+        "onlineUnavailable": "Online ordering unavailable",
+        "clearLocation": "Clear location"
+      }
     }
   },
   "growthInsights": {

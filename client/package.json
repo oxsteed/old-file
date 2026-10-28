@@ -107,7 +107,8 @@
     "test:pwa:installed": "node --test scripts/pwaInstalledMatrix.installed-check.cjs",
     "verify:pwa-startup": "node scripts/measurePwaStartup.mjs",
     "test:session-recovery": "node --test --test-concurrency=1 scripts/loginSession.browser-check.cjs scripts/sessionRecovery.browser-check.cjs",
-    "test:growth-route-references": "node --test scripts/growthRouteReferences.test.mjs"
+    "test:growth-route-references": "node --test scripts/growthRouteReferences.test.mjs",
+    "test:restaurant-discovery-browser": "node --test scripts/restaurantDiscovery.browser-check.cjs"
   },
   "dependencies": {
     "@sentry/react": "^8.55.1",

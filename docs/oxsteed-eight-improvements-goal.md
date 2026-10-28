@@ -14,7 +14,7 @@ authorization, privacy, deployment-secret, and production-data safeguards.
 | 2 | Smoother navigation: retain usable navigation while route content loads, avoid downloading unrelated screens and large inactive workspace panels, and measure real transitions. | Bundle comparison, cold/warm route timing, delayed-chunk/recovery checks, correct mode/authorization behavior, and representative live navigation. | Partial: `11518817` split dashboard modes and prefetched primary links. The shared loading fallback now keeps navigation available; a held real route chunk was tested. Provider home routes avoid downloading customer discovery. Next: split inactive workspace panels and measure representative cold/warm transitions without competing browser suites. |
 | 3 | Homepage follows the active mode: business activity for owners, work for helpers, discovery/bookings for customers. | Customer, Helper, Business Owner, and supported team-mode browser checks; logged-out discovery remains useful; authorized destinations; five-language parity. | Implemented in package 2: operational home uses the existing mode dashboard behind the existing verification/error boundaries, while customers/visitors retain discovery and customers get a bookings shortcut. Fourteen built-app role/viewport cases pass, including Arabic and active navigation. Await publication and cross-check transient authentication recovery under item 7 before final acceptance. |
 | 4 | Consistent design across Food, Direct, Messages, and business workspaces: headers, spacing, buttons, forms, and loading states. | Shared component/token adoption and desktop/mobile, light/dark, keyboard, and Arabic rendering across all four surfaces. | Partial: restaurant directory alignment shipped in `51f7e04e`; package 2 adds one localized, themed loading state for ordinary routes and preserves immersive operation layouts. Next: audit and consolidate headers/forms/spacing across Direct, Messages, and business workspaces, including main-landmark semantics. |
-| 5 | Clear restaurant discovery: location, opening hours, ordering options, and a useful small-inventory layout without repeated restaurant shelves. | Real-data contract checks, location/filter and empty-state behavior, accurate hours/fulfillment labels, pagination and no-duplicate shelf checks, and live directory verification. | Not complete. Inspect current restaurant response contracts and visible controls; avoid invented availability or unsupported ordering options. |
+| 5 | Clear restaurant discovery: location, opening hours, ordering options, and a useful small-inventory layout without repeated restaurant shelves. | Real-data contract checks, location/filter and empty-state behavior, accurate hours/fulfillment labels, pagination and no-duplicate shelf checks, and live directory verification. | Implemented in package 4: one grid, compact small-result layout, real featured badges, localized server hours and configured public ordering modes. Near me sorts by distance; clearing location retains search/cuisine. Local functional/visual checks pass; publication verification remains before acceptance. |
 | 6 | Business workspaces lead with today's bookings, unanswered messages, overdue invoices, and required tasks; detailed analytics are secondary. | Ownership/team-permission scenarios, authoritative counts, task destinations, empty/error/loading states, and responsive browser checks. | Not complete. Inspect workspace overview data and existing attention services; retain financial/account/currency separation. |
 | 7 | Reliable sessions and unfinished work: investigate unexpected sign-outs and preserve work during transient outages, reconnects, and updates. | Expired versus transient refresh cases; resume/update/navigation/reload with drafts; account-switch isolation; concurrent-tab behavior; no stale private data or financial replay. | Package 3 fixes temporary bootstrap/refresh failures being treated as sign-out. Unverified sessions retain the destination with a localized retry; verified forms remain mounted. Nine browser checks cover expiry, two tabs, text/photos, stale verification and no financial replay. Next: published recovery checks and remaining cross-tab expiry/account-change races, including the Axios expiration event boundary. |
 | 8 | Less persistent screen clutter: connection, AI support, update notices, and cookie controls do not compete with primary actions. | Online/offline/reconnecting and recovery checks; checkout/dirty-work update deferral; support/cookie/update combinations; mobile keyboard and desktop/RTL clearance; accessible recovery controls. | Package 2 implements critical-work/edited-form/cart deferral, modal/cookie priority, launcher/action-bar clearance, and offline/keyboard launcher suppression. Browser geometry and real draft-update/reconnect checks pass. Await published runtime verification; retain the wider unfinished-work/session audit under item 7. |
@@ -172,3 +172,48 @@ and their final cross-cutting recovery audit. The overall goal remains active.
 
 This package addresses a concrete recovery bug. It does not complete the wider
 session/account race audit or the remaining eight-part goal.
+
+## Publication of package 3
+
+- Coolify deployment `oeuzh9meqtmgq5n9fekfykkg` finished at exact commit
+  `6a0b8298`. Public readiness returned ready with every check passing. A public
+  Chrome tab loaded `/assets/main-CIwYIuDH.js` and the restaurant directory with
+  one main landmark and no healthy connection overlay. A real production
+  outage was not induced to test the retry screen.
+- CI `40598866454` passed client build, browser checks (including homepage and
+  session recovery), installed-mode recovery, and the instrumentation registry
+  check. Its sole server failure remains the existing session-source scan of
+  `services/creditCompliance/amlRules.js`: 911 server suites passed, one failed,
+  16 skipped. Overall CI is not green.
+
+## Package 4 - clear restaurant discovery
+
+- Replaced repeated Featured/Nearby shelves with one deduplicated, paginated
+  result grid. A genuine active featured placement keeps its badge and click
+  tracking; ratings alone no longer create a Featured claim. The redundant
+  featured-list request is gone. Small result sets use a compact desktop row.
+- Cards display localized server-evaluated opening/next-opening information,
+  respect manual pauses/temporary closure, and show configured takeout,
+  delivery, and dine-in modes. Missing schedules say hours are not listed;
+  internal kiosk mode is not advertised as a public fulfillment option.
+  Server ordering/payment validation is unchanged.
+- Near me explicitly selects distance order. Clearing location removes device
+  coordinates and distance order while preserving the query and cuisine.
+  Missing/out-of-range coordinates no longer become an unintended zero point;
+  an explicit valid zero coordinate remains supported.
+- Recently viewed entries now record `display_name`, omit blank titles and
+  omit restaurants already shown. Small markets have no repeated history or
+  reorder shelves; prior-order responses cannot repopulate a switched account.
+- A visible directory error with its own retry suppresses the competing global
+  connection badge; shared connection observation and update protection stay
+  active. The new location control has one registry key in both client/server
+  catalogs. Five-language new-copy parity is verified.
+- Public API/source contract checks confirmed one listed restaurant, configured
+  pickup/dine-in/kiosk modes, a valid server hours code and parameters, and
+  `is_featured=false`. Before publication, the public UI nevertheless showed
+  three links to that same restaurant, including a Featured shelf and a blank
+  history entry. See `reviews/restaurant-discovery-2026-10-28.md` for evidence.
+
+Package 4 remains pending publication verification. Requirements 1, 2, 4, 6,
+and the remaining session/overlay acceptance work remain open; the full goal
+has not been reduced or completed.

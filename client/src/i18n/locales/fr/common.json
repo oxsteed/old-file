@@ -5264,6 +5264,15 @@
         "promo_changed": "La remise promo a changé. Vérifiez votre commande et réessayez."
       },
       "promoApplied": "Code promo appliqué : −{{amount}}"
+    },
+    "home": {
+      "discovery": {
+        "hoursNotListed": "Horaires non renseignés",
+        "hoursLocalTime": "Les horaires sont indiqués dans le fuseau horaire de chaque restaurant.",
+        "ordersPaused": "Commandes en pause",
+        "onlineUnavailable": "Commande en ligne indisponible",
+        "clearLocation": "Effacer la localisation"
+      }
     }
   },
   "growthInsights": {

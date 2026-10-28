@@ -30,7 +30,7 @@ export default function PwaRuntime() {
   );
   const waitingWorker = useSyncExternalStore(subscribeWorkerUpdate, getWaitingWorker, getWaitingWorker);
   const cookies = useContext(CookieConsentContext);
-  const { modalOpen } = usePwaNoticeCoordination({ pathname, waitingWorker,
+  const { modalOpen, localRecovery } = usePwaNoticeCoordination({ pathname, waitingWorker,
     cookiesOpen: Boolean(cookies?.showBanner || cookies?.showSettings), connectionStatus: state.status });
   const current = useRef(auth),
     coordinator = useRef();
@@ -67,7 +67,7 @@ export default function PwaRuntime() {
     /^\/(restaurants|food)\/(kitchen|queue|kiosk|screens)\//.test(pathname);
   // Healthy connections need no persistent overlay. Keep the shared state
   // and resume coordinator active; show recovery controls only when needed.
-  const showConnection = !displayRoute && !modalOpen && !auth.sessionRecovering && state.status !== 'online';
+  const showConnection = !displayRoute && !modalOpen && !localRecovery && !auth.sessionRecovering && state.status !== 'online';
   useEffect(() => {
     document.documentElement.classList.toggle(
       'pwa-connection-present',
