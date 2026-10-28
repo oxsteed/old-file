@@ -25,7 +25,7 @@ function writeFallbackLock(lock) {
     globalThis.localStorage?.setItem(FALLBACK_LOCK_KEY, JSON.stringify(lock));
     return readFallbackLock()?.owner === lock.owner;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -37,15 +37,19 @@ function releaseFallbackLock(owner) {
   }
 }
 
-async function withStorageLock(operation) {
+async function withStorageLock(operation, waitTimeoutMs) {
   const owner = newOwnerId();
-  const deadline = Date.now() + FALLBACK_LOCK_TTL_MS;
+  const deadline = Date.now() + waitTimeoutMs;
 
   while (Date.now() < deadline) {
     const current = readFallbackLock();
     if (!current || Number(current.expiresAt) <= Date.now()) {
       const lock = { owner, expiresAt: Date.now() + FALLBACK_LOCK_TTL_MS };
-      if (writeFallbackLock(lock)) {
+      const acquired = writeFallbackLock(lock);
+      // Storage may be unavailable in privacy-restricted contexts. The
+      // in-page refresh flight still coalesces callers in that case.
+      if (acquired === null) return operation();
+      if (acquired) {
         try {
           return await operation();
         } finally {
@@ -56,19 +60,33 @@ async function withStorageLock(operation) {
     await wait(FALLBACK_WAIT_MS);
   }
 
-  // A broken/stale storage implementation must not make authentication hang
-  // forever. The server still validates and rotates the credential.
-  return operation();
+  // Never rotate concurrently just because another tab held the lock longer
+  // than our wait. This is a retryable transport failure, not session expiry.
+  const error = new Error('Refresh lock wait timed out.');
+  error.code = 'AUTH_REFRESH_BUSY';
+  throw error;
 }
 
 /**
  * Serialize refresh-token rotation across tabs without sharing token values.
  * Web Locks is preferred; localStorage is only a compatibility fallback.
  */
-export function withCrossTabRefreshLock(operation) {
+export function withCrossTabRefreshLock(operation, { waitTimeoutMs = FALLBACK_LOCK_TTL_MS } = {}) {
+  if (!Number.isFinite(waitTimeoutMs) || waitTimeoutMs <= 0 || waitTimeoutMs > 2147483647) {
+    throw new Error('Invalid refresh lock wait timeout.');
+  }
   if (typeof navigator !== 'undefined' && typeof navigator.locks?.request === 'function') {
-    return navigator.locks.request(REFRESH_LOCK_NAME, { mode: 'exclusive' }, operation);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), waitTimeoutMs);
+    return (async () => {
+      try {
+        return await navigator.locks.request(REFRESH_LOCK_NAME, { mode: 'exclusive', signal: controller.signal }, () => {
+          clearTimeout(timer);
+          return operation();
+        });
+      } finally { clearTimeout(timer); }
+    })();
   }
   if (typeof localStorage === 'undefined') return operation();
-  return withStorageLock(operation);
+  return withStorageLock(operation, waitTimeoutMs);
 }

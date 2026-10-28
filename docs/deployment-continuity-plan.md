@@ -39,8 +39,8 @@ Read-only inspection of the current app found these mounts:
 
 Coolify's parsed volume names differ from the unprefixed source names. Never
 create empty replacement volumes from source spelling alone. The current
-metadata provisioning script accepts only the unprefixed metadata volume name;
-resolve this discrepancy with strict inspected-volume identity and tests.
+metadata provisioning repair accepts that exact application-prefixed name as
+well as the historical unprefixed name, and writes only the inspected mount.
 Inventory and preserve the scanner database volume and network aliases too.
 
 ## Required implementation sequence
@@ -103,3 +103,58 @@ strict mounted release metadata, and candidate readiness/routing. Current live
 `/ready` still has null Git SHA/image/deployment provenance, despite the Coolify
 queue recording a finished commit and the browser showing changed assets.
 No topology/configuration change has been applied from this prerequisite work.
+
+## Release identity repair - 2026-10-28
+
+The provisioner now verifies a single read-only metadata mount and uses its
+actual inspected volume name. Foreign application prefixes, writable mounts,
+duplicate mounts, changed containers, and mismatched deployment receipts fail
+before writing. Automatic discovery still refuses multiple running apps. An
+explicit full immutable container ID can select a candidate during overlap;
+this does not add routing or Dockerfile-resource support.
+
+The host installer also includes the restore-verification profile module used
+by its backup adapter. Its isolated copied-bundle test previously caught that
+missing runtime dependency. Portable release/reconciler regressions now run in
+the existing CI deployment-command step; installer tests retain their fixed
+Mac checkout safeguards and run locally.
+
+Validation: 39 Node tests passed, including deployment command, content release,
+release provisioning, host reconciliation, and installer tests. The opt-in
+Docker rehearsal passed with two disposable, network-isolated containers on a
+dedicated application-prefixed volume. It proved ambiguity rejection, explicit
+candidate selection, per-container release records, idempotency, and preservation
+of the first record after provisioning the second. The fixture containers,
+volume, image, and temporary directory were removed. No API or production data
+was mounted or started.
+
+Production check mode accepts the observed mounted volume and derives the
+current commit, image digest, and deployment ID. No production metadata write
+or host installation has been performed at this stage. Publish through a PR
+and require green CI under `deployment-ci.md` before applying the reviewed
+host bundle; then verify public readiness against actual container identity.
+
+## Release identity applied - 2026-10-28
+
+PR #635 passed all four required CI jobs and merged with merge commit
+`6b408a29df2ff05b3c852ae1ce00116302296a1b`. The reviewed host bundle was
+installed as this user's LaunchAgent, every 300 seconds, without overwriting
+an existing installation or modifying application credentials. The initial
+run and two scheduled runs report successful metadata and backup reconciliation;
+the scheduled runs report no metadata change. The error log is empty.
+
+Public `/ready` is ready with all checks passing and now reports the actual
+running release:
+
+- Git SHA: `1e584da3472b2719c3813ab9be1869d253fa8794`.
+- Image digest: `sha256:5d282faae62c5b47fe6e2ec74b8b0cfd188782fc96ffa6880a24b74b165d5b1b`.
+- Deployment: `5vpuledaj0xg5y1b0vqgczh6`.
+
+These match the inspected running container and deployment receipt. The
+automatic app deployment for merge commit `6b408a29`, queue
+`6io6mbzuirdsfeptt9jdz1au`, failed during a GitHub connection timeout. The
+previous app remains healthy; the host repair is live, while a new app-image
+deployment is not proven. A build-fetch failure retaining the old release does
+not prove safe candidate startup failure or uninterrupted promotion. Worker
+isolation/handoff and routing rehearsals remain required before requirement 1
+can be accepted.

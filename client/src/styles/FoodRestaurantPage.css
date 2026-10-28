@@ -5,14 +5,6 @@
    All classes are rp- prefixed to avoid colliding with global app styles.
    ───────────────────────────────────────────────────────────────────────── */
 
-@font-face {
-  font-family: 'Instrument Serif';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: local('Instrument Serif'), local('Georgia');
-}
-
 .rp-root {
   /* Restaurant content follows the same app theme as the surrounding shell. */
   --rp-nav-h: 60px;            /* site navbar height (3.75rem) */

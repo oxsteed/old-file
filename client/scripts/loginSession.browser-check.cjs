@@ -9,13 +9,16 @@ const { chromium } = require('playwright-core');
 const root = path.resolve(__dirname, '..');
 
 async function fixture({ refreshable = false, legacyOnly = false, refreshFailure = null } = {}) {
-  const user = { id: 'synthetic', first_name: 'Synthetic', last_name: 'Person',
+  let user = { id: 'synthetic', first_name: 'Synthetic', last_name: 'Person',
     email_verified: true, didit_status: 'verified', role: 'helper', onboarding_completed: true };
   const calls = [];
   let accessExpired = false;
   let refreshCount = 0;
   let meFailure = null;
   let delayedMe = null;
+  let delayedRefresh = null;
+  let loginFailure = null;
+  let refreshResponse = null;
   const mocks = {
     'react-i18next': `export const useTranslation=()=>({t:key=>key});`,
     './LanguageContext': `const syncLanguageFromServer=()=>{};
@@ -33,6 +36,7 @@ async function fixture({ refreshable = false, legacyOnly = false, refreshFailure
       import Login from './src/pages/Login.jsx';
       import ProtectedRoute from './src/components/ProtectedRoute.jsx';
       import SessionRecoveryBoundary from './src/components/SessionRecoveryBoundary.jsx';
+      import api from './src/api/auth.js';window.fixtureAPI=api;
       function Controls(){const auth=useAuth();window.fixtureAuth=auth;return null;}
       function Dashboard(){const {user}=useAuth();return <main><h1>Helper dashboard</h1>
         <p data-user>{user?.id||'Not authenticated'}</p></main>;}
@@ -61,23 +65,32 @@ async function fixture({ refreshable = false, legacyOnly = false, refreshFailure
     const body = raw ? JSON.parse(raw) : {};
     calls.push({ path: url.pathname, method: req.method, body });
     res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-store');
     if (url.pathname === '/api/auth/me') {
       const failure = meFailure;
-      if (delayedMe) await delayedMe;
-      if (failure) { res.statusCode = failure;res.end('{"error":"Synthetic unavailable"}');return; }
-      if (accessExpired || !req.headers.cookie?.includes('fixture_access=valid')) {
-        res.statusCode = 401;res.end('{"error":"No token provided"}');return;
+      const unauthenticated = accessExpired || !req.headers.cookie?.includes('fixture_access=valid');
+      res.statusCode = failure || (unauthenticated ? 401 : 200);
+      const payload = failure ? {error:'Synthetic unavailable'} : unauthenticated ? {error:'No token provided'} : {user:{...user}};
+      if (delayedMe) {
+        const held = delayedMe;delayedMe = null;
+        // Publish no-store headers before holding the body. Otherwise Chrome
+        // can coalesce the newer same-URL verification behind this response.
+        res.flushHeaders();held.markStarted();await held.promise;
       }
-      res.end(JSON.stringify({ user }));return;
+      res.end(JSON.stringify(payload));return;
     }
     if (url.pathname === '/api/auth/refresh') {
+      const failure = refreshFailure;
+      const responseUser = { ...user };
+      if (delayedRefresh) { const held = delayedRefresh;delayedRefresh = null;held.markStarted();await held.promise; }
       if (!refreshable) {
         res.statusCode = 401;res.end('{"error":"No refresh session","code":"no_token"}');return;
       }
-      if (refreshFailure) {
-        res.statusCode = refreshFailure.status;
-        res.end(JSON.stringify({error:'Synthetic refresh rejection',code:refreshFailure.code}));return;
+      if (failure) {
+        res.statusCode = failure.status;
+        res.end(JSON.stringify({error:'Synthetic refresh rejection',code:failure.code}));return;
       }
+      if (refreshResponse) { res.end(JSON.stringify(refreshResponse));return; }
       if (body.refreshToken) {
         if (!legacyOnly || body.refreshToken !== 'synthetic-legacy-valid') {
           res.statusCode = 401;res.end('{"error":"Session reuse detected","code":"token_reuse"}');return;
@@ -89,7 +102,7 @@ async function fixture({ refreshable = false, legacyOnly = false, refreshFailure
       refreshCount += 1;accessExpired = false;
       res.setHeader('Set-Cookie', ['fixture_access=valid; HttpOnly; SameSite=Lax; Path=/',
         'fixture_rt=valid; HttpOnly; SameSite=Lax; Path=/']);
-      res.end(JSON.stringify({ user, accessToken:'synthetic-access',refreshToken:`synthetic-rotated-${refreshCount}` }));return;
+      res.end(JSON.stringify({ success:true,user:responseUser }));return;
     }
     if (url.pathname === '/api/auth/login' && (!body.email || !body.password)) {
       res.statusCode = 400;res.end('{"error":"Missing credentials"}');return;
@@ -97,10 +110,16 @@ async function fixture({ refreshable = false, legacyOnly = false, refreshFailure
     if (url.pathname === '/api/passkeys/authentication/options') {
       res.end('{"options":{},"token":"synthetic-challenge"}');return;
     }
-    if (url.pathname === '/api/auth/login' || url.pathname === '/api/passkeys/authentication/verify') {
+    if (['/api/auth/login','/api/auth/login/2fa','/api/auth/verify-otp','/api/passkeys/authentication/verify'].includes(url.pathname)) {
+      if (loginFailure) { res.statusCode=loginFailure;res.end('{"error":"Synthetic incorrect credentials"}');return; }
+      accessExpired = false;
       res.setHeader('Set-Cookie', ['fixture_access=valid; HttpOnly; SameSite=Lax; Path=/',
         'fixture_rt=valid; HttpOnly; SameSite=Lax; Path=/']);
-      res.end(JSON.stringify({ user, accessToken: 'synthetic-response-token',refreshToken:'synthetic-refresh-token' }));return;
+      res.end(JSON.stringify({ user }));return;
+    }
+    if (url.pathname === '/api/protected-write') {
+      res.statusCode = accessExpired ? 401 : 200;
+      res.end(JSON.stringify({ success: !accessExpired }));return;
     }
     res.statusCode = 404;res.end('{"error":"Unexpected fixture request"}');
   });
@@ -110,7 +129,19 @@ async function fixture({ refreshable = false, legacyOnly = false, refreshFailure
     expireAccess() { accessExpired = true; },
     setMeFailure(status) { meFailure = status; },
     setRefreshFailure(failure) { refreshFailure = failure; },
-    delayMe() { let release;delayedMe = new Promise(resolve => { release = resolve; });return () => { delayedMe = null;release(); }; },
+    setRefreshResponse(value) { refreshResponse = value; },
+    setLoginFailure(status) { loginFailure = status; },
+    setUser(value) { user = { ...user, ...value }; },
+    delayMe() {
+      let release,markStarted;const promise=new Promise(resolve=>{release=resolve;});
+      const started=new Promise(resolve=>{markStarted=resolve;});delayedMe={promise,markStarted};
+      return Object.assign(()=>{delayedMe=null;release();},{started});
+    },
+    delayRefresh() {
+      let release,markStarted;const promise=new Promise(resolve=>{release=resolve;});
+      const started=new Promise(resolve=>{markStarted=resolve;});delayedRefresh={promise,markStarted};
+      return Object.assign(()=>{delayedRefresh=null;release();},{started});
+    },
     async close() { await browser.close();await new Promise(resolve => server.close(resolve)); } };
 }
 
@@ -138,6 +169,102 @@ test('password login reaches the authenticated dashboard with exactly one creden
     // A reload still recognizes the cookie-established session.
     await page.reload();
     await page.waitForFunction(() => document.querySelector('[data-user]')?.textContent === 'synthetic');
+  } finally { await env.close(); }
+});
+
+test('two-factor and OTP verification hydrate the current authenticated account', async()=>{
+  const env=await fixture();
+  try {
+    const page=await env.browser.newPage();await page.goto(`${env.url}/login`);await page.locator('#email').waitFor();
+    await page.evaluate(()=>window.fixtureAuth.completeTwoFactor({synthetic:true}));
+    assert.equal(await page.evaluate(()=>window.fixtureAuth.user?.id),'synthetic');
+    await page.goto(`${env.url}/dashboard`);
+    await page.locator('[data-user]').waitFor();
+    assert.equal(await page.locator('[data-user]').innerText(),'synthetic');
+    env.setUser({id:'otp-account'});
+    await page.evaluate(()=>window.fixtureAuth.verifyOTP({synthetic:true}));
+    assert.equal(await page.locator('[data-user]').innerText(),'otp-account');
+    assert.equal(env.calls.filter(call=>call.path==='/api/auth/login/2fa').length,1);
+    assert.equal(env.calls.filter(call=>call.path==='/api/auth/verify-otp').length,1);
+  } finally { await env.close(); }
+});
+
+test('an older rejected refresh cannot expire a newer password login', async () => {
+  const env = await fixture({ refreshable:true });
+  let release = () => {};
+  try {
+    const page = await env.browser.newPage();await seedCookieSession(page,env.url);
+    await page.goto(`${env.url}/dashboard`);await page.locator('[data-user]').waitFor();
+    env.expireAccess();env.setRefreshFailure({status:401,code:'revoked'});release=env.delayRefresh();
+    await page.evaluate(()=>{window.oldVerification=window.fixtureAuth.refreshUser().catch(error=>error.code);});
+    await release.started;
+    env.setRefreshFailure(null);env.setUser({id:'new-account'});
+    await page.evaluate(()=>window.fixtureAuth.login({email:'new@example.invalid',password:'Synthetic-password1'}));
+    assert.equal(await page.locator('[data-user]').innerText(),'new-account');
+    release();await page.evaluate(()=>window.oldVerification);
+    assert.equal(await page.locator('[data-user]').innerText(),'new-account');
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('user')).id),'new-account');
+  } finally { release();await env.close(); }
+});
+
+test('an older successful refresh neither overwrites new-account storage nor replays a private write', async () => {
+  const env=await fixture({refreshable:true});let release=()=>{};
+  try {
+    const page=await env.browser.newPage();await seedCookieSession(page,env.url);
+    await page.goto(`${env.url}/dashboard`);await page.locator('[data-user]').waitFor();
+    env.expireAccess();release=env.delayRefresh();
+    await page.evaluate(()=>{window.oldWrite=window.fixtureAPI.post('/protected-write',{synthetic:true}).catch(error=>error.code);});
+    await release.started;env.setUser({id:'new-account'});
+    await page.evaluate(()=>window.fixtureAuth.login({email:'new@example.invalid',password:'Synthetic-password1'}));
+    release();await page.evaluate(()=>window.oldWrite);
+    assert.equal(await page.locator('[data-user]').innerText(),'new-account');
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('user')).id),'new-account');
+    assert.equal(env.calls.filter(call=>call.path==='/api/protected-write').length,1);
+  } finally { release();await env.close(); }
+});
+
+test('an older 401 cannot start a refresh after the account has changed', async()=>{
+  const env=await fixture({refreshable:true});let release=()=>{};
+  try {
+    const page=await env.browser.newPage();await seedCookieSession(page,env.url);
+    await page.goto(`${env.url}/dashboard`);await page.locator('[data-user]').waitFor();
+    env.setMeFailure(401);release=env.delayMe();
+    await page.evaluate(()=>{window.oldVerification=window.fixtureAuth.refreshUser().catch(()=>{});});
+    await release.started;env.setMeFailure(null);env.setUser({id:'new-account'});
+    await page.evaluate(()=>window.fixtureAuth.login({email:'new@example.invalid',password:'Synthetic-password1'}));
+    release();await page.evaluate(()=>window.oldVerification);
+    assert.equal(await page.locator('[data-user]').innerText(),'new-account');
+    assert.equal(env.calls.filter(call=>call.path==='/api/auth/refresh').length,0);
+  } finally { release();await env.close(); }
+});
+
+test('a stalled refresh times out without signing out and releases the lock for recovery', {timeout:45000}, async()=>{
+  const env=await fixture({refreshable:true});let release=()=>{};
+  try {
+    const page=await env.browser.newPage();await seedCookieSession(page,env.url);
+    await page.goto(`${env.url}/dashboard`);await page.locator('[data-user]').waitFor();
+    release=env.delayRefresh();
+    const code=await page.evaluate(()=>window.fixtureAuth.refreshSession().catch(error=>error.code));
+    assert.equal(code,'ECONNABORTED');
+    assert.equal(await page.locator('[data-user]').innerText(),'synthetic');
+    await page.evaluate(()=>window.fixtureAuth.refreshSession());
+    assert.equal(await page.locator('[data-user]').innerText(),'synthetic');
+  } finally { release();await env.close(); }
+});
+
+test('unverified refresh responses and incorrect credentials do not expire a verified session', async()=>{
+  const env=await fixture({refreshable:true});
+  try {
+    const page=await env.browser.newPage();await seedCookieSession(page,env.url);
+    await page.goto(`${env.url}/dashboard`);await page.locator('[data-user]').waitFor();
+    env.setRefreshResponse({});
+    assert.equal(await page.evaluate(()=>window.fixtureAuth.refreshSession().catch(error=>error.code)),'AUTH_REFRESH_UNVERIFIED');
+    assert.equal(await page.locator('[data-user]').innerText(),'synthetic');
+    const before=env.calls.filter(call=>call.path==='/api/auth/refresh').length;
+    env.setLoginFailure(401);
+    await page.evaluate(()=>window.fixtureAuth.login({email:'wrong@example.invalid',password:'Synthetic-wrong'}).catch(()=>{}));
+    assert.equal(await page.locator('[data-user]').innerText(),'synthetic');
+    assert.equal(env.calls.filter(call=>call.path==='/api/auth/refresh').length,before);
   } finally { await env.close(); }
 });
 
