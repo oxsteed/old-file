@@ -37,6 +37,18 @@ for (const entry of Object.values(manifest)) collect(entry);
 
 for (const file of files) {
   assert.ok(existsSync(join(distRoot, file)), `Build manifest references missing asset: ${file}`);
+  if (!file.endsWith('.css')) continue;
+  const css = readFileSync(join(distRoot, file), 'utf8');
+  // Unresolved CSS URLs are omitted from Vite's asset manifest. Check local
+  // font references too, so a successful build cannot silently ship fallbacks.
+  for (const match of css.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*?))\s*\)/g)) {
+    const reference = (match[1] ?? match[2] ?? match[3]).trim();
+    if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(reference)
+      || !/\.(?:woff2?|ttf|otf|eot)(?:[?#]|$)/i.test(reference)) continue;
+    const url = new URL(reference, `https://build.invalid/${file}`);
+    assert.ok(existsSync(join(distRoot, decodeURIComponent(url.pathname))),
+      `Built CSS references missing font: ${file} -> ${reference}`);
+  }
 }
 
 console.log(`[dist-assets] verified ${files.size} emitted assets`);

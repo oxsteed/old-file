@@ -5,6 +5,7 @@ import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import i18next from 'i18next';
 import App from './App';
+import './styles/fonts.css';
 import './index.css';
 import { initMobileBridge } from './utils/mobileBridge';
 import { i18nReady } from './i18n';
