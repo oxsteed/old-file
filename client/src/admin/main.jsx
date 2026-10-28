@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/react';
 import AdminProviders from './AdminProviders';
 import AdminApp from './AdminApp';
 import i18next, { i18nReady, initializeEnglishFallback } from '../i18n';
+import '../styles/fonts.css';
 import '../index.css';
 import {
   clearBootstrapRecoveryMarker,
