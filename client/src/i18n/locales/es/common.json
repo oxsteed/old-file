@@ -5458,5 +5458,44 @@
     "title": "No pudimos comprobar tu sesión",
     "description": "Revisa tu conexión e inténtalo de nuevo. Tu página actual y el trabajo guardado permanecerán aquí.",
     "retry": "Intentar de nuevo"
+  },
+  "businessOperations": {
+    "dayBookings": "Reservas del {{date}}",
+    "showDayBookings": "Ver las {{count}} reservas del {{date}}",
+    "title": "El trabajo de hoy",
+    "description": "Empieza por las reservas y el seguimiento a clientes.",
+    "refresh": "Actualizar",
+    "loading": "Cargando la actividad del negocio…",
+    "loadError": "No se pudo cargar la actividad del negocio. Intenta actualizar.",
+    "timezone": "Hoy se basa en la zona horaria de tu negocio: {{timezone}}.",
+    "partial": "Parte de la actividad no se pudo cargar. A continuación se muestran los recuentos disponibles.",
+    "todayBookings": "Reservas de hoy",
+    "yourTodayBookings": "Tus reservas de hoy",
+    "unansweredMessages": "Conversaciones pendientes de respuesta",
+    "overdueInvoices": "Facturas vencidas",
+    "unavailable": "No disponible",
+    "needsAttention": "Requiere atención",
+    "review": "Revisar",
+    "attentionUnavailable": "Actualiza para consultar el resto de la actividad.",
+    "nothingPending": "No hay acciones pendientes en la actividad que puedes consultar.",
+    "viewAnalytics": "Ver análisis detallados",
+    "open": {
+      "bookings": "Abrir calendario",
+      "messages": "Abrir mensajes",
+      "invoices": "Abrir facturas"
+    },
+    "tasks": {
+      "confirmBookings": "Reservas pendientes de confirmación: {{count}}",
+      "replyToMessages": "Conversaciones con clientes pendientes de respuesta: {{count}}",
+      "followUpInvoices": "Facturas vencidas que requieren seguimiento: {{count}}",
+      "reviewSetup": "Completa la configuración de tu negocio"
+    },
+    "startBooking": "Iniciar servicio",
+    "inProgress": "En curso",
+    "pendingCount": "Reservas pendientes de confirmación: {{count}}",
+    "noPendingBookings": "No hay reservas pendientes de confirmación.",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "closeBooking": "Cerrar detalles de la reserva"
   }
 }

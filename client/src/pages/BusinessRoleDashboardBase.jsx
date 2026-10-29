@@ -1,20 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowRight,
   BarChart3,
-  BellRing,
-  Briefcase,
   Building2,
   CalendarRange,
   ClipboardList,
   MessageSquare,
   ShieldCheck,
   UserCheck,
-  Users,
 } from 'lucide-react';
-import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
+import { useBusinessOperations } from '../hooks/useBusinessOperations';
 import { getMyBusinesses } from '../api/vortex';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -74,22 +72,13 @@ const ROLE_CONFIG = {
   },
 };
 
-function fmtCurrency(cents, currency = 'USD') {
-  if (cents == null || Number.isNaN(Number(cents))) return '—';
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(Number(cents) / 100);
-}
-
 function MetricCard({ icon: Icon, label, value, accent }) {
   return (
     <div
       className="rounded-2xl border p-4"
       style={{
-        borderColor: 'rgba(148,163,184,0.14)',
-        background: 'rgba(255,255,255,0.03)',
+        borderColor: 'var(--color-border)',
+        background: 'var(--color-card-bg)',
       }}
     >
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>
@@ -101,10 +90,19 @@ function MetricCard({ icon: Icon, label, value, accent }) {
   );
 }
 
-function WorkspaceCard({ business, config, tx }) {
+function WorkspaceCard({ business, config, tx, viewerId }) {
   const workspaceId = business.business_id || business.id;
   const workspaceBase = `/business/${workspaceId}/workspace`;
-  const primaryHref = config.primaryTab ? `${workspaceBase}/${config.primaryTab}` : workspaceBase;
+  const { data, loading, error, retry } = useBusinessOperations(workspaceId, viewerId, business.role);
+  const restaurant = data?.businessKind === 'restaurant';
+  const primaryTab = restaurant ? (data?.sections.messages.available ? 'messages' : 'team')
+    : config.primaryTab === 'calendar' && data?.sections.bookings.available ? 'calendar'
+    : config.primaryTab === 'messages' && data?.sections.messages.available ? 'messages' : 'overview';
+  const primaryHref = `${workspaceBase}/${primaryTab}`;
+  const metrics = [
+    ['bookings', 'today', data?.sections.bookings.scope === 'self' ? 'yourTodayBookings' : 'todayBookings'],
+    ['messages', 'unanswered', 'unansweredMessages'], ['invoices', 'overdue', 'overdueInvoices'],
+  ];
 
   return (
     <article
@@ -117,9 +115,6 @@ function WorkspaceCard({ business, config, tx }) {
             {tx(`${config.translationKey}.badge`)}
           </div>
           <div className="text-lg font-semibold mt-1 truncate">{business.business_name}</div>
-          <div className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-            {tx('businessRoleDashboard.roleLabel')} {business.role}
-          </div>
         </div>
         <div
           className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
@@ -129,31 +124,27 @@ function WorkspaceCard({ business, config, tx }) {
         </div>
       </header>
 
-      <div className="px-5 py-4 grid grid-cols-2 gap-3">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>
-            {tx('businessRoleDashboard.metricOpenJobs')}
-          </div>
-          <div className="text-lg font-semibold mt-1">{business.open_jobs ?? '—'}</div>
-        </div>
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>
-            {tx('businessRoleDashboard.metricUnreadInbox')}
-          </div>
-          <div className="text-lg font-semibold mt-1">{business.unread_messages ?? '—'}</div>
-        </div>
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>
-            {tx('businessRoleDashboard.metricTeamSize')}
-          </div>
-          <div className="text-lg font-semibold mt-1">{business.member_count ?? '—'}</div>
-        </div>
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>
-            {tx('businessRoleDashboard.metricMtdRevenue')}
-          </div>
-          <div className="text-lg font-semibold mt-1">{fmtCurrency(business.mtd_revenue_cents, 'USD')}</div>
-        </div>
+      <div className="px-5 py-4" aria-busy={loading}>
+        {loading && <p role="status">{tx('businessOperations.loading')}</p>}
+        {error && <p role="alert">{tx('businessOperations.loadError')}</p>}
+        {data?.partial && <p role="status" className="text-sm mb-3">{tx('businessOperations.partial')}</p>}
+        <dl className="grid grid-cols-2 gap-3">
+          {metrics.filter(([section]) => data?.sections[section]?.available).map(([section, field, label]) => (
+            <div key={section}>
+              <dt className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{tx(`businessOperations.${label}`)}</dt>
+              <dd className="text-lg font-semibold mt-1">{data.sections[section].status === 'ready'
+                ? data.sections[section][field] : tx('businessOperations.unavailable')}</dd>
+            </div>
+          ))}
+        </dl>
+        {data?.tasks?.length > 0 && <ul className="mt-4 grid gap-2 text-sm">
+          {data.tasks.map(task => <li key={task.type}><Link to={`${workspaceBase}/${task.panel}`} style={{ color: 'var(--color-primary)' }}>
+            {tx(`businessOperations.tasks.${task.type}`, undefined, { count: task.count })}
+          </Link></li>)}
+        </ul>}
+        <button type="button" onClick={retry} disabled={loading} className="mt-3 min-h-11 text-sm font-semibold" style={{ color: 'var(--color-primary)' }} data-track="business.role.activity.refresh">
+          {tx('businessOperations.refresh')}
+        </button>
       </div>
 
       <footer
@@ -163,16 +154,16 @@ function WorkspaceCard({ business, config, tx }) {
         <Link to={primaryHref} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:opacity-90" style={{ color: config.accent }}>
           {tx(`${config.translationKey}.primaryCta`, config.primaryCta)} <ArrowRight size={14} />
         </Link>
-          <div className="flex items-center gap-3 flex-wrap">
-            <Link to={`${workspaceBase}/overview`} className="text-xs text-orange-400 hover:text-orange-300">
+        <div className="flex items-center gap-3 flex-wrap">
+          {!restaurant && <Link to={`${workspaceBase}/overview`} className="text-xs py-3" style={{ color: 'var(--color-primary)' }}>
             {tx('businessRoleDashboard.tabs.overview')}
-          </Link>
-            <Link to={`${workspaceBase}/messages`} className="text-xs text-orange-400 hover:text-orange-300">
+          </Link>}
+          {data?.sections.messages.available && <Link to={`${workspaceBase}/messages`} className="text-xs py-3" style={{ color: 'var(--color-primary)' }}>
             {tx('businessRoleDashboard.tabs.messages')}
-          </Link>
-            <Link to={`${workspaceBase}/calendar`} className="text-xs text-orange-400 hover:text-orange-300">
+          </Link>}
+          {data?.sections.bookings.available && <Link to={`${workspaceBase}/calendar`} className="text-xs py-3" style={{ color: 'var(--color-primary)' }}>
             {tx('businessRoleDashboard.tabs.calendar')}
-          </Link>
+          </Link>}
         </div>
       </footer>
     </article>
@@ -180,14 +171,22 @@ function WorkspaceCard({ business, config, tx }) {
 }
 
 export default function BusinessRoleDashboardBase({ mode }) {
+  const { user } = useAuth();
+  return <BusinessRoleDashboardContent key={`${user?.id || ''}:${mode}`} mode={mode} viewerId={user?.id} />;
+}
+
+function BusinessRoleDashboardContent({ mode, viewerId }) {
   const { t } = useTranslation();
   const config = ROLE_CONFIG[mode];
   const tx = (key, fallback, options = {}) => t(key, { defaultValue: fallback, ...options });
   const [businesses, setBusinesses] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setLoadError(false);
     getMyBusinesses()
       .then((data) => {
         if (cancelled) return;
@@ -197,50 +196,13 @@ export default function BusinessRoleDashboardBase({ mode }) {
       })
       .catch(() => {
         if (cancelled) return;
-        setBusinesses([]);
+        setLoadError(true);
         setLoaded(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [config.membershipRole]);
-
-  useEffect(() => {
-    if (!businesses.length) return;
-    let cancelled = false;
-    Promise.all(
-      businesses.map((business) =>
-        api.get(`/businesses/${business.business_id || business.id}/analytics`)
-          .then((response) => ({ id: business.business_id || business.id, data: response.data }))
-          .catch(() => ({ id: business.business_id || business.id, data: null }))
-      )
-    ).then((results) => {
-      if (cancelled) return;
-      setBusinesses((previous) => previous.map((business) => {
-        const found = results.find((result) => result.id === (business.business_id || business.id));
-        if (!found?.data) return business;
-        const analytics = found.data.analytics || found.data;
-        return {
-          ...business,
-          mtd_revenue_cents: analytics.mtd_revenue_cents ?? analytics.month_revenue_cents ?? analytics.revenue_cents,
-          open_jobs: analytics.open_jobs ?? analytics.active_jobs ?? analytics.pending_jobs,
-          unread_messages: analytics.unread_messages ?? analytics.unread_inbox,
-          member_count: analytics.member_count ?? analytics.team_size,
-        };
-      }));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [businesses.length]);
-
-  const totals = useMemo(() => {
-    const workspaces = businesses.length;
-    const openJobs = businesses.reduce((sum, business) => sum + (Number(business.open_jobs) || 0), 0);
-    const unread = businesses.reduce((sum, business) => sum + (Number(business.unread_messages) || 0), 0);
-    const team = businesses.reduce((sum, business) => sum + (Number(business.member_count) || 0), 0);
-    return { workspaces, openJobs, unread, team };
-  }, [businesses]);
+  }, [config.membershipRole, viewerId, attempt]);
 
   if (!loaded) {
     return (
@@ -281,16 +243,15 @@ export default function BusinessRoleDashboardBase({ mode }) {
             </div>
         </section>
 
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <MetricCard icon={Building2} label={tx('businessRoleDashboard.metricAssignedWorkspaces')} value={totals.workspaces} accent={config.accent} />
-          <MetricCard icon={Briefcase} label={tx('businessRoleDashboard.metricOpenJobs')} value={totals.openJobs} accent={config.accent} />
-          <MetricCard icon={BellRing} label={tx('businessRoleDashboard.metricUnreadInbox')} value={totals.unread} accent={config.accent} />
-          <MetricCard icon={Users} label={tx('businessRoleDashboard.metricTeamSize')} value={totals.team} accent={config.accent} />
-        </section>
+        <MetricCard icon={Building2} label={tx('businessRoleDashboard.metricAssignedWorkspaces')}
+          value={loadError ? tx('businessOperations.unavailable') : businesses.length} accent={config.accent} />
 
         <section className="grid grid-cols-1 lg:grid-cols-[1.25fr,0.75fr] gap-4">
           <div className="grid gap-4">
-            {businesses.length === 0 ? (
+            {loadError ? <div role="alert">
+              <p>{tx('businessOperations.loadError')}</p>
+              <button type="button" onClick={() => setAttempt(n => n + 1)} className="min-h-11" data-track="business.role.workspaces.retry">{tx('businessOperations.refresh')}</button>
+            </div> : businesses.length === 0 ? (
               <div className="rounded-[28px] border p-8" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full" style={{ background: `${config.accent}22`, color: config.accent }}>
                   <config.icon size={28} />
@@ -315,7 +276,7 @@ export default function BusinessRoleDashboardBase({ mode }) {
               </div>
             ) : (
               businesses.map((business) => (
-                <WorkspaceCard key={business.business_id || business.id} business={business} config={config} tx={tx} />
+                <WorkspaceCard key={business.business_id || business.id} business={business} config={config} tx={tx} viewerId={viewerId} />
               ))
             )}
           </div>
@@ -368,7 +329,7 @@ export default function BusinessRoleDashboardBase({ mode }) {
                   {businesses.slice(0, 3).map((business) => (
                     <Link
                       key={business.business_id || business.id}
-                      to={`/business/${business.business_id || business.id}/workspace/${config.primaryTab}`}
+                      to={`/business/${business.business_id || business.id}/workspace`}
                       className="text-sm hover:opacity-90"
                       style={{ color: config.accent }}
                     >

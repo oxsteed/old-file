@@ -5458,5 +5458,44 @@
     "title": "تعذّر التحقق من جلستك",
     "description": "تحقق من اتصالك وحاول مرة أخرى. ستبقى صفحتك الحالية وأعمالك المحفوظة هنا.",
     "retry": "حاول مرة أخرى"
+  },
+  "businessOperations": {
+    "dayBookings": "حجوزات {{date}}",
+    "showDayBookings": "عرض جميع الحجوزات وعددها {{count}} في {{date}}",
+    "title": "عمل اليوم",
+    "description": "ابدأ بالحجوزات ومتابعة العملاء.",
+    "refresh": "تحديث",
+    "loading": "جارٍ تحميل نشاط النشاط التجاري…",
+    "loadError": "تعذّر تحميل نشاط النشاط التجاري. حاول التحديث.",
+    "timezone": "يُحتسب اليوم حسب المنطقة الزمنية لنشاطك التجاري: {{timezone}}.",
+    "partial": "تعذّر تحميل بعض الأنشطة. تظهر الأعداد المتاحة أدناه.",
+    "todayBookings": "حجوزات اليوم",
+    "yourTodayBookings": "حجوزاتك اليوم",
+    "unansweredMessages": "محادثات بانتظار الرد",
+    "overdueInvoices": "فواتير متأخرة",
+    "unavailable": "غير متاح",
+    "needsAttention": "بحاجة إلى متابعة",
+    "review": "مراجعة",
+    "attentionUnavailable": "حدّث الصفحة للتحقق من بقية الأنشطة.",
+    "nothingPending": "لا توجد إجراءات معلّقة في الأنشطة التي يمكنك الاطلاع عليها.",
+    "viewAnalytics": "عرض التحليلات التفصيلية",
+    "open": {
+      "bookings": "فتح التقويم",
+      "messages": "فتح الرسائل",
+      "invoices": "فتح الفواتير"
+    },
+    "tasks": {
+      "confirmBookings": "حجوزات بانتظار التأكيد: {{count}}",
+      "replyToMessages": "محادثات عملاء بانتظار الرد: {{count}}",
+      "followUpInvoices": "فواتير متأخرة تحتاج إلى متابعة: {{count}}",
+      "reviewSetup": "أكمل إعداد نشاطك التجاري"
+    },
+    "startBooking": "بدء الخدمة",
+    "inProgress": "قيد التنفيذ",
+    "pendingCount": "حجوزات بانتظار التأكيد: {{count}}",
+    "noPendingBookings": "لا توجد حجوزات بانتظار التأكيد.",
+    "previous": "السابق",
+    "next": "التالي",
+    "closeBooking": "إغلاق تفاصيل الحجز"
   }
 }

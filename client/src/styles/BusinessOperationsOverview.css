@@ -1,0 +1,24 @@
+.business-operations { color: var(--color-text); display: grid; gap: 1.25rem; }
+.business-operations__heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+.business-operations h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); font-weight: 700; margin: 0; }
+.business-operations__heading p, .business-operations__zone { color: var(--color-text-muted); margin: .4rem 0 0; }
+.business-operations__zone { font-size: .85rem; overflow-wrap: anywhere; }
+.business-operations button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 44px; border-radius: .75rem; padding: .55rem .8rem; font-weight: 600; color: var(--color-primary); }
+.business-operations button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.business-operations button:hover { background: var(--color-primary-bg); }
+.business-operations button:disabled { opacity: .6; cursor: wait; }
+.business-operations__refresh { border: 1px solid var(--color-border); background: var(--color-card-bg); }
+.business-operations__cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 1rem; margin: 0; }
+.business-operations__card { background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: 1.1rem; padding: 1.25rem; }
+.business-operations__card dt { display: flex; align-items: center; gap: .6rem; color: var(--color-text-muted); }
+.business-operations__card dd { font-size: 2rem; font-weight: 700; margin: .65rem 0 .4rem; overflow-wrap: anywhere; }
+.business-operations__card button { padding-inline: 0; }
+.business-operations__attention { background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: 1.1rem; padding: 1.25rem; }
+.business-operations h3 { font-weight: 700; font-size: 1.1rem; margin: 0 0 .75rem; }
+.business-operations__attention ul { list-style: none; padding: 0; margin: 0; }
+.business-operations__attention li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: .65rem; border-top: 1px solid var(--color-border); }
+.business-operations__attention li:first-child { border-top: 0; }
+.business-operations__attention p { color: var(--color-text-muted); margin: 0; }
+.business-operations__analytics { justify-self: start; }
+[dir="rtl"] .business-operations button svg:last-child { transform: scaleX(-1); }
+@media (max-width: 480px) { .business-operations__attention li { align-items: flex-start; flex-wrap: wrap; } }

@@ -1,3 +1,4 @@
+const { calendarScopeClause } = require('../middleware/requireBusinessCalendarAccess');
 // server/controllers/businessCalendarController.js
 //
 // Per-business calendar:
@@ -83,6 +84,7 @@ exports.listBusinessCalendar = async (req, res) => {
       params.push(status);
       where += ` AND status = $${params.length}`;
     }
+    where += calendarScopeClause(req, params, 'assignee_id');
     if (assignee_id) {
       params.push(assignee_id);
       where += ` AND assignee_id = $${params.length}`;
@@ -99,6 +101,8 @@ exports.listBusinessCalendar = async (req, res) => {
       LIMIT 500
     `;
 
+    const appointmentParams = [bizId, from.toISOString(), to.toISOString()];
+    const appointmentScope = calendarScopeClause(req, appointmentParams, 'a.helper_id');
     const apptsQ = `
       SELECT a.id, a.business_id, a.customer_id, a.helper_id, a.job_id,
              a.status, a.scheduled_start_time AS starts_at, a.scheduled_end_time AS ends_at,
@@ -113,14 +117,14 @@ exports.listBusinessCalendar = async (req, res) => {
       WHERE a.business_id = $1
         AND a.scheduled_start_time < $3
         AND a.scheduled_end_time   > $2
-        AND a.status NOT IN ('cancelled', 'declined', 'expired')
+        AND a.status NOT IN ('cancelled', 'declined', 'expired')${appointmentScope}
       ORDER BY a.scheduled_start_time ASC
       LIMIT 500
     `;
 
     const [evRes, apRes] = await Promise.all([
       pool.query(eventsQ, params),
-      pool.query(apptsQ, [bizId, from.toISOString(), to.toISOString()]),
+      pool.query(apptsQ, appointmentParams),
     ]);
 
     const events = evRes.rows.map((r) => ({
@@ -195,17 +199,20 @@ exports.getBusinessCalendarSummary = async (req, res) => {
     const access = await canAccessBusinessTeam(req.user.id, bizId);
     if (!access) return sendError(res, 403, 'Access denied', 'forbidden');
 
+    const params = [bizId];
+    const eventScope = calendarScopeClause(req, params, 'assignee_id');
+    const appointmentScope = calendarScopeClause(req, params, 'helper_id');
     const summaryQ = `
       WITH ev AS (
         SELECT starts_at, ends_at, status
         FROM business_events
-        WHERE business_id = $1 AND deleted_at IS NULL
+        WHERE business_id = $1 AND deleted_at IS NULL${eventScope}
       ),
       ap AS (
         SELECT scheduled_start_time AS starts_at, scheduled_end_time AS ends_at, status
         FROM appointments
         WHERE business_id = $1
-          AND status NOT IN ('cancelled', 'declined', 'expired')
+          AND status NOT IN ('cancelled', 'declined', 'expired')${appointmentScope}
       ),
       combined AS (
         SELECT * FROM ev
@@ -221,7 +228,7 @@ exports.getBusinessCalendarSummary = async (req, res) => {
         MIN(starts_at) FILTER (WHERE starts_at >= NOW()) AS next_event_at
       FROM combined
     `;
-    const { rows } = await pool.query(summaryQ, [bizId]);
+    const { rows } = await pool.query(summaryQ, params);
     const r = rows[0] || {};
     sendSuccess(res, {
       today_count: Number(r.today_count || 0),
@@ -478,7 +485,7 @@ exports.getBusinessAppointmentsCalendar = async function getBusinessAppointments
     const from = _parseDate(req.query.from, defaultFrom);
     const to   = _parseDate(req.query.to,   defaultTo);
 
-    const data = await slotEngine.getBusinessCalendar(businessId, from.toISOString(), to.toISOString());
-    return sendSuccess(res, { from: from.toISOString(), to: to.toISOString(), ...data });
+    const data = await slotEngine.getBusinessCalendar(businessId, from.toISOString(), to.toISOString(), req.calendarAccess?.all === false ? req.calendarAccess.userId : null);
+    return sendSuccess(res, { from: from.toISOString(), to: to.toISOString(), ...data, permissions: req.calendarAccess });
   } catch (err) { next(err); }
 };

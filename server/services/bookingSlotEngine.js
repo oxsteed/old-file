@@ -362,25 +362,29 @@ async function computeSlots(args) {
  * Returns appointments union availability blocks for a business in a date range,
  * for use by the business workspace calendar view.
  */
-async function getBusinessCalendar(businessId, fromIso, toIso) {
+async function getBusinessCalendar(businessId, fromIso, toIso, staffId = null) {
   const [appts, blocks] = await Promise.all([
     pool.query(
       `SELECT a.id, a.service_id, a.staff_id, a.customer_id,
               a.customer_name, a.customer_email, a.status,
               a.start_time, a.end_time, a.payment_status,
+              a.base_price_cents, a.final_price_cents, a.cancellation_fee_cents,
+              a.customer_phone, a.customer_notes,
               s.name AS service_name
          FROM business_appointments a
          LEFT JOIN business_services s ON s.id = a.service_id
         WHERE a.business_id = $1
-          AND a.end_time > $2 AND a.start_time < $3`,
-      [businessId, fromIso, toIso]
+          AND a.end_time > $2 AND a.start_time < $3
+          AND ($4::uuid IS NULL OR a.staff_id = $4)`,
+      [businessId, fromIso, toIso, staffId]
     ),
     pool.query(
       `SELECT id, service_id, staff_id, start_time, end_time, reason
          FROM business_service_blocked_times
         WHERE business_id = $1
-          AND end_time > $2 AND start_time < $3`,
-      [businessId, fromIso, toIso]
+          AND end_time > $2 AND start_time < $3
+          AND ($4::uuid IS NULL OR staff_id = $4 OR staff_id IS NULL)`,
+      [businessId, fromIso, toIso, staffId]
     ),
   ]);
   return {

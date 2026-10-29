@@ -1284,3 +1284,6 @@ html:not(.dark) .bh-status-pending {
   .bh-today-cards { grid-template-columns: 1fr 1fr; }
   .bh-quick-actions { grid-template-columns: 1fr; }
 }
+
+.bh-calendar-panel { border: 1px solid var(--color-border); background: var(--color-card-bg); color: var(--color-text); border-radius: 1.5rem; padding: 1.25rem 1.5rem; }
+.bh-calendar-panel-description { margin-top: .25rem; font-size: .875rem; line-height: 1.5rem; color: var(--color-text-muted); }

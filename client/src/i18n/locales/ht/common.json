@@ -5458,5 +5458,44 @@
     "title": "Nou pa t kapab verifye sesyon ou a",
     "description": "Tcheke koneksyon ou epi eseye ankò. Paj ou ye a ak travay ou te anrejistre yo ap rete la.",
     "retry": "Eseye ankò"
+  },
+  "businessOperations": {
+    "dayBookings": "Rezèvasyon pou {{date}}",
+    "showDayBookings": "Montre tout {{count}} rezèvasyon pou {{date}}",
+    "title": "Travay jodi a",
+    "description": "Kòmanse ak rezèvasyon yo ak swivi kliyan yo.",
+    "refresh": "Rafrechi",
+    "loading": "Aktivite biznis la ap chaje…",
+    "loadError": "Aktivite biznis la pa t ka chaje. Eseye rafrechi.",
+    "timezone": "Jounen an suiv zòn lè biznis ou a: {{timezone}}.",
+    "partial": "Gen kèk aktivite ki pa t ka chaje. Kantite ki disponib yo parèt anba a.",
+    "todayBookings": "Rezèvasyon jodi a",
+    "yourTodayBookings": "Rezèvasyon pa w jodi a",
+    "unansweredMessages": "Konvèsasyon k ap tann repons",
+    "overdueInvoices": "Fakti ki anreta",
+    "unavailable": "Pa disponib",
+    "needsAttention": "Sa ki bezwen atansyon",
+    "review": "Revize",
+    "attentionUnavailable": "Rafrechi pou verifye rès aktivite a.",
+    "nothingPending": "Pa gen aksyon annatant nan aktivite ou ka wè yo.",
+    "viewAnalytics": "Gade analiz detaye yo",
+    "open": {
+      "bookings": "Louvri kalandriye",
+      "messages": "Louvri mesaj",
+      "invoices": "Louvri fakti"
+    },
+    "tasks": {
+      "confirmBookings": "Rezèvasyon k ap tann konfimasyon: {{count}}",
+      "replyToMessages": "Konvèsasyon kliyan k ap tann repons: {{count}}",
+      "followUpInvoices": "Fakti ki anreta pou fè swivi: {{count}}",
+      "reviewSetup": "Fini konfigirasyon biznis ou a"
+    },
+    "startBooking": "Kòmanse sèvis la",
+    "inProgress": "An kou",
+    "pendingCount": "Rezèvasyon k ap tann konfimasyon: {{count}}",
+    "noPendingBookings": "Pa gen rezèvasyon k ap tann konfimasyon.",
+    "previous": "Anvan",
+    "next": "Apre",
+    "closeBooking": "Fèmen detay rezèvasyon an"
   }
 }
