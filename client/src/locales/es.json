@@ -24258,6 +24258,16 @@
       },
       "comingSoon": "Próximamente",
       "opAtAGlance": "De un vistazo",
+      "desk": {
+        "allTools": "Todas las herramientas",
+        "toolsLabel": "Herramientas de operación",
+        "groupFloor": "Sala",
+        "groupStandards": "Estándares",
+        "groupCompany": "Empresa",
+        "groupSupport": "Apoyo",
+        "screensTitle": "Pantallas del local",
+        "screensDesc": "Cocina, quiosco, fila y los dispositivos del salón."
+      },
       "opChipChecklists": "{{count}} listas de verificación",
       "opChipRuns": "{{count}} ejecuciones recientes",
       "opChipInventory": "{{count}} artículos",

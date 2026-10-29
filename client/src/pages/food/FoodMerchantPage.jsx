@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard, Building2, Network, WifiOff } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard, Building2, Network, WifiOff, Monitor } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import api from '../../api/axios';
 import RestaurantOfflineCardQueue from './RestaurantOfflineCardQueue';
@@ -1241,11 +1241,12 @@ function FdSwitchRow({ label, checked, disabled, onChange }) {
   );
 }
 
-function SettingsCard({ icon: Icon, title, desc, cardKey, registerRef, wide, bareHead, id, children }) {
+function SettingsCard({ icon: Icon, title, desc, cardKey, registerRef, wide, bareHead, id, hidden = false, children }) {
   return (
     <section
       ref={(el) => registerRef(cardKey, el)}
       id={id}
+      hidden={hidden || undefined}
       className={`fd-settings-card${wide ? ' fd-settings-card--wide' : ''}`}
     >
       {!bareHead && (
@@ -1944,16 +1945,22 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
 }
 
 // ── Operations tab ───────────────────────────────────────────────────────────
-// Franchise-grade operating modules: device setup, checklists, inventory,
-// SOPs, training, audits, reports, in-store screens, plus the Marketplace help link.
-// Layout mirrors the Settings tab: status strip, clickable chips that scroll
-// to cards, lucide icons. Permission gates are unchanged from before.
+// Franchise-grade operating modules. The desk shows one tool at a time;
+// the others stay mounted (hidden) so their counts keep loading.
+// Permission gates are unchanged from before.
+const OPS_MODULE_KEYS = new Set(['screens', 'hosting', 'checklists', 'inventory', 'sops', 'training', 'audits', 'hq', 'brand-hq', 'accounting', 'store-hub', 'reports', 'help']);
+
 function OperationsView({ t, restaurant, canManageRestaurant }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [stats, setStats] = useState({});
   const report = useCallback((s) => setStats((prev) => ({ ...prev, ...s })), []);
-  const cardRefs = useRef({});
-  const registerCard = (key, el) => { cardRefs.current[key] = el; };
-  const scrollToCard = (key) => cardRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const registerCard = () => {};
+  const workspaceRef = useRef(null);
+  const focusWorkspace = useRef(false);
+  const [active, setActive] = useState(() => {
+    const requested = searchParams.get('ops');
+    return OPS_MODULE_KEYS.has(requested) ? requested : null;
+  });
 
   // Offline outbox: floor devices keep working without Wi-Fi; queued
   // mutations replay in order when connectivity returns.
@@ -2062,10 +2069,76 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
       },
     );
   }
-  chips.push({
-    key: 'reports', target: 'reports', tone: null,
-    label: t('restaurants.ops.opChipReports', 'Reports'),
-  });
+  const moduleCatalog = [
+    { key: 'screens', group: 'floor', icon: Monitor, title: t('restaurants.ops.desk.screensTitle', 'In-store screens'), desc: t('restaurants.ops.desk.screensDesc', 'Kitchen, kiosk, queue, and the devices on the floor.'), manager: false },
+    { key: 'hosting', group: 'floor', icon: CalendarDays, title: t('restaurants.ops.hosting.title', 'Host stand'), desc: t('restaurants.ops.hosting.subtitle', 'Manage tables, reservations, and walk-ins for this restaurant.'), manager: true },
+    { key: 'checklists', group: 'floor', icon: ClipboardCheck, title: t('restaurants.ops.checklists.title', 'Checklists'), desc: t('restaurants.ops.opChecklistsDesc', 'Daily opening, closing, and safety routines your team runs.'), manager: true },
+    { key: 'inventory', group: 'floor', icon: Package, title: t('restaurants.ops.inventory.title', 'Inventory'), desc: t('restaurants.ops.opInventoryDesc', 'Ingredients and supplies on hand, with low-stock alerts.'), manager: true },
+    { key: 'sops', group: 'standards', icon: BookOpen, title: t('restaurants.ops.sops.title', 'SOP library'), desc: t('restaurants.ops.opSopsDesc', 'How things are done, written down for the whole team.'), manager: true },
+    { key: 'training', group: 'standards', icon: GraduationCap, title: t('restaurants.ops.training.title', 'Staff training'), desc: t('restaurants.ops.opTrainingDesc', 'Lessons and quizzes assigned to your team, with completion tracking.'), manager: true },
+    { key: 'audits', group: 'standards', icon: ShieldCheck, title: t('restaurants.ops.audits.title', 'Quality audits'), desc: t('restaurants.ops.opAuditsDesc', 'Score inspections, log findings, and track corrective actions to closure.'), manager: true },
+    { key: 'hq', group: 'company', icon: Building2, title: t('restaurants.ops.hq.title', 'HQ console'), desc: t('restaurants.ops.hq.subtitle', 'Compare stores and publish approved menu policies.'), manager: true },
+    { key: 'brand-hq', group: 'company', icon: Network, title: t('restaurants.ops.brandHq.title'), desc: t('restaurants.ops.brandHq.subtitle'), manager: true },
+    { key: 'accounting', group: 'company', icon: Receipt, title: t('restaurants.accountingRuntime.title'), desc: t('restaurants.accountingRuntime.description'), manager: true },
+    { key: 'store-hub', group: 'company', icon: WifiOff, title: t('restaurants.ops.storeHub.title'), desc: t('restaurants.ops.storeHub.subtitle'), manager: true },
+    { key: 'reports', group: 'company', icon: BarChart3, title: t('restaurants.ops.reports.title', 'Reports'), desc: t('restaurants.ops.opReportsDesc', 'Sales, inventory, and operations performance at a glance.'), manager: true },
+    { key: 'help', group: 'support', icon: HelpingHand, title: t('restaurants.ops.help.title', 'Need help at your restaurant?'), desc: t('restaurants.ops.help.desc', 'Hire local helpers through OxSteed Marketplace: repairs, cleaning, equipment, signage, and more.'), manager: true },
+  ];
+  const modules = moduleCatalog.filter((mod) => !mod.manager || canManageRestaurant);
+  const moduleKeys = modules.map((mod) => mod.key).join('|');
+  const requestedOps = searchParams.get('ops');
+
+  useEffect(() => {
+    const keys = new Set(moduleKeys.split('|').filter(Boolean));
+    const next = requestedOps && keys.has(requestedOps) ? requestedOps : (keys.size === 1 ? moduleKeys : null);
+    setActive(next);
+  }, [moduleKeys, requestedOps]);
+
+  useEffect(() => {
+    if (!active || !focusWorkspace.current) return;
+    focusWorkspace.current = false;
+    workspaceRef.current?.focus();
+  }, [active]);
+
+  const openModule = (key) => {
+    const keys = new Set(moduleKeys.split('|').filter(Boolean));
+    if (key && !keys.has(key)) return;
+    focusWorkspace.current = true;
+    const nextActive = key || (keys.size === 1 ? moduleKeys : null);
+    setActive(nextActive);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (nextActive) next.set('ops', nextActive);
+      else next.delete('ops');
+      return next;
+    }, { replace: true });
+  };
+
+  const tileMeta = (key) => {
+    const chip = chips.find((item) => item.key === key);
+    if (key === 'checklists' && checklistCount != null) {
+      const lists = t('restaurants.ops.opChipChecklists', '{{count}} checklists', { count: checklistCount });
+      const detail = runCount == null
+        ? lists
+        : `${lists} · ${t('restaurants.ops.opChipRuns', '{{count}} recent runs', { count: runCount })}`;
+      return { detail, tone: chip?.tone || null };
+    }
+    if (key === 'inventory' && (itemCount != null || lowCount != null)) return { detail: chip?.label || null, tone: chip?.tone || null };
+    if (key === 'sops' && sopCount != null) return { detail: chip?.label || null, tone: chip?.tone || null };
+    if (key === 'training' && trainingAssigned != null) return { detail: chip?.label || null, tone: chip?.tone || null };
+    if (key === 'audits' && openActions != null) {
+      return { detail: openActions > 0 ? chip?.label || null : null, tone: chip?.tone || null };
+    }
+    return { detail: null, tone: null };
+  };
+
+  const groupLabel = {
+    floor: t('restaurants.ops.desk.groupFloor', 'Floor'),
+    standards: t('restaurants.ops.desk.groupStandards', 'Standards'),
+    company: t('restaurants.ops.desk.groupCompany', 'Company'),
+    support: t('restaurants.ops.desk.groupSupport', 'Support'),
+  };
+  const alertChips = chips.filter((chip) => !chip.target);
 
   // Pre-fill a Marketplace job from the restaurant's context. PostJobPage reads
   // an optional prefill from navigation state; the query param is a harmless
@@ -2078,177 +2151,140 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
   };
 
   return (
-    <div className="fd-section">
-      <ScreenControlCenter key={restaurant.id} restaurantId={restaurant.id} compact />
-      <h2>{t('restaurants.ops.title', 'Operations')}</h2>
-      <p className="fd-card-meta">{t('restaurants.ops.subtitle', 'Run your restaurant with franchise-grade systems.')}</p>
-
-      <div className="fd-settings-strip" role="navigation" aria-label={t('restaurants.ops.opAtAGlance', 'At a glance')}>
-        {chips.map((chip) => (
-          <button
-            key={chip.key}
-            type="button"
-            className="fd-settings-chip"
-            onClick={() => (chip.action ? chip.action() : chip.target ? scrollToCard(chip.target) : undefined)} data-track="ui.17b0c32a57.54"
-          >
-            <span className={`fd-settings-chip-dot${chip.tone ? ` fd-settings-chip-dot--${chip.tone}` : ''}`} aria-hidden="true" />
-            {chip.label}
+    <div className="fd-section fd-ops-desk">
+      <header className="fd-ops-desk-head">
+        <div>
+          <h2>{t('restaurants.ops.title', 'Operations')}</h2>
+          <p className="fd-card-meta">{t('restaurants.ops.subtitle', 'Run your restaurant with franchise-grade systems.')}</p>
+        </div>
+        {active && modules.length > 1 && (
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => openModule(null)}>
+            {t('restaurants.ops.desk.allTools', 'All tools')}
           </button>
-        ))}
+        )}
+      </header>
+
+      {alertChips.length > 0 && (
+        <div className="fd-settings-strip" role="status" aria-label={t('restaurants.ops.opAtAGlance', 'At a glance')}>
+          {alertChips.map((chip) => (
+            chip.action ? (
+              <button
+                key={chip.key}
+                type="button"
+                className="fd-settings-chip"
+                onClick={() => chip.action()} data-track="ui.17b0c32a57.54"
+              >
+                <span className={`fd-settings-chip-dot${chip.tone ? ` fd-settings-chip-dot--${chip.tone}` : ''}`} aria-hidden="true" />
+                {chip.label}
+              </button>
+            ) : (
+              <span key={chip.key} className="fd-settings-chip fd-settings-chip--status">
+                <span className={`fd-settings-chip-dot${chip.tone ? ` fd-settings-chip-dot--${chip.tone}` : ''}`} aria-hidden="true" />
+                {chip.label}
+              </span>
+            )
+          ))}
+        </div>
+      )}
+
+      <div className="fd-ops-groups" hidden={!!active} role="navigation" aria-label={t('restaurants.ops.desk.toolsLabel', 'Operating tools')}>
+        {['floor', 'standards', 'company', 'support'].map((group) => {
+          const items = modules.filter((mod) => mod.group === group);
+          if (!items.length) return null;
+          return (
+            <section key={group} className="fd-ops-group" aria-labelledby={`fd-ops-group-${group}`}>
+              <h3 id={`fd-ops-group-${group}`}>{groupLabel[group]}</h3>
+              <div className="fd-ops-board">
+                {items.map((mod) => {
+                  const Icon = mod.icon;
+                  const meta = tileMeta(mod.key);
+                  return (
+                    <button
+                      key={mod.key}
+                      type="button"
+                      className={`fd-ops-tile${meta.tone === 'warn' ? ' fd-ops-tile--warn' : ''}`}
+                      onClick={() => openModule(mod.key)}
+                    >
+                      <span className="fd-settings-card-icon" aria-hidden="true"><Icon size={18} /></span>
+                      <strong className="fd-ops-tile-title">
+                        {mod.title}
+                        {meta.tone && <span className={`fd-ops-tile-tone fd-ops-tile-tone--${meta.tone}`} aria-hidden="true" />}
+                      </strong>
+                      <span className="fd-ops-tile-copy">{meta.detail || mod.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
       </div>
 
-      <div className="fd-settings-grid">
+      <div className="fd-ops-workspace" hidden={!active} tabIndex={-1} ref={workspaceRef}>
+        <section className="fd-ops-screen-slot" hidden={active !== 'screens'}>
+          <ScreenControlCenter key={restaurant.id} restaurantId={restaurant.id} compact />
+        </section>
         {canManageRestaurant && (
-          <SettingsCard
-            icon={Building2}
-            title={t('restaurants.ops.hq.title', 'HQ console')}
-            desc={t('restaurants.ops.hq.subtitle', 'Compare stores and publish approved menu policies.')}
-            cardKey="hq"
-            registerRef={registerCard}
-            wide
-          >
+          <SettingsCard icon={Building2} title={t('restaurants.ops.hq.title', 'HQ console')} desc={t('restaurants.ops.hq.subtitle', 'Compare stores and publish approved menu policies.')} cardKey="hq" registerRef={registerCard} wide hidden={active !== 'hq'}>
             <RestaurantHQPanel t={t} restaurant={restaurant} bare />
           </SettingsCard>
         )}
-
         {canManageRestaurant && (
-          <SettingsCard
-            icon={Network}
-            title={t('restaurants.ops.brandHq.title')}
-            desc={t('restaurants.ops.brandHq.subtitle')}
-            cardKey="brand-hq"
-            registerRef={registerCard}
-            wide
-          >
+          <SettingsCard icon={Network} title={t('restaurants.ops.brandHq.title')} desc={t('restaurants.ops.brandHq.subtitle')} cardKey="brand-hq" registerRef={registerCard} wide hidden={active !== 'brand-hq'}>
             <BrandHQPanel t={t} restaurant={restaurant} />
           </SettingsCard>
         )}
-
         {canManageRestaurant && (
-          <SettingsCard icon={Receipt} title={t('restaurants.accountingRuntime.title')} desc={t('restaurants.accountingRuntime.description')} cardKey="accounting" registerRef={registerCard} wide>
-            <RestaurantAccountingPanel restaurant={restaurant} t={t}/>
+          <SettingsCard icon={Receipt} title={t('restaurants.accountingRuntime.title')} desc={t('restaurants.accountingRuntime.description')} cardKey="accounting" registerRef={registerCard} wide hidden={active !== 'accounting'}>
+            <RestaurantAccountingPanel restaurant={restaurant} t={t} />
           </SettingsCard>
         )}
-
         {canManageRestaurant && (
-          <SettingsCard
-            icon={WifiOff}
-            title={t('restaurants.ops.storeHub.title')}
-            desc={t('restaurants.ops.storeHub.subtitle')}
-            cardKey="store-hub"
-            registerRef={registerCard}
-            wide
-          >
+          <SettingsCard icon={WifiOff} title={t('restaurants.ops.storeHub.title')} desc={t('restaurants.ops.storeHub.subtitle')} cardKey="store-hub" registerRef={registerCard} wide hidden={active !== 'store-hub'}>
             <StoreHubPanel t={t} restaurant={restaurant} />
           </SettingsCard>
         )}
-
         {canManageRestaurant && (
-          <SettingsCard
-            icon={CalendarDays}
-            title={t('restaurants.ops.hosting.title', 'Host stand')}
-            desc={t('restaurants.ops.hosting.subtitle', 'Manage tables, reservations, and walk-ins for this restaurant.')}
-            cardKey="hosting"
-            registerRef={registerCard}
-            wide
-          >
+          <SettingsCard icon={CalendarDays} title={t('restaurants.ops.hosting.title', 'Host stand')} desc={t('restaurants.ops.hosting.subtitle', 'Manage tables, reservations, and walk-ins for this restaurant.')} cardKey="hosting" registerRef={registerCard} wide hidden={active !== 'hosting'}>
             <RestaurantHostingPanel t={t} restaurant={restaurant} />
           </SettingsCard>
         )}
-
         {canManageRestaurant && (
-          <SettingsCard
-            icon={ClipboardCheck}
-            title={t('restaurants.ops.checklists.title', 'Checklists')}
-            desc={t('restaurants.ops.opChecklistsDesc', 'Daily opening, closing, and safety routines your team runs.')}
-            cardKey="checklists"
-            registerRef={registerCard}
-            wide
-          >
+          <SettingsCard icon={ClipboardCheck} title={t('restaurants.ops.checklists.title', 'Checklists')} desc={t('restaurants.ops.opChecklistsDesc', 'Daily opening, closing, and safety routines your team runs.')} cardKey="checklists" registerRef={registerCard} wide hidden={active !== 'checklists'}>
             <ChecklistsPanel t={t} restaurant={restaurant} bare onStats={report} />
           </SettingsCard>
         )}
-
         {canManageRestaurant && (
-          <SettingsCard
-            icon={Package}
-            title={t('restaurants.ops.inventory.title', 'Inventory')}
-            desc={t('restaurants.ops.opInventoryDesc', 'Ingredients and supplies on hand, with low-stock alerts.')}
-            cardKey="inventory"
-            registerRef={registerCard}
-            wide
-          >
+          <SettingsCard icon={Package} title={t('restaurants.ops.inventory.title', 'Inventory')} desc={t('restaurants.ops.opInventoryDesc', 'Ingredients and supplies on hand, with low-stock alerts.')} cardKey="inventory" registerRef={registerCard} wide hidden={active !== 'inventory'}>
             <InventoryPanel t={t} restaurant={restaurant} bare onStats={report} />
           </SettingsCard>
         )}
-
         {canManageRestaurant && (
-          <SettingsCard
-            icon={BookOpen}
-            title={t('restaurants.ops.sops.title', 'SOP library')}
-            desc={t('restaurants.ops.opSopsDesc', 'How things are done, written down for the whole team.')}
-            cardKey="sops"
-            registerRef={registerCard}
-            wide
-          >
+          <SettingsCard icon={BookOpen} title={t('restaurants.ops.sops.title', 'SOP library')} desc={t('restaurants.ops.opSopsDesc', 'How things are done, written down for the whole team.')} cardKey="sops" registerRef={registerCard} wide hidden={active !== 'sops'}>
             <SopsPanel t={t} restaurant={restaurant} bare onStats={report} />
           </SettingsCard>
         )}
-
         {canManageRestaurant && (
-          <SettingsCard
-            icon={GraduationCap}
-            title={t('restaurants.ops.training.title', 'Staff training')}
-            desc={t('restaurants.ops.opTrainingDesc', 'Lessons and quizzes assigned to your team, with completion tracking.')}
-            cardKey="training"
-            registerRef={registerCard}
-            wide
-          >
+          <SettingsCard icon={GraduationCap} title={t('restaurants.ops.training.title', 'Staff training')} desc={t('restaurants.ops.opTrainingDesc', 'Lessons and quizzes assigned to your team, with completion tracking.')} cardKey="training" registerRef={registerCard} wide hidden={active !== 'training'}>
             <TrainingPanel t={t} restaurant={restaurant} bare onStats={report} isManager={canManageRestaurant} />
           </SettingsCard>
         )}
-
         {canManageRestaurant && (
-          <SettingsCard
-            icon={ShieldCheck}
-            title={t('restaurants.ops.audits.title', 'Quality audits')}
-            desc={t('restaurants.ops.opAuditsDesc', 'Score inspections, log findings, and track corrective actions to closure.')}
-            cardKey="audits"
-            registerRef={registerCard}
-            wide
-          >
+          <SettingsCard icon={ShieldCheck} title={t('restaurants.ops.audits.title', 'Quality audits')} desc={t('restaurants.ops.opAuditsDesc', 'Score inspections, log findings, and track corrective actions to closure.')} cardKey="audits" registerRef={registerCard} wide hidden={active !== 'audits'}>
             <AuditsPanel t={t} restaurant={restaurant} bare onStats={report} isManager={canManageRestaurant} />
           </SettingsCard>
         )}
-
         {canManageRestaurant && (
-          <SettingsCard
-            icon={BarChart3}
-            title={t('restaurants.ops.reports.title', 'Reports')}
-            desc={t('restaurants.ops.opReportsDesc', 'Sales, inventory, and operations performance at a glance.')}
-            cardKey="reports"
-            registerRef={registerCard}
-            wide
-          >
+          <SettingsCard icon={BarChart3} title={t('restaurants.ops.reports.title', 'Reports')} desc={t('restaurants.ops.opReportsDesc', 'Sales, inventory, and operations performance at a glance.')} cardKey="reports" registerRef={registerCard} wide hidden={active !== 'reports'}>
             <ReportsPanel t={t} restaurant={restaurant} bare onStats={report} />
           </SettingsCard>
         )}
-
         {canManageRestaurant && (
-          <SettingsCard
-            icon={HelpingHand}
-            title={t('restaurants.ops.help.title', 'Need help at your restaurant?')}
-            cardKey="help"
-            registerRef={registerCard}
-          >
+          <SettingsCard icon={HelpingHand} title={t('restaurants.ops.help.title', 'Need help at your restaurant?')} cardKey="help" registerRef={registerCard} wide hidden={active !== 'help'}>
             <div className="fd-ops-help">
               <p className="fd-card-meta">{t('restaurants.ops.help.desc', 'Hire local helpers through OxSteed Marketplace: repairs, cleaning, equipment, signage, and more.')}</p>
               <div className="fd-settings-actions">
-                <Link
-                  to="/post-job?source=restaurant"
-                  state={{ restaurantPrefill: helpPrefill }}
-                  className="fd-btn fd-btn-primary"
-                >
+                <Link to="/post-job?source=restaurant" state={{ restaurantPrefill: helpPrefill }} className="fd-btn fd-btn-primary">
                   {t('restaurants.ops.help.cta', 'Find help through OxSteed Marketplace')}
                 </Link>
               </div>
@@ -2769,6 +2805,7 @@ export default function FoodMerchantPage() {
             )}
             {selected && tab === 'operations' && (
               <OperationsView
+                key={selected.id}
                 t={t}
                 restaurant={selected}
                 canManageRestaurant={canManageRestaurant}

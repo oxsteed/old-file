@@ -24269,6 +24269,16 @@
       },
       "comingSoon": "قريبًا",
       "opAtAGlance": "نظرة سريعة",
+      "desk": {
+        "allTools": "كل الأدوات",
+        "toolsLabel": "أدوات التشغيل",
+        "groupFloor": "الصالة",
+        "groupStandards": "المعايير",
+        "groupCompany": "الشركة",
+        "groupSupport": "الدعم",
+        "screensTitle": "شاشات المتجر",
+        "screensDesc": "المطبخ والكشك والطابور وأجهزة الصالة."
+      },
       "opChipChecklists": "{{count}} قوائم تحقق",
       "opChipRuns": "{{count}} عمليات تشغيل أخيرة",
       "opChipInventory": "{{count}} عنصرًا",
