@@ -100,7 +100,7 @@
     "argparse": "2.0.1",
     "proxy-addr": "2.0.8",
     "ws": "8.21.1",
-    "qs": "6.16.0"
+    "qs": "6.17.1"
   },
   "devDependencies": {
     "jest": "^30.3.0",
