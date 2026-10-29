@@ -49,11 +49,20 @@ assumptions masking the race. Native-lock and storage-fallback tests also cover
 queue timeout, active-operation ownership, stale locks, error cleanup,
 replacement owners, and unavailable browser storage.
 
-## Remaining acceptance work
+## Cross-tab transition follow-up (2026-10-29)
 
-This is a same-page epoch repair, not completion of requirement 7. Cross-tab
-account-change notification/reverification, concurrent login/logout cookie
-ordering, and stale private views/draft isolation outside these cases remain
-open. The existing cross-tab refresh lock alone does not prove those outcomes.
+The browser now publishes a versioned, account-id-only transition event through
+`BroadcastChannel` with a storage-event fallback. A login, account switch, or
+logout in another tab fences in-memory requests, clears the previous account's
+navigation and job-draft scope, and re-verifies the shared cookie before a new
+private view is rendered. No token, profile, or draft payload crosses the tab
+boundary.
+
+The expanded login/session browser check covers two tabs changing from one
+synthetic account to another and then logging out; the full suite passes 15
+tests. This closes the cross-tab notification and stale private-view portion
+of requirement 7. Concurrent login/logout cookie ordering and additional
+feature-specific draft surfaces still require their own acceptance checks.
+
 Require green PR CI and publication evidence before accepting this package as
 shipped; keep the broader session goal open until those remaining cases pass.

@@ -7,6 +7,7 @@ import { setDisplayDeviceStaffSession } from '../api/food';
 import { useLanguage } from './LanguageContext';
 import { isTransientRefreshFailure } from '../api/authRefreshPolicy';
 import { advanceAuthEpoch, currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
+import { broadcastAuthSession, subscribeAuthSession } from '../api/authSessionSync';
 
 export const AuthContext = createContext(null);
 
@@ -46,9 +47,10 @@ export function AuthProvider({ children }) {
   const captureEpoch = useCallback(() => ({ local: sessionEpoch.current, transport: currentAuthEpoch() }), []);
   const isCurrentEpoch = useCallback(epoch => epoch.local === sessionEpoch.current && isCurrentAuthEpoch(epoch.transport), []);
 
-  const persistUser = useCallback((nextUser) => {
+  const persistUser = useCallback((nextUser, { broadcast = true } = {}) => {
     const nextId = nextUser?.id == null ? null : String(nextUser.id);
-    if (nextId !== identity.current) {
+    const identityChanged = nextId !== identity.current;
+    if (identityChanged) {
       sessionEpoch.current++;
       advanceAuthEpoch();
     }
@@ -57,10 +59,14 @@ export function AuthProvider({ children }) {
     setNavigationAccount(nextId);
     setUser(nextUser || null);
     setSessionRecovering(false);
+    if (broadcast && identityChanged && nextId) {
+      broadcastAuthSession({ type: 'session-established', accountId: nextId, reason: 'account-hydrated' });
+    }
     return nextUser || null;
   }, []);
 
-  const clearAuthState = useCallback(() => {
+  const clearAuthState = useCallback(({ broadcast = false, reason = 'session-cleared' } = {}) => {
+    const hadIdentity = identity.current != null;
     sessionEpoch.current++;
     advanceAuthEpoch();
     identity.current = null;
@@ -68,6 +74,7 @@ export function AuthProvider({ children }) {
     setNavigationAccount(null);
     setUser(null);
     setSessionRecovering(false);
+    if (broadcast && hadIdentity) broadcastAuthSession({ type: 'session-cleared', reason });
   }, []);
 
   // Kitchen displays authorize with the pairing token only when no staff
@@ -84,22 +91,48 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('oxsteed:session-expired', onSessionExpired);
   }, [clearAuthState]);
 
-  const fetchMe = useCallback(async () => {
+  const fetchMe = useCallback(async ({ broadcast = true } = {}) => {
     const epoch = captureEpoch();
     const res = await api.get('/auth/me', { withCredentials: true, timeout: 10000 });
     if (!isCurrentEpoch(epoch)) return null;
     const fullUser = normalizeUserPayload(res.data);
     syncLanguageFromServer?.(fullUser?.preferred_language);
-    persistUser(fullUser);
+    persistUser(fullUser, { broadcast });
     return fullUser;
   }, [persistUser, syncLanguageFromServer, captureEpoch, isCurrentEpoch]);
 
   const handleVerificationFailure = useCallback((error, epoch) => {
     // An older request must not clear or recover a newer login/logout.
     if (!isCurrentEpoch(epoch)) return;
-    if (!isTransientRefreshFailure(error)) clearAuthState();
+    if (!isTransientRefreshFailure(error)) {
+      clearStoredSession({ reason: 'verification-failed' });
+      clearAuthState();
+    }
     else if (identity.current === null) setSessionRecovering(true);
   }, [clearAuthState, isCurrentEpoch]);
+
+  const handleExternalSession = useCallback(async (event) => {
+    if (event.type === 'session-cleared') {
+      clearStoredSession({ broadcast: false, reason: 'external-session-cleared' });
+      clearAuthState();
+      return;
+    }
+
+    // A login, account switch, or role handoff in another tab invalidates all
+    // in-memory private views before re-verification. The cookie is shared by
+    // tabs, but the profile and drafts must never be trusted across identities.
+    clearStoredSession({ broadcast: false, reason: 'external-session-established' });
+    clearAuthState();
+    setSessionRecovering(true);
+    try {
+      await fetchMe({ broadcast: false });
+    } catch (error) {
+      const epoch = captureEpoch();
+      handleVerificationFailure(error, epoch);
+    }
+  }, [clearAuthState, fetchMe, handleVerificationFailure, captureEpoch]);
+
+  useEffect(() => subscribeAuthSession(event => { void handleExternalSession(event); }), [handleExternalSession]);
 
   useEffect(() => {
     let mounted = true;

@@ -325,6 +325,32 @@ test('an older verification failure cannot clear a newer verified account', asyn
   } finally { await env.close(); }
 });
 
+test('cross-tab account changes clear private state before hydrating the new account', async () => {
+  const env = await fixture();
+  try {
+    const context = await env.browser.newContext();
+    const first = await context.newPage();
+    const second = await context.newPage();
+    await seedCookieSession(first, env.url);
+    await first.goto(`${env.url}/dashboard`);
+    await first.locator('[data-user]').waitFor();
+    await second.goto(`${env.url}/dashboard`);
+    await second.locator('[data-user]').waitFor();
+
+    env.setUser({ id: 'new-account' });
+    await first.evaluate(() => window.fixtureAuth.setUser({
+      id: 'new-account', role: 'helper', email_verified: true, didit_status: 'verified',
+    }));
+    await second.waitForFunction(() => document.querySelector('[data-user]')?.textContent === 'new-account');
+    assert.equal(await second.locator('[data-user]').innerText(), 'new-account');
+
+    await first.evaluate(() => window.fixtureAuth.logout());
+    await second.waitForURL('**/login');
+    assert.equal(await second.locator('[data-user]').count(), 0);
+    await context.close();
+  } finally { await env.close(); }
+});
+
 async function seedLegacyStorage(page, token) {
   await page.addInitScript(value => {
     if (!localStorage.getItem('fixture-seeded')) {
