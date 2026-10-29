@@ -7,6 +7,28 @@
   overflow: hidden;
 }
 
+.direct-catalog-header.product-header {
+  --product-header-width: 1500px;
+  min-height: 0;
+  border-radius: 1.5rem;
+  border-color: rgba(255, 255, 255, .1);
+}
+
+.direct-catalog-header .product-header-link {
+  border-radius: 999px;
+  padding: .5rem 1rem;
+  color: rgb(203, 213, 225);
+  background: transparent;
+}
+
+.direct-catalog-header .product-header-link:first-child {
+  color: #fff;
+  background: rgb(249, 115, 22);
+}
+
+.direct-catalog-header .product-header-link:hover { color: #fff; background: rgba(255, 255, 255, .1); }
+.direct-catalog-header .product-header-link:first-child:hover { background: rgb(234, 88, 12); }
+
 .direct-catalog-scroll-region {
   position: relative;
   min-height: 0;
@@ -66,6 +88,29 @@ html:not(.dark) .direct-catalog-content .direct-catalog-card {
 html:not(.dark) .direct-catalog-content .direct-catalog-header,
 html:not(.dark) .direct-catalog-content .direct-catalog-coverage {
   background: rgba(255, 255, 255, .96) !important;
+}
+
+html:not(.dark) .direct-catalog-content .direct-catalog-header .product-header-brand {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .direct-catalog-content .direct-catalog-header .product-header-link {
+  color: #334155;
+}
+
+html:not(.dark) .direct-catalog-content .direct-catalog-header .product-header-link:first-child {
+  color: #ffffff;
+  background: #ea580c;
+}
+
+html:not(.dark) .direct-catalog-content .direct-catalog-header .product-header-link:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+html:not(.dark) .direct-catalog-content .direct-catalog-header .product-header-link:first-child:hover {
+  color: #ffffff;
+  background: #c2410c;
 }
 
 html:not(.dark) .direct-catalog-content .direct-catalog-hero {

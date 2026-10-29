@@ -13,6 +13,7 @@ import SaveSearchButton from '../../components/SaveSearchButton';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
 import ThemeToggle from '../../components/ThemeToggle';
 import LanguageSelector from '../../components/LanguageSelector';
+import ProductHeader from '../../components/ProductHeader';
 import { ArrowDown, ArrowRight, ArrowUpRight, Search, MapPin, Map, Store, Utensils, SlidersHorizontal, X } from 'lucide-react';
 import {
   DISCOVERY_PAGE_SIZE,
@@ -24,6 +25,7 @@ import {
 } from './restaurantDiscovery';
 import '../../styles/FoodPages.css';
 import '../../styles/RestaurantDiscovery.css';
+import '../../styles/ProductHeader.css';
 
 // Keep the MapLibre engine off the restaurant discovery path until a user
 // explicitly opens the map.
@@ -453,15 +455,26 @@ export default function FoodHomePage() {
       url="https://oxsteed.com/restaurants"
     />
     <div className="fd-home-page rd-page">
-      <nav className="rd-nav" aria-label={t('food.home.redesign.navigation')}>
-        <Link to="/restaurants" className="rd-brand" aria-current="page"><FoodBrand size={36} /></Link>
-        <div className="rd-nav-links">
-          <Link to="/" className="rd-network">{t('food.home.redesign.network')}<ArrowUpRight size={15} aria-hidden="true" /></Link>
-          <Link to={user ? '/dashboard' : '/login'}>{t(user ? 'food.home.redesign.account' : 'food.home.redesign.signIn')}</Link>
-          <LanguageSelector />
-          <ThemeToggle />
-        </div>
-      </nav>
+      <ProductHeader
+        className="rd-nav"
+        brand={<FoodBrand size={36} />}
+        brandHref="/restaurants"
+        ariaLabel={t('food.home.redesign.navigation')}
+        items={[
+          {
+            to: '/',
+            label: t('food.home.redesign.network'),
+            icon: <ArrowUpRight size={15} aria-hidden="true" />,
+          },
+          {
+            to: user ? '/dashboard' : '/login',
+            label: t(user ? 'food.home.redesign.account' : 'food.home.redesign.signIn'),
+          },
+        ]}
+      >
+        <LanguageSelector />
+        <ThemeToggle />
+      </ProductHeader>
 
       {/* ── Hero banner ── */}
       <div className="fd-home-hero">
