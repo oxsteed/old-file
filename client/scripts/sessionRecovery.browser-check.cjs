@@ -79,5 +79,16 @@ test('built app recovers a cold outage and transient refresh without losing a pr
     await title.waitFor();
     assert.equal(await title.inputValue(), '');
     assert.equal(await page.locator('.pjw-preview-grid img').count(), 0);
+
+    // Logout in a sibling tab must clear this tab's private form through the
+    // shared session transition, rather than waiting for cookie expiry.
+    const logoutTab = await context.newPage();
+    await logoutTab.goto(fixture.origin + '/post-job');
+    await logoutTab.getByRole('textbox', { name: /Job Title/i }).waitFor();
+    await logoutTab.getByRole('button', { name: /Open menu/i }).click();
+    await logoutTab.getByRole('button', { name: /Sign out/i, exact: true }).click();
+    await page.waitForURL('**/login');
+    assert.equal(await title.count(), 0);
+    await logoutTab.close();
   } finally { await context.close();await browser.close();await fixture.close(); }
 });

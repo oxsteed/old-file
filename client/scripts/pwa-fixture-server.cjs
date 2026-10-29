@@ -59,6 +59,10 @@ exports.startPwaFixture = async () => {
             state.user ? { user: state.user } : { error: 'expired' },
             state.user ? 200 : 401,
           );
+        if (url.pathname === '/api/auth/logout') {
+          state.user = null;
+          return json({});
+        }
         return json({});
       }
       if (url.pathname === '/api/auth/me')
