@@ -36,6 +36,18 @@ describe('web replacements delegate background work without starting consumers',
     }
   });
 
+  test('a responsive background check may take longer than 1.5 seconds without falsely withdrawing web readiness', async () => {
+    const delay = require('node:timers/promises').setTimeout;
+    const workers = new DelegatedWorkers({ url: 'http://app:5000/ready', fetchImpl: async (_url, { signal }) => {
+      await delay(1800, undefined, { signal });
+      return { ok: true, json: async () => ({ status: 'ready', checks: { workers: { ok: true, mode: 'combined' } } }) };
+    } });
+    try {
+      await workers.start();
+      expect(runtimeState.snapshot()).toMatchObject({ workersReady: true, workerMode: 'delegated' });
+    } finally { await workers.stop(); }
+  });
+
   test('shutdown during startup cannot leave an observation timer running', async () => {
     let release;
     const workers = new DelegatedWorkers({ url: 'http://app:5000/ready', fetchImpl: () => new Promise(resolve => { release = resolve; }) });

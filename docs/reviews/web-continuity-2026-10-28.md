@@ -25,7 +25,8 @@ acceptance is still pending.
 An earlier repeat exposed a request timeout while an old container stopped.
 The web runtime now withdraws readiness, remains available for a five-second
 proxy drain, then closes its local connections. Active proxy readiness checks
-must use a one-second interval/timeout. Another check reproduced a cancelled
+use a one-second interval; the later latency rehearsal below supersedes the
+original one-second timeout with three seconds. Another check reproduced a cancelled
 startup container left behind by Coolify 4.5.3; the host guard follows the
 controller's rejection and removes only a pinned candidate with a verified
 healthy fallback. These prerequisites do not prove an actual production rollout.
@@ -58,27 +59,72 @@ full page URL, including private query parameters, as an extra field.
   explicit update, preserves checkout notes through offline/reconnect, and
   clears private drafts after genuine account expiry.
 
-## Prepared production resource
+## Production rollout and latency correction (2026-10-29 UTC)
 
-`sqbntzhvwhbbywhs9prfhw51` (`OxSteed Web`) is prepared with automatic and preview
-deployments disabled and a private `.invalid` candidate hostname. It has not
-been deployed and does not own public traffic. The original Compose app and
-its automatic deployment setting are unchanged at this point.
+PR #638 merged as `c454fc81840bd529e9fd8c846b6e56a94e1055f7`. All four
+required jobs passed on both the PR and merged commit. The merged commit also
+has an unrelated failed Dependabot check; this is not an all-checks-green claim.
 
-The native Coolify clone copies encrypted environment settings internally.
-Runtime key names are checked against the running app; build-time variables
-are restricted to declared public/release arguments. New role/readiness
-settings are explicit. No credential value is returned to the agent.
+The original Compose application's automatic push trigger is disabled. Its
+healthy combined runtime remains running at `1e584da3`, owning the workers,
+existing storage and a public fallback route. `OxSteed Web`, resource
+`sqbntzhvwhbbywhs9prfhw51`, now serves the four public domains at `c454fc818`.
+Its automatic trigger remains disabled while acceptance is completed. There is
+no Actions deployment path in the current workflows.
 
-The clone's database/Redis/scanner mount associations are removed without
-altering the source associations or underlying data. Its three mounts are the
-existing uploads bind, existing retained-asset volume, and a separate read-only
-release metadata volume. It uses the inspected shared network. Before public
-promotion, verify actual mounts, role, dependencies, release identity, compatible
-session/ledger configuration and real read-only behavior. Then hold the old
-Compose push trigger, publish only after all four CI jobs pass, install the
-reviewed host observer, and sample the actual transition and subsequent rollout.
+The private candidate passed page/API/readiness/scanner probes. Actual Docker
+mounts are the existing upload bind, retained-asset volume, and separate
+read-only metadata volume. A value-opaque comparison of 116 runtime settings
+found no differences outside explicitly excluded release/controller/role
+metadata; session, encryption, origin, database and Redis settings match. No
+credential values were returned. The dedicated five-second host observer is
+installed beside the original backup/metadata observer. Public readiness
+reports the inspected image/container/deployment identity. All four public
+hosts returned the new identity with workers and realtime ready.
 
-The eight-improvement goal is not complete. Workspace operational priorities,
-cross-tab account isolation, remaining design alignment and live acceptance
-remain in the parent matrix.
+The first public transition is **not** a zero-error acceptance: the continuous
+probe caught a brief root 503 and non-JSON readiness response. A subsequent
+ordinary web-to-web rollout finished without sampled errors. A deliberately
+invalid background-readiness candidate was rejected and the healthy release
+remained running, but two additional probe cycles saw root/readiness 503s.
+The rejected candidate is gone and the normal background setting is restored.
+The old `1e584da3` browser document navigated to Food after promotion without a
+full reload or chunk retry; its old main asset continued returning 200.
+
+The one-second active proxy timeout was too short for representative readiness
+latency. With a synthetic healthy app taking 1.2 seconds to answer readiness,
+the controller's three-second Docker health check succeeds, but the proxy with
+a one-second timeout returns 503 on all 30 recorded baseline requests. With a
+three-second proxy timeout, the same native controller/proxy rehearsal passes
+100 slow-promotion, 190 rejected-readiness and 55 cancelled-startup requests:
+345 requests, zero failures, one running release after each case, and complete
+synthetic-resource cleanup. This is stronger than the earlier fast-readiness
+fixture. The fixture now records its latency and timeout parameters.
+
+The live proxy uses a one-second interval and three-second timeout. Versioned
+router/service names (`health3`) avoid conflicting definitions while changing
+proxy settings. Deployment `kvp326ytx9pk9pgwk24porg3` finished with correct
+provenance and a healthy replacement; its transition/build window is retained
+in the second continuous report, including failures before the corrected
+candidate became active. A new failed-startup check is in progress. The
+background observation timeout source change from 1.5 to five seconds still
+requires CI and publication; it continues rejecting explicit non-ready worker
+responses and remains bounded. Its new regression accepts a responsive
+1.8-second observation that the previous timeout rejected. Four lifecycle and
+readiness suites pass 22 tests.
+
+Anonymous live navigation produced variable timings: one first Food transition
+took 2.3 seconds, a repeat took 392 ms, and warm transitions in that repeat took
+70–141 ms. The pre-rollout document consistently requested three missing font
+URLs. The new document requested no missing assets. The first post-rollout
+cold sample overlapped controller work, so it does not prove a navigation speed
+improvement. Repeat measurements on an idle host remain necessary.
+
+Evidence is retained under the chat's `verification-2026-10-28-web-continuity`
+artifact directory. Initial deployment, subsequent rolling release, rejection,
+latency baseline, corrected rehearsal, and corrected live samples must remain
+distinct. Do not overwrite the failed observations with a passing report.
+
+The eight-improvement goal is not complete. Live acceptance and automatic
+source/release configuration, workspace operational priorities, cross-tab
+account isolation and remaining design alignment are still being completed.

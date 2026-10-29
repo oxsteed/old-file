@@ -29,10 +29,11 @@ function php(code, data = {}) {
 const emit = 'echo "OXSTEED_RESULT:".json_encode($result);';
 const appGuard = String.raw`$a=App\Models\Application::where('uuid',$p['application'])->firstOrFail(); if($a->name!=='OxSteed disposable continuity rehearsal') throw new RuntimeException('Fixture identity mismatch');`;
 
-function fixtureDockerfile(release, readyAfterMs = 0, failed = false) {
+function fixtureDockerfile(release, readyAfterMs = 0, failed = false, readinessLatencyMs = 1200) {
   if (!/^[a-z-]+$/.test(release)) throw new Error('Invalid synthetic release');
-  const source = `const http=require('node:http');const started=Date.now();let draining=false;const release=${JSON.stringify(release)};const server=http.createServer((req,res)=>{const ready=!draining&&!${failed}&&Date.now()-started>=${readyAfterMs};res.setHeader('content-type','application/json');res.setHeader('cache-control','no-store');if(req.url==='/ready')res.statusCode=ready?200:503;res.end(JSON.stringify({release,ready}));});server.listen(5000,'0.0.0.0');process.on('SIGTERM',()=>{draining=true;setTimeout(()=>server.close(()=>process.exit(0)),5000);});`;
-  return `FROM node:22-alpine\nWORKDIR /fixture\nRUN echo '${Buffer.from(source).toString('base64')}' | base64 -d > server.cjs\nEXPOSE 5000\nHEALTHCHECK --interval=1s --timeout=1s --start-period=1s --retries=30 CMD wget -q -O /dev/null http://127.0.0.1:5000/ready || exit 1\nCMD ["node", "server.cjs"]\n`;
+  if (!Number.isInteger(readinessLatencyMs) || readinessLatencyMs < 0 || readinessLatencyMs > 2000) throw new Error('Invalid readiness latency');
+  const source = `const http=require('node:http');const started=Date.now();let draining=false;const release=${JSON.stringify(release)};const server=http.createServer((req,res)=>{const respond=()=>{const ready=!draining&&!${failed}&&Date.now()-started>=${readyAfterMs};res.setHeader('content-type','application/json');res.setHeader('cache-control','no-store');if(req.url==='/ready')res.statusCode=ready?200:503;res.end(JSON.stringify({release,ready}));};if(req.url==='/ready'&&!draining)setTimeout(respond,${readinessLatencyMs});else respond();});server.listen(5000,'0.0.0.0');process.on('SIGTERM',()=>{draining=true;setTimeout(()=>server.close(()=>process.exit(0)),5000);});`;
+  return `FROM node:22-alpine\nWORKDIR /fixture\nRUN echo '${Buffer.from(source).toString('base64')}' | base64 -d > server.cjs\nEXPOSE 5000\nHEALTHCHECK --interval=1s --timeout=3s --start-period=1s --retries=30 CMD wget -q -O /dev/null http://127.0.0.1:5000/ready || exit 1\nCMD ["node", "server.cjs"]\n`;
 }
 
 function request(hostname) {
@@ -56,18 +57,21 @@ function request(hostname) {
 
 async function main() {
   if (process.env.OXSTEED_DISPOSABLE_CONTINUITY_REHEARSAL !== 'true') throw new Error('Set OXSTEED_DISPOSABLE_CONTINUITY_REHEARSAL=true to create the synthetic Coolify resource.');
+  // The opt-in 1s baseline reproduces a false outage when real readiness
+  // takes longer than a second while ordinary requests are still fast.
+  const proxyTimeout = process.env.OXSTEED_REHEARSAL_PROXY_TIMEOUT === '1s' ? '1s' : '3s';
   const output = path.resolve(process.argv[2] || '/tmp/oxsteed-continuity-rehearsal.json');
   const nonce = crypto.randomBytes(5).toString('hex');
   const hostname = `continuity-${nonce}.invalid`;
   const network = `oxsteed-continuity-${nonce}`;
-  const report = { schemaVersion: 1, startedAt: new Date().toISOString(), hostname, network, cases: [] };
+  const report = { schemaVersion: 1, startedAt: new Date().toISOString(), hostname, network, proxyTimeout, readinessLatencyMs: 1200, cases: [] };
   let fixture;
   function save() { fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n'); }
   try {
     fixture = php(String.raw`
       $source=App\Models\Application::where('uuid','tdrapz1vvcoftfwsk7fcdq0h')->firstOrFail();
       $destination=App\Models\StandaloneDocker::create(['server_id'=>$source->destination->server_id,'name'=>'OxSteed disposable continuity network','network'=>$p['network']]);
-      $a=new App\Models\Application(['name'=>'OxSteed disposable continuity rehearsal','repository_project_id'=>0,'git_repository'=>'coollabsio/coolify','git_branch'=>'main','build_pack'=>'dockerfile','dockerfile'=>$p['dockerfile'],'ports_exposes'=>'5000','environment_id'=>$source->environment_id,'destination_id'=>$destination->id,'destination_type'=>$destination->getMorphClass(),'health_check_enabled'=>true,'health_check_host'=>'127.0.0.1','health_check_path'=>'/ready','health_check_port'=>'5000','health_check_interval'=>1,'health_check_timeout'=>1,'health_check_retries'=>40,'health_check_start_period'=>1,'source_id'=>0,'source_type'=>App\Models\GithubApp::class,'fqdn'=>'http://'.$p['hostname'].':5000']);
+      $a=new App\Models\Application(['name'=>'OxSteed disposable continuity rehearsal','repository_project_id'=>0,'git_repository'=>'coollabsio/coolify','git_branch'=>'main','build_pack'=>'dockerfile','dockerfile'=>$p['dockerfile'],'ports_exposes'=>'5000','environment_id'=>$source->environment_id,'destination_id'=>$destination->id,'destination_type'=>$destination->getMorphClass(),'health_check_enabled'=>true,'health_check_host'=>'127.0.0.1','health_check_path'=>'/ready','health_check_port'=>'5000','health_check_interval'=>1,'health_check_timeout'=>3,'health_check_retries'=>40,'health_check_start_period'=>1,'source_id'=>0,'source_type'=>App\Models\GithubApp::class,'fqdn'=>'http://'.$p['hostname'].':5000']);
       $a->save(); $a->settings->update(['is_auto_deploy_enabled'=>false,'is_consistent_container_name_enabled'=>false,'rolling_update_drain_seconds'=>5]);
       $result=['application'=>$a->uuid,'destination'=>$destination->id,'network'=>$destination->network];
     ` + emit, { network, hostname, dockerfile: fixtureDockerfile('stable') });
@@ -77,11 +81,11 @@ async function main() {
       $labels=generateLabelsApplication($a); $ports=array_values(array_filter($labels,fn($l)=>preg_match('/^traefik\.http\.services\..+\.loadbalancer\.server\.port=5000$/',$l)));
       if(count($ports)!==1)throw new RuntimeException('Expected one fixture proxy service');
       $prefix=explode('.server.port=',$ports[0])[0];
-      $labels[]=$prefix.'.healthcheck.path=/ready';$labels[]=$prefix.'.healthcheck.interval=1s';$labels[]=$prefix.'.healthcheck.timeout=1s';
+      $labels[]=$prefix.'.healthcheck.path=/ready';$labels[]=$prefix.'.healthcheck.interval=1s';$labels[]=$prefix.'.healthcheck.timeout='.$p['proxyTimeout'];
       $labels[]='com.oxsteed.runtime=web';
       $a->update(['custom_labels'=>base64_encode(implode("\n",$labels))]);
       $result=['configured'=>true];
-    ` + emit, fixture);
+    ` + emit, { ...fixture, proxyTimeout });
     console.log(`Created disposable fixture ${fixture.application} on ${network}`);
 
     function queue(dockerfile) {
@@ -124,8 +128,10 @@ async function main() {
     const initialState = await waitTerminal(initial.deployment, null);
     if (initialState.status !== 'finished') throw new Error('Synthetic baseline failed to deploy.');
     let baseline;
+    report.baselineSamples = [];
     for (let i = 0; i < 30; i++) {
       baseline = await request(hostname);
+      report.baselineSamples.push(baseline);
       if (baseline.status === 200 && baseline.release === 'stable') break;
       await delay(500);
     }
