@@ -16,7 +16,7 @@ function backgroundReadinessUrl(value) {
 }
 
 class DelegatedWorkers {
-  constructor({ url = process.env.BACKGROUND_READINESS_URL, fetchImpl = fetch, intervalMs = 5000, timeoutMs = 1500 } = {}) {
+  constructor({ url = process.env.BACKGROUND_READINESS_URL, fetchImpl = fetch, intervalMs = 5000, timeoutMs = 5000 } = {}) {
     this.url = backgroundReadinessUrl(url);
     if (!Number.isInteger(intervalMs) || intervalMs < 100 || intervalMs > 60000
         || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10000) {
