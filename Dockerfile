@@ -81,7 +81,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=5 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
-# Start server (runs migrations automatically via npm start)
+# Combined startup runs migrations; web replacements verify the existing schema.
 CMD ["npm", "start"]
 
 # Port
