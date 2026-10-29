@@ -4,6 +4,7 @@ import { withCrossTabRefreshLock } from './authRefreshCoordinator';
 import { isTransientRefreshFailure } from './authRefreshPolicy';
 import { clearSupportChatStorage } from '../lib/supportChatStorage';
 import { advanceAuthEpoch, currentAuthEpoch, isCurrentAuthEpoch, assertCurrentAuthEpoch, isCredentialRequest } from './authSessionEpoch';
+import { broadcastAuthSession } from './authSessionSync';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -33,7 +34,7 @@ function setStoredUser(user) {
   }
 }
 
-function clearStoredSession() {
+function clearStoredSession({ broadcast = true, reason = 'session-cleared' } = {}) {
   advanceAuthEpoch();
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
@@ -42,6 +43,7 @@ function clearStoredSession() {
   // the next person on a shared device.
   clearSupportChatStorage();
   delete api.defaults.headers.common.Authorization;
+  if (broadcast) broadcastAuthSession({ type: 'session-cleared', reason });
 }
 
 function persistSessionPayload(data = {}, { sessionTransition = true } = {}) {
