@@ -6,6 +6,7 @@
   "scripts": {
     "test:customer360-workspace": "node --test scripts/customer360Workspace.test.mjs",
     "test:restaurant-screens": "node --test scripts/restaurantScreens.browser-check.cjs",
+    "test:merchant-operations-desk": "node --test scripts/merchantOperationsDesk.test.mjs scripts/merchantOperationsDesk.browser-check.cjs",
     "test:signup-validation": "node --test scripts/signupValidation.test.mjs",
     "test:media-payment-idempotency": "node --test scripts/mediaPaymentIdempotency.test.mjs",
     "test:media-actions": "node --test scripts/mediaActions.test.mjs",

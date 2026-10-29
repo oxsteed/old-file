@@ -24258,6 +24258,16 @@
       },
       "comingSoon": "Ap vini talè",
       "opAtAGlance": "Yon ti gade",
+      "desk": {
+        "allTools": "Tout zouti yo",
+        "toolsLabel": "Zouti operasyon yo",
+        "groupFloor": "Sal la",
+        "groupStandards": "Nòm yo",
+        "groupCompany": "Konpayi",
+        "groupSupport": "Sipò",
+        "screensTitle": "Ekran nan sal la",
+        "screensDesc": "Kwizin, kyòs, liy, ak aparèy ki sou planche a."
+      },
       "opChipChecklists": "{{count}} lis verifikasyon",
       "opChipRuns": "{{count}} dènye ekzekisyon",
       "opChipInventory": "{{count}} atik",

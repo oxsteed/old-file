@@ -24258,6 +24258,16 @@
       },
       "comingSoon": "Coming next",
       "opAtAGlance": "At a glance",
+      "desk": {
+        "allTools": "All tools",
+        "toolsLabel": "Operating tools",
+        "groupFloor": "Floor",
+        "groupStandards": "Standards",
+        "groupCompany": "Company",
+        "groupSupport": "Support",
+        "screensTitle": "In-store screens",
+        "screensDesc": "Kitchen, kiosk, queue, and the devices on the floor."
+      },
       "opChipChecklists": "{{count}} checklists",
       "opChipRuns": "{{count}} recent runs",
       "opChipInventory": "{{count}} items",

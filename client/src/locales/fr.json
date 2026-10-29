@@ -24258,6 +24258,16 @@
       },
       "comingSoon": "Bientôt disponible",
       "opAtAGlance": "En un coup d'œil",
+      "desk": {
+        "allTools": "Tous les outils",
+        "toolsLabel": "Outils d'exploitation",
+        "groupFloor": "Salle",
+        "groupStandards": "Normes",
+        "groupCompany": "Entreprise",
+        "groupSupport": "Soutien",
+        "screensTitle": "Écrans en salle",
+        "screensDesc": "Cuisine, kiosque, file d'attente et appareils du restaurant."
+      },
       "opChipChecklists": "{{count}} listes de contrôle",
       "opChipRuns": "{{count}} exécutions récentes",
       "opChipInventory": "{{count}} articles",
