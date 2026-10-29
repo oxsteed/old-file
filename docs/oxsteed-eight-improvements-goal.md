@@ -10,7 +10,7 @@ authorization, privacy, deployment-secret, and production-data safeguards.
 
 | # | Improvement and required outcome | Evidence required for completion | Current state / next action |
 | --- | --- | --- | --- |
-| 1 | Deploy without interrupting users: keep the current app serving until its replacement is ready; retain a working release when a candidate fails. | Isolated successful and failed promotions; production transition sampled for HTML, readiness, and representative reads; correct release identity; storage, session, realtime, shutdown, and worker continuity. | In progress. Production deployment `c6gh5vhwlafudtrksa2zrbkb` promoted `f7d4522ed` with the old container retained until the new `/ready` check passed; 20 post-switch readiness probes and root, Food, and merchant routes returned 200. This is stronger rolling evidence, but the earlier rollout still had short external probe failures and candidate rejection/automatic-trigger checks remain. See `reviews/web-schema-preflight-2026-10-29.md`. |
+| 1 | Deploy without interrupting users: keep the current app serving until its replacement is ready; retain a working release when a candidate fails. | Isolated successful and failed promotions; production transition sampled for HTML, readiness, and representative reads; correct release identity; storage, session, realtime, shutdown, and worker continuity. | In progress. Production deployment `c6gh5vhwlafudtrksa2zrbkb` promoted `f7d4522ed` with the old container retained until the new `/ready` check passed; 20 post-switch readiness probes and root, Food, and merchant routes returned 200. The host provenance repair now resolves Coolify's abbreviated image label to the full commit and `/ready` reports the Git SHA, image digest, and deployment ID. The earlier rollout still had short external probe failures and candidate rejection/automatic-trigger checks remain. See `reviews/web-schema-preflight-2026-10-29.md`. |
 | 2 | Smoother navigation: retain usable navigation while route content loads, avoid downloading unrelated screens and large inactive workspace panels, and measure real transitions. | Bundle comparison, cold/warm route timing, delayed-chunk/recovery checks, correct mode/authorization behavior, and representative live navigation. | Partial: dashboard modes are split, ordinary route loading keeps navigation, and providers avoid customer discovery downloads. Remote browser evidence now records synthetic cold/warm workspace transitions of 1.2–2.2s cold and about 0.3s warm across English and Arabic; production route smoke checks are green. Real-user telemetry, chunk-failure recovery, and wider navigation audit remain. See `reviews/workspace-navigation-2026-10-28.md`. |
 | 3 | Homepage follows the active mode: business activity for owners, work for helpers, discovery/bookings for customers. | Customer, Helper, Business Owner, and supported team-mode browser checks; logged-out discovery remains useful; authorized destinations; five-language parity. | Implemented and published. Fourteen built-app role/viewport cases pass, including Arabic and active navigation; production `/` smoke is live on `f7d4522ed` with the mode-aware shell. Cross-check transient authentication recovery under item 7 remains part of final acceptance. |
 | 4 | Consistent design across Food, Direct, Messages, and business workspaces: headers, spacing, buttons, forms, and loading states. | Shared component/token adoption and desktop/mobile, light/dark, keyboard, and Arabic rendering across all four surfaces. | Mostly implemented and published. PR #648 adds the shared tokenized `ProductHeader` to Food and Direct, with responsive focus treatment and explicit light/dark theme overrides; the full client build gate passed and production browser checks show both public products live. Shared fonts and the earlier Messages/workspace alignment remain covered. A final keyboard/landmark pass across all four surfaces is still needed. |
@@ -338,3 +338,22 @@ This package completes the public header implementation and publishes it, but
 the eight-item goal remains active because deployment rejection/trigger proof,
 final cross-surface accessibility review, and the remaining session/draft race
 audit are not complete.
+
+## Package 8 - abbreviated Coolify provenance repair
+
+- Coolify's current web image exposes the commit as the short tag/OCI revision
+  `f7d4522ed`. The host-side metadata provisioner now resolves that value only
+  through the verified checkout's Git object database and still rejects
+  unrelated repositories, image IDs, foreign mounts, and mismatched deployment
+  receipts.
+- Added focused coverage for short-label resolution and full-SHA persistence;
+  the deployment/provenance suites pass 29 tests with one intentionally skipped
+  opt-in Docker build test.
+- Applied the verified record to the existing production metadata volume without
+  restarting the app or touching application data. Public `/ready` now reports:
+  full Git SHA `f7d4522ed82fac74f9baa0f11c5eb8a79816e249`, image digest
+  `sha256:c84237505cc4ad82cdefe8d504dfde62282204f3442b532819056d8321af95f3`,
+  and deployment `c6gh5vhwlafudtrksa2zrbkb`, all with readiness still green.
+- PR #650 carries the source and regression test; its remote CI and merge are
+  still pending. This closes the provenance gap, not the broader uninterrupted
+  promotion and failed-candidate acceptance gates.
