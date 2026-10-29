@@ -200,7 +200,9 @@ export function AuthProvider({ children }) {
     } finally {
       // The session cookie is shared by every tab. Broadcast the local
       // logout after the server-side attempt so sibling tabs clear private
-      // views immediately instead of waiting for a refresh or expiry.
+      // views immediately instead of waiting for a refresh or expiry. The
+      // shared transition reaches both StorageEvent listeners and same-tab
+      // subscribers used by the mounted recovery surfaces.
       clearAuthState({ broadcast: true, reason: 'logout' });
     }
   }, [clearAuthState]);
