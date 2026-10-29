@@ -2158,7 +2158,7 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
           <p className="fd-card-meta">{t('restaurants.ops.subtitle', 'Run your restaurant with franchise-grade systems.')}</p>
         </div>
         {active && modules.length > 1 && (
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => openModule(null)}>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => openModule(null)} data-track="ui.17b0c32a57.66">
             {t('restaurants.ops.desk.allTools', 'All tools')}
           </button>
         )}
@@ -2203,7 +2203,7 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
                       key={mod.key}
                       type="button"
                       className={`fd-ops-tile${meta.tone === 'warn' ? ' fd-ops-tile--warn' : ''}`}
-                      onClick={() => openModule(mod.key)}
+                      onClick={() => openModule(mod.key)} data-track="ui.17b0c32a57.67"
                     >
                       <span className="fd-settings-card-icon" aria-hidden="true"><Icon size={18} /></span>
                       <strong className="fd-ops-tile-title">
