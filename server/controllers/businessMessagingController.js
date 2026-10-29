@@ -1,3 +1,4 @@
+const { messageScopeClause } = require('../middleware/requireBusinessMessageAccess');
 // Business messaging controller
 // Handles team and customer messaging conversations per business
 
@@ -107,10 +108,12 @@ async function getConversations(req, res, next) {
       filterParams.push(`%${search}%`);
     }
 
+    const scope = messageScopeClause(req, filterParams, 'bc');
     let query = `
       SELECT
         bc.id, bc.business_id, bc.conversation_type, bc.status,
         bc.customer_id, bc.customer_name, bc.customer_email, bc.subject,
+        bc.assigned_to_user_id, bc.assigned_at,
         bc.legacy_conversation_id,
         bc.last_message_at, bc.created_at,
         (SELECT COUNT(*) FROM business_messages bm
@@ -128,7 +131,7 @@ async function getConversations(req, res, next) {
           ORDER BY bm_last.created_at DESC LIMIT 1
         ) AS last_message
       FROM business_conversations bc
-      WHERE ${filters.join(' AND ')}
+      WHERE ${filters.join(' AND ')}${scope}
     `;
     const params = [...filterParams];
 
@@ -147,14 +150,16 @@ async function getConversations(req, res, next) {
       totalFilters.push(`(subject ILIKE $${totalParams.length + 1} OR customer_name ILIKE $${totalParams.length + 1})`);
       totalParams.push(`%${search}%`);
     }
+    const totalScope = messageScopeClause(req, totalParams);
     const totalResult = await pool.query(
       `SELECT COUNT(*) FROM business_conversations
-       WHERE ${totalFilters.join(' AND ')}`,
+       WHERE ${totalFilters.join(' AND ')}${totalScope}`,
       totalParams
     );
 
     res.json({
       conversations: result.rows,
+      ...(req.messageAccess ? { permissions: req.messageAccess } : {}),
       total: parseInt(totalResult.rows[0].count, 10),
       limit: safeLimit,
       offset: safeOffset,
@@ -172,9 +177,11 @@ async function getConversation(req, res, next) {
     const { limit = 50, offset = 0 } = req.query;
     await assertBusinessAccess(req, businessId);
 
+    const conversationParams = [conversationId, businessId];
+    const conversationScope = messageScopeClause(req, conversationParams);
     let convCheck = await pool.query(
-      'SELECT * FROM business_conversations WHERE id = $1 AND business_id = $2',
-      [conversationId, businessId]
+      `SELECT * FROM business_conversations WHERE id = $1 AND business_id = $2${conversationScope}`,
+      conversationParams
     );
     if (!convCheck.rows.length) {
       return next(new AppError('Conversation not found', 404, 'not_found'));
@@ -183,17 +190,25 @@ async function getConversation(req, res, next) {
     if (convCheck.rows[0].conversation_type === 'customer' && !convCheck.rows[0].legacy_conversation_id) {
       await ensureLegacyConversationLink({ businessConversationId: conversationId, businessId });
       convCheck = await pool.query(
-        'SELECT * FROM business_conversations WHERE id = $1 AND business_id = $2',
-        [conversationId, businessId],
+        `SELECT * FROM business_conversations WHERE id = $1 AND business_id = $2${conversationScope}`,
+        conversationParams,
       );
     }
 
+    if (!convCheck.rows.length) return next(new AppError('Conversation not found',404,'not_found'));
+    const requestedLimit = Number.parseInt(limit,10), requestedOffset = Number.parseInt(offset,10);
+    const safeLimit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit,1),100) : 50;
+    const safeOffset = Number.isFinite(requestedOffset) ? Math.max(requestedOffset,0) : 0;
+    const messageParams = [conversationId,safeLimit,safeOffset,req.user.id,businessId];
+    const messageScope = messageScopeClause(req,messageParams);
     const messages = await pool.query(
-      `WITH latest_message AS (
-         SELECT id, created_at
-         FROM business_messages
-         WHERE conversation_id = $1 AND deleted_at IS NULL
-         ORDER BY created_at DESC
+      `WITH allowed_conversation AS (
+         SELECT id FROM business_conversations WHERE id = $1 AND business_id = $5${messageScope}
+       ), latest_message AS (
+         SELECT m.id, m.created_at
+         FROM business_messages m JOIN allowed_conversation c ON c.id = m.conversation_id
+         WHERE m.conversation_id = $1 AND m.deleted_at IS NULL
+         ORDER BY m.created_at DESC, m.id DESC
          LIMIT 1
        ), mark_read AS (
          INSERT INTO business_conversation_participants
@@ -221,9 +236,10 @@ async function getConversation(req, res, next) {
          WHERE bma.message_id = bm.id
        ) attachments ON TRUE
        WHERE bm.conversation_id = $1 AND bm.deleted_at IS NULL
-       ORDER BY bm.created_at ASC
+         AND bm.conversation_id IN (SELECT id FROM allowed_conversation)
+       ORDER BY bm.created_at DESC, bm.id DESC
        LIMIT $2 OFFSET $3`,
-      [conversationId, parseInt(limit, 10), parseInt(offset, 10), req.user.id]
+      messageParams
     );
 
     const hydratedMessages = await Promise.all(messages.rows.map(async (message) => {
@@ -240,7 +256,8 @@ async function getConversation(req, res, next) {
 
     res.json({
       ...convCheck.rows[0],
-      messages: hydratedMessages,
+      messages: hydratedMessages.reverse(),
+      ...(req.messageAccess ? { permissions: req.messageAccess } : {}),
     });
   } catch (error) {
     if (error instanceof AppError) return next(error);
@@ -302,18 +319,16 @@ async function sendMessage(req, res, next) {
       return next(new AppError('Invalid client message id', 400, 'validation_failed'));
     }
 
-    const convCheck = await pool.query(
-      'SELECT * FROM business_conversations WHERE id = $1 AND business_id = $2',
-      [conversationId, businessId]
-    );
-    if (!convCheck.rows.length) {
-      return next(new AppError('Conversation not found', 404, 'not_found'));
-    }
-    if (convCheck.rows[0].status === 'archived') {
-      return next(new AppError('Conversation is archived', 409, 'conversation_archived'));
-    }
-
     const { message, replayed } = await withTransaction(pool, async (client) => {
+      const conversationParams = [conversationId, businessId];
+      const conversationScope = messageScopeClause(req, conversationParams);
+      const convCheck = await client.query(
+        `SELECT * FROM business_conversations WHERE id = $1 AND business_id = $2${conversationScope} FOR UPDATE`,
+        conversationParams
+      );
+      if (!convCheck.rows.length) throw new AppError('Conversation not found',404,'not_found');
+      if (convCheck.rows[0].status === 'archived') throw new AppError('Conversation is archived',409,'conversation_archived');
+
       const msgResult = await client.query(
         `INSERT INTO business_messages
            (conversation_id, sender_id, sender_name, sender_type, content, message_type, client_message_id)
@@ -394,9 +409,11 @@ async function uploadAttachment(req, res, next) {
       return next(new AppError('No file provided', 400, 'validation_failed'));
     }
 
+    const params = [conversationId, businessId];
+    const scope = messageScopeClause(req, params);
     const conversation = await pool.query(
-      'SELECT id FROM business_conversations WHERE id = $1 AND business_id = $2',
-      [conversationId, businessId],
+      `SELECT id FROM business_conversations WHERE id = $1 AND business_id = $2${scope}`,
+      params,
     );
     if (!conversation.rows.length) {
       return next(new AppError('Conversation not found', 404, 'not_found'));
@@ -437,26 +454,28 @@ async function createConversation(req, res, next) {
 
     const result = await pool.query(
       `INSERT INTO business_conversations
-       (business_id, conversation_type, customer_id, customer_email, customer_name, customer_phone, subject, created_by_id, client_request_id)
+       (business_id, conversation_type, customer_id, customer_email, customer_name, customer_phone, subject, created_by_id, client_request_id, assigned_to_user_id, assigned_at)
        VALUES (
          $1, $2,
          (SELECT id FROM users WHERE LOWER(email) = LOWER($3) AND deleted_at IS NULL LIMIT 1),
-         $3, $4, $5, $6, $7, $8
+         $3, $4, $5, $6, $7, $8, $9, CASE WHEN $9::uuid IS NULL THEN NULL ELSE NOW() END
        )
        ON CONFLICT (business_id, created_by_id, client_request_id)
        WHERE client_request_id IS NOT NULL DO NOTHING
        RETURNING *`,
-      [businessId, conversation_type, customer_email || null, customer_name || null, customer_phone || null, subject || null, req.user.id, clientRequestId]
+      [businessId, conversation_type, customer_email || null, customer_name || null, customer_phone || null, subject || null, req.user.id, clientRequestId, req.messageAccess?.all === false ? req.user.id : null]
     );
 
     let conversation = result.rows[0];
     let replayed = false;
     if (!conversation && clientRequestId) {
+      const params = [businessId, req.user.id, clientRequestId];
+      const scope = messageScopeClause(req, params);
       const existing = await pool.query(
         `SELECT * FROM business_conversations
-          WHERE business_id = $1 AND created_by_id = $2 AND client_request_id = $3
+          WHERE business_id = $1 AND created_by_id = $2 AND client_request_id = $3${scope}
           LIMIT 1`,
-        [businessId, req.user.id, clientRequestId],
+        params,
       );
       conversation = existing.rows[0];
       replayed = Boolean(conversation);
@@ -476,13 +495,15 @@ async function archiveConversation(req, res, next) {
     const { businessId, conversationId } = req.params;
     await assertBusinessAccess(req, businessId);
 
+    const params = [conversationId, businessId];
+    const scope = messageScopeClause(req, params);
     const result = await withTransaction(pool, async (client) => {
       const archived = await client.query(
         `UPDATE business_conversations
             SET status = 'archived', updated_at = NOW()
-          WHERE id = $1 AND business_id = $2
+          WHERE id = $1 AND business_id = $2${scope}
           RETURNING *`,
-        [conversationId, businessId],
+        params,
       );
       if (!archived.rows.length) return null;
       const legacyConversationId = archived.rows[0].legacy_conversation_id;
@@ -520,13 +541,15 @@ async function restoreConversation(req, res, next) {
     const { businessId, conversationId } = req.params;
     await assertBusinessAccess(req, businessId);
 
+    const params = [conversationId, businessId];
+    const scope = messageScopeClause(req, params);
     const result = await withTransaction(pool, async (client) => {
       const restored = await client.query(
         `UPDATE business_conversations
             SET status = 'active', updated_at = NOW()
-          WHERE id = $1 AND business_id = $2 AND status = 'archived'
+          WHERE id = $1 AND business_id = $2 AND status = 'archived'${scope}
           RETURNING *`,
-        [conversationId, businessId],
+        params,
       );
       if (!restored.rows.length) return null;
       const legacyConversationId = restored.rows[0].legacy_conversation_id;

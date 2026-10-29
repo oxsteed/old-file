@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -7,25 +7,54 @@ import { formatDate as formatLocalizedDate, formatDateTime } from '../../lib/for
 import { StaffCreateAppointmentModal } from './StaffCreateAppointmentModal';
 import '../../styles/AppointmentCalendarView.css';
 
-export function AppointmentCalendarView({ businessId }) {
+export function AppointmentCalendarView({ businessId, initialFilter = 'all', currency = 'USD' }) {
   const { t } = useTranslation();
   const [appointments, setAppointments] = useState([]);
   const [services, setServices] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState('month'); // 'month', 'week', 'day'
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState('all'); // 'all', 'pending', 'confirmed', 'completed', 'cancelled'
+  const [filter, setFilter] = useState(initialFilter); // 'all', 'pending', 'confirmed', 'completed', 'cancelled'
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [reassignStaffId, setReassignStaffId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [access, setAccess] = useState(null);
+  const [loadError, setLoadError] = useState(false);
+  const [reload, setReload] = useState(0);
+  const [pendingPage, setPendingPage] = useState(0);
+  const [pendingTotal, setPendingTotal] = useState(0);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const agendaHeading = useRef(null);
+  const loadAppointments = () => setReload(value => value + 1);
+
+  useEffect(() => { setFilter(initialFilter); setPendingPage(0); }, [initialFilter]);
+  useEffect(() => { setSelectedDay(null); }, [businessId, currentDate, filter]);
+  useEffect(() => { if (selectedDay !== null) agendaHeading.current?.focus(); }, [selectedDay]);
 
   useEffect(() => {
-    loadAppointments();
-  }, [businessId, currentDate]);
+    const controller = new AbortController();
+    setLoading(true); setLoadError(false); setAppointments([]); setSelectedAppointment(null); setAccess(null);
+    const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    const pending = filter === 'pending';
+    api.get(`/businesses/${businessId}/appointments${pending ? '' : '/calendar'}`, {
+      signal: controller.signal,
+      params: pending ? { status: 'pending', limit: 25, offset: pendingPage * 25 }
+        : { from: start.toISOString(), to: end.toISOString() },
+    }).then(response => {
+      if (controller.signal.aborted) return;
+      const payload = response.data?.data || response.data;
+      const items = Array.isArray(payload?.appointments) ? payload.appointments : [];
+      setAppointments(pending || filter === 'all' ? items : items.filter(item => item.status === filter));
+      setPendingTotal(Number(payload?.total) || 0);
+      setAccess(payload?.permissions || null);
+    }).catch(() => { if (!controller.signal.aborted) setLoadError(true); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [businessId, currentDate, filter, pendingPage, reload]);
 
   useEffect(() => {
     loadServices();
@@ -42,29 +71,6 @@ export function AppointmentCalendarView({ businessId }) {
       setServices(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       setServices([]);
-    }
-  };
-
-  const loadAppointments = async () => {
-    try {
-      setLoading(true);
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-
-      const response = await api.get(`/businesses/${businessId}/appointments`, {
-        params: {
-          status: filter === 'all' ? undefined : filter,
-          start_date: startOfMonth.toISOString().split('T')[0],
-          end_date: endOfMonth.toISOString().split('T')[0]
-        }
-      });
-
-      setAppointments(Array.isArray(response.data?.appointments) ? response.data.appointments : []);
-    } catch (error) {
-      toast.error(t('businessAppointments.loadFailed'));
-      setAppointments([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -95,7 +101,7 @@ export function AppointmentCalendarView({ businessId }) {
   };
 
   const formatMoney = (cents) =>
-    new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format((cents || 0) / 100);
+    new Intl.NumberFormat(undefined, { style: 'currency', currency }).format((cents || 0) / 100);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -108,15 +114,14 @@ export function AppointmentCalendarView({ businessId }) {
     return colors[status] || '#6b7280';
   };
 
-  const statusLabel = (status) => t(`businessAppointments.status.${status || 'unknown'}`, {
+  const statusLabel = (status) => status === 'in_progress' ? t('businessOperations.inProgress') : t(`businessAppointments.status.${status === 'no_show' ? 'no-show' : status || 'unknown'}`, {
     defaultValue: String(status || '').replace(/_/g, ' '),
   });
 
   const getAppointmentsForDate = (day) => {
-    return appointments.filter(apt => {
-      const aptDate = new Date(apt.start_time).getDate();
-      return aptDate === day;
-    });
+    const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    const end = new Date(currentDate.getFullYear(), currentDate.getMonth(), day + 1);
+    return appointments.filter(apt => new Date(apt.start_time) < end && new Date(apt.end_time) > start);
   };
 
   const handlePrevMonth = () => {
@@ -237,21 +242,25 @@ export function AppointmentCalendarView({ businessId }) {
           key={day} 
           className={`acv-day ${isToday ? 'acv-day-today' : ''} ${dayAppointments.length > 0 ? 'acv-day-has-appointments' : ''}`}
         >
-          <div className="acv-day-number">{day}</div>
+          {dayAppointments.length ? <button type="button" className="acv-day-number acv-day-select"
+            aria-label={t('businessOperations.showDayBookings', { date: formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day)), count: dayAppointments.length })}
+            onClick={() => setSelectedDay(day)} data-track="ui.5b1136a2d6.15">{day}</button> : <div className="acv-day-number">{day}</div>}
           <div className="acv-day-appointments">
             {dayAppointments.slice(0, 2).map(apt => (
-              <div 
+              <button type="button"
                 key={apt.id} 
                 className="acv-day-apt-badge"
                 style={{ backgroundColor: getStatusColor(apt.status) }}
                 onClick={() => setSelectedAppointment(apt)}
                 title={apt.service_name}
+                aria-label={`${apt.service_name} · ${formatTime(apt.start_time)}`} data-track="ui.5b1136a2d6.16"
               >
                 {formatTime(apt.start_time)}
-              </div>
+              </button>
             ))}
             {dayAppointments.length > 2 && (
-              <div className="acv-day-more">+{dayAppointments.length - 2}</div>
+              <button type="button" className="acv-day-more" onClick={() => setSelectedDay(day)}
+                aria-label={t('businessOperations.showDayBookings', { date: formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day)), count: dayAppointments.length })} data-track="ui.5b1136a2d6.17">+{dayAppointments.length - 2}</button>
             )}
           </div>
         </div>
@@ -267,7 +276,8 @@ export function AppointmentCalendarView({ businessId }) {
     const svc = services.find((s) => String(s.id) === String(selectedAppointment.service_id));
     return Array.isArray(svc?.staff) ? svc.staff : [];
   })();
-  const canModify = selectedAppointment && ['pending', 'confirmed'].includes(selectedAppointment.status);
+  const canModify = selectedAppointment && ['pending', 'confirmed', 'in_progress'].includes(selectedAppointment.status)
+    && (access?.canManageAll || (access?.canManageSelf && String(selectedAppointment.staff_id) === String(access.userId)));
 
   return (
     <div className="acv-container">
@@ -275,30 +285,45 @@ export function AppointmentCalendarView({ businessId }) {
         <h3>{t('businessAppointments.title')}</h3>
         <div className="acv-header-controls">
           <div className="acv-filter-buttons">
-            {['all', 'pending', 'confirmed', 'completed', 'cancelled'].map(status => (
+            {['all', 'pending', 'confirmed', 'in_progress', 'completed', 'cancelled'].map(status => (
               <button
                 key={status}
                 className={`acv-filter-btn ${filter === status ? 'active' : ''}`}
-                onClick={() => setFilter(status)} data-track="ui.5b1136a2d6.1"
+                onClick={() => { setFilter(status); setPendingPage(0); }} data-track="ui.5b1136a2d6.1"
               >
                 {statusLabel(status)}
               </button>
             ))}
           </div>
-          <button className="acv-btn acv-btn-primary" onClick={() => setShowCreateModal(true)} data-track="ui.5b1136a2d6.2">
+          {access?.canCreate && <button className="acv-btn acv-btn-primary" onClick={() => setShowCreateModal(true)} data-track="ui.5b1136a2d6.2">
             <Plus size={16} />
             {t('businessAppointments.newAppointment')}
-          </button>
+          </button>}
         </div>
       </div>
 
-      <div className="acv-calendar">
+      {loading && <p role="status">{t('businessOperations.loading')}</p>}
+      {loadError && <p role="alert">{t('businessAppointments.loadFailed')}</p>}
+      {!loading && !loadError && filter === 'pending' && <section className="acv-pending-list" aria-label={t('businessOperations.needsAttention')}>
+        <h4>{t('businessOperations.pendingCount', { count: pendingTotal })}</h4>
+        {appointments.length ? <ul>{appointments.map(appointment => <li key={appointment.id}>
+          <button type="button" onClick={() => setSelectedAppointment(appointment)} data-track="business.calendar.pending.select">
+            <span>{appointment.service_name} · {appointment.customer_name}</span>
+            <span>{formatDate(appointment.start_time)} · {formatTime(appointment.start_time)}</span>
+          </button>
+        </li>)}</ul> : <p>{t('businessOperations.noPendingBookings')}</p>}
+        <div className="acv-pending-pagination">
+          <button type="button" disabled={pendingPage === 0} onClick={() => setPendingPage(page => page - 1)} data-track="business.calendar.pending.previous">{t('businessOperations.previous')}</button>
+          <button type="button" disabled={(pendingPage + 1) * 25 >= pendingTotal} onClick={() => setPendingPage(page => page + 1)} data-track="business.calendar.pending.next">{t('businessOperations.next')}</button>
+        </div>
+      </section>}
+      {filter !== 'pending' && <div className="acv-calendar">
         <div className="acv-calendar-header">
-          <button onClick={handlePrevMonth} className="acv-nav-btn" data-track="ui.5b1136a2d6.3">
+          <button onClick={handlePrevMonth} className="acv-nav-btn" aria-label={t('businessOperations.previous')} data-track="ui.5b1136a2d6.3">
             <ChevronLeft size={18} />
           </button>
           <h4>{monthYear}</h4>
-          <button onClick={handleNextMonth} className="acv-nav-btn" data-track="ui.5b1136a2d6.4">
+          <button onClick={handleNextMonth} className="acv-nav-btn" aria-label={t('businessOperations.next')} data-track="ui.5b1136a2d6.4">
             <ChevronRight size={18} />
           </button>
         </div>
@@ -312,9 +337,18 @@ export function AppointmentCalendarView({ businessId }) {
         <div className="acv-days-grid">
           {renderCalendarDays()}
         </div>
-      </div>
+        {selectedDay !== null && <section className="acv-day-agenda acv-pending-list" aria-labelledby="acv-agenda-title">
+          <h4 id="acv-agenda-title" ref={agendaHeading} tabIndex={-1}>{t('businessOperations.dayBookings', { date: formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDay)) })}</h4>
+          <ul>{getAppointmentsForDate(selectedDay).map(appointment => <li key={appointment.id}>
+            <button type="button" onClick={() => setSelectedAppointment(appointment)} data-track="ui.5b1136a2d6.18">
+              <span>{appointment.service_name} · {appointment.customer_name}</span>
+              <span>{formatTime(appointment.start_time)} · {statusLabel(appointment.status)}</span>
+            </button>
+          </li>)}</ul>
+        </section>}
+      </div>}
 
-      {showCreateModal && (
+      {showCreateModal && access?.canCreate && (
         <StaffCreateAppointmentModal
           businessId={businessId}
           services={services}
@@ -327,7 +361,7 @@ export function AppointmentCalendarView({ businessId }) {
         <div className="acv-detail-panel">
           <div className="acv-detail-header">
             <h4>{t('businessAppointments.detailsTitle')}</h4>
-            <button onClick={() => setSelectedAppointment(null)} className="acv-detail-close" data-track="ui.5b1136a2d6.5">×</button>
+            <button onClick={() => setSelectedAppointment(null)} className="acv-detail-close" aria-label={t('businessOperations.closeBooking')} data-track="ui.5b1136a2d6.5">×</button>
           </div>
 
           <div className="acv-detail-content">
@@ -404,7 +438,7 @@ export function AppointmentCalendarView({ businessId }) {
               </div>
             )}
 
-            {canModify && (
+            {canModify && access?.canManageAll && (
               <div className="acv-detail-section">
                 <div className="label">{t('businessAppointments.reassignStaff')}</div>
                 <div className="acv-inline-form">
@@ -428,7 +462,7 @@ export function AppointmentCalendarView({ businessId }) {
               </div>
             )}
 
-            {canModify && selectedAppointment.payment_status === 'pending' && (
+            {canModify && access?.canRecordPayment && selectedAppointment.payment_status === 'pending' && (
               <div className="acv-detail-section">
                 <div className="label">
                   {t('businessAppointments.paymentDue', { amount: formatMoney(selectedAppointment.final_price_cents) })}
@@ -498,7 +532,7 @@ export function AppointmentCalendarView({ businessId }) {
             )}
 
             <div className="acv-detail-actions">
-              {selectedAppointment.status === 'pending' && (
+              {canModify && selectedAppointment.status === 'pending' && (
                 <>
                   <button 
                     className="acv-btn acv-btn-confirm"
@@ -514,13 +548,13 @@ export function AppointmentCalendarView({ businessId }) {
                   </button>
                 </>
               )}
-              {selectedAppointment.status === 'confirmed' && (
+              {canModify && ['confirmed', 'in_progress'].includes(selectedAppointment.status) && (
                 <>
                   <button 
                     className="acv-btn acv-btn-confirm"
-                    onClick={() => handleUpdateStatus(selectedAppointment.id, 'completed')} data-track="ui.5b1136a2d6.13"
+                    onClick={() => handleUpdateStatus(selectedAppointment.id, selectedAppointment.status === 'confirmed' ? 'in_progress' : 'completed')} data-track="ui.5b1136a2d6.13"
                   >
-                    {t('businessAppointments.complete')}
+                    {selectedAppointment.status === 'confirmed' ? t('businessOperations.startBooking') : t('businessAppointments.complete')}
                   </button>
                   <button 
                     className="acv-btn acv-btn-cancel"

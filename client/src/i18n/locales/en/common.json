@@ -5458,5 +5458,44 @@
     "title": "We couldn’t check your session",
     "description": "Check your connection and try again. Your current page and saved work will stay here.",
     "retry": "Try again"
+  },
+  "businessOperations": {
+    "dayBookings": "Bookings for {{date}}",
+    "showDayBookings": "Show all {{count}} bookings for {{date}}",
+    "title": "Today's work",
+    "description": "Start with bookings and customer follow-up.",
+    "refresh": "Refresh",
+    "loading": "Loading business activity…",
+    "loadError": "Business activity could not load. Try refreshing.",
+    "timezone": "Today follows your business time zone: {{timezone}}.",
+    "partial": "Some activity could not load. Available counts are shown below.",
+    "todayBookings": "Today's bookings",
+    "yourTodayBookings": "Your bookings today",
+    "unansweredMessages": "Conversations awaiting a reply",
+    "overdueInvoices": "Overdue invoices",
+    "unavailable": "Unavailable",
+    "needsAttention": "Needs attention",
+    "review": "Review",
+    "attentionUnavailable": "Refresh to check the remaining activity.",
+    "nothingPending": "No pending actions in the activity you can view.",
+    "viewAnalytics": "View detailed analytics",
+    "open": {
+      "bookings": "Open calendar",
+      "messages": "Open messages",
+      "invoices": "Open invoices"
+    },
+    "tasks": {
+      "confirmBookings": "Bookings awaiting confirmation: {{count}}",
+      "replyToMessages": "Customer conversations awaiting a reply: {{count}}",
+      "followUpInvoices": "Overdue invoices to follow up: {{count}}",
+      "reviewSetup": "Complete your business setup"
+    },
+    "startBooking": "Start service",
+    "inProgress": "In progress",
+    "pendingCount": "Bookings awaiting confirmation: {{count}}",
+    "noPendingBookings": "No bookings are awaiting confirmation.",
+    "previous": "Previous",
+    "next": "Next",
+    "closeBooking": "Close booking details"
   }
 }

@@ -1,3 +1,4 @@
+const { calendarScopeClause } = require('../middleware/requireBusinessCalendarAccess');
 // Business appointments controller
 // Handle appointment bookings, updates, cancellations, and customer interactions
 const { attributePromotionConversion } = require('../analytics/promotionAttribution');
@@ -329,15 +330,17 @@ async function createAppointment(req, res, next) {
 async function getAppointment(req, res, next) {
   try {
     const { businessId, appointmentId } = req.params;
+    const recordParams = [appointmentId, businessId];
+    const recordScope = calendarScopeClause(req, recordParams, 'ba.staff_id');
 
     const result = await pool.query(
       `SELECT ba.*, bs.name as service_name, bs.duration_minutes,
-              (SELECT json_agg(json_build_object('content', content, 'created_at', created_at, 'created_by', created_by_id))
-               FROM business_appointment_notes WHERE appointment_id = ba.id ORDER BY created_at DESC) as notes
+              (SELECT json_agg(json_build_object('content', content, 'created_at', created_at, 'created_by', created_by_id) ORDER BY created_at DESC)
+               FROM business_appointment_notes WHERE appointment_id = ba.id) as notes
        FROM business_appointments ba
        LEFT JOIN business_services bs ON ba.service_id = bs.id
-       WHERE ba.id = $1 AND ba.business_id = $2`,
-      [appointmentId, businessId]
+       WHERE ba.id = $1 AND ba.business_id = $2${recordScope}`,
+      recordParams
     );
 
     if (!result.rows.length) {
@@ -373,6 +376,7 @@ async function listAppointments(req, res, next) {
     `;
 
     const params = [businessId];
+    query += calendarScopeClause(req, params, 'ba.staff_id');
 
     if (status !== 'all') {
       query += ` AND ba.status = $${params.length + 1}`;
@@ -380,12 +384,12 @@ async function listAppointments(req, res, next) {
     }
 
     if (start_date) {
-      query += ` AND ba.start_time >= $${params.length + 1}`;
+      query += ` AND ba.end_time > $${params.length + 1}`;
       params.push(start_date);
     }
 
     if (end_date) {
-      query += ` AND ba.end_time <= $${params.length + 1}`;
+      query += ` AND ba.start_time < $${params.length + 1}`;
       params.push(end_date);
     }
 
@@ -399,18 +403,21 @@ async function listAppointments(req, res, next) {
       params.push(customer_id);
     }
 
+    const countQuery = `SELECT COUNT(*) FROM (${query}) visible_appointments`;
+    const countParams = [...params];
     query += ` ORDER BY ba.start_time DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(parseInt(limit), parseInt(offset));
 
     const result = await pool.query(query, params);
 
     const countResult = await pool.query(
-      'SELECT COUNT(*) FROM business_appointments WHERE business_id = $1',
-      [businessId]
+      countQuery,
+      countParams
     );
 
     res.json({
       appointments: result.rows,
+      permissions: req.calendarAccess || { canManageAll: false, canManageSelf: false, canCreate: false, canRecordPayment: false },
       total: parseInt(countResult.rows[0].count),
       limit: parseInt(limit),
       offset: parseInt(offset)
@@ -425,6 +432,8 @@ async function listAppointments(req, res, next) {
 async function updateAppointmentStatus(req, res, next) {
   try {
     const { businessId, appointmentId } = req.params;
+    const recordParams = [appointmentId, businessId];
+    const recordScope = calendarScopeClause(req, recordParams, 'staff_id');
     const { status, notes } = req.body;
 
     const validStatuses = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show'];
@@ -444,8 +453,8 @@ async function updateAppointmentStatus(req, res, next) {
       // P3-8-F12: same mutex as the accept path and direct creates.
       await lockBusinessAppointments(client, businessId);
       const currentResult = await client.query(
-        'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2 FOR UPDATE',
-        [appointmentId, businessId]
+        `SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2${recordScope} FOR UPDATE`,
+        recordParams
       );
       if (!currentResult.rows.length) throw new AppError('Appointment not found', 404);
       const current = currentResult.rows[0];
@@ -519,6 +528,8 @@ async function updateAppointmentStatus(req, res, next) {
 async function cancelAppointment(req, res, next) {
   try {
     const { businessId, appointmentId } = req.params;
+    const recordParams = [appointmentId, businessId];
+    const recordScope = calendarScopeClause(req, recordParams, 'staff_id');
     const { reason, cancelled_by } = req.body;
     // cancelled_by is CHECK-constrained to customer/business/system; coerce
     // anything else to the default instead of 500ing on the constraint.
@@ -533,8 +544,8 @@ async function cancelAppointment(req, res, next) {
       // P3-8-F12: same mutex as the accept path and direct creates.
       await lockBusinessAppointments(client, businessId);
       const currentResult = await client.query(
-        'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2 FOR UPDATE',
-        [appointmentId, businessId]
+        `SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2${recordScope} FOR UPDATE`,
+        recordParams
       );
       if (!currentResult.rows.length) throw new AppError('Appointment not found', 404);
       const current = currentResult.rows[0];
@@ -579,6 +590,8 @@ async function cancelAppointment(req, res, next) {
 async function rescheduleAppointment(req, res, next) {
   try {
     const { businessId, appointmentId } = req.params;
+    const recordParams = [appointmentId, businessId];
+    const recordScope = calendarScopeClause(req, recordParams, 'staff_id');
     const { new_start_time, new_end_time } = req.body;
 
     if (!new_start_time || !new_end_time) {
@@ -595,8 +608,8 @@ async function rescheduleAppointment(req, res, next) {
       // Get original appointment and take a claim on the service row so
       // concurrent reschedules/creates for the same service serialize.
       const origResult = await client.query(
-        'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2 FOR UPDATE',
-        [appointmentId, businessId]
+        `SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2${recordScope} FOR UPDATE`,
+        recordParams
       );
 
       if (!origResult.rows.length) {
@@ -698,14 +711,18 @@ async function addAppointmentNote(req, res, next) {
       return next(new AppError('Note content is required', 400));
     }
 
+    const params = [appointmentId, req.user.id, note_type, content, businessId];
+    const scope = calendarScopeClause(req, params, 'a.staff_id');
     const result = await pool.query(
       `INSERT INTO business_appointment_notes
        (appointment_id, created_by_id, note_type, content)
-       VALUES ($1, $2, $3, $4)
+       SELECT a.id, $2, $3, $4 FROM business_appointments a
+        WHERE a.id = $1 AND a.business_id = $5${scope}
        RETURNING *`,
-      [appointmentId, req.user.id, note_type, content]
+      params
     );
 
+    if (!result.rows.length) return next(new AppError('Appointment not found', 404));
     res.status(201).json(result.rows[0]);
   } catch (error) {
     logger.error('Error adding note', { error });
@@ -721,14 +738,16 @@ async function addAppointmentNote(req, res, next) {
 async function reassignAppointmentStaff(req, res, next) {
   try {
     const { businessId, appointmentId } = req.params;
+    const recordParams = [appointmentId, businessId];
+    const recordScope = calendarScopeClause(req, recordParams, 'staff_id');
     const { staff_id } = req.body || {};
 
     const appointment = await withTransaction(pool, async (client) => {
       // P3-8-F12: same mutex as the accept path and direct creates.
       await lockBusinessAppointments(client, businessId);
       const currentResult = await client.query(
-        'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2 FOR UPDATE',
-        [appointmentId, businessId]
+        `SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2${recordScope} FOR UPDATE`,
+        recordParams
       );
       if (!currentResult.rows.length) throw new AppError('Appointment not found', 404);
       const current = currentResult.rows[0];
@@ -801,6 +820,8 @@ async function reassignAppointmentStaff(req, res, next) {
 async function recordAppointmentPayment(req, res, next) {
   try {
     const { businessId, appointmentId } = req.params;
+    const recordParams = [appointmentId, businessId];
+    const recordScope = calendarScopeClause(req, recordParams, 'staff_id');
     const { amount_cents, payment_method } = req.body || {};
 
     if (!Number.isSafeInteger(amount_cents) || amount_cents <= 0) {
@@ -810,8 +831,8 @@ async function recordAppointmentPayment(req, res, next) {
 
     const appointment = await withTransaction(pool, async (client) => {
       const currentResult = await client.query(
-        'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2 FOR UPDATE',
-        [appointmentId, businessId]
+        `SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2${recordScope} FOR UPDATE`,
+        recordParams
       );
       if (!currentResult.rows.length) throw new AppError('Appointment not found', 404);
       const current = currentResult.rows[0];

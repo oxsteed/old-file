@@ -1,3 +1,4 @@
+const { requireBusinessCalendarAccess } = require('../middleware/requireBusinessCalendarAccess');
 // server/routes/businesses.js
 const express = require('express');
 const router  = express.Router();
@@ -117,6 +118,7 @@ router.put('/:id/photos',  authenticate, bizIdAccess('any'),
 router.delete('/:id',      authenticate, bizIdAccess('owner'), deleteBusiness);
 
 // ── Analytics (P&L, trends, job stats) ───────────────────────────────────────
+router.get('/:id/operations-summary', authenticate, bizIdAccess('any'), require('../controllers/businessOperationsSummaryController').getBusinessOperationsSummary);
 router.get('/:id/analytics', authenticate, getBusinessAnalytics);
 
 // ── Invoices ──────────────────────────────────────────────────────────────────
@@ -141,11 +143,11 @@ router.put('/:id/goals/:goalId',                authenticate, bizIdAccess('any')
 router.delete('/:id/goals/:goalId',             authenticate, bizIdAccess('any'), deleteGoal);
 
 // ── Per-business calendar (appointments + internal events) ────────────────────
-router.get('/:id/calendar',                     authenticate, listBusinessCalendar);
-router.get('/:id/calendar/summary',             authenticate, getBusinessCalendarSummary);
-router.post('/:id/calendar/events',             authenticate, bizIdAccess('any'), createBusinessEvent);
-router.put('/:id/calendar/events/:eventId',     authenticate, bizIdAccess('any'), updateBusinessEvent);
-router.delete('/:id/calendar/events/:eventId',  authenticate, bizIdAccess('any'), deleteBusinessEvent);
+router.get('/:id/calendar',                     authenticate, bizIdAccess('any'), requireBusinessCalendarAccess('view'), listBusinessCalendar);
+router.get('/:id/calendar/summary',             authenticate, bizIdAccess('any'), requireBusinessCalendarAccess('view'), getBusinessCalendarSummary);
+router.post('/:id/calendar/events',             authenticate, bizIdAccess('any'), requireBusinessCalendarAccess('manageAll'), createBusinessEvent);
+router.put('/:id/calendar/events/:eventId',     authenticate, bizIdAccess('any'), requireBusinessCalendarAccess('manageAll'), updateBusinessEvent);
+router.delete('/:id/calendar/events/:eventId',  authenticate, bizIdAccess('any'), requireBusinessCalendarAccess('manageAll'), deleteBusinessEvent);
 
 // ── Per-business clients (CRM) ────────────────────────────────────────────────
 router.get('/:id/clients',                      authenticate, listBusinessClients);

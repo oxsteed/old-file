@@ -1,14 +1,14 @@
 .acv-container {
   padding: 2rem;
-  background: var(--app-bg);
-  color: var(--app-text);
+  background: var(--color-card-bg);
+  color: var(--color-text);
   min-height: 100%;
 }
 
 .acv-header {
   margin-bottom: 2rem;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .acv-header h3 {
@@ -32,9 +32,9 @@
 
 .acv-filter-btn {
   padding: 0.5rem 1rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   background: transparent;
-  color: var(--app-text);
+  color: var(--color-text);
   border-radius: 6px;
   font-size: 0.9rem;
   cursor: pointer;
@@ -42,21 +42,21 @@
 }
 
 .acv-filter-btn:hover {
-  background: var(--card-bg);
-  border-color: var(--brand-500, #f97316);
-  color: var(--brand-500, #f97316);
+  background: var(--color-card-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .acv-filter-btn.active {
-  background: var(--brand-500, #f97316);
+  background: var(--color-primary);
   color: white;
-  border-color: var(--brand-500, #f97316);
+  border-color: var(--color-primary);
 }
 
 /* Calendar Grid */
 .acv-calendar {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 2rem;
@@ -80,7 +80,7 @@
 .acv-nav-btn {
   background: transparent;
   border: none;
-  color: var(--app-text);
+  color: var(--color-text);
   cursor: pointer;
   padding: 0.5rem;
   display: flex;
@@ -91,7 +91,7 @@
 }
 
 .acv-nav-btn:hover {
-  background: var(--app-bg);
+  background: var(--color-card-bg);
 }
 
 .acv-weekdays {
@@ -100,7 +100,7 @@
   gap: 1px;
   margin-bottom: 1rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .acv-weekday {
@@ -115,14 +115,14 @@
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 1px;
-  background: var(--border-color);
+  background: var(--color-border);
   padding: 1px;
   border-radius: 8px;
   overflow: hidden;
 }
 
 .acv-day {
-  background: var(--app-bg);
+  background: var(--color-card-bg);
   min-height: 120px;
   padding: 0.5rem;
   display: flex;
@@ -133,7 +133,7 @@
 }
 
 .acv-day:hover:not(.acv-day-empty) {
-  background: var(--card-bg);
+  background: var(--color-card-bg);
 }
 
 .acv-day-empty {
@@ -143,7 +143,7 @@
 
 .acv-day-today {
   background: rgba(249, 115, 22, 0.05);
-  border: 2px solid var(--brand-500, #f97316);
+  border: 2px solid var(--color-primary);
 }
 
 .acv-day-has-appointments {
@@ -154,7 +154,7 @@
   font-weight: 600;
   font-size: 1rem;
   margin-bottom: 0.5rem;
-  color: var(--app-text);
+  color: var(--color-text);
 }
 
 .acv-day-appointments {
@@ -165,6 +165,8 @@
 }
 
 .acv-day-apt-badge {
+  border: 0;
+  text-align: start;
   padding: 0.25rem 0.5rem;
   border-radius: 3px;
   font-size: 0.75rem;
@@ -182,15 +184,22 @@
 }
 
 .acv-day-more {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   font-size: 0.75rem;
   color: var(--muted-text);
   padding: 0.25rem 0;
 }
 
+.acv-day-select { border: 0; background: transparent; text-align: start; padding: 0; cursor: pointer; }
+.acv-day-agenda { margin-top: 1rem; }
+.acv-container button:focus-visible, #acv-agenda-title:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+
 /* Detail Panel */
 .acv-detail-panel {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   width: 100%;
   max-width: 400px;
@@ -206,7 +215,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .acv-detail-header h4 {
@@ -220,7 +229,7 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: var(--app-text);
+  color: var(--color-text);
   padding: 0;
   width: 32px;
   height: 32px;
@@ -231,7 +240,7 @@
 }
 
 .acv-detail-close:hover {
-  color: var(--brand-500, #f97316);
+  color: var(--color-primary);
 }
 
 .acv-detail-content {
@@ -251,7 +260,7 @@
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--app-text);
+  color: var(--color-text);
 }
 
 .acv-detail-section .label {
@@ -262,7 +271,7 @@
 
 .acv-detail-section .value {
   font-size: 0.95rem;
-  color: var(--app-text);
+  color: var(--color-text);
 }
 
 .acv-detail-row {
@@ -272,7 +281,7 @@
 }
 
 .acv-detail-row svg {
-  color: var(--brand-500, #f97316);
+  color: var(--color-primary);
   margin-top: 0.25rem;
   flex-shrink: 0;
 }
@@ -289,12 +298,12 @@
 }
 
 .acv-notes {
-  background: var(--app-bg);
+  background: var(--color-card-bg);
   padding: 0.75rem;
   border-radius: 6px;
   font-size: 0.9rem;
   line-height: 1.5;
-  color: var(--app-text);
+  color: var(--color-text);
   white-space: pre-wrap;
   word-wrap: break-word;
 }
@@ -304,7 +313,7 @@
   gap: 0.5rem;
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--color-border);
 }
 
 .acv-btn {
@@ -408,3 +417,15 @@
     font-size: 0.8rem;
   }
 }
+
+.acv-header-controls { flex-wrap: wrap; }
+.acv-filter-btn, .acv-nav-btn, .acv-btn { min-height: 44px; }
+.acv-pending-list { border: 1px solid var(--color-border); border-radius: 1rem; padding: 1rem; margin-block: 1rem; }
+.acv-pending-list ul { padding: 0; margin: .75rem 0; list-style: none; }
+.acv-pending-list li + li { border-top: 1px solid var(--color-border); }
+.acv-pending-list li button { width: 100%; padding: .85rem .5rem; display: grid; gap: .25rem; text-align: start; overflow-wrap: anywhere; }
+.acv-pending-list li button span:last-child { color: var(--color-text-muted); font-size: .85rem; }
+.acv-pending-list button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.acv-pending-pagination { display: flex; justify-content: space-between; gap: 1rem; }
+.acv-pending-pagination button { min-height: 44px; padding: .5rem 1rem; color: var(--color-primary); }
+.acv-pending-pagination button:disabled { opacity: .5; }

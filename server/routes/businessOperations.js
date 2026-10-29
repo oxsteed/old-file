@@ -3,6 +3,8 @@ const router = express.Router();
 const { scopeExempt } = require('../middleware/scopeGates');
 const { requireAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
+const { requireBusinessCalendarAccess } = require('../middleware/requireBusinessCalendarAccess');
+const { requireBusinessMessageAccess } = require('../middleware/requireBusinessMessageAccess');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const enforceBookingRules = require('../middleware/enforceBookingRules');
@@ -15,17 +17,17 @@ const businessCalendarController = require('../controllers/businessCalendarContr
 const loyaltyTiersController    = require('../controllers/loyaltyTiersController');
 
 // ── MESSAGING ROUTES ──────────────────────────────────────────
-router.get ('/:businessId/messages',                                       requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.getConversations);
-router.post('/:businessId/messages',                                       requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.createConversation);
-router.get ('/:businessId/messages/assignments/list',                      requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessConversationAssignmentController.listAssignments);
-router.get ('/:businessId/messages/:conversationId',                       requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.getConversation);
-router.post('/:businessId/messages/:conversationId/attachments',            requireAuth, requireBusinessAccess({ minRole: 'any' }),     upload.single('file'), validateFileUpload, businessMessagingController.uploadAttachment);
-router.post('/:businessId/messages/:conversationId',                       requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.sendMessage);
-router.post('/:businessId/messages/:conversationId/archive',               requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.archiveConversation);
-router.post('/:businessId/messages/:conversationId/restore',               requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.restoreConversation);
-router.post('/:businessId/messages/:conversationId/claim',                 requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessConversationAssignmentController.claimConversation);
-router.post('/:businessId/messages/:conversationId/release',               requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessConversationAssignmentController.releaseConversation);
-router.post('/:businessId/messages/:conversationId/reassign',              requireAuth, requireBusinessAccess({ minRole: 'manager' }), businessConversationAssignmentController.reassignConversation);
+router.get ('/:businessId/messages',                                       requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessMessageAccess('view'),     businessMessagingController.getConversations);
+router.post('/:businessId/messages',                                       requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessMessageAccess('create'),     businessMessagingController.createConversation);
+router.get ('/:businessId/messages/assignments/list',                      requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessMessageAccess('assign'),     businessConversationAssignmentController.listAssignments);
+router.get ('/:businessId/messages/:conversationId',                       requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessMessageAccess('view'),     businessMessagingController.getConversation);
+router.post('/:businessId/messages/:conversationId/attachments',            requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessMessageAccess('reply'),     upload.single('file'), validateFileUpload, businessMessagingController.uploadAttachment);
+router.post('/:businessId/messages/:conversationId',                       requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessMessageAccess('reply'),     businessMessagingController.sendMessage);
+router.post('/:businessId/messages/:conversationId/archive',               requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessMessageAccess('reply'),     businessMessagingController.archiveConversation);
+router.post('/:businessId/messages/:conversationId/restore',               requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessMessageAccess('reply'),     businessMessagingController.restoreConversation);
+router.post('/:businessId/messages/:conversationId/claim',                 requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessMessageAccess('assign'),     businessConversationAssignmentController.claimConversation);
+router.post('/:businessId/messages/:conversationId/release',               requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessMessageAccess('assign'),     businessConversationAssignmentController.releaseConversation);
+router.post('/:businessId/messages/:conversationId/reassign',              requireAuth, requireBusinessAccess({ minRole: 'manager' }), requireBusinessMessageAccess('assign'), businessConversationAssignmentController.reassignConversation);
 
 // ── SERVICES ROUTES ───────────────────────────────────────────
 router.get ('/:businessId/services',                                                                                                    scopeExempt('public-storefront'), businessServicesController.listServices);
@@ -45,16 +47,16 @@ router.post('/:businessId/appointments',                                   requi
 // P3-8-F10: staff walk-in / phone booking. Same controller, but staff may
 // book inside the customer advance-notice window, and the appointment is
 // never bound to the staff member's own user id.
-router.post('/:businessId/appointments/staff-create',                      requireAuth, requireBusinessAccess({ minRole: 'any' }), (req, _res, next) => { req.staffCreated = true; next(); }, businessAppointmentsController.createAppointment);
-router.get ('/:businessId/appointments',                                   requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.listAppointments);
-router.get ('/:businessId/appointments/calendar',                          requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessCalendarController.getBusinessAppointmentsCalendar);
-router.get ('/:businessId/appointments/:appointmentId',                    requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.getAppointment);
-router.put ('/:businessId/appointments/:appointmentId/status',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.updateAppointmentStatus);
-router.post('/:businessId/appointments/:appointmentId/cancel',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.cancelAppointment);
-router.post('/:businessId/appointments/:appointmentId/reschedule',         requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.rescheduleAppointment);
-router.put ('/:businessId/appointments/:appointmentId/staff',              requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.reassignAppointmentStaff);
-router.post('/:businessId/appointments/:appointmentId/record-payment',    requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.recordAppointmentPayment);
-router.post('/:businessId/appointments/:appointmentId/notes',              requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.addAppointmentNote);
+router.post('/:businessId/appointments/staff-create',                      requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessCalendarAccess('manageAll'), (req, _res, next) => { req.staffCreated = true; next(); }, businessAppointmentsController.createAppointment);
+router.get ('/:businessId/appointments',                                   requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessCalendarAccess('view'),     businessAppointmentsController.listAppointments);
+router.get ('/:businessId/appointments/calendar',                          requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessCalendarAccess('view'),     businessCalendarController.getBusinessAppointmentsCalendar);
+router.get ('/:businessId/appointments/:appointmentId',                    requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessCalendarAccess('view'),     businessAppointmentsController.getAppointment);
+router.put ('/:businessId/appointments/:appointmentId/status',             requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessCalendarAccess('manage'),     businessAppointmentsController.updateAppointmentStatus);
+router.post('/:businessId/appointments/:appointmentId/cancel',             requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessCalendarAccess('manage'),     businessAppointmentsController.cancelAppointment);
+router.post('/:businessId/appointments/:appointmentId/reschedule',         requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessCalendarAccess('manage'),     businessAppointmentsController.rescheduleAppointment);
+router.put ('/:businessId/appointments/:appointmentId/staff',              requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessCalendarAccess('manageAll'),     businessAppointmentsController.reassignAppointmentStaff);
+router.post('/:businessId/appointments/:appointmentId/record-payment',    requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessCalendarAccess('payment'),     businessAppointmentsController.recordAppointmentPayment);
+router.post('/:businessId/appointments/:appointmentId/notes',              requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessCalendarAccess('manage'),     businessAppointmentsController.addAppointmentNote);
 
 // ── DYNAMIC PRICING ROUTES ────────────────────────────────────
 router.get   ('/:businessId/services/:serviceId/calculate-price',                                                                       scopeExempt('public-storefront'), dynamicPricingController.calculatePrice);

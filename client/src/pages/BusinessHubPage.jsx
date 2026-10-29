@@ -20,6 +20,7 @@ const AIKnowledgeTab = lazyDefault(() => import('../components/AIKnowledgeTab'))
 import RoleMenu from '../components/businessHub/RoleMenu';
 const BusinessCalendarView = lazyDefault(() => import('../components/calendar/BusinessCalendarView'));
 const BusinessClientsTab = lazyDefault(() => import('../components/businessHub/BusinessClientsTab'));
+const BusinessOperationsOverview = lazyDefault(() => import('../components/businessHub/BusinessOperationsOverview'));
 const BusinessAnalyticsTab = lazyNamed(() => import('../components/businessHub/BusinessAnalyticsTab'), 'BusinessAnalyticsTab');
 const BusinessMediaTab = lazyDefault(() => import('../components/businessHub/BusinessMediaTab'));
 const MessagingWorkspace = lazyDefault(() => import('../components/messaging/MessagingWorkspace'));
@@ -72,7 +73,6 @@ import {
   listBusinessFAQs, createBusinessFAQ, updateBusinessFAQ, deleteBusinessFAQ,
   listBusinessHours, updateBusinessHours,
   listBusinessSkills,
-  getBusinessCalendarSummary,
 } from '../api/businesses';
 import {
   convertMaintenanceRequestToJob,
@@ -109,7 +109,6 @@ import {
   isBusinessPubliclyListed,
   businessFromEditorResponse,
   businessWorkspacePath,
-  emptyBusinessAnalytics,
   BUSINESS_HUB_LAST_ID_LS_KEY,
   resolveBusinessHubSeedId,
 } from '../utils/businessProfileForm';
@@ -209,6 +208,7 @@ function BusinessHubInner() {
   const navigate = useNavigate();
   const [businesses, setBusinesses]   = useState(() => createdFromNav ? [createdFromNav] : []);
   const [bizId, setBizId]             = useState(() => routeBusinessId || (createdFromNav ? String(createdFromNav.id) : '') || localStorage.getItem(LS_KEY) || '');
+  const [calendarFocus, setCalendarFocus] = useState('all');
   const [tab, setTab]                 = useState(() => routeTab || searchParams.get('tab') || 'overview');
   const [loadingBiz, setLoadingBiz]   = useState(!createdFromNav);
 
@@ -439,17 +439,15 @@ function BusinessHubInner() {
   }, [routeBusinessId, loadingBiz, bizId, tab, searchParams, navigate, location.state]);
 
   // ── load tab data when bizId or tab changes ──────────────────────────────
-  const loadOverview = useCallback(async () => {
+  const loadAnalytics = useCallback(async () => {
     if (!bizId) return;
     setAnalyticsLoading(true);
     setAnalyticsError(false);
     try {
       setAnalytics(await getAnalytics(bizId));
     } catch {
-      // New drafts have no P&L yet. Keep the overview usable instead of
-      // toasting a load failure on /business/:id/workspace.
-      setAnalytics(emptyBusinessAnalytics(bizId));
-      setAnalyticsError(false);
+      setAnalytics(null);
+      setAnalyticsError(true);
     } finally {
       setAnalyticsLoading(false);
     }
@@ -748,7 +746,7 @@ function BusinessHubInner() {
     if (!businesses.some((b) => String(b.id) === String(bizId))) return;
     if (tab === 'profile') loadProfile();
     else if (tab === 'workflow') {
-      loadOverview();
+      loadAnalytics();
       loadServices();
       loadGallery();
       loadFAQs();
@@ -768,16 +766,15 @@ function BusinessHubInner() {
     else if (tab === 'calendar') loadHours();
     else if (tab === 'skills') loadSkills();
     else if (tab === 'ai') { /* AI tab loads its own data */ }
-    else if (tab === 'overview') loadOverview();
     else if (tab === 'invoices') loadInvoices();
     else if (tab === 'tax') loadTax();
     else if (tab === 'goals') {
       loadGoals();
-      loadOverview();
+      loadAnalytics();
     }
     else if (tab === 'maintenance') loadMaintenance();
     else if (tab === 'team') loadTeam();
-  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadMaintenance, loadPropertyOperations, loadTradesOperations, loadBeautyOperations, loadCreativeOperations, loadProfessionalOperations, loadContinuityOperations, loadTeam]);
+  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadAnalytics, loadInvoices, loadTax, loadGoals, loadMaintenance, loadPropertyOperations, loadTradesOperations, loadBeautyOperations, loadCreativeOperations, loadProfessionalOperations, loadContinuityOperations, loadTeam]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
@@ -1368,11 +1365,10 @@ function BusinessHubInner() {
     && !businesses.some((b) => String(b.id) === routeBusinessId)
   );
   const currentRole = currentBiz?._role || 'owner';
-  const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
-  // Messaging is available to every active business member. Keep this
-  // separate from profile-edit permissions so representatives can respond to
-  // customers without gaining access to business configuration.
-  const canAccessMessages = ['owner', 'manager', 'representative', 'support_agent', 'employee'].includes(currentRole);
+  const hasPermission = code => currentRole === 'owner' || currentBiz?.permissions?.includes(code) === true;
+  const canEditBizProfile = ['owner', 'manager'].includes(currentRole) && hasPermission('business.edit_profile');
+  const canAccessMessages = hasPermission('business.view') && (hasPermission('messages.view_all') || hasPermission('messages.view_assigned'));
+  const canAccessCalendar = hasPermission('business.view') && (hasPermission('calendar.view_all') || hasPermission('calendar.view_self'));
   // Review P2-3-F05: the server finance gate (canManageBusinessFinance)
   // allows only owner/manager, so the tabs must match. Showing them to
   // employee/support_agent only produced 404s.
@@ -1399,7 +1395,7 @@ function BusinessHubInner() {
     }
   }
 
-  const financeTabIds = ['overview', 'analytics', 'invoices', 'tax', 'goals'];
+  const financeTabIds = ['analytics', 'invoices', 'tax', 'goals'];
   const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'skills', 'ai'];
   const tabAliases = {
     hours: 'calendar',
@@ -1417,26 +1413,18 @@ function BusinessHubInner() {
   const isCreativeOpsTemplate = ['photographer', 'creative_studio', 'graphic_design'].includes(activeTemplate);
   const isProfessionalOpsTemplate = ['accountant', 'consulting_coaching', 'legal_admin'].includes(activeTemplate);
   const isContinuityOpsTemplate = ['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(activeTemplate);
-  // Tab order:
-  //   1. Overview (KPIs / health, the place owners land first)
-  //   2. Edit Profile
-  //   3. Clients (managers/owners track customers per business)
-  //   4. Content tabs (services, gallery, policies, faqs, hours, skills, ai)
-  //   5. Calendar
-  //   6. Property ops + maintenance (only for property_manager template)
-  //   7. Invoices / Tax / Goals
-  //   8. Team
+  // Put daily operations before configuration and detailed reporting.
   const serviceBusinessTabs = [
     'overview',
-    'analytics',
+    'calendar',
+    'messages',
+    'clients',
+    'invoices',
     'workflow',
     'profile',
-    'clients',
     'media',
     ...contentTabIds,
     'products',
-    'messages',
-    'calendar',
     ...(isPropertyManagerTpl ? ['property-ops'] : []),
     ...(isTradesOpsTemplate ? ['trades-ops'] : []),
     ...(isBeautyOpsTemplate ? ['beauty-ops'] : []),
@@ -1444,7 +1432,7 @@ function BusinessHubInner() {
     ...(isProfessionalOpsTemplate ? ['professional-ops'] : []),
     ...(isContinuityOpsTemplate ? ['continuity-ops'] : []),
     ...(isPropertyManagerTpl ? ['maintenance'] : []),
-    'invoices', 'tax', 'goals',
+    'analytics', 'tax', 'goals',
     'service-pricing',
     'product-pricing',
     'loyalty',
@@ -1480,8 +1468,10 @@ function BusinessHubInner() {
     if (contentTabIds.includes(tb) && !canEditBizProfile) return false;
     if (['booking-services','appointments','products','service-pricing','product-pricing'].includes(tb) && !canEditBizProfile) return false;
     if (tb === 'messages' && !canAccessMessages) return false;
+    if (tb === 'calendar' && !canAccessCalendar) return false;
+    if (tb === 'analytics' && !hasPermission('analytics.view_financial')) return false;
+    if (tb === 'invoices' && !hasPermission('invoices.view')) return false;
     if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
-    if (tb === 'overview' && !canViewFinanceHub) return false;
     if (tb === 'loyalty' && !canEditBizProfile) return false;
     if (tb === 'hiring' && !canEditBizProfile) return false;
     if (tb === 'integrations' && currentRole !== 'owner') return false;
@@ -1688,7 +1678,7 @@ function BusinessHubInner() {
               )}
             </div>
 
-            {currentBiz && currentRole === 'owner' && currentBiz.setup_status !== 'active' && (
+            {currentBiz && currentRole === 'owner' && currentBiz.setup_status !== 'active' && (isRestaurantBusiness || tab !== 'overview') && (
               <section className="bh-setup-banner" aria-label={t('businessCreation.setupStatus', 'Business setup status')}>
                 <div>
                   <span className="bh-setup-status">{t('businessCreation.privateDraft', 'Private setup')}</span>
@@ -1717,7 +1707,7 @@ function BusinessHubInner() {
               </section>
             )}
 
-            {currentBiz && canEditBizProfile && (
+            {currentBiz && canEditBizProfile && (isRestaurantBusiness || tab !== 'overview') && (
               <section className={`bh-mode-center ${isRestaurantBusiness ? 'restaurant' : 'service'}`}>
                 <div className="bh-mode-center-copy">
                   <span className="bh-mode-kicker">{isRestaurantBusiness
@@ -2010,11 +2000,11 @@ function BusinessHubInner() {
                   </div>
                 </div>
 
-                <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+                <div className="bh-calendar-panel">
                   <div className="mb-4 flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-white">{t('businessHub.rooms.businessHoursTitle')}</h3>
-                      <p className="mt-1 text-sm leading-6 text-gray-400">
+                      <h3 className="text-lg font-semibold">{t('businessHub.rooms.businessHoursTitle')}</h3>
+                      <p className="bh-calendar-panel-description">
                         {t('businessHub.rooms.businessHoursDescription')}
                       </p>
                     </div>
@@ -2043,33 +2033,33 @@ function BusinessHubInner() {
                   )}
                 </div>
 
-                {canEditBizProfile && (
-                  <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+                {canAccessCalendar && (
+                  <div className="bh-calendar-panel">
                     <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-white">{t('businessHub.rooms.appointmentsTitle')}</h3>
-                      <p className="mt-1 text-sm leading-6 text-gray-400">
+                      <h3 className="text-lg font-semibold">{t('businessHub.rooms.appointmentsTitle')}</h3>
+                      <p className="bh-calendar-panel-description">
                         {t('businessHub.rooms.appointmentsDescription')}
                       </p>
                     </div>
-                    <AppointmentCalendarView businessId={bizId} />
+                    <AppointmentCalendarView key={`${user?.id}:${bizId}`} businessId={bizId} initialFilter={calendarFocus} currency={currency} />
                   </div>
                 )}
 
-                <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+                <div className="bh-calendar-panel">
                   <div className="mb-4">
-                    <h3 className="text-lg font-semibold text-white">{t('businessHub.rooms.businessCalendarTitle')}</h3>
-                    <p className="mt-1 text-sm leading-6 text-gray-400">
+                    <h3 className="text-lg font-semibold">{t('businessHub.rooms.businessCalendarTitle')}</h3>
+                    <p className="bh-calendar-panel-description">
                       {t('businessHub.rooms.businessCalendarDescription')}
                     </p>
                   </div>
-                  <BusinessCalendarView bizId={bizId} canManage={canEditBizProfile} />
+                  <BusinessCalendarView bizId={bizId} canManage={hasPermission('calendar.view_all') && hasPermission('calendar.manage_all')} />
                 </div>
 
                 {canEditBizProfile && (
-                  <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+                  <div className="bh-calendar-panel">
                     <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-white">{t('businessHub.rooms.waitlistTitle')}</h3>
-                      <p className="mt-1 text-sm leading-6 text-gray-400">
+                      <h3 className="text-lg font-semibold">{t('businessHub.rooms.waitlistTitle')}</h3>
+                      <p className="bh-calendar-panel-description">
                         {t('businessHub.rooms.waitlistDescription')}
                       </p>
                     </div>
@@ -2093,21 +2083,9 @@ function BusinessHubInner() {
             )}
 
             {/* ── Overview tab ────────────────────────────────────── */}
-            {tab === 'overview' && (
-              analyticsLoading || (bizId && !analytics && !analyticsError) ? (
-                <p className="bh-loading">{t('businessHub.loadingAnalytics')}</p>
-              ) : analyticsError ? (
-                <p className="bh-error">{t('businessHub.errorAnalytics')}</p>
-              ) : (
-                <OverviewTab
-                  analytics={analytics}
-                  currency={currency}
-                  bizId={bizId}
-                  businessName={currentBiz?.business_name}
-                  canManage={canEditBizProfile}
-                  setTab={setTab}
-                />
-              )
+            {tab === 'overview' && bizId && (
+              <BusinessOperationsOverview businessId={bizId} viewerId={user?.id} role={currentRole}
+                onOpen={(panel, task) => { setCalendarFocus(task?.type === 'confirmBookings' ? 'pending' : 'all'); setTab(panel); }} availablePanels={visibleTabs} />
             )}
 
             {tab === 'analytics' && bizId && canViewFinanceHub && (
@@ -2766,250 +2744,6 @@ function BusinessHubInner() {
 
       </div>
     </PageShell>
-  );
-}
-
-// ── Overview tab ──────────────────────────────────────────────────────────────
-function OverviewTab({ analytics, currency, bizId, businessName, canManage, setTab }) {
-  const { t, i18n } = useTranslation();
-  const a = analytics;
-  const monthly = a?.monthly || [];
-  const profitCls = value => {
-    const parsed = parseFloat(value);
-    if (Number.isNaN(parsed)) return undefined;
-    return parsed >= 0 ? 'positive' : 'negative';
-  };
-  const allVals = monthly.flatMap(m => [
-    parseFloat(m.revenue) || 0,
-    parseFloat(m.expenses) || 0,
-    parseFloat(m.profit)   || 0,
-  ]);
-  const maxVal = Math.max(...allVals.map(v => Math.abs(v)), 1);
-
-  // ── Calendar summary (today / this week / next 24h) ─────────────────────────
-  const [calSummary, setCalSummary] = useState(null);
-  useEffect(() => {
-    let mounted = true;
-    if (!bizId) return undefined;
-    getBusinessCalendarSummary(bizId)
-      .then((s) => { if (mounted) setCalSummary(s || {}); })
-      .catch(() => { if (mounted) setCalSummary({}); });
-    return () => { mounted = false; };
-  }, [bizId]);
-
-  // ── Cash-flow runway: avg net burn from negative-profit months ─────────────
-  const runway = (() => {
-    if (!monthly.length) return null;
-    const recent = monthly.slice(-6);
-    const profits = recent.map((m) => parseFloat(m.profit) || 0);
-    const avgProfit = profits.reduce((acc, v) => acc + v, 0) / profits.length;
-    const totalRevenue = recent.reduce((acc, m) => acc + (parseFloat(m.revenue) || 0), 0);
-    const totalExpenses = recent.reduce((acc, m) => acc + (parseFloat(m.expenses) || 0), 0);
-    const burn = Math.max(0, totalExpenses - totalRevenue) / recent.length;
-    const cashOnHand = parseFloat(a?.cash_on_hand) || null;
-    const months = burn > 0 && cashOnHand ? Math.floor(cashOnHand / burn) : null;
-    return { avgProfit, burn, months, healthy: avgProfit >= 0 };
-  })();
-
-  // ── Outstanding revenue ratio (overdue/sent) ───────────────────────────────
-  const outstandingPct = (() => {
-    const sent = parseFloat(a?.invoices?.outstanding_total) || 0;
-    const overdue = parseFloat(a?.invoices?.overdue_total) || 0;
-    if (sent <= 0) return 0;
-    return Math.min(100, Math.round((overdue / sent) * 100));
-  })();
-
-  const goTo = (id) => () => setTab && setTab(id);
-  const locale = i18n.resolvedLanguage || i18n.language || undefined;
-  const nextLabel = calSummary?.next_event_at
-    ? new Date(calSummary.next_event_at).toLocaleString(locale, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-    : null;
-
-  return (
-    <>
-      {/* ── Today snapshot ─────────────────────────────────────────────────── */}
-      <div className="bh-today-strip" role="region" aria-label={t('businessHub.overview.todayRegion')}>
-        <div className="bh-today-head">
-          <div>
-            <span className="bh-today-kicker">
-              {t('businessHub.overview.todayAtBusiness', {
-                business: businessName || t('businessHub.overview.yourBusiness'),
-              })}
-            </span>
-            <h2>{new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' })}</h2>
-          </div>
-          {nextLabel && (
-            <div className="bh-today-next">
-              <span>{t('businessHub.overview.nextUp')}</span>
-              <strong>{nextLabel}</strong>
-            </div>
-          )}
-        </div>
-        <div className="bh-today-cards">
-          <button type="button" className="bh-today-card" onClick={goTo('calendar')} data-track="ui.83b215c0c9.39">
-            <span className="bh-today-card-num">{calSummary?.today_count ?? '-'}</span>
-            <span className="bh-today-card-label">{t('businessHub.overview.onCalendarToday')}</span>
-          </button>
-          <button type="button" className="bh-today-card" onClick={goTo('calendar')} data-track="ui.83b215c0c9.40">
-            <span className="bh-today-card-num">{calSummary?.this_week_count ?? '-'}</span>
-            <span className="bh-today-card-label">{t('businessHub.overview.eventsThisWeek')}</span>
-          </button>
-          <button type="button" className="bh-today-card" onClick={goTo('invoices')} data-track="ui.83b215c0c9.41">
-            <span className="bh-today-card-num">{a?.invoices?.overdue_count ?? 0}</span>
-            <span className="bh-today-card-label">{t('businessHub.overview.overdueInvoices')}</span>
-          </button>
-          <button type="button" className="bh-today-card" onClick={goTo('invoices')} data-track="ui.83b215c0c9.42">
-            <span className="bh-today-card-num">{fmt$(a?.invoices?.outstanding_total, currency)}</span>
-            <span className="bh-today-card-label">{t('businessHub.overview.awaitingPayment')}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ── Quick actions ribbon ──────────────────────────────────────────── */}
-      <div className="bh-quick-actions" role="region" aria-label={t('businessHub.overview.quickActionsRegion')}>
-        {canManage && (
-          <button type="button" className="bh-quick-btn" onClick={goTo('calendar')} data-track="ui.83b215c0c9.43">
-            <span className="bh-quick-emoji" aria-hidden="true">📅</span>
-            <strong>{t('businessHub.overview.quickActions.addEvent.title')}</strong>
-            <span>{t('businessHub.overview.quickActions.addEvent.description')}</span>
-          </button>
-        )}
-        <button type="button" className="bh-quick-btn" onClick={goTo('invoices')} data-track="ui.83b215c0c9.44">
-          <span className="bh-quick-emoji" aria-hidden="true">🧾</span>
-          <strong>{t('businessHub.overview.quickActions.sendInvoice.title')}</strong>
-          <span>{t('businessHub.overview.quickActions.sendInvoice.description')}</span>
-        </button>
-        {LAUNCH_VISIBILITY.businessHubFinancialPlanning && (
-          <button type="button" className="bh-quick-btn" onClick={goTo('goals')} data-track="ui.83b215c0c9.45">
-            <span className="bh-quick-emoji" aria-hidden="true">🎯</span>
-            <strong>{t('businessHub.overview.quickActions.setGoal.title')}</strong>
-            <span>{t('businessHub.overview.quickActions.setGoal.description')}</span>
-          </button>
-        )}
-        <button type="button" className="bh-quick-btn" onClick={goTo('team')} data-track="ui.83b215c0c9.46">
-          <span className="bh-quick-emoji" aria-hidden="true">👥</span>
-          <strong>{t('businessHub.overview.quickActions.inviteTeammate.title')}</strong>
-          <span>{t('businessHub.overview.quickActions.inviteTeammate.description')}</span>
-        </button>
-        {LAUNCH_VISIBILITY.businessHubAdvancedOps && (
-          <button type="button" className="bh-quick-btn" onClick={goTo('maintenance')} data-track="ui.83b215c0c9.47">
-            <span className="bh-quick-emoji" aria-hidden="true">🛠</span>
-            <strong>{t('businessHub.overview.quickActions.openMaintenance.title')}</strong>
-            <span>{t('businessHub.overview.quickActions.openMaintenance.description')}</span>
-          </button>
-        )}
-      </div>
-
-      {/* ── Financial health: runway + outstanding mix ───────────────────── */}
-      <div className="bh-health-grid">
-        <div className="bh-health-card">
-          <div className="bh-health-head">
-            <span className="bh-health-kicker">{t('businessHub.overview.cashFlowSignal')}</span>
-            <h3>{runway?.healthy ? t('businessHub.overview.healthyAverage') : t('businessHub.overview.tighteningWatch')}</h3>
-          </div>
-          <div className="bh-health-body">
-            <p className="bh-health-stat">
-              <strong>{fmt$(runway?.avgProfit ?? 0, currency)}</strong>
-              <span>{t('businessHub.overview.avgMonthlyProfit')}</span>
-            </p>
-            {runway?.burn > 0 ? (
-              <p className="bh-health-stat warn">
-                <strong>{fmt$(runway.burn, currency)}</strong>
-                <span>{t('businessHub.overview.avgMonthlyBurn')}</span>
-              </p>
-            ) : (
-              <p className="bh-health-stat ok">
-                <strong>{t('businessHub.overview.profitable')}</strong>
-                <span>{t('businessHub.overview.revenueCoveringExpenses')}</span>
-              </p>
-            )}
-            {runway?.months != null && (
-              <p className="bh-health-stat">
-                <strong>{t('businessHub.overview.runwayMonthsValue', { count: runway.months })}</strong>
-                <span>{t('businessHub.overview.estimatedRunway')}</span>
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="bh-health-card">
-          <div className="bh-health-head">
-            <span className="bh-health-kicker">{t('businessHub.overview.receivablesMix')}</span>
-            <h3>{t('businessHub.overview.outstandingVsOverdue')}</h3>
-          </div>
-          <div className="bh-health-body">
-            <div className="bh-receivables-bar" aria-hidden="true">
-              <div className="bh-receivables-overdue" style={{ width: `${outstandingPct}%` }} />
-            </div>
-            <p className="bh-health-stat">
-              <strong>{fmt$(a?.invoices?.outstanding_total, currency)}</strong>
-              <span>{t('businessHub.overview.totalAwaitingPayment')}</span>
-            </p>
-            <p className="bh-health-stat warn">
-              <strong>{fmt$(a?.invoices?.overdue_total, currency)}</strong>
-              <span>{t('businessHub.overview.outstandingOverdueRatio', { percent: outstandingPct })}</span>
-            </p>
-            <button type="button" className="bh-link-btn" onClick={goTo('invoices')} data-track="ui.83b215c0c9.48">
-              {t('businessHub.overview.reviewInvoices')} →
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* KPI grid */}
-      <div className="bh-kpi-grid">
-        <KPI label={t('businessHub.kpiMtdRevenue')}    value={fmt$(a?.mtd?.revenue, currency)}    cls="positive" />
-        <KPI label={t('businessHub.kpiMtdProfit')}     value={fmt$(a?.mtd?.profit, currency)}     cls={profitCls(a?.mtd?.profit)} />
-        <KPI label={t('businessHub.kpiLastMonthRevenue')} value={fmt$(a?.last_month?.revenue, currency)} />
-        <KPI label={t('businessHub.kpiYtdRevenue')}    value={fmt$(a?.ytd?.revenue, currency)}    cls="positive" />
-        <KPI label={t('businessHub.kpiYtdProfit')}     value={fmt$(a?.ytd?.profit, currency)}     cls={profitCls(a?.ytd?.profit)} />
-        <KPI label={t('businessHub.kpiOutstanding')}    value={fmt$(a?.invoices?.outstanding_total, currency)} cls="warn"
-          sub={t('businessHub.kpiInvoicesSent', { count: a?.invoices?.sent || 0 })} />
-        <KPI label={t('businessHub.kpiOverdue')}        value={fmt$(a?.invoices?.overdue_total, currency)}     cls="negative"
-          sub={t('businessHub.kpiInvoicesCount', { count: a?.invoices?.overdue_count || 0 })} />
-        <KPI label={t('businessHub.kpiJobs6m')}      value={a?.jobs?.completed_6m ?? '-'} />
-        <KPI label={t('businessHub.kpiAvgJobValue')}  value={fmt$(a?.jobs?.avg_value, currency)} />
-      </div>
-
-      {/* 6-month P&L bar chart */}
-      {monthly.length > 0 && (
-        <div className="bh-card">
-          <div className="bh-card-header">
-            <div><h2>{t('businessHub.chartTitle')}</h2></div>
-          </div>
-          <div className="bh-chart">
-            {monthly.map((m, i) => {
-              const rev = parseFloat(m.revenue)  || 0;
-              const exp = parseFloat(m.expenses) || 0;
-              const pro = parseFloat(m.profit)   || 0;
-              const pct = v => `${Math.max(2, Math.round((Math.abs(v) / maxVal) * 180))}px`;
-              return (
-                <div key={i} className="bh-chart-bar-group">
-                  <div className="bh-chart-bars">
-                    <div className="bh-chart-bar revenue" style={{ height: pct(rev) }} title={t('businessHub.tooltipRevenue', { amount: fmt$(rev, currency) })} />
-                    <div className="bh-chart-bar expense" style={{ height: pct(exp) }} title={t('businessHub.tooltipExpenses', { amount: fmt$(exp, currency) })} />
-                    <div className="bh-chart-bar profit"  style={{ height: pct(pro) }} title={t('businessHub.tooltipProfit', { amount: fmt$(pro, currency) })} />
-                  </div>
-                  <span className="bh-chart-month">{fmtMonth(m.month)}</span>
-                </div>
-              );
-            })}
-          </div>
-          <div className="bh-chart-legend">
-            {[
-              ['revenue', '#4ade80', t('businessHub.chartRevenue')],
-              ['expense', '#f87171', t('businessHub.chartExpenses')],
-              ['profit',  '#60a5fa', t('businessHub.chartProfit')],
-            ].map(([, color, label]) => (
-              <span key={label} className="bh-chart-legend-item">
-                <span className="bh-chart-legend-dot" style={{ background: color }} />
-                {label}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-    </>
   );
 }
 

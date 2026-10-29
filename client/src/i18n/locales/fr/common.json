@@ -5458,5 +5458,44 @@
     "title": "Impossible de vérifier votre session",
     "description": "Vérifiez votre connexion et réessayez. Votre page actuelle et votre travail enregistré resteront ici.",
     "retry": "Réessayer"
+  },
+  "businessOperations": {
+    "dayBookings": "Réservations du {{date}}",
+    "showDayBookings": "Voir les {{count}} réservations du {{date}}",
+    "title": "Le travail du jour",
+    "description": "Commencez par les réservations et le suivi des clients.",
+    "refresh": "Actualiser",
+    "loading": "Chargement de l’activité de l’entreprise…",
+    "loadError": "Impossible de charger l’activité de l’entreprise. Réessayez en actualisant.",
+    "timezone": "La journée suit le fuseau horaire de votre entreprise : {{timezone}}.",
+    "partial": "Une partie de l’activité n’a pas pu être chargée. Les totaux disponibles figurent ci-dessous.",
+    "todayBookings": "Réservations du jour",
+    "yourTodayBookings": "Vos réservations du jour",
+    "unansweredMessages": "Conversations en attente de réponse",
+    "overdueInvoices": "Factures en retard",
+    "unavailable": "Indisponible",
+    "needsAttention": "À traiter",
+    "review": "Consulter",
+    "attentionUnavailable": "Actualisez pour vérifier le reste de l’activité.",
+    "nothingPending": "Aucune action en attente dans l’activité que vous pouvez consulter.",
+    "viewAnalytics": "Voir les analyses détaillées",
+    "open": {
+      "bookings": "Ouvrir le calendrier",
+      "messages": "Ouvrir les messages",
+      "invoices": "Ouvrir les factures"
+    },
+    "tasks": {
+      "confirmBookings": "Réservations en attente de confirmation : {{count}}",
+      "replyToMessages": "Conversations clients en attente de réponse : {{count}}",
+      "followUpInvoices": "Factures en retard à relancer : {{count}}",
+      "reviewSetup": "Terminez la configuration de votre entreprise"
+    },
+    "startBooking": "Commencer la prestation",
+    "inProgress": "En cours",
+    "pendingCount": "Réservations en attente de confirmation : {{count}}",
+    "noPendingBookings": "Aucune réservation en attente de confirmation.",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "closeBooking": "Fermer les détails de la réservation"
   }
 }

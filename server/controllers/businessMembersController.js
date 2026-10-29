@@ -13,6 +13,7 @@ const { applyStaffOffboarding } = require('../services/staffOffboarding');
 const { canActOnRole, resolveActorRole } = require('../utils/teamRanks');
 const emailUtils = require('../utils/email');
 const teamMembership = require('../services/team/membership');
+const permissionsService = require('../services/permissionsService');
 
 // Roles that can be assigned through the email invite flow (S-03). The
 // catalog can also express owner, but ownership is never invitable.
@@ -814,7 +815,7 @@ async function listManagedBusinesses(req, res) {
          b.website, b.phone, b.logo_url, b.is_active, b.is_listed,
          b.business_kind, b.business_mode, b.setup_status,
          b.currency_code, b.address_country,
-         bm.role,
+         bm.role, bm.id AS membership_id,
          bm.accepted_at,
          u.first_name AS owner_first_name,
          u.last_name  AS owner_last_name
@@ -831,7 +832,15 @@ async function listManagedBusinesses(req, res) {
     const businesses = await enrichBusinessesWithRestaurantFields(pool, rows, {
       logLabel: 'listManagedBusinesses',
     });
-    return res.json({ businesses });
+    const scoped = await Promise.all(businesses.map(async business => {
+      const { permissions } = await permissionsService.getEffectivePermissions({
+        businessId: business.id, userId: req.user.id, role: business.role,
+        membershipId: business.membership_id,
+      });
+      return { ...business, permissions: Array.from(permissions) };
+    }));
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ businesses: scoped });
   } catch (err) {
     logger.error('listManagedBusinesses error', {
       err: err && err.message,
