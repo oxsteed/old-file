@@ -4717,6 +4717,20 @@
   },
   "restaurants": {
     "ops": {
+      "desk": {
+        "brandDesc": "Manage standards and menus across your restaurants.",
+        "accountingDesc": "Connect accounting and review journal exports.",
+        "hubDesc": "Check local devices and changes waiting to sync.",
+        "intro": "Keep service moving. Start with the floor, then manage your team and business.",
+        "needsAttention": "Needs attention",
+        "attentionDesc": "Review these items before your next service.",
+        "findTool": "Find a tool",
+        "searchPlaceholder": "Search tools or tasks…",
+        "noTools": "No tools match your search. Try another word.",
+        "clearSearch": "Clear search",
+        "floorIntro": "Your everyday tools for a smooth service.",
+        "switchTool": "Switch tool"
+      },
       "reports": {
         "downloadCsv": "Download CSV",
         "exportError": "Could not download the sales report.",

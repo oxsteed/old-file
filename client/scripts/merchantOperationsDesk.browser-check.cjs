@@ -114,7 +114,7 @@ test('merchant operations desk opens one tool at a time', { timeout: 120000 }, a
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
-  const artifactDir = '/opt/cursor/artifacts';
+  const artifactDir = process.env.ARTIFACT_DIR || path.join(require('node:os').tmpdir(), 'oxsteed-operations-desk');
   fs.mkdirSync(artifactDir, { recursive: true });
 
   try {
@@ -160,10 +160,18 @@ test('merchant operations desk opens one tool at a time', { timeout: 120000 }, a
 
     await page.getByRole('heading', { name: 'Operations', exact: true }).waitFor();
     await page.getByRole('heading', { name: 'Floor', exact: true }).waitFor();
-    await page.getByRole('button', { name: /1 low stock/ }).waitFor();
+    await page.getByRole('button', { name: '1 low stock', exact: true }).waitFor();
     assert.equal(await page.getByRole('heading', { name: 'In-store screen control center' }).count(), 0);
     assert.equal(await page.getByRole('heading', { name: 'HQ console', exact: true }).count(), 0);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+    assert.deepEqual(await page.evaluate(() => window.calls.filter(({ url }) => /\/screens\/control|\/reports\/|\/accounting\/|\/hq\//.test(url))), [], 'unopened screens, reports, accounting and HQ should not load their data');
+
+    await page.getByRole('searchbox', { name: 'Find a tool' }).fill('ingredients');
+    assert.equal(await page.locator('.fd-ops-tile:visible').count(), 1);
+    await page.getByRole('searchbox', { name: 'Find a tool' }).fill('no matching tool');
+    await page.getByText('No tools match your search. Try another word.').waitFor();
+    await page.getByRole('button', { name: 'Clear search', exact: true }).click();
+    assert.equal(await page.locator('.fd-ops-tile:visible').count(), 13);
 
     await page.screenshot({ path: path.join(artifactDir, 'operations-desk-desktop.png'), fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -175,15 +183,45 @@ test('merchant operations desk opens one tool at a time', { timeout: 120000 }, a
     await page.screenshot({ path: path.join(artifactDir, 'operations-desk-dark.png'), fullPage: true });
     await page.evaluate(() => { document.documentElement.className = ''; });
 
-    await page.getByRole('button', { name: /1 low stock/ }).click();
+    await page.getByRole('button', { name: '1 low stock', exact: true }).click();
     await page.getByRole('heading', { name: 'Inventory', exact: true }).waitFor();
     await page.getByText('Tomatoes', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'All tools', exact: true }).waitFor();
     assert.equal(await page.getByRole('heading', { name: 'Floor', exact: true }).count(), 0);
     await page.screenshot({ path: path.join(artifactDir, 'operations-inventory-open.png'), fullPage: true });
 
+    // Direct navigation keeps an unfinished form and the active tool visible.
+    await page.getByRole('button', { name: 'New item', exact: true }).click();
+    await page.getByLabel('Item name', { exact: true }).fill('Unsaved ingredient');
+    await page.getByRole('navigation', { name: 'Operating tools' }).getByRole('button', { name: 'Checklists', exact: true }).click();
+    await page.getByRole('heading', { name: 'Checklists', exact: true }).waitFor();
+    assert.equal(await page.locator('.fd-ops-workspace').evaluate((el) => el === document.activeElement), true);
+    await page.getByRole('navigation', { name: 'Operating tools' }).getByRole('button', { name: 'Inventory', exact: true }).click();
+    await page.getByRole('heading', { name: 'Inventory', exact: true }).waitFor();
+    assert.equal(await page.getByLabel('Item name', { exact: true }).inputValue(), 'Unsaved ingredient');
+    assert.equal(await page.getByRole('navigation', { name: 'Operating tools' }).getByRole('button', { name: 'Inventory', exact: true }).getAttribute('aria-current'), 'page');
+
+    // A deferred tool loads on first visit and keeps its controls on return.
+    await page.getByRole('navigation', { name: 'Operating tools' }).getByRole('button', { name: 'Reports', exact: true }).click();
+    await page.locator('#rpt-from').fill('2026-01-01');
+    await page.waitForFunction(() => window.calls.some(({ url }) => url.endsWith('/reports/sales')));
+    await page.getByRole('navigation', { name: 'Operating tools' }).getByRole('button', { name: 'Inventory', exact: true }).click();
+    await page.getByRole('heading', { name: 'Inventory', exact: true }).waitFor();
+    await page.getByRole('navigation', { name: 'Operating tools' }).getByRole('button', { name: 'Reports', exact: true }).click();
+    await page.getByRole('heading', { name: 'Reports', exact: true }).waitFor();
+    assert.equal(await page.locator('#rpt-from').inputValue(), '2026-01-01');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('combobox', { name: 'Switch tool', exact: true }).selectOption('inventory');
+    await page.getByRole('heading', { name: 'Inventory', exact: true }).waitFor();
+    assert.equal(await page.getByLabel('Item name', { exact: true }).inputValue(), 'Unsaved ingredient');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'mobile workspace overflows');
+    await page.screenshot({ path: path.join(artifactDir, 'operations-inventory-mobile.png'), fullPage: true });
+    await page.setViewportSize({ width: 1280, height: 900 });
+
     await page.getByRole('button', { name: 'All tools', exact: true }).click();
     await page.getByRole('heading', { name: 'Floor', exact: true }).waitFor();
+    assert.equal(await page.locator('.fd-ops-groups').evaluate((el) => el === document.activeElement), true);
     assert.equal(await page.getByRole('heading', { name: 'Inventory', exact: true }).count(), 0);
 
     await page.getByRole('button', { name: /In-store screens/ }).click();

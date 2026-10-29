@@ -4717,6 +4717,20 @@
   },
   "restaurants": {
     "ops": {
+      "desk": {
+        "brandDesc": "Gestiona estándares y menús en todos tus restaurantes.",
+        "accountingDesc": "Conecta la contabilidad y revisa las exportaciones de asientos.",
+        "hubDesc": "Revisa los dispositivos locales y los cambios pendientes de sincronizar.",
+        "intro": "Mantén el servicio en marcha. Empieza por la sala y luego gestiona tu equipo y tu negocio.",
+        "needsAttention": "Requiere atención",
+        "attentionDesc": "Revisa estos puntos antes del próximo servicio.",
+        "findTool": "Buscar una herramienta",
+        "searchPlaceholder": "Buscar herramientas o tareas…",
+        "noTools": "Ninguna herramienta coincide. Prueba con otra palabra.",
+        "clearSearch": "Borrar búsqueda",
+        "floorIntro": "Tus herramientas diarias para un servicio fluido.",
+        "switchTool": "Cambiar de herramienta"
+      },
       "reports": {
         "downloadCsv": "Descargar CSV",
         "exportError": "No se pudo descargar el informe de ventas.",
