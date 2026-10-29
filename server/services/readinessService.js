@@ -88,18 +88,23 @@ async function adminControlPlaneSchemaStatus(pool) {
   }
 
   const entries = Object.entries(ADMIN_CONTROL_PLANE_SCHEMA);
-  const predicates = entries.map(([table], index) =>
-    `(table_name = $${index + 1} AND column_name = ANY($${index + 1 + entries.length}::text[]))`
+  const targets = entries.map((_, index) =>
+    `($${index + 1}::text, $${index + 1 + entries.length}::text[])`
   );
   const params = [
     ...entries.map(([table]) => table),
     ...entries.map(([, columns]) => columns),
   ];
   const { rows } = await pool.query(
-    `SELECT table_name, column_name
-       FROM information_schema.columns
-      WHERE table_schema = 'public'
-        AND (${predicates.join(' OR ')})`,
+    // Resolve only the required relations and their indexed attributes. The
+    // information_schema view expands privilege/type checks across the schema
+    // on every proxy probe, competing with traffic during image builds.
+    `SELECT wanted.table_name, a.attname AS column_name
+       FROM (VALUES ${targets.join(', ')}) AS wanted(table_name, columns)
+       JOIN pg_catalog.pg_attribute a
+         ON a.attrelid = pg_catalog.to_regclass('public.' || pg_catalog.quote_ident(wanted.table_name))
+        AND a.attname = ANY(wanted.columns)
+      WHERE a.attnum > 0 AND NOT a.attisdropped`,
     params,
   );
   const present = new Set(rows.map((row) => `${row.table_name}.${row.column_name}`));
