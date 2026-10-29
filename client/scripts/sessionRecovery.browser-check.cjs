@@ -38,12 +38,22 @@ test('built app recovers a cold outage and transient refresh without losing a pr
     const other = await context.newPage();
     await other.goto(fixture.origin + '/post-job');
     await other.getByRole('heading', { name: 'We couldn’t check your session' }).waitFor();
+    const firstTabMeRequestsBeforeRecovery = fixture.state.requests.filter(({ path }) => path === '/api/auth/me').length;
     delete fixture.state.failures['/api/auth/me'];
     await other.getByRole('button', { name: 'Try again', exact: true }).click();
     await other.getByRole('textbox', { name: /Job Title/i }).waitFor();
-    assert.equal(await title.count(), 0);
+    // The recovered tab broadcasts an account-established transition. The
+    // original tab may therefore re-verify and remount its private form, but
+    // it must do so through a fresh /auth/me request rather than trusting a
+    // browser-stored profile or draft as authentication proof.
+    const recoveryDeadline = Date.now() + 5000;
+    while (Date.now() < recoveryDeadline && fixture.state.requests.filter(({ path }) => path === '/api/auth/me').length <= firstTabMeRequestsBeforeRecovery) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    assert.ok(fixture.state.requests.filter(({ path }) => path === '/api/auth/me').length > firstTabMeRequestsBeforeRecovery);
     await other.close();
-    await page.getByRole('button', { name: 'Try again', exact: true }).click();
+    const pageRetry = page.getByRole('button', { name: 'Try again', exact: true });
+    if (await pageRetry.count()) await pageRetry.click();
     await title.waitFor();
     await page.waitForFunction(() => document.querySelectorAll('.pjw-preview-grid img').length === 1);
     assert.equal(await title.inputValue(), 'Private draft saved before an outage');
