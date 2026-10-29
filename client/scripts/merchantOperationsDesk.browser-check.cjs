@@ -15,7 +15,7 @@ const catalogs = Object.fromEntries(['en', 'es', 'fr', 'ht', 'ar'].map((language
 const fixture = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import i18n from 'i18next';
 import { initReactI18next, I18nextProvider } from 'react-i18next';
 import Page from './src/pages/food/FoodMerchantPage';
@@ -28,10 +28,16 @@ instance.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 window.i18n = instance;
+function LocationProbe() {
+  const location = useLocation();
+  window.currentSearch = location.search;
+  return null;
+}
 const root = createRoot(document.getElementById('root'));
 window.render = (route) => root.render(
   <I18nextProvider i18n={instance}>
     <MemoryRouter key={route + Date.now()} initialEntries={[route]}>
+      <LocationProbe />
       <Page />
     </MemoryRouter>
   </I18nextProvider>
@@ -188,6 +194,111 @@ test('merchant operations desk opens one tool at a time', { timeout: 120000 }, a
     await page.getByRole('heading', { name: 'Checklists', exact: true }).waitFor();
     await page.getByRole('heading', { name: 'Opening', exact: true }).waitFor();
     assert.equal(await page.getByRole('heading', { name: 'Floor', exact: true }).count(), 0);
+
+    // A display-only role must not paint a manager tool from the ops query.
+    // The board stays hidden, manager panels are not mounted, and screens stay
+    // hidden until a later effect — and that effect used to leave ops=inventory
+    // in the query, so a refresh repeated the blank frame.
+    await page.evaluate(() => {
+      const previous = window.request;
+      window.request = async (method, url) => {
+        if (url.includes('/food/my/restaurants')) {
+          return { data: { restaurants: [
+            {
+              id: 9,
+              business_id: 3,
+              display_name: 'Synthetic Kitchen',
+              status: 'active',
+              address_city: 'Brooklyn',
+              address_state: 'NY',
+              effective_role: 'owner',
+              permissions: ['*'],
+              currency_code: 'USD',
+              is_accepting_orders_now: true,
+              timezone: 'America/New_York',
+            },
+            {
+              id: 11,
+              business_id: 4,
+              display_name: 'Display Counter',
+              status: 'active',
+              address_city: 'Brooklyn',
+              address_state: 'NY',
+              effective_role: 'staff',
+              permissions: ['display.manage'],
+              currency_code: 'USD',
+              is_accepting_orders_now: true,
+              timezone: 'America/New_York',
+            },
+          ] } };
+        }
+        return previous(method, url);
+      };
+      window.blankOpsFrames = 0;
+      window.opsBlankTrace = [];
+      const noteBlank = () => {
+        const board = document.querySelector('.fd-ops-groups');
+        const workspace = document.querySelector('.fd-ops-workspace');
+        if (!board || !workspace || !board.hasAttribute('hidden')) return;
+        const screens = document.querySelector('.fd-ops-screen-slot');
+        const screensShown = Boolean(screens && !screens.hasAttribute('hidden'));
+        const cardShown = Boolean(workspace.querySelector('.fd-settings-card:not([hidden])'));
+        window.opsBlankTrace.push({ screensShown, cardShown });
+        if (!screensShown && !cardShown) window.blankOpsFrames += 1;
+      };
+      // Sample during commit. Passive effects correct `active` after the first
+      // paint, so a mutation observer can miss the empty frame entirely.
+      if (!window.opsBlankHooked) {
+        window.opsBlankHooked = true;
+        for (const method of ['appendChild', 'insertBefore']) {
+          const original = Element.prototype[method];
+          Element.prototype[method] = function patched(node) {
+            const result = original.apply(this, arguments);
+            const element = node && node.nodeType === 1 ? node : null;
+            if (element && (element.classList?.contains('fd-ops-workspace') || element.querySelector?.('.fd-ops-workspace'))) noteBlank();
+            return result;
+          };
+        }
+      }
+      window.render('/restaurants/merchant?business=4&tab=operations&ops=inventory');
+    });
+
+    await page.getByRole('heading', { name: 'In-store screen control center' }).waitFor();
+    assert.equal(await page.getByRole('heading', { name: 'Inventory', exact: true }).count(), 0);
+    assert.equal(await page.getByRole('heading', { name: 'Floor', exact: true }).count(), 0);
+    const displayOnlyDesk = await page.evaluate(() => ({
+      blank: window.blankOpsFrames,
+      trace: window.opsBlankTrace,
+    }));
+    assert.equal(displayOnlyDesk.blank, 0, `display-only ops=inventory painted an empty workspace ${JSON.stringify(displayOnlyDesk.trace)}`);
+    await page.waitForFunction(() => window.currentSearch.includes('ops=screens') && !window.currentSearch.includes('inventory'));
+    await page.screenshot({ path: path.join(artifactDir, 'operations-display-only-screens.png'), fullPage: true });
+    const refreshedSearch = await page.evaluate(() => window.currentSearch);
+    await page.evaluate((search) => {
+      window.blankOpsFrames = 0;
+      window.opsBlankTrace = [];
+      window.render(`/restaurants/merchant${search}`);
+    }, refreshedSearch);
+    await page.getByRole('heading', { name: 'In-store screen control center' }).waitFor();
+    assert.equal(await page.evaluate(() => window.blankOpsFrames), 0, 'refresh replayed an empty workspace');
+    await page.waitForFunction(() => window.currentSearch.includes('ops=screens') && !window.currentSearch.includes('inventory'));
+
+    await page.evaluate(() => {
+      window.blankOpsFrames = 0;
+      window.render('/restaurants/merchant?business=3&tab=operations&ops=inventory');
+    });
+    await page.getByRole('heading', { name: 'Inventory', exact: true }).waitFor();
+    await page.evaluate(() => { window.blankOpsFrames = 0; });
+    await page.getByLabel('Select restaurant').selectOption('11');
+    await page.getByRole('heading', { name: 'Display Counter', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'In-store screen control center' }).waitFor();
+    assert.equal(await page.getByRole('heading', { name: 'Inventory', exact: true }).count(), 0);
+    await page.waitForFunction(() => window.currentSearch.includes('ops=screens') && !window.currentSearch.includes('inventory'));
+    assert.equal(await page.evaluate(() => window.blankOpsFrames), 0, 'switching to a display-only restaurant kept the manager tool');
+    await page.screenshot({ path: path.join(artifactDir, 'operations-display-only-switch.png'), fullPage: true });
+
+    await page.evaluate(() => window.render('/restaurants/merchant?business=3&tab=operations&ops=checklists'));
+    await page.getByRole('heading', { name: 'Checklists', exact: true }).waitFor();
 
     await page.evaluate(async () => {
       document.documentElement.dir = 'rtl';

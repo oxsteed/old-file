@@ -52,6 +52,7 @@ import BrandHQPanel from './BrandHQPanel';
 import StoreHubPanel from './StoreHubPanel';
 import RestaurantAccountingPanel from './RestaurantAccountingPanel';
 import { syncPendingMutations, countPendingMutations, isDeviceOnline } from '../../api/restaurantsOffline';
+import { resolveOperationsDesk } from './merchantOperationsDesk';
 import PageShell from '../../components/PageShell';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import '../../styles/FoodPages.css';
@@ -1947,8 +1948,9 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
 // ── Operations tab ───────────────────────────────────────────────────────────
 // Franchise-grade operating modules. The desk shows one tool at a time;
 // the others stay mounted (hidden) so their counts keep loading.
-// Permission gates are unchanged from before.
-const OPS_MODULE_KEYS = new Set(['screens', 'hosting', 'checklists', 'inventory', 'sops', 'training', 'audits', 'hq', 'brand-hq', 'accounting', 'store-hub', 'reports', 'help']);
+// Permission gates are unchanged from before. The open tool is chosen from
+// the filtered module list, never from the unfiltered catalog: a display
+// role with ops=inventory would otherwise hide the board and mount nothing.
 
 function OperationsView({ t, restaurant, canManageRestaurant }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1957,10 +1959,6 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
   const registerCard = () => {};
   const workspaceRef = useRef(null);
   const focusWorkspace = useRef(false);
-  const [active, setActive] = useState(() => {
-    const requested = searchParams.get('ops');
-    return OPS_MODULE_KEYS.has(requested) ? requested : null;
-  });
 
   // Offline outbox: floor devices keep working without Wi-Fi; queued
   // mutations replay in order when connectivity returns.
@@ -2085,14 +2083,19 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
     { key: 'help', group: 'support', icon: HelpingHand, title: t('restaurants.ops.help.title', 'Need help at your restaurant?'), desc: t('restaurants.ops.help.desc', 'Hire local helpers through OxSteed Marketplace: repairs, cleaning, equipment, signage, and more.'), manager: true },
   ];
   const modules = moduleCatalog.filter((mod) => !mod.manager || canManageRestaurant);
-  const moduleKeys = modules.map((mod) => mod.key).join('|');
+  const allowedKeys = modules.map((mod) => mod.key);
   const requestedOps = searchParams.get('ops');
+  const { active, rewrite, nextOps } = resolveOperationsDesk(requestedOps, allowedKeys);
 
   useEffect(() => {
-    const keys = new Set(moduleKeys.split('|').filter(Boolean));
-    const next = requestedOps && keys.has(requestedOps) ? requestedOps : (keys.size === 1 ? moduleKeys : null);
-    setActive(next);
-  }, [moduleKeys, requestedOps]);
+    if (!rewrite) return;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (nextOps) next.set('ops', nextOps);
+      else next.delete('ops');
+      return next;
+    }, { replace: true });
+  }, [nextOps, rewrite, setSearchParams]);
 
   useEffect(() => {
     if (!active || !focusWorkspace.current) return;
@@ -2101,11 +2104,10 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
   }, [active]);
 
   const openModule = (key) => {
-    const keys = new Set(moduleKeys.split('|').filter(Boolean));
+    const keys = new Set(allowedKeys);
     if (key && !keys.has(key)) return;
     focusWorkspace.current = true;
-    const nextActive = key || (keys.size === 1 ? moduleKeys : null);
-    setActive(nextActive);
+    const nextActive = key || (keys.size === 1 ? allowedKeys[0] : null);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (nextActive) next.set('ops', nextActive);
