@@ -4717,6 +4717,20 @@
   },
   "restaurants": {
     "ops": {
+      "desk": {
+        "brandDesc": "Gérez les standards et les menus de vos restaurants.",
+        "accountingDesc": "Connectez la comptabilité et vérifiez les exports d’écritures.",
+        "hubDesc": "Vérifiez les appareils locaux et les changements à synchroniser.",
+        "intro": "Assurez le bon déroulement du service. Commencez par la salle, puis gérez votre équipe et votre activité.",
+        "needsAttention": "À traiter",
+        "attentionDesc": "Vérifiez ces points avant le prochain service.",
+        "findTool": "Trouver un outil",
+        "searchPlaceholder": "Rechercher des outils ou des tâches…",
+        "noTools": "Aucun outil ne correspond. Essayez un autre mot.",
+        "clearSearch": "Effacer la recherche",
+        "floorIntro": "Vos outils quotidiens pour un service fluide.",
+        "switchTool": "Changer d’outil"
+      },
       "reports": {
         "downloadCsv": "Télécharger le CSV",
         "exportError": "Impossible de télécharger le rapport de ventes.",

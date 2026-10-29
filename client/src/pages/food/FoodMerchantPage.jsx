@@ -1952,6 +1952,14 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
 // the filtered module list, never from the unfiltered catalog: a display
 // role with ops=inventory would otherwise hide the board and mount nothing.
 
+// Start expensive tools on demand, then retain their local drafts while the
+// operator switches tools. OperationsView is keyed by restaurant.
+function VisitedOperation({ active, children }) {
+  const [visited, setVisited] = useState(active);
+  useEffect(() => { if (active) setVisited(true); }, [active]);
+  return active || visited ? children : null;
+}
+
 function OperationsView({ t, restaurant, canManageRestaurant }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [stats, setStats] = useState({});
@@ -1959,6 +1967,8 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
   const registerCard = () => {};
   const workspaceRef = useRef(null);
   const focusWorkspace = useRef(false);
+  const boardRef = useRef(null);
+  const [toolQuery, setToolQuery] = useState('');
 
   // Offline outbox: floor devices keep working without Wi-Fi; queued
   // mutations replay in order when connectivity returns.
@@ -2076,9 +2086,9 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
     { key: 'training', group: 'standards', icon: GraduationCap, title: t('restaurants.ops.training.title', 'Staff training'), desc: t('restaurants.ops.opTrainingDesc', 'Lessons and quizzes assigned to your team, with completion tracking.'), manager: true },
     { key: 'audits', group: 'standards', icon: ShieldCheck, title: t('restaurants.ops.audits.title', 'Quality audits'), desc: t('restaurants.ops.opAuditsDesc', 'Score inspections, log findings, and track corrective actions to closure.'), manager: true },
     { key: 'hq', group: 'company', icon: Building2, title: t('restaurants.ops.hq.title', 'HQ console'), desc: t('restaurants.ops.hq.subtitle', 'Compare stores and publish approved menu policies.'), manager: true },
-    { key: 'brand-hq', group: 'company', icon: Network, title: t('restaurants.ops.brandHq.title'), desc: t('restaurants.ops.brandHq.subtitle'), manager: true },
-    { key: 'accounting', group: 'company', icon: Receipt, title: t('restaurants.accountingRuntime.title'), desc: t('restaurants.accountingRuntime.description'), manager: true },
-    { key: 'store-hub', group: 'company', icon: WifiOff, title: t('restaurants.ops.storeHub.title'), desc: t('restaurants.ops.storeHub.subtitle'), manager: true },
+    { key: 'brand-hq', group: 'company', icon: Network, title: t('restaurants.ops.brandHq.title'), desc: t('restaurants.ops.desk.brandDesc', 'Manage standards and menus across your restaurants.'), manager: true },
+    { key: 'accounting', group: 'company', icon: Receipt, title: t('restaurants.accountingRuntime.title'), desc: t('restaurants.ops.desk.accountingDesc', 'Connect accounting and review journal exports.'), manager: true },
+    { key: 'store-hub', group: 'company', icon: WifiOff, title: t('restaurants.ops.storeHub.title'), desc: t('restaurants.ops.desk.hubDesc', 'Check local devices and changes waiting to sync.'), manager: true },
     { key: 'reports', group: 'company', icon: BarChart3, title: t('restaurants.ops.reports.title', 'Reports'), desc: t('restaurants.ops.opReportsDesc', 'Sales, inventory, and operations performance at a glance.'), manager: true },
     { key: 'help', group: 'support', icon: HelpingHand, title: t('restaurants.ops.help.title', 'Need help at your restaurant?'), desc: t('restaurants.ops.help.desc', 'Hire local helpers through OxSteed Marketplace: repairs, cleaning, equipment, signage, and more.'), manager: true },
   ];
@@ -2098,9 +2108,9 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
   }, [nextOps, rewrite, setSearchParams]);
 
   useEffect(() => {
-    if (!active || !focusWorkspace.current) return;
+    if (!focusWorkspace.current) return;
     focusWorkspace.current = false;
-    workspaceRef.current?.focus();
+    (active ? workspaceRef : boardRef).current?.focus();
   }, [active]);
 
   const openModule = (key) => {
@@ -2141,6 +2151,8 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
     support: t('restaurants.ops.desk.groupSupport', 'Support'),
   };
   const alertChips = chips.filter((chip) => !chip.target);
+  const attention = chips.filter((chip) => ['inventory', 'audits'].includes(chip.key) && chip.tone === 'warn');
+  const visibleModules = modules.filter((mod) => `${mod.title} ${mod.desc} ${groupLabel[mod.group]}`.toLocaleLowerCase().includes(toolQuery.trim().toLocaleLowerCase()));
 
   // Pre-fill a Marketplace job from the restaurant's context. PostJobPage reads
   // an optional prefill from navigation state; the query param is a harmless
@@ -2157,7 +2169,7 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
       <header className="fd-ops-desk-head">
         <div>
           <h2>{t('restaurants.ops.title', 'Operations')}</h2>
-          <p className="fd-card-meta">{t('restaurants.ops.subtitle', 'Run your restaurant with franchise-grade systems.')}</p>
+          <p className="fd-card-meta">{t('restaurants.ops.desk.intro', 'Keep service moving. Start with the floor, then manage your team and business.')}</p>
         </div>
         {active && modules.length > 1 && (
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => openModule(null)} data-track="ui.17b0c32a57.66">
@@ -2189,13 +2201,56 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
         </div>
       )}
 
-      <div className="fd-ops-groups" hidden={!!active} role="navigation" aria-label={t('restaurants.ops.desk.toolsLabel', 'Operating tools')}>
+      <div className="fd-ops-layout" data-tool-open={!!active}>
+      {active && modules.length > 1 && (
+        <nav className="fd-ops-sidebar" aria-label={t('restaurants.ops.desk.toolsLabel', 'Operating tools')}>
+          <label className="fd-ops-mobile-switch">
+            {t('restaurants.ops.desk.switchTool', 'Switch tool')}
+            <select value={active} onChange={(event) => openModule(event.target.value)}>
+              {['floor', 'standards', 'company', 'support'].map((group) => (
+                <optgroup key={group} label={groupLabel[group]}>
+                  {modules.filter((mod) => mod.group === group).map((mod) => <option key={mod.key} value={mod.key}>{mod.title}</option>)}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <div className="fd-ops-sidebar-links">
+            {['floor', 'standards', 'company', 'support'].map((group) => (
+              <div key={group} className="fd-ops-nav-group">
+                <p>{groupLabel[group]}</p>
+                {modules.filter((mod) => mod.group === group).map((mod) => {
+                  const Icon = mod.icon;
+                  return <button key={mod.key} type="button" aria-current={active === mod.key ? 'page' : undefined} onClick={() => openModule(mod.key)} data-track="ui.17b0c32a57.68">
+                    <Icon size={17} aria-hidden="true" /><span>{mod.title}</span>
+                  </button>;
+                })}
+              </div>
+            ))}
+          </div>
+        </nav>
+      )}
+      <div className="fd-ops-groups" hidden={!!active} ref={boardRef} tabIndex={-1} role="region" aria-label={t('restaurants.ops.desk.toolsLabel', 'Operating tools')}>
+        {attention.length > 0 && (
+          <section className="fd-ops-attention" aria-labelledby="fd-ops-attention-title">
+            <div><h3 id="fd-ops-attention-title">{t('restaurants.ops.desk.needsAttention', 'Needs attention')}</h3>
+              <p>{t('restaurants.ops.desk.attentionDesc', 'Review these items before your next service.')}</p></div>
+            <div className="fd-ops-attention-actions">
+              {attention.map((chip) => <button type="button" key={chip.key} className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => openModule(chip.target)} data-track="ui.17b0c32a57.69">{chip.label}<span aria-hidden="true">↗</span></button>)}
+            </div>
+          </section>
+        )}
+        <label className="fd-ops-search">
+          <span>{t('restaurants.ops.desk.findTool', 'Find a tool')}</span>
+          <input type="search" value={toolQuery} onChange={(event) => setToolQuery(event.target.value)} placeholder={t('restaurants.ops.desk.searchPlaceholder', 'Search tools or tasks…')} />
+        </label>
+        {visibleModules.length === 0 && <p role="status" className="fd-ops-empty">{t('restaurants.ops.desk.noTools', 'No tools match your search. Try another word.')} <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setToolQuery('')} data-track="ui.17b0c32a57.70">{t('restaurants.ops.desk.clearSearch', 'Clear search')}</button></p>}
         {['floor', 'standards', 'company', 'support'].map((group) => {
-          const items = modules.filter((mod) => mod.group === group);
+          const items = visibleModules.filter((mod) => mod.group === group);
           if (!items.length) return null;
           return (
-            <section key={group} className="fd-ops-group" aria-labelledby={`fd-ops-group-${group}`}>
+            <section key={group} className={`fd-ops-group fd-ops-group--${group}`} aria-labelledby={`fd-ops-group-${group}`}>
               <h3 id={`fd-ops-group-${group}`}>{groupLabel[group]}</h3>
+              {group === 'floor' && <p className="fd-ops-group-intro">{t('restaurants.ops.desk.floorIntro', 'Your everyday tools for a smooth service.')}</p>}
               <div className="fd-ops-board">
                 {items.map((mod) => {
                   const Icon = mod.icon;
@@ -2212,7 +2267,8 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
                         {mod.title}
                         {meta.tone && <span className={`fd-ops-tile-tone fd-ops-tile-tone--${meta.tone}`} aria-hidden="true" />}
                       </strong>
-                      <span className="fd-ops-tile-copy">{meta.detail || mod.desc}</span>
+                      <span className="fd-ops-tile-copy">{mod.desc}</span>
+                      {meta.detail && <span className="fd-ops-tile-detail">{meta.detail}</span>}
                     </button>
                   );
                 })}
@@ -2222,33 +2278,33 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
         })}
       </div>
 
-      <div className="fd-ops-workspace" hidden={!active} tabIndex={-1} ref={workspaceRef}>
+      <div className="fd-ops-workspace" hidden={!active} tabIndex={-1} ref={workspaceRef} role="region" aria-label={modules.find((mod) => mod.key === active)?.title}>
         <section className="fd-ops-screen-slot" hidden={active !== 'screens'}>
-          <ScreenControlCenter key={restaurant.id} restaurantId={restaurant.id} compact />
+          <VisitedOperation active={active === 'screens'}><ScreenControlCenter key={restaurant.id} restaurantId={restaurant.id} compact /></VisitedOperation>
         </section>
         {canManageRestaurant && (
           <SettingsCard icon={Building2} title={t('restaurants.ops.hq.title', 'HQ console')} desc={t('restaurants.ops.hq.subtitle', 'Compare stores and publish approved menu policies.')} cardKey="hq" registerRef={registerCard} wide hidden={active !== 'hq'}>
-            <RestaurantHQPanel t={t} restaurant={restaurant} bare />
+            <VisitedOperation active={active === 'hq'}><RestaurantHQPanel t={t} restaurant={restaurant} bare /></VisitedOperation>
           </SettingsCard>
         )}
         {canManageRestaurant && (
           <SettingsCard icon={Network} title={t('restaurants.ops.brandHq.title')} desc={t('restaurants.ops.brandHq.subtitle')} cardKey="brand-hq" registerRef={registerCard} wide hidden={active !== 'brand-hq'}>
-            <BrandHQPanel t={t} restaurant={restaurant} />
+            <VisitedOperation active={active === 'brand-hq'}><BrandHQPanel t={t} restaurant={restaurant} /></VisitedOperation>
           </SettingsCard>
         )}
         {canManageRestaurant && (
           <SettingsCard icon={Receipt} title={t('restaurants.accountingRuntime.title')} desc={t('restaurants.accountingRuntime.description')} cardKey="accounting" registerRef={registerCard} wide hidden={active !== 'accounting'}>
-            <RestaurantAccountingPanel restaurant={restaurant} t={t} />
+            <VisitedOperation active={active === 'accounting'}><RestaurantAccountingPanel restaurant={restaurant} t={t} /></VisitedOperation>
           </SettingsCard>
         )}
         {canManageRestaurant && (
           <SettingsCard icon={WifiOff} title={t('restaurants.ops.storeHub.title')} desc={t('restaurants.ops.storeHub.subtitle')} cardKey="store-hub" registerRef={registerCard} wide hidden={active !== 'store-hub'}>
-            <StoreHubPanel t={t} restaurant={restaurant} />
+            <VisitedOperation active={active === 'store-hub'}><StoreHubPanel t={t} restaurant={restaurant} /></VisitedOperation>
           </SettingsCard>
         )}
         {canManageRestaurant && (
           <SettingsCard icon={CalendarDays} title={t('restaurants.ops.hosting.title', 'Host stand')} desc={t('restaurants.ops.hosting.subtitle', 'Manage tables, reservations, and walk-ins for this restaurant.')} cardKey="hosting" registerRef={registerCard} wide hidden={active !== 'hosting'}>
-            <RestaurantHostingPanel t={t} restaurant={restaurant} />
+            <VisitedOperation active={active === 'hosting'}><RestaurantHostingPanel t={t} restaurant={restaurant} /></VisitedOperation>
           </SettingsCard>
         )}
         {canManageRestaurant && (
@@ -2278,7 +2334,7 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
         )}
         {canManageRestaurant && (
           <SettingsCard icon={BarChart3} title={t('restaurants.ops.reports.title', 'Reports')} desc={t('restaurants.ops.opReportsDesc', 'Sales, inventory, and operations performance at a glance.')} cardKey="reports" registerRef={registerCard} wide hidden={active !== 'reports'}>
-            <ReportsPanel t={t} restaurant={restaurant} bare onStats={report} />
+            <VisitedOperation active={active === 'reports'}><ReportsPanel t={t} restaurant={restaurant} bare onStats={report} /></VisitedOperation>
           </SettingsCard>
         )}
         {canManageRestaurant && (
@@ -2293,6 +2349,7 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
             </div>
           </SettingsCard>
         )}
+      </div>
       </div>
     </div>
   );

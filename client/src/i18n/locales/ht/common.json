@@ -4717,6 +4717,20 @@
   },
   "restaurants": {
     "ops": {
+      "desk": {
+        "brandDesc": "Jere estanda ak meni nan tout restoran ou yo.",
+        "accountingDesc": "Konekte kontablite epi revize ekspòtasyon ekriti yo.",
+        "hubDesc": "Tcheke aparèy lokal yo ak chanjman k ap tann senkronizasyon.",
+        "intro": "Kenbe sèvis la ap mache. Kòmanse ak sal la, apre sa jere ekip ou ak biznis ou.",
+        "needsAttention": "Bezwen atansyon",
+        "attentionDesc": "Revize pwen sa yo anvan pwochen sèvis la.",
+        "findTool": "Jwenn yon zouti",
+        "searchPlaceholder": "Chèche zouti oswa travay…",
+        "noTools": "Pa gen zouti ki koresponn. Eseye yon lòt mo.",
+        "clearSearch": "Efase rechèch la",
+        "floorIntro": "Zouti chak jou ou pou yon sèvis ki mache byen.",
+        "switchTool": "Chanje zouti"
+      },
       "reports": {
         "downloadCsv": "Telechaje CSV",
         "exportError": "Pa t kapab telechaje rapò lavant lan.",
