@@ -16,7 +16,26 @@ const VOLUME = 'oxsteed-release-metadata';
 const CONTAINER_FORMAT = '{"containerId":{{json .Id}},"name":{{json .Name}},"running":{{json .State.Running}},"service":{{json (index .Config.Labels "com.docker.compose.service")}},"runtimeRole":{{json (index .Config.Labels "com.oxsteed.runtime")}},"imageId":{{json .Image}},"imageReference":{{json .Config.Image}},"hostname":{{json .Config.Hostname}},"project":{{json (index .Config.Labels "com.docker.compose.project")}},"configFiles":{{json (index .Config.Labels "com.docker.compose.project.config_files")}},"mounts":{{json .Mounts}}}';
 const IMAGE_FORMAT = '{"imageId":{{json .Id}},"repoDigests":{{json .RepoDigests}},"revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}}}';
 
-function observeMetadata(container, image, applicationUuid, expected = {}) {
+// Coolify's local Compose image tag and OCI revision label may contain the
+// abbreviated commit that appears in the image name. Resolve that short
+// revision against the host checkout before writing provenance; never invent
+// a full hash from the content release or image ID.
+function resolveLocalGitSha(value, { cwd = process.cwd(), exec = execFileSync } = {}) {
+  const direct = gitSha(value);
+  if (direct) return direct;
+  const short = String(value || '').trim().toLowerCase();
+  if (!/^[a-f0-9]{7,40}$/.test(short)) return null;
+  try {
+    const resolved = exec('git', ['rev-parse', '--verify', `${short}^{commit}`], {
+      cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000,
+    }).trim().toLowerCase();
+    return gitSha(resolved) && resolved.startsWith(short) ? resolved : null;
+  } catch {
+    return null;
+  }
+}
+
+function observeMetadata(container, image, applicationUuid, expected = {}, { resolveSha = resolveLocalGitSha } = {}) {
   if (container.project !== applicationUuid || !/^[a-f0-9]{64}$/.test(container.containerId || '') ||
       !/^[a-f0-9]{12,64}$/.test(container.hostname || '') || !container.containerId.startsWith(container.hostname) ||
       !imageDigest(container.imageId) || image.imageId !== container.imageId) {
@@ -30,8 +49,8 @@ function observeMetadata(container, image, applicationUuid, expected = {}) {
   const reference = String(container.imageReference || '');
   const tag = reference.slice(reference.lastIndexOf(':') + 1);
   // Coolify's local Compose image name is <application-uuid>_<service>:<commit>.
-  const taggedSha = (reference.startsWith(`${applicationUuid}_`) || reference.startsWith(`${applicationUuid}:`)) ? gitSha(tag) : null;
-  const revision = gitSha(image.revision);
+  const taggedSha = (reference.startsWith(`${applicationUuid}_`) || reference.startsWith(`${applicationUuid}:`)) ? resolveSha(tag) : null;
+  const revision = resolveSha(image.revision);
   if (revision && taggedSha && revision !== taggedSha) throw new Error('Image revision and Coolify image tag disagree.');
   const sha = revision || taggedSha;
   if (expected.gitSha && (!gitSha(expected.gitSha) || sha !== gitSha(expected.gitSha))) {
@@ -118,13 +137,13 @@ function findApplicationContainer({ applicationUuid, docker = runDocker, expecte
 }
 
 function provisionReleaseMetadata({ applicationUuid, expected = {}, checkOnly = false, docker = runDocker,
-  expectedContainerId = null, runtime = 'compose' } = {}) {
+  expectedContainerId = null, runtime = 'compose', resolveSha = resolveLocalGitSha } = {}) {
   const container = findApplicationContainer({ applicationUuid, docker, expectedContainerId, runtime });
   if (expectedContainerId && container.containerId !== expectedContainerId) {
     throw new Error('The app container changed during reconciliation; retry the next cycle.');
   }
   const image = JSON.parse(docker(['image', 'inspect', container.imageId, '--format', IMAGE_FORMAT]));
-  const observed = observeMetadata(container, image, applicationUuid, expected);
+  const observed = observeMetadata(container, image, applicationUuid, expected, { resolveSha });
   let changed = false;
   if (!checkOnly) {
     if (!observed.canProvision) throw new Error('Deploy the Compose release metadata volume before provisioning.');
@@ -147,7 +166,7 @@ function provisionReleaseMetadata({ applicationUuid, expected = {}, checkOnly = 
     missing: ['gitSha', 'imageDigest', 'deploymentId'].filter((key) => !observed.metadata[key]) };
 }
 
-module.exports = { observeMetadata, provisionReleaseMetadata, findApplicationContainer, validateApplicationUuid, validateRuntime, runDocker };
+module.exports = { observeMetadata, provisionReleaseMetadata, findApplicationContainer, validateApplicationUuid, validateRuntime, resolveLocalGitSha, runDocker };
 
 if (require.main === module) {
   const [mode, flag, applicationUuid, ...extra] = process.argv.slice(2);
