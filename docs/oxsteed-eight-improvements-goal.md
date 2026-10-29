@@ -345,10 +345,11 @@ audit are not complete.
   `f7d4522ed`. The host-side metadata provisioner now resolves that value only
   through the verified checkout's Git object database and still rejects
   unrelated repositories, image IDs, foreign mounts, and mismatched deployment
-  receipts.
-- Added focused coverage for short-label resolution and full-SHA persistence;
-  the deployment/provenance suites pass 29 tests with one intentionally skipped
-  opt-in Docker build test.
+  receipts. If the checkout is briefly unavailable, it preserves the existing
+  full SHA for the same immutable container instead of degrading provenance.
+- Added focused coverage for short-label resolution, full-SHA persistence, and
+  non-degradation during a temporary resolver failure; the deployment/provenance
+  suites pass 30 tests with one intentionally skipped opt-in Docker build test.
 - Applied the verified record to the existing production metadata volume without
   restarting the app or touching application data. Public `/ready` now reports:
   full Git SHA `f7d4522ed82fac74f9baa0f11c5eb8a79816e249`, image digest

@@ -86,6 +86,17 @@ test('an unchanged durable record avoids the writer on every subsequent cycle', 
   assert.ok(f.calls.every(({ args }) => args[0] !== 'run'));
 });
 
+test('does not degrade a verified Git SHA when a short label cannot be resolved', () => {
+  const f = fixture();
+  const metadata = observeMetadata(container, image, applicationUuid).metadata;
+  const docker = (args, input) => args[0] === 'exec' ? JSON.stringify(metadata) : f.docker(args, input);
+  const result = provisionReleaseMetadata({ applicationUuid, docker, resolveSha: () => null });
+  assert.equal(result.gitSha, sha);
+  assert.equal(result.changed, false);
+  assert.deepEqual(result.missing, []);
+  assert.ok(f.calls.every(({ args }) => args[0] !== 'run'));
+});
+
 test('a replaced container, malformed record, and discovery identity mismatches fail safely', () => {
   const f = fixture();
   assert.throws(() => provisionReleaseMetadata({ applicationUuid, docker: f.docker,

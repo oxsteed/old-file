@@ -15,6 +15,7 @@ const DIRECTORY = '/app/server/runtime/release-metadata';
 const VOLUME = 'oxsteed-release-metadata';
 const CONTAINER_FORMAT = '{"containerId":{{json .Id}},"name":{{json .Name}},"running":{{json .State.Running}},"service":{{json (index .Config.Labels "com.docker.compose.service")}},"runtimeRole":{{json (index .Config.Labels "com.oxsteed.runtime")}},"imageId":{{json .Image}},"imageReference":{{json .Config.Image}},"hostname":{{json .Config.Hostname}},"project":{{json (index .Config.Labels "com.docker.compose.project")}},"configFiles":{{json (index .Config.Labels "com.docker.compose.project.config_files")}},"mounts":{{json .Mounts}}}';
 const IMAGE_FORMAT = '{"imageId":{{json .Id}},"repoDigests":{{json .RepoDigests}},"revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}}}';
+const HOST_CHECKOUT = '/Users/oxsteed/Documents/GitHub/6';
 
 // Coolify's local Compose image tag and OCI revision label may contain the
 // abbreviated commit that appears in the image name. Resolve that short
@@ -25,14 +26,18 @@ function resolveLocalGitSha(value, { cwd = process.cwd(), exec = execFileSync } 
   if (direct) return direct;
   const short = String(value || '').trim().toLowerCase();
   if (!/^[a-f0-9]{7,40}$/.test(short)) return null;
-  try {
-    const resolved = exec('git', ['rev-parse', '--verify', `${short}^{commit}`], {
-      cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000,
-    }).trim().toLowerCase();
-    return gitSha(resolved) && resolved.startsWith(short) ? resolved : null;
-  } catch {
-    return null;
+  const directories = [...new Set([cwd, process.cwd(), HOST_CHECKOUT].filter(Boolean))];
+  for (const directory of directories) {
+    try {
+      const resolved = exec('git', ['rev-parse', '--verify', `${short}^{commit}`], {
+        cwd: directory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000,
+      }).trim().toLowerCase();
+      if (gitSha(resolved) && resolved.startsWith(short)) return resolved;
+    } catch {
+      // Try the next verified local checkout; never accept an unverified value.
+    }
   }
+  return null;
 }
 
 function observeMetadata(container, image, applicationUuid, expected = {}, { resolveSha = resolveLocalGitSha } = {}) {
@@ -151,6 +156,11 @@ function provisionReleaseMetadata({ applicationUuid, expected = {}, checkOnly = 
     let existing;
     try { existing = JSON.parse(docker(['exec', container.containerId, 'node', '-e', reader, observed.hostname])); }
     catch { throw new Error('The current metadata record could not be checked; retry the next cycle.'); }
+    // A short Coolify label can be temporarily unresolvable if the host
+    // checkout is unavailable. Preserve a previously verified full SHA for
+    // this immutable container instead of degrading public provenance.
+    const existingGitSha = gitSha(existing?.gitSha);
+    if (!observed.metadata.gitSha && existingGitSha) observed.metadata.gitSha = existingGitSha;
     changed = !existing || Object.entries(observed.metadata).some(([key, value]) => existing[key] !== value);
     if (changed) {
       // Use the already inspected immutable image as a networkless writer. The
