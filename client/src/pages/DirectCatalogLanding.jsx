@@ -5,10 +5,12 @@ import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { OxSteedIcon } from '../components/OxSteedIcon';
+import ProductHeader from '../components/ProductHeader';
 import { DIRECT_CATALOG_ICONS } from '../components/DirectCatalogIcons';
 import { DEFAULT_DIRECT_PROFILE, getDirectCatalog, loadDirectProfile } from '../api/direct';
 import { directCatalogHref } from '../utils/directCatalogNavigation';
 import '../styles/DirectCatalog.css';
+import '../styles/ProductHeader.css';
 
 const SERVICE_PAGE_SIZE = 24;
 
@@ -211,14 +213,24 @@ export function DirectCatalogContent({ profile, embedded = false }) {
 
   return (
     <div className={`direct-catalog-content ${embedded ? 'w-full' : 'mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8'}`} aria-labelledby="direct-catalog-title">
-      <header className="direct-catalog-header mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-950/80 px-5 py-4 shadow-lg">
-        <div className="flex items-center gap-3"><OxSteedIcon size={40} /><div><div className="text-xl font-bold text-white">OxSteed</div><div className="text-xs uppercase tracking-[0.2em] text-orange-300">OxSteed Direct</div></div></div>
-        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-300" aria-label={t('directCatalog.navigation', { defaultValue: 'Direct navigation' })}>
-          <Link to="/direct/request-quote" className="rounded-full bg-orange-500 px-4 py-2 text-white hover:bg-orange-600">{t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })}</Link>
-          <Link to="/direct/view-quote" className="rounded-full border border-white/10 px-4 py-2 hover:bg-white/10">{t('homePage.company.viewQuote', { defaultValue: 'View quote' })}</Link>
-          <Link to="/direct/service-area" reloadDocument className="rounded-full border border-white/10 px-4 py-2 hover:bg-white/10">{t('homePage.company.checkServiceArea', { defaultValue: 'Check service area' })}</Link>
-        </div>
-      </header>
+      <ProductHeader
+        className="direct-catalog-header mb-6 rounded-3xl border border-white/10 bg-slate-950/80 px-5 py-4 shadow-lg"
+        brand={(
+          <span className="flex items-center gap-3">
+            <OxSteedIcon size={40} />
+            <span>
+              <span className="block text-xl font-bold text-white">OxSteed</span>
+              <span className="block text-xs uppercase tracking-[0.2em] text-orange-300">OxSteed Direct</span>
+            </span>
+          </span>
+        )}
+        ariaLabel={t('directCatalog.navigation', { defaultValue: 'Direct navigation' })}
+        items={[
+          { to: '/direct/request-quote', label: t('homePage.company.requestQuote', { defaultValue: 'Request a quote' }) },
+          { to: '/direct/view-quote', label: t('homePage.company.viewQuote', { defaultValue: 'View quote' }) },
+          { to: '/direct/service-area', reloadDocument: true, label: t('homePage.company.checkServiceArea', { defaultValue: 'Check service area' }) },
+        ]}
+      />
 
       <section className="direct-catalog-hero mb-6 rounded-[32px] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6 sm:p-8"><div className="flex flex-wrap items-end justify-between gap-5"><div><div className="text-xs font-bold uppercase tracking-[0.24em] text-orange-300">{profile.companyName || 'OxSteed'}</div><h1 id="direct-catalog-title" className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-5xl">{profile.headline || t('directCatalog.heroFallback', { defaultValue: 'Direct service, organized for real work.' })}</h1><p className="mt-3 max-w-3xl text-base leading-7 text-slate-300">{profile.publicNote || t('directCatalog.heroCopyFallback', { defaultValue: 'Browse available Direct services, tools, and coverage from one place.' })}</p></div><div className="flex flex-wrap gap-2 text-sm"><span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-orange-200">{t('directCatalog.minimum', { amount: `$${Math.round((profile.minimumPriceCents || 0) / 100)}`, defaultValue: '{{amount}} minimum' })}</span><span className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-slate-200">{profile.availabilityText}</span></div></div></section>
 
