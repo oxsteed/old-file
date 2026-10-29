@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { observeMetadata, provisionReleaseMetadata, findApplicationContainer } = require('./provision-release-metadata.cjs');
+const { observeMetadata, provisionReleaseMetadata, findApplicationContainer, resolveLocalGitSha } = require('./provision-release-metadata.cjs');
 const { getReleaseMetadata } = require('../server/utils/release');
 
 const applicationUuid = 'app123';
@@ -83,6 +83,17 @@ test('an unchanged durable record avoids the writer on every subsequent cycle', 
     assert.equal(result.changed, false);
     assert.equal(result.provisioned, true);
   }
+  assert.ok(f.calls.every(({ args }) => args[0] !== 'run'));
+});
+
+test('does not degrade a verified Git SHA when a short label cannot be resolved', () => {
+  const f = fixture();
+  const metadata = observeMetadata(container, image, applicationUuid).metadata;
+  const docker = (args, input) => args[0] === 'exec' ? JSON.stringify(metadata) : f.docker(args, input);
+  const result = provisionReleaseMetadata({ applicationUuid, docker, resolveSha: () => null });
+  assert.equal(result.gitSha, sha);
+  assert.equal(result.changed, false);
+  assert.deepEqual(result.missing, []);
   assert.ok(f.calls.every(({ args }) => args[0] !== 'run'));
 });
 
@@ -163,6 +174,28 @@ test('Dockerfile image tags retain commit provenance without accepting another r
   const webImage = { ...image, repoDigests: [`${applicationUuid}@${digest}`] };
   assert.equal(observeMetadata({ ...container, imageReference: `${applicationUuid}:${sha}` }, webImage, applicationUuid).metadata.gitSha, sha);
   assert.equal(observeMetadata({ ...container, imageReference: `other:${sha}` }, webImage, applicationUuid).metadata.gitSha, null);
+});
+
+test('resolves an abbreviated Coolify revision only through the host Git checkout', () => {
+  const short = sha.slice(0, 9);
+  const resolved = resolveLocalGitSha(short, {
+    exec: (command, args) => {
+      assert.equal(command, 'git');
+      assert.deepEqual(args, ['rev-parse', '--verify', `${short}^{commit}`]);
+      return `${sha}\n`;
+    },
+  });
+  assert.equal(resolved, sha);
+  assert.equal(resolveLocalGitSha('not-a-revision', { exec: () => { throw new Error('must not run'); } }), null);
+});
+
+test('stores a full SHA when Coolify exposes only a short image revision', () => {
+  const short = sha.slice(0, 9);
+  const webImage = { ...image, revision: short, repoDigests: [`${applicationUuid}@${digest}`] };
+  const observed = observeMetadata({ ...container, imageReference: `${applicationUuid}:${short}` }, webImage, applicationUuid, {}, {
+    resolveSha: (value) => value === short ? sha : null,
+  });
+  assert.equal(observed.metadata.gitSha, sha);
 });
 
 test('ambiguous containers or missing/writable/foreign volumes fail before writes', () => {
