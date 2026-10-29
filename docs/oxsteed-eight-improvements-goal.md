@@ -16,7 +16,7 @@ authorization, privacy, deployment-secret, and production-data safeguards.
 | 4 | Consistent design across Food, Direct, Messages, and business workspaces: headers, spacing, buttons, forms, and loading states. | Shared component/token adoption and desktop/mobile, light/dark, keyboard, and Arabic rendering across all four surfaces. | Mostly implemented and published. PR #648 adds the shared tokenized `ProductHeader` to Food and Direct, with responsive focus treatment and explicit light/dark theme overrides; the full client build gate passed and production browser checks show both public products live. Shared fonts and the earlier Messages/workspace alignment remain covered. A final keyboard/landmark pass across all four surfaces is still needed. |
 | 5 | Clear restaurant discovery: location, opening hours, ordering options, and a useful small-inventory layout without repeated restaurant shelves. | Real-data contract checks, location/filter and empty-state behavior, accurate hours/fulfillment labels, pagination and no-duplicate shelf checks, and live directory verification. | Implemented and live verified. Production `/restaurants?release=f7d4522ed` shows one deduplicated restaurant card, local hours, and configured fulfillment labels; the live page has no repeated Featured/history shelves. The CI fixture race remains a separate browser-harness limitation. |
 | 6 | Business workspaces lead with today's bookings, unanswered messages, overdue invoices, and required tasks; detailed analytics are secondary. | Ownership/team-permission scenarios, authoritative counts, task destinations, empty/error/loading states, and responsive browser checks. | Implemented and published in PR #646. The live merchant bundle contains the operations sidebar, mobile switcher, attention summary, and search markers; production merchant route returns 200. Focused server and browser regressions passed locally and the operations UI is live. |
-| 7 | Reliable sessions and unfinished work: investigate unexpected sign-outs and preserve work during transient outages, reconnects, and updates. | Expired versus transient refresh cases; resume/update/navigation/reload with drafts; account-switch isolation; concurrent-tab behavior; no stale private data or financial replay. | Partial but materially improved. PR #647 is live with versioned cross-tab account transitions that clear private state before a fresh `/auth/me` verification; the focused 15-case session suite passes locally. PR #649 updates the browser contract to assert that re-verification rather than stored profile data precedes remounting after a cross-tab recovery. Concurrent login/logout cookie ordering and feature-specific draft surfaces remain open. |
+| 7 | Reliable sessions and unfinished work: investigate unexpected sign-outs and preserve work during transient outages, reconnects, and updates. | Expired versus transient refresh cases; resume/update/navigation/reload with drafts; account-switch isolation; concurrent-tab behavior; no stale private data or financial replay. | Partial but materially improved. PR #647 is live with versioned cross-tab account transitions that clear private state before a fresh `/auth/me` verification; PR #649 is merged and the focused session suite passes locally. PR #651 adds a stateful logout fixture and broadcasts logout after the server-side attempt so sibling tabs clear private views immediately; its focused browser regression and full client build pass locally, with remote CI/production publication still pending. Feature-specific draft surfaces and concurrent cookie-ordering coverage remain open. |
 | 8 | Less persistent screen clutter: connection, AI support, update notices, and cookie controls do not compete with primary actions. | Online/offline/reconnecting and recovery checks; checkout/dirty-work update deferral; support/cookie/update combinations; mobile keyboard and desktop/RTL clearance; accessible recovery controls. | Implemented and production-smoke verified. Package 2 geometry and draft/update/reconnect checks pass; the live Food and Direct pages expose a single support launcher and no healthy connection badge. The wider unfinished-work/session audit remains under item 7. |
 
 ## Execution and evidence rules
@@ -355,6 +355,18 @@ audit are not complete.
   full Git SHA `f7d4522ed82fac74f9baa0f11c5eb8a79816e249`, image digest
   `sha256:c84237505cc4ad82cdefe8d504dfde62282204f3442b532819056d8321af95f3`,
   and deployment `c6gh5vhwlafudtrksa2zrbkb`, all with readiness still green.
-- PR #650 carries the source and regression test; its remote CI and merge are
-  still pending. This closes the provenance gap, not the broader uninterrupted
-  promotion and failed-candidate acceptance gates.
+- PR #650 carries the source and regression test and is merged on the default
+  branch as `4a7f568f014f0c32cf8fd1a13cecf93eda77feaf`; the post-merge default
+  CI run is still pending. This closes the provenance gap, not the broader
+  uninterrupted promotion and failed-candidate acceptance gates.
+
+## Package 9 - logout broadcast across tabs
+
+- `AuthContext.logout()` now broadcasts the shared session transition after the
+  server-side logout attempt, so a sibling tab cannot retain a private form
+  until its next refresh or cookie expiry.
+- The PWA fixture now clears its synthetic user on `/api/auth/logout`. The
+  built-app recovery contract signs out in a second tab and verifies that the
+  original tab redirects to login without exposing the private draft.
+- Local `npm run build:ci` and `node --test scripts/sessionRecovery.browser-check.cjs`
+  pass. PR #651 is open; remote CI and production publication remain pending.
