@@ -672,7 +672,7 @@ describe('POST /api/auth/refresh', () => {
     expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO sessions'))).toBe(false);
   });
 
-  test('replay of a long-rotated token revokes the whole token family', async () => {
+  test('replay of a long-rotated token revokes only the token family', async () => {
     mockQuery.mockReset();
     mockQuery.mockImplementation(async (sql) => {
       const t = String(sql);
@@ -680,7 +680,7 @@ describe('POST /api/auth/refresh', () => {
         return { rows: [{ id: 9, user_id: 3, is_valid: false, is_revoked: true }] };
       }
       if (t.includes('regenerated_from_session_id')) {
-        return { rows: [{ created_at: new Date(Date.now() - 3600000).toISOString() }] };
+        return { rows: [{ id: 10, created_at: new Date(Date.now() - 3600000).toISOString() }] };
       }
       return { rows: [] };
     });
@@ -689,8 +689,10 @@ describe('POST /api/auth/refresh', () => {
 
     expect(res.status).toBe(401);
     const familyRevoke = mockQuery.mock.calls.some(([sql]) =>
-      /UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id/.test(String(sql)));
+      /UPDATE sessions SET is_valid = false, is_revoked = true WHERE id = ANY/.test(String(sql)));
     expect(familyRevoke).toBe(true);
+    // H8d: no user-wide query and no user-wide revocation may be issued.
+    expect(mockQuery.mock.calls.some(([sql]) => /WHERE user_id = \$1/i.test(String(sql)))).toBe(false);
   });
 
   test('replay within the rotation grace window does not revoke the family', async () => {
@@ -701,7 +703,7 @@ describe('POST /api/auth/refresh', () => {
         return { rows: [{ id: 9, user_id: 3, is_valid: false, is_revoked: true }] };
       }
       if (t.includes('regenerated_from_session_id')) {
-        return { rows: [{ created_at: new Date().toISOString() }] };
+        return { rows: [{ id: 10, created_at: new Date().toISOString() }] };
       }
       return { rows: [] };
     });
@@ -710,7 +712,7 @@ describe('POST /api/auth/refresh', () => {
 
     expect(res.status).toBe(401);
     const familyRevoke = mockQuery.mock.calls.some(([sql]) =>
-      /UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id/.test(String(sql)));
+      /UPDATE sessions SET is_valid = false, is_revoked = true WHERE id = ANY/.test(String(sql)));
     expect(familyRevoke).toBe(false);
   });
 
@@ -728,7 +730,7 @@ describe('POST /api/auth/refresh', () => {
 
     expect(res.status).toBe(401);
     const familyRevoke = mockQuery.mock.calls.some(([sql]) =>
-      /UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id/.test(String(sql)));
+      /UPDATE sessions SET is_valid = false, is_revoked = true WHERE id = ANY/.test(String(sql)));
     expect(familyRevoke).toBe(false);
   });
 });

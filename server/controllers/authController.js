@@ -912,42 +912,56 @@ function resolveSessionAbsoluteDeadline(session) {
 // theft when the rotation it replays is older than this window.
 const REFRESH_REUSE_GRACE_MS = 60 * 1000;
 
-// Pentest fix: on a suspected refresh-token theft, revoke the whole token
-// family, not just the replayed token. Without this, an attacker who stole
-// a refresh token and rotated it first kept their rotated session after
-// the legitimate user's replay was (correctly) rejected.
+// Pentest fix, scoped by H8d: on a suspected refresh-token theft, revoke
+// only the compromised token family, never the user's other browser
+// sessions. Without this, an attacker who stole a refresh token and
+// rotated it first kept their rotated session after the legitimate user's
+// replay was (correctly) rejected.
 // The distinguisher matters: only rotation-consumed tokens have a child
 // session (rotation INSERTs set parent_session_id and
 // regenerated_from_session_id to the consumed session). Trigger-superseded
 // rows (new login) and logout-invalidated rows have no rotation child, so
 // revoking on those would hand anyone holding any stale token a
 // kill-all-sessions button. Those cases return without revoking.
+// Family scope is by session-chain id, never by user_id: the lookup and
+// the revoke name session ids only, so other logins are untouched and no
+// user-wide revocation marker is written.
 // The caller still throws the same token_reuse error, so the response
 // reveals nothing new about whether a family revoke happened.
 async function revokeRefreshFamilyIfStolen(pool, sessionRow) {
   try {
     const { rows } = await pool.query(
-      `SELECT created_at FROM sessions
-        WHERE user_id = $1 AND (regenerated_from_session_id = $2 OR parent_session_id = $2)
+      `SELECT id, created_at FROM sessions
+        WHERE regenerated_from_session_id = $1 OR parent_session_id = $1
         ORDER BY created_at DESC LIMIT 1`,
-      [sessionRow.user_id, sessionRow.id]
+      [sessionRow.id]
     );
     const child = rows[0];
     if (!child) return;
     const rotatedAt = new Date(child.created_at).getTime();
     if (Number.isNaN(rotatedAt) || Date.now() - rotatedAt < REFRESH_REUSE_GRACE_MS) return;
-    await pool.query(
-      'UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1',
-      [sessionRow.user_id]
-    );
-    try {
-      await tokenRevocationService.revokeAllUserTokens(sessionRow.user_id);
-    } catch (markerErr) {
-      // Sessions are dead and the refresh is denied either way; a failed
-      // marker only leaves already-issued access tokens valid until their
-      // 15-minute expiry. Log loudly rather than changing the response.
-      logger.error('Refresh family revoke: user marker failed', { userId: sessionRow.user_id, error: markerErr.message });
+    // Walk the rotation chain from the child, collecting every descendant
+    // id (bounded: a legitimate rotation chain never approaches this).
+    const familyIds = [sessionRow.id, child.id];
+    const queue = [child.id];
+    for (let depth = 0; depth < 100 && queue.length > 0; depth += 1) {
+      const parentId = queue.shift();
+      const { rows: next } = await pool.query(
+        `SELECT id FROM sessions
+          WHERE regenerated_from_session_id = $1 OR parent_session_id = $1`,
+        [parentId]
+      );
+      for (const row of next) {
+        if (!familyIds.includes(row.id)) {
+          familyIds.push(row.id);
+          queue.push(row.id);
+        }
+      }
     }
+    await pool.query(
+      'UPDATE sessions SET is_valid = false, is_revoked = true WHERE id = ANY($1)',
+      [familyIds]
+    );
   } catch (err) {
     // Family-revoke diagnostics must never turn a denied refresh into a
     // successful one, nor mask the token_reuse error the caller throws.
@@ -984,7 +998,8 @@ async function refreshToken(req, res, next) {
     const isInvalid = sessionRows[0].is_valid === false;
     const isRevoked = sessionRows[0].is_revoked === true;
     if (isInvalid || isRevoked) {
-      // Pentest fix: refresh-token reuse must revoke the token family.
+      // Pentest fix: refresh-token reuse revokes the compromised token
+      // family only (H8d: the user's other browser sessions are untouched).
       // Previously a replayed token only earned a 401 while the attacker's
       // rotated session (minted from the stolen token) stayed live.
       await revokeRefreshFamilyIfStolen(pool, sessionRows[0]);

@@ -516,15 +516,16 @@ class PayoutController {
         // same dual-approval gate as the newer affiliate route. Above the
         // threshold the payout queues for a second admin (the checker
         // executes via the affiliate_payout executor); below it, execution
-        // proceeds here as before. The gate amount is the gross
-        // total_commission_cents so it matches what the executor moves,
+        // proceeds here as before. The gate amount is the amount the
+        // payout actually moves (net_payout_cents, falling back to gross
+        // minus processor fee, exactly as the executor computes it),
         // and the reference/idempotency keys match the newer route so a
         // payout queued via either route replays the same approval.
         const { requestMoneyMovementApproval } = require('../services/dualApprovalService');
         const gate = await requestMoneyMovementApproval({
           movementType: 'affiliate_payout',
           referenceKey: `affiliate-payout:${payout_id}`,
-          amountCents: Number(payout.total_commission_cents),
+          amountCents: Number(payout.net_payout_cents ?? (Number(payout.total_commission_cents || 0) - Number(payout.processor_fee_cents || 0))),
           currencyCode: 'USD',
           requestedBy: req.user?.id || null,
           idempotencyKey,
