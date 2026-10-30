@@ -114,14 +114,17 @@ async function validateCsrfToken(req, res, next) {
   // Safe methods are exempt
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
 
-  // OxSteed's current authentication contract is an Authorization: Bearer
-  // header, not an ambient cookie. Browsers cannot attach that custom header
-  // from a cross-site form, so bearer-authenticated requests are already
-  // protected against CSRF. Route-local authenticate middleware runs after
-  // this global middleware; requiring a CSRF token here would either have no
-  // user identity or break every existing API client. If cookie sessions are
-  // introduced, they must populate req.user before this middleware or add a
-  // dedicated cookie-auth CSRF boundary.
+  // Bearer-authenticated requests are exempt: a cross-site form cannot set
+  // a custom Authorization header, so a request carrying one is not a
+  // form-forged CSRF attempt. The normal web client authenticates via the
+  // httpOnly cookie (no Bearer header outside impersonation), so cookie
+  // sessions are NOT exempt and are validated below.
+  // Pentest fix: identity now comes from parseAuthIdentity, mounted before
+  // this middleware in server/index.js. It verifies the access cookie or
+  // Bearer token signature without rejecting, so req.user.id is populated
+  // for valid sessions and this check actually runs for cookie auth.
+  // Requests with no valid session still skip: there is no session to
+  // protect, and route-level authenticate rejects them downstream.
   if (req.headers.authorization?.startsWith('Bearer ')) return next();
 
   // Unauthenticated requests have no session token to validate against.

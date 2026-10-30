@@ -4,6 +4,7 @@
 // All payments are settled in store; the API only tracks amounts.
 
 import api from './axios';
+import { getCsrfToken } from './csrfToken';
 import { formatCreditMinorUnits } from '../lib/creditCurrency';
 
 // H12: the server requires an order idempotency key for every payment mode.
@@ -100,11 +101,17 @@ export const trackFeaturedPlacementClick = (restaurantId) => {
     const id = Number(restaurantId);
     if (!Number.isInteger(id) || id <= 0) return;
     const url = `/api/food/restaurants/${id}/campaign-click`;
+    // Pentest fix: sendBeacon cannot set headers, so the CSRF token rides
+    // in the JSON body, which the server also accepts (body._csrf). When
+    // no token has been captured yet the beacon is sent without one and
+    // the server skips validation only when no valid session exists.
+    const csrfToken = getCsrfToken();
+    const body = JSON.stringify(csrfToken ? { _csrf: csrfToken } : {});
     if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-      navigator.sendBeacon(url, new Blob([JSON.stringify({})], { type: 'application/json' }));
+      navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
       return;
     }
-    fetch(url, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    fetch(url, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body })
       .catch(() => {});
   } catch (_) {
     // analytics must never break navigation

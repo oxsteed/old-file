@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import { getCsrfToken } from '../../api/csrfToken';
+
+// Pentest fix: this page posts through raw axios, bypassing the shared
+// instance's CSRF interceptor, so every mutation below attaches the
+// token itself for cookie sessions.
+function csrfHeaders() {
+  const token = getCsrfToken();
+  return token ? { 'X-CSRF-Token': token } : {};
+}
 import { getMediaCreatorWorkReviews, resolveMediaCreatorWorkReview } from '../../api/media';
 import ConfirmDialog from '../lib/ConfirmDialog';
 
@@ -94,7 +103,7 @@ export default function MediaFlagsPage() {
     const note = String(verificationNotes[id] || '').trim();
     if ((status === 'needs_changes' || status === 'rejected') && note.length < 3) return;
     try {
-      await axios.post(`/api/admin/media/verification-requests/${id}/review`, { status, note });
+      await axios.post(`/api/admin/media/verification-requests/${id}/review`, { status, note }, { headers: csrfHeaders() });
       setVerificationNotes((current) => ({ ...current, [id]: '' }));
       load();
     } catch (err) {
@@ -106,7 +115,7 @@ export default function MediaFlagsPage() {
     const reason = String(approvalReasons[id] || '').trim();
     if (reason.length < 3) return;
     try {
-      await axios.post(`/api/admin/media/posts/${id}/approve`, { reason });
+      await axios.post(`/api/admin/media/posts/${id}/approve`, { reason }, { headers: csrfHeaders() });
       setApprovalReasons((current) => ({ ...current, [id]: '' }));
       load();
     } catch (err) {
@@ -126,7 +135,7 @@ export default function MediaFlagsPage() {
       await axios.post('/api/admin/media/takedowns/by-url', {
         public_url: url,
         note: csamTakedownNote.trim() || undefined,
-      });
+      }, { headers: csrfHeaders() });
       setCsamTakedownUrl('');
       setCsamTakedownNote('');
       setCsamTakedownMessage(t('media.admin.csamTakedownSuccess'));
@@ -147,7 +156,7 @@ export default function MediaFlagsPage() {
       await axios.post(`/api/admin/media/flags/${flag.id}/review`, {
         action,
         takedownReason: reason || undefined,
-      });
+      }, { headers: csrfHeaders() });
       setReviewDialog(null);
       load();
     } catch (err) {
@@ -185,7 +194,7 @@ export default function MediaFlagsPage() {
       await axios.post(`/api/admin/media/posts/${flag.post_id}/restore`, {
         reason,
         counterNoticeRef: isDmca ? restoreCounterNotice.trim() : undefined,
-      });
+      }, { headers: csrfHeaders() });
       setRestoreDialog(null);
       load();
     } catch (err) {
@@ -199,7 +208,7 @@ export default function MediaFlagsPage() {
     const note = String(communitySuggestionNotes[id] || '').trim();
     if (note.length < 3) return;
     try {
-      await axios.post(`/api/admin/media/community-suggestions/${id}/review`, { status: decision, note });
+      await axios.post(`/api/admin/media/community-suggestions/${id}/review`, { status: decision, note }, { headers: csrfHeaders() });
       setCommunitySuggestionNotes((current) => ({ ...current, [id]: '' }));
       load();
     } catch (err) {

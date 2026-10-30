@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { getCsrfToken } from '../api/csrfToken';
 
 const SURFACE_OPTIONS = ['food_online', 'food_pos', 'chat', 'jobs', 'direct', 'qr', 'subscriptions', 'delivery', 'consulting', 'invoices', 'products', 'rentals'];
 
@@ -31,9 +32,12 @@ export default function CreditApplyPage() {
     setBusy(true);
     setError('');
     try {
+      // Pentest fix: this raw fetch bypasses the shared axios instance,
+      // so it must attach the CSRF token itself for cookie sessions.
+      const csrfToken = getCsrfToken();
       const response = await fetch('/api/oxsteed-credit/participants/apply', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
         credentials: 'include',
         body: JSON.stringify({
           participantType,

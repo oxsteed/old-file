@@ -1,4 +1,5 @@
 import api from './axios';
+import { setCsrfToken, clearCsrfToken } from './csrfToken';
 import { createAdminChallengeHandler } from './adminChallenge.mjs';
 import { withCrossTabRefreshLock } from './authRefreshCoordinator';
 import { isTransientRefreshFailure } from './authRefreshPolicy';
@@ -35,6 +36,7 @@ function setStoredUser(user) {
 }
 
 function clearStoredSession({ broadcast = true, reason = 'session-cleared' } = {}) {
+  clearCsrfToken();
   advanceAuthEpoch();
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
@@ -137,7 +139,14 @@ async function performSessionRefresh(epoch) {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Pentest fix: capture the CSRF token the server attaches to
+    // authenticated responses so the axios request interceptor can send
+    // it on later state-changing requests.
+    const token = response?.headers?.['x-csrf-token'];
+    if (token) setCsrfToken(token);
+    return response;
+  },
   async (error) => {
     handleAdminChallenge(error);
     const originalRequest = error.config;

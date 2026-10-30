@@ -29,6 +29,7 @@ const securityHeaders = require('./middleware/securityHeaders');
 const correlationId = require('./middleware/correlationId');
 const { otelRequestContext } = require('./middleware/otelRequestContext');
 const { attachCsrfToken, validateCsrfToken } = require('./middleware/csrf');
+const { parseAuthIdentity } = require('./middleware/auth');
 const sanitizeInputs = require('./middleware/sanitize');
 const { generalLimiter, authenticatedLimiter, deviceApiLimiter, strictLimiter, channelWebhookLimiter, creditExportLimiter } = require('./middleware/rateLimiter');
 const { webhookRateLimit } = require('./middleware/webhookAuth');
@@ -402,11 +403,13 @@ app.use(addAdditionalSecurityHeaders);
 
 // ── CSRF PROTECTION ──────────────────────────────────────────
 // ── FIX #9: CSRF TOKEN PROTECTION ───────────────────────────
-// Attach CSRF tokens for any future session-authenticated responses and
-// validate cookie/session mutations. Current API authentication uses explicit
-// Authorization: Bearer headers, which are not ambient browser credentials;
-// route-local auth runs later and bearer requests are intentionally exempt in
-// csrf.js so existing clients do not need an impossible pre-auth token fetch.
+// Pentest fix: parseAuthIdentity runs FIRST and establishes the user id
+// from a signature-valid access cookie or Bearer token (never rejecting),
+// so attach/validate below actually see cookie sessions. Previously these
+// two ran before any authentication, req.user was always unset, and
+// validation silently skipped every cookie-authenticated request. Bearer
+// requests stay exempt in csrf.js (a cross-site form cannot set an
+// Authorization header); cookie sessions are validated.
 // This prevents Cross-Site Request Forgery attacks where external sites
 // trick authenticated users into making unintended API calls.
 //
@@ -416,6 +419,7 @@ app.use(addAdditionalSecurityHeaders);
 // - Cached in-memory with 24-hour expiry
 // - Sent as X-CSRF-Token header (cannot be forged via form submissions)
 //
+app.use(parseAuthIdentity);
 app.use(attachCsrfToken);
 app.use(validateCsrfToken);
 

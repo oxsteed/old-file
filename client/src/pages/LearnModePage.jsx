@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getCsrfToken } from '../api/csrfToken';
 import useRecommendations from '../hooks/useRecommendations';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toEmbedUrl } from '../utils/videoEmbed';
@@ -67,11 +68,16 @@ const amz = (q) => `https://www.amazon.com/s?k=${encodeURIComponent(q)}&tag=${AF
 function trackLearnClick(guideId, kind, target) {
   try {
     const base = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || '/api';
+    // Pentest fix: this raw fetch bypasses the shared axios instance, so
+    // it must attach the CSRF token itself for cookie sessions. Failures
+    // are swallowed by design, so a missing token degrades to a dropped
+    // tracking event rather than a user-visible error.
+    const csrfToken = getCsrfToken();
     fetch(`${base}/learn/track`, {
       method: 'POST',
       keepalive: true,
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
       body: JSON.stringify({ guide_id: guideId, kind, target: target ?? null }),
     }).catch(() => {});
   } catch (_) { /* never break navigation */ }

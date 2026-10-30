@@ -1,6 +1,7 @@
 // Pure helpers for restaurant Media device uploads (photos + quarantined
 // videos). Kept free of JSX and bundler globals so the client scripts
 // tests can import them directly from node.
+import { getCsrfToken } from '../api/csrfToken';
 //
 // Server contract (subagents A/B):
 //   POST /restaurants/:id/media/photo-uploads  (multipart: file, caption,
@@ -105,6 +106,16 @@ export const uploadMediaWithProgress = ({ url, formData, headers = {}, onProgres
     // localStorage).
     xhr.withCredentials = true;
     for (const [name, value] of Object.entries(headers || {})) xhr.setRequestHeader(name, value);
+    // Pentest fix: cookie sessions must carry the CSRF token the server
+    // validates on state-changing requests. Attach it unless the caller
+    // already set one (e.g. a device flow using Bearer auth, which the
+    // server exempts). Without this, cookie-authenticated uploads 403
+    // once server-side CSRF validation is enforced.
+    const hasCsrfHeader = Object.keys(headers || {}).some((name) => name.toLowerCase() === 'x-csrf-token');
+    if (!hasCsrfHeader) {
+      const csrfToken = getCsrfToken();
+      if (csrfToken) xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+    }
     if (xhr.upload && typeof onProgress === 'function') {
       xhr.upload.onprogress = (event) => {
         if (event && event.lengthComputable && Number(event.total) > 0) {

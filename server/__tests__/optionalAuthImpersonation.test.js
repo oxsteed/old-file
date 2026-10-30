@@ -75,7 +75,11 @@ describe('finding 36: optionalAuth mirrors authenticate on impersonation session
     await optionalAuth(req, {}, next);
     expect(next).toHaveBeenCalled();
     expect(req.user).toBeUndefined();
-    expect(req.isImpersonated).toBe(true);
+    // Pentest fix: a failed impersonation check must not leave a stale
+    // isImpersonated flag on the request (the old code set it before
+    // verification, so downstream code could treat an unauthenticated
+    // request as an impersonated one).
+    expect(req.isImpersonated).toBeUndefined();
   });
 
   test('impersonating admin revoked stays unauthenticated', async () => {

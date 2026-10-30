@@ -671,6 +671,66 @@ describe('POST /api/auth/refresh', () => {
     expect(res.body.code).toBe('account_suspended');
     expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO sessions'))).toBe(false);
   });
+
+  test('replay of a long-rotated token revokes the whole token family', async () => {
+    mockQuery.mockReset();
+    mockQuery.mockImplementation(async (sql) => {
+      const t = String(sql);
+      if (t.includes('FROM sessions s WHERE')) {
+        return { rows: [{ id: 9, user_id: 3, is_valid: false, is_revoked: true }] };
+      }
+      if (t.includes('regenerated_from_session_id')) {
+        return { rows: [{ created_at: new Date(Date.now() - 3600000).toISOString() }] };
+      }
+      return { rows: [] };
+    });
+
+    const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: 'stolen-token' });
+
+    expect(res.status).toBe(401);
+    const familyRevoke = mockQuery.mock.calls.some(([sql]) =>
+      /UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id/.test(String(sql)));
+    expect(familyRevoke).toBe(true);
+  });
+
+  test('replay within the rotation grace window does not revoke the family', async () => {
+    mockQuery.mockReset();
+    mockQuery.mockImplementation(async (sql) => {
+      const t = String(sql);
+      if (t.includes('FROM sessions s WHERE')) {
+        return { rows: [{ id: 9, user_id: 3, is_valid: false, is_revoked: true }] };
+      }
+      if (t.includes('regenerated_from_session_id')) {
+        return { rows: [{ created_at: new Date().toISOString() }] };
+      }
+      return { rows: [] };
+    });
+
+    const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: 'raced-token' });
+
+    expect(res.status).toBe(401);
+    const familyRevoke = mockQuery.mock.calls.some(([sql]) =>
+      /UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id/.test(String(sql)));
+    expect(familyRevoke).toBe(false);
+  });
+
+  test('replay of a superseded token without a rotation child does not revoke the family', async () => {
+    mockQuery.mockReset();
+    mockQuery.mockImplementation(async (sql) => {
+      const t = String(sql);
+      if (t.includes('FROM sessions s WHERE')) {
+        return { rows: [{ id: 9, user_id: 3, is_valid: false, is_revoked: true }] };
+      }
+      return { rows: [] };
+    });
+
+    const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: 'superseded-token' });
+
+    expect(res.status).toBe(401);
+    const familyRevoke = mockQuery.mock.calls.some(([sql]) =>
+      /UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id/.test(String(sql)));
+    expect(familyRevoke).toBe(false);
+  });
 });
 
 // ── POST /api/auth/logout ─────────────────────────────────────────────────────

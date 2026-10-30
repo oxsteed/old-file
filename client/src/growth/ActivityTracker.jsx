@@ -16,6 +16,7 @@ import eventProps from "./eventProps.json";
 import routes from "./routes.json";
 import elementKeys from "./elementKeys.json";
 import { TrackingContext, useTrack } from "./useTrack";
+import { getCsrfToken } from "../api/csrfToken";
 const namedKeys = new Set(elementKeys);
 export { useTrack };
 export default function ActivityTracker({ children }) {
@@ -33,7 +34,10 @@ export default function ActivityTracker({ children }) {
     queue.current = queue.current.slice(events.length);
     if (!events.length) return;
     // Keep analytics independent of auth refresh and the application request queue.
-    const headers = { "Content-Type": "application/json" };
+    // Pentest fix: this raw fetch bypasses the shared axios instance, so
+    // it attaches the CSRF token itself for cookie sessions.
+    const csrfToken = getCsrfToken();
+    const headers = { "Content-Type": "application/json", ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}) };
     fetch("/api/activity/batch", {
       method: "POST",
       credentials: "same-origin",

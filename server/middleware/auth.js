@@ -146,7 +146,11 @@ async function authenticate(req, res, next) {
   if (bearerToken) {
     try {
       const bearerDecoded = jwt.decode(bearerToken);
-      if (bearerDecoded?.isImpersonated) {
+      // Pentest fix: minted impersonation tokens carry `impersonation: true`
+      // (see superAdminController exchange); the old `isImpersonated` claim
+      // name never appears on a minted token, so this precedence check
+      // silently never fired and the cookie shadowed the Bearer token.
+      if (bearerDecoded?.impersonation === true) {
         useBearer = true;
       }
     } catch {
@@ -464,10 +468,15 @@ const optionalAuth = async (req, res, next) => {
       // Audit fix (finding 36): mirror authenticate's DB + admin-revocation
       // checks here. In optional-auth semantics a failed check means "stay
       // unauthenticated" rather than a 401.
-      req.isImpersonated = true;
-      req.impersonatedBy = decoded.impersonated_by || null;
+      // Pentest fix: the impersonation flags are only set AFTER the check
+      // passes. Setting them first left a stale `req.isImpersonated = true`
+      // on a request with no req.user whenever the check failed, so a
+      // handler trusting the flag alone misread an unauthenticated request
+      // as impersonated.
       const check = await verifyImpersonationSession(token, decoded).catch(() => ({ valid: false }));
       if (!check.valid) return next();
+      req.isImpersonated = true;
+      req.impersonatedBy = decoded.impersonated_by || null;
     } else {
       const tokenId = crypto.createHash('sha256').update(token).digest('hex');
       const isRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat);
@@ -477,7 +486,8 @@ const optionalAuth = async (req, res, next) => {
     const { rows } = await pool.query(
         `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active,
                 u.default_mode, u.logistics_role, u.preferred_language,
-                COALESCE(u.is_suspended, FALSE) AS is_suspended, u.suspended_until
+                COALESCE(u.is_suspended, FALSE) AS is_suspended, u.suspended_until,
+                COALESCE(u.is_restricted, FALSE) AS is_restricted
          FROM users u WHERE u.id = $1`,
       [decoded.id]
     );
@@ -487,6 +497,20 @@ const optionalAuth = async (req, res, next) => {
     // and authenticated behavior on optional-auth routes.
     const suspensionActive = user?.is_suspended
       && (!user.suspended_until || new Date(user.suspended_until) > new Date());
+    // Pentest fix: mirror authenticate's restriction gate (P2-1-F04). A
+    // restricted account gets unauthenticated treatment on optional-auth
+    // routes too, except the auth/support paths where authenticate itself
+    // leaves the gate open so the user can sign out or appeal.
+    // NOTE (deliberate exception, not an oversight): the Didit identity
+    // gate is NOT applied here. optionalAuth routes are guest-capable by
+    // design, so Didit-gating a signed-in user would only downgrade them
+    // to the guest treatment guests already receive, while breaking
+    // pre-verification support/chat onboarding flows that rely on
+    // optional auth. Didit enforcement lives in authenticate for
+    // protected routes; if that changes, this middleware must change too.
+    const optionalPath = `${req.baseUrl || ''}${req.path || ''}` || req.originalUrl?.split('?')[0] || '';
+    const restrictionExempt = optionalPath.startsWith('/api/auth/') || optionalPath.startsWith('/api/support/');
+    if (user?.is_restricted && !restrictionExempt) return next();
     if (user && user.is_active && !suspensionActive) {
       user.internal_access_route = decoded.internalAccessRoute || null;
       user.internal_access_id = decoded.internalAccessId || null;
@@ -500,10 +524,52 @@ const optionalAuth = async (req, res, next) => {
   next();
 };
 
+// Pentest fix: non-rejecting identity parse for the global CSRF boundary.
+// The CSRF middleware runs before route-level authenticate, so it used to
+// see no req.user at all and skipped validation for every cookie session
+// (the file's own comment admitted the gap). This middleware runs first and
+// establishes ONLY the user id from a signature-valid access token, so
+// attachCsrfToken can issue a token and validateCsrfToken can check one.
+// It never rejects, never touches the database, never enforces suspension,
+// restriction, or Didit gates, and never sets admin flags: route-level
+// authenticate still owns all of that and replaces req.user with the full
+// record. MFA and refresh tokens are skipped exactly like authenticate
+// skips them for API access. req.csrfCookieSession records whether the
+// identity came from the ambient cookie, for any caller that needs to
+// distinguish cookie sessions from Bearer-only clients.
+function parseAuthIdentity(req, res, next) {
+  try {
+    let token = null;
+    let fromCookie = false;
+    const cookieHeader = req.headers.cookie;
+    if (cookieHeader) {
+      const match = cookieHeader.match(/(?:^|;\s*)oxsteed_access=([^;]+)/);
+      if (match) {
+        try { token = decodeURIComponent(match[1]); } catch { token = match[1]; }
+        fromCookie = true;
+      }
+    }
+    if (!token) {
+      const header = req.headers.authorization;
+      if (header?.startsWith('Bearer ')) token = header.split(' ')[1];
+    }
+    if (!token) return next();
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    if (decoded.isMfaToken || decoded.type === 'refresh') return next();
+    req.user = { id: decoded.id };
+    req.csrfCookieSession = fromCookie;
+  } catch {
+    // Expired, malformed, or wrong-signature token: unauthenticated for
+    // CSRF purposes. Route authenticate will still reject it downstream.
+  }
+  next();
+}
+
 module.exports = {
   generateTokens,
   authenticate,
   requireAuth: authenticate,
+  parseAuthIdentity,
   optionalAuth,
   requireRole,
   requireTier,
