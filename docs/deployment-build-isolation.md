@@ -42,8 +42,17 @@ The old combined runtime continues owning background jobs, database/Redis,
 uploads and persistent retained browser assets. Schema/background releases
 remain coordinated separately; a web image cannot migrate production storage.
 
-Independent Coolify push triggers remain disabled. Automatic promotion ownership
-must use this verified-image path rather than re-enabling source compilation.
+After one verified manual promotion, install the single automatic controller:
+
+```sh
+node scripts/install-web-release-observer.cjs --install
+```
+
+The user LaunchAgent checks for successful image receipts once a minute, locks
+against overlapping releases, and records each attempted run. A failed run is
+not repeatedly promoted; inspect it before an explicit retry/new image run. Its
+installed bundle and state live under `~/Library/Application Support/OxSteed/web-release`.
+Independent Coolify push triggers remain disabled; this observer owns promotion.
 A failed remote build/pull never queues a replacement. Keep image receipts and
 prior known-good images for diagnosis and recovery.
 
