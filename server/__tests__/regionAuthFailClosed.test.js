@@ -31,11 +31,11 @@ test('region lookup failures fail closed instead of granting unrestricted access
   expect(response.body.code).toBe('region_authorization_unavailable');
 });
 
-test('an empty successful region result preserves legacy unrestricted behavior', async () => {
+test('an empty successful region result denies access instead of granting unrestricted access', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [] });
 
   const response = await request(buildApp()).get('/admin/users/user-1');
 
-  expect(response.status).toBe(200);
-  expect(response.body).toEqual({ ok: true });
+  expect(response.status).toBe(403);
+  expect(response.body.code).toBe('region_access_denied');
 });

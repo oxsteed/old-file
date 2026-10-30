@@ -322,13 +322,16 @@ async function revokeMember(req, res) {
       );
       if (!rowCount) return null;
 
-      // S-11: an active member losing access also loses their restaurant
-      // PINs, and any cash drawer they left open is flagged for a manager
+      // S-11: a member losing access also loses their restaurant PINs,
+      // and any cash drawer they left open is flagged for a manager
       // close — atomically with the revoke. Open tasks and corrective
       // actions move to a manager (never NULL); an offboarding record is
-      // written with the retention deadline.
+      // written with the retention deadline. Pentest fix: offboarding runs
+      // on every revoke with a member_id, not only revokes from active
+      // status — otherwise a revoke from any other status skips it and a
+      // live sub-session survives (see resolveStaffSession's recheck).
       let offboarding = { pinsDeactivated: 0, drawersFlagged: 0 };
-      if (member.member_id && member.status === 'active') {
+      if (member.member_id) {
         offboarding = await applyStaffOffboarding(client, {
           businessId: biz.id,
           userId: member.member_id,

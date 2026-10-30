@@ -576,4 +576,43 @@ ddescribe('staff identity and cash controls (S-06/S-07)', () => {
       expect(status.status).toBe(200);
     });
   });
+
+  describe('pentest fix: revoked members lose open sessions', () => {
+    test('a session stops resolving once its owner is revoked', async () => {
+      const member = await newUser('revoked-session');
+      const { rows: [memberUser] } = await pool.query('SELECT email FROM users WHERE id = $1', [member]);
+      await pool.query(
+        `INSERT INTO business_members (business_id, owner_id, member_id, invite_email, role, status)
+         VALUES ($1, $2, $3, $4, 'employee', 'active')`,
+        [F.businessId, F.owner, member, memberUser.email]
+      );
+      expect((await setPin(F.manager, { pin: '4321', staffUserId: member, staffLabel: 'Soon revoked' })).status).toBe(201);
+      const issued = await unlock(F.manager, '4321');
+      expect(issued.status).toBe(201);
+      const token = issued.body.token;
+      expect(token).toBeTruthy();
+      const sessionId = issued.body.staffSession.id;
+
+      const { resolveStaffSession } = require('../services/restaurantStaffIdentityService');
+      const fakeReq = () => ({
+        get: (header) => (header === 'X-Staff-Session' ? token : undefined),
+        body: {},
+        restaurantDevice: undefined,
+      });
+      expect(await resolveStaffSession(fakeReq(), F.restaurantId)).toBeTruthy();
+
+      await pool.query(
+        "UPDATE business_members SET status = 'revoked' WHERE business_id = $1 AND member_id = $2",
+        [F.businessId, member]
+      );
+      expect(await resolveStaffSession(fakeReq(), F.restaurantId)).toBeNull();
+
+      const { rows: [ended] } = await pool.query(
+        'SELECT ended_at, end_reason FROM restaurant_staff_sessions WHERE id = $1',
+        [sessionId]
+      );
+      expect(ended.ended_at).toBeTruthy();
+      expect(ended.end_reason).toBe('membership_revoked');
+    });
+  });
 });

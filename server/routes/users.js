@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 
 const { authenticate } = require('../middleware/auth');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { errorHandler } = require('../middleware/errorHandler');
 const { getMe, updateProfile } = require('../controllers/authController');
 const { listMySessions, revokeMySession } = require('../controllers/adminSelfSettingsController');
@@ -12,7 +13,7 @@ const { authenticatedLimiter, strictLimiter } = require('../middleware/rateLimit
 const pool = require('../db');
 
 router.get('/me', authenticate, getMe);
-router.patch('/me', authenticate, updateProfile);
+router.patch('/me', authenticate, rejectImpersonated, updateProfile);
 // Session management is available to every signed-in account; the controller
 // scopes both operations to req.user and preserves the current-session guard.
 router.get('/me/sessions', authenticatedLimiter, authenticate, listMySessions);

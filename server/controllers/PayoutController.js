@@ -469,13 +469,15 @@ class PayoutController {
         await client.query('BEGIN');
 
         // C9 idempotency: a replayed key returns the original result without
-        // touching money movement again.
+        // touching money movement again. The lookup is scoped to this
+        // payout: reusing a key on a different payout must not report the
+        // first payout's transaction as the second payout's success.
         const { rows: [existingTxn] } = await client.query(
           `SELECT pt.*, ap.status AS payout_status
              FROM payout_transactions pt
              JOIN affiliate_payouts ap ON ap.id = pt.payout_id
-            WHERE pt.idempotency_key = $1`,
-          [idempotencyKey]
+            WHERE pt.idempotency_key = $1 AND pt.payout_id = $2`,
+          [idempotencyKey, payout_id]
         );
         if (existingTxn) {
           await client.query('ROLLBACK');
@@ -508,6 +510,30 @@ class PayoutController {
         if (payout.status !== 'pending') {
           await client.query('ROLLBACK');
           return sendError(res, 409, 'Payout is not pending');
+        }
+
+        // Pentest fix: the legacy direct-execution route must honor the
+        // same dual-approval gate as the newer affiliate route. Above the
+        // threshold the payout queues for a second admin (the checker
+        // executes via the affiliate_payout executor); below it, execution
+        // proceeds here as before. The gate amount is the gross
+        // total_commission_cents so it matches what the executor moves,
+        // and the reference/idempotency keys match the newer route so a
+        // payout queued via either route replays the same approval.
+        const { requestMoneyMovementApproval } = require('../services/dualApprovalService');
+        const gate = await requestMoneyMovementApproval({
+          movementType: 'affiliate_payout',
+          referenceKey: `affiliate-payout:${payout_id}`,
+          amountCents: Number(payout.total_commission_cents),
+          currencyCode: 'USD',
+          requestedBy: req.user?.id || null,
+          idempotencyKey,
+          payload: { payoutId: payout_id, makerAdminId: req.user?.id || null },
+        });
+        if (gate.queued) {
+          await client.query('ROLLBACK');
+          const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
+          return sendMoneyMovementGateResult(res, gate);
         }
 
         // Lock and re-read the processor-backed method before claiming money.
