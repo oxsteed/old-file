@@ -62,3 +62,8 @@ Docker documents [explicit builder selection](https://docs.docker.com/build/buil
 and [container builder limits](https://docs.docker.com/build/builders/drivers/docker-container/).
 The installed Coolify controller was also inspected to verify that the image
 buildpack invokes rolling promotion without its source build method.
+
+The release workflow uses the same v7 checkout as repository CI. The legacy
+unconfigured `old-file-v3` gitlink makes v4 checkout with immediate credential
+cleanup fail before any image builds. The fresh hosted runner and `.git`
+Docker-context exclusion keep checkout credentials outside the image.
