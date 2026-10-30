@@ -11,6 +11,9 @@ const REQUIRED = [
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'ENCRYPTION_KEY',
+  // Dedicated signed-download secret (key separation): storage must never
+  // fall back to the JWT secret or a hardcoded constant.
+  'SIGNED_URL_SECRET',
 ];
 
 // Missing these disables the corresponding feature, not the entire API.
@@ -85,6 +88,7 @@ function getProductionConfigurationErrors(env = process.env) {
     'STRIPE_WEBHOOK_SECRET',
     'ENCRYPTION_KEY',
     'OXSTEED_CREDIT_LEDGER_HMAC_SECRET',
+    'SIGNED_URL_SECRET',
   ];
   requiredProductionSecrets.forEach((key) => {
     if (!env[key]) {
@@ -189,6 +193,7 @@ module.exports = function validateEnv() {
 
   warnIfSuspicious('JWT_SECRET', 'Auth tokens may be easy to guess');
   warnIfSuspicious('ENCRYPTION_KEY', 'Stored secrets may not be protected');
+  warnIfSuspicious('SIGNED_URL_SECRET', 'Signed download URLs may be forgeable');
   warnIfSuspicious('STRIPE_SECRET_KEY', 'Payments may be using test or placeholder credentials');
   warnIfSuspicious('STRIPE_WEBHOOK_SECRET', 'Webhook verification may be using test or placeholder credentials');
 

@@ -12,6 +12,9 @@ const permissionsService = require('../services/permissionsService');
 // Canonical restaurant-level analytics computations (Phase 2, Item 10).
 const restaurantAnalytics = require('../analytics/restaurantAnalytics');
 const { REPEAT_ORDER_WINDOW_DAYS } = restaurantAnalytics;
+// Shared CSV cell sanitizer (ADM-152): neutralizes formula injection
+// (leading =, +, -, @) on top of RFC 4180 quoting.
+const { csvCell } = require('../utils/csv');
 
 const MAX_RANGE_DAYS = 366;
 
@@ -390,11 +393,6 @@ function salesCsvRow(date, currency, s) {
     s.net_sales_cents, s.tax_cents, s.tips_cents, s.service_fee_cents,
     s.delivery_fee_cents, s.refunds_cents, s.revenue_cents, s.avg_ticket_cents,
   ].join(',');
-}
-
-function csvCell(value) {
-  const text = value === null || value === undefined ? '' : String(value);
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 exports.salesExportCsv = async (req, res, next) => {

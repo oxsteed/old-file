@@ -31,6 +31,9 @@ async function auditedWrite(req, action, targetType, sql, values) {
 }
 const logger = require('../utils/logger');
 const { withDbBudget } = require('../utils/dbBudgets');
+// Shared CSV cell sanitizer (ADM-152): neutralizes formula injection
+// (leading =, +, -, @) on top of RFC 4180 quoting.
+const { csvCell } = require('../utils/csv');
 
 const CODE_RE = /^[A-Z0-9][A-Z0-9_-]*$/;
 const CURRENCY_RE = /^[A-Z]{3}$/;
@@ -75,11 +78,7 @@ function requireNonEmptyString(value, name) {
   return value.trim();
 }
 
-function escapeCsv(value) {
-  if (value === null || value === undefined) return '';
-  const s = String(value);
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
+
 
 // ── Entities ──────────────────────────────────────────────────────────────
 
@@ -495,7 +494,7 @@ async function taxExport(req, res) {
         'credit_code', 'credit_name', 'amount_minor', 'currency'];
       const lines = [header.join(',')];
       for (const row of payload.entries) {
-        lines.push(header.map((h) => escapeCsv(row[h])).join(','));
+        lines.push(header.map((h) => csvCell(row[h])).join(','));
       }
       res.set('Content-Type', 'text/csv; charset=utf-8');
       res.set('Content-Disposition', `attachment; filename="treasury-tax-export-${periodId}.csv"`);

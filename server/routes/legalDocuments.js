@@ -11,6 +11,9 @@ const ccpaController = require('../controllers/ccpaController');
 const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
 const db = require('../db');
+// Shared CSV cell sanitizer (ADM-152): neutralizes formula injection
+// (leading =, +, -, @) on top of RFC 4180 quoting.
+const { csvCell } = require('../utils/csv');
 
 const TERMS_DOCUMENT_TYPE = 'terms_of_service';
 
@@ -129,10 +132,7 @@ async function loadPublishedTermsDocument(req) {
 }
 
 
-function csvEscape(value) {
-  const s = value == null ? '' : String(value);
-  return `"${s.replace(/"/g, '""')}"`;
-}
+
 
 // ── User-facing routes ────────────────────────────────────────────────────────
 
@@ -389,7 +389,7 @@ router.get('/acceptances/export/csv',
         ...rows.map((row) => [
           row.id, row.document_type, row.version_number, row.accepted_at,
           row.email, row.first_name, row.last_name,
-        ].map(csvEscape).join(',')),
+        ].map(csvCell).join(',')),
       ];
       res.type('text/csv').send(lines.join('\n'));
     } catch (err) {
@@ -427,7 +427,7 @@ router.get('/audit-log/export/csv',
         ...rows.map((row) => [
           row.id, row.action_type, row.document_type, row.actor_id, row.actor_role,
           row.resource_id, row.resource_type, row.status, row.created_at,
-        ].map(csvEscape).join(',')),
+        ].map(csvCell).join(',')),
       ];
       res.type('text/csv').send(lines.join('\n'));
     } catch (err) {
