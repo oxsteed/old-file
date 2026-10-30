@@ -214,11 +214,10 @@ function createRealtimeServer({
         runtimeState.update({ realtimeReady: false });
         supportService.shutdown?.();
         socketService.shutdown?.();
-        // Drain only this process. A cluster-wide disconnect would kick users
-        // already connected to the healthy replacement during a rolling update.
-        for (const namespace of [chat, support, restaurantDisplay, media]) {
-          try { namespace.local.disconnectSockets(true); } catch (err) { log.warn('Realtime: local disconnect failed', { error: err.message }); }
-        }
+        // io.close() closes this server's transports and local adapter only.
+        // Explicit disconnectSockets sends a namespace DISCONNECT packet,
+        // which disables client reconnection during a rolling replacement.
+        // Transport closure lets clients reconnect and rejoin on the new app.
         await new Promise((resolve) => io.close(resolve));
         for (const client of [adapterClients?.pubClient, adapterClients?.subClient]) {
           try { await client?.quit(); } catch (err) { log.warn('Realtime: adapter client quit failed', { error: err.message }); }

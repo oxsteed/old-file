@@ -315,19 +315,37 @@ describe('shared realtime server', () => {
     })).toThrow('already been initialized');
   });
 
-  test('shutdown disconnects only local sockets on every namespace', async () => {
-    const display = await connect(`${baseUrl}/restaurant-display`);
+  test('shutdown lets clients reconnect without disconnecting the replacement', async () => {
+    const display = await connect(`${baseUrl}/restaurant-display`, {
+      reconnection: true, reconnectionDelay: 20, reconnectionDelayMax: 50,
+    });
     clients.push(display);
     const disconnected = once(display, 'disconnect');
     const adapters = Object.values(realtime.namespaces).map(namespace => jest.spyOn(namespace.adapter, 'disconnectSockets'));
     const clusterDisconnect = jest.spyOn(realtime.io, 'disconnectSockets');
+    const port = httpServer.address().port;
     await realtime.close();
-    await disconnected;
+    expect(await disconnected).toBe('transport close');
+    expect(display.active).toBe(true);
     expect(clusterDisconnect).not.toHaveBeenCalled();
-    for (const adapter of adapters) {
-      expect(adapter).toHaveBeenCalledWith(expect.objectContaining({ flags: expect.objectContaining({ local: true }) }), true);
+    for (const adapter of adapters) expect(adapter).not.toHaveBeenCalled();
+
+    const replacementHttp = http.createServer();
+    const { Server } = require('socket.io');
+    const replacement = new Server(replacementHttp);
+    replacement.of('/restaurant-display');
+    try {
+      const reconnected = once(display, 'connect');
+      await new Promise(resolve => replacementHttp.listen(port, '127.0.0.1', resolve));
+      await reconnected;
+      expect(display.connected).toBe(true);
+      // A repeated old-runtime close cannot evict replacement connections.
+      await realtime.close();
+      expect(display.connected).toBe(true);
+    } finally {
+      display.disconnect();
+      await new Promise(resolve => replacement.close(resolve));
     }
-    expect(display.connected).toBe(false);
   });
 
   test('refreshes a connected socket role before sensitive events', async () => {
