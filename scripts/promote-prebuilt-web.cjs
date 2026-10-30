@@ -44,14 +44,23 @@ async function verifyAnonymousPull(digest, fetchImpl=fetch) {
     if('sha256:'+require('node:crypto').createHash('sha256').update(bytes).digest('hex')!==wanted)throw new Error('Registry manifest bytes differ from their digest.');
     return JSON.parse(bytes);
   }
+  let platformDigest=digest;
   let image=await manifest(digest);
   if(Array.isArray(image.manifests)) {
     const targets=image.manifests.filter(m=>m.platform?.os==='linux'&&m.platform?.architecture==='arm64');
     if(targets.length!==1||!/^sha256:[a-f0-9]{64}$/.test(targets[0].digest))throw new Error('Image index must contain exactly one Linux ARM64 image.');
-    image=await manifest(targets[0].digest);
+    platformDigest=targets[0].digest;
+    image=await manifest(platformDigest);
   }
   if(!/^sha256:[a-f0-9]{64}$/.test(image.config?.digest))throw new Error('Platform image has no immutable configuration identity.');
-  return {configDigest:image.config.digest};
+  return {indexDigest:digest,platformDigest,configDigest:image.config.digest};
+}
+function pulledImageMatches(info,receipt,manifest) {
+  // Classic Docker exposes the config ID; the containerd image store can
+  // expose the index or platform manifest ID. All accepted identities are
+  // cryptographically bound to the same verified immutable registry reference.
+  return info.architecture==='arm64'&&info.revision===receipt.gitSha
+    &&[manifest.indexDigest,manifest.platformDigest,manifest.configDigest].includes(info.id);
 }
 async function ready(sha,imageId) {
   try {
@@ -88,7 +97,7 @@ async function promote(runId,{redeploy=false}={}) {
     const reference=`${IMAGE}@${receipt.digest}`;
     docker(['pull','--platform','linux/arm64',reference]);
     const info=JSON.parse(docker(['image','inspect',reference,'--format','{"id":{{json .Id}},"architecture":{{json .Architecture}},"revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}},"digests":{{json .RepoDigests}}}']));
-    if(info.architecture!=='arm64'||info.revision!==receipt.gitSha||info.id!==manifest.configDigest)throw new Error('Pulled image identity differs from the verified release.');
+    if(!pulledImageMatches(info,receipt,manifest))throw new Error('Pulled image identity differs from the verified release.');
     const queued=controller(String.raw`
       if($a->health_check_path!=='/ready'||App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists())throw new RuntimeException('Health or active deployment conflict');
       $a->update(['build_pack'=>'dockerimage','docker_registry_image_name'=>'${IMAGE}','docker_registry_image_tag'=>'sha256-${receipt.digest.slice(7)}','git_commit_sha'=>'${receipt.gitSha}']);
@@ -112,4 +121,4 @@ if(require.main===module){
   if(args.length<2||args[0]!=='--run'||args.some((a,i)=>i>1&&a!=='--redeploy')){console.error('Use --run <verified-image-run-id> [--redeploy]');process.exitCode=1;}
   else promote(args[1],{redeploy:args.includes('--redeploy')}).then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(e.message);process.exitCode=1;});
 }
-module.exports={validateReceipt,verifyAnonymousPull,promote};
+module.exports={validateReceipt,verifyAnonymousPull,pulledImageMatches,promote};
