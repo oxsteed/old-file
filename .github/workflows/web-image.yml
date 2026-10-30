@@ -27,10 +27,9 @@ jobs:
       RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
       IMAGE: ghcr.io/oxsteed/old-file-web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_SHA }}
-          persist-credentials: false
       - name: Require verified default-branch source
         env:
           GH_TOKEN: ${{ github.token }}
