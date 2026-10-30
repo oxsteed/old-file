@@ -33,6 +33,33 @@ describe('runtime readiness', () => {
     else process.env.REDIS_URL = previousRedisUrl;
   });
 
+  test('overlapping probes share unfinished work, never cache success, and observe withdrawal', async () => {
+    runtimeState.update({ acceptingTraffic: true, realtimeReady: true, workersReady: true });
+    let release;
+    const blocked = new Promise(resolve => { release = resolve; });
+    const files = expectedMigrationFiles();
+    const pool = { query: jest.fn(async sql => {
+      if (sql === 'SELECT 1') await blocked;
+      return sql.includes('_migrations')
+        ? { rows: files.map(filename => ({ filename })) } : { rows: [] };
+    }) };
+    const normal = checkReadiness({ pool, redis: null });
+    const control = checkReadiness({ pool, redis: null, includeTrafficState: false });
+    expect(pool.query).toHaveBeenCalledTimes(1);
+    runtimeState.update({ acceptingTraffic: false });
+    release();
+    const [first, second] = await Promise.all([normal, control]);
+    expect(first.checks.traffic.ok).toBe(false);
+    expect(first.status).toBe('not_ready');
+    expect(second.checks.traffic.ok).toBe(true);
+    const calls = pool.query.mock.calls.length;
+    pool.query.mockRejectedValue(new Error('synthetic database failure'));
+    const later = await checkReadiness({ pool, redis: null });
+    expect(pool.query.mock.calls.length).toBeGreaterThan(calls);
+    expect(later.checks.database.ok).toBe(false);
+    expect(later.status).toBe('not_ready');
+  });
+
   test('reports missing private statement storage without blocking unrelated traffic', async () => {
     runtimeState.update({ acceptingTraffic: true, realtimeReady: true, workersReady: true });
     const previous = {
