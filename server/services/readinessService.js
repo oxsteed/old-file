@@ -116,7 +116,7 @@ async function adminControlPlaneSchemaStatus(pool) {
     : { ok: true };
 }
 
-async function checkReadiness({ pool, redis, includeTrafficState = true }) {
+async function collectReadiness({ pool, redis, includeTrafficState = true }) {
   const runtime = runtimeState.snapshot();
   const productionConfigurationErrors = getProductionConfigurationErrors();
   const release = getRelease();
@@ -235,6 +235,40 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
     result.status = 'not_ready';
   }
 
+  return result;
+}
+
+// Docker, the proxy, and post-deploy probes often overlap. Share only an
+// unfinished dependency observation; never retain a successful result after it
+// settles. Traffic withdrawal and shutdown are sampled afresh for every caller.
+const inFlightReadiness = new WeakMap();
+async function checkReadiness({ pool, redis, includeTrafficState = true }) {
+  let observations = inFlightReadiness.get(pool);
+  if (!observations) {
+    observations = new Map();
+    inFlightReadiness.set(pool, observations);
+  }
+  let observation = observations.get(redis);
+  if (!observation) {
+    observation = collectReadiness({ pool, redis });
+    observations.set(redis, observation);
+  }
+  let result;
+  try {
+    const collected = await observation;
+    result = { ...collected, checks: { ...collected.checks } };
+  } finally {
+    if (observations.get(redis) === observation) observations.delete(redis);
+  }
+  const runtime = runtimeState.snapshot();
+  Object.assign(result.checks, {
+    realtime: { ok: runtime.realtimeReady },
+    workers: { ok: runtime.workersReady, mode: runtime.workerMode },
+    traffic: { ok: includeTrafficState ? runtime.acceptingTraffic : true },
+    shutdown: { ok: !runtime.shuttingDown },
+  });
+  result.status = Object.values(result.checks).some(check =>
+    check.requiredForTraffic !== false && !check.ok) ? 'not_ready' : 'ready';
   return result;
 }
 
