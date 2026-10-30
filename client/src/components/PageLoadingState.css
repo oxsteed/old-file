@@ -23,15 +23,3 @@
 }
 .ox-loading-state__retry:disabled { opacity: .65; cursor: wait; }
 .ox-loading-state__retry:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; }
-.ox-loading-state__spinner {
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid var(--color-border-strong);
-  border-top-color: var(--color-action);
-  border-radius: 50%;
-  animation: ox-page-loading .8s linear infinite;
-}
-@keyframes ox-page-loading { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) {
-  .ox-loading-state__spinner { animation: none; }
-}
