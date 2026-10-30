@@ -37,8 +37,21 @@ async function verifyAnonymousPull(digest, fetchImpl=fetch) {
   if(!response.ok)throw new Error('Anonymous image access preflight failed.');
   const token=(await response.json()).token;
   if(typeof token!=='string'||!token)throw new Error('Registry did not return anonymous image access.');
-  const manifest=await fetchImpl(`https://ghcr.io/v2/oxsteed/old-file-web/manifests/${digest}`,{method:'HEAD',redirect:'error',signal:AbortSignal.timeout(10000),headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json'}});
-  if(!manifest.ok||manifest.headers.get('docker-content-digest')!==digest)throw new Error('The source-only image package must allow anonymous pulls before promotion.');
+  async function manifest(wanted) {
+    const result=await fetchImpl(`https://ghcr.io/v2/oxsteed/old-file-web/manifests/${wanted}`,{redirect:'error',signal:AbortSignal.timeout(10000),headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json'}});
+    if(!result.ok||result.headers.get('docker-content-digest')!==wanted)throw new Error('The source-only image package must allow anonymous pulls before promotion.');
+    const bytes=await result.text();
+    if('sha256:'+require('node:crypto').createHash('sha256').update(bytes).digest('hex')!==wanted)throw new Error('Registry manifest bytes differ from their digest.');
+    return JSON.parse(bytes);
+  }
+  let image=await manifest(digest);
+  if(Array.isArray(image.manifests)) {
+    const targets=image.manifests.filter(m=>m.platform?.os==='linux'&&m.platform?.architecture==='arm64');
+    if(targets.length!==1||!/^sha256:[a-f0-9]{64}$/.test(targets[0].digest))throw new Error('Image index must contain exactly one Linux ARM64 image.');
+    image=await manifest(targets[0].digest);
+  }
+  if(!/^sha256:[a-f0-9]{64}$/.test(image.config?.digest))throw new Error('Platform image has no immutable configuration identity.');
+  return {configDigest:image.config.digest};
 }
 async function ready(sha,imageId) {
   try {
@@ -62,16 +75,20 @@ async function promote(runId,{redeploy=false}={}) {
     const latest=ghJson(['api',`repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha;
     if(receipt.gitSha!==latest)return {status:'waiting_for_current_default_branch_image',gitSha:receipt.gitSha};
     verifyCommit(receipt.gitSha);
-    const current=controller(String.raw`$result=['buildPack'=>$a->build_pack,'image'=>$a->docker_registry_image_name,'tag'=>$a->docker_registry_image_tag];`);
-    if(!redeploy&&current.buildPack==='dockerimage'&&current.image===IMAGE&&current.tag===`sha256-${receipt.digest.slice(7)}`&&await ready(receipt.gitSha))return {status:'already_current',gitSha:receipt.gitSha};
+    const current=controller(String.raw`$latest=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->orderByDesc('id')->first();$active=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists();$result=['buildPack'=>$a->build_pack,'image'=>$a->docker_registry_image_name,'tag'=>$a->docker_registry_image_tag,'active'=>$active,'latest'=>$latest?['status'=>$latest->status,'commit'=>$latest->commit]:null];`);
+    if(current.active)return {status:'release_in_progress',gitSha:receipt.gitSha};
+    const sameTarget=current.buildPack==='dockerimage'&&current.image===IMAGE&&current.tag===`sha256-${receipt.digest.slice(7)}`;
+    if(!redeploy&&sameTarget&&current.latest?.commit===receipt.gitSha&&['failed','cancelled-by-user'].includes(current.latest.status))throw new Error('This replacement was rejected; inspect it before an explicit retry.');
+    if(!redeploy&&current.buildPack==='dockerimage'&&current.image===IMAGE&&current.tag===`sha256-${receipt.digest.slice(7)}`&&await ready(receipt.gitSha,receipt.digest))return {status:'already_current',gitSha:receipt.gitSha};
+    if(!redeploy&&sameTarget&&current.latest?.commit===receipt.gitSha&&current.latest.status==='finished')return {status:'waiting_for_runtime_identity',gitSha:receipt.gitSha};
     // Coolify's image buildpack pulls from the registry itself. Prove that
     // this source-only image is anonymously readable; never copy a user token
     // into the production VM or controller.
-    await verifyAnonymousPull(receipt.digest);
+    const manifest=await verifyAnonymousPull(receipt.digest);
     const reference=`${IMAGE}@${receipt.digest}`;
     docker(['pull','--platform','linux/arm64',reference]);
     const info=JSON.parse(docker(['image','inspect',reference,'--format','{"id":{{json .Id}},"architecture":{{json .Architecture}},"revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}},"digests":{{json .RepoDigests}}}']));
-    if(info.architecture!=='arm64'||info.revision!==receipt.gitSha||!info.digests.includes(reference))throw new Error('Pulled image identity differs from the verified release.');
+    if(info.architecture!=='arm64'||info.revision!==receipt.gitSha||info.id!==manifest.configDigest)throw new Error('Pulled image identity differs from the verified release.');
     const queued=controller(String.raw`
       if($a->health_check_path!=='/ready'||App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists())throw new RuntimeException('Health or active deployment conflict');
       $a->update(['build_pack'=>'dockerimage','docker_registry_image_name'=>'${IMAGE}','docker_registry_image_tag'=>'sha256-${receipt.digest.slice(7)}','git_commit_sha'=>'${receipt.gitSha}']);

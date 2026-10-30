@@ -9,7 +9,14 @@ test('accepts exact immutable receipt and rejects untrusted, failed, foreign, or
  for(const patch of [{status:'in_progress'},{conclusion:'failure'},{head_branch:'feature'},{path:'.github/workflows/other.yml'},{event:'pull_request'}])assert.throws(()=>validateReceipt(receipt,{...run,...patch}));
 });
 
-test('anonymous preflight refuses private images and a mismatched digest without deployment credentials',async()=>{
- for(const options of [{ok:false,digest:receipt.digest},{ok:true,digest:'sha256:'+'c'.repeat(64)}]){let calls=0;const fake=async(url,init)=>{calls++;assert.equal(init.redirect,'error');return calls===1?{ok:true,json:async()=>({token:'synthetic-public-scope'})}:{ok:options.ok,headers:new Map([['docker-content-digest',options.digest]])};};await assert.rejects(verifyAnonymousPull(receipt.digest,fake),/anonymous pulls/);}
- let calls=0;await verifyAnonymousPull(receipt.digest,async()=>++calls===1?{ok:true,json:async()=>({token:'synthetic-public-scope'})}:{ok:true,headers:new Map([['docker-content-digest',receipt.digest]])});
+const crypto=require('node:crypto');
+const digest=body=>'sha256:'+crypto.createHash('sha256').update(body).digest('hex');
+test('verifies index to ARM64 configuration rather than assuming Docker stores the index digest',async()=>{
+ const config='sha256:'+'c'.repeat(64),platform=JSON.stringify({config:{digest:config}}),platformDigest=digest(platform);
+ const index=JSON.stringify({manifests:[{digest:platformDigest,platform:{os:'linux',architecture:'arm64'}},{digest:'sha256:'+'d'.repeat(64),platform:{os:'unknown',architecture:'unknown'}}]});
+ const root=digest(index);
+ const fake=async url=>url.includes('/token?')?{ok:true,json:async()=>({token:'synthetic-public-scope'})}:{ok:true,headers:new Map([['docker-content-digest',url.endsWith(root)?root:platformDigest]]),text:async()=>url.endsWith(root)?index:platform};
+ assert.deepEqual(await verifyAnonymousPull(root,fake),{configDigest:config});
+ await assert.rejects(verifyAnonymousPull(root,async url=>url.includes('/token?')?fake(url):{ok:false,headers:new Map()}),/anonymous pulls/);
+ await assert.rejects(verifyAnonymousPull(root,async url=>url.includes('/token?')?fake(url):{ok:true,headers:new Map([['docker-content-digest',root]]),text:async()=>'{"corrupted":true}'}),/manifest bytes/);
 });
