@@ -99,3 +99,30 @@ to prevent app startup. The old image fails this check; the corrected startup
 passed with a 2,134 ms drain and both failed-preparation scenarios. The ARM image
 workflow runs this against each built image before issuing its release receipt.
 These isolated checks do not replace the remaining live handoff acceptance.
+
+## Readiness failover during withdrawal
+
+The corrected process drained for five seconds and kept HTML/Food/API requests
+available, but a public `/ready` probe could still select the retiring instance
+before the next private health check removed it. That instance correctly returned
+503 with `traffic=false` and `shutdown=false`; this is not a failed dependency
+and must not be hidden by changing its readiness result.
+
+`node scripts/configure-web-readiness.cjs --check` prepares managed Coolify
+labels for exact `/ready` GET/HEAD routes only. `--apply` saves those desired
+labels for the next verified rolling replacement without changing any running
+container. The original routers, TLS, middleware and private `/ready` health
+checks remain intact. Traefik 3.7's status-aware retry permits up to three
+attempts on 503, with 100 ms initial backoff and a 1.5 second budget. Each reply
+still comes from an actual backend; if every backend is unready the result stays
+503. No ordinary API route or write request receives this middleware.
+
+Run `node --test scripts/configure-web-readiness.test.cjs` for route/guard
+regressions. `node scripts/rehearse-readiness-retry.cjs --image <existing-image>`
+uses the installed proxy image and synthetic Node servers on an internal,
+disposable network with no production environment, data or volumes. It verifies
+healthy failover, bounded genuine failure, and no API/write replay. Its backend
+health checks are disabled deliberately to hold a stale backend in rotation and
+to keep exact request counts free of unrelated Docker health probes.
+
+See the versioned [Traefik retry configuration](https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/retry/).
