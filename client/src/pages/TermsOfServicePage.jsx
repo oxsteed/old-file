@@ -48,7 +48,12 @@ function escapeRegExp(value) {
 
 function isSafeLegalHref(href) {
   if (!href) return false;
-  return /^(https?:|mailto:|tel:|\/|#)/i.test(href.trim());
+  const trimmed = href.trim();
+  // Protocol-relative URLs (//evil.com) would otherwise pass the '/' branch
+  // and render as off-site links; reject them explicitly. All other behavior
+  // is unchanged.
+  if (trimmed.startsWith('//')) return false;
+  return /^(https?:|mailto:|tel:|\/|#)/i.test(trimmed);
 }
 
 function sanitizeLegalHtml(html, query = '') {

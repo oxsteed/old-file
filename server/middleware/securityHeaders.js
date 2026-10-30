@@ -28,8 +28,16 @@ const securityHeaders = helmet({
       scriptSrc: SCRIPT_SOURCES,
       scriptSrcElem: SCRIPT_SOURCES,
       workerSrc: ["'self'", 'blob:'],
+      // NOTE: styleSrc still carries 'unsafe-inline' (see report: 5,192
+      // style={ occurrences across 253 client files plus 7 <style> tags, and
+      // no per-response nonce infrastructure for the static SPA build, so a
+      // nonce/hash migration is a broad UI change, not a safe hardening
+      // edit). imgSrc below drops the 'https:' wildcard; the retained hosts
+      // are the ones the app actually loads images from: same-origin media,
+      // data: URIs, same-origin blob: object URLs, AWS Location map tiles,
+      // and the Unsplash sample gallery used by TemplatePicker.
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
+      imgSrc: ["'self'", 'data:', 'blob:', `https://tiles.geo.${AWS_LOCATION_REGION}.amazonaws.com`, `https://maps.geo.${AWS_LOCATION_REGION}.amazonaws.com`, 'https://images.unsplash.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       connectSrc: [
         "'self'",
