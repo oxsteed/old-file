@@ -1,7 +1,7 @@
 // Pure helpers for restaurant Media device uploads (photos + quarantined
 // videos). Kept free of JSX and bundler globals so the client scripts
 // tests can import them directly from node.
-import { getCsrfToken } from '../api/csrfToken';
+import { getCsrfToken } from '../api/csrfToken.js';
 //
 // Server contract (subagents A/B):
 //   POST /restaurants/:id/media/photo-uploads  (multipart: file, caption,
