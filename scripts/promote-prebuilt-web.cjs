@@ -38,7 +38,7 @@ async function verifyAnonymousPull(digest, fetchImpl=fetch) {
   const token=(await response.json()).token;
   if(typeof token!=='string'||!token)throw new Error('Registry did not return anonymous image access.');
   async function manifest(wanted) {
-    const result=await fetchImpl(`https://ghcr.io/v2/oxsteed/old-file-web/manifests/${wanted}`,{redirect:'error',signal:AbortSignal.timeout(10000),headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json'}});
+    const result=await fetchImpl(`https://ghcr.io/v2/oxsteed/old-file-web/manifests/${wanted}`,{redirect:'error',signal:AbortSignal.timeout(10000),headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json'}});
     if(!result.ok||result.headers.get('docker-content-digest')!==wanted)throw new Error('The source-only image package must allow anonymous pulls before promotion.');
     const bytes=await result.text();
     if('sha256:'+require('node:crypto').createHash('sha256').update(bytes).digest('hex')!==wanted)throw new Error('Registry manifest bytes differ from their digest.');
