@@ -1,0 +1,74 @@
+name: Verified web image
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [old-files-claude]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+  packages: write
+concurrency:
+  group: verified-web-image
+  cancel-in-progress: false
+jobs:
+  image:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      IMAGE: ghcr.io/oxsteed/old-file-web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+      - name: Require verified default-branch source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "${GITHUB_REF_NAME}" = old-files-claude
+          node scripts/verify-web-release.cjs "$RELEASE_SHA"
+      - name: Build and publish immutable ARM64 image away from production
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_SEND_DEFAULT_PII: ${{ secrets.VITE_SENTRY_SEND_DEFAULT_PII }}
+          VITE_AWS_LOCATION_API_KEY: ${{ secrets.VITE_AWS_LOCATION_API_KEY }}
+          VITE_AWS_LOCATION_REGION: ${{ secrets.VITE_AWS_LOCATION_REGION }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --use --driver docker-container
+          docker buildx build --platform linux/arm64 --push \
+            --tag "$IMAGE:sha-$RELEASE_SHA" \
+            --label "org.opencontainers.image.source=https://github.com/oxsteed/old-file" \
+            --build-arg "SOURCE_COMMIT=$RELEASE_SHA" \
+            --build-arg VITE_SENTRY_DSN --build-arg VITE_SENTRY_SEND_DEFAULT_PII \
+            --build-arg VITE_AWS_LOCATION_API_KEY --build-arg VITE_AWS_LOCATION_REGION \
+            --metadata-file image-metadata.json .
+      - name: Record immutable image receipt
+        run: |
+          node - <<'JS'
+          const fs = require('fs');
+          const metadata = JSON.parse(fs.readFileSync('image-metadata.json'));
+          const digest = metadata['containerimage.digest'];
+          if (!/^sha256:[a-f0-9]{64}$/.test(digest)) throw Error('Missing image digest');
+          fs.writeFileSync('web-image-receipt.json', JSON.stringify({
+            gitSha: process.env.RELEASE_SHA, image: process.env.IMAGE, digest,
+            runId: process.env.GITHUB_RUN_ID, architecture: 'arm64',
+          }, null, 2));
+          JS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-image-receipt
+          path: web-image-receipt.json
+          retention-days: 30
+          if-no-files-found: error
