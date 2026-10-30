@@ -74,3 +74,28 @@ identities in the verified index/platform/configuration chain, together with the
 expected ARM64 architecture and OCI source revision. The first strict config-ID
 assumption rejected a correct image before queuing; its failed observation is
 retained. No identity check is bypassed.
+
+## Container shutdown boundary
+
+The 2026-10-30 recovery rehearsal caught a readiness timeout and a roughly
+ten-second realtime reconnect gap even though the image-only successful and
+rejected-candidate rehearsals had no failed sampled HTTP requests. The old
+`dumb-init -- npm start` process tree did not deliver a usable drain window:
+an isolated container exited in 130 ms without reaching Node's SIGTERM handler.
+Direct Node unit tests had not exercised this production process boundary.
+
+The container now runs `sh scripts/start-container.sh`: schema preparation and
+asset synchronization must both succeed, then `exec node index.js` replaces the
+shell. dumb-init supervises Node directly and waits for its drain. The combined
+runtime retains its existing preparation semantics; web-only preparation remains
+read-only. The application's readiness withdrawal and five-second web drain
+remain unchanged.
+
+`scripts/verify-container-shutdown.cjs --image <image> [--context colima]` runs
+the built image's actual ENTRYPOINT/CMD with three synthetic startup boundaries,
+no network, no runtime credentials and no production volumes. It requires Node's
+SIGTERM handler to finish a two-second drain, and requires schema/asset failure
+to prevent app startup. The old image fails this check; the corrected startup
+passed with a 2,134 ms drain and both failed-preparation scenarios. The ARM image
+workflow runs this against each built image before issuing its release receipt.
+These isolated checks do not replace the remaining live handoff acceptance.

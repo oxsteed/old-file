@@ -53,6 +53,11 @@ jobs:
             --build-arg VITE_SENTRY_DSN --build-arg VITE_SENTRY_SEND_DEFAULT_PII \
             --build-arg VITE_AWS_LOCATION_API_KEY --build-arg VITE_AWS_LOCATION_REGION \
             --metadata-file image-metadata.json .
+      - name: Verify real container shutdown before issuing a release receipt
+        run: |
+          image_ref="$IMAGE@$(node -p 'JSON.parse(require("fs").readFileSync("image-metadata.json"))["containerimage.digest"]')"
+          docker pull "$image_ref"
+          node scripts/verify-container-shutdown.cjs --image "$image_ref"
       - name: Record immutable image receipt
         run: |
           node - <<'JS'

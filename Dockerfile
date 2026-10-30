@@ -82,7 +82,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=5 \
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Combined startup runs migrations; web replacements verify the existing schema.
-CMD ["npm", "start"]
+# npm exits on SIGTERM before Node can withdraw readiness and drain connections.
+# The shell must exec Node so dumb-init waits for the application's shutdown.
+CMD ["sh", "scripts/start-container.sh"]
 
 # Port
 EXPOSE 5000
