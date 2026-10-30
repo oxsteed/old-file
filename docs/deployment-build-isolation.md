@@ -67,3 +67,10 @@ The release workflow uses the same v7 checkout as repository CI. The legacy
 unconfigured `old-file-v3` gitlink makes v4 checkout with immediate credential
 cleanup fail before any image builds. The fresh hosted runner and `.git`
 Docker-context exclusion keep checkout credentials outside the image.
+
+The installed Docker containerd image store reports an index digest as image ID,
+while classic Docker reports a configuration digest. Promotion accepts only
+identities in the verified index/platform/configuration chain, together with the
+expected ARM64 architecture and OCI source revision. The first strict config-ID
+assumption rejected a correct image before queuing; its failed observation is
+retained. No identity check is bypassed.
