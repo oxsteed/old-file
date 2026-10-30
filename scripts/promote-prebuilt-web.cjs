@@ -32,6 +32,14 @@ function controller(code) {
   if(!match)throw new Error('Controller did not return a release receipt.');
   return JSON.parse(match[1]);
 }
+async function verifyAnonymousPull(digest, fetchImpl=fetch) {
+  const response=await fetchImpl('https://ghcr.io/token?service=ghcr.io&scope=repository:oxsteed/old-file-web:pull',{redirect:'error',signal:AbortSignal.timeout(10000)});
+  if(!response.ok)throw new Error('Anonymous image access preflight failed.');
+  const token=(await response.json()).token;
+  if(typeof token!=='string'||!token)throw new Error('Registry did not return anonymous image access.');
+  const manifest=await fetchImpl(`https://ghcr.io/v2/oxsteed/old-file-web/manifests/${digest}`,{method:'HEAD',redirect:'error',signal:AbortSignal.timeout(10000),headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json'}});
+  if(!manifest.ok||manifest.headers.get('docker-content-digest')!==digest)throw new Error('The source-only image package must allow anonymous pulls before promotion.');
+}
 async function ready(sha,imageId) {
   try {
     const response=await fetch('https://oxsteed.com/ready',{signal:AbortSignal.timeout(8000),headers:{'cache-control':'no-cache'}});
@@ -55,19 +63,19 @@ async function promote(runId,{redeploy=false}={}) {
     if(receipt.gitSha!==latest)return {status:'waiting_for_current_default_branch_image',gitSha:receipt.gitSha};
     verifyCommit(receipt.gitSha);
     const current=controller(String.raw`$result=['buildPack'=>$a->build_pack,'image'=>$a->docker_registry_image_name,'tag'=>$a->docker_registry_image_tag];`);
-    if(!redeploy&&current.buildPack==='dockerimage'&&current.image===APPLICATION&&current.tag===receipt.gitSha&&await ready(receipt.gitSha))return {status:'already_current',gitSha:receipt.gitSha};
-    // The existing gh login has read:packages. The token stays inside this child
-    // process and Docker's credential helper, never in logs or a command argument.
-    const token=execFileSync('gh',['auth','token'],{stdio:['ignore','pipe','pipe']});
-    try {command('docker',['--context','colima','login','ghcr.io','-u','oxsteed','--password-stdin'],token);} finally {token.fill(0);}
+    if(!redeploy&&current.buildPack==='dockerimage'&&current.image===IMAGE&&current.tag===`sha256-${receipt.digest.slice(7)}`&&await ready(receipt.gitSha))return {status:'already_current',gitSha:receipt.gitSha};
+    // Coolify's image buildpack pulls from the registry itself. Prove that
+    // this source-only image is anonymously readable; never copy a user token
+    // into the production VM or controller.
+    await verifyAnonymousPull(receipt.digest);
     const reference=`${IMAGE}@${receipt.digest}`;
     docker(['pull','--platform','linux/arm64',reference]);
     const info=JSON.parse(docker(['image','inspect',reference,'--format','{"id":{{json .Id}},"architecture":{{json .Architecture}},"revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}},"digests":{{json .RepoDigests}}}']));
     if(info.architecture!=='arm64'||info.revision!==receipt.gitSha||!info.digests.includes(reference))throw new Error('Pulled image identity differs from the verified release.');
-    docker(['tag',reference,`${APPLICATION}:${receipt.gitSha}`]);
     const queued=controller(String.raw`
       if($a->health_check_path!=='/ready'||App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists())throw new RuntimeException('Health or active deployment conflict');
-      $a->update(['build_pack'=>'dockerimage','docker_registry_image_name'=>'${APPLICATION}','docker_registry_image_tag'=>'${receipt.gitSha}','git_commit_sha'=>'${receipt.gitSha}']);
+      $a->update(['build_pack'=>'dockerimage','docker_registry_image_name'=>'${IMAGE}','docker_registry_image_tag'=>'sha256-${receipt.digest.slice(7)}','git_commit_sha'=>'${receipt.gitSha}']);
+      $a->environment_variables()->updateOrCreate(['key'=>'IMAGE_DIGEST','is_preview'=>false],['value'=>'${receipt.digest}','is_runtime'=>true,'is_buildtime'=>false,'is_literal'=>true]);
       $uuid=new_public_id();queue_application_deployment(application:$a,deployment_uuid:$uuid,commit:'${receipt.gitSha}',force_rebuild:false);
       $result=['deployment'=>$uuid];
     `);
@@ -76,7 +84,7 @@ async function promote(runId,{redeploy=false}={}) {
     while(Date.now()<deadline){
       const state=controller(String.raw`$q=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->where('deployment_uuid','${queued.deployment}')->firstOrFail();$result=['status'=>$q->status];`);
       if(['failed','cancelled-by-user'].includes(state.status))throw new Error(`Replacement ${queued.deployment} was ${state.status}; inspect the retained working release.`);
-      if(state.status==='finished'&&await ready(receipt.gitSha,info.id))return {status:'finished',gitSha:receipt.gitSha,imageDigest:receipt.digest,imageId:info.id,deployment:queued.deployment,runId:String(runId)};
+      if(state.status==='finished'&&await ready(receipt.gitSha,receipt.digest))return {status:'finished',gitSha:receipt.gitSha,imageDigest:receipt.digest,imageId:info.id,deployment:queued.deployment,runId:String(runId)};
       await new Promise(resolve=>setTimeout(resolve,5000));
     }
     throw new Error('Replacement observation timed out; inspect its exact deployment before retrying.');
@@ -87,4 +95,4 @@ if(require.main===module){
   if(args.length<2||args[0]!=='--run'||args.some((a,i)=>i>1&&a!=='--redeploy')){console.error('Use --run <verified-image-run-id> [--redeploy]');process.exitCode=1;}
   else promote(args[1],{redeploy:args.includes('--redeploy')}).then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(e.message);process.exitCode=1;});
 }
-module.exports={validateReceipt,promote};
+module.exports={validateReceipt,verifyAnonymousPull,promote};

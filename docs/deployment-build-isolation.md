@@ -20,7 +20,10 @@ four public Vite settings use separately configured repository build secrets.
 
 The image workflow publishes `ghcr.io/oxsteed/old-file-web` and a receipt containing
 its immutable manifest digest, source commit, architecture and workflow ID.
-The package can remain private; the existing host gh login has read:packages.
+The package is public, matching the public source repository and existing public
+browser configuration. Runtime credentials are excluded by the Docker build
+context and are supplied only when the container starts. Anonymous access to
+the exact digest is verified before promotion; no user token is copied to Coolify.
 
 ```sh
 gh workflow run web-image.yml --repo oxsteed/old-file --ref old-files-claude
@@ -29,10 +32,9 @@ node scripts/promote-prebuilt-web.cjs --run <successful-image-workflow-id>
 
 Promotion verifies the workflow, artifact receipt, current default branch,
 required CI checks, pulled image digest, ARM64 architecture and OCI revision.
-Only then does it select Coolify's image buildpack and queue a rolling web
-replacement. The image is loaded under the existing application's local image
-name, so no registry credential is copied to Coolify and no production source
-build can occur. The old release stays serving until the candidate passes
+Only then does it select Coolify's image buildpack, pin the registry manifest
+digest and queue a rolling web replacement. Coolify pulls that immutable public
+digest directly; no production source build can occur. The old release stays serving until the candidate passes
 `/ready`. The script waits for the exact queue result and public runtime identity.
 It refuses a conflicting deployment or an older source commit.
 
