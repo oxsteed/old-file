@@ -32,7 +32,7 @@
   48%, 100% { transform: scale(1); }
 }
 
-/* The pulse variant never strikes, so the strike-only layers stay off. */
+/* The pulse variant never strikes, so the impact dot and rings stay hidden. */
 .ox-anim--pulse .ox-anim__shake,
 .ox-anim--pulse .ox-anim__kick,
 .ox-anim--pulse .ox-anim__kick-rev,
@@ -45,7 +45,10 @@
 .ox-anim--pulse .ox-anim__x-hit { animation: none; }
 .ox-anim--pulse .ox-anim__glow-o,
 .ox-anim--pulse .ox-anim__glow-x,
-.ox-anim--pulse .ox-anim__glow-s { opacity: 0; }
+.ox-anim--pulse .ox-anim__glow-s,
+.ox-anim--pulse .ox-anim__flash,
+.ox-anim--pulse .ox-anim__ripple,
+.ox-anim--pulse .ox-anim__echo { opacity: 0; }
 
 /* Full brand moment: 5s loop, strike at 15%. */
 .ox-anim--full .ox-anim__shake { animation: ox-anim-shake 5s ease-in-out infinite; }
@@ -167,7 +170,8 @@
   .ox-anim__echo { animation: none !important; }
   .ox-anim__hammer,
   .ox-anim__flash,
-  .ox-anim__ripple { display: none; }
+  .ox-anim__ripple,
+  .ox-anim__echo { display: none; }
   /* Same specificity as the variant rules above, so the still line stays drawn. */
   .ox-anim--pulse .ox-anim__pulse,
   .ox-anim--full .ox-anim__pulse { stroke-dashoffset: 0; opacity: 1; }
