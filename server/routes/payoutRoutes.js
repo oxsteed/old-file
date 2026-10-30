@@ -36,9 +36,10 @@ router.get('/stats/payout', requireAuth, PayoutController.getPayoutStats);
 // Audit fix (auth finding 15): processing moves affiliate money on a single
 // admin's say-so. Impersonated sessions are blocked, and the acting admin
 // must prove a fresh step-up challenge before the controller touches the
-// processor. (The newer /api/affiliate route additionally gates
-// above-threshold payouts through dual approval; this route keeps the
-// direct-execution semantics with the maker step-up added here.)
+// processor. Pentest fix: the controller now runs the same dual-approval
+// gate as the newer /api/affiliate route, so above-threshold payouts queue
+// for a second admin instead of executing directly; below the threshold
+// the direct-execution semantics are unchanged.
 router.post(
   '/:payout_id/process',
   requireAdmin,

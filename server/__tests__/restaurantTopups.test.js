@@ -937,6 +937,20 @@ describe('restaurant top-up webhook handling', () => {
 describe('POST /api/admin/restaurant-topups/topups/:topupId/clawback', () => {
   const succeededTopup = baseTopupRow({ status: 'succeeded', stripe_payment_intent_id: 'pi_test_1' });
 
+  // Pentest fix: the clawback route now runs a dual-approval gate before
+  // the controller: an amount lookup plus the platform-settings threshold
+  // read. Clear the settings cache per test so the threshold read always
+  // consumes exactly one mock, and queue both gate mocks ahead of the
+  // controller's query sequence.
+  beforeEach(() => {
+    require('../services/platformSettingsCache')._clearCacheForTests();
+  });
+
+  function queueGateMocks() {
+    mockQuery.mockResolvedValueOnce({ rows: [{ amount_cents: 5000, currency: 'USD' }] }); // gate amount lookup
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // platform_settings threshold (absent → $500 default)
+  }
+
   function clawbackQueries({ balanceCents = 8000, existingEntry = null } = {}) {
     const account = { ...WALLET_ACCOUNT, balance_cents: balanceCents };
     const nextBalance = balanceCents - 5000;
@@ -969,6 +983,7 @@ describe('POST /api/admin/restaurant-topups/topups/:topupId/clawback', () => {
   });
 
   test('refuses a top-up that is not succeeded', async () => {
+    queueGateMocks();
     mockQuery.mockResolvedValueOnce({
       rows: [{ ...baseTopupRow({ status: 'pending' }), business_id: 9 }],
     });
@@ -981,6 +996,7 @@ describe('POST /api/admin/restaurant-topups/topups/:topupId/clawback', () => {
 
   test('debits the wallet with audit when funds cover it', async () => {
     const { queries } = clawbackQueries({ balanceCents: 8000 });
+    queueGateMocks();
     queries.forEach((q) => mockQuery.mockResolvedValueOnce(q));
     const res = await request(buildAdminApp())
       .post(`/api/admin/restaurant-topups/topups/${TOPUP_ID}/clawback`)
@@ -1022,6 +1038,7 @@ describe('POST /api/admin/restaurant-topups/topups/:topupId/clawback', () => {
 
   test('S5 allows the wallet to go negative and flags it explicitly', async () => {
     const { queries } = clawbackQueries({ balanceCents: 2000 });
+    queueGateMocks();
     queries.forEach((q) => mockQuery.mockResolvedValueOnce(q));
     const res = await request(buildAdminApp())
       .post(`/api/admin/restaurant-topups/topups/${TOPUP_ID}/clawback`)
@@ -1052,6 +1069,7 @@ describe('POST /api/admin/restaurant-topups/topups/:topupId/clawback', () => {
       balance_after_cents: 3000, entry_type: 'debit',
     };
     const { queries } = clawbackQueries({ balanceCents: 8000, existingEntry });
+    queueGateMocks();
     queries.forEach((q) => mockQuery.mockResolvedValueOnce(q));
     const res = await request(buildAdminApp())
       .post(`/api/admin/restaurant-topups/topups/${TOPUP_ID}/clawback`)
@@ -1066,6 +1084,7 @@ describe('POST /api/admin/restaurant-topups/topups/:topupId/clawback', () => {
 
   test('the top-up row itself is left untouched by the clawback', async () => {
     const { queries } = clawbackQueries({ balanceCents: 8000 });
+    queueGateMocks();
     queries.forEach((q) => mockQuery.mockResolvedValueOnce(q));
     await request(buildAdminApp())
       .post(`/api/admin/restaurant-topups/topups/${TOPUP_ID}/clawback`)

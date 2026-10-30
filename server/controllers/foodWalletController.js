@@ -776,6 +776,25 @@ exports.releaseCustomerWalletHold = async (req, res, next) => {
   }
 };
 
+// Pentest fix (recipient oracle): the transfer response used to echo the
+// recipient's full name and email, so any authenticated user could probe
+// arbitrary customer IDs/emails and learn who they belong to. The response
+// now carries only a masked confirmation: first name, last initial, and a
+// masked email. The sender already chose the recipient, so confirmation
+// UX is preserved without disclosing full PII for probed identities.
+function maskTransferEmail(email) {
+  const value = String(email || '');
+  const at = value.indexOf('@');
+  if (at <= 0) return '***';
+  return `${value[0]}***${value.slice(at)}`;
+}
+
+function maskTransferLastName(lastName) {
+  const value = String(lastName || '').trim();
+  if (!value) return '';
+  return `${value[0]}.`;
+}
+
 exports.createMyWalletTransfer = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -813,8 +832,8 @@ exports.createMyWalletTransfer = async (req, res, next) => {
       recipient: {
         id: recipient.id,
         firstName: recipient.first_name,
-        lastName: recipient.last_name,
-        email: recipient.email,
+        lastName: maskTransferLastName(recipient.last_name),
+        email: maskTransferEmail(recipient.email),
       },
       wallet: wallets[0] || null,
       replayed: result.replayed,

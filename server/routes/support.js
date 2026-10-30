@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireSupportBusinessAccess, scopeExempt } = require('../middleware/scopeGates');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const supportAgentsController = require('../controllers/supportAgentsController');
@@ -2120,7 +2121,7 @@ router.get('/:businessId/response-categories', requireSupportBusinessAccess('con
 // ============================================
 
 router.post('/:businessId/ai/message', conversationMessageLimiter, requireSupportBusinessAccess('conversations'), aiChatbotController.sendMessage);
-router.post('/:businessId/ai/drafts/:draftId/apply', conversationMessageLimiter, requireSupportBusinessAccess('conversations'), aiChatbotController.applyDraft);
+router.post('/:businessId/ai/drafts/:draftId/apply', conversationMessageLimiter, requireSupportBusinessAccess('conversations'), rejectImpersonated, aiChatbotController.applyDraft);
 router.post('/:businessId/ai/drafts/:draftId/discard', conversationMessageLimiter, requireSupportBusinessAccess('conversations'), aiChatbotController.discardDraft);
 router.post('/:businessId/ai/check-handoff', requireSupportBusinessAccess('conversations'), aiChatbotController.checkNeedsHandoff);
 router.get('/:businessId/ai/suggest-articles/:conversationId', requireSupportBusinessAccess('conversations'), aiChatbotController.suggestKBArticles);

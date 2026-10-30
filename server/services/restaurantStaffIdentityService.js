@@ -373,6 +373,47 @@ async function resolveStaffSession(req, restaurantId) {
     );
     return null;
   }
+  // Pentest fix: a revoked member's open sub-session must stop working,
+  // not survive until idle expiry or the absolute cap. Mirror the PIN
+  // validation membership rule: the business owner or an active member.
+  // Sessions with no staff user (device-bound, no user) have no membership
+  // to recheck and are left alone. A lookup error denies this request
+  // without ending the row, so a transient failure cannot destroy a valid
+  // session; a confirmed non-member ends the session.
+  if (session.staff_user_id != null) {
+    let isMember = false;
+    let lookupFailed = false;
+    try {
+      const { rows: [restaurantRow] } = await pool.query(
+        'SELECT business_id FROM food_restaurants WHERE id = $1',
+        [restaurantId]
+      );
+      if (restaurantRow) {
+        const { rows: memberRows } = await pool.query(
+          `SELECT 1 FROM businesses b
+             WHERE b.id = $1 AND b.user_id = $2
+            UNION ALL
+            SELECT 1 FROM business_members bm
+             WHERE bm.business_id = $1 AND bm.member_id = $2 AND bm.status = 'active'
+            LIMIT 1`,
+          [restaurantRow.business_id, session.staff_user_id]
+        );
+        isMember = memberRows.length > 0;
+      }
+    } catch (err) {
+      lookupFailed = true;
+    }
+    if (lookupFailed) return null;
+    if (!isMember) {
+      await pool.query(
+        `UPDATE restaurant_staff_sessions
+            SET ended_at = NOW(), end_reason = 'membership_revoked'
+          WHERE id = $1 AND ended_at IS NULL`,
+        [session.id]
+      );
+      return null;
+    }
+  }
   const metadata = safeJson(session.metadata, {});
   const idleMinutes = Number(metadata.idleMinutes) || DEFAULT_SESSION_IDLE_MINUTES;
   const maxHours = Number(metadata.maxHours) || DEFAULT_SESSION_MAX_HOURS;

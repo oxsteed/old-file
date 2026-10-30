@@ -202,18 +202,42 @@ function registerMoneyMovementExecutors() {
   });
 
   // ── affiliate_payout: affiliate Stripe Connect transfers
-  registerMoneyMovementExecutor('affiliate_payout', async ({ payload, approverId }) => {
+  registerMoneyMovementExecutor('affiliate_payout', async ({ approval, payload, approverId }) => {
     const affiliatePayoutsController = require('../controllers/affiliatePayoutsController');
     const updated = await affiliatePayoutsController.runAffiliatePayout({
       payoutId: payload.payoutId,
       adminId: approverId,
       req: null,
       skipDualApproval: true,
+      // Pentest fix (TOCTOU): bind the execution to the amount the maker
+      // queued. Approvals queued before expectedAmountCents existed fall
+      // back to the amount stored on the approval row itself.
+      expectedAmountCents: payload.expectedAmountCents != null
+        ? Number(payload.expectedAmountCents)
+        : (approval?.amount_cents != null ? Number(approval.amount_cents) : null),
     });
     return {
       payoutId: payload.payoutId,
       status: updated?.status || 'completed',
       transferId: updated?.payout_reference || null,
+    };
+  });
+
+  // ── restaurant_topup_clawback: chargeback debit of a succeeded top-up.
+  // The service debit is idempotent per top-up (the
+  // restaurant-topup-clawback idempotency key), so a retried executor
+  // after a crash cannot double-debit.
+  registerMoneyMovementExecutor('restaurant_topup_clawback', async ({ payload, approverId }) => {
+    const topupService = require('./restaurantTopupService');
+    const result = await topupService.clawbackTopup({
+      topupId: payload.topupId,
+      adminId: approverId,
+      reason: payload.reason || 'Chargeback clawback (dual-approved)',
+    });
+    return {
+      topupId: payload.topupId,
+      status: 'clawed_back',
+      clawback: result || null,
     };
   });
 
