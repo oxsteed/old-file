@@ -52,7 +52,13 @@ function validateProductFields(data, { partial = false } = {}) {
   for (const [field, url] of [['image_url', image_url], ['affiliate_url', affiliate_url]]) {
     if (url !== undefined && url !== null && url !== '' && typeof url === 'string') {
       try {
-        new URL(url);
+        // Mirror the partner-feed rule (feedParse.js): only https: URLs are
+        // acceptable, so a javascript: (or http:/data:) affiliate/image URL
+        // can never be stored and rendered as a raw link href.
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'https:') {
+          errors[field] = 'Invalid URL format';
+        }
       } catch {
         errors[field] = 'Invalid URL format';
       }
@@ -354,6 +360,7 @@ async function getProductStats(req, res) {
 }
 
 module.exports = {
+  validateProductFields,
   createProduct,
   updateProduct,
   deleteProduct,

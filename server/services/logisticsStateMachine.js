@@ -284,6 +284,37 @@ function getTransitionGuard(entityType, to) {
   return TRANSITION_GUARDS.get(guardKey(entityType, to)) || null;
 }
 
+// ─── TRANSITION COLUMN ALLOWLIST ──────────────────────────────────────
+// Frozen per-entity allowlist for every identifier applyTransition
+// interpolates into SQL from caller input (set keys, nowColumns entries,
+// appendNotes.column, idColumn). Table and statusColumn are NOT caller
+// input: they come from the frozen ENTITIES map above. Any identifier
+// outside this list throws before a transaction opens (fail closed), so a
+// future caller passing user-derived keys can never become SQL injection.
+// The list is exactly the union of columns used by the production callers
+// (purchaseOrderService, warehouseService, sourcingService,
+// pooledOrderService) and the state-machine tests; extend it deliberately
+// when a new legitimate column is introduced.
+const TRANSITION_COLUMN_ALLOWLIST = {
+  purchase_order: ['approved_by', 'approved_at', 'placed_with_supplier_at', 'internal_notes'],
+  shipment: [],
+  pooled_order: ['deposit_deadline'],
+  campaign_approval: [],
+  participant: [],
+  inventory_receipt: ['received_qty', 'shortage_qty', 'damaged_qty', 'storage_location', 'received_by', 'discrepancy_notes', 'received_at', 'reconciled_at'],
+  delivery_order: ['carrier', 'tracking_number', 'assigned_to', 'delivered_at', 'delivery_notes'],
+  inventory_allocation: ['released_by', 'released_at'],
+  sourcing_request: ['internal_notes'],
+  supplier_quote: ['reviewed_by', 'reviewed_at', 'notes'],
+};
+
+function assertTransitionColumn(entityType, column, role) {
+  const allowed = TRANSITION_COLUMN_ALLOWLIST[entityType] || [];
+  if (typeof column !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(column) || !allowed.includes(column)) {
+    throw new Error(`logisticsStateMachine: rejected ${role} column for ${entityType}: ${String(column)}`);
+  }
+}
+
 /**
  * Validate and apply a status transition atomically.
  *
@@ -314,6 +345,13 @@ async function applyTransition(db, {
     return { ok: false, reason: 'missing_target_status', entityType, id };
   }
   const { machine, table, statusColumn } = entity;
+  // Fail closed on any interpolated identifier outside the frozen allowlist
+  // before opening a transaction. Throws (programming error), never a 409.
+  for (const col of Object.keys(set || {})) assertTransitionColumn(entityType, col, 'set');
+  if (!Array.isArray(nowColumns)) throw new Error(`logisticsStateMachine: nowColumns must be an array for ${entityType}`);
+  for (const col of nowColumns) assertTransitionColumn(entityType, col, 'nowColumns');
+  if (appendNotes) assertTransitionColumn(entityType, appendNotes.column, 'appendNotes');
+  if (idColumn !== 'id') throw new Error(`logisticsStateMachine: rejected idColumn for ${entityType}: ${String(idColumn)}`);
   const client = await db.connect();
   try {
     await client.query('BEGIN');
