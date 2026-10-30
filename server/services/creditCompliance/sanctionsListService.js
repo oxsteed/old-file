@@ -27,6 +27,10 @@ const { withTransaction } = require('../../utils/transaction');
 const { normalizeName, nameSimilarity, jaroWinkler, tokens } = require('./nameMatching');
 const parsers = require('./sanctions/parsers');
 const { insertComplianceAudit } = require('./audit');
+// SSRF-safe fetcher (spec 13.3): HTTPS only, no credentials, no
+// non-default port, every DNS answer must be globally routable with the
+// address pinned against rebind, redirects re-validated per hop.
+const { fetchFeed } = require('../../growth/partners/feedFetch');
 
 const MATCH_THRESHOLD = () => {
   const v = Number(process.env.OXSTEED_SANCTIONS_MATCH_THRESHOLD || '0.88');
@@ -56,23 +60,22 @@ function parseFor(format, primary, aux) {
 }
 
 async function download(url) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      redirect: 'follow',
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OxSteedCompliance/1.0; +https://oxsteed.com)', Accept: '*/*' },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status} from ${new URL(url).host}`);
-    const length = Number(res.headers.get('content-length') || 0);
-    if (length > MAX_DOWNLOAD_BYTES) throw new Error('List download too large');
-    const body = await res.text();
-    if (body.length > MAX_DOWNLOAD_BYTES) throw new Error('List download too large');
-    return body;
-  } finally {
-    clearTimeout(timer);
-  }
+  // Route through the SSRF-safe fetcher instead of bare fetch with
+  // redirect:follow: a compromised list host could previously redirect to
+  // an internal address (for example cloud metadata). The fetcher pins the
+  // source host as the only allowed host, so a cross-host redirect now
+  // fails the refresh (recorded by refreshSource, and screening fails
+  // closed on stale sources per this module's safety properties) instead
+  // of being followed. Timeout and size caps are preserved.
+  const host = new URL(url).hostname;
+  const { body } = await fetchFeed(url, {
+    allowedHosts: [host],
+    maxBytes: MAX_DOWNLOAD_BYTES,
+    timeoutMs: FETCH_TIMEOUT_MS,
+  });
+  const text = body.toString('utf8');
+  if (text.length > MAX_DOWNLOAD_BYTES) throw new Error('List download too large');
+  return text;
 }
 
 async function getSource(client, sourceId) {

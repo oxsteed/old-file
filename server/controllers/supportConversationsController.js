@@ -2067,7 +2067,12 @@ async function addMessage(req, res) {
     let storedAttachmentName = attachment.name;
     if (req.file) {
       uploadedKey = await uploadFile(req.file.buffer, 'support-conversations', req.file.originalname, req.file.mimetype);
-      storedAttachmentUrl = await getSignedDownloadUrl(uploadedKey, 7 * 24 * 60 * 60);
+      // 1-hour mint, matching every other signed-URL mint in the codebase.
+      // The 7-day mint made the stored URL a week-long bearer token that
+      // outlived the 24-hour guest conversation session. Full re-mint on
+      // read (store the key, mint per authorized reader) is a follow-up:
+      // read paths return the stored URL verbatim today.
+      storedAttachmentUrl = await getSignedDownloadUrl(uploadedKey, 3600);
       storedAttachmentName = req.file.originalname;
     }
 
