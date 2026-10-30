@@ -1,0 +1,181 @@
+/* Animated OxSteed brand mark. All motion is transform/opacity only, so it
+   stays cheap to run. Two timelines share one drawing:
+   - .ox-anim--pulse (default): quiet 2.4s heartbeat for loading states.
+   - .ox-anim--full: 5s brand moment. Hammer taps the pulse origin, the x
+     flashes light blue on impact, then the double-beat pulse travels. */
+
+.ox-anim__orbit { animation: ox-anim-spin 26s linear infinite; transform-origin: 120px 120px; }
+.ox-anim__orbit-rev { animation: ox-anim-spin-rev 34s linear infinite; transform-origin: 120px 120px; }
+@keyframes ox-anim-spin { to { transform: rotate(360deg); } }
+@keyframes ox-anim-spin-rev { to { transform: rotate(-360deg); } }
+
+/* Quiet heartbeat: draw, hold, fade, repeat. */
+.ox-anim--pulse .ox-anim__pulse {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: ox-anim-beat-quiet 2.4s ease-in-out infinite;
+}
+@keyframes ox-anim-beat-quiet {
+  0% { stroke-dashoffset: 200; opacity: 0; }
+  8% { opacity: 1; }
+  42% { stroke-dashoffset: 0; opacity: 1; }
+  62% { stroke-dashoffset: 0; opacity: 1; }
+  78% { stroke-dashoffset: 0; opacity: 0; }
+  100% { stroke-dashoffset: 200; opacity: 0; }
+}
+.ox-anim--pulse { animation: ox-anim-breathe 2.4s ease-in-out infinite; }
+@keyframes ox-anim-breathe {
+  0%, 100% { transform: scale(1); }
+  12% { transform: scale(1.025); }
+  24% { transform: scale(1); }
+  36% { transform: scale(1.015); }
+  48%, 100% { transform: scale(1); }
+}
+
+/* The pulse variant never strikes, so the impact dot and rings stay hidden. */
+.ox-anim--pulse .ox-anim__shake,
+.ox-anim--pulse .ox-anim__kick,
+.ox-anim--pulse .ox-anim__kick-rev,
+.ox-anim--pulse .ox-anim__ripple,
+.ox-anim--pulse .ox-anim__flash,
+.ox-anim--pulse .ox-anim__echo,
+.ox-anim--pulse .ox-anim__glow-o,
+.ox-anim--pulse .ox-anim__glow-x,
+.ox-anim--pulse .ox-anim__glow-s,
+.ox-anim--pulse .ox-anim__x-hit { animation: none; }
+.ox-anim--pulse .ox-anim__glow-o,
+.ox-anim--pulse .ox-anim__glow-x,
+.ox-anim--pulse .ox-anim__glow-s,
+.ox-anim--pulse .ox-anim__flash,
+.ox-anim--pulse .ox-anim__ripple,
+.ox-anim--pulse .ox-anim__echo { opacity: 0; }
+
+/* Full brand moment: 5s loop, strike at 15%. */
+.ox-anim--full .ox-anim__shake { animation: ox-anim-shake 5s ease-in-out infinite; }
+@keyframes ox-anim-shake {
+  0%, 14%, 24%, 100% { transform: translate(0, 0); }
+  15.5% { transform: translate(-2px, 1px); }
+  17.5% { transform: translate(2px, -1px); }
+  19.5% { transform: translate(-1px, 0); }
+  21.5% { transform: translate(1px, 1px); }
+}
+.ox-anim--full .ox-anim__hammer {
+  transform-box: view-box;
+  transform-origin: 18px 200px;
+  animation: ox-anim-tap 5s ease-in-out infinite;
+}
+@keyframes ox-anim-tap {
+  0% { transform: rotate(-42deg) translate(-8px, 10px); opacity: 0; }
+  6% { opacity: 1; }
+  15% { transform: rotate(0deg) translate(0, 0); opacity: 1; }
+  20% { transform: rotate(-14deg) translate(0, 0); opacity: 1; }
+  28% { transform: rotate(-42deg) translate(-8px, 10px); opacity: 1; }
+  34%, 100% { transform: rotate(-42deg) translate(-8px, 10px); opacity: 0; }
+}
+.ox-anim--full .ox-anim__flash {
+  transform-box: view-box;
+  transform-origin: 62px 146px;
+  animation: ox-anim-flash 5s ease-out infinite;
+}
+@keyframes ox-anim-flash {
+  0%, 14% { transform: scale(0.4); opacity: 0; }
+  15% { transform: scale(1); opacity: 0.95; }
+  26% { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.ox-anim--full .ox-anim__ripple {
+  transform-box: view-box;
+  transform-origin: 62px 146px;
+  animation: ox-anim-ripple 5s ease-out infinite;
+}
+@keyframes ox-anim-ripple {
+  0%, 15% { transform: scale(0.6); opacity: 0; }
+  17% { opacity: 0.7; }
+  40% { transform: scale(2.4); opacity: 0; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.ox-anim--full .ox-anim__kick {
+  transform-box: view-box;
+  transform-origin: 120px 120px;
+  animation: ox-anim-kick 5s ease-in-out infinite;
+}
+@keyframes ox-anim-kick {
+  0%, 14% { transform: rotate(0deg); }
+  19% { transform: rotate(30deg); }
+  32%, 100% { transform: rotate(0deg); }
+}
+.ox-anim--full .ox-anim__kick-rev {
+  transform-box: view-box;
+  transform-origin: 120px 120px;
+  animation: ox-anim-kick-rev 5s ease-in-out infinite;
+}
+@keyframes ox-anim-kick-rev {
+  0%, 14% { transform: rotate(0deg); }
+  19% { transform: rotate(-30deg); }
+  32%, 100% { transform: rotate(0deg); }
+}
+.ox-anim--full .ox-anim__pulse {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: ox-anim-beat 5s ease-in-out infinite;
+}
+@keyframes ox-anim-beat {
+  0%, 24% { stroke-dashoffset: 200; opacity: 0; }
+  28% { opacity: 1; }
+  48% { stroke-dashoffset: 0; opacity: 1; }
+  62% { stroke-dashoffset: 0; opacity: 1; }
+  74% { stroke-dashoffset: 0; opacity: 0; }
+  100% { stroke-dashoffset: 200; opacity: 0; }
+}
+.ox-anim--full .ox-anim__glow-o { animation: ox-anim-glow-o 5s ease-in-out infinite; opacity: 0; }
+@keyframes ox-anim-glow-o { 0%, 31% { opacity: 0; } 35% { opacity: 0.95; } 41%, 100% { opacity: 0; } }
+.ox-anim--full .ox-anim__glow-x { animation: ox-anim-glow-x 5s ease-in-out infinite; opacity: 0; }
+@keyframes ox-anim-glow-x { 0%, 36% { opacity: 0; } 40% { opacity: 0.95; } 46%, 100% { opacity: 0; } }
+.ox-anim--full .ox-anim__glow-s { animation: ox-anim-glow-s 5s ease-in-out infinite; opacity: 0; }
+@keyframes ox-anim-glow-s { 0%, 41% { opacity: 0; } 45% { opacity: 0.95; } 51%, 100% { opacity: 0; } }
+.ox-anim--full .ox-anim__x-hit { animation: ox-anim-x-hit 5s ease-in-out infinite; }
+@keyframes ox-anim-x-hit {
+  0%, 14% { fill: #ffffff; }
+  15.5% { fill: #8ec9ff; }
+  22%, 100% { fill: #ffffff; }
+}
+.ox-anim--full .ox-anim__echo {
+  transform-box: view-box;
+  transform-origin: 120px 120px;
+  animation: ox-anim-echo 5s ease-out infinite;
+}
+@keyframes ox-anim-echo {
+  0%, 30% { transform: scale(1); opacity: 0; }
+  32% { opacity: 0.45; }
+  60% { transform: scale(1.22); opacity: 0; }
+  100% { transform: scale(1.22); opacity: 0; }
+}
+
+/* Reduced motion: the still logo, pulse line fully drawn, no hammer. */
+@media (prefers-reduced-motion: reduce) {
+  .ox-anim--pulse,
+  .ox-anim__orbit,
+  .ox-anim__orbit-rev,
+  .ox-anim__shake,
+  .ox-anim__hammer,
+  .ox-anim__flash,
+  .ox-anim__ripple,
+  .ox-anim__kick,
+  .ox-anim__kick-rev,
+  .ox-anim__pulse,
+  .ox-anim__glow-o,
+  .ox-anim__glow-x,
+  .ox-anim__glow-s,
+  .ox-anim__x-hit,
+  .ox-anim__echo { animation: none !important; }
+  .ox-anim__hammer,
+  .ox-anim__flash,
+  .ox-anim__ripple,
+  .ox-anim__echo { display: none; }
+  /* Same specificity as the variant rules above, so the still line stays drawn. */
+  .ox-anim--pulse .ox-anim__pulse,
+  .ox-anim--full .ox-anim__pulse { stroke-dashoffset: 0; opacity: 1; }
+  .ox-anim__glow-o,
+  .ox-anim__glow-x,
+  .ox-anim__glow-s { opacity: 0; }
+}
