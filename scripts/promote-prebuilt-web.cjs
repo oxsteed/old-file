@@ -1,0 +1,90 @@
+'use strict';
+// Download only an immutable image receipt from the verified release workflow.
+// Production receives a prebuilt image; Coolify's image buildpack cannot compile source.
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+const { REPOSITORY, BRANCH, ghJson, verifyCommit } = require('./verify-web-release.cjs');
+const APPLICATION = 'sqbntzhvwhbbywhs9prfhw51';
+const IMAGE = 'ghcr.io/oxsteed/old-file-web';
+function command(program, args, input, timeout = 120000) {
+  try { return execFileSync(program, args, { input, encoding:'utf8',timeout,stdio:['pipe','pipe','pipe'] }).trim(); }
+  catch { throw new Error(`${program} operation failed; credentials and response bodies were omitted.`); }
+}
+const docker = args => command('docker',['--context','colima',...args],undefined,600000);
+function validateReceipt(receipt, run) {
+  if(run.status!=='completed'||run.conclusion!=='success'||run.head_branch!==BRANCH
+    ||run.path!=='.github/workflows/web-image.yml'||!['workflow_run','workflow_dispatch'].includes(run.event)
+    ||receipt.runId!==String(run.id)||receipt.image!==IMAGE||receipt.architecture!=='arm64'
+    ||!/^[a-f0-9]{40}$/.test(receipt.gitSha)||!/^sha256:[a-f0-9]{64}$/.test(receipt.digest)) {
+    throw new Error('Unverified release workflow or image receipt.');
+  }
+  return receipt;
+}
+function controller(code) {
+  const encoded=Buffer.from(String.raw`
+    $a=App\Models\Application::where('uuid','sqbntzhvwhbbywhs9prfhw51')->firstOrFail();
+    if($a->git_branch!=='old-files-claude'||$a->settings->is_auto_deploy_enabled||$a->settings->is_consistent_container_name_enabled||count($a->ports_mappings_array)>0)throw new RuntimeException('Unsafe deployment target');
+  `+code+String.raw`echo 'OXSTEED_RESULT:'.json_encode($result);`).toString('base64');
+  const output=docker(['exec','coolify','php','artisan','tinker','--execute',`eval(base64_decode('${encoded}'));`]);
+  const match=/OXSTEED_RESULT:(.*)/.exec(output);
+  if(!match)throw new Error('Controller did not return a release receipt.');
+  return JSON.parse(match[1]);
+}
+async function ready(sha,imageId) {
+  try {
+    const response=await fetch('https://oxsteed.com/ready',{signal:AbortSignal.timeout(8000),headers:{'cache-control':'no-cache'}});
+    const result=await response.json();
+    return response.ok&&result.status==='ready'&&result.releaseMetadata?.gitSha===sha
+      &&(!imageId||result.releaseMetadata?.imageDigest===imageId);
+  } catch {return false;}
+}
+async function promote(runId,{redeploy=false}={}) {
+  if(!/^\d+$/.test(String(runId)))throw new Error('A numeric workflow run ID is required.');
+  const run=ghJson(['api',`repos/${REPOSITORY}/actions/runs/${runId}`]);
+  // Validate the workflow before downloading any artifact.
+  if(run.status!=='completed'||run.conclusion!=='success'||run.path!=='.github/workflows/web-image.yml'||run.head_branch!==BRANCH)throw new Error('Image workflow has not succeeded.');
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'oxsteed-image-'));
+  try {
+    command('gh',['run','download',String(runId),'--repo',REPOSITORY,'--name','web-image-receipt','--dir',directory]);
+    const file=path.join(directory,'web-image-receipt.json');
+    if(fs.readdirSync(directory).length!==1||fs.statSync(file).size>4096)throw new Error('Unexpected image receipt artifact.');
+    const receipt=validateReceipt(JSON.parse(fs.readFileSync(file)),run);
+    const latest=ghJson(['api',`repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha;
+    if(receipt.gitSha!==latest)return {status:'waiting_for_current_default_branch_image',gitSha:receipt.gitSha};
+    verifyCommit(receipt.gitSha);
+    const current=controller(String.raw`$result=['buildPack'=>$a->build_pack,'image'=>$a->docker_registry_image_name,'tag'=>$a->docker_registry_image_tag];`);
+    if(!redeploy&&current.buildPack==='dockerimage'&&current.image===APPLICATION&&current.tag===receipt.gitSha&&await ready(receipt.gitSha))return {status:'already_current',gitSha:receipt.gitSha};
+    // The existing gh login has read:packages. The token stays inside this child
+    // process and Docker's credential helper, never in logs or a command argument.
+    const token=execFileSync('gh',['auth','token'],{stdio:['ignore','pipe','pipe']});
+    try {command('docker',['--context','colima','login','ghcr.io','-u','oxsteed','--password-stdin'],token);} finally {token.fill(0);}
+    const reference=`${IMAGE}@${receipt.digest}`;
+    docker(['pull','--platform','linux/arm64',reference]);
+    const info=JSON.parse(docker(['image','inspect',reference,'--format','{"id":{{json .Id}},"architecture":{{json .Architecture}},"revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}},"digests":{{json .RepoDigests}}}']));
+    if(info.architecture!=='arm64'||info.revision!==receipt.gitSha||!info.digests.includes(reference))throw new Error('Pulled image identity differs from the verified release.');
+    docker(['tag',reference,`${APPLICATION}:${receipt.gitSha}`]);
+    const queued=controller(String.raw`
+      if($a->health_check_path!=='/ready'||App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists())throw new RuntimeException('Health or active deployment conflict');
+      $a->update(['build_pack'=>'dockerimage','docker_registry_image_name'=>'${APPLICATION}','docker_registry_image_tag'=>'${receipt.gitSha}','git_commit_sha'=>'${receipt.gitSha}']);
+      $uuid=new_public_id();queue_application_deployment(application:$a,deployment_uuid:$uuid,commit:'${receipt.gitSha}',force_rebuild:false);
+      $result=['deployment'=>$uuid];
+    `);
+    if(!/^[a-z0-9]{1,64}$/.test(queued.deployment))throw new Error('Invalid deployment receipt.');
+    const deadline=Date.now()+600000;
+    while(Date.now()<deadline){
+      const state=controller(String.raw`$q=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->where('deployment_uuid','${queued.deployment}')->firstOrFail();$result=['status'=>$q->status];`);
+      if(['failed','cancelled-by-user'].includes(state.status))throw new Error(`Replacement ${queued.deployment} was ${state.status}; inspect the retained working release.`);
+      if(state.status==='finished'&&await ready(receipt.gitSha,info.id))return {status:'finished',gitSha:receipt.gitSha,imageDigest:receipt.digest,imageId:info.id,deployment:queued.deployment,runId:String(runId)};
+      await new Promise(resolve=>setTimeout(resolve,5000));
+    }
+    throw new Error('Replacement observation timed out; inspect its exact deployment before retrying.');
+  } finally {fs.rmSync(directory,{recursive:true,force:true});}
+}
+if(require.main===module){
+  const args=process.argv.slice(2);
+  if(args.length<2||args[0]!=='--run'||args.some((a,i)=>i>1&&a!=='--redeploy')){console.error('Use --run <verified-image-run-id> [--redeploy]');process.exitCode=1;}
+  else promote(args[1],{redeploy:args.includes('--redeploy')}).then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(e.message);process.exitCode=1;});
+}
+module.exports={validateReceipt,promote};

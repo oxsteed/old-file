@@ -1,43 +1,53 @@
-# Build isolation for the production Colima VM
+# Prebuilt images for uninterrupted web replacements
 
-The web app staying healthy in Docker did not guarantee availability: building
-its replacement on the same 5.8 GiB VM caused readiness connection timeouts and
-proxy 503s. Deployment `2bquy7ey4jv83myydwjivi1t` was cancelled during its full
-image build after the public probe recorded failures. The working container was
-retained. This failed observation is preserved in the deployment evidence.
+Production is an 8 GiB Mac with a roughly 5.8 GiB Colima VM. The old web app
+remaining healthy did not guarantee availability: compilation on that same VM
+caused readiness database timeouts and delegated-worker observation timeouts.
+A dedicated builder capped at one CPU, 2,300 MiB RAM, and one build step reduced
+contention, but did not pass acceptance: deployment `ssfwefxfcliir0zvfe5oauca`
+recorded nine failed requests across 1,093 samples. Preserve those failed results.
+Its old browser document still navigated successfully and live updates reconnected
+in about one second. Resource caps alone are not the production solution.
 
-Coolify's Dockerfile build now uses `BUILDX_BUILDER=oxsteed-web-bounded` as a
-build-only variable. The docker-container builder has a 2,300 MiB memory limit,
-no extra swap, one CPU quota, low CPU shares, and one concurrent build step.
-Default image loading leaves the result in the existing Colima engine for
-Coolify to promote after readiness succeeds. Production runtime variables,
-worker ownership, app volumes and source/CI gates retain their existing roles.
+## Release path
 
-Docker documents the explicit builder selection and container resource controls:
-[builder selection](https://docs.docker.com/build/builders/),
-[container driver](https://docs.docker.com/build/builders/drivers/docker-container/).
+`Verified web image` builds native ARM64 images on GitHub's ARM runner, after the
+four required CI jobs pass. Only a successful default-branch CI event or an
+explicit default-branch workflow dispatch can publish. A dispatch verifies the
+commit's checks or its exact merged PR's checks. No fork workflow receives
+package credentials. Runtime secrets are never passed to the image build; the
+four public Vite settings use separately configured repository build secrets.
 
-Read-only verification:
-
-```sh
-node scripts/provision-coolify-build-isolation.cjs --check
-```
-
-Idempotent provisioning for this exact web resource:
+The image workflow publishes `ghcr.io/oxsteed/old-file-web` and a receipt containing
+its immutable manifest digest, source commit, architecture and workflow ID.
+The package can remain private; the existing host gh login has read:packages.
 
 ```sh
-node scripts/provision-coolify-build-isolation.cjs --provision
+gh workflow run web-image.yml --repo oxsteed/old-file --ref old-files-claude
+node scripts/promote-prebuilt-web.cjs --run <successful-image-workflow-id>
 ```
 
-The provisioner refuses conflicting limits or application settings. It uses the
-installed helper image and the controller's existing `/root/.docker/buildx`
-metadata mount, adding a separate BuildKit cache volume. Preserve that builder
-metadata/cache across host maintenance. It never recreates application storage.
-The current controller source was checked to export build-only variables before
-invoking `docker build`; recheck that behavior after a Coolify upgrade.
+Promotion verifies the workflow, artifact receipt, current default branch,
+required CI checks, pulled image digest, ARM64 architecture and OCI revision.
+Only then does it select Coolify's image buildpack and queue a rolling web
+replacement. The image is loaded under the existing application's local image
+name, so no registry credential is copied to Coolify and no production source
+build can occur. The old release stays serving until the candidate passes
+`/ready`. The script waits for the exact queue result and public runtime identity.
+It refuses a conflicting deployment or an older source commit.
 
-Build limits may cause a large candidate to fail rather than consuming all VM
-resources. Such failure must retain the current release. Increase capacity or
-move builds to a separate builder if the bounded build cannot succeed; disabling
-the limits is not an acceptance fix. Measured production success/rejection
-verification is still required after enabling this configuration.
+`--redeploy` explicitly repeats the current verified image for continuity
+rehearsals. Normal invocation skips an already-current healthy release.
+The old combined runtime continues owning background jobs, database/Redis,
+uploads and persistent retained browser assets. Schema/background releases
+remain coordinated separately; a web image cannot migrate production storage.
+
+Independent Coolify push triggers remain disabled. Automatic promotion ownership
+must use this verified-image path rather than re-enabling source compilation.
+A failed remote build/pull never queues a replacement. Keep image receipts and
+prior known-good images for diagnosis and recovery.
+
+Docker documents [explicit builder selection](https://docs.docker.com/build/builders/)
+and [container builder limits](https://docs.docker.com/build/builders/drivers/docker-container/).
+The installed Coolify controller was also inspected to verify that the image
+buildpack invokes rolling promotion without its source build method.

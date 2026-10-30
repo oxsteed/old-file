@@ -3,7 +3,7 @@
 This runbook is intentionally short and action-oriented.
 
 ## CI or deployment failed
-1. Check build isolation with `node scripts/provision-coolify-build-isolation.cjs --check`; see `docs/deployment-build-isolation.md` if source builds affect live traffic.
+1. Use the verified prebuilt-image path in `docs/deployment-build-isolation.md`; source compilation on the production VM has caused live traffic failures.
 2. Open the failed Actions job: verification failure and deployment failure are
    different incidents. Fix the first failed check before retrying publication.
 3. For Coolify HTTP 404, verify the live instance, application UUID, and token
