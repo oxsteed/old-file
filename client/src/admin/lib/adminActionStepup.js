@@ -9,8 +9,8 @@ function csrfHeaders() {
   return token ? { 'X-CSRF-Token': token } : {};
 }
 
-export async function collectAdminActionStepup(api, endpoint, t) {
-  const { data } = await api.post(endpoint, {}, { headers: csrfHeaders() });
+export async function collectAdminActionStepup(api, endpoint, t, body = {}) {
+  const { data } = await api.post(endpoint, body, { headers: csrfHeaders() });
   const code = window.prompt(t('adminOpsAudit.stepupPrompt'));
   if (!code?.trim()) throw new Error(t('adminOpsAudit.stepupRequired'));
   return { stepupChallengeId: data.challenge.id, stepupCode: code.trim() };

@@ -29,6 +29,29 @@ router.get('/schedule', requireAuth, PayoutController.getPayouts);
 router.get('/:payout_id', requireAuth, PayoutController.getPayout);
 router.get('/stats/payout', requireAuth, PayoutController.getPayoutStats);
 
+// Auth audit item 6: the payout's payable amount for step-up binding
+// (the same canonical figure the gate uses). A missing row skips binding;
+// the controller reports it with its own error. Note: no issue endpoint
+// exists for affiliate_payout_process today, so this step-up cannot
+// currently be satisfied through any supported path; binding the verify
+// side is still correct and harmless, and adding an issue endpoint would
+// enable a currently-dead money route, which is a product decision, not
+// this fix's call. A pre-read failure also skips binding (never a new
+// error); the controller re-reads the row under its own handling.
+async function resolveAffiliateStepupAmount(req) {
+  try {
+    const pool = require('../db');
+    const { affiliatePayableCents } = require('../utils/affiliatePayableCents');
+    const { rows } = await pool.query('SELECT * FROM affiliate_payouts WHERE id = $1', [req.params.payout_id]);
+    if (!rows.length) return null;
+    const n = Number(affiliatePayableCents(rows[0]));
+    return Number.isSafeInteger(n) && n > 0 ? n : null;
+  } catch (preReadError) {
+    require('../utils/logger').warn('payoutRoutes.process stepup pre-read failed, skipping amount binding', { payoutId: req.params.payout_id, error: preReadError.message });
+    return null;
+  }
+}
+
 // Process Payout (Admin Route)
 // C9: any authenticated user must NOT reach this. Admin plus the financials
 // grant (the catalogue scope that covers payouts), rate-limited, and the
@@ -48,11 +71,14 @@ router.post(
   strictLimiter,
   async (req, res, next) => {
     try {
+      // Auth audit item 6: bind to the payout's payable amount.
+      const affiliateExpectedAmount = await resolveAffiliateStepupAmount(req);
       await verifyStepupChallenge({
         challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
         actorUserId: req.user?.id || null,
         actionType: 'affiliate_payout_process',
         code: req.body?.stepupCode || req.body?.stepup_code,
+        ...(affiliateExpectedAmount !== null ? { expectedAmountCents: affiliateExpectedAmount } : {}),
       });
       return PayoutController.processPayout(req, res);
     } catch (err) {

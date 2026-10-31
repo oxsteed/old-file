@@ -50,6 +50,8 @@ async function requestWithdrawal(req, res, next) {
         actorUserId: req.user.id,
         actionType: 'withdrawal',
         code: req.body?.stepupCode || req.body?.stepup_code,
+        // Auth audit item 6: bind to the parsed withdrawal amount.
+        expectedAmountCents: amountCents,
       });
     }
     const result = await withdrawalService.requestWithdrawal({
@@ -115,6 +117,8 @@ async function createRestaurantConversion(req, res, next) {
         actorUserId: req.user.id,
         actionType: 'restaurant_conversion',
         code: req.body?.stepupCode || req.body?.stepup_code,
+        // Auth audit item 6: bind to the parsed conversion amount.
+        expectedAmountCents: amountCents,
       });
     }
     const params = {

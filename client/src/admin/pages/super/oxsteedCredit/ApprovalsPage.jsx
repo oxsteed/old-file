@@ -99,6 +99,11 @@ function PendingActionQueue({ busy, setBusy, setNotice, setError, requestDialog,
       const amount = payloadAmountCents(action);
       const response = await adminApi.post('/admin/super/oxsteed-credit/stepup-challenges', {
         actionType: 'pending_action_approve',
+        // Auth audit item 6: the server resolves the amount from the
+        // stored action (settlement net_cents, withdrawal row amount)
+        // when this id is present, so issue and verify agree even for
+        // actions whose payload carries no amount.
+        pendingActionId: action.id,
         amountCents: amount === null ? undefined : amount,
         currencyCode: payloadCurrencyCode(action),
       });

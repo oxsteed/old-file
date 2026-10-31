@@ -357,12 +357,42 @@ async function verifyTotpPresentation(client, { challenge, actorUserId, code }) 
  * challenge is consumed (single-use). Wrong attempts are counted and the
  * challenge burns at the attempt limit. TOTP-method challenges verify the
  * code against the actor's authenticator instead of an emailed code hash.
+ *
+ * Amount binding (auth audit item 6): when the caller passes
+ * expectedAmountCents, the challenge must have been issued for exactly
+ * that amount (within amountToleranceCents, default 0). A mismatch fails
+ * closed WITHOUT consuming the challenge or counting an attempt: a
+ * wrong-amount challenge is a caller mismatch, not a failed
+ * authentication, and burning it would let anyone holding a challenge id
+ * destroy the legitimate owner's proof. Callers omit expectedAmountCents
+ * only when the action carries no single acted-on amount (settings
+ * approvals, compliance decisions, eligibility decisions, rail/card
+ * controls); every money-moving caller passes the amount it is about to
+ * move, resolved from the same source of truth the issue side used.
+ * No tolerance case exists in the current flows: every bound site
+ * resolves the same record at issue and verify time (or re-validates
+ * the client-supplied amount exactly), so tolerance stays 0 unless a
+ * future flow documents a fee/quote that legitimately moves the amount.
  */
-async function verifyStepupChallenge({ challengeId, actorUserId, actionType, code }) {
+async function verifyStepupChallenge({ challengeId, actorUserId, actionType, code, expectedAmountCents, amountToleranceCents }) {
   const normalizedId = normalizeString(challengeId, 64);
   const normalizedCode = normalizeString(code, 32);
   if (!normalizedId || !normalizedCode) {
     throw new AppError('A step-up verification code is required for this action', 403, 'credit_stepup_challenge_required');
+  }
+  let expectedAmount = null;
+  if (expectedAmountCents !== undefined && expectedAmountCents !== null) {
+    expectedAmount = Number(expectedAmountCents);
+    if (!Number.isSafeInteger(expectedAmount) || expectedAmount <= 0) {
+      throw new AppError('Expected step-up amount must be a positive integer number of cents', 400, 'credit_stepup_amount_invalid');
+    }
+  }
+  let tolerance = 0;
+  if (amountToleranceCents !== undefined && amountToleranceCents !== null) {
+    tolerance = Number(amountToleranceCents);
+    if (!Number.isSafeInteger(tolerance) || tolerance < 0) {
+      throw new AppError('Step-up amount tolerance must be a non-negative integer number of cents', 400, 'credit_stepup_amount_invalid');
+    }
   }
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(
@@ -375,6 +405,9 @@ async function verifyStepupChallenge({ challengeId, actorUserId, actionType, cod
     }
     if (String(challenge.actor_user_id) !== String(actorUserId) || challenge.action_type !== actionType) {
       throw new AppError('Verification challenge does not match this action', 403, 'credit_stepup_challenge_invalid');
+    }
+    if (expectedAmount !== null && Math.abs(Number(challenge.amount_cents) - expectedAmount) > tolerance) {
+      throw new AppError('Verification challenge was not issued for this amount', 403, 'credit_stepup_amount_mismatch');
     }
     if (challenge.consumed_at) {
       throw new AppError('Verification challenge was already used', 403, 'credit_stepup_challenge_invalid');

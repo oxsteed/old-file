@@ -116,6 +116,10 @@ describe('ADM-074: issueManualRefund preserves operational error codes', () => {
 
 describe('ADM-112: issueManualRefund requires fresh step-up', () => {
   test('fails closed when the step-up challenge is invalid', async () => {
+    // Auth audit item 6: the handler reads the payment before verifying
+    // so the challenge can be bound to the refund amount; queue the row
+    // so the flow reaches the (rejecting) verify.
+    mockQuery.mockResolvedValueOnce({ rows: [paymentRow] });
     verifyStepupChallenge.mockRejectedValue(new AppError('Invalid or expired challenge', 401, 'stepup_invalid'));
     const res = mockRes();
     await ctrl.issueManualRefund(refundReq(), res);
@@ -128,13 +132,16 @@ describe('ADM-112: issueManualRefund requires fresh step-up', () => {
   });
 
   test('issueRefundStepupChallenge issues a manual_refund challenge', async () => {
+    // Auth audit item 6: the issue endpoint binds the challenge to the
+    // job's captured amount, so it needs the job id and the payment row.
+    mockQuery.mockResolvedValueOnce({ rows: [paymentRow] });
     issueStepupChallenge.mockResolvedValue({
-      challenge: { id: 'ch-9', actionType: 'manual_refund', amountCents: 1, currencyCode: 'USD', expiresAt: 'x' },
+      challenge: { id: 'ch-9', actionType: 'manual_refund', amountCents: 2500, currencyCode: 'USD', expiresAt: 'x' },
       delivery: { channel: 'email' },
     });
     const res = mockRes();
     const next = jest.fn();
-    await ctrl.issueRefundStepupChallenge({ user: { id: ADMIN_ID, email: 'a@b.c' } }, res, next);
+    await ctrl.issueRefundStepupChallenge({ user: { id: ADMIN_ID, email: 'a@b.c' }, body: { jobId: 'job-1' } }, res, next);
     expect(issueStepupChallenge).toHaveBeenCalledWith(expect.objectContaining({
       actorUserId: ADMIN_ID,
       actionType: 'manual_refund',
