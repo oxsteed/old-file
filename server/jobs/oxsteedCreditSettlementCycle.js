@@ -26,7 +26,7 @@ const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const incidentStore = require('../services/incidentStore');
-const { withFencedJobLock } = require('./jobLockingService');
+const { withFencedJobLock, LeaseLostError } = require('./jobLockingService');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 const { isCreditRailEnabled } = require('../services/oxsteedCreditService');
 const {
@@ -344,6 +344,12 @@ async function runCycle(cycle, fence = null) {
     try {
       settlements.push(await settlePartnerForCycle(cycleRow, { partnerId: pair.partner_id, currencyCode: pair.currency_code }, fence));
     } catch (error) {
+      // Lease loss aborts the run early: remaining partners are not
+      // attempted, and withFencedJobLock converts the propagation into a
+      // { fenced: true } run outcome with zero post-loss writes. Every
+      // other partner error keeps the old behavior (recorded, rest
+      // attempted, cycle marked failed at completion).
+      if (error instanceof LeaseLostError) throw error;
       logger.error('OxSteed Credit settlement cycle failed for partner', {
         cycleId: cycleRow.id, partnerId: pair.partner_id, currencyCode: pair.currency_code, error: error.message, code: error.code,
       });
@@ -549,7 +555,15 @@ async function runOxsteedCreditSettlementCycle({ now = new Date(), runReserveMon
   const weeklyWeekday = parseWeeklyWeekday();
   let locked = false;
   let outcome = null;
-  await withFencedJobLock(JOB_NAME, async (fence) => {
+  // The lock helper converts a LeaseLostError propagation into
+  // { fenced: true } instead of a crash. Surface that as the run's
+  // outcome: without this the fenced abort would come back as a bare
+  // { locked: true } with no record of why the run stopped. The
+  // heartbeat record inside the callback is skipped on this path by
+  // design (telemetry for a run the worker no longer owns would inflate
+  // consecutive failures); the fenced flag plus the lock helper's
+  // warning log is the abort's record.
+  const lockOutcome = await withFencedJobLock(JOB_NAME, async (fence) => {
     fence.assertActive(); // E03: abort the run if the job lease was lost
     locked = true;
     const cycles = planCycles(now, weeklyWeekday);
@@ -584,6 +598,10 @@ async function runOxsteedCreditSettlementCycle({ now = new Date(), runReserveMon
     });
     outcome = { cycles: results, reserveMonitor };
   });
+  // Fenced first: the callback may throw before setting `locked` (lease
+  // lost between acquire and start), and that is a fenced abort, not a
+  // lock-contention skip.
+  if (lockOutcome && lockOutcome.fenced) return { locked: true, fenced: true };
   if (!locked) return { locked: false, skipped: 'lock_not_acquired' };
   return { locked: true, ...outcome };
 }

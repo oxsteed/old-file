@@ -192,6 +192,8 @@ function makeCycleMock({
   payableReserveRead = {},
   overlapOnCreate = false,
   redriveCycles = [],
+  leaseLostAfterSettlementInserts = null,
+  settlementErrorOnInsert = null,
 } = {}) {
   const calls = { settlementInserts: [], fundingInserts: [], incidents: [], heartbeats: 0 };
   const agreement = existingAgreement || agreementRow({ status: 'active' });
@@ -201,6 +203,11 @@ function makeCycleMock({
   // pending_approval. Transition updates are detected by their version
   // increment: the job's two transitions raise version 2 then 3.
   let transitionReads = 0;
+  // Abort-early knobs: once the lease is lost, the verification SELECT
+  // returns no rows, which is exactly what the real fencedTransaction sees
+  // (it then flips the fence flag and throws LeaseLostError).
+  let leaseLost = false;
+  let settlementInsertAttempts = 0;
 
   const mock = jest.fn(async (text, params = []) => {
     const sql = String(text);
@@ -213,8 +220,11 @@ function makeCycleMock({
     // Q1: fenced service transactions re-verify the lease row inside the
     // transaction. The cycle holds its lock throughout these tests, so the
     // verification row is present. (Refusal when the row is gone is covered
-    // by oxsteedCreditServiceLeaseFencing.test.js.)
-    if (sql.includes('FROM cron_job_locks WHERE lock_id')) return { rows: [{ '1': 1 }] };
+    // by oxsteedCreditServiceLeaseFencing.test.js.) The abort-early knob
+    // drops the row once the configured settlement count is reached.
+    if (sql.includes('FROM cron_job_locks WHERE lock_id')) {
+      return leaseLost ? { rows: [] } : { rows: [{ '1': 1 }] };
+    }
     if (sql.includes('INSERT INTO oxsteed_credit_settlement_cycles')) {
       if (existingCycleStatus) return { rows: [] };
       return { rows: [cycleRow()] };
@@ -306,7 +316,14 @@ function makeCycleMock({
         conflict.details = { settlementId: 'existing-1', status: 'approved' };
         throw conflict;
       }
+      settlementInsertAttempts += 1;
+      if (settlementErrorOnInsert === settlementInsertAttempts) {
+        throw new Error('settlement insert failed (test knob)');
+      }
       calls.settlementInserts.push(params);
+      if (leaseLostAfterSettlementInserts !== null && calls.settlementInserts.length === leaseLostAfterSettlementInserts) {
+        leaseLost = true;
+      }
       return { rows: [settlementRow()] };
     }
     return { rows: [] };
@@ -546,6 +563,67 @@ describe('settlement cycle job', () => {
     await runOxsteedCreditSettlementCycle({ now: new Date('2026-10-01T12:00:00Z') });
     expect(calls.settlementInserts).toHaveLength(0);
     expect(calls.incidents.length).toBeGreaterThan(0);
+  });
+
+  test('lease loss mid-run aborts early with a fenced outcome and zero post-loss writes', async () => {
+    const { mock, calls } = makeCycleMock({
+      activity: [
+        { partner_id: PARTNER_ID, currency_code: CURRENCY },
+        { partner_id: PARTNER_ID + 1, currency_code: CURRENCY },
+        { partner_id: PARTNER_ID + 2, currency_code: CURRENCY },
+      ],
+      leaseLostAfterSettlementInserts: 1,
+    });
+    const result = await runOxsteedCreditSettlementCycle({ now: new Date('2026-10-01T12:00:00Z') });
+    // The run ends fenced, not failed and not crashed.
+    expect(result).toEqual({ locked: true, fenced: true });
+    // Only the first partner settled; the second partner's fenced service
+    // call refused, and the third partner's flow never started (a single
+    // agreement insert proves no later agreement flow ran).
+    expect(calls.settlementInserts).toHaveLength(1);
+    expect(calls.settlementInserts[0][0]).toBe(PARTNER_ID);
+    expect(mock.mock.calls.filter(([text]) => String(text).includes('INSERT INTO oxsteed_credit_partner_agreements'))).toHaveLength(1);
+    // The aborted cycle records no completion outcome: the run no longer
+    // owns it, so it must not mark it completed or failed.
+    expect(mock.mock.calls.filter(([text, params]) => (
+      String(text).includes('UPDATE oxsteed_credit_settlement_cycles') && params.length === 3
+    ))).toHaveLength(0);
+    // The lock is released and no heartbeat is recorded for a run the
+    // worker no longer owns; the fenced flag is the abort's record.
+    expect(mock).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM cron_job_locks'), expect.anything());
+    expect(calls.heartbeats).toBe(0);
+  });
+
+  test('a non-lease partner error still attempts the remaining partners', async () => {
+    // An already-active agreement keeps every partner off the draft ->
+    // pending_approval -> active chain: the mock's transition-read counter
+    // is shared across agreement flows in one run, so provisioning three
+    // agreements here would trip the optimistic-concurrency guard (the
+    // same workaround the re-drive test uses).
+    const { mock, calls } = makeCycleMock({
+      activity: [
+        { partner_id: PARTNER_ID, currency_code: CURRENCY },
+        { partner_id: PARTNER_ID + 1, currency_code: CURRENCY },
+        { partner_id: PARTNER_ID + 2, currency_code: CURRENCY },
+      ],
+      activeAgreement: agreementRow({ status: 'active' }),
+      settlementErrorOnInsert: 2,
+    });
+    const result = await runOxsteedCreditSettlementCycle({ now: new Date('2026-10-01T12:00:00Z') });
+    expect(result.fenced).toBeUndefined();
+    expect(result.cycles[0].status).toBe('failed');
+    expect(result.cycles[0].errors).toHaveLength(1);
+    // Partners 1 and 3 settled; only partner 2's insert failed.
+    expect(calls.settlementInserts).toHaveLength(2);
+    expect(calls.settlementInserts.map((params) => params[0])).toEqual([PARTNER_ID, PARTNER_ID + 2]);
+    // The completion write still runs and marks the cycle failed.
+    const finalUpdate = mock.mock.calls.find(([text, params]) => (
+      String(text).includes('UPDATE oxsteed_credit_settlement_cycles') && params.length === 3
+    ));
+    expect(finalUpdate).toBeTruthy();
+    expect(finalUpdate[1][1]).toBe('failed');
+    expect(JSON.parse(finalUpdate[1][2]).error_count).toBe(1);
+    expect(calls.heartbeats).toBe(1);
   });
 });
 
