@@ -972,6 +972,14 @@ async function startServer() {
   }
   // Licence readiness: Credit limits are data (per currency / country).
   // Load them before serving; money paths fail closed (503) until loaded.
+  // Money-flows audit D2 (documented divergence window, not a behavior
+  // change): unlike the statement-export and auxiliary workers, which
+  // only run when runsBackgroundWorkers(), this refresh runs in every
+  // process, including web. Web and background processes therefore hold
+  // their own in-memory rule snapshots from the same database, and a
+  // failed refresh in one process while the other succeeds leaves the
+  // two briefly deciding the same credit question against different
+  // snapshots. Money paths still fail closed until a refresh succeeds.
   try {
     const creditLimits = require('./services/creditCompliance/limitRules');
     await creditLimits.warmLimitRules();

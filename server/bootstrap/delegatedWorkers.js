@@ -2,6 +2,7 @@
 
 // Web replacements do not start job consumers. The existing background
 // runtime stays running on its private network throughout web promotion.
+const logger = require('../utils/logger');
 const runtimeState = require('../services/runtimeState');
 
 function backgroundReadinessUrl(value) {
@@ -31,6 +32,7 @@ class DelegatedWorkers {
     this.stopping = false;
     this.inFlight = null;
     this.timer = null;
+    this.lastOk = null;
   }
 
   async observe() {
@@ -38,6 +40,7 @@ class DelegatedWorkers {
     if (this.inFlight) return this.inFlight;
     this.inFlight = (async () => {
       let ok = false;
+      let failed = false;
       try {
         const response = await this.fetch(this.url, { redirect: 'error', signal: AbortSignal.timeout(this.timeoutMs) });
         if (response.ok) {
@@ -46,7 +49,15 @@ class DelegatedWorkers {
           ok = result.status === 'ready' && result.checks?.workers?.ok === true
             && [undefined, 'combined'].includes(result.checks.workers.mode);
         }
-      } catch { /* A private dependency failure must not expose its URL/body. */ }
+      } catch {
+        // Money-flows audit D1: observation failures were silent on the
+        // web side. Warn, but never log the URL or response body: fetch
+        // errors can embed the private endpoint.
+        failed = true;
+      }
+      if (failed) logger.warn('Background readiness observation failed');
+      if (this.lastOk === true && !ok) logger.warn('Background runtime no longer ready');
+      this.lastOk = ok;
       if (!this.stopping) runtimeState.update({ workersReady: ok, workerMode: 'delegated' });
       return ok;
     })();

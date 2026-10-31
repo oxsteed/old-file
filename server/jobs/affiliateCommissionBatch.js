@@ -9,6 +9,45 @@ const { withFencedJobLock } = require('./jobLockingService');
  */
 const JOB_NAME = 'affiliate-commission-batch';
 
+/**
+ * Money-flows audit item 44: commission math must be exact integer-cent
+ * math. commission_rate is DECIMAL(5,2) percent, so it converts exactly to
+ * basis points, and sale cents are integers, so the product is exact and
+ * the half-up rounding matches the old Math.round behavior for positive
+ * amounts without float error. The old float formula mis-rounds real
+ * cases: 5000 cents at 99.99% is exactly 4999.5 (half-up 5000), but
+ * float64 computes 4999.499999999999 and rounds down to 4999.
+ * Inputs arrive from pg as strings (BIGINT/NUMERIC) or numbers; both are
+ * accepted. Anything else fails closed (the caller's per-row catch logs
+ * and skips that row).
+ */
+function commissionCentsForSale(saleAmountCents, commissionRate) {
+  let sale;
+  if (typeof saleAmountCents === 'bigint') {
+    sale = saleAmountCents;
+  } else if (typeof saleAmountCents === 'number' && Number.isInteger(saleAmountCents)) {
+    sale = BigInt(saleAmountCents);
+  } else if (typeof saleAmountCents === 'string' && /^\d+$/.test(saleAmountCents.trim())) {
+    sale = BigInt(saleAmountCents.trim());
+  } else {
+    throw new Error('Commission sale amount must be a non-negative integer number of cents');
+  }
+  if (sale < 0n) {
+    throw new Error('Commission sale amount must be a non-negative integer number of cents');
+  }
+  const rateText = String(commissionRate ?? '').trim();
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(rateText);
+  if (!match) {
+    throw new Error('Commission rate must be a non-negative percent with at most two decimals');
+  }
+  const basisPoints = BigInt(match[1]) * 100n + BigInt((match[2] || '').padEnd(2, '0') || '0');
+  const commission = (sale * basisPoints + 5000n) / 10000n;
+  if (commission > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error('Commission exceeds the safe integer range');
+  }
+  return Number(commission);
+}
+
 // Review P3-870: one runner at a time across restarts and replicas (the
 // post-boot run used to overlap the daily run); the unique index from
 // migration 771 is the backstop.
@@ -73,7 +112,7 @@ async function runAffiliateCommissionBatch() {
 
     for (const row of commissionsToProcess.rows) {
       try {
-        const commissionCents = Math.round(row.sale_amount * (row.commission_rate / 100));
+        const commissionCents = commissionCentsForSale(row.sale_amount, row.commission_rate);
 
         // Create commission record
         if (row.affiliate_program_id) {
@@ -171,6 +210,7 @@ function startAffiliateCommissionBatchJob() {
 
 module.exports = {
   JOB_NAME,
+  commissionCentsForSale,
   processAffiliateCommissionBatch,
   runAffiliateCommissionBatch,
   startAffiliateCommissionBatchJob
