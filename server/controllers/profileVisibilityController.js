@@ -22,6 +22,7 @@ const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
 const { getActiveWork } = require('../services/profileVisibilityActiveWork');
 const { withTransaction } = require('../utils/transaction');
+const { csvCell } = require('../utils/csv');
 
 const PROFILE_TYPES = ['helper', 'business', 'restaurant'];
 const REASONS = ['incomplete_profile', 'non_compliance', 'admin_decision', 'other'];
@@ -1106,11 +1107,6 @@ exports.cancelScheduledAction = async (req, res) => {
   }
 };
 
-function csvEscape(value) {
-  const s = value === null || value === undefined ? '' : String(value);
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
 // ─── GET /api/admin/profile-visibility/export ────────────────────────────────
 // Same directory CTE and filters as search, but without pagination: capped at
 // 5000 rows and returned as CSV for the "export all pages" control.
@@ -1142,13 +1138,13 @@ exports.exportAllProfiles = async (req, res) => {
     const lines = ['Type,Name,Detail,Visibility,Owner status,Reason'];
     for (const r of rows.slice(0, 5000)) {
       lines.push([
-        csvEscape(r.profile_type),
-        csvEscape(r.display_name),
-        csvEscape(r.detail),
+        r.profile_type,
+        r.display_name,
+        r.detail,
         r.is_visible ? 'Visible' : 'Hidden',
         r.owner_visible ? 'Listed' : 'Unlisted',
-        csvEscape(r.hidden_reason),
-      ].join(','));
+        r.hidden_reason,
+      ].map(csvCell).join(','));
     }
     const csv = lines.join('\r\n') + '\r\n';
 
