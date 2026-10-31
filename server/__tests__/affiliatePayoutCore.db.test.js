@@ -218,6 +218,51 @@ dbDescribe('newer affiliate payout core against the real database', () => {
     );
     expect(audit).toBeDefined();
     expect(audit.admin_id).toBe(adminId);
+    // Bigint target support: the row must carry the payout id in the
+    // typed target_bigint column, not only in the free-form target_key.
+    // target_id stays NULL (payout ids are bigserials, never UUIDs), and
+    // the legacy target_key behavior is unchanged.
+    expect(String(audit.target_bigint)).toBe(String(payout.id));
+    expect(audit.target_id).toBeNull();
+    expect(audit.target_key).toBe(String(payout.id));
+  });
+
+  test('UUID-target audit rows still write target_id with a NULL bigint target', async () => {
+    const { logAdminAction } = require('../services/auditService');
+    const adminId = await makeUser({ role: 'admin' });
+    const subjectId = crypto.randomUUID();
+    await logAdminAction({
+      adminId,
+      action: 'synthetic_uuid_target_probe',
+      targetType: 'user',
+      targetId: subjectId,
+    });
+    const { rows: [row] } = await pool.query(
+      `SELECT * FROM admin_audit_log WHERE action = 'synthetic_uuid_target_probe' AND admin_id = $1`,
+      [adminId]
+    );
+    expect(row).toBeDefined();
+    expect(row.target_id).toBe(subjectId);
+    expect(row.target_bigint).toBeNull();
+    expect(row.target_key).toBeNull();
+  });
+
+  test('numeric bigint targets (dual-approval executor path passes numbers) write target_bigint', async () => {
+    const { logAdminAction } = require('../services/auditService');
+    const adminId = await makeUser({ role: 'admin' });
+    await logAdminAction({
+      adminId,
+      action: 'synthetic_bigint_target_probe',
+      targetType: 'affiliate_payout',
+      targetBigint: 987654321,
+    });
+    const { rows: [row] } = await pool.query(
+      `SELECT * FROM admin_audit_log WHERE action = 'synthetic_bigint_target_probe' AND admin_id = $1`,
+      [adminId]
+    );
+    expect(row).toBeDefined();
+    expect(String(row.target_bigint)).toBe('987654321');
+    expect(row.target_id).toBeNull();
   });
 
   test('above-threshold payout queues for dual approval and moves nothing', async () => {

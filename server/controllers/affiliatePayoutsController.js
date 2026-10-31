@@ -565,6 +565,9 @@ async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = f
         action: 'affiliate_payout_processed',
         targetType: 'affiliate_payout',
         targetId: payoutId,
+        // Payout ids are bigserials, never UUIDs: without this the row
+        // lands with target_id NULL and audit-by-target queries miss it.
+        targetBigint: payoutId,
         description: `Affiliate payout ${payoutId} transferred via Stripe (${transfer.id})`,
         before: { status: payout.status },
         after: { status: 'completed', transferId: transfer.id, amountCents, destination: connect.stripe_account_id },
