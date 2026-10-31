@@ -417,7 +417,7 @@ async function redriveSkippedSettlements({ fence = null, excludeCycleIds = [] } 
     const remaining = [];
     for (const pair of skipped) {
       try {
-        const outcome = await settlePartnerForCycle(cycleRow, { partnerId: pair.partnerId, currencyCode: pair.currencyCode });
+        const outcome = await settlePartnerForCycle(cycleRow, { partnerId: pair.partnerId, currencyCode: pair.currencyCode }, fence);
         if (outcome.status === 'created' || outcome.status === 'replayed') {
           summary.redriven += 1;
         } else if (outcome.status === 'skipped' && outcome.reason === 'period_already_covered') {
