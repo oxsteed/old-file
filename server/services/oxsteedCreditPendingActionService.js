@@ -745,6 +745,35 @@ async function decidePendingActionCore({ actionId, decidedBy, decision, reason, 
         correlationId: correlationId || null,
       });
     }
+    // Item 43: refunds are re-evaluated at checker time too, with sanctions
+    // + identity-tier checks only. The stored refund payload carries no
+    // customerId, so a naive gate would 400 every queued refund; resolve
+    // the customer + currency from the original purchase instead, with the
+    // same join refundCreditInTransaction uses (read-only here; the
+    // executor re-resolves under lock). No issuance-capacity check: a
+    // refund reduces outstanding credit, so that check would deny refunds
+    // for customers near a cap.
+    if (action.action_type === 'credit_refund') {
+      const { rows: purchaseRows } = await client.query(
+        `SELECT ca.customer_id, t.currency_code
+           FROM oxsteed_credit_transactions t
+           JOIN oxsteed_credit_accounts ca ON ca.id = t.debit_account_id
+          WHERE t.id = $1 AND t.transaction_type = 'purchase' AND t.status = 'posted'`,
+        [storedPayload.purchaseTransactionId]
+      );
+      const purchase = purchaseRows[0];
+      if (!purchase) throw new AppError('Original credit purchase not found', 404, 'credit_purchase_not_found');
+      await evaluateFundingCompliance({
+        customerId: purchase.customer_id,
+        amountCents: storedPayload.amountCents,
+        currencyCode: purchase.currency_code,
+        fundingMethod: 'admin_refund',
+        actorUserId: decidedBy,
+        requestIp: requestIp || null,
+        correlationId: correlationId || null,
+        skipIssuanceCapacity: true,
+      });
+    }
     const executionResult = await executor({
       client,
       payload: storedPayload,
