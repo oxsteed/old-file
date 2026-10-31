@@ -318,4 +318,5 @@ function supportsRegionScope(builtList) {
 module.exports = {
   ANCHORS, PASS_THROUGH, normalizeBoundary, locationInRegionsSql, referencedTables,
   applyRegionScope, regionScopedDb, supportsRegionScope, userAnchoredTables, userCountryBreakdown,
+  JOB_LOC,
 };
