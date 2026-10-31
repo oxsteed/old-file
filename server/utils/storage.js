@@ -419,6 +419,35 @@ function normalizeStoredPublicUrl(value) {
   return key && isPublicKeyAllowed(key) ? getPublicUrl(key) : value;
 }
 
+// Support-URL re-mint (rec track 6): recover the storage key behind a stored
+// attachment reference so the read path can mint a fresh short-lived signed
+// URL instead of serving the stored URL as-is. Accepted forms, in order:
+//   private://<key>            the convention other attachment tables use
+//   */api/storage/files/<key>  this codebase's own local signed-download
+//                              route, relative or behind the app base URL
+//   an absolute URL on this app's configured S3 endpoint/bucket (delegated
+//   to knownObjectKeyFromUrl, which only trusts those hosts)
+// Anything else returns null: the caller fails closed (no link) rather than
+// serving a stored URL or guessing a key. normalizeKey rejects '..' escapes,
+// so a crafted reference cannot smuggle a path traversal into the mint.
+function extractKeyFromStoredUrl(stored) {
+  const raw = String(stored || '').trim();
+  if (!raw) return null;
+  if (raw.startsWith('private://')) return normalizeKey(raw.slice('private://'.length));
+  const marker = '/api/storage/files/';
+  const idx = raw.indexOf(marker);
+  if (idx !== -1) {
+    const remainder = raw.slice(idx + marker.length).split('?')[0].split('#')[0];
+    if (!remainder) return null;
+    try {
+      return normalizeKey(remainder.split('/').map(decodeURIComponent).join('/'));
+    } catch {
+      return null;
+    }
+  }
+  return knownObjectKeyFromUrl(raw);
+}
+
 function verifyLocalDownloadSignature(key, exp, sig) {
   const normalized = normalizeKey(key);
   const expiry = Number.parseInt(String(exp || ''), 10);
@@ -500,6 +529,7 @@ module.exports = {
   getPublicUrl,
   normalizeStoredPublicUrl,
   knownObjectKeyFromUrl,
+  extractKeyFromStoredUrl,
   resolveLocalStoragePath,
   getObjectStream,
   downloadObjectToFile,

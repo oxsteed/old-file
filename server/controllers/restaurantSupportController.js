@@ -13,7 +13,7 @@ async function caseFilter(restaurant,userId,params,alias='rsc') {
 const permissionsService = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 const { processExternalRefund } = require('../services/externalRefundService');
-const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, deleteFile, extractKeyFromStoredUrl } = require('../utils/storage');
 const logger = require('../utils/logger');
 
 const ISSUE_TYPES = new Set([
@@ -353,13 +353,34 @@ async function getCaseDetails(client, supportCase, view = 'customer') {
       ORDER BY created_at ASC, id ASC`,
     [supportCase.id, internalAllowed]
   );
-  const { rows: attachments } = await client.query(
+  const { rows: attachmentRows } = await client.query(
     `SELECT *
        FROM restaurant_support_case_attachments
       WHERE case_id = $1
       ORDER BY created_at ASC, id ASC`,
     [supportCase.id]
   );
+  // Support-URL re-mint on read: never serve the stored URL as-is. The URL
+  // minted at upload lived 7 days, so a leaked link stayed usable for a
+  // week. Mint a fresh 900s URL per read (the dispute-evidence precedent)
+  // from the stored key, or from a key recovered from a legacy stored URL.
+  // A signing failure or an unrecoverable key fails closed with no link:
+  // never the stored URL, never an unsigned fallback. This single change
+  // point covers the customer, restaurant, and admin case views, which all
+  // read through here.
+  const attachments = await Promise.all(attachmentRows.map(async (row) => {
+    const key = row.file_key || extractKeyFromStoredUrl(row.file_url);
+    if (!key) {
+      logger.warn('Support attachment has no recoverable storage key; link withheld', { attachmentId: row.id });
+      return { ...row, file_url: null };
+    }
+    try {
+      return { ...row, file_url: await getSignedDownloadUrl(key, 900) };
+    } catch (error) {
+      logger.warn('Failed to sign support attachment URL; link withheld', { attachmentId: row.id, error: error.message });
+      return { ...row, file_url: null };
+    }
+  }));
   let events = [];
   if (internalAllowed) {
     const result = await client.query(
@@ -655,19 +676,25 @@ exports.addAttachment = async (req, res, next) => {
     if (!uploadedKey) {
       throw new AppError('Validation failed', 400, 'validation_failed', { file: 'The file could not be stored' });
     }
-    const fileUrl = await getSignedDownloadUrl(uploadedKey, 7 * 24 * 60 * 60);
+    // Support-URL re-mint on read: store the key, not a long-lived signed
+    // URL. file_url holds the private:// key reference (the convention the
+    // dispute-evidence and business-message attachment tables already use);
+    // the read path mints a fresh short-lived URL per read. The upload
+    // response still carries a usable fresh URL, minted here for this
+    // response only and never stored.
     const result = await withTransaction(pool, async (client) => {
       // Authorize inside the same transaction as the insert.
       const supportCase = await assertCaseCustomer(client, caseId, req.user.id);
       const { rows: [attachment] } = await client.query(
         `INSERT INTO restaurant_support_case_attachments
-           (case_id, uploaded_by_user_id, file_url, file_type, file_name, file_size, attachment_type)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+           (case_id, uploaded_by_user_id, file_key, file_url, file_type, file_name, file_size, attachment_type)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          RETURNING *`,
         [
           supportCase.id,
           req.user.id,
-          fileUrl,
+          uploadedKey,
+          `private://${uploadedKey}`,
           normalizeString(req.file.detectedMime || req.file.mimetype, 120),
           normalizeString(req.file.originalname, 255),
           Number.isSafeInteger(req.file.size) ? req.file.size : null,
@@ -682,7 +709,14 @@ exports.addAttachment = async (req, res, next) => {
       });
       return attachment;
     }, 'restaurant_support_attachment');
-    res.status(201).json({ attachment: result });
+    let responseAttachment = result;
+    try {
+      responseAttachment = { ...result, file_url: await getSignedDownloadUrl(uploadedKey, 900) };
+    } catch (error) {
+      logger.warn('Failed to sign new support attachment URL for upload response', { attachmentId: result.id, error: error.message });
+      responseAttachment = { ...result, file_url: null };
+    }
+    res.status(201).json({ attachment: responseAttachment });
   } catch (err) {
     if (uploadedKey) {
       await deleteFile(uploadedKey).catch((cleanupError) => {
