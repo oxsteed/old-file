@@ -110,7 +110,7 @@ exports.cancelJobAsAgent = async (req, res, next) => {
 
     let result;
     try {
-      result = await cancelJobTransaction({ jobId, actorId: adminId, actorKind: 'admin', reason });
+      result = await cancelJobTransaction({ jobId, actorId: adminId, actorKind: 'admin', reason, req });
     } catch (err) {
       // Race-safe idempotency: a concurrent agent (or the user) may have won
       // the row between our fast-path check and the guarded UPDATE. Re-check

@@ -118,7 +118,7 @@ exports.getDisputeDetail = async (req, res) => {
 // escrow. When the refund is queued for dual approval (or accepted for
 // provider reconciliation), the dispute is left unresolved and the outcome
 // carries the pending state for the caller to map to HTTP.
-async function executeDisputeResolution({ disputeId, resolution, refundCents, notes, adminId, paymentId, dualApproval, skipDualApproval }) {
+async function executeDisputeResolution({ disputeId, resolution, refundCents, notes, adminId, paymentId, dualApproval, skipDualApproval, req = null }) {
   const refundResolution = [DISPUTE_RESOLUTIONS.REFUND_CUSTOMER, DISPUTE_RESOLUTIONS.CUSTOMER_WINS,
     DISPUTE_RESOLUTIONS.SPLIT_RESOLUTION].includes(resolution);
 
@@ -165,6 +165,7 @@ async function executeDisputeResolution({ disputeId, resolution, refundCents, no
           actorUserId: adminId,
           requestId: `dispute-refund-${disputeId}-${refundCents}`,
           allowOpenDisputeId: disputeId,
+          req,
           // ADM-016: above-threshold refunds queue for a second admin
           // instead of firing here. skipDualApproval is set on the
           // executor's re-run.
@@ -386,6 +387,7 @@ exports.resolveDispute = async (req, res) => {
       notes,
       adminId,
       paymentId: disputePaymentId,
+      req,
       dualApproval: refundResolution ? {
         movementType: 'dispute_refund',
         referenceKey: `dispute:${disputeId}`,

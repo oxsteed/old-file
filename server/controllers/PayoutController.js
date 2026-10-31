@@ -19,6 +19,7 @@ class PayoutController {
         newValue: `${methodType}:${methodId}`,
         ipAddress: req?.ip || null,
         notes: `self-service: ${detail}`,
+        impersonatedBy: req?.impersonatedBy || null,
       });
     } catch (auditErr) {
       logger.error('Failed to audit payout destination change', { userId, methodId, error: auditErr.message });

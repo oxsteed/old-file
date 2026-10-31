@@ -173,6 +173,7 @@ exports.reviewReport = async (req, res, next) => {
             actorId: adminId,
             actorKind: 'admin',
             reason: 'Removed by moderation',
+            req,
           });
         }
       }
