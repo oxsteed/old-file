@@ -31,6 +31,9 @@ const { fileTypeFromBuffer } = require('file-type');
 const fileScanService = require('../services/fileScanService');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { stripExif } = require('../utils/stripExif');
+// Canonical grant predicate (audit item 7): direct grants PLUS delegation
+// grants with grantor-standing verification.
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 const MAX_IMAGE_PIXELS = 40_000_000;
 
@@ -159,35 +162,13 @@ async function getPublicRestaurant(restaurantId) {
 
 // Inline moderate_content grant check for routes that run under the regular
 // customer `authenticate` middleware (so requirePermission is not available).
-// Super-admins always pass.
+// Super-admins always pass (callers check req.isSuperAdmin first).
+// Delegates to the canonical hasGlobalGrant: the former local query omitted
+// grantor standing, so a demoted grantor's delegation still authorized
+// moderation. The shared predicate verifies grantor is_active, deleted_at,
+// and admin/super_admin role.
 async function userCanModerateContent(userId) {
-  const { rows } = await pool.query(
-    `SELECT 1
-       FROM admin_permission_grants
-      WHERE grantee_id = $1
-        AND permissions ? 'moderate_content'
-        AND expires_at > NOW()
-        AND revoked_at IS NULL
-        AND region_id IS NULL
-      UNION
-      SELECT 1
-        FROM delegation_grants d
-        JOIN users grantor ON grantor.id = d.grantor_admin_id
-        LEFT JOIN admin_permission_grants grantor_grant
-          ON grantor_grant.grantee_id = d.grantor_admin_id
-         AND grantor_grant.permissions ? 'moderate_content'
-         AND grantor_grant.expires_at > NOW()
-         AND grantor_grant.revoked_at IS NULL
-         AND grantor_grant.region_id IS NULL
-       WHERE d.grantee_admin_id = $1
-         AND d.scopes @> ARRAY['moderate_content']::text[]
-         AND d.status = 'active'
-         AND d.expires_at > NOW()
-         AND (grantor.role = 'super_admin' OR grantor_grant.id IS NOT NULL)
-      LIMIT 1`,
-    [userId]
-  );
-  return rows.length > 0;
+  return hasGlobalGrant(userId, 'moderate_content');
 }
 
 // ── GET /api/restaurants/:restaurantId/media ──────────────────────────────────

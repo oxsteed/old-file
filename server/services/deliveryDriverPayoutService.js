@@ -61,7 +61,27 @@ function assertTransition(payout, nextStatus) {
 async function approvePayout(client, payoutId, approverUserId, note) {
   const payout = await getPayout(client, payoutId, { lock: true });
   assertTransition(payout, 'approved');
-  if (payout.status === 'approved') return payout;
+  if (payout.status === 'approved') {
+    // Audit item 8: legacy rows were approved before approver recording
+    // began, so they carry approved_by_user_id NULL and the mark-paid
+    // separation check cannot run. Re-approving such a row stamps the
+    // approver exactly once; a different operator must then mark it paid.
+    // Rows with a recorded approver stay an idempotent no-op.
+    if (payout.approved_by_user_id == null) {
+      const { rows: [updated] } = await client.query(
+        `UPDATE delivery_driver_payouts
+            SET approved_by_user_id = $2,
+                approved_at = NOW(),
+                updated_at = NOW()
+          WHERE id = $1 AND status = 'approved' AND approved_by_user_id IS NULL
+          RETURNING *`,
+        [payoutId, approverUserId]
+      );
+      if (!updated) fail('Payout status changed concurrently');
+      return updated;
+    }
+    return payout;
+  }
   const { rows: [updated] } = await client.query(
     `UPDATE delivery_driver_payouts
         SET status = 'approved',
@@ -88,12 +108,16 @@ async function markPayoutPaid(client, payoutId, payerUserId, paymentReference, n
     if (payout.payment_reference !== reference) fail('Payout already recorded with a different reference');
     return payout;
   }
-  // Pentest fix (separation of duties): the operator who approved a
-  // payout must not be the one who marks it paid. Approved status is only
-  // reachable through approvePayout, which always records the approver, so
-  // a null approver (legacy rows only) cannot be checked and is allowed.
-  if (payout.approved_by_user_id != null
-    && String(payout.approved_by_user_id) === String(payerUserId)) {
+  // Separation of duties: the operator who approved a payout must not be
+  // the one who marks it paid. Audit item 8 closes the legacy null-approver
+  // hole: a NULL approver now fails closed here. The row must be
+  // re-approved first (approvePayout stamps the approver), after which a
+  // different operator must mark it paid. No approver is ever invented:
+  // the stamped approver is the operator who actually re-approved.
+  if (payout.approved_by_user_id == null) {
+    fail('This payout was approved before approver recording began; re-approve it first so the approver is recorded', 'driver_payout_approver_unknown', 403);
+  }
+  if (String(payout.approved_by_user_id) === String(payerUserId)) {
     fail('The approving operator cannot also mark this payout paid', 'driver_payout_self_mark_paid', 403);
   }
   const { rows: [updated] } = await client.query(
