@@ -3,6 +3,7 @@ import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { AlertTriangle, Info, CheckCircle, RefreshCw, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import './HealthAlertsDashboard.css';
 
 const SEVERITY_CONFIG = {
   critical: { icon: AlertTriangle, color: '#ef4444', bg: '#ef444415', labelKey: 'healthAlertsDashboard.severity.critical' },
@@ -59,7 +60,7 @@ export function HealthAlertsDashboard({ businessId }) {
           </p>
         </div>
         <button onClick={generate} disabled={generating} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.6rem 1rem', cursor: 'pointer', color: 'var(--app-text)', fontSize: '0.875rem' }} data-track="ui.df2c7a827d.1">
-          <RefreshCw size={14} style={{ animation: generating ? 'spin 1s linear infinite' : 'none' }} /> {generating ? t('healthAlertsDashboard.scanning', 'Scanning...') : t('healthAlertsDashboard.scanNow', 'Scan Now')}
+          <RefreshCw size={14} style={{ animation: generating ? 'ox-health-spin 1s linear infinite' : 'none' }} /> {generating ? t('healthAlertsDashboard.scanning', 'Scanning...') : t('healthAlertsDashboard.scanNow', 'Scan Now')}
         </button>
       </div>
 
@@ -120,7 +121,6 @@ export function HealthAlertsDashboard({ businessId }) {
         </div>
       )}
 
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

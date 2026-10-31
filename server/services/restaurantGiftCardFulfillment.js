@@ -126,7 +126,7 @@ function readPayload(row) {
     throw new Error('Gift-card envelope mismatch');
   return payload;
 }
-function render(payload) {
+function render(payload, options = {}) {
   const copy = COPY[payload.language] || COPY.en;
   const amount = new Intl.NumberFormat(payload.language, {
     style: 'currency',
@@ -160,7 +160,7 @@ function render(payload) {
   return {
     subject: copy[0],
     text: lines.join('\n\n'),
-    html: `<!doctype html><html lang="${payload.language}" dir="${payload.language === 'ar' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><title>${escape(copy[1])}</title><style>body{font:20px system-ui;padding:2rem;max-width:36rem;margin:auto}code{display:block;font-size:28px;letter-spacing:.1em;margin:2rem 0;direction:ltr}small{display:block;margin-top:2rem}@media print{body{border:2px solid #222;break-inside:avoid}}</style></head><body><h1>${escape(payload.restaurantName)}</h1><h2>${escape(copy[1])} · ${escape(amount)}</h2><code>${escape(payload.code)}</code><p>${escape(payload.message)}</p>${payload.expiresAt ? `<p>${escape(new Date(payload.expiresAt).toISOString())}</p>` : ''}<p>${escape(copy[2])}</p><small>${escape(copy[3])}</small></body></html>`,
+    html: `<!doctype html><html lang="${payload.language}" dir="${payload.language === 'ar' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><title>${escape(copy[1])}</title><style${options.nonce ? ` nonce="${escape(options.nonce)}"` : ''}>body{font:20px system-ui;padding:2rem;max-width:36rem;margin:auto}code{display:block;font-size:28px;letter-spacing:.1em;margin:2rem 0;direction:ltr}small{display:block;margin-top:2rem}@media print{body{border:2px solid #222;break-inside:avoid}}</style></head><body><h1>${escape(payload.restaurantName)}</h1><h2>${escape(copy[1])} · ${escape(amount)}</h2><code>${escape(payload.code)}</code><p>${escape(payload.message)}</p>${payload.expiresAt ? `<p>${escape(new Date(payload.expiresAt).toISOString())}</p>` : ''}<p>${escape(copy[2])}</p><small>${escape(copy[3])}</small></body></html>`,
   };
 }
 async function create(client, { restaurant, result, input }) {
