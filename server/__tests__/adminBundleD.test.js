@@ -337,7 +337,9 @@ describe('ADM-093: business-launch export is server-side and audited', () => {
     expect(res.headers['content-type']).toMatch(/text\/csv/);
     expect(res.headers['content-disposition']).toMatch(/attachment/);
     const lines = res.text.split('\r\n');
-    expect(lines[0]).toBe('"Name","Email","Phone","Package","Country","State","Urgency","Status","Submitted"');
+    // Shared csvCell quotes only when needed (same as the other exporters);
+    // plain header cells are valid CSV unquoted.
+    expect(lines[0]).toBe('Name,Email,Phone,Package,Country,State,Urgency,Status,Submitted');
     expect(lines).toHaveLength(2);
     // Formula-injection neutralization: leading = is prefixed with a single quote
     expect(lines[1]).toMatch(/^"'=cmd/);
