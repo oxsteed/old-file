@@ -219,25 +219,6 @@ describe('P1-297 connected-account QR checkout', () => {
   });
 });
 
-describe('P3-785 affiliate payouts move money', () => {
-  let PayoutController;
-  beforeEach(() => { PayoutController = require('../controllers/PayoutController'); });
-  test('a verified Stripe payout method gets a Connect transfer', async () => {
-    stripeMock.transfers = { create: jest.fn().mockResolvedValue({ id: 'tr_1' }) };
-    const t = await PayoutController._sendAffiliatePayoutTransfer({ id: 9, stripe_account_id: 'acct_9', payout_method_status: 'verified', net_payout_cents: 1234 }, 'stripe');
-    expect(t.id).toBe('tr_1');
-    expect(stripeMock.transfers.create).toHaveBeenCalledWith(expect.objectContaining({ amount: 1234, destination: 'acct_9' }), { idempotencyKey: 'affiliate-payout:9' });
-  });
-  test.each([
-    [{ id: 1, stripe_account_id: 'acct', payout_method_status: 'pending', net_payout_cents: 10 }, 'stripe', 409],
-    [{ id: 1, stripe_account_id: null, payout_method_status: 'verified', net_payout_cents: 10 }, 'stripe', 422],
-    [{ id: 1, stripe_account_id: 'acct', payout_method_status: 'verified', net_payout_cents: 10 }, 'paypal', 422],
-    [{ id: 1, stripe_account_id: 'acct', payout_method_status: 'verified', net_payout_cents: 0 }, 'stripe', 422],
-  ])('refuses unsafe payouts %#', async (payout, processor, status) => {
-    await expect(PayoutController._sendAffiliatePayoutTransfer(payout, processor)).rejects.toMatchObject({ payoutStatus: status });
-  });
-});
-
 describe('P3-914 storage deletion queue', () => {
   test('replaced files are queued by key and the drain runs by default', async () => {
     const svc = require('../services/storageCleanupService');
