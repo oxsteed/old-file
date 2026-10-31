@@ -210,6 +210,11 @@ function makeCycleMock({
     }
     if (sql.includes('INSERT INTO cron_job_locks')) return { rows: [{ lock_id: 'job_lock:x' }] };
     if (sql.includes('DELETE FROM cron_job_locks')) return { rows: [] };
+    // Q1: fenced service transactions re-verify the lease row inside the
+    // transaction. The cycle holds its lock throughout these tests, so the
+    // verification row is present. (Refusal when the row is gone is covered
+    // by oxsteedCreditServiceLeaseFencing.test.js.)
+    if (sql.includes('FROM cron_job_locks WHERE lock_id')) return { rows: [{ '1': 1 }] };
     if (sql.includes('INSERT INTO oxsteed_credit_settlement_cycles')) {
       if (existingCycleStatus) return { rows: [] };
       return { rows: [cycleRow()] };

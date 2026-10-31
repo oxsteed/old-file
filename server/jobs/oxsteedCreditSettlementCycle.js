@@ -160,7 +160,7 @@ async function findPartnerStatus(partnerId) {
   return rows[0] || null;
 }
 
-async function ensureSettlementAgreement(partner, cycle) {
+async function ensureSettlementAgreement(partner, cycle, fence = null) {
   const existing = await findActiveAgreement(partner.id, cycle.periodStart, cycle.periodEnd);
   if (existing) return { agreementId: existing.id, created: false };
   // Deterministic idempotency key: a crashed run that created the draft but
@@ -173,6 +173,7 @@ async function ensureSettlementAgreement(partner, cycle) {
     idempotencyKey: `credit-settlement-cycle-agreement:${partner.id}`,
     actorUserId: CREDIT_SYSTEM_ACTOR,
     metadata: { source: 'settlement-cycle', cycle_type: cycle.cycleType },
+    fence,
   });
   // Idempotent replay: a crashed run that already activated the agreement
   // returns it as active; do not attempt a draft -> active transition.
@@ -187,6 +188,7 @@ async function ensureSettlementAgreement(partner, cycle) {
       expectedStatus: 'draft',
       reason: `Submitted by automated settlement cycle ${cycle.cycleType}`,
       actorUserId: CREDIT_SYSTEM_ACTOR,
+      fence,
     }));
   }
   if (current.status === 'pending_approval') {
@@ -196,6 +198,7 @@ async function ensureSettlementAgreement(partner, cycle) {
       expectedStatus: 'pending_approval',
       reason: `Activated by automated settlement cycle ${cycle.cycleType}`,
       actorUserId: CREDIT_SYSTEM_ACTOR,
+      fence,
     }));
   }
   if (current.status !== 'active') {
@@ -240,7 +243,7 @@ async function recordCycleWarning({ cycleRow, partnerId, currencyCode, message, 
   }
 }
 
-async function settlePartnerForCycle(cycleRow, { partnerId, currencyCode }) {
+async function settlePartnerForCycle(cycleRow, { partnerId, currencyCode }, fence = null) {
   const partner = await findPartnerStatus(partnerId);
   if (!partner) {
     await recordCycleWarning({ cycleRow, partnerId, currencyCode, message: 'Settlement cycle skipped partner with no credit partner row', details: {} });
@@ -270,7 +273,7 @@ async function settlePartnerForCycle(cycleRow, { partnerId, currencyCode }) {
     cycleType: cycleRow.cycle_type,
     periodStart: new Date(cycleRow.period_start),
     periodEnd: new Date(cycleRow.period_end),
-  });
+  }, fence);
   const settlementTotals = await computeSettlementTotals(partnerId, currencyCode, cycleRow.period_start, cycleRow.period_end);
   const valueDate = formatUtcDate(new Date(cycleRow.period_end));
   const settlementDate = formatUtcDate(nextBusinessDay(new Date(cycleRow.period_end)));
@@ -289,6 +292,7 @@ async function settlePartnerForCycle(cycleRow, { partnerId, currencyCode }) {
       settlementDate,
       settlementTotals,
       netAgainstPayable: true,
+      fence,
     });
     return { partnerId, currencyCode, status: replayed ? 'replayed' : 'created', settlementId: settlement.id, agreementCreated: created };
   } catch (error) {
@@ -338,7 +342,7 @@ async function runCycle(cycle, fence = null) {
   const errors = [];
   for (const pair of activity) {
     try {
-      settlements.push(await settlePartnerForCycle(cycleRow, { partnerId: pair.partner_id, currencyCode: pair.currency_code }));
+      settlements.push(await settlePartnerForCycle(cycleRow, { partnerId: pair.partner_id, currencyCode: pair.currency_code }, fence));
     } catch (error) {
       logger.error('OxSteed Credit settlement cycle failed for partner', {
         cycleId: cycleRow.id, partnerId: pair.partner_id, currencyCode: pair.currency_code, error: error.message, code: error.code,
