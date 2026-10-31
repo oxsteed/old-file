@@ -1186,7 +1186,9 @@ exports.applySingleVisibility = async (profileType, profileId, isVisible, opts =
     isVisible,
     reason: opts.reason,
     note: opts.note,
-    req: null,
+    // Audit fix, finding 35: carry the review request through so bulk
+    // approval executions stamp impersonated_by; NULL for worker paths.
+    req: opts.req || null,
   });
   await notifyOwnerQuietly({
     profileType: type,
@@ -1427,10 +1429,10 @@ exports.resolveAppeal = async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Appeal not found or already resolved.' });
     await db.query(
-      `INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, description)
+      `INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, description, impersonated_by)
        VALUES ($1, 'profile_visibility_appeal_' || $2, 'profile_visibility_appeal', $3,
-               'Appeal ' || $2 || COALESCE(': ' || NULLIF($4, ''), ''))`,
-      [req.user.id, decision, appealId, note]
+               'Appeal ' || $2 || COALESCE(': ' || NULLIF($4, ''), ''), $5)`,
+      [req.user.id, decision, appealId, note, req.impersonatedBy || null]
     );
     return res.json({ ok: true, appeal: rows[0] });
   } catch (err) {

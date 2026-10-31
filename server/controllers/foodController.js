@@ -6119,8 +6119,8 @@ exports.updateRestaurant = async (req, res, next) => {
         );
         await client.query(
           `INSERT INTO business_audit_log
-             (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state)
-           VALUES ($1,$2,$3,$4,'restaurant',$5,$6::jsonb)`,
+             (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state, impersonated_by)
+           VALUES ($1,$2,$3,$4,'restaurant',$5,$6::jsonb,$7)`,
           [
             updated.business_id,
             req.user.id,
@@ -6128,6 +6128,8 @@ exports.updateRestaurant = async (req, res, next) => {
             active ? 'business.published' : 'business.restaurant_status_changed',
             updated.id,
             JSON.stringify({ status }),
+            // Audit fix, finding 35: stamp impersonated_by (NULL direct).
+            req.impersonatedBy || null,
           ]
         );
       }
@@ -6354,6 +6356,7 @@ exports.updateMenuItem = async (req, res, next) => {
     if (restaurant.business_id) {
       const guard = await maybeUnpublishBusinessIfIncomplete(pool, restaurant.business_id, {
         actorUserId: req.user.id, actorRole: 'owner',
+        impersonatedBy: req.impersonatedBy || null,
       });
       unpublishedByMenuEdit = guard.unpublished;
       unpublishMissing = guard.missing;
@@ -6393,6 +6396,7 @@ exports.deleteMenuItem = async (req, res, next) => {
     if (restaurant.business_id) {
       await maybeUnpublishBusinessIfIncomplete(pool, restaurant.business_id, {
         actorUserId: req.user.id, actorRole: 'owner',
+        impersonatedBy: req.impersonatedBy || null,
       });
     }
     res.status(204).end();

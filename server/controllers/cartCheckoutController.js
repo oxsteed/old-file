@@ -374,6 +374,8 @@ async function confirmPayment(req, res) {
             payment_intent_id: paymentIntentId,
           },
           throwOnError: true,
+          // Audit fix, finding 35: stamp impersonated_by (NULL direct).
+          req,
         });
       } catch (auditErr) {
         logger.error('Marketplace order audit write failed', { orderId, error: auditErr.message });

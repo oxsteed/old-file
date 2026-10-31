@@ -154,3 +154,47 @@ describe('E13 grant lifecycle', () => {
     expect(updateSql).toContain('revoked_at');
   });
 });
+
+describe('audit fix, finding 35: impersonated_by stamping', () => {
+  test('requestInvestigationAccess stamps the impersonating admin on the audit row', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (sql.includes('SELECT role')) return { rows: [{ role: 'super_admin' }], rowCount: 1 };
+      if (sql.includes('INSERT INTO investigation_access_grants')) {
+        return { rows: [grantRow()], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    await requestInvestigationAccess({
+      requesterId: 'admin-requester',
+      approverId: 'admin-approver',
+      purpose: 'Follow up on disputed payout for fraud case 9',
+      scopeUserIds: ['user-1'],
+      investigationRef: 'fraud-case-9',
+      req: { impersonatedBy: 'admin-impersonator' },
+    });
+    const auditCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('admin_audit_log'));
+    expect(auditCalls.length).toBeGreaterThan(0);
+    // logAdminAction binds impersonated_by as the last parameter.
+    expect(auditCalls[0][1]).toContain('admin-impersonator');
+  });
+
+  test('requestInvestigationAccess without req still writes a NULL stamp', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (sql.includes('SELECT role')) return { rows: [{ role: 'super_admin' }], rowCount: 1 };
+      if (sql.includes('INSERT INTO investigation_access_grants')) {
+        return { rows: [grantRow()], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    await requestInvestigationAccess({
+      requesterId: 'admin-requester',
+      approverId: 'admin-approver',
+      purpose: 'Follow up on disputed payout for fraud case 9',
+      scopeUserIds: ['user-1'],
+      investigationRef: 'fraud-case-9',
+    });
+    const auditCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('admin_audit_log'));
+    expect(auditCalls.length).toBeGreaterThan(0);
+    expect(auditCalls[0][1]).toContain(null);
+  });
+});

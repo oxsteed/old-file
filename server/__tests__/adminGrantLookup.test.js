@@ -35,7 +35,7 @@ if (CAN_RUN_DB) {
 }
 
 const pool = require('../db');
-const { hasGlobalGrant } = require('../middleware/adminAuth');
+const { hasGlobalGrant, lookupGrants } = require('../middleware/adminAuth');
 
 async function newUser(role = 'admin') {
   const id = crypto.randomUUID();
@@ -119,5 +119,45 @@ ddescribe('admin grant lookup (UNION query)', () => {
   test('unknown permission does not authorize', async () => {
     const admin = await newUser('admin');
     await expect(hasGlobalGrant(admin, 'no_such_permission')).resolves.toBe(false);
+  });
+
+  test('revoked delegation is denied through lookupGrants', async () => {
+    const admin = await newUser('admin');
+    const superAdmin = await newUser('super_admin');
+    const { rows: [delegation] } = await pool.query(
+      `INSERT INTO delegation_grants (grantor_admin_id, grantee_admin_id, scopes, status, expires_at)
+       VALUES ($1, $2, ARRAY['manage_operations'], 'active', NOW() + INTERVAL '1 day')
+       RETURNING id`,
+      [superAdmin, admin]);
+    // Sanity: the active delegation authorizes before revocation.
+    await expect(hasGlobalGrant(admin, 'manage_operations')).resolves.toBe(true);
+    await expect(lookupGrants(admin, 'manage_operations')).resolves.toHaveLength(1);
+    // Revoke exactly as the revoke endpoint does (workforceController
+    // revokeDelegation): status + revoked_at + revoked_by + reason.
+    await pool.query(
+      `UPDATE delegation_grants
+          SET status = 'revoked', revoked_at = NOW(), revoked_by = $2, revoke_reason = $3
+        WHERE id = $1 AND status = 'active'`,
+      [delegation.id, superAdmin, 'Q4 revoked-delegation denial test']);
+    // The denial must hold at the lookup layer itself, not only at the
+    // endpoint/list layer: lookupGrants returns no rows and the
+    // hasGlobalGrant predicate derived from it is false.
+    await expect(lookupGrants(admin, 'manage_operations')).resolves.toHaveLength(0);
+    await expect(hasGlobalGrant(admin, 'manage_operations')).resolves.toBe(false);
+  });
+
+  test('revoked direct grant is denied through lookupGrants', async () => {
+    const admin = await newUser('admin');
+    const grantor = await newUser('super_admin');
+    await pool.query(
+      `INSERT INTO admin_permission_grants (grantor_id, grantee_id, permissions, region_id, expires_at)
+       VALUES ($1, $2, '["view_financials"]', NULL, NOW() + INTERVAL '1 day')`,
+      [grantor, admin]);
+    await expect(hasGlobalGrant(admin, 'view_financials')).resolves.toBe(true);
+    await pool.query(
+      `UPDATE admin_permission_grants SET revoked_at = NOW() WHERE grantee_id = $1`,
+      [admin]);
+    await expect(lookupGrants(admin, 'view_financials')).resolves.toHaveLength(0);
+    await expect(hasGlobalGrant(admin, 'view_financials')).resolves.toBe(false);
   });
 });

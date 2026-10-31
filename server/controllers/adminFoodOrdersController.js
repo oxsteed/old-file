@@ -36,11 +36,11 @@ function readAdminRefundedCents(metadata) {
   return Number.isSafeInteger(n) && n > 0 ? n : 0;
 }
 
-async function auditAdminRead(adminId, orderId, purpose) {
+async function auditAdminRead(adminId, orderId, purpose, impersonatedBy = null) {
   await pool.query(
-    `INSERT INTO admin_audit_log (admin_id, admin_user_id, action, entity_type, entity_id, metadata)
-     VALUES ($1, $1, 'food_order_read', 'food_order', $2, $3)`,
-    [adminId, String(orderId), JSON.stringify({ purpose })]
+    `INSERT INTO admin_audit_log (admin_id, admin_user_id, action, entity_type, entity_id, metadata, impersonated_by)
+     VALUES ($1, $1, 'food_order_read', 'food_order', $2, $3, $4)`,
+    [adminId, String(orderId), JSON.stringify({ purpose }), impersonatedBy]
   );
 }
 
@@ -105,8 +105,9 @@ async function getFoodOrder(req, res) {
       [orderId]
     );
 
-    // Purpose-bound audit for PII/payment access.
-    await auditAdminRead(req.user.id, orderId, purpose);
+    // Purpose-bound audit for PII/payment access (audit fix, finding 35:
+    // stamp impersonated_by; NULL for direct admin sessions).
+    await auditAdminRead(req.user.id, orderId, purpose, req.impersonatedBy || null);
 
     res.json({ order: rows[0], items });
   } catch (err) {
@@ -295,8 +296,8 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
     // Audit trail, in-transaction: the mutation and its audit row commit or
     // roll back together (fail-closed audit).
     await client.query(
-      `INSERT INTO admin_audit_log (admin_id, admin_user_id, action, entity_type, entity_id, metadata)
-       VALUES ($1, $1, 'food_order_refund', 'food_order', $2, $3)`,
+      `INSERT INTO admin_audit_log (admin_id, admin_user_id, action, entity_type, entity_id, metadata, impersonated_by)
+       VALUES ($1, $1, 'food_order_refund', 'food_order', $2, $3, $4)`,
       [req.user.id, String(orderId), JSON.stringify({
         amount_cents: refundAmount,
         cumulative_refunded_cents: cumulativeRefundedCents,
@@ -305,7 +306,7 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
         refund_id: refundResult.refund_id || null,
         previous_status: order.payment_status,
         new_status: newStatus,
-      })]
+      }), req.impersonatedBy || null]
     );
     if (newStatus === 'refunded' && order.customer_id) {
       await require('../growth/emit').emitDomainEvent(client, 'food.order_refunded', require('../growth/emit').foodEventProps(order), { userId: order.customer_id });
