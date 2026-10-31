@@ -26,7 +26,14 @@ export default function HelperOnboardingChecklist() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (!status || status.onboarding_completed) return null;
+  // Hide only on the server-derived 'active' step (derived complete AND
+  // the flag), never on the raw onboarding_completed flag: general
+  // registration stamps that flag for every mode at OTP verification, so
+  // hiding on it made the checklist vanish for helpers who still owe
+  // identity verification or background consent. A helper-flow user who
+  // is complete but not yet finalized reports 'ready_to_finalize', so
+  // the checklist (and its finalize button) still shows for them.
+  if (!status || status.onboarding_step === 'active') return null;
   const steps = status.steps || {};
 
   const run = async (fn, okKey) => {
