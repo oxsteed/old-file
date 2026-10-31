@@ -216,11 +216,47 @@ async function calculateAndCreatePayout(req, res, next) {
       // Calculate commissions for the period inside the claim, so a concurrent
       // request cannot observe the same pending rows before they are marked.
       // Money-flows audit item 42: commissions on fully refunded orders
-      // must not be claimed. The SUM and the UPDATE below share this
-      // predicate exactly, so a refunded order is neither totalled nor
+      // must not be claimed. The SUM and the UPDATE below share the row
+      // set predicate exactly, so a refunded order is neither totalled nor
       // flipped to confirmed.
+      // Decision Q2 (pro-rate): a partially refunded order contributes the
+      // commission on the kept share only. Kept base = the row's product
+      // sale amount minus the order's succeeded refunded amount (from
+      // marketplace_transaction_refunds), recomputed with the same
+      // half-up math the batch uses: (kept * rate_bps + 5000) / 10000 in
+      // integer division, all values non-negative. The ::bigint cast on
+      // the refund sum is load-bearing, not cosmetic: Postgres SUM over
+      // bigint returns numeric, and without the cast the division would
+      // go numeric and the payout total would come out fractional.
+      // Rows with no succeeded
+      // refund contribute their stored commission_cents unchanged. Claimed
+      // rows keep their original commission_cents; the payout row carries
+      // the pro-rated total actually paid. A row whose kept commission
+      // cannot be computed exactly (succeeded refunds exist but the rate
+      // or sale amount is NULL or negative) is left unclaimed for manual
+      // handling by the shared guard below, never guessed. Note: an order
+      // with several commission rows in one claim has the full order
+      // refund subtracted from each row's base. That never overpays but
+      // can underpay a multi-row partial refund; ops can adjust such a
+      // payout, and the single-row case (the common one) is exact.
       const commissions = await client.query(
-        `SELECT SUM(commission_cents) as total_cents, COUNT(*) as count
+        `SELECT SUM(
+           CASE
+             WHEN EXISTS (
+               SELECT 1 FROM marketplace_transaction_refunds r
+               WHERE r.order_id = affiliate_commissions.order_id AND r.status = 'succeeded'
+             ) THEN (
+               GREATEST(
+                 affiliate_commissions.product_sale_amount_cents - (
+                   SELECT COALESCE(SUM(r2.amount_cents), 0)::bigint
+                   FROM marketplace_transaction_refunds r2
+                   WHERE r2.order_id = affiliate_commissions.order_id AND r2.status = 'succeeded'
+                 ), 0
+               ) * (affiliate_commissions.commission_rate * 100)::bigint + 5000
+             ) / 10000
+             ELSE affiliate_commissions.commission_cents
+           END
+         ) as total_cents, COUNT(*) as count
          FROM affiliate_commissions
          WHERE affiliate_program_id = $1
          AND status IN ($2, 'confirmed') AND payout_id IS NULL
@@ -228,6 +264,16 @@ async function calculateAndCreatePayout(req, res, next) {
          AND NOT EXISTS (
            SELECT 1 FROM marketplace_orders mo
            WHERE mo.id = affiliate_commissions.order_id AND mo.status = 'refunded'
+         )
+         AND NOT (
+           EXISTS (
+             SELECT 1 FROM marketplace_transaction_refunds r
+             WHERE r.order_id = affiliate_commissions.order_id AND r.status = 'succeeded'
+           )
+           AND (affiliate_commissions.commission_rate IS NULL
+             OR affiliate_commissions.product_sale_amount_cents IS NULL
+             OR affiliate_commissions.commission_rate < 0
+             OR affiliate_commissions.product_sale_amount_cents < 0)
          )`,
         [programId, 'pending', new Date(periodStart), new Date(periodEnd)]
       );
@@ -260,9 +306,11 @@ async function calculateAndCreatePayout(req, res, next) {
 
       const payoutId = row.id;
 
-      // Update commissions to reference payout. Same refund exclusion as
-      // the SUM above (money-flows audit item 42): a refunded order's
-      // commission is never claimed by a period payout.
+      // Update commissions to reference payout. Same row set predicate as
+      // the SUM above (money-flows audit item 42 plus the Q2 pro-rate
+      // guard): a refunded order's commission is never claimed by a
+      // period payout, and a row whose kept commission cannot be computed
+      // exactly stays pending for manual handling.
       await client.query(
         `UPDATE affiliate_commissions
          SET payout_id = $1, status = $2
@@ -271,6 +319,16 @@ async function calculateAndCreatePayout(req, res, next) {
          AND NOT EXISTS (
            SELECT 1 FROM marketplace_orders mo
            WHERE mo.id = affiliate_commissions.order_id AND mo.status = 'refunded'
+         )
+         AND NOT (
+           EXISTS (
+             SELECT 1 FROM marketplace_transaction_refunds r
+             WHERE r.order_id = affiliate_commissions.order_id AND r.status = 'succeeded'
+           )
+           AND (affiliate_commissions.commission_rate IS NULL
+             OR affiliate_commissions.product_sale_amount_cents IS NULL
+             OR affiliate_commissions.commission_rate < 0
+             OR affiliate_commissions.product_sale_amount_cents < 0)
          )`,
         [payoutId, 'confirmed', programId, 'pending', new Date(periodStart), new Date(periodEnd)]
       );
