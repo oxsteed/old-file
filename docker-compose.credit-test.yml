@@ -65,7 +65,6 @@ services:
       OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS: "true"
       REDIS_URL: redis://redis:6379/0
       SENTRY_ENABLED: "false"
-      SIGNED_URL_SECRET: ${CREDIT_TEST_SIGNED_URL_SECRET}
       STRIPE_SECRET_KEY: sk_test_isolated
       STRIPE_WEBHOOK_SECRET: whsec_test_isolated
       PORT: 5000
