@@ -8,6 +8,7 @@ import { useLanguage } from './LanguageContext';
 import { isTransientRefreshFailure } from '../api/authRefreshPolicy';
 import { advanceAuthEpoch, currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
 import { broadcastAuthSession, subscribeAuthSession } from '../api/authSessionSync';
+import { isHelperOnboardingComplete } from '../utils/helperOnboarding';
 
 export const AuthContext = createContext(null);
 
@@ -279,14 +280,21 @@ export function AuthProvider({ children }) {
   const isHelper = ['helper', 'helper_pro', 'broker'].includes(user?.role);
   const isCustomer = user?.role === 'customer';
   const membershipTier = getMembershipTier(user);
-  const needsOnboarding = isHelper && !onboardingComplete;
-  const isRestrictedHelper = isHelper && !onboardingComplete;
+  // Helper capability reporting must use the derived truth, not the summary
+  // flags: general registration stamps onboarding_completed for every mode
+  // at OTP verification, so the summary flags claim helper completion
+  // before identity verification lands. isOnboardingComplete itself is
+  // intentionally untouched: it drives dashboard fetching and routing.
+  // Non-helper roles have no helper onboarding, so they keep the summary.
+  const helperOnboardingComplete = isHelper ? isHelperOnboardingComplete(user) : onboardingComplete;
+  const needsOnboarding = isHelper && !helperOnboardingComplete;
+  const isRestrictedHelper = isHelper && !helperOnboardingComplete;
 
   const canBrowseJobs = true;
-  const canBid = isHelper && onboardingComplete;
+  const canBid = isHelper && helperOnboardingComplete;
   const canApplyToJobs = canBid;
-  const canReceivePayouts = isHelper && onboardingComplete;
-  const canAppearInSearch = isHelper && onboardingComplete;
+  const canReceivePayouts = isHelper && helperOnboardingComplete;
+  const canAppearInSearch = isHelper && helperOnboardingComplete;
 
   const value = useMemo(() => ({
     user,
@@ -298,6 +306,7 @@ export function AuthProvider({ children }) {
     isCustomer,
     membershipTier,
     isOnboardingComplete: onboardingComplete,
+    isHelperOnboardingComplete: helperOnboardingComplete,
     needsOnboarding,
     isRestrictedHelper,
     canBrowseJobs,
@@ -324,6 +333,7 @@ export function AuthProvider({ children }) {
     isCustomer,
     membershipTier,
     onboardingComplete,
+    helperOnboardingComplete,
     needsOnboarding,
     isRestrictedHelper,
     canBrowseJobs,
