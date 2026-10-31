@@ -1466,16 +1466,26 @@ exports.getFinancials = async (req, res) => {
     const params = []; let paramIdx = 1; let condition = '';
     if (type) { condition = `WHERE source_type = $${paramIdx++}`; params.push(type); }
     const { rows } = await db.query(`SELECT pl.*, u.first_name || ' ' || u.last_name AS user_name, u.email AS user_email FROM platform_ledger pl LEFT JOIN users u ON pl.user_id = u.id ${condition} ORDER BY pl.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
-    const { rows: totals } = await db.query(`
-      SELECT
-        COALESCE(SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS gross_revenue_cents,
-        COALESCE(SUM(CASE WHEN source_type = 'job_fee' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS job_fee_revenue_cents,
-        COALESCE(SUM(CASE WHEN source_type = 'subscription' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS subscription_revenue_cents,
-        COALESCE(SUM(CASE WHEN amount_cents < 0 THEN ABS(amount_cents) ELSE 0 END), 0) AS total_refunds_cents,
-        COALESCE(SUM(amount_cents), 0) AS net_revenue_cents
-      FROM platform_ledger
-    `);
-    res.json({ ledger: rows, totals: totals[0], page: parseInt(page), limit: parseInt(limit) });
+    // Ledger totals are per currency (metricsRegistry.ledgerFinancialTotals):
+    // summing cents across currencies produced meaningless "revenue" figures,
+    // and the page formats USD, so the default currency is USD. The rows
+    // listing above stays unfiltered: rows carry their own currency, while
+    // the totals are aggregates and must name one. Response keys are
+    // unchanged so the Financials page keeps working; only the values are
+    // now currency-scoped. gross = all positive inflows (NOT platform take;
+    // platform take is job_fee + subscription), net = sum of all amounts.
+    const { currency: totalsCurrency, error: totalsCurrencyError } = parseRevenueCurrency(req.query);
+    if (totalsCurrencyError) return res.status(400).json({ error: totalsCurrencyError });
+    const totalsRow = await metricsRegistry.ledgerFinancialTotals(db, totalsCurrency);
+    const totals = {
+      gross_revenue_cents: totalsRow.gross_cents,
+      job_fee_revenue_cents: totalsRow.job_fee_cents,
+      subscription_revenue_cents: totalsRow.subscription_cents,
+      total_refunds_cents: totalsRow.refunds_cents,
+      net_revenue_cents: totalsRow.net_cents,
+      currency_code: totalsRow.currency_code,
+    };
+    res.json({ ledger: rows, totals, page: parseInt(page), limit: parseInt(limit) });
   } catch (err) { logger.error('getFinancials error', { err }); res.status(500).json({ error: 'Failed to fetch financials.' }); }
 };
 

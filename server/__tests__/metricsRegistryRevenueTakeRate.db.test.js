@@ -10,9 +10,10 @@
  *
  * Take-rate: the OLD investor formula divided ALL-TIME take INCLUDING
  * subscriptions by budget-GMV, so it could exceed 100% by construction.
- * The NEW canonical formula is all-time job_fee take / all-time budget GMV
- * (subscriptions excluded). Investor GMV stays SUM(budget_max) of completed
- * jobs — budgets, not actuals — documented as a known limitation.
+ * The NEW canonical formula is all-time job_fee take / all-time recorded
+ * value (final_price_cents) of the same priced completed jobs
+ * (subscriptions excluded). Investor GMV is SUM(final_price_cents) of
+ * non-deleted completed jobs, never estimated from budgets.
  */
 const crypto = require('crypto');
 const schema = `mreg_rev_${crypto.randomBytes(6).toString('hex')}`;

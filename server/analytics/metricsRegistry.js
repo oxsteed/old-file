@@ -28,7 +28,13 @@ const exactInteger = value => {
  * Divergence decisions (verified in docs/analytics-platform/SCOPE.md):
  * 1. OPEN DISPUTES — canonical: `disputes` table, status='open'. This matches
  *    the /admin/disputes drill-through target (default tab 'open'), so the
- *    dashboard card and the list it links to always agree. Replaces
+ *    dashboard card and the list it links to agree FOR GLOBAL ADMINS.
+ *    SCOPE CAVEAT (not yet resolved): governed cards apply the viewer's
+ *    regional scope, while the regular admin dashboard count and the
+ *    disputes list are unscoped, so a region admin sees a regional card
+ *    against a global list. The formula is canonical everywhere; the
+ *    remaining disagreement is scope, and scoping the dashboard and list
+ *    is a separate access decision (see the track report). Replaces
  *    jobs.status='disputed' (admin) and jobs.dispute_status='open'
  *    (super-admin). 'under_review' disputes are tracked separately by
  *    getDisputeStats and are NOT folded into this number.
@@ -36,8 +42,10 @@ const exactInteger = value => {
  *    platform_ledger (source_type IN ('job_fee','subscription'),
  *    amount_cents > 0). Vertical GMVs (food, tool rentals, consulting) are
  *    separate metrics with their own names, not rival definitions of the same
- *    KPI. Investor GMV remains SUM(budget_max) of completed jobs — budgets,
- *    not actuals — documented as a known limitation (see investor_gmv_cents).
+ *    KPI. Investor GMV is SUM(final_price_cents) of non-deleted completed
+ *    jobs (recorded value, not budget estimates); jobs with no final price
+ *    are reported separately as unpriced, never estimated
+ *    (see investor_gmv_cents).
  * 3. CANCEL RATE — canonical per-role, server-side, excluding soft-deleted
  *    jobs (deleted_at IS NULL, matching migration 170's materialized views):
  *      customer (posted): cancelled / total posted
@@ -49,9 +57,11 @@ const exactInteger = value => {
  *    materialized-view queries reference them instead of hardcoding copies.
  * 4. INVESTOR TAKE-RATE — old formula divided ALL-TIME take INCLUDING
  *    subscriptions by budget-GMV, so it could exceed 100% by construction.
- *    New formula: all-time job_fee take / all-time budget GMV (same cohort,
- *    subscriptions excluded). Bounded in practice; the budget-not-actuals
- *    GMV limitation is documented, not silently redefined.
+ *    New formula: all-time job_fee take / all-time recorded value
+ *    (final_price_cents) of the same priced completed jobs (same cohort,
+ *    subscriptions excluded). Bounded whenever booked job fees do not
+ *    exceed the recorded job value; that is a data invariant, not
+ *    something the SQL enforces.
  * 5. SLA — canonical breach source: the business-configured
  *    support_sla_targets table, materialized per conversation into
  *    support_conversations.sla_first_response_target /
@@ -344,6 +354,46 @@ async function platformRevenue(db, interval, currencyCode = 'USD') {
   };
 }
 
+// ── 2b. Financial-management ledger totals (single source of truth) ─────────
+// The Financial Management surface previously summed platform_ledger rows
+// across ALL currencies into single "revenue" figures, and labeled two
+// different sums "revenue" alongside platform take:
+//   - gross: every positive ledger inflow, any source_type (job_fee,
+//     subscription, service_booking, credit_rail, transaction, ...). This is
+//     NOT platform take: it includes money that merely passes through.
+//   - net: SUM of all ledger amounts, positives and negatives together.
+//     Refunds and other negative rows reduce it; it is a ledger movement
+//     total, not revenue.
+// Canonical platform take is platformRevenue above (job_fee + subscription,
+// positive only). These totals exist only as a labeled ledger summary, and
+// they are ALWAYS per currency: summing cents across currencies is
+// meaningless (see RV1(a) and restaurantHQ's multi-currency null), so the
+// caller passes one currency (the Financial Management page formats USD).
+// Refunds here match platformRevenue: ABS of source_type='refund' rows.
+// A negative row of any other source_type is not a refund and is not
+// counted as one; it still reduces net_cents.
+async function ledgerFinancialTotals(db, currencyCode = 'USD') {
+  const { rows } = await db.query(`
+    SELECT
+      COALESCE(SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS gross_cents,
+      COALESCE(SUM(CASE WHEN source_type = 'job_fee' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS job_fee_cents,
+      COALESCE(SUM(CASE WHEN source_type = 'subscription' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS subscription_cents,
+      COALESCE(SUM(CASE WHEN source_type = 'refund' THEN ABS(amount_cents) ELSE 0 END), 0) AS refunds_cents,
+      COALESCE(SUM(amount_cents), 0) AS net_cents
+    FROM platform_ledger WHERE UPPER(currency) = UPPER($1)
+  `, [currencyCode]);
+  const r = rows[0] || {};
+  const toInt = exactInteger;
+  return {
+    currency_code: String(currencyCode).toUpperCase(),
+    gross_cents: toInt(r.gross_cents),
+    job_fee_cents: toInt(r.job_fee_cents),
+    subscription_cents: toInt(r.subscription_cents),
+    refunds_cents: toInt(r.refunds_cents),
+    net_cents: toInt(r.net_cents),
+  };
+}
+
 // ── 3. Cancel rate ──────────────────────────────────────────────────────────
 // Canonical per-role cancel rate, server-side, soft-deletes excluded
 // (deleted_at IS NULL, matching migration 170's materialized views).
@@ -398,12 +448,14 @@ function cancelRiskLevelCaseSql(rateExpr, cancellationsExpr) {
 }
 
 // ── 4. Investor take-rate ────────────────────────────────────────────────────
-// NEW formula: all-time job_fee take ÷ all-time budget GMV, rounded to 2dp,
+// NEW formula: all-time job_fee take ÷ all-time recorded job value
+// (final_price_cents of priced, non-deleted completed jobs), rounded to 2dp,
 // NULL when GMV is 0. Subscriptions are deliberately excluded from the
 // numerator — they are recurring revenue unrelated to job GMV, and including
 // them let the old formula exceed 100% by construction.
-// KNOWN LIMITATION: GMV is SUM(budget_max) of completed jobs (budgets, not
-// actuals). Documented, not silently redefined.
+// KNOWN LIMITATION: jobs with no final price are excluded from both the
+// numerator cohort and the denominator (reported as unpriced elsewhere),
+// never estimated from budgets.
 async function investorTakeRatePct(db, currencyCode = 'USD') {
   const value = await financialMetricValue(db, 'investor_take_rate_pct', currencyCode);
   return value == null ? null : Number(value);
@@ -522,6 +574,7 @@ module.exports = {
   LEGACY_RESOLUTION_INTERVAL,
   openDisputes,
   platformRevenue,
+  ledgerFinancialTotals,
   cancelRate,
   CANCEL_ROLES,
   CANCEL_RISK_THRESHOLDS,
