@@ -271,7 +271,14 @@ router.post('/users/:userId/cancel-pending-deletion', requireSuperAdmin, superCt
 router.post('/users/:userId/restore', requireSuperAdmin, superCtrl.restoreUser);
 router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
 router.get('/super/users/:userId/sessions', requireSuperAdmin, superCtrl.listUserSessions);
-router.post('/users/:userId/password', requireSuperAdmin, superCtrl.setUserPasswordBySuperAdmin);
+// Audit finding 1 (2026-10-31): setting another user's password revokes the
+// victim's tokens, sessions, passkeys, and TOTP, then sets a caller-chosen
+// password, so it requires a FRESH TOTP proof like impersonation start, not
+// merely an enrolled one. The admin first calls POST /super/stepup/verify
+// with their current TOTP code and purpose 'super_admin_password_set',
+// which records a 15-minute fresh-auth event; this route then requires it.
+const requirePasswordSetStepUp = requireFreshAuth('super_admin_password_set');
+router.post('/users/:userId/password', requireSuperAdmin, requirePasswordSetStepUp, superCtrl.setUserPasswordBySuperAdmin);
 
 // Impersonation (super-admin only)
 // Audit finding 9: starting an impersonation mints a 30-minute token that
