@@ -63,15 +63,14 @@ exports.logAdminAction = async ({
     await runner.query(`
       INSERT INTO admin_audit_log (
         admin_id, action, target_type, target_id,
-        target_bigint, target_key, description, ip_address, user_agent,
-        before_state, after_state, impersonated_by
+        target_key, description, ip_address, user_agent,
+        before_state, after_state, impersonated_by, target_bigint
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
     `, [
       adminId,
       action,
       targetType,
       safeTargetId,
-      safeTargetBigint(targetBigint),
       safeTargetKey,
       description,
       req?.ip || null,
@@ -79,7 +78,11 @@ exports.logAdminAction = async ({
       before ? JSON.stringify(before) : null,
       after  ? JSON.stringify(after)  : null,
       // Audit fix (finding 35): see businessAuditLog.js.
-      req?.impersonatedBy || null
+      req?.impersonatedBy || null,
+      // Bigint target last on purpose: every pre-existing param keeps its
+      // position, so mock-based tests asserting audit INSERT params (stamps,
+      // before/after) are unaffected by this additive column.
+      safeTargetBigint(targetBigint)
     ]);
   } catch (err) {
     logger.error('Failed to log admin action', { adminId, action, error: err.message });

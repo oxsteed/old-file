@@ -4,6 +4,13 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 
+// getAllDisputes now resolves a metric scope first (analytics region
+// scoping); these SQL-shape tests run under a global scope so the list
+// query keeps its pre-scoping param numbering.
+jest.mock('../analytics/metricAccess', () => ({
+  metricScope: jest.fn(async () => ({ global: true, regions: null, regionIds: null })),
+}));
+
 const businessModeration = require('../controllers/businessModerationController');
 const disputeAdmin = require('../controllers/disputeAdminController');
 const superAdmin = require('../controllers/superAdminController');
