@@ -30,7 +30,9 @@ describeDatabase('W10.5 audit writers on migrated PostgreSQL', () => {
   afterAll(() => pool.end());
   test('all five legacy moderation, refund, and purpose-read inserts persist', async () => {
     expect(statements).toHaveLength(5);
-    for (const sql of statements) await client.query(sql, [admin, crypto.randomUUID(), JSON.stringify({ purpose: 'synthetic-audit', reason: 'Synthetic schema verification' })]);
+    // Audit stamp track: the writers now take a trailing impersonated_by
+    // param (null for a direct session).
+    for (const sql of statements) await client.query(sql, [admin, crypto.randomUUID(), JSON.stringify({ purpose: 'synthetic-audit', reason: 'Synthetic schema verification' }), null]);
     const { rows } = await client.query('SELECT action, details, metadata FROM admin_audit_log WHERE admin_id = $1 OR admin_user_id = $1', [admin]);
     expect(rows.map((r) => r.action).sort()).toEqual(['bid_removed', 'food_order_read', 'food_order_refund', 'review_hidden', 'review_restored']);
   });
@@ -53,6 +55,16 @@ describeDatabase('W10.5 audit writers on migrated PostgreSQL', () => {
       const { rows: [payout] } = await client.query(`INSERT INTO affiliate_payouts
         (affiliate_program_id, period_start, period_end, total_commission_cents, commission_count, net_payout_cents, payout_method_id)
         VALUES ($1, '2026-01-01', '2026-02-01', 1234, 1, 1234, $2) RETURNING id`, [program.id, method.id]);
+      // Audit item 2: the legacy direct path now gates on W-9, fresh Didit,
+      // sanctions, and the credit rail before any transfer. Make the
+      // fixture compliant so these tests exercise the readiness/method
+      // paths they name instead of stopping at the new gate.
+      await client.query(`UPDATE users SET is_active = TRUE, w9_completed = TRUE,
+        didit_status = 'verified', didit_verified_at = NOW() WHERE id = $1`, [admin]);
+      await client.query(`INSERT INTO oxsteed_credit_sanctions_screenings
+        (subject_type, subject_id, provider, result) VALUES ('customer', $1, 'manual_review', 'clear')`, [admin]);
+      await client.query(`INSERT INTO feature_flags (key, is_enabled) VALUES ('oxsteed_credit_enabled', TRUE)
+        ON CONFLICT (key) DO UPDATE SET is_enabled = TRUE`);
       // Give the actual controller a savepoint inside this disposable fixture's
       // transaction so its commit/rollback behavior leaves no durable test data.
       // The fake client must speak both styles pg-pool uses: promise-style
@@ -101,7 +113,7 @@ describeDatabase('W10.5 audit writers on migrated PostgreSQL', () => {
   test('migration 785 can be reapplied twice without losing the schema or audit data', async () => {
     const sql = fs.readFileSync(require.resolve('../migrations/785_w10_5_audit_and_session_revocation.sql'), 'utf8');
     await client.query(sql); await client.query(sql);
-    await client.query(statements[0], [admin, crypto.randomUUID(), JSON.stringify({ reason: 'Synthetic idempotent migration' })]);
+    await client.query(statements[0], [admin, crypto.randomUUID(), JSON.stringify({ reason: 'Synthetic idempotent migration' }), null]);
     expect((await client.query('SELECT details FROM admin_audit_log WHERE admin_id = $1', [admin])).rows).toHaveLength(1);
   });
 });
