@@ -67,6 +67,7 @@ jest.mock('../services/socketService', () => ({
   init: jest.fn(),
   emit: jest.fn(),
   isOnline: jest.fn(),
+  disconnectUserSockets: jest.fn(),
   getSocketCount: jest.fn(),
   broadcastToUser: jest.fn(),
   broadcastToConversation: jest.fn(),
