@@ -117,7 +117,9 @@ function parseRestaurantId(restaurantId) {
  * `pending` row on first food-wallet activity so redemption/refund postings
  * always have a partner_payable account to clear against. A later admin
  * registration replays against the existing row (registerPartner is
- * idempotent on restaurant_id).
+ * idempotent on restaurant_id). The insert sets auto_provisioned, which is
+ * the sole input to the migration 488 creator-guard carve-out: without the
+ * marker, a creator-less pending insert still fails the trigger.
  */
 async function ensureRestaurantPartner(client, restaurantId) {
   const normalizedRestaurantId = parseRestaurantId(restaurantId);
@@ -136,8 +138,8 @@ async function ensureRestaurantPartner(client, restaurantId) {
     throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   }
   const { rows: insertedRows } = await client.query(
-    `INSERT INTO oxsteed_credit_partners (restaurant_id, business_id, settlement_currency_code, status, notes)
-     VALUES ($1, $2, 'USD', 'pending', 'Auto-provisioned for restaurant sub-bank dual-posting')
+    `INSERT INTO oxsteed_credit_partners (restaurant_id, business_id, settlement_currency_code, status, notes, auto_provisioned)
+     VALUES ($1, $2, 'USD', 'pending', 'Auto-provisioned for restaurant sub-bank dual-posting', TRUE)
      ON CONFLICT (restaurant_id) DO NOTHING
      RETURNING *`,
     [normalizedRestaurantId, restaurantRows[0].business_id || null]
