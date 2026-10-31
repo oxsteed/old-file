@@ -9,6 +9,7 @@ const { isDiditVerificationFresh } = require('../utils/diditGate');
 const { assertSanctionsClear } = require('../services/sanctionsScreeningService');
 const { assertCreditRailEnabled } = require('../services/oxsteedCreditService');
 const { affiliatePayableCents } = require('../utils/affiliatePayableCents');
+const { issueStepupChallenge } = require('../services/stepupChallengeService');
 
 async function getAffiliateProgram(req, res) {
   try {
@@ -215,12 +216,66 @@ async function calculateAndCreatePayout(req, res, next) {
 
       // Calculate commissions for the period inside the claim, so a concurrent
       // request cannot observe the same pending rows before they are marked.
+      // Money-flows audit item 42: commissions on fully refunded orders
+      // must not be claimed. The SUM and the UPDATE below share the row
+      // set predicate exactly, so a refunded order is neither totalled nor
+      // flipped to confirmed.
+      // Decision Q2 (pro-rate): a partially refunded order contributes the
+      // commission on the kept share only. Kept base = the row's product
+      // sale amount minus the order's succeeded refunded amount (from
+      // marketplace_transaction_refunds), recomputed with the same
+      // half-up math the batch uses: (kept * rate_bps + 5000) / 10000 in
+      // integer division, all values non-negative. The ::bigint cast on
+      // the refund sum is load-bearing, not cosmetic: Postgres SUM over
+      // bigint returns numeric, and without the cast the division would
+      // go numeric and the payout total would come out fractional.
+      // Rows with no succeeded
+      // refund contribute their stored commission_cents unchanged. Claimed
+      // rows keep their original commission_cents; the payout row carries
+      // the pro-rated total actually paid. A row whose kept commission
+      // cannot be computed exactly (succeeded refunds exist but the rate
+      // or sale amount is NULL or negative) is left unclaimed for manual
+      // handling by the shared guard below, never guessed. Note: an order
+      // with several commission rows in one claim has the full order
+      // refund subtracted from each row's base. That never overpays but
+      // can underpay a multi-row partial refund; ops can adjust such a
+      // payout, and the single-row case (the common one) is exact.
       const commissions = await client.query(
-        `SELECT SUM(commission_cents) as total_cents, COUNT(*) as count
+        `SELECT SUM(
+           CASE
+             WHEN EXISTS (
+               SELECT 1 FROM marketplace_transaction_refunds r
+               WHERE r.order_id = affiliate_commissions.order_id AND r.status = 'succeeded'
+             ) THEN (
+               GREATEST(
+                 affiliate_commissions.product_sale_amount_cents - (
+                   SELECT COALESCE(SUM(r2.amount_cents), 0)::bigint
+                   FROM marketplace_transaction_refunds r2
+                   WHERE r2.order_id = affiliate_commissions.order_id AND r2.status = 'succeeded'
+                 ), 0
+               ) * (affiliate_commissions.commission_rate * 100)::bigint + 5000
+             ) / 10000
+             ELSE affiliate_commissions.commission_cents
+           END
+         ) as total_cents, COUNT(*) as count
          FROM affiliate_commissions
          WHERE affiliate_program_id = $1
          AND status IN ($2, 'confirmed') AND payout_id IS NULL
-         AND created_at >= $3 AND created_at < $4`,
+         AND created_at >= $3 AND created_at < $4
+         AND NOT EXISTS (
+           SELECT 1 FROM marketplace_orders mo
+           WHERE mo.id = affiliate_commissions.order_id AND mo.status = 'refunded'
+         )
+         AND NOT (
+           EXISTS (
+             SELECT 1 FROM marketplace_transaction_refunds r
+             WHERE r.order_id = affiliate_commissions.order_id AND r.status = 'succeeded'
+           )
+           AND (affiliate_commissions.commission_rate IS NULL
+             OR affiliate_commissions.product_sale_amount_cents IS NULL
+             OR affiliate_commissions.commission_rate < 0
+             OR affiliate_commissions.product_sale_amount_cents < 0)
+         )`,
         [programId, 'pending', new Date(periodStart), new Date(periodEnd)]
       );
 
@@ -252,12 +307,30 @@ async function calculateAndCreatePayout(req, res, next) {
 
       const payoutId = row.id;
 
-      // Update commissions to reference payout
+      // Update commissions to reference payout. Same row set predicate as
+      // the SUM above (money-flows audit item 42 plus the Q2 pro-rate
+      // guard): a refunded order's commission is never claimed by a
+      // period payout, and a row whose kept commission cannot be computed
+      // exactly stays pending for manual handling.
       await client.query(
         `UPDATE affiliate_commissions
          SET payout_id = $1, status = $2
          WHERE affiliate_program_id = $3 AND status IN ($4, 'confirmed') AND payout_id IS NULL
-         AND created_at >= $5 AND created_at < $6`,
+         AND created_at >= $5 AND created_at < $6
+         AND NOT EXISTS (
+           SELECT 1 FROM marketplace_orders mo
+           WHERE mo.id = affiliate_commissions.order_id AND mo.status = 'refunded'
+         )
+         AND NOT (
+           EXISTS (
+             SELECT 1 FROM marketplace_transaction_refunds r
+             WHERE r.order_id = affiliate_commissions.order_id AND r.status = 'succeeded'
+           )
+           AND (affiliate_commissions.commission_rate IS NULL
+             OR affiliate_commissions.product_sale_amount_cents IS NULL
+             OR affiliate_commissions.commission_rate < 0
+             OR affiliate_commissions.product_sale_amount_cents < 0)
+         )`,
         [payoutId, 'confirmed', programId, 'pending', new Date(periodStart), new Date(periodEnd)]
       );
 
@@ -492,6 +565,9 @@ async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = f
         action: 'affiliate_payout_processed',
         targetType: 'affiliate_payout',
         targetId: payoutId,
+        // Payout ids are bigserials, never UUIDs: without this the row
+        // lands with target_id NULL and audit-by-target queries miss it.
+        targetBigint: payoutId,
         description: `Affiliate payout ${payoutId} transferred via Stripe (${transfer.id})`,
         before: { status: payout.status },
         after: { status: 'completed', transferId: transfer.id, amountCents, destination: connect.stripe_account_id },
@@ -527,6 +603,114 @@ async function processPayout(req, res, next) {
       return sendMoneyMovementGateResult(res, updated.dualApproval);
     }
     res.json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Audit fix (auth finding 15, UI track): the maker side of affiliate payout
+// processing had no admin surface at all: no list endpoint and no page, so
+// payouts could only be processed via raw API calls. This admin-only list
+// mirrors PayoutController.getPayouts' query shape but WITHOUT the helper
+// scoping: an admin sees every program's payouts. The requireAdmin +
+// view_financials guard on the route is what keeps a user-scoped caller
+// from widening their own view; the handler itself trusts nothing from the
+// caller beyond the validated status filter and pagination.
+const ADMIN_PAYOUT_STATUSES = new Set(['pending', 'processing', 'completed', 'failed', 'reversed']);
+
+async function listAdminPayouts(req, res) {
+  try {
+    const { status, limit = 20, offset = 0 } = req.query;
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const parsedOffset = Math.max(parseInt(offset, 10) || 0, 0);
+    if (status && !ADMIN_PAYOUT_STATUSES.has(status)) {
+      return sendValidationError(res, { status: 'Unknown status' });
+    }
+
+    const params = [];
+    let query = `
+      SELECT
+        ap.*,
+        u.first_name AS affiliate_first_name,
+        u.last_name AS affiliate_last_name
+      FROM affiliate_payouts ap
+      LEFT JOIN affiliate_programs apg ON apg.id = ap.affiliate_program_id
+      LEFT JOIN users u ON apg.helper_id = u.id
+      WHERE 1 = 1
+    `;
+    if (status) {
+      params.push(status);
+      query += ` AND ap.status = $${params.length}`;
+    }
+    query += ` ORDER BY ap.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(parsedLimit, parsedOffset);
+
+    const result = await pool.query(query, params);
+    const countParams = status ? [status] : [];
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM affiliate_payouts${status ? ' WHERE status = $1' : ''}`,
+      countParams
+    );
+
+    // The payable figure is the same canonical amount the process routes
+    // and the step-up challenge bind to (net wins, else gross minus fee).
+    const payouts = result.rows.map((row) => ({ ...row, payable_cents: affiliatePayableCents(row) }));
+    res.json({
+      success: true,
+      payouts,
+      pagination: {
+        limit: parsedLimit,
+        offset: parsedOffset,
+        total: countResult.rows[0] ? countResult.rows[0].total : payouts.length,
+      },
+    });
+  } catch (error) {
+    logger.error('Error listing affiliate payouts for admin', { error });
+    sendError(res, 500, 'Failed to list payouts');
+  }
+}
+
+// Audit fix (auth finding 15, issuance track): the maker step-up on both
+// affiliate process routes needs an issue path. The generic admin issue
+// endpoint gates on ADMIN_STEPUP_ACTION_TYPES, derived from the TOTP-only
+// list, which deliberately excludes 'affiliate_payout_process' (the maker
+// step-up stays on the emailed-code method). This dedicated endpoint issues
+// it with the payout's payable amount, the same canonical figure
+// (utils/affiliatePayableCents) the process routes and the dual-approval
+// gate use, so issue and verify agree by construction. A missing payout
+// 404s; a non-positive payable amount fails closed inside
+// issueStepupChallenge.
+async function issueProcessStepupChallenge(req, res, next) {
+  try {
+    const adminId = req.user?.id;
+    if (!adminId) {
+      throw new AppError('Authentication required', 401, 'no_auth');
+    }
+    const { payoutId } = req.params;
+    const { rows: [payout] } = await pool.query(
+      'SELECT * FROM affiliate_payouts WHERE id = $1',
+      [payoutId]
+    );
+    if (!payout) {
+      throw new AppError('Payout not found', 404, 'payout_not_found');
+    }
+    const { challenge, delivery } = await issueStepupChallenge({
+      actorUserId: adminId,
+      actorEmail: req.user?.email,
+      actionType: 'affiliate_payout_process',
+      amountCents: affiliatePayableCents(payout),
+      currencyCode: 'USD',
+    });
+    res.status(201).json({
+      challenge: {
+        id: challenge.id,
+        actionType: challenge.actionType,
+        amountCents: challenge.amountCents,
+        currencyCode: challenge.currencyCode,
+        expiresAt: challenge.expiresAt,
+      },
+      delivery,
+    });
   } catch (error) {
     next(error);
   }
@@ -569,5 +753,7 @@ module.exports = {
   calculateAndCreatePayout,
   processPayout,
   runAffiliatePayout,
+  listAdminPayouts,
+  issueProcessStepupChallenge,
   getAffiliateStats
 };

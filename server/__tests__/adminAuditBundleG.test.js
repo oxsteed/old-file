@@ -4,6 +4,13 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 
+// getAllDisputes now resolves a metric scope first (analytics region
+// scoping); these SQL-shape tests run under a global scope so the list
+// query keeps its pre-scoping param numbering.
+jest.mock('../analytics/metricAccess', () => ({
+  metricScope: jest.fn(async () => ({ global: true, regions: null, regionIds: null })),
+}));
+
 const businessModeration = require('../controllers/businessModerationController');
 const disputeAdmin = require('../controllers/disputeAdminController');
 const superAdmin = require('../controllers/superAdminController');
@@ -106,6 +113,22 @@ describe('ADM-110: server-side per-user filters for 360-degree views', () => {
     const [sql, params] = auditCall;
     expect(sql).toMatch(/a\.target_id = \$/);
     expect(params).toContain('user-1');
+  });
+
+  test('getAuditLog routes a numeric target_id to target_bigint', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/information_schema/.test(sql)) return { rows: [{}] };
+      if (/admin_audit_log/.test(sql)) return { rows: [{ id: 1, target_bigint: '123' }] };
+      return { rows: [] };
+    });
+    const r = res();
+    await superAdmin.getAuditLog({ query: { target_type: 'affiliate_payout', target_id: '123', limit: '100' } }, r);
+    const auditCall = mockQuery.mock.calls.find(([sql]) => /FROM admin_audit_log/.test(sql));
+    expect(auditCall).toBeTruthy();
+    const [sql, params] = auditCall;
+    expect(sql).toMatch(/a\.target_bigint = \$/);
+    expect(sql).not.toMatch(/a\.target_id = \$/);
+    expect(params).toContain('123');
   });
 
   test('getPayouts accepts payee_id and filters in SQL', async () => {

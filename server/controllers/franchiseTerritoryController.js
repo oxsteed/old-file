@@ -33,6 +33,17 @@ const tableExists = async (name) => {
 const safeInt = (v) => parseInt(v ?? 0, 10) || 0;
 const safeFlt = (v) => parseFloat(v ?? 0) || 0;
 
+// Mirrors superAdminController.parseRevenueCurrency: a validated 3-letter
+// ISO code, default USD. Territory revenue must name one currency; summing
+// cents across currencies as dollars is meaningless.
+const parseTerritoryCurrency = (query) => {
+  const currency = String(query && query.currency ? query.currency : 'usd').toLowerCase();
+  if (!/^[a-z]{3}$/.test(currency)) {
+    return { error: 'Invalid currency. Use a 3-letter ISO code.' };
+  }
+  return { currency };
+};
+
 // ── GET /api/franchise/territory-stats ───────────────────────────────────────
 exports.getTerritoryStats = async (req, res) => {
   try {
@@ -123,6 +134,13 @@ exports.getTerritoryStats = async (req, res) => {
     }
 
     // ── Revenue (linked business, 30d) ───────────────────────────
+    // Currency-scoped (default USD): previously all currencies were summed
+    // as dollars. The caller selects via ?currency=; the response names the
+    // currency so the tile cannot be read as dollars when it is not.
+    const { currency: revenueCurrency, error: revenueCurrencyError } = parseTerritoryCurrency(req.query);
+    if (revenueCurrencyError) {
+      return res.status(400).json({ error: revenueCurrencyError });
+    }
     let revenue_30d_cents = 0, revenue_total_cents = 0;
     if (hasLedger && appRow.linked_business_id) {
       const [rv] = await safeQuery(`
@@ -130,8 +148,8 @@ exports.getTerritoryStats = async (req, res) => {
           COALESCE(SUM(amount_cents) FILTER (WHERE amount_cents > 0 AND created_at >= now() - interval '30 days'), 0) AS rev_30d,
           COALESCE(SUM(amount_cents) FILTER (WHERE amount_cents > 0), 0)                                               AS rev_total
         FROM platform_ledger
-        WHERE reference_id = $1
-      `, [appRow.linked_business_id]);
+        WHERE reference_id = $1 AND UPPER(currency) = UPPER($2)
+      `, [appRow.linked_business_id, revenueCurrency]);
       revenue_30d_cents   = safeInt(rv?.rev_30d);
       revenue_total_cents = safeInt(rv?.rev_total);
     }
@@ -170,6 +188,7 @@ exports.getTerritoryStats = async (req, res) => {
         completion_rate,
         revenue_30d_cents,
         revenue_total_cents,
+        revenue_currency_code: revenueCurrency.toUpperCase(),
       },
     });
   } catch (err) {

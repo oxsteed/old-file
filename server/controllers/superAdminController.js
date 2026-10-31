@@ -6,6 +6,7 @@ const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
 const tokenRevocationService = require('../services/tokenRevocationService');
+const { invalidateAllTokens: invalidateAllCsrfTokens } = require('../middleware/csrf');
 const { withTransaction } = require('../utils/transaction');
 const { enqueueMessageNotification } = require('../services/messageNotificationService');
 const { parseBoundedPagination } = require('../utils/pagination');
@@ -171,14 +172,16 @@ async function clearAdminScheduledDeletionIfPresent(userId) {
   }
 }
 
-/** Clears admin-scheduled deletion state and sets the account active (never for self-deletes). */
+/** Clears admin-scheduled deletion state and sets the account active (never for self-deletes, never for finalized deletions). */
 async function reinstateAfterPendingAdminDeletion(userId) {
   await clearAdminScheduledDeletionIfPresent(userId);
   const hasType = await columnExists('users', 'deletion_type');
+  const hasFinalized = await columnExists('users', 'deletion_finalized_at');
   const notSelf = hasType ? `AND deletion_type IS DISTINCT FROM 'self'` : '';
+  const notFinalized = hasFinalized ? `AND deletion_finalized_at IS NULL` : '';
   await db.query(
     `UPDATE users SET deleted_at = NULL, is_active = TRUE, updated_at = NOW()
-     WHERE id::text = $1 ${notSelf}`,
+     WHERE id::text = $1 ${notSelf} ${notFinalized}`,
     [String(userId)],
   );
 }
@@ -1186,7 +1189,7 @@ exports.forceJobAction = async (req, res, next) => {
       }
       let result;
       try {
-        result = await cancelJobTransaction({ jobId, actorId: adminId, actorKind: 'admin', reason: cleanReason });
+        result = await cancelJobTransaction({ jobId, actorId: adminId, actorKind: 'admin', reason: cleanReason, req });
       } catch (err) {
         // Race-safe idempotency: a concurrent cancel may have won the row
         // between our fast-path check and the guarded UPDATE. Only surface
@@ -1460,21 +1463,35 @@ exports.createUser = async (req, res) => {
 exports.getFinancials = async (req, res) => {
   try {
     if (!(await tableExists('platform_ledger'))) return res.json({ ledger: [], totals: {}, page: 1, limit: 25 });
+    const { currency, error: currencyError } = parseRevenueCurrency(req.query);
+    if (currencyError) return res.status(400).json({ error: currencyError });
     const { type } = req.query;
     const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
-    const params = []; let paramIdx = 1; let condition = '';
-    if (type) { condition = `WHERE source_type = $${paramIdx++}`; params.push(type); }
+    const params = []; let paramIdx = 1; const conditions = [];
+    if (type) { conditions.push(`source_type = $${paramIdx++}`); params.push(type); }
+    // Rows are filtered by the same currency as the totals (default USD):
+    // previously rows carried every currency while totals named one, so the
+    // listing and its summary disagreed. Pagination now reflects the
+    // filtered set, so page contents shift for multi-currency ledgers.
+    conditions.push(`UPPER(pl.currency) = UPPER($${paramIdx++})`); params.push(currency);
+    const condition = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await db.query(`SELECT pl.*, u.first_name || ' ' || u.last_name AS user_name, u.email AS user_email FROM platform_ledger pl LEFT JOIN users u ON pl.user_id = u.id ${condition} ORDER BY pl.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
-    const { rows: totals } = await db.query(`
-      SELECT
-        COALESCE(SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS gross_revenue_cents,
-        COALESCE(SUM(CASE WHEN source_type = 'job_fee' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS job_fee_revenue_cents,
-        COALESCE(SUM(CASE WHEN source_type = 'subscription' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS subscription_revenue_cents,
-        COALESCE(SUM(CASE WHEN amount_cents < 0 THEN ABS(amount_cents) ELSE 0 END), 0) AS total_refunds_cents,
-        COALESCE(SUM(amount_cents), 0) AS net_revenue_cents
-      FROM platform_ledger
-    `);
-    res.json({ ledger: rows, totals: totals[0], page: parseInt(page), limit: parseInt(limit) });
+    // Ledger totals are per currency (metricsRegistry.ledgerFinancialTotals):
+    // summing cents across currencies produced meaningless "revenue" figures,
+    // and the page formats USD, so the default currency is USD. Response keys
+    // are unchanged so the Financials page keeps working; only the values
+    // are now currency-scoped. gross = all positive inflows (NOT platform
+    // take; platform take is job_fee + subscription), net = sum of all amounts.
+    const totalsRow = await metricsRegistry.ledgerFinancialTotals(db, currency);
+    const totals = {
+      gross_revenue_cents: totalsRow.gross_cents,
+      job_fee_revenue_cents: totalsRow.job_fee_cents,
+      subscription_revenue_cents: totalsRow.subscription_cents,
+      total_refunds_cents: totalsRow.refunds_cents,
+      net_revenue_cents: totalsRow.net_cents,
+      currency_code: totalsRow.currency_code,
+    };
+    res.json({ ledger: rows, totals, page: parseInt(page), limit: parseInt(limit) });
   } catch (err) { logger.error('getFinancials error', { err }); res.status(500).json({ error: 'Failed to fetch financials.' }); }
 };
 
@@ -1488,11 +1505,34 @@ exports.issueRefundStepupChallenge = async (req, res, next) => {
   try {
     const adminId = req.user?.id;
     if (!adminId) throw new AppError('Unauthorized.', 401, 'unauthorized');
+    // Auth audit item 6: issue for the real refund amount, not 1. The
+    // body carries jobId; the amount is the explicit body amount when
+    // the client sends one, else the captured amount of the latest
+    // refundable payment (the same figure the refund handler binds).
+    const jobId = req.body?.jobId || req.body?.job_id;
+    if (!jobId) throw new AppError('Job id is required.', 400, 'manual_refund_job_required');
+    const { rows: paymentRows } = await db.query(
+      `SELECT id, amount, stripe_payment_intent_id, stripe_account_id
+       FROM payments
+       WHERE job_id = $1
+         AND stripe_payment_intent_id IS NOT NULL
+         AND status IN ('authorized', 'captured')
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [jobId]
+    );
+    if (!paymentRows.length) throw new AppError('Refundable payment not found for this job.', 404, 'manual_refund_payment_not_found');
+    const issueCapturedCents = Math.round(Number(paymentRows[0].amount) * 100);
+    if (!Number.isInteger(issueCapturedCents) || issueCapturedCents <= 0) {
+      throw new AppError('Payment has no captured amount to refund against.', 409, 'manual_refund_no_captured_amount');
+    }
+    const issueAmount = Number(req.body?.amountCents ?? req.body?.amount_cents);
+    const amountCents = Number.isInteger(issueAmount) && issueAmount > 0 ? issueAmount : issueCapturedCents;
     const { challenge, delivery } = await issueStepupChallenge({
       actorUserId: adminId,
       actorEmail: req.user?.email,
       actionType: 'manual_refund',
-      amountCents: 1,
+      amountCents,
       currencyCode: 'USD',
     });
     res.status(201).json({
@@ -1518,16 +1558,6 @@ exports.issueManualRefund = async (req, res) => {
     const { reason, amount_cents, fullRefund } = req.body;
     const adminId = req.user.id;
     if (!reason) return res.status(400).json({ error: 'Refund reason required.' });
-
-    // ADM-112: manual refunds move money under a single grant with no amount
-    // tiering. Require a fresh step-up challenge per refund so the acting
-    // admin re-authenticates at the moment money moves.
-    await verifyStepupChallenge({
-      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
-      actorUserId: adminId,
-      actionType: 'manual_refund',
-      code: req.body?.stepupCode || req.body?.stepup_code,
-    });
 
     const refundAmountCents = amount_cents == null ? null : Number(amount_cents);
     if (refundAmountCents != null && (!Number.isInteger(refundAmountCents) || refundAmountCents <= 0)) {
@@ -1558,6 +1588,21 @@ exports.issueManualRefund = async (req, res) => {
       return res.status(400).json({ error: 'Refund amount cannot exceed the captured amount.' });
     }
 
+    // ADM-112: manual refunds move money under a single grant with no amount
+    // tiering. Require a fresh step-up challenge per refund so the acting
+    // admin re-authenticates at the moment money moves. Auth audit item 6:
+    // the challenge must have been issued for this refund amount (the
+    // explicit amount, or the full captured amount for a full refund),
+    // not just any manual refund. The payment lookup moved above the
+    // verify so the expected figure is known before the code is checked.
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: adminId,
+      actionType: 'manual_refund',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+      expectedAmountCents: refundAmountCents != null ? refundAmountCents : capturedCents,
+    });
+
     const requestId = `admin-job-refund-${jobId}-${payment.id}-${refundAmountCents || 'full'}`;
     const refundResult = await processPaymentRefund({
       paymentId: payment.id,
@@ -1566,6 +1611,7 @@ exports.issueManualRefund = async (req, res) => {
       reason,
       actorUserId: adminId,
       requestId,
+      req,
       // ADM-016: above-threshold refunds queue for a second admin instead
       // of moving money on this single approval.
       dualApproval: {
@@ -2672,7 +2718,15 @@ exports.getAuditLog = async (req, res) => {
     if (target_type) { conditions.push(`a.target_type = $${paramIdx++}`); params.push(target_type); }
     // ADM-110: 360-degree views filter server-side by the subject id instead of
     // fetching a global list and filtering in the browser.
-    if (target_id) { conditions.push(`a.target_id = $${paramIdx++}`); params.push(String(target_id)); }
+    // Bigint targets (affiliate payouts) live in target_bigint, not
+    // target_id: a numeric filter must match target_bigint, or payout
+    // rows are missed (their target_id is NULL by construction). Every
+    // other value keeps the legacy target_id filter verbatim.
+    if (target_id) {
+      const rawTarget = String(target_id);
+      if (/^-?\d+$/.test(rawTarget)) { conditions.push(`a.target_bigint = $${paramIdx++}`); params.push(rawTarget); }
+      else { conditions.push(`a.target_id = $${paramIdx++}`); params.push(rawTarget); }
+    }
     const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await db.query(`SELECT a.*, u.first_name || ' ' || u.last_name AS admin_name, u.email AS admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_id = u.id ${wc} ORDER BY a.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limitNumber, offset]);
     res.json({ log: rows, page: pageNumber, limit: limitNumber });
@@ -3042,14 +3096,26 @@ exports.restoreUser = async (req, res) => {
       });
     }
 
+    const hasFinalized = await columnExists('users', 'deletion_finalized_at');
+    const finalizedSelect = hasFinalized ? ', deletion_finalized_at' : '';
+
     const { rows: userRows } = await db.query(
       `SELECT id, first_name, last_name, email, role,
-              deletion_scheduled_at, deleted_at, deletion_type
+              deletion_scheduled_at, deleted_at, deletion_type${finalizedSelect}
        FROM users WHERE id::text = $1`,
       [String(userId)]
     );
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
     const user = userRows[0];
+
+    // Ledger-safe deletion is terminal: a finalized account was anonymized
+    // when its 30-day schedule matured, and reinstating it would reactivate
+    // a scrubbed identity. Refuse before any other restore logic.
+    if (hasFinalized && user.deletion_finalized_at) {
+      return res.status(409).json({
+        error: 'This account has already been permanently deleted and cannot be restored.',
+      });
+    }
 
     if (user.deletion_type === 'self') {
       return res.status(409).json({
@@ -3348,6 +3414,17 @@ exports.forceLogout = async (req, res) => {
       await tokenRevocationService.revokeAllUserTokens(String(userId));
     } catch (revokeErr) {
       logger.warn('forceLogout: token revocation failed', { userId, error: revokeErr.message });
+    }
+
+    // Session-scoped CSRF: force-logout terminates every session, so
+    // it invalidates every CSRF key for the user (all session keys plus
+    // the legacy key), unlike self-logout which invalidates only the
+    // presented session's key. Never throws, for the same reason as the
+    // logout path.
+    try {
+      await invalidateAllCsrfTokens(String(userId));
+    } catch (csrfErr) {
+      logger.warn('forceLogout: CSRF invalidation failed', { userId, error: csrfErr.message });
     }
 
     // Audit fix (finding 5): passkeys are standalone login credentials that
@@ -3691,6 +3768,7 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
       ipAddress: req.ip || null,
       // ADM-142: record why a fellow admin's credentials were rotated.
       notes: targetIsAdmin ? `Admin password reset reason: ${trimmedReason}` : null,
+      impersonatedBy: req.impersonatedBy || null,
     });
 
     await logAdminAction({
@@ -4163,7 +4241,7 @@ exports.suspendUser = async (req, res) => {
     // Force-logout the user
     try { socketService.disconnectUserSockets(userId); } catch (_) {}
 
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_suspended', notes: reason.trim(), ipAddress: req.ip });
+    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_suspended', notes: reason.trim(), ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
     await logAdminAction({ adminId, action: 'user_suspended', targetType: 'user', targetId: userId, description: reason.trim(), req });
 
     const untilText = suspendedUntil
@@ -4216,7 +4294,7 @@ exports.restrictUser = async (req, res) => {
       [reason.trim(), adminId, userId]
     );
 
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_restricted', notes: reason.trim(), ipAddress: req.ip });
+    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_restricted', notes: reason.trim(), ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
     await logAdminAction({ adminId, action: 'user_restricted', targetType: 'user', targetId: userId, description: reason.trim(), req });
 
     await notifyUserAccountEvent(userId, {
@@ -4267,7 +4345,7 @@ exports.warnUser = async (req, res) => {
       action_url: '/support',
     });
 
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_warned', notes: reason.trim(), ipAddress: req.ip });
+    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_warned', notes: reason.trim(), ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
     await logAdminAction({ adminId, action: 'user_warned', targetType: 'user', targetId: userId, description: reason.trim(), req });
 
     res.json({ message: `Warning issued. User now has ${rows[0].warning_count} warning(s).`, warning_count: rows[0].warning_count });
@@ -4310,7 +4388,7 @@ exports.reactivateUser = async (req, res) => {
       logger.warn('reactivateUser: reinstate failed', { userId, err: e.message });
     }
 
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_reactivated', notes: notes.trim() || null, ipAddress: req.ip });
+    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_reactivated', notes: notes.trim() || null, ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
     await logAdminAction({ adminId, action: 'user_reactivated', targetType: 'user', targetId: userId, description: notes.trim() || 'Account reactivated by admin', req });
 
     // ADM-109: reactivation must not resurrect pre-ban tokens. Revoke so the
@@ -4395,6 +4473,7 @@ exports.updateUserProfile = async (req, res) => {
           oldValue:     field === 'email' ? '[REDACTED]' : oldVal,
           newValue:     field === 'email' ? '[REDACTED]' : newVal,
           ipAddress:    req.ip,
+          impersonatedBy: req.impersonatedBy || null,
         });
       }
     }

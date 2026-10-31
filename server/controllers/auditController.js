@@ -15,6 +15,7 @@ const logger = require('../utils/logger');
 const db = require('../db');
 const { getUserActionLogs } = require('../services/auditService');
 const { withDbBudget } = require('../utils/dbBudgets');
+const { csvCell } = require('../utils/csv');
 const { parsePagination } = require('../utils/boundedPagination');
 const { resolveScope } = require('../utils/scopeFilter');
 
@@ -73,15 +74,6 @@ const CSV_COLUMNS = [
   'ip_address', 'region_name', 'user_notified',
 ];
 
-function csvEscape(val) {
-  if (val === null || val === undefined) return '';
-  let s = String(val);
-  // Keep exported audit values inert when opened in spreadsheet software.
-  if (/^[=+\-@]/.test(s)) s = `'${s}`;
-  if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
 exports.exportUserActions = async (req, res, next) => {
   try {
     // E04: heavy exports run under the 'exports' workload budget so they
@@ -114,7 +106,7 @@ exports.exportUserActions = async (req, res, next) => {
 
       res.write(CSV_COLUMNS.join(',') + '\r\n');
       for (const r of rows) {
-        res.write(CSV_COLUMNS.map(c => csvEscape(r[c])).join(',') + '\r\n');
+        res.write(CSV_COLUMNS.map(c => csvCell(r[c])).join(',') + '\r\n');
       }
       res.end();
     });

@@ -1,0 +1,7 @@
+{
+  "allowedStyleTagFiles": [
+    "src/pages/StatusPage.jsx"
+  ],
+  "notes": "StatusPage.jsx keeps its <style> tag deliberately: the block contains an unscoped #main-content rule that would leak to every page as linked SPA CSS after navigating away from /status. Scoping it needs a PageShell scoping prop (follow-up). All other client <style> tags were extracted to CSS files in the CSP nonce-migration track; do not add new ones.",
+  "styleAttrOccurrences": 5292
+}

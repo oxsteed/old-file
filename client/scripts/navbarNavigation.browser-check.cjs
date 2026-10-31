@@ -65,7 +65,7 @@ test('mode navbar renders responsive priorities, accessible disclosures and work
       plugin.onLoad({ filter: /.*/, namespace: 'navbar-fixture' }, args => ({ contents: mocks[args.path], loader: 'jsx', resolveDir: root }));
     }}],
   });
-  const css = '*{box-sizing:border-box}body{margin:0}button{font:inherit}'+fs.readFileSync(path.join(root, 'src/index.css'), 'utf8').replace(/^@(?:import|config).*$/gm, '') + fs.readFileSync(path.join(root, 'src/styles/BusinessSwitcher.css'), 'utf8');
+  const css = '*{box-sizing:border-box}body{margin:0}button{font:inherit}'+fs.readFileSync(path.join(root, 'src/index.css'), 'utf8').replace(/^@(?:import|config).*$/gm, '') + fs.readFileSync(path.join(root, 'src/styles/BusinessSwitcher.css'), 'utf8') + fs.readFileSync(path.join(root, 'src/components/Navbar.css'), 'utf8');
   const server = http.createServer((req, res) => {
     if (req.url === '/app.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(bundle.outputFiles[0].contents); }
     else if (req.url === '/style.css') { res.setHeader('Content-Type', 'text/css'); res.end(css); }

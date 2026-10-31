@@ -115,7 +115,9 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
     key: `foodorder-refund-${order.id}`,
     promptMessage: copy('resolution.refundFoodOrderPrompt', { defaultValue: 'Refund food order #{{id}} ({{amount}})? Type the reason and choose OK to confirm:', id: order.id, amount: formatMoney(order.total_cents, order.currency_code) }),
     request: async (reason) => {
-      const stepup = await collectAdminActionStepup(api, '/admin/food-orders/stepup-challenges/refund', t);
+      // Auth audit item 6: agent refunds are full-order, so the server
+      // binds the challenge to the order total.
+      const stepup = await collectAdminActionStepup(api, '/admin/food-orders/stepup-challenges/refund', t, { orderId: order.id, amountCents: order.total_cents });
       const response = await api.post(`/agent/food-orders/${order.id}/refund`, { reason, ...stepup });
       return response;
     },

@@ -53,6 +53,7 @@ const {
   requestPendingAction,
   decidePendingAction,
   listPendingActions,
+  resolveCheckerStepupAmountCents,
 } = require('../services/oxsteedCreditPendingActionService');
 // Phase 7 (gap 10): compensated dispute resolutions.
 const { resolveDisputeWithCompensation, issueProvisionalCredit } = require('../services/oxsteedCreditDisputeService');
@@ -167,11 +168,18 @@ async function requestMoneyMovement(req, actionType, payload) {
   // challenge before queueing any money intent. Challenges are single-use,
   // so this must run exactly once per request: the generic pending-actions
   // endpoint no longer verifies on its own and relies on this call.
+  // Auth audit item 6: bind to the payload amount when the intent
+  // carries one (loads, adjustments, refunds); intents without a single
+  // amount keep the legacy unbound challenge.
+  const makerPayloadAmount = Number(payload?.amountCents ?? payload?.amount_cents);
   await verifyStepupChallenge({
     challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
     actorUserId: req.user?.id || null,
     actionType: 'pending_action_request',
     code: req.body?.stepupCode || req.body?.stepup_code,
+    ...(Number.isSafeInteger(makerPayloadAmount) && makerPayloadAmount > 0
+      ? { expectedAmountCents: makerPayloadAmount }
+      : {}),
   });
   return requestPendingAction({
     actionType,
@@ -642,6 +650,8 @@ async function transferMyCredit(req, res, next) {
         actorUserId: req.user.id,
         actionType: 'customer_transfer',
         code: req.body?.stepupCode || req.body?.stepup_code,
+        // Auth audit item 6: bind to the transfer amount.
+        expectedAmountCents: req.body?.amountCents ?? req.body?.amount_cents,
       });
     }
     const result = await transferCredit({
@@ -1473,11 +1483,30 @@ async function issueAdminStepupChallenge(req, res, next) {
     if (!ADMIN_STEPUP_ACTION_TYPES.has(requestedActionType)) {
       throw new AppError('Unsupported admin step-up action', 400, 'credit_stepup_action_invalid');
     }
+    // Auth audit item 6: for a checker challenge, resolve the amount from
+    // the stored pending action with the same resolver the decision path
+    // verifies against, so issue and verify agree by construction. The
+    // client sends pendingActionId (ApprovalsPage); without it the legacy
+    // body amount (or 1) is used, exactly as before.
+    let amountCents = req.body?.amountCents || req.body?.amount_cents || 1;
+    const pendingActionId = req.body?.pendingActionId || req.body?.pending_action_id;
+    if (requestedActionType === 'pending_action_approve' && pendingActionId) {
+      const { rows: actionRows } = await pool.query(
+        'SELECT action_type, payload FROM oxsteed_credit_pending_actions WHERE id = $1',
+        [pendingActionId]
+      );
+      if (!actionRows.length) throw new AppError('Pending action was not found', 404, 'credit_pending_action_not_found');
+      const resolved = await resolveCheckerStepupAmountCents(pool, {
+        action_type: actionRows[0].action_type,
+        payload: actionRows[0].payload || {},
+      });
+      if (resolved !== null) amountCents = resolved;
+    }
     const { challenge, delivery } = await issueStepupChallenge({
       actorUserId: req.user.id,
       actorEmail: req.user?.email,
       actionType: requestedActionType,
-      amountCents: req.body?.amountCents || req.body?.amount_cents || 1,
+      amountCents,
       currencyCode: req.body?.currencyCode || req.body?.currency_code || 'USD',
     });
     res.status(201).json({

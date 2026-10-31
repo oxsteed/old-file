@@ -46,6 +46,7 @@ describeDatabase('helper cash-out lifecycle (licence readiness)', () => {
   let partnerId;
   let payableId;
   let railWasEnabled;
+  let railRowExisted;
   let agreementId;
   const ACCOUNT = `HT${crypto.randomInt(1e9, 9.99e9)}`;
 
@@ -85,6 +86,8 @@ describeDatabase('helper cash-out lifecycle (licence readiness)', () => {
     bank = require('../services/creditBankPayoutService');
     const { rows: flag } = await pool.query(`SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled'`);
     railWasEnabled = flag[0]?.is_enabled === true;
+    railRowExisted = flag.length > 0;
+    await pool.query(`INSERT INTO feature_flags (key, is_enabled) SELECT 'oxsteed_credit_enabled', TRUE WHERE NOT EXISTS (SELECT 1 FROM feature_flags WHERE key = 'oxsteed_credit_enabled')`);
     await pool.query(`UPDATE feature_flags SET is_enabled = TRUE WHERE key = 'oxsteed_credit_enabled'`);
 
     admin1 = await createUser('super_admin', { first: 'Admin', last: 'One', lang: 'en' });
@@ -149,7 +152,11 @@ describeDatabase('helper cash-out lifecycle (licence readiness)', () => {
 
   afterAll(async () => {
     if (pool) {
-      await pool.query(`UPDATE feature_flags SET is_enabled = $1 WHERE key = 'oxsteed_credit_enabled'`, [railWasEnabled]);
+      if (railRowExisted) {
+        await pool.query(`UPDATE feature_flags SET is_enabled = $1 WHERE key = 'oxsteed_credit_enabled'`, [railWasEnabled]);
+      } else {
+        await pool.query(`DELETE FROM feature_flags WHERE key = 'oxsteed_credit_enabled'`);
+      }
       await pool.end();
     }
   });

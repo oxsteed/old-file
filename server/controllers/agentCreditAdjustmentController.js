@@ -461,12 +461,15 @@ async function approveAdjustment(req, res, next) {
       // money moves, matching the super-admin checker path. The challenge is
       // bound to the approver's identity; a stolen session alone cannot
       // approve. Verified after the cheap checks so invalid requests do not
-      // burn single-use challenges.
+      // burn single-use challenges. Auth audit item 6: also bound to the
+      // adjustment amount (absolute value, matching the issue side).
+      const adjustmentAmount = Math.abs(Number(adjustment.amount_cents));
       await verifyStepupChallenge({
         challengeId: req.body?.stepupChallengeId ?? req.body?.stepup_challenge_id,
         actorUserId: adminId,
         actionType: 'agent_credit_adjustment_approve',
         code: req.body?.stepupCode ?? req.body?.stepup_code,
+        ...(Number.isSafeInteger(adjustmentAmount) && adjustmentAmount > 0 ? { expectedAmountCents: adjustmentAmount } : {}),
       });
       // ADM-019/ADM-114: the compliance choke point ran at propose time.
       // Re-run it now, at the moment money moves, so a sanctions hit or

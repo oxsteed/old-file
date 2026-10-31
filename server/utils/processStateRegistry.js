@@ -161,9 +161,14 @@ const ENTRIES = [
     rationale: 'User-level revocation timestamps. Redis-primary (revoked:user:<id>, 7d TTL). In-memory fallback is a TTL-bounded cache, single-instance only.',
   },
   {
-    file: 'middleware/csrf.js', name: 'tokenMap',
+    file: 'middleware/csrf.js', name: 'rawTokenMap',
     classification: 'security-list', shared: 'redis',
-    rationale: 'CSRF tokens. Redis-primary (csrf:<userId>, 24h TTL). In-memory fallback is a TTL-bounded cache, single-instance only.',
+    rationale: 'CSRF tokens. Redis-primary (csrf:<userId>:<sid>, 24h TTL). In-memory fallback is a TTL-bounded cache (50k entries), single-instance only.',
+  },
+  {
+    file: 'middleware/csrf.js', name: 'fallbackKeyIndex',
+    classification: 'security-list', shared: 'none',
+    rationale: 'Key index for the CSRF in-memory fallback cache, used to enumerate keys for session invalidation when Redis is unavailable. Per-process only; Redis SCAN is used when Redis is available.',
   },
 
   // ── Semaphores (per-process concurrency guards; correct in-process) ─────

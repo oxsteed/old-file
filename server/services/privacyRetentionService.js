@@ -205,6 +205,101 @@ async function processErasureRequests(limit = 20) {
   return rows.length;
 }
 
+/**
+ * Ledger-safe completion of admin-scheduled user deletion.
+ *
+ * Admin deletion (superAdminController.deleteUser) soft-deletes the account
+ * and schedules permanent deletion 30 days out (users.deletion_scheduled_at,
+ * migration 165), but no executor may hard-delete the row: the
+ * food_customer_wallet_ledger no-delete rule swallows the ON DELETE CASCADE,
+ * so a hard DELETE of a user with any ledger history fails schema-wide
+ * with a referential-integrity error. The ledger-safe completion is therefore
+ * anonymization, not removal, reusing the established erasure semantics:
+ * PII is scrubbed, the account is pseudonymized, and financial records
+ * (payments, ledgers, tips, cash-outs) are KEPT and stay linked only to the
+ * pseudonymized account.
+ *
+ * For each due schedule, in its own transaction:
+ *  - re-check blockers (erasure blockers + the admin-delete financial
+ *    guard). A blocked user stays scheduled and is counted, never forfeited:
+ *    money is never destroyed to complete a deletion.
+ *  - run eraseUser, close zero-balance food-wallet accounts (ledger rows are
+ *    never touched), clear the schedule, and stamp deletion_finalized_at.
+ * A finalized account must never be reinstated; restoreUser refuses it.
+ * Returns { finalized, blocked, errored }. Returns all zeros while the
+ * PRIVACY_RETENTION flag is off, mirroring processErasureRequests.
+ * opts.userIds (array of UUIDs) scopes the run to those users; it exists
+ * so tests on a shared disposable database stay hermetic, and so ops can
+ * re-run finalize for specific accounts. Production callers omit it.
+ */
+async function finalizeScheduledDeletions(limit = 20, opts = {}) {
+  if (!flags.isEnabled('PRIVACY_RETENTION')) return { finalized: 0, blocked: 0, errored: 0 };
+  const { findFinancialBlockers } = require('./accountDeletionGuard');
+  const scoped = Array.isArray(opts.userIds) && opts.userIds.length > 0;
+  const { rows: due } = await pool.query(
+    `SELECT id FROM users
+      WHERE deletion_scheduled_at IS NOT NULL
+        AND deletion_scheduled_at <= NOW()
+        AND deletion_finalized_at IS NULL
+        ${scoped ? 'AND id = ANY($2::uuid[])' : ''}
+      ORDER BY deletion_scheduled_at ASC
+      LIMIT $1`,
+    scoped ? [limit, opts.userIds] : [limit]
+  );
+  const result = { finalized: 0, blocked: 0, errored: 0 };
+  for (const { id: userId } of due) {
+    try {
+      const outcome = await withTransaction(pool, async (client) => {
+        const { rows: locked } = await client.query(
+          `SELECT id FROM users
+            WHERE id = $1
+              AND deletion_scheduled_at IS NOT NULL
+              AND deletion_scheduled_at <= NOW()
+              AND deletion_finalized_at IS NULL
+            FOR UPDATE`,
+          [userId]
+        );
+        if (!locked.length) return 'gone';
+        const erasureBlocker = await blockerFor(client, userId);
+        const financialBlockers = await findFinancialBlockers(userId, client);
+        if (erasureBlocker || financialBlockers.length) {
+          logger.warn('privacy_deletion_finalize.blocked', {
+            userId, erasureBlocker, financialBlockers,
+          });
+          return 'blocked';
+        }
+        await eraseUser(client, userId);
+        const { rows: walletTable } = await client.query(
+          `SELECT to_regclass('public.food_customer_wallet_accounts') AS t`
+        );
+        if (walletTable[0]?.t) {
+          await client.query(
+            `UPDATE food_customer_wallet_accounts
+                SET status = 'closed', updated_at = NOW()
+              WHERE customer_id = $1
+                AND balance_cents = 0 AND reserved_cents = 0
+                AND status <> 'closed'`,
+            [userId]
+          );
+        }
+        await client.query(
+          `UPDATE users
+              SET deletion_scheduled_at = NULL, deletion_finalized_at = NOW(), updated_at = NOW()
+            WHERE id = $1`,
+          [userId]
+        );
+        return 'finalized';
+      }, 'privacy_deletion_finalize');
+      if (outcome === 'finalized') result.finalized += 1;
+      else if (outcome === 'blocked') result.blocked += 1;
+    } catch (err) {
+      logger.error('privacy_deletion_finalize.failed', { userId, error: err.message });
+      result.errored += 1;
+    }
+  }
+  return result;
+}
+
 async function retentionSweep() {
   if (!flags.isEnabled('PRIVACY_RETENTION')) return { stripped: 0, deleted: 0 };
   const { rowCount: stripped } = await pool.query(
@@ -231,6 +326,7 @@ module.exports = {
   requestErasure,
   getErasureStatus,
   processErasureRequests,
+  finalizeScheduledDeletions,
   retentionSweep,
   blockerFor,
   eraseUser,

@@ -133,6 +133,11 @@ ddescribe('ledger_transaction_id UUID round-trip (P0 #3)', () => {
   beforeEach(async () => {
     // The credit rail is disabled by default (migration 422); money cannot
     // move in the fixtures below unless the test enables it explicitly.
+    // Ensure the flag row exists: an UPDATE alone is a no-op on a fresh
+    // database, which used to make this suite depend on a leaked ON state
+    // from an earlier suite sharing the database.
+    await pool.query(
+      `INSERT INTO feature_flags (key, is_enabled) SELECT 'oxsteed_credit_enabled', TRUE WHERE NOT EXISTS (SELECT 1 FROM feature_flags WHERE key = 'oxsteed_credit_enabled')`);
     await pool.query(
       `UPDATE feature_flags SET is_enabled = TRUE WHERE key = 'oxsteed_credit_enabled'`);
   });
@@ -302,6 +307,9 @@ ddescribe('ledger_transaction_id UUID round-trip (P0 #3)', () => {
   });
 
   afterAll(async () => {
+    // Restore the default (absent) rail flag so later suites sharing this
+    // database are not flipped onto the live dual-posting path.
+    await pool.query(`DELETE FROM feature_flags WHERE key = 'oxsteed_credit_enabled'`);
     await pool.end();
   });
 });

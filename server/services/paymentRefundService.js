@@ -54,7 +54,7 @@ function verifyProviderRefund(refund, reservation) {
   }
 }
 
-async function reservePaymentRefund({ paymentId, requestedAmountCents, fullRefund, reason, reverseApplicationFee, actorUserId, requestId, allowOpenDisputeId }) {
+async function reservePaymentRefund({ paymentId, requestedAmountCents, fullRefund, reason, reverseApplicationFee, actorUserId, requestId, allowOpenDisputeId, req = null }) {
   const idempotencyKey = refundIdempotencyKey(paymentId, requestId);
   return withTransaction(pool, async (client) => {
     const existingResult = await client.query(
@@ -133,11 +133,14 @@ async function reservePaymentRefund({ paymentId, requestedAmountCents, fullRefun
     }
     const inserted = await client.query(
       `INSERT INTO payment_refund_attempts
-        (payment_id, amount_cents, reason, reverse_application_fee, idempotency_key, actor_user_id, kind)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+        (payment_id, amount_cents, reason, reverse_application_fee, idempotency_key, actor_user_id, kind, impersonated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [paymentId, amountCents, reason ? String(reason).trim().slice(0, 1000) : null,
-        !!reverseApplicationFee, idempotencyKey, actorUserId || null, kind]
+        !!reverseApplicationFee, idempotencyKey, actorUserId || null, kind,
+        // Service-layer request-context convention: the impersonating
+        // admin, or NULL for direct sessions and system re-runs.
+        req?.impersonatedBy || null]
     );
     return { payment, attempt: inserted.rows[0], replay: false };
   }, 'payment_refund_reservation');

@@ -278,6 +278,7 @@ exports.updateBusinessService = async (req, res) => {
       // incomplete.
       const { unpublished, missing } = await maybeUnpublishBusinessIfIncomplete(db, businessId, {
         actorUserId: req.user.id, actorRole: 'owner',
+        impersonatedBy: req.impersonatedBy || null,
       });
       const payload = result.rows[0];
       if (unpublished) {
@@ -326,6 +327,7 @@ exports.deleteBusinessService = async (req, res) => {
       // incomplete.
       const { unpublished, missing } = await maybeUnpublishBusinessIfIncomplete(db, businessId, {
         actorUserId: req.user.id, actorRole: 'owner',
+        impersonatedBy: req.impersonatedBy || null,
       });
 
       sendSuccess(res, unpublished ? { deleted: true, businessUnpublished: true, unpublishMissing: missing } : { deleted: true });

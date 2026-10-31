@@ -6,6 +6,7 @@ import { useHelpersInfiniteScroll } from '../hooks/useHelpersInfiniteScroll';
 import type { Helper } from '../hooks/useHelpersInfiniteScroll';
 import { getSharedBrowserLocation } from '../utils/browserLocation';
 import { helperProfilePath, businessProfilePath } from '../utils/profileUrls';
+import './LiveHelpersHeroCard.css';
 
 const FALLBACK_LAT = 39.921923;
 const FALLBACK_LNG = -82.998619;
@@ -183,7 +184,7 @@ export default function LiveHelpersHeroCard() {
               height: '8px',
               borderRadius: '50%',
               background: isLoading_ ? '#999' : '#22c55e',
-              animation: isLoading_ ? 'none' : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              animation: isLoading_ ? 'none' : 'ox-hero-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             }}
           />
           <span style={{ fontSize: '.75rem', fontWeight: 600, color: 'var(--hp-text)' }}>
@@ -422,12 +423,6 @@ export default function LiveHelpersHeroCard() {
         )}
       </div>
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
     </div>
   );
 }

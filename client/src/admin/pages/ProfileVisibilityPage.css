@@ -1,0 +1,6 @@
+
+        .pv-admin button:focus-visible, .pv-admin input:focus-visible, .pv-admin select:focus-visible, .pv-admin a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+        @media (prefers-reduced-motion: reduce) {
+          .pv-admin *, .pv-admin *::before, .pv-admin *::after { animation: none !important; transition: none !important; }
+        }
+      

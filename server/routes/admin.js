@@ -271,7 +271,14 @@ router.post('/users/:userId/cancel-pending-deletion', requireSuperAdmin, superCt
 router.post('/users/:userId/restore', requireSuperAdmin, superCtrl.restoreUser);
 router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
 router.get('/super/users/:userId/sessions', requireSuperAdmin, superCtrl.listUserSessions);
-router.post('/users/:userId/password', requireSuperAdmin, superCtrl.setUserPasswordBySuperAdmin);
+// Audit finding 1 (2026-10-31): setting another user's password revokes the
+// victim's tokens, sessions, passkeys, and TOTP, then sets a caller-chosen
+// password, so it requires a FRESH TOTP proof like impersonation start, not
+// merely an enrolled one. The admin first calls POST /super/stepup/verify
+// with their current TOTP code and purpose 'super_admin_password_set',
+// which records a 15-minute fresh-auth event; this route then requires it.
+const requirePasswordSetStepUp = requireFreshAuth('super_admin_password_set');
+router.post('/users/:userId/password', requireSuperAdmin, requirePasswordSetStepUp, superCtrl.setUserPasswordBySuperAdmin);
 
 // Impersonation (super-admin only)
 // Audit finding 9: starting an impersonation mints a 30-minute token that
@@ -590,12 +597,29 @@ router.post('/super/oxsteed-credit/settlements/:settlementId/reversal', requireS
 router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     // Phase 5: payout initiation always requires a fresh step-up challenge
-    // for the acting admin, verified before any money moves.
+    // for the acting admin, verified before any money moves. Auth audit
+    // item 6: bind it to the settlement's net_cents (the same figure the
+    // checker path binds); a missing settlement skips binding and the
+    // queued action reports it downstream.
+    let settlementExpectedAmount = null;
+    try {
+      const { rows: settlementRows } = await require('../db').query(
+        'SELECT net_cents FROM oxsteed_credit_settlements WHERE id = $1',
+        [req.params.settlementId]
+      );
+      if (settlementRows.length) {
+        const n = Number(settlementRows[0].net_cents);
+        if (Number.isSafeInteger(n) && n > 0) settlementExpectedAmount = n;
+      }
+    } catch (preReadError) {
+      require('../utils/logger').warn('admin.settlement payout stepup pre-read failed, skipping amount binding', { settlementId: req.params.settlementId, error: preReadError.message });
+    }
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
       actorUserId: req.user?.id || null,
       actionType: 'settlement_payout',
       code: req.body?.stepupCode || req.body?.stepup_code,
+      ...(settlementExpectedAmount !== null ? { expectedAmountCents: settlementExpectedAmount } : {}),
     });
     const result = await requestPendingAction({
       actionType: 'credit_settlement_payout',
@@ -656,11 +680,28 @@ router.get('/super/oxsteed-credit/withdrawals', requireSuperAdmin, async (req, r
 });
 router.post('/super/oxsteed-credit/withdrawals/:id/approve', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
+    // Auth audit item 6: bind the maker step-up to the withdrawal row's
+    // amount; a missing row skips binding and the queued action reports
+    // it downstream.
+    let withdrawalExpectedAmount = null;
+    try {
+      const { rows: withdrawalRows } = await require('../db').query(
+        'SELECT amount_cents FROM oxsteed_credit_withdrawals WHERE id = $1',
+        [req.params.id]
+      );
+      if (withdrawalRows.length) {
+        const n = Number(withdrawalRows[0].amount_cents);
+        if (Number.isSafeInteger(n) && n > 0) withdrawalExpectedAmount = n;
+      }
+    } catch (preReadError) {
+      require('../utils/logger').warn('admin.withdrawal approve stepup pre-read failed, skipping amount binding', { withdrawalId: req.params.id, error: preReadError.message });
+    }
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
       actorUserId: req.user?.id || null,
       actionType: 'withdrawal',
       code: req.body?.stepupCode || req.body?.stepup_code,
+      ...(withdrawalExpectedAmount !== null ? { expectedAmountCents: withdrawalExpectedAmount } : {}),
     });
     // Phase 7 (gap 9): the maker proves intent with the step-up above; the
     // approval itself queues as a pending action for a second admin.

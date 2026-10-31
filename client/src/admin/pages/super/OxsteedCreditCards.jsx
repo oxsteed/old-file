@@ -68,6 +68,58 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
   // persisted or refetchable.
   const [revealedSecret, setRevealedSecret] = useState(null);
   const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
+  // Auth audit item 16: admin card issuance creates a spendable instrument,
+  // so the server requires a fresh TOTP step-up challenge (action type
+  // 'credit_card_issue') before issue-virtual, issue-physical, and
+  // replacement/retry. Prompt first, then post; a 403 step-up failure
+  // re-prompts once with a fresh challenge; cancel abandons with no post.
+  const STEPUP_ACTION_TYPE = 'credit_card_issue';
+  const [stepUpOpen, setStepUpOpen] = useState(false);
+  const [stepUpCode, setStepUpCode] = useState('');
+  const [stepUpError, setStepUpError] = useState('');
+  const stepUpResolverRef = useRef(null);
+  const closeStepUp = (result) => {
+    setStepUpOpen(false);
+    const resolve = stepUpResolverRef.current;
+    stepUpResolverRef.current = null;
+    if (resolve) resolve(result);
+  };
+  const promptCardStepUp = async () => {
+    let challengeId = null;
+    try {
+      const challengeResponse = await adminApi.post('/admin/super/oxsteed-credit/stepup-challenges', { actionType: STEPUP_ACTION_TYPE });
+      challengeId = challengeResponse.data?.challenge?.id || null;
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('cards.stepup.issueFailed')));
+      return null;
+    }
+    if (!challengeId) {
+      setError(t('cards.stepup.issueFailed'));
+      return null;
+    }
+    const code = await new Promise((resolve) => {
+      stepUpResolverRef.current = resolve;
+      setStepUpCode('');
+      setStepUpError('');
+      setStepUpOpen(true);
+    });
+    if (!code?.trim()) return null;
+    return { stepupChallengeId: challengeId, stepupCode: code.trim() };
+  };
+  const isStepUpFailure = (err) => err?.response?.status === 403
+    && String(err?.response?.data?.code || '').startsWith('credit_stepup_');
+  const runSteppedUp = async (action) => {
+    const first = await promptCardStepUp();
+    if (!first) return null;
+    try {
+      return await action(first);
+    } catch (err) {
+      if (!isStepUpFailure(err)) throw err;
+      const second = await promptCardStepUp();
+      if (!second) return null;
+      return await action(second);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -123,9 +175,10 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
       const endpoint = isPhysical
         ? '/admin/super/oxsteed-credit/cards/issue-physical'
         : '/admin/super/oxsteed-credit/cards/issue-virtual';
-      const response = await adminApi.post(endpoint, payload, {
+      const response = await runSteppedUp(async (stepup) => adminApi.post(endpoint, { ...payload, ...stepup }, {
         headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-card-issue', payload) },
-      });
+      }));
+      if (!response) return;
       idempotencyKeysRef.current.clear('credit-card-issue', payload);
       const card = response.data?.card;
       if (card?.credential) {
@@ -354,7 +407,11 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
                       const reason = window.prompt(t('cards.security.retryReason'));
                       if (!reason?.trim()) return;
                       setSaving(true); setError('');
-                      try { await adminApi.post(`/admin/super/oxsteed-credit/cards/${card.id}/replacement/retry`, { reason }); await load(); }
+                      try {
+                        const result = await runSteppedUp(async (stepup) => adminApi.post(`/admin/super/oxsteed-credit/cards/${card.id}/replacement/retry`, { reason, ...stepup }));
+                        if (!result) return;
+                        await load();
+                      }
                       catch { setError(t('cards.security.failed')); }
                       finally { setSaving(false); }
                     }}>{t('cards.security.retryReplacement')}</button>}
@@ -370,5 +427,36 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
         onConfirm={async () => { await advanceFulfillment(fulfillmentTarget); setFulfillmentTarget(null); }}
         onClose={() => setFulfillmentTarget(null)} />
     </div>
+    {stepUpOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label={t('cards.stepup.title')}>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!stepUpCode.trim()) { setStepUpError(t('cards.stepup.codeRequired')); return; }
+            closeStepUp(stepUpCode.trim());
+          }}
+          className="w-full max-w-sm rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-5"
+        >
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('cards.stepup.title')}</h3>
+          <p className="mt-2 text-xs leading-5 text-gray-500">{t('cards.stepup.body')}</p>
+          {stepUpError && <p role="alert" className="mt-3 rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-2 text-xs text-red-300">{stepUpError}</p>}
+          <label className="mt-4 block">
+            <span className="mb-1 block text-xs font-semibold text-gray-500">{t('cards.stepup.codeLabel')}</span>
+            <input
+              value={stepUpCode}
+              onChange={(event) => setStepUpCode(event.target.value)}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400"
+            />
+          </label>
+          <div className="mt-4 flex justify-end gap-2">
+            <button type="button" onClick={() => closeStepUp(null)} className="rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">{t('cards.stepup.cancel')}</button>
+            <button type="submit" className="rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-400">{t('cards.stepup.verify')}</button>
+          </div>
+        </form>
+      </div>
+    )}
   </section>;
 }

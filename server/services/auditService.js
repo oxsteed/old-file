@@ -4,6 +4,27 @@ const { regionIdsScopeClause } = require('../utils/scopeFilter');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// Bigint target ids (e.g. affiliate payout ids, which are bigserials and
+// can never be UUIDs). Validated as an in-range signed 64-bit integer;
+// anything else degrades to NULL, mirroring the target_id behavior below,
+// so a malformed value can never corrupt the typed column.
+const BIGINT_TEXT_RE = /^-?\d+$/;
+const BIGINT_MIN = -9223372036854775808n;
+const BIGINT_MAX = 9223372036854775807n;
+function safeTargetBigint(value) {
+  if (value == null) return null;
+  let text = null;
+  if (typeof value === 'number' && Number.isSafeInteger(value)) text = String(value);
+  else if (typeof value === 'string' && BIGINT_TEXT_RE.test(value.trim())) text = value.trim();
+  if (text == null) return null;
+  try {
+    const parsed = BigInt(text);
+    return parsed >= BIGINT_MIN && parsed <= BIGINT_MAX ? text : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Log every admin action for compliance and audit (general action log).
  *
@@ -21,6 +42,10 @@ exports.logAdminAction = async ({
   action,
   targetType  = null,
   targetId    = null,
+  // Bigint target support: subjects identified by a bigserial (affiliate
+  // payouts) carry their id in target_bigint. The UUID target_id path is
+  // unchanged; this is purely additive.
+  targetBigint = null,
   description = null,
   before      = null,
   after       = null,
@@ -39,8 +64,8 @@ exports.logAdminAction = async ({
       INSERT INTO admin_audit_log (
         admin_id, action, target_type, target_id,
         target_key, description, ip_address, user_agent,
-        before_state, after_state, impersonated_by
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        before_state, after_state, impersonated_by, target_bigint
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
     `, [
       adminId,
       action,
@@ -53,7 +78,11 @@ exports.logAdminAction = async ({
       before ? JSON.stringify(before) : null,
       after  ? JSON.stringify(after)  : null,
       // Audit fix (finding 35): see businessAuditLog.js.
-      req?.impersonatedBy || null
+      req?.impersonatedBy || null,
+      // Bigint target last on purpose: every pre-existing param keeps its
+      // position, so mock-based tests asserting audit INSERT params (stamps,
+      // before/after) are unaffected by this additive column.
+      safeTargetBigint(targetBigint)
     ]);
   } catch (err) {
     logger.error('Failed to log admin action', { adminId, action, error: err.message });
@@ -65,6 +94,19 @@ exports.logAdminAction = async ({
 };
 
 /**
+ * Service-layer request-context convention (auth audit finding 35 completion).
+ *
+ * Audit rows must attribute an action to the account that performed it, plus
+ * the admin actually driving it when the session is impersonated. Controllers
+ * own the request object, so any service function that writes an audit row
+ * accepts an optional trailing `req` parameter, threaded explicitly from the
+ * controller, and forwards it to the audit writer (logAdminAction /
+ * logUserAction) or stamps `req?.impersonatedBy || null` on a direct INSERT.
+ * No ambient or global request state: jobs, webhooks and workers pass no
+ * `req`, so their rows keep a NULL stamp, byte-identical to before.
+ * Routes guarded by rejectImpersonated are moot by construction (their
+ * `req.impersonatedBy` is always null) and are left unthreaded.
+ *
  * Log a user-account modification to the dedicated per-field audit table
  * `admin_user_action_log`.
  *
@@ -91,6 +133,8 @@ exports.logAdminAction = async ({
  * @param {string}   [options.ipAddress]
  * @param {number}   [options.regionId]
  * @param {string}   [options.notes]
+ * @param {string}   [options.impersonatedBy] UUID of the admin driving an
+ *   impersonated session; NULL for direct sessions.
  * @returns {Promise<{ id: number, created_at: Date } | null>}
  */
 exports.logUserAction = async ({
@@ -103,15 +147,16 @@ exports.logUserAction = async ({
   newValue   = null,
   ipAddress  = null,
   regionId   = null,
-  notes      = null
+  notes      = null,
+  impersonatedBy = null
 }) => {
   const runner = client || db;
   try {
     const { rows } = await runner.query(`
       INSERT INTO admin_user_action_log (
         admin_id, target_user_id, action_type, field_name,
-        old_value, new_value, ip_address, region_id, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        old_value, new_value, ip_address, region_id, notes, impersonated_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING id, created_at
     `, [
       adminId,
@@ -122,7 +167,8 @@ exports.logUserAction = async ({
       newValue == null ? null : String(newValue),
       ipAddress,
       regionId,
-      notes
+      notes,
+      impersonatedBy
     ]);
     return rows[0];
   } catch (err) {

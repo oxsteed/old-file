@@ -1,5 +1,7 @@
 const { DISPUTE_VIEW_FROM, disputeViewSelect, partyPredicate } = require('../utils/disputeView');
 const db                    = require('../db');
+const { metricScope } = require('../analytics/metricAccess');
+const { locationInRegionsSql, JOB_LOC } = require('../analytics/regionScope');
 const { sendNotification }  = require('../services/notificationService');
 const { notifyDisputeParties } = require('../services/disputeNotifications');
 const { logAdminAction }    = require('../services/auditService');
@@ -56,6 +58,24 @@ exports.getAllDisputes = async (req, res) => {
       return res.status(400).json({ error: `Unsupported dispute status. Use: ${DISPUTE_STATUS_VALUES.join(', ')}, or all.` });
     }
 
+    // Region scoping (Option A): the governed open_disputes metric is scoped
+    // by manage_disputes grants, so this drill-through list must agree with
+    // it. regionScopedDb cannot wrap this query (the evidence/message count
+    // subqueries read dispute_evidence/dispute_messages, which have no
+    // geographic anchor), so a regional scope appends the disputes anchor
+    // directly: only disputes whose job sits in the admin's regions. A
+    // dispute with no job has no location and matches no region.
+    const disputeScope = await metricScope(req.user, 'open_disputes');
+    if (!disputeScope) {
+      return res.status(403).json({ error: 'A current manage_disputes permission is required.' });
+    }
+    if (disputeScope.unknown) {
+      return res.status(403).json({ error: 'Your regional grant does not resolve to a known region.' });
+    }
+    const regionClause = (idx) => disputeScope.global ? '' :
+      `AND EXISTS (SELECT 1 FROM jobs __rj WHERE __rj.id = d.job_id AND ${locationInRegionsSql(JOB_LOC('__rj'), `$${idx}::JSONB`)})`;
+    const regionValue = disputeScope.global ? [] : [JSON.stringify(disputeScope.regions)];
+
     // P3-820: return the fields the admin list renders (job, parties,
     // amount, evidence deadline, evidence/message counts).
     // ADM-110: the 360-degree views pass ?user_id= so disputes are filtered
@@ -66,16 +86,17 @@ exports.getAllDisputes = async (req, res) => {
       `SELECT ${disputeViewSelect()} ${DISPUTE_VIEW_FROM}
         WHERE d.status = ANY($1::text[])
         ${user_id ? `AND (${partyPredicate('$4')})` : ''}
+        ${regionClause(user_id ? 5 : 4)}
         ORDER BY d.created_at DESC
         LIMIT $2 OFFSET $3`,
-      [statuses, parsedLimit, offset, ...partyParams]
+      [statuses, parsedLimit, offset, ...partyParams, ...regionValue]
     );
 
     const countResult = await db.query(
       `SELECT COUNT(*) ${DISPUTE_VIEW_FROM}
         WHERE d.status = ANY($1::text[])
-        ${user_id ? `AND (${partyPredicate('$2')})` : ''}`,
-      [statuses, ...partyParams]
+        ${user_id ? `AND (${partyPredicate('$2')})` : ''} ${regionClause(user_id ? 3 : 2)}`,
+      [statuses, ...partyParams, ...regionValue]
     );
 
     res.json({
@@ -118,7 +139,7 @@ exports.getDisputeDetail = async (req, res) => {
 // escrow. When the refund is queued for dual approval (or accepted for
 // provider reconciliation), the dispute is left unresolved and the outcome
 // carries the pending state for the caller to map to HTTP.
-async function executeDisputeResolution({ disputeId, resolution, refundCents, notes, adminId, paymentId, dualApproval, skipDualApproval }) {
+async function executeDisputeResolution({ disputeId, resolution, refundCents, notes, adminId, paymentId, dualApproval, skipDualApproval, req = null }) {
   const refundResolution = [DISPUTE_RESOLUTIONS.REFUND_CUSTOMER, DISPUTE_RESOLUTIONS.CUSTOMER_WINS,
     DISPUTE_RESOLUTIONS.SPLIT_RESOLUTION].includes(resolution);
 
@@ -165,6 +186,7 @@ async function executeDisputeResolution({ disputeId, resolution, refundCents, no
           actorUserId: adminId,
           requestId: `dispute-refund-${disputeId}-${refundCents}`,
           allowOpenDisputeId: disputeId,
+          req,
           // ADM-016: above-threshold refunds queue for a second admin
           // instead of firing here. skipDualApproval is set on the
           // executor's re-run.
@@ -386,6 +408,7 @@ exports.resolveDispute = async (req, res) => {
       notes,
       adminId,
       paymentId: disputePaymentId,
+      req,
       dualApproval: refundResolution ? {
         movementType: 'dispute_refund',
         referenceKey: `dispute:${disputeId}`,
@@ -536,7 +559,9 @@ exports.startReview = async (req, res) => {
         action: 'start_dispute_review',
         targetType: 'dispute',
         targetId: disputeId,
-        details: {}
+        details: {},
+        // Audit fix, finding 35: stamp impersonated_by (NULL direct).
+        req,
       });
     } catch (logErr) {
       logger.error('Failed to log admin action', { err: logErr });
@@ -600,7 +625,9 @@ exports.reopenDispute = async (req, res) => {
         action: 'reopen_dispute',
         targetType: 'dispute',
         targetId: disputeId,
-        details: {}
+        details: {},
+        // Audit fix, finding 35: stamp impersonated_by (NULL direct).
+        req,
       });
     } catch (logErr) {
       logger.error('Failed to log admin action', { err: logErr });

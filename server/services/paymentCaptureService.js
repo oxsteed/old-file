@@ -20,7 +20,7 @@ const SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000';
  * transaction client so the audit row and the capture commit or roll back
  * together; a dropped audit row rolls the capture back.
  */
-async function auditPaymentCapture(client, { payment, actorUserId, chargeId = null, transferId = null, jobId = null }) {
+async function auditPaymentCapture(client, { payment, actorUserId, chargeId = null, transferId = null, jobId = null, req = null }) {
   await logAdminAction({
     client,
     adminId: actorUserId || SYSTEM_ACTOR_ID,
@@ -38,6 +38,11 @@ async function auditPaymentCapture(client, { payment, actorUserId, chargeId = nu
       transfer_id: transferId,
       charge_model: payment.charge_model || null,
     },
+    // Service-layer request-context convention: the impersonating admin
+    // when the capture was driven from an impersonated user session
+    // (capture route has no rejectImpersonated guard); NULL for system
+    // captures (worker, job completion without a request).
+    req,
   });
 }
 
@@ -112,7 +117,7 @@ function captureCents(amount, captureAmountCents, currency = 'USD') {
  * @param {{ paymentId: number|string, jobId?: number|string, amount: number, actorUserId?: string }} params
  * @returns {Promise<{ success: boolean, paymentId: any, chargeId?: string|null }>}
  */
-async function captureAuthorizedPayment({ paymentId, jobId, amount, actorUserId = null }) {
+async function captureAuthorizedPayment({ paymentId, jobId, amount, actorUserId = null, req = null }) {
   const paymentResult = await pool.query(
     `SELECT id, job_id, stripe_payment_intent_id, stripe_account_id, status, capture_amount_cents, pending_increase_cents,
             charge_model, destination_account_id, currency, amount, platform_fee, metadata
@@ -149,6 +154,7 @@ async function captureAuthorizedPayment({ paymentId, jobId, amount, actorUserId 
         chargeId: result.chargeId,
         transferId: result.transferId,
         jobId,
+        req,
       });
       return result;
     });
@@ -178,6 +184,7 @@ async function captureAuthorizedPayment({ paymentId, jobId, amount, actorUserId 
       actorUserId,
       chargeId: captured.charges?.data?.[0]?.id || null,
       jobId,
+      req,
     });
   });
 
@@ -201,9 +208,9 @@ async function captureAuthorizedPayment({ paymentId, jobId, amount, actorUserId 
  *
  * @param {import('pg').PoolClient} client
  * @param {{ id: any, amount: number, stripe_payment_intent_id: string, stripe_account_id: string }} paymentRow
- * @param {{ actorUserId?: string }} [options]
+ * @param {{ actorUserId?: string, req?: object }} [options]
  */
-async function captureAuthorizedPaymentWithClient(client, paymentRow, { actorUserId = null } = {}) {
+async function captureAuthorizedPaymentWithClient(client, paymentRow, { actorUserId = null, req = null } = {}) {
   if (!paymentRow || paymentRow.status !== 'authorized') {
     throw new Error('Invalid payment row for capture');
   }
@@ -261,6 +268,7 @@ async function captureAuthorizedPaymentWithClient(client, paymentRow, { actorUse
     actorUserId,
     chargeId,
     transferId,
+    req,
   });
 
   return { paymentId: paymentRow.id, chargeId };

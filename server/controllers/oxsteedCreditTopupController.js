@@ -65,6 +65,9 @@ async function createTopup(req, res, next) {
         actorUserId: customerId,
         actionType: 'topup',
         code: req.body?.stepupCode || req.body?.stepup_code,
+        // Auth audit item 6: the challenge must have been issued for
+        // this top-up amount, not just any top-up.
+        expectedAmountCents: amountCents,
       });
     }
 

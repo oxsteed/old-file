@@ -22,7 +22,7 @@ jest.unmock('../db');
 const db = require('../db');
 const { executeBuilderQuery } = require('../analytics/queryBuilder');
 const { assertMetricAccess, permittedMetrics } = require('../analytics/metricAccess');
-const { regionScopedDb, applyRegionScope } = require('../analytics/regionScope');
+const { regionScopedDb, applyRegionScope, locationInRegionsSql, JOB_LOC } = require('../analytics/regionScope');
 const { computeMetricValue } = require('../analytics/metricAlerts');
 
 const migration = (f) => fs.readFileSync(path.join(__dirname, '..', 'migrations', f), 'utf8');
@@ -135,6 +135,21 @@ const migration = (f) => fs.readFileSync(path.join(__dirname, '..', 'migrations'
     expect(() => applyRegionScope({ text: 'SELECT COUNT(*) FROM audit_events', params: [] },
       { global: false, regions: [{ type: 'country_only', countries: ['HT'] }] }))
       .toThrow(expect.objectContaining({ code: 'region_scope_unsupported' }));
+  });
+
+  test('admin disputes list predicate hides out-of-region disputes', async () => {
+    // The getAllDisputes regional clause (same job-location anchor as the
+    // builder metric above, applied directly because the list's
+    // evidence/message count subqueries have no anchor for regionScopedDb).
+    const { rows: regionRows } = await db.query(
+      `SELECT boundary_definition FROM admin_regions WHERE id IN ($1, $2)`, [htRegion, zipRegion]);
+    const regions = regionRows.map((r) => r.boundary_definition);
+    const predicate = `EXISTS (SELECT 1 FROM jobs __rj WHERE __rj.id = d.job_id AND ${locationInRegionsSql(JOB_LOC('__rj'), '$1::JSONB')})`;
+    const { rows } = await db.query(`SELECT d.id FROM disputes d WHERE ${predicate}`, [JSON.stringify(regions)]);
+    expect(rows).toHaveLength(1);
+    const { rows: htRows } = await db.query(
+      `SELECT d.id FROM disputes d JOIN jobs j ON j.id = d.job_id WHERE j.location_country_code = 'HT'`);
+    expect(rows[0].id).toBe(htRows[0].id);
   });
 
   test('a metric whose permission has no grant stays hidden; deleting a region revokes its grants', async () => {

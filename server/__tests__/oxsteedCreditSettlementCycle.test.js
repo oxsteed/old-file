@@ -191,6 +191,9 @@ function makeCycleMock({
   reserveBalances = {},
   payableReserveRead = {},
   overlapOnCreate = false,
+  redriveCycles = [],
+  leaseLostAfterSettlementInserts = null,
+  settlementErrorOnInsert = null,
 } = {}) {
   const calls = { settlementInserts: [], fundingInserts: [], incidents: [], heartbeats: 0 };
   const agreement = existingAgreement || agreementRow({ status: 'active' });
@@ -200,6 +203,11 @@ function makeCycleMock({
   // pending_approval. Transition updates are detected by their version
   // increment: the job's two transitions raise version 2 then 3.
   let transitionReads = 0;
+  // Abort-early knobs: once the lease is lost, the verification SELECT
+  // returns no rows, which is exactly what the real fencedTransaction sees
+  // (it then flips the fence flag and throws LeaseLostError).
+  let leaseLost = false;
+  let settlementInsertAttempts = 0;
 
   const mock = jest.fn(async (text, params = []) => {
     const sql = String(text);
@@ -209,12 +217,23 @@ function makeCycleMock({
     }
     if (sql.includes('INSERT INTO cron_job_locks')) return { rows: [{ lock_id: 'job_lock:x' }] };
     if (sql.includes('DELETE FROM cron_job_locks')) return { rows: [] };
+    // Q1: fenced service transactions re-verify the lease row inside the
+    // transaction. The cycle holds its lock throughout these tests, so the
+    // verification row is present. (Refusal when the row is gone is covered
+    // by oxsteedCreditServiceLeaseFencing.test.js.) The abort-early knob
+    // drops the row once the configured settlement count is reached.
+    if (sql.includes('FROM cron_job_locks WHERE lock_id')) {
+      return leaseLost ? { rows: [] } : { rows: [{ '1': 1 }] };
+    }
     if (sql.includes('INSERT INTO oxsteed_credit_settlement_cycles')) {
       if (existingCycleStatus) return { rows: [] };
       return { rows: [cycleRow()] };
     }
     if (sql.includes('SELECT * FROM oxsteed_credit_settlement_cycles WHERE cycle_type')) {
       return { rows: [cycleRow({ status: existingCycleStatus || 'scheduled' })] };
+    }
+    if (sql.includes('jsonb_array_length(metadata')) {
+      return { rows: redriveCycles };
     }
     if (sql.includes('UPDATE oxsteed_credit_settlement_cycles')) {
       return { rows: [cycleRow({ status: sql.includes("'completed'") ? 'completed' : 'processing' })] };
@@ -297,7 +316,14 @@ function makeCycleMock({
         conflict.details = { settlementId: 'existing-1', status: 'approved' };
         throw conflict;
       }
+      settlementInsertAttempts += 1;
+      if (settlementErrorOnInsert === settlementInsertAttempts) {
+        throw new Error('settlement insert failed (test knob)');
+      }
       calls.settlementInserts.push(params);
+      if (leaseLostAfterSettlementInserts !== null && calls.settlementInserts.length === leaseLostAfterSettlementInserts) {
+        leaseLost = true;
+      }
       return { rows: [settlementRow()] };
     }
     return { rows: [] };
@@ -472,6 +498,132 @@ describe('settlement cycle job', () => {
 
   test('job name matches the worker registry entry', () => {
     expect(JOB_NAME).toBe('oxsteed-credit-settlement-cycle');
+  });
+
+  test('skipped partners are recorded on the cycle metadata for re-drive', async () => {
+    const { mock } = makeCycleMock({ partner: partnerRow({ status: 'suspended' }) });
+    const result = await runOxsteedCreditSettlementCycle({ now: new Date('2026-10-01T12:00:00Z') });
+    expect(result.cycles[0].status).toBe('completed');
+    const finalUpdate = mock.mock.calls.find(([text, params]) => (
+      String(text).includes('UPDATE oxsteed_credit_settlement_cycles') && params.length === 3
+    ));
+    expect(finalUpdate).toBeTruthy();
+    expect(JSON.parse(finalUpdate[1][2]).skipped).toEqual([
+      { partnerId: PARTNER_ID, currencyCode: CURRENCY, reason: 'partner_not_active' },
+    ]);
+  });
+
+  test('period-already-covered skips are counted but not listed for re-drive', async () => {
+    const { mock } = makeCycleMock({ overlapOnCreate: true });
+    await runOxsteedCreditSettlementCycle({ now: new Date('2026-10-01T12:00:00Z') });
+    const finalUpdate = mock.mock.calls.find(([text, params]) => (
+      String(text).includes('UPDATE oxsteed_credit_settlement_cycles') && params.length === 3
+    ));
+    expect(finalUpdate).toBeTruthy();
+    const metadata = JSON.parse(finalUpdate[1][2]);
+    expect(metadata.skipped_count).toBe(1);
+    expect(metadata.skipped).toEqual([]);
+  });
+
+  test('a skipped pair from a prior cycle is re-driven once the partner is active', async () => {
+    const priorCycle = cycleRow({
+      id: 'aaaaaaaa-1111-4222-8333-444444444444',
+      period_start: new Date('2026-09-29T00:00:00Z'),
+      period_end: new Date('2026-09-30T00:00:00Z'),
+      metadata: { skipped: [{ partnerId: PARTNER_ID, currencyCode: CURRENCY, reason: 'partner_not_active' }] },
+    });
+    // An already-active agreement keeps the re-drive off the draft ->
+    // pending_approval -> active chain: the mock's transition-read counter
+    // is shared across both agreement flows in this run, so provisioning a
+    // second agreement here would trip its optimistic-concurrency guard.
+    const { mock, calls } = makeCycleMock({
+      redriveCycles: [priorCycle],
+      activeAgreement: agreementRow({ status: 'active' }),
+    });
+    await runOxsteedCreditSettlementCycle({ now: new Date('2026-10-01T12:00:00Z') });
+    // Current cycle settles 1 + re-drive settles 1 against the original period.
+    expect(calls.settlementInserts).toHaveLength(2);
+    expect(calls.settlementInserts.some((params) => params.some((p) => typeof p === 'string' && p.includes(priorCycle.id)))).toBe(true);
+    // The re-drive list is now empty.
+    const redriveUpdate = mock.mock.calls.find(([text, params]) => (
+      String(text).includes('UPDATE oxsteed_credit_settlement_cycles') && params.length === 2
+    ));
+    expect(redriveUpdate).toBeTruthy();
+    expect(JSON.parse(redriveUpdate[1][1]).skipped).toEqual([]);
+  });
+
+  test('a still-inactive partner stays on the re-drive list without settling', async () => {
+    const priorCycle = cycleRow({
+      id: 'aaaaaaaa-1111-4222-8333-444444444444',
+      period_start: new Date('2026-09-29T00:00:00Z'),
+      period_end: new Date('2026-09-30T00:00:00Z'),
+      metadata: { skipped: [{ partnerId: PARTNER_ID, currencyCode: CURRENCY, reason: 'partner_not_active' }] },
+    });
+    const { calls } = makeCycleMock({ redriveCycles: [priorCycle], partner: partnerRow({ status: 'suspended' }) });
+    await runOxsteedCreditSettlementCycle({ now: new Date('2026-10-01T12:00:00Z') });
+    expect(calls.settlementInserts).toHaveLength(0);
+    expect(calls.incidents.length).toBeGreaterThan(0);
+  });
+
+  test('lease loss mid-run aborts early with a fenced outcome and zero post-loss writes', async () => {
+    const { mock, calls } = makeCycleMock({
+      activity: [
+        { partner_id: PARTNER_ID, currency_code: CURRENCY },
+        { partner_id: PARTNER_ID + 1, currency_code: CURRENCY },
+        { partner_id: PARTNER_ID + 2, currency_code: CURRENCY },
+      ],
+      leaseLostAfterSettlementInserts: 1,
+    });
+    const result = await runOxsteedCreditSettlementCycle({ now: new Date('2026-10-01T12:00:00Z') });
+    // The run ends fenced, not failed and not crashed.
+    expect(result).toEqual({ locked: true, fenced: true });
+    // Only the first partner settled; the second partner's fenced service
+    // call refused, and the third partner's flow never started (a single
+    // agreement insert proves no later agreement flow ran).
+    expect(calls.settlementInserts).toHaveLength(1);
+    expect(calls.settlementInserts[0][0]).toBe(PARTNER_ID);
+    expect(mock.mock.calls.filter(([text]) => String(text).includes('INSERT INTO oxsteed_credit_partner_agreements'))).toHaveLength(1);
+    // The aborted cycle records no completion outcome: the run no longer
+    // owns it, so it must not mark it completed or failed.
+    expect(mock.mock.calls.filter(([text, params]) => (
+      String(text).includes('UPDATE oxsteed_credit_settlement_cycles') && params.length === 3
+    ))).toHaveLength(0);
+    // The lock is released and no heartbeat is recorded for a run the
+    // worker no longer owns; the fenced flag is the abort's record.
+    expect(mock).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM cron_job_locks'), expect.anything());
+    expect(calls.heartbeats).toBe(0);
+  });
+
+  test('a non-lease partner error still attempts the remaining partners', async () => {
+    // An already-active agreement keeps every partner off the draft ->
+    // pending_approval -> active chain: the mock's transition-read counter
+    // is shared across agreement flows in one run, so provisioning three
+    // agreements here would trip the optimistic-concurrency guard (the
+    // same workaround the re-drive test uses).
+    const { mock, calls } = makeCycleMock({
+      activity: [
+        { partner_id: PARTNER_ID, currency_code: CURRENCY },
+        { partner_id: PARTNER_ID + 1, currency_code: CURRENCY },
+        { partner_id: PARTNER_ID + 2, currency_code: CURRENCY },
+      ],
+      activeAgreement: agreementRow({ status: 'active' }),
+      settlementErrorOnInsert: 2,
+    });
+    const result = await runOxsteedCreditSettlementCycle({ now: new Date('2026-10-01T12:00:00Z') });
+    expect(result.fenced).toBeUndefined();
+    expect(result.cycles[0].status).toBe('failed');
+    expect(result.cycles[0].errors).toHaveLength(1);
+    // Partners 1 and 3 settled; only partner 2's insert failed.
+    expect(calls.settlementInserts).toHaveLength(2);
+    expect(calls.settlementInserts.map((params) => params[0])).toEqual([PARTNER_ID, PARTNER_ID + 2]);
+    // The completion write still runs and marks the cycle failed.
+    const finalUpdate = mock.mock.calls.find(([text, params]) => (
+      String(text).includes('UPDATE oxsteed_credit_settlement_cycles') && params.length === 3
+    ));
+    expect(finalUpdate).toBeTruthy();
+    expect(finalUpdate[1][1]).toBe('failed');
+    expect(JSON.parse(finalUpdate[1][2]).error_count).toBe(1);
+    expect(calls.heartbeats).toBe(1);
   });
 });
 

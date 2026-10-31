@@ -98,6 +98,10 @@ async function addVersion(fixture, proposer, approver, revision, previous, stora
 describeDatabase('R09/R10/R12 real self-service API integration', () => {
   let app, storage, owner, manager, staff, stranger, helper, proposer, approver, businessId, restaurantId, documents, versions;
   beforeAll(async () => {
+    // This suite assumes the rail-off backfill path for wallet writes.
+    // Delete the rail flag outright: a leaked ON state from an earlier
+    // suite sharing this database flips the suite onto live dual-posting.
+    await pool.query(`DELETE FROM feature_flags WHERE key = 'oxsteed_credit_enabled'`);
     [owner,manager,staff,stranger,helper,proposer,approver] = await Promise.all(['customer','customer','customer','customer','helper','admin','admin'].map(user));
     businessId = await business(owner); restaurantId = await restaurant(businessId, owner);
     await member(businessId,owner,manager,'manager'); await member(businessId,owner,staff,'employee');

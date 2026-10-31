@@ -113,6 +113,8 @@ async function createTopup(req, res, next) {
         actorUserId: userId,
         actionType: 'restaurant_topup',
         code: req.body?.stepupCode || req.body?.stepup_code,
+        // Auth audit item 6: bind to the validated top-up amount.
+        expectedAmountCents: amountCents,
       });
     }
 

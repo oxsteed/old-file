@@ -507,9 +507,11 @@ exports.redeemCode = async (req, res, next) => {
 
     await client.query('COMMIT');
 
-    // Fire-and-forget audit (post-commit)
+    // Fire-and-forget audit (post-commit). The synthetic req-like object
+    // carries impersonatedBy so an impersonated code redemption is not
+    // attributed to the victim alone (audit fix, finding 35).
     logBusinessAction(
-      { user: req.user, business: { id: codeRow.business_id }, businessRole: codeRow.role, headers: req.headers, ip: req.ip },
+      { user: req.user, business: { id: codeRow.business_id }, businessRole: codeRow.role, headers: req.headers, ip: req.ip, impersonatedBy: req.impersonatedBy || null },
       {
         action: 'business.member.code_redeemed',
         target_type: 'business_member',

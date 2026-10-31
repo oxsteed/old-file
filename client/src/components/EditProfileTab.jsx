@@ -429,7 +429,9 @@ export default function EditProfileTab() {
       markSaved();
       toast.success(t('helperDashboard.listingSaved'));
     } catch (err) {
-      toast.error(err.response?.data?.error || t('helperDashboard.failedSave'));
+      toast.error(err.response?.data?.code === 'listing_requires_identity_verification'
+        ? t('helperDashboard.listingRequiresIdentity')
+        : (err.response?.data?.error || t('helperDashboard.failedSave')));
     } finally {
       setListingSaving(false);
     }

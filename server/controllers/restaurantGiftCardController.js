@@ -388,13 +388,14 @@ async function audit(req,restaurant,client,action,id,state,metadata={}) {
 }
 exports.printCard = async(req,res,next)=>{
   try {const restaurant=await valueAccess(req),id=cardId(req);
+    const nonce=require('../utils/cspNonce').createCspNonce();
     const html=await withTransaction(pool,async client=>{
       const row=await fulfillment.get(client,restaurant.id,id,true);
       if(row.kind!=='physical'||row.status!=='ready')throw new AppError('Card is not ready for printing',409,'gift_card_state_invalid');
-      const rendered=fulfillment.render(fulfillment.readPayload(row));
+      const rendered=fulfillment.render(fulfillment.readPayload(row),{nonce});
       await audit(req,restaurant,client,'printed',id,{fulfillmentId:row.id});return rendered.html;
     },'gift_card_print');
-    res.set({'Cache-Control':'no-store','Pragma':'no-cache','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",'Referrer-Policy':'no-referrer'}).type('html').send(html);
+    res.set({'Cache-Control':'no-store','Pragma':'no-cache','Content-Security-Policy':`default-src 'none'; style-src 'nonce-${nonce}'; frame-ancestors 'none'`,'Referrer-Policy':'no-referrer'}).type('html').send(html);
   }catch(error){next(error);}
 };
 exports.handoffCard=async(req,res,next)=>{

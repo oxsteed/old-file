@@ -450,8 +450,23 @@ async function refundFoodOrder(req, res, next) {
       throw new AppError('Refund reason is too long', 400, 'refund_reason_too_long');
     }
 
+    // Auth audit item 6: agent refunds are full-order, so bind to the
+    // order total (the same figure the shared issue endpoint binds when
+    // the agent client sends amountCents explicitly). A missing row skips
+    // binding; the executor reports it with its own error.
+    let agentRefundExpectedAmount = null;
+    try {
+      const { rows: agentOrderRows } = await pool.query('SELECT total_cents FROM food_orders WHERE id = $1', [orderId]);
+      if (agentOrderRows.length) {
+        const t = Number(agentOrderRows[0].total_cents);
+        if (Number.isSafeInteger(t) && t > 0) agentRefundExpectedAmount = t;
+      }
+    } catch (preReadError) {
+      logger.warn('agentFoodRefundActions.stepup pre-read failed, skipping amount binding', { orderId, error: preReadError.message });
+    }
     await require('../services/stepupChallengeService').verifyStepupChallenge({
       challengeId: req.body.stepupChallengeId, actorUserId: req.user.id, actionType: 'food_refund', code: req.body.stepupCode,
+      ...(agentRefundExpectedAmount !== null ? { expectedAmountCents: agentRefundExpectedAmount } : {}),
     });
     const result = await withTransaction(pool, client => executeAgentFoodRefund(client, {
       req, orderId, reason, requestIdempotencyKey,

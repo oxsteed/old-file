@@ -104,3 +104,49 @@ test('webhook success redeems the booking promo; a canceled intent releases it',
 test('non-booking intents are not claimed', async () => {
   expect(await svc.applyBookingIntentWebhook('payment_intent.succeeded', { id: 'pi_x', metadata: {} })).toBe(false);
 });
+
+test('the 20th failed settlement raises a critical reconciliation exception', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    const t = String(sql);
+    if (t.startsWith('SELECT * FROM booking_requests')) return { rows: [booking({ refund_attempts: 19 })] };
+    if (t.includes('UPDATE booking_requests') && t.includes('RETURNING refund_attempts')) return { rows: [{ refund_attempts: 20 }] };
+    if (t.startsWith('SELECT id FROM reconciliation_exceptions')) return { rows: [] };
+    if (t.includes('INSERT INTO reconciliation_exceptions')) return { rows: [{ id: 'exc-1' }] };
+    return { rows: [] };
+  });
+  mockStripe.refunds.create.mockRejectedValue(new Error('stripe down'));
+  await expect(svc.settleTerminalBooking('b1')).rejects.toThrow('stripe down');
+  const insert = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO reconciliation_exceptions'));
+  expect(insert).toBeTruthy();
+  expect(insert[1]).toEqual([
+    'payment_refund',
+    'b1',
+    'critical',
+    expect.stringContaining('exhausted 20 attempts'),
+    expect.anything(),
+    null,
+  ]);
+});
+
+test('a capped booking is flagged for operators without another Stripe call', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    const t = String(sql);
+    if (t.startsWith('SELECT * FROM booking_requests')) return { rows: [booking({ refund_attempts: 20, refund_last_error: 'stripe down' })] };
+    if (t.startsWith('SELECT id FROM reconciliation_exceptions')) return { rows: [] };
+    if (t.includes('INSERT INTO reconciliation_exceptions')) return { rows: [{ id: 'exc-1' }] };
+    return { rows: [] };
+  });
+  await expect(svc.flagExhaustedTerminalBooking('b1')).resolves.toBe('flagged');
+  expect(mockStripe.refunds.create).not.toHaveBeenCalled();
+  expect(mockStripe.paymentIntents.cancel).not.toHaveBeenCalled();
+});
+
+test('flagging skips bookings below the attempt cap', async () => {
+  mockQuery.mockImplementation(async (sql) => (
+    String(sql).startsWith('SELECT * FROM booking_requests')
+      ? { rows: [booking({ refund_attempts: 5 })] }
+      : { rows: [] }
+  ));
+  await expect(svc.flagExhaustedTerminalBooking('b1')).resolves.toBe('not_exhausted');
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO reconciliation_exceptions'))).toBe(false);
+});

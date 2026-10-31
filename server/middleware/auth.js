@@ -17,8 +17,20 @@ const REFRESH_EXPIRES_IN = process.env.REFRESH_EXPIRES_IN || '7d';
 let diditUnconfiguredWarned = false;
 
 function generateTokens(user, extraClaims = {}) {
+  // Session-scoped CSRF: every access token carries a `sid` identifying
+  // the login session it belongs to. Fresh logins auto-mint a random sid;
+  // refresh passes the session row's sid explicitly so the identifier
+  // survives access-token rotation (the DB session row itself rotates on
+  // every refresh, so the row PK cannot serve as the stable id). The sid
+  // is not a credential: it only selects which CSRF token validates, and
+  // the CSRF token itself remains the secret. It is also returned so
+  // session-creating handlers can persist it on the session row and issue
+  // the session's CSRF token on the auth response. Refresh tokens are
+  // unchanged: they are looked up by hash in the session row, which is
+  // where the sid lives.
+  const sid = extraClaims.sid || crypto.randomUUID();
   const accessToken = jwt.sign(
-    { id: user.id, email: user.email, role: user.role, ...extraClaims },
+    { id: user.id, email: user.email, role: user.role, ...extraClaims, sid },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN, algorithm: 'HS256' }
   );
@@ -27,7 +39,7 @@ function generateTokens(user, extraClaims = {}) {
     JWT_SECRET,
     { expiresIn: REFRESH_EXPIRES_IN, algorithm: 'HS256' }
   );
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken, sid };
 }
 
 /**
@@ -145,7 +157,18 @@ async function authenticate(req, res, next) {
   let useBearer = false;
   if (bearerToken) {
     try {
-      const bearerDecoded = jwt.decode(bearerToken);
+      // Auth audit item 16: precedence must rest on a VERIFIED bearer,
+      // not a decoded claim. A forged impersonation claim used to force
+      // the bearer path (and the main verify below then 401'd instead of
+      // falling back to the cookie). Now an unverifiable bearer (wrong
+      // secret, expired) falls through to the cookie: an expired
+      // impersonation token plus a valid cookie authenticates as the
+      // cookie user rather than 401'ing, because the impersonation
+      // session is over and the user's own valid session applies. No
+      // privilege escalation in either case: an attacker holding only a
+      // forged bearer and the victim's cookie could already authenticate
+      // with the cookie alone.
+      const bearerDecoded = jwt.verify(bearerToken, JWT_SECRET, { algorithms: ['HS256'] });
       // Pentest fix: minted impersonation tokens carry `impersonation: true`
       // (see superAdminController exchange); the old `isImpersonated` claim
       // name never appears on a minted token, so this precedence check
@@ -154,7 +177,7 @@ async function authenticate(req, res, next) {
         useBearer = true;
       }
     } catch {
-      // Not a valid JWT; fall through to cookie.
+      // Not a verifiable JWT; fall through to cookie.
     }
   }
   const token = useBearer
@@ -557,6 +580,14 @@ function parseAuthIdentity(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     if (decoded.isMfaToken || decoded.type === 'refresh') return next();
     req.user = { id: decoded.id };
+    // Session-scoped CSRF: expose the access token's session id on a
+    // field authenticate does NOT replace (it replaces req.user with the
+    // full DB record), so the CSRF middleware and the logout handler can
+    // bind to the presented session even after authenticate runs.
+    // Tokens minted before session scoping carry no sid: req.csrfSid stays
+    // null and CSRF falls back to the legacy per-user key until refresh
+    // mints a sid (bounded by the 15-minute access-token lifetime).
+    req.csrfSid = decoded.sid || null;
     req.csrfCookieSession = fromCookie;
   } catch {
     // Expired, malformed, or wrong-signature token: unauthenticated for

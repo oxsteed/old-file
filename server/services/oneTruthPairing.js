@@ -30,8 +30,14 @@ function comparisonMode(raw) {
 /**
  * groups: [{ signalType, label, weight, userIds }] with userIds ordered
  * earliest account first. Returns { pairs, groups }.
+ *
+ * options.maxPairs: when set, pairing aborts with a 413
+ * (one_truth_pair_limit_exceeded) as soon as the pair count would exceed
+ * it, so a dashboard request cannot materialize an unbounded pair array.
+ * The limit bounds memory, not coverage: callers must refine scope when
+ * it trips. Unset means unbounded (existing callers, tests).
  */
-function linkSignalGroups(groups, mode = 'linear') {
+function linkSignalGroups(groups, mode = 'linear', { maxPairs = null } = {}) {
   const pairs = [];
   const seen = new Set();
   const outGroups = [];
@@ -45,6 +51,12 @@ function linkSignalGroups(groups, mode = 'linear') {
       score: g.weight,
       ...(referenceUserId ? { referenceUserId } : {}),
     });
+    if (maxPairs !== null && pairs.length > maxPairs) {
+      const error = new Error(`Suspect pairs exceed the configured limit (${maxPairs}); refine the scope to review a smaller set.`);
+      error.statusCode = 413;
+      error.code = 'one_truth_pair_limit_exceeded';
+      throw error;
+    }
   };
   for (const g of groups) {
     const ids = [...new Set((g.userIds || []).map(String))];

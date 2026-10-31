@@ -42,6 +42,7 @@ const MoneyPage = lazyWithRetry(() => import('./pages/super/MoneyPage'));
 const MoneyApprovals = lazyWithRetry(() => import('./pages/super/MoneyApprovals'));
 const Payouts = lazyWithRetry(() => import('./pages/super/Payouts'));
 const RestaurantPayouts = lazyWithRetry(() => import('./pages/super/RestaurantPayouts'));
+const AffiliatePayouts = lazyWithRetry(() => import('./pages/super/AffiliatePayouts'));
 const TreasuryPage = lazyWithRetry(() => import('./pages/super/workspaces/TreasuryPage'));
 const ReliabilityPage = lazyWithRetry(() => import('./pages/super/workspaces/ReliabilityPage'));
 const ServiceOpsPage = lazyWithRetry(() => import('./pages/super/workspaces/ServiceOpsPage'));
@@ -420,6 +421,9 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('restaurantPayouts').relative} element={
             <GrantGuard grant={adminRoute('restaurantPayouts').grant}><RestaurantPayouts /></GrantGuard>
+          } />
+          <Route path={adminRoute('affiliatePayouts').relative} element={
+            <GrantGuard grant={adminRoute('affiliatePayouts').grant}><AffiliatePayouts /></GrantGuard>
           } />
           <Route path={adminRoute('reconciliationExceptions').relative} element={
             <GrantGuard grant={adminRoute('reconciliationExceptions').grant}><ReconciliationExceptions /></GrantGuard>

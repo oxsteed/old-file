@@ -1860,6 +1860,15 @@
     "loadErrorTitle": "Impossible de charger vos cartes",
     "secretTitle": "Identifiant de carte à usage unique : affiché maintenant seulement",
     "secretDescription": "Conservez-le dans un endroit sûr. Il ne sera plus affiché ; si vous le perdez, signalez la carte pour obtenir un remplacement.",
+    "stepup": {
+      "title": "Confirmez avec votre authentificateur",
+      "body": "Saisissez le code de votre application d'authentification pour émettre cette carte.",
+      "codeLabel": "Code d'authentification",
+      "cancel": "Annuler",
+      "verify": "Confirmer",
+      "issueFailed": "Impossible de démarrer la vérification de sécurité. Réessayez.",
+      "codeRequired": "Saisissez le code d'authentification pour continuer."
+    },
     "addCard": "Ajouter une carte",
     "issueNew": "Émettre une nouvelle carte",
     "issueDescription": "La carte virtuelle est active immédiatement. La carte physique est envoyée à votre adresse et s'active avec un code à sa réception.",

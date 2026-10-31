@@ -4,6 +4,7 @@ const { sendEmail } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { logAdminAction } = require('../services/auditService');
+const { csvCell } = require('../utils/csv');
 
 function sanitizeCountry(code) {
   const value = String(code || '').trim().toUpperCase();
@@ -248,14 +249,6 @@ async function getBusinessLaunchRequests(req, res) {
  * entry per export (who, when, row count, filters) to admin_audit_log.
  */
 
-// CSV field escaping: quote-wrap, double internal quotes, and neutralize
-// spreadsheet formula injection by prefixing leading = + - @ with a quote.
-function csvEscapeField(value) {
-  let s = value == null ? '' : String(value);
-  if (/^[=+\-@]/.test(s)) s = `'${s}`;
-  return `"${s.replace(/"/g, '""')}"`;
-}
-
 const EXPORT_ROW_CAP = 10000;
 
 async function exportBusinessLaunchRequests(req, res) {
@@ -324,7 +317,7 @@ async function exportBusinessLaunchRequests(req, res) {
     });
 
     const header = ['Name', 'Email', 'Phone', 'Package', 'Country', 'State', 'Urgency', 'Status', 'Submitted'];
-    const lines = [header.map(csvEscapeField).join(',')];
+    const lines = [header.map(csvCell).join(',')];
     for (const r of rows) {
       lines.push([
         `${r.first_name || ''} ${r.last_name || ''}`.trim(),
@@ -336,7 +329,7 @@ async function exportBusinessLaunchRequests(req, res) {
         r.urgency || '',
         r.status || '',
         r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : '',
-      ].map(csvEscapeField).join(','));
+      ].map(csvCell).join(','));
     }
 
     const filename = `business-launch-requests-${new Date().toISOString().slice(0, 10)}.csv`;

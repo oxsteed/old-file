@@ -60,11 +60,19 @@ const securityHeaders = helmet({
       scriptSrc: SCRIPT_SOURCES,
       scriptSrcElem: SCRIPT_SOURCES,
       workerSrc: ["'self'", 'blob:'],
-      // NOTE: styleSrc still carries 'unsafe-inline' (see report: 5,192
-      // style={ occurrences across 253 client files plus 7 <style> tags, and
-      // no per-response nonce infrastructure for the static SPA build, so a
-      // nonce/hash migration is a broad UI change, not a safe hardening
-      // edit). imgSrc drops the 'https:' wildcard. Retained hosts are
+      // NOTE: styleSrc still carries 'unsafe-inline' because the SPA
+      // renders 5,292 inline style={} attributes across 269 client files
+      // (baseline pinned by client/scripts/noNewInlineStyles.mjs, which
+      // fails the build if the count grows). Inline style attributes
+      // cannot carry nonces, so they must become CSS classes before this
+      // allowance can drop; converting them en masse is unsafe without a
+      // visual harness because inline styles outrank classes in the
+      // cascade. What this track did complete: all client <style> tags
+      // except StatusPage's (unscoped #main-content rule, see the baseline
+      // file) were extracted to CSS files, and server-rendered documents
+      // with their own <style> block use a per-response nonce (see
+      // server/utils/cspNonce.js, first consumer: gift-card print).
+      // imgSrc drops the 'https:' wildcard. Retained hosts are
       // same-origin media, data: and blob: URLs, AWS Location map tiles,
       // the Unsplash sample gallery, and, when configured, this app's S3
       // bucket plus the https origin of S3_PUBLIC_BASE_URL.

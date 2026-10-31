@@ -340,6 +340,7 @@ exports.createUserFull = async (req, res) => {
         actionType:   'create_user',
         notes:        notes || `Admin-created ${effectiveAccountType} account for ${normalizedEmail}`,
         ipAddress:    req.ip || null,
+        impersonatedBy: req.impersonatedBy || null,
       });
 
       return newUser;
@@ -610,6 +611,7 @@ exports.editUserFull = async (req, res) => {
           oldValue:     safeDisplay(c.field, c.oldValue),
           newValue:     safeDisplay(c.field, c.newValue),
           ipAddress:    req.ip || null,
+          impersonatedBy: req.impersonatedBy || null,
           regionId,
         });
       }
