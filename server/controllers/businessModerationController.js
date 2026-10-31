@@ -535,6 +535,19 @@ exports.deleteBusiness = async (req, res) => {
       return res.status(409).json({ error: 'Business was already deleted.' });
     }
 
+    // Ledger-safe tombstone completion: suspend the business's restaurants
+    // so managed/direct paths keyed on restaurant_id stop treating them as
+    // usable. Public reads already hide tombstoned businesses; suspension is
+    // defense-in-depth and never touches ledger rows. Best-effort: the
+    // business tombstone above is the primary guarantee.
+    let suspendedRestaurants = [];
+    try {
+      const { suspendRestaurantsForBusiness } = require('../services/restaurantTombstoneService');
+      suspendedRestaurants = await suspendRestaurantsForBusiness(db, id);
+    } catch (suspendErr) {
+      logger.error('business suspension failed', { action: 'business_restaurant_suspend', businessId: id, error: suspendErr.message });
+    }
+
     try {
       await logAdminAction({
         adminId: req.user.id,
@@ -551,7 +564,7 @@ exports.deleteBusiness = async (req, res) => {
       return res.status(503).json({ error: 'Business deleted, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
     }
 
-    res.json({ message: 'Business deleted (soft delete applied).' });
+    res.json({ message: 'Business deleted (soft delete applied).', suspendedRestaurants: suspendedRestaurants.length });
   } catch (err) {
     logger.error('deleteBusiness error', { err, businessId: req.params?.id, adminId: req.user?.id });
     res.status(500).json({ error: 'Failed to delete business.' });

@@ -7,6 +7,9 @@
  *  - stale rail-switch requests → expire (#6)
  *  - cash-out requests → hand to licensed payout partners (#14)
  *  - privacy erasure queue + retention sweep (#12)
+ *  - ledger-safe finalize of matured admin deletion schedules: anonymize,
+ *    never hard-delete (the wallet ledger no-delete rule blocks hard deletes
+ *    of users with ledger history schema-wide)
  */
 
 const cron = require('node-cron');
@@ -44,6 +47,7 @@ async function runFrequent() {
 async function runDaily() {
   return {
     retention: flags.isEnabled('PRIVACY_RETENTION') ? await step('retention', () => privacy.retentionSweep()) : null,
+    deletionFinalize: flags.isEnabled('PRIVACY_RETENTION') ? await step('deletion_finalize', () => privacy.finalizeScheduledDeletions()) : null,
   };
 }
 

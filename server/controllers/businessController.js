@@ -1028,7 +1028,19 @@ async function deleteBusiness(req, res, next) {
     if (!result.rows.length) {
       throw new AppError('Business not found or already deleted', 404, 'not_found');
     }
-    return res.json({ ok: true });
+    // Ledger-safe tombstone completion: suspend the business's restaurants
+    // so managed/direct paths keyed on restaurant_id stop treating them as
+    // usable. Public reads already hide tombstoned businesses; suspension is
+    // defense-in-depth and never touches ledger rows. Best-effort: the
+    // business tombstone above is the primary guarantee.
+    let suspendedRestaurants = [];
+    try {
+      const { suspendRestaurantsForBusiness } = require('../services/restaurantTombstoneService');
+      suspendedRestaurants = await suspendRestaurantsForBusiness(pool, id);
+    } catch (suspendErr) {
+      logger.error('deleteBusiness restaurant suspension failed', { businessId: id, error: suspendErr.message });
+    }
+    return res.json({ ok: true, suspendedRestaurants: suspendedRestaurants.length });
   } catch (err) {
     next(err);
   }

@@ -172,14 +172,16 @@ async function clearAdminScheduledDeletionIfPresent(userId) {
   }
 }
 
-/** Clears admin-scheduled deletion state and sets the account active (never for self-deletes). */
+/** Clears admin-scheduled deletion state and sets the account active (never for self-deletes, never for finalized deletions). */
 async function reinstateAfterPendingAdminDeletion(userId) {
   await clearAdminScheduledDeletionIfPresent(userId);
   const hasType = await columnExists('users', 'deletion_type');
+  const hasFinalized = await columnExists('users', 'deletion_finalized_at');
   const notSelf = hasType ? `AND deletion_type IS DISTINCT FROM 'self'` : '';
+  const notFinalized = hasFinalized ? `AND deletion_finalized_at IS NULL` : '';
   await db.query(
     `UPDATE users SET deleted_at = NULL, is_active = TRUE, updated_at = NOW()
-     WHERE id::text = $1 ${notSelf}`,
+     WHERE id::text = $1 ${notSelf} ${notFinalized}`,
     [String(userId)],
   );
 }
@@ -3071,14 +3073,26 @@ exports.restoreUser = async (req, res) => {
       });
     }
 
+    const hasFinalized = await columnExists('users', 'deletion_finalized_at');
+    const finalizedSelect = hasFinalized ? ', deletion_finalized_at' : '';
+
     const { rows: userRows } = await db.query(
       `SELECT id, first_name, last_name, email, role,
-              deletion_scheduled_at, deleted_at, deletion_type
+              deletion_scheduled_at, deleted_at, deletion_type${finalizedSelect}
        FROM users WHERE id::text = $1`,
       [String(userId)]
     );
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
     const user = userRows[0];
+
+    // Ledger-safe deletion is terminal: a finalized account was anonymized
+    // when its 30-day schedule matured, and reinstating it would reactivate
+    // a scrubbed identity. Refuse before any other restore logic.
+    if (hasFinalized && user.deletion_finalized_at) {
+      return res.status(409).json({
+        error: 'This account has already been permanently deleted and cannot be restored.',
+      });
+    }
 
     if (user.deletion_type === 'self') {
       return res.status(409).json({
