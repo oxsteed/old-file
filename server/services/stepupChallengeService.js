@@ -132,6 +132,15 @@ const TOTP_STEPUP_ACTION_TYPES = Object.freeze([
   'fee_config_update',
   'credit_rail_unfreeze',
   'credit_card_issue',
+  // Audit fix (item 4, 2026-10-31): the dual-approval checker proof and the
+  // restaurant-payout checker proof move to TOTP. The dual-approval queue
+  // now guards affiliate, restaurant-payout, and top-up-clawback movements
+  // above threshold, and its second admin's proof was only as strong as
+  // that admin's email account. instant_payout deliberately stays on the
+  // emailed method: it is user-facing, and TOTP step-up fails closed when
+  // TOTP is not enrolled, which would break it.
+  'money_movement_approve',
+  'restaurant_payout_approve',
 ]);
 
 // TOTP codes rotate every 30 seconds (RFC 6238 time-step).

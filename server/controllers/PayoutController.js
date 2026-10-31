@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { logAdminAction, logUserAction } = require('../services/auditService');
 const { affiliatePayableCents } = require('../utils/affiliatePayableCents');
+const { isDiditVerificationFresh } = require('../utils/diditGate');
 
 // C9: Idempotency-Key must be caller-supplied, URL-safe, and bounded.
 function normalizeIdempotencyKey(value) {
@@ -534,6 +535,40 @@ class PayoutController {
           await client.query('ROLLBACK');
           const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
           return sendMoneyMovementGateResult(res, gate);
+        }
+
+        // Audit fix (item 2): the below-threshold direct path must run the
+        // same four gates as the newer affiliate core before any money
+        // moves: tax identity (W-9), fresh Didit verification, sanctions
+        // screening, and the credit-rail kill switch. Placed after the dual
+        // gate (above-threshold payouts get these from the checker
+        // executor) and before the method lock/claim, so a blocked payout
+        // stays pending and the transaction rolls back cleanly.
+        const { rows: [owner] } = await client.query(
+          `SELECT w9_completed, didit_status, didit_verified_at
+             FROM users
+            WHERE id = $1 AND is_active = TRUE
+            LIMIT 1`,
+          [payout.helper_id]
+        );
+        if (!owner?.w9_completed || owner.didit_status !== 'verified' || !isDiditVerificationFresh(owner.didit_verified_at)) {
+          throw payoutError('The affiliate must have current tax identity and identity verification before payout', 403);
+        }
+        try {
+          const { assertSanctionsClear } = require('../services/sanctionsScreeningService');
+          await assertSanctionsClear(client, {
+            subjectType: 'customer',
+            subjectId: payout.helper_id,
+            context: { operation: 'affiliate_payout', payoutId: String(payout_id) },
+          });
+          const { assertCreditRailEnabled } = require('../services/oxsteedCreditService');
+          await assertCreditRailEnabled(client);
+        } catch (err) {
+          // The legacy controller surfaces failures via payoutStatus, not
+          // AppError status codes; map them so a denial keeps its status
+          // instead of collapsing to 500.
+          if (Number.isInteger(err.statusCode)) throw payoutError(err.message, err.statusCode);
+          throw err;
         }
 
         // Lock and re-read the processor-backed method before claiming money.
