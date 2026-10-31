@@ -61,7 +61,7 @@ async function issuePermit({restaurantId,locationId,deviceId,orderId,shiftId,use
   });
 }
 
-async function reconcileForwarded({restaurantId,permitId,intentId}){
+async function reconcileForwarded({restaurantId,permitId,intentId,holdForManagerReview=false}){
   if(!/^[0-9a-f-]{36}$/i.test(permitId||'')||!/^pi_[A-Za-z0-9]+$/.test(intentId||''))throw new AppError('Invalid Terminal identity',400,'validation_failed');
   const {rows:[permit]}=await pool.query('SELECT * FROM restaurant_terminal_offline_permits WHERE id=$1 AND restaurant_id=$2',[permitId,restaurantId]);
   if(!permit)throw new AppError('Offline permit not found',404,'terminal_offline_permit_not_found');
@@ -89,6 +89,31 @@ async function reconcileForwarded({restaurantId,permitId,intentId}){
     const reviewRequired=!permit.policy_snapshot?.allowedBrands?.includes(brand);
     const {rows:[order]}=await client.query('SELECT * FROM food_orders WHERE id=$1 AND restaurant_id=$2 FOR UPDATE',[permit.food_order_id,restaurantId]);
     if(!order||Number(order.total_cents)!==Number(permit.amount_cents)||Number(order.location_id)!==Number(permit.location_id))throw new AppError('Offline ticket changed',409,'terminal_offline_ticket_changed');
+    // Card store-and-forward, manual-review hold (flag-gated; see
+    // cardStoreForward.js). All fail-closed checks above already ran: the
+    // intent matches the permit, the amounts agree, the order agrees. A
+    // 'succeeded' intent is recorded here but NOT marked paid: the Stripe
+    // money already moved, so the hold only delays the ledger treating the
+    // order as paid until a manager accepts it. A payment already captured
+    // by an earlier pass is never un-captured: re-reconciliation stays an
+    // idempotent success. Requires_capture intents fall through to the
+    // existing path below, which already leaves them pending.
+    if(holdForManagerReview&&intent.status==='succeeded'){
+      const {rows:[heldPayment]}=await client.query(`UPDATE restaurant_pos_payments SET
+        status=CASE WHEN status='captured' THEN 'captured' ELSE 'pending' END,
+        provider_payment_intent_id=$2,metadata=metadata||$3::jsonb,updated_at=NOW()
+        WHERE id=$1 AND food_order_id=$4 AND provider_account_id=$5 RETURNING *`,
+        [current.pos_payment_id,intentId,JSON.stringify({stripeStatus:intent.status}),permit.food_order_id,permit.provider_account_id]);
+      if(!heldPayment)throw new AppError('Offline reservation missing',409,'terminal_offline_reservation_missing');
+      if(heldPayment.status==='captured'){
+        await client.query(`UPDATE restaurant_terminal_offline_permits SET status='captured',provider_payment_intent_id=$2,pos_payment_id=$3 WHERE id=$1`,[permitId,intentId,heldPayment.id]);
+        const reconciliation=await reconcilePosOrderPayment(client,permit.food_order_id);
+        return {payment:heldPayment,...reconciliation,reviewRequired:true,held:false};
+      }
+      await client.query(`UPDATE restaurant_terminal_offline_permits SET status='requires_reconciliation',provider_payment_intent_id=$2,pos_payment_id=$3 WHERE id=$1`,[permitId,intentId,heldPayment.id]);
+      const reconciliation=await reconcilePosOrderPayment(client,permit.food_order_id);
+      return {payment:heldPayment,...reconciliation,reviewRequired:true,held:true};
+    }
     const {rows:[payment]}=await client.query(`UPDATE restaurant_pos_payments SET
       status=CASE WHEN status='captured' THEN 'captured' ELSE $2::text END,
       provider_payment_intent_id=$3,metadata=metadata||$4::jsonb,updated_at=NOW()
