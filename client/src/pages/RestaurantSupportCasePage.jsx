@@ -354,9 +354,11 @@ export default function RestaurantSupportCasePage() {
                         <div className="font-semibold text-white">{attachment.file_name || attachment.file_url}</div>
                         <div className="text-xs uppercase tracking-[0.18em] text-slate-400">{attachment.attachment_type || 'proof'}</div>
                       </div>
-                      <a href={attachment.file_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-orange-300 hover:text-orange-200">
-                        {t('common.open', { defaultValue: 'Open' })}
-                      </a>
+                      {attachment.file_url ? (
+                        <a href={attachment.file_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-orange-300 hover:text-orange-200">
+                          {t('common.open', { defaultValue: 'Open' })}
+                        </a>
+                      ) : null}
                     </div>
                   </article>
                 ))}
