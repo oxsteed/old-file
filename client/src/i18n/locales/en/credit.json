@@ -1935,6 +1935,15 @@
     "loadErrorTitle": "Unable to load your cards",
     "secretTitle": "One-time card credential -- shown only now",
     "secretDescription": "Save this somewhere safe. It cannot be shown again -- if you lose it, report the card lost to get a replacement.",
+    "stepup": {
+      "title": "Confirm with your authenticator",
+      "body": "Enter the code from your authenticator app to issue this card.",
+      "codeLabel": "Authenticator code",
+      "cancel": "Cancel",
+      "verify": "Confirm",
+      "issueFailed": "Could not start the security check. Try again.",
+      "codeRequired": "Enter the authenticator code to continue."
+    },
     "addCard": "Add a card",
     "issueNew": "Issue a new card",
     "issueDescription": "A virtual card is active immediately. A physical card ships to your address and you activate it with a code once it arrives.",
