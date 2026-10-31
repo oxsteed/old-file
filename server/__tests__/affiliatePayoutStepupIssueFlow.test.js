@@ -158,13 +158,13 @@ test('affiliate_payout_process stays email-method by construction', () => {
   expect(TOTP_STEPUP_ACTION_TYPES).not.toContain('affiliate_payout_process');
 });
 
-test('the legacy process route verifies exactly this action type', () => {
-  const src = require('fs').readFileSync(require.resolve('../routes/payoutRoutes.js'), 'utf8');
-  const at = src.indexOf('/:payout_id/process');
+test('the newer process route verifies exactly this action type', () => {
+  const src = require('fs').readFileSync(require.resolve('../routes/affiliatePayouts.js'), 'utf8');
+  const at = src.indexOf('/:payoutId/process');
   expect(at).toBeGreaterThan(-1);
   const block = src.slice(at, at + 1200);
   expect(block).toContain("actionType: 'affiliate_payout_process'");
-  expect(block).toContain('PayoutController.processPayout');
+  expect(block).toContain('affiliatePayoutsController.processPayout');
 });
 
 test('the real issue helper rejects an unknown action type', async () => {

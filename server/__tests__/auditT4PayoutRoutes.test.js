@@ -3,10 +3,11 @@
 /**
  * Audit T4 (items 15 & 20) — payout route guards.
  *
- * Item 15: POST /api/payouts/:payout_id/process moves affiliate money on a
- * single admin's say-so. It now mounts rejectImpersonated and verifies a
- * fresh maker step-up challenge (actionType 'affiliate_payout_process')
- * before PayoutController.processPayout runs.
+ * Item 15 retired: the legacy POST /api/payouts/:payout_id/process route
+ * was consolidated onto the newer POST /api/affiliate/:payoutId/process
+ * route, which carries the same step-up, dual-approval, and compliance
+ * gates. These tests guard the removal: the legacy path must 404 and the
+ * legacy route must not reappear in the route table.
  *
  * Item 20: helper payout-method create/update/delete is the classic
  * account-takeover payout-redirection vector. The write routes now require
@@ -37,129 +38,17 @@ beforeEach(() => {
   authenticator.verify.mockReturnValue(true);
 });
 
-describe('item 15: affiliate payout process route wiring', () => {
-  test('process route mounts rejectImpersonated', () => {
-    const at = ROUTE_SRC.indexOf('/:payout_id/process');
-    expect(at).toBeGreaterThan(-1);
-    const block = ROUTE_SRC.slice(at, at + 400);
-    expect(block).toContain('requireAdmin');
-    expect(block).toContain('rejectImpersonated');
-    expect(block).toContain('view_financials');
+describe('item 15 retired: legacy affiliate payout process route removed', () => {
+  test('payoutRoutes no longer registers POST /:payout_id/process', () => {
+    expect(ROUTE_SRC).not.toContain('/:payout_id/process');
   });
-  test('process route verifies a maker step-up before processPayout', () => {
-    const at = ROUTE_SRC.indexOf('/:payout_id/process');
-    expect(at).toBeGreaterThan(-1);
-    const block = ROUTE_SRC.slice(at, at + 1200);
-    expect(block).toContain('verifyStepupChallenge');
-    expect(block).toContain('affiliate_payout_process');
-    expect(block).toContain('PayoutController.processPayout');
-  });
-});
-
-describe('item 15: maker step-up enforced on /:payout_id/process', () => {
-  const verifyStepupChallenge = jest.fn();
-  const processPayout = jest.fn();
-
-  function buildApp() {
-    jest.resetModules();
-    jest.doMock('../middleware/auth', () => ({
-      requireAuth: (req, res, next) => { req.user = { id: 'admin-1', role: 'admin' }; next(); },
-    }));
-    jest.doMock('../middleware/adminAuth', () => ({
-      requireAdmin: (req, res, next) => { req.user = { id: 'admin-1', role: 'admin' }; next(); },
-      requirePermission: () => (req, res, next) => next(),
-    }));
-    jest.doMock('../middleware/rejectImpersonated', () => ({
-      rejectImpersonated: (req, res, next) => next(),
-    }));
-    jest.doMock('../middleware/requireUserTotpStepUp', () => ({
-      requireUserTotpStepUp: (req, res, next) => next(),
-    }));
-    jest.doMock('../middleware/rateLimiter', () => ({
-      strictLimiter: (req, res, next) => next(),
-    }));
-    jest.doMock('../middleware/helperOnboardingMiddleware', () => ({
-      requireOnboardingStep: () => (req, res, next) => next(),
-    }));
-    jest.doMock('../services/stepupChallengeService', () => ({
-      verifyStepupChallenge,
-    }));
-    jest.doMock('../controllers/PayoutController', () => ({
-      getPayoutMethods: jest.fn(),
-      createPayoutMethod: jest.fn(),
-      updatePayoutMethod: jest.fn(),
-      deletePayoutMethod: jest.fn(),
-      getPayouts: jest.fn(),
-      getPayout: jest.fn(),
-      getPayoutStats: jest.fn(),
-      processPayout,
-    }));
-    jest.doMock('../controllers/AffiliateAnalyticsController', () => ({
-      getMetricsTimeSeries: jest.fn(),
-      getConversionFunnel: jest.fn(),
-      getTopProducts: jest.fn(),
-      getProductAnalytics: jest.fn(),
-      getVisitorFunnel: jest.fn(),
-      getSourceBreakdown: jest.fn(),
-    }));
-
+  test('HTTP POST to the legacy path returns 404', async () => {
     const payoutRoutes = require('../routes/payoutRoutes');
     const app = express();
     app.use(express.json());
     app.use('/api/payouts', payoutRoutes);
-    // map AppError-style throws to their status codes
-    // eslint-disable-next-line no-unused-vars
-    app.use((err, req, res, next) => {
-      res.status(err.statusCode || 500).json({ error: err.message, code: err.code });
-    });
-    return app;
-  }
-
-  beforeEach(() => {
-    verifyStepupChallenge.mockReset();
-    processPayout.mockReset();
-  });
-
-  test('no step-up challenge -> 403 and processPayout never runs', async () => {
-    const err = new Error('A step-up verification code is required for this action');
-    err.statusCode = 403;
-    err.code = 'credit_stepup_challenge_required';
-    verifyStepupChallenge.mockRejectedValue(err);
-    processPayout.mockImplementation((req, res) => res.json({ ok: true }));
-
-    const res = await request(buildApp())
-      .post('/api/payouts/payout-1/process')
-      .send({});
-
-    expect(res.status).toBe(403);
-    expect(res.body.code).toBe('credit_stepup_challenge_required');
-    expect(verifyStepupChallenge).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actorUserId: 'admin-1',
-        actionType: 'affiliate_payout_process',
-      })
-    );
-    expect(processPayout).not.toHaveBeenCalled();
-  });
-
-  test('verified step-up -> processPayout runs', async () => {
-    verifyStepupChallenge.mockResolvedValue({ verified: true });
-    processPayout.mockImplementation((req, res) => res.json({ ok: true }));
-
-    const res = await request(buildApp())
-      .post('/api/payouts/payout-1/process')
-      .send({ stepupChallengeId: 'c1', stepupCode: '123456' });
-
-    expect(verifyStepupChallenge).toHaveBeenCalledWith(
-      expect.objectContaining({
-        challengeId: 'c1',
-        actorUserId: 'admin-1',
-        actionType: 'affiliate_payout_process',
-        code: '123456',
-      })
-    );
-    expect(processPayout).toHaveBeenCalledTimes(1);
-    expect(res.status).toBe(200);
+    const res = await request(app).post('/api/payouts/payout-1/process').send({});
+    expect(res.status).toBe(404);
   });
 });
 

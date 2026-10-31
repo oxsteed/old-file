@@ -119,34 +119,6 @@ describe('C2 getPayoutStats days validation', () => {
 });
 
 // ── C9: payout processing gate + idempotency ─────────────────────────────────
-describe('C9 processPayout', () => {
-  test('503 while no real money processor is wired', async () => {
-    const res = mockRes();
-    await PayoutController.processPayout(
-      { params: { payout_id: '1' }, body: {}, get: () => null, user: { id: 'u1' } },
-      res
-    );
-    expect(res.status).toHaveBeenCalledWith(503);
-    expect(mockQuery).not.toHaveBeenCalled();
-  });
-
-  test('400 when Idempotency-Key is missing or malformed', async () => {
-    process.env.PAYOUT_PROCESSOR_ENABLED = 'true';
-    const bad = mockRes();
-    await PayoutController.processPayout(
-      { params: { payout_id: '1' }, body: {}, get: () => null, user: { id: 'u1' } },
-      bad
-    );
-    expect(bad.status).toHaveBeenCalledWith(400);
-    const malformed = mockRes();
-    await PayoutController.processPayout(
-      { params: { payout_id: '1' }, body: {}, get: () => 'x', user: { id: 'u1' } },
-      malformed
-    );
-    expect(malformed.status).toHaveBeenCalledWith(400);
-  });
-});
-
 // ── H1: instant payout idempotency + audit ───────────────────────────────────
 describe('H1 requestInstantPayout', () => {
   function payoutApp() {
