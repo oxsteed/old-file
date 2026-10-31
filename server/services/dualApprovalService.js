@@ -8,9 +8,9 @@
  * payouts). Movements at or above the configured threshold are recorded as
  * pending and only execute after a DIFFERENT admin approves them.
  *
- * Threshold (Emile to confirm the exact value; mechanism ships with a
- * default):
- *   1. platform_settings.money_dual_approval_threshold_cents (runtime tunable)
+ * Threshold (confirmed $500 by Emile, 2026-10-31; audit item 12):
+ *   1. platform_settings.money_dual_approval_threshold_cents (runtime tunable;
+ *      migration 20261031072649 seeds the confirmed 50000 where unset)
  *   2. env MONEY_DUAL_APPROVAL_THRESHOLD_CENTS
  *   3. default 50000 ($500.00)
  *
@@ -64,7 +64,7 @@ async function getDualApprovalThresholdCents() {
   // 2. Env var.
   const envParsed = parseThresholdCents(process.env.MONEY_DUAL_APPROVAL_THRESHOLD_CENTS);
   if (envParsed != null) return envParsed;
-  // 3. Built-in default (Emile to confirm).
+  // 3. Built-in default (confirmed $500, 2026-10-31; audit item 12).
   return DEFAULT_THRESHOLD_CENTS;
 }
 

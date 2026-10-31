@@ -5,6 +5,7 @@ const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { strictLimiter } = require('../middleware/rateLimiter');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
+const { verifyStepupChallenge } = require('../services/stepupChallengeService');
 const affiliatePayoutsController = require('../controllers/affiliatePayoutsController');
 const AffiliateAnalyticsController = require('../controllers/AffiliateAnalyticsController');
 
@@ -21,13 +22,29 @@ router.post('/calculate', strictLimiter, requireAuth, affiliatePayoutsController
 // Review P3-787: processing moves real money, so it is an admin action with
 // the financials grant, rate-limited and audited.
 // ADM-040: processing moves real money; impersonated sessions are blocked.
+// Audit fix (item 3): the maker must prove a fresh step-up challenge before
+// the controller touches the processor, mirroring the legacy payout route.
+// Previously below-threshold payouts on this route moved on a single admin
+// session alone; the dual gate only queues at/above threshold.
 router.post(
   '/:payoutId/process',
   requireAdmin,
   rejectImpersonated,
   requirePermission('view_financials'),
   strictLimiter,
-  affiliatePayoutsController.processPayout
+  async (req, res, next) => {
+    try {
+      await verifyStepupChallenge({
+        challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+        actorUserId: req.user?.id || null,
+        actionType: 'affiliate_payout_process',
+        code: req.body?.stepupCode || req.body?.stepup_code,
+      });
+      return affiliatePayoutsController.processPayout(req, res, next);
+    } catch (err) {
+      return next(err);
+    }
+  }
 );
 
 // ── Programs ──────────────────────────────────────────────────────────────

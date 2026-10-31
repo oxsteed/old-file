@@ -211,6 +211,34 @@ describe('item 12: admin credit step-up is TOTP, not email OTP', () => {
     expect(stored.method).toBe('totp');
   });
 
+  test('audit item 4: dual-approval checker proof issues as TOTP, not email', async () => {
+    const { challenge, delivery } = await issueStepupChallenge({
+      actorUserId: ADMIN_ID,
+      actorEmail: 'admin@example.com',
+      actionType: 'money_movement_approve',
+      amountCents: 60000,
+    });
+    expect(delivery).toBe('totp');
+    expect(challenge.method).toBe('totp');
+    const stored = challenges.get(challenge.id);
+    expect(stored.codeHash).toBeNull();
+    expect(stored.method).toBe('totp');
+  });
+
+  test('audit item 4: restaurant-payout checker proof issues as TOTP, not email', async () => {
+    const { challenge, delivery } = await issueStepupChallenge({
+      actorUserId: ADMIN_ID,
+      actorEmail: 'admin@example.com',
+      actionType: 'restaurant_payout_approve',
+      amountCents: 1,
+    });
+    expect(delivery).toBe('totp');
+    expect(challenge.method).toBe('totp');
+    const stored = challenges.get(challenge.id);
+    expect(stored.codeHash).toBeNull();
+    expect(stored.method).toBe('totp');
+  });
+
   test('the current authenticator code verifies and the challenge is single-use', async () => {
     const { challenge } = await issueStepupChallenge({
       actorUserId: ADMIN_ID,
@@ -370,7 +398,7 @@ describe('item 12: admin credit step-up is TOTP, not email OTP', () => {
   });
 
   test('all admin money and configuration action types are TOTP-only', () => {
-    expect(TOTP_STEPUP_ACTION_TYPES).toHaveLength(18);
+    expect(TOTP_STEPUP_ACTION_TYPES).toHaveLength(20);
     for (const actionType of [
       'settlement_payout',
       'withdrawal',
@@ -390,6 +418,8 @@ describe('item 12: admin credit step-up is TOTP, not email OTP', () => {
       'fee_config_update',
       'credit_rail_unfreeze',
       'credit_card_issue',
+      'money_movement_approve',
+      'restaurant_payout_approve',
     ]) {
       expect(TOTP_STEPUP_ACTION_TYPES).toContain(actionType);
     }
