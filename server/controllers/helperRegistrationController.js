@@ -54,6 +54,19 @@ function otpExpiry() {
   return new Date(Date.now() + 10 * 60 * 1000); // 10 min
 }
 
+// Pentest fix (matches authController.hashOtp): helper OTP codes were
+// stored as unsalted SHA-256 of a 6-digit code, trivially brute-forceable
+// offline after any database read. Hash them with HMAC under a server
+// secret instead, so a leaked hash alone reveals nothing.
+// OTP_HMAC_SECRET allows key separation; it falls back to JWT_SECRET so no
+// new deployment variable is required. NOTE: codes issued before this
+// change (unsalted hashes, 10-minute expiry) stop verifying after deploy;
+// affected users simply request a fresh code.
+const OTP_HMAC_SECRET = process.env.OTP_HMAC_SECRET || process.env.JWT_SECRET;
+function hashOtp(otp) {
+  return crypto.createHmac('sha256', OTP_HMAC_SECRET).update(String(otp)).digest('hex');
+}
+
 // GET /api/helper-registration/categories
 async function getCategories(req, res) {
   try {
@@ -146,7 +159,7 @@ async function startRegistration(req, res) {
 
     const password_hash = await bcrypt.hash(password, 12);
     const otp = generateOTP();
-    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+    const otpHash = hashOtp(otp);
     const otp_expires = otpExpiry();
 
     // Generate a unique token for this registration
@@ -258,7 +271,7 @@ async function verifyOTP(req, res) {
       return res.status(429).json({ error: 'Account locked due to too many failed attempts. Try again in 1 hour.', lockUntil: reg.otp_locked_until });
     }
 
-    const otpHash  = crypto.createHash('sha256').update(otp).digest('hex');
+    const otpHash = hashOtp(otp);
     const expired  = reg.otp_expires_at && new Date(reg.otp_expires_at) < new Date();
     // Use timing-safe comparison to prevent timing attacks on the OTP hash (I-09)
     const storedBuf   = Buffer.from(reg.otp_code || '', 'hex');
@@ -418,7 +431,7 @@ async function resendOTP(req, res) {
     }
 
     const otp = generateOTP();
-    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+    const otpHash = hashOtp(otp);
     const otp_expires = otpExpiry();
 
     const lookup = token
