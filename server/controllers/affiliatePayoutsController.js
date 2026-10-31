@@ -215,12 +215,20 @@ async function calculateAndCreatePayout(req, res, next) {
 
       // Calculate commissions for the period inside the claim, so a concurrent
       // request cannot observe the same pending rows before they are marked.
+      // Money-flows audit item 42: commissions on fully refunded orders
+      // must not be claimed. The SUM and the UPDATE below share this
+      // predicate exactly, so a refunded order is neither totalled nor
+      // flipped to confirmed.
       const commissions = await client.query(
         `SELECT SUM(commission_cents) as total_cents, COUNT(*) as count
          FROM affiliate_commissions
          WHERE affiliate_program_id = $1
          AND status IN ($2, 'confirmed') AND payout_id IS NULL
-         AND created_at >= $3 AND created_at < $4`,
+         AND created_at >= $3 AND created_at < $4
+         AND NOT EXISTS (
+           SELECT 1 FROM marketplace_orders mo
+           WHERE mo.id = affiliate_commissions.order_id AND mo.status = 'refunded'
+         )`,
         [programId, 'pending', new Date(periodStart), new Date(periodEnd)]
       );
 
@@ -252,12 +260,18 @@ async function calculateAndCreatePayout(req, res, next) {
 
       const payoutId = row.id;
 
-      // Update commissions to reference payout
+      // Update commissions to reference payout. Same refund exclusion as
+      // the SUM above (money-flows audit item 42): a refunded order's
+      // commission is never claimed by a period payout.
       await client.query(
         `UPDATE affiliate_commissions
          SET payout_id = $1, status = $2
          WHERE affiliate_program_id = $3 AND status IN ($4, 'confirmed') AND payout_id IS NULL
-         AND created_at >= $5 AND created_at < $6`,
+         AND created_at >= $5 AND created_at < $6
+         AND NOT EXISTS (
+           SELECT 1 FROM marketplace_orders mo
+           WHERE mo.id = affiliate_commissions.order_id AND mo.status = 'refunded'
+         )`,
         [payoutId, 'confirmed', programId, 'pending', new Date(periodStart), new Date(periodEnd)]
       );
 
