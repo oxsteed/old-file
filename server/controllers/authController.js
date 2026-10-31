@@ -21,6 +21,7 @@ const { isSignupPasswordValid } = require('../utils/signupValidation');
 const logger = require('../utils/logger');
 const supportChatThreads = require('../services/supportChatThreads');
 const tokenRevocationService = require('../services/tokenRevocationService');
+const { invalidateToken: invalidateCsrfToken } = require('../middleware/csrf');
 const { AppError } = require('../middleware/errorHandler');
 const { assertRegistrationsOpen } = require('../middleware/maintenanceGate'); // Review P3-7-F07
 const { grantFreeTrialToUser } = require('./templateController');
@@ -908,8 +909,17 @@ function resolveSessionAbsoluteDeadline(session) {
 
 // Refresh-token reuse grace window: a legitimate client can present a
 // just-rotated token twice (double-submit, or a retry after a dropped
-// response that never delivered the rotated token). Only treat a replay as
-// theft when the rotation it replays is older than this window.
+// response that never delivered the rotated token).
+// Auth audit item 11: the grace now covers ONLY the first in-window
+// replay of the same token value. The first replay writes
+// sessions.refresh_replay_noted_at; a second replay (marker already set)
+// is a confirmed rotation replay and revokes the family regardless of
+// grace age, as does any replay outside the window. A rotation child
+// with an unparseable created_at is treated as outside grace (fail
+// closed: recency cannot be established, so the double-submit case
+// cannot be confirmed). The caller still throws the same token_reuse
+// error in every case, so the response reveals nothing new about
+// whether a family revoke happened.
 const REFRESH_REUSE_GRACE_MS = 60 * 1000;
 
 // Pentest fix, scoped by H8d: on a suspected refresh-token theft, revoke
@@ -926,8 +936,9 @@ const REFRESH_REUSE_GRACE_MS = 60 * 1000;
 // Family scope is by session-chain id, never by user_id: the lookup and
 // the revoke name session ids only, so other logins are untouched and no
 // user-wide revocation marker is written.
-// The caller still throws the same token_reuse error, so the response
-// reveals nothing new about whether a family revoke happened.
+// Returns true when the family was revoked, false otherwise. Diagnostics
+// never turn a denied refresh into a successful one, nor mask the
+// token_reuse error the caller throws.
 async function revokeRefreshFamilyIfStolen(pool, sessionRow) {
   try {
     const { rows } = await pool.query(
@@ -937,9 +948,19 @@ async function revokeRefreshFamilyIfStolen(pool, sessionRow) {
       [sessionRow.id]
     );
     const child = rows[0];
-    if (!child) return;
+    if (!child) return false;
     const rotatedAt = new Date(child.created_at).getTime();
-    if (Number.isNaN(rotatedAt) || Date.now() - rotatedAt < REFRESH_REUSE_GRACE_MS) return;
+    const withinGrace = !Number.isNaN(rotatedAt) && Date.now() - rotatedAt < REFRESH_REUSE_GRACE_MS;
+    if (withinGrace && !sessionRow.refresh_replay_noted_at) {
+      // First in-window replay: possible double-submit after a dropped
+      // response. Note it and do not revoke yet; a second replay of the
+      // same value is not a double-submit and revokes below.
+      await pool.query(
+        'UPDATE sessions SET refresh_replay_noted_at = NOW() WHERE id = $1',
+        [sessionRow.id]
+      );
+      return false;
+    }
     // Walk the rotation chain from the child, collecting every descendant
     // id (bounded: a legitimate rotation chain never approaches this).
     const familyIds = [sessionRow.id, child.id];
@@ -962,10 +983,16 @@ async function revokeRefreshFamilyIfStolen(pool, sessionRow) {
       'UPDATE sessions SET is_valid = false, is_revoked = true WHERE id = ANY($1)',
       [familyIds]
     );
+    // Security alert on family revoke (structured log: the established
+    // alerting surface for this path, matching the check-failed log
+    // below).
+    logger.error('Refresh token family revoked on reuse', { userId: sessionRow.user_id, familySize: familyIds.length });
+    return true;
   } catch (err) {
     // Family-revoke diagnostics must never turn a denied refresh into a
     // successful one, nor mask the token_reuse error the caller throws.
     logger.error('Refresh family revoke check failed', { error: err.message });
+    return false;
   }
 }
 
@@ -980,7 +1007,7 @@ async function refreshToken(req, res, next) {
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: sessionRows } = await pool.query(
-      'SELECT s.id, s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at, COALESCE(s.remember_me, FALSE) AS remember_me FROM sessions s WHERE s.refresh_token = $1',
+      'SELECT s.id, s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at, s.refresh_replay_noted_at, COALESCE(s.remember_me, FALSE) AS remember_me FROM sessions s WHERE s.refresh_token = $1',
       [hashedToken]
     );
     if (!sessionRows[0]) {
@@ -1177,6 +1204,18 @@ async function logout(req, res) {
     // Revoke all user tokens on logout
     if (userId) {
       await tokenRevocationService.revokeAllUserTokens(userId);
+    }
+
+    // Auth audit item 10: a pre-logout CSRF token must not survive the
+    // session it was issued under. Never throws: a CSRF-store outage
+    // must not turn a logout into a 500 (the access tokens are already
+    // revoked above, so a surviving CSRF entry alone is not a credential).
+    if (userId) {
+      try {
+        await invalidateCsrfToken(String(userId));
+      } catch (csrfErr) {
+        logger.warn('Logout CSRF invalidation failed', { userId, error: csrfErr.message });
+      }
     }
 
     // AI support chat memory ends with the session (never throws).

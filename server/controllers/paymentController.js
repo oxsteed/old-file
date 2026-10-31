@@ -741,6 +741,11 @@ exports.requestInstantPayout = async (req, res, next) => {
     // auth alone. Every instant payout now requires a fresh step-up challenge
     // (the per-user-day idempotency key already bounds this to at most one
     // challenge per day).
+    // Auth audit item 6, intentionally unbound: the payout amount is
+    // derived from the live Stripe balance AFTER this verify and is
+    // hard-capped at $500 per request; binding to a pre-verify figure
+    // would fail closed on legitimate balance changes between issue
+    // and verify. The $500 cap is the bound.
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
       actorUserId: req.user.id,

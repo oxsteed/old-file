@@ -181,7 +181,10 @@ describe('food refund authorization controls', () => {
     const { req, res } = makeReqRes(7, { reason: 'test' });
     await refundFoodOrder(req, res);
     expect(res.statusCode).toBe(403);
-    expect(mockQuery).not.toHaveBeenCalled();
+    // Auth audit item 6: the handler pre-reads the order row to bind the
+    // challenge to the refund amount, so one read-only SELECT is
+    // expected; the money transaction itself must never be acquired.
+    expect(mockQuery.mock.calls.every(([sql]) => /^SELECT total_cents, metadata FROM food_orders/i.test(sql))).toBe(true);
     expect(refundWalletDebitForReference).not.toHaveBeenCalled();
   });
   test.each(['wallet_credit','oxsteed_credit'])('above-threshold %s refund queues without moving funds', async mode => {

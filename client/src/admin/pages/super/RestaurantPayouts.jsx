@@ -49,7 +49,9 @@ export default function RestaurantPayouts() {
       if (action === 'approve') {
         // ADM-113: single-admin approval moves arbitrary sums via Stripe
         // Transfer; the approver must prove a fresh step-up challenge.
-        const challengeResponse = await adminApi.post('/admin/restaurant-payouts/stepup-challenges', {});
+        // Auth audit item 6: the server binds the challenge to this
+        // payout's amount, so the issue call must name the payout.
+        const challengeResponse = await adminApi.post('/admin/restaurant-payouts/stepup-challenges', { payoutId: payout.id });
         const challengeId = challengeResponse.data?.challenge?.id;
         if (!challengeId) throw new Error(t('restaurantPayouts.stepupFailed'));
         const code = window.prompt(t('restaurantPayouts.stepupPrompt'));

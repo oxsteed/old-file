@@ -340,8 +340,28 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
 
 async function issueRefundStepupChallenge(req, res, next) {
   try {
+    // Auth audit item 6: issue for the real refund amount, not 1. The
+    // body carries orderId and, for a partial refund, amountCents; for
+    // a full refund the amount is the order total minus what admin
+    // refunds already covered (the same figure the verify side binds).
+    const orderId = Number(req.body?.orderId ?? req.body?.order_id);
+    if (!Number.isSafeInteger(orderId) || orderId <= 0) {
+      throw refundError(400, { error: 'Order id is required' });
+    }
+    const { rows } = await pool.query('SELECT total_cents, metadata FROM food_orders WHERE id = $1', [orderId]);
+    if (!rows.length) throw refundError(404, { error: 'Order not found' });
+    let amountCents;
+    const supplied = Number(req.body?.amountCents ?? req.body?.amount_cents);
+    if (Number.isSafeInteger(supplied) && supplied > 0) {
+      amountCents = supplied;
+    } else {
+      amountCents = Number(rows[0].total_cents) - readAdminRefundedCents(rows[0].metadata);
+      if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+        throw refundError(400, { error: 'Refund amount must be a positive whole number of cents' });
+      }
+    }
     const { challenge, delivery } = await require('../services/stepupChallengeService').issueStepupChallenge({
-      actorUserId: req.user.id, actorEmail: req.user.email, actionType: 'food_refund', amountCents: 1,
+      actorUserId: req.user.id, actorEmail: req.user.email, actionType: 'food_refund', amountCents,
     });
     res.status(201).json({ challenge: { id: challenge.id, method: challenge.method, expiresAt: challenge.expiresAt }, delivery });
   } catch (err) { next(err); }
@@ -373,8 +393,21 @@ async function refundFoodOrder(req, res) {
       requestedAmount = n;
     }
 
+    // Auth audit item 6: bind to the refund amount being requested, or
+    // for a full refund to the remaining total (the same figure the
+    // issue endpoint binds). The executor re-validates under lock; this
+    // pre-read only binds the challenge.
+    let foodRefundExpectedAmount = requestedAmount;
+    if (foodRefundExpectedAmount === null) {
+      const { rows: orderRows } = await pool.query('SELECT total_cents, metadata FROM food_orders WHERE id = $1', [orderId]);
+      if (orderRows.length) {
+        const remaining = Number(orderRows[0].total_cents) - readAdminRefundedCents(orderRows[0].metadata);
+        if (Number.isSafeInteger(remaining) && remaining > 0) foodRefundExpectedAmount = remaining;
+      }
+    }
     await require('../services/stepupChallengeService').verifyStepupChallenge({
       challengeId: req.body.stepupChallengeId, actorUserId: req.user.id, actionType: 'food_refund', code: req.body.stepupCode,
+      ...(foodRefundExpectedAmount !== null ? { expectedAmountCents: foodRefundExpectedAmount } : {}),
     });
     const result = await require('../utils/transaction').withTransaction(pool, client =>
       executeFoodOrderRefund(client, { req, orderId, requestedAmount, reason }), 'admin_food_refund');

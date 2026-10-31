@@ -199,7 +199,10 @@ export default function AdminFoodOrderDetail() {
 
     setRefunding(true);
     try {
-      const stepup = await collectAdminActionStepup(axios, '/api/admin/food-orders/stepup-challenges/refund', t);
+      // Auth audit item 6: the server binds the challenge to the refund
+      // amount; a partial refund sends its amount, a full refund sends
+      // only the order id and the server binds the remaining total.
+      const stepup = await collectAdminActionStepup(axios, '/api/admin/food-orders/stepup-challenges/refund', t, { orderId: id, amountCents: refundAmount.trim() ? amount : undefined });
       const { data } = await axios.post(`/api/admin/food-orders/${id}/refund`, {
         ...stepup,
         amount_cents: refundAmount.trim() ? amount : undefined,

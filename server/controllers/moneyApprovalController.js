@@ -65,12 +65,25 @@ async function approve(req, res, next) {
     const approverId = req.user?.id;
     if (!approverId) return res.status(401).json({ error: 'Unauthorized.' });
 
-    // The checker re-authenticates at the moment money moves.
+    // The checker re-authenticates at the moment money moves. Auth audit
+    // item 6: bind to the approval's amount (the same figure the issue
+    // endpoint binds when the client sends approvalId); a missing
+    // approval skips binding and the decide call fails downstream as
+    // before.
+    let moneyApprovalExpectedAmount = null;
+    try {
+      const approvalRow = await getMoneyMovementApproval(req.params.id);
+      const n = Number(approvalRow?.amount_cents);
+      if (Number.isSafeInteger(n) && n > 0) moneyApprovalExpectedAmount = n;
+    } catch (loadError) {
+      logger.warn('moneyApproval.approve stepup pre-read failed, skipping amount binding', { approvalId: req.params.id, error: loadError.message });
+    }
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
       actorUserId: approverId,
       actionType: 'money_movement_approve',
       code: req.body?.stepupCode || req.body?.stepup_code,
+      ...(moneyApprovalExpectedAmount !== null ? { expectedAmountCents: moneyApprovalExpectedAmount } : {}),
     });
 
     const { approval, result } = await decideMoneyMovementApproval({

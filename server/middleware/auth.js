@@ -145,7 +145,18 @@ async function authenticate(req, res, next) {
   let useBearer = false;
   if (bearerToken) {
     try {
-      const bearerDecoded = jwt.decode(bearerToken);
+      // Auth audit item 16: precedence must rest on a VERIFIED bearer,
+      // not a decoded claim. A forged impersonation claim used to force
+      // the bearer path (and the main verify below then 401'd instead of
+      // falling back to the cookie). Now an unverifiable bearer (wrong
+      // secret, expired) falls through to the cookie: an expired
+      // impersonation token plus a valid cookie authenticates as the
+      // cookie user rather than 401'ing, because the impersonation
+      // session is over and the user's own valid session applies. No
+      // privilege escalation in either case: an attacker holding only a
+      // forged bearer and the victim's cookie could already authenticate
+      // with the cookie alone.
+      const bearerDecoded = jwt.verify(bearerToken, JWT_SECRET, { algorithms: ['HS256'] });
       // Pentest fix: minted impersonation tokens carry `impersonation: true`
       // (see superAdminController exchange); the old `isImpersonated` claim
       // name never appears on a minted token, so this precedence check
@@ -154,7 +165,7 @@ async function authenticate(req, res, next) {
         useBearer = true;
       }
     } catch {
-      // Not a valid JWT; fall through to cookie.
+      // Not a verifiable JWT; fall through to cookie.
     }
   }
   const token = useBearer

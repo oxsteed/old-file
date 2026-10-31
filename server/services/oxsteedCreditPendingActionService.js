@@ -190,6 +190,46 @@ async function resolveActionAmountCents(actionType, payload) {
 }
 
 /**
+ * Amount a checker's step-up challenge must have been issued for (auth
+ * audit item 6). This is what the checker issue endpoint binds, so the
+ * issue and verify figures agree by construction: the payload amount
+ * when the stored payload carries one (the ADM-155 client figure), else
+ * the settlement's net_cents, else the withdrawal row's amount. Returns
+ * null when the action carries no resolvable money amount, in which
+ * case the caller skips binding (legacy behavior). Deliberately
+ * separate from resolveActionAmountCents (threshold routing): changing
+ * that function's withdrawal case would change dual-approval routing,
+ * which is out of scope here. A missing row resolves to null, never an
+ * error: the executor below reports the missing row with its own error.
+ * The queryable is the caller's transaction client when inside one, so
+ * the binding reads the same snapshot the decision commits.
+ */
+async function resolveCheckerStepupAmountCents(queryable, action) {
+  const payload = action.payload || {};
+  const direct = parseAmount(payload.amountCents ?? payload.amount_cents);
+  if (direct !== null && direct > 0) return direct;
+  const settlementId = payload.settlementId || payload.settlement_id;
+  if (settlementId) {
+    const { rows } = await queryable.query(
+      'SELECT net_cents FROM oxsteed_credit_settlements WHERE id = $1',
+      [settlementId]
+    );
+    const net = rows[0] ? parseAmount(rows[0].net_cents) : null;
+    if (net !== null && net > 0) return net;
+  }
+  const withdrawalId = payload.withdrawalId || payload.withdrawal_id;
+  if (withdrawalId) {
+    const { rows } = await queryable.query(
+      'SELECT amount_cents FROM oxsteed_credit_withdrawals WHERE id = $1',
+      [withdrawalId]
+    );
+    const amount = rows[0] ? parseAmount(rows[0].amount_cents) : null;
+    if (amount !== null && amount > 0) return amount;
+  }
+  return null;
+}
+
+/**
  * Registered executors. Each receives the stored payload plus the acting
  * (checker) admin and runs the real service function, carrying the
  * original Idempotency-Key from the payload so a crash between execution
@@ -718,11 +758,16 @@ async function decidePendingActionCore({ actionId, decidedBy, decision, reason, 
     }
 
     // Approval: verify the checker's fresh step-up BEFORE any money moves.
+    // Auth audit item 6: bind it to the action's amount when resolvable
+    // (same resolver the checker issue endpoint uses); actions without a
+    // resolvable amount keep the legacy unbound challenge.
+    const checkerExpectedAmount = await resolveCheckerStepupAmountCents(client, action);
     await verifyStepupChallenge({
       challengeId: stepupChallengeId,
       actorUserId: decidedBy,
       actionType: 'pending_action_approve',
       code: stepupCode,
+      ...(checkerExpectedAmount !== null ? { expectedAmountCents: checkerExpectedAmount } : {}),
     });
 
     const executor = ACTION_EXECUTORS[action.action_type] || OVERSIGHT_EXECUTORS.get(action.action_type);
@@ -876,4 +921,5 @@ module.exports = {
   listPendingActions,
   expireStalePendingActions,
   resolveActionAmountCents,
+  resolveCheckerStepupAmountCents,
 };

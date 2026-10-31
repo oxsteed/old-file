@@ -6,6 +6,7 @@ const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
 const tokenRevocationService = require('../services/tokenRevocationService');
+const { invalidateToken: invalidateCsrfToken } = require('../middleware/csrf');
 const { withTransaction } = require('../utils/transaction');
 const { enqueueMessageNotification } = require('../services/messageNotificationService');
 const { parseBoundedPagination } = require('../utils/pagination');
@@ -1488,11 +1489,34 @@ exports.issueRefundStepupChallenge = async (req, res, next) => {
   try {
     const adminId = req.user?.id;
     if (!adminId) throw new AppError('Unauthorized.', 401, 'unauthorized');
+    // Auth audit item 6: issue for the real refund amount, not 1. The
+    // body carries jobId; the amount is the explicit body amount when
+    // the client sends one, else the captured amount of the latest
+    // refundable payment (the same figure the refund handler binds).
+    const jobId = req.body?.jobId || req.body?.job_id;
+    if (!jobId) throw new AppError('Job id is required.', 400, 'manual_refund_job_required');
+    const { rows: paymentRows } = await db.query(
+      `SELECT id, amount, stripe_payment_intent_id, stripe_account_id
+       FROM payments
+       WHERE job_id = $1
+         AND stripe_payment_intent_id IS NOT NULL
+         AND status IN ('authorized', 'captured')
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [jobId]
+    );
+    if (!paymentRows.length) throw new AppError('Refundable payment not found for this job.', 404, 'manual_refund_payment_not_found');
+    const issueCapturedCents = Math.round(Number(paymentRows[0].amount) * 100);
+    if (!Number.isInteger(issueCapturedCents) || issueCapturedCents <= 0) {
+      throw new AppError('Payment has no captured amount to refund against.', 409, 'manual_refund_no_captured_amount');
+    }
+    const issueAmount = Number(req.body?.amountCents ?? req.body?.amount_cents);
+    const amountCents = Number.isInteger(issueAmount) && issueAmount > 0 ? issueAmount : issueCapturedCents;
     const { challenge, delivery } = await issueStepupChallenge({
       actorUserId: adminId,
       actorEmail: req.user?.email,
       actionType: 'manual_refund',
-      amountCents: 1,
+      amountCents,
       currencyCode: 'USD',
     });
     res.status(201).json({
@@ -1518,16 +1542,6 @@ exports.issueManualRefund = async (req, res) => {
     const { reason, amount_cents, fullRefund } = req.body;
     const adminId = req.user.id;
     if (!reason) return res.status(400).json({ error: 'Refund reason required.' });
-
-    // ADM-112: manual refunds move money under a single grant with no amount
-    // tiering. Require a fresh step-up challenge per refund so the acting
-    // admin re-authenticates at the moment money moves.
-    await verifyStepupChallenge({
-      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
-      actorUserId: adminId,
-      actionType: 'manual_refund',
-      code: req.body?.stepupCode || req.body?.stepup_code,
-    });
 
     const refundAmountCents = amount_cents == null ? null : Number(amount_cents);
     if (refundAmountCents != null && (!Number.isInteger(refundAmountCents) || refundAmountCents <= 0)) {
@@ -1557,6 +1571,21 @@ exports.issueManualRefund = async (req, res) => {
     if (refundAmountCents != null && refundAmountCents > capturedCents) {
       return res.status(400).json({ error: 'Refund amount cannot exceed the captured amount.' });
     }
+
+    // ADM-112: manual refunds move money under a single grant with no amount
+    // tiering. Require a fresh step-up challenge per refund so the acting
+    // admin re-authenticates at the moment money moves. Auth audit item 6:
+    // the challenge must have been issued for this refund amount (the
+    // explicit amount, or the full captured amount for a full refund),
+    // not just any manual refund. The payment lookup moved above the
+    // verify so the expected figure is known before the code is checked.
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: adminId,
+      actionType: 'manual_refund',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+      expectedAmountCents: refundAmountCents != null ? refundAmountCents : capturedCents,
+    });
 
     const requestId = `admin-job-refund-${jobId}-${payment.id}-${refundAmountCents || 'full'}`;
     const refundResult = await processPaymentRefund({
@@ -3348,6 +3377,15 @@ exports.forceLogout = async (req, res) => {
       await tokenRevocationService.revokeAllUserTokens(String(userId));
     } catch (revokeErr) {
       logger.warn('forceLogout: token revocation failed', { userId, error: revokeErr.message });
+    }
+
+    // Auth audit item 10: same session-termination semantics as logout:
+    // the user's CSRF token must not survive a forced session end.
+    // Never throws, for the same reason as the logout path.
+    try {
+      await invalidateCsrfToken(String(userId));
+    } catch (csrfErr) {
+      logger.warn('forceLogout: CSRF invalidation failed', { userId, error: csrfErr.message });
     }
 
     // Audit fix (finding 5): passkeys are standalone login credentials that

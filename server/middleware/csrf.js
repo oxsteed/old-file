@@ -69,6 +69,16 @@ function generateToken() {
   return crypto.randomBytes(TOKEN_LENGTH).toString('hex');
 }
 
+// Auth audit item 10, remainder deferred with reasons: tokens are keyed
+// per user, not per session. Per-session scoping was not forced because
+// access tokens carry no session identifier (only impersonation tokens
+// carry a jti), access tokens rotate every 15 minutes (so a per-token
+// key would break clients unless every response, including the refresh
+// response, re-issues the CSRF token), and non-web clients' re-capture
+// behavior after refresh is unverified in this repo. Doing it properly
+// means minting a session id into access tokens, an auth-wide change.
+// What IS fixed: logout and force-logout now invalidate the token, so a
+// pre-logout token no longer validates after the session ends.
 async function getOrGenerateToken(userId) {
   const existing = await fetchToken(userId);
   if (existing) return existing;
@@ -111,13 +121,24 @@ function hasAccessCookie(req) {
   return /(?:^|;\s*)oxsteed_access=/.test(String(req.headers.cookie || ''));
 }
 
+// Auth audit item 16: the impersonation exemption must rest on a
+// VERIFIED bearer, not a decoded claim. jwt.decode performs no signature
+// check, so a forged impersonation claim used to skip the CSRF check
+// (downstream authenticate still rejected the forged token, but the
+// exemption itself was unverified). An unverifiable token (wrong secret,
+// expired, unconfigured JWT_SECRET) now fails closed: the CSRF check
+// applies. A valid impersonation session still exempts exactly as before.
 function bearerImpersonates(req) {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return false;
   const token = header.slice('Bearer '.length).trim();
   if (!token) return false;
-  const decoded = jwt.decode(token);
-  return Boolean(decoded && decoded.impersonation === true);
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    return Boolean(decoded && decoded.impersonation === true);
+  } catch {
+    return false;
+  }
 }
 
 // Validate CSRF token on all state-changing requests.
