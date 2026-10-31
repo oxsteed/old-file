@@ -57,6 +57,13 @@ dbDescribe('newer affiliate payout core against the real database', () => {
     mockTransfersCreate.mockClear();
   });
 
+  afterAll(async () => {
+    // Do not leak the enabled rail flag into later suites sharing this
+    // database: statementSelfService and others assume the rail-off
+    // backfill path unless they enable the rail themselves.
+    await pool.query(`DELETE FROM feature_flags WHERE key = 'oxsteed_credit_enabled'`);
+  });
+
   function makeRes() {
     const res = {
       statusCode: 200,
