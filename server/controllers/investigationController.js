@@ -41,6 +41,7 @@ exports.requestAccess = async (req, res, next) => {
       scopeUserIds: req.body?.scope_user_ids || req.body?.scopeUserIds,
       investigationRef: req.body?.investigation_ref || req.body?.investigationRef,
       expiresAt: req.body?.expires_at || req.body?.expiresAt,
+      req,
     });
     return res.status(201).json({ grant });
   } catch (err) {
@@ -54,6 +55,7 @@ exports.approveAccess = async (req, res, next) => {
     const grant = await approveInvestigationAccess({
       grantId: req.params.id,
       approverId: req.user.id,
+      req,
     });
     return res.json({ grant });
   } catch (err) {
@@ -68,6 +70,7 @@ exports.revokeAccess = async (req, res, next) => {
       grantId: req.params.id,
       revokedBy: req.user.id,
       reason: req.body?.reason,
+      req,
     });
     return res.json({ grant });
   } catch (err) {

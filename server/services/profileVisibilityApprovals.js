@@ -75,7 +75,7 @@ const TABLE_BY_TYPE = {
 
 const REASONS = ['incomplete_profile', 'non_compliance', 'admin_decision', 'other'];
 
-async function applySingleInline(profileType, profileId, isVisible, { reason, note, actorId }) {
+async function applySingleInline(profileType, profileId, isVisible, { reason, note, actorId, req = null }) {
   const spec = TABLE_BY_TYPE[profileType];
   if (!spec) throw approvalError(400, 'invalid_profile_type', `Unknown profile_type: ${profileType}`);
   if (typeof isVisible !== 'boolean') throw approvalError(400, 'invalid_is_visible', 'is_visible must be a boolean.');
@@ -105,6 +105,8 @@ async function applySingleInline(profileType, profileId, isVisible, { reason, no
       before: { is_hidden_by_admin: !hide },
       after: { is_hidden_by_admin: hide, hidden_reason: reasonCode, via: 'approval' },
       description: [reasonCode, note].filter(Boolean).join(' - ') || null,
+      // Audit fix, finding 35: threaded from the review request when present.
+      req,
     });
   } catch (e) { /* audit logging must not block the moderation action */ }
   return { profileType, profileId, isVisible };
@@ -122,7 +124,7 @@ async function applySingleVisibility(profileType, profileId, isVisible, opts) {
 //   { items: [ { profile_type, profile_id, is_visible, reason?, note? } ] }
 // The items are re-validated and applied one by one; each failure is
 // collected so a single bad item cannot abort the rest (partial failure).
-async function executeBulkAction(payload, requestedBy, actorId) {
+async function executeBulkAction(payload, requestedBy, actorId, req = null) {
   const items = Array.isArray(payload?.items) ? payload.items : [];
   const results = [];
   for (const item of items) {
@@ -131,7 +133,7 @@ async function executeBulkAction(payload, requestedBy, actorId) {
         String(item.profile_type || '').toLowerCase(),
         String(item.profile_id || ''),
         item.is_visible === true,
-        { reason: item.reason, note: item.note, actorId: actorId || requestedBy }
+        { reason: item.reason, note: item.note, actorId: actorId || requestedBy, req }
       );
       results.push({ ...applied, success: true });
     } catch (err) {
@@ -250,7 +252,7 @@ async function consumeApproval(approvalId) {
  * Approving a 'bulk' approval executes the items immediately; approving a
  * 'scheduled' approval persists the scheduled action for the worker.
  */
-async function reviewApproval({ approvalId, reviewerId, decision, note }) {
+async function reviewApproval({ approvalId, reviewerId, decision, note, req = null }) {
   if (!DECISIONS.includes(decision)) {
     throw approvalError(400, 'invalid_decision', `decision must be one of: ${DECISIONS.join(', ')}.`);
   }
@@ -305,6 +307,8 @@ async function reviewApproval({ approvalId, reviewerId, decision, note }) {
       before: { status: 'pending', action_type: approval.action_type },
       after: { status, reviewed_by: reviewerId },
       description: note ? String(note).slice(0, 500) : null,
+      // Audit fix, finding 35: threaded from the review request.
+      req,
     });
   } catch (e) { /* audit logging must not block the review */ }
 
@@ -312,7 +316,7 @@ async function reviewApproval({ approvalId, reviewerId, decision, note }) {
   if (status === 'approved' && EXECUTABLE_TYPES.includes(approval.action_type)) {
     try {
       if (approval.action_type === 'bulk') {
-        execution = { results: await executeBulkAction(approval.payload, approval.requested_by, reviewerId) };
+        execution = { results: await executeBulkAction(approval.payload, approval.requested_by, reviewerId, req) };
       } else if (approval.action_type === 'scheduled') {
         execution = await executeScheduledAction(approval.payload, approval, reviewerId);
       }

@@ -536,7 +536,9 @@ exports.startReview = async (req, res) => {
         action: 'start_dispute_review',
         targetType: 'dispute',
         targetId: disputeId,
-        details: {}
+        details: {},
+        // Audit fix, finding 35: stamp impersonated_by (NULL direct).
+        req,
       });
     } catch (logErr) {
       logger.error('Failed to log admin action', { err: logErr });
@@ -600,7 +602,9 @@ exports.reopenDispute = async (req, res) => {
         action: 'reopen_dispute',
         targetType: 'dispute',
         targetId: disputeId,
-        details: {}
+        details: {},
+        // Audit fix, finding 35: stamp impersonated_by (NULL direct).
+        req,
       });
     } catch (logErr) {
       logger.error('Failed to log admin action', { err: logErr });
