@@ -56,7 +56,10 @@ test('paid payout replay preserves the first payment reference and timestamp', a
 });
 
 test('payout writes require the previously locked source status', async () => {
-  const client = { query: jest.fn().mockResolvedValueOnce({ rows: [{ status: 'approved' }] }).mockResolvedValueOnce({ rows: [] }) };
+  // Fixture carries a recorded approver: a null approver now fails closed
+  // with approver_unknown before the UPDATE (audit item 8), so the
+  // status-guard assertion below needs a normally-approved row.
+  const client = { query: jest.fn().mockResolvedValueOnce({ rows: [{ status: 'approved', approved_by_user_id: 'approver-1' }] }).mockResolvedValueOnce({ rows: [] }) };
   await expect(payout.markPayoutPaid(client, 1, userId, 'ref')).rejects.toMatchObject({ statusCode: 409 });
   expect(client.query.mock.calls[1][0]).toContain("AND status = 'approved'");
 });

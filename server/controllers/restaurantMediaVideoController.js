@@ -54,6 +54,9 @@ const { isRestaurantOwner } = require('../services/scopeModel');
 const storage = require('../utils/storage');
 const fileScanService = require('../services/fileScanService');
 const auditService = require('../services/auditService');
+// Canonical grant predicate (audit item 7): direct grants PLUS delegation
+// grants with grantor-standing verification.
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
 const { dualWriteToMedia } = require('./restaurantMediaController');
 
@@ -140,9 +143,10 @@ const videoUploadLimiter = rateLimit({
 });
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
-// (getPublicRestaurant / owner + moderate_content checks mirror
-// restaurantMediaController.js; duplicated here because that file is owned by
-// a parallel workstream and must not be edited.)
+// (getPublicRestaurant / owner checks mirror restaurantMediaController.js;
+// duplicated here because that file is owned by a parallel workstream and
+// must not be edited. The moderate_content check below delegates to the
+// canonical adminAuth helper instead of duplicating the grant query.)
 
 function parsePositiveInt(value) {
   const n = Number(value);
@@ -169,35 +173,12 @@ async function getPublicRestaurant(restaurantId) {
 }
 
 // moderate_content grant check for routes under the regular customer
-// `authenticate` middleware. Super-admins always pass.
+// `authenticate` middleware. Super-admins always pass (callers check
+// req.isSuperAdmin first). Delegates to the canonical hasGlobalGrant: the
+// former local query omitted grantor standing, so a demoted grantor's
+// delegation still authorized moderation.
 async function userCanModerateContent(userId) {
-  const { rows } = await pool.query(
-    `SELECT 1
-       FROM admin_permission_grants
-      WHERE grantee_id = $1
-        AND permissions ? 'moderate_content'
-        AND expires_at > NOW()
-        AND revoked_at IS NULL
-        AND region_id IS NULL
-      UNION
-      SELECT 1
-        FROM delegation_grants d
-        JOIN users grantor ON grantor.id = d.grantor_admin_id
-        LEFT JOIN admin_permission_grants grantor_grant
-          ON grantor_grant.grantee_id = d.grantor_admin_id
-         AND grantor_grant.permissions ? 'moderate_content'
-         AND grantor_grant.expires_at > NOW()
-         AND grantor_grant.revoked_at IS NULL
-         AND grantor_grant.region_id IS NULL
-       WHERE d.grantee_admin_id = $1
-         AND d.scopes @> ARRAY['moderate_content']::text[]
-         AND d.status = 'active'
-         AND d.expires_at > NOW()
-         AND (grantor.role = 'super_admin' OR grantor_grant.id IS NOT NULL)
-      LIMIT 1`,
-    [userId]
-  );
-  return rows.length > 0;
+  return hasGlobalGrant(userId, 'moderate_content');
 }
 
 // Poster, restaurant owner, or a moderator (super-admin / moderate_content).

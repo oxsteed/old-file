@@ -27,6 +27,7 @@
  */
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 
 const TTL_MS = 60 * 1000;
 const MAX_CACHE_ENTRIES = 5000;
@@ -232,10 +233,80 @@ function hasAll(permSet, requested) {
 function invalidateCache(userId) {
   if (!userId) {
     cache.clear();
-    return;
+  } else {
+    for (const key of cache.keys()) {
+      if (key.startsWith(`${userId}|`)) cache.delete(key);
+    }
   }
-  for (const key of cache.keys()) {
-    if (key.startsWith(`${userId}|`)) cache.delete(key);
+  initInvalidationBus();
+  if (invalidationPublisher) {
+    // Fire-and-forget; the publisher swallows its own errors.
+    invalidationPublisher(userId || null);
+  }
+}
+
+// ── Cross-instance invalidation bus (audit item 15) ─────────────────────────
+// Mirrors permissionsService (S-21): corporate invalidations publish on the
+// same Redis channel ('oxsteed:permissions:invalidate') so every instance
+// evicts the user's corporate cache, not just the writer. Publishing is
+// fire-and-forget: a Redis outage never blocks a revocation; the local
+// eviction above has already happened and the 60 s TTL bounds the window
+// until Redis recovers. When Redis is not configured, the TTL bound applies.
+// Incoming messages from either service evict by userId (a permissions-only
+// message for a user conservatively evicts that user's corporate cache too,
+// which is safe: the next read recomputes from the database).
+const INVALIDATION_CHANNEL = 'oxsteed:permissions:invalidate';
+let invalidationPublisher = null; // async (userId|null) => void
+let invalidationSubscriber = null;
+
+function handleInvalidationMessage(raw) {
+  try {
+    const msg = JSON.parse(raw);
+    if (!msg) return;
+    if (msg.corporateClearAll) {
+      cache.clear();
+      return;
+    }
+    if (msg.userId) {
+      for (const key of cache.keys()) {
+        if (key.startsWith(`${msg.userId}|`)) cache.delete(key);
+      }
+    }
+  } catch (_) {
+    // A malformed message must never crash the subscriber; ignore it.
+  }
+}
+
+function initInvalidationBus() {
+  if (invalidationPublisher || invalidationSubscriber) return;
+  let redis = null;
+  try {
+    redis = require('../utils/redis');
+  } catch (_) {
+    redis = null;
+  }
+  if (!redis) return; // No Redis configured: TTL bound applies (see header).
+  invalidationPublisher = async (userId) => {
+    try {
+      await redis.publish(INVALIDATION_CHANNEL, JSON.stringify(
+        userId == null ? { corporateClearAll: true } : { userId }
+      ));
+    } catch (err) {
+      logger.warn('corporateRolesService: invalidation publish failed', { message: err.message });
+    }
+  };
+  try {
+    const sub = redis.duplicate();
+    sub.on('error', (err) => logger.warn('corporateRolesService: invalidation subscriber error', { message: err.message }));
+    sub.subscribe(INVALIDATION_CHANNEL).catch((err) => {
+      logger.warn('corporateRolesService: invalidation subscribe failed', { message: err.message });
+    });
+    sub.on('message', (channel, message) => {
+      if (channel === INVALIDATION_CHANNEL) handleInvalidationMessage(message);
+    });
+    invalidationSubscriber = sub;
+  } catch (err) {
+    logger.warn('corporateRolesService: invalidation subscriber setup failed', { message: err.message });
   }
 }
 
