@@ -4,6 +4,27 @@ const { regionIdsScopeClause } = require('../utils/scopeFilter');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// Bigint target ids (e.g. affiliate payout ids, which are bigserials and
+// can never be UUIDs). Validated as an in-range signed 64-bit integer;
+// anything else degrades to NULL, mirroring the target_id behavior below,
+// so a malformed value can never corrupt the typed column.
+const BIGINT_TEXT_RE = /^-?\d+$/;
+const BIGINT_MIN = -9223372036854775808n;
+const BIGINT_MAX = 9223372036854775807n;
+function safeTargetBigint(value) {
+  if (value == null) return null;
+  let text = null;
+  if (typeof value === 'number' && Number.isSafeInteger(value)) text = String(value);
+  else if (typeof value === 'string' && BIGINT_TEXT_RE.test(value.trim())) text = value.trim();
+  if (text == null) return null;
+  try {
+    const parsed = BigInt(text);
+    return parsed >= BIGINT_MIN && parsed <= BIGINT_MAX ? text : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Log every admin action for compliance and audit (general action log).
  *
@@ -21,6 +42,10 @@ exports.logAdminAction = async ({
   action,
   targetType  = null,
   targetId    = null,
+  // Bigint target support: subjects identified by a bigserial (affiliate
+  // payouts) carry their id in target_bigint. The UUID target_id path is
+  // unchanged; this is purely additive.
+  targetBigint = null,
   description = null,
   before      = null,
   after       = null,
@@ -38,14 +63,15 @@ exports.logAdminAction = async ({
     await runner.query(`
       INSERT INTO admin_audit_log (
         admin_id, action, target_type, target_id,
-        target_key, description, ip_address, user_agent,
+        target_bigint, target_key, description, ip_address, user_agent,
         before_state, after_state, impersonated_by
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
     `, [
       adminId,
       action,
       targetType,
       safeTargetId,
+      safeTargetBigint(targetBigint),
       safeTargetKey,
       description,
       req?.ip || null,

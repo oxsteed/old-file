@@ -2714,7 +2714,15 @@ exports.getAuditLog = async (req, res) => {
     if (target_type) { conditions.push(`a.target_type = $${paramIdx++}`); params.push(target_type); }
     // ADM-110: 360-degree views filter server-side by the subject id instead of
     // fetching a global list and filtering in the browser.
-    if (target_id) { conditions.push(`a.target_id = $${paramIdx++}`); params.push(String(target_id)); }
+    // Bigint targets (affiliate payouts) live in target_bigint, not
+    // target_id: a numeric filter must match target_bigint, or payout
+    // rows are missed (their target_id is NULL by construction). Every
+    // other value keeps the legacy target_id filter verbatim.
+    if (target_id) {
+      const rawTarget = String(target_id);
+      if (/^-?\d+$/.test(rawTarget)) { conditions.push(`a.target_bigint = $${paramIdx++}`); params.push(rawTarget); }
+      else { conditions.push(`a.target_id = $${paramIdx++}`); params.push(rawTarget); }
+    }
     const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await db.query(`SELECT a.*, u.first_name || ' ' || u.last_name AS admin_name, u.email AS admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_id = u.id ${wc} ORDER BY a.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limitNumber, offset]);
     res.json({ log: rows, page: pageNumber, limit: limitNumber });
