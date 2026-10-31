@@ -1469,6 +1469,17 @@ async function verifyRegistrationOTP(req, res) {
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration', code: 'registration_expired' });
     const pending = rows[0];
+    // Helper-flow rows (role 'helper' with no default_mode) belong to the
+    // helper registration flow, which enforces its own consent gate before
+    // account creation. They must not verify through the general endpoint:
+    // general-flow helper-mode rows always carry a default_mode, so this
+    // rejects only helper-flow rows and leaves legitimate general signups
+    // (including helper-mode ones) untouched. 404 matches the not-found
+    // response so the filter reveals nothing about the row, and it runs
+    // before any OTP comparison or attempt counting.
+    if (pending.role === 'helper' && pending.default_mode == null) {
+      return res.status(404).json({ error: 'Invalid or expired registration', code: 'registration_expired' });
+    }
     if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
       return registrationLockResponse(res, pending.otp_locked_until, 'Too many attempts. Try again later.');
     }
