@@ -605,6 +605,68 @@ async function processPayout(req, res, next) {
   }
 }
 
+// Audit fix (auth finding 15, UI track): the maker side of affiliate payout
+// processing had no admin surface at all: no list endpoint and no page, so
+// payouts could only be processed via raw API calls. This admin-only list
+// mirrors PayoutController.getPayouts' query shape but WITHOUT the helper
+// scoping: an admin sees every program's payouts. The requireAdmin +
+// view_financials guard on the route is what keeps a user-scoped caller
+// from widening their own view; the handler itself trusts nothing from the
+// caller beyond the validated status filter and pagination.
+const ADMIN_PAYOUT_STATUSES = new Set(['pending', 'processing', 'completed', 'failed', 'reversed']);
+
+async function listAdminPayouts(req, res) {
+  try {
+    const { status, limit = 20, offset = 0 } = req.query;
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const parsedOffset = Math.max(parseInt(offset, 10) || 0, 0);
+    if (status && !ADMIN_PAYOUT_STATUSES.has(status)) {
+      return sendValidationError(res, { status: 'Unknown status' });
+    }
+
+    const params = [];
+    let query = `
+      SELECT
+        ap.*,
+        u.first_name AS affiliate_first_name,
+        u.last_name AS affiliate_last_name
+      FROM affiliate_payouts ap
+      LEFT JOIN affiliate_programs apg ON apg.id = ap.affiliate_program_id
+      LEFT JOIN users u ON apg.helper_id = u.id
+      WHERE 1 = 1
+    `;
+    if (status) {
+      params.push(status);
+      query += ` AND ap.status = $${params.length}`;
+    }
+    query += ` ORDER BY ap.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(parsedLimit, parsedOffset);
+
+    const result = await pool.query(query, params);
+    const countParams = status ? [status] : [];
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM affiliate_payouts${status ? ' WHERE status = $1' : ''}`,
+      countParams
+    );
+
+    // The payable figure is the same canonical amount the process routes
+    // and the step-up challenge bind to (net wins, else gross minus fee).
+    const payouts = result.rows.map((row) => ({ ...row, payable_cents: affiliatePayableCents(row) }));
+    res.json({
+      success: true,
+      payouts,
+      pagination: {
+        limit: parsedLimit,
+        offset: parsedOffset,
+        total: countResult.rows[0] ? countResult.rows[0].total : payouts.length,
+      },
+    });
+  } catch (error) {
+    logger.error('Error listing affiliate payouts for admin', { error });
+    sendError(res, 500, 'Failed to list payouts');
+  }
+}
+
 // Audit fix (auth finding 15, issuance track): the maker step-up on both
 // affiliate process routes needs an issue path. The generic admin issue
 // endpoint gates on ADMIN_STEPUP_ACTION_TYPES, derived from the TOTP-only
@@ -688,6 +750,7 @@ module.exports = {
   calculateAndCreatePayout,
   processPayout,
   runAffiliatePayout,
+  listAdminPayouts,
   issueProcessStepupChallenge,
   getAffiliateStats
 };

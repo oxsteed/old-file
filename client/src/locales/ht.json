@@ -35756,6 +35756,39 @@
     "pendingApproval": "Peman an nan ke pou yon dezyèm admin apwouve li. Okenn lajan pa bouje.",
     "stepupRequired": "Fòk ou gen yon kòd verifikasyon pou apwouve peman an."
   },
+  "affiliatePayouts": {
+    "title": "Peman afilye yo",
+    "subtitle": "Trete peman afilye yo. Tretman an deplase lajan an imedyatman, sof si peman an depase limit apwobasyon doub la, nan ka sa a li rete tann yon dezyèm administratè.",
+    "empty": "Pa gen peman nan eta sa a.",
+    "process": "Trete",
+    "processing": "Ap trete…",
+    "confirmTitle": "Trete peman an?",
+    "confirmBody": "Sa a pral trete {{amount}} pou afilye sa a. Si li depase limit apwobasyon doub la, li ap rete tann yon dezyèm administratè olye li deplase lajan.",
+    "processedNotice": "Peman an trete.",
+    "queuedNotice": "Peman an ap tann apwobasyon yon dezyèm administratè (apwobasyon doub). Pa gen lajan ki deplase.",
+    "stepupPrompt": "Yo voye yon kòd verifikasyon nan imèl ou. Antre li pou trete peman sa a:",
+    "stepupFailed": "Pa t kapab bay yon defi verifikasyon.",
+    "stepupRequired": "Yo bezwen yon kòd verifikasyon pou trete peman an.",
+    "loadFailed": "Pa t kapab chaje peman afilye yo.",
+    "prev": "Anvan",
+    "next": "Apre",
+    "total": "{{total}} peman",
+    "tab": {
+      "all": "Tout",
+      "pending": "Ap tann",
+      "processing": "Ap trete",
+      "completed": "Fini",
+      "failed": "Echwe",
+      "reversed": "Ranvèse"
+    },
+    "status": {
+      "pending": "Ap tann",
+      "processing": "Ap trete",
+      "completed": "Fini",
+      "failed": "Echwe",
+      "reversed": "Ranvèse"
+    }
+  },
   "statementOps": {
     "title": "Operasyon relve yo",
     "subtitle": "Sik emisyon, echèk, amandman, odit ak alèt pou relve kliyan yo.",

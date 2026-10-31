@@ -35756,6 +35756,39 @@
     "pendingApproval": "Payout queued for second-admin approval (dual approval). No funds have moved.",
     "stepupRequired": "A verification code is required to approve the payout."
   },
+  "affiliatePayouts": {
+    "title": "Affiliate payouts",
+    "subtitle": "Process affiliate payouts. Processing moves funds immediately unless the payout is above the dual-approval threshold, in which case it queues for a second admin.",
+    "empty": "No payouts in this state.",
+    "process": "Process",
+    "processing": "Processing…",
+    "confirmTitle": "Process payout?",
+    "confirmBody": "This will process {{amount}} for this affiliate. Above the dual-approval threshold it queues for a second admin instead of moving funds.",
+    "processedNotice": "Payout processed.",
+    "queuedNotice": "Payout queued for second-admin approval (dual approval). No funds have moved.",
+    "stepupPrompt": "A verification code was sent to your email. Enter it to process this payout:",
+    "stepupFailed": "Could not issue a verification challenge.",
+    "stepupRequired": "A verification code is required to process the payout.",
+    "loadFailed": "Could not load affiliate payouts.",
+    "prev": "Previous",
+    "next": "Next",
+    "total": "{{total}} payouts",
+    "tab": {
+      "all": "All",
+      "pending": "Pending",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed",
+      "reversed": "Reversed"
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed",
+      "reversed": "Reversed"
+    }
+  },
   "statementOps": {
     "title": "Statement operations",
     "subtitle": "Issuance runs, failures, amendments, audit and alerts for customer statements.",
