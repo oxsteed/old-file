@@ -6,6 +6,7 @@ const {resolveRestaurantAccess}=require('../services/scopeModel');
 const permissions=require('../services/permissionsService');
 const {getLocationScope}=require('../services/restaurantLocationAccessService');
 const offline=require('../services/restaurantTerminalOffline');
+const cardStoreForward=require('../services/cardStoreForward');
 const {withTransaction}=require('../utils/transaction');
 const {logBusinessAction}=require('../services/businessAuditLog');
 async function access(req,code){
@@ -23,16 +24,22 @@ exports.policy=async(req,res,next)=>{try{
     throw new AppError('Select supported card brands',400,'validation_failed');
   const perSale=v.integer(req.body.maxTransactionCents,'maxTransactionCents',1,100000);
   const perDay=v.integer(req.body.maxDailyCents,'maxDailyCents',perSale,1000000);
+  // Card store-and-forward settlement mode: previously forced to
+  // 'manual_review' while no code read the column. The stored mode only
+  // takes effect when CARD_STORE_FORWARD_ENABLED is on (see
+  // cardStoreForward.js); with the flag off, settlement behaves exactly as
+  // before regardless of the stored mode.
+  const settlementMode=cardStoreForward.normalizeSettlementMode(req.body.settlementMode??req.body.settlement_mode);
   await withTransaction(pool,async client=>{
     const {rows:[store]}=await client.query('SELECT id FROM restaurant_locations WHERE restaurant_id=$1 AND id=$2 FOR UPDATE',[restaurant.id,locationId]);
     if(!store)throw new AppError('Store not found',404,'location_not_found');
     await client.query(`INSERT INTO restaurant_store_forward_settings(restaurant_id,location_id,enabled,max_transaction_cents,max_daily_cents,allowed_card_brands,settlement_mode,updated_by)
-      VALUES($1,$2,$3,$4,$5,$6,'manual_review',$7) ON CONFLICT(restaurant_id,location_id) DO UPDATE SET enabled=$3,max_transaction_cents=$4,
-      max_daily_cents=$5,allowed_card_brands=$6,settlement_mode='manual_review',updated_by=$7,updated_at=NOW()`,[restaurant.id,locationId,enabled,perSale,perDay,brands,req.user.id]);
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(restaurant_id,location_id) DO UPDATE SET enabled=$3,max_transaction_cents=$4,
+      max_daily_cents=$5,allowed_card_brands=$6,settlement_mode=$7,updated_by=$8,updated_at=NOW()`,[restaurant.id,locationId,enabled,perSale,perDay,brands,settlementMode,req.user.id]);
     await logBusinessAction(req,{business_id:restaurant.business_id,action:'restaurant.terminal.offline_policy_updated',target_type:'location',target_id:locationId,
-      after_state:{enabled,maxTransactionCents:perSale,maxDailyCents:perDay,allowedCardBrands:brands,settlementMode:'manual_review'},client,throwOnError:true});
+      after_state:{enabled,maxTransactionCents:perSale,maxDailyCents:perDay,allowedCardBrands:brands,settlementMode},client,throwOnError:true});
   });
-  res.json({configured:true,enabled,settlementMode:'manual_review'});
+  res.json({configured:true,enabled,settlementMode});
 }catch(error){next(error);}};
 exports.permit=async(req,res,next)=>{try{
   const restaurant=await access(req,'pos.use');
@@ -51,7 +58,15 @@ exports.reconcile=async(req,res,next)=>{try{
   if(!/^[a-f0-9-]{36}$/i.test(req.params.permitId))throw new AppError('Invalid permit',400,'validation_failed');
   const {rows:[permit]}=await pool.query('SELECT location_id FROM restaurant_terminal_offline_permits WHERE restaurant_id=$1 AND id=$2',[restaurant.id,req.params.permitId]);
   if(!permit)throw new AppError('Permit not found',404,'terminal_offline_permit_not_found');scope(restaurant,permit.location_id);
-  res.json(await offline.reconcileForwarded({restaurantId:restaurant.id,permitId:req.params.permitId,intentId:req.body.intentId}));
+  // Manual-review hold applies to this staff-triggered path too when the
+  // store-and-forward flag is armed: only manager accept settles in that
+  // mode. Flag off, or automatic mode, reconciles exactly as before (and
+  // with the flag off no policy query runs at all).
+  const holdForManagerReview = cardStoreForward.isGloballyEnabled()
+    && cardStoreForward.shouldHoldForManagerReview(
+      await cardStoreForward.getStoreForwardPolicy(pool, restaurant.id, permit.location_id));
+  res.json(await offline.reconcileForwarded({restaurantId:restaurant.id,permitId:req.params.permitId,intentId:req.body.intentId,
+    holdForManagerReview}));
 }catch(error){next(error);}};
 
 // F-08 outage mode: device-held leases, payment registration on reconnect,
@@ -93,7 +108,12 @@ exports.registerPayment=async(req,res,next)=>{try{
 }catch(error){next(error);}};
 exports.openQueue=async(req,res,next)=>{try{
   const restaurant=await access(req,'pos.manage');
-  res.set('Cache-Control','no-store').json(await leases.listOpen({restaurantId:restaurant.id,locationIds:restaurant.scope.mode==='assigned'?restaurant.scope.location_ids:null}));
+  const locationIds=restaurant.scope.mode==='assigned'?restaurant.scope.location_ids:null;
+  const result=await leases.listOpen({restaurantId:restaurant.id,locationIds});
+  // Queue depth is part of the flag-gated store-and-forward surface: with
+  // the flag off the response shape is exactly today's (payments, permits).
+  if(cardStoreForward.isGloballyEnabled())result.depth=await leases.queueDepth({restaurantId:restaurant.id,locationIds});
+  res.set('Cache-Control','no-store').json(result);
 }catch(error){next(error);}};
 exports.resolve=async(req,res,next)=>{try{
   const restaurant=await access(req,'pos.manage');
