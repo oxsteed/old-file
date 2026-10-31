@@ -1006,6 +1006,7 @@ exports.capturePayment = async (req, res, next) => {
           jobId: job_id,
           amount: paymentData.amount,
           actorUserId: req.user?.id,
+          req,
         });
         return res.status(200).json({
           status: 'captured',
@@ -1077,6 +1078,7 @@ exports.refundPayment = async (req, res, next) => {
       reverseApplicationFee: !!reverse_application_fee,
       actorUserId: req.user.id,
       requestId: refundRequestId,
+      req,
       // ADM-016: above-threshold payment refunds queue for a second admin
       // instead of moving money on this single approval.
       dualApproval: {

@@ -209,33 +209,6 @@ exports.verifyEmail = async (token) => {
   return rows[0] ?? null;
 };
 
-// ─── Update Role ──────────────────────────────────────────────
-// Used only by admin/super_admin - never called from user-facing routes
-exports.updateRole = async (userId, newRole, adminId) => {
-  const validRoles = Object.values(ROLES);
-  if (!validRoles.includes(newRole)) {
-    throw new Error(`Invalid role: ${newRole}`);
-  }
-
-  const { rows } = await db.query(
-    `UPDATE users
-     SET role = $1, updated_at = now()
-     WHERE id = $2
-     RETURNING id, email, role`,
-    [newRole, userId]
-  );
-
-  // Audit log
-  await db.query(
-    `INSERT INTO admin_audit_log
-       (admin_id, action, target_type, target_id, after_state)
-     VALUES ($1, 'role_changed', 'user', $2, $3)`,
-    [adminId, userId, JSON.stringify({ new_role: newRole })]
-  );
-
-  return rows[0] ?? null;
-};
-
 // ─── Update Subscription Status ───────────────────────────────
 exports.updateSubscriptionStatus = async (userId, status) => {
   await db.query(
@@ -295,29 +268,6 @@ exports.recordConsent = async ({
        (user_id, consent_type, version, ip_hash, user_agent, content_version)
      VALUES ($1, $2, $3, $4, $5, $6)`,
     [userId, consentType, version, hashIP(ip), userAgent, contentVersion]
-  );
-};
-
-// ─── Ban User ─────────────────────────────────────────────────
-exports.ban = async (userId, reason, adminId) => {
-  await db.query(
-    `UPDATE users
-     SET is_banned  = true,
-         ban_reason = $1,
-         banned_at  = now(),
-         banned_by  = $2,
-         is_active  = false,
-         updated_at = now()
-     WHERE id = $3`,
-    [reason, adminId, userId]
-  );
-
-  // Audit log
-  await db.query(
-    `INSERT INTO admin_audit_log
-       (admin_id, action, target_type, target_id, after_state)
-     VALUES ($1, 'user_banned', 'user', $2, $3)`,
-    [adminId, userId, JSON.stringify({ reason })]
   );
 };
 

@@ -1187,7 +1187,7 @@ exports.forceJobAction = async (req, res, next) => {
       }
       let result;
       try {
-        result = await cancelJobTransaction({ jobId, actorId: adminId, actorKind: 'admin', reason: cleanReason });
+        result = await cancelJobTransaction({ jobId, actorId: adminId, actorKind: 'admin', reason: cleanReason, req });
       } catch (err) {
         // Race-safe idempotency: a concurrent cancel may have won the row
         // between our fast-path check and the guarded UPDATE. Only surface
@@ -1595,6 +1595,7 @@ exports.issueManualRefund = async (req, res) => {
       reason,
       actorUserId: adminId,
       requestId,
+      req,
       // ADM-016: above-threshold refunds queue for a second admin instead
       // of moving money on this single approval.
       dualApproval: {
@@ -3729,6 +3730,7 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
       ipAddress: req.ip || null,
       // ADM-142: record why a fellow admin's credentials were rotated.
       notes: targetIsAdmin ? `Admin password reset reason: ${trimmedReason}` : null,
+      impersonatedBy: req.impersonatedBy || null,
     });
 
     await logAdminAction({
@@ -4201,7 +4203,7 @@ exports.suspendUser = async (req, res) => {
     // Force-logout the user
     try { socketService.disconnectUserSockets(userId); } catch (_) {}
 
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_suspended', notes: reason.trim(), ipAddress: req.ip });
+    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_suspended', notes: reason.trim(), ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
     await logAdminAction({ adminId, action: 'user_suspended', targetType: 'user', targetId: userId, description: reason.trim(), req });
 
     const untilText = suspendedUntil
@@ -4254,7 +4256,7 @@ exports.restrictUser = async (req, res) => {
       [reason.trim(), adminId, userId]
     );
 
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_restricted', notes: reason.trim(), ipAddress: req.ip });
+    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_restricted', notes: reason.trim(), ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
     await logAdminAction({ adminId, action: 'user_restricted', targetType: 'user', targetId: userId, description: reason.trim(), req });
 
     await notifyUserAccountEvent(userId, {
@@ -4305,7 +4307,7 @@ exports.warnUser = async (req, res) => {
       action_url: '/support',
     });
 
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_warned', notes: reason.trim(), ipAddress: req.ip });
+    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_warned', notes: reason.trim(), ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
     await logAdminAction({ adminId, action: 'user_warned', targetType: 'user', targetId: userId, description: reason.trim(), req });
 
     res.json({ message: `Warning issued. User now has ${rows[0].warning_count} warning(s).`, warning_count: rows[0].warning_count });
@@ -4348,7 +4350,7 @@ exports.reactivateUser = async (req, res) => {
       logger.warn('reactivateUser: reinstate failed', { userId, err: e.message });
     }
 
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_reactivated', notes: notes.trim() || null, ipAddress: req.ip });
+    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_reactivated', notes: notes.trim() || null, ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
     await logAdminAction({ adminId, action: 'user_reactivated', targetType: 'user', targetId: userId, description: notes.trim() || 'Account reactivated by admin', req });
 
     // ADM-109: reactivation must not resurrect pre-ban tokens. Revoke so the
@@ -4433,6 +4435,7 @@ exports.updateUserProfile = async (req, res) => {
           oldValue:     field === 'email' ? '[REDACTED]' : oldVal,
           newValue:     field === 'email' ? '[REDACTED]' : newVal,
           ipAddress:    req.ip,
+          impersonatedBy: req.impersonatedBy || null,
         });
       }
     }

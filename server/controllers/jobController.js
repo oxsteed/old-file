@@ -1296,7 +1296,7 @@ exports.startJob = async (req, res, next) => {
  * helper-completion auto-confirm job (review P2-478). `asClient` decides
  * whether a Tier-3 escrow authorization is captured in the same transaction.
  */
-async function completeJobCore({ job, jobId, asClient, actorUserId = null }) {
+async function completeJobCore({ job, jobId, asClient, actorUserId = null, req = null }) {
   // Wrap all state changes in a transaction for atomicity
   return withJobTransaction(pool, async (client) => {
     // Review P1-3-F14: the agreement and the job's money are linked through
@@ -1361,7 +1361,7 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null }) {
           );
           throw err;
         }
-        await captureAuthorizedPaymentWithClient(client, payRows[0], { actorUserId });
+        await captureAuthorizedPaymentWithClient(client, payRows[0], { actorUserId, req });
       }
     }
 
@@ -1559,7 +1559,7 @@ exports.completeJob = async (req, res, next) => {
       }
     }
 
-    const result = await completeJobCore({ job, jobId: id, asClient, actorUserId: req.user.id });
+    const result = await completeJobCore({ job, jobId: id, asClient, actorUserId: req.user.id, req });
     res.json({ message: 'Job completed', job: serializeJob(result, { user: req.user }) });
     await afterJobCompleted(result, req.user.id);
   } catch (err) {
@@ -1780,7 +1780,7 @@ exports.cancelJob = async (req, res, next) => {
     const userId = req.user.id;
 
     // actorKind 'auto': derive customer/helper from the job row; 403 otherwise.
-    const result = await cancelJobTransaction({ jobId, actorId: userId, actorKind: 'auto', reason });
+    const result = await cancelJobTransaction({ jobId, actorId: userId, actorKind: 'auto', reason, req });
 
     // Post-commit side effects (socket notifications, fee collection, reputation).
     await finalizeJobCancellation(result);

@@ -94,6 +94,7 @@ describe('forceJobAction cancel/remove delegation', () => {
     expect(service.cancelJobTransaction).toHaveBeenCalledTimes(1);
     expect(service.cancelJobTransaction).toHaveBeenCalledWith({
       jobId: 'job-1', actorId: 'admin-9', actorKind: 'admin', reason: 'spam listing',
+      req: expect.any(Object),
     });
     expect(service.finalizeJobCancellation).toHaveBeenCalledTimes(1);
     // No hand-rolled status flip: the service owns the UPDATE.
@@ -113,6 +114,7 @@ describe('forceJobAction cancel/remove delegation', () => {
     expect(res.status).toBe(200);
     expect(service.cancelJobTransaction).toHaveBeenCalledWith({
       jobId: 'job-1', actorId: 'admin-9', actorKind: 'admin', reason: 'policy violation',
+      req: expect.any(Object),
     });
     expect(service.finalizeJobCancellation).toHaveBeenCalledTimes(1);
     expect(rawJobStatusUpdates()).toHaveLength(0);
@@ -185,6 +187,7 @@ describe('reviewReport remove_content delegation', () => {
     expect(service.cancelJobTransaction).toHaveBeenCalledTimes(1);
     expect(service.cancelJobTransaction).toHaveBeenCalledWith({
       jobId: 'job-1', actorId: 'admin-9', actorKind: 'admin', reason: 'Removed by moderation',
+      req: expect.any(Object),
     });
     expect(service.finalizeJobCancellation).toHaveBeenCalledWith(cancelResult);
     expect(rawJobStatusUpdates()).toHaveLength(0);
