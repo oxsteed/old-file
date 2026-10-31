@@ -154,7 +154,12 @@ async function runAffiliateCommissionBatch() {
       }
     }
 
-    // Auto-confirm old pending commissions (30+ days)
+    // Auto-confirm old pending commissions (30+ days), but never confirm
+    // a commission whose order stopped being payable: a refunded or
+    // cancelled order, or any succeeded refund row against it. Completed
+    // orders still confirm (fulfilment is the happy path); only money-back
+    // states block. Checked at confirm time, not just at creation, because
+    // an order can be refunded after its commission is created.
     const confirmedCount = await pool.query(
       `UPDATE affiliate_commissions
        SET status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP
@@ -163,6 +168,16 @@ async function runAffiliateCommissionBatch() {
        AND NOT EXISTS (
          SELECT 1 FROM affiliate_payouts ap
          WHERE ap.id = affiliate_commissions.payout_id
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM marketplace_orders mo
+         WHERE mo.id = affiliate_commissions.order_id
+           AND mo.status IN ('refunded', 'cancelled')
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM marketplace_transaction_refunds mtr
+         WHERE mtr.order_id = affiliate_commissions.order_id
+           AND mtr.status = 'succeeded'
        )`
     );
 
