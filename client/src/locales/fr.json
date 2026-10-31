@@ -35756,6 +35756,39 @@
     "pendingApproval": "Paiement en attente d'approbation par un second administrateur. Aucun fonds n'a bougé.",
     "stepupRequired": "Un code de vérification est requis pour approuver le paiement."
   },
+  "affiliatePayouts": {
+    "title": "Paiements des affiliés",
+    "subtitle": "Traitez les paiements des affiliés. Le traitement déplace les fonds immédiatement, sauf si le paiement dépasse le seuil de double approbation, auquel cas il est mis en attente d'un second administrateur.",
+    "empty": "Aucun paiement dans cet état.",
+    "process": "Traiter",
+    "processing": "Traitement…",
+    "confirmTitle": "Traiter le paiement ?",
+    "confirmBody": "Ceci traitera {{amount}} pour cet affilié. Au-dessus du seuil de double approbation, le paiement sera mis en attente d'un second administrateur au lieu de déplacer des fonds.",
+    "processedNotice": "Paiement traité.",
+    "queuedNotice": "Paiement en attente de l'approbation d'un second administrateur (double approbation). Aucun fonds n'a été déplacé.",
+    "stepupPrompt": "Un code de vérification a été envoyé à votre adresse e-mail. Saisissez-le pour traiter ce paiement :",
+    "stepupFailed": "Impossible d'émettre un défi de vérification.",
+    "stepupRequired": "Un code de vérification est requis pour traiter le paiement.",
+    "loadFailed": "Impossible de charger les paiements des affiliés.",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "total": "{{total}} paiements",
+    "tab": {
+      "all": "Tous",
+      "pending": "En attente",
+      "processing": "En cours",
+      "completed": "Terminé",
+      "failed": "Échoué",
+      "reversed": "Inversé"
+    },
+    "status": {
+      "pending": "En attente",
+      "processing": "En cours",
+      "completed": "Terminé",
+      "failed": "Échoué",
+      "reversed": "Inversé"
+    }
+  },
   "statementOps": {
     "title": "Operations des releves",
     "subtitle": "Cycles d'emission, echecs, modifications, audit et alertes des releves clients.",

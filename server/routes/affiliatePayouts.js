@@ -18,6 +18,17 @@ router.get('/stats/all', requireAuth, affiliatePayoutsController.getAffiliateSta
 
 // ── Payouts ───────────────────────────────────────────────────────────────
 router.get('/schedule', requireAuth, affiliatePayoutsController.getPayoutsSchedule);
+
+// Audit fix (auth finding 15, UI track): admin-only list for the maker
+// page. Same guards as the process route. Registered before /:programId
+// so 'payouts' is not swallowed as a program id.
+router.get(
+  '/payouts',
+  requireAdmin,
+  rejectImpersonated,
+  requirePermission('view_financials'),
+  affiliatePayoutsController.listAdminPayouts
+);
 router.post('/calculate', strictLimiter, requireAuth, affiliatePayoutsController.calculateAndCreatePayout);
 // Review P3-787: processing moves real money, so it is an admin action with
 // the financials grant, rate-limited and audited.

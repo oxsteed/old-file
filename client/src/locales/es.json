@@ -35756,6 +35756,39 @@
     "pendingApproval": "Pago en cola para la aprobación de un segundo administrador. No se han movido fondos.",
     "stepupRequired": "Se requiere un código de verificación para aprobar el pago."
   },
+  "affiliatePayouts": {
+    "title": "Pagos de afiliados",
+    "subtitle": "Procesa los pagos de afiliados. El procesamiento mueve los fondos de inmediato, salvo que el pago supere el umbral de doble aprobación, en cuyo caso queda en espera de un segundo administrador.",
+    "empty": "No hay pagos en este estado.",
+    "process": "Procesar",
+    "processing": "Procesando…",
+    "confirmTitle": "¿Procesar el pago?",
+    "confirmBody": "Esto procesará {{amount}} para este afiliado. Si supera el umbral de doble aprobación, quedará en espera de un segundo administrador en lugar de mover fondos.",
+    "processedNotice": "Pago procesado.",
+    "queuedNotice": "Pago en espera de la aprobación de un segundo administrador (doble aprobación). No se han movido fondos.",
+    "stepupPrompt": "Se envió un código de verificación a tu correo electrónico. Escríbelo para procesar este pago:",
+    "stepupFailed": "No se pudo emitir un desafío de verificación.",
+    "stepupRequired": "Se requiere un código de verificación para procesar el pago.",
+    "loadFailed": "No se pudieron cargar los pagos de afiliados.",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "total": "{{total}} pagos",
+    "tab": {
+      "all": "Todos",
+      "pending": "Pendiente",
+      "processing": "En proceso",
+      "completed": "Completado",
+      "failed": "Fallido",
+      "reversed": "Revertido"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "processing": "En proceso",
+      "completed": "Completado",
+      "failed": "Fallido",
+      "reversed": "Revertido"
+    }
+  },
   "statementOps": {
     "title": "Operaciones de estados de cuenta",
     "subtitle": "Ejecuciones de emision, fallos, enmiendas, auditoria y alertas de los estados de cuenta de clientes.",
