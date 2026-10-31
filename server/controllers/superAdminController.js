@@ -1463,22 +1463,26 @@ exports.createUser = async (req, res) => {
 exports.getFinancials = async (req, res) => {
   try {
     if (!(await tableExists('platform_ledger'))) return res.json({ ledger: [], totals: {}, page: 1, limit: 25 });
+    const { currency, error: currencyError } = parseRevenueCurrency(req.query);
+    if (currencyError) return res.status(400).json({ error: currencyError });
     const { type } = req.query;
     const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
-    const params = []; let paramIdx = 1; let condition = '';
-    if (type) { condition = `WHERE source_type = $${paramIdx++}`; params.push(type); }
+    const params = []; let paramIdx = 1; const conditions = [];
+    if (type) { conditions.push(`source_type = $${paramIdx++}`); params.push(type); }
+    // Rows are filtered by the same currency as the totals (default USD):
+    // previously rows carried every currency while totals named one, so the
+    // listing and its summary disagreed. Pagination now reflects the
+    // filtered set, so page contents shift for multi-currency ledgers.
+    conditions.push(`UPPER(pl.currency) = UPPER($${paramIdx++})`); params.push(currency);
+    const condition = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await db.query(`SELECT pl.*, u.first_name || ' ' || u.last_name AS user_name, u.email AS user_email FROM platform_ledger pl LEFT JOIN users u ON pl.user_id = u.id ${condition} ORDER BY pl.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
     // Ledger totals are per currency (metricsRegistry.ledgerFinancialTotals):
     // summing cents across currencies produced meaningless "revenue" figures,
-    // and the page formats USD, so the default currency is USD. The rows
-    // listing above stays unfiltered: rows carry their own currency, while
-    // the totals are aggregates and must name one. Response keys are
-    // unchanged so the Financials page keeps working; only the values are
-    // now currency-scoped. gross = all positive inflows (NOT platform take;
-    // platform take is job_fee + subscription), net = sum of all amounts.
-    const { currency: totalsCurrency, error: totalsCurrencyError } = parseRevenueCurrency(req.query);
-    if (totalsCurrencyError) return res.status(400).json({ error: totalsCurrencyError });
-    const totalsRow = await metricsRegistry.ledgerFinancialTotals(db, totalsCurrency);
+    // and the page formats USD, so the default currency is USD. Response keys
+    // are unchanged so the Financials page keeps working; only the values
+    // are now currency-scoped. gross = all positive inflows (NOT platform
+    // take; platform take is job_fee + subscription), net = sum of all amounts.
+    const totalsRow = await metricsRegistry.ledgerFinancialTotals(db, currency);
     const totals = {
       gross_revenue_cents: totalsRow.gross_cents,
       job_fee_revenue_cents: totalsRow.job_fee_cents,

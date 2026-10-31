@@ -6,6 +6,8 @@ const { parseBoundedPagination } = require('../utils/pagination');
 const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
 const AppError = require('../utils/appError');
 const { openDisputes } = require('../analytics/metricsRegistry');
+const { metricScope } = require('../analytics/metricAccess');
+const { regionScopedDb } = require('../analytics/regionScope');
 
 // Helper: check if a table exists
 async function tableExists(name) {
@@ -47,9 +49,23 @@ exports.getDashboardStats = async (req, res) => {
     // Metrics registry: open_disputes is canonical on the disputes table
     // (status='open'), matching the /admin/disputes drill-through target.
     // Previously counted jobs.status='disputed' here.
+    // Region scoping (Option A): the governed open_disputes metric card is
+    // scoped by the admin's manage_disputes grants, so this dashboard card
+    // must agree with it. A regional admin counts only disputes whose job
+    // sits in their regions; an admin with no manage_disputes grant sees 0
+    // (fail closed) rather than the platform-wide count; an unresolvable
+    // regional territory also yields 0 with a warning, so one card cannot
+    // refuse the whole dashboard.
     let open_disputes = 0;
     if (hasDisputes) {
-      try { open_disputes = await openDisputes(db); } catch (_) { /* fail open */ }
+      try {
+        const scope = await metricScope(req.user, 'open_disputes');
+        if (scope && !scope.unknown) {
+          open_disputes = await openDisputes(regionScopedDb(db, scope));
+        } else if (scope?.unknown) {
+          logger.warn('admin getDashboardStats: open_disputes region unknown, showing 0', { adminId: req.user?.id });
+        }
+      } catch (_) { /* fail open */ }
     }
 
     res.json({ stats: { ...rows[0], open_disputes } });
