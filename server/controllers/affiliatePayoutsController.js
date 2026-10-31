@@ -9,6 +9,7 @@ const { isDiditVerificationFresh } = require('../utils/diditGate');
 const { assertSanctionsClear } = require('../services/sanctionsScreeningService');
 const { assertCreditRailEnabled } = require('../services/oxsteedCreditService');
 const { affiliatePayableCents } = require('../utils/affiliatePayableCents');
+const { issueStepupChallenge } = require('../services/stepupChallengeService');
 
 async function getAffiliateProgram(req, res) {
   try {
@@ -604,6 +605,52 @@ async function processPayout(req, res, next) {
   }
 }
 
+// Audit fix (auth finding 15, issuance track): the maker step-up on both
+// affiliate process routes needs an issue path. The generic admin issue
+// endpoint gates on ADMIN_STEPUP_ACTION_TYPES, derived from the TOTP-only
+// list, which deliberately excludes 'affiliate_payout_process' (the maker
+// step-up stays on the emailed-code method). This dedicated endpoint issues
+// it with the payout's payable amount, the same canonical figure
+// (utils/affiliatePayableCents) the process routes and the dual-approval
+// gate use, so issue and verify agree by construction. A missing payout
+// 404s; a non-positive payable amount fails closed inside
+// issueStepupChallenge.
+async function issueProcessStepupChallenge(req, res, next) {
+  try {
+    const adminId = req.user?.id;
+    if (!adminId) {
+      throw new AppError('Authentication required', 401, 'no_auth');
+    }
+    const { payoutId } = req.params;
+    const { rows: [payout] } = await pool.query(
+      'SELECT * FROM affiliate_payouts WHERE id = $1',
+      [payoutId]
+    );
+    if (!payout) {
+      throw new AppError('Payout not found', 404, 'payout_not_found');
+    }
+    const { challenge, delivery } = await issueStepupChallenge({
+      actorUserId: adminId,
+      actorEmail: req.user?.email,
+      actionType: 'affiliate_payout_process',
+      amountCents: affiliatePayableCents(payout),
+      currencyCode: 'USD',
+    });
+    res.status(201).json({
+      challenge: {
+        id: challenge.id,
+        actionType: challenge.actionType,
+        amountCents: challenge.amountCents,
+        currencyCode: challenge.currencyCode,
+        expiresAt: challenge.expiresAt,
+      },
+      delivery,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getAffiliateStats(req, res) {
   try {
     const userId = req.user?.id;
@@ -641,5 +688,6 @@ module.exports = {
   calculateAndCreatePayout,
   processPayout,
   runAffiliatePayout,
+  issueProcessStepupChallenge,
   getAffiliateStats
 };

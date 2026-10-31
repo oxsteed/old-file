@@ -30,6 +30,22 @@ router.post(
   affiliatePayoutsController.processPayout
 );
 
+// Audit fix (auth finding 15, issuance track): the maker step-up on the
+// process routes needs an issue path. The generic admin issue endpoint
+// gates on the TOTP-only list, which deliberately excludes
+// 'affiliate_payout_process' (email method), so this dedicated endpoint
+// issues it with the payout's payable amount. Same guards as the process
+// route itself; the issued challenge verifies on either process route,
+// since verification keys on action type and actor, not on route.
+router.post(
+  '/:payoutId/stepup-challenges',
+  requireAdmin,
+  rejectImpersonated,
+  requirePermission('view_financials'),
+  strictLimiter,
+  affiliatePayoutsController.issueProcessStepupChallenge
+);
+
 // ── Programs ──────────────────────────────────────────────────────────────
 router.post('/', requireAuth, affiliatePayoutsController.createAffiliateProgram);
 router.get('/', requireAuth, affiliatePayoutsController.getAffiliatePrograms);
