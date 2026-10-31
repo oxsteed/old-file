@@ -11,7 +11,7 @@ import HelperBusinessProfilePage from '../../pages/HelperBusinessProfilePage';
 import BusinessPublicProfilePage from '../../pages/BusinessPublicProfilePage';
 import FoodRestaurantPage from '../../pages/food/FoodRestaurantPage';
 import { businessProfilePath } from '../../utils/profileUrls';
-import { NAVBAR_STYLES } from '../../components/Navbar';
+import NAVBAR_STYLES from '../../components/Navbar.css?raw';
 
 const noop = () => {};
 const pages = {

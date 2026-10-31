@@ -8,6 +8,7 @@ import { useAuth } from '../../hooks/useAuth';
 import ConfirmDialog from '../lib/ConfirmDialog';
 import ProfileContentPreview from './ProfileContentPreview';
 import ProfileCustomerPreview from './ProfileCustomerPreview';
+import './ProfileVisibilityPage.css';
 
 // Super-admin: public profile visibility control for helpers, businesses, and
 // restaurants. Hiding here sets a sticky admin override (is_hidden_by_admin)
@@ -1188,12 +1189,6 @@ export default function ProfileVisibilityPage() {
     <>
       {confirmDialog}
     <div className="pv-admin" style={{ padding: '2rem', background: 'var(--color-bg)', minHeight: '100vh' }}>
-      <style>{`
-        .pv-admin button:focus-visible, .pv-admin input:focus-visible, .pv-admin select:focus-visible, .pv-admin a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-        @media (prefers-reduced-motion: reduce) {
-          .pv-admin *, .pv-admin *::before, .pv-admin *::after { animation: none !important; transition: none !important; }
-        }
-      `}</style>
       <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
         <EyeOff size={26} />{copy('title', { defaultValue: 'Profile visibility' })}
       </h1>
