@@ -220,7 +220,7 @@ function DropdownDivider() {
 // Auth audit item 9: starting an impersonation session requires a fresh TOTP
 // proof (POST /admin/super/stepup/verify, purpose 'impersonation_start').
 // The dialog resolves with the entered code, or null when cancelled.
-function TotpStepUpDialog({ open, verifying, error, onSubmit, onCancel }) {
+function TotpStepUpDialog({ open, verifying, error, onSubmit, onCancel, title, body, codeLabel, cancelLabel, verifyLabel }) {
   const { t } = useTranslation();
   const [code, setCode] = useState('');
   const inputRef = useRef(null);
@@ -250,10 +250,10 @@ function TotpStepUpDialog({ open, verifying, error, onSubmit, onCancel }) {
         <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
           <form onSubmit={(e) => { e.preventDefault(); if (code.trim() && !verifying) onSubmit(code.trim()); }}>
             <div className="px-6 py-5">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('adminUserDetail.impersonate.stepupTitle')}</h3>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{t('adminUserDetail.impersonate.stepupBody')}</p>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title ?? t('adminUserDetail.impersonate.stepupTitle')}</h3>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{body ?? t('adminUserDetail.impersonate.stepupBody')}</p>
               <label className="mt-4 block">
-                <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{t('adminUserDetail.impersonate.stepupCode')}</span>
+                <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{codeLabel ?? t('adminUserDetail.impersonate.stepupCode')}</span>
                 <input
                   ref={inputRef}
                   value={code}
@@ -267,8 +267,8 @@ function TotpStepUpDialog({ open, verifying, error, onSubmit, onCancel }) {
               {error && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 bg-gray-50 dark:bg-gray-900">
-              <button type="button" onClick={onCancel} disabled={verifying} className="rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('adminUserDetail.impersonate.stepupCancel')}</button>
-              <button type="submit" disabled={verifying || !code.trim()} className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">{t('adminUserDetail.impersonate.stepupVerify')}</button>
+              <button type="button" onClick={onCancel} disabled={verifying} className="rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{cancelLabel ?? t('adminUserDetail.impersonate.stepupCancel')}</button>
+              <button type="submit" disabled={verifying || !code.trim()} className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">{verifyLabel ?? t('adminUserDetail.impersonate.stepupVerify')}</button>
             </div>
           </form>
         </div>
@@ -334,10 +334,15 @@ export default function UserDetail() {
   const [stepUpOpen, setStepUpOpen] = useState(false);
   const [stepUpVerifying, setStepUpVerifying] = useState(false);
   const [stepUpError, setStepUpError] = useState('');
+  // The dialog serves both the impersonation flow and the super-admin
+  // password-set flow; the purpose travels with the prompt so the verify
+  // call records the fresh-auth event the guarded route requires.
+  const [stepUpPurpose, setStepUpPurpose] = useState('impersonation_start');
   const stepUpResolverRef = useRef(null);
-  const promptStepUpCode = () => new Promise((resolve) => {
+  const promptStepUpCode = (purpose = 'impersonation_start') => new Promise((resolve) => {
     stepUpResolverRef.current = resolve;
     setStepUpError('');
+    setStepUpPurpose(purpose);
     setStepUpOpen(true);
   });
   const closeStepUp = (result) => {
@@ -349,12 +354,22 @@ export default function UserDetail() {
   const submitStepUpCode = async (code) => {
     setStepUpVerifying(true); setStepUpError('');
     try {
-      await adminApi.post('/admin/super/stepup/verify', { code, purpose: 'impersonation_start' });
+      await adminApi.post('/admin/super/stepup/verify', { code, purpose: stepUpPurpose });
       closeStepUp(code);
     } catch (err) {
-      setStepUpError(parseApiError(err, t('adminUserDetail.impersonate.stepupFailed')));
+      setStepUpError(parseApiError(err, t(stepUpPurpose === 'super_admin_password_set' ? 'adminUserDetail.password.stepupFailed' : 'adminUserDetail.impersonate.stepupFailed')));
     } finally { setStepUpVerifying(false); }
   };
+  // Copy for the password-set prompt; the impersonation copy stays the default.
+  const stepUpCopy = stepUpPurpose === 'super_admin_password_set'
+    ? {
+      title: t('adminUserDetail.password.stepupTitle'),
+      body: t('adminUserDetail.password.stepupBody'),
+      codeLabel: t('adminUserDetail.password.stepupCode'),
+      cancelLabel: t('adminUserDetail.password.stepupCancel'),
+      verifyLabel: t('adminUserDetail.password.stepupVerify'),
+    }
+    : {};
 
   const [statusModal,  setStatusModal]  = useState(null);
   const [statusReason, setStatusReason] = useState('');
@@ -660,14 +675,33 @@ export default function UserDetail() {
     if (!ok) return;
     setPwSaving(true);
     try {
-      const { data: res } = await adminApi.post(`/admin/users/${userId}/password`, {
-        password: newPw,
-        ...(targetIsAdmin ? { reason: pwReason.trim() } : {}),
-      });
-      flash('success', res.message || t('admin.setPasswordSuccess'));
-      setShowPwReset(false); setNewPw(''); setConfirmPw(''); setPwReason('');
-    } catch (err) { flash('error', err.response?.data?.error || t('admin.setPasswordFailed')); }
-    finally { setPwSaving(false); }
+      // Audit item 1: the password route requires a fresh
+      // 'super_admin_password_set' step-up; without it the call 401s.
+      // Prompt first, then post; a 401 fresh_auth_required re-prompts
+      // instead of failing silently (the event may have lapsed between
+      // verify and post). Cancelling the prompt abandons the reset.
+      const firstCode = await promptStepUpCode('super_admin_password_set');
+      if (!firstCode) return;
+      for (;;) {
+        try {
+          const { data: res } = await adminApi.post(`/admin/users/${userId}/password`, {
+            password: newPw,
+            ...(targetIsAdmin ? { reason: pwReason.trim() } : {}),
+          });
+          flash('success', res.message || t('admin.setPasswordSuccess'));
+          setShowPwReset(false); setNewPw(''); setConfirmPw(''); setPwReason('');
+          break;
+        } catch (err) {
+          if (err.response?.status === 401 && err.response?.data?.code === 'fresh_auth_required') {
+            const code = await promptStepUpCode('super_admin_password_set');
+            if (!code) break;
+            continue;
+          }
+          flash('error', err.response?.data?.error || t('admin.setPasswordFailed'));
+          break;
+        }
+      }
+    } finally { setPwSaving(false); }
   };
 
   // ── delete (now soft-delete with 30-day window) ───────────────────────────
@@ -802,6 +836,7 @@ export default function UserDetail() {
         error={stepUpError}
         onSubmit={submitStepUpCode}
         onCancel={() => closeStepUp(null)}
+        {...stepUpCopy}
       />
 
       {/* Back link */}
