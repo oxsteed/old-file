@@ -107,7 +107,11 @@ function lockTtlSeconds(intervalMs) {
 }
 
 function runScheduledWorkerOnce([name, workerFn, intervalMs, options], { log = logger } = {}) {
-  return withFencedJobLock(`scheduled-worker:${name}`, () => workerFn(options), lockTtlSeconds(intervalMs))
+  // Fleet fence delivery: withFencedJobLock hands its handler the fence,
+  // and the runner forwards it inside the worker's options so a fleet
+  // worker can route writes through fence.db. Workers that ignore it keep
+  // their previous behavior; existing options pass through unchanged.
+  return withFencedJobLock(`scheduled-worker:${name}`, (fence) => workerFn({ ...options, fence }), lockTtlSeconds(intervalMs))
     .then((summary) => {
       if (!summary?.skipped) log.info('Scheduled worker completed', { worker: name, summary });
       return summary;
