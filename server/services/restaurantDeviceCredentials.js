@@ -20,7 +20,7 @@ async function authenticateAppDevice(client, { restaurantId, deviceId, token }) 
         AND r.location_id IS NOT DISTINCT FROM a.location_id
       WHERE a.id=$1 AND a.restaurant_id=$2 AND a.status='paired'
         AND a.device_token_hash=$3
-        AND (a.device_token_expires_at IS NULL OR a.device_token_expires_at>NOW())`,
+        AND a.device_token_expires_at>NOW()`,
     [deviceId, restaurantId, tokenHash(token)],
   );
   if (!device) throw new AppError('Device credential is invalid', 401, 'invalid_device_credential');
@@ -34,7 +34,7 @@ async function authenticateRegistryDevice(client,{restaurantId,registryId,token}
     LEFT JOIN display_pairings p ON p.id=r.source_display_pairing_id
     WHERE r.id=$1 AND r.restaurant_id=$2 AND r.status='active' AND (
       (a.restaurant_id=r.restaurant_id AND a.location_id IS NOT DISTINCT FROM r.location_id AND a.status='paired'
-        AND a.device_token_hash=$3 AND (a.device_token_expires_at IS NULL OR a.device_token_expires_at>NOW()))
+        AND a.device_token_hash=$3 AND a.device_token_expires_at>NOW())
       OR (p.restaurant_id=r.restaurant_id AND p.location_id IS NOT DISTINCT FROM r.location_id AND p.paired_at IS NOT NULL
         AND ((p.pairing_token_hash=$3 AND (p.pairing_token_expires_at IS NULL OR p.pairing_token_expires_at>NOW()))
           OR (p.pairing_token_hash_prev=$3 AND p.pairing_token_prev_expires_at>NOW()))))`,[registryId,restaurantId,hash]);
