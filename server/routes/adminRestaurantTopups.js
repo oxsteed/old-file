@@ -20,12 +20,12 @@ router.use(requireAdmin);
 
 const { strictLimiter } = require('../middleware/rateLimiter');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
-const { requireAdminActionStepup, issueAdminActionStepup } = require('../middleware/adminActionStepup');
+const { requireAdminActionStepup, issueAdminActionStepup, resolveClawbackAmountCents } = require('../middleware/adminActionStepup');
 const moneyGate = requireSuperAdminOrPermission('manage_financials');
 
 router.get('/applications', moneyGate, ctrl.listApplications);
 router.post('/stepup-challenges/approve', moneyGate, strictLimiter, rejectImpersonated, issueAdminActionStepup('restaurant_topup_approve'));
-router.post('/stepup-challenges/clawback', moneyGate, strictLimiter, rejectImpersonated, issueAdminActionStepup('restaurant_topup_clawback'));
+router.post('/stepup-challenges/clawback', moneyGate, strictLimiter, rejectImpersonated, issueAdminActionStepup('restaurant_topup_clawback', resolveClawbackAmountCents));
 router.post('/applications/:restaurantId/approve', moneyGate, strictLimiter, rejectImpersonated, requireAdminActionStepup('restaurant_topup_approve'), ctrl.approveApplication);
 router.post('/applications/:restaurantId/reject', moneyGate, ctrl.rejectApplication);
 router.post('/applications/:restaurantId/suspend', moneyGate, ctrl.suspendApplication);
@@ -36,7 +36,7 @@ router.post('/applications/:restaurantId/suspend', moneyGate, ctrl.suspendApplic
 // restaurant_topup_clawback executor. Below the threshold the controller
 // runs as before. A missing top-up row is left to the controller so it
 // still returns its 404.
-router.post('/topups/:topupId/clawback', moneyGate, strictLimiter, rejectImpersonated, requireAdminActionStepup('restaurant_topup_clawback'), async (req, res, next) => {
+router.post('/topups/:topupId/clawback', moneyGate, strictLimiter, rejectImpersonated, requireAdminActionStepup('restaurant_topup_clawback', resolveClawbackAmountCents), async (req, res, next) => {
   try {
     const { rows: [topup] } = await pool.query(
       'SELECT amount_cents, currency FROM restaurant_topups WHERE id = $1',

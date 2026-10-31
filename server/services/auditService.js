@@ -65,6 +65,19 @@ exports.logAdminAction = async ({
 };
 
 /**
+ * Service-layer request-context convention (auth audit finding 35 completion).
+ *
+ * Audit rows must attribute an action to the account that performed it, plus
+ * the admin actually driving it when the session is impersonated. Controllers
+ * own the request object, so any service function that writes an audit row
+ * accepts an optional trailing `req` parameter, threaded explicitly from the
+ * controller, and forwards it to the audit writer (logAdminAction /
+ * logUserAction) or stamps `req?.impersonatedBy || null` on a direct INSERT.
+ * No ambient or global request state: jobs, webhooks and workers pass no
+ * `req`, so their rows keep a NULL stamp, byte-identical to before.
+ * Routes guarded by rejectImpersonated are moot by construction (their
+ * `req.impersonatedBy` is always null) and are left unthreaded.
+ *
  * Log a user-account modification to the dedicated per-field audit table
  * `admin_user_action_log`.
  *
@@ -91,6 +104,8 @@ exports.logAdminAction = async ({
  * @param {string}   [options.ipAddress]
  * @param {number}   [options.regionId]
  * @param {string}   [options.notes]
+ * @param {string}   [options.impersonatedBy] UUID of the admin driving an
+ *   impersonated session; NULL for direct sessions.
  * @returns {Promise<{ id: number, created_at: Date } | null>}
  */
 exports.logUserAction = async ({
@@ -103,15 +118,16 @@ exports.logUserAction = async ({
   newValue   = null,
   ipAddress  = null,
   regionId   = null,
-  notes      = null
+  notes      = null,
+  impersonatedBy = null
 }) => {
   const runner = client || db;
   try {
     const { rows } = await runner.query(`
       INSERT INTO admin_user_action_log (
         admin_id, target_user_id, action_type, field_name,
-        old_value, new_value, ip_address, region_id, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        old_value, new_value, ip_address, region_id, notes, impersonated_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING id, created_at
     `, [
       adminId,
@@ -122,7 +138,8 @@ exports.logUserAction = async ({
       newValue == null ? null : String(newValue),
       ipAddress,
       regionId,
-      notes
+      notes,
+      impersonatedBy
     ]);
     return rows[0];
   } catch (err) {

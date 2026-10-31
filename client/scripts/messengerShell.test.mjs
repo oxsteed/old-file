@@ -290,7 +290,10 @@ test('global navigation switches to the existing compact menu before links wrap'
   const { dirname, join } = await import('node:path');
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
   const navbar = await readFile(join(root, 'src/components/Navbar.jsx'), 'utf8');
-  assert.match(navbar, /@media \(max-width: 1360px\)/);
+  // CSP migration: the navbar stylesheet moved from the NAVBAR_STYLES
+  // <style> block to Navbar.css; the compact-menu rules live there now.
+  const navbarStyles = await readFile(join(root, 'src/components/Navbar.css'), 'utf8');
+  assert.match(navbarStyles, /@media \(max-width: 1360px\)/);
   assert.match(navbar, /whiteSpace:\s*'nowrap'/);
-  assert.match(navbar, /max-width:\s*1600px/);
+  assert.match(navbarStyles, /max-width:\s*1600px/);
 });

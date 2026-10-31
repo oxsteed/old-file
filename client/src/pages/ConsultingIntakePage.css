@@ -1,0 +1,10 @@
+
+        .consulting-services-panel {
+          display: flex;
+          flex-direction: column;
+        }
+        @media (max-width: 900px) {
+          .consulting-services-panel { display: none !important; }
+          .consulting-form-panel { padding: 1.5rem 1rem !important; }
+        }
+      

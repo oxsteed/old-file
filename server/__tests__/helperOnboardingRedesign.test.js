@@ -131,9 +131,13 @@ describe('controller', () => {
   test('verifyOTP refuses a pending registration without recorded terms (P2-476/477)', async () => {
     const crypto = require('crypto');
     const otp = '123456';
+    // Fixture uses the HMAC OTP hash (pentest remainder fix): an old
+    // unsalted hash would fail the OTP comparison before reaching the
+    // terms gate, so it cannot exercise this test's intent.
+    const otpHmacSecret = process.env.OTP_HMAC_SECRET || process.env.JWT_SECRET;
     mockQuery
       .mockResolvedValueOnce({}) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 1, email: 'a@b.c', otp_code: crypto.createHash('sha256').update(otp).digest('hex'),
+      .mockResolvedValueOnce({ rows: [{ id: 1, email: 'a@b.c', otp_code: crypto.createHmac('sha256', otpHmacSecret).update(otp).digest('hex'),
         otp_expires_at: new Date(Date.now() + 60000), otp_attempts: 0, account_created: false }] });
     const r = res();
     await ctrl.verifyOTP({ body: { token: 't', otp }, headers: {} }, r);

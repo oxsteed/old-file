@@ -22,6 +22,7 @@ const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
 const { getActiveWork } = require('../services/profileVisibilityActiveWork');
 const { withTransaction } = require('../utils/transaction');
+const { csvCell } = require('../utils/csv');
 
 const PROFILE_TYPES = ['helper', 'business', 'restaurant'];
 const REASONS = ['incomplete_profile', 'non_compliance', 'admin_decision', 'other'];
@@ -1106,11 +1107,6 @@ exports.cancelScheduledAction = async (req, res) => {
   }
 };
 
-function csvEscape(value) {
-  const s = value === null || value === undefined ? '' : String(value);
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
 // ─── GET /api/admin/profile-visibility/export ────────────────────────────────
 // Same directory CTE and filters as search, but without pagination: capped at
 // 5000 rows and returned as CSV for the "export all pages" control.
@@ -1142,13 +1138,13 @@ exports.exportAllProfiles = async (req, res) => {
     const lines = ['Type,Name,Detail,Visibility,Owner status,Reason'];
     for (const r of rows.slice(0, 5000)) {
       lines.push([
-        csvEscape(r.profile_type),
-        csvEscape(r.display_name),
-        csvEscape(r.detail),
+        r.profile_type,
+        r.display_name,
+        r.detail,
         r.is_visible ? 'Visible' : 'Hidden',
         r.owner_visible ? 'Listed' : 'Unlisted',
-        csvEscape(r.hidden_reason),
-      ].join(','));
+        r.hidden_reason,
+      ].map(csvCell).join(','));
     }
     const csv = lines.join('\r\n') + '\r\n';
 
@@ -1190,7 +1186,9 @@ exports.applySingleVisibility = async (profileType, profileId, isVisible, opts =
     isVisible,
     reason: opts.reason,
     note: opts.note,
-    req: null,
+    // Audit fix, finding 35: carry the review request through so bulk
+    // approval executions stamp impersonated_by; NULL for worker paths.
+    req: opts.req || null,
   });
   await notifyOwnerQuietly({
     profileType: type,
@@ -1431,10 +1429,10 @@ exports.resolveAppeal = async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Appeal not found or already resolved.' });
     await db.query(
-      `INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, description)
+      `INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, description, impersonated_by)
        VALUES ($1, 'profile_visibility_appeal_' || $2, 'profile_visibility_appeal', $3,
-               'Appeal ' || $2 || COALESCE(': ' || NULLIF($4, ''), ''))`,
-      [req.user.id, decision, appealId, note]
+               'Appeal ' || $2 || COALESCE(': ' || NULLIF($4, ''), ''), $5)`,
+      [req.user.id, decision, appealId, note, req.impersonatedBy || null]
     );
     return res.json({ ok: true, appeal: rows[0] });
   } catch (err) {

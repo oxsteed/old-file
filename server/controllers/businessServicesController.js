@@ -158,6 +158,7 @@ async function updateService(req, res, next) {
     // incomplete.
     const { unpublished, missing } = await maybeUnpublishBusinessIfIncomplete(pool, req.params.businessId, {
       actorUserId: req.user?.id || null, actorRole: 'owner',
+      impersonatedBy: req.impersonatedBy || null,
     });
     const payload = result.rows[0];
     if (unpublished) {

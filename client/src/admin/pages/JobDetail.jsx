@@ -176,7 +176,9 @@ export default function JobDetail() {
   const confirmRefund = async (reason) => {
     let challengeId;
     try {
-      const { data } = await adminApi.post('/admin/stepup-challenges/manual-refund');
+      // Auth audit item 6: the server binds the challenge to this job's
+      // refund amount, so the issue call must name the job.
+      const { data } = await adminApi.post('/admin/stepup-challenges/manual-refund', { jobId });
       challengeId = data?.challenge?.id;
     } catch (err) {
       throw new Error(t('adminJobDetail.modals.refund.stepupFailed'));

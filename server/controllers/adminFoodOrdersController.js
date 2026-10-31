@@ -36,11 +36,11 @@ function readAdminRefundedCents(metadata) {
   return Number.isSafeInteger(n) && n > 0 ? n : 0;
 }
 
-async function auditAdminRead(adminId, orderId, purpose) {
+async function auditAdminRead(adminId, orderId, purpose, impersonatedBy = null) {
   await pool.query(
-    `INSERT INTO admin_audit_log (admin_id, admin_user_id, action, entity_type, entity_id, metadata)
-     VALUES ($1, $1, 'food_order_read', 'food_order', $2, $3)`,
-    [adminId, String(orderId), JSON.stringify({ purpose })]
+    `INSERT INTO admin_audit_log (admin_id, admin_user_id, action, entity_type, entity_id, metadata, impersonated_by)
+     VALUES ($1, $1, 'food_order_read', 'food_order', $2, $3, $4)`,
+    [adminId, String(orderId), JSON.stringify({ purpose }), impersonatedBy]
   );
 }
 
@@ -105,8 +105,9 @@ async function getFoodOrder(req, res) {
       [orderId]
     );
 
-    // Purpose-bound audit for PII/payment access.
-    await auditAdminRead(req.user.id, orderId, purpose);
+    // Purpose-bound audit for PII/payment access (audit fix, finding 35:
+    // stamp impersonated_by; NULL for direct admin sessions).
+    await auditAdminRead(req.user.id, orderId, purpose, req.impersonatedBy || null);
 
     res.json({ order: rows[0], items });
   } catch (err) {
@@ -295,8 +296,8 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
     // Audit trail, in-transaction: the mutation and its audit row commit or
     // roll back together (fail-closed audit).
     await client.query(
-      `INSERT INTO admin_audit_log (admin_id, admin_user_id, action, entity_type, entity_id, metadata)
-       VALUES ($1, $1, 'food_order_refund', 'food_order', $2, $3)`,
+      `INSERT INTO admin_audit_log (admin_id, admin_user_id, action, entity_type, entity_id, metadata, impersonated_by)
+       VALUES ($1, $1, 'food_order_refund', 'food_order', $2, $3, $4)`,
       [req.user.id, String(orderId), JSON.stringify({
         amount_cents: refundAmount,
         cumulative_refunded_cents: cumulativeRefundedCents,
@@ -305,7 +306,7 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
         refund_id: refundResult.refund_id || null,
         previous_status: order.payment_status,
         new_status: newStatus,
-      })]
+      }), req.impersonatedBy || null]
     );
     if (newStatus === 'refunded' && order.customer_id) {
       await require('../growth/emit').emitDomainEvent(client, 'food.order_refunded', require('../growth/emit').foodEventProps(order), { userId: order.customer_id });
@@ -340,8 +341,28 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
 
 async function issueRefundStepupChallenge(req, res, next) {
   try {
+    // Auth audit item 6: issue for the real refund amount, not 1. The
+    // body carries orderId and, for a partial refund, amountCents; for
+    // a full refund the amount is the order total minus what admin
+    // refunds already covered (the same figure the verify side binds).
+    const orderId = Number(req.body?.orderId ?? req.body?.order_id);
+    if (!Number.isSafeInteger(orderId) || orderId <= 0) {
+      throw refundError(400, { error: 'Order id is required' });
+    }
+    const { rows } = await pool.query('SELECT total_cents, metadata FROM food_orders WHERE id = $1', [orderId]);
+    if (!rows.length) throw refundError(404, { error: 'Order not found' });
+    let amountCents;
+    const supplied = Number(req.body?.amountCents ?? req.body?.amount_cents);
+    if (Number.isSafeInteger(supplied) && supplied > 0) {
+      amountCents = supplied;
+    } else {
+      amountCents = Number(rows[0].total_cents) - readAdminRefundedCents(rows[0].metadata);
+      if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+        throw refundError(400, { error: 'Refund amount must be a positive whole number of cents' });
+      }
+    }
     const { challenge, delivery } = await require('../services/stepupChallengeService').issueStepupChallenge({
-      actorUserId: req.user.id, actorEmail: req.user.email, actionType: 'food_refund', amountCents: 1,
+      actorUserId: req.user.id, actorEmail: req.user.email, actionType: 'food_refund', amountCents,
     });
     res.status(201).json({ challenge: { id: challenge.id, method: challenge.method, expiresAt: challenge.expiresAt }, delivery });
   } catch (err) { next(err); }
@@ -373,8 +394,21 @@ async function refundFoodOrder(req, res) {
       requestedAmount = n;
     }
 
+    // Auth audit item 6: bind to the refund amount being requested, or
+    // for a full refund to the remaining total (the same figure the
+    // issue endpoint binds). The executor re-validates under lock; this
+    // pre-read only binds the challenge.
+    let foodRefundExpectedAmount = requestedAmount;
+    if (foodRefundExpectedAmount === null) {
+      const { rows: orderRows } = await pool.query('SELECT total_cents, metadata FROM food_orders WHERE id = $1', [orderId]);
+      if (orderRows.length) {
+        const remaining = Number(orderRows[0].total_cents) - readAdminRefundedCents(orderRows[0].metadata);
+        if (Number.isSafeInteger(remaining) && remaining > 0) foodRefundExpectedAmount = remaining;
+      }
+    }
     await require('../services/stepupChallengeService').verifyStepupChallenge({
       challengeId: req.body.stepupChallengeId, actorUserId: req.user.id, actionType: 'food_refund', code: req.body.stepupCode,
+      ...(foodRefundExpectedAmount !== null ? { expectedAmountCents: foodRefundExpectedAmount } : {}),
     });
     const result = await require('../utils/transaction').withTransaction(pool, client =>
       executeFoodOrderRefund(client, { req, orderId, requestedAmount, reason }), 'admin_food_refund');

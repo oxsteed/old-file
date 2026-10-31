@@ -19,8 +19,17 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const { notifyRefundIssued } = require('./refundNotification');
 const promoRedemption = require('./promoRedemptionService');
+const { recordException } = require('./reconciliationExceptions');
 
 const TERMINAL_STATUSES = ['declined', 'expired', 'cancelled', 'accepted_cancelled'];
+
+// A terminal booking whose deposit settlement keeps failing is retried by
+// the sweeper up to this many attempts. Past the cap it must surface to
+// operators instead of stalling invisibly: the booking is flagged with a
+// reconciliation exception (domain payment_refund) that ops triage, and the
+// sweeper stops spending Stripe calls on it. settleTerminalBooking itself
+// stays callable, so an operator can still re-drive a flagged booking.
+const MAX_REFUND_ATTEMPTS = 20;
 
 function stripeClient() {
   // eslint-disable-next-line global-require
@@ -160,14 +169,43 @@ async function settleTerminalBooking(bookingId, reason = 'booking_ended') {
     await promoRedemption.reversePromo(db, { surface: 'booking', referenceId: booking.id, reason: 'booking_voided' });
     return 'voided';
   } catch (err) {
-    await db.query(
+    const { rows: [updated] } = await db.query(
       `UPDATE booking_requests SET refund_attempts = refund_attempts + 1, refund_last_error = LEFT($2, 1000), updated_at = NOW()
-        WHERE id = $1`,
+        WHERE id = $1
+        RETURNING refund_attempts`,
       [booking.id, String(err.message || 'refund failed')]
     );
     logger.error('Booking deposit settlement failed', { bookingId: booking.id, error: err.message });
+    const attempts = Number(updated?.refund_attempts ?? 0);
+    if (attempts >= MAX_REFUND_ATTEMPTS) {
+      await raiseSettlementExhaustedException(booking, attempts, err.message);
+    }
     throw err;
   }
+}
+
+/**
+ * Flag a deposit settlement that exhausted its attempts, for operator
+ * review. Never throws: recordException dedupes on open rows and swallows
+ * its own failures, so flagging can never break a settlement path.
+ */
+async function raiseSettlementExhaustedException(booking, attempts, lastError) {
+  await recordException({
+    domain: 'payment_refund',
+    referenceId: String(booking.id),
+    severity: 'critical',
+    summary: `Booking deposit settlement exhausted ${MAX_REFUND_ATTEMPTS} attempts for booking ${booking.id}`,
+    details: {
+      bookingId: booking.id,
+      bookingStatus: booking.status,
+      paymentStatus: booking.payment_status,
+      refundAttempts: attempts,
+      lastError: String(lastError || '').slice(0, 500),
+    },
+  });
+  logger.error('Booking deposit settlement exhausted; flagged for operator review', {
+    bookingId: booking.id, refundAttempts: attempts, error: String(lastError || '').slice(0, 500),
+  });
 }
 
 /** Fire-and-forget variant for terminal transitions; the sweeper retries. */
@@ -184,19 +222,56 @@ async function findUnsettledTerminalBookings(limit = 50) {
       WHERE status = ANY($1::text[])
         AND payment_status IN ('paid', 'requires_payment', 'processing')
         AND stripe_payment_intent_id IS NOT NULL
-        AND refund_attempts < 20
+        AND refund_attempts < $2
       ORDER BY updated_at ASC
-      LIMIT $2`,
-    [TERMINAL_STATUSES, Math.min(200, Math.max(1, Number(limit) || 50))]
+      LIMIT $3`,
+    [TERMINAL_STATUSES, MAX_REFUND_ATTEMPTS, Math.min(200, Math.max(1, Number(limit) || 50))]
   );
   return rows.map((r) => r.id);
 }
 
+/**
+ * Terminal bookings that already hit the attempt cap. The sweeper must not
+ * retry these (that is what the cap is for); it flags them instead.
+ */
+async function findExhaustedTerminalBookings(limit = 50) {
+  const { rows } = await db.query(
+    `SELECT id FROM booking_requests
+      WHERE status = ANY($1::text[])
+        AND payment_status IN ('paid', 'requires_payment', 'processing')
+        AND stripe_payment_intent_id IS NOT NULL
+        AND refund_attempts >= $2
+      ORDER BY updated_at ASC
+      LIMIT $3`,
+    [TERMINAL_STATUSES, MAX_REFUND_ATTEMPTS, Math.min(200, Math.max(1, Number(limit) || 50))]
+  );
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Flag a capped booking for operator review without touching Stripe.
+ * Covers bookings that stalled before the exhaustion hook existed: the
+ * sweeper surfaces them on its next pass instead of retrying them forever.
+ * Returns 'flagged', or why the booking does not qualify.
+ */
+async function flagExhaustedTerminalBooking(bookingId) {
+  const { rows: [booking] } = await db.query('SELECT * FROM booking_requests WHERE id = $1', [bookingId]);
+  if (!booking) return 'not_found';
+  if (!TERMINAL_STATUSES.includes(booking.status)) return 'not_terminal';
+  if (!['paid', 'requires_payment', 'processing'].includes(booking.payment_status)) return 'nothing_to_settle';
+  if (Number(booking.refund_attempts || 0) < MAX_REFUND_ATTEMPTS) return 'not_exhausted';
+  await raiseSettlementExhaustedException(booking, Number(booking.refund_attempts), booking.refund_last_error);
+  return 'flagged';
+}
+
 module.exports = {
   TERMINAL_STATUSES,
+  MAX_REFUND_ATTEMPTS,
   isBookingIntent,
   applyBookingIntentWebhook,
   settleTerminalBooking,
   settleTerminalBookingSoon,
   findUnsettledTerminalBookings,
+  findExhaustedTerminalBookings,
+  flagExhaustedTerminalBooking,
 };

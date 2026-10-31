@@ -21,6 +21,7 @@ const { isSignupPasswordValid } = require('../utils/signupValidation');
 const logger = require('../utils/logger');
 const supportChatThreads = require('../services/supportChatThreads');
 const tokenRevocationService = require('../services/tokenRevocationService');
+const { invalidateToken: invalidateCsrfToken, invalidateSessionToken: invalidateSessionCsrfToken, issueSessionCsrf } = require('../middleware/csrf');
 const { AppError } = require('../middleware/errorHandler');
 const { assertRegistrationsOpen } = require('../middleware/maintenanceGate'); // Review P3-7-F07
 const { grantFreeTrialToUser } = require('./templateController');
@@ -466,15 +467,19 @@ async function login(req, res, next) {
     // unconditional 7-day window and silently degraded a 30-day
     // remember-me session on the first refresh.
     const sessionSql = rememberMe
-      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '30 days', TRUE)"
-      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE)";
-    await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
+      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '30 days', TRUE, $4)"
+      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE, $4)";
+    await pool.query(sessionSql, [user.id, hashedRefresh, accessHash, tokens.sid]);
     await recordSessionContext(pool, hashedRefresh, req);
 
     // H8d: web clients get the refresh token as an httpOnly cookie; the JSON
     // body still carries it for native/mobile clients.
     setRefreshTokenCookie(res, tokens.refreshToken, { rememberMe: rememberMe === true });
     setAccessTokenCookie(res, tokens.accessToken);
+    // Session-scoped CSRF: the login response itself carries the new
+    // session's token, so a client holding a previous session's token
+    // re-captures before its first POST instead of 403ing on stale state.
+    await issueSessionCsrf(res, user.id, tokens.sid);
 
     // Log terms agreement for legal/compliance record
     try {
@@ -695,9 +700,9 @@ async function loginWith2FA(req, res, next) {
     const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
     // P1-1-F04: persist the remember-me intent (see login above).
     const sessionSql = rememberMe
-      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '30 days', TRUE)"
-      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE)";
-    await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
+      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '30 days', TRUE, $4)"
+      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE, $4)";
+    await pool.query(sessionSql, [user.id, hashedRefresh, accessHash, tokens.sid]);
     await recordSessionContext(pool, hashedRefresh, req);
 
     // Review P1-1-F05: write the same per-login digital signature and
@@ -721,6 +726,9 @@ async function loginWith2FA(req, res, next) {
       path: '/',
       maxAge: 15 * 60 * 1000,
     });
+
+    // Session-scoped CSRF: same re-capture as the password-login path.
+    await issueSessionCsrf(res, user.id, tokens.sid);
 
     // Record last_login_at and login history (non-fatal)
     try {
@@ -908,8 +916,17 @@ function resolveSessionAbsoluteDeadline(session) {
 
 // Refresh-token reuse grace window: a legitimate client can present a
 // just-rotated token twice (double-submit, or a retry after a dropped
-// response that never delivered the rotated token). Only treat a replay as
-// theft when the rotation it replays is older than this window.
+// response that never delivered the rotated token).
+// Auth audit item 11: the grace now covers ONLY the first in-window
+// replay of the same token value. The first replay writes
+// sessions.refresh_replay_noted_at; a second replay (marker already set)
+// is a confirmed rotation replay and revokes the family regardless of
+// grace age, as does any replay outside the window. A rotation child
+// with an unparseable created_at is treated as outside grace (fail
+// closed: recency cannot be established, so the double-submit case
+// cannot be confirmed). The caller still throws the same token_reuse
+// error in every case, so the response reveals nothing new about
+// whether a family revoke happened.
 const REFRESH_REUSE_GRACE_MS = 60 * 1000;
 
 // Pentest fix, scoped by H8d: on a suspected refresh-token theft, revoke
@@ -926,8 +943,9 @@ const REFRESH_REUSE_GRACE_MS = 60 * 1000;
 // Family scope is by session-chain id, never by user_id: the lookup and
 // the revoke name session ids only, so other logins are untouched and no
 // user-wide revocation marker is written.
-// The caller still throws the same token_reuse error, so the response
-// reveals nothing new about whether a family revoke happened.
+// Returns true when the family was revoked, false otherwise. Diagnostics
+// never turn a denied refresh into a successful one, nor mask the
+// token_reuse error the caller throws.
 async function revokeRefreshFamilyIfStolen(pool, sessionRow) {
   try {
     const { rows } = await pool.query(
@@ -937,9 +955,19 @@ async function revokeRefreshFamilyIfStolen(pool, sessionRow) {
       [sessionRow.id]
     );
     const child = rows[0];
-    if (!child) return;
+    if (!child) return false;
     const rotatedAt = new Date(child.created_at).getTime();
-    if (Number.isNaN(rotatedAt) || Date.now() - rotatedAt < REFRESH_REUSE_GRACE_MS) return;
+    const withinGrace = !Number.isNaN(rotatedAt) && Date.now() - rotatedAt < REFRESH_REUSE_GRACE_MS;
+    if (withinGrace && !sessionRow.refresh_replay_noted_at) {
+      // First in-window replay: possible double-submit after a dropped
+      // response. Note it and do not revoke yet; a second replay of the
+      // same value is not a double-submit and revokes below.
+      await pool.query(
+        'UPDATE sessions SET refresh_replay_noted_at = NOW() WHERE id = $1',
+        [sessionRow.id]
+      );
+      return false;
+    }
     // Walk the rotation chain from the child, collecting every descendant
     // id (bounded: a legitimate rotation chain never approaches this).
     const familyIds = [sessionRow.id, child.id];
@@ -962,10 +990,16 @@ async function revokeRefreshFamilyIfStolen(pool, sessionRow) {
       'UPDATE sessions SET is_valid = false, is_revoked = true WHERE id = ANY($1)',
       [familyIds]
     );
+    // Security alert on family revoke (structured log: the established
+    // alerting surface for this path, matching the check-failed log
+    // below).
+    logger.error('Refresh token family revoked on reuse', { userId: sessionRow.user_id, familySize: familyIds.length });
+    return true;
   } catch (err) {
     // Family-revoke diagnostics must never turn a denied refresh into a
     // successful one, nor mask the token_reuse error the caller throws.
     logger.error('Refresh family revoke check failed', { error: err.message });
+    return false;
   }
 }
 
@@ -980,7 +1014,7 @@ async function refreshToken(req, res, next) {
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: sessionRows } = await pool.query(
-      'SELECT s.id, s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at, COALESCE(s.remember_me, FALSE) AS remember_me FROM sessions s WHERE s.refresh_token = $1',
+      'SELECT s.id, s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at, s.refresh_replay_noted_at, s.csrf_sid, COALESCE(s.remember_me, FALSE) AS remember_me FROM sessions s WHERE s.refresh_token = $1',
       [hashedToken]
     );
     if (!sessionRows[0]) {
@@ -1065,7 +1099,12 @@ async function refreshToken(req, res, next) {
         throw new AppError('Your account is suspended. Please contact support.', 403, 'account_suspended');
       }
     }
-    const tokens = generateTokens(user);
+    // Session-scoped CSRF: the rotated row inherits the consumed row's
+    // sid, so the CSRF binding survives rotation. Rows minted before
+    // session scoping have NULL csrf_sid: mint one now so the session
+    // becomes scoped on its first post-deploy refresh.
+    const sessionSid = sessionRows[0].csrf_sid || crypto.randomUUID();
+    const tokens = generateTokens(user, { sid: sessionSid });
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     // P3-14-F13 (accepted): sessions.id stays SERIAL. Migration 200's comment
     // asks for random session IDs, but the guessable-token concern does not
@@ -1084,10 +1123,10 @@ async function refreshToken(req, res, next) {
     const rotationWindowDays = rotatedRememberMe ? 30 : 7;
     const { rows: newSessionRows } = await pool.query(
       `INSERT INTO sessions (user_id, refresh_token, expires_at, absolute_expires_at, access_token_hash,
-                             parent_session_id, regenerated_from_session_id, remember_me)
-       VALUES ($1, $2, LEAST(NOW() + make_interval(days => $4), $3::timestamptz), $3::timestamptz, $5, $6, $6, $7)
+                             parent_session_id, regenerated_from_session_id, remember_me, csrf_sid)
+       VALUES ($1, $2, LEAST(NOW() + make_interval(days => $4), $3::timestamptz), $3::timestamptz, $5, $6, $6, $7, $8)
        RETURNING expires_at`,
-      [user.id, hashedRefresh, absoluteDeadline.toISOString(), rotationWindowDays, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), sessionRows[0].id || null, rotatedRememberMe]
+      [user.id, hashedRefresh, absoluteDeadline.toISOString(), rotationWindowDays, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), sessionRows[0].id || null, rotatedRememberMe, sessionSid]
     );
     await recordSessionContext(pool, hashedRefresh, req);
     const newExpiry = newSessionRows?.[0]?.expires_at ? new Date(newSessionRows[0].expires_at) : null;
@@ -1102,6 +1141,10 @@ async function refreshToken(req, res, next) {
       path: '/',
       maxAge: 15 * 60 * 1000,
     });
+    // Session-scoped CSRF: the sid is unchanged by rotation, so the token
+    // value is unchanged too; re-issuing it here keeps clients that
+    // re-capture from responses in sync after every rotation.
+    await issueSessionCsrf(res, user.id, sessionSid);
     res.json({
       success: true,
       user: formatAuthUser(user),
@@ -1118,12 +1161,13 @@ async function logout(req, res) {
     const token = getRefreshTokenFromRequest(req);
     let didInvalidateSession = false;
     let userId = null;
+    let logoutCsrfSid = null;
     const hadRefreshToken = !!token;
 
     if (token) {
       const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
       const { rows: invalidateRows } = await pool.query(
-        'UPDATE sessions SET is_valid = false, is_revoked = true WHERE refresh_token = $1 RETURNING id, user_id',
+        'UPDATE sessions SET is_valid = false, is_revoked = true WHERE refresh_token = $1 RETURNING id, user_id, csrf_sid',
         [hashedToken]
       );
       if (invalidateRows.length > 0) {
@@ -1132,6 +1176,7 @@ async function logout(req, res) {
         // matching the bearer-token path below.
         if (invalidateRows[0].user_id) {
           userId = invalidateRows[0].user_id;
+          logoutCsrfSid = invalidateRows[0].csrf_sid || null;
           await pool.query(
             'UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1 AND is_valid = true',
             [userId]
@@ -1177,6 +1222,27 @@ async function logout(req, res) {
     // Revoke all user tokens on logout
     if (userId) {
       await tokenRevocationService.revokeAllUserTokens(userId);
+    }
+
+    // Auth audit item 10: a pre-logout CSRF token must not survive the
+    // session it was issued under. Never throws: a CSRF-store outage
+    // must not turn a logout into a 500 (the access tokens are already
+    // revoked above, so a surviving CSRF entry alone is not a credential).
+    // Session-scoped CSRF: logout invalidates only the presented
+    // session's token (from the refresh row, else from the access token
+    // parseAuthIdentity already verified). Other sessions keep their
+    // tokens, and this is safe alongside the all-sessions revocation
+    // above: a revoked session's cookie fails authenticate, so its
+    // lingering CSRF key can never validate through a live session.
+    // A legacy token without a sid falls back to the per-user key.
+    if (!logoutCsrfSid) logoutCsrfSid = req.csrfSid || null;
+    if (userId) {
+      try {
+        if (logoutCsrfSid) await invalidateSessionCsrfToken(String(userId), logoutCsrfSid);
+        else await invalidateCsrfToken(String(userId));
+      } catch (csrfErr) {
+        logger.warn('Logout CSRF invalidation failed', { userId, error: csrfErr.message });
+      }
     }
 
     // AI support chat memory ends with the session (never throws).
@@ -1469,6 +1535,17 @@ async function verifyRegistrationOTP(req, res) {
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration', code: 'registration_expired' });
     const pending = rows[0];
+    // Helper-flow rows (role 'helper' with no default_mode) belong to the
+    // helper registration flow, which enforces its own consent gate before
+    // account creation. They must not verify through the general endpoint:
+    // general-flow helper-mode rows always carry a default_mode, so this
+    // rejects only helper-flow rows and leaves legitimate general signups
+    // (including helper-mode ones) untouched. 404 matches the not-found
+    // response so the filter reveals nothing about the row, and it runs
+    // before any OTP comparison or attempt counting.
+    if (pending.role === 'helper' && pending.default_mode == null) {
+      return res.status(404).json({ error: 'Invalid or expired registration', code: 'registration_expired' });
+    }
     if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
       return registrationLockResponse(res, pending.otp_locked_until, 'Too many attempts. Try again later.');
     }
@@ -1659,13 +1736,14 @@ async function verifyRegistrationOTP(req, res) {
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
-      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')",
-      [user.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex')]
+      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', $4)",
+      [user.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), tokens.sid]
     );
     // H8d: registration completes a login — set the httpOnly cookies too.
     setRefreshTokenCookie(res, tokens.refreshToken);
     setAccessTokenCookie(res, tokens.accessToken);
-    res.status(201).json({ user: formatAuthUser(user), ...tokens });
+    await issueSessionCsrf(res, user.id, tokens.sid);
+    res.status(201).json({ user: formatAuthUser(user), accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
   } catch (err) {
     logger.error('Verify registration OTP error', { err });
     res.status(500).json({ error: 'Verification failed', code: 'verification_failed' });
@@ -2117,8 +2195,8 @@ async function updateProfile(req, res) {
       const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
       await modeRoleUtil.invalidateUserSessions(client, req.user.id);
       await client.query(
-        "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')",
-        [finalRow.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex')],
+        "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', $4)",
+        [finalRow.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), tokens.sid],
       );
       modeTokens = tokens;
     }
@@ -2128,6 +2206,7 @@ async function updateProfile(req, res) {
       // Mode switch rotated the session: move both web cookies with it.
       setRefreshTokenCookie(res, modeTokens.refreshToken);
       setAccessTokenCookie(res, modeTokens.accessToken);
+      await issueSessionCsrf(res, finalRow.id, modeTokens.sid);
     }
 
     res.json({
@@ -2560,8 +2639,8 @@ async function switchRole(req, res) {
     // after the role has already changed.
     await modeRoleUtil.invalidateUserSessions(client, userId);
     await client.query(
-      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')",
-      [updatedUser.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex')],
+      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', $4)",
+      [updatedUser.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), tokens.sid],
     );
     {
       const { emitDomainEvent, accountRoleForMode } = require('../growth/emit');
@@ -2583,6 +2662,7 @@ async function switchRole(req, res) {
     // must carry the new role/mode too; otherwise the old-role JWT keeps
     // authenticating until it expires.
     setAccessTokenCookie(res, tokens.accessToken);
+    await issueSessionCsrf(res, updatedUser.id, tokens.sid);
     return res.json({
       success: true,
       user: formatAuthUser(updatedUser),

@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { generateTokens } = require('../middleware/auth');
+const { issueSessionCsrf } = require('../middleware/csrf');
 const { formatAuthUser } = require('./authController');
 const rateLimit = require('../services/accessGateRateLimitService');
 const {
@@ -207,9 +208,9 @@ async function issueSessionForUser(req, user, rememberMe = false, extraClaims = 
   const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
   const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
   const sessionSql = rememberMe
-    ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '30 days')"
-    : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')";
-  await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
+    ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '30 days', $4)"
+    : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', $4)";
+  await pool.query(sessionSql, [user.id, hashedRefresh, accessHash, tokens.sid]);
 
   try {
     const loginIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
@@ -650,6 +651,7 @@ exports.loginWithInternalAccess = async (req, res, next) => {
     // Web sessions authenticate via httpOnly cookies (the client no longer
     // stores the access token); JSON tokens are kept for native clients.
     setSessionCookies(res, tokens, { rememberMe: !!rememberMe });
+    await issueSessionCsrf(res, user.id, tokens.sid);
     return res.json({
       success: true,
       message: 'Login successful',

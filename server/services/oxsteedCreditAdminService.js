@@ -9,6 +9,28 @@ const { getReserveStatus } = require('./oxsteedCreditReserveService');
 const incidentStore = require('./incidentStore');
 const { reserveFunds, releaseReservation } = require('./oxsteedCreditReservationService');
 
+// Q1: when a worker fence is supplied, the service transaction runs
+// through it instead of the raw pool. fence.fencedTransaction re-verifies
+// the lease row inside the transaction (closing the takeover race), and
+// the guarded client refuses every further statement once the renewal loop
+// observes lease loss, so a stale worker cannot commit a second settlement
+// or agreement after failover. Reads and writes alike are refused after
+// loss: the whole operation aborts and rolls back, which is the fail-closed
+// outcome for a worker that no longer owns the job. Without a fence (the
+// admin HTTP path) behavior is exactly withTransaction as before.
+async function runServiceTransaction(fence, work, name) {
+  if (!fence) return withTransaction(pool, work, name);
+  return fence.fencedTransaction(async (client) => {
+    const guardedClient = {
+      query: (text, params) => {
+        fence.assertActive();
+        return client.query(text, params);
+      },
+    };
+    return work(guardedClient);
+  });
+}
+
 const PARTNER_STATUSES = new Set(['pending', 'active', 'suspended', 'terminated']);
 const AGREEMENT_STATUSES = new Set(['draft', 'pending_approval', 'active', 'suspended', 'expired', 'terminated']);
 const ENTITLEMENT_STATUSES = new Set(['active', 'suspended', 'revoked', 'expired']);
@@ -1388,7 +1410,7 @@ function normalizeSettlementTotals(value) {
   return totals;
 }
 
-async function createSettlement({ partnerId, agreementId, periodStart, periodEnd, idempotencyKey, actorUserId, paymentReference, reason, metadata, correlationId, requestIp, cycleId = null, valueDate = null, settlementDate = null, settlementTotals = null, netAgainstPayable = false }) {
+async function createSettlement({ partnerId, agreementId, periodStart, periodEnd, idempotencyKey, actorUserId, paymentReference, reason, metadata, correlationId, requestIp, cycleId = null, valueDate = null, settlementDate = null, settlementTotals = null, netAgainstPayable = false, fence = null }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const starts = parseDate(periodStart, 'periodStart', true);
   const ends = parseDate(periodEnd, 'periodEnd', true);
@@ -1406,7 +1428,7 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
   const normalizedSettlementDate = normalizeSettlementDate(settlementDate, 'settlementDate');
   const totalsOverride = normalizeSettlementTotals(settlementTotals);
   const applyPayableNetting = netAgainstPayable === true;
-  return withTransaction(pool, async (client) => {
+  return runServiceTransaction(fence, async (client) => {
     const { rows: agreementRows } = await client.query(
       `SELECT a.*, p.status AS partner_status, p.restaurant_id, p.settlement_currency_code,
               fr.display_name AS restaurant_name
@@ -2094,7 +2116,7 @@ async function reconcileSubBankAggregates({ currencyCode = 'USD' }) {
   }, 'credit_admin_reconcile_sub_banks');
 }
 
-async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, allowedSurfaces, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, requiresCustomerEntitlement = false, metadata, reason, idempotencyKey, actorUserId, correlationId, requestIp }) {
+async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, allowedSurfaces, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, requiresCustomerEntitlement = false, metadata, reason, idempotencyKey, actorUserId, correlationId, requestIp, fence = null }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const starts = parseDate(startsAt, 'startsAt', true);
   const ends = parseDate(endsAt, 'endsAt');
@@ -2128,7 +2150,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
     requiresCustomerEntitlement: normalizedRequiresCustomerEntitlement,
     metadata: normalizedMetadata,
   });
-  return withTransaction(pool, async (client) => {
+  return runServiceTransaction(fence, async (client) => {
     const { rows: existingRows } = await client.query(
       `SELECT a.*, p.restaurant_id, p.settlement_currency_code, fr.display_name AS restaurant_name
          FROM oxsteed_credit_partner_agreements a
@@ -2201,13 +2223,13 @@ const ALLOWED_TRANSITIONS = {
   terminated: new Set(),
 };
 
-async function transitionAgreement({ agreementId, targetStatus, expectedStatus, reason, actorUserId, correlationId, requestIp }) {
+async function transitionAgreement({ agreementId, targetStatus, expectedStatus, reason, actorUserId, correlationId, requestIp, fence = null }) {
   const normalizedTarget = normalizeString(targetStatus, 24);
   if (!AGREEMENT_STATUSES.has(normalizedTarget)) throw new AppError('Invalid agreement status', 400, 'invalid_agreement_status');
   if (expectedStatus !== undefined && expectedStatus !== null && (typeof expectedStatus !== 'string' || !normalizeString(expectedStatus, 24))) throw new AppError('Invalid expected agreement status', 400, 'invalid_expected_agreement_status');
   const normalizedExpected = expectedStatus === undefined || expectedStatus === null ? null : normalizeString(expectedStatus, 24);
   if (normalizedExpected && !AGREEMENT_STATUSES.has(normalizedExpected)) throw new AppError('Invalid expected agreement status', 400, 'invalid_expected_agreement_status');
-  return withTransaction(pool, async (client) => {
+  return runServiceTransaction(fence, async (client) => {
     const { rows } = await client.query(
       `SELECT a.*, p.status AS partner_status, p.restaurant_id, fr.display_name AS restaurant_name
          FROM oxsteed_credit_partner_agreements a

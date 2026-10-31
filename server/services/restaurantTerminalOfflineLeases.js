@@ -14,6 +14,7 @@ const AppError=require('../utils/appError');
 const {withTransaction}=require('../utils/transaction');
 const terminal=require('./restaurantPosTerminalService');
 const offline=require('./restaurantTerminalOffline');
+const cardStoreForward=require('./cardStoreForward');
 const {reconcilePosOrderPayment}=require('./restaurantPosPaymentLedgerService');
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -162,8 +163,21 @@ async function attach({restaurantId,offlineId}){
   if(!attachedState.permit)return {...attachedState,attached:false};
   const intentId=attachedState.payment.provider_payment_intent_id||attachedState.permit.provider_payment_intent_id;
   if(!intentId)return {...attachedState,attached:true,settled:false};
+  // Card store-and-forward settlement mode (flag-gated; see
+  // cardStoreForward.js). Flag OFF, or an automatic-mode store, settles
+  // exactly as before. A manual-review store with the flag ON records the
+  // Stripe-verified payment but holds it for manager accept instead of
+  // marking the order paid. With the flag off no policy query runs at all,
+  // so the flag-off path is query-identical to before.
+  const holdForManagerReview = cardStoreForward.isGloballyEnabled()
+    && cardStoreForward.shouldHoldForManagerReview(
+      await cardStoreForward.getStoreForwardPolicy(pool, restaurantId, attachedState.payment.location_id));
   try{
-    const settled=await offline.reconcileForwarded({restaurantId,permitId:offlineId,intentId});
+    const settled=await offline.reconcileForwarded({restaurantId,permitId:offlineId,intentId,holdForManagerReview});
+    if(settled?.held){
+      await withTransaction(pool,client=>flag(client,offlineId,'manual_review_required'));
+      return {...attachedState,attached:true,settled:false,held:true,flagged:true};
+    }
     return {...attachedState,attached:true,settled:true,result:settled};
   }catch(error){
     if(!(error instanceof AppError))throw error;
@@ -184,6 +198,17 @@ async function sweep({limit=200,now=new Date()}={}){
   const {rows:permits}=await pool.query(`SELECT * FROM restaurant_terminal_offline_permits
     WHERE status IN ('issued','forwarded') AND expires_at<$1 AND (last_checked_at IS NULL OR last_checked_at<$1::timestamptz-INTERVAL '10 minutes')
     ORDER BY expires_at LIMIT $2`,[now,limit]);
+  // One policy read per store per sweep pass: the settlement-mode decision
+  // is per store, and permits in one pass usually share a handful of stores.
+  const policyCache=new Map();
+  const holdForPermit=async permit=>{
+    // Flag off: no policy query at all, so the sweep is query-identical
+    // to before. Flag on: one policy read per store per sweep pass.
+    if(!cardStoreForward.isGloballyEnabled())return false;
+    const key=`${permit.restaurant_id}:${permit.location_id}`;
+    if(!policyCache.has(key))policyCache.set(key,await cardStoreForward.getStoreForwardPolicy(pool,permit.restaurant_id,permit.location_id));
+    return cardStoreForward.shouldHoldForManagerReview(policyCache.get(key));
+  };
   for(const permit of permits){
     await pool.query('UPDATE restaurant_terminal_offline_permits SET last_checked_at=$2 WHERE id=$1',[permit.id,now]);
     try{
@@ -193,13 +218,31 @@ async function sweep({limit=200,now=new Date()}={}){
         if(found.length>1){await pool.query("UPDATE restaurant_terminal_offline_permits SET status='requires_reconciliation' WHERE id=$1",[permit.id]);out.flagged+=1;continue;}
         intentId=found[0]?.id;
       }
-      if(intentId){await offline.reconcileForwarded({restaurantId:permit.restaurant_id,permitId:permit.id,intentId});out.reconciled+=1;continue;}
+      if(intentId){
+        const settled=await offline.reconcileForwarded({restaurantId:permit.restaurant_id,permitId:permit.id,intentId,holdForManagerReview:await holdForPermit(permit)});
+        if(settled?.held)out.flagged+=1;else out.reconciled+=1;
+        continue;
+      }
       if(new Date(permit.expires_at).getTime()<now.getTime()-UNFORWARDED_REVIEW_HOURS*3600*1000){
         await pool.query("UPDATE restaurant_terminal_offline_permits SET status='requires_reconciliation' WHERE id=$1 AND status='issued'",[permit.id]);out.flagged+=1;
       }
     }catch{/* Stripe unreachable or mismatch: retried next sweep; mismatches surface via reconcile */}
   }
   return out;
+}
+
+async function queueDepth({restaurantId,locationIds=null}){
+  // Ops visibility for the open queue: exact counts, not the capped lists
+  // listOpen returns. Same open set semantics: payments awaiting settlement
+  // or review, permits that expired while still unsettled.
+  const scope=locationIds?' AND location_id=ANY($2::bigint[])':'';
+  const args=locationIds?[restaurantId,locationIds]:[restaurantId];
+  const {rows:pay}=await pool.query(`SELECT status,COUNT(*)::int AS n FROM restaurant_terminal_offline_payments
+    WHERE restaurant_id=$1 AND status IN ('recorded','requires_reconciliation')${scope} GROUP BY status`,args);
+  const {rows:perm}=await pool.query(`SELECT status,COUNT(*)::int AS n FROM restaurant_terminal_offline_permits
+    WHERE restaurant_id=$1 AND status IN ('issued','forwarded','requires_reconciliation') AND expires_at<NOW()${scope} GROUP BY status`,args);
+  const by=rows=>{const out={};for(const row of rows)out[row.status]=Number(row.n);return out;};
+  return {payments:by(pay),permits:by(perm),generatedAt:new Date().toISOString()};
 }
 
 async function listOpen({restaurantId,locationIds=null}){
@@ -251,4 +294,4 @@ async function resolve({restaurantId,offlineId,action,note,userId}){
   return {action,resolved:true};
 }
 
-module.exports={issueLease,closeLease,registerPayment,attach,sweep,listOpen,resolve,reviewReasons,leaseHours};
+module.exports={issueLease,closeLease,registerPayment,attach,sweep,listOpen,queueDepth,resolve,reviewReasons,leaseHours};

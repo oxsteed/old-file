@@ -146,11 +146,14 @@ describe('agent job cancellation', () => {
     expect(response.body.data.cancelled_by).toBe('admin');
     expect(response.body.data.before_status).toBe('accepted');
 
+    // Recommendation track 7: the controller threads req so the service can
+    // stamp impersonated_by; the mocked request object itself is opaque here.
     expect(service.cancelJobTransaction).toHaveBeenCalledWith({
       jobId: '123',
       actorId: 'admin-9',
       actorKind: 'admin',
       reason: 'Fraudulent job',
+      req: expect.any(Object),
     });
     expect(service.finalizeJobCancellation).toHaveBeenCalledTimes(1);
   });

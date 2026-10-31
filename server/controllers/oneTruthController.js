@@ -672,6 +672,85 @@ async function buildSuspectPairsIndexed(client, userIds, { mode = 'linear', with
   return withGroups ? linked : linked.pairs;
 }
 
+/**
+ * One Truth scale redesign (Q3): the 5,000-row cap is retired, not widened.
+ *
+ * The old path fetched up to 5,000 user rows and passed their ids as
+ * `id = ANY($1)` arrays into the group queries: coverage silently stopped
+ * at the newest 5,000 users, and the id arrays themselves grow linearly
+ * with the user base (110KB for 5,000 ids; ~132MB at six million, before
+ * Postgres even starts). The scoped path instead runs the same two indexed
+ * GROUP BY ... HAVING COUNT(*) > 1 queries directly over the scoped user
+ * set, with the scope conditions inline. Group discovery is O(scoped users)
+ * in the database, no user rows are materialized, and no id array is
+ * passed. Pairing stays linear (decision 10), so pairs are O(users in
+ * duplicate groups) and the response still paginates.
+ *
+ * The remaining bound is on materialized pairs, not on coverage: if the
+ * pair count would exceed ONE_TRUTH_MAX_PAIRS (default 100,000, ~44MB of
+ * pair objects at the measured ~0.44KB each), pairing aborts with a 413
+ * asking the analyst to refine scope. That is an explicit refusal, not a
+ * silent truncation: every scope under the limit is evaluated completely.
+ */
+function oneTruthMaxPairs() {
+  const raw = parseInt(process.env.ONE_TRUTH_MAX_PAIRS, 10);
+  if (Number.isFinite(raw) && raw > 0) return raw;
+  return 100000;
+}
+
+// Shared scope conditions for suspect discovery (alias `u`), identical to
+// the conditions listSuspects and getStats previously built inline.
+function buildSuspectScopeWhere(scope, analystIds) {
+  const conditions = [`u.deleted_at IS NULL`, `u.role NOT IN ('admin','super_admin')`];
+  const params = [];
+  let idx = 1;
+  const scopeClause = buildUserScopeClause(scope, idx);
+  idx = scopeClause.nextIndex;
+  params.push(...scopeClause.params);
+  if (scopeClause.clause) conditions.push(scopeClause.clause);
+  withAnalystScope(conditions, params, 'u.id', analystIds);
+  return { where: conditions.join(' AND '), params, warnings: scopeClause.warnings };
+}
+
+async function buildSuspectPairsScoped(client, scope, analystIds, { mode = 'linear', withGroups = false } = {}) {
+  const { where, params } = buildSuspectScopeWhere(scope, analystIds);
+  const groups = [];
+
+  // Same phone
+  const { rows: phoneGroups } = await client.query(
+    `SELECT phone, array_agg(u.id ORDER BY u.created_at ASC NULLS LAST, u.id) AS user_ids
+     FROM users u WHERE ${where} AND u.phone IS NOT NULL AND u.phone != ''
+     GROUP BY phone HAVING COUNT(*) > 1`,
+    params
+  );
+  for (const g of phoneGroups) {
+    groups.push({ signalType: 'same_phone', label: 'Same phone number', weight: SIGNAL_WEIGHTS.same_phone, userIds: g.user_ids });
+  }
+
+  // Same last login IP
+  const { rows: ipGroups } = await client.query(
+    `SELECT last_login_ip, array_agg(u.id ORDER BY u.created_at ASC NULLS LAST, u.id) AS user_ids
+     FROM users u WHERE ${where} AND u.last_login_ip IS NOT NULL
+     GROUP BY last_login_ip HAVING COUNT(*) > 1`,
+    params
+  );
+  for (const g of ipGroups) {
+    groups.push({ signalType: 'same_ip', label: 'Same last login IP', weight: SIGNAL_WEIGHTS.same_ip, userIds: g.user_ids });
+  }
+
+  const linked = linkSignalGroups(groups, mode, { maxPairs: oneTruthMaxPairs() });
+  return withGroups ? linked : linked.pairs;
+}
+
+async function countScopedUsers(client, scope, analystIds) {
+  const { where, params } = buildSuspectScopeWhere(scope, analystIds);
+  const { rows } = await client.query(
+    `SELECT COUNT(*)::int AS count FROM users u WHERE ${where}`,
+    params
+  );
+  return rows[0]?.count || 0;
+}
+
 async function countUsersWithMultipleBusinesses(client, scope, scopeIds) {
   const base = [`u.deleted_at IS NULL`, `u.role NOT IN ('admin', 'super_admin')`];
   const params = [];
@@ -803,66 +882,37 @@ exports.listSuspects = async (req, res) => {
 
     const scope = await resolveScope(client, req);
     const userSelect = await buildUserSelect(client);
-    const conditions = [`u.deleted_at IS NULL`, `u.role NOT IN ('admin','super_admin')`];
-    const params = [];
-    let idx = 1;
-
-    const scopeClause = buildUserScopeClause(scope, idx);
-    idx = scopeClause.nextIndex;
-    params.push(...scopeClause.params);
-    scope.warnings.push(...scopeClause.warnings);
-    if (scopeClause.clause) conditions.push(scopeClause.clause);
-
-    // P1 item 11/12.2: delegated analysts only evaluate users inside their grant scope.
-    withAnalystScope(conditions, params, 'u.id', req.oneTruthScopeIds);
-
-    const { rows } = await client.query(
-      `SELECT ${userSelect},
-              (SELECT COUNT(*) FROM businesses b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS business_count
-       FROM users u
-       WHERE ${conditions.join(' AND ')}
-       ORDER BY u.created_at DESC
-       -- Audit fix: was ASC (oldest 5k only, missing recent multi-accounting).
-       -- Now DESC to catch recent signups. The 5k cap remains; production
-       -- needs an async suspect job, not a larger limit.
-       LIMIT 5000`,
-      params
-    );
-
-    if (rows.length >= 5000) {
-      scope.warnings.push(
-        'Investigation truncated at 5,000 users. Refine the scope for a complete review.'
+    const comparison = comparisonMode(req.query.comparison);
+    // Q3: scoped discovery evaluates every in-scope user. No 5,000-row cap
+    // and no id-array round trip; scope-clause warnings still surface.
+    const { warnings: scopeWarnings } = buildSuspectScopeWhere(scope, req.oneTruthScopeIds);
+    scope.warnings.push(...scopeWarnings);
+    const linked = await buildSuspectPairsScoped(client, scope, req.oneTruthScopeIds, { mode: comparison, withGroups: true });
+    const linkedIds = new Set(linked.pairs.flatMap(pair=>[pair.userA.id,pair.userB.id]));
+    // Cohorts need only created_at, fetched once for linked users. Full
+    // enrichment (businesses, operational counts) is deferred until after
+    // filtering + pagination, so only displayed users pay for it.
+    let createdAtById = new Map();
+    if (linkedIds.size) {
+      const { rows: createdRows } = await client.query(
+        `SELECT id, created_at FROM users WHERE id = ANY($1)`,
+        [[...linkedIds]]
       );
+      createdAtById = new Map(createdRows.map((row) => [row.id, row.created_at]));
     }
 
-    const userIds = rows.map(u => u.id);
-    const comparison = comparisonMode(req.query.comparison);
-    const linked = await buildSuspectPairsIndexed(client, userIds, { mode: comparison, withGroups: true });
-    const linkedIds = new Set(linked.pairs.flatMap(pair=>[pair.userA.id,pair.userB.id]));
-    const enrichedUsers = await enrichUsers(client, rows.filter(row=>linkedIds.has(row.id)));
-    const userMap = new Map(enrichedUsers.map(user=>[user.id,user]));
-    const suspectPairs = linked.pairs.map((pair) => ({
-      ...pair,
-      userA: userMap.get(pair.userA.id) || pair.userA,
-      userB: userMap.get(pair.userB.id) || pair.userB,
-    }));
-
     // P1 item 12.4: deterministic pair keys + persistent review state.
-    const pairKeys = suspectPairs.map((pair) => pairKeyFor(pair.userA.id, pair.userB.id));
+    const pairKeys = linked.pairs.map((pair) => pairKeyFor(pair.userA.id, pair.userB.id));
     const reviews = await getPairReviews(client, pairKeys);
     const isAnalyst = Array.isArray(req.oneTruthGrants) && req.oneTruthGrants.length > 0;
-    let pairs = suspectPairs.map((pair) => {
+    let pairs = linked.pairs.map((pair) => {
       const pairKey = pairKeyFor(pair.userA.id, pair.userB.id);
-      const userA = isAnalyst ? maskPII([pair.userA])[0] : pair.userA;
-      const userB = isAnalyst ? maskPII([pair.userB])[0] : pair.userB;
       return {
         ...pair,
         id: pairKey,
         pairKey,
-        userA,
-        userB,
         review: reviews.get(pairKey) || null,
-        cohort: cohortOf(pair.userA.created_at),
+        cohort: cohortOf(createdAtById.get(pair.userA.id)),
       };
     });
 
@@ -898,6 +948,27 @@ exports.listSuspects = async (req, res) => {
     const total = pairs.length;
     const paged = pairs.slice(offset, offset + limit);
 
+    // Deferred enrichment: only displayed users get businesses + counts.
+    const pagedIds = [...new Set(paged.flatMap((pair) => [pair.userA.id, pair.userB.id]))];
+    let userMap = new Map();
+    if (pagedIds.length) {
+      const { rows: userRows } = await client.query(
+        `SELECT ${userSelect} FROM users u WHERE u.id = ANY($1)`,
+        [pagedIds]
+      );
+      const enrichedUsers = await enrichUsers(client, userRows);
+      userMap = new Map(enrichedUsers.map((user) => [user.id, user]));
+    }
+    const pagedPairs = paged.map((pair) => {
+      const userA = userMap.get(pair.userA.id) || pair.userA;
+      const userB = userMap.get(pair.userB.id) || pair.userB;
+      return {
+        ...pair,
+        userA: isAnalyst ? maskPII([userA])[0] : userA,
+        userB: isAnalyst ? maskPII([userB])[0] : userB,
+      };
+    });
+
     // P1 item 11: every suspect-queue read is audit-logged with purpose +
     // approver + the sensitive fields served.
     await logOneTruthRead({
@@ -916,7 +987,7 @@ exports.listSuspects = async (req, res) => {
       res.set('Warning', `299 - "${PAIRWISE_DEPRECATION.message}"`);
     }
     res.json({
-      pairs: paged,
+      pairs: pagedPairs,
       total,
       page,
       limit,
@@ -1263,29 +1334,11 @@ exports.getStats = async (req, res) => {
       };
     }
 
-    const suspectScope = buildUserScopeClause(scope, 1);
-    const suspectWhereParts = [
-      `u.deleted_at IS NULL`,
-      `u.role NOT IN ('admin', 'super_admin')`,
-      suspectScope.clause,
-    ].filter(Boolean);
-    const suspectParams = [...suspectScope.params];
-    withAnalystScope(suspectWhereParts, suspectParams, 'u.id', analystIds);
-    const { rows: suspectUsers } = await client.query(
-      `SELECT ${await buildUserSelect(client)}
-       FROM users u
-       WHERE ${suspectWhereParts.join(' AND ')}
-       ORDER BY u.created_at DESC
-       -- Keep the duplicate investigation bounded. A complete enterprise
-       -- review must use an indexed/async suspect job rather than allowing a
-       -- dashboard request to materialize the whole user table.
-       LIMIT 5000`,
-      suspectParams
-    );
-    if (suspectUsers.length >= 5000) {
-      scope.warnings.push('Duplicate statistics are truncated at 5,000 users. Refine the scope for a complete review.');
-    }
-    const linkedStats = await buildSuspectPairsIndexed(client, suspectUsers.map((u) => u.id), { withGroups: true });
+    // Q3: scoped discovery evaluates every in-scope user. The 5,000-row cap
+    // and its truncation warning are retired; evaluatedUsers is now the
+    // true in-scope count (it was previously min(scoped, 5000)).
+    const linkedStats = await buildSuspectPairsScoped(client, scope, analystIds, { withGroups: true });
+    const evaluatedUsers = await countScopedUsers(client, scope, analystIds);
     const rawPairs = linkedStats.pairs;
     // Decision 10: linear links (each member against its group reference).
     response.flaggedPairs = rawPairs.length;
@@ -1323,8 +1376,8 @@ exports.getStats = async (req, res) => {
     }
     const fraud = await getFraudCaseStats(client, analystIds);
     response.coverage = {
-      evaluatedUsers: suspectUsers.length,
-      unevaluatedUsers: Math.max(response.totalUsers - suspectUsers.length, 0),
+      evaluatedUsers: evaluatedUsers,
+      unevaluatedUsers: Math.max(response.totalUsers - evaluatedUsers, 0),
       totalPairs: response.flaggedPairs,
       openPairs,
       confirmedCases: fraud.resolved + pairReviewCounts.confirmed,
@@ -1341,7 +1394,7 @@ exports.getStats = async (req, res) => {
       sources: [
         {
           key: 'duplicate_detection',
-          evaluatedUsers: suspectUsers.length,
+          evaluatedUsers: evaluatedUsers,
           totalPairs: response.flaggedPairs,
           openPairs,
           asOf,
@@ -1602,3 +1655,5 @@ exports.reviewSuspectPair = async (req, res) => {
 
 // Test seam (decision 10).
 exports._buildSuspectPairsIndexed = buildSuspectPairsIndexed;
+exports._buildSuspectPairsScoped = buildSuspectPairsScoped;
+exports._oneTruthMaxPairs = oneTruthMaxPairs;

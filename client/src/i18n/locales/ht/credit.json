@@ -1860,6 +1860,15 @@
     "loadErrorTitle": "Nou pa ka chaje kat ou yo",
     "secretTitle": "Kredansyèl kat yon sèl fwa: li parèt kounye a sèlman",
     "secretDescription": "Mete l nan yon kote ki an sekirite. Li pap parèt ankò; si ou pèdi l, rapòte kat la pou jwenn yon ranplasman.",
+    "stepup": {
+      "title": "Konfime ak aplikasyon otantifikatè w la",
+      "body": "Antre kòd ki nan aplikasyon otantifikatè w la pou bay kat sa a.",
+      "codeLabel": "Kòd otantifikatè",
+      "cancel": "Anile",
+      "verify": "Konfime",
+      "issueFailed": "Pa t kapab kòmanse verifikasyon sekirite a. Eseye ankò.",
+      "codeRequired": "Antre kòd otantifikatè a pou kontinye."
+    },
     "addCard": "Ajoute yon kat",
     "issueNew": "Kreye yon nouvo kat",
     "issueDescription": "Kat vityèl la aktif touswit. Kat fizik la ale nan adrès ou epi ou aktive l ak yon kòd lè li rive.",

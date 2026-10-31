@@ -1,13 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
-const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
-const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { requireUserTotpStepUp } = require('../middleware/requireUserTotpStepUp');
-const { verifyStepupChallenge } = require('../services/stepupChallengeService');
-// advancedRateLimiter.js was removed during the audit remediation; strictLimiter
-// (10/hour, per-IP) is the remaining generic strict bucket for admin money moves.
-const { strictLimiter } = require('../middleware/rateLimiter');
 const PayoutController = require('../controllers/PayoutController');
 const AffiliateAnalyticsController = require('../controllers/AffiliateAnalyticsController');
 const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
@@ -28,38 +22,6 @@ router.delete('/payout-methods/:method_id', requireAuth, requireUserTotpStepUp, 
 router.get('/schedule', requireAuth, PayoutController.getPayouts);
 router.get('/:payout_id', requireAuth, PayoutController.getPayout);
 router.get('/stats/payout', requireAuth, PayoutController.getPayoutStats);
-
-// Process Payout (Admin Route)
-// C9: any authenticated user must NOT reach this. Admin plus the financials
-// grant (the catalogue scope that covers payouts), rate-limited, and the
-// controller itself refuses to run until a real money processor is wired.
-// Audit fix (auth finding 15): processing moves affiliate money on a single
-// admin's say-so. Impersonated sessions are blocked, and the acting admin
-// must prove a fresh step-up challenge before the controller touches the
-// processor. Pentest fix: the controller now runs the same dual-approval
-// gate as the newer /api/affiliate route, so above-threshold payouts queue
-// for a second admin instead of executing directly; below the threshold
-// the direct-execution semantics are unchanged.
-router.post(
-  '/:payout_id/process',
-  requireAdmin,
-  rejectImpersonated,
-  requirePermission('view_financials'),
-  strictLimiter,
-  async (req, res, next) => {
-    try {
-      await verifyStepupChallenge({
-        challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
-        actorUserId: req.user?.id || null,
-        actionType: 'affiliate_payout_process',
-        code: req.body?.stepupCode || req.body?.stepup_code,
-      });
-      return PayoutController.processPayout(req, res);
-    } catch (err) {
-      return next(err);
-    }
-  }
-);
 
 // Analytics Routes
 router.get('/:program_id/analytics/metrics', requireAuth, AffiliateAnalyticsController.getMetricsTimeSeries);

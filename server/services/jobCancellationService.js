@@ -36,7 +36,7 @@ const POST_ACCEPTANCE_STATUSES = ['accepted', 'in_progress'];
  * row rolls the whole cancellation back instead of leaving a cancelled job
  * with no audit trail.
  */
-async function writeAgentAudit(client, { adminId, jobId, job, beforeStatus, reason }) {
+async function writeAgentAudit(client, { adminId, jobId, job, beforeStatus, reason, req = null }) {
   await logAdminAction({
     client,
     adminId,
@@ -50,6 +50,7 @@ async function writeAgentAudit(client, { adminId, jobId, job, beforeStatus, reas
       assigned_helper_id: job.assigned_helper_id,
     },
     after: { status: 'cancelled' },
+    req,
   });
 }
 
@@ -60,7 +61,7 @@ async function writeAgentAudit(client, { adminId, jobId, job, beforeStatus, reas
  * Returns the same result shape the user-facing handler has always produced,
  * plus `type` ('pre_acceptance' | 'post_acceptance') and `before_status`.
  */
-async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason }) {
+async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason, req = null }) {
   return withJobTransaction(
     pool,
     async (client) => {
@@ -153,7 +154,7 @@ async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason
         });
 
         if (isAdmin) {
-          await writeAgentAudit(client, { adminId: actorId, jobId, job, beforeStatus, reason });
+          await writeAgentAudit(client, { adminId: actorId, jobId, job, beforeStatus, reason, req });
         }
 
         const { emitDomainEvent, jobEventProps } = require('../growth/emit');
@@ -285,8 +286,9 @@ async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason
         `INSERT INTO cancellation_audit_log (
           job_id, cancelled_by_id, cancelled_by_role, counterparty_id,
           fee_reason, fee_amount_cents, fee_status,
-          hours_before_start, cancellation_reason, payment_method, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+          hours_before_start, cancellation_reason, payment_method, created_at,
+          impersonated_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11)
         RETURNING id`,
         [
           jobId,
@@ -298,7 +300,10 @@ async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason
           feeToPay > 0 ? 'pending' : 'none',
           hoursBeforeStart,
           reason || null,
-          paymentMethod
+          paymentMethod,
+          // Service-layer request-context convention: the impersonating
+          // admin, or NULL for direct sessions and system cancellations.
+          req?.impersonatedBy || null
         ]
       );
 
@@ -329,7 +334,7 @@ async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason
       }
 
       if (isAdmin) {
-        await writeAgentAudit(client, { adminId: actorId, jobId, job, beforeStatus, reason });
+        await writeAgentAudit(client, { adminId: actorId, jobId, job, beforeStatus, reason, req });
       }
 
       const { emitDomainEvent, jobEventProps } = require('../growth/emit');

@@ -95,6 +95,7 @@ const REVIEWED = {
   'services/bookingSlotEngine.js': AGGREGATE_ONLY,
   // Careers facts are computed from one worker's own records (keyed by user_id) across stores.
   'services/careers/profileFacts.js': CUSTOMER_OR_SELF,
+  'services/cardStoreForward.js': SCOPED_CALLER,
   'services/chargebackEvidenceService.js': SYSTEM_JOB,
   'services/customer360Sources.js': CUSTOMER_OR_SELF,
   'services/foodAbandonedOrderSweeper.js': SYSTEM_JOB,

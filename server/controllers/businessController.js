@@ -301,14 +301,16 @@ async function addBusiness(req, res, next) {
       );
       await client.query(
         `INSERT INTO business_audit_log
-           (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state, metadata)
-         VALUES ($1,$2,'owner','business.created','business',$3,$4::jsonb,$5::jsonb)`,
+           (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state, metadata, impersonated_by)
+         VALUES ($1,$2,'owner','business.created','business',$3,$4::jsonb,$5::jsonb,$6)`,
         [
           createdBusiness.id,
           req.user.id,
           String(createdBusiness.id),
           JSON.stringify(createdBusiness),
           JSON.stringify({ source: 'business_setup_v2', idempotencyKey }),
+          // Audit fix, finding 35: stamp impersonated_by (NULL direct).
+          req.impersonatedBy || null,
         ]
       );
       await require('../growth/emit').emitDomainEvent(client, 'account.role_added', {
@@ -629,7 +631,7 @@ async function updateBusiness(req, res, next) {
  *
  * Returns { unpublished: boolean, missing: string[] }.
  */
-async function unpublishBusinessIfIncomplete(db, businessId, { actorUserId = null, actorRole = 'owner' } = {}) {
+async function unpublishBusinessIfIncomplete(db, businessId, { actorUserId = null, actorRole = 'owner', impersonatedBy = null } = {}) {
   const { rows: [biz] } = await db.query(
     'SELECT id, setup_status, user_id FROM businesses WHERE id = $1',
     [businessId]
@@ -653,9 +655,9 @@ async function unpublishBusinessIfIncomplete(db, businessId, { actorUserId = nul
   try {
     await db.query(
       `INSERT INTO business_audit_log
-         (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state)
-       VALUES ($1, $2, $3, 'business.auto_unpublished', 'business', $4, $5::jsonb)`,
-      [businessId, actorUserId, actorRole, String(businessId), JSON.stringify({ setup_status: updated.setup_status, is_listed: updated.is_listed, missing })]
+         (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state, impersonated_by)
+       VALUES ($1, $2, $3, 'business.auto_unpublished', 'business', $4, $5::jsonb, $6)`,
+      [businessId, actorUserId, actorRole, String(businessId), JSON.stringify({ setup_status: updated.setup_status, is_listed: updated.is_listed, missing }), impersonatedBy]
     );
   } catch (auditErr) {
     logger.error('business auto-unpublish audit failed', { businessId, error: auditErr.message });
@@ -827,9 +829,9 @@ async function completeBusinessOnboarding(req, res, next) {
       );
       await client.query(
         `INSERT INTO business_audit_log
-           (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state)
-         VALUES ($1,$2,'owner','business.published','business',$3,$4::jsonb)`,
-        [access.id, req.user.id, String(access.id), JSON.stringify(published)]
+           (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state, impersonated_by)
+         VALUES ($1,$2,'owner','business.published','business',$3,$4::jsonb,$5)`,
+        [access.id, req.user.id, String(access.id), JSON.stringify(published), req.impersonatedBy || null]
       );
       return { business: published };
     }, 'business_publish');
@@ -1026,7 +1028,19 @@ async function deleteBusiness(req, res, next) {
     if (!result.rows.length) {
       throw new AppError('Business not found or already deleted', 404, 'not_found');
     }
-    return res.json({ ok: true });
+    // Ledger-safe tombstone completion: suspend the business's restaurants
+    // so managed/direct paths keyed on restaurant_id stop treating them as
+    // usable. Public reads already hide tombstoned businesses; suspension is
+    // defense-in-depth and never touches ledger rows. Best-effort: the
+    // business tombstone above is the primary guarantee.
+    let suspendedRestaurants = [];
+    try {
+      const { suspendRestaurantsForBusiness } = require('../services/restaurantTombstoneService');
+      suspendedRestaurants = await suspendRestaurantsForBusiness(pool, id);
+    } catch (suspendErr) {
+      logger.error('deleteBusiness restaurant suspension failed', { businessId: id, error: suspendErr.message });
+    }
+    return res.json({ ok: true, suspendedRestaurants: suspendedRestaurants.length });
   } catch (err) {
     next(err);
   }

@@ -5,11 +5,10 @@ const { mockQuery, resetMocks } = require('./setup');
 jest.mock('../services/auditService', () => ({ logAdminAction: jest.fn().mockResolvedValue({}) }));
 
 const dualApproval = require('../services/dualApprovalService');
-const Payout = require('../controllers/PayoutController');
+const controller = require('../controllers/affiliatePayoutsController');
 
 beforeEach(() => {
   resetMocks();
-  process.env.PAYOUT_PROCESSOR_ENABLED = 'true';
   jest.spyOn(dualApproval, 'requestMoneyMovementApproval').mockResolvedValue({
     queued: true,
     approval: {
@@ -26,7 +25,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-test('legacy payout gate queues the payable net and binds the checker to it', async () => {
+test('payout gate queues the payable net and binds the checker to it', async () => {
   mockQuery.mockImplementation(async (sql) => {
     if (/SELECT ap\.\*/.test(sql)) {
       return {
@@ -43,12 +42,12 @@ test('legacy payout gate queues the payable net and binds the checker to it', as
     return { rows: [] };
   });
   const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
-  await Payout.processPayout({
+  await controller.processPayout({
     user: { id: 'admin' },
-    params: { payout_id: 9 },
+    params: { payoutId: 9 },
     get: () => 'synthetic-payout-key',
-    body: { payment_processor: 'stripe' },
-  }, res);
+    body: {},
+  }, res, jest.fn());
 
   expect(dualApproval.requestMoneyMovementApproval).toHaveBeenCalledWith(expect.objectContaining({
     movementType: 'affiliate_payout',

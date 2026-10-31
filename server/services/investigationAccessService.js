@@ -109,6 +109,9 @@ async function requestInvestigationAccess({
   investigationRef,
   expiresAt,
   grantScope,
+  // Audit fix, finding 35: threaded from the controller so impersonated
+  // investigation-access actions are stamped, not attributed to the victim.
+  req = null,
 }) {
   if (!requesterId || !approverId) {
     throw new InvestigationAccessError('Requester and approver are required.', 'missing_parties');
@@ -149,6 +152,7 @@ async function requestInvestigationAccess({
     targetKey: String(grant.id),
     description: `Requested investigation access: ${cleanPurpose.slice(0, 200)}`,
     after: { approver_admin_id: approverId, scope_user_ids: scopeUserIds, expires_at: expires.toISOString(), grant_scope: scope },
+    req,
   });
 
   logger.info('Investigation access requested', { grantId: grant.id, requesterId, approverId });
@@ -164,7 +168,7 @@ async function getGrant(grantId) {
  * Activate a pending grant. Only the named approver (or any super-admin)
  * may do this; the requester can never approve their own request.
  */
-async function approveInvestigationAccess({ grantId, approverId }) {
+async function approveInvestigationAccess({ grantId, approverId, req = null }) {
   const grant = await getGrant(grantId);
   if (!grant) throw new InvestigationAccessError('Grant not found.', 'grant_not_found', 404);
   if (grant.status !== 'pending') {
@@ -205,6 +209,7 @@ async function approveInvestigationAccess({ grantId, approverId }) {
     targetKey: String(grantId),
     description: `Approved investigation access for ${grant.requester_admin_id}: ${String(grant.purpose).slice(0, 200)}`,
     after: { status: 'active', expires_at: grant.expires_at },
+    req,
   });
 
   logger.info('Investigation access approved', { grantId, approverId });
@@ -215,7 +220,7 @@ async function approveInvestigationAccess({ grantId, approverId }) {
  * Revoke a grant early. The approver, a super-admin, or the requester
  * themselves may revoke.
  */
-async function revokeInvestigationAccess({ grantId, revokedBy, reason }) {
+async function revokeInvestigationAccess({ grantId, revokedBy, reason, req = null }) {
   const grant = await getGrant(grantId);
   if (!grant) throw new InvestigationAccessError('Grant not found.', 'grant_not_found', 404);
 
@@ -241,6 +246,7 @@ async function revokeInvestigationAccess({ grantId, revokedBy, reason }) {
     targetType: 'investigation_access_grant',
     targetKey: String(grantId),
     description: `Revoked investigation access grant #${grantId}${reason ? `: ${String(reason).slice(0, 200)}` : ''}`,
+    req,
   });
 
   return rows[0];

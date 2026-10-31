@@ -95,3 +95,21 @@ test.each(['en', 'es', 'fr', 'ht', 'ar'])(
     expect(rendered.subject).toBe(f.COPY[language][0]);
   },
 );
+
+test('render stamps a per-response CSP nonce on the style block only when given one', () => {
+  const base = {
+    language: 'en',
+    restaurantName: 'Demo',
+    code: 'ABCD2345EFGH6789',
+    currencyCode: 'USD',
+    amountCents: 1000,
+    message: 'Enjoy',
+  };
+  const without = f.render(base);
+  expect(without.html).toContain('<style>');
+  expect(without.html).not.toContain('nonce=');
+  const nonce = 'AbC123+/==';
+  const withNonce = f.render(base, { nonce });
+  expect(withNonce.html).toContain(`<style nonce="${nonce}">`);
+  expect(withNonce.html).not.toContain('unsafe-inline');
+});

@@ -35,6 +35,12 @@ const PIN_LOCKOUT_WINDOW_MINUTES = 15;
 const PIN_LOCKOUT_MAX_FAILURES = 5;
 const DEFAULT_SESSION_IDLE_MINUTES = 10;
 const DEFAULT_SESSION_MAX_HOURS = 12;
+// Auth-audit item 9 fallback: sessions with no device stay unbound by
+// design (see resolveStaffSession), so they get a shorter TTL than
+// device-bound sessions: 5 idle minutes and a 1-hour absolute cap,
+// capped below any restaurant-configured policy.
+const UNBOUND_SESSION_IDLE_MINUTES = 5;
+const UNBOUND_SESSION_MAX_HOURS = 1;
 const SESSION_ACTIVITY_SLIDE_SECONDS = 30;
 
 const POS_VOID_REASON_CODES = new Set([
@@ -139,6 +145,27 @@ async function recentPinFailures({ restaurantId, deviceId = null, staffPinId = n
   return Number(row?.failures || 0);
 }
 
+// Auth-audit item 13: a digest-miss on the device-less path records an
+// attempt with neither a device nor a PIN id, so neither the device nor
+// the PIN counter ever sees it. Count those blind guesses in a
+// per-restaurant bucket instead. There is no success-reset for this
+// bucket by construction: a successful validation always records its
+// PIN id, so a NULL/NULL success never exists; the window drain
+// releases the lock, exactly as a lockout lets its window drain.
+async function recentRestaurantDigestMissFailures({ restaurantId }) {
+  const { rows: [row] } = await pool.query(
+    `SELECT COUNT(*)::int AS failures
+       FROM restaurant_staff_pin_attempts
+      WHERE restaurant_id = $1
+        AND device_id IS NULL
+        AND staff_pin_id IS NULL
+        AND success = FALSE
+        AND created_at > NOW() - ($2 || ' minutes')::interval`,
+    [restaurantId, String(PIN_LOCKOUT_WINDOW_MINUTES)]
+  );
+  return Number(row?.failures || 0);
+}
+
 async function assertPinNotLocked({ restaurantId, deviceId = null, staffPinId = null }) {
   if (deviceId) {
     const deviceFailures = await recentPinFailures({ restaurantId, deviceId });
@@ -148,6 +175,20 @@ async function assertPinNotLocked({ restaurantId, deviceId = null, staffPinId = 
         429,
         'pin_locked',
         { scope: 'device', retryAfterMinutes: PIN_LOCKOUT_WINDOW_MINUTES }
+      );
+    }
+  }
+  if (!deviceId) {
+    // Auth-audit item 13: without a device there is no device scope to
+    // check, so the restaurant digest-miss bucket is the lockout for
+    // the device-less path. Same 5-failures/15-minutes shape.
+    const restaurantFailures = await recentRestaurantDigestMissFailures({ restaurantId });
+    if (restaurantFailures >= PIN_LOCKOUT_MAX_FAILURES) {
+      throw new AppError(
+        'Too many failed PIN attempts for this restaurant. PIN entry is locked for a few minutes.',
+        429,
+        'pin_locked',
+        { scope: 'restaurant', retryAfterMinutes: PIN_LOCKOUT_WINDOW_MINUTES }
       );
     }
   }
@@ -304,7 +345,17 @@ function sessionPolicyFromSettings(settings) {
 }
 
 async function createStaffSession({ restaurantId, deviceId = null, pinRow, createdByUserId = null, settings = null }) {
-  const { idleMinutes, maxHours } = sessionPolicyFromSettings(settings);
+  const policy = sessionPolicyFromSettings(settings);
+  // Auth-audit item 9: a NULL-device session is unbound (no device to
+  // scope it to), so it lives on the shorter TTL above instead of the
+  // restaurant policy. Activity still slides the idle expiry, and the
+  // absolute cap still binds, both read back from the stored metadata.
+  const idleMinutes = deviceId == null
+    ? Math.min(policy.idleMinutes, UNBOUND_SESSION_IDLE_MINUTES)
+    : policy.idleMinutes;
+  const maxHours = deviceId == null
+    ? Math.min(policy.maxHours, UNBOUND_SESSION_MAX_HOURS)
+    : policy.maxHours;
   const token = crypto.randomBytes(32).toString('base64url');
   const { rows: [session] } = await pool.query(
     `INSERT INTO restaurant_staff_sessions
@@ -349,9 +400,20 @@ function staffSessionTokenFromRequest(req) {
 // Auth-audit item 18: the session row records device_id at creation (the
 // paired POS appliance's id via req.restaurantDevice, or a body-supplied
 // id), so a session token issued on one POS device cannot be replayed from
-// another device in the same restaurant. Sessions issued on the
-// deviceId-less account-auth PIN path store device_id NULL and resolve as
-// before (NULL device_id is a wildcard), so that path keeps working.
+// another device in the same restaurant.
+//
+// Auth-audit item 9: sessions issued on the deviceId-less account-auth
+// PIN path store device_id NULL and still resolve unbound. Binding them
+// was rejected on inspection: the shared-terminal model issues a
+// cashier's session from a manager's account (manager validates the
+// cashier's PIN) and the cashier's own account then presents it, and a
+// manager may also check such a session's status, so binding to either
+// the issuing account (created_by) or the PIN owner (staff_user_id)
+// breaks tested flows. The exposure window is bounded instead by the
+// shorter TTL applied at creation (see createStaffSession): an unbound
+// token is useful for at most an hour, and only while actively used.
+// Every resolving request here is still account- or device-authenticated
+// by its route, so the token alone never grants access.
 async function resolveStaffSession(req, restaurantId) {
   const token = staffSessionTokenFromRequest(req);
   if (!token) return null;

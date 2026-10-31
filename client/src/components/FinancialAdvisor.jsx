@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getFinancialAdvice } from '../api/chat';
+import './FinancialAdvisor.css';
 
 /**
  * FinancialAdvisor - AI-powered personalized financial advice
@@ -247,11 +248,11 @@ export default function FinancialAdvisor({ isOpen, onClose }) {
           {loading && (
             <div style={{ display: 'flex', gap: 'var(--space-1)', alignItems: 'center' }}>
               <div style={{ color: 'var(--color-muted-text)' }}>
-                <span style={{ display: 'inline-block', animation: 'bounce 1.4s infinite' }}>●</span>
-                <span style={{ display: 'inline-block', animation: 'bounce 1.4s infinite 0.2s', marginLeft: '0.25rem' }}>
+                <span style={{ display: 'inline-block', animation: 'ox-fa-bounce 1.4s infinite' }}>●</span>
+                <span style={{ display: 'inline-block', animation: 'ox-fa-bounce 1.4s infinite 0.2s', marginLeft: '0.25rem' }}>
                   ●
                 </span>
-                <span style={{ display: 'inline-block', animation: 'bounce 1.4s infinite 0.4s', marginLeft: '0.25rem' }}>
+                <span style={{ display: 'inline-block', animation: 'ox-fa-bounce 1.4s infinite 0.4s', marginLeft: '0.25rem' }}>
                   ●
                 </span>
               </div>
@@ -349,18 +350,6 @@ export default function FinancialAdvisor({ isOpen, onClose }) {
         </div>
       </div>
 
-      <style>{`
-        @keyframes bounce {
-          0%, 80%, 100% {
-            opacity: 0.5;
-            transform: translateY(0);
-          }
-          40% {
-            opacity: 1;
-            transform: translateY(-4px);
-          }
-        }
-      `}</style>
     </div>
   );
 }

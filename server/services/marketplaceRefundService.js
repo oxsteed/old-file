@@ -199,6 +199,15 @@ async function settleRefund(reservation, providerRefund) {
         RETURNING *`,
       [reservation.order.id, fullRefund, refund.reason]
     );
+    if (fullRefund) {
+      // Decision Q3 (2026-10-31): a full refund landing after payout
+      // calculation but before transfer voids the claimed commission and
+      // adjusts the payout total, in this same transaction. Partial
+      // refunds never reach this branch; their commissions are handled by
+      // the pro-rate track, not voided in full.
+      const { voidClaimedCommissionsForRefund } = require('./affiliatePayoutVoidOnRefund');
+      await voidClaimedCommissionsForRefund(client, reservation.order.id);
+    }
     await client.query(
       `INSERT INTO order_action_log (order_id, action_type, action_details, performed_by)
        VALUES ($1, $2, $3, $4)`,

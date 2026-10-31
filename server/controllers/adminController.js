@@ -173,6 +173,7 @@ exports.reviewReport = async (req, res, next) => {
             actorId: adminId,
             actorKind: 'admin',
             reason: 'Removed by moderation',
+            req,
           });
         }
       }
@@ -532,16 +533,18 @@ exports.removeBid = async (req, res) => {
         return res.status(409).json({ error: 'Bid was already removed by another admin.', code: 'bid_remove_race' });
       }
 
-      // Log admin action
+      // Log admin action (audit fix, finding 35: stamp impersonated_by so
+      // an impersonated moderation action is not attributed to the victim
+      // alone; NULL for direct admin sessions).
       await client.query(`
-        INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, details, created_at)
-        VALUES ($1, 'bid_removed', 'bid', $2, $3, NOW())
+        INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, details, created_at, impersonated_by)
+        VALUES ($1, 'bid_removed', 'bid', $2, $3, NOW(), $4)
       `, [req.user.id, bidId, JSON.stringify({
         reason: reason.trim(),
         before_status: before[0].status,
         job_title: before[0].job_title,
         helper_id: before[0].helper_id
-      })]);
+      }), req.impersonatedBy || null]);
 
       await client.query('COMMIT');
 
@@ -594,16 +597,17 @@ exports.removeReview = async (req, res) => {
         throw new Error('Review visibility status changed during removal - already hidden by another admin');
       }
 
-      // Log admin action
+      // Log admin action (audit fix, finding 35: stamp impersonated_by;
+      // NULL for direct admin sessions).
       await client.query(`
-        INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, details, created_at)
-        VALUES ($1, 'review_hidden', 'review', $2, $3, NOW())
+        INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, details, created_at, impersonated_by)
+        VALUES ($1, 'review_hidden', 'review', $2, $3, NOW(), $4)
       `, [req.user.id, reviewId, JSON.stringify({
         reason: reason.trim(),
         rating: before[0].rating,
         job_title: before[0].job_title,
         reviewer_id: before[0].reviewer_id
-      })]);
+      }), req.impersonatedBy || null]);
 
       await client.query('COMMIT');
 
@@ -654,14 +658,15 @@ exports.restoreReview = async (req, res) => {
         throw new Error('Review visibility status changed during restoration - already restored by another admin');
       }
 
-      // Log admin action
+      // Log admin action (audit fix, finding 35: stamp impersonated_by;
+      // NULL for direct admin sessions).
       await client.query(`
-        INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, details, created_at)
-        VALUES ($1, 'review_restored', 'review', $2, $3, NOW())
+        INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, details, created_at, impersonated_by)
+        VALUES ($1, 'review_restored', 'review', $2, $3, NOW(), $4)
       `, [req.user.id, reviewId, JSON.stringify({
         rating: before[0].rating,
         reviewer_id: before[0].reviewer_id
-      })]);
+      }), req.impersonatedBy || null]);
 
       await client.query('COMMIT');
 

@@ -1860,6 +1860,15 @@
     "loadErrorTitle": "No se pueden cargar tus tarjetas",
     "secretTitle": "Credencial de tarjeta de un solo uso: solo se muestra ahora",
     "secretDescription": "Guárdala en un lugar seguro. No se puede volver a mostrar; si la pierdes, reporta la tarjeta para obtener un reemplazo.",
+    "stepup": {
+      "title": "Confirma con tu autenticador",
+      "body": "Escribe el código de tu aplicación de autenticación para emitir esta tarjeta.",
+      "codeLabel": "Código del autenticador",
+      "cancel": "Cancelar",
+      "verify": "Confirmar",
+      "issueFailed": "No se pudo iniciar la verificación de seguridad. Inténtalo de nuevo.",
+      "codeRequired": "Escribe el código del autenticador para continuar."
+    },
     "addCard": "Añadir una tarjeta",
     "issueNew": "Emitir una tarjeta nueva",
     "issueDescription": "La tarjeta virtual se activa de inmediato. La tarjeta física se envía a tu dirección y se activa con un código cuando llegue.",

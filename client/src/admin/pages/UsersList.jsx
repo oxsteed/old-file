@@ -177,6 +177,67 @@ function CreateUserModal({ onClose, onCreated }) {
 }
 
 // ---------------------------------------------------------------------------
+// TotpStepUpDialog — mirrors the UserDetail step-up prompt. Resolves with
+// the entered code, or null when cancelled.
+// ---------------------------------------------------------------------------
+function TotpStepUpDialog({ open, verifying, error, onSubmit, onCancel }) {
+  const { t } = useTranslation();
+  const [code, setCode] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      setCode('');
+      const id = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onCancel]);
+
+  if (!open) return null;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/50" onClick={onCancel} aria-hidden="true" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+          <form onSubmit={(e) => { e.preventDefault(); if (code.trim() && !verifying) onSubmit(code.trim()); }}>
+            <div className="px-6 py-5">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('adminUsers.list.resetStepupTitle')}</h3>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{t('adminUsers.list.resetStepupBody')}</p>
+              <label className="mt-4 block">
+                <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{t('adminUsers.list.resetStepupCode')}</span>
+                <input
+                  ref={inputRef}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  disabled={verifying}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2.5 font-mono text-sm text-gray-900 dark:text-white outline-none focus:border-orange-400"
+                />
+              </label>
+              {error && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 bg-gray-50 dark:bg-gray-900">
+              <button type="button" onClick={onCancel} disabled={verifying} className="rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('adminUsers.list.resetStepupCancel')}</button>
+              <button type="submit" disabled={verifying || !code.trim()} className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50">{t('adminUsers.list.resetStepupVerify')}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // ResetPasswordModal (super-admin only, used from quick-actions menu)
 // ---------------------------------------------------------------------------
 function ResetPasswordModal({ user, onClose }) {
@@ -185,18 +246,68 @@ function ResetPasswordModal({ user, onClose }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr]   = useState('');
+  const [stepUpOpen, setStepUpOpen] = useState(false);
+  const [stepUpVerifying, setStepUpVerifying] = useState(false);
+  const [stepUpError, setStepUpError] = useState('');
+  const stepUpResolverRef = useRef(null);
+  const promptStepUpCode = () => new Promise((resolve) => {
+    stepUpResolverRef.current = resolve;
+    setStepUpError('');
+    setStepUpOpen(true);
+  });
+  const closeStepUp = (result) => {
+    setStepUpOpen(false);
+    const resolve = stepUpResolverRef.current;
+    stepUpResolverRef.current = null;
+    if (resolve) resolve(result);
+  };
+  const submitStepUpCode = async (code) => {
+    setStepUpVerifying(true); setStepUpError('');
+    try {
+      await adminApi.post('/admin/super/stepup/verify', { code, purpose: 'super_admin_password_set' });
+      closeStepUp(code);
+    } catch (error) {
+      setStepUpError(error.response?.data?.error || t('adminUsers.list.resetStepupFailed'));
+    } finally { setStepUpVerifying(false); }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setBusy(true); setErr('');
     try {
-      await adminApi.post(`/admin/users/${user.id}/password`, { newPassword: pw });
-      setDone(true);
-    } catch (error) {
-      setErr(error.response?.data?.error || t('adminUsers.list.resetFailed'));
+      // Audit item 1: the password route requires a fresh
+      // 'super_admin_password_set' step-up; without it the call 401s.
+      // Prompt first, then post; a 401 fresh_auth_required re-prompts
+      // instead of failing silently. Cancelling the prompt abandons
+      // the reset.
+      const firstCode = await promptStepUpCode();
+      if (!firstCode) return;
+      for (;;) {
+        try {
+          await adminApi.post(`/admin/users/${user.id}/password`, { newPassword: pw });
+          setDone(true);
+          break;
+        } catch (error) {
+          if (error.response?.status === 401 && error.response?.data?.code === 'fresh_auth_required') {
+            const code = await promptStepUpCode();
+            if (!code) break;
+            continue;
+          }
+          setErr(error.response?.data?.error || t('adminUsers.list.resetFailed'));
+          break;
+        }
+      }
     } finally { setBusy(false); }
   };
 
   return (
+    <>
+    <TotpStepUpDialog
+      open={stepUpOpen}
+      verifying={stepUpVerifying}
+      error={stepUpError}
+      onSubmit={submitStepUpCode}
+      onCancel={() => closeStepUp(null)}
+    />
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={() => !busy && onClose()}>
       <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
@@ -237,6 +348,7 @@ function ResetPasswordModal({ user, onClose }) {
         )}
       </div>
     </div>
+    </>
   );
 }
 

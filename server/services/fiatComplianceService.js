@@ -88,6 +88,11 @@ async function writeComplianceAudit(client, {
  * @param {string} [args.actorUserId] - user performing the action (self for top-ups)
  * @param {string} [args.requestIp]
  * @param {string} [args.correlationId] - idempotency / trace id, recorded in audit
+ * @param {boolean} [args.skipIssuanceCapacity] - when true, skip step 3
+ *   (issuance capacity). Refund-only: a refund reduces outstanding credit,
+ *   so the capacity check runs the wrong way for refunds and would deny a
+ *   refund for a customer near a cap. Sanctions + identity-tier checks
+ *   still run, and the skip is recorded in the pass audit metadata.
  * @returns {Promise<{allowed: true, checkedAt: string}>}
  * @throws {AppError} 503 when the rail is suspended, 402/409/429 on limit breaches
  */
@@ -99,6 +104,7 @@ async function evaluateFundingCompliance({
   actorUserId = null,
   requestIp = null,
   correlationId = null,
+  skipIssuanceCapacity = false,
 }) {
   if (!customerId) {
     throw new AppError('Customer is required for fiat funding compliance', 400, 'fiat_compliance_customer_required');
@@ -132,7 +138,12 @@ async function evaluateFundingCompliance({
       const currency = assertSupportedCreditCurrency(currencyCode);
 
       // 3. Global + daily issuance capacity (same caps as admin loads).
-      await assertIssuanceCapacity(client, amount, currency, customerId);
+      // Skipped for refunds only (skipIssuanceCapacity): a refund reduces
+      // outstanding credit, so this check would deny refunds for customers
+      // near a cap. Sanctions + identity-tier checks below still run.
+      if (!skipIssuanceCapacity) {
+        await assertIssuanceCapacity(client, amount, currency, customerId);
+      }
 
       // 4. Identity verification tier (Phase 5): tier 0 = no fiat funding,
       //    tier 1 = per-transaction cap, tier 2 = rail ceiling.
@@ -169,7 +180,12 @@ async function evaluateFundingCompliance({
           identityTier: identity.tier,
           sanctionsCleared: sanctions.cleared,
         },
-        metadata: { fundingMethod: normalizedMethod, correlationId: correlationId || null, checkedAt },
+        metadata: {
+          fundingMethod: normalizedMethod,
+          correlationId: correlationId || null,
+          checkedAt,
+          ...(skipIssuanceCapacity ? { issuanceCapacitySkipped: true } : {}),
+        },
       });
 
       return { allowed: true, checkedAt, identityTier: identity.tier };

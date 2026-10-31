@@ -11,6 +11,7 @@ import {
   COUNTRIES_WITH_REGIONS,
   COUNTRY_CODES_SORTED,
 } from '../lib/countries';
+import './ConsultingIntakePage.css';
 
 // Phase data structure (names will be translated at runtime)
 const BUSINESS_PHASES = Array.from({ length: 25 }, (_, i) => ({
@@ -415,16 +416,6 @@ export default function ConsultingIntakePage() {
         url={`${window.location.origin}/consulting-intake`}
       />
 
-      <style>{`
-        .consulting-services-panel {
-          display: flex;
-          flex-direction: column;
-        }
-        @media (max-width: 900px) {
-          .consulting-services-panel { display: none !important; }
-          .consulting-form-panel { padding: 1.5rem 1rem !important; }
-        }
-      `}</style>
 
       <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
         {/* ── Split-screen wrapper ────────────────────────────────────────── */}

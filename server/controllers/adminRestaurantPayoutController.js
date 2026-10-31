@@ -30,17 +30,10 @@ exports.listQueue = async (req, res, next) => {
 
 exports.approve = async (req, res, next) => {
   try {
-    // ADM-113: single-admin approval moves arbitrary sums via Stripe
-    // Transfer; require a fresh step-up challenge.
-    await verifyStepupChallenge({
-      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
-      actorUserId: req.user?.id || null,
-      actionType: 'restaurant_payout_approve',
-      code: req.body?.stepupCode || req.body?.stepup_code,
-    });
     // ADM-016: above-threshold payouts queue for a second admin instead of
-    // moving money on this single approval. The amount is read here so the
-    // gate can decide before approvePayout journals anything.
+    // moving money on this single approval. The amount is read first so
+    // the gate can decide before approvePayout journals anything, and so
+    // the step-up challenge can be bound to it (auth audit item 6).
     const { rows: amountRows } = await db.query(
       'SELECT amount_cents, currency_code FROM restaurant_payouts WHERE id = $1',
       [req.params.payoutId]
@@ -48,6 +41,18 @@ exports.approve = async (req, res, next) => {
     if (!amountRows.length) {
       throw new AppError('Payout not found', 404, 'payout_not_found');
     }
+    // ADM-113: single-admin approval moves arbitrary sums via Stripe
+    // Transfer; require a fresh step-up challenge, bound to this payout's
+    // amount so a challenge issued for one payout cannot approve another.
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'restaurant_payout_approve',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+      ...(Number.isSafeInteger(Number(amountRows[0].amount_cents)) && Number(amountRows[0].amount_cents) > 0
+        ? { expectedAmountCents: Number(amountRows[0].amount_cents) }
+        : {}),
+    });
     const { requestMoneyMovementApproval } = require('../services/dualApprovalService');
     const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
     const reviewNote = req.body.reviewNote || req.body.review_note;
@@ -88,12 +93,26 @@ exports.issueApproveStepupChallenge = async (req, res, next) => {
   try {
     const adminId = req.user?.id;
     if (!adminId) throw new AppError('Unauthorized.', 401, 'unauthorized');
+    // Auth audit item 6: issue for the payout's real amount, not 1. The
+    // body carries payoutId; a missing id or row fails closed so a
+    // challenge can never be issued without a payout to bind it to.
+    const payoutId = req.body?.payoutId || req.body?.payout_id;
+    if (!payoutId) throw new AppError('Payout id is required.', 400, 'payout_id_required');
+    const { rows: payoutRows } = await db.query(
+      'SELECT amount_cents, currency_code FROM restaurant_payouts WHERE id = $1',
+      [payoutId]
+    );
+    if (!payoutRows.length) throw new AppError('Payout not found', 404, 'payout_not_found');
+    const issueAmount = Number(payoutRows[0].amount_cents);
+    if (!Number.isSafeInteger(issueAmount) || issueAmount <= 0) {
+      throw new AppError('Payout has no amount to bind the challenge to.', 409, 'payout_amount_invalid');
+    }
     const { challenge, delivery } = await issueStepupChallenge({
       actorUserId: adminId,
       actorEmail: req.user?.email,
       actionType: 'restaurant_payout_approve',
-      amountCents: 1,
-      currencyCode: 'USD',
+      amountCents: issueAmount,
+      currencyCode: payoutRows[0].currency_code || 'USD',
     });
     res.status(201).json({
       challenge: {

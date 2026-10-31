@@ -94,6 +94,11 @@ exports.cancelJobAsAgent = async (req, res, next) => {
     // cancellation fee from the customer, so they need a fresh step-up
     // challenge. Pre-acceptance cancels never charge a fee and keep the
     // session-only gate.
+    // Auth audit item 6, intentionally unbound: the cancellation fee is
+    // computed inside cancelJobTransaction; there is no pre-computable
+    // authoritative figure, and pre-computing at verify time would
+    // duplicate logic that could drift from the fee actually charged.
+    // The issue side keeps its non-amount challenge (amountCents: 1).
     if (!PRE_ACCEPTANCE_STATUSES.includes(existing[0].status)) {
       await verifyStepupChallenge({
         challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
@@ -105,7 +110,7 @@ exports.cancelJobAsAgent = async (req, res, next) => {
 
     let result;
     try {
-      result = await cancelJobTransaction({ jobId, actorId: adminId, actorKind: 'admin', reason });
+      result = await cancelJobTransaction({ jobId, actorId: adminId, actorKind: 'admin', reason, req });
     } catch (err) {
       // Race-safe idempotency: a concurrent agent (or the user) may have won
       // the row between our fast-path check and the guarded UPDATE. Re-check

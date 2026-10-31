@@ -61,6 +61,7 @@ exports.reviewApprovalCtrl = async (req, res) => {
       reviewerId: req.user.id,
       decision,
       note,
+      req,
     });
     return res.json(result);
   } catch (err) {

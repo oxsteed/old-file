@@ -206,7 +206,8 @@ async function requestCashout({ user, amountMinor, destinationId, idempotencyKey
   const pre = await getEligibility(pool, user.id);
   if (pre.currency && amount >= Number(pre.stepup_from_minor)) {
     const { verifyStepupChallenge } = require('./stepupChallengeService');
-    await verifyStepupChallenge({ challengeId: stepupChallengeId, actorUserId: user.id, actionType: 'helper_cashout', code: stepupCode });
+    // Auth audit item 6: bind to the cash-out amount being requested.
+    await verifyStepupChallenge({ challengeId: stepupChallengeId, actorUserId: user.id, actionType: 'helper_cashout', code: stepupCode, expectedAmountCents: amount });
   }
 
   const result = await withTransaction(pool, async (client) => {

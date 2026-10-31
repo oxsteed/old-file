@@ -13,6 +13,7 @@ const db = require('../db');
 const { challengeFromResponse } = require('../utils/webauthnChallenge');
 const logger = require('../utils/logger');
 const { generateTokens } = require('../middleware/auth');
+const { issueSessionCsrf } = require('../middleware/csrf');
 const { logAdminAction } = require('../services/auditService');
 
 const RP_NAME = 'OxSteed Admin';
@@ -213,12 +214,13 @@ async function issueAdminSession(admin, req, res) {
   const tokens = generateTokens(admin, { authMethod: 'passkey' });
   const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
   const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
-  await db.query(`INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')`, [admin.id, hashedRefresh, accessHash]);
+  await db.query(`INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', $4)`, [admin.id, hashedRefresh, accessHash, tokens.sid]);
   await db.query(`UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE id = $2`, [req.ip || null, admin.id]).catch(() => {});
   await db.query(`INSERT INTO user_login_history (user_id, ip_address, user_agent, success) VALUES ($1, $2, $3, TRUE)`, [admin.id, req.ip || null, req.headers['user-agent'] || null]).catch(() => {});
   // Web sessions authenticate via httpOnly cookies (the client no longer
   // stores the access token); JSON tokens are kept for native clients.
   setSessionCookies(res, tokens);
+  await issueSessionCsrf(res, admin.id, tokens.sid);
   return res.json({ success: true, user: admin, ...bodyTokens(req, tokens) });
 }
 
