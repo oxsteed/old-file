@@ -15,7 +15,9 @@ const valid = { email: 'synthetic@example.test', password: 'Synthetic1', firstNa
 function response() { const res = { statusCode: 200, cookie: jest.fn() }; res.status = jest.fn(code => { res.statusCode = code; return res; }); res.json = jest.fn(body => { res.body = body; return res; }); return res; }
 async function call(method, body) { const res = response(); await controller[method]({ body, headers: {}, ip: '127.0.0.1' }, res); return res; }
 function pending(extra = {}) { return { id: 1, email: valid.email, expires_at: future(1800000), otp_expires_at: future(900000), otp_attempts: 0,
-  otp_code: crypto.createHash('sha256').update('123456').digest('hex'), ...extra }; }
+  // Pentest fix: authController now HMACs OTPs with OTP_HMAC_SECRET (falling
+  // back to JWT_SECRET), so the mock must store the HMAC, not unsalted SHA-256.
+  otp_code: crypto.createHmac('sha256', process.env.OTP_HMAC_SECRET || process.env.JWT_SECRET).update('123456').digest('hex'), ...extra }; }
 beforeEach(() => { resetMocks(); hash.mockResolvedValue('synthetic-hash'); sendOTPEmail.mockClear(); });
 
 describe('new registration validation', () => {
@@ -58,9 +60,15 @@ describe('new registration validation', () => {
   test.each(['1234567', '+123456789012', '937abc5550100', '++19375550100'])('rejects invalid US phone %s as a field error', async phone => {
     const res = await call('startRegistration', { ...valid, phone }); expect(res.statusCode).toBe(400); expect(res.body.fields.phone).toBeTruthy();
   });
-  test('duplicate email retains 409 and recovery-safe error', async () => {
+  test('duplicate email returns a generic success-shaped response (no enumeration oracle)', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] }); const res = await call('startRegistration', valid);
-    expect(res.statusCode).toBe(409); expect(res.body.error).toMatch(/already registered/);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.token).toBeTruthy();
+    expect(res.body.message).toBe('Basic info validated');
+    expect(res.body.registrationExpiresAt).toBeTruthy();
+    // No pending registration is created for an existing email: the only
+    // query is the existence check.
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });
 describe('verification metadata and recovery', () => {

@@ -82,6 +82,11 @@ function fakeServiceWorkerEnv({ marker = null, pathname = '/' } = {}) {
     location: { origin: 'https://oxsteed.com', pathname, reload: () => { reloads += 1; } },
     addEventListener: (type, fn) => { (listeners[type] ||= []).push(fn); },
     removeEventListener: (type, fn) => { listeners[type] = (listeners[type] || []).filter((f) => f !== fn); },
+    sessionStorage: {
+      getItem: (k) => store.get(k) ?? null,
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    },
   });
   define('document', fakeDocument(routes.home));
   define('sessionStorage', { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) });
@@ -157,6 +162,20 @@ test('a waiting worker found on a fresh, untouched load is applied silently once
     assert.equal(env.store.get('oxsteed:sw-silent-update'), env.worker.scriptURL);
     env.controllerChange();
     assert.equal(env.reloads(), 1);
+  } finally { env.restore(); }
+});
+
+test('a document that just reloaded shows the notice instead of reloading again', async () => {
+  const env = fakeServiceWorkerEnv();
+  env.store.set('oxsteed:app-reload-transition', String(Date.now()));
+  try {
+    const mod = await freshModule();
+    mod.subscribeWorkerUpdate((w) => env.announced.push(w));
+    mod.registerServiceWorker();
+    await settle();
+    assert.deepEqual(env.posted, []);
+    assert.deepEqual(env.announced, [env.worker]);
+    assert.equal(env.reloads(), 0);
   } finally { env.restore(); }
 });
 

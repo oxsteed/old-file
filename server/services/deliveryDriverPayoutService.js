@@ -88,6 +88,14 @@ async function markPayoutPaid(client, payoutId, payerUserId, paymentReference, n
     if (payout.payment_reference !== reference) fail('Payout already recorded with a different reference');
     return payout;
   }
+  // Pentest fix (separation of duties): the operator who approved a
+  // payout must not be the one who marks it paid. Approved status is only
+  // reachable through approvePayout, which always records the approver, so
+  // a null approver (legacy rows only) cannot be checked and is allowed.
+  if (payout.approved_by_user_id != null
+    && String(payout.approved_by_user_id) === String(payerUserId)) {
+    fail('The approving operator cannot also mark this payout paid', 'driver_payout_self_mark_paid', 403);
+  }
   const { rows: [updated] } = await client.query(
     `UPDATE delivery_driver_payouts
         SET status = 'paid',

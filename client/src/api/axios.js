@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getCsrfToken } from './csrfToken';
 import { existingPromotionVisitorId, isPromotionConversionRequest } from '../utils/promotionVisitor';
 import { currentAuthEpoch, advanceAuthEpoch, assertCurrentAuthEpoch, startsAuthSessionTransition } from './authSessionEpoch';
 
@@ -78,6 +79,17 @@ api.interceptors.request.use((config) => {
   if (isPromotionConversionRequest(config)) {
     const promoVisitor = existingPromotionVisitorId();
     if (promoVisitor) config.headers['X-Promo-Visitor'] = promoVisitor;
+  }
+
+  // Pentest fix: CSRF tokens for cookie sessions. The server issues the
+  // token in the X-CSRF-Token response header and validates it on
+  // state-changing requests. Attach it whenever one has been captured;
+  // requests sent before any authenticated response simply omit it, and
+  // the server skips validation only when no valid session exists.
+  const method = (config.method || 'get').toLowerCase();
+  if (method === 'post' || method === 'put' || method === 'patch' || method === 'delete') {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) config.headers['X-CSRF-Token'] = csrfToken;
   }
 
   return config;

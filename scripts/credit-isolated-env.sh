@@ -39,6 +39,7 @@ CREDIT_TEST_DB_PASSWORD=$(openssl rand -hex 24)
 CREDIT_TEST_JWT_SECRET=$(openssl rand -hex 32)
 CREDIT_TEST_ENCRYPTION_KEY=$(openssl rand -hex 32)
 CREDIT_TEST_LEDGER_SECRET=$(openssl rand -hex 32)
+CREDIT_TEST_SIGNED_URL_SECRET=$(openssl rand -hex 32)
 EOF
   chmod 600 "$STATE_FILE"
 }

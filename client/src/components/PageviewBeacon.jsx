@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
+import { getCsrfToken } from '../api/csrfToken';
 
 // In-house visitor analytics beacon. Sends one fire-and-forget pageview per
 // client-side navigation to POST /api/analytics/pageview. Uses a keepalive
@@ -23,7 +24,10 @@ export default function PageviewBeacon() {
     lastSent.current = path;
     try {
       // Auth via the httpOnly cookie (credentials: same-origin below).
-      const headers = { 'Content-Type': 'application/json' };
+      // Pentest fix: this raw fetch bypasses the shared axios instance,
+      // so it attaches the CSRF token itself for cookie sessions.
+      const csrfToken = getCsrfToken();
+      const headers = { 'Content-Type': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) };
       fetch('/api/analytics/pageview', {
         method: 'POST',
         headers,

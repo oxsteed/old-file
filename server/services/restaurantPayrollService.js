@@ -32,6 +32,9 @@
  */
 
 const pool = require('../db');
+// Shared CSV cell sanitizer (ADM-152): neutralizes formula injection
+// (leading =, +, -, @) on top of RFC 4180 quoting.
+const { csvCell } = require('../utils/csv');
 
 function storeFilter(locationIds, column, parameter) {
   return locationIds === null ? '' : ` AND ${column} = ANY($${parameter}::bigint[])`;
@@ -837,12 +840,6 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
   };
 }
 
-function csvEscape(value) {
-  const s = value == null ? '' : String(value);
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
 function buildPayrollCsv(labor) {
   const header = [
     'employee', 'user_id', 'job_role', 'hours', 'regular_hours', 'overtime_hours', 'scheduled_hours',
@@ -873,7 +870,7 @@ function buildPayrollCsv(labor) {
       labor.currency,
       labor.from_date,
       labor.to_date,
-    ].map(csvEscape).join(','));
+    ].map(csvCell).join(','));
   }
   return lines.join('\n') + '\n';
 }

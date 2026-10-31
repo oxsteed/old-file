@@ -1,4 +1,4 @@
-import { appUpdatesDeferred, markDocumentLeaving, isSilentUpdateSensitivePath, isUpdateSensitivePath } from './appUpdateSafety.js';
+import { appUpdatesDeferred, markDocumentLeaving, recentDocumentReload, isSilentUpdateSensitivePath, isUpdateSensitivePath } from './appUpdateSafety.js';
 
 function reloadDocument() {
   markDocumentLeaving();
@@ -83,7 +83,10 @@ function writeSilentUpdateMarker(value) {
 
 function trySilentUpdate(worker) {
   if (appUpdatesDeferred() || isSilentUpdateSensitivePath(window.location.pathname)) return false;
-  if (pageInteracted || Date.now() > silentUpdateDeadline) return false;
+  // Explicit refresh and chunk recovery already reloaded this tab. A waiting
+  // worker can still be visible while activation catches up; reloading again
+  // races the next navigation, so show the notice instead.
+  if (pageInteracted || Date.now() > silentUpdateDeadline || recentDocumentReload()) return false;
   const id = worker.scriptURL || 'waiting';
   // One silent attempt per worker per tab session: if the reload comes back
   // to the same waiting worker, fall back to the visible notice (no loops).

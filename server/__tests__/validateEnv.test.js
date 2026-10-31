@@ -23,6 +23,7 @@ test('reports the exact Stripe configuration names consumed by enabled workflows
       STRIPE_SECRET_KEY: 'sk_test_environment_validation',
       STRIPE_WEBHOOK_SECRET: 'whsec_environment_validation',
       ENCRYPTION_KEY: 'b'.repeat(64),
+      SIGNED_URL_SECRET: 'test-only-signed-url-secret-0123456789',
     };
     logger.warn.mockClear();
     validateEnv();
@@ -77,7 +78,22 @@ test('accepts non-placeholder production credentials', () => {
     STRIPE_WEBHOOK_SECRET: 'whsec_live_example',
     ENCRYPTION_KEY: 'b'.repeat(64),
     OXSTEED_CREDIT_LEDGER_HMAC_SECRET: 'c'.repeat(64),
+    SIGNED_URL_SECRET: 'd'.repeat(64),
 })).toEqual([]);
+});
+
+test('requires the dedicated signed-URL secret in production', () => {
+  const errors = getProductionConfigurationErrors({
+    NODE_ENV: 'production',
+    JWT_SECRET: 'a'.repeat(64),
+    DATABASE_URL: 'postgresql://user:strong-random-password@postgres/db',
+    STRIPE_SECRET_KEY: 'sk_live_example',
+    STRIPE_WEBHOOK_SECRET: 'whsec_live_example',
+    ENCRYPTION_KEY: 'b'.repeat(64),
+    OXSTEED_CREDIT_LEDGER_HMAC_SECRET: 'c'.repeat(64),
+  });
+
+  expect(errors).toContain('SIGNED_URL_SECRET is required in production');
 });
 
 test('requires the dedicated Credit ledger secret in production', () => {

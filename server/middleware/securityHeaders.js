@@ -11,6 +11,38 @@ const SCRIPT_SOURCES = [
 ];
 const AWS_LOCATION_REGION = process.env.AWS_REGION || 'us-east-1';
 
+function imageSourceList(env = process.env) {
+  const region = /^[a-z0-9-]+$/.test(String(env.AWS_REGION || ''))
+    ? String(env.AWS_REGION)
+    : 'us-east-1';
+  const sources = [
+    "'self'",
+    'data:',
+    'blob:',
+    `https://tiles.geo.${region}.amazonaws.com`,
+    `https://maps.geo.${region}.amazonaws.com`,
+    'https://images.unsplash.com',
+  ];
+  const bucket = String(env.AWS_S3_BUCKET || env.S3_BUCKET || '').trim();
+  if (/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket)) {
+    sources.push(
+      `https://${bucket}.s3.${region}.amazonaws.com`,
+      `https://${bucket}.s3.amazonaws.com`,
+      `https://${bucket}.s3-${region}.amazonaws.com`,
+    );
+  }
+  const publicBase = String(env.S3_PUBLIC_BASE_URL || '').trim();
+  if (publicBase) {
+    try {
+      const url = new URL(publicBase);
+      if (url.protocol === 'https:' && url.hostname) sources.push(url.origin);
+    } catch {
+      // An unparsable public base does not widen img-src.
+    }
+  }
+  return [...new Set(sources)];
+}
+
 /**
  * Security headers middleware using Helmet.js.
  * Configures CSP, HSTS, X-Frame-Options, and other security headers
@@ -28,8 +60,16 @@ const securityHeaders = helmet({
       scriptSrc: SCRIPT_SOURCES,
       scriptSrcElem: SCRIPT_SOURCES,
       workerSrc: ["'self'", 'blob:'],
+      // NOTE: styleSrc still carries 'unsafe-inline' (see report: 5,192
+      // style={ occurrences across 253 client files plus 7 <style> tags, and
+      // no per-response nonce infrastructure for the static SPA build, so a
+      // nonce/hash migration is a broad UI change, not a safe hardening
+      // edit). imgSrc drops the 'https:' wildcard. Retained hosts are
+      // same-origin media, data: and blob: URLs, AWS Location map tiles,
+      // the Unsplash sample gallery, and, when configured, this app's S3
+      // bucket plus the https origin of S3_PUBLIC_BASE_URL.
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
+      imgSrc: imageSourceList(),
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       connectSrc: [
         "'self'",
@@ -83,3 +123,4 @@ const securityHeaders = helmet({
 });
 
 module.exports = securityHeaders;
+module.exports.imageSourceList = imageSourceList;

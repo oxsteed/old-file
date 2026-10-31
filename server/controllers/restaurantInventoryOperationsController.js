@@ -16,6 +16,9 @@ const SUPPLIER_STATUSES = new Set(['active', 'inactive', 'issue_reported']);
 const TRANSFER_STATUSES = new Set(['pending', 'completed', 'cancelled']);
 const INVOICE_MATCH_STATUSES = new Set(['unmatched', 'matched', 'exception']);
 const { inventoryId: positiveInt, foodCostRange } = require('../services/restaurantInventoryValidation');
+// Shared CSV cell sanitizer (ADM-152): neutralizes formula injection
+// (leading =, +, -, @) on top of RFC 4180 quoting.
+const { csvCell } = require('../utils/csv');
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function text(value, max = 255) {
@@ -24,12 +27,7 @@ function text(value, max = 255) {
   return normalized ? normalized.slice(0, max) : null;
 }
 
-function csvCell(value) {
-  const normalized = value === undefined || value === null ? '' : String(value);
-  return /[",\r\n]/.test(normalized)
-    ? `"${normalized.replaceAll('"', '""')}"`
-    : normalized;
-}
+
 
 function quantity(value, field = 'quantity') {
   const number = Number(value);

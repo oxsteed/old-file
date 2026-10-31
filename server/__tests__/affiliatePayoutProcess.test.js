@@ -9,7 +9,7 @@ jest.mock('stripe', () => () => ({ transfers: mockTransfers }));
 jest.mock('../services/auditService', () => ({ logAdminAction: jest.fn().mockResolvedValue({}) }));
 jest.mock('../services/sanctionsScreeningService', () => ({ assertSanctionsClear: jest.fn().mockResolvedValue({ cleared: false }) }));
 
-const { processPayout } = require('../controllers/affiliatePayoutsController');
+const { processPayout, runAffiliatePayout } = require('../controllers/affiliatePayoutsController');
 
 function route(handlers) {
   mockQuery.mockImplementation(async (sql, params) => {
@@ -96,6 +96,56 @@ test('the payout entry fails closed when the credit rail is off', async () => {
   const next = jest.fn();
   await processPayout({ user: { id: 'admin' }, params: { payoutId: 7 } }, { json: jest.fn() }, next);
   expect(next.mock.calls[0][0].code).toBe('credit_rail_suspended');
+  expect(mockTransfers.create).not.toHaveBeenCalled();
+});
+
+const netPayout = {
+  id: 7,
+  affiliate_program_id: 3,
+  owner_id: 'owner',
+  status: 'pending',
+  total_commission_cents: 1500,
+  processor_fee_cents: 100,
+  net_payout_cents: 1400,
+};
+
+function routeNet(extra = []) {
+  route([
+    [/FROM affiliate_payouts ap\s+JOIN affiliate_programs/, { rows: [netPayout] }],
+    base[1],
+    base[2],
+    [/SET status = 'processing'/, { rows: [{ ...netPayout, status: 'processing' }] }],
+    [/SET status = 'completed'/, { rows: [{ id: 7, status: 'completed' }] }],
+    base[4],
+    base[5],
+    ...extra,
+  ]);
+}
+
+test('transfers the payable net when it differs from gross commission', async () => {
+  routeNet();
+  mockTransfers.create.mockResolvedValue({ id: 'tr_net' });
+  const updated = await runAffiliatePayout({
+    payoutId: 7,
+    adminId: 'checker',
+    skipDualApproval: true,
+    expectedAmountCents: 1400,
+  });
+  expect(updated).toEqual({ id: 7, status: 'completed' });
+  expect(mockTransfers.create).toHaveBeenCalledWith(
+    expect.objectContaining({ amount: 1400, destination: 'acct_owner' }),
+    { idempotencyKey: 'affiliate-payout:7' },
+  );
+});
+
+test('checker rejects a queued amount that is no longer the payable net', async () => {
+  routeNet();
+  await expect(runAffiliatePayout({
+    payoutId: 7,
+    adminId: 'checker',
+    skipDualApproval: true,
+    expectedAmountCents: 1500,
+  })).rejects.toMatchObject({ code: 'affiliate_payout_state_changed', statusCode: 409 });
   expect(mockTransfers.create).not.toHaveBeenCalled();
 });
 

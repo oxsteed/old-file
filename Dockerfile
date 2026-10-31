@@ -1,6 +1,6 @@
 # Multi-stage production build for OxSteed (Node.js + React SPA)
 # Stage 1: Resolve one release identity for both browser and server artifacts.
-FROM node:22-alpine AS release-meta
+FROM node:22.23.4-alpine AS release-meta
 WORKDIR /source
 COPY . .
 ARG SENTRY_RELEASE
@@ -10,7 +10,7 @@ ARG GIT_SHA
 RUN node scripts/build-release-metadata.cjs
 
 # Stage 2: Build client (Vite)
-FROM node:22-alpine AS client-build
+FROM node:22.23.4-alpine AS client-build
 WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
@@ -36,7 +36,7 @@ RUN release="$(cat /tmp/oxsteed-release)"; \
     SENTRY_RELEASE="$release" VITE_SENTRY_RELEASE="$release" VITE_APP_VERSION="$release" npm run build
 
 # Stage 3: Build and run server + client
-FROM node:22-alpine
+FROM node:22.23.4-alpine
 LABEL maintainer="OxSteed Team"
 ARG SENTRY_RELEASE
 ARG COMMIT_SHA

@@ -2,6 +2,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { logAdminAction, logUserAction } = require('../services/auditService');
+const { affiliatePayableCents } = require('../utils/affiliatePayableCents');
 
 // C9: Idempotency-Key must be caller-supplied, URL-safe, and bounded.
 function normalizeIdempotencyKey(value) {
@@ -469,13 +470,15 @@ class PayoutController {
         await client.query('BEGIN');
 
         // C9 idempotency: a replayed key returns the original result without
-        // touching money movement again.
+        // touching money movement again. The lookup is scoped to this
+        // payout: reusing a key on a different payout must not report the
+        // first payout's transaction as the second payout's success.
         const { rows: [existingTxn] } = await client.query(
           `SELECT pt.*, ap.status AS payout_status
              FROM payout_transactions pt
              JOIN affiliate_payouts ap ON ap.id = pt.payout_id
-            WHERE pt.idempotency_key = $1`,
-          [idempotencyKey]
+            WHERE pt.idempotency_key = $1 AND pt.payout_id = $2`,
+          [idempotencyKey, payout_id]
         );
         if (existingTxn) {
           await client.query('ROLLBACK');
@@ -508,6 +511,29 @@ class PayoutController {
         if (payout.status !== 'pending') {
           await client.query('ROLLBACK');
           return sendError(res, 409, 'Payout is not pending');
+        }
+
+        // Pentest fix: the legacy direct-execution route must honor the
+        // same dual-approval gate as the newer affiliate route. Above the
+        // threshold the payout queues for a second admin (the checker
+        // executes via the affiliate_payout executor); below it, execution
+        // proceeds here as before. The gate amount is the payable net, and
+        // expectedAmountCents binds the checker to that same figure.
+        const { requestMoneyMovementApproval } = require('../services/dualApprovalService');
+        const amountCents = affiliatePayableCents(payout);
+        const gate = await requestMoneyMovementApproval({
+          movementType: 'affiliate_payout',
+          referenceKey: `affiliate-payout:${payout_id}`,
+          amountCents,
+          currencyCode: 'USD',
+          requestedBy: req.user?.id || null,
+          idempotencyKey,
+          payload: { payoutId: payout_id, makerAdminId: req.user?.id || null, expectedAmountCents: amountCents },
+        });
+        if (gate.queued) {
+          await client.query('ROLLBACK');
+          const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
+          return sendMoneyMovementGateResult(res, gate);
         }
 
         // Lock and re-read the processor-backed method before claiming money.
@@ -639,7 +665,7 @@ async function sendAffiliatePayoutTransfer(payout, processor) {
   if (!['verified', 'active'].includes(String(payout.payout_method_status || ''))) {
     throw payoutError('The payout method is not verified.', 409);
   }
-  const amountCents = Number(payout.net_payout_cents ?? (Number(payout.total_commission_cents || 0) - Number(payout.processor_fee_cents || 0)));
+  const amountCents = affiliatePayableCents(payout);
   if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
     throw payoutError('The payout amount is not valid.', 422);
   }

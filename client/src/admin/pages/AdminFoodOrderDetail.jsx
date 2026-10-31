@@ -2,7 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { getCsrfToken } from '../../api/csrfToken';
 import { collectAdminActionStepup } from '../lib/adminActionStepup';
+
+// Pentest fix: this page posts through raw axios, bypassing the shared
+// instance's CSRF interceptor, so mutations attach the token themselves
+// for cookie sessions.
+function csrfHeaders() {
+  const token = getCsrfToken();
+  return token ? { 'X-CSRF-Token': token } : {};
+}
 import {
   AlertTriangle,
   ArrowLeft,
@@ -195,7 +204,7 @@ export default function AdminFoodOrderDetail() {
         ...stepup,
         amount_cents: refundAmount.trim() ? amount : undefined,
         reason: refundReason.trim(),
-      });
+      }, { headers: csrfHeaders() });
       setNotice(data?.code === 'money_movement_pending_approval' ? t('adminOpsAudit.refundQueued') : t('adminOpsAudit.refundDone'));
       setRefundAmount('');
       setRefundReason('');

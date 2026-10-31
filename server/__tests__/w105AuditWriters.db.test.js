@@ -55,12 +55,23 @@ describeDatabase('W10.5 audit writers on migrated PostgreSQL', () => {
         VALUES ($1, '2026-01-01', '2026-02-01', 1234, 1, 1234, $2) RETURNING id`, [program.id, method.id]);
       // Give the actual controller a savepoint inside this disposable fixture's
       // transaction so its commit/rollback behavior leaves no durable test data.
-      jest.spyOn(pool, 'connect').mockResolvedValue({ release() {}, query(sql, values) {
+      // The fake client must speak both styles pg-pool uses: promise-style
+      // query (the controller's awaited calls) and callback-style query plus
+      // once/removeListener (pool.query, which the dual-approval gate's
+      // settings read uses). A promise-only mock hangs pool.query forever:
+      // pg-pool waits for a callback the mock never invokes.
+      const fakeClient = { release() {}, once() {}, removeListener() {}, query(sql, values, cb) {
         const translated = sql === 'BEGIN' ? 'SAVEPOINT payout_fixture'
           : sql === 'COMMIT' ? 'RELEASE SAVEPOINT payout_fixture'
           : sql === 'ROLLBACK' ? 'ROLLBACK TO SAVEPOINT payout_fixture' : sql;
-        return client.query(translated, values);
-      } });
+        const result = client.query(translated, values);
+        if (typeof cb === 'function') result.then((res) => cb(undefined, res)).catch((err) => cb(err));
+        return result;
+      } };
+      jest.spyOn(pool, 'connect').mockImplementation((cb) => {
+        if (typeof cb === 'function') cb(null, fakeClient, () => {});
+        return Promise.resolve(fakeClient);
+      });
       mockTransfers.create.mockClear();
       const previous = process.env.PAYOUT_PROCESSOR_ENABLED;
       process.env.PAYOUT_PROCESSOR_ENABLED = 'true';

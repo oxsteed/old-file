@@ -8,6 +8,7 @@ const { logAdminAction } = require('../services/auditService');
 const { isDiditVerificationFresh } = require('../utils/diditGate');
 const { assertSanctionsClear } = require('../services/sanctionsScreeningService');
 const { assertCreditRailEnabled } = require('../services/oxsteedCreditService');
+const { affiliatePayableCents } = require('../utils/affiliatePayableCents');
 
 async function getAffiliateProgram(req, res) {
   try {
@@ -301,7 +302,7 @@ const STALE_PROCESSING_MINUTES = 10;
 // ADM-016: the money-movement core of processPayout, shared by the
 // controller (below-threshold, single approval) and the dual-approval
 // executor (above-threshold, second admin). Returns the updated payout row.
-async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = false }) {
+async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = false, expectedAmountCents = null }) {
   try {
     // Prefer explicit params (dual-approval executor path); fall back to the
     // request for the direct controller path.
@@ -330,21 +331,33 @@ async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = f
 
     // ADM-016: above-threshold payouts queue for a second admin instead of
     // moving money on this single approval. The executor re-runs with
-    // skipDualApproval: true.
+    // skipDualApproval: true. The queued amount is the payable net, the
+    // same figure the legacy route and the Stripe transfer use.
+    const payableCents = affiliatePayableCents(payout);
     if (!skipDualApproval) {
       const { requestMoneyMovementApproval } = require('../services/dualApprovalService');
       const gate = await requestMoneyMovementApproval({
         movementType: 'affiliate_payout',
         referenceKey: `affiliate-payout:${payoutId}`,
-        amountCents: Number(payout.total_commission_cents),
+        amountCents: payableCents,
         currencyCode: 'USD',
         requestedBy: adminId,
         idempotencyKey: req.get?.('Idempotency-Key') || `affiliate-payout-process-${payoutId}`,
-        payload: { payoutId, makerAdminId: adminId },
+        payload: { payoutId, makerAdminId: adminId, expectedAmountCents: payableCents },
       });
       if (gate.queued) {
         return { dualApproval: gate };
       }
+    } else if (skipDualApproval && Number.isSafeInteger(expectedAmountCents)
+      && expectedAmountCents !== payableCents) {
+      // Pentest fix (TOCTOU): a checker must never execute a payout whose
+      // payable amount changed after the maker queued it. Mirrors the
+      // food-refund state-change check; the throw leaves the approval
+      // pending for a safe retry instead of moving the wrong amount.
+      throw new AppError('Payout amount changed since approval request', 409, 'affiliate_payout_state_changed');
+    }
+    if (!Number.isSafeInteger(payableCents) || payableCents <= 0) {
+      throw new AppError('The payout amount is not valid.', 422, 'invalid_payout_amount');
     }
 
     const { rows: [connect] } = await pool.query(
@@ -392,7 +405,10 @@ async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = f
     if (!claim.rows.length) {
       throw new AppError('Payout already processed or in progress', 409, 'invalid_payout_state');
     }
-    const amountCents = Number(claim.rows[0].total_commission_cents);
+    const amountCents = affiliatePayableCents(claim.rows[0]);
+    if (amountCents !== payableCents) {
+      throw new AppError('Payout amount changed since approval request', 409, 'affiliate_payout_state_changed');
+    }
 
     let transfer;
     try {

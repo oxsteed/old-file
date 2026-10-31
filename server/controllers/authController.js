@@ -37,6 +37,18 @@ const TERMS_IP_HASH_MAX_LEN = 45;
 const JWT_SECRET = process.env.JWT_SECRET;
 const SUPPORTED_LANGUAGE_CODES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
+// Pentest fix: email OTP codes were stored as unsalted SHA-256 of a 6-digit
+// code, trivially brute-forceable offline after any database read. Hash
+// them with HMAC under a server secret instead, so a leaked hash alone
+// reveals nothing. OTP_HMAC_SECRET allows key separation; it falls back to
+// JWT_SECRET so no new deployment variable is required. NOTE: codes issued
+// before this change (unsalted hashes, 10-15 minute expiry) stop verifying
+// after deploy; affected users simply request a fresh code.
+const OTP_HMAC_SECRET = process.env.OTP_HMAC_SECRET || JWT_SECRET;
+function hashOtp(otp) {
+  return crypto.createHmac('sha256', OTP_HMAC_SECRET).update(String(otp)).digest('hex');
+}
+
 // H10: minimum interval between OTP sends for the same account (users and
 // pending_registrations). Stops OTP email/SMS bombing via re-request.
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
@@ -335,8 +347,13 @@ async function login(req, res, next) {
     }
 
     let user = rows[0];
+    // Pentest fix: a distinct 403 for deactivated accounts let an
+    // unauthenticated caller confirm an account exists and is deactivated.
+    // Return the same generic 401 as for an unknown email or wrong
+    // password. The 429 lockout below is kept: lockout behavior is
+    // standard and does not identify the account state.
     if (!user.is_active) {
-      throw new AppError('Your account has been deactivated', 403, 'account_deactivated');
+      throw new AppError('Invalid email or password', 401, 'auth_failed');
     }
 
     // H10: per-account lockout. The IP-based authLimiter alone cannot stop
@@ -786,7 +803,7 @@ async function requestOTP(req, res) {
           retryAfterMs: OTP_RESEND_COOLDOWN_MS - (Date.now() - new Date(pending.otp_last_sent_at).getTime()),
         });
       }
-      const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+      const hashedOtp = hashOtp(otp);
       await pool.query(
         `UPDATE users
             SET otp_code = $1, otp_expires_at = $2, otp_attempts = 0,
@@ -827,7 +844,7 @@ async function verifyOTP(req, res) {
     const expired = new Date(user.otp_expires_at) < new Date();
     const bufA = Buffer.from(user.otp_code || '');
     const hashedIncomingOtp = (typeof otp === 'string' && otp.length > 0) 
-      ? crypto.createHash('sha256').update(otp).digest('hex') 
+      ? hashOtp(otp)
       : '';
     const bufB = Buffer.from(hashedIncomingOtp);
     const otpValid = bufA.length > 0 && bufA.length === bufB.length &&
@@ -889,6 +906,69 @@ function resolveSessionAbsoluteDeadline(session) {
   return new Date(started.getTime() + sessionAbsoluteMaxDays() * 86400000);
 }
 
+// Refresh-token reuse grace window: a legitimate client can present a
+// just-rotated token twice (double-submit, or a retry after a dropped
+// response that never delivered the rotated token). Only treat a replay as
+// theft when the rotation it replays is older than this window.
+const REFRESH_REUSE_GRACE_MS = 60 * 1000;
+
+// Pentest fix, scoped by H8d: on a suspected refresh-token theft, revoke
+// only the compromised token family, never the user's other browser
+// sessions. Without this, an attacker who stole a refresh token and
+// rotated it first kept their rotated session after the legitimate user's
+// replay was (correctly) rejected.
+// The distinguisher matters: only rotation-consumed tokens have a child
+// session (rotation INSERTs set parent_session_id and
+// regenerated_from_session_id to the consumed session). Trigger-superseded
+// rows (new login) and logout-invalidated rows have no rotation child, so
+// revoking on those would hand anyone holding any stale token a
+// kill-all-sessions button. Those cases return without revoking.
+// Family scope is by session-chain id, never by user_id: the lookup and
+// the revoke name session ids only, so other logins are untouched and no
+// user-wide revocation marker is written.
+// The caller still throws the same token_reuse error, so the response
+// reveals nothing new about whether a family revoke happened.
+async function revokeRefreshFamilyIfStolen(pool, sessionRow) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, created_at FROM sessions
+        WHERE regenerated_from_session_id = $1 OR parent_session_id = $1
+        ORDER BY created_at DESC LIMIT 1`,
+      [sessionRow.id]
+    );
+    const child = rows[0];
+    if (!child) return;
+    const rotatedAt = new Date(child.created_at).getTime();
+    if (Number.isNaN(rotatedAt) || Date.now() - rotatedAt < REFRESH_REUSE_GRACE_MS) return;
+    // Walk the rotation chain from the child, collecting every descendant
+    // id (bounded: a legitimate rotation chain never approaches this).
+    const familyIds = [sessionRow.id, child.id];
+    const queue = [child.id];
+    for (let depth = 0; depth < 100 && queue.length > 0; depth += 1) {
+      const parentId = queue.shift();
+      const { rows: next } = await pool.query(
+        `SELECT id FROM sessions
+          WHERE regenerated_from_session_id = $1 OR parent_session_id = $1`,
+        [parentId]
+      );
+      for (const row of next) {
+        if (!familyIds.includes(row.id)) {
+          familyIds.push(row.id);
+          queue.push(row.id);
+        }
+      }
+    }
+    await pool.query(
+      'UPDATE sessions SET is_valid = false, is_revoked = true WHERE id = ANY($1)',
+      [familyIds]
+    );
+  } catch (err) {
+    // Family-revoke diagnostics must never turn a denied refresh into a
+    // successful one, nor mask the token_reuse error the caller throws.
+    logger.error('Refresh family revoke check failed', { error: err.message });
+  }
+}
+
 async function refreshToken(req, res, next) {
   try {
     // H8d: accept the refresh token from the JSON body (native/mobile and
@@ -918,6 +998,11 @@ async function refreshToken(req, res, next) {
     const isInvalid = sessionRows[0].is_valid === false;
     const isRevoked = sessionRows[0].is_revoked === true;
     if (isInvalid || isRevoked) {
+      // Pentest fix: refresh-token reuse revokes the compromised token
+      // family only (H8d: the user's other browser sessions are untouched).
+      // Previously a replayed token only earned a 401 while the attacker's
+      // rotated session (minted from the stolen token) stayed live.
+      await revokeRefreshFamilyIfStolen(pool, sessionRows[0]);
       throw new AppError('This browser session has expired. Please sign in again.', 401, 'token_reuse');
     }
     if (!sessionRows[0].is_valid) {
@@ -1271,7 +1356,27 @@ async function startRegistration(req, res) {
     await assertRegistrationsOpen();
 
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [normalized.email]);
-    if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered', code: 'email_registered' });
+    // Pentest fix: the 409 let an unauthenticated caller confirm whether
+    // any email has an account. Return the same success-shaped response as
+    // for a new email, but create no pending registration and send nothing:
+    // the client proceeds to accept-terms, which returns its generic
+    // "Invalid or expired registration" for the unrecognized token, exactly
+    // as for a genuinely expired token.
+    // Residual (documented, not hidden): accept-terms/verify-otp still
+    // differentiate a fake token (404/wrong-code) from a live token that
+    // receives a real emailed code, so a prober who completes the full
+    // 3-step flow can still infer existence one hop later. Fully closing
+    // that requires fake-progression through the whole flow, which would
+    // also turn the clear "already registered, sign in" guidance for real
+    // users into a dead-end wait for a code that never arrives. That is a
+    // product decision for the parent, not a silent change here.
+    if (existing.rows.length > 0) {
+      return res.json({
+        token: crypto.randomBytes(32).toString('hex'),
+        message: 'Basic info validated',
+        registrationExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      });
+    }
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const token = crypto.randomBytes(32).toString('hex');
     const normalizedState = stateTrim || null;
@@ -1331,7 +1436,7 @@ async function acceptTerms(req, res) {
     const ip = hashIP(rawIp)?.slice(0, TERMS_IP_HASH_MAX_LEN) || null;
     const userAgent = req.headers['user-agent'] || '';
     const otp = crypto.randomInt(100000, 1000000).toString();
-    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+    const otpHash = hashOtp(otp);
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
     await pool.query(
       `UPDATE pending_registrations
@@ -1367,7 +1472,7 @@ async function verifyRegistrationOTP(req, res) {
     if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
       return registrationLockResponse(res, pending.otp_locked_until, 'Too many attempts. Try again later.');
     }
-    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+    const hashedOTP = hashOtp(otp);
     if (pending.otp_code !== hashedOTP || !pending.otp_expires_at || new Date(pending.otp_expires_at) <= new Date()) {
       const expired = !pending.otp_expires_at || new Date(pending.otp_expires_at).getTime() < Date.now();
       const newAttempts = (pending.otp_attempts || 0) + 1;
@@ -1475,7 +1580,9 @@ async function verifyRegistrationOTP(req, res) {
     claimGuestQuoteRequestsForUser(user.id, user.email);
     const { rows: delRows } = await pool.query('DELETE FROM pending_registrations WHERE token = $1 RETURNING id', [token]);
     if (delRows.length === 0) {
-      logger.warn('Pending registration cleanup failed', { token, userId: user.id });
+      // Pentest fix: the pending-registration token is bearer-equivalent;
+      // it must not be written to logs.
+      logger.warn('Pending registration cleanup failed', { userId: user.id });
     }
 
     // If the chosen mode is a helper-class mode (helper / business_owner /
@@ -1586,7 +1693,7 @@ async function resendRegistrationOTP(req, res) {
         ...registrationMetadata(pending) });
     }
     const otp = crypto.randomInt(100000, 1000000).toString();
-    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+    const otpHash = hashOtp(otp);
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
     await pool.query(
       `UPDATE pending_registrations
@@ -2073,46 +2180,56 @@ async function changePassword(req, res) {
       }
       throw err;
     }
-    await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, req.user.id]);
-
+    // Pentest fix (live-proven feedback lie): these mutations used to run
+    // as separate auto-commit statements, so a failure in any step AFTER
+    // the password UPDATE left the password changed while the catch below
+    // reported "Failed to change password" — the UI contradicted the real
+    // account state. Run them in one transaction so a failure rolls the
+    // password change back and the 500 below is truthful. The revocation
+    // marker above still runs first (fail-closed 503 before any change);
+    // if the transaction then fails, the user is logged out everywhere
+    // but keeps the old password and can retry, which is safe.
     // Audit fix: also invalidate all sessions (except the current one, which
     // stays valid so the user isn't logged out of the session they just used).
     // Review P1-115: identify the current session from its refresh token
     // (nothing sets req.sessionId) so the user is not logged out here.
     const currentSessionId = await currentSessionIdFromRequest(req);
-    await pool.query(
-      'UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1 AND id != $2',
-      [req.user.id, currentSessionId || req.sessionId || '00000000-0000-0000-0000-000000000000']
-    );
+    await withTransaction(pool, async (client) => {
+      await client.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, req.user.id]);
+      await client.query(
+        'UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1 AND id != $2',
+        [req.user.id, currentSessionId || req.sessionId || '00000000-0000-0000-0000-000000000000']
+      );
 
-    // Security: password change revokes passkeys too. A planted passkey
-    // (via stolen session) must not survive a password change.
-    await pool.query(
-      'UPDATE user_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
-      [req.user.id]
-    );
+      // Security: password change revokes passkeys too. A planted passkey
+      // (via stolen session) must not survive a password change.
+      await client.query(
+        'UPDATE user_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
+        [req.user.id]
+      );
 
-    // Audit fix (finding 5): admin passkeys are a standalone admin login
-    // credential (passkeyController). A planted admin passkey must not
-    // survive a password change either.
-    await pool.query(
-      'UPDATE admin_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
-      [req.user.id]
-    );
+      // Audit fix (finding 5): admin passkeys are a standalone admin login
+      // credential (passkeyController). A planted admin passkey must not
+      // survive a password change either.
+      await client.query(
+        'UPDATE admin_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
+        [req.user.id]
+      );
 
-    // Audit fix (finding 7): a planted TOTP (enrolled via stolen session)
-    // must not survive a password change. Clear the secret, the enabled
-    // flag and the backup codes so the account holder re-enrolls 2FA.
-    await pool.query(
-      `UPDATE users
+      // Audit fix (finding 7): a planted TOTP (enrolled via stolen session)
+      // must not survive a password change. Clear the secret, the enabled
+      // flag and the backup codes so the account holder re-enrolls 2FA.
+      await client.query(
+        `UPDATE users
           SET totp_secret = NULL,
               totp_enabled = false,
               totp_verified_at = NULL,
               backup_codes = NULL,
               updated_at = NOW()
         WHERE id = $1`,
-      [req.user.id]
-    );
+        [req.user.id]
+      );
+    });
 
     // FIX #10 & #11: Audit log password change
     const { ipAddress, userAgent } = extractRequestDetails(req);
@@ -2332,7 +2449,7 @@ async function resendVerification(req, res) {
 
     const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    const hashedOtp = hashOtp(otp);
     await pool.query(
       'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE id = $3',
       [hashedOtp, expiresAt, req.user.id]

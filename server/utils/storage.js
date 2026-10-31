@@ -18,7 +18,15 @@ function getLocalStorageRoot() {
   return path.resolve(process.env.LOCAL_UPLOAD_DIR || path.join(process.cwd(), 'runtime', 'uploads'));
 }
 const LOCAL_STORAGE_ROOT = path.resolve(process.env.LOCAL_UPLOAD_DIR || path.join(process.cwd(), 'runtime', 'uploads'));
-const SIGNING_SECRET = String(process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || 'oxsteed-local-storage').trim();
+// Signed-download HMAC key. Dedicated secret only: no fallback to the JWT
+// or encryption secrets (key separation) and no hardcoded default. The
+// deployment must set SIGNED_URL_SECRET; validateEnv enforces it at boot,
+// and signing fails closed when it is absent (previously any deployment
+// without the vars minted forgeable URLs under a public constant, and
+// otherwise silently signed downloads with the JWT secret itself).
+function signingSecret() {
+  return String(process.env.SIGNED_URL_SECRET || '').trim();
+}
 const FORCE_PATH_STYLE = /^(1|true|yes)$/i.test(String(process.env.S3_FORCE_PATH_STYLE || ''));
 const ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || process.env.S3_ACCESS_KEY_ID;
 const SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || process.env.S3_SECRET_ACCESS_KEY;
@@ -132,8 +140,10 @@ function localPublicUrl(key) {
 function localSignedUrl(key, expiresIn = 3600) {
   const normalized = normalizeKey(key);
   if (!normalized) return null;
+  const secret = signingSecret();
+  if (!secret) throw new Error('SIGNED_URL_SECRET is not configured');
   const exp = Math.floor(Date.now() / 1000) + Math.max(1, Number(expiresIn) || 3600);
-  const sig = crypto.createHmac('sha256', SIGNING_SECRET).update(`${normalized}:${exp}`).digest('hex');
+  const sig = crypto.createHmac('sha256', secret).update(`${normalized}:${exp}`).digest('hex');
   const route = `/api/storage/files/${encodeKeyForUrl(normalized)}?exp=${exp}&sig=${sig}`;
   return localRouteBase() ? `${localRouteBase()}${route}` : route;
 }
@@ -413,7 +423,9 @@ function verifyLocalDownloadSignature(key, exp, sig) {
   const normalized = normalizeKey(key);
   const expiry = Number.parseInt(String(exp || ''), 10);
   if (!normalized || !Number.isFinite(expiry) || expiry < Math.floor(Date.now() / 1000)) return false;
-  const expected = crypto.createHmac('sha256', SIGNING_SECRET).update(`${normalized}:${expiry}`).digest('hex');
+  const secret = signingSecret();
+  if (!secret) return false;
+  const expected = crypto.createHmac('sha256', secret).update(`${normalized}:${expiry}`).digest('hex');
   if (!sig || String(sig).length !== expected.length) return false;
   return crypto.timingSafeEqual(Buffer.from(String(sig)), Buffer.from(expected));
 }

@@ -179,9 +179,10 @@ async function loadAssignedRegions(req, res, next) {
 
 /**
  * Middleware factory: enforces that the current admin can act on the user
- * whose id is in `req.params[paramName]`. Super-admins bypass. Admins with
- * no region scope (no region_id grants) are treated as full admins -
- * region scoping is opt-in and only applies once a region is assigned.
+ * whose id is in `req.params[paramName]`. Super-admins bypass, as do
+ * admins whose grants carry the unrestricted null sentinel (global grants
+ * and delegations). A resolved but empty region set denies: an admin with
+ * no assigned regions must not silently behave like a full admin.
  */
 function requireRegionAccessForUser(paramName = 'userId') {
   return async (req, res, next) => {
@@ -195,10 +196,18 @@ function requireRegionAccessForUser(paramName = 'userId') {
         });
       }
 
-      // Admin with no scoped region grants - fall through (legacy admins)
+      // Null is the unrestricted sentinel (super-admins, delegations, and
+      // global grants set it in loadAssignedRegions) and still passes.
+      // A resolved but empty region set denies: fail closed rather than
+      // treating "no assigned regions" as "every region".
       const regions = req.assigned_regions;
       if (regions === null || regions === undefined) return next();
-      if (!Array.isArray(regions) || regions.length === 0) return next();
+      if (!Array.isArray(regions) || regions.length === 0) {
+        return res.status(403).json({
+          error: 'Access denied: no assigned region.',
+          code: 'region_access_denied',
+        });
+      }
 
       const targetId = req.params[paramName];
       if (!targetId) return res.status(400).json({ error: 'Missing user id.' });

@@ -6,6 +6,11 @@
  * Handles retries with exponential backoff
  */
 
+// Fail fast on missing secrets, like the API server: previously this worker
+// booted without any env validation, so a worker-only boot could run with
+// the storage signing fallback (or no JWT secret) in effect.
+require('./utils/validateEnv')();
+
 const logger = require('./utils/logger');
 const {
   QUEUES,

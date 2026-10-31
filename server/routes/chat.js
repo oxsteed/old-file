@@ -90,12 +90,12 @@ router.get('/nudges', chatLimiter, authenticate, getSupportNudges);
 // returns the existing endpoint to call with the user's session; result and
 // dismiss complete the audit row (support_chat_actions, migration 914).
 router.post('/actions/:actionId/confirm', chatLimiter, authenticate, rejectImpersonated, confirmSupportAction);
-router.post('/actions/:actionId/result', chatLimiter, authenticate, recordSupportActionResult);
-router.post('/actions/:actionId/dismiss', chatLimiter, authenticate, dismissSupportAction);
+router.post('/actions/:actionId/result', chatLimiter, authenticate, rejectImpersonated, recordSupportActionResult);
+router.post('/actions/:actionId/dismiss', chatLimiter, authenticate, rejectImpersonated, dismissSupportAction);
 
 // POST /api/chat/financial-advisor
 // Personalized financial advice - requires authentication
-router.post('/financial-advisor', chatLimiter, authenticate, financialAdvisor);
+router.post('/financial-advisor', chatLimiter, authenticate, rejectImpersonated, financialAdvisor);
 
 // POST /api/chat/profile-message
 // Auth optional - authenticated users get live routing when helper is online;
@@ -150,7 +150,7 @@ router.post('/quotes/:kind/:id/schedule', chatLimiter, optionalAuth, chatQuotes.
 // ── In-chat OxSteed Credit payments ──────────────────────────────────────────
 // Review P2-7-F07: in-chat OxSteed Credit payments are a checkout surface.
 router.post('/payments/oxsteed-credit', chatLimiter, authenticate, checkRestrictions('checkout'), paymentsLimiter, rejectImpersonated, chatCreditPay.payWithOxsteedCredit);
-router.post('/payments/request', chatLimiter, authenticate, chatCreditPay.requestPayment);
+router.post('/payments/request', chatLimiter, authenticate, rejectImpersonated, chatCreditPay.requestPayment);
 router.get('/payments/request/:id', chatLimiter, authenticate, chatCreditPay.getPaymentRequest);
 router.post('/payments/:id/refund', chatLimiter, authenticate, paymentsLimiter, rejectImpersonated, chatCreditPay.refundChatCreditPayment);
 router.get('/payments/credit-hint', chatLimiter, authenticate, chatCreditPay.getCreditPayHint);
@@ -172,9 +172,9 @@ router.post('/agreements/:id/revise', chatLimiter, authenticate, upload.single('
 // ── In-chat booking request accept / decline / propose ───────────────────────
 router.post('/booking-requests', chatLimiter, authenticate, chatBookingRequests.createChatBookingRequest);
 router.get('/booking-requests/:id', chatLimiter, optionalAuth, chatBookingRequests.getBookingRequest);
-router.post('/booking-requests/:id/accept', chatLimiter, authenticate, chatBookingRequests.acceptBookingRequest);
-router.post('/booking-requests/:id/decline', chatLimiter, authenticate, chatBookingRequests.declineBookingRequest);
-router.post('/booking-requests/:id/propose', chatLimiter, authenticate, chatBookingRequests.proposeBookingTime);
+router.post('/booking-requests/:id/accept', chatLimiter, authenticate, rejectImpersonated, chatBookingRequests.acceptBookingRequest);
+router.post('/booking-requests/:id/decline', chatLimiter, authenticate, rejectImpersonated, chatBookingRequests.declineBookingRequest);
+router.post('/booking-requests/:id/propose', chatLimiter, authenticate, rejectImpersonated, chatBookingRequests.proposeBookingTime);
 router.post('/booking-requests/:id/customer-accept', chatLimiter, optionalAuth, chatBookingRequests.customerAcceptBookingRequest);
 router.post('/booking-requests/:id/customer-decline', chatLimiter, optionalAuth, chatBookingRequests.customerDeclineBookingRequest);
 

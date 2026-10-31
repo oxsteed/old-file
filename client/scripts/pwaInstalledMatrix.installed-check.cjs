@@ -230,7 +230,11 @@ for (const profile of profiles)
           .getByRole('button', { name: 'Refresh to update', exact: true })
           .click();
         await page.waitForFunction(() => !window.__pwaBeforeUpdateDocument);
-        await page.goto(fixture.origin + '/post-job');
+        // Identity flips when the new document is created, which can be before
+        // that reload has committed. A second reload also returns readyState
+        // to "loading", so this wait includes it. Do not wait for window load.
+        await page.waitForFunction(() => document.readyState !== 'loading');
+        await page.goto(fixture.origin + '/post-job', { waitUntil: 'domcontentloaded' });
         await title.waitFor();
         await page.waitForTimeout(800);
         await page.waitForFunction(
