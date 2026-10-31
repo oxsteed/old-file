@@ -5429,6 +5429,7 @@
     "listingStatePublished": "Publicado: los clientes pueden encontrar tu perfil",
     "listingStateDraft": "Borrador: tu perfil está oculto para los clientes",
     "listingSaved": "Estado de publicación actualizado",
+    "listingRequiresIdentity": "Verifica tu identidad antes de publicar tu perfil.",
     "assignedMaintenanceTitle": "Mantenimiento asignado",
     "assignedMaintenanceEmpty": "No tienes solicitudes de mantenimiento asignadas en este momento.",
     "assignedMaintenanceDetails": "Mostrar detalles",

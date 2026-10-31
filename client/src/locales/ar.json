@@ -5429,6 +5429,7 @@
     "listingStatePublished": "منشور: يمكن للعملاء العثور على ملفك الشخصي",
     "listingStateDraft": "مسودة: ملفك الشخصي مخفي عن العملاء",
     "listingSaved": "تم تحديث حالة النشر",
+    "listingRequiresIdentity": "تحقق من هويتك قبل نشر ملفك الشخصي.",
     "assignedMaintenanceTitle": "الصيانة المسندة",
     "assignedMaintenanceEmpty": "لا توجد طلبات صيانة مسندة إليك حالياً.",
     "assignedMaintenanceDetails": "عرض التفاصيل",

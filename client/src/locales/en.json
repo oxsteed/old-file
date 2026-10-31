@@ -5429,6 +5429,7 @@
     "listingStatePublished": "Published: customers can find your profile",
     "listingStateDraft": "Draft: your profile is hidden from customers",
     "listingSaved": "Listing status updated",
+    "listingRequiresIdentity": "Verify your identity before publishing your listing.",
     "assignedMaintenanceTitle": "Assigned maintenance",
     "assignedMaintenanceEmpty": "No maintenance requests assigned to you right now.",
     "assignedMaintenanceDetails": "Show details",

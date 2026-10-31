@@ -1178,7 +1178,9 @@ export default function HelperDashboard() {
       setIsListed(!!data.is_listed);
       toast.success(data.is_listed ? t('dashboard.status.online') : t('dashboard.status.offline'));
     } catch (err) {
-      toast.error(err?.response?.data?.error || t('helperDashboard.failedUpdateStatus'));
+      toast.error(err?.response?.data?.code === 'listing_requires_identity_verification'
+        ? t('helperDashboard.listingRequiresIdentity')
+        : (err?.response?.data?.error || t('helperDashboard.failedUpdateStatus')));
     }
     setListingLoading(false);
   };

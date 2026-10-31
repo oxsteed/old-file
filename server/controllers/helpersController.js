@@ -11,6 +11,7 @@ const metricsService = require('../services/metricsService');
 const { AppError }  = require('../middleware/errorHandler');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const availabilityService = require('../services/helperAvailabilityService');
+const { isIdentityVerified } = require('../services/helperOnboarding');
 const { evaluateOperatingHours } = require('../utils/foodOperatingHours');
 
 // Saved-search fan-out for newly listed helpers (routes/savedSearches also
@@ -1331,13 +1332,27 @@ async function toggleListing(req, res, next) {
 
     if (is_listed) {
       const { rows: users } = await pool.query(
-        `SELECT email_verified, onboarding_completed, COALESCE(is_suspended, FALSE) AS is_suspended
+        `SELECT email_verified, onboarding_completed, COALESCE(is_suspended, FALSE) AS is_suspended,
+                id_verified, identity_verified, didit_status
            FROM users WHERE id = $1`,
         [req.user.id],
       );
       const user = users[0];
       if (!user || user.is_suspended || !user.email_verified || !user.onboarding_completed) {
         throw new AppError('Complete account verification before listing your helper profile', 403, 'listing_not_ready');
+      }
+      // Item 2: listing requires verified identity, not just the stamped
+      // onboarding flags. General registration stamps onboarding_completed at
+      // OTP verification, before identity verification lands, so the flags
+      // above alone would publish an unverified helper. Reuses the canonical
+      // helperOnboarding derivation (id_verified OR identity_verified OR
+      // didit_status = 'verified'); Didit 'skipped' does not satisfy it.
+      // Defense in depth behind requireListingEligible, which enforces the
+      // same identity component via canAppearInSearch: if a future route
+      // calls toggleListing without that middleware, this gate still holds.
+      // Unlisting (is_listed = false) is never gated.
+      if (!isIdentityVerified(user)) {
+        throw new AppError('Verify your identity before publishing your listing', 403, 'listing_requires_identity_verification');
       }
     }
 
