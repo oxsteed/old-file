@@ -4,6 +4,7 @@ const { setSessionCookies, setAccessTokenCookie } = require('../utils/authCookie
 const pool = require('../db');
 const bcrypt = require('bcrypt');
 const { generateTokens } = require('../middleware/auth');
+const { issueSessionCsrf } = require('../middleware/csrf');
 const { formatAuthUser } = require('./authController');
 const { sendOTPEmail } = require('../utils/email');
 const { encrypt, hashTIN, maskTIN, hashIP } = require('../utils/encryption');
@@ -400,15 +401,17 @@ async function verifyOTP(req, res) {
     // Persist the refresh token so subsequent /auth/refresh calls work
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
-      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')",
-      [userId, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex')]
+      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', $4)",
+      [userId, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), tokens.sid]
     );
     setSessionCookies(res, tokens);
 
+    await issueSessionCsrf(res, userId, tokens.sid);
     res.json({
       message: 'Email verified',
       user: formatAuthUser(fullRows[0]),
-      ...tokens
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     });
   } catch (err) {
     if (client) {

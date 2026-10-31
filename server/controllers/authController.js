@@ -21,7 +21,7 @@ const { isSignupPasswordValid } = require('../utils/signupValidation');
 const logger = require('../utils/logger');
 const supportChatThreads = require('../services/supportChatThreads');
 const tokenRevocationService = require('../services/tokenRevocationService');
-const { invalidateToken: invalidateCsrfToken } = require('../middleware/csrf');
+const { invalidateToken: invalidateCsrfToken, invalidateSessionToken: invalidateSessionCsrfToken, issueSessionCsrf } = require('../middleware/csrf');
 const { AppError } = require('../middleware/errorHandler');
 const { assertRegistrationsOpen } = require('../middleware/maintenanceGate'); // Review P3-7-F07
 const { grantFreeTrialToUser } = require('./templateController');
@@ -467,15 +467,19 @@ async function login(req, res, next) {
     // unconditional 7-day window and silently degraded a 30-day
     // remember-me session on the first refresh.
     const sessionSql = rememberMe
-      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '30 days', TRUE)"
-      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE)";
-    await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
+      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '30 days', TRUE, $4)"
+      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE, $4)";
+    await pool.query(sessionSql, [user.id, hashedRefresh, accessHash, tokens.sid]);
     await recordSessionContext(pool, hashedRefresh, req);
 
     // H8d: web clients get the refresh token as an httpOnly cookie; the JSON
     // body still carries it for native/mobile clients.
     setRefreshTokenCookie(res, tokens.refreshToken, { rememberMe: rememberMe === true });
     setAccessTokenCookie(res, tokens.accessToken);
+    // Session-scoped CSRF: the login response itself carries the new
+    // session's token, so a client holding a previous session's token
+    // re-captures before its first POST instead of 403ing on stale state.
+    await issueSessionCsrf(res, user.id, tokens.sid);
 
     // Log terms agreement for legal/compliance record
     try {
@@ -696,9 +700,9 @@ async function loginWith2FA(req, res, next) {
     const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
     // P1-1-F04: persist the remember-me intent (see login above).
     const sessionSql = rememberMe
-      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '30 days', TRUE)"
-      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE)";
-    await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
+      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '30 days', TRUE, $4)"
+      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE, $4)";
+    await pool.query(sessionSql, [user.id, hashedRefresh, accessHash, tokens.sid]);
     await recordSessionContext(pool, hashedRefresh, req);
 
     // Review P1-1-F05: write the same per-login digital signature and
@@ -722,6 +726,9 @@ async function loginWith2FA(req, res, next) {
       path: '/',
       maxAge: 15 * 60 * 1000,
     });
+
+    // Session-scoped CSRF: same re-capture as the password-login path.
+    await issueSessionCsrf(res, user.id, tokens.sid);
 
     // Record last_login_at and login history (non-fatal)
     try {
@@ -1007,7 +1014,7 @@ async function refreshToken(req, res, next) {
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: sessionRows } = await pool.query(
-      'SELECT s.id, s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at, s.refresh_replay_noted_at, COALESCE(s.remember_me, FALSE) AS remember_me FROM sessions s WHERE s.refresh_token = $1',
+      'SELECT s.id, s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at, s.refresh_replay_noted_at, s.csrf_sid, COALESCE(s.remember_me, FALSE) AS remember_me FROM sessions s WHERE s.refresh_token = $1',
       [hashedToken]
     );
     if (!sessionRows[0]) {
@@ -1092,7 +1099,12 @@ async function refreshToken(req, res, next) {
         throw new AppError('Your account is suspended. Please contact support.', 403, 'account_suspended');
       }
     }
-    const tokens = generateTokens(user);
+    // Session-scoped CSRF: the rotated row inherits the consumed row's
+    // sid, so the CSRF binding survives rotation. Rows minted before
+    // session scoping have NULL csrf_sid: mint one now so the session
+    // becomes scoped on its first post-deploy refresh.
+    const sessionSid = sessionRows[0].csrf_sid || crypto.randomUUID();
+    const tokens = generateTokens(user, { sid: sessionSid });
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     // P3-14-F13 (accepted): sessions.id stays SERIAL. Migration 200's comment
     // asks for random session IDs, but the guessable-token concern does not
@@ -1111,10 +1123,10 @@ async function refreshToken(req, res, next) {
     const rotationWindowDays = rotatedRememberMe ? 30 : 7;
     const { rows: newSessionRows } = await pool.query(
       `INSERT INTO sessions (user_id, refresh_token, expires_at, absolute_expires_at, access_token_hash,
-                             parent_session_id, regenerated_from_session_id, remember_me)
-       VALUES ($1, $2, LEAST(NOW() + make_interval(days => $4), $3::timestamptz), $3::timestamptz, $5, $6, $6, $7)
+                             parent_session_id, regenerated_from_session_id, remember_me, csrf_sid)
+       VALUES ($1, $2, LEAST(NOW() + make_interval(days => $4), $3::timestamptz), $3::timestamptz, $5, $6, $6, $7, $8)
        RETURNING expires_at`,
-      [user.id, hashedRefresh, absoluteDeadline.toISOString(), rotationWindowDays, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), sessionRows[0].id || null, rotatedRememberMe]
+      [user.id, hashedRefresh, absoluteDeadline.toISOString(), rotationWindowDays, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), sessionRows[0].id || null, rotatedRememberMe, sessionSid]
     );
     await recordSessionContext(pool, hashedRefresh, req);
     const newExpiry = newSessionRows?.[0]?.expires_at ? new Date(newSessionRows[0].expires_at) : null;
@@ -1129,6 +1141,10 @@ async function refreshToken(req, res, next) {
       path: '/',
       maxAge: 15 * 60 * 1000,
     });
+    // Session-scoped CSRF: the sid is unchanged by rotation, so the token
+    // value is unchanged too; re-issuing it here keeps clients that
+    // re-capture from responses in sync after every rotation.
+    await issueSessionCsrf(res, user.id, sessionSid);
     res.json({
       success: true,
       user: formatAuthUser(user),
@@ -1145,12 +1161,13 @@ async function logout(req, res) {
     const token = getRefreshTokenFromRequest(req);
     let didInvalidateSession = false;
     let userId = null;
+    let logoutCsrfSid = null;
     const hadRefreshToken = !!token;
 
     if (token) {
       const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
       const { rows: invalidateRows } = await pool.query(
-        'UPDATE sessions SET is_valid = false, is_revoked = true WHERE refresh_token = $1 RETURNING id, user_id',
+        'UPDATE sessions SET is_valid = false, is_revoked = true WHERE refresh_token = $1 RETURNING id, user_id, csrf_sid',
         [hashedToken]
       );
       if (invalidateRows.length > 0) {
@@ -1159,6 +1176,7 @@ async function logout(req, res) {
         // matching the bearer-token path below.
         if (invalidateRows[0].user_id) {
           userId = invalidateRows[0].user_id;
+          logoutCsrfSid = invalidateRows[0].csrf_sid || null;
           await pool.query(
             'UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1 AND is_valid = true',
             [userId]
@@ -1210,9 +1228,18 @@ async function logout(req, res) {
     // session it was issued under. Never throws: a CSRF-store outage
     // must not turn a logout into a 500 (the access tokens are already
     // revoked above, so a surviving CSRF entry alone is not a credential).
+    // Session-scoped CSRF: logout invalidates only the presented
+    // session's token (from the refresh row, else from the access token
+    // parseAuthIdentity already verified). Other sessions keep their
+    // tokens, and this is safe alongside the all-sessions revocation
+    // above: a revoked session's cookie fails authenticate, so its
+    // lingering CSRF key can never validate through a live session.
+    // A legacy token without a sid falls back to the per-user key.
+    if (!logoutCsrfSid) logoutCsrfSid = req.csrfSid || null;
     if (userId) {
       try {
-        await invalidateCsrfToken(String(userId));
+        if (logoutCsrfSid) await invalidateSessionCsrfToken(String(userId), logoutCsrfSid);
+        else await invalidateCsrfToken(String(userId));
       } catch (csrfErr) {
         logger.warn('Logout CSRF invalidation failed', { userId, error: csrfErr.message });
       }
@@ -1709,13 +1736,14 @@ async function verifyRegistrationOTP(req, res) {
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
-      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')",
-      [user.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex')]
+      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', $4)",
+      [user.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), tokens.sid]
     );
     // H8d: registration completes a login — set the httpOnly cookies too.
     setRefreshTokenCookie(res, tokens.refreshToken);
     setAccessTokenCookie(res, tokens.accessToken);
-    res.status(201).json({ user: formatAuthUser(user), ...tokens });
+    await issueSessionCsrf(res, user.id, tokens.sid);
+    res.status(201).json({ user: formatAuthUser(user), accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
   } catch (err) {
     logger.error('Verify registration OTP error', { err });
     res.status(500).json({ error: 'Verification failed', code: 'verification_failed' });
@@ -2167,8 +2195,8 @@ async function updateProfile(req, res) {
       const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
       await modeRoleUtil.invalidateUserSessions(client, req.user.id);
       await client.query(
-        "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')",
-        [finalRow.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex')],
+        "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', $4)",
+        [finalRow.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), tokens.sid],
       );
       modeTokens = tokens;
     }
@@ -2178,6 +2206,7 @@ async function updateProfile(req, res) {
       // Mode switch rotated the session: move both web cookies with it.
       setRefreshTokenCookie(res, modeTokens.refreshToken);
       setAccessTokenCookie(res, modeTokens.accessToken);
+      await issueSessionCsrf(res, finalRow.id, modeTokens.sid);
     }
 
     res.json({
@@ -2610,8 +2639,8 @@ async function switchRole(req, res) {
     // after the role has already changed.
     await modeRoleUtil.invalidateUserSessions(client, userId);
     await client.query(
-      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')",
-      [updatedUser.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex')],
+      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', $4)",
+      [updatedUser.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), tokens.sid],
     );
     {
       const { emitDomainEvent, accountRoleForMode } = require('../growth/emit');
@@ -2633,6 +2662,7 @@ async function switchRole(req, res) {
     // must carry the new role/mode too; otherwise the old-role JWT keeps
     // authenticating until it expires.
     setAccessTokenCookie(res, tokens.accessToken);
+    await issueSessionCsrf(res, updatedUser.id, tokens.sid);
     return res.json({
       success: true,
       user: formatAuthUser(updatedUser),
