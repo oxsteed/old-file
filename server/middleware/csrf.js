@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 
 // CSRF token middleware for protecting against Cross-Site Request Forgery attacks
@@ -106,6 +107,19 @@ async function attachCsrfToken(req, res, next) {
   next();
 }
 
+function hasAccessCookie(req) {
+  return /(?:^|;\s*)oxsteed_access=/.test(String(req.headers.cookie || ''));
+}
+
+function bearerImpersonates(req) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return false;
+  const token = header.slice('Bearer '.length).trim();
+  if (!token) return false;
+  const decoded = jwt.decode(token);
+  return Boolean(decoded && decoded.impersonation === true);
+}
+
 // Validate CSRF token on all state-changing requests.
 async function validateCsrfToken(req, res, next) {
   // Skip in test environment
@@ -114,18 +128,18 @@ async function validateCsrfToken(req, res, next) {
   // Safe methods are exempt
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
 
-  // Bearer-authenticated requests are exempt: a cross-site form cannot set
-  // a custom Authorization header, so a request carrying one is not a
-  // form-forged CSRF attempt. The normal web client authenticates via the
-  // httpOnly cookie (no Bearer header outside impersonation), so cookie
-  // sessions are NOT exempt and are validated below.
-  // Pentest fix: identity now comes from parseAuthIdentity, mounted before
-  // this middleware in server/index.js. It verifies the access cookie or
-  // Bearer token signature without rejecting, so req.user.id is populated
-  // for valid sessions and this check actually runs for cookie auth.
+  // Bearer-only requests are exempt: a cross-site form cannot set
+  // Authorization. An impersonation bearer also takes precedence over the
+  // access cookie in authenticate, so that request is bearer-authenticated.
+  // A normal Bearer header must not exempt a request that still carries
+  // oxsteed_access: authenticate prefers that cookie, and skipping CSRF
+  // would let the cookie session run without a token.
+  // Identity comes from parseAuthIdentity, mounted before this middleware.
   // Requests with no valid session still skip: there is no session to
   // protect, and route-level authenticate rejects them downstream.
-  if (req.headers.authorization?.startsWith('Bearer ')) return next();
+  if (req.headers.authorization?.startsWith('Bearer ') && (!hasAccessCookie(req) || bearerImpersonates(req))) {
+    return next();
+  }
 
   // Unauthenticated requests have no session token to validate against.
   if (!req.user?.id) return next();

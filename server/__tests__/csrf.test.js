@@ -90,6 +90,43 @@ describe('CSRF boundary for cookie sessions', () => {
     expect(res.status).toBe(200);
   });
 
+  test('POST with a cookie and a non-impersonation Bearer still requires CSRF', async () => {
+    const res = await withLiveEnv(() =>
+      request(buildApp()).post('/mutate')
+        .set('Cookie', accessCookie(7))
+        .set('Authorization', `Bearer ${bearerToken(8)}`)
+        .send({}));
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/CSRF token missing/);
+  });
+
+  test('POST with a cookie and an impersonation Bearer stays exempt', async () => {
+    const impersonation = jwt.sign(
+      { id: 8, impersonation: true },
+      process.env.JWT_SECRET,
+      { algorithm: 'HS256' },
+    );
+    const res = await withLiveEnv(() =>
+      request(buildApp()).post('/mutate')
+        .set('Cookie', accessCookie(7))
+        .set('Authorization', `Bearer ${impersonation}`)
+        .send({}));
+    expect(res.status).toBe(200);
+  });
+
+  test('POST with a cookie, a non-impersonation Bearer, and the cookie CSRF token succeeds', async () => {
+    const app = buildApp();
+    const get = await withLiveEnv(() => request(app).get('/ping').set('Cookie', accessCookie(7)));
+    const token = get.headers['x-csrf-token'];
+    const res = await withLiveEnv(() =>
+      request(app).post('/mutate')
+        .set('Cookie', accessCookie(7))
+        .set('Authorization', `Bearer ${bearerToken(8)}`)
+        .set('X-CSRF-Token', token)
+        .send({}));
+    expect(res.status).toBe(200);
+  });
+
   test('POST with no session passes the middleware (route auth rejects downstream)', async () => {
     const res = await withLiveEnv(() =>
       request(buildApp()).post('/mutate').send({}));
