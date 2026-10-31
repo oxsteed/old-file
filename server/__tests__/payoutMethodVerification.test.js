@@ -11,6 +11,15 @@ const response = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn() })
 beforeEach(() => { resetMocks(); jest.clearAllMocks(); process.env.PAYOUT_PROCESSOR_ENABLED = 'true'; });
 function route(status, ready) {
   mockQuery.mockImplementation(async (sql) => {
+    // Audit item 2: the legacy direct path gates on W-9, fresh Didit,
+    // sanctions, and the credit rail before any transfer. Serve a
+    // compliant fixture through the real gate queries so these tests
+    // exercise the readiness/method paths they name.
+    if (/SELECT w9_completed, didit_status, didit_verified_at/.test(sql)) return { rows: [{ w9_completed: true,
+      didit_status: 'verified', didit_verified_at: new Date().toISOString() }] };
+    if (/FROM oxsteed_credit_sanctions_screenings/.test(sql)) return { rows: [{ result: 'clear',
+      screened_at: new Date(), cleared_at: null, confirmed_at: null }] };
+    if (/FROM feature_flags WHERE key = 'oxsteed_credit_enabled'/.test(sql)) return { rows: [{ is_enabled: true }] };
     if (/SELECT ap\.\*/.test(sql)) return { rows: [{ id: 9, helper_id: 'helper', status: 'pending', payout_method_id: 4,
       stripe_account_id: 'acct_owned', connect_payouts_enabled: ready, payout_method_status: status, net_payout_cents: 1500 }] };
     if (/SELECT pm.status/.test(sql)) return { rows: [{ payout_method_status: status, stripe_account_id: 'acct_owned', connect_payouts_enabled: ready }] };

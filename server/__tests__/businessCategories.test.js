@@ -129,7 +129,10 @@ describe('business category long-term wiring', () => {
     expect(auditInsert).toBeDefined();
     expect(auditInsert[1][0]).toBe(8);
     expect(auditInsert[1][2]).toBe('8');
-    expect(auditInsert[1]).toHaveLength(5);
+    // Audit stamp track: business.created now stamps impersonated_by as a
+    // trailing 6th param (null for this direct, non-impersonated session).
+    expect(auditInsert[1]).toHaveLength(6);
+    expect(auditInsert[1][5]).toBeNull();
   });
 
   test('does not create a food restaurant for service marketplace businesses', async () => {
