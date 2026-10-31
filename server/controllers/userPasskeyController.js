@@ -14,6 +14,7 @@ const db = require('../db');
 const { challengeFromResponse } = require('../utils/webauthnChallenge');
 const { assertLoginAgreement, recordLoginAgreement } = require('../services/loginAgreementService');
 const { generateTokens } = require('../middleware/auth');
+const { issueSessionCsrf } = require('../middleware/csrf');
 const { formatAuthUser } = require('./authController');
 
 const RP_NAME = 'OxSteed';
@@ -251,7 +252,7 @@ async function issueUserSession(user, req, res) {
   const tokens = generateTokens(user, { authMethod: 'passkey' });
   const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
   const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
-  await db.query(`INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')`, [user.id, hashedRefresh, accessHash]);
+  await db.query(`INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', $4)`, [user.id, hashedRefresh, accessHash, tokens.sid]);
   await db.query(`UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE id = $2`, [req.ip || null, user.id]).catch(() => {});
   await db.query(`INSERT INTO user_login_history (user_id, ip_address, user_agent, success) VALUES ($1, $2, $3, TRUE)`, [user.id, req.ip || null, req.headers['user-agent'] || null]).catch(() => {});
 
@@ -259,6 +260,7 @@ async function issueUserSession(user, req, res) {
   // cookie must be oxsteed_rt (read by /auth/refresh); it was previously set
   // as 'oxsteed_refresh', which nothing reads.
   setSessionCookies(res, tokens);
+  await issueSessionCsrf(res, user.id, tokens.sid);
 
   return res.json({ success: true, user: formatAuthUser(user), ...bodyTokens(req, tokens) });
 }

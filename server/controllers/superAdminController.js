@@ -6,7 +6,7 @@ const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
 const tokenRevocationService = require('../services/tokenRevocationService');
-const { invalidateToken: invalidateCsrfToken } = require('../middleware/csrf');
+const { invalidateAllTokens: invalidateAllCsrfTokens } = require('../middleware/csrf');
 const { withTransaction } = require('../utils/transaction');
 const { enqueueMessageNotification } = require('../services/messageNotificationService');
 const { parseBoundedPagination } = require('../utils/pagination');
@@ -3379,11 +3379,13 @@ exports.forceLogout = async (req, res) => {
       logger.warn('forceLogout: token revocation failed', { userId, error: revokeErr.message });
     }
 
-    // Auth audit item 10: same session-termination semantics as logout:
-    // the user's CSRF token must not survive a forced session end.
-    // Never throws, for the same reason as the logout path.
+    // Session-scoped CSRF: force-logout terminates every session, so
+    // it invalidates every CSRF key for the user (all session keys plus
+    // the legacy key), unlike self-logout which invalidates only the
+    // presented session's key. Never throws, for the same reason as the
+    // logout path.
     try {
-      await invalidateCsrfToken(String(userId));
+      await invalidateAllCsrfTokens(String(userId));
     } catch (csrfErr) {
       logger.warn('forceLogout: CSRF invalidation failed', { userId, error: csrfErr.message });
     }
