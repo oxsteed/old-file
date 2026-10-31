@@ -347,6 +347,13 @@ async function runCycle(cycle, fence = null) {
     }
   }
   const failed = errors.length > 0;
+  // Actionable skips (partner not active/found, currency mismatch) are
+  // recorded on the cycle so the next run can re-drive exactly those
+  // pairs against this cycle's period. Period-already-covered is settled
+  // coverage, not a re-drive candidate, so it is counted but not listed.
+  const actionableSkips = settlements
+    .filter((s) => s.status === 'skipped' && s.reason !== 'period_already_covered')
+    .map(({ partnerId, currencyCode, reason }) => ({ partnerId, currencyCode, reason }));
   await writeQuery(
     `UPDATE oxsteed_credit_settlement_cycles
         SET status = $2,
@@ -361,10 +368,79 @@ async function runCycle(cycle, fence = null) {
         skipped_count: settlements.filter((s) => s.status === 'skipped').length,
         error_count: errors.length,
         errors: errors.slice(0, 10),
+        skipped: actionableSkips,
       }),
     ]
   );
   return { cycleId: cycleRow.id, cycleType: cycle.cycleType, status: failed ? 'failed' : 'completed', settlements, errors };
+}
+
+/**
+ * Re-drive skipped settlement pairs from prior cycles.
+ *
+ * A partner that was inactive (or misconfigured) when its period's cycle
+ * ran used to sit unsettled forever: planCycles builds only the current
+ * period, so nothing ever revisited the skipped pair. Each run now
+ * re-attempts recorded skips against their ORIGINAL cycle row, so the
+ * settlement covers the original period and reuses the original cycle's
+ * idempotency key (a successful re-drive replays, never duplicates, on
+ * any later pass). Pairs that are now covered, or still skipped, or
+ * erroring stay on the list for the next run; settled pairs drop off.
+ * The current run's own cycles are excluded: their skips are picked up
+ * by the next run, not retried seconds later.
+ */
+const REDRIVE_CYCLE_LIMIT = 25;
+
+async function redriveSkippedSettlements({ fence = null, excludeCycleIds = [] } = {}) {
+  const writeQuery = fence
+    ? (text, params) => fence.db.query(text, params)
+    : (text, params) => pool.query(text, params);
+  const { rows: cycles } = await pool.query(
+    `SELECT id, cycle_type, period_start, period_end, metadata
+       FROM oxsteed_credit_settlement_cycles
+      WHERE metadata ? 'skipped'
+        AND jsonb_array_length(metadata->'skipped') > 0
+      ORDER BY period_start ASC
+      LIMIT $1`,
+    [REDRIVE_CYCLE_LIMIT]
+  );
+  const summary = { cyclesChecked: 0, redriven: 0, stillSkipped: 0, errors: [] };
+  const excluded = new Set(excludeCycleIds.map(String));
+  for (const cycleRow of cycles) {
+    if (excluded.has(String(cycleRow.id))) continue;
+    summary.cyclesChecked += 1;
+    const skipped = Array.isArray(cycleRow.metadata?.skipped) ? cycleRow.metadata.skipped : [];
+    const remaining = [];
+    for (const pair of skipped) {
+      try {
+        const outcome = await settlePartnerForCycle(cycleRow, { partnerId: pair.partnerId, currencyCode: pair.currencyCode });
+        if (outcome.status === 'created' || outcome.status === 'replayed') {
+          summary.redriven += 1;
+        } else if (outcome.status === 'skipped' && outcome.reason === 'period_already_covered') {
+          // Covered since the skip was recorded; nothing left to drive.
+        } else {
+          remaining.push(pair);
+          summary.stillSkipped += 1;
+        }
+      } catch (error) {
+        logger.error('OxSteed Credit settlement re-drive failed for partner', {
+          cycleId: cycleRow.id, partnerId: pair.partnerId, currencyCode: pair.currencyCode, error: error.message,
+        });
+        remaining.push(pair);
+        summary.stillSkipped += 1;
+        summary.errors.push({ cycleId: cycleRow.id, partnerId: pair.partnerId, currencyCode: pair.currencyCode, error: error.message });
+      }
+    }
+    if (remaining.length !== skipped.length) {
+      await writeQuery(
+        `UPDATE oxsteed_credit_settlement_cycles
+            SET metadata = metadata || $2::jsonb, updated_at = NOW()
+          WHERE id = $1`,
+        [cycleRow.id, JSON.stringify({ skipped: remaining })]
+      );
+    }
+  }
+  return summary;
 }
 
 /**
@@ -477,6 +553,12 @@ async function runOxsteedCreditSettlementCycle({ now = new Date(), runReserveMon
     for (const cycle of cycles) {
       results.push(await runCycle(cycle, fence));
     }
+    // Re-drive skips recorded by prior cycles. The current run's own
+    // cycles are excluded: their skips are picked up by the next run.
+    const redrive = await redriveSkippedSettlements({
+      fence,
+      excludeCycleIds: results.map((r) => r.cycleId).filter(Boolean),
+    });
     let reserveMonitor = null;
     if (runReserveMonitor) {
       reserveMonitor = await checkReserveLevels({ fence });
@@ -488,6 +570,8 @@ async function runOxsteedCreditSettlementCycle({ now = new Date(), runReserveMon
         cycleCount: results.length,
         settlementCount: results.flatMap((r) => r.settlements || []).length,
         errorCount: errors.length,
+        redrivenSettlementCount: redrive.redriven,
+        redriveStillSkippedCount: redrive.stillSkipped,
         reserveChecked: reserveMonitor?.checked ?? null,
         reserveBelowFloor: reserveMonitor?.belowFloor.length ?? null,
         reserveLow: reserveMonitor?.low.length ?? null,
@@ -514,6 +598,7 @@ module.exports = {
   CRON_EXPRESSION,
   startOxsteedCreditSettlementCycleJob,
   runOxsteedCreditSettlementCycle,
+  redriveSkippedSettlements,
   checkReserveLevels,
   planCycles,
   parseWeeklyWeekday,
