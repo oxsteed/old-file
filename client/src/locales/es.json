@@ -3693,7 +3693,10 @@
       "managePasskeys": "Administrar claves de acceso",
       "sessions": "Sesiones activas",
       "sessionsDesc": "Ver los dispositivos con sesión iniciada en tu cuenta y cerrarlas",
-      "manageSessions": "Gestionar sesiones"
+      "manageSessions": "Gestionar sesiones",
+      "country": "País",
+      "countryDesc": "Elige el país en el que opera tu cuenta. Afecta las rutas comerciales y las reglas de producto.",
+      "manageCountry": "Gestionar país"
     },
     "subscription": {
       "title": "Suscripción",
@@ -23345,6 +23348,8 @@
       "openKitchen": "Pantalla de cocina",
       "openQueue": "Tablero de fila",
       "openKiosk": "Quiosco",
+      "openInventory": "Inventario",
+      "openRunner": "Runner",
       "orderCenter": {
         "eyebrow": "Operaciones del restaurante",
         "title": "Pedidos",
@@ -25458,6 +25463,7 @@
     "dashboardSubtitle": "Sigue el flujo de solicitudes Direct, el trabajo próximo, los importes impagos y los asuntos urgentes desde una sola vista.",
     "dashboardRight": "Usa esta consola para cotizar trabajo, programar visitas, revisar comprobantes de pago y mantener actualizado el registro del cliente.",
     "openInbox": "Abrir bandeja",
+    "openQuote": "Abrir creador de cotización",
     "settings": "Configuración",
     "loading": "Cargando…",
     "fetchingData": "Obteniendo datos operativos de Direct…",

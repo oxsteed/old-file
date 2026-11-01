@@ -867,6 +867,12 @@ export default function SettingsPage() {
         <p className="sp-card-subtitle">{t('settings.security.sessionsDesc')}</p>
         <Link to="/settings/sessions" className="sp-btn sp-btn-ghost">{t('settings.security.manageSessions')}</Link>
       </div>
+
+      <div className="sp-card">
+        <h2 className="sp-card-title">{t('settings.security.country')}</h2>
+        <p className="sp-card-subtitle">{t('settings.security.countryDesc')}</p>
+        <Link to="/settings/country" className="sp-btn sp-btn-ghost">{t('settings.security.manageCountry')}</Link>
+      </div>
     </>
   );
 

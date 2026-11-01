@@ -625,18 +625,21 @@ function DirectAdminInboxView() {
           ) : (
             <div className="space-y-2">
               {list.requests.map((item) => (
-                <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className={`w-full rounded-2xl border p-4 text-left transition ${String(selectedId) === String(item.id) ? 'border-orange-500/40 bg-orange-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="font-semibold text-white">{item.firstName} {item.lastName}</div>
-                      <div className="mt-1 text-xs text-slate-500">{item.serviceCategory} · {item.serviceLocation || item.serviceCity || '—'}</div>
+                <div key={item.id} className={`flex items-center gap-3 rounded-2xl border p-4 transition ${String(selectedId) === String(item.id) ? 'border-orange-500/40 bg-orange-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
+                  <button type="button" onClick={() => setSelectedId(item.id)} className="flex-1 text-left">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-white">{item.firstName} {item.lastName}</div>
+                        <div className="mt-1 text-xs text-slate-500">{item.serviceCategory} · {item.serviceLocation || item.serviceCity || '—'}</div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Chip tone="blue">{statusLabel(item.status, t)}</Chip>
+                        <Chip tone="orange">{paymentLabel(item.paymentStatus, t)}</Chip>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Chip tone="blue">{statusLabel(item.status, t)}</Chip>
-                      <Chip tone="orange">{paymentLabel(item.paymentStatus, t)}</Chip>
-                    </div>
-                  </div>
-                </button>
+                  </button>
+                  <Link to={`/direct/admin/quotes/${item.id}`} className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white">{t('directAdminPortal.openQuote')}</Link>
+                </div>
               ))}
             </div>
           )}

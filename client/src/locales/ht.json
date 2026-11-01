@@ -3880,7 +3880,10 @@
       "managePasskeys": "Jere passkeys",
       "sessions": "Sesyon aktif yo",
       "sessionsDesc": "Wè aparèy ki konekte sou kont ou a epi dekonekte yo",
-      "manageSessions": "Jere sesyon yo"
+      "manageSessions": "Jere sesyon yo",
+      "country": "Peyi",
+      "countryDesc": "Chwazi peyi kont ou ap opere ladan. Li afekte wout komès yo ak règ pwodwi yo.",
+      "manageCountry": "Jere peyi"
     },
     "subscription": {
       "title": "Abonman",
@@ -23345,6 +23348,8 @@
       "openKitchen": "Ekran kwizin",
       "openQueue": "Tablo lis",
       "openKiosk": "Kyòs",
+      "openInventory": "Envantè",
+      "openRunner": "Runner",
       "orderCenter": {
         "eyebrow": "Operasyon restoran",
         "title": "Kòmand",
@@ -25458,6 +25463,7 @@
     "dashboardSubtitle": "Swiv tiyo demann Direct yo, travay kap vini yo, bagay ki poko peye yo, ak pwoblèm ijan yo nan yon sèl gade.",
     "dashboardRight": "Itilize konsòl sa a pou estime travay, planifye vizit, verifye prèv peman, epi kenbe dosye kliyan an ajou.",
     "openInbox": "Ouvri bwat la",
+    "openQuote": "Louvri zouti devis",
     "settings": "Paramèt",
     "loading": "Chaje…",
     "fetchingData": "Ap chèche done operasyon Direct yo…",

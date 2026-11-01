@@ -463,8 +463,12 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
       if (embedded) {
         setEmbeddedConversationId(null);
         setEmbeddedInquiryId(uuid);
-      } else {
+      } else if (businessId) {
         navigate(`/helper/messages/guest/${uuid}`);
+      } else {
+        // Route-aware: customer inbox rows land on /messages/guest/:id (the
+        // customer workspace) and helper inbox rows on /helper/messages/guest/:id.
+        navigate(`${basePath}/guest/${uuid}`);
       }
       return;
     }
