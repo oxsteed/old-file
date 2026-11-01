@@ -111,9 +111,14 @@ describeDb('metrics registry: revenue + take-rate parity', () => {
   });
 
   test('platformRevenue honors the period window and splits subscription/refunds', async () => {
+    // The MTD window is the calendar month, so the in-window rows must be
+    // stamped inside the current month on every date, not "2 days ago"
+    // (which falls in the prior month on the 1st and 2nd). GREATEST pins
+    // them to the later of month-start and yesterday: always in-month,
+    // always inside the 30-day window, never in the future.
     await db.query(`INSERT INTO platform_ledger (source_type, amount_cents, created_at) VALUES
-      ('job_fee', 10000, NOW() - INTERVAL '2 days'),
-      ('subscription', 5000, NOW() - INTERVAL '2 days'),
+      ('job_fee', 10000, GREATEST(date_trunc('month', NOW()), NOW() - INTERVAL '1 day')),
+      ('subscription', 5000, GREATEST(date_trunc('month', NOW()), NOW() - INTERVAL '1 day')),
       ('job_fee', 7000, NOW() - INTERVAL '60 days'),
       ('refund', -3000, NOW() - INTERVAL '2 days'),
       ('subscription', 99999, NOW() - INTERVAL '400 days')`);
