@@ -858,6 +858,8 @@ function OrdersTab({ t, restaurant }) {
           <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openKitchen')}</Link>
           <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openQueue')}</Link>
           <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openKiosk')}</Link>
+          <Link to={`/restaurants/inventory/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openInventory')}</Link>
+          <Link to={`/restaurants/runner/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openRunner')}</Link>
         </nav>
       </header>
 

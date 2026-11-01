@@ -3692,7 +3692,10 @@
       "managePasskeys": "Manage passkeys",
       "sessions": "Active sessions",
       "sessionsDesc": "See devices signed in to your account and sign them out",
-      "manageSessions": "Manage sessions"
+      "manageSessions": "Manage sessions",
+      "country": "Country",
+      "countryDesc": "Choose the country your account operates in. It affects trade lanes and product rules.",
+      "manageCountry": "Manage country"
     },
     "subscription": {
       "title": "Subscription",
@@ -23345,6 +23348,8 @@
       "openKitchen": "Kitchen display",
       "openQueue": "Queue board",
       "openKiosk": "Kiosk",
+      "openInventory": "Inventory",
+      "openRunner": "Runner",
       "orderCenter": {
         "eyebrow": "Restaurant operations",
         "title": "Orders",
@@ -25458,6 +25463,7 @@
     "dashboardSubtitle": "Track the Direct intake pipeline, upcoming work, unpaid items, and urgent issues from one staff view.",
     "dashboardRight": "Use this console to quote work, schedule visits, review payment proof, and keep the customer record current.",
     "openInbox": "Open inbox",
+    "openQuote": "Open quote builder",
     "settings": "Settings",
     "loading": "Loading…",
     "fetchingData": "Fetching Direct operations data…",

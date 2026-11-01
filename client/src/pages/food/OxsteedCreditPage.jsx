@@ -808,6 +808,7 @@ export default function OxsteedCreditPage() {
               <Link to="/wallet" className="ox-credit-refresh"><ArrowDownLeft size={16} aria-hidden="true" /> {t('backToWallet')}</Link>
               <Link to={`/oxsteed-credit/statements?currencyCode=${encodeURIComponent(selectedCurrency)}`} className="ox-credit-refresh"><Receipt size={16} aria-hidden="true" /> {t('statements.link', { defaultValue: 'Statements' })}</Link>
               <Link to="/oxsteed-credit/cards" className="ox-credit-refresh"><WalletCards size={16} /> My Cards</Link>
+              <Link to="/credit/apply" className="ox-credit-refresh"><ArrowUpRight size={16} aria-hidden="true" /> {t('creditApplyTitle')}</Link>
               <label className="ox-credit-currency-picker">{t('currency')}<select value={selectedCurrency} onChange={changeCurrency} disabled={loading || refreshing}>{[...new Set(['USD', ...(railStatus?.supportedCurrencies || []), ...accounts.map((item) => item.currencyCode).filter(Boolean)])].sort().map((code) => <option key={code} value={code}>{code}</option>)}</select></label>
               <button type="button" className="ox-credit-refresh" onClick={() => load({ quiet: true, currencyCode: selectedCurrency })} disabled={loading || refreshing}>
                 <RefreshCw size={16} className={refreshing ? 'ox-credit-spin' : ''} /> {t('refresh')}

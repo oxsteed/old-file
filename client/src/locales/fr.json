@@ -3693,7 +3693,10 @@
       "managePasskeys": "Gérer les clés d’accès",
       "sessions": "Sessions actives",
       "sessionsDesc": "Voir les appareils connectés à votre compte et les déconnecter",
-      "manageSessions": "Gérer les sessions"
+      "manageSessions": "Gérer les sessions",
+      "country": "Pays",
+      "countryDesc": "Choisissez le pays dans lequel votre compte opère. Cela affecte les routes commerciales et les règles de produit.",
+      "manageCountry": "Gérer le pays"
     },
     "subscription": {
       "title": "Abonnement",
@@ -23345,6 +23348,8 @@
       "openKitchen": "Écran cuisine",
       "openQueue": "Tableau de file",
       "openKiosk": "Borne",
+      "openInventory": "Inventaire",
+      "openRunner": "Runner",
       "orderCenter": {
         "eyebrow": "Opérations du restaurant",
         "title": "Commandes",
@@ -25458,6 +25463,7 @@
     "dashboardSubtitle": "Suivez le pipeline des demandes Direct, le travail à venir, les éléments impayés et les problèmes urgents depuis une seule vue.",
     "dashboardRight": "Utilisez cette console pour chiffrer le travail, planifier les visites, vérifier les preuves de paiement et tenir le dossier client à jour.",
     "openInbox": "Ouvrir la boîte",
+    "openQuote": "Ouvrir le créateur de devis",
     "settings": "Paramètres",
     "loading": "Chargement…",
     "fetchingData": "Récupération des données opérationnelles Direct…",

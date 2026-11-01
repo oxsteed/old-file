@@ -94,6 +94,7 @@ const ConversationPage = lazyWithRetry(() => import('./pages/ConversationPage'))
 const HelperInboxPage = lazyWithRetry(routeLoaders.helperMessages, { name: 'helperMessages' });
 const HelperConversationPage = lazyWithRetry(() => import('./pages/HelperConversationPage'));
 const HelperGuestInquiryPage = lazyWithRetry(() => import('./pages/HelperGuestInquiryPage'));
+const CustomerGuestInquiryPage = lazyWithRetry(() => import('./pages/CustomerGuestInquiryPage'));
 const PlannedNeedsPage = lazyWithRetry(() => import('./pages/PlannedNeedsPage'));
 const CarCarePage = lazyWithRetry(() => import('./pages/CarCarePage'));
 // OxSteed Food - restaurant online + in-store ordering (migration 305)
@@ -634,7 +635,7 @@ export default function App() {
 
                     {/* Messaging: wrapped in RouteErrorBoundary to isolate crashes */}
                     <Route path="/messages"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><MessagesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/messages/guest/:inquiryId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperGuestInquiryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/messages/guest/:inquiryId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CustomerGuestInquiryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/messages/:conversationId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConversationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Back-compat for backend activity URLs that still emit /messages/conversations/:id */}
                     <Route path="/messages/conversations/:conversationId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConversationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
