@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { useUndo } from '../hooks/useUndo';
@@ -429,9 +430,18 @@ export default function EditProfileTab() {
       markSaved();
       toast.success(t('helperDashboard.listingSaved'));
     } catch (err) {
-      toast.error(err.response?.data?.code === 'listing_requires_identity_verification'
-        ? t('helperDashboard.listingRequiresIdentity')
-        : (err.response?.data?.error || t('helperDashboard.failedSave')));
+      if (err.response?.data?.code === 'listing_requires_identity_verification') {
+        toast.error((toastObj) => (
+          <span>
+            {t('helperDashboard.listingRequiresIdentity')}{' '}
+            <Link to="/verify-identity" onClick={() => toast.dismiss(toastObj.id)} className="font-semibold text-orange-400 underline hover:text-orange-300">
+              {t('helperDashboard.verifyId')}
+            </Link>
+          </span>
+        ));
+      } else {
+        toast.error(err.response?.data?.error || t('helperDashboard.failedSave'));
+      }
     } finally {
       setListingSaving(false);
     }
