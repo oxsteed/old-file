@@ -84,9 +84,11 @@ export function TrainingPanel({ t, restaurant, bare, onStats }) {
   const [editing, setEditing] = useState(null); // null | 'new' | module
   const [taking, setTaking] = useState(null); // { assignment, module, step: 'lesson'|'quiz'|'result', result }
   const [confirmDelete, setConfirmDelete] = useState(null); // module pending delete confirmation
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
+    setLoadError(false);
     const fetches = [
       listTrainingModules(restaurantId),
       listTrainingAssignments(restaurantId, isManager ? {} : { mine: '1' }),
@@ -102,7 +104,7 @@ export function TrainingPanel({ t, restaurant, bare, onStats }) {
           : asg.filter((a) => a.status === 'completed').length;
         onStats?.({ trainingModules: mods.length, trainingAssigned: asg.length, trainingCompleted: completed });
       })
-      .catch((err) => toast.error(apiErr(err, t('restaurants.ops.training.loadError', 'Could not load training'))))
+      .catch((err) => { setLoadError(true); toast.error(apiErr(err, t('restaurants.ops.training.loadError', 'Could not load training'))); })
       .finally(() => setLoading(false));
   }, [restaurantId, t, onStats, isManager]);
   useEffect(() => { load(); }, [load]);
@@ -170,6 +172,7 @@ export function TrainingPanel({ t, restaurant, bare, onStats }) {
           </button>
         )}
       </div>
+      {loadError && <p role="alert">{t('restaurants.ops.shared.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={load} data-track="ui.2265f208ce.47">{t('restaurants.ops.shared.retry')}</button></p>}
 
       {confirmDelete && (
         <ConfirmDialog

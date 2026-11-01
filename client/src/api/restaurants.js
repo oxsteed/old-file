@@ -6,9 +6,15 @@
 
 import api from './axios';
 
+// My-shift panels render "Loading..." until these reads settle; a stalled
+// request used to hang them forever (the shared client sets no timeout).
+// Bound every list read those panels depend on so a stall fails visibly
+// instead of sitting on "Loading...".
+const PANEL_LOAD_TIMEOUT_MS = 15000;
+
 // ── Checklists (templates) ─────────────────────────────────────────────────
 export const listChecklists = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/checklists`).then((r) => r.data?.checklists || []);
+  api.get(`/restaurants/${restaurantId}/checklists`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.checklists || []);
 
 export const createChecklist = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/checklists`, payload).then((r) => r.data?.checklist);
@@ -34,7 +40,7 @@ export const startChecklistRun = (restaurantId, checklistId, payload = {}) =>
   api.post(`/restaurants/${restaurantId}/checklists/${checklistId}/runs`, payload).then((r) => r.data?.run);
 
 export const listChecklistRuns = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/checklist-runs`, { params }).then((r) => r.data?.runs || []);
+  api.get(`/restaurants/${restaurantId}/checklist-runs`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.runs || []);
 
 export const getChecklistRun = (restaurantId, runId) =>
   api.get(`/restaurants/${restaurantId}/runs/${runId}`).then((r) => r.data?.run);
@@ -47,7 +53,7 @@ export const completeChecklistRun = (restaurantId, runId, payload = {}) =>
 
 // ── SOP library ────────────────────────────────────────────────────────────
 export const listSops = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/sops`).then((r) => r.data?.sops || []);
+  api.get(`/restaurants/${restaurantId}/sops`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.sops || []);
 
 export const createSop = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/sops`, payload).then((r) => r.data?.sop);
@@ -79,7 +85,7 @@ export const listInventoryAdjustments = (restaurantId, params = {}) =>
 
 // ── Staff training (franchise system) ────────────────────────────────────────
 export const listTrainingModules = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/training/modules`).then((r) => r.data?.modules || []);
+  api.get(`/restaurants/${restaurantId}/training/modules`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.modules || []);
 
 export const createTrainingModule = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/training/modules`, payload).then((r) => r.data?.module);
@@ -97,7 +103,7 @@ export const assignTrainingModule = (restaurantId, moduleId, payload) =>
   api.post(`/restaurants/${restaurantId}/training/modules/${moduleId}/assign`, payload).then((r) => r.data?.assignment);
 
 export const listTrainingAssignments = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/training/assignments`, { params }).then((r) => r.data?.assignments || []);
+  api.get(`/restaurants/${restaurantId}/training/assignments`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.assignments || []);
 
 export const startTrainingAssignment = (restaurantId, assignmentId) =>
   api.post(`/restaurants/${restaurantId}/training/assignments/${assignmentId}/start`).then((r) => r.data?.assignment);
@@ -106,7 +112,7 @@ export const submitTrainingQuiz = (restaurantId, assignmentId, payload) =>
   api.post(`/restaurants/${restaurantId}/training/assignments/${assignmentId}/submit`, payload).then((r) => r.data);
 
 export const listTrainingCompletions = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/training/completions`).then((r) => r.data?.completions || []);
+  api.get(`/restaurants/${restaurantId}/training/completions`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.completions || []);
 
 // Auto-assignment rules (S-12)
 export const listTrainingAutoAssignRules = (restaurantId) =>

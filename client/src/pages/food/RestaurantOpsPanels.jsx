@@ -54,9 +54,11 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats, staffMode = fals
   const [activeRun, setActiveRun] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
+    setLoadError(false);
     Promise.all([
       listChecklists(restaurantId),
       listChecklistRuns(restaurantId, { limit: 15,locationId:selection.locationId||undefined }),
@@ -66,7 +68,7 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats, staffMode = fals
         setRuns(rn);
         onStats?.({ checklists: cl.length, runs: rn.length });
       })
-      .catch((err) => toast.error(apiErr(err, t('restaurants.ops.checklists.loadError', 'Could not load checklists'))))
+      .catch((err) => { setLoadError(true); toast.error(apiErr(err, t('restaurants.ops.checklists.loadError', 'Could not load checklists'))); })
       .finally(() => setLoading(false));
   }, [restaurantId, t, onStats, selection.locationId]);
   useEffect(() => { load(); }, [load]);
@@ -95,6 +97,7 @@ export function ChecklistsPanel({ t, restaurant, bare, onStats, staffMode = fals
   return (
     <div>
       <OperationStorePicker t={t} selection={selection}/>
+      {loadError && <p role="alert">{t('restaurants.ops.shared.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={load} data-track="ui.52793f2559.29">{t('restaurants.ops.shared.retry')}</button></p>}
       {activeRun && (
         <RunModal
           t={t}
@@ -371,12 +374,14 @@ export function SopsPanel({ t, restaurant, bare, onStats, staffMode = false }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // null | 'new' | sop object
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
+    setLoadError(false);
     listSops(restaurantId)
       .then((sops) => { setSops(sops); onStats?.({ sops: sops.length }); })
-      .catch((err) => toast.error(apiErr(err, t('restaurants.ops.sops.loadError', 'Could not load SOPs'))))
+      .catch((err) => { setLoadError(true); toast.error(apiErr(err, t('restaurants.ops.sops.loadError', 'Could not load SOPs'))); })
       .finally(() => setLoading(false));
   }, [restaurantId, t, onStats]);
   useEffect(() => { load(); }, [load]);
@@ -417,6 +422,7 @@ export function SopsPanel({ t, restaurant, bare, onStats, staffMode = false }) {
           </button>
         )}
       </div>
+      {loadError && <p role="alert">{t('restaurants.ops.shared.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={load} data-track="ui.52793f2559.30">{t('restaurants.ops.shared.retry')}</button></p>}
       {confirmDelete && (
         <ConfirmDialog
           title={t('restaurants.ops.shared.archiveConfirm')}
