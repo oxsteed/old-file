@@ -22,6 +22,7 @@
 //   the product marketplace while the flags are false.
 
 const logger = require('../utils/logger');
+const { envFlagEnabled } = require('./featureFlags');
 
 // API path prefixes mapped to their launch flag. Only prefixes listed here
 // are gated; everything else passes through. Note: /api/affiliate is already
@@ -75,17 +76,66 @@ const GATED_PREFIXES = Object.freeze([
   },
 ]);
 
-// Mirrors client/src/utils/launchScope.js LAUNCH_VISIBILITY for the gated
-// products. When a product launches, flip its flag here (and in the client).
-function oxsteedMediaLaunched() {
-  return String(process.env.OXSTEED_MEDIA_LAUNCHED || '').trim().toLowerCase() === 'true';
+// Server-side resolution of every client launch key (client/src/utils/
+// launchScope.js LAUNCH_DEFAULTS). Each entry is [env var, default]: the
+// default mirrors the client's current build-time default, so an unset
+// environment changes nothing, and setting the env var plus a redeploy flips
+// that launch with no code edit. Established gates keep their existing
+// variables (OXSTEED_MEDIA_LAUNCHED, VORTEX_ENABLED, AFFILIATE_ENABLED);
+// the rest use OXSTEED_LAUNCH_<KEY>.
+const LAUNCH_KEY_ENV = Object.freeze({
+  affiliateRewards: ['AFFILIATE_ENABLED', true],
+  aiKnowledge: ['OXSTEED_LAUNCH_AI_KNOWLEDGE', false],
+  backgroundChecks: ['OXSTEED_LAUNCH_BACKGROUND_CHECKS', false],
+  businessAscension: ['OXSTEED_LAUNCH_BUSINESS_ASCENSION', false],
+  businessHubAdvancedOps: ['OXSTEED_LAUNCH_BUSINESS_HUB_ADVANCED_OPS', false],
+  businessHubFinancialPlanning: ['OXSTEED_LAUNCH_BUSINESS_HUB_FINANCIAL_PLANNING', false],
+  businessHubGrowthTools: ['OXSTEED_LAUNCH_BUSINESS_HUB_GROWTH_TOOLS', false],
+  businessHubProductCommerce: ['OXSTEED_LAUNCH_BUSINESS_HUB_PRODUCT_COMMERCE', false],
+  businessHubRoleMenu: ['OXSTEED_LAUNCH_BUSINESS_HUB_ROLE_MENU', false],
+  businessHubRoleMenuWidgets: ['OXSTEED_LAUNCH_BUSINESS_HUB_ROLE_MENU_WIDGETS', false],
+  businessHubSpecializedTemplates: ['OXSTEED_LAUNCH_BUSINESS_HUB_SPECIALIZED_TEMPLATES', false],
+  businessHubVortexAccess: ['VORTEX_ENABLED', false],
+  oxsteedMedia: ['OXSTEED_MEDIA_LAUNCHED', false],
+  discoverEverything: ['OXSTEED_LAUNCH_DISCOVER_EVERYTHING', false],
+  footerUtilityPills: ['OXSTEED_LAUNCH_FOOTER_UTILITY_PILLS', true],
+  genericQrGenerator: ['OXSTEED_LAUNCH_GENERIC_QR_GENERATOR', false],
+  helperEarnings: ['OXSTEED_LAUNCH_HELPER_EARNINGS', true],
+  helperGrowthCenter: ['OXSTEED_LAUNCH_HELPER_GROWTH_CENTER', false],
+  helperInvoices: ['OXSTEED_LAUNCH_HELPER_INVOICES', true],
+  jobEscrowLabels: ['OXSTEED_LAUNCH_JOB_ESCROW_LABELS', true],
+  jobMaterialsLogistics: ['OXSTEED_LAUNCH_JOB_MATERIALS_LOGISTICS', false],
+  networkBranchSwitcher: ['OXSTEED_LAUNCH_NETWORK_BRANCH_SWITCHER', false],
+  personalLifeDashboard: ['OXSTEED_LAUNCH_PERSONAL_LIFE_DASHBOARD', false],
+  productMarketplace: ['OXSTEED_LAUNCH_PRODUCT_MARKETPLACE', false],
+  resourcesMenu: ['OXSTEED_LAUNCH_RESOURCES_MENU', false],
+  specializedProfileTemplates: ['OXSTEED_LAUNCH_SPECIALIZED_PROFILE_TEMPLATES', false],
+  subscriptions: ['OXSTEED_LAUNCH_SUBSCRIPTIONS', false],
+  templates: ['OXSTEED_LAUNCH_TEMPLATES', false],
+  toolRentals: ['OXSTEED_LAUNCH_TOOL_RENTALS', true],
+  vortexWorkspaceEntry: ['VORTEX_ENABLED', false],
+});
+
+// Read at call time so /api/launch-visibility always reflects the running
+// environment. The API gate below snapshots the same values at boot instead:
+// env changes need a redeploy either way.
+function getServerLaunchVisibility() {
+  const out = {};
+  for (const [key, [envKey, defaultValue]] of Object.entries(LAUNCH_KEY_ENV)) {
+    out[key] = envFlagEnabled(envKey, defaultValue);
+  }
+  return out;
 }
 
+// Boot snapshot for the gated products only. The full map above is served by
+// /api/launch-visibility; the gate enforces the same values for the four
+// prefixes it blocks, so a launch enabled via env unblocks its APIs in step
+// with the client UI instead of rendering against 404s.
 const LAUNCH_VISIBILITY = Object.freeze({
-  templates: false,
-  productMarketplace: false,
-  specializedProfileTemplates: false,
-  oxsteedMedia: oxsteedMediaLaunched(),
+  templates: envFlagEnabled('OXSTEED_LAUNCH_TEMPLATES', false),
+  productMarketplace: envFlagEnabled('OXSTEED_LAUNCH_PRODUCT_MARKETPLACE', false),
+  specializedProfileTemplates: envFlagEnabled('OXSTEED_LAUNCH_SPECIALIZED_PROFILE_TEMPLATES', false),
+  oxsteedMedia: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', false),
 });
 
 function isLaunchGateDisabled() {
@@ -100,9 +150,9 @@ function isLaunchGateDisabled() {
 function getLaunchVisibility() {
   const on = (v) => String(v || '').trim().toLowerCase() === 'true';
   return {
-    templates: false,
-    productMarketplace: false,
-    specializedProfileTemplates: false,
+    templates: LAUNCH_VISIBILITY.templates,
+    productMarketplace: LAUNCH_VISIBILITY.productMarketplace,
+    specializedProfileTemplates: LAUNCH_VISIBILITY.specializedProfileTemplates,
     oxsteedMedia: LAUNCH_VISIBILITY.oxsteedMedia,
     affiliate: on(process.env.AFFILIATE_ENABLED),
     logisticsPayments: on(process.env.LOGISTICS_PAYMENTS_ENABLED),
@@ -147,5 +197,6 @@ module.exports = {
   GATED_PREFIXES,
   LAUNCH_VISIBILITY,
   getLaunchVisibility,
+  getServerLaunchVisibility,
   _resolveRequestPath: resolveRequestPath,
 };

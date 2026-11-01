@@ -112,6 +112,14 @@ export const LAUNCH_VISIBILITY = { ...LAUNCH_DEFAULTS };
 export function applyServerLaunchVisibility(patch) {
   if (!patch || typeof patch !== 'object') return;
   if (typeof patch.media === 'boolean') LAUNCH_VISIBILITY.oxsteedMedia = patch.media;
+  // Full launch map from /api/launch-visibility. Only keys the client knows
+  // (LAUNCH_DEFAULTS) and only boolean values are applied, so an unknown or
+  // malformed server value can never flip a surface.
+  if (patch.launches && typeof patch.launches === 'object') {
+    for (const key of Object.keys(LAUNCH_DEFAULTS)) {
+      if (typeof patch.launches[key] === 'boolean') LAUNCH_VISIBILITY[key] = patch.launches[key];
+    }
+  }
 }
 
 export function isBusinessHubTabLaunched(tab) {

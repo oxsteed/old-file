@@ -107,3 +107,73 @@ describe('maintenance intake gate (P1-210)', () => {
     expect(nextAllowed).toHaveBeenCalled();
   });
 });
+
+describe('server launch visibility map (Nov 1 audit item 11)', () => {
+  const TOUCHED = [
+    'AFFILIATE_ENABLED',
+    'VORTEX_ENABLED',
+    'OXSTEED_MEDIA_LAUNCHED',
+    'OXSTEED_LAUNCH_TEMPLATES',
+    'OXSTEED_LAUNCH_DISCOVER_EVERYTHING',
+    'OXSTEED_LAUNCH_PRODUCT_MARKETPLACE',
+  ];
+  let saved;
+
+  beforeEach(() => {
+    saved = Object.fromEntries(TOUCHED.map((key) => [key, process.env[key]]));
+    for (const key of TOUCHED) delete process.env[key];
+  });
+
+  afterEach(() => {
+    for (const key of TOUCHED) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  });
+
+  test('defaults mirror the current client behavior: nothing flips on or off', () => {
+    const { getServerLaunchVisibility } = require('../middleware/launchGate');
+    const launches = getServerLaunchVisibility();
+    expect(Object.keys(launches)).toHaveLength(30);
+    expect(launches).toMatchObject({
+      templates: false,
+      productMarketplace: false,
+      specializedProfileTemplates: false,
+      oxsteedMedia: false,
+      discoverEverything: false,
+      subscriptions: false,
+      affiliateRewards: true,
+      footerUtilityPills: true,
+      helperEarnings: true,
+      helperInvoices: true,
+      jobEscrowLabels: true,
+      toolRentals: true,
+    });
+  });
+
+  test('env overrides flip individual keys without touching the rest', () => {
+    process.env.OXSTEED_LAUNCH_TEMPLATES = 'true';
+    process.env.OXSTEED_LAUNCH_DISCOVER_EVERYTHING = '1';
+    process.env.AFFILIATE_ENABLED = 'false';
+    const { getServerLaunchVisibility } = require('../middleware/launchGate');
+    const launches = getServerLaunchVisibility();
+    expect(launches.templates).toBe(true);
+    expect(launches.discoverEverything).toBe(true);
+    expect(launches.affiliateRewards).toBe(false);
+    expect(launches.subscriptions).toBe(false);
+    expect(launches.helperEarnings).toBe(true);
+  });
+
+  test('an env-enabled templates launch unblocks its API in the gate', () => {
+    jest.isolateModules(() => {
+      process.env.OXSTEED_LAUNCH_TEMPLATES = 'true';
+      const { launchGate: freshGate } = require('../middleware/launchGate');
+      const gate = freshGate();
+      const res = mockRes();
+      const next = jest.fn();
+      gate(mockReq({ baseUrl: '/api/templates', path: '/catalog' }), res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+  });
+});
