@@ -1,7 +1,7 @@
 // client/src/pages/NetworkAppsPage.jsx
 //
-// The OxSteed Network full-page app launcher. Mounted at /network and
-// /network/apps. Shows every branch the user can open as a card grid.
+// The OxSteed Network full-page app launcher. Mounted at /network.
+// Shows every branch the user can open as a card grid.
 // The branch catalog is shared with the navbar switcher
 // (OxSteedNetworkSwitcher) via utils/networkBranches so the two stay in sync.
 //
