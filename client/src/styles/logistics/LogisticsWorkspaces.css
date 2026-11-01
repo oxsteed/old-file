@@ -681,3 +681,14 @@ button.lx-step:focus-visible {
   .lx-progress-bar,
   .lx-filter-chip { transition: none; }
 }
+
+/* ── Driver payouts (operations workspace) ───────────────────────────── */
+/* No inline styles here: the no-new-inline-styles gate counts style={}. */
+.lx-driver-payout-copy { line-height: 1.7; }
+.lx-driver-payout-notice { color: var(--color-success, #15803d); }
+.lx-driver-payout-error { color: var(--color-danger, #dc2626); }
+.lx-driver-payout-card { margin: 0; }
+.lx-driver-payout-meta { margin: 0; line-height: 1.7; }
+.lx-driver-payout-field { display: block; margin-top: 0.5rem; }
+.lx-driver-payout-input { display: block; width: 100%; margin-top: 0.25rem; }
+.lx-driver-payout-actions { margin-top: 0.75rem; }
