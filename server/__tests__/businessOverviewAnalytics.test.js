@@ -67,11 +67,18 @@ function mockDb(handlers) {
 }
 
 describe('businessOverviewAnalytics', () => {
+  // Month buckets end at the real current month, so seed rows must tag the
+  // current month, not a hardcoded one, or this test breaks every month rollover.
+  const currentMonth = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+
   test('merges invoice + job revenue and expenses into the overview contract', async () => {
     const db = mockDb([
-      ['business_invoices', [{ month: '2026-10', revenue: '100.00' }]],
-      ['helper_payout', [{ month: '2026-10', revenue: '50' }]],
-      ['expenses', [{ month: '2026-10', expenses: '30' }]],
+      ['business_invoices', [{ month: currentMonth(), revenue: '100.00' }]],
+      ['helper_payout', [{ month: currentMonth(), revenue: '50' }]],
+      ['expenses', [{ month: currentMonth(), expenses: '30' }]],
     ]);
     const out = await businessOverviewAnalytics(db, {
       businessId: 7,
@@ -82,7 +89,7 @@ describe('businessOverviewAnalytics', () => {
     expect(out.business_id).toBe(7);
     expect(out.monthly).toHaveLength(6);
     const current = out.monthly[out.monthly.length - 1];
-    expect(current).toEqual({ month: '2026-10', revenue: 150, expenses: 30, profit: 120 });
+    expect(current).toEqual({ month: currentMonth(), revenue: 150, expenses: 30, profit: 120 });
     expect(out.mtd).toEqual(current);
     expect(out.ytd.revenue).toBe(150);
   });
@@ -101,7 +108,7 @@ describe('businessOverviewAnalytics', () => {
   test('a failing source zeroes its KPIs but keeps the payload', async () => {
     const db = mockDb([
       ['business_invoices', new Error('invoices down')],
-      ['expenses', [{ month: '2026-10', expenses: '30' }]],
+      ['expenses', [{ month: currentMonth(), expenses: '30' }]],
     ]);
     const out = await businessOverviewAnalytics(db, {
       businessId: 7,
