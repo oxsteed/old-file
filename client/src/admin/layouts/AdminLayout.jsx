@@ -76,6 +76,7 @@ export const SUPER_NAV = [
   { tabKey: 'pricingOverrides', to: routePath('pricingOverrides'), icon: Globe,      labelKey: 'adminNav.pricingOverrides' },
   { tabKey: 'financials', to: routePath('financials'),     icon: DollarSign,    labelKey: 'adminNav.financials',       grant: adminRoute('financials').grant },
   { tabKey: 'payouts', to: routePath('payouts'),          icon: FileText,       labelKey: 'adminNav.payouts',          grant: adminRoute('payouts').grant },
+  { tabKey: 'affiliatePayouts', to: routePath('affiliatePayouts'), icon: DollarSign, labelKey: 'adminNav.affiliatePayouts', grant: adminRoute('affiliatePayouts').grant },
   { tabKey: 'treasury', to: routePath('treasury'),         icon: DollarSign,    labelKey: 'adminNav.treasury',         grant: adminRoute('treasury').grant },
   { tabKey: 'conversations', to: routePath('conversations'),   icon: MessageSquare,  labelKey: 'adminNav.conversations'    },
   { tabKey: 'adminAccounts', to: routePath('adminAccounts'),  icon: UserCog,        labelKey: 'adminNav.adminAccounts',   grant: adminRoute('adminAccounts').grant },

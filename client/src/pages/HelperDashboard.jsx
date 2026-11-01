@@ -1178,9 +1178,18 @@ export default function HelperDashboard() {
       setIsListed(!!data.is_listed);
       toast.success(data.is_listed ? t('dashboard.status.online') : t('dashboard.status.offline'));
     } catch (err) {
-      toast.error(err?.response?.data?.code === 'listing_requires_identity_verification'
-        ? t('helperDashboard.listingRequiresIdentity')
-        : (err?.response?.data?.error || t('helperDashboard.failedUpdateStatus')));
+      if (err?.response?.data?.code === 'listing_requires_identity_verification') {
+        toast.error((toastObj) => (
+          <span>
+            {t('helperDashboard.listingRequiresIdentity')}{' '}
+            <Link to="/verify-identity" onClick={() => toast.dismiss(toastObj.id)} className="font-semibold text-orange-400 underline hover:text-orange-300">
+              {t('helperDashboard.verifyId')}
+            </Link>
+          </span>
+        ));
+      } else {
+        toast.error(err?.response?.data?.error || t('helperDashboard.failedUpdateStatus'));
+      }
     }
     setListingLoading(false);
   };
