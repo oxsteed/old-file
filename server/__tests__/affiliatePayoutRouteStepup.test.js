@@ -7,7 +7,7 @@
 
 const express = require('express');
 const request = require('supertest');
-const { resetMocks } = require('./setup');
+const { mockQuery, resetMocks } = require('./setup');
 const AppError = require('../utils/appError');
 
 const mockTransfers = { create: jest.fn() };
@@ -52,6 +52,15 @@ function buildApp() {
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
+  // Nov 1 audit item 1: the process route loads the payout before verifying
+  // so the step-up binds to the fresh payable. Serve a payout row whose net
+  // figure wins, matching utils/affiliatePayableCents.
+  mockQuery.mockImplementation(async (sql) => {
+    if (/FROM affiliate_payouts/.test(sql)) {
+      return { rows: [{ id: '123', net_payout_cents: 50000, total_commission_cents: 60000, processor_fee_cents: 10000 }] };
+    }
+    return { rows: [], rowCount: 0 };
+  });
 });
 
 test('rejects below-threshold processing without a fresh step-up, controller never runs', async () => {
@@ -69,6 +78,7 @@ test('rejects below-threshold processing without a fresh step-up, controller nev
     actorUserId: 'admin-1',
     actionType: 'affiliate_payout_process',
     code: '123456',
+    expectedAmountCents: 50000,
   }));
   spy.mockRestore();
 });
@@ -82,5 +92,20 @@ test('allows processing with a fresh step-up, controller runs', async () => {
     .send({ stepupChallengeId: 'ch-1', stepupCode: '123456' });
   expect(res.status).toBe(200);
   expect(spy).toHaveBeenCalledTimes(1);
+  expect(stepup.verifyStepupChallenge).toHaveBeenCalledWith(expect.objectContaining({
+    expectedAmountCents: 50000,
+  }));
+  spy.mockRestore();
+});
+
+test('missing payout 404s before verification, challenge never consumed', async () => {
+  mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
+  const spy = jest.spyOn(controller, 'processPayout');
+  const res = await request(buildApp())
+    .post('/999/process')
+    .send({ stepupChallengeId: 'ch-1', stepupCode: '123456' });
+  expect(res.status).toBe(404);
+  expect(stepup.verifyStepupChallenge).not.toHaveBeenCalled();
+  expect(spy).not.toHaveBeenCalled();
   spy.mockRestore();
 });
