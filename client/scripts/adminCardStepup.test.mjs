@@ -98,7 +98,7 @@ test('cancel abandons the stepped-up action', () => {
 });
 
 test('fulfillment advance and revoke stay unprompted', () => {
-  const advanceStart = cards.indexOf('const advanceFulfillment');
+  const advanceStart = cards.indexOf('const submitFulfillment');
   const revokeStart = cards.indexOf('const revoke');
   assert.ok(advanceStart !== -1 && revokeStart !== -1 && advanceStart < revokeStart,
     'fulfillment and revoke handlers must exist in order');
