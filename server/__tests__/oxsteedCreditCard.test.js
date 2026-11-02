@@ -607,3 +607,101 @@ describe('kiosk cash-out partner entitlement (audit regression)', () => {
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('markCardFulfillment backward correction (admin-ops audit item 13)', () => {
+  const physicalCard = (overrides = {}) => ({
+    id: CARD_ID,
+    customer_id: CUSTOMER_ID,
+    account_id: 501,
+    card_type: 'physical',
+    status: 'pending',
+    fulfillment_status: 'shipped',
+    activation_code_hash: 'a'.repeat(64),
+    activation_code_expires_at: new Date(Date.now() + 86400000),
+    credential_last4: 'AB12',
+    ...overrides,
+  });
+
+  it('moves a pending card one step backward (shipped -> printed)', async () => {
+    const updated = physicalCard({ fulfillment_status: 'printed' });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [physicalCard()] }) // SELECT card FOR UPDATE
+      .mockResolvedValueOnce({ rows: [updated] }) // UPDATE ... RETURNING *
+      .mockResolvedValueOnce({ rows: [] }); // audit insert
+
+    const result = await cardService.markCardFulfillment({
+      cardId: CARD_ID,
+      fulfillmentStatus: 'printed',
+      actorUserId: 'admin-1',
+    });
+    expect(result.card.fulfillmentStatus).toBe('printed');
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+    // Moving back to printed keeps the minted activation code: only a move
+    // below printed invalidates it.
+    expect(mockQuery.mock.calls[1][0]).not.toContain('activation_code_hash = NULL');
+  });
+
+  it('invalidates the activation code when moving back below printed', async () => {
+    const updated = physicalCard({ fulfillment_status: 'pending', activation_code_hash: null, activation_code_expires_at: null, credential_last4: null });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [physicalCard({ fulfillment_status: 'printed' })] }) // SELECT card FOR UPDATE
+      .mockResolvedValueOnce({ rows: [updated] }) // UPDATE ... RETURNING *
+      .mockResolvedValueOnce({ rows: [] }); // audit insert
+
+    const result = await cardService.markCardFulfillment({
+      cardId: CARD_ID,
+      fulfillmentStatus: 'pending',
+      actorUserId: 'admin-1',
+    });
+    expect(result.card.fulfillmentStatus).toBe('pending');
+    expect(mockQuery.mock.calls[1][0]).toContain('activation_code_hash = NULL');
+    expect(mockQuery.mock.calls[1][0]).toContain('activation_code_expires_at = NULL');
+  });
+
+  it('still moves forward and mints an activation code at printed', async () => {
+    const updated = physicalCard({ fulfillment_status: 'printed', activation_code_hash: 'b'.repeat(64) });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [physicalCard({ fulfillment_status: 'pending', activation_code_hash: null, activation_code_expires_at: null, credential_last4: null })] }) // SELECT card FOR UPDATE
+      .mockResolvedValueOnce({ rows: [updated] }) // UPDATE ... RETURNING *
+      .mockResolvedValueOnce({ rows: [] }); // audit insert
+
+    const result = await cardService.markCardFulfillment({
+      cardId: CARD_ID,
+      fulfillmentStatus: 'printed',
+      actorUserId: 'admin-1',
+    });
+    expect(result.card.fulfillmentStatus).toBe('printed');
+    expect(result.card.activationCode).toHaveLength(10);
+  });
+
+  it('refuses a backward move once the card is activated', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [physicalCard({ status: 'active', fulfillment_status: 'delivered', activation_code_hash: null, activation_code_expires_at: null })],
+    }); // SELECT card FOR UPDATE
+
+    await expect(cardService.markCardFulfillment({
+      cardId: CARD_ID,
+      fulfillmentStatus: 'shipped',
+      actorUserId: 'admin-1',
+    })).rejects.toMatchObject({ code: 'credit_card_fulfillment_activated', statusCode: 409 });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects an unknown fulfillment status and a non-physical card', async () => {
+    await expect(cardService.markCardFulfillment({
+      cardId: CARD_ID,
+      fulfillmentStatus: 'teleported',
+      actorUserId: 'admin-1',
+    })).rejects.toMatchObject({ code: 'credit_card_fulfillment_status_invalid', statusCode: 400 });
+    expect(mockQuery).not.toHaveBeenCalled();
+
+    mockQuery.mockResolvedValueOnce({
+      rows: [physicalCard({ card_type: 'virtual', fulfillment_status: 'not_applicable' })],
+    }); // SELECT card FOR UPDATE
+    await expect(cardService.markCardFulfillment({
+      cardId: CARD_ID,
+      fulfillmentStatus: 'printed',
+      actorUserId: 'admin-1',
+    })).rejects.toMatchObject({ code: 'credit_card_not_physical', statusCode: 409 });
+  });
+});

@@ -1,7 +1,9 @@
 {
   "adminOpsAudit": {
     "fulfillmentTitle": "Confirm card fulfillment",
-    "fulfillmentConfirm": "Mark this card as {{status}}? Confirm that this physical step is complete. This action cannot be undone here."
+    "fulfillmentConfirm": "Mark this card as {{status}}? Confirm that this physical step is complete. If this was marked too early, move it back from the card row before the card is activated.",
+    "fulfillmentMoveBackTitle": "Move card fulfillment back",
+    "fulfillmentMoveBackConfirm": "Move this card back to {{status}}? Use this only to correct a step that was marked before it happened. A card that is already active cannot be moved back."
   },
   "statementCenter": {
     "title": "Statement center",
@@ -2071,7 +2073,8 @@
       "moved": "Card moved to \"{{status}}\".",
       "alreadyRevoked": "This card was already revoked.",
       "revoked": "Card revoked."
-    }
+    },
+    "moveBack": "Move back to {{status}}"
   },
   "restaurantWallet": {
     "title": "Restaurant Credit",

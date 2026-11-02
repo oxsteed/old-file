@@ -36,6 +36,11 @@ function nextFulfillmentStatus(current) {
   return index >= 0 && index < FULFILLMENT_ORDER.length - 1 ? FULFILLMENT_ORDER[index + 1] : null;
 }
 
+function previousFulfillmentStatus(current) {
+  const index = FULFILLMENT_ORDER.indexOf(current);
+  return index > 0 ? FULFILLMENT_ORDER[index - 1] : null;
+}
+
 const emptyForm = {
   cardType: 'virtual',
   customerId: '',
@@ -198,8 +203,7 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
     }
   };
 
-  const advanceFulfillment = async (card) => {
-    const target = nextFulfillmentStatus(card.fulfillmentStatus);
+  const submitFulfillment = async (card, target) => {
     if (!target) return;
     setSaving(true);
     setError('');
@@ -390,6 +394,10 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
             : !cards.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('cards.noMatches')}</td></tr>
             : cards.map((card) => {
               const nextStatus = card.cardType === 'physical' ? nextFulfillmentStatus(card.fulfillmentStatus) : null;
+              // The server refuses a backward move once the card is active
+              // (delivery is then a fact), so the move-back button is only
+              // offered while the card is still unactivated.
+              const prevStatus = card.cardType === 'physical' && card.status !== 'active' ? previousFulfillmentStatus(card.fulfillmentStatus) : null;
               const canRevoke = ['pending', 'active', 'frozen'].includes(card.status);
               return <tr key={card.id}>
                 <td className="px-3 py-3 font-mono text-[10px] text-gray-500">{card.customerId}</td>
@@ -400,7 +408,8 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
                 <td className="px-3 py-3 text-gray-500">{dateTime(card.issuedAt, t)}</td>
                 <td className="px-3 py-3">
                   <div className="flex flex-wrap gap-2">
-                    {nextStatus && <button type="button" onClick={() => setFulfillmentTarget(card)} disabled={saving} className="rounded-lg border border-sky-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{t('cards.mark', { status: t(`cards.fulfillment.${nextStatus}`, { defaultValue: nextStatus }) })}</button>}
+                    {nextStatus && <button type="button" onClick={() => setFulfillmentTarget({ card, target: nextStatus })} disabled={saving} className="rounded-lg border border-sky-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{t('cards.mark', { status: t(`cards.fulfillment.${nextStatus}`, { defaultValue: nextStatus }) })}</button>}
+                    {prevStatus && <button type="button" onClick={() => setFulfillmentTarget({ card, target: prevStatus })} disabled={saving} className="rounded-lg border border-amber-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">{t('cards.moveBack', { status: t(`cards.fulfillment.${prevStatus}`, { defaultValue: prevStatus }) })}</button>}
                     {canRevoke && <button type="button" onClick={() => revoke(card)} disabled={saving} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('cards.revoke')}</button>}
                     {card.replacementStatus && <span>{t(`cards.security.replacement.${card.replacementStatus}`)}</span>}
                     {card.replacementStatus === 'failed' && <button type="button" disabled={saving} onClick={async () => {
@@ -422,9 +431,11 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
             })}
         </tbody>
       </table>
-      <ConfirmDialog open={!!fulfillmentTarget} title={t('adminOpsAudit.fulfillmentTitle')}
-        message={t('adminOpsAudit.fulfillmentConfirm', { status: t(`cards.fulfillment.${nextFulfillmentStatus(fulfillmentTarget?.fulfillmentStatus)}`) })}
-        onConfirm={async () => { await advanceFulfillment(fulfillmentTarget); setFulfillmentTarget(null); }}
+      <ConfirmDialog open={!!fulfillmentTarget} title={fulfillmentTarget && FULFILLMENT_ORDER.indexOf(fulfillmentTarget.target) < FULFILLMENT_ORDER.indexOf(fulfillmentTarget.card.fulfillmentStatus) ? t('adminOpsAudit.fulfillmentMoveBackTitle') : t('adminOpsAudit.fulfillmentTitle')}
+        message={fulfillmentTarget && FULFILLMENT_ORDER.indexOf(fulfillmentTarget.target) < FULFILLMENT_ORDER.indexOf(fulfillmentTarget.card.fulfillmentStatus)
+          ? t('adminOpsAudit.fulfillmentMoveBackConfirm', { status: t(`cards.fulfillment.${fulfillmentTarget.target}`) })
+          : t('adminOpsAudit.fulfillmentConfirm', { status: t(`cards.fulfillment.${fulfillmentTarget?.target}`) })}
+        onConfirm={async () => { await submitFulfillment(fulfillmentTarget.card, fulfillmentTarget.target); setFulfillmentTarget(null); }}
         onClose={() => setFulfillmentTarget(null)} />
     </div>
     {stepUpOpen && (

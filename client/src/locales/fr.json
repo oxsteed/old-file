@@ -2,7 +2,7 @@
   "adminOpsAudit": {
     "bulkFailed": "Identifiants en échec : {{ids}}. Ces utilisateurs restent sélectionnés pour réessayer.",
     "fulfillmentTitle": "Confirmer la remise de la carte",
-    "fulfillmentConfirm": "Marquer cette carte comme {{status}} ? Confirmez que cette étape physique est terminée. Cette action ne peut pas être annulée ici.",
+    "fulfillmentConfirm": "Marquer cette carte comme {{status}} ? Confirmez que cette étape physique est terminée. Si elle a été marquée trop tôt, revenez en arrière depuis la ligne de la carte avant que la carte soit activée.",
     "showing": "Affichage de {{from}} à {{to}} sur {{total}}",
     "previous": "Précédent",
     "next": "Suivant",
@@ -13,7 +13,9 @@
     "refundDone": "Remboursement enregistré.",
     "recordOnlyRevocation": "Révoquer cette preuve d’acceptation ? Seul le registre juridique sera modifié. L’accès au compte reste autorisé et aucune nouvelle acceptation ne sera demandée.",
     "onCall": "De garde pour les alertes SOS",
-    "incidentTypes": "Types d’incidents (séparés par des virgules ; * pour tous)"
+    "incidentTypes": "Types d’incidents (séparés par des virgules ; * pour tous)",
+    "fulfillmentMoveBackTitle": "Reculer la remise de la carte",
+    "fulfillmentMoveBackConfirm": "Remettre cette carte à {{status}} ? Utilisez ceci uniquement pour corriger une étape marquée avant qu’elle ne se produise. Une carte déjà active ne peut pas être reculée."
   },
   "pwaExperience": {
     "serverUpdated": "Un texte de brouillon plus récent a été synchronisé. Vérifiez les photos conservées sur cet appareil.",
@@ -37914,5 +37916,8 @@
     "previous": "Précédent",
     "next": "Suivant",
     "closeBooking": "Fermer les détails de la réservation"
+  },
+  "cards": {
+    "moveBack": "Revenir à {{status}}"
   }
 }
