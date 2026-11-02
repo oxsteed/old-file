@@ -326,6 +326,13 @@ function adminIssuePhysicalCard({ customerId, currencyCode, nickname, shippingAd
 // -> shipped -> delivered. The activation code is minted once, at the moment
 // the card is marked 'printed' (i.e. it is about to be embedded on the
 // physical card stock), and is never persisted in raw form.
+// A backward move is a correction, not a second lifecycle: it is allowed only
+// while the card is still unactivated, so a step marked too early (for
+// example shipped before it shipped) can be undone from the admin cards UI.
+// Once the customer has activated the card, delivery is a fact and the
+// fulfillment status can no longer move backward. Moving back below 'printed'
+// invalidates the prematurely minted activation code, so re-printing mints a
+// fresh one instead of reusing a code that was already revealed.
 async function markCardFulfillment({ cardId, fulfillmentStatus, actorUserId, reason, correlationId, requestIp }) {
   requireAdministrativeActor(actorUserId);
   const nextStatus = normalizeString(fulfillmentStatus, 20);
@@ -341,13 +348,19 @@ async function markCardFulfillment({ cardId, fulfillmentStatus, actorUserId, rea
     if (card.card_type !== 'physical') {
       throw new AppError('Only physical cards have a fulfillment lifecycle', 409, 'credit_card_not_physical');
     }
-    if (order.indexOf(nextStatus) < order.indexOf(card.fulfillment_status)) {
-      throw new AppError('Fulfillment status cannot move backward', 409, 'credit_card_fulfillment_regression');
+    const isBackward = order.indexOf(nextStatus) < order.indexOf(card.fulfillment_status);
+    if (isBackward && card.status === 'active') {
+      throw new AppError('Fulfillment cannot move backward after the card is activated', 409, 'credit_card_fulfillment_activated');
     }
 
     let rawActivationCode = null;
     const setClauses = ['fulfillment_status = $2'];
     const values = [cardId, nextStatus];
+    if (isBackward && nextStatus === 'pending' && order.indexOf(card.fulfillment_status) >= order.indexOf('printed')) {
+      setClauses.push('activation_code_hash = NULL');
+      setClauses.push('activation_code_expires_at = NULL');
+      setClauses.push('credential_last4 = NULL');
+    }
     if (nextStatus === 'printed' && !card.activation_code_hash) {
       rawActivationCode = generateActivationCode();
       setClauses.push(`activation_code_hash = $${values.length + 1}`);

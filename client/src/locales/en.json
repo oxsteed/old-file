@@ -2,7 +2,7 @@
   "adminOpsAudit": {
     "bulkFailed": "Failed user IDs: {{ids}}. These users remain selected for retry.",
     "fulfillmentTitle": "Confirm card fulfillment",
-    "fulfillmentConfirm": "Mark this card as {{status}}? Confirm that this physical step is complete. This action cannot be undone here.",
+    "fulfillmentConfirm": "Mark this card as {{status}}? Confirm that this physical step is complete. If this was marked too early, move it back from the card row before the card is activated.",
     "showing": "Showing {{from}}–{{to}} of {{total}}",
     "previous": "Previous",
     "next": "Next",
@@ -13,7 +13,9 @@
     "refundDone": "Refund recorded successfully.",
     "recordOnlyRevocation": "Revoke this acceptance record? This updates the legal record only. It does not restrict account access or require the user to accept again.",
     "onCall": "On call for safety SOS alerts",
-    "incidentTypes": "Incident types (comma-separated; * for all)"
+    "incidentTypes": "Incident types (comma-separated; * for all)",
+    "fulfillmentMoveBackTitle": "Move card fulfillment back",
+    "fulfillmentMoveBackConfirm": "Move this card back to {{status}}? Use this only to correct a step that was marked before it happened. A card that is already active cannot be moved back."
   },
   "pwaExperience": {
     "serverUpdated": "Newer draft text was synced. Review the photos kept on this device.",
@@ -37900,5 +37902,8 @@
     "previous": "Previous",
     "next": "Next",
     "closeBooking": "Close booking details"
+  },
+  "cards": {
+    "moveBack": "Move back to {{status}}"
   }
 }

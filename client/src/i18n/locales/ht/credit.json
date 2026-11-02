@@ -1,7 +1,9 @@
 {
   "adminOpsAudit": {
     "fulfillmentTitle": "Konfime livrezon kat la",
-    "fulfillmentConfirm": "Make kat sa a kòm {{status}}? Konfime etap fizik sa a fini. Ou pa ka anile aksyon sa a isit la."
+    "fulfillmentConfirm": "Make kat sa a kòm {{status}}? Konfime etap fizik sa a fini. Si yo te make li twò bonè, deplase li tounen soti nan ranje kat la anvan kat la aktive.",
+    "fulfillmentMoveBackTitle": "Deplase livrezon kat la tounen",
+    "fulfillmentMoveBackConfirm": "Deplase kat sa a tounen nan {{status}}? Itilize sa a sèlman pou korije yon etap yo te make anvan li te rive. Yon kat ki deja aktive pa ka deplase tounen."
   },
   "statementCenter": {
     "title": "Sant deklarasyon",
@@ -2071,7 +2073,8 @@
         "verification_succeeded": "Verifikasyon fini",
         "revoked": "Kat revoke"
       }
-    }
+    },
+    "moveBack": "Tounen nan {{status}}"
   },
   "restaurantWallet": {
     "title": "Kredi restoran",
