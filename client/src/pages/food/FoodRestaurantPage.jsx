@@ -2648,12 +2648,12 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
               {activeTab === 'reviews' && (
                 <div className="rp-panel rp-panel-wrap" style={{ padding: 16 }}>
                   {reviewsLoading && !reviewsPage ? (
-                    <p style={{ fontSize: 14, color: '#64748b', textAlign: 'center', padding: '40px 16px' }}>{t('common.loading')}</p>
+                    <p className="rp-reviews-loading">{t('common.loading')}</p>
                   ) : (reviewsError && !reviewsPage) || (reviewsPage && reviewsTotal > 0 && reviewsList.length === 0) ? (
-                    <div style={{ textAlign: 'center', padding: '40px 16px' }}>
-                      <p style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>{t('food.restaurant.reviewsLoadError')}</p>
-                      {reviewsError && <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>{reviewsError}</p>}
-                      <button type="button" onClick={() => setReviewsReloadNonce((n) => n + 1)} style={{ marginTop: 16, height: 40, padding: '0 20px', background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }} data-track="ui.a612ceb6f0.54">{t('common.retry')}</button>
+                    <div className="rp-reviews-empty">
+                      <p className="rp-reviews-error-title">{t('food.restaurant.reviewsLoadError')}</p>
+                      {reviewsError && <p className="rp-reviews-error-detail">{reviewsError}</p>}
+                      <button type="button" onClick={() => setReviewsReloadNonce((n) => n + 1)} className="rp-reviews-retry-btn" data-track="ui.a612ceb6f0.54">{t('common.retry')}</button>
                     </div>
                   ) : reviewsPage && reviewsTotal > 0 ? (
                     <>
@@ -2661,7 +2661,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                         <div style={{ textAlign: 'center', flexShrink: 0 }}>
                           <div style={{ fontFamily: SERIF, fontSize: 48, fontWeight: 400, color: '#0f172a', lineHeight: 1, letterSpacing: '-0.03em' }}>{rating > 0 ? rating.toFixed(1) : '—'}</div>
                           <div style={{ fontSize: 16, color: '#fbbf24', margin: '5px 0', letterSpacing: 2 }}>{'★'.repeat(Math.round(rating)) || '☆☆☆☆☆'}</div>
-                          <div style={{ fontSize: 12, color: '#94a3b8' }}>{t('food.restaurant.reviewCount', { count: reviewsTotal })}</div>
+                          <div className="rp-review-count">{t('food.restaurant.reviewCount', { count: reviewsTotal })}</div>
                         </div>
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
                           {ratingBars.map((bar) => (
@@ -2684,12 +2684,12 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                             <span style={{ fontSize: 12, color: '#fbbf24', letterSpacing: 1, flexShrink: 0 }}>{rev.stars}</span>
                           </div>
                           {rev.text && <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.65 }}>{rev.text}</p>}
-                          {rev.response && <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.6, marginTop: 8, padding: '10px 12px', background: '#f8fafc', borderRadius: 8 }}>{t('food.restaurant.reviewResponse', { response: rev.response })}</p>}
+                          {rev.response && <p className="rp-review-response">{t('food.restaurant.reviewResponse', { response: rev.response })}</p>}
                         </div>
                       ))}
-                      <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', marginTop: 12 }}>{t('food.restaurant.reviewsShowing', { shown: reviewsList.length, total: reviewsTotal })}</p>
+                      <p className="rp-reviews-showing">{t('food.restaurant.reviewsShowing', { shown: reviewsList.length, total: reviewsTotal })}</p>
                       {reviewsList.length < reviewsTotal && (
-                        <button type="button" onClick={loadMoreReviews} disabled={reviewsLoadingMore} style={{ display: 'block', margin: '12px auto 0', height: 40, padding: '0 20px', background: '#f1f5f9', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }} data-track="ui.a612ceb6f0.55">
+                        <button type="button" onClick={loadMoreReviews} disabled={reviewsLoadingMore} className="rp-reviews-loadmore-btn" data-track="ui.a612ceb6f0.55">
                           {reviewsLoadingMore ? t('common.loading') : t('food.restaurant.loadMoreReviews')}
                         </button>
                       )}
@@ -2815,7 +2815,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                           <button onClick={() => decLine(ci.id)} style={{ width: 28, height: 28, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', lineHeight: 1 }} data-track="ui.a612ceb6f0.29">−</button>
                           <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', minWidth: 18, textAlign: 'center' }}>{ci.qty}</span>
                           <button onClick={() => incLine(ci.id)} style={{ width: 28, height: 28, borderRadius: 8, background: accent, border: 'none', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', lineHeight: 1 }} data-track="ui.a612ceb6f0.30">+</button>
-                          <button onClick={() => removeLine(ci.id)} aria-label={t('food.restaurant.removeItem', { item: ci.name })} title={t('food.restaurant.removeItem', { item: ci.name })} style={{ width: 28, height: 28, borderRadius: 8, border: '1.5px solid #fee2e2', background: '#fff', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', lineHeight: 1 }} data-track="ui.a612ceb6f0.53">×</button>
+                          <button onClick={() => removeLine(ci.id)} aria-label={t('food.restaurant.removeItem', { item: ci.name })} title={t('food.restaurant.removeItem', { item: ci.name })} className="rp-cart-remove-btn" data-track="ui.a612ceb6f0.53">×</button>
                         </div>
                       </div>
                     ))}
@@ -2830,9 +2830,9 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                       </div>
                     ))}
                     {quoteError && (
-                      <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', margin: '0 0 12px', lineHeight: 1.5 }}>{quoteError}</p>
+                      <p role="alert" className="rp-quote-error">{quoteError}</p>
                     )}
-                      <button onClick={() => { setCartOpen(true); setCartStep('details'); }} disabled={Boolean(quoteError) || quoteLoading} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: (quoteError || quoteLoading) ? 'not-allowed' : 'pointer', opacity: (quoteError || quoteLoading) ? 0.6 : 1 }} data-track="ui.a612ceb6f0.31">{quoteLoading ? t('food.restaurant.checkoutTotalLoading', { total: formatFoodMoney(displayTotalCents, currency) }) : t('food.restaurant.checkoutTotal', { total: formatFoodMoney(displayTotalCents, currency) })}</button>
+                      <button onClick={() => { setCartOpen(true); setCartStep('details'); }} disabled={Boolean(quoteError) || quoteLoading} className="rp-checkout-btn" data-track="ui.a612ceb6f0.31">{quoteLoading ? t('food.restaurant.checkoutTotalLoading', { total: formatFoodMoney(displayTotalCents, currency) }) : t('food.restaurant.checkoutTotal', { total: formatFoodMoney(displayTotalCents, currency) })}</button>
                   </div>
                 </>
               )}
@@ -2842,11 +2842,11 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                 <>
                   <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 0' }}>
                     {!user && (
-                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 16, marginBottom: 20 }}>
+                      <div className="rp-guest-note-box">
                         <p style={{ fontSize: 14, lineHeight: 1.7, color: '#64748b' }}>
                           {t('food.restaurant.guestCheckoutNote')}
                         </p>
-                        <button type="button" onClick={openLoginGate} style={{ marginTop: 10, background: 'none', border: 'none', padding: 0, color: accent, fontSize: 14, fontWeight: 700, cursor: 'pointer' }} data-track="ui.a612ceb6f0.52">
+                        <button type="button" onClick={openLoginGate} className="rp-text-btn-accent" data-track="ui.a612ceb6f0.52">
                           {t('food.restaurant.signInContinue')}
                         </button>
                       </div>
@@ -2876,25 +2876,25 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                             />
                             <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.aptSuite')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
                             <input value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} placeholder={t('food.restaurant.aptPlaceholder')} style={{ ...inputStyle, marginBottom: 20 }} />
-                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.deliveryCity')}</p>
-                            <input value={addressCity} onChange={(e) => setAddressCity(e.target.value)} placeholder={t('food.restaurant.deliveryCityPlaceholder')} autoComplete="address-level2" style={{ ...inputStyle, marginBottom: 20 }} />
-                            <div style={{ display: 'flex', gap: 10 }}>
-                              <div style={{ flex: 1 }}>
-                                <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.deliveryState')}</p>
-                                <input value={addressState} onChange={(e) => setAddressState(e.target.value)} placeholder={t('food.restaurant.deliveryStatePlaceholder')} autoComplete="address-level1" style={{ ...inputStyle, marginBottom: 20 }} />
+                            <p className="rp-field-label">{t('food.restaurant.deliveryCity')}</p>
+                            <input value={addressCity} onChange={(e) => setAddressCity(e.target.value)} placeholder={t('food.restaurant.deliveryCityPlaceholder')} autoComplete="address-level2" className="rp-field-input rp-field-input-mb20" />
+                            <div className="rp-field-row">
+                              <div className="rp-field-col">
+                                <p className="rp-field-label">{t('food.restaurant.deliveryState')}</p>
+                                <input value={addressState} onChange={(e) => setAddressState(e.target.value)} placeholder={t('food.restaurant.deliveryStatePlaceholder')} autoComplete="address-level1" className="rp-field-input rp-field-input-mb20" />
                               </div>
-                              <div style={{ flex: 1 }}>
-                                <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.deliveryZip')}</p>
-                                <input value={addressZip} onChange={(e) => setAddressZip(e.target.value)} placeholder={t('food.restaurant.deliveryZipPlaceholder')} autoComplete="postal-code" style={{ ...inputStyle, marginBottom: 20 }} />
+                              <div className="rp-field-col">
+                                <p className="rp-field-label">{t('food.restaurant.deliveryZip')}</p>
+                                <input value={addressZip} onChange={(e) => setAddressZip(e.target.value)} placeholder={t('food.restaurant.deliveryZipPlaceholder')} autoComplete="postal-code" className="rp-field-input rp-field-input-mb20" />
                               </div>
                             </div>
-                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.deliveryInstructions')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
-                            <input value={addressInstructions} onChange={(e) => setAddressInstructions(e.target.value)} placeholder={t('food.restaurant.deliveryInstructionsPlaceholder')} maxLength={500} style={{ ...inputStyle, marginBottom: 20 }} />
+                            <p className="rp-field-label">{t('food.restaurant.deliveryInstructions')} <span className="rp-field-label-optional">({t('food.restaurant.optional')})</span></p>
+                            <input value={addressInstructions} onChange={(e) => setAddressInstructions(e.target.value)} placeholder={t('food.restaurant.deliveryInstructionsPlaceholder')} maxLength={500} className="rp-field-input rp-field-input-mb20" />
                             {addressError && (
                               <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', margin: '-8px 0 16px' }}>{addressError}</p>
                             )}
                             {quoteError && (
-                              <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', margin: '-8px 0 16px' }}>{quoteError}</p>
+                              <p role="alert" className="rp-quote-error-tight">{quoteError}</p>
                             )}
                           </>
                         )}
@@ -2976,16 +2976,16 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                             profile instead. */}
                         {!user && (
                           <>
-                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.guestName')}{isPickup && requireGuestNameForPickup ? '' : <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}> ({t('food.restaurant.optional')})</span>}</p>
+                            <p className="rp-field-label">{t('food.restaurant.guestName')}{isPickup && requireGuestNameForPickup ? '' : <span className="rp-field-label-optional"> ({t('food.restaurant.optional')})</span>}</p>
                             <input
                               value={guestName}
                               onChange={(e) => { setGuestName(e.target.value); if (guestContactError) setGuestContactError(''); }}
                               placeholder={t('food.restaurant.guestNamePlaceholder')}
                               maxLength={140}
                               autoComplete="name"
-                              style={{ ...inputStyle }}
+                              className="rp-field-input"
                             />
-                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.guestPhone')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
+                            <p className="rp-field-label">{t('food.restaurant.guestPhone')} <span className="rp-field-label-optional">({t('food.restaurant.optional')})</span></p>
                             <input
                               value={guestPhone}
                               onChange={(e) => { setGuestPhone(e.target.value); if (guestContactError) setGuestContactError(''); }}
@@ -2993,9 +2993,9 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                               maxLength={40}
                               inputMode="tel"
                               autoComplete="tel"
-                              style={{ ...inputStyle }}
+                              className="rp-field-input"
                             />
-                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.guestEmail')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
+                            <p className="rp-field-label">{t('food.restaurant.guestEmail')} <span className="rp-field-label-optional">({t('food.restaurant.optional')})</span></p>
                             <input
                               value={guestEmail}
                               onChange={(e) => { setGuestEmail(e.target.value); if (guestContactError) setGuestContactError(''); }}
@@ -3003,10 +3003,10 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                               maxLength={255}
                               inputMode="email"
                               autoComplete="email"
-                              style={{ ...inputStyle, marginBottom: 20 }}
+                              className="rp-field-input rp-field-input-mb20"
                             />
                             {guestContactError && (
-                              <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', margin: '-8px 0 16px' }}>{guestContactError}</p>
+                              <p role="alert" className="rp-quote-error-tight">{guestContactError}</p>
                             )}
                           </>
                         )}
@@ -3378,12 +3378,12 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                   </div>
                   <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
                     {quoteError && (
-                      <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', margin: '0 0 12px', lineHeight: 1.5 }}>{quoteError}</p>
+                      <p role="alert" className="rp-quote-error">{quoteError}</p>
                     )}
                     <button
                       onClick={submitOrder}
                       disabled={placing || proofUploading || quoteLoading || Boolean(quoteError) || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission)}
-                      style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: (placing || proofUploading || quoteLoading || quoteError) ? 'wait' : 'pointer', opacity: (placing || proofUploading || quoteLoading || quoteError || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission)) ? 0.7 : 1 }} data-track="ui.a612ceb6f0.49"
+                      className="rp-place-btn" data-track="ui.a612ceb6f0.49"
                     >
                       {placing ? t('food.restaurant.placingOrder') : quoteLoading ? t('food.restaurant.checkoutTotalLoading', { total: formatFoodMoney(displayTotalCents, currency) }) : t('food.restaurant.placeOrderTotal', { total: formatFoodMoney(displayTotalCents, currency) })}
                     </button>
@@ -3425,19 +3425,19 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                       <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94a3b8', marginBottom: 4 }}>{t('food.restaurant.estimatedTime')}</p>
                       <p style={{ fontFamily: SERIF, fontSize: 28, color: '#0f172a' }}>{confirmedEstimate}</p>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+                    <div className="rp-confirmed-col">
                       {placedTrackingToken && (
-                        <Link to={`/food/track/${placedTrackingToken}`} style={{ textAlign: 'center', height: 44, lineHeight: '44px', background: accent, color: '#fff', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>{t('food.restaurant.trackOrder')}</Link>
+                        <Link to={`/food/track/${placedTrackingToken}`} className="rp-track-btn">{t('food.restaurant.trackOrder')}</Link>
                       )}
-                      <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+                      <div className="rp-confirmed-row">
                       <Link to={`/restaurants/queue/${restaurant.id}`} style={{ flex: 1, textAlign: 'center', height: 44, lineHeight: '44px', background: '#f1f5f9', color: '#0f172a', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>{t('food.order.watchQueue')}</Link>
                       <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); setPaymentReference(''); setPaymentNote(''); setKitchenNotes(''); setScheduledFor(null); setScheduleDay('today'); setScheduleTime(''); setItemsExpanded(false); setCardError(''); setPaymentProof(null); setProofMethod('upload'); setPaymentMethod('pay_at_restaurant'); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }} data-track="ui.a612ceb6f0.50">{t('food.restaurant.backToMenu')}</button>
                       </div>
                       {placedTrackingToken && (
-                        <p style={{ fontSize: 13, color: '#64748b', textAlign: 'center', lineHeight: 1.6 }}>
+                        <p className="rp-confirmed-note">
                           {t('food.restaurant.reviewAfterCompleted')}
                           {' '}
-                          <Link to={`/food/track/${placedTrackingToken}`} style={{ color: accent, fontWeight: 600 }}>{t('food.restaurant.trackOrder')}</Link>
+                          <Link to={`/food/track/${placedTrackingToken}`} className="rp-track-link">{t('food.restaurant.trackOrder')}</Link>
                         </p>
                       )}
                     </div>

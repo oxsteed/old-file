@@ -610,13 +610,13 @@ function OrderDetailsPageContent() {
                   <>
                     <p>{t('orders.disputeDescription')}</p>
                     <label>{t('orders.disputeIssueType')}</label>
-                    <select value={disputeIssueType} onChange={(e) => setDisputeIssueType(e.target.value)} className="order-help-textarea" style={{ minHeight: 0 }}>
+                    <select value={disputeIssueType} onChange={(e) => setDisputeIssueType(e.target.value)} className="order-help-textarea order-help-select">
                       {['missing_item', 'wrong_item', 'food_quality', 'late_order', 'payment_problem', 'delivery_issue', 'other'].map((issue) => (
                         <option key={issue} value={issue}>{t(`orders.disputeIssues.${issue}`)}</option>
                       ))}
                     </select>
                     <label>{t('orders.disputeResolution')}</label>
-                    <select value={disputeResolution} onChange={(e) => setDisputeResolution(e.target.value)} className="order-help-textarea" style={{ minHeight: 0 }}>
+                    <select value={disputeResolution} onChange={(e) => setDisputeResolution(e.target.value)} className="order-help-textarea order-help-select">
                       {['refund', 'partial_refund', 'store_credit', 'replacement_item', 'remake_order', 'discount_code', 'apology_only'].map((resolution) => (
                         <option key={resolution} value={resolution}>{t(`orders.disputeResolutions.${resolution}`)}</option>
                       ))}
@@ -627,8 +627,7 @@ function OrderDetailsPageContent() {
                         onChange={(e) => setDisputeAmount(e.target.value)}
                         placeholder={t('orders.disputeAmountPlaceholder')}
                         inputMode="decimal"
-                        className="order-help-textarea"
-                        style={{ minHeight: 0 }}
+                        className="order-help-textarea order-help-select"
                       />
                     )}
                     <textarea

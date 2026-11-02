@@ -3380,3 +3380,8 @@ input[type="color"].fd-settings-color {
 }
 .fd-myshift-section { margin-block-end: 1rem; }
 .fd-myshift-section:hover { transform: none; box-shadow: none; }
+
+/* Restaurant-side build (Nov 2026): classes replacing new inline styles. */
+.fd-card-not-orderable { opacity: 0.6; }
+.fd-row-between { justify-content: space-between; gap: 0.75rem; }
+.fd-pager-row { gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }

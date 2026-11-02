@@ -90,7 +90,7 @@ function RestaurantCard({ r, t, locale }) {
   };
 
   return (
-    <Link to={`/restaurants/r/${r.id}`} className="fd-card" onClick={handleClick} style={notOrderable ? { opacity: 0.6 } : undefined} aria-label={notOrderable ? `${r.display_name} (${t('food.home.discovery.notAcceptingOrders')})` : undefined}>
+    <Link to={`/restaurants/r/${r.id}`} className={notOrderable ? 'fd-card fd-card-not-orderable' : 'fd-card'} onClick={handleClick} aria-label={notOrderable ? `${r.display_name} (${t('food.home.discovery.notAcceptingOrders')})` : undefined}>
       {cover ? (
         <img src={cover} alt="" className="fd-card-cover" loading="lazy" />
       ) : (
