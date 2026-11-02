@@ -36,6 +36,7 @@ router.get('/restaurants', ctrl.listRestaurants);
 router.get('/restaurants/:restaurantId', scopeExempt('public-storefront'), ctrl.getRestaurant);
 router.get('/restaurants/:restaurantId/queue-board', scopeExempt('public-storefront'), ctrl.getQueueBoard);
 router.get('/restaurants/:restaurantId/promotions', scopeExempt('public-storefront'), ctrl.listRestaurantPromotions);
+router.get('/restaurants/:restaurantId/reviews', scopeExempt('public-storefront'), ctrl.listRestaurantReviews);
 // Campaign analytics (Phase 2, Item 10): featured-card click beacon.
 // Public, rate-limited, always 204.
 router.post('/restaurants/:restaurantId/campaign-click', optionalAuth, generalLimiter, scopeExempt('public-storefront'), ctrl.trackCampaignClick);
@@ -43,6 +44,11 @@ router.get('/restaurants/:restaurantId/locations', optionalAuth, scopeExempt('pu
 router.get('/restaurants/:restaurantId/kiosk-config', scopeExempt('public-storefront'), kiosk.getPublicKioskConfig);
 router.get('/payment-config', ctrl.getPaymentConfig);
 router.get('/orders/track/:trackingToken', ctrl.getTrackedOrder);
+// Customer cancel for food orders: the marketplace cancel handler only
+// knows marketplace orders, so food orders get their own preview + cancel
+// path (optionalAuth so guest orders can cancel with their tracking token).
+router.get('/orders/:orderId/cancel-preview', optionalAuth, ctrl.getFoodCancelPreview);
+router.post('/orders/:orderId/cancel', optionalAuth, generalLimiter, ctrl.cancelMyFoodOrder);
 router.post('/orders/:orderId/review', optionalAuth, ctrl.createOrderReview);
 router.put('/orders/:orderId/review', optionalAuth, ctrl.updateOrderReview);
 router.delete('/orders/:orderId/review', optionalAuth, ctrl.deleteOrderReview);

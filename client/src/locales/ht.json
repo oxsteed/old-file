@@ -15518,7 +15518,56 @@
       "payAtRestaurant": "Peye nan restoran an",
       "processor": "Peman trete",
       "unrecorded": "Pa anrejistre"
-    }
+    },
+    "serviceFee": "Frè sèvis",
+    "tip": "Tib",
+    "deliveryInstructions": "Enstriksyon livrezon",
+    "review": "Revizyon",
+    "reviewDone": "Revizyon w",
+    "reviewTitle": "Kite yon revizyon",
+    "reviewPlaceholder": "Kijan kòmann ou an te ye?",
+    "reviewSubmit": "Voye revizyon an",
+    "reviewDelete": "Efase revizyon an",
+    "reviewResponse": "Repons restoran an: {{response}}",
+    "cancelSuccess": "Kòmann ou an anile.",
+    "cancelRefund": "Ranbousman {{amount}} ap retounen nan mòd peman orijinal ou.",
+    "cancelReplayed": "Anilasyon sa a te deja trete.",
+    "cancelNotAvailable": "Kòmann sa a pa ka anile ankò. Kontakte restoran an oswa louvri yon dosye pou èd.",
+    "cancelConfirm": "Anile kòmann sa a ({{total}})?",
+    "cancelRefundPreview": "Montan ranbousman an: {{amount}}",
+    "cancelNoRefund": "Pa gen ranbousman ki dwe pou kòmann sa a: li poko peye davans.",
+    "disputeOpened": "Dosye w {{caseNumber}} louvri.",
+    "disputeReviewingParty": "Pati k ap revize a: {{party}}",
+    "disputeDescription": "Dekri sa ki pa t mache ak sa ou ta renmen. Restoran an ap revize demann ou an premye.",
+    "disputeIssueType": "Kisa ki pa t mache?",
+    "disputeResolution": "Kisa ou ta renmen?",
+    "disputeAmountPlaceholder": "Montan ranbousman an (eg. 12.50)",
+    "disputeDetailPlaceholder": "Dekri pwoblèm nan…",
+    "disputeSubmit": "Louvri dosye",
+    "reportProblem": "Rapòte yon pwoblèm ak kòmann sa a",
+    "disputeIssues": {
+      "missing_item": "Atik ki manke",
+      "wrong_item": "Move atik",
+      "food_quality": "Kalite manje",
+      "late_order": "Kòmann an reta",
+      "payment_problem": "Pwoblèm peman",
+      "delivery_issue": "Pwoblèm livrezon",
+      "other": "Lòt bagay"
+    },
+    "disputeResolutions": {
+      "refund": "Ranbousman konplè",
+      "partial_refund": "Ranbousman pasyèl",
+      "store_credit": "Kredi magazen",
+      "replacement_item": "Atik ranplasman",
+      "remake_order": "Refè kòmann lan",
+      "discount_code": "Kòd rabè",
+      "apology_only": "Eskiz sèlman"
+    },
+    "pagination": "Paj kòmann yo",
+    "showingRange": "Ap montre {{from}}–{{to}} sou {{total}}",
+    "previousPage": "Anvan",
+    "nextPage": "Apre",
+    "pageOf": "Paj {{page}} sou {{pages}}"
   },
   "cancellationSettings": {
     "pageTitle": "Règleman Peman ak Anilasyon",
@@ -22829,8 +22878,16 @@
         "hoursLocalTime": "Orè yo parèt nan lè lokal chak restoran.",
         "ordersPaused": "Kòmann yo an poz",
         "onlineUnavailable": "Kòmann sou entènèt pa disponib",
-        "clearLocation": "Efase pozisyon"
-      }
+        "clearLocation": "Efase pozisyon",
+        "notAcceptingOrders": "Pa ap aksepte kòmann",
+        "openNow": "Ap aksepte kòmann kounye a",
+        "fulfillment": "Fason pou resevwa",
+        "fulfillmentAll": "Tout fason",
+        "fulfillment_delivery": "Livrezon",
+        "fulfillment_pickup": "Pran",
+        "fulfillment_dine_in": "Manje sou plas"
+      },
+      "externalPlaceExplore": "Jwenn restoran OxSteed toupre"
     },
     "restaurant": {
       "messageUnreachable": "Restoran sa a pa ka resevwa mesaj kounye a. Tanpri eseye ankò pita.",
@@ -23217,7 +23274,36 @@
         "promo_not_fundable": "Ou pa ka aplike kòd pwomo sa a sou kòmand sa a.",
         "promo_changed": "Rabè pwomo a chanje. Revize kòmand ou a epi eseye ankò."
       },
-      "promoApplied": "Pwomo aplike: −{{amount}}"
+      "promoApplied": "Pwomo aplike: −{{amount}}",
+      "removeItem": "Retire {{item}} nan panye a",
+      "checkoutTotalLoading": "N ap kalkile total la…",
+      "reorderReplaceConfirm": "Ranplase panye w la ak ansyen kòmann sa a?",
+      "reorderDropped": "Gen pèsonalizasyon ki pa disponib ankò epi yo pa mete yo: {{items}}",
+      "deliveryCity": "Vil",
+      "deliveryCityPlaceholder": "Vil",
+      "deliveryState": "Eta / Pwovens",
+      "deliveryStatePlaceholder": "Eta / Pwovens",
+      "deliveryZip": "Kòd postal",
+      "deliveryZipPlaceholder": "Kòd postal",
+      "deliveryInstructions": "Enstriksyon livrezon",
+      "deliveryInstructionsPlaceholder": "Kòd baryè, pakin, oswa nòt pou depoze",
+      "guestCheckoutNote": "Ou ka kòmande kòm envite. Konekte pou wè kòmann sa a nan istwa w epi genyen pwen fidelite.",
+      "guestName": "Non w",
+      "guestNamePlaceholder": "Non konplè",
+      "guestPhone": "Telefòn",
+      "guestPhonePlaceholder": "Nimewo telefòn",
+      "guestEmail": "Imèl",
+      "guestEmailPlaceholder": "Adrès imèl",
+      "guestNameRequired": "Tanpri antre non w pou yon kòmann envite pou pran.",
+      "guestContactRequired": "Tanpri bay yon nimewo telefòn oswa yon imèl pou mizajou kòmann lan.",
+      "guestPaymentUnavailable": "Mòd peman sa a mande koneksyon. Chwazi peye nan restoran an oswa Kredi Envite, oswa konekte.",
+      "quoteLoading": "N ap kalkile total ou a toujou…",
+      "trackOrder": "Swiv kòmann lan",
+      "reviewAfterCompleted": "Lè kòmann ou an fini, ou ka kite yon revizyon nan paj swivi a.",
+      "reviewsLoadError": "Pa t ka chaje revizyon yo.",
+      "reviewsShowing": "Ap montre {{shown}} sou {{total}} revizyon",
+      "loadMoreReviews": "Chaje plis revizyon",
+      "reviewResponse": "Repons restoran an: {{response}}"
     },
     "order": {
       "specialInstructions": "Enstriksyon espesyal (si w vle)",
@@ -23247,7 +23333,8 @@
       "reviewOptional": "Kòmantè opsyonèl (500 karaktè maksimòm)",
       "submitReview": "Voye evalyasyon an",
       "reviewThanks": "Mèsi pou evalyasyon ou!",
-      "reviewError": "Nou pa t kapab anrejistre evalyasyon ou. Tanpri eseye ankò."
+      "reviewError": "Nou pa t kapab anrejistre evalyasyon ou. Tanpri eseye ankò.",
+      "reviewDeleted": "Revizyon w lan efase."
     },
     "status": {
       "received": "Resevwa",
@@ -23269,7 +23356,13 @@
       "total": "Total",
       "printReceipt": "Enprime resi",
       "runnerNearby": "Livrezè a pre",
-      "runnerUpdatedAgo": "pozisyon mete ajou {{seconds}}s de sa"
+      "runnerUpdatedAgo": "pozisyon mete ajou {{seconds}}s de sa",
+      "reviewDone": "Revizyon w",
+      "reviewTitle": "Kite yon revizyon",
+      "reviewThanks": "Mèsi pou fidbak ou.",
+      "reviewPlaceholder": "Kijan kòmann ou an te ye?",
+      "reviewSubmit": "Voye revizyon an",
+      "reviewDelete": "Efase revizyon an"
     },
     "payment": {
       "paid": "Peye",

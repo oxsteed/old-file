@@ -301,8 +301,51 @@ export const updateRestaurantWaitlistEntry = (restaurantId, entryId, payload) =>
 export const getTrackedFoodOrder = (trackingToken) =>
   api.get(`/food/orders/track/${trackingToken}`).then((r) => r.data?.order);
 
-export const listMyFoodOrders = () =>
-  api.get('/food/my/orders').then((r) => r.data?.orders || []);
+export const listMyFoodOrders = (params = {}) =>
+  api.get('/food/my/orders', { params, timeout: 15000 }).then((r) => ({
+    orders: r.data?.orders || [],
+    total: Number(r.data?.total ?? r.data?.orders?.length ?? 0),
+    limit: Number(r.data?.limit ?? 30),
+    offset: Number(r.data?.offset ?? 0),
+    stats: r.data?.stats || null,
+  }));
+
+// Customer cancel for food orders (the marketplace cancel route 404s for
+// food orders). Preview first so the confirm dialog shows the server's
+// refund amount instead of a guessed one; the cancel POST is idempotent.
+export const getFoodCancelPreview = (orderId, trackingToken) =>
+  api.get(`/food/orders/${orderId}/cancel-preview`, {
+    params: trackingToken ? { tracking_token: trackingToken } : {},
+    timeout: 15000,
+  }).then((r) => r.data);
+
+export const cancelFoodOrder = (orderId, payload = {}, idempotencyKey) =>
+  api.post(
+    `/food/orders/${orderId}/cancel`,
+    payload,
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+  ).then((r) => r.data);
+
+// Public restaurant reviews, paginated with a server total so the tab never
+// claims N reviews while rendering zero rows.
+export const listRestaurantReviews = (restaurantId, params = {}) =>
+  api.get(`/food/restaurants/${restaurantId}/reviews`, { params, timeout: 15000 }).then((r) => ({
+    reviews: r.data?.reviews || [],
+    total: Number(r.data?.total ?? 0),
+    limit: Number(r.data?.limit ?? 10),
+    offset: Number(r.data?.offset ?? 0),
+    ratingBreakdown: r.data?.ratingBreakdown || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+  }));
+
+// Structured food-order dispute intake: opens a restaurant support case
+// (job-scoped disputes do not cover food orders). Idempotency-keyed so a
+// retried submit replays the same case instead of opening a second one.
+export const createFoodOrderDispute = (payload, idempotencyKey) =>
+  api.post(
+    '/restaurants/support/cases',
+    payload,
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+  ).then((r) => r.data);
 
 // Restaurant credit wallet for the signed-in customer at one restaurant.
 // Returns null when the customer has no wallet with that restaurant.

@@ -892,7 +892,7 @@ export default function Dashboard() {
       if (jobsRes.status === 'fulfilled') setMyJobs(jobsRes.value.data?.jobs || jobsRes.value.data || []);
       if (notifRes.status === 'fulfilled') setNotifications(notifRes.value.data?.notifications || notifRes.value.data || []);
       if (msgRes.status === 'fulfilled') setConversations(msgRes.value.data?.conversations || msgRes.value.data || []);
-      if (foodOrdersRes.status === 'fulfilled') setFoodOrders(foodOrdersRes.value || []);
+      if (foodOrdersRes.status === 'fulfilled') setFoodOrders(foodOrdersRes.value?.orders || []);
       if (walletsRes.status === 'fulfilled') setRestaurantWallets(walletsRes.value || []);
       if (creditRes.status === 'fulfilled') setOxsteedCreditAccount(creditRes.value || null);
     } catch (e) { console.error(e); setError(true); }

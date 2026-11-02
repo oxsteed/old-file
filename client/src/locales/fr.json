@@ -15518,7 +15518,56 @@
       "payAtRestaurant": "Payer au restaurant",
       "processor": "Paiement traité",
       "unrecorded": "Non enregistré"
-    }
+    },
+    "serviceFee": "Frais de service",
+    "tip": "Pourboire",
+    "deliveryInstructions": "Instructions de livraison",
+    "review": "Avis",
+    "reviewDone": "Votre avis",
+    "reviewTitle": "Laisser un avis",
+    "reviewPlaceholder": "Comment était votre commande ?",
+    "reviewSubmit": "Envoyer l'avis",
+    "reviewDelete": "Supprimer l'avis",
+    "reviewResponse": "Réponse du restaurant : {{response}}",
+    "cancelSuccess": "Votre commande a été annulée.",
+    "cancelRefund": "Le remboursement de {{amount}} sera retourné à votre mode de paiement d'origine.",
+    "cancelReplayed": "Cette annulation a déjà été traitée.",
+    "cancelNotAvailable": "Cette commande ne peut plus être annulée. Contactez le restaurant ou ouvrez un dossier pour obtenir de l'aide.",
+    "cancelConfirm": "Annuler cette commande ({{total}}) ?",
+    "cancelRefundPreview": "Montant du remboursement : {{amount}}",
+    "cancelNoRefund": "Aucun remboursement n'est dû pour cette commande : elle n'a pas été prépayée.",
+    "disputeOpened": "Votre dossier {{caseNumber}} est ouvert.",
+    "disputeReviewingParty": "Partie examinatrice : {{party}}",
+    "disputeDescription": "Décrivez ce qui n'a pas fonctionné et ce que vous souhaitez. Le restaurant examinera votre demande en premier.",
+    "disputeIssueType": "Que s'est-il passé ?",
+    "disputeResolution": "Que souhaitez-vous ?",
+    "disputeAmountPlaceholder": "Montant du remboursement (ex. 12,50)",
+    "disputeDetailPlaceholder": "Décrivez le problème…",
+    "disputeSubmit": "Ouvrir un dossier",
+    "reportProblem": "Signaler un problème avec cette commande",
+    "disputeIssues": {
+      "missing_item": "Article manquant",
+      "wrong_item": "Mauvais article",
+      "food_quality": "Qualité de la nourriture",
+      "late_order": "Commande tardive",
+      "payment_problem": "Problème de paiement",
+      "delivery_issue": "Problème de livraison",
+      "other": "Autre chose"
+    },
+    "disputeResolutions": {
+      "refund": "Remboursement complet",
+      "partial_refund": "Remboursement partiel",
+      "store_credit": "Crédit en boutique",
+      "replacement_item": "Article de remplacement",
+      "remake_order": "Refaire la commande",
+      "discount_code": "Code de réduction",
+      "apology_only": "Simples excuses"
+    },
+    "pagination": "Pages de commandes",
+    "showingRange": "Affichage de {{from}} à {{to}} sur {{total}}",
+    "previousPage": "Précédent",
+    "nextPage": "Suivant",
+    "pageOf": "Page {{page}} sur {{pages}}"
   },
   "cancellationSettings": {
     "pageTitle": "Politiques de paiement et d'annulation",
@@ -22829,8 +22878,16 @@
         "hoursLocalTime": "Les horaires sont indiqués dans le fuseau horaire de chaque restaurant.",
         "ordersPaused": "Commandes en pause",
         "onlineUnavailable": "Commande en ligne indisponible",
-        "clearLocation": "Effacer la localisation"
-      }
+        "clearLocation": "Effacer la localisation",
+        "notAcceptingOrders": "N'accepte pas de commandes",
+        "openNow": "Accepte les commandes",
+        "fulfillment": "Mode de retrait",
+        "fulfillmentAll": "Tous les modes",
+        "fulfillment_delivery": "Livraison",
+        "fulfillment_pickup": "À emporter",
+        "fulfillment_dine_in": "Sur place"
+      },
+      "externalPlaceExplore": "Trouver des restaurants OxSteed à proximité"
     },
     "restaurant": {
       "messageUnreachable": "Ce restaurant ne peut pas recevoir de messages pour le moment. Veuillez réessayer plus tard.",
@@ -23217,7 +23274,36 @@
         "promo_not_fundable": "Ce code promo ne peut pas être appliqué à cette commande.",
         "promo_changed": "La remise promo a changé. Vérifiez votre commande et réessayez."
       },
-      "promoApplied": "Code promo appliqué : −{{amount}}"
+      "promoApplied": "Code promo appliqué : −{{amount}}",
+      "removeItem": "Retirer {{item}} du panier",
+      "checkoutTotalLoading": "Calcul du total…",
+      "reorderReplaceConfirm": "Remplacer votre panier actuel par cette ancienne commande ?",
+      "reorderDropped": "Certaines personnalisations ne sont plus disponibles et ont été omises : {{items}}",
+      "deliveryCity": "Ville",
+      "deliveryCityPlaceholder": "Ville",
+      "deliveryState": "État / Province",
+      "deliveryStatePlaceholder": "État / Province",
+      "deliveryZip": "Code postal",
+      "deliveryZipPlaceholder": "Code postal",
+      "deliveryInstructions": "Instructions de livraison",
+      "deliveryInstructionsPlaceholder": "Code d'accès, stationnement ou notes de dépôt",
+      "guestCheckoutNote": "Vous pouvez commander en tant qu'invité. Connectez-vous pour retrouver cette commande dans votre historique et gagner des points de fidélité.",
+      "guestName": "Votre nom",
+      "guestNamePlaceholder": "Nom complet",
+      "guestPhone": "Téléphone",
+      "guestPhonePlaceholder": "Numéro de téléphone",
+      "guestEmail": "Courriel",
+      "guestEmailPlaceholder": "Adresse courriel",
+      "guestNameRequired": "Veuillez entrer votre nom pour une commande à emporter en tant qu'invité.",
+      "guestContactRequired": "Veuillez fournir un numéro de téléphone ou un courriel pour les mises à jour de la commande.",
+      "guestPaymentUnavailable": "Ce mode de paiement exige une connexion. Choisissez le paiement au restaurant ou le crédit invité, ou connectez-vous.",
+      "quoteLoading": "Calcul de votre total en cours…",
+      "trackOrder": "Suivre la commande",
+      "reviewAfterCompleted": "Une fois votre commande terminée, vous pourrez laisser un avis depuis la page de suivi.",
+      "reviewsLoadError": "Impossible de charger les avis.",
+      "reviewsShowing": "Affichage de {{shown}} avis sur {{total}}",
+      "loadMoreReviews": "Charger plus d'avis",
+      "reviewResponse": "Réponse du restaurant : {{response}}"
     },
     "order": {
       "specialInstructions": "Instructions spéciales (facultatif)",
@@ -23247,7 +23333,8 @@
       "reviewOptional": "Commentaire facultatif (500 caractères maximum)",
       "submitReview": "Envoyer l’avis",
       "reviewThanks": "Merci pour votre avis !",
-      "reviewError": "Nous n’avons pas pu enregistrer votre avis. Veuillez réessayer."
+      "reviewError": "Nous n’avons pas pu enregistrer votre avis. Veuillez réessayer.",
+      "reviewDeleted": "Votre avis a été supprimé."
     },
     "status": {
       "received": "Reçue",
@@ -23269,7 +23356,13 @@
       "total": "Total",
       "printReceipt": "Imprimer le reçu",
       "runnerNearby": "Livreur à proximité",
-      "runnerUpdatedAgo": "position mise à jour il y a {{seconds}} s"
+      "runnerUpdatedAgo": "position mise à jour il y a {{seconds}} s",
+      "reviewDone": "Votre avis",
+      "reviewTitle": "Laisser un avis",
+      "reviewThanks": "Merci pour vos commentaires.",
+      "reviewPlaceholder": "Comment était votre commande ?",
+      "reviewSubmit": "Envoyer l'avis",
+      "reviewDelete": "Supprimer l'avis"
     },
     "payment": {
       "paid": "Payée",

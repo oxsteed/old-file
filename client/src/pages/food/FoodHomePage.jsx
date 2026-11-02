@@ -82,12 +82,15 @@ function RestaurantCard({ r, t, locale }) {
   // card fires a best-effort click beacon; it never blocks navigation.
   const isEffectivelyFeatured = isFeaturedRestaurant(r);
   const fulfillment = restaurantFulfillmentLabels(r, t);
+  // Grey out cards that cannot take an online order right now instead of
+  // presenting them identically to orderable restaurants.
+  const notOrderable = r.accepts_online_orders === false || r.is_accepting_orders_now === false;
   const handleClick = () => {
     if (isEffectivelyFeatured) trackFeaturedPlacementClick(r.id);
   };
 
   return (
-    <Link to={`/restaurants/r/${r.id}`} className="fd-card" onClick={handleClick}>
+    <Link to={`/restaurants/r/${r.id}`} className="fd-card" onClick={handleClick} style={notOrderable ? { opacity: 0.6 } : undefined} aria-label={notOrderable ? `${r.display_name} (${t('food.home.discovery.notAcceptingOrders')})` : undefined}>
       {cover ? (
         <img src={cover} alt="" className="fd-card-cover" loading="lazy" />
       ) : (
@@ -123,6 +126,8 @@ function RestaurantCard({ r, t, locale }) {
         <span className="fd-card-hours">{restaurantHoursLabel(r, t, locale)}</span>
         {fulfillment.length > 0 && <span className="fd-card-meta">{fulfillment.join(' · ')}</span>}
         {r.accepts_online_orders === false && <span className="fd-card-meta">{t('food.home.discovery.onlineUnavailable')}</span>}
+        {r.is_accepting_orders_now === false && <span className="fd-card-meta">{t('food.home.discovery.ordersPaused')}</span>}
+        {notOrderable && <span className="fd-tag">{t('food.home.discovery.notAcceptingOrders')}</span>}
         {cityLine && <span className="fd-card-meta">{cityLine}</span>}
         {r.distance_km != null && Number.isFinite(Number(r.distance_km)) && Number(r.distance_km) >= 0 && (
           <span className="fd-card-meta">
@@ -134,7 +139,7 @@ function RestaurantCard({ r, t, locale }) {
   );
 }
 
-function ExternalPlaceCard({ place, t }) {
+function ExternalPlaceCard({ place, t, onExploreNearby }) {
   return (
     <article className="fd-card fd-external-place-card">
       <div className="fd-card-cover fd-card-cover-placeholder" aria-hidden="true">
@@ -145,6 +150,13 @@ function ExternalPlaceCard({ place, t }) {
         <span className="fd-tag">{t('food.home.externalPlaceBadge')}</span>
         {place.display && <span className="fd-card-meta">{place.display}</span>}
         <p className="fd-card-meta">{t('food.home.externalPlaceDescription')}</p>
+        <button
+          type="button"
+          className="fd-btn fd-btn-secondary fd-btn-sm"
+          onClick={() => onExploreNearby?.(place)} data-track="ui.703b3d5218.14"
+        >
+          {t('food.home.externalPlaceExplore')}
+        </button>
       </div>
     </article>
   );
@@ -168,6 +180,8 @@ export default function FoodHomePage() {
   const [recentOrders, setRecentOrders] = useState([]);
   const [externalPlaces, setExternalPlaces] = useState([]);
   const [sort, setSort] = useState('recommended');
+  const [openNow, setOpenNow] = useState(false);
+  const [fulfillment, setFulfillment] = useState(null);
   const [pagination, setPagination] = useState({
     limit: DISCOVERY_PAGE_SIZE,
     offset: 0,
@@ -257,7 +271,7 @@ export default function FoodHomePage() {
   const search = (e) => {
     e?.preventDefault?.();
     setSubmittedQuery(query.trim());
-    const params = buildRestaurantDiscoveryParams({ query, cuisine: activeCuisine, geo, sort });
+    const params = buildRestaurantDiscoveryParams({ query, cuisine: activeCuisine, geo, sort, openNow, fulfillment });
     load(params, { reset: true });
   };
 
@@ -269,16 +283,16 @@ export default function FoodHomePage() {
     const timer = setTimeout(() => {
       const trimmed = query.trim();
       setSubmittedQuery(trimmed);
-      const params = buildRestaurantDiscoveryParams({ query: trimmed, cuisine: activeCuisine, geo, sort });
+      const params = buildRestaurantDiscoveryParams({ query: trimmed, cuisine: activeCuisine, geo, sort, openNow, fulfillment });
       load(params, { reset: true });
     }, 300);
     return () => clearTimeout(timer);
-  }, [query, submittedQuery, activeCuisine, geo, sort, load]);
+  }, [query, submittedQuery, activeCuisine, geo, sort, openNow, fulfillment, load]);
 
   const selectCuisine = (cuisine) => {
     const nextCuisine = activeCuisine === cuisine ? null : cuisine;
     setActiveCuisine(nextCuisine);
-    const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: nextCuisine, geo, sort });
+    const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: nextCuisine, geo, sort, openNow, fulfillment });
     load(params, { reset: true });
   };
 
@@ -289,6 +303,8 @@ export default function FoodHomePage() {
       cuisine: activeCuisine,
       geo,
       sort,
+      openNow,
+      fulfillment,
       offset: pagination.nextOffset ?? pagination.offset + DISCOVERY_PAGE_SIZE,
     });
     load(params, { reset: false });
@@ -296,7 +312,32 @@ export default function FoodHomePage() {
 
   const selectSort = (nextSort) => {
     setSort(nextSort);
-    const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, geo, sort: nextSort });
+    const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, geo, sort: nextSort, openNow, fulfillment });
+    load(params, { reset: true });
+  };
+
+  const toggleOpenNow = () => {
+    const next = !openNow;
+    setOpenNow(next);
+    const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, geo, sort, openNow: next, fulfillment });
+    load(params, { reset: true });
+  };
+
+  const selectFulfillment = (next) => {
+    setFulfillment(next);
+    const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, geo, sort, openNow, fulfillment: next });
+    load(params, { reset: true });
+  };
+
+  // An external place is not an OxSteed restaurant, but it is not a dead
+  // end either: exploring nearby re-centers discovery on that place and
+  // lists OxSteed restaurants by distance.
+  const exploreNearbyPlace = (place) => {
+    if (!place || !Number.isFinite(Number(place.lat)) || !Number.isFinite(Number(place.lng))) return;
+    const next = { lat: Number(place.lat), lng: Number(place.lng) };
+    setGeo(next);
+    setSort('distance');
+    const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, geo: next, sort: 'distance', openNow, fulfillment });
     load(params, { reset: true });
   };
 
@@ -310,7 +351,7 @@ export default function FoodHomePage() {
         setGeo(next);
         setLocating(false);
         setSort('distance');
-        const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, geo: next, sort: 'distance' });
+        const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, geo: next, sort: 'distance', openNow, fulfillment });
         load(params, { reset: true });
       },
       () => { setLocating(false); setLocationError(true); },
@@ -389,7 +430,7 @@ export default function FoodHomePage() {
       setQuery('');
       setSubmittedQuery('');
       setActiveCuisine(d.name);
-      const params = buildRestaurantDiscoveryParams({ query: '', cuisine: d.name, geo, sort });
+      const params = buildRestaurantDiscoveryParams({ query: '', cuisine: d.name, geo, sort, openNow, fulfillment });
       load(params, { reset: true });
     }
   };
@@ -414,13 +455,15 @@ export default function FoodHomePage() {
   const resumeExclusions = [...restaurants.map(r => r.id), ...reorderRestaurants.map(r => r.id)];
   const hasData = restaurants.length > 0;
   const hasMapData = hasData || externalPlaces.length > 0;
-  const hasDiscoveryFilter = isSearching || !!activeCuisine || !!geo;
+  const hasDiscoveryFilter = isSearching || !!activeCuisine || !!geo || openNow || !!fulfillment;
 
   const clearFilters = () => {
     setQuery('');
     setSubmittedQuery('');
     setActiveCuisine(null);
     setGeo(null);
+    setOpenNow(false);
+    setFulfillment(null);
     setLocationError(false);
     setSort('recommended');
     load({ sort: 'recommended' }, { reset: true });
@@ -430,7 +473,7 @@ export default function FoodHomePage() {
   const clearSearch = () => {
     setQuery('');
     setSubmittedQuery('');
-    const params = buildRestaurantDiscoveryParams({ query: '', cuisine: activeCuisine, geo, sort });
+    const params = buildRestaurantDiscoveryParams({ query: '', cuisine: activeCuisine, geo, sort, openNow, fulfillment });
     load(params, { reset: true });
   };
 
@@ -439,7 +482,7 @@ export default function FoodHomePage() {
     setLocationError(false);
     const nextSort = sort === 'distance' ? 'recommended' : sort;
     setSort(nextSort);
-    load(buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, sort: nextSort }), { reset: true });
+    load(buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, sort: nextSort, openNow, fulfillment }), { reset: true });
   };
 
   // Cuisine strip is driven by live restaurant data only — no hardcoded
@@ -551,7 +594,7 @@ export default function FoodHomePage() {
       </div>
       {hasDiscoveryFilter && <div className="rd-active-filters" aria-live="polite">
         <SlidersHorizontal size={16} aria-hidden="true" />
-        {submittedQuery && <span>{submittedQuery}</span>}{activeCuisine && <span>{activeCuisine}</span>}{geo && <span>{t('food.home.nearMe')}</span>}
+        {submittedQuery && <span>{submittedQuery}</span>}{activeCuisine && <span>{activeCuisine}</span>}{geo && <span>{t('food.home.nearMe')}</span>}{openNow && <span>{t('food.home.discovery.openNow')}</span>}{fulfillment && <span>{t(`food.home.discovery.fulfillment_${fulfillment}`)}</span>}
         <button type="button" onClick={clearFilters} data-track="ui.703b3d5218.5">{t('food.home.clearFilter')}<X size={14} aria-hidden="true" /></button>
       </div>}
 
@@ -651,6 +694,19 @@ export default function FoodHomePage() {
                 {geo && <option value="distance">{t('food.home.sortDistance')}</option>}
               </select>
             </label>
+            <label className="fd-discovery-sort">
+              <span>{t('food.home.discovery.openNow')}</span>
+              <input type="checkbox" checked={openNow} onChange={toggleOpenNow} aria-label={t('food.home.discovery.openNow')} data-track="ui.703b3d5218.15" />
+            </label>
+            <label className="fd-discovery-sort">
+              <span>{t('food.home.discovery.fulfillment')}</span>
+              <select value={fulfillment || ''} onChange={(e) => selectFulfillment(e.target.value || null)} aria-label={t('food.home.discovery.fulfillment')}>
+                <option value="">{t('food.home.discovery.fulfillmentAll')}</option>
+                <option value="delivery">{t('food.fulfillment.delivery')}</option>
+                <option value="pickup">{t('food.restaurant.takeout')}</option>
+                <option value="dine_in">{t('food.order.dineIn')}</option>
+              </select>
+            </label>
           </div>
 
           {/* Order again */}
@@ -684,7 +740,7 @@ export default function FoodHomePage() {
               <p className="fd-card-meta">{t('food.home.externalPlacesDescription')}</p>
               <div className="fd-grid">
                 {externalPlaces.slice(0, 8).map((place) => (
-                  <ExternalPlaceCard key={`${place.placeId || place.display}-${place.lat}-${place.lng}`} place={place} t={t} />
+                  <ExternalPlaceCard key={`${place.placeId || place.display}-${place.lat}-${place.lng}`} place={place} t={t} onExploreNearby={exploreNearbyPlace} />
                 ))}
               </div>
             </div>

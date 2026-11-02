@@ -21,7 +21,15 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import OrderErrorBoundary from '../components/OrderErrorBoundary';
 import { formatCents, formatDateTime } from '../lib/format';
-import { getFoodOrder } from '../api/food';
+import {
+  cancelFoodOrder,
+  createFoodOrderDispute,
+  deleteFoodOrderReview,
+  getFoodCancelPreview,
+  getFoodOrder,
+  submitFoodOrderReview,
+  updateFoodOrderReview,
+} from '../api/food';
 import './OrderDetailsPage.css';
 
 const STATUS_GROUPS = {
@@ -125,6 +133,30 @@ function OrderDetailsPageContent() {
   const [helpMessage, setHelpMessage] = useState('');
   const [helpSending, setHelpSending] = useState(false);
   const [helpSent, setHelpSent] = useState(false);
+  // Food-order cancel: preview first (the server's refund amount, never a
+  // guess), then confirm. The marketplace cancel route 404s for food orders.
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelPreview, setCancelPreview] = useState(null);
+  const [cancelPreviewLoading, setCancelPreviewLoading] = useState(false);
+  const [cancelPreviewError, setCancelPreviewError] = useState(null);
+  const [cancelResult, setCancelResult] = useState(null);
+  const [cancelError, setCancelError] = useState(null);
+  // Food-order review (completed orders only, one per order, server-enforced).
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewBody, setReviewBody] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewDone, setReviewDone] = useState(false);
+  const [reviewError, setReviewError] = useState(null);
+  // Structured food-order dispute intake (job-scoped disputes do not cover
+  // food orders): opens a restaurant support case linked to this order.
+  const [disputeMode, setDisputeMode] = useState(false);
+  const [disputeIssueType, setDisputeIssueType] = useState('missing_item');
+  const [disputeResolution, setDisputeResolution] = useState('refund');
+  const [disputeAmount, setDisputeAmount] = useState('');
+  const [disputeDescription, setDisputeDescription] = useState('');
+  const [disputeSending, setDisputeSending] = useState(false);
+  const [disputeResult, setDisputeResult] = useState(null);
+  const [disputeError, setDisputeError] = useState(null);
 
   const loadOrder = async () => {
     try {
@@ -159,6 +191,111 @@ function OrderDetailsPageContent() {
   };
 
   const canCancel = !isFoodOrder && order && ['pending', 'paid'].includes(order.status);
+  // Food orders cancel through their own endpoint (the marketplace handler
+  // 404s for them). The server transition allows cancelling until the order
+  // is completed; the preview is the final word on cancellability.
+  const FOOD_CANCELLABLE_STATUSES = ['received', 'accepted', 'preparing', 'ready'];
+  const canCancelFood = isFoodOrder && order && FOOD_CANCELLABLE_STATUSES.includes(String(order.status || '').toLowerCase());
+
+  const openFoodCancel = async () => {
+    setCancelOpen(true);
+    setCancelPreview(null);
+    setCancelPreviewError(null);
+    setCancelResult(null);
+    setCancelError(null);
+    setCancelPreviewLoading(true);
+    try {
+      setCancelPreview(await getFoodCancelPreview(orderId));
+    } catch (err) {
+      setCancelPreviewError(err.response?.data?.error || err.message || t('orders.cancelError'));
+    } finally {
+      setCancelPreviewLoading(false);
+    }
+  };
+
+  const confirmFoodCancel = async () => {
+    if (cancelLoading) return;
+    setCancelLoading(true);
+    setCancelError(null);
+    try {
+      const idempotencyKey = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const result = await cancelFoodOrder(orderId, {}, idempotencyKey);
+      setCancelResult(result);
+      await loadOrder();
+    } catch (err) {
+      setCancelError(err.response?.data?.error || err.message || t('orders.cancelError'));
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (order?.review) {
+      setReviewRating(Number(order.review.rating) || 5);
+      setReviewBody(String(order.review.body || ''));
+      setReviewDone(true);
+    } else {
+      setReviewDone(Boolean(order?.has_review));
+    }
+  }, [order?.id, order?.has_review, order?.review]);
+
+  const submitFoodReview = async () => {
+    if (reviewSubmitting) return;
+    setReviewSubmitting(true);
+    try {
+      if (order?.review || reviewDone) {
+        await updateFoodOrderReview(orderId, { rating: reviewRating, body: reviewBody.trim() || undefined });
+      } else {
+        await submitFoodOrderReview(orderId, { rating: reviewRating, body: reviewBody.trim() || undefined });
+      }
+      setReviewDone(true);
+      await loadOrder();
+    } catch (err) {
+      setReviewError(err.response?.data?.error || err.message || null);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const deleteFoodReview = async () => {
+    if (reviewSubmitting) return;
+    setReviewSubmitting(true);
+    try {
+      await deleteFoodOrderReview(orderId, {});
+      setReviewDone(false);
+      setReviewBody('');
+      await loadOrder();
+    } catch (err) {
+      setReviewError(err.response?.data?.error || err.message || null);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const submitFoodDispute = async () => {
+    if (disputeSending || !disputeDescription.trim()) return;
+    setDisputeSending(true);
+    setDisputeError(null);
+    try {
+      const idempotencyKey = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const amountCents = disputeResolution === 'partial_refund'
+        ? Math.round(Number.parseFloat(disputeAmount.replace(/[^0-9.]/g, '')) * 100) || 0
+        : undefined;
+      const result = await createFoodOrderDispute({
+        orderId: Number(orderId),
+        restaurantId: order?.restaurant_id,
+        issueType: disputeIssueType,
+        requestedResolution: disputeResolution,
+        requestedRefundAmountCents: amountCents || undefined,
+        description: disputeDescription.trim(),
+      }, idempotencyKey);
+      setDisputeResult(result?.case || result);
+    } catch (err) {
+      setDisputeError(err.response?.data?.error || err.message || null);
+    } finally {
+      setDisputeSending(false);
+    }
+  };
   const currencyOptions = { currency: order?.currency_code || order?.currency || 'USD' };
   const supportUrl = isFoodOrder && order
     ? `/support?orderId=${order.id}${order.tracking_token ? `&token=${order.tracking_token}` : ''}`
@@ -281,7 +418,11 @@ function OrderDetailsPageContent() {
   const StatusIcon = statusIcon(effectiveStatus);
   const items = Array.isArray(order.items) ? order.items : [];
   const totalItems = items.reduce((total, item) => total + Number(item.quantity || 0), 0);
-  const address = addressText(order.shipping_address || order.delivery_address);
+  // Delivery orders store their address inside metadata.deliveryAddress, not
+  // on top-level columns; read it before inferring fulfillment from absence.
+  const deliveryAddress = order.metadata?.deliveryAddress || order.metadata?.delivery_address || null;
+  const address = addressText(order.shipping_address || order.delivery_address || deliveryAddress);
+  const deliveryInstructions = typeof deliveryAddress === 'object' ? deliveryAddress?.instructions || deliveryAddress?.notes || '' : '';
   const fulfillment = order.fulfillment_type || order.fulfillmentType || (address ? 'delivery' : 'pickup');
 
   return (
@@ -335,12 +476,58 @@ function OrderDetailsPageContent() {
                 </div>
               </section>
 
+              {isFoodOrder && String(order.status || '').toLowerCase() === 'completed' && (
+                <section className="order-details-card">
+                  <div className="order-details-card-head"><div><p className="order-details-card-kicker">{t('orders.review')}</p><h2>{reviewDone ? t('orders.reviewDone') : t('orders.reviewTitle')}</h2></div></div>
+                  <div className="order-details-lines">
+                    {reviewDone && order.review?.response && (
+                      <p>{t('orders.reviewResponse', { response: order.review.response })}</p>
+                    )}
+                    <div role="radiogroup" aria-label={t('orders.reviewTitle')}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          role="radio"
+                          aria-checked={reviewRating === star}
+                          onClick={() => setReviewRating(star)}
+                          className="orders-btn"
+                          data-track="ui.74ee342991.15"
+                        >
+                          {star <= reviewRating ? '★' : '☆'}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={reviewBody}
+                      onChange={(e) => setReviewBody(e.target.value)}
+                      placeholder={t('orders.reviewPlaceholder')}
+                      rows={4}
+                      maxLength={2000}
+                      className="order-help-textarea"
+                    />
+                    {reviewError && <p role="alert">{reviewError}</p>}
+                    <div className="order-help-actions">
+                      {reviewDone && (
+                        <button type="button" className="orders-btn" onClick={deleteFoodReview} disabled={reviewSubmitting} data-track="ui.74ee342991.16">
+                          {t('orders.reviewDelete')}
+                        </button>
+                      )}
+                      <button type="button" className="orders-btn orders-btn-primary" onClick={submitFoodReview} disabled={reviewSubmitting} data-track="ui.74ee342991.17">
+                        {reviewSubmitting ? t('common.sending') : t('orders.reviewSubmit')}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              )}
+
               {(address || order.table_label || order.fulfillment_type) && (
                 <section className="order-details-card">
                   <div className="order-details-card-head"><div><p className="order-details-card-kicker">{t('orders.fulfillment', { defaultValue: 'Fulfillment' })}</p><h2>{t('orders.deliveryDetails', { defaultValue: 'Where and how' })}</h2></div></div>
                   <div className="order-details-lines">
                     <DetailLine icon={MapPin} label={t('orders.fulfillment', { defaultValue: 'Fulfillment' })}>{String(fulfillment).replace(/_/g, ' ')}</DetailLine>
                     {address && <DetailLine icon={MapPin} label={t('orders.shippingAddress')}>{address}</DetailLine>}
+                    {deliveryInstructions && <DetailLine icon={MapPin} label={t('orders.deliveryInstructions')}>{deliveryInstructions}</DetailLine>}
                     {order.table_label && <DetailLine icon={Ticket} label={t('food.order.table', { defaultValue: 'Table' })}>{order.table_label}</DetailLine>}
                     {order.queue_number && <DetailLine icon={Package} label={t('orders.orderNumber', { defaultValue: 'Order number' })}>#{order.queue_number}</DetailLine>}
                   </div>
@@ -355,6 +542,8 @@ function OrderDetailsPageContent() {
                   <div><dt>{t('checkout.subtotal')}</dt><dd>{formatCents(order.subtotal_cents, currencyOptions)}</dd></div>
                   {order.tax_cents > 0 && <div><dt>{t('checkout.tax')}</dt><dd>{formatCents(order.tax_cents, currencyOptions)}</dd></div>}
                   {(order.shipping_cents > 0 || order.delivery_fee_cents > 0) && <div><dt>{t('orders.shipping')}</dt><dd>{formatCents(order.shipping_cents || order.delivery_fee_cents, currencyOptions)}</dd></div>}
+                  {order.service_fee_cents > 0 && <div><dt>{t('orders.serviceFee')}</dt><dd>{formatCents(order.service_fee_cents, currencyOptions)}</dd></div>}
+                  {order.tip_cents > 0 && <div><dt>{t('orders.tip')}</dt><dd>{formatCents(order.tip_cents, currencyOptions)}</dd></div>}
                   {order.discount_cents > 0 && <div className="is-discount"><dt>{t('orders.discount')}</dt><dd>-{formatCents(order.discount_cents, currencyOptions)}</dd></div>}
                   <div className="is-total"><dt>{t('checkout.total')}</dt><dd>{formatCents(order.total_cents, currencyOptions)}</dd></div>
                 </dl>
@@ -373,6 +562,7 @@ function OrderDetailsPageContent() {
 
               <section className="order-details-actions">
                 {canCancel && <button type="button" className="orders-btn orders-btn-danger" onClick={handleCancel} disabled={cancelLoading} data-track="ui.74ee342991.6"><XCircle size={16} /> {cancelLoading ? t('common.processing') : t('orders.cancelOrder')}</button>}
+                {canCancelFood && <button type="button" className="orders-btn orders-btn-danger" onClick={openFoodCancel} data-track="ui.74ee342991.18"><XCircle size={16} /> {t('orders.cancelOrder')}</button>}
                 {isFoodOrder && order?.tracking_token && <button type="button" className="orders-btn orders-btn-primary" onClick={() => navigate(`/food/track/${order.tracking_token}`)} data-track="ui.74ee342991.7"><RefreshCw size={16} /> {t('food.order.liveStatus', { defaultValue: 'Track order live' })}</button>}
                 <button type="button" className="orders-btn" onClick={() => setHelpOpen(true)} data-track="ui.74ee342991.8"><HelpCircle size={16} /> {t('orders.getHelp', { defaultValue: 'Get help with this order' })}</button>
                 {isFoodOrder && !['cancelled', 'refunded'].includes(String(order.status || '').toLowerCase()) && <button type="button" className="orders-btn" onClick={handleOrderAgain} data-track="ui.74ee342991.9"><RotateCcw size={16} /> {t('food.restaurant.orderAgain', { defaultValue: 'Order again' })}</button>}
@@ -406,6 +596,66 @@ function OrderDetailsPageContent() {
                   {t('common.done', { defaultValue: 'Done' })}
                 </button>
               </div>
+            ) : disputeMode ? (
+              <>
+                {disputeResult ? (
+                  <div className="order-help-sent">
+                    <p>{t('orders.disputeOpened', { caseNumber: disputeResult.public_case_number || disputeResult.id })}</p>
+                    {disputeResult.owner_type && <p>{t('orders.disputeReviewingParty', { party: disputeResult.owner_type })}</p>}
+                    <button type="button" className="orders-btn orders-btn-primary" onClick={() => { setHelpOpen(false); setDisputeMode(false); setDisputeResult(null); }} data-track="ui.74ee342991.19">
+                      {t('common.done')}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <p>{t('orders.disputeDescription')}</p>
+                    <label>{t('orders.disputeIssueType')}</label>
+                    <select value={disputeIssueType} onChange={(e) => setDisputeIssueType(e.target.value)} className="order-help-textarea" style={{ minHeight: 0 }}>
+                      {['missing_item', 'wrong_item', 'food_quality', 'late_order', 'payment_problem', 'delivery_issue', 'other'].map((issue) => (
+                        <option key={issue} value={issue}>{t(`orders.disputeIssues.${issue}`)}</option>
+                      ))}
+                    </select>
+                    <label>{t('orders.disputeResolution')}</label>
+                    <select value={disputeResolution} onChange={(e) => setDisputeResolution(e.target.value)} className="order-help-textarea" style={{ minHeight: 0 }}>
+                      {['refund', 'partial_refund', 'store_credit', 'replacement_item', 'remake_order', 'discount_code', 'apology_only'].map((resolution) => (
+                        <option key={resolution} value={resolution}>{t(`orders.disputeResolutions.${resolution}`)}</option>
+                      ))}
+                    </select>
+                    {disputeResolution === 'partial_refund' && (
+                      <input
+                        value={disputeAmount}
+                        onChange={(e) => setDisputeAmount(e.target.value)}
+                        placeholder={t('orders.disputeAmountPlaceholder')}
+                        inputMode="decimal"
+                        className="order-help-textarea"
+                        style={{ minHeight: 0 }}
+                      />
+                    )}
+                    <textarea
+                      value={disputeDescription}
+                      onChange={(e) => setDisputeDescription(e.target.value)}
+                      placeholder={t('orders.disputeDetailPlaceholder')}
+                      rows={5}
+                      maxLength={5000}
+                      className="order-help-textarea"
+                    />
+                    {disputeError && <p role="alert">{disputeError}</p>}
+                    <div className="order-help-actions">
+                      <button type="button" className="orders-btn" onClick={() => setDisputeMode(false)} data-track="ui.74ee342991.20">
+                        {t('common.back')}
+                      </button>
+                      <button
+                        type="button"
+                        className="orders-btn orders-btn-primary"
+                        onClick={submitFoodDispute}
+                        disabled={disputeSending || !disputeDescription.trim()} data-track="ui.74ee342991.21"
+                      >
+                        {disputeSending ? t('common.sending') : t('orders.disputeSubmit')}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </>
             ) : (
               <>
                 <textarea
@@ -428,8 +678,74 @@ function OrderDetailsPageContent() {
                     {helpSending ? t('common.sending', { defaultValue: 'Sending...' }) : t('common.send', { defaultValue: 'Send' })}
                   </button>
                 </div>
+                {isFoodOrder && (
+                  <button type="button" className="orders-btn" onClick={() => { setDisputeMode(true); setDisputeError(null); }} data-track="ui.74ee342991.22">
+                    {t('orders.reportProblem')}
+                  </button>
+                )}
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {cancelOpen && (
+        <div className="order-help-overlay" onClick={() => !cancelLoading && setCancelOpen(false)}>
+          <div className="order-help-panel" onClick={e => e.stopPropagation()}>
+            <div className="order-help-head">
+              <h3>{t('orders.cancelOrder')}</h3>
+              <button type="button" className="order-help-close" onClick={() => !cancelLoading && setCancelOpen(false)} aria-label={t('common.close')} data-track="ui.74ee342991.23">×</button>
+            </div>
+            {cancelResult ? (
+              <div className="order-help-sent">
+                <p>{t('orders.cancelSuccess')}</p>
+                {cancelResult.refundCents > 0 && (
+                  <p>{t('orders.cancelRefund', { amount: formatCents(cancelResult.refundCents, currencyOptions) })}</p>
+                )}
+                {cancelResult.replayed && <p>{t('orders.cancelReplayed')}</p>}
+                <button type="button" className="orders-btn orders-btn-primary" onClick={() => setCancelOpen(false)} data-track="ui.74ee342991.24">
+                  {t('common.done')}
+                </button>
+              </div>
+            ) : cancelPreviewLoading ? (
+              <p>{t('common.loading')}</p>
+            ) : cancelPreviewError ? (
+              <>
+                <p role="alert">{cancelPreviewError}</p>
+                <div className="order-help-actions">
+                  <button type="button" className="orders-btn" onClick={() => setCancelOpen(false)} data-track="ui.74ee342991.25">
+                    {t('common.close')}
+                  </button>
+                </div>
+              </>
+            ) : cancelPreview && !cancelPreview.cancellable ? (
+              <>
+                <p>{t('orders.cancelNotAvailable')}</p>
+                <div className="order-help-actions">
+                  <button type="button" className="orders-btn" onClick={() => setCancelOpen(false)} data-track="ui.74ee342991.25">
+                    {t('common.close')}
+                  </button>
+                </div>
+              </>
+            ) : cancelPreview ? (
+              <>
+                <p>{t('orders.cancelConfirm', { total: formatCents(cancelPreview.totalCents, currencyOptions) })}</p>
+                {cancelPreview.refundCents > 0 ? (
+                  <p>{t('orders.cancelRefundPreview', { amount: formatCents(cancelPreview.refundCents, currencyOptions) })}</p>
+                ) : (
+                  <p>{t('orders.cancelNoRefund')}</p>
+                )}
+                {cancelError && <p role="alert">{cancelError}</p>}
+                <div className="order-help-actions">
+                  <button type="button" className="orders-btn" onClick={() => setCancelOpen(false)} disabled={cancelLoading} data-track="ui.74ee342991.26">
+                    {t('common.cancel')}
+                  </button>
+                  <button type="button" className="orders-btn orders-btn-danger" onClick={confirmFoodCancel} disabled={cancelLoading} data-track="ui.74ee342991.27">
+                    {cancelLoading ? t('common.processing') : t('orders.cancelOrder')}
+                  </button>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       )}
