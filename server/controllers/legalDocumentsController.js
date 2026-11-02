@@ -29,9 +29,15 @@ async function recordAcceptance(req, res, next) {
     const errs = validate(req.body, {
       firstName: [rules.required, rules.minLen(1), rules.maxLen(255), rules.noScript],
       lastName: [rules.required, rules.minLen(1), rules.maxLen(255), rules.noScript],
-      versionNumber: [rules.required, rules.isInt, rules.min(1)]
+      // NOTE: utils/validate exports `integer`, not `isInt`, and has no
+      // `min` rule; the previous names threw a TypeError on every accept
+      // call before any database check ran.
+      versionNumber: [rules.required, rules.integer]
     });
     if (errs) throw new AppError('Validation failed', 400, 'validation_failed', errs);
+    if (Number(versionNumber) < 1) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { versionNumber: 'versionNumber must be at least 1' });
+    }
 
     if (!documentType || !VALID_DOCUMENT_TYPES.includes(documentType)) {
       throw new AppError('Invalid document type', 400, 'invalid_document_type');
@@ -50,8 +56,10 @@ async function recordAcceptance(req, res, next) {
       throw new AppError('Account is not active', 403, 'account_inactive');
     }
 
+    // Revoked rows (deleted_at set) are not active acceptances: they must
+    // neither report alreadyAccepted nor block a fresh acceptance.
     const existing = await pool.query(
-      'SELECT id FROM user_legal_acceptances WHERE user_id = $1 AND document_type = $2 AND version_number = $3',
+      'SELECT id FROM user_legal_acceptances WHERE user_id = $1 AND document_type = $2 AND version_number = $3 AND deleted_at IS NULL',
       [userId, documentType, versionNumber]
     );
 
@@ -68,13 +76,47 @@ async function recordAcceptance(req, res, next) {
     const ipAddress = req.ip || req.connection.remoteAddress || null;
     const userAgent = req.get('user-agent') || null;
 
-    const result = await pool.query(
-      `INSERT INTO user_legal_acceptances
-       (user_id, document_type, version_number, first_name, last_name, ip_address, user_agent, accepted_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
-       RETURNING id, accepted_at`,
-      [userId, documentType, versionNumber, firstName, lastName, ipAddress, userAgent]
+    // The (user, document_type, version_number) unique index from migration
+    // 587 is not partial on deleted_at, so a revoked row still occupies the
+    // triple. Re-accepting therefore reactivates that row with the fresh
+    // signature data instead of inserting a duplicate: the revocation stays
+    // visible in legal_audit_log, and the row again reads as active.
+    const revoked = await pool.query(
+      'SELECT id FROM user_legal_acceptances WHERE user_id = $1 AND document_type = $2 AND version_number = $3 AND deleted_at IS NOT NULL',
+      [userId, documentType, versionNumber]
     );
+
+    let result;
+    if (revoked.rows.length > 0) {
+      result = await pool.query(
+        `UPDATE user_legal_acceptances
+         SET deleted_at = NULL, first_name = $4, last_name = $5, ip_address = $6, user_agent = $7,
+             accepted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1 AND user_id = $2 AND document_type = $3
+         RETURNING id, accepted_at`,
+        [revoked.rows[0].id, userId, documentType, firstName, lastName, ipAddress, userAgent]
+      );
+      // A concurrent re-accept could have reactivated the row first; fall
+      // through to a plain insert only if this update matched nothing, and
+      // let the unique index guard any remaining race.
+      if (result.rows.length === 0) {
+        result = await pool.query(
+          `INSERT INTO user_legal_acceptances
+           (user_id, document_type, version_number, first_name, last_name, ip_address, user_agent, accepted_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+           RETURNING id, accepted_at`,
+          [userId, documentType, versionNumber, firstName, lastName, ipAddress, userAgent]
+        );
+      }
+    } else {
+      result = await pool.query(
+        `INSERT INTO user_legal_acceptances
+         (user_id, document_type, version_number, first_name, last_name, ip_address, user_agent, accepted_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+         RETURNING id, accepted_at`,
+        [userId, documentType, versionNumber, firstName, lastName, ipAddress, userAgent]
+      );
+    }
 
     const acceptance = result.rows[0];
 
@@ -117,7 +159,7 @@ async function getUserAcceptances(req, res, next) {
 
     if (!userId) throw new AppError('Authentication required', 401, 'unauthorized');
 
-    let query = 'SELECT * FROM user_legal_acceptances WHERE user_id = $1';
+    let query = 'SELECT * FROM user_legal_acceptances WHERE user_id = $1 AND deleted_at IS NULL';
     const params = [userId];
 
     if (documentType) {
@@ -167,7 +209,7 @@ async function getAcceptanceHistory(req, res, next) {
 
     const result = await pool.query(
       `SELECT * FROM user_legal_acceptances
-       WHERE user_id = $1 AND document_type = $2
+       WHERE user_id = $1 AND document_type = $2 AND deleted_at IS NULL
        ORDER BY accepted_at DESC`,
       [userId, documentType]
     );
@@ -204,11 +246,11 @@ async function listAllAcceptances(req, res, next) {
       throw new AppError('Invalid pagination parameters', 400, 'invalid_pagination');
     }
 
-    let countQuery = 'SELECT COUNT(*) as total FROM user_legal_acceptances ula JOIN users u ON ula.user_id = u.id WHERE 1=1';
+    let countQuery = 'SELECT COUNT(*) as total FROM user_legal_acceptances ula JOIN users u ON ula.user_id = u.id WHERE ula.deleted_at IS NULL';
     let dataQuery = `SELECT ula.*, u.email, u.first_name as user_first_name, u.last_name as user_last_name
                     FROM user_legal_acceptances ula
                     JOIN users u ON ula.user_id = u.id
-                    WHERE 1=1`;
+                    WHERE ula.deleted_at IS NULL`;
     const params = [];
     let paramCount = 1;
 
@@ -316,7 +358,7 @@ async function getComplianceMetrics(req, res, next) {
     const acceptanceRates = {};
     for (const docType of VALID_DOCUMENT_TYPES) {
       const result = await pool.query(
-        'SELECT COUNT(DISTINCT user_id) as accepted FROM user_legal_acceptances WHERE document_type = $1',
+        'SELECT COUNT(DISTINCT user_id) as accepted FROM user_legal_acceptances WHERE document_type = $1 AND deleted_at IS NULL',
         [docType]
       );
       const accepted = parseInt(result.rows[0].accepted);
@@ -346,7 +388,7 @@ async function getComplianceMetrics(req, res, next) {
     const trendResult = await pool.query(
       `SELECT DATE(accepted_at) as date, COUNT(*) as count
        FROM user_legal_acceptances
-       WHERE accepted_at >= CURRENT_TIMESTAMP - INTERVAL '90 days'
+       WHERE accepted_at >= CURRENT_TIMESTAMP - INTERVAL '90 days' AND deleted_at IS NULL
        GROUP BY DATE(accepted_at)
        ORDER BY date ASC`
     );
@@ -512,6 +554,10 @@ async function revokeAcceptance(req, res, next) {
 
     const acceptance = acceptanceResult.rows[0];
 
+    if (acceptance.deleted_at) {
+      throw new AppError('Acceptance already revoked', 409, 'already_revoked');
+    }
+
     await pool.query(
       `UPDATE user_legal_acceptances
        SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
@@ -569,14 +615,14 @@ async function getAcceptancesByType(documentType) {
   try {
     if (documentType && VALID_DOCUMENT_TYPES.includes(documentType)) {
       const result = await pool.query(
-        'SELECT COUNT(*) as count FROM user_legal_acceptances WHERE document_type = $1',
+        'SELECT COUNT(*) as count FROM user_legal_acceptances WHERE document_type = $1 AND deleted_at IS NULL',
         [documentType]
       );
       return { [documentType]: parseInt(result.rows[0].count) };
     }
 
     const result = await pool.query(
-      'SELECT document_type, COUNT(*) as count FROM user_legal_acceptances GROUP BY document_type'
+      'SELECT document_type, COUNT(*) as count FROM user_legal_acceptances WHERE deleted_at IS NULL GROUP BY document_type'
     );
 
     const stats = {};
