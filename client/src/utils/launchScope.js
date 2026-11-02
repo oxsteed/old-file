@@ -63,7 +63,11 @@ export const LAUNCH_BUSINESS_HUB_TABS = new Set([
 ]);
 
 export const LAUNCH_DEFAULTS = Object.freeze({
-  affiliateRewards: true,
+  // 2026-11-02 admin-ops audit item 15: affiliate defaults OFF to match
+  // the affiliate API gate (AFFILIATE_ENABLED unset means the API 503s).
+  // With this off, /affiliate redirects to /dashboard and affiliate UI
+  // does not render until /api/launch-visibility overrides it at boot.
+  affiliateRewards: false,
   aiKnowledge: false,
   backgroundChecks: false,
   businessAscension: false,

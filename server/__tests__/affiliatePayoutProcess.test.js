@@ -149,9 +149,9 @@ test('checker rejects a queued amount that is no longer the payable net', async 
   expect(mockTransfers.create).not.toHaveBeenCalled();
 });
 
-test('the route requires an admin with the financials grant', () => {
+test('the route requires a super-admin or the manage financials grant', () => {
   const src = require('fs').readFileSync(require.resolve('../routes/affiliatePayouts.js'), 'utf8');
-  expect(src).toMatch(/'\/:payoutId\/process',\s*requireAdmin,\s*rejectImpersonated,\s*requirePermission\('view_financials'\)/);
+  expect(src).toMatch(/'\/:payoutId\/process',\s*requireAdmin,\s*rejectImpersonated,\s*requireSuperAdminOrPermission\('manage_financials'\)/);
 });
 
 test('ADM-040: the process route blocks impersonated sessions', () => {

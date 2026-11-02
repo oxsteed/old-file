@@ -87,7 +87,7 @@ test('no admin user 401s and never issues', async () => {
   expect(next.mock.calls[0][0].code).toBe('no_auth');
 });
 
-test('the issue route carries the same guards as the process route', () => {
+test('the issue route carries the same manage-financials guards as the process route', () => {
   const src = require('fs').readFileSync(require.resolve('../routes/affiliatePayouts.js'), 'utf8');
-  expect(src).toMatch(/'\/:payoutId\/stepup-challenges',\s*requireAdmin,\s*rejectImpersonated,\s*requirePermission\('view_financials'\),\s*strictLimiter,\s*affiliatePayoutsController\.issueProcessStepupChallenge/);
+  expect(src).toMatch(/'\/:payoutId\/stepup-challenges',\s*requireAdmin,\s*rejectImpersonated,\s*requireSuperAdminOrPermission\('manage_financials'\),\s*strictLimiter,\s*affiliatePayoutsController\.issueProcessStepupChallenge/);
 });
