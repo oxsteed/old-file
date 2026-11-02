@@ -6,7 +6,9 @@ const http=require('node:http');
 const {build}=require('esbuild');
 const {chromium}=require('playwright-core');
 
-test('actual Learn queues expose older pages, reset filters, and retry failures', {timeout:120000}, async()=>{
+// Twenty viewport/language/theme combinations share this fixture. Allow for
+// shared CI browser capacity, while bounding each UI wait below the total budget.
+test('actual Learn queues expose older pages, reset filters, and retry failures', {timeout:300000}, async(t)=>{
   const root=path.resolve(__dirname,'..');
   const catalogs=Object.fromEntries(['fr','ar'].map(lang=>[lang,JSON.parse(fs.readFileSync(path.join(root,`src/locales/${lang}.json`),'utf8'))]));
   const mocks={
@@ -41,8 +43,11 @@ test('actual Learn queues expose older pages, reset filters, and retry failures'
   await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;
   try{
     browser=await chromium.launch({headless:true,channel:'chrome'});const page=await browser.newPage();const errors=[];
+    page.setDefaultTimeout(10000);
+    page.setDefaultNavigationTimeout(10000);
     page.on('pageerror',e=>errors.push(e.message));
     for(const width of[320,390,768,1360,1600])for(const lang of['fr','ar'])for(const theme of['light','dark']){
+      await t.test(`${width}px / ${lang} / ${theme}`, async()=>{
       await page.setViewportSize({width,height:900});await page.goto(`http://127.0.0.1:${server.address().port}/?lang=${lang}&theme=${theme}`);
       const labels=catalogs[lang];
       const video=page.locator('section').filter({has:page.getByRole('heading',{name:labels.adminLearnSubmissions.videoSectionTitle,exact:true})});
@@ -66,6 +71,7 @@ test('actual Learn queues expose older pages, reset filters, and retry failures'
       // Assert the new pagination row itself wraps at 320px in RTL and French.
       const next=video.getByRole('button',{name:labels.reviewW11Learn.nextPage,exact:true});
       const bounds=await next.boundingBox();assert.ok(bounds.x>=-1&&bounds.x+bounds.width<=width+1);
+      });
     }
     const labels=catalogs.ar;
     const video=page.locator('section').filter({has:page.getByRole('heading',{name:labels.adminLearnSubmissions.videoSectionTitle,exact:true})});
