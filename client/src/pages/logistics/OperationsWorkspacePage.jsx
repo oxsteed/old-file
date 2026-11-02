@@ -53,6 +53,14 @@ function DriverPayoutsSection() {
       setError(t('logistics.operations.driverPayouts.referenceRequired'));
       return;
     }
+    if (action === 'approve' || action === 'markPaid') {
+      const driver = [payout.first_name, payout.last_name].filter(Boolean).join(' ') || payout.driver_email || t('logistics.operations.driverPayouts.unknownDriver');
+      const amount = (Number(payout.payout_cents || 0) / 100).toFixed(2);
+      const confirmKey = action === 'approve' ? 'confirmApprove' : 'confirmMarkPaid';
+      if (!window.confirm(t(`logistics.operations.driverPayouts.${confirmKey}`, { driver, amount }))) {
+        return;
+      }
+    }
     if (action === 'void' && !window.confirm(t('logistics.operations.driverPayouts.confirmVoid'))) {
       return;
     }
