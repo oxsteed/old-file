@@ -18576,7 +18576,11 @@
         "markPaidDone": "Peman make kòm peye.",
         "voidDone": "Peman anile.",
         "referenceRequired": "Antre yon referans peman anvan ou make yon peman kòm peye.",
-        "actionFailed": "Aksyon peman sa a echwe. Tanpri eseye ankò."
+        "actionFailed": "Aksyon peman sa a echwe. Tanpri eseye ankò.",
+        "showing": "Ap montre {{from}}–{{to}} sou {{total}}",
+        "previous": "Anvan",
+        "next": "Apre",
+        "pagerLabel": "Paj peman chofè"
       }
     },
     "orderDetail": {

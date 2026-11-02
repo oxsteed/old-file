@@ -89,8 +89,12 @@ export const reconcileTelematicsConnection = (id, cursor) => mutate('post', `/de
 export const listTrackingLinks = (id) => api.get(`/delivery/jobs/${id}/tracking/links`).then((response) => response.data);
 export const revokeTrackingLink = (id, linkId, reason) => mutate('post', `/delivery/jobs/${id}/tracking/links/${linkId}/revoke`, { reason });
 
-export const listInternalDriverPayouts = (status) => {
-  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+export const listInternalDriverPayouts = (status, { limit, offset } = {}) => {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (limit != null) params.set('limit', String(limit));
+  if (offset != null) params.set('offset', String(offset));
+  const query = params.toString() ? `?${params.toString()}` : '';
   return api.get(`/delivery/internal/driver-payouts${query}`).then((response) => response.data);
 };
 

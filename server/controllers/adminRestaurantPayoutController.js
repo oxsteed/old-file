@@ -15,11 +15,12 @@ exports.listQueue = async (req, res, next) => {
   try {
     const client = await db.connect();
     try {
-      const payouts = await payoutService.listAdminQueue(client, {
+      const result = await payoutService.listAdminQueue(client, {
         status: (req.query.status || 'requested').toString(),
         limit: req.query.limit,
+        offset: req.query.offset,
       });
-      res.json({ payouts });
+      res.json(result);
     } finally {
       client.release();
     }

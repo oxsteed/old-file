@@ -18576,7 +18576,11 @@
         "markPaidDone": "Pago marcado como pagado.",
         "voidDone": "Pago anulado.",
         "referenceRequired": "Escribe una referencia de pago antes de marcar un pago como pagado.",
-        "actionFailed": "Esa acción de pago falló. Inténtalo de nuevo."
+        "actionFailed": "Esa acción de pago falló. Inténtalo de nuevo.",
+        "showing": "Mostrando {{from}}–{{to}} de {{total}}",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "pagerLabel": "Páginas de pagos a conductores"
       }
     },
     "orderDetail": {
