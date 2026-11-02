@@ -71,6 +71,7 @@ export const SUPER_NAV = [
   { tabKey: 'restaurantTopupApprovals', to: routePath('restaurantTopupApprovals'), icon: Wallet, labelKey: 'adminNav.restaurantTopupApprovals', grant: adminRoute('restaurantTopupApprovals').grant },
   { tabKey: 'oxsteedCredit', to: routePath('oxsteedCredit'), icon: Wallet,         labelKey: 'adminNav.oxsteedCredit'     },
   { tabKey: 'oxsteedCreditBackfill', to: routePath('oxsteedCreditBackfill'), icon: Wallet, labelKey: 'adminNav.oxsteedCreditBackfill' },
+  { tabKey: 'oxsteedCreditCurrencyQuotes', to: routePath('oxsteedCreditCurrencyQuotes'), icon: Wallet, labelKey: 'adminNav.currencyQuotes' },
   { tabKey: 'revenue', to: routePath('revenue'),        icon: TrendingUp,    labelKey: 'adminNav.revenue',          grant: adminRoute('revenue').grant },
   { tabKey: 'feeConfig', to: routePath('feeConfig'),           icon: DollarSign,    labelKey: 'adminNav.feeConfig'        },
   { tabKey: 'pricingConfig', to: routePath('pricingConfig'),        icon: DollarSign,    labelKey: 'adminNav.pricingConfig'    },

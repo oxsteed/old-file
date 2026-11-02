@@ -135,6 +135,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   oxsteedCreditApprovals: defineRoute('/admin/super/oxsteed-credit/approvals', { superOnly: true }),
   oxsteedCreditDisputes: defineRoute('/admin/super/oxsteed-credit/disputes', { superOnly: true }),
   oxsteedCreditSettlements: defineRoute('/admin/super/oxsteed-credit/settlements', { superOnly: true }),
+  oxsteedCreditCurrencyQuotes: defineRoute('/admin/super/oxsteed-credit/currency-quotes', { superOnly: true }),
   oxsteedCreditReconciliation: defineRoute('/admin/super/oxsteed-credit/reconciliation', { superOnly: true }),
   oxsteedCreditCompliance: defineRoute('/admin/super/oxsteed-credit/compliance', { superOnly: true }),
   oxsteedCreditReserves: defineRoute('/admin/super/oxsteed-credit/reserves', { superOnly: true }),
