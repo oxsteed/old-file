@@ -116,6 +116,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/super/oxsteed-credit/approvals',
   '/admin/super/oxsteed-credit/disputes',
   '/admin/super/oxsteed-credit/settlements',
+  '/admin/super/oxsteed-credit/currency-quotes',
   '/admin/super/oxsteed-credit/reconciliation',
   '/admin/super/oxsteed-credit/compliance',
   '/admin/super/oxsteed-credit/reserves',
