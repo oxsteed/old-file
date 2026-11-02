@@ -72,6 +72,7 @@ export function AuditsPanel({ t, restaurant, bare, onStats }) {
   const [runs, setRuns] = useState([]);
   const [actions, setActions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState(null); // template object | null
   const [activeRunId, setActiveRunId] = useState(null);
@@ -81,6 +82,7 @@ export function AuditsPanel({ t, restaurant, bare, onStats }) {
 
   const load = useCallback(() => {
     setLoading(true);
+    setLoadError(false);
     Promise.all([
       listAuditTemplates(restaurantId),
       listAuditRuns(restaurantId, { limit: 15, offset, locationId:selection.locationId || undefined }),
@@ -96,7 +98,12 @@ export function AuditsPanel({ t, restaurant, bare, onStats }) {
           openActions: acts.filter((a) => a.status!=='verified').length,
         });
       })
-      .catch((err) => toast.error(apiErr(err, t('restaurants.ops.audits.loadError', 'Could not load audits'))))
+      .catch((err) => {
+        // Keep the last-good lists: a failed load must never render as
+        // "no templates / no audits", which would hide open actions.
+        setLoadError(true);
+        toast.error(apiErr(err, t('restaurants.ops.audits.loadError', 'Could not load audits')));
+      })
       .finally(() => setLoading(false));
   }, [restaurantId, t, onStats, isManager, offset, selection.locationId]);
   useEffect(() => { load(); }, [load]);
@@ -204,7 +211,9 @@ export function AuditsPanel({ t, restaurant, bare, onStats }) {
         />
       )}
 
-      {templates.length === 0 && !showCreate && !editing ? (
+      {loadError && <p role="alert">{t('restaurants.ops.shared.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={load} data-track="ui.0bf8f8ca2a.33">{t('restaurants.ops.shared.retry')}</button></p>}
+
+      {templates.length === 0 && !loadError && !showCreate && !editing ? (
         <EmptyState
           icon={ClipboardList}
           title={t('restaurants.ops.audits.templatesEmpty', 'No audit templates yet. Create one or use a starter.')}
@@ -250,24 +259,26 @@ export function AuditsPanel({ t, restaurant, bare, onStats }) {
       )}
 
       <h3 className="fd-ops-subhead">{t('restaurants.ops.audits.recentTitle', 'Recent audits')}</h3>
-      {runs.length === 0 ? (
+      {runs.length === 0 && !loadError ? (
         <p className="fd-card-meta">{t('restaurants.ops.audits.noRuns', 'No audits yet.')}</p>
-      ) : (
+      ) : runs.length > 0 ? (
         <div className="fd-ops-run-list">
           {runs.map((r) => (
             <AuditRunRow key={r.id} t={t} run={r} onView={() => setViewingRunId(r.id)} />
           ))}
         </div>
-      )}
+      ) : null}
 
       <h3 className="fd-ops-subhead">{t('restaurants.ops.audits.actionsTitle', 'Corrective actions')}</h3>
-      <CorrectiveActions
-        t={t}
-        restaurantId={restaurantId}
-        actions={actions}
-        isManager={isManager}
-        onChanged={load}
-      />
+      {!loadError && (
+        <CorrectiveActions
+          t={t}
+          restaurantId={restaurantId}
+          actions={actions}
+          isManager={isManager}
+          onChanged={load}
+        />
+      )}
     </div>
   );
 }

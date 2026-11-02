@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Briefcase, Calendar, ChevronLeft, Gavel, History,
   LayoutDashboard, Loader2, Mail, MapPin, RefreshCw, ShieldAlert,
-  ShoppingCart, Ticket, User as UserIcon, Wallet,
+  ShoppingCart, Store, Ticket, User as UserIcon, Wallet,
 } from 'lucide-react';
 import adminApi from '../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
@@ -189,7 +189,9 @@ export default function Business360() {
 
   const business = profileRes ?? null;
   const jobs = business?.recent_jobs ?? business?.jobs ?? [];
+  const restaurants = business?.restaurants ?? [];
   const ownerId = business?.owner_id ?? null;
+  const [payRunOffset, setPayRunOffset] = useState(0);
 
   const profileKey = business ? String(business.id) : '';
 
@@ -238,9 +240,52 @@ export default function Business360() {
         adminApi.get('/disputes/admin/all', { signal, params: { status, user_id: ownerId, limit: 100 } }),
         (d) => d?.disputes ?? [],
       )),
+      // Restaurant health, not the operator's personal marketplace
+      // activity: food orders per restaurant, support-case counts per
+      // restaurant, and customer-wallet accounts for these restaurants.
+      run(
+        'restaurantSupport',
+        adminApi.get('/admin/restaurants/support/metrics', { signal }),
+        (d) => d?.metrics?.by_restaurant ?? [],
+      ),
+      run(
+        'restaurantWallets',
+        adminApi.get('/admin/super/restaurant-credit/overview', { signal, params: { pageSize: 100 } }),
+        (d) => d ?? {},
+      ),
+      run(
+        'restaurantOrders',
+        Promise.all(restaurants.map(async (restaurant) => {
+          try {
+            const { data } = await adminApi.get('/admin/food-orders', {
+              signal,
+              params: { restaurant_id: restaurant.id, limit: 10 },
+            });
+            return [String(restaurant.id), { orders: data?.orders ?? [], total: data?.total ?? 0 }];
+          } catch (err) {
+            return [String(restaurant.id), {
+              orders: [],
+              total: 0,
+              error: err?.response?.data?.error || err?.message || t(`${NS}.loadFailed`),
+            }];
+          }
+        })).then((entries) => Object.fromEntries(entries)),
+        (d) => d ?? {},
+      ),
     ]);
     return sections;
   }, [profileKey, businessId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pay-runs are paged separately from the aux sections so the tab can
+  // page through a long payroll history without refetching everything.
+  const { data: payRunPage, loading: payRunLoading, reload: reloadPayRuns } = useAbortableFetch(async (signal) => {
+    if (!business) return null;
+    const { data } = await adminApi.get(`/admin/businesses/${businessId}/restaurant-pay-runs`, {
+      signal,
+      params: { limit: 20, offset: payRunOffset },
+    });
+    return data ?? { payRuns: [], total: 0 };
+  }, [profileKey, businessId, payRunOffset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sectionValue = (key) => {
     const entry = aux?.[key];
@@ -256,6 +301,19 @@ export default function Business360() {
   const tickets = sectionValue('tickets');
   const fraudCases = sectionValue('fraud');
   const adminAudit = sectionValue('adminAudit');
+  const restaurantSupportRows = sectionValue('restaurantSupport');
+  const restaurantWallets = sectionValue('restaurantWallets');
+  const restaurantOrdersById = sectionValue('restaurantOrders');
+  const payRuns = payRunPage?.payRuns ?? [];
+  const payRunsTotal = payRunPage?.total ?? 0;
+
+  const supportFor = (restaurantId) => restaurantSupportRows.find(
+    (row) => String(row.restaurant_id) === String(restaurantId),
+  ) || null;
+  const walletsFor = (restaurantId) => (restaurantWallets?.wallets || []).filter(
+    (wallet) => String(wallet.restaurantId) === String(restaurantId),
+  );
+  const ordersFor = (restaurantId) => restaurantOrdersById[String(restaurantId)] || { orders: [], total: 0 };
 
   const disputeSectionError = DISPUTE_STATUSES.map((s) => sectionError(`disputes:${s}`)).find(Boolean) || null;
   const disputes = useMemo(() => {
@@ -304,6 +362,7 @@ export default function Business360() {
 
   const tabs = [
     { id: 'overview', icon: LayoutDashboard, label: t(`${NS}.tabs.overview`) },
+    { id: 'restaurants', icon: Store, label: t(`${NS}.tabs.restaurants`), count: restaurants.length },
     { id: 'jobs', icon: Briefcase, label: t(`${NS}.tabs.jobs`), count: jobs.length },
     { id: 'orders', icon: ShoppingCart, label: t(`${NS}.tabs.orders`), count: orders.length },
     { id: 'payouts', icon: Wallet, label: t(`${NS}.tabs.payouts`), count: payouts.length },
@@ -313,7 +372,7 @@ export default function Business360() {
     { id: 'audit', icon: History, label: t(`${NS}.tabs.audit`) },
   ];
 
-  const refreshAll = () => { reload(); reloadAux(); };
+  const refreshAll = () => { reload(); reloadAux(); reloadPayRuns(); };
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl space-y-6">
@@ -411,6 +470,138 @@ export default function Business360() {
             </dl>
           </Section>
         </div>
+      )}
+
+      {/* ── Restaurants ── */}
+      {tab === 'restaurants' && (
+        <Section
+          title={t(`${NS}.restaurants.title`)}
+          subtitle={t(`${NS}.restaurants.subtitle`)}
+          count={restaurants.length}
+          error={sectionError('restaurantSupport') || sectionError('restaurantWallets') || sectionError('restaurantOrders')}
+          onRetry={reloadAux}
+        >
+          {!restaurants.length ? <EmptyState message={t(`${NS}.restaurants.empty`)} /> : (
+            <div className="space-y-4">
+              {restaurants.map((restaurant) => {
+                const support = supportFor(restaurant.id);
+                const wallets = walletsFor(restaurant.id);
+                const orderSection = ordersFor(restaurant.id);
+                const walletBalanceByCurrency = {};
+                wallets.forEach((wallet) => {
+                  const code = wallet.currencyCode || 'USD';
+                  walletBalanceByCurrency[code] = (walletBalanceByCurrency[code] || 0) + Number(wallet.balanceCents || 0);
+                });
+                const statusTone = restaurant.status === 'active' ? 'emerald'
+                  : restaurant.status === 'suspended' ? 'red'
+                  : restaurant.status === 'paused' ? 'amber' : 'gray';
+                return (
+                  <div key={restaurant.id} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 p-4 space-y-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{restaurant.display_name || t(`${NS}.restaurants.unnamed`)}</p>
+                        <p className="mt-1 text-[11px] text-gray-600">
+                          {restaurant.accepts_online_orders
+                            ? t(`${NS}.restaurants.orderingOn`)
+                            : t(`${NS}.restaurants.orderingOff`)}
+                          {' · '}
+                          {restaurant.accepts_in_store_orders
+                            ? t(`${NS}.restaurants.inStoreOn`)
+                            : t(`${NS}.restaurants.inStoreOff`)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <ToneBadge tone={statusTone}>{humanize(restaurant.status)}</ToneBadge>
+                        <ToneBadge tone={restaurant.is_verified ? 'emerald' : 'gray'}>
+                          {restaurant.is_verified ? t(`${NS}.restaurants.verified`) : t(`${NS}.restaurants.notVerified`)}
+                        </ToneBadge>
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-3 gap-3 text-[11px] text-gray-600">
+                      <div>
+                        <p className="font-semibold text-gray-700 dark:text-gray-200">{t(`${NS}.restaurants.ordersHeading`)}</p>
+                        {orderSection.error
+                          ? <p className="mt-1 text-red-300">{orderSection.error}</p>
+                          : (
+                            <>
+                              <p className="mt-1">{t(`${NS}.restaurants.ordersTotal`, { count: orderSection.total })}</p>
+                              {orderSection.orders.slice(0, 5).map((order) => (
+                                <p key={order.id} className="mt-1 truncate">
+                                  <Link to={`/admin/food-orders/${order.id}`} className="text-sky-400 hover:text-sky-300 hover:underline">#{order.id}</Link>
+                                  {' · '}{humanize(order.status)}
+                                  {' · '}{adminMoney(Number(order.total_cents || 0) / 100, order.currency_code || 'USD')}
+                                </p>
+                              ))}
+                            </>
+                          )}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-700 dark:text-gray-200">{t(`${NS}.restaurants.supportHeading`)}</p>
+                        {sectionError('restaurantSupport')
+                          ? <p className="mt-1 text-red-300">{sectionError('restaurantSupport')}</p>
+                          : support
+                            ? <p className="mt-1">{t(`${NS}.restaurants.supportCounts`, { cases: support.cases, open: support.open_cases, escalated: support.escalated_cases })}</p>
+                            : <p className="mt-1">{t(`${NS}.restaurants.supportNone`)}</p>}
+                        <p className="mt-1 font-semibold text-gray-700 dark:text-gray-200">{t(`${NS}.restaurants.walletsHeading`)}</p>
+                        {sectionError('restaurantWallets')
+                          ? <p className="mt-1 text-red-300">{sectionError('restaurantWallets')}</p>
+                          : wallets.length === 0
+                            ? <p className="mt-1">{t(`${NS}.restaurants.walletsEmpty`)}</p>
+                            : (
+                              <>
+                                <p className="mt-1">{t(`${NS}.restaurants.walletCount`, { count: wallets.length })}</p>
+                                {Object.entries(walletBalanceByCurrency).map(([code, cents]) => (
+                                  <p key={code} className="mt-1">{adminMoney(cents / 100, code)} {code}</p>
+                                ))}
+                              </>
+                            )}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-700 dark:text-gray-200">{t(`${NS}.restaurants.payRunsHeading`)}</p>
+                        <p className="mt-1 text-gray-500">{t(`${NS}.restaurants.payRunsNote`)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div>
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                  {t(`${NS}.restaurants.payRunsTitle`)} · {t(`${NS}.common.records`, { count: payRunsTotal })}
+                </p>
+                {payRunLoading && <p className="text-xs text-gray-500">{t(`${NS}.loading`)}</p>}
+                {!payRunLoading && payRuns.length === 0 && <EmptyState message={t(`${NS}.restaurants.payRunsEmpty`)} />}
+                <div className="space-y-2">
+                  {payRuns.map((run) => (
+                    <div key={run.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{run.restaurant_name || t(`${NS}.restaurants.unnamed`)}</p>
+                        <p className="mt-1 text-[11px] text-gray-600">
+                          {adminDateTime(run.period_from)} – {adminDateTime(run.period_to)}
+                          {' · '}{t(`${NS}.restaurants.payRunLines`, { count: run.line_count || 0 })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <ToneBadge tone={run.status === 'finalized' ? 'emerald' : run.status === 'void' ? 'red' : 'gray'}>{humanize(run.status)}</ToneBadge>
+                        {run.totals?.total_pay_cents != null && (
+                          <strong className="text-sm text-gray-900 dark:text-white">{adminMoney(Number(run.totals.total_pay_cents || 0) / 100, run.totals.currency || 'USD')}</strong>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {payRunsTotal > 20 && (
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <span className="text-[11px] text-gray-500">{t(`${NS}.restaurants.payRunsShowing`, { from: payRunOffset + 1, to: Math.min(payRunsTotal, payRunOffset + 20), total: payRunsTotal })}</span>
+                    <button type="button" className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs font-semibold disabled:opacity-40" disabled={payRunOffset === 0} onClick={() => setPayRunOffset((v) => Math.max(0, v - 20))}>{t(`${NS}.common.previous`)}</button>
+                    <button type="button" className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs font-semibold disabled:opacity-40" disabled={payRunOffset + 20 >= payRunsTotal} onClick={() => setPayRunOffset((v) => v + 20)}>{t(`${NS}.common.next`)}</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </Section>
       )}
 
       {/* ── Jobs ── */}

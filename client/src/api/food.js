@@ -572,6 +572,9 @@ export const requestWalletPayout = (restaurantId, payload, idempotencyKey) =>
 export const listWalletPayouts = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/wallet-payouts`, { params }).then((r) => r.data?.payouts || []);
 
+export const listWalletPayoutPage = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/wallet-payouts`, { params }).then((r) => r.data);
+
 export const createRestaurantPayoutAccount = (restaurantId, payload = {}) =>
   api.post(`/restaurants/${restaurantId}/payouts/connect`, payload).then((r) => r.data);
 

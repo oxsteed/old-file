@@ -23351,7 +23351,10 @@
       "logbookLabel": "Note de poste",
       "logbookPlaceholder": "Que doit savoir le prochain poste ?",
       "addLogbookEntry": "Ajouter une entrée",
-      "logbookAdded": "Entrée ajoutée"
+      "logbookAdded": "Entrée ajoutée",
+      "scheduleCount": "{{count}} services",
+      "showAll": "Afficher les {{count}} services",
+      "showFewer": "Afficher moins"
     },
     "merchant": {
       "title": "Tableau de bord du restaurant",
@@ -23724,7 +23727,10 @@
           "rejected": "Refusé",
           "failed": "Échoué",
           "cancelled": "Annulé"
-        }
+        },
+        "historyShowing": "Affichage de {{from}} à {{to}} sur {{total}}",
+        "historyPrevious": "Précédent",
+        "historyNext": "Suivant"
       },
       "settlementTitle": "Dossiers de règlement des paiements",
       "settlementNote": "Les commandes peuvent rester liées au dossier du restaurant pour que le règlement, les reçus et l'historique d'assistance restent visibles dans l'app.",
@@ -23777,7 +23783,13 @@
       "refundError": "Impossible d’émettre le remboursement.",
       "cardPartialRefundUnsupported": "Les remboursements partiels ne sont pas disponibles pour les commandes payées par carte en ligne. Remboursez la commande entière ou demandez de l'aide au support.",
       "cardRefundUseCancel": "Les commandes par carte sont remboursées en annulant la commande. Le remboursement sur la carte est automatique.",
-      "addAnotherRestaurant": "Ajouter un autre restaurant"
+      "addAnotherRestaurant": "Ajouter un autre restaurant",
+      "stChipVerified": "Vérifié",
+      "stChipUnverified": "Non vérifié",
+      "suspendedNotice": "Ce restaurant est suspendu. Les commandes sont désactivées jusqu'à sa réactivation.",
+      "posShiftCloseError": "Impossible de clôturer le service de caisse.",
+      "csvFailedSummary": "{{count}} lignes en échec : {{rows}}",
+      "csvImportedPartial": "{{count}} articles importés et publiés.{{failed}}{{skipped}}{{truncated}}"
     },
     "onboarding": {
       "eyebrow": "Nuit d'ouverture",
@@ -23990,7 +24002,17 @@
       "clear": "Effacer",
       "cardTerminalRequired": "Les paiements par carte nécessitent un terminal PDV connecté. Utilisez l'app PDV pour encaisser par carte.",
       "amountGiven": "Montant reçu",
-      "syncDegraded": "Synchronisation dégradée : {{failed}} en échec, {{pending}} en attente, {{outbox}} non envoyées"
+      "syncDegraded": "Synchronisation dégradée : {{failed}} en échec, {{pending}} en attente, {{outbox}} non envoyées",
+      "closeShift": "Clôturer le service",
+      "closeShiftTitle": "Clôturer le service n° {{id}}",
+      "closeShiftHint": "Comptez les espèces dans le tiroir-caisse et saisissez le montant ci-dessous. La clôture est définitive.",
+      "openingCash": "Fonds de caisse initial : {{amount}}",
+      "shiftPayments": "Paiements encaissés : {{amount}}",
+      "closingCash": "Espèces finales",
+      "shiftClosed": "Service clôturé",
+      "closeSummary": "Attendu {{expected}}, compté {{counted}}, écart {{variance}}.",
+      "closePaidOrders": "{{count}} commandes payées",
+      "multipleOpenShifts": "{{count}} services sont ouverts. Les commandes utilisent le premier service affiché. Clôturez les services supplémentaires avant de prendre de nouvelles commandes."
     },
     "inv": {
       "title": "Inventaire",
@@ -24034,7 +24056,14 @@
       "severity_high": "Élevé",
       "unknownSupplier": "Fournisseur inconnu",
       "uncategorized": "Non catégorisé",
-      "par": "min"
+      "par": "min",
+      "adjType_receive": "Réception",
+      "adjType_count": "Comptage",
+      "adjType_correction": "Correction",
+      "pollError": "Impossible d'actualiser les données d'inventaire. Les dernières données enregistrées sont affichées.",
+      "showing": "Affichage de {{from}} à {{to}} sur {{total}}",
+      "previous": "Précédent",
+      "next": "Suivant"
     },
     "crew": {
       "title": "Équipe",
@@ -24134,7 +24163,8 @@
       "settlement_voided": "Annulé",
       "createSettlement": "Créer un règlement",
       "settlementCreated": "Règlement créé",
-      "cashCollectedPrompt": "Espèces collectées par le livreur (montant)"
+      "cashCollectedPrompt": "Espèces collectées par le livreur (montant)",
+      "pollError": "Impossible d'actualiser les données du livreur. Les dernières données enregistrées sont affichées."
     },
     "ownerHome": {
       "allClear": "Tout est en ordre. Rien ne requiert votre attention pour le moment.",
@@ -24170,7 +24200,11 @@
       "todayOrders": "Commandes",
       "todayRevenue": "Revenus",
       "viewStore": "Voir la page client",
-      "viewStoreHint": "Voyez exactement ce que voient les clients."
+      "viewStoreHint": "Voyez exactement ce que voient les clients.",
+      "suspendedAlert": "Ce restaurant est suspendu. Les commandes sont désactivées.",
+      "suspendedKicker": "Suspendu",
+      "suspended": "Commandes suspendues",
+      "suspendedDesc": "Ce restaurant est suspendu, les clients ne peuvent donc pas commander. Contactez l'assistance OxSteed si vous pensez qu'il s'agit d'une erreur."
     },
     "timeClock": {
       "title": "Pointeuse",
@@ -24238,6 +24272,11 @@
         "not_reported": "La caisse n'a jamais remonté ce paiement",
         "other": "Vérification par un responsable requise"
       }
+    },
+    "menuManager": {
+      "partialGroups": "{{failed}} groupes d'options sur {{total}} n'ont pas pu être enregistrés ({{firstError}}). L'article est enregistré ; enregistrez à nouveau pour réessayer les groupes manquants.",
+      "bulkPartial": "{{updated}} articles mis à jour, {{failed}} en échec : {{names}}. Les articles en échec restent sélectionnés.",
+      "bulkFailed": "{{failed}} articles en échec : {{names}}. Ils restent sélectionnés pour un nouvel essai."
     }
   },
   "network": {
@@ -25199,7 +25238,8 @@
           "cashAdd": "Ajouter la déclaration",
           "cashSaved": "Pourboires en espèces déclarés.",
           "cashInvalid": "Choisissez un membre, une date et un montant positif.",
-          "cashError": "Impossible d'enregistrer la déclaration."
+          "cashError": "Impossible d'enregistrer la déclaration.",
+          "loadError": "Impossible de charger les paramètres de la cagnotte de pourboires."
         },
         "exceptions": {
           "title": "Exceptions par employé",
@@ -32768,7 +32808,9 @@
     "backToBusiness": "Retour à l'entreprise",
     "common": {
       "records": "{{count}} enregistrements",
-      "unknown": "Inconnu"
+      "unknown": "Inconnu",
+      "previous": "Précédent",
+      "next": "Suivant"
     },
     "disputes": {
       "empty": "Aucun litige trouvé.",
@@ -32866,7 +32908,8 @@
       "orders": "Commandes",
       "overview": "Aperçu",
       "payouts": "Paiements",
-      "tickets": "Tickets de support"
+      "tickets": "Tickets de support",
+      "restaurants": "Restaurants"
     },
     "tickets": {
       "created": "Créé",
@@ -32880,7 +32923,33 @@
       "title": "Tickets de support",
       "updated": "Mis à jour"
     },
-    "title": "Entreprise 360"
+    "title": "Entreprise 360",
+    "restaurants": {
+      "title": "Restaurants",
+      "subtitle": "Commandes, dossiers d'assistance, portefeuilles clients et paies des restaurants de cette entreprise.",
+      "empty": "Cette entreprise n'a aucun restaurant.",
+      "unnamed": "Restaurant sans nom",
+      "orderingOn": "Commande en ligne activée",
+      "orderingOff": "Commande en ligne désactivée",
+      "inStoreOn": "Commande en magasin activée",
+      "inStoreOff": "Commande en magasin désactivée",
+      "verified": "Vérifié",
+      "notVerified": "Non vérifié",
+      "ordersHeading": "Commandes",
+      "ordersTotal": "{{count}} commandes au total",
+      "supportHeading": "Dossiers d'assistance (30 jours)",
+      "supportCounts": "{{cases}} dossiers, {{open}} ouverts, {{escalated}} transmis",
+      "supportNone": "Aucun dossier d’assistance au cours des 30 derniers jours.",
+      "walletsHeading": "Portefeuilles clients",
+      "walletsEmpty": "Aucun portefeuille client.",
+      "walletCount": "{{count}} portefeuilles",
+      "payRunsHeading": "Paies",
+      "payRunsNote": "Les paies sont listées ci-dessous pour l'ensemble de l'entreprise. Une paie finalisée est un total calculé ; cela ne signifie pas que le personnel a été payé.",
+      "payRunsTitle": "Paies",
+      "payRunsEmpty": "Aucune paie pour les restaurants de cette entreprise.",
+      "payRunLines": "{{count}} lignes",
+      "payRunsShowing": "Affichage de {{from}} à {{to}} sur {{total}}"
+    }
   },
   "adminCustomer360": {
     "governedTitle": "Indicateurs gouvernés de ce client",

@@ -143,10 +143,41 @@ export default function RestaurantMenuManager({ t, restaurant }) {
     });
   };
 
-  const applyBulk = (payload, message) => mutate(async () => {
-    await Promise.all(Array.from(selectedIds).map((itemId) => updateFoodMenuItem(restaurant.id, itemId, payload)));
-    setSelectedIds(new Set());
-  }, message);
+  const applyBulk = async (payload, message) => {
+    // Per-item results: a single failure used to fail the whole batch
+    // with a generic error while some items had already applied. Now
+    // every item is reported, applied items clear, and failed items stay
+    // selected so the operator can retry just those.
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const names = new Map(allItems.map((item) => [item.id, item.name]));
+    setWorking(true);
+    try {
+      const results = await Promise.allSettled(ids.map((itemId) => updateFoodMenuItem(restaurant.id, itemId, payload)));
+      const failedIds = [];
+      const failedNames = [];
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          failedIds.push(ids[index]);
+          failedNames.push(names.get(ids[index]) || `#${ids[index]}`);
+        }
+      });
+      const updated = ids.length - failedIds.length;
+      setSelectedIds(new Set(failedIds));
+      await load();
+      if (failedIds.length === 0) {
+        if (message) toast.success(message);
+      } else if (updated > 0) {
+        toast.error(t('food.menuManager.bulkPartial', { updated, failed: failedIds.length, names: failedNames.join(', ') }));
+      } else {
+        toast.error(t('food.menuManager.bulkFailed', { failed: failedIds.length, names: failedNames.join(', ') }));
+      }
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('food.merchant.menuError', 'Could not update the menu')));
+    } finally {
+      setWorking(false);
+    }
+  };
 
   const moveCategory = (category, direction) => {
     const activeCategories = (menuData.menu || []).filter((entry) => entry.is_active !== false);
@@ -183,7 +214,7 @@ export default function RestaurantMenuManager({ t, restaurant }) {
       toast.error(t('food.menuManager.csvEmpty', 'No menu rows were found in that CSV file.'));
       return;
     }
-    const report = { imported: 0, truncated: rows.length > CSV_IMPORT_LIMIT, skipped: [] };
+    const report = { imported: 0, truncated: rows.length > CSV_IMPORT_LIMIT, skipped: [], failed: [] };
     const skipRow = (rowNumber, name, reason) => report.skipped.push({ rowNumber, name: name || '-', reason });
     await mutate(async () => {
       const categoryByName = new Map((menuData.menu || []).map((category) => [category.name.toLowerCase(), category.id]));
@@ -196,26 +227,33 @@ export default function RestaurantMenuManager({ t, restaurant }) {
         if (!Number.isFinite(price) || price < 0) { skipRow(rowNumber, name, t('food.merchant.csvReasonBadPrice', 'invalid price')); continue; }
         if (price === 0) { skipRow(rowNumber, name, t('food.merchant.csvReasonZeroPrice', 'price is $0')); continue; }
         if (price > 500) { skipRow(rowNumber, name, t('food.merchant.csvReasonHighPrice', 'price over $500 looks like a typo')); continue; }
-        let categoryId = null;
-        const categoryName = row.category?.trim();
-        if (categoryName) {
-          categoryId = categoryByName.get(categoryName.toLowerCase());
-          if (!categoryId) {
-            const category = await createFoodCategory(restaurant.id, { name: categoryName, sortOrder: categoryByName.size });
-            categoryId = category.id;
-            categoryByName.set(categoryName.toLowerCase(), categoryId);
+        // Per-row results: a failed create records the row and the import
+        // continues, so a mid-file failure no longer aborts the file or
+        // reports a partial import as a clean success count.
+        try {
+          let categoryId = null;
+          const categoryName = row.category?.trim();
+          if (categoryName) {
+            categoryId = categoryByName.get(categoryName.toLowerCase());
+            if (!categoryId) {
+              const category = await createFoodCategory(restaurant.id, { name: categoryName, sortOrder: categoryByName.size });
+              categoryId = category.id;
+              categoryByName.set(categoryName.toLowerCase(), categoryId);
+            }
           }
+          await createFoodMenuItem(restaurant.id, {
+            name,
+            priceCents: Math.round(price * 100),
+            description: row.description || undefined,
+            categoryId: categoryId || undefined,
+            tags: splitList(row.tags),
+            allergens: splitList(row.allergens),
+            publicationStatus: 'published',
+          });
+          report.imported += 1;
+        } catch (err) {
+          report.failed.push({ rowNumber, name, reason: apiErrorMessage(err, t('food.merchant.menuError', 'Could not update the menu')) });
         }
-        await createFoodMenuItem(restaurant.id, {
-          name,
-          priceCents: Math.round(price * 100),
-          description: row.description || undefined,
-          categoryId: categoryId || undefined,
-          tags: splitList(row.tags),
-          allergens: splitList(row.allergens),
-          publicationStatus: 'published',
-        });
-        report.imported += 1;
       }
     });
     const reasonCounts = new Map();
@@ -224,11 +262,24 @@ export default function RestaurantMenuManager({ t, restaurant }) {
     const skippedText = report.skipped.length
       ? ` ${t('food.merchant.csvSkippedSummary', '{{count}} rows skipped: {{reasons}}', { count: report.skipped.length, reasons })}`
       : '';
+    const failedText = report.failed.length
+      ? ` ${t('food.merchant.csvFailedSummary', { count: report.failed.length, rows: report.failed.map((entry) => `#${entry.rowNumber} ${entry.name}: ${entry.reason}`).join('; ') })}`
+      : '';
     const truncatedText = report.truncated
       ? ` ${t('food.merchant.csvTruncated', 'Only the first {{limit}} rows were imported.', { limit: CSV_IMPORT_LIMIT })}`
       : '';
     if (report.imported === 0) {
       toast.error(t('food.merchant.csvNothingImported', 'No items were imported.{{skipped}}{{truncated}}', {
+        skipped: skippedText,
+        truncated: truncatedText,
+      }));
+      if (report.failed.length) toast.error(failedText.trim());
+    } else if (report.failed.length) {
+      // Partial import: report the success count and the failures
+      // together, never a clean success toast for a partial file.
+      toast.error(t('food.merchant.csvImportedPartial', '{{count}} items imported and published.{{failed}}{{skipped}}{{truncated}}', {
+        count: report.imported,
+        failed: failedText,
         skipped: skippedText,
         truncated: truncatedText,
       }));
@@ -373,21 +424,54 @@ export default function RestaurantMenuManager({ t, restaurant }) {
           editor={itemEditor}
           working={working}
           onClose={() => setItemEditor(null)}
-          onSave={(form) => mutate(async () => {
-            const payload = formToPayload(form);
-            if (itemEditor.item) {
-              await updateFoodMenuItem(restaurant.id, itemEditor.item.id, payload);
-            } else {
-              const created = await createFoodMenuItem(restaurant.id, payload);
-              const groups = (form.modifierGroups || [])
-                .map((groupForm) => modifierToPayload(groupForm))
-                .filter((groupPayload) => groupPayload.name && groupPayload.options.length > 0);
-              for (const groupPayload of groups) {
-                await createFoodModifierGroup(restaurant.id, created.id, groupPayload);
+          onSave={(form) => {
+            // A modifier-group failure must not orphan the item or
+            // duplicate it on retry: on partial failure the editor stays
+            // open with the created item attached, so Save again updates
+            // that item and creates only the groups that are still missing.
+            const run = async () => {
+              setWorking(true);
+              try {
+                const payload = formToPayload(form);
+                const savedIndexes = new Set(itemEditor.savedGroupIndexes || []);
+                let item = itemEditor.item;
+                if (item) {
+                  await updateFoodMenuItem(restaurant.id, item.id, payload);
+                } else {
+                  item = await createFoodMenuItem(restaurant.id, payload);
+                }
+                const groups = (form.modifierGroups || [])
+                  .map((groupForm, index) => ({ index, groupPayload: modifierToPayload(groupForm) }))
+                  .filter(({ groupPayload }) => groupPayload.name && groupPayload.options.length > 0)
+                  .filter(({ index }) => !savedIndexes.has(index));
+                const failed = [];
+                for (const { index, groupPayload } of groups) {
+                  try {
+                    await createFoodModifierGroup(restaurant.id, item.id, groupPayload);
+                    savedIndexes.add(index);
+                  } catch (err) {
+                    failed.push({ index, error: apiErrorMessage(err, t('food.merchant.menuError', 'Could not update the menu')) });
+                  }
+                }
+                if (failed.length > 0) {
+                  const firstError = failed[0].error;
+                  setItemEditor((current) => current
+                    ? { ...current, item, savedGroupIndexes: [...savedIndexes], partialError: t('food.menuManager.partialGroups', { failed: failed.length, total: (itemEditor.savedGroupIndexes || []).length + groups.length, firstError }) }
+                    : current);
+                  toast.error(t('food.menuManager.partialGroups', { failed: failed.length, total: (form.modifierGroups || []).length, firstError }));
+                } else {
+                  setItemEditor(null);
+                  toast.success(t('food.menuManager.itemSaved', 'Menu item saved'));
+                  await load();
+                }
+              } catch (error) {
+                toast.error(apiErrorMessage(error, t('food.merchant.menuError', 'Could not update the menu')));
+              } finally {
+                setWorking(false);
               }
-            }
-            setItemEditor(null);
-          }, t('food.menuManager.itemSaved', 'Menu item saved'))}
+            };
+            run();
+          }}
           onModifier={(group) => setModifierEditor({ item: itemEditor.item, group, form: modifierToForm(group) })}
           onDeleteModifier={(groupId) => mutate(() => deleteFoodModifierGroup(restaurant.id, groupId), t('food.menuManager.modifierDeleted', 'Option group deleted'))}
         />
@@ -523,6 +607,7 @@ function ItemEditor({ t, restaurant, categories, editor, working, onClose, onSav
     <div className="fd-owner-editor-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <form className="fd-owner-editor" onSubmit={(event) => { event.preventDefault(); if (canSave) onSave({ ...form, modifierGroups: pendingGroups }); }} data-track="ui.e0bc80ad9e.20">
         <header><div><p>{editor.item ? t('food.menuManager.editItem', 'Edit item') : t('food.menuManager.newItem', 'New item')}</p><h3>{form.name || t('food.menuManager.untitledItem', 'Untitled item')}</h3></div><button type="button" onClick={onClose} aria-label={t('food.common.close', 'Close')} data-track="ui.e0bc80ad9e.21">×</button></header>
+        {editor.partialError && <p role="alert" className="fd-card-meta">{editor.partialError}</p>}
         <div className="fd-owner-editor-body">
           <div className="fd-menu-editor-grid">
             <div className="fd-field"><label htmlFor="menu-item-name">{t('food.merchant.itemName', 'Item name')} *</label><input id="menu-item-name" value={form.name} onChange={set('name')} maxLength={160} autoFocus /></div>
