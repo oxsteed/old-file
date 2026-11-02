@@ -22,5 +22,5 @@ test('P1-237: dead food payment wrapper is removed', () => {
 
 test('P1-248: settlements with a payout in flight hide mark-paid/void', () => {
   const src = read('admin/pages/super/oxsteedCredit/SettlementsPage.jsx');
-  assert.equal((src.match(/!\['initiated', 'paid'\]\.includes\(settlement\.payoutStatus\)/g) || []).length, 2);
+  assert.equal((src.match(/!\['initiated', 'paid'\]\.includes\(settlement\.payoutStatus\)/g) || []).length, 3);
 });

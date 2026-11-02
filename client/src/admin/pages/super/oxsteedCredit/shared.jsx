@@ -459,6 +459,7 @@ export const CREDIT_SUBNAV_ITEMS = [
   { routeKey: 'oxsteedCreditApprovals', labelKey: 'adminPendingActionQueue', descriptionKey: 'adminPendingActionQueueDescription' },
   { routeKey: 'oxsteedCreditDisputes', labelKey: 'adminCreditDisputes', descriptionKey: 'adminDisputeQueueDescription' },
   { routeKey: 'oxsteedCreditSettlements', labelKey: 'adminSettlementQueue', descriptionKey: 'adminSettlementQueueDescription' },
+  { routeKey: 'oxsteedCreditCurrencyQuotes', labelKey: 'adminCurrencyQuotes.navLabel', descriptionKey: 'adminCurrencyQuotes.navDescription' },
   { routeKey: 'oxsteedCreditReconciliation', labelKey: 'adminReconciliationHistory', descriptionKey: 'adminReconciliationHistoryDescription' },
   { routeKey: 'oxsteedCreditCompliance', labelKey: 'adminComplianceQueue', descriptionKey: 'adminComplianceQueueDescription' },
   { routeKey: 'oxsteedCreditReserves', labelKey: 'adminReservePolicyEyebrow', descriptionKey: 'adminReservePolicySectionDetail' },
@@ -469,6 +470,7 @@ export const CREDIT_SUBNAV_ITEMS = [
   { routeKey: 'oxsteedCreditMoneyOut', labelKey: 'moneyOutEyebrow' },
   { routeKey: 'oxsteedCreditCards', labelKey: 'adminCreditSubnavCards', descriptionKey: 'cards.adminDescription' },
   { routeKey: 'oxsteedCreditLedger', labelKey: 'adminLedgerActivity', descriptionKey: 'adminCreditTransactionHistoryDetail' },
+  { routeKey: 'oxsteedCreditBackfill', labelKey: 'adminCreditBackfill.subnav' },
 ];
 
 export function CreditSubNav() {
