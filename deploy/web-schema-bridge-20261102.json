@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "baseCommit": "f6d7543381736f899571c14d14b26e1a6ace3c45",
+  "baseImage": "ghcr.io/oxsteed/old-file-web@sha256:e0fbb62cb51d1ce76877e9840a99bc20bde4da7c103e92a1d5892081d8d595ee",
+  "sourceHashes": {
+    "services/readinessService.js": "be7e8decacfed39dc0d79931012d611b8c23f083d72471814b6d9fdc53497d36",
+    "services/webSchemaPreflight.js": "9a783118f82fbc302fef56a638fe5bc3331edf5e2255b64c44fbafe95d2467eb"
+  },
+  "migrations": {
+    "20261031072649_dual_approval_threshold.sql": "a1756d33e9d918291037b2f5d0dbbc5232e62b0f0b00b80f44d72d06110429f9",
+    "20261031074200_sessions_refresh_replay_noted_at.sql": "546781aa2928ad8863290ab26404364593290c4aa0d3b6b7a0667820fe989ce3",
+    "20261031085628_restaurant_support_case_attachment_file_key.sql": "20baa84c63c354cd35f7ad1a29c59c362f4b994618e346921488771575926fac",
+    "20261031085851_sessions_csrf_sid.sql": "2fd6607005f8cceefa92ac68474d827b809baea3f0d3e5f4a62ceab1a63a32c5",
+    "20261031093000_rec_stamp_completion.sql": "7eb15bc02b48d30c6c92c3c65238925c459bb547e23067e83a6cbaa8c970b4c1",
+    "20261031120000_users_deletion_finalized_at.sql": "1b43cdda37bd9dc2433bf0ebe7b9816bc041eaa7240192b97618c2deb1dfb27a",
+    "20261031154045_oxsteed_credit_partner_auto_provision.sql": "1c9b9447988ef1c55545667af69c736c319d15690c7b5e24e741847892885487",
+    "20261031154100_admin_audit_log_target_bigint.sql": "be1d0fe4d76c58dcd5380396b0dbeb87917e3b4935863c1199cd07c013958715"
+  }
+}

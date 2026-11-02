@@ -8,6 +8,7 @@ const { getCreditRailPrerequisites, getLedgerHashKeyConfiguration } = require('.
 const { getProductionConfigurationErrors } = require('../utils/validateEnv');
 const { getRelease, getReleaseMetadata } = require('../utils/release');
 const statementStorage = require('../utils/statementStorage');
+const { filterReviewedFutureMigrations } = require('./migrationCompatibility');
 
 const migrationsDirectory = path.join(__dirname, '../migrations');
 
@@ -65,7 +66,8 @@ function expectedMigrationFiles() {
 
 async function migrationStatus(pool) {
   const expected = expectedMigrationFiles();
-  const { rows } = await pool.query('SELECT filename FROM _migrations');
+  const result = await pool.query('SELECT filename, status, checksum FROM _migrations');
+  const rows = filterReviewedFutureMigrations(result.rows, expected);
   const applied = new Set(rows.map((row) => row.filename));
   const pending = expected.filter((filename) => !applied.has(filename));
   const unexpected = [...applied].filter((filename) => !expected.includes(filename)).sort();
