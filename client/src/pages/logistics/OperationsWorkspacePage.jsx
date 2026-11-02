@@ -16,6 +16,7 @@ import '../../styles/logistics/LogisticsHomePage.css';
 import '../../styles/logistics/LogisticsWorkspaces.css';
 
 const PAYOUT_STATUSES = ['all', 'accrued', 'approved', 'paid', 'voided'];
+const PAYOUT_PAGE_SIZE = 50;
 
 /**
  * DriverPayoutsSection - ops UI for the localDelivery driver-payouts endpoints.
@@ -29,6 +30,8 @@ function DriverPayoutsSection() {
   const { t } = useTranslation();
   const [status, setStatus] = useState('all');
   const [payouts, setPayouts] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -36,16 +39,26 @@ function DriverPayoutsSection() {
   const [references, setReferences] = useState({});
   const [notes, setNotes] = useState({});
 
-  const load = (nextStatus) => {
+  const load = (nextStatus, nextOffset) => {
     setLoading(true);
     setError('');
-    listInternalDriverPayouts(nextStatus === 'all' ? null : nextStatus)
-      .then((data) => setPayouts(data?.payouts || []))
+    listInternalDriverPayouts(nextStatus === 'all' ? null : nextStatus, { limit: PAYOUT_PAGE_SIZE, offset: nextOffset })
+      .then((data) => {
+        const nextTotal = Number(data?.total ?? 0);
+        setTotal(nextTotal);
+        // An action on the last page can empty it; step back to the last
+        // non-empty page instead of showing a false-empty list.
+        if (nextTotal > 0 && nextOffset >= nextTotal) {
+          setOffset(Math.floor((nextTotal - 1) / PAYOUT_PAGE_SIZE) * PAYOUT_PAGE_SIZE);
+          return;
+        }
+        setPayouts(data?.payouts || []);
+      })
       .catch((err) => setError(err?.response?.data?.message || err?.message || t('logistics.operations.driverPayouts.loadFailed')))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(status); }, [status]);
+  useEffect(() => { load(status, offset); }, [status, offset]);
 
   const runAction = async (payout, action) => {
     const reference = (references[payout.id] || '').trim();
@@ -73,7 +86,7 @@ function DriverPayoutsSection() {
       if (action === 'markPaid') await markInternalDriverPayoutPaid(payout.id, reference, note);
       if (action === 'void') await voidInternalDriverPayout(payout.id, note);
       setNotice(t(`logistics.operations.driverPayouts.${action}Done`));
-      load(status);
+      load(status, offset);
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || t('logistics.operations.driverPayouts.actionFailed'));
     } finally {
@@ -85,7 +98,7 @@ function DriverPayoutsSection() {
     <div className="lx-card">
       <div className="lx-section-header">
         <h2 className="lx-section-title">{t('logistics.operations.driverPayouts.title')}</h2>
-        <button type="button" className="lx-btn-secondary" onClick={() => load(status)} disabled={loading} data-track="ui.4b5626a282.2">
+        <button type="button" className="lx-btn-secondary" onClick={() => load(status, offset)} disabled={loading} data-track="ui.4b5626a282.2">
           {t('logistics.operations.driverPayouts.refresh')}
         </button>
       </div>
@@ -96,7 +109,7 @@ function DriverPayoutsSection() {
             key={value}
             type="button"
             className={status === value ? 'lx-btn-primary' : 'lx-btn-secondary'}
-            onClick={() => setStatus(value)} data-track="ui.4b5626a282.3"
+            onClick={() => { setStatus(value); setOffset(0); }} data-track="ui.4b5626a282.3"
           >
             {t(`logistics.operations.driverPayouts.filter${value[0].toUpperCase()}${value.slice(1)}`)}
           </button>
@@ -171,6 +184,21 @@ function DriverPayoutsSection() {
               </div>
             );
           })}
+        </div>
+      )}
+      {!loading && total > 0 && (
+        <div className="lx-compact-stack" role="navigation" aria-label={t('logistics.operations.driverPayouts.pagerLabel')}>
+          <p className="lx-t-small lx-t-muted" role="status">
+            {t('logistics.operations.driverPayouts.showing', { from: offset + 1, to: Math.min(offset + PAYOUT_PAGE_SIZE, total), total })}
+          </p>
+          <div className="lx-compact-stack lx-driver-payout-actions">
+            <button type="button" className="lx-btn-secondary" disabled={loading || offset === 0} onClick={() => setOffset(Math.max(0, offset - PAYOUT_PAGE_SIZE))}>
+              {t('logistics.operations.driverPayouts.previous')}
+            </button>
+            <button type="button" className="lx-btn-secondary" disabled={loading || offset + PAYOUT_PAGE_SIZE >= total} onClick={() => setOffset(offset + PAYOUT_PAGE_SIZE)}>
+              {t('logistics.operations.driverPayouts.next')}
+            </button>
+          </div>
         </div>
       )}
     </div>

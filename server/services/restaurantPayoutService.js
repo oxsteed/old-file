@@ -709,17 +709,27 @@ async function rejectPayout({ payoutId, adminUserId, reviewNote }) {
   return rejected;
 }
 
-async function listAdminQueue(client, { status = 'requested', limit = 100 }) {
+async function listAdminQueue(client, { status = 'requested', limit = 100, offset = 0 }) {
+  // Mirror listPendingMoneyMovementApprovals: the caller pages through the
+  // full queue via limit/offset plus a COUNT(*) total. Ordered oldest-first,
+  // so without an offset the newest requests past the cap were the hidden
+  // ones; the total plus pager now reaches them.
+  const parsedLimit = Math.min(500, Math.max(1, Number(limit) || 100));
+  const safeOffset = Math.max(0, Number(offset) || 0);
   const { rows } = await client.query(
     `SELECT p.*, fr.display_name AS restaurant_name
        FROM restaurant_payouts p
        JOIN food_restaurants fr ON fr.id = p.restaurant_id
       WHERE p.status = $1
       ORDER BY p.created_at ASC
-      LIMIT $2`,
-    [status, Math.min(500, Math.max(1, Number(limit) || 100))]
+      LIMIT $2 OFFSET $3`,
+    [status, parsedLimit, safeOffset]
   );
-  return rows;
+  const count = await client.query(
+    'SELECT COUNT(*)::int AS total FROM restaurant_payouts WHERE status = $1',
+    [status]
+  );
+  return { payouts: rows, total: Number(count.rows[0]?.total || 0), limit: parsedLimit, offset: safeOffset };
 }
 
 module.exports = {

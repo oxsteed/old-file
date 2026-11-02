@@ -18728,7 +18728,11 @@
         "markPaidDone": "Payout marked paid.",
         "voidDone": "Payout voided.",
         "referenceRequired": "Enter a payment reference before marking a payout paid.",
-        "actionFailed": "That payout action failed. Please try again."
+        "actionFailed": "That payout action failed. Please try again.",
+        "showing": "Showing {{from}}–{{to}} of {{total}}",
+        "previous": "Previous",
+        "next": "Next",
+        "pagerLabel": "Driver payout pages"
       }
     },
     "orderDetail": {

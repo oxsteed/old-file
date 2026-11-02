@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import adminApi from '../../../lib/adminApi';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
+import AuditQueuePager from '../../lib/AuditQueuePager';
 import ConfirmDialog from '../../lib/ConfirmDialog';
 
 const TABS = ['requested', 'approved', 'completed', 'failed', 'rejected'];
+const PAGE_SIZE = 50;
 
 function formatMoney(cents, currency) {
   const n = Number(cents || 0) / 100;
@@ -20,6 +22,8 @@ export default function RestaurantPayouts() {
   const { t } = useTranslation();
   const [tab, setTab] = useState('requested');
   const [payouts, setPayouts] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState(null);
@@ -31,14 +35,21 @@ export default function RestaurantPayouts() {
     setLoading(true);
     setError('');
     try {
-      const data = await abortableFetch(adminApi.get('/admin/restaurant-payouts', { params: { status: tab } }));
+      const data = await abortableFetch(adminApi.get('/admin/restaurant-payouts', { params: { status: tab, limit: PAGE_SIZE, offset } }));
       setPayouts(data?.payouts || []);
+      const nextTotal = Number(data?.total ?? 0);
+      setTotal(nextTotal);
+      // An action on the last page can empty it; step back to the last
+      // non-empty page instead of showing a false-empty list.
+      if (nextTotal > 0 && offset >= nextTotal) {
+        setOffset(Math.floor((nextTotal - 1) / PAGE_SIZE) * PAGE_SIZE);
+      }
     } catch (err) {
       if (err?.name !== 'AbortError') setError(err?.message || 'Failed to load payouts.');
     } finally {
       setLoading(false);
     }
-  }, [tab, abortableFetch]);
+  }, [tab, offset, abortableFetch]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -88,7 +99,7 @@ export default function RestaurantPayouts() {
         {TABS.map((key) => (
           <button
             key={key}
-            onClick={() => setTab(key)}
+            onClick={() => { setTab(key); setOffset(0); }}
             className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${tab === key ? 'bg-orange-500 text-white' : 'bg-slate-800 text-gray-300 hover:bg-slate-700'}`}
           >
             {t(`restaurantPayouts.tab.${key}`, key)}
@@ -141,6 +152,10 @@ export default function RestaurantPayouts() {
             </div>
           ))}
         </div>
+      )}
+
+      {!loading && !error && total > 0 && (
+        <AuditQueuePager offset={offset} limit={PAGE_SIZE} total={total} busy={loading || !!busyId} onChange={setOffset} />
       )}
 
       {confirm && (

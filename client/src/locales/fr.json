@@ -18578,7 +18578,11 @@
         "markPaidDone": "Paiement marqué comme payé.",
         "voidDone": "Paiement annulé.",
         "referenceRequired": "Saisissez une référence de paiement avant de marquer un paiement comme payé.",
-        "actionFailed": "Cette action de paiement a échoué. Veuillez réessayer."
+        "actionFailed": "Cette action de paiement a échoué. Veuillez réessayer.",
+        "showing": "Affichage de {{from}} à {{to}} sur {{total}}",
+        "previous": "Précédent",
+        "next": "Suivant",
+        "pagerLabel": "Pages des paiements aux chauffeurs"
       }
     },
     "orderDetail": {
