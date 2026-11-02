@@ -1737,6 +1737,7 @@ exports.getPayouts = async (req, res) => {
 
     const { rows: payouts } = await db.query(`
       SELECT p.id, p.amount, p.platform_fee, p.helper_payout, p.status,
+             p.currency,
              p.stripe_transfer_id, p.captured_at, p.released_at, p.created_at,
              j.title AS job_title,
              u.first_name || ' ' || u.last_name AS helper_name,
@@ -1752,14 +1753,24 @@ exports.getPayouts = async (req, res) => {
        LIMIT $1 OFFSET $2
     `, payoutParams);
 
+    // 2026-11-02 admin-ops audit item 16: stats are grouped per currency,
+    // never summed across currencies. The old single-object stats added
+    // cents from different currencies into one dollar-looking total.
+    // Currency is upper-cased for grouping so 'usd' and 'USD' rows land in
+    // one group; rows carry the stored currency value as-is. Scope is
+    // unchanged: stats still cover all helper payouts, not the active
+    // tab or payee filter, exactly as before, only now split by currency.
     const { rows: statsRows } = await db.query(`
       SELECT
+        UPPER(COALESCE(currency, 'USD')) AS currency,
         SUM(CASE WHEN status IN ('pending','authorized') THEN helper_payout ELSE 0 END) AS pending,
         SUM(CASE WHEN status = 'captured'               THEN helper_payout ELSE 0 END) AS processing,
         SUM(CASE WHEN payment_hold_status = 'released'  THEN helper_payout ELSE 0 END) AS completed,
         SUM(CASE WHEN status = 'failed'                THEN helper_payout ELSE 0 END) AS failed,
         SUM(CASE WHEN payment_hold_status = 'released'  THEN helper_payout ELSE 0 END) AS "totalPaid"
         FROM payments WHERE helper_payout > 0
+       GROUP BY UPPER(COALESCE(currency, 'USD'))
+       ORDER BY currency ASC
     `);
 
     const countFilter = payee_id ? baseFilter.replace('p.payee_id = $3', 'p.payee_id = $1') : baseFilter;
@@ -1770,7 +1781,9 @@ exports.getPayouts = async (req, res) => {
     res.json({
       total: Number(countRows[0]?.total || 0),
       payouts,
-      stats: statsRows[0],
+      // Per-currency array (item 16): [{ currency, pending, processing,
+      // completed, failed, totalPaid }, ...]. No single mixed total.
+      stats: statsRows,
       page,
       limit,
     });

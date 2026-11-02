@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
-const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission, requireSuperAdminOrPermission } = require('../middleware/adminAuth');
 const { strictLimiter } = require('../middleware/rateLimiter');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
@@ -23,8 +23,8 @@ router.get('/stats/all', requireAuth, affiliatePayoutsController.getAffiliateSta
 router.get('/schedule', requireAuth, affiliatePayoutsController.getPayoutsSchedule);
 
 // Audit fix (auth finding 15, UI track): admin-only list for the maker
-// page. Same guards as the process route. Registered before /:programId
-// so 'payouts' is not swallowed as a program id.
+// page. Read-only, so it keeps the view grant; the process route below
+// moves money and requires the manage grant instead.
 router.get(
   '/payouts',
   requireAdmin,
@@ -45,11 +45,15 @@ router.post('/calculate', strictLimiter, requireAuth, affiliatePayoutsController
 // issue-time figure; the controller re-validates with its own 409
 // state-change check. A missing payout 404s before verification, so a
 // challenge is never burned on a nonexistent payout.
+// 2026-11-02 admin-ops audit item 1: processing moves money, so the
+// maker route requires manage_financials (super-admin bypass included),
+// not the read-only view_financials grant. A view-only admin must not be
+// able to maker-initiate a payout, below threshold or otherwise.
 router.post(
   '/:payoutId/process',
   requireAdmin,
   rejectImpersonated,
-  requirePermission('view_financials'),
+  requireSuperAdminOrPermission('manage_financials'),
   strictLimiter,
   async (req, res, next) => {
     try {
@@ -87,7 +91,7 @@ router.post(
   '/:payoutId/stepup-challenges',
   requireAdmin,
   rejectImpersonated,
-  requirePermission('view_financials'),
+  requireSuperAdminOrPermission('manage_financials'),
   strictLimiter,
   affiliatePayoutsController.issueProcessStepupChallenge
 );

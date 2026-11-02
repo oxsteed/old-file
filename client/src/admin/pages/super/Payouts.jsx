@@ -19,7 +19,7 @@ function PayoutDrawer({ payout, fmt, onClose }) {
   const requested = payout.created_at || payout.createdAt;
   const rows = [
     ['superPayouts.rowHelper', payout.helper_name || payout.helper?.name || payout.helperEmail || 'N/A'],
-    ['superPayouts.rowAmount', fmt(payout.amount)],
+    ['superPayouts.rowAmount', fmt(payout.amount, payout.currency)],
     ['superPayouts.rowMethod', payout.method || 'N/A'],
     ['superPayouts.rowStatus', t(`superPayouts.status.${payout.status}`, { defaultValue: String(payout.status || 'N/A').replace(/_/g, ' ') })],
     ['superPayouts.rowRequested', requested ? new Date(requested).toLocaleString() : 'N/A'],
@@ -65,18 +65,38 @@ export default function Payouts() {
     return {
       total: Number(data.total || 0),
       payouts: data.payouts || [],
-      stats: data.stats || { pending: 0, processing: 0, completed: 0, totalPaid: 0 },
+      // 2026-11-02 admin-ops audit item 16: stats arrive grouped per
+      // currency (an array), never as one mixed-currency total.
+      stats: Array.isArray(data.stats) ? data.stats : [],
       notice: data.message || '',
     };
   }, [activeTab, offset]);
 
   const payouts = data?.payouts || [];
-  const stats = data?.stats || { pending: 0, processing: 0, completed: 0, totalPaid: 0 };
+  const statsByCurrency = data?.stats || [];
   const notice = data?.notice || '';
 
-  const fmt = (v) => {
+  const currencyCode = (row) => {
+    const code = String(row?.currency || '').trim().toUpperCase();
+    return /^[A-Z]{3}$/.test(code) ? code : '';
+  };
+  const fmt = (v, currency) => {
     const amount = Number(v);
-    return `$${Number.isFinite(amount) ? amount.toFixed(2) : '0.00'}`;
+    const safe = Number.isFinite(amount) ? amount : 0;
+    const code = currencyCode({ currency });
+    if (code) {
+      try {
+        return new Intl.NumberFormat(undefined, { style: 'currency', currency: code }).format(safe);
+      } catch {
+        // Fall through to the plain dollar format below.
+      }
+    }
+    return `$${safe.toFixed(2)}`;
+  };
+  const fmtWithCode = (v, currency) => {
+    const code = currencyCode({ currency });
+    const formatted = fmt(v, currency);
+    return code ? `${formatted} ${code}` : formatted;
   };
 
   return (
@@ -99,36 +119,41 @@ export default function Payouts() {
         <div className="mb-6"><AdminErrorState onRetry={reload} /></div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-gray-400 text-sm">{t('superPayouts.statPending')}</span>
-            <Clock size={16} className="text-yellow-400" />
+      {statsByCurrency.map((group) => (
+        <div key={group.currency || 'unknown'} className="mb-6">
+          <p className="text-gray-400 text-sm font-semibold mb-3">{group.currency || 'N/A'}</p>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-gray-400 text-sm">{t('superPayouts.statPending')}</span>
+                <Clock size={16} className="text-yellow-400" />
+              </div>
+              <p className="text-xl font-bold text-white">{fmt(group.pending, group.currency)}</p>
+            </div>
+            <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-gray-400 text-sm">{t('superPayouts.statProcessing')}</span>
+                <DollarSign size={16} className="text-blue-400" />
+              </div>
+              <p className="text-xl font-bold text-white">{fmt(group.processing, group.currency)}</p>
+            </div>
+            <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-gray-400 text-sm">{t('superPayouts.statCompleted')}</span>
+                <CheckCircle size={16} className="text-green-400" />
+              </div>
+              <p className="text-xl font-bold text-white">{fmt(group.completed, group.currency)}</p>
+            </div>
+            <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-gray-400 text-sm">{t('superPayouts.statTotalPaid')}</span>
+                <DollarSign size={16} className="text-orange-400" />
+              </div>
+              <p className="text-xl font-bold text-white">{fmt(group.totalPaid, group.currency)}</p>
+            </div>
           </div>
-          <p className="text-xl font-bold text-white">{fmt(stats.pending)}</p>
         </div>
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-gray-400 text-sm">{t('superPayouts.statProcessing')}</span>
-            <DollarSign size={16} className="text-blue-400" />
-          </div>
-          <p className="text-xl font-bold text-white">{fmt(stats.processing)}</p>
-        </div>
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-gray-400 text-sm">{t('superPayouts.statCompleted')}</span>
-            <CheckCircle size={16} className="text-green-400" />
-          </div>
-          <p className="text-xl font-bold text-white">{fmt(stats.completed)}</p>
-        </div>
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-gray-400 text-sm">{t('superPayouts.statTotalPaid')}</span>
-            <DollarSign size={16} className="text-orange-400" />
-          </div>
-          <p className="text-xl font-bold text-white">{fmt(stats.totalPaid)}</p>
-        </div>
-      </div>
+      ))}
 
       <div className="flex gap-2 mb-6">
         {TABS.map(tab => (
@@ -165,7 +190,7 @@ export default function Payouts() {
               return (
               <tr key={pid} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                 <td className="px-4 py-3 text-white">{p.helper_name || p.helper?.name || p.helperEmail || 'N/A'}</td>
-                <td className="px-4 py-3 text-white font-medium">{fmt(p.amount)}</td>
+                <td className="px-4 py-3 text-white font-medium">{fmtWithCode(p.amount, p.currency)}</td>
                 <td className="px-4 py-3 text-gray-300 capitalize">{p.method || 'N/A'}</td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${

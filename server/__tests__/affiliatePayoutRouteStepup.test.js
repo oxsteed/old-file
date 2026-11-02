@@ -18,6 +18,7 @@ jest.mock('../services/stepupChallengeService', () => ({ verifyStepupChallenge: 
 jest.mock('../middleware/adminAuth', () => ({
   requireAdmin: (req, res, next) => next(),
   requirePermission: () => (req, res, next) => next(),
+  requireSuperAdminOrPermission: () => (req, res, next) => next(),
 }));
 jest.mock('../middleware/rejectImpersonated', () => ({ rejectImpersonated: (req, res, next) => next() }));
 jest.mock('../middleware/rateLimiter', () => ({ strictLimiter: (req, res, next) => next() }));
