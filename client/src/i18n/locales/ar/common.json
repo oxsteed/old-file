@@ -21,7 +21,11 @@
     "comparedValue": "القيمة المقارنة",
     "smsDelivery": "تسليم الرسائل النصية",
     "smsUncertainNote": "لا تُعاد محاولات الرسائل النصية المنقطعة تلقائيًا. تحقّق من المزود قبل ترتيب إعادة المحاولة.",
-    "smsStatus": {"sent":"تم الإرسال","uncertain":"التسليم غير مؤكد","sending":"محجوز؛ الاكتمال غير مؤكد"},
+    "smsStatus": {
+      "sent": "تم الإرسال",
+      "uncertain": "التسليم غير مؤكد",
+      "sending": "محجوز؛ الاكتمال غير مؤكد"
+    },
     "modelNlHint": "يقترح النموذج الاختياري استعلامًا لمراجعته. تتوفر المقاييس المصرح بها فقط. أكّد المقياس وعوامل التصفية والفترة الزمنية السابقة قبل التنفيذ.",
     "columns": {
       "redemption_id": "الاسترداد",
@@ -103,7 +107,7 @@
       "customer_id": "معرف العميل",
       "customer_orders": "طلبات العميل",
       "quantity": "الكمية"
-    } ,
+    },
     "businessRevenue": "الإيرادات المسجلة للفواتير المدفوعة",
     "businessRevenueNote": "الفواتير المدفوعة فقط، مفصولة حسب العملة المسجلة. لا يشمل التقرير المصروفات أو الإيرادات الأخرى.",
     "paidInvoices": "الفواتير المدفوعة",
@@ -146,7 +150,7 @@
       "consulting_cancel_rate_pct": "معدل إلغاء الاستشارات",
       "sla_first_response_compliance_pct": "الالتزام بمدة الاستجابة الأولى"
     }
-  } ,
+  },
   "customerWorkspace": {
     "title": "مساحة العميل",
     "eyebrow": "CUSTOMER 360",
@@ -4754,10 +4758,73 @@
           "oxsteed_credit": "OxSteed Credit",
           "other": "أخرى"
         },
-        "payroll": {"title": "العمالة وكشوف الرواتب", "permissionNote": "تحتاج أرقام الرواتب إلى إذن payroll.view. اطلب من المالك منحه.", "loadError": "تعذر تحميل كشوف الرواتب.", "laborPercent": "نسبة العمالة من صافي المبيعات", "laborCost": "تكلفة العمالة", "netSales": "صافي المبيعات المحصلة", "hoursWorked": "ساعات العمل", "scheduledHours": "{{hours}} مجدولة", "salesPerLaborHour": "المبيعات لكل ساعة عمل", "missingWage": "لدى {{count}} من أعضاء الفريق ساعات عمل دون أجر مسجل، لذا تكلفة عملهم مفقودة.", "noData": "لا ساعات ولا إكراميات في هذه الفترة.", "employee": "الموظف", "jobRole": "الدور الوظيفي", "hours": "الساعات", "wages": "الأجور", "netTips": "صافي الإكراميات", "totalPay": "إجمالي الأجر", "exportCsv": "تصدير الرواتب CSV", "exportError": "تعذر تنزيل تصدير الرواتب."},
-        "tipPool": {"title": "صندوق الإكراميات والإكراميات النقدية", "enablePooling": "تفعيل صندوق الإكراميات المشترك والتوزيعات", "ruleTarget": "هدف القاعدة", "targetRole": "توزيع إلى دور وظيفي", "targetPool": "مشاركة في الصندوق المشترك", "ruleRole": "الدور الوظيفي", "ruleRolePlaceholder": "مثال: طباخ", "rulePercent": "نسبة الإكراميات", "removeRule": "إزالة", "addRule": "إضافة قاعدة", "save": "حفظ إعدادات الإكراميات", "saved": "تم حفظ إعدادات الإكراميات.", "saveError": "تعذر حفظ إعدادات الإكراميات.", "hint": "تؤخذ التوزيعات من إجمالي إكراميات الفترة وتقسم بالتساوي بين موظفي ذلك الدور الذين عملوا. ويقسم الصندوق بين من كسبوا إكراميات.", "cashTitle": "التصريح بالإكراميات النقدية لعضو في الفريق", "cashSelectStaff": "اختيار موظف", "cashDate": "التاريخ", "cashAmount": "المبلغ", "cashAdd": "إضافة التصريح", "cashSaved": "تم التصريح بالإكراميات النقدية.", "cashInvalid": "اختر عضو فريق وتاريخا ومبلغا موجبا.", "cashError": "تعذر حفظ تصريح الإكراميات النقدية."},
-        "exceptions": {"title": "الاستثناءات حسب الموظف", "none": "لا استثناءات في هذه الفترة.", "voids": "الإلغاءات", "refunds": "المبالغ المستردة", "comps": "المجانيات", "discounts": "الخصومات", "noSales": "فتح الدرج دون بيع", "payouts": "مدفوعات الدرج", "missingPunches": "سجلات ساعات مفقودة", "missingPunchesHint": "تحسب السجلات المفقودة الورديات المجدولة دون ساعات مسجلة. أما التأخير الدقيق فيحتاج إلى أوقات تسجيل الحضور، وهي غير محفوظة في سجل الساعات."},
-        "activity": {"title": "نشاط الفريق", "permissionNote": "يحتاج سجل النشاط إلى إذن audit.view.", "filterPerson": "تصفية حسب الشخص", "allPeople": "الجميع", "filterAction": "تصفية حسب الإجراء", "filterActionPlaceholder": "مثال: business.member", "none": "لا نشاط في هذا العرض."},
+        "payroll": {
+          "title": "العمالة وكشوف الرواتب",
+          "permissionNote": "تحتاج أرقام الرواتب إلى إذن payroll.view. اطلب من المالك منحه.",
+          "loadError": "تعذر تحميل كشوف الرواتب.",
+          "laborPercent": "نسبة العمالة من صافي المبيعات",
+          "laborCost": "تكلفة العمالة",
+          "netSales": "صافي المبيعات المحصلة",
+          "hoursWorked": "ساعات العمل",
+          "scheduledHours": "{{hours}} مجدولة",
+          "salesPerLaborHour": "المبيعات لكل ساعة عمل",
+          "missingWage": "لدى {{count}} من أعضاء الفريق ساعات عمل دون أجر مسجل، لذا تكلفة عملهم مفقودة.",
+          "noData": "لا ساعات ولا إكراميات في هذه الفترة.",
+          "employee": "الموظف",
+          "jobRole": "الدور الوظيفي",
+          "hours": "الساعات",
+          "wages": "الأجور",
+          "netTips": "صافي الإكراميات",
+          "totalPay": "إجمالي الأجر",
+          "exportCsv": "تصدير الرواتب CSV",
+          "exportError": "تعذر تنزيل تصدير الرواتب."
+        },
+        "tipPool": {
+          "title": "صندوق الإكراميات والإكراميات النقدية",
+          "enablePooling": "تفعيل صندوق الإكراميات المشترك والتوزيعات",
+          "ruleTarget": "هدف القاعدة",
+          "targetRole": "توزيع إلى دور وظيفي",
+          "targetPool": "مشاركة في الصندوق المشترك",
+          "ruleRole": "الدور الوظيفي",
+          "ruleRolePlaceholder": "مثال: طباخ",
+          "rulePercent": "نسبة الإكراميات",
+          "removeRule": "إزالة",
+          "addRule": "إضافة قاعدة",
+          "save": "حفظ إعدادات الإكراميات",
+          "saved": "تم حفظ إعدادات الإكراميات.",
+          "saveError": "تعذر حفظ إعدادات الإكراميات.",
+          "hint": "تؤخذ التوزيعات من إجمالي إكراميات الفترة وتقسم بالتساوي بين موظفي ذلك الدور الذين عملوا. ويقسم الصندوق بين من كسبوا إكراميات.",
+          "cashTitle": "التصريح بالإكراميات النقدية لعضو في الفريق",
+          "cashSelectStaff": "اختيار موظف",
+          "cashDate": "التاريخ",
+          "cashAmount": "المبلغ",
+          "cashAdd": "إضافة التصريح",
+          "cashSaved": "تم التصريح بالإكراميات النقدية.",
+          "cashInvalid": "اختر عضو فريق وتاريخا ومبلغا موجبا.",
+          "cashError": "تعذر حفظ تصريح الإكراميات النقدية.",
+          "loadError": "تعذّر تحميل إعدادات مجمّع الإكراميات."
+        },
+        "exceptions": {
+          "title": "الاستثناءات حسب الموظف",
+          "none": "لا استثناءات في هذه الفترة.",
+          "voids": "الإلغاءات",
+          "refunds": "المبالغ المستردة",
+          "comps": "المجانيات",
+          "discounts": "الخصومات",
+          "noSales": "فتح الدرج دون بيع",
+          "payouts": "مدفوعات الدرج",
+          "missingPunches": "سجلات ساعات مفقودة",
+          "missingPunchesHint": "تحسب السجلات المفقودة الورديات المجدولة دون ساعات مسجلة. أما التأخير الدقيق فيحتاج إلى أوقات تسجيل الحضور، وهي غير محفوظة في سجل الساعات."
+        },
+        "activity": {
+          "title": "نشاط الفريق",
+          "permissionNote": "يحتاج سجل النشاط إلى إذن audit.view.",
+          "filterPerson": "تصفية حسب الشخص",
+          "allPeople": "الجميع",
+          "filterAction": "تصفية حسب الإجراء",
+          "filterActionPlaceholder": "مثال: business.member",
+          "none": "لا نشاط في هذا العرض."
+        },
         "loyalty": {
           "title": "ولاء العملاء",
           "repeatRate": "معدل الطلبات المتكررة",
@@ -4955,8 +5022,8 @@
         "body": "{{moduleTitle}} في {{restaurantName}}"
       },
       "training_recertification_due": {
-        "title": "إعادة الاعتماد مستحقة",
-        "body": "انتهت صلاحية شهادتك في {{moduleTitle}} لدى {{restaurantName}}. يُرجى إكمال التدريب مرة أخرى."
+        "title": "إعادة اعتماد التدريب مستحقة",
+        "body": "انتهت صلاحية شهادتك لـ {{moduleTitle}}. يرجى إكمال التدريب مرة أخرى."
       },
       "crew_shift_published": {
         "title": "تم نشر وردية جديدة",
@@ -4977,10 +5044,6 @@
       "training_completed": {
         "title": "اكتمل التدريب",
         "body": "اكتمل {{moduleTitle}}"
-      },
-      "training_recertification_due": {
-        "title": "إعادة اعتماد التدريب مستحقة",
-        "body": "انتهت صلاحية شهادتك لـ {{moduleTitle}}. يرجى إكمال التدريب مرة أخرى."
       },
       "member_invite": {
         "title": "تمت دعوتك للانضمام إلى {{businessName}}",
@@ -5096,9 +5159,65 @@
       "logbookLabel": "ملاحظة الوردية",
       "logbookPlaceholder": "ما الذي يجب أن تعرفه الوردية التالية؟",
       "addLogbookEntry": "إضافة إدخال",
-      "logbookAdded": "تمت إضافة الإدخال"
+      "logbookAdded": "تمت إضافة الإدخال",
+      "scheduleCount": "{{count}} وردية",
+      "showAll": "عرض كل الورديات ({{count}})",
+      "showFewer": "عرض أقل"
     },
-    "merchant": { "timezone": "المنطقة الزمنية", "timezoneHint": "تُستخدم لساعات العمل وأرقام الانتظار اليومية والتقارير.", "taxRuleCategory": "فئة الضريبة (اختياري)", "prepAutoExtendMax": "الحد الأقصى للتمديد التلقائي (دقيقة)", "prepAutoExtendThreshold": "التمديد التلقائي من (طلبات)", "prepAutoExtendPerOrder": "التمديد التلقائي لكل طلب (دقيقة)", "prepAutoExtendHint": "يُطيل وقت التحضير المُقدَّر تلقائيًا عندما تتجاوز الطلبات المفتوحة الحد.", "locationEdit": "تعديل", "locationSaveChanges": "حفظ التغييرات", "locationStatus": "الحالة", "locationActive": "نشط", "locationPaused": "متوقف مؤقتًا", "locationClosed": "مغلق", "locationUpdated": "تم تحديث الموقع", "locationMakePrimary": "تعيين كموقع رئيسي", "locationName": "اسم الموقع", "addLocation": "إضافة موقع", "locationCreated": "تمت إضافة الموقع", "locationError": "تعذر حفظ الموقع", "findCoordinates": "البحث عن الإحداثيات", "locationGeocodeEmpty": "تعذر العثور على إحداثيات لهذا الموقع", "locationGeocoded": "تم العثور على الإحداثيات", "locationGeocodeError": "تعذر العثور على الإحداثيات", "addHoursRange": "إضافة فترة", "removeHoursRange": "إزالة الفترة", "hoursRangeLabel": "الفترة {{number}}", "specialDatesTitle": "التواريخ الخاصة", "specialDatesHint": "استبدل ساعات الأسبوع لتاريخ محدد، بما في ذلك العطلات والإغلاقات الاستثنائية.", "specialDate": "التاريخ", "specialDateClosed": "مغلق طوال اليوم", "specialDateRemove": "إزالة التاريخ", "specialDateAdd": "إضافة تاريخ خاص", "specialDateDuplicate": "يمكن إدراج كل تاريخ خاص مرة واحدة فقط.", "tab": { "myshift": "ورديتي" } },
+    "merchant": {
+      "timezone": "المنطقة الزمنية",
+      "timezoneHint": "تُستخدم لساعات العمل وأرقام الانتظار اليومية والتقارير.",
+      "taxRuleCategory": "فئة الضريبة (اختياري)",
+      "prepAutoExtendMax": "الحد الأقصى للتمديد التلقائي (دقيقة)",
+      "prepAutoExtendThreshold": "التمديد التلقائي من (طلبات)",
+      "prepAutoExtendPerOrder": "التمديد التلقائي لكل طلب (دقيقة)",
+      "prepAutoExtendHint": "يُطيل وقت التحضير المُقدَّر تلقائيًا عندما تتجاوز الطلبات المفتوحة الحد.",
+      "locationEdit": "تعديل",
+      "locationSaveChanges": "حفظ التغييرات",
+      "locationStatus": "الحالة",
+      "locationActive": "نشط",
+      "locationPaused": "متوقف مؤقتًا",
+      "locationClosed": "مغلق",
+      "locationUpdated": "تم تحديث الموقع",
+      "locationMakePrimary": "تعيين كموقع رئيسي",
+      "locationName": "اسم الموقع",
+      "addLocation": "إضافة موقع",
+      "locationCreated": "تمت إضافة الموقع",
+      "locationError": "تعذر حفظ الموقع",
+      "findCoordinates": "البحث عن الإحداثيات",
+      "locationGeocodeEmpty": "تعذر العثور على إحداثيات لهذا الموقع",
+      "locationGeocoded": "تم العثور على الإحداثيات",
+      "locationGeocodeError": "تعذر العثور على الإحداثيات",
+      "addHoursRange": "إضافة فترة",
+      "removeHoursRange": "إزالة الفترة",
+      "hoursRangeLabel": "الفترة {{number}}",
+      "specialDatesTitle": "التواريخ الخاصة",
+      "specialDatesHint": "استبدل ساعات الأسبوع لتاريخ محدد، بما في ذلك العطلات والإغلاقات الاستثنائية.",
+      "specialDate": "التاريخ",
+      "specialDateClosed": "مغلق طوال اليوم",
+      "specialDateRemove": "إزالة التاريخ",
+      "specialDateAdd": "إضافة تاريخ خاص",
+      "specialDateDuplicate": "يمكن إدراج كل تاريخ خاص مرة واحدة فقط.",
+      "tab": {
+        "myshift": "ورديتي"
+      },
+      "orderCenter": {
+        "cancelConfirm": "إلغاء الطلب {{order}} ({{amount}})؟ إن إلغاء طلب مدفوع بالبطاقة يؤدي إلى استرداد للعميل.",
+        "markPaidConfirm": "وضع علامة مدفوع على الطلب {{order}} بمبلغ {{amount}}؟ سيسجل هذا استلام كامل المبلغ المستحق."
+      },
+      "payouts": {
+        "historyShowing": "عرض {{from}}–{{to}} من {{total}}",
+        "historyPrevious": "السابق",
+        "historyNext": "التالي",
+        "requestConfirm": "طلب دفع بمبلغ {{amount}}؟ يدخل الطلب في قائمة مراجعة المسؤول؛ وهو لا ينقل الأموال فوراً."
+      },
+      "stChipVerified": "موثّق",
+      "stChipUnverified": "غير موثّق",
+      "suspendedNotice": "هذا المطعم موقوف. الطلبات معطّلة حتى إعادة تفعيله.",
+      "posShiftCloseError": "تعذّر إغلاق وردية نقاط البيع.",
+      "csvFailedSummary": "{{count}} صف فشل: {{rows}}",
+      "csvImportedPartial": "تم استيراد {{count}} عنصر ونشره.{{failed}}{{skipped}}{{truncated}}"
+    },
     "creditCenter": {
       "recentFallback": "مؤخرًا",
       "oxsteedCustomer": "عميل OxSteed",
@@ -5260,7 +5379,17 @@
       "unlock": "فتح",
       "offlineCashSaved": "تم حفظ الدفع النقدي. سيُعاد تشغيله تلقائيًا عند عودة الاتصال.",
       "offlineCashReplayed": "تمت إعادة تشغيل الدفع النقدي.",
-      "offlineCashReplayWaiting": "لا يزال الدفع النقدي قيد الانتظار لإعادة التشغيل. اترك نقطة البيع مفتوحة وتحقق من الوردية."
+      "offlineCashReplayWaiting": "لا يزال الدفع النقدي قيد الانتظار لإعادة التشغيل. اترك نقطة البيع مفتوحة وتحقق من الوردية.",
+      "closeShift": "إغلاق الوردية",
+      "closeShiftTitle": "إغلاق الوردية رقم {{id}}",
+      "closeShiftHint": "عُدّ النقد في الدرج وأدخل المبلغ أدناه. لا يمكن التراجع عن الإغلاق.",
+      "openingCash": "النقد الافتتاحي: {{amount}}",
+      "shiftPayments": "المدفوعات المسوّاة: {{amount}}",
+      "closingCash": "النقد الختامي",
+      "shiftClosed": "أُغلقت الوردية",
+      "closeSummary": "المتوقع {{expected}}، المعدود {{counted}}، الفرق {{variance}}.",
+      "closePaidOrders": "{{count}} طلب مدفوع",
+      "multipleOpenShifts": "هناك {{count}} ورديات مفتوحة. تستخدم الطلبات أول وردية معروضة. أغلق الورديات الإضافية قبل استقبال طلبات جديدة."
     },
     "restaurant": {
       "promoErrors": {
@@ -5277,7 +5406,36 @@
         "promo_not_fundable": "لا يمكن تطبيق رمز الترويج هذا على هذا الطلب.",
         "promo_changed": "تغيّر خصم الترويج. راجع طلبك وحاول مرة أخرى."
       },
-      "promoApplied": "تم تطبيق الترويج: −{{amount}}"
+      "promoApplied": "تم تطبيق الترويج: −{{amount}}",
+      "removeItem": "إزالة {{item}} من السلة",
+      "checkoutTotalLoading": "جارٍ حساب المجموع…",
+      "reorderReplaceConfirm": "استبدال سلّتك الحالية بهذا الطلب السابق؟",
+      "reorderDropped": "بعض التخصيصات لم تعد متاحة وتم حذفها: {{items}}",
+      "deliveryCity": "المدينة",
+      "deliveryCityPlaceholder": "المدينة",
+      "deliveryState": "الولاية / المحافظة",
+      "deliveryStatePlaceholder": "الولاية / المحافظة",
+      "deliveryZip": "الرمز البريدي",
+      "deliveryZipPlaceholder": "الرمز البريدي",
+      "deliveryInstructions": "تعليمات التوصيل",
+      "deliveryInstructionsPlaceholder": "رمز البوابة أو موقف السيارات أو ملاحظات التسليم",
+      "guestCheckoutNote": "يمكنك إتمام الطلب كضيف. سجّل الدخول لعرض هذا الطلب في سجل طلباتك وكسب نقاط الولاء.",
+      "guestName": "اسمك",
+      "guestNamePlaceholder": "الاسم الكامل",
+      "guestPhone": "الهاتف",
+      "guestPhonePlaceholder": "رقم الهاتف",
+      "guestEmail": "البريد الإلكتروني",
+      "guestEmailPlaceholder": "عنوان البريد الإلكتروني",
+      "guestNameRequired": "يرجى إدخال اسمك لطلب استلام كضيف.",
+      "guestContactRequired": "يرجى تقديم رقم هاتف أو بريد إلكتروني لتحديثات الطلب.",
+      "guestPaymentUnavailable": "طريقة الدفع هذه تتطلب تسجيل الدخول. اختر الدفع في المطعم أو رصيد الضيف، أو سجّل الدخول.",
+      "quoteLoading": "ما زلنا نحسب مجموعك…",
+      "trackOrder": "تتبع الطلب",
+      "reviewAfterCompleted": "بعد اكتمال طلبك، يمكنك ترك تقييم من صفحة التتبع.",
+      "reviewsLoadError": "تعذّر تحميل التقييمات.",
+      "reviewsShowing": "عرض {{shown}} من أصل {{total}} من التقييمات",
+      "loadMoreReviews": "تحميل المزيد من التقييمات",
+      "reviewResponse": "رد المطعم: {{response}}"
     },
     "home": {
       "discovery": {
@@ -5285,8 +5443,51 @@
         "hoursLocalTime": "تُعرض الساعات بالتوقيت المحلي لكل مطعم.",
         "ordersPaused": "الطلبات متوقفة مؤقتًا",
         "onlineUnavailable": "الطلب عبر الإنترنت غير متاح",
-        "clearLocation": "مسح الموقع"
-      }
+        "clearLocation": "مسح الموقع",
+        "notAcceptingOrders": "لا يقبل الطلبات",
+        "openNow": "يقبل الطلبات الآن",
+        "fulfillment": "طريقة الاستلام",
+        "fulfillmentAll": "جميع الطرق",
+        "fulfillment_delivery": "توصيل",
+        "fulfillment_pickup": "استلام",
+        "fulfillment_dine_in": "تناول في المطعم"
+      },
+      "externalPlaceExplore": "البحث عن مطاعم OxSteed القريبة"
+    },
+    "order": {
+      "reviewDeleted": "تم حذف تقييمك."
+    },
+    "track": {
+      "reviewDone": "تقييمك",
+      "reviewTitle": "اترك تقييمًا",
+      "reviewThanks": "شكرًا لملاحظاتك.",
+      "reviewPlaceholder": "كيف كان طلبك؟",
+      "reviewSubmit": "إرسال التقييم",
+      "reviewDelete": "حذف التقييم"
+    },
+    "inv": {
+      "adjType_receive": "استلام",
+      "adjType_count": "جرد",
+      "adjType_correction": "تصحيح",
+      "pollError": "تعذّر تحديث بيانات المخزون. يتم عرض آخر بيانات محفوظة.",
+      "showing": "عرض {{from}}–{{to}} من {{total}}",
+      "previous": "السابق",
+      "next": "التالي"
+    },
+    "runner": {
+      "pollError": "تعذّر تحديث بيانات العدّاء. يتم عرض آخر بيانات محفوظة.",
+      "settlementApproveConfirm": "اعتماد تسوية المهمة {{task}}؟ النقد المحصّل: {{cash}}. مبلغ التسوية (الرسوم بالإضافة إلى البقشيش): {{amount}}. الاعتماد لا يضع علامة مدفوعة عليها."
+    },
+    "ownerHome": {
+      "suspendedAlert": "هذا المطعم موقوف. الطلبات معطّلة.",
+      "suspendedKicker": "موقوف",
+      "suspended": "الطلبات موقوفة",
+      "suspendedDesc": "هذا المطعم موقوف، لذا لا يمكن للعملاء الطلب منه. تواصل مع دعم OxSteed إذا كنت تعتقد أن هذا خطأ."
+    },
+    "menuManager": {
+      "partialGroups": "تعذّر حفظ {{failed}} من أصل {{total}} مجموعة خيارات ({{firstError}}). تم حفظ العنصر؛ احفظ مجددًا لإعادة محاولة المجموعات الناقصة.",
+      "bulkPartial": "تم تحديث {{updated}} عنصر، وفشل {{failed}}: {{names}}. العناصر الفاشلة ما زالت محددة.",
+      "bulkFailed": "فشل {{failed}} عنصر: {{names}}. ما زالت محددة لإعادة المحاولة."
     }
   },
   "growthInsights": {
@@ -5296,7 +5497,7 @@
     "scheduleHours": "الجدولة (ساعات)",
     "fieldMapping": "تعيين الحقول (JSON)",
     "runNow": "تشغيل الآن",
-    "lastRun": "آخر تشغيل",
+    "lastRun": "آخر تشغيل للتجميع",
     "feedLastRun": "آخر تشغيل للموجز",
     "categoryMapping": "تعيين الفئات",
     "categoryPath": "مسار الفئة",
@@ -5312,7 +5513,7 @@
     "capsSkipped": "تم تخطيهم بسبب الحدود",
     "quietHeld": "محتجزة بسبب ساعات الهدوء",
     "noPushDevice": "لا يوجد جهاز دفع",
-    "overlap": "التداخل",
+    "overlap": "التداخل مع الحملات النشطة",
     "delivered": "تم التسليم",
     "opened": "تم الفتح",
     "clicked": "تم النقر",
@@ -5433,7 +5634,6 @@
     "freshness": "حداثة البيانات",
     "demandThrough": "الطلب حتى",
     "supplyThrough": "العرض حتى",
-    "lastRun": "آخر تشغيل للتجميع",
     "anchorNote": "المناطق هي مراكز الرموز البريدية فقط؛ لا توجد مواقع دقيقة.",
     "snapshots": "المقاييس الخاضعة للحوكمة",
     "gapIndex": "مؤشر فجوة الطلب",
@@ -5442,7 +5642,6 @@
     "reject": "رفض",
     "rejectReason": "سبب الرفض",
     "produce": "إنشاء الاقتراحات",
-    "overlap": "التداخل مع الحملات النشطة",
     "shared": "أعضاء مشتركون",
     "miles": "المسافة بالأميال بين الأعضاء",
     "minimum": "الحد الأدنى لحجم المجموعة",

@@ -21,7 +21,11 @@
     "comparedValue": "Valeur comparée",
     "smsDelivery": "Envoi de SMS",
     "smsUncertainNote": "Les tentatives de SMS interrompues ne sont pas renvoyées automatiquement. Vérifiez auprès du fournisseur avant de réessayer.",
-    "smsStatus": {"sent":"Envoyé","uncertain":"Livraison incertaine","sending":"Réservé ; achèvement non confirmé"},
+    "smsStatus": {
+      "sent": "Envoyé",
+      "uncertain": "Livraison incertaine",
+      "sending": "Réservé ; achèvement non confirmé"
+    },
     "modelNlHint": "Le modèle facultatif propose une requête à vérifier. Seuls les indicateurs autorisés sont disponibles. Confirmez l’indicateur, les filtres et la période glissante avant l’exécution.",
     "columns": {
       "redemption_id": "Utilisation",
@@ -103,7 +107,7 @@
       "customer_id": "ID du client",
       "customer_orders": "Commandes du client",
       "quantity": "Quantité"
-    } ,
+    },
     "businessRevenue": "Revenus enregistrés des factures payées",
     "businessRevenueNote": "Factures payées uniquement, par devise enregistrée. Les dépenses et autres revenus sont exclus.",
     "paidInvoices": "Factures payées",
@@ -146,7 +150,7 @@
       "consulting_cancel_rate_pct": "Taux d’annulation des consultations",
       "sla_first_response_compliance_pct": "Respect du SLA de première réponse"
     }
-  } ,
+  },
   "customerWorkspace": {
     "title": "Espace client",
     "eyebrow": "CUSTOMER 360",
@@ -4754,10 +4758,73 @@
           "oxsteed_credit": "OxSteed Credit",
           "other": "Autre"
         },
-        "payroll": {"title": "Main-d'œuvre et paie", "permissionNote": "Les chiffres de paie exigent l'autorisation payroll.view. Demandez au propriétaire de l'accorder.", "loadError": "Impossible de charger la paie.", "laborPercent": "% de main-d'œuvre sur les ventes nettes", "laborCost": "Coût de main-d'œuvre", "netSales": "Ventes nettes encaissées", "hoursWorked": "Heures travaillées", "scheduledHours": "{{hours}} planifiées", "salesPerLaborHour": "Ventes par heure de travail", "missingWage": "{{count}} membre(s) de l'équipe ont des heures sans salaire enregistré, leur coût est donc absent.", "noData": "Aucune heure ni pourboire sur cette période.", "employee": "Employé", "jobRole": "Poste", "hours": "Heures", "wages": "Salaires", "netTips": "Pourboires nets", "totalPay": "Paie totale", "exportCsv": "Exporter la paie (CSV)", "exportError": "Impossible de télécharger l'export de paie."},
-        "tipPool": {"title": "Pot commun et pourboires en espèces", "enablePooling": "Activer le pot commun et les partages de pourboires", "ruleTarget": "Cible de la règle", "targetRole": "Partage vers un poste", "targetPool": "Partager dans le pot commun", "ruleRole": "Poste", "ruleRolePlaceholder": "ex. Cuisinier", "rulePercent": "Pourcentage des pourboires", "removeRule": "Retirer", "addRule": "Ajouter une règle", "save": "Enregistrer les réglages", "saved": "Réglages des pourboires enregistrés.", "saveError": "Impossible d'enregistrer les réglages des pourboires.", "hint": "Les partages sont prélevés sur le total des pourboires de la période et répartis à parts égales entre le personnel du poste ayant travaillé. Le pot est partagé entre ceux qui ont gagné des pourboires.", "cashTitle": "Déclarer les pourboires en espèces d'un membre de l'équipe", "cashSelectStaff": "Choisir un membre", "cashDate": "Date", "cashAmount": "Montant", "cashAdd": "Ajouter la déclaration", "cashSaved": "Pourboires en espèces déclarés.", "cashInvalid": "Choisissez un membre, une date et un montant positif.", "cashError": "Impossible d'enregistrer la déclaration."},
-        "exceptions": {"title": "Exceptions par employé", "none": "Aucune exception sur cette période.", "voids": "Annulations", "refunds": "Remboursements", "comps": "Offerts", "discounts": "Remises", "noSales": "Ouvertures sans vente", "payouts": "Sorties de caisse", "missingPunches": "Heures manquantes", "missingPunchesHint": "Les heures manquantes comptent les services planifiés sans heures enregistrées. La ponctualité exacte exige des heures de pointage, que le journal d'heures ne conserve pas."},
-        "activity": {"title": "Activité de l'équipe", "permissionNote": "Le journal d'activité exige l'autorisation audit.view.", "filterPerson": "Filtrer par personne", "allPeople": "Tout le monde", "filterAction": "Filtrer par action", "filterActionPlaceholder": "ex. business.member", "none": "Aucune activité dans cette vue."},
+        "payroll": {
+          "title": "Main-d'œuvre et paie",
+          "permissionNote": "Les chiffres de paie exigent l'autorisation payroll.view. Demandez au propriétaire de l'accorder.",
+          "loadError": "Impossible de charger la paie.",
+          "laborPercent": "% de main-d'œuvre sur les ventes nettes",
+          "laborCost": "Coût de main-d'œuvre",
+          "netSales": "Ventes nettes encaissées",
+          "hoursWorked": "Heures travaillées",
+          "scheduledHours": "{{hours}} planifiées",
+          "salesPerLaborHour": "Ventes par heure de travail",
+          "missingWage": "{{count}} membre(s) de l'équipe ont des heures sans salaire enregistré, leur coût est donc absent.",
+          "noData": "Aucune heure ni pourboire sur cette période.",
+          "employee": "Employé",
+          "jobRole": "Poste",
+          "hours": "Heures",
+          "wages": "Salaires",
+          "netTips": "Pourboires nets",
+          "totalPay": "Paie totale",
+          "exportCsv": "Exporter la paie (CSV)",
+          "exportError": "Impossible de télécharger l'export de paie."
+        },
+        "tipPool": {
+          "title": "Pot commun et pourboires en espèces",
+          "enablePooling": "Activer le pot commun et les partages de pourboires",
+          "ruleTarget": "Cible de la règle",
+          "targetRole": "Partage vers un poste",
+          "targetPool": "Partager dans le pot commun",
+          "ruleRole": "Poste",
+          "ruleRolePlaceholder": "ex. Cuisinier",
+          "rulePercent": "Pourcentage des pourboires",
+          "removeRule": "Retirer",
+          "addRule": "Ajouter une règle",
+          "save": "Enregistrer les réglages",
+          "saved": "Réglages des pourboires enregistrés.",
+          "saveError": "Impossible d'enregistrer les réglages des pourboires.",
+          "hint": "Les partages sont prélevés sur le total des pourboires de la période et répartis à parts égales entre le personnel du poste ayant travaillé. Le pot est partagé entre ceux qui ont gagné des pourboires.",
+          "cashTitle": "Déclarer les pourboires en espèces d'un membre de l'équipe",
+          "cashSelectStaff": "Choisir un membre",
+          "cashDate": "Date",
+          "cashAmount": "Montant",
+          "cashAdd": "Ajouter la déclaration",
+          "cashSaved": "Pourboires en espèces déclarés.",
+          "cashInvalid": "Choisissez un membre, une date et un montant positif.",
+          "cashError": "Impossible d'enregistrer la déclaration.",
+          "loadError": "Impossible de charger les paramètres de la cagnotte de pourboires."
+        },
+        "exceptions": {
+          "title": "Exceptions par employé",
+          "none": "Aucune exception sur cette période.",
+          "voids": "Annulations",
+          "refunds": "Remboursements",
+          "comps": "Offerts",
+          "discounts": "Remises",
+          "noSales": "Ouvertures sans vente",
+          "payouts": "Sorties de caisse",
+          "missingPunches": "Heures manquantes",
+          "missingPunchesHint": "Les heures manquantes comptent les services planifiés sans heures enregistrées. La ponctualité exacte exige des heures de pointage, que le journal d'heures ne conserve pas."
+        },
+        "activity": {
+          "title": "Activité de l'équipe",
+          "permissionNote": "Le journal d'activité exige l'autorisation audit.view.",
+          "filterPerson": "Filtrer par personne",
+          "allPeople": "Tout le monde",
+          "filterAction": "Filtrer par action",
+          "filterActionPlaceholder": "ex. business.member",
+          "none": "Aucune activité dans cette vue."
+        },
         "loyalty": {
           "title": "Fidélité client",
           "repeatRate": "Taux de commandes répétées",
@@ -4955,8 +5022,8 @@
         "body": "{{moduleTitle}} chez {{restaurantName}}"
       },
       "training_recertification_due": {
-        "title": "Recertification à renouveler",
-        "body": "Votre certification {{moduleTitle}} chez {{restaurantName}} a expiré. Veuillez suivre à nouveau la formation."
+        "title": "Recertification de formation due",
+        "body": "Votre certification pour {{moduleTitle}} a expiré. Veuillez refaire la formation."
       },
       "crew_shift_published": {
         "title": "Nouveau poste publié",
@@ -4977,10 +5044,6 @@
       "training_completed": {
         "title": "Formation terminée",
         "body": "{{moduleTitle}} a été terminée"
-      },
-      "training_recertification_due": {
-        "title": "Recertification de formation due",
-        "body": "Votre certification pour {{moduleTitle}} a expiré. Veuillez refaire la formation."
       },
       "member_invite": {
         "title": "Vous avez été invité à rejoindre {{businessName}}",
@@ -5096,9 +5159,65 @@
       "logbookLabel": "Note de poste",
       "logbookPlaceholder": "Que doit savoir le prochain poste ?",
       "addLogbookEntry": "Ajouter une entrée",
-      "logbookAdded": "Entrée ajoutée"
+      "logbookAdded": "Entrée ajoutée",
+      "scheduleCount": "{{count}} services",
+      "showAll": "Afficher les {{count}} services",
+      "showFewer": "Afficher moins"
     },
-    "merchant": { "timezone": "Fuseau horaire", "timezoneHint": "Utilisé pour les heures d'ouverture, les numéros de file quotidiens et les rapports.", "taxRuleCategory": "Catégorie de taxe (facultatif)", "prepAutoExtendMax": "Plafond extension auto (min)", "prepAutoExtendThreshold": "Extension auto dès (commandes)", "prepAutoExtendPerOrder": "Extension auto par commande (min)", "prepAutoExtendHint": "Allonge automatiquement le temps de préparation estimé quand les commandes en cours dépassent le seuil.", "locationEdit": "Modifier", "locationSaveChanges": "Enregistrer les modifications", "locationStatus": "Statut", "locationActive": "Actif", "locationPaused": "En pause", "locationClosed": "Fermé", "locationUpdated": "Établissement mis à jour", "locationMakePrimary": "Définir comme établissement principal", "locationName": "Nom de l'établissement", "addLocation": "Ajouter un établissement", "locationCreated": "Établissement ajouté", "locationError": "Impossible d'enregistrer l'établissement", "findCoordinates": "Trouver les coordonnées", "locationGeocodeEmpty": "Coordonnées introuvables pour cet établissement", "locationGeocoded": "Coordonnées trouvées", "locationGeocodeError": "Impossible de trouver les coordonnées", "addHoursRange": "Ajouter une plage", "removeHoursRange": "Supprimer la plage", "hoursRangeLabel": "Plage {{number}}", "specialDatesTitle": "Dates spéciales", "specialDatesHint": "Remplacez les horaires hebdomadaires pour une date donnée, y compris les jours fériés et fermetures ponctuelles.", "specialDate": "Date", "specialDateClosed": "Fermé toute la journée", "specialDateRemove": "Supprimer la date", "specialDateAdd": "Ajouter une date spéciale", "specialDateDuplicate": "Chaque date spéciale ne peut être indiquée qu’une seule fois.", "tab": { "myshift": "Mon poste" } },
+    "merchant": {
+      "timezone": "Fuseau horaire",
+      "timezoneHint": "Utilisé pour les heures d'ouverture, les numéros de file quotidiens et les rapports.",
+      "taxRuleCategory": "Catégorie de taxe (facultatif)",
+      "prepAutoExtendMax": "Plafond extension auto (min)",
+      "prepAutoExtendThreshold": "Extension auto dès (commandes)",
+      "prepAutoExtendPerOrder": "Extension auto par commande (min)",
+      "prepAutoExtendHint": "Allonge automatiquement le temps de préparation estimé quand les commandes en cours dépassent le seuil.",
+      "locationEdit": "Modifier",
+      "locationSaveChanges": "Enregistrer les modifications",
+      "locationStatus": "Statut",
+      "locationActive": "Actif",
+      "locationPaused": "En pause",
+      "locationClosed": "Fermé",
+      "locationUpdated": "Établissement mis à jour",
+      "locationMakePrimary": "Définir comme établissement principal",
+      "locationName": "Nom de l'établissement",
+      "addLocation": "Ajouter un établissement",
+      "locationCreated": "Établissement ajouté",
+      "locationError": "Impossible d'enregistrer l'établissement",
+      "findCoordinates": "Trouver les coordonnées",
+      "locationGeocodeEmpty": "Coordonnées introuvables pour cet établissement",
+      "locationGeocoded": "Coordonnées trouvées",
+      "locationGeocodeError": "Impossible de trouver les coordonnées",
+      "addHoursRange": "Ajouter une plage",
+      "removeHoursRange": "Supprimer la plage",
+      "hoursRangeLabel": "Plage {{number}}",
+      "specialDatesTitle": "Dates spéciales",
+      "specialDatesHint": "Remplacez les horaires hebdomadaires pour une date donnée, y compris les jours fériés et fermetures ponctuelles.",
+      "specialDate": "Date",
+      "specialDateClosed": "Fermé toute la journée",
+      "specialDateRemove": "Supprimer la date",
+      "specialDateAdd": "Ajouter une date spéciale",
+      "specialDateDuplicate": "Chaque date spéciale ne peut être indiquée qu’une seule fois.",
+      "tab": {
+        "myshift": "Mon poste"
+      },
+      "orderCenter": {
+        "cancelConfirm": "Annuler la commande {{order}} ({{amount}}) ? Annuler une commande payée par carte déclenche un remboursement au client.",
+        "markPaidConfirm": "Marquer la commande {{order}} comme payée pour {{amount}} ? Cela enregistre que le montant total dû a été reçu."
+      },
+      "payouts": {
+        "historyShowing": "Affichage de {{from}} à {{to}} sur {{total}}",
+        "historyPrevious": "Précédent",
+        "historyNext": "Suivant",
+        "requestConfirm": "Demander un versement de {{amount}} ? La demande entre dans la file de révision de l'administrateur; elle ne déplace pas d'argent immédiatement."
+      },
+      "stChipVerified": "Vérifié",
+      "stChipUnverified": "Non vérifié",
+      "suspendedNotice": "Ce restaurant est suspendu. Les commandes sont désactivées jusqu'à sa réactivation.",
+      "posShiftCloseError": "Impossible de clôturer le service de caisse.",
+      "csvFailedSummary": "{{count}} lignes en échec : {{rows}}",
+      "csvImportedPartial": "{{count}} articles importés et publiés.{{failed}}{{skipped}}{{truncated}}"
+    },
     "creditCenter": {
       "recentFallback": "Récemment",
       "oxsteedCustomer": "Client OxSteed",
@@ -5260,7 +5379,17 @@
       "unlock": "Déverrouiller",
       "offlineCashSaved": "Paiement en espèces enregistré. Il sera rejoué automatiquement au retour de la connexion.",
       "offlineCashReplayed": "Paiement en espèces rejoué.",
-      "offlineCashReplayWaiting": "Le paiement en espèces attend toujours sa relance. Gardez ce POS ouvert et vérifiez le service."
+      "offlineCashReplayWaiting": "Le paiement en espèces attend toujours sa relance. Gardez ce POS ouvert et vérifiez le service.",
+      "closeShift": "Clôturer le service",
+      "closeShiftTitle": "Clôturer le service n° {{id}}",
+      "closeShiftHint": "Comptez les espèces dans le tiroir-caisse et saisissez le montant ci-dessous. La clôture est définitive.",
+      "openingCash": "Fonds de caisse initial : {{amount}}",
+      "shiftPayments": "Paiements encaissés : {{amount}}",
+      "closingCash": "Espèces finales",
+      "shiftClosed": "Service clôturé",
+      "closeSummary": "Attendu {{expected}}, compté {{counted}}, écart {{variance}}.",
+      "closePaidOrders": "{{count}} commandes payées",
+      "multipleOpenShifts": "{{count}} services sont ouverts. Les commandes utilisent le premier service affiché. Clôturez les services supplémentaires avant de prendre de nouvelles commandes."
     },
     "restaurant": {
       "promoErrors": {
@@ -5277,7 +5406,36 @@
         "promo_not_fundable": "Ce code promo ne peut pas être appliqué à cette commande.",
         "promo_changed": "La remise promo a changé. Vérifiez votre commande et réessayez."
       },
-      "promoApplied": "Code promo appliqué : −{{amount}}"
+      "promoApplied": "Code promo appliqué : −{{amount}}",
+      "removeItem": "Retirer {{item}} du panier",
+      "checkoutTotalLoading": "Calcul du total…",
+      "reorderReplaceConfirm": "Remplacer votre panier actuel par cette ancienne commande ?",
+      "reorderDropped": "Certaines personnalisations ne sont plus disponibles et ont été omises : {{items}}",
+      "deliveryCity": "Ville",
+      "deliveryCityPlaceholder": "Ville",
+      "deliveryState": "État / Province",
+      "deliveryStatePlaceholder": "État / Province",
+      "deliveryZip": "Code postal",
+      "deliveryZipPlaceholder": "Code postal",
+      "deliveryInstructions": "Instructions de livraison",
+      "deliveryInstructionsPlaceholder": "Code d'accès, stationnement ou notes de dépôt",
+      "guestCheckoutNote": "Vous pouvez commander en tant qu'invité. Connectez-vous pour retrouver cette commande dans votre historique et gagner des points de fidélité.",
+      "guestName": "Votre nom",
+      "guestNamePlaceholder": "Nom complet",
+      "guestPhone": "Téléphone",
+      "guestPhonePlaceholder": "Numéro de téléphone",
+      "guestEmail": "Courriel",
+      "guestEmailPlaceholder": "Adresse courriel",
+      "guestNameRequired": "Veuillez entrer votre nom pour une commande à emporter en tant qu'invité.",
+      "guestContactRequired": "Veuillez fournir un numéro de téléphone ou un courriel pour les mises à jour de la commande.",
+      "guestPaymentUnavailable": "Ce mode de paiement exige une connexion. Choisissez le paiement au restaurant ou le crédit invité, ou connectez-vous.",
+      "quoteLoading": "Calcul de votre total en cours…",
+      "trackOrder": "Suivre la commande",
+      "reviewAfterCompleted": "Une fois votre commande terminée, vous pourrez laisser un avis depuis la page de suivi.",
+      "reviewsLoadError": "Impossible de charger les avis.",
+      "reviewsShowing": "Affichage de {{shown}} avis sur {{total}}",
+      "loadMoreReviews": "Charger plus d'avis",
+      "reviewResponse": "Réponse du restaurant : {{response}}"
     },
     "home": {
       "discovery": {
@@ -5285,8 +5443,51 @@
         "hoursLocalTime": "Les horaires sont indiqués dans le fuseau horaire de chaque restaurant.",
         "ordersPaused": "Commandes en pause",
         "onlineUnavailable": "Commande en ligne indisponible",
-        "clearLocation": "Effacer la localisation"
-      }
+        "clearLocation": "Effacer la localisation",
+        "notAcceptingOrders": "N'accepte pas de commandes",
+        "openNow": "Accepte les commandes",
+        "fulfillment": "Mode de retrait",
+        "fulfillmentAll": "Tous les modes",
+        "fulfillment_delivery": "Livraison",
+        "fulfillment_pickup": "À emporter",
+        "fulfillment_dine_in": "Sur place"
+      },
+      "externalPlaceExplore": "Trouver des restaurants OxSteed à proximité"
+    },
+    "order": {
+      "reviewDeleted": "Votre avis a été supprimé."
+    },
+    "track": {
+      "reviewDone": "Votre avis",
+      "reviewTitle": "Laisser un avis",
+      "reviewThanks": "Merci pour vos commentaires.",
+      "reviewPlaceholder": "Comment était votre commande ?",
+      "reviewSubmit": "Envoyer l'avis",
+      "reviewDelete": "Supprimer l'avis"
+    },
+    "inv": {
+      "adjType_receive": "Réception",
+      "adjType_count": "Comptage",
+      "adjType_correction": "Correction",
+      "pollError": "Impossible d'actualiser les données d'inventaire. Les dernières données enregistrées sont affichées.",
+      "showing": "Affichage de {{from}} à {{to}} sur {{total}}",
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "runner": {
+      "pollError": "Impossible d'actualiser les données du livreur. Les dernières données enregistrées sont affichées.",
+      "settlementApproveConfirm": "Approuver le règlement de la tâche {{task}} ? Espèces collectées : {{cash}}. Montant du règlement (frais plus pourboire) : {{amount}}. Approuver ne le marque pas comme payé."
+    },
+    "ownerHome": {
+      "suspendedAlert": "Ce restaurant est suspendu. Les commandes sont désactivées.",
+      "suspendedKicker": "Suspendu",
+      "suspended": "Commandes suspendues",
+      "suspendedDesc": "Ce restaurant est suspendu, les clients ne peuvent donc pas commander. Contactez l'assistance OxSteed si vous pensez qu'il s'agit d'une erreur."
+    },
+    "menuManager": {
+      "partialGroups": "{{failed}} groupes d'options sur {{total}} n'ont pas pu être enregistrés ({{firstError}}). L'article est enregistré ; enregistrez à nouveau pour réessayer les groupes manquants.",
+      "bulkPartial": "{{updated}} articles mis à jour, {{failed}} en échec : {{names}}. Les articles en échec restent sélectionnés.",
+      "bulkFailed": "{{failed}} articles en échec : {{names}}. Ils restent sélectionnés pour un nouvel essai."
     }
   },
   "growthInsights": {
@@ -5296,7 +5497,7 @@
     "scheduleHours": "Planification (heures)",
     "fieldMapping": "Correspondance des champs (JSON)",
     "runNow": "Exécuter",
-    "lastRun": "Dernière exécution",
+    "lastRun": "Dernier calcul nocturne",
     "feedLastRun": "Dernière exécution du flux",
     "categoryMapping": "Correspondance des catégories",
     "categoryPath": "Chemin de catégorie",
@@ -5312,7 +5513,7 @@
     "capsSkipped": "Ignorés par les plafonds",
     "quietHeld": "Retenus par les heures calmes",
     "noPushDevice": "Aucun appareil push",
-    "overlap": "Chevauchement",
+    "overlap": "Chevauchement avec les campagnes actives",
     "delivered": "Livrés",
     "opened": "Ouverts",
     "clicked": "Cliqués",
@@ -5433,7 +5634,6 @@
     "freshness": "Fraîcheur des données",
     "demandThrough": "Demande jusqu'au",
     "supplyThrough": "Offre jusqu'au",
-    "lastRun": "Dernier calcul nocturne",
     "anchorNote": "Les zones sont uniquement des centres de codes postaux ; aucune position exacte.",
     "snapshots": "Indicateurs gouvernés",
     "gapIndex": "Indice d'écart de demande",
@@ -5442,7 +5642,6 @@
     "reject": "Rejeter",
     "rejectReason": "Motif du rejet",
     "produce": "Générer des suggestions",
-    "overlap": "Chevauchement avec les campagnes actives",
     "shared": "membres partagés",
     "miles": "Miles entre les membres",
     "minimum": "Taille minimale du groupe",
