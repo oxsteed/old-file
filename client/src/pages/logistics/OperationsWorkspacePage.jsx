@@ -192,10 +192,10 @@ function DriverPayoutsSection() {
             {t('logistics.operations.driverPayouts.showing', { from: offset + 1, to: Math.min(offset + PAYOUT_PAGE_SIZE, total), total })}
           </p>
           <div className="lx-compact-stack lx-driver-payout-actions">
-            <button type="button" className="lx-btn-secondary" disabled={loading || offset === 0} onClick={() => setOffset(Math.max(0, offset - PAYOUT_PAGE_SIZE))}>
+            <button type="button" className="lx-btn-secondary" disabled={loading || offset === 0} onClick={() => setOffset(Math.max(0, offset - PAYOUT_PAGE_SIZE))} data-track="ui.4b5626a282.8">
               {t('logistics.operations.driverPayouts.previous')}
             </button>
-            <button type="button" className="lx-btn-secondary" disabled={loading || offset + PAYOUT_PAGE_SIZE >= total} onClick={() => setOffset(offset + PAYOUT_PAGE_SIZE)}>
+            <button type="button" className="lx-btn-secondary" disabled={loading || offset + PAYOUT_PAGE_SIZE >= total} onClick={() => setOffset(offset + PAYOUT_PAGE_SIZE)} data-track="ui.4b5626a282.9">
               {t('logistics.operations.driverPayouts.next')}
             </button>
           </div>
