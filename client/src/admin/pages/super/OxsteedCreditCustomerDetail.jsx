@@ -5,6 +5,7 @@ import adminApi from '../../../lib/adminApi';
 import i18n from '../../../i18n';
 import { formatCreditMinorUnits } from '../../../lib/creditCurrency';
 import { beginCreditRequest, invalidateCreditRequest, isCurrentCreditRequest } from './creditRequestGuards';
+import { createStableIdempotencyKeyStore } from './creditIdempotency';
 import { formatCreditDateTime } from '../../../lib/creditDateTime';
 import { localizeCreditOrderTypes, localizeCreditStatus } from '../../../lib/creditStatus';
 import { safeCreditErrorMessage } from '../../../lib/creditErrors';
@@ -72,6 +73,13 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
   const [eligibilityError, setEligibilityError] = useState('');
+  const [captureTarget, setCaptureTarget] = useState(null);
+  const [captureReason, setCaptureReason] = useState('');
+  const [captureChallenge, setCaptureChallenge] = useState(null);
+  const [captureCode, setCaptureCode] = useState('');
+  const [captureBusy, setCaptureBusy] = useState(false);
+  const [captureNotice, setCaptureNotice] = useState('');
+  const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
   const loadRequestRef = useRef(0);
   const downloadRef = useRef(null);
   const accountIdentity = `${account?.customerId || ''}:${account?.currencyCode || ''}`;
@@ -143,6 +151,76 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
       if (isCurrentCreditRequest(loadRequestRef, requestId)) setError(safeCreditErrorMessage(err, t('adminUnableLoadCustomerProfile')));
     } finally {
       if (isCurrentCreditRequest(loadRequestRef, requestId)) setLoading(false);
+    }
+  };
+
+  // Admin hold capture: the server route is a maker-checker money movement,
+  // so it needs a TOTP step-up challenge (action type pending_action_request,
+  // bound to the held amount), a reason, and an idempotency key. A 202 means
+  // the capture is queued for a second admin; any other success means it
+  // executed. The amount is always the full held amount: the server rejects
+  // a partial admin capture.
+  const startCapture = (hold) => {
+    setCaptureTarget(hold);
+    setCaptureReason('');
+    setCaptureChallenge(null);
+    setCaptureCode('');
+    setCaptureNotice('');
+    setError('');
+  };
+
+  const cancelCapture = () => {
+    setCaptureTarget(null);
+    setCaptureReason('');
+    setCaptureChallenge(null);
+    setCaptureCode('');
+  };
+
+  const requestCaptureCode = async () => {
+    if (!captureTarget || !captureReason.trim()) {
+      setError(t('adminCreditHolds.reasonRequired'));
+      return;
+    }
+    setCaptureBusy(true);
+    setError('');
+    try {
+      const response = await adminApi.post('/admin/super/oxsteed-credit/stepup-challenges', {
+        actionType: 'pending_action_request',
+        amountCents: captureTarget.amountCents,
+        currencyCode: captureTarget.currencyCode,
+      });
+      const challengeId = response.data?.challenge?.id || null;
+      if (!challengeId) throw new Error('Missing challenge');
+      setCaptureChallenge({ id: challengeId, expiresAt: response.data.challenge.expiresAt });
+      setCaptureCode('');
+      setCaptureNotice(t('adminCreditHolds.stepupIssued'));
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminCreditHolds.stepupFailed')));
+    } finally {
+      setCaptureBusy(false);
+    }
+  };
+
+  const confirmCapture = async () => {
+    if (!captureTarget || !captureChallenge || !captureCode.trim() || !captureReason.trim()) return;
+    setCaptureBusy(true);
+    setError('');
+    try {
+      const key = idempotencyKeysRef.current.get(`hold-capture:${captureTarget.id}`);
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/holds/${captureTarget.id}/capture`, {
+        amountCents: captureTarget.amountCents,
+        currencyCode: captureTarget.currencyCode,
+        reason: captureReason.trim(),
+        stepupChallengeId: captureChallenge.id,
+        stepupCode: captureCode.trim(),
+      }, { headers: { 'Idempotency-Key': key } });
+      setCaptureNotice(response.status === 202 ? t('adminCreditHolds.captureQueued') : t('adminCreditHolds.captured'));
+      cancelCapture();
+      await load();
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminCreditHolds.captureError')));
+    } finally {
+      setCaptureBusy(false);
     }
   };
 
@@ -218,7 +296,27 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
 
         <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 p-4">
           <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-400">{t('adminReservedFunds')}</p><h3 className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{t('adminHoldsAuthorizations')}</h3></div><span className="rounded-full border border-gray-300 dark:border-gray-700 px-2 py-1 text-[10px] font-semibold text-gray-500">{t('adminRecords', { count: holds.length })}</span></div>
-          <div className="mt-3 space-y-2">{!holds.length ? <p className="rounded-lg border border-dashed border-gray-200 dark:border-gray-800 px-3 py-6 text-center text-xs text-gray-600">{t('adminNoHolds')}</p> : holds.map((hold) => <div key={hold.id} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><strong className="text-sm text-gray-900 dark:text-white">{hold.restaurantName || t('adminRestaurantAuthorization')}</strong><p className="mt-1 text-xs text-gray-500">{money(hold.amountCents, hold.currencyCode)} · {t('adminExpires', { date: dateTime(hold.expiresAt, t) })}</p></div><Badge status={hold.status} /></div>{hold.referenceId && <p className="mt-2 break-all font-mono text-[10px] text-gray-700">{t('adminReference')}: {hold.referenceId}</p>}{hold.captureReason && <p className="mt-2 text-[11px] leading-4 text-sky-200">{t('adminCapturedBy', { actor: hold.captureActorType || t('adminOperator') })}: {hold.captureReason}</p>}{hold.releaseReason && <p className="mt-2 text-[11px] leading-4 text-gray-600 dark:text-gray-400">{t('adminReleasedBy', { actor: hold.releaseActorType || t('adminOperator') })}: {hold.releaseReason}</p>}</div>)}</div>
+          <div className="mt-3 space-y-2">{!holds.length ? <p className="rounded-lg border border-dashed border-gray-200 dark:border-gray-800 px-3 py-6 text-center text-xs text-gray-600">{t('adminNoHolds')}</p> : holds.map((hold) => <div key={hold.id} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><strong className="text-sm text-gray-900 dark:text-white">{hold.restaurantName || t('adminRestaurantAuthorization')}</strong><p className="mt-1 text-xs text-gray-500">{money(hold.amountCents, hold.currencyCode)} · {t('adminExpires', { date: dateTime(hold.expiresAt, t) })}</p></div><Badge status={hold.status} /></div>{hold.referenceId && <p className="mt-2 break-all font-mono text-[10px] text-gray-700">{t('adminReference')}: {hold.referenceId}</p>}{hold.captureReason && <p className="mt-2 text-[11px] leading-4 text-sky-200">{t('adminCapturedBy', { actor: hold.captureActorType || t('adminOperator') })}: {hold.captureReason}</p>}{hold.releaseReason && <p className="mt-2 text-[11px] leading-4 text-gray-600 dark:text-gray-400">{t('adminReleasedBy', { actor: hold.releaseActorType || t('adminOperator') })}: {hold.releaseReason}</p>}{hold.status === 'active' && <button type="button" onClick={() => startCapture(hold)} disabled={loading || busy || captureBusy} className="mt-2 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminCreditHolds.capture')}</button>}</div>)}</div>
+          {captureNotice && !captureTarget && <p className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-3 text-xs text-emerald-300">{captureNotice}</p>}
+          {captureTarget && <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+            <p className="text-xs font-semibold text-amber-200">{t('adminCreditHolds.captureTitle')}</p>
+            <p className="mt-1 text-[11px] leading-4 text-gray-500">{t('adminCreditHolds.captureDetail', { amount: money(captureTarget.amountCents, captureTarget.currencyCode) })}</p>
+            {!captureChallenge ? <>
+              <label className="mt-2 block"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminCreditHolds.reasonLabel')}</span><input value={captureReason} onChange={(event) => setCaptureReason(event.target.value)} placeholder={t('adminCreditHolds.reasonPlaceholder')} maxLength={500} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-600 focus:border-amber-400" /></label>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button type="button" onClick={requestCaptureCode} disabled={captureBusy || busy || !captureReason.trim()} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">{t('adminCreditHolds.requestCode')}</button>
+                <button type="button" onClick={cancelCapture} disabled={captureBusy} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('adminCreditHolds.cancel')}</button>
+              </div>
+            </> : <>
+              <p className="mt-2 text-xs text-amber-200">{t('adminCreditHolds.stepupPrompt')}</p>
+              <p className="mt-1 font-mono text-[10px] text-gray-500">{t('adminCreditHolds.challengeExpires', { date: dateTime(captureChallenge.expiresAt, t) })} · {t('adminCreditHolds.reasonLabel')}: {captureReason}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input value={captureCode} onChange={(event) => setCaptureCode(event.target.value.replace(/\D/g, '').slice(0, 12))} inputMode="numeric" placeholder={t('adminCreditHolds.codePlaceholder')} className="w-44 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 font-mono text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-600 focus:border-amber-400" />
+                <button type="button" onClick={confirmCapture} disabled={captureBusy || busy || captureCode.length < 4} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">{t('adminCreditHolds.confirmCapture')}</button>
+                <button type="button" onClick={cancelCapture} disabled={captureBusy} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('adminCreditHolds.cancel')}</button>
+              </div>
+            </>}
+          </div>}
         </div>
       </div>
 
