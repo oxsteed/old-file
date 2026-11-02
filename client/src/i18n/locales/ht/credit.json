@@ -2480,7 +2480,8 @@
     "requeueError": "Pa t kapab remete liy chwazi yo nan fil.",
     "requeued": "{{count}} liy remete nan fil.",
     "unknownDate": "Dat enkoni",
-    "notAvailable": "N/D"
+    "notAvailable": "N/D",
+    "parkedTotal": "Total ranje ki pake: {{total}}"
   },
   "adminCreditHolds": {
     "capture": "Pran",

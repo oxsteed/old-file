@@ -202,6 +202,8 @@ const OrderHistoryPage = lazyWithRetry(() => import('./pages/OrderHistoryPage'))
 const OrderDetailsPage = lazyWithRetry(() => import('./pages/OrderDetailsPage'));
 const SupportTicketDetailPage = lazyWithRetry(() => import('./pages/SupportTicketDetailPage'));
 const RestaurantSupportCasePage = lazyWithRetry(() => import('./pages/RestaurantSupportCasePage'));
+const RestaurantSupportCasesPage = lazyWithRetry(() => import('./pages/RestaurantSupportCases'));
+const RestaurantMerchantSupportPage = lazyWithRetry(() => import('./pages/RestaurantMerchantSupport'));
 const SupportEscalationPage = lazyWithRetry(() => import('./pages/SupportEscalationPage'));
 const SupportAgentPortalPage = lazyWithRetry(() => import('./pages/SupportAgentPortalPage'));
 const SupportAgentWorkspacePage = lazyWithRetry(() => import('./pages/SupportAgentWorkspacePage'));
@@ -565,7 +567,10 @@ export default function App() {
                     <Route path="/support/my-tickets/:ticketId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SupportTicketDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/support/agent" element={<Guarded><ProtectedRoute><SupportAgentPortalPage /></ProtectedRoute></Guarded>} />
                     <Route path="/support/agent/workspace" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SupportAgentWorkspacePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/restaurants/support/cases" element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantSupportCasesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/restaurants/support/cases/:caseId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantSupportCasePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/restaurants/merchant/support" element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantMerchantSupportPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/restaurants/merchant/support/cases/:caseId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantMerchantSupportPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* ── Legal / policy pages ─────────────────────────────── */}
                     <Route path="/terms"          element={<Guarded><TermsPage /></Guarded>} />

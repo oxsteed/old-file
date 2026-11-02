@@ -6,7 +6,17 @@ const svc = require('../services/webhookReceiptRecoveryService');
 exports.list = async (req, res, next) => {
   try {
     const provider = ['stripe', 'didit'].includes(req.query.provider) ? req.query.provider : null;
-    res.json({ receipts: await svc.listFailedReceipts({ provider, limit: req.query.limit }) });
+    const status = ['failed', 'processing', 'resolved'].includes(req.query.status) ? req.query.status : null;
+    const restaurantId = Number.parseInt(req.query.restaurantId || req.query.restaurant_id, 10);
+    res.json(await svc.listFailedReceipts({
+      provider,
+      limit: req.query.limit,
+      offset: req.query.offset,
+      eventType: req.query.eventType || req.query.event_type || null,
+      account: req.query.account || req.query.accountId || req.query.account_id || null,
+      status,
+      restaurantId: Number.isInteger(restaurantId) && restaurantId > 0 ? restaurantId : null,
+    }));
   } catch (err) { next(err); }
 };
 

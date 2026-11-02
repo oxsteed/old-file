@@ -13,6 +13,11 @@ const supportCtrl     = require('../controllers/supportController');
 const searchCtrl      = require('../controllers/adminSearchController');
 const permCtrl        = require('../controllers/adminPermissionController');
 const bizModCtrl      = require('../controllers/businessModerationController');
+const adminRestaurantCtrl = require('../controllers/adminRestaurantController');
+const walletCtrl = require('../controllers/foodWalletController');
+const franchiseReports = require('../controllers/restaurantReportsController');
+const payrollReports = require('../controllers/restaurantPayrollController');
+const { requireRestaurantAccess } = require('../middleware/scopeGates');
 const profileVisCtrl  = require('../controllers/profileVisibilityController');
 const profileVisApprCtrl = require('../controllers/profileVisibilityApprovalsController');
 const convAdminCtrl   = require('../controllers/conversationsAdminController');
@@ -136,6 +141,26 @@ router.put('/businesses/:id/unflag',           requireAdmin, requirePermission('
 router.put('/businesses/:id/admin-notes',      requireAdmin, requirePermission('manage_users'), bizModCtrl.updateAdminNotes);
 router.put('/businesses/:id/delete',           requireAdmin, requirePermission('manage_users'), bizModCtrl.deleteBusiness);
 
+// Track D (finding 20): admin restaurant management for food_restaurants.
+router.get('/restaurants',                      requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.listRestaurants);
+router.get('/restaurants/:id',                  requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.getRestaurant);
+router.post('/restaurants/:id/suspend',         requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.suspendRestaurant);
+router.post('/restaurants/:id/restore',         requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.restoreRestaurant);
+router.post('/restaurants/:id/verify',          requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.verifyRestaurant);
+
+// Track D (finding 53): admin reader over business_audit_log.
+router.get('/super/business-audit',             requireAdmin, requirePermission('view_audit_log'), adminRestaurantCtrl.listBusinessAudit);
+
+// Track D (finding 54): admin read-only roll-up over the existing merchant
+// report controllers. The scope gate resolves platform-admin access (audited)
+// so the merchant handlers run unchanged and return the same numbers a
+// merchant sees, which is what lets an admin verify merchant-reported figures.
+router.get('/super/restaurants/:restaurantId/reports/sales', requireAdmin, requirePermission('view_financials'), requireRestaurantAccess(), franchiseReports.salesSummary);
+router.get('/super/restaurants/:restaurantId/reports/inventory', requireAdmin, requirePermission('view_financials'), requireRestaurantAccess(), franchiseReports.inventorySummary);
+router.get('/super/restaurants/:restaurantId/reports/operations', requireAdmin, requirePermission('view_financials'), requireRestaurantAccess(), franchiseReports.operationsSummary);
+router.get('/super/restaurants/:restaurantId/reports/loyalty', requireAdmin, requirePermission('view_financials'), requireRestaurantAccess(), franchiseReports.loyaltySummary);
+router.get('/super/restaurants/:restaurantId/reports/labor', requireAdmin, requirePermission('view_financials'), requireRestaurantAccess(), payrollReports.laborSummary);
+
 // ── Public profile visibility (admin override) ─────────────────────────────
 // Sticky hide/restore for helper, business, and restaurant public profiles.
 // The override survives owner self-toggles of is_listed/discovery_status.
@@ -227,8 +252,7 @@ router.post('/super/webhook-receipts/:id/resolve', requireSuperAdmin, webhookRec
 router.get('/super/chargebacks', requireSuperAdmin, async (req, res, next) => {
   try {
     const svc = require('../services/chargebackEvidenceService');
-    const chargebacks = await svc.listChargebacks({ open: req.query.all !== 'true', limit: req.query.limit });
-    res.json({ chargebacks });
+    res.json(await svc.listChargebacks({ open: req.query.all !== 'true', limit: req.query.limit, offset: req.query.offset }));
   } catch (err) { next(err); }
 });
 router.post('/super/chargebacks/:id/submit', requireSuperAdmin, async (req, res, next) => {
@@ -545,6 +569,14 @@ router.get('/super/oxsteed-credit/accounts/:customerId/documents', requireSuperA
 router.get('/super/oxsteed-credit/accounts/:customerId/documents.pdf', requireSuperAdmin, creditExportLimiter, statementController.handler('oxsteed', 'pdf', true));
 router.get('/super/oxsteed-credit/accounts/:customerId/documents.csv', requireSuperAdmin, creditExportLimiter, statementController.handler('oxsteed', 'csv', true));
 router.get('/super/restaurant-credit/accounts/:customerId/:restaurantId/statements.pdf', requireSuperAdmin, noStoreCreditResponse, creditExportLimiter, statementController.handler('restaurant', 'pdf', true));
+// Track D (finding 27): CSV statement alongside the PDF-only admin route,
+// reusing the same statement handler the OxSteed-credit CSV route uses.
+router.get('/super/restaurant-credit/accounts/:customerId/:restaurantId/statements.csv', requireSuperAdmin, noStoreCreditResponse, creditExportLimiter, statementController.handler('restaurant', 'csv', true));
+// Track D (finding 27): admin integrity/reconciliation reads reusing the
+// existing merchant handlers. The scope gate resolves platform-admin access
+// (audited) so the handlers run unchanged for an admin caller.
+router.get('/super/restaurant-credit/restaurants/:restaurantId/integrity', requireSuperAdmin, requireRestaurantAccess(), walletCtrl.verifyCustomerWalletIntegrity);
+router.get('/super/restaurant-credit/restaurants/:restaurantId/reconciliation', requireSuperAdmin, requireRestaurantAccess(), walletCtrl.getCustomerWalletReconciliation);
 router.get('/super/oxsteed-credit/accounts/:customerId', requireSuperAdmin, oxsteedCreditCtrl.getAdminCustomerAccount);
 router.get('/super/oxsteed-credit/transactions', requireSuperAdmin, oxsteedCreditCtrl.listAdminTransactions);
 router.get('/super/oxsteed-credit/transactions.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminTransactions);
@@ -666,7 +698,7 @@ router.post('/super/oxsteed-credit/pending-actions/:id/decision', requireSuperAd
 router.get('/super/oxsteed-credit/backfill/parked', requireSuperAdmin, async (req, res, next) => {
   try {
     const { listParkedDualPostingBackfill } = require('../services/oxsteedCreditSubBankService');
-    res.json({ rows: await listParkedDualPostingBackfill(require('../db'), { limit: req.query.limit }) });
+    res.json(await listParkedDualPostingBackfill(require('../db'), { limit: req.query.limit }));
   } catch (err) { next(err); }
 });
 router.post('/super/oxsteed-credit/backfill/requeue', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {

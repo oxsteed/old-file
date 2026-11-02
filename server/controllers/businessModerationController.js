@@ -1,6 +1,7 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
+const { suspendRestaurantsForBusiness } = require('../services/restaurantTombstoneService');
 const { parseBoundedPagination } = require('../utils/pagination');
 
 // ADM-225: all paginated list endpoints clamp ?limit= server-side (max 100)
@@ -107,19 +108,36 @@ exports.toggleBusiness = async (req, res) => {
       return res.status(409).json({ error: 'Business state changed during update. Please try again.' });
     }
 
+    // Track D (finding 20): deactivating a business must not leave its
+    // restaurants live while deleting suspends them. Deactivation now
+    // suspends the business's active/paused restaurants through the same
+    // tombstone path delete uses. Reactivation deliberately does NOT
+    // restore them: a suspended restaurant stays suspended until its owner
+    // explicitly re-activates it, so nothing silently re-lists.
+    let restaurantsSuspended = [];
+    if (!newActive) {
+      restaurantsSuspended = await suspendRestaurantsForBusiness(db, id);
+    }
+
     try {
       await logAdminAction({
         adminId: req.user.id,
         action: newActive ? 'business_reactivated' : 'business_deactivated',
         targetType: 'business', targetId: String(id),
-        before: { is_active: rows[0].is_active }, after: { is_active: newActive },
+        before: { is_active: rows[0].is_active }, after: { is_active: newActive, restaurantsSuspended: restaurantsSuspended.length },
         description: reason || null, req,
       });
     } catch (e) {
       logger.error('business moderation audit failed', { action: 'business_reactivated_or_deactivated', businessId: id, error: e.message });
       return res.status(503).json({ error: 'Business updated, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
     }
-    res.json({ message: `Business ${newActive ? 'reactivated' : 'deactivated'}.`, is_active: newActive });
+    res.json({
+      message: `Business ${newActive ? 'reactivated' : 'deactivated'}.`,
+      is_active: newActive,
+      restaurantsSuspended: restaurantsSuspended.length,
+      restaurantsSuspendedIds: restaurantsSuspended,
+      restaurantsStaySuspendedOnReactivate: true,
+    });
   } catch (err) {
     logger.error('toggleBusiness error', { err, businessId: req.params?.id, adminId: req.user?.id });
     res.status(500).json({ error: 'Failed to update business.' });

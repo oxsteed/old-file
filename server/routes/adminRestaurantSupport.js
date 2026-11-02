@@ -9,6 +9,7 @@ router.use(requireAdmin, requirePermission('manage_support'));
 
 router.get('/cases', ctrl.adminListCases);
 router.get('/cases/:caseId', ctrl.adminGetCase);
+router.post('/cases/:caseId/messages', ctrl.adminAddMessage);
 router.post('/cases/:caseId/assign', ctrl.adminAssign);
 router.post('/cases/:caseId/escalate', ctrl.adminEscalate);
 router.post('/cases/:caseId/deescalate', ctrl.adminDeescalate);

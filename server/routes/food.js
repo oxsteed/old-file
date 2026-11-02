@@ -14,7 +14,7 @@ const fundingCtrl = require('../controllers/restaurantCreditFundingController');
 const statementController = require('../controllers/creditStatementController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { creditExportLimiter, creditPurchaseLimiter, paymentsLimiter, restaurantCreditMutationLimiter, profileChatLimiter, foodCheckoutCompleteLimiter, generalLimiter } = require('../middleware/rateLimiter');
 const checkRestrictions = require('../middleware/checkRestrictions');
 // Kitchen-display device auth for the order status route: a paired kitchen
@@ -103,8 +103,8 @@ router.get('/customer/wallets/:restaurantId/disputes', scopeExempt('customer-sel
 // Phase 3 restaurant-credit fraud controls: admin-only review surface for
 // food_credit_fraud_signals. requireAdmin verifies the admin token itself,
 // the same gating used by server/routes/admin.js.
-router.get('/admin/fraud-signals', requireAdmin, walletCtrl.listFraudSignals);
-router.post('/admin/fraud-signals/:id/review', requireAdmin, walletCtrl.reviewFraudSignal);
+router.get('/admin/fraud-signals', requireAdmin, requirePermission('view_financials'), walletCtrl.listFraudSignals);
+router.post('/admin/fraud-signals/:id/review', requireAdmin, requirePermission('manage_financials'), walletCtrl.reviewFraudSignal);
 // Phase 6 (restaurant credit protection): platform credit-approval per
 // restaurant. requireAdmin verifies the admin token itself, the same gating
 // used by server/routes/admin.js. Revoking starts the 30-day grace clock;

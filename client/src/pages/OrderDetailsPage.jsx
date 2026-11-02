@@ -666,6 +666,11 @@ function OrderDetailsPageContent() {
                   className="order-help-textarea"
                 />
                 <div className="order-help-actions">
+                  {isFoodOrder && order && (
+                    <button type="button" className="orders-btn" onClick={() => navigate(`/restaurants/support/cases?orderId=${order.id}`)} data-track="ui.74ee342991.15">
+                      {t('restaurantSupport.openCase')}
+                    </button>
+                  )}
                   <button type="button" className="orders-btn" onClick={() => setHelpOpen(false)} data-track="ui.74ee342991.13">
                     {t('common.cancel')}
                   </button>

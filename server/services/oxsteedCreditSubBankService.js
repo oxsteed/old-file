@@ -585,18 +585,25 @@ async function replayDualPostingBackfill(pool, { limit = 100 } = {}) {
 }
 
 /** Review P1-249: operator view of rows parked as 'failed'. */
+// Track D (finding 51): the parked list returns its total so an operator
+// can tell whether the loaded page is the whole failed set.
 async function listParkedDualPostingBackfill(pool, { limit = 100 } = {}) {
   const bound = Math.min(500, Math.max(1, Number(limit) || 100));
-  const { rows } = await pool.query(
-    `SELECT id, ledger_entry_id, restaurant_id, entry_type, reference_type, amount_cents,
-            currency_code, attempts, last_error, created_at
-       FROM credit_dual_posting_backfill
-      WHERE status = 'failed'
-      ORDER BY created_at ASC
-      LIMIT $1`,
-    [bound]
-  );
-  return rows;
+  const [{ rows: countRows }, { rows }] = await Promise.all([
+    pool.query(
+      `SELECT COUNT(*)::int AS total FROM credit_dual_posting_backfill WHERE status = 'failed'`
+    ),
+    pool.query(
+      `SELECT id, ledger_entry_id, restaurant_id, entry_type, reference_type, amount_cents,
+              currency_code, attempts, last_error, created_at
+         FROM credit_dual_posting_backfill
+        WHERE status = 'failed'
+        ORDER BY created_at ASC
+        LIMIT $1`,
+      [bound]
+    ),
+  ]);
+  return { rows, total: countRows[0]?.total || 0 };
 }
 
 /** Review P1-249: put parked rows back in the queue with fresh attempts. */

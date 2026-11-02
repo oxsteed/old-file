@@ -4,6 +4,7 @@ import adminApi from '../../../lib/adminApi';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
 import ConfirmDialog from '../../lib/ConfirmDialog';
+import RsdPager from '../../lib/RsdPager';
 import { adminDateTime, adminMoney } from '../../lib/formatters';
 
 // Stripe chargebacks (super-admin only). The list endpoint returns open
@@ -23,6 +24,7 @@ function serverErrorMessage(err, fallback) {
 export default function Chargebacks() {
   const { t } = useTranslation();
   const [showAll, setShowAll] = useState(false);
+  const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState(null);
   const [note, setNote] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -33,12 +35,14 @@ export default function Chargebacks() {
   const { data, loading, error: loadError, reload } = useAbortableFetch(async (signal) => {
     const { data: body } = await adminApi.get('/admin/super/chargebacks', {
       signal,
-      params: { ...(showAll ? { all: 'true' } : {}), limit: PAGE_LIMIT },
+      timeout: 15000,
+      params: { ...(showAll ? { all: 'true' } : {}), limit: PAGE_LIMIT, offset },
     });
-    return { chargebacks: body?.chargebacks || [] };
-  }, [showAll]);
+    return { chargebacks: body?.chargebacks || [], total: body?.total ?? 0 };
+  }, [showAll, offset]);
 
   const chargebacks = data?.chargebacks || [];
+  const total = data?.total ?? 0;
 
   const startSubmit = (chargeback) => {
     setSelected(chargeback);
@@ -80,14 +84,14 @@ export default function Chargebacks() {
       <div className="flex gap-2 mb-4 flex-wrap">
         <button
           type="button"
-          onClick={() => { setShowAll(false); setSelected(null); }}
+          onClick={() => { setShowAll(false); setOffset(0); setSelected(null); }}
           className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${!showAll ? 'bg-orange-500 text-white' : 'bg-slate-800 text-gray-300 hover:bg-slate-700'}`}
         >
           {t('adminChargebacks.showOpen')}
         </button>
         <button
           type="button"
-          onClick={() => { setShowAll(true); setSelected(null); }}
+          onClick={() => { setShowAll(true); setOffset(0); setSelected(null); }}
           className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${showAll ? 'bg-orange-500 text-white' : 'bg-slate-800 text-gray-300 hover:bg-slate-700'}`}
         >
           {t('adminChargebacks.showAll')}
@@ -187,6 +191,10 @@ export default function Chargebacks() {
             );
           })}
         </div>
+      )}
+
+      {!loading && !loadError && (
+        <RsdPager offset={offset} limit={PAGE_LIMIT} total={total} onPage={setOffset} />
       )}
 
       <ConfirmDialog

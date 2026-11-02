@@ -19,6 +19,7 @@ function dateTime(value, t) {
 export default function OxsteedCreditBackfill({ busy = false }) {
   const { t } = useTranslation('credit');
   const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -32,6 +33,9 @@ export default function OxsteedCreditBackfill({ busy = false }) {
     try {
       const response = await adminApi.get('/admin/super/oxsteed-credit/backfill/parked', { params: { limit: PAGE_LIMIT } });
       setRows(response.data?.rows || []);
+      // Track D (finding 51): the parked list now returns its total, so the
+      // operator can tell whether the loaded page is the whole failed set.
+      setTotal(response.data?.total ?? 0);
       setSelected(new Set());
       setConfirmMode(null);
     } catch (err) {
@@ -99,6 +103,7 @@ export default function OxsteedCreditBackfill({ busy = false }) {
         <button type="button" onClick={() => setConfirmMode('selected')} disabled={loading || saving || busy || selected.size === 0} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"><RotateCcw className="h-3.5 w-3.5" />{t('adminCreditBackfill.requeueSelected', { count: selected.size })}</button>
         <button type="button" onClick={() => setConfirmMode('all')} disabled={loading || saving || busy || rows.length === 0} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><RotateCcw className="h-3.5 w-3.5" />{t('adminCreditBackfill.requeueAll')}</button>
         <span className="text-xs text-gray-500">{t('adminCreditBackfill.selectedCount', { selected: selected.size, total: rows.length })}</span>
+        <span className="text-xs text-gray-500">{t('adminCreditBackfill.parkedTotal', { total })}</span>
       </div>
 
       {confirmMode && <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">

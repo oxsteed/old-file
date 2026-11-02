@@ -11,6 +11,7 @@ async function caseFilter(restaurant,userId,params,alias='rsc') {
  return ` AND EXISTS(SELECT 1 FROM food_orders scope_order WHERE scope_order.id=${alias}.order_id AND scope_order.restaurant_id=${alias}.restaurant_id AND scope_order.location_id=ANY($${params.length}::bigint[]))`;
 }
 const permissionsService = require('../services/permissionsService');
+const { logAdminAction } = require('../services/auditService');
 const { withTransaction } = require('../utils/transaction');
 const { processExternalRefund } = require('../services/externalRefundService');
 const { uploadFile, getSignedDownloadUrl, deleteFile, extractKeyFromStoredUrl } = require('../utils/storage');
@@ -584,18 +585,35 @@ exports.createCase = async (req, res, next) => {
   }
 };
 
+// Track D (finding 52): every support list paginates with a real total so a
+// queue can never silently truncate. limit defaults to 50, caps at 100.
+function parseSupportPagination(req) {
+  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 100);
+  const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+  return { limit, offset };
+}
+
 exports.listMyCases = async (req, res, next) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT rsc.*, fr.display_name AS restaurant_name
-         FROM restaurant_support_cases rsc
-         JOIN food_restaurants fr ON fr.id = rsc.restaurant_id
-        WHERE rsc.customer_user_id = $1 AND rsc.archived_at IS NULL
-        ORDER BY rsc.created_at DESC, rsc.id DESC
-        LIMIT 100`,
-      [req.user.id]
-    );
-    res.json({ cases: rows });
+    const { limit, offset } = parseSupportPagination(req);
+    const [{ rows: countRows }, { rows }] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS total
+           FROM restaurant_support_cases
+          WHERE customer_user_id = $1 AND archived_at IS NULL`,
+        [req.user.id]
+      ),
+      pool.query(
+        `SELECT rsc.*, fr.display_name AS restaurant_name
+           FROM restaurant_support_cases rsc
+           JOIN food_restaurants fr ON fr.id = rsc.restaurant_id
+          WHERE rsc.customer_user_id = $1 AND rsc.archived_at IS NULL
+          ORDER BY rsc.created_at DESC, rsc.id DESC
+          LIMIT $2 OFFSET $3`,
+        [req.user.id, limit, offset]
+      ),
+    ]);
+    res.json({ cases: rows, total: countRows[0]?.total || 0, limit, offset });
   } catch (err) {
     next(err);
   }
@@ -941,16 +959,25 @@ exports.listRestaurantCases = async (req, res, next) => {
       values.push(status);
       where += ` AND rsc.status = $${values.length}`;
     }
-    const { rows } = await pool.query(
-      `SELECT rsc.*, u.email AS customer_email, u.first_name AS customer_first_name, u.last_name AS customer_last_name
-         FROM restaurant_support_cases rsc
-         LEFT JOIN users u ON u.id = rsc.customer_user_id
-        WHERE ${where}
-        ORDER BY rsc.due_at ASC NULLS LAST, rsc.created_at DESC
-        LIMIT 200`,
-      values
-    );
-    res.json({ cases: rows });
+    const { limit, offset } = parseSupportPagination(req);
+    const [{ rows: countRows }, { rows }] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS total
+           FROM restaurant_support_cases rsc
+          WHERE ${where}`,
+        values
+      ),
+      pool.query(
+        `SELECT rsc.*, u.email AS customer_email, u.first_name AS customer_first_name, u.last_name AS customer_last_name
+           FROM restaurant_support_cases rsc
+           LEFT JOIN users u ON u.id = rsc.customer_user_id
+          WHERE ${where}
+          ORDER BY rsc.due_at ASC NULLS LAST, rsc.created_at DESC
+          LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+        [...values, limit, offset]
+      ),
+    ]);
+    res.json({ cases: rows, total: countRows[0]?.total || 0, limit, offset });
   } catch (err) {
     next(err);
   }
@@ -1264,17 +1291,27 @@ exports.adminListCases = async (req, res, next) => {
       values.push(restaurantId);
       where.push(`rsc.restaurant_id = $${values.length}`);
     }
-    const { rows } = await pool.query(
-      `SELECT rsc.*, fr.display_name AS restaurant_name, u.email AS customer_email
-         FROM restaurant_support_cases rsc
-         JOIN food_restaurants fr ON fr.id = rsc.restaurant_id
-         LEFT JOIN users u ON u.id = rsc.customer_user_id
-        WHERE ${where.join(' AND ')}
-        ORDER BY rsc.created_at DESC
-        LIMIT 300`,
-      values
-    );
-    res.json({ cases: rows });
+    const { limit, offset } = parseSupportPagination(req);
+    const [{ rows: countRows }, { rows }] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS total
+           FROM restaurant_support_cases rsc
+           JOIN food_restaurants fr ON fr.id = rsc.restaurant_id
+          WHERE ${where.join(' AND ')}`,
+        values
+      ),
+      pool.query(
+        `SELECT rsc.*, fr.display_name AS restaurant_name, u.email AS customer_email
+           FROM restaurant_support_cases rsc
+           JOIN food_restaurants fr ON fr.id = rsc.restaurant_id
+           LEFT JOIN users u ON u.id = rsc.customer_user_id
+          WHERE ${where.join(' AND ')}
+          ORDER BY rsc.created_at DESC
+          LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+        [...values, limit, offset]
+      ),
+    ]);
+    res.json({ cases: rows, total: countRows[0]?.total || 0, limit, offset });
   } catch (err) {
     next(err);
   }
@@ -1285,6 +1322,75 @@ exports.adminGetCase = async (req, res, next) => {
     const supportCase = await loadCase(pool, parsePositiveInt(req.params.caseId));
     if (!supportCase) throw new AppError('Support case not found', 404, 'case_not_found');
     res.json(await getCaseDetails(pool, supportCase, 'admin'));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Track D (finding 19): admin reply to an OxSteed-owned case. Reuses
+// addMessage with sender type 'oxsteed', exactly like the customer and
+// restaurant reply paths. A reply reopens the customer side of the
+// conversation (status to awaiting_customer) unless the case is already
+// resolved, closed, or canceled, and is recorded in the case events plus
+// the admin audit log (targetKey, since case ids are integers, not UUIDs).
+exports.adminAddMessage = async (req, res, next) => {
+  try {
+    const caseId = parsePositiveInt(req.params.caseId);
+    const message = normalizeString(req.body.message || req.body.content, 5000);
+    if (!message) throw new AppError('Validation failed', 400, 'validation_failed', { message: 'Message is required' });
+    const clientMessageId = req.get('Idempotency-Key')
+      || req.body.clientMessageId
+      || req.body.client_message_id
+      || null;
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      throw new AppError('clientMessageId must be a valid UUID', 400, 'validation_failed');
+    }
+    const result = await withTransaction(pool, async (client) => {
+      const supportCase = await loadCase(client, caseId);
+      if (!supportCase) throw new AppError('Support case not found', 404, 'case_not_found');
+      const messageResult = await addMessage(client, supportCase, {
+        senderUserId: req.user.id,
+        senderType: 'oxsteed',
+        message,
+        language: normalizeLanguage(req.body.language),
+        clientMessageId,
+        returnReplay: true,
+      });
+      if (messageResult.replayed) return { message: messageResult.row, replayed: true };
+      const row = messageResult.row;
+      let updated = supportCase;
+      if (!['resolved', 'closed', 'canceled'].includes(supportCase.status)) {
+        const { rows: [next] } = await client.query(
+          `UPDATE restaurant_support_cases
+              SET status = 'awaiting_customer',
+                  first_response_at = COALESCE(first_response_at, NOW())
+            WHERE id = $1
+            RETURNING *`,
+          [supportCase.id]
+        );
+        updated = next;
+      }
+      await logEvent(client, supportCase.id, {
+        actorUserId: req.user.id,
+        actorType: 'oxsteed',
+        eventType: 'oxsteed_replied',
+        metadata: { messageId: row.id },
+      });
+      await enqueueNotification(client, supportCase.id, 'customer', 'oxsteed_replied', { messageId: row.id }, supportCase.customer_user_id);
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'restaurant_support_admin_reply',
+        targetType: 'restaurant_support_case',
+        targetKey: `restaurant-support-case:${supportCase.id}`,
+        description: `OxSteed reply on support case ${supportCase.public_case_number || supportCase.id}`,
+        after: { caseId: supportCase.id, messageId: row.id },
+        req,
+        client,
+        throwOnError: true,
+      });
+      return { updated, message: row, replayed: false };
+    }, 'restaurant_support_admin_reply');
+    res.json({ case: result.updated || null, message: result.message });
   } catch (err) {
     next(err);
   }
