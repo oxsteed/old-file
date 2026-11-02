@@ -134,6 +134,8 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/super/payouts',
   '/admin/super/restaurant-payouts',
   '/admin/super/affiliate-payouts',
+  '/admin/super/payment-disputes',
+  '/admin/super/chargebacks',
   '/admin/super/treasury',
   '/admin/super/reconciliation-exceptions',
   '/admin/super/conversations',
