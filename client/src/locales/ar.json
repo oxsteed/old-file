@@ -29800,6 +29800,7 @@
     "oxsteedCredit": "رصيد أوكسيد",
     "payments": "المدفوعات",
     "affiliatePayouts": "مدفوعات الشركاء",
+    "adminSubscriptions": "الاشتراكات",
     "payouts": "المدفوعات",
     "permissions": "الأذونات",
     "plannedNeeds": "الاحتياجات المخططة",
@@ -35876,6 +35877,29 @@
       "failed": "فاشلة",
       "reversed": "معكوسة"
     }
+  },
+  "adminSubscriptions": {
+    "title": "الاشتراكات",
+    "subtitle": "ألغِ اشتراكًا بصفتك مشرفًا عامًا. ينهي الإلغاء اشتراكات الرصيد فورًا، ويلغي اشتراكات Stripe لدى Stripe أولًا.",
+    "noListNote": "لا توجد نقطة نهاية لقائمة الاشتراكات للمسؤولين، لذا أدخل معرّف الاشتراك من سجلات الدعم. إجراء الإلغاء فقط متاح هنا.",
+    "idLabel": "معرّف الاشتراك",
+    "idPlaceholder": "أدخل معرّف الاشتراك",
+    "idRequired": "معرّف الاشتراك مطلوب.",
+    "reviewButton": "مراجعة الإلغاء",
+    "confirmTitle": "إلغاء هذا الاشتراك؟",
+    "confirmMessage": "إلغاء الاشتراك {{id}}؟ هذا ينهيه فورًا ولا يمكن التراجع عنه من هذه الصفحة.",
+    "confirmLabel": "إلغاء الاشتراك",
+    "cancelLabel": "الاحتفاظ بالاشتراك",
+    "reasonLabel": "السبب (مطلوب لسجل التدقيق)",
+    "reasonPlaceholder": "لماذا يُلغى هذا الاشتراك؟",
+    "cancelledNotice": "تم إلغاء الاشتراك.",
+    "alreadyCancelledNotice": "كان هذا الاشتراك ملغيًا بالفعل.",
+    "failed": "تعذّر إلغاء الاشتراك.",
+    "resultTitle": "الاشتراك بعد الإلغاء",
+    "resultId": "المعرّف:",
+    "resultUser": "المستخدم:",
+    "resultStatus": "الحالة:",
+    "resultPaymentMethod": "طريقة الدفع:"
   },
   "statementOps": {
     "title": "عمليات الكشوفات",

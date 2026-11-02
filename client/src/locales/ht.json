@@ -29785,6 +29785,7 @@
     "oxsteedCredit": "Kredi OxSteed",
     "payments": "Peman",
     "affiliatePayouts": "Peman afilye",
+    "adminSubscriptions": "Abònman",
     "payouts": "Peman",
     "permissions": "Pèmisyon",
     "plannedNeeds": "Bezwen planifye",
@@ -35858,6 +35859,29 @@
       "failed": "Echwe",
       "reversed": "Ranvèse"
     }
+  },
+  "adminSubscriptions": {
+    "title": "Abònman",
+    "subtitle": "Anile yon abònman kòm yon super administratè. Anilasyon an fini abònman kredi yo imedyatman epi anile abònman Stripe yo nan Stripe anvan.",
+    "noListNote": "Pa gen yon endpoint lis abònman pou administratè, kidonk antre id abònman an apati dosye sipò yo. Se sèlman aksyon anile a ki disponib la a.",
+    "idLabel": "Id abònman",
+    "idPlaceholder": "Antre id abònman an",
+    "idRequired": "Yon id abònman obligatwa.",
+    "reviewButton": "Revize anilasyon an",
+    "confirmTitle": "Anile abònman sa a?",
+    "confirmMessage": "Anile abònman {{id}}? Sa fini li imedyatman epi ou pa ka defèt li apati paj sa a.",
+    "confirmLabel": "Anile abònman",
+    "cancelLabel": "Kenbe abònman an",
+    "reasonLabel": "Rezon (obligatwa pou dosye odit la)",
+    "reasonPlaceholder": "Poukisa abònman sa a ap anile?",
+    "cancelledNotice": "Abònman an anile.",
+    "alreadyCancelledNotice": "Abònman sa a te deja anile.",
+    "failed": "Pa t ka anile abònman an.",
+    "resultTitle": "Abònman apre anilasyon an",
+    "resultId": "Id:",
+    "resultUser": "Itilizatè:",
+    "resultStatus": "Estati:",
+    "resultPaymentMethod": "Metòd peman:"
   },
   "statementOps": {
     "title": "Operasyon relve yo",
