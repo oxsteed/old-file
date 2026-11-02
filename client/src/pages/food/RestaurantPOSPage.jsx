@@ -1004,7 +1004,7 @@ export default function RestaurantPOSPage() {
               e.preventDefault();
               setCloseResult(null);
             }
-          }}
+          }} data-track="ui.c952aceb7c.22"
         >
           <div className="fd-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <h3>{t('food.pos.shiftClosed')}</h3>
@@ -1037,7 +1037,7 @@ export default function RestaurantPOSPage() {
               e.preventDefault();
               setShowCloseShift(false);
             }
-          }}
+          }} data-track="ui.c952aceb7c.23"
         >
           <div className="fd-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <h3>{t('food.pos.closeShiftTitle', { id: activeShift.id })}</h3>
