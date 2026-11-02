@@ -108,6 +108,12 @@ export const createOxsteedCreditTransfer = (payload, idempotencyKey) =>
     headers: { 'Idempotency-Key': idempotencyKey },
   }).then((response) => response.data);
 
+// Transfer recipient lookup (admin-ops audit item 4): resolves a pasted
+// customer id to a display name for the review panel. Returns the name
+// only, never an email address.
+export const getOxsteedCreditTransferRecipient = (customerId) =>
+  api.get(`/oxsteed-credit/transfer-recipients/${encodeURIComponent(customerId)}`).then((response) => response.data?.recipient || null);
+
 export const createOxsteedCreditRestaurantConversion = (payload, idempotencyKey) =>
   api.post('/oxsteed-credit/restaurant-conversions', payload, {
     headers: { 'Idempotency-Key': idempotencyKey },

@@ -35645,7 +35645,13 @@
       "clawbackDone": "Clawed back {{amount}} {{currency}}.",
       "clawbackDonePlain": "Top-up clawed back.",
       "clawbackQueued": "Clawback queued for second-admin approval. No funds have moved yet.",
-      "clawbackFailed": "The clawback failed. Please check the top-up ID and try again."
+      "clawbackFailed": "The clawback failed. Please check the top-up ID and try again.",
+      "clawbackPreviewButton": "Preview top-up",
+      "clawbackPreviewLoading": "Loading top-up preview...",
+      "clawbackPreviewHint": "Preview the top-up before confirming. Confirm stays disabled until the amount, restaurant, and status load for this ID.",
+      "clawbackPreviewAmount": "Amount: {{amount}} {{currency}}",
+      "clawbackPreviewRestaurant": "Restaurant: {{restaurant}}",
+      "clawbackPreviewStatus": "Status: {{status}}"
     }
   },
   "featuredPlacements": {

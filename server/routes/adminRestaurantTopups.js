@@ -24,6 +24,10 @@ const { requireAdminActionStepup, issueAdminActionStepup, resolveClawbackAmountC
 const moneyGate = requireSuperAdminOrPermission('manage_financials');
 
 router.get('/applications', moneyGate, ctrl.listApplications);
+// Clawback preview lookup: read-only, same manage_financials gate. The
+// dialog must show the top-up before any step-up is issued, so this GET
+// carries no step-up, limiter, or mutation of its own.
+router.get('/topups/:topupId', moneyGate, ctrl.getTopup);
 router.post('/stepup-challenges/approve', moneyGate, strictLimiter, rejectImpersonated, issueAdminActionStepup('restaurant_topup_approve'));
 router.post('/stepup-challenges/clawback', moneyGate, strictLimiter, rejectImpersonated, issueAdminActionStepup('restaurant_topup_clawback', resolveClawbackAmountCents));
 router.post('/applications/:restaurantId/approve', moneyGate, strictLimiter, rejectImpersonated, requireAdminActionStepup('restaurant_topup_approve'), ctrl.approveApplication);

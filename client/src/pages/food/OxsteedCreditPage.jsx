@@ -38,6 +38,7 @@ import {
   getOxsteedCreditFeeQuote,
   requestOxsteedCreditWithdrawal,
   createOxsteedCreditTransfer,
+  getOxsteedCreditTransferRecipient,
   listOxsteedCreditWithdrawals,
   cancelOxsteedCreditWithdrawal,
   createOxsteedCreditRestaurantConversion,
@@ -51,6 +52,7 @@ import { formatCreditMinorUnits, getCreditMinorUnits, parseCreditMajorAmount } f
 import { formatCreditDateTime } from '../../lib/creditDateTime';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
 import { localizeCreditOrderType, localizeCreditTransactionType } from '../../lib/creditStatus';
+import { canConfirmTransfer, canEnterTransferReview, isValidTransferRecipientId } from '../../lib/transferReviewGuards';
 
 const money = formatCreditMinorUnits;
 
@@ -198,6 +200,16 @@ export default function OxsteedCreditPage() {
   const [transferCode, setTransferCode] = useState('');
   const [transferReview, setTransferReview] = useState(false);
   const [createdTransfer, setCreatedTransfer] = useState(null);
+  // Recipient resolution (audit item 4): the review panel may only show a
+  // resolved display name, never a bare pasted UUID.
+  const [transferRecipient, setTransferRecipient] = useState(null);
+  const [transferRecipientError, setTransferRecipientError] = useState('');
+  const [transferRecipientLoading, setTransferRecipientLoading] = useState(false);
+  const recipientLookupTimerRef = useRef(null);
+  // Fee-quote failure (audit item 11): a failed quote must block review
+  // and confirm, since the fee is still charged server-side on POST.
+  const [transferFeeQuoteError, setTransferFeeQuoteError] = useState('');
+  const [transferFeeQuoteLoading, setTransferFeeQuoteLoading] = useState(false);
   const transferQuoteTimerRef = useRef(null);
   const transferIdempotencyRef = useRef(null);
   const [restaurantConversionDirection, setRestaurantConversionDirection] = useState('to_restaurant');
@@ -713,21 +725,66 @@ export default function OxsteedCreditPage() {
     submitWithdrawal(null, { challengeId: withdrawalChallenge.id, code: withdrawalCode.trim() });
   };
 
-  const refreshTransferFeeQuote = (rawAmount) => {
+  const scheduleTransferRecipientLookup = (rawId) => {
+    if (recipientLookupTimerRef.current) clearTimeout(recipientLookupTimerRef.current);
+    const id = String(rawId || '').trim();
+    setTransferRecipient(null);
+    setTransferRecipientError('');
+    if (!isValidTransferRecipientId(id)) {
+      setTransferRecipientLoading(false);
+      return;
+    }
+    setTransferRecipientLoading(true);
+    recipientLookupTimerRef.current = setTimeout(async () => {
+      try {
+        const recipient = await getOxsteedCreditTransferRecipient(id);
+        if (recipient && String(recipient.customerId) === id) {
+          setTransferRecipient(recipient);
+        } else {
+          // No name came back: fail closed with the generic load message
+          // rather than guessing a recipient.
+          setTransferRecipientError(t('errorLoad'));
+        }
+      } catch (error) {
+        // Surface the server message verbatim: a not-found recipient and
+        // a failed lookup must not look alike.
+        setTransferRecipientError(error?.response?.data?.message || error?.response?.data?.error || t('errorLoad'));
+      } finally {
+        setTransferRecipientLoading(false);
+      }
+    }, 400);
+  };
+
+  const refreshTransferFeeQuote = (rawAmount, { immediate = false } = {}) => {
     if (transferQuoteTimerRef.current) clearTimeout(transferQuoteTimerRef.current);
     const amountCents = parseCreditMajorAmount(rawAmount, selectedCurrency, railStatus?.currencyMetadata);
     if (!amountCents) {
       setTransferFeeQuote(null);
+      setTransferFeeQuoteError('');
+      setTransferFeeQuoteLoading(false);
       return;
     }
-    transferQuoteTimerRef.current = setTimeout(async () => {
+    const fetchQuote = async () => {
+      // Clear any stale quote for the previous amount: the review panel
+      // must never show a fee that belongs to a different amount.
+      setTransferFeeQuote(null);
+      setTransferFeeQuoteError('');
+      setTransferFeeQuoteLoading(true);
       try {
         const quote = await getOxsteedCreditFeeQuote({ operation: 'transfer', amountCents, currencyCode: selectedCurrency });
         setTransferFeeQuote(quote);
-      } catch {
+      } catch (error) {
         setTransferFeeQuote(null);
+        setTransferFeeQuoteError(error?.response?.data?.message || error?.response?.data?.error || t('errorLoad'));
+      } finally {
+        setTransferFeeQuoteLoading(false);
       }
-    }, 500);
+    };
+    if (immediate) {
+      fetchQuote();
+    } else {
+      transferQuoteTimerRef.current = setTimeout(fetchQuote, 500);
+    }
   };
 
   const onTransferAmountChange = (event) => {
@@ -751,6 +808,27 @@ export default function OxsteedCreditPage() {
     }
     if (!/^[0-9a-fA-F-]{36}$/.test(transferRecipientId.trim())) {
       toast.error(t('transferRecipientInvalid'));
+      return;
+    }
+    // Fail closed on both review gates before any POST path: an unresolved
+    // recipient (valid-but-wrong UUID, audit item 4) or a failed fee quote
+    // (fee still charged server-side, audit item 11) never reaches confirm.
+    const transferGateArgs = {
+      amountCents,
+      recipient: transferRecipient,
+      recipientId: transferRecipientId,
+      feeQuote: transferFeeQuote,
+      feeQuoteError: transferFeeQuoteError,
+      currencyCode: selectedCurrency,
+    };
+    if (!canEnterTransferReview(transferGateArgs)) {
+      if (transferFeeQuoteLoading) {
+        toast.error(t('transferFeeQuoteLoading'));
+      } else if (transferFeeQuoteError || !transferFeeQuote) {
+        toast.error(t('transferFeeQuoteFailed'));
+      } else {
+        toast.error(transferRecipientError || t('transferRecipientNotResolved'));
+      }
       return;
     }
     // First submit shows the review panel; only the confirm button posts.
@@ -896,6 +974,21 @@ export default function OxsteedCreditPage() {
   const holdOrderTypes = selectedHoldPartner?.allowedOrderTypes?.length
     ? selectedHoldPartner.allowedOrderTypes
     : ['pickup', 'dine_in', 'delivery'];
+  // Review/confirm gating (audit items 4 and 11): the review button stays
+  // enabled for an unparseable amount so the existing invalid-amount toast
+  // still fires; once an amount parses, review requires a resolved
+  // recipient name and a loaded fee quote.
+  const transferAmountCents = parseCreditMajorAmount(transferAmount, selectedCurrency, railStatus?.currencyMetadata);
+  const transferGateArgs = {
+    amountCents: transferAmountCents,
+    recipient: transferRecipient,
+    recipientId: transferRecipientId,
+    feeQuote: transferFeeQuote,
+    feeQuoteError: transferFeeQuoteError,
+    currencyCode: selectedCurrency,
+  };
+  const transferReviewBlocked = Boolean(transferAmountCents) && !canEnterTransferReview(transferGateArgs);
+  const transferConfirmBlocked = !canConfirmTransfer(transferGateArgs);
 
   return (
     <>
@@ -958,7 +1051,7 @@ export default function OxsteedCreditPage() {
 
               {accountStatus === 'active' && <section className="ox-credit-panel ox-credit-withdraw-panel" aria-labelledby="credit-withdraw-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('moneyOutEyebrow')}</p><h2 id="credit-withdraw-heading">{t('withdrawToBank')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('withdrawCopy')}</p><form className="ox-credit-authorize-form" onSubmit={(event) => submitWithdrawal(event)}><label>{t('amount')}<input required inputMode="decimal" value={withdrawalAmount} onChange={onWithdrawalAmountChange} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><button type="submit" disabled={withdrawalSubmitting}>{withdrawalSubmitting ? t('requestingWithdrawal') : t('requestWithdrawal')}</button></form>{withdrawalFeeQuote && <div className="ox-credit-fee-quote" role="status"><span>{t('withdrawalFeeBreakdown', { fee: money(withdrawalFeeQuote.feeCents, withdrawalFeeQuote.currencyCode), net: money(Math.max(0, (parseCreditMajorAmount(withdrawalAmount, selectedCurrency, railStatus?.currencyMetadata) || 0) - withdrawalFeeQuote.feeCents), withdrawalFeeQuote.currencyCode) })}</span></div>}{withdrawalChallenge && <form className="ox-credit-stepup-form" onSubmit={confirmWithdrawalStepup}><strong>{t('verificationRequired')}</strong><span>{t('verificationCodeSentCopy')}</span><label>{t('verificationCode')}<input required inputMode="numeric" value={withdrawalCode} onChange={(event) => setWithdrawalCode(event.target.value.replace(/\D/g, '').slice(0, 12))} placeholder={t('verificationCodePlaceholder')} /></label><button type="submit" disabled={withdrawalSubmitting}>{withdrawalSubmitting ? t('confirmingWithdrawal') : t('confirmWithdrawal')}</button></form>}{createdWithdrawal?.id && <div className="ox-credit-created-hold"><strong>{t('withdrawalRequested')}</strong><span>{t('withdrawalRequestedCopy', { amount: money(createdWithdrawal.amountCents, createdWithdrawal.currencyCode), net: money(createdWithdrawal.netAmountCents, createdWithdrawal.currencyCode) })}</span><code>{createdWithdrawal.id}</code></div>}{!!withdrawals.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('withdrawalHistory')}</strong><span>{withdrawals.length}</span></div><div className="ox-credit-hold-list">{withdrawals.map((withdrawal) => <article key={withdrawal.id}><div><strong>{money(withdrawal.amountCents, withdrawal.currencyCode)}</strong><span>{t('withdrawalStatusLabel', { status: withdrawal.status })}{withdrawal.feeCents ? ` · ${t('feeLabel', { fee: money(withdrawal.feeCents, withdrawal.currencyCode) })}` : ''}</span><small>{dateTime(withdrawal.createdAt, t)}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${withdrawal.status}`}>{withdrawal.status}</span>{['requested'].includes(withdrawal.status) && <button type="button" onClick={() => cancelWithdrawal(withdrawal)} disabled={cancellingWithdrawalId === withdrawal.id}>{cancellingWithdrawalId === withdrawal.id ? t('cancelling') : t('cancel')}</button>}</div></article>)}</div></div>}</section>}
 
-              {accountStatus === 'active' && <section className="ox-credit-panel ox-credit-transfer-panel" aria-labelledby="credit-transfer-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('transferEyebrow')}</p><h2 id="credit-transfer-heading">{t('transferTitle')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('transferCopy')}</p><form className="ox-credit-authorize-form" onSubmit={(event) => submitTransfer(event)}><label>{t('transferRecipientLabel')}<input required value={transferRecipientId} onChange={(event) => { setTransferRecipientId(event.target.value); setTransferReview(false); setCreatedTransfer(null); setTransferChallenge(null); setTransferCode(''); }} placeholder={t('transferRecipientPlaceholder')} /></label><label>{t('amount')}<input required inputMode="decimal" value={transferAmount} onChange={onTransferAmountChange} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><label>{t('transferDescriptionLabel')}<input value={transferDescription} onChange={(event) => setTransferDescription(event.target.value)} maxLength={200} placeholder={t('transferDescriptionPlaceholder')} /></label><button type="submit" disabled={transferSubmitting}>{transferSubmitting ? t('transferringTransfer') : t('transferReviewButton')}</button></form><p className="ox-credit-panel-copy">{t('transferRecipientHint')}</p>{transferFeeQuote && <div className="ox-credit-fee-quote" role="status"><span>{t('transferFeeBreakdown', { fee: money(transferFeeQuote.feeCents, transferFeeQuote.currencyCode), net: money(Math.max(0, (parseCreditMajorAmount(transferAmount, selectedCurrency, railStatus?.currencyMetadata) || 0) - transferFeeQuote.feeCents), transferFeeQuote.currencyCode) })}</span></div>}{transferReview && <div className="ox-credit-created-hold" role="status"><strong>{t('transferConfirmTitle')}</strong><span>{t('transferConfirmCopy', { recipient: transferRecipientId.trim(), amount: money(parseCreditMajorAmount(transferAmount, selectedCurrency, railStatus?.currencyMetadata) || 0, selectedCurrency) })}</span>{transferFeeQuote && <span>{t('transferFeeBreakdown', { fee: money(transferFeeQuote.feeCents, transferFeeQuote.currencyCode), net: money(Math.max(0, (parseCreditMajorAmount(transferAmount, selectedCurrency, railStatus?.currencyMetadata) || 0) - transferFeeQuote.feeCents), transferFeeQuote.currencyCode) })}</span>}<button type="button" onClick={(event) => submitTransfer(event)} disabled={transferSubmitting}>{transferSubmitting ? t('transferringTransfer') : t('transferConfirmButton')}</button><button type="button" onClick={() => setTransferReview(false)}>{t('transferEditButton')}</button></div>}{transferChallenge && <form className="ox-credit-stepup-form" onSubmit={confirmTransferStepup}><strong>{t('verificationRequired')}</strong><span>{t('verificationCodeSentCopy')}</span><label>{t('verificationCode')}<input required inputMode="numeric" value={transferCode} onChange={(event) => setTransferCode(event.target.value.replace(/\D/g, '').slice(0, 12))} placeholder={t('verificationCodePlaceholder')} /></label><button type="submit" disabled={transferSubmitting}>{transferSubmitting ? t('transferConfirming') : t('transferConfirmStepup')}</button></form>}{createdTransfer?.transaction?.id && <div className="ox-credit-created-hold"><strong>{t('transferSent')}</strong><span>{t('transferSentCopy', { amount: money(createdTransfer.transaction.amountCents, createdTransfer.transaction.currencyCode) })}</span><code>{createdTransfer.transaction.id}</code></div>}</section>}
+              {accountStatus === 'active' && <section className="ox-credit-panel ox-credit-transfer-panel" aria-labelledby="credit-transfer-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('transferEyebrow')}</p><h2 id="credit-transfer-heading">{t('transferTitle')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('transferCopy')}</p><form className="ox-credit-authorize-form" onSubmit={(event) => submitTransfer(event)}><label>{t('transferRecipientLabel')}<input required value={transferRecipientId} onChange={(event) => { setTransferRecipientId(event.target.value); setTransferReview(false); setCreatedTransfer(null); setTransferChallenge(null); setTransferCode(''); scheduleTransferRecipientLookup(event.target.value); }} placeholder={t('transferRecipientPlaceholder')} /></label>{transferRecipientLoading && <p className="ox-credit-panel-copy" role="status">{t('transferRecipientLookingUp')}</p>}{transferRecipient?.displayName && <p className="ox-credit-panel-copy" role="status">{t('transferRecipientResolved', { name: transferRecipient.displayName })}</p>}{transferRecipientError && <p className="ox-credit-panel-copy" role="alert">{transferRecipientError}</p>}{transferRecipientId.trim() && !isValidTransferRecipientId(transferRecipientId) && <p className="ox-credit-panel-copy" role="alert">{t('transferRecipientInvalid')}</p>}<label>{t('amount')}<input required inputMode="decimal" value={transferAmount} onChange={onTransferAmountChange} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><label>{t('transferDescriptionLabel')}<input value={transferDescription} onChange={(event) => setTransferDescription(event.target.value)} maxLength={200} placeholder={t('transferDescriptionPlaceholder')} /></label><button type="submit" disabled={transferSubmitting || transferReviewBlocked}>{transferSubmitting ? t('transferringTransfer') : t('transferReviewButton')}</button></form><p className="ox-credit-panel-copy">{t('transferRecipientHint')}</p>{transferFeeQuoteError && <div className="ox-credit-fee-quote" role="alert"><span>{t('transferFeeQuoteFailed')}</span><span>{transferFeeQuoteError}</span><button type="button" className="ox-credit-refresh" onClick={() => refreshTransferFeeQuote(transferAmount, { immediate: true })}>{t('retry')}</button></div>}{transferFeeQuoteLoading && !transferFeeQuoteError && <div className="ox-credit-fee-quote" role="status"><span>{t('transferFeeQuoteLoading')}</span></div>}{transferFeeQuote && <div className="ox-credit-fee-quote" role="status"><span>{t('transferFeeBreakdown', { fee: money(transferFeeQuote.feeCents, transferFeeQuote.currencyCode), net: money(Math.max(0, (parseCreditMajorAmount(transferAmount, selectedCurrency, railStatus?.currencyMetadata) || 0) - transferFeeQuote.feeCents), transferFeeQuote.currencyCode) })}</span></div>}{transferReview && <div className="ox-credit-created-hold" role="status"><strong>{t('transferConfirmTitle')}</strong><span>{t('transferConfirmCopy', { recipient: transferRecipient?.displayName || transferRecipientId.trim(), amount: money(parseCreditMajorAmount(transferAmount, selectedCurrency, railStatus?.currencyMetadata) || 0, selectedCurrency) })}</span><span>{t('transferRecipientIdDetail', { recipientId: transferRecipientId.trim() })}</span>{transferFeeQuote && <span>{t('transferFeeBreakdown', { fee: money(transferFeeQuote.feeCents, transferFeeQuote.currencyCode), net: money(Math.max(0, (parseCreditMajorAmount(transferAmount, selectedCurrency, railStatus?.currencyMetadata) || 0) - transferFeeQuote.feeCents), transferFeeQuote.currencyCode) })}</span>}<button type="button" onClick={(event) => submitTransfer(event)} disabled={transferSubmitting || transferConfirmBlocked}>{transferSubmitting ? t('transferringTransfer') : t('transferConfirmButton')}</button><button type="button" onClick={() => setTransferReview(false)}>{t('transferEditButton')}</button></div>}{transferChallenge && <form className="ox-credit-stepup-form" onSubmit={confirmTransferStepup}><strong>{t('verificationRequired')}</strong><span>{t('verificationCodeSentCopy')}</span><label>{t('verificationCode')}<input required inputMode="numeric" value={transferCode} onChange={(event) => setTransferCode(event.target.value.replace(/\D/g, '').slice(0, 12))} placeholder={t('verificationCodePlaceholder')} /></label><button type="submit" disabled={transferSubmitting}>{transferSubmitting ? t('transferConfirming') : t('transferConfirmStepup')}</button></form>}{createdTransfer?.transaction?.id && <div className="ox-credit-created-hold"><strong>{t('transferSent')}</strong><span>{t('transferSentCopy', { amount: money(createdTransfer.transaction.amountCents, createdTransfer.transaction.currencyCode) })}</span><code>{createdTransfer.transaction.id}</code></div>}</section>}
               {accountStatus === 'active' && <section className="ox-credit-panel ox-credit-restaurant-conversion-panel" aria-labelledby="credit-restaurant-conversion-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('restaurantCreditEyebrow')}</p><h2 id="credit-restaurant-conversion-heading">{t('convertRestaurantCredit')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('restaurantConversionCopy')}</p><form className="ox-credit-authorize-form" onSubmit={submitRestaurantConversion}><label>{t('direction')}<select value={restaurantConversionDirection} onChange={(event) => { setRestaurantConversionDirection(event.target.value); setRestaurantConversionRestaurantId(''); }}><option value="to_restaurant">{t('directionToRestaurant')}</option><option value="from_restaurant">{t('directionFromRestaurant')}</option></select></label><label>{t('restaurant')}<select required value={restaurantConversionRestaurantId} onChange={(event) => setRestaurantConversionRestaurantId(event.target.value)} disabled={noConversionEligiblePartners}><option value="">{t('selectRestaurant')}</option>{conversionEligiblePartners.map((partner) => <option key={partner.partnerId} value={partner.restaurantId || partner.partnerId}>{partner.restaurantName}{partner.city ? ` · ${partner.city}` : ''}</option>)}</select></label>{noConversionEligiblePartners && <p className="ox-credit-panel-copy" role="status">{t('restaurantConversionNoneEligible')}</p>}<label>{t('amount')}<input required inputMode="decimal" value={restaurantConversionAmount} onChange={(event) => { setRestaurantConversionAmount(event.target.value); setCreatedRestaurantConversion(null); }} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><button type="submit" disabled={restaurantConversionSubmitting || noConversionEligiblePartners}>{restaurantConversionSubmitting ? t('convertingRestaurantCredit') : t('convertRestaurantCredit')}</button></form>{createdRestaurantConversion?.id && <div className="ox-credit-created-hold"><strong>{t('restaurantConversionCompleted')}</strong><span>{t('restaurantConversionDetails', { source: money(createdRestaurantConversion.sourceAmountCents, createdRestaurantConversion.currencyCode), target: money(createdRestaurantConversion.convertedAmountCents, createdRestaurantConversion.currencyCode) })}</span><code>{createdRestaurantConversion.id}</code></div>}</section>}
 
                   {accountStatus === 'active' && partners.length > 0 && <section className="ox-credit-panel ox-credit-authorize-panel" aria-labelledby="credit-authorize-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('customerAuthorization')}</p><h2 id="credit-authorize-heading">{t('authorizeInStorePayment')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('authorizeCopy')}</p><form className="ox-credit-authorize-form" onSubmit={submitHold}><label>{t('restaurant')}<select required value={holdPartnerId} onChange={(event) => { const nextPartnerId = event.target.value; const nextPartner = partners.find((partner) => String(partner.partnerId) === String(nextPartnerId)); setHoldPartnerId(nextPartnerId); setHoldOrderType(nextPartner?.allowedOrderTypes?.[0] || 'pickup'); }}><option value="">{t('selectRestaurant')}</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName}{partner.city ? ` · ${partner.city}` : ''}</option>)}</select></label><label>{t('orderType')}<select required value={holdOrderType} onChange={(event) => setHoldOrderType(event.target.value)}>{holdOrderTypes.map((type) => <option key={type} value={type}>{localizeCreditOrderType(type, t)}</option>)}</select></label><label>{t('amount')}<input required inputMode="decimal" value={holdAmount} onChange={(event) => setHoldAmount(event.target.value)} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><label>{t('purposeOptional')}<input value={holdPurpose} onChange={(event) => setHoldPurpose(event.target.value)} maxLength={100} placeholder={t('restaurantPurchase')} /></label><button type="submit" disabled={holdSubmitting}>{holdSubmitting ? t('creatingAuthorization') : t('createAuthorization')}</button></form>{createdHold?.id && <div className="ox-credit-created-hold"><strong>{t('holdIdInstruction')}</strong><code>{createdHold.id}</code><span>{t('holdDetails', { amount: money(createdHold.amountCents, createdHold.currencyCode || currency), date: dateTime(createdHold.expiresAt, t) })}</span><button type="button" onClick={copyHoldId}>{t('copyHoldId')}</button></div>}</section>}

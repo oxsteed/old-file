@@ -35645,7 +35645,13 @@
       "clawbackDone": "Se revirtieron {{amount}} {{currency}}.",
       "clawbackDonePlain": "Abono revertido.",
       "clawbackQueued": "Reversión en espera de aprobación de un segundo administrador. Aún no se movieron fondos.",
-      "clawbackFailed": "La reversión falló. Revisa el ID del abono e inténtalo de nuevo."
+      "clawbackFailed": "La reversión falló. Revisa el ID del abono e inténtalo de nuevo.",
+      "clawbackPreviewButton": "Ver vista previa del abono",
+      "clawbackPreviewLoading": "Cargando vista previa del abono...",
+      "clawbackPreviewHint": "Revisa la vista previa del abono antes de confirmar. La confirmación queda deshabilitada hasta que se carguen el monto, el restaurante y el estado de este ID.",
+      "clawbackPreviewAmount": "Monto: {{amount}} {{currency}}",
+      "clawbackPreviewRestaurant": "Restaurante: {{restaurant}}",
+      "clawbackPreviewStatus": "Estado: {{status}}"
     }
   },
   "featuredPlacements": {
