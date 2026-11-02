@@ -223,6 +223,18 @@ function registerMoneyMovementExecutors() {
     };
   });
 
+  // ── support_resolution_refund: admin approval of a restaurant support
+  // resolution with a money amount. The apply step only stamps the
+  // approval (resolution_offered); the customer accept path moves the
+  // money, so the executor is idempotent by case state.
+  registerMoneyMovementExecutor('support_resolution_refund', async ({ payload, client }) => {
+    const { applyAdminApprovedResolution } = require('../controllers/restaurantSupportController');
+    const updated = await applyAdminApprovedResolution(client, {
+      caseId: payload.caseId, resolution: payload.resolution, amount: payload.amountCents, adminId: payload.makerAdminId,
+    });
+    return { caseId: payload.caseId, status: updated.status, resolution: updated.final_resolution };
+  });
+
   // ── restaurant_topup_clawback: chargeback debit of a succeeded top-up.
   // The service debit is idempotent per top-up (the
   // restaurant-topup-clawback idempotency key), so a retried executor

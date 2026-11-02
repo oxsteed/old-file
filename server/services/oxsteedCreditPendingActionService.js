@@ -575,6 +575,23 @@ async function requestPendingAction({ actionType, payload, requestedBy, idempote
   const key = normalizeText(idempotencyKey, 200);
   if (!key) throw new AppError('An Idempotency-Key is required to request a pending action', 400, 'credit_pending_action_idempotency_required');
 
+  // Finding 38: a settlement can have only one undecided payout pending
+  // action. The UI clears its idempotency key after each queue, so key
+  // dedupe alone cannot stop a double-queue; reject the duplicate here
+  // (and in the route, before step-up) instead of queuing a second
+  // checker approval that can only 409 at execution.
+  if (normalizedType === 'credit_settlement_payout' && payload?.settlementId) {
+    const { rows: existingPending } = await pool.query(
+      `SELECT id FROM oxsteed_credit_pending_actions
+        WHERE action_type = 'credit_settlement_payout' AND status = 'pending'
+          AND payload->>'settlementId' = $1
+        LIMIT 1`,
+      [String(payload.settlementId)]
+    );
+    if (existingPending[0]) {
+      throw new AppError('A settlement payout is already queued for this settlement', 409, 'credit_settlement_payout_already_queued');
+    }
+  }
   const storedPayload = { ...(payload || {}), idempotencyKey: key };
   // Oversight executors may expose validate(payload) so a malformed request
   // is refused at maker time instead of waiting for the checker.

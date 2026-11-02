@@ -524,7 +524,10 @@ describe('POST /api/restaurants/:restaurantId/topups', () => {
     stepupService.verifyStepupChallenge.mockRejectedValueOnce(
       new AppError('Invalid or expired verification code', 401, 'credit_stepup_code_invalid')
     );
-    mockAuthed({});
+    // Finding 39: the restaurant load and compliance check run BEFORE
+    // step-up verification, so the step-up is only reached (and consumed)
+    // once those pre-checks pass.
+    mockAuthed({}, ACTIVE_RESTAURANT, ACTIVE_RESTAURANT, ELIGIBILITY_APPROVED, DAILY_CAP_ZERO);
     const res = await request(buildMerchantApp())
       .post(`/api/restaurants/${RESTAURANT_ID}/topups`)
       .set('Authorization', `Bearer ${USER_TOKEN}`)
@@ -937,18 +940,23 @@ describe('restaurant top-up webhook handling', () => {
 describe('POST /api/admin/restaurant-topups/topups/:topupId/clawback', () => {
   const succeededTopup = baseTopupRow({ status: 'succeeded', stripe_payment_intent_id: 'pi_test_1' });
 
-  // Pentest fix: the clawback route now runs a dual-approval gate before
-  // the controller: an amount lookup plus the platform-settings threshold
-  // read. Clear the settings cache per test so the threshold read always
-  // consumes exactly one mock, and queue both gate mocks ahead of the
-  // controller's query sequence.
+  // Pentest fix: the clawback route runs a dual-approval gate before
+  // the controller. These tests send no step-up challenge id, so the
+  // step-up middleware's amount resolver never queries; the queries that
+  // actually run ahead of the controller are the route's queue-branch
+  // top-up lookup (finding 35: amount, currency, status) and, only when
+  // that row is succeeded, the gate's platform-settings threshold read.
+  // Clear the settings cache per test so the threshold read always
+  // consumes exactly one mock.
   beforeEach(() => {
     require('../services/platformSettingsCache')._clearCacheForTests();
   });
 
-  function queueGateMocks() {
-    mockQuery.mockResolvedValueOnce({ rows: [{ amount_cents: 5000, currency: 'USD' }] }); // gate amount lookup
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // platform_settings threshold (absent → $500 default)
+  function queueGateMocks(routeStatus = 'succeeded') {
+    mockQuery.mockResolvedValueOnce({ rows: [{ amount_cents: 5000, currency: 'USD', status: routeStatus }] }); // route queue-branch top-up lookup
+    if (routeStatus === 'succeeded') {
+      mockQuery.mockResolvedValueOnce({ rows: [] }); // platform_settings threshold (absent → $500 default)
+    }
   }
 
   function clawbackQueries({ balanceCents = 8000, existingEntry = null } = {}) {
@@ -983,7 +991,7 @@ describe('POST /api/admin/restaurant-topups/topups/:topupId/clawback', () => {
   });
 
   test('refuses a top-up that is not succeeded', async () => {
-    queueGateMocks();
+    queueGateMocks('pending');
     mockQuery.mockResolvedValueOnce({
       rows: [{ ...baseTopupRow({ status: 'pending' }), business_id: 9 }],
     });
@@ -1082,7 +1090,10 @@ describe('POST /api/admin/restaurant-topups/topups/:topupId/clawback', () => {
     expect(accountUpdates).toHaveLength(0);
   });
 
-  test('the top-up row itself is left untouched by the clawback', async () => {
+  // Finding 34: the clawback moves the top-up to the terminal
+  // clawed_back status; that single status update is the only top-up
+  // row mutation the clawback makes.
+  test('the clawback moves the top-up to the terminal clawed_back status', async () => {
     const { queries } = clawbackQueries({ balanceCents: 8000 });
     queueGateMocks();
     queries.forEach((q) => mockQuery.mockResolvedValueOnce(q));
@@ -1091,7 +1102,8 @@ describe('POST /api/admin/restaurant-topups/topups/:topupId/clawback', () => {
       .send({ reason: 'chargeback cb_123' });
     const topupUpdates = mockQuery.mock.calls.filter(([sql]) =>
       String(sql).includes('UPDATE restaurant_topups'));
-    expect(topupUpdates).toHaveLength(0);
+    expect(topupUpdates).toHaveLength(1);
+    expect(topupUpdates[0][0]).toMatch(/SET status = 'clawed_back'/);
   });
 });
 

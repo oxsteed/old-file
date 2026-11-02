@@ -24,6 +24,8 @@ router.post('/stepup-challenges', moneyGate, ctrl.issueApproveStepupChallenge);
 // ADM-040: payouts move money via Stripe Transfer; impersonated sessions are blocked.
 router.post('/:payoutId/approve', moneyGate, rejectImpersonated, ctrl.approve);
 router.post('/:payoutId/reject', moneyGate, rejectImpersonated, ctrl.reject);
+router.post('/:payoutId/fail', moneyGate, rejectImpersonated, ctrl.fail);
+router.post('/:payoutId/retry', moneyGate, rejectImpersonated, ctrl.retry);
 
 router.use(errorHandler);
 

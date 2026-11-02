@@ -23,7 +23,7 @@ function route(current) {
 test('an open dispute can be approved; audited and the filer is notified', async () => {
   route({ id: 4, status: 'open', user_id: 'u1' });
   const r = res();
-  await ctrl.decidePaymentDispute({ params: { id: '4' }, body: { status: 'approved', note: 'Refunded via job payment tools' }, user: { id: 'admin' } }, r, jest.fn());
+  await ctrl.decidePaymentDispute({ params: { id: '4' }, body: { status: 'approved', note: 'Refunded via job payment tools', refundReference: 're_test_1' }, user: { id: 'admin' } }, r, jest.fn());
   expect(r.status).toHaveBeenCalledWith(200);
   expect(mockAudit).toHaveBeenCalledWith(expect.objectContaining({ action: 'payment_dispute_decision', throwOnError: true }));
   expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1', type: 'payment_dispute_updated' }));
@@ -32,9 +32,27 @@ test('an open dispute can be approved; audited and the filer is notified', async
 test('terminal disputes cannot be reopened', async () => {
   route({ id: 4, status: 'denied', user_id: 'u1' });
   const r = res();
-  await ctrl.decidePaymentDispute({ params: { id: '4' }, body: { status: 'approved', note: 'x' }, user: { id: 'admin' } }, r, jest.fn());
+  await ctrl.decidePaymentDispute({ params: { id: '4' }, body: { status: 'approved', note: 'x', refundReference: 're_test_1' }, user: { id: 'admin' } }, r, jest.fn());
   expect(r.status).toHaveBeenCalledWith(409);
   expect(mockSend).not.toHaveBeenCalled();
+});
+
+// Finding 37: a closure decision with neither a refund reference nor an
+// explicit no-refund reason is rejected before the row is stamped.
+test('an approved decision needs a refund reference or a no-refund reason', async () => {
+  route({ id: 4, status: 'open', user_id: 'u1' });
+  const r = res();
+  await ctrl.decidePaymentDispute({ params: { id: '4' }, body: { status: 'approved', note: 'Closing' }, user: { id: 'admin' } }, r, jest.fn());
+  expect(r.status).toHaveBeenCalledWith(400);
+  expect(mockSend).not.toHaveBeenCalled();
+});
+
+test('an approved decision with a no-refund reason closes without a refund', async () => {
+  route({ id: 4, status: 'open', user_id: 'u1' });
+  const r = res();
+  await ctrl.decidePaymentDispute({ params: { id: '4' }, body: { status: 'approved', note: 'Closing', noRefundReason: 'Duplicate claim, already refunded on the order' }, user: { id: 'admin' } }, r, jest.fn());
+  expect(r.status).toHaveBeenCalledWith(200);
+  expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1', type: 'payment_dispute_updated' }));
 });
 
 test('a decision note is required', async () => {

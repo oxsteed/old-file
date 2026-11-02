@@ -369,7 +369,18 @@ exports.disconnectConnectRestaurantAccount = async (req, res, next) => {
       }
     }
     await pool.query('DELETE FROM restaurant_connect_accounts WHERE restaurant_id = $1', [restaurantId]);
-    res.json({ success: true, message: 'Payout account disconnected.' });
+    // Finding 2: requested payouts have no journal and no transfer yet, so
+    // they can be failed outright on disconnect instead of lingering for
+    // approval against a deleted account. Approved/processing payouts keep
+    // their journal; the worker revalidates their destination at claim and
+    // parks them (finding 5 fail/retry) instead of paying the old account.
+    const { rowCount: failedRequested } = await pool.query(
+      `UPDATE restaurant_payouts
+          SET status = 'failed', failure_reason = 'Payout account disconnected', updated_at = NOW()
+        WHERE restaurant_id = $1 AND status = 'requested'`,
+      [restaurantId]
+    );
+    res.json({ success: true, message: 'Payout account disconnected.', failedRequestedPayouts: failedRequested });
   } catch (err) {
     logger.error('Disconnect restaurant connect account failed', {
       restaurantId: req.restaurantId,

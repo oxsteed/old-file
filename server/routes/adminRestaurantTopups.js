@@ -43,14 +43,17 @@ router.post('/applications/:restaurantId/suspend', moneyGate, ctrl.suspendApplic
 router.post('/topups/:topupId/clawback', moneyGate, strictLimiter, rejectImpersonated, requireAdminActionStepup('restaurant_topup_clawback', resolveClawbackAmountCents), async (req, res, next) => {
   try {
     const { rows: [topup] } = await pool.query(
-      'SELECT amount_cents, currency FROM restaurant_topups WHERE id = $1',
+      'SELECT amount_cents, currency, status FROM restaurant_topups WHERE id = $1',
       [req.params.topupId]
     );
     const amountCents = topup ? Number(topup.amount_cents) : NaN;
     // A missing reason is left to the controller so it still returns its
     // 400 instead of queueing an approval that could never execute.
+    // Finding 35: a non-succeeded top-up can never execute a clawback
+    // (the service 409s), so it must never queue a checker approval
+    // either; it falls through to the controller's 409.
     const reason = String(req.body?.reason || '').trim();
-    if (topup && reason && Number.isSafeInteger(amountCents) && amountCents > 0) {
+    if (topup && topup.status === 'succeeded' && reason && Number.isSafeInteger(amountCents) && amountCents > 0) {
       const gate = await requestMoneyMovementApproval({
         movementType: 'restaurant_topup_clawback',
         referenceKey: `restaurant-topup-clawback:${req.params.topupId}`,

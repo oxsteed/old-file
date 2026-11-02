@@ -327,7 +327,12 @@ function SettlementsSection({ restaurantId, refreshSignal }) {
           </div>
           <div className="fd-runner-actions">
             {s.status === 'pending' && (
-              <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => mutate(s.task_id, { status: 'approved' }, 'food.runner.settlementApproved')} data-track="ui.42d5812ef7.11">
+              <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => {
+                const amount = fmt(Number(s.delivery_fee_cents || 0) + Number(s.tip_cents || 0));
+                const cash = fmt(s.cash_collected_cents);
+                if (!window.confirm(t('food.runner.settlementApproveConfirm', { task: s.task_id, cash, amount }))) return;
+                mutate(s.task_id, { status: 'approved' }, 'food.runner.settlementApproved');
+              }} data-track="ui.42d5812ef7.11">
                 {t('food.runner.approve')}
               </button>
             )}

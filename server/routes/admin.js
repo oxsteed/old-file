@@ -596,6 +596,24 @@ router.post('/super/oxsteed-credit/settlements/:settlementId/reversal', requireS
 // admin to decide instead of executing immediately.
 router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
+    // Finding 38: duplicate-queue pre-check BEFORE the step-up is
+    // verified, so a second queue attempt neither burns a code nor queues
+    // a doomed second approval. The service re-checks inside
+    // requestPendingAction as defense in depth.
+    {
+      const { rows: dupRows } = await require('../db').query(
+        `SELECT id FROM oxsteed_credit_pending_actions
+          WHERE action_type = 'credit_settlement_payout' AND status = 'pending'
+            AND payload->>'settlementId' = $1
+          LIMIT 1`,
+        [String(req.params.settlementId)]
+      );
+      if (dupRows[0]) {
+        return next(new (require('../middleware/errorHandler').AppError)(
+          'A settlement payout is already queued for this settlement', 409, 'credit_settlement_payout_already_queued'
+        ));
+      }
+    }
     // Phase 5: payout initiation always requires a fresh step-up challenge
     // for the acting admin, verified before any money moves. Auth audit
     // item 6: bind it to the settlement's net_cents (the same figure the

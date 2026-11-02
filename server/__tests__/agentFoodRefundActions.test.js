@@ -116,6 +116,12 @@ function routeQueries({ order, grantRows = [GRANT_ROW] }) {
     if (text.includes('FROM food_orders') && text.includes('FOR UPDATE')) {
       return { rows: order ? [order] : [], rowCount: order ? 1 : 0 };
     }
+    // Finding 39 pre-read: plain SELECT total_cents, metadata, payment_status
+    // (no FOR UPDATE) used to validate existence/eligibility before step-up
+    // verification burns a single-use code.
+    if (text.includes('FROM food_orders') && text.trimStart().startsWith('SELECT')) {
+      return { rows: order ? [order] : [], rowCount: order ? 1 : 0 };
+    }
     if (text.startsWith('UPDATE food_orders')) {
       const updated = {
         ...order,

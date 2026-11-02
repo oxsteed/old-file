@@ -23489,7 +23489,9 @@
         "paymentRefunded": "Payment refunded",
         "paymentConfirmed": "Payment confirmed.",
         "orderMarkedPaid": "Order marked paid.",
-        "paymentError": "Unable to confirm this payment."
+        "paymentError": "Unable to confirm this payment.",
+        "cancelConfirm": "Cancel order {{order}} ({{amount}})? Cancelling a paid card order triggers a refund to the customer.",
+        "markPaidConfirm": "Mark order {{order}} as paid for {{amount}}? This records that the full amount due was received."
       },
       "menu": "Menu",
       "newCategoryPlaceholder": "New category name (e.g. Burgers)",
@@ -23724,7 +23726,8 @@
           "rejected": "Rejected",
           "failed": "Failed",
           "cancelled": "Cancelled"
-        }
+        },
+        "requestConfirm": "Request a payout of {{amount}}? The request enters the admin review queue; it does not move money immediately."
       },
       "settlementTitle": "Payment settlement records",
       "settlementNote": "Orders can stay linked to the restaurant record so settlement, receipts, and support history remain visible in the app.",
@@ -24134,7 +24137,8 @@
       "settlement_voided": "Voided",
       "createSettlement": "Create settlement",
       "settlementCreated": "Settlement created",
-      "cashCollectedPrompt": "Cash collected by the runner (amount)"
+      "cashCollectedPrompt": "Cash collected by the runner (amount)",
+      "settlementApproveConfirm": "Approve settlement for task {{task}}? Cash collected: {{cash}}. Settlement amount (fees plus tip): {{amount}}. Approving does not mark it paid."
     },
     "ownerHome": {
       "allClear": "All clear. Nothing needs your attention right now.",
@@ -33352,7 +33356,10 @@
     "typeMarketplaceRefund": "Marketplace refund",
     "typeDisputeRefund": "Dispute refund",
     "typeRestaurantPayout": "Restaurant payout",
-    "typeAffiliatePayout": "Affiliate payout"
+    "typeAffiliatePayout": "Affiliate payout",
+    "subject": "Subject",
+    "reason": "Reason",
+    "subjectUnknown": "Unknown subject"
   },
   "adminOrderFilters": {
     "searchOrders": "Search Orders",
@@ -35664,7 +35671,11 @@
       "clawbackPreviewHint": "Preview the top-up before confirming. Confirm stays disabled until the amount, restaurant, and status load for this ID.",
       "clawbackPreviewAmount": "Amount: {{amount}} {{currency}}",
       "clawbackPreviewRestaurant": "Restaurant: {{restaurant}}",
-      "clawbackPreviewStatus": "Status: {{status}}"
+      "clawbackPreviewStatus": "Status: {{status}}",
+      "clawbackPreviewNotExecutable": "This top-up cannot be clawed back: only a succeeded top-up can be clawed back.",
+      "clawbackReplayed": "This top-up was already clawed back; no second debit was made.",
+      "clawbackWentNegative": "Wallet went negative: balance {{before}} to {{after}} {{currency}}.",
+      "clawbackBalances": "Wallet balance {{before}} to {{after}} {{currency}}."
     }
   },
   "featuredPlacements": {
@@ -35838,12 +35849,46 @@
       "approved": "Approved",
       "completed": "Completed",
       "failed": "Failed",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "processing": "Processing"
     },
     "stepupFailed": "Could not issue a verification challenge.",
     "stepupPrompt": "A verification code was sent to your email. Enter it to approve this payout:",
     "pendingApproval": "Payout queued for second-admin approval (dual approval). No funds have moved.",
-    "stepupRequired": "A verification code is required to approve the payout."
+    "stepupRequired": "A verification code is required to approve the payout.",
+    "subtitleQueued": "Approve wallet-earnings payouts to restaurants. Approval queues a transfer to the restaurant's Connect account; the transfer is sent asynchronously and confirmed by Stripe, it is not instant.",
+    "transferAttempts": "{{count}} transfer attempts",
+    "retry": "Retry",
+    "fail": "Fail payout",
+    "confirmFailTitle": "Fail this payout?",
+    "confirmFailBody": "This returns the payout to a failed state and reverses its approval journal entry, so the restaurant can request again. It does not send money.",
+    "confirmApproveBodyQueued": "This queues a transfer of {{amount}} to the restaurant's Stripe account and posts the ledger entry. The transfer is sent asynchronously and confirmed by Stripe; it is not instant and it is not yet final."
+  },
+  "restaurantPayRuns": {
+    "title": "Restaurant pay runs",
+    "subtitle": "Pay runs across restaurants, with the actual payouts linked to each run. A finalized run with no links has not paid anyone yet.",
+    "status": {
+      "all": "All",
+      "draft": "Draft",
+      "finalized": "Finalized",
+      "paid": "Paid",
+      "voided": "Voided"
+    },
+    "restaurantFilter": "Restaurant id",
+    "loadFailed": "Could not load pay runs.",
+    "detailFailed": "Could not load pay run detail.",
+    "empty": "No pay runs in this state.",
+    "unknownRestaurant": "Unknown restaurant",
+    "run": "Pay run {{id}}",
+    "period": "{{from}} to {{to}}",
+    "totalPay": "Total pay: {{amount}}",
+    "linked": "Linked payouts: {{amount}} ({{count}})",
+    "finalizedUnpaid": "Finalized but not yet fully linked to payouts.",
+    "hideDetail": "Hide detail",
+    "showDetail": "Show detail",
+    "noLinks": "No payouts linked to this run yet.",
+    "linkLine": "Payout {{payout}}: {{amount}} ({{status}})",
+    "employees": "{{count}} employees"
   },
   "affiliatePayouts": {
     "title": "Affiliate payouts",
@@ -35916,7 +35961,12 @@
       "denied": "Denied",
       "resolved": "Resolved",
       "withdrawn": "Withdrawn"
-    }
+    },
+    "noRefundReasonLabel": "No-refund reason (required instead of a refund reference when closing without a refund)",
+    "noRefundReasonPlaceholder": "Why no refund was issued",
+    "closureNeedsRefundOrReason": "An approved or resolved decision needs a refund reference or a no-refund reason.",
+    "noRefundReasonShown": "No refund: {{reason}}",
+    "refundReferenceShown": "Refund reference: {{reference}}"
   },
   "adminChargebacks": {
     "title": "Chargebacks",
