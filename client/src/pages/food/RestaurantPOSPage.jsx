@@ -993,7 +993,19 @@ export default function RestaurantPOSPage() {
       )}
 
       {closeResult && (
-        <div className="fd-modal-overlay" role="presentation" onClick={() => setCloseResult(null)}>
+        <div
+          className="fd-modal-overlay"
+          role="button"
+          tabIndex={0}
+          aria-label={t('food.common.close')}
+          onClick={() => setCloseResult(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setCloseResult(null);
+            }
+          }}
+        >
           <div className="fd-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <h3>{t('food.pos.shiftClosed')}</h3>
             <p className="fd-card-meta">
@@ -1014,7 +1026,19 @@ export default function RestaurantPOSPage() {
       )}
 
       {showCloseShift && activeShift && (
-        <div className="fd-modal-overlay" role="presentation" onClick={() => setShowCloseShift(false)}>
+        <div
+          className="fd-modal-overlay"
+          role="button"
+          tabIndex={0}
+          aria-label={t('food.common.close')}
+          onClick={() => setShowCloseShift(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setShowCloseShift(false);
+            }
+          }}
+        >
           <div className="fd-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <h3>{t('food.pos.closeShiftTitle', { id: activeShift.id })}</h3>
             <p className="fd-card-meta">{t('food.pos.closeShiftHint')}</p>
