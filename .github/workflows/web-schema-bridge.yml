@@ -1,0 +1,62 @@
+name: Verified web schema bridge
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+  packages: write
+concurrency:
+  group: verified-web-schema-bridge
+  cancel-in-progress: false
+jobs:
+  image:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      RELEASE_SHA: ${{ github.sha }}
+      IMAGE: ghcr.io/oxsteed/old-file-web
+    steps:
+      - uses: actions/checkout@v7
+      - name: Require verified default-branch source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$GITHUB_REF_NAME" = old-files-claude
+          node scripts/verify-web-release.cjs "$RELEASE_SHA"
+      - name: Build compatibility image from the pinned serving release
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --use --driver docker-container
+          docker buildx build --platform linux/arm64 --push \
+            --file Dockerfile.schema-bridge \
+            --tag "$IMAGE:schema-bridge-$RELEASE_SHA" \
+            --label "org.opencontainers.image.source=https://github.com/oxsteed/old-file" \
+            --build-arg "SOURCE_COMMIT=$RELEASE_SHA" \
+            --metadata-file image-metadata.json .
+      - name: Verify shutdown and issue the separate bridge receipt
+        run: |
+          image_ref="$IMAGE@$(node -p 'JSON.parse(require("fs").readFileSync("image-metadata.json"))["containerimage.digest"]')"
+          docker pull "$image_ref"
+          node scripts/verify-web-schema-bridge.cjs --image "$image_ref"
+          node scripts/verify-container-shutdown.cjs --image "$image_ref"
+          node - <<'JS'
+          const fs = require('fs');
+          const plan = require('./deploy/web-schema-bridge-20261102.json');
+          const digest = JSON.parse(fs.readFileSync('image-metadata.json'))['containerimage.digest'];
+          if (!/^sha256:[a-f0-9]{64}$/.test(digest)) throw Error('Missing image digest');
+          fs.writeFileSync('web-image-receipt.json', JSON.stringify({
+            gitSha: process.env.RELEASE_SHA, image: process.env.IMAGE, digest,
+            runId: process.env.GITHUB_RUN_ID, architecture: 'arm64',
+            kind: 'schema-bridge', baseImage: plan.baseImage,
+          }, null, 2));
+          JS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-image-receipt
+          path: web-image-receipt.json
+          retention-days: 30
+          if-no-files-found: error

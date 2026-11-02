@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { sortMigrationFiles } = require('../migrationOrder');
+const { filterReviewedFutureMigrations } = require('./migrationCompatibility');
 
 async function verifyWebSchema({ pool, migrationsDir = path.join(__dirname, '../migrations'), schema = 'public' }) {
   if (!/^[a-z_][a-z0-9_]*$/.test(schema)) throw new TypeError('Invalid migration schema');
@@ -18,7 +19,8 @@ async function verifyWebSchema({ pool, migrationsDir = path.join(__dirname, '../
     // checksum baseline, even if this checker later gains another query.
     await client.query('BEGIN READ ONLY'); transaction = true;
     await client.query("SET LOCAL statement_timeout = '10s'");
-    const { rows } = await client.query(`SELECT filename, status, checksum FROM "${schema}"._migrations`);
+    const result = await client.query(`SELECT filename, status, checksum FROM "${schema}"._migrations`);
+    const rows = filterReviewedFutureMigrations(result.rows, expected.keys());
     const recorded = new Map(rows.map(row => [row.filename, row]));
     const counts = { pending: 0, unexpected: 0, incomplete: 0, unverified: 0, changed: 0, duplicate: rows.length - recorded.size };
     for (const [file, checksum] of expected) {

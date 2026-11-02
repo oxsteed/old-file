@@ -13,13 +13,17 @@ function command(program, args, input, timeout = 120000) {
   catch { throw new Error(`${program} operation failed; credentials and response bodies were omitted.`); }
 }
 const docker = args => command('docker',['--context','colima',...args],undefined,600000);
-function validateReceipt(receipt, run) {
+function validateReceipt(receipt, run, { bridge = false } = {}) {
   if(run.status!=='completed'||run.conclusion!=='success'||run.head_branch!==BRANCH
-    ||run.path!=='.github/workflows/web-image.yml'||!['workflow_run','workflow_dispatch'].includes(run.event)
+    ||run.path!==(bridge ? '.github/workflows/web-schema-bridge.yml' : '.github/workflows/web-image.yml')
+    ||!(bridge ? ['workflow_dispatch'] : ['workflow_run','workflow_dispatch']).includes(run.event)
     ||receipt.runId!==String(run.id)||receipt.image!==IMAGE||receipt.architecture!=='arm64'
     ||!/^[a-f0-9]{40}$/.test(receipt.gitSha)||!/^sha256:[a-f0-9]{64}$/.test(receipt.digest)) {
     throw new Error('Unverified release workflow or image receipt.');
   }
+  if (bridge ? receipt.kind !== 'schema-bridge'
+    || receipt.baseImage !== require('../deploy/web-schema-bridge-20261102.json').baseImage
+    : receipt.kind !== undefined) throw new Error('Unexpected bridge receipt; explicit bridge promotion is required.');
   return receipt;
 }
 function controller(code) {
@@ -70,17 +74,18 @@ async function ready(sha,imageId) {
       &&(!imageId||result.releaseMetadata?.imageDigest===imageId);
   } catch {return false;}
 }
-async function promote(runId,{redeploy=false}={}) {
+async function promote(runId,{redeploy=false,bridge=false}={}) {
   if(!/^\d+$/.test(String(runId)))throw new Error('A numeric workflow run ID is required.');
   const run=ghJson(['api',`repos/${REPOSITORY}/actions/runs/${runId}`]);
   // Validate the workflow before downloading any artifact.
-  if(run.status!=='completed'||run.conclusion!=='success'||run.path!=='.github/workflows/web-image.yml'||run.head_branch!==BRANCH)throw new Error('Image workflow has not succeeded.');
+  const workflow = bridge ? '.github/workflows/web-schema-bridge.yml' : '.github/workflows/web-image.yml';
+  if(run.status!=='completed'||run.conclusion!=='success'||run.path!==workflow||run.head_branch!==BRANCH)throw new Error('Image workflow has not succeeded.');
   const directory=fs.mkdtempSync(path.join(os.tmpdir(),'oxsteed-image-'));
   try {
     command('gh',['run','download',String(runId),'--repo',REPOSITORY,'--name','web-image-receipt','--dir',directory]);
     const file=path.join(directory,'web-image-receipt.json');
     if(fs.readdirSync(directory).length!==1||fs.statSync(file).size>4096)throw new Error('Unexpected image receipt artifact.');
-    const receipt=validateReceipt(JSON.parse(fs.readFileSync(file)),run);
+    const receipt=validateReceipt(JSON.parse(fs.readFileSync(file)),run,{bridge});
     const latest=ghJson(['api',`repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha;
     if(receipt.gitSha!==latest)return {status:'waiting_for_current_default_branch_image',gitSha:receipt.gitSha};
     verifyCommit(receipt.gitSha);
@@ -118,7 +123,7 @@ async function promote(runId,{redeploy=false}={}) {
 }
 if(require.main===module){
   const args=process.argv.slice(2);
-  if(args.length<2||args[0]!=='--run'||args.some((a,i)=>i>1&&a!=='--redeploy')){console.error('Use --run <verified-image-run-id> [--redeploy]');process.exitCode=1;}
-  else promote(args[1],{redeploy:args.includes('--redeploy')}).then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(e.message);process.exitCode=1;});
+  if(args.length<2||args[0]!=='--run'||args.some((a,i)=>i>1&&!['--redeploy','--bridge'].includes(a))){console.error('Use --run <verified-image-run-id> [--redeploy] [--bridge]');process.exitCode=1;}
+  else promote(args[1],{redeploy:args.includes('--redeploy'),bridge:args.includes('--bridge')}).then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(e.message);process.exitCode=1;});
 }
 module.exports={validateReceipt,verifyAnonymousPull,pulledImageMatches,promote};
