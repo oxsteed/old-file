@@ -15610,7 +15610,56 @@
       "payAtRestaurant": "الدفع في المطعم",
       "processor": "دفعة معالجة",
       "unrecorded": "غير مسجل"
-    }
+    },
+    "serviceFee": "رسوم الخدمة",
+    "tip": "إكرامية",
+    "deliveryInstructions": "تعليمات التوصيل",
+    "review": "تقييم",
+    "reviewDone": "تقييمك",
+    "reviewTitle": "اترك تقييمًا",
+    "reviewPlaceholder": "كيف كان طلبك؟",
+    "reviewSubmit": "إرسال التقييم",
+    "reviewDelete": "حذف التقييم",
+    "reviewResponse": "رد المطعم: {{response}}",
+    "cancelSuccess": "تم إلغاء طلبك.",
+    "cancelRefund": "سيُعاد مبلغ {{amount}} إلى طريقة الدفع الأصلية.",
+    "cancelReplayed": "تمت معالجة هذا الإلغاء من قبل.",
+    "cancelNotAvailable": "لم يعد من الممكن إلغاء هذا الطلب. تواصل مع المطعم أو افتح قضية للمساعدة.",
+    "cancelConfirm": "إلغاء هذا الطلب ({{total}})؟",
+    "cancelRefundPreview": "مبلغ الاسترداد: {{amount}}",
+    "cancelNoRefund": "لا يوجد مبلغ مسترد لهذا الطلب: لم يتم دفعه مسبقًا.",
+    "disputeOpened": "قضيتك {{caseNumber}} مفتوحة.",
+    "disputeReviewingParty": "الجهة المراجعة: {{party}}",
+    "disputeDescription": "صف ما حدث وما تريده. سيراجع المطعم طلبك أولًا.",
+    "disputeIssueType": "ما المشكلة؟",
+    "disputeResolution": "ماذا تريد؟",
+    "disputeAmountPlaceholder": "مبلغ الاسترداد (مثال: 12.50)",
+    "disputeDetailPlaceholder": "صف المشكلة…",
+    "disputeSubmit": "فتح قضية",
+    "reportProblem": "الإبلاغ عن مشكلة في هذا الطلب",
+    "disputeIssues": {
+      "missing_item": "عنصر مفقود",
+      "wrong_item": "عنصر خاطئ",
+      "food_quality": "جودة الطعام",
+      "late_order": "طلب متأخر",
+      "payment_problem": "مشكلة في الدفع",
+      "delivery_issue": "مشكلة في التوصيل",
+      "other": "شيء آخر"
+    },
+    "disputeResolutions": {
+      "refund": "استرداد كامل",
+      "partial_refund": "استرداد جزئي",
+      "store_credit": "رصيد المتجر",
+      "replacement_item": "عنصر بديل",
+      "remake_order": "إعادة الطلب",
+      "discount_code": "رمز خصم",
+      "apology_only": "اعتذار فقط"
+    },
+    "pagination": "صفحات الطلبات",
+    "showingRange": "عرض {{from}}–{{to}} من أصل {{total}}",
+    "previousPage": "السابق",
+    "nextPage": "التالي",
+    "pageOf": "صفحة {{page}} من {{pages}}"
   },
   "howOxsteedWorks": {
     "experience": {
@@ -22840,8 +22889,16 @@
         "hoursLocalTime": "تُعرض الساعات بالتوقيت المحلي لكل مطعم.",
         "ordersPaused": "الطلبات متوقفة مؤقتًا",
         "onlineUnavailable": "الطلب عبر الإنترنت غير متاح",
-        "clearLocation": "مسح الموقع"
-      }
+        "clearLocation": "مسح الموقع",
+        "notAcceptingOrders": "لا يقبل الطلبات",
+        "openNow": "يقبل الطلبات الآن",
+        "fulfillment": "طريقة الاستلام",
+        "fulfillmentAll": "جميع الطرق",
+        "fulfillment_delivery": "توصيل",
+        "fulfillment_pickup": "استلام",
+        "fulfillment_dine_in": "تناول في المطعم"
+      },
+      "externalPlaceExplore": "البحث عن مطاعم OxSteed القريبة"
     },
     "restaurant": {
       "messageUnreachable": "لا يمكن لهذا المطعم استقبال الرسائل الآن. يرجى المحاولة لاحقًا.",
@@ -23228,7 +23285,36 @@
         "promo_not_fundable": "لا يمكن تطبيق رمز الترويج هذا على هذا الطلب.",
         "promo_changed": "تغيّر خصم الترويج. راجع طلبك وحاول مرة أخرى."
       },
-      "promoApplied": "تم تطبيق الترويج: −{{amount}}"
+      "promoApplied": "تم تطبيق الترويج: −{{amount}}",
+      "removeItem": "إزالة {{item}} من السلة",
+      "checkoutTotalLoading": "جارٍ حساب المجموع…",
+      "reorderReplaceConfirm": "استبدال سلّتك الحالية بهذا الطلب السابق؟",
+      "reorderDropped": "بعض التخصيصات لم تعد متاحة وتم حذفها: {{items}}",
+      "deliveryCity": "المدينة",
+      "deliveryCityPlaceholder": "المدينة",
+      "deliveryState": "الولاية / المحافظة",
+      "deliveryStatePlaceholder": "الولاية / المحافظة",
+      "deliveryZip": "الرمز البريدي",
+      "deliveryZipPlaceholder": "الرمز البريدي",
+      "deliveryInstructions": "تعليمات التوصيل",
+      "deliveryInstructionsPlaceholder": "رمز البوابة أو موقف السيارات أو ملاحظات التسليم",
+      "guestCheckoutNote": "يمكنك إتمام الطلب كضيف. سجّل الدخول لعرض هذا الطلب في سجل طلباتك وكسب نقاط الولاء.",
+      "guestName": "اسمك",
+      "guestNamePlaceholder": "الاسم الكامل",
+      "guestPhone": "الهاتف",
+      "guestPhonePlaceholder": "رقم الهاتف",
+      "guestEmail": "البريد الإلكتروني",
+      "guestEmailPlaceholder": "عنوان البريد الإلكتروني",
+      "guestNameRequired": "يرجى إدخال اسمك لطلب استلام كضيف.",
+      "guestContactRequired": "يرجى تقديم رقم هاتف أو بريد إلكتروني لتحديثات الطلب.",
+      "guestPaymentUnavailable": "طريقة الدفع هذه تتطلب تسجيل الدخول. اختر الدفع في المطعم أو رصيد الضيف، أو سجّل الدخول.",
+      "quoteLoading": "ما زلنا نحسب مجموعك…",
+      "trackOrder": "تتبع الطلب",
+      "reviewAfterCompleted": "بعد اكتمال طلبك، يمكنك ترك تقييم من صفحة التتبع.",
+      "reviewsLoadError": "تعذّر تحميل التقييمات.",
+      "reviewsShowing": "عرض {{shown}} من أصل {{total}} من التقييمات",
+      "loadMoreReviews": "تحميل المزيد من التقييمات",
+      "reviewResponse": "رد المطعم: {{response}}"
     },
     "order": {
       "specialInstructions": "تعليمات خاصة (اختياري)",
@@ -23258,7 +23344,8 @@
       "reviewOptional": "تعليق اختياري (500 حرف كحد أقصى)",
       "submitReview": "إرسال التقييم",
       "reviewThanks": "شكرًا على تقييمك!",
-      "reviewError": "تعذر حفظ تقييمك. يرجى المحاولة مرة أخرى."
+      "reviewError": "تعذر حفظ تقييمك. يرجى المحاولة مرة أخرى.",
+      "reviewDeleted": "تم حذف تقييمك."
     },
     "status": {
       "received": "مستلم",
@@ -23280,7 +23367,13 @@
       "total": "الإجمالي",
       "printReceipt": "طباعة الإيصال",
       "runnerNearby": "الساعي قريب",
-      "runnerUpdatedAgo": "تم تحديث الموقع قبل {{seconds}} ث"
+      "runnerUpdatedAgo": "تم تحديث الموقع قبل {{seconds}} ث",
+      "reviewDone": "تقييمك",
+      "reviewTitle": "اترك تقييمًا",
+      "reviewThanks": "شكرًا لملاحظاتك.",
+      "reviewPlaceholder": "كيف كان طلبك؟",
+      "reviewSubmit": "إرسال التقييم",
+      "reviewDelete": "حذف التقييم"
     },
     "payment": {
       "paid": "مدفوع",

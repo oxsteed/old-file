@@ -15599,7 +15599,56 @@
       "payAtRestaurant": "Pay at restaurant",
       "processor": "Processor payment",
       "unrecorded": "Unrecorded"
-    }
+    },
+    "serviceFee": "Service fee",
+    "tip": "Tip",
+    "deliveryInstructions": "Delivery instructions",
+    "review": "Review",
+    "reviewDone": "Your review",
+    "reviewTitle": "Leave a review",
+    "reviewPlaceholder": "How was your order?",
+    "reviewSubmit": "Submit review",
+    "reviewDelete": "Delete review",
+    "reviewResponse": "Restaurant response: {{response}}",
+    "cancelSuccess": "Your order was cancelled.",
+    "cancelRefund": "Refund of {{amount}} will be returned to your original payment method.",
+    "cancelReplayed": "This cancellation was already processed.",
+    "cancelNotAvailable": "This order can no longer be cancelled. Contact the restaurant or open a dispute for help.",
+    "cancelConfirm": "Cancel this order ({{total}})?",
+    "cancelRefundPreview": "Refund amount: {{amount}}",
+    "cancelNoRefund": "No refund is due for this order: it has not been prepaid.",
+    "disputeOpened": "Your case {{caseNumber}} is open.",
+    "disputeReviewingParty": "Reviewing party: {{party}}",
+    "disputeDescription": "Describe what went wrong and what you would like. The restaurant reviews your request first.",
+    "disputeIssueType": "What went wrong?",
+    "disputeResolution": "What would you like?",
+    "disputeAmountPlaceholder": "Refund amount (e.g. 12.50)",
+    "disputeDetailPlaceholder": "Describe the problem…",
+    "disputeSubmit": "Open case",
+    "reportProblem": "Report a problem with this order",
+    "disputeIssues": {
+      "missing_item": "Missing item",
+      "wrong_item": "Wrong item",
+      "food_quality": "Food quality",
+      "late_order": "Late order",
+      "payment_problem": "Payment problem",
+      "delivery_issue": "Delivery issue",
+      "other": "Something else"
+    },
+    "disputeResolutions": {
+      "refund": "Full refund",
+      "partial_refund": "Partial refund",
+      "store_credit": "Store credit",
+      "replacement_item": "Replacement item",
+      "remake_order": "Remake order",
+      "discount_code": "Discount code",
+      "apology_only": "Apology only"
+    },
+    "pagination": "Order pages",
+    "showingRange": "Showing {{from}}–{{to}} of {{total}}",
+    "previousPage": "Previous",
+    "nextPage": "Next",
+    "pageOf": "Page {{page}} of {{pages}}"
   },
   "howOxsteedWorks": {
     "experience": {
@@ -22829,8 +22878,16 @@
         "hoursLocalTime": "Hours are shown in each restaurant’s local time.",
         "ordersPaused": "Orders paused",
         "onlineUnavailable": "Online ordering unavailable",
-        "clearLocation": "Clear location"
-      }
+        "clearLocation": "Clear location",
+        "notAcceptingOrders": "Not accepting orders",
+        "openNow": "Accepting orders now",
+        "fulfillment": "Fulfillment",
+        "fulfillmentAll": "All fulfillment",
+        "fulfillment_delivery": "Delivery",
+        "fulfillment_pickup": "Pickup",
+        "fulfillment_dine_in": "Dine in"
+      },
+      "externalPlaceExplore": "Find OxSteed restaurants nearby"
     },
     "restaurant": {
       "messageUnreachable": "This restaurant can't receive messages right now. Please try again later.",
@@ -23217,7 +23274,36 @@
         "promo_not_fundable": "This promo code can't be applied to this order.",
         "promo_changed": "The promo discount changed. Review your order and try again."
       },
-      "promoApplied": "Promo applied: −{{amount}}"
+      "promoApplied": "Promo applied: −{{amount}}",
+      "removeItem": "Remove {{item}} from cart",
+      "checkoutTotalLoading": "Calculating total…",
+      "reorderReplaceConfirm": "Replace your current cart with this past order?",
+      "reorderDropped": "Some customizations are no longer available and were left out: {{items}}",
+      "deliveryCity": "City",
+      "deliveryCityPlaceholder": "City",
+      "deliveryState": "State",
+      "deliveryStatePlaceholder": "State",
+      "deliveryZip": "ZIP code",
+      "deliveryZipPlaceholder": "ZIP code",
+      "deliveryInstructions": "Delivery instructions",
+      "deliveryInstructionsPlaceholder": "Gate code, parking, or drop-off notes",
+      "guestCheckoutNote": "You can check out as a guest. Sign in to see this order in your order history and earn loyalty points.",
+      "guestName": "Your name",
+      "guestNamePlaceholder": "Full name",
+      "guestPhone": "Phone",
+      "guestPhonePlaceholder": "Phone number",
+      "guestEmail": "Email",
+      "guestEmailPlaceholder": "Email address",
+      "guestNameRequired": "Please enter your name for a guest pickup order.",
+      "guestContactRequired": "Please provide a phone number or email for order updates.",
+      "guestPaymentUnavailable": "This payment method requires sign-in. Choose pay at restaurant or Guest Credit, or sign in.",
+      "quoteLoading": "Still calculating your total…",
+      "trackOrder": "Track order",
+      "reviewAfterCompleted": "Once your order is completed, you can leave a review from the tracking page.",
+      "reviewsLoadError": "Could not load reviews.",
+      "reviewsShowing": "Showing {{shown}} of {{total}} reviews",
+      "loadMoreReviews": "Load more reviews",
+      "reviewResponse": "Restaurant response: {{response}}"
     },
     "order": {
       "specialInstructions": "Special instructions (optional)",
@@ -23247,7 +23333,8 @@
       "reviewOptional": "Optional comment (500 characters max)",
       "submitReview": "Submit review",
       "reviewThanks": "Thanks for your review!",
-      "reviewError": "We couldn't save your review. Please try again."
+      "reviewError": "We couldn't save your review. Please try again.",
+      "reviewDeleted": "Your review was deleted."
     },
     "status": {
       "received": "Received",
@@ -23269,7 +23356,13 @@
       "total": "Total",
       "printReceipt": "Print Receipt",
       "runnerNearby": "Runner nearby",
-      "runnerUpdatedAgo": "location updated {{seconds}}s ago"
+      "runnerUpdatedAgo": "location updated {{seconds}}s ago",
+      "reviewDone": "Your review",
+      "reviewTitle": "Leave a review",
+      "reviewThanks": "Thanks for your feedback.",
+      "reviewPlaceholder": "How was your order?",
+      "reviewSubmit": "Submit review",
+      "reviewDelete": "Delete review"
     },
     "payment": {
       "paid": "Paid",

@@ -1,5 +1,5 @@
 import useAppResume from '../hooks/useAppResume';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -74,16 +74,27 @@ function OrderHistoryPageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [serverStats, setServerStats] = useState(null);
+  const PAGE_SIZE = 30;
 
   useEffect(() => {
     loadOrders();
-  }, []);
+  }, [page, filter]);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
       setError(null);
-      setOrders(await listMyFoodOrders());
+      const result = await listMyFoodOrders({
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
+        status: filter === 'all' ? undefined : filter,
+      });
+      setOrders(result.orders || []);
+      setTotal(result.total || 0);
+      setServerStats(result.stats || null);
     } catch (err) {
       setError(err.response?.data?.error || t('orders.loadError'));
     } finally {
@@ -95,10 +106,7 @@ function OrderHistoryPageContent() {
 
   const language = i18n.resolvedLanguage || i18n.language;
   const notSetText = t('orders.notSet');
-  const visibleOrders = useMemo(
-    () => orders.filter((order) => matchesOrderFilter(order, filter)),
-    [filter, orders],
-  );
+  const visibleOrders = orders;
 
   // RB1 — One-tap reorder: jump to the restaurant with the past order; the
   // restaurant page rebuilds the cart from the current menu and opens it.
@@ -112,11 +120,15 @@ function OrderHistoryPageContent() {
   };
   const isPastOrder = (order) => !matchesOrderFilter(order, 'active');
 
-  const derivedStats = useMemo(() => ({
-    total_orders: orders.length,
-    completed_orders: orders.filter((order) => COMPLETED_ORDER_STATUSES.has(String(order.status || '').toLowerCase())).length,
-    active_orders: orders.filter((order) => matchesOrderFilter(order, 'active')).length,
-  }), [orders]);
+  const derivedStats = {
+    // Totals come from the server over all orders, never from the loaded page.
+    total_orders: serverStats ? serverStats.total : total,
+    completed_orders: serverStats ? serverStats.completed : 0,
+    active_orders: serverStats ? serverStats.active : 0,
+  };
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const showingFrom = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const showingTo = Math.min(total, (page + 1) * PAGE_SIZE);
 
   return (
     <PageShell>
@@ -157,7 +169,7 @@ function OrderHistoryPageContent() {
                 <button
                   key={status}
                   type="button"
-                  onClick={() => setFilter(status)}
+                  onClick={() => { setFilter(status); setPage(0); }}
                   className={filter === status ? 'active' : ''} data-track="ui.c49051010e.2"
                 >
                   {statusLabel(status, t)}
@@ -214,6 +226,16 @@ function OrderHistoryPageContent() {
                   </div>
                 </article>
               ))}
+              <div className="orders-pagination" aria-label={t('orders.pagination')}>
+                <span>{t('orders.showingRange', { from: showingFrom, to: showingTo, total })}</span>
+                <button type="button" className="orders-btn" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0 || loading} data-track="ui.c49051010e.6">
+                  {t('orders.previousPage')}
+                </button>
+                <span>{t('orders.pageOf', { page: page + 1, pages: pageCount })}</span>
+                <button type="button" className="orders-btn" onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={page >= pageCount - 1 || loading} data-track="ui.c49051010e.7">
+                  {t('orders.nextPage')}
+                </button>
+              </div>
             </div>
           )}
         </section>
