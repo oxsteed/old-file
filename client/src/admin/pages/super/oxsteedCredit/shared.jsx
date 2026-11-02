@@ -469,6 +469,7 @@ export const CREDIT_SUBNAV_ITEMS = [
   { routeKey: 'oxsteedCreditMoneyOut', labelKey: 'moneyOutEyebrow' },
   { routeKey: 'oxsteedCreditCards', labelKey: 'adminCreditSubnavCards', descriptionKey: 'cards.adminDescription' },
   { routeKey: 'oxsteedCreditLedger', labelKey: 'adminLedgerActivity', descriptionKey: 'adminCreditTransactionHistoryDetail' },
+  { routeKey: 'oxsteedCreditBackfill', labelKey: 'adminCreditBackfill.subnav' },
 ];
 
 export function CreditSubNav() {
