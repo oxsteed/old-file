@@ -1,7 +1,9 @@
 {
   "adminOpsAudit": {
     "fulfillmentTitle": "Confirmar entrega de tarjeta",
-    "fulfillmentConfirm": "¿Marcar esta tarjeta como {{status}}? Confirma que este paso físico está completo. Esta acción no se puede deshacer aquí."
+    "fulfillmentConfirm": "¿Marcar esta tarjeta como {{status}}? Confirma que este paso físico está completo. Si se marcó demasiado pronto, vuelve a moverla desde la fila de la tarjeta antes de que la tarjeta se active.",
+    "fulfillmentMoveBackTitle": "Retroceder la entrega de la tarjeta",
+    "fulfillmentMoveBackConfirm": "¿Mover esta tarjeta de nuevo a {{status}}? Usa esto solo para corregir un paso que se marcó antes de que ocurriera. Una tarjeta que ya está activa no se puede mover hacia atrás."
   },
   "statementCenter": {
     "title": "Centro de estados de cuenta",
@@ -2071,7 +2073,8 @@
         "verification_succeeded": "Verificación completada",
         "revoked": "Tarjeta revocada"
       }
-    }
+    },
+    "moveBack": "Volver a {{status}}"
   },
   "restaurantWallet": {
     "title": "Crédito del restaurante",
@@ -2423,6 +2426,12 @@
   "transferRecipientPlaceholder": "ID de cliente OxSteed del destinatario",
   "transferRecipientHint": "Pide al destinatario su ID de cliente OxSteed. Las transferencias solo van a cuentas de clientes.",
   "transferRecipientInvalid": "Escribe un ID de cliente destinatario válido.",
+  "transferRecipientLookingUp": "Buscando destinatario...",
+  "transferRecipientResolved": "Destinatario: {{name}}",
+  "transferRecipientNotResolved": "Espera a que aparezca el nombre del destinatario antes de revisar.",
+  "transferRecipientIdDetail": "ID del cliente: {{recipientId}}",
+  "transferFeeQuoteFailed": "No se pudo cargar la comisión de la transferencia. La comisión se sigue cobrando al transferir, por lo que la revisión queda deshabilitada hasta que se cargue una comisión.",
+  "transferFeeQuoteLoading": "Cargando comisión de transferencia...",
   "transferDescriptionLabel": "Nota (opcional)",
   "transferDescriptionPlaceholder": "¿Para qué es esta transferencia?",
   "transferReviewButton": "Revisar transferencia",

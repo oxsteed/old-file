@@ -2,7 +2,7 @@
   "adminOpsAudit": {
     "bulkFailed": "ID itilizatè ki echwe: {{ids}}. Yo rete chwazi pou eseye ankò.",
     "fulfillmentTitle": "Konfime livrezon kat la",
-    "fulfillmentConfirm": "Make kat sa a kòm {{status}}? Konfime etap fizik sa a fini. Ou pa ka anile aksyon sa a isit la.",
+    "fulfillmentConfirm": "Make kat sa a kòm {{status}}? Konfime etap fizik sa a fini. Si yo te make li twò bonè, deplase li tounen soti nan ranje kat la anvan kat la aktive.",
     "showing": "Montre {{from}}–{{to}} sou {{total}}",
     "previous": "Anvan",
     "next": "Apre",
@@ -13,7 +13,9 @@
     "refundDone": "Ranbousman an anrejistre.",
     "recordOnlyRevocation": "Revoke dosye akseptasyon sa a? Sa sèlman mete dosye legal la ajou. Sa pa bloke aksè kont lan ni mande itilizatè a aksepte ankò.",
     "onCall": "De sèvis pou alèt SOS",
-    "incidentTypes": "Kalite ensidan (separe ak vigil; * pou tout)"
+    "incidentTypes": "Kalite ensidan (separe ak vigil; * pou tout)",
+    "fulfillmentMoveBackTitle": "Deplase livrezon kat la tounen",
+    "fulfillmentMoveBackConfirm": "Deplase kat sa a tounen nan {{status}}? Itilize sa a sèlman pou korije yon etap yo te make anvan li te rive. Yon kat ki deja aktive pa ka deplase tounen."
   },
   "pwaExperience": {
     "serverUpdated": "Nou senkronize tèks bouyon ki pi resan an. Verifye foto ki sou aparèy sa a.",
@@ -18572,11 +18574,17 @@
         "markPaid": "Make kòm peye",
         "void": "Anile",
         "confirmVoid": "Anile peman sa a? Li pap peye.",
+        "confirmApprove": "Apwouve yon peman ${{amount}} pou {{driver}}?",
+        "confirmMarkPaid": "Make yon peman ${{amount}} pou {{driver}} kòm peye?",
         "approveDone": "Peman apwouve.",
         "markPaidDone": "Peman make kòm peye.",
         "voidDone": "Peman anile.",
         "referenceRequired": "Antre yon referans peman anvan ou make yon peman kòm peye.",
-        "actionFailed": "Aksyon peman sa a echwe. Tanpri eseye ankò."
+        "actionFailed": "Aksyon peman sa a echwe. Tanpri eseye ankò.",
+        "showing": "Ap montre {{from}}–{{to}} sou {{total}}",
+        "previous": "Anvan",
+        "next": "Apre",
+        "pagerLabel": "Paj peman chofè"
       }
     },
     "orderDetail": {
@@ -35645,7 +35653,13 @@
       "clawbackDone": "Reprann {{amount}} {{currency}}.",
       "clawbackDonePlain": "Rechaj reprann.",
       "clawbackQueued": "Reprann nan ap tann apwobasyon yon dezyèm administratè. Okenn lajan poko deplase.",
-      "clawbackFailed": "Reprann nan echwe. Tcheke ID rechaj la epi eseye ankò."
+      "clawbackFailed": "Reprann nan echwe. Tcheke ID rechaj la epi eseye ankò.",
+      "clawbackPreviewButton": "Wè apèsi rechaj la",
+      "clawbackPreviewLoading": "N ap chaje apèsi rechaj la...",
+      "clawbackPreviewHint": "Gade apèsi rechaj la anvan ou konfime. Konfimasyon an rete dezaktive jiskaske montan an, restoran an, ak estati ID sa a chaje.",
+      "clawbackPreviewAmount": "Montan: {{amount}} {{currency}}",
+      "clawbackPreviewRestaurant": "Restoran: {{restaurant}}",
+      "clawbackPreviewStatus": "Estati: {{status}}"
     }
   },
   "featuredPlacements": {
@@ -37051,6 +37065,8 @@
       "deleting": "Ap efase…",
       "deleteMethod": "Efase",
       "confirmDelete": "Efase metòd peman sa a?",
+      "confirmSetPrimary": "Fè {{method}} metòd peman prensipal ou a?",
+      "confirmDeactivate": "Dezaktive {{method}}?",
       "primary": "Prensipal",
       "methodPrimary": "Sa a se kounye a metòd peman prensipal ou.",
       "methodDeactivated": "Metòd peman dezaktive.",
@@ -37900,5 +37916,8 @@
     "previous": "Anvan",
     "next": "Apre",
     "closeBooking": "Fèmen detay rezèvasyon an"
+  },
+  "cards": {
+    "moveBack": "Tounen nan {{status}}"
   }
 }

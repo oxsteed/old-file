@@ -507,17 +507,19 @@ export function InventoryPanel({ t, restaurant, bare, onStats }) {
   const restaurantId = restaurant.id;
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [adjusting, setAdjusting] = useState(null); // item being adjusted
 
   const load = useCallback(() => {
     setLoading(true);
+    setLoadError(false);
     listInventoryItems(restaurantId)
       .then((items) => {
         setItems(items);
         onStats?.({ items: items.length, lowStock: items.filter((i) => i.is_low).length });
       })
-      .catch((err) => toast.error(apiErr(err, t('restaurants.ops.inventory.loadError', 'Could not load inventory'))))
+      .catch((err) => { setLoadError(true); toast.error(apiErr(err, t('restaurants.ops.inventory.loadError', 'Could not load inventory'))); })
       .finally(() => setLoading(false));
   }, [restaurantId, t, onStats]);
   useEffect(() => { load(); }, [load]);
@@ -569,6 +571,8 @@ export function InventoryPanel({ t, restaurant, bare, onStats }) {
           {showCreate ? t('food.common.back', 'Back') : t('restaurants.ops.inventory.newItem', 'New item')}
         </button>
       </div>
+
+      {loadError && <p role="alert">{t('restaurants.ops.shared.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={load} data-track="ui.52793f2559.31">{t('restaurants.ops.shared.retry')}</button></p>}
 
       {lowCount > 0 && (
         <p className="fd-ops-notice fd-ops-notice--warn">

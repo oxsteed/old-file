@@ -4,6 +4,7 @@
  * Admin controller for restaurant customer top-up eligibility + clawback.
  *
  * GET  /api/admin/restaurant-topups/applications?status=pending
+ * GET  /api/admin/restaurant-topups/topups/:topupId
  * POST /api/admin/restaurant-topups/applications/:restaurantId/approve
  * POST /api/admin/restaurant-topups/applications/:restaurantId/reject   {reason}
  * POST /api/admin/restaurant-topups/applications/:restaurantId/suspend  {reason}
@@ -17,6 +18,7 @@
  */
 
 const { AppError } = require('../middleware/errorHandler');
+const pool = require('../db');
 const topupService = require('../services/restaurantTopupService');
 
 function parseRestaurantId(value) {
@@ -99,6 +101,46 @@ function decideApplication(decision) {
   };
 }
 
+// Clawback preview (admin-ops audit item 3): a read-only single-top-up
+// lookup so the clawback dialog can show amount, restaurant, and status
+// BEFORE any step-up is issued. Same manage_financials gate as the
+// approvals page (see routes/adminRestaurantTopups.js). Returns only the
+// fields the preview needs; no wallet or customer details.
+const TOPUP_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function getTopup(req, res, next) {
+  try {
+    const topupId = String(req.params.topupId || '').trim();
+    if (!TOPUP_ID_PATTERN.test(topupId)) {
+      throw new AppError('Top-up id is invalid', 400, 'restaurant_topup_id_invalid');
+    }
+    const { rows: [row] } = await pool.query(
+      `SELECT t.id, t.restaurant_id, t.amount_cents, t.currency, t.status, t.created_at,
+              fr.display_name AS restaurant_name
+         FROM restaurant_topups t
+         JOIN food_restaurants fr ON fr.id = t.restaurant_id
+        WHERE t.id = $1`,
+      [topupId],
+    );
+    if (!row) {
+      throw new AppError('Restaurant top-up not found', 404, 'restaurant_topup_not_found');
+    }
+    res.json({
+      topup: {
+        id: String(row.id),
+        restaurantId: String(row.restaurant_id),
+        restaurantName: row.restaurant_name || null,
+        amountCents: Number(row.amount_cents),
+        currency: row.currency,
+        status: row.status,
+        createdAt: row.created_at,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function clawbackTopup(req, res, next) {
   try {
     const adminId = req.user?.id;
@@ -121,6 +163,7 @@ async function clawbackTopup(req, res, next) {
 
 module.exports = {
   listApplications,
+  getTopup,
   approveApplication: decideApplication('approve'),
   rejectApplication: decideApplication('reject'),
   suspendApplication: decideApplication('suspend'),

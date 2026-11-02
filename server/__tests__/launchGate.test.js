@@ -142,7 +142,7 @@ describe('server launch visibility map (Nov 1 audit item 11)', () => {
       oxsteedMedia: false,
       discoverEverything: false,
       subscriptions: false,
-      affiliateRewards: true,
+      affiliateRewards: false,
       footerUtilityPills: true,
       helperEarnings: true,
       helperInvoices: true,

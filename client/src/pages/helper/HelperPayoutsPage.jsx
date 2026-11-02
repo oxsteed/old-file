@@ -102,15 +102,21 @@ function PayoutMethodsSection() {
     );
   };
 
-  const setPrimary = (method) => mutate(
-    (code) => api.put(`/payouts/payout-methods/${method.id}`, { is_primary: true, totp_code: code }),
-    'helperPayouts.methods.methodPrimary',
-  );
+  const setPrimary = (method) => {
+    if (!window.confirm(t('helperPayouts.methods.confirmSetPrimary', { method: methodDetail(method, t) }))) return;
+    return mutate(
+      (code) => api.put(`/payouts/payout-methods/${method.id}`, { is_primary: true, totp_code: code }),
+      'helperPayouts.methods.methodPrimary',
+    );
+  };
 
-  const deactivate = (method) => mutate(
-    (code) => api.put(`/payouts/payout-methods/${method.id}`, { status: 'inactive', totp_code: code }),
-    'helperPayouts.methods.methodDeactivated',
-  );
+  const deactivate = (method) => {
+    if (!window.confirm(t('helperPayouts.methods.confirmDeactivate', { method: methodDetail(method, t) }))) return;
+    return mutate(
+      (code) => api.put(`/payouts/payout-methods/${method.id}`, { status: 'inactive', totp_code: code }),
+      'helperPayouts.methods.methodDeactivated',
+    );
+  };
 
   const remove = (method) => {
     if (!window.confirm(t('helperPayouts.methods.confirmDelete'))) return;

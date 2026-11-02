@@ -1,7 +1,9 @@
 {
   "adminOpsAudit": {
     "fulfillmentTitle": "Konfime livrezon kat la",
-    "fulfillmentConfirm": "Make kat sa a kòm {{status}}? Konfime etap fizik sa a fini. Ou pa ka anile aksyon sa a isit la."
+    "fulfillmentConfirm": "Make kat sa a kòm {{status}}? Konfime etap fizik sa a fini. Si yo te make li twò bonè, deplase li tounen soti nan ranje kat la anvan kat la aktive.",
+    "fulfillmentMoveBackTitle": "Deplase livrezon kat la tounen",
+    "fulfillmentMoveBackConfirm": "Deplase kat sa a tounen nan {{status}}? Itilize sa a sèlman pou korije yon etap yo te make anvan li te rive. Yon kat ki deja aktive pa ka deplase tounen."
   },
   "statementCenter": {
     "title": "Sant deklarasyon",
@@ -2071,7 +2073,8 @@
         "verification_succeeded": "Verifikasyon fini",
         "revoked": "Kat revoke"
       }
-    }
+    },
+    "moveBack": "Tounen nan {{status}}"
   },
   "restaurantWallet": {
     "title": "Kredi restoran",
@@ -2423,6 +2426,12 @@
   "transferRecipientPlaceholder": "ID kliyan OxSteed moun k ap resevwa a",
   "transferRecipientHint": "Mande moun k ap resevwa a ID kliyan OxSteed li. Transfè yo ale sèlman nan kont kliyan.",
   "transferRecipientInvalid": "Antre yon ID kliyan k ap resevwa ki valab.",
+  "transferRecipientLookingUp": "N ap chèche moun k ap resevwa a...",
+  "transferRecipientResolved": "Moun k ap resevwa a: {{name}}",
+  "transferRecipientNotResolved": "Tann non moun k ap resevwa a parèt anvan ou revize.",
+  "transferRecipientIdDetail": "ID kliyan an: {{recipientId}}",
+  "transferFeeQuoteFailed": "Frè transfè a pa t kapab chaje. Frè a ap toujou fèt sou transfè a, kidonk revizyon an rete dezaktive jiskaske yon frè chaje.",
+  "transferFeeQuoteLoading": "N ap chaje frè transfè a...",
   "transferDescriptionLabel": "Nòt (si ou vle)",
   "transferDescriptionPlaceholder": "Transfè sa a pou kisa?",
   "transferReviewButton": "Revize transfè a",

@@ -2,7 +2,7 @@
   "adminOpsAudit": {
     "bulkFailed": "IDs de usuarios con errores: {{ids}}. Siguen seleccionados para reintentar.",
     "fulfillmentTitle": "Confirmar entrega de tarjeta",
-    "fulfillmentConfirm": "¿Marcar esta tarjeta como {{status}}? Confirma que este paso físico está completo. Esta acción no se puede deshacer aquí.",
+    "fulfillmentConfirm": "¿Marcar esta tarjeta como {{status}}? Confirma que este paso físico está completo. Si se marcó demasiado pronto, vuelve a moverla desde la fila de la tarjeta antes de que la tarjeta se active.",
     "showing": "Mostrando {{from}}–{{to}} de {{total}}",
     "previous": "Anterior",
     "next": "Siguiente",
@@ -13,7 +13,9 @@
     "refundDone": "Reembolso registrado correctamente.",
     "recordOnlyRevocation": "¿Revocar este registro de aceptación? Solo actualiza el registro legal. No restringe el acceso a la cuenta ni exige aceptar de nuevo.",
     "onCall": "De guardia para alertas SOS",
-    "incidentTypes": "Tipos de incidentes (separados por comas; * para todos)"
+    "incidentTypes": "Tipos de incidentes (separados por comas; * para todos)",
+    "fulfillmentMoveBackTitle": "Retroceder la entrega de la tarjeta",
+    "fulfillmentMoveBackConfirm": "¿Mover esta tarjeta de nuevo a {{status}}? Usa esto solo para corregir un paso que se marcó antes de que ocurriera. Una tarjeta que ya está activa no se puede mover hacia atrás."
   },
   "pwaExperience": {
     "serverUpdated": "Se sincronizó un texto más reciente. Revisa las fotos guardadas en este dispositivo.",
@@ -18572,11 +18574,17 @@
         "markPaid": "Marcar como pagado",
         "void": "Anular",
         "confirmVoid": "¿Anular este pago? No se pagará.",
+        "confirmApprove": "¿Aprobar un pago de ${{amount}} para {{driver}}?",
+        "confirmMarkPaid": "¿Marcar un pago de ${{amount}} para {{driver}} como pagado?",
         "approveDone": "Pago aprobado.",
         "markPaidDone": "Pago marcado como pagado.",
         "voidDone": "Pago anulado.",
         "referenceRequired": "Escribe una referencia de pago antes de marcar un pago como pagado.",
-        "actionFailed": "Esa acción de pago falló. Inténtalo de nuevo."
+        "actionFailed": "Esa acción de pago falló. Inténtalo de nuevo.",
+        "showing": "Mostrando {{from}}–{{to}} de {{total}}",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "pagerLabel": "Páginas de pagos a conductores"
       }
     },
     "orderDetail": {
@@ -35645,7 +35653,13 @@
       "clawbackDone": "Se revirtieron {{amount}} {{currency}}.",
       "clawbackDonePlain": "Abono revertido.",
       "clawbackQueued": "Reversión en espera de aprobación de un segundo administrador. Aún no se movieron fondos.",
-      "clawbackFailed": "La reversión falló. Revisa el ID del abono e inténtalo de nuevo."
+      "clawbackFailed": "La reversión falló. Revisa el ID del abono e inténtalo de nuevo.",
+      "clawbackPreviewButton": "Ver vista previa del abono",
+      "clawbackPreviewLoading": "Cargando vista previa del abono...",
+      "clawbackPreviewHint": "Revisa la vista previa del abono antes de confirmar. La confirmación queda deshabilitada hasta que se carguen el monto, el restaurante y el estado de este ID.",
+      "clawbackPreviewAmount": "Monto: {{amount}} {{currency}}",
+      "clawbackPreviewRestaurant": "Restaurante: {{restaurant}}",
+      "clawbackPreviewStatus": "Estado: {{status}}"
     }
   },
   "featuredPlacements": {
@@ -37051,6 +37065,8 @@
       "deleting": "Eliminando…",
       "deleteMethod": "Eliminar",
       "confirmDelete": "¿Eliminar este método de pago?",
+      "confirmSetPrimary": "¿Establecer {{method}} como tu método de pago principal?",
+      "confirmDeactivate": "¿Desactivar {{method}}?",
       "primary": "Principal",
       "methodPrimary": "Este es ahora tu método de pago principal.",
       "methodDeactivated": "Método de pago desactivado.",
@@ -37900,5 +37916,8 @@
     "previous": "Anterior",
     "next": "Siguiente",
     "closeBooking": "Cerrar detalles de la reserva"
+  },
+  "cards": {
+    "moveBack": "Volver a {{status}}"
   }
 }

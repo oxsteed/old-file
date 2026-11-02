@@ -717,9 +717,13 @@ exports.listDriverPayouts = async (req, res, next) => {
 };
 
 // Ops: list all payouts (operations workspace enforced by route middleware).
+// Paginated: the caller pages through the full filtered list via limit/offset
+// plus a COUNT(*) total, so no status bucket silently disappears past the cap.
 exports.listAllDriverPayouts = async (req, res, next) => {
   try {
     const status = text(req.query.status, 24);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 200));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const params = [];
     let filter = '';
     if (status) { params.push(status); filter = ` WHERE p.status = $1`; }
@@ -731,10 +735,14 @@ exports.listAllDriverPayouts = async (req, res, next) => {
          LEFT JOIN delivery_jobs j ON j.id = p.delivery_job_id
         ${filter}
         ORDER BY p.created_at DESC
-        LIMIT 200`,
+        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    );
+    const count = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM delivery_driver_payouts p${filter}`,
       params
     );
-    res.json({ success: true, payouts: rows });
+    res.json({ success: true, payouts: rows, total: Number(count.rows[0]?.total || 0), limit, offset });
   } catch (error) {
     next(error);
   }

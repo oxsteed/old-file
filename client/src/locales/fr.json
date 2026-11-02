@@ -2,7 +2,7 @@
   "adminOpsAudit": {
     "bulkFailed": "Identifiants en échec : {{ids}}. Ces utilisateurs restent sélectionnés pour réessayer.",
     "fulfillmentTitle": "Confirmer la remise de la carte",
-    "fulfillmentConfirm": "Marquer cette carte comme {{status}} ? Confirmez que cette étape physique est terminée. Cette action ne peut pas être annulée ici.",
+    "fulfillmentConfirm": "Marquer cette carte comme {{status}} ? Confirmez que cette étape physique est terminée. Si elle a été marquée trop tôt, revenez en arrière depuis la ligne de la carte avant que la carte soit activée.",
     "showing": "Affichage de {{from}} à {{to}} sur {{total}}",
     "previous": "Précédent",
     "next": "Suivant",
@@ -13,7 +13,9 @@
     "refundDone": "Remboursement enregistré.",
     "recordOnlyRevocation": "Révoquer cette preuve d’acceptation ? Seul le registre juridique sera modifié. L’accès au compte reste autorisé et aucune nouvelle acceptation ne sera demandée.",
     "onCall": "De garde pour les alertes SOS",
-    "incidentTypes": "Types d’incidents (séparés par des virgules ; * pour tous)"
+    "incidentTypes": "Types d’incidents (séparés par des virgules ; * pour tous)",
+    "fulfillmentMoveBackTitle": "Reculer la remise de la carte",
+    "fulfillmentMoveBackConfirm": "Remettre cette carte à {{status}} ? Utilisez ceci uniquement pour corriger une étape marquée avant qu’elle ne se produise. Une carte déjà active ne peut pas être reculée."
   },
   "pwaExperience": {
     "serverUpdated": "Un texte de brouillon plus récent a été synchronisé. Vérifiez les photos conservées sur cet appareil.",
@@ -18572,11 +18574,17 @@
         "markPaid": "Marquer comme payé",
         "void": "Annuler",
         "confirmVoid": "Annuler ce paiement ? Il ne sera pas versé.",
+        "confirmApprove": "Approuver un paiement de {{amount}} $ pour {{driver}} ?",
+        "confirmMarkPaid": "Marquer un paiement de {{amount}} $ pour {{driver}} comme payé ?",
         "approveDone": "Paiement approuvé.",
         "markPaidDone": "Paiement marqué comme payé.",
         "voidDone": "Paiement annulé.",
         "referenceRequired": "Saisissez une référence de paiement avant de marquer un paiement comme payé.",
-        "actionFailed": "Cette action de paiement a échoué. Veuillez réessayer."
+        "actionFailed": "Cette action de paiement a échoué. Veuillez réessayer.",
+        "showing": "Affichage de {{from}} à {{to}} sur {{total}}",
+        "previous": "Précédent",
+        "next": "Suivant",
+        "pagerLabel": "Pages des paiements aux chauffeurs"
       }
     },
     "orderDetail": {
@@ -35645,7 +35653,13 @@
       "clawbackDone": "{{amount}} {{currency}} repris.",
       "clawbackDonePlain": "Rechargement repris.",
       "clawbackQueued": "Reprise en attente de l’approbation d’un second administrateur. Aucun fonds n’a encore bougé.",
-      "clawbackFailed": "La reprise a échoué. Vérifiez l’identifiant du rechargement et réessayez."
+      "clawbackFailed": "La reprise a échoué. Vérifiez l’identifiant du rechargement et réessayez.",
+      "clawbackPreviewButton": "Aperçu du rechargement",
+      "clawbackPreviewLoading": "Chargement de l’aperçu du rechargement...",
+      "clawbackPreviewHint": "Consultez l’aperçu du rechargement avant de confirmer. La confirmation reste désactivée tant que le montant, le restaurant et le statut de cet identifiant ne sont pas chargés.",
+      "clawbackPreviewAmount": "Montant : {{amount}} {{currency}}",
+      "clawbackPreviewRestaurant": "Restaurant : {{restaurant}}",
+      "clawbackPreviewStatus": "Statut : {{status}}"
     }
   },
   "featuredPlacements": {
@@ -37051,6 +37065,8 @@
       "deleting": "Suppression en cours…",
       "deleteMethod": "Supprimer",
       "confirmDelete": "Supprimer ce moyen de paiement ?",
+      "confirmSetPrimary": "Définir {{method}} comme moyen de paiement principal ?",
+      "confirmDeactivate": "Désactiver {{method}} ?",
       "primary": "Principal",
       "methodPrimary": "Ceci est maintenant votre moyen de paiement principal.",
       "methodDeactivated": "Moyen de paiement désactivé.",
@@ -37900,5 +37916,8 @@
     "previous": "Précédent",
     "next": "Suivant",
     "closeBooking": "Fermer les détails de la réservation"
+  },
+  "cards": {
+    "moveBack": "Revenir à {{status}}"
   }
 }

@@ -66,7 +66,7 @@ export const deleteSop = (restaurantId, sopId) =>
 
 // ── Inventory (Phase 3) ──────────────────────────────────────────────────────
 export const listInventoryItems = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/inventory/items`, { params }).then((r) => r.data?.items || []);
+  api.get(`/restaurants/${restaurantId}/inventory/items`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.items || []);
 
 export const createInventoryItem = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/inventory/items`, payload).then((r) => r.data?.item);

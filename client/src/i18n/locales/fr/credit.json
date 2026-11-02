@@ -1,7 +1,9 @@
 {
   "adminOpsAudit": {
     "fulfillmentTitle": "Confirmer la remise de la carte",
-    "fulfillmentConfirm": "Marquer cette carte comme {{status}} ? Confirmez que cette étape physique est terminée. Cette action ne peut pas être annulée ici."
+    "fulfillmentConfirm": "Marquer cette carte comme {{status}} ? Confirmez que cette étape physique est terminée. Si elle a été marquée trop tôt, revenez en arrière depuis la ligne de la carte avant que la carte soit activée.",
+    "fulfillmentMoveBackTitle": "Reculer la remise de la carte",
+    "fulfillmentMoveBackConfirm": "Remettre cette carte à {{status}} ? Utilisez ceci uniquement pour corriger une étape marquée avant qu’elle ne se produise. Une carte déjà active ne peut pas être reculée."
   },
   "statementCenter": {
     "title": "Centre des relevés",
@@ -2071,7 +2073,8 @@
         "verification_succeeded": "Vérification terminée",
         "revoked": "Carte révoquée"
       }
-    }
+    },
+    "moveBack": "Revenir à {{status}}"
   },
   "restaurantWallet": {
     "title": "Crédit restaurant",
@@ -2423,6 +2426,12 @@
   "transferRecipientPlaceholder": "Identifiant client OxSteed du destinataire",
   "transferRecipientHint": "Demandez au destinataire son identifiant client OxSteed. Les transferts ne vont que vers des comptes clients.",
   "transferRecipientInvalid": "Saisissez un identifiant de client destinataire valide.",
+  "transferRecipientLookingUp": "Recherche du destinataire...",
+  "transferRecipientResolved": "Destinataire : {{name}}",
+  "transferRecipientNotResolved": "Attendez que le nom du destinataire apparaisse avant de vérifier.",
+  "transferRecipientIdDetail": "Identifiant client : {{recipientId}}",
+  "transferFeeQuoteFailed": "Les frais de transfert n’ont pas pu être chargés. Les frais restent facturés lors du transfert, la vérification reste donc désactivée tant qu’aucun frais n’est chargé.",
+  "transferFeeQuoteLoading": "Chargement des frais de transfert...",
   "transferDescriptionLabel": "Note (facultatif)",
   "transferDescriptionPlaceholder": "À quoi sert ce transfert ?",
   "transferReviewButton": "Vérifier le transfert",

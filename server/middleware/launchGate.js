@@ -84,7 +84,15 @@ const GATED_PREFIXES = Object.freeze([
 // variables (OXSTEED_MEDIA_LAUNCHED, VORTEX_ENABLED, AFFILIATE_ENABLED);
 // the rest use OXSTEED_LAUNCH_<KEY>.
 const LAUNCH_KEY_ENV = Object.freeze({
-  affiliateRewards: ['AFFILIATE_ENABLED', true],
+  // 2026-11-02 admin-ops audit item 15: affiliate defaults OFF to match
+  // the affiliate API gate (requireFeatureEnabled 'AFFILIATE_ENABLED',
+  // false). Previously true here while the API defaulted off, so the
+  // client rendered affiliate UI against 503 APIs when the env var was
+  // unset. Note: /api/launch-visibility reads this map from env live at
+  // request time; it is NOT the boot snapshot the hard API gates use, so
+  // an env flip without a redeploy can show a launch as live that the
+  // API still blocks (or vice versa).
+  affiliateRewards: ['AFFILIATE_ENABLED', false],
   aiKnowledge: ['OXSTEED_LAUNCH_AI_KNOWLEDGE', false],
   backgroundChecks: ['OXSTEED_LAUNCH_BACKGROUND_CHECKS', false],
   businessAscension: ['OXSTEED_LAUNCH_BUSINESS_ASCENSION', false],

@@ -636,6 +636,36 @@ async function adminCaptureHold(req, res, next) {
   }
 }
 
+// Transfer recipient lookup (admin-ops audit item 4): resolve a pasted
+// customer id to a display name BEFORE the sender confirms, so a
+// valid-but-wrong UUID is human-checkable. Authenticated customer route
+// only (see routes/oxsteedCredit.js); the id itself is the capability, the
+// same id the transfer POST already accepts. Returns the name only, never
+// an email address, and only for active customer accounts, mirroring the
+// recipient check inside transferCredit.
+async function lookupTransferRecipient(req, res, next) {
+  try {
+    const customerId = parseUuid(req.params.customerId, 'customerId');
+    const { rows: [row] } = await pool.query(
+      `SELECT id, first_name, last_name FROM users
+        WHERE id = $1 AND role = 'customer' AND is_active = TRUE LIMIT 1`,
+      [customerId],
+    );
+    if (!row) {
+      throw new AppError('Recipient customer was not found', 404, 'credit_recipient_not_found');
+    }
+    const displayName = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
+    res.json({
+      recipient: {
+        customerId: String(row.id),
+        displayName: displayName || null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function transferMyCredit(req, res, next) {
   try {
     if (req.user.role !== 'customer') {
@@ -2696,6 +2726,7 @@ module.exports = {
   adminCaptureHold,
   releaseMyHold,
   transferMyCredit,
+  lookupTransferRecipient,
   openMyDispute,
   listMyDisputes,
   adminLoadCredit,

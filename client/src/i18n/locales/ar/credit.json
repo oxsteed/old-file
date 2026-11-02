@@ -1,7 +1,9 @@
 {
   "adminOpsAudit": {
     "fulfillmentTitle": "تأكيد تسليم البطاقة",
-    "fulfillmentConfirm": "هل تريد وضع علامة {{status}} على هذه البطاقة؟ أكّد اكتمال هذه الخطوة الفعلية. لا يمكن التراجع عن هذا الإجراء هنا."
+    "fulfillmentConfirm": "هل تريد وضع علامة {{status}} على هذه البطاقة؟ أكّد اكتمال هذه الخطوة الفعلية. إذا تم وضع العلامة مبكرا جدا، أعدها من صف البطاقة قبل تفعيل البطاقة.",
+    "fulfillmentMoveBackTitle": "إرجاع تسليم البطاقة خطوة إلى الوراء",
+    "fulfillmentMoveBackConfirm": "هل تريد إرجاع هذه البطاقة إلى {{status}}؟ استخدم هذا فقط لتصحيح خطوة تم وضع علامة عليها قبل حدوثها. لا يمكن إرجاع البطاقة المفعلة بالفعل."
   },
   "statementCenter": {
     "title": "مركز الكشوفات",
@@ -2071,7 +2073,8 @@
         "verification_succeeded": "اكتمل التحقق",
         "revoked": "أُلغيت البطاقة"
       }
-    }
+    },
+    "moveBack": "العودة إلى {{status}}"
   },
   "restaurantWallet": {
     "title": "رصيد المطعم",
@@ -2423,6 +2426,12 @@
   "transferRecipientPlaceholder": "معرّف عميل OxSteed للمستلم",
   "transferRecipientHint": "اطلب من المستلم معرّف عميل OxSteed الخاص به. التحويلات تذهب فقط إلى حسابات العملاء.",
   "transferRecipientInvalid": "أدخل معرّف عميل مستلم صالحاً.",
+  "transferRecipientLookingUp": "جارٍ البحث عن المستلم...",
+  "transferRecipientResolved": "المستلم: {{name}}",
+  "transferRecipientNotResolved": "انتظر حتى يظهر اسم المستلم قبل المراجعة.",
+  "transferRecipientIdDetail": "معرّف العميل: {{recipientId}}",
+  "transferFeeQuoteFailed": "تعذّر تحميل رسوم التحويل. ستظل الرسوم مفروضة عند التحويل، لذا تظل المراجعة معطّلة حتى يتم تحميل رسوم.",
+  "transferFeeQuoteLoading": "جارٍ تحميل رسوم التحويل...",
   "transferDescriptionLabel": "ملاحظة (اختياري)",
   "transferDescriptionPlaceholder": "ما الغرض من هذا التحويل؟",
   "transferReviewButton": "مراجعة التحويل",

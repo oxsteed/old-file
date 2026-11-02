@@ -76,13 +76,16 @@ function SectionHeader({ eyebrow, title, detail, action }) {
   );
 }
 
-function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
+function DecisionDialog({ modal, busy, onChange, onClose, onConfirm, onPreview }) {
   const { t } = useTranslation();
   if (!modal) return null;
   const needsReason = modal.kind === 'reject' || modal.kind === 'suspend' || modal.kind === 'clawback';
+  // Clawback never confirms blind: confirm requires a loaded preview for
+  // the exact top-up id entered, shown before any step-up is issued.
   const canConfirm = !busy
     && (!needsReason || modal.reason?.trim())
-    && (modal.kind !== 'clawback' || modal.topupId?.trim());
+    && (modal.kind !== 'clawback'
+      || (modal.topupPreview && String(modal.topupPreview.id) === String(modal.topupId || '').trim()));
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="topup-decision-dialog-title">
       <div className="w-full max-w-lg rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111318] p-5 shadow-2xl sm:p-6">
@@ -97,16 +100,42 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
         </div>
         <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">{modal.description}</p>
         {modal.kind === 'clawback' && (
-          <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            {t('restaurantTopups.admin.clawbackTopupIdLabel')} <span className="text-orange-300">*</span>
-            <input
-              value={modal.topupId || ''}
-              onChange={(event) => onChange({ topupId: event.target.value })}
-              inputMode="numeric"
-              placeholder={t('restaurantTopups.admin.clawbackTopupIdPlaceholder')}
-              className="mt-2 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-gray-900 dark:text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
-            />
-          </label>
+          <>
+            <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              {t('restaurantTopups.admin.clawbackTopupIdLabel')} <span className="text-orange-300">*</span>
+              <input
+                value={modal.topupId || ''}
+                onChange={(event) => onChange({ topupId: event.target.value, topupPreview: null, topupPreviewError: '' })}
+                onBlur={() => onPreview?.()}
+                inputMode="numeric"
+                placeholder={t('restaurantTopups.admin.clawbackTopupIdPlaceholder')}
+                className="mt-2 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-gray-900 dark:text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={onPreview}
+              disabled={busy || modal.topupPreviewLoading || !modal.topupId?.trim()}
+              className="mt-2 rounded-xl border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"
+            >
+              {modal.topupPreviewLoading ? t('restaurantTopups.admin.clawbackPreviewLoading') : t('restaurantTopups.admin.clawbackPreviewButton')}
+            </button>
+            {modal.topupPreviewError && (
+              <div className="mt-3 rounded-xl border border-red-500/30 bg-red-950/30 px-3 py-2 text-sm text-red-300" role="alert">
+                {modal.topupPreviewError}
+              </div>
+            )}
+            {modal.topupPreview && (
+              <div className="mt-3 space-y-1 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/35 dark:bg-gray-950/35 px-3 py-2 text-sm text-gray-700 dark:text-gray-300" role="status">
+                <p>{t('restaurantTopups.admin.clawbackPreviewAmount', { amount: (Number(modal.topupPreview.amountCents || 0) / 100).toFixed(2), currency: modal.topupPreview.currency || 'USD' })}</p>
+                <p>{t('restaurantTopups.admin.clawbackPreviewRestaurant', { restaurant: modal.topupPreview.restaurantName || t('restaurantTopups.admin.unknownRestaurant') })}</p>
+                <p>{t('restaurantTopups.admin.clawbackPreviewStatus', { status: modal.topupPreview.status })}</p>
+              </div>
+            )}
+            {!modal.topupPreview && !modal.topupPreviewLoading && !modal.topupPreviewError && (
+              <p className="mt-3 text-sm leading-6 text-gray-500">{t('restaurantTopups.admin.clawbackPreviewHint')}</p>
+            )}
+          </>
         )}
         {needsReason && (
           <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -194,21 +223,48 @@ export default function RestaurantTopupApprovals() {
       kind: 'clawback',
       topupId: '',
       reason: '',
+      topupPreview: null,
+      topupPreviewLoading: false,
+      topupPreviewError: '',
       title: t('restaurantTopups.admin.clawbackDialogTitle'),
       confirmLabel: t('restaurantTopups.admin.clawbackConfirm'),
       description: t('restaurantTopups.admin.clawbackDialogDescription'),
     });
   };
 
+  // Clawback preview (audit item 3): load the top-up after the id is
+  // entered and BEFORE the step-up is issued. Server errors surface
+  // verbatim; amounts are never guessed.
+  const lookupClawbackTopup = async () => {
+    if (!modal || modal.kind !== 'clawback') return;
+    const topupId = String(modal.topupId || '').trim();
+    if (!topupId) return;
+    setModal((prev) => (prev ? { ...prev, topupPreview: null, topupPreviewLoading: true, topupPreviewError: '' } : prev));
+    try {
+      const response = await adminApi.get(`/admin/restaurant-topups/topups/${encodeURIComponent(topupId)}`);
+      const preview = response.data?.topup || null;
+      setModal((prev) => (prev && prev.kind === 'clawback' && String(prev.topupId || '').trim() === topupId
+        ? { ...prev, topupPreview: preview, topupPreviewLoading: false }
+        : prev));
+    } catch (err) {
+      setModal((prev) => (prev && prev.kind === 'clawback' && String(prev.topupId || '').trim() === topupId
+        ? { ...prev, topupPreview: null, topupPreviewLoading: false, topupPreviewError: getErrorMessage(err, t('restaurantTopups.admin.clawbackFailed'), t) }
+        : prev));
+    }
+  };
+
   const confirmDecision = async () => {
     if (!modal) return;
     const { kind, application, reason } = modal;
     if (kind === 'clawback') {
-      // No top-ups list endpoint exists: the admin supplies the top-up ID
-      // (from reconciliation records). The server validates it, binds the
+      // The admin supplies the top-up ID (from reconciliation records) and
+      // the dialog previews it first. The server validates it, binds the
       // step-up code to the top-up amount, and fails closed on unknown IDs.
+      // This guard holds even if the confirm button state is ever bypassed:
+      // without a preview for this exact id, no step-up is issued.
       const topupId = String(modal.topupId || '').trim();
-      if (!topupId || !reason?.trim()) return;
+      const preview = modal.topupPreview;
+      if (!topupId || !reason?.trim() || !preview || String(preview.id) !== topupId) return;
       setBusy(true);
       try {
         const stepup = await collectAdminActionStepup(adminApi, '/admin/restaurant-topups/stepup-challenges/clawback', t, { topupId });
@@ -436,6 +492,7 @@ export default function RestaurantTopupApprovals() {
         onChange={(patch) => setModal((prev) => (prev ? { ...prev, ...patch } : prev))}
         onClose={() => { if (!busy) setModal(null); }}
         onConfirm={confirmDecision}
+        onPreview={lookupClawbackTopup}
       />
     </div>
   );
