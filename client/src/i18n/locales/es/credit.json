@@ -2480,7 +2480,8 @@
     "requeueError": "No se pudieron reponer las filas seleccionadas.",
     "requeued": "{{count}} fila(s) repuesta(s).",
     "unknownDate": "Fecha desconocida",
-    "notAvailable": "N/D"
+    "notAvailable": "N/D",
+    "parkedTotal": "Total de filas estacionadas: {{total}}"
   },
   "adminCreditHolds": {
     "capture": "Capturar",

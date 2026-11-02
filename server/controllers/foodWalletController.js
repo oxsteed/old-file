@@ -1043,7 +1043,9 @@ exports.cancelMyWalletLoadRequest = async (req, res, next) => {
 };
 
 // Phase 3 fraud controls: admin review surface for food_credit_fraud_signals.
-// Mounted at GET /api/food/admin/fraud-signals behind requireAdmin.
+// Mounted at GET /api/food/admin/fraud-signals behind requireAdmin +
+// requirePermission('view_financials') (finding 22: previously bare
+// requireAdmin, unlike every neighbouring admin route).
 exports.listFraudSignals = async (req, res, next) => {
   try {
     const reviewedParam = String(req.query.reviewed ?? '').toLowerCase();
@@ -1063,41 +1065,86 @@ exports.listFraudSignals = async (req, res, next) => {
       params.push(severities);
       conditions.push(`s.severity = ANY($${params.length})`);
     }
+    const restaurantId = Number.parseInt(req.query.restaurantId || req.query.restaurant_id, 10);
+    if (Number.isInteger(restaurantId) && restaurantId > 0) {
+      params.push(restaurantId);
+      conditions.push(`s.restaurant_id = $${params.length}`);
+    }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    params.push(limit, offset);
-    const { rows } = await pool.query(
-      `SELECT s.*, fr.display_name AS restaurant_name, u.email AS customer_email
-         FROM food_credit_fraud_signals s
-         LEFT JOIN food_restaurants fr ON fr.id = s.restaurant_id
-         LEFT JOIN users u ON u.id = s.customer_id
-        ${where}
-        ORDER BY s.created_at DESC
-        LIMIT $${params.length - 1} OFFSET $${params.length}`,
-      params
-    );
-    res.json({ signals: rows, limit, offset });
+    const listParams = [...params, limit, offset];
+    const [{ rows: countRows }, { rows }] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS total FROM food_credit_fraud_signals s ${where}`,
+        params
+      ),
+      pool.query(
+        `SELECT s.*, fr.display_name AS restaurant_name, u.email AS customer_email,
+                ru.email AS reviewed_by_email,
+                s.details->'review'->>'note' AS review_note,
+                s.details->'review'->>'reviewedAt' AS reviewed_at
+           FROM food_credit_fraud_signals s
+           LEFT JOIN food_restaurants fr ON fr.id = s.restaurant_id
+           LEFT JOIN users u ON u.id = s.customer_id
+           LEFT JOIN users ru ON ru.id = (s.details->'review'->>'reviewedBy')::uuid
+          ${where}
+          ORDER BY s.created_at DESC
+          LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+        listParams
+      ),
+    ]);
+    res.json({ signals: rows, total: countRows[0]?.total || 0, limit, offset });
   } catch (err) {
     next(err);
   }
 };
 
 // Phase 3 fraud controls: mark a signal reviewed.
-// Mounted at POST /api/food/admin/fraud-signals/:id/review behind requireAdmin.
+// Mounted at POST /api/food/admin/fraud-signals/:id/review behind
+// requireAdmin + requirePermission('manage_financials'). Review records the
+// reviewer, a note, and a timestamp in the signal's details review block
+// and writes a fail-closed admin audit row in the same transaction, so a
+// review can never again be an anonymous, untraced flip of a boolean.
 exports.reviewFraudSignal = async (req, res, next) => {
   try {
     const id = Number.parseInt(req.params.id, 10);
     if (!Number.isInteger(id) || id <= 0) {
       throw new AppError('Fraud signal not found', 404, 'fraud_signal_not_found');
     }
-    const { rows } = await pool.query(
-      `UPDATE food_credit_fraud_signals
-          SET reviewed = TRUE
-        WHERE id = $1
-        RETURNING *`,
-      [id]
-    );
-    if (!rows[0]) throw new AppError('Fraud signal not found', 404, 'fraud_signal_not_found');
-    res.json({ signal: rows[0] });
+    const note = normalizeString(req.body?.note, 1000);
+    const signal = await withTransaction(pool, async (client) => {
+      const { rows } = await client.query(
+        `UPDATE food_credit_fraud_signals
+            SET reviewed = TRUE,
+                details = COALESCE(details, '{}'::jsonb) || jsonb_build_object('review', jsonb_build_object(
+                  'reviewedBy', $2::uuid,
+                  'reviewedAt', NOW(),
+                  'note', $3::text
+                ))
+          WHERE id = $1 AND reviewed = FALSE
+          RETURNING *`,
+        [id, req.user.id, note]
+      );
+      if (!rows[0]) {
+        const { rows: existing } = await client.query('SELECT * FROM food_credit_fraud_signals WHERE id = $1', [id]);
+        if (!existing[0]) throw new AppError('Fraud signal not found', 404, 'fraud_signal_not_found');
+        throw new AppError('Fraud signal was already reviewed', 409, 'fraud_signal_already_reviewed');
+      }
+      const { logAdminAction } = require('../services/auditService');
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'food_fraud_signal_reviewed',
+        targetType: 'food_credit_fraud_signal',
+        targetBigint: String(id),
+        description: note,
+        before: { reviewed: false },
+        after: { reviewed: true, note },
+        req,
+        client,
+        throwOnError: true,
+      });
+      return rows[0];
+    }, 'food_fraud_signal_review');
+    res.json({ signal });
   } catch (err) {
     next(err);
   }

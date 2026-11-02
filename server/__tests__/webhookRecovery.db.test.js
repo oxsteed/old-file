@@ -50,7 +50,8 @@ describeDatabase('webhook recovery (real database)', () => {
       `INSERT INTO webhook_event_receipts (provider, event_id, event_type, status, last_error, account_id)
        VALUES ('stripe', $1, 'test.unhandled', 'failed', 'boom', NULL) RETURNING id`, [eventId]);
     const listed = await recovery.listFailedReceipts({ provider: 'stripe', limit: 500 });
-    expect(listed.map((r) => r.id)).toContain(receipt.id);
+    expect(listed.total).toBeGreaterThanOrEqual(1);
+    expect(listed.receipts.map((r) => r.id)).toContain(receipt.id);
 
     const stripe = { events: { retrieve: jest.fn().mockResolvedValue({
       id: eventId, type: 'test.unhandled', created: 1, data: { object: { id: 'x', object: 'thing' } },
@@ -85,5 +86,10 @@ describeDatabase('webhook recovery (real database)', () => {
     expect((await recovery.resolveReceipt(didit.id, { adminId: crypto.randomUUID(), note: ' ' })).code).toBe('note_required');
     const resolved = await recovery.resolveReceipt(didit.id, { adminId: crypto.randomUUID(), note: 'Re-ran KYC manually' });
     expect(resolved.ok).toBe(true);
+    // Track D (finding 24): resolve records 'resolved', never 'processed',
+    // so it never claims processing it did not do.
+    const { rows: [resolvedRow] } = await pool.query('SELECT status, processed_at FROM webhook_event_receipts WHERE id = $1', [didit.id]);
+    expect(resolvedRow.status).toBe('resolved');
+    expect(resolvedRow.processed_at).toBeNull();
   });
 });

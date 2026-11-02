@@ -219,6 +219,11 @@ export default function MediaFlagsPage() {
   return (
     <div className="admin-page">
       <h1>Media Flags</h1>
+      {/* Track D (finding 21): the restaurant media-flag queue lives on its
+          own dedicated page; this link wires the two queues together. */}
+      <p>
+        <a href="/admin/restaurants/media-flags">{t('adminRestaurantMediaFlags.linkFromGeneral')}</a>
+      </p>
       <section aria-labelledby="media-admin-csam-takedown-title">
         <h2 id="media-admin-csam-takedown-title">{t('media.admin.csamTakedownTitle')}</h2>
         <p>{t('media.admin.csamTakedownHint')}</p>

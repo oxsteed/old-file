@@ -232,15 +232,27 @@ async function submitEvidence(chargebackId, { actorId, note }) {
   return pushEvidence(row, { submit: true, actorId, extraText: note ? String(note).slice(0, 2000) : null });
 }
 
-async function listChargebacks({ open = true, limit = 100 } = {}) {
-  const { rows } = await db.query(
-    `SELECT * FROM stripe_chargebacks
-      WHERE ($1::boolean = FALSE OR (evidence_submitted_at IS NULL AND stripe_status IN ('needs_response','warning_needs_response')))
-      ORDER BY evidence_due_by ASC NULLS LAST, id DESC
-      LIMIT $2`,
-    [Boolean(open), Math.min(500, Math.max(1, Number(limit) || 100))]
-  );
-  return rows;
+// Track D (finding 49): offset plus a real total, so the tail of the queue
+// is reachable instead of silently truncated past the page.
+async function listChargebacks({ open = true, limit = 100, offset = 0 } = {}) {
+  const boundedLimit = Math.min(500, Math.max(1, Number(limit) || 100));
+  const boundedOffset = Math.max(Number(offset) || 0, 0);
+  const openOnly = Boolean(open);
+  const [{ rows: countRows }, { rows }] = await Promise.all([
+    db.query(
+      `SELECT COUNT(*)::int AS total FROM stripe_chargebacks
+        WHERE ($1::boolean = FALSE OR (evidence_submitted_at IS NULL AND stripe_status IN ('needs_response','warning_needs_response')))`,
+      [openOnly]
+    ),
+    db.query(
+      `SELECT * FROM stripe_chargebacks
+        WHERE ($1::boolean = FALSE OR (evidence_submitted_at IS NULL AND stripe_status IN ('needs_response','warning_needs_response')))
+        ORDER BY evidence_due_by ASC NULLS LAST, id DESC
+        LIMIT $2 OFFSET $3`,
+      [openOnly, boundedLimit, boundedOffset]
+    ),
+  ]);
+  return { chargebacks: rows, total: countRows[0]?.total || 0, limit: boundedLimit, offset: boundedOffset };
 }
 
 function autoSubmitEnabled() {

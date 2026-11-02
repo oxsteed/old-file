@@ -988,24 +988,45 @@ exports.adminListMediaFlags = async (req, res, next) => {
     if (!['open', 'resolved', 'dismissed'].includes(status)) {
       return next(new AppError('Invalid status filter.', 400, 'bad_status'));
     }
-    const { rows } = await pool.query(
-      `SELECT f.id, f.media_id, f.reason, f.note, f.status, f.created_at,
-              m.video_url, m.provider, m.caption, m.restaurant_id,
-              fr.display_name AS restaurant_name,
-              (SELECT COUNT(*)::int FROM restaurant_media_flags
-                WHERE media_id = f.media_id AND status = 'open') AS open_flags,
-              u.email AS flagged_by_email, d.email AS decided_by_email
-         FROM restaurant_media_flags f
-         JOIN restaurant_media m ON m.id = f.media_id
-         LEFT JOIN food_restaurants fr ON fr.id = m.restaurant_id
-         LEFT JOIN users u ON u.id = f.user_id
-         LEFT JOIN users d ON d.id = f.decided_by
-        WHERE f.status = $1
-        ORDER BY f.created_at DESC
-        LIMIT 200`,
-      [status]
-    );
-    return res.json({ success: true, flags: rows });
+    // Track D (finding 21): paginate with a total and filter by restaurant
+    // instead of capping silently at the newest 200.
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 200);
+    const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+    const params = [status];
+    const conds = ['f.status = $1'];
+    const restaurantId = Number.parseInt(req.query.restaurantId || req.query.restaurant_id, 10);
+    if (Number.isInteger(restaurantId) && restaurantId > 0) {
+      params.push(restaurantId);
+      conds.push(`m.restaurant_id = $${params.length}`);
+    }
+    const where = `WHERE ${conds.join(' AND ')}`;
+    const [{ rows: countRows }, { rows }] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS total
+           FROM restaurant_media_flags f
+           JOIN restaurant_media m ON m.id = f.media_id
+          ${where}`,
+        params
+      ),
+      pool.query(
+        `SELECT f.id, f.media_id, f.reason, f.note, f.status, f.created_at, f.decided_at,
+                m.video_url, m.provider, m.caption, m.restaurant_id, m.status AS media_status,
+                fr.display_name AS restaurant_name,
+                (SELECT COUNT(*)::int FROM restaurant_media_flags
+                  WHERE media_id = f.media_id AND status = 'open') AS open_flags,
+                u.email AS flagged_by_email, d.email AS decided_by_email
+           FROM restaurant_media_flags f
+           JOIN restaurant_media m ON m.id = f.media_id
+           LEFT JOIN food_restaurants fr ON fr.id = m.restaurant_id
+           LEFT JOIN users u ON u.id = f.user_id
+           LEFT JOIN users d ON d.id = f.decided_by
+          ${where}
+          ORDER BY f.created_at DESC
+          LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset]
+      ),
+    ]);
+    return res.json({ success: true, flags: rows, total: countRows[0]?.total || 0, limit, offset });
   } catch (err) {
     next(err);
   }
@@ -1018,6 +1039,7 @@ exports.adminReviewMediaFlag = async (req, res, next) => {
     if (!['dismiss', 'remove'].includes(action)) {
       return next(new AppError('Invalid review action.', 400, 'media_flag_invalid_action'));
     }
+    const reviewNote = typeof req.body?.note === 'string' ? req.body.note.slice(0, 1000) : null;
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -1058,6 +1080,23 @@ exports.adminReviewMediaFlag = async (req, res, next) => {
           [req.user.id, flag.media_id]
         );
       }
+      // Track D (finding 21): review decisions write an admin audit row,
+      // fail-closed inside the same transaction, like fraud-case mutations.
+      // The audit writer accepts the transaction client, so a failed audit
+      // rolls the decision back instead of leaving an unaudited removal.
+      const { logAdminAction } = require('../services/auditService');
+      await logAdminAction({
+        adminId: req.user.id,
+        action: action === 'remove' ? 'restaurant_media_flag_removed' : 'restaurant_media_flag_dismissed',
+        targetType: 'restaurant_media_flag',
+        targetId: flag.id,
+        description: reviewNote,
+        before: { status: 'open', media_id: flag.media_id },
+        after: { status: action === 'remove' ? 'resolved' : 'dismissed', media_id: flag.media_id, note: reviewNote },
+        req,
+        client,
+        throwOnError: true,
+      });
       await client.query('COMMIT');
       return res.json({ success: true });
     } catch (err) {
@@ -1066,6 +1105,37 @@ exports.adminReviewMediaFlag = async (req, res, next) => {
     } finally {
       client.release();
     }
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Track D (finding 21): unhide/restore a removed restaurant video. This
+// restores the restaurant_media row to 'visible'; a mirrored general-feed
+// post that was set to 'removed' stays removed until it is restored from
+// the general Media flags surface, which owns that post's lifecycle.
+exports.adminRestoreMedia = async (req, res, next) => {
+  try {
+    const mediaId = req.params.mediaId;
+    const { rows } = await pool.query(
+      `UPDATE restaurant_media SET status = 'visible' WHERE id = $1 AND status = 'hidden' RETURNING *`,
+      [mediaId]
+    );
+    if (!rows[0]) {
+      return next(new AppError('Hidden restaurant media not found.', 404, 'media_not_hidden'));
+    }
+    const { logAdminAction } = require('../services/auditService');
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'restaurant_media_restored',
+      targetType: 'restaurant_media',
+      targetId: mediaId,
+      before: { status: 'hidden' },
+      after: { status: 'visible' },
+      req,
+      throwOnError: true,
+    });
+    return res.json({ success: true, media: rows[0] });
   } catch (err) {
     next(err);
   }
@@ -1085,5 +1155,6 @@ module.exports = {
   flagMedia: exports.flagMedia,
   adminListMediaFlags: exports.adminListMediaFlags,
   adminReviewMediaFlag: exports.adminReviewMediaFlag,
+  adminRestoreMedia: exports.adminRestoreMedia,
   dualWriteToMedia,
 };

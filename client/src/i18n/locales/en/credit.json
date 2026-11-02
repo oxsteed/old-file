@@ -2480,7 +2480,8 @@
     "requeueError": "Could not requeue the selected rows.",
     "requeued": "{{count}} row(s) requeued.",
     "unknownDate": "Unknown date",
-    "notAvailable": "N/A"
+    "notAvailable": "N/A",
+    "parkedTotal": "Parked rows total: {{total}}"
   },
   "adminCreditHolds": {
     "capture": "Capture",
