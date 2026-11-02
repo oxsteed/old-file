@@ -60,6 +60,8 @@ function mockDbForOrder(order) {
   mockQuery.mockImplementation(async (sql) => {
     seen.sql.push(sql);
     if (/FOR UPDATE/.test(sql)) return { rows: [order] };
+    // Finding 39 pre-read: plain SELECT before step-up verification.
+    if (/^SELECT total_cents, metadata, payment_status FROM food_orders/.test(sql)) return { rows: [order] };
     if (/^UPDATE food_orders/.test(sql)) return { rows: [] };
     if (/INSERT INTO admin_audit_log/.test(sql)) return { rows: [] };
     return { rows: [] }; // BEGIN / COMMIT / ROLLBACK
@@ -176,6 +178,9 @@ describe('food refund authorization controls', () => {
     require('../services/dualApprovalService').requestMoneyMovementApproval.mockResolvedValue({ queued: false });
   });
   test('a failed step-up stops before acquiring the money transaction', async () => {
+    // Finding 39: the pre-read must succeed so the step-up is actually
+    // reached (and consumed); otherwise the rejected-once mock leaks.
+    mockDbForOrder(makeOrder());
     const error = Object.assign(new Error('Fresh step-up required'), { statusCode: 403 });
     require('../services/stepupChallengeService').verifyStepupChallenge.mockRejectedValueOnce(error);
     const { req, res } = makeReqRes(7, { reason: 'test' });
@@ -184,7 +189,7 @@ describe('food refund authorization controls', () => {
     // Auth audit item 6: the handler pre-reads the order row to bind the
     // challenge to the refund amount, so one read-only SELECT is
     // expected; the money transaction itself must never be acquired.
-    expect(mockQuery.mock.calls.every(([sql]) => /^SELECT total_cents, metadata FROM food_orders/i.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.every(([sql]) => /^SELECT total_cents, metadata(, payment_status)? FROM food_orders/i.test(sql))).toBe(true);
     expect(refundWalletDebitForReference).not.toHaveBeenCalled();
   });
   test.each(['wallet_credit','oxsteed_credit'])('above-threshold %s refund queues without moving funds', async mode => {

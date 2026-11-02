@@ -37,6 +37,9 @@ function WalletPayoutsSection({ restaurantId, t, f }) {
   const valid = balance?.processorEnabled !== false && Number.isSafeInteger(cents) && cents > 0 && cents >= Number(balance?.minPayoutCents || 0) && cents <= Number(balance?.balanceCents || 0);
   const submitRequest = async () => {
     if (!valid || requesting) return;
+    // Finding 46: confirm the payout request with its amount and
+    // currency before it enters the admin review queue.
+    if (!window.confirm(t('food.merchant.payouts.requestConfirm', { amount: formatFoodMoney(cents, balance?.currencyCode || 'USD') }))) return;
     setRequesting(true);
     try {
       const key = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;

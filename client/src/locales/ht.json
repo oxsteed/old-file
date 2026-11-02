@@ -23585,7 +23585,9 @@
         "paymentRefunded": "Peman ranbouse",
         "paymentConfirmed": "Peman konfime.",
         "orderMarkedPaid": "Kòmand make kòm peye.",
-        "paymentError": "Nou pa t ka konfime peman sa a."
+        "paymentError": "Nou pa t ka konfime peman sa a.",
+        "cancelConfirm": "Anile kòmann {{order}} ({{amount}})? Anile yon kòmann ki peye ak kat ap deklanche yon ranbousman pou kliyan an.",
+        "markPaidConfirm": "Make kòmann {{order}} kòm peye pou {{amount}}? Sa ap anrejistre ke tout montan ki dwe a te resevwa."
       },
       "menu": "Meni",
       "newCategoryPlaceholder": "Non kategori (egz. Anbègè)",
@@ -23823,7 +23825,8 @@
         },
         "historyShowing": "Montre {{from}}–{{to}} sou {{total}}",
         "historyPrevious": "Anvan",
-        "historyNext": "Apre"
+        "historyNext": "Apre",
+        "requestConfirm": "Mande yon peman {{amount}}? Demann lan antre nan ke revizyon administratè a; li pa deplase lajan touswit."
       },
       "settlementTitle": "Dosye règleman peman",
       "settlementNote": "Kòmand yo ka rete lye ak dosye restoran an pou règleman, resi ak istwa asistans rete vizib nan aplikasyon an.",
@@ -24257,7 +24260,8 @@
       "createSettlement": "Kreye règleman peman",
       "settlementCreated": "Règleman peman kreye",
       "cashCollectedPrompt": "Lajan kach livrezè a kolekte (montan)",
-      "pollError": "Done kouri a pa t ka mete ajou. N ap montre dènye done ki te anrejistre yo."
+      "pollError": "Done kouri a pa t ka mete ajou. N ap montre dènye done ki te anrejistre yo.",
+      "settlementApproveConfirm": "Apwouve règleman pou travay {{task}}? Lajan kach ki kolekte: {{cash}}. Montan règleman an (frè plis konsèy): {{amount}}. Apwouve pa make li kòm peye."
     },
     "ownerHome": {
       "allClear": "Tout bagay anfòm. Anyen pa bezwen atansyon ou kounye a.",
@@ -33514,7 +33518,10 @@
     "typeMarketplaceRefund": "Ranbousman mache",
     "typeDisputeRefund": "Ranbousman dispit",
     "typeRestaurantPayout": "Peman restoran",
-    "typeAffiliatePayout": "Peman afilye"
+    "typeAffiliatePayout": "Peman afilye",
+    "subject": "Sijè",
+    "reason": "Rezon",
+    "subjectUnknown": "Sijè enkoni"
   },
   "adminOrderFilters": {
     "searchOrders": "Chèche kòmann",
@@ -35826,7 +35833,11 @@
       "clawbackPreviewHint": "Gade apèsi rechaj la anvan ou konfime. Konfimasyon an rete dezaktive jiskaske montan an, restoran an, ak estati ID sa a chaje.",
       "clawbackPreviewAmount": "Montan: {{amount}} {{currency}}",
       "clawbackPreviewRestaurant": "Restoran: {{restaurant}}",
-      "clawbackPreviewStatus": "Estati: {{status}}"
+      "clawbackPreviewStatus": "Estati: {{status}}",
+      "clawbackPreviewNotExecutable": "Top-up sa a pa ka reprann: se sèlman yon top-up ki reyisi ki ka reprann.",
+      "clawbackReplayed": "Top-up sa a te deja reprann; pa te gen dezyèm debi.",
+      "clawbackWentNegative": "Bous la vin negatif: balans {{before}} pou rive {{after}} {{currency}}.",
+      "clawbackBalances": "Balans bous la {{before}} pou rive {{after}} {{currency}}."
     }
   },
   "featuredPlacements": {
@@ -36000,12 +36011,20 @@
       "approved": "Apwouve yo",
       "completed": "Fini yo",
       "failed": "Echwe yo",
-      "rejected": "Refize yo"
+      "rejected": "Refize yo",
+      "processing": "Ap trete"
     },
     "stepupFailed": "Pa t ka bay yon defi verifikasyon.",
     "stepupPrompt": "Yo voye yon kòd verifikasyon nan imèl ou. Antre li pou apwouve peman sa a:",
     "pendingApproval": "Peman an nan ke pou yon dezyèm admin apwouve li. Okenn lajan pa bouje.",
-    "stepupRequired": "Fòk ou gen yon kòd verifikasyon pou apwouve peman an."
+    "stepupRequired": "Fòk ou gen yon kòd verifikasyon pou apwouve peman an.",
+    "subtitleQueued": "Apwouve peman kòb wolet pou restoran yo. Apwobasyon an mete yon transfè nan ke pou kont Connect restoran an; transfè a voye piti piti epi Stripe konfime li, li pa enstantane.",
+    "transferAttempts": "{{count}} tantativ transfè",
+    "retry": "Eseye ankò",
+    "fail": "Make kòm echwe",
+    "confirmFailTitle": "Make peman sa a kòm echwe?",
+    "confirmFailBody": "Sa ap retounen peman an nan eta echwe epi anile ekriti apwobasyon li a, pou restoran an ka mande ankò. Li pa voye lajan.",
+    "confirmApproveBodyQueued": "Sa ap mete yon transfè {{amount}} nan ke pou kont Stripe restoran an epi ekri nan liv kont yo. Transfè a voye piti piti epi Stripe konfime li; li pa enstantane epi li poko final."
   },
   "affiliatePayouts": {
     "title": "Peman afilye yo",
@@ -36078,7 +36097,12 @@
       "denied": "Refize",
       "resolved": "Rezoud",
       "withdrawn": "Retire"
-    }
+    },
+    "noRefundReasonLabel": "Rezon pa gen ranbousman (obligatwa olye yon referans ranbousman lè w ap fèmen san ranbousman)",
+    "noRefundReasonPlaceholder": "Poukisa pa te gen ranbousman",
+    "closureNeedsRefundOrReason": "Yon desizyon apwouve oswa rezoud bezwen yon referans ranbousman oswa yon rezon pa gen ranbousman.",
+    "noRefundReasonShown": "Pa gen ranbousman: {{reason}}",
+    "refundReferenceShown": "Referans ranbousman: {{reference}}"
   },
   "adminChargebacks": {
     "title": "Chargebacks",
@@ -37522,9 +37546,9 @@
       }
     },
     "protection": {
-      "3": "Pi gwo pwoteksyon",
+      "1": "OxSteed pa kouvri l",
       "2": "Pwoteje pa Kredi OxSteed",
-      "1": "OxSteed pa kouvri l"
+      "3": "Pi gwo pwoteksyon"
     },
     "chargedNowHeld": "Paske travay la plis pase 5 jou devan, kat ou chaje kounye a epi OxSteed kenbe lajan an jiskaske travay la fini.",
     "localMethods": "Disponib tou: {{methods}}",
@@ -38178,5 +38202,31 @@
   },
   "cards": {
     "moveBack": "Tounen nan {{status}}"
+  },
+  "restaurantPayRuns": {
+    "title": "Peman anplwaye restoran yo",
+    "subtitle": "Peman anplwaye tout restoran yo, ak peman reyèl ki lye ak chak youn. Yon peman anplwaye finalize san lyen poko peye pèsonn.",
+    "status": {
+      "all": "Tout",
+      "draft": "Bwouyon",
+      "finalized": "Finalize",
+      "paid": "Peye",
+      "voided": "Anile"
+    },
+    "restaurantFilter": "Idantite restoran",
+    "loadFailed": "Pa te ka chaje peman anplwaye yo.",
+    "detailFailed": "Pa te ka chaje detay peman anplwaye a.",
+    "empty": "Pa gen peman anplwaye nan eta sa a.",
+    "unknownRestaurant": "Restoran enkoni",
+    "run": "Peman anplwaye {{id}}",
+    "period": "{{from}} pou rive {{to}}",
+    "totalPay": "Total pou peye: {{amount}}",
+    "linked": "Peman ki lye: {{amount}} ({{count}})",
+    "finalizedUnpaid": "Finalize men poko lye nèt ak peman yo.",
+    "hideDetail": "Kache detay",
+    "showDetail": "Montre detay",
+    "noLinks": "Poko gen peman ki lye ak peman anplwaye sa a.",
+    "linkLine": "Peman {{payout}}: {{amount}} ({{status}})",
+    "employees": "{{count}} anplwaye"
   }
 }

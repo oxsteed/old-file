@@ -23604,7 +23604,9 @@
         "paymentRefunded": "تم رد الدفع",
         "paymentConfirmed": "تم تأكيد الدفع.",
         "orderMarkedPaid": "تم وضع علامة مدفوع على الطلب.",
-        "paymentError": "تعذّر تأكيد هذا الدفع."
+        "paymentError": "تعذّر تأكيد هذا الدفع.",
+        "cancelConfirm": "إلغاء الطلب {{order}} ({{amount}})؟ إن إلغاء طلب مدفوع بالبطاقة يؤدي إلى استرداد للعميل.",
+        "markPaidConfirm": "وضع علامة مدفوع على الطلب {{order}} بمبلغ {{amount}}؟ سيسجل هذا استلام كامل المبلغ المستحق."
       },
       "menu": "القائمة",
       "newCategoryPlaceholder": "اسم فئة جديدة (مثل برغر)",
@@ -23834,7 +23836,8 @@
         },
         "historyShowing": "عرض {{from}}–{{to}} من {{total}}",
         "historyPrevious": "السابق",
-        "historyNext": "التالي"
+        "historyNext": "التالي",
+        "requestConfirm": "طلب دفع بمبلغ {{amount}}؟ يدخل الطلب في قائمة مراجعة المسؤول؛ وهو لا ينقل الأموال فوراً."
       },
       "settlementTitle": "سجلات تسوية المدفوعات",
       "settlementNote": "يمكن أن تبقى الطلبات مرتبطة بسجل المطعم لتظل التسوية والإيصالات وسجل الدعم مرئية في التطبيق.",
@@ -24268,7 +24271,8 @@
       "createSettlement": "إنشاء تسوية",
       "settlementCreated": "تم إنشاء التسوية",
       "cashCollectedPrompt": "النقد الذي حصّله الساعي (المبلغ)",
-      "pollError": "تعذّر تحديث بيانات العدّاء. يتم عرض آخر بيانات محفوظة."
+      "pollError": "تعذّر تحديث بيانات العدّاء. يتم عرض آخر بيانات محفوظة.",
+      "settlementApproveConfirm": "اعتماد تسوية المهمة {{task}}؟ النقد المحصّل: {{cash}}. مبلغ التسوية (الرسوم بالإضافة إلى البقشيش): {{amount}}. الاعتماد لا يضع علامة مدفوعة عليها."
     },
     "ownerHome": {
       "allClear": "كل شيء على ما يرام. لا شيء يحتاج إلى انتباهك الآن.",
@@ -33532,7 +33536,10 @@
     "typeMarketplaceRefund": "استرداد سوق",
     "typeDisputeRefund": "استرداد نزاع",
     "typeRestaurantPayout": "دفعة مطعم",
-    "typeAffiliatePayout": "دفعة مسوّق"
+    "typeAffiliatePayout": "دفعة مسوّق",
+    "subject": "الموضوع",
+    "reason": "السبب",
+    "subjectUnknown": "موضوع غير معروف"
   },
   "adminOrderFilters": {
     "searchOrders": "البحث في الطلبات",
@@ -35844,7 +35851,11 @@
       "clawbackPreviewHint": "اعرض معاينة الشحن قبل التأكيد. يظل التأكيد معطّلاً حتى يتم تحميل المبلغ والمطعم والحالة لهذا المعرّف.",
       "clawbackPreviewAmount": "المبلغ: {{amount}} {{currency}}",
       "clawbackPreviewRestaurant": "المطعم: {{restaurant}}",
-      "clawbackPreviewStatus": "الحالة: {{status}}"
+      "clawbackPreviewStatus": "الحالة: {{status}}",
+      "clawbackPreviewNotExecutable": "لا يمكن استرداد هذا الشحن: يمكن استرداد الشحن الناجح فقط.",
+      "clawbackReplayed": "تم استرداد هذا الشحن من قبل؛ ولم يتم إجراء خصم ثانٍ.",
+      "clawbackWentNegative": "أصبح رصيد المحفظة سالباً: من {{before}} إلى {{after}} {{currency}}.",
+      "clawbackBalances": "رصيد المحفظة من {{before}} إلى {{after}} {{currency}}."
     }
   },
   "featuredPlacements": {
@@ -36018,12 +36029,20 @@
       "approved": "معتمدة",
       "completed": "مكتملة",
       "failed": "فاشلة",
-      "rejected": "مرفوضة"
+      "rejected": "مرفوضة",
+      "processing": "قيد المعالجة"
     },
     "stepupFailed": "تعذر إصدار تحدٍّ للتحقق.",
     "stepupPrompt": "تم إرسال رمز تحقق إلى بريدك الإلكتروني. أدخله للموافقة على هذه الدفعة:",
     "pendingApproval": "الدفعة في قائمة الانتظار لاعتماد مشرف ثانٍ. لم تتحرك أي أموال.",
-    "stepupRequired": "يلزم رمز تحقق للموافقة على الدفعة."
+    "stepupRequired": "يلزم رمز تحقق للموافقة على الدفعة.",
+    "subtitleQueued": "اعتمد مدفوعات أرباح المحافظ للمطاعم. يؤدي الاعتماد إلى وضع تحويل في قائمة الانتظار إلى حساب Connect الخاص بالمطعم؛ ويُرسل التحويل بشكل غير متزامن وتؤكده Stripe، وهو ليس فورياً.",
+    "transferAttempts": "{{count}} محاولات تحويل",
+    "retry": "إعادة المحاولة",
+    "fail": "وضع علامة فشل",
+    "confirmFailTitle": "وضع علامة فشل على هذا الدفع؟",
+    "confirmFailBody": "سيعيد هذا الدفع إلى حالة الفشل ويلغي قيد اعتماده، ليتمكن المطعم من طلبه مجدداً. وهو لا يرسل أموالاً.",
+    "confirmApproveBodyQueued": "سيضع هذا تحويلاً بمبلغ {{amount}} في قائمة الانتظار إلى حساب Stripe الخاص بالمطعم ويسجل القيد المحاسبي. ويُرسل التحويل بشكل غير متزامن وتؤكده Stripe؛ وهو ليس فورياً ولا نهائياً بعد."
   },
   "affiliatePayouts": {
     "title": "مدفوعات الشركاء",
@@ -36096,7 +36115,12 @@
       "denied": "مرفوض",
       "resolved": "تم حله",
       "withdrawn": "مسحوب"
-    }
+    },
+    "noRefundReasonLabel": "سبب عدم الاسترداد (مطلوب بدلاً من مرجع استرداد عند الإغلاق دون استرداد)",
+    "noRefundReasonPlaceholder": "لماذا لم يتم إصدار استرداد",
+    "closureNeedsRefundOrReason": "يتطلب القرار المعتمد أو المحسوم مرجع استرداد أو سبباً لعدم الاسترداد.",
+    "noRefundReasonShown": "لا يوجد استرداد: {{reason}}",
+    "refundReferenceShown": "مرجع الاسترداد: {{reference}}"
   },
   "adminChargebacks": {
     "title": "رد المبالغ",
@@ -37540,9 +37564,9 @@
       }
     },
     "protection": {
-      "3": "أعلى حماية",
+      "1": "غير مشمول بحماية OxSteed",
       "2": "محمي برصيد OxSteed",
-      "1": "غير مشمول بحماية OxSteed"
+      "3": "أعلى حماية"
     },
     "chargedNowHeld": "لأن موعد العمل بعد أكثر من 5 أيام، تُخصم من بطاقتك الآن وتحتجز OxSteed المبلغ حتى انتهاء العمل.",
     "localMethods": "متاح أيضًا: {{methods}}",
@@ -38196,5 +38220,31 @@
   },
   "cards": {
     "moveBack": "العودة إلى {{status}}"
+  },
+  "restaurantPayRuns": {
+    "title": "دفعات رواتب المطاعم",
+    "subtitle": "دفعات رواتب جميع المطاعم، مع المدفوعات الفعلية المرتبطة بكل منها. إن دفعة الرواتب المنجزة دون روابط لم تدفع لأحد بعد.",
+    "status": {
+      "all": "الكل",
+      "draft": "مسودة",
+      "finalized": "منجزة",
+      "paid": "مدفوعة",
+      "voided": "ملغاة"
+    },
+    "restaurantFilter": "معرّف المطعم",
+    "loadFailed": "تعذر تحميل دفعات الرواتب.",
+    "detailFailed": "تعذر تحميل تفاصيل دفعة الرواتب.",
+    "empty": "لا توجد دفعات رواتب بهذه الحالة.",
+    "unknownRestaurant": "مطعم غير معروف",
+    "run": "دفعة رواتب {{id}}",
+    "period": "{{from}} إلى {{to}}",
+    "totalPay": "إجمالي الأجر: {{amount}}",
+    "linked": "المدفوعات المرتبطة: {{amount}} ({{count}})",
+    "finalizedUnpaid": "منجزة لكنها غير مرتبطة بالكامل بالمدفوعات بعد.",
+    "hideDetail": "إخفاء التفاصيل",
+    "showDetail": "عرض التفاصيل",
+    "noLinks": "لا توجد مدفوعات مرتبطة بدفعة الرواتب هذه بعد.",
+    "linkLine": "الدفع {{payout}}: {{amount}} ({{status}})",
+    "employees": "{{count}} موظف"
   }
 }

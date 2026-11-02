@@ -30,11 +30,10 @@ function normalizeAdminRefundMode(raw) {
   return ADMIN_REFUND_MODE_ALIASES[trimmed] || null;
 }
 
-function readAdminRefundedCents(metadata) {
-  if (!metadata || typeof metadata !== 'object') return 0;
-  const n = Number(metadata.admin_refunded_cents);
-  return Number.isSafeInteger(n) && n > 0 ? n : 0;
-}
+const { readRefundedCents, withRefundedCents } = require('../services/foodOrderRefundCounter');
+// Legacy name kept for the two call sites below; it now reads the shared
+// counter (metadata.refunded_cents, falling back to admin_refunded_cents).
+const readAdminRefundedCents = readRefundedCents;
 
 async function auditAdminRead(adminId, orderId, purpose, impersonatedBy = null) {
   await pool.query(
@@ -271,8 +270,9 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
     // ADM-003: 'partially_refunded' is now a legal payment_status (migration 832).
     const cumulativeRefundedCents = alreadyRefundedCents + refundAmount;
     const newStatus = cumulativeRefundedCents >= totalCents ? 'refunded' : 'partially_refunded';
-    const nextMetadata = order.metadata && typeof order.metadata === 'object' ? { ...order.metadata } : {};
-    nextMetadata.admin_refunded_cents = cumulativeRefundedCents;
+    // Shared counter (finding 3): stamp both keys so the agent and
+    // kitchen paths read the same cumulative total.
+    const nextMetadata = withRefundedCents(order.metadata, cumulativeRefundedCents);
     await client.query(
       `UPDATE food_orders SET payment_status = $1, metadata = $2::jsonb, updated_at = NOW() WHERE id = $3`,
       [newStatus, JSON.stringify(nextMetadata), orderId]
@@ -394,14 +394,20 @@ async function refundFoodOrder(req, res) {
       requestedAmount = n;
     }
 
-    // Auth audit item 6: bind to the refund amount being requested, or
-    // for a full refund to the remaining total (the same figure the
-    // issue endpoint binds). The executor re-validates under lock; this
-    // pre-read only binds the challenge.
+    // Finding 39: existence and eligibility pre-checks run BEFORE the
+    // single-use step-up challenge is verified, mirroring the affiliate
+    // preload fix. A typo'd order id or a non-refundable order must not
+    // burn a code. The executor re-validates under lock as well.
     let foodRefundExpectedAmount = requestedAmount;
-    if (foodRefundExpectedAmount === null) {
-      const { rows: orderRows } = await pool.query('SELECT total_cents, metadata FROM food_orders WHERE id = $1', [orderId]);
-      if (orderRows.length) {
+    {
+      const { rows: orderRows } = await pool.query('SELECT total_cents, metadata, payment_status FROM food_orders WHERE id = $1', [orderId]);
+      if (!orderRows.length) {
+        throw refundError(404, { error: 'Order not found' });
+      }
+      if (!['paid', 'partially_refunded', 'refunded'].includes(orderRows[0].payment_status)) {
+        throw refundError(400, { error: 'Order is not refundable' });
+      }
+      if (foodRefundExpectedAmount === null) {
         const remaining = Number(orderRows[0].total_cents) - readAdminRefundedCents(orderRows[0].metadata);
         if (Number.isSafeInteger(remaining) && remaining > 0) foodRefundExpectedAmount = remaining;
       }

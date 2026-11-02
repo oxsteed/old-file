@@ -786,6 +786,21 @@ exports.acceptResolution = async (req, res, next) => {
     }
 
     const needsRefund = ['refund', 'partial_refund'].includes(caseForPayment.final_resolution);
+    // Finding 1: a store-credit resolution must actually credit the
+    // restaurant customer wallet. The amount is the admin/restaurant-set
+    // store-credit amount, falling back to the offered resolution amount.
+    const needsStoreCredit = caseForPayment.final_resolution === 'store_credit';
+    const storeCreditAmountCents = needsStoreCredit
+      ? Number(caseForPayment.store_credit_amount_cents ?? caseForPayment.resolution_amount_cents)
+      : null;
+    if (needsStoreCredit) {
+      if (!Number.isInteger(storeCreditAmountCents) || storeCreditAmountCents <= 0) {
+        throw new AppError('The offered store credit amount is invalid', 400, 'invalid_store_credit_amount');
+      }
+      if (!caseForPayment.customer_user_id) {
+        throw new AppError('This case has no customer wallet to credit', 409, 'store_credit_no_customer');
+      }
+    }
     let processorRefundId = caseForPayment.refund_status === 'processed'
       ? caseForPayment.payment_transaction_id
       : null;
@@ -846,15 +861,41 @@ exports.acceptResolution = async (req, res, next) => {
       if (supportCase.status !== 'resolution_offered') {
         throw new AppError('No resolution is currently awaiting acceptance', 409, 'no_resolution_offered');
       }
+      // Finding 1, fail closed: the wallet credit lands in the SAME
+      // transaction as the resolve. If the credit throws (suspended wallet,
+      // balance limit, ledger error), the transaction rolls back and the
+      // case is NOT marked resolved. The ledger call is idempotent per
+      // case, so a retried accept replays instead of double-crediting.
+      let storeCreditEntry = null;
+      const alreadyIssued = supportCase.credit_status === 'issued';
+      if (needsStoreCredit && !alreadyIssued) {
+        const { creditFoodWallet } = require('../services/foodWalletService');
+        const creditResult = await creditFoodWallet(client, {
+          restaurantId: supportCase.restaurant_id,
+          customerId: supportCase.customer_user_id,
+          currencyCode: supportCase.currency_code || caseForPayment.currency_code || 'USD',
+          amountCents: storeCreditAmountCents,
+          description: `Store credit for support case ${supportCase.public_case_number || supportCase.id}`,
+          referenceType: 'restaurant_support_store_credit',
+          referenceId: String(supportCase.id),
+          idempotencyKey: `restaurant-support-store-credit-${supportCase.id}`,
+          createdByUserId: req.user.id,
+          correlationId: `restaurant-support-store-credit-${supportCase.id}`,
+          actorType: 'system',
+          metadata: { caseId: supportCase.id, orderId: supportCase.order_id || null },
+        });
+        storeCreditEntry = creditResult.entry || null;
+      }
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_support_cases
             SET status = 'resolved',
                 resolved_at = NOW(),
                 refund_status = CASE WHEN $2 IS NOT NULL THEN 'processed' ELSE refund_status END,
+                credit_status = CASE WHEN $3 THEN 'issued' ELSE credit_status END,
                 payment_transaction_id = COALESCE($2, payment_transaction_id)
           WHERE id = $1
           RETURNING *`,
-        [supportCase.id, processorRefundId]
+        [supportCase.id, processorRefundId, needsStoreCredit]
       );
       if (processorRefundId && supportCase.final_resolution === 'refund' && supportCase.order_id) {
         const refundUpdate = await client.query(
@@ -873,7 +914,10 @@ exports.acceptResolution = async (req, res, next) => {
         eventType: 'resolution_accepted',
         oldValue: supportCase.status,
         newValue: 'resolved',
-        metadata: processorRefundId ? { stripeRefundId: processorRefundId, refundAmountCents } : {},
+        metadata: {
+          ...(processorRefundId ? { stripeRefundId: processorRefundId, refundAmountCents } : {}),
+          ...(needsStoreCredit ? { storeCreditAmountCents, walletLedgerEntryId: storeCreditEntry ? String(storeCreditEntry.id) : null } : {}),
+        },
       });
       await enqueueNotification(client, supportCase.id, 'restaurant', 'resolution_accepted', {});
       return updated;
@@ -1075,6 +1119,17 @@ exports.restaurantResolve = async (req, res, next) => {
       const { supportCase } = await assertCaseRestaurant(client, caseId, restaurantId, req.user.id, { manage: true });
       if (supportCase.is_escalated && supportCase.owner_type === 'oxsteed') {
         throw new AppError('OxSteed owns this escalated case', 403, 'oxsteed_owned_case');
+      }
+      // Finding 6: a restaurant must not resolve a case out from under an
+      // offered or pending refund. The customer accept path (or an admin
+      // decision) owns those states, not a restaurant resolve.
+      if (supportCase.status === 'resolution_offered'
+        || ['pending_approval', 'approved'].includes(supportCase.refund_status)) {
+        throw new AppError(
+          'This case cannot be resolved while a refund is offered or pending approval',
+          409,
+          'case_refund_pending'
+        );
       }
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_support_cases
@@ -1318,40 +1373,113 @@ async function adminUpdateOwnership(req, { ownerType, status, isEscalated = null
   }, `restaurant_support_admin_${eventType}`);
 }
 
+// Finding 4 helpers: amount validation + the apply step shared by the
+// direct path and the dual-approval executor. Money resolutions are
+// refund / partial_refund / store_credit. A money amount must be positive
+// and, when the case has an order, must not exceed that order's total:
+// an unpayable approval used to strand the case in resolution_offered.
+const MONEY_RESOLUTIONS = new Set(['refund', 'partial_refund', 'store_credit']);
+
+async function validateSupportResolutionAmount(clientOrPool, supportCase, resolution, amount) {
+  if (!MONEY_RESOLUTIONS.has(resolution)) return null;
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    throw new AppError('A positive approved amount is required for this resolution', 400, 'invalid_resolution_amount');
+  }
+  if (supportCase.order_id) {
+    const { rows } = await clientOrPool.query(
+      'SELECT total_cents, currency_code FROM food_orders WHERE id = $1',
+      [supportCase.order_id]
+    );
+    if (rows[0]) {
+      const total = Number(rows[0].total_cents);
+      if (Number.isSafeInteger(total) && amount > total) {
+        throw new AppError('Approved amount exceeds the order total', 400, 'resolution_amount_exceeds_order');
+      }
+      return rows[0].currency_code || supportCase.currency_code || 'USD';
+    }
+  }
+  return supportCase.currency_code || 'USD';
+}
+
+async function applyAdminApprovedResolution(client, { caseId, resolution, amount, adminId }) {
+  const supportCase = await loadCase(client, caseId);
+  if (!supportCase) throw new AppError('Support case not found', 404, 'case_not_found');
+  const { rows: [updated] } = await client.query(
+    `UPDATE restaurant_support_cases
+        SET status = 'resolution_offered',
+            final_resolution = $2,
+            resolution_amount_cents = $3,
+            approved_refund_amount_cents = CASE WHEN $2 IN ('refund','partial_refund') THEN $3 ELSE approved_refund_amount_cents END,
+            refund_status = CASE WHEN $2 IN ('refund','partial_refund') THEN 'approved' ELSE refund_status END,
+            refund_approved_by = CASE WHEN $2 IN ('refund','partial_refund') THEN $4 ELSE refund_approved_by END,
+            refund_approved_at = CASE WHEN $2 IN ('refund','partial_refund') THEN NOW() ELSE refund_approved_at END,
+            credit_status = CASE WHEN $2 = 'store_credit' THEN 'offered' ELSE credit_status END,
+            store_credit_amount_cents = CASE WHEN $2 = 'store_credit' THEN $3 ELSE store_credit_amount_cents END
+      WHERE id = $1
+      RETURNING *`,
+    [supportCase.id, resolution, amount, adminId]
+  );
+  await logEvent(client, supportCase.id, {
+    actorUserId: adminId,
+    actorType: 'oxsteed',
+    eventType: 'refund_approved',
+    oldValue: supportCase.final_resolution,
+    newValue: resolution,
+    metadata: { amountCents: amount },
+  });
+  await enqueueNotification(client, supportCase.id, 'customer', 'resolution_offered', { resolution, amountCents: amount }, supportCase.customer_user_id);
+  return updated;
+}
+
+exports.issueApproveResolutionStepupChallenge = async (req, res, next) => {
+  try {
+    const caseId = parsePositiveInt(req.params.caseId);
+    const resolution = normalizeEnum(req.body.resolution || req.body.finalResolution || req.body.final_resolution, RESOLUTIONS, null);
+    if (!resolution) throw new AppError('Validation failed', 400, 'validation_failed', { resolution: 'Supported resolution is required' });
+    const amount = cents(req.body.amountCents || req.body.amount_cents || req.body.approvedRefundAmountCents);
+    const supportCase = await loadCase(pool, caseId);
+    if (!supportCase) throw new AppError('Support case not found', 404, 'case_not_found');
+    await validateSupportResolutionAmount(pool, supportCase, resolution, amount);
+    if (!MONEY_RESOLUTIONS.has(resolution)) {
+      throw new AppError('Step-up is only required for money resolutions', 400, 'support_resolution_stepup_not_required');
+    }
+    const { challenge, delivery } = await require('../services/stepupChallengeService').issueStepupChallenge({
+      actorUserId: req.user.id, actorEmail: req.user.email, actionType: 'support_resolution_approve', amountCents: amount,
+    });
+    res.status(201).json({ challenge: { id: challenge.id, method: challenge.method, expiresAt: challenge.expiresAt }, delivery });
+  } catch (err) { next(err); }
+};
+
 exports.adminApproveResolution = async (req, res, next) => {
   try {
     const caseId = parsePositiveInt(req.params.caseId);
     const resolution = normalizeEnum(req.body.resolution || req.body.finalResolution || req.body.final_resolution, RESOLUTIONS, null);
     if (!resolution) throw new AppError('Validation failed', 400, 'validation_failed', { resolution: 'Supported resolution is required' });
     const amount = cents(req.body.amountCents || req.body.amount_cents || req.body.approvedRefundAmountCents);
-    const result = await withTransaction(pool, async (client) => {
-      const supportCase = await loadCase(client, caseId);
-      if (!supportCase) throw new AppError('Support case not found', 404, 'case_not_found');
-      const { rows: [updated] } = await client.query(
-        `UPDATE restaurant_support_cases
-            SET status = 'resolution_offered',
-                final_resolution = $2,
-                resolution_amount_cents = $3,
-                approved_refund_amount_cents = CASE WHEN $2 IN ('refund','partial_refund') THEN $3 ELSE approved_refund_amount_cents END,
-                refund_status = CASE WHEN $2 IN ('refund','partial_refund') THEN 'approved' ELSE refund_status END,
-                refund_approved_by = CASE WHEN $2 IN ('refund','partial_refund') THEN $4 ELSE refund_approved_by END,
-                refund_approved_at = CASE WHEN $2 IN ('refund','partial_refund') THEN NOW() ELSE refund_approved_at END,
-                credit_status = CASE WHEN $2 = 'store_credit' THEN 'offered' ELSE credit_status END,
-                store_credit_amount_cents = CASE WHEN $2 = 'store_credit' THEN $3 ELSE store_credit_amount_cents END
-          WHERE id = $1
-          RETURNING *`,
-        [supportCase.id, resolution, amount, req.user.id]
-      );
-      await logEvent(client, supportCase.id, {
-        actorUserId: req.user.id,
-        actorType: 'oxsteed',
-        eventType: 'refund_approved',
-        oldValue: supportCase.final_resolution,
-        newValue: resolution,
-        metadata: { amountCents: amount },
+    const supportCase = await loadCase(pool, caseId);
+    if (!supportCase) throw new AppError('Support case not found', 404, 'case_not_found');
+    // Amount validation runs BEFORE any step-up is verified, so a bad
+    // amount never burns a single-use code (finding 39 discipline).
+    const currencyCode = await validateSupportResolutionAmount(pool, supportCase, resolution, amount);
+    if (MONEY_RESOLUTIONS.has(resolution)) {
+      // Step-up first, mirroring food-order refunds: one admin must prove
+      // a fresh amount-bound challenge before setting an approved amount.
+      await require('../services/stepupChallengeService').verifyStepupChallenge({
+        challengeId: req.body.stepupChallengeId, actorUserId: req.user.id, actionType: 'support_resolution_approve', code: req.body.stepupCode,
+        expectedAmountCents: amount,
       });
-      await enqueueNotification(client, supportCase.id, 'customer', 'resolution_offered', { resolution, amountCents: amount }, supportCase.customer_user_id);
-      return updated;
+      // Dual approval above the same threshold as food-order refunds: the
+      // second admin executes the approval via the registered executor.
+      const gate = await require('../services/dualApprovalService').requestMoneyMovementApproval({
+        movementType: 'support_resolution_refund', referenceKey: `restaurant-support-case:${caseId}`,
+        amountCents: amount, currencyCode: currencyCode || 'USD', requestedBy: req.user.id,
+        idempotencyKey: req.get('Idempotency-Key') || `support-resolution:${caseId}:${resolution}:${amount}`,
+        payload: { caseId, resolution, amountCents: amount, makerAdminId: req.user.id },
+      });
+      if (gate.queued) return require('../utils/dualApprovalHttp').sendMoneyMovementGateResult(res, gate);
+    }
+    const result = await withTransaction(pool, async (client) => {
+      return applyAdminApprovedResolution(client, { caseId, resolution, amount, adminId: req.user.id });
     }, 'restaurant_support_admin_approve_resolution');
     res.json({ case: result });
   } catch (err) {
@@ -1439,3 +1567,7 @@ exports.adminMetrics = async (_req, res, next) => {
     next(err);
   }
 };
+
+// Exported for the dual-approval executor (finding 4); the HTTP handlers
+// above remain the only route-facing entry points.
+exports.applyAdminApprovedResolution = applyAdminApprovedResolution;

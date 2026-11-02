@@ -82,6 +82,18 @@ function providerTransferMatchesPayout(transfer, payout) {
   return amountMatches && currencyMatches && destinationMatches;
 }
 
+// Finding 2: the restaurant's CURRENT Connect account, read from
+// restaurant_connect_accounts at the moment of the check. The payout row
+// only snapshots the account at request time; that snapshot is never
+// trusted for a transfer on its own.
+async function getCurrentConnectAccountId(client, restaurantId) {
+  const { rows } = await client.query(
+    'SELECT stripe_account_id FROM restaurant_connect_accounts WHERE restaurant_id = $1',
+    [restaurantId]
+  );
+  return rows[0]?.stripe_account_id || null;
+}
+
 /**
  * Read the payoutable wallet-earnings balance for a restaurant + currency:
  * the restaurant_sub_bank account balance on the central journal.
@@ -233,6 +245,19 @@ async function approvePayout({ payoutId, adminUserId, reviewNote }) {
     if (!payout) throw new AppError('Payout not found', 404, 'payout_not_found');
     if (payout.status !== 'requested') {
       throw new AppError(`Payout is ${payout.status}, cannot approve`, 409, 'payout_invalid_status');
+    }
+    // Finding 2: revalidate the CURRENT Connect account at approve time.
+    // A transfer must never go to a deleted or replaced account. On a
+    // mismatch the payout stays 'requested' (no journal, no transfer) so
+    // an admin can reject it and the merchant can re-request against the
+    // current account; disconnect fails requested rows outright.
+    const currentAccountId = await getCurrentConnectAccountId(client, payout.restaurant_id);
+    if (!currentAccountId || currentAccountId !== payout.stripe_account_id) {
+      throw new AppError(
+        'The restaurant payout account changed since this payout was requested; reject it and ask the restaurant to request again',
+        409,
+        'payout_destination_changed'
+      );
     }
 
     // Re-validate the balance at execution time: earnings may have moved
@@ -450,6 +475,41 @@ async function processNextTransfer() {
         );
       }, 'restaurant_payout_already_settled');
       return { processed: true, payoutId: payout.payout_id, skipped: true, reason: 'already_settled' };
+    }
+
+    // Finding 2, worker claim: revalidate the destination a second time,
+    // because the account can change between approval and the worker's
+    // Stripe call. On a mismatch the transfer is withheld, the payout is
+    // parked in 'processing' with a failure reason, and the outbox goes
+    // to 'attention' so no retry can send money to the old account. An
+    // admin fails it back to a re-requestable state (finding 5), which
+    // reverses the approval journal; the money is never sent blind.
+    {
+      const { rows: currentRows } = await pool.query(
+        'SELECT stripe_account_id FROM restaurant_connect_accounts WHERE restaurant_id = $1',
+        [payout.restaurant_id]
+      );
+      const currentAccountId = currentRows[0]?.stripe_account_id || null;
+      if (!currentAccountId || currentAccountId !== payout.stripe_account_id) {
+        const reason = 'Payout destination changed since approval; transfer withheld';
+        await withTransaction(pool, async (client) => {
+          await client.query(
+            `UPDATE restaurant_payouts
+                SET status = 'processing', failure_reason = $2, updated_at = NOW()
+              WHERE id = $1`,
+            [payout.payout_id, reason]
+          );
+          await client.query(
+            `UPDATE restaurant_payout_outbox
+                SET status = 'attention', locked_at = NULL, lease_token = NULL,
+                    last_error = $2, updated_at = NOW()
+              WHERE payout_id = $1 AND lease_token = $3`,
+            [payout.payout_id, reason, outbox.lease_token]
+          );
+        }, 'restaurant_payout_destination_changed');
+        logger.error('[RestaurantPayout] destination changed; transfer withheld', { payoutId: payout.payout_id });
+        return { processed: true, payoutId: payout.payout_id, attention: true, reason: 'payout_destination_changed' };
+      }
     }
 
     const transfer = await stripe.transfers.create(
@@ -718,6 +778,129 @@ async function rejectPayout({ payoutId, adminUserId, reviewNote }) {
   return rejected;
 }
 
+// Finding 5: admin fail/retry for processing payouts. Fail is only safe
+// while no Stripe transfer exists and funds have not settled: it reverses
+// the approval journal (treasury back to the restaurant sub-bank) and
+// returns the payout to 'failed', from which the merchant can request
+// again. A payout with a transfer id must wait for the webhook/reversal
+// path instead of a second journal movement.
+async function failProcessingPayout({ payoutId, adminUserId, reviewNote }) {
+  const failed = await withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      'SELECT * FROM restaurant_payouts WHERE id = $1 FOR UPDATE',
+      [payoutId]
+    );
+    const payout = rows[0];
+    if (!payout) throw new AppError('Payout not found', 404, 'payout_not_found');
+    if (!['processing', 'approved'].includes(payout.status)) {
+      throw new AppError(`Payout is ${payout.status}, cannot fail it from the processing queue`, 409, 'payout_invalid_status');
+    }
+    if (payout.funds_settled === true || payout.stripe_transfer_id) {
+      throw new AppError('This payout already has a Stripe transfer; wait for its webhook or reversal instead of failing it', 409, 'payout_transfer_exists');
+    }
+    if (payout.ledger_transaction_id) {
+      const subBank = await ensureRestaurantSubBankAccount(client, {
+        restaurantId: payout.restaurant_id,
+        currencyCode: payout.currency_code,
+      });
+      const treasury = await ensureAccount(client, {
+        accountType: 'platform_treasury',
+        currencyCode: payout.currency_code,
+      });
+      await postJournalTransaction(client, {
+        transactionType: 'sub_bank_payout_reversal',
+        debitAccountId: treasury.id,
+        creditAccountId: subBank.id,
+        amountCents: payout.amount_cents,
+        currencyCode: payout.currency_code,
+        idempotencyKey: `restaurant-payout-fail-reversal:${payout.id}`,
+        referenceType: 'restaurant_payout_fail',
+        referenceId: String(payout.id),
+        reason: `Admin failed processing restaurant payout ${payout.id}`,
+        metadata: { payout_id: String(payout.id), review_note: reviewNote || null },
+      });
+    }
+    const { rows: [updated] } = await client.query(
+      `UPDATE restaurant_payouts
+          SET status = 'failed', failure_reason = $2, reviewed_by = $3, reviewed_at = NOW(),
+              review_note = $4, updated_at = NOW()
+        WHERE id = $1
+       RETURNING *`,
+      [payout.id, reviewNote || 'Failed by admin from the processing queue', adminUserId, reviewNote || null]
+    );
+    await client.query(
+      `UPDATE restaurant_payout_outbox SET status = 'completed', locked_at = NULL, lease_token = NULL, updated_at = NOW()
+        WHERE payout_id = $1`,
+      [payout.id]
+    );
+    await logAdminAction({
+      client,
+      adminId: adminUserId,
+      action: 'fail_processing_restaurant_payout',
+      targetType: 'restaurant_payout',
+      targetId: String(payout.id),
+      description: `Admin failed processing restaurant payout of ${payout.amount_cents} ${payout.currency_code}`,
+      before: { status: payout.status },
+      after: { status: 'failed', review_note: reviewNote || null },
+    });
+    return updated;
+  }, 'restaurant_payout_fail_processing');
+  await notifyPayoutOwner(failed, 'payout_rejected', { review_note: failed.review_note });
+  return failed;
+}
+
+async function retryProcessingPayout({ payoutId, adminUserId, reviewNote }) {
+  const retried = await withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      'SELECT * FROM restaurant_payouts WHERE id = $1 FOR UPDATE',
+      [payoutId]
+    );
+    const payout = rows[0];
+    if (!payout) throw new AppError('Payout not found', 404, 'payout_not_found');
+    if (payout.status !== 'processing') {
+      throw new AppError(`Payout is ${payout.status}, cannot retry it from the processing queue`, 409, 'payout_invalid_status');
+    }
+    if (payout.funds_settled === true || payout.stripe_transfer_id) {
+      throw new AppError('This payout already has a Stripe transfer; reconcile it instead of retrying the transfer', 409, 'payout_transfer_exists');
+    }
+    // The destination is revalidated at worker claim before any transfer,
+    // so a retry of a destination-changed payout parks again instead of
+    // paying the old account. Still, fail closed here when the account is
+    // already known to be gone or different.
+    const currentAccountId = await getCurrentConnectAccountId(client, payout.restaurant_id);
+    if (!currentAccountId || currentAccountId !== payout.stripe_account_id) {
+      throw new AppError('The restaurant payout account changed since approval; fail this payout instead of retrying it', 409, 'payout_destination_changed');
+    }
+    const { rows: [updated] } = await client.query(
+      `UPDATE restaurant_payouts
+          SET status = 'approved', failure_reason = NULL, reviewed_by = $2, reviewed_at = NOW(),
+              review_note = $3, updated_at = NOW()
+        WHERE id = $1
+       RETURNING *`,
+      [payout.id, adminUserId, reviewNote || null]
+    );
+    await client.query(
+      `INSERT INTO restaurant_payout_outbox (payout_id, available_at)
+       VALUES ($1, NOW())
+       ON CONFLICT (payout_id) DO UPDATE
+         SET status = 'pending', available_at = NOW(), locked_at = NULL, lease_token = NULL, updated_at = NOW()`,
+      [payout.id]
+    );
+    await logAdminAction({
+      client,
+      adminId: adminUserId,
+      action: 'retry_processing_restaurant_payout',
+      targetType: 'restaurant_payout',
+      targetId: String(payout.id),
+      description: `Admin retried processing restaurant payout of ${payout.amount_cents} ${payout.currency_code}`,
+      before: { status: 'processing' },
+      after: { status: 'approved', review_note: reviewNote || null },
+    });
+    return updated;
+  }, 'restaurant_payout_retry_processing');
+  return retried;
+}
+
 async function listAdminQueue(client, { status = 'requested', limit = 100, offset = 0 }) {
   // Mirror listPendingMoneyMovementApprovals: the caller pages through the
   // full queue via limit/offset plus a COUNT(*) total. Ordered oldest-first,
@@ -752,5 +935,7 @@ module.exports = {
   applyTransferWebhookEvent,
   reconcilePayouts,
   rejectPayout,
+  failProcessingPayout,
+  retryProcessingPayout,
   listAdminQueue,
 };

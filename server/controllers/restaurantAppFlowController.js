@@ -10144,6 +10144,43 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
       if (status === 'paid' && totalCents > 0 && !paymentReference && !existingSettlement?.payment_reference) {
         throw new AppError('Payment reference is required for paid settlements', 400, 'payment_reference_required');
       }
+      // Finding 33, separation of duties (driver-payout pattern): the
+      // manager who approved a settlement must not also mark it paid.
+      // A null approver fails closed too: re-approve first so the
+      // approver is recorded, then a different manager marks it paid.
+      if (status === 'paid') {
+        const approverId = existingSettlement?.approved_by || null;
+        if (!approverId) {
+          throw new AppError('This settlement was approved before approver recording began; re-approve it first so the approver is recorded', 403, 'runner_settlement_approver_unknown');
+        }
+        if (String(approverId) === String(req.user.id)) {
+          throw new AppError('The approving manager cannot also mark this settlement paid', 403, 'runner_settlement_self_mark_paid');
+        }
+      }
+      // Finding 33: a remittance amount is validated against the amount
+      // collected and the order total, not just finiteness. The effective
+      // collected figure is the body's value when supplied, otherwise the
+      // settlement's recorded collection (remittance-only updates omit
+      // cashCollectedCents).
+      {
+        const rawRemitted = req.body.cashRemittedCents ?? req.body.cash_remitted_cents;
+        if (rawRemitted !== undefined && rawRemitted !== null && rawRemitted !== '') {
+          const remitted = Number(rawRemitted);
+          const effectiveCollected = Number(cashCollectedCents || 0) > 0
+            ? Number(cashCollectedCents)
+            : Number(existingSettlement?.cash_collected_cents || 0);
+          const orderTotal = Number(task.total_cents || 0);
+          if (!Number.isFinite(remitted) || remitted < 0) {
+            throw new AppError('Remittance amount is invalid', 400, 'validation_failed');
+          }
+          if (remitted > effectiveCollected) {
+            throw new AppError('Cash remitted cannot exceed cash collected', 409, 'cash_remittance_exceeds_collected');
+          }
+          if (orderTotal > 0 && remitted > orderTotal) {
+            throw new AppError('Cash remitted cannot exceed the order total', 409, 'cash_remittance_exceeds_order');
+          }
+        }
+      }
       // Fail closed: a settlement may only be marked paid once the manager
       // has recorded remittance covering the reported cash collection.
       const effectiveCashCollected = existingSettlement?.status === 'paid'

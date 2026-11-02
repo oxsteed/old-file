@@ -174,6 +174,8 @@ export default function MoneyApprovals() {
             <thead>
               <tr className="bg-gray-800/80 text-left text-gray-300">
                 <th className="px-4 py-3 font-medium">{t('adminMoneyApprovals.type')}</th>
+                <th className="px-4 py-3 font-medium">{t('adminMoneyApprovals.subject')}</th>
+                <th className="px-4 py-3 font-medium">{t('adminMoneyApprovals.reason')}</th>
                 <th className="px-4 py-3 font-medium">{t('adminMoneyApprovals.reference')}</th>
                 <th className="px-4 py-3 font-medium">{t('adminMoneyApprovals.amount')}</th>
                 <th className="px-4 py-3 font-medium">{t('adminMoneyApprovals.requestedBy')}</th>
@@ -192,6 +194,8 @@ export default function MoneyApprovals() {
                         ? t(MOVEMENT_TYPE_LABELS[approval.movementType])
                         : approval.movementType}
                     </td>
+                    <td className="px-4 py-3 text-sm">{approval.resolvedSubject || t('adminMoneyApprovals.subjectUnknown')}{approval.subjectStatus ? ` (${approval.subjectStatus})` : ''}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{approval.movementReason || '—'}</td>
                     <td className="px-4 py-3 font-mono text-xs">{approval.referenceKey}</td>
                     <td className="px-4 py-3 font-semibold text-white">
                       {formatMoney(approval.amountCents, approval.currencyCode)}

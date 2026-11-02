@@ -121,6 +121,7 @@ function trackFeaturedConversion(req, restaurant, order) {
 }
 const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
 const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = require('../services/foodWalletService');
+const { readRefundedCents, withRefundedCents } = require('../services/foodOrderRefundCounter');
 const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
 const {
   refundCreditForReferenceInTransaction,
@@ -1777,7 +1778,7 @@ async function createFoodCheckoutSession({
 // POS refund row dedupes on (restaurant_id, idempotency_key), so retries and
 // the charge.refunded webhook cannot double-refund. Runs inside the caller's
 // transaction so a failed refund rolls back the status transition.
-async function refundFoodOrderStripePayment(client, { order, restaurantId, createdByUserId = null, status = 'refunded', destinationCharge = false }) {
+async function refundFoodOrderStripePayment(client, { order, restaurantId, createdByUserId = null, status = 'refunded', destinationCharge = false, amountCents = null }) {
   if (!hasRestaurantStripeCheckout()) {
     throw new AppError('Stripe payments are not configured', 503, 'stripe_not_configured');
   }
@@ -1791,7 +1792,13 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
     // Destination charges (card mode) live on the platform account: reverse
     // the transfer and the application fee so the restaurant's share comes
     // back with the customer's money.
+    // Shared counter (finding 3): a partial-amount refund refunds only
+    // the remainder, with its own idempotency key so a full-total replay
+    // can never be returned for a partial amount (or vice versa).
+    const partialAmount = Number.isSafeInteger(amountCents) && amountCents > 0
+      && amountCents !== Number(order.total_cents || 0) ? amountCents : null;
     const refundParams = { payment_intent: order.stripe_payment_intent_id };
+    if (partialAmount != null) refundParams.amount = partialAmount;
     if (destinationCharge && !connectedAccountId) {
       refundParams.reverse_transfer = true;
       refundParams.refund_application_fee = true;
@@ -1800,7 +1807,7 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
       refundParams,
       {
         stripeAccount: (destinationCharge ? null : connectedAccountId) || undefined,
-        idempotencyKey: `food-order:${order.id}:refund`,
+        idempotencyKey: partialAmount != null ? `food-order:${order.id}:refund:${partialAmount}` : `food-order:${order.id}:refund`,
       }
     );
   } catch (refundErr) {
@@ -5246,11 +5253,19 @@ exports.updateOrderStatus = async (req, res, next) => {
 
       let walletRefund = null;
       let payment = null;
-      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'wallet_credit' && order.customer_id) {
+      // Shared counter (finding 3): kitchen refunds cover only the
+      // remainder after any prior admin/agent refund. The order row's
+      // metadata carries the counter; a zero remainder means another path
+      // already refunded the order in full, so no money moves here.
+      const kitchenAlreadyRefundedCents = readRefundedCents(order.metadata);
+      const kitchenRemainderCents = Math.max(0, Number(order.total_cents || 0) - kitchenAlreadyRefundedCents);
+      let kitchenRefundSucceeded = false;
+      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'wallet_credit' && order.customer_id && kitchenRemainderCents > 0) {
         const refundResult = await refundWalletDebitForReference(client, {
           restaurantId,
           customerId: order.customer_id,
           currencyCode: normalizeCurrency(order.currency_code),
+          amountCents: kitchenRemainderCents,
           orderReferenceId: String(order.id),
           description: `Refund for order #${order.queue_number || order.id}`,
           createdByUserId: req.user?.id || null,
@@ -5263,6 +5278,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           },
         });
         walletRefund = refundResult.refunded ? refundResult.entry : null;
+        if (refundResult.refunded) kitchenRefundSucceeded = true;
         let posRefundPayment = null;
         if (refundResult.refunded && refundResult.entry) {
           const posRefundResult = await recordWalletCreditRefundForOrder(client, {
@@ -5321,11 +5337,11 @@ exports.updateOrderStatus = async (req, res, next) => {
       // Guest Credit orders (no customer_id) are refunded too: the refund is
       // keyed on the order's original Credit purchase, not on a user.
       if (['cancelled', 'refunded'].includes(status) && paymentMode === 'oxsteed_credit'
-        && previousPaymentStatus === 'paid' && Number(order.total_cents || 0) > 0) {
+        && ['paid', 'partially_refunded'].includes(previousPaymentStatus) && kitchenRemainderCents > 0) {
         const refundResult = await refundCreditForReferenceInTransaction(client, {
           referenceType: 'food_order',
           referenceId: String(order.id),
-          amountCents: Number(order.total_cents),
+          amountCents: kitchenRemainderCents,
           idempotencyKey: `food-order:${order.id}:oxsteed-credit-refund`,
           actorUserId: req.user?.id || null,
           actorType: 'restaurant_staff',
@@ -5348,6 +5364,11 @@ exports.updateOrderStatus = async (req, res, next) => {
         });
       }
 
+      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'oxsteed_credit'
+        && ['paid', 'partially_refunded'].includes(previousPaymentStatus) && kitchenRemainderCents > 0) {
+        kitchenRefundSucceeded = true;
+      }
+
       // C5: pay_now orders are charged through Stripe at placement. Cancelling or
       // refunding a paid card order must refund the charge, not just flip the
       // status. The refund is idempotency-keyed per order so retries and the
@@ -5356,10 +5377,12 @@ exports.updateOrderStatus = async (req, res, next) => {
       // way; the transfer to the restaurant is reversed with it.
       if (['cancelled', 'refunded'].includes(status)
         && ['pay_now', 'card'].includes(paymentMode)
-        && previousPaymentStatus === 'paid'
+        && ['paid', 'partially_refunded'].includes(previousPaymentStatus)
+        && kitchenRemainderCents > 0
         && order.stripe_payment_intent_id) {
         const cardRefund = await refundFoodOrderStripePayment(client, {
           order,
+          amountCents: kitchenRemainderCents,
           restaurantId,
           createdByUserId: req.user?.id || null,
           status,
@@ -5375,6 +5398,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           stripeChargeId: cardRefund.chargeId,
           posPayment: formatPosPayment(cardRefund.posPayment),
         };
+        kitchenRefundSucceeded = true;
         // P3-11-F11: the Stripe refund moves customer money off-platform.
         // Stamp the acting operator on the operator audit trail in the same
         // transaction, so the refund cannot commit without attribution.
@@ -5398,6 +5422,18 @@ exports.updateOrderStatus = async (req, res, next) => {
             refundReason: 'order_status_transition',
           },
         });
+      }
+
+      // A successful kitchen remainder refund completes the order total:
+      // stamp the shared counter so admin/agent paths see it as fully
+      // refunded instead of refunding the total again.
+      if (kitchenRefundSucceeded) {
+        const stampedMetadata = withRefundedCents(order.metadata, Number(order.total_cents || 0));
+        await client.query(
+          `UPDATE food_orders SET metadata = $1::jsonb, updated_at = NOW() WHERE id = $2`,
+          [JSON.stringify(stampedMetadata), order.id]
+        );
+        order.metadata = stampedMetadata;
       }
 
       if (status === 'completed') {

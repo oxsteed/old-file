@@ -35,6 +35,7 @@ export default function PaymentDisputes() {
   const [decisionStatus, setDecisionStatus] = useState('');
   const [note, setNote] = useState('');
   const [refundReference, setRefundReference] = useState('');
+  const [noRefundReason, setNoRefundReason] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [notice, setNotice] = useState('');
@@ -59,6 +60,7 @@ export default function PaymentDisputes() {
     setDecisionStatus(allowed[0] || '');
     setNote('');
     setRefundReference('');
+    setNoRefundReason('');
     setNotice('');
     setActionError('');
   };
@@ -76,6 +78,7 @@ export default function PaymentDisputes() {
         status: decisionStatus,
         note: note.trim(),
         ...(refundReference.trim() ? { refundReference: refundReference.trim() } : {}),
+        ...(noRefundReason.trim() ? { noRefundReason: noRefundReason.trim() } : {}),
       });
       setConfirmOpen(false);
       setSelected(null);
@@ -168,6 +171,8 @@ export default function PaymentDisputes() {
                     {lastDecision && (
                       <p className="text-gray-400 text-sm mt-1">
                         {t('adminMoneyDisputes.lastDecision', { note: lastDecision.note || '' })}
+                        {lastDecision.noRefundReason ? ` · ${t('adminMoneyDisputes.noRefundReasonShown', { reason: lastDecision.noRefundReason })}` : ''}
+                        {lastDecision.refundReference ? ` · ${t('adminMoneyDisputes.refundReferenceShown', { reference: lastDecision.refundReference })}` : ''}
                       </p>
                     )}
                   </div>
@@ -217,6 +222,19 @@ export default function PaymentDisputes() {
                         className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white"
                       />
                     </label>
+                    <label className="block text-sm text-gray-300">
+                      {t('adminMoneyDisputes.noRefundReasonLabel')}
+                      <input
+                        type="text"
+                        value={noRefundReason}
+                        onChange={(event) => setNoRefundReason(event.target.value)}
+                        placeholder={t('adminMoneyDisputes.noRefundReasonPlaceholder')}
+                        className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white"
+                      />
+                    </label>
+                    {(decisionStatus === 'approved' || decisionStatus === 'resolved') && !refundReference.trim() && !noRefundReason.trim() && (
+                      <p className="text-sm text-amber-300">{t('adminMoneyDisputes.closureNeedsRefundOrReason')}</p>
+                    )}
                     <button
                       type="button"
                       disabled={!decisionStatus || !note.trim() || busyId === dispute.id}

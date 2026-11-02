@@ -289,7 +289,54 @@ async function listPendingMoneyMovementApprovals({ limit = 50, offset = 0 } = {}
     [parsed, safeOffset]
   );
   const count = await pool.query("SELECT COUNT(*)::int AS total FROM money_movement_approvals WHERE status = 'pending'");
-  return { approvals: rows, total: Number(count.rows[0]?.total || 0), limit: parsed, offset: safeOffset };
+  // Finding 36: resolve the subject (restaurant name, top-up/order/case
+  // status) and the maker reason per movement type, so the checker does
+  // not approve blind from a UUID and an amount. Lookups are best-effort:
+  // a missing subject row degrades to the reference key, never to a
+  // failed list.
+  const enriched = await Promise.all(rows.map(async (row) => {
+    let payload = row.payload;
+    if (typeof payload === 'string') {
+      try { payload = JSON.parse(payload); } catch { payload = {}; }
+    }
+    payload = payload || {};
+    const reason = payload.reason || payload.reviewNote || payload.review_note || null;
+    let resolvedSubject = null;
+    let subjectStatus = null;
+    try {
+      if (row.movement_type === 'restaurant_payout' && payload.payoutId) {
+        const { rows: [payout] } = await pool.query(
+          `SELECT p.status, fr.display_name AS restaurant_name FROM restaurant_payouts p
+             JOIN food_restaurants fr ON fr.id = p.restaurant_id WHERE p.id = $1`,
+          [payload.payoutId]
+        );
+        if (payout) { resolvedSubject = `${payout.restaurant_name || 'Restaurant'} - payout ${payload.payoutId}`; subjectStatus = payout.status; }
+      } else if (row.movement_type === 'restaurant_topup_clawback' && payload.topupId) {
+        const { rows: [topup] } = await pool.query(
+          `SELECT t.status, fr.display_name AS restaurant_name FROM restaurant_topups t
+             JOIN food_restaurants fr ON fr.id = t.restaurant_id WHERE t.id = $1`,
+          [payload.topupId]
+        );
+        if (topup) { resolvedSubject = `${topup.restaurant_name || 'Restaurant'} - top-up ${payload.topupId}`; subjectStatus = topup.status; }
+      } else if ((row.movement_type === 'food_refund' || row.movement_type === 'agent_food_refund') && payload.orderId) {
+        const { rows: [order] } = await pool.query(
+          `SELECT fo.payment_status, fr.display_name AS restaurant_name FROM food_orders fo
+             JOIN food_restaurants fr ON fr.id = fo.restaurant_id WHERE fo.id = $1`,
+          [payload.orderId]
+        );
+        if (order) { resolvedSubject = `${order.restaurant_name || 'Restaurant'} - order ${payload.orderId}`; subjectStatus = order.payment_status; }
+      } else if (row.movement_type === 'support_resolution_refund' && payload.caseId) {
+        const { rows: [supportCase] } = await pool.query(
+          `SELECT rsc.status, fr.display_name AS restaurant_name FROM restaurant_support_cases rsc
+             JOIN food_restaurants fr ON fr.id = rsc.restaurant_id WHERE rsc.id = $1`,
+          [payload.caseId]
+        );
+        if (supportCase) { resolvedSubject = `${supportCase.restaurant_name || 'Restaurant'} - support case ${payload.caseId}`; subjectStatus = supportCase.status; }
+      }
+    } catch { /* best-effort only */ }
+    return { ...row, resolvedSubject, subjectStatus, movementReason: reason };
+  }));
+  return { approvals: enriched, total: Number(count.rows[0]?.total || 0), limit: parsed, offset: safeOffset };
 }
 
 async function getMoneyMovementApproval(approvalId) {

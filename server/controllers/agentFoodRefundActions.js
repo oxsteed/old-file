@@ -60,6 +60,7 @@ const { refundCreditForReferenceInTransaction } = require('../services/oxsteedCr
 const { notifyRefundIssued } = require('../services/refundNotification');
 const { recordWalletCreditRefundForOrder } = require('../services/restaurantPosPaymentLedgerService');
 const { logAdminAction } = require('../services/auditService');
+const { readRefundedCents, withRefundedCents, remainingCents } = require('../services/foodOrderRefundCounter');
 
 // Canonical payment modes, mirroring FOOD_PAYMENT_MODE_ALIASES in
 // foodController.js (including legacy aliases found on older order rows).
@@ -184,15 +185,24 @@ async function executeAgentFoodRefund(client, { req, orderId, reason, requestIde
       const currencyCode = typeof order.currency_code === 'string' && order.currency_code.trim()
         ? order.currency_code.trim().toUpperCase().slice(0, 3)
         : 'USD';
+      // Shared counter (finding 3): the agent refunds only the remainder
+      // after any prior admin (or kitchen) refund, never the full total
+      // again. An order already fully refunded through another path but
+      // not yet marked refunded fails closed here instead of moving money.
+      const alreadyRefundedCents = readRefundedCents(order.metadata);
+      const remainderCents = Math.max(0, totalCents - alreadyRefundedCents);
+      if (remainderCents <= 0) {
+        throw new AppError('Order has already been fully refunded', 400, 'food_refund_already_fully_refunded');
+      }
       if (!skipDualApproval) {
         const gate = await require('../services/dualApprovalService').requestMoneyMovementApproval({
           movementType: 'agent_food_refund', referenceKey: `food_order:${orderId}`,
-          amountCents: totalCents, currencyCode, requestedBy: req.user.id,
+          amountCents: remainderCents, currencyCode, requestedBy: req.user.id,
           idempotencyKey: requestIdempotencyKey || `agent-food-refund:${orderId}`,
-          payload: { orderId, reason, makerAdminId: req.user.id, expectedAmountCents: totalCents },
+          payload: { orderId, reason, makerAdminId: req.user.id, expectedAmountCents: remainderCents, alreadyRefundedCents },
         });
         if (gate.queued) return { gate };
-      } else if (expectedAmountCents !== totalCents) {
+      } else if (expectedAmountCents !== remainderCents) {
         throw new AppError('Order amount changed since approval request',409,'food_refund_state_changed');
       }
       const beforeState = {
@@ -219,6 +229,7 @@ async function executeAgentFoodRefund(client, { req, orderId, reason, requestIde
           restaurantId: order.restaurant_id,
           customerId: order.customer_id,
           currencyCode,
+          amountCents: remainderCents,
           orderReferenceId: String(order.id),
           description: `Agent refund for food order #${order.id}`,
           createdByUserId: req.user?.id || null,
@@ -282,7 +293,7 @@ async function executeAgentFoodRefund(client, { req, orderId, reason, requestIde
         const refundResult = await refundCreditForReferenceInTransaction(client, {
           referenceType: 'food_order',
           referenceId: String(order.id),
-          amountCents: totalCents,
+          amountCents: remainderCents,
           // Shared with the kitchen order-status refund path: if the kitchen
           // already refunded this order, the journal replays instead of
           // double-crediting.
@@ -312,7 +323,7 @@ async function executeAgentFoodRefund(client, { req, orderId, reason, requestIde
         // fake money movement.
         money = {
           kind: 'manual',
-          amountCents: totalCents,
+          amountCents: remainderCents,
           currencyCode,
           manualSettlementRequired: true,
           operatorNote: paymentMethod === 'pay_at_restaurant'
@@ -330,6 +341,7 @@ async function executeAgentFoodRefund(client, { req, orderId, reason, requestIde
         const { refundFoodOrderCardPayment } = require('./foodController');
         const cardRefund = await refundFoodOrderCardPayment(client, {
           order,
+          amountCents: remainderCents,
           createdByUserId: req.user?.id || null,
           status: targetStatus,
           destinationCharge: paymentMethod === 'card',
@@ -349,7 +361,8 @@ async function executeAgentFoodRefund(client, { req, orderId, reason, requestIde
         );
       }
 
-      const metadata = order.metadata && typeof order.metadata === 'object' ? { ...order.metadata } : {};
+      const metadata = withRefundedCents(order.metadata,
+        money.kind === 'manual' ? totalCents : Math.min(totalCents, alreadyRefundedCents + Number(money.amountCents || 0)));
       metadata.agentRefund = {
         at: new Date().toISOString(),
         by: req.user?.id || null,
@@ -454,15 +467,18 @@ async function refundFoodOrder(req, res, next) {
     // order total (the same figure the shared issue endpoint binds when
     // the agent client sends amountCents explicitly). A missing row skips
     // binding; the executor reports it with its own error.
+    // Finding 39: existence and remaining-amount pre-checks run BEFORE
+    // the single-use step-up challenge is verified, so a typo'd order id
+    // or a fully-refunded order never burns a code.
     let agentRefundExpectedAmount = null;
-    try {
-      const { rows: agentOrderRows } = await pool.query('SELECT total_cents FROM food_orders WHERE id = $1', [orderId]);
-      if (agentOrderRows.length) {
-        const t = Number(agentOrderRows[0].total_cents);
-        if (Number.isSafeInteger(t) && t > 0) agentRefundExpectedAmount = t;
+    {
+      const { rows: agentOrderRows } = await pool.query('SELECT total_cents, metadata, payment_status FROM food_orders WHERE id = $1', [orderId]);
+      if (!agentOrderRows.length) throw new AppError('Food order not found', 404, 'food_order_not_found');
+      const remaining = remainingCents(agentOrderRows[0].total_cents, agentOrderRows[0].metadata);
+      if (agentOrderRows[0].payment_status !== 'refunded' && remaining <= 0) {
+        throw new AppError('Order has already been fully refunded', 400, 'food_refund_already_fully_refunded');
       }
-    } catch (preReadError) {
-      logger.warn('agentFoodRefundActions.stepup pre-read failed, skipping amount binding', { orderId, error: preReadError.message });
+      if (Number.isSafeInteger(remaining) && remaining > 0) agentRefundExpectedAmount = remaining;
     }
     await require('../services/stepupChallengeService').verifyStepupChallenge({
       challengeId: req.body.stepupChallengeId, actorUserId: req.user.id, actionType: 'food_refund', code: req.body.stepupCode,

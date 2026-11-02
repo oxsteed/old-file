@@ -23585,7 +23585,9 @@
         "paymentRefunded": "Paiement remboursé",
         "paymentConfirmed": "Paiement confirmé.",
         "orderMarkedPaid": "Commande marquée payée.",
-        "paymentError": "Impossible de confirmer ce paiement."
+        "paymentError": "Impossible de confirmer ce paiement.",
+        "cancelConfirm": "Annuler la commande {{order}} ({{amount}}) ? Annuler une commande payée par carte déclenche un remboursement au client.",
+        "markPaidConfirm": "Marquer la commande {{order}} comme payée pour {{amount}} ? Cela enregistre que le montant total dû a été reçu."
       },
       "menu": "Menu",
       "newCategoryPlaceholder": "Nom de catégorie (ex. Burgers)",
@@ -23823,7 +23825,8 @@
         },
         "historyShowing": "Affichage de {{from}} à {{to}} sur {{total}}",
         "historyPrevious": "Précédent",
-        "historyNext": "Suivant"
+        "historyNext": "Suivant",
+        "requestConfirm": "Demander un versement de {{amount}} ? La demande entre dans la file de révision de l'administrateur; elle ne déplace pas d'argent immédiatement."
       },
       "settlementTitle": "Dossiers de règlement des paiements",
       "settlementNote": "Les commandes peuvent rester liées au dossier du restaurant pour que le règlement, les reçus et l'historique d'assistance restent visibles dans l'app.",
@@ -24257,7 +24260,8 @@
       "createSettlement": "Créer un règlement",
       "settlementCreated": "Règlement créé",
       "cashCollectedPrompt": "Espèces collectées par le livreur (montant)",
-      "pollError": "Impossible d'actualiser les données du livreur. Les dernières données enregistrées sont affichées."
+      "pollError": "Impossible d'actualiser les données du livreur. Les dernières données enregistrées sont affichées.",
+      "settlementApproveConfirm": "Approuver le règlement de la tâche {{task}} ? Espèces collectées : {{cash}}. Montant du règlement (frais plus pourboire) : {{amount}}. Approuver ne le marque pas comme payé."
     },
     "ownerHome": {
       "allClear": "Tout est en ordre. Rien ne requiert votre attention pour le moment.",
@@ -33514,7 +33518,10 @@
     "typeMarketplaceRefund": "Remboursement marketplace",
     "typeDisputeRefund": "Remboursement de litige",
     "typeRestaurantPayout": "Paiement au restaurant",
-    "typeAffiliatePayout": "Paiement d'affilié"
+    "typeAffiliatePayout": "Paiement d'affilié",
+    "subject": "Objet",
+    "reason": "Motif",
+    "subjectUnknown": "Objet inconnu"
   },
   "adminOrderFilters": {
     "searchOrders": "Rechercher des commandes",
@@ -35826,7 +35833,11 @@
       "clawbackPreviewHint": "Consultez l’aperçu du rechargement avant de confirmer. La confirmation reste désactivée tant que le montant, le restaurant et le statut de cet identifiant ne sont pas chargés.",
       "clawbackPreviewAmount": "Montant : {{amount}} {{currency}}",
       "clawbackPreviewRestaurant": "Restaurant : {{restaurant}}",
-      "clawbackPreviewStatus": "Statut : {{status}}"
+      "clawbackPreviewStatus": "Statut : {{status}}",
+      "clawbackPreviewNotExecutable": "Ce rechargement ne peut pas être récupéré : seul un rechargement réussi peut être récupéré.",
+      "clawbackReplayed": "Ce rechargement a déjà été récupéré; aucun second débit n'a été effectué.",
+      "clawbackWentNegative": "Le portefeuille est passé en négatif : solde de {{before}} à {{after}} {{currency}}.",
+      "clawbackBalances": "Solde du portefeuille de {{before}} à {{after}} {{currency}}."
     }
   },
   "featuredPlacements": {
@@ -36000,12 +36011,20 @@
       "approved": "Approuvés",
       "completed": "Terminés",
       "failed": "Échoués",
-      "rejected": "Refusés"
+      "rejected": "Refusés",
+      "processing": "En cours"
     },
     "stepupFailed": "Impossible d'émettre un défi de vérification.",
     "stepupPrompt": "Un code de vérification a été envoyé à votre adresse e-mail. Saisissez-le pour approuver ce paiement :",
     "pendingApproval": "Paiement en attente d'approbation par un second administrateur. Aucun fonds n'a bougé.",
-    "stepupRequired": "Un code de vérification est requis pour approuver le paiement."
+    "stepupRequired": "Un code de vérification est requis pour approuver le paiement.",
+    "subtitleQueued": "Approuvez les versements de gains de portefeuille aux restaurants. L'approbation met en file d'attente un virement vers le compte Connect du restaurant; le virement est envoyé de façon asynchrone et confirmé par Stripe, il n'est pas instantané.",
+    "transferAttempts": "{{count}} tentatives de virement",
+    "retry": "Réessayer",
+    "fail": "Marquer comme échoué",
+    "confirmFailTitle": "Marquer ce versement comme échoué ?",
+    "confirmFailBody": "Cela ramène le versement à l'état échoué et annule son écriture d'approbation, afin que le restaurant puisse refaire une demande. Cela n'envoie pas d'argent.",
+    "confirmApproveBodyQueued": "Cela met en file d'attente un virement de {{amount}} vers le compte Stripe du restaurant et enregistre l'écriture comptable. Le virement est envoyé de façon asynchrone et confirmé par Stripe; il n'est ni instantané ni encore définitif."
   },
   "affiliatePayouts": {
     "title": "Paiements des affiliés",
@@ -36078,7 +36097,12 @@
       "denied": "Refusé",
       "resolved": "Résolu",
       "withdrawn": "Retiré"
-    }
+    },
+    "noRefundReasonLabel": "Motif de non-remboursement (requis à la place d'une référence de remboursement lors d'une clôture sans remboursement)",
+    "noRefundReasonPlaceholder": "Pourquoi aucun remboursement n'a été émis",
+    "closureNeedsRefundOrReason": "Une décision approuvée ou résolue exige une référence de remboursement ou un motif de non-remboursement.",
+    "noRefundReasonShown": "Aucun remboursement : {{reason}}",
+    "refundReferenceShown": "Référence de remboursement : {{reference}}"
   },
   "adminChargebacks": {
     "title": "Rétrofacturations",
@@ -37522,9 +37546,9 @@
       }
     },
     "protection": {
-      "3": "Protection maximale",
+      "1": "Non couvert par OxSteed",
       "2": "Protégé par le Crédit OxSteed",
-      "1": "Non couvert par OxSteed"
+      "3": "Protection maximale"
     },
     "chargedNowHeld": "Le travail ayant lieu dans plus de 5 jours, votre carte est débitée maintenant et OxSteed retient l'argent jusqu'à la fin du travail.",
     "localMethods": "Également disponible : {{methods}}",
@@ -38178,5 +38202,31 @@
   },
   "cards": {
     "moveBack": "Revenir à {{status}}"
+  },
+  "restaurantPayRuns": {
+    "title": "Paies des restaurants",
+    "subtitle": "Paies de tous les restaurants, avec les versements réels liés à chacune. Une paie finalisée sans lien n'a encore payé personne.",
+    "status": {
+      "all": "Toutes",
+      "draft": "Brouillon",
+      "finalized": "Finalisée",
+      "paid": "Payée",
+      "voided": "Annulée"
+    },
+    "restaurantFilter": "Identifiant du restaurant",
+    "loadFailed": "Impossible de charger les paies.",
+    "detailFailed": "Impossible de charger le détail de la paie.",
+    "empty": "Aucune paie dans cet état.",
+    "unknownRestaurant": "Restaurant inconnu",
+    "run": "Paie {{id}}",
+    "period": "{{from}} au {{to}}",
+    "totalPay": "Total à payer : {{amount}}",
+    "linked": "Versements liés : {{amount}} ({{count}})",
+    "finalizedUnpaid": "Finalisée mais pas encore entièrement liée à des versements.",
+    "hideDetail": "Masquer le détail",
+    "showDetail": "Afficher le détail",
+    "noLinks": "Aucun versement lié à cette paie pour le moment.",
+    "linkLine": "Versement {{payout}} : {{amount}} ({{status}})",
+    "employees": "{{count}} employés"
   }
 }

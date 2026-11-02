@@ -25,6 +25,7 @@ import {
 } from './shared';
 
 function SettlementControls({
+  pendingPayoutSettlementIds,
   selectablePartners,
   settlementForm,
   setSettlementForm,
@@ -106,7 +107,7 @@ function SettlementControls({
               <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{settlement.valueDate ? dateTime(settlement.valueDate) : t('adminUnknownDate')}</td>
               <td className="px-3 py-3 font-semibold text-emerald-300">{money(settlement.netCents, settlement.currencyCode)}</td>
               <td className="px-3 py-3"><Badge status={settlement.status} /><p className="mt-1 break-all text-[10px] text-gray-600">{t('adminPayoutStatus')}: {localizeCreditStatus(settlement.payoutStatus || 'none', t)}</p><p className="mt-1 break-all text-[10px] text-gray-600">{t('adminCreatedBy')} {settlement.createdBy || t('adminSystem')}</p>{settlement.approvedBy && <p className="mt-1 break-all text-[10px] text-sky-300">{t('adminApprovedBy')} {settlement.approvedBy}</p>}</td>
-              <td className="px-3 py-3"><div className="flex flex-wrap gap-2">{settlement.status === 'pending' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'approved')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminApprove')}</button>}{settlement.status === 'approved' && !['initiated', 'paid'].includes(settlement.payoutStatus) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'paid')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminMarkPaid')}</button>}{settlement.status === 'approved' && !['initiated', 'paid'].includes(settlement.payoutStatus) && <button disabled={busy} onClick={() => executeSettlementPayout(settlement)} className="rounded-lg bg-violet-600 px-2.5 py-2 font-semibold text-white hover:bg-violet-500 disabled:opacity-50">{t('adminSettlementPayout.queueButton')}</button>}{['pending', 'approved'].includes(settlement.status) && !['initiated', 'paid'].includes(settlement.payoutStatus) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'voided')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminVoid')}</button>}</div></td>
+              <td className="px-3 py-3"><div className="flex flex-wrap gap-2">{settlement.status === 'pending' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'approved')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminApprove')}</button>}{settlement.status === 'approved' && !['initiated', 'paid'].includes(settlement.payoutStatus) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'paid')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminMarkPaid')}</button>}{settlement.status === 'approved' && !['initiated', 'paid'].includes(settlement.payoutStatus) && !(pendingPayoutSettlementIds || []).includes(String(settlement.id)) && <button disabled={busy} onClick={() => executeSettlementPayout(settlement)} className="rounded-lg bg-violet-600 px-2.5 py-2 font-semibold text-white hover:bg-violet-500 disabled:opacity-50">{t('adminSettlementPayout.queueButton')}</button>}{['pending', 'approved'].includes(settlement.status) && !['initiated', 'paid'].includes(settlement.payoutStatus) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'voided')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminVoid')}</button>}</div></td>
             </tr>)}
           </tbody>
         </table>
@@ -134,6 +135,7 @@ export default function OxsteedCreditSettlementsPage() {
   const [partners, setPartners] = useState([]);
   const [agreements, setAgreements] = useState([]);
   const [settlements, setSettlements] = useState([]);
+  const [pendingPayoutSettlementIds, setPendingPayoutSettlementIds] = useState([]);
   const [settlementPartnerId, setSettlementPartnerId] = useState('');
   const [settlementStatus, setSettlementStatus] = useState('');
   const [settlementPagination, setSettlementPagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
@@ -158,11 +160,17 @@ export default function OxsteedCreditSettlementsPage() {
       const settlementParams = { limit: 50, offset: appendSettlements ? settlementOffset : 0 };
       if (settlementPartnerId) settlementParams.partnerId = settlementPartnerId;
       if (settlementStatus) settlementParams.status = settlementStatus;
-      const [partnersResponse, agreementsResponse, settlementsResponse] = await Promise.all([
+      const [partnersResponse, agreementsResponse, settlementsResponse, pendingActionsResponse] = await Promise.all([
         adminApi.get('/admin/super/oxsteed-credit/partners'),
         adminApi.get('/admin/super/oxsteed-credit/agreements'),
         adminApi.get('/admin/super/oxsteed-credit/settlements', { params: settlementParams }),
+        adminApi.get('/admin/super/oxsteed-credit/pending-actions', { params: { status: 'pending', limit: 200 } }).catch(() => ({ data: { pendingActions: [] } })),
       ]);
+      const pendingPayoutIds = (pendingActionsResponse.data?.pendingActions || [])
+        .filter((action) => action.actionType === 'credit_settlement_payout')
+        .map((action) => String(action.payload?.settlementId || ''))
+        .filter(Boolean);
+      setPendingPayoutSettlementIds(pendingPayoutIds);
       if (requestId !== loadRequestRef.current) return;
       setPartners(partnersResponse.data?.partners || []);
       setAgreements(agreementsResponse.data?.agreements || []);
@@ -446,6 +454,7 @@ export default function OxsteedCreditSettlementsPage() {
         </div>
       </div>
       <SettlementControls
+        pendingPayoutSettlementIds={pendingPayoutSettlementIds}
         selectablePartners={selectablePartners}
         settlementForm={settlementForm}
         setSettlementForm={setSettlementForm}

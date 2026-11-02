@@ -83,6 +83,9 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   // two-person approval for refunds is a product decision for Emile.)
   'manual_refund',
   'food_refund',
+  // Restaurant-side finding 4: admin approval of a support resolution
+  // with a money amount requires an amount-bound step-up challenge.
+  'support_resolution_approve',
   'restaurant_topup_approve',
   'fee_config_update',
   // ADM-016: the second admin (checker) in dual approval must prove a fresh

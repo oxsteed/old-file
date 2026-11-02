@@ -719,7 +719,15 @@ function OrdersTab({ t, restaurant }) {
     }
   };
 
+  // Finding 9: Cancel and Mark paid are single-click money actions no
+  // longer: each confirms with the order, the amount, and the
+  // consequence, matching the refund modal on this page. A paid card
+  // order cancelled here triggers a refund; marking paid asserts the
+  // full amount due was received.
   const cancel = async (order) => {
+    const amount = formatFoodMoney(order.total_cents, order.currency_code);
+    const label = order.queue_number ? `#${order.queue_number}` : `#${order.id}`;
+    if (!window.confirm(t('food.merchant.orderCenter.cancelConfirm', { order: label, amount }))) return;
     try {
       await updateFoodOrderStatus(restaurant.id, order.id, 'cancelled');
       refreshOrderInView(order.id);
@@ -729,6 +737,10 @@ function OrdersTab({ t, restaurant }) {
   };
 
   const markPaid = async (order) => {
+    const amountCentsPreview = Number(order.amount_due_cents ?? order.balance_due_cents ?? order.total_cents ?? 0);
+    const amount = formatFoodMoney(amountCentsPreview, order.currency_code);
+    const label = order.queue_number ? `#${order.queue_number}` : `#${order.id}`;
+    if (!window.confirm(t('food.merchant.orderCenter.markPaidConfirm', { order: label, amount }))) return;
     try {
       const externalPayment = orderExternalPayment(order);
       const submission = externalPayment?.submission || externalPayment?.proof || externalPayment?.paymentProof || {};

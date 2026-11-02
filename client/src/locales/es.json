@@ -23585,7 +23585,9 @@
         "paymentRefunded": "Pago reembolsado",
         "paymentConfirmed": "Pago confirmado.",
         "orderMarkedPaid": "Pedido marcado como pagado.",
-        "paymentError": "No se pudo confirmar este pago."
+        "paymentError": "No se pudo confirmar este pago.",
+        "cancelConfirm": "¿Cancelar el pedido {{order}} ({{amount}})? Cancelar un pedido pagado con tarjeta genera un reembolso al cliente.",
+        "markPaidConfirm": "¿Marcar el pedido {{order}} como pagado por {{amount}}? Esto registra que se recibió el monto total adeudado."
       },
       "menu": "Menú",
       "newCategoryPlaceholder": "Nombre de categoría (ej. Hamburguesas)",
@@ -23823,7 +23825,8 @@
         },
         "historyShowing": "Mostrando {{from}}–{{to}} de {{total}}",
         "historyPrevious": "Anterior",
-        "historyNext": "Siguiente"
+        "historyNext": "Siguiente",
+        "requestConfirm": "¿Solicitar un pago de {{amount}}? La solicitud entra en la cola de revisión del administrador; no mueve dinero de inmediato."
       },
       "settlementTitle": "Registros de liquidación de pagos",
       "settlementNote": "Los pedidos pueden permanecer vinculados al registro del restaurante para que la liquidación, los recibos y el historial de soporte sigan visibles en la app.",
@@ -24257,7 +24260,8 @@
       "createSettlement": "Crear liquidación",
       "settlementCreated": "Liquidación creada",
       "cashCollectedPrompt": "Efectivo cobrado por el repartidor (monto)",
-      "pollError": "No se pudieron actualizar los datos del repartidor. Se muestra la última información guardada."
+      "pollError": "No se pudieron actualizar los datos del repartidor. Se muestra la última información guardada.",
+      "settlementApproveConfirm": "¿Aprobar la liquidación de la tarea {{task}}? Efectivo recaudado: {{cash}}. Monto de la liquidación (comisiones más propina): {{amount}}. Aprobar no la marca como pagada."
     },
     "ownerHome": {
       "allClear": "Todo en orden. Nada requiere tu atención ahora mismo.",
@@ -33514,7 +33518,10 @@
     "typeMarketplaceRefund": "Reembolso de marketplace",
     "typeDisputeRefund": "Reembolso de disputa",
     "typeRestaurantPayout": "Pago a restaurante",
-    "typeAffiliatePayout": "Pago de afiliado"
+    "typeAffiliatePayout": "Pago de afiliado",
+    "subject": "Asunto",
+    "reason": "Motivo",
+    "subjectUnknown": "Asunto desconocido"
   },
   "adminOrderFilters": {
     "searchOrders": "Buscar pedidos",
@@ -35826,7 +35833,11 @@
       "clawbackPreviewHint": "Revisa la vista previa del abono antes de confirmar. La confirmación queda deshabilitada hasta que se carguen el monto, el restaurante y el estado de este ID.",
       "clawbackPreviewAmount": "Monto: {{amount}} {{currency}}",
       "clawbackPreviewRestaurant": "Restaurante: {{restaurant}}",
-      "clawbackPreviewStatus": "Estado: {{status}}"
+      "clawbackPreviewStatus": "Estado: {{status}}",
+      "clawbackPreviewNotExecutable": "Este abono no se puede recuperar: solo se puede recuperar un abono exitoso.",
+      "clawbackReplayed": "Este abono ya se había recuperado; no se realizó un segundo débito.",
+      "clawbackWentNegative": "La billetera quedó en negativo: saldo de {{before}} a {{after}} {{currency}}.",
+      "clawbackBalances": "Saldo de la billetera de {{before}} a {{after}} {{currency}}."
     }
   },
   "featuredPlacements": {
@@ -36000,12 +36011,20 @@
       "approved": "Aprobados",
       "completed": "Completados",
       "failed": "Fallidos",
-      "rejected": "Rechazados"
+      "rejected": "Rechazados",
+      "processing": "En proceso"
     },
     "stepupFailed": "No se pudo emitir un desafío de verificación.",
     "stepupPrompt": "Se envió un código de verificación a tu correo electrónico. Introdúcelo para aprobar este pago:",
     "pendingApproval": "Pago en cola para la aprobación de un segundo administrador. No se han movido fondos.",
-    "stepupRequired": "Se requiere un código de verificación para aprobar el pago."
+    "stepupRequired": "Se requiere un código de verificación para aprobar el pago.",
+    "subtitleQueued": "Aprueba los pagos de ganancias de billetera a los restaurantes. La aprobación pone en cola una transferencia a la cuenta Connect del restaurante; la transferencia se envía de forma asíncrona y la confirma Stripe, no es instantánea.",
+    "transferAttempts": "{{count}} intentos de transferencia",
+    "retry": "Reintentar",
+    "fail": "Marcar como fallido",
+    "confirmFailTitle": "¿Marcar este pago como fallido?",
+    "confirmFailBody": "Esto devuelve el pago a un estado fallido y revierte su asiento de aprobación, para que el restaurante pueda solicitarlo de nuevo. No envía dinero.",
+    "confirmApproveBodyQueued": "Esto pone en cola una transferencia de {{amount}} a la cuenta Stripe del restaurante y registra el asiento contable. La transferencia se envía de forma asíncrona y la confirma Stripe; no es instantánea ni definitiva todavía."
   },
   "affiliatePayouts": {
     "title": "Pagos de afiliados",
@@ -36078,7 +36097,12 @@
       "denied": "Denegada",
       "resolved": "Resuelta",
       "withdrawn": "Retirada"
-    }
+    },
+    "noRefundReasonLabel": "Motivo de no reembolso (obligatorio en lugar de una referencia de reembolso al cerrar sin reembolso)",
+    "noRefundReasonPlaceholder": "Por qué no se emitió un reembolso",
+    "closureNeedsRefundOrReason": "Una decisión aprobada o resuelta necesita una referencia de reembolso o un motivo de no reembolso.",
+    "noRefundReasonShown": "Sin reembolso: {{reason}}",
+    "refundReferenceShown": "Referencia de reembolso: {{reference}}"
   },
   "adminChargebacks": {
     "title": "Contracargos",
@@ -37522,9 +37546,9 @@
       }
     },
     "protection": {
-      "3": "Máxima protección",
+      "1": "No cubierto por OxSteed",
       "2": "Protegido por Crédito OxSteed",
-      "1": "No cubierto por OxSteed"
+      "3": "Máxima protección"
     },
     "chargedNowHeld": "Como el trabajo es dentro de más de 5 días, tu tarjeta se cobra ahora y OxSteed retiene el dinero hasta que termine el trabajo.",
     "localMethods": "También disponible: {{methods}}",
@@ -38178,5 +38202,31 @@
   },
   "cards": {
     "moveBack": "Volver a {{status}}"
+  },
+  "restaurantPayRuns": {
+    "title": "Nóminas de restaurantes",
+    "subtitle": "Nóminas de todos los restaurantes, con los pagos reales vinculados a cada una. Una nómina finalizada sin vínculos aún no ha pagado a nadie.",
+    "status": {
+      "all": "Todas",
+      "draft": "Borrador",
+      "finalized": "Finalizada",
+      "paid": "Pagada",
+      "voided": "Anulada"
+    },
+    "restaurantFilter": "Id del restaurante",
+    "loadFailed": "No se pudieron cargar las nóminas.",
+    "detailFailed": "No se pudo cargar el detalle de la nómina.",
+    "empty": "No hay nóminas en este estado.",
+    "unknownRestaurant": "Restaurante desconocido",
+    "run": "Nómina {{id}}",
+    "period": "{{from}} a {{to}}",
+    "totalPay": "Pago total: {{amount}}",
+    "linked": "Pagos vinculados: {{amount}} ({{count}})",
+    "finalizedUnpaid": "Finalizada pero aún no vinculada por completo a pagos.",
+    "hideDetail": "Ocultar detalle",
+    "showDetail": "Mostrar detalle",
+    "noLinks": "Aún no hay pagos vinculados a esta nómina.",
+    "linkLine": "Pago {{payout}}: {{amount}} ({{status}})",
+    "employees": "{{count}} empleados"
   }
 }
