@@ -79,6 +79,7 @@ export const SUPER_NAV = [
   { tabKey: 'affiliatePayouts', to: routePath('affiliatePayouts'), icon: DollarSign, labelKey: 'adminNav.affiliatePayouts', grant: adminRoute('affiliatePayouts').grant },
   { tabKey: 'paymentDisputes', to: routePath('paymentDisputes'), icon: Scale, labelKey: 'adminNav.paymentDisputes', grant: adminRoute('paymentDisputes').grant },
   { tabKey: 'chargebacks', to: routePath('chargebacks'), icon: CreditCard, labelKey: 'adminNav.chargebacks' },
+  { tabKey: 'adminSubscriptions', to: routePath('adminSubscriptions'), icon: CreditCard, labelKey: 'adminNav.adminSubscriptions' },
   { tabKey: 'treasury', to: routePath('treasury'),         icon: DollarSign,    labelKey: 'adminNav.treasury',         grant: adminRoute('treasury').grant },
   { tabKey: 'conversations', to: routePath('conversations'),   icon: MessageSquare,  labelKey: 'adminNav.conversations'    },
   { tabKey: 'adminAccounts', to: routePath('adminAccounts'),  icon: UserCog,        labelKey: 'adminNav.adminAccounts',   grant: adminRoute('adminAccounts').grant },

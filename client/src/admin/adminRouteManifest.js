@@ -155,6 +155,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   affiliatePayouts: defineRoute('/admin/super/affiliate-payouts', { grant: 'view_financials' }),
   paymentDisputes: defineRoute('/admin/super/payment-disputes', { grant: 'manage_disputes' }),
   chargebacks: defineRoute('/admin/super/chargebacks', { superOnly: true }),
+  adminSubscriptions: defineRoute('/admin/super/subscriptions', { superOnly: true }),
   treasury: defineRoute('/admin/super/treasury', { grant: 'view_financials' }),
   reconciliationExceptions: defineRoute('/admin/super/reconciliation-exceptions', { grant: 'view_financials' }),
   conversations: defineRoute('/admin/super/conversations', { superOnly: true }),

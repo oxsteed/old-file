@@ -45,6 +45,7 @@ const RestaurantPayouts = lazyWithRetry(() => import('./pages/super/RestaurantPa
 const AffiliatePayouts = lazyWithRetry(() => import('./pages/super/AffiliatePayouts'));
 const PaymentDisputes = lazyWithRetry(() => import('./pages/super/PaymentDisputes'));
 const Chargebacks = lazyWithRetry(() => import('./pages/super/Chargebacks'));
+const SubscriptionsAdminPage = lazyWithRetry(() => import('./pages/super/SubscriptionsAdminPage'));
 const TreasuryPage = lazyWithRetry(() => import('./pages/super/workspaces/TreasuryPage'));
 const ReliabilityPage = lazyWithRetry(() => import('./pages/super/workspaces/ReliabilityPage'));
 const ServiceOpsPage = lazyWithRetry(() => import('./pages/super/workspaces/ServiceOpsPage'));
@@ -432,6 +433,9 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('chargebacks').relative} element={
             <AdminGuard superOnly={adminRoute('chargebacks').superOnly}><Chargebacks /></AdminGuard>
+          } />
+          <Route path={adminRoute('adminSubscriptions').relative} element={
+            <AdminGuard superOnly={adminRoute('adminSubscriptions').superOnly}><SubscriptionsAdminPage /></AdminGuard>
           } />
           <Route path={adminRoute('reconciliationExceptions').relative} element={
             <GrantGuard grant={adminRoute('reconciliationExceptions').grant}><ReconciliationExceptions /></GrantGuard>
