@@ -35645,7 +35645,13 @@
       "clawbackDone": "Reprann {{amount}} {{currency}}.",
       "clawbackDonePlain": "Rechaj reprann.",
       "clawbackQueued": "Reprann nan ap tann apwobasyon yon dezyèm administratè. Okenn lajan poko deplase.",
-      "clawbackFailed": "Reprann nan echwe. Tcheke ID rechaj la epi eseye ankò."
+      "clawbackFailed": "Reprann nan echwe. Tcheke ID rechaj la epi eseye ankò.",
+      "clawbackPreviewButton": "Wè apèsi rechaj la",
+      "clawbackPreviewLoading": "N ap chaje apèsi rechaj la...",
+      "clawbackPreviewHint": "Gade apèsi rechaj la anvan ou konfime. Konfimasyon an rete dezaktive jiskaske montan an, restoran an, ak estati ID sa a chaje.",
+      "clawbackPreviewAmount": "Montan: {{amount}} {{currency}}",
+      "clawbackPreviewRestaurant": "Restoran: {{restaurant}}",
+      "clawbackPreviewStatus": "Estati: {{status}}"
     }
   },
   "featuredPlacements": {

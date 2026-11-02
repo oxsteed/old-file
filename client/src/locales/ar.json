@@ -35663,7 +35663,13 @@
       "clawbackDone": "تم استرداد {{amount}} {{currency}}.",
       "clawbackDonePlain": "تم استرداد الشحن.",
       "clawbackQueued": "الاسترداد بانتظار موافقة مدير ثانٍ. لم تتحرك أي أموال بعد.",
-      "clawbackFailed": "فشل الاسترداد. تحقق من رقم الشحن وحاول مجدداً."
+      "clawbackFailed": "فشل الاسترداد. تحقق من رقم الشحن وحاول مجدداً.",
+      "clawbackPreviewButton": "معاينة الشحن",
+      "clawbackPreviewLoading": "جارٍ تحميل معاينة الشحن...",
+      "clawbackPreviewHint": "اعرض معاينة الشحن قبل التأكيد. يظل التأكيد معطّلاً حتى يتم تحميل المبلغ والمطعم والحالة لهذا المعرّف.",
+      "clawbackPreviewAmount": "المبلغ: {{amount}} {{currency}}",
+      "clawbackPreviewRestaurant": "المطعم: {{restaurant}}",
+      "clawbackPreviewStatus": "الحالة: {{status}}"
     }
   },
   "featuredPlacements": {

@@ -45,6 +45,9 @@ router.get('/transactions/:transactionId', controller.getMyTransaction);
 router.post('/holds', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.createMyHold);
 router.post('/holds/:holdId/release', creditMutationLimiter, rejectImpersonated, controller.releaseMyHold);
 router.post('/transfers', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.transferMyCredit);
+// Recipient name lookup for the transfer review panel. Read-only; the
+// router-level authenticate + requireRole('customer') gate applies.
+router.get('/transfer-recipients/:customerId', controller.lookupTransferRecipient);
 router.get('/disputes', controller.listMyDisputes);
 router.post('/disputes', creditMutationLimiter, rejectImpersonated, controller.openMyDispute);
 

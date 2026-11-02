@@ -35645,7 +35645,13 @@
       "clawbackDone": "{{amount}} {{currency}} repris.",
       "clawbackDonePlain": "Rechargement repris.",
       "clawbackQueued": "Reprise en attente de l’approbation d’un second administrateur. Aucun fonds n’a encore bougé.",
-      "clawbackFailed": "La reprise a échoué. Vérifiez l’identifiant du rechargement et réessayez."
+      "clawbackFailed": "La reprise a échoué. Vérifiez l’identifiant du rechargement et réessayez.",
+      "clawbackPreviewButton": "Aperçu du rechargement",
+      "clawbackPreviewLoading": "Chargement de l’aperçu du rechargement...",
+      "clawbackPreviewHint": "Consultez l’aperçu du rechargement avant de confirmer. La confirmation reste désactivée tant que le montant, le restaurant et le statut de cet identifiant ne sont pas chargés.",
+      "clawbackPreviewAmount": "Montant : {{amount}} {{currency}}",
+      "clawbackPreviewRestaurant": "Restaurant : {{restaurant}}",
+      "clawbackPreviewStatus": "Statut : {{status}}"
     }
   },
   "featuredPlacements": {
