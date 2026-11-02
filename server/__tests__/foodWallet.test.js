@@ -469,6 +469,7 @@ describe('food wallet security wiring', () => {
             status: 'cancelled',
             fulfillment_type: 'delivery',
             payment_status: 'refunded',
+            total_cents: 899,
             currency_code: 'USD',
             metadata: { paymentMode: 'wallet_credit' },
           }],

@@ -66,8 +66,15 @@ describe('route scope guard', () => {
     for (const r of tenant) {
       const idx = r.middleware.findIndex((fn) => fn.scopeGate && ['business', 'restaurant', 'support-business'].includes(fn.scopeGate.kind));
       if (idx < 0) continue;
-      const before = r.middleware.slice(0, idx).map((fn) => fn.name);
-      if (!before.some((n) => AUTH.has(n))) problems.push(key(r));
+      const before = r.middleware.slice(0, idx);
+      // Admin auth counts as authentication even though requireAdmin /
+      // requireSuperAdmin are anonymous functions: middleware/adminAuth.js
+      // marks them with a platform-admin scopeGate whose detail names the
+      // gate. A tenant gate behind one of those gates still runs only on an
+      // authenticated admin request, which is what this ordering test guards.
+      const authed = before.some((fn) => AUTH.has(fn.name)
+        || (fn.scopeGate && fn.scopeGate.kind === 'platform-admin' && AUTH.has(fn.scopeGate.detail)));
+      if (!authed) problems.push(key(r));
     }
     expect(problems).toEqual([]);
   });
