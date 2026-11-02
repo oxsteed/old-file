@@ -75,13 +75,14 @@ exports.listPayouts = async (req, res, next) => {
     const restaurantId = parseRestaurantId(req.params.restaurantId);
     const client = await db.connect();
     try {
-      const payouts = await payoutService.listPayouts(client, {
+      const page = await payoutService.listPayouts(client, {
         restaurantId,
         userId: req.user.id,
         status: (req.query.status || '').toString() || undefined,
         limit: req.query.limit,
+        offset: req.query.offset,
       });
-      res.json({ payouts });
+      res.json(page);
     } finally {
       client.release();
     }

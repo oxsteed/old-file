@@ -51,6 +51,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
   const [actorFilter, setActorFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
   const [tipSettings, setTipSettings] = useState(null);
+  const [tipSettingsError, setTipSettingsError] = useState(false);
   const [rules, setRules] = useState([]);
   const [savingTips, setSavingTips] = useState(false);
   const [cashForm, setCashForm] = useState({ staffUserId: '', date: to, amount: '', note: '' });
@@ -73,7 +74,8 @@ export function PayrollPanel({ t, restaurant, from, to }) {
   useEffect(()=>{setActivityOffset(0);},[restaurantId,actorFilter,actionFilter,from,to,locationId]);
   useEffect(()=>{loadActivity();return()=>{activityGeneration.current+=1;};},[loadActivity]);
 
-  useEffect(() => {
+  const loadTipSettings = useCallback(() => {
+    setTipSettingsError(false);
     getTipPoolSettings(restaurantId)
       .then((settings) => {
         setTipSettings(settings);
@@ -83,8 +85,12 @@ export function PayrollPanel({ t, restaurant, from, to }) {
           percent: String((Number(r.percent_bps) || 0) / 100),
         })));
       })
-      .catch(() => {});
+      // A failed tip-pool read used to make the whole section silently
+      // vanish; surface it with a retry instead.
+      .catch(() => setTipSettingsError(true));
   }, [restaurantId]);
+
+  useEffect(() => { loadTipSettings(); }, [loadTipSettings]);
 
   const onExportPayroll = async () => {
     setExporting(true);
@@ -239,6 +245,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
 
       {/* ── Tip pool + declared cash tips ── */}
       <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.tipPool.title')}</h3>
+      {tipSettingsError && <p role="alert">{t('restaurants.ops.reports.tipPool.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={loadTipSettings}>{t('restaurants.ops.shared.retry')}</button></p>}
       {tipSettings && canManageTips && (
         <div className="fd-card">
           <label className="fd-card-meta">

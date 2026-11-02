@@ -393,16 +393,24 @@ const MEMBER_ROLE_KEYS = ['manager', 'representative', 'employee', 'support_agen
 
 function AutoAssignRules({ t, restaurantId, module: m, onChanged }) {
   const [rules, setRules] = useState(null);
+  const [rulesError, setRulesError] = useState(false);
   const [role, setRole] = useState('');
   const [dueDays, setDueDays] = useState('');
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
+    setRulesError(false);
     listTrainingAutoAssignRules(restaurantId)
       .then((all) => setRules(all.filter((r) => Number(r.module_id) === Number(m.id))))
-      .catch(() => setRules([]));
+      // A failed read is not "no rules": surface it with a retry instead
+      // of rendering an empty rule list.
+      .catch(() => setRulesError(true));
   }, [restaurantId, m.id]);
   useEffect(() => { load(); }, [load]);
+
+  if (rulesError) {
+    return <p role="alert">{t('restaurants.ops.shared.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={load}>{t('restaurants.ops.shared.retry')}</button></p>;
+  }
 
   if (rules === null) return null;
 
@@ -697,20 +705,34 @@ function ComplianceSection({ t, restaurantId, isManager }) {
 
   const load = useCallback(() => {
     setLoading(true);
-    const fetches = [
+    // Split: one failing fetch must not hide the other three sections.
+    // Each section keeps its last-good data; the banner below reports
+    // any partial failure with a retry.
+    Promise.allSettled([
       listStaffDocumentPage(restaurantId,{limit:25,offset:documentOffset}),
       listSops(restaurantId),
       listSopAcknowledgementPage(restaurantId,{limit:25,offset:ackOffset}),
-    ];
-    if (isManager) fetches.push(listRestaurantStaff(restaurantId));
-    Promise.all(fetches)
-      .then(([docs, sopList, ackList, staffList]) => {
-        setDocuments(docs.documents||[]);setDocumentMore(!!docs.hasMore);setLoadError(false);
-        setSops((sopList || []).filter((s) => s.is_published !== false));
-        setAcks(ackList.acknowledgements||[]);setAckMore(!!ackList.hasMore);
-        setStaff(staffList || []);
+      ...(isManager ? [listRestaurantStaff(restaurantId)] : []),
+    ])
+      .then(([docsRes, sopRes, ackRes, staffRes]) => {
+        let failed = false;
+        if (docsRes.status === 'fulfilled') {
+          const docs = docsRes.value;
+          setDocuments(docs.documents||[]);setDocumentMore(!!docs.hasMore);
+        } else failed = true;
+        if (sopRes.status === 'fulfilled') {
+          setSops((sopRes.value || []).filter((s) => s.is_published !== false));
+        } else failed = true;
+        if (ackRes.status === 'fulfilled') {
+          const ackList = ackRes.value;
+          setAcks(ackList.acknowledgements||[]);setAckMore(!!ackList.hasMore);
+        } else failed = true;
+        if (isManager) {
+          if (staffRes && staffRes.status === 'fulfilled') setStaff(staffRes.value || []);
+          else failed = true;
+        }
+        setLoadError(failed);
       })
-      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   }, [restaurantId, isManager, documentOffset, ackOffset]);
   useEffect(() => { load(); }, [load]);
@@ -781,7 +803,7 @@ function ComplianceSection({ t, restaurantId, isManager }) {
     }
   };
 
-  if (loading) return null;
+  if (loading) return <div className="fd-empty">{t('food.common.loading')}</div>;
 
   const now = Date.now();
   const expiryState = (doc) => {

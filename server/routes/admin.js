@@ -128,6 +128,7 @@ router.post('/reviews/:reviewId/restore',      requireAdmin, requirePermission('
 // Businesses
 router.get('/businesses',                      requireAdmin, requirePermission('manage_users'), bizModCtrl.listBusinesses);
 router.get('/businesses/:id',                  requireAdmin, requirePermission('manage_users'), bizModCtrl.getBusinessDetail);
+router.get('/businesses/:id/restaurant-pay-runs', requireAdmin, requirePermission('manage_users'), bizModCtrl.listBusinessRestaurantPayRuns);
 router.put('/businesses/:id/toggle',           requireAdmin, requirePermission('manage_users'), bizModCtrl.toggleBusiness);
 router.put('/businesses/:id/flag',             requireAdmin, requirePermission('manage_users'), bizModCtrl.flagBusiness);
 // P2-1-F08: resolve a review flag so flagged businesses can leave the queue.

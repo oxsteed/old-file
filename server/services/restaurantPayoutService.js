@@ -188,7 +188,7 @@ async function requestPayout({ restaurantId, userId, amountCents, currencyCode, 
   return payout;
 }
 
-async function listPayouts(client, { restaurantId, userId, status, limit = 50 }) {
+async function listPayouts(client, { restaurantId, userId, status, limit = 50, offset = 0 }) {
   await requireRestaurantOwnership(client, userId, restaurantId);
   const conditions = ['restaurant_id = $1'];
   const values = [restaurantId];
@@ -196,14 +196,23 @@ async function listPayouts(client, { restaurantId, userId, status, limit = 50 })
     values.push(status);
     conditions.push(`status = $${values.length}`);
   }
-  const { rows } = await client.query(
-    `SELECT * FROM restaurant_payouts
-      WHERE ${conditions.join(' AND ')}
-      ORDER BY created_at DESC
-      LIMIT $${values.length + 1}`,
-    [...values, Math.min(200, Math.max(1, Number(limit) || 50))]
-  );
-  return rows;
+  const boundedLimit = Math.min(200, Math.max(1, Number(limit) || 50));
+  const boundedOffset = Math.max(0, Number(offset) || 0);
+  const [{ rows }, { rows: countRows }] = await Promise.all([
+    client.query(
+      `SELECT * FROM restaurant_payouts
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY created_at DESC
+        LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+      [...values, boundedLimit, boundedOffset]
+    ),
+    client.query(
+      `SELECT COUNT(*)::int AS total FROM restaurant_payouts
+        WHERE ${conditions.join(' AND ')}`,
+      values
+    ),
+  ]);
+  return { payouts: rows, total: countRows[0]?.total || 0, limit: boundedLimit, offset: boundedOffset };
 }
 
 async function approvePayout({ payoutId, adminUserId, reviewNote }) {

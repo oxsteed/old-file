@@ -23444,7 +23444,10 @@
       "logbookLabel": "Shift note",
       "logbookPlaceholder": "What should the next shift know?",
       "addLogbookEntry": "Add entry",
-      "logbookAdded": "Log entry added"
+      "logbookAdded": "Log entry added",
+      "scheduleCount": "{{count}} shifts",
+      "showAll": "Show all {{count}} shifts",
+      "showFewer": "Show fewer"
     },
     "merchant": {
       "title": "Restaurant dashboard",
@@ -23817,7 +23820,10 @@
           "rejected": "Rejected",
           "failed": "Failed",
           "cancelled": "Cancelled"
-        }
+        },
+        "historyShowing": "Showing {{from}}–{{to}} of {{total}}",
+        "historyPrevious": "Previous",
+        "historyNext": "Next"
       },
       "settlementTitle": "Payment settlement records",
       "settlementNote": "Orders can stay linked to the restaurant record so settlement, receipts, and support history remain visible in the app.",
@@ -23870,7 +23876,13 @@
       "refundError": "Unable to issue refund.",
       "cardPartialRefundUnsupported": "Partial refunds are not available for online card orders. Refund the full order or ask support for help.",
       "cardRefundUseCancel": "Card orders are refunded by cancelling the order. The card refund happens automatically.",
-      "addAnotherRestaurant": "Add another restaurant"
+      "addAnotherRestaurant": "Add another restaurant",
+      "stChipVerified": "Verified",
+      "stChipUnverified": "Not verified",
+      "suspendedNotice": "This restaurant is suspended. Ordering is disabled until it is reactivated.",
+      "posShiftCloseError": "Could not close the POS shift.",
+      "csvFailedSummary": "{{count}} rows failed: {{rows}}",
+      "csvImportedPartial": "{{count}} items imported and published.{{failed}}{{skipped}}{{truncated}}"
     },
     "onboarding": {
       "eyebrow": "Opening Night",
@@ -24083,7 +24095,17 @@
       "clear": "Clear",
       "cardTerminalRequired": "Card payments require a connected POS terminal. Use the POS app for card checkout.",
       "amountGiven": "Amount given",
-      "syncDegraded": "Sync degraded: {{failed}} failed, {{pending}} pending, {{outbox}} unsent"
+      "syncDegraded": "Sync degraded: {{failed}} failed, {{pending}} pending, {{outbox}} unsent",
+      "closeShift": "Close shift",
+      "closeShiftTitle": "Close shift #{{id}}",
+      "closeShiftHint": "Count the cash in the drawer and enter it below. Closing cannot be undone.",
+      "openingCash": "Opening cash: {{amount}}",
+      "shiftPayments": "Settled payments: {{amount}}",
+      "closingCash": "Closing cash",
+      "shiftClosed": "Shift closed",
+      "closeSummary": "Expected {{expected}}, counted {{counted}}, variance {{variance}}.",
+      "closePaidOrders": "{{count}} paid orders",
+      "multipleOpenShifts": "{{count}} shifts are open. Orders are using the first shift shown. Close the extra shifts before taking new orders."
     },
     "inv": {
       "title": "Inventory",
@@ -24127,7 +24149,14 @@
       "severity_high": "High",
       "unknownSupplier": "Unknown supplier",
       "uncategorized": "Uncategorized",
-      "par": "par"
+      "par": "par",
+      "adjType_receive": "Receive",
+      "adjType_count": "Count",
+      "adjType_correction": "Correction",
+      "pollError": "Inventory data could not be refreshed. Showing the last saved data.",
+      "showing": "Showing {{from}}–{{to}} of {{total}}",
+      "previous": "Previous",
+      "next": "Next"
     },
     "crew": {
       "title": "Crew",
@@ -24227,7 +24256,8 @@
       "settlement_voided": "Voided",
       "createSettlement": "Create settlement",
       "settlementCreated": "Settlement created",
-      "cashCollectedPrompt": "Cash collected by the runner (amount)"
+      "cashCollectedPrompt": "Cash collected by the runner (amount)",
+      "pollError": "Runner data could not be refreshed. Showing the last saved data."
     },
     "ownerHome": {
       "allClear": "All clear. Nothing needs your attention right now.",
@@ -24263,7 +24293,11 @@
       "todayOrders": "Orders",
       "todayRevenue": "Revenue",
       "viewStore": "View customer page",
-      "viewStoreHint": "See exactly what customers see."
+      "viewStoreHint": "See exactly what customers see.",
+      "suspendedAlert": "This restaurant is suspended. Ordering is disabled.",
+      "suspendedKicker": "Suspended",
+      "suspended": "Ordering suspended",
+      "suspendedDesc": "This restaurant is suspended, so customers cannot order from it. Contact OxSteed support if you believe this is a mistake."
     },
     "timeClock": {
       "title": "Time clock",
@@ -24331,6 +24365,11 @@
         "not_reported": "Register never reported this payment",
         "other": "Needs a manager check"
       }
+    },
+    "menuManager": {
+      "partialGroups": "{{failed}} of {{total}} option groups failed to save ({{firstError}}). The item is saved; save again to retry the missing groups.",
+      "bulkPartial": "{{updated}} items updated, {{failed}} failed: {{names}}. The failed items are still selected.",
+      "bulkFailed": "{{failed}} items failed: {{names}}. They are still selected for retry."
     }
   },
   "network": {
@@ -24994,7 +25033,8 @@
           "cashAdd": "Add declaration",
           "cashSaved": "Cash tips declared.",
           "cashInvalid": "Pick a team member, a date and a positive amount.",
-          "cashError": "Could not save the cash tip declaration."
+          "cashError": "Could not save the cash tip declaration.",
+          "loadError": "Tip pool settings could not be loaded."
         },
         "exceptions": {
           "title": "Exceptions by employee",
@@ -32861,7 +32901,9 @@
     "backToBusiness": "Back to business",
     "common": {
       "records": "{{count}} records",
-      "unknown": "Unknown"
+      "unknown": "Unknown",
+      "previous": "Previous",
+      "next": "Next"
     },
     "disputes": {
       "empty": "No disputes found.",
@@ -32959,7 +33001,8 @@
       "orders": "Orders",
       "overview": "Overview",
       "payouts": "Payouts",
-      "tickets": "Support tickets"
+      "tickets": "Support tickets",
+      "restaurants": "Restaurants"
     },
     "tickets": {
       "created": "Created",
@@ -32973,7 +33016,33 @@
       "title": "Support tickets",
       "updated": "Updated"
     },
-    "title": "Business 360"
+    "title": "Business 360",
+    "restaurants": {
+      "title": "Restaurants",
+      "subtitle": "Food orders, support cases, customer wallets, and pay-runs for this business's restaurants.",
+      "empty": "This business has no restaurants.",
+      "unnamed": "Unnamed restaurant",
+      "orderingOn": "Online ordering on",
+      "orderingOff": "Online ordering off",
+      "inStoreOn": "In-store ordering on",
+      "inStoreOff": "In-store ordering off",
+      "verified": "Verified",
+      "notVerified": "Not verified",
+      "ordersHeading": "Food orders",
+      "ordersTotal": "{{count}} total orders",
+      "supportHeading": "Support cases (30 days)",
+      "supportCounts": "{{cases}} cases, {{open}} open, {{escalated}} escalated",
+      "supportNone": "No support cases in the last 30 days.",
+      "walletsHeading": "Customer wallets",
+      "walletsEmpty": "No customer wallets.",
+      "walletCount": "{{count}} wallets",
+      "payRunsHeading": "Pay-runs",
+      "payRunsNote": "Pay-runs are listed below for the whole business. A finalized run is a computed total; it does not mean staff were paid.",
+      "payRunsTitle": "Pay-runs",
+      "payRunsEmpty": "No pay-runs for this business's restaurants.",
+      "payRunLines": "{{count}} lines",
+      "payRunsShowing": "Showing {{from}}–{{to}} of {{total}}"
+    }
   },
   "adminCustomer360": {
     "governedTitle": "Governed metrics for this customer",

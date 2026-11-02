@@ -23444,7 +23444,10 @@
       "logbookLabel": "Nòt orè a",
       "logbookPlaceholder": "Kisa pwochen orè a dwe konnen?",
       "addLogbookEntry": "Ajoute nan liv la",
-      "logbookAdded": "Yo ajoute l nan liv la"
+      "logbookAdded": "Yo ajoute l nan liv la",
+      "scheduleCount": "{{count}} chif",
+      "showAll": "Montre tout {{count}} chif yo",
+      "showFewer": "Montre mwens"
     },
     "merchant": {
       "title": "Tablodbò restoran",
@@ -23817,7 +23820,10 @@
           "rejected": "Refize",
           "failed": "Echwe",
           "cancelled": "Anile"
-        }
+        },
+        "historyShowing": "Montre {{from}}–{{to}} sou {{total}}",
+        "historyPrevious": "Anvan",
+        "historyNext": "Apre"
       },
       "settlementTitle": "Dosye règleman peman",
       "settlementNote": "Kòmand yo ka rete lye ak dosye restoran an pou règleman, resi ak istwa asistans rete vizib nan aplikasyon an.",
@@ -23870,7 +23876,13 @@
       "refundError": "Pa ka bay ranbousman an.",
       "cardPartialRefundUnsupported": "Ranbousman pasyèl pa disponib pou kòmann kat sou entènèt. Ranbouse tout kòmann lan oswa mande sipò èd.",
       "cardRefundUseCancel": "Kòmann kat yo ranbouse lè ou anile kòmann lan. Ranbousman kat la fèt otomatikman.",
-      "addAnotherRestaurant": "Ajoute yon lòt restoran"
+      "addAnotherRestaurant": "Ajoute yon lòt restoran",
+      "stChipVerified": "Verifye",
+      "stChipUnverified": "Pa verifye",
+      "suspendedNotice": "Restoran sa a sispann. Kòmann yo dezaktive jiskaske li reaktive.",
+      "posShiftCloseError": "Pa t ka fèmen chif kes la.",
+      "csvFailedSummary": "{{count}} ranje echwe: {{rows}}",
+      "csvImportedPartial": "{{count}} atik enpòte epi pibliye.{{failed}}{{skipped}}{{truncated}}"
     },
     "onboarding": {
       "eyebrow": "Sware Ouvèti",
@@ -24083,7 +24095,17 @@
       "clear": "Efase",
       "cardTerminalRequired": "Peman kat yo mande yon tèminal PDV konekte. Itilize aplikasyon PDV a pou touche kat.",
       "amountGiven": "Kob resevwa",
-      "syncDegraded": "Senkronizasyon an degrade: {{failed}} echwe, {{pending}} annatant, {{outbox}} poko voye"
+      "syncDegraded": "Senkronizasyon an degrade: {{failed}} echwe, {{pending}} annatant, {{outbox}} poko voye",
+      "closeShift": "Fèmen chif",
+      "closeShiftTitle": "Fèmen chif #{{id}}",
+      "closeShiftHint": "Konte lajan kach nan tiwa a epi antre l anba a. Fèmen chif la pa ka defèt.",
+      "openingCash": "Lajan kach ouvèti: {{amount}}",
+      "shiftPayments": "Peman ki regle: {{amount}}",
+      "closingCash": "Lajan kach fèmen",
+      "shiftClosed": "Chif fèmen",
+      "closeSummary": "Te dwe {{expected}}, konte {{counted}}, diferans {{variance}}.",
+      "closePaidOrders": "{{count}} kòmann peye",
+      "multipleOpenShifts": "{{count}} chif ouvè. Kòmann yo ap itilize premye chif ki parèt la. Fèmen chif anplis yo anvan w pran nouvo kòmann."
     },
     "inv": {
       "title": "Envantè",
@@ -24127,7 +24149,14 @@
       "severity_high": "Wo",
       "unknownSupplier": "Founitè enkoni",
       "uncategorized": "San kategori",
-      "par": "min"
+      "par": "min",
+      "adjType_receive": "Resevwa",
+      "adjType_count": "Konte",
+      "adjType_correction": "Koreksyon",
+      "pollError": "Done inventè yo pa t ka mete ajou. N ap montre dènye done ki te anrejistre yo.",
+      "showing": "Montre {{from}}–{{to}} sou {{total}}",
+      "previous": "Anvan",
+      "next": "Apre"
     },
     "crew": {
       "title": "Ekip",
@@ -24227,7 +24256,8 @@
       "settlement_voided": "Anile",
       "createSettlement": "Kreye règleman peman",
       "settlementCreated": "Règleman peman kreye",
-      "cashCollectedPrompt": "Lajan kach livrezè a kolekte (montan)"
+      "cashCollectedPrompt": "Lajan kach livrezè a kolekte (montan)",
+      "pollError": "Done kouri a pa t ka mete ajou. N ap montre dènye done ki te anrejistre yo."
     },
     "ownerHome": {
       "allClear": "Tout bagay anfòm. Anyen pa bezwen atansyon ou kounye a.",
@@ -24263,7 +24293,11 @@
       "todayOrders": "Kòmand",
       "todayRevenue": "Revni",
       "viewStore": "Wè paj kliyan an",
-      "viewStoreHint": "Wè egzakteman sa kliyan yo wè."
+      "viewStoreHint": "Wè egzakteman sa kliyan yo wè.",
+      "suspendedAlert": "Restoran sa a sispann. Kòmann yo dezaktive.",
+      "suspendedKicker": "Sispann",
+      "suspended": "Kòmann sispann",
+      "suspendedDesc": "Restoran sa a sispann, kidonk kliyan pa ka kòmande ladan l. Kontakte sipò OxSteed si w panse se yon erè."
     },
     "timeClock": {
       "title": "Revèy pou pwen",
@@ -24331,6 +24365,11 @@
         "not_reported": "Kès la pa janm rapòte peman sa a",
         "other": "Bezwen yon manadjè verifye"
       }
+    },
+    "menuManager": {
+      "partialGroups": "{{failed}} sou {{total}} gwoup opsyon pa t ka anrejistre ({{firstError}}). Atik la anrejistre; anrejistre ankò pou re-eseye gwoup ki manke yo.",
+      "bulkPartial": "{{updated}} atik mete ajou, {{failed}} echwe: {{names}}. Atik ki echwe yo toujou chwazi.",
+      "bulkFailed": "{{failed}} atik echwe: {{names}}. Yo toujou chwazi pou re-eseye."
     }
   },
   "network": {
@@ -25292,7 +25331,8 @@
           "cashAdd": "Ajoute deklarasyon",
           "cashSaved": "Tibwa kach deklare.",
           "cashInvalid": "Chwazi yon manm ekip, yon dat ak yon montan pozitif.",
-          "cashError": "Nou pa t kapab anrejistre deklarasyon tibwa kach la."
+          "cashError": "Nou pa t kapab anrejistre deklarasyon tibwa kach la.",
+          "loadError": "Paramèt pisin pourbwa yo pa t ka chaje."
         },
         "exceptions": {
           "title": "Eksepsyon pa anplwaye",
@@ -32861,7 +32901,9 @@
     "backToBusiness": "Tounen sou biznis lan",
     "common": {
       "records": "{{count}} dosye",
-      "unknown": "Enkoni"
+      "unknown": "Enkoni",
+      "previous": "Anvan",
+      "next": "Apre"
     },
     "disputes": {
       "empty": "Nou pa jwenn okenn konfli.",
@@ -32959,7 +33001,8 @@
       "orders": "Kòmann",
       "overview": "Apèsi",
       "payouts": "Peman",
-      "tickets": "Tikè sipò"
+      "tickets": "Tikè sipò",
+      "restaurants": "Restoran"
     },
     "tickets": {
       "created": "Kreye",
@@ -32973,7 +33016,33 @@
       "title": "Tikè sipò",
       "updated": "Mete ajou"
     },
-    "title": "Biznis 360"
+    "title": "Biznis 360",
+    "restaurants": {
+      "title": "Restoran",
+      "subtitle": "Kòmann manje, ka sipò, bous kliyan, ak pewòl pou restoran biznis sa a.",
+      "empty": "Biznis sa a pa gen restoran.",
+      "unnamed": "Restoran san non",
+      "orderingOn": "Kòmann sou entènèt aktive",
+      "orderingOff": "Kòmann sou entènèt dezaktive",
+      "inStoreOn": "Kòmann nan magazen aktive",
+      "inStoreOff": "Kòmann nan magazen dezaktive",
+      "verified": "Verifye",
+      "notVerified": "Pa verifye",
+      "ordersHeading": "Kòmann manje",
+      "ordersTotal": "{{count}} kòmann an total",
+      "supportHeading": "Ka sipò (30 jou)",
+      "supportCounts": "{{cases}} ka, {{open}} ouvè, {{escalated}} eskale",
+      "supportNone": "Pa gen ka sipò nan 30 dènye jou yo.",
+      "walletsHeading": "Bous kliyan",
+      "walletsEmpty": "Pa gen bous kliyan.",
+      "walletCount": "{{count}} bous",
+      "payRunsHeading": "Pewòl",
+      "payRunsNote": "Pewòl yo liste anba a pou tout biznis la. Yon pewòl finalize se yon total ki kalkile; sa pa vle di anplwaye yo te peye.",
+      "payRunsTitle": "Pewòl",
+      "payRunsEmpty": "Pa gen pewòl pou restoran biznis sa a.",
+      "payRunLines": "{{count}} liy",
+      "payRunsShowing": "Montre {{from}}–{{to}} sou {{total}}"
+    }
   },
   "adminCustomer360": {
     "governedTitle": "Endikatè ofisyèl pou kliyan sa a",

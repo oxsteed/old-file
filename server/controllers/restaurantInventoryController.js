@@ -573,16 +573,24 @@ exports.listPurchaseRequests = async (req, res, next) => {
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
     const scope = locationScopeClause(restaurant.locationScope, 'r', 2);
 
-    const { rows } = await pool.query(
-      `SELECT r.*, NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS requested_by_name
-         FROM restaurant_inventory_purchase_requests r
-         LEFT JOIN users u ON u.id = r.requested_by
-        WHERE r.restaurant_id = $1${scope.sql}
-        ORDER BY r.created_at DESC
-        LIMIT $${2 + scope.values.length} OFFSET $${3 + scope.values.length}`,
-      [restaurantId, ...scope.values, limit, offset]
-    );
-    res.json({ requests: rows, limit, offset });
+    const [{ rows }, { rows: countRows }] = await Promise.all([
+      pool.query(
+        `SELECT r.*, NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS requested_by_name
+           FROM restaurant_inventory_purchase_requests r
+           LEFT JOIN users u ON u.id = r.requested_by
+          WHERE r.restaurant_id = $1${scope.sql}
+          ORDER BY r.created_at DESC
+          LIMIT $${2 + scope.values.length} OFFSET $${3 + scope.values.length}`,
+        [restaurantId, ...scope.values, limit, offset]
+      ),
+      pool.query(
+        `SELECT COUNT(*)::int AS total
+           FROM restaurant_inventory_purchase_requests r
+          WHERE r.restaurant_id = $1${scope.sql}`,
+        [restaurantId, ...scope.values]
+      ),
+    ]);
+    res.json({ requests: rows, total: countRows[0]?.total || 0, limit, offset });
   } catch (err) {
     next(err);
   }
@@ -722,16 +730,24 @@ exports.listSupplierIssues = async (req, res, next) => {
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
     const scope = locationScopeClause(restaurant.locationScope, 'i', 2);
 
-    const { rows } = await pool.query(
-      `SELECT i.*, NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS reported_by_name
-         FROM restaurant_inventory_supplier_issues i
-         LEFT JOIN users u ON u.id = i.reported_by
-        WHERE i.restaurant_id = $1${scope.sql}
-        ORDER BY i.created_at DESC
-        LIMIT $${2 + scope.values.length} OFFSET $${3 + scope.values.length}`,
-      [restaurantId, ...scope.values, limit, offset]
-    );
-    res.json({ issues: rows, limit, offset });
+    const [{ rows }, { rows: countRows }] = await Promise.all([
+      pool.query(
+        `SELECT i.*, NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS reported_by_name
+           FROM restaurant_inventory_supplier_issues i
+           LEFT JOIN users u ON u.id = i.reported_by
+          WHERE i.restaurant_id = $1${scope.sql}
+          ORDER BY i.created_at DESC
+          LIMIT $${2 + scope.values.length} OFFSET $${3 + scope.values.length}`,
+        [restaurantId, ...scope.values, limit, offset]
+      ),
+      pool.query(
+        `SELECT COUNT(*)::int AS total
+           FROM restaurant_inventory_supplier_issues i
+          WHERE i.restaurant_id = $1${scope.sql}`,
+        [restaurantId, ...scope.values]
+      ),
+    ]);
+    res.json({ issues: rows, total: countRows[0]?.total || 0, limit, offset });
   } catch (err) {
     next(err);
   }

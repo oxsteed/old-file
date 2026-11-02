@@ -23455,7 +23455,10 @@
       "logbookLabel": "ملاحظة الوردية",
       "logbookPlaceholder": "ما الذي يجب أن تعرفه الوردية التالية؟",
       "addLogbookEntry": "إضافة إدخال",
-      "logbookAdded": "تمت إضافة الإدخال"
+      "logbookAdded": "تمت إضافة الإدخال",
+      "scheduleCount": "{{count}} وردية",
+      "showAll": "عرض كل الورديات ({{count}})",
+      "showFewer": "عرض أقل"
     },
     "merchant": {
       "title": "لوحة تحكم المطعم",
@@ -23828,7 +23831,10 @@
           "rejected": "مرفوض",
           "failed": "فشل",
           "cancelled": "ملغي"
-        }
+        },
+        "historyShowing": "عرض {{from}}–{{to}} من {{total}}",
+        "historyPrevious": "السابق",
+        "historyNext": "التالي"
       },
       "settlementTitle": "سجلات تسوية المدفوعات",
       "settlementNote": "يمكن أن تبقى الطلبات مرتبطة بسجل المطعم لتظل التسوية والإيصالات وسجل الدعم مرئية في التطبيق.",
@@ -23881,7 +23887,13 @@
       "refundError": "تعذر إصدار الاسترداد.",
       "cardPartialRefundUnsupported": "الاسترداد الجزئي غير متاح لطلبات البطاقات عبر الإنترنت. استرد الطلب كاملاً أو اطلب المساعدة من الدعم.",
       "cardRefundUseCancel": "تُسترد طلبات البطاقات بإلغاء الطلب. يتم الاسترداد إلى البطاقة تلقائياً.",
-      "addAnotherRestaurant": "إضافة مطعم آخر"
+      "addAnotherRestaurant": "إضافة مطعم آخر",
+      "stChipVerified": "موثّق",
+      "stChipUnverified": "غير موثّق",
+      "suspendedNotice": "هذا المطعم موقوف. الطلبات معطّلة حتى إعادة تفعيله.",
+      "posShiftCloseError": "تعذّر إغلاق وردية نقاط البيع.",
+      "csvFailedSummary": "{{count}} صف فشل: {{rows}}",
+      "csvImportedPartial": "تم استيراد {{count}} عنصر ونشره.{{failed}}{{skipped}}{{truncated}}"
     },
     "onboarding": {
       "eyebrow": "ليلة الافتتاح",
@@ -24094,7 +24106,17 @@
       "clear": "مسح",
       "cardTerminalRequired": "تتطلب مدفوعات البطاقات طرفية نقاط بيع متصلة. استخدم تطبيق نقاط البيع للدفع بالبطاقة.",
       "amountGiven": "المبلغ المستلم",
-      "syncDegraded": "المزامنة متدهورة: {{failed}} فاشلة، {{pending}} معلقة، {{outbox}} غير مرسلة"
+      "syncDegraded": "المزامنة متدهورة: {{failed}} فاشلة، {{pending}} معلقة، {{outbox}} غير مرسلة",
+      "closeShift": "إغلاق الوردية",
+      "closeShiftTitle": "إغلاق الوردية رقم {{id}}",
+      "closeShiftHint": "عُدّ النقد في الدرج وأدخل المبلغ أدناه. لا يمكن التراجع عن الإغلاق.",
+      "openingCash": "النقد الافتتاحي: {{amount}}",
+      "shiftPayments": "المدفوعات المسوّاة: {{amount}}",
+      "closingCash": "النقد الختامي",
+      "shiftClosed": "أُغلقت الوردية",
+      "closeSummary": "المتوقع {{expected}}، المعدود {{counted}}، الفرق {{variance}}.",
+      "closePaidOrders": "{{count}} طلب مدفوع",
+      "multipleOpenShifts": "هناك {{count}} ورديات مفتوحة. تستخدم الطلبات أول وردية معروضة. أغلق الورديات الإضافية قبل استقبال طلبات جديدة."
     },
     "inv": {
       "title": "المخزون",
@@ -24138,7 +24160,14 @@
       "severity_high": "مرتفعة",
       "unknownSupplier": "مورد غير معروف",
       "uncategorized": "غير مصنّف",
-      "par": "الحد المستهدف"
+      "par": "الحد المستهدف",
+      "adjType_receive": "استلام",
+      "adjType_count": "جرد",
+      "adjType_correction": "تصحيح",
+      "pollError": "تعذّر تحديث بيانات المخزون. يتم عرض آخر بيانات محفوظة.",
+      "showing": "عرض {{from}}–{{to}} من {{total}}",
+      "previous": "السابق",
+      "next": "التالي"
     },
     "crew": {
       "title": "فريق العمل",
@@ -24238,7 +24267,8 @@
       "settlement_voided": "ملغاة",
       "createSettlement": "إنشاء تسوية",
       "settlementCreated": "تم إنشاء التسوية",
-      "cashCollectedPrompt": "النقد الذي حصّله الساعي (المبلغ)"
+      "cashCollectedPrompt": "النقد الذي حصّله الساعي (المبلغ)",
+      "pollError": "تعذّر تحديث بيانات العدّاء. يتم عرض آخر بيانات محفوظة."
     },
     "ownerHome": {
       "allClear": "كل شيء على ما يرام. لا شيء يحتاج إلى انتباهك الآن.",
@@ -24274,7 +24304,11 @@
       "todayOrders": "الطلبات",
       "todayRevenue": "الإيرادات",
       "viewStore": "عرض صفحة العميل",
-      "viewStoreHint": "شاهد بالضبط ما يراه العملاء."
+      "viewStoreHint": "شاهد بالضبط ما يراه العملاء.",
+      "suspendedAlert": "هذا المطعم موقوف. الطلبات معطّلة.",
+      "suspendedKicker": "موقوف",
+      "suspended": "الطلبات موقوفة",
+      "suspendedDesc": "هذا المطعم موقوف، لذا لا يمكن للعملاء الطلب منه. تواصل مع دعم OxSteed إذا كنت تعتقد أن هذا خطأ."
     },
     "timeClock": {
       "title": "ساعة الحضور",
@@ -24342,6 +24376,11 @@
         "not_reported": "لم يبلّغ الصندوق عن هذه الدفعة أبدًا",
         "other": "يحتاج إلى مراجعة المدير"
       }
+    },
+    "menuManager": {
+      "partialGroups": "تعذّر حفظ {{failed}} من أصل {{total}} مجموعة خيارات ({{firstError}}). تم حفظ العنصر؛ احفظ مجددًا لإعادة محاولة المجموعات الناقصة.",
+      "bulkPartial": "تم تحديث {{updated}} عنصر، وفشل {{failed}}: {{names}}. العناصر الفاشلة ما زالت محددة.",
+      "bulkFailed": "فشل {{failed}} عنصر: {{names}}. ما زالت محددة لإعادة المحاولة."
     }
   },
   "network": {
@@ -25307,7 +25346,8 @@
           "cashAdd": "إضافة التصريح",
           "cashSaved": "تم التصريح بالإكراميات النقدية.",
           "cashInvalid": "اختر عضو فريق وتاريخا ومبلغا موجبا.",
-          "cashError": "تعذر حفظ تصريح الإكراميات النقدية."
+          "cashError": "تعذر حفظ تصريح الإكراميات النقدية.",
+          "loadError": "تعذّر تحميل إعدادات مجمّع الإكراميات."
         },
         "exceptions": {
           "title": "الاستثناءات حسب الموظف",
@@ -32879,7 +32919,9 @@
     "backToBusiness": "العودة إلى النشاط التجاري",
     "common": {
       "records": "{{count}} سجل",
-      "unknown": "غير معروف"
+      "unknown": "غير معروف",
+      "previous": "السابق",
+      "next": "التالي"
     },
     "disputes": {
       "empty": "لم يتم العثور على نزاعات.",
@@ -32977,7 +33019,8 @@
       "orders": "الطلبات",
       "overview": "نظرة عامة",
       "payouts": "المدفوعات",
-      "tickets": "تذاكر الدعم"
+      "tickets": "تذاكر الدعم",
+      "restaurants": "المطاعم"
     },
     "tickets": {
       "created": "أُنشئت",
@@ -32991,7 +33034,33 @@
       "title": "تذاكر الدعم",
       "updated": "حُدّثت"
     },
-    "title": "النشاط التجاري 360"
+    "title": "النشاط التجاري 360",
+    "restaurants": {
+      "title": "المطاعم",
+      "subtitle": "طلبات الطعام وحالات الدعم ومحافظ العملاء وملفات الرواتب لمطاعم هذه الشركة.",
+      "empty": "لا توجد مطاعم لهذه الشركة.",
+      "unnamed": "مطعم بلا اسم",
+      "orderingOn": "الطلب عبر الإنترنت مفعّل",
+      "orderingOff": "الطلب عبر الإنترنت معطّل",
+      "inStoreOn": "الطلب داخل المتجر مفعّل",
+      "inStoreOff": "الطلب داخل المتجر معطّل",
+      "verified": "موثّق",
+      "notVerified": "غير موثّق",
+      "ordersHeading": "طلبات الطعام",
+      "ordersTotal": "إجمالي الطلبات {{count}}",
+      "supportHeading": "حالات الدعم (30 يومًا)",
+      "supportCounts": "{{cases}} حالة، {{open}} مفتوحة، {{escalated}} مصعّدة",
+      "supportNone": "لا توجد حالات دعم في آخر 30 يومًا.",
+      "walletsHeading": "محافظ العملاء",
+      "walletsEmpty": "لا توجد محافظ عملاء.",
+      "walletCount": "{{count}} محفظة",
+      "payRunsHeading": "ملفات الرواتب",
+      "payRunsNote": "ملفات الرواتب مدرجة أدناه للشركة كلها. ملف الرواتب النهائي هو إجمالي محسوب؛ ولا يعني أن الموظفين تقاضوا أجورهم.",
+      "payRunsTitle": "ملفات الرواتب",
+      "payRunsEmpty": "لا توجد ملفات رواتب لمطاعم هذه الشركة.",
+      "payRunLines": "{{count}} سطر",
+      "payRunsShowing": "عرض {{from}}–{{to}} من {{total}}"
+    }
   },
   "adminCustomer360": {
     "governedTitle": "المؤشرات المعتمدة لهذا العميل",
