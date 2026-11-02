@@ -215,8 +215,8 @@ function Pager({ offset, total, onChange }) {
   return (
     <div className="fd-inv-bar">
       <span className="fd-card-meta">{t('food.inv.showing', { from, to, total })}</span>
-      <button type="button" className="fd-btn-secondary fd-btn-sm" disabled={offset === 0} onClick={() => onChange(Math.max(0, offset - PAGE_SIZE))}>{t('food.inv.previous')}</button>
-      <button type="button" className="fd-btn-secondary fd-btn-sm" disabled={offset + PAGE_SIZE >= total} onClick={() => onChange(offset + PAGE_SIZE)}>{t('food.inv.next')}</button>
+      <button type="button" className="fd-btn-secondary fd-btn-sm" disabled={offset === 0} onClick={() => onChange(Math.max(0, offset - PAGE_SIZE))} data-track="ui.a4070f708e.14">{t('food.inv.previous')}</button>
+      <button type="button" className="fd-btn-secondary fd-btn-sm" disabled={offset + PAGE_SIZE >= total} onClick={() => onChange(offset + PAGE_SIZE)} data-track="ui.a4070f708e.15">{t('food.inv.next')}</button>
     </div>
   );
 }
@@ -342,12 +342,12 @@ export default function RestaurantInventoryPage() {
 
         {pollOffline && (
           <div className="fd-inv-alert" role="alert">
-            {t('food.inv.pollError')} <button type="button" className="fd-btn fd-btn-sm" onClick={retryNow}>{t('food.common.retry')}</button>
+            {t('food.inv.pollError')} <button type="button" className="fd-btn fd-btn-sm" onClick={retryNow} data-track="ui.a4070f708e.16">{t('food.common.retry')}</button>
           </div>
         )}
         {dashError && items.length === 0 && (
           <div className="fd-inv-alert" role="alert">
-            {t('food.common.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={retryNow}>{t('food.common.retry')}</button>
+            {t('food.common.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={retryNow} data-track="ui.a4070f708e.17">{t('food.common.retry')}</button>
           </div>
         )}
 
@@ -427,7 +427,7 @@ export default function RestaurantInventoryPage() {
             </div>
             {requestsError && (
               <div className="fd-inv-alert" role="alert">
-                {t('food.common.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={() => loadRequests()}>{t('food.common.retry')}</button>
+                {t('food.common.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={() => loadRequests()} data-track="ui.a4070f708e.18">{t('food.common.retry')}</button>
               </div>
             )}
             <Pager offset={requestsOffset} total={requestsTotal} onChange={(next) => { setRequestsOffset(next); loadRequests(next); }} />
@@ -465,7 +465,7 @@ export default function RestaurantInventoryPage() {
             </div>
             {issuesError && (
               <div className="fd-inv-alert" role="alert">
-                {t('food.common.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={() => loadIssues()}>{t('food.common.retry')}</button>
+                {t('food.common.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={() => loadIssues()} data-track="ui.a4070f708e.19">{t('food.common.retry')}</button>
               </div>
             )}
             <Pager offset={issuesOffset} total={issuesTotal} onChange={(next) => { setIssuesOffset(next); loadIssues(next); }} />

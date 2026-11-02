@@ -1007,7 +1007,7 @@ export default function RestaurantPOSPage() {
               {t('food.pos.closePaidOrders', { count: closeResult.paidOrderCount || 0 })}
             </p>
             <div className="fd-pos-modal-actions">
-              <button className="fd-btn" onClick={() => setCloseResult(null)}>{t('food.common.close')}</button>
+              <button className="fd-btn" onClick={() => setCloseResult(null)} data-track="ui.c952aceb7c.19">{t('food.common.close')}</button>
             </div>
           </div>
         </div>
@@ -1028,11 +1028,11 @@ export default function RestaurantPOSPage() {
               <input aria-label={t('food.pos.closingCash')} type="number" step="0.01" min="0" value={closingCash} onChange={(e) => setClosingCash(e.target.value)} placeholder="0.00" autoFocus />
             </div>
             <div className="fd-pos-modal-actions">
-              <button className="fd-btn-secondary" onClick={() => setShowCloseShift(false)}>{t('food.common.cancel')}</button>
+              <button className="fd-btn-secondary" onClick={() => setShowCloseShift(false)} data-track="ui.c952aceb7c.20">{t('food.common.cancel')}</button>
               <button
                 className="fd-btn"
                 disabled={submitting || closingCash === '' || Number(closingCash) < 0}
-                onClick={async () => { await handleCloseShift(); setShowCloseShift(false); }}
+                onClick={async () => { await handleCloseShift(); setShowCloseShift(false); }} data-track="ui.c952aceb7c.21"
               >
                 {submitting ? t('food.common.saving') : t('food.pos.closeShift')}
               </button>

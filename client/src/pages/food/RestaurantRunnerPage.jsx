@@ -460,7 +460,7 @@ export default function RestaurantRunnerPage() {
 
         {pollOffline && (
           <div className="fd-inv-alert" role="alert">
-            {t('food.runner.pollError')} <button type="button" className="fd-btn fd-btn-sm" onClick={retryNow}>{t('food.common.retry')}</button>
+            {t('food.runner.pollError')} <button type="button" className="fd-btn fd-btn-sm" onClick={retryNow} data-track="ui.42d5812ef7.18">{t('food.common.retry')}</button>
           </div>
         )}
 

@@ -282,7 +282,7 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
         <h3>{t('food.myShift.schedule')}</h3>
         <p className="fd-card-meta">{t('food.myShift.scheduleCount', { count: shifts.length })}</p>
         {shiftsError ? (
-          <p role="alert">{t('food.common.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={loadShifts}>{t('food.common.retry')}</button></p>
+          <p role="alert">{t('food.common.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={loadShifts} data-track="ui.44c3bc07ea.9">{t('food.common.retry')}</button></p>
         ) : shifts.length === 0 ? (
           <p className="fd-card-meta">{t('food.myShift.scheduleEmpty')}</p>
         ) : (
@@ -300,7 +300,7 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
           </div>
         )}
         {shifts.length > 10 && (
-          <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={() => setShowAllShifts((v) => !v)}>
+          <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={() => setShowAllShifts((v) => !v)} data-track="ui.44c3bc07ea.10">
             {showAllShifts ? t('food.myShift.showFewer') : t('food.myShift.showAll', { count: shifts.length })}
           </button>
         )}

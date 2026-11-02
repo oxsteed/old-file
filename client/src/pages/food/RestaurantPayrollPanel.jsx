@@ -245,7 +245,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
 
       {/* ── Tip pool + declared cash tips ── */}
       <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.tipPool.title')}</h3>
-      {tipSettingsError && <p role="alert">{t('restaurants.ops.reports.tipPool.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={loadTipSettings}>{t('restaurants.ops.shared.retry')}</button></p>}
+      {tipSettingsError && <p role="alert">{t('restaurants.ops.reports.tipPool.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={loadTipSettings} data-track="ui.aa258f5ea1.12">{t('restaurants.ops.shared.retry')}</button></p>}
       {tipSettings && canManageTips && (
         <div className="fd-card">
           <label className="fd-card-meta">

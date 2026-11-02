@@ -409,7 +409,7 @@ function AutoAssignRules({ t, restaurantId, module: m, onChanged }) {
   useEffect(() => { load(); }, [load]);
 
   if (rulesError) {
-    return <p role="alert">{t('restaurants.ops.shared.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={load}>{t('restaurants.ops.shared.retry')}</button></p>;
+    return <p role="alert">{t('restaurants.ops.shared.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={load} data-track="ui.2265f208ce.48">{t('restaurants.ops.shared.retry')}</button></p>;
   }
 
   if (rules === null) return null;
