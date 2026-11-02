@@ -89,6 +89,20 @@ export const reconcileTelematicsConnection = (id, cursor) => mutate('post', `/de
 export const listTrackingLinks = (id) => api.get(`/delivery/jobs/${id}/tracking/links`).then((response) => response.data);
 export const revokeTrackingLink = (id, linkId, reason) => mutate('post', `/delivery/jobs/${id}/tracking/links/${linkId}/revoke`, { reason });
 
+export const listInternalDriverPayouts = (status) => {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return api.get(`/delivery/internal/driver-payouts${query}`).then((response) => response.data);
+};
+
+export const approveInternalDriverPayout = (payoutId, note) =>
+  api.post(`/delivery/internal/driver-payouts/${payoutId}/approve`, { note }).then((response) => response.data);
+
+export const markInternalDriverPayoutPaid = (payoutId, paymentReference, note) =>
+  api.post(`/delivery/internal/driver-payouts/${payoutId}/mark-paid`, { paymentReference, note }).then((response) => response.data);
+
+export const voidInternalDriverPayout = (payoutId, note) =>
+  api.post(`/delivery/internal/driver-payouts/${payoutId}/void`, { note }).then((response) => response.data);
+
 export const listInternalDeliveryQueue = () => api.get('/delivery/internal/queue').then((response) => response.data);
 export const getInternalDelivery = (id) => api.get(`/delivery/internal/jobs/${id}`).then((response) => response.data);
 export const listDeliveryVehicles = () => api.get('/delivery/internal/vehicles').then((response) => response.data);

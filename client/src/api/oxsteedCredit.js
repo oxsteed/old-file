@@ -103,6 +103,11 @@ export const listOxsteedCreditWithdrawals = (params = {}) =>
 export const cancelOxsteedCreditWithdrawal = (withdrawalId) =>
   api.post(`/oxsteed-credit/withdrawals/${withdrawalId}/cancel`).then((response) => response.data);
 
+export const createOxsteedCreditTransfer = (payload, idempotencyKey) =>
+  api.post('/oxsteed-credit/transfers', payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then((response) => response.data);
+
 export const createOxsteedCreditRestaurantConversion = (payload, idempotencyKey) =>
   api.post('/oxsteed-credit/restaurant-conversions', payload, {
     headers: { 'Idempotency-Key': idempotencyKey },

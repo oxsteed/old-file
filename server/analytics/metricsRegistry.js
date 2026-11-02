@@ -29,15 +29,18 @@ const exactInteger = value => {
  * 1. OPEN DISPUTES — canonical: `disputes` table, status='open'. This matches
  *    the /admin/disputes drill-through target (default tab 'open'), so the
  *    dashboard card and the list it links to agree FOR GLOBAL ADMINS.
- *    SCOPE CAVEAT (not yet resolved): governed cards apply the viewer's
- *    regional scope, while the regular admin dashboard count and the
- *    disputes list are unscoped, so a region admin sees a regional card
- *    against a global list. The formula is canonical everywhere; the
- *    remaining disagreement is scope, and scoping the dashboard and list
- *    is a separate access decision (see the track report). Replaces
- *    jobs.status='disputed' (admin) and jobs.dispute_status='open'
- *    (super-admin). 'under_review' disputes are tracked separately by
- *    getDisputeStats and are NOT folded into this number.
+ *    SCOPE, RESOLVED (PR #662, Option A): the regular admin dashboard count
+ *    (adminController getDashboardStats, via metricScope + regionScopedDb,
+ *    fail-closed 0 without a manage_disputes grant) and the disputes list
+ *    (disputeAdminController, 403 without a resolving grant, job-location
+ *    anchor) are now scoped the same way as the governed card, so a region
+ *    admin sees a regional card against a regional list. Only the
+ *    super-admin dashboard (superAdminController, requireSuperAdmin-only
+ *    route) stays global, which is correct-by-role. The formula is canonical
+ *    everywhere. Replaces jobs.status='disputed' (admin) and
+ *    jobs.dispute_status='open' (super-admin). 'under_review' disputes are
+ *    tracked separately by getDisputeStats and are NOT folded into this
+ *    number.
  * 2. REVENUE — canonical platform revenue: platform take from
  *    platform_ledger (source_type IN ('job_fee','subscription'),
  *    amount_cents > 0). Vertical GMVs (food, tool rentals, consulting) are

@@ -82,7 +82,6 @@ const HelperCancellationSettings = lazyWithRetry(() => import('./pages/HelperCan
 const PublicProfile = lazyWithRetry(() => import('./pages/PublicProfile'));
 const BookHelperPage = lazyWithRetry(() => import('./pages/BookHelperPage'));
 const BookBusinessPage = lazyWithRetry(() => import('./pages/BookBusinessPage'));
-const BookServicePage = lazyWithRetry(() => import('./pages/BookServicePage'));
 const TemplatePicker = lazyWithRetry(() => import('./pages/TemplatePicker'));
 const BusinessProfilePage = lazyWithRetry(() => import('./pages/BusinessProfilePage'));
 const HelperBusinessProfilePage = lazyWithRetry(() => import('./pages/HelperBusinessProfilePage'));
@@ -94,6 +93,7 @@ const ConversationPage = lazyWithRetry(() => import('./pages/ConversationPage'))
 const HelperInboxPage = lazyWithRetry(routeLoaders.helperMessages, { name: 'helperMessages' });
 const HelperConversationPage = lazyWithRetry(() => import('./pages/HelperConversationPage'));
 const HelperGuestInquiryPage = lazyWithRetry(() => import('./pages/HelperGuestInquiryPage'));
+const CustomerGuestInquiryPage = lazyWithRetry(() => import('./pages/CustomerGuestInquiryPage'));
 const PlannedNeedsPage = lazyWithRetry(() => import('./pages/PlannedNeedsPage'));
 const CarCarePage = lazyWithRetry(() => import('./pages/CarCarePage'));
 // OxSteed Food - restaurant online + in-store ordering (migration 305)
@@ -530,7 +530,6 @@ export default function App() {
                     <Route path="/b/:businessId"        element={<Guarded><BusinessProfilePage /></Guarded>} />
                     <Route path="/book/:id"                element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookHelperPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/book/business/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookBusinessPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/business/:businessId/services/:serviceId/book" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookServicePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Workspace URLs must be declared before the public /business/:id
                         profile so a just-created draft at /business/1/workspace cannot
                         be treated as a public profile load. */}
@@ -634,7 +633,7 @@ export default function App() {
 
                     {/* Messaging: wrapped in RouteErrorBoundary to isolate crashes */}
                     <Route path="/messages"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><MessagesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/messages/guest/:inquiryId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperGuestInquiryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/messages/guest/:inquiryId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CustomerGuestInquiryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/messages/:conversationId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConversationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Back-compat for backend activity URLs that still emit /messages/conversations/:id */}
                     <Route path="/messages/conversations/:conversationId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConversationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
@@ -731,7 +730,6 @@ export default function App() {
                     <Route path="/logistics/campaigns/:id/edit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><EditCampaignPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/campaigns/:id"    element={<Guarded><RouteErrorBoundary><CampaignDetailPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/logistics/sourcing"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><SourcingPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/logistics/sourcing/new"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><NewRequestPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/requests/new"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><NewRequestPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/requests/:id"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><RequestDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/orders"           element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrdersPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
@@ -752,7 +750,6 @@ export default function App() {
                     {/* OxSteed Network — full-page branch launcher (the navbar switcher
                         is the quick version; this is the standalone page). */}
                     <Route path="/network"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><NetworkAppsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/network/apps" element={<Guarded><ProtectedRoute><RouteErrorBoundary><NetworkAppsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Access gate recovery link target (public — token-gated server-side) */}
                     <Route path="/access-gate/recovery" element={<RouteErrorBoundary><AccessGateRecoveryPage /></RouteErrorBoundary>} />
                     {/* Critical: Business analytics dashboard with multiple tabs */}

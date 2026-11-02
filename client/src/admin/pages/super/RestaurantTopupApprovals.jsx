@@ -79,8 +79,10 @@ function SectionHeader({ eyebrow, title, detail, action }) {
 function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
   const { t } = useTranslation();
   if (!modal) return null;
-  const needsReason = modal.kind === 'reject' || modal.kind === 'suspend';
-  const canConfirm = !busy && (!needsReason || modal.reason?.trim());
+  const needsReason = modal.kind === 'reject' || modal.kind === 'suspend' || modal.kind === 'clawback';
+  const canConfirm = !busy
+    && (!needsReason || modal.reason?.trim())
+    && (modal.kind !== 'clawback' || modal.topupId?.trim());
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="topup-decision-dialog-title">
       <div className="w-full max-w-lg rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111318] p-5 shadow-2xl sm:p-6">
@@ -94,6 +96,18 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
           </button>
         </div>
         <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">{modal.description}</p>
+        {modal.kind === 'clawback' && (
+          <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            {t('restaurantTopups.admin.clawbackTopupIdLabel')} <span className="text-orange-300">*</span>
+            <input
+              value={modal.topupId || ''}
+              onChange={(event) => onChange({ topupId: event.target.value })}
+              inputMode="numeric"
+              placeholder={t('restaurantTopups.admin.clawbackTopupIdPlaceholder')}
+              className="mt-2 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-gray-900 dark:text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
+            />
+          </label>
+        )}
         {needsReason && (
           <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
             {t('restaurantTopups.admin.decisionReasonLabel')} <span className="text-orange-300">*</span>
@@ -175,9 +189,53 @@ export default function RestaurantTopupApprovals() {
     });
   };
 
+  const openClawback = () => {
+    setModal({
+      kind: 'clawback',
+      topupId: '',
+      reason: '',
+      title: t('restaurantTopups.admin.clawbackDialogTitle'),
+      confirmLabel: t('restaurantTopups.admin.clawbackConfirm'),
+      description: t('restaurantTopups.admin.clawbackDialogDescription'),
+    });
+  };
+
   const confirmDecision = async () => {
     if (!modal) return;
     const { kind, application, reason } = modal;
+    if (kind === 'clawback') {
+      // No top-ups list endpoint exists: the admin supplies the top-up ID
+      // (from reconciliation records). The server validates it, binds the
+      // step-up code to the top-up amount, and fails closed on unknown IDs.
+      const topupId = String(modal.topupId || '').trim();
+      if (!topupId || !reason?.trim()) return;
+      setBusy(true);
+      try {
+        const stepup = await collectAdminActionStepup(adminApi, '/admin/restaurant-topups/stepup-challenges/clawback', t, { topupId });
+        const response = await adminApi.post(`/admin/restaurant-topups/topups/${topupId}/clawback`, {
+          reason: reason.trim(),
+          ...stepup,
+        });
+        const clawback = response.data?.clawback;
+        if (response.status === 202) {
+          // Dual approval queued: no funds moved yet.
+          setNotice(t('restaurantTopups.admin.clawbackQueued'));
+        } else if (clawback) {
+          setNotice(t('restaurantTopups.admin.clawbackDone', {
+            amount: (Number(clawback.amountCents || 0) / 100).toFixed(2),
+            currency: clawback.currency || 'USD',
+          }));
+        } else {
+          setNotice(t('restaurantTopups.admin.clawbackDonePlain'));
+        }
+        setModal(null);
+      } catch (err) {
+        setError(getErrorMessage(err, t('restaurantTopups.admin.clawbackFailed'), t));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     if ((kind === 'reject' || kind === 'suspend') && !reason?.trim()) return;
     setBusy(true);
     try {
@@ -356,6 +414,19 @@ export default function RestaurantTopupApprovals() {
               </div>
             </div>
           )}
+        </section>
+
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
+          <SectionHeader
+            title={t('restaurantTopups.admin.clawbackTitle')}
+            detail={t('restaurantTopups.admin.clawbackCopy')}
+            action={(
+              <button type="button" onClick={openClawback} className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/10">
+                <AlertTriangle className="h-4 w-4" />
+                {t('restaurantTopups.admin.clawbackButton')}
+              </button>
+            )}
+          />
         </section>
       </div>
 

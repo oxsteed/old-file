@@ -670,8 +670,8 @@ async function listAdminPayouts(req, res) {
   }
 }
 
-// Audit fix (auth finding 15, issuance track): the maker step-up on both
-// affiliate process routes needs an issue path. The generic admin issue
+// Audit fix (auth finding 15, issuance track): the maker step-up on the
+// affiliate process route needs an issue path. The generic admin issue
 // endpoint gates on ADMIN_STEPUP_ACTION_TYPES, derived from the TOTP-only
 // list, which deliberately excludes 'affiliate_payout_process' (the maker
 // step-up stays on the emailed-code method). This dedicated endpoint issues

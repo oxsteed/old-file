@@ -5,9 +5,169 @@ import PageShell from '../../components/PageShell';
 import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import { useAuth } from '../../context/AuthContext';
 import { adminGetStats } from '../../api/logistics';
+import {
+  listInternalDriverPayouts,
+  approveInternalDriverPayout,
+  markInternalDriverPayoutPaid,
+  voidInternalDriverPayout,
+} from '../../api/delivery';
 import { canAccessOperationsWorkspace } from '../../utils/logisticsWorkspaces';
 import '../../styles/logistics/LogisticsHomePage.css';
 import '../../styles/logistics/LogisticsWorkspaces.css';
+
+const PAYOUT_STATUSES = ['all', 'accrued', 'approved', 'paid', 'voided'];
+
+/**
+ * DriverPayoutsSection - ops UI for the localDelivery driver-payouts endpoints.
+ * Transitions are honored exactly: accrued can be approved or voided, approved
+ * can be marked paid (payment reference required) or voided, paid/voided are
+ * terminal. The server enforces separation of duties (the approver cannot mark
+ * paid) and fails closed on legacy rows with no recorded approver; both errors
+ * surface verbatim instead of being papered over.
+ */
+function DriverPayoutsSection() {
+  const { t } = useTranslation();
+  const [status, setStatus] = useState('all');
+  const [payouts, setPayouts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busyId, setBusyId] = useState(null);
+  const [references, setReferences] = useState({});
+  const [notes, setNotes] = useState({});
+
+  const load = (nextStatus) => {
+    setLoading(true);
+    setError('');
+    listInternalDriverPayouts(nextStatus === 'all' ? null : nextStatus)
+      .then((data) => setPayouts(data?.payouts || []))
+      .catch((err) => setError(err?.response?.data?.message || err?.message || t('logistics.operations.driverPayouts.loadFailed')))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(status); }, [status]);
+
+  const runAction = async (payout, action) => {
+    const reference = (references[payout.id] || '').trim();
+    if (action === 'markPaid' && !reference) {
+      setError(t('logistics.operations.driverPayouts.referenceRequired'));
+      return;
+    }
+    if (action === 'void' && !window.confirm(t('logistics.operations.driverPayouts.confirmVoid'))) {
+      return;
+    }
+    setBusyId(payout.id);
+    setError('');
+    setNotice('');
+    try {
+      const note = (notes[payout.id] || '').trim() || undefined;
+      if (action === 'approve') await approveInternalDriverPayout(payout.id, note);
+      if (action === 'markPaid') await markInternalDriverPayoutPaid(payout.id, reference, note);
+      if (action === 'void') await voidInternalDriverPayout(payout.id, note);
+      setNotice(t(`logistics.operations.driverPayouts.${action}Done`));
+      load(status);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || t('logistics.operations.driverPayouts.actionFailed'));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div className="lx-card">
+      <div className="lx-section-header">
+        <h2 className="lx-section-title">{t('logistics.operations.driverPayouts.title')}</h2>
+        <button type="button" className="lx-btn-secondary" onClick={() => load(status)} disabled={loading} data-track="ui.4b5626a282.2">
+          {t('logistics.operations.driverPayouts.refresh')}
+        </button>
+      </div>
+      <p className="lx-t-small lx-t-muted lx-driver-payout-copy">{t('logistics.operations.driverPayouts.copy')}</p>
+      <div className="lx-compact-stack" role="group" aria-label={t('logistics.operations.driverPayouts.filterLabel')}>
+        {PAYOUT_STATUSES.map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={status === value ? 'lx-btn-primary' : 'lx-btn-secondary'}
+            onClick={() => setStatus(value)} data-track="ui.4b5626a282.3"
+          >
+            {t(`logistics.operations.driverPayouts.filter${value[0].toUpperCase()}${value.slice(1)}`)}
+          </button>
+        ))}
+      </div>
+      {notice && <p className="lx-t-small lx-driver-payout-notice" role="status">{notice}</p>}
+      {error && <p className="lx-t-small lx-driver-payout-error" role="alert">{error}</p>}
+      {loading && <p className="lx-t-small lx-t-muted">{t('logistics.operations.driverPayouts.loading')}</p>}
+      {!loading && !error && payouts.length === 0 && (
+        <p className="lx-t-small lx-t-muted">{t('logistics.operations.driverPayouts.empty')}</p>
+      )}
+      {!loading && payouts.length > 0 && (
+        <div className="lx-compact-stack">
+          {payouts.map((payout) => {
+            const driver = [payout.first_name, payout.last_name].filter(Boolean).join(' ') || payout.driver_email || t('logistics.operations.driverPayouts.unknownDriver');
+            const busy = busyId === payout.id;
+            return (
+              <div key={payout.id} className="lx-card lx-driver-payout-card">
+                <div className="lx-section-header">
+                  <strong>{driver}</strong>
+                  <span className="lx-t-small lx-t-muted">{t(`logistics.operations.driverPayouts.status${payout.status[0].toUpperCase()}${payout.status.slice(1)}`)}</span>
+                </div>
+                <p className="lx-t-small lx-t-muted lx-driver-payout-meta">
+                  {t('logistics.operations.driverPayouts.amount', { amount: (Number(payout.payout_cents || 0) / 100).toFixed(2) })}
+                  {payout.job_reference ? ` · ${t('logistics.operations.driverPayouts.job', { reference: payout.job_reference })}` : ''}
+                  {payout.payment_reference ? ` · ${t('logistics.operations.driverPayouts.reference', { reference: payout.payment_reference })}` : ''}
+                </p>
+                {(payout.status === 'approved') && (
+                  <label className="lx-t-small lx-driver-payout-field">
+                    {t('logistics.operations.driverPayouts.paymentReferenceLabel')}
+                    <input
+                      value={references[payout.id] || ''}
+                      onChange={(event) => setReferences((prev) => ({ ...prev, [payout.id]: event.target.value }))}
+                      placeholder={t('logistics.operations.driverPayouts.paymentReferencePlaceholder')}
+                      className="lx-driver-payout-input"
+                    />
+                  </label>
+                )}
+                {(payout.status === 'accrued' || payout.status === 'approved') && (
+                  <label className="lx-t-small lx-driver-payout-field">
+                    {t('logistics.operations.driverPayouts.noteLabel')}
+                    <input
+                      value={notes[payout.id] || ''}
+                      onChange={(event) => setNotes((prev) => ({ ...prev, [payout.id]: event.target.value }))}
+                      placeholder={t('logistics.operations.driverPayouts.notePlaceholder')}
+                      className="lx-driver-payout-input"
+                    />
+                  </label>
+                )}
+                <div className="lx-compact-stack lx-driver-payout-actions">
+                  {payout.status === 'accrued' && (
+                    <>
+                      <button type="button" className="lx-btn-primary" onClick={() => runAction(payout, 'approve')} disabled={busy} data-track="ui.4b5626a282.4">
+                        {t('logistics.operations.driverPayouts.approve')}
+                      </button>
+                      <button type="button" className="lx-btn-secondary" onClick={() => runAction(payout, 'void')} disabled={busy} data-track="ui.4b5626a282.5">
+                        {t('logistics.operations.driverPayouts.void')}
+                      </button>
+                    </>
+                  )}
+                  {payout.status === 'approved' && (
+                    <>
+                      <button type="button" className="lx-btn-primary" onClick={() => runAction(payout, 'markPaid')} disabled={busy} data-track="ui.4b5626a282.6">
+                        {t('logistics.operations.driverPayouts.markPaid')}
+                      </button>
+                      <button type="button" className="lx-btn-secondary" onClick={() => runAction(payout, 'void')} disabled={busy} data-track="ui.4b5626a282.7">
+                        {t('logistics.operations.driverPayouts.void')}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const OPS_LINKS = [
   {labelKey:'finance',path:'/logistics/operations/finance',icon:'📋'},
@@ -144,6 +304,8 @@ export default function OperationsWorkspacePage() {
                       </div>
                     </div>
                   </div>
+
+                  <DriverPayoutsSection />
                 </>
               )}
             </>

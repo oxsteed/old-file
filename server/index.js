@@ -524,8 +524,10 @@ app.get('/health', (req, res) => {
 // build-time defaults. Public and cheap (env reads only).
 app.get('/api/launch-visibility', (req, res) => {
   const { envFlagEnabled } = require('./middleware/featureFlags');
+  const { getServerLaunchVisibility } = require('./middleware/launchGate');
   res.json({
     media: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', false),
+    launches: getServerLaunchVisibility(),
   });
 });
 

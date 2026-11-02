@@ -199,7 +199,9 @@ async function processErasureRequests(limit = 20) {
       }, 'privacy_erasure');
     } catch (err) {
       logger.error('privacy_erasure.failed', { requestId: request.id, error: err.message });
-      await pool.query(`UPDATE privacy_erasure_requests SET status = 'requested' WHERE id = $1`, [request.id]).catch(() => {});
+      await pool.query(`UPDATE privacy_erasure_requests SET status = 'requested' WHERE id = $1`, [request.id]).catch((resetErr) => {
+        logger.error('privacy_erasure.reset_failed', { requestId: request.id, error: resetErr.message });
+      });
     }
   }
   return rows.length;
