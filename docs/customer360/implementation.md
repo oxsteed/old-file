@@ -463,3 +463,46 @@ Background work runs in `server/jobs/customer360Upgrades.js`
   a manual queue, and the team board with stats, filters and saved views.
 - Tests: `server/__tests__/customer360Queues.db.test.js` and the shared
   client checks.
+
+### 11. Customer-facing "Your data" page and self-serve export
+
+- Migration `20261103120900_customer360_privacy.sql`: `erased_at` on
+  `customer_outbound_messages` and a body rule that allows an erased row
+  (send record and body hash kept; subject, body and recipient removed).
+- `services/customer360Privacy.js`:
+  - `categories(userId)` mirrors the admin workspace areas exactly: it is
+    built from the same `customer360Sources` definitions (count and latest
+    date per area, so a new admin source appears for customers
+    automatically), plus the Customer 360 derived data (activity log, health
+    scores, lifecycle stage, messages from staff, playbook steps,
+    follow-ups, precomputed summary). Staff-internal sources (admin actions,
+    staff tasks, anomaly reviews, duplicate-account signals) are shown as
+    described categories without counts or contents, so fraud-prevention
+    work is not revealed; they are retained under that basis.
+  - Each category states whether it is in the export and what erasure does
+    (`removed`, `anonymized` or `retained`), matching what
+    `privacyRetentionService.eraseUser` actually does.
+  - `exportData(conn, userId)` adds `customer360_*` sections to the existing
+    verified export (`GET /api/privacy/export`: password, then emailed
+    code, one-time token): every non-internal source's records (id, label,
+    status, date), account events (types and times; staff, anomaly, link and
+    queue events excluded), scores with factors, lifecycle stage, messages
+    staff sent, playbook step statuses (no staff notes) and general
+    follow-ups (no staff reasons). Sections are capped at 100 000 rows and
+    fail rather than truncate.
+  - `erase(conn, userId)` runs inside both erasure paths (self-serve
+    `DELETE /api/privacy/delete-account` and `eraseUser`): deletes identity
+    signals, health scores, lifecycle rows and summaries; strips outbound
+    message content, playbook notes/results, queue reasons/notes and anomaly
+    evidence. The hash-chained event log is kept (it holds no free text) and
+    link reviews are retained for fraud prevention.
+- Endpoint: `GET /api/privacy/your-data` (authenticated, own data only,
+  rate-limited, `no-store`).
+- UI: `/settings/your-data` (`client/src/pages/Settings/YourData.jsx`),
+  linked from Settings → Privacy; grouped categories, counts, last update,
+  export and erasure rules, and the same verified export flow. Copy in all
+  20 locales (`yourData` namespace), logical CSS, RTL for Arabic and Urdu.
+- Tests: `server/__tests__/customer360Privacy.db.test.js`,
+  `client/scripts/yourData.browser-check.cjs` (20 languages × light/dark ×
+  320/1360 px, export flow and error states), and the existing privacy
+  export tests.

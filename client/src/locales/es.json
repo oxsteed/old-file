@@ -39406,5 +39406,166 @@
       "cancelled": "Cancelada",
       "partial": "Pago parcial"
     }
+  },
+  "yourData": {
+    "title": "Tus datos",
+    "subtitle": "Lo que OxSteed guarda sobre ti, agrupado igual que lo ve nuestro equipo de soporte.",
+    "back": "Volver a la configuración",
+    "loading": "Cargando…",
+    "loadFailed": "No pudimos cargar el resumen de tus datos. Inténtalo más tarde.",
+    "never": "Nunca",
+    "records": "Registros",
+    "lastUpdated": "Última actualización",
+    "inExport": "En tu exportación",
+    "onDeletion": "Si eliminas tu cuenta",
+    "partial": "Algunos registros no se pudieron contar ahora.",
+    "deleteHint": "Para eliminar tu cuenta, usa",
+    "deleteLink": "Eliminar cuenta en Configuración",
+    "settingsLink": "Ver todos tus datos",
+    "groups": {
+      "account": {
+        "title": "Tu cuenta",
+        "hint": "Registros de tu uso de OxSteed."
+      },
+      "derived": {
+        "title": "Creado por nuestro equipo",
+        "hint": "Información que las herramientas del personal crean a partir de tu actividad."
+      },
+      "internal": {
+        "title": "Registros internos",
+        "hint": "Se conservan para prevenir fraudes y por motivos legales. Su contenido no se muestra."
+      }
+    },
+    "exportModes": {
+      "included": "Incluido",
+      "described": "Solo descrito"
+    },
+    "erasure": {
+      "removed": "Eliminado",
+      "anonymized": "Se eliminan tus datos personales; el registro se conserva",
+      "retained": "Se conserva según lo exige la ley"
+    },
+    "export": {
+      "title": "Descarga tus datos",
+      "hint": "Por tu seguridad, ingresa tu contraseña. Luego te enviaremos un código por correo para confirmar la descarga. El archivo contiene todo lo anterior excepto los registros internos.",
+      "password": "Contraseña actual",
+      "sendCode": "Envíame un código",
+      "codeSent": "Enviamos un código de 6 dígitos a {{email}}.",
+      "code": "Código de 6 dígitos",
+      "download": "Descargar",
+      "startOver": "Empezar de nuevo",
+      "done": "Tu descarga ha comenzado.",
+      "errors": {
+        "EXPORT_PASSWORD_INVALID": "Contraseña incorrecta.",
+        "EXPORT_CODE_INVALID": "Ese código no es correcto.",
+        "EXPORT_CODE_EXPIRED": "Ese código caducó. Empieza de nuevo.",
+        "EXPORT_CODE_LOCKED": "Demasiados intentos. Inténtalo en 15 minutos.",
+        "EXPORT_VERIFICATION_UNAVAILABLE": "No pudimos enviar el código. Inténtalo más tarde.",
+        "EXPORT_RESULT_LIMIT_EXCEEDED": "Tus datos son demasiado grandes para una descarga inmediata. Contacta a soporte.",
+        "generic": "Algo salió mal. Inténtalo de nuevo."
+      }
+    },
+    "categories": {
+      "work": {
+        "title": "Trabajos y reservas",
+        "description": "Trabajos, ofertas, facturas, reservas, citas, presupuestos y cancelaciones."
+      },
+      "finance": {
+        "title": "Pagos y liquidaciones",
+        "description": "Pagos que hiciste o recibiste y registros de liquidación."
+      },
+      "restaurants": {
+        "title": "Pedidos de comida",
+        "description": "Pedidos a restaurantes y sus actualizaciones de cocina."
+      },
+      "commerce": {
+        "title": "Pedidos del mercado",
+        "description": "Artículos que compraste o vendiste en el mercado."
+      },
+      "business": {
+        "title": "Negocios",
+        "description": "Negocios y restaurantes de los que eres dueño o miembro."
+      },
+      "devices": {
+        "title": "Dispositivos",
+        "description": "Dispositivos de punto de venta, tickets sin conexión y actividad de pantalla vinculados a ti."
+      },
+      "credit": {
+        "title": "OxSteed Credit",
+        "description": "Cuentas de crédito, transacciones, retenciones, tarjetas, retiros y recargas."
+      },
+      "restaurantCredit": {
+        "title": "Crédito de restaurante",
+        "description": "Billeteras de restaurante, solicitudes de crédito, reembolsos y reservas."
+      },
+      "documents": {
+        "title": "Estados de cuenta",
+        "description": "Estados de crédito y de liquidación y sus exportaciones."
+      },
+      "subscriptions": {
+        "title": "Suscripciones",
+        "description": "Tus planes e historial de suscripciones."
+      },
+      "logistics": {
+        "title": "Logística",
+        "description": "Compras en grupo, pedidos, envíos y entregas."
+      },
+      "support": {
+        "title": "Soporte",
+        "description": "Tickets y chats de soporte."
+      },
+      "communications": {
+        "title": "Notificaciones",
+        "description": "Notificaciones y mensajes enviados a ti, y tus preferencias."
+      },
+      "privacy": {
+        "title": "Opciones de privacidad",
+        "description": "Tus consentimientos y solicitudes de privacidad."
+      },
+      "trust": {
+        "title": "Reseñas y apelaciones",
+        "description": "Reseñas, apelaciones y verificaciones de identidad."
+      },
+      "security": {
+        "title": "Sesiones iniciadas",
+        "description": "Dispositivos y sesiones con acceso a tu cuenta."
+      },
+      "cases": {
+        "title": "Tareas de seguimiento del personal",
+        "description": "Tareas internas que el personal crea para ayudarte con tu cuenta."
+      },
+      "events": {
+        "title": "Registro de actividad de la cuenta",
+        "description": "Un registro a prueba de manipulaciones de los cambios en tu cuenta."
+      },
+      "scores": {
+        "title": "Puntuaciones de salud de la cuenta",
+        "description": "Puntuaciones orientativas que el personal usa para detectar problemas. Nunca cambian tu cuenta por sí solas."
+      },
+      "lifecycle": {
+        "title": "Etapa de actividad",
+        "description": "Si tu cuenta es nueva, activa o inactiva, según tu actividad."
+      },
+      "contactHistory": {
+        "title": "Mensajes de nuestro equipo",
+        "description": "Correos y mensajes de texto que te envió nuestro personal."
+      },
+      "playbooks": {
+        "title": "Pasos de ayuda realizados",
+        "description": "Pasos que el personal realizó para ayudarte, como reenviar un correo de verificación."
+      },
+      "queues": {
+        "title": "Seguimientos",
+        "description": "Seguimientos que el personal programó para tu cuenta."
+      },
+      "summaries": {
+        "title": "Resumen de la cuenta",
+        "description": "Un resumen precalculado de lo anterior para que el personal te ayude más rápido."
+      },
+      "securityReviews": {
+        "title": "Revisiones contra el fraude",
+        "description": "Controles que te protegen a ti y a otros del fraude. No los listamos, pero puedes preguntar a soporte por ellos."
+      }
+    }
   }
 }

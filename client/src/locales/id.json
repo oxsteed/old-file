@@ -35118,5 +35118,166 @@
       "cancelled": "Dibatalkan",
       "partial": "Dibayar sebagian"
     }
+  },
+  "yourData": {
+    "title": "Data Anda",
+    "subtitle": "Apa yang disimpan OxSteed tentang Anda, dikelompokkan seperti yang dilihat tim dukungan kami.",
+    "back": "Kembali ke pengaturan",
+    "loading": "Memuat…",
+    "loadFailed": "Ringkasan data Anda tidak dapat dimuat. Coba lagi nanti.",
+    "never": "Tidak pernah",
+    "records": "Catatan",
+    "lastUpdated": "Terakhir diperbarui",
+    "inExport": "Dalam ekspor Anda",
+    "onDeletion": "Jika Anda menghapus akun",
+    "partial": "Beberapa catatan tidak dapat dihitung saat ini.",
+    "deleteHint": "Untuk menghapus akun, gunakan",
+    "deleteLink": "Hapus akun di Pengaturan",
+    "settingsLink": "Lihat semua data Anda",
+    "groups": {
+      "account": {
+        "title": "Akun Anda",
+        "hint": "Catatan dari penggunaan OxSteed Anda."
+      },
+      "derived": {
+        "title": "Dibuat oleh tim kami",
+        "hint": "Informasi yang dibuat alat tim kami dari aktivitas Anda."
+      },
+      "internal": {
+        "title": "Catatan internal",
+        "hint": "Disimpan untuk mencegah penipuan dan karena alasan hukum. Isinya tidak ditampilkan."
+      }
+    },
+    "exportModes": {
+      "included": "Disertakan",
+      "described": "Hanya dijelaskan"
+    },
+    "erasure": {
+      "removed": "Dihapus",
+      "anonymized": "Data pribadi Anda dihapus; catatannya disimpan",
+      "retained": "Disimpan sesuai ketentuan hukum"
+    },
+    "export": {
+      "title": "Unduh data Anda",
+      "hint": "Demi keamanan, masukkan kata sandi Anda. Kami lalu mengirim kode lewat email untuk mengonfirmasi unduhan. Berkas berisi semua hal di atas kecuali catatan internal.",
+      "password": "Kata sandi saat ini",
+      "sendCode": "Kirimi saya kode",
+      "codeSent": "Kami mengirim kode 6 digit ke {{email}}.",
+      "code": "Kode 6 digit",
+      "download": "Unduh",
+      "startOver": "Mulai lagi",
+      "done": "Unduhan Anda telah dimulai.",
+      "errors": {
+        "EXPORT_PASSWORD_INVALID": "Kata sandi salah.",
+        "EXPORT_CODE_INVALID": "Kode itu tidak benar.",
+        "EXPORT_CODE_EXPIRED": "Kode itu sudah kedaluwarsa. Mulai lagi.",
+        "EXPORT_CODE_LOCKED": "Terlalu banyak percobaan. Coba lagi dalam 15 menit.",
+        "EXPORT_VERIFICATION_UNAVAILABLE": "Kode tidak dapat dikirim. Coba lagi nanti.",
+        "EXPORT_RESULT_LIMIT_EXCEEDED": "Data Anda terlalu besar untuk diunduh langsung. Hubungi dukungan.",
+        "generic": "Terjadi kesalahan. Coba lagi."
+      }
+    },
+    "categories": {
+      "work": {
+        "title": "Pekerjaan dan pemesanan",
+        "description": "Pekerjaan, penawaran, faktur, pemesanan, janji temu, kutipan harga, dan pembatalan."
+      },
+      "finance": {
+        "title": "Pembayaran dan pencairan",
+        "description": "Pembayaran yang Anda lakukan atau terima serta catatan pencairan."
+      },
+      "restaurants": {
+        "title": "Pesanan makanan",
+        "description": "Pesanan restoran dan pembaruan dari dapur."
+      },
+      "commerce": {
+        "title": "Pesanan marketplace",
+        "description": "Barang yang Anda beli atau jual di marketplace."
+      },
+      "business": {
+        "title": "Bisnis",
+        "description": "Bisnis dan restoran yang Anda miliki atau ikuti."
+      },
+      "devices": {
+        "title": "Perangkat",
+        "description": "Perangkat kasir, tiket offline, dan aktivitas layar yang terkait dengan Anda."
+      },
+      "credit": {
+        "title": "OxSteed Credit",
+        "description": "Akun kredit, transaksi, penahanan, kartu, penarikan, dan isi ulang."
+      },
+      "restaurantCredit": {
+        "title": "Kredit restoran",
+        "description": "Dompet restoran, permintaan kredit, pengembalian dana, dan cadangan."
+      },
+      "documents": {
+        "title": "Laporan",
+        "description": "Laporan kredit dan penyelesaian beserta ekspornya."
+      },
+      "subscriptions": {
+        "title": "Langganan",
+        "description": "Paket dan riwayat langganan Anda."
+      },
+      "logistics": {
+        "title": "Logistik",
+        "description": "Pembelian bersama, pesanan, pengiriman, dan antaran."
+      },
+      "support": {
+        "title": "Dukungan",
+        "description": "Tiket dan obrolan dukungan."
+      },
+      "communications": {
+        "title": "Notifikasi",
+        "description": "Notifikasi dan pesan yang dikirim kepada Anda, serta preferensi Anda."
+      },
+      "privacy": {
+        "title": "Pilihan privasi",
+        "description": "Persetujuan dan permintaan privasi Anda."
+      },
+      "trust": {
+        "title": "Ulasan dan banding",
+        "description": "Ulasan, banding, dan pemeriksaan identitas."
+      },
+      "security": {
+        "title": "Sesi masuk",
+        "description": "Perangkat dan sesi yang masuk ke akun Anda."
+      },
+      "cases": {
+        "title": "Tugas tindak lanjut tim",
+        "description": "Tugas internal yang dibuat tim untuk membantu akun Anda."
+      },
+      "events": {
+        "title": "Log aktivitas akun",
+        "description": "Log tahan rusak atas perubahan pada akun Anda."
+      },
+      "scores": {
+        "title": "Skor kesehatan akun",
+        "description": "Skor saran yang dipakai tim untuk menemukan masalah. Skor ini tidak pernah mengubah akun Anda dengan sendirinya."
+      },
+      "lifecycle": {
+        "title": "Tahap aktivitas",
+        "description": "Apakah akun Anda baru, aktif, atau tidak aktif, berdasarkan aktivitas Anda."
+      },
+      "contactHistory": {
+        "title": "Pesan dari tim kami",
+        "description": "Email dan SMS yang dikirim tim kami kepada Anda."
+      },
+      "playbooks": {
+        "title": "Langkah bantuan yang dilakukan",
+        "description": "Langkah yang dilakukan tim untuk membantu Anda, seperti mengirim ulang email verifikasi."
+      },
+      "queues": {
+        "title": "Tindak lanjut",
+        "description": "Tindak lanjut yang dijadwalkan tim untuk akun Anda."
+      },
+      "summaries": {
+        "title": "Ringkasan akun",
+        "description": "Ringkasan yang dihitung lebih dulu dari hal di atas, agar tim dapat membantu lebih cepat."
+      },
+      "securityReviews": {
+        "title": "Peninjauan pencegahan penipuan",
+        "description": "Pemeriksaan yang melindungi Anda dan orang lain dari penipuan. Kami tidak mencantumkannya, tetapi Anda bisa bertanya kepada dukungan."
+      }
+    }
   }
 }

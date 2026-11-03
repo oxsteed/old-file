@@ -35118,5 +35118,166 @@
       "cancelled": "İptal edildi",
       "partial": "Kısmen ödendi"
     }
+  },
+  "yourData": {
+    "title": "Verileriniz",
+    "subtitle": "OxSteed’in sizin hakkınızda tuttukları, destek ekibimizin gördüğü şekilde gruplandı.",
+    "back": "Ayarlara dön",
+    "loading": "Yükleniyor…",
+    "loadFailed": "Veri özetiniz yüklenemedi. Daha sonra tekrar deneyin.",
+    "never": "Hiç",
+    "records": "Kayıt",
+    "lastUpdated": "Son güncelleme",
+    "inExport": "Dışa aktarımınızda",
+    "onDeletion": "Hesabınızı silerseniz",
+    "partial": "Bazı kayıtlar şu anda sayılamadı.",
+    "deleteHint": "Hesabınızı silmek için şunu kullanın:",
+    "deleteLink": "Ayarlar’da hesabı sil",
+    "settingsLink": "Tüm verilerinizi görün",
+    "groups": {
+      "account": {
+        "title": "Hesabınız",
+        "hint": "OxSteed kullanımınızdan oluşan kayıtlar."
+      },
+      "derived": {
+        "title": "Ekibimizin oluşturdukları",
+        "hint": "Ekibimizin araçlarının etkinliğinizden oluşturduğu bilgiler."
+      },
+      "internal": {
+        "title": "Dahili kayıtlar",
+        "hint": "Dolandırıcılığı önlemek ve yasal nedenlerle saklanır. İçerikleri gösterilmez."
+      }
+    },
+    "exportModes": {
+      "included": "Dahil",
+      "described": "Yalnızca açıklama"
+    },
+    "erasure": {
+      "removed": "Silinir",
+      "anonymized": "Kişisel bilgileriniz silinir; kayıt saklanır",
+      "retained": "Yasaların gerektirdiği şekilde saklanır"
+    },
+    "export": {
+      "title": "Verilerinizi indirin",
+      "hint": "Güvenliğiniz için şifrenizi girin. Ardından indirmeyi onaylamanız için e-postayla bir kod göndeririz. Dosya, dahili kayıtlar dışında yukarıdakilerin tümünü içerir.",
+      "password": "Mevcut şifre",
+      "sendCode": "Bana kod gönder",
+      "codeSent": "{{email}} adresine 6 haneli bir kod gönderdik.",
+      "code": "6 haneli kod",
+      "download": "İndir",
+      "startOver": "Baştan başla",
+      "done": "İndirme başladı.",
+      "errors": {
+        "EXPORT_PASSWORD_INVALID": "Şifre yanlış.",
+        "EXPORT_CODE_INVALID": "Bu kod doğru değil.",
+        "EXPORT_CODE_EXPIRED": "Kodun süresi doldu. Baştan başlayın.",
+        "EXPORT_CODE_LOCKED": "Çok fazla deneme. 15 dakika sonra tekrar deneyin.",
+        "EXPORT_VERIFICATION_UNAVAILABLE": "Kod gönderilemedi. Daha sonra tekrar deneyin.",
+        "EXPORT_RESULT_LIMIT_EXCEEDED": "Verileriniz anında indirme için çok büyük. Destekle iletişime geçin.",
+        "generic": "Bir şeyler ters gitti. Tekrar deneyin."
+      }
+    },
+    "categories": {
+      "work": {
+        "title": "İşler ve rezervasyonlar",
+        "description": "İşler, teklifler, faturalar, rezervasyonlar, randevular, fiyat teklifleri ve iptaller."
+      },
+      "finance": {
+        "title": "Ödemeler ve aktarımlar",
+        "description": "Yaptığınız veya aldığınız ödemeler ve aktarım kayıtları."
+      },
+      "restaurants": {
+        "title": "Yemek siparişleri",
+        "description": "Restoran siparişleri ve mutfak güncellemeleri."
+      },
+      "commerce": {
+        "title": "Pazar yeri siparişleri",
+        "description": "Pazar yerinde aldığınız veya sattığınız ürünler."
+      },
+      "business": {
+        "title": "İşletmeler",
+        "description": "Sahibi olduğunuz veya üyesi olduğunuz işletmeler ve restoranlar."
+      },
+      "devices": {
+        "title": "Cihazlar",
+        "description": "Sizinle ilişkili satış noktası cihazları, çevrimdışı fişler ve ekran etkinliği."
+      },
+      "credit": {
+        "title": "OxSteed Credit",
+        "description": "Kredi hesapları, işlemler, blokeler, kartlar, para çekmeler ve yüklemeler."
+      },
+      "restaurantCredit": {
+        "title": "Restoran kredisi",
+        "description": "Restoran cüzdanları, kredi talepleri, iadeler ve rezervler."
+      },
+      "documents": {
+        "title": "Ekstreler",
+        "description": "Kredi ve mutabakat ekstreleri ve dışa aktarımları."
+      },
+      "subscriptions": {
+        "title": "Abonelikler",
+        "description": "Planlarınız ve abonelik geçmişiniz."
+      },
+      "logistics": {
+        "title": "Lojistik",
+        "description": "Toplu alımlar, siparişler, gönderiler ve teslimatlar."
+      },
+      "support": {
+        "title": "Destek",
+        "description": "Destek talepleri ve destek sohbetleri."
+      },
+      "communications": {
+        "title": "Bildirimler",
+        "description": "Size gönderilen bildirimler ve mesajlar ile tercihleriniz."
+      },
+      "privacy": {
+        "title": "Gizlilik tercihleri",
+        "description": "Onaylarınız ve gizlilik talepleriniz."
+      },
+      "trust": {
+        "title": "Değerlendirmeler ve itirazlar",
+        "description": "Değerlendirmeler, itirazlar ve kimlik doğrulamaları."
+      },
+      "security": {
+        "title": "Oturumlar",
+        "description": "Hesabınızda oturum açmış cihazlar ve oturumlar."
+      },
+      "cases": {
+        "title": "Ekip takip görevleri",
+        "description": "Ekibin hesabınızla ilgili size yardım etmek için oluşturduğu dahili görevler."
+      },
+      "events": {
+        "title": "Hesap etkinlik günlüğü",
+        "description": "Hesabınızdaki değişikliklerin kurcalanmaya karşı korumalı günlüğü."
+      },
+      "scores": {
+        "title": "Hesap sağlık puanları",
+        "description": "Ekibin sorunları fark etmek için kullandığı tavsiye niteliğinde puanlar. Hesabınızı asla kendi başlarına değiştirmezler."
+      },
+      "lifecycle": {
+        "title": "Etkinlik aşaması",
+        "description": "Etkinliğinize göre hesabınızın yeni, etkin veya etkin olmadığı."
+      },
+      "contactHistory": {
+        "title": "Ekibimizden mesajlar",
+        "description": "Ekibimizin size gönderdiği e-postalar ve kısa mesajlar."
+      },
+      "playbooks": {
+        "title": "Atılan yardım adımları",
+        "description": "Ekibin size yardım için attığı adımlar; örneğin doğrulama e-postasını yeniden göndermek."
+      },
+      "queues": {
+        "title": "Takipler",
+        "description": "Ekibin hesabınız için planladığı takipler."
+      },
+      "summaries": {
+        "title": "Hesap özeti",
+        "description": "Ekibin size daha hızlı yardım edebilmesi için yukarıdakilerin önceden hesaplanmış özeti."
+      },
+      "securityReviews": {
+        "title": "Dolandırıcılık önleme incelemeleri",
+        "description": "Sizi ve başkalarını dolandırıcılığa karşı koruyan kontroller. Bunları listelemiyoruz, ancak destek ekibine sorabilirsiniz."
+      }
+    }
   }
 }

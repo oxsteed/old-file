@@ -35089,5 +35089,166 @@
       "cancelled": "キャンセル",
       "partial": "一部支払済み"
     }
+  },
+  "yourData": {
+    "title": "あなたのデータ",
+    "subtitle": "OxSteed が保有するあなたの情報を、サポートチームと同じ分類で表示します。",
+    "back": "設定に戻る",
+    "loading": "読み込み中…",
+    "loadFailed": "データの概要を読み込めませんでした。後でもう一度お試しください。",
+    "never": "なし",
+    "records": "件数",
+    "lastUpdated": "最終更新",
+    "inExport": "エクスポートへの収録",
+    "onDeletion": "アカウントを削除した場合",
+    "partial": "一部の記録を現在集計できませんでした。",
+    "deleteHint": "アカウントを削除するには",
+    "deleteLink": "設定でアカウントを削除",
+    "settingsLink": "すべてのデータを見る",
+    "groups": {
+      "account": {
+        "title": "あなたのアカウント",
+        "hint": "OxSteed のご利用で生じた記録です。"
+      },
+      "derived": {
+        "title": "当社チームが作成",
+        "hint": "当社チームのツールがあなたの活動から作成する情報です。"
+      },
+      "internal": {
+        "title": "内部記録",
+        "hint": "不正防止と法的理由のために保管されます。内容は表示されません。"
+      }
+    },
+    "exportModes": {
+      "included": "収録",
+      "described": "説明のみ"
+    },
+    "erasure": {
+      "removed": "削除",
+      "anonymized": "個人情報は削除され、記録は残ります",
+      "retained": "法律の定めにより保管"
+    },
+    "export": {
+      "title": "データをダウンロード",
+      "hint": "安全のため、パスワードを入力してください。その後、ダウンロード確認用のコードをメールでお送りします。ファイルには内部記録を除く上記のすべてが含まれます。",
+      "password": "現在のパスワード",
+      "sendCode": "コードをメールで送る",
+      "codeSent": "{{email}} に 6 桁のコードを送信しました。",
+      "code": "6 桁のコード",
+      "download": "ダウンロード",
+      "startOver": "最初からやり直す",
+      "done": "ダウンロードを開始しました。",
+      "errors": {
+        "EXPORT_PASSWORD_INVALID": "パスワードが正しくありません。",
+        "EXPORT_CODE_INVALID": "コードが正しくありません。",
+        "EXPORT_CODE_EXPIRED": "コードの有効期限が切れました。最初からやり直してください。",
+        "EXPORT_CODE_LOCKED": "試行回数が多すぎます。15 分後にもう一度お試しください。",
+        "EXPORT_VERIFICATION_UNAVAILABLE": "コードを送信できませんでした。後でもう一度お試しください。",
+        "EXPORT_RESULT_LIMIT_EXCEEDED": "データが大きすぎるため、すぐにはダウンロードできません。サポートにお問い合わせください。",
+        "generic": "問題が発生しました。もう一度お試しください。"
+      }
+    },
+    "categories": {
+      "work": {
+        "title": "仕事と予約",
+        "description": "仕事、入札、請求書、予約、アポイント、見積もり、キャンセル。"
+      },
+      "finance": {
+        "title": "支払いと出金",
+        "description": "あなたが支払った・受け取った支払いと出金の記録。"
+      },
+      "restaurants": {
+        "title": "フード注文",
+        "description": "レストランへの注文とキッチンからの更新。"
+      },
+      "commerce": {
+        "title": "マーケットプレイス注文",
+        "description": "マーケットプレイスで購入・販売した商品。"
+      },
+      "business": {
+        "title": "ビジネス",
+        "description": "あなたが所有または所属するビジネスとレストラン。"
+      },
+      "devices": {
+        "title": "デバイス",
+        "description": "あなたに関連する POS 端末、オフラインチケット、画面の操作記録。"
+      },
+      "credit": {
+        "title": "OxSteed Credit",
+        "description": "クレジット口座、取引、保留、カード、引き出し、チャージ。"
+      },
+      "restaurantCredit": {
+        "title": "レストランクレジット",
+        "description": "レストランのウォレット、クレジット申請、返金、準備金。"
+      },
+      "documents": {
+        "title": "明細書",
+        "description": "クレジット明細と精算明細、およびそのエクスポート。"
+      },
+      "subscriptions": {
+        "title": "サブスクリプション",
+        "description": "ご利用プランとサブスクリプションの履歴。"
+      },
+      "logistics": {
+        "title": "物流",
+        "description": "共同購入、注文、出荷、配送。"
+      },
+      "support": {
+        "title": "サポート",
+        "description": "サポートチケットとサポートチャット。"
+      },
+      "communications": {
+        "title": "通知",
+        "description": "あなたに送られた通知とメッセージ、および設定。"
+      },
+      "privacy": {
+        "title": "プライバシーの選択",
+        "description": "同意とプライバシーに関するリクエスト。"
+      },
+      "trust": {
+        "title": "レビューと異議申し立て",
+        "description": "レビュー、異議申し立て、本人確認。"
+      },
+      "security": {
+        "title": "ログインセッション",
+        "description": "アカウントにログインしているデバイスとセッション。"
+      },
+      "cases": {
+        "title": "チームのフォローアップタスク",
+        "description": "アカウントのサポートのためにチームが作成する内部タスク。"
+      },
+      "events": {
+        "title": "アカウントのアクティビティログ",
+        "description": "アカウントへの変更を改ざん検知可能な形で記録したログ。"
+      },
+      "scores": {
+        "title": "アカウント健全性スコア",
+        "description": "チームが問題を見つけるために使う参考スコアです。スコアだけでアカウントが変更されることはありません。"
+      },
+      "lifecycle": {
+        "title": "アクティビティ段階",
+        "description": "活動状況に基づく、アカウントが新規・アクティブ・非アクティブのどれか。"
+      },
+      "contactHistory": {
+        "title": "当社チームからのメッセージ",
+        "description": "当社スタッフが送信したメールと SMS。"
+      },
+      "playbooks": {
+        "title": "実施したサポート手順",
+        "description": "確認メールの再送など、スタッフがあなたのために行った手順。"
+      },
+      "queues": {
+        "title": "フォローアップ",
+        "description": "スタッフがあなたのアカウントに予定したフォローアップ。"
+      },
+      "summaries": {
+        "title": "アカウント概要",
+        "description": "スタッフが迅速に対応できるよう、上記を事前に集計した概要。"
+      },
+      "securityReviews": {
+        "title": "不正防止の審査",
+        "description": "あなたと他の利用者を不正から守るための確認です。一覧は表示しませんが、サポートにお問い合わせいただけます。"
+      }
+    }
   }
 }

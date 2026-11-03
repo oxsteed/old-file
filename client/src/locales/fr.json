@@ -39406,5 +39406,166 @@
       "cancelled": "Annulée",
       "partial": "Partiellement payée"
     }
+  },
+  "yourData": {
+    "title": "Vos données",
+    "subtitle": "Ce qu’OxSteed détient à votre sujet, regroupé comme le voit notre équipe d’assistance.",
+    "back": "Retour aux paramètres",
+    "loading": "Chargement…",
+    "loadFailed": "Impossible de charger le résumé de vos données. Réessayez plus tard.",
+    "never": "Jamais",
+    "records": "Enregistrements",
+    "lastUpdated": "Dernière mise à jour",
+    "inExport": "Dans votre export",
+    "onDeletion": "Si vous supprimez votre compte",
+    "partial": "Certains enregistrements n’ont pas pu être comptés pour le moment.",
+    "deleteHint": "Pour supprimer votre compte, utilisez",
+    "deleteLink": "Supprimer le compte dans les paramètres",
+    "settingsLink": "Voir toutes vos données",
+    "groups": {
+      "account": {
+        "title": "Votre compte",
+        "hint": "Enregistrements issus de votre utilisation d’OxSteed."
+      },
+      "derived": {
+        "title": "Créé par notre équipe",
+        "hint": "Informations que les outils de notre équipe créent à partir de votre activité."
+      },
+      "internal": {
+        "title": "Enregistrements internes",
+        "hint": "Conservés pour la prévention de la fraude et pour des raisons légales. Leur contenu n’est pas affiché."
+      }
+    },
+    "exportModes": {
+      "included": "Inclus",
+      "described": "Décrit seulement"
+    },
+    "erasure": {
+      "removed": "Supprimé",
+      "anonymized": "Vos informations sont supprimées ; l’enregistrement est conservé",
+      "retained": "Conservé comme l’exige la loi"
+    },
+    "export": {
+      "title": "Télécharger vos données",
+      "hint": "Pour votre sécurité, saisissez votre mot de passe. Nous vous enverrons ensuite un code par e-mail pour confirmer le téléchargement. Le fichier contient tout ce qui précède sauf les enregistrements internes.",
+      "password": "Mot de passe actuel",
+      "sendCode": "M’envoyer un code",
+      "codeSent": "Nous avons envoyé un code à 6 chiffres à {{email}}.",
+      "code": "Code à 6 chiffres",
+      "download": "Télécharger",
+      "startOver": "Recommencer",
+      "done": "Votre téléchargement a commencé.",
+      "errors": {
+        "EXPORT_PASSWORD_INVALID": "Mot de passe incorrect.",
+        "EXPORT_CODE_INVALID": "Ce code n’est pas correct.",
+        "EXPORT_CODE_EXPIRED": "Ce code a expiré. Recommencez.",
+        "EXPORT_CODE_LOCKED": "Trop de tentatives. Réessayez dans 15 minutes.",
+        "EXPORT_VERIFICATION_UNAVAILABLE": "Impossible d’envoyer le code. Réessayez plus tard.",
+        "EXPORT_RESULT_LIMIT_EXCEEDED": "Vos données sont trop volumineuses pour un téléchargement immédiat. Contactez l’assistance.",
+        "generic": "Une erreur s’est produite. Réessayez."
+      }
+    },
+    "categories": {
+      "work": {
+        "title": "Missions et réservations",
+        "description": "Missions, offres, factures, réservations, rendez-vous, devis et annulations."
+      },
+      "finance": {
+        "title": "Paiements et versements",
+        "description": "Paiements effectués ou reçus et versements."
+      },
+      "restaurants": {
+        "title": "Commandes de repas",
+        "description": "Commandes de restaurant et leurs mises à jour en cuisine."
+      },
+      "commerce": {
+        "title": "Commandes sur la place de marché",
+        "description": "Articles achetés ou vendus sur la place de marché."
+      },
+      "business": {
+        "title": "Entreprises",
+        "description": "Entreprises et restaurants dont vous êtes propriétaire ou membre."
+      },
+      "devices": {
+        "title": "Appareils",
+        "description": "Terminaux de caisse, tickets hors ligne et activité d’écran liés à vous."
+      },
+      "credit": {
+        "title": "OxSteed Credit",
+        "description": "Comptes de crédit, transactions, blocages, cartes, retraits et recharges."
+      },
+      "restaurantCredit": {
+        "title": "Crédit restaurant",
+        "description": "Portefeuilles de restaurant, demandes de crédit, remboursements et réserves."
+      },
+      "documents": {
+        "title": "Relevés",
+        "description": "Relevés de crédit et de règlement et leurs exports."
+      },
+      "subscriptions": {
+        "title": "Abonnements",
+        "description": "Vos formules et l’historique de vos abonnements."
+      },
+      "logistics": {
+        "title": "Logistique",
+        "description": "Achats groupés, commandes, expéditions et livraisons."
+      },
+      "support": {
+        "title": "Assistance",
+        "description": "Tickets et discussions d’assistance."
+      },
+      "communications": {
+        "title": "Notifications",
+        "description": "Notifications et messages qui vous ont été envoyés, et vos préférences."
+      },
+      "privacy": {
+        "title": "Choix de confidentialité",
+        "description": "Vos consentements et demandes de confidentialité."
+      },
+      "trust": {
+        "title": "Avis et recours",
+        "description": "Avis, recours et vérifications d’identité."
+      },
+      "security": {
+        "title": "Sessions de connexion",
+        "description": "Appareils et sessions connectés à votre compte."
+      },
+      "cases": {
+        "title": "Tâches de suivi de l’équipe",
+        "description": "Tâches internes créées par l’équipe pour vous aider avec votre compte."
+      },
+      "events": {
+        "title": "Journal d’activité du compte",
+        "description": "Un journal infalsifiable des modifications de votre compte."
+      },
+      "scores": {
+        "title": "Scores de santé du compte",
+        "description": "Scores indicatifs utilisés par l’équipe pour repérer les problèmes. Ils ne modifient jamais votre compte d’eux-mêmes."
+      },
+      "lifecycle": {
+        "title": "Étape d’activité",
+        "description": "Si votre compte est nouveau, actif ou inactif, selon votre activité."
+      },
+      "contactHistory": {
+        "title": "Messages de notre équipe",
+        "description": "E-mails et SMS que notre équipe vous a envoyés."
+      },
+      "playbooks": {
+        "title": "Étapes d’aide effectuées",
+        "description": "Étapes réalisées par l’équipe pour vous aider, comme le renvoi d’un e-mail de vérification."
+      },
+      "queues": {
+        "title": "Suivis",
+        "description": "Suivis programmés par l’équipe pour votre compte."
+      },
+      "summaries": {
+        "title": "Résumé du compte",
+        "description": "Un résumé précalculé de ce qui précède, pour que l’équipe vous aide plus vite."
+      },
+      "securityReviews": {
+        "title": "Contrôles anti-fraude",
+        "description": "Des contrôles qui vous protègent, vous et les autres, contre la fraude. Nous ne les listons pas, mais vous pouvez interroger l’assistance."
+      }
+    }
   }
 }

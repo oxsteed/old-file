@@ -1185,6 +1185,7 @@ export default function SettingsPage() {
           {t('settings.privacy.exportBtn')}
         </button>
       )}
+      <Link to="/settings/your-data" className="sp-btn sp-btn-ghost ms-2">{t('yourData.settingsLink')}</Link>
       {exportVerification.step === 'password' && (
         <form className="mt-4 p-4 rounded-lg border border-[var(--border-color,#334155)]" onSubmit={requestExportCode} data-track="ui.9d994c4cb4.23" data-track-private>
           <p className="text-sm font-semibold" style={{ color: 'var(--app-text,#f1f5f9)' }}>

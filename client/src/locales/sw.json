@@ -35088,5 +35088,166 @@
       "cancelled": "Imeghairiwa",
       "partial": "Imelipwa kiasi"
     }
+  },
+  "yourData": {
+    "title": "Data yako",
+    "subtitle": "Kile ambacho OxSteed inahifadhi kukuhusu, kimepangwa jinsi timu yetu ya usaidizi inavyokiona.",
+    "back": "Rudi kwenye mipangilio",
+    "loading": "Inapakia…",
+    "loadFailed": "Hatukuweza kupakia muhtasari wa data yako. Jaribu tena baadaye.",
+    "never": "Kamwe",
+    "records": "Rekodi",
+    "lastUpdated": "Ilisasishwa mwisho",
+    "inExport": "Katika uhamishaji wako",
+    "onDeletion": "Ukifuta akaunti yako",
+    "partial": "Baadhi ya rekodi hazikuweza kuhesabiwa sasa.",
+    "deleteHint": "Kufuta akaunti yako, tumia",
+    "deleteLink": "Futa akaunti katika Mipangilio",
+    "settingsLink": "Tazama data yako yote",
+    "groups": {
+      "account": {
+        "title": "Akaunti yako",
+        "hint": "Rekodi zinazotokana na matumizi yako ya OxSteed."
+      },
+      "derived": {
+        "title": "Imeundwa na timu yetu",
+        "hint": "Taarifa ambazo zana za timu yetu huunda kutokana na shughuli zako."
+      },
+      "internal": {
+        "title": "Rekodi za ndani",
+        "hint": "Huhifadhiwa ili kuzuia ulaghai na kwa sababu za kisheria. Maudhui yake hayaonyeshwi."
+      }
+    },
+    "exportModes": {
+      "included": "Imejumuishwa",
+      "described": "Imeelezwa tu"
+    },
+    "erasure": {
+      "removed": "Inaondolewa",
+      "anonymized": "Taarifa zako binafsi huondolewa; rekodi hubaki",
+      "retained": "Huhifadhiwa kama sheria inavyotaka"
+    },
+    "export": {
+      "title": "Pakua data yako",
+      "hint": "Kwa usalama wako, weka nenosiri lako. Kisha tutakutumia msimbo kwa barua pepe kuthibitisha upakuaji. Faili lina kila kitu kilicho juu isipokuwa rekodi za ndani.",
+      "password": "Nenosiri la sasa",
+      "sendCode": "Nitumie msimbo",
+      "codeSent": "Tumetuma msimbo wa tarakimu 6 kwa {{email}}.",
+      "code": "Msimbo wa tarakimu 6",
+      "download": "Pakua",
+      "startOver": "Anza upya",
+      "done": "Upakuaji wako umeanza.",
+      "errors": {
+        "EXPORT_PASSWORD_INVALID": "Nenosiri si sahihi.",
+        "EXPORT_CODE_INVALID": "Msimbo huo si sahihi.",
+        "EXPORT_CODE_EXPIRED": "Msimbo huo umeisha muda. Anza upya.",
+        "EXPORT_CODE_LOCKED": "Majaribio mengi mno. Jaribu tena baada ya dakika 15.",
+        "EXPORT_VERIFICATION_UNAVAILABLE": "Hatukuweza kutuma msimbo. Jaribu tena baadaye.",
+        "EXPORT_RESULT_LIMIT_EXCEEDED": "Data yako ni kubwa mno kupakuliwa papo hapo. Wasiliana na usaidizi.",
+        "generic": "Hitilafu imetokea. Jaribu tena."
+      }
+    },
+    "categories": {
+      "work": {
+        "title": "Kazi na uhifadhi",
+        "description": "Kazi, zabuni, ankara, uhifadhi, miadi, makadirio na ughairi."
+      },
+      "finance": {
+        "title": "Malipo na utoaji",
+        "description": "Malipo uliyofanya au kupokea na rekodi za utoaji."
+      },
+      "restaurants": {
+        "title": "Oda za chakula",
+        "description": "Oda za mikahawa na taarifa za jikoni."
+      },
+      "commerce": {
+        "title": "Oda za sokoni",
+        "description": "Bidhaa ulizonunua au kuuza sokoni."
+      },
+      "business": {
+        "title": "Biashara",
+        "description": "Biashara na mikahawa unayomiliki au unayoshiriki."
+      },
+      "devices": {
+        "title": "Vifaa",
+        "description": "Vifaa vya mauzo, tiketi za nje ya mtandao na shughuli za skrini zinazohusiana nawe."
+      },
+      "credit": {
+        "title": "OxSteed Credit",
+        "description": "Akaunti za mkopo, miamala, vizuizi, kadi, utoaji na kuongeza salio."
+      },
+      "restaurantCredit": {
+        "title": "Mkopo wa mikahawa",
+        "description": "Pochi za mikahawa, maombi ya mkopo, marejesho na akiba."
+      },
+      "documents": {
+        "title": "Taarifa za akaunti",
+        "description": "Taarifa za mkopo na malipo na uhamishaji wake."
+      },
+      "subscriptions": {
+        "title": "Usajili",
+        "description": "Mipango yako na historia ya usajili."
+      },
+      "logistics": {
+        "title": "Usafirishaji",
+        "description": "Ununuzi wa pamoja, oda, mizigo na usafirishaji."
+      },
+      "support": {
+        "title": "Usaidizi",
+        "description": "Tiketi za usaidizi na mazungumzo ya usaidizi."
+      },
+      "communications": {
+        "title": "Arifa",
+        "description": "Arifa na ujumbe uliotumiwa, na mapendeleo yako."
+      },
+      "privacy": {
+        "title": "Chaguo za faragha",
+        "description": "Idhini zako na maombi ya faragha."
+      },
+      "trust": {
+        "title": "Maoni na rufaa",
+        "description": "Maoni, rufaa na ukaguzi wa utambulisho."
+      },
+      "security": {
+        "title": "Vipindi vya kuingia",
+        "description": "Vifaa na vipindi vilivyoingia kwenye akaunti yako."
+      },
+      "cases": {
+        "title": "Kazi za ufuatiliaji za timu",
+        "description": "Kazi za ndani ambazo timu huunda kukusaidia na akaunti yako."
+      },
+      "events": {
+        "title": "Kumbukumbu ya shughuli za akaunti",
+        "description": "Kumbukumbu isiyoweza kuchezewa ya mabadiliko kwenye akaunti yako."
+      },
+      "scores": {
+        "title": "Alama za afya ya akaunti",
+        "description": "Alama za ushauri ambazo timu hutumia kugundua matatizo. Kamwe hazibadilishi akaunti yako zenyewe."
+      },
+      "lifecycle": {
+        "title": "Hatua ya shughuli",
+        "description": "Kama akaunti yako ni mpya, hai au haitumiki, kulingana na shughuli zako."
+      },
+      "contactHistory": {
+        "title": "Ujumbe kutoka kwa timu yetu",
+        "description": "Barua pepe na SMS ambazo timu yetu ilikutumia."
+      },
+      "playbooks": {
+        "title": "Hatua za msaada zilizochukuliwa",
+        "description": "Hatua ambazo timu ilichukua kukusaidia, kama kutuma tena barua pepe ya uthibitisho."
+      },
+      "queues": {
+        "title": "Ufuatiliaji",
+        "description": "Ufuatiliaji ambao timu ilipanga kwa akaunti yako."
+      },
+      "summaries": {
+        "title": "Muhtasari wa akaunti",
+        "description": "Muhtasari uliokokotolewa mapema wa yaliyo juu, ili timu ikusaidie haraka."
+      },
+      "securityReviews": {
+        "title": "Ukaguzi wa kuzuia ulaghai",
+        "description": "Ukaguzi unaokulinda wewe na wengine dhidi ya ulaghai. Hatuuorodheshi, lakini unaweza kuuliza usaidizi kuuhusu."
+      }
+    }
   }
 }

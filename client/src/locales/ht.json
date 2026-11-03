@@ -39406,5 +39406,166 @@
       "cancelled": "Anile",
       "partial": "Peye an pati"
     }
+  },
+  "yourData": {
+    "title": "Done ou yo",
+    "subtitle": "Sa OxSteed genyen sou ou, ranje menm jan ekip sipò nou an wè l.",
+    "back": "Retounen nan paramèt yo",
+    "loading": "Ap chaje…",
+    "loadFailed": "Nou pa t ka chaje rezime done ou yo. Eseye ankò pita.",
+    "never": "Janm",
+    "records": "Dosye",
+    "lastUpdated": "Dènye mizajou",
+    "inExport": "Nan ekspòtasyon ou",
+    "onDeletion": "Si ou efase kont ou",
+    "partial": "Nou pa t ka konte kèk dosye kounye a.",
+    "deleteHint": "Pou efase kont ou, sèvi ak",
+    "deleteLink": "Efase kont nan Paramèt",
+    "settingsLink": "Wè tout done ou yo",
+    "groups": {
+      "account": {
+        "title": "Kont ou",
+        "hint": "Dosye ki soti nan jan ou itilize OxSteed."
+      },
+      "derived": {
+        "title": "Ekip nou an kreye",
+        "hint": "Enfòmasyon zouti ekip nou an kreye apati aktivite ou."
+      },
+      "internal": {
+        "title": "Dosye entèn",
+        "hint": "Nou kenbe yo pou anpeche fwod ak pou rezon legal. Nou pa montre sa ki ladan yo."
+      }
+    },
+    "exportModes": {
+      "included": "Ladan l",
+      "described": "Dekri sèlman"
+    },
+    "erasure": {
+      "removed": "Retire",
+      "anonymized": "Nou retire enfòmasyon pèsonèl ou; dosye a rete",
+      "retained": "Nou kenbe l jan lalwa mande"
+    },
+    "export": {
+      "title": "Telechaje done ou yo",
+      "hint": "Pou sekirite ou, antre modpas ou. Apre sa n ap voye yon kòd pa imèl pou konfime telechajman an. Fichye a gen tout sa ki anwo a eksepte dosye entèn yo.",
+      "password": "Modpas aktyèl",
+      "sendCode": "Voye yon kòd ban mwen",
+      "codeSent": "Nou voye yon kòd 6 chif bay {{email}}.",
+      "code": "Kòd 6 chif",
+      "download": "Telechaje",
+      "startOver": "Rekòmanse",
+      "done": "Telechajman ou kòmanse.",
+      "errors": {
+        "EXPORT_PASSWORD_INVALID": "Modpas la pa bon.",
+        "EXPORT_CODE_INVALID": "Kòd sa a pa bon.",
+        "EXPORT_CODE_EXPIRED": "Kòd sa a ekspire. Rekòmanse.",
+        "EXPORT_CODE_LOCKED": "Twòp esè. Eseye ankò nan 15 minit.",
+        "EXPORT_VERIFICATION_UNAVAILABLE": "Nou pa t ka voye kòd la. Eseye ankò pita.",
+        "EXPORT_RESULT_LIMIT_EXCEEDED": "Done ou yo twò gwo pou yon telechajman touswit. Kontakte sipò.",
+        "generic": "Gen yon bagay ki pa mache. Eseye ankò."
+      }
+    },
+    "categories": {
+      "work": {
+        "title": "Travay ak rezèvasyon",
+        "description": "Travay, òf, fakti, rezèvasyon, randevou, devi ak anilasyon."
+      },
+      "finance": {
+        "title": "Peman ak vèsman",
+        "description": "Peman ou fè oswa ou resevwa ak dosye vèsman."
+      },
+      "restaurants": {
+        "title": "Kòmand manje",
+        "description": "Kòmand restoran ak mizajou kizin yo."
+      },
+      "commerce": {
+        "title": "Kòmand nan mache a",
+        "description": "Atik ou achte oswa vann nan mache a."
+      },
+      "business": {
+        "title": "Biznis",
+        "description": "Biznis ak restoran ou posede oswa ou fè pati."
+      },
+      "devices": {
+        "title": "Aparèy",
+        "description": "Aparèy kès, tikè san entènèt ak aktivite ekran ki lye ak ou."
+      },
+      "credit": {
+        "title": "OxSteed Credit",
+        "description": "Kont kredi, tranzaksyon, blokaj, kat, retrè ak rechaj."
+      },
+      "restaurantCredit": {
+        "title": "Kredi restoran",
+        "description": "Bous restoran, demann kredi, ranbousman ak rezèv."
+      },
+      "documents": {
+        "title": "Relve",
+        "description": "Relve kredi ak règleman ak ekspòtasyon yo."
+      },
+      "subscriptions": {
+        "title": "Abònman",
+        "description": "Plan ou yo ak istwa abònman ou."
+      },
+      "logistics": {
+        "title": "Lojistik",
+        "description": "Acha an gwoup, kòmand, ekspedisyon ak livrezon."
+      },
+      "support": {
+        "title": "Sipò",
+        "description": "Tikè ak chat sipò."
+      },
+      "communications": {
+        "title": "Notifikasyon",
+        "description": "Notifikasyon ak mesaj yo voye ba ou, ak preferans ou."
+      },
+      "privacy": {
+        "title": "Chwa konfidansyalite",
+        "description": "Konsantman ou ak demann konfidansyalite ou."
+      },
+      "trust": {
+        "title": "Avi ak apèl",
+        "description": "Avi, apèl ak verifikasyon idantite."
+      },
+      "security": {
+        "title": "Sesyon koneksyon",
+        "description": "Aparèy ak sesyon ki konekte nan kont ou."
+      },
+      "cases": {
+        "title": "Travay swivi ekip la",
+        "description": "Travay entèn ekip la kreye pou ede w ak kont ou."
+      },
+      "events": {
+        "title": "Jounal aktivite kont lan",
+        "description": "Yon jounal moun pa ka modifye an kachèt ki montre chanjman nan kont ou."
+      },
+      "scores": {
+        "title": "Nòt sante kont lan",
+        "description": "Nòt konsèy ekip la itilize pou wè pwoblèm. Yo pa janm chanje kont ou pou kont yo."
+      },
+      "lifecycle": {
+        "title": "Etap aktivite",
+        "description": "Si kont ou nouvo, aktif oswa inaktif, selon aktivite ou."
+      },
+      "contactHistory": {
+        "title": "Mesaj ekip nou an",
+        "description": "Imèl ak mesaj tèks ekip nou an voye ba ou."
+      },
+      "playbooks": {
+        "title": "Etap èd ki fèt",
+        "description": "Etap ekip la fè pou ede w, tankou revoye yon imèl verifikasyon."
+      },
+      "queues": {
+        "title": "Swivi",
+        "description": "Swivi ekip la planifye pou kont ou."
+      },
+      "summaries": {
+        "title": "Rezime kont lan",
+        "description": "Yon rezime ki kalkile davans sou sa ki anwo a, pou ekip la ka ede w pi vit."
+      },
+      "securityReviews": {
+        "title": "Revizyon kont fwod",
+        "description": "Verifikasyon ki pwoteje w ak lòt moun kont fwod. Nou pa fè lis yo, men ou ka mande sipò sou yo."
+      }
+    }
   }
 }

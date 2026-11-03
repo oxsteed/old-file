@@ -35089,5 +35089,166 @@
       "cancelled": "Đã hủy",
       "partial": "Thanh toán một phần"
     }
+  },
+  "yourData": {
+    "title": "Dữ liệu của bạn",
+    "subtitle": "Những gì OxSteed lưu về bạn, được nhóm giống cách đội hỗ trợ của chúng tôi nhìn thấy.",
+    "back": "Quay lại cài đặt",
+    "loading": "Đang tải…",
+    "loadFailed": "Không thể tải bản tóm tắt dữ liệu của bạn. Hãy thử lại sau.",
+    "never": "Chưa bao giờ",
+    "records": "Số bản ghi",
+    "lastUpdated": "Cập nhật lần cuối",
+    "inExport": "Trong bản xuất",
+    "onDeletion": "Nếu bạn xóa tài khoản",
+    "partial": "Một số bản ghi hiện chưa đếm được.",
+    "deleteHint": "Để xóa tài khoản, hãy dùng",
+    "deleteLink": "Xóa tài khoản trong Cài đặt",
+    "settingsLink": "Xem tất cả dữ liệu của bạn",
+    "groups": {
+      "account": {
+        "title": "Tài khoản của bạn",
+        "hint": "Bản ghi phát sinh từ việc bạn dùng OxSteed."
+      },
+      "derived": {
+        "title": "Do đội ngũ của chúng tôi tạo",
+        "hint": "Thông tin mà công cụ của đội ngũ tạo ra từ hoạt động của bạn."
+      },
+      "internal": {
+        "title": "Bản ghi nội bộ",
+        "hint": "Được lưu để phòng chống gian lận và vì lý do pháp lý. Nội dung không được hiển thị."
+      }
+    },
+    "exportModes": {
+      "included": "Có",
+      "described": "Chỉ mô tả"
+    },
+    "erasure": {
+      "removed": "Bị xóa",
+      "anonymized": "Thông tin cá nhân của bạn bị xóa; bản ghi được giữ lại",
+      "retained": "Được lưu theo yêu cầu của pháp luật"
+    },
+    "export": {
+      "title": "Tải xuống dữ liệu của bạn",
+      "hint": "Vì sự an toàn của bạn, hãy nhập mật khẩu. Sau đó chúng tôi sẽ gửi mã qua email để xác nhận tải xuống. Tệp chứa mọi thứ ở trên trừ bản ghi nội bộ.",
+      "password": "Mật khẩu hiện tại",
+      "sendCode": "Gửi mã cho tôi",
+      "codeSent": "Chúng tôi đã gửi mã 6 chữ số tới {{email}}.",
+      "code": "Mã 6 chữ số",
+      "download": "Tải xuống",
+      "startOver": "Bắt đầu lại",
+      "done": "Đã bắt đầu tải xuống.",
+      "errors": {
+        "EXPORT_PASSWORD_INVALID": "Mật khẩu không đúng.",
+        "EXPORT_CODE_INVALID": "Mã không đúng.",
+        "EXPORT_CODE_EXPIRED": "Mã đã hết hạn. Hãy bắt đầu lại.",
+        "EXPORT_CODE_LOCKED": "Quá nhiều lần thử. Hãy thử lại sau 15 phút.",
+        "EXPORT_VERIFICATION_UNAVAILABLE": "Không thể gửi mã. Hãy thử lại sau.",
+        "EXPORT_RESULT_LIMIT_EXCEEDED": "Dữ liệu của bạn quá lớn để tải xuống ngay. Hãy liên hệ hỗ trợ.",
+        "generic": "Đã có lỗi xảy ra. Hãy thử lại."
+      }
+    },
+    "categories": {
+      "work": {
+        "title": "Công việc và đặt chỗ",
+        "description": "Công việc, báo giá thầu, hóa đơn, đặt chỗ, lịch hẹn, báo giá và hủy."
+      },
+      "finance": {
+        "title": "Thanh toán và chi trả",
+        "description": "Các khoản bạn đã thanh toán hoặc nhận và bản ghi chi trả."
+      },
+      "restaurants": {
+        "title": "Đơn đồ ăn",
+        "description": "Đơn nhà hàng và cập nhật từ bếp."
+      },
+      "commerce": {
+        "title": "Đơn hàng chợ trực tuyến",
+        "description": "Mặt hàng bạn đã mua hoặc bán trên chợ trực tuyến."
+      },
+      "business": {
+        "title": "Doanh nghiệp",
+        "description": "Doanh nghiệp và nhà hàng bạn sở hữu hoặc tham gia."
+      },
+      "devices": {
+        "title": "Thiết bị",
+        "description": "Thiết bị bán hàng, vé ngoại tuyến và hoạt động màn hình liên quan đến bạn."
+      },
+      "credit": {
+        "title": "OxSteed Credit",
+        "description": "Tài khoản tín dụng, giao dịch, khoản giữ, thẻ, rút tiền và nạp tiền."
+      },
+      "restaurantCredit": {
+        "title": "Tín dụng nhà hàng",
+        "description": "Ví nhà hàng, yêu cầu tín dụng, hoàn tiền và dự trữ."
+      },
+      "documents": {
+        "title": "Sao kê",
+        "description": "Sao kê tín dụng và quyết toán cùng các tệp xuất."
+      },
+      "subscriptions": {
+        "title": "Gói đăng ký",
+        "description": "Các gói và lịch sử đăng ký của bạn."
+      },
+      "logistics": {
+        "title": "Hậu cần",
+        "description": "Mua chung, đơn hàng, lô hàng và giao hàng."
+      },
+      "support": {
+        "title": "Hỗ trợ",
+        "description": "Phiếu hỗ trợ và trò chuyện hỗ trợ."
+      },
+      "communications": {
+        "title": "Thông báo",
+        "description": "Thông báo và tin nhắn gửi đến bạn, cùng tùy chọn của bạn."
+      },
+      "privacy": {
+        "title": "Lựa chọn quyền riêng tư",
+        "description": "Các đồng ý và yêu cầu về quyền riêng tư của bạn."
+      },
+      "trust": {
+        "title": "Đánh giá và khiếu nại",
+        "description": "Đánh giá, khiếu nại và xác minh danh tính."
+      },
+      "security": {
+        "title": "Phiên đăng nhập",
+        "description": "Thiết bị và phiên đang đăng nhập vào tài khoản của bạn."
+      },
+      "cases": {
+        "title": "Nhiệm vụ theo dõi của đội ngũ",
+        "description": "Nhiệm vụ nội bộ đội ngũ tạo để hỗ trợ tài khoản của bạn."
+      },
+      "events": {
+        "title": "Nhật ký hoạt động tài khoản",
+        "description": "Nhật ký chống giả mạo về các thay đổi trên tài khoản của bạn."
+      },
+      "scores": {
+        "title": "Điểm sức khỏe tài khoản",
+        "description": "Điểm tham khảo đội ngũ dùng để phát hiện vấn đề. Điểm không bao giờ tự thay đổi tài khoản của bạn."
+      },
+      "lifecycle": {
+        "title": "Giai đoạn hoạt động",
+        "description": "Tài khoản của bạn mới, đang hoạt động hay không hoạt động, dựa trên hoạt động của bạn."
+      },
+      "contactHistory": {
+        "title": "Tin nhắn từ đội ngũ",
+        "description": "Email và tin nhắn SMS đội ngũ của chúng tôi đã gửi cho bạn."
+      },
+      "playbooks": {
+        "title": "Các bước hỗ trợ đã thực hiện",
+        "description": "Các bước đội ngũ đã làm để giúp bạn, như gửi lại email xác minh."
+      },
+      "queues": {
+        "title": "Theo dõi",
+        "description": "Các lần theo dõi đội ngũ lên lịch cho tài khoản của bạn."
+      },
+      "summaries": {
+        "title": "Tóm tắt tài khoản",
+        "description": "Bản tóm tắt tính trước của các mục trên, giúp đội ngũ hỗ trợ bạn nhanh hơn."
+      },
+      "securityReviews": {
+        "title": "Kiểm tra phòng chống gian lận",
+        "description": "Những kiểm tra bảo vệ bạn và người khác khỏi gian lận. Chúng tôi không liệt kê, nhưng bạn có thể hỏi bộ phận hỗ trợ."
+      }
+    }
   }
 }

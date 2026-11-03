@@ -39406,5 +39406,166 @@
       "cancelled": "Cancelled",
       "partial": "Partly paid"
     }
+  },
+  "yourData": {
+    "title": "Your data",
+    "subtitle": "What OxSteed holds about you, grouped the same way our support team sees it.",
+    "back": "Back to settings",
+    "loading": "Loading…",
+    "loadFailed": "We could not load your data summary. Try again later.",
+    "never": "Never",
+    "records": "Records",
+    "lastUpdated": "Last updated",
+    "inExport": "In your export",
+    "onDeletion": "If you delete your account",
+    "partial": "Some records could not be counted right now.",
+    "deleteHint": "To delete your account, use",
+    "deleteLink": "Delete account in Settings",
+    "settingsLink": "See all your data",
+    "groups": {
+      "account": {
+        "title": "Your account",
+        "hint": "Records from using OxSteed."
+      },
+      "derived": {
+        "title": "Created by our team",
+        "hint": "Information our staff tools create from your activity."
+      },
+      "internal": {
+        "title": "Internal records",
+        "hint": "Kept for fraud prevention and legal reasons. Their content is not shown."
+      }
+    },
+    "exportModes": {
+      "included": "Included",
+      "described": "Described only"
+    },
+    "erasure": {
+      "removed": "Removed",
+      "anonymized": "Your details are removed; the record is kept",
+      "retained": "Kept as required by law"
+    },
+    "export": {
+      "title": "Download your data",
+      "hint": "For your security, enter your password. We then email you a code to confirm the download. The file contains everything above except internal records.",
+      "password": "Current password",
+      "sendCode": "Email me a code",
+      "codeSent": "We sent a 6-digit code to {{email}}.",
+      "code": "6-digit code",
+      "download": "Download",
+      "startOver": "Start over",
+      "done": "Your download has started.",
+      "errors": {
+        "EXPORT_PASSWORD_INVALID": "Incorrect password.",
+        "EXPORT_CODE_INVALID": "That code is not correct.",
+        "EXPORT_CODE_EXPIRED": "That code has expired. Start over.",
+        "EXPORT_CODE_LOCKED": "Too many attempts. Try again in 15 minutes.",
+        "EXPORT_VERIFICATION_UNAVAILABLE": "We could not send the code. Try again later.",
+        "EXPORT_RESULT_LIMIT_EXCEEDED": "Your data is too large for an instant download. Contact support.",
+        "generic": "Something went wrong. Try again."
+      }
+    },
+    "categories": {
+      "work": {
+        "title": "Jobs and bookings",
+        "description": "Jobs, bids, invoices, bookings, appointments, quotes and cancellations."
+      },
+      "finance": {
+        "title": "Payments and payouts",
+        "description": "Payments you made or received and payout records."
+      },
+      "restaurants": {
+        "title": "Food orders",
+        "description": "Restaurant orders and their kitchen updates."
+      },
+      "commerce": {
+        "title": "Marketplace orders",
+        "description": "Items you bought or sold in the marketplace."
+      },
+      "business": {
+        "title": "Businesses",
+        "description": "Businesses and restaurants you own or belong to."
+      },
+      "devices": {
+        "title": "Devices",
+        "description": "Point-of-sale devices, offline tickets and screen activity linked to you."
+      },
+      "credit": {
+        "title": "OxSteed Credit",
+        "description": "Credit accounts, transactions, holds, cards, withdrawals and top-ups."
+      },
+      "restaurantCredit": {
+        "title": "Restaurant credit",
+        "description": "Restaurant wallets, credit requests, refunds and reserves."
+      },
+      "documents": {
+        "title": "Statements",
+        "description": "Credit and settlement statements and their exports."
+      },
+      "subscriptions": {
+        "title": "Subscriptions",
+        "description": "Your plans and subscription history."
+      },
+      "logistics": {
+        "title": "Logistics",
+        "description": "Group purchases, orders, shipments and deliveries."
+      },
+      "support": {
+        "title": "Support",
+        "description": "Support tickets and support chats."
+      },
+      "communications": {
+        "title": "Notifications",
+        "description": "Notifications and messages sent to you, and your preferences."
+      },
+      "privacy": {
+        "title": "Privacy choices",
+        "description": "Your consents and privacy requests."
+      },
+      "trust": {
+        "title": "Reviews and appeals",
+        "description": "Reviews, appeals and identity checks."
+      },
+      "security": {
+        "title": "Sign-in sessions",
+        "description": "Devices and sessions signed in to your account."
+      },
+      "cases": {
+        "title": "Staff follow-up tasks",
+        "description": "Internal tasks staff create to help with your account."
+      },
+      "events": {
+        "title": "Account activity log",
+        "description": "A tamper-evident log of changes to your account."
+      },
+      "scores": {
+        "title": "Account health scores",
+        "description": "Advisory scores staff use to spot problems. They never change your account on their own."
+      },
+      "lifecycle": {
+        "title": "Activity stage",
+        "description": "Whether your account is new, active or inactive, based on your activity."
+      },
+      "contactHistory": {
+        "title": "Messages from our team",
+        "description": "Emails and text messages our staff sent you."
+      },
+      "playbooks": {
+        "title": "Help steps taken",
+        "description": "Steps staff ran to help you, such as resending a verification email."
+      },
+      "queues": {
+        "title": "Follow-ups",
+        "description": "Follow-ups staff scheduled for your account."
+      },
+      "summaries": {
+        "title": "Account summary",
+        "description": "A precomputed summary of the above, so staff can help you faster."
+      },
+      "securityReviews": {
+        "title": "Fraud-prevention reviews",
+        "description": "Checks that protect you and others from fraud. We do not list them, but you can ask support about them."
+      }
+    }
   }
 }
