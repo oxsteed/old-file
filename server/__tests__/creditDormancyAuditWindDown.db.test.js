@@ -276,6 +276,20 @@ describeDatabase('dormancy, audit and wind-down (licence readiness §8-§10)', (
       expect(cases.length).toBe(1);
       await expect(pool.query(`DELETE FROM credit_audit_anchors WHERE anchor_date = $1`, [run.anchorDate])).rejects.toThrow();
     });
+
+    test('ledger and audit tables reject TRUNCATE (row triggers do not fire on it)', async () => {
+      for (const table of ['oxsteed_credit_transactions', 'oxsteed_credit_transaction_entries', 'oxsteed_credit_accounts',
+        'oxsteed_credit_audit_events', 'credit_audit_anchors', 'admin_audit_log']) {
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await expect(client.query(`TRUNCATE ${table} CASCADE`)).rejects.toThrow(/append-only; TRUNCATE is not permitted/);
+        } finally {
+          await client.query('ROLLBACK');
+          client.release();
+        }
+      }
+    });
   });
 
   describe('wind-down and redemption (§10)', () => {
