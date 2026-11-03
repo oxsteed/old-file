@@ -5,6 +5,8 @@
 const logger = require('../utils/logger');
 const runtimeState = require('../services/runtimeState');
 
+const RETRY_TIMEOUT_MS = 1500;
+
 function backgroundReadinessUrl(value) {
   let url;
   try { url = new URL(value); } catch { throw new Error('Web runtime requires BACKGROUND_READINESS_URL.'); }
@@ -35,27 +37,36 @@ class DelegatedWorkers {
     this.lastOk = null;
   }
 
+  async probe(timeoutMs) {
+    const signal = AbortSignal.timeout(timeoutMs);
+    try {
+      const response = await this.fetch(this.url, { redirect: 'error', signal });
+      if (!response.ok) return 'unavailable';
+      const result = await response.json();
+      // Do not delegate to another web facade or accept liveness alone.
+      const ok = result.status === 'ready' && result.checks?.workers?.ok === true
+        && [undefined, 'combined'].includes(result.checks.workers.mode);
+      return ok ? 'ready' : 'unavailable';
+    } catch {
+      // Do not log the URL or body. Fetch errors can embed the private endpoint.
+      const timedOut = signal.aborted && signal.reason?.name === 'TimeoutError';
+      logger.warn('Background readiness observation failed', { timedOut });
+      return timedOut ? 'timeout' : 'unavailable';
+    }
+  }
+
   async observe() {
     if (this.stopping) return false;
     if (this.inFlight) return this.inFlight;
     this.inFlight = (async () => {
-      let ok = false;
-      let failed = false;
-      try {
-        const response = await this.fetch(this.url, { redirect: 'error', signal: AbortSignal.timeout(this.timeoutMs) });
-        if (response.ok) {
-          const result = await response.json();
-          // Do not delegate to another web facade or accept liveness alone.
-          ok = result.status === 'ready' && result.checks?.workers?.ok === true
-            && [undefined, 'combined'].includes(result.checks.workers.mode);
-        }
-      } catch {
-        // Money-flows audit D1: observation failures were silent on the
-        // web side. Warn, but never log the URL or response body: fetch
-        // errors can embed the private endpoint.
-        failed = true;
+      let result = await this.probe(this.timeoutMs);
+      // A missed deadline is inconclusive. Give a previously ready, serving
+      // replica one bounded confirmation attempt before withdrawing traffic.
+      if (result === 'timeout' && this.started && this.lastOk && !this.stopping
+          && runtimeState.snapshot().acceptingTraffic) {
+        result = await this.probe(Math.min(this.timeoutMs, RETRY_TIMEOUT_MS));
       }
-      if (failed) logger.warn('Background readiness observation failed');
+      const ok = result === 'ready';
       if (this.lastOk === true && !ok) logger.warn('Background runtime no longer ready');
       this.lastOk = ok;
       if (!this.stopping) runtimeState.update({ workersReady: ok, workerMode: 'delegated' });
