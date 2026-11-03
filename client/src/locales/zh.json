@@ -34445,7 +34445,8 @@
         "cash": "现金",
         "check": "支票",
         "other": "其他方式"
-      }
+      },
+      "requiredNote": "顾客可以付你钱OxSteed Credit只有在你同意之后 才能说 在那之前,他们会给你另一种方式。"
     },
     "disclosures": {
       "title": "OxSteed Credit 条款",
@@ -34461,7 +34462,26 @@
     "windDown": {
       "title": "OxSteed Credit 即将关闭",
       "body": "请在 {{date}} 之前提现或用完您的余额。",
-      "after": "您的资金仍受保护。该日期后剩余的款项将作为无人认领财产为您保管，您仍可申领。"
+      "after": "您的资金仍受保护。该日期后剩余的款项将作为无人认领财产为您保管，您仍可申领。",
+      "destinationsTitle": "钱放哪",
+      "destinationsIntro": "在您自己名下添加一个银行账户, 并证实它, 这样我们就可以在 {{date}} 之前归还您的余额 。 新的账户可以在通常的安全等候期之后收到资金。",
+      "holdingsLabel": "余额要退还",
+      "destination": {
+        "ready": "银行账户准备就绪",
+        "missing": "添加已确认的银行账户",
+        "cooling_off": "银行账户可以收受{{date}}的资金."
+      },
+      "holderStatus": {
+        "pending": "等待返回时",
+        "notified": "等待返回时",
+        "instructed": "sent  Payment",
+        "returned": "你的银行把钱还了 添加或检查您的账户 。",
+        "paid": "回到你身边",
+        "zero": "没什么可回去的了",
+        "unclaimed": "作为无人认领的财产"
+      },
+      "addDestination": "增加一个银行帐户来取回你的钱",
+      "manageDestinations": "检查你的银行账户"
     },
     "erasure": {
       "title": "您的数据删除已暂停",

@@ -1264,7 +1264,8 @@
         "cash": "tiền mặt",
         "check": "séc",
         "other": "phương thức khác"
-      }
+      },
+      "requiredNote": "Khách hàng có thể trả tiền cho anh. OxSteed Credit Chỉ sau khi anh đồng ý. Cho đến lúc đó, họ sẽ trả anh bằng cách khác."
     },
     "disclosures": {
       "title": "Điều khoản OxSteed Credit",
@@ -1280,7 +1281,26 @@
     "windDown": {
       "title": "OxSteed Credit sắp đóng cửa",
       "body": "Vui lòng rút hoặc chi tiêu số dư trước ngày {{date}}.",
-      "after": "Tiền của bạn vẫn được bảo vệ. Số tiền còn lại sau ngày đó sẽ được giữ cho bạn dưới dạng tài sản không người nhận và bạn vẫn có thể yêu cầu nhận lại."
+      "after": "Tiền của bạn vẫn được bảo vệ. Số tiền còn lại sau ngày đó sẽ được giữ cho bạn dưới dạng tài sản không người nhận và bạn vẫn có thể yêu cầu nhận lại.",
+      "destinationsTitle": "Nơi gửi tiền của bạn trở lại",
+      "destinationsIntro": "Thêm một tài khoản ngân hàng với tên riêng của bạn và xác nhận nó để chúng tôi có thể trả lại số dư trước khi {{date}}. Tài khoản mới có thể nhận tiền sau thời gian chờ đợi an toàn.",
+      "holdingsLabel": "Tiền công của anh sẽ được trả lại.",
+      "destination": {
+        "ready": "Tài khoản ngân hàng sẵn sàng",
+        "missing": "Thêm tài khoản ngân hàng đã xác nhận",
+        "cooling_off": "Tài khoản ngân hàng có thể nhận tiền từ {{date}}"
+      },
+      "holderStatus": {
+        "pending": "Chờ được trả lại.",
+        "notified": "Chờ được trả lại.",
+        "instructed": "Archbishop",
+        "returned": "Ngân hàng của anh đã gửi trả lại. Thêm hay kiểm tra tài khoản của bạn.",
+        "paid": "Trở về với ngươi",
+        "zero": "Không còn gì để trả lại",
+        "unclaimed": "Được giữ cho bạn như tài sản vô chủ"
+      },
+      "addDestination": "Thêm tài khoản ngân hàng để lấy lại tiền",
+      "manageDestinations": "Kiểm tra tài khoản ngân hàng của bạn"
     },
     "erasure": {
       "title": "Việc xóa dữ liệu của bạn đang tạm dừng",

@@ -1264,7 +1264,8 @@
         "cash": "pesa taslimu",
         "check": "hundi",
         "other": "njia nyingine"
-      }
+      },
+      "requiredNote": "Wateja wanaweza kukuingiza katika OxSteed Credit baada ya kukubaliana. Baada ya yote, wao ni kusubiri kwa ajili yenu."
     },
     "disclosures": {
       "title": "Masharti ya OxSteed Credit",
@@ -1280,7 +1281,26 @@
     "windDown": {
       "title": "OxSteed Credit inafungwa",
       "body": "Tafadhali toa au tumia salio lako kufikia {{date}}.",
-      "after": "Pesa zako zinaendelea kulindwa. Kitakachobaki baada ya tarehe hiyo kitahifadhiwa kwa ajili yako kama mali isiyodaiwa, na bado unaweza kukidai."
+      "after": "Pesa zako zinaendelea kulindwa. Kitakachobaki baada ya tarehe hiyo kitahifadhiwa kwa ajili yako kama mali isiyodaiwa, na bado unaweza kukidai.",
+      "destinationsTitle": "Ambapo kutuma fedha yako nyuma",
+      "destinationsIntro": "Ongeza akaunti ya benki kwa jina lako mwenyewe na uthibitishe ili tuweze kurejesha usawa wako kabla ya malipo. {{date}}Akaunti mpya zinaweza kupokea fedha baada ya kipindi cha kawaida cha kusubiri.",
+      "holdingsLabel": "Mipaka yako itarudishwa",
+      "destination": {
+        "ready": "Akaunti ya benki iko tayari",
+        "missing": "Akaunti ya benki iliyothibitishwa",
+        "cooling_off": "Akaunti ya benki inaweza kupokea fedha kutoka {{date}}"
+      },
+      "holderStatus": {
+        "pending": "Kusubiri kurejeshwa",
+        "notified": "Kusubiri kurejeshwa",
+        "instructed": "Malipo kwa benki yako",
+        "returned": "Benki hiyo imerudisha fedha hizo. Ongeza au angalia akaunti yako.",
+        "paid": "Kugeuka kuwa wewe",
+        "zero": "Hakuna chochote cha kurudi",
+        "unclaimed": "Mruhusu atawale kama mali isiyo na thamani."
+      },
+      "addDestination": "Ongeza akaunti ya benki ili kupata pesa zako",
+      "manageDestinations": "Angalia akaunti yako ya benki"
     },
     "erasure": {
       "title": "Ufutaji wa data yako umesimamishwa",

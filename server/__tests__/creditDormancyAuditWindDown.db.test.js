@@ -298,6 +298,7 @@ describeDatabase('dormancy, audit and wind-down (licence readiness §8-§10)', (
     let payableId;
     let planId;
     let freezeExisted;
+    let destinationId;
 
     beforeAll(async () => {
       const { rows } = await pool.query('SELECT id FROM oxsteed_credit_rail_freezes WHERE cleared_at IS NULL');
@@ -340,6 +341,7 @@ describeDatabase('dormancy, audit and wind-down (licence readiness §8-§10)', (
         `SELECT amount_minor FROM credit_bank_payout_instructions WHERE destination_id = $1 AND purpose = 'micro_deposit' ORDER BY id`, [dest.id]
       );
       await destinations.verifyDestination({ user: { id: helperId }, destinationId: dest.id, amounts: amounts.map((r) => Number(r.amount_minor)) });
+      destinationId = dest.id;
     });
 
     afterAll(async () => {
@@ -375,6 +377,55 @@ describeDatabase('dormancy, audit and wind-down (licence readiness §8-§10)', (
       expect(listed.length).toBeGreaterThan(0);
       const notified = await wd.notifyHolders({ planId, actorUserId: admin1, limit: 1000 });
       expect(notified.sent).toBeGreaterThan(0);
+    });
+
+    test('gap fill 1: holders see their position and may manage payout accounts while cash-out is off', async () => {
+      const wd = require('../services/creditCompliance/windDownService');
+      const access = await wd.holderAccess(helperId);
+      expect(access).toMatchObject({ active: true, holder: true, destinationsAllowed: true, needsDestination: false });
+      expect(access.deadline).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      const mine = access.holdings.find((h) => h.account_type === 'partner_payable' && h.currency === CUR);
+      expect(mine).toMatchObject({ destination: 'cooling_off' });
+      expect(mine.cooling_off_until).toBeTruthy();
+      const stranger = await createUser('customer');
+      expect(await wd.holderAccess(stranger)).toMatchObject({ active: true, holder: false, destinationsAllowed: false });
+
+      // The HTTP layer: cash-out is off, so only a holder gets through.
+      const previous = process.env.FEATURE_CREDIT_CASHOUT;
+      delete process.env.FEATURE_CREDIT_CASHOUT;
+      try {
+        const ctrl = require('../controllers/paymentLayersController');
+        const call = (fn, user) => new Promise((resolve) => {
+          const res = { status() { return res; }, json: (body) => resolve({ body }) };
+          fn({ user, params: {}, body: {}, get: () => null }, res, (error) => resolve({ error }));
+        });
+        const denied = await call(ctrl.listPayoutDestinations, { id: stranger, role: 'customer' });
+        expect(denied.error).toMatchObject({ statusCode: 404, code: 'feature_disabled' });
+        const allowed = await call(ctrl.listPayoutDestinations, { id: helperId, role: 'helper' });
+        expect(allowed.error).toBeUndefined();
+        expect(allowed.body.destinations.map((d) => String(d.id))).toContain(String(destinationId));
+        const licence = require('../controllers/creditLicenceConsumerController');
+        const status = await call(licence.getMyWindDownStatus, { id: helperId, role: 'helper' });
+        expect(status.body).toMatchObject({ active: true, holder: true, destinations_allowed: true, cashout_enabled: false });
+      } finally {
+        if (previous === undefined) delete process.env.FEATURE_CREDIT_CASHOUT; else process.env.FEATURE_CREDIT_CASHOUT = previous;
+      }
+    });
+
+    test('gap fill 1: a newly verified account waits out its cooling-off before redemption is sent', async () => {
+      const before = await balance(payableId);
+      const issued = await oversight('credit_wind_down_issue_redemptions', { planId });
+      expect(issued.coolingOff).toBeGreaterThanOrEqual(1);
+      const { rows: [holder] } = await pool.query(
+        `SELECT status FROM credit_wind_down_holders WHERE plan_id = $1 AND account_id = $2`, [planId, payableId]
+      );
+      expect(holder.status).not.toBe('instructed');
+      expect(await balance(payableId)).toEqual(before);
+      // The cooling-off period ends; the next run pays the account.
+      await pool.query(`UPDATE credit_payout_destinations SET cooling_off_until = NOW() - INTERVAL '1 minute' WHERE id = $1`, [destinationId]);
+      const wd = require('../services/creditCompliance/windDownService');
+      const access = await wd.holderAccess(helperId);
+      expect(access.holdings.find((h) => h.account_type === 'partner_payable' && h.currency === CUR)).toMatchObject({ destination: 'ready' });
     });
 
     test('redemption: reserve, bank instruction, two admins confirm paid, cash_out posted, balance zero', async () => {

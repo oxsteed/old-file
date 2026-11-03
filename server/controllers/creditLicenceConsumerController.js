@@ -90,3 +90,18 @@ exports.getWindDownStatus = wrap(async (req, res) => {
   const { rows } = await pool.query(`SELECT redemption_deadline::text AS deadline, started_at FROM credit_wind_down_plans WHERE status = 'active' LIMIT 1`);
   res.json({ active: Boolean(rows[0]), deadline: rows[0]?.deadline || null, started_at: rows[0]?.started_at || null });
 });
+
+/** Signed-in holder's wind-down position (gap fill 1). */
+exports.getMyWindDownStatus = wrap(async (req, res) => {
+  const flags = require('../services/paymentLayerFlags');
+  const access = await require('../services/creditCompliance/windDownService').holderAccess(req.user.id);
+  res.json({
+    active: access.active,
+    deadline: access.deadline,
+    holder: access.holder,
+    destinations_allowed: access.destinationsAllowed || (access.active && flags.isEnabled('CREDIT_CASHOUT')),
+    needs_destination: Boolean(access.needsDestination),
+    cashout_enabled: flags.isEnabled('CREDIT_CASHOUT'),
+    holdings: access.holdings,
+  });
+});

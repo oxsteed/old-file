@@ -38335,7 +38335,8 @@
         "cash": "espèces",
         "check": "chèque",
         "other": "autre moyen"
-      }
+      },
+      "requiredNote": "Les clients ne peuvent vous payer en OxSteed Credit qu’après votre accord. D’ici là, ils vous paieront autrement."
     },
     "disclosures": {
       "title": "Conditions d'OxSteed Credit",
@@ -38351,7 +38352,26 @@
     "windDown": {
       "title": "OxSteed Credit va fermer",
       "body": "Retirez ou dépensez votre solde avant le {{date}}.",
-      "after": "Votre argent reste protégé. Ce qui reste après cette date est conservé pour vous comme bien non réclamé, et vous pourrez toujours le réclamer."
+      "after": "Votre argent reste protégé. Ce qui reste après cette date est conservé pour vous comme bien non réclamé, et vous pourrez toujours le réclamer.",
+      "destinationsTitle": "Où vous rembourser votre argent",
+      "destinationsIntro": "Ajoutez un compte bancaire à votre nom et confirmez-le pour que nous puissions vous rendre votre solde avant le {{date}}. Les nouveaux comptes peuvent recevoir de l’argent après le délai de sécurité habituel.",
+      "holdingsLabel": "Vos soldes à rembourser",
+      "destination": {
+        "ready": "Compte bancaire prêt",
+        "missing": "Ajoutez un compte bancaire confirmé",
+        "cooling_off": "Le compte bancaire peut recevoir de l’argent à partir du {{date}}"
+      },
+      "holderStatus": {
+        "pending": "En attente de remboursement",
+        "notified": "En attente de remboursement",
+        "instructed": "Paiement envoyé à votre banque",
+        "returned": "Votre banque a renvoyé le paiement. Ajoutez ou vérifiez votre compte.",
+        "paid": "Remboursé",
+        "zero": "Plus rien à rembourser",
+        "unclaimed": "Conservé pour vous comme bien non réclamé"
+      },
+      "addDestination": "Ajoutez un compte bancaire pour récupérer votre argent",
+      "manageDestinations": "Vérifiez vos comptes bancaires"
     },
     "erasure": {
       "title": "La suppression de vos données est suspendue",

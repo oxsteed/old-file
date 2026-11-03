@@ -20,6 +20,8 @@ const { insertComplianceAudit } = require('./audit');
 const disclosures = require('./disclosureService');
 
 const ALTERNATIVES = Object.freeze(['bank_transfer', 'cash', 'check', 'other']);
+// Roles that can be paid for work (and therefore be paid wages in Credit).
+const WORKER_ROLES = Object.freeze(['helper', 'helper_pro', 'helper_free', 'broker']);
 
 function required() {
   return String(process.env.OXSTEED_CREDIT_WAGE_CONSENT_REQUIRED || '').trim().toLowerCase() === 'true';
@@ -36,11 +38,15 @@ async function latest(db, userId) {
 async function getWageConsent({ user, language = 'en', currency = 'USD', db = pool }) {
   const row = await latest(db, user.id);
   const terms = await disclosures.getDisclosure('wage_payment_terms', language || user.preferred_language, { currency, db });
+  // Gap fill 2: the choice is shown to every worker on its own, whether or
+  // not cash-out is on, and to anyone who has already made a choice.
+  const relevant = WORKER_ROLES.includes(String(user.role || '')) || Boolean(row);
   return {
     status: row ? row.decision : 'none',
     since: row ? row.created_at : null,
     alternative_method: row?.alternative_method || null,
     required: required(),
+    relevant,
     terms,
   };
 }
@@ -116,6 +122,7 @@ async function summary() {
 
 module.exports = {
   ALTERNATIVES,
+  WORKER_ROLES,
   required,
   getWageConsent,
   grantConsent,

@@ -18,6 +18,7 @@ const readJson = (p) => JSON.parse(read(p));
 const helperFiles = [
   'CreditCashoutPanel.jsx', 'CreditPayoutDestinations.jsx', 'CreditWageConsentPanel.jsx',
   'CreditDisclosuresPanel.jsx', 'CreditWindDownBanner.jsx', 'CreditErasurePanel.jsx', 'creditLicenceClient.js',
+  'CreditWindDownDestinations.jsx',
 ].map((f) => `src/components/paymentLayers/${f}`);
 const licenceDir = 'src/admin/pages/super/oxsteedCredit/licence';
 const adminFiles = ['src/admin/pages/super/oxsteedCredit/LicencePage.jsx',
@@ -165,4 +166,35 @@ test('licence panel styles are RTL-safe (logical properties only)', () => {
   for (const rel of [...helperFiles, ...adminFiles]) {
     assert.doesNotMatch(readClient(rel), /\b(?:ml|mr|pl|pr|left|right)-\d/, `${rel} uses physical Tailwind spacing`);
   }
+});
+
+test('gap fill 1: wind-down holders can manage payout accounts while cash-out is off', () => {
+  const wallet = readClient('src/pages/food/WalletPage.jsx');
+  assert.match(wallet, /<CreditWindDownDestinations\b/);
+  const section = readClient('src/components/paymentLayers/CreditWindDownDestinations.jsx');
+  assert.match(section, /\/payment-layers\/credit\/wind-down\/mine/);
+  assert.match(section, /<CreditPayoutDestinations\b/);
+  assert.match(section, /CREDIT_CASHOUT/);
+  assert.match(section, /destinations_allowed/);
+  const banner = readClient('src/components/paymentLayers/CreditWindDownBanner.jsx');
+  assert.match(banner, /\/wallet#\$\{PAYOUT_DESTINATIONS_ANCHOR\}/);
+  assert.match(banner, /\/payment-layers\/credit\/wind-down\/mine/);
+  const server = read(path.join(serverRoot, 'controllers/paymentLayersController.js'));
+  for (const fn of ['listPayoutDestinations', 'addPayoutDestination', 'verifyPayoutDestination', 'removePayoutDestination']) {
+    const body = server.split(`exports.${fn} =`)[1].split('exports.')[0];
+    assert.match(body, /await requireDestinationAccess\(req\)/, `${fn} must allow wind-down holders`);
+    assert.doesNotMatch(body, /requireFlag\('CREDIT_CASHOUT'\)/, `${fn} must not be hidden behind cash-out alone`);
+  }
+});
+
+test('gap fill 2: the wage consent panel stands on its own, outside the cash-out panel', () => {
+  const wallet = readClient('src/pages/food/WalletPage.jsx');
+  assert.match(wallet, /<CreditWageConsentPanel\s+standalone\b/);
+  const cashout = readClient('src/components/paymentLayers/CreditCashoutPanel.jsx');
+  assert.doesNotMatch(cashout, /CreditWageConsentPanel/);
+  const panel = readClient('src/components/paymentLayers/CreditWageConsentPanel.jsx');
+  assert.match(panel, /state\.relevant === false/);
+  assert.match(panel, /paymentRail\.wage\.requiredNote/);
+  const service = read(path.join(serverRoot, 'services/creditCompliance/wageConsentService.js'));
+  assert.match(service, /relevant,/);
 });

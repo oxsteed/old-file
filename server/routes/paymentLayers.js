@@ -54,6 +54,7 @@ router.get('/credit/wage-consent', authenticate, licence.getWageConsent);
 router.post('/credit/wage-consent', authenticate, rejectImpersonated, generalLimiter, licence.grantWageConsent);
 router.post('/credit/wage-consent/withdraw', authenticate, rejectImpersonated, generalLimiter, licence.withdrawWageConsent);
 router.get('/credit/wind-down', generalLimiter, licence.getWindDownStatus);
+router.get('/credit/wind-down/mine', authenticate, licence.getMyWindDownStatus);
 router.get('/cashout/disputes', authenticate, licence.listCashoutDisputes);
 router.post('/cashout/:id/dispute', authenticate, rejectImpersonated, paymentsLimiter, licence.openCashoutDispute);
 

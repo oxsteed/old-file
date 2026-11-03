@@ -2775,7 +2775,8 @@
         "cash": "cash",
         "check": "check",
         "other": "another method"
-      }
+      },
+      "requiredNote": "Customers can pay you in OxSteed Credit only after you agree. Until then, they will pay you another way."
     },
     "disclosures": {
       "title": "OxSteed Credit terms",
@@ -2791,7 +2792,26 @@
     "windDown": {
       "title": "OxSteed Credit is closing",
       "body": "Please cash out or spend your balance by {{date}}.",
-      "after": "Your money stays protected. Anything left after that date is kept for you as unclaimed property, and you can still claim it."
+      "after": "Your money stays protected. Anything left after that date is kept for you as unclaimed property, and you can still claim it.",
+      "destinationsTitle": "Where to send your money back",
+      "destinationsIntro": "Add a bank account in your own name and confirm it so we can return your balance before {{date}}. New accounts can receive money after the usual safety waiting period.",
+      "holdingsLabel": "Your balances to be returned",
+      "destination": {
+        "ready": "Bank account ready",
+        "missing": "Add a confirmed bank account",
+        "cooling_off": "Bank account can receive money from {{date}}"
+      },
+      "holderStatus": {
+        "pending": "Waiting to be returned",
+        "notified": "Waiting to be returned",
+        "instructed": "Payment sent to your bank",
+        "returned": "Your bank sent the payment back. Add or check your account.",
+        "paid": "Returned to you",
+        "zero": "Nothing left to return",
+        "unclaimed": "Kept for you as unclaimed property"
+      },
+      "addDestination": "Add a bank account to get your money back",
+      "manageDestinations": "Check your bank accounts"
     },
     "erasure": {
       "title": "Your data deletion is on hold",

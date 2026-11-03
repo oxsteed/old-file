@@ -1264,7 +1264,8 @@
         "cash": "現金",
         "check": "小切手",
         "other": "その他の方法"
-      }
+      },
+      "requiredNote": "お客様が同意後のみOxSteed Creditでお支払いいただけます。 それまで、別の方法で支払います。"
     },
     "disclosures": {
       "title": "OxSteed Credit 規約",
@@ -1280,7 +1281,26 @@
     "windDown": {
       "title": "OxSteed Credit は終了します",
       "body": "{{date}} までに残高を出金するか使い切ってください。",
-      "after": "お金は引き続き保護されます。その日以降に残った分は未請求財産として保管され、引き続き請求できます。"
+      "after": "お金は引き続き保護されます。その日以降に残った分は未請求財産として保管され、引き続き請求できます。",
+      "destinationsTitle": "送金する場所",
+      "destinationsIntro": "自分の名前に銀行口座を追加し、それを確認すると、{{date}}の前に残高を返すことができます。 通常の安全待ち期間を過ぎると、新規口座が送金できます。",
+      "holdingsLabel": "返される残高",
+      "destination": {
+        "ready": "銀行口座の準備",
+        "missing": "確認された銀行口座を追加",
+        "cooling_off": "銀行口座は{{date}}から送金できます。"
+      },
+      "holderStatus": {
+        "pending": "返品待ち",
+        "notified": "返品待ち",
+        "instructed": "銀行への送金",
+        "returned": "銀行が支払いを返送しました。 アカウントを追加または確認します。",
+        "paid": "あなたに戻る",
+        "zero": "戻りに残らない",
+        "unclaimed": "貴族の財産として、"
+      },
+      "addDestination": "あなたのお金を取り戻すために銀行口座を追加",
+      "manageDestinations": "銀行口座を確認する"
     },
     "erasure": {
       "title": "データ削除は保留中です",

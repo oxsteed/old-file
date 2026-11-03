@@ -166,11 +166,19 @@ async function loadPlan(client, planId) {
   return plan;
 }
 
+/**
+ * The holder's verified payout account in this currency. A newly verified
+ * account keeps the same cooling-off period as a cash-out (licence
+ * readiness §5): until it ends, or the account has already received a
+ * payout, it is reported as 'cooling_off' and the next issue run pays it.
+ */
 async function verifiedDestination(client, userId, currency) {
   const { rows } = await client.query(
-    `SELECT * FROM credit_payout_destinations
+    `SELECT *, (first_payout_at IS NULL AND cooling_off_until IS NOT NULL AND cooling_off_until > NOW()) AS in_cooling_off
+       FROM credit_payout_destinations
       WHERE user_id = $1 AND currency_code = $2 AND status = 'verified'
-      ORDER BY first_payout_at DESC NULLS LAST, verified_at DESC LIMIT 1`,
+      ORDER BY (first_payout_at IS NULL AND cooling_off_until IS NOT NULL AND cooling_off_until > NOW()) ASC,
+               first_payout_at DESC NULLS LAST, verified_at DESC LIMIT 1`,
     [userId, currency]
   );
   return rows[0] || null;
@@ -186,7 +194,7 @@ async function applyIssueRedemptions({ client, payload, actorUserId, requestedBy
   );
   const { reserveFunds } = require('../oxsteedCreditReservationService');
   const bank = require('../creditBankPayoutService');
-  const out = { instructed: 0, awaitingDestination: 0, zero: 0, totalMinor: {} };
+  const out = { instructed: 0, awaitingDestination: 0, coolingOff: 0, zero: 0, totalMinor: {} };
   for (const h of holders) {
     const { rows: [account] } = await client.query('SELECT * FROM oxsteed_credit_accounts WHERE id = $1 FOR UPDATE', [h.account_id]);
     const available = Number(account.balance_cents) - Number(account.reserved_cents || 0);
@@ -197,6 +205,7 @@ async function applyIssueRedemptions({ client, payload, actorUserId, requestedBy
     }
     const destination = h.holder_user_id ? await verifiedDestination(client, h.holder_user_id, h.currency_code) : null;
     if (!destination) { out.awaitingDestination += 1; continue; }
+    if (destination.in_cooling_off) { out.coolingOff += 1; continue; }
     const attempt = Number(h.attempts) + 1;
     const { reservation } = await reserveFunds(client, {
       accountId: account.id, reservationType: 'wind_down_redemption', referenceType: 'credit_wind_down_holder',
@@ -217,7 +226,7 @@ async function applyIssueRedemptions({ client, payload, actorUserId, requestedBy
   }
   await insertComplianceAudit(client, {
     actionType: 'credit.wind_down.redemptions_issued', actorUserId, resourceType: 'credit_wind_down_plan', resourceId: String(plan.id),
-    reason: `Instructed ${out.instructed}; awaiting destination ${out.awaitingDestination}; zero ${out.zero}`, afterState: { ...out, requestedBy },
+    reason: `Instructed ${out.instructed}; awaiting destination ${out.awaitingDestination}; cooling off ${out.coolingOff}; zero ${out.zero}`, afterState: { ...out, requestedBy },
   });
   return out;
 }
@@ -414,6 +423,60 @@ async function listHolders({ planId, status = null, limit = 200, afterId = null 
   return rows.map((r) => ({ ...r, id: String(r.id), account_id: String(r.account_id) }));
 }
 
+/**
+ * What one signed-in person needs during a wind-down (gap fill 1): whether
+ * a plan is active, their redeemable holdings in it, and for each currency
+ * whether a payout account is ready, still in cooling-off, or missing.
+ * Holders whose redemption is not finished may manage payout accounts even
+ * while helper cash-out (FEATURE_CREDIT_CASHOUT) is off; verification and
+ * cooling-off rules are unchanged.
+ */
+async function holderAccess(userId, db = pool) {
+  const { rows: plans } = await db.query(
+    `SELECT id, redemption_deadline::text AS deadline FROM credit_wind_down_plans WHERE status = 'active' LIMIT 1`
+  );
+  const plan = plans[0];
+  if (!plan) return { active: false, deadline: null, holder: false, destinationsAllowed: false, needsDestination: false, holdings: [] };
+  const { rows } = await db.query(
+    `SELECT h.currency_code, h.status, h.snapshot_balance_minor::text AS snapshot_balance_minor, h.account_type,
+            d.id AS destination_id,
+            (d.first_payout_at IS NULL AND d.cooling_off_until IS NOT NULL AND d.cooling_off_until > NOW()) AS in_cooling_off,
+            d.cooling_off_until
+       FROM credit_wind_down_holders h
+       LEFT JOIN LATERAL (
+         SELECT id, first_payout_at, cooling_off_until FROM credit_payout_destinations
+          WHERE user_id = h.holder_user_id AND currency_code = h.currency_code AND status = 'verified'
+          ORDER BY (first_payout_at IS NULL AND cooling_off_until IS NOT NULL AND cooling_off_until > NOW()) ASC,
+                   first_payout_at DESC NULLS LAST, verified_at DESC LIMIT 1
+       ) d ON TRUE
+      WHERE h.plan_id = $1 AND h.holder_user_id = $2
+      ORDER BY h.id`,
+    [plan.id, userId]
+  );
+  const holdings = rows.map((r) => {
+    const currency = String(r.currency_code).trim();
+    let destination = 'missing';
+    if (r.destination_id) destination = r.in_cooling_off ? 'cooling_off' : 'ready';
+    return {
+      currency,
+      account_type: r.account_type,
+      status: r.status,
+      snapshot_balance_minor: r.snapshot_balance_minor,
+      destination,
+      cooling_off_until: r.in_cooling_off ? r.cooling_off_until : null,
+    };
+  });
+  const open = holdings.filter((h) => !TERMINAL.includes(h.status));
+  return {
+    active: true,
+    deadline: plan.deadline,
+    holder: holdings.length > 0,
+    destinationsAllowed: open.length > 0,
+    needsDestination: open.some((h) => h.destination === 'missing'),
+    holdings,
+  };
+}
+
 function registerOversightActions(register) {
   register('credit_wind_down_start', applyStart);
   register('credit_wind_down_issue_redemptions', applyIssueRedemptions);
@@ -434,5 +497,6 @@ module.exports = {
   applyCancel,
   getStatus,
   listHolders,
+  holderAccess,
   registerOversightActions,
 };

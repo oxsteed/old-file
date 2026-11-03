@@ -1264,7 +1264,8 @@
         "cash": "tunai",
         "check": "cek",
         "other": "metode lain"
-      }
+      },
+      "requiredNote": "Pelanggan dapat membayar Anda di OxSteed Credit hanya setelah Anda setuju. Sampai saat itu, mereka akan membayarmu dengan cara lain."
     },
     "disclosures": {
       "title": "Ketentuan OxSteed Credit",
@@ -1280,7 +1281,26 @@
     "windDown": {
       "title": "OxSteed Credit akan ditutup",
       "body": "Harap tarik atau belanjakan saldo Anda paling lambat {{date}}.",
-      "after": "Uang Anda tetap terlindungi. Sisa saldo setelah tanggal itu disimpan untuk Anda sebagai harta tak diklaim, dan Anda tetap dapat mengklaimnya."
+      "after": "Uang Anda tetap terlindungi. Sisa saldo setelah tanggal itu disimpan untuk Anda sebagai harta tak diklaim, dan Anda tetap dapat mengklaimnya.",
+      "destinationsTitle": "Dimana untuk mengirim uang Anda kembali",
+      "destinationsIntro": "Tambahkan rekening bank dalam nama Anda sendiri dan mengkonfirmasikannya sehingga kita dapat kembali saldo Anda sebelum {{date}}. Rekening baru dapat menerima uang setelah periode menunggu keamanan biasa.",
+      "holdingsLabel": "saldo Anda akan dikembalikan",
+      "destination": {
+        "ready": "Rekening bank siap",
+        "missing": "Tambahkan akun bank yang dikonfirmasi",
+        "cooling_off": "Rekening bank dapat menerima uang dari {{date}}"
+      },
+      "holderStatus": {
+        "pending": "Menunggu untuk dikembalikan",
+        "notified": "Menunggu untuk dikembalikan",
+        "instructed": "Pembayaran dikirim ke bank Anda",
+        "returned": "Bank Menerimanya. Tambahkan Menerimanya.",
+        "paid": "Kembali kepada Anda",
+        "zero": "Tak Mm-hmm.",
+        "unclaimed": "Disimpan untuk Anda sebagai properti yang tidak diklaim"
+      },
+      "addDestination": "Tambahkan rekening bank untuk mendapatkan uang zzle Bila Anda ingin LionTindakan Bagusnya",
+      "manageDestinations": "Periksa rekening bank Anda"
     },
     "erasure": {
       "title": "Penghapusan data Anda ditunda",

@@ -436,5 +436,32 @@ describeDatabase('consumer protection (licence readiness §7)', () => {
       const s = await wage().summary();
       expect(s.counts.withdrawn).toBeGreaterThanOrEqual(1);
     });
+
+    test('gap fill 2: the wage choice is offered to every worker on its own, regardless of cash-out', async () => {
+      const previous = process.env.FEATURE_CREDIT_CASHOUT;
+      delete process.env.FEATURE_CREDIT_CASHOUT;
+      try {
+        const helperId = await createUser('helper', { lang: 'fr' });
+        const helper = await wage().getWageConsent({ user: { id: helperId, role: 'helper' }, language: 'fr' });
+        expect(helper).toMatchObject({ status: 'none', relevant: true, required: false });
+        const customerId = await createUser('customer');
+        const customer = await wage().getWageConsent({ user: { id: customerId, role: 'customer' } });
+        expect(customer).toMatchObject({ status: 'none', relevant: false });
+        process.env.OXSTEED_CREDIT_WAGE_CONSENT_REQUIRED = 'true';
+        try {
+          const required = await wage().getWageConsent({ user: { id: helperId, role: 'helper' }, language: 'fr' });
+          expect(required).toMatchObject({ relevant: true, required: true });
+          await wage().grantConsent({ user: { id: helperId, role: 'helper' }, language: 'fr', termsSha256: required.terms.sha256 });
+          expect(await wage().helperAcceptsCreditWages(pool, helperId)).toBe(true);
+        } finally {
+          delete process.env.OXSTEED_CREDIT_WAGE_CONSENT_REQUIRED;
+        }
+        // Someone whose role changed keeps seeing the choice they made.
+        await pool.query(`UPDATE users SET role = 'customer' WHERE id = $1`, [helperId]);
+        expect((await wage().getWageConsent({ user: { id: helperId, role: 'customer' } })).relevant).toBe(true);
+      } finally {
+        if (previous === undefined) delete process.env.FEATURE_CREDIT_CASHOUT; else process.env.FEATURE_CREDIT_CASHOUT = previous;
+      }
+    });
   });
 });

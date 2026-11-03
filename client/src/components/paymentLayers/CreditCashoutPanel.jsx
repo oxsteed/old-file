@@ -5,7 +5,6 @@ import api from '../../api/axios';
 import { formatMoney, toMinor } from '../../shared/money.js';
 import usePaymentLayersConfig from '../../hooks/usePaymentLayersConfig';
 import CreditPayoutDestinations from './CreditPayoutDestinations';
-import CreditWageConsentPanel from './CreditWageConsentPanel';
 import {
   CANCELABLE_CASHOUT_STATUSES, OPEN_DISPUTE_STATUSES, formatDay, newIdempotencyKey, reasonMessage,
 } from './creditLicenceClient';
@@ -131,9 +130,8 @@ export default function CreditCashoutPanel() {
       {eligibility.currency && <p className="ox-credit-panel-copy">{t('paymentRail.cashout.available', { amount: fmt(eligibility.available_minor) })}</p>}
 
       <div className="ox-licence-body">
-        <CreditWageConsentPanel currency={currency} />
-
         {eligibility.currency && (
+          <div id="credit-payout-destinations">
           <CreditPayoutDestinations
             destinations={destinations}
             coolingOffDays={coolingOffDays}
@@ -141,6 +139,7 @@ export default function CreditCashoutPanel() {
             defaultCurrency={eligibility.currency}
             onChange={load}
           />
+          </div>
         )}
 
         {eligibility.available && (

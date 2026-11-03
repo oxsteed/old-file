@@ -34445,7 +34445,8 @@
         "cash": "contanti",
         "check": "assegno",
         "other": "altro metodo"
-      }
+      },
+      "requiredNote": "I clienti possono pagare in OxSteed Credit solo dopo aver accettato. Fino ad allora, ti pagheranno un altro modo."
     },
     "disclosures": {
       "title": "Termini di OxSteed Credit",
@@ -34461,7 +34462,26 @@
     "windDown": {
       "title": "OxSteed Credit sta chiudendo",
       "body": "Preleva o spendi il tuo saldo entro il {{date}}.",
-      "after": "Il tuo denaro resta protetto. Quanto rimane dopo quella data viene custodito per te come bene non reclamato, e puoi ancora richiederlo."
+      "after": "Il tuo denaro resta protetto. Quanto rimane dopo quella data viene custodito per te come bene non reclamato, e puoi ancora richiederlo.",
+      "destinationsTitle": "Dove inviare i vostri soldi indietro",
+      "destinationsIntro": "Aggiungi un conto in banca a tuo nome e confermalo in modo da poter restituire il tuo saldo prima {{date}}. I nuovi conti possono ricevere denaro dopo il solito periodo di attesa di sicurezza.",
+      "holdingsLabel": "Le tue bilance da restituire",
+      "destination": {
+        "ready": "conto bancario pronto",
+        "missing": "Aggiungi un conto bancario confermato",
+        "cooling_off": "Il conto bancario può ricevere denaro da {{date}}"
+      },
+      "holderStatus": {
+        "pending": "In attesa di essere restituito",
+        "notified": "In attesa di essere restituito",
+        "instructed": "Pagamento inviato alla tua banca",
+        "returned": "E' un'altra volta. E' un'altra volta.",
+        "paid": "Tornato a voi",
+        "zero": "n.",
+        "unclaimed": "Tenuto per voi come proprietà non reclamata"
+      },
+      "addDestination": "Aggiungi un conto in banca per recuperare i tuoi soldi",
+      "manageDestinations": "Controlla i tuoi conti bancari"
     },
     "erasure": {
       "title": "La cancellazione dei tuoi dati è sospesa",

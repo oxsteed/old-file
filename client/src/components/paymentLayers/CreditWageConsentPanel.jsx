@@ -10,8 +10,12 @@ const ALTERNATIVES = ['bank_transfer', 'cash', 'check', 'other'];
  * Wage-payment consent (licence readiness §7): pay arrives in OxSteed Credit
  * only after the helper agrees to the current terms; they can withdraw at
  * any time and choose another way to be paid.
+ *
+ * Gap fill 2: rendered on its own (standalone) for every worker, whether or
+ * not cash-out is on, because a customer cannot pay them in Credit while
+ * OXSTEED_CREDIT_WAGE_CONSENT_REQUIRED is on and no consent is recorded.
  */
-export default function CreditWageConsentPanel({ currency }) {
+export default function CreditWageConsentPanel({ currency, standalone = false }) {
   const { t, i18n } = useTranslation();
   const [state, setState] = useState(null);
   const [agreed, setAgreed] = useState(false);
@@ -25,7 +29,7 @@ export default function CreditWageConsentPanel({ currency }) {
       .then(({ data }) => setState(data)).catch(() => setState(null));
   }, [lang, currency]);
   useEffect(() => { load(); }, [load]);
-  if (!state) return null;
+  if (!state || state.relevant === false) return null;
 
   const grant = async (event) => {
     event.preventDefault();
@@ -55,10 +59,14 @@ export default function CreditWageConsentPanel({ currency }) {
   };
 
   const granted = state.status === 'granted';
-  return (
+  const Heading = standalone ? 'h2' : 'h3';
+  const body = (
     <div className="ox-licence-block" aria-labelledby="wage-consent-h">
-      <h3 id="wage-consent-h">{t('paymentRail.wage.title')}</h3>
+      <Heading id="wage-consent-h">{t('paymentRail.wage.title')}</Heading>
       <p className="ox-licence-copy">{t('paymentRail.wage.intro')}</p>
+      {state.required && state.status !== 'granted' && (
+        <p className="ox-licence-copy" role="note">{t('paymentRail.wage.requiredNote')}</p>
+      )}
       <p className="ox-licence-copy" role="status">
         {granted && t('paymentRail.wage.statusGranted', { date: formatDay(state.since, lang) })}
         {state.status === 'withdrawn' && t('paymentRail.wage.statusWithdrawn', { method: t(`paymentRail.wage.alt.${state.alternative_method}`, { defaultValue: state.alternative_method || '' }) })}
@@ -90,5 +98,11 @@ export default function CreditWageConsentPanel({ currency }) {
         </form>
       )}
     </div>
+  );
+  if (!standalone) return body;
+  return (
+    <section className="ox-credit-panel ox-licence-panel" dir={i18n.dir?.()}>
+      <div className="ox-licence-body">{body}</div>
+    </section>
   );
 }

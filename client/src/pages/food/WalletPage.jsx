@@ -11,6 +11,8 @@ import OxsteedCreditTopupPanel from '../../components/credit/OxsteedCreditTopupP
 import IdentityVerificationPanel from '../../components/credit/IdentityVerificationPanel';
 import CreditCashoutPanel from '../../components/paymentLayers/CreditCashoutPanel';
 import CreditWindDownBanner from '../../components/paymentLayers/CreditWindDownBanner';
+import CreditWindDownDestinations from '../../components/paymentLayers/CreditWindDownDestinations';
+import CreditWageConsentPanel from '../../components/paymentLayers/CreditWageConsentPanel';
 import CreditDisclosuresPanel from '../../components/paymentLayers/CreditDisclosuresPanel';
 import CreditErasurePanel from '../../components/paymentLayers/CreditErasurePanel';
 import {
@@ -199,7 +201,9 @@ export default function WalletPage() {
 
           <WalletRestaurantWallets onWalletsLoaded={setRestaurantWalletCount} />
           <CreditDisclosuresPanel currency={selectedCurrency} />
+          <CreditWageConsentPanel standalone currency={selectedCurrency} />
           <CreditCashoutPanel />
+          <CreditWindDownDestinations />
           <CreditErasurePanel />
 
           <p className="ox-credit-footnote" role="note">{t('disclaimerBody')}</p>

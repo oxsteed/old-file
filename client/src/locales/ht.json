@@ -38335,7 +38335,8 @@
         "cash": "lajan kach",
         "check": "chèk",
         "other": "yon lòt metòd"
-      }
+      },
+      "requiredNote": "Kliyan yo ka peye ou an OxSteed Credit sèlman apre ou dakò. Jiskaske sa, y ap peye ou yon lòt fason."
     },
     "disclosures": {
       "title": "Kondisyon OxSteed Credit",
@@ -38351,7 +38352,26 @@
     "windDown": {
       "title": "OxSteed Credit ap fèmen",
       "body": "Tanpri retire oswa depanse balans ou anvan {{date}}.",
-      "after": "Lajan ou rete pwoteje. Sa ki rete apre dat sa a kenbe pou ou kòm byen ki pa reklame, epi ou ka toujou reklame l."
+      "after": "Lajan ou rete pwoteje. Sa ki rete apre dat sa a kenbe pou ou kòm byen ki pa reklame, epi ou ka toujou reklame l.",
+      "destinationsTitle": "Ki kote pou nou voye lajan ou ba ou",
+      "destinationsIntro": "Ajoute yon kont labank ki sou non pa ou epi konfime l pou nou ka remèt ou balans ou anvan {{date}}. Nouvo kont ka resevwa lajan apre tan datant sekirite abityèl la.",
+      "holdingsLabel": "Balans ou ki pou remèt ou",
+      "destination": {
+        "ready": "Kont labank lan pare",
+        "missing": "Ajoute yon kont labank ki konfime",
+        "cooling_off": "Kont labank lan ka resevwa lajan apati {{date}}"
+      },
+      "holderStatus": {
+        "pending": "Ap tann pou yo remèt li",
+        "notified": "Ap tann pou yo remèt li",
+        "instructed": "Peman an voye bay bank ou",
+        "returned": "Bank ou voye peman an tounen. Ajoute oswa verifye kont ou.",
+        "paid": "Yo remèt ou li",
+        "zero": "Pa gen anyen ki rete pou remèt",
+        "unclaimed": "Yo kenbe l pou ou kòm byen ou poko reklame"
+      },
+      "addDestination": "Ajoute yon kont labank pou w resevwa lajan ou",
+      "manageDestinations": "Verifye kont labank ou yo"
     },
     "erasure": {
       "title": "Efasman done ou yo kanpe pou kounye a",

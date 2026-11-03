@@ -1264,7 +1264,8 @@
         "cash": "Bargeld",
         "check": "Scheck",
         "other": "andere Methode"
-      }
+      },
+      "requiredNote": "Kunden können Sie in OxSteed Credit erst bezahlen, nachdem Sie zugestimmt haben. Bis dahin werden sie dir einen anderen Weg bezahlen."
     },
     "disclosures": {
       "title": "Bedingungen für OxSteed Credit",
@@ -1280,7 +1281,26 @@
     "windDown": {
       "title": "OxSteed Credit wird eingestellt",
       "body": "Bitte zahlen Sie Ihr Guthaben bis zum {{date}} aus oder geben Sie es aus.",
-      "after": "Ihr Geld bleibt geschützt. Was nach diesem Datum übrig ist, wird als nicht beanspruchtes Vermögen für Sie aufbewahrt, und Sie können es weiterhin einfordern."
+      "after": "Ihr Geld bleibt geschützt. Was nach diesem Datum übrig ist, wird als nicht beanspruchtes Vermögen für Sie aufbewahrt, und Sie können es weiterhin einfordern.",
+      "destinationsTitle": "Wohin Sie Ihr Geld zurückschicken",
+      "destinationsIntro": "Fügen Sie ein Bankkonto in Ihrem eigenen Namen hinzu und bestätigen Sie es, damit wir Ihr Guthaben vor {{date}} zurückgeben können. Neue Konten können nach der üblichen Sicherheitswartezeit Geld erhalten.",
+      "holdingsLabel": "Ihre Salden werden zurückgegeben",
+      "destination": {
+        "ready": "Bankkonto bereit",
+        "missing": "Hinzufügen eines bestätigten Bankkontos",
+        "cooling_off": "Bankkonto kann Geld von {{date}} erhalten"
+      },
+      "holderStatus": {
+        "pending": "Warten auf Rückkehr",
+        "notified": "Warten auf Rückkehr",
+        "instructed": "Zahlung an Ihre Bank gesendet",
+        "returned": "Ihre Bank hat die Zahlung zurückgeschickt. Fügen oder überprüfen Sie Ihr Konto.",
+        "paid": "Zurück zu dir",
+        "zero": "Nichts bleibt zurück",
+        "unclaimed": "Gepflegt für Sie als nicht beanspruchtes Eigentum"
+      },
+      "addDestination": "Fügen Sie ein Bankkonto hinzu, um Ihr Geld zurückzubekommen",
+      "manageDestinations": "Überprüfen Sie Ihre Bankkonten"
     },
     "erasure": {
       "title": "Die Löschung Ihrer Daten ist angehalten",

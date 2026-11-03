@@ -169,13 +169,26 @@ exports.issueCashoutStepup = wrap(async (req, res) => {
 
 const destinations = require('../services/creditPayoutDestinationService');
 
+/**
+ * Payout accounts are needed for cash-out AND for wind-down redemption
+ * (licence readiness §10). While cash-out is off, a holder in an active
+ * wind-down may still add, verify, list and remove their own accounts so
+ * their money can be returned. Verification and cooling-off are unchanged.
+ */
+async function requireDestinationAccess(req) {
+  if (flags.isEnabled('CREDIT_CASHOUT')) return { cashout: true };
+  const access = await require('../services/creditCompliance/windDownService').holderAccess(req.user.id);
+  if (!access.destinationsAllowed) throw new AppError('Not available', 404, 'feature_disabled');
+  return { cashout: false, windDown: access };
+}
+
 exports.listPayoutDestinations = wrap(async (req, res) => {
-  requireFlag('CREDIT_CASHOUT');
+  await requireDestinationAccess(req);
   res.json({ destinations: await destinations.listDestinations(req.user), cooling_off_days: destinations.COOLING_OFF_DAYS });
 });
 
 exports.addPayoutDestination = wrap(async (req, res) => {
-  requireFlag('CREDIT_CASHOUT');
+  await requireDestinationAccess(req);
   const b = req.body || {};
   const destination = await destinations.addDestination({
     user: req.user,
@@ -190,7 +203,7 @@ exports.addPayoutDestination = wrap(async (req, res) => {
 });
 
 exports.verifyPayoutDestination = wrap(async (req, res) => {
-  requireFlag('CREDIT_CASHOUT');
+  await requireDestinationAccess(req);
   const destination = await destinations.verifyDestination({
     user: req.user, destinationId: req.params.id, amounts: req.body?.amounts_minor || null, code: req.body?.code || null,
     isImpersonated: Boolean(req.isImpersonated), requestIp: req.ip || null,
@@ -199,7 +212,7 @@ exports.verifyPayoutDestination = wrap(async (req, res) => {
 });
 
 exports.removePayoutDestination = wrap(async (req, res) => {
-  requireFlag('CREDIT_CASHOUT');
+  await requireDestinationAccess(req);
   res.json({ destination: await destinations.disableDestination({ user: req.user, destinationId: req.params.id, isImpersonated: Boolean(req.isImpersonated) }) });
 });
 

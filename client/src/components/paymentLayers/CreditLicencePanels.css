@@ -31,3 +31,6 @@
 .ox-licence-banner { margin-block: 18px; padding-block: 16px; padding-inline: 20px; border: 1px solid #e0a43a; border-radius: 16px; background: #fff6e5; color: #5a3b00; }
 .ox-licence-banner h2 { margin: 0 0 6px; font-size: 17px; }
 .ox-licence-banner p { margin: 4px 0 0; font-size: 13px; line-height: 1.55; }
+.ox-licence-status-ready { color: var(--oc-green, #19703f); background: var(--oc-green-soft, #e3f5ea); }
+.ox-licence-status-missing { color: #a3261b; background: #fdecea; }
+.ox-licence-status-cooling_off { color: #5a3b00; background: #fff6e5; }

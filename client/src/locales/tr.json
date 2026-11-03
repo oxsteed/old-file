@@ -34465,7 +34465,8 @@
         "cash": "nakit",
         "check": "çek",
         "other": "başka bir yöntem"
-      }
+      },
+      "requiredNote": "Müşteriler size ödeme yapabilir OxSteed Credit Sadece kabul ettikten sonra. O zamana kadar sizi başka bir şekilde ödeyecekler."
     },
     "disclosures": {
       "title": "OxSteed Credit koşulları",
@@ -34481,7 +34482,26 @@
     "windDown": {
       "title": "OxSteed Credit kapanıyor",
       "body": "Lütfen bakiyenizi {{date}} tarihine kadar çekin veya harcayın.",
-      "after": "Paranız korunmaya devam eder. Bu tarihten sonra kalan tutar sizin için sahipsiz mal olarak saklanır ve yine de talep edebilirsiniz."
+      "after": "Paranız korunmaya devam eder. Bu tarihten sonra kalan tutar sizin için sahipsiz mal olarak saklanır ve yine de talep edebilirsiniz.",
+      "destinationsTitle": "Paranızı nereye geri gönder",
+      "destinationsIntro": "Kendi adınızda bir banka hesabı ekleyin ve bunu onaylayın, böylece bakiyenizi {{date}}'dan önce geri alabiliriz. Yeni hesaplar her zamanki güvenlik bekleme süresinden sonra para alabilir.",
+      "holdingsLabel": "Dengeleriniz geri döndü",
+      "destination": {
+        "ready": "Banka hesabı hazır",
+        "missing": "Onaylanmış bir banka hesabı ekleyin",
+        "cooling_off": "Banka hesabı {{date}} para alabilir"
+      },
+      "holderStatus": {
+        "pending": "Geri dönmek için",
+        "notified": "Geri dönmek için",
+        "instructed": "Bankanıza gönderilen ödeme",
+        "returned": "Bankanız ödemeyi geri gönderdi. Hesabınızı ekleyin veya kontrol edin.",
+        "paid": "Size geri döndün",
+        "zero": "Hiçbir şey geri dönmedi",
+        "unclaimed": "Vazgeçilmez mülk olarak sizin için Kept"
+      },
+      "addDestination": "Paranızı geri almak için bir banka hesabı ekleyin",
+      "manageDestinations": "Banka hesaplarınızı kontrol edin"
     },
     "erasure": {
       "title": "Verilerinizin silinmesi beklemede",

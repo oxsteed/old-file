@@ -34445,7 +34445,8 @@
         "cash": "현금",
         "check": "수표",
         "other": "기타 방법"
-      }
+      },
+      "requiredNote": "고객은 동의한 후에 OxSteed Credit에서만 지불할 수 있습니다. 그때까지, 그들은 당신에게 다른 방법을 지불합니다."
     },
     "disclosures": {
       "title": "OxSteed Credit 약관",
@@ -34461,7 +34462,26 @@
     "windDown": {
       "title": "OxSteed Credit 서비스가 종료됩니다",
       "body": "{{date}}까지 잔액을 출금하거나 사용하세요.",
-      "after": "돈은 계속 보호됩니다. 그 이후 남은 금액은 미청구 재산으로 보관되며 계속 청구할 수 있습니다."
+      "after": "돈은 계속 보호됩니다. 그 이후 남은 금액은 미청구 재산으로 보관되며 계속 청구할 수 있습니다.",
+      "destinationsTitle": "돈 뒤를 보낼 곳",
+      "destinationsIntro": "자신의 이름에 은행 계좌를 추가하고 {{date}} 전에 균형을 반환 할 수 있도록 확인. 새로운 계정은 보통 안전 대기 기간 후에 돈을받을 수 있습니다.",
+      "holdingsLabel": "당신의 잔액을 반환",
+      "destination": {
+        "ready": "은행 계좌 준비",
+        "missing": "확인된 은행 계좌 추가",
+        "cooling_off": "은행 계좌에서 돈을받을 수 있습니다 {{date}}"
+      },
+      "holderStatus": {
+        "pending": "반환 될 기대",
+        "notified": "반환 될 기대",
+        "instructed": "지불 조건",
+        "returned": "당신의 은행은 지불 뒤를 보냈습니다. 계정 추가 또는 확인.",
+        "paid": "너에게",
+        "zero": "아무것도 반환",
+        "unclaimed": "재산에 대한 Kept"
+      },
+      "addDestination": "은행 계좌를 추가하여 돈을 돌려",
+      "manageDestinations": "은행 계좌 확인"
     },
     "erasure": {
       "title": "데이터 삭제가 보류되었습니다",

@@ -34445,7 +34445,8 @@
         "cash": "dinheiro",
         "check": "cheque",
         "other": "outro método"
-      }
+      },
+      "requiredNote": "Os clientes podem pagar-lhe em OxSteed Credit Só depois de concordares. Até lá, pagar-te-ão de outra forma."
     },
     "disclosures": {
       "title": "Termos do OxSteed Credit",
@@ -34461,7 +34462,26 @@
     "windDown": {
       "title": "O OxSteed Credit está sendo encerrado",
       "body": "Saque ou gaste seu saldo até {{date}}.",
-      "after": "Seu dinheiro continua protegido. O que restar após essa data será guardado para você como bem não reclamado, e você ainda poderá reivindicá-lo."
+      "after": "Seu dinheiro continua protegido. O que restar após essa data será guardado para você como bem não reclamado, e você ainda poderá reivindicá-lo.",
+      "destinationsTitle": "Onde enviar o seu dinheiro de volta",
+      "destinationsIntro": "Adicione uma conta bancária em seu próprio nome e confirme-a para que possamos devolver seu saldo antes de {{date}}. Novas contas podem receber dinheiro após o período de espera habitual de segurança.",
+      "holdingsLabel": "Os teus saldos a devolver",
+      "destination": {
+        "ready": "Conta bancária pronta",
+        "missing": "Adicionar uma conta bancária confirmada",
+        "cooling_off": "Conta bancária pode receber dinheiro de {{date}}"
+      },
+      "holderStatus": {
+        "pending": "À espera de ser devolvido",
+        "notified": "À espera de ser devolvido",
+        "instructed": "Pagamento enviado para o seu banco",
+        "returned": "O seu banco devolveu o pagamento. Adicione ou verifique sua conta.",
+        "paid": "Voltou para ti.",
+        "zero": "Não sobrou nada para voltar",
+        "unclaimed": "Guardado para você como propriedade não reclamada"
+      },
+      "addDestination": "Adicione uma conta bancária para recuperar seu dinheiro",
+      "manageDestinations": "- Não."
     },
     "erasure": {
       "title": "A exclusão dos seus dados está suspensa",
