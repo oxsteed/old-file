@@ -42,10 +42,18 @@ test('workspace navigation defers inactive editors and remains usable during del
         await tabs.locator('.active').waitFor();
         await page.locator('.bh-switcher').waitFor();
         timings.push({ language, transition: 'cold-workspace', ms: Date.now() - start });
+        assert.equal(await page.getByRole('main').count(), 1);
+        await page.locator('.skip-nav').focus();
+        await page.keyboard.press('Enter');
+        await page.waitForFunction(() => document.activeElement.id === 'main-content');
         for (const editor of editors) assert.equal(assets.some(asset => asset.includes(`/${editor}-`)), false, `${editor} is not needed for overview`);
 
-        await tabs.getByRole('button', { name: catalog.businessHub.tabEditProfile, exact: true }).click();
-        await page.locator('.bh-loading', { hasText: catalog.businessHub.rooms.loadingWorkspace }).waitFor();
+        const profileTab = tabs.getByRole('button', { name: catalog.businessHub.tabEditProfile, exact: true });
+        await profileTab.focus();
+        assert.equal(await profileTab.evaluate(node => getComputedStyle(node).outlineStyle), 'solid');
+        await page.keyboard.press('Enter');
+        await page.getByRole('status').filter({ hasText: catalog.businessHub.rooms.loadingWorkspace }).waitFor();
+        assert.equal(await profileTab.getAttribute('aria-pressed'), 'true');
         assert.equal(await page.locator('.ox-navbar').count(), 1);
         assert.ok(await tabs.getByRole('button', { name: catalog.businessHub.tabOverview, exact: true }).isEnabled());
         await tabs.getByRole('button', { name: catalog.businessHub.tabOverview, exact: true }).click();
