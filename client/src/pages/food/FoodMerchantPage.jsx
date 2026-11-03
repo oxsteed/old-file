@@ -719,7 +719,15 @@ function OrdersTab({ t, restaurant }) {
     }
   };
 
+  // Finding 9: Cancel and Mark paid are single-click money actions no
+  // longer: each confirms with the order, the amount, and the
+  // consequence, matching the refund modal on this page. A paid card
+  // order cancelled here triggers a refund; marking paid asserts the
+  // full amount due was received.
   const cancel = async (order) => {
+    const amount = formatFoodMoney(order.total_cents, order.currency_code);
+    const label = order.queue_number ? `#${order.queue_number}` : `#${order.id}`;
+    if (!window.confirm(t('food.merchant.orderCenter.cancelConfirm', { order: label, amount }))) return;
     try {
       await updateFoodOrderStatus(restaurant.id, order.id, 'cancelled');
       refreshOrderInView(order.id);
@@ -729,6 +737,10 @@ function OrdersTab({ t, restaurant }) {
   };
 
   const markPaid = async (order) => {
+    const amountCentsPreview = Number(order.amount_due_cents ?? order.balance_due_cents ?? order.total_cents ?? 0);
+    const amount = formatFoodMoney(amountCentsPreview, order.currency_code);
+    const label = order.queue_number ? `#${order.queue_number}` : `#${order.id}`;
+    if (!window.confirm(t('food.merchant.orderCenter.markPaidConfirm', { order: label, amount }))) return;
     try {
       const externalPayment = orderExternalPayment(order);
       const submission = externalPayment?.submission || externalPayment?.proof || externalPayment?.paymentProof || {};
@@ -860,6 +872,7 @@ function OrdersTab({ t, restaurant }) {
           <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openKiosk')}</Link>
           <Link to={`/restaurants/inventory/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openInventory')}</Link>
           <Link to={`/restaurants/runner/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openRunner')}</Link>
+          <Link to={`/restaurants/merchant/support?restaurantId=${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('restaurantSupport.merchantSupportLink')}</Link>
         </nav>
       </header>
 
@@ -1429,6 +1442,14 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
       label: t(`food.restaurantStatus.${restaurant.status}`, restaurant.status),
     },
     {
+      key: 'verified',
+      target: 'ordering',
+      tone: restaurant.is_verified ? 'ok' : 'off',
+      label: restaurant.is_verified
+        ? t('food.merchant.stChipVerified')
+        : t('food.merchant.stChipUnverified'),
+    },
+    {
       key: 'online',
       target: 'ordering',
       tone: restaurant.accepts_online_orders ? 'ok' : 'off',
@@ -1555,6 +1576,9 @@ function SettingsTab({ t, i18n, restaurant, onUpdated, onSetupChanged }) {
           cardKey="ordering"
           registerRef={registerCard}
         >
+          {restaurant.status === 'suspended' && (
+            <p role="alert">{t('food.merchant.suspendedNotice')}</p>
+          )}
           <div className="fd-settings-actions">
             {restaurant.status !== 'active' ? (
               <button type="button" className="fd-btn" disabled={saving} onClick={() => patch({ status: 'active' })} data-track="ui.17b0c32a57.42">
@@ -2459,7 +2483,15 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
 
   const attention = useMemo(() => {
     const items = [];
-    if (restaurant.status !== 'active') {
+    if (restaurant.status === 'suspended') {
+      // A suspension is not "not live yet": ordering is disabled by the
+      // platform, and the operator must see that distinction.
+      items.push({
+        key: 'suspended',
+        label: t('food.ownerHome.suspendedAlert'),
+        onClick: () => onGoTab('settings'),
+      });
+    } else if (restaurant.status !== 'active') {
       items.push({
         key: 'not-live',
         label: t('food.ownerHome.alertNotLive', 'Your restaurant is not live yet'),
@@ -2513,8 +2545,9 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
         <div>
           <span className="fd-owner-open-dot" aria-hidden />
           <div>
-            <p>{restaurant.status === 'active' ? t('food.ownerHome.liveKicker', 'Customer ordering') : t('food.ownerHome.draftKicker', 'Restaurant setup')}</p>
-            <h2>{accepting ? t('food.ownerHome.accepting', 'You are accepting orders') : restaurant.status === 'active' ? t('food.ownerHome.paused', 'Ordering is paused') : t('food.ownerHome.notLive', 'Your restaurant is not live yet')}</h2>
+            <p>{restaurant.status === 'active' ? t('food.ownerHome.liveKicker', 'Customer ordering') : restaurant.status === 'suspended' ? t('food.ownerHome.suspendedKicker') : t('food.ownerHome.draftKicker', 'Restaurant setup')}</p>
+            <h2>{accepting ? t('food.ownerHome.accepting', 'You are accepting orders') : restaurant.status === 'suspended' ? t('food.ownerHome.suspended') : restaurant.status === 'active' ? t('food.ownerHome.paused', 'Ordering is paused') : t('food.ownerHome.notLive', 'Your restaurant is not live yet')}</h2>
+            {restaurant.status === 'suspended' && <p>{t('food.ownerHome.suspendedDesc')}</p>}
           </div>
         </div>
         {restaurant.status === 'active' && <button type="button" className={accepting ? 'fd-btn fd-btn-secondary' : 'fd-btn'} disabled={saving} onClick={toggleOrders} data-track="ui.17b0c32a57.56">{accepting ? t('food.ownerHome.pauseOrders', 'Pause orders') : t('food.ownerHome.resumeOrders', 'Resume orders')}</button>}

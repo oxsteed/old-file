@@ -6,7 +6,7 @@ import AdminErrorState from '../../lib/AdminErrorState';
 import AuditQueuePager from '../../lib/AuditQueuePager';
 import ConfirmDialog from '../../lib/ConfirmDialog';
 
-const TABS = ['requested', 'approved', 'completed', 'failed', 'rejected'];
+const TABS = ['requested', 'approved', 'processing', 'completed', 'failed', 'rejected'];
 const PAGE_SIZE = 50;
 
 function formatMoney(cents, currency) {
@@ -69,7 +69,12 @@ export default function RestaurantPayouts() {
         if (!code || !code.trim()) throw new Error(t('restaurantPayouts.stepupRequired'));
         body = { stepupChallengeId: challengeId, stepupCode: code.trim() };
       }
-      const { data } = await adminApi.post(`/admin/restaurant-payouts/${payout.id}/${action}`, body);
+      // Finding 47: the approve POST carries a per-approval
+      // Idempotency-Key so a retried approval replays instead of
+      // re-entering the dual-approval gate.
+      const { data } = await adminApi.post(`/admin/restaurant-payouts/${payout.id}/${action}`, body, {
+        headers: action === 'approve' ? { 'Idempotency-Key': `restaurant-payout-approve-${payout.id}` } : {},
+      });
       setConfirm(null);
       // ADM-016: above-threshold payouts queue for a second admin (202)
       // instead of executing immediately.
@@ -92,7 +97,7 @@ export default function RestaurantPayouts() {
         {t('restaurantPayouts.title', 'Restaurant wallet payouts')}
       </h1>
       <p className="text-gray-400 text-sm mb-4">
-        {t('restaurantPayouts.subtitle', 'Approve wallet-earnings payouts to restaurants. Approval executes a Stripe Transfer to the restaurant\u2019s Connect account immediately.')}
+        {t('restaurantPayouts.subtitleQueued')}
       </p>
 
       <div className="flex gap-2 mb-4">
@@ -129,8 +134,27 @@ export default function RestaurantPayouts() {
                   {' · '}
                   {p.created_at ? new Date(p.created_at).toLocaleString() : ''}
                   {p.failure_reason && <span className="text-red-400"> · {p.failure_reason}</span>}
+                  {p.transfer_attempts != null && Number(p.transfer_attempts) > 0 && <span className="text-gray-400"> · {t('restaurantPayouts.transferAttempts', { count: p.transfer_attempts })}</span>}
                 </p>
               </div>
+              {tab === 'processing' && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => act(p, 'retry')}
+                    disabled={busyId === p.id}
+                    className="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 disabled:opacity-50"
+                  >
+                    {t('restaurantPayouts.retry')}
+                  </button>
+                  <button
+                    onClick={() => setConfirm({ payout: p, action: 'fail' })}
+                    disabled={busyId === p.id}
+                    className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {t('restaurantPayouts.fail')}
+                  </button>
+                </div>
+              )}
               {tab === 'requested' && (
                 <div className="flex gap-2">
                   <button
@@ -161,14 +185,20 @@ export default function RestaurantPayouts() {
       {confirm && (
         <ConfirmDialog
           title={confirm.action === 'approve'
-            ? t('restaurantPayouts.confirmApproveTitle', 'Approve and pay?')
-            : t('restaurantPayouts.confirmRejectTitle', 'Reject payout?')}
+            ? t('restaurantPayouts.confirmApproveTitle')
+            : confirm.action === 'fail'
+              ? t('restaurantPayouts.confirmFailTitle')
+              : t('restaurantPayouts.confirmRejectTitle')}
           message={confirm.action === 'approve'
-            ? t('restaurantPayouts.confirmApproveBody', 'This will immediately transfer {{amount}} to the restaurant\u2019s Stripe account and post the ledger entry. This cannot be undone.', { amount: formatMoney(confirm.payout.amount_cents, confirm.payout.currency_code) })
-            : t('restaurantPayouts.confirmRejectBody', 'The restaurant will be able to request again.')}
+            ? t('restaurantPayouts.confirmApproveBodyQueued', { amount: formatMoney(confirm.payout.amount_cents, confirm.payout.currency_code) })
+            : confirm.action === 'fail'
+              ? t('restaurantPayouts.confirmFailBody')
+              : t('restaurantPayouts.confirmRejectBody')}
           confirmLabel={confirm.action === 'approve'
-            ? t('restaurantPayouts.approve', 'Approve & pay')
-            : t('restaurantPayouts.reject', 'Reject')}
+            ? t('restaurantPayouts.approve')
+            : confirm.action === 'fail'
+              ? t('restaurantPayouts.fail')
+              : t('restaurantPayouts.reject')}
           onConfirm={() => act(confirm.payout, confirm.action)}
           onCancel={() => setConfirm(null)}
         />

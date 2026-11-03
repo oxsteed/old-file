@@ -35,12 +35,25 @@ exports.approve = async (req, res, next) => {
     // moving money on this single approval. The amount is read first so
     // the gate can decide before approvePayout journals anything, and so
     // the step-up challenge can be bound to it (auth audit item 6).
+    // Finding 39: existence, status, and destination pre-checks run
+    // BEFORE the single-use step-up challenge is verified, so an
+    // already-decided payout or a changed destination never burns a code.
     const { rows: amountRows } = await db.query(
-      'SELECT amount_cents, currency_code FROM restaurant_payouts WHERE id = $1',
+      `SELECT p.amount_cents, p.currency_code, p.status, p.stripe_account_id,
+              rca.stripe_account_id AS current_stripe_account_id
+         FROM restaurant_payouts p
+         LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = p.restaurant_id
+        WHERE p.id = $1`,
       [req.params.payoutId]
     );
     if (!amountRows.length) {
       throw new AppError('Payout not found', 404, 'payout_not_found');
+    }
+    if (amountRows[0].status !== 'requested') {
+      throw new AppError(`Payout is ${amountRows[0].status}, cannot approve`, 409, 'payout_invalid_status');
+    }
+    if (!amountRows[0].current_stripe_account_id || amountRows[0].current_stripe_account_id !== amountRows[0].stripe_account_id) {
+      throw new AppError('The restaurant payout account changed since this payout was requested', 409, 'payout_destination_changed');
     }
     // ADM-113: single-admin approval moves arbitrary sums via Stripe
     // Transfer; require a fresh step-up challenge, bound to this payout's
@@ -133,6 +146,32 @@ exports.issueApproveStepupChallenge = async (req, res, next) => {
 exports.reject = async (req, res, next) => {
   try {
     const payout = await payoutService.rejectPayout({
+      payoutId: req.params.payoutId,
+      adminUserId: req.user.id,
+      reviewNote: req.body.reviewNote || req.body.review_note,
+    });
+    res.json({ payout });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.fail = async (req, res, next) => {
+  try {
+    const payout = await payoutService.failProcessingPayout({
+      payoutId: req.params.payoutId,
+      adminUserId: req.user.id,
+      reviewNote: req.body.reviewNote || req.body.review_note,
+    });
+    res.json({ payout });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.retry = async (req, res, next) => {
+  try {
+    const payout = await payoutService.retryProcessingPayout({
       payoutId: req.params.payoutId,
       adminUserId: req.user.id,
       reviewNote: req.body.reviewNote || req.body.review_note,

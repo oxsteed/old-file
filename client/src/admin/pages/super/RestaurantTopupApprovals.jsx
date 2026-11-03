@@ -43,6 +43,8 @@ function statusTone(status) {
       return 'border-red-500/30 bg-red-500/10 text-red-300';
     case 'suspended':
       return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
+    case 'clawed_back':
+      return 'border-red-500/30 bg-red-500/10 text-red-300';
     default:
       return 'border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 text-gray-600 dark:text-gray-400';
   }
@@ -85,7 +87,8 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm, onPreview }
   const canConfirm = !busy
     && (!needsReason || modal.reason?.trim())
     && (modal.kind !== 'clawback'
-      || (modal.topupPreview && String(modal.topupPreview.id) === String(modal.topupId || '').trim()));
+      || (modal.topupPreview && String(modal.topupPreview.id) === String(modal.topupId || '').trim()
+        && modal.topupPreview.status === 'succeeded'));
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="topup-decision-dialog-title">
       <div className="w-full max-w-lg rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111318] p-5 shadow-2xl sm:p-6">
@@ -130,6 +133,9 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm, onPreview }
                 <p>{t('restaurantTopups.admin.clawbackPreviewAmount', { amount: (Number(modal.topupPreview.amountCents || 0) / 100).toFixed(2), currency: modal.topupPreview.currency || 'USD' })}</p>
                 <p>{t('restaurantTopups.admin.clawbackPreviewRestaurant', { restaurant: modal.topupPreview.restaurantName || t('restaurantTopups.admin.unknownRestaurant') })}</p>
                 <p>{t('restaurantTopups.admin.clawbackPreviewStatus', { status: modal.topupPreview.status })}</p>
+                {modal.topupPreview.status !== 'succeeded' && (
+                  <p className="font-semibold text-red-300">{t('restaurantTopups.admin.clawbackPreviewNotExecutable')}</p>
+                )}
               </div>
             )}
             {!modal.topupPreview && !modal.topupPreviewLoading && !modal.topupPreviewError && (
@@ -264,7 +270,7 @@ export default function RestaurantTopupApprovals() {
       // without a preview for this exact id, no step-up is issued.
       const topupId = String(modal.topupId || '').trim();
       const preview = modal.topupPreview;
-      if (!topupId || !reason?.trim() || !preview || String(preview.id) !== topupId) return;
+      if (!topupId || !reason?.trim() || !preview || String(preview.id) !== topupId || preview.status !== 'succeeded') return;
       setBusy(true);
       try {
         const stepup = await collectAdminActionStepup(adminApi, '/admin/restaurant-topups/stepup-challenges/clawback', t, { topupId });
@@ -277,10 +283,25 @@ export default function RestaurantTopupApprovals() {
           // Dual approval queued: no funds moved yet.
           setNotice(t('restaurantTopups.admin.clawbackQueued'));
         } else if (clawback) {
-          setNotice(t('restaurantTopups.admin.clawbackDone', {
+          let doneNotice = t('restaurantTopups.admin.clawbackDone', {
             amount: (Number(clawback.amountCents || 0) / 100).toFixed(2),
             currency: clawback.currency || 'USD',
-          }));
+          });
+          if (clawback.replayed) doneNotice += ` ${t('restaurantTopups.admin.clawbackReplayed')}`;
+          if (clawback.wentNegative) {
+            doneNotice += ` ${t('restaurantTopups.admin.clawbackWentNegative', {
+              before: (Number(clawback.balanceBeforeCents || 0) / 100).toFixed(2),
+              after: (Number(clawback.balanceAfterCents || 0) / 100).toFixed(2),
+              currency: clawback.currency || 'USD',
+            })}`;
+          } else if (clawback.balanceBeforeCents != null && clawback.balanceAfterCents != null) {
+            doneNotice += ` ${t('restaurantTopups.admin.clawbackBalances', {
+              before: (Number(clawback.balanceBeforeCents || 0) / 100).toFixed(2),
+              after: (Number(clawback.balanceAfterCents || 0) / 100).toFixed(2),
+              currency: clawback.currency || 'USD',
+            })}`;
+          }
+          setNotice(doneNotice);
         } else {
           setNotice(t('restaurantTopups.admin.clawbackDonePlain'));
         }

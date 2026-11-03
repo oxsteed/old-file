@@ -14,7 +14,7 @@ const fundingCtrl = require('../controllers/restaurantCreditFundingController');
 const statementController = require('../controllers/creditStatementController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
-const { requireAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { creditExportLimiter, creditPurchaseLimiter, paymentsLimiter, restaurantCreditMutationLimiter, profileChatLimiter, foodCheckoutCompleteLimiter, generalLimiter } = require('../middleware/rateLimiter');
 const checkRestrictions = require('../middleware/checkRestrictions');
 // Kitchen-display device auth for the order status route: a paired kitchen
@@ -36,6 +36,7 @@ router.get('/restaurants', ctrl.listRestaurants);
 router.get('/restaurants/:restaurantId', scopeExempt('public-storefront'), ctrl.getRestaurant);
 router.get('/restaurants/:restaurantId/queue-board', scopeExempt('public-storefront'), ctrl.getQueueBoard);
 router.get('/restaurants/:restaurantId/promotions', scopeExempt('public-storefront'), ctrl.listRestaurantPromotions);
+router.get('/restaurants/:restaurantId/reviews', scopeExempt('public-storefront'), ctrl.listRestaurantReviews);
 // Campaign analytics (Phase 2, Item 10): featured-card click beacon.
 // Public, rate-limited, always 204.
 router.post('/restaurants/:restaurantId/campaign-click', optionalAuth, generalLimiter, scopeExempt('public-storefront'), ctrl.trackCampaignClick);
@@ -43,6 +44,11 @@ router.get('/restaurants/:restaurantId/locations', optionalAuth, scopeExempt('pu
 router.get('/restaurants/:restaurantId/kiosk-config', scopeExempt('public-storefront'), kiosk.getPublicKioskConfig);
 router.get('/payment-config', ctrl.getPaymentConfig);
 router.get('/orders/track/:trackingToken', ctrl.getTrackedOrder);
+// Customer cancel for food orders: the marketplace cancel handler only
+// knows marketplace orders, so food orders get their own preview + cancel
+// path (optionalAuth so guest orders can cancel with their tracking token).
+router.get('/orders/:orderId/cancel-preview', optionalAuth, ctrl.getFoodCancelPreview);
+router.post('/orders/:orderId/cancel', optionalAuth, generalLimiter, ctrl.cancelMyFoodOrder);
 router.post('/orders/:orderId/review', optionalAuth, ctrl.createOrderReview);
 router.put('/orders/:orderId/review', optionalAuth, ctrl.updateOrderReview);
 router.delete('/orders/:orderId/review', optionalAuth, ctrl.deleteOrderReview);
@@ -97,8 +103,8 @@ router.get('/customer/wallets/:restaurantId/disputes', scopeExempt('customer-sel
 // Phase 3 restaurant-credit fraud controls: admin-only review surface for
 // food_credit_fraud_signals. requireAdmin verifies the admin token itself,
 // the same gating used by server/routes/admin.js.
-router.get('/admin/fraud-signals', requireAdmin, walletCtrl.listFraudSignals);
-router.post('/admin/fraud-signals/:id/review', requireAdmin, walletCtrl.reviewFraudSignal);
+router.get('/admin/fraud-signals', requireAdmin, requirePermission('view_financials'), walletCtrl.listFraudSignals);
+router.post('/admin/fraud-signals/:id/review', requireAdmin, requirePermission('manage_financials'), walletCtrl.reviewFraudSignal);
 // Phase 6 (restaurant credit protection): platform credit-approval per
 // restaurant. requireAdmin verifies the admin token itself, the same gating
 // used by server/routes/admin.js. Revoking starts the 30-day grace clock;

@@ -98,6 +98,10 @@ const REVIEWED = {
   'services/cardStoreForward.js': SCOPED_CALLER,
   'services/chargebackEvidenceService.js': SYSTEM_JOB,
   'services/customer360Sources.js': CUSTOMER_OR_SELF,
+  // Dual-approval queue enrichment: admin-only checker list (requireAdmin +
+  // requireMoneyApprovalGrant) resolving each movement's own subject id to a
+  // display name/status; never a caller-supplied store id.
+  'services/dualApprovalService.js': PLATFORM_ADMIN,
   'services/foodAbandonedOrderSweeper.js': SYSTEM_JOB,
   'services/laborJurisdictionRules.js': SCOPED_CALLER,
   'services/profileVisibilityActiveWork.js': CUSTOMER_OR_SELF,

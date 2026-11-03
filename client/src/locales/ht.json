@@ -15518,7 +15518,56 @@
       "payAtRestaurant": "Peye nan restoran an",
       "processor": "Peman trete",
       "unrecorded": "Pa anrejistre"
-    }
+    },
+    "serviceFee": "Frè sèvis",
+    "tip": "Tib",
+    "deliveryInstructions": "Enstriksyon livrezon",
+    "review": "Revizyon",
+    "reviewDone": "Revizyon w",
+    "reviewTitle": "Kite yon revizyon",
+    "reviewPlaceholder": "Kijan kòmann ou an te ye?",
+    "reviewSubmit": "Voye revizyon an",
+    "reviewDelete": "Efase revizyon an",
+    "reviewResponse": "Repons restoran an: {{response}}",
+    "cancelSuccess": "Kòmann ou an anile.",
+    "cancelRefund": "Ranbousman {{amount}} ap retounen nan mòd peman orijinal ou.",
+    "cancelReplayed": "Anilasyon sa a te deja trete.",
+    "cancelNotAvailable": "Kòmann sa a pa ka anile ankò. Kontakte restoran an oswa louvri yon dosye pou èd.",
+    "cancelConfirm": "Anile kòmann sa a ({{total}})?",
+    "cancelRefundPreview": "Montan ranbousman an: {{amount}}",
+    "cancelNoRefund": "Pa gen ranbousman ki dwe pou kòmann sa a: li poko peye davans.",
+    "disputeOpened": "Dosye w {{caseNumber}} louvri.",
+    "disputeReviewingParty": "Pati k ap revize a: {{party}}",
+    "disputeDescription": "Dekri sa ki pa t mache ak sa ou ta renmen. Restoran an ap revize demann ou an premye.",
+    "disputeIssueType": "Kisa ki pa t mache?",
+    "disputeResolution": "Kisa ou ta renmen?",
+    "disputeAmountPlaceholder": "Montan ranbousman an (eg. 12.50)",
+    "disputeDetailPlaceholder": "Dekri pwoblèm nan…",
+    "disputeSubmit": "Louvri dosye",
+    "reportProblem": "Rapòte yon pwoblèm ak kòmann sa a",
+    "disputeIssues": {
+      "missing_item": "Atik ki manke",
+      "wrong_item": "Move atik",
+      "food_quality": "Kalite manje",
+      "late_order": "Kòmann an reta",
+      "payment_problem": "Pwoblèm peman",
+      "delivery_issue": "Pwoblèm livrezon",
+      "other": "Lòt bagay"
+    },
+    "disputeResolutions": {
+      "refund": "Ranbousman konplè",
+      "partial_refund": "Ranbousman pasyèl",
+      "store_credit": "Kredi magazen",
+      "replacement_item": "Atik ranplasman",
+      "remake_order": "Refè kòmann lan",
+      "discount_code": "Kòd rabè",
+      "apology_only": "Eskiz sèlman"
+    },
+    "pagination": "Paj kòmann yo",
+    "showingRange": "Ap montre {{from}}–{{to}} sou {{total}}",
+    "previousPage": "Anvan",
+    "nextPage": "Apre",
+    "pageOf": "Paj {{page}} sou {{pages}}"
   },
   "cancellationSettings": {
     "pageTitle": "Règleman Peman ak Anilasyon",
@@ -22829,8 +22878,16 @@
         "hoursLocalTime": "Orè yo parèt nan lè lokal chak restoran.",
         "ordersPaused": "Kòmann yo an poz",
         "onlineUnavailable": "Kòmann sou entènèt pa disponib",
-        "clearLocation": "Efase pozisyon"
-      }
+        "clearLocation": "Efase pozisyon",
+        "notAcceptingOrders": "Pa ap aksepte kòmann",
+        "openNow": "Ap aksepte kòmann kounye a",
+        "fulfillment": "Fason pou resevwa",
+        "fulfillmentAll": "Tout fason",
+        "fulfillment_delivery": "Livrezon",
+        "fulfillment_pickup": "Pran",
+        "fulfillment_dine_in": "Manje sou plas"
+      },
+      "externalPlaceExplore": "Jwenn restoran OxSteed toupre"
     },
     "restaurant": {
       "messageUnreachable": "Restoran sa a pa ka resevwa mesaj kounye a. Tanpri eseye ankò pita.",
@@ -23217,7 +23274,36 @@
         "promo_not_fundable": "Ou pa ka aplike kòd pwomo sa a sou kòmand sa a.",
         "promo_changed": "Rabè pwomo a chanje. Revize kòmand ou a epi eseye ankò."
       },
-      "promoApplied": "Pwomo aplike: −{{amount}}"
+      "promoApplied": "Pwomo aplike: −{{amount}}",
+      "removeItem": "Retire {{item}} nan panye a",
+      "checkoutTotalLoading": "N ap kalkile total la…",
+      "reorderReplaceConfirm": "Ranplase panye w la ak ansyen kòmann sa a?",
+      "reorderDropped": "Gen pèsonalizasyon ki pa disponib ankò epi yo pa mete yo: {{items}}",
+      "deliveryCity": "Vil",
+      "deliveryCityPlaceholder": "Vil",
+      "deliveryState": "Eta / Pwovens",
+      "deliveryStatePlaceholder": "Eta / Pwovens",
+      "deliveryZip": "Kòd postal",
+      "deliveryZipPlaceholder": "Kòd postal",
+      "deliveryInstructions": "Enstriksyon livrezon",
+      "deliveryInstructionsPlaceholder": "Kòd baryè, pakin, oswa nòt pou depoze",
+      "guestCheckoutNote": "Ou ka kòmande kòm envite. Konekte pou wè kòmann sa a nan istwa w epi genyen pwen fidelite.",
+      "guestName": "Non w",
+      "guestNamePlaceholder": "Non konplè",
+      "guestPhone": "Telefòn",
+      "guestPhonePlaceholder": "Nimewo telefòn",
+      "guestEmail": "Imèl",
+      "guestEmailPlaceholder": "Adrès imèl",
+      "guestNameRequired": "Tanpri antre non w pou yon kòmann envite pou pran.",
+      "guestContactRequired": "Tanpri bay yon nimewo telefòn oswa yon imèl pou mizajou kòmann lan.",
+      "guestPaymentUnavailable": "Mòd peman sa a mande koneksyon. Chwazi peye nan restoran an oswa Kredi Envite, oswa konekte.",
+      "quoteLoading": "N ap kalkile total ou a toujou…",
+      "trackOrder": "Swiv kòmann lan",
+      "reviewAfterCompleted": "Lè kòmann ou an fini, ou ka kite yon revizyon nan paj swivi a.",
+      "reviewsLoadError": "Pa t ka chaje revizyon yo.",
+      "reviewsShowing": "Ap montre {{shown}} sou {{total}} revizyon",
+      "loadMoreReviews": "Chaje plis revizyon",
+      "reviewResponse": "Repons restoran an: {{response}}"
     },
     "order": {
       "specialInstructions": "Enstriksyon espesyal (si w vle)",
@@ -23247,7 +23333,8 @@
       "reviewOptional": "Kòmantè opsyonèl (500 karaktè maksimòm)",
       "submitReview": "Voye evalyasyon an",
       "reviewThanks": "Mèsi pou evalyasyon ou!",
-      "reviewError": "Nou pa t kapab anrejistre evalyasyon ou. Tanpri eseye ankò."
+      "reviewError": "Nou pa t kapab anrejistre evalyasyon ou. Tanpri eseye ankò.",
+      "reviewDeleted": "Revizyon w lan efase."
     },
     "status": {
       "received": "Resevwa",
@@ -23269,7 +23356,13 @@
       "total": "Total",
       "printReceipt": "Enprime resi",
       "runnerNearby": "Livrezè a pre",
-      "runnerUpdatedAgo": "pozisyon mete ajou {{seconds}}s de sa"
+      "runnerUpdatedAgo": "pozisyon mete ajou {{seconds}}s de sa",
+      "reviewDone": "Revizyon w",
+      "reviewTitle": "Kite yon revizyon",
+      "reviewThanks": "Mèsi pou fidbak ou.",
+      "reviewPlaceholder": "Kijan kòmann ou an te ye?",
+      "reviewSubmit": "Voye revizyon an",
+      "reviewDelete": "Efase revizyon an"
     },
     "payment": {
       "paid": "Peye",
@@ -23351,7 +23444,10 @@
       "logbookLabel": "Nòt orè a",
       "logbookPlaceholder": "Kisa pwochen orè a dwe konnen?",
       "addLogbookEntry": "Ajoute nan liv la",
-      "logbookAdded": "Yo ajoute l nan liv la"
+      "logbookAdded": "Yo ajoute l nan liv la",
+      "scheduleCount": "{{count}} chif",
+      "showAll": "Montre tout {{count}} chif yo",
+      "showFewer": "Montre mwens"
     },
     "merchant": {
       "title": "Tablodbò restoran",
@@ -23489,7 +23585,9 @@
         "paymentRefunded": "Peman ranbouse",
         "paymentConfirmed": "Peman konfime.",
         "orderMarkedPaid": "Kòmand make kòm peye.",
-        "paymentError": "Nou pa t ka konfime peman sa a."
+        "paymentError": "Nou pa t ka konfime peman sa a.",
+        "cancelConfirm": "Anile kòmann {{order}} ({{amount}})? Anile yon kòmann ki peye ak kat ap deklanche yon ranbousman pou kliyan an.",
+        "markPaidConfirm": "Make kòmann {{order}} kòm peye pou {{amount}}? Sa ap anrejistre ke tout montan ki dwe a te resevwa."
       },
       "menu": "Meni",
       "newCategoryPlaceholder": "Non kategori (egz. Anbègè)",
@@ -23724,7 +23822,11 @@
           "rejected": "Refize",
           "failed": "Echwe",
           "cancelled": "Anile"
-        }
+        },
+        "historyShowing": "Montre {{from}}–{{to}} sou {{total}}",
+        "historyPrevious": "Anvan",
+        "historyNext": "Apre",
+        "requestConfirm": "Mande yon peman {{amount}}? Demann lan antre nan ke revizyon administratè a; li pa deplase lajan touswit."
       },
       "settlementTitle": "Dosye règleman peman",
       "settlementNote": "Kòmand yo ka rete lye ak dosye restoran an pou règleman, resi ak istwa asistans rete vizib nan aplikasyon an.",
@@ -23777,7 +23879,13 @@
       "refundError": "Pa ka bay ranbousman an.",
       "cardPartialRefundUnsupported": "Ranbousman pasyèl pa disponib pou kòmann kat sou entènèt. Ranbouse tout kòmann lan oswa mande sipò èd.",
       "cardRefundUseCancel": "Kòmann kat yo ranbouse lè ou anile kòmann lan. Ranbousman kat la fèt otomatikman.",
-      "addAnotherRestaurant": "Ajoute yon lòt restoran"
+      "addAnotherRestaurant": "Ajoute yon lòt restoran",
+      "stChipVerified": "Verifye",
+      "stChipUnverified": "Pa verifye",
+      "suspendedNotice": "Restoran sa a sispann. Kòmann yo dezaktive jiskaske li reaktive.",
+      "posShiftCloseError": "Pa t ka fèmen chif kes la.",
+      "csvFailedSummary": "{{count}} ranje echwe: {{rows}}",
+      "csvImportedPartial": "{{count}} atik enpòte epi pibliye.{{failed}}{{skipped}}{{truncated}}"
     },
     "onboarding": {
       "eyebrow": "Sware Ouvèti",
@@ -23990,7 +24098,17 @@
       "clear": "Efase",
       "cardTerminalRequired": "Peman kat yo mande yon tèminal PDV konekte. Itilize aplikasyon PDV a pou touche kat.",
       "amountGiven": "Kob resevwa",
-      "syncDegraded": "Senkronizasyon an degrade: {{failed}} echwe, {{pending}} annatant, {{outbox}} poko voye"
+      "syncDegraded": "Senkronizasyon an degrade: {{failed}} echwe, {{pending}} annatant, {{outbox}} poko voye",
+      "closeShift": "Fèmen chif",
+      "closeShiftTitle": "Fèmen chif #{{id}}",
+      "closeShiftHint": "Konte lajan kach nan tiwa a epi antre l anba a. Fèmen chif la pa ka defèt.",
+      "openingCash": "Lajan kach ouvèti: {{amount}}",
+      "shiftPayments": "Peman ki regle: {{amount}}",
+      "closingCash": "Lajan kach fèmen",
+      "shiftClosed": "Chif fèmen",
+      "closeSummary": "Te dwe {{expected}}, konte {{counted}}, diferans {{variance}}.",
+      "closePaidOrders": "{{count}} kòmann peye",
+      "multipleOpenShifts": "{{count}} chif ouvè. Kòmann yo ap itilize premye chif ki parèt la. Fèmen chif anplis yo anvan w pran nouvo kòmann."
     },
     "inv": {
       "title": "Envantè",
@@ -24034,7 +24152,14 @@
       "severity_high": "Wo",
       "unknownSupplier": "Founitè enkoni",
       "uncategorized": "San kategori",
-      "par": "min"
+      "par": "min",
+      "adjType_receive": "Resevwa",
+      "adjType_count": "Konte",
+      "adjType_correction": "Koreksyon",
+      "pollError": "Done inventè yo pa t ka mete ajou. N ap montre dènye done ki te anrejistre yo.",
+      "showing": "Montre {{from}}–{{to}} sou {{total}}",
+      "previous": "Anvan",
+      "next": "Apre"
     },
     "crew": {
       "title": "Ekip",
@@ -24134,7 +24259,9 @@
       "settlement_voided": "Anile",
       "createSettlement": "Kreye règleman peman",
       "settlementCreated": "Règleman peman kreye",
-      "cashCollectedPrompt": "Lajan kach livrezè a kolekte (montan)"
+      "cashCollectedPrompt": "Lajan kach livrezè a kolekte (montan)",
+      "pollError": "Done kouri a pa t ka mete ajou. N ap montre dènye done ki te anrejistre yo.",
+      "settlementApproveConfirm": "Apwouve règleman pou travay {{task}}? Lajan kach ki kolekte: {{cash}}. Montan règleman an (frè plis konsèy): {{amount}}. Apwouve pa make li kòm peye."
     },
     "ownerHome": {
       "allClear": "Tout bagay anfòm. Anyen pa bezwen atansyon ou kounye a.",
@@ -24170,7 +24297,11 @@
       "todayOrders": "Kòmand",
       "todayRevenue": "Revni",
       "viewStore": "Wè paj kliyan an",
-      "viewStoreHint": "Wè egzakteman sa kliyan yo wè."
+      "viewStoreHint": "Wè egzakteman sa kliyan yo wè.",
+      "suspendedAlert": "Restoran sa a sispann. Kòmann yo dezaktive.",
+      "suspendedKicker": "Sispann",
+      "suspended": "Kòmann sispann",
+      "suspendedDesc": "Restoran sa a sispann, kidonk kliyan pa ka kòmande ladan l. Kontakte sipò OxSteed si w panse se yon erè."
     },
     "timeClock": {
       "title": "Revèy pou pwen",
@@ -24238,6 +24369,11 @@
         "not_reported": "Kès la pa janm rapòte peman sa a",
         "other": "Bezwen yon manadjè verifye"
       }
+    },
+    "menuManager": {
+      "partialGroups": "{{failed}} sou {{total}} gwoup opsyon pa t ka anrejistre ({{firstError}}). Atik la anrejistre; anrejistre ankò pou re-eseye gwoup ki manke yo.",
+      "bulkPartial": "{{updated}} atik mete ajou, {{failed}} echwe: {{names}}. Atik ki echwe yo toujou chwazi.",
+      "bulkFailed": "{{failed}} atik echwe: {{names}}. Yo toujou chwazi pou re-eseye."
     }
   },
   "network": {
@@ -25199,7 +25335,8 @@
           "cashAdd": "Ajoute deklarasyon",
           "cashSaved": "Tibwa kach deklare.",
           "cashInvalid": "Chwazi yon manm ekip, yon dat ak yon montan pozitif.",
-          "cashError": "Nou pa t kapab anrejistre deklarasyon tibwa kach la."
+          "cashError": "Nou pa t kapab anrejistre deklarasyon tibwa kach la.",
+          "loadError": "Paramèt pisin pourbwa yo pa t ka chaje."
         },
         "exceptions": {
           "title": "Eksepsyon pa anplwaye",
@@ -29859,7 +29996,15 @@
     "supportCsat": "CSAT",
     "supportQa": "Revizyon kalite",
     "supportSettings": "Paramèt",
-    "supportAuditLog": "Jounal odit"
+    "supportAuditLog": "Jounal odit",
+    "restaurants": "Restoran",
+    "restaurantSupport": "Sipò restoran",
+    "restaurantMediaFlags": "Drapo medya restoran",
+    "foodFraudSignals": "Siyal fwod manje",
+    "businessAudit": "Odit biznis la",
+    "restaurantAnalytics": "Analitik restoran",
+    "webhookReceipts": "Resi webhook",
+    "restaurantWalletIntegrity": "Entegrite bòs"
   },
   "adminProfileVisibility": {
     "title": "Vizibilite pwofil",
@@ -32768,7 +32913,9 @@
     "backToBusiness": "Tounen sou biznis lan",
     "common": {
       "records": "{{count}} dosye",
-      "unknown": "Enkoni"
+      "unknown": "Enkoni",
+      "previous": "Anvan",
+      "next": "Apre"
     },
     "disputes": {
       "empty": "Nou pa jwenn okenn konfli.",
@@ -32866,7 +33013,8 @@
       "orders": "Kòmann",
       "overview": "Apèsi",
       "payouts": "Peman",
-      "tickets": "Tikè sipò"
+      "tickets": "Tikè sipò",
+      "restaurants": "Restoran"
     },
     "tickets": {
       "created": "Kreye",
@@ -32880,7 +33028,33 @@
       "title": "Tikè sipò",
       "updated": "Mete ajou"
     },
-    "title": "Biznis 360"
+    "title": "Biznis 360",
+    "restaurants": {
+      "title": "Restoran",
+      "subtitle": "Kòmann manje, ka sipò, bous kliyan, ak pewòl pou restoran biznis sa a.",
+      "empty": "Biznis sa a pa gen restoran.",
+      "unnamed": "Restoran san non",
+      "orderingOn": "Kòmann sou entènèt aktive",
+      "orderingOff": "Kòmann sou entènèt dezaktive",
+      "inStoreOn": "Kòmann nan magazen aktive",
+      "inStoreOff": "Kòmann nan magazen dezaktive",
+      "verified": "Verifye",
+      "notVerified": "Pa verifye",
+      "ordersHeading": "Kòmann manje",
+      "ordersTotal": "{{count}} kòmann an total",
+      "supportHeading": "Ka sipò (30 jou)",
+      "supportCounts": "{{cases}} ka, {{open}} ouvè, {{escalated}} eskale",
+      "supportNone": "Pa gen ka sipò nan 30 dènye jou yo.",
+      "walletsHeading": "Bous kliyan",
+      "walletsEmpty": "Pa gen bous kliyan.",
+      "walletCount": "{{count}} bous",
+      "payRunsHeading": "Pewòl",
+      "payRunsNote": "Pewòl yo liste anba a pou tout biznis la. Yon pewòl finalize se yon total ki kalkile; sa pa vle di anplwaye yo te peye.",
+      "payRunsTitle": "Pewòl",
+      "payRunsEmpty": "Pa gen pewòl pou restoran biznis sa a.",
+      "payRunLines": "{{count}} liy",
+      "payRunsShowing": "Montre {{from}}–{{to}} sou {{total}}"
+    }
   },
   "adminCustomer360": {
     "governedTitle": "Endikatè ofisyèl pou kliyan sa a",
@@ -33352,7 +33526,10 @@
     "typeMarketplaceRefund": "Ranbousman mache",
     "typeDisputeRefund": "Ranbousman dispit",
     "typeRestaurantPayout": "Peman restoran",
-    "typeAffiliatePayout": "Peman afilye"
+    "typeAffiliatePayout": "Peman afilye",
+    "subject": "Sijè",
+    "reason": "Rezon",
+    "subjectUnknown": "Sijè enkoni"
   },
   "adminOrderFilters": {
     "searchOrders": "Chèche kòmann",
@@ -35664,7 +35841,11 @@
       "clawbackPreviewHint": "Gade apèsi rechaj la anvan ou konfime. Konfimasyon an rete dezaktive jiskaske montan an, restoran an, ak estati ID sa a chaje.",
       "clawbackPreviewAmount": "Montan: {{amount}} {{currency}}",
       "clawbackPreviewRestaurant": "Restoran: {{restaurant}}",
-      "clawbackPreviewStatus": "Estati: {{status}}"
+      "clawbackPreviewStatus": "Estati: {{status}}",
+      "clawbackPreviewNotExecutable": "Top-up sa a pa ka reprann: se sèlman yon top-up ki reyisi ki ka reprann.",
+      "clawbackReplayed": "Top-up sa a te deja reprann; pa te gen dezyèm debi.",
+      "clawbackWentNegative": "Bous la vin negatif: balans {{before}} pou rive {{after}} {{currency}}.",
+      "clawbackBalances": "Balans bous la {{before}} pou rive {{after}} {{currency}}."
     }
   },
   "featuredPlacements": {
@@ -35838,12 +36019,20 @@
       "approved": "Apwouve yo",
       "completed": "Fini yo",
       "failed": "Echwe yo",
-      "rejected": "Refize yo"
+      "rejected": "Refize yo",
+      "processing": "Ap trete"
     },
     "stepupFailed": "Pa t ka bay yon defi verifikasyon.",
     "stepupPrompt": "Yo voye yon kòd verifikasyon nan imèl ou. Antre li pou apwouve peman sa a:",
     "pendingApproval": "Peman an nan ke pou yon dezyèm admin apwouve li. Okenn lajan pa bouje.",
-    "stepupRequired": "Fòk ou gen yon kòd verifikasyon pou apwouve peman an."
+    "stepupRequired": "Fòk ou gen yon kòd verifikasyon pou apwouve peman an.",
+    "subtitleQueued": "Apwouve peman kòb wolet pou restoran yo. Apwobasyon an mete yon transfè nan ke pou kont Connect restoran an; transfè a voye piti piti epi Stripe konfime li, li pa enstantane.",
+    "transferAttempts": "{{count}} tantativ transfè",
+    "retry": "Eseye ankò",
+    "fail": "Make kòm echwe",
+    "confirmFailTitle": "Make peman sa a kòm echwe?",
+    "confirmFailBody": "Sa ap retounen peman an nan eta echwe epi anile ekriti apwobasyon li a, pou restoran an ka mande ankò. Li pa voye lajan.",
+    "confirmApproveBodyQueued": "Sa ap mete yon transfè {{amount}} nan ke pou kont Stripe restoran an epi ekri nan liv kont yo. Transfè a voye piti piti epi Stripe konfime li; li pa enstantane epi li poko final."
   },
   "affiliatePayouts": {
     "title": "Peman afilye yo",
@@ -35916,7 +36105,12 @@
       "denied": "Refize",
       "resolved": "Rezoud",
       "withdrawn": "Retire"
-    }
+    },
+    "noRefundReasonLabel": "Rezon pa gen ranbousman (obligatwa olye yon referans ranbousman lè w ap fèmen san ranbousman)",
+    "noRefundReasonPlaceholder": "Poukisa pa te gen ranbousman",
+    "closureNeedsRefundOrReason": "Yon desizyon apwouve oswa rezoud bezwen yon referans ranbousman oswa yon rezon pa gen ranbousman.",
+    "noRefundReasonShown": "Pa gen ranbousman: {{reason}}",
+    "refundReferenceShown": "Referans ranbousman: {{reference}}"
   },
   "adminChargebacks": {
     "title": "Chargebacks",
@@ -37360,9 +37554,9 @@
       }
     },
     "protection": {
-      "3": "Pi gwo pwoteksyon",
+      "1": "OxSteed pa kouvri l",
       "2": "Pwoteje pa Kredi OxSteed",
-      "1": "OxSteed pa kouvri l"
+      "3": "Pi gwo pwoteksyon"
     },
     "chargedNowHeld": "Paske travay la plis pase 5 jou devan, kat ou chaje kounye a epi OxSteed kenbe lajan an jiskaske travay la fini.",
     "localMethods": "Disponib tou: {{methods}}",
@@ -37639,7 +37833,9 @@
     "saved": "Pwodwi kat kado a anrejistre.",
     "loadError": "Pa t kapab chaje pwodwi kat kado yo.",
     "saveError": "Pa t kapab anrejistre pwodwi a.",
-    "validation": "Antre yon SKU, yon non ak yon valè pozitif."
+    "validation": "Antre yon SKU, yon non ak yon valè pozitif.",
+    "paymentReference": "Referans peman",
+    "paymentReferenceHint": "Pa egzanp, nimewo resi kès"
   },
   "printer": {
     "title": "Enprimant resi",
@@ -38016,5 +38212,292 @@
   },
   "cards": {
     "moveBack": "Tounen nan {{status}}"
+  },
+  "restaurantPayRuns": {
+    "title": "Peman anplwaye restoran yo",
+    "subtitle": "Peman anplwaye tout restoran yo, ak peman reyèl ki lye ak chak youn. Yon peman anplwaye finalize san lyen poko peye pèsonn.",
+    "status": {
+      "all": "Tout",
+      "draft": "Bwouyon",
+      "finalized": "Finalize",
+      "paid": "Peye",
+      "voided": "Anile"
+    },
+    "restaurantFilter": "Idantite restoran",
+    "loadFailed": "Pa te ka chaje peman anplwaye yo.",
+    "detailFailed": "Pa te ka chaje detay peman anplwaye a.",
+    "empty": "Pa gen peman anplwaye nan eta sa a.",
+    "unknownRestaurant": "Restoran enkoni",
+    "run": "Peman anplwaye {{id}}",
+    "period": "{{from}} pou rive {{to}}",
+    "totalPay": "Total pou peye: {{amount}}",
+    "linked": "Peman ki lye: {{amount}} ({{count}})",
+    "finalizedUnpaid": "Finalize men poko lye nèt ak peman yo.",
+    "hideDetail": "Kache detay",
+    "showDetail": "Montre detay",
+    "noLinks": "Poko gen peman ki lye ak peman anplwaye sa a.",
+    "linkLine": "Peman {{payout}}: {{amount}} ({{status}})",
+    "employees": "{{count}} anplwaye"
+  },
+  "adminRsd": {
+    "showing": "Ap montre {{from}} pou {{to}} sou {{total}}"
+  },
+  "adminRestaurantSupport": {
+    "title": "Ka sipò restoran",
+    "subtitle": "Ka kliyan restoran yo, restoran yo ak OxSteed ap trete.",
+    "allStatuses": "Tout estati yo",
+    "allOwners": "Tout responsab yo",
+    "restaurantIdPlaceholder": "Id restoran an",
+    "loadFailed": "Pa t kapab chaje ka sipò yo.",
+    "empty": "Okenn ka sipò pa koresponn ak filtè sa yo.",
+    "restaurant": "Restoran {{id}}"
+  },
+  "adminRestaurantSupportCase": {
+    "backToQueue": "Retounen nan ke sipò a",
+    "loadFailed": "Pa t kapab chaje ka sipò sa a.",
+    "empty": "Ka sipò pa jwenn.",
+    "restaurant": "Restoran {{id}}",
+    "order": "Kòmann {{id}}",
+    "offeredResolution": "Rezolisyon yo pwopoze: {{resolution}} ({{amount}} santim)",
+    "replyTitle": "Reponn kòm OxSteed",
+    "replyNote": "Repons sa a voye kòm OxSteed, pa kòm restoran an.",
+    "sendReply": "Voye repons lan",
+    "actionsTitle": "Aksyon sou ka a",
+    "assignPlaceholder": "Bay id itilizatè a",
+    "assign": "Bay",
+    "escalate": "Voye bay OxSteed",
+    "deescalate": "Retounen bay restoran an",
+    "close": "Fèmen",
+    "reopen": "Relouvri",
+    "approvePlaceholder": "Apwouve yon rezolisyon",
+    "amountPlaceholder": "Montan an santim",
+    "approve": "Apwouve rezolisyon an",
+    "approveNote": "Apwouve yon rezolisyon ranbousman toujou mande kliyan an aksepte li anvan lajan deplase.",
+    "messagesTitle": "Mesaj",
+    "noMessages": "Poko gen mesaj.",
+    "internalNote": "Nòt entèn",
+    "eventsTitle": "Evènman ka a",
+    "actionFailed": "Aksyon sa a echwe.",
+    "replySent": "Repons voye.",
+    "assigned": "Ka a bay.",
+    "reopened": "Ka a relouvri.",
+    "actionDone": "Aksyon an anrejistre.",
+    "confirmAction": "Èske ou sèten?"
+  },
+  "adminRestaurants": {
+    "title": "Restoran",
+    "subtitle": "Jesyon restoran: lis, detay, sispansyon ak verifikasyon.",
+    "searchPlaceholder": "Chèche restoran oswa biznis",
+    "allStatuses": "Tout estati yo",
+    "allVerified": "Verifye oswa pa",
+    "verifiedOnly": "Verifye sèlman",
+    "unverifiedOnly": "Pa verifye sèlman",
+    "loadFailed": "Pa t kapab chaje restoran yo.",
+    "empty": "Okenn restoran pa koresponn ak filtè sa yo.",
+    "verified": "Verifye",
+    "unverified": "Pa verifye",
+    "openCases": "{{count}} ka ouvè"
+  },
+  "adminRestaurantDetail": {
+    "backToList": "Retounen nan restoran yo",
+    "loadFailed": "Pa t kapab chaje restoran sa a.",
+    "empty": "Restoran pa jwenn.",
+    "verified": "Verifye",
+    "unverified": "Pa verifye",
+    "business": "Biznis: {{name}}",
+    "supportCounts": "{{open}} ouvè sou {{total}} ka sipò",
+    "walletCounts": "{{count}} bòs kliyan, balans total {{balance}}",
+    "actionsTitle": "Aksyon administratè",
+    "suspend": "Sispann restoran an",
+    "restore": "Retabli an poz",
+    "unverify": "Retire verifikasyon an",
+    "verify": "Verifye restoran an",
+    "suspended": "Restoran an sispann.",
+    "restored": "Restoran an retabli an poz.",
+    "verifyDone": "Verifikasyon an mete ajou.",
+    "actionFailed": "Aksyon sa a echwe.",
+    "restoreNote": "Retabli mete yon restoran ki sispann an poz. Pwopriyetè a dwe reaktive li; li pa janm repibliye poukont li.",
+    "suspendNote": "Sispansyon kanpe kòmann sou entènèt ak nan magazen pou restoran sa a.",
+    "relatedTitle": "Sifas ki gen rapò",
+    "supportLink": "Ka sipò pou restoran sa a",
+    "auditLink": "Tras odit biznis la",
+    "analyticsLink": "Analitik restoran an",
+    "confirmAction": "Èske ou sèten?"
+  },
+  "adminRestaurantMediaFlags": {
+    "title": "Drapo medya restoran",
+    "subtitle": "Drapo kominote a sou videyo restoran, ak revizyon odite ak restorasyon.",
+    "restaurantIdPlaceholder": "Id restoran an",
+    "reviewNotePlaceholder": "Nòt revizyon",
+    "reviewDone": "Revizyon an anrejistre.",
+    "actionFailed": "Aksyon sa a echwe.",
+    "loadFailed": "Pa t kapab chaje drapo medya yo.",
+    "empty": "Okenn drapo pa koresponn ak filtè sa yo.",
+    "restaurant": "Restoran {{id}}",
+    "flaggedBy": "Drapo pa",
+    "decidedBy": "Deside pa",
+    "mediaStatus": "Videyo: {{status}}",
+    "dismiss": "Rejte",
+    "remove": "Retire videyo a",
+    "restore": "Retabli videyo a",
+    "restoreDone": "Videyo a retabli.",
+    "restoreNote": "Retabli montre videyo restoran an ankò. Yon pòs glas nan fil la rete retire jiskaske yo retabli li nan Drapo medya.",
+    "confirmAction": "Èske ou sèten?",
+    "linkFromGeneral": "Revize drapo medya restoran"
+  },
+  "adminFraudSignals": {
+    "title": "Siyal fwod manje",
+    "subtitle": "Siyal fwod sou kredi restoran, revize ak revizè ak nòt anrejistre.",
+    "allReviewed": "Revize oswa pa",
+    "unreviewedOnly": "Pa revize sèlman",
+    "reviewedOnly": "Revize sèlman",
+    "allSeverities": "Tout gravite yo",
+    "restaurantIdPlaceholder": "Id restoran an",
+    "reviewDone": "Siyal la make kòm revize.",
+    "actionFailed": "Aksyon sa a echwe.",
+    "loadFailed": "Pa t kapab chaje siyal fwod yo.",
+    "empty": "Okenn siyal pa koresponn ak filtè sa yo.",
+    "restaurant": "Restoran {{id}}",
+    "reviewed": "Revize",
+    "unreviewed": "Pa revize",
+    "reviewedBy": "Revize pa {{email}}",
+    "notePlaceholder": "Nòt revizyon",
+    "review": "Make kòm revize",
+    "confirmReview": "Make siyal sa a kòm revize ak nòt ki anwo a?"
+  },
+  "adminWebhookReceipts": {
+    "title": "Resi webhook",
+    "subtitle": "Resi webhook ki echwe oswa bloke, refè pa rejwe oswa rezolisyon manyèl.",
+    "resolveWarning": "Rezoud fèmen yon resi san rejwe li. Evènman an pa trete pa rezolisyon; sèvi ak rejwe lè evènman an toujou bezwen kouri.",
+    "allProviders": "Tout founisè yo",
+    "allStatuses": "Tout estati yo",
+    "eventTypePlaceholder": "Kalite evènman",
+    "accountPlaceholder": "Id kont lan",
+    "restaurantIdPlaceholder": "Id restoran an",
+    "loadFailed": "Pa t kapab chaje resi webhook yo.",
+    "empty": "Okenn resi pa koresponn ak filtè sa yo.",
+    "account": "Kont {{id}}",
+    "attempts": "{{count}} tantativ",
+    "resolutionNote": "Nòt rezolisyon: {{note}}",
+    "replay": "Rejwe",
+    "cannotReplay": "Rejwe pa disponib pou founisè sa a. Rezoud li ak yon nòt.",
+    "resolve": "Rezoud",
+    "replayDone": "Resi a rejwe.",
+    "resolveDone": "Resi a rezoud san rejwe.",
+    "actionFailed": "Aksyon sa a echwe.",
+    "noteRequired": "Yon nòt rezolisyon obligatwa.",
+    "resolveNotePlaceholder": "Poukisa resi sa a pa bezwen rejwe",
+    "confirmResolve": "Rezoud resi sa a san rejwe evènman an?",
+    "confirmReplay": "Rejwe evènman sa a nan men founisè a?"
+  },
+  "adminWalletIntegrity": {
+    "title": "Entegrite bòs restoran",
+    "subtitle": "Lekti entegrite ak rekonsilyasyon pou bòs kliyan restoran, plis relve CSV.",
+    "restaurantIdPlaceholder": "Id restoran an",
+    "customerEmailPlaceholder": "Imèl kliyan an",
+    "customerIdPlaceholder": "Id kliyan an",
+    "runIntegrity": "Kouri tcheke entegrite",
+    "runReconciliation": "Kouri rekonsilyasyon",
+    "downloadCsv": "Telechaje relve CSV",
+    "restaurantRequired": "Antre yon id restoran anvan.",
+    "loadFailed": "Pa t kapab chaje done bòs la.",
+    "csvRequiresCustomer": "Antre yon id kliyan pou telechaje yon relve.",
+    "csvDownloaded": "Relve CSV telechaje.",
+    "actionFailed": "Aksyon sa a echwe.",
+    "integrityTitle": "Tcheke entegrite",
+    "integrityValid": "Bòs valab: {{valid}}",
+    "locked": "Bòs fèmen apre yon tcheke ki echwe",
+    "issueCodes": "Pwoblèm: {{codes}}",
+    "reconciliationTitle": "Rekonsilyasyon",
+    "accounts": "{{total}} kont, {{active}} aktif",
+    "balanced": "Balanse",
+    "unbalanced": "Pa balanse: varyans debi {{debit}}, varyans ranbousman {{refund}}",
+    "reconciliationEmpty": "Pa gen done rekonsilyasyon pou restoran sa a.",
+    "empty": "Antre yon restoran ak yon kliyan, epi kouri yon tcheke."
+  },
+  "adminBusinessAudit": {
+    "title": "Tras odit biznis la",
+    "subtitle": "Li jounal odit biznis la: aksyon pewòl, aksyon operatè bòs, ak chanjman estati restoran.",
+    "businessIdPlaceholder": "Id biznis la",
+    "restaurantIdPlaceholder": "Id restoran an",
+    "actionPrefixPlaceholder": "Prefiks aksyon, pa egzanp restaurant.",
+    "search": "Chèche",
+    "prefixHint": "Filtre pa yon prefiks aksyon tankou restaurant. oswa wallet pou etwat tras la.",
+    "loadFailed": "Pa t kapab chaje tras odit la.",
+    "emptyPrompt": "Antre yon id biznis oswa restoran pou li tras odit li.",
+    "empty": "Okenn antre odit pa koresponn ak filtè sa yo."
+  },
+  "adminRestaurantAnalytics": {
+    "title": "Analitik restoran",
+    "subtitle": "Konpare pèfòmans restoran ak menm rapò komèsan yo wè, epi verifye chif komèsan yo rapòte.",
+    "idsPlaceholder": "Id restoran, separe ak vigil",
+    "compare": "Konpare",
+    "idsRequired": "Antre omwen yon id restoran.",
+    "loadFailed": "Pa t kapab chaje rapò restoran yo.",
+    "restaurant": "Restoran",
+    "orders": "Kòmann",
+    "revenue": "Revni",
+    "refunds": "Ranbousman",
+    "avgTicket": "Tikè mwayèn",
+    "detail": "Detay",
+    "viewDetail": "Wè detay",
+    "detailTitle": "Detay restoran {{id}}",
+    "inventoryCounts": "Envantè: {{low}} atik ki ba nan stok, {{out}} ki fini.",
+    "operationsCounts": "Operasyon: {{checklists}} lis fini, {{audits}} odit fini, {{actions}} aksyon korektif ouvè."
+  },
+  "restaurantSupport": {
+    "title": "Sipò restoran",
+    "subtitle": "Louvri yon ka sou yon kòmann restoran epi swiv li isit la.",
+    "createTitle": "Louvri yon ka sipò",
+    "loadFailed": "Pa t kapab chaje ka sipò yo.",
+    "createRequired": "Antre yon id restoran ak yon deskripsyon.",
+    "createFailed": "Pa t kapab louvri ka sipò a.",
+    "created": "Ka sipò louvri.",
+    "restaurantId": "Id restoran an",
+    "orderId": "Id kòmann lan",
+    "issueType": "Kalite pwoblèm",
+    "requestedResolution": "Rezolisyon yo mande",
+    "noPreference": "Pa gen preferans",
+    "description": "Deskripsyon",
+    "create": "Louvri ka a",
+    "myCases": "Ka mwen yo",
+    "empty": "Poko gen ka sipò.",
+    "showing": "Ap montre {{from}} pou {{to}} sou {{total}}",
+    "openCase": "Louvri yon ka sipò restoran",
+    "merchantSupportLink": "Ka sipò",
+    "merchantTitle": "Ka sipò restoran an",
+    "merchantSubtitle": "Reponn ka restoran w lan, pwopoze rezolisyon, epi voye bay OxSteed lè sa nesesè.",
+    "backToQueue": "Retounen nan ke sipò a",
+    "allStatuses": "Tout estati yo",
+    "respondTitle": "Reponn kliyan an",
+    "respond": "Voye repons lan",
+    "responded": "Repons voye.",
+    "manageTitle": "Jere ka sa a",
+    "assignPlaceholder": "Bay id itilizatè a",
+    "assign": "Bay",
+    "assigned": "Ka a bay.",
+    "offerPlaceholder": "Pwopoze yon rezolisyon",
+    "amountPlaceholder": "Montan an santim",
+    "offer": "Pwopoze rezolisyon an",
+    "offered": "Rezolisyon pwopoze.",
+    "resolveNotePlaceholder": "Nòt rezolisyon",
+    "resolve": "Rezoud ka a",
+    "resolved": "Ka a rezoud.",
+    "confirmResolve": "Rezoud ka sa a? Kliyan an ap wè li kòm rezoud.",
+    "escalatePlaceholder": "Rezon pou voye bay OxSteed",
+    "escalate": "Voye bay OxSteed",
+    "escalated": "Ka a voye bay OxSteed.",
+    "confirmEscalate": "Voye ka sa a bay OxSteed? OxSteed ap pran li depi isit la.",
+    "messagesTitle": "Mesaj",
+    "noMessages": "Poko gen mesaj.",
+    "internalNote": "Nòt entèn",
+    "actionFailed": "Aksyon sa a echwe.",
+    "caseActions": "Aksyon sou ka w lan",
+    "offeredLine": "Rezolisyon yo pwopoze: {{resolution}} ({{amount}} santim)",
+    "acceptResolution": "Aksepte rezolisyon an",
+    "accepted": "Rezolisyon aksepte.",
+    "reopen": "Relouvri ka a",
+    "reopened": "Ka a relouvri.",
+    "confirmAccept": "Aksepte rezolisyon sa a? Sa fèmen ka a kòm rezoud."
   }
 }

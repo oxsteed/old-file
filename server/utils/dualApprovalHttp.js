@@ -24,6 +24,9 @@ function sanitizeApproval(approval) {
     decidedBy: approval.decided_by || null,
     decidedAt: approval.decided_at || null,
     executedAt: approval.executed_at || null,
+    resolvedSubject: approval.resolvedSubject || null,
+    subjectStatus: approval.subjectStatus || null,
+    movementReason: approval.movementReason || null,
   };
 }
 

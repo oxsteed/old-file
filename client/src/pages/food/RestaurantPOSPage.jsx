@@ -310,6 +310,10 @@ export default function RestaurantPOSPage() {
   const [discounts, setDiscounts] = useState([]);
   const [discountDefinitions, setDiscountDefinitions] = useState([]);
   const [activeShift, setActiveShift] = useState(null);
+  const [openShifts, setOpenShifts] = useState([]);
+  const [showCloseShift, setShowCloseShift] = useState(false);
+  const [closingCash, setClosingCash] = useState('');
+  const [closeResult, setCloseResult] = useState(null);
   const [canManage, setCanManage] = useState(false);
   const [canUsePos, setCanUsePos] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -390,10 +394,14 @@ export default function RestaurantPOSPage() {
         api.get(`/restaurants/${restaurantId}/pos/shifts?limit=50`).catch(() => ({ data: { shifts: [] } })),
         api.get(`/restaurants/${restaurantId}/app/bootstrap`).catch(() => null),
       ]);
-      const openShifts = (shiftsResponse.data?.shifts || [])
+      const fetchedOpenShifts = (shiftsResponse.data?.shifts || [])
         .filter((shift) => shift.status === 'open')
         .sort((a, b) => Number(Boolean(b.is_mine)) - Number(Boolean(a.is_mine)));
-      const selectedShift = openShifts[0] || null;
+      setOpenShifts(fetchedOpenShifts);
+      // The server returns no ordering guarantee for same-priority shifts,
+      // so when more than one is open the page says so instead of silently
+      // attaching orders to whichever row came first.
+      const selectedShift = fetchedOpenShifts[0] || null;
       if (selectedShift?.location_id) r = await getFoodRestaurant(restaurantId, { locationId: selectedShift.location_id });
       const rest = r?.restaurant || r;
       setRestaurant({ ...rest, location_id: r?.location?.id ?? selectedShift?.location_id ?? null });
@@ -547,6 +555,31 @@ export default function RestaurantPOSPage() {
       toast.success(t('food.merchant.posShiftOpened', 'POS shift opened. You can take orders now.'));
     } catch (err) {
       toast.error(err?.response?.data?.message || t('food.merchant.posShiftOpenError', 'Could not open the POS shift.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Close the active shift with a counted cash drawer. The server returns
+  // the expected cash, the counted cash, and the variance, which the page
+  // shows verbatim so the cashier can see an over/short before moving on.
+  // A 409 (pending payments) surfaces the server message, not a generic one.
+  const handleCloseShift = async () => {
+    if (!activeShift || submitting) return;
+    const cents = Math.round(Number(closingCash) * 100);
+    if (!Number.isFinite(cents) || cents < 0) return;
+    setSubmitting(true);
+    try {
+      const res = await api.post(`/restaurants/${restaurantId}/pos/shifts/${activeShift.id}/close`, {
+        closingCashCents: cents,
+      });
+      const summary = res.data?.summary || res.data?.shift?.metadata || null;
+      setCloseResult(summary);
+      setActiveShift(null);
+      setOpenShifts((prev) => prev.filter((s) => s.id !== activeShift.id));
+      toast.success(t('food.pos.shiftClosed'));
+    } catch (err) {
+      toast.error(err?.response?.data?.message || t('food.merchant.posShiftCloseError'));
     } finally {
       setSubmitting(false);
     }
@@ -788,10 +821,20 @@ export default function RestaurantPOSPage() {
           </div>
           <div className="fd-pos-header-meta">
             <PosStaffSessionBar restaurantId={restaurantId} />
-            {activeShift ? (
-              <span className="fd-tag">
-                {t('food.pos.shiftOpen', { defaultValue: 'POS shift open' })}
+            {openShifts.length > 1 && (
+              <span className="fd-tag" role="alert">
+                {t('food.pos.multipleOpenShifts', { count: openShifts.length })}
               </span>
+            )}
+            {activeShift ? (
+              <>
+                <span className="fd-tag">
+                  {t('food.pos.shiftOpen', { defaultValue: 'POS shift open' })}
+                </span>
+                <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={() => { setClosingCash(''); setCloseResult(null); setShowCloseShift(true); }} disabled={submitting} data-track="ui.c952aceb7c.12">
+                  {t('food.pos.closeShift')}
+                </button>
+              </>
             ) : (
               <>
                 <span className="fd-tag">
@@ -947,6 +990,79 @@ export default function RestaurantPOSPage() {
           onConfirmPayment={handleConfirmPayment}
           onClose={() => setShowPay(false)}
         />
+      )}
+
+      {closeResult && (
+        <div
+          className="fd-modal-overlay"
+          role="button"
+          tabIndex={0}
+          aria-label={t('food.common.close')}
+          onClick={() => setCloseResult(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setCloseResult(null);
+            }
+          }} data-track="ui.c952aceb7c.22"
+        >
+          <div className="fd-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <h3>{t('food.pos.shiftClosed')}</h3>
+            <p className="fd-card-meta">
+              {t('food.pos.closeSummary', {
+                expected: formatFoodMoney(closeResult.expectedCashCents || 0, currency),
+                counted: formatFoodMoney(closeResult.closingCashCents || 0, currency),
+                variance: formatFoodMoney(closeResult.cashOverShortCents || 0, currency),
+              })}
+            </p>
+            <p className="fd-card-meta">
+              {t('food.pos.closePaidOrders', { count: closeResult.paidOrderCount || 0 })}
+            </p>
+            <div className="fd-pos-modal-actions">
+              <button className="fd-btn" onClick={() => setCloseResult(null)} data-track="ui.c952aceb7c.19">{t('food.common.close')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCloseShift && activeShift && (
+        <div
+          className="fd-modal-overlay"
+          role="button"
+          tabIndex={0}
+          aria-label={t('food.common.close')}
+          onClick={() => setShowCloseShift(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setShowCloseShift(false);
+            }
+          }} data-track="ui.c952aceb7c.23"
+        >
+          <div className="fd-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <h3>{t('food.pos.closeShiftTitle', { id: activeShift.id })}</h3>
+            <p className="fd-card-meta">{t('food.pos.closeShiftHint')}</p>
+            <p className="fd-card-meta">
+              {t('food.pos.openingCash', { amount: formatFoodMoney(activeShift.opening_cash_cents || 0, currency) })}
+              {' · '}
+              {t('food.pos.shiftPayments', { amount: formatFoodMoney(activeShift.payments_cents || 0, currency) })}
+            </p>
+            <div className="fd-field">
+              <label>{t('food.pos.closingCash')}</label>
+              <input aria-label={t('food.pos.closingCash')} type="number" step="0.01" min="0" value={closingCash} onChange={(e) => setClosingCash(e.target.value)} placeholder="0.00" autoFocus />
+            </div>
+            <div className="fd-pos-modal-actions">
+              <button className="fd-btn-secondary" onClick={() => setShowCloseShift(false)} data-track="ui.c952aceb7c.20">{t('food.common.cancel')}</button>
+              <button
+                className="fd-btn"
+                disabled={submitting || closingCash === '' || Number(closingCash) < 0}
+                onClick={async () => { await handleCloseShift(); setShowCloseShift(false); }} data-track="ui.c952aceb7c.21"
+              >
+                {submitting ? t('food.common.saving') : t('food.pos.closeShift')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </PageShell>
   );

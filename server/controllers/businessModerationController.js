@@ -1,6 +1,7 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
+const { suspendRestaurantsForBusiness } = require('../services/restaurantTombstoneService');
 const { parseBoundedPagination } = require('../utils/pagination');
 
 // ADM-225: all paginated list endpoints clamp ?limit= server-side (max 100)
@@ -107,19 +108,36 @@ exports.toggleBusiness = async (req, res) => {
       return res.status(409).json({ error: 'Business state changed during update. Please try again.' });
     }
 
+    // Track D (finding 20): deactivating a business must not leave its
+    // restaurants live while deleting suspends them. Deactivation now
+    // suspends the business's active/paused restaurants through the same
+    // tombstone path delete uses. Reactivation deliberately does NOT
+    // restore them: a suspended restaurant stays suspended until its owner
+    // explicitly re-activates it, so nothing silently re-lists.
+    let restaurantsSuspended = [];
+    if (!newActive) {
+      restaurantsSuspended = await suspendRestaurantsForBusiness(db, id);
+    }
+
     try {
       await logAdminAction({
         adminId: req.user.id,
         action: newActive ? 'business_reactivated' : 'business_deactivated',
         targetType: 'business', targetId: String(id),
-        before: { is_active: rows[0].is_active }, after: { is_active: newActive },
+        before: { is_active: rows[0].is_active }, after: { is_active: newActive, restaurantsSuspended: restaurantsSuspended.length },
         description: reason || null, req,
       });
     } catch (e) {
       logger.error('business moderation audit failed', { action: 'business_reactivated_or_deactivated', businessId: id, error: e.message });
       return res.status(503).json({ error: 'Business updated, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
     }
-    res.json({ message: `Business ${newActive ? 'reactivated' : 'deactivated'}.`, is_active: newActive });
+    res.json({
+      message: `Business ${newActive ? 'reactivated' : 'deactivated'}.`,
+      is_active: newActive,
+      restaurantsSuspended: restaurantsSuspended.length,
+      restaurantsSuspendedIds: restaurantsSuspended,
+      restaurantsStaySuspendedOnReactivate: true,
+    });
   } catch (err) {
     logger.error('toggleBusiness error', { err, businessId: req.params?.id, adminId: req.user?.id });
     res.status(500).json({ error: 'Failed to update business.' });
@@ -372,10 +390,59 @@ exports.getBusinessDetail = async (req, res) => {
        LIMIT 10
     `, [business.owner_id]);
 
-    res.json({ business: { ...business, recent_jobs: jobs } });
+    // Restaurants owned by this business, for the Business 360 restaurant
+    // tab: an admin opening the page for a restaurant operator must see
+    // restaurant health, not only the operator's personal marketplace work.
+    const { rows: restaurants } = await db.query(`
+      SELECT id, display_name, status, is_verified,
+             accepts_online_orders, accepts_in_store_orders, created_at
+        FROM food_restaurants
+       WHERE business_id = $1
+       ORDER BY display_name ASC
+    `, [business.id]);
+
+    res.json({ business: { ...business, recent_jobs: jobs, restaurants } });
   } catch (err) {
     logger.error('getBusinessDetail error', { err, businessId: req.params?.id });
     res.status(500).json({ error: 'Failed to fetch business details.' });
+  }
+};
+
+// Read-only admin view of pay-runs for a business's restaurants. Pay-runs
+// are otherwise merchant-only (finding 25); this endpoint feeds the
+// Business 360 restaurant tab and the admin analytics roll-up without
+// exposing any mutation. Paginated with a real total, like the other
+// admin money queues.
+exports.listBusinessRestaurantPayRuns = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // parseBoundedPagination derives offset from ?page, which this
+    // endpoint does not use: the client pages with ?offset, so parse the
+    // offset directly (clamped, never negative) instead.
+    const { limit } = parseBoundedPagination(req.query, { defaultLimit: 20, maxLimit: 100 });
+    const parsedOffset = Number.parseInt(String(req.query.offset ?? 0), 10);
+    const offset = Number.isSafeInteger(parsedOffset) && parsedOffset > 0 ? parsedOffset : 0;
+    const { rows } = await db.query(`
+      SELECT pr.id, pr.restaurant_id, fr.display_name AS restaurant_name,
+             pr.period_from, pr.period_to, pr.status, pr.totals,
+             pr.finalized_at, pr.created_at,
+             (SELECT COUNT(*)::int FROM restaurant_pay_run_lines l WHERE l.pay_run_id = pr.id) AS line_count
+        FROM restaurant_pay_runs pr
+        JOIN food_restaurants fr ON fr.id = pr.restaurant_id
+       WHERE fr.business_id = $1
+       ORDER BY pr.period_from DESC, pr.id DESC
+       LIMIT $2 OFFSET $3
+    `, [id, limit, offset]);
+    const { rows: countRows } = await db.query(`
+      SELECT COUNT(*)::int AS total
+        FROM restaurant_pay_runs pr
+        JOIN food_restaurants fr ON fr.id = pr.restaurant_id
+       WHERE fr.business_id = $1
+    `, [id]);
+    res.json({ payRuns: rows, total: countRows[0]?.total || 0, limit, offset });
+  } catch (err) {
+    logger.error('listBusinessRestaurantPayRuns error', { err, businessId: req.params?.id });
+    res.status(500).json({ error: 'Failed to load restaurant pay runs.' });
   }
 };
 

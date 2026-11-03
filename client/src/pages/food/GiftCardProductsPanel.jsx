@@ -19,7 +19,7 @@ export default function GiftCardProductsPanel({ t, restaurant }) {
   const [message, setMessage] = useState(null);
   const [issuedCode, setIssuedCode] = useState(null);
   const [issuing, setIssuing] = useState(false);
-  const [issueForm, setIssueForm] = useState({ productId: '', customerId: '', expiresAt: '', recipientEmail: '', language: 'en', message: '', physicalCode: '' });
+  const [issueForm, setIssueForm] = useState({ productId: '', customerId: '', expiresAt: '', recipientEmail: '', language: 'en', message: '', physicalCode: '', paymentReference: '' });
   const [form, setForm] = useState({ sku: '', name: '', amount: '', deliveryType: 'e_gift' });
 
   const load = useCallback(async () => {
@@ -85,6 +85,9 @@ export default function GiftCardProductsPanel({ t, restaurant }) {
         ...(issueForm.expiresAt ? { expiresAt: new Date(`${issueForm.expiresAt}T23:59:59.000Z`).toISOString() } : {}),
         recipientEmail: products.find(p=>String(p.id)===issueForm.productId)?.deliveryType==='e_gift'?issueForm.recipientEmail:'',
         physicalCode: products.find(p=>String(p.id)===issueForm.productId)?.deliveryType==='physical'?issueForm.physicalCode:'',
+        // Track D (finding 50): the payment backing this issued value, so
+        // issued value is never unbacked by a recorded reference.
+        ...(issueForm.paymentReference.trim() ? { paymentReference: issueForm.paymentReference.trim() } : {}),
         language: issueForm.language, message: issueForm.message,
       };
       const fingerprint = JSON.stringify({restaurantId,...payload});
@@ -101,7 +104,7 @@ export default function GiftCardProductsPanel({ t, restaurant }) {
       issueAttempt.current = null;
       try { sessionStorage.removeItem(`gift-issue:${restaurantId}`); } catch {}
       setRevision(n=>n+1);
-      setIssueForm((current) => ({ ...current, customerId: '', expiresAt: '',recipientEmail:'',message:'',physicalCode:'' }));
+      setIssueForm((current) => ({ ...current, customerId: '', expiresAt: '',recipientEmail:'',message:'',physicalCode:'',paymentReference:'' }));
     } catch (error) {
       setMessage({ ok: false, text: errorMessage(error, t('giftCards.issueError')) });
     } finally { setIssuing(false); }
@@ -127,6 +130,7 @@ export default function GiftCardProductsPanel({ t, restaurant }) {
           {products.find(p=>String(p.id)===issueForm.productId)?.deliveryType==='e_gift'?<label className="fd-field">{t('giftFulfillment.recipient')}<input type="email" required maxLength={254} disabled={issuing} value={issueForm.recipientEmail} onChange={e=>setIssueForm(s=>({...s,recipientEmail:e.target.value}))}/></label>:<label className="fd-field">{t('giftFulfillment.preprinted')}<input maxLength={40} disabled={issuing} value={issueForm.physicalCode} onChange={e=>setIssueForm(s=>({...s,physicalCode:e.target.value}))}/></label>}
           <label className="fd-field">{t('giftFulfillment.language')}<select disabled={issuing} value={issueForm.language} onChange={e=>setIssueForm(s=>({...s,language:e.target.value}))}>{['en','es','fr','ht','ar'].map(language=><option key={language} value={language}>{({en:'English',es:'Español',fr:'Français',ht:'Kreyòl',ar:'العربية'})[language]}</option>)}</select></label>
           <label className="fd-field">{t('giftFulfillment.message')}<input disabled={issuing} maxLength={500} value={issueForm.message} onChange={e=>setIssueForm(s=>({...s,message:e.target.value}))}/></label>
+          <label className="fd-field">{t('giftCards.paymentReference')}<input disabled={issuing} maxLength={120} value={issueForm.paymentReference} onChange={e=>setIssueForm(s=>({...s,paymentReference:e.target.value}))} placeholder={t('giftCards.paymentReferenceHint')} /></label>
           <div className="fd-settings-actions"><button type="submit" className="fd-btn" disabled={issuing || !products.some((product) => product.isActive)} data-track="ui.7a385cac33.5">{issuing ? t('food.common.saving') : t('giftCards.issue')}</button></div>
         </form>
         {issuedCode && <p className="fd-settings-note" role="status"><strong>{t('giftCards.issuedCode')}</strong> <code>{issuedCode}</code></p>}

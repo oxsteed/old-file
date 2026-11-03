@@ -21,7 +21,11 @@
     "comparedValue": "Compared value",
     "smsDelivery": "SMS delivery",
     "smsUncertainNote": "Interrupted SMS attempts are not automatically resent. Check the provider before arranging a retry.",
-    "smsStatus": {"sent":"Sent","uncertain":"Delivery uncertain","sending":"Claimed; completion unconfirmed"},
+    "smsStatus": {
+      "sent": "Sent",
+      "uncertain": "Delivery uncertain",
+      "sending": "Claimed; completion unconfirmed"
+    },
     "modelNlHint": "The optional model proposes a query for your review. Only permitted metrics are available. Confirm the metric, filters and trailing time window before running.",
     "columns": {
       "redemption_id": "Redemption",
@@ -103,7 +107,7 @@
       "customer_id": "Customer ID",
       "customer_orders": "Customer orders",
       "quantity": "Quantity"
-    } ,
+    },
     "businessRevenue": "Recorded paid-invoice revenue",
     "businessRevenueNote": "Paid invoices only, separated by recorded currency. Expenses and other income are excluded from this report.",
     "paidInvoices": "Paid invoices",
@@ -146,7 +150,7 @@
       "consulting_cancel_rate_pct": "Consulting cancellation rate",
       "sla_first_response_compliance_pct": "First-response SLA compliance"
     }
-  } ,
+  },
   "customerWorkspace": {
     "title": "Customer workspace",
     "eyebrow": "CUSTOMER 360",
@@ -4754,10 +4758,73 @@
           "oxsteed_credit": "OxSteed Credit",
           "other": "Other"
         },
-        "payroll": {"title": "Labor & payroll", "permissionNote": "Payroll figures need the payroll.view permission. Ask the owner to grant it.", "loadError": "Could not load payroll.", "laborPercent": "Labor % of net sales", "laborCost": "Labor cost", "netSales": "Net collected sales", "hoursWorked": "Hours worked", "scheduledHours": "{{hours}} scheduled", "salesPerLaborHour": "Sales per labor hour", "missingWage": "{{count}} team member(s) have hours but no wage on file, so their labor cost is missing.", "noData": "No hours or tips in this period.", "employee": "Employee", "jobRole": "Job role", "hours": "Hours", "wages": "Wages", "netTips": "Net tips", "totalPay": "Total pay", "exportCsv": "Export payroll CSV", "exportError": "Could not download the payroll export."},
-        "tipPool": {"title": "Tip pool & cash tips", "enablePooling": "Enable tip pooling and tip-outs", "ruleTarget": "Rule target", "targetRole": "Tip-out to a job role", "targetPool": "Share into the tip pool", "ruleRole": "Job role", "ruleRolePlaceholder": "e.g. Cook", "rulePercent": "Percent of tips", "removeRule": "Remove", "addRule": "Add rule", "save": "Save tip settings", "saved": "Tip settings saved.", "saveError": "Could not save tip settings.", "hint": "Tip-outs are taken from the period's total tips and shared equally among the staff in that role who worked. Pool shares go to staff who earned tips.", "cashTitle": "Declare cash tips for a team member", "cashSelectStaff": "Select staff", "cashDate": "Date", "cashAmount": "Amount", "cashAdd": "Add declaration", "cashSaved": "Cash tips declared.", "cashInvalid": "Pick a team member, a date and a positive amount.", "cashError": "Could not save the cash tip declaration."},
-        "exceptions": {"title": "Exceptions by employee", "none": "No exceptions in this period.", "voids": "Voids", "refunds": "Refunds", "comps": "Comps", "discounts": "Discounts", "noSales": "No-sales", "payouts": "Payouts", "missingPunches": "Missing time entries", "missingPunchesHint": "Missing time entries count scheduled shifts with no matching hours record. Punch-level lateness needs clock-in times, which the hours log does not store."},
-        "activity": {"title": "Team activity", "permissionNote": "The activity log needs the audit.view permission.", "filterPerson": "Filter by person", "allPeople": "Everyone", "filterAction": "Filter by action", "filterActionPlaceholder": "e.g. business.member", "none": "No activity in this view."},
+        "payroll": {
+          "title": "Labor & payroll",
+          "permissionNote": "Payroll figures need the payroll.view permission. Ask the owner to grant it.",
+          "loadError": "Could not load payroll.",
+          "laborPercent": "Labor % of net sales",
+          "laborCost": "Labor cost",
+          "netSales": "Net collected sales",
+          "hoursWorked": "Hours worked",
+          "scheduledHours": "{{hours}} scheduled",
+          "salesPerLaborHour": "Sales per labor hour",
+          "missingWage": "{{count}} team member(s) have hours but no wage on file, so their labor cost is missing.",
+          "noData": "No hours or tips in this period.",
+          "employee": "Employee",
+          "jobRole": "Job role",
+          "hours": "Hours",
+          "wages": "Wages",
+          "netTips": "Net tips",
+          "totalPay": "Total pay",
+          "exportCsv": "Export payroll CSV",
+          "exportError": "Could not download the payroll export."
+        },
+        "tipPool": {
+          "title": "Tip pool & cash tips",
+          "enablePooling": "Enable tip pooling and tip-outs",
+          "ruleTarget": "Rule target",
+          "targetRole": "Tip-out to a job role",
+          "targetPool": "Share into the tip pool",
+          "ruleRole": "Job role",
+          "ruleRolePlaceholder": "e.g. Cook",
+          "rulePercent": "Percent of tips",
+          "removeRule": "Remove",
+          "addRule": "Add rule",
+          "save": "Save tip settings",
+          "saved": "Tip settings saved.",
+          "saveError": "Could not save tip settings.",
+          "hint": "Tip-outs are taken from the period's total tips and shared equally among the staff in that role who worked. Pool shares go to staff who earned tips.",
+          "cashTitle": "Declare cash tips for a team member",
+          "cashSelectStaff": "Select staff",
+          "cashDate": "Date",
+          "cashAmount": "Amount",
+          "cashAdd": "Add declaration",
+          "cashSaved": "Cash tips declared.",
+          "cashInvalid": "Pick a team member, a date and a positive amount.",
+          "cashError": "Could not save the cash tip declaration.",
+          "loadError": "Tip pool settings could not be loaded."
+        },
+        "exceptions": {
+          "title": "Exceptions by employee",
+          "none": "No exceptions in this period.",
+          "voids": "Voids",
+          "refunds": "Refunds",
+          "comps": "Comps",
+          "discounts": "Discounts",
+          "noSales": "No-sales",
+          "payouts": "Payouts",
+          "missingPunches": "Missing time entries",
+          "missingPunchesHint": "Missing time entries count scheduled shifts with no matching hours record. Punch-level lateness needs clock-in times, which the hours log does not store."
+        },
+        "activity": {
+          "title": "Team activity",
+          "permissionNote": "The activity log needs the audit.view permission.",
+          "filterPerson": "Filter by person",
+          "allPeople": "Everyone",
+          "filterAction": "Filter by action",
+          "filterActionPlaceholder": "e.g. business.member",
+          "none": "No activity in this view."
+        },
         "loyalty": {
           "title": "Customer loyalty",
           "repeatRate": "Repeat order rate",
@@ -4956,7 +5023,7 @@
       },
       "training_recertification_due": {
         "title": "Training recertification due",
-        "body": "Your certification for {{moduleTitle}} at {{restaurantName}} has expired. Please complete the training again."
+        "body": "Your certification for {{moduleTitle}} has expired. Please complete the training again."
       },
       "crew_shift_published": {
         "title": "New shift posted",
@@ -4977,10 +5044,6 @@
       "training_completed": {
         "title": "Training completed",
         "body": "{{moduleTitle}} was completed"
-      },
-      "training_recertification_due": {
-        "title": "Training recertification due",
-        "body": "Your certification for {{moduleTitle}} has expired. Please complete the training again."
       },
       "member_invite": {
         "title": "You have been invited to join {{businessName}}",
@@ -5096,9 +5159,65 @@
       "logbookLabel": "Shift note",
       "logbookPlaceholder": "What should the next shift know?",
       "addLogbookEntry": "Add entry",
-      "logbookAdded": "Log entry added"
+      "logbookAdded": "Log entry added",
+      "scheduleCount": "{{count}} shifts",
+      "showAll": "Show all {{count}} shifts",
+      "showFewer": "Show fewer"
     },
-    "merchant": { "timezone": "Time zone", "timezoneHint": "Used for opening hours, daily queue numbers, and reports.", "taxRuleCategory": "Tax category (optional)", "prepAutoExtendMax": "Auto-extend cap (min)", "prepAutoExtendThreshold": "Auto-extend from (orders)", "prepAutoExtendPerOrder": "Auto-extend per order (min)", "prepAutoExtendHint": "Quote longer prep times automatically when open tickets pass the threshold.", "locationEdit": "Edit", "locationSaveChanges": "Save changes", "locationStatus": "Status", "locationActive": "Active", "locationPaused": "Paused", "locationClosed": "Closed", "locationUpdated": "Location updated", "locationMakePrimary": "Make this the primary location", "locationName": "Location name", "addLocation": "Add location", "locationCreated": "Location added", "locationError": "Could not save location", "findCoordinates": "Find coordinates", "locationGeocodeEmpty": "Could not find coordinates for this location", "locationGeocoded": "Coordinates found", "locationGeocodeError": "Could not find coordinates", "addHoursRange": "Add range", "removeHoursRange": "Remove range", "hoursRangeLabel": "Range {{number}}", "specialDatesTitle": "Special dates", "specialDatesHint": "Override the weekly hours for a specific date, including holidays and one-off closures.", "specialDate": "Date", "specialDateClosed": "Closed all day", "specialDateRemove": "Remove date", "specialDateAdd": "Add special date", "specialDateDuplicate": "Each special date can only be listed once.", "tab": { "myshift": "My shift" } },
+    "merchant": {
+      "timezone": "Time zone",
+      "timezoneHint": "Used for opening hours, daily queue numbers, and reports.",
+      "taxRuleCategory": "Tax category (optional)",
+      "prepAutoExtendMax": "Auto-extend cap (min)",
+      "prepAutoExtendThreshold": "Auto-extend from (orders)",
+      "prepAutoExtendPerOrder": "Auto-extend per order (min)",
+      "prepAutoExtendHint": "Quote longer prep times automatically when open tickets pass the threshold.",
+      "locationEdit": "Edit",
+      "locationSaveChanges": "Save changes",
+      "locationStatus": "Status",
+      "locationActive": "Active",
+      "locationPaused": "Paused",
+      "locationClosed": "Closed",
+      "locationUpdated": "Location updated",
+      "locationMakePrimary": "Make this the primary location",
+      "locationName": "Location name",
+      "addLocation": "Add location",
+      "locationCreated": "Location added",
+      "locationError": "Could not save location",
+      "findCoordinates": "Find coordinates",
+      "locationGeocodeEmpty": "Could not find coordinates for this location",
+      "locationGeocoded": "Coordinates found",
+      "locationGeocodeError": "Could not find coordinates",
+      "addHoursRange": "Add range",
+      "removeHoursRange": "Remove range",
+      "hoursRangeLabel": "Range {{number}}",
+      "specialDatesTitle": "Special dates",
+      "specialDatesHint": "Override the weekly hours for a specific date, including holidays and one-off closures.",
+      "specialDate": "Date",
+      "specialDateClosed": "Closed all day",
+      "specialDateRemove": "Remove date",
+      "specialDateAdd": "Add special date",
+      "specialDateDuplicate": "Each special date can only be listed once.",
+      "tab": {
+        "myshift": "My shift"
+      },
+      "orderCenter": {
+        "cancelConfirm": "Cancel order {{order}} ({{amount}})? Cancelling a paid card order triggers a refund to the customer.",
+        "markPaidConfirm": "Mark order {{order}} as paid for {{amount}}? This records that the full amount due was received."
+      },
+      "payouts": {
+        "historyShowing": "Showing {{from}}–{{to}} of {{total}}",
+        "historyPrevious": "Previous",
+        "historyNext": "Next",
+        "requestConfirm": "Request a payout of {{amount}}? The request enters the admin review queue; it does not move money immediately."
+      },
+      "stChipVerified": "Verified",
+      "stChipUnverified": "Not verified",
+      "suspendedNotice": "This restaurant is suspended. Ordering is disabled until it is reactivated.",
+      "posShiftCloseError": "Could not close the POS shift.",
+      "csvFailedSummary": "{{count}} rows failed: {{rows}}",
+      "csvImportedPartial": "{{count}} items imported and published.{{failed}}{{skipped}}{{truncated}}"
+    },
     "creditCenter": {
       "recentFallback": "Recently",
       "oxsteedCustomer": "OxSteed customer",
@@ -5260,7 +5379,17 @@
       "unlock": "Unlock",
       "offlineCashSaved": "Cash checkout saved. It will replay automatically when the connection returns.",
       "offlineCashReplayed": "Cash checkout replayed.",
-      "offlineCashReplayWaiting": "Cash checkout is still waiting to replay. Keep this POS open and check the shift."
+      "offlineCashReplayWaiting": "Cash checkout is still waiting to replay. Keep this POS open and check the shift.",
+      "closeShift": "Close shift",
+      "closeShiftTitle": "Close shift #{{id}}",
+      "closeShiftHint": "Count the cash in the drawer and enter it below. Closing cannot be undone.",
+      "openingCash": "Opening cash: {{amount}}",
+      "shiftPayments": "Settled payments: {{amount}}",
+      "closingCash": "Closing cash",
+      "shiftClosed": "Shift closed",
+      "closeSummary": "Expected {{expected}}, counted {{counted}}, variance {{variance}}.",
+      "closePaidOrders": "{{count}} paid orders",
+      "multipleOpenShifts": "{{count}} shifts are open. Orders are using the first shift shown. Close the extra shifts before taking new orders."
     },
     "restaurant": {
       "promoErrors": {
@@ -5277,7 +5406,36 @@
         "promo_not_fundable": "This promo code can't be applied to this order.",
         "promo_changed": "The promo discount changed. Review your order and try again."
       },
-      "promoApplied": "Promo applied: −{{amount}}"
+      "promoApplied": "Promo applied: −{{amount}}",
+      "removeItem": "Remove {{item}} from cart",
+      "checkoutTotalLoading": "Calculating total…",
+      "reorderReplaceConfirm": "Replace your current cart with this past order?",
+      "reorderDropped": "Some customizations are no longer available and were left out: {{items}}",
+      "deliveryCity": "City",
+      "deliveryCityPlaceholder": "City",
+      "deliveryState": "State",
+      "deliveryStatePlaceholder": "State",
+      "deliveryZip": "ZIP code",
+      "deliveryZipPlaceholder": "ZIP code",
+      "deliveryInstructions": "Delivery instructions",
+      "deliveryInstructionsPlaceholder": "Gate code, parking, or drop-off notes",
+      "guestCheckoutNote": "You can check out as a guest. Sign in to see this order in your order history and earn loyalty points.",
+      "guestName": "Your name",
+      "guestNamePlaceholder": "Full name",
+      "guestPhone": "Phone",
+      "guestPhonePlaceholder": "Phone number",
+      "guestEmail": "Email",
+      "guestEmailPlaceholder": "Email address",
+      "guestNameRequired": "Please enter your name for a guest pickup order.",
+      "guestContactRequired": "Please provide a phone number or email for order updates.",
+      "guestPaymentUnavailable": "This payment method requires sign-in. Choose pay at restaurant or Guest Credit, or sign in.",
+      "quoteLoading": "Still calculating your total…",
+      "trackOrder": "Track order",
+      "reviewAfterCompleted": "Once your order is completed, you can leave a review from the tracking page.",
+      "reviewsLoadError": "Could not load reviews.",
+      "reviewsShowing": "Showing {{shown}} of {{total}} reviews",
+      "loadMoreReviews": "Load more reviews",
+      "reviewResponse": "Restaurant response: {{response}}"
     },
     "home": {
       "discovery": {
@@ -5285,8 +5443,51 @@
         "hoursLocalTime": "Hours are shown in each restaurant’s local time.",
         "ordersPaused": "Orders paused",
         "onlineUnavailable": "Online ordering unavailable",
-        "clearLocation": "Clear location"
-      }
+        "clearLocation": "Clear location",
+        "notAcceptingOrders": "Not accepting orders",
+        "openNow": "Accepting orders now",
+        "fulfillment": "Fulfillment",
+        "fulfillmentAll": "All fulfillment",
+        "fulfillment_delivery": "Delivery",
+        "fulfillment_pickup": "Pickup",
+        "fulfillment_dine_in": "Dine in"
+      },
+      "externalPlaceExplore": "Find OxSteed restaurants nearby"
+    },
+    "order": {
+      "reviewDeleted": "Your review was deleted."
+    },
+    "track": {
+      "reviewDone": "Your review",
+      "reviewTitle": "Leave a review",
+      "reviewThanks": "Thanks for your feedback.",
+      "reviewPlaceholder": "How was your order?",
+      "reviewSubmit": "Submit review",
+      "reviewDelete": "Delete review"
+    },
+    "inv": {
+      "adjType_receive": "Receive",
+      "adjType_count": "Count",
+      "adjType_correction": "Correction",
+      "pollError": "Inventory data could not be refreshed. Showing the last saved data.",
+      "showing": "Showing {{from}}–{{to}} of {{total}}",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "runner": {
+      "pollError": "Runner data could not be refreshed. Showing the last saved data.",
+      "settlementApproveConfirm": "Approve settlement for task {{task}}? Cash collected: {{cash}}. Settlement amount (fees plus tip): {{amount}}. Approving does not mark it paid."
+    },
+    "ownerHome": {
+      "suspendedAlert": "This restaurant is suspended. Ordering is disabled.",
+      "suspendedKicker": "Suspended",
+      "suspended": "Ordering suspended",
+      "suspendedDesc": "This restaurant is suspended, so customers cannot order from it. Contact OxSteed support if you believe this is a mistake."
+    },
+    "menuManager": {
+      "partialGroups": "{{failed}} of {{total}} option groups failed to save ({{firstError}}). The item is saved; save again to retry the missing groups.",
+      "bulkPartial": "{{updated}} items updated, {{failed}} failed: {{names}}. The failed items are still selected.",
+      "bulkFailed": "{{failed}} items failed: {{names}}. They are still selected for retry."
     }
   },
   "growthInsights": {
@@ -5296,7 +5497,7 @@
     "scheduleHours": "Schedule (hours)",
     "fieldMapping": "Field mapping (JSON)",
     "runNow": "Run now",
-    "lastRun": "Last run",
+    "lastRun": "Last rollup run",
     "feedLastRun": "Last feed run",
     "categoryMapping": "Category mapping",
     "categoryPath": "Category path",
@@ -5312,7 +5513,7 @@
     "capsSkipped": "Skipped by caps",
     "quietHeld": "Held by quiet hours",
     "noPushDevice": "No push device",
-    "overlap": "Overlap",
+    "overlap": "Overlap with active campaigns",
     "delivered": "Delivered",
     "opened": "Opened",
     "clicked": "Clicked",
@@ -5433,7 +5634,6 @@
     "freshness": "Data freshness",
     "demandThrough": "Demand through",
     "supplyThrough": "Supply through",
-    "lastRun": "Last rollup run",
     "anchorNote": "Areas are postal code centres only; no exact locations.",
     "snapshots": "Governed metrics",
     "gapIndex": "Demand gap index",
@@ -5442,7 +5642,6 @@
     "reject": "Reject",
     "rejectReason": "Rejection reason",
     "produce": "Generate suggestions",
-    "overlap": "Overlap with active campaigns",
     "shared": "shared members",
     "miles": "Miles between members",
     "minimum": "Minimum group size",

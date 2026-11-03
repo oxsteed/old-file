@@ -91,9 +91,12 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
 
   // ── My schedule ────────────────────────────────────────────────────────
   const [shifts, setShifts] = useState([]);
-  useEffect(() => {
+  const [shiftsError, setShiftsError] = useState(false);
+  const [showAllShifts, setShowAllShifts] = useState(false);
+  const loadShifts = useCallback(() => {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
+    setShiftsError(false);
     api.get(`/restaurants/${restaurantId}/crew/shifts`, {
       params: { from: startOfToday.toISOString() },
     })
@@ -101,10 +104,15 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
         const rows = (res.data?.shifts || [])
           .slice()
           .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
-        setShifts(rows.slice(0, 10));
+        // Keep the full list: the old code sliced to 10 with no count or
+        // pager, so an 11th upcoming shift was invisible.
+        setShifts(rows);
       })
-      .catch(() => {});
+      // A failed fetch is not "no shifts": show the error with a retry.
+      .catch(() => setShiftsError(true));
   }, [restaurantId]);
+  useEffect(() => { loadShifts(); }, [loadShifts]);
+  const visibleShifts = showAllShifts ? shifts : shifts.slice(0, 10);
 
   // ── My tasks ───────────────────────────────────────────────────────────
   const [tasks, setTasks] = useState([]);
@@ -272,11 +280,14 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
 
       <section className="fd-card fd-myshift-section" aria-label={t('food.myShift.schedule')}>
         <h3>{t('food.myShift.schedule')}</h3>
-        {shifts.length === 0 ? (
+        <p className="fd-card-meta">{t('food.myShift.scheduleCount', { count: shifts.length })}</p>
+        {shiftsError ? (
+          <p role="alert">{t('food.common.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={loadShifts} data-track="ui.44c3bc07ea.9">{t('food.common.retry')}</button></p>
+        ) : shifts.length === 0 ? (
           <p className="fd-card-meta">{t('food.myShift.scheduleEmpty')}</p>
         ) : (
           <div className="fd-ops-run-list">
-            {shifts.map((shift) => (
+            {visibleShifts.map((shift) => (
               <div key={shift.id} className="fd-ops-run-row">
                 <span>{shift.label}</span>
                 <span className="fd-card-meta">
@@ -287,6 +298,11 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
               </div>
             ))}
           </div>
+        )}
+        {shifts.length > 10 && (
+          <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={() => setShowAllShifts((v) => !v)} data-track="ui.44c3bc07ea.10">
+            {showAllShifts ? t('food.myShift.showFewer') : t('food.myShift.showAll', { count: shifts.length })}
+          </button>
         )}
       </section>
 

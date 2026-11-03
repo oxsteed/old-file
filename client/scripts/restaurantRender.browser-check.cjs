@@ -25,6 +25,7 @@ test('restaurant survives loading, deduplicates dish suggestions, and recovers f
       });
       export const listFoodPromotions = async () => [];
       export const listMyFoodOrders = async () => [];
+      export const listRestaurantReviews = async () => ({ reviews: [], total: 0, limit: 10, offset: 0 });
       export const listSavedPaymentMethods = async () => [];
       export const getMyFoodRestaurantWallet = async () => null;
       export const getLoyaltyBalance = async () => ({ pointsBalance: 0, lifetimePoints: 0, minRedeemPoints: 100, centsPerPoint: 1 });

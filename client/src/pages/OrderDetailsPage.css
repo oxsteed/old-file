@@ -199,3 +199,7 @@ html.dark .order-details-alert { background: rgba(127, 29, 29, .22); color: #fca
 
 .order-details-kicker { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted, #64748b); margin: 0 0 0.5rem; }
 .order-details-error-actions { display: flex; gap: 0.75rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
+
+/* Restaurant-side build (Nov 2026): dispute-form selects/inputs reuse the
+   textarea class but must not stretch vertically. */
+.order-help-select { min-height: 0; }

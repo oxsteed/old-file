@@ -547,6 +547,9 @@ describe('adminReviewMediaFlag', () => {
   });
 
   test('admin list returns flags with restaurant context', async () => {
+    // Track D (finding 21): the list now issues a COUNT query plus the page
+    // query, so both mock responses are queued in call order.
+    mockQuery.mockResolvedValueOnce({ rows: [{ total: 1 }] });
     mockQuery.mockResolvedValueOnce({
       rows: [{
         id: 'flag-1', media_id: 'media-1', reason: 'spam', note: null, status: 'open',
@@ -561,6 +564,7 @@ describe('adminReviewMediaFlag', () => {
     })).get('/api/admin/restaurant-media/flags?status=open');
     expect(res.status).toBe(200);
     expect(res.body.flags).toHaveLength(1);
+    expect(res.body.total).toBe(1);
     expect(res.body.flags[0].restaurant_name).toBe('Noodle House');
   });
 

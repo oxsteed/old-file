@@ -990,6 +990,17 @@ async function clawbackTopup({ topupId, adminId, reason, requestIp = null, corre
 
     const balanceAfterCents = Number(entry.balance_after_cents || 0);
 
+    // Finding 34: terminal status. The first successful clawback moves
+    // the top-up out of 'succeeded' so the succeeded-only gate above
+    // 409s any re-run, and the preview dialog shows 'clawed_back'
+    // instead of a still-payable 'succeeded'. The update is conditional
+    // on 'succeeded' so a concurrent re-run cannot resurrect it.
+    await client.query(
+      `UPDATE restaurant_topups SET status = 'clawed_back', updated_at = NOW()
+        WHERE id = $1 AND status = 'succeeded'`,
+      [topup.id]
+    );
+
     // Transactional audits: both commit or both roll back with the debit.
     await logAdminAction({
       adminId,
@@ -1040,6 +1051,7 @@ async function clawbackTopup({ topupId, adminId, reason, requestIp = null, corre
       balanceAfterCents,
       wentNegative,
       replayed,
+      topupStatus: 'clawed_back',
       reason: normalizedReason,
     };
   }, 'restaurant_topup_clawback');

@@ -214,16 +214,20 @@ describe('restaurant Inventory item backend', () => {
       .mockResolvedValueOnce({ rows: [access({ effective_role: 'employee', effective_membership_id: 88 })] })
       .mockResolvedValueOnce({ rows: [{ id: 1, location_id: 101, location_name: 'Downtown' }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ total: 0 }] })
       .mockResolvedValueOnce({ rows: [access({ effective_role: 'employee', effective_membership_id: 88 })] })
       .mockResolvedValueOnce({ rows: [{ id: 1, location_id: 101, location_name: 'Downtown' }] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ total: 0 }] });
 
     const requests = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/purchase-requests`);
     const issues = await request(app()).get(`/api/restaurants/${RESTAURANT_ID}/inventory/supplier-issues`);
 
     expect(requests.status).toBe(200);
     expect(issues.status).toBe(200);
+    expect(requests.body.total).toBe(0);
+    expect(issues.body.total).toBe(0);
     expect(mockQuery.mock.calls[2][0]).toMatch(/r\.location_id = ANY\(\$2::bigint\[\]\)/);
-    expect(mockQuery.mock.calls[5][0]).toMatch(/i\.location_id = ANY\(\$2::bigint\[\]\)/);
+    expect(mockQuery.mock.calls[6][0]).toMatch(/i\.location_id = ANY\(\$2::bigint\[\]\)/);
   });
 });

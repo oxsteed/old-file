@@ -403,7 +403,16 @@ async function getPayRunWithLines(clientOrPool, restaurantId, payRunId) {
     'SELECT * FROM restaurant_pay_run_lines WHERE pay_run_id = $1 ORDER BY id',
     [payRunId]
   );
-  return { ...run, lines };
+  // Finding 25: payout linkage rides with the run everywhere it is read.
+  const { rows: payoutLinks } = await clientOrPool.query(
+    `SELECT l.*, p.status AS payout_status
+       FROM restaurant_pay_run_payout_links l
+       JOIN restaurant_payouts p ON p.id = l.restaurant_payout_id
+      WHERE l.pay_run_id = $1 ORDER BY l.id`,
+    [payRunId]
+  ).catch(() => ({ rows: [] }));
+  const linkedPayoutCents = payoutLinks.reduce((sum, link) => sum + Number(link.amount_cents || 0), 0);
+  return { ...run, lines, payout_links: payoutLinks, linked_payout_cents: linkedPayoutCents };
 }
 
 function payRunShape(run) {
@@ -420,6 +429,18 @@ function payRunShape(run) {
     finalized_at: run.finalized_at,
     created_at: run.created_at,
     updated_at: run.updated_at,
+    payoutLinks: (run.payout_links || run.payoutLinks || []).map((link) => ({
+      id: Number(link.id),
+      payRunId: Number(link.pay_run_id ?? link.payRunId),
+      restaurantPayoutId: link.restaurant_payout_id ?? link.restaurantPayoutId,
+      amountCents: Number(link.amount_cents ?? link.amountCents),
+      currencyCode: link.currency_code || link.currencyCode || 'USD',
+      linkedBy: link.linked_by || link.linkedBy || null,
+      note: link.note || null,
+      payoutStatus: link.payout_status || link.payoutStatus || null,
+      createdAt: link.created_at || link.createdAt || null,
+    })),
+    linkedPayoutCents: Number(run.linked_payout_cents ?? run.linkedPayoutCents ?? 0),
     lines: (run.lines || []).map((line) => ({
       id: Number(line.id),
       staff_user_id: line.staff_user_id,
@@ -470,15 +491,25 @@ exports.listPayRuns = async (req, res, next) => {
   try {
     const restaurant = await restaurantAccess(req);
     await requirePayrollView(restaurant, req.user.id);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
     const { rows } = await pool.query(
-      `SELECT pr.*, (SELECT COUNT(*)::int FROM restaurant_pay_run_lines l WHERE l.pay_run_id = pr.id) AS line_count
+      `SELECT pr.*, (SELECT COUNT(*)::int FROM restaurant_pay_run_lines l WHERE l.pay_run_id = pr.id) AS line_count,
+              (SELECT COALESCE(SUM(amount_cents), 0)::int FROM restaurant_pay_run_payout_links l WHERE l.pay_run_id = pr.id) AS linked_payout_cents
          FROM restaurant_pay_runs pr
         WHERE pr.restaurant_id = $1
         ORDER BY pr.period_from DESC, pr.id DESC
-        LIMIT 100`,
+        LIMIT $2 OFFSET $3`,
+      [restaurant.id, limit, offset]
+    );
+    const { rows: [countRow] } = await pool.query(
+      'SELECT COUNT(*)::int AS total FROM restaurant_pay_runs WHERE restaurant_id = $1',
       [restaurant.id]
     );
-    res.json({ payRuns: rows.map((row) => ({ ...payRunShape({ ...row, lines: [] }), line_count: row.line_count })) });
+    res.json({
+      payRuns: rows.map((row) => ({ ...payRunShape({ ...row, lines: [] }), line_count: row.line_count })),
+      total: Number(countRow?.total || 0), limit, offset,
+    });
   } catch (err) { next(err); }
 };
 
@@ -612,6 +643,13 @@ exports.voidPayRun = async (req, res, next) => {
     await requirePayrollManage(restaurant, req.user.id);
     const payRunId = parsePositiveInt(req.params.payRunId);
     if (!payRunId) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+    // Finding 25: a paid run has money attached; voiding it away would
+    // erase the linkage. Paid runs stay paid.
+    const { rows: [paidRow] } = await pool.query(
+      'SELECT id FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2 AND status = $3',
+      [payRunId, restaurant.id, 'paid']
+    );
+    if (paidRow) throw new AppError('A paid pay run cannot be voided', 409, 'pay_run_paid');
     const { rows: [run] } = await pool.query(
       `UPDATE restaurant_pay_runs
           SET status = 'voided', updated_at = NOW()
@@ -655,6 +693,12 @@ exports.exportPayRunCsv = async (req, res, next) => {
     if (run.status === 'draft') {
       throw new AppError('Only finalized pay runs can be exported', 409, 'pay_run_not_finalized');
     }
+    // Finding 25: a voided run must not export as a clean payroll
+    // document. Paid runs export (they are the settled record); voided
+    // runs are refused outright rather than watermarked into ambiguity.
+    if (run.status === 'voided') {
+      throw new AppError('Voided pay runs cannot be exported', 409, 'pay_run_voided');
+    }
     const periodFrom = run.period_from instanceof Date
       ? run.period_from.toISOString().slice(0, 10)
       : String(run.period_from).slice(0, 10);
@@ -686,5 +730,83 @@ exports.exportPayRunCsv = async (req, res, next) => {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="pay-run-${run.id}-${periodFrom}-to-${periodTo}.csv"`);
     res.send(`${lines.join('\n')}\n`);
+  } catch (err) { next(err); }
+};
+
+// Finding 25: record actual payout linkage for a finalized run. Only a
+// COMPLETED restaurant payout belonging to the same restaurant can be
+// linked, and only up to the run's unpaid remainder, so linkage can never
+// claim more than the run owes. When linked payouts cover the run's
+// total pay, the run moves to 'paid': finalized alone never again reads
+// as paid. Link rows are append-only; the payout itself is untouched.
+exports.linkPayRunPayout = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    await requirePayrollManage(restaurant, req.user.id);
+    const payRunId = parsePositiveInt(req.params.payRunId);
+    if (!payRunId) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+    // Payout ids are UUIDs (restaurant_payouts.id is uuid), never integers:
+    // parsePositiveInt would reject every real payout id.
+    const rawPayoutId = req.body?.restaurantPayoutId || req.body?.payoutId;
+    const payoutId = typeof rawPayoutId === 'string' ? rawPayoutId.trim() : null;
+    if (!payoutId) throw new AppError('A restaurant payout id is required', 400, 'pay_run_payout_id_required');
+    const note = typeof req.body?.note === 'string' ? req.body.note.slice(0, 500) : null;
+    const run = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        'SELECT * FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
+        [payRunId, restaurant.id]
+      );
+      if (!existing) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+      if (existing.status !== 'finalized') {
+        throw new AppError('Only finalized pay runs can be linked to payouts', 409, 'pay_run_not_finalized');
+      }
+      const { rows: [payout] } = await client.query(
+        'SELECT * FROM restaurant_payouts WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
+        [payoutId, restaurant.id]
+      );
+      if (!payout) throw new AppError('Restaurant payout not found', 404, 'restaurant_payout_not_found');
+      if (payout.status !== 'completed') {
+        throw new AppError('Only completed payouts can be linked to a pay run', 409, 'pay_run_payout_not_completed');
+      }
+      const totals = existing.totals && typeof existing.totals === 'object' ? existing.totals : {};
+      const totalPayCents = Math.round(Number(totals.total_pay_cents || 0));
+      const { rows: [linkedRow] } = await client.query(
+        'SELECT COALESCE(SUM(amount_cents), 0)::int AS linked FROM restaurant_pay_run_payout_links WHERE pay_run_id = $1',
+        [payRunId]
+      );
+      const alreadyLinked = Number(linkedRow?.linked || 0);
+      const remaining = totalPayCents - alreadyLinked;
+      if (remaining <= 0) {
+        throw new AppError('This pay run is already fully linked', 409, 'pay_run_already_linked');
+      }
+      const linkAmount = Math.min(Number(payout.amount_cents || 0), remaining);
+      if (linkAmount <= 0) {
+        throw new AppError('This payout has no linkable amount for this pay run', 409, 'pay_run_payout_empty');
+      }
+      await client.query(
+        `INSERT INTO restaurant_pay_run_payout_links
+           (pay_run_id, restaurant_payout_id, amount_cents, currency_code, linked_by, note)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [payRunId, payoutId, linkAmount, payout.currency_code || restaurant.currency_code || 'USD', req.user.id, note]
+      );
+      const newLinked = alreadyLinked + linkAmount;
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_pay_runs
+            SET status = CASE WHEN $2 >= $3 THEN 'paid' ELSE status END, updated_at = NOW()
+          WHERE id = $1
+          RETURNING *`,
+        [payRunId, newLinked, totalPayCents]
+      );
+      return updated;
+    }, 'restaurant_pay_run_link_payout');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.pay_run.payout_linked',
+      target_type: 'restaurant_pay_run',
+      target_id: run.id,
+      after_state: { status: run.status, payout_id: payoutId },
+    });
+    res.json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.id)) });
   } catch (err) { next(err); }
 };

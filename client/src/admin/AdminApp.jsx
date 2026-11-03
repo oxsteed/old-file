@@ -42,6 +42,7 @@ const MoneyPage = lazyWithRetry(() => import('./pages/super/MoneyPage'));
 const MoneyApprovals = lazyWithRetry(() => import('./pages/super/MoneyApprovals'));
 const Payouts = lazyWithRetry(() => import('./pages/super/Payouts'));
 const RestaurantPayouts = lazyWithRetry(() => import('./pages/super/RestaurantPayouts'));
+const RestaurantPayRuns = lazyWithRetry(() => import('./pages/super/RestaurantPayRuns'));
 const AffiliatePayouts = lazyWithRetry(() => import('./pages/super/AffiliatePayouts'));
 const PaymentDisputes = lazyWithRetry(() => import('./pages/super/PaymentDisputes'));
 const Chargebacks = lazyWithRetry(() => import('./pages/super/Chargebacks'));
@@ -131,6 +132,16 @@ const ContentRemovals = lazyWithRetry(() => import('./pages/ContentRemovals'));
 const SupportTickets = lazyWithRetry(() => import('./pages/SupportTickets'));
 const QuoteRequestsInbox = lazyWithRetry(() => import('./pages/QuoteRequestsInbox'));
 const MediaFlags = lazyWithRetry(() => import('./pages/MediaFlags'));
+const RestaurantSupport = lazyWithRetry(() => import('./pages/RestaurantSupport'));
+const RestaurantSupportCase = lazyWithRetry(() => import('./pages/RestaurantSupportCase'));
+const AdminRestaurants = lazyWithRetry(() => import('./pages/AdminRestaurants'));
+const AdminRestaurantDetail = lazyWithRetry(() => import('./pages/AdminRestaurantDetail'));
+const RestaurantMediaFlags = lazyWithRetry(() => import('./pages/RestaurantMediaFlags'));
+const FoodFraudSignals = lazyWithRetry(() => import('./pages/FoodFraudSignals'));
+const WebhookReceipts = lazyWithRetry(() => import('./pages/WebhookReceipts'));
+const RestaurantWalletIntegrity = lazyWithRetry(() => import('./pages/RestaurantWalletIntegrity'));
+const BusinessAuditLog = lazyWithRetry(() => import('./pages/BusinessAuditLog'));
+const RestaurantAnalytics = lazyWithRetry(() => import('./pages/RestaurantAnalytics'));
 const AdminFoodOrders = lazyWithRetry(() => import('./pages/AdminFoodOrders'));
 const AdminFoodOrderDetail = lazyWithRetry(() => import('./pages/AdminFoodOrderDetail'));
 const AdminSearch = lazyWithRetry(() => import('./pages/AdminSearch'));
@@ -274,6 +285,16 @@ export default function AdminApp() {
           <Route path={adminRoute('licenses').relative} element={<LicensesManager />} />
           <Route path={adminRoute('contentRemovals').relative} element={<GrantGuard grant={adminRoute('contentRemovals').grant}><ContentRemovals /></GrantGuard>} />
           <Route path={adminRoute('mediaFlags').relative} element={<GrantGuard grant={adminRoute('mediaFlags').grant}><MediaFlags /></GrantGuard>} />
+          <Route path={adminRoute('restaurantSupport').relative} element={<GrantGuard grant={adminRoute('restaurantSupport').grant}><RestaurantSupport /></GrantGuard>} />
+          <Route path={adminRoute('restaurantSupportCase').relative} element={<GrantGuard grant={adminRoute('restaurantSupportCase').grant}><RestaurantSupportCase /></GrantGuard>} />
+          <Route path={adminRoute('restaurants').relative} element={<GrantGuard grant={adminRoute('restaurants').grant}><AdminRestaurants /></GrantGuard>} />
+          <Route path={adminRoute('restaurantDetail').relative} element={<GrantGuard grant={adminRoute('restaurantDetail').grant}><AdminRestaurantDetail /></GrantGuard>} />
+          <Route path={adminRoute('restaurantMediaFlags').relative} element={<GrantGuard grant={adminRoute('restaurantMediaFlags').grant}><RestaurantMediaFlags /></GrantGuard>} />
+          <Route path={adminRoute('foodFraudSignals').relative} element={<GrantGuard grant={adminRoute('foodFraudSignals').grant}><FoodFraudSignals /></GrantGuard>} />
+          <Route path={adminRoute('webhookReceipts').relative} element={<AdminGuard superOnly={adminRoute('webhookReceipts').superOnly}><WebhookReceipts /></AdminGuard>} />
+          <Route path={adminRoute('restaurantWalletIntegrity').relative} element={<AdminGuard superOnly={adminRoute('restaurantWalletIntegrity').superOnly}><RestaurantWalletIntegrity /></AdminGuard>} />
+          <Route path={adminRoute('businessAudit').relative} element={<GrantGuard grant={adminRoute('businessAudit').grant}><BusinessAuditLog /></GrantGuard>} />
+          <Route path={adminRoute('restaurantAnalytics').relative} element={<GrantGuard grant={adminRoute('restaurantAnalytics').grant}><RestaurantAnalytics /></GrantGuard>} />
           <Route path={adminRoute('foodOrders').relative} element={<GrantGuard grant={adminRoute('foodOrders').grant}><AdminFoodOrders /></GrantGuard>} />
           <Route path={adminRoute('foodOrderDetail').relative} element={<GrantGuard grant={adminRoute('foodOrderDetail').grant}><AdminFoodOrderDetail /></GrantGuard>} />
           <Route path={adminRoute('support').relative} element={<GrantGuard grant={adminRoute('support').grant}><SupportTickets /></GrantGuard>} />
@@ -432,6 +453,9 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('restaurantPayouts').relative} element={
             <GrantGuard grant={adminRoute('restaurantPayouts').grant}><RestaurantPayouts /></GrantGuard>
+          } />
+          <Route path={adminRoute('restaurantPayRuns').relative} element={
+            <GrantGuard grant={adminRoute('restaurantPayRuns').grant}><RestaurantPayRuns /></GrantGuard>
           } />
           <Route path={adminRoute('affiliatePayouts').relative} element={
             <GrantGuard grant={adminRoute('affiliatePayouts').grant}><AffiliatePayouts /></GrantGuard>

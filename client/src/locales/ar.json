@@ -15610,7 +15610,56 @@
       "payAtRestaurant": "الدفع في المطعم",
       "processor": "دفعة معالجة",
       "unrecorded": "غير مسجل"
-    }
+    },
+    "serviceFee": "رسوم الخدمة",
+    "tip": "إكرامية",
+    "deliveryInstructions": "تعليمات التوصيل",
+    "review": "تقييم",
+    "reviewDone": "تقييمك",
+    "reviewTitle": "اترك تقييمًا",
+    "reviewPlaceholder": "كيف كان طلبك؟",
+    "reviewSubmit": "إرسال التقييم",
+    "reviewDelete": "حذف التقييم",
+    "reviewResponse": "رد المطعم: {{response}}",
+    "cancelSuccess": "تم إلغاء طلبك.",
+    "cancelRefund": "سيُعاد مبلغ {{amount}} إلى طريقة الدفع الأصلية.",
+    "cancelReplayed": "تمت معالجة هذا الإلغاء من قبل.",
+    "cancelNotAvailable": "لم يعد من الممكن إلغاء هذا الطلب. تواصل مع المطعم أو افتح قضية للمساعدة.",
+    "cancelConfirm": "إلغاء هذا الطلب ({{total}})؟",
+    "cancelRefundPreview": "مبلغ الاسترداد: {{amount}}",
+    "cancelNoRefund": "لا يوجد مبلغ مسترد لهذا الطلب: لم يتم دفعه مسبقًا.",
+    "disputeOpened": "قضيتك {{caseNumber}} مفتوحة.",
+    "disputeReviewingParty": "الجهة المراجعة: {{party}}",
+    "disputeDescription": "صف ما حدث وما تريده. سيراجع المطعم طلبك أولًا.",
+    "disputeIssueType": "ما المشكلة؟",
+    "disputeResolution": "ماذا تريد؟",
+    "disputeAmountPlaceholder": "مبلغ الاسترداد (مثال: 12.50)",
+    "disputeDetailPlaceholder": "صف المشكلة…",
+    "disputeSubmit": "فتح قضية",
+    "reportProblem": "الإبلاغ عن مشكلة في هذا الطلب",
+    "disputeIssues": {
+      "missing_item": "عنصر مفقود",
+      "wrong_item": "عنصر خاطئ",
+      "food_quality": "جودة الطعام",
+      "late_order": "طلب متأخر",
+      "payment_problem": "مشكلة في الدفع",
+      "delivery_issue": "مشكلة في التوصيل",
+      "other": "شيء آخر"
+    },
+    "disputeResolutions": {
+      "refund": "استرداد كامل",
+      "partial_refund": "استرداد جزئي",
+      "store_credit": "رصيد المتجر",
+      "replacement_item": "عنصر بديل",
+      "remake_order": "إعادة الطلب",
+      "discount_code": "رمز خصم",
+      "apology_only": "اعتذار فقط"
+    },
+    "pagination": "صفحات الطلبات",
+    "showingRange": "عرض {{from}}–{{to}} من أصل {{total}}",
+    "previousPage": "السابق",
+    "nextPage": "التالي",
+    "pageOf": "صفحة {{page}} من {{pages}}"
   },
   "howOxsteedWorks": {
     "experience": {
@@ -22840,8 +22889,16 @@
         "hoursLocalTime": "تُعرض الساعات بالتوقيت المحلي لكل مطعم.",
         "ordersPaused": "الطلبات متوقفة مؤقتًا",
         "onlineUnavailable": "الطلب عبر الإنترنت غير متاح",
-        "clearLocation": "مسح الموقع"
-      }
+        "clearLocation": "مسح الموقع",
+        "notAcceptingOrders": "لا يقبل الطلبات",
+        "openNow": "يقبل الطلبات الآن",
+        "fulfillment": "طريقة الاستلام",
+        "fulfillmentAll": "جميع الطرق",
+        "fulfillment_delivery": "توصيل",
+        "fulfillment_pickup": "استلام",
+        "fulfillment_dine_in": "تناول في المطعم"
+      },
+      "externalPlaceExplore": "البحث عن مطاعم OxSteed القريبة"
     },
     "restaurant": {
       "messageUnreachable": "لا يمكن لهذا المطعم استقبال الرسائل الآن. يرجى المحاولة لاحقًا.",
@@ -23228,7 +23285,36 @@
         "promo_not_fundable": "لا يمكن تطبيق رمز الترويج هذا على هذا الطلب.",
         "promo_changed": "تغيّر خصم الترويج. راجع طلبك وحاول مرة أخرى."
       },
-      "promoApplied": "تم تطبيق الترويج: −{{amount}}"
+      "promoApplied": "تم تطبيق الترويج: −{{amount}}",
+      "removeItem": "إزالة {{item}} من السلة",
+      "checkoutTotalLoading": "جارٍ حساب المجموع…",
+      "reorderReplaceConfirm": "استبدال سلّتك الحالية بهذا الطلب السابق؟",
+      "reorderDropped": "بعض التخصيصات لم تعد متاحة وتم حذفها: {{items}}",
+      "deliveryCity": "المدينة",
+      "deliveryCityPlaceholder": "المدينة",
+      "deliveryState": "الولاية / المحافظة",
+      "deliveryStatePlaceholder": "الولاية / المحافظة",
+      "deliveryZip": "الرمز البريدي",
+      "deliveryZipPlaceholder": "الرمز البريدي",
+      "deliveryInstructions": "تعليمات التوصيل",
+      "deliveryInstructionsPlaceholder": "رمز البوابة أو موقف السيارات أو ملاحظات التسليم",
+      "guestCheckoutNote": "يمكنك إتمام الطلب كضيف. سجّل الدخول لعرض هذا الطلب في سجل طلباتك وكسب نقاط الولاء.",
+      "guestName": "اسمك",
+      "guestNamePlaceholder": "الاسم الكامل",
+      "guestPhone": "الهاتف",
+      "guestPhonePlaceholder": "رقم الهاتف",
+      "guestEmail": "البريد الإلكتروني",
+      "guestEmailPlaceholder": "عنوان البريد الإلكتروني",
+      "guestNameRequired": "يرجى إدخال اسمك لطلب استلام كضيف.",
+      "guestContactRequired": "يرجى تقديم رقم هاتف أو بريد إلكتروني لتحديثات الطلب.",
+      "guestPaymentUnavailable": "طريقة الدفع هذه تتطلب تسجيل الدخول. اختر الدفع في المطعم أو رصيد الضيف، أو سجّل الدخول.",
+      "quoteLoading": "ما زلنا نحسب مجموعك…",
+      "trackOrder": "تتبع الطلب",
+      "reviewAfterCompleted": "بعد اكتمال طلبك، يمكنك ترك تقييم من صفحة التتبع.",
+      "reviewsLoadError": "تعذّر تحميل التقييمات.",
+      "reviewsShowing": "عرض {{shown}} من أصل {{total}} من التقييمات",
+      "loadMoreReviews": "تحميل المزيد من التقييمات",
+      "reviewResponse": "رد المطعم: {{response}}"
     },
     "order": {
       "specialInstructions": "تعليمات خاصة (اختياري)",
@@ -23258,7 +23344,8 @@
       "reviewOptional": "تعليق اختياري (500 حرف كحد أقصى)",
       "submitReview": "إرسال التقييم",
       "reviewThanks": "شكرًا على تقييمك!",
-      "reviewError": "تعذر حفظ تقييمك. يرجى المحاولة مرة أخرى."
+      "reviewError": "تعذر حفظ تقييمك. يرجى المحاولة مرة أخرى.",
+      "reviewDeleted": "تم حذف تقييمك."
     },
     "status": {
       "received": "مستلم",
@@ -23280,7 +23367,13 @@
       "total": "الإجمالي",
       "printReceipt": "طباعة الإيصال",
       "runnerNearby": "الساعي قريب",
-      "runnerUpdatedAgo": "تم تحديث الموقع قبل {{seconds}} ث"
+      "runnerUpdatedAgo": "تم تحديث الموقع قبل {{seconds}} ث",
+      "reviewDone": "تقييمك",
+      "reviewTitle": "اترك تقييمًا",
+      "reviewThanks": "شكرًا لملاحظاتك.",
+      "reviewPlaceholder": "كيف كان طلبك؟",
+      "reviewSubmit": "إرسال التقييم",
+      "reviewDelete": "حذف التقييم"
     },
     "payment": {
       "paid": "مدفوع",
@@ -23362,7 +23455,10 @@
       "logbookLabel": "ملاحظة الوردية",
       "logbookPlaceholder": "ما الذي يجب أن تعرفه الوردية التالية؟",
       "addLogbookEntry": "إضافة إدخال",
-      "logbookAdded": "تمت إضافة الإدخال"
+      "logbookAdded": "تمت إضافة الإدخال",
+      "scheduleCount": "{{count}} وردية",
+      "showAll": "عرض كل الورديات ({{count}})",
+      "showFewer": "عرض أقل"
     },
     "merchant": {
       "title": "لوحة تحكم المطعم",
@@ -23508,7 +23604,9 @@
         "paymentRefunded": "تم رد الدفع",
         "paymentConfirmed": "تم تأكيد الدفع.",
         "orderMarkedPaid": "تم وضع علامة مدفوع على الطلب.",
-        "paymentError": "تعذّر تأكيد هذا الدفع."
+        "paymentError": "تعذّر تأكيد هذا الدفع.",
+        "cancelConfirm": "إلغاء الطلب {{order}} ({{amount}})؟ إن إلغاء طلب مدفوع بالبطاقة يؤدي إلى استرداد للعميل.",
+        "markPaidConfirm": "وضع علامة مدفوع على الطلب {{order}} بمبلغ {{amount}}؟ سيسجل هذا استلام كامل المبلغ المستحق."
       },
       "menu": "القائمة",
       "newCategoryPlaceholder": "اسم فئة جديدة (مثل برغر)",
@@ -23735,7 +23833,11 @@
           "rejected": "مرفوض",
           "failed": "فشل",
           "cancelled": "ملغي"
-        }
+        },
+        "historyShowing": "عرض {{from}}–{{to}} من {{total}}",
+        "historyPrevious": "السابق",
+        "historyNext": "التالي",
+        "requestConfirm": "طلب دفع بمبلغ {{amount}}؟ يدخل الطلب في قائمة مراجعة المسؤول؛ وهو لا ينقل الأموال فوراً."
       },
       "settlementTitle": "سجلات تسوية المدفوعات",
       "settlementNote": "يمكن أن تبقى الطلبات مرتبطة بسجل المطعم لتظل التسوية والإيصالات وسجل الدعم مرئية في التطبيق.",
@@ -23788,7 +23890,13 @@
       "refundError": "تعذر إصدار الاسترداد.",
       "cardPartialRefundUnsupported": "الاسترداد الجزئي غير متاح لطلبات البطاقات عبر الإنترنت. استرد الطلب كاملاً أو اطلب المساعدة من الدعم.",
       "cardRefundUseCancel": "تُسترد طلبات البطاقات بإلغاء الطلب. يتم الاسترداد إلى البطاقة تلقائياً.",
-      "addAnotherRestaurant": "إضافة مطعم آخر"
+      "addAnotherRestaurant": "إضافة مطعم آخر",
+      "stChipVerified": "موثّق",
+      "stChipUnverified": "غير موثّق",
+      "suspendedNotice": "هذا المطعم موقوف. الطلبات معطّلة حتى إعادة تفعيله.",
+      "posShiftCloseError": "تعذّر إغلاق وردية نقاط البيع.",
+      "csvFailedSummary": "{{count}} صف فشل: {{rows}}",
+      "csvImportedPartial": "تم استيراد {{count}} عنصر ونشره.{{failed}}{{skipped}}{{truncated}}"
     },
     "onboarding": {
       "eyebrow": "ليلة الافتتاح",
@@ -24001,7 +24109,17 @@
       "clear": "مسح",
       "cardTerminalRequired": "تتطلب مدفوعات البطاقات طرفية نقاط بيع متصلة. استخدم تطبيق نقاط البيع للدفع بالبطاقة.",
       "amountGiven": "المبلغ المستلم",
-      "syncDegraded": "المزامنة متدهورة: {{failed}} فاشلة، {{pending}} معلقة، {{outbox}} غير مرسلة"
+      "syncDegraded": "المزامنة متدهورة: {{failed}} فاشلة، {{pending}} معلقة، {{outbox}} غير مرسلة",
+      "closeShift": "إغلاق الوردية",
+      "closeShiftTitle": "إغلاق الوردية رقم {{id}}",
+      "closeShiftHint": "عُدّ النقد في الدرج وأدخل المبلغ أدناه. لا يمكن التراجع عن الإغلاق.",
+      "openingCash": "النقد الافتتاحي: {{amount}}",
+      "shiftPayments": "المدفوعات المسوّاة: {{amount}}",
+      "closingCash": "النقد الختامي",
+      "shiftClosed": "أُغلقت الوردية",
+      "closeSummary": "المتوقع {{expected}}، المعدود {{counted}}، الفرق {{variance}}.",
+      "closePaidOrders": "{{count}} طلب مدفوع",
+      "multipleOpenShifts": "هناك {{count}} ورديات مفتوحة. تستخدم الطلبات أول وردية معروضة. أغلق الورديات الإضافية قبل استقبال طلبات جديدة."
     },
     "inv": {
       "title": "المخزون",
@@ -24045,7 +24163,14 @@
       "severity_high": "مرتفعة",
       "unknownSupplier": "مورد غير معروف",
       "uncategorized": "غير مصنّف",
-      "par": "الحد المستهدف"
+      "par": "الحد المستهدف",
+      "adjType_receive": "استلام",
+      "adjType_count": "جرد",
+      "adjType_correction": "تصحيح",
+      "pollError": "تعذّر تحديث بيانات المخزون. يتم عرض آخر بيانات محفوظة.",
+      "showing": "عرض {{from}}–{{to}} من {{total}}",
+      "previous": "السابق",
+      "next": "التالي"
     },
     "crew": {
       "title": "فريق العمل",
@@ -24145,7 +24270,9 @@
       "settlement_voided": "ملغاة",
       "createSettlement": "إنشاء تسوية",
       "settlementCreated": "تم إنشاء التسوية",
-      "cashCollectedPrompt": "النقد الذي حصّله الساعي (المبلغ)"
+      "cashCollectedPrompt": "النقد الذي حصّله الساعي (المبلغ)",
+      "pollError": "تعذّر تحديث بيانات العدّاء. يتم عرض آخر بيانات محفوظة.",
+      "settlementApproveConfirm": "اعتماد تسوية المهمة {{task}}؟ النقد المحصّل: {{cash}}. مبلغ التسوية (الرسوم بالإضافة إلى البقشيش): {{amount}}. الاعتماد لا يضع علامة مدفوعة عليها."
     },
     "ownerHome": {
       "allClear": "كل شيء على ما يرام. لا شيء يحتاج إلى انتباهك الآن.",
@@ -24181,7 +24308,11 @@
       "todayOrders": "الطلبات",
       "todayRevenue": "الإيرادات",
       "viewStore": "عرض صفحة العميل",
-      "viewStoreHint": "شاهد بالضبط ما يراه العملاء."
+      "viewStoreHint": "شاهد بالضبط ما يراه العملاء.",
+      "suspendedAlert": "هذا المطعم موقوف. الطلبات معطّلة.",
+      "suspendedKicker": "موقوف",
+      "suspended": "الطلبات موقوفة",
+      "suspendedDesc": "هذا المطعم موقوف، لذا لا يمكن للعملاء الطلب منه. تواصل مع دعم OxSteed إذا كنت تعتقد أن هذا خطأ."
     },
     "timeClock": {
       "title": "ساعة الحضور",
@@ -24249,6 +24380,11 @@
         "not_reported": "لم يبلّغ الصندوق عن هذه الدفعة أبدًا",
         "other": "يحتاج إلى مراجعة المدير"
       }
+    },
+    "menuManager": {
+      "partialGroups": "تعذّر حفظ {{failed}} من أصل {{total}} مجموعة خيارات ({{firstError}}). تم حفظ العنصر؛ احفظ مجددًا لإعادة محاولة المجموعات الناقصة.",
+      "bulkPartial": "تم تحديث {{updated}} عنصر، وفشل {{failed}}: {{names}}. العناصر الفاشلة ما زالت محددة.",
+      "bulkFailed": "فشل {{failed}} عنصر: {{names}}. ما زالت محددة لإعادة المحاولة."
     }
   },
   "network": {
@@ -25214,7 +25350,8 @@
           "cashAdd": "إضافة التصريح",
           "cashSaved": "تم التصريح بالإكراميات النقدية.",
           "cashInvalid": "اختر عضو فريق وتاريخا ومبلغا موجبا.",
-          "cashError": "تعذر حفظ تصريح الإكراميات النقدية."
+          "cashError": "تعذر حفظ تصريح الإكراميات النقدية.",
+          "loadError": "تعذّر تحميل إعدادات مجمّع الإكراميات."
         },
         "exceptions": {
           "title": "الاستثناءات حسب الموظف",
@@ -29874,7 +30011,15 @@
     "supportCsat": "رضا العملاء",
     "supportQa": "مراجعات الجودة",
     "supportSettings": "الإعدادات",
-    "supportAuditLog": "سجل التدقيق"
+    "supportAuditLog": "سجل التدقيق",
+    "restaurants": "المطاعم",
+    "restaurantSupport": "دعم المطاعم",
+    "restaurantMediaFlags": "إشعارات وسائط المطاعم",
+    "foodFraudSignals": "إشارات الاحتيال الغذائي",
+    "businessAudit": "تدقيق العمل",
+    "restaurantAnalytics": "تحليلات المطاعم",
+    "webhookReceipts": "إيصالات Webhook",
+    "restaurantWalletIntegrity": "سلامة المحافظ"
   },
   "adminProfileVisibility": {
     "title": "ظهور الملفات الشخصية",
@@ -32786,7 +32931,9 @@
     "backToBusiness": "العودة إلى النشاط التجاري",
     "common": {
       "records": "{{count}} سجل",
-      "unknown": "غير معروف"
+      "unknown": "غير معروف",
+      "previous": "السابق",
+      "next": "التالي"
     },
     "disputes": {
       "empty": "لم يتم العثور على نزاعات.",
@@ -32884,7 +33031,8 @@
       "orders": "الطلبات",
       "overview": "نظرة عامة",
       "payouts": "المدفوعات",
-      "tickets": "تذاكر الدعم"
+      "tickets": "تذاكر الدعم",
+      "restaurants": "المطاعم"
     },
     "tickets": {
       "created": "أُنشئت",
@@ -32898,7 +33046,33 @@
       "title": "تذاكر الدعم",
       "updated": "حُدّثت"
     },
-    "title": "النشاط التجاري 360"
+    "title": "النشاط التجاري 360",
+    "restaurants": {
+      "title": "المطاعم",
+      "subtitle": "طلبات الطعام وحالات الدعم ومحافظ العملاء وملفات الرواتب لمطاعم هذه الشركة.",
+      "empty": "لا توجد مطاعم لهذه الشركة.",
+      "unnamed": "مطعم بلا اسم",
+      "orderingOn": "الطلب عبر الإنترنت مفعّل",
+      "orderingOff": "الطلب عبر الإنترنت معطّل",
+      "inStoreOn": "الطلب داخل المتجر مفعّل",
+      "inStoreOff": "الطلب داخل المتجر معطّل",
+      "verified": "موثّق",
+      "notVerified": "غير موثّق",
+      "ordersHeading": "طلبات الطعام",
+      "ordersTotal": "إجمالي الطلبات {{count}}",
+      "supportHeading": "حالات الدعم (30 يومًا)",
+      "supportCounts": "{{cases}} حالة، {{open}} مفتوحة، {{escalated}} مصعّدة",
+      "supportNone": "لا توجد حالات دعم في آخر 30 يومًا.",
+      "walletsHeading": "محافظ العملاء",
+      "walletsEmpty": "لا توجد محافظ عملاء.",
+      "walletCount": "{{count}} محفظة",
+      "payRunsHeading": "ملفات الرواتب",
+      "payRunsNote": "ملفات الرواتب مدرجة أدناه للشركة كلها. ملف الرواتب النهائي هو إجمالي محسوب؛ ولا يعني أن الموظفين تقاضوا أجورهم.",
+      "payRunsTitle": "ملفات الرواتب",
+      "payRunsEmpty": "لا توجد ملفات رواتب لمطاعم هذه الشركة.",
+      "payRunLines": "{{count}} سطر",
+      "payRunsShowing": "عرض {{from}}–{{to}} من {{total}}"
+    }
   },
   "adminCustomer360": {
     "governedTitle": "المؤشرات المعتمدة لهذا العميل",
@@ -33370,7 +33544,10 @@
     "typeMarketplaceRefund": "استرداد سوق",
     "typeDisputeRefund": "استرداد نزاع",
     "typeRestaurantPayout": "دفعة مطعم",
-    "typeAffiliatePayout": "دفعة مسوّق"
+    "typeAffiliatePayout": "دفعة مسوّق",
+    "subject": "الموضوع",
+    "reason": "السبب",
+    "subjectUnknown": "موضوع غير معروف"
   },
   "adminOrderFilters": {
     "searchOrders": "البحث في الطلبات",
@@ -35682,7 +35859,11 @@
       "clawbackPreviewHint": "اعرض معاينة الشحن قبل التأكيد. يظل التأكيد معطّلاً حتى يتم تحميل المبلغ والمطعم والحالة لهذا المعرّف.",
       "clawbackPreviewAmount": "المبلغ: {{amount}} {{currency}}",
       "clawbackPreviewRestaurant": "المطعم: {{restaurant}}",
-      "clawbackPreviewStatus": "الحالة: {{status}}"
+      "clawbackPreviewStatus": "الحالة: {{status}}",
+      "clawbackPreviewNotExecutable": "لا يمكن استرداد هذا الشحن: يمكن استرداد الشحن الناجح فقط.",
+      "clawbackReplayed": "تم استرداد هذا الشحن من قبل؛ ولم يتم إجراء خصم ثانٍ.",
+      "clawbackWentNegative": "أصبح رصيد المحفظة سالباً: من {{before}} إلى {{after}} {{currency}}.",
+      "clawbackBalances": "رصيد المحفظة من {{before}} إلى {{after}} {{currency}}."
     }
   },
   "featuredPlacements": {
@@ -35856,12 +36037,20 @@
       "approved": "معتمدة",
       "completed": "مكتملة",
       "failed": "فاشلة",
-      "rejected": "مرفوضة"
+      "rejected": "مرفوضة",
+      "processing": "قيد المعالجة"
     },
     "stepupFailed": "تعذر إصدار تحدٍّ للتحقق.",
     "stepupPrompt": "تم إرسال رمز تحقق إلى بريدك الإلكتروني. أدخله للموافقة على هذه الدفعة:",
     "pendingApproval": "الدفعة في قائمة الانتظار لاعتماد مشرف ثانٍ. لم تتحرك أي أموال.",
-    "stepupRequired": "يلزم رمز تحقق للموافقة على الدفعة."
+    "stepupRequired": "يلزم رمز تحقق للموافقة على الدفعة.",
+    "subtitleQueued": "اعتمد مدفوعات أرباح المحافظ للمطاعم. يؤدي الاعتماد إلى وضع تحويل في قائمة الانتظار إلى حساب Connect الخاص بالمطعم؛ ويُرسل التحويل بشكل غير متزامن وتؤكده Stripe، وهو ليس فورياً.",
+    "transferAttempts": "{{count}} محاولات تحويل",
+    "retry": "إعادة المحاولة",
+    "fail": "وضع علامة فشل",
+    "confirmFailTitle": "وضع علامة فشل على هذا الدفع؟",
+    "confirmFailBody": "سيعيد هذا الدفع إلى حالة الفشل ويلغي قيد اعتماده، ليتمكن المطعم من طلبه مجدداً. وهو لا يرسل أموالاً.",
+    "confirmApproveBodyQueued": "سيضع هذا تحويلاً بمبلغ {{amount}} في قائمة الانتظار إلى حساب Stripe الخاص بالمطعم ويسجل القيد المحاسبي. ويُرسل التحويل بشكل غير متزامن وتؤكده Stripe؛ وهو ليس فورياً ولا نهائياً بعد."
   },
   "affiliatePayouts": {
     "title": "مدفوعات الشركاء",
@@ -35934,7 +36123,12 @@
       "denied": "مرفوض",
       "resolved": "تم حله",
       "withdrawn": "مسحوب"
-    }
+    },
+    "noRefundReasonLabel": "سبب عدم الاسترداد (مطلوب بدلاً من مرجع استرداد عند الإغلاق دون استرداد)",
+    "noRefundReasonPlaceholder": "لماذا لم يتم إصدار استرداد",
+    "closureNeedsRefundOrReason": "يتطلب القرار المعتمد أو المحسوم مرجع استرداد أو سبباً لعدم الاسترداد.",
+    "noRefundReasonShown": "لا يوجد استرداد: {{reason}}",
+    "refundReferenceShown": "مرجع الاسترداد: {{reference}}"
   },
   "adminChargebacks": {
     "title": "رد المبالغ",
@@ -37378,9 +37572,9 @@
       }
     },
     "protection": {
-      "3": "أعلى حماية",
+      "1": "غير مشمول بحماية OxSteed",
       "2": "محمي برصيد OxSteed",
-      "1": "غير مشمول بحماية OxSteed"
+      "3": "أعلى حماية"
     },
     "chargedNowHeld": "لأن موعد العمل بعد أكثر من 5 أيام، تُخصم من بطاقتك الآن وتحتجز OxSteed المبلغ حتى انتهاء العمل.",
     "localMethods": "متاح أيضًا: {{methods}}",
@@ -37657,7 +37851,9 @@
     "saved": "تم حفظ منتج بطاقة الهدية.",
     "loadError": "تعذر تحميل منتجات بطاقات الهدايا.",
     "saveError": "تعذر حفظ منتج بطاقة الهدية.",
-    "validation": "أدخل رمز SKU واسما وقيمة موجبة."
+    "validation": "أدخل رمز SKU واسما وقيمة موجبة.",
+    "paymentReference": "مرجع الدفع",
+    "paymentReferenceHint": "مثل رقم إيصال الصندوق"
   },
   "printer": {
     "title": "طابعة الإيصالات",
@@ -38034,5 +38230,292 @@
   },
   "cards": {
     "moveBack": "العودة إلى {{status}}"
+  },
+  "restaurantPayRuns": {
+    "title": "دفعات رواتب المطاعم",
+    "subtitle": "دفعات رواتب جميع المطاعم، مع المدفوعات الفعلية المرتبطة بكل منها. إن دفعة الرواتب المنجزة دون روابط لم تدفع لأحد بعد.",
+    "status": {
+      "all": "الكل",
+      "draft": "مسودة",
+      "finalized": "منجزة",
+      "paid": "مدفوعة",
+      "voided": "ملغاة"
+    },
+    "restaurantFilter": "معرّف المطعم",
+    "loadFailed": "تعذر تحميل دفعات الرواتب.",
+    "detailFailed": "تعذر تحميل تفاصيل دفعة الرواتب.",
+    "empty": "لا توجد دفعات رواتب بهذه الحالة.",
+    "unknownRestaurant": "مطعم غير معروف",
+    "run": "دفعة رواتب {{id}}",
+    "period": "{{from}} إلى {{to}}",
+    "totalPay": "إجمالي الأجر: {{amount}}",
+    "linked": "المدفوعات المرتبطة: {{amount}} ({{count}})",
+    "finalizedUnpaid": "منجزة لكنها غير مرتبطة بالكامل بالمدفوعات بعد.",
+    "hideDetail": "إخفاء التفاصيل",
+    "showDetail": "عرض التفاصيل",
+    "noLinks": "لا توجد مدفوعات مرتبطة بدفعة الرواتب هذه بعد.",
+    "linkLine": "الدفع {{payout}}: {{amount}} ({{status}})",
+    "employees": "{{count}} موظف"
+  },
+  "adminRsd": {
+    "showing": "عرض {{from}} إلى {{to}} من {{total}}"
+  },
+  "adminRestaurantSupport": {
+    "title": "حالات دعم المطاعم",
+    "subtitle": "حالات قدمها عملاء المطاعم ويعالجها المطعم وOxSteed.",
+    "allStatuses": "جميع الحالات",
+    "allOwners": "جميع المسؤولين",
+    "restaurantIdPlaceholder": "معرّف المطعم",
+    "loadFailed": "تعذر تحميل حالات الدعم.",
+    "empty": "لا توجد حالات دعم مطابقة لهذه المرشحات.",
+    "restaurant": "المطعم {{id}}"
+  },
+  "adminRestaurantSupportCase": {
+    "backToQueue": "العودة إلى قائمة الدعم",
+    "loadFailed": "تعذر تحميل حالة الدعم هذه.",
+    "empty": "لم يتم العثور على حالة الدعم.",
+    "restaurant": "المطعم {{id}}",
+    "order": "الطلب {{id}}",
+    "offeredResolution": "الحل المقترح: {{resolution}} ({{amount}} سنت)",
+    "replyTitle": "الرد بصفتك OxSteed",
+    "replyNote": "يُرسل هذا الرد بصفتك OxSteed وليس المطعم.",
+    "sendReply": "إرسال الرد",
+    "actionsTitle": "إجراءات الحالة",
+    "assignPlaceholder": "تعيين إلى معرّف المستخدم",
+    "assign": "تعيين",
+    "escalate": "التصعيد إلى OxSteed",
+    "deescalate": "الإعادة إلى المطعم",
+    "close": "إغلاق",
+    "reopen": "إعادة فتح",
+    "approvePlaceholder": "الموافقة على حل",
+    "amountPlaceholder": "المبلغ بالسنت",
+    "approve": "الموافقة على الحل",
+    "approveNote": "الموافقة على حل استرداد ما زالت تتطلب قبول العميل قبل تحرك الأموال.",
+    "messagesTitle": "الرسائل",
+    "noMessages": "لا توجد رسائل بعد.",
+    "internalNote": "ملاحظة داخلية",
+    "eventsTitle": "أحداث الحالة",
+    "actionFailed": "فشل هذا الإجراء.",
+    "replySent": "تم إرسال الرد.",
+    "assigned": "تم تعيين الحالة.",
+    "reopened": "تمت إعادة فتح الحالة.",
+    "actionDone": "تم حفظ الإجراء.",
+    "confirmAction": "هل أنت متأكد؟"
+  },
+  "adminRestaurants": {
+    "title": "المطاعم",
+    "subtitle": "إدارة المطاعم: القائمة والتفاصيل والتعليق والتحقق.",
+    "searchPlaceholder": "البحث في المطاعم أو الأعمال",
+    "allStatuses": "جميع الحالات",
+    "allVerified": "موثّق أم لا",
+    "verifiedOnly": "الموثّقة فقط",
+    "unverifiedOnly": "غير الموثّقة فقط",
+    "loadFailed": "تعذر تحميل المطاعم.",
+    "empty": "لا توجد مطاعم مطابقة لهذه المرشحات.",
+    "verified": "موثّق",
+    "unverified": "غير موثّق",
+    "openCases": "{{count}} حالات مفتوحة"
+  },
+  "adminRestaurantDetail": {
+    "backToList": "العودة إلى المطاعم",
+    "loadFailed": "تعذر تحميل هذا المطعم.",
+    "empty": "لم يتم العثور على المطعم.",
+    "verified": "موثّق",
+    "unverified": "غير موثّق",
+    "business": "العمل: {{name}}",
+    "supportCounts": "{{open}} مفتوحة من {{total}} حالات دعم",
+    "walletCounts": "{{count}} محافظ عملاء، إجمالي الرصيد {{balance}}",
+    "actionsTitle": "إجراءات المسؤول",
+    "suspend": "تعليق المطعم",
+    "restore": "الاستعادة إلى الإيقاف المؤقت",
+    "unverify": "إزالة التوثيق",
+    "verify": "توثيق المطعم",
+    "suspended": "تم تعليق المطعم.",
+    "restored": "تمت استعادة المطعم إلى الإيقاف المؤقت.",
+    "verifyDone": "تم تحديث التوثيق.",
+    "actionFailed": "فشل هذا الإجراء.",
+    "restoreNote": "الاستعادة تنقل المطعم المعلق إلى الإيقاف المؤقت. يجب على المالك إعادة تنشيطه؛ ولن يُعاد نشره تلقائياً أبداً.",
+    "suspendNote": "التعليق يوقف الطلبات عبر الإنترنت وداخل المتجر لهذا المطعم.",
+    "relatedTitle": "الشاشات المرتبطة",
+    "supportLink": "حالات دعم هذا المطعم",
+    "auditLink": "سجل تدقيق العمل",
+    "analyticsLink": "تحليلات المطعم",
+    "confirmAction": "هل أنت متأكد؟"
+  },
+  "adminRestaurantMediaFlags": {
+    "title": "إشعارات وسائط المطاعم",
+    "subtitle": "إشعارات المجتمع على فيديوهات المطاعم، مع مراجعة موثقة واستعادة.",
+    "restaurantIdPlaceholder": "معرّف المطعم",
+    "reviewNotePlaceholder": "ملاحظة المراجعة",
+    "reviewDone": "تم حفظ المراجعة.",
+    "actionFailed": "فشل هذا الإجراء.",
+    "loadFailed": "تعذر تحميل إشعارات الوسائط.",
+    "empty": "لا توجد إشعارات مطابقة لهذه المرشحات.",
+    "restaurant": "المطعم {{id}}",
+    "flaggedBy": "أبلغ عنه",
+    "decidedBy": "قرره",
+    "mediaStatus": "الفيديو: {{status}}",
+    "dismiss": "رفض",
+    "remove": "إزالة الفيديو",
+    "restore": "استعادة الفيديو",
+    "restoreDone": "تمت استعادة الفيديو.",
+    "restoreNote": "الاستعادة تعيد إظهار فيديو المطعم. أما المنشور المطابق في الخلاصة فيبقى مزالاً حتى تتم استعادته من إشعارات الوسائط.",
+    "confirmAction": "هل أنت متأكد؟",
+    "linkFromGeneral": "مراجعة إشعارات وسائط المطاعم"
+  },
+  "adminFraudSignals": {
+    "title": "إشارات الاحتيال الغذائي",
+    "subtitle": "إشارات احتيال على ائتمان المطاعم، تُراجع مع تسجيل المراجع والملاحظة.",
+    "allReviewed": "تمت مراجعتها أم لا",
+    "unreviewedOnly": "غير المراجعة فقط",
+    "reviewedOnly": "المراجعة فقط",
+    "allSeverities": "جميع درجات الخطورة",
+    "restaurantIdPlaceholder": "معرّف المطعم",
+    "reviewDone": "تم وضع علامة على الإشارة كمراجعة.",
+    "actionFailed": "فشل هذا الإجراء.",
+    "loadFailed": "تعذر تحميل إشارات الاحتيال.",
+    "empty": "لا توجد إشارات مطابقة لهذه المرشحات.",
+    "restaurant": "المطعم {{id}}",
+    "reviewed": "تمت مراجعتها",
+    "unreviewed": "غير مراجعة",
+    "reviewedBy": "راجعها {{email}}",
+    "notePlaceholder": "ملاحظة المراجعة",
+    "review": "وضع علامة كمراجعة",
+    "confirmReview": "وضع علامة على هذه الإشارة كمراجعة مع الملاحظة أعلاه؟"
+  },
+  "adminWebhookReceipts": {
+    "title": "إيصالات Webhook",
+    "subtitle": "إيصالات Webhook الفاشلة أو العالقة، تُستعاد بإعادة التشغيل أو الحل اليدوي.",
+    "resolveWarning": "الحل يغلق الإيصال دون إعادة تشغيله. لا تتم معالجة الحدث بالحل؛ استخدم إعادة التشغيل عندما لا يزال الحدث بحاجة إلى التنفيذ.",
+    "allProviders": "جميع المزودين",
+    "allStatuses": "جميع الحالات",
+    "eventTypePlaceholder": "نوع الحدث",
+    "accountPlaceholder": "معرّف الحساب",
+    "restaurantIdPlaceholder": "معرّف المطعم",
+    "loadFailed": "تعذر تحميل إيصالات Webhook.",
+    "empty": "لا توجد إيصالات مطابقة لهذه المرشحات.",
+    "account": "الحساب {{id}}",
+    "attempts": "{{count}} محاولات",
+    "resolutionNote": "ملاحظة الحل: {{note}}",
+    "replay": "إعادة تشغيل",
+    "cannotReplay": "إعادة التشغيل غير متاحة لهذا المزود. حله بملاحظة.",
+    "resolve": "حل",
+    "replayDone": "تمت إعادة تشغيل الإيصال.",
+    "resolveDone": "تم حل الإيصال دون إعادة تشغيل.",
+    "actionFailed": "فشل هذا الإجراء.",
+    "noteRequired": "ملاحظة الحل مطلوبة.",
+    "resolveNotePlaceholder": "لماذا لا يحتاج هذا الإيصال إلى إعادة تشغيل",
+    "confirmResolve": "حل هذا الإيصال دون إعادة تشغيل الحدث؟",
+    "confirmReplay": "إعادة تشغيل هذا الحدث من المزود؟"
+  },
+  "adminWalletIntegrity": {
+    "title": "سلامة محافظ المطاعم",
+    "subtitle": "قراءات السلامة والتسوية لمحافظ عملاء المطاعم، بالإضافة إلى كشوف CSV.",
+    "restaurantIdPlaceholder": "معرّف المطعم",
+    "customerEmailPlaceholder": "بريد العميل الإلكتروني",
+    "customerIdPlaceholder": "معرّف العميل",
+    "runIntegrity": "تشغيل فحص السلامة",
+    "runReconciliation": "تشغيل التسوية",
+    "downloadCsv": "تنزيل كشف CSV",
+    "restaurantRequired": "أدخل معرّف مطعم أولاً.",
+    "loadFailed": "تعذر تحميل بيانات المحفظة.",
+    "csvRequiresCustomer": "أدخل معرّف عميل لتنزيل كشف.",
+    "csvDownloaded": "تم تنزيل كشف CSV.",
+    "actionFailed": "فشل هذا الإجراء.",
+    "integrityTitle": "فحص السلامة",
+    "integrityValid": "المحفظة سليمة: {{valid}}",
+    "locked": "تم قفل المحفظة بعد فحص فاشل",
+    "issueCodes": "المشكلات: {{codes}}",
+    "reconciliationTitle": "التسوية",
+    "accounts": "{{total}} حسابات، {{active}} نشطة",
+    "balanced": "متوازن",
+    "unbalanced": "غير متوازن: فرق الخصم {{debit}}، فرق الاسترداد {{refund}}",
+    "reconciliationEmpty": "لا توجد بيانات تسوية لهذا المطعم.",
+    "empty": "أدخل مطعماً وعميلاً، ثم شغّل فحصاً."
+  },
+  "adminBusinessAudit": {
+    "title": "سجل تدقيق العمل",
+    "subtitle": "اقرأ سجل تدقيق العمل: إجراءات الرواتب وإجراءات مشغلي المحافظ وتغييرات حالة المطاعم.",
+    "businessIdPlaceholder": "معرّف العمل",
+    "restaurantIdPlaceholder": "معرّف المطعم",
+    "actionPrefixPlaceholder": "بادئة الإجراء، مثل restaurant.",
+    "search": "بحث",
+    "prefixHint": "صفِّ ببادئة إجراء مثل restaurant. أو wallet لتضييق السجل.",
+    "loadFailed": "تعذر تحميل سجل التدقيق.",
+    "emptyPrompt": "أدخل معرّف عمل أو مطعم لقراءة سجل تدقيقه.",
+    "empty": "لا توجد إدخالات تدقيق مطابقة لهذه المرشحات."
+  },
+  "adminRestaurantAnalytics": {
+    "title": "تحليلات المطاعم",
+    "subtitle": "قارن أداء المطاعم من نفس التقارير التي يراها التجار، وتحقق من الأرقام التي أبلغ عنها التجار.",
+    "idsPlaceholder": "معرّفات المطاعم، مفصولة بفواصل",
+    "compare": "مقارنة",
+    "idsRequired": "أدخل معرّف مطعم واحد على الأقل.",
+    "loadFailed": "تعذر تحميل تقارير المطاعم.",
+    "restaurant": "المطعم",
+    "orders": "الطلبات",
+    "revenue": "الإيرادات",
+    "refunds": "المبالغ المستردة",
+    "avgTicket": "متوسط قيمة الطلب",
+    "detail": "التفاصيل",
+    "viewDetail": "عرض التفاصيل",
+    "detailTitle": "تفاصيل المطعم {{id}}",
+    "inventoryCounts": "المخزون: {{low}} أصناف منخفضة المخزون، {{out}} نافدة.",
+    "operationsCounts": "العمليات: {{checklists}} قوائم مكتملة، {{audits}} عمليات تدقيق مكتملة، {{actions}} إجراءات تصحيحية مفتوحة."
+  },
+  "restaurantSupport": {
+    "title": "دعم المطاعم",
+    "subtitle": "افتح حالة حول طلب مطعم وتابعها هنا.",
+    "createTitle": "فتح حالة دعم",
+    "loadFailed": "تعذر تحميل حالات الدعم.",
+    "createRequired": "أدخل معرّف مطعم ووصفاً.",
+    "createFailed": "تعذر فتح حالة الدعم.",
+    "created": "تم فتح حالة الدعم.",
+    "restaurantId": "معرّف المطعم",
+    "orderId": "معرّف الطلب",
+    "issueType": "نوع المشكلة",
+    "requestedResolution": "الحل المطلوب",
+    "noPreference": "لا تفضيل",
+    "description": "الوصف",
+    "create": "فتح الحالة",
+    "myCases": "حالاتي",
+    "empty": "لا توجد حالات دعم بعد.",
+    "showing": "عرض {{from}} إلى {{to}} من {{total}}",
+    "openCase": "فتح حالة دعم مطعم",
+    "merchantSupportLink": "حالات الدعم",
+    "merchantTitle": "حالات دعم المطعم",
+    "merchantSubtitle": "أجب على حالات مطعمك، واقترح حلولاً، وصعّد إلى OxSteed عند الحاجة.",
+    "backToQueue": "العودة إلى قائمة الدعم",
+    "allStatuses": "جميع الحالات",
+    "respondTitle": "الرد على العميل",
+    "respond": "إرسال الرد",
+    "responded": "تم إرسال الرد.",
+    "manageTitle": "إدارة هذه الحالة",
+    "assignPlaceholder": "تعيين إلى معرّف المستخدم",
+    "assign": "تعيين",
+    "assigned": "تم تعيين الحالة.",
+    "offerPlaceholder": "اقتراح حل",
+    "amountPlaceholder": "المبلغ بالسنت",
+    "offer": "اقتراح الحل",
+    "offered": "تم اقتراح الحل.",
+    "resolveNotePlaceholder": "ملاحظة الحل",
+    "resolve": "حل الحالة",
+    "resolved": "تم حل الحالة.",
+    "confirmResolve": "حل هذه الحالة؟ سيراها العميل محلولة.",
+    "escalatePlaceholder": "سبب التصعيد",
+    "escalate": "التصعيد إلى OxSteed",
+    "escalated": "تم تصعيد الحالة.",
+    "confirmEscalate": "تصعيد هذه الحالة إلى OxSteed؟ ستتولاها OxSteed من هنا.",
+    "messagesTitle": "الرسائل",
+    "noMessages": "لا توجد رسائل بعد.",
+    "internalNote": "ملاحظة داخلية",
+    "actionFailed": "فشل هذا الإجراء.",
+    "caseActions": "إجراءات حالتك",
+    "offeredLine": "الحل المقترح: {{resolution}} ({{amount}} سنت)",
+    "acceptResolution": "قبول الحل",
+    "accepted": "تم قبول الحل.",
+    "reopen": "إعادة فتح الحالة",
+    "reopened": "تمت إعادة فتح الحالة.",
+    "confirmAccept": "قبول هذا الحل؟ سيغلق هذا الحالة كمحلولة."
   }
 }

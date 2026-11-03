@@ -252,9 +252,16 @@ ddescribe('ledger_transaction_id UUID round-trip (P0 #3)', () => {
     const { rows: [payout] } = await pool.query(
       `INSERT INTO restaurant_payouts
          (restaurant_id, currency_code, amount_cents, stripe_account_id, idempotency_key, requested_by)
-       VALUES ($1, 'USD', 2000, 'acct_test_ledger_uuid', $2, $3)
+       VALUES ($1, 'USD', 2000, $2, $3, $4)
        RETURNING *`,
-      [restaurant.id, `ledger-uuid-payout-${restaurant.id}`, requester]);
+      [restaurant.id, `acct_test_ledger_uuid_${restaurant.id}`, `ledger-uuid-payout-${restaurant.id}`, requester]);
+
+    // Finding 2: approve re-reads the restaurant's current Connect account
+    // and 409s when it moved, so the fixture must hold the matching row.
+    await pool.query(
+      `INSERT INTO restaurant_connect_accounts (restaurant_id, stripe_account_id)
+       VALUES ($1, $2)`,
+      [restaurant.id, `acct_test_ledger_uuid_${restaurant.id}`]);
 
     const done = await payoutService.approvePayout({
       payoutId: payout.id,
@@ -282,7 +289,7 @@ ddescribe('ledger_transaction_id UUID round-trip (P0 #3)', () => {
       id: `tr_test_ledger_uuid_${payout.id}`,
       amount: 2000,
       currency: 'usd',
-      destination: 'acct_test_ledger_uuid',
+      destination: `acct_test_ledger_uuid_${payout.restaurant_id}`,
       reversed: true,
       metadata: { restaurant_payout_id: String(payout.id) },
     };

@@ -48,6 +48,14 @@ exports.decidePaymentDispute = async (req, res, next) => {
     const nextStatus = String(req.body?.status || '');
     const note = String(req.body?.note || '').trim().slice(0, 2000);
     const refundReference = req.body?.refundReference ? String(req.body.refundReference).slice(0, 160) : null;
+    const noRefundReason = req.body?.noRefundReason ? String(req.body.noRefundReason).trim().slice(0, 2000) : null;
+    // Finding 37: a decision that reads as closure (approved/resolved)
+    // must either move the money (a refund reference) or state plainly
+    // that no refund was issued and why. A silent resolved with neither
+    // is rejected here, before the row is stamped.
+    if ((nextStatus === 'approved' || nextStatus === 'resolved') && !refundReference && !noRefundReason) {
+      return res.status(400).json({ error: 'An approved or resolved dispute needs a refund reference or an explicit no-refund reason', code: 'dispute_closure_requires_refund_or_reason' });
+    }
     if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'Invalid dispute id', code: 'invalid_id' });
     }
@@ -63,7 +71,7 @@ exports.decidePaymentDispute = async (req, res, next) => {
       if (!(TRANSITIONS[current.status] || []).includes(nextStatus)) {
         return { status: 409, body: { error: `Cannot move a ${current.status} dispute to ${nextStatus}`, code: 'invalid_transition' } };
       }
-      const decision = { status: nextStatus, note, decidedBy: req.user.id, decidedAt: new Date().toISOString(), refundReference };
+      const decision = { status: nextStatus, note, decidedBy: req.user.id, decidedAt: new Date().toISOString(), refundReference, noRefundReason };
       const { rows: [updated] } = await client.query(
         `UPDATE main_app_payment_disputes
             SET status = $2,
@@ -82,7 +90,7 @@ exports.decidePaymentDispute = async (req, res, next) => {
         targetId: String(id),
         description: note,
         before: { status: current.status },
-        after: { status: nextStatus, refundReference },
+        after: { status: nextStatus, refundReference, noRefundReason },
         req,
         throwOnError: true,
       });

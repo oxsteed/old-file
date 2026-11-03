@@ -77,6 +77,8 @@ export default function RestaurantSupportCasePage() {
   const [attachmentFile, setAttachmentFile] = useState(null);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
+  const [acting, setActing] = useState(false);
+  const [actionNotice, setActionNotice] = useState('');
   const pendingMessageIdRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -100,6 +102,23 @@ export default function RestaurantSupportCasePage() {
   useEffect(() => {
     if (caseId) loadCase();
   }, [caseId]);
+
+  // Track D (finding 7): the customer actions the old page lacked. This
+  // page is the customer surface, so it keeps calling the customer
+  // endpoints; operators and admins have their own detail surfaces.
+  const runCustomerAction = async (action, successKey) => {
+    setActing(true);
+    setActionNotice('');
+    try {
+      await api.post(`/restaurants/support/cases/${caseId}/${action}`, {});
+      setActionNotice(t(successKey));
+      await loadCase();
+    } catch (err) {
+      setSendError(err.response?.data?.error || t('support.replyError', { defaultValue: 'Failed to save update.' }));
+    } finally {
+      setActing(false);
+    }
+  };
 
   const caseStatus = String(supportCase?.status || '').replace(/_/g, ' ');
   const caseTitle = supportCase?.title || supportCase?.public_case_number || t('support.case', { defaultValue: 'Support case' });
@@ -199,11 +218,11 @@ export default function RestaurantSupportCasePage() {
         <div className="mb-6 flex items-center justify-between gap-4">
           <button
             type="button"
-            onClick={() => navigate('/support')}
+            onClick={() => navigate('/restaurants/support/cases')}
             className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
           >
             <ArrowLeft size={16} />
-            {t('common.back', { defaultValue: 'Back' })}
+            {t('restaurantSupport.myCases')}
           </button>
           <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${tone(supportCase.status)}`}>
             {caseStatus || 'new'}
@@ -298,6 +317,39 @@ export default function RestaurantSupportCasePage() {
                   {t('support.viewOrder', { defaultValue: 'View order' })}
                   <ExternalLink size={15} />
                 </Link>
+              </Section>
+            )}
+
+            {(supportCase.status === 'resolution_offered' || ['resolved', 'closed'].includes(supportCase.status)) && (
+              <Section title={t('restaurantSupport.caseActions')} icon={ShieldAlert}>
+                <div className="space-y-3">
+                  {actionNotice && <p role="status" className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{actionNotice}</p>}
+                  {supportCase.status === 'resolution_offered' && (
+                    <>
+                      {supportCase.final_resolution && (
+                        <p className="text-sm text-slate-300">{t('restaurantSupport.offeredLine', { resolution: String(supportCase.final_resolution).replace(/_/g, ' '), amount: supportCase.resolution_amount_cents ?? supportCase.approved_refund_amount_cents ?? '' })}</p>
+                      )}
+                      <button
+                        type="button"
+                        disabled={acting}
+                        onClick={() => { if (window.confirm(t('restaurantSupport.confirmAccept'))) runCustomerAction('accept-resolution', 'restaurantSupport.accepted'); }}
+                        className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-60"
+                      >
+                        {t('restaurantSupport.acceptResolution')}
+                      </button>
+                    </>
+                  )}
+                  {['resolved', 'closed'].includes(supportCase.status) && (
+                    <button
+                      type="button"
+                      disabled={acting}
+                      onClick={() => runCustomerAction('reopen', 'restaurantSupport.reopened')}
+                      className="inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/10 disabled:opacity-60"
+                    >
+                      {t('restaurantSupport.reopen')}
+                    </button>
+                  )}
+                </div>
               </Section>
             )}
 

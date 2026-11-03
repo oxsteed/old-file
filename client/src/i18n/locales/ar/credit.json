@@ -2480,7 +2480,8 @@
     "requeueError": "تعذر إعادة الصفوف المحددة إلى قائمة الانتظار.",
     "requeued": "تمت إعادة {{count}} صف إلى قائمة الانتظار.",
     "unknownDate": "تاريخ غير معروف",
-    "notAvailable": "غير متوفر"
+    "notAvailable": "غير متوفر",
+    "parkedTotal": "إجمالي الصفوف المتوقفة: {{total}}"
   },
   "adminCreditHolds": {
     "capture": "تحصيل",

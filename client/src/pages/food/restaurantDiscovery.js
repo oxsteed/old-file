@@ -6,6 +6,8 @@ export function buildRestaurantDiscoveryParams({
   geo = null,
   sort = 'recommended',
   offset = 0,
+  openNow = false,
+  fulfillment = null,
 } = {}) {
   const params = {
     limit: DISCOVERY_PAGE_SIZE,
@@ -14,6 +16,8 @@ export function buildRestaurantDiscoveryParams({
   };
   if (String(query || '').trim()) params.q = String(query).trim();
   if (cuisine) params.cuisine = cuisine;
+  if (openNow) params.open_now = true;
+  if (['delivery', 'pickup', 'dine_in'].includes(fulfillment)) params.fulfillment = fulfillment;
   const coordinate = (value, bound) => value != null && value !== ''
     && Number.isFinite(Number(value)) && Math.abs(Number(value)) <= bound;
   if (geo && coordinate(geo.lat, 90) && coordinate(geo.lng, 180)) {

@@ -244,8 +244,17 @@ exports.issueValue = async (req, res, next) => {
   try {
     const restaurant = await valueAccess(req);
     const idempotencyKey = req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key;
+    // Track D (finding 50, merchant half): issued value is backed by a
+    // recorded payment reference (for example an in-person cash receipt
+    // number). The reference rides in the card and ledger metadata and in
+    // the request fingerprint, so replaying an idempotency key with a
+    // different reference conflicts instead of silently swapping the
+    // backing record.
+    const paymentReference = typeof (req.body?.paymentReference ?? req.body?.payment_reference) === 'string'
+      ? (req.body.paymentReference ?? req.body.payment_reference).trim().slice(0, 120)
+      : null;
     const deliveryInput = fulfillment.normalize(req.body || {});
-    const requestHash = fulfillment.fingerprint({ productId: issueProductId(req.body?.productId ?? req.body?.product_id), customerId: issueCustomerId(req.body?.customerId ?? req.body?.customer_id), expiresAt: req.body?.expiresAt ?? req.body?.expires_at ?? null, ...deliveryInput });
+    const requestHash = fulfillment.fingerprint({ productId: issueProductId(req.body?.productId ?? req.body?.product_id), customerId: issueCustomerId(req.body?.customerId ?? req.body?.customer_id), expiresAt: req.body?.expiresAt ?? req.body?.expires_at ?? null, paymentReference, ...deliveryInput });
     const result = await withTransaction(pool, async (client) => {
       const result = await giftCardValue.issueGiftCard(client, {
         restaurantId: restaurant.id,
@@ -255,8 +264,11 @@ exports.issueValue = async (req, res, next) => {
         requestHash,
         code: deliveryInput.physicalCode,
         customerId: issueCustomerId(req.body?.customerId ?? req.body?.customer_id),
-        metadata: req.body?.metadata && typeof req.body.metadata === 'object' && !Array.isArray(req.body.metadata)
-          ? req.body.metadata : {},
+        metadata: {
+          ...(req.body?.metadata && typeof req.body.metadata === 'object' && !Array.isArray(req.body.metadata)
+            ? req.body.metadata : {}),
+          ...(paymentReference ? { paymentReference } : {}),
+        },
         expiresAt: req.body?.expiresAt ?? req.body?.expires_at ?? null,
       });
       const delivery = result.card.deliveryType ? await fulfillment.create(client, { restaurant, result, input: deliveryInput }) : null;
@@ -271,7 +283,7 @@ exports.issueValue = async (req, res, next) => {
         target_id: result.card.id,
         before_state: {},
         after_state: auditCard,
-        metadata: { replayed: result.replayed, value_provider: 'internal_ledger' },
+        metadata: { replayed: result.replayed, value_provider: 'internal_ledger', ...(paymentReference ? { paymentReference } : {}) },
         throwOnError: true,
       });
       return { ...result, fulfillment: delivery };

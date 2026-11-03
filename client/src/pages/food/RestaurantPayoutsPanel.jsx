@@ -2,27 +2,33 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { createRestaurantPayoutAccount, disconnectRestaurantPayoutAccount, formatFoodMoney, getRestaurantPayoutStatus, getWalletPayoutBalance, listWalletPayouts, requestWalletPayout } from '../../api/food';
+import { createRestaurantPayoutAccount, disconnectRestaurantPayoutAccount, formatFoodMoney, getRestaurantPayoutStatus, getWalletPayoutBalance, listWalletPayoutPage, requestWalletPayout } from '../../api/food';
 import { parseCreditMajorAmount } from '../../lib/creditCurrency';
 import { apiErrorMessage } from './foodShared';
 
 function Pill({ ready, children }) { return <span className={`fd-status-pill fd-payout-${ready ? 'ready' : 'pending'}`}>{children}</span>; }
 
+const PAYOUT_PAGE_SIZE = 20;
+
 function WalletPayoutsSection({ restaurantId, t, f }) {
   const [balance, setBalance] = useState(null);
   const [payouts, setPayouts] = useState([]);
+  const [payoutsTotal, setPayoutsTotal] = useState(0);
+  const [payoutsOffset, setPayoutsOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [amount, setAmount] = useState('');
   const [requesting, setRequesting] = useState(false);
   const sequence = useRef(0);
-  const load = useCallback(async () => {
+  const load = useCallback(async (offset = 0) => {
     const request = ++sequence.current;
     setLoading(true); setError(false);
     try {
-      const [bal, hist] = await Promise.all([getWalletPayoutBalance(restaurantId), listWalletPayouts(restaurantId, { limit: 20 })]);
+      const [bal, hist] = await Promise.all([getWalletPayoutBalance(restaurantId), listWalletPayoutPage(restaurantId, { limit: PAYOUT_PAGE_SIZE, offset })]);
       if (request !== sequence.current) return;
-      setBalance(bal); setPayouts(Array.isArray(hist) ? hist : []);
+      setBalance(bal);
+      setPayouts(Array.isArray(hist?.payouts) ? hist.payouts : []);
+      setPayoutsTotal(hist?.total ?? (hist?.payouts || []).length);
     } catch { if (request === sequence.current) { setBalance(null); setError(true); } }
     finally { if (request === sequence.current) setLoading(false); }
   }, [restaurantId]);
@@ -31,12 +37,15 @@ function WalletPayoutsSection({ restaurantId, t, f }) {
   const valid = balance?.processorEnabled !== false && Number.isSafeInteger(cents) && cents > 0 && cents >= Number(balance?.minPayoutCents || 0) && cents <= Number(balance?.balanceCents || 0);
   const submitRequest = async () => {
     if (!valid || requesting) return;
+    // Finding 46: confirm the payout request with its amount and
+    // currency before it enters the admin review queue.
+    if (!window.confirm(t('food.merchant.payouts.requestConfirm', { amount: formatFoodMoney(cents, balance?.currencyCode || 'USD') }))) return;
     setRequesting(true);
     try {
       const key = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       await requestWalletPayout(restaurantId, { amountCents: cents }, key);
       toast.success(t('food.merchant.payouts.requestSubmitted', 'Payout requested. An admin will review it.'));
-      setAmount(''); await load();
+      setAmount(''); setPayoutsOffset(0); await load(0);
     } catch (err) { toast.error(apiErrorMessage(err, t('food.merchant.payouts.requestError', 'Could not request the payout.'))); }
     finally { setRequesting(false); }
   };
@@ -50,7 +59,9 @@ function WalletPayoutsSection({ restaurantId, t, f }) {
         <div className="fd-row" style={{ gap: '.5rem', flexWrap: 'wrap' }}><input id={`wallet-payout-${restaurantId}`} inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} aria-describedby={`wallet-min-${restaurantId}`} disabled={requesting} /><button type="submit" className="fd-btn" disabled={requesting || !valid} data-track="ui.374063ed56.3">{requesting ? t('food.merchant.payouts.requesting', 'Requesting…') : t('food.merchant.payouts.requestPayout', 'Request payout')}</button></div>
         <p id={`wallet-min-${restaurantId}`} className="fd-card-meta">{t('food.merchant.payouts.minPayout', 'Minimum payout: {{amount}}', { amount: formatFoodMoney(balance.minPayoutCents, balance.currencyCode) })} · {f('availableLimit')}</p>
       </form>
-      <details className="fd-finance-advanced"><summary>{f('recentPayouts')}</summary>{payouts.length ? payouts.map(p => <div key={p.id} className="fd-payout-status-grid"><div className="fd-row" style={{ justifyContent: 'space-between', gap: '.75rem' }}><span>{formatFoodMoney(p.amount_cents, p.currency_code)}</span><Pill ready={p.status === 'completed'}>{t(`food.merchant.payouts.status.${p.status}`, p.status)}</Pill></div></div>) : <p className="fd-card-meta">{f('noPayouts')}</p>}</details>
+      <details className="fd-finance-advanced"><summary>{f('recentPayouts')}</summary>{payouts.length ? payouts.map(p => <div key={p.id} className="fd-payout-status-grid"><div className="fd-row fd-row-between"><span>{formatFoodMoney(p.amount_cents, p.currency_code)}</span><Pill ready={p.status === 'completed'}>{t(`food.merchant.payouts.status.${p.status}`, p.status)}</Pill></div></div>) : <p className="fd-card-meta">{f('noPayouts')}</p>}
+      {payoutsTotal > 0 && <div className="fd-row fd-pager-row"><span className="fd-card-meta">{t('food.merchant.payouts.historyShowing', { from: payoutsTotal === 0 ? 0 : payoutsOffset + 1, to: Math.min(payoutsTotal, payoutsOffset + PAYOUT_PAGE_SIZE), total: payoutsTotal })}</span><button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payoutsOffset === 0} onClick={() => { const next = Math.max(0, payoutsOffset - PAYOUT_PAGE_SIZE); setPayoutsOffset(next); load(next); }} data-track="ui.374063ed56.8">{t('food.merchant.payouts.historyPrevious')}</button><button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payoutsOffset + PAYOUT_PAGE_SIZE >= payoutsTotal} onClick={() => { const next = payoutsOffset + PAYOUT_PAGE_SIZE; setPayoutsOffset(next); load(next); }} data-track="ui.374063ed56.9">{t('food.merchant.payouts.historyNext')}</button></div>}
+      </details>
     </>}
   </section>;
 }

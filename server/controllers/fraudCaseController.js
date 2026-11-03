@@ -20,7 +20,7 @@ const {
 } = require('../services/fraudCaseService');
 const logger = require('../utils/logger');
 
-const SUBJECT_TYPES = Object.freeze(['user', 'business']);
+const SUBJECT_TYPES = Object.freeze(['user', 'business', 'restaurant']);
 const CATEGORIES = Object.freeze([
   'affiliate_fraud',
   'collusion',
@@ -108,6 +108,18 @@ exports.createFraudCase = async (req, res, next) => {
     }
     if (Object.keys(fields).length) {
       throw new AppError('Validation failed', 400, 'validation_failed', fields);
+    }
+
+    // Track D (finding 23): a restaurant subject is a food_restaurants id,
+    // not a UUID. Reject unknown restaurants so a restaurant fraud case
+    // always points at a real restaurant.
+    if (subject_type === 'restaurant') {
+      const restaurantId = Number.parseInt(String(subject_id).trim(), 10);
+      if (!Number.isInteger(restaurantId) || restaurantId <= 0) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { subject_id: 'Restaurant subject_id must be a positive restaurant id' });
+      }
+      const { rows } = await db.query('SELECT id FROM food_restaurants WHERE id = $1', [restaurantId]);
+      if (!rows.length) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     }
 
     const kase = await createFraudCase({

@@ -81,7 +81,22 @@ export const adjustInventoryItem = (restaurantId, itemId, payload) =>
   api.post(`/restaurants/${restaurantId}/inventory/items/${itemId}/adjust`, payload).then((r) => r.data?.item);
 
 export const listInventoryAdjustments = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/inventory/adjustments`, { params }).then((r) => r.data?.adjustments || []);
+  api.get(`/restaurants/${restaurantId}/inventory/adjustments`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.adjustments || []);
+
+export const getInventoryDashboard = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/inventory/dashboard`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.dashboard || r.data || null);
+
+export const listInventoryPurchaseRequestPage = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/inventory/purchase-requests`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
+export const createInventoryPurchaseRequest = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/inventory/purchase-requests`, payload).then((r) => r.data?.request);
+
+export const listInventorySupplierIssuePage = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/inventory/supplier-issues`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
+export const createInventorySupplierIssue = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/inventory/supplier-issues`, payload).then((r) => r.data?.issue);
 
 // ── Staff training (franchise system) ────────────────────────────────────────
 export const listTrainingModules = (restaurantId) =>
@@ -97,7 +112,7 @@ export const deleteTrainingModule = (restaurantId, moduleId) =>
   api.delete(`/restaurants/${restaurantId}/training/modules/${moduleId}`);
 
 export const listRestaurantStaff = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/training/staff`).then((r) => r.data?.staff || []);
+  api.get(`/restaurants/${restaurantId}/training/staff`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.staff || []);
 
 export const assignTrainingModule = (restaurantId, moduleId, payload) =>
   api.post(`/restaurants/${restaurantId}/training/modules/${moduleId}/assign`, payload).then((r) => r.data?.assignment);
@@ -116,7 +131,7 @@ export const listTrainingCompletions = (restaurantId) =>
 
 // Auto-assignment rules (S-12)
 export const listTrainingAutoAssignRules = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/training/auto-assign-rules`).then((r) => r.data?.rules || []);
+  api.get(`/restaurants/${restaurantId}/training/auto-assign-rules`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.rules || []);
 
 export const createTrainingAutoAssignRule = (restaurantId, moduleId, payload) =>
   api.post(`/restaurants/${restaurantId}/training/modules/${moduleId}/auto-assign-rules`, payload).then((r) => r.data);
@@ -130,7 +145,7 @@ export const deleteTrainingAutoAssignRule = (restaurantId, ruleId) =>
 // Staff compliance document vault (S-14). Files are served only through
 // short-lived signed URLs minted by the server.
 export const listStaffDocuments = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/staff-documents`, { params }).then((r) => r.data?.documents || []);
+  api.get(`/restaurants/${restaurantId}/staff-documents`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.documents || []);
 
 export const uploadStaffDocument = (restaurantId, fields, file) => {
   const form = new FormData();
@@ -163,11 +178,11 @@ export const acknowledgeSop = (restaurantId, sopId, signatureBlob = null, sopVer
 };
 
 export const listSopAcknowledgements = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/sop-acknowledgements`, { params }).then((r) => r.data?.acknowledgements || []);
+  api.get(`/restaurants/${restaurantId}/sop-acknowledgements`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.acknowledgements || []);
 
 // ── Quality audits (franchise system) ────────────────────────────────────────
 export const listAuditTemplates = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/audits/templates`).then((r) => r.data?.templates || []);
+  api.get(`/restaurants/${restaurantId}/audits/templates`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.templates || []);
 
 export const createAuditTemplate = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/audits/templates`, payload).then((r) => r.data?.template);
@@ -182,7 +197,7 @@ export const startAuditRun = (restaurantId, templateId, payload = {}) =>
   api.post(`/restaurants/${restaurantId}/audits/templates/${templateId}/runs`, payload).then((r) => r.data?.audit);
 
 export const listAuditRuns = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/audits/runs`, { params }).then((r) => r.data?.audits || []);
+  api.get(`/restaurants/${restaurantId}/audits/runs`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.audits || []);
 
 export const getAuditRun = (restaurantId, auditId) =>
   api.get(`/restaurants/${restaurantId}/audits/runs/${auditId}`).then((r) => r.data?.audit);
@@ -200,14 +215,14 @@ export const createCorrectiveAction = (restaurantId, findingId, payload) =>
   api.post(`/restaurants/${restaurantId}/audits/findings/${findingId}/actions`, payload).then((r) => r.data?.action);
 
 export const listCorrectiveActions = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/audits/corrective-actions`, { params }).then((r) => r.data?.actions || []);
+  api.get(`/restaurants/${restaurantId}/audits/corrective-actions`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.actions || []);
 
 export const updateCorrectiveAction = (restaurantId, actionId, payload) =>
   api.patch(`/restaurants/${restaurantId}/audits/corrective-actions/${actionId}`, payload).then((r) => r.data?.action);
 
 // ── Franchise reports ────────────────────────────────────────────────────────
 export const getSalesReport = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/reports/sales`, { params }).then((r) => r.data);
+  api.get(`/restaurants/${restaurantId}/reports/sales`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
 export const downloadSalesReportCsv = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/sales/export.csv`, { params, responseType: 'blob' }).then((r) => r.data);
@@ -222,7 +237,7 @@ export const downloadSalesBiNdjson = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/sales/bi.ndjson`, { params, responseType: 'blob' }).then((r) => r.data);
 
 export const getSalesLocationComparison = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/reports/sales/locations`, { params }).then((r) => r.data);
+  api.get(`/restaurants/${restaurantId}/reports/sales/locations`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
 export const downloadSalesLocationComparisonCsv = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/sales/locations.csv`, { params, responseType: 'blob' }).then((r) => r.data);
@@ -231,7 +246,7 @@ export const downloadSalesLocationComparisonXlsx = (restaurantId, params = {}) =
   api.get(`/restaurants/${restaurantId}/reports/sales/locations.xlsx`, { params, responseType: 'blob' }).then((r) => r.data);
 
 export const getSalesClose = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/reports/sales/close`, { params }).then((r) => r.data);
+  api.get(`/restaurants/${restaurantId}/reports/sales/close`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
 export const downloadSalesCloseCsv = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/sales/close.csv`, { params, responseType: 'blob' }).then((r) => r.data);
@@ -248,26 +263,26 @@ export const clearRestaurantLocationAccess = (restaurantId, membershipId) =>
   api.delete(`/restaurants/${restaurantId}/location-access/${membershipId}`).then((r) => r.data);
 
 export const getInventoryReport = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/reports/inventory`, { params }).then((r) => r.data);
+  api.get(`/restaurants/${restaurantId}/reports/inventory`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
 export const getOperationsReport = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/reports/operations`, { params }).then((r) => r.data);
+  api.get(`/restaurants/${restaurantId}/reports/operations`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
 // ── Loyalty analytics (Phase 2, Item 10) ─────────────────────────────────────
 // Repeat-order rate + top items by revenue. Fixed 90-day window server-side.
 export const getLoyaltyReport = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/reports/loyalty`).then((r) => r.data);
+  api.get(`/restaurants/${restaurantId}/reports/loyalty`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
 export const listAccountingIntegrations = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/accounting/integrations`).then((r) => r.data?.integrations || []);
+  api.get(`/restaurants/${restaurantId}/accounting/integrations`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.integrations || []);
 
 export const listAccountingExports = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/accounting/exports`, { params }).then((r) => r.data?.exports || []);
+  api.get(`/restaurants/${restaurantId}/accounting/exports`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.exports || []);
 
 // CRM segments are aggregate-only; customer identity and campaign delivery are
 // intentionally excluded from this contract.
 export const listLoyaltySegments = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/crm/segments`).then((r) => r.data?.segments || []);
+  api.get(`/restaurants/${restaurantId}/crm/segments`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.segments || []);
 
 export const createLoyaltySegment = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/crm/segments`, payload).then((r) => r.data?.segment);
@@ -285,19 +300,19 @@ export const previewLoyaltySegment = (restaurantId, segmentId) =>
 // Labor and payroll endpoints require the payroll.view permission on the
 // server (fail closed); team activity requires audit.view.
 export const getLaborReport = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/reports/labor`, { params }).then((r) => r.data);
+  api.get(`/restaurants/${restaurantId}/reports/labor`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
 export const downloadPayrollCsv = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/payroll/export.csv`, { params, responseType: 'blob' }).then((r) => r.data);
 
 export const getExceptionsReport = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/reports/exceptions`, { params }).then((r) => r.data);
+  api.get(`/restaurants/${restaurantId}/reports/exceptions`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
 export const getTeamActivity = (restaurantId, params = {}) =>
-  api.get(`/restaurants/${restaurantId}/team/activity`, { params }).then((r) => r.data);
+  api.get(`/restaurants/${restaurantId}/team/activity`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
 export const getTipPoolSettings = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/tip-pool`).then((r) => r.data?.settings);
+  api.get(`/restaurants/${restaurantId}/tip-pool`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.settings);
 
 export const updateTipPoolSettings = (restaurantId, payload) =>
   api.put(`/restaurants/${restaurantId}/tip-pool`, payload).then((r) => r.data?.settings);
@@ -305,8 +320,8 @@ export const updateTipPoolSettings = (restaurantId, payload) =>
 export const declareCashTip = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/tips/cash-declarations`, payload).then((r) => r.data?.declaration);
 
-export const listStaffDocumentPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/staff-documents`,{params}).then(r=>r.data);
-export const listSopAcknowledgementPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/sop-acknowledgements`,{params}).then(r=>r.data);
+export const listStaffDocumentPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/staff-documents`,{params, timeout: PANEL_LOAD_TIMEOUT_MS}).then(r=>r.data);
+export const listSopAcknowledgementPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/sop-acknowledgements`,{params, timeout: PANEL_LOAD_TIMEOUT_MS}).then(r=>r.data);
 
 export const saveAccountingIntegration = (id, provider, payload) =>
   api.put(`/restaurants/${id}/accounting/integrations/${provider}`, { ...payload, provider }).then(r => r.data.integration);

@@ -18,6 +18,7 @@ router.use(requireAdmin);
 const contentGate = requirePermission('moderate_content');
 
 router.get('/flags', contentGate, ctrl.adminListMediaFlags);
+router.post('/media/:mediaId/restore', contentGate, ctrl.adminRestoreMedia);
 // The flag-review endpoint also accepts a DMCA takedown: {action:'remove',
 // takedownReason:'dmca'} routes to the video pipeline's DMCA handler, which
 // hides the media, records 'DMCA takedown' on the review and in the audit

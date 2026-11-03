@@ -15599,7 +15599,56 @@
       "payAtRestaurant": "Pay at restaurant",
       "processor": "Processor payment",
       "unrecorded": "Unrecorded"
-    }
+    },
+    "serviceFee": "Service fee",
+    "tip": "Tip",
+    "deliveryInstructions": "Delivery instructions",
+    "review": "Review",
+    "reviewDone": "Your review",
+    "reviewTitle": "Leave a review",
+    "reviewPlaceholder": "How was your order?",
+    "reviewSubmit": "Submit review",
+    "reviewDelete": "Delete review",
+    "reviewResponse": "Restaurant response: {{response}}",
+    "cancelSuccess": "Your order was cancelled.",
+    "cancelRefund": "Refund of {{amount}} will be returned to your original payment method.",
+    "cancelReplayed": "This cancellation was already processed.",
+    "cancelNotAvailable": "This order can no longer be cancelled. Contact the restaurant or open a dispute for help.",
+    "cancelConfirm": "Cancel this order ({{total}})?",
+    "cancelRefundPreview": "Refund amount: {{amount}}",
+    "cancelNoRefund": "No refund is due for this order: it has not been prepaid.",
+    "disputeOpened": "Your case {{caseNumber}} is open.",
+    "disputeReviewingParty": "Reviewing party: {{party}}",
+    "disputeDescription": "Describe what went wrong and what you would like. The restaurant reviews your request first.",
+    "disputeIssueType": "What went wrong?",
+    "disputeResolution": "What would you like?",
+    "disputeAmountPlaceholder": "Refund amount (e.g. 12.50)",
+    "disputeDetailPlaceholder": "Describe the problem…",
+    "disputeSubmit": "Open case",
+    "reportProblem": "Report a problem with this order",
+    "disputeIssues": {
+      "missing_item": "Missing item",
+      "wrong_item": "Wrong item",
+      "food_quality": "Food quality",
+      "late_order": "Late order",
+      "payment_problem": "Payment problem",
+      "delivery_issue": "Delivery issue",
+      "other": "Something else"
+    },
+    "disputeResolutions": {
+      "refund": "Full refund",
+      "partial_refund": "Partial refund",
+      "store_credit": "Store credit",
+      "replacement_item": "Replacement item",
+      "remake_order": "Remake order",
+      "discount_code": "Discount code",
+      "apology_only": "Apology only"
+    },
+    "pagination": "Order pages",
+    "showingRange": "Showing {{from}}–{{to}} of {{total}}",
+    "previousPage": "Previous",
+    "nextPage": "Next",
+    "pageOf": "Page {{page}} of {{pages}}"
   },
   "howOxsteedWorks": {
     "experience": {
@@ -22829,8 +22878,16 @@
         "hoursLocalTime": "Hours are shown in each restaurant’s local time.",
         "ordersPaused": "Orders paused",
         "onlineUnavailable": "Online ordering unavailable",
-        "clearLocation": "Clear location"
-      }
+        "clearLocation": "Clear location",
+        "notAcceptingOrders": "Not accepting orders",
+        "openNow": "Accepting orders now",
+        "fulfillment": "Fulfillment",
+        "fulfillmentAll": "All fulfillment",
+        "fulfillment_delivery": "Delivery",
+        "fulfillment_pickup": "Pickup",
+        "fulfillment_dine_in": "Dine in"
+      },
+      "externalPlaceExplore": "Find OxSteed restaurants nearby"
     },
     "restaurant": {
       "messageUnreachable": "This restaurant can't receive messages right now. Please try again later.",
@@ -23217,7 +23274,36 @@
         "promo_not_fundable": "This promo code can't be applied to this order.",
         "promo_changed": "The promo discount changed. Review your order and try again."
       },
-      "promoApplied": "Promo applied: −{{amount}}"
+      "promoApplied": "Promo applied: −{{amount}}",
+      "removeItem": "Remove {{item}} from cart",
+      "checkoutTotalLoading": "Calculating total…",
+      "reorderReplaceConfirm": "Replace your current cart with this past order?",
+      "reorderDropped": "Some customizations are no longer available and were left out: {{items}}",
+      "deliveryCity": "City",
+      "deliveryCityPlaceholder": "City",
+      "deliveryState": "State",
+      "deliveryStatePlaceholder": "State",
+      "deliveryZip": "ZIP code",
+      "deliveryZipPlaceholder": "ZIP code",
+      "deliveryInstructions": "Delivery instructions",
+      "deliveryInstructionsPlaceholder": "Gate code, parking, or drop-off notes",
+      "guestCheckoutNote": "You can check out as a guest. Sign in to see this order in your order history and earn loyalty points.",
+      "guestName": "Your name",
+      "guestNamePlaceholder": "Full name",
+      "guestPhone": "Phone",
+      "guestPhonePlaceholder": "Phone number",
+      "guestEmail": "Email",
+      "guestEmailPlaceholder": "Email address",
+      "guestNameRequired": "Please enter your name for a guest pickup order.",
+      "guestContactRequired": "Please provide a phone number or email for order updates.",
+      "guestPaymentUnavailable": "This payment method requires sign-in. Choose pay at restaurant or Guest Credit, or sign in.",
+      "quoteLoading": "Still calculating your total…",
+      "trackOrder": "Track order",
+      "reviewAfterCompleted": "Once your order is completed, you can leave a review from the tracking page.",
+      "reviewsLoadError": "Could not load reviews.",
+      "reviewsShowing": "Showing {{shown}} of {{total}} reviews",
+      "loadMoreReviews": "Load more reviews",
+      "reviewResponse": "Restaurant response: {{response}}"
     },
     "order": {
       "specialInstructions": "Special instructions (optional)",
@@ -23247,7 +23333,8 @@
       "reviewOptional": "Optional comment (500 characters max)",
       "submitReview": "Submit review",
       "reviewThanks": "Thanks for your review!",
-      "reviewError": "We couldn't save your review. Please try again."
+      "reviewError": "We couldn't save your review. Please try again.",
+      "reviewDeleted": "Your review was deleted."
     },
     "status": {
       "received": "Received",
@@ -23269,7 +23356,13 @@
       "total": "Total",
       "printReceipt": "Print Receipt",
       "runnerNearby": "Runner nearby",
-      "runnerUpdatedAgo": "location updated {{seconds}}s ago"
+      "runnerUpdatedAgo": "location updated {{seconds}}s ago",
+      "reviewDone": "Your review",
+      "reviewTitle": "Leave a review",
+      "reviewThanks": "Thanks for your feedback.",
+      "reviewPlaceholder": "How was your order?",
+      "reviewSubmit": "Submit review",
+      "reviewDelete": "Delete review"
     },
     "payment": {
       "paid": "Paid",
@@ -23351,7 +23444,10 @@
       "logbookLabel": "Shift note",
       "logbookPlaceholder": "What should the next shift know?",
       "addLogbookEntry": "Add entry",
-      "logbookAdded": "Log entry added"
+      "logbookAdded": "Log entry added",
+      "scheduleCount": "{{count}} shifts",
+      "showAll": "Show all {{count}} shifts",
+      "showFewer": "Show fewer"
     },
     "merchant": {
       "title": "Restaurant dashboard",
@@ -23489,7 +23585,9 @@
         "paymentRefunded": "Payment refunded",
         "paymentConfirmed": "Payment confirmed.",
         "orderMarkedPaid": "Order marked paid.",
-        "paymentError": "Unable to confirm this payment."
+        "paymentError": "Unable to confirm this payment.",
+        "cancelConfirm": "Cancel order {{order}} ({{amount}})? Cancelling a paid card order triggers a refund to the customer.",
+        "markPaidConfirm": "Mark order {{order}} as paid for {{amount}}? This records that the full amount due was received."
       },
       "menu": "Menu",
       "newCategoryPlaceholder": "New category name (e.g. Burgers)",
@@ -23724,7 +23822,11 @@
           "rejected": "Rejected",
           "failed": "Failed",
           "cancelled": "Cancelled"
-        }
+        },
+        "historyShowing": "Showing {{from}}–{{to}} of {{total}}",
+        "historyPrevious": "Previous",
+        "historyNext": "Next",
+        "requestConfirm": "Request a payout of {{amount}}? The request enters the admin review queue; it does not move money immediately."
       },
       "settlementTitle": "Payment settlement records",
       "settlementNote": "Orders can stay linked to the restaurant record so settlement, receipts, and support history remain visible in the app.",
@@ -23777,7 +23879,13 @@
       "refundError": "Unable to issue refund.",
       "cardPartialRefundUnsupported": "Partial refunds are not available for online card orders. Refund the full order or ask support for help.",
       "cardRefundUseCancel": "Card orders are refunded by cancelling the order. The card refund happens automatically.",
-      "addAnotherRestaurant": "Add another restaurant"
+      "addAnotherRestaurant": "Add another restaurant",
+      "stChipVerified": "Verified",
+      "stChipUnverified": "Not verified",
+      "suspendedNotice": "This restaurant is suspended. Ordering is disabled until it is reactivated.",
+      "posShiftCloseError": "Could not close the POS shift.",
+      "csvFailedSummary": "{{count}} rows failed: {{rows}}",
+      "csvImportedPartial": "{{count}} items imported and published.{{failed}}{{skipped}}{{truncated}}"
     },
     "onboarding": {
       "eyebrow": "Opening Night",
@@ -23990,7 +24098,17 @@
       "clear": "Clear",
       "cardTerminalRequired": "Card payments require a connected POS terminal. Use the POS app for card checkout.",
       "amountGiven": "Amount given",
-      "syncDegraded": "Sync degraded: {{failed}} failed, {{pending}} pending, {{outbox}} unsent"
+      "syncDegraded": "Sync degraded: {{failed}} failed, {{pending}} pending, {{outbox}} unsent",
+      "closeShift": "Close shift",
+      "closeShiftTitle": "Close shift #{{id}}",
+      "closeShiftHint": "Count the cash in the drawer and enter it below. Closing cannot be undone.",
+      "openingCash": "Opening cash: {{amount}}",
+      "shiftPayments": "Settled payments: {{amount}}",
+      "closingCash": "Closing cash",
+      "shiftClosed": "Shift closed",
+      "closeSummary": "Expected {{expected}}, counted {{counted}}, variance {{variance}}.",
+      "closePaidOrders": "{{count}} paid orders",
+      "multipleOpenShifts": "{{count}} shifts are open. Orders are using the first shift shown. Close the extra shifts before taking new orders."
     },
     "inv": {
       "title": "Inventory",
@@ -24034,7 +24152,14 @@
       "severity_high": "High",
       "unknownSupplier": "Unknown supplier",
       "uncategorized": "Uncategorized",
-      "par": "par"
+      "par": "par",
+      "adjType_receive": "Receive",
+      "adjType_count": "Count",
+      "adjType_correction": "Correction",
+      "pollError": "Inventory data could not be refreshed. Showing the last saved data.",
+      "showing": "Showing {{from}}–{{to}} of {{total}}",
+      "previous": "Previous",
+      "next": "Next"
     },
     "crew": {
       "title": "Crew",
@@ -24134,7 +24259,9 @@
       "settlement_voided": "Voided",
       "createSettlement": "Create settlement",
       "settlementCreated": "Settlement created",
-      "cashCollectedPrompt": "Cash collected by the runner (amount)"
+      "cashCollectedPrompt": "Cash collected by the runner (amount)",
+      "pollError": "Runner data could not be refreshed. Showing the last saved data.",
+      "settlementApproveConfirm": "Approve settlement for task {{task}}? Cash collected: {{cash}}. Settlement amount (fees plus tip): {{amount}}. Approving does not mark it paid."
     },
     "ownerHome": {
       "allClear": "All clear. Nothing needs your attention right now.",
@@ -24170,7 +24297,11 @@
       "todayOrders": "Orders",
       "todayRevenue": "Revenue",
       "viewStore": "View customer page",
-      "viewStoreHint": "See exactly what customers see."
+      "viewStoreHint": "See exactly what customers see.",
+      "suspendedAlert": "This restaurant is suspended. Ordering is disabled.",
+      "suspendedKicker": "Suspended",
+      "suspended": "Ordering suspended",
+      "suspendedDesc": "This restaurant is suspended, so customers cannot order from it. Contact OxSteed support if you believe this is a mistake."
     },
     "timeClock": {
       "title": "Time clock",
@@ -24238,6 +24369,11 @@
         "not_reported": "Register never reported this payment",
         "other": "Needs a manager check"
       }
+    },
+    "menuManager": {
+      "partialGroups": "{{failed}} of {{total}} option groups failed to save ({{firstError}}). The item is saved; save again to retry the missing groups.",
+      "bulkPartial": "{{updated}} items updated, {{failed}} failed: {{names}}. The failed items are still selected.",
+      "bulkFailed": "{{failed}} items failed: {{names}}. They are still selected for retry."
     }
   },
   "network": {
@@ -24901,7 +25037,8 @@
           "cashAdd": "Add declaration",
           "cashSaved": "Cash tips declared.",
           "cashInvalid": "Pick a team member, a date and a positive amount.",
-          "cashError": "Could not save the cash tip declaration."
+          "cashError": "Could not save the cash tip declaration.",
+          "loadError": "Tip pool settings could not be loaded."
         },
         "exceptions": {
           "title": "Exceptions by employee",
@@ -29859,7 +29996,15 @@
     "supportCsat": "CSAT",
     "supportQa": "QA Reviews",
     "supportSettings": "Settings",
-    "supportAuditLog": "Audit Log"
+    "supportAuditLog": "Audit Log",
+    "restaurants": "Restaurants",
+    "restaurantSupport": "Restaurant support",
+    "restaurantMediaFlags": "Restaurant media flags",
+    "foodFraudSignals": "Food fraud signals",
+    "businessAudit": "Business audit",
+    "restaurantAnalytics": "Restaurant analytics",
+    "webhookReceipts": "Webhook receipts",
+    "restaurantWalletIntegrity": "Restaurant wallet integrity"
   },
   "adminProfileVisibility": {
     "title": "Profile visibility",
@@ -32768,7 +32913,9 @@
     "backToBusiness": "Back to business",
     "common": {
       "records": "{{count}} records",
-      "unknown": "Unknown"
+      "unknown": "Unknown",
+      "previous": "Previous",
+      "next": "Next"
     },
     "disputes": {
       "empty": "No disputes found.",
@@ -32866,7 +33013,8 @@
       "orders": "Orders",
       "overview": "Overview",
       "payouts": "Payouts",
-      "tickets": "Support tickets"
+      "tickets": "Support tickets",
+      "restaurants": "Restaurants"
     },
     "tickets": {
       "created": "Created",
@@ -32880,7 +33028,33 @@
       "title": "Support tickets",
       "updated": "Updated"
     },
-    "title": "Business 360"
+    "title": "Business 360",
+    "restaurants": {
+      "title": "Restaurants",
+      "subtitle": "Food orders, support cases, customer wallets, and pay-runs for this business's restaurants.",
+      "empty": "This business has no restaurants.",
+      "unnamed": "Unnamed restaurant",
+      "orderingOn": "Online ordering on",
+      "orderingOff": "Online ordering off",
+      "inStoreOn": "In-store ordering on",
+      "inStoreOff": "In-store ordering off",
+      "verified": "Verified",
+      "notVerified": "Not verified",
+      "ordersHeading": "Food orders",
+      "ordersTotal": "{{count}} total orders",
+      "supportHeading": "Support cases (30 days)",
+      "supportCounts": "{{cases}} cases, {{open}} open, {{escalated}} escalated",
+      "supportNone": "No support cases in the last 30 days.",
+      "walletsHeading": "Customer wallets",
+      "walletsEmpty": "No customer wallets.",
+      "walletCount": "{{count}} wallets",
+      "payRunsHeading": "Pay-runs",
+      "payRunsNote": "Pay-runs are listed below for the whole business. A finalized run is a computed total; it does not mean staff were paid.",
+      "payRunsTitle": "Pay-runs",
+      "payRunsEmpty": "No pay-runs for this business's restaurants.",
+      "payRunLines": "{{count}} lines",
+      "payRunsShowing": "Showing {{from}}–{{to}} of {{total}}"
+    }
   },
   "adminCustomer360": {
     "governedTitle": "Governed metrics for this customer",
@@ -33352,7 +33526,10 @@
     "typeMarketplaceRefund": "Marketplace refund",
     "typeDisputeRefund": "Dispute refund",
     "typeRestaurantPayout": "Restaurant payout",
-    "typeAffiliatePayout": "Affiliate payout"
+    "typeAffiliatePayout": "Affiliate payout",
+    "subject": "Subject",
+    "reason": "Reason",
+    "subjectUnknown": "Unknown subject"
   },
   "adminOrderFilters": {
     "searchOrders": "Search Orders",
@@ -35664,7 +35841,11 @@
       "clawbackPreviewHint": "Preview the top-up before confirming. Confirm stays disabled until the amount, restaurant, and status load for this ID.",
       "clawbackPreviewAmount": "Amount: {{amount}} {{currency}}",
       "clawbackPreviewRestaurant": "Restaurant: {{restaurant}}",
-      "clawbackPreviewStatus": "Status: {{status}}"
+      "clawbackPreviewStatus": "Status: {{status}}",
+      "clawbackPreviewNotExecutable": "This top-up cannot be clawed back: only a succeeded top-up can be clawed back.",
+      "clawbackReplayed": "This top-up was already clawed back; no second debit was made.",
+      "clawbackWentNegative": "Wallet went negative: balance {{before}} to {{after}} {{currency}}.",
+      "clawbackBalances": "Wallet balance {{before}} to {{after}} {{currency}}."
     }
   },
   "featuredPlacements": {
@@ -35838,12 +36019,20 @@
       "approved": "Approved",
       "completed": "Completed",
       "failed": "Failed",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "processing": "Processing"
     },
     "stepupFailed": "Could not issue a verification challenge.",
     "stepupPrompt": "A verification code was sent to your email. Enter it to approve this payout:",
     "pendingApproval": "Payout queued for second-admin approval (dual approval). No funds have moved.",
-    "stepupRequired": "A verification code is required to approve the payout."
+    "stepupRequired": "A verification code is required to approve the payout.",
+    "subtitleQueued": "Approve wallet-earnings payouts to restaurants. Approval queues a transfer to the restaurant's Connect account; the transfer is sent asynchronously and confirmed by Stripe, it is not instant.",
+    "transferAttempts": "{{count}} transfer attempts",
+    "retry": "Retry",
+    "fail": "Fail payout",
+    "confirmFailTitle": "Fail this payout?",
+    "confirmFailBody": "This returns the payout to a failed state and reverses its approval journal entry, so the restaurant can request again. It does not send money.",
+    "confirmApproveBodyQueued": "This queues a transfer of {{amount}} to the restaurant's Stripe account and posts the ledger entry. The transfer is sent asynchronously and confirmed by Stripe; it is not instant and it is not yet final."
   },
   "affiliatePayouts": {
     "title": "Affiliate payouts",
@@ -35916,7 +36105,12 @@
       "denied": "Denied",
       "resolved": "Resolved",
       "withdrawn": "Withdrawn"
-    }
+    },
+    "noRefundReasonLabel": "No-refund reason (required instead of a refund reference when closing without a refund)",
+    "noRefundReasonPlaceholder": "Why no refund was issued",
+    "closureNeedsRefundOrReason": "An approved or resolved decision needs a refund reference or a no-refund reason.",
+    "noRefundReasonShown": "No refund: {{reason}}",
+    "refundReferenceShown": "Refund reference: {{reference}}"
   },
   "adminChargebacks": {
     "title": "Chargebacks",
@@ -37360,9 +37554,9 @@
       }
     },
     "protection": {
-      "3": "Highest protection",
+      "1": "Not covered by OxSteed",
       "2": "Protected by OxSteed Credit",
-      "1": "Not covered by OxSteed"
+      "3": "Highest protection"
     },
     "chargedNowHeld": "Because the job is more than 5 days away, your card is charged now and OxSteed holds the money until the job is done.",
     "localMethods": "Also available: {{methods}}",
@@ -37639,7 +37833,9 @@
     "saved": "Gift-card product saved.",
     "loadError": "Could not load gift-card products.",
     "saveError": "Could not save gift-card product.",
-    "validation": "Enter a SKU, name, and positive value."
+    "validation": "Enter a SKU, name, and positive value.",
+    "paymentReference": "Payment reference",
+    "paymentReferenceHint": "For example, a cash receipt number"
   },
   "printer": {
     "title": "Receipt printer",
@@ -38016,5 +38212,292 @@
   },
   "cards": {
     "moveBack": "Move back to {{status}}"
+  },
+  "restaurantPayRuns": {
+    "title": "Restaurant pay runs",
+    "subtitle": "Pay runs across restaurants, with the actual payouts linked to each run. A finalized run with no links has not paid anyone yet.",
+    "status": {
+      "all": "All",
+      "draft": "Draft",
+      "finalized": "Finalized",
+      "paid": "Paid",
+      "voided": "Voided"
+    },
+    "restaurantFilter": "Restaurant id",
+    "loadFailed": "Could not load pay runs.",
+    "detailFailed": "Could not load pay run detail.",
+    "empty": "No pay runs in this state.",
+    "unknownRestaurant": "Unknown restaurant",
+    "run": "Pay run {{id}}",
+    "period": "{{from}} to {{to}}",
+    "totalPay": "Total pay: {{amount}}",
+    "linked": "Linked payouts: {{amount}} ({{count}})",
+    "finalizedUnpaid": "Finalized but not yet fully linked to payouts.",
+    "hideDetail": "Hide detail",
+    "showDetail": "Show detail",
+    "noLinks": "No payouts linked to this run yet.",
+    "linkLine": "Payout {{payout}}: {{amount}} ({{status}})",
+    "employees": "{{count}} employees"
+  },
+  "adminRsd": {
+    "showing": "Showing {{from}} to {{to}} of {{total}}"
+  },
+  "adminRestaurantSupport": {
+    "title": "Restaurant support cases",
+    "subtitle": "Cases filed by restaurant customers, worked by restaurants and OxSteed.",
+    "allStatuses": "All statuses",
+    "allOwners": "All owners",
+    "restaurantIdPlaceholder": "Restaurant id",
+    "loadFailed": "Failed to load support cases.",
+    "empty": "No support cases match these filters.",
+    "restaurant": "Restaurant {{id}}"
+  },
+  "adminRestaurantSupportCase": {
+    "backToQueue": "Back to support queue",
+    "loadFailed": "Failed to load this support case.",
+    "empty": "Support case not found.",
+    "restaurant": "Restaurant {{id}}",
+    "order": "Order {{id}}",
+    "offeredResolution": "Offered resolution: {{resolution}} ({{amount}} cents)",
+    "replyTitle": "Reply as OxSteed",
+    "replyNote": "This reply is sent as OxSteed, not as the restaurant.",
+    "sendReply": "Send reply",
+    "actionsTitle": "Case actions",
+    "assignPlaceholder": "Assign to user id",
+    "assign": "Assign",
+    "escalate": "Escalate to OxSteed",
+    "deescalate": "Return to restaurant",
+    "close": "Close",
+    "reopen": "Reopen",
+    "approvePlaceholder": "Approve a resolution",
+    "amountPlaceholder": "Amount in cents",
+    "approve": "Approve resolution",
+    "approveNote": "Approving a refund resolution still needs the customer to accept it before money moves.",
+    "messagesTitle": "Messages",
+    "noMessages": "No messages yet.",
+    "internalNote": "Internal note",
+    "eventsTitle": "Case events",
+    "actionFailed": "That action failed.",
+    "replySent": "Reply sent.",
+    "assigned": "Case assigned.",
+    "reopened": "Case reopened.",
+    "actionDone": "Action saved.",
+    "confirmAction": "Are you sure?"
+  },
+  "adminRestaurants": {
+    "title": "Restaurants",
+    "subtitle": "Admin management for restaurants: list, detail, suspend, and verify.",
+    "searchPlaceholder": "Search restaurants or businesses",
+    "allStatuses": "All statuses",
+    "allVerified": "Verified or not",
+    "verifiedOnly": "Verified only",
+    "unverifiedOnly": "Unverified only",
+    "loadFailed": "Failed to load restaurants.",
+    "empty": "No restaurants match these filters.",
+    "verified": "Verified",
+    "unverified": "Unverified",
+    "openCases": "{{count}} open cases"
+  },
+  "adminRestaurantDetail": {
+    "backToList": "Back to restaurants",
+    "loadFailed": "Failed to load this restaurant.",
+    "empty": "Restaurant not found.",
+    "verified": "Verified",
+    "unverified": "Unverified",
+    "business": "Business: {{name}}",
+    "supportCounts": "{{open}} open of {{total}} support cases",
+    "walletCounts": "{{count}} customer wallets, {{balance}} total balance",
+    "actionsTitle": "Admin actions",
+    "suspend": "Suspend restaurant",
+    "restore": "Restore to paused",
+    "unverify": "Remove verification",
+    "verify": "Verify restaurant",
+    "suspended": "Restaurant suspended.",
+    "restored": "Restaurant restored to paused.",
+    "verifyDone": "Verification updated.",
+    "actionFailed": "That action failed.",
+    "restoreNote": "Restore moves a suspended restaurant to paused. The owner must re-activate it; it never silently re-lists.",
+    "suspendNote": "Suspend stops online and in-store ordering for this restaurant.",
+    "relatedTitle": "Related surfaces",
+    "supportLink": "Support cases for this restaurant",
+    "auditLink": "Business audit trail",
+    "analyticsLink": "Restaurant analytics",
+    "confirmAction": "Are you sure?"
+  },
+  "adminRestaurantMediaFlags": {
+    "title": "Restaurant media flags",
+    "subtitle": "Community flags on restaurant videos, with audited review and restore.",
+    "restaurantIdPlaceholder": "Restaurant id",
+    "reviewNotePlaceholder": "Review note",
+    "reviewDone": "Flag review saved.",
+    "actionFailed": "That action failed.",
+    "loadFailed": "Failed to load media flags.",
+    "empty": "No media flags match these filters.",
+    "restaurant": "Restaurant {{id}}",
+    "flaggedBy": "Flagged by",
+    "decidedBy": "Decided by",
+    "mediaStatus": "Video: {{status}}",
+    "dismiss": "Dismiss",
+    "remove": "Remove video",
+    "restore": "Restore video",
+    "restoreDone": "Video restored.",
+    "restoreNote": "Restore unhides the restaurant video. A mirrored feed post stays removed until restored from Media flags.",
+    "confirmAction": "Are you sure?",
+    "linkFromGeneral": "Review restaurant media flags"
+  },
+  "adminFraudSignals": {
+    "title": "Food fraud signals",
+    "subtitle": "Fraud signals on restaurant credit, reviewed with a recorded reviewer and note.",
+    "allReviewed": "Reviewed or not",
+    "unreviewedOnly": "Unreviewed only",
+    "reviewedOnly": "Reviewed only",
+    "allSeverities": "All severities",
+    "restaurantIdPlaceholder": "Restaurant id",
+    "reviewDone": "Signal marked reviewed.",
+    "actionFailed": "That action failed.",
+    "loadFailed": "Failed to load fraud signals.",
+    "empty": "No fraud signals match these filters.",
+    "restaurant": "Restaurant {{id}}",
+    "reviewed": "Reviewed",
+    "unreviewed": "Unreviewed",
+    "reviewedBy": "Reviewed by {{email}}",
+    "notePlaceholder": "Review note",
+    "review": "Mark reviewed",
+    "confirmReview": "Mark this signal reviewed with the note above?"
+  },
+  "adminWebhookReceipts": {
+    "title": "Webhook receipts",
+    "subtitle": "Failed or stuck webhook receipts, recovered by replay or manual resolution.",
+    "resolveWarning": "Resolve closes a receipt without replaying it. The event is not processed by resolving; use replay when the event still needs to run.",
+    "allProviders": "All providers",
+    "allStatuses": "All statuses",
+    "eventTypePlaceholder": "Event type",
+    "accountPlaceholder": "Account id",
+    "restaurantIdPlaceholder": "Restaurant id",
+    "loadFailed": "Failed to load webhook receipts.",
+    "empty": "No webhook receipts match these filters.",
+    "account": "Account {{id}}",
+    "attempts": "{{count}} attempts",
+    "resolutionNote": "Resolution note: {{note}}",
+    "replay": "Replay",
+    "cannotReplay": "Replay is not available for this provider. Resolve it with a note instead.",
+    "resolve": "Resolve",
+    "replayDone": "Receipt replayed.",
+    "resolveDone": "Receipt resolved without replay.",
+    "actionFailed": "That action failed.",
+    "noteRequired": "A resolution note is required.",
+    "resolveNotePlaceholder": "Why this receipt needs no replay",
+    "confirmResolve": "Resolve this receipt without replaying the event?",
+    "confirmReplay": "Replay this event from the provider?"
+  },
+  "adminWalletIntegrity": {
+    "title": "Restaurant wallet integrity",
+    "subtitle": "Admin integrity and reconciliation reads for restaurant customer wallets, plus CSV statements.",
+    "restaurantIdPlaceholder": "Restaurant id",
+    "customerEmailPlaceholder": "Customer email",
+    "customerIdPlaceholder": "Customer id",
+    "runIntegrity": "Run integrity check",
+    "runReconciliation": "Run reconciliation",
+    "downloadCsv": "Download CSV statement",
+    "restaurantRequired": "Enter a restaurant id first.",
+    "loadFailed": "Failed to load wallet data.",
+    "csvRequiresCustomer": "Enter a customer id to download a statement.",
+    "csvDownloaded": "CSV statement downloaded.",
+    "actionFailed": "That action failed.",
+    "integrityTitle": "Integrity check",
+    "integrityValid": "Wallet valid: {{valid}}",
+    "locked": "Wallet locked after a failed check",
+    "issueCodes": "Issues: {{codes}}",
+    "reconciliationTitle": "Reconciliation",
+    "accounts": "{{total}} accounts, {{active}} active",
+    "balanced": "Balanced",
+    "unbalanced": "Unbalanced: debit variance {{debit}}, refund variance {{refund}}",
+    "reconciliationEmpty": "No reconciliation data for this restaurant.",
+    "empty": "Enter a restaurant and a customer, then run a check."
+  },
+  "adminBusinessAudit": {
+    "title": "Business audit trail",
+    "subtitle": "Read the business audit log: pay-run actions, wallet operator actions, and restaurant status changes.",
+    "businessIdPlaceholder": "Business id",
+    "restaurantIdPlaceholder": "Restaurant id",
+    "actionPrefixPlaceholder": "Action prefix, for example restaurant.",
+    "search": "Search",
+    "prefixHint": "Filter by an action prefix such as restaurant. or wallet to narrow the trail.",
+    "loadFailed": "Failed to load the audit trail.",
+    "emptyPrompt": "Enter a business id or a restaurant id to read its audit trail.",
+    "empty": "No audit entries match these filters."
+  },
+  "adminRestaurantAnalytics": {
+    "title": "Restaurant analytics",
+    "subtitle": "Compare restaurant performance from the same reports merchants see, and verify merchant-reported numbers.",
+    "idsPlaceholder": "Restaurant ids, comma separated",
+    "compare": "Compare",
+    "idsRequired": "Enter at least one restaurant id.",
+    "loadFailed": "Failed to load restaurant reports.",
+    "restaurant": "Restaurant",
+    "orders": "Orders",
+    "revenue": "Revenue",
+    "refunds": "Refunds",
+    "avgTicket": "Average ticket",
+    "detail": "Detail",
+    "viewDetail": "View detail",
+    "detailTitle": "Restaurant {{id}} detail",
+    "inventoryCounts": "Inventory: {{low}} low-stock items, {{out}} out-of-stock items.",
+    "operationsCounts": "Operations: {{checklists}} checklists completed, {{audits}} audits completed, {{actions}} open corrective actions."
+  },
+  "restaurantSupport": {
+    "title": "Restaurant support",
+    "subtitle": "Open a case about a restaurant order and follow it here.",
+    "createTitle": "Open a support case",
+    "loadFailed": "Failed to load support cases.",
+    "createRequired": "Enter a restaurant id and a description.",
+    "createFailed": "Failed to open the support case.",
+    "created": "Support case opened.",
+    "restaurantId": "Restaurant id",
+    "orderId": "Order id",
+    "issueType": "Issue type",
+    "requestedResolution": "Requested resolution",
+    "noPreference": "No preference",
+    "description": "Description",
+    "create": "Open case",
+    "myCases": "My cases",
+    "empty": "No support cases yet.",
+    "showing": "Showing {{from}} to {{to}} of {{total}}",
+    "openCase": "Open a restaurant support case",
+    "merchantSupportLink": "Support cases",
+    "merchantTitle": "Restaurant support cases",
+    "merchantSubtitle": "Answer cases for your restaurant, offer resolutions, and escalate to OxSteed when needed.",
+    "backToQueue": "Back to support queue",
+    "allStatuses": "All statuses",
+    "respondTitle": "Respond to the customer",
+    "respond": "Send response",
+    "responded": "Response sent.",
+    "manageTitle": "Manage this case",
+    "assignPlaceholder": "Assign to user id",
+    "assign": "Assign",
+    "assigned": "Case assigned.",
+    "offerPlaceholder": "Offer a resolution",
+    "amountPlaceholder": "Amount in cents",
+    "offer": "Offer resolution",
+    "offered": "Resolution offered.",
+    "resolveNotePlaceholder": "Resolution note",
+    "resolve": "Resolve case",
+    "resolved": "Case resolved.",
+    "confirmResolve": "Resolve this case? The customer will see it as resolved.",
+    "escalatePlaceholder": "Reason for escalation",
+    "escalate": "Escalate to OxSteed",
+    "escalated": "Case escalated.",
+    "confirmEscalate": "Escalate this case to OxSteed? OxSteed will own it from here.",
+    "messagesTitle": "Messages",
+    "noMessages": "No messages yet.",
+    "internalNote": "Internal note",
+    "actionFailed": "That action failed.",
+    "caseActions": "Your case actions",
+    "offeredLine": "Offered resolution: {{resolution}} ({{amount}} cents)",
+    "acceptResolution": "Accept resolution",
+    "accepted": "Resolution accepted.",
+    "reopen": "Reopen case",
+    "reopened": "Case reopened.",
+    "confirmAccept": "Accept this resolution? This closes the case as resolved."
   }
 }

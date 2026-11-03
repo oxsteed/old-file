@@ -384,6 +384,7 @@ router.get('/:restaurantId/pay-runs/:payRunId', requireRestaurantAccess(), payro
 router.post('/:restaurantId/pay-runs/:payRunId/rebuild', requireRestaurantAccess(), payrollReports.rebuildPayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/finalize', requireRestaurantAccess(), payrollReports.finalizePayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/void', requireRestaurantAccess(), payrollReports.voidPayRun);
+router.post('/:restaurantId/pay-runs/:payRunId/payout-links', requireRestaurantAccess(), payrollReports.linkPayRunPayout);
 router.delete('/:restaurantId/inventory/mappings/:mappingId', requireRestaurantAccess(), inventory.deleteMapping);
 router.post('/:restaurantId/inventory/mappings/bootstrap-defaults', requireRestaurantAccess(), inventory.bootstrapMappings);
 router.get('/:restaurantId/inventory/purchase-requests', requireRestaurantAccess(), inventory.listPurchaseRequests);

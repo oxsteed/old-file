@@ -159,7 +159,7 @@ test('upsertRunnerSettlement refuses paid when remittance does not cover reporte
   mockQuery
     .mockResolvedValueOnce({ rows: [OWNER_RESTAURANT] })
     .mockResolvedValueOnce({ rows: [settlementTask()] })
-    .mockResolvedValueOnce({ rows: [{ id: 3, status: 'approved', cash_collected_cents: 500, cash_remitted_cents: 0, payment_reference: null }] });
+    .mockResolvedValueOnce({ rows: [{ id: 3, status: 'approved', approved_by: '00000000-0000-4000-8000-000000000999', cash_collected_cents: 500, cash_remitted_cents: 0, payment_reference: null }] });
 
   const res = await request(buildApp())
     .post('/api/restaurants/11/runner/tasks/7/settlements')
@@ -173,7 +173,7 @@ test('upsertRunnerSettlement accepts paid once remittance covers reported cash',
   mockQuery
     .mockResolvedValueOnce({ rows: [OWNER_RESTAURANT] })
     .mockResolvedValueOnce({ rows: [settlementTask()] })
-    .mockResolvedValueOnce({ rows: [{ id: 3, status: 'approved', cash_collected_cents: 500, cash_remitted_cents: 0, payment_reference: null }] })
+    .mockResolvedValueOnce({ rows: [{ id: 3, status: 'approved', approved_by: '00000000-0000-4000-8000-000000000999', cash_collected_cents: 500, cash_remitted_cents: 0, payment_reference: null }] })
     .mockResolvedValueOnce({ rows: [{ id: 3, status: 'paid', cash_remitted_cents: 500 }] }); // upsert
 
   const res = await request(buildApp())

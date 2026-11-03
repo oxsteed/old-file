@@ -121,6 +121,7 @@ function trackFeaturedConversion(req, restaurant, order) {
 }
 const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
 const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = require('../services/foodWalletService');
+const { readRefundedCents, withRefundedCents } = require('../services/foodOrderRefundCounter');
 const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
 const {
   refundCreditForReferenceInTransaction,
@@ -1777,7 +1778,7 @@ async function createFoodCheckoutSession({
 // POS refund row dedupes on (restaurant_id, idempotency_key), so retries and
 // the charge.refunded webhook cannot double-refund. Runs inside the caller's
 // transaction so a failed refund rolls back the status transition.
-async function refundFoodOrderStripePayment(client, { order, restaurantId, createdByUserId = null, status = 'refunded', destinationCharge = false }) {
+async function refundFoodOrderStripePayment(client, { order, restaurantId, createdByUserId = null, status = 'refunded', destinationCharge = false, amountCents = null }) {
   if (!hasRestaurantStripeCheckout()) {
     throw new AppError('Stripe payments are not configured', 503, 'stripe_not_configured');
   }
@@ -1791,7 +1792,13 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
     // Destination charges (card mode) live on the platform account: reverse
     // the transfer and the application fee so the restaurant's share comes
     // back with the customer's money.
+    // Shared counter (finding 3): a partial-amount refund refunds only
+    // the remainder, with its own idempotency key so a full-total replay
+    // can never be returned for a partial amount (or vice versa).
+    const partialAmount = Number.isSafeInteger(amountCents) && amountCents > 0
+      && amountCents !== Number(order.total_cents || 0) ? amountCents : null;
     const refundParams = { payment_intent: order.stripe_payment_intent_id };
+    if (partialAmount != null) refundParams.amount = partialAmount;
     if (destinationCharge && !connectedAccountId) {
       refundParams.reverse_transfer = true;
       refundParams.refund_application_fee = true;
@@ -1800,7 +1807,7 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
       refundParams,
       {
         stripeAccount: (destinationCharge ? null : connectedAccountId) || undefined,
-        idempotencyKey: `food-order:${order.id}:refund`,
+        idempotencyKey: partialAmount != null ? `food-order:${order.id}:refund:${partialAmount}` : `food-order:${order.id}:refund`,
       }
     );
   } catch (refundErr) {
@@ -2224,6 +2231,21 @@ exports.listRestaurants = async (req, res, next) => {
     if (country) {
       params.push(country);
       filters.push(`fr.address_country = $${params.length}`);
+    }
+
+    // Open-now uses the platform's accepting-orders signal: the manual
+    // accepting flag plus no active temporary closure. Wall-clock hours
+    // still render per card via attachRestaurantHours; the hours JSON shape
+    // is not evaluated in SQL.
+    const openNow = String(req.query.open_now || req.query.openNow || '').toLowerCase() === 'true';
+    if (openNow) {
+      filters.push(`fr.is_accepting_orders_now = TRUE`);
+      filters.push(`(fr.temporarily_closed_until IS NULL OR fr.temporarily_closed_until <= NOW())`);
+    }
+    const fulfillment = normalizeString(req.query.fulfillment, 24);
+    if (['delivery', 'pickup', 'dine_in'].includes(fulfillment)) {
+      params.push(fulfillment);
+      filters.push(`$${params.length} = ANY(fr.fulfillment_modes)`);
     }
 
     const lat = Number(req.query.lat);
@@ -5231,11 +5253,19 @@ exports.updateOrderStatus = async (req, res, next) => {
 
       let walletRefund = null;
       let payment = null;
-      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'wallet_credit' && order.customer_id) {
+      // Shared counter (finding 3): kitchen refunds cover only the
+      // remainder after any prior admin/agent refund. The order row's
+      // metadata carries the counter; a zero remainder means another path
+      // already refunded the order in full, so no money moves here.
+      const kitchenAlreadyRefundedCents = readRefundedCents(order.metadata);
+      const kitchenRemainderCents = Math.max(0, Number(order.total_cents || 0) - kitchenAlreadyRefundedCents);
+      let kitchenRefundSucceeded = false;
+      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'wallet_credit' && order.customer_id && kitchenRemainderCents > 0) {
         const refundResult = await refundWalletDebitForReference(client, {
           restaurantId,
           customerId: order.customer_id,
           currencyCode: normalizeCurrency(order.currency_code),
+          amountCents: kitchenRemainderCents,
           orderReferenceId: String(order.id),
           description: `Refund for order #${order.queue_number || order.id}`,
           createdByUserId: req.user?.id || null,
@@ -5248,6 +5278,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           },
         });
         walletRefund = refundResult.refunded ? refundResult.entry : null;
+        if (refundResult.refunded) kitchenRefundSucceeded = true;
         let posRefundPayment = null;
         if (refundResult.refunded && refundResult.entry) {
           const posRefundResult = await recordWalletCreditRefundForOrder(client, {
@@ -5306,11 +5337,11 @@ exports.updateOrderStatus = async (req, res, next) => {
       // Guest Credit orders (no customer_id) are refunded too: the refund is
       // keyed on the order's original Credit purchase, not on a user.
       if (['cancelled', 'refunded'].includes(status) && paymentMode === 'oxsteed_credit'
-        && previousPaymentStatus === 'paid' && Number(order.total_cents || 0) > 0) {
+        && ['paid', 'partially_refunded'].includes(previousPaymentStatus) && kitchenRemainderCents > 0) {
         const refundResult = await refundCreditForReferenceInTransaction(client, {
           referenceType: 'food_order',
           referenceId: String(order.id),
-          amountCents: Number(order.total_cents),
+          amountCents: kitchenRemainderCents,
           idempotencyKey: `food-order:${order.id}:oxsteed-credit-refund`,
           actorUserId: req.user?.id || null,
           actorType: 'restaurant_staff',
@@ -5333,6 +5364,11 @@ exports.updateOrderStatus = async (req, res, next) => {
         });
       }
 
+      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'oxsteed_credit'
+        && ['paid', 'partially_refunded'].includes(previousPaymentStatus) && kitchenRemainderCents > 0) {
+        kitchenRefundSucceeded = true;
+      }
+
       // C5: pay_now orders are charged through Stripe at placement. Cancelling or
       // refunding a paid card order must refund the charge, not just flip the
       // status. The refund is idempotency-keyed per order so retries and the
@@ -5341,10 +5377,12 @@ exports.updateOrderStatus = async (req, res, next) => {
       // way; the transfer to the restaurant is reversed with it.
       if (['cancelled', 'refunded'].includes(status)
         && ['pay_now', 'card'].includes(paymentMode)
-        && previousPaymentStatus === 'paid'
+        && ['paid', 'partially_refunded'].includes(previousPaymentStatus)
+        && kitchenRemainderCents > 0
         && order.stripe_payment_intent_id) {
         const cardRefund = await refundFoodOrderStripePayment(client, {
           order,
+          amountCents: kitchenRemainderCents,
           restaurantId,
           createdByUserId: req.user?.id || null,
           status,
@@ -5360,6 +5398,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           stripeChargeId: cardRefund.chargeId,
           posPayment: formatPosPayment(cardRefund.posPayment),
         };
+        kitchenRefundSucceeded = true;
         // P3-11-F11: the Stripe refund moves customer money off-platform.
         // Stamp the acting operator on the operator audit trail in the same
         // transaction, so the refund cannot commit without attribution.
@@ -5383,6 +5422,18 @@ exports.updateOrderStatus = async (req, res, next) => {
             refundReason: 'order_status_transition',
           },
         });
+      }
+
+      // A successful kitchen remainder refund completes the order total:
+      // stamp the shared counter so admin/agent paths see it as fully
+      // refunded instead of refunding the total again.
+      if (kitchenRefundSucceeded) {
+        const stampedMetadata = withRefundedCents(order.metadata, Number(order.total_cents || 0));
+        await client.query(
+          `UPDATE food_orders SET metadata = $1::jsonb, updated_at = NOW() WHERE id = $2`,
+          [JSON.stringify(stampedMetadata), order.id]
+        );
+        order.metadata = stampedMetadata;
       }
 
       if (status === 'completed') {
@@ -7453,31 +7504,76 @@ exports.syncCustomerFavoriteItems = async (req, res, next) => {
 
 exports.listMyOrders = async (req, res, next) => {
   try {
-    const limit = Math.min(parsePositiveInt(req.query.limit, 30), 100);
+    const limit = Math.min(parsePositiveInt(req.query.limit, 30) || 30, 100);
+    const offset = Math.max(parsePositiveInt(req.query.offset, 0) || 0, 0);
+    // Status filter values are allowlisted, so the fragment is literal SQL.
+    const statusFilter = req.query.status === 'completed'
+      ? ` AND fo.status IN ('completed', 'delivered', 'picked_up')`
+      : req.query.status === 'cancelled'
+        ? ` AND fo.status IN ('cancelled', 'refunded', 'rejected')`
+        : req.query.status === 'active'
+          ? ` AND fo.status NOT IN ('completed', 'delivered', 'picked_up', 'cancelled', 'refunded', 'rejected')`
+          : '';
     const { rows } = await pool.query(
       `SELECT fo.*, fr.display_name AS restaurant_name, fr.logo_url AS restaurant_logo_url,
               EXISTS (SELECT 1 FROM food_reviews rv WHERE rv.order_id = fo.id) AS has_review,
+              COUNT(*) OVER()::int AS total_count,
               COALESCE(json_agg(json_build_object(
                 'id', foi.id,
                 'menuItemId', foi.menu_item_id,
                 'itemName', foi.item_name,
                 'quantity', foi.quantity,
-                'lineTotalCents', foi.line_total_cents
+                'lineTotalCents', foi.line_total_cents,
+                'specialInstructions', foi.special_instructions,
+                'modifierIds', COALESCE((
+                  SELECT json_agg(foim.modifier_id ORDER BY foim.id)
+                    FROM food_order_item_modifiers foim
+                   WHERE foim.order_item_id = foi.id
+                ), '[]'::json),
+                'modifierNames', COALESCE((
+                  SELECT json_agg(foim.modifier_name ORDER BY foim.id)
+                    FROM food_order_item_modifiers foim
+                   WHERE foim.order_item_id = foi.id
+                ), '[]'::json)
               ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
          FROM food_orders fo
          JOIN food_restaurants fr ON fr.id = fo.restaurant_id
          LEFT JOIN food_order_items foi ON foi.order_id = fo.id
-        WHERE fo.customer_id = $1
+        WHERE fo.customer_id = $1${statusFilter}
         GROUP BY fo.id, fr.display_name, fr.logo_url
         ORDER BY fo.created_at DESC
-        LIMIT $2`,
-      [req.user.id, limit]
+        LIMIT $2 OFFSET $3`,
+      [req.user.id, limit, offset]
     );
+    const total = Number(rows[0]?.total_count || 0);
     const orders = [];
     for (const row of rows) {
-      orders.push(await syncFoodOrderPaymentStatus(row));
+      const { total_count: _totalCount, ...orderRow } = row;
+      orders.push(await syncFoodOrderPaymentStatus(orderRow));
     }
-    res.json({ orders });
+    // Page-independent stats: the history page's totals must not count only
+    // the loaded page (a regular with more than one page of orders would
+    // otherwise see a wrong total).
+    const { rows: [stats] } = await pool.query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE status IN ('completed', 'delivered', 'picked_up'))::int AS completed,
+              COUNT(*) FILTER (WHERE status IN ('cancelled', 'refunded', 'rejected'))::int AS cancelled,
+              COUNT(*) FILTER (WHERE status NOT IN ('completed', 'delivered', 'picked_up', 'cancelled', 'refunded', 'rejected'))::int AS active
+         FROM food_orders WHERE customer_id = $1`,
+      [req.user.id]
+    );
+    res.json({
+      orders,
+      total,
+      limit,
+      offset,
+      stats: {
+        total: Number(stats?.total || 0),
+        completed: Number(stats?.completed || 0),
+        cancelled: Number(stats?.cancelled || 0),
+        active: Number(stats?.active || 0),
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -7490,13 +7586,27 @@ exports.getOrder = async (req, res, next) => {
     const { rows } = await pool.query(
       `SELECT fo.*, fr.display_name AS restaurant_name, fr.prep_time_min,
               EXISTS (SELECT 1 FROM food_reviews rv WHERE rv.order_id = fo.id) AS has_review,
+              (SELECT row_to_json(rv) FROM (
+                 SELECT id, rating, body, response, responded_at, created_at
+                   FROM food_reviews WHERE order_id = fo.id LIMIT 1
+               ) rv) AS review,
               COALESCE(json_agg(json_build_object(
                 'id', foi.id,
                 'menuItemId', foi.menu_item_id,
                 'itemName', foi.item_name,
                 'quantity', foi.quantity,
                 'lineTotalCents', foi.line_total_cents,
-                'specialInstructions', foi.special_instructions
+                'specialInstructions', foi.special_instructions,
+                'modifierIds', COALESCE((
+                  SELECT json_agg(foim.modifier_id ORDER BY foim.id)
+                    FROM food_order_item_modifiers foim
+                   WHERE foim.order_item_id = foi.id
+                ), '[]'::json),
+                'modifierNames', COALESCE((
+                  SELECT json_agg(foim.modifier_name ORDER BY foim.id)
+                    FROM food_order_item_modifiers foim
+                   WHERE foim.order_item_id = foi.id
+                ), '[]'::json)
               ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
          FROM food_orders fo
          JOIN food_restaurants fr ON fr.id = fo.restaurant_id
@@ -7535,6 +7645,321 @@ exports.getOrder = async (req, res, next) => {
     }
     order = await syncFoodOrderPaymentStatus(order);
     res.json({ order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listRestaurantReviews = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const limit = Math.min(parsePositiveInt(req.query.limit, 10) || 10, 50);
+    const offset = Math.max(parsePositiveInt(req.query.offset, 0) || 0, 0);
+    const { rows: [restaurant] } = await pool.query(
+      `SELECT fr.id FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
+        WHERE fr.id = $1
+          AND fr.status IN ('active', 'paused')
+          AND fr.discovery_status = 'visible'
+          AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
+          AND b.deleted_at IS NULL`,
+      [restaurantId]
+    );
+    if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { rows } = await pool.query(
+      `SELECT rv.id, rv.rating, rv.body, rv.response, rv.responded_at, rv.created_at,
+              u.first_name AS reviewer_name,
+              COUNT(*) OVER()::int AS total_count
+         FROM food_reviews rv
+         LEFT JOIN users u ON u.id = rv.customer_id
+        WHERE rv.restaurant_id = $1 AND rv.is_hidden = FALSE
+        ORDER BY rv.created_at DESC, rv.id DESC
+        LIMIT $2 OFFSET $3`,
+      [restaurantId, limit, offset]
+    );
+    const { rows: [breakdown] } = await pool.query(
+      `SELECT COUNT(*) FILTER (WHERE rating = 5)::int AS five,
+              COUNT(*) FILTER (WHERE rating = 4)::int AS four,
+              COUNT(*) FILTER (WHERE rating = 3)::int AS three,
+              COUNT(*) FILTER (WHERE rating = 2)::int AS two,
+              COUNT(*) FILTER (WHERE rating = 1)::int AS one
+         FROM food_reviews WHERE restaurant_id = $1 AND is_hidden = FALSE`,
+      [restaurantId]
+    );
+    const total = Number(rows[0]?.total_count || 0);
+    const reviews = rows.map(({ total_count: _totalCount, ...review }) => review);
+    res.json({
+      reviews,
+      total,
+      limit,
+      offset,
+      ratingBreakdown: {
+        5: Number(breakdown?.five || 0),
+        4: Number(breakdown?.four || 0),
+        3: Number(breakdown?.three || 0),
+        2: Number(breakdown?.two || 0),
+        1: Number(breakdown?.one || 0),
+      },
+    });
+  } catch (err) {
+    if (isMissingRelationError(err)) return res.json({ reviews: [], total: 0, limit: 10, offset: 0, ratingBreakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } });
+    next(err);
+  }
+};
+
+// ── Customer cancel ─────────────────────────────────────────────────────────
+// The marketplace cancel handler (POST /orders/:orderId/cancel) only knows
+// marketplace orders, so a food order posted there 404s. This food-order
+// path mirrors the merchant status transition's refund legs (wallet credit,
+// OxSteed Credit, Stripe card) inside one transaction, keyed by the same
+// idempotency keys so a retried cancel cannot double-refund. Ownership is
+// the signed-in customer, or the guest tracking token for guest orders.
+// Only orders the kitchen has not completed can be cancelled here; completed
+// orders go through the dispute/refund-request intake instead.
+const CUSTOMER_CANCELLABLE_STATUSES = ['received', 'accepted', 'preparing', 'ready'];
+const CUSTOMER_PREPAID_MODES = ['wallet_credit', 'oxsteed_credit', 'pay_now', 'card'];
+
+function customerCancelPaymentMode(order) {
+  const metadata = order.metadata && typeof order.metadata === 'object' ? order.metadata : {};
+  return metadata.paymentMode || metadata.payment_mode || null;
+}
+
+function customerCancelRefundCents(order) {
+  if (order.payment_status !== 'paid') return 0;
+  if (!CUSTOMER_PREPAID_MODES.includes(customerCancelPaymentMode(order))) return 0;
+  return Math.max(0, Number(order.total_cents || 0));
+}
+
+async function findCustomerFoodOrder(client, orderId, userId, trackingToken) {
+  const { rows } = await client.query(
+    `SELECT * FROM food_orders WHERE id = $1`,
+    [orderId]
+  );
+  const order = rows[0];
+  if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+  const isCustomer = Boolean(userId) && order.customer_id && String(order.customer_id) === String(userId);
+  const tokenMatches = Boolean(trackingToken) && (
+    order.metadata?.trackingToken === trackingToken
+    || order.metadata?.tracking_token === trackingToken
+    || order.metadata?.trackingToken === hashTrackingToken(trackingToken)
+  );
+  if (!isCustomer && !tokenMatches) throw new AppError('Order not found', 404, 'order_not_found');
+  return order;
+}
+
+exports.getFoodCancelPreview = async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    if (!orderId) throw new AppError('Order not found', 404, 'order_not_found');
+    const trackingToken = normalizeString(req.query.trackingToken || req.query.tracking_token, 255);
+    const order = await findCustomerFoodOrder(pool, orderId, req.user?.id, trackingToken);
+    const cancellable = CUSTOMER_CANCELLABLE_STATUSES.includes(order.status);
+    const refundCents = cancellable ? customerCancelRefundCents(order) : 0;
+    res.json({
+      orderId: order.id,
+      status: order.status,
+      paymentStatus: order.payment_status,
+      paymentMode: customerCancelPaymentMode(order),
+      totalCents: Number(order.total_cents || 0),
+      currencyCode: normalizeCurrency(order.currency_code),
+      cancellable,
+      refundCents,
+      refundMethod: refundCents > 0 ? customerCancelPaymentMode(order) : null,
+      reasonCode: cancellable ? null : 'order_not_cancellable',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.cancelMyFoodOrder = async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    if (!orderId) throw new AppError('Order not found', 404, 'order_not_found');
+    const trackingToken = normalizeString(
+      req.body?.trackingToken || req.body?.tracking_token || req.query.trackingToken || req.query.tracking_token,
+      255
+    );
+    const reason = normalizeString(req.body?.reason, 1000);
+    const idempotencyKey = normalizeString(
+      req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key,
+      160
+    );
+    const result = await withTransaction(pool, async (client) => {
+      if (idempotencyKey) {
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+          [`food-customer-cancel:${orderId}:${idempotencyKey}`]
+        );
+      }
+      const order = await findCustomerFoodOrder(client, orderId, req.user?.id, trackingToken);
+      if (order.status === 'cancelled') {
+        return { order, replayed: true, refundCents: 0, refundMethod: null };
+      }
+      if (!CUSTOMER_CANCELLABLE_STATUSES.includes(order.status)) {
+        throw new AppError('This order can no longer be cancelled', 409, 'order_not_cancellable', {
+          status: order.status,
+        });
+      }
+      const paymentMode = customerCancelPaymentMode(order);
+      const refundCents = customerCancelRefundCents(order);
+      const { rows: [restaurant] } = await client.query(
+        `SELECT id, business_id FROM food_restaurants WHERE id = $1`,
+        [order.restaurant_id]
+      );
+      if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+      let refundMethod = null;
+      if (refundCents > 0 && paymentMode === 'wallet_credit' && order.customer_id) {
+        const refundResult = await refundWalletDebitForReference(client, {
+          restaurantId: order.restaurant_id,
+          customerId: order.customer_id,
+          currencyCode: normalizeCurrency(order.currency_code),
+          orderReferenceId: String(order.id),
+          description: `Refund for cancelled order #${order.queue_number || order.id}`,
+          createdByUserId: req.user?.id || null,
+          correlationId: `food-order-customer-cancel:${order.id}`,
+          actorType: 'customer',
+          metadata: { orderId: order.id, orderStatus: 'cancelled', restaurantId: order.restaurant_id },
+        });
+        if (refundResult.refunded && refundResult.entry) {
+          await recordWalletCreditRefundForOrder(client, {
+            restaurantId: order.restaurant_id,
+            orderId: order.id,
+            amountCents: Number(refundResult.entry.amount_cents || 0),
+            currencyCode: normalizeCurrency(order.currency_code),
+            walletAccountId: refundResult.account?.id || refundResult.entry.account_id || null,
+            walletRefundLedgerEntryId: refundResult.entry.id,
+            walletOriginalLedgerEntryId: refundResult.entry.metadata?.originalDebitEntryId || null,
+            walletBalanceAfterCents: refundResult.entry.balance_after_cents ?? null,
+            idempotencyKey: `food-order:${order.id}:wallet-credit-refund`,
+            createdByUserId: req.user?.id || null,
+            metadata: { orderStatus: 'cancelled', refundReason: 'customer_cancel' },
+          });
+          await logFoodWalletOperatorAudit(client, {
+            restaurantId: order.restaurant_id,
+            businessId: restaurant.business_id,
+            walletAccountId: refundResult.account?.id || refundResult.entry.account_id || null,
+            customerId: order.customer_id,
+            operatorUserId: req.user?.id || null,
+            actionType: 'order_wallet_refund',
+            amountCents: Number(refundResult.entry.amount_cents || 0),
+            currencyCode: normalizeCurrency(order.currency_code),
+            correlationId: `food-order-customer-cancel:${order.id}`,
+            requestIp: req.ip || null,
+            metadata: { orderId: order.id, orderStatus: 'cancelled', ledgerEntryId: String(refundResult.entry.id), refundReason: 'customer_cancel' },
+          });
+          refundMethod = 'wallet_credit';
+        }
+      } else if (refundCents > 0 && paymentMode === 'oxsteed_credit') {
+        await refundCreditForReferenceInTransaction(client, {
+          referenceType: 'food_order',
+          referenceId: String(order.id),
+          amountCents: Number(order.total_cents),
+          idempotencyKey: `food-order:${order.id}:oxsteed-credit-refund`,
+          actorUserId: req.user?.id || null,
+          actorType: 'customer',
+          reason: 'Order cancelled by customer',
+          correlationId: `food-order-customer-cancel:${order.id}`,
+          requestIp: req.ip || null,
+          metadata: { orderId: order.id, orderStatus: 'cancelled', restaurantId: order.restaurant_id },
+        });
+        refundMethod = 'oxsteed_credit';
+      } else if (refundCents > 0 && ['pay_now', 'card'].includes(paymentMode)) {
+        // Fail closed: a paid card order with no recorded intent cannot be
+        // refunded through this path, so do not cancel it as refunded.
+        if (!order.stripe_payment_intent_id) {
+          throw new AppError('The card refund could not be processed', 502, 'stripe_refund_failed', { orderId: order.id });
+        }
+        const cardRefund = await refundFoodOrderStripePayment(client, {
+          order,
+          restaurantId: order.restaurant_id,
+          createdByUserId: req.user?.id || null,
+          status: 'cancelled',
+          destinationCharge: paymentMode === 'card',
+        });
+        await logFoodWalletOperatorAudit(client, {
+          restaurantId: order.restaurant_id,
+          businessId: restaurant.business_id,
+          walletAccountId: null,
+          customerId: order.customer_id || null,
+          operatorUserId: req.user?.id || null,
+          actionType: 'order_card_refund',
+          amountCents: Number(order.total_cents || 0),
+          currencyCode: normalizeCurrency(order.currency_code),
+          correlationId: `food-order-customer-cancel:${order.id}`,
+          requestIp: req.ip || null,
+          metadata: {
+            orderId: order.id,
+            orderStatus: 'cancelled',
+            paymentMode,
+            stripeRefundId: cardRefund.refund?.id || null,
+            stripeChargeId: cardRefund.chargeId || null,
+            refundReason: 'customer_cancel',
+          },
+        });
+        refundMethod = paymentMode;
+      }
+      await promoRedemption.reversePromo(client, { surface: 'food', referenceId: order.id, reason: 'order_cancelled' });
+      await releaseInventoryForOrder(client, {
+        restaurantId: order.restaurant_id,
+        orderId: order.id,
+        locationId: order.location_id,
+      });
+      await clawBackFoodLoyaltyOnRefund(client, order);
+      // Only a refund that actually executed flips payment_status; an unpaid
+      // order (pay at restaurant, direct payment) cancels with its payment
+      // status untouched.
+      const refundExecuted = refundMethod !== null;
+      const { rows: [updated] } = await client.query(
+        `UPDATE food_orders
+            SET status = 'cancelled',
+                cancelled_at = COALESCE(cancelled_at, NOW()),
+                kitchen_stage = 'cancelled',
+                payment_status = CASE
+                  WHEN $2 THEN 'refunded'
+                  ELSE payment_status
+                END,
+                updated_at = NOW()
+          WHERE id = $1
+          RETURNING *`,
+        [order.id, refundExecuted]
+      );
+      await client.query(
+        `INSERT INTO restaurant_kitchen_events
+           (restaurant_id, food_order_id, event_type, from_status, to_status,
+            station_label, reason, metadata, idempotency_key, created_by)
+         VALUES ($1,$2,'order_cancelled',$3,'cancelled',NULL,$4,$5::jsonb,$6,$7)`,
+        [
+          order.restaurant_id,
+          order.id,
+          order.status,
+          reason || null,
+          JSON.stringify({ source: 'customer_cancel', actorType: 'customer' }),
+          idempotencyKey || null,
+          req.user?.id || null,
+        ]
+      );
+      if (order.customer_id) {
+        const { emitDomainEvent, foodEventProps } = require('../growth/emit');
+        await emitDomainEvent(client, 'food.order_cancelled', foodEventProps(updated), { userId: order.customer_id });
+      }
+      return { order: updated, replayed: false, refundCents, refundMethod };
+    }, 'food_customer_cancel');
+    emitRestaurantOrder(result.order.business_id, 'food:order:updated', { order: result.order });
+    emitRestaurantDisplay(result.order.restaurant_id, result.order);
+    res.json({
+      order: result.order,
+      replayed: result.replayed,
+      // A refund leg that did not execute (no debit found) reports zero;
+      // the preview amount is never presented as money moved.
+      refundCents: result.refundMethod ? result.refundCents : 0,
+      refundMethod: result.refundMethod,
+    });
   } catch (err) {
     next(err);
   }

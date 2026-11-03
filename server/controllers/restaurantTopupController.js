@@ -104,20 +104,6 @@ async function createTopup(req, res, next) {
     // canonical bounds before loading restaurant state or running compliance.
     topupService.validateTopupAmount(amountCents);
 
-    // Step-up authentication (mirrors the OxSteed Credit pattern): large
-    // top-ups require a fresh single-use challenge verified before any
-    // persistent side effect.
-    if (topupService.restaurantTopupRequiresStepup(amountCents)) {
-      await verifyStepupChallenge({
-        challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
-        actorUserId: userId,
-        actionType: 'restaurant_topup',
-        code: req.body?.stepupCode || req.body?.stepup_code,
-        // Auth audit item 6: bind to the validated top-up amount.
-        expectedAmountCents: amountCents,
-      });
-    }
-
     // Restaurant top-ups are fiat funding too. Resolve and validate the
     // active restaurant before the intent service can insert a pending row,
     // then run the shared identity/sanctions/rail compliance choke point.
@@ -145,6 +131,22 @@ async function createTopup(req, res, next) {
       requestIp: req.ip || null,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
+
+    // Finding 39: existence, restaurant-active, and compliance
+    // pre-checks run BEFORE the single-use step-up challenge is verified,
+    // so an inactive restaurant or a compliance failure never burns a
+    // code. The challenge is still verified before any persistent side
+    // effect (the intent insert below).
+    if (topupService.restaurantTopupRequiresStepup(amountCents)) {
+      await verifyStepupChallenge({
+        challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+        actorUserId: userId,
+        actionType: 'restaurant_topup',
+        code: req.body?.stepupCode || req.body?.stepup_code,
+        // Auth audit item 6: bind to the validated top-up amount.
+        expectedAmountCents: amountCents,
+      });
+    }
 
     const { topup, clientSecret, replayed } = await topupService.createTopupIntent({
       userId,

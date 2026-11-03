@@ -2480,7 +2480,8 @@
     "requeueError": "Impossible de remettre en file les lignes sélectionnées.",
     "requeued": "{{count}} ligne(s) remise(s) en file.",
     "unknownDate": "Date inconnue",
-    "notAvailable": "N/D"
+    "notAvailable": "N/D",
+    "parkedTotal": "Total des lignes en attente : {{total}}"
   },
   "adminCreditHolds": {
     "capture": "Capturer",

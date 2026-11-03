@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { getFoodRestaurant } from '../../api/food';
 import { FoodBrand } from './foodShared';
+import { useDisplayPoller } from '../../hooks/useDisplayPoller';
 import PageShell from '../../components/PageShell';
 import '../../styles/FoodPages.css';
 
@@ -327,7 +328,12 @@ function SettlementsSection({ restaurantId, refreshSignal }) {
           </div>
           <div className="fd-runner-actions">
             {s.status === 'pending' && (
-              <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => mutate(s.task_id, { status: 'approved' }, 'food.runner.settlementApproved')} data-track="ui.42d5812ef7.11">
+              <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => {
+                const amount = fmt(Number(s.delivery_fee_cents || 0) + Number(s.tip_cents || 0));
+                const cash = fmt(s.cash_collected_cents);
+                if (!window.confirm(t('food.runner.settlementApproveConfirm', { task: s.task_id, cash, amount }))) return;
+                mutate(s.task_id, { status: 'approved' }, 'food.runner.settlementApproved');
+              }} data-track="ui.42d5812ef7.11">
                 {t('food.runner.approve')}
               </button>
             )}
@@ -377,37 +383,43 @@ export default function RestaurantRunnerPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [settlementTick, setSettlementTick] = useState(0);
 
-  const timerRef = useRef(null);
+  const settledRef = useRef(false);
   const POLL_MS = 8000;
 
+  // Kitchen/Queue board pattern: a failed poll keeps the last-good tasks,
+  // offers, and KPIs and raises the offline banner; it never blanks the
+  // runner's list mid-shift. The loader rejects on failure so the poller
+  // backs off instead of hammering a failing endpoint every 8s.
   const loadData = useCallback(async () => {
     try {
       const [dashRes, offersRes] = await Promise.all([
-        api.get(`/restaurants/${restaurantId}/runner/dashboard`).catch(() => ({ data: {} })),
-        api.get(`/restaurants/${restaurantId}/runner/offers`).catch(() => ({ data: { offers: [] } })),
+        api.get(`/restaurants/${restaurantId}/runner/dashboard`),
+        api.get(`/restaurants/${restaurantId}/runner/offers`),
       ]);
       const dash = dashRes.data?.dashboard || dashRes.data || {};
       setDashboard(dash);
       setTasks(dash.active_tasks || dash.tasks || []);
       setOffers(offersRes.data?.offers || []);
       setSettlementTick((n) => n + 1);
-    } catch {
-      toast.error(t('food.common.loadError'));
+    } finally {
+      if (!settledRef.current) {
+        settledRef.current = true;
+        setLoading(false);
+      }
     }
-  }, [restaurantId, t]);
+  }, [restaurantId]);
+
+  const { offline: pollOffline, retryNow } = useDisplayPoller(loadData, { intervalMs: POLL_MS });
 
   useEffect(() => {
     getFoodRestaurant(restaurantId).then((r) => setRestaurant(r?.restaurant || r)).catch(() => {});
-    loadData().finally(() => setLoading(false));
-    timerRef.current = setInterval(loadData, POLL_MS);
-    return () => clearInterval(timerRef.current);
-  }, [loadData, restaurantId]);
+  }, [restaurantId]);
 
   const claimOffer = async (offerId) => {
     try {
       await api.post(`/restaurants/${restaurantId}/runner/tasks/${offerId}/claim`);
       toast.success(t('food.runner.claimed'));
-      loadData();
+      retryNow();
     } catch {
       toast.error(t('food.common.loadError'));
     }
@@ -416,7 +428,7 @@ export default function RestaurantRunnerPage() {
   const declineOffer = async (offerId) => {
     try {
       await api.post(`/restaurants/${restaurantId}/runner/tasks/${offerId}/decline`);
-      loadData();
+      retryNow();
     } catch {
       toast.error(t('food.common.loadError'));
     }
@@ -445,6 +457,12 @@ export default function RestaurantRunnerPage() {
           <h1 className="fd-hero-title">{restaurant?.name}: {t('food.runner.title')}</h1>
           <Link className="fd-btn-secondary fd-btn-sm" to="/restaurants/merchant">{t('food.common.back')}</Link>
         </div>
+
+        {pollOffline && (
+          <div className="fd-inv-alert" role="alert">
+            {t('food.runner.pollError')} <button type="button" className="fd-btn fd-btn-sm" onClick={retryNow} data-track="ui.42d5812ef7.18">{t('food.common.retry')}</button>
+          </div>
+        )}
 
         {/* KPI strip */}
         <div className="fd-inv-kpis">
@@ -499,9 +517,11 @@ export default function RestaurantRunnerPage() {
 
         {/* Task list */}
         <div className="fd-runner-list">
-          {filteredTasks.length === 0 && <div className="fd-empty">{t('food.runner.noTasks')}</div>}
+          {filteredTasks.length === 0 && dashboard === null && pollOffline
+            ? <div className="fd-empty" role="alert">{t('food.common.loadError')}</div>
+            : filteredTasks.length === 0 && <div className="fd-empty">{t('food.runner.noTasks')}</div>}
           {filteredTasks.map((task) => (
-            <TaskCard key={task.id} task={task} restaurantId={restaurantId} onRefresh={loadData} />
+            <TaskCard key={task.id} task={task} restaurantId={restaurantId} onRefresh={retryNow} />
           ))}
         </div>
 

@@ -29,6 +29,7 @@ import {
   uploadFoodAsset,
   listFoodPromotions,
   listMyFoodOrders,
+  listRestaurantReviews,
   sendFoodRestaurantMessage,
   formatFoodMoney,
   listFavoriteRestaurants,
@@ -36,6 +37,11 @@ import {
   listFavoriteItems,
   toggleFavoriteItem,
 } from '../../api/food';
+import {
+  buildDeliveryAddress,
+  buildReorderLines,
+  itemHasRequiredModifierGroup,
+} from './foodOrderingHelpers';
 import { parseCreditMajorAmount } from '../../lib/creditCurrency';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
 import { listSavedPaymentMethods } from '../../api/food';
@@ -233,6 +239,14 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     if (!customerSnapshot) setStripeClient(getStripePromise());
   }, [customerSnapshot]);
   const [promotions, setPromotions] = useState([]);
+  // Reviews tab: server-paginated rows with a server total and rating
+  // breakdown, so the tab never claims N reviews while rendering zero rows.
+  const [reviewsReloadNonce, setReviewsReloadNonce] = useState(0);
+  const [reviewsPage, setReviewsPage] = useState(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsLoadingMore, setReviewsLoadingMore] = useState(false);
+  const [reviewsError, setReviewsError] = useState(null);
+  const reviewsRequestRef = useRef(0);
   const [pastOrdersRaw, setPastOrdersRaw] = useState([]);
 
   // UI
@@ -261,6 +275,22 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const [cartStep, setCartStep] = useState('cart'); // cart | login | details | payment | confirmed
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
+  // Delivery address the server accepts: the customer's own city/state/zip
+  // and instructions, plus the autocomplete coordinates (a radius-limited
+  // restaurant rejects quotes and orders without them). Never defaulted
+  // from the restaurant's address.
+  const [addressCity, setAddressCity] = useState('');
+  const [addressState, setAddressState] = useState('');
+  const [addressZip, setAddressZip] = useState('');
+  const [addressInstructions, setAddressInstructions] = useState('');
+  const [addressLat, setAddressLat] = useState(null);
+  const [addressLng, setAddressLng] = useState(null);
+  // Guest checkout contact: the server requires a name for guest pickup
+  // orders and a reachable contact when the restaurant asks for one.
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestContactError, setGuestContactError] = useState('');
   const [promoCode, setPromoCode] = useState('');
   // Decision 2: server-side promo rejection (expired, limit reached, ...).
   const [promoError, setPromoError] = useState(null);
@@ -276,6 +306,9 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   // discount). The checkout displays this total, not the client estimate.
   const [quote, setQuote] = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  // Non-promo quote failures surface inline (promo failures keep their own
+  // promoError channel); Place stays disabled while a quote is failed.
+  const [quoteError, setQuoteError] = useState(null);
   const [addressError, setAddressError] = useState('');
   const quoteRequestRef = useRef(0);
   const paymentFlipNoticeRef = useRef(null);
@@ -453,10 +486,53 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       .catch(() => setPromotions([]));
   }, [restaurantId]);
 
+  // Reviews tab: paginated from the server with a real total. Loading the
+  // tab re-fetches page one so a just-posted review appears; failures show
+  // an error with retry instead of a false-empty list.
+  useEffect(() => {
+    if (activeTab !== 'reviews' || !restaurantId) return undefined;
+    const requestId = (reviewsRequestRef.current || 0) + 1;
+    reviewsRequestRef.current = requestId;
+    setReviewsLoading(true);
+    setReviewsError(null);
+    listRestaurantReviews(restaurantId, { limit: 10, offset: 0 })
+      .then((page) => {
+        if (reviewsRequestRef.current !== requestId) return;
+        setReviewsPage(page);
+      })
+      .catch((err) => {
+        if (reviewsRequestRef.current !== requestId) return;
+        setReviewsError(err?.response?.data?.error || err?.message || null);
+        setReviewsPage(null);
+      })
+      .finally(() => {
+        if (reviewsRequestRef.current === requestId) setReviewsLoading(false);
+      });
+    return undefined;
+  }, [activeTab, restaurantId, reviewsReloadNonce]);
+
+  const loadMoreReviews = () => {
+    if (!reviewsPage || reviewsLoadingMore) return;
+    const nextOffset = reviewsPage.reviews.length;
+    if (nextOffset >= reviewsPage.total) return;
+    setReviewsLoadingMore(true);
+    listRestaurantReviews(restaurantId, { limit: reviewsPage.limit || 10, offset: nextOffset })
+      .then((page) => {
+        setReviewsPage((current) => current ? {
+          ...page,
+          reviews: [...current.reviews, ...page.reviews],
+        } : page);
+      })
+      .catch(() => {
+        toast.error(t('food.restaurant.reviewsLoadError'));
+      })
+      .finally(() => setReviewsLoadingMore(false));
+  };
+
   useEffect(() => {
     if (!user) { setPastOrdersRaw([]); return; }
     listMyFoodOrders()
-      .then((orders) => setPastOrdersRaw(Array.isArray(orders) ? orders : []))
+      .then((page) => setPastOrdersRaw(Array.isArray(page?.orders) ? page.orders : []))
       .catch(() => setPastOrdersRaw([]));
   }, [user, restaurantId]);
 
@@ -625,7 +701,9 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   }, [user, restaurantId, restaurant?.id, restaurant?.currency_code, restaurant?.address_city, restaurant?.address_state, restaurant?.address_zip, restaurant?.address_country, creditCurrency, oxsteedCreditOrderType]);
 
   // Never leave restaurant_credit selected if the wallet disappears (sign-out,
-  // wallet suspended, or restaurant switch).
+  // wallet suspended, or restaurant switch). Guests can only use the modes
+  // the server allows without sign-in (pay at restaurant, guest Credit);
+  // card and direct payment require a signed-in account.
   useEffect(() => {
     if (paymentMethod === 'restaurant_credit' && !wallet) {
       setPaymentMethod('pay_at_restaurant');
@@ -636,7 +714,10 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     if (paymentMethod === 'card' && !cardPaymentsReady) {
       setPaymentMethod('pay_at_restaurant');
     }
-  }, [paymentMethod, wallet, oxsteedCreditAccount, cardPaymentsReady]);
+    if (!user && ['card', 'direct_payment', 'restaurant_credit'].includes(paymentMethod)) {
+      setPaymentMethod('pay_at_restaurant');
+    }
+  }, [paymentMethod, wallet, oxsteedCreditAccount, cardPaymentsReady, user]);
 
   // CC6: prefill the pickup contact from the user profile where available.
   // Only fills empty fields so the customer's own edits are never clobbered.
@@ -752,6 +833,15 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       setCartStep('cart');
       setAddressLine1('');
       setAddressLine2('');
+      setAddressCity('');
+      setAddressState('');
+      setAddressZip('');
+      setAddressInstructions('');
+      setAddressLat(null);
+      setAddressLng(null);
+      setGuestName('');
+      setGuestPhone('');
+      setGuestEmail('');
       setPromoCode('');
       setDeliverySlot('asap');
       setTipPreset('none');
@@ -781,6 +871,12 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       || Boolean(draft.cartOpen)
       || Boolean(draft.addressLine1)
       || Boolean(draft.addressLine2)
+      || Boolean(draft.addressCity)
+      || Boolean(draft.addressZip)
+      || Boolean(draft.addressInstructions)
+      || Boolean(draft.guestName)
+      || Boolean(draft.guestPhone)
+      || Boolean(draft.guestEmail)
       || Boolean(draft.promoCode)
       || Boolean(draft.deliverySlot && draft.deliverySlot !== 'asap')
       || Boolean(draft.paymentMethod && draft.paymentMethod !== 'pay_at_restaurant')
@@ -797,6 +893,15 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     setCartStep(savedCartItems.length > 0 || savedStep !== 'cart' ? savedStep : 'cart');
     setAddressLine1(String(draft.addressLine1 || ''));
     setAddressLine2(String(draft.addressLine2 || ''));
+    setAddressCity(String(draft.addressCity || ''));
+    setAddressState(String(draft.addressState || ''));
+    setAddressZip(String(draft.addressZip || ''));
+    setAddressInstructions(String(draft.addressInstructions || ''));
+    setAddressLat(Number.isFinite(Number(draft.addressLat)) ? Number(draft.addressLat) : null);
+    setAddressLng(Number.isFinite(Number(draft.addressLng)) ? Number(draft.addressLng) : null);
+    setGuestName(String(draft.guestName || ''));
+    setGuestPhone(String(draft.guestPhone || ''));
+    setGuestEmail(String(draft.guestEmail || ''));
     setPromoCode(String(draft.promoCode || ''));
     setDeliverySlot(draft.deliverySlot || 'asap');
     setTipPreset(draft.tipPreset === 'custom' || [10, 15, 20].includes(Number(draft.tipPreset)) ? draft.tipPreset : 'none');
@@ -867,6 +972,12 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       || ['login', 'details', 'payment'].includes(cartStep)
       || addressLine1.trim().length > 0
       || addressLine2.trim().length > 0
+      || addressCity.trim().length > 0
+      || addressZip.trim().length > 0
+      || addressInstructions.trim().length > 0
+      || guestName.trim().length > 0
+      || guestPhone.trim().length > 0
+      || guestEmail.trim().length > 0
       || promoCode.trim().length > 0
       || deliverySlot !== 'asap'
       || tipPreset !== 'none'
@@ -890,6 +1001,15 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       cartStep,
       addressLine1,
       addressLine2,
+      addressCity,
+      addressState,
+      addressZip,
+      addressInstructions,
+      addressLat,
+      addressLng,
+      guestName,
+      guestPhone,
+      guestEmail,
       promoCode,
       deliverySlot,
       tipPreset,
@@ -917,6 +1037,15 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     cartStep,
     addressLine1,
     addressLine2,
+    addressCity,
+    addressState,
+    addressZip,
+    addressInstructions,
+    addressLat,
+    addressLng,
+    guestName,
+    guestPhone,
+    guestEmail,
     promoCode,
     deliverySlot,
     tipPreset,
@@ -935,6 +1064,10 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
 
   // ── Cart math ─────────────────────────────────────────────────────────────
   const settings = (restaurant?.settings && typeof restaurant.settings === 'object') ? restaurant.settings : {};
+  // Guest-checkout requirements mirror the server's create-order gates
+  // (guest name for pickup defaults on; contact for updates defaults off).
+  const requireGuestNameForPickup = settings.requireGuestNameForPickup ?? settings.require_guest_name_for_pickup ?? true;
+  const requireContactForUpdates = settings.requireContactForUpdates ?? settings.require_contact_for_updates ?? false;
   const supportsDelivery = Array.isArray(restaurant?.fulfillment_modes) && restaurant.fulfillment_modes.includes('delivery');
   const deliveryFeeCents = Number(settings.deliveryFeeCents ?? settings.delivery_fee_cents ?? 0) || 0;
   const minimumOrderCents = Number(restaurant?.minimum_order_cents ?? settings.minimumOrderCents ?? settings.minimum_order_cents ?? 0) || 0;
@@ -1004,7 +1137,6 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const displayTotalCents = quote && Number.isFinite(Number(quote.totalCents))
     ? Number(quote.totalCents)
     : orderTotalCents;
-  const checkoutRequiresLogin = !user;
   const externalPaymentHasSubmission = Boolean(paymentProof?.url || paymentReference.trim());
 
   const oxsteedCreditCategories = useMemo(
@@ -1046,6 +1178,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   useEffect(() => {
     if (!cartOpen || cartItems.length === 0 || !restaurantId || cartStep === 'confirmed') {
       setQuote(null);
+      setQuoteError(null);
       setQuoteLoading(false);
       return undefined;
     }
@@ -1054,6 +1187,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     // wait until the customer types one instead of quoting against an error.
     if (fulfillmentType === 'delivery' && !addressLine1.trim()) {
       setQuote(null);
+      setQuoteError(null);
       setQuoteLoading(false);
       return undefined;
     }
@@ -1080,31 +1214,52 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
           payload.loyaltyPointsToRedeem = loyaltyPointsToRedeem;
         }
         if (fulfillmentType === 'delivery') {
-          payload.deliveryAddress = {
-            line1: addressLine1.trim(),
-            line2: addressLine2.trim() || undefined,
-            city: restaurant?.address_city || undefined,
-            state: restaurant?.address_state || undefined,
-            country: restaurant?.address_country || undefined,
-          };
+          // Forward the autocomplete coordinates and the customer's own
+          // city/state/zip/instructions: radius-limited restaurants reject
+          // quotes without coordinates, and the restaurant's city is never
+          // a substitute for the customer's.
+          payload.deliveryAddress = buildDeliveryAddress({
+            line1: addressLine1,
+            line2: addressLine2,
+            city: addressCity,
+            state: addressState,
+            zip: addressZip,
+            country: restaurant?.address_country,
+            instructions: addressInstructions,
+            lat: addressLat,
+            lng: addressLng,
+          });
         }
         const nextQuote = await quoteFoodOrder(restaurantId, payload);
         if (quoteRequestRef.current === requestId) {
           setQuote(nextQuote);
+          setQuoteError(null);
           setPromoError(null);
         }
       } catch (err) {
         if (quoteRequestRef.current === requestId) {
           setQuote(null);
           const code = err?.response?.data?.code;
-          setPromoError(promoCode.trim() && typeof code === 'string' && code.startsWith('promo_') ? code : null);
+          const message = err?.response?.data?.error?.message
+            || err?.response?.data?.message
+            || err?.response?.data?.error;
+          if (promoCode.trim() && typeof code === 'string' && code.startsWith('promo_')) {
+            setPromoError(code);
+            setQuoteError(null);
+          } else {
+            // Surface non-promo failures verbatim (delivery-area and
+            // coordinate errors included) instead of silently falling back
+            // to the tax-and-fee-free client estimate.
+            setQuoteError(typeof message === 'string' ? message : null);
+            setPromoError(null);
+          }
         }
       } finally {
         if (quoteRequestRef.current === requestId) setQuoteLoading(false);
       }
     }, 450);
     return () => clearTimeout(timer);
-  }, [cartOpen, cartItems.length, restaurantId, cartStep, deliveryMode, addressLine1, addressLine2, apiPaymentMode, tipCents, promoCode, loyaltyPointsToRedeem, excludedAllergens, orderItemsPayload, restaurant, data?.location?.id, storeId]);
+  }, [cartOpen, cartItems.length, restaurantId, cartStep, deliveryMode, addressLine1, addressLine2, addressCity, addressState, addressZip, addressInstructions, addressLat, addressLng, apiPaymentMode, tipCents, promoCode, loyaltyPointsToRedeem, excludedAllergens, orderItemsPayload, restaurant, data?.location?.id, storeId]);
 
   // P3-9-F01: fetch the signed-in customer's loyalty balance for this
   // restaurant when the checkout opens so points can be viewed and redeemed.
@@ -1251,6 +1406,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
           // CC2: order-level notes for the kitchen. paymentNote stays as-is
           // for payment matching.
           kitchenNotes: kitchenNotes.trim() || undefined,
+          // Guest checkout: the server requires a name for guest pickup
+          // orders and a reachable contact when the restaurant asks for one.
+          ...(!user ? {
+            guestName: guestName.trim() || undefined,
+            guestPhone: guestPhone.trim() || undefined,
+            guestEmail: guestEmail.trim() || undefined,
+          } : {}),
           // CC6: optional pickup contact for pickup orders.
           ...(fulfillmentType === 'pickup' ? {
             pickupContactName: pickupContactName.trim() || undefined,
@@ -1266,13 +1428,17 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
           } : {}),
         };
         if (fulfillmentType === 'delivery') {
-          payload.deliveryAddress = {
-            line1: addressLine1.trim(),
-            line2: addressLine2.trim() || undefined,
-            city: restaurant.address_city || undefined,
-            state: restaurant.address_state || undefined,
-            country: restaurant.address_country || undefined,
-          };
+          payload.deliveryAddress = buildDeliveryAddress({
+            line1: addressLine1,
+            line2: addressLine2,
+            city: addressCity,
+            state: addressState,
+            zip: addressZip,
+            country: restaurant.address_country,
+            instructions: addressInstructions,
+            lat: addressLat,
+            lng: addressLng,
+          });
         }
         const requestFingerprint = JSON.stringify(payload);
         const previousRequest = orderIdempotencyRef.current;
@@ -1347,6 +1513,14 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
 
   const submitOrder = async () => {
     if (cartItems.length === 0) return;
+    if (quoteError || quoteLoading) {
+      toast.error(quoteError || t('food.restaurant.quoteLoading'));
+      return;
+    }
+    if (!user && !['pay_at_restaurant', 'oxsteed_credit'].includes(paymentMethod)) {
+      toast.error(t('food.restaurant.guestPaymentUnavailable'));
+      return;
+    }
     if (subtotalCents < minimumOrderCents && minimumOrderCents > 0) {
       toast.error(t('food.restaurant.minimumOrderNotMet', { price: formatFoodMoney(minimumOrderCents, currency) }));
       return;
@@ -1724,9 +1898,10 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     ? t('food.restaurant.filteredBy', { filter: t(`food.restaurant.filters.${dietaryFilter}`) })
     : t('food.restaurant.popularItems');
 
-  // Reviews
-  const reviewsRaw = restaurant.recent_reviews || restaurant.reviews || [];
-  const reviewsList = reviewsRaw.map((r) => {
+  // Reviews: rows and counts come from the paginated server endpoint, so
+  // the header count is the server total and the bars are the full
+  // distribution, never a page's partial slice.
+  const reviewsList = (reviewsPage?.reviews || []).map((r) => {
     const name = r.reviewer_name || r.customer_name || r.author || t('food.restaurant.guest');
     const stars = Math.round(r.rating || 5);
     return {
@@ -1734,12 +1909,15 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       initial: name.charAt(0).toUpperCase(),
       stars: '★'.repeat(stars) + '☆'.repeat(5 - stars),
       text: r.comment || r.body || r.text || '',
+      response: r.response || '',
       time: r.created_at ? new Date(r.created_at).toLocaleDateString(i18n.resolvedLanguage) : (r.time || ''),
     };
   });
+  const reviewsTotal = reviewsPage ? reviewsPage.total : 0;
   const ratingBars = [5, 4, 3, 2, 1].map((star) => {
-    const cnt = reviewsRaw.filter((r) => Math.round(r.rating || 0) === star).length;
-    const pct = reviewsRaw.length ? `${Math.round((cnt / reviewsRaw.length) * 100)}%` : '0%';
+    const breakdown = reviewsPage?.ratingBreakdown || {};
+    const cnt = Number(breakdown[star] || 0);
+    const pct = reviewsTotal ? `${Math.round((cnt / reviewsTotal) * 100)}%` : '0%';
     return { label: String(star), pct };
   });
 
@@ -1758,7 +1936,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     .map((o) => {
       const items = Array.isArray(o.items) ? o.items : [];
       const first = items[0];
-      const firstName = first?.item_name || first?.name || t('food.order.yourOrder');
+      const firstName = first?.itemName || first?.item_name || first?.name || t('food.order.yourOrder');
       const more = items.length > 1 ? t('food.restaurant.moreItems', { count: items.length - 1 }) : '';
       return {
         summary: `${firstName}${more}`,
@@ -1778,6 +1956,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     });
   };
   const quickAdd = (item) => {
+    // An item with a required modifier group can never be ordered with an
+    // empty modifier list (the server rejects it), so route straight to the
+    // modal instead of toasting a success the order cannot keep.
+    if (itemHasRequiredModifierGroup(item)) {
+      openModal(item);
+      return;
+    }
     addLine({
       id: `${item.id}::`,
       menuItemId: item.id,
@@ -1795,6 +1980,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   };
   const incLine = (id) => setCartItems((prev) => prev.map((x) => x.id === id ? { ...x, qty: x.qty + 1 } : x));
   const decLine = (id) => setCartItems((prev) => prev.map((x) => x.id === id ? { ...x, qty: x.qty - 1 } : x).filter((x) => x.qty > 0));
+  const removeLine = (id) => setCartItems((prev) => prev.filter((x) => x.id !== id));
 
   // ── Item modal: open / modifiers / add ────────────────────────────────────
   const openModal = (item) => {
@@ -1889,32 +2075,20 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
 
   // RB1 — One-tap reorder: rebuild the cart from a past order using the
   // CURRENT menu (current prices; unavailable items are skipped with a note).
+  // Modifiers and notes carry through when the modifier still exists on the
+  // current menu; anything that cannot be carried is warned about, and
+  // replacing a non-empty cart asks first.
   const reorder = (po) => {
     const menuById = new Map(allItemsFlat.map((it) => [String(it.id), it]));
     const pastItems = Array.isArray(po?.items) ? po.items : [];
-    let skipped = 0;
-    const lines = [];
-    for (const it of pastItems) {
-      const mid = it.menuItemId ?? it.menu_item_id;
-      const menuItem = mid != null ? menuById.get(String(mid)) : null;
-      if (!menuItem || menuItem.canOrder === false) { skipped += 1; continue; }
-      lines.push({
-        id: `${menuItem.id}::reorder`,
-        menuItemId: menuItem.id,
-        name: menuItem.name,
-        creditCategory: menuItem.sectionName || menuItem.category_name || menuItem.category || null,
-        unitCents: Number(menuItem.price_cents) || 0,
-        qty: Number(it.quantity || 1) || 1,
-        photoGrad: menuItem.photoGrad || gradFor(menuItem.name),
-        image: menuItem.image_url || null,
-        notes: '', modifierIds: [], modifierNames: [],
-      });
-    }
+    const { lines, skipped, dropped } = buildReorderLines(pastItems, menuById);
     if (!lines.length) { toast.error(t('food.restaurant.reorderError')); return; }
+    if (cartItems.length > 0 && !window.confirm(t('food.restaurant.reorderReplaceConfirm'))) return;
     setCartItems(lines);
     setCartOpen(true);
     setCartStep('cart');
     if (skipped > 0) toast(t('food.restaurant.reorderSkipped', { count: skipped }), { icon: '⚠️' });
+    if (dropped.length > 0) toast(t('food.restaurant.reorderDropped', { items: dropped.join(', ') }), { icon: '⚠️' });
   };
 
   const onShare = () => {
@@ -1988,13 +2162,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       sub: t('food.restaurant.guestCreditSub'),
       disabled: false,
     }] : []),
-    ...(cardPaymentsReady ? [{
+    ...(cardPaymentsReady && user ? [{
       id: 'card',
       icon: '💳',
       label: t('food.restaurant.payByCard'),
       sub: t('food.restaurant.payByCardSub'),
     }] : []),
-    ...(externalPaymentEnabled ? [{
+    ...(externalPaymentEnabled && user ? [{
       id: 'direct_payment',
       icon: '📲',
       label: externalPaymentLabel || t('food.restaurant.payWithApp'),
@@ -2473,13 +2647,21 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
               {/* ── REVIEWS ── */}
               {activeTab === 'reviews' && (
                 <div className="rp-panel rp-panel-wrap" style={{ padding: 16 }}>
-                  {rating > 0 || reviewsList.length ? (
+                  {reviewsLoading && !reviewsPage ? (
+                    <p className="rp-reviews-loading">{t('common.loading')}</p>
+                  ) : (reviewsError && !reviewsPage) || (reviewsPage && reviewsTotal > 0 && reviewsList.length === 0) ? (
+                    <div className="rp-reviews-empty">
+                      <p className="rp-reviews-error-title">{t('food.restaurant.reviewsLoadError')}</p>
+                      {reviewsError && <p className="rp-reviews-error-detail">{reviewsError}</p>}
+                      <button type="button" onClick={() => setReviewsReloadNonce((n) => n + 1)} className="rp-reviews-retry-btn" data-track="ui.a612ceb6f0.54">{t('common.retry')}</button>
+                    </div>
+                  ) : reviewsPage && reviewsTotal > 0 ? (
                     <>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: 16, background: '#f8fafc', borderRadius: 12, marginBottom: 16 }}>
                         <div style={{ textAlign: 'center', flexShrink: 0 }}>
                           <div style={{ fontFamily: SERIF, fontSize: 48, fontWeight: 400, color: '#0f172a', lineHeight: 1, letterSpacing: '-0.03em' }}>{rating > 0 ? rating.toFixed(1) : '—'}</div>
                           <div style={{ fontSize: 16, color: '#fbbf24', margin: '5px 0', letterSpacing: 2 }}>{'★'.repeat(Math.round(rating)) || '☆☆☆☆☆'}</div>
-                          <div style={{ fontSize: 12, color: '#94a3b8' }}>{t('food.restaurant.reviewCount', { count: reviewCount })}</div>
+                          <div className="rp-review-count">{t('food.restaurant.reviewCount', { count: reviewsTotal })}</div>
                         </div>
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
                           {ratingBars.map((bar) => (
@@ -2502,8 +2684,15 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                             <span style={{ fontSize: 12, color: '#fbbf24', letterSpacing: 1, flexShrink: 0 }}>{rev.stars}</span>
                           </div>
                           {rev.text && <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.65 }}>{rev.text}</p>}
+                          {rev.response && <p className="rp-review-response">{t('food.restaurant.reviewResponse', { response: rev.response })}</p>}
                         </div>
                       ))}
+                      <p className="rp-reviews-showing">{t('food.restaurant.reviewsShowing', { shown: reviewsList.length, total: reviewsTotal })}</p>
+                      {reviewsList.length < reviewsTotal && (
+                        <button type="button" onClick={loadMoreReviews} disabled={reviewsLoadingMore} className="rp-reviews-loadmore-btn" data-track="ui.a612ceb6f0.55">
+                          {reviewsLoadingMore ? t('common.loading') : t('food.restaurant.loadMoreReviews')}
+                        </button>
+                      )}
                     </>
                   ) : (
                     <div style={{ textAlign: 'center', padding: '40px 16px' }}>
@@ -2626,6 +2815,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                           <button onClick={() => decLine(ci.id)} style={{ width: 28, height: 28, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', lineHeight: 1 }} data-track="ui.a612ceb6f0.29">−</button>
                           <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', minWidth: 18, textAlign: 'center' }}>{ci.qty}</span>
                           <button onClick={() => incLine(ci.id)} style={{ width: 28, height: 28, borderRadius: 8, background: accent, border: 'none', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', lineHeight: 1 }} data-track="ui.a612ceb6f0.30">+</button>
+                          <button onClick={() => removeLine(ci.id)} aria-label={t('food.restaurant.removeItem', { item: ci.name })} title={t('food.restaurant.removeItem', { item: ci.name })} className="rp-cart-remove-btn" data-track="ui.a612ceb6f0.53">×</button>
                         </div>
                       </div>
                     ))}
@@ -2639,7 +2829,10 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                         </span>
                       </div>
                     ))}
-                      <button onClick={() => { setCartOpen(true); setCartStep('details'); }} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }} data-track="ui.a612ceb6f0.31">{t('food.restaurant.checkoutTotal', { total: formatFoodMoney(displayTotalCents, currency) })}</button>
+                    {quoteError && (
+                      <p role="alert" className="rp-quote-error">{quoteError}</p>
+                    )}
+                      <button onClick={() => { setCartOpen(true); setCartStep('details'); }} disabled={Boolean(quoteError) || quoteLoading} className="rp-checkout-btn" data-track="ui.a612ceb6f0.31">{quoteLoading ? t('food.restaurant.checkoutTotalLoading', { total: formatFoodMoney(displayTotalCents, currency) }) : t('food.restaurant.checkoutTotal', { total: formatFoodMoney(displayTotalCents, currency) })}</button>
                   </div>
                 </>
               )}
@@ -2648,29 +2841,31 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
               {cartStep === 'details' && (
                 <>
                   <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 0' }}>
-                    {checkoutRequiresLogin ? (
-                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 20, marginBottom: 20 }}>
-                        <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent, marginBottom: 10 }}>
-                          {t('food.restaurant.signInRequired')}
-                        </p>
-                        <h3 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>
-                          {t('food.restaurant.signInCheckoutTitle')}
-                        </h3>
+                    {!user && (
+                      <div className="rp-guest-note-box">
                         <p style={{ fontSize: 14, lineHeight: 1.7, color: '#64748b' }}>
-                          {t('food.restaurant.signInCheckoutBody')}
+                          {t('food.restaurant.guestCheckoutNote')}
                         </p>
+                        <button type="button" onClick={openLoginGate} className="rp-text-btn-accent" data-track="ui.a612ceb6f0.52">
+                          {t('food.restaurant.signInContinue')}
+                        </button>
                       </div>
-                    ) : (
+                    )}
                       <>
                         {!isPickup && (
                           <>
                             <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.streetAddress')}</p>
                             <AddressAutocomplete
                               value={addressLine1}
-                              onChange={(value) => { setAddressLine1(value); if (addressError) setAddressError(''); }}
+                              onChange={(value) => { setAddressLine1(value); setAddressLat(null); setAddressLng(null); if (addressError) setAddressError(''); }}
                               onSelect={(place) => {
                                 setAddressLine1(place.addressLine1 || place.display);
                                 if (place.addressLine2) setAddressLine2(place.addressLine2);
+                                if (place.city) setAddressCity(place.city);
+                                if (place.state) setAddressState(place.state);
+                                if (place.zip) setAddressZip(place.zip);
+                                setAddressLat(Number.isFinite(Number(place.lat)) ? Number(place.lat) : null);
+                                setAddressLng(Number.isFinite(Number(place.lng)) ? Number(place.lng) : null);
                                 if (addressError) setAddressError('');
                               }}
                               placeholder={t('food.restaurant.streetPlaceholder')}
@@ -2681,8 +2876,25 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                             />
                             <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.aptSuite')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
                             <input value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} placeholder={t('food.restaurant.aptPlaceholder')} style={{ ...inputStyle, marginBottom: 20 }} />
+                            <p className="rp-field-label">{t('food.restaurant.deliveryCity')}</p>
+                            <input value={addressCity} onChange={(e) => setAddressCity(e.target.value)} placeholder={t('food.restaurant.deliveryCityPlaceholder')} autoComplete="address-level2" className="rp-field-input rp-field-input-mb20" />
+                            <div className="rp-field-row">
+                              <div className="rp-field-col">
+                                <p className="rp-field-label">{t('food.restaurant.deliveryState')}</p>
+                                <input value={addressState} onChange={(e) => setAddressState(e.target.value)} placeholder={t('food.restaurant.deliveryStatePlaceholder')} autoComplete="address-level1" className="rp-field-input rp-field-input-mb20" />
+                              </div>
+                              <div className="rp-field-col">
+                                <p className="rp-field-label">{t('food.restaurant.deliveryZip')}</p>
+                                <input value={addressZip} onChange={(e) => setAddressZip(e.target.value)} placeholder={t('food.restaurant.deliveryZipPlaceholder')} autoComplete="postal-code" className="rp-field-input rp-field-input-mb20" />
+                              </div>
+                            </div>
+                            <p className="rp-field-label">{t('food.restaurant.deliveryInstructions')} <span className="rp-field-label-optional">({t('food.restaurant.optional')})</span></p>
+                            <input value={addressInstructions} onChange={(e) => setAddressInstructions(e.target.value)} placeholder={t('food.restaurant.deliveryInstructionsPlaceholder')} maxLength={500} className="rp-field-input rp-field-input-mb20" />
                             {addressError && (
                               <p role="alert" style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', margin: '-8px 0 16px' }}>{addressError}</p>
+                            )}
+                            {quoteError && (
+                              <p role="alert" className="rp-quote-error-tight">{quoteError}</p>
                             )}
                           </>
                         )}
@@ -2758,28 +2970,49 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                             />
                           </>
                         )}
+                        {/* Guest checkout contact: name for guest pickup,
+                            and a phone or email when the restaurant asks for
+                            order updates. Signed-in customers use their
+                            profile instead. */}
+                        {!user && (
+                          <>
+                            <p className="rp-field-label">{t('food.restaurant.guestName')}{isPickup && requireGuestNameForPickup ? '' : <span className="rp-field-label-optional"> ({t('food.restaurant.optional')})</span>}</p>
+                            <input
+                              value={guestName}
+                              onChange={(e) => { setGuestName(e.target.value); if (guestContactError) setGuestContactError(''); }}
+                              placeholder={t('food.restaurant.guestNamePlaceholder')}
+                              maxLength={140}
+                              autoComplete="name"
+                              className="rp-field-input"
+                            />
+                            <p className="rp-field-label">{t('food.restaurant.guestPhone')} <span className="rp-field-label-optional">({t('food.restaurant.optional')})</span></p>
+                            <input
+                              value={guestPhone}
+                              onChange={(e) => { setGuestPhone(e.target.value); if (guestContactError) setGuestContactError(''); }}
+                              placeholder={t('food.restaurant.guestPhonePlaceholder')}
+                              maxLength={40}
+                              inputMode="tel"
+                              autoComplete="tel"
+                              className="rp-field-input"
+                            />
+                            <p className="rp-field-label">{t('food.restaurant.guestEmail')} <span className="rp-field-label-optional">({t('food.restaurant.optional')})</span></p>
+                            <input
+                              value={guestEmail}
+                              onChange={(e) => { setGuestEmail(e.target.value); if (guestContactError) setGuestContactError(''); }}
+                              placeholder={t('food.restaurant.guestEmailPlaceholder')}
+                              maxLength={255}
+                              inputMode="email"
+                              autoComplete="email"
+                              className="rp-field-input rp-field-input-mb20"
+                            />
+                            {guestContactError && (
+                              <p role="alert" className="rp-quote-error-tight">{guestContactError}</p>
+                            )}
+                          </>
+                        )}
                       </>
-                    )}
                   </div>
                   <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
-                    {checkoutRequiresLogin ? (
-                      <button
-                        onClick={() => setCartStep('login')}
-                        style={{
-                          width: '100%',
-                          height: 52,
-                          background: accent,
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: 12,
-                          fontSize: 16,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }} data-track="ui.a612ceb6f0.34"
-                      >
-                        {t('food.restaurant.signInToCheckout')}
-                      </button>
-                    ) : (
                       <button
                         onClick={() => {
                           // Never let a blank delivery address fall back to the
@@ -2788,7 +3021,19 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                             setAddressError(t('food.restaurant.deliveryAddressRequired'));
                             return;
                           }
+                          // Guest gates mirror the server: a name for guest
+                          // pickup orders, and a phone or email when the
+                          // restaurant asks for order updates.
+                          if (!user && isPickup && requireGuestNameForPickup && !guestName.trim()) {
+                            setGuestContactError(t('food.restaurant.guestNameRequired'));
+                            return;
+                          }
+                          if (!user && requireContactForUpdates && !guestPhone.trim() && !guestEmail.trim()) {
+                            setGuestContactError(t('food.restaurant.guestContactRequired'));
+                            return;
+                          }
                           setAddressError('');
+                          setGuestContactError('');
                           setCartStep('payment');
                         }}
                         style={{
@@ -2805,67 +3050,12 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                       >
                         {t('food.restaurant.continueToPayment')}
                       </button>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {/* ③.5 login gate */}
-              {cartStep === 'login' && (
-                <>
-                  <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px 0' }}>
-                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 20 }}>
-                      <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent, marginBottom: 10 }}>
-                        {t('food.restaurant.signInRequired')}
-                      </p>
-                      <h3 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>
-                        {t('food.restaurant.signInOrderTitle')}
-                      </h3>
-                      <p style={{ fontSize: 14, lineHeight: 1.7, color: '#64748b' }}>
-                        {t('food.restaurant.signInOrderBody')}
-                      </p>
-                    </div>
-                  </div>
-                  <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
-                    <button
-                      onClick={openLoginGate}
-                      style={{
-                        width: '100%',
-                        height: 52,
-                        background: accent,
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 12,
-                        fontSize: 16,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        marginBottom: 10,
-                      }} data-track="ui.a612ceb6f0.36"
-                    >
-                      {t('food.restaurant.signInContinue')}
-                    </button>
-                    <button
-                      onClick={() => setCartStep('cart')}
-                      style={{
-                        width: '100%',
-                        height: 44,
-                        background: '#f8fafc',
-                        color: '#0f172a',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: 12,
-                        fontSize: 14,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }} data-track="ui.a612ceb6f0.37"
-                    >
-                      {t('food.restaurant.backToCart')}
-                    </button>
                   </div>
                 </>
               )}
 
               {/* ④ payment step */}
-              {cartStep === 'payment' && !checkoutRequiresLogin && (
+              {cartStep === 'payment' && (
                 <>
                   <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 0' }}>
                     <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.paymentMethod')}</p>
@@ -3187,12 +3377,15 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                     </p>
                   </div>
                   <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
+                    {quoteError && (
+                      <p role="alert" className="rp-quote-error">{quoteError}</p>
+                    )}
                     <button
                       onClick={submitOrder}
-                      disabled={placing || proofUploading || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission)}
-                      style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: placing || proofUploading ? 'wait' : 'pointer', opacity: placing || proofUploading || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission) ? 0.7 : 1 }} data-track="ui.a612ceb6f0.49"
+                      disabled={placing || proofUploading || quoteLoading || Boolean(quoteError) || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission)}
+                      className="rp-place-btn" data-track="ui.a612ceb6f0.49"
                     >
-                      {placing ? t('food.restaurant.placingOrder') : t('food.restaurant.placeOrderTotal', { total: formatFoodMoney(displayTotalCents, currency) })}
+                      {placing ? t('food.restaurant.placingOrder') : quoteLoading ? t('food.restaurant.checkoutTotalLoading', { total: formatFoodMoney(displayTotalCents, currency) }) : t('food.restaurant.placeOrderTotal', { total: formatFoodMoney(displayTotalCents, currency) })}
                     </button>
                   </div>
                 </>
@@ -3232,9 +3425,21 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                       <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94a3b8', marginBottom: 4 }}>{t('food.restaurant.estimatedTime')}</p>
                       <p style={{ fontFamily: SERIF, fontSize: 28, color: '#0f172a' }}>{confirmedEstimate}</p>
                     </div>
-                    <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+                    <div className="rp-confirmed-col">
+                      {placedTrackingToken && (
+                        <Link to={`/food/track/${placedTrackingToken}`} className="rp-track-btn">{t('food.restaurant.trackOrder')}</Link>
+                      )}
+                      <div className="rp-confirmed-row">
                       <Link to={`/restaurants/queue/${restaurant.id}`} style={{ flex: 1, textAlign: 'center', height: 44, lineHeight: '44px', background: '#f1f5f9', color: '#0f172a', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>{t('food.order.watchQueue')}</Link>
                       <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); setPaymentReference(''); setPaymentNote(''); setKitchenNotes(''); setScheduledFor(null); setScheduleDay('today'); setScheduleTime(''); setItemsExpanded(false); setCardError(''); setPaymentProof(null); setProofMethod('upload'); setPaymentMethod('pay_at_restaurant'); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }} data-track="ui.a612ceb6f0.50">{t('food.restaurant.backToMenu')}</button>
+                      </div>
+                      {placedTrackingToken && (
+                        <p className="rp-confirmed-note">
+                          {t('food.restaurant.reviewAfterCompleted')}
+                          {' '}
+                          <Link to={`/food/track/${placedTrackingToken}`} className="rp-track-link">{t('food.restaurant.trackOrder')}</Link>
+                        </p>
+                      )}
                     </div>
                   </div>
                 );

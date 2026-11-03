@@ -10,7 +10,7 @@
 const defaultPool = require('../db');
 const logger = require('../utils/logger');
 
-const VALID_SUBJECT_TYPES = ['user', 'business'];
+const VALID_SUBJECT_TYPES = ['user', 'business', 'restaurant'];
 const VALID_CATEGORIES = [
   'affiliate_fraud',
   'collusion',
@@ -136,7 +136,7 @@ async function createFraudCase({
   return inserted[0];
 }
 
-const LIST_SUBJECT_TYPES = Object.freeze(['user', 'business']);
+const LIST_SUBJECT_TYPES = Object.freeze(['user', 'business', 'restaurant']);
 const LIST_CATEGORIES = Object.freeze([
   'affiliate_fraud',
   'collusion',

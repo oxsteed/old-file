@@ -59,6 +59,11 @@ function mockClient({ restaurant = RESTAURANT, balanceCents = 5000, payout = nul
   const client = { query: jest.fn(), release: jest.fn() };
   client.query.mockImplementation(async (sql, params) => {
     if (sql.includes('SELECT funds_settled FROM restaurant_payouts')) return { rows: [{ funds_settled: false }] };
+    // Finding 2: approve/worker revalidate the CURRENT Connect account.
+    // The test restaurant's snapshot account is its current account.
+    if (sql.includes('FROM restaurant_connect_accounts')) {
+      return { rows: restaurant.stripe_account_id ? [{ stripe_account_id: restaurant.stripe_account_id }] : [] };
+    }
     if (sql.includes('SELECT b.owner_user_id FROM')) return { rows: [{ owner_user_id: 'owner-1' }] };
     if (sql.includes('FROM food_restaurants')) return { rows: [restaurant] };
     if (sql.includes('INSERT INTO restaurant_payouts')) {
@@ -307,6 +312,11 @@ test('worker creates Stripe transfer only for a journaled outbox item', async ()
   pool.query.mockImplementation(async (sql) => {
     if (sql.includes('SELECT funds_settled FROM restaurant_payouts')) {
       return { rows: [{ funds_settled: false }] };
+    }
+    // Finding 2: the worker revalidates the current Connect account via
+    // pool before creating the transfer; it matches the snapshot here.
+    if (sql.includes('FROM restaurant_connect_accounts')) {
+      return { rows: [{ stripe_account_id: 'acct_test123' }] };
     }
     return { rows: [] };
   });
