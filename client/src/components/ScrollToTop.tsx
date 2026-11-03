@@ -49,8 +49,17 @@ export default function ScrollToTop() {
       if (!stopped && position) return;
       save();
     };
+    // Scroll events arrive asynchronously (after the next frame), so a click or
+    // key press that navigates right after a scroll could leave lastPosition
+    // stale. Record the live position at the start of every interaction, while
+    // this page is still rendered, unless a restore is still pending.
+    const intent = () => {
+      if (stopped || !position) save();
+    };
     window.addEventListener('scroll', scrolled, { passive: true });
     window.addEventListener('pagehide', save);
+    for (const event of ['pointerdown', 'keydown', 'touchstart'])
+      window.addEventListener(event, intent, { capture: true, passive: true });
     for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown'])
       window.addEventListener(event, stop, { once: true, passive: true });
     return () => {
@@ -58,6 +67,8 @@ export default function ScrollToTop() {
       saveNavigationState(key, lastPosition);
       window.removeEventListener('scroll', scrolled);
       window.removeEventListener('pagehide', save);
+      for (const event of ['pointerdown', 'keydown', 'touchstart'])
+        window.removeEventListener(event, intent, { capture: true });
       for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown'])
         window.removeEventListener(event, stop);
     };

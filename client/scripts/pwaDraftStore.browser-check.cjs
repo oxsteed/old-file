@@ -140,6 +140,19 @@ test(
       await page.goBack();
       await page.waitForFunction(() => Math.abs(window.scrollY - 800) < 4);
       assert.equal(await page.evaluate(() => window.scrollY), 800);
+      // Regression: navigate in the same task as the scroll, before the browser
+      // delivers the scroll event. The position must come from the interaction,
+      // not from a stale scroll-event snapshot.
+      await page.evaluate(() => {
+        window.scrollTo(0, 1200);
+        const link = [...document.querySelectorAll('a')].find((a) => a.textContent === 'Open detail');
+        link.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        link.click();
+      });
+      await page.waitForURL('**/detail');
+      await page.goBack();
+      await page.waitForFunction(() => Math.abs(window.scrollY - 1200) < 4);
+      assert.equal(await page.evaluate(() => window.scrollY), 1200);
     } finally {
       await browser.close();
       await new Promise((r) => server.close(r));
