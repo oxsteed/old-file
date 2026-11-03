@@ -19,7 +19,8 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 import SearchBar from '../components/helperDirectory/SearchBar';
-import { businessProfilePath } from '../utils/profileUrls';
+import { businessProfilePath, helperProfilePath } from '../utils/profileUrls';
+import JsonLd, { buildItemList } from '../components/JsonLd';
 import SaveSearchButton from '../components/SaveSearchButton';
 import FilterPanel from '../components/helperDirectory/FilterPanel';
 import SortControls from '../components/helperDirectory/SortControls';
@@ -668,6 +669,15 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
         url={`${getPublicSiteUrl()}/helpers`}
       />
       <Navbar />
+      {/* SEO: ItemList of the helpers/businesses actually rendered on this
+          page, using the same profile URLs the cards link to. */}
+      <JsonLd data={buildItemList(displayed.map((helper: any) => {
+        const path = helper.profileUrl ?? (helper.type === 'business'
+          ? businessProfilePath({ businessId: helper.businessId ?? helper.id, profileSlug: helper.profileSlug || helper.profile_slug })
+          : helperProfilePath({ id: helper.id, profileSlug: helper.profileSlug || helper.profile_slug }));
+        const absolute = path.startsWith('http') ? path : `${getPublicSiteUrl()}${path}`;
+        return { name: helper.businessName || helper.ownerName, url: absolute };
+      }))} />
 
       {/* Hero + search */}
       <DirectoryHero

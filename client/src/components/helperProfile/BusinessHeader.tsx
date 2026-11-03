@@ -165,6 +165,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
     <PublicProfileHero
       summary={summary}
       surface="public"
+      nameHeadingTag="h1"
       ariaLabel={helper.businessName || helper.ownerName}
       actions={actions}
     >

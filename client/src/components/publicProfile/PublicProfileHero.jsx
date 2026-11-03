@@ -22,6 +22,7 @@ export default function PublicProfileHero({
   footer = null,
   children = null,
   className = '',
+  nameHeadingTag = 'h3',
 }) {
   const classes = ['pph', className].filter(Boolean).join(' ');
 
@@ -29,6 +30,7 @@ export default function PublicProfileHero({
     <header className={classes}>
       <PublicProfileSummaryCard
         {...summary}
+        nameHeadingTag={nameHeadingTag}
         surface={surface}
         emptyName={emptyName}
         emptyTagline={emptyTagline}
