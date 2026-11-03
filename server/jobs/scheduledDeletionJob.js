@@ -381,10 +381,29 @@ async function hardDeleteUser(user, { throwOnError = false } = {}) {
   } catch (err) {
     await client.query('ROLLBACK');
     if (throwOnError) throw err;
+    // A financial blocker used to stall silently: the throw landed here
+    // with only a log line, deletion_scheduled_at stayed set, and the
+    // daily run retried without any incident or digest. The incident is
+    // deduped per user (repeat runs bump occurrence_count, not rows),
+    // so a stalled account stays visible until an operator resolves it.
+    if (err && err.code === 'account_financial_review') {
+      logger.error('scheduledDeletionJob: user retained for financial review', {
+        userId,
+        email: user.email,
+        error: err.message,
+      });
+      try {
+        await require('../services/incidentStore').recordIncident({ type: 'account_deletion_financial_blocker', severity: 'high',
+          message: 'Scheduled account deletion stalled on a financial blocker',
+          dedupeKey: `account-deletion-blocked:${userId}`,
+          details: { userId, code: 'account_financial_review', scheduledAt: user.deletion_scheduled_at } });
+      } catch (incidentErr) {
+        logger.error('scheduledDeletionJob: blocker incident failed (non-fatal)', { userId, error: incidentErr.message });
+      }
+    } else if (err && err.code === '23503') {
     // RESTRICT-guarded audit children (migration 624) fail closed here:
     // deleting the user would wipe audit evidence, so the user is retained
     // for a manual archive-then-delete instead of losing history.
-    if (err && err.code === '23503') {
       logger.error('scheduledDeletionJob: user retained for audit evidence (archive-then-delete required)', {
         userId,
         email: user.email,

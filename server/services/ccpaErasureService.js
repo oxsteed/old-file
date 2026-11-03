@@ -56,6 +56,48 @@ async function queueErasure(client, request, adminId) {
     VALUES('ccpa_request',$2,'admin',$1,'ccpa_request','processing',$3::jsonb)`,
     [String(request.id), adminId, JSON.stringify({ erasureQueued: true })]);
 }
+async function recordOptOutSuppression(client, request, adminId) {
+  // An opt-out completion must record a suppression action before the
+  // request flips to completed: a status-only completion would leave
+  // personalized targeting live. The durable, enforced record is the
+  // growth suppression list (offer delivery skips suppressed subjects),
+  // plus skipping any pending personalized deliveries, plus a legal
+  // audit row and a suppression stamp on the request itself so the
+  // action is visible even where the growth identity is unavailable
+  // (no growth pepper, or an email-only request with no user id).
+  let growthSuppression = 'unavailable';
+  let skippedDeliveries = 0;
+  let removedRecipients = 0;
+  if (request.user_id && process.env.GROWTH_SUBJECT_PEPPER) {
+    try {
+      const subject = require('../growth/identity').key('subject', request.user_id);
+      await client.query(`INSERT INTO marketing_suppressions(subject_key,source)
+        VALUES($1,'ccpa_opt_out') ON CONFLICT(subject_key) DO NOTHING`, [subject]);
+      const outcome = await require('../growth/rights').removePersonalizedOffers(client, request.user_id);
+      skippedDeliveries = outcome.offer_deliveries_skipped || 0;
+      removedRecipients = outcome.personalized_recipients_removed || 0;
+      growthSuppression = 'recorded';
+    } catch (err) {
+      // The audit row and request stamp below still record the opt-out;
+      // a growth failure must not silently void the suppression, so it
+      // is named in the stamp rather than swallowed.
+      growthSuppression = `failed:${err.code || err.message || 'unknown'}`;
+    }
+  }
+  const suppression = {
+    source: 'ccpa_opt_out', recorded_at: new Date().toISOString(),
+    growth_suppression: growthSuppression,
+    offer_deliveries_skipped: skippedDeliveries,
+    personalized_recipients_removed: removedRecipients,
+  };
+  await client.query(`INSERT INTO legal_audit_log(action_type,actor_id,actor_role,resource_id,resource_type,status,metadata)
+    VALUES('ccpa_opt_out_suppression',$2,'admin',$1,'ccpa_request','completed',$3::jsonb)`,
+  [String(request.id), adminId, JSON.stringify({ suppression })]);
+  await client.query(`UPDATE ccpa_data_requests SET
+    data_provided = COALESCE(data_provided,'{}'::jsonb) || $2::jsonb, updated_at=NOW() WHERE id=$1`,
+  [request.id, JSON.stringify({ suppression })]);
+  return suppression;
+}
 async function completeRequest(requestId, adminId, fulfillmentDate) {
   return withTransaction(pool, async client => {
     const { rows: [request] } = await client.query('SELECT * FROM ccpa_data_requests WHERE id=$1 FOR UPDATE', [requestId]);
@@ -65,11 +107,13 @@ async function completeRequest(requestId, adminId, fulfillmentDate) {
       return { queued: true, request };
     }
     assertAccessDelivery(request);
+    let suppression = null;
+    if (request.request_type === 'opt_out') suppression = await recordOptOutSuppression(client, request, adminId);
     await client.query(`UPDATE ccpa_data_requests SET status='completed',completed_at=NOW(),
       fulfillment_date=$2,fulfilled_by_id=$3,updated_at=NOW() WHERE id=$1`, [request.id, fulfillmentDate || new Date(), adminId]);
     await client.query(`INSERT INTO legal_audit_log(action_type,actor_id,actor_role,resource_id,resource_type,status,metadata)
       VALUES('ccpa_completed',$2,'admin',$1,'ccpa_request','completed','{}'::jsonb)`, [String(request.id), adminId]);
-    return { completed: true, request };
+    return { completed: true, request, ...(suppression ? { suppression } : {}) };
   }, 'ccpa_complete');
 }
 function assertAccessDelivery(request) {
@@ -80,10 +124,38 @@ function assertAccessDelivery(request) {
     throw new AppError('Record accepted data delivery before completing an access request', 409, 'ccpa_data_delivery_required');
   }
 }
+// Non-money RESTRICT references, decided per reference:
+// - credit_adjustments (migration 661) customer_id / proposed_by /
+//   approved_by: BLOCKED. These are money-audit rows: reassigning a
+//   proposer or approver to the sentinel would falsify who moved money,
+//   and the customer is the money subject, so there is no safe target.
+//   A hit throws 409 and lands the job in needs_review (see the catch
+//   in processErasureJobs), never silently skipped.
+// - business_events.created_by (migration 213): REASSIGNED, not blocked.
+//   hardDeleteUser already reassigns it to the permanent sentinel user
+//   before deleting the account, so the RESTRICT never fires.
+// Any other unhandled RESTRICT surfaces as a 23503 from hardDeleteUser;
+// processErasureJobs maps that to needs_review too, instead of leaving
+// the job pending to retry forever.
+async function assertNoRestrictReferences(userId) {
+  const { rows: [refs] } = await pool.query(`SELECT
+    EXISTS(SELECT 1 FROM credit_adjustments WHERE customer_id=$1) AS customer_ref,
+    EXISTS(SELECT 1 FROM credit_adjustments WHERE proposed_by=$1) AS proposed_ref,
+    EXISTS(SELECT 1 FROM credit_adjustments WHERE approved_by=$1) AS approved_ref`, [userId]);
+  const hit = refs?.customer_ref ? 'credit_adjustments.customer_id'
+    : refs?.proposed_ref ? 'credit_adjustments.proposed_by'
+    : refs?.approved_ref ? 'credit_adjustments.approved_by' : null;
+  if (hit) {
+    const error = new AppError(`Restricted money-audit reference requires review: ${hit}`, 409, 'ccpa_restrict_reference');
+    error.detail = hit;
+    throw error;
+  }
+}
 async function assertErasureSafe(userId) {
   const guard = require('./accountDeletionGuard');
   const blockers = await guard.findFinancialBlockers(userId);
   if (blockers.length) throw new AppError('Stored value or pending money requires review', 409, 'ccpa_financial_review');
+  await assertNoRestrictReferences(userId);
   const { ACTIVE_JOB_STATUS_SQL_IN } = require('../utils/schemaProbe');
   const { rows } = await pool.query(`SELECT id FROM jobs WHERE (client_id=$1 OR assigned_helper_id=$1)
     AND status IN ${ACTIVE_JOB_STATUS_SQL_IN} LIMIT 1`, [userId]);
@@ -122,9 +194,17 @@ async function processErasureJobs({ db = pool, limit = 10 } = {}) {
         [String(job.request_id),job.requested_by,JSON.stringify({ erasureExecuted: true })]);
       }, 'ccpa_erasure_complete');
     } catch (err) {
+      // A 409 (blocker, restrict reference) or an exhausted job lands in
+      // needs_review. So does a 23503 from any RESTRICT reference
+      // hardDeleteUser does not already handle: without this, the job
+      // would stay pending and retry the same doomed delete hourly.
+      const needsReview = err.statusCode === 409 || err.code === '23503' || job.attempts >= 8;
+      const lastError = err.detail
+        ? `${err.code || 'erasure_failed'}: ${String(err.detail).slice(0, 200)}`
+        : (err.code || 'erasure_failed');
       await db.query(`UPDATE ccpa_erasure_jobs SET status=$3,last_error=$4,lease_token=NULL,lease_until=NULL,
         next_attempt_at=NOW()+INTERVAL '1 hour' WHERE request_id=$1 AND lease_token=$2`,
-      [job.request_id, token, err.statusCode === 409 || job.attempts >= 8 ? 'needs_review' : 'pending', err.code || 'erasure_failed']);
+      [job.request_id, token, needsReview ? 'needs_review' : 'pending', lastError]);
       logger.error('CCPA erasure incomplete', { requestId: job.request_id, code: err.code || 'erasure_failed' });
     }
   }
@@ -145,4 +225,4 @@ async function processErasureJobs({ db = pool, limit = 10 } = {}) {
   });
   return { examined: rows.length };
 }
-module.exports = { queueErasure, completeRequest, notifyCompleted, notifyDenied, processErasureJobs, assertAccessDelivery };
+module.exports = { queueErasure, completeRequest, notifyCompleted, notifyDenied, processErasureJobs, assertAccessDelivery, assertNoRestrictReferences, recordOptOutSuppression };
