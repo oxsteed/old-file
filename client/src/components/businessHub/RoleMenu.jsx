@@ -22,7 +22,7 @@ const ROLE_PILL_STYLES = {
   support_agent:   { bg: 'rgba(244,63,94,0.12)',  color: '#be123c', border: 'rgba(244,63,94,0.4)' },
 };
 
-export default function RoleMenu({ businessId, activeTab, onSelectTab }) {
+export default function RoleMenu({ businessId, activeTab, availableTabs, onSelectTab }) {
   const { t } = useTranslation();
   const [membership, setMembership] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -49,7 +49,8 @@ export default function RoleMenu({ businessId, activeTab, onSelectTab }) {
 
   const role = membership?.role || 'owner';
   const permissions = useMemo(() => new Set(membership?.permissions || []), [membership]);
-  const menu = useMemo(() => buildVisibleMenu(role, permissions), [role, permissions]);
+  const menu = useMemo(() => buildVisibleMenu(role, permissions)
+    .filter(item => !item.tab || availableTabs.includes(item.tab)), [role, permissions, availableTabs]);
   const config = getMenuForRole(role);
 
   if (loading || errored || !membership) {
