@@ -734,8 +734,8 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
             )}
             {showArchived ? (
               archivedLoading ? (
-                <div className="messages-loading">
-                  <div className="messages-spinner" />
+                <div className="messages-loading" role="status">
+                  <div className="messages-spinner" aria-hidden="true" />
                   <p>{t('common.loading')}</p>
                 </div>
               ) : archivedError ? (
@@ -777,8 +777,8 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                 </>
               )
             ) : loading || starting ? (
-              <div className="messages-loading">
-                <div className="messages-spinner" />
+              <div className="messages-loading" role="status">
+                <div className="messages-spinner" aria-hidden="true" />
                 <p>{starting ? t('messages.startingConversation') : t('common.loading')}</p>
               </div>
             ) : conversations.length === 0 && loadError ? (
