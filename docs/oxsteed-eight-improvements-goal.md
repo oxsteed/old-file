@@ -402,3 +402,21 @@ audit are not complete.
   and recovery without sending a message.
 - Next: require all four PR checks, then verify publication and continue the
   feature-specific draft and concurrent-session audit.
+
+## Combined release rehearsal
+
+The message draft, product accessibility, worker readiness, and workspace
+section packages were combined in a detached checkout of `42938cd86`. Two
+overlapping edits to this evidence matrix were resolved while preserving
+each package's findings. Application source and tests merged cleanly.
+
+The combined client build passed, including verification of 1,156 assets.
+The workspace navigation, message draft recovery, and session recovery
+browser tests all passed together. Three focused server suites passed 34
+tests. The combined diff adds no database migrations. Required GitHub checks
+and a monitored production rollout of the combined commit remain pending.
+
+The prior rollout's three proxy 503s occurred at 07:54:08 UTC, before
+Coolify queued the replacement at 07:55:31 UTC. The container switch cannot
+explain those responses. The separate readiness failure occurred during
+candidate startup. Both observations remain in the availability audit.
