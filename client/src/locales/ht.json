@@ -30610,7 +30610,7 @@
     "resetting": "Ap reyajiste...",
     "saving": "Ap sove...",
     "subscriptionPrices": "Pri abònman",
-    "subtitle": "Tout chanjman frè pran efè imedyatman pou nouvo tranzaksyon. Chak chanjman anrejistre ak yon tras odit konplè.",
+    "subtitle": "Chanjman frè yo mande apwobasyon yon dezyèm administratè anvan yo antre an vigè. Chak chanjman anrejistre ak yon istwa odit konplè.",
     "title": "Jesyon pri",
     "transactionFees": "Frè tranzaksyon",
     "trialBody": "Nouvo itilizatè yo jwenn yon esè {{days}} jou ak aksè nivo pro anvan yo tounen nan nivo gratis la. Ajiste sa a pou afekte tout nouvo enskripsyon.",
@@ -30618,13 +30618,17 @@
     "trialTitle": "Konfigirasyon dire esè",
     "updateFailed": "Mizajou a echwe",
     "whyPlaceholder": "Poukisa chanjman sa a?",
-    "confirmMessage": "Anrejistre chanjman frè sa a pou {{label}}? Sa pran efè touswit.",
+    "confirmMessage": "Anrejistre chanjman frè sa a pou {{label}}? L ap tann apwobasyon yon dezyèm administratè epi l pap antre an vigè jiskaske yo apwouve li.",
     "confirmTitle": "Anrejistre chanjman frè a",
     "invalidNumber": "Antre yon nimewo ki valab.",
     "valueOutOfRange": "Valè a dwe ant {{min}} ak {{max}}.",
     "valueOutsideRange": "Valè a deyò limit yo otorize a.",
     "stripeSyncFailed": "Frè yo anrejistre, men senkronizasyon pri Stripe a echwe. Pri Stripe a pa t mete ajou.",
-    "stripeSyncFailedReset": "Frè yo retounen nan valè defo yo, men senkronizasyon pri Stripe a echwe. Kèk pri Stripe pa t mete ajou."
+    "stripeSyncFailedReset": "Frè yo retounen nan valè defo yo, men senkronizasyon pri Stripe a echwe. Kèk pri Stripe pa t mete ajou.",
+    "pendingHint": "Chanjman frè sa yo poko antre an vigè. Yon lòt administratè dwe apwouve oswa rejte yo nan ke apwobasyon lajan an.",
+    "pendingTitle": "Chanjman k ap tann apwobasyon",
+    "queued": "Chanjman frè a voye pou apwobasyon yon dezyèm administratè.",
+    "reviewQueue": "Revize nan apwobasyon lajan yo"
   },
   "superFinancials": {
     "colAmount": "Montan",
@@ -33529,7 +33533,8 @@
     "typeAffiliatePayout": "Peman afilye",
     "subject": "Sijè",
     "reason": "Rezon",
-    "subjectUnknown": "Sijè enkoni"
+    "subjectUnknown": "Sijè enkoni",
+    "typeFeeConfig": "Chanjman konfigirasyon frè"
   },
   "adminOrderFilters": {
     "searchOrders": "Chèche kòmann",
