@@ -42,10 +42,18 @@ test('workspace navigation defers inactive editors and remains usable during del
         await tabs.locator('.active').waitFor();
         await page.locator('.bh-switcher').waitFor();
         timings.push({ language, transition: 'cold-workspace', ms: Date.now() - start });
+        assert.equal(await page.getByRole('main').count(), 1);
+        await page.locator('.skip-nav').focus();
+        await page.keyboard.press('Enter');
+        await page.waitForFunction(() => document.activeElement.id === 'main-content');
         for (const editor of editors) assert.equal(assets.some(asset => asset.includes(`/${editor}-`)), false, `${editor} is not needed for overview`);
 
-        await tabs.getByRole('button', { name: catalog.businessHub.tabEditProfile, exact: true }).click();
-        await page.locator('.bh-loading', { hasText: catalog.businessHub.rooms.loadingWorkspace }).waitFor();
+        const profileTab = tabs.getByRole('button', { name: catalog.businessHub.tabEditProfile, exact: true });
+        await profileTab.focus();
+        assert.equal(await profileTab.evaluate(node => getComputedStyle(node).outlineStyle), 'solid');
+        await page.keyboard.press('Enter');
+        await page.getByRole('status').filter({ hasText: catalog.businessHub.rooms.loadingWorkspace }).waitFor();
+        assert.equal(await profileTab.getAttribute('aria-pressed'), 'true');
         assert.equal(await page.locator('.ox-navbar').count(), 1);
         assert.ok(await tabs.getByRole('button', { name: catalog.businessHub.tabOverview, exact: true }).isEnabled());
         await tabs.getByRole('button', { name: catalog.businessHub.tabOverview, exact: true }).click();
@@ -81,7 +89,16 @@ test('workspace navigation defers inactive editors and remains usable during del
     // A directly requested editor route must retain the existing team gate.
     fixture.state.user = { ...fixture.state.user, default_mode: 'business_employee' };
     fixture.state.readResponses['/api/businesses'] = { businesses: [] };
-    fixture.state.readResponses['/api/businesses/managed'] = { businesses: [{ id: 4, business_name: 'Fixture Team', business_kind: 'service', status: 'active', setup_status: 'active', role: 'employee' }] };
+    fixture.state.readResponses['/api/businesses/managed'] = { businesses: [{
+      id: 4, business_name: 'Fixture Team', business_kind: 'service', status: 'active',
+      setup_status: 'active', role: 'employee', permissions: ['business.view', 'calendar.view_self'],
+    }] };
+    fixture.state.readResponses['/api/launch-visibility'] = { media: true };
+    fixture.state.readResponses['/api/businesses/4/operations-summary'] = { data: {
+      timezone: 'America/New_York', tasks: [], sections: {
+        bookings: { available: true, status: 'ready', scope: 'self', today: 2 },
+      },
+    } };
     const teamContext = await browser.newContext();
     await teamContext.addInitScript(() => localStorage.setItem('oxs:language', 'en'));
     const teamPage = await teamContext.newPage();
@@ -90,9 +107,16 @@ test('workspace navigation defers inactive editors and remains usable during del
     await teamContext.route('**/*', route => new URL(route.request().url()).origin === fixture.origin ? route.continue() : route.abort());
     try {
       await teamPage.goto(fixture.origin + '/business/4/workspace/profile');
-      await teamPage.locator('.bh-tabs .active').waitFor();
+      await teamPage.locator('.business-operations__card dd', { hasText: '2' }).waitFor();
+      await teamPage.waitForURL('**/business/4/workspace');
       assert.equal(await teamPage.locator('.bh-tabs').getByRole('button', { name: catalogs.en.businessHub.tabEditProfile, exact: true }).count(), 0);
       assert.equal(await teamPage.locator('.bpe-studio').count(), 0);
+      assert.equal(await teamPage.locator('.bh-tabs').getByRole('button', { name: /media/i }).count(), 0);
+      await teamPage.goto(fixture.origin + '/business/4/workspace/media');
+      await teamPage.locator('.business-operations__card dd', { hasText: '2' }).waitFor();
+      await teamPage.waitForURL('**/business/4/workspace');
+      assert.ok(!teamAssets.includes('/api/businesses/4/profile-edit'));
+      assert.ok(!teamAssets.some(asset => asset.includes('/BusinessMediaTab-')));
       for (const editor of editors) assert.equal(teamAssets.some(asset => asset.includes(`/${editor}-`)), false, `employee does not download ${editor}`);
       await teamPage.locator('.bh-tabs').getByRole('button', { name: catalogs.en.businessHub.tabTeamLabel, exact: true }).click();
       await teamPage.locator('.bh-tabs .active', { hasText: catalogs.en.businessHub.tabTeamLabel }).waitFor();

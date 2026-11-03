@@ -652,7 +652,8 @@ export default function FoodHomePage() {
       {loading ? (
         /* Skeleton loading state */
         <div className="fd-home-content">
-          <div className="fd-section">
+          <p className="sr-only" role="status">{t('food.common.loading')}</p>
+          <div className="fd-section" aria-hidden="true">
             <div className="fd-skeleton-label" />
             <div className="fd-grid">
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}

@@ -209,8 +209,116 @@ function BusinessHubInner() {
   const [businesses, setBusinesses]   = useState(() => createdFromNav ? [createdFromNav] : []);
   const [bizId, setBizId]             = useState(() => routeBusinessId || (createdFromNav ? String(createdFromNav.id) : '') || localStorage.getItem(LS_KEY) || '');
   const [calendarFocus, setCalendarFocus] = useState('all');
-  const [tab, setTab]                 = useState(() => routeTab || searchParams.get('tab') || 'overview');
+  const [requestedTab, setTab]                 = useState(() => routeTab || searchParams.get('tab') || 'overview');
   const [loadingBiz, setLoadingBiz]   = useState(!createdFromNav);
+
+  const currentBiz  = businesses.find(b => String(b.id) === String(bizId));
+  const workspaceMissing = Boolean(
+    routeBusinessId
+    && !loadingBiz
+    && !businesses.some((b) => String(b.id) === routeBusinessId)
+  );
+  const currentRole = currentBiz?._role || 'owner';
+  const hasPermission = code => currentRole === 'owner' || currentBiz?.permissions?.includes(code) === true;
+  const canEditBizProfile = ['owner', 'manager'].includes(currentRole) && hasPermission('business.edit_profile');
+  const canAccessMessages = hasPermission('business.view') && (hasPermission('messages.view_all') || hasPermission('messages.view_assigned'));
+  const canAccessCalendar = hasPermission('business.view') && (hasPermission('calendar.view_all') || hasPermission('calendar.view_self'));
+  // Review P2-3-F05: the server finance gate (canManageBusinessFinance)
+  // allows only owner/manager, so the tabs must match. Showing them to
+  // employee/support_agent only produced 404s.
+  const canViewFinanceHub = currentRole === 'owner' || currentRole === 'manager';
+  const isRestaurantBusiness = currentBiz?.business_kind === 'restaurant'
+    || (!currentBiz?.business_kind && currentBiz?.business_mode === 'food');
+
+  const financeTabIds = ['analytics', 'invoices', 'tax', 'goals'];
+  const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'skills', 'ai'];
+  const tabAliases = {
+    hours: 'calendar',
+    appointments: 'calendar',
+    waitlist: 'calendar',
+    'booking-services': 'services',
+  };
+  // Maintenance is only part of the default tab set when this business has
+  // selected the Property Manager template. For every other template the tab
+  // would be confusing dead UI - it lives there only because of that template.
+  const activeTemplate = currentBiz?.active_template || 'default';
+  const isPropertyManagerTpl = activeTemplate === 'property_manager';
+  const isTradesOpsTemplate = ['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate);
+  const isBeautyOpsTemplate = ['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(activeTemplate);
+  const isCreativeOpsTemplate = ['photographer', 'creative_studio', 'graphic_design'].includes(activeTemplate);
+  const isProfessionalOpsTemplate = ['accountant', 'consulting_coaching', 'legal_admin'].includes(activeTemplate);
+  const isContinuityOpsTemplate = ['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(activeTemplate);
+  // Put daily operations before configuration and detailed reporting.
+  const serviceBusinessTabs = [
+    'overview',
+    'calendar',
+    'messages',
+    'clients',
+    'invoices',
+    'workflow',
+    'profile',
+    'media',
+    ...contentTabIds,
+    'products',
+    ...(isPropertyManagerTpl ? ['property-ops'] : []),
+    ...(isTradesOpsTemplate ? ['trades-ops'] : []),
+    ...(isBeautyOpsTemplate ? ['beauty-ops'] : []),
+    ...(isCreativeOpsTemplate ? ['creative-ops'] : []),
+    ...(isProfessionalOpsTemplate ? ['professional-ops'] : []),
+    ...(isContinuityOpsTemplate ? ['continuity-ops'] : []),
+    ...(isPropertyManagerTpl ? ['maintenance'] : []),
+    'analytics', 'tax', 'goals',
+    'service-pricing',
+    'product-pricing',
+    'loyalty',
+    'team',
+    'hiring',
+    'integrations',
+    'expenses',
+    'quotes',
+    'recurring',
+    'staff',
+    'reviews-mgmt',
+    'marketing',
+    'packages',
+    'health',
+    'leads',
+    'msg-templates',
+  ];
+  // Restaurants have a purpose-built operational workspace for orders, menu,
+  // credit, store settings, and displays. Business Hub retains only the shared
+  // business capabilities so restaurant owners do not have to decipher service
+  // concepts such as appointments, service packages, or client invoicing.
+  // S-04: restaurants get the Staff tab (schedules, time clock, time off)
+  // without launching it for every service business.
+  const candidateTabs = isRestaurantBusiness
+    ? ['messages', 'team', 'staff', 'hiring']
+    : serviceBusinessTabs;
+  const visibleTabs = candidateTabs
+    .filter((tb) => isBusinessHubTabLaunched(tb) || (isRestaurantBusiness && tb === 'staff'))
+    .filter((tb) => {
+      if (tb === 'workflow' && !canEditBizProfile) return false;
+      if (['profile', 'clients', 'media'].includes(tb) && !canEditBizProfile) return false;
+      if (contentTabIds.includes(tb) && !canEditBizProfile) return false;
+      if (['booking-services','appointments','products','service-pricing','product-pricing'].includes(tb) && !canEditBizProfile) return false;
+      if (tb === 'messages' && !canAccessMessages) return false;
+      if (tb === 'calendar' && !canAccessCalendar) return false;
+      if (tb === 'analytics' && !hasPermission('analytics.view_financial')) return false;
+      if (tb === 'invoices' && !hasPermission('invoices.view')) return false;
+      if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
+      if (tb === 'loyalty' && !canEditBizProfile) return false;
+      if (tb === 'hiring' && !canEditBizProfile) return false;
+      if (tb === 'integrations' && currentRole !== 'owner') return false;
+      if (['property-ops','trades-ops','beauty-ops','creative-ops','professional-ops','continuity-ops','expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
+      return true;
+    });
+
+  const aliasedTab = tabAliases[requestedTab] ?? requestedTab;
+  const tab = !currentBiz || loadingBiz
+    ? requestedTab
+    : (visibleTabs.includes(aliasedTab) ? aliasedTab : visibleTabs[0] ?? 'team');
+  // Settle the permitted section before child panels render or start requests.
+  if (tab !== requestedTab) setTab(tab);
 
   // modal state
   const [modal, setModal]     = useState(null); // 'add-biz' | 'add-inv' | 'edit-inv' | 'pay-inv' | 'add-goal' | 'edit-goal' | 'pay-tax'
@@ -1358,24 +1466,6 @@ function BusinessHubInner() {
     }
   }
 
-  const currentBiz  = businesses.find(b => String(b.id) === String(bizId));
-  const workspaceMissing = Boolean(
-    routeBusinessId
-    && !loadingBiz
-    && !businesses.some((b) => String(b.id) === routeBusinessId)
-  );
-  const currentRole = currentBiz?._role || 'owner';
-  const hasPermission = code => currentRole === 'owner' || currentBiz?.permissions?.includes(code) === true;
-  const canEditBizProfile = ['owner', 'manager'].includes(currentRole) && hasPermission('business.edit_profile');
-  const canAccessMessages = hasPermission('business.view') && (hasPermission('messages.view_all') || hasPermission('messages.view_assigned'));
-  const canAccessCalendar = hasPermission('business.view') && (hasPermission('calendar.view_all') || hasPermission('calendar.view_self'));
-  // Review P2-3-F05: the server finance gate (canManageBusinessFinance)
-  // allows only owner/manager, so the tabs must match. Showing them to
-  // employee/support_agent only produced 404s.
-  const canViewFinanceHub = currentRole === 'owner' || currentRole === 'manager';
-  const isRestaurantBusiness = currentBiz?.business_kind === 'restaurant'
-    || (!currentBiz?.business_kind && currentBiz?.business_mode === 'food');
-
   async function handlePublishCurrentBusiness() {
     if (!currentBiz?.id) return;
     setSaving(true);
@@ -1394,140 +1484,6 @@ function BusinessHubInner() {
       setSaving(false);
     }
   }
-
-  const financeTabIds = ['analytics', 'invoices', 'tax', 'goals'];
-  const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'skills', 'ai'];
-  const tabAliases = {
-    hours: 'calendar',
-    appointments: 'calendar',
-    waitlist: 'calendar',
-    'booking-services': 'services',
-  };
-  // Maintenance is only part of the default tab set when this business has
-  // selected the Property Manager template. For every other template the tab
-  // would be confusing dead UI - it lives there only because of that template.
-  const activeTemplate = currentBiz?.active_template || 'default';
-  const isPropertyManagerTpl = activeTemplate === 'property_manager';
-  const isTradesOpsTemplate = ['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate);
-  const isBeautyOpsTemplate = ['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(activeTemplate);
-  const isCreativeOpsTemplate = ['photographer', 'creative_studio', 'graphic_design'].includes(activeTemplate);
-  const isProfessionalOpsTemplate = ['accountant', 'consulting_coaching', 'legal_admin'].includes(activeTemplate);
-  const isContinuityOpsTemplate = ['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(activeTemplate);
-  // Put daily operations before configuration and detailed reporting.
-  const serviceBusinessTabs = [
-    'overview',
-    'calendar',
-    'messages',
-    'clients',
-    'invoices',
-    'workflow',
-    'profile',
-    'media',
-    ...contentTabIds,
-    'products',
-    ...(isPropertyManagerTpl ? ['property-ops'] : []),
-    ...(isTradesOpsTemplate ? ['trades-ops'] : []),
-    ...(isBeautyOpsTemplate ? ['beauty-ops'] : []),
-    ...(isCreativeOpsTemplate ? ['creative-ops'] : []),
-    ...(isProfessionalOpsTemplate ? ['professional-ops'] : []),
-    ...(isContinuityOpsTemplate ? ['continuity-ops'] : []),
-    ...(isPropertyManagerTpl ? ['maintenance'] : []),
-    'analytics', 'tax', 'goals',
-    'service-pricing',
-    'product-pricing',
-    'loyalty',
-    'team',
-    'hiring',
-    'integrations',
-    'expenses',
-    'quotes',
-    'recurring',
-    'staff',
-    'reviews-mgmt',
-    'marketing',
-    'packages',
-    'health',
-    'leads',
-    'msg-templates',
-  ];
-  // Restaurants have a purpose-built operational workspace for orders, menu,
-  // credit, store settings, and displays. Business Hub retains only the shared
-  // business capabilities so restaurant owners do not have to decipher service
-  // concepts such as appointments, service packages, or client invoicing.
-  // S-04: restaurants get the Staff tab (schedules, time clock, time off)
-  // without launching it for every service business.
-  const candidateTabs = isRestaurantBusiness
-    ? ['messages', 'team', 'staff', 'hiring']
-    : serviceBusinessTabs;
-  const visibleTabs = candidateTabs
-    .filter((tb) => isBusinessHubTabLaunched(tb) || (isRestaurantBusiness && tb === 'staff'))
-    .filter((tb) => {
-    if (tb === 'workflow' && !canEditBizProfile) return false;
-    if (tb === 'profile' && !canEditBizProfile) return false;
-    if (tb === 'clients' && !canEditBizProfile) return false;
-    if (contentTabIds.includes(tb) && !canEditBizProfile) return false;
-    if (['booking-services','appointments','products','service-pricing','product-pricing'].includes(tb) && !canEditBizProfile) return false;
-    if (tb === 'messages' && !canAccessMessages) return false;
-    if (tb === 'calendar' && !canAccessCalendar) return false;
-    if (tb === 'analytics' && !hasPermission('analytics.view_financial')) return false;
-    if (tb === 'invoices' && !hasPermission('invoices.view')) return false;
-    if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
-    if (tb === 'loyalty' && !canEditBizProfile) return false;
-    if (tb === 'hiring' && !canEditBizProfile) return false;
-    if (tb === 'integrations' && currentRole !== 'owner') return false;
-    if (['property-ops','trades-ops','beauty-ops','creative-ops','professional-ops','continuity-ops','expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
-    return true;
-  });
-
-  useEffect(() => {
-    const aliasedTab = tabAliases[tab];
-    if (aliasedTab && aliasedTab !== tab) {
-      setTab(aliasedTab);
-      return;
-    }
-    if (!isBusinessHubTabLaunched(tab) && !(isRestaurantBusiness && tab === 'staff')) {
-      setTab(canViewFinanceHub ? 'overview' : 'team');
-      return;
-    }
-    if (currentBiz && !visibleTabs.includes(tab)) {
-      setTab(visibleTabs.includes('overview') ? 'overview' : (visibleTabs[0] || 'team'));
-      return;
-    }
-    if (tab === 'workflow' && !canEditBizProfile) {
-      setTab(canViewFinanceHub ? 'overview' : 'team');
-      return;
-    }
-    if ((tab === 'profile' || contentTabIds.includes(tab)) && !canEditBizProfile) {
-      setTab(canViewFinanceHub ? 'overview' : 'team');
-    }
-    if (tab === 'property-ops' && !canEditBizProfile) {
-      setTab(canViewFinanceHub ? 'overview' : 'team');
-    }
-    if (tab === 'trades-ops' && !canEditBizProfile) {
-      setTab(canViewFinanceHub ? 'overview' : 'team');
-    }
-    if (tab === 'beauty-ops' && !canEditBizProfile) {
-      setTab(canViewFinanceHub ? 'overview' : 'team');
-    }
-    if (tab === 'creative-ops' && !canEditBizProfile) {
-      setTab(canViewFinanceHub ? 'overview' : 'team');
-    }
-    if (tab === 'professional-ops' && !canEditBizProfile) {
-      setTab(canViewFinanceHub ? 'overview' : 'team');
-    }
-    if (tab === 'continuity-ops' && !canEditBizProfile) {
-      setTab(canViewFinanceHub ? 'overview' : 'team');
-    }
-    if (tab === 'ai' && !canEditBizProfile) {
-      setTab(canViewFinanceHub ? 'overview' : 'team');
-    }
-    if (tab === 'hiring' && !canEditBizProfile) {
-      setTab(canViewFinanceHub ? 'overview' : 'team');
-    }
-    if (financeTabIds.includes(tab) && !canViewFinanceHub) {
-      setTab('team');
-    }
-  }, [bizId, canEditBizProfile, canViewFinanceHub, isRestaurantBusiness, tab]);
 
   // tab label resolver
   const tabLabel = (tb) => {
@@ -1745,22 +1701,30 @@ function BusinessHubInner() {
                     </>
                   ) : (
                     <>
-                      <button className="bh-mode-action primary" type="button" onClick={() => setTab('services')} data-track="ui.83b215c0c9.8">
-                        <strong>{t('businessHub.serviceList', { defaultValue: 'Services' })}</strong>
-                        <span>{t('businessHub.serviceListHint', { defaultValue: 'What customers can book' })}</span>
-                      </button>
-                      <button className="bh-mode-action" type="button" onClick={() => setTab('clients')} data-track="ui.83b215c0c9.9">
-                        <strong>{t('businessHub.serviceClients', { defaultValue: 'Clients' })}</strong>
-                        <span>{t('businessHub.serviceClientsHint', { defaultValue: 'Relationships and follow-up' })}</span>
-                      </button>
-                      <button className="bh-mode-action" type="button" onClick={() => setTab('calendar')} data-track="ui.83b215c0c9.10">
-                        <strong>{t('businessHub.serviceSchedule', { defaultValue: 'Schedule' })}</strong>
-                        <span>{t('businessHub.serviceScheduleHint', { defaultValue: 'Availability and appointments' })}</span>
-                      </button>
-                      <button className="bh-mode-action" type="button" onClick={() => setTab('messages')} data-track="ui.83b215c0c9.11">
-                        <strong>{t('businessHub.serviceMessages', { defaultValue: 'Messages' })}</strong>
-                        <span>{t('businessHub.serviceMessagesHint', { defaultValue: 'Customer conversations' })}</span>
-                      </button>
+                      {visibleTabs.includes('services') && (
+                        <button className="bh-mode-action primary" type="button" onClick={() => setTab('services')} data-track="ui.83b215c0c9.8">
+                          <strong>{t('businessHub.serviceList', { defaultValue: 'Services' })}</strong>
+                          <span>{t('businessHub.serviceListHint', { defaultValue: 'What customers can book' })}</span>
+                        </button>
+                      )}
+                      {visibleTabs.includes('clients') && (
+                        <button className="bh-mode-action" type="button" onClick={() => setTab('clients')} data-track="ui.83b215c0c9.9">
+                          <strong>{t('businessHub.serviceClients', { defaultValue: 'Clients' })}</strong>
+                          <span>{t('businessHub.serviceClientsHint', { defaultValue: 'Relationships and follow-up' })}</span>
+                        </button>
+                      )}
+                      {visibleTabs.includes('calendar') && (
+                        <button className="bh-mode-action" type="button" onClick={() => setTab('calendar')} data-track="ui.83b215c0c9.10">
+                          <strong>{t('businessHub.serviceSchedule', { defaultValue: 'Schedule' })}</strong>
+                          <span>{t('businessHub.serviceScheduleHint', { defaultValue: 'Availability and appointments' })}</span>
+                        </button>
+                      )}
+                      {visibleTabs.includes('messages') && (
+                        <button className="bh-mode-action" type="button" onClick={() => setTab('messages')} data-track="ui.83b215c0c9.11">
+                          <strong>{t('businessHub.serviceMessages', { defaultValue: 'Messages' })}</strong>
+                          <span>{t('businessHub.serviceMessagesHint', { defaultValue: 'Customer conversations' })}</span>
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
@@ -1771,22 +1735,24 @@ function BusinessHubInner() {
                 legacy tab strip and switches the same `tab` state. */}
             {bizId && LAUNCH_VISIBILITY.businessHubRoleMenu ? (
               <RoleMenu
+                key={bizId}
                 businessId={bizId}
                 activeTab={tab}
+                availableTabs={visibleTabs}
                 onSelectTab={(tb) => setTab(tb)}
               />
             ) : null}
 
             {/* Tabs */}
-            <div className="bh-tabs">
+            <div className="bh-tabs" role="group" aria-label={t('businessHub.menu.aria')}>
               {visibleTabs.map(tb => (
-                <button key={tb} className={`bh-tab${tab === tb ? ' active' : ''}`} onClick={() => setTab(tb)} data-track="ui.83b215c0c9.12">
+                <button key={tb} type="button" aria-pressed={tab === tb} className={`bh-tab${tab === tb ? ' active' : ''}`} onClick={() => setTab(tb)} data-track="ui.83b215c0c9.12">
                   {tabLabel(tb)}
                 </button>
               ))}
             </div>
 
-            <Suspense fallback={<p className="bh-loading">{t('businessHub.rooms.loadingWorkspace')}</p>}>
+            <Suspense fallback={<p className="bh-loading" role="status">{t('businessHub.rooms.loadingWorkspace')}</p>}>
 
             {/* ── Profile tab ──────────────────────────────────────── */}
             {tab === 'profile' && (
