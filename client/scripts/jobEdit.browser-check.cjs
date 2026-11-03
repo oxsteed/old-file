@@ -67,12 +67,20 @@ test('job edit: changed-fields patch, conflict recovery, field errors, and RTL',
 
     // 3. Server field codes are localized on the matching inputs.
     await configure({patchError:{status:422,data:{code:'validation_failed',fields:{location_city:'required',budget_max_cents:'budget_order'}}}});
+    // Wait for the new edit page's prefill: the previous edit page's Notes field
+    // is still visible during the navigate, and filling it before the remount
+    // would be wiped, leaving Save disabled (flaky CI failure at this click).
+    await page.waitForFunction(()=>document.querySelector('[id$="-title"]')?.value==='Kitchen sink repair today');
     await page.getByLabel('Notes for helpers',{exact:true}).fill('Dog is friendly');await page.getByRole('button',{name:'Save changes'}).click();
     await page.getByText('This field is required.').waitFor();
     assert.equal(await page.getByLabel('City *',{exact:true}).getAttribute('aria-invalid'),'true');
 
     // 4. Client-side validation blocks a too-short title without a request.
-    await configure({});const before=await page.evaluate(()=>window.calls.length);
+    await configure({});
+    // Same remount synchronization as step 3: wait for the new page's prefill
+    // before filling, or the fill can land on the previous edit page and be lost.
+    await page.waitForFunction(()=>document.querySelector('[id$="-title"]')?.value==='Kitchen sink repair today');
+    const before=await page.evaluate(()=>window.calls.length);
     await page.getByLabel('Title *',{exact:true}).fill('short');await page.getByRole('button',{name:'Save changes'}).click();
     await page.getByText('This is too short.').waitFor();
     assert.equal(await page.evaluate(b=>window.calls.slice(b).filter(c=>c.method==='patch').length,before),0);
