@@ -36162,7 +36162,10 @@
     "resultId": "Id:",
     "resultUser": "Usuario:",
     "resultStatus": "Estado:",
-    "resultPaymentMethod": "Método de pago:"
+    "resultPaymentMethod": "Método de pago:",
+    "stepupPrompt": "Escribe el código de verificación de tu aplicación de autenticación para confirmar esta cancelación.",
+    "stepupRequired": "Se requiere un código de verificación para cancelar una suscripción.",
+    "stepupFailed": "No se pudo iniciar la verificación de esta cancelación."
   },
   "statementOps": {
     "title": "Operaciones de estados de cuenta",

@@ -226,7 +226,10 @@ function registerMoneyMovementExecutors() {
   // ── support_resolution_refund: admin approval of a restaurant support
   // resolution with a money amount. The apply step only stamps the
   // approval (resolution_offered); the customer accept path moves the
-  // money, so the executor is idempotent by case state.
+  // money. Nov 3 audit item 3: applyAdminApprovedResolution is
+  // idempotent by case state (same-terms replay returns the existing
+  // offer, terminal cases and differing terms are refused), so a
+  // second queued action for the same case cannot overwrite offer 1.
   registerMoneyMovementExecutor('support_resolution_refund', async ({ payload, client }) => {
     const { applyAdminApprovedResolution } = require('../controllers/restaurantSupportController');
     const updated = await applyAdminApprovedResolution(client, {

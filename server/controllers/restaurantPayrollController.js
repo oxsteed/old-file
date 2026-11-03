@@ -411,7 +411,21 @@ async function getPayRunWithLines(clientOrPool, restaurantId, payRunId) {
       WHERE l.pay_run_id = $1 ORDER BY l.id`,
     [payRunId]
   ).catch(() => ({ rows: [] }));
-  const linkedPayoutCents = payoutLinks.reduce((sum, link) => sum + Number(link.amount_cents || 0), 0);
+  // Nov 3 audit items 1-2: the linked total counts only links in the
+  // restaurant's currency. A legacy cross-currency link must never push
+  // a run to paid on a mixed-currency sum.
+  let runCurrency = null;
+  try {
+    const { rows: [restaurantRow] } = await clientOrPool.query(
+      'SELECT currency_code FROM food_restaurants WHERE id = $1',
+      [restaurantId]
+    );
+    if (restaurantRow?.currency_code) runCurrency = String(restaurantRow.currency_code).toUpperCase();
+  } catch { /* unknown currency: fall back to the unfiltered sum below */ }
+  const linkedPayoutCents = payoutLinks.reduce((sum, link) => {
+    if (runCurrency && link.currency_code && String(link.currency_code).toUpperCase() !== runCurrency) return sum;
+    return sum + Number(link.amount_cents || 0);
+  }, 0);
   return { ...run, lines, payout_links: payoutLinks, linked_payout_cents: linkedPayoutCents };
 }
 
@@ -736,7 +750,11 @@ exports.exportPayRunCsv = async (req, res, next) => {
 // Finding 25: record actual payout linkage for a finalized run. Only a
 // COMPLETED restaurant payout belonging to the same restaurant can be
 // linked, and only up to the run's unpaid remainder, so linkage can never
-// claim more than the run owes. When linked payouts cover the run's
+// claim more than the run owes. Nov 3 audit items 1-2: the link is also
+// capped by the payout's unattributed remainder across all pay runs, and
+// a payout in another currency than the run is rejected, so one payout
+// cannot mark two runs paid and a mixed-currency sum cannot flip a run
+// to paid. When linked payouts cover the run's
 // total pay, the run moves to 'paid': finalized alone never again reads
 // as paid. Link rows are append-only; the payout itself is untouched.
 exports.linkPayRunPayout = async (req, res, next) => {
@@ -768,18 +786,47 @@ exports.linkPayRunPayout = async (req, res, next) => {
       if (payout.status !== 'completed') {
         throw new AppError('Only completed payouts can be linked to a pay run', 409, 'pay_run_payout_not_completed');
       }
+      // Nov 3 audit items 1-2: the run's currency is the restaurant's
+      // currency. A payout in another currency can never fund this run,
+      // and a mixed-currency sum must never flip it to paid.
+      const runCurrency = (restaurant.currency_code || 'USD').toUpperCase();
+      const payoutCurrency = (payout.currency_code || runCurrency).toUpperCase();
+      if (payoutCurrency !== runCurrency) {
+        throw new AppError('This payout is in a different currency from the pay run', 409, 'pay_run_payout_currency_mismatch');
+      }
       const totals = existing.totals && typeof existing.totals === 'object' ? existing.totals : {};
       const totalPayCents = Math.round(Number(totals.total_pay_cents || 0));
       const { rows: [linkedRow] } = await client.query(
-        'SELECT COALESCE(SUM(amount_cents), 0)::int AS linked FROM restaurant_pay_run_payout_links WHERE pay_run_id = $1',
-        [payRunId]
+        `SELECT COALESCE(SUM(amount_cents), 0)::int AS linked FROM restaurant_pay_run_payout_links
+          WHERE pay_run_id = $1 AND currency_code = $2`,
+        [payRunId, runCurrency]
       );
       const alreadyLinked = Number(linkedRow?.linked || 0);
       const remaining = totalPayCents - alreadyLinked;
       if (remaining <= 0) {
         throw new AppError('This pay run is already fully linked', 409, 'pay_run_already_linked');
       }
-      const linkAmount = Math.min(Number(payout.amount_cents || 0), remaining);
+      // Item 1: cap the link by what this payout still has unattributed
+      // across ALL pay runs, not just this one, so one completed payout
+      // cannot mark two runs paid. The same payout linked twice to this
+      // run is a duplicate, not a second attribution.
+      const { rows: [sameRunLink] } = await client.query(
+        'SELECT id FROM restaurant_pay_run_payout_links WHERE pay_run_id = $1 AND restaurant_payout_id = $2',
+        [payRunId, payoutId]
+      );
+      if (sameRunLink) {
+        throw new AppError('This payout is already linked to this pay run', 409, 'pay_run_payout_already_linked');
+      }
+      const { rows: [elsewhereRow] } = await client.query(
+        `SELECT COALESCE(SUM(amount_cents), 0)::int AS linked FROM restaurant_pay_run_payout_links
+          WHERE restaurant_payout_id = $1 AND currency_code = $2`,
+        [payoutId, payoutCurrency]
+      );
+      const payoutAvailable = Number(payout.amount_cents || 0) - Number(elsewhereRow?.linked || 0);
+      if (payoutAvailable <= 0) {
+        throw new AppError('This payout is already fully attributed to other pay runs', 409, 'pay_run_payout_already_linked');
+      }
+      const linkAmount = Math.min(Number(payout.amount_cents || 0), remaining, payoutAvailable);
       if (linkAmount <= 0) {
         throw new AppError('This payout has no linkable amount for this pay run', 409, 'pay_run_payout_empty');
       }

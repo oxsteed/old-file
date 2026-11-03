@@ -267,6 +267,7 @@ router.post('/super/chargebacks/:id/submit', requireSuperAdmin, async (req, res,
     res.json({ chargeback: row });
   } catch (err) { next(err); }
 });
+router.post('/super/subscriptions/stepup-challenges', requireSuperAdmin, strictLimiter, require('../controllers/subscriptionController').issueAdminCancelStepupChallenge);
 router.post('/super/subscriptions/:id/cancel', requireSuperAdmin, require('../controllers/subscriptionController').adminCancelSubscription);
 router.get('/super/revenue-chart',      requireSuperAdmin, superCtrl.getRevenueChart);
 router.get('/super/dashboard/activity', requireSuperAdmin, superCtrl.getDashboardActivity);
