@@ -31,7 +31,13 @@ const routes = `window.routes=[
     {id:'3',occurred_at:'2026-10-02T10:00:00Z',source:'support',event_type:'support_ticket.waiting_user',actor_type:'system',actor_id:null,entity_type:'support_ticket',entity_id:'T-1',changes:{status:{from:'open',to:'waiting_user'}}},
     {id:'2',occurred_at:'2026-10-01T10:00:00Z',source:'admin_audit',event_type:'admin.user_role_changed',actor_type:'admin',actor_id:'${viewerId}',entity_type:'admin_action',entity_id:'44',changes:{role:{from:'customer',to:'helper'},email:{changed:true,redacted:true}}}
   ],nextBefore:'2',sources:['login','support','admin_audit'],backfill:[{source:'payment',completed:false}]}],
-];`;
+  ['get',/\\/workspace\\/health$/,()=>window.healthFixture],
+  ['post',/\\/workspace\\/health\\/recompute$/,()=>({...window.healthFixture,computedAt:new Date().toISOString()})],
+];
+window.healthFixture={advisory:true,modelVersion:'c360-health-v1',computedAt:'2026-11-03T10:00:00Z',
+  churn:{state:'ready',score:83,band:'high',factors:[{key:'inactivity',value:120,level:1,weight:45,contribution:45},{key:'activityDrop',value:0,previous:4,level:1,weight:35,contribution:35},{key:'newAccount',value:400,level:0,weight:20,contribution:0}]},
+  payment:{state:'restricted'},
+  support:{state:'ready',score:40,band:'medium',factors:[{key:'openTickets',value:3,level:1,weight:40,contribution:40},{key:'recentTickets',value:3,level:0.5,weight:30,contribution:0},{key:'slaBreaches',value:0,level:0,weight:30,contribution:0}]}};`;
 async function bundle() {
   const mocks = {
     "react-i18next": `export const useTranslation=()=>({i18n:{language:window.lang,resolvedLanguage:window.lang},t:(key,o={})=>{let v=key.startsWith('customerWorkspace.')?key.slice(18).split('.').reduce((a,k)=>a?.[k],window.catalogs[window.lang]):null;return String(v||o.defaultValue||key).replace(/\\{\\{(\\w+)\\}\\}/g,(_,k)=>o[k]??'');}});`,
@@ -124,7 +130,17 @@ test("customer 360 upgrade panels work and lay out in five languages", async () 
     await events.getByLabel(copy.en.events.source).selectOption("support");
     await page.waitForFunction(() => window.calls.some((c) => c.url.endsWith("/events") && c.params?.sources === "support"));
 
-    const panels = [["events", '[data-panel="events"]']];
+    // Upgrade 2: advisory scores, explained factors, restricted payment score.
+    await page.getByRole("button", { name: copy.en.areas.health, exact: true }).click();
+    const hp = page.locator('[data-panel="health"]');
+    await hp.getByText(copy.en.health.advisory).waitFor();
+    await hp.locator('[data-score="payment"]').getByText(copy.en.health.restricted).waitFor();
+    await hp.locator('[data-score="churn"]').getByText(copy.en.health.factors.inactivity.label).waitFor();
+    assert.match(await hp.locator('[data-score="churn"]').innerText(), /83/);
+    await hp.getByRole("button", { name: copy.en.health.recompute }).click();
+    await page.waitForFunction(() => window.calls.some((c) => c.method === "post" && c.url.endsWith("/health/recompute")));
+
+    const panels = [["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
     for (const lang of LANGS)
       for (const dark of [false, true])
         for (const width of [320, 1360]) {

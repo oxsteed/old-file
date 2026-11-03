@@ -7,6 +7,7 @@
  */
 const logger = require("../utils/logger");
 const events = require("../services/customer360Events");
+const health = require("../services/customer360Health");
 
 const TASKS = [];
 function registerTask(name, everyMs, run) {
@@ -26,6 +27,10 @@ registerTask("events-backfill", 30_000, async () => {
     if (!result.done) return; // one batch per tick keeps load bounded
   }
 });
+
+// Upgrade 2: rescore customers with new events, then age out stale scores.
+registerTask("health-events", 60_000, () => health.refreshFromEvents());
+registerTask("health-stale", 600_000, () => health.refreshStale());
 
 async function tick(now = Date.now()) {
   for (const task of TASKS) {

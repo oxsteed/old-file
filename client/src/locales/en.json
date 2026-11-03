@@ -421,7 +421,8 @@
       "exports": "Reports and exports",
       "experience": "Experience and engagement",
       "quality": "Source quality and freshness",
-      "events": "Change history"
+      "events": "Change history",
+      "health": "Health and risk"
     },
     "sources": {
       "jobs": "Jobs",
@@ -892,6 +893,68 @@
         "support_ticket": "Support ticket {{action}}",
         "food_order": "Food order {{action}}",
         "task": "Case task {{action}}"
+      }
+    },
+    "health": {
+      "title": "Account health and risk",
+      "advisory": "Advisory only. These scores explain patterns in the account and never change it. Use existing procedures for any action.",
+      "computed": "Calculated {{time}} · model {{model}}",
+      "restricted": "You do not have access to the data behind this score.",
+      "factorsCaption": "Factors behind the score",
+      "factor": "Factor",
+      "value": "Value",
+      "points": "Points",
+      "never": "Never",
+      "contribution": "{{points}} of {{weight}}",
+      "activityValue": "{{recent}} in the last 30 days, {{previous}} in the 60 days before",
+      "recompute": "Recalculate now",
+      "scores": {
+        "churn": "Churn risk",
+        "payment": "Payment risk",
+        "support": "Support load"
+      },
+      "bands": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "factors": {
+        "inactivity": {
+          "label": "Days since last sign-in",
+          "explain": "No points up to 14 days; full points at 90 days or if never signed in."
+        },
+        "activityDrop": {
+          "label": "Drop in activity",
+          "explain": "Payments and food orders in the last 30 days compared with the 60 days before."
+        },
+        "newAccount": {
+          "label": "Account age in days",
+          "explain": "Accounts younger than 30 days get full points."
+        },
+        "failedPayments": {
+          "label": "Failed payments and payouts (90 days)",
+          "explain": "Full points at 3 or more failures."
+        },
+        "refunds": {
+          "label": "Refunds (90 days)",
+          "explain": "Full points at 4 or more refunds."
+        },
+        "openDisputes": {
+          "label": "Open OxSteed Credit disputes",
+          "explain": "Any open dispute gives full points."
+        },
+        "openTickets": {
+          "label": "Open support tickets",
+          "explain": "Full points at 3 or more open tickets."
+        },
+        "recentTickets": {
+          "label": "Support tickets (90 days)",
+          "explain": "Full points at 6 or more tickets."
+        },
+        "slaBreaches": {
+          "label": "Missed support deadlines (90 days)",
+          "explain": "Full points at 2 or more missed deadlines."
+        }
       }
     }
   },

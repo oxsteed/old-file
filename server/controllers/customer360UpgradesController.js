@@ -73,3 +73,23 @@ exports.verifyEvents = handle(async (req, res) => {
 module.exports.audit = audit;
 module.exports.handle = handle;
 
+// ── Upgrade 2: advisory health and risk scores ─────────────────────────────
+const health = require("../services/customer360Health");
+async function healthVisibility(req) {
+  const can = workspace.access(req);
+  return { payments: await can(workspace.sources.payments), support: await can(workspace.sources.tickets) };
+}
+exports.health = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const visible = await healthVisibility(req);
+  const row = await health.current(user.id);
+  await audit(req, "customer360_health_read", { description: JSON.stringify({ modelVersion: row.model_version, ...visible }) });
+  res.json(health.present(row, visible));
+});
+exports.recomputeHealth = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const visible = await healthVisibility(req);
+  const row = await health.recompute(user.id);
+  await audit(req, "customer360_health_recompute", { after: { modelVersion: row.model_version, churnBand: row.churn_band } });
+  res.json(health.present(row, visible));
+});

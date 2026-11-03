@@ -421,7 +421,8 @@
       "exports": "Rapò ak ekspòtasyon",
       "experience": "Eksperyans ak angajman",
       "quality": "Kalite ak done sous aktyèl",
-      "events": "Istwa chanjman"
+      "events": "Istwa chanjman",
+      "health": "Sante ak risk"
     },
     "sources": {
       "jobs": "Travay",
@@ -892,6 +893,68 @@
         "support_ticket": "Tikè sipò {{action}}",
         "food_order": "Kòmand manje {{action}}",
         "task": "Travay dosye {{action}}"
+      }
+    },
+    "health": {
+      "title": "Sante ak risk kont lan",
+      "advisory": "Se sèlman pou konsèy. Nòt sa yo eksplike tandans nan kont lan, yo pa janm chanje l. Sèvi ak pwosedi ki egziste yo pou nenpòt aksyon.",
+      "computed": "Kalkile {{time}} · modèl {{model}}",
+      "restricted": "Ou pa gen aksè ak done ki dèyè nòt sa a.",
+      "factorsCaption": "Faktè ki fè nòt la",
+      "factor": "Faktè",
+      "value": "Valè",
+      "points": "Pwen",
+      "never": "Janm",
+      "contribution": "{{points}} sou {{weight}}",
+      "activityValue": "{{recent}} nan 30 dènye jou yo, {{previous}} nan 60 jou anvan yo",
+      "recompute": "Rekalkile kounye a",
+      "scores": {
+        "churn": "Risk pou kite",
+        "payment": "Risk peman",
+        "support": "Chaj sipò"
+      },
+      "bands": {
+        "low": "Ba",
+        "medium": "Mwayen",
+        "high": "Wo"
+      },
+      "factors": {
+        "inactivity": {
+          "label": "Jou depi dènye koneksyon",
+          "explain": "Pa gen pwen jiska 14 jou; tout pwen yo nan 90 jou oswa si moun nan pa janm konekte."
+        },
+        "activityDrop": {
+          "label": "Bès nan aktivite",
+          "explain": "Peman ak kòmand manje nan 30 dènye jou yo konpare ak 60 jou anvan yo."
+        },
+        "newAccount": {
+          "label": "Laj kont lan an jou",
+          "explain": "Kont ki gen mwens pase 30 jou resevwa tout pwen yo."
+        },
+        "failedPayments": {
+          "label": "Peman ak retrè ki echwe (90 jou)",
+          "explain": "Tout pwen yo apati 3 echèk."
+        },
+        "refunds": {
+          "label": "Ranbousman (90 jou)",
+          "explain": "Tout pwen yo apati 4 ranbousman."
+        },
+        "openDisputes": {
+          "label": "Diskisyon OxSteed Credit ki louvri",
+          "explain": "Nenpòt diskisyon ki louvri bay tout pwen yo."
+        },
+        "openTickets": {
+          "label": "Tikè sipò ki louvri",
+          "explain": "Tout pwen yo apati 3 tikè ki louvri."
+        },
+        "recentTickets": {
+          "label": "Tikè sipò (90 jou)",
+          "explain": "Tout pwen yo apati 6 tikè."
+        },
+        "slaBreaches": {
+          "label": "Dèlè sipò ki rate (90 jou)",
+          "explain": "Tout pwen yo apati 2 dèlè ki rate."
+        }
       }
     }
   },

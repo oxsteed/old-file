@@ -421,7 +421,8 @@
       "exports": "Informes y exportaciones",
       "experience": "Experiencia y actividad",
       "quality": "Calidad y actualidad de fuentes",
-      "events": "Historial de cambios"
+      "events": "Historial de cambios",
+      "health": "Salud y riesgo"
     },
     "sources": {
       "jobs": "Trabajos",
@@ -892,6 +893,68 @@
         "support_ticket": "Ticket de soporte {{action}}",
         "food_order": "Pedido de comida {{action}}",
         "task": "Tarea del caso {{action}}"
+      }
+    },
+    "health": {
+      "title": "Salud y riesgo de la cuenta",
+      "advisory": "Solo orientativo. Estas puntuaciones explican patrones de la cuenta y nunca la modifican. Use los procedimientos existentes para cualquier acción.",
+      "computed": "Calculado {{time}} · modelo {{model}}",
+      "restricted": "No tiene acceso a los datos de esta puntuación.",
+      "factorsCaption": "Factores de la puntuación",
+      "factor": "Factor",
+      "value": "Valor",
+      "points": "Puntos",
+      "never": "Nunca",
+      "contribution": "{{points}} de {{weight}}",
+      "activityValue": "{{recent}} en los últimos 30 días, {{previous}} en los 60 días anteriores",
+      "recompute": "Recalcular ahora",
+      "scores": {
+        "churn": "Riesgo de abandono",
+        "payment": "Riesgo de pago",
+        "support": "Carga de soporte"
+      },
+      "bands": {
+        "low": "Bajo",
+        "medium": "Medio",
+        "high": "Alto"
+      },
+      "factors": {
+        "inactivity": {
+          "label": "Días desde el último inicio de sesión",
+          "explain": "Sin puntos hasta 14 días; puntuación completa a los 90 días o si nunca inició sesión."
+        },
+        "activityDrop": {
+          "label": "Caída de actividad",
+          "explain": "Pagos y pedidos de comida de los últimos 30 días comparados con los 60 días anteriores."
+        },
+        "newAccount": {
+          "label": "Antigüedad de la cuenta en días",
+          "explain": "Las cuentas con menos de 30 días reciben la puntuación completa."
+        },
+        "failedPayments": {
+          "label": "Pagos y retiros fallidos (90 días)",
+          "explain": "Puntuación completa con 3 o más fallos."
+        },
+        "refunds": {
+          "label": "Reembolsos (90 días)",
+          "explain": "Puntuación completa con 4 o más reembolsos."
+        },
+        "openDisputes": {
+          "label": "Disputas abiertas de OxSteed Credit",
+          "explain": "Cualquier disputa abierta da la puntuación completa."
+        },
+        "openTickets": {
+          "label": "Tickets de soporte abiertos",
+          "explain": "Puntuación completa con 3 o más tickets abiertos."
+        },
+        "recentTickets": {
+          "label": "Tickets de soporte (90 días)",
+          "explain": "Puntuación completa con 6 o más tickets."
+        },
+        "slaBreaches": {
+          "label": "Plazos de soporte incumplidos (90 días)",
+          "explain": "Puntuación completa con 2 o más plazos incumplidos."
+        }
       }
     }
   },

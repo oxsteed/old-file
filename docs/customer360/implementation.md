@@ -182,3 +182,30 @@ Background work runs in `server/jobs/customer360Upgrades.js`
 - Tests: `server/__tests__/customer360EventLog.db.test.js` (required in CI by
   `scripts/assert-statement-db-tests.cjs`), `client/scripts/customer360Upgrades.test.mjs`,
   `client/scripts/customer360Upgrades.browser-check.cjs`.
+
+### 2. Transparent account health and risk scores (advisory)
+
+- Migration `20261103120100_customer360_health_scores.sql`:
+  `customer_health_scores` (one row per customer: churn, payment and support
+  scores 0–100, bands, `factors` JSON, `model_version`) and
+  `customer360_event_consumers` (per-consumer high-water marks on
+  `customer_events`).
+- Model `c360-health-v1` (`server/services/customer360Health.js`): each score
+  is a weighted sum (weights sum to 100) of bounded factors —
+  churn: days since sign-in, activity drop (30 days vs. prior 60), new
+  account; payment: failed payments/payouts, refunds, open Credit disputes
+  (90 days); support: open tickets, tickets in 90 days, missed SLA
+  deadlines. Every factor is stored with value, weight, contribution and an
+  explanation key. Bands: <34 low, <67 medium, otherwise high.
+- Advisory only: no code path reads a score to block, limit or move money.
+  A band change is written to the event log as `health.band_changed`
+  (bands only, no detail).
+- `GET …/health` (recomputes when older than 6 hours or on a new model) and
+  `POST …/health/recompute`; both audited. The payment score needs
+  `view_financials`; the support score needs `manage_support`; otherwise it
+  is returned as `restricted`.
+- Refresh: the event consumer rescans customers with new events every
+  minute; scores older than 24 hours are refreshed every 10 minutes.
+- UI: "Health and risk" area (`upgrades/Health.jsx`) with the factor table.
+- Tests: `server/__tests__/customer360Health.db.test.js` plus the shared
+  client unit and browser checks.

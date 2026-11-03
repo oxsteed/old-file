@@ -3,6 +3,7 @@ export const AREAS = [
   "attention",
   "timeline",
   "events",
+  "health",
   "work",
   "finance",
   "credit",

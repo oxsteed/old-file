@@ -421,7 +421,8 @@
       "exports": "Rapports et exports",
       "experience": "Expérience et engagement",
       "quality": "Qualité et fraîcheur des sources",
-      "events": "Historique des modifications"
+      "events": "Historique des modifications",
+      "health": "Santé et risque"
     },
     "sources": {
       "jobs": "Missions",
@@ -892,6 +893,68 @@
         "support_ticket": "Ticket d’assistance {{action}}",
         "food_order": "Commande de repas {{action}}",
         "task": "Tâche de dossier {{action}}"
+      }
+    },
+    "health": {
+      "title": "Santé et risque du compte",
+      "advisory": "À titre indicatif uniquement. Ces scores expliquent des tendances du compte et ne le modifient jamais. Utilisez les procédures existantes pour toute action.",
+      "computed": "Calculé {{time}} · modèle {{model}}",
+      "restricted": "Vous n’avez pas accès aux données de ce score.",
+      "factorsCaption": "Facteurs du score",
+      "factor": "Facteur",
+      "value": "Valeur",
+      "points": "Points",
+      "never": "Jamais",
+      "contribution": "{{points}} sur {{weight}}",
+      "activityValue": "{{recent}} sur les 30 derniers jours, {{previous}} sur les 60 jours précédents",
+      "recompute": "Recalculer maintenant",
+      "scores": {
+        "churn": "Risque d’attrition",
+        "payment": "Risque de paiement",
+        "support": "Charge d’assistance"
+      },
+      "bands": {
+        "low": "Faible",
+        "medium": "Moyen",
+        "high": "Élevé"
+      },
+      "factors": {
+        "inactivity": {
+          "label": "Jours depuis la dernière connexion",
+          "explain": "Aucun point jusqu’à 14 jours ; points complets à 90 jours ou sans aucune connexion."
+        },
+        "activityDrop": {
+          "label": "Baisse d’activité",
+          "explain": "Paiements et commandes de repas des 30 derniers jours comparés aux 60 jours précédents."
+        },
+        "newAccount": {
+          "label": "Ancienneté du compte en jours",
+          "explain": "Les comptes de moins de 30 jours reçoivent tous les points."
+        },
+        "failedPayments": {
+          "label": "Paiements et virements échoués (90 jours)",
+          "explain": "Points complets à partir de 3 échecs."
+        },
+        "refunds": {
+          "label": "Remboursements (90 jours)",
+          "explain": "Points complets à partir de 4 remboursements."
+        },
+        "openDisputes": {
+          "label": "Litiges OxSteed Credit ouverts",
+          "explain": "Tout litige ouvert donne tous les points."
+        },
+        "openTickets": {
+          "label": "Tickets d’assistance ouverts",
+          "explain": "Points complets à partir de 3 tickets ouverts."
+        },
+        "recentTickets": {
+          "label": "Tickets d’assistance (90 jours)",
+          "explain": "Points complets à partir de 6 tickets."
+        },
+        "slaBreaches": {
+          "label": "Délais d’assistance manqués (90 jours)",
+          "explain": "Points complets à partir de 2 délais manqués."
+        }
       }
     }
   },

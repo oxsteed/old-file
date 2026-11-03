@@ -24,7 +24,7 @@ test("event changes render without inventing redacted values", () => {
 
 test("every upgrade area and key exists in all 20 legacy locales with core translations", () => {
   const en = legacy("en").customerWorkspace;
-  const upgradeRoots = ["events"];
+  const upgradeRoots = ["events", "health"];
   const keys = walk(Object.fromEntries(upgradeRoots.map((k) => [k, en[k]])));
   assert.ok(keys.length > 30);
   for (const l of LANGS) {
@@ -35,7 +35,8 @@ test("every upgrade area and key exists in all 20 legacy locales with core trans
   for (const l of CORE.filter((x) => x !== "en")) {
     const cw = legacy(l).customerWorkspace;
     const same = keys.filter((key) => key.split(".").reduce((a, k) => a?.[k], cw) === key.split(".").reduce((a, k) => a?.[k], en));
-    assert.ok(same.length <= 2, `${l} has untranslated upgrade copy: ${same.join(", ")}`);
+    // Cognates ("Points", "Factor") are fine; whole untranslated blocks are not.
+    assert.ok(same.length <= Math.ceil(keys.length * 0.05), `${l} has untranslated upgrade copy: ${same.join(", ")}`);
   }
 });
 
