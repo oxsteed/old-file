@@ -234,7 +234,14 @@ for (const profile of profiles)
         // that reload has committed. A second reload also returns readyState
         // to "loading", so this wait includes it. Do not wait for window load.
         await page.waitForFunction(() => document.readyState !== 'loading');
-        await page.goto(fixture.origin + '/post-job', { waitUntil: 'domcontentloaded' });
+        const postJobUrl = fixture.origin + '/post-job';
+        try {
+          await page.goto(postJobUrl, { waitUntil: 'domcontentloaded' });
+        } catch (error) {
+          if (!/interrupted by another navigation/i.test(String(error))) throw error;
+          await page.waitForURL(fixture.origin + '/');
+          await page.goto(postJobUrl, { waitUntil: 'domcontentloaded' });
+        }
         await title.waitFor();
         await page.waitForTimeout(800);
         await page.waitForFunction(
