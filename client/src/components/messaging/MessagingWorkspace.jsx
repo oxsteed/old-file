@@ -936,7 +936,6 @@ function EmptyMessages({ t }) {
         <div className="messages-empty-actions">
           <Link to="/helpers">{t('messages.empty.findHelper')}</Link>
           <Link to="/post-job">{t('messages.postJob')}</Link>
-          <Link to="/planned-needs">{t('messages.empty.planFutureWork')}</Link>
           <Link to="/support/escalation">{t('messages.contactSupport')}</Link>
         </div>
       </div>

@@ -9,6 +9,11 @@ const { mockQuery, resetMocks } = require('./setup');
 const mockStripe = { subscriptions: { update: jest.fn(), cancel: jest.fn() } };
 jest.mock('stripe', () => () => mockStripe);
 jest.mock('../services/auditService', () => ({ logAdminAction: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../services/stepupChallengeService', () => ({
+  verifyStepupChallenge: jest.fn(),
+  issueStepupChallenge: jest.fn(),
+}));
+const stepupService = require('../services/stepupChallengeService');
 
 const { errorHandler } = require('../middleware/errorHandler');
 const subCtrl = require('../controllers/subscriptionController');
@@ -26,6 +31,13 @@ beforeEach(() => {
   resetMocks();
   mockStripe.subscriptions.update.mockReset();
   mockStripe.subscriptions.cancel.mockReset();
+  stepupService.verifyStepupChallenge.mockReset();
+  stepupService.verifyStepupChallenge.mockResolvedValue({ verified: true });
+  stepupService.issueStepupChallenge.mockReset();
+  stepupService.issueStepupChallenge.mockResolvedValue({
+    challenge: { id: 'challenge-1', actionType: 'subscription_cancel', amountCents: 0, currencyCode: 'USD', expiresAt: new Date().toISOString() },
+    delivery: 'totp',
+  });
 });
 
 test('credit subscription cancels locally without calling Stripe', async () => {
@@ -67,11 +79,64 @@ test('admin cancel ends a credit subscription and audits it', async () => {
     return { rows: [] };
   });
   const res = await request(app(subCtrl.adminCancelSubscription, '/admin/:id/cancel', 'admin1'))
-    .post('/admin/s2/cancel').send({ reason: 'Customer requested by phone' });
+    .post('/admin/s2/cancel').send({ reason: 'Customer requested by phone', stepupChallengeId: 'challenge-1', stepupCode: '123456' });
   expect(res.status).toBe(200);
   expect(res.body.subscription.status).toBe('cancelled');
   expect(mockStripe.subscriptions.cancel).not.toHaveBeenCalled();
   expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ action: 'subscription.cancel', throwOnError: true }));
+});
+
+// Nov 3 audit item 4: admin cancel requires a fresh step-up, and an
+// immediate cancel must not leave cancel_at_period_end TRUE.
+test('admin cancel without a verified step-up is refused before Stripe is touched', async () => {
+  stepupService.verifyStepupChallenge.mockRejectedValue(
+    Object.assign(new Error('A step-up verification code is required for this action'), { status: 403, statusCode: 403, code: 'credit_stepup_challenge_required' })
+  );
+  mockQuery.mockImplementation(async (sql) => {
+    const t = String(sql);
+    if (t.startsWith('SELECT id, user_id, status')) return { rows: [{ id: 's2', user_id: 'u2', status: 'active', payment_method: 'oxsteed_credit', stripe_subscription_id: 'sub_123' }] };
+    return { rows: [] };
+  });
+  const res = await request(app(subCtrl.adminCancelSubscription, '/admin/:id/cancel', 'admin1'))
+    .post('/admin/s2/cancel').send({ reason: 'Customer requested by phone' });
+  expect(res.status).toBe(403);
+  expect(mockStripe.subscriptions.cancel).not.toHaveBeenCalled();
+  expect(stepupService.verifyStepupChallenge).toHaveBeenCalledWith(expect.objectContaining({ actionType: 'subscription_cancel' }));
+});
+
+test('admin cancel sets cancel_at_period_end FALSE on immediate cancel', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    const t = String(sql);
+    if (t.startsWith('SELECT id, user_id, status')) return { rows: [{ id: 's2', user_id: 'u2', status: 'active', payment_method: 'oxsteed_credit', stripe_subscription_id: null }] };
+    if (t.includes("SET status = 'cancelled'")) return { rows: [{ id: 's2', status: 'cancelled' }] };
+    return { rows: [] };
+  });
+  const res = await request(app(subCtrl.adminCancelSubscription, '/admin/:id/cancel', 'admin1'))
+    .post('/admin/s2/cancel').send({ reason: 'Customer requested by phone', stepupChallengeId: 'challenge-1', stepupCode: '123456' });
+  expect(res.status).toBe(200);
+  expect(mockQuery.mock.calls.some(([sql]) => /cancel_at_period_end = FALSE/.test(String(sql)))).toBe(true);
+  expect(mockQuery.mock.calls.some(([sql]) => /cancel_at_period_end = TRUE/.test(String(sql)))).toBe(false);
+});
+
+test('an already-cancelled subscription returns without burning a step-up', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    const t = String(sql);
+    if (t.startsWith('SELECT id, user_id, status')) return { rows: [{ id: 's2', user_id: 'u2', status: 'cancelled', payment_method: 'oxsteed_credit', stripe_subscription_id: null }] };
+    return { rows: [] };
+  });
+  const res = await request(app(subCtrl.adminCancelSubscription, '/admin/:id/cancel', 'admin1'))
+    .post('/admin/s2/cancel').send({ reason: 'Customer requested by phone' });
+  expect(res.status).toBe(200);
+  expect(res.body.alreadyCancelled).toBe(true);
+  expect(stepupService.verifyStepupChallenge).not.toHaveBeenCalled();
+});
+
+test('admin cancel step-up challenge issuance uses the subscription_cancel action', async () => {
+  const res = await request(app(subCtrl.issueAdminCancelStepupChallenge, '/admin/stepup-challenges', 'admin1'))
+    .post('/admin/stepup-challenges').send({});
+  expect(res.status).toBe(201);
+  expect(res.body.challenge.id).toBe('challenge-1');
+  expect(stepupService.issueStepupChallenge).toHaveBeenCalledWith(expect.objectContaining({ actionType: 'subscription_cancel' }));
 });
 
 test('admin cancel requires a reason', async () => {

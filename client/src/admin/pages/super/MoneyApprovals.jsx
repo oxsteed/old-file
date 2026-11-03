@@ -24,6 +24,7 @@ const MOVEMENT_TYPE_LABELS = {
   dispute_refund: 'adminMoneyApprovals.typeDisputeRefund',
   restaurant_payout: 'adminMoneyApprovals.typeRestaurantPayout',
   affiliate_payout: 'adminMoneyApprovals.typeAffiliatePayout',
+  fee_config_change: 'adminMoneyApprovals.typeFeeConfig',
 };
 
 function formatMoney(cents, currency) {
@@ -198,7 +199,9 @@ export default function MoneyApprovals() {
                     <td className="px-4 py-3 text-sm text-gray-300">{approval.movementReason || '—'}</td>
                     <td className="px-4 py-3 font-mono text-xs">{approval.referenceKey}</td>
                     <td className="px-4 py-3 font-semibold text-white">
-                      {formatMoney(approval.amountCents, approval.currencyCode)}
+                      {approval.movementType === 'fee_config_change'
+                        ? '—'
+                        : formatMoney(approval.amountCents, approval.currencyCode)}
                     </td>
                     <td className="px-4 py-3">
                       <span className="font-mono text-xs">{approval.requestedBy}</span>

@@ -2481,7 +2481,10 @@
     "requeued": "{{count}} row(s) requeued.",
     "unknownDate": "Unknown date",
     "notAvailable": "N/A",
-    "parkedTotal": "Parked rows total: {{total}}"
+    "parkedTotal": "Parked rows total: {{total}}",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "pageInfo": "Page {{page}} of {{pages}}"
   },
   "adminCreditHolds": {
     "capture": "Capture",

@@ -7,7 +7,13 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const logger = require('./utils/logger');
-const { sortMigrationFiles } = require('./migrationOrder');
+const { sortMigrationFiles, isValidTimestampMigration, migrationPrefix } = require('./migrationOrder');
+// Frozen at the Q11 runner change (careers spec 6.14): every file in this
+// list keeps its historical name and order, whatever the current rules
+// say. Only files outside this set are subject to the timestamp rule.
+const legacyOrder = require('./migrationOrderLegacy.json');
+const LEGACY_FILES = new Set(legacyOrder.legacyFiles || []);
+const LEGACY_MAX_PREFIX = BigInt(legacyOrder.legacyMaxPrefix || '99994');
 const {
   classifyDatabaseError,
   describeDatabaseTarget,
@@ -26,12 +32,32 @@ function migrationChecksum(sql) {
   return crypto.createHash('sha256').update(String(sql)).digest('hex');
 }
 
+// Nov 3 audit item 9: the timestamp and append-only rule used to be
+// enforced by CI only (scripts/check-migration-history.cjs). The runtime
+// path enforces it too, so a deploy that runs migrate without the CI
+// gate cannot land a mis-ordered or misnamed migration on production
+// before anyone notices. Frozen legacy files are exempt; everything else
+// must be a valid 14-digit UTC timestamp name sorting after the legacy
+// band (99994). A violation fails startup before any migration applies.
+function validateMigrationFiles(files) {
+  for (const file of files) {
+    if (LEGACY_FILES.has(file)) continue;
+    if (!isValidTimestampMigration(file)) {
+      throw new Error(`Migration ${file} is not a valid UTC timestamp migration (expected YYYYMMDDHHMMSS_name.sql); refusing to run.`);
+    }
+    if (migrationPrefix(file) <= LEGACY_MAX_PREFIX) {
+      throw new Error(`Migration ${file} sorts before the frozen legacy tail (99994); new migrations must sort after it. Refusing to run.`);
+    }
+  }
+}
+
 function listMigrationFiles(migrationsDir, through = null) {
   // Q11: numeric leading-prefix order (identical to the historical text
   // order for every pre-existing file; see migrationOrder.js).
   const files = sortMigrationFiles(
     fs.readdirSync(migrationsDir).filter((file) => file.endsWith('.sql'))
   );
+  validateMigrationFiles(files);
   if (through === null) return files;
   const last = files.indexOf(through);
   if (last < 0) throw new Error(`Unknown migration boundary: ${through}`);

@@ -612,13 +612,6 @@ export default function BusinessOwnerDashboard() {
                 {t('dashboards.businessOwner.growSubtitle', { defaultValue: 'Connect with a consultant, open a new market, or apply to franchise OxSteed.' })}
               </div>
             </div>
-            <Link
-              to="/consulting"
-              className="text-xs font-semibold px-3 py-2 rounded-md border hover:bg-orange-500/5"
-              style={{ borderColor: 'var(--color-border)' }}
-            >
-              {t('dashboards.businessOwner.talkConsultant', { defaultValue: 'Talk to a consultant' })}
-            </Link>
           </section>
         )}
 

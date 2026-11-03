@@ -357,6 +357,33 @@ async function platformRevenue(db, interval, currencyCode = 'USD') {
   };
 }
 
+// ── 2a. Platform revenue by period bucket (single source of truth) ───────
+// The per-bucket chart behind the super-admin and investor revenue charts.
+// It shares PLATFORM_REVENUE_SOURCE_TYPES with platformRevenue above, so
+// if the canonical take list ever gains a type, both charts gain it too
+// instead of silently diverging on their own inline CASE lists (the Oct 25
+// #4 residual). Refunds match platformRevenue: ABS of source_type='refund'
+// rows. Response shape matches the old inline queries exactly.
+async function platformRevenueByPeriod(db, interval, trunc, currencyCode = 'USD') {
+  const { rows } = await db.query(`
+    SELECT
+      date_trunc($1, created_at) AS period,
+      COALESCE(SUM(amount_cents) FILTER (WHERE source_type = $4 AND amount_cents > 0), 0)::BIGINT AS job_fee_cents,
+      COALESCE(SUM(amount_cents) FILTER (WHERE source_type = $5 AND amount_cents > 0), 0)::BIGINT AS subscription_cents,
+      COALESCE(SUM(ABS(amount_cents)) FILTER (WHERE source_type = 'refund'), 0)::BIGINT AS refunds_cents
+    FROM platform_ledger
+    WHERE created_at >= now() - $2::interval AND UPPER(currency) = UPPER($3)
+    GROUP BY 1
+    ORDER BY 1 ASC
+  `, [trunc, interval, currencyCode, PLATFORM_REVENUE_SOURCE_TYPES[0], PLATFORM_REVENUE_SOURCE_TYPES[1]]);
+  return rows.map((r) => ({
+    period: r.period,
+    job_fee_cents: exactInteger(r.job_fee_cents),
+    subscription_cents: exactInteger(r.subscription_cents),
+    refunds_cents: exactInteger(r.refunds_cents),
+  }));
+}
+
 // ── 2b. Financial-management ledger totals (single source of truth) ─────────
 // The Financial Management surface previously summed platform_ledger rows
 // across ALL currencies into single "revenue" figures, and labeled two
@@ -577,6 +604,7 @@ module.exports = {
   LEGACY_RESOLUTION_INTERVAL,
   openDisputes,
   platformRevenue,
+  platformRevenueByPeriod,
   ledgerFinancialTotals,
   cancelRate,
   CANCEL_ROLES,

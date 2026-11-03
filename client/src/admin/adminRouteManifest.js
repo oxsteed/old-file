@@ -100,6 +100,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   legalAuditLog: defineRoute('/admin/legal/audit-log'),
   legalComplianceMetrics: defineRoute('/admin/legal/compliance-metrics'),
   legalCcpaRequests: defineRoute('/admin/legal/ccpa-requests'),
+  legalCcpaErasureReview: defineRoute('/admin/legal/ccpa-erasure-review'),
   supportAgentDashboard: defineRoute('/admin/support/agent-dashboard'),
   supportAgentOnboarding: defineRoute('/admin/support/agent-onboarding'),
   supportShifts: defineRoute('/admin/support/shifts'),

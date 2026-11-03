@@ -13,8 +13,25 @@ const VALID_DOCUMENT_TYPES = [
   'harassment_policy',
   'background_check',
   'arbitration',
-  'escrow_policy'
+  'escrow_policy',
+  // Nov 2 admin-ops audit item 2 phase B: terms_of_service is a required
+  // TermsGate consent (REQUIRED_CONSENTS) but was not a recordable
+  // acceptance type, so it could neither be recorded nor revoked here.
+  'terms_of_service'
 ];
+
+/**
+ * Phase B enforcement map: acceptance document type -> user_consents
+ * consent_type cleared on revocation. Only these two acceptance types have
+ * a user_consents counterpart (they are also REQUIRED_CONSENTS, the set
+ * requireTermsAcceptance consults). Every other acceptance type maps to
+ * nothing: revoking it stays record_only and must never touch consents,
+ * so unrelated consents are never cleared by a revocation.
+ */
+const DOCUMENT_TO_CONSENT_TYPE = Object.freeze({
+  terms_of_service: 'terms_of_service',
+  privacy_policy: 'privacy_policy',
+});
 
 /**
  * Record a legal document acceptance
@@ -558,6 +575,28 @@ async function revokeAcceptance(req, res, next) {
       throw new AppError('Acceptance already revoked', 409, 'already_revoked');
     }
 
+    // Phase B enforcement: revoking an acceptance must clear the matching
+    // user_consents rows so TermsGate (requireTermsAcceptance, which reads
+    // only user_consents) actually blocks the user until they re-accept.
+    // The consent rows are re-affirmations, one per login agreement, all
+    // carrying the same current version: deleting only the latest would
+    // leave an older same-version row that still satisfies the gate, so
+    // every row for this user and the mapped consent type is deleted.
+    // Unmapped document types clear nothing. The consent delete runs
+    // BEFORE the acceptance soft-delete: if the acceptance update then
+    // fails, the user is left blocked (fail closed) rather than holding a
+    // revoked-looking acceptance with live consent. The revocation itself
+    // stays visible in legal_audit_log either way.
+    const consentType = DOCUMENT_TO_CONSENT_TYPE[acceptance.document_type] || null;
+    let clearedConsents = 0;
+    if (consentType) {
+      const cleared = await pool.query(
+        'DELETE FROM user_consents WHERE user_id = $1 AND consent_type = $2',
+        [acceptance.user_id, consentType]
+      );
+      clearedConsents = cleared.rowCount || 0;
+    }
+
     await pool.query(
       `UPDATE user_legal_acceptances
        SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
@@ -576,7 +615,7 @@ async function revokeAcceptance(req, res, next) {
       'success',
       req.ip || null,
       req.get('user-agent') || null,
-      { reason, documentType: acceptance.document_type, versionNumber: acceptance.version_number }
+      { reason, documentType: acceptance.document_type, versionNumber: acceptance.version_number, consentType, clearedConsents }
     );
 
     logger.info('Legal acceptance revoked', {
@@ -584,12 +623,16 @@ async function revokeAcceptance(req, res, next) {
       documentType: acceptance.document_type,
       userId: acceptance.user_id,
       reason,
-      revokedBy: adminId
+      revokedBy: adminId,
+      consentType,
+      clearedConsents,
     });
 
     res.json({
       success: true,
-      enforcement: 'record_only',
+      enforcement: consentType ? 'consent_cleared' : 'record_only',
+      consentType,
+      clearedConsents,
       revokedAt: new Date().toISOString(),
       acceptanceId
     });
@@ -663,5 +706,7 @@ module.exports = {
   listAllAcceptances,
   getComplianceMetrics,
   getAuditLog,
-  revokeAcceptance
+  revokeAcceptance,
+  VALID_DOCUMENT_TYPES,
+  DOCUMENT_TO_CONSENT_TYPE
 };

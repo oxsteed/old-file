@@ -20,6 +20,15 @@ function registerMoneyMovementExecutors() {
   if (registered) return;
   registered = true;
 
+  // ── fee_config_change: Nov 2 admin-ops audit item 12. A fee change moves
+  // no money itself, so it bypasses the dollar threshold by design: every
+  // fee change queues. The executor applies the queued key/reset through
+  // the fee controller, inside the decide transaction.
+  registerMoneyMovementExecutor('fee_config_change', async (args) => {
+    const { executeFeeConfigChange } = require('../controllers/feeConfigController');
+    return executeFeeConfigChange(args);
+  });
+
   registerMoneyMovementExecutor('food_refund', async ({ payload, client }) => {
     const { executeFoodOrderRefund } = require('../controllers/adminFoodOrdersController');
     return executeFoodOrderRefund(client, {
@@ -226,7 +235,10 @@ function registerMoneyMovementExecutors() {
   // ── support_resolution_refund: admin approval of a restaurant support
   // resolution with a money amount. The apply step only stamps the
   // approval (resolution_offered); the customer accept path moves the
-  // money, so the executor is idempotent by case state.
+  // money. Nov 3 audit item 3: applyAdminApprovedResolution is
+  // idempotent by case state (same-terms replay returns the existing
+  // offer, terminal cases and differing terms are refused), so a
+  // second queued action for the same case cannot overwrite offer 1.
   registerMoneyMovementExecutor('support_resolution_refund', async ({ payload, client }) => {
     const { applyAdminApprovedResolution } = require('../controllers/restaurantSupportController');
     const updated = await applyAdminApprovedResolution(client, {

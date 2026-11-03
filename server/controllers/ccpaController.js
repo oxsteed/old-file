@@ -307,6 +307,23 @@ async function updateCCPARequest(req, res, next) {
         if (result.skipped) throw new AppError('Request status changed', 409, 'ccpa_invalid_transition');
         return res.status(202).json({ success: true, requestId, status: 'processing', erasureQueued: true });
       }
+      if (request.request_type === 'opt_out') {
+        // Opt-out completion must go through completeRequest, not the
+        // generic status update below: only completeRequest records the
+        // suppression action before flipping the request to completed.
+        const service = require('../services/ccpaErasureService');
+        const result = await service.completeRequest(requestId, adminId, fulfillmentDate);
+        if (result.skipped) throw new AppError('Request status changed', 409, 'ccpa_invalid_transition');
+        if (adminNotes) {
+          await pool.query('UPDATE ccpa_data_requests SET admin_notes=$2,updated_at=NOW() WHERE id=$1', [requestId, adminNotes]);
+        }
+        try {
+          await service.notifyCompleted(result.request);
+        } catch (emailErr) {
+          logger.error('Failed to send CCPA notification email', { requestId, error: emailErr.message });
+        }
+        return res.json({ success: true, requestId, status: 'completed', suppression: result.suppression || null });
+      }
       require('../services/ccpaErasureService').assertAccessDelivery(request);
     }
     if (dataProvided && Object.hasOwn(dataProvided, 'delivery')) throw new AppError('Delivery receipts are recorded by the delivery endpoint', 400, 'ccpa_delivery_server_owned');

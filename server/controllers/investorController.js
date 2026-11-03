@@ -231,17 +231,17 @@ exports.getRevenueChart = async (req, res) => {
     const hasLedger = await tableExists('platform_ledger');
     if (!hasLedger) return res.json({ chart: [], period, currency });
 
-    const rows = await safeQuery(`
-      SELECT
-        date_trunc($1, created_at)                                                                                      AS period,
-        COALESCE(SUM(CASE WHEN source_type = 'job_fee'      AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0)     AS job_fee_cents,
-        COALESCE(SUM(CASE WHEN source_type = 'subscription' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0)     AS subscription_cents,
-        COALESCE(SUM(CASE WHEN source_type = 'refund'                             THEN ABS(amount_cents) ELSE 0 END), 0) AS refunds_cents
-      FROM platform_ledger
-      WHERE created_at >= now() - $2::interval AND UPPER(currency) = UPPER($3)
-      GROUP BY 1
-      ORDER BY 1 ASC
-    `, [trunc, interval, currency]);
+    // Per-bucket revenue comes from the registry (platformRevenueByPeriod),
+    // sharing the canonical take list with platformRevenue, so this chart
+    // cannot silently diverge from the dashboard headline if that list
+    // ever gains a type. Fail-open like the old safeQuery call: a ledger
+    // error yields an empty chart, not a 500.
+    let rows = [];
+    try {
+      rows = await metricsRegistry.platformRevenueByPeriod(pool, interval, trunc, currency);
+    } catch (e) {
+      logger.warn('[investor] revenue chart query skipped', { msg: e.message });
+    }
 
     const totals = rows.reduce((acc, r) => ({
       job_fee:      acc.job_fee      + safeInt(r.job_fee_cents),

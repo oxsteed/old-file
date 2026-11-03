@@ -332,6 +332,12 @@ async function listPendingMoneyMovementApprovals({ limit = 50, offset = 0 } = {}
           [payload.caseId]
         );
         if (supportCase) { resolvedSubject = `${supportCase.restaurant_name || 'Restaurant'} - support case ${payload.caseId}`; subjectStatus = supportCase.status; }
+      } else if (row.movement_type === 'fee_config_change') {
+        // Item 12: no money amount and no subject row to resolve; the
+        // payload itself is the subject, so the checker reviews the exact
+        // key and old/new values instead of a UUID and a placeholder cent.
+        if (payload.kind === 'reset') resolvedSubject = 'Fee reset to defaults';
+        else if (payload.key) resolvedSubject = `Fee ${payload.key}: ${payload.oldValue} to ${payload.newValue}`;
       }
     } catch { /* best-effort only */ }
     return { ...row, resolvedSubject, subjectStatus, movementReason: reason };

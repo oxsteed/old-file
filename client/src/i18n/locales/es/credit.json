@@ -2481,7 +2481,10 @@
     "requeued": "{{count}} fila(s) repuesta(s).",
     "unknownDate": "Fecha desconocida",
     "notAvailable": "N/D",
-    "parkedTotal": "Total de filas estacionadas: {{total}}"
+    "parkedTotal": "Total de filas estacionadas: {{total}}",
+    "previousPage": "Página anterior",
+    "nextPage": "Página siguiente",
+    "pageInfo": "Página {{page}} de {{pages}}"
   },
   "adminCreditHolds": {
     "capture": "Capturar",

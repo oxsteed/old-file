@@ -30532,7 +30532,8 @@
     "restaurantAnalytics": "Analitik restoran",
     "webhookReceipts": "Resi webhook",
     "restaurantWalletIntegrity": "Entegrite bòs",
-    "oxsteedCreditLicence": "Lisans Credit"
+    "oxsteedCreditLicence": "Lisans Credit",
+    "legalCcpaErasureReview": "Revizyon efasman"
   },
   "adminProfileVisibility": {
     "title": "Vizibilite pwofil",
@@ -31138,7 +31139,7 @@
     "resetting": "Ap reyajiste...",
     "saving": "Ap sove...",
     "subscriptionPrices": "Pri abònman",
-    "subtitle": "Tout chanjman frè pran efè imedyatman pou nouvo tranzaksyon. Chak chanjman anrejistre ak yon tras odit konplè.",
+    "subtitle": "Chanjman frè yo mande apwobasyon yon dezyèm administratè anvan yo antre an vigè. Chak chanjman anrejistre ak yon istwa odit konplè.",
     "title": "Jesyon pri",
     "transactionFees": "Frè tranzaksyon",
     "trialBody": "Nouvo itilizatè yo jwenn yon esè {{days}} jou ak aksè nivo pro anvan yo tounen nan nivo gratis la. Ajiste sa a pou afekte tout nouvo enskripsyon.",
@@ -31146,13 +31147,17 @@
     "trialTitle": "Konfigirasyon dire esè",
     "updateFailed": "Mizajou a echwe",
     "whyPlaceholder": "Poukisa chanjman sa a?",
-    "confirmMessage": "Anrejistre chanjman frè sa a pou {{label}}? Sa pran efè touswit.",
+    "confirmMessage": "Anrejistre chanjman frè sa a pou {{label}}? L ap tann apwobasyon yon dezyèm administratè epi l pap antre an vigè jiskaske yo apwouve li.",
     "confirmTitle": "Anrejistre chanjman frè a",
     "invalidNumber": "Antre yon nimewo ki valab.",
     "valueOutOfRange": "Valè a dwe ant {{min}} ak {{max}}.",
     "valueOutsideRange": "Valè a deyò limit yo otorize a.",
     "stripeSyncFailed": "Frè yo anrejistre, men senkronizasyon pri Stripe a echwe. Pri Stripe a pa t mete ajou.",
-    "stripeSyncFailedReset": "Frè yo retounen nan valè defo yo, men senkronizasyon pri Stripe a echwe. Kèk pri Stripe pa t mete ajou."
+    "stripeSyncFailedReset": "Frè yo retounen nan valè defo yo, men senkronizasyon pri Stripe a echwe. Kèk pri Stripe pa t mete ajou.",
+    "pendingHint": "Chanjman frè sa yo poko antre an vigè. Yon lòt administratè dwe apwouve oswa rejte yo nan ke apwobasyon lajan an.",
+    "pendingTitle": "Chanjman k ap tann apwobasyon",
+    "queued": "Chanjman frè a voye pou apwobasyon yon dezyèm administratè.",
+    "reviewQueue": "Revize nan apwobasyon lajan yo"
   },
   "superFinancials": {
     "colAmount": "Montan",
@@ -34057,7 +34062,8 @@
     "typeAffiliatePayout": "Peman afilye",
     "subject": "Sijè",
     "reason": "Rezon",
-    "subjectUnknown": "Sijè enkoni"
+    "subjectUnknown": "Sijè enkoni",
+    "typeFeeConfig": "Chanjman konfigirasyon frè"
   },
   "adminOrderFilters": {
     "searchOrders": "Chèche kòmann",
@@ -36690,7 +36696,10 @@
     "resultId": "Id:",
     "resultUser": "Itilizatè:",
     "resultStatus": "Estati:",
-    "resultPaymentMethod": "Metòd peman:"
+    "resultPaymentMethod": "Metòd peman:",
+    "stepupPrompt": "Antre kòd verifikasyon ki nan aplikasyon otantifikatè w la pou konfime anilasyon sa a.",
+    "stepupRequired": "Yon kòd verifikasyon obligatwa pou anile yon abònman.",
+    "stepupFailed": "Pa t ka kòmanse verifikasyon pou anilasyon sa a."
   },
   "statementOps": {
     "title": "Operasyon relve yo",
@@ -38791,7 +38800,15 @@
       "importReport": "Enpòte rapò",
       "reportImported": "{{tags}} etikèt enpòte ({{mapped}} konekte ak kanpay).",
       "reportDuplicate": "Rapò sa a te deja enpòte."
-    }
+    },
+    "rollupRerunTitle": "Refe rolop",
+    "rollupRerunDescription": "Kalkile anko yon jou rolop ki te fini pasyel. Yon jou ki fini bezwen opsyon fose a.",
+    "rollupRerunDay": "Jou (AAAA-MM-JJ)",
+    "rollupRerunForce": "Fose rekalkil menm si jou a deja fini",
+    "rollupRerunSubmit": "Refe rolop",
+    "rollupRerunDone": "Rolop rekalkile.",
+    "rollupRerunSkipped": "Rolop sote: li deja fini.",
+    "rollupRerunFailed": "Refe rolop la echwe."
   },
   "adminOperationalNotices": {
     "regionLabel": "Avi operasyonèl",
@@ -39605,5 +39622,24 @@
         "description": "Verifikasyon ki pwoteje w ak lòt moun kont fwod. Nou pa fè lis yo, men ou ka mande sipò sou yo."
       }
     }
+  },
+  "adminCcpaErasureReview": {
+    "title": "Liy revizyon efasman",
+    "subtitle": "Travay efasman konfidansyalite ki bezwen revizyon operatè anvan yo ka fini.",
+    "loading": "Ap chaje liy revizyon an…",
+    "requeue": "Mete nan liy ankò",
+    "requeuing": "Ap mete nan liy ankò…",
+    "requeueDone": "Efasman mete nan liy ankò.",
+    "requeueFailed": "Mete nan liy ankò echwe.",
+    "note": "Travay ki mete nan liy ankò kite lis sa a le yo annatant ankò.",
+    "table.requestId": "ID DEMANN",
+    "table.attempts": "TANTATIV",
+    "table.lastError": "DÈNYE ERÈ",
+    "table.queuedAt": "NAN LIY DEPI",
+    "table.actions": "AKSYON",
+    "table.empty": "Okenn travay efasman pa bezwen revizyon.",
+    "pagination": "Ap montre {{from}} rive {{to}} sou {{total}} travay",
+    "pagination.next": "Apre",
+    "pagination.previous": "Anvan"
   }
 }

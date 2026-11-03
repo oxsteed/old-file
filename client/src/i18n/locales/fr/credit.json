@@ -2481,7 +2481,10 @@
     "requeued": "{{count}} ligne(s) remise(s) en file.",
     "unknownDate": "Date inconnue",
     "notAvailable": "N/D",
-    "parkedTotal": "Total des lignes en attente : {{total}}"
+    "parkedTotal": "Total des lignes en attente : {{total}}",
+    "previousPage": "Page précédente",
+    "nextPage": "Page suivante",
+    "pageInfo": "Page {{page}} sur {{pages}}"
   },
   "adminCreditHolds": {
     "capture": "Capturer",

@@ -668,7 +668,12 @@ async function buildSuspectPairsIndexed(client, userIds, { mode = 'linear', with
     groups.push({ signalType: 'same_ip', label: 'Same last login IP', weight: SIGNAL_WEIGHTS.same_ip, userIds: g.user_ids });
   }
 
-  const linked = linkSignalGroups(groups, mode);
+  // Same bound as the scoped suspect-list path below: without maxPairs,
+  // pairs across many small groups are unbounded even in linear mode,
+  // and pairwise mode multiplies within every group. The pairwise shape
+  // itself stays until its stated one-release deprecation window ends;
+  // the cap is what bounds it meanwhile.
+  const linked = linkSignalGroups(groups, mode, { maxPairs: oneTruthMaxPairs() });
   return withGroups ? linked : linked.pairs;
 }
 
@@ -1656,4 +1661,5 @@ exports.reviewSuspectPair = async (req, res) => {
 // Test seam (decision 10).
 exports._buildSuspectPairsIndexed = buildSuspectPairsIndexed;
 exports._buildSuspectPairsScoped = buildSuspectPairsScoped;
+exports._countScopedUsers = countScopedUsers;
 exports._oneTruthMaxPairs = oneTruthMaxPairs;

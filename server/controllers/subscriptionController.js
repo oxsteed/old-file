@@ -603,9 +603,36 @@ async function createCreditSubscription(req, res, next, plan, userId) {
 }
 
 
+// POST /api/admin/super/subscriptions/stepup-challenges — issue the fresh
+// step-up challenge an admin cancel must prove (Nov 3 audit item 4).
+exports.issueAdminCancelStepupChallenge = async (req, res, next) => {
+  try {
+    const { challenge, delivery } = await require('../services/stepupChallengeService').issueStepupChallenge({
+      actorUserId: req.user?.id || null,
+      actorEmail: req.user?.email,
+      actionType: 'subscription_cancel',
+    });
+    res.status(201).json({
+      challenge: {
+        id: challenge.id,
+        actionType: challenge.actionType,
+        amountCents: challenge.amountCents,
+        currencyCode: challenge.currencyCode,
+        expiresAt: challenge.expiresAt,
+      },
+      delivery,
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 // POST /api/admin/subscriptions/:id/cancel — super-admin cancel for any
 // subscription (review P2-569). Credit subscriptions end immediately (no
 // further renewal); Stripe subscriptions are cancelled at Stripe first.
+// Nov 3 audit item 4: cancelling requires a fresh step-up challenge,
+// verified before Stripe is touched, like the credit money-movement
+// routes. The already-cancelled return is a no-op and needs no proof.
 exports.adminCancelSubscription = async (req, res, next) => {
   try {
     const subscriptionId = String(req.params.id || '').trim();
@@ -620,6 +647,13 @@ exports.adminCancelSubscription = async (req, res, next) => {
     if (!sub) throw new AppError('Subscription not found', 404, 'not_found');
     if (sub.status === 'cancelled') return res.json({ subscription: sub, alreadyCancelled: true });
 
+    await require('../services/stepupChallengeService').verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'subscription_cancel',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+    });
+
     if (sub.stripe_subscription_id) {
       try {
         await stripe.subscriptions.cancel(sub.stripe_subscription_id);
@@ -633,7 +667,7 @@ exports.adminCancelSubscription = async (req, res, next) => {
     const updated = await withTransaction(db, async (client) => {
       const { rows: [row] } = await client.query(
         `UPDATE subscriptions
-            SET status = 'cancelled', cancel_at_period_end = TRUE, updated_at = NOW()
+            SET status = 'cancelled', cancel_at_period_end = FALSE, updated_at = NOW()
           WHERE id = $1 AND status <> 'cancelled'
           RETURNING id, user_id, status, payment_method`,
         [sub.id]
@@ -647,7 +681,7 @@ exports.adminCancelSubscription = async (req, res, next) => {
         targetId: String(sub.id),
         description: reason,
         before: { status: sub.status, payment_method: sub.payment_method },
-        after: { status: 'cancelled' },
+        after: { status: 'cancelled', cancel_at_period_end: false },
         req,
         throwOnError: true,
       });

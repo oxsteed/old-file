@@ -74,6 +74,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/legal/audit-log',
   '/admin/legal/compliance-metrics',
   '/admin/legal/ccpa-requests',
+  '/admin/legal/ccpa-erasure-review',
   '/admin/support/agent-dashboard',
   '/admin/support/agent-onboarding',
   '/admin/support/shifts',

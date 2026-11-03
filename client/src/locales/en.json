@@ -30532,7 +30532,8 @@
     "restaurantAnalytics": "Restaurant analytics",
     "webhookReceipts": "Webhook receipts",
     "restaurantWalletIntegrity": "Restaurant wallet integrity",
-    "oxsteedCreditLicence": "Credit licence"
+    "oxsteedCreditLicence": "Credit licence",
+    "legalCcpaErasureReview": "Erasure Review"
   },
   "adminProfileVisibility": {
     "title": "Profile visibility",
@@ -31138,7 +31139,7 @@
     "resetting": "Resetting...",
     "saving": "Saving...",
     "subscriptionPrices": "Subscription Prices",
-    "subtitle": "All fee changes take effect immediately for new transactions. Every change is logged with a full audit trail.",
+    "subtitle": "Fee changes require second-admin approval before they take effect. Every change is logged with a full audit trail.",
     "title": "Price Management",
     "transactionFees": "Transaction Fees",
     "trialBody": "New users get a {{days}}-day trial with pro tier access before reverting to the free tier. Adjust this to affect all new signups.",
@@ -31146,13 +31147,17 @@
     "trialTitle": "Trial Duration Configuration",
     "updateFailed": "Update failed",
     "whyPlaceholder": "Why this change?",
-    "confirmMessage": "Save this fee change for {{label}}? This takes effect immediately.",
+    "confirmMessage": "Save this fee change for {{label}}? It will wait for second-admin approval and will not take effect until approved.",
     "confirmTitle": "Save fee change",
     "invalidNumber": "Enter a valid number.",
     "valueOutOfRange": "Value must be between {{min}} and {{max}}.",
     "valueOutsideRange": "Value is outside the allowed range.",
     "stripeSyncFailed": "Fee saved, but the Stripe price sync failed. The Stripe price was not updated.",
-    "stripeSyncFailedReset": "Fees reset to defaults, but the Stripe price sync failed. Some Stripe prices were not updated."
+    "stripeSyncFailedReset": "Fees reset to defaults, but the Stripe price sync failed. Some Stripe prices were not updated.",
+    "pendingHint": "These fee changes are not in effect yet. A different admin must approve or reject them in the Money approvals queue.",
+    "pendingTitle": "Changes waiting for approval",
+    "queued": "Fee change queued for second-admin approval.",
+    "reviewQueue": "Review in Money approvals"
   },
   "superFinancials": {
     "colAmount": "Amount",
@@ -34057,7 +34062,8 @@
     "typeAffiliatePayout": "Affiliate payout",
     "subject": "Subject",
     "reason": "Reason",
-    "subjectUnknown": "Unknown subject"
+    "subjectUnknown": "Unknown subject",
+    "typeFeeConfig": "Fee config change"
   },
   "adminOrderFilters": {
     "searchOrders": "Search Orders",
@@ -36690,7 +36696,10 @@
     "resultId": "Id:",
     "resultUser": "User:",
     "resultStatus": "Status:",
-    "resultPaymentMethod": "Payment method:"
+    "resultPaymentMethod": "Payment method:",
+    "stepupPrompt": "Enter the verification code from your authenticator app to confirm this cancellation.",
+    "stepupRequired": "A verification code is required to cancel a subscription.",
+    "stepupFailed": "Could not start verification for this cancellation."
   },
   "statementOps": {
     "title": "Statement operations",
@@ -38791,7 +38800,15 @@
       "importReport": "Import report",
       "reportImported": "Imported {{tags}} tracking tags ({{mapped}} matched to campaigns).",
       "reportDuplicate": "This report was already imported."
-    }
+    },
+    "rollupRerunTitle": "Rollup rerun",
+    "rollupRerunDescription": "Recompute a past rollup day that finished partial. A completed day needs the force option.",
+    "rollupRerunDay": "Day (YYYY-MM-DD)",
+    "rollupRerunForce": "Force recompute even if the day already completed",
+    "rollupRerunSubmit": "Rerun rollup",
+    "rollupRerunDone": "Rollup recomputed.",
+    "rollupRerunSkipped": "Rollup skipped: already complete.",
+    "rollupRerunFailed": "Rollup rerun failed."
   },
   "adminOperationalNotices": {
     "regionLabel": "Operational notices",
@@ -39605,5 +39622,24 @@
         "description": "Checks that protect you and others from fraud. We do not list them, but you can ask support about them."
       }
     }
+  },
+  "adminCcpaErasureReview": {
+    "title": "Erasure Review Queue",
+    "subtitle": "Privacy erasure jobs that need operator review before they can complete.",
+    "loading": "Loading review queue…",
+    "requeue": "Requeue",
+    "requeuing": "Requeueing…",
+    "requeueDone": "Erasure requeued.",
+    "requeueFailed": "Requeue failed.",
+    "note": "Requeued jobs leave this list once they are pending again.",
+    "table.requestId": "REQUEST ID",
+    "table.attempts": "ATTEMPTS",
+    "table.lastError": "LAST ERROR",
+    "table.queuedAt": "QUEUED AT",
+    "table.actions": "ACTIONS",
+    "table.empty": "No erasure jobs need review.",
+    "pagination": "Showing {{from}} to {{to}} of {{total}} jobs",
+    "pagination.next": "Next",
+    "pagination.previous": "Previous"
   }
 }

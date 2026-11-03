@@ -101,6 +101,10 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   // Auth audit item 8: unfreezing the credit rail lifts the emergency stop
   // on money initiation; a fresh step-up is required.
   'credit_rail_unfreeze',
+  // Nov 3 audit item 4: a super-admin subscription cancel ends billing
+  // immediately on one admin's say-so; it carries the same fresh
+  // step-up bar as the credit money-movement routes.
+  'subscription_cancel',
   // Auth audit item 16: admin card issuance creates a spendable instrument
   // immediately; a fresh step-up is required.
   'credit_card_issue',
@@ -144,6 +148,9 @@ const TOTP_STEPUP_ACTION_TYPES = Object.freeze([
   // TOTP is not enrolled, which would break it.
   'money_movement_approve',
   'restaurant_payout_approve',
+  // Nov 3 audit item 4: subscription cancels are admin actions, so the
+  // proof is the admin's TOTP authenticator, not an emailed code.
+  'subscription_cancel',
 ]);
 
 // TOTP codes rotate every 30 seconds (RFC 6238 time-step).
