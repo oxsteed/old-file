@@ -117,7 +117,10 @@ test('business portfolios render across loaded/empty/error states and both growt
         const expectedCount = portfolio === 'empty' || portfolio === 'error' ? 0 : portfolio === 'mixed' ? 2 : 1;
         assert.equal(await page.locator('article').count(), expectedCount);
         const growthLink = page.locator('a[href="/consulting"]');
-        assert.equal(await growthLink.count(), growth && expectedCount > 0 ? 1 : 0);
+        // Audit recs track C (c0e733e7d) removed the "Talk to a consultant" link:
+        // /consulting redirects to /business-hub in LaunchScopeRouteGate, so no
+        // live surface links to it. The grow section still renders under growth=1.
+        assert.equal(await growthLink.count(), 0);
       }
     }
     assert.deepEqual(errors, []);
