@@ -33,6 +33,8 @@ const routes = `window.routes=[
   ],nextBefore:'2',sources:['login','support','admin_audit'],backfill:[{source:'payment',completed:false}]}],
   ['get',/\\/workspace\\/health$/,()=>window.healthFixture],
   ['post',/\\/workspace\\/health\\/recompute$/,()=>({...window.healthFixture,computedAt:new Date().toISOString()})],
+  ['post',/\\/workspace\\/assistant$/,(o,b)=>({mode:b.mode,requiresReview:true,generatedAt:new Date().toISOString(),evidence:[{source:'jobs',state:'ready',total:0,groups:[]}],
+    draft:b.mode==='summary'?{summary:'No open work items.',citations:['jobs']}:b.mode==='next_step'?{steps:[{text:'Confirm the job list is complete.',citation:'jobs',guide:'verification'}]}:{subject:'Your account',body:'Thank you for reaching out.'}})],
 ];
 window.healthFixture={advisory:true,modelVersion:'c360-health-v1',computedAt:'2026-11-03T10:00:00Z',
   churn:{state:'ready',score:83,band:'high',factors:[{key:'inactivity',value:120,level:1,weight:45,contribution:45},{key:'activityDrop',value:0,previous:4,level:1,weight:35,contribution:35},{key:'newAccount',value:400,level:0,weight:20,contribution:0}]},
@@ -140,7 +142,24 @@ test("customer 360 upgrade panels work and lay out in five languages", async () 
     await hp.getByRole("button", { name: copy.en.health.recompute }).click();
     await page.waitForFunction(() => window.calls.some((c) => c.method === "post" && c.url.endsWith("/health/recompute")));
 
-    const panels = [["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
+    // Upgrade 3: review-only Ollama drafts in three modes.
+    await page.getByRole("button", { name: copy.en.areas.assistant, exact: true }).click();
+    const ap = page.locator('[data-panel="assistant"]');
+    await ap.getByText(copy.en.ai.policy).waitFor();
+    await ap.getByRole("button", { name: copy.en.generate }).click();
+    await ap.getByText("No open work items.").waitFor();
+    await ap.getByLabel(copy.en.ai.mode).selectOption("next_step");
+    await ap.getByRole("button", { name: copy.en.generate }).click();
+    await ap.getByText("Confirm the job list is complete.").waitFor();
+    await ap.getByLabel(copy.en.ai.mode).selectOption("reply_draft");
+    await ap.getByLabel(copy.en.ai.topic).selectOption("order");
+    await ap.getByRole("button", { name: copy.en.generate }).click();
+    assert.equal(await ap.getByLabel(copy.en.ai.subject).inputValue(), "Your account");
+    await ap.getByLabel(copy.en.ai.body).fill("Edited reply");
+    assert.equal(await page.evaluate(() => window.calls.filter((c) => c.url.endsWith("/assistant")).map((c) => c.body.mode).join()), "summary,next_step,reply_draft");
+    assert.equal(await page.evaluate(() => window.calls.some((c) => /send|reply$/.test(c.url))), false);
+
+    const panels = [["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
     for (const lang of LANGS)
       for (const dark of [false, true])
         for (const width of [320, 1360]) {

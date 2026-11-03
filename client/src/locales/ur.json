@@ -34650,6 +34650,29 @@
           "explain": "Full points at 2 or more missed deadlines."
         }
       }
+    },
+    "ai": {
+      "policy": "Drafts come only from OxSteed's self-hosted AI model. Only source names, states and counts are used; nothing is sent, approved or changed.",
+      "mode": "Draft type",
+      "topic": "Reply topic",
+      "cites": "Based on:",
+      "subject": "Subject",
+      "body": "Message",
+      "replyNotice": "Edit before use. Nothing is sent from here; sending happens only from the inbox with your explicit action.",
+      "useInInbox": "Use in inbox",
+      "modes": {
+        "summary": "Case summary",
+        "next_step": "Suggested next steps",
+        "reply_draft": "Customer reply draft"
+      },
+      "topics": {
+        "general": "General question",
+        "verification": "Identity verification",
+        "payment": "Payment",
+        "order": "Order",
+        "account_access": "Account access",
+        "support_followup": "Support follow-up"
+      }
     }
   }
 }

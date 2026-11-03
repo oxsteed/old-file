@@ -248,20 +248,16 @@ test("watch evaluation rechecks permissions and keeps stable per-record notifica
   expect(candidate[0]).toContain("NOT EXISTS");
   expect(candidate[1][1]).toEqual(["published"]);
 });
-test("assistant sends only permitted aggregate counts and statuses, never customer PII or money", async () => {
-  // The draft path must go through OpenRouter, never the Meta Model API
-  // (Emile's 2026-10-14 standing rule: OpenRouter-only on user-facing paths).
+test("assistant sends only permitted aggregate counts and statuses to self-hosted Ollama, never PII, money or a hosted provider", async () => {
+  // Policy: Customer 360 AI runs on self-hosted Ollama only. OpenRouter and
+  // the Meta Model API must never be called from this path.
+  const ai = require("../services/customer360Ai");
   const openRouter = require("../services/openRouterChat");
   const metaProvider = require("../services/metaChatProvider");
-  const configured = jest
-    .spyOn(openRouter, "isOpenRouterConfigured")
-    .mockReturnValue(true);
-  const model = jest
-    .spyOn(openRouter, "openRouterChatModel")
-    .mockReturnValue("synthetic-model");
-  const chat = jest
-    .spyOn(openRouter, "fetchOpenRouterChat")
-    .mockResolvedValue({ ok: true, reply: "Review the source [jobs]." });
+  const generate = jest
+    .spyOn(ai, "generate")
+    .mockResolvedValue({ output: { summary: "Review the source.", citations: ["jobs"] }, model: "m", digest: "d".repeat(64), promptHash: "h", promptVersion: "c360-ai-v1" });
+  const routerChat = jest.spyOn(openRouter, "fetchOpenRouterChat");
   const metaChat = jest.spyOn(metaProvider, "fetchMetaChat");
   const snapshot = jest.spyOn(service, "workspace").mockResolvedValue({
     generatedAt: new Date().toISOString(),
@@ -289,25 +285,33 @@ test("assistant sends only permitted aggregate counts and statuses, never custom
   });
   try {
     const r = req();
-    r.body = { language: "ar" };
+    r.body = { language: "ar", mode: "next_step" };
     const next = jest.fn();
     const res = response();
     await ctrl.assistant(r, res, next);
     expect(next).not.toHaveBeenCalled();
-    const payload = JSON.stringify(chat.mock.calls[0]);
+    const payload = JSON.stringify(generate.mock.calls[0]);
     expect(payload).toContain("pending");
+    expect(payload).toContain("next_step");
     expect(payload).not.toMatch(
       /Sensitive person|private@example|balance_cents|9007199254740993/,
     );
+    expect(routerChat).not.toHaveBeenCalled();
+    expect(metaChat).not.toHaveBeenCalled();
     // Provider configuration must not leak to the client.
     const body = res.json.mock.calls[0][0];
+    expect(body).toMatchObject({ mode: "next_step", requiresReview: true });
     expect(body).not.toHaveProperty("providerAvailable");
-    expect(JSON.stringify(body)).not.toMatch(/isMetaConfigured|META_AI/);
+    expect(JSON.stringify(body)).not.toMatch(/isMetaConfigured|META_AI|OPENROUTER/);
+    const invalid = req();
+    invalid.body = { mode: "execute_refund" };
+    const nextInvalid = jest.fn();
+    await ctrl.assistant(invalid, response(), nextInvalid);
+    expect(nextInvalid.mock.calls[0][0]).toMatchObject({ status: 400 });
   } finally {
     snapshot.mockRestore();
-    configured.mockRestore();
-    model.mockRestore();
-    chat.mockRestore();
+    generate.mockRestore();
+    routerChat.mockRestore();
     metaChat.mockRestore();
   }
 });

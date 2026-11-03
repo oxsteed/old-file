@@ -809,6 +809,29 @@
           "explain": "Puntuación completa con 2 o más plazos incumplidos."
         }
       }
+    },
+    "ai": {
+      "policy": "Los borradores provienen solo del modelo de IA autoalojado de OxSteed. Solo se usan nombres de fuentes, estados y recuentos; no se envía, aprueba ni cambia nada.",
+      "mode": "Tipo de borrador",
+      "topic": "Tema de la respuesta",
+      "cites": "Basado en:",
+      "subject": "Asunto",
+      "body": "Mensaje",
+      "replyNotice": "Edítelo antes de usarlo. Desde aquí no se envía nada; el envío solo ocurre desde la bandeja con su acción explícita.",
+      "useInInbox": "Usar en la bandeja",
+      "modes": {
+        "summary": "Resumen del caso",
+        "next_step": "Próximos pasos sugeridos",
+        "reply_draft": "Borrador de respuesta al cliente"
+      },
+      "topics": {
+        "general": "Pregunta general",
+        "verification": "Verificación de identidad",
+        "payment": "Pago",
+        "order": "Pedido",
+        "account_access": "Acceso a la cuenta",
+        "support_followup": "Seguimiento de soporte"
+      }
     }
   },
   "screens": {

@@ -375,3 +375,15 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+.c360u-reply {
+  display: grid;
+  gap: 0.5rem;
+}
+.c360u-reply label {
+  display: grid;
+  gap: 0.25rem;
+}
+.c360u-reply textarea,
+.c360u-reply input {
+  inline-size: 100%;
+}

@@ -956,6 +956,29 @@
           "explain": "Points complets à partir de 2 délais manqués."
         }
       }
+    },
+    "ai": {
+      "policy": "Les brouillons proviennent uniquement du modèle d’IA auto-hébergé d’OxSteed. Seuls les noms de sources, les états et les décomptes sont utilisés ; rien n’est envoyé, approuvé ni modifié.",
+      "mode": "Type de brouillon",
+      "topic": "Sujet de la réponse",
+      "cites": "D’après :",
+      "subject": "Objet",
+      "body": "Message",
+      "replyNotice": "Modifiez avant utilisation. Rien n’est envoyé d’ici ; l’envoi se fait uniquement depuis la boîte de réception, par votre action explicite.",
+      "useInInbox": "Utiliser dans la boîte de réception",
+      "modes": {
+        "summary": "Résumé du dossier",
+        "next_step": "Prochaines étapes suggérées",
+        "reply_draft": "Brouillon de réponse au client"
+      },
+      "topics": {
+        "general": "Question générale",
+        "verification": "Vérification d’identité",
+        "payment": "Paiement",
+        "order": "Commande",
+        "account_access": "Accès au compte",
+        "support_followup": "Suivi d’assistance"
+      }
     }
   },
   "screens": {

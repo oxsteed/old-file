@@ -956,6 +956,29 @@
           "explain": "Tout pwen yo apati 2 dèlè ki rate."
         }
       }
+    },
+    "ai": {
+      "policy": "Bouyon yo soti sèlman nan modèl IA OxSteed la ki enstale sou pwòp sèvè li. Se sèlman non sous, eta ak kantite yo ki itilize; anyen pa voye, apwouve oswa chanje.",
+      "mode": "Kalite bouyon",
+      "topic": "Sijè repons lan",
+      "cites": "Baze sou:",
+      "subject": "Sijè",
+      "body": "Mesaj",
+      "replyNotice": "Modifye l anvan ou sèvi avè l. Anyen pa voye isit la; voye fèt sèlman nan bwat resepsyon an lè ou klike pou sa.",
+      "useInInbox": "Sèvi ak li nan bwat resepsyon an",
+      "modes": {
+        "summary": "Rezime dosye a",
+        "next_step": "Pwochen etap yo sijere",
+        "reply_draft": "Bouyon repons pou kliyan an"
+      },
+      "topics": {
+        "general": "Kesyon jeneral",
+        "verification": "Verifikasyon idantite",
+        "payment": "Peman",
+        "order": "Kòmand",
+        "account_access": "Aksè nan kont lan",
+        "support_followup": "Swivi sipò"
+      }
     }
   },
   "screens": {

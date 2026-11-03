@@ -17,6 +17,7 @@ import {
   selectedRecords,
 } from "./model";
 import UpgradePanels, { UPGRADE_AREAS } from "./upgrades/UpgradePanels";
+import Assistant from "./upgrades/Assistant";
 import "./workspace.css";
 const CreditDetail = lazy(() => import("../super/OxsteedCreditCustomerDetail"));
 const GUIDES = [
@@ -142,8 +143,7 @@ export default function Workspace({ user, existingTimeline = [] }) {
     [alertRules, setAlertRules] = useState([]);
   const [purpose, setPurpose] = useState(""),
     [exportSources, setExportSources] = useState([]),
-    [report, setReport] = useState(null),
-    [assistant, setAssistant] = useState(null);
+    [report, setReport] = useState(null);
   const keys = useRef(new Map());
   const controller = useRef(null),
     identity = useRef(viewerKey);
@@ -170,7 +170,6 @@ export default function Workspace({ user, existingTimeline = [] }) {
     setSelected(null);
     setConfirm(null);
     setReport(null);
-    setAssistant(null);
     setAlertRules([]);
     setExportSources([]);
     setTaskTitle("");
@@ -879,60 +878,15 @@ export default function Workspace({ user, existingTimeline = [] }) {
               </article>
             )}
             {area === "assistant" && (
-              <article>
-                <h3>{copy("assistant")}</h3>
-                <p>{copy("assistantHint")}</p>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    act(async (signal) => {
-                      const r = await adminApi.post(
-                        `${api}/assistant`,
-                        { language: lang.split("-")[0] },
-                        { signal },
-                      );
-                      if (identity.current === viewerKey) setAssistant(r.data);
-                    })
-                  }
-                >
-                  {copy("generate")}
-                </button>
-                {assistant && (
-                  <>
-                    <p>{copy("draftWarning")}</p>
-                    {assistant.draft ? (
-                      <p className="c360w-draft">{assistant.draft}</p>
-                    ) : (
-                      <p>{copy("providerUnavailable")}</p>
-                    )}
-                    <ul>
-                      {assistant.evidence.map((e) => (
-                        <li key={e.source}>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              choose(
-                                sections[e.source]?.area || "all",
-                                e.source,
-                              )
-                            }
-                          >
-                            {copy(`sources.${e.source}`)}
-                          </button>
-                          : {e.total ?? copy(e.state)}{" "}
-                          {e.groups
-                            ?.map(
-                              (g) =>
-                                `${g.participant_role ? status(g.participant_role) + " · " : ""}${status(g.status)}: ${g.count}`,
-                            )
-                            .join(" · ")}
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </article>
+              <Assistant
+                api={api}
+                copy={copy}
+                lang={lang}
+                viewerKey={viewerKey}
+                sections={sections}
+                choose={choose}
+                status={status}
+              />
             )}
             {area === "exports" && (
               <article>

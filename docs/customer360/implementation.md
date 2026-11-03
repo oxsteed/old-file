@@ -46,7 +46,7 @@ resolver and helper/Didit rules, and links to existing product workflows.
 | 23 | Experience/engagement | Full-filter first/latest activity, active days, last-30-day counts and received-rating metrics, separated by product; no predictive risk score. |
 | 24 | Proactive alerts | Opt-in per-admin/per-customer source/status/age rules. Evaluator rechecks active admin role, MFA and current source permission. Notifications have stable idempotency keys and localized copy. |
 | 25 | Guided resolution | Eight localized four-step checklists: verification, refunds, restaurant credit, payouts, food/screens, statements, duplicate accounts and session recovery. Each can create a follow-up; existing visual guides remain linked. |
-| 26 | AI assistance | Optional configured Meta provider produces a review-only handoff draft from permitted aggregate counts/statuses. No identities, notes, messages, references, balances or credentials are sent. Evidence remains available without a provider. No model tools or action execution. |
+| 26 | AI assistance | Optional self-hosted Ollama (pinned model digest, localhost only) produces review-only case summaries, next-step suggestions and reply drafts from permitted aggregate counts/statuses (upgrade 3). No identities, notes, messages, references, balances or credentials are sent. Evidence remains available without a provider. No model tools or action execution. |
 | 27 | Privacy/sensitive reads | Consent and erasure states restricted to super admins, safe projections, purpose-required audited exports, retained investigation grants and private/no-store responses. |
 | 28 | Search/navigation | Date/reference/status/text filtering within the selected person/business context, URL state, record preview, related participants and native full-page destinations. |
 | 29 | Reports/exports | Selected authorized sources, purpose, subject, dates, fetch timestamp, counts and partial labels; JSON/CSV downloads and dedicated printable/save-as-PDF case report. CSV formulas neutralized. |
@@ -85,8 +85,9 @@ default branch and checking open PRs (none at allocation). It adds only
 `admin_customer_tasks` and `admin_customer_alert_rules` plus their indexes.
 Applied migrations, including the restored 886 bytes, are unchanged.
 
-No new credentials are required. AI drafts use the already-configured Meta
-provider if available. `CUSTOMER360_ALERTS_ENABLED=false` disables the new alert
+No new credentials are required. AI drafts use self-hosted Ollama only
+(`CUSTOMER360_OLLAMA_URL`, `CUSTOMER360_OLLAMA_MODEL`,
+`CUSTOMER360_OLLAMA_DIGEST`); without them no draft is produced. `CUSTOMER360_ALERTS_ENABLED=false` disables the new alert
 worker without deleting rules or tasks. Otherwise it evaluates at most 50 rules
 per minute and 25 newly matching records per rule; notifications are opt-in and
 use existing delivery preferences/idempotency. Active role, MFA and source grants
@@ -209,3 +210,27 @@ Background work runs in `server/jobs/customer360Upgrades.js`
 - UI: "Health and risk" area (`upgrades/Health.jsx`) with the factor table.
 - Tests: `server/__tests__/customer360Health.db.test.js` plus the shared
   client unit and browser checks.
+
+### 3. AI on self-hosted Ollama only
+
+- `server/services/customer360Ai.js` replaces the OpenRouter call in
+  `POST …/assistant`. There is no hosted fallback: the URL must pass the
+  shared localhost-only guard (`resolveOllamaUrl`), the model tag must be
+  loaded with the pinned `CUSTOMER360_OLLAMA_DIGEST` (checked via
+  `/api/tags` on every call), and the request has no tools, temperature 0
+  and a JSON-schema `format`. Output is validated with Ajv; anything else
+  is discarded and the endpoint returns `draft: null` with the evidence.
+- Modes: `summary` (citations limited to the ready source keys sent),
+  `next_step` (≤5 manual steps, each citing a source and an existing guide
+  id; the prompt forbids approvals or money movement) and `reply_draft`
+  (subject/body for a customer reply in en/es/fr/ht/ar, given only a topic
+  code — no customer data at all).
+- Data minimisation: `minimiseEvidence()` keeps source key, state, total
+  and status counts only (no labels, contacts, notes, amounts or ids).
+- Audit: `customer360_assistant_draft` records mode, language, whether a
+  draft was produced, model, digest, prompt hash and prompt version.
+- UI: the Evidence assistant area has a mode selector; reply drafts are
+  editable text that can be copied into the inbox composer (upgrade 8) and
+  are never sent automatically.
+- Tests: `server/__tests__/customer360Ai.test.js`,
+  `server/__tests__/customer360Workspace.test.js` (no OpenRouter/Meta call).
