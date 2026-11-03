@@ -299,3 +299,71 @@ exports.cancelPlaybook = handle(async (req, res) => {
   const run = await playbooks.cancel({ customerId: user.id, runId: req.params.runId, adminId: req.user.id, audit: playbookAudit(req) });
   res.json({ run });
 });
+
+// ── Upgrade 10: shared team queues with SLA tracking, saved views ──────────
+const queues = require("../services/customer360Queues");
+async function queueTopics(req) {
+  return queues.topicsFor({ anomalyKinds: await anomalyKinds(req), links: (await linkKinds(req)).length > 0 });
+}
+// The board is platform-wide, so it needs a global manage_users grant.
+async function requireBoard(req) {
+  if (!(await workspace.access(req)({ grant: "manage_users" }))) throw new AppError("A global manage_users grant is required", 403, "global_grant_required");
+}
+const platformAudit = (req, targetType = "customer360_queue") => (action, { client = null, before = null, after = null, targetId = null } = {}) =>
+  logAdminAction({ adminId: req.user.id, action, targetType: targetId ? "user" : targetType, targetId, before, after, req, client, throwOnError: true });
+exports.queueBoard = handle(async (req, res) => {
+  await requireBoard(req);
+  const topics = await queueTopics(req);
+  let filters = req.query;
+  if (req.query.view) {
+    const view = (await queues.views(req.user.id)).find((v) => v.id === String(req.query.view));
+    if (!view) throw new AppError("View not found", 404, "view_not_found");
+    filters = view.filters;
+  }
+  const [list, page] = await Promise.all([queues.queues(topics), queues.items({ filters, topics, adminId: req.user.id, cursor: req.query.cursor })]);
+  await platformAudit(req)("customer360_queue_board_read", { after: { filters: page.filters, items: page.items.length, view: req.query.view || null } });
+  res.json({ queues: list, ...page, topics });
+});
+exports.createQueue = handle(async (req, res) => {
+  const q = await queues.createQueue({ body: req.body || {}, adminId: req.user.id, audit: platformAudit(req) });
+  res.status(201).json({ queue: q });
+});
+exports.updateQueue = handle(async (req, res) => {
+  const q = await queues.updateQueue({ queueId: req.params.queueId, body: req.body || {}, audit: platformAudit(req) });
+  res.json({ queue: q });
+});
+exports.queueItemAction = handle(async (req, res) => {
+  await requireBoard(req);
+  const b = req.body || {};
+  const item = await queues.act({ itemId: req.params.itemId, action: req.params.action, revision: b.revision, resolution: b.resolution, note: b.note,
+    adminId: req.user.id, topics: await queueTopics(req), audit: platformAudit(req) });
+  res.json({ item });
+});
+exports.customerQueues = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const topics = await queueTopics(req);
+  const [items, list] = await Promise.all([queues.customerItems(user.id, topics), queues.queues(topics)]);
+  await audit(req, "customer360_queues_read", { description: JSON.stringify({ items: items.length }) });
+  res.json({ items, queues: list.filter((q) => q.active && !q.feed).map(({ queue_key, name, sla_minutes }) => ({ queue_key, name, sla_minutes })) });
+});
+exports.addToQueue = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const item = await queues.enqueue({ queueKey: req.body?.queueKey, customerId: user.id, reason: req.body?.reason, adminId: req.user.id,
+    audit: (action, d) => audit(req, action, d) });
+  res.status(201).json({ item });
+});
+exports.savedViews = handle(async (req, res) => {
+  res.json({ views: await queues.views(req.user.id) });
+});
+exports.createSavedView = handle(async (req, res) => {
+  if (req.body?.scope === "team") await requireBoard(req);
+  res.status(201).json({ view: await queues.saveView({ adminId: req.user.id, body: req.body || {}, audit: platformAudit(req, "customer360_view") }) });
+});
+exports.updateSavedView = handle(async (req, res) => {
+  if (req.body?.scope === "team") await requireBoard(req);
+  res.json({ view: await queues.saveView({ adminId: req.user.id, viewId: req.params.viewId, body: req.body || {}, audit: platformAudit(req, "customer360_view") }) });
+});
+exports.deleteSavedView = handle(async (req, res) => {
+  await queues.deleteView({ adminId: req.user.id, viewId: req.params.viewId, audit: platformAudit(req, "customer360_view") });
+  res.status(204).end();
+});

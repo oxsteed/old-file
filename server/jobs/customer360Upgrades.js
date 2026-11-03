@@ -55,6 +55,11 @@ registerTask("lifecycle-events", 30_000, () => lifecycle.refreshFromEvents());
 registerTask("lifecycle-sweep", 15_000, () => lifecycle.sweep());
 registerTask("cohort-stats", 6 * 3600_000, () => lifecycle.rebuildCohortStats());
 
+// Upgrade 10: feed queues follow their sources; SLA breaches are stamped once.
+const queues = require("../services/customer360Queues");
+registerTask("queue-feeds", 60_000, () => queues.syncFeeds());
+registerTask("queue-sla", 60_000, () => queues.markBreaches());
+
 async function tick(now = Date.now()) {
   for (const task of TASKS) {
     if (task.running || now - task.lastAt < task.everyMs) continue;

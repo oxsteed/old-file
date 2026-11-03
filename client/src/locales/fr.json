@@ -427,7 +427,8 @@
       "links": "Comptes liés",
       "lifecycle": "Cycle de vie",
       "inbox": "Messagerie",
-      "playbooks": "Procédures"
+      "playbooks": "Procédures",
+      "queues": "Files"
     },
     "sources": {
       "jobs": "Missions",
@@ -1247,6 +1248,87 @@
         "handoff_note_required": "Indiquez où la demande a été transmise.",
         "step_already_completed": "Cette étape est déjà terminée.",
         "playbook_run_closed": "Cette exécution est déjà close."
+      }
+    },
+    "queues": {
+      "title": "Files d’équipe",
+      "hint": "Files de travail partagées avec un délai de réponse (SLA) par file. Les alertes d’anomalie et les revues de doublons sont ajoutées et closes automatiquement.",
+      "thisCustomer": "Ce client",
+      "notQueued": "Ce client n’est dans aucune file.",
+      "queue": "File",
+      "choose": "Choisir",
+      "reason": "Motif",
+      "add": "Ajouter à la file",
+      "added": "Ajouté à la file.",
+      "board": "Tableau d’équipe",
+      "sla": "SLA",
+      "breachedCol": "En retard",
+      "met30": "SLA respecté (30 jours)",
+      "median30": "Délai médian de résolution (30 jours)",
+      "minutes": "{{count}} min",
+      "savedView": "Vue enregistrée",
+      "noView": "Aucune vue",
+      "team": "équipe",
+      "filters": "Filtres",
+      "assignee": "Attribué à",
+      "sort": "Trier",
+      "breachedOnly": "En retard uniquement",
+      "apply": "Appliquer",
+      "viewName": "Nom de la vue",
+      "shareTeam": "Partager avec l’équipe",
+      "saveView": "Enregistrer la vue",
+      "viewSaved": "Vue enregistrée.",
+      "deleteView": "Supprimer la vue",
+      "viewDeleted": "Vue supprimée.",
+      "emptyBoard": "Rien ne correspond à ces filtres.",
+      "more": "Charger plus",
+      "claim": "Prendre",
+      "release": "Libérer",
+      "resolve": "Résoudre",
+      "resolution": "Résolution",
+      "note": "Note",
+      "confirmResolve": "Confirmer",
+      "breached": "En retard de {{minutes}} min",
+      "dueIn": "Échéance dans {{minutes}} min",
+      "statuses": {
+        "open": "Ouvert",
+        "claimed": "Pris",
+        "resolved": "Résolu"
+      },
+      "assignees": {
+        "any": "Tout le monde",
+        "me": "Moi",
+        "unassigned": "Non attribué"
+      },
+      "sorts": {
+        "due": "Échéance la plus proche",
+        "created": "Plus anciens d’abord"
+      },
+      "resolutions": {
+        "handled": "Traité",
+        "no_action": "Aucune action nécessaire",
+        "source_closed": "Clos à la source"
+      },
+      "topics": {
+        "refund_spike": "Pic de remboursements",
+        "payout_failures": "Échecs de versement",
+        "new_country_login": "Connexion depuis un nouveau pays",
+        "link_review": "Revue de doublons",
+        "general": "Général"
+      },
+      "done": {
+        "claim": "Élément pris.",
+        "release": "Élément libéré.",
+        "resolve": "Élément résolu."
+      },
+      "errors": {
+        "already_queued": "Ce client est déjà dans cette file.",
+        "revision_conflict": "Quelqu’un d’autre a modifié cet élément. Il a été rechargé.",
+        "already_claimed": "Un autre administrateur a déjà pris cet élément.",
+        "not_assignee": "Seul l’administrateur qui l’a pris peut le libérer.",
+        "view_name_taken": "Vous avez déjà une vue avec ce nom.",
+        "global_grant_required": "Le tableau d’équipe nécessite une autorisation clients pour toute la plateforme.",
+        "resolution_required": "Choisissez une résolution."
       }
     }
   },

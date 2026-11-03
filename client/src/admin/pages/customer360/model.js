@@ -9,6 +9,7 @@ export const AREAS = [
   "lifecycle",
   "inbox",
   "playbooks",
+  "queues",
   "work",
   "finance",
   "credit",

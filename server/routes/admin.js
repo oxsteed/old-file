@@ -356,6 +356,16 @@ router.get('/users/:userId/workspace/playbooks', requireAdmin, requirePermission
 router.post('/users/:userId/workspace/playbooks/:playbookKey/run', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.startPlaybook);
 router.post('/users/:userId/workspace/playbook-runs/:runId/steps/:stepKey/complete', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.completePlaybookStep);
 router.post('/users/:userId/workspace/playbook-runs/:runId/cancel', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.cancelPlaybook);
+router.get('/customer360/queues', requireAdmin, requirePermission('manage_users'), c360Upgrades.queueBoard);
+router.post('/customer360/queues', requireSuperAdmin, rejectImpersonated, strictLimiter, c360Upgrades.createQueue);
+router.patch('/customer360/queues/:queueId', requireSuperAdmin, rejectImpersonated, strictLimiter, c360Upgrades.updateQueue);
+router.post('/customer360/queue-items/:itemId/:action(claim|release|resolve)', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.queueItemAction);
+router.get('/customer360/saved-views', requireAdmin, requirePermission('manage_users'), c360Upgrades.savedViews);
+router.post('/customer360/saved-views', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.createSavedView);
+router.put('/customer360/saved-views/:viewId', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.updateSavedView);
+router.delete('/customer360/saved-views/:viewId', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.deleteSavedView);
+router.get('/users/:userId/workspace/queues', requireAdmin, requirePermission('manage_users'), c360Upgrades.customerQueues);
+router.post('/users/:userId/workspace/queue-items', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.addToQueue);
 router.get('/customer360/cohorts', requireAdmin, requirePermission('manage_users'), c360Upgrades.cohortComparison);
 router.post('/users/:userId/workspace/links/:otherUserId/review', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.openLinkReview);
 router.post('/users/:userId/workspace/link-reviews/:reviewId/:action(checklist|duplicate|confirm|reject|distinct|dismiss)', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.decideLinkReview);

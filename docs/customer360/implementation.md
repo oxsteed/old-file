@@ -425,3 +425,41 @@ Background work runs in `server/jobs/customer360Upgrades.js`
 - UI: "Playbooks" area (`upgrades/Playbooks.jsx`).
 - Tests: `server/__tests__/customer360Playbooks.db.test.js` and the shared
   client checks.
+
+### 10. Saved views and shared team queues with SLA tracking
+
+- Migration `20261103120800_customer360_queues.sql`:
+  `customer360_queues` (key, name, SLA minutes 5–43 200, optional feed,
+  active, revision; seeded with `anomalies` 4 h, `link_reviews` 24 h and
+  `general` 24 h), `customer360_queue_items` (one live item per queue and
+  source, or per queue and customer for manual items; `due_at` fixed at
+  creation from the queue SLA; first-claim, breach, resolution and
+  revision columns) and `customer360_saved_views` (owner, unique name per
+  owner, `private` or `team`, allowlisted filters ≤2 KB).
+- Feeds (worker `queue-feeds`, 60 s): open/acknowledged anomalies and link
+  reviews awaiting a second admin enter their queue with `due_at` measured
+  from detection/proposal; items close as `source_closed` when the source
+  closes. Worker `queue-sla` (60 s) stamps `sla_breached_at` once and
+  appends `queue.sla_breached` events.
+- Visibility: each item has a topic (anomaly kind, `link_review`,
+  `general`); admins only see topics their grants allow (the same anomaly
+  and link grants as upgrades 4 and 5). The platform-wide board needs a
+  global `manage_users` grant; queue configuration is super-admin only.
+- Actions: claim, release (assignee only), resolve (`handled` or
+  `no_action`, optional note), all with optimistic revision checks and
+  audit rows (`customer360_queue_item_*`); resolving appends
+  `queue.item_resolved` with `withinSla`.
+- Queue stats: open, claimed, overdue, resolved in 30 days, SLA met % and
+  median time to resolve (30 days).
+- Saved views store board filters (queues, statuses, assignee me/unassigned,
+  overdue only, sort). Team views are visible to every admin; only the
+  owner can edit or delete. Sharing a view needs the global board grant.
+- Endpoints: `GET /api/admin/customer360/queues` (board, `?view=` or
+  filters, cursor paging), `POST|PATCH /customer360/queues[/:queueId]`,
+  `POST /customer360/queue-items/:itemId/(claim|release|resolve)`,
+  `GET|POST /customer360/saved-views`, `PUT|DELETE /customer360/saved-views/:viewId`,
+  `GET|POST …/workspace/queues|queue-items`.
+- UI: "Queues" area (`upgrades/Queues.jsx`): this customer's items, add to
+  a manual queue, and the team board with stats, filters and saved views.
+- Tests: `server/__tests__/customer360Queues.db.test.js` and the shared
+  client checks.

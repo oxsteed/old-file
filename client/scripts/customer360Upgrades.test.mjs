@@ -24,7 +24,7 @@ test("event changes render without inventing redacted values", () => {
 
 test("every upgrade area and key exists in all 20 legacy locales with core translations", () => {
   const en = legacy("en").customerWorkspace;
-  const upgradeRoots = ["events", "health", "ai", "anomalies", "links", "lifecycle", "inbox", "playbooks"];
+  const upgradeRoots = ["events", "health", "ai", "anomalies", "links", "lifecycle", "inbox", "playbooks", "queues"];
   const keys = walk(Object.fromEntries(upgradeRoots.map((k) => [k, en[k]])));
   assert.ok(keys.length > 30);
   for (const l of LANGS) {

@@ -34570,7 +34570,8 @@
       "links": "Linked accounts",
       "lifecycle": "Lifecycle",
       "inbox": "Inbox",
-      "playbooks": "Playbooks"
+      "playbooks": "Playbooks",
+      "queues": "Queues"
     },
     "events": {
       "title": "Change history",
@@ -34972,6 +34973,87 @@
         "handoff_note_required": "Record where the request was handed off.",
         "step_already_completed": "This step was already completed.",
         "playbook_run_closed": "This run is already closed."
+      }
+    },
+    "queues": {
+      "title": "Team queues",
+      "hint": "Shared work queues with a response deadline (SLA) per queue. Anomaly alerts and duplicate reviews are added and closed automatically.",
+      "thisCustomer": "This customer",
+      "notQueued": "This customer is not in any queue.",
+      "queue": "Queue",
+      "choose": "Choose",
+      "reason": "Reason",
+      "add": "Add to queue",
+      "added": "Added to the queue.",
+      "board": "Team board",
+      "sla": "SLA",
+      "breachedCol": "Overdue",
+      "met30": "Met SLA (30 days)",
+      "median30": "Median time to resolve (30 days)",
+      "minutes": "{{count}} min",
+      "savedView": "Saved view",
+      "noView": "No saved view",
+      "team": "team",
+      "filters": "Filters",
+      "assignee": "Assigned to",
+      "sort": "Sort",
+      "breachedOnly": "Overdue only",
+      "apply": "Apply",
+      "viewName": "View name",
+      "shareTeam": "Share with the team",
+      "saveView": "Save view",
+      "viewSaved": "View saved.",
+      "deleteView": "Delete view",
+      "viewDeleted": "View deleted.",
+      "emptyBoard": "Nothing matches these filters.",
+      "more": "Load more",
+      "claim": "Claim",
+      "release": "Release",
+      "resolve": "Resolve",
+      "resolution": "Resolution",
+      "note": "Note",
+      "confirmResolve": "Confirm",
+      "breached": "Overdue by {{minutes}} min",
+      "dueIn": "Due in {{minutes}} min",
+      "statuses": {
+        "open": "Open",
+        "claimed": "Claimed",
+        "resolved": "Resolved"
+      },
+      "assignees": {
+        "any": "Anyone",
+        "me": "Me",
+        "unassigned": "Unassigned"
+      },
+      "sorts": {
+        "due": "Due soonest",
+        "created": "Oldest first"
+      },
+      "resolutions": {
+        "handled": "Handled",
+        "no_action": "No action needed",
+        "source_closed": "Closed at source"
+      },
+      "topics": {
+        "refund_spike": "Refund spike",
+        "payout_failures": "Payout failures",
+        "new_country_login": "Login from a new country",
+        "link_review": "Duplicate review",
+        "general": "General"
+      },
+      "done": {
+        "claim": "Item claimed.",
+        "release": "Item released.",
+        "resolve": "Item resolved."
+      },
+      "errors": {
+        "already_queued": "This customer is already in that queue.",
+        "revision_conflict": "Someone else changed this item. It has been reloaded.",
+        "already_claimed": "Another admin already claimed this item.",
+        "not_assignee": "Only the admin who claimed it can release it.",
+        "view_name_taken": "You already have a view with this name.",
+        "global_grant_required": "The team board needs a platform-wide customer permission.",
+        "resolution_required": "Choose a resolution."
       }
     }
   },

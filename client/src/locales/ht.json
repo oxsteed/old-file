@@ -427,7 +427,8 @@
       "links": "Kont ki gen lyen",
       "lifecycle": "Sik lavi",
       "inbox": "Bwat mesaj",
-      "playbooks": "Gid aksyon"
+      "playbooks": "Gid aksyon",
+      "queues": "Fil travay"
     },
     "sources": {
       "jobs": "Travay",
@@ -1247,6 +1248,87 @@
         "handoff_note_required": "Note kote demann lan te voye.",
         "step_already_completed": "Etap sa a deja fini.",
         "playbook_run_closed": "Egzekisyon sa a deja fèmen."
+      }
+    },
+    "queues": {
+      "title": "Fil travay ekip la",
+      "hint": "Fil travay pataje ak yon dènye delè pou reponn (SLA) pou chak fil. Alèt anomali ak revizyon doub yo ajoute epi fèmen otomatikman.",
+      "thisCustomer": "Kliyan sa a",
+      "notQueued": "Kliyan sa a pa nan okenn fil.",
+      "queue": "Fil",
+      "choose": "Chwazi",
+      "reason": "Rezon",
+      "add": "Ajoute nan fil la",
+      "added": "Li ajoute nan fil la.",
+      "board": "Tablo ekip la",
+      "sla": "SLA",
+      "breachedCol": "An reta",
+      "met30": "SLA respekte (30 jou)",
+      "median30": "Tan mwayen pou rezoud (30 jou)",
+      "minutes": "{{count}} min",
+      "savedView": "Vi ki anrejistre",
+      "noView": "Pa gen vi",
+      "team": "ekip",
+      "filters": "Filt",
+      "assignee": "Asiyen bay",
+      "sort": "Triye",
+      "breachedOnly": "An reta sèlman",
+      "apply": "Aplike",
+      "viewName": "Non vi a",
+      "shareTeam": "Pataje ak ekip la",
+      "saveView": "Anrejistre vi a",
+      "viewSaved": "Vi a anrejistre.",
+      "deleteView": "Efase vi a",
+      "viewDeleted": "Vi a efase.",
+      "emptyBoard": "Anyen pa koresponn ak filt sa yo.",
+      "more": "Chaje plis",
+      "claim": "Pran",
+      "release": "Lage",
+      "resolve": "Rezoud",
+      "resolution": "Rezolisyon",
+      "note": "Nòt",
+      "confirmResolve": "Konfime",
+      "breached": "An reta {{minutes}} min",
+      "dueIn": "Rete {{minutes}} min",
+      "statuses": {
+        "open": "Louvri",
+        "claimed": "Pran",
+        "resolved": "Rezoud"
+      },
+      "assignees": {
+        "any": "Nenpòt moun",
+        "me": "Mwen",
+        "unassigned": "Pa asiyen"
+      },
+      "sorts": {
+        "due": "Delè ki pi pre",
+        "created": "Pi ansyen an premye"
+      },
+      "resolutions": {
+        "handled": "Trete",
+        "no_action": "Pa bezwen aksyon",
+        "source_closed": "Fèmen nan sous la"
+      },
+      "topics": {
+        "refund_spike": "Anpil ranbousman",
+        "payout_failures": "Peman ki echwe",
+        "new_country_login": "Koneksyon nan yon nouvo peyi",
+        "link_review": "Revizyon doub",
+        "general": "Jeneral"
+      },
+      "done": {
+        "claim": "Eleman an pran.",
+        "release": "Eleman an lage.",
+        "resolve": "Eleman an rezoud."
+      },
+      "errors": {
+        "already_queued": "Kliyan sa a deja nan fil sa a.",
+        "revision_conflict": "Yon lòt moun chanje eleman sa a. Li rechaje.",
+        "already_claimed": "Yon lòt administratè deja pran eleman sa a.",
+        "not_assignee": "Se sèlman administratè ki te pran l la ki ka lage l.",
+        "view_name_taken": "Ou deja gen yon vi ak non sa a.",
+        "global_grant_required": "Tablo ekip la bezwen yon pèmisyon kliyan pou tout platfòm nan.",
+        "resolution_required": "Chwazi yon rezolisyon."
       }
     }
   },

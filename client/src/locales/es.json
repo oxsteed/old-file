@@ -427,7 +427,8 @@
       "links": "Cuentas vinculadas",
       "lifecycle": "Ciclo de vida",
       "inbox": "Bandeja",
-      "playbooks": "Guías"
+      "playbooks": "Guías",
+      "queues": "Colas"
     },
     "sources": {
       "jobs": "Trabajos",
@@ -1247,6 +1248,87 @@
         "handoff_note_required": "Anote dónde se derivó la solicitud.",
         "step_already_completed": "Este paso ya se completó.",
         "playbook_run_closed": "Esta ejecución ya está cerrada."
+      }
+    },
+    "queues": {
+      "title": "Colas del equipo",
+      "hint": "Colas de trabajo compartidas con un plazo de respuesta (SLA) por cola. Las alertas de anomalías y las revisiones de duplicados se agregan y cierran automáticamente.",
+      "thisCustomer": "Este cliente",
+      "notQueued": "Este cliente no está en ninguna cola.",
+      "queue": "Cola",
+      "choose": "Elegir",
+      "reason": "Motivo",
+      "add": "Agregar a la cola",
+      "added": "Agregado a la cola.",
+      "board": "Tablero del equipo",
+      "sla": "SLA",
+      "breachedCol": "Vencidos",
+      "met30": "SLA cumplido (30 días)",
+      "median30": "Tiempo medio de resolución (30 días)",
+      "minutes": "{{count}} min",
+      "savedView": "Vista guardada",
+      "noView": "Sin vista guardada",
+      "team": "equipo",
+      "filters": "Filtros",
+      "assignee": "Asignado a",
+      "sort": "Ordenar",
+      "breachedOnly": "Solo vencidos",
+      "apply": "Aplicar",
+      "viewName": "Nombre de la vista",
+      "shareTeam": "Compartir con el equipo",
+      "saveView": "Guardar vista",
+      "viewSaved": "Vista guardada.",
+      "deleteView": "Eliminar vista",
+      "viewDeleted": "Vista eliminada.",
+      "emptyBoard": "Nada coincide con estos filtros.",
+      "more": "Cargar más",
+      "claim": "Tomar",
+      "release": "Liberar",
+      "resolve": "Resolver",
+      "resolution": "Resolución",
+      "note": "Nota",
+      "confirmResolve": "Confirmar",
+      "breached": "Vencido hace {{minutes}} min",
+      "dueIn": "Vence en {{minutes}} min",
+      "statuses": {
+        "open": "Abierto",
+        "claimed": "Tomado",
+        "resolved": "Resuelto"
+      },
+      "assignees": {
+        "any": "Cualquiera",
+        "me": "Yo",
+        "unassigned": "Sin asignar"
+      },
+      "sorts": {
+        "due": "Vence antes",
+        "created": "Más antiguos primero"
+      },
+      "resolutions": {
+        "handled": "Atendido",
+        "no_action": "No requiere acción",
+        "source_closed": "Cerrado en el origen"
+      },
+      "topics": {
+        "refund_spike": "Pico de reembolsos",
+        "payout_failures": "Fallos de pago a proveedores",
+        "new_country_login": "Inicio de sesión desde un país nuevo",
+        "link_review": "Revisión de duplicados",
+        "general": "General"
+      },
+      "done": {
+        "claim": "Elemento tomado.",
+        "release": "Elemento liberado.",
+        "resolve": "Elemento resuelto."
+      },
+      "errors": {
+        "already_queued": "Este cliente ya está en esa cola.",
+        "revision_conflict": "Otra persona cambió este elemento. Se volvió a cargar.",
+        "already_claimed": "Otro administrador ya tomó este elemento.",
+        "not_assignee": "Solo el administrador que lo tomó puede liberarlo.",
+        "view_name_taken": "Ya tiene una vista con este nombre.",
+        "global_grant_required": "El tablero del equipo requiere un permiso de clientes para toda la plataforma.",
+        "resolution_required": "Elija una resolución."
       }
     }
   },

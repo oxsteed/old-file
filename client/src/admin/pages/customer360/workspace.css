@@ -449,3 +449,16 @@
   border-inline-start: 3px solid var(--color-primary);
   padding-inline-start: 0.5rem;
 }
+.c360u-flag {
+  color: var(--color-danger, #b42318);
+  font-weight: 600;
+}
+.c360u fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  min-inline-size: 0;
+}
