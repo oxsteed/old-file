@@ -1,6 +1,6 @@
 # OxSteed Credit Production Runbook
 
-OxSteed Credit is a restricted stored-value rail. It is not a bank account, deposit account, cash equivalent, or promise of banking services. Customers can spend only at restaurants covered by an active partner agreement and any customer entitlement or location, category, order-type, and limit rules attached to that agreement.
+OxSteed Credit is a stored-value balance. It is not a bank account, deposit account or promise of banking services, and it is not deposit-insured. Customers can spend it at restaurants covered by an active partner agreement and any customer entitlement or location, category, order-type and limit rules attached to that agreement. Customers can also send it to other OxSteed users. Helpers who consent can receive wages and tips in Credit. Holders can redeem at face value by cashing out to a verified bank account in their own name. Customer-facing wording comes from the published disclosure versions; see Licence Readiness Controls.
 
 ## Release Gate
 
