@@ -53,11 +53,20 @@ jobs:
             --build-arg VITE_SENTRY_DSN --build-arg VITE_SENTRY_SEND_DEFAULT_PII \
             --build-arg VITE_AWS_LOCATION_API_KEY --build-arg VITE_AWS_LOCATION_REGION \
             --metadata-file image-metadata.json .
-      - name: Verify real container shutdown before issuing a release receipt
+      - name: Verify container shutdown and schema preflight before issuing a release receipt
         run: |
           image_ref="$IMAGE@$(node -p 'JSON.parse(require("fs").readFileSync("image-metadata.json"))["containerimage.digest"]')"
           docker pull "$image_ref"
           node scripts/verify-container-shutdown.cjs --image "$image_ref"
+          schema_result="$(printf '[]' | docker run --rm --interactive --pull=never --network=none \
+            --read-only --cap-drop=ALL --no-healthcheck --memory=128m --cpus=0.5 \
+            --workdir /app/server --entrypoint node "$image_ref" scripts/check-web-schema-snapshot.cjs)"
+          node -e '
+            const { ok, counts } = JSON.parse(process.argv[1]);
+            if (ok !== false || !Number.isSafeInteger(counts?.pending) || counts.pending < 1) {
+              throw new Error("Image did not detect missing migrations in an empty snapshot");
+            }
+          ' "$schema_result"
       - name: Record immutable image receipt
         run: |
           node - <<'JS'

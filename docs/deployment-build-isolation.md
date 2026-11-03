@@ -37,6 +37,8 @@ a read-only transaction. The exact candidate image compares those markers to
 its SQL catalog and checksum policy without a network, credentials or volumes.
 Missing migrations hold the release before Coolify settings or the queue are
 changed. Other marker conflicts require investigation and an explicit retry.
+The image workflow checks that the packaged checker detects an empty schema
+before publishing the release receipt.
 Only then does it select Coolify's image buildpack, pin the registry manifest
 digest and queue a rolling web replacement. Coolify pulls that immutable public
 digest directly; no production source build can occur. The old release stays serving until the candidate passes
