@@ -32,5 +32,10 @@ Budget: about 4 hours. Breadth first, depth second, stop at a clean gated PR.
 - All scope items 1-8 from the brief.
 - Gate + push + PR (authorized; no force-push; never merge).
 
+## Merge (coordinator)
+- All three tracks merged clean, no conflicts: 88b204f91 (S), d91ea3d08 (M), 30bda250f (P). Merge head before gate fix: 30bda250f.
+- /learn decision RESOLVED at merge (commit 609f5d15d): /learn dropped from the sitemap and moved to noindex in the route resolver, because it is noindex in both LearnModePage PageMeta and the prerender shell, and that noindex looks deliberate (Learn is a gated mode experience). The seoRoute.learn locale key was removed from all five locales (exactly 4 lines each, byte-preserving otherwise) and shards regenerated. Sitemap test updated to assert /learn absent. If Emile ever wants Learn indexed, lift PageMeta noIndex + prerender noIndex and re-add all three.
+- Targeted re-verification after merge fix: seoMeta tests 10/10 pass; sitemap + robots + canonicalHost suites pass. prerenderMarketing suite fails (13 tests) ONLY because this fresh worktree has no client/dist yet (Track S used a temporary fixture); the gate runs build:ci first for exactly this reason.
+
 ## Gate status
-- Not run yet.
+- build:ci running (started after merge fix); full server suite to follow on the final tree.
