@@ -140,13 +140,23 @@ describeDatabase('customer360 anomalies', () => {
     await expect(pool.query(
       `INSERT INTO admin_customer_alert_rules (admin_id, customer_id, source, statuses) VALUES ($1, NULL, 'jobs', ARRAY['open'])`, [admin]))
       .rejects.toThrow(/global_scope/);
-    const first = await alerts.evaluateCustomer360Alerts();
+    // The platform rule pages through all open bundles (25 per run); drain it
+    // so a shared test database with older bundles does not hide this one.
+    let first = { sent: 0 };
+    for (let i = 0; i < 50; i += 1) {
+      await pool.query(`UPDATE admin_customer_alert_rules SET last_evaluated_at = NULL WHERE admin_id = $1`, [admin]);
+      const r = await alerts.evaluateCustomer360Alerts();
+      first = { sent: first.sent + r.sent };
+      if (!r.sent) break;
+    }
     expect(first.sent).toBeGreaterThanOrEqual(1);
+    const { rows: [mine] } = await pool.query(`SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND data->>'customer_id' = $2`, [admin, customer]);
+    expect(mine.n).toBe(1);
     await anomalies.detect(null, { customerId: customer, kind: 'refund_spike', evidence: { refunds7d: 5 }, key: 'w2' });
     await pool.query(`UPDATE admin_customer_alert_rules SET last_evaluated_at = NULL WHERE admin_id = $1`, [admin]);
-    const { rows: before } = await pool.query(`SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND type = 'customer360_attention'`, [admin]);
+    const { rows: before } = await pool.query(`SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND type = 'customer360_attention' AND data->>'customer_id' = $2`, [admin, customer]);
     await alerts.evaluateCustomer360Alerts();
-    const { rows: after } = await pool.query(`SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND type = 'customer360_attention'`, [admin]);
+    const { rows: after } = await pool.query(`SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND type = 'customer360_attention' AND data->>'customer_id' = $2`, [admin, customer]);
     expect(after[0].n).toBe(before[0].n);
   });
 });
