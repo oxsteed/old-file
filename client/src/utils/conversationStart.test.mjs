@@ -57,14 +57,21 @@ test('message drafts persist until cleared', () => {
     removeItem: (key) => { store.delete(key); },
   };
 
-  assert.equal(draftStorageKey('c1'), 'oxs:msg-draft:c1');
-  saveMessageDraft('c1', 'hello there');
-  assert.equal(loadMessageDraft('c1'), 'hello there');
-  saveMessageDraft('c1', '   ');
-  assert.equal(loadMessageDraft('c1'), '');
-  saveMessageDraft('c1', 'keep me');
-  clearMessageDraft('c1');
-  assert.equal(loadMessageDraft('c1'), '');
+  const key = draftStorageKey('owner', 'c1');
+  store.set('oxs:msg-draft:c1', 'legacy text');
+  assert.equal(loadMessageDraft(key), '');
+  saveMessageDraft(key, 'hello there');
+  assert.equal(loadMessageDraft(key), 'hello there');
+  assert.equal(loadMessageDraft(draftStorageKey('other', 'c1')), '');
+  assert.equal(loadMessageDraft(draftStorageKey('owner', 'c1', 3)), '');
+  assert.equal(draftStorageKey(null, 'c1'), null);
+  clearMessageDraft(key, 'older tab edit');
+  assert.equal(loadMessageDraft(key), 'hello there');
+  clearMessageDraft(key, 'hello there');
+  assert.equal(loadMessageDraft(key), '');
+  saveMessageDraft(key, 'keep me');
+  saveMessageDraft(key, '   ');
+  assert.equal(loadMessageDraft(key), '');
 });
 
 test('conversationSide keeps customer and helper threads distinct for dual-role users', () => {
