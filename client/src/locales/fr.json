@@ -36162,7 +36162,10 @@
     "resultId": "Identifiant :",
     "resultUser": "Utilisateur :",
     "resultStatus": "Statut :",
-    "resultPaymentMethod": "Moyen de paiement :"
+    "resultPaymentMethod": "Moyen de paiement :",
+    "stepupPrompt": "Saisissez le code de vérification de votre application d'authentification pour confirmer cette annulation.",
+    "stepupRequired": "Un code de vérification est requis pour annuler un abonnement.",
+    "stepupFailed": "Impossible de lancer la vérification de cette annulation."
   },
   "statementOps": {
     "title": "Operations des releves",

@@ -36162,7 +36162,10 @@
     "resultId": "Id:",
     "resultUser": "Itilizatè:",
     "resultStatus": "Estati:",
-    "resultPaymentMethod": "Metòd peman:"
+    "resultPaymentMethod": "Metòd peman:",
+    "stepupPrompt": "Antre kòd verifikasyon ki nan aplikasyon otantifikatè w la pou konfime anilasyon sa a.",
+    "stepupRequired": "Yon kòd verifikasyon obligatwa pou anile yon abònman.",
+    "stepupFailed": "Pa t ka kòmanse verifikasyon pou anilasyon sa a."
   },
   "statementOps": {
     "title": "Operasyon relve yo",

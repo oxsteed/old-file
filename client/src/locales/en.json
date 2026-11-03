@@ -36162,7 +36162,10 @@
     "resultId": "Id:",
     "resultUser": "User:",
     "resultStatus": "Status:",
-    "resultPaymentMethod": "Payment method:"
+    "resultPaymentMethod": "Payment method:",
+    "stepupPrompt": "Enter the verification code from your authenticator app to confirm this cancellation.",
+    "stepupRequired": "A verification code is required to cancel a subscription.",
+    "stepupFailed": "Could not start verification for this cancellation."
   },
   "statementOps": {
     "title": "Statement operations",

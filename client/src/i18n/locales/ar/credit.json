@@ -2481,7 +2481,10 @@
     "requeued": "تمت إعادة {{count}} صف إلى قائمة الانتظار.",
     "unknownDate": "تاريخ غير معروف",
     "notAvailable": "غير متوفر",
-    "parkedTotal": "إجمالي الصفوف المتوقفة: {{total}}"
+    "parkedTotal": "إجمالي الصفوف المتوقفة: {{total}}",
+    "previousPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية",
+    "pageInfo": "الصفحة {{page}} من {{pages}}"
   },
   "adminCreditHolds": {
     "capture": "تحصيل",

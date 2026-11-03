@@ -36180,7 +36180,10 @@
     "resultId": "المعرّف:",
     "resultUser": "المستخدم:",
     "resultStatus": "الحالة:",
-    "resultPaymentMethod": "طريقة الدفع:"
+    "resultPaymentMethod": "طريقة الدفع:",
+    "stepupPrompt": "أدخل رمز التحقق من تطبيق المصادقة لديك لتأكيد هذا الإلغاء.",
+    "stepupRequired": "رمز التحقق مطلوب لإلغاء الاشتراك.",
+    "stepupFailed": "تعذّر بدء التحقق لهذا الإلغاء."
   },
   "statementOps": {
     "title": "عمليات الكشوفات",

@@ -26,7 +26,7 @@ async function listPayRuns(req, res, next) {
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await pool.query(
       `SELECT pr.*, fr.display_name AS restaurant_name,
-              (SELECT COALESCE(SUM(amount_cents), 0)::int FROM restaurant_pay_run_payout_links l WHERE l.pay_run_id = pr.id) AS linked_payout_cents,
+              (SELECT COALESCE(SUM(amount_cents), 0)::int FROM restaurant_pay_run_payout_links l WHERE l.pay_run_id = pr.id AND l.currency_code = COALESCE(fr.currency_code, l.currency_code)) AS linked_payout_cents,
               (SELECT COUNT(*)::int FROM restaurant_pay_run_payout_links l WHERE l.pay_run_id = pr.id) AS payout_link_count
          FROM restaurant_pay_runs pr
          JOIN food_restaurants fr ON fr.id = pr.restaurant_id
@@ -52,7 +52,7 @@ async function getPayRun(req, res, next) {
       return res.status(404).json({ error: 'Pay run not found' });
     }
     const { rows: [run] } = await pool.query(
-      `SELECT pr.*, fr.display_name AS restaurant_name
+      `SELECT pr.*, fr.display_name AS restaurant_name, fr.currency_code AS restaurant_currency_code
          FROM restaurant_pay_runs pr
          JOIN food_restaurants fr ON fr.id = pr.restaurant_id
         WHERE pr.id = $1`,
@@ -71,7 +71,13 @@ async function getPayRun(req, res, next) {
         WHERE l.pay_run_id = $1 ORDER BY l.id`,
       [payRunId]
     ).catch(() => ({ rows: [] }));
-    const linkedPayoutCents = payoutLinks.reduce((sum, link) => sum + Number(link.amount_cents || 0), 0);
+    // Nov 3 audit item 2: count only links in the restaurant's currency.
+    const runCurrency = run.restaurant_currency_code
+      ? String(run.restaurant_currency_code).toUpperCase() : null;
+    const linkedPayoutCents = payoutLinks.reduce((sum, link) => {
+      if (runCurrency && link.currency_code && String(link.currency_code).toUpperCase() !== runCurrency) return sum;
+      return sum + Number(link.amount_cents || 0);
+    }, 0);
     res.json({ payRun: { ...run, lines, payoutLinks, linkedPayoutCents } });
   } catch (err) {
     next(err);

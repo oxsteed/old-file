@@ -587,8 +587,11 @@ async function replayDualPostingBackfill(pool, { limit = 100 } = {}) {
 /** Review P1-249: operator view of rows parked as 'failed'. */
 // Track D (finding 51): the parked list returns its total so an operator
 // can tell whether the loaded page is the whole failed set.
-async function listParkedDualPostingBackfill(pool, { limit = 100 } = {}) {
+// Nov 3 audit item 6: the list also takes an offset, so rows past the
+// first page are reachable instead of visible only as a total.
+async function listParkedDualPostingBackfill(pool, { limit = 100, offset = 0 } = {}) {
   const bound = Math.min(500, Math.max(1, Number(limit) || 100));
+  const start = Math.max(0, Number(offset) || 0);
   const [{ rows: countRows }, { rows }] = await Promise.all([
     pool.query(
       `SELECT COUNT(*)::int AS total FROM credit_dual_posting_backfill WHERE status = 'failed'`
@@ -599,11 +602,11 @@ async function listParkedDualPostingBackfill(pool, { limit = 100 } = {}) {
          FROM credit_dual_posting_backfill
         WHERE status = 'failed'
         ORDER BY created_at ASC
-        LIMIT $1`,
-      [bound]
+        LIMIT $1 OFFSET $2`,
+      [bound, start]
     ),
   ]);
-  return { rows, total: countRows[0]?.total || 0 };
+  return { rows, total: countRows[0]?.total || 0, limit: bound, offset: start };
 }
 
 /** Review P1-249: put parked rows back in the queue with fresh attempts. */
