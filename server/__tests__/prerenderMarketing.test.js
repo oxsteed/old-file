@@ -118,6 +118,63 @@ describe('localized marketing SEO shell', () => {
     expect(res.text).toContain('"inLanguage":"es"');
   });
 
+  test('serves the careers directory as a crawlable localized page', async () => {
+    const res = await request(buildApp()).get('/careers?lang=es');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-language']).toBe('es');
+    expect(res.headers['x-robots-tag']).toBeUndefined();
+    expect(res.text).toContain('<html lang="es">');
+    expect(res.text).toContain('<title data-rh="true">Empleos en OxSteed | OxSteed</title>');
+    expect(res.text).toContain('rel="canonical" href="https://oxsteed.com/careers?lang=es"');
+    expect(res.text).toContain('hreflang="fr" href="https://oxsteed.com/careers?lang=fr"');
+    expect(res.text).toContain('"@type":"CollectionPage"');
+  });
+
+  test('serves public career openings with JobPosting structured data', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{
+      id: 77,
+      title: 'Line Cook',
+      description: 'Cook meals for a busy local kitchen.',
+      published_at: '2026-10-01T00:00:00.000Z',
+      created_at: '2026-10-01T00:00:00.000Z',
+      applications_close_at: null,
+      closes_at: null,
+      employer_name: 'OxSteed',
+    }] });
+
+    const res = await request(buildApp()).get('/careers/77');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['x-robots-tag']).toBeUndefined();
+    expect(res.text).toContain('<title data-rh="true">Line Cook | OxSteed</title>');
+    expect(res.text).toContain('rel="canonical" href="https://oxsteed.com/careers/77"');
+    expect(res.text).toContain('hreflang="es" href="https://oxsteed.com/careers/77?lang=es"');
+    expect(res.text).toContain('"@type":"JobPosting"');
+    expect(res.text).toContain('<h1>Line Cook</h1>');
+    expect(mockQuery.mock.calls[0][0]).toMatch(/FROM career_openings/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/o\.status = 'open'/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/o\.moderation_status = 'ok'/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/o\.is_internal = FALSE/);
+  });
+
+  test('keeps non-public career openings out of search with a 404 shell', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp()).get('/careers/77');
+
+    expect(res.status).toBe(404);
+    expect(res.text).toContain('Career Opening Not Found | OxSteed');
+    expect(res.text).toContain('name="robots" content="noindex, nofollow"');
+  });
+
+  test('keeps the career application confirm step out of search', async () => {
+    const res = await request(buildApp()).get('/careers/77/confirm');
+
+    expect(res.headers['x-robots-tag']).toBe('noindex, nofollow');
+    expect(res.text).not.toContain('"@type":"JobPosting"');
+  });
+
   test('localizes eligible public profile metadata and structured data', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{
