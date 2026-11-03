@@ -2540,6 +2540,27 @@ async function resendVerification(req, res) {
     res.status(500).json({ error: 'Failed to send verification email' });
   }
 }
+// Customer 360 playbooks (upgrade 9): issue a fresh email-verification code
+// for an unverified account on staff request. Same HMAC hashing, 15-minute
+// expiry and H10 60-second cooldown as the customer resend, claimed
+// atomically so concurrent requests cannot double-send.
+async function issueEmailVerificationCode(userId) {
+  const otp = crypto.randomInt(100000, 1000000).toString();
+  const { rows: [u] } = await pool.query(
+    `UPDATE users
+        SET otp_code = $2, otp_expires_at = NOW() + interval '15 minutes', otp_attempts = 0,
+            otp_last_sent_at = NOW()
+      WHERE id = $1 AND email_verified IS NOT TRUE AND deleted_at IS NULL AND email IS NOT NULL
+        AND (otp_locked_until IS NULL OR otp_locked_until <= NOW())
+        AND (otp_last_sent_at IS NULL OR otp_last_sent_at <= NOW() - ($3::int * interval '1 millisecond'))
+      RETURNING email, preferred_language`,
+    [userId, hashOtp(otp), OTP_RESEND_COOLDOWN_MS]
+  );
+  if (!u) return { sent: false, reason: 'not_eligible_or_cooldown' };
+  const delivery = await sendOTPEmail(u.email, otp, u.preferred_language);
+  if (delivery && delivery.success === false) return { sent: false, reason: 'delivery_failed' };
+  return { sent: true };
+}
 // Switch a user's account-type / mode. This endpoint replaces what was
 // previously a customer↔helper toggle. The wire format accepts either:
 //
@@ -2690,7 +2711,7 @@ module.exports = {
   checkEmail, checkZip, addToWaitlist,
   startRegistration, acceptTerms, verifyRegistrationOTP, resendRegistrationOTP,
   forgotPassword, resetPassword,
-  getMe, updateProfile, changePassword, changeEmail, confirmEmailChange, getPublicProfile, resendVerification,
+  getMe, updateProfile, changePassword, changeEmail, confirmEmailChange, getPublicProfile, resendVerification, issueEmailVerificationCode,
   switchRole,
   formatAuthUser
 };

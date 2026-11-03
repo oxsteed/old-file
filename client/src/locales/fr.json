@@ -426,7 +426,8 @@
       "anomalies": "Anomalies",
       "links": "Comptes liés",
       "lifecycle": "Cycle de vie",
-      "inbox": "Messagerie"
+      "inbox": "Messagerie",
+      "playbooks": "Procédures"
     },
     "sources": {
       "jobs": "Missions",
@@ -1172,6 +1173,80 @@
         "customer_not_messageable": "Impossible d’envoyer un message à ce client.",
         "message_grant_required": "L’envoi nécessite une autorisation de messagerie pour toute la plateforme.",
         "idempotency_conflict": "Ce message a déjà été envoyé à un autre client."
+      }
+    },
+    "playbooks": {
+      "title": "Procédures",
+      "hint": "Étapes guidées pour les demandes courantes. Seules les étapes sûres s’exécutent automatiquement (renvoi de la vérification, nouvelle tentative de notifications). Les remboursements et crédits sont transmis aux approbations existantes, qui exigent toujours deux administrateurs différents.",
+      "started": "Procédure lancée.",
+      "stepSaved": "Étape enregistrée.",
+      "cancelled": "Procédure annulée.",
+      "alreadyOpen": "Une exécution de cette procédure est déjà ouverte ci-dessous.",
+      "confirm": "Lancer cette procédure maintenant ? Ses étapes automatiques s’exécuteront immédiatement pour ce client.",
+      "runNow": "Lancer maintenant",
+      "back": "Retour",
+      "run": "Lancer",
+      "history": "Exécutions récentes",
+      "none": "Aucune exécution pour l’instant.",
+      "moneyNote": "Cette procédure ne déplace pas d’argent. Ouvrez la page des approbations, créez-y la demande et indiquez où vous l’avez transmise.",
+      "openApprovals": "Ouvrir les approbations",
+      "openInbox": "Ouvrir la messagerie",
+      "handoffNote": "Où la demande a-t-elle été transmise ?",
+      "note": "Note (facultatif)",
+      "markHandedOff": "Marquer comme transmis",
+      "markDone": "Marquer comme fait",
+      "cancel": "Annuler l’exécution",
+      "names": {
+        "verification_help": "Aide à la vérification de l’e-mail",
+        "notification_retry": "Relancer les notifications échouées",
+        "payment_issue": "Problème de paiement"
+      },
+      "steps": {
+        "check_unverified": "Vérifier que l’e-mail n’est pas vérifié",
+        "resend_verification": "Envoyer un nouveau code de vérification",
+        "confirm_with_customer": "Confirmer avec le client",
+        "find_failed": "Trouver les notifications échouées",
+        "retry_message_notifications": "Relancer les notifications de messages dans l’application",
+        "retry_support_emails": "Relancer les e-mails d’assistance",
+        "confirm_delivery": "Confirmer que le client les a reçues",
+        "review_payments": "Examiner les paiements des 30 derniers jours",
+        "contact_customer": "Contacter le client",
+        "refund_or_credit": "Remboursement ou crédit (approbation requise)"
+      },
+      "kinds": {
+        "check": "Contrôle automatique",
+        "safe_action": "Action sûre automatique",
+        "manual": "Manuel",
+        "money_handoff": "Transmission à l’approbation"
+      },
+      "runStatuses": {
+        "open": "Ouverte",
+        "completed": "Terminée",
+        "cancelled": "Annulée"
+      },
+      "statuses": {
+        "pending": "En attente",
+        "done": "Fait",
+        "failed": "Échec",
+        "skipped": "Ignoré",
+        "handed_off": "Transmis"
+      },
+      "reasons": {
+        "no_email": "Le client n’a pas d’adresse e-mail.",
+        "already_verified": "L’e-mail est déjà vérifié.",
+        "cooldown": "Un code a été envoyé il y a moins de 10 minutes.",
+        "not_eligible_or_cooldown": "Impossible pour le moment (vérifié, bloqué ou envoyé dans la dernière minute).",
+        "delivery_failed": "L’e-mail n’a pas pu être envoyé.",
+        "nothing_failed": "Aucun échec.",
+        "no_access": "Vous n’avez pas l’autorisation pour cette étape.",
+        "cancelled": "L’exécution a été annulée.",
+        "error": "L’étape a échoué."
+      },
+      "errors": {
+        "playbook_already_open": "Cette procédure est déjà ouverte pour ce client.",
+        "handoff_note_required": "Indiquez où la demande a été transmise.",
+        "step_already_completed": "Cette étape est déjà terminée.",
+        "playbook_run_closed": "Cette exécution est déjà close."
       }
     }
   },

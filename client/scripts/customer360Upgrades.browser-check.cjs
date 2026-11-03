@@ -50,8 +50,14 @@ const routes = `window.routes=[
   ['get',/\\/workspace\\/inbox$/,()=>({items:window.inboxItems,nextBefore:null,tickets:[{id:'11',ticket_number:'T-11',subject:'Login help',status:'open'}],grants:{support:true,internal:false,messages:true},canSend:true,
     channels:{email:{available:true,verified:true,to:'c***@example.com'},sms:{available:false,enabled:false,to:'********1234'}},language:'ht',firstName:'Rose',languages:['en','es','fr','ht','ar'],templates:['general','verification','payment','resolved']})],
   ['get',/\\/workspace\\/inbox\\/templates\\/verification$/,(o)=>({key:'verification',language:o.params.language,subject:'Subject '+o.params.language,body:'Body '+o.params.language})],
-  ['post',/\\/workspace\\/inbox\\/send$/,(o,b)=>{window.inboxItems=[{channel:'email',id:'9',at:new Date().toISOString(),outbound:true,internal:false,author:'Admin',subject:b.subject,body:b.body,status:'sent'},...window.inboxItems];return{message:{id:'9',status:'sent'}};}],
+  ['post',/\\/workspace\\/inbox\\/send$/,(o,b)=>{window.pbRuns=[];
+window.inboxItems=[{channel:'email',id:'9',at:new Date().toISOString(),outbound:true,internal:false,author:'Admin',subject:b.subject,body:b.body,status:'sent'},...window.inboxItems];return{message:{id:'9',status:'sent'}};}],
   ['post',/\\/admin\\/support\\/tickets\\/11\\/reply$/,()=>({ok:true})],
+  ['get',/\\/workspace\\/playbooks$/,()=>({playbooks:[{key:'verification_help',version:1,steps:[{key:'check_unverified',kind:'check'},{key:'resend_verification',kind:'safe_action'},{key:'confirm_with_customer',kind:'manual'}]},
+    {key:'payment_issue',version:1,steps:[{key:'review_payments',kind:'check'},{key:'contact_customer',kind:'manual',route:'inbox'},{key:'refund_or_credit',kind:'money_handoff',route:'/admin/payments'}]}],runs:window.pbRuns})],
+  ['post',/\\/workspace\\/playbooks\\/payment_issue\\/run$/,()=>{window.pbRuns=[{id:'3',playbook_key:'payment_issue',status:'open',started_by_name:'Admin',created_at:new Date().toISOString(),
+    steps:[{key:'review_payments',kind:'check',status:'done',result:{failed:1}},{key:'contact_customer',kind:'manual',status:'pending',result:{}},{key:'refund_or_credit',kind:'money_handoff',status:'pending',result:{}}]}];return{run:window.pbRuns[0]};}],
+  ['post',/\\/workspace\\/playbook-runs\\/3\\/steps\\/refund_or_credit\\/complete$/,(o,b)=>{window.pbRuns[0].steps[2]={...window.pbRuns[0].steps[2],status:'handed_off',note:b.note};return{run:window.pbRuns[0]};}],
 ];
 window.inboxItems=[{channel:'support',id:'1',at:'2026-11-01T10:00:00Z',outbound:false,internal:false,author:'Rose',subject:null,body:'مرحبا\\nI cannot log in',thread_label:'T-11'}];
 window.anomalyRows=[{id:'5',customer_id:'${id}',kind:'new_country_login',status:'open',occurrences:2,first_detected_at:'2026-11-01T10:00:00Z',last_detected_at:'2026-11-02T10:00:00Z',evidence:{country:'FR',previousCountries:['HT']},snoozed_until:null,revision:1},
@@ -259,7 +265,26 @@ test("customer 360 upgrade panels work and lay out in five languages", async () 
     await ib.getByText(copy.en.inbox.sent).waitFor();
     assert.ok(await page.evaluate(() => window.calls.some((c) => c.url === "/admin/support/tickets/11/reply" && c.body.is_internal === false)));
 
-    const panels = [["inbox", '[data-panel="inbox"]'], ["lifecycle", '[data-panel="lifecycle"]'], ["links", '[data-panel="links"]'], ["anomalies", '[data-panel="anomalies"]'], ["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
+    // Upgrade 9: playbooks; nothing runs before the confirmation; the money step is a hand-off.
+    await page.getByRole("button", { name: copy.en.areas.playbooks, exact: true }).click();
+    const pb = page.locator('[data-panel="playbooks"]');
+    await pb.locator('[data-playbook="payment_issue"] button').click();
+    await pb.locator('[data-confirm="payment_issue"]').waitFor();
+    assert.equal(await page.evaluate(() => window.calls.some((c) => /playbooks\/.+\/run$/.test(c.url))), false);
+    await pb.getByRole("button", { name: copy.en.playbooks.runNow, exact: true }).click();
+    await pb.locator('[data-run="3"]').waitFor();
+    const runCall = await page.evaluate(() => window.calls.find((c) => /run$/.test(c.url)).body);
+    assert.equal(runCall.confirm, true);
+    const handoff = pb.locator('[data-step="refund_or_credit"]');
+    assert.equal(await handoff.getByRole("button", { name: copy.en.playbooks.markHandedOff }).isDisabled(), true);
+    assert.equal(await handoff.getByRole("link", { name: copy.en.playbooks.openApprovals }).getAttribute("href"), "/admin/payments");
+    await handoff.getByLabel(copy.en.playbooks.handoffNote).fill("Refund request 12");
+    await handoff.getByRole("button", { name: copy.en.playbooks.markHandedOff }).click();
+    await pb.locator('[data-step="refund_or_credit"][data-step-status="handed_off"]').waitFor();
+    await pb.locator('[data-step="contact_customer"]').getByRole("button", { name: copy.en.playbooks.openInbox }).click();
+    await page.locator('[data-panel="inbox"]').waitFor();
+
+    const panels = [["playbooks", '[data-panel="playbooks"]'], ["inbox", '[data-panel="inbox"]'], ["lifecycle", '[data-panel="lifecycle"]'], ["links", '[data-panel="links"]'], ["anomalies", '[data-panel="anomalies"]'], ["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
     for (const lang of LANGS)
       for (const dark of [false, true])
         for (const width of [320, 1360]) {

@@ -352,6 +352,10 @@ router.get('/users/:userId/workspace/lifecycle', requireAdmin, requirePermission
 router.get('/users/:userId/workspace/inbox', requireAdmin, requirePermission('manage_users'), c360Upgrades.inbox);
 router.get('/users/:userId/workspace/inbox/templates/:templateKey', requireAdmin, requirePermission('message_users'), c360Upgrades.inboxTemplate);
 router.post('/users/:userId/workspace/inbox/send', requireAdmin, rejectImpersonated, requirePermission('manage_users'), requirePermission('message_users'), strictLimiter, c360Upgrades.inboxSend);
+router.get('/users/:userId/workspace/playbooks', requireAdmin, requirePermission('manage_users'), c360Upgrades.playbooks);
+router.post('/users/:userId/workspace/playbooks/:playbookKey/run', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.startPlaybook);
+router.post('/users/:userId/workspace/playbook-runs/:runId/steps/:stepKey/complete', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.completePlaybookStep);
+router.post('/users/:userId/workspace/playbook-runs/:runId/cancel', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.cancelPlaybook);
 router.get('/customer360/cohorts', requireAdmin, requirePermission('manage_users'), c360Upgrades.cohortComparison);
 router.post('/users/:userId/workspace/links/:otherUserId/review', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.openLinkReview);
 router.post('/users/:userId/workspace/link-reviews/:reviewId/:action(checklist|duplicate|confirm|reject|distinct|dismiss)', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.decideLinkReview);

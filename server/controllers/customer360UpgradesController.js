@@ -266,3 +266,36 @@ exports.inboxSend = handle(async (req, res) => {
   });
   res.status(result.replayed ? 200 : 201).json(result);
 });
+
+// ── Upgrade 9: playbooks (safe steps only; money steps are hand-offs) ──────
+const playbooks = require("../services/customer360Playbooks");
+const playbookAudit = (req) => (action, { client = null, after = null } = {}) => audit(req, action, { client, after });
+exports.playbooks = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const list = await playbooks.runs(user.id);
+  await audit(req, "customer360_playbooks_read", { description: JSON.stringify({ runs: list.length }) });
+  res.json({ playbooks: playbooks.definitions(), runs: list });
+});
+exports.startPlaybook = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const b = req.body || {};
+  const result = await playbooks.start({
+    customerId: user.id, key: String(req.params.playbookKey), adminId: req.user.id,
+    clientRequestId: req.get("Idempotency-Key") || b.clientRequestId, confirm: b.confirm,
+    can: workspace.access(req), audit: playbookAudit(req),
+  });
+  res.status(result.replayed ? 200 : 201).json(result);
+});
+exports.completePlaybookStep = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const run = await playbooks.completeStep({
+    customerId: user.id, runId: req.params.runId, stepKey: String(req.params.stepKey), adminId: req.user.id,
+    note: req.body?.note, audit: playbookAudit(req),
+  });
+  res.json({ run });
+});
+exports.cancelPlaybook = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const run = await playbooks.cancel({ customerId: user.id, runId: req.params.runId, adminId: req.user.id, audit: playbookAudit(req) });
+  res.json({ run });
+});

@@ -641,6 +641,7 @@ export default function Workspace({ user, existingTimeline = [] }) {
               viewerKey={viewerKey}
               data={data}
               user={user}
+              onArea={(next) => choose(next)}
             />
             {area === "eligibility" && (
               <article>

@@ -8,6 +8,7 @@ export const AREAS = [
   "links",
   "lifecycle",
   "inbox",
+  "playbooks",
   "work",
   "finance",
   "credit",

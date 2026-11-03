@@ -391,3 +391,37 @@ Background work runs in `server/jobs/customer360Upgrades.js`
 - UI: "Inbox" area (`upgrades/Inbox.jsx`).
 - Tests: `server/__tests__/customer360Inbox.db.test.js` and the shared
   client checks.
+
+### 9. Playbooks for safe steps
+
+- Migration `20261103120700_customer360_playbooks.sql`:
+  `customer_playbook_runs` (one open run per customer × playbook via a
+  partial unique index; idempotent on `(started_by, client_request_id)`)
+  and `customer_playbook_run_steps` (status per step; a CHECK constraint
+  stops a `money_handoff` step from ever being marked `done`).
+- Definitions are versioned code (`services/customer360Playbooks.js`):
+  - `verification_help`: check the email is unverified → send a new
+    verification code (`authController.issueEmailVerificationCode`: same
+    HMAC hashing, 15-minute expiry and 60-second H10 cooldown as the
+    customer resend, claimed atomically; plus a 10-minute per-customer
+    playbook cooldown) → confirm with the customer (manual);
+  - `notification_retry` (needs `manage_operations`): count failed rows →
+    requeue this customer's dead-lettered in-app message notifications and
+    support emails (only `failed` rows; the stored Resend idempotency key
+    prevents duplicates) → confirm delivery (manual);
+  - `payment_issue`: review 30 days of payments → contact the customer
+    (opens the inbox) → **refund or credit: hand-off only**. The step links
+    to the existing approvals page and can only be marked `handed_off` with
+    a note. Refunds, credits and adjustments keep their existing approval
+    and two-distinct-admin rules; no playbook calls a money-moving service.
+- Automatic steps run only after `confirm: true`; a failed check stops the
+  remaining safe actions. Each start, safe action, manual completion and
+  cancellation writes an audit row (`customer360_playbook_*`) and safe
+  actions append `playbook.<step>` events.
+- Endpoints: `GET …/workspace/playbooks`,
+  `POST …/workspace/playbooks/:playbookKey/run`,
+  `POST …/workspace/playbook-runs/:runId/steps/:stepKey/complete`,
+  `POST …/workspace/playbook-runs/:runId/cancel`.
+- UI: "Playbooks" area (`upgrades/Playbooks.jsx`).
+- Tests: `server/__tests__/customer360Playbooks.db.test.js` and the shared
+  client checks.

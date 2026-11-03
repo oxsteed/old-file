@@ -279,7 +279,8 @@
       "anomalies": "Anomalías",
       "links": "Cuentas vinculadas",
       "lifecycle": "Ciclo de vida",
-      "inbox": "Bandeja"
+      "inbox": "Bandeja",
+      "playbooks": "Guías"
     },
     "sources": {
       "jobs": "Trabajos",
@@ -1025,6 +1026,80 @@
         "customer_not_messageable": "No se puede enviar mensajes a este cliente.",
         "message_grant_required": "Para enviar se necesita un permiso de mensajería para toda la plataforma.",
         "idempotency_conflict": "Este mensaje ya se envió a otro cliente."
+      }
+    },
+    "playbooks": {
+      "title": "Guías de acción",
+      "hint": "Pasos guiados para solicitudes frecuentes. Solo los pasos seguros se ejecutan automáticamente (reenviar la verificación, reintentar notificaciones). Los reembolsos y créditos se derivan a las aprobaciones existentes, que siguen necesitando dos administradores distintos.",
+      "started": "Guía iniciada.",
+      "stepSaved": "Paso guardado.",
+      "cancelled": "Guía cancelada.",
+      "alreadyOpen": "Ya hay una ejecución abierta de esta guía más abajo.",
+      "confirm": "¿Ejecutar esta guía ahora? Sus pasos automáticos se ejecutarán de inmediato para este cliente.",
+      "runNow": "Ejecutar ahora",
+      "back": "Volver",
+      "run": "Ejecutar",
+      "history": "Ejecuciones recientes",
+      "none": "Aún no hay ejecuciones.",
+      "moneyNote": "Esta guía no mueve dinero. Abra la página de aprobaciones, cree allí la solicitud y anote dónde la derivó.",
+      "openApprovals": "Abrir aprobaciones",
+      "openInbox": "Abrir bandeja",
+      "handoffNote": "¿Dónde se derivó?",
+      "note": "Nota (opcional)",
+      "markHandedOff": "Marcar como derivado",
+      "markDone": "Marcar como hecho",
+      "cancel": "Cancelar ejecución",
+      "names": {
+        "verification_help": "Ayuda con la verificación del correo",
+        "notification_retry": "Reintentar notificaciones fallidas",
+        "payment_issue": "Problema de pago"
+      },
+      "steps": {
+        "check_unverified": "Comprobar que el correo no está verificado",
+        "resend_verification": "Enviar un nuevo código de verificación",
+        "confirm_with_customer": "Confirmar con el cliente",
+        "find_failed": "Buscar notificaciones fallidas",
+        "retry_message_notifications": "Reintentar notificaciones de mensajes en la app",
+        "retry_support_emails": "Reintentar correos de soporte",
+        "confirm_delivery": "Confirmar que el cliente las recibió",
+        "review_payments": "Revisar los pagos de los últimos 30 días",
+        "contact_customer": "Contactar al cliente",
+        "refund_or_credit": "Reembolso o crédito (requiere aprobación)"
+      },
+      "kinds": {
+        "check": "Comprobación automática",
+        "safe_action": "Acción segura automática",
+        "manual": "Manual",
+        "money_handoff": "Derivación a aprobación"
+      },
+      "runStatuses": {
+        "open": "Abierta",
+        "completed": "Completada",
+        "cancelled": "Cancelada"
+      },
+      "statuses": {
+        "pending": "Pendiente",
+        "done": "Hecho",
+        "failed": "Falló",
+        "skipped": "Omitido",
+        "handed_off": "Derivado"
+      },
+      "reasons": {
+        "no_email": "El cliente no tiene correo electrónico.",
+        "already_verified": "El correo ya está verificado.",
+        "cooldown": "Se envió un código hace menos de 10 minutos.",
+        "not_eligible_or_cooldown": "No es posible ahora (verificado, bloqueado o enviado en el último minuto).",
+        "delivery_failed": "No se pudo enviar el correo.",
+        "nothing_failed": "No hay nada fallido.",
+        "no_access": "No tiene permiso para este paso.",
+        "cancelled": "La ejecución se canceló.",
+        "error": "El paso falló."
+      },
+      "errors": {
+        "playbook_already_open": "Esta guía ya está abierta para este cliente.",
+        "handoff_note_required": "Anote dónde se derivó la solicitud.",
+        "step_already_completed": "Este paso ya se completó.",
+        "playbook_run_closed": "Esta ejecución ya está cerrada."
       }
     }
   },

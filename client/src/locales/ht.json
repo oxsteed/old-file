@@ -426,7 +426,8 @@
       "anomalies": "Anomali",
       "links": "Kont ki gen lyen",
       "lifecycle": "Sik lavi",
-      "inbox": "Bwat mesaj"
+      "inbox": "Bwat mesaj",
+      "playbooks": "Gid aksyon"
     },
     "sources": {
       "jobs": "Travay",
@@ -1172,6 +1173,80 @@
         "customer_not_messageable": "Ou pa ka voye mesaj bay kliyan sa a.",
         "message_grant_required": "Pou voye, ou bezwen yon pèmisyon mesaj pou tout platfòm nan.",
         "idempotency_conflict": "Mesaj sa a te deja voye bay yon lòt kliyan."
+      }
+    },
+    "playbooks": {
+      "title": "Gid aksyon",
+      "hint": "Etap gide pou demann ki fèt souvan. Se sèlman etap ki san danje yo ki fèt otomatikman (revoye verifikasyon, eseye notifikasyon ankò). Ranbousman ak kredi yo voye bay apwobasyon ki egziste deja yo, ki toujou bezwen de administratè diferan.",
+      "started": "Gid la kòmanse.",
+      "stepSaved": "Etap la anrejistre.",
+      "cancelled": "Gid la anile.",
+      "alreadyOpen": "Gen yon egzekisyon gid sa a ki deja louvri pi ba a.",
+      "confirm": "Egzekite gid sa a kounye a? Etap otomatik li yo ap fèt touswit pou kliyan sa a.",
+      "runNow": "Egzekite kounye a",
+      "back": "Retounen",
+      "run": "Egzekite",
+      "history": "Dènye egzekisyon yo",
+      "none": "Poko gen egzekisyon.",
+      "moneyNote": "Gid sa a pa deplase lajan. Louvri paj apwobasyon an, kreye demann lan la, epi note kote ou voye l.",
+      "openApprovals": "Louvri apwobasyon yo",
+      "openInbox": "Louvri bwat mesaj la",
+      "handoffNote": "Ki kote ou voye l?",
+      "note": "Nòt (si ou vle)",
+      "markHandedOff": "Make kòm voye",
+      "markDone": "Make kòm fèt",
+      "cancel": "Anile egzekisyon an",
+      "names": {
+        "verification_help": "Èd pou verifye imèl",
+        "notification_retry": "Eseye notifikasyon ki echwe yo ankò",
+        "payment_issue": "Pwoblèm peman"
+      },
+      "steps": {
+        "check_unverified": "Verifye imèl la poko verifye",
+        "resend_verification": "Voye yon nouvo kòd verifikasyon",
+        "confirm_with_customer": "Konfime ak kliyan an",
+        "find_failed": "Jwenn notifikasyon ki echwe yo",
+        "retry_message_notifications": "Eseye notifikasyon mesaj nan aplikasyon an ankò",
+        "retry_support_emails": "Eseye imèl sipò yo ankò",
+        "confirm_delivery": "Konfime kliyan an resevwa yo",
+        "review_payments": "Revize peman 30 dènye jou yo",
+        "contact_customer": "Kontakte kliyan an",
+        "refund_or_credit": "Ranbousman oswa kredi (bezwen apwobasyon)"
+      },
+      "kinds": {
+        "check": "Verifikasyon otomatik",
+        "safe_action": "Aksyon san danje otomatik",
+        "manual": "Manyèl",
+        "money_handoff": "Voye bay apwobasyon"
+      },
+      "runStatuses": {
+        "open": "Louvri",
+        "completed": "Fini",
+        "cancelled": "Anile"
+      },
+      "statuses": {
+        "pending": "Ap tann",
+        "done": "Fèt",
+        "failed": "Echwe",
+        "skipped": "Sote",
+        "handed_off": "Voye"
+      },
+      "reasons": {
+        "no_email": "Kliyan an pa gen adrès imèl.",
+        "already_verified": "Imèl la deja verifye.",
+        "cooldown": "Yon kòd te voye mwens pase 10 minit de sa.",
+        "not_eligible_or_cooldown": "Pa posib kounye a (verifye, bloke oswa voye nan dènye minit lan).",
+        "delivery_failed": "Imèl la pa t ka voye.",
+        "nothing_failed": "Pa gen anyen ki echwe.",
+        "no_access": "Ou pa gen pèmisyon pou etap sa a.",
+        "cancelled": "Egzekisyon an te anile.",
+        "error": "Etap la echwe."
+      },
+      "errors": {
+        "playbook_already_open": "Gid sa a deja louvri pou kliyan sa a.",
+        "handoff_note_required": "Note kote demann lan te voye.",
+        "step_already_completed": "Etap sa a deja fini.",
+        "playbook_run_closed": "Egzekisyon sa a deja fèmen."
       }
     }
   },
