@@ -126,3 +126,21 @@ health checks are disabled deliberately to hold a stale backend in rotation and
 to keep exact request counts free of unrelated Docker health probes.
 
 See the versioned [Traefik retry configuration](https://doc.traefik.io/traefik/v3.7/reference/routing-configuration/http/middlewares/retry/).
+
+## Confirm a timed-out background probe on a serving replica
+
+During the November 3 replacement, the serving web replica reported a failed
+background readiness observation and briefly returned 503. A timed-out
+background probe now gets one immediate confirmation attempt, capped at
+1.5 seconds, only when the web replica is already serving with a prior healthy
+result. The observation stays coalesced. An explicit unhealthy response or a
+failed confirmation withdraws readiness. New candidates still need a
+successful initial observation.
+
+Three related Jest suites passed 34 tests. An isolated HTTP rehearsal using
+the production readiness evaluator sampled 112 successful readiness requests
+while recovering from eight injected timeouts. An explicit unhealthy response
+and two successive timeouts each produced 503. The earlier three proxy 503s
+occurred before candidate startup and had no upstream response. Their cause
+remains open. This source change needs CI and another monitored production
+rollout before availability acceptance.
