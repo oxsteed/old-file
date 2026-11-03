@@ -52,7 +52,6 @@ export const DASHBOARD_QUICK_LINKS = {
   life: [
     link('/activity', 'dashboard.recentActivity', 'Recent activity', Activity),
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
-    link('/planned-needs', 'dashboards.life.plannedNeeds', 'Planned needs', FileText),
     QR_GENERATOR_LINK,
     WALLET_LINK,
     link('/settings', 'nav.settings', 'Account settings', Settings),

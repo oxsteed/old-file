@@ -162,35 +162,10 @@ function buildCrossSells({ vehicles, homes, goals, expenses, summary, t }) {
     });
   }
 
-  // High home-category expenses → suggest planning ahead
-  const homeExpenses = (expenses || []).filter(e =>
-    /home|rent|mortgage|repair|maintenance/i.test(e.category || '')
-  );
-  if (homeExpenses.length >= 2 && !suggestions.find(s => s.id === 'home_repair')) {
-    suggestions.push({
-      id: 'planned_needs',
-      icon: <CalendarClock size={16} className="text-purple-400" />,
-      title: t('dashboards.life.crossSell.planHomeExpenses'),
-      subtitle: t('dashboards.life.crossSell.planHomeSubtitle'),
-      href: '/planned-needs',
-      cta: t('dashboards.life.crossSell.setupPlan'),
-      color: 'purple',
-    });
-  }
-
-  // Always offer consulting if any business/financial goal exists
-  const businessGoal = goals.find(g => /business|revenue|income|profit/i.test(g.title || ''));
-  if (businessGoal) {
-    suggestions.push({
-      id: 'consulting',
-      icon: <Sparkles size={16} className="text-pink-400" />,
-      title: t('dashboards.life.crossSell.businessConsultant'),
-      subtitle: t('dashboards.life.crossSell.consultingSubtitle', { goal: businessGoal.title }),
-      href: '/consulting',
-      cta: t('dashboards.life.crossSell.findConsultant'),
-      color: 'pink',
-    });
-  }
+  // Gated dead links (Nov 3 audit): the planned-needs and consulting
+  // cross-sell cards linked to launch-gated routes (/planned-needs,
+  // /consulting) that bounce, so they are removed. No live equivalent
+  // exists for either surface.
 
   return suggestions.slice(0, 4); // cap at 4 cards
 }
@@ -362,7 +337,6 @@ export default function LifeDashboard() {
           <Card
             title={t('dashboards.life.next30', { defaultValue: 'Next 90 days' })}
             icon={<CalendarClock size={16} className="text-orange-500" />}
-            action={<Link to="/planned-needs" className="text-xs text-orange-400 hover:text-orange-300">{t('dashboards.life.planAhead', { defaultValue: 'Plan ahead' })}</Link>}
           >
             <StatRow
               label={t('dashboards.life.expectedSpend', { defaultValue: 'Expected spend' })}
@@ -514,13 +488,13 @@ export default function LifeDashboard() {
               <div className="text-lg font-semibold">{homes.length}</div>
             </div>
           </Link>
-          <Link to="/planned-needs" className="rounded-lg border p-4 hover:bg-orange-500/5 transition flex items-center gap-3" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="rounded-lg border p-4 flex items-center gap-3" style={{ borderColor: 'var(--color-border)' }}>
             <CalendarClock size={20} className="text-orange-500" />
             <div>
               <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('dashboards.life.plannedNeeds', { defaultValue: 'Planned needs' })}</div>
               <div className="text-lg font-semibold">{needs.length}</div>
             </div>
-          </Link>
+          </div>
           <Link to="/post-job" className="rounded-lg border p-4 hover:bg-orange-500/5 transition flex items-center gap-3 bg-orange-500/10" style={{ borderColor: 'rgba(249,115,22,0.4)' }}>
             <ArrowRight size={20} className="text-orange-500" />
             <div>

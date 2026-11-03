@@ -3526,7 +3526,7 @@ const GUIDES = [
     ],
     skills: ['Future planning', 'Sinking funds', 'Service scheduling'],
     tools: [],
-    hireHref: '/planned-needs',
+    hireHref: '/post-job',
     toolsHref: null,
     xp: 10,
     tips: {

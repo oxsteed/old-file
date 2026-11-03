@@ -1,4 +1,3 @@
-import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -769,7 +768,6 @@ const QRCodeGeneratorPage = () => {
           <section className="qrg-section" role="status" style={{ maxWidth: '640px', margin: '0 auto', textAlign: 'center' }}>
             <h2 className="qrg-section-title">{t('qrGenerator.proRequiredTitle')}</h2>
             <p className="qrg-subtitle" style={{ marginBottom: '24px' }}>{t('qrGenerator.proRequiredDescription')}</p>
-            {LAUNCH_VISIBILITY.subscriptions && <Link to="/upgrade" className="qrg-button qrg-button-primary">{t('qrGenerator.viewPlans')}</Link>}
           </section>
         </div>
         <Footer />

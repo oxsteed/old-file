@@ -2,11 +2,8 @@
 // Floating banner for active Pro trials. Drop into any dashboard layout.
 // Reads trial state from AuthContext user object.
 
-import { Link } from 'react-router-dom';
-import { Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 export default function TrialBanner() {
   const { t } = useTranslation();
@@ -45,19 +42,6 @@ export default function TrialBanner() {
           {daysLeft} {daysLeft === 1 ? t('trial.dayLeft') : t('trial.daysLeft')}
         </span>
       </div>
-
-      {/* Upgrade CTA (review P3-942: only when subscriptions are launched) */}
-      {LAUNCH_VISIBILITY.subscriptions && <Link
-        to="/upgrade"
-        className={`ms-auto flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
-          urgent
-            ? 'bg-red-500 hover:bg-red-600 text-white'
-            : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
-        }`}
-      >
-        <Zap size={14} />
-        {t('trial.upgradeNow')}
-      </Link>}
     </div>
   );
 }

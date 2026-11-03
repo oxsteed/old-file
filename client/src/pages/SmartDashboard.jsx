@@ -47,7 +47,9 @@ export default function SmartDashboard() {
     if (key === 'support_agent') {
       navigate('/support/agent', { replace: true });
     } else if (key === 'investor') {
-      navigate('/investor/dashboard', { replace: true });
+      // Gated dead link (Nov 3 audit): /investor/dashboard redirects to
+      // /dashboard in the launch gate, so land there directly.
+      navigate('/dashboard', { replace: true });
     } else if (key === 'logistics') {
       navigate('/logistics', { replace: true });
     } else if (key === 'admin') {

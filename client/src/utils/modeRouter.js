@@ -44,7 +44,7 @@ export const ALL_MODES = [...SELF_SELECTABLE_MODES, ...GRANTED_MODES, 'admin'];
 // doesn't exist yet, fall back to /dashboard and surface the right tab there.
 const ROUTE_BY_MODE = {
   customer:                 '/dashboard',
-  investor:                 '/investor/dashboard',
+  investor:                 '/dashboard',
   helper:                   '/helper-dashboard',
   logistics:                '/logistics/buyer',
   business_owner:           '/dashboard',
@@ -68,9 +68,12 @@ const POST_SIGNUP_ROUTE_BY_MODE = {
   // Business owners need to set up a business — route to their portfolio
   // dashboard where the "Create your first business" CTA is visible.
   business_owner:           '/dashboard',
-  consultant:               '/consulting/portal',
+  // Gated dead links (Nov 3 audit): /consulting/portal and /franchise/status
+  // are LaunchScopeRouteGate redirects to /business-hub, so post-signup
+  // routing lands there directly instead of bouncing.
+  consultant:               '/business-hub',
   tool_owner:               '/profile/tool-rentals',
-  franchise_applicant:      '/franchise/status',
+  franchise_applicant:      '/business-hub',
   // customer + life_only land straight on the dashboard.
 };
 

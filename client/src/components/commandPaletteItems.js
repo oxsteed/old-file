@@ -89,7 +89,7 @@ const CLIENT_PAGES = [
   { id: 'page:tool-rentals', path: '/tool-rentals', labelKey: 'commandPalette.pages.toolRentals', keywords: 'rent tools equipment borrow' },
   { id: 'page:direct', path: '/direct', labelKey: 'commandPalette.pages.direct', keywords: 'services catalog quote request' },
   { id: 'page:learn', path: '/learn', labelKey: 'nav.learnToDiy', keywords: 'guides diy tutorials videos how to' },
-  { id: 'page:discover', path: '/discover', labelKey: 'commandPalette.pages.discover', keywords: 'explore search browse' },
+  { id: 'page:discover', path: '/jobs', labelKey: 'commandPalette.pages.discover', keywords: 'explore search browse' },
   { id: 'page:wallet', path: '/wallet', labelKey: 'nav.wallet', keywords: 'money balance funds' },
   { id: 'page:credit', path: '/oxsteed-credit', labelKey: 'commandPalette.pages.credit', keywords: 'oxsteed credit balance wallet' },
   { id: 'page:orders', path: '/orders', labelKey: 'commandPalette.pages.orders', keywords: 'purchases history food' },
@@ -99,7 +99,6 @@ const CLIENT_PAGES = [
   { id: 'page:logistics', path: '/logistics', labelKey: 'nav.logistics', keywords: 'shipping freight supply' },
   { id: 'page:business-hub', path: '/business-hub', labelKey: 'commandPalette.pages.businessHub', keywords: 'merchant manage business' },
   { id: 'page:helper-dashboard', path: '/helper-dashboard', labelKey: 'commandPalette.pages.helperDashboard', keywords: 'pro helper work earnings' },
-  { id: 'page:network', path: '/network', labelKey: 'commandPalette.pages.network', keywords: 'community apps' },
   { id: 'page:activity', path: '/activity', labelKey: 'commandPalette.pages.activity', keywords: 'feed notifications updates' },
   { id: 'page:settings', path: '/settings', labelKey: 'nav.settings', keywords: 'preferences account profile' },
 ];
