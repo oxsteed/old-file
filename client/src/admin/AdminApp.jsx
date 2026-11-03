@@ -180,6 +180,7 @@ const AdminLegalAcceptancesPage = lazyWithRetry(() => import('./pages/AdminLegal
 const AdminLegalAuditLogPage = lazyWithRetry(() => import('./pages/AdminLegalAuditLogPage'));
 const AdminComplianceMetricsPage = lazyWithRetry(() => import('./pages/AdminComplianceMetricsPage'));
 const AdminCCPARequestsPage = lazyWithRetry(() => import('./pages/AdminCCPARequestsPage'));
+const AdminCcpaErasureReviewPage = lazyWithRetry(() => import('./pages/AdminCcpaErasureReviewPage'));
 const AdminUserSettingsPage = lazyWithRetry(() => import('../pages/admin/AdminUserSettingsPage'));
 const AdminReportsDashboard = lazyWithRetry(() => import('./pages/AdminReportsDashboard'));
 const AdminEnforcementDashboard = lazyWithRetry(() => import('./pages/AdminEnforcementDashboard'));
@@ -362,6 +363,7 @@ export default function AdminApp() {
           <Route path={adminRoute('legalAuditLog').relative} element={<AdminLegalAuditLogPage />} />
           <Route path={adminRoute('legalComplianceMetrics').relative} element={<AdminComplianceMetricsPage />} />
           <Route path={adminRoute('legalCcpaRequests').relative} element={<AdminCCPARequestsPage />} />
+          <Route path={adminRoute('legalCcpaErasureReview').relative} element={<AdminCcpaErasureReviewPage />} />
 
           {/* Super admin and grant-gated routes.
               GrantGuard checks the admin's permission grants (super-admins

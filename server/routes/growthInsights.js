@@ -1780,6 +1780,34 @@ router.post(
   }),
 );
 router.post(
+  "/rollups/rerun",
+  requirePermission("manage_marketing"),
+  wrap(async (req, res) => {
+    // Operator rerun for a partial rollup day (see jobs/growthNightlyRollups).
+    // day must be a past YYYY-MM-DD date; force also recomputes a day
+    // that already completed. The job itself re-validates both.
+    const { day, force } = req.body || {};
+    const result = await require("../jobs/growthNightlyRollups").run({
+      day,
+      force: force === true,
+    });
+    await withTransaction(
+      db,
+      async (conn) => {
+        await logAdminAction({
+          adminId: req.user.id,
+          action: "growth_rollup_rerun",
+          targetType: "growth_rollup",
+          after: { day: day || null, force: force === true, result },
+          client: conn,
+        });
+      },
+      "growth_rollup_rerun_audit",
+    );
+    res.json({ result });
+  }),
+);
+router.post(
   "/propensity/run",
   requirePermission("manage_marketing"),
   wrap(async (req, res) => {

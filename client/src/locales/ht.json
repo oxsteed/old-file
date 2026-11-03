@@ -30004,7 +30004,8 @@
     "businessAudit": "Odit biznis la",
     "restaurantAnalytics": "Analitik restoran",
     "webhookReceipts": "Resi webhook",
-    "restaurantWalletIntegrity": "Entegrite bòs"
+    "restaurantWalletIntegrity": "Entegrite bòs",
+    "legalCcpaErasureReview": "Revizyon efasman"
   },
   "adminProfileVisibility": {
     "title": "Vizibilite pwofil",
@@ -38118,7 +38119,15 @@
       "importReport": "Enpòte rapò",
       "reportImported": "{{tags}} etikèt enpòte ({{mapped}} konekte ak kanpay).",
       "reportDuplicate": "Rapò sa a te deja enpòte."
-    }
+    },
+    "rollupRerunTitle": "Refe rolop",
+    "rollupRerunDescription": "Kalkile anko yon jou rolop ki te fini pasyel. Yon jou ki fini bezwen opsyon fose a.",
+    "rollupRerunDay": "Jou (AAAA-MM-JJ)",
+    "rollupRerunForce": "Fose rekalkil menm si jou a deja fini",
+    "rollupRerunSubmit": "Refe rolop",
+    "rollupRerunDone": "Rolop rekalkile.",
+    "rollupRerunSkipped": "Rolop sote: li deja fini.",
+    "rollupRerunFailed": "Refe rolop la echwe."
   },
   "adminOperationalNotices": {
     "regionLabel": "Avi operasyonèl",
@@ -38709,5 +38718,24 @@
       "title": "Pwofil sou OxSteed Media",
       "description": "Gade pwofil sa a sou OxSteed Media."
     }
+  },
+  "adminCcpaErasureReview": {
+    "title": "Liy revizyon efasman",
+    "subtitle": "Travay efasman konfidansyalite ki bezwen revizyon operatè anvan yo ka fini.",
+    "loading": "Ap chaje liy revizyon an…",
+    "requeue": "Mete nan liy ankò",
+    "requeuing": "Ap mete nan liy ankò…",
+    "requeueDone": "Efasman mete nan liy ankò.",
+    "requeueFailed": "Mete nan liy ankò echwe.",
+    "note": "Travay ki mete nan liy ankò kite lis sa a le yo annatant ankò.",
+    "table.requestId": "ID DEMANN",
+    "table.attempts": "TANTATIV",
+    "table.lastError": "DÈNYE ERÈ",
+    "table.queuedAt": "NAN LIY DEPI",
+    "table.actions": "AKSYON",
+    "table.empty": "Okenn travay efasman pa bezwen revizyon.",
+    "pagination": "Ap montre {{from}} rive {{to}} sou {{total}} travay",
+    "pagination.next": "Apre",
+    "pagination.previous": "Anvan"
   }
 }

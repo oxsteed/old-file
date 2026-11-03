@@ -30004,7 +30004,8 @@
     "businessAudit": "Auditoría del negocio",
     "restaurantAnalytics": "Analítica de restaurantes",
     "webhookReceipts": "Recibos de webhook",
-    "restaurantWalletIntegrity": "Integridad de billeteras"
+    "restaurantWalletIntegrity": "Integridad de billeteras",
+    "legalCcpaErasureReview": "Revisión de eliminaciones"
   },
   "adminProfileVisibility": {
     "title": "Visibilidad de perfiles",
@@ -38118,7 +38119,15 @@
       "importReport": "Importar informe",
       "reportImported": "Se importaron {{tags}} etiquetas ({{mapped}} vinculadas a campañas).",
       "reportDuplicate": "Este informe ya se importó."
-    }
+    },
+    "rollupRerunTitle": "Repetir rollup",
+    "rollupRerunDescription": "Vuelve a calcular un dia de rollup anterior que termino parcial. Un dia completado necesita la opcion forzar.",
+    "rollupRerunDay": "Dia (AAAA-MM-DD)",
+    "rollupRerunForce": "Forzar el recalculo aunque el dia ya este completado",
+    "rollupRerunSubmit": "Repetir rollup",
+    "rollupRerunDone": "Rollup recalculado.",
+    "rollupRerunSkipped": "Rollup omitido: ya esta completado.",
+    "rollupRerunFailed": "Error al repetir el rollup."
   },
   "adminOperationalNotices": {
     "regionLabel": "Avisos operativos",
@@ -38709,5 +38718,24 @@
       "title": "Perfil en OxSteed Media",
       "description": "Mira este perfil en OxSteed Media."
     }
+  },
+  "adminCcpaErasureReview": {
+    "title": "Cola de revisión de eliminaciones",
+    "subtitle": "Trabajos de eliminación de privacidad que necesitan revisión del operador antes de completarse.",
+    "loading": "Cargando la cola de revisión…",
+    "requeue": "Volver a poner en cola",
+    "requeuing": "Poniendo en cola…",
+    "requeueDone": "Eliminación puesta en cola de nuevo.",
+    "requeueFailed": "Error al poner en cola de nuevo.",
+    "note": "Los trabajos puestos en cola de nuevo salen de esta lista cuando quedan pendientes otra vez.",
+    "table.requestId": "ID DE SOLICITUD",
+    "table.attempts": "INTENTOS",
+    "table.lastError": "ÚLTIMO ERROR",
+    "table.queuedAt": "EN COLA DESDE",
+    "table.actions": "ACCIONES",
+    "table.empty": "Ningún trabajo de eliminación necesita revisión.",
+    "pagination": "Mostrando del {{from}} al {{to}} de {{total}} trabajos",
+    "pagination.next": "Siguiente",
+    "pagination.previous": "Anterior"
   }
 }
