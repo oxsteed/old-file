@@ -23,7 +23,8 @@ Budget: about 4 hours. Breadth first, depth second, stop at a clean gated PR.
 - Gate: client build:ci FIRST, then FULL server suite, on the final merged tree. Growth instrumentation --write/--check if growth routes touched.
 
 ## Done
-- (none yet beyond setup)
+- Track S COMPLETE and verified by coordinator: branch fix/seo-track-s-2026-11-02 @ 29bae9985, clean tree, 6 files (+485/-1): sitemap.js, robots.js, prerenderHelperProfile.js, sitemap/robots/prerenderMarketing tests. Sitemap gains /learn, /careers, /media + public career openings (lastmod); robots gains private-area disallows; careers prerender gap fixed (was served noindex despite indexable pages; now MARKETING_PAGES + JobPosting JSON-LD). Tests: 4 suites, 22 tests pass. Sitemap XML parses (43 URLs in mocked run). Corrections to brief: /direct/service-area is a real server page (kept); /discover redirects to /jobs, not /restaurants (omitted, /jobs already listed); canonicalHost unchanged (trailing-slash normalization already in prerender layer); ?lang= honored by client + server.
+- OPEN DECISION for merge: /learn is in the sitemap but noindex in two layers (LearnModePage PageMeta + prerender). Track S left the noindex in place (policy call, client file out of scope). Coordinator to decide at merge: drop /learn from sitemap OR lift the noindex if M/P evidence supports indexing it. Do not ship a noindexed URL in the sitemap without a decision.
 
 ## Remaining
 - All scope items 1-8 from the brief.
