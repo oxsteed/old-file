@@ -422,7 +422,8 @@
       "experience": "Experience and engagement",
       "quality": "Source quality and freshness",
       "events": "Change history",
-      "health": "Health and risk"
+      "health": "Health and risk",
+      "anomalies": "Anomalies"
     },
     "sources": {
       "jobs": "Jobs",
@@ -488,7 +489,9 @@
       "screenEvents": "Recent screen synchronization events",
       "cancellations": "Cancellation history",
       "restaurantExposure": "Restaurant credit exposure",
-      "logisticsQuotes": "Logistics buyer quotes"
+      "logisticsQuotes": "Logistics buyer quotes",
+      "anomaliesFinancial": "Payment anomalies",
+      "anomaliesSecurity": "Sign-in anomalies"
     },
     "checks": {
       "email": "Email verification",
@@ -978,6 +981,47 @@
         "order": "Order",
         "account_access": "Account access",
         "support_followup": "Support follow-up"
+      }
+    },
+    "anomalies": {
+      "title": "Anomaly alerts",
+      "hint": "Unusual patterns detected automatically. Repeats are bundled into one alert. Alerts never change the account; follow existing procedures.",
+      "show": "Show",
+      "noAccess": "You do not have access to any anomaly type.",
+      "empty": "No anomalies in these states.",
+      "occurrences": "{{count}} detections",
+      "snoozedUntil": "snoozed until {{time}}",
+      "detected": "First {{first}} · latest {{last}}",
+      "until": "Snooze until (maximum 30 days)",
+      "reason": "Reason (recorded in the audit log)",
+      "cancel": "Cancel",
+      "watchTitle": "Watch all customers",
+      "watchHint": "Get a notification when a new anomaly opens for any customer. Repeats of the same alert do not notify again.",
+      "watch": {
+        "anomaliesFinancial": "Refund spikes and payout failures",
+        "anomaliesSecurity": "Sign-ins from a new country"
+      },
+      "kinds": {
+        "refund_spike": "Refund spike",
+        "payout_failures": "Payout failures",
+        "new_country_login": "Sign-in from a new country"
+      },
+      "statuses": {
+        "open": "Open",
+        "snoozed": "Snoozed",
+        "acknowledged": "Acknowledged",
+        "resolved": "Resolved"
+      },
+      "actions": {
+        "snooze": "Snooze",
+        "unsnooze": "End snooze",
+        "acknowledge": "Acknowledge",
+        "resolve": "Resolve"
+      },
+      "evidence": {
+        "country": "Signed in from {{country}}. Countries in the previous 180 days: {{previous}}.",
+        "refunds": "{{count}} refunds in 7 days (usual weekly average {{baseline}}).",
+        "payouts": "{{count}} failed payouts in 7 days."
       }
     }
   },

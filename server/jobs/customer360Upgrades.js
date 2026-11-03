@@ -8,6 +8,7 @@
 const logger = require("../utils/logger");
 const events = require("../services/customer360Events");
 const health = require("../services/customer360Health");
+const anomalies = require("../services/customer360Anomalies");
 
 const TASKS = [];
 function registerTask(name, everyMs, run) {
@@ -31,6 +32,14 @@ registerTask("events-backfill", 30_000, async () => {
 // Upgrade 2: rescore customers with new events, then age out stale scores.
 registerTask("health-events", 60_000, () => health.refreshFromEvents());
 registerTask("health-stale", 600_000, () => health.refreshStale());
+
+// Upgrade 4: anomaly detectors and snooze expiry (delivery is the alert worker).
+registerTask("anomalies", 60_000, async () => {
+  await anomalies.scanLogins();
+  await anomalies.scanRefunds();
+  await anomalies.scanPayouts();
+  await anomalies.expireSnoozes();
+});
 
 async function tick(now = Date.now()) {
   for (const task of TASKS) {

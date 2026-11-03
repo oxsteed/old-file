@@ -275,7 +275,8 @@
       "experience": "Eksperyans ak angajman",
       "quality": "Kalite ak done sous aktyèl",
       "events": "Istwa chanjman",
-      "health": "Sante ak risk"
+      "health": "Sante ak risk",
+      "anomalies": "Anomali"
     },
     "sources": {
       "jobs": "Travay",
@@ -341,7 +342,9 @@
       "screenEvents": "Dènye evènman senkronizasyon",
       "cancellations": "Istorik anilasyon",
       "restaurantExposure": "Ekspozisyon kredi restoran",
-      "logisticsQuotes": "Devi achtè lojistik"
+      "logisticsQuotes": "Devi achtè lojistik",
+      "anomaliesFinancial": "Anomali peman",
+      "anomaliesSecurity": "Anomali koneksyon"
     },
     "checks": {
       "email": "Verifikasyon imel",
@@ -831,6 +834,47 @@
         "order": "Kòmand",
         "account_access": "Aksè nan kont lan",
         "support_followup": "Swivi sipò"
+      }
+    },
+    "anomalies": {
+      "title": "Alèt anomali",
+      "hint": "Tandans ki pa nòmal sistèm nan detekte otomatikman. Repetisyon yo mete ansanm nan yon sèl alèt. Alèt yo pa janm chanje kont lan; swiv pwosedi ki egziste yo.",
+      "show": "Montre",
+      "noAccess": "Ou pa gen aksè ak okenn kalite anomali.",
+      "empty": "Pa gen anomali nan eta sa yo.",
+      "occurrences": "{{count}} deteksyon",
+      "snoozedUntil": "ranvwaye jiska {{time}}",
+      "detected": "Premye {{first}} · dènye {{last}}",
+      "until": "Ranvwaye jiska (30 jou maksimòm)",
+      "reason": "Rezon (yo anrejistre l nan jounal odit la)",
+      "cancel": "Anile",
+      "watchTitle": "Siveye tout kliyan yo",
+      "watchHint": "Resevwa yon notifikasyon lè yon nouvo anomali louvri pou nenpòt kliyan. Repetisyon menm alèt la pa voye notifikasyon ankò.",
+      "watch": {
+        "anomaliesFinancial": "Twòp ranbousman ak retrè ki echwe",
+        "anomaliesSecurity": "Koneksyon ki soti nan yon nouvo peyi"
+      },
+      "kinds": {
+        "refund_spike": "Twòp ranbousman",
+        "payout_failures": "Retrè ki echwe",
+        "new_country_login": "Koneksyon ki soti nan yon nouvo peyi"
+      },
+      "statuses": {
+        "open": "Louvri",
+        "snoozed": "Ranvwaye",
+        "acknowledged": "Konfime",
+        "resolved": "Rezoud"
+      },
+      "actions": {
+        "snooze": "Ranvwaye",
+        "unsnooze": "Fini ranvwa a",
+        "acknowledge": "Konfime",
+        "resolve": "Rezoud"
+      },
+      "evidence": {
+        "country": "Konekte soti {{country}}. Peyi nan 180 jou anvan yo: {{previous}}.",
+        "refunds": "{{count}} ranbousman nan 7 jou (mwayèn abityèl pa semèn {{baseline}}).",
+        "payouts": "{{count}} retrè ki echwe nan 7 jou."
       }
     }
   },

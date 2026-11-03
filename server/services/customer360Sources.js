@@ -546,4 +546,22 @@ source(
   `${base("r.reference")},r.purchase_order_id,r.participant_id,r.currency AS currency_code,r.total_cents AS amount_cents,r.deposit_cents,r.final_cents,r.deposit_due_at,r.final_due_at,r.valid_until`,
   { superOnly: true, route: "/admin/logistics" },
 );
+// Customer 360 upgrade 4: bundled anomalies. Financial kinds follow
+// view_financials; sign-in anomalies follow the super-admin session source.
+source(
+  "anomaliesFinancial",
+  "trust",
+  "customer_anomalies",
+  "r.customer_id=$1::uuid AND r.kind IN ('refund_spike','payout_failures')",
+  `${base("r.kind", "r.status", "r.last_detected_at")},r.kind,r.occurrences,r.first_detected_at,r.snoozed_until,r.revision`,
+  { grant: "view_financials", route: "/admin/users" },
+);
+source(
+  "anomaliesSecurity",
+  "trust",
+  "customer_anomalies",
+  "r.customer_id=$1::uuid AND r.kind='new_country_login'",
+  `${base("r.kind", "r.status", "r.last_detected_at")},r.kind,r.occurrences,r.first_detected_at,r.snoozed_until,r.revision`,
+  { superOnly: true, route: "/admin/users" },
+);
 module.exports = { sources };

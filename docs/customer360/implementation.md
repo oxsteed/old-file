@@ -234,3 +234,34 @@ Background work runs in `server/jobs/customer360Upgrades.js`
   are never sent automatically.
 - Tests: `server/__tests__/customer360Ai.test.js`,
   `server/__tests__/customer360Workspace.test.js` (no OpenRouter/Meta call).
+
+### 4. Anomaly alerts with bundling and snooze
+
+- Migration `20261103120200_customer360_anomalies.sql`: `customer_anomalies`
+  (kind, status open/snoozed/acknowledged/resolved, occurrences, first/last
+  detection, bounded evidence, last 50 detection keys, revision) with a
+  partial unique index that keeps one live (open or snoozed) bundle per
+  customer and kind. `admin_customer_alert_rules.customer_id` may now be
+  NULL, but only for the two anomaly sources (platform-wide watches).
+- Detectors (`services/customer360Anomalies.js`, every minute in the C360
+  worker; thresholds via `CUSTOMER360_ANOMALY_*`): refund spike (≥3 refunds
+  in 7 days and ≥3× the prior 90-day weekly average, from
+  `payment_refund_attempts` and `food_credit_refunds`), payout failures (≥2
+  failed instant payouts in 7 days), and sign-in from a country not seen in
+  the previous 180 days (from the event log; IPs are never stored).
+  Time cursors start 7 days back so the first run does not scan history.
+- Bundling: repeats increment `occurrences` once per detection key; a new
+  bundle starts only after the previous one is acknowledged or resolved.
+  Snoozes last at most 30 days and reopen the bundle when they end.
+- Delivery uses the existing alert rules and worker: new workspace sources
+  `anomaliesFinancial` (`view_financials`) and `anomaliesSecurity` (super
+  admin) can be watched per customer, or platform-wide via
+  `GET/PUT /api/admin/customer360/anomaly-watches`. Notifications are keyed
+  by bundle and status, so repeats never notify twice.
+- Endpoints: `GET …/anomalies`, `POST …/anomalies/:id/(snooze|unsnooze|
+  acknowledge|resolve)` (reason required, optimistic revision, audited in
+  the same transaction) and `GET /api/admin/customer360/anomalies`
+  (platform queue, audited). Alerts never block or change an account.
+- UI: "Anomalies" area (`upgrades/Anomalies.jsx`).
+- Tests: `server/__tests__/customer360Anomalies.db.test.js` and the shared
+  client checks.

@@ -35,7 +35,13 @@ const routes = `window.routes=[
   ['post',/\\/workspace\\/health\\/recompute$/,()=>({...window.healthFixture,computedAt:new Date().toISOString()})],
   ['post',/\\/workspace\\/assistant$/,(o,b)=>({mode:b.mode,requiresReview:true,generatedAt:new Date().toISOString(),evidence:[{source:'jobs',state:'ready',total:0,groups:[]}],
     draft:b.mode==='summary'?{summary:'No open work items.',citations:['jobs']}:b.mode==='next_step'?{steps:[{text:'Confirm the job list is complete.',citation:'jobs',guide:'verification'}]}:{subject:'Your account',body:'Thank you for reaching out.'}})],
+  ['get',/\\/workspace\\/anomalies$/,()=>({kinds:['refund_spike','payout_failures','new_country_login'],anomalies:window.anomalyRows})],
+  ['post',/\\/workspace\\/anomalies\\/\\d+\\/(snooze|unsnooze|acknowledge|resolve)$/,(o,b)=>{window.anomalyRows[0]={...window.anomalyRows[0],status:'snoozed',snoozed_until:b.until,revision:2};return{anomaly:window.anomalyRows[0]};}],
+  ['get',/\\/customer360\\/anomaly-watches$/,()=>({watches:window.watches||[]})],
+  ['put',/\\/customer360\\/anomaly-watches$/,(o,b)=>{window.watches=[{id:'w',source:b.source,statuses:['open'],min_age_minutes:0,enabled:b.enabled}];return{watch:window.watches[0]};}],
 ];
+window.anomalyRows=[{id:'5',customer_id:'${id}',kind:'new_country_login',status:'open',occurrences:2,first_detected_at:'2026-11-01T10:00:00Z',last_detected_at:'2026-11-02T10:00:00Z',evidence:{country:'FR',previousCountries:['HT']},snoozed_until:null,revision:1},
+  {id:'4',customer_id:'${id}',kind:'refund_spike',status:'acknowledged',occurrences:1,first_detected_at:'2026-10-01T10:00:00Z',last_detected_at:'2026-10-01T10:00:00Z',evidence:{refunds7d:4,baselineWeekly:0.5},snoozed_until:null,revision:3}];
 window.healthFixture={advisory:true,modelVersion:'c360-health-v1',computedAt:'2026-11-03T10:00:00Z',
   churn:{state:'ready',score:83,band:'high',factors:[{key:'inactivity',value:120,level:1,weight:45,contribution:45},{key:'activityDrop',value:0,previous:4,level:1,weight:35,contribution:35},{key:'newAccount',value:400,level:0,weight:20,contribution:0}]},
   payment:{state:'restricted'},
@@ -159,7 +165,22 @@ test("customer 360 upgrade panels work and lay out in five languages", async () 
     assert.equal(await page.evaluate(() => window.calls.filter((c) => c.url.endsWith("/assistant")).map((c) => c.body.mode).join()), "summary,next_step,reply_draft");
     assert.equal(await page.evaluate(() => window.calls.some((c) => /send|reply$/.test(c.url))), false);
 
-    const panels = [["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
+    // Upgrade 4: bundled anomalies, snooze with reason, platform watch.
+    await page.getByRole("button", { name: copy.en.areas.anomalies, exact: true }).click();
+    const an = page.locator('[data-panel="anomalies"]');
+    await an.getByText(copy.en.anomalies.evidence.country.replace("{{country}}", "FR").replace("{{previous}}", "HT")).waitFor();
+    await an.locator('[data-anomaly="new_country_login"]').getByRole("button", { name: copy.en.anomalies.actions.snooze, exact: true }).click();
+    await an.getByLabel(copy.en.anomalies.until).fill("2026-11-10T09:00");
+    await an.getByLabel(copy.en.anomalies.reason).fill("Customer travelling");
+    await an.locator("form").getByRole("button", { name: copy.en.anomalies.actions.snooze, exact: true }).click();
+    await an.getByText(copy.en.anomalies.statuses.snoozed, { exact: false }).first().waitFor();
+    const snooze = await page.evaluate(() => window.calls.find((c) => c.url.endsWith("/anomalies/5/snooze")).body);
+    assert.equal(snooze.reason, "Customer travelling");
+    assert.equal(snooze.revision, 1);
+    await an.getByLabel(copy.en.anomalies.watch.anomaliesSecurity).check();
+    await page.waitForFunction(() => window.calls.some((c) => c.method === "put" && c.body?.source === "anomaliesSecurity" && c.body.enabled));
+
+    const panels = [["anomalies", '[data-panel="anomalies"]'], ["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
     for (const lang of LANGS)
       for (const dark of [false, true])
         for (const width of [320, 1360]) {

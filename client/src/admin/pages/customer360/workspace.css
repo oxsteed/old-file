@@ -387,3 +387,17 @@
 .c360u-reply input {
   inline-size: 100%;
 }
+.c360u fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.c360u-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-block-size: 44px;
+}
+.c360u-check input {
+  min-block-size: auto;
+}

@@ -275,7 +275,8 @@
       "experience": "Experiencia y actividad",
       "quality": "Calidad y actualidad de fuentes",
       "events": "Historial de cambios",
-      "health": "Salud y riesgo"
+      "health": "Salud y riesgo",
+      "anomalies": "Anomalías"
     },
     "sources": {
       "jobs": "Trabajos",
@@ -341,7 +342,9 @@
       "screenEvents": "Eventos recientes de sincronización",
       "cancellations": "Historial de cancelaciones",
       "restaurantExposure": "Exposición de crédito del restaurante",
-      "logisticsQuotes": "Presupuestos del comprador logístico"
+      "logisticsQuotes": "Presupuestos del comprador logístico",
+      "anomaliesFinancial": "Anomalías de pago",
+      "anomaliesSecurity": "Anomalías de inicio de sesión"
     },
     "checks": {
       "email": "Verificación de correo",
@@ -831,6 +834,47 @@
         "order": "Pedido",
         "account_access": "Acceso a la cuenta",
         "support_followup": "Seguimiento de soporte"
+      }
+    },
+    "anomalies": {
+      "title": "Alertas de anomalías",
+      "hint": "Patrones inusuales detectados automáticamente. Las repeticiones se agrupan en una sola alerta. Las alertas nunca cambian la cuenta; siga los procedimientos existentes.",
+      "show": "Mostrar",
+      "noAccess": "No tiene acceso a ningún tipo de anomalía.",
+      "empty": "No hay anomalías en estos estados.",
+      "occurrences": "{{count}} detecciones",
+      "snoozedUntil": "pospuesta hasta {{time}}",
+      "detected": "Primera {{first}} · última {{last}}",
+      "until": "Posponer hasta (máximo 30 días)",
+      "reason": "Motivo (se registra en la auditoría)",
+      "cancel": "Cancelar",
+      "watchTitle": "Vigilar a todos los clientes",
+      "watchHint": "Reciba una notificación cuando se abra una nueva anomalía para cualquier cliente. Las repeticiones de la misma alerta no vuelven a notificar.",
+      "watch": {
+        "anomaliesFinancial": "Picos de reembolsos y retiros fallidos",
+        "anomaliesSecurity": "Inicios de sesión desde un país nuevo"
+      },
+      "kinds": {
+        "refund_spike": "Pico de reembolsos",
+        "payout_failures": "Retiros fallidos",
+        "new_country_login": "Inicio de sesión desde un país nuevo"
+      },
+      "statuses": {
+        "open": "Abierta",
+        "snoozed": "Pospuesta",
+        "acknowledged": "Reconocida",
+        "resolved": "Resuelta"
+      },
+      "actions": {
+        "snooze": "Posponer",
+        "unsnooze": "Terminar aplazamiento",
+        "acknowledge": "Reconocer",
+        "resolve": "Resolver"
+      },
+      "evidence": {
+        "country": "Inició sesión desde {{country}}. Países en los 180 días anteriores: {{previous}}.",
+        "refunds": "{{count}} reembolsos en 7 días (promedio semanal habitual {{baseline}}).",
+        "payouts": "{{count}} retiros fallidos en 7 días."
       }
     }
   },

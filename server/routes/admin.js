@@ -342,6 +342,11 @@ router.get('/users/:userId/workspace/events/replay', requireAdmin, requirePermis
 router.get('/users/:userId/workspace/events/verify', requireSuperAdmin, c360Upgrades.verifyEvents);
 router.get('/users/:userId/workspace/health', requireAdmin, requirePermission('manage_users'), c360Upgrades.health);
 router.post('/users/:userId/workspace/health/recompute', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.recomputeHealth);
+router.get('/users/:userId/workspace/anomalies', requireAdmin, requirePermission('manage_users'), c360Upgrades.anomalies);
+router.post('/users/:userId/workspace/anomalies/:anomalyId/:action(snooze|unsnooze|acknowledge|resolve)', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.anomalyAction);
+router.get('/customer360/anomalies', requireAdmin, requirePermission('manage_users'), c360Upgrades.anomalyQueue);
+router.get('/customer360/anomaly-watches', requireAdmin, requirePermission('manage_users'), c360Upgrades.anomalyWatches);
+router.put('/customer360/anomaly-watches', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.saveAnomalyWatch);
 router.get('/users/:userId/duplicates',             requireAdmin, requirePermission('manage_users'), c360Ctrl.getDuplicates);
 router.get('/users/:userId/linked-entities',        requireAdmin, requirePermission('manage_users'), c360Ctrl.getLinkedEntities);
 router.get('/users/:userId/login-history',          requireAdmin, requirePermission('manage_users'), c360Ctrl.getLoginHistory);

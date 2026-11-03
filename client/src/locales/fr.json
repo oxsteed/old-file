@@ -422,7 +422,8 @@
       "experience": "Expérience et engagement",
       "quality": "Qualité et fraîcheur des sources",
       "events": "Historique des modifications",
-      "health": "Santé et risque"
+      "health": "Santé et risque",
+      "anomalies": "Anomalies"
     },
     "sources": {
       "jobs": "Missions",
@@ -488,7 +489,9 @@
       "screenEvents": "Événements récents de synchronisation",
       "cancellations": "Historique des annulations",
       "restaurantExposure": "Exposition au crédit restaurant",
-      "logisticsQuotes": "Devis acheteur logistique"
+      "logisticsQuotes": "Devis acheteur logistique",
+      "anomaliesFinancial": "Anomalies de paiement",
+      "anomaliesSecurity": "Anomalies de connexion"
     },
     "checks": {
       "email": "Vérification de l’email",
@@ -978,6 +981,47 @@
         "order": "Commande",
         "account_access": "Accès au compte",
         "support_followup": "Suivi d’assistance"
+      }
+    },
+    "anomalies": {
+      "title": "Alertes d’anomalie",
+      "hint": "Comportements inhabituels détectés automatiquement. Les répétitions sont regroupées en une seule alerte. Les alertes ne modifient jamais le compte ; suivez les procédures existantes.",
+      "show": "Afficher",
+      "noAccess": "Vous n’avez accès à aucun type d’anomalie.",
+      "empty": "Aucune anomalie dans ces états.",
+      "occurrences": "{{count}} détections",
+      "snoozedUntil": "reportée jusqu’au {{time}}",
+      "detected": "Première {{first}} · dernière {{last}}",
+      "until": "Reporter jusqu’au (30 jours maximum)",
+      "reason": "Motif (consigné dans le journal d’audit)",
+      "cancel": "Annuler",
+      "watchTitle": "Surveiller tous les clients",
+      "watchHint": "Recevez une notification lorsqu’une nouvelle anomalie s’ouvre pour un client. Les répétitions d’une même alerte ne notifient pas à nouveau.",
+      "watch": {
+        "anomaliesFinancial": "Pics de remboursements et virements échoués",
+        "anomaliesSecurity": "Connexions depuis un nouveau pays"
+      },
+      "kinds": {
+        "refund_spike": "Pic de remboursements",
+        "payout_failures": "Virements échoués",
+        "new_country_login": "Connexion depuis un nouveau pays"
+      },
+      "statuses": {
+        "open": "Ouverte",
+        "snoozed": "Reportée",
+        "acknowledged": "Prise en compte",
+        "resolved": "Résolue"
+      },
+      "actions": {
+        "snooze": "Reporter",
+        "unsnooze": "Mettre fin au report",
+        "acknowledge": "Prendre en compte",
+        "resolve": "Résoudre"
+      },
+      "evidence": {
+        "country": "Connexion depuis {{country}}. Pays des 180 jours précédents : {{previous}}.",
+        "refunds": "{{count}} remboursements en 7 jours (moyenne hebdomadaire habituelle {{baseline}}).",
+        "payouts": "{{count}} virements échoués en 7 jours."
       }
     }
   },
