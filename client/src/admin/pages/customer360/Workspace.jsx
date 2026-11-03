@@ -16,6 +16,7 @@ import {
   sectionTimeline,
   selectedRecords,
 } from "./model";
+import UpgradePanels, { UPGRADE_AREAS } from "./upgrades/UpgradePanels";
 import "./workspace.css";
 const CreditDetail = lazy(() => import("../super/OxsteedCreditCustomerDetail"));
 const GUIDES = [
@@ -472,6 +473,7 @@ export default function Workspace({ user, existingTimeline = [] }) {
         {[
           "attention",
           "timeline",
+          ...UPGRADE_AREAS,
           "cases",
           "eligibility",
           "guides",
@@ -631,6 +633,16 @@ export default function Workspace({ user, existingTimeline = [] }) {
                 </ul>
               </article>
             )}
+            <UpgradePanels
+              area={area}
+              api={api}
+              copy={copy}
+              when={when}
+              isSuper={isSuper}
+              viewerKey={viewerKey}
+              data={data}
+              user={user}
+            />
             {area === "eligibility" && (
               <article>
                 <h3>{copy("eligibility")}</h3>

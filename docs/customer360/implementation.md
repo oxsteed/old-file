@@ -143,3 +143,42 @@ at 100 filtered records per selected source and is not an accounting statement.
 Direct provider delivery, real payments/refunds, live AI responses, human screen
 reader testing and production deployment were not exercised by these synthetic
 checks. Nonfinancial case workflow completion is never financial confirmation.
+
+## Upgrades (2026-11)
+
+Each upgrade below is a separate commit on `feat/credit-license-readiness-2`.
+All endpoints sit under `/api/admin/users/:userId/workspace/*` unless stated,
+require `requireAdmin` + `manage_users` (plus the source grant noted), and
+write an `admin_audit_log` row with `throwOnError` before data is returned.
+Background work runs in `server/jobs/customer360Upgrades.js`
+(`CUSTOMER360_UPGRADES_ENABLED=false` pauses it; data is kept).
+
+### 1. Unified append-only customer event log
+
+- Migration `20261103120000_customer360_event_log.sql`: `customer_events`
+  (per-customer SHA-256 hash chain, unique `dedupe_key`, UPDATE/DELETE/TRUNCATE
+  rejected by triggers, `REVOKE TRUNCATE`), `customer_event_inbox` (outbox) and
+  `customer_event_ingest_cursors` (backfill progress).
+- Writers: `AFTER` triggers on `admin_audit_log` (user targets),
+  `user_login_history`, `payments` (status), `support_tickets` (status) and
+  `food_orders` (status / payment status) insert into the outbox; a failure
+  there raises a warning and never blocks the source write. Customer 360 code
+  writes directly with `customer360Events.append()` (idempotent on the key).
+- Personal data: `customer_event_redact_diff()` stores only `{changed,
+  redacted}` for personal-looking keys (email, phone, name, address, IP, card,
+  notes, free text…) and only `{changed}` for nested or long values. Login
+  events keep the country code, never the IP or user agent.
+- Backfill: a one-time primary-key walk per source. Audit and login rows
+  reuse the trigger keys; payments, tickets and orders record their current
+  state only when the entity has no captured history, so nothing is doubled.
+- Reads: `GET …/events` (cursor pagination by id, source/actor/type/date
+  filters) and `GET …/events/replay?entityType&entityId&at` (folds recorded
+  `to` values in order and lists fields that changed but were not stored).
+  Event sources follow the viewer's grants: admin actions and sign-ins are
+  super-admin only, payments need `view_financials`, support needs
+  `manage_support`, food orders need `manage_orders`.
+  `GET …/events/verify` (super admin) recomputes the chain.
+- UI: "Change history" area (`upgrades/EventLog.jsx`).
+- Tests: `server/__tests__/customer360EventLog.db.test.js` (required in CI by
+  `scripts/assert-statement-db-tests.cjs`), `client/scripts/customer360Upgrades.test.mjs`,
+  `client/scripts/customer360Upgrades.browser-check.cjs`.

@@ -273,7 +273,8 @@
       "assistant": "Asistente de pruebas",
       "exports": "Informes y exportaciones",
       "experience": "Experiencia y actividad",
-      "quality": "Calidad y actualidad de fuentes"
+      "quality": "Calidad y actualidad de fuentes",
+      "events": "Historial de cambios"
     },
     "sources": {
       "jobs": "Trabajos",
@@ -694,7 +695,58 @@
       "firstAt": "Primera actividad registrada",
       "lastAt": "Última actividad registrada"
     },
-    "statementPdf": "Descargar estado PDF"
+    "statementPdf": "Descargar estado PDF",
+    "events": {
+      "title": "Historial de cambios",
+      "hint": "Registro de solo anexado de quién cambió qué para este cliente. Solo se muestran las fuentes que puede ver. Los datos personales se registran como modificados, nunca se copian.",
+      "importing": "El historial anterior aún se está importando. Es posible que algunos cambios antiguos todavía no aparezcan.",
+      "source": "Fuente",
+      "allSources": "Todas las fuentes que puede ver",
+      "actor": "Cambiado por",
+      "anyActor": "Cualquiera",
+      "verify": "Verificar integridad",
+      "chainIntact": "Integridad verificada para {{count}} eventos.",
+      "chainBroken": "La verificación de integridad falló en el evento {{id}}. Escale a seguridad.",
+      "empty": "Ningún cambio registrado coincide con estos filtros.",
+      "redacted": "modificado (no se guardan datos personales)",
+      "changed": "modificado (no se guardan los detalles)",
+      "replay": "Reproducir",
+      "older": "Cargar cambios anteriores",
+      "replayTitle": "{{entity}} {{id}} según el registro",
+      "asOf": "A fecha de",
+      "rebuild": "Reconstruir estado",
+      "unknownFields": "Modificado pero no guardado: {{fields}}",
+      "sources": {
+        "admin_audit": "Acciones de administración",
+        "login": "Inicios de sesión",
+        "payment": "Pagos",
+        "support": "Soporte",
+        "food_order": "Pedidos de comida",
+        "customer360": "Cliente 360"
+      },
+      "actors": {
+        "admin": "Administrador",
+        "customer": "Cliente",
+        "system": "Sistema",
+        "business": "Negocio"
+      },
+      "entities": {
+        "admin_action": "Acción de administración",
+        "login": "Inicio de sesión",
+        "payment": "Pago",
+        "support_ticket": "Ticket de soporte",
+        "food_order": "Pedido de comida",
+        "task": "Tarea del caso"
+      },
+      "types": {
+        "admin": "Acción de administración: {{action}}",
+        "login": "Inicio de sesión {{action}}",
+        "payment": "Pago {{action}}",
+        "support_ticket": "Ticket de soporte {{action}}",
+        "food_order": "Pedido de comida {{action}}",
+        "task": "Tarea del caso {{action}}"
+      }
+    }
   },
   "screens": {
     "dataFreshness": "Actualización de datos",

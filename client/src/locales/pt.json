@@ -34532,5 +34532,61 @@
     "changedOn": "Nossa Política de Privacidade mudou em {{date}}.",
     "changesOn": "Nossa Política de Privacidade mudará em {{date}}.",
     "dismiss": "Dispensar"
+  },
+  "customerWorkspace": {
+    "areas": {
+      "events": "Change history"
+    },
+    "events": {
+      "title": "Change history",
+      "hint": "Append-only record of who changed what for this customer. Only sources you are allowed to see are shown. Personal fields are recorded as changed, never copied.",
+      "importing": "Older history is still being imported. Some earlier changes may not appear yet.",
+      "source": "Source",
+      "allSources": "All sources you can see",
+      "actor": "Changed by",
+      "anyActor": "Anyone",
+      "verify": "Verify integrity",
+      "chainIntact": "Integrity verified for {{count}} events.",
+      "chainBroken": "Integrity check failed at event {{id}}. Escalate to security.",
+      "empty": "No recorded changes match these filters.",
+      "redacted": "changed (personal data not stored)",
+      "changed": "changed (details not stored)",
+      "replay": "Replay",
+      "older": "Load older changes",
+      "replayTitle": "{{entity}} {{id}} as recorded",
+      "asOf": "As of",
+      "rebuild": "Rebuild state",
+      "unknownFields": "Changed but not stored: {{fields}}",
+      "sources": {
+        "admin_audit": "Admin actions",
+        "login": "Sign-ins",
+        "payment": "Payments",
+        "support": "Support",
+        "food_order": "Food orders",
+        "customer360": "Customer 360"
+      },
+      "actors": {
+        "admin": "Admin",
+        "customer": "Customer",
+        "system": "System",
+        "business": "Business"
+      },
+      "entities": {
+        "admin_action": "Admin action",
+        "login": "Sign-in",
+        "payment": "Payment",
+        "support_ticket": "Support ticket",
+        "food_order": "Food order",
+        "task": "Case task"
+      },
+      "types": {
+        "admin": "Admin action: {{action}}",
+        "login": "Sign-in {{action}}",
+        "payment": "Payment {{action}}",
+        "support_ticket": "Support ticket {{action}}",
+        "food_order": "Food order {{action}}",
+        "task": "Case task {{action}}"
+      }
+    }
   }
 }

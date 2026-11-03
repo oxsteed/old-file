@@ -273,7 +273,8 @@
       "assistant": "Assistant de dossier",
       "exports": "Rapports et exports",
       "experience": "Expérience et engagement",
-      "quality": "Qualité et fraîcheur des sources"
+      "quality": "Qualité et fraîcheur des sources",
+      "events": "Historique des modifications"
     },
     "sources": {
       "jobs": "Missions",
@@ -694,7 +695,58 @@
       "firstAt": "Première activité enregistrée",
       "lastAt": "Dernière activité enregistrée"
     },
-    "statementPdf": "Télécharger le relevé PDF"
+    "statementPdf": "Télécharger le relevé PDF",
+    "events": {
+      "title": "Historique des modifications",
+      "hint": "Journal en ajout seul indiquant qui a modifié quoi pour ce client. Seules les sources auxquelles vous avez accès sont affichées. Les données personnelles sont notées comme modifiées, jamais copiées.",
+      "importing": "L’historique antérieur est encore en cours d’import. Certaines modifications anciennes peuvent ne pas encore apparaître.",
+      "source": "Source",
+      "allSources": "Toutes les sources visibles",
+      "actor": "Modifié par",
+      "anyActor": "Tout le monde",
+      "verify": "Vérifier l’intégrité",
+      "chainIntact": "Intégrité vérifiée pour {{count}} événements.",
+      "chainBroken": "La vérification d’intégrité a échoué à l’événement {{id}}. Escaladez à la sécurité.",
+      "empty": "Aucune modification enregistrée ne correspond à ces filtres.",
+      "redacted": "modifié (données personnelles non conservées)",
+      "changed": "modifié (détails non conservés)",
+      "replay": "Rejouer",
+      "older": "Charger les modifications plus anciennes",
+      "replayTitle": "{{entity}} {{id}} tel qu’enregistré",
+      "asOf": "À la date du",
+      "rebuild": "Reconstruire l’état",
+      "unknownFields": "Modifié mais non conservé : {{fields}}",
+      "sources": {
+        "admin_audit": "Actions d’administration",
+        "login": "Connexions",
+        "payment": "Paiements",
+        "support": "Assistance",
+        "food_order": "Commandes de repas",
+        "customer360": "Client 360"
+      },
+      "actors": {
+        "admin": "Administrateur",
+        "customer": "Client",
+        "system": "Système",
+        "business": "Entreprise"
+      },
+      "entities": {
+        "admin_action": "Action d’administration",
+        "login": "Connexion",
+        "payment": "Paiement",
+        "support_ticket": "Ticket d’assistance",
+        "food_order": "Commande de repas",
+        "task": "Tâche de dossier"
+      },
+      "types": {
+        "admin": "Action d’administration : {{action}}",
+        "login": "Connexion {{action}}",
+        "payment": "Paiement {{action}}",
+        "support_ticket": "Ticket d’assistance {{action}}",
+        "food_order": "Commande de repas {{action}}",
+        "task": "Tâche de dossier {{action}}"
+      }
+    }
   },
   "screens": {
     "dataFreshness": "Fraîcheur des données",

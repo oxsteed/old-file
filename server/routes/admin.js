@@ -336,6 +336,10 @@ router.get('/users/:userId/workspace/alerts', requireAdmin, requirePermission('m
 router.put('/users/:userId/workspace/alerts', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Workspace.saveAlertRule);
 router.post('/users/:userId/workspace/sessions/:sessionId/revoke', requireSuperAdmin, rejectImpersonated, strictLimiter, c360Workspace.revokeSession);
 router.post('/users/:userId/workspace/assistant', requireAdmin, requirePermission('manage_users'), strictLimiter, c360Workspace.assistant);
+const c360Upgrades = require('../controllers/customer360UpgradesController');
+router.get('/users/:userId/workspace/events', requireAdmin, requirePermission('manage_users'), c360Upgrades.events);
+router.get('/users/:userId/workspace/events/replay', requireAdmin, requirePermission('manage_users'), c360Upgrades.replay);
+router.get('/users/:userId/workspace/events/verify', requireSuperAdmin, c360Upgrades.verifyEvents);
 router.get('/users/:userId/duplicates',             requireAdmin, requirePermission('manage_users'), c360Ctrl.getDuplicates);
 router.get('/users/:userId/linked-entities',        requireAdmin, requirePermission('manage_users'), c360Ctrl.getLinkedEntities);
 router.get('/users/:userId/login-history',          requireAdmin, requirePermission('manage_users'), c360Ctrl.getLoginHistory);

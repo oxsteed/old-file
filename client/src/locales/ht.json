@@ -420,7 +420,8 @@
       "assistant": "Asistan prèv",
       "exports": "Rapò ak ekspòtasyon",
       "experience": "Eksperyans ak angajman",
-      "quality": "Kalite ak done sous aktyèl"
+      "quality": "Kalite ak done sous aktyèl",
+      "events": "Istwa chanjman"
     },
     "sources": {
       "jobs": "Travay",
@@ -841,7 +842,58 @@
       "firstAt": "Premye aktivite anrejistre",
       "lastAt": "Dènye aktivite anrejistre"
     },
-    "statementPdf": "Telechaje relve PDF"
+    "statementPdf": "Telechaje relve PDF",
+    "events": {
+      "title": "Istwa chanjman",
+      "hint": "Dosye ki sèlman ajoute ki montre kiyès ki chanje kisa pou kliyan sa a. Se sèlman sous ou gen dwa wè yo ki parèt. Done pèsonèl yo make kòm chanje, yo pa janm kopye.",
+      "importing": "Istwa ansyen an toujou ap enpòte. Gen kèk ansyen chanjman ki ka poko parèt.",
+      "source": "Sous",
+      "allSources": "Tout sous ou ka wè",
+      "actor": "Chanje pa",
+      "anyActor": "Nenpòt moun",
+      "verify": "Verifye entegrite",
+      "chainIntact": "Entegrite verifye pou {{count}} evènman.",
+      "chainBroken": "Verifikasyon entegrite echwe nan evènman {{id}}. Voye l bay sekirite.",
+      "empty": "Pa gen chanjman anrejistre ki koresponn ak filtè sa yo.",
+      "redacted": "chanje (done pèsonèl pa konsève)",
+      "changed": "chanje (detay yo pa konsève)",
+      "replay": "Rejwe",
+      "older": "Chaje chanjman ki pi ansyen",
+      "replayTitle": "{{entity}} {{id}} jan li te anrejistre",
+      "asOf": "Nan dat",
+      "rebuild": "Rekonstwi eta a",
+      "unknownFields": "Chanje men pa konsève: {{fields}}",
+      "sources": {
+        "admin_audit": "Aksyon administratè",
+        "login": "Koneksyon",
+        "payment": "Peman",
+        "support": "Sipò",
+        "food_order": "Kòmand manje",
+        "customer360": "Kliyan 360"
+      },
+      "actors": {
+        "admin": "Administratè",
+        "customer": "Kliyan",
+        "system": "Sistèm",
+        "business": "Biznis"
+      },
+      "entities": {
+        "admin_action": "Aksyon administratè",
+        "login": "Koneksyon",
+        "payment": "Peman",
+        "support_ticket": "Tikè sipò",
+        "food_order": "Kòmand manje",
+        "task": "Travay dosye"
+      },
+      "types": {
+        "admin": "Aksyon administratè: {{action}}",
+        "login": "Koneksyon {{action}}",
+        "payment": "Peman {{action}}",
+        "support_ticket": "Tikè sipò {{action}}",
+        "food_order": "Kòmand manje {{action}}",
+        "task": "Travay dosye {{action}}"
+      }
+    }
   },
   "screens": {
     "dataFreshness": "Frekans done yo",
