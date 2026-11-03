@@ -423,3 +423,20 @@
 .c360u-node.is-suspended {
   stroke-dasharray: 3 2;
 }
+.c360u-scroll {
+  max-inline-size: 100%;
+  overflow-x: auto;
+}
+.c360u-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.c360u-bar {
+  display: inline-block;
+  block-size: 0.6rem;
+  min-inline-size: 2px;
+  max-inline-size: 8rem;
+  border-radius: 3px;
+  background: var(--color-primary);
+}

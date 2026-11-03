@@ -277,7 +277,8 @@
       "events": "Historique des modifications",
       "health": "Santé et risque",
       "anomalies": "Anomalies",
-      "links": "Comptes liés"
+      "links": "Comptes liés",
+      "lifecycle": "Cycle de vie"
     },
     "sources": {
       "jobs": "Missions",
@@ -925,6 +926,51 @@
         "confirm": "Confirmer le doublon",
         "reject": "Renvoyer en examen"
       }
+    },
+    "lifecycle": {
+      "title": "Cycle de vie et cohortes",
+      "hint": "L’étape est déduite uniquement de la date d’inscription et des transactions réalisées. Elle est descriptive et ne modifie jamais le compte.",
+      "none": "Pas encore de données de cycle de vie.",
+      "since": "depuis {{time}}",
+      "computed": "Calculé {{time}} · modèle {{model}}",
+      "stage": "Étape",
+      "share": "Part",
+      "suppressed": "Moins de {{min}} clients dans cette cohorte ; non affiché.",
+      "small": "petit groupe",
+      "stages": {
+        "new": "Nouveau",
+        "never_activated": "Jamais activé",
+        "active": "Actif",
+        "lapsing": "En perte de vitesse",
+        "dormant": "Dormant",
+        "closed": "Fermé"
+      },
+      "explain": {
+        "new": "Inscrit depuis moins de 30 jours, sans transaction pour l’instant.",
+        "never_activated": "Inscrit depuis plus de 30 jours, sans aucune transaction.",
+        "active": "A effectué une transaction ces 30 derniers jours.",
+        "lapsing": "Dernière transaction il y a 31 à 90 jours.",
+        "dormant": "Aucune transaction depuis plus de 90 jours.",
+        "closed": "Le compte est fermé."
+      },
+      "factors": {
+        "last": "Jours depuis la dernière transaction : {{days}}",
+        "first": "Jours depuis la première transaction : {{days}}",
+        "recent": "Transactions sur 90 jours : {{count}}"
+      },
+      "cohortTitle": "Cohorte d’inscription {{country}} · {{month}}",
+      "countryCohort": "Clients de {{country}} inscrits ce mois-là",
+      "platformCohort": "Tous les pays, même mois d’inscription",
+      "regionRestricted": "Les comparaisons de cohortes ne sont pas disponibles pour les administrateurs régionaux.",
+      "compareTitle": "Comparer des pays",
+      "countries": "Codes pays (séparés par des virgules, 6 maximum)",
+      "months": "Mois d’inscription",
+      "compare": "Comparer",
+      "invalidCountries": "Saisissez 1 à 6 codes pays à deux lettres, par exemple HT,US.",
+      "compareCaption": "Part par étape et par pays sur les {{months}} derniers mois d’inscription. Les groupes de moins de {{min}} clients sont masqués.",
+      "country": "Pays",
+      "customers": "Clients",
+      "statsAt": "Chiffres des cohortes actualisés {{time}}"
     }
   },
   "screens": {

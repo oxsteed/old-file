@@ -39,6 +39,8 @@ const routes = `window.routes=[
   ['post',/\\/workspace\\/anomalies\\/\\d+\\/(snooze|unsnooze|acknowledge|resolve)$/,(o,b)=>{window.anomalyRows[0]={...window.anomalyRows[0],status:'snoozed',snoozed_until:b.until,revision:2};return{anomaly:window.anomalyRows[0]};}],
   ['get',/\\/customer360\\/anomaly-watches$/,()=>({watches:window.watches||[]})],
   ['put',/\\/customer360\\/anomaly-watches$/,(o,b)=>{window.watches=[{id:'w',source:b.source,statuses:['open'],min_age_minutes:0,enabled:b.enabled}];return{watch:window.watches[0]};}],
+  ['get',/\\/workspace\\/lifecycle$/,()=>({state:'ready',modelVersion:'c360-lifecycle-v1',stage:'lapsing',stageSince:'2026-10-01T00:00:00Z',computedAt:'2026-11-03T10:00:00Z',country:'HT',cohortMonth:'2026-01-01',factors:{daysSinceLastTransaction:45,daysSinceFirstTransaction:280,transactions90d:2},cohortState:'ready',minCell:10,cohort:{country:'HT',cohortMonth:'2026-01-01',countryCohort:{total:120,suppressed:false,stages:{new:{count:20,share:16.7},never_activated:{count:null,share:null,suppressed:true},active:{count:60,share:50},lapsing:{count:30,share:25},dormant:{count:10,share:8.3},closed:{count:0,share:0}}},platformCohort:{total:5,suppressed:true,stages:{}}}})],
+  ['get',/\\/customer360\\/cohorts$/,(o)=>o.params.countries==='XX1'?(()=>{throw{response:{data:{code:'invalid_countries'}}}})():({modelVersion:'c360-lifecycle-v1',minCell:10,months:o.params.months,computedAt:'2026-11-03T06:00:00Z',stages:['new','never_activated','active','lapsing','dormant','closed'],countries:o.params.countries.split(',').map((c)=>({country:c,...{total:120,suppressed:false,stages:{new:{count:20,share:16.7},never_activated:{count:null,share:null,suppressed:true},active:{count:60,share:50},lapsing:{count:30,share:25},dormant:{count:10,share:8.3},closed:{count:0,share:0}}}})),cohorts:[]})],
   ['get',/\\/workspace\\/links$/,()=>({signalsEnabled:true,kinds:['address','card','bank'],common:[{kind:'address',holders:40}],checklist:['identityCompared','contactCompared','paymentInstrumentsCompared','activityReviewed'],optionalChecklist:['customerContacted'],
     nodes:[{userId:'00000000-0000-4000-8000-0000000000bb',name:'Ana B.',emailMasked:'a***@example.com',createdAt:'2026-01-01T00:00:00Z',suspended:false,kinds:['card','address'],score:0.93}],edges:[],reviews:window.linkReview?[window.linkReview]:[]})],
   ['post',/\\/workspace\\/links\\/[0-9a-f-]+\\/review$/,()=>{window.linkReview={id:'7',user_a:'${id}',user_b:'00000000-0000-4000-8000-0000000000bb',status:'in_review',checklist:{},score:0.93,revision:1};return{review:window.linkReview};}],
@@ -205,7 +207,22 @@ test("customer 360 upgrade panels work and lay out in five languages", async () 
     await ln.getByText(copy.en.links.awaiting).waitFor();
     assert.ok(await ln.getByRole("button", { name: copy.en.links.actions.confirm, exact: true }).isVisible());
 
-    const panels = [["links", '[data-panel="links"]'], ["anomalies", '[data-panel="anomalies"]'], ["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
+    // Upgrade 7: lifecycle stage, cohort distribution and country comparison.
+    await page.getByRole("button", { name: copy.en.areas.lifecycle, exact: true }).click();
+    const lc = page.locator('[data-panel="lifecycle"]');
+    await lc.getByText(copy.en.lifecycle.explain.lapsing).waitFor();
+    await lc.getByText(copy.en.lifecycle.suppressed.replace("{{min}}", "10")).waitFor();
+    assert.ok(await lc.getByText(copy.en.lifecycle.small).count());
+    await lc.getByLabel(copy.en.lifecycle.countries).fill("XX1");
+    await lc.getByRole("button", { name: copy.en.lifecycle.compare, exact: true }).click();
+    await lc.getByText(copy.en.lifecycle.invalidCountries).waitFor();
+    await lc.getByLabel(copy.en.lifecycle.countries).fill("HT,US");
+    await lc.getByRole("button", { name: copy.en.lifecycle.compare, exact: true }).click();
+    await lc.locator('table[data-compare="countries"] tbody tr').nth(1).waitFor();
+    const cohortCall = await page.evaluate(() => window.calls.filter((c) => c.url.endsWith("/customer360/cohorts")).pop().params);
+    assert.deepEqual(cohortCall, { countries: "HT,US", months: 12 });
+
+    const panels = [["lifecycle", '[data-panel="lifecycle"]'], ["links", '[data-panel="links"]'], ["anomalies", '[data-panel="anomalies"]'], ["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
     for (const lang of LANGS)
       for (const dark of [false, true])
         for (const width of [320, 1360]) {

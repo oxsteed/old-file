@@ -103,6 +103,7 @@ const REVIEWED = {
   // orders.
   'services/customer360Events.js': SYSTEM_JOB,
   'services/customer360Health.js': CUSTOMER_OR_SELF,
+  'services/customer360Lifecycle.js': SYSTEM_JOB,
   // Dual-approval queue enrichment: admin-only checker list (requireAdmin +
   // requireMoneyApprovalGrant) resolving each movement's own subject id to a
   // display name/status; never a caller-supplied store id.

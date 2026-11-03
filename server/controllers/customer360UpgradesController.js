@@ -197,3 +197,25 @@ exports.decideLinkReview = handle(async (req, res) => {
   const review = await links.decide({ reviewId: req.params.reviewId, customerId: user.id, action: req.params.action, checklist, reason, revision, adminId: req.user.id, req });
   res.json({ review });
 });
+
+// ── Upgrade 7: lifecycle stage and country cohort comparison ───────────────
+const lifecycle = require("../services/customer360Lifecycle");
+const { getRegionRestrictedRegions } = require("../services/scopeModel");
+exports.lifecycle = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const row = await lifecycle.current(user.id);
+  // Region-scoped admins see the customer's stage but not cross-country aggregates.
+  const regional = !!(await getRegionRestrictedRegions(req.user.id));
+  const cohort = row && !regional ? await lifecycle.cohortFor(row) : null;
+  await audit(req, "customer360_lifecycle_read", { description: JSON.stringify({ stage: row?.stage || null, cohort: !!cohort }) });
+  res.json({ ...lifecycle.present(row), cohort, cohortState: regional ? "restricted" : cohort ? "ready" : "none", minCell: lifecycle.MIN_CELL });
+});
+exports.cohortComparison = handle(async (req, res) => {
+  if (await getRegionRestrictedRegions(req.user.id)) throw new AppError("Cohort comparison is not available to region-scoped admins", 403, "region_scoped_admin");
+  const result = await lifecycle.compare({ countries: req.query.countries, months: req.query.months });
+  await logAdminAction({
+    adminId: req.user.id, action: "customer360_cohorts_read", targetType: "platform", targetId: null,
+    description: JSON.stringify({ countries: result.countries.map((c) => c.country), months: result.months }), req, throwOnError: true,
+  });
+  res.json(result);
+});

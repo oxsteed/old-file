@@ -8,7 +8,7 @@ const REQUIRED = [
   'statementAdmin.db.test.js', 'statementInvestigation.test.js', 'adminGrantLookup.test.js',
   'statementIssuance.test.js', 'statementSettlementIssuance.test.js',
   'statementAmendment.test.js', 'statementSettlement.test.js', 'statementRecovery.test.js',
-  'customer360EventLog.db.test.js', 'customer360Health.db.test.js', 'customer360Anomalies.db.test.js', 'customer360Links.db.test.js', 'businessCustomer360.db.test.js',
+  'customer360EventLog.db.test.js', 'customer360Health.db.test.js', 'customer360Anomalies.db.test.js', 'customer360Links.db.test.js', 'businessCustomer360.db.test.js', 'customer360Lifecycle.db.test.js',
 ];
 
 function assertRequiredResults(report) {

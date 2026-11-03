@@ -277,7 +277,8 @@
       "events": "Historial de cambios",
       "health": "Salud y riesgo",
       "anomalies": "Anomalías",
-      "links": "Cuentas vinculadas"
+      "links": "Cuentas vinculadas",
+      "lifecycle": "Ciclo de vida"
     },
     "sources": {
       "jobs": "Trabajos",
@@ -925,6 +926,51 @@
         "confirm": "Confirmar duplicado",
         "reject": "Devolver a revisión"
       }
+    },
+    "lifecycle": {
+      "title": "Ciclo de vida y cohortes",
+      "hint": "La etapa se deriva solo de la fecha de registro y de las transacciones completadas. Es descriptiva y nunca cambia la cuenta.",
+      "none": "Aún no hay datos de ciclo de vida.",
+      "since": "desde {{time}}",
+      "computed": "Calculado {{time}} · modelo {{model}}",
+      "stage": "Etapa",
+      "share": "Proporción",
+      "suppressed": "Menos de {{min}} clientes en esta cohorte; no se muestra.",
+      "small": "grupo pequeño",
+      "stages": {
+        "new": "Nuevo",
+        "never_activated": "Nunca activado",
+        "active": "Activo",
+        "lapsing": "En riesgo",
+        "dormant": "Inactivo",
+        "closed": "Cerrado"
+      },
+      "explain": {
+        "new": "Se registró en los últimos 30 días y aún no ha realizado transacciones.",
+        "never_activated": "Se registró hace más de 30 días y nunca ha realizado transacciones.",
+        "active": "Realizó una transacción en los últimos 30 días.",
+        "lapsing": "Su última transacción fue hace 31–90 días.",
+        "dormant": "Sin transacciones durante más de 90 días.",
+        "closed": "La cuenta está cerrada."
+      },
+      "factors": {
+        "last": "Días desde la última transacción: {{days}}",
+        "first": "Días desde la primera transacción: {{days}}",
+        "recent": "Transacciones en los últimos 90 días: {{count}}"
+      },
+      "cohortTitle": "Cohorte de registro {{country}} · {{month}}",
+      "countryCohort": "Clientes de {{country}} registrados ese mes",
+      "platformCohort": "Todos los países, mismo mes de registro",
+      "regionRestricted": "Las comparaciones de cohortes no están disponibles para administradores con alcance regional.",
+      "compareTitle": "Comparar países",
+      "countries": "Códigos de país (separados por comas, hasta 6)",
+      "months": "Meses de registro",
+      "compare": "Comparar",
+      "invalidCountries": "Introduzca de 1 a 6 códigos de país de dos letras, como HT,US.",
+      "compareCaption": "Proporción por etapa y país en los últimos {{months}} meses de registro. Se ocultan los grupos de menos de {{min}} clientes.",
+      "country": "País",
+      "customers": "Clientes",
+      "statsAt": "Cifras de cohortes actualizadas {{time}}"
     }
   },
   "screens": {

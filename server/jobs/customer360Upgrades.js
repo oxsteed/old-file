@@ -10,6 +10,7 @@ const events = require("../services/customer360Events");
 const health = require("../services/customer360Health");
 const anomalies = require("../services/customer360Anomalies");
 const links = require("../services/customer360Links");
+const lifecycle = require("../services/customer360Lifecycle");
 
 const TASKS = [];
 function registerTask(name, everyMs, run) {
@@ -47,6 +48,12 @@ registerTask("signals", 60_000, async () => {
   await links.sweep("users");
   await links.sweep("bank");
 });
+
+// Upgrade 7: lifecycle stages (events first, then a continuous full sweep)
+// and the cohort aggregate table.
+registerTask("lifecycle-events", 30_000, () => lifecycle.refreshFromEvents());
+registerTask("lifecycle-sweep", 15_000, () => lifecycle.sweep());
+registerTask("cohort-stats", 6 * 3600_000, () => lifecycle.rebuildCohortStats());
 
 async function tick(now = Date.now()) {
   for (const task of TASKS) {

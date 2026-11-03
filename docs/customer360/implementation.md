@@ -326,3 +326,32 @@ Background work runs in `server/jobs/customer360Upgrades.js`
 - Tests: `server/__tests__/businessCustomer360.db.test.js` (owner, store-
   scoped manager, assigned-only employee, deny override, outsider and
   cross-business isolation) and `client/scripts/businessCustomer360.browser-check.cjs`.
+
+### 7. Lifecycle stage and country cohort comparison
+
+- Migration `20261103120500_customer360_lifecycle_cohorts.sql`:
+  `customer_lifecycle` (one row per customer: stage, country, signup-month
+  cohort, first/last transaction, 90-day count, `stage_since`, model
+  version) and `customer_cohort_stats` (precomputed counts per country ×
+  signup month × stage), plus the payer/customer indexes the batch needs.
+- Model `c360-lifecycle-v1`, derived only from signup date and completed
+  transactions (payments, paid/refunded food orders): `new` (≤30 days, no
+  transaction), `never_activated`, `active` (≤30 days), `lapsing` (31–90),
+  `dormant` (>90), `closed` (deleted). Staff accounts are excluded.
+  Descriptive only; nothing changes an account.
+- Computed set-based in batches (`computeBatch`), refreshed from customer
+  events (`lifecycle` consumer), by a continuous wrap-around sweep
+  (`CUSTOMER360_LIFECYCLE_BATCH`, default 2000 users every 15 s) and on
+  read when older than 24 h. Stage changes append
+  `lifecycle.stage_changed`; first computations do not, so the backfill
+  does not flood the log. Cohort stats rebuild every 6 h in one transaction.
+- Small-cell suppression: cohorts or stages under 10 customers are returned
+  as suppressed, never as counts.
+- Endpoints: `GET …/workspace/lifecycle` (stage, inputs, the customer's
+  country cohort vs the platform cohort for the same signup month) and
+  `GET /api/admin/customer360/cohorts?countries=HT,US&months=12` (1–6
+  countries, ≤24 months). Both audited. Region-scoped admins see the stage
+  but not cross-country aggregates (403 `region_scoped_admin`).
+- UI: "Lifecycle" area (`upgrades/Lifecycle.jsx`).
+- Tests: `server/__tests__/customer360Lifecycle.db.test.js` and the shared
+  client checks.

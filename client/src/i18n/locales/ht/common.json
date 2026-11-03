@@ -277,7 +277,8 @@
       "events": "Istwa chanjman",
       "health": "Sante ak risk",
       "anomalies": "Anomali",
-      "links": "Kont ki gen lyen"
+      "links": "Kont ki gen lyen",
+      "lifecycle": "Sik lavi"
     },
     "sources": {
       "jobs": "Travay",
@@ -925,6 +926,51 @@
         "confirm": "Konfime doublon",
         "reject": "Retounen pou revizyon"
       }
+    },
+    "lifecycle": {
+      "title": "Sik lavi ak kowòt",
+      "hint": "Etap la soti sèlman nan dat enskripsyon ak tranzaksyon ki fèt. Li dekri sitiyasyon an epi li pa janm chanje kont lan.",
+      "none": "Poko gen done sik lavi.",
+      "since": "depi {{time}}",
+      "computed": "Kalkile {{time}} · modèl {{model}}",
+      "stage": "Etap",
+      "share": "Pati",
+      "suppressed": "Mwens pase {{min}} kliyan nan kowòt sa a; nou pa montre l.",
+      "small": "ti gwoup",
+      "stages": {
+        "new": "Nouvo",
+        "never_activated": "Pa janm aktive",
+        "active": "Aktif",
+        "lapsing": "Ap ralanti",
+        "dormant": "Andòmi",
+        "closed": "Fèmen"
+      },
+      "explain": {
+        "new": "Enskri nan 30 dènye jou yo epi poko fè tranzaksyon.",
+        "never_activated": "Enskri depi plis pase 30 jou epi pa janm fè tranzaksyon.",
+        "active": "Fè yon tranzaksyon nan 30 dènye jou yo.",
+        "lapsing": "Dènye tranzaksyon an te fèt sa gen 31–90 jou.",
+        "dormant": "Pa gen tranzaksyon depi plis pase 90 jou.",
+        "closed": "Kont lan fèmen."
+      },
+      "factors": {
+        "last": "Jou depi dènye tranzaksyon: {{days}}",
+        "first": "Jou depi premye tranzaksyon: {{days}}",
+        "recent": "Tranzaksyon nan 90 dènye jou: {{count}}"
+      },
+      "cohortTitle": "Kowòt enskripsyon {{country}} · {{month}}",
+      "countryCohort": "Kliyan {{country}} ki enskri mwa sa a",
+      "platformCohort": "Tout peyi, menm mwa enskripsyon",
+      "regionRestricted": "Konparezon kowòt pa disponib pou administratè rejyonal yo.",
+      "compareTitle": "Konpare peyi",
+      "countries": "Kòd peyi (separe ak vigil, jiska 6)",
+      "months": "Mwa enskripsyon",
+      "compare": "Konpare",
+      "invalidCountries": "Antre 1 a 6 kòd peyi ak de lèt, tankou HT,US.",
+      "compareCaption": "Pati pa etap ak pa peyi pou {{months}} dènye mwa enskripsyon yo. Gwoup ki gen mwens pase {{min}} kliyan kache.",
+      "country": "Peyi",
+      "customers": "Kliyan",
+      "statsAt": "Chif kowòt yo mete ajou {{time}}"
     }
   },
   "screens": {

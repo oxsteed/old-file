@@ -348,6 +348,8 @@ router.get('/customer360/anomalies', requireAdmin, requirePermission('manage_use
 router.get('/customer360/anomaly-watches', requireAdmin, requirePermission('manage_users'), c360Upgrades.anomalyWatches);
 router.put('/customer360/anomaly-watches', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.saveAnomalyWatch);
 router.get('/users/:userId/workspace/links', requireAdmin, requirePermission('manage_users'), c360Upgrades.links);
+router.get('/users/:userId/workspace/lifecycle', requireAdmin, requirePermission('manage_users'), c360Upgrades.lifecycle);
+router.get('/customer360/cohorts', requireAdmin, requirePermission('manage_users'), c360Upgrades.cohortComparison);
 router.post('/users/:userId/workspace/links/:otherUserId/review', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.openLinkReview);
 router.post('/users/:userId/workspace/link-reviews/:reviewId/:action(checklist|duplicate|confirm|reject|distinct|dismiss)', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.decideLinkReview);
 router.get('/users/:userId/duplicates',             requireAdmin, requirePermission('manage_users'), c360Ctrl.getDuplicates);
