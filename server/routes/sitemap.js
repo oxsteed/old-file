@@ -53,7 +53,6 @@ router.get('/', async (_req, res) => {
       { loc: `${origin}/helpers`, changefreq: 'daily', priority: '0.9', localized: true },
       { loc: `${origin}/jobs`, changefreq: 'daily', priority: '0.8', localized: true },
       { loc: `${origin}/how-it-works`, changefreq: 'monthly', priority: '0.7', localized: true },
-      { loc: `${origin}/learn`, changefreq: 'weekly', priority: '0.6', localized: true },
       { loc: `${origin}/help/restaurant`, changefreq: 'monthly', priority: '0.5', localized: true },
       { loc: `${origin}/help/manager`, changefreq: 'monthly', priority: '0.5', localized: true },
       { loc: `${origin}/help/pos`, changefreq: 'monthly', priority: '0.5', localized: true },

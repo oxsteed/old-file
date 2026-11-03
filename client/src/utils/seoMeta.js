@@ -131,7 +131,6 @@ const INDEXABLE_ROUTES = [
   { pattern: /^\/food\/restaurants\/[^/]+$/, key: 'restaurantDetail', detailKind: 'restaurant', canonicalPath: (path) => path.replace(/^\/food\/restaurants\//, '/restaurants/r/') },
   { pattern: /^\/restaurants$/, key: 'restaurants' },
   { pattern: /^\/food$/, key: 'restaurants' },
-  { pattern: /^\/learn$/, key: 'learn' },
   { pattern: /^\/careers\/[^/]+$/, key: 'careerDetail', detailKind: 'career' },
   { pattern: /^\/business\/[^/]+\/careers$/, key: 'careers' },
   { pattern: /^\/careers$/, key: 'careers' },
@@ -261,6 +260,10 @@ const NOINDEX_PREFIXES = [
 ];
 
 const NOINDEX_PATTERNS = [
+  // /learn is deliberately noindex: LearnModePage renders PageMeta noIndex
+  // and the prerender shell marks it noIndex, so the route layer must not
+  // claim it indexable and the sitemap must not list it.
+  /^\/learn$/,
   /^\/jobs\/[^/]+\/edit$/,
   /^\/jobs\/[^/]+$/, // Authenticated job detail; the public variant is /jobs/public/:id, and JobDetailPage itself renders noIndex.
   /^\/careers\/me$/,

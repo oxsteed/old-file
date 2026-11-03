@@ -41,7 +41,7 @@ describe('public sitemap coverage', () => {
     expect(mockQuery.mock.calls[5][0]).toMatch(/po\.status IN/);
   });
 
-  test('includes learn, careers, media, and only published career openings', async () => {
+  test('includes careers, media, and only published career openings (learn excluded: noindex)', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // helpers
       .mockResolvedValueOnce({ rows: [] }) // businesses
@@ -55,8 +55,10 @@ describe('public sitemap coverage', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/application\/xml/);
-    expect(res.text).toContain('<loc>https://oxsteed.com/learn</loc>');
-    expect(res.text).toContain('hreflang="es" href="https://oxsteed.com/learn?lang=es"');
+    // /learn is deliberately noindex in both the page (PageMeta noIndex)
+    // and the prerender shell, so it must not appear in the sitemap.
+    expect(res.text).not.toContain('<loc>https://oxsteed.com/learn</loc>');
+    expect(res.text).not.toContain('https://oxsteed.com/learn?lang=es');
     expect(res.text).toContain('<loc>https://oxsteed.com/careers</loc>');
     expect(res.text).toContain('<loc>https://oxsteed.com/careers/77</loc>');
     expect(res.text).toContain('<lastmod>2026-10-15</lastmod>');
