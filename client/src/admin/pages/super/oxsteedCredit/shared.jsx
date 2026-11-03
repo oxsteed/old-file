@@ -471,6 +471,7 @@ export const CREDIT_SUBNAV_ITEMS = [
   { routeKey: 'oxsteedCreditCards', labelKey: 'adminCreditSubnavCards', descriptionKey: 'cards.adminDescription' },
   { routeKey: 'oxsteedCreditLedger', labelKey: 'adminLedgerActivity', descriptionKey: 'adminCreditTransactionHistoryDetail' },
   { routeKey: 'oxsteedCreditBackfill', labelKey: 'adminCreditBackfill.subnav' },
+  { routeKey: 'oxsteedCreditLicence', labelKey: 'adminLicence.subnav' },
 ];
 
 export function CreditSubNav() {

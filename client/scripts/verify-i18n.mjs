@@ -322,7 +322,7 @@ function verifyHomepageTranslationSurface() {
   console.log(`ok homepage translation surface is localized across ${languages.join('/')}`);
 }
 
-function verifyPageHasNoHardcodedUiText(relativePath, { allowedJsxText = [], allowedAttributes = [] } = {}) {
+function verifyPageHasNoHardcodedUiText(relativePath, { allowedJsxText = [], allowedAttributes = [], catalog = 'src/locales/en.json' } = {}) {
   const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
   const allowedText = new Set(allowedJsxText);
   const allowedAttributeValues = new Set(allowedAttributes);
@@ -351,7 +351,7 @@ function verifyPageHasNoHardcodedUiText(relativePath, { allowedJsxText = [], all
     throw new Error(`Hard-coded customer-facing text found:\n${failures.join('\n')}`);
   }
 
-  const legacyEnglish = readJson('src/locales/en.json');
+  const legacyEnglish = readJson(catalog);
   const missingKeys = [];
   const hasKey = (key) => {
     const resolve = (candidate) => candidate.split('.').reduce((value, part) => value?.[part], legacyEnglish);
@@ -397,6 +397,17 @@ function verifyCreditTranslationSurface() {
     'src/admin/pages/super/oxsteedCredit/MoneyOutPage.jsx',
     'src/admin/pages/super/oxsteedCredit/CardsPage.jsx',
     'src/admin/pages/super/oxsteedCredit/LedgerPage.jsx',
+    'src/admin/pages/super/oxsteedCredit/LicencePage.jsx',
+    'src/admin/pages/super/oxsteedCredit/licence/licenceShared.jsx',
+    'src/admin/pages/super/oxsteedCredit/licence/OversightSection.jsx',
+    'src/admin/pages/super/oxsteedCredit/licence/ConsumerSection.jsx',
+    'src/admin/pages/super/oxsteedCredit/licence/MoneyOutSection.jsx',
+    'src/admin/pages/super/oxsteedCredit/licence/ComplianceSection.jsx',
+    'src/admin/pages/super/oxsteedCredit/licence/DormancySection.jsx',
+    'src/admin/pages/super/oxsteedCredit/licence/AccessReviewSection.jsx',
+    'src/admin/pages/super/oxsteedCredit/licence/ReportsSection.jsx',
+    'src/admin/pages/super/oxsteedCredit/licence/WindDownSection.jsx',
+    'src/admin/pages/super/oxsteedCredit/licence/FxLimitsSection.jsx',
   ];
   const failures = [];
 
@@ -802,6 +813,23 @@ verifyPageHasNoHardcodedUiText('src/pages/PostJobPage.jsx', {
   allowedJsxText: ['OxS'],
 });
 verifyPageHasNoHardcodedUiText('src/pages/food/FoodRestaurantPage.jsx');
+verifyPageHasNoHardcodedUiText('src/components/paymentLayers/CreditCashoutPanel.jsx');
+verifyPageHasNoHardcodedUiText('src/components/paymentLayers/CreditPayoutDestinations.jsx');
+verifyPageHasNoHardcodedUiText('src/components/paymentLayers/CreditWageConsentPanel.jsx');
+verifyPageHasNoHardcodedUiText('src/components/paymentLayers/CreditDisclosuresPanel.jsx');
+verifyPageHasNoHardcodedUiText('src/components/paymentLayers/CreditWindDownBanner.jsx');
+verifyPageHasNoHardcodedUiText('src/components/paymentLayers/CreditErasurePanel.jsx');
+verifyPageHasNoHardcodedUiText('src/admin/pages/super/oxsteedCredit/LicencePage.jsx', { catalog: 'src/i18n/locales/en/credit.json' });
+verifyPageHasNoHardcodedUiText('src/admin/pages/super/oxsteedCredit/licence/licenceShared.jsx', { catalog: 'src/i18n/locales/en/credit.json' });
+verifyPageHasNoHardcodedUiText('src/admin/pages/super/oxsteedCredit/licence/OversightSection.jsx', { catalog: 'src/i18n/locales/en/credit.json' });
+verifyPageHasNoHardcodedUiText('src/admin/pages/super/oxsteedCredit/licence/ConsumerSection.jsx', { catalog: 'src/i18n/locales/en/credit.json' });
+verifyPageHasNoHardcodedUiText('src/admin/pages/super/oxsteedCredit/licence/MoneyOutSection.jsx', { catalog: 'src/i18n/locales/en/credit.json' });
+verifyPageHasNoHardcodedUiText('src/admin/pages/super/oxsteedCredit/licence/ComplianceSection.jsx', { catalog: 'src/i18n/locales/en/credit.json' });
+verifyPageHasNoHardcodedUiText('src/admin/pages/super/oxsteedCredit/licence/DormancySection.jsx', { catalog: 'src/i18n/locales/en/credit.json' });
+verifyPageHasNoHardcodedUiText('src/admin/pages/super/oxsteedCredit/licence/AccessReviewSection.jsx', { catalog: 'src/i18n/locales/en/credit.json' });
+verifyPageHasNoHardcodedUiText('src/admin/pages/super/oxsteedCredit/licence/ReportsSection.jsx', { catalog: 'src/i18n/locales/en/credit.json' });
+verifyPageHasNoHardcodedUiText('src/admin/pages/super/oxsteedCredit/licence/WindDownSection.jsx', { catalog: 'src/i18n/locales/en/credit.json' });
+verifyPageHasNoHardcodedUiText('src/admin/pages/super/oxsteedCredit/licence/FxLimitsSection.jsx', { catalog: 'src/i18n/locales/en/credit.json' });
 verifyPageHasNoHardcodedUiText('src/pages/food/components/RestaurantMediaFeed.jsx');
 verifyPageHasNoHardcodedUiText('src/pages/HomePage.jsx', {
   allowedJsxText: ['OxS'],

@@ -158,6 +158,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   oxsteedCreditCards: defineRoute('/admin/super/oxsteed-credit/cards', { superOnly: true }),
   oxsteedCreditLedger: defineRoute('/admin/super/oxsteed-credit/ledger', { superOnly: true }),
   oxsteedCreditBackfill: defineRoute('/admin/super/oxsteed-credit/backfill', { superOnly: true }),
+  oxsteedCreditLicence: defineRoute('/admin/super/oxsteed-credit/licence', { superOnly: true }),
   revenue: defineRoute('/admin/super/revenue', { grant: 'view_financials' }),
   feeConfig: defineRoute('/admin/super/fees', { superOnly: true }),
   pricingConfig: defineRoute('/admin/super/pricing', { superOnly: true }),

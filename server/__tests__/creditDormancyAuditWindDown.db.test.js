@@ -400,7 +400,7 @@ describeDatabase('dormancy, audit and wind-down (licence readiness §8-§10)', (
       if (inFlight.length) {
         await expect(oversight('credit_wind_down_cancel', { planId, reason: 'Test finished: licence retained, wind-down withdrawn' }))
           .rejects.toMatchObject({ code: 'credit_wind_down_redemptions_in_flight' });
-        const corridors = new Set(inFlight.filter((r) => r.status === 'pending').map((r) => `${r.country_code}|${r.currency_code}`));
+        const corridors = new Set(inFlight.filter((r) => r.status === 'pending_export').map((r) => `${r.country_code}|${r.currency_code}`));
         for (const c of corridors) {
           const [countryCode, currencyCode] = c.split('|');
           await bank.exportBatch({ actorUserId: admin1, countryCode, currencyCode });
