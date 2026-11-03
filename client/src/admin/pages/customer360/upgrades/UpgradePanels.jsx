@@ -6,10 +6,11 @@ import Lifecycle from "./Lifecycle";
 import Inbox from "./Inbox";
 import Playbooks from "./Playbooks";
 import Queues from "./Queues";
+import Summary from "./Summary";
 
 // Mount point for the Customer 360 upgrade areas. Each panel loads its own
 // data from an audited endpoint, so nothing is fetched until it is opened.
-export const UPGRADE_AREAS = ["events", "health", "anomalies", "links", "lifecycle", "inbox", "playbooks", "queues"];
+export const UPGRADE_AREAS = ["events", "health", "anomalies", "links", "lifecycle", "inbox", "playbooks", "queues", "summary"];
 
 export default function UpgradePanels({ area, ...props }) {
   if (area === "events") return <EventLog {...props} />;
@@ -20,5 +21,6 @@ export default function UpgradePanels({ area, ...props }) {
   if (area === "inbox") return <Inbox {...props} />;
   if (area === "playbooks") return <Playbooks {...props} />;
   if (area === "queues") return <Queues {...props} />;
+  if (area === "summary") return <Summary {...props} />;
   return null;
 }

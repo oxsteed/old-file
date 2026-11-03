@@ -281,7 +281,8 @@
       "lifecycle": "Ciclo de vida",
       "inbox": "Bandeja",
       "playbooks": "Guías",
-      "queues": "Colas"
+      "queues": "Colas",
+      "summary": "Resumen"
     },
     "sources": {
       "jobs": "Trabajos",
@@ -1182,6 +1183,43 @@
         "view_name_taken": "Ya tiene una vista con este nombre.",
         "global_grant_required": "El tablero del equipo requiere un permiso de clientes para toda la plataforma.",
         "resolution_required": "Elija una resolución."
+      }
+    },
+    "summary": {
+      "title": "Resumen del cliente",
+      "hint": "Totales precalculados de todas las áreas que puede ver, actualizados automáticamente con la nueva actividad.",
+      "recompute": "Recalcular ahora",
+      "recomputed": "Resumen recalculado.",
+      "queued": "Hay una actualización en cola.",
+      "computedIn": "Calculado en {{ms}} ms",
+      "incomplete": "No se pudieron contar algunas fuentes",
+      "lifecycle": "Etapa del ciclo de vida",
+      "churn": "Riesgo de abandono",
+      "events": "Eventos",
+      "eventsValue": "{{count}} · último {{time}}",
+      "anomalies": "Anomalías abiertas",
+      "queues": "Elementos en colas",
+      "queueValue": "{{open}} abiertos · {{breached}} vencidos",
+      "none": "Ninguno",
+      "empty": "No hay registros en las áreas que puede ver.",
+      "caption": "Registros por área",
+      "area": "Área",
+      "records": "Registros",
+      "last30": "Últimos 30 días",
+      "lastActivity": "Última actividad",
+      "states": {
+        "fresh": "Actualizado",
+        "dirty": "Actualización pendiente",
+        "stale": "Desactualizado",
+        "outdated_model": "Versión anterior",
+        "missing": "Aún no calculado"
+      },
+      "stateDetail": {
+        "fresh": "Calculado {{time}}.",
+        "dirty": "Hay actividad nueva desde {{time}}.",
+        "stale": "Calculado {{time}}, hace más de {{hours}} h.",
+        "outdated_model": "Calculado {{time}} con una versión anterior.",
+        "missing": "Se calculará en segundo plano."
       }
     }
   },

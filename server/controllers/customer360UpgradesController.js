@@ -367,3 +367,23 @@ exports.deleteSavedView = handle(async (req, res) => {
   await queues.deleteView({ adminId: req.user.id, viewId: req.params.viewId, audit: platformAudit(req, "customer360_view") });
   res.status(204).end();
 });
+
+// ── Upgrade 12: precomputed per-customer summary with staleness ────────────
+const summaries = require("../services/customer360Summaries");
+async function summaryScope(req) {
+  return { can: workspace.access(req), anomalyKinds: await anomalyKinds(req), topics: await queueTopics(req) };
+}
+exports.summary = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const loaded = await summaries.load(user.id);
+  const body = await summaries.present(loaded, await summaryScope(req));
+  await audit(req, "customer360_summary_read", { description: JSON.stringify({ state: body.staleness.state, areas: body.areas.length, computedNow: loaded.computedNow }) });
+  res.json(body);
+});
+exports.recomputeSummary = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const loaded = await summaries.load(user.id, { force: true });
+  const body = await summaries.present(loaded, await summaryScope(req));
+  await audit(req, "customer360_summary_recompute", { after: { modelVersion: body.modelVersion, computeMs: body.computeMs, incomplete: body.incomplete } });
+  res.json(body);
+});

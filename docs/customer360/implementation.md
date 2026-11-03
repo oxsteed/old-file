@@ -506,3 +506,71 @@ Background work runs in `server/jobs/customer360Upgrades.js`
   `client/scripts/yourData.browser-check.cjs` (20 languages × light/dark ×
   320/1360 px, export flow and error states), and the existing privacy
   export tests.
+
+### 12. Precomputed per-customer summaries with staleness
+
+- Migration `20261103121000_customer360_summaries.sql`:
+  `customer360_summaries`, one row per customer (`ON DELETE CASCADE`), with
+  the summary JSONB (capped at 16 KB), `event_watermark` (highest event id
+  covered), `computed_at`, `compute_ms`, `failed_sources`, `dirty_since`
+  and a worker lease (`claimed_until`). `fillfactor = 80` keeps recomputes
+  HOT; partial index on `dirty_since` and an index on `computed_at` keep the
+  queue and the sweep off full scans.
+- `services/customer360Summaries.js`:
+  - `computeOne` counts every workspace source (count, latest date, last
+    30 days) in one `UNION ALL` statement inside a transaction with a 15 s
+    statement timeout; if one source fails it falls back per source and
+    records it in `failed_sources`. It adds events, health bands,
+    lifecycle stage, open anomalies by kind and open queue items by topic.
+    A dirty mark set after the compute started survives the write.
+  - `markFromEvents` (consumer `summaries` in `customer360_event_consumers`)
+    reads up to 10 000 events per batch, skips audited admin reads
+    (`admin.customer360_*`), and in one upsert flags affected customers
+    dirty, but only if the event is newer than the row's watermark. Bursts
+    collapse into one recompute per customer.
+  - `computeDirty` and `sweepStale` claim rows with `FOR UPDATE SKIP LOCKED`
+    plus a 120 s lease, so several workers share the work. The sweep
+    refreshes rows older than `CUSTOMER360_SUMMARY_TTL_HOURS` (default 24)
+    or on an older model version. That catches changes that emit no event.
+  - Reads (`load`) never wait on a recompute, except on the first read for
+    a customer. They report a state: `fresh`, `dirty` (newer activity),
+    `stale` (past TTL), `outdated_model` or `missing`, plus age and computed
+    time. A stale read queues a refresh.
+  - `present` filters the stored summary for the admin. It shows only
+    sources the admin holds the grant for (super-only sources for super
+    admins), and only the anomaly kinds and queue topics they may see.
+    Hidden sources are left out, not shown as zero.
+  - `backlog()` reports the dirty count, the oldest dirty age and the
+    consumer cursor for monitoring.
+- Worker tasks:
+  - `summary-events` every 15 s, up to 5 × 10 000 events per tick.
+  - `summary-dirty` every 15 s, 200 rows per tick.
+  - `summary-stale` every 60 s, 200 rows per tick.
+- Scale (about 6M customers):
+  - The table is about 6–12 GB at 1–2 KB per row, and a read is one
+    primary-key lookup plus one index probe on
+    `customer_events (customer_id, id)`.
+  - Dirty work grows with the number of active customers, not the total.
+  - The TTL sweep runs 200 per minute per worker. To keep a 24 h TTL for
+    every customer, run about 20 worker instances or raise the batch size.
+  - Until then, read-time staleness marks plus the event path keep active
+    customers fresh, and the badge shows how old the numbers are.
+- Endpoints:
+  - `GET workspace/summary`, audited as `customer360_summary_read` with
+    state and area count.
+  - `POST workspace/summary/recompute` forces a recompute. It is
+    rate-limited, not available while impersonating, and audited as
+    `customer360_summary_recompute`.
+- UI: the "Summary" area (`upgrades/Summary.jsx`) shows the freshness
+  badge (`data-staleness`, colour plus text) and the compute time. It warns
+  when the summary is incomplete, shows lifecycle, churn band, events,
+  anomaly and queue cards, and has a per-area table that links to each
+  area. Copy is in en/es/fr/ht/ar and uses logical CSS.
+- Erasure: summaries are deleted by upgrade 11's `erase` and appear as the
+  "precomputed summary" category on the "Your data" page.
+- Tests:
+  - `server/__tests__/customer360Summaries.db.test.js`: staleness states;
+    sync first read; event → dirty → worker recompute; no re-mark for
+    events already covered; pending rows; TTL and model sweep; leases;
+    grant projection; cascade.
+  - The upgrade-12 flow in `client/scripts/customer360Upgrades.browser-check.cjs`.

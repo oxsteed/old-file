@@ -65,10 +65,16 @@ const routes = `window.routes=[
   ['post',/\\/customer360\\/saved-views$/,(o,b)=>{window.qViews=[...window.qViews,{id:'9',name:b.name,scope:b.scope,filters:b.filters,mine:true,owner_name:'Me',revision:1}];return{view:window.qViews.at(-1)};}],
   ['post',/\\/workspace\\/queue-items$/,(o,b)=>{window.qItems=[...window.qItems,{id:'21',queue_key:b.queueKey,queue_name:'General follow-up',customer_id:'${id}',customer_name:'Rose',topic:'general',source:'manual',reason:b.reason,status:'open',created_at:new Date().toISOString(),breached:false,minutes_left:1440,revision:1}];return{item:window.qItems.at(-1)};}],
   ['post',/\\/customer360\\/queue-items\\/20\\/claim$/,(o,b)=>{window.qItems[0]={...window.qItems[0],status:'claimed',assigned_name:'Me',revision:b.revision+1};return{item:window.qItems[0]};}],
+  ['get',/\\/workspace\\/summary$/,()=>window.summaryBody('dirty')],
+  ['post',/\\/workspace\\/summary\\/recompute$/,()=>window.summaryBody('fresh')],
 ];
 window.pbRuns=[];
 window.qViews=[];
 window.qItems=[{id:'20',queue_key:'anomalies',queue_name:'Anomaly alerts',customer_id:'00000000-0000-4000-8000-0000000000cc',customer_name:'سارة',topic:'refund_spike',source:'anomaly',reason:'refund_spike',status:'open',created_at:'2026-11-03T05:00:00Z',breached:true,minutes_left:-75,revision:1}];
+window.summaryBody=(state)=>({modelVersion:'c360-summary-v1',computedNow:state==='fresh',computeMs:42,incomplete:state!=='fresh',
+  staleness:{state,computedAt:'2026-11-03T09:00:00Z',ageSeconds:600,ttlHours:24,dirtySince:state==='dirty'?'2026-11-03T09:05:00Z':null},
+  areas:[{area:'support',count:12345,last30:3,lastAt:'2026-11-03T08:00:00Z',sources:[]},{area:'communications',count:0,last30:0,lastAt:null,sources:[]}],
+  events:{n:98765,lastAt:'2026-11-03T08:59:00Z'},health:{churnBand:'high'},lifecycle:{stage:'lapsing'},anomalies:{refund_spike:2},queues:{general:{open:1,breached:1}}});
 window.inboxItems=[{channel:'support',id:'1',at:'2026-11-01T10:00:00Z',outbound:false,internal:false,author:'Rose',subject:null,body:'مرحبا\\nI cannot log in',thread_label:'T-11'}];
 window.anomalyRows=[{id:'5',customer_id:'${id}',kind:'new_country_login',status:'open',occurrences:2,first_detected_at:'2026-11-01T10:00:00Z',last_detected_at:'2026-11-02T10:00:00Z',evidence:{country:'FR',previousCountries:['HT']},snoozed_until:null,revision:1},
   {id:'4',customer_id:'${id}',kind:'refund_spike',status:'acknowledged',occurrences:1,first_detected_at:'2026-10-01T10:00:00Z',last_detected_at:'2026-10-01T10:00:00Z',evidence:{refunds7d:4,baselineWeekly:0.5},snoozed_until:null,revision:3}];
@@ -324,7 +330,21 @@ test("customer 360 upgrade panels work and lay out in five languages", async () 
     await qp.getByLabel(copy.en.queues.savedView).selectOption("9");
     await page.waitForFunction(() => window.calls.some((c) => c.url.endsWith("/customer360/queues") && c.params.view === "9"));
 
-    const panels = [["queues", '[data-panel="queues"]'], ["playbooks", '[data-panel="playbooks"]'], ["inbox", '[data-panel="inbox"]'], ["lifecycle", '[data-panel="lifecycle"]'], ["links", '[data-panel="links"]'], ["anomalies", '[data-panel="anomalies"]'], ["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
+    // Upgrade 12: precomputed summary with staleness and explicit recompute.
+    await page.getByRole("button", { name: copy.en.areas.summary, exact: true }).click();
+    const sp = page.locator('[data-panel="summary"]');
+    await sp.locator('[data-staleness="dirty"]').waitFor();
+    await sp.getByText(copy.en.summary.states.dirty).waitFor();
+    await sp.getByText(copy.en.summary.incomplete).waitFor();
+    assert.equal(await sp.locator('[data-area="support"] td').first().textContent(), "12345");
+    await sp.getByRole("button", { name: copy.en.summary.recompute, exact: true }).click();
+    await sp.locator('[data-staleness="fresh"]').waitFor();
+    await sp.getByText(copy.en.summary.recomputed).waitFor();
+    assert.ok(await page.evaluate(() => window.calls.some((c) => c.method === "post" && c.url.endsWith("/summary/recompute"))));
+    await sp.locator('[data-area="support"] button').click();
+    await sp.waitFor({ state: "detached" });
+
+    const panels = [["summary", '[data-panel="summary"]'], ["queues", '[data-panel="queues"]'], ["playbooks", '[data-panel="playbooks"]'], ["inbox", '[data-panel="inbox"]'], ["lifecycle", '[data-panel="lifecycle"]'], ["links", '[data-panel="links"]'], ["anomalies", '[data-panel="anomalies"]'], ["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
     for (const lang of LANGS)
       for (const dark of [false, true])
         for (const width of [320, 1360]) {

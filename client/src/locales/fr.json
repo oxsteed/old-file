@@ -428,7 +428,8 @@
       "lifecycle": "Cycle de vie",
       "inbox": "Messagerie",
       "playbooks": "Procédures",
-      "queues": "Files"
+      "queues": "Files",
+      "summary": "Synthèse"
     },
     "sources": {
       "jobs": "Missions",
@@ -1329,6 +1330,43 @@
         "view_name_taken": "Vous avez déjà une vue avec ce nom.",
         "global_grant_required": "Le tableau d’équipe nécessite une autorisation clients pour toute la plateforme.",
         "resolution_required": "Choisissez une résolution."
+      }
+    },
+    "summary": {
+      "title": "Synthèse client",
+      "hint": "Totaux précalculés pour tous les domaines que vous pouvez voir, actualisés automatiquement à chaque nouvelle activité.",
+      "recompute": "Recalculer maintenant",
+      "recomputed": "Synthèse recalculée.",
+      "queued": "Une actualisation est en file d’attente.",
+      "computedIn": "Calculée en {{ms}} ms",
+      "incomplete": "Certaines sources n’ont pas pu être comptées",
+      "lifecycle": "Étape du cycle de vie",
+      "churn": "Risque d’attrition",
+      "events": "Événements",
+      "eventsValue": "{{count}} · dernier {{time}}",
+      "anomalies": "Anomalies ouvertes",
+      "queues": "Éléments en file",
+      "queueValue": "{{open}} ouverts · {{breached}} en retard",
+      "none": "Aucun",
+      "empty": "Aucun enregistrement dans les domaines que vous pouvez voir.",
+      "caption": "Enregistrements par domaine",
+      "area": "Domaine",
+      "records": "Enregistrements",
+      "last30": "30 derniers jours",
+      "lastActivity": "Dernière activité",
+      "states": {
+        "fresh": "À jour",
+        "dirty": "Mise à jour en attente",
+        "stale": "Périmée",
+        "outdated_model": "Ancienne version",
+        "missing": "Pas encore calculée"
+      },
+      "stateDetail": {
+        "fresh": "Calculée {{time}}.",
+        "dirty": "Nouvelle activité depuis {{time}}.",
+        "stale": "Calculée {{time}}, il y a plus de {{hours}} h.",
+        "outdated_model": "Calculée {{time}} par une ancienne version.",
+        "missing": "Elle sera calculée en arrière-plan."
       }
     }
   },

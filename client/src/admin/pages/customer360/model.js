@@ -10,6 +10,7 @@ export const AREAS = [
   "inbox",
   "playbooks",
   "queues",
+  "summary",
   "work",
   "finance",
   "credit",

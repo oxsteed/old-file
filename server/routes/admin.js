@@ -366,6 +366,8 @@ router.put('/customer360/saved-views/:viewId', requireAdmin, rejectImpersonated,
 router.delete('/customer360/saved-views/:viewId', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.deleteSavedView);
 router.get('/users/:userId/workspace/queues', requireAdmin, requirePermission('manage_users'), c360Upgrades.customerQueues);
 router.post('/users/:userId/workspace/queue-items', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.addToQueue);
+router.get('/users/:userId/workspace/summary', requireAdmin, requirePermission('manage_users'), c360Upgrades.summary);
+router.post('/users/:userId/workspace/summary/recompute', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.recomputeSummary);
 router.get('/customer360/cohorts', requireAdmin, requirePermission('manage_users'), c360Upgrades.cohortComparison);
 router.post('/users/:userId/workspace/links/:otherUserId/review', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.openLinkReview);
 router.post('/users/:userId/workspace/link-reviews/:reviewId/:action(checklist|duplicate|confirm|reject|distinct|dismiss)', requireAdmin, rejectImpersonated, requirePermission('manage_users'), strictLimiter, c360Upgrades.decideLinkReview);

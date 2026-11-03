@@ -11,6 +11,7 @@ const health = require("../services/customer360Health");
 const anomalies = require("../services/customer360Anomalies");
 const links = require("../services/customer360Links");
 const lifecycle = require("../services/customer360Lifecycle");
+const summaries = require("../services/customer360Summaries");
 
 const TASKS = [];
 function registerTask(name, everyMs, run) {
@@ -59,6 +60,15 @@ registerTask("cohort-stats", 6 * 3600_000, () => lifecycle.rebuildCohortStats())
 const queues = require("../services/customer360Queues");
 registerTask("queue-feeds", 60_000, () => queues.syncFeeds());
 registerTask("queue-sla", 60_000, () => queues.markBreaches());
+// Upgrade 12: events flag summaries dirty; dirty rows recompute first, then the TTL sweep.
+registerTask("summary-events", 15_000, async () => {
+  for (let i = 0; i < 5; i += 1) {
+    const { seen } = await summaries.markFromEvents({ batch: 10000 });
+    if (seen < 10000) break;
+  }
+});
+registerTask("summary-dirty", 15_000, () => summaries.computeDirty({ limit: 200 }));
+registerTask("summary-stale", 60_000, () => summaries.sweepStale({ limit: 200 }));
 
 async function tick(now = Date.now()) {
   for (const task of TASKS) {

@@ -281,7 +281,8 @@
       "lifecycle": "Sik lavi",
       "inbox": "Bwat mesaj",
       "playbooks": "Gid aksyon",
-      "queues": "Fil travay"
+      "queues": "Fil travay",
+      "summary": "Rezime"
     },
     "sources": {
       "jobs": "Travay",
@@ -1182,6 +1183,43 @@
         "view_name_taken": "Ou deja gen yon vi ak non sa a.",
         "global_grant_required": "Tablo ekip la bezwen yon pèmisyon kliyan pou tout platfòm nan.",
         "resolution_required": "Chwazi yon rezolisyon."
+      }
+    },
+    "summary": {
+      "title": "Rezime kliyan an",
+      "hint": "Total ki kalkile davans pou tout zòn ou ka wè, yo mete ajou otomatikman ak nouvo aktivite.",
+      "recompute": "Rekalkile kounye a",
+      "recomputed": "Rezime a rekalkile.",
+      "queued": "Yon mizajou ap tann nan fil la.",
+      "computedIn": "Kalkile nan {{ms}} ms",
+      "incomplete": "Gen kèk sous ki pa t ka konte",
+      "lifecycle": "Etap sik lavi",
+      "churn": "Risk pou kite",
+      "events": "Evènman",
+      "eventsValue": "{{count}} · dènye {{time}}",
+      "anomalies": "Anomali ki louvri",
+      "queues": "Eleman nan fil",
+      "queueValue": "{{open}} louvri · {{breached}} an reta",
+      "none": "Okenn",
+      "empty": "Pa gen dosye nan zòn ou ka wè yo.",
+      "caption": "Dosye pa zòn",
+      "area": "Zòn",
+      "records": "Dosye",
+      "last30": "30 dènye jou",
+      "lastActivity": "Dènye aktivite",
+      "states": {
+        "fresh": "A jou",
+        "dirty": "Mizajou ap tann",
+        "stale": "Pa a jou",
+        "outdated_model": "Ansyen vèsyon",
+        "missing": "Poko kalkile"
+      },
+      "stateDetail": {
+        "fresh": "Kalkile {{time}}.",
+        "dirty": "Gen nouvo aktivite depi {{time}}.",
+        "stale": "Kalkile {{time}}, sa gen plis pase {{hours}} è.",
+        "outdated_model": "Kalkile {{time}} ak yon ansyen vèsyon.",
+        "missing": "L ap kalkile an aryè-plan."
       }
     }
   },
