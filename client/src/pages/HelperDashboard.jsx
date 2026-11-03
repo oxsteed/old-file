@@ -1361,9 +1361,6 @@ export default function HelperDashboard() {
                 {t('helperDashboard.growthCenterDescription')}
               </p>
             </div>
-          <Link to="/promote" className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-bold hover:bg-orange-400 transition">
-              {t('helperDashboard.openGrowthCenter')}
-            </Link>
           </div>
           )}
 
@@ -1593,7 +1590,6 @@ export default function HelperDashboard() {
             {SHOW_HELPER_SUBSCRIPTIONS && !hasProAccess && (
               <div className="bg-gradient-to-r from-orange-500/10 via-orange-600/5 to-transparent border border-orange-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div><div className="flex items-center gap-2 mb-1"><IcoZap size={18} cls="text-orange-400"/><h3 className="text-lg font-bold text-white">{t('helperDashboard.upgradeToPro')}</h3></div><p className="text-sm text-gray-400">{t('helperDashboard.upgradeProDesc')}</p></div>
-                <button onClick={()=>navigate('/upgrade')} className="bg-action hover:bg-action-hover text-on-action font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm" data-track="ui.2144c8cfa1.7">{t('helperDashboard.viewPlans')}</button>
               </div>
             )}
           </>)}
@@ -1814,13 +1810,10 @@ export default function HelperDashboard() {
 
           {/* Sinking funds */}
           <Card className="mb-6">
-            <CardHeader icon={IcoClock} title={t('dashboard.money.sinkingFunds')} right={
-              <Link to="/planned-needs" className="text-xs text-orange-400 hover:text-orange-300 font-medium">{t('dashboard.plannedNeeds.manage')}</Link>
-            }/>
+            <CardHeader icon={IcoClock} title={t('dashboard.money.sinkingFunds')} />
             {moneyPlannedNeeds.length===0?(
               <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl">
                 <p className="text-sm text-gray-500">{t('dashboard.plannedNeeds.noPlannedNeeds')}</p>
-                <Link to="/planned-needs" className="text-xs bg-action hover:bg-action-hover text-on-action font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">{t('dashboard.plannedNeeds.addOne')}</Link>
               </div>
             ):(
               <div className="space-y-4">

@@ -1552,11 +1552,6 @@ function BusinessHubInner() {
               : t('businessHub.serviceHeaderDesc', { defaultValue: 'Manage services, clients, scheduling, messages, invoices, and your team in one workspace.' })}</p>
           </div>
           <div className="bh-header-actions">
-            {LAUNCH_VISIBILITY.businessHubGrowthTools && (
-              <Link className="bh-btn" to="/promote">
-                Growth Center
-              </Link>
-            )}
             <button className="bh-btn primary" onClick={() => { setFormErr(''); setModal('add-biz'); }} data-track="ui.83b215c0c9.1">
               + {t('businessHub.addBusiness')}
             </button>

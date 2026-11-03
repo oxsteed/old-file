@@ -20,6 +20,15 @@ function registerMoneyMovementExecutors() {
   if (registered) return;
   registered = true;
 
+  // ── fee_config_change: Nov 2 admin-ops audit item 12. A fee change moves
+  // no money itself, so it bypasses the dollar threshold by design: every
+  // fee change queues. The executor applies the queued key/reset through
+  // the fee controller, inside the decide transaction.
+  registerMoneyMovementExecutor('fee_config_change', async (args) => {
+    const { executeFeeConfigChange } = require('../controllers/feeConfigController');
+    return executeFeeConfigChange(args);
+  });
+
   registerMoneyMovementExecutor('food_refund', async ({ payload, client }) => {
     const { executeFoodOrderRefund } = require('../controllers/adminFoodOrdersController');
     return executeFoodOrderRefund(client, {

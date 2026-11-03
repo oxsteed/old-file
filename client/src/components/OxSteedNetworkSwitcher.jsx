@@ -140,19 +140,6 @@ export default function OxSteedNetworkSwitcher({ showSupportWorkspace = false, o
               </Link>
             ))}
           </div>
-          <Link
-            role="menuitem"
-            to="/network"
-            onClick={handleClick}
-            style={{
-              display: 'block', textAlign: 'center', marginTop: '0.35rem',
-              padding: '0.5rem', borderRadius: 'var(--radius-sm)',
-              fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none',
-              color: 'var(--color-primary, #F97316)',
-            }}
-          >
-            {t('network.seeAll', 'See all branches')}
-          </Link>
         </div>
       )}
     </div>

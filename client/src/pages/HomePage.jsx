@@ -422,7 +422,10 @@ function HomeSearch() {
         p.set('lat', locCoords.lat.toFixed(6));
         p.set('lng', locCoords.lng.toFixed(6));
       }
-      navigate(`/discover?${p.toString()}`);
+      // Gated dead link (Nov 3 audit): /discover redirects to /jobs in the
+      // launch gate, so the discover search lands on the launched discovery
+      // surface directly instead of bouncing and dropping its params.
+      navigate(`/jobs?${p.toString()}`);
       return;
     }
     navigate(`/helpers?${buildHelperParams().toString()}`);
