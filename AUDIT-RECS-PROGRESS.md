@@ -1,0 +1,18 @@
+# Audit recommendations build: progress
+
+- Base: origin/old-files-claude @ 8524169ce (verified 2026-11-03 ~04:04 EST).
+- Coordinator branch: fix/audit-recs-2026-11-03, worktree ~/workspace/.fix-worktrees/audit-recs-2026-11-03.
+- Rule for this build: local commits only. No push, no PR, no merge. The parent reports and Emile decides on push.
+
+## Tracks (each in its own worktree/branch, merged by the coordinator)
+
+- Track A: Nov 3 audit items 1-9. Branch fix/audit-recs-2026-11-03-track-a. Status: running.
+- Track B: carried Oct 25 partials (#2, #3, #17, #14, #12, #10, #19, #4 residual). Branch fix/audit-recs-2026-11-03-track-b. Status: running.
+- Track C: Q3 benchmark harness, admin-ops item 12 fee dual control, item 2 phase B legal revocation enforcement, gated dead links. Branch fix/audit-recs-2026-11-03-track-c. Status: running.
+- Track D: review and docs only: money-batch audit report, Q9 provider runbooks, Q11 closure model draft, #26 dependency sweep. Branch fix/audit-recs-2026-11-03-track-d. Status: running.
+
+## Milestones
+
+- 2026-11-03 ~04:10 EST: coordinator worktree created, four tracks spawned.
+- Gate (still to run, in order): client build:ci first, then the full server suite on the final merged tree.
+- #663 close check (head must still be 16dac7ba3c398bd477ab7bd3e9e82a8f8d49c68d): still to do, by the coordinator at the end.
