@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test');const assert=require('node:assert/strict');
-const {validateReceipt,verifyAnonymousPull,pulledImageMatches}=require('./promote-prebuilt-web.cjs');
+const {validateReceipt,verifyAnonymousPull,pulledImageMatches,preflightSchema}=require('./promote-prebuilt-web.cjs');
 const receipt={gitSha:'a'.repeat(40),digest:'sha256:'+'b'.repeat(64),runId:'123',architecture:'arm64',image:'ghcr.io/oxsteed/old-file-web'};
 const run={id:123,status:'completed',conclusion:'success',head_branch:'old-files-claude',path:'.github/workflows/web-image.yml',event:'workflow_run'};
 test('bridge promotion requires its own successful manual workflow, pinned base and explicit mode',()=>{
@@ -38,4 +38,35 @@ test('supports verified Docker engine ID representations and refuses unrelated I
  assert.equal(pulledImageMatches({...info,id:'sha256:'+'e'.repeat(64)},receipt,manifest),false);
  assert.equal(pulledImageMatches({...info,id:receipt.digest,revision:'f'.repeat(40)},receipt,manifest),false);
  assert.equal(pulledImageMatches({...info,id:receipt.digest,architecture:'amd64'},receipt,manifest),false);
+});
+
+test('schema preflight reads the healthy app database and checks the exact candidate offline', () => {
+  const reference = `${receipt.image}@${receipt.digest}`;
+  const snapshot = JSON.stringify([{ filename: 'synthetic.sql', status: 'applied', checksum: null }]);
+  const counts = { pending: 3, unexpected: 0, incomplete: 0, unverified: 1, changed: 0, duplicate: 0 };
+  let verdict = { ok: false, counts };
+  const fakeDocker = (args, input) => {
+    if (args[0] === 'ps') {
+      assert.ok(args.includes('health=healthy'));
+      return 'a'.repeat(12);
+    }
+    if (args[0] === 'exec') {
+      assert.match(args.at(-1), /BEGIN READ ONLY/);
+      assert.match(args.at(-1), /SELECT filename, status, checksum FROM public\._migrations/);
+      return snapshot;
+    }
+    assert.equal(args[0], 'run');
+    for (const option of ['--network=none', '--pull=never', '--read-only', reference]) assert.ok(args.includes(option));
+    assert.ok(!args.some(arg => /^--(env|volume|mount)/.test(arg)));
+    assert.equal(input, snapshot);
+    return JSON.stringify(verdict);
+  };
+  assert.deepEqual(preflightSchema(reference, fakeDocker), counts);
+  verdict = { ok: true, appliedMigrations: 1 };
+  assert.equal(preflightSchema(reference, fakeDocker), null);
+  verdict = { ok: false, counts: { ...counts, changed: 1 } };
+  assert.throws(() => preflightSchema(reference, fakeDocker), /markers are incompatible/);
+  verdict = { ok: true };
+  assert.throws(() => preflightSchema(reference, fakeDocker), /invalid schema preflight result/);
+  assert.throws(() => preflightSchema(reference, () => ''), /exactly one healthy/);
 });

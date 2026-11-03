@@ -32,6 +32,11 @@ node scripts/promote-prebuilt-web.cjs --run <successful-image-workflow-id>
 
 Promotion verifies the workflow, artifact receipt, current default branch,
 required CI checks, pulled image digest, ARM64 architecture and OCI revision.
+It then queries only migration markers from the serving web app's database in
+a read-only transaction. The exact candidate image compares those markers to
+its SQL catalog and checksum policy without a network, credentials or volumes.
+Missing migrations hold the release before Coolify settings or the queue are
+changed. Other marker conflicts require investigation and an explicit retry.
 Only then does it select Coolify's image buildpack, pin the registry manifest
 digest and queue a rolling web replacement. Coolify pulls that immutable public
 digest directly; no production source build can occur. The old release stays serving until the candidate passes
@@ -51,12 +56,23 @@ node scripts/install-web-release-observer.cjs --install
 ```
 
 The user LaunchAgent checks for successful image receipts once a minute, locks
-against overlapping releases, and records each attempted run. A failed run is
-not repeatedly promoted; inspect it before an explicit retry/new image run. Its
+against overlapping releases, and records each attempted run. A release waiting
+for migrations is rechecked every five minutes and can be superseded by a newer
+image receipt. The startup schema check still runs against the replacement's
+own database configuration. A failed run requires inspection before an explicit
+retry or a new image run. The observer's
 installed bundle and state live under `~/Library/Application Support/OxSteed/web-release`.
 Independent Coolify push triggers remain disabled; this observer owns promotion.
 A failed remote build/pull never queues a replacement. Keep image receipts and
 prior known-good images for diagnosis and recovery.
+
+In the November 3 host rehearsal, the candidate-side checker ran in a
+disposable networkless Colima container. With the live image's migration
+catalog it accepted the production markers. With the default-branch catalog
+at `d89274619` it reported 18 pending markers and no conflicting markers.
+The rehearsal used local read-only mounts for the checker and comparison
+catalog. It did not queue a replacement or apply any migrations, and public
+`/ready` still identified the serving release afterward.
 
 Docker documents [explicit builder selection](https://docs.docker.com/build/builders/)
 and [container builder limits](https://docs.docker.com/build/builders/drivers/docker-container/).

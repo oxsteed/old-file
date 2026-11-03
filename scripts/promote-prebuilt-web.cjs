@@ -12,7 +12,7 @@ function command(program, args, input, timeout = 120000) {
   try { return execFileSync(program, args, { input, encoding:'utf8',timeout,stdio:['pipe','pipe','pipe'] }).trim(); }
   catch { throw new Error(`${program} operation failed; credentials and response bodies were omitted.`); }
 }
-const docker = args => command('docker',['--context','colima',...args],undefined,600000);
+const docker = (args, input, timeout = 600000) => command('docker',['--context','colima',...args],input,timeout);
 function validateReceipt(receipt, run, { bridge = false } = {}) {
   if(run.status!=='completed'||run.conclusion!=='success'||run.head_branch!==BRANCH
     ||run.path!==(bridge ? '.github/workflows/web-schema-bridge.yml' : '.github/workflows/web-image.yml')
@@ -66,6 +66,50 @@ function pulledImageMatches(info,receipt,manifest) {
   return info.architecture==='arm64'&&info.revision===receipt.gitSha
     &&[manifest.indexDigest,manifest.platformDigest,manifest.configDigest].includes(info.id);
 }
+
+function preflightSchema(reference, runDocker = docker) {
+  const containers = runDocker(['ps', '--quiet', '--filter', `label=coolify.applicationUuid=${APPLICATION}`,
+    '--filter', 'health=healthy']).split('\n');
+  if (containers.length !== 1 || !/^[a-f0-9]{12,64}$/.test(containers[0])) {
+    throw new Error('Schema preflight requires exactly one healthy production web container.');
+  }
+
+  // Use the serving web container's connection. Only migration metadata leaves
+  // it. The candidate receives that snapshot without production access.
+  const snapshot = runDocker(['exec', '--workdir', '/app/server', containers[0], 'node', '-e', `
+    const { Client } = require('pg');
+    const { getDatabaseSslConfig } = require('./utils/databaseConfig');
+    const { DATABASE_URL, NODE_ENV } = process.env;
+    if (!DATABASE_URL) process.exit(1);
+    const client = new Client({ connectionString: DATABASE_URL,
+      ssl: getDatabaseSslConfig(DATABASE_URL, NODE_ENV), connectionTimeoutMillis: 5000,
+      statement_timeout: 10000, query_timeout: 12000, application_name: 'oxsteed-promotion-schema-check' });
+    (async () => {
+      try {
+        await client.connect();
+        await client.query('BEGIN READ ONLY');
+        const { rows } = await client.query('SELECT filename, status, checksum FROM public._migrations');
+        await client.query('COMMIT');
+        console.log(JSON.stringify(rows));
+      } finally { await client.end(); }
+    })().catch(() => { process.exitCode = 1; });
+  `], undefined, 25000);
+  const result = JSON.parse(runDocker(['run', '--rm', '--interactive', '--pull=never', '--network=none',
+    '--read-only', '--cap-drop=ALL', '--no-healthcheck', '--memory=128m', '--cpus=0.5',
+    '--workdir', '/app/server', '--entrypoint', 'node', reference, 'scripts/check-web-schema-snapshot.cjs'],
+  snapshot, 25000));
+  if (result?.ok === true && Number.isSafeInteger(result.appliedMigrations) && result.appliedMigrations > 0) return null;
+  const fields = ['pending', 'unexpected', 'incomplete', 'unverified', 'changed', 'duplicate'];
+  if (result?.ok !== false || fields.some(key => !Number.isSafeInteger(result.counts?.[key]) || result.counts[key] < 0)) {
+    throw new Error('Candidate returned an invalid schema preflight result.');
+  }
+  const counts = Object.fromEntries(fields.map(key => [key, result.counts[key]]));
+  if (counts.unexpected || counts.incomplete || counts.changed || counts.duplicate || !counts.pending) {
+    throw new Error('Candidate schema markers are incompatible; inspect before an explicit retry.');
+  }
+  return counts;
+}
+
 async function ready(sha,imageId) {
   try {
     const response=await fetch('https://oxsteed.com/ready',{signal:AbortSignal.timeout(8000),headers:{'cache-control':'no-cache'}});
@@ -103,6 +147,15 @@ async function promote(runId,{redeploy=false,bridge=false}={}) {
     docker(['pull','--platform','linux/arm64',reference]);
     const info=JSON.parse(docker(['image','inspect',reference,'--format','{"id":{{json .Id}},"architecture":{{json .Architecture}},"revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}},"digests":{{json .RepoDigests}}}']));
     if(!pulledImageMatches(info,receipt,manifest))throw new Error('Pulled image identity differs from the verified release.');
+    // Historical bridge images predate the snapshot checker and use their own
+    // explicitly reviewed promotion path. Automatic web releases always check.
+    if (!bridge) {
+      const counts = preflightSchema(reference);
+      if (counts) return { status: 'waiting_for_schema', gitSha: receipt.gitSha, counts };
+      if (ghJson(['api',`repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha !== receipt.gitSha) {
+        return { status: 'waiting_for_current_default_branch_image', gitSha: receipt.gitSha };
+      }
+    }
     const queued=controller(String.raw`
       if($a->health_check_path!=='/ready'||App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists())throw new RuntimeException('Health or active deployment conflict');
       $a->update(['build_pack'=>'dockerimage','docker_registry_image_name'=>'${IMAGE}','docker_registry_image_tag'=>'sha256-${receipt.digest.slice(7)}','git_commit_sha'=>'${receipt.gitSha}']);
@@ -126,4 +179,4 @@ if(require.main===module){
   if(args.length<2||args[0]!=='--run'||args.some((a,i)=>i>1&&!['--redeploy','--bridge'].includes(a))){console.error('Use --run <verified-image-run-id> [--redeploy] [--bridge]');process.exitCode=1;}
   else promote(args[1],{redeploy:args.includes('--redeploy'),bridge:args.includes('--bridge')}).then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(e.message);process.exitCode=1;});
 }
-module.exports={validateReceipt,verifyAnonymousPull,pulledImageMatches,promote};
+module.exports={validateReceipt,verifyAnonymousPull,pulledImageMatches,preflightSchema,promote};
