@@ -26,16 +26,27 @@ export default function OxsteedCreditBackfill({ busy = false }) {
   const [notice, setNotice] = useState('');
   const [selected, setSelected] = useState(() => new Set());
   const [confirmMode, setConfirmMode] = useState(null);
+  const [page, setPage] = useState(0);
 
-  const load = async () => {
+  const load = async (nextPage = page) => {
     setLoading(true);
     setError('');
     try {
-      const response = await adminApi.get('/admin/super/oxsteed-credit/backfill/parked', { params: { limit: PAGE_LIMIT } });
-      setRows(response.data?.rows || []);
+      const response = await adminApi.get('/admin/super/oxsteed-credit/backfill/parked', { params: { limit: PAGE_LIMIT, offset: nextPage * PAGE_LIMIT } });
+      const nextRows = response.data?.rows || [];
+      const nextTotal = response.data?.total ?? 0;
+      // A requeue can empty the current page while rows remain: step back
+      // to the last page that still has rows instead of showing an empty
+      // table with a nonzero total.
+      if (!nextRows.length && nextPage > 0 && nextTotal > 0) {
+        await load(nextPage - 1);
+        return;
+      }
+      setRows(nextRows);
       // Track D (finding 51): the parked list now returns its total, so the
       // operator can tell whether the loaded page is the whole failed set.
-      setTotal(response.data?.total ?? 0);
+      setTotal(nextTotal);
+      setPage(nextPage);
       setSelected(new Set());
       setConfirmMode(null);
     } catch (err) {
@@ -96,18 +107,24 @@ export default function OxsteedCreditBackfill({ busy = false }) {
           <h2 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{t('adminCreditBackfill.title')}</h2>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">{t('adminCreditBackfill.description')}</p>
         </div>
-        <button type="button" onClick={load} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" />{t('adminCreditBackfill.refresh')}</button>
+        <button type="button" onClick={() => load()} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" />{t('adminCreditBackfill.refresh')}</button>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => setConfirmMode('selected')} disabled={loading || saving || busy || selected.size === 0} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"><RotateCcw className="h-3.5 w-3.5" />{t('adminCreditBackfill.requeueSelected', { count: selected.size })}</button>
-        <button type="button" onClick={() => setConfirmMode('all')} disabled={loading || saving || busy || rows.length === 0} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><RotateCcw className="h-3.5 w-3.5" />{t('adminCreditBackfill.requeueAll')}</button>
+        <button type="button" onClick={() => setConfirmMode('all')} disabled={loading || saving || busy || total === 0} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><RotateCcw className="h-3.5 w-3.5" />{t('adminCreditBackfill.requeueAll')}</button>
         <span className="text-xs text-gray-500">{t('adminCreditBackfill.selectedCount', { selected: selected.size, total: rows.length })}</span>
         <span className="text-xs text-gray-500">{t('adminCreditBackfill.parkedTotal', { total })}</span>
       </div>
 
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => load(page - 1)} disabled={loading || saving || busy || page === 0} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('adminCreditBackfill.previousPage')}</button>
+        <span className="text-xs text-gray-500">{t('adminCreditBackfill.pageInfo', { page: page + 1, pages: Math.max(1, Math.ceil(total / PAGE_LIMIT)) })}</span>
+        <button type="button" onClick={() => load(page + 1)} disabled={loading || saving || busy || (page + 1) * PAGE_LIMIT >= total} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('adminCreditBackfill.nextPage')}</button>
+      </div>
+
       {confirmMode && <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
-        <p className="text-xs text-amber-200">{confirmMode === 'selected' ? t('adminCreditBackfill.confirmSelected', { count: selected.size }) : t('adminCreditBackfill.confirmAll', { count: rows.length })}</p>
+        <p className="text-xs text-amber-200">{confirmMode === 'selected' ? t('adminCreditBackfill.confirmSelected', { count: selected.size }) : t('adminCreditBackfill.confirmAll', { count: total })}</p>
         <p className="mt-1 text-[11px] leading-4 text-gray-500">{t('adminCreditBackfill.confirmDetail')}</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button type="button" onClick={confirmRequeue} disabled={saving || busy} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">{t('adminCreditBackfill.confirmRequeue')}</button>

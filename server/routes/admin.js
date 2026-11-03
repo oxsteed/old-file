@@ -699,14 +699,28 @@ router.post('/super/oxsteed-credit/pending-actions/:id/decision', requireSuperAd
 router.get('/super/oxsteed-credit/backfill/parked', requireSuperAdmin, async (req, res, next) => {
   try {
     const { listParkedDualPostingBackfill } = require('../services/oxsteedCreditSubBankService');
-    res.json(await listParkedDualPostingBackfill(require('../db'), { limit: req.query.limit }));
+    res.json(await listParkedDualPostingBackfill(require('../db'), { limit: req.query.limit, offset: req.query.offset }));
   } catch (err) { next(err); }
 });
 router.post('/super/oxsteed-credit/backfill/requeue', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     const { requeueParkedDualPostingBackfill } = require('../services/oxsteedCreditSubBankService');
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : null;
-    res.json(await requeueParkedDualPostingBackfill(require('../db'), { ids }));
+    const result = await requeueParkedDualPostingBackfill(require('../db'), { ids });
+    // Nov 3 audit item 5: resetting parked money-ledger rows is an
+    // operator action that must leave an audit trail naming the actor,
+    // the scope (ids or all), and the count actually requeued.
+    const scope = ids ? ids.map(String).join(', ') : 'all';
+    const { logAdminAction } = require('../services/auditService');
+    await logAdminAction({
+      adminId: req.user?.id || null,
+      action: 'oxsteed_credit.backfill.requeue',
+      targetType: 'credit_dual_posting_backfill',
+      targetKey: scope,
+      description: `Requeued ${result.requeued} parked dual-posting backfill row(s) (${scope})`,
+      req,
+    });
+    res.json(result);
   } catch (err) { next(err); }
 });
 router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);

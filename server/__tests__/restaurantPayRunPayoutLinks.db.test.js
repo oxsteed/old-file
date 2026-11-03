@@ -104,15 +104,26 @@ async function makeUser() {
   return id;
 }
 
-async function makeCompletedPayout(restaurantId, userId, amountCents) {
+async function makeCompletedPayout(restaurantId, userId, amountCents, currencyCode = 'USD') {
   const id = crypto.randomUUID();
   await pool.query(
     `INSERT INTO restaurant_payouts
        (id, restaurant_id, currency_code, amount_cents, status, stripe_account_id, idempotency_key, requested_by, completed_at)
-     VALUES ($1, $2, 'USD', $3, 'completed', 'acct_test_link', $4, $5, NOW())`,
-    [id, restaurantId, amountCents, `link-${id}`, userId]
+     VALUES ($1, $2, $3, $4, 'completed', 'acct_test_link', $5, $6, NOW())`,
+    [id, restaurantId, currencyCode, amountCents, `link-${id}`, userId]
   );
   return id;
+}
+
+async function linkPayout(restaurantId, runId, payoutId, owner) {
+  return call(
+    controller.linkPayRunPayout,
+    mockReq({
+      params: { restaurantId, payRunId: runId },
+      body: { payoutId },
+      user: { id: owner },
+    })
+  );
 }
 
 async function makeFinalizedRun(restaurantId, owner, totalPayCents) {
@@ -222,6 +233,41 @@ ddescribe('finding 25: pay-run payout linkage', () => {
       mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.owner } })
     );
     expect(exported.err).toMatchObject({ code: 'pay_run_voided' });
+  });
+
+  test('Nov 3 item 1: one completed payout cannot mark two pay runs paid', async () => {
+    const runA = await makeFinalizedRun(F.restaurantId, F.owner, 5000);
+    const runB = await makeFinalizedRun(F.restaurantId, F.owner, 5000);
+    const payoutId = await makeCompletedPayout(F.restaurantId, F.owner, 5000);
+    const first = await linkPayout(F.restaurantId, runA, payoutId, F.owner);
+    expect(first.err).toBeNull();
+    expect(first.res.payload.payRun.status).toBe('paid');
+    const second = await linkPayout(F.restaurantId, runB, payoutId, F.owner);
+    expect(second.err).toMatchObject({ code: 'pay_run_payout_already_linked' });
+    const { rows: [runBRow] } = await pool.query('SELECT status FROM restaurant_pay_runs WHERE id = $1', [runB]);
+    expect(runBRow.status).toBe('finalized');
+  });
+
+  test('Nov 3 item 1: a payout larger than one run splits across runs only up to its amount', async () => {
+    const runA = await makeFinalizedRun(F.restaurantId, F.owner, 5000);
+    const runB = await makeFinalizedRun(F.restaurantId, F.owner, 5000);
+    const payoutId = await makeCompletedPayout(F.restaurantId, F.owner, 8000);
+    const first = await linkPayout(F.restaurantId, runA, payoutId, F.owner);
+    expect(first.err).toBeNull();
+    expect(first.res.payload.payRun.status).toBe('paid');
+    const second = await linkPayout(F.restaurantId, runB, payoutId, F.owner);
+    expect(second.err).toBeNull();
+    expect(second.res.payload.payRun.status).toBe('finalized');
+    expect(second.res.payload.payRun.linkedPayoutCents).toBe(3000);
+  });
+
+  test('Nov 3 item 2: a payout in another currency cannot fund the run', async () => {
+    const runId = await makeFinalizedRun(F.restaurantId, F.owner, 5000);
+    const payoutId = await makeCompletedPayout(F.restaurantId, F.owner, 5000, 'EUR');
+    const linked = await linkPayout(F.restaurantId, runId, payoutId, F.owner);
+    expect(linked.err).toMatchObject({ code: 'pay_run_payout_currency_mismatch' });
+    const { rows: [runRow] } = await pool.query('SELECT status FROM restaurant_pay_runs WHERE id = $1', [runId]);
+    expect(runRow.status).toBe('finalized');
   });
 
   test('a non-completed payout cannot be linked', async () => {

@@ -2481,7 +2481,10 @@
     "requeued": "{{count}} liy remete nan fil.",
     "unknownDate": "Dat enkoni",
     "notAvailable": "N/D",
-    "parkedTotal": "Total ranje ki pake: {{total}}"
+    "parkedTotal": "Total ranje ki pake: {{total}}",
+    "previousPage": "Paj anvan an",
+    "nextPage": "Paj apre a",
+    "pageInfo": "Paj {{page}} sou {{pages}}"
   },
   "adminCreditHolds": {
     "capture": "Pran",
