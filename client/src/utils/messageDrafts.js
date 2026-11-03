@@ -1,38 +1,36 @@
-const DRAFT_PREFIX = 'oxs:msg-draft:';
+const DRAFT_PREFIX = 'oxs:msg-draft:v2:';
 
-export function draftStorageKey(conversationId) {
-  return `${DRAFT_PREFIX}${conversationId}`;
+export function draftStorageKey(userId, conversationId, businessId = null) {
+  if (!userId || !conversationId) return null;
+  // Older keys did not record ownership, so they cannot be restored safely.
+  return DRAFT_PREFIX + JSON.stringify([String(userId), businessId == null ? null : String(businessId), String(conversationId)]);
 }
 
-export function loadMessageDraft(conversationId) {
-  if (!conversationId || typeof localStorage === 'undefined') return '';
+export function loadMessageDraft(key) {
+  if (!key) return '';
   try {
-    return localStorage.getItem(draftStorageKey(conversationId)) || '';
+    return localStorage.getItem(key) || '';
   } catch {
     return '';
   }
 }
 
-export function saveMessageDraft(conversationId, text) {
-  if (!conversationId || typeof localStorage === 'undefined') return;
+export function saveMessageDraft(key, text) {
+  if (!key) return;
   try {
-    const trimmed = String(text || '');
-    const key = draftStorageKey(conversationId);
-    if (!trimmed.trim()) {
-      localStorage.removeItem(key);
-      return;
-    }
-    localStorage.setItem(key, trimmed);
+    if (text.trim()) localStorage.setItem(key, text);
+    else localStorage.removeItem(key);
   } catch {
-    // quota / private mode
+    // The composer still works if browser storage is unavailable.
   }
 }
 
-export function clearMessageDraft(conversationId) {
-  if (!conversationId || typeof localStorage === 'undefined') return;
+export function clearMessageDraft(key, expectedText) {
+  if (!key) return;
   try {
-    localStorage.removeItem(draftStorageKey(conversationId));
+    // Another tab may have saved a newer edit while this tab was open.
+    if (localStorage.getItem(key) === expectedText) localStorage.removeItem(key);
   } catch {
-    // ignore
+    // The message can still be sent if browser storage is unavailable.
   }
 }

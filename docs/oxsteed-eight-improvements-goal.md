@@ -386,3 +386,19 @@ audit are not complete.
   `/direct`, and the merchant operations route returned HTTP 200. The live
   restaurant directory rendered one restaurant, local hours, and fulfillment
   labels after refreshing the new bundle.
+
+## Package 10 - recover unsent message text
+
+- Save message edits in the input event, so a route change or reload cannot
+  cancel a pending save. Recover text only for the same signed-in account,
+  workspace, and conversation. Sending clears the stored text only if it still
+  matches the draft being sent, so a different edit saved by another tab survives.
+- The old conversation-only storage keys do not establish account ownership
+  and are no longer read. The new recovery covers unsent text. Pending
+  attachments and in-flight or failed sends retain their existing behavior.
+- The focused storage tests, `npm run build:ci`, and both built-app browser
+  checks passed. The new browser check covers immediate reload, a temporary
+  session verification outage, two accounts using the same conversation ID,
+  and recovery without sending a message.
+- Next: require all four PR checks, then verify publication and continue the
+  feature-specific draft and concurrent-session audit.

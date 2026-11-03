@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from './useSocket';
-import { loadMessageDraft, saveMessageDraft, clearMessageDraft } from '../utils/messageDrafts';
+import { draftStorageKey, loadMessageDraft, saveMessageDraft, clearMessageDraft } from '../utils/messageDrafts';
 import { toStoredAttachment } from '../utils/messageAttachments';
 import { createMessageRequestId } from '../lib/messageRequestId';
 import { sendBusinessMessage } from '../api/businessMessaging';
@@ -48,7 +48,6 @@ export function useConversationChat(
   const [helperId, setHelperId] = useState(null);
   const [legacyConversationId, setLegacyConversationId] = useState(null);
   const [businessConversationType, setBusinessConversationType] = useState(null);
-  const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [sending, setSending] = useState(false);
@@ -82,6 +81,13 @@ export function useConversationChat(
   const serverOrderRef = useRef('asc');
 
   const { user } = useAuth();
+  const draftKey = draftStorageKey(user?.id, conversationId, workspaceBusinessId);
+  const [draft, setDraft] = useState(() => ({ key: draftKey, text: loadMessageDraft(draftKey) }));
+  // Reset before rendering the composer with a different account or thread.
+  if (draft.key !== draftKey) {
+    setDraft({ key: draftKey, text: loadMessageDraft(draftKey) });
+  }
+  const newMessage = draft.key === draftKey ? draft.text : '';
   const { socket, connected, joinConversation, leaveConversation } = useSocket();
   const { t } = useTranslation();
 
@@ -112,14 +118,7 @@ export function useConversationChat(
     setCounterpartInactive(false);
     setOlderLoading(false);
     setHasMoreMessages(false);
-    setNewMessage(loadMessageDraft(conversationId));
   }, [conversationId, workspaceBusinessId]);
-
-  useEffect(() => {
-    if (!conversationId) return undefined;
-    const timer = setTimeout(() => saveMessageDraft(conversationId, newMessage), 250);
-    return () => clearTimeout(timer);
-  }, [conversationId, newMessage]);
 
   // ── Initial load ─────────────────────────────────────────────
   // options.markRead: pass true only when the thread is open AND the tab is
@@ -483,7 +482,9 @@ export function useConversationChat(
 
   // ── Typing indicator emit ─────────────────────────────────────
   const handleInputChange = (e) => {
-    setNewMessage(e.target.value);
+    const text = e.target.value;
+    setDraft({ key: draftKey, text });
+    saveMessageDraft(draftKey, text);
     if (!socket) return;
     if (!isTypingRef.current) {
       socket.emit(
@@ -587,8 +588,8 @@ export function useConversationChat(
 
     stopTypingEmit();
     setSending(true);
-    setNewMessage('');
-    clearMessageDraft(conversationId);
+    setDraft({ key: draftKey, text: '' });
+    clearMessageDraft(draftKey, newMessage);
     stickToBottomRef.current = true;
     setStickToBottom(true);
 
@@ -613,7 +614,7 @@ export function useConversationChat(
     inputRef.current?.focus();
 
     await sendContent(text, tempId, storedAttachments, clientMessageId);
-  }, [newMessage, sending, stopTypingEmit, conversationId, user, sendContent, sendBlocked, counterpartInactive]);
+  }, [newMessage, draftKey, sending, stopTypingEmit, conversationId, user, sendContent, sendBlocked, counterpartInactive]);
 
   const handleSend = useCallback(async (e) => {
     e?.preventDefault?.();
@@ -696,7 +697,6 @@ export function useConversationChat(
     retryMessage,
     handleThreadScroll,
     scrollToLatest,
-    setNewMessage,
     user,
   };
 }
