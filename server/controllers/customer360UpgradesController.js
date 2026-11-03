@@ -219,3 +219,50 @@ exports.cohortComparison = handle(async (req, res) => {
   });
   res.json(result);
 });
+
+// ── Upgrade 8: unified inbox (existing grant-gated channels only) ──────────
+const inbox = require("../services/customer360Inbox");
+const inboxTemplates = require("../services/customer360InboxTemplates");
+async function inboxGrants(req) {
+  const can = workspace.access(req);
+  const [support, messages] = await Promise.all([
+    can(workspace.sources.tickets), can({ grant: "message_users" }),
+  ]);
+  return { support, internal: support, messages };
+}
+exports.inbox = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const grants = await inboxGrants(req);
+  const [page, tickets, u] = await Promise.all([
+    inbox.list(user.id, grants, { before: req.query.before }),
+    grants.support ? inbox.openTickets(user.id) : [],
+    inbox.recipient(user.id).catch(() => null),
+  ]);
+  await audit(req, "customer360_inbox_read", { description: JSON.stringify({ ...grants, items: page.items.length }) });
+  res.json({
+    ...page, tickets, grants, canSend: grants.messages,
+    channels: u ? inbox.channels(u) : null, language: u ? inbox.preferredLanguage(u) : "en",
+    firstName: u?.first_name || "", languages: inboxTemplates.LANGUAGES, templates: inboxTemplates.KEYS,
+  });
+});
+exports.inboxTemplate = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const u = await inbox.recipient(user.id);
+  const t = inboxTemplates.render(String(req.params.templateKey), String(req.query.language || inbox.preferredLanguage(u)), { firstName: u.first_name });
+  if (!t) throw new AppError("Unknown template", 404, "template_not_found");
+  res.json(t);
+});
+exports.inboxSend = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  // Region-limited message grants cannot reach a customer from the workspace.
+  if (!(await workspace.access(req)({ grant: "message_users" }))) throw new AppError("A global message_users grant is required", 403, "message_grant_required");
+  const b = req.body || {};
+  const result = await inbox.send({
+    customerId: user.id, adminId: req.user.id, channel: b.channel, templateKey: b.templateKey ?? null,
+    language: b.language, subject: b.subject, body: b.body, clientMessageId: req.get("Idempotency-Key") || b.clientMessageId, confirm: b.confirm,
+    audit: (client, row) => audit(req, `customer360_inbox_${row.channel}_send`, {
+      client, after: { id: row.id, channel: row.channel, template: row.template_key, language: row.language, recipient: row.recipient_masked, bodyHash: row.body_hash },
+    }),
+  });
+  res.status(result.replayed ? 200 : 201).json(result);
+});

@@ -425,7 +425,8 @@
       "health": "Sante ak risk",
       "anomalies": "Anomali",
       "links": "Kont ki gen lyen",
-      "lifecycle": "Sik lavi"
+      "lifecycle": "Sik lavi",
+      "inbox": "Bwat mesaj"
     },
     "sources": {
       "jobs": "Travay",
@@ -1118,6 +1119,60 @@
       "country": "Peyi",
       "customers": "Kliyan",
       "statsAt": "Chif kowòt yo mete ajou {{time}}"
+    },
+    "inbox": {
+      "title": "Bwat mesaj",
+      "hint": "Tikè sipò, mesaj nan aplikasyon an, imèl ak SMS ak kliyan sa a nan yon sèl kote. Mesaj yo soti sèlman pa chanèl mesaj ki egziste deja yo, apre ou revize yo epi ou chwazi Voye kounye a.",
+      "empty": "Poko gen mesaj.",
+      "noSupportAccess": "Tikè sipò yo kache paske ou pa gen aksè sipò.",
+      "noSendAccess": "Ou ka li bwat mesaj sa a men ou pa ka voye mesaj.",
+      "older": "Chaje ansyen mesaj yo",
+      "compose": "Ekri yon repons",
+      "channel": "Chanèl",
+      "choose": "Chwazi yon chanèl",
+      "ticket": "Tikè",
+      "language": "Lang",
+      "template": "Modèl",
+      "noTemplate": "San modèl",
+      "subject": "Sijè",
+      "body": "Mesaj",
+      "review": "Revize",
+      "confirm": "Voye mesaj {{channel}} sa a bay {{to}} an {{language}}?",
+      "sendNow": "Voye kounye a",
+      "edit": "Modifye",
+      "sent": "Mesaj la voye.",
+      "unverifiedEmail": "Adrès imèl sa a poko verifye.",
+      "smsLimit": "{{count}}/480 karaktè",
+      "inApp": "Mesaj nan aplikasyon an",
+      "ticketLabel": "Tikè {{number}}",
+      "outbound": "Voye",
+      "inbound": "Resevwa",
+      "internal": "Nòt entèn",
+      "channels": {
+        "support": "Tikè sipò",
+        "message": "Mesaj nan aplikasyon",
+        "email": "Imèl",
+        "sms": "SMS"
+      },
+      "statuses": {
+        "queued": "Ap tann",
+        "sent": "Voye",
+        "not_sent": "Pa voye"
+      },
+      "templates": {
+        "general": "Repons jeneral",
+        "verification": "Èd pou verifye imèl",
+        "payment": "Swivi peman",
+        "resolved": "Demann rezoud"
+      },
+      "errors": {
+        "sms_disabled": "SMS nan Customer 360 dezaktive.",
+        "no_email": "Kliyan sa a pa gen adrès imèl.",
+        "no_verified_phone": "Kliyan sa a pa gen nimewo telefòn verifye.",
+        "customer_not_messageable": "Ou pa ka voye mesaj bay kliyan sa a.",
+        "message_grant_required": "Pou voye, ou bezwen yon pèmisyon mesaj pou tout platfòm nan.",
+        "idempotency_conflict": "Mesaj sa a te deja voye bay yon lòt kliyan."
+      }
     }
   },
   "screens": {

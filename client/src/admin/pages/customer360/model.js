@@ -7,6 +7,7 @@ export const AREAS = [
   "anomalies",
   "links",
   "lifecycle",
+  "inbox",
   "work",
   "finance",
   "credit",

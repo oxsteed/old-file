@@ -47,7 +47,13 @@ const routes = `window.routes=[
   ['post',/\\/workspace\\/link-reviews\\/7\\/(checklist|duplicate|confirm|reject|distinct|dismiss)$/,(o,b,m)=>{const a=o.url.split('/').pop();const r=window.linkReview;
     if(b.revision!==r.revision)throw{response:{data:{code:'revision_conflict'}}};
     window.linkReview={...r,checklist:{...r.checklist,...(b.checklist||{})},status:a==='duplicate'?'awaiting_second_review':r.status,revision:r.revision+1};return{review:window.linkReview};}],
+  ['get',/\\/workspace\\/inbox$/,()=>({items:window.inboxItems,nextBefore:null,tickets:[{id:'11',ticket_number:'T-11',subject:'Login help',status:'open'}],grants:{support:true,internal:false,messages:true},canSend:true,
+    channels:{email:{available:true,verified:true,to:'c***@example.com'},sms:{available:false,enabled:false,to:'********1234'}},language:'ht',firstName:'Rose',languages:['en','es','fr','ht','ar'],templates:['general','verification','payment','resolved']})],
+  ['get',/\\/workspace\\/inbox\\/templates\\/verification$/,(o)=>({key:'verification',language:o.params.language,subject:'Subject '+o.params.language,body:'Body '+o.params.language})],
+  ['post',/\\/workspace\\/inbox\\/send$/,(o,b)=>{window.inboxItems=[{channel:'email',id:'9',at:new Date().toISOString(),outbound:true,internal:false,author:'Admin',subject:b.subject,body:b.body,status:'sent'},...window.inboxItems];return{message:{id:'9',status:'sent'}};}],
+  ['post',/\\/admin\\/support\\/tickets\\/11\\/reply$/,()=>({ok:true})],
 ];
+window.inboxItems=[{channel:'support',id:'1',at:'2026-11-01T10:00:00Z',outbound:false,internal:false,author:'Rose',subject:null,body:'مرحبا\\nI cannot log in',thread_label:'T-11'}];
 window.anomalyRows=[{id:'5',customer_id:'${id}',kind:'new_country_login',status:'open',occurrences:2,first_detected_at:'2026-11-01T10:00:00Z',last_detected_at:'2026-11-02T10:00:00Z',evidence:{country:'FR',previousCountries:['HT']},snoozed_until:null,revision:1},
   {id:'4',customer_id:'${id}',kind:'refund_spike',status:'acknowledged',occurrences:1,first_detected_at:'2026-10-01T10:00:00Z',last_detected_at:'2026-10-01T10:00:00Z',evidence:{refunds7d:4,baselineWeekly:0.5},snoozed_until:null,revision:3}];
 window.healthFixture={advisory:true,modelVersion:'c360-health-v1',computedAt:'2026-11-03T10:00:00Z',
@@ -222,7 +228,38 @@ test("customer 360 upgrade panels work and lay out in five languages", async () 
     const cohortCall = await page.evaluate(() => window.calls.filter((c) => c.url.endsWith("/customer360/cohorts")).pop().params);
     assert.deepEqual(cohortCall, { countries: "HT,US", months: 12 });
 
-    const panels = [["lifecycle", '[data-panel="lifecycle"]'], ["links", '[data-panel="links"]'], ["anomalies", '[data-panel="anomalies"]'], ["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
+    // Upgrade 8: unified inbox; nothing leaves before the explicit Send now.
+    await page.getByRole("button", { name: copy.en.areas.inbox, exact: true }).click();
+    const ib = page.locator('[data-panel="inbox"]');
+    await ib.locator('li[data-channel="support"]').waitFor();
+    await ib.getByLabel(copy.en.inbox.channel).selectOption("email");
+    assert.equal(await ib.getByLabel(copy.en.inbox.language).inputValue(), "ht");
+    await ib.getByLabel(copy.en.inbox.template).selectOption("verification");
+    await page.waitForFunction(() => document.querySelector('[data-panel="inbox"] textarea')?.value === "Body ht");
+    await ib.getByLabel(copy.en.inbox.language).selectOption("ar");
+    await page.waitForFunction(() => document.querySelector('[data-panel="inbox"] textarea')?.value === "Body ar");
+    assert.equal(await ib.locator("textarea").getAttribute("dir"), "rtl");
+    await ib.getByRole("button", { name: copy.en.inbox.review, exact: true }).click();
+    await ib.locator('[data-review="send"]').waitFor();
+    assert.equal(await page.evaluate(() => window.calls.some((c) => c.method === "post" && /inbox\/send$/.test(c.url))), false);
+    await ib.getByRole("button", { name: copy.en.inbox.sendNow, exact: true }).click();
+    await ib.getByText(copy.en.inbox.sent).waitFor();
+    const sendCall = await page.evaluate(() => window.calls.find((c) => /inbox\/send$/.test(c.url)).body);
+    assert.equal(sendCall.confirm, true);
+    assert.equal(sendCall.channel, "email");
+    assert.equal(sendCall.language, "ar");
+    assert.equal(sendCall.templateKey, "verification");
+    assert.match(sendCall.clientMessageId, /^[0-9a-f-]{36}$/);
+    await ib.locator('li[data-channel="email"]').waitFor();
+    // Support replies go to the existing ticket reply endpoint.
+    await ib.getByLabel(copy.en.inbox.channel).selectOption("support");
+    await ib.getByLabel(copy.en.inbox.body, { exact: true }).fill("We reset your link.");
+    await ib.getByRole("button", { name: copy.en.inbox.review, exact: true }).click();
+    await ib.getByRole("button", { name: copy.en.inbox.sendNow, exact: true }).click();
+    await ib.getByText(copy.en.inbox.sent).waitFor();
+    assert.ok(await page.evaluate(() => window.calls.some((c) => c.url === "/admin/support/tickets/11/reply" && c.body.is_internal === false)));
+
+    const panels = [["inbox", '[data-panel="inbox"]'], ["lifecycle", '[data-panel="lifecycle"]'], ["links", '[data-panel="links"]'], ["anomalies", '[data-panel="anomalies"]'], ["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
     for (const lang of LANGS)
       for (const dark of [false, true])
         for (const width of [320, 1360]) {

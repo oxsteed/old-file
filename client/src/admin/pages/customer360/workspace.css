@@ -440,3 +440,12 @@
   border-radius: 3px;
   background: var(--color-primary);
 }
+.c360u-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+[data-direction="out"] {
+  border-inline-start: 3px solid var(--color-primary);
+  padding-inline-start: 0.5rem;
+}

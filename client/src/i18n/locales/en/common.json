@@ -278,7 +278,8 @@
       "health": "Health and risk",
       "anomalies": "Anomalies",
       "links": "Linked accounts",
-      "lifecycle": "Lifecycle"
+      "lifecycle": "Lifecycle",
+      "inbox": "Inbox"
     },
     "sources": {
       "jobs": "Jobs",
@@ -971,6 +972,60 @@
       "country": "Country",
       "customers": "Customers",
       "statsAt": "Cohort figures refreshed {{time}}"
+    },
+    "inbox": {
+      "title": "Inbox",
+      "hint": "Support tickets, in-app messages, email and SMS with this customer in one place. Messages go out only through the existing messaging channels, after you review and select Send now.",
+      "empty": "No messages yet.",
+      "noSupportAccess": "Support tickets are hidden because you do not have support access.",
+      "noSendAccess": "You can read this inbox but not send messages.",
+      "older": "Load older messages",
+      "compose": "Write a reply",
+      "channel": "Channel",
+      "choose": "Choose a channel",
+      "ticket": "Ticket",
+      "language": "Language",
+      "template": "Template",
+      "noTemplate": "No template",
+      "subject": "Subject",
+      "body": "Message",
+      "review": "Review",
+      "confirm": "Send this {{channel}} message to {{to}} in {{language}}?",
+      "sendNow": "Send now",
+      "edit": "Edit",
+      "sent": "Message sent.",
+      "unverifiedEmail": "This email address is not verified yet.",
+      "smsLimit": "{{count}}/480 characters",
+      "inApp": "In-app messages",
+      "ticketLabel": "Ticket {{number}}",
+      "outbound": "Sent",
+      "inbound": "Received",
+      "internal": "Internal note",
+      "channels": {
+        "support": "Support ticket",
+        "message": "In-app message",
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "statuses": {
+        "queued": "Queued",
+        "sent": "Sent",
+        "not_sent": "Not sent"
+      },
+      "templates": {
+        "general": "General reply",
+        "verification": "Email verification help",
+        "payment": "Payment follow-up",
+        "resolved": "Request resolved"
+      },
+      "errors": {
+        "sms_disabled": "SMS from Customer 360 is turned off.",
+        "no_email": "This customer has no email address.",
+        "no_verified_phone": "This customer has no verified phone number.",
+        "customer_not_messageable": "This customer cannot be messaged.",
+        "message_grant_required": "Sending needs a platform-wide messaging permission.",
+        "idempotency_conflict": "This message was already sent to a different customer."
+      }
     }
   },
   "screens": {

@@ -355,3 +355,39 @@ Background work runs in `server/jobs/customer360Upgrades.js`
 - UI: "Lifecycle" area (`upgrades/Lifecycle.jsx`).
 - Tests: `server/__tests__/customer360Lifecycle.db.test.js` and the shared
   client checks.
+
+### 8. Unified inbox with templates and explicit sends
+
+- Migration `20261103120600_customer360_inbox.sql`:
+  `customer_outbound_messages` (email/SMS sent from Customer 360: admin,
+  channel, template, language, masked recipient, status
+  `queued|sent|not_sent`, `UNIQUE (admin_id, client_message_id)` for
+  idempotency; SMS bodies are not stored, only a hash and a short preview)
+  and `notification_preferences.sms_support_replies` (default on, so the
+  customer can opt out of support SMS).
+- Timeline (`GET …/workspace/inbox`): support tickets (with internal notes
+  only for admins holding the internal-notes grant), admin ⇄ customer
+  in-app messages, and Customer 360 email/SMS, newest first with a cursor.
+  Sections the admin cannot read are left out; the read is audited.
+- Sending, always behind the "Review → Send now" step, never automatic:
+  - support reply → the existing `POST /api/admin/support/tickets/:id/reply`;
+  - in-app message → the existing `POST /api/admin/messages/conversations/:userId/send`
+    (Idempotency-Key header);
+  - email → `POST …/workspace/inbox/send` → the Resend support email outbox
+    (`supportEmailOutbox`, idempotency key `customer360:<id>`);
+  - SMS → the same endpoint → the existing opt-in SMS sender
+    (`sendSMSIfOptedIn(…, 'support_replies')`), verified phone only, ≤480
+    characters, behind `CUSTOMER360_INBOX_SMS_ENABLED` (default `false`,
+    because SMS delivery uses a paid provider).
+  The send endpoint requires `confirm: true`, a UUID `clientMessageId`,
+  `manage_users` plus a platform-wide `message_users` grant, rejects
+  impersonated sessions and staff/deleted recipients, and writes the record,
+  the `customer360_inbox_<channel>_send` audit row and an
+  `inbox.<channel>_sent` event in one transaction before delivery.
+- Templates (`customer360InboxTemplates.js`): `general`, `verification`,
+  `payment`, `resolved` in en/es/fr/ht/ar, defaulting to the customer's
+  preferred language; the admin edits the text before review. Arabic drafts
+  render right-to-left.
+- UI: "Inbox" area (`upgrades/Inbox.jsx`).
+- Tests: `server/__tests__/customer360Inbox.db.test.js` and the shared
+  client checks.

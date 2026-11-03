@@ -278,7 +278,8 @@
       "health": "Salud y riesgo",
       "anomalies": "Anomalías",
       "links": "Cuentas vinculadas",
-      "lifecycle": "Ciclo de vida"
+      "lifecycle": "Ciclo de vida",
+      "inbox": "Bandeja"
     },
     "sources": {
       "jobs": "Trabajos",
@@ -971,6 +972,60 @@
       "country": "País",
       "customers": "Clientes",
       "statsAt": "Cifras de cohortes actualizadas {{time}}"
+    },
+    "inbox": {
+      "title": "Bandeja de entrada",
+      "hint": "Tickets de soporte, mensajes en la app, correo y SMS con este cliente en un solo lugar. Los mensajes solo salen por los canales de mensajería existentes, después de revisarlos y seleccionar Enviar ahora.",
+      "empty": "Aún no hay mensajes.",
+      "noSupportAccess": "Los tickets de soporte están ocultos porque no tiene acceso a soporte.",
+      "noSendAccess": "Puede leer esta bandeja, pero no enviar mensajes.",
+      "older": "Cargar mensajes anteriores",
+      "compose": "Escribir una respuesta",
+      "channel": "Canal",
+      "choose": "Elija un canal",
+      "ticket": "Ticket",
+      "language": "Idioma",
+      "template": "Plantilla",
+      "noTemplate": "Sin plantilla",
+      "subject": "Asunto",
+      "body": "Mensaje",
+      "review": "Revisar",
+      "confirm": "¿Enviar este mensaje por {{channel}} a {{to}} en {{language}}?",
+      "sendNow": "Enviar ahora",
+      "edit": "Editar",
+      "sent": "Mensaje enviado.",
+      "unverifiedEmail": "Esta dirección de correo aún no está verificada.",
+      "smsLimit": "{{count}}/480 caracteres",
+      "inApp": "Mensajes en la app",
+      "ticketLabel": "Ticket {{number}}",
+      "outbound": "Enviado",
+      "inbound": "Recibido",
+      "internal": "Nota interna",
+      "channels": {
+        "support": "Ticket de soporte",
+        "message": "Mensaje en la app",
+        "email": "Correo",
+        "sms": "SMS"
+      },
+      "statuses": {
+        "queued": "En cola",
+        "sent": "Enviado",
+        "not_sent": "No enviado"
+      },
+      "templates": {
+        "general": "Respuesta general",
+        "verification": "Ayuda con la verificación del correo",
+        "payment": "Seguimiento de pago",
+        "resolved": "Solicitud resuelta"
+      },
+      "errors": {
+        "sms_disabled": "Los SMS desde Customer 360 están desactivados.",
+        "no_email": "Este cliente no tiene correo electrónico.",
+        "no_verified_phone": "Este cliente no tiene un teléfono verificado.",
+        "customer_not_messageable": "No se puede enviar mensajes a este cliente.",
+        "message_grant_required": "Para enviar se necesita un permiso de mensajería para toda la plataforma.",
+        "idempotency_conflict": "Este mensaje ya se envió a otro cliente."
+      }
     }
   },
   "screens": {
