@@ -76,6 +76,7 @@ test('common route loaders are shared by prefetching and route definitions', () 
     ['helperMessages', 'routeLoaders.helperMessages'],
     ['logistics', 'routeLoaders.logistics'],
     ['restaurants', 'routeLoaders.restaurants'],
+    ['direct', 'routeLoaders.direct'],
     ['qrGenerator', 'routeLoaders.qrGenerator'],
     ['careers', 'routeLoaders.careers'],
     ['jobs', 'routeLoaders.jobs'],
@@ -126,6 +127,9 @@ test('primary navigation starts the correct shared download once before navigati
     ['/business-hub', 'businessWorkspace', 'BusinessHubPage'],
     ['/messages', 'messages', 'MessagesPage'],
     ['/helper/messages#inbox', 'helperMessages', 'HelperInboxPage'],
+    ['/direct?lang=ar', 'direct', 'DirectCatalogLanding'],
+    ['/restaurants', 'restaurants', 'food/FoodHomePage'],
+    ['/food/', 'restaurants', 'food/FoodHomePage'],
   ]) {
     const f = prefetchFixture();
     const pending = f.prefetchPath(path);
@@ -138,7 +142,7 @@ test('primary navigation starts the correct shared download once before navigati
 
 test('navigation prefetching avoids wrong screens and respects offline and data-saving connections', () => {
   const f = prefetchFixture();
-  for (const path of ['/messages/conversation-4', '/helper/messages/conversation-4', '/business/4', '/dashboard-other']) {
+  for (const path of ['/messages/conversation-4', '/helper/messages/conversation-4', '/business/4', '/dashboard-other', '/direct/request-quote', '/direct/services', '/restaurants/merchant', '/restaurants/r/2', '/food/orders/1']) {
     assert.equal(f.prefetchPath(path), null, path);
   }
   f.navigator.onLine = false;
