@@ -50,6 +50,7 @@ const localeLoaders = {
     import('../locales/generated/es-0.json'),
     import('../locales/generated/es-1.json'),
     import('../locales/generated/es-2.json'),
+    import('../locales/generated/es-3.json'),
     optionalLocaleModule(import('./locales/es/common.json')),
     optionalLocaleModule(import('./locales/es/translator.json')),
     optionalLocaleModule(import('./locales/es/credit.json')),
@@ -144,6 +145,7 @@ const localeLoaders = {
     import('../locales/generated/vi-0.json'),
     import('../locales/generated/vi-1.json'),
     import('../locales/generated/vi-2.json'),
+    import('../locales/generated/vi-3.json'),
     optionalLocaleModule(import('./locales/vi/common.json')),
     optionalLocaleModule(import('./locales/vi/translator.json')),
     optionalLocaleModule(import('./locales/vi/credit.json')),
@@ -165,6 +167,7 @@ const localeLoaders = {
     import('../locales/generated/ja-0.json'),
     import('../locales/generated/ja-1.json'),
     import('../locales/generated/ja-2.json'),
+    import('../locales/generated/ja-3.json'),
     optionalLocaleModule(import('./locales/ja/common.json')),
     optionalLocaleModule(import('./locales/ja/translator.json')),
     optionalLocaleModule(import('./locales/ja/credit.json')),
@@ -248,7 +251,7 @@ const localeLoaders = {
   ]),
 };
 
-const localeLegacyShardCounts = { ar: 4, fr: 4 };
+const localeLegacyShardCounts = { es: 4, fr: 4, ar: 4, hi: 5, vi: 4, ru: 4, ja: 4, ur: 4, bn: 5, th: 5 };
 
 const legalLocaleLoaders = {
   en: () => Promise.all([

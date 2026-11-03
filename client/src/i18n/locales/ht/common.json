@@ -273,7 +273,16 @@
       "assistant": "Asistan prèv",
       "exports": "Rapò ak ekspòtasyon",
       "experience": "Eksperyans ak angajman",
-      "quality": "Kalite ak done sous aktyèl"
+      "quality": "Kalite ak done sous aktyèl",
+      "events": "Istwa chanjman",
+      "health": "Sante ak risk",
+      "anomalies": "Anomali",
+      "links": "Kont ki gen lyen",
+      "lifecycle": "Sik lavi",
+      "inbox": "Bwat mesaj",
+      "playbooks": "Gid aksyon",
+      "queues": "Fil travay",
+      "summary": "Rezime"
     },
     "sources": {
       "jobs": "Travay",
@@ -339,7 +348,9 @@
       "screenEvents": "Dènye evènman senkronizasyon",
       "cancellations": "Istorik anilasyon",
       "restaurantExposure": "Ekspozisyon kredi restoran",
-      "logisticsQuotes": "Devi achtè lojistik"
+      "logisticsQuotes": "Devi achtè lojistik",
+      "anomaliesFinancial": "Anomali peman",
+      "anomaliesSecurity": "Anomali koneksyon"
     },
     "checks": {
       "email": "Verifikasyon imel",
@@ -694,7 +705,523 @@
       "firstAt": "Premye aktivite anrejistre",
       "lastAt": "Dènye aktivite anrejistre"
     },
-    "statementPdf": "Telechaje relve PDF"
+    "statementPdf": "Telechaje relve PDF",
+    "events": {
+      "title": "Istwa chanjman",
+      "hint": "Dosye ki sèlman ajoute ki montre kiyès ki chanje kisa pou kliyan sa a. Se sèlman sous ou gen dwa wè yo ki parèt. Done pèsonèl yo make kòm chanje, yo pa janm kopye.",
+      "importing": "Istwa ansyen an toujou ap enpòte. Gen kèk ansyen chanjman ki ka poko parèt.",
+      "source": "Sous",
+      "allSources": "Tout sous ou ka wè",
+      "actor": "Chanje pa",
+      "anyActor": "Nenpòt moun",
+      "verify": "Verifye entegrite",
+      "chainIntact": "Entegrite verifye pou {{count}} evènman.",
+      "chainBroken": "Verifikasyon entegrite echwe nan evènman {{id}}. Voye l bay sekirite.",
+      "empty": "Pa gen chanjman anrejistre ki koresponn ak filtè sa yo.",
+      "redacted": "chanje (done pèsonèl pa konsève)",
+      "changed": "chanje (detay yo pa konsève)",
+      "replay": "Rejwe",
+      "older": "Chaje chanjman ki pi ansyen",
+      "replayTitle": "{{entity}} {{id}} jan li te anrejistre",
+      "asOf": "Nan dat",
+      "rebuild": "Rekonstwi eta a",
+      "unknownFields": "Chanje men pa konsève: {{fields}}",
+      "sources": {
+        "admin_audit": "Aksyon administratè",
+        "login": "Koneksyon",
+        "payment": "Peman",
+        "support": "Sipò",
+        "food_order": "Kòmand manje",
+        "customer360": "Kliyan 360"
+      },
+      "actors": {
+        "admin": "Administratè",
+        "customer": "Kliyan",
+        "system": "Sistèm",
+        "business": "Biznis"
+      },
+      "entities": {
+        "admin_action": "Aksyon administratè",
+        "login": "Koneksyon",
+        "payment": "Peman",
+        "support_ticket": "Tikè sipò",
+        "food_order": "Kòmand manje",
+        "task": "Travay dosye"
+      },
+      "types": {
+        "admin": "Aksyon administratè: {{action}}",
+        "login": "Koneksyon {{action}}",
+        "payment": "Peman {{action}}",
+        "support_ticket": "Tikè sipò {{action}}",
+        "food_order": "Kòmand manje {{action}}",
+        "task": "Travay dosye {{action}}"
+      }
+    },
+    "health": {
+      "title": "Sante ak risk kont lan",
+      "advisory": "Se sèlman pou konsèy. Nòt sa yo eksplike tandans nan kont lan, yo pa janm chanje l. Sèvi ak pwosedi ki egziste yo pou nenpòt aksyon.",
+      "computed": "Kalkile {{time}} · modèl {{model}}",
+      "restricted": "Ou pa gen aksè ak done ki dèyè nòt sa a.",
+      "factorsCaption": "Faktè ki fè nòt la",
+      "factor": "Faktè",
+      "value": "Valè",
+      "points": "Pwen",
+      "never": "Janm",
+      "contribution": "{{points}} sou {{weight}}",
+      "activityValue": "{{recent}} nan 30 dènye jou yo, {{previous}} nan 60 jou anvan yo",
+      "recompute": "Rekalkile kounye a",
+      "scores": {
+        "churn": "Risk pou kite",
+        "payment": "Risk peman",
+        "support": "Chaj sipò"
+      },
+      "bands": {
+        "low": "Ba",
+        "medium": "Mwayen",
+        "high": "Wo"
+      },
+      "factors": {
+        "inactivity": {
+          "label": "Jou depi dènye koneksyon",
+          "explain": "Pa gen pwen jiska 14 jou; tout pwen yo nan 90 jou oswa si moun nan pa janm konekte."
+        },
+        "activityDrop": {
+          "label": "Bès nan aktivite",
+          "explain": "Peman ak kòmand manje nan 30 dènye jou yo konpare ak 60 jou anvan yo."
+        },
+        "newAccount": {
+          "label": "Laj kont lan an jou",
+          "explain": "Kont ki gen mwens pase 30 jou resevwa tout pwen yo."
+        },
+        "failedPayments": {
+          "label": "Peman ak retrè ki echwe (90 jou)",
+          "explain": "Tout pwen yo apati 3 echèk."
+        },
+        "refunds": {
+          "label": "Ranbousman (90 jou)",
+          "explain": "Tout pwen yo apati 4 ranbousman."
+        },
+        "openDisputes": {
+          "label": "Diskisyon OxSteed Credit ki louvri",
+          "explain": "Nenpòt diskisyon ki louvri bay tout pwen yo."
+        },
+        "openTickets": {
+          "label": "Tikè sipò ki louvri",
+          "explain": "Tout pwen yo apati 3 tikè ki louvri."
+        },
+        "recentTickets": {
+          "label": "Tikè sipò (90 jou)",
+          "explain": "Tout pwen yo apati 6 tikè."
+        },
+        "slaBreaches": {
+          "label": "Dèlè sipò ki rate (90 jou)",
+          "explain": "Tout pwen yo apati 2 dèlè ki rate."
+        }
+      }
+    },
+    "ai": {
+      "policy": "Bouyon yo soti sèlman nan modèl IA OxSteed la ki enstale sou pwòp sèvè li. Se sèlman non sous, eta ak kantite yo ki itilize; anyen pa voye, apwouve oswa chanje.",
+      "mode": "Kalite bouyon",
+      "topic": "Sijè repons lan",
+      "cites": "Baze sou:",
+      "subject": "Sijè",
+      "body": "Mesaj",
+      "replyNotice": "Modifye l anvan ou sèvi avè l. Anyen pa voye isit la; voye fèt sèlman nan bwat resepsyon an lè ou klike pou sa.",
+      "useInInbox": "Sèvi ak li nan bwat resepsyon an",
+      "modes": {
+        "summary": "Rezime dosye a",
+        "next_step": "Pwochen etap yo sijere",
+        "reply_draft": "Bouyon repons pou kliyan an"
+      },
+      "topics": {
+        "general": "Kesyon jeneral",
+        "verification": "Verifikasyon idantite",
+        "payment": "Peman",
+        "order": "Kòmand",
+        "account_access": "Aksè nan kont lan",
+        "support_followup": "Swivi sipò"
+      }
+    },
+    "anomalies": {
+      "title": "Alèt anomali",
+      "hint": "Tandans ki pa nòmal sistèm nan detekte otomatikman. Repetisyon yo mete ansanm nan yon sèl alèt. Alèt yo pa janm chanje kont lan; swiv pwosedi ki egziste yo.",
+      "show": "Montre",
+      "noAccess": "Ou pa gen aksè ak okenn kalite anomali.",
+      "empty": "Pa gen anomali nan eta sa yo.",
+      "occurrences": "{{count}} deteksyon",
+      "snoozedUntil": "ranvwaye jiska {{time}}",
+      "detected": "Premye {{first}} · dènye {{last}}",
+      "until": "Ranvwaye jiska (30 jou maksimòm)",
+      "reason": "Rezon (yo anrejistre l nan jounal odit la)",
+      "cancel": "Anile",
+      "watchTitle": "Siveye tout kliyan yo",
+      "watchHint": "Resevwa yon notifikasyon lè yon nouvo anomali louvri pou nenpòt kliyan. Repetisyon menm alèt la pa voye notifikasyon ankò.",
+      "watch": {
+        "anomaliesFinancial": "Twòp ranbousman ak retrè ki echwe",
+        "anomaliesSecurity": "Koneksyon ki soti nan yon nouvo peyi"
+      },
+      "kinds": {
+        "refund_spike": "Twòp ranbousman",
+        "payout_failures": "Retrè ki echwe",
+        "new_country_login": "Koneksyon ki soti nan yon nouvo peyi"
+      },
+      "statuses": {
+        "open": "Louvri",
+        "snoozed": "Ranvwaye",
+        "acknowledged": "Konfime",
+        "resolved": "Rezoud"
+      },
+      "actions": {
+        "snooze": "Ranvwaye",
+        "unsnooze": "Fini ranvwa a",
+        "acknowledge": "Konfime",
+        "resolve": "Rezoud"
+      },
+      "evidence": {
+        "country": "Konekte soti {{country}}. Peyi nan 180 jou anvan yo: {{previous}}.",
+        "refunds": "{{count}} ranbousman nan 7 jou (mwayèn abityèl pa semèn {{baseline}}).",
+        "payouts": "{{count}} retrè ki echwe nan 7 jou."
+      }
+    },
+    "links": {
+      "title": "Kont ki gen lyen",
+      "hint": "Lòt kliyan ki pataje yon aparèy, yon kat, yon kont labank oswa yon adrès ak kliyan sa a. Yon nòt ki pi wo vle di lyen an pi fò; se pa yon prèv.",
+      "neverMerge": "Nou pa janm fizyone kont ni balans otomatikman. Yon doublon ki konfime sèlman anrejistre rezilta a; swiv pwosedi ki egziste yo pou nenpòt chanjman sou kont lan.",
+      "signalsOff": "Konparezon siyal yo pa konfigire sou sèvè sa a, kidonk se sèlman lyen ki te deja anrejistre yo ki parèt.",
+      "kindsShown": "Siyal ou ka wè: {{kinds}}",
+      "common": "Inyore paske anpil kliyan pataje yo: {{kinds}}",
+      "empty": "Pa gen kont ki gen lyen.",
+      "score": "Fòs lyen an {{score}}%",
+      "created": "Enskri {{time}}",
+      "suspended": "Sispann",
+      "review": "Kòmanse revizyon",
+      "reviews": "Revizyon",
+      "reviewTitle": "Revizyon — {{status}}",
+      "checklistTitle": "Lis verifikasyon (tout eleman obligatwa anvan ou pwopoze yon doublon)",
+      "awaiting": "N ap tann yon dezyèm administratè, ki diferan, pou konfime oswa retounen rezilta sa a.",
+      "nextSteps": "Rezilta a anrejistre sou de kont yo. Okenn kont ni balans pa chanje.",
+      "graphLabel": "Grafik lyen ak {{count}} kliyan ki gen lyen",
+      "checklistIncomplete": "Ranpli tout eleman obligatwa yo anvan.",
+      "secondAdmin": "Yon lòt administratè dwe konfime rezilta sa a.",
+      "kinds": {
+        "address": "Adrès",
+        "card": "Kat",
+        "bank": "Kont labank",
+        "device": "Aparèy"
+      },
+      "statuses": {
+        "in_review": "An revizyon",
+        "awaiting_second_review": "Ap tann dezyèm revizyon",
+        "confirmed_duplicate": "Doublon konfime",
+        "confirmed_distinct": "Moun diferan",
+        "dismissed": "Rejte"
+      },
+      "checklist": {
+        "identityCompared": "Idantite konpare",
+        "contactCompared": "Kontak konpare",
+        "paymentInstrumentsCompared": "Mwayen peman konpare",
+        "activityReviewed": "Aktivite resan revize",
+        "customerContacted": "Kliyan kontakte (opsyonèl)"
+      },
+      "actions": {
+        "duplicate": "Pwopoze doublon",
+        "distinct": "Moun diferan",
+        "dismiss": "Rejte",
+        "confirm": "Konfime doublon",
+        "reject": "Retounen pou revizyon"
+      }
+    },
+    "lifecycle": {
+      "title": "Sik lavi ak kowòt",
+      "hint": "Etap la soti sèlman nan dat enskripsyon ak tranzaksyon ki fèt. Li dekri sitiyasyon an epi li pa janm chanje kont lan.",
+      "none": "Poko gen done sik lavi.",
+      "since": "depi {{time}}",
+      "computed": "Kalkile {{time}} · modèl {{model}}",
+      "stage": "Etap",
+      "share": "Pati",
+      "suppressed": "Mwens pase {{min}} kliyan nan kowòt sa a; nou pa montre l.",
+      "small": "ti gwoup",
+      "stages": {
+        "new": "Nouvo",
+        "never_activated": "Pa janm aktive",
+        "active": "Aktif",
+        "lapsing": "Ap ralanti",
+        "dormant": "Andòmi",
+        "closed": "Fèmen"
+      },
+      "explain": {
+        "new": "Enskri nan 30 dènye jou yo epi poko fè tranzaksyon.",
+        "never_activated": "Enskri depi plis pase 30 jou epi pa janm fè tranzaksyon.",
+        "active": "Fè yon tranzaksyon nan 30 dènye jou yo.",
+        "lapsing": "Dènye tranzaksyon an te fèt sa gen 31–90 jou.",
+        "dormant": "Pa gen tranzaksyon depi plis pase 90 jou.",
+        "closed": "Kont lan fèmen."
+      },
+      "factors": {
+        "last": "Jou depi dènye tranzaksyon: {{days}}",
+        "first": "Jou depi premye tranzaksyon: {{days}}",
+        "recent": "Tranzaksyon nan 90 dènye jou: {{count}}"
+      },
+      "cohortTitle": "Kowòt enskripsyon {{country}} · {{month}}",
+      "countryCohort": "Kliyan {{country}} ki enskri mwa sa a",
+      "platformCohort": "Tout peyi, menm mwa enskripsyon",
+      "regionRestricted": "Konparezon kowòt pa disponib pou administratè rejyonal yo.",
+      "compareTitle": "Konpare peyi",
+      "countries": "Kòd peyi (separe ak vigil, jiska 6)",
+      "months": "Mwa enskripsyon",
+      "compare": "Konpare",
+      "invalidCountries": "Antre 1 a 6 kòd peyi ak de lèt, tankou HT,US.",
+      "compareCaption": "Pati pa etap ak pa peyi pou {{months}} dènye mwa enskripsyon yo. Gwoup ki gen mwens pase {{min}} kliyan kache.",
+      "country": "Peyi",
+      "customers": "Kliyan",
+      "statsAt": "Chif kowòt yo mete ajou {{time}}"
+    },
+    "inbox": {
+      "title": "Bwat mesaj",
+      "hint": "Tikè sipò, mesaj nan aplikasyon an, imèl ak SMS ak kliyan sa a nan yon sèl kote. Mesaj yo soti sèlman pa chanèl mesaj ki egziste deja yo, apre ou revize yo epi ou chwazi Voye kounye a.",
+      "empty": "Poko gen mesaj.",
+      "noSupportAccess": "Tikè sipò yo kache paske ou pa gen aksè sipò.",
+      "noSendAccess": "Ou ka li bwat mesaj sa a men ou pa ka voye mesaj.",
+      "older": "Chaje ansyen mesaj yo",
+      "compose": "Ekri yon repons",
+      "channel": "Chanèl",
+      "choose": "Chwazi yon chanèl",
+      "ticket": "Tikè",
+      "language": "Lang",
+      "template": "Modèl",
+      "noTemplate": "San modèl",
+      "subject": "Sijè",
+      "body": "Mesaj",
+      "review": "Revize",
+      "confirm": "Voye mesaj {{channel}} sa a bay {{to}} an {{language}}?",
+      "sendNow": "Voye kounye a",
+      "edit": "Modifye",
+      "sent": "Mesaj la voye.",
+      "unverifiedEmail": "Adrès imèl sa a poko verifye.",
+      "smsLimit": "{{count}}/480 karaktè",
+      "inApp": "Mesaj nan aplikasyon an",
+      "ticketLabel": "Tikè {{number}}",
+      "outbound": "Voye",
+      "inbound": "Resevwa",
+      "internal": "Nòt entèn",
+      "channels": {
+        "support": "Tikè sipò",
+        "message": "Mesaj nan aplikasyon",
+        "email": "Imèl",
+        "sms": "SMS"
+      },
+      "statuses": {
+        "queued": "Ap tann",
+        "sent": "Voye",
+        "not_sent": "Pa voye"
+      },
+      "templates": {
+        "general": "Repons jeneral",
+        "verification": "Èd pou verifye imèl",
+        "payment": "Swivi peman",
+        "resolved": "Demann rezoud"
+      },
+      "errors": {
+        "sms_disabled": "SMS nan Customer 360 dezaktive.",
+        "no_email": "Kliyan sa a pa gen adrès imèl.",
+        "no_verified_phone": "Kliyan sa a pa gen nimewo telefòn verifye.",
+        "customer_not_messageable": "Ou pa ka voye mesaj bay kliyan sa a.",
+        "message_grant_required": "Pou voye, ou bezwen yon pèmisyon mesaj pou tout platfòm nan.",
+        "idempotency_conflict": "Mesaj sa a te deja voye bay yon lòt kliyan."
+      }
+    },
+    "playbooks": {
+      "title": "Gid aksyon",
+      "hint": "Etap gide pou demann ki fèt souvan. Se sèlman etap ki san danje yo ki fèt otomatikman (revoye verifikasyon, eseye notifikasyon ankò). Ranbousman ak kredi yo voye bay apwobasyon ki egziste deja yo, ki toujou bezwen de administratè diferan.",
+      "started": "Gid la kòmanse.",
+      "stepSaved": "Etap la anrejistre.",
+      "cancelled": "Gid la anile.",
+      "alreadyOpen": "Gen yon egzekisyon gid sa a ki deja louvri pi ba a.",
+      "confirm": "Egzekite gid sa a kounye a? Etap otomatik li yo ap fèt touswit pou kliyan sa a.",
+      "runNow": "Egzekite kounye a",
+      "back": "Retounen",
+      "run": "Egzekite",
+      "history": "Dènye egzekisyon yo",
+      "none": "Poko gen egzekisyon.",
+      "moneyNote": "Gid sa a pa deplase lajan. Louvri paj apwobasyon an, kreye demann lan la, epi note kote ou voye l.",
+      "openApprovals": "Louvri apwobasyon yo",
+      "openInbox": "Louvri bwat mesaj la",
+      "handoffNote": "Ki kote ou voye l?",
+      "note": "Nòt (si ou vle)",
+      "markHandedOff": "Make kòm voye",
+      "markDone": "Make kòm fèt",
+      "cancel": "Anile egzekisyon an",
+      "names": {
+        "verification_help": "Èd pou verifye imèl",
+        "notification_retry": "Eseye notifikasyon ki echwe yo ankò",
+        "payment_issue": "Pwoblèm peman"
+      },
+      "steps": {
+        "check_unverified": "Verifye imèl la poko verifye",
+        "resend_verification": "Voye yon nouvo kòd verifikasyon",
+        "confirm_with_customer": "Konfime ak kliyan an",
+        "find_failed": "Jwenn notifikasyon ki echwe yo",
+        "retry_message_notifications": "Eseye notifikasyon mesaj nan aplikasyon an ankò",
+        "retry_support_emails": "Eseye imèl sipò yo ankò",
+        "confirm_delivery": "Konfime kliyan an resevwa yo",
+        "review_payments": "Revize peman 30 dènye jou yo",
+        "contact_customer": "Kontakte kliyan an",
+        "refund_or_credit": "Ranbousman oswa kredi (bezwen apwobasyon)"
+      },
+      "kinds": {
+        "check": "Verifikasyon otomatik",
+        "safe_action": "Aksyon san danje otomatik",
+        "manual": "Manyèl",
+        "money_handoff": "Voye bay apwobasyon"
+      },
+      "runStatuses": {
+        "open": "Louvri",
+        "completed": "Fini",
+        "cancelled": "Anile"
+      },
+      "statuses": {
+        "pending": "Ap tann",
+        "done": "Fèt",
+        "failed": "Echwe",
+        "skipped": "Sote",
+        "handed_off": "Voye"
+      },
+      "reasons": {
+        "no_email": "Kliyan an pa gen adrès imèl.",
+        "already_verified": "Imèl la deja verifye.",
+        "cooldown": "Yon kòd te voye mwens pase 10 minit de sa.",
+        "not_eligible_or_cooldown": "Pa posib kounye a (verifye, bloke oswa voye nan dènye minit lan).",
+        "delivery_failed": "Imèl la pa t ka voye.",
+        "nothing_failed": "Pa gen anyen ki echwe.",
+        "no_access": "Ou pa gen pèmisyon pou etap sa a.",
+        "cancelled": "Egzekisyon an te anile.",
+        "error": "Etap la echwe."
+      },
+      "errors": {
+        "playbook_already_open": "Gid sa a deja louvri pou kliyan sa a.",
+        "handoff_note_required": "Note kote demann lan te voye.",
+        "step_already_completed": "Etap sa a deja fini.",
+        "playbook_run_closed": "Egzekisyon sa a deja fèmen."
+      }
+    },
+    "queues": {
+      "title": "Fil travay ekip la",
+      "hint": "Fil travay pataje ak yon dènye delè pou reponn (SLA) pou chak fil. Alèt anomali ak revizyon doub yo ajoute epi fèmen otomatikman.",
+      "thisCustomer": "Kliyan sa a",
+      "notQueued": "Kliyan sa a pa nan okenn fil.",
+      "queue": "Fil",
+      "choose": "Chwazi",
+      "reason": "Rezon",
+      "add": "Ajoute nan fil la",
+      "added": "Li ajoute nan fil la.",
+      "board": "Tablo ekip la",
+      "sla": "SLA",
+      "breachedCol": "An reta",
+      "met30": "SLA respekte (30 jou)",
+      "median30": "Tan mwayen pou rezoud (30 jou)",
+      "minutes": "{{count}} min",
+      "savedView": "Vi ki anrejistre",
+      "noView": "Pa gen vi",
+      "team": "ekip",
+      "filters": "Filt",
+      "assignee": "Asiyen bay",
+      "sort": "Triye",
+      "breachedOnly": "An reta sèlman",
+      "apply": "Aplike",
+      "viewName": "Non vi a",
+      "shareTeam": "Pataje ak ekip la",
+      "saveView": "Anrejistre vi a",
+      "viewSaved": "Vi a anrejistre.",
+      "deleteView": "Efase vi a",
+      "viewDeleted": "Vi a efase.",
+      "emptyBoard": "Anyen pa koresponn ak filt sa yo.",
+      "more": "Chaje plis",
+      "claim": "Pran",
+      "release": "Lage",
+      "resolve": "Rezoud",
+      "resolution": "Rezolisyon",
+      "note": "Nòt",
+      "confirmResolve": "Konfime",
+      "breached": "An reta {{minutes}} min",
+      "dueIn": "Rete {{minutes}} min",
+      "statuses": {
+        "open": "Louvri",
+        "claimed": "Pran",
+        "resolved": "Rezoud"
+      },
+      "assignees": {
+        "any": "Nenpòt moun",
+        "me": "Mwen",
+        "unassigned": "Pa asiyen"
+      },
+      "sorts": {
+        "due": "Delè ki pi pre",
+        "created": "Pi ansyen an premye"
+      },
+      "resolutions": {
+        "handled": "Trete",
+        "no_action": "Pa bezwen aksyon",
+        "source_closed": "Fèmen nan sous la"
+      },
+      "topics": {
+        "refund_spike": "Anpil ranbousman",
+        "payout_failures": "Peman ki echwe",
+        "new_country_login": "Koneksyon nan yon nouvo peyi",
+        "link_review": "Revizyon doub",
+        "general": "Jeneral"
+      },
+      "done": {
+        "claim": "Eleman an pran.",
+        "release": "Eleman an lage.",
+        "resolve": "Eleman an rezoud."
+      },
+      "errors": {
+        "already_queued": "Kliyan sa a deja nan fil sa a.",
+        "revision_conflict": "Yon lòt moun chanje eleman sa a. Li rechaje.",
+        "already_claimed": "Yon lòt administratè deja pran eleman sa a.",
+        "not_assignee": "Se sèlman administratè ki te pran l la ki ka lage l.",
+        "view_name_taken": "Ou deja gen yon vi ak non sa a.",
+        "global_grant_required": "Tablo ekip la bezwen yon pèmisyon kliyan pou tout platfòm nan.",
+        "resolution_required": "Chwazi yon rezolisyon."
+      }
+    },
+    "summary": {
+      "title": "Rezime kliyan an",
+      "hint": "Total ki kalkile davans pou tout zòn ou ka wè, yo mete ajou otomatikman ak nouvo aktivite.",
+      "recompute": "Rekalkile kounye a",
+      "recomputed": "Rezime a rekalkile.",
+      "queued": "Yon mizajou ap tann nan fil la.",
+      "computedIn": "Kalkile nan {{ms}} ms",
+      "incomplete": "Gen kèk sous ki pa t ka konte",
+      "lifecycle": "Etap sik lavi",
+      "churn": "Risk pou kite",
+      "events": "Evènman",
+      "eventsValue": "{{count}} · dènye {{time}}",
+      "anomalies": "Anomali ki louvri",
+      "queues": "Eleman nan fil",
+      "queueValue": "{{open}} louvri · {{breached}} an reta",
+      "none": "Okenn",
+      "empty": "Pa gen dosye nan zòn ou ka wè yo.",
+      "caption": "Dosye pa zòn",
+      "area": "Zòn",
+      "records": "Dosye",
+      "last30": "30 dènye jou",
+      "lastActivity": "Dènye aktivite",
+      "states": {
+        "fresh": "A jou",
+        "dirty": "Mizajou ap tann",
+        "stale": "Pa a jou",
+        "outdated_model": "Ansyen vèsyon",
+        "missing": "Poko kalkile"
+      },
+      "stateDetail": {
+        "fresh": "Kalkile {{time}}.",
+        "dirty": "Gen nouvo aktivite depi {{time}}.",
+        "stale": "Kalkile {{time}}, sa gen plis pase {{hours}} è.",
+        "outdated_model": "Kalkile {{time}} ak yon ansyen vèsyon.",
+        "missing": "L ap kalkile an aryè-plan."
+      }
+    }
   },
   "screens": {
     "dataFreshness": "Frekans done yo",
@@ -2074,7 +2601,40 @@
         "submitted": "ap trete",
         "paid": "peye",
         "failed": "echwe",
-        "cancelled": "anile"
+        "cancelled": "anile",
+        "held_for_review": "ap revize",
+        "submitting": "ap voye",
+        "canceled": "anile",
+        "rejected": "refize"
+      },
+      "payTo": "Peye bay",
+      "chooseDestination": "Chwazi yon kont labank ki verifye",
+      "noVerifiedDestination": "Ajoute epi verifye yon kont labank sou non ou anvan.",
+      "stepupNeeded": "Pou montan sa a, n ap voye yon kòd ba ou pa imèl pou konfime.",
+      "stepupTitle": "Konfime se ou",
+      "stepupSent": "Nou voye yon kòd ba ou pa imèl. Antre l pou konfime retrè a.",
+      "stepupCode": "Kòd",
+      "confirm": "Konfime retrè a",
+      "cancel": "Anile",
+      "cancelConfirm": "Anile retrè {{amount}} sa a? Lajan an ap retounen nan balans ou.",
+      "cancelled": "Retrè anile",
+      "availableOn": "Ap voye apre {{date}}",
+      "underReview": "N ap revize retrè sa a.",
+      "history": "Retrè ou yo",
+      "notReceived": "Mwen pa resevwa l",
+      "notReceivedTitle": "Siyale yon retrè {{amount}} ou pa resevwa",
+      "notReceivedHelp": "Di nou sa k pase. N ap konfime nou resevwa rapò ou nan 10 jou travay epi n ap ba ou yon repons final nan 45 jou.",
+      "notReceivedDescription": "Kisa k pase?",
+      "notReceivedSubmit": "Voye rapò a",
+      "notReceivedSent": "Rapò a ale. N ap kenbe ou okouran pa imèl.",
+      "disputeDue": "N ap reponn anvan {{date}}",
+      "disputesTitle": "Rapò ou yo",
+      "disputeStatus": {
+        "open": "resevwa",
+        "investigating": "ap mennen ankèt",
+        "resolved_paid_confirmed": "peman konfime",
+        "resolved_reissued": "voye ankò",
+        "rejected": "fèmen"
       }
     },
     "chat": {
@@ -2120,7 +2680,147 @@
       "cashout_destination_required": "Chwazi ki kote pou voye lajan an.",
       "bid_currency_mismatch": "Òf yo dwe nan lajan travay la.",
       "impersonation_blocked": "Sa pa pèmèt nan yon sesyon anpridantite.",
-      "feature_disabled": "Pa disponib."
+      "feature_disabled": "Pa disponib.",
+      "cashout_kyc_tier_required": "Fè verifikasyon idantite anplis la pou ou ka retire.",
+      "cashout_reverification_required": "Tanpri verifye idantite ou ankò pou ou ka retire.",
+      "cashout_destination_unverified": "Verifye kont labank sa a anvan.",
+      "cashout_destination_currency_mismatch": "Kont sa a nan yon lòt lajan.",
+      "cashout_destination_country_mismatch": "Kont sa a nan yon lòt peyi.",
+      "cashout_not_cancelable": "Ou pa ka anile retrè sa a ankò.",
+      "cashout_not_found": "Nou pa jwenn retrè a.",
+      "cashout_dispute_not_paid": "Ou ka siyale yon retrè sèlman apre yo voye l.",
+      "cashout_dispute_already_open": "Ou deja siyale retrè sa a.",
+      "cashout_dispute_closed": "Rapò sa a fèmen.",
+      "cashout_dispute_description_required": "Di nou sa k pase.",
+      "destination_not_found": "Nou pa jwenn kont labank lan.",
+      "destination_not_verifiable": "Nou pa ka verifye kont sa a kounye a.",
+      "destination_limit_reached": "Ou rive nan kantite kont labank ki pèmèt la.",
+      "destination_in_use": "Kont sa a gen yon retrè k ap fèt.",
+      "destination_verification_mismatch": "Sa pa koresponn. Eseye ankò.",
+      "destination_verification_locked": "Twòp esè. Ajoute kont lan ankò.",
+      "destination_verification_expired": "Verifikasyon an ekspire. Ajoute kont lan ankò.",
+      "destination_country_invalid": "Antre yon kòd peyi 2 lèt.",
+      "destination_currency_invalid": "Antre yon kòd lajan 3 lèt.",
+      "destination_holder_required": "Antre non moun ki gen kont lan.",
+      "destination_bank_required": "Antre non labank lan.",
+      "destination_account_invalid": "Antre yon nimewo kont ki valab (lèt ak chif).",
+      "destination_bank_code_invalid": "Tcheke kòd labank lan.",
+      "credit_stepup_challenge_invalid": "Kòd sa a pa bon.",
+      "credit_stepup_challenge_expired": "Kòd la ekspire. Mande yon lòt.",
+      "credit_stepup_challenge_required": "Antre kòd nou voye ba ou a.",
+      "credit_disclosure_changed": "Kondisyon yo chanje. Tanpri li vèsyon ki an vigè a.",
+      "credit_disclosure_acceptance_required": "Tanpri aksepte kondisyon OxSteed Credit yo anvan.",
+      "credit_wage_consent_required": "Peman an Credit bezwen konsantman ou anvan.",
+      "credit_erasure_no_balance": "Ou pa gen balans OxSteed Credit.",
+      "credit_escheat_reserved_funds": "Tann peman k ap tann yo fini anvan.",
+      "credit_rail_frozen": "OxSteed Credit kanpe pou kounye a.",
+      "validation_failed": "Tanpri tcheke enfòmasyon yo epi eseye ankò."
+    },
+    "common": {
+      "close": "Fèmen"
+    },
+    "destinations": {
+      "title": "Kont labank pou retrè",
+      "intro": "Retrè yo ale sèlman nan yon kont labank sou non ou ke ou verifye. Premye retrè nan yon nouvo kont tann {{days}} jou.",
+      "none": "Ou poko gen kont labank.",
+      "add": "Ajoute yon kont labank",
+      "holderName": "Non moun ki gen kont lan",
+      "bankName": "Non labank lan",
+      "bankCode": "Kòd labank oswa sikisal (si ou vle)",
+      "accountNumber": "Nimewo kont",
+      "country": "Kòd peyi (2 lèt)",
+      "currency": "Kòd lajan (3 lèt)",
+      "method": "Kijan pou verifye kont lan",
+      "methodMicro": "De ti depo",
+      "methodCode": "Yon kòd nan referans transfè a",
+      "save": "Anrejistre kont lan",
+      "added": "Kont lan ajoute. Veye transfè verifikasyon nou an.",
+      "verify": "Verifye",
+      "verifyTitle": "Verifye kont ki fini ak {{last4}}",
+      "verifyMicroHelp": "Antre de ti montan nou voye nan kont sa a.",
+      "verifyCodeHelp": "Antre kòd ki parèt nan referans transfè nou an.",
+      "amount1": "Premye montan ({{currency}})",
+      "amount2": "Dezyèm montan ({{currency}})",
+      "code": "Kòd",
+      "verified": "Kont lan verifye",
+      "attemptsLeft": "Esè ki rete: {{count}}",
+      "coolingOff": "Premye retrè apre {{date}}",
+      "remove": "Retire",
+      "removeConfirm": "Retire kont ki fini ak {{last4}}?",
+      "removed": "Kont lan retire",
+      "status": {
+        "pending_verification": "ap tann verifikasyon",
+        "verified": "verifye",
+        "held_for_review": "ap revize",
+        "failed": "verifikasyon an echwe"
+      }
+    },
+    "wage": {
+      "title": "Resevwa peman ou an OxSteed Credit",
+      "intro": "Peman ou ka rive an OxSteed Credit sèlman si ou dakò. Ou ka chanje lide nenpòt ki lè.",
+      "statusGranted": "Ou te dakò le {{date}} pou yo peye ou an OxSteed Credit.",
+      "statusWithdrawn": "Ou chwazi pou yo peye ou yon lòt fason: {{method}}.",
+      "statusNone": "Ou poko dakò pou yo peye ou an OxSteed Credit.",
+      "readTerms": "Li kondisyon yo",
+      "agree": "Mwen dakò resevwa peman mwen an OxSteed Credit",
+      "grant": "Anrejistre chwa mwen",
+      "granted": "Mèsi. Chwa ou anrejistre.",
+      "withdrawHelp": "Pou kanpe, chwazi kijan ou vle yo peye ou pito.",
+      "alternative": "Peye m pa",
+      "chooseAlternative": "Chwazi yon metòd",
+      "withdraw": "Sispann peman an Credit",
+      "withdrawn": "Chwa ou anrejistre.",
+      "alt": {
+        "bank_transfer": "transfè labank",
+        "cash": "lajan kach",
+        "check": "chèk",
+        "other": "yon lòt metòd"
+      },
+      "requiredNote": "Kliyan yo ka peye ou an OxSteed Credit sèlman apre ou dakò. Jiskaske sa, y ap peye ou yon lòt fason."
+    },
+    "disclosures": {
+      "title": "Kondisyon OxSteed Credit",
+      "intro": "Tanpri li kondisyon sa yo anvan ou ajoute oswa resevwa OxSteed Credit.",
+      "allAccepted": "Ou aksepte kondisyon ki an vigè yo.",
+      "accepted": "aksepte",
+      "showAll": "Montre tout kondisyon yo",
+      "hideAll": "Kache kondisyon yo",
+      "accept": "Mwen li epi mwen aksepte kondisyon sa yo",
+      "acceptButton": "Aksepte",
+      "acceptedToast": "Mèsi. Akseptasyon ou anrejistre."
+    },
+    "windDown": {
+      "title": "OxSteed Credit ap fèmen",
+      "body": "Tanpri retire oswa depanse balans ou anvan {{date}}.",
+      "after": "Lajan ou rete pwoteje. Sa ki rete apre dat sa a kenbe pou ou kòm byen ki pa reklame, epi ou ka toujou reklame l.",
+      "destinationsTitle": "Ki kote pou nou voye lajan ou ba ou",
+      "destinationsIntro": "Ajoute yon kont labank ki sou non pa ou epi konfime l pou nou ka remèt ou balans ou anvan {{date}}. Nouvo kont ka resevwa lajan apre tan datant sekirite abityèl la.",
+      "holdingsLabel": "Balans ou ki pou remèt ou",
+      "destination": {
+        "ready": "Kont labank lan pare",
+        "missing": "Ajoute yon kont labank ki konfime",
+        "cooling_off": "Kont labank lan ka resevwa lajan apati {{date}}"
+      },
+      "holderStatus": {
+        "pending": "Ap tann pou yo remèt li",
+        "notified": "Ap tann pou yo remèt li",
+        "instructed": "Peman an voye bay bank ou",
+        "returned": "Bank ou voye peman an tounen. Ajoute oswa verifye kont ou.",
+        "paid": "Yo remèt ou li",
+        "zero": "Pa gen anyen ki rete pou remèt",
+        "unclaimed": "Yo kenbe l pou ou kòm byen ou poko reklame"
+      },
+      "addDestination": "Ajoute yon kont labank pou w resevwa lajan ou",
+      "manageDestinations": "Verifye kont labank ou yo"
+    },
+    "erasure": {
+      "title": "Efasman done ou yo kanpe pou kounye a",
+      "blocked": "Ou toujou gen OxSteed Credit, kidonk nou poko ka efase done ou yo.",
+      "redeem": "Ou ka retire oswa depanse balans ou anvan.",
+      "unclaimedHelp": "Oswa nou ka remèt balans ou nan pwosesis byen ki pa reklame yo. Lè sa a done ou yo ka efase, epi ou ka toujou reklame lajan an pita.",
+      "unclaimed": "Remèt balans mwen kòm byen ki pa reklame",
+      "unclaimedConfirm": "Remèt balans ou nan pwosesis byen ki pa reklame yo?",
+      "unclaimedDone": "Fini. Demann efasman ou ap kontinye."
     }
   },
   "securityPolicyPage": {

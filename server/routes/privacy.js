@@ -114,6 +114,8 @@ function buildExportArchive(exportData) {
         '- businesses.csv: businesses you own (tax identifiers excluded).',
         '- helper_profiles.csv: your helper profile.',
         '- notifications.csv: notifications sent to you.',
+        '- data.json customer360_*: every category on your "Your data" page (records, account events,',
+        '  advisory scores, lifecycle stage, messages staff sent you, support follow-ups).',
         '',
         'Security:',
         '- Credentials, passwords, authentication tokens, and payment secrets are excluded.',
@@ -474,6 +476,7 @@ router.get('/export', authenticate, async (req, res) => {
     Object.assign(exportData,await require('../services/privacyActivityData').exportData(pool,userId));
     Object.assign(exportData,await require('../growth/rights').exportData(pool,userId));
     Object.assign(exportData,await require('../services/careers/privacy').exportData(pool,userId));
+    Object.assign(exportData,await require('../services/customer360Privacy').exportData(pool,userId));
     const archiveBuffer = await buildExportArchive(exportData);
     const consumed = await pool.query(
       `UPDATE privacy_export_verifications
@@ -710,6 +713,7 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
     await require('../utils/transaction').withTransaction(pool,async conn=>{
       await require('../services/privacyActivityData').erase(conn,userId);
       await require('../services/careers/privacy').erase(conn,userId);
+      await require('../services/customer360Privacy').erase(conn,userId);
       if(process.env.GROWTH_SUBJECT_PEPPER)await require('../growth/rights').erase(conn,userId);
       await conn.query(`UPDATE users SET ${baseSets.join(', ')} WHERE ${userIdEq('id')}`,params);
     },'privacy_delete_growth');
@@ -733,6 +737,18 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
   } catch (err) {
     logger.error('Account deletion failed', { message: err.message, userId: req.user?.id });
     res.status(500).json({ error: 'Failed to process deletion request. Please try again or contact support.' });
+  }
+});
+// GET /api/privacy/your-data - Customer 360 upgrade 11: the categories of
+// data held about the signed-in customer, mirroring the admin workspace.
+router.get('/your-data', authenticate, strictLimiter, async (req, res) => {
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    const categories = await require('../services/customer360Privacy').categories(req.user.id);
+    res.json({ categories, generatedAt: new Date().toISOString() });
+  } catch (err) {
+    logger.error('Your-data summary failed', { message: err.message, userId: req.user?.id });
+    res.status(500).json({ error: 'Unable to load your data summary.', code: 'your_data_failed' });
   }
 });
 // GET /api/privacy/data-categories - List categories of data collected (CCPA disclosure)

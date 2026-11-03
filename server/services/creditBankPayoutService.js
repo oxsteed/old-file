@@ -29,7 +29,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { insertComplianceAudit } = require('./creditCompliance/audit');
 
-const PURPOSES = Object.freeze(['cashout', 'micro_deposit', 'verification_code', 'redemption']);
+const PURPOSES = Object.freeze(['cashout', 'micro_deposit', 'verification_code', 'redemption', 'cashout_reissue']);
 
 function isRailConfigured() {
   return String(process.env.OXSTEED_BANK_PAYOUT_ENABLED || '').toLowerCase() === 'true'
@@ -250,6 +250,11 @@ async function settlePurpose(client, row, outcome) {
   if (row.purpose === 'redemption') {
     const windDown = require('./creditCompliance/windDownService');
     await windDown.settleRedemptionInstruction(client, row, outcome);
+    return;
+  }
+  if (row.purpose === 'cashout_reissue') {
+    const disputes = require('./creditCompliance/disputeSlaService');
+    await disputes.settleReissueInstruction(client, row, outcome);
   }
 }
 

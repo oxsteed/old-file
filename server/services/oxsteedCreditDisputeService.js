@@ -53,6 +53,9 @@ const DISPUTE_TYPES = Object.freeze([
   'duplicate_charge',
   'incorrect_amount',
   'chargeback',
+  // Licence readiness: the cases that matter most for wage holders.
+  'unauthorized_transfer',
+  'cashout_not_received',
 ]);
 
 const DISPUTE_DECISIONS = Object.freeze(['in_review', 'resolved_customer', 'resolved_merchant', 'rejected']);

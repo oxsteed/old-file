@@ -98,6 +98,7 @@ const businessWaitlistRoutes        = require('./routes/businessWaitlist');
 const businessPackagesRoutes        = require('./routes/businessPackages');
 const businessHealthAlertsRoutes    = require('./routes/businessHealthAlerts');
 const businessLeadsRoutes           = require('./routes/businessLeads');
+const businessCustomer360Routes     = require('./routes/businessCustomer360');
 const businessLeadPipelineRoutes    = require('./routes/businessLeadPipeline');
 const businessMsgTemplatesRoutes    = require('./routes/businessMsgTemplates');
 const businessIntegrationsRoutes    = require('./routes/businessIntegrations');
@@ -623,6 +624,7 @@ app.use('/api/businesses', businessWaitlistRoutes);
 app.use('/api/businesses', businessPackagesRoutes);
 app.use('/api/businesses', businessHealthAlertsRoutes);
 app.use('/api/businesses', businessLeadsRoutes);
+app.use('/api/businesses', businessCustomer360Routes);
 // Backward-compatible alias used by older mobile/web clients.
 app.use('/api/businesses', businessLeadPipelineRoutes);
 app.use('/api/businesses', businessMsgTemplatesRoutes);

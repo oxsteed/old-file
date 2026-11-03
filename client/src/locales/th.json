@@ -27207,7 +27207,8 @@
     "supportCsat": "CSAT",
     "supportQa": "รีวิว QA",
     "supportSettings": "การตั้งค่า",
-    "supportAuditLog": "บันทึกการตรวจสอบ"
+    "supportAuditLog": "บันทึกการตรวจสอบ",
+    "oxsteedCreditLicence": "ใบอนุญาต Credit"
   },
   "adminProfileVisibility": {
     "title": "การมองเห็นโปรไฟล์",
@@ -34290,7 +34291,40 @@
         "submitted": "กำลังดำเนินการ",
         "paid": "ชำระแล้ว",
         "failed": "ล้มเหลว",
-        "cancelled": "ยกเลิกแล้ว"
+        "cancelled": "ยกเลิกแล้ว",
+        "held_for_review": "กำลังตรวจสอบ",
+        "submitting": "กำลังส่ง",
+        "canceled": "ยกเลิกแล้ว",
+        "rejected": "ถูกปฏิเสธ"
+      },
+      "payTo": "ถอนเงินไปยัง",
+      "chooseDestination": "เลือกบัญชีธนาคารที่ยืนยันแล้ว",
+      "noVerifiedDestination": "โปรดเพิ่มและยืนยันบัญชีธนาคารในชื่อของคุณก่อน",
+      "stepupNeeded": "สำหรับจำนวนนี้ เราจะส่งรหัสทางอีเมลเพื่อให้คุณยืนยัน",
+      "stepupTitle": "ยืนยันว่าเป็นคุณ",
+      "stepupSent": "เราส่งรหัสทางอีเมลให้คุณแล้ว ป้อนรหัสเพื่อยืนยันการถอนเงิน",
+      "stepupCode": "รหัส",
+      "confirm": "ยืนยันการถอนเงิน",
+      "cancel": "ยกเลิก",
+      "cancelConfirm": "ยกเลิกการถอนเงิน {{amount}} นี้ใช่ไหม เงินจะกลับเข้ายอดคงเหลือของคุณ",
+      "cancelled": "ยกเลิกการถอนเงินแล้ว",
+      "availableOn": "ส่งหลังวันที่ {{date}}",
+      "underReview": "เรากำลังตรวจสอบการถอนเงินนี้",
+      "history": "การถอนเงินของคุณ",
+      "notReceived": "ฉันไม่ได้รับเงินนี้",
+      "notReceivedTitle": "แจ้งการถอนเงิน {{amount}} ที่ไม่ได้รับ",
+      "notReceivedHelp": "บอกเราว่าเกิดอะไรขึ้น เราจะยืนยันการรับเรื่องภายใน 10 วันทำการ และให้คำตอบสุดท้ายภายใน 45 วัน",
+      "notReceivedDescription": "เกิดอะไรขึ้น",
+      "notReceivedSubmit": "ส่งเรื่อง",
+      "notReceivedSent": "ส่งเรื่องแล้ว เราจะแจ้งความคืบหน้าทางอีเมล",
+      "disputeDue": "เราจะตอบภายในวันที่ {{date}}",
+      "disputesTitle": "เรื่องที่คุณแจ้ง",
+      "disputeStatus": {
+        "open": "รับเรื่องแล้ว",
+        "investigating": "กำลังสอบสวน",
+        "resolved_paid_confirmed": "ยืนยันการชำระเงินแล้ว",
+        "resolved_reissued": "ส่งอีกครั้งแล้ว",
+        "rejected": "ปิดเรื่องแล้ว"
       }
     },
     "chat": {
@@ -34336,7 +34370,147 @@
       "cashout_destination_required": "เลือกที่จะส่งเงินไป",
       "bid_currency_mismatch": "ข้อเสนอต้องเป็นสกุลเงินเดียวกับงาน",
       "impersonation_blocked": "ไม่อนุญาตในเซสชันที่แอบอ้าง",
-      "feature_disabled": "ไม่พร้อมใช้งาน"
+      "feature_disabled": "ไม่พร้อมใช้งาน",
+      "cashout_kyc_tier_required": "ทำการตรวจสอบตัวตนเพิ่มเติมให้เสร็จเพื่อถอนเงิน",
+      "cashout_reverification_required": "โปรดยืนยันตัวตนอีกครั้งเพื่อถอนเงิน",
+      "cashout_destination_unverified": "โปรดยืนยันบัญชีธนาคารนี้ก่อน",
+      "cashout_destination_currency_mismatch": "บัญชีนี้ใช้สกุลเงินอื่น",
+      "cashout_destination_country_mismatch": "บัญชีนี้อยู่ในประเทศอื่น",
+      "cashout_not_cancelable": "การถอนเงินนี้ยกเลิกไม่ได้แล้ว",
+      "cashout_not_found": "ไม่พบการถอนเงิน",
+      "cashout_dispute_not_paid": "คุณแจ้งการถอนเงินได้หลังจากส่งแล้วเท่านั้น",
+      "cashout_dispute_already_open": "คุณแจ้งการถอนเงินนี้แล้ว",
+      "cashout_dispute_closed": "เรื่องนี้ปิดแล้ว",
+      "cashout_dispute_description_required": "บอกเราว่าเกิดอะไรขึ้น",
+      "destination_not_found": "ไม่พบบัญชีธนาคาร",
+      "destination_not_verifiable": "ยืนยันบัญชีนี้ไม่ได้ในขณะนี้",
+      "destination_limit_reached": "คุณมีบัญชีธนาคารครบจำนวนที่อนุญาตแล้ว",
+      "destination_in_use": "บัญชีนี้มีการถอนเงินที่กำลังดำเนินการ",
+      "destination_verification_mismatch": "ไม่ตรงกัน โปรดลองอีกครั้ง",
+      "destination_verification_locked": "ลองหลายครั้งเกินไป โปรดเพิ่มบัญชีอีกครั้ง",
+      "destination_verification_expired": "การยืนยันหมดอายุแล้ว โปรดเพิ่มบัญชีอีกครั้ง",
+      "destination_country_invalid": "ป้อนรหัสประเทศ 2 ตัวอักษร",
+      "destination_currency_invalid": "ป้อนรหัสสกุลเงิน 3 ตัวอักษร",
+      "destination_holder_required": "ป้อนชื่อเจ้าของบัญชี",
+      "destination_bank_required": "ป้อนชื่อธนาคาร",
+      "destination_account_invalid": "ป้อนเลขที่บัญชีที่ถูกต้อง (ตัวอักษรและตัวเลข)",
+      "destination_bank_code_invalid": "ตรวจสอบรหัสธนาคาร",
+      "credit_stepup_challenge_invalid": "รหัสไม่ถูกต้อง",
+      "credit_stepup_challenge_expired": "รหัสหมดอายุแล้ว โปรดขอรหัสใหม่",
+      "credit_stepup_challenge_required": "ป้อนรหัสที่เราส่งให้คุณ",
+      "credit_disclosure_changed": "ข้อกำหนดมีการเปลี่ยนแปลง โปรดอ่านฉบับปัจจุบัน",
+      "credit_disclosure_acceptance_required": "โปรดยอมรับข้อกำหนดของ OxSteed Credit ก่อน",
+      "credit_wage_consent_required": "การจ่ายเป็น Credit ต้องได้รับความยินยอมจากคุณก่อน",
+      "credit_erasure_no_balance": "คุณไม่มียอดคงเหลือ OxSteed Credit",
+      "credit_escheat_reserved_funds": "โปรดรอให้การชำระเงินที่รอดำเนินการเสร็จสิ้นก่อน",
+      "credit_rail_frozen": "OxSteed Credit หยุดให้บริการชั่วคราว",
+      "validation_failed": "โปรดตรวจสอบรายละเอียดแล้วลองอีกครั้ง"
+    },
+    "common": {
+      "close": "ปิด"
+    },
+    "destinations": {
+      "title": "บัญชีธนาคารสำหรับถอนเงิน",
+      "intro": "การถอนเงินจะโอนไปยังบัญชีธนาคารในชื่อของคุณที่ยืนยันแล้วเท่านั้น การถอนครั้งแรกไปยังบัญชีใหม่ต้องรอ {{days}} วัน",
+      "none": "คุณยังไม่มีบัญชีธนาคาร",
+      "add": "เพิ่มบัญชีธนาคาร",
+      "holderName": "ชื่อเจ้าของบัญชี",
+      "bankName": "ชื่อธนาคาร",
+      "bankCode": "รหัสธนาคารหรือสาขา (ไม่บังคับ)",
+      "accountNumber": "เลขที่บัญชี",
+      "country": "รหัสประเทศ (2 ตัวอักษร)",
+      "currency": "รหัสสกุลเงิน (3 ตัวอักษร)",
+      "method": "วิธียืนยันบัญชี",
+      "methodMicro": "เงินฝากจำนวนเล็กน้อยสองครั้ง",
+      "methodCode": "รหัสในข้อความอ้างอิงการโอน",
+      "save": "บันทึกบัญชี",
+      "added": "เพิ่มบัญชีแล้ว โปรดรอการโอนเพื่อยืนยันจากเรา",
+      "verify": "ยืนยัน",
+      "verifyTitle": "ยืนยันบัญชีที่ลงท้ายด้วย {{last4}}",
+      "verifyMicroHelp": "ป้อนจำนวนเงินเล็กน้อยสองจำนวนที่เราโอนเข้าบัญชีนี้",
+      "verifyCodeHelp": "ป้อนรหัสที่แสดงในข้อความอ้างอิงการโอนของเรา",
+      "amount1": "จำนวนแรก ({{currency}})",
+      "amount2": "จำนวนที่สอง ({{currency}})",
+      "code": "รหัส",
+      "verified": "ยืนยันบัญชีแล้ว",
+      "attemptsLeft": "จำนวนครั้งที่เหลือ: {{count}}",
+      "coolingOff": "ถอนครั้งแรกได้หลังวันที่ {{date}}",
+      "remove": "ลบ",
+      "removeConfirm": "ลบบัญชีที่ลงท้ายด้วย {{last4}} ใช่ไหม",
+      "removed": "ลบบัญชีแล้ว",
+      "status": {
+        "pending_verification": "รอการยืนยัน",
+        "verified": "ยืนยันแล้ว",
+        "held_for_review": "กำลังตรวจสอบ",
+        "failed": "การยืนยันล้มเหลว"
+      }
+    },
+    "wage": {
+      "title": "รับค่าจ้างเป็น OxSteed Credit",
+      "intro": "ค่าจ้างของคุณจะจ่ายเป็น OxSteed Credit ได้ก็ต่อเมื่อคุณยินยอมเท่านั้น คุณเปลี่ยนใจได้ทุกเมื่อ",
+      "statusGranted": "คุณยินยอมเมื่อวันที่ {{date}} ให้จ่ายค่าจ้างเป็น OxSteed Credit",
+      "statusWithdrawn": "คุณเลือกรับเงินด้วยวิธีอื่น: {{method}}",
+      "statusNone": "คุณยังไม่ได้ยินยอมรับค่าจ้างเป็น OxSteed Credit",
+      "readTerms": "อ่านข้อกำหนด",
+      "agree": "ฉันยินยอมรับค่าจ้างเป็น OxSteed Credit",
+      "grant": "บันทึกตัวเลือก",
+      "granted": "ขอบคุณ บันทึกตัวเลือกของคุณแล้ว",
+      "withdrawHelp": "หากต้องการหยุด ให้เลือกวิธีที่คุณต้องการรับเงินแทน",
+      "alternative": "จ่ายให้ฉันทาง",
+      "chooseAlternative": "เลือกวิธี",
+      "withdraw": "หยุดจ่ายเป็น Credit",
+      "withdrawn": "บันทึกตัวเลือกของคุณแล้ว",
+      "alt": {
+        "bank_transfer": "โอนผ่านธนาคาร",
+        "cash": "เงินสด",
+        "check": "เช็ค",
+        "other": "วิธีอื่น"
+      },
+      "requiredNote": "คุณจ้างลูกค้าได้OxSteed Creditหลังจากคุณตกลง จนกว่าจะถึงตอนนั้น พวกเขาจะจ่ายเงินให้คุณวิธีอื่น"
+    },
+    "disclosures": {
+      "title": "ข้อกำหนดของ OxSteed Credit",
+      "intro": "โปรดอ่านข้อกำหนดเหล่านี้ก่อนเติมหรือรับ OxSteed Credit",
+      "allAccepted": "คุณยอมรับข้อกำหนดปัจจุบันแล้ว",
+      "accepted": "ยอมรับแล้ว",
+      "showAll": "แสดงข้อกำหนดทั้งหมด",
+      "hideAll": "ซ่อนข้อกำหนด",
+      "accept": "ฉันได้อ่านและยอมรับข้อกำหนดเหล่านี้",
+      "acceptButton": "ยอมรับ",
+      "acceptedToast": "ขอบคุณ บันทึกการยอมรับของคุณแล้ว"
+    },
+    "windDown": {
+      "title": "OxSteed Credit กำลังจะปิดให้บริการ",
+      "body": "โปรดถอนหรือใช้ยอดคงเหลือภายในวันที่ {{date}}",
+      "after": "เงินของคุณยังได้รับการคุ้มครอง ยอดที่เหลือหลังวันนั้นจะถูกเก็บไว้ให้คุณในฐานะทรัพย์สินที่ไม่มีผู้มารับ และคุณยังขอรับคืนได้",
+      "destinationsTitle": "จะส่งเงินคืนไปที่ไหน",
+      "destinationsIntro": "เพิ่มบัญชีธนาคารในชื่อของคุณเอง และยืนยันมันเพื่อให้เราสามารถคืนสมดุลของคุณก่อนที่จะ{{date}}บัญชีใหม่สามารถได้รับเงิน หลังจากระยะเวลาความปลอดภัยปกติ",
+      "holdingsLabel": "ดุลยภาพของคุณจะกลับมา",
+      "destination": {
+        "ready": "บัญชีธนาคารพร้อม",
+        "missing": "เพิ่มบัญชีผู้ใช้ที่ยืนยันแล้ว",
+        "cooling_off": "บัญชีธนาคารสามารถได้รับเงินจาก {{date}}"
+      },
+      "holderStatus": {
+        "pending": "รอการกลับมา",
+        "notified": "รอการกลับมา",
+        "instructed": "การชําระเงินที่ส่งไปธนาคาร",
+        "returned": "อยู่ในตู้ของคุณส่งเงินกลับมาอยู่ในตู้ส่วนตัว",
+        "paid": "กลับมาหาท่าน",
+        "zero": "ไม่เหลืออะไรแล้ว",
+        "unclaimed": "เก็บทรัพย์สินไว้ให้คุณ"
+      },
+      "addDestination": "เพิ่มบัญชีธนาคารเพื่อให้ได้เงินคืน",
+      "manageDestinations": "เช็คบัญชีธนาคารของคุณ"
+    },
+    "erasure": {
+      "title": "การลบข้อมูลของคุณถูกระงับไว้",
+      "blocked": "คุณยังมี OxSteed Credit อยู่ เราจึงยังลบข้อมูลของคุณไม่ได้",
+      "redeem": "คุณสามารถถอนหรือใช้ยอดคงเหลือก่อนได้",
+      "unclaimedHelp": "หรือเราสามารถส่งยอดคงเหลือของคุณเข้าสู่กระบวนการทรัพย์สินที่ไม่มีผู้มารับ จากนั้นจึงลบข้อมูลของคุณได้ และคุณยังขอรับเงินคืนได้ภายหลัง",
+      "unclaimed": "ส่งยอดคงเหลือของฉันเป็นทรัพย์สินที่ไม่มีผู้มารับ",
+      "unclaimedConfirm": "ส่งยอดคงเหลือของคุณเข้าสู่กระบวนการทรัพย์สินที่ไม่มีผู้มารับใช่ไหม",
+      "unclaimedDone": "เรียบร้อย คำขอลบข้อมูลของคุณจะดำเนินต่อไป"
     }
   },
   "w9": {
@@ -34407,5 +34581,761 @@
     "changedOn": "นโยบายความเป็นส่วนตัวของเราเปลี่ยนแปลงเมื่อ {{date}}",
     "changesOn": "นโยบายความเป็นส่วนตัวของเราจะเปลี่ยนแปลงในวันที่ {{date}}",
     "dismiss": "ปิด"
+  },
+  "customerWorkspace": {
+    "areas": {
+      "events": "Change history",
+      "health": "Health and risk",
+      "anomalies": "Anomalies",
+      "links": "Linked accounts",
+      "lifecycle": "Lifecycle",
+      "inbox": "Inbox",
+      "playbooks": "Playbooks",
+      "queues": "Queues",
+      "summary": "Summary"
+    },
+    "events": {
+      "title": "Change history",
+      "hint": "Append-only record of who changed what for this customer. Only sources you are allowed to see are shown. Personal fields are recorded as changed, never copied.",
+      "importing": "Older history is still being imported. Some earlier changes may not appear yet.",
+      "source": "Source",
+      "allSources": "All sources you can see",
+      "actor": "Changed by",
+      "anyActor": "Anyone",
+      "verify": "Verify integrity",
+      "chainIntact": "Integrity verified for {{count}} events.",
+      "chainBroken": "Integrity check failed at event {{id}}. Escalate to security.",
+      "empty": "No recorded changes match these filters.",
+      "redacted": "changed (personal data not stored)",
+      "changed": "changed (details not stored)",
+      "replay": "Replay",
+      "older": "Load older changes",
+      "replayTitle": "{{entity}} {{id}} as recorded",
+      "asOf": "As of",
+      "rebuild": "Rebuild state",
+      "unknownFields": "Changed but not stored: {{fields}}",
+      "sources": {
+        "admin_audit": "Admin actions",
+        "login": "Sign-ins",
+        "payment": "Payments",
+        "support": "Support",
+        "food_order": "Food orders",
+        "customer360": "Customer 360"
+      },
+      "actors": {
+        "admin": "Admin",
+        "customer": "Customer",
+        "system": "System",
+        "business": "Business"
+      },
+      "entities": {
+        "admin_action": "Admin action",
+        "login": "Sign-in",
+        "payment": "Payment",
+        "support_ticket": "Support ticket",
+        "food_order": "Food order",
+        "task": "Case task"
+      },
+      "types": {
+        "admin": "Admin action: {{action}}",
+        "login": "Sign-in {{action}}",
+        "payment": "Payment {{action}}",
+        "support_ticket": "Support ticket {{action}}",
+        "food_order": "Food order {{action}}",
+        "task": "Case task {{action}}"
+      }
+    },
+    "health": {
+      "title": "Account health and risk",
+      "advisory": "Advisory only. These scores explain patterns in the account and never change it. Use existing procedures for any action.",
+      "computed": "Calculated {{time}} · model {{model}}",
+      "restricted": "You do not have access to the data behind this score.",
+      "factorsCaption": "Factors behind the score",
+      "factor": "Factor",
+      "value": "Value",
+      "points": "Points",
+      "never": "Never",
+      "contribution": "{{points}} of {{weight}}",
+      "activityValue": "{{recent}} in the last 30 days, {{previous}} in the 60 days before",
+      "recompute": "Recalculate now",
+      "scores": {
+        "churn": "Churn risk",
+        "payment": "Payment risk",
+        "support": "Support load"
+      },
+      "bands": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "factors": {
+        "inactivity": {
+          "label": "Days since last sign-in",
+          "explain": "No points up to 14 days; full points at 90 days or if never signed in."
+        },
+        "activityDrop": {
+          "label": "Drop in activity",
+          "explain": "Payments and food orders in the last 30 days compared with the 60 days before."
+        },
+        "newAccount": {
+          "label": "Account age in days",
+          "explain": "Accounts younger than 30 days get full points."
+        },
+        "failedPayments": {
+          "label": "Failed payments and payouts (90 days)",
+          "explain": "Full points at 3 or more failures."
+        },
+        "refunds": {
+          "label": "Refunds (90 days)",
+          "explain": "Full points at 4 or more refunds."
+        },
+        "openDisputes": {
+          "label": "Open OxSteed Credit disputes",
+          "explain": "Any open dispute gives full points."
+        },
+        "openTickets": {
+          "label": "Open support tickets",
+          "explain": "Full points at 3 or more open tickets."
+        },
+        "recentTickets": {
+          "label": "Support tickets (90 days)",
+          "explain": "Full points at 6 or more tickets."
+        },
+        "slaBreaches": {
+          "label": "Missed support deadlines (90 days)",
+          "explain": "Full points at 2 or more missed deadlines."
+        }
+      }
+    },
+    "ai": {
+      "policy": "Drafts come only from OxSteed's self-hosted AI model. Only source names, states and counts are used; nothing is sent, approved or changed.",
+      "mode": "Draft type",
+      "topic": "Reply topic",
+      "cites": "Based on:",
+      "subject": "Subject",
+      "body": "Message",
+      "replyNotice": "Edit before use. Nothing is sent from here; sending happens only from the inbox with your explicit action.",
+      "useInInbox": "Use in inbox",
+      "modes": {
+        "summary": "Case summary",
+        "next_step": "Suggested next steps",
+        "reply_draft": "Customer reply draft"
+      },
+      "topics": {
+        "general": "General question",
+        "verification": "Identity verification",
+        "payment": "Payment",
+        "order": "Order",
+        "account_access": "Account access",
+        "support_followup": "Support follow-up"
+      }
+    },
+    "sources": {
+      "anomaliesFinancial": "Payment anomalies",
+      "anomaliesSecurity": "Sign-in anomalies"
+    },
+    "anomalies": {
+      "title": "Anomaly alerts",
+      "hint": "Unusual patterns detected automatically. Repeats are bundled into one alert. Alerts never change the account; follow existing procedures.",
+      "show": "Show",
+      "noAccess": "You do not have access to any anomaly type.",
+      "empty": "No anomalies in these states.",
+      "occurrences": "{{count}} detections",
+      "snoozedUntil": "snoozed until {{time}}",
+      "detected": "First {{first}} · latest {{last}}",
+      "until": "Snooze until (maximum 30 days)",
+      "reason": "Reason (recorded in the audit log)",
+      "cancel": "Cancel",
+      "watchTitle": "Watch all customers",
+      "watchHint": "Get a notification when a new anomaly opens for any customer. Repeats of the same alert do not notify again.",
+      "watch": {
+        "anomaliesFinancial": "Refund spikes and payout failures",
+        "anomaliesSecurity": "Sign-ins from a new country"
+      },
+      "kinds": {
+        "refund_spike": "Refund spike",
+        "payout_failures": "Payout failures",
+        "new_country_login": "Sign-in from a new country"
+      },
+      "statuses": {
+        "open": "Open",
+        "snoozed": "Snoozed",
+        "acknowledged": "Acknowledged",
+        "resolved": "Resolved"
+      },
+      "actions": {
+        "snooze": "Snooze",
+        "unsnooze": "End snooze",
+        "acknowledge": "Acknowledge",
+        "resolve": "Resolve"
+      },
+      "evidence": {
+        "country": "Signed in from {{country}}. Countries in the previous 180 days: {{previous}}.",
+        "refunds": "{{count}} refunds in 7 days (usual weekly average {{baseline}}).",
+        "payouts": "{{count}} failed payouts in 7 days."
+      }
+    },
+    "links": {
+      "title": "Linked accounts",
+      "hint": "Other customers who share a device, card, bank account or address with this customer. A higher score means a stronger link; it is not proof.",
+      "neverMerge": "Accounts and balances are never merged automatically. A confirmed duplicate only records the finding; follow the existing procedures for any account change.",
+      "signalsOff": "Signal matching is not configured on this server, so only previously recorded links are shown.",
+      "kindsShown": "Signals you can see: {{kinds}}",
+      "common": "Ignored because many customers share them: {{kinds}}",
+      "empty": "No linked accounts found.",
+      "score": "Link strength {{score}}%",
+      "created": "Joined {{time}}",
+      "suspended": "Suspended",
+      "review": "Start review",
+      "reviews": "Reviews",
+      "reviewTitle": "Review — {{status}}",
+      "checklistTitle": "Checklist (all required items before proposing a duplicate)",
+      "awaiting": "Waiting for a second, different admin to confirm or return this finding.",
+      "nextSteps": "Finding recorded on both accounts. No accounts or balances were changed.",
+      "graphLabel": "Link graph with {{count}} linked customers",
+      "checklistIncomplete": "Complete every required checklist item first.",
+      "secondAdmin": "A different admin must confirm this finding.",
+      "kinds": {
+        "address": "Address",
+        "card": "Card",
+        "bank": "Bank account",
+        "device": "Device"
+      },
+      "statuses": {
+        "in_review": "In review",
+        "awaiting_second_review": "Awaiting second review",
+        "confirmed_duplicate": "Confirmed duplicate",
+        "confirmed_distinct": "Different people",
+        "dismissed": "Dismissed"
+      },
+      "checklist": {
+        "identityCompared": "Identity details compared",
+        "contactCompared": "Contact details compared",
+        "paymentInstrumentsCompared": "Payment methods compared",
+        "activityReviewed": "Recent activity reviewed",
+        "customerContacted": "Customer contacted (optional)"
+      },
+      "actions": {
+        "duplicate": "Propose duplicate",
+        "distinct": "Different people",
+        "dismiss": "Dismiss",
+        "confirm": "Confirm duplicate",
+        "reject": "Return for review"
+      }
+    },
+    "lifecycle": {
+      "title": "Lifecycle and cohorts",
+      "hint": "Stage is derived from signup date and completed transactions only. It is descriptive and never changes the account.",
+      "none": "No lifecycle data yet.",
+      "since": "since {{time}}",
+      "computed": "Computed {{time}} · model {{model}}",
+      "stage": "Stage",
+      "share": "Share",
+      "suppressed": "Fewer than {{min}} customers in this cohort; not shown.",
+      "small": "small group",
+      "stages": {
+        "new": "New",
+        "never_activated": "Never activated",
+        "active": "Active",
+        "lapsing": "Lapsing",
+        "dormant": "Dormant",
+        "closed": "Closed"
+      },
+      "explain": {
+        "new": "Signed up in the last 30 days and has not transacted yet.",
+        "never_activated": "Signed up more than 30 days ago and has never transacted.",
+        "active": "Transacted in the last 30 days.",
+        "lapsing": "Last transaction was 31–90 days ago.",
+        "dormant": "No transaction for more than 90 days.",
+        "closed": "The account is closed."
+      },
+      "factors": {
+        "last": "Days since last transaction: {{days}}",
+        "first": "Days since first transaction: {{days}}",
+        "recent": "Transactions in the last 90 days: {{count}}"
+      },
+      "cohortTitle": "Signup cohort {{country}} · {{month}}",
+      "countryCohort": "Customers from {{country}} who signed up that month",
+      "platformCohort": "All countries, same signup month",
+      "regionRestricted": "Cohort comparisons are not available to region-scoped admins.",
+      "compareTitle": "Compare countries",
+      "countries": "Country codes (comma separated, up to 6)",
+      "months": "Signup months",
+      "compare": "Compare",
+      "invalidCountries": "Enter 1 to 6 two-letter country codes, such as HT,US.",
+      "compareCaption": "Stage share by country for the last {{months}} signup months. Groups under {{min}} customers are hidden.",
+      "country": "Country",
+      "customers": "Customers",
+      "statsAt": "Cohort figures refreshed {{time}}"
+    },
+    "inbox": {
+      "title": "Inbox",
+      "hint": "Support tickets, in-app messages, email and SMS with this customer in one place. Messages go out only through the existing messaging channels, after you review and select Send now.",
+      "empty": "No messages yet.",
+      "noSupportAccess": "Support tickets are hidden because you do not have support access.",
+      "noSendAccess": "You can read this inbox but not send messages.",
+      "older": "Load older messages",
+      "compose": "Write a reply",
+      "channel": "Channel",
+      "choose": "Choose a channel",
+      "ticket": "Ticket",
+      "language": "Language",
+      "template": "Template",
+      "noTemplate": "No template",
+      "subject": "Subject",
+      "body": "Message",
+      "review": "Review",
+      "confirm": "Send this {{channel}} message to {{to}} in {{language}}?",
+      "sendNow": "Send now",
+      "edit": "Edit",
+      "sent": "Message sent.",
+      "unverifiedEmail": "This email address is not verified yet.",
+      "smsLimit": "{{count}}/480 characters",
+      "inApp": "In-app messages",
+      "ticketLabel": "Ticket {{number}}",
+      "outbound": "Sent",
+      "inbound": "Received",
+      "internal": "Internal note",
+      "channels": {
+        "support": "Support ticket",
+        "message": "In-app message",
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "statuses": {
+        "queued": "Queued",
+        "sent": "Sent",
+        "not_sent": "Not sent"
+      },
+      "templates": {
+        "general": "General reply",
+        "verification": "Email verification help",
+        "payment": "Payment follow-up",
+        "resolved": "Request resolved"
+      },
+      "errors": {
+        "sms_disabled": "SMS from Customer 360 is turned off.",
+        "no_email": "This customer has no email address.",
+        "no_verified_phone": "This customer has no verified phone number.",
+        "customer_not_messageable": "This customer cannot be messaged.",
+        "message_grant_required": "Sending needs a platform-wide messaging permission.",
+        "idempotency_conflict": "This message was already sent to a different customer."
+      }
+    },
+    "playbooks": {
+      "title": "Playbooks",
+      "hint": "Guided steps for common requests. Only safe steps run automatically (resend verification, retry notifications). Refunds and credits are handed off to the existing approvals, which still need two different admins.",
+      "started": "Playbook started.",
+      "stepSaved": "Step saved.",
+      "cancelled": "Playbook cancelled.",
+      "alreadyOpen": "A run of this playbook is already open below.",
+      "confirm": "Run this playbook now? Its automatic steps will run immediately for this customer.",
+      "runNow": "Run now",
+      "back": "Back",
+      "run": "Run",
+      "history": "Recent runs",
+      "none": "No playbook runs yet.",
+      "moneyNote": "This playbook does not move money. Open the approvals page, create the request there, and record where you handed it off.",
+      "openApprovals": "Open approvals",
+      "openInbox": "Open inbox",
+      "handoffNote": "Where was it handed off?",
+      "note": "Note (optional)",
+      "markHandedOff": "Mark handed off",
+      "markDone": "Mark done",
+      "cancel": "Cancel run",
+      "names": {
+        "verification_help": "Email verification help",
+        "notification_retry": "Retry failed notifications",
+        "payment_issue": "Payment problem"
+      },
+      "steps": {
+        "check_unverified": "Check the email is not verified",
+        "resend_verification": "Send a new verification code",
+        "confirm_with_customer": "Confirm with the customer",
+        "find_failed": "Find failed notifications",
+        "retry_message_notifications": "Retry in-app message notifications",
+        "retry_support_emails": "Retry support emails",
+        "confirm_delivery": "Confirm the customer received them",
+        "review_payments": "Review the last 30 days of payments",
+        "contact_customer": "Contact the customer",
+        "refund_or_credit": "Refund or credit (approval needed)"
+      },
+      "kinds": {
+        "check": "Automatic check",
+        "safe_action": "Automatic safe action",
+        "manual": "Manual",
+        "money_handoff": "Approval hand-off"
+      },
+      "runStatuses": {
+        "open": "Open",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "statuses": {
+        "pending": "Pending",
+        "done": "Done",
+        "failed": "Failed",
+        "skipped": "Skipped",
+        "handed_off": "Handed off"
+      },
+      "reasons": {
+        "no_email": "The customer has no email address.",
+        "already_verified": "The email is already verified.",
+        "cooldown": "A code was sent less than 10 minutes ago.",
+        "not_eligible_or_cooldown": "Not eligible right now (verified, locked or sent within the last minute).",
+        "delivery_failed": "The email could not be sent.",
+        "nothing_failed": "Nothing has failed.",
+        "no_access": "You do not have permission for this step.",
+        "cancelled": "The run was cancelled.",
+        "error": "The step failed."
+      },
+      "errors": {
+        "playbook_already_open": "This playbook is already open for this customer.",
+        "handoff_note_required": "Record where the request was handed off.",
+        "step_already_completed": "This step was already completed.",
+        "playbook_run_closed": "This run is already closed."
+      }
+    },
+    "queues": {
+      "title": "Team queues",
+      "hint": "Shared work queues with a response deadline (SLA) per queue. Anomaly alerts and duplicate reviews are added and closed automatically.",
+      "thisCustomer": "This customer",
+      "notQueued": "This customer is not in any queue.",
+      "queue": "Queue",
+      "choose": "Choose",
+      "reason": "Reason",
+      "add": "Add to queue",
+      "added": "Added to the queue.",
+      "board": "Team board",
+      "sla": "SLA",
+      "breachedCol": "Overdue",
+      "met30": "Met SLA (30 days)",
+      "median30": "Median time to resolve (30 days)",
+      "minutes": "{{count}} min",
+      "savedView": "Saved view",
+      "noView": "No saved view",
+      "team": "team",
+      "filters": "Filters",
+      "assignee": "Assigned to",
+      "sort": "Sort",
+      "breachedOnly": "Overdue only",
+      "apply": "Apply",
+      "viewName": "View name",
+      "shareTeam": "Share with the team",
+      "saveView": "Save view",
+      "viewSaved": "View saved.",
+      "deleteView": "Delete view",
+      "viewDeleted": "View deleted.",
+      "emptyBoard": "Nothing matches these filters.",
+      "more": "Load more",
+      "claim": "Claim",
+      "release": "Release",
+      "resolve": "Resolve",
+      "resolution": "Resolution",
+      "note": "Note",
+      "confirmResolve": "Confirm",
+      "breached": "Overdue by {{minutes}} min",
+      "dueIn": "Due in {{minutes}} min",
+      "statuses": {
+        "open": "Open",
+        "claimed": "Claimed",
+        "resolved": "Resolved"
+      },
+      "assignees": {
+        "any": "Anyone",
+        "me": "Me",
+        "unassigned": "Unassigned"
+      },
+      "sorts": {
+        "due": "Due soonest",
+        "created": "Oldest first"
+      },
+      "resolutions": {
+        "handled": "Handled",
+        "no_action": "No action needed",
+        "source_closed": "Closed at source"
+      },
+      "topics": {
+        "refund_spike": "Refund spike",
+        "payout_failures": "Payout failures",
+        "new_country_login": "Login from a new country",
+        "link_review": "Duplicate review",
+        "general": "General"
+      },
+      "done": {
+        "claim": "Item claimed.",
+        "release": "Item released.",
+        "resolve": "Item resolved."
+      },
+      "errors": {
+        "already_queued": "This customer is already in that queue.",
+        "revision_conflict": "Someone else changed this item. It has been reloaded.",
+        "already_claimed": "Another admin already claimed this item.",
+        "not_assignee": "Only the admin who claimed it can release it.",
+        "view_name_taken": "You already have a view with this name.",
+        "global_grant_required": "The team board needs a platform-wide customer permission.",
+        "resolution_required": "Choose a resolution."
+      }
+    },
+    "summary": {
+      "title": "Customer summary",
+      "hint": "Precomputed counts across every area you can see, refreshed automatically from new activity.",
+      "recompute": "Recompute now",
+      "recomputed": "Summary recomputed.",
+      "queued": "A refresh is queued.",
+      "computedIn": "Computed in {{ms}} ms",
+      "incomplete": "Some sources could not be counted",
+      "lifecycle": "Lifecycle stage",
+      "churn": "Churn risk",
+      "events": "Events",
+      "eventsValue": "{{count}} · last {{time}}",
+      "anomalies": "Open anomalies",
+      "queues": "Queue items",
+      "queueValue": "{{open}} open · {{breached}} overdue",
+      "none": "None",
+      "empty": "No records in the areas you can see.",
+      "caption": "Records per area",
+      "area": "Area",
+      "records": "Records",
+      "last30": "Last 30 days",
+      "lastActivity": "Last activity",
+      "states": {
+        "fresh": "Up to date",
+        "dirty": "Update pending",
+        "stale": "Out of date",
+        "outdated_model": "Older version",
+        "missing": "Not computed yet"
+      },
+      "stateDetail": {
+        "fresh": "Computed {{time}}.",
+        "dirty": "New activity since {{time}}.",
+        "stale": "Computed {{time}}, more than {{hours}} h ago.",
+        "outdated_model": "Computed {{time}} by an older version.",
+        "missing": "It will be computed in the background."
+      }
+    }
+  },
+  "businessCustomer360": {
+    "viewLabel": "มุมมองลูกค้า",
+    "viewCrm": "ลูกค้า CRM",
+    "view360": "ลูกค้าทั้งหมด (360)",
+    "intro": "ทุกคนที่มีความสัมพันธ์กับธุรกิจนี้: ลูกค้า CRM การจอง และคำสั่งซื้อร้านอาหาร คุณจะเห็นเฉพาะสิ่งที่บทบาทของคุณอนุญาต",
+    "search": "ค้นหาลูกค้า",
+    "loading": "กำลังโหลด…",
+    "loadFailed": "โหลดลูกค้าไม่สำเร็จ ลองอีกครั้ง",
+    "forbidden": "บทบาทของคุณไม่มีสิทธิ์เข้าถึงลูกค้า",
+    "assignedOnly": "แสดงเฉพาะลูกค้าที่มอบหมายให้คุณ",
+    "empty": "ยังไม่มีลูกค้า",
+    "unnamed": "ลูกค้าไม่มีชื่อ",
+    "lastSeen": "กิจกรรมล่าสุด {{date}}",
+    "more": "แสดงเพิ่ม",
+    "pick": "เลือกลูกค้าเพื่อดูประวัติกับธุรกิจนี้",
+    "scopeNote": "แสดงเฉพาะข้อมูลของธุรกิจนี้เท่านั้น",
+    "status": "สถานะ",
+    "email": "อีเมล",
+    "phone": "โทรศัพท์",
+    "lifetime": "มูลค่ารวม",
+    "notes": "บันทึก",
+    "noCrm": "ลูกค้ารายนี้ยังไม่มีข้อมูล CRM",
+    "appointments": "นัดหมาย ({{count}})",
+    "noShows": "ไม่มาตามนัด: {{count}}",
+    "orders": "คำสั่งซื้อ ({{count}})",
+    "paid": "ชำระแล้ว: {{amount}}",
+    "partialStores": "รวมเฉพาะคำสั่งซื้อจากร้านของคุณ",
+    "invoices": "ใบแจ้งหนี้ ({{count}})",
+    "outstanding": "ค้างชำระ: {{amount}}",
+    "restricted": "บทบาทของคุณไม่มีส่วนนี้",
+    "none": "ยังไม่มี",
+    "via": {
+      "crm": "CRM",
+      "appointment": "การจอง",
+      "order": "คำสั่งซื้อ"
+    },
+    "appointmentStatus": {
+      "pending": "รอดำเนินการ",
+      "confirmed": "ยืนยันแล้ว",
+      "in_progress": "กำลังดำเนินการ",
+      "completed": "เสร็จสิ้น",
+      "cancelled": "ยกเลิก",
+      "no_show": "ไม่มาตามนัด"
+    },
+    "orderStatus": {
+      "received": "รับแล้ว",
+      "accepted": "ยอมรับแล้ว",
+      "preparing": "กำลังเตรียม",
+      "ready": "พร้อม",
+      "completed": "เสร็จสิ้น",
+      "cancelled": "ยกเลิก",
+      "refunded": "คืนเงินแล้ว"
+    },
+    "invoiceStatus": {
+      "draft": "ร่าง",
+      "sent": "ส่งแล้ว",
+      "paid": "ชำระแล้ว",
+      "overdue": "เกินกำหนด",
+      "cancelled": "ยกเลิก",
+      "partial": "ชำระบางส่วน"
+    }
+  },
+  "yourData": {
+    "title": "ข้อมูลของคุณ",
+    "subtitle": "ข้อมูลที่ OxSteed เก็บเกี่ยวกับคุณ จัดกลุ่มแบบเดียวกับที่ทีมสนับสนุนของเราเห็น",
+    "back": "กลับไปที่การตั้งค่า",
+    "loading": "กำลังโหลด…",
+    "loadFailed": "ไม่สามารถโหลดสรุปข้อมูลของคุณได้ โปรดลองอีกครั้งภายหลัง",
+    "never": "ไม่เคย",
+    "records": "จำนวนรายการ",
+    "lastUpdated": "อัปเดตล่าสุด",
+    "inExport": "อยู่ในไฟล์ส่งออก",
+    "onDeletion": "หากคุณลบบัญชี",
+    "partial": "ขณะนี้นับบางรายการไม่ได้",
+    "deleteHint": "หากต้องการลบบัญชี ให้ใช้",
+    "deleteLink": "ลบบัญชีในการตั้งค่า",
+    "settingsLink": "ดูข้อมูลทั้งหมดของคุณ",
+    "groups": {
+      "account": {
+        "title": "บัญชีของคุณ",
+        "hint": "รายการที่เกิดจากการใช้ OxSteed ของคุณ"
+      },
+      "derived": {
+        "title": "สร้างโดยทีมของเรา",
+        "hint": "ข้อมูลที่เครื่องมือของทีมเราสร้างจากกิจกรรมของคุณ"
+      },
+      "internal": {
+        "title": "รายการภายใน",
+        "hint": "เก็บไว้เพื่อป้องกันการฉ้อโกงและด้วยเหตุผลทางกฎหมาย ไม่แสดงเนื้อหา"
+      }
+    },
+    "exportModes": {
+      "included": "รวมอยู่",
+      "described": "อธิบายเท่านั้น"
+    },
+    "erasure": {
+      "removed": "ลบออก",
+      "anonymized": "ลบข้อมูลส่วนตัวของคุณ แต่เก็บรายการไว้",
+      "retained": "เก็บไว้ตามที่กฎหมายกำหนด"
+    },
+    "export": {
+      "title": "ดาวน์โหลดข้อมูลของคุณ",
+      "hint": "เพื่อความปลอดภัย โปรดป้อนรหัสผ่าน จากนั้นเราจะส่งรหัสทางอีเมลเพื่อยืนยันการดาวน์โหลด ไฟล์มีทุกอย่างข้างต้นยกเว้นรายการภายใน",
+      "password": "รหัสผ่านปัจจุบัน",
+      "sendCode": "ส่งรหัสทางอีเมล",
+      "codeSent": "เราส่งรหัส 6 หลักไปที่ {{email}} แล้ว",
+      "code": "รหัส 6 หลัก",
+      "download": "ดาวน์โหลด",
+      "startOver": "เริ่มใหม่",
+      "done": "เริ่มดาวน์โหลดแล้ว",
+      "errors": {
+        "EXPORT_PASSWORD_INVALID": "รหัสผ่านไม่ถูกต้อง",
+        "EXPORT_CODE_INVALID": "รหัสนี้ไม่ถูกต้อง",
+        "EXPORT_CODE_EXPIRED": "รหัสนี้หมดอายุแล้ว โปรดเริ่มใหม่",
+        "EXPORT_CODE_LOCKED": "ลองหลายครั้งเกินไป โปรดลองอีกครั้งใน 15 นาที",
+        "EXPORT_VERIFICATION_UNAVAILABLE": "ไม่สามารถส่งรหัสได้ โปรดลองอีกครั้งภายหลัง",
+        "EXPORT_RESULT_LIMIT_EXCEEDED": "ข้อมูลของคุณใหญ่เกินกว่าจะดาวน์โหลดทันที โปรดติดต่อฝ่ายสนับสนุน",
+        "generic": "เกิดข้อผิดพลาด โปรดลองอีกครั้ง"
+      }
+    },
+    "categories": {
+      "work": {
+        "title": "งานและการจอง",
+        "description": "งาน การเสนอราคา ใบแจ้งหนี้ การจอง นัดหมาย ใบเสนอราคา และการยกเลิก"
+      },
+      "finance": {
+        "title": "การชำระเงินและการโอนออก",
+        "description": "การชำระเงินที่คุณทำหรือได้รับ และรายการโอนออก"
+      },
+      "restaurants": {
+        "title": "คำสั่งซื้ออาหาร",
+        "description": "คำสั่งซื้อจากร้านอาหารและการอัปเดตจากครัว"
+      },
+      "commerce": {
+        "title": "คำสั่งซื้อในมาร์เก็ตเพลส",
+        "description": "สินค้าที่คุณซื้อหรือขายในมาร์เก็ตเพลส"
+      },
+      "business": {
+        "title": "ธุรกิจ",
+        "description": "ธุรกิจและร้านอาหารที่คุณเป็นเจ้าของหรือเป็นสมาชิก"
+      },
+      "devices": {
+        "title": "อุปกรณ์",
+        "description": "อุปกรณ์ขายหน้าร้าน ตั๋วออฟไลน์ และกิจกรรมหน้าจอที่เชื่อมโยงกับคุณ"
+      },
+      "credit": {
+        "title": "OxSteed Credit",
+        "description": "บัญชีเครดิต ธุรกรรม การระงับ บัตร การถอน และการเติมเงิน"
+      },
+      "restaurantCredit": {
+        "title": "เครดิตร้านอาหาร",
+        "description": "กระเป๋าเงินร้านอาหาร คำขอเครดิต การคืนเงิน และเงินสำรอง"
+      },
+      "documents": {
+        "title": "รายการเดินบัญชี",
+        "description": "รายการเดินบัญชีเครดิตและการชำระบัญชี และไฟล์ส่งออก"
+      },
+      "subscriptions": {
+        "title": "การสมัครสมาชิก",
+        "description": "แพ็กเกจและประวัติการสมัครสมาชิกของคุณ"
+      },
+      "logistics": {
+        "title": "โลจิสติกส์",
+        "description": "การซื้อแบบกลุ่ม คำสั่งซื้อ การจัดส่ง และการส่งมอบ"
+      },
+      "support": {
+        "title": "การสนับสนุน",
+        "description": "ตั๋วและแชตสนับสนุน"
+      },
+      "communications": {
+        "title": "การแจ้งเตือน",
+        "description": "การแจ้งเตือนและข้อความที่ส่งถึงคุณ และการตั้งค่าของคุณ"
+      },
+      "privacy": {
+        "title": "ตัวเลือกความเป็นส่วนตัว",
+        "description": "ความยินยอมและคำขอด้านความเป็นส่วนตัวของคุณ"
+      },
+      "trust": {
+        "title": "รีวิวและการอุทธรณ์",
+        "description": "รีวิว การอุทธรณ์ และการยืนยันตัวตน"
+      },
+      "security": {
+        "title": "เซสชันการลงชื่อเข้าใช้",
+        "description": "อุปกรณ์และเซสชันที่ลงชื่อเข้าใช้บัญชีของคุณ"
+      },
+      "cases": {
+        "title": "งานติดตามของทีม",
+        "description": "งานภายในที่ทีมสร้างเพื่อช่วยเหลือบัญชีของคุณ"
+      },
+      "events": {
+        "title": "บันทึกกิจกรรมบัญชี",
+        "description": "บันทึกการเปลี่ยนแปลงบัญชีของคุณที่ป้องกันการแก้ไขโดยไม่รู้ตัว"
+      },
+      "scores": {
+        "title": "คะแนนสุขภาพบัญชี",
+        "description": "คะแนนเชิงแนะนำที่ทีมใช้เพื่อหาปัญหา คะแนนไม่เคยเปลี่ยนแปลงบัญชีของคุณเอง"
+      },
+      "lifecycle": {
+        "title": "ระยะกิจกรรม",
+        "description": "บัญชีของคุณเป็นบัญชีใหม่ ใช้งานอยู่ หรือไม่ได้ใช้งาน ตามกิจกรรมของคุณ"
+      },
+      "contactHistory": {
+        "title": "ข้อความจากทีมของเรา",
+        "description": "อีเมลและ SMS ที่ทีมงานส่งถึงคุณ"
+      },
+      "playbooks": {
+        "title": "ขั้นตอนการช่วยเหลือที่ดำเนินการแล้ว",
+        "description": "ขั้นตอนที่ทีมดำเนินการเพื่อช่วยคุณ เช่น ส่งอีเมลยืนยันอีกครั้ง"
+      },
+      "queues": {
+        "title": "การติดตามผล",
+        "description": "การติดตามผลที่ทีมกำหนดไว้สำหรับบัญชีของคุณ"
+      },
+      "summaries": {
+        "title": "สรุปบัญชี",
+        "description": "สรุปข้อมูลข้างต้นที่คำนวณไว้ล่วงหน้า เพื่อให้ทีมช่วยคุณได้เร็วขึ้น"
+      },
+      "securityReviews": {
+        "title": "การตรวจสอบเพื่อป้องกันการฉ้อโกง",
+        "description": "การตรวจสอบที่ปกป้องคุณและผู้อื่นจากการฉ้อโกง เราไม่แสดงรายการ แต่คุณสอบถามฝ่ายสนับสนุนได้"
+      }
+    }
   }
 }

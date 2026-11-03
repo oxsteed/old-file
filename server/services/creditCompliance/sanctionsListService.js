@@ -734,6 +734,52 @@ async function listScreeningMatches(client, screeningId) {
   return rows;
 }
 
+/**
+ * Everything an administrator needs to decide a hit (gap fill 3): the
+ * screening (who, which name, when, top score, list versions used) and each
+ * matched list entry with its source, list version, score and which field
+ * matched (primary name or alias; weak alias; program, country and birth
+ * date data the entry carries).
+ */
+async function getScreeningMatchDetails(client, screeningId) {
+  const { rows: screenings } = await client.query(
+    `SELECT id, subject_type, subject_id, provider, result, hit_context, screened_at, cleared_at,
+            screened_name, top_score::text AS top_score, list_versions, trigger_reason, confirmed_at
+       FROM oxsteed_credit_sanctions_screenings WHERE id = $1`,
+    [screeningId]
+  );
+  const screening = screenings[0];
+  if (!screening) throw new AppError('Screening not found', 404, 'credit_sanctions_screening_not_found');
+  const { rows } = await client.query(
+    `SELECT m.id::text AS id, m.source_id, src.display_name AS source_name, src.authority AS source_authority,
+            m.version_id, v.sha256 AS version_sha256, v.published_at AS version_published_at, v.fetched_at AS version_fetched_at,
+            v.status AS version_status, m.entry_id::text AS entry_id, m.external_id, m.query_name, m.matched_name,
+            m.score::text AS score, m.entry_type, m.programs, m.countries, m.birth_dates, m.created_at,
+            e.primary_name,
+            nm.is_primary AS matched_primary, nm.strength AS matched_strength
+       FROM credit_sanctions_screening_matches m
+       LEFT JOIN credit_sanctions_list_sources src ON src.id = m.source_id
+       LEFT JOIN credit_sanctions_list_versions v ON v.id = m.version_id
+       LEFT JOIN credit_sanctions_list_entries e ON e.id = m.entry_id
+       LEFT JOIN LATERAL (
+         SELECT is_primary, strength FROM credit_sanctions_list_names
+          WHERE entry_id = m.entry_id AND name = m.matched_name
+          ORDER BY is_primary DESC LIMIT 1
+       ) nm ON TRUE
+      WHERE m.screening_id = $1
+      ORDER BY m.score DESC, m.id`,
+    [screeningId]
+  );
+  const matches = rows.map((r) => {
+    const matchedFields = [];
+    if (r.matched_primary === true || (r.primary_name && r.primary_name === r.matched_name)) matchedFields.push('primary_name');
+    else matchedFields.push('alias');
+    if (r.matched_strength === 'weak') matchedFields.push('weak_alias');
+    return { ...r, matched_fields: matchedFields };
+  });
+  return { screening, matches };
+}
+
 async function listCustomEntries(client = pool) {
   const { rows } = await client.query('SELECT * FROM credit_sanctions_custom_entries ORDER BY created_at DESC LIMIT 500');
   return rows;
@@ -741,6 +787,7 @@ async function listCustomEntries(client = pool) {
 
 module.exports = {
   MATCH_THRESHOLD,
+  getScreeningMatchDetails,
   parseFor,
   ingestParsed,
   ingestFile,

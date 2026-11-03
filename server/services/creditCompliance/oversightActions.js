@@ -16,6 +16,7 @@ const MODULES = [
   './sarService',
   './kycRequirementsService',
   './disputeSlaService',
+  './disclosureService',
   './dormancyService',
   './accessReviewService',
   './windDownService',

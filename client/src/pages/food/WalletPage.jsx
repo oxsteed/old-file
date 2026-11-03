@@ -10,6 +10,11 @@ import WalletRestaurantWallets from './WalletRestaurantWallets';
 import OxsteedCreditTopupPanel from '../../components/credit/OxsteedCreditTopupPanel';
 import IdentityVerificationPanel from '../../components/credit/IdentityVerificationPanel';
 import CreditCashoutPanel from '../../components/paymentLayers/CreditCashoutPanel';
+import CreditWindDownBanner from '../../components/paymentLayers/CreditWindDownBanner';
+import CreditWindDownDestinations from '../../components/paymentLayers/CreditWindDownDestinations';
+import CreditWageConsentPanel from '../../components/paymentLayers/CreditWageConsentPanel';
+import CreditDisclosuresPanel from '../../components/paymentLayers/CreditDisclosuresPanel';
+import CreditErasurePanel from '../../components/paymentLayers/CreditErasurePanel';
 import {
   getOxsteedCreditAccount,
   getOxsteedCreditAccountDetails,
@@ -133,6 +138,8 @@ export default function WalletPage() {
             </div>
           </header>
 
+          <CreditWindDownBanner />
+
           {railStatus && !railStatus.enabled && <section className="ox-credit-rail-note" role="status"><AlertCircle size={19} /><div><strong>{t('pausedTitle')}</strong><span>{t('pausedBody')}</span></div></section>}
 
           <section aria-label={t('balancesTitle')}>
@@ -193,7 +200,11 @@ export default function WalletPage() {
           )}
 
           <WalletRestaurantWallets onWalletsLoaded={setRestaurantWalletCount} />
+          <CreditDisclosuresPanel currency={selectedCurrency} />
+          <CreditWageConsentPanel standalone currency={selectedCurrency} />
           <CreditCashoutPanel />
+          <CreditWindDownDestinations />
+          <CreditErasurePanel />
 
           <p className="ox-credit-footnote" role="note">{t('disclaimerBody')}</p>
         </div>

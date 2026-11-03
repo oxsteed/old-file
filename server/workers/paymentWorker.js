@@ -63,6 +63,21 @@ function requirePaymentUpdate(result, reference) {
   }
 }
 
+// Customer 360 link graph (upgrade 5): keep only a keyed digest of the card
+// fingerprint when Stripe includes charge details. Best effort: a failure
+// here never affects payment processing.
+async function recordCardSignal(intent) {
+  try {
+    const links = require('../services/customer360Links');
+    const fingerprint = links.cardFingerprint(intent);
+    if (!fingerprint) return;
+    const { rows } = await pool.query('SELECT payer_id FROM payments WHERE stripe_payment_intent_id = $1 AND payer_id IS NOT NULL LIMIT 1', [intent.id]);
+    if (rows[0]) await links.recordSignal(pool, { userId: rows[0].payer_id, kind: 'card', value: fingerprint, source: 'stripe_payment_intent' });
+  } catch (error) {
+    logger.warn('Customer 360 card signal skipped', { intentId: intent.id, code: error.code });
+  }
+}
+
 const handlePaymentIntentSucceeded = async (intent) => {
   await withTransaction(pool, async (client) => {
     const result = await client.query(
@@ -74,6 +89,7 @@ const handlePaymentIntentSucceeded = async (intent) => {
     requirePaymentUpdate(result, intent.id);
   });
   logger.info('Webhook: payment_intent.succeeded processed', { intentId: intent.id });
+  await recordCardSignal(intent);
   return { handled: true };
 };
 

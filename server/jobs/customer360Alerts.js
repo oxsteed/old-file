@@ -3,6 +3,38 @@ const db = require("../db");
 const service = require("../services/customer360Workspace");
 const { sendNotification } = require("../services/notificationService");
 const logger = require("../utils/logger");
+const ANOMALY_KINDS = {
+  anomaliesFinancial: ["refund_spike", "payout_failures"],
+  anomaliesSecurity: ["new_country_login"],
+};
+// Platform-wide anomaly watch (customer_id IS NULL): one notification per
+// bundled anomaly and status, never per repeat detection.
+async function evaluatePlatformAnomalyRule(rule, def) {
+  const kinds = ANOMALY_KINDS[rule.source];
+  if (!kinds) return 0;
+  const { rows } = await db.query(
+    `SELECT a.id::text AS id, a.status, a.customer_id, a.kind FROM customer_anomalies a JOIN users u ON u.id = a.customer_id
+      WHERE a.kind = ANY($1::text[]) AND a.status = ANY($2::text[]) AND a.first_detected_at <= now() - ($3 * interval '1 minute')
+        AND lower(u.email) NOT LIKE '%@oxsteed.internal' AND ($4 = 'super_admin' OR u.role NOT IN ('admin', 'super_admin'))
+        AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = $5 AND n.delivery_key = 'customer360-rule:' || $6::text || ':' || a.id || ':' || a.status)
+      ORDER BY a.first_detected_at, a.id LIMIT 25`,
+    [kinds, rule.statuses, rule.min_age_minutes, rule.role, rule.admin_id, rule.id],
+  );
+  let sent = 0;
+  for (const row of rows) {
+    const result = await sendNotification({
+      userId: rule.admin_id,
+      type: "customer360_attention",
+      title: "Customer 360 anomaly",
+      body: "",
+      action_url: `/admin/customers/${row.customer_id}/360?tab=workspace&area=anomalies`,
+      data: { customer_id: row.customer_id, source: rule.source, record_id: row.id, status: row.status, kind: row.kind, area: def.area },
+      idempotencyKey: `customer360-rule:${rule.id}:${row.id}:${row.status}`,
+    });
+    if (result?.success) sent++;
+  }
+  return sent;
+}
 async function evaluateCustomer360Alerts() {
   const { rows: rules } = await db.query(
     `SELECT a.*,u.role,u.preferred_language FROM admin_customer_alert_rules a JOIN users u ON u.id=a.admin_id WHERE a.enabled AND u.role IN ('admin','super_admin') AND COALESCE(u.totp_enabled,false)=true AND u.is_active=true AND COALESCE(u.is_banned,false)=false AND COALESCE(u.is_suspended,false)=false ORDER BY a.last_evaluated_at ASC NULLS FIRST,a.id LIMIT 50`,
@@ -17,6 +49,10 @@ async function evaluateCustomer360Alerts() {
           params: { userId: rule.customer_id },
         };
       if (!def || !(await service.access(req)(def))) continue;
+      if (!rule.customer_id) {
+        sent += await evaluatePlatformAnomalyRule(rule, def);
+        continue;
+      }
       await service.target(req);
       const { rows } = await db.query(
         `WITH scoped AS (${def.sql}) SELECT s.id,s.status FROM scoped s WHERE s.status=ANY($2::text[]) AND s.occurred_at<=now()-($3*interval '1 minute')
@@ -86,4 +122,4 @@ function startCustomer360Alerts() {
     },
   };
 }
-module.exports = { evaluateCustomer360Alerts, startCustomer360Alerts };
+module.exports = { evaluateCustomer360Alerts, evaluatePlatformAnomalyRule, startCustomer360Alerts };

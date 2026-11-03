@@ -44,6 +44,20 @@ router.delete('/payout-destinations/:id', authenticate, rejectImpersonated, paym
 router.get('/privacy/erasure', authenticate, ctrl.getErasureStatus);
 router.post('/privacy/erasure', authenticate, rejectImpersonated, ctrl.requestErasure);
 
+// Licence readiness §7/§8/§10 (controllers/creditLicenceConsumerController).
+const licence = require('../controllers/creditLicenceConsumerController');
+router.post('/privacy/erasure/credit-disposition', authenticate, rejectImpersonated, paymentsLimiter, licence.chooseErasureDisposition);
+router.get('/credit/disclosures', generalLimiter, licence.getDisclosures);
+router.get('/credit/disclosures/mine', authenticate, licence.getDisclosures);
+router.post('/credit/disclosures/accept', authenticate, rejectImpersonated, generalLimiter, licence.acceptDisclosures);
+router.get('/credit/wage-consent', authenticate, licence.getWageConsent);
+router.post('/credit/wage-consent', authenticate, rejectImpersonated, generalLimiter, licence.grantWageConsent);
+router.post('/credit/wage-consent/withdraw', authenticate, rejectImpersonated, generalLimiter, licence.withdrawWageConsent);
+router.get('/credit/wind-down', generalLimiter, licence.getWindDownStatus);
+router.get('/credit/wind-down/mine', authenticate, licence.getMyWindDownStatus);
+router.get('/cashout/disputes', authenticate, licence.listCashoutDisputes);
+router.post('/cashout/:id/dispute', authenticate, rejectImpersonated, paymentsLimiter, licence.openCashoutDispute);
+
 router.use(errorHandler);
 
 module.exports = router;

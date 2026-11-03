@@ -2,6 +2,7 @@
 
 const cron = require('node-cron');
 const { startCustomer360Alerts } = require('../jobs/customer360Alerts');
+const { startCustomer360Upgrades } = require('../jobs/customer360Upgrades');
 const { startMetricThresholdAlerts } = require('../jobs/metricThresholdAlerts');
 const { startMetricSnapshots } = require('../jobs/metricSnapshots');
 const { startBroadcastDelivery } = require('../jobs/broadcastDelivery');
@@ -150,6 +151,7 @@ class BackgroundWorkers {
       startJobEventOutboxJob();
       this.handles.push(startRestaurantScreenSync());
       this.handles.push(startCustomer360Alerts());
+      this.handles.push(startCustomer360Upgrades());
       this.handles.push(startMetricThresholdAlerts());
       this.handles.push(startMetricSnapshots());
       this.handles.push(startBroadcastDelivery());

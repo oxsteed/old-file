@@ -1,0 +1,36 @@
+/* Helper-facing OxSteed Credit licence panels. Logical properties only so
+   Arabic (RTL) mirrors without overrides. Colours reuse the Credit page
+   tokens from OxsteedCreditPage.css and fall back for other hosts. */
+.ox-licence-panel { margin-block-start: 18px; }
+.ox-licence-body { display: grid; gap: 16px; padding-inline: 23px; padding-block-end: 20px; }
+.ox-licence-block { display: grid; gap: 8px; }
+.ox-licence-block h3, .ox-licence-form h3, .ox-licence-form h4, .ox-licence-terms h3, .ox-licence-terms h4 { margin: 0; color: var(--oc-ink, inherit); font-size: 15px; font-weight: 750; }
+.ox-licence-copy { margin: 0; color: var(--oc-muted, #555); font-size: 13px; line-height: 1.55; }
+.ox-licence-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ox-licence-list li { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px; padding-block: 10px; padding-inline: 12px; border: 1px solid var(--oc-line, #ddd); border-radius: 12px; background: var(--oc-surface-soft, transparent); }
+.ox-licence-list li > div:first-child { display: grid; gap: 3px; min-inline-size: 0; }
+.ox-licence-list small { color: var(--oc-muted, #666); font-size: 12px; }
+.ox-licence-list p { margin: 0; font-size: 12px; }
+.ox-licence-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ox-licence-actions button, .ox-licence-form button, .ox-licence-secondary { min-block-size: 38px; padding-inline: 14px; border: 1px solid var(--oc-line, #ccc); border-radius: 10px; background: var(--oc-surface, #fff); color: var(--oc-ink, inherit); font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
+.ox-licence-form button[type="submit"] { border-color: transparent; background: var(--oc-accent, #b65a0c); color: #fff; }
+.ox-licence-actions button:disabled, .ox-licence-form button:disabled { opacity: .55; cursor: not-allowed; }
+.ox-licence-secondary { justify-self: start; }
+.ox-licence-link { justify-self: start; padding: 0; border: 0; background: none; color: var(--oc-accent, #b65a0c); font: inherit; font-size: 13px; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.ox-licence-form { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--oc-line, #ddd); border-radius: 14px; }
+.ox-licence-form label { display: grid; gap: 5px; color: var(--oc-muted, #555); font-size: 12px; font-weight: 700; }
+.ox-licence-form input:not([type="checkbox"]):not([type="radio"]), .ox-licence-form select, .ox-licence-form textarea { inline-size: 100%; min-block-size: 40px; box-sizing: border-box; padding-inline: 11px; padding-block: 8px; border: 1px solid var(--oc-line, #ccc); border-radius: 10px; background: var(--oc-surface-soft, #fff); color: var(--oc-ink, inherit); font: inherit; font-size: 13px; }
+.ox-licence-form fieldset { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; }
+.ox-licence-form legend { margin-block-end: 4px; color: var(--oc-muted, #555); font-size: 12px; font-weight: 700; }
+.ox-licence-inline { display: flex !important; align-items: center; gap: 8px; font-weight: 600 !important; }
+.ox-licence-terms { padding: 14px; border-inline-start: 3px solid var(--oc-accent, #b65a0c); border-radius: 10px; background: var(--oc-surface-soft, #fafafa); }
+.ox-licence-terms p { margin-block: 6px 0; white-space: pre-line; font-size: 13px; line-height: 1.6; }
+.ox-licence-status { display: inline-flex; inline-size: fit-content; margin-inline-start: 6px; padding-block: 2px; padding-inline: 8px; border-radius: 999px; background: var(--oc-surface-soft, #eee); font-size: 11px; font-weight: 800; }
+.ox-licence-status-verified, .ox-licence-status-paid, .ox-licence-status-resolved_paid_confirmed, .ox-licence-status-resolved_reissued { color: var(--oc-green, #19703f); background: var(--oc-green-soft, #e3f5ea); }
+.ox-licence-status-failed, .ox-licence-status-rejected { color: #a3261b; background: #fdecea; }
+.ox-licence-banner { margin-block: 18px; padding-block: 16px; padding-inline: 20px; border: 1px solid #e0a43a; border-radius: 16px; background: #fff6e5; color: #5a3b00; }
+.ox-licence-banner h2 { margin: 0 0 6px; font-size: 17px; }
+.ox-licence-banner p { margin: 4px 0 0; font-size: 13px; line-height: 1.55; }
+.ox-licence-status-ready { color: var(--oc-green, #19703f); background: var(--oc-green-soft, #e3f5ea); }
+.ox-licence-status-missing { color: #a3261b; background: #fdecea; }
+.ox-licence-status-cooling_off { color: #5a3b00; background: #fff6e5; }

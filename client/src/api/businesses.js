@@ -149,3 +149,9 @@ export const updateBusinessSkills  = (bizId, payload)    => api.put(`/businesses
 // businesses. Pass an AbortSignal to cancel obsolete requests.
 export const getAttention = (params = {}, signal) =>
   api.get('/businesses/attention', { params, signal }).then(r => r.data);
+
+// ── Business-scoped Customer 360 (read-only, audited) ─────────────────────────
+export const listBusinessCustomers360   = (id, params = {}, config = {}) =>
+  api.get(`/businesses/${id}/customer360/customers`, { params, ...config }).then(r => r.data);
+export const getBusinessCustomer360     = (id, key, config = {}) =>
+  api.get(`/businesses/${id}/customer360/customers/${encodeURIComponent(key)}`, config).then(r => r.data);

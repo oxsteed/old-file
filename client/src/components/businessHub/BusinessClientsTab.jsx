@@ -17,6 +17,7 @@ import { formatDate, formatMoney } from '../../lib/format';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import { SuggestDropdown } from '../SuggestDropdown';
 import '../../styles/BusinessClientsTab.css';
+import BusinessCustomer360 from './BusinessCustomer360';
 
 const STATUSES = [
   { id: 'all',      label: 'all' },
@@ -214,6 +215,7 @@ export default function BusinessClientsTab({ bizId, businessName, currency }) {
   const [sort, setSort] = useState('recent');
   const [modalOpen, setModalOpen] = useState(false);
   const [draft, setDraft] = useState(null);
+  const [view, setView] = useState('crm');
 
   const load = useCallback(async () => {
     if (!bizId) return;
@@ -308,6 +310,16 @@ export default function BusinessClientsTab({ bizId, businessName, currency }) {
         </button>
       </div>
 
+      <div className="bct-status-row" role="group" aria-label={t('businessCustomer360.viewLabel')}>
+        <button type="button" className={'bct-status-pill' + (view === 'crm' ? ' active' : '')} aria-pressed={view === 'crm'} onClick={() => setView('crm')} data-track="ui.abb74c9eaf.10">
+          {t('businessCustomer360.viewCrm')}
+        </button>
+        <button type="button" className={'bct-status-pill' + (view === '360' ? ' active' : '')} aria-pressed={view === '360'} onClick={() => setView('360')} data-track="ui.abb74c9eaf.11">
+          {t('businessCustomer360.view360')}
+        </button>
+      </div>
+
+      {view === '360' ? <BusinessCustomer360 bizId={bizId} currency={currency} /> : (<>
       <div className="bct-summary">
         <div><strong>{total || counts.all}</strong><span>{t('businessClients.cardTotal')}</span></div>
         <div><strong>{counts.active}</strong><span>{t('businessClients.cardActive')}</span></div>
@@ -379,6 +391,7 @@ export default function BusinessClientsTab({ bizId, businessName, currency }) {
           ))}
         </div>
       )}
+      </>)}
 
       <ClientFormModal
         open={modalOpen}

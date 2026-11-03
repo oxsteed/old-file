@@ -1,6 +1,6 @@
 # OxSteed Credit Production Runbook
 
-OxSteed Credit is a restricted stored-value rail. It is not a bank account, deposit account, cash equivalent, or promise of banking services. Customers can spend only at restaurants covered by an active partner agreement and any customer entitlement or location, category, order-type, and limit rules attached to that agreement.
+OxSteed Credit is a stored-value balance. It is not a bank account, deposit account or promise of banking services, and it is not deposit-insured. Customers can spend it at restaurants covered by an active partner agreement and any customer entitlement or location, category, order-type and limit rules attached to that agreement. Customers can also send it to other OxSteed users. Helpers who consent can receive wages and tips in Credit. Holders can redeem at face value by cashing out to a verified bank account in their own name. Customer-facing wording comes from the published disclosure versions; see Licence Readiness Controls.
 
 ## Release Gate
 
@@ -632,6 +632,173 @@ and keep `FILE_SCAN_REQUIRE_MALWARE=true`; verify the ClamAV health endpoint
 before launch. When uploads are not part of the Credit workflow, static
 validation remains available for the rest of the application, but it is not a
 substitute for malware scanning in a high-risk stored-value deployment.
+
+## Licence Readiness Controls
+
+Super administrators manage these controls at **Admin → Super → OxSteed Credit → Licence controls**
+(`/admin/super/oxsteed-credit/licence`). The API is under `/api/admin/super/credit-licence`.
+
+### Two-admin rule
+
+Every change to customer money or to a licence control is an **oversight action**. One administrator
+requests it with `POST /api/admin/super/credit-licence/oversight-actions` (`{ actionType, payload }`, with an
+`Idempotency-Key` header). A **different** administrator approves or rejects it with
+`POST .../oversight-actions/:id/decision`. Approval needs an authenticator step-up challenge
+(`actionType: pending_action_approve`). The requester can never approve their own action, and this is
+enforced in the database transaction, not only in the UI. Requests expire if nobody decides them.
+Bank payout confirmations work the same way: the second confirmation must come from a different
+administrator and must give the same answer.
+
+Registered action types: `credit_access_review_complete`, `credit_business_holiday_set`,
+`credit_cashout_dispute_resolve`, `credit_cashout_release`, `credit_disclosure_publish`,
+`credit_dormancy_policy_set`, `credit_escheat_execute`, `credit_escheat_reclaim`, `credit_escheat_remit`,
+`credit_kyc_requirement_waive`, `credit_limit_reference_rate_update`, `credit_limit_rule_update`,
+`credit_safeguarding_account_add`, `credit_safeguarding_balance_entry`, `credit_sanctions_custom_entry_add`,
+`credit_sanctions_custom_entry_remove`, `credit_sar_approve`, `credit_wind_down_start`,
+`credit_wind_down_issue_redemptions`, `credit_wind_down_mark_unclaimed`, `credit_wind_down_complete` and
+`credit_wind_down_cancel`.
+
+Manual admin credit adjustments (P3-1009) are out of scope for this work and are unchanged.
+
+### Consumer protection: dispute clocks
+
+- **Card and wallet disputes.** The SLA sweep (`CREDIT_DISPUTE_SLA_CRON`, default every 15 minutes)
+  tracks two clocks:
+  - provisional credit within **10 business days**;
+  - a final answer within **45 days**, or **90 days** for new accounts and cross-border transactions.
+
+  Business days skip weekends and the holidays in `credit_business_holidays`. Change holidays only
+  through `credit_business_holiday_set`. Overdue clocks open a compliance case and appear as
+  **Overdue** on the Consumer protection tab.
+- **Cash-outs not received.** A customer can report a missing cash-out after it was sent
+  (`POST /api/payment-layers/cashout/:id/dispute`). We must acknowledge it within 10 business days
+  and answer within 45 days. Resolve it with `credit_cashout_dispute_resolve`. The customer sees
+  the resolution text, so write it for them.
+- `OXSTEED_CREDIT_DISPUTE_POLICY_ADMIN_ID` names the system administrator recorded on automatic
+  provisional credits.
+
+### Disclosures and wage consent
+
+- **Disclosures.** Customers must accept the current OxSteed Credit terms before they add or receive
+  Credit. Built-in placeholder wording ships in `server/locales/credit-disclosures.json`.
+  **Counsel-approved text must be published per language with `credit_disclosure_publish` before
+  launch.** Publishing a new version asks every customer to accept again.
+- **Wage consent.** Helpers can be paid in Credit only with their recorded consent. They can withdraw
+  it at any time and choose another method. Consent is always recorded. It is enforced only when
+  `OXSTEED_CREDIT_WAGE_CONSENT_REQUIRED=true`. Set this flag before paying wages in Credit in any
+  jurisdiction that requires consent.
+
+### Money out
+
+- **Payout destinations.** Cash-outs go only to a verified bank account in the holder's own name,
+  checked with two micro-deposits or a reference code. The first cash-out to a new account is held
+  for a cooling-off period.
+- **Step-up.** Large cash-outs need an emailed step-up code
+  (`POST /api/payment-layers/cashout/stepup-challenges`).
+- **Holds.** Held cash-outs are released with `credit_cashout_release` or rejected (the money returns
+  to the balance).
+- **Bank payouts.** Export a batch from the Money out tab. After matching the bank statement, two
+  administrators each confirm every instruction as **paid** or **returned**.
+  Statuses: `pending_export` → `exported` → `paid` | `returned` (or `canceled`).
+
+### Dormancy and unclaimed property
+
+Nothing expires. A dormant balance stays owed to its holder.
+
+- The daily sweep (`CREDIT_DORMANCY_CRON`) runs only when `OXSTEED_CREDIT_DORMANCY_ENABLED=true`, and
+  only for countries with an enabled policy set through `credit_dormancy_policy_set`. Each policy holds
+  the dormancy period, notice days, authority and email copy from that country's law.
+- **Default is off.** Legal must supply each jurisdiction's policy before you enable the sweep.
+- The case flow is:
+  1. The sweep sends a due-diligence notice.
+  2. Any activity or sign-in closes the case as `reactivated`.
+  3. After the deadline the case becomes `escheat_due`.
+  4. `credit_escheat_execute` moves the balance to the unclaimed-property liability.
+  5. `credit_escheat_reclaim` returns it after an identity check.
+  6. `credit_escheat_remit` records payment to the authority, using the authority's reference.
+- **Erasure requests.** When a customer still has a balance, their erasure request waits. The customer
+  can choose to hand the balance to the unclaimed-property process
+  (`/api/payment-layers/privacy/erasure/credit-disposition`), and then erasure continues.
+
+### Access reviews
+
+The weekly job (`CREDIT_ACCESS_REVIEW_CRON`) opens the quarter's review. The review lists every
+admin role, every grant and every API key. Each item must be kept or revoked by someone who is
+not its holder. The review is completed with `credit_access_review_complete`, which needs a second
+administrator and requires a decision on every item. Revocations take effect when the review
+completes. Keep the completed review as audit evidence.
+
+### Regulator report packs
+
+From the Reports tab, generate a pack for a period. Pack types:
+
+- money services call report;
+- safeguarding attestation;
+- complaint log;
+- AML summary;
+- large transactions;
+- dormancy and escheat.
+
+Each pack stores its CSV files and a SHA-256 manifest. Every download is written to the audit log.
+The packs are **evidence for filings**. They are not filings themselves: compliance staff submit
+them to the regulator.
+
+### Audit-chain anchoring
+
+Every night (`CREDIT_AUDIT_ANCHOR_CRON`, default 23:55) the job anchors the following outside the
+database:
+
+- the Credit audit chain head;
+- the admin audit chain head;
+- the ledger head digest;
+- per-currency balance totals.
+
+Each anchor also chains to the previous one. There are two outside copies, and you can configure
+one or both:
+
+- Email through Resend to `OXSTEED_AUDIT_ANCHOR_EMAILS`. This should be a mailbox outside OxSteed's
+  control, for example the external auditor.
+- An object in R2: `OXSTEED_AUDIT_ANCHOR_R2_BUCKET`, `OXSTEED_AUDIT_ANCHOR_R2_ENDPOINT`,
+  `OXSTEED_AUDIT_ANCHOR_R2_ACCESS_KEY_ID`, `OXSTEED_AUDIT_ANCHOR_R2_SECRET_ACCESS_KEY`. Objects are
+  written with `If-None-Match`. **Configure an R2 bucket lock rule** for retention.
+
+The verify job (`CREDIT_AUDIT_ANCHOR_VERIFY_CRON`) recomputes recent anchors. Any mismatch logs
+`credit_audit_anchor.mismatch` and opens an `audit_anchor_mismatch` compliance case. Treat a mismatch
+as a critical incident: freeze the rail and preserve the database.
+
+### Wind-down and redemption
+
+Every step is an oversight action that needs two administrators.
+
+1. **`credit_wind_down_start`.** Give at least 30 days' notice. Starting the wind-down snapshots every
+   holder (customer wallets and helper wage balances) and freezes new Credit activity in the same
+   transaction. Reconciliation, screening, anchoring and redemptions keep running.
+2. **Notify holders.** Each holder gets an email in their language with the deadline. Customers also
+   see the wind-down banner on the Wallet and Credit pages.
+3. **`credit_wind_down_issue_redemptions`.** This reserves each balance and creates a bank payout
+   instruction to the holder's verified account. Two administrators confirm each instruction as
+   paid or returned. A returned redemption releases the reservation, and the holder can add another
+   account.
+4. **`credit_wind_down_mark_unclaimed`.** After the deadline, this moves what is left to unclaimed
+   property, using the dormancy and escheat flow above.
+5. **`credit_wind_down_complete`.** Use this once nothing is owed or in flight.
+
+**Cancelling a wind-down.** `credit_wind_down_cancel` needs a reason and lifts the freeze. It is
+refused while any redemption is still at the bank. Wait for those instructions to be confirmed as
+paid or returned before you cancel.
+
+### Before enabling for real customers
+
+These items cannot be done in code:
+
+- licences and registrations for each jurisdiction;
+- counsel sign-off on disclosures, followed by publishing them;
+- a safeguarding bank account and its registration through `credit_safeguarding_account_add`;
+- dormancy policies for each country;
+- holiday calendars for each jurisdiction;
+- the anchor email recipient and the R2 bucket with a lock rule;
+- regulator filing accounts;
+- the decisions to enable `OXSTEED_CREDIT_WAGE_CONSENT_REQUIRED` and `OXSTEED_CREDIT_DORMANCY_ENABLED`.
 
 ## Provider and Compliance Gaps
 

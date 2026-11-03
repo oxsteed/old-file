@@ -86,6 +86,7 @@ const OxsteedCreditMoneyOutPage = lazyWithRetry(() => import('./pages/super/oxst
 const OxsteedCreditCardsPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/CardsPage'));
 const OxsteedCreditLedgerPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/LedgerPage'));
 const OxsteedCreditBackfillPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/BackfillPage'));
+const OxsteedCreditLicencePage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/LicencePage'));
 
 // OxSteed Logistics admin pages (migration 247)
 const LogisticsAdminDashboard = lazyWithRetry(() => import('./pages/logistics/LogisticsAdminDashboard'));
@@ -440,6 +441,9 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('oxsteedCreditBackfill').relative} element={
             <AdminGuard superOnly={adminRoute('oxsteedCreditBackfill').superOnly}><OxsteedCreditBackfillPage /></AdminGuard>
+          } />
+          <Route path={adminRoute('oxsteedCreditLicence').relative} element={
+            <AdminGuard superOnly={adminRoute('oxsteedCreditLicence').superOnly}><OxsteedCreditLicencePage /></AdminGuard>
           } />
           <Route path={adminRoute('financials').relative} element={
             <GrantGuard grant={adminRoute('financials').grant}><Financials /></GrantGuard>

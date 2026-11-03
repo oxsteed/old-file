@@ -53,6 +53,8 @@ import { formatCreditDateTime } from '../../lib/creditDateTime';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
 import { localizeCreditOrderType, localizeCreditTransactionType } from '../../lib/creditStatus';
 import { canConfirmTransfer, canEnterTransferReview, isValidTransferRecipientId } from '../../lib/transferReviewGuards';
+import CreditWindDownBanner from '../../components/paymentLayers/CreditWindDownBanner';
+import CreditDisclosuresPanel from '../../components/paymentLayers/CreditDisclosuresPanel';
 
 const money = formatCreditMinorUnits;
 
@@ -1016,6 +1018,9 @@ export default function OxsteedCreditPage() {
               </button>
             </div>
           </header>
+
+          <CreditWindDownBanner />
+          <CreditDisclosuresPanel currency={selectedCurrency} />
 
           {railStatus && !railStatus.enabled && <section className="ox-credit-rail-note" role="status"><AlertCircle size={19} /><div><strong>{t('pausedTitle')}</strong><span>{t('pausedBody')}</span></div></section>}
 

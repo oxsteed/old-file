@@ -9,6 +9,12 @@ jest.mock('../services/careers/privacy', () => ({
   exportData: jest.fn().mockResolvedValue({ careers: { applications: [] } }),
   erase: jest.fn().mockResolvedValue({}),
 }));
+// Customer 360 sections have real-database coverage (customer360Privacy.db.test.js).
+jest.mock('../services/customer360Privacy', () => ({
+  exportData: jest.fn().mockResolvedValue({ customer360_records: {} }),
+  erase: jest.fn().mockResolvedValue({}),
+  categories: jest.fn().mockResolvedValue([]),
+}));
 
 // L3: export verification HMAC fails closed without a dedicated secret.
 process.env.EXPORT_VERIFICATION_SECRET = 'test-export-verification-secret';

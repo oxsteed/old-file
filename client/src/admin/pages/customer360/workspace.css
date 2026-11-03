@@ -285,3 +285,219 @@
 
 :dir(rtl) .c360w-edge { transform: scaleX(-1); }
 .c360w article > header h3 { margin: 0; }
+/* Customer 360 upgrade panels (logical properties only; RTL-safe). */
+.c360u-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+.c360u-row label {
+  display: grid;
+  gap: 0.25rem;
+  min-inline-size: 0;
+}
+.c360u-events {
+  list-style: none;
+  padding-inline-start: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.c360u-events > li {
+  display: grid;
+  gap: 0.25rem;
+  border-inline-start: 3px solid var(--color-border);
+  padding-inline-start: 0.75rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.c360u-events ul {
+  margin: 0;
+  padding-inline-start: 1rem;
+}
+.c360u-replay {
+  border: 1px dashed var(--color-border);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  margin-block-start: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+.c360u dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.c360u dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.c360u-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 0.75rem;
+}
+.c360u-card {
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.c360u-card[data-band="high"] {
+  border-inline-start: 4px solid var(--color-primary);
+}
+.c360u-card table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.c360u-card th,
+.c360u-card td {
+  text-align: start;
+  vertical-align: top;
+  padding-block: 0.25rem;
+  padding-inline-end: 0.5rem;
+}
+.c360u-card small {
+  display: block;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+.c360u-score strong {
+  font-size: 1.4rem;
+}
+.c360u-sr {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.c360u-reply {
+  display: grid;
+  gap: 0.5rem;
+}
+.c360u-reply label {
+  display: grid;
+  gap: 0.25rem;
+}
+.c360u-reply textarea,
+.c360u-reply input {
+  inline-size: 100%;
+}
+.c360u fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.c360u-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-block-size: 44px;
+}
+.c360u-check input {
+  min-block-size: auto;
+}
+.c360u-graph {
+  inline-size: 100%;
+  max-inline-size: 18rem;
+  block-size: auto;
+}
+.c360u-graph text {
+  font-size: 10px;
+  fill: var(--color-text);
+}
+.c360u-edge {
+  stroke: var(--color-border);
+}
+.c360u-node {
+  fill: var(--color-surface-2);
+  stroke: var(--color-text-muted);
+}
+.c360u-node.is-self {
+  fill: var(--color-primary);
+}
+.c360u-node.is-suspended {
+  stroke-dasharray: 3 2;
+}
+.c360u-scroll {
+  max-inline-size: 100%;
+  overflow-x: auto;
+}
+.c360u-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.c360u-bar {
+  display: inline-block;
+  block-size: 0.6rem;
+  min-inline-size: 2px;
+  max-inline-size: 8rem;
+  border-radius: 3px;
+  background: var(--color-primary);
+}
+.c360u-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+[data-direction="out"] {
+  border-inline-start: 3px solid var(--color-primary);
+  padding-inline-start: 0.5rem;
+}
+.c360u-flag {
+  color: var(--color-danger, #b42318);
+  font-weight: 600;
+}
+.c360u fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  min-inline-size: 0;
+}
+.c360u-staleness {
+  border-inline-start: 4px solid var(--color-border);
+  padding-block: 0.25rem;
+  padding-inline-start: 0.5rem;
+}
+.c360u-staleness[data-staleness="fresh"] {
+  border-inline-start-color: var(--color-success, #067647);
+}
+.c360u-staleness[data-staleness="dirty"],
+.c360u-staleness[data-staleness="stale"],
+.c360u-staleness[data-staleness="outdated_model"] {
+  border-inline-start-color: var(--color-warning, #b54708);
+}
+.c360u-staleness[data-staleness="missing"] {
+  border-inline-start-color: var(--color-danger, #b42318);
+}
+.c360u-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  margin-block-start: 0.75rem;
+}
+.c360u-table th,
+.c360u-table td {
+  text-align: start;
+  padding-block: 0.25rem;
+  padding-inline: 0.5rem;
+  border-block-end: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+}
+.c360u-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+}

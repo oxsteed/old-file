@@ -36,11 +36,17 @@ function JobEditContent() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [failure, setFailure] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [reloading, setReloading] = useState(false);
   const idempotencyKey = useRef(newIdempotencyKey());
   const summaryRef = useRef(null);
 
   useEffect(() => { void fetchJob(id); }, [id, fetchJob]);
-  useEffect(() => { if (job && String(job.id) === String(id)) setForm(formFromJob(job)); }, [job?.id, job?.version, id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Prefill exactly once per mount (the page remounts per job id). Later job
+  // updates never reset the form on their own: "Load the latest version" is
+  // the only path that replaces the user's edits, and it does so once.
+  useEffect(() => {
+    if (job && String(job.id) === String(id)) setForm((current) => current ?? formFromJob(job));
+  }, [job, id]);
 
   const draft = useMemo(() => (job && form ? buildJobPatch(job, form) : null), [job, form]);
   const accepted = ACCEPTED_JOB_STATUSES.includes(job?.status);
@@ -112,21 +118,34 @@ function JobEditContent() {
     }
   }
 
+  // Conflict recovery: the fields are disabled while the latest version loads,
+  // then the form, the conflict state and the field errors are replaced in one
+  // update, so nothing typed after the reload can be overwritten. If the reload
+  // fails, the conflict message (and this button) stay for a retry.
   async function reloadLatest() {
-    setFailure(null);
-    setFieldErrors({});
-    const latest = await fetchJob(id);
-    if (latest) setForm(formFromJob(latest));
+    if (reloading) return;
+    setReloading(true);
+    try {
+      const latest = await fetchJob(id);
+      if (latest && String(latest.id) === String(id)) {
+        setForm(formFromJob(latest));
+        setFailure(null);
+        setFieldErrors({});
+      }
+    } finally {
+      setReloading(false);
+    }
   }
+  const busy = saving || reloading;
 
   const textField = (field, { type = 'text', multiline = false, max, min, required = false, autoComplete } = {}) => (
     <div className="jdp-field">
       <label htmlFor={`${formId}-${field}`}>{t(`jobEdit.fields.${labelFor(field)}`)}{required ? ' *' : ''}</label>
       {multiline
         ? <textarea id={`${formId}-${field}`} rows={5} value={form[field]} onChange={set(field)} maxLength={max} minLength={min}
-            required={required} disabled={lockedNow(field) || saving} aria-invalid={Boolean(fieldErrors[field])} aria-describedby={describedBy(field)} />
+            required={required} disabled={lockedNow(field) || busy} aria-invalid={Boolean(fieldErrors[field])} aria-describedby={describedBy(field)} />
         : <input id={`${formId}-${field}`} type={type} value={form[field]} onChange={set(field)} maxLength={max} minLength={min}
-            required={required} disabled={lockedNow(field) || saving} autoComplete={autoComplete}
+            required={required} disabled={lockedNow(field) || busy} autoComplete={autoComplete}
             aria-invalid={Boolean(fieldErrors[field])} aria-describedby={describedBy(field)} />}
       {max && multiline && <span className="jdp-char-count">{form[field].length} / {max}</span>}
       {errorFor(field)}
@@ -135,7 +154,7 @@ function JobEditContent() {
   const selectField = (field, options, optionKey) => (
     <div className="jdp-field">
       <label htmlFor={`${formId}-${field}`}>{t(`jobEdit.fields.${labelFor(field)}`)}</label>
-      <select id={`${formId}-${field}`} value={form[field]} onChange={set(field)} disabled={lockedNow(field) || saving}
+      <select id={`${formId}-${field}`} value={form[field]} onChange={set(field)} disabled={lockedNow(field) || busy}
         aria-invalid={Boolean(fieldErrors[field])} aria-describedby={describedBy(field)}>
         {options.map((option) => <option key={option} value={option}>{t(`jobEdit.${optionKey}.${option}`)}</option>)}
       </select>
@@ -157,18 +176,18 @@ function JobEditContent() {
           <div ref={summaryRef} tabIndex={-1} aria-live="assertive">
             {failure && <div className="jdp-bid-error" role="alert">
               <p>{t(`jobEdit.failures.${failure}`)}</p>
-              {failure === 'conflict' && <button type="button" className="jdp-btn-ghost" onClick={reloadLatest} data-track="ui.72b588b129.2">{t('jobEdit.reloadLatest')}</button>}
+              {failure === 'conflict' && <button type="button" className="jdp-btn-ghost" onClick={reloadLatest} disabled={reloading} aria-busy={reloading} data-track="ui.72b588b129.2">{t('jobEdit.reloadLatest')}</button>}
             </div>}
             {Object.keys(fieldErrors).length > 0 && <p className="jdp-bid-error" role="alert">{t('jobEdit.fixErrors', { count: Object.keys(fieldErrors).length })}</p>}
           </div>
           <form onSubmit={handleSubmit} className="jdp-bid-form" noValidate data-track="ui.72b588b129.3">
-            <fieldset disabled={saving}>
+            <fieldset disabled={busy}>
               <legend className="jdp-small-heading">{t('jobEdit.sections.basics')}</legend>
               {textField('title', { max: SCHEMA_LIMITS.titleMax, min: SCHEMA_LIMITS.titleMin, required: true })}
               {textField('description', { multiline: true, max: SCHEMA_LIMITS.descriptionMax, min: SCHEMA_LIMITS.descriptionMin, required: true })}
               {textField('category_name', { max: JOB_FIELD_RULES.category_name.max })}
             </fieldset>
-            <fieldset disabled={saving}>
+            <fieldset disabled={busy}>
               <legend className="jdp-small-heading">{t('jobEdit.sections.budget')}</legend>
               {selectField('budget_type', JOB_FIELD_RULES.budget_type.options, 'budgetTypes')}
               {form.budget_type !== 'open' && <div className="jdp-bid-form-row">
@@ -176,7 +195,7 @@ function JobEditContent() {
                 {form.budget_type === 'range' && textField('budget_max', { type: 'text' })}
               </div>}
             </fieldset>
-            <fieldset disabled={saving}>
+            <fieldset disabled={busy}>
               <legend className="jdp-small-heading">{t('jobEdit.sections.timing')}</legend>
               {selectField('urgency', JOB_FIELD_RULES.urgency.options, 'urgencies')}
               <div className="jdp-bid-form-row">
@@ -186,7 +205,7 @@ function JobEditContent() {
               {selectField('recurrence', JOB_FIELD_RULES.recurrence.options, 'recurrences')}
               {selectField('site_access', JOB_FIELD_RULES.site_access.options, 'siteAccessOptions')}
             </fieldset>
-            <fieldset disabled={saving}>
+            <fieldset disabled={busy}>
               <legend className="jdp-small-heading">{t('jobEdit.sections.location')}</legend>
               {textField('location_address', { max: JOB_FIELD_RULES.location_address.max, autoComplete: 'street-address' })}
               <div className="jdp-bid-form-row">
@@ -198,7 +217,7 @@ function JobEditContent() {
                 {textField('location_country', { max: JOB_FIELD_RULES.location_country.max, required: true, autoComplete: 'country-name' })}
               </div>
             </fieldset>
-            <fieldset disabled={saving}>
+            <fieldset disabled={busy}>
               <legend className="jdp-small-heading">{t('jobEdit.sections.notes')}</legend>
               {textField('notes', { multiline: true, max: SCHEMA_LIMITS.notesMax })}
               {textField('private_notes', { multiline: true, max: SCHEMA_LIMITS.notesMax })}
@@ -206,7 +225,7 @@ function JobEditContent() {
             </fieldset>
             <div className="jdp-modal-actions">
               <Link className="jdp-btn-ghost" to={`/jobs/${id}`}>{t('jobEdit.cancel')}</Link>
-              <button type="submit" className="jdp-btn-primary" disabled={saving || !draft?.changedFields.length} data-track="ui.72b588b129.4">
+              <button type="submit" className="jdp-btn-primary" disabled={busy || !draft?.changedFields.length} data-track="ui.72b588b129.4">
                 {saving ? t('jobEdit.saving') : t('jobEdit.save')}
               </button>
             </div>

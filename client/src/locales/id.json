@@ -27207,7 +27207,8 @@
     "supportCsat": "CSAT",
     "supportQa": "Ulasan QA",
     "supportSettings": "Pengaturan",
-    "supportAuditLog": "Log Audit"
+    "supportAuditLog": "Log Audit",
+    "oxsteedCreditLicence": "Lisensi Credit"
   },
   "adminProfileVisibility": {
     "title": "Visibilitas profil",
@@ -34290,7 +34291,40 @@
         "submitted": "diproses",
         "paid": "lunas",
         "failed": "gagal",
-        "cancelled": "dibatalkan"
+        "cancelled": "dibatalkan",
+        "held_for_review": "sedang ditinjau",
+        "submitting": "sedang dikirim",
+        "canceled": "dibatalkan",
+        "rejected": "ditolak"
+      },
+      "payTo": "Bayar ke",
+      "chooseDestination": "Pilih rekening bank yang sudah diverifikasi",
+      "noVerifiedDestination": "Tambahkan dan verifikasi rekening bank atas nama Anda terlebih dahulu.",
+      "stepupNeeded": "Untuk jumlah ini kami akan mengirim kode lewat email untuk konfirmasi.",
+      "stepupTitle": "Konfirmasi bahwa ini Anda",
+      "stepupSent": "Kami telah mengirim kode lewat email. Masukkan untuk mengonfirmasi penarikan.",
+      "stepupCode": "Kode",
+      "confirm": "Konfirmasi penarikan",
+      "cancel": "Batal",
+      "cancelConfirm": "Batalkan penarikan {{amount}} ini? Uang akan kembali ke saldo Anda.",
+      "cancelled": "Penarikan dibatalkan",
+      "availableOn": "Dikirim setelah {{date}}",
+      "underReview": "Kami sedang meninjau penarikan ini.",
+      "history": "Penarikan Anda",
+      "notReceived": "Saya tidak menerima ini",
+      "notReceivedTitle": "Laporkan penarikan {{amount}} yang tidak diterima",
+      "notReceivedHelp": "Ceritakan apa yang terjadi. Kami akan mengonfirmasi penerimaan laporan Anda dalam 10 hari kerja dan memberi jawaban akhir dalam 45 hari.",
+      "notReceivedDescription": "Apa yang terjadi?",
+      "notReceivedSubmit": "Kirim laporan",
+      "notReceivedSent": "Laporan terkirim. Kami akan terus mengabari Anda lewat email.",
+      "disputeDue": "Kami akan menjawab paling lambat {{date}}",
+      "disputesTitle": "Laporan Anda",
+      "disputeStatus": {
+        "open": "diterima",
+        "investigating": "sedang diselidiki",
+        "resolved_paid_confirmed": "pembayaran dikonfirmasi",
+        "resolved_reissued": "dikirim ulang",
+        "rejected": "ditutup"
       }
     },
     "chat": {
@@ -34336,7 +34370,147 @@
       "cashout_destination_required": "Pilih ke mana uang dikirim.",
       "bid_currency_mismatch": "Tawaran harus dalam mata uang pekerjaan.",
       "impersonation_blocked": "Tidak diizinkan dalam sesi peniruan.",
-      "feature_disabled": "Tidak tersedia."
+      "feature_disabled": "Tidak tersedia.",
+      "cashout_kyc_tier_required": "Selesaikan pemeriksaan identitas tambahan untuk menarik dana.",
+      "cashout_reverification_required": "Harap verifikasi identitas Anda lagi untuk menarik dana.",
+      "cashout_destination_unverified": "Verifikasi rekening bank ini terlebih dahulu.",
+      "cashout_destination_currency_mismatch": "Rekening ini menggunakan mata uang lain.",
+      "cashout_destination_country_mismatch": "Rekening ini berada di negara lain.",
+      "cashout_not_cancelable": "Penarikan ini tidak dapat dibatalkan lagi.",
+      "cashout_not_found": "Penarikan tidak ditemukan.",
+      "cashout_dispute_not_paid": "Anda hanya dapat melaporkan penarikan setelah dikirim.",
+      "cashout_dispute_already_open": "Anda sudah melaporkan penarikan ini.",
+      "cashout_dispute_closed": "Laporan ini sudah ditutup.",
+      "cashout_dispute_description_required": "Ceritakan apa yang terjadi.",
+      "destination_not_found": "Rekening bank tidak ditemukan.",
+      "destination_not_verifiable": "Rekening ini tidak dapat diverifikasi sekarang.",
+      "destination_limit_reached": "Anda telah mencapai batas jumlah rekening bank.",
+      "destination_in_use": "Rekening ini memiliki penarikan yang sedang diproses.",
+      "destination_verification_mismatch": "Tidak cocok. Coba lagi.",
+      "destination_verification_locked": "Terlalu banyak percobaan. Tambahkan rekening lagi.",
+      "destination_verification_expired": "Verifikasi kedaluwarsa. Tambahkan rekening lagi.",
+      "destination_country_invalid": "Masukkan kode negara 2 huruf.",
+      "destination_currency_invalid": "Masukkan kode mata uang 3 huruf.",
+      "destination_holder_required": "Masukkan nama pemilik rekening.",
+      "destination_bank_required": "Masukkan nama bank.",
+      "destination_account_invalid": "Masukkan nomor rekening yang valid (huruf dan angka).",
+      "destination_bank_code_invalid": "Periksa kode bank.",
+      "credit_stepup_challenge_invalid": "Kode itu tidak benar.",
+      "credit_stepup_challenge_expired": "Kode kedaluwarsa. Minta kode baru.",
+      "credit_stepup_challenge_required": "Masukkan kode yang kami kirim kepada Anda.",
+      "credit_disclosure_changed": "Ketentuan telah berubah. Harap baca versi terbaru.",
+      "credit_disclosure_acceptance_required": "Harap terima ketentuan OxSteed Credit terlebih dahulu.",
+      "credit_wage_consent_required": "Pembayaran dengan Credit memerlukan persetujuan Anda terlebih dahulu.",
+      "credit_erasure_no_balance": "Anda tidak memiliki saldo OxSteed Credit.",
+      "credit_escheat_reserved_funds": "Tunggu hingga pembayaran tertunda Anda selesai terlebih dahulu.",
+      "credit_rail_frozen": "OxSteed Credit sedang dijeda.",
+      "validation_failed": "Harap periksa detailnya dan coba lagi."
+    },
+    "common": {
+      "close": "Tutup"
+    },
+    "destinations": {
+      "title": "Rekening bank untuk penarikan",
+      "intro": "Penarikan hanya dikirim ke rekening bank atas nama Anda yang sudah diverifikasi. Penarikan pertama ke rekening baru menunggu {{days}} hari.",
+      "none": "Anda belum punya rekening bank.",
+      "add": "Tambah rekening bank",
+      "holderName": "Nama pemilik rekening",
+      "bankName": "Nama bank",
+      "bankCode": "Kode bank atau cabang (opsional)",
+      "accountNumber": "Nomor rekening",
+      "country": "Kode negara (2 huruf)",
+      "currency": "Kode mata uang (3 huruf)",
+      "method": "Cara memverifikasi rekening",
+      "methodMicro": "Dua setoran kecil",
+      "methodCode": "Kode di berita transfer",
+      "save": "Simpan rekening",
+      "added": "Rekening ditambahkan. Perhatikan transfer verifikasi dari kami.",
+      "verify": "Verifikasi",
+      "verifyTitle": "Verifikasi rekening berakhiran {{last4}}",
+      "verifyMicroHelp": "Masukkan dua jumlah kecil yang kami kirim ke rekening ini.",
+      "verifyCodeHelp": "Masukkan kode yang tertera di berita transfer kami.",
+      "amount1": "Jumlah pertama ({{currency}})",
+      "amount2": "Jumlah kedua ({{currency}})",
+      "code": "Kode",
+      "verified": "Rekening terverifikasi",
+      "attemptsLeft": "Sisa percobaan: {{count}}",
+      "coolingOff": "Penarikan pertama setelah {{date}}",
+      "remove": "Hapus",
+      "removeConfirm": "Hapus rekening berakhiran {{last4}}?",
+      "removed": "Rekening dihapus",
+      "status": {
+        "pending_verification": "menunggu verifikasi",
+        "verified": "terverifikasi",
+        "held_for_review": "sedang ditinjau",
+        "failed": "verifikasi gagal"
+      }
+    },
+    "wage": {
+      "title": "Dibayar dengan OxSteed Credit",
+      "intro": "Upah Anda hanya dapat dibayar sebagai OxSteed Credit jika Anda setuju. Anda dapat berubah pikiran kapan saja.",
+      "statusGranted": "Anda setuju pada {{date}} untuk dibayar dengan OxSteed Credit.",
+      "statusWithdrawn": "Anda memilih dibayar dengan cara lain: {{method}}.",
+      "statusNone": "Anda belum setuju untuk dibayar dengan OxSteed Credit.",
+      "readTerms": "Baca ketentuan",
+      "agree": "Saya setuju menerima upah saya dalam OxSteed Credit",
+      "grant": "Simpan pilihan saya",
+      "granted": "Terima kasih. Pilihan Anda tersimpan.",
+      "withdrawHelp": "Untuk berhenti, pilih cara Anda ingin dibayar.",
+      "alternative": "Bayar saya melalui",
+      "chooseAlternative": "Pilih metode",
+      "withdraw": "Hentikan pembayaran dengan Credit",
+      "withdrawn": "Pilihan Anda tersimpan.",
+      "alt": {
+        "bank_transfer": "transfer bank",
+        "cash": "tunai",
+        "check": "cek",
+        "other": "metode lain"
+      },
+      "requiredNote": "Pelanggan dapat membayar Anda di OxSteed Credit hanya setelah Anda setuju. Sampai saat itu, mereka akan membayarmu dengan cara lain."
+    },
+    "disclosures": {
+      "title": "Ketentuan OxSteed Credit",
+      "intro": "Harap baca ketentuan ini sebelum menambah atau menerima OxSteed Credit.",
+      "allAccepted": "Anda telah menerima ketentuan yang berlaku.",
+      "accepted": "diterima",
+      "showAll": "Tampilkan semua ketentuan",
+      "hideAll": "Sembunyikan ketentuan",
+      "accept": "Saya telah membaca dan menerima ketentuan ini",
+      "acceptButton": "Terima",
+      "acceptedToast": "Terima kasih. Persetujuan Anda tersimpan."
+    },
+    "windDown": {
+      "title": "OxSteed Credit akan ditutup",
+      "body": "Harap tarik atau belanjakan saldo Anda paling lambat {{date}}.",
+      "after": "Uang Anda tetap terlindungi. Sisa saldo setelah tanggal itu disimpan untuk Anda sebagai harta tak diklaim, dan Anda tetap dapat mengklaimnya.",
+      "destinationsTitle": "Dimana untuk mengirim uang Anda kembali",
+      "destinationsIntro": "Tambahkan rekening bank dalam nama Anda sendiri dan mengkonfirmasikannya sehingga kita dapat kembali saldo Anda sebelum {{date}}. Rekening baru dapat menerima uang setelah periode menunggu keamanan biasa.",
+      "holdingsLabel": "saldo Anda akan dikembalikan",
+      "destination": {
+        "ready": "Rekening bank siap",
+        "missing": "Tambahkan akun bank yang dikonfirmasi",
+        "cooling_off": "Rekening bank dapat menerima uang dari {{date}}"
+      },
+      "holderStatus": {
+        "pending": "Menunggu untuk dikembalikan",
+        "notified": "Menunggu untuk dikembalikan",
+        "instructed": "Pembayaran dikirim ke bank Anda",
+        "returned": "Bank Menerimanya. Tambahkan Menerimanya.",
+        "paid": "Kembali kepada Anda",
+        "zero": "Tak Mm-hmm.",
+        "unclaimed": "Disimpan untuk Anda sebagai properti yang tidak diklaim"
+      },
+      "addDestination": "Tambahkan rekening bank untuk mendapatkan uang zzle Bila Anda ingin LionTindakan Bagusnya",
+      "manageDestinations": "Periksa rekening bank Anda"
+    },
+    "erasure": {
+      "title": "Penghapusan data Anda ditunda",
+      "blocked": "Anda masih memiliki OxSteed Credit, jadi kami belum dapat menghapus data Anda.",
+      "redeem": "Anda dapat menarik atau membelanjakan saldo terlebih dahulu.",
+      "unclaimedHelp": "Atau kami dapat menyerahkan saldo Anda ke proses harta tak diklaim. Data Anda lalu dapat dihapus, dan Anda tetap dapat mengklaim uangnya nanti.",
+      "unclaimed": "Serahkan saldo saya sebagai harta tak diklaim",
+      "unclaimedConfirm": "Serahkan saldo Anda ke proses harta tak diklaim?",
+      "unclaimedDone": "Selesai. Permintaan penghapusan Anda akan dilanjutkan."
     }
   },
   "w9": {
@@ -34407,5 +34581,761 @@
     "changedOn": "Kebijakan Privasi kami berubah pada {{date}}.",
     "changesOn": "Kebijakan Privasi kami akan berubah pada {{date}}.",
     "dismiss": "Tutup"
+  },
+  "customerWorkspace": {
+    "areas": {
+      "events": "Change history",
+      "health": "Health and risk",
+      "anomalies": "Anomalies",
+      "links": "Linked accounts",
+      "lifecycle": "Lifecycle",
+      "inbox": "Inbox",
+      "playbooks": "Playbooks",
+      "queues": "Queues",
+      "summary": "Summary"
+    },
+    "events": {
+      "title": "Change history",
+      "hint": "Append-only record of who changed what for this customer. Only sources you are allowed to see are shown. Personal fields are recorded as changed, never copied.",
+      "importing": "Older history is still being imported. Some earlier changes may not appear yet.",
+      "source": "Source",
+      "allSources": "All sources you can see",
+      "actor": "Changed by",
+      "anyActor": "Anyone",
+      "verify": "Verify integrity",
+      "chainIntact": "Integrity verified for {{count}} events.",
+      "chainBroken": "Integrity check failed at event {{id}}. Escalate to security.",
+      "empty": "No recorded changes match these filters.",
+      "redacted": "changed (personal data not stored)",
+      "changed": "changed (details not stored)",
+      "replay": "Replay",
+      "older": "Load older changes",
+      "replayTitle": "{{entity}} {{id}} as recorded",
+      "asOf": "As of",
+      "rebuild": "Rebuild state",
+      "unknownFields": "Changed but not stored: {{fields}}",
+      "sources": {
+        "admin_audit": "Admin actions",
+        "login": "Sign-ins",
+        "payment": "Payments",
+        "support": "Support",
+        "food_order": "Food orders",
+        "customer360": "Customer 360"
+      },
+      "actors": {
+        "admin": "Admin",
+        "customer": "Customer",
+        "system": "System",
+        "business": "Business"
+      },
+      "entities": {
+        "admin_action": "Admin action",
+        "login": "Sign-in",
+        "payment": "Payment",
+        "support_ticket": "Support ticket",
+        "food_order": "Food order",
+        "task": "Case task"
+      },
+      "types": {
+        "admin": "Admin action: {{action}}",
+        "login": "Sign-in {{action}}",
+        "payment": "Payment {{action}}",
+        "support_ticket": "Support ticket {{action}}",
+        "food_order": "Food order {{action}}",
+        "task": "Case task {{action}}"
+      }
+    },
+    "health": {
+      "title": "Account health and risk",
+      "advisory": "Advisory only. These scores explain patterns in the account and never change it. Use existing procedures for any action.",
+      "computed": "Calculated {{time}} · model {{model}}",
+      "restricted": "You do not have access to the data behind this score.",
+      "factorsCaption": "Factors behind the score",
+      "factor": "Factor",
+      "value": "Value",
+      "points": "Points",
+      "never": "Never",
+      "contribution": "{{points}} of {{weight}}",
+      "activityValue": "{{recent}} in the last 30 days, {{previous}} in the 60 days before",
+      "recompute": "Recalculate now",
+      "scores": {
+        "churn": "Churn risk",
+        "payment": "Payment risk",
+        "support": "Support load"
+      },
+      "bands": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "factors": {
+        "inactivity": {
+          "label": "Days since last sign-in",
+          "explain": "No points up to 14 days; full points at 90 days or if never signed in."
+        },
+        "activityDrop": {
+          "label": "Drop in activity",
+          "explain": "Payments and food orders in the last 30 days compared with the 60 days before."
+        },
+        "newAccount": {
+          "label": "Account age in days",
+          "explain": "Accounts younger than 30 days get full points."
+        },
+        "failedPayments": {
+          "label": "Failed payments and payouts (90 days)",
+          "explain": "Full points at 3 or more failures."
+        },
+        "refunds": {
+          "label": "Refunds (90 days)",
+          "explain": "Full points at 4 or more refunds."
+        },
+        "openDisputes": {
+          "label": "Open OxSteed Credit disputes",
+          "explain": "Any open dispute gives full points."
+        },
+        "openTickets": {
+          "label": "Open support tickets",
+          "explain": "Full points at 3 or more open tickets."
+        },
+        "recentTickets": {
+          "label": "Support tickets (90 days)",
+          "explain": "Full points at 6 or more tickets."
+        },
+        "slaBreaches": {
+          "label": "Missed support deadlines (90 days)",
+          "explain": "Full points at 2 or more missed deadlines."
+        }
+      }
+    },
+    "ai": {
+      "policy": "Drafts come only from OxSteed's self-hosted AI model. Only source names, states and counts are used; nothing is sent, approved or changed.",
+      "mode": "Draft type",
+      "topic": "Reply topic",
+      "cites": "Based on:",
+      "subject": "Subject",
+      "body": "Message",
+      "replyNotice": "Edit before use. Nothing is sent from here; sending happens only from the inbox with your explicit action.",
+      "useInInbox": "Use in inbox",
+      "modes": {
+        "summary": "Case summary",
+        "next_step": "Suggested next steps",
+        "reply_draft": "Customer reply draft"
+      },
+      "topics": {
+        "general": "General question",
+        "verification": "Identity verification",
+        "payment": "Payment",
+        "order": "Order",
+        "account_access": "Account access",
+        "support_followup": "Support follow-up"
+      }
+    },
+    "sources": {
+      "anomaliesFinancial": "Payment anomalies",
+      "anomaliesSecurity": "Sign-in anomalies"
+    },
+    "anomalies": {
+      "title": "Anomaly alerts",
+      "hint": "Unusual patterns detected automatically. Repeats are bundled into one alert. Alerts never change the account; follow existing procedures.",
+      "show": "Show",
+      "noAccess": "You do not have access to any anomaly type.",
+      "empty": "No anomalies in these states.",
+      "occurrences": "{{count}} detections",
+      "snoozedUntil": "snoozed until {{time}}",
+      "detected": "First {{first}} · latest {{last}}",
+      "until": "Snooze until (maximum 30 days)",
+      "reason": "Reason (recorded in the audit log)",
+      "cancel": "Cancel",
+      "watchTitle": "Watch all customers",
+      "watchHint": "Get a notification when a new anomaly opens for any customer. Repeats of the same alert do not notify again.",
+      "watch": {
+        "anomaliesFinancial": "Refund spikes and payout failures",
+        "anomaliesSecurity": "Sign-ins from a new country"
+      },
+      "kinds": {
+        "refund_spike": "Refund spike",
+        "payout_failures": "Payout failures",
+        "new_country_login": "Sign-in from a new country"
+      },
+      "statuses": {
+        "open": "Open",
+        "snoozed": "Snoozed",
+        "acknowledged": "Acknowledged",
+        "resolved": "Resolved"
+      },
+      "actions": {
+        "snooze": "Snooze",
+        "unsnooze": "End snooze",
+        "acknowledge": "Acknowledge",
+        "resolve": "Resolve"
+      },
+      "evidence": {
+        "country": "Signed in from {{country}}. Countries in the previous 180 days: {{previous}}.",
+        "refunds": "{{count}} refunds in 7 days (usual weekly average {{baseline}}).",
+        "payouts": "{{count}} failed payouts in 7 days."
+      }
+    },
+    "links": {
+      "title": "Linked accounts",
+      "hint": "Other customers who share a device, card, bank account or address with this customer. A higher score means a stronger link; it is not proof.",
+      "neverMerge": "Accounts and balances are never merged automatically. A confirmed duplicate only records the finding; follow the existing procedures for any account change.",
+      "signalsOff": "Signal matching is not configured on this server, so only previously recorded links are shown.",
+      "kindsShown": "Signals you can see: {{kinds}}",
+      "common": "Ignored because many customers share them: {{kinds}}",
+      "empty": "No linked accounts found.",
+      "score": "Link strength {{score}}%",
+      "created": "Joined {{time}}",
+      "suspended": "Suspended",
+      "review": "Start review",
+      "reviews": "Reviews",
+      "reviewTitle": "Review — {{status}}",
+      "checklistTitle": "Checklist (all required items before proposing a duplicate)",
+      "awaiting": "Waiting for a second, different admin to confirm or return this finding.",
+      "nextSteps": "Finding recorded on both accounts. No accounts or balances were changed.",
+      "graphLabel": "Link graph with {{count}} linked customers",
+      "checklistIncomplete": "Complete every required checklist item first.",
+      "secondAdmin": "A different admin must confirm this finding.",
+      "kinds": {
+        "address": "Address",
+        "card": "Card",
+        "bank": "Bank account",
+        "device": "Device"
+      },
+      "statuses": {
+        "in_review": "In review",
+        "awaiting_second_review": "Awaiting second review",
+        "confirmed_duplicate": "Confirmed duplicate",
+        "confirmed_distinct": "Different people",
+        "dismissed": "Dismissed"
+      },
+      "checklist": {
+        "identityCompared": "Identity details compared",
+        "contactCompared": "Contact details compared",
+        "paymentInstrumentsCompared": "Payment methods compared",
+        "activityReviewed": "Recent activity reviewed",
+        "customerContacted": "Customer contacted (optional)"
+      },
+      "actions": {
+        "duplicate": "Propose duplicate",
+        "distinct": "Different people",
+        "dismiss": "Dismiss",
+        "confirm": "Confirm duplicate",
+        "reject": "Return for review"
+      }
+    },
+    "lifecycle": {
+      "title": "Lifecycle and cohorts",
+      "hint": "Stage is derived from signup date and completed transactions only. It is descriptive and never changes the account.",
+      "none": "No lifecycle data yet.",
+      "since": "since {{time}}",
+      "computed": "Computed {{time}} · model {{model}}",
+      "stage": "Stage",
+      "share": "Share",
+      "suppressed": "Fewer than {{min}} customers in this cohort; not shown.",
+      "small": "small group",
+      "stages": {
+        "new": "New",
+        "never_activated": "Never activated",
+        "active": "Active",
+        "lapsing": "Lapsing",
+        "dormant": "Dormant",
+        "closed": "Closed"
+      },
+      "explain": {
+        "new": "Signed up in the last 30 days and has not transacted yet.",
+        "never_activated": "Signed up more than 30 days ago and has never transacted.",
+        "active": "Transacted in the last 30 days.",
+        "lapsing": "Last transaction was 31–90 days ago.",
+        "dormant": "No transaction for more than 90 days.",
+        "closed": "The account is closed."
+      },
+      "factors": {
+        "last": "Days since last transaction: {{days}}",
+        "first": "Days since first transaction: {{days}}",
+        "recent": "Transactions in the last 90 days: {{count}}"
+      },
+      "cohortTitle": "Signup cohort {{country}} · {{month}}",
+      "countryCohort": "Customers from {{country}} who signed up that month",
+      "platformCohort": "All countries, same signup month",
+      "regionRestricted": "Cohort comparisons are not available to region-scoped admins.",
+      "compareTitle": "Compare countries",
+      "countries": "Country codes (comma separated, up to 6)",
+      "months": "Signup months",
+      "compare": "Compare",
+      "invalidCountries": "Enter 1 to 6 two-letter country codes, such as HT,US.",
+      "compareCaption": "Stage share by country for the last {{months}} signup months. Groups under {{min}} customers are hidden.",
+      "country": "Country",
+      "customers": "Customers",
+      "statsAt": "Cohort figures refreshed {{time}}"
+    },
+    "inbox": {
+      "title": "Inbox",
+      "hint": "Support tickets, in-app messages, email and SMS with this customer in one place. Messages go out only through the existing messaging channels, after you review and select Send now.",
+      "empty": "No messages yet.",
+      "noSupportAccess": "Support tickets are hidden because you do not have support access.",
+      "noSendAccess": "You can read this inbox but not send messages.",
+      "older": "Load older messages",
+      "compose": "Write a reply",
+      "channel": "Channel",
+      "choose": "Choose a channel",
+      "ticket": "Ticket",
+      "language": "Language",
+      "template": "Template",
+      "noTemplate": "No template",
+      "subject": "Subject",
+      "body": "Message",
+      "review": "Review",
+      "confirm": "Send this {{channel}} message to {{to}} in {{language}}?",
+      "sendNow": "Send now",
+      "edit": "Edit",
+      "sent": "Message sent.",
+      "unverifiedEmail": "This email address is not verified yet.",
+      "smsLimit": "{{count}}/480 characters",
+      "inApp": "In-app messages",
+      "ticketLabel": "Ticket {{number}}",
+      "outbound": "Sent",
+      "inbound": "Received",
+      "internal": "Internal note",
+      "channels": {
+        "support": "Support ticket",
+        "message": "In-app message",
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "statuses": {
+        "queued": "Queued",
+        "sent": "Sent",
+        "not_sent": "Not sent"
+      },
+      "templates": {
+        "general": "General reply",
+        "verification": "Email verification help",
+        "payment": "Payment follow-up",
+        "resolved": "Request resolved"
+      },
+      "errors": {
+        "sms_disabled": "SMS from Customer 360 is turned off.",
+        "no_email": "This customer has no email address.",
+        "no_verified_phone": "This customer has no verified phone number.",
+        "customer_not_messageable": "This customer cannot be messaged.",
+        "message_grant_required": "Sending needs a platform-wide messaging permission.",
+        "idempotency_conflict": "This message was already sent to a different customer."
+      }
+    },
+    "playbooks": {
+      "title": "Playbooks",
+      "hint": "Guided steps for common requests. Only safe steps run automatically (resend verification, retry notifications). Refunds and credits are handed off to the existing approvals, which still need two different admins.",
+      "started": "Playbook started.",
+      "stepSaved": "Step saved.",
+      "cancelled": "Playbook cancelled.",
+      "alreadyOpen": "A run of this playbook is already open below.",
+      "confirm": "Run this playbook now? Its automatic steps will run immediately for this customer.",
+      "runNow": "Run now",
+      "back": "Back",
+      "run": "Run",
+      "history": "Recent runs",
+      "none": "No playbook runs yet.",
+      "moneyNote": "This playbook does not move money. Open the approvals page, create the request there, and record where you handed it off.",
+      "openApprovals": "Open approvals",
+      "openInbox": "Open inbox",
+      "handoffNote": "Where was it handed off?",
+      "note": "Note (optional)",
+      "markHandedOff": "Mark handed off",
+      "markDone": "Mark done",
+      "cancel": "Cancel run",
+      "names": {
+        "verification_help": "Email verification help",
+        "notification_retry": "Retry failed notifications",
+        "payment_issue": "Payment problem"
+      },
+      "steps": {
+        "check_unverified": "Check the email is not verified",
+        "resend_verification": "Send a new verification code",
+        "confirm_with_customer": "Confirm with the customer",
+        "find_failed": "Find failed notifications",
+        "retry_message_notifications": "Retry in-app message notifications",
+        "retry_support_emails": "Retry support emails",
+        "confirm_delivery": "Confirm the customer received them",
+        "review_payments": "Review the last 30 days of payments",
+        "contact_customer": "Contact the customer",
+        "refund_or_credit": "Refund or credit (approval needed)"
+      },
+      "kinds": {
+        "check": "Automatic check",
+        "safe_action": "Automatic safe action",
+        "manual": "Manual",
+        "money_handoff": "Approval hand-off"
+      },
+      "runStatuses": {
+        "open": "Open",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "statuses": {
+        "pending": "Pending",
+        "done": "Done",
+        "failed": "Failed",
+        "skipped": "Skipped",
+        "handed_off": "Handed off"
+      },
+      "reasons": {
+        "no_email": "The customer has no email address.",
+        "already_verified": "The email is already verified.",
+        "cooldown": "A code was sent less than 10 minutes ago.",
+        "not_eligible_or_cooldown": "Not eligible right now (verified, locked or sent within the last minute).",
+        "delivery_failed": "The email could not be sent.",
+        "nothing_failed": "Nothing has failed.",
+        "no_access": "You do not have permission for this step.",
+        "cancelled": "The run was cancelled.",
+        "error": "The step failed."
+      },
+      "errors": {
+        "playbook_already_open": "This playbook is already open for this customer.",
+        "handoff_note_required": "Record where the request was handed off.",
+        "step_already_completed": "This step was already completed.",
+        "playbook_run_closed": "This run is already closed."
+      }
+    },
+    "queues": {
+      "title": "Team queues",
+      "hint": "Shared work queues with a response deadline (SLA) per queue. Anomaly alerts and duplicate reviews are added and closed automatically.",
+      "thisCustomer": "This customer",
+      "notQueued": "This customer is not in any queue.",
+      "queue": "Queue",
+      "choose": "Choose",
+      "reason": "Reason",
+      "add": "Add to queue",
+      "added": "Added to the queue.",
+      "board": "Team board",
+      "sla": "SLA",
+      "breachedCol": "Overdue",
+      "met30": "Met SLA (30 days)",
+      "median30": "Median time to resolve (30 days)",
+      "minutes": "{{count}} min",
+      "savedView": "Saved view",
+      "noView": "No saved view",
+      "team": "team",
+      "filters": "Filters",
+      "assignee": "Assigned to",
+      "sort": "Sort",
+      "breachedOnly": "Overdue only",
+      "apply": "Apply",
+      "viewName": "View name",
+      "shareTeam": "Share with the team",
+      "saveView": "Save view",
+      "viewSaved": "View saved.",
+      "deleteView": "Delete view",
+      "viewDeleted": "View deleted.",
+      "emptyBoard": "Nothing matches these filters.",
+      "more": "Load more",
+      "claim": "Claim",
+      "release": "Release",
+      "resolve": "Resolve",
+      "resolution": "Resolution",
+      "note": "Note",
+      "confirmResolve": "Confirm",
+      "breached": "Overdue by {{minutes}} min",
+      "dueIn": "Due in {{minutes}} min",
+      "statuses": {
+        "open": "Open",
+        "claimed": "Claimed",
+        "resolved": "Resolved"
+      },
+      "assignees": {
+        "any": "Anyone",
+        "me": "Me",
+        "unassigned": "Unassigned"
+      },
+      "sorts": {
+        "due": "Due soonest",
+        "created": "Oldest first"
+      },
+      "resolutions": {
+        "handled": "Handled",
+        "no_action": "No action needed",
+        "source_closed": "Closed at source"
+      },
+      "topics": {
+        "refund_spike": "Refund spike",
+        "payout_failures": "Payout failures",
+        "new_country_login": "Login from a new country",
+        "link_review": "Duplicate review",
+        "general": "General"
+      },
+      "done": {
+        "claim": "Item claimed.",
+        "release": "Item released.",
+        "resolve": "Item resolved."
+      },
+      "errors": {
+        "already_queued": "This customer is already in that queue.",
+        "revision_conflict": "Someone else changed this item. It has been reloaded.",
+        "already_claimed": "Another admin already claimed this item.",
+        "not_assignee": "Only the admin who claimed it can release it.",
+        "view_name_taken": "You already have a view with this name.",
+        "global_grant_required": "The team board needs a platform-wide customer permission.",
+        "resolution_required": "Choose a resolution."
+      }
+    },
+    "summary": {
+      "title": "Customer summary",
+      "hint": "Precomputed counts across every area you can see, refreshed automatically from new activity.",
+      "recompute": "Recompute now",
+      "recomputed": "Summary recomputed.",
+      "queued": "A refresh is queued.",
+      "computedIn": "Computed in {{ms}} ms",
+      "incomplete": "Some sources could not be counted",
+      "lifecycle": "Lifecycle stage",
+      "churn": "Churn risk",
+      "events": "Events",
+      "eventsValue": "{{count}} · last {{time}}",
+      "anomalies": "Open anomalies",
+      "queues": "Queue items",
+      "queueValue": "{{open}} open · {{breached}} overdue",
+      "none": "None",
+      "empty": "No records in the areas you can see.",
+      "caption": "Records per area",
+      "area": "Area",
+      "records": "Records",
+      "last30": "Last 30 days",
+      "lastActivity": "Last activity",
+      "states": {
+        "fresh": "Up to date",
+        "dirty": "Update pending",
+        "stale": "Out of date",
+        "outdated_model": "Older version",
+        "missing": "Not computed yet"
+      },
+      "stateDetail": {
+        "fresh": "Computed {{time}}.",
+        "dirty": "New activity since {{time}}.",
+        "stale": "Computed {{time}}, more than {{hours}} h ago.",
+        "outdated_model": "Computed {{time}} by an older version.",
+        "missing": "It will be computed in the background."
+      }
+    }
+  },
+  "businessCustomer360": {
+    "viewLabel": "Tampilan pelanggan",
+    "viewCrm": "Pelanggan CRM",
+    "view360": "Semua pelanggan (360)",
+    "intro": "Semua orang yang memiliki hubungan dengan bisnis ini: pelanggan CRM, pemesanan, dan pesanan restoran. Anda hanya melihat yang diizinkan peran Anda.",
+    "search": "Cari pelanggan",
+    "loading": "Memuat…",
+    "loadFailed": "Gagal memuat pelanggan. Coba lagi.",
+    "forbidden": "Peran Anda tidak mencakup akses ke pelanggan.",
+    "assignedOnly": "Hanya menampilkan pelanggan yang ditugaskan kepada Anda.",
+    "empty": "Belum ada pelanggan.",
+    "unnamed": "Pelanggan tanpa nama",
+    "lastSeen": "Aktivitas terakhir {{date}}",
+    "more": "Tampilkan lebih banyak",
+    "pick": "Pilih pelanggan untuk melihat riwayatnya dengan bisnis ini.",
+    "scopeNote": "Hanya catatan milik bisnis ini yang ditampilkan.",
+    "status": "Status",
+    "email": "Email",
+    "phone": "Telepon",
+    "lifetime": "Nilai total",
+    "notes": "Catatan",
+    "noCrm": "Pelanggan ini belum memiliki catatan CRM.",
+    "appointments": "Janji temu ({{count}})",
+    "noShows": "Tidak hadir: {{count}}",
+    "orders": "Pesanan ({{count}})",
+    "paid": "Dibayar: {{amount}}",
+    "partialStores": "Hanya pesanan dari toko Anda yang disertakan.",
+    "invoices": "Faktur ({{count}})",
+    "outstanding": "Belum dibayar: {{amount}}",
+    "restricted": "Peran Anda tidak mencakup bagian ini.",
+    "none": "Belum ada.",
+    "via": {
+      "crm": "CRM",
+      "appointment": "Pemesanan",
+      "order": "Pesanan"
+    },
+    "appointmentStatus": {
+      "pending": "Menunggu",
+      "confirmed": "Dikonfirmasi",
+      "in_progress": "Berlangsung",
+      "completed": "Selesai",
+      "cancelled": "Dibatalkan",
+      "no_show": "Tidak hadir"
+    },
+    "orderStatus": {
+      "received": "Diterima",
+      "accepted": "Disetujui",
+      "preparing": "Disiapkan",
+      "ready": "Siap",
+      "completed": "Selesai",
+      "cancelled": "Dibatalkan",
+      "refunded": "Dikembalikan"
+    },
+    "invoiceStatus": {
+      "draft": "Draf",
+      "sent": "Terkirim",
+      "paid": "Lunas",
+      "overdue": "Jatuh tempo",
+      "cancelled": "Dibatalkan",
+      "partial": "Dibayar sebagian"
+    }
+  },
+  "yourData": {
+    "title": "Data Anda",
+    "subtitle": "Apa yang disimpan OxSteed tentang Anda, dikelompokkan seperti yang dilihat tim dukungan kami.",
+    "back": "Kembali ke pengaturan",
+    "loading": "Memuat…",
+    "loadFailed": "Ringkasan data Anda tidak dapat dimuat. Coba lagi nanti.",
+    "never": "Tidak pernah",
+    "records": "Catatan",
+    "lastUpdated": "Terakhir diperbarui",
+    "inExport": "Dalam ekspor Anda",
+    "onDeletion": "Jika Anda menghapus akun",
+    "partial": "Beberapa catatan tidak dapat dihitung saat ini.",
+    "deleteHint": "Untuk menghapus akun, gunakan",
+    "deleteLink": "Hapus akun di Pengaturan",
+    "settingsLink": "Lihat semua data Anda",
+    "groups": {
+      "account": {
+        "title": "Akun Anda",
+        "hint": "Catatan dari penggunaan OxSteed Anda."
+      },
+      "derived": {
+        "title": "Dibuat oleh tim kami",
+        "hint": "Informasi yang dibuat alat tim kami dari aktivitas Anda."
+      },
+      "internal": {
+        "title": "Catatan internal",
+        "hint": "Disimpan untuk mencegah penipuan dan karena alasan hukum. Isinya tidak ditampilkan."
+      }
+    },
+    "exportModes": {
+      "included": "Disertakan",
+      "described": "Hanya dijelaskan"
+    },
+    "erasure": {
+      "removed": "Dihapus",
+      "anonymized": "Data pribadi Anda dihapus; catatannya disimpan",
+      "retained": "Disimpan sesuai ketentuan hukum"
+    },
+    "export": {
+      "title": "Unduh data Anda",
+      "hint": "Demi keamanan, masukkan kata sandi Anda. Kami lalu mengirim kode lewat email untuk mengonfirmasi unduhan. Berkas berisi semua hal di atas kecuali catatan internal.",
+      "password": "Kata sandi saat ini",
+      "sendCode": "Kirimi saya kode",
+      "codeSent": "Kami mengirim kode 6 digit ke {{email}}.",
+      "code": "Kode 6 digit",
+      "download": "Unduh",
+      "startOver": "Mulai lagi",
+      "done": "Unduhan Anda telah dimulai.",
+      "errors": {
+        "EXPORT_PASSWORD_INVALID": "Kata sandi salah.",
+        "EXPORT_CODE_INVALID": "Kode itu tidak benar.",
+        "EXPORT_CODE_EXPIRED": "Kode itu sudah kedaluwarsa. Mulai lagi.",
+        "EXPORT_CODE_LOCKED": "Terlalu banyak percobaan. Coba lagi dalam 15 menit.",
+        "EXPORT_VERIFICATION_UNAVAILABLE": "Kode tidak dapat dikirim. Coba lagi nanti.",
+        "EXPORT_RESULT_LIMIT_EXCEEDED": "Data Anda terlalu besar untuk diunduh langsung. Hubungi dukungan.",
+        "generic": "Terjadi kesalahan. Coba lagi."
+      }
+    },
+    "categories": {
+      "work": {
+        "title": "Pekerjaan dan pemesanan",
+        "description": "Pekerjaan, penawaran, faktur, pemesanan, janji temu, kutipan harga, dan pembatalan."
+      },
+      "finance": {
+        "title": "Pembayaran dan pencairan",
+        "description": "Pembayaran yang Anda lakukan atau terima serta catatan pencairan."
+      },
+      "restaurants": {
+        "title": "Pesanan makanan",
+        "description": "Pesanan restoran dan pembaruan dari dapur."
+      },
+      "commerce": {
+        "title": "Pesanan marketplace",
+        "description": "Barang yang Anda beli atau jual di marketplace."
+      },
+      "business": {
+        "title": "Bisnis",
+        "description": "Bisnis dan restoran yang Anda miliki atau ikuti."
+      },
+      "devices": {
+        "title": "Perangkat",
+        "description": "Perangkat kasir, tiket offline, dan aktivitas layar yang terkait dengan Anda."
+      },
+      "credit": {
+        "title": "OxSteed Credit",
+        "description": "Akun kredit, transaksi, penahanan, kartu, penarikan, dan isi ulang."
+      },
+      "restaurantCredit": {
+        "title": "Kredit restoran",
+        "description": "Dompet restoran, permintaan kredit, pengembalian dana, dan cadangan."
+      },
+      "documents": {
+        "title": "Laporan",
+        "description": "Laporan kredit dan penyelesaian beserta ekspornya."
+      },
+      "subscriptions": {
+        "title": "Langganan",
+        "description": "Paket dan riwayat langganan Anda."
+      },
+      "logistics": {
+        "title": "Logistik",
+        "description": "Pembelian bersama, pesanan, pengiriman, dan antaran."
+      },
+      "support": {
+        "title": "Dukungan",
+        "description": "Tiket dan obrolan dukungan."
+      },
+      "communications": {
+        "title": "Notifikasi",
+        "description": "Notifikasi dan pesan yang dikirim kepada Anda, serta preferensi Anda."
+      },
+      "privacy": {
+        "title": "Pilihan privasi",
+        "description": "Persetujuan dan permintaan privasi Anda."
+      },
+      "trust": {
+        "title": "Ulasan dan banding",
+        "description": "Ulasan, banding, dan pemeriksaan identitas."
+      },
+      "security": {
+        "title": "Sesi masuk",
+        "description": "Perangkat dan sesi yang masuk ke akun Anda."
+      },
+      "cases": {
+        "title": "Tugas tindak lanjut tim",
+        "description": "Tugas internal yang dibuat tim untuk membantu akun Anda."
+      },
+      "events": {
+        "title": "Log aktivitas akun",
+        "description": "Log tahan rusak atas perubahan pada akun Anda."
+      },
+      "scores": {
+        "title": "Skor kesehatan akun",
+        "description": "Skor saran yang dipakai tim untuk menemukan masalah. Skor ini tidak pernah mengubah akun Anda dengan sendirinya."
+      },
+      "lifecycle": {
+        "title": "Tahap aktivitas",
+        "description": "Apakah akun Anda baru, aktif, atau tidak aktif, berdasarkan aktivitas Anda."
+      },
+      "contactHistory": {
+        "title": "Pesan dari tim kami",
+        "description": "Email dan SMS yang dikirim tim kami kepada Anda."
+      },
+      "playbooks": {
+        "title": "Langkah bantuan yang dilakukan",
+        "description": "Langkah yang dilakukan tim untuk membantu Anda, seperti mengirim ulang email verifikasi."
+      },
+      "queues": {
+        "title": "Tindak lanjut",
+        "description": "Tindak lanjut yang dijadwalkan tim untuk akun Anda."
+      },
+      "summaries": {
+        "title": "Ringkasan akun",
+        "description": "Ringkasan yang dihitung lebih dulu dari hal di atas, agar tim dapat membantu lebih cepat."
+      },
+      "securityReviews": {
+        "title": "Peninjauan pencegahan penipuan",
+        "description": "Pemeriksaan yang melindungi Anda dan orang lain dari penipuan. Kami tidak mencantumkannya, tetapi Anda bisa bertanya kepada dukungan."
+      }
+    }
   }
 }

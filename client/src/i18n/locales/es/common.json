@@ -273,7 +273,16 @@
       "assistant": "Asistente de pruebas",
       "exports": "Informes y exportaciones",
       "experience": "Experiencia y actividad",
-      "quality": "Calidad y actualidad de fuentes"
+      "quality": "Calidad y actualidad de fuentes",
+      "events": "Historial de cambios",
+      "health": "Salud y riesgo",
+      "anomalies": "Anomalías",
+      "links": "Cuentas vinculadas",
+      "lifecycle": "Ciclo de vida",
+      "inbox": "Bandeja",
+      "playbooks": "Guías",
+      "queues": "Colas",
+      "summary": "Resumen"
     },
     "sources": {
       "jobs": "Trabajos",
@@ -339,7 +348,9 @@
       "screenEvents": "Eventos recientes de sincronización",
       "cancellations": "Historial de cancelaciones",
       "restaurantExposure": "Exposición de crédito del restaurante",
-      "logisticsQuotes": "Presupuestos del comprador logístico"
+      "logisticsQuotes": "Presupuestos del comprador logístico",
+      "anomaliesFinancial": "Anomalías de pago",
+      "anomaliesSecurity": "Anomalías de inicio de sesión"
     },
     "checks": {
       "email": "Verificación de correo",
@@ -694,7 +705,523 @@
       "firstAt": "Primera actividad registrada",
       "lastAt": "Última actividad registrada"
     },
-    "statementPdf": "Descargar estado PDF"
+    "statementPdf": "Descargar estado PDF",
+    "events": {
+      "title": "Historial de cambios",
+      "hint": "Registro de solo anexado de quién cambió qué para este cliente. Solo se muestran las fuentes que puede ver. Los datos personales se registran como modificados, nunca se copian.",
+      "importing": "El historial anterior aún se está importando. Es posible que algunos cambios antiguos todavía no aparezcan.",
+      "source": "Fuente",
+      "allSources": "Todas las fuentes que puede ver",
+      "actor": "Cambiado por",
+      "anyActor": "Cualquiera",
+      "verify": "Verificar integridad",
+      "chainIntact": "Integridad verificada para {{count}} eventos.",
+      "chainBroken": "La verificación de integridad falló en el evento {{id}}. Escale a seguridad.",
+      "empty": "Ningún cambio registrado coincide con estos filtros.",
+      "redacted": "modificado (no se guardan datos personales)",
+      "changed": "modificado (no se guardan los detalles)",
+      "replay": "Reproducir",
+      "older": "Cargar cambios anteriores",
+      "replayTitle": "{{entity}} {{id}} según el registro",
+      "asOf": "A fecha de",
+      "rebuild": "Reconstruir estado",
+      "unknownFields": "Modificado pero no guardado: {{fields}}",
+      "sources": {
+        "admin_audit": "Acciones de administración",
+        "login": "Inicios de sesión",
+        "payment": "Pagos",
+        "support": "Soporte",
+        "food_order": "Pedidos de comida",
+        "customer360": "Cliente 360"
+      },
+      "actors": {
+        "admin": "Administrador",
+        "customer": "Cliente",
+        "system": "Sistema",
+        "business": "Negocio"
+      },
+      "entities": {
+        "admin_action": "Acción de administración",
+        "login": "Inicio de sesión",
+        "payment": "Pago",
+        "support_ticket": "Ticket de soporte",
+        "food_order": "Pedido de comida",
+        "task": "Tarea del caso"
+      },
+      "types": {
+        "admin": "Acción de administración: {{action}}",
+        "login": "Inicio de sesión {{action}}",
+        "payment": "Pago {{action}}",
+        "support_ticket": "Ticket de soporte {{action}}",
+        "food_order": "Pedido de comida {{action}}",
+        "task": "Tarea del caso {{action}}"
+      }
+    },
+    "health": {
+      "title": "Salud y riesgo de la cuenta",
+      "advisory": "Solo orientativo. Estas puntuaciones explican patrones de la cuenta y nunca la modifican. Use los procedimientos existentes para cualquier acción.",
+      "computed": "Calculado {{time}} · modelo {{model}}",
+      "restricted": "No tiene acceso a los datos de esta puntuación.",
+      "factorsCaption": "Factores de la puntuación",
+      "factor": "Factor",
+      "value": "Valor",
+      "points": "Puntos",
+      "never": "Nunca",
+      "contribution": "{{points}} de {{weight}}",
+      "activityValue": "{{recent}} en los últimos 30 días, {{previous}} en los 60 días anteriores",
+      "recompute": "Recalcular ahora",
+      "scores": {
+        "churn": "Riesgo de abandono",
+        "payment": "Riesgo de pago",
+        "support": "Carga de soporte"
+      },
+      "bands": {
+        "low": "Bajo",
+        "medium": "Medio",
+        "high": "Alto"
+      },
+      "factors": {
+        "inactivity": {
+          "label": "Días desde el último inicio de sesión",
+          "explain": "Sin puntos hasta 14 días; puntuación completa a los 90 días o si nunca inició sesión."
+        },
+        "activityDrop": {
+          "label": "Caída de actividad",
+          "explain": "Pagos y pedidos de comida de los últimos 30 días comparados con los 60 días anteriores."
+        },
+        "newAccount": {
+          "label": "Antigüedad de la cuenta en días",
+          "explain": "Las cuentas con menos de 30 días reciben la puntuación completa."
+        },
+        "failedPayments": {
+          "label": "Pagos y retiros fallidos (90 días)",
+          "explain": "Puntuación completa con 3 o más fallos."
+        },
+        "refunds": {
+          "label": "Reembolsos (90 días)",
+          "explain": "Puntuación completa con 4 o más reembolsos."
+        },
+        "openDisputes": {
+          "label": "Disputas abiertas de OxSteed Credit",
+          "explain": "Cualquier disputa abierta da la puntuación completa."
+        },
+        "openTickets": {
+          "label": "Tickets de soporte abiertos",
+          "explain": "Puntuación completa con 3 o más tickets abiertos."
+        },
+        "recentTickets": {
+          "label": "Tickets de soporte (90 días)",
+          "explain": "Puntuación completa con 6 o más tickets."
+        },
+        "slaBreaches": {
+          "label": "Plazos de soporte incumplidos (90 días)",
+          "explain": "Puntuación completa con 2 o más plazos incumplidos."
+        }
+      }
+    },
+    "ai": {
+      "policy": "Los borradores provienen solo del modelo de IA autoalojado de OxSteed. Solo se usan nombres de fuentes, estados y recuentos; no se envía, aprueba ni cambia nada.",
+      "mode": "Tipo de borrador",
+      "topic": "Tema de la respuesta",
+      "cites": "Basado en:",
+      "subject": "Asunto",
+      "body": "Mensaje",
+      "replyNotice": "Edítelo antes de usarlo. Desde aquí no se envía nada; el envío solo ocurre desde la bandeja con su acción explícita.",
+      "useInInbox": "Usar en la bandeja",
+      "modes": {
+        "summary": "Resumen del caso",
+        "next_step": "Próximos pasos sugeridos",
+        "reply_draft": "Borrador de respuesta al cliente"
+      },
+      "topics": {
+        "general": "Pregunta general",
+        "verification": "Verificación de identidad",
+        "payment": "Pago",
+        "order": "Pedido",
+        "account_access": "Acceso a la cuenta",
+        "support_followup": "Seguimiento de soporte"
+      }
+    },
+    "anomalies": {
+      "title": "Alertas de anomalías",
+      "hint": "Patrones inusuales detectados automáticamente. Las repeticiones se agrupan en una sola alerta. Las alertas nunca cambian la cuenta; siga los procedimientos existentes.",
+      "show": "Mostrar",
+      "noAccess": "No tiene acceso a ningún tipo de anomalía.",
+      "empty": "No hay anomalías en estos estados.",
+      "occurrences": "{{count}} detecciones",
+      "snoozedUntil": "pospuesta hasta {{time}}",
+      "detected": "Primera {{first}} · última {{last}}",
+      "until": "Posponer hasta (máximo 30 días)",
+      "reason": "Motivo (se registra en la auditoría)",
+      "cancel": "Cancelar",
+      "watchTitle": "Vigilar a todos los clientes",
+      "watchHint": "Reciba una notificación cuando se abra una nueva anomalía para cualquier cliente. Las repeticiones de la misma alerta no vuelven a notificar.",
+      "watch": {
+        "anomaliesFinancial": "Picos de reembolsos y retiros fallidos",
+        "anomaliesSecurity": "Inicios de sesión desde un país nuevo"
+      },
+      "kinds": {
+        "refund_spike": "Pico de reembolsos",
+        "payout_failures": "Retiros fallidos",
+        "new_country_login": "Inicio de sesión desde un país nuevo"
+      },
+      "statuses": {
+        "open": "Abierta",
+        "snoozed": "Pospuesta",
+        "acknowledged": "Reconocida",
+        "resolved": "Resuelta"
+      },
+      "actions": {
+        "snooze": "Posponer",
+        "unsnooze": "Terminar aplazamiento",
+        "acknowledge": "Reconocer",
+        "resolve": "Resolver"
+      },
+      "evidence": {
+        "country": "Inició sesión desde {{country}}. Países en los 180 días anteriores: {{previous}}.",
+        "refunds": "{{count}} reembolsos en 7 días (promedio semanal habitual {{baseline}}).",
+        "payouts": "{{count}} retiros fallidos en 7 días."
+      }
+    },
+    "links": {
+      "title": "Cuentas vinculadas",
+      "hint": "Otros clientes que comparten un dispositivo, tarjeta, cuenta bancaria o dirección con este cliente. Una puntuación más alta indica un vínculo más fuerte; no es una prueba.",
+      "neverMerge": "Las cuentas y los saldos nunca se fusionan automáticamente. Un duplicado confirmado solo registra el hallazgo; siga los procedimientos existentes para cualquier cambio en la cuenta.",
+      "signalsOff": "La comparación de señales no está configurada en este servidor, por lo que solo se muestran los vínculos ya registrados.",
+      "kindsShown": "Señales que puede ver: {{kinds}}",
+      "common": "Ignoradas porque muchos clientes las comparten: {{kinds}}",
+      "empty": "No se encontraron cuentas vinculadas.",
+      "score": "Fuerza del vínculo {{score}} %",
+      "created": "Se registró {{time}}",
+      "suspended": "Suspendida",
+      "review": "Iniciar revisión",
+      "reviews": "Revisiones",
+      "reviewTitle": "Revisión — {{status}}",
+      "checklistTitle": "Lista de verificación (todos los elementos obligatorios antes de proponer un duplicado)",
+      "awaiting": "Esperando que un segundo administrador distinto confirme o devuelva este hallazgo.",
+      "nextSteps": "Hallazgo registrado en ambas cuentas. No se modificó ninguna cuenta ni saldo.",
+      "graphLabel": "Gráfico de vínculos con {{count}} clientes vinculados",
+      "checklistIncomplete": "Primero complete todos los elementos obligatorios.",
+      "secondAdmin": "Otro administrador debe confirmar este hallazgo.",
+      "kinds": {
+        "address": "Dirección",
+        "card": "Tarjeta",
+        "bank": "Cuenta bancaria",
+        "device": "Dispositivo"
+      },
+      "statuses": {
+        "in_review": "En revisión",
+        "awaiting_second_review": "Esperando segunda revisión",
+        "confirmed_duplicate": "Duplicado confirmado",
+        "confirmed_distinct": "Personas distintas",
+        "dismissed": "Descartada"
+      },
+      "checklist": {
+        "identityCompared": "Datos de identidad comparados",
+        "contactCompared": "Datos de contacto comparados",
+        "paymentInstrumentsCompared": "Métodos de pago comparados",
+        "activityReviewed": "Actividad reciente revisada",
+        "customerContacted": "Cliente contactado (opcional)"
+      },
+      "actions": {
+        "duplicate": "Proponer duplicado",
+        "distinct": "Personas distintas",
+        "dismiss": "Descartar",
+        "confirm": "Confirmar duplicado",
+        "reject": "Devolver a revisión"
+      }
+    },
+    "lifecycle": {
+      "title": "Ciclo de vida y cohortes",
+      "hint": "La etapa se deriva solo de la fecha de registro y de las transacciones completadas. Es descriptiva y nunca cambia la cuenta.",
+      "none": "Aún no hay datos de ciclo de vida.",
+      "since": "desde {{time}}",
+      "computed": "Calculado {{time}} · modelo {{model}}",
+      "stage": "Etapa",
+      "share": "Proporción",
+      "suppressed": "Menos de {{min}} clientes en esta cohorte; no se muestra.",
+      "small": "grupo pequeño",
+      "stages": {
+        "new": "Nuevo",
+        "never_activated": "Nunca activado",
+        "active": "Activo",
+        "lapsing": "En riesgo",
+        "dormant": "Inactivo",
+        "closed": "Cerrado"
+      },
+      "explain": {
+        "new": "Se registró en los últimos 30 días y aún no ha realizado transacciones.",
+        "never_activated": "Se registró hace más de 30 días y nunca ha realizado transacciones.",
+        "active": "Realizó una transacción en los últimos 30 días.",
+        "lapsing": "Su última transacción fue hace 31–90 días.",
+        "dormant": "Sin transacciones durante más de 90 días.",
+        "closed": "La cuenta está cerrada."
+      },
+      "factors": {
+        "last": "Días desde la última transacción: {{days}}",
+        "first": "Días desde la primera transacción: {{days}}",
+        "recent": "Transacciones en los últimos 90 días: {{count}}"
+      },
+      "cohortTitle": "Cohorte de registro {{country}} · {{month}}",
+      "countryCohort": "Clientes de {{country}} registrados ese mes",
+      "platformCohort": "Todos los países, mismo mes de registro",
+      "regionRestricted": "Las comparaciones de cohortes no están disponibles para administradores con alcance regional.",
+      "compareTitle": "Comparar países",
+      "countries": "Códigos de país (separados por comas, hasta 6)",
+      "months": "Meses de registro",
+      "compare": "Comparar",
+      "invalidCountries": "Introduzca de 1 a 6 códigos de país de dos letras, como HT,US.",
+      "compareCaption": "Proporción por etapa y país en los últimos {{months}} meses de registro. Se ocultan los grupos de menos de {{min}} clientes.",
+      "country": "País",
+      "customers": "Clientes",
+      "statsAt": "Cifras de cohortes actualizadas {{time}}"
+    },
+    "inbox": {
+      "title": "Bandeja de entrada",
+      "hint": "Tickets de soporte, mensajes en la app, correo y SMS con este cliente en un solo lugar. Los mensajes solo salen por los canales de mensajería existentes, después de revisarlos y seleccionar Enviar ahora.",
+      "empty": "Aún no hay mensajes.",
+      "noSupportAccess": "Los tickets de soporte están ocultos porque no tiene acceso a soporte.",
+      "noSendAccess": "Puede leer esta bandeja, pero no enviar mensajes.",
+      "older": "Cargar mensajes anteriores",
+      "compose": "Escribir una respuesta",
+      "channel": "Canal",
+      "choose": "Elija un canal",
+      "ticket": "Ticket",
+      "language": "Idioma",
+      "template": "Plantilla",
+      "noTemplate": "Sin plantilla",
+      "subject": "Asunto",
+      "body": "Mensaje",
+      "review": "Revisar",
+      "confirm": "¿Enviar este mensaje por {{channel}} a {{to}} en {{language}}?",
+      "sendNow": "Enviar ahora",
+      "edit": "Editar",
+      "sent": "Mensaje enviado.",
+      "unverifiedEmail": "Esta dirección de correo aún no está verificada.",
+      "smsLimit": "{{count}}/480 caracteres",
+      "inApp": "Mensajes en la app",
+      "ticketLabel": "Ticket {{number}}",
+      "outbound": "Enviado",
+      "inbound": "Recibido",
+      "internal": "Nota interna",
+      "channels": {
+        "support": "Ticket de soporte",
+        "message": "Mensaje en la app",
+        "email": "Correo",
+        "sms": "SMS"
+      },
+      "statuses": {
+        "queued": "En cola",
+        "sent": "Enviado",
+        "not_sent": "No enviado"
+      },
+      "templates": {
+        "general": "Respuesta general",
+        "verification": "Ayuda con la verificación del correo",
+        "payment": "Seguimiento de pago",
+        "resolved": "Solicitud resuelta"
+      },
+      "errors": {
+        "sms_disabled": "Los SMS desde Customer 360 están desactivados.",
+        "no_email": "Este cliente no tiene correo electrónico.",
+        "no_verified_phone": "Este cliente no tiene un teléfono verificado.",
+        "customer_not_messageable": "No se puede enviar mensajes a este cliente.",
+        "message_grant_required": "Para enviar se necesita un permiso de mensajería para toda la plataforma.",
+        "idempotency_conflict": "Este mensaje ya se envió a otro cliente."
+      }
+    },
+    "playbooks": {
+      "title": "Guías de acción",
+      "hint": "Pasos guiados para solicitudes frecuentes. Solo los pasos seguros se ejecutan automáticamente (reenviar la verificación, reintentar notificaciones). Los reembolsos y créditos se derivan a las aprobaciones existentes, que siguen necesitando dos administradores distintos.",
+      "started": "Guía iniciada.",
+      "stepSaved": "Paso guardado.",
+      "cancelled": "Guía cancelada.",
+      "alreadyOpen": "Ya hay una ejecución abierta de esta guía más abajo.",
+      "confirm": "¿Ejecutar esta guía ahora? Sus pasos automáticos se ejecutarán de inmediato para este cliente.",
+      "runNow": "Ejecutar ahora",
+      "back": "Volver",
+      "run": "Ejecutar",
+      "history": "Ejecuciones recientes",
+      "none": "Aún no hay ejecuciones.",
+      "moneyNote": "Esta guía no mueve dinero. Abra la página de aprobaciones, cree allí la solicitud y anote dónde la derivó.",
+      "openApprovals": "Abrir aprobaciones",
+      "openInbox": "Abrir bandeja",
+      "handoffNote": "¿Dónde se derivó?",
+      "note": "Nota (opcional)",
+      "markHandedOff": "Marcar como derivado",
+      "markDone": "Marcar como hecho",
+      "cancel": "Cancelar ejecución",
+      "names": {
+        "verification_help": "Ayuda con la verificación del correo",
+        "notification_retry": "Reintentar notificaciones fallidas",
+        "payment_issue": "Problema de pago"
+      },
+      "steps": {
+        "check_unverified": "Comprobar que el correo no está verificado",
+        "resend_verification": "Enviar un nuevo código de verificación",
+        "confirm_with_customer": "Confirmar con el cliente",
+        "find_failed": "Buscar notificaciones fallidas",
+        "retry_message_notifications": "Reintentar notificaciones de mensajes en la app",
+        "retry_support_emails": "Reintentar correos de soporte",
+        "confirm_delivery": "Confirmar que el cliente las recibió",
+        "review_payments": "Revisar los pagos de los últimos 30 días",
+        "contact_customer": "Contactar al cliente",
+        "refund_or_credit": "Reembolso o crédito (requiere aprobación)"
+      },
+      "kinds": {
+        "check": "Comprobación automática",
+        "safe_action": "Acción segura automática",
+        "manual": "Manual",
+        "money_handoff": "Derivación a aprobación"
+      },
+      "runStatuses": {
+        "open": "Abierta",
+        "completed": "Completada",
+        "cancelled": "Cancelada"
+      },
+      "statuses": {
+        "pending": "Pendiente",
+        "done": "Hecho",
+        "failed": "Falló",
+        "skipped": "Omitido",
+        "handed_off": "Derivado"
+      },
+      "reasons": {
+        "no_email": "El cliente no tiene correo electrónico.",
+        "already_verified": "El correo ya está verificado.",
+        "cooldown": "Se envió un código hace menos de 10 minutos.",
+        "not_eligible_or_cooldown": "No es posible ahora (verificado, bloqueado o enviado en el último minuto).",
+        "delivery_failed": "No se pudo enviar el correo.",
+        "nothing_failed": "No hay nada fallido.",
+        "no_access": "No tiene permiso para este paso.",
+        "cancelled": "La ejecución se canceló.",
+        "error": "El paso falló."
+      },
+      "errors": {
+        "playbook_already_open": "Esta guía ya está abierta para este cliente.",
+        "handoff_note_required": "Anote dónde se derivó la solicitud.",
+        "step_already_completed": "Este paso ya se completó.",
+        "playbook_run_closed": "Esta ejecución ya está cerrada."
+      }
+    },
+    "queues": {
+      "title": "Colas del equipo",
+      "hint": "Colas de trabajo compartidas con un plazo de respuesta (SLA) por cola. Las alertas de anomalías y las revisiones de duplicados se agregan y cierran automáticamente.",
+      "thisCustomer": "Este cliente",
+      "notQueued": "Este cliente no está en ninguna cola.",
+      "queue": "Cola",
+      "choose": "Elegir",
+      "reason": "Motivo",
+      "add": "Agregar a la cola",
+      "added": "Agregado a la cola.",
+      "board": "Tablero del equipo",
+      "sla": "SLA",
+      "breachedCol": "Vencidos",
+      "met30": "SLA cumplido (30 días)",
+      "median30": "Tiempo medio de resolución (30 días)",
+      "minutes": "{{count}} min",
+      "savedView": "Vista guardada",
+      "noView": "Sin vista guardada",
+      "team": "equipo",
+      "filters": "Filtros",
+      "assignee": "Asignado a",
+      "sort": "Ordenar",
+      "breachedOnly": "Solo vencidos",
+      "apply": "Aplicar",
+      "viewName": "Nombre de la vista",
+      "shareTeam": "Compartir con el equipo",
+      "saveView": "Guardar vista",
+      "viewSaved": "Vista guardada.",
+      "deleteView": "Eliminar vista",
+      "viewDeleted": "Vista eliminada.",
+      "emptyBoard": "Nada coincide con estos filtros.",
+      "more": "Cargar más",
+      "claim": "Tomar",
+      "release": "Liberar",
+      "resolve": "Resolver",
+      "resolution": "Resolución",
+      "note": "Nota",
+      "confirmResolve": "Confirmar",
+      "breached": "Vencido hace {{minutes}} min",
+      "dueIn": "Vence en {{minutes}} min",
+      "statuses": {
+        "open": "Abierto",
+        "claimed": "Tomado",
+        "resolved": "Resuelto"
+      },
+      "assignees": {
+        "any": "Cualquiera",
+        "me": "Yo",
+        "unassigned": "Sin asignar"
+      },
+      "sorts": {
+        "due": "Vence antes",
+        "created": "Más antiguos primero"
+      },
+      "resolutions": {
+        "handled": "Atendido",
+        "no_action": "No requiere acción",
+        "source_closed": "Cerrado en el origen"
+      },
+      "topics": {
+        "refund_spike": "Pico de reembolsos",
+        "payout_failures": "Fallos de pago a proveedores",
+        "new_country_login": "Inicio de sesión desde un país nuevo",
+        "link_review": "Revisión de duplicados",
+        "general": "General"
+      },
+      "done": {
+        "claim": "Elemento tomado.",
+        "release": "Elemento liberado.",
+        "resolve": "Elemento resuelto."
+      },
+      "errors": {
+        "already_queued": "Este cliente ya está en esa cola.",
+        "revision_conflict": "Otra persona cambió este elemento. Se volvió a cargar.",
+        "already_claimed": "Otro administrador ya tomó este elemento.",
+        "not_assignee": "Solo el administrador que lo tomó puede liberarlo.",
+        "view_name_taken": "Ya tiene una vista con este nombre.",
+        "global_grant_required": "El tablero del equipo requiere un permiso de clientes para toda la plataforma.",
+        "resolution_required": "Elija una resolución."
+      }
+    },
+    "summary": {
+      "title": "Resumen del cliente",
+      "hint": "Totales precalculados de todas las áreas que puede ver, actualizados automáticamente con la nueva actividad.",
+      "recompute": "Recalcular ahora",
+      "recomputed": "Resumen recalculado.",
+      "queued": "Hay una actualización en cola.",
+      "computedIn": "Calculado en {{ms}} ms",
+      "incomplete": "No se pudieron contar algunas fuentes",
+      "lifecycle": "Etapa del ciclo de vida",
+      "churn": "Riesgo de abandono",
+      "events": "Eventos",
+      "eventsValue": "{{count}} · último {{time}}",
+      "anomalies": "Anomalías abiertas",
+      "queues": "Elementos en colas",
+      "queueValue": "{{open}} abiertos · {{breached}} vencidos",
+      "none": "Ninguno",
+      "empty": "No hay registros en las áreas que puede ver.",
+      "caption": "Registros por área",
+      "area": "Área",
+      "records": "Registros",
+      "last30": "Últimos 30 días",
+      "lastActivity": "Última actividad",
+      "states": {
+        "fresh": "Actualizado",
+        "dirty": "Actualización pendiente",
+        "stale": "Desactualizado",
+        "outdated_model": "Versión anterior",
+        "missing": "Aún no calculado"
+      },
+      "stateDetail": {
+        "fresh": "Calculado {{time}}.",
+        "dirty": "Hay actividad nueva desde {{time}}.",
+        "stale": "Calculado {{time}}, hace más de {{hours}} h.",
+        "outdated_model": "Calculado {{time}} con una versión anterior.",
+        "missing": "Se calculará en segundo plano."
+      }
+    }
   },
   "screens": {
     "dataFreshness": "Actualización de datos",
@@ -2074,7 +2601,40 @@
         "submitted": "en proceso",
         "paid": "pagado",
         "failed": "fallido",
-        "cancelled": "cancelado"
+        "cancelled": "cancelado",
+        "held_for_review": "en revisión",
+        "submitting": "enviando",
+        "canceled": "cancelado",
+        "rejected": "rechazado"
+      },
+      "payTo": "Pagar a",
+      "chooseDestination": "Elige una cuenta bancaria verificada",
+      "noVerifiedDestination": "Primero agrega y verifica una cuenta bancaria a tu nombre.",
+      "stepupNeeded": "Para este monto te enviaremos un código por correo para confirmar.",
+      "stepupTitle": "Confirma que eres tú",
+      "stepupSent": "Te enviamos un código por correo. Ingrésalo para confirmar el retiro.",
+      "stepupCode": "Código",
+      "confirm": "Confirmar retiro",
+      "cancel": "Cancelar",
+      "cancelConfirm": "¿Cancelar este retiro de {{amount}}? El dinero vuelve a tu saldo.",
+      "cancelled": "Retiro cancelado",
+      "availableOn": "Se envía después del {{date}}",
+      "underReview": "Estamos revisando este retiro.",
+      "history": "Tus retiros",
+      "notReceived": "No lo recibí",
+      "notReceivedTitle": "Reportar un retiro de {{amount}} no recibido",
+      "notReceivedHelp": "Cuéntanos qué pasó. Confirmaremos que recibimos tu reporte en un plazo de 10 días hábiles y te daremos una respuesta final en un plazo de 45 días.",
+      "notReceivedDescription": "¿Qué pasó?",
+      "notReceivedSubmit": "Enviar reporte",
+      "notReceivedSent": "Reporte enviado. Te mantendremos informado por correo.",
+      "disputeDue": "Responderemos antes del {{date}}",
+      "disputesTitle": "Tus reportes",
+      "disputeStatus": {
+        "open": "recibido",
+        "investigating": "en investigación",
+        "resolved_paid_confirmed": "pago confirmado",
+        "resolved_reissued": "enviado de nuevo",
+        "rejected": "cerrado"
       }
     },
     "chat": {
@@ -2120,7 +2680,147 @@
       "cashout_destination_required": "Elige adónde enviar el dinero.",
       "bid_currency_mismatch": "Las ofertas deben estar en la moneda del trabajo.",
       "impersonation_blocked": "No permitido en una sesión suplantada.",
-      "feature_disabled": "No disponible."
+      "feature_disabled": "No disponible.",
+      "cashout_kyc_tier_required": "Completa la verificación de identidad adicional para retirar.",
+      "cashout_reverification_required": "Verifica tu identidad de nuevo para retirar.",
+      "cashout_destination_unverified": "Primero verifica esta cuenta bancaria.",
+      "cashout_destination_currency_mismatch": "Esta cuenta está en otra moneda.",
+      "cashout_destination_country_mismatch": "Esta cuenta está en otro país.",
+      "cashout_not_cancelable": "Este retiro ya no se puede cancelar.",
+      "cashout_not_found": "No se encontró el retiro.",
+      "cashout_dispute_not_paid": "Solo puedes reportar un retiro después de que se envió.",
+      "cashout_dispute_already_open": "Ya reportaste este retiro.",
+      "cashout_dispute_closed": "Este reporte está cerrado.",
+      "cashout_dispute_description_required": "Cuéntanos qué pasó.",
+      "destination_not_found": "No se encontró la cuenta bancaria.",
+      "destination_not_verifiable": "Esta cuenta no se puede verificar ahora.",
+      "destination_limit_reached": "Alcanzaste el número de cuentas bancarias permitido.",
+      "destination_in_use": "Esta cuenta tiene un retiro en curso.",
+      "destination_verification_mismatch": "No coincide. Inténtalo de nuevo.",
+      "destination_verification_locked": "Demasiados intentos. Agrega la cuenta de nuevo.",
+      "destination_verification_expired": "La verificación venció. Agrega la cuenta de nuevo.",
+      "destination_country_invalid": "Ingresa un código de país de 2 letras.",
+      "destination_currency_invalid": "Ingresa un código de moneda de 3 letras.",
+      "destination_holder_required": "Ingresa el nombre del titular de la cuenta.",
+      "destination_bank_required": "Ingresa el nombre del banco.",
+      "destination_account_invalid": "Ingresa un número de cuenta válido (letras y dígitos).",
+      "destination_bank_code_invalid": "Revisa el código del banco.",
+      "credit_stepup_challenge_invalid": "Ese código no es correcto.",
+      "credit_stepup_challenge_expired": "El código venció. Pide uno nuevo.",
+      "credit_stepup_challenge_required": "Ingresa el código que te enviamos.",
+      "credit_disclosure_changed": "Las condiciones cambiaron. Lee la versión vigente.",
+      "credit_disclosure_acceptance_required": "Primero acepta las condiciones de OxSteed Credit.",
+      "credit_wage_consent_required": "Recibir tu pago en Credit requiere primero tu consentimiento.",
+      "credit_erasure_no_balance": "No tienes saldo de OxSteed Credit.",
+      "credit_escheat_reserved_funds": "Espera a que terminen tus pagos pendientes.",
+      "credit_rail_frozen": "OxSteed Credit está en pausa en este momento.",
+      "validation_failed": "Revisa los datos e inténtalo de nuevo."
+    },
+    "common": {
+      "close": "Cerrar"
+    },
+    "destinations": {
+      "title": "Cuentas bancarias para retiros",
+      "intro": "Los retiros solo se envían a una cuenta bancaria a tu nombre que hayas verificado. El primer retiro a una cuenta nueva espera {{days}} días.",
+      "none": "Aún no tienes una cuenta bancaria.",
+      "add": "Agregar una cuenta bancaria",
+      "holderName": "Nombre del titular",
+      "bankName": "Nombre del banco",
+      "bankCode": "Código del banco o sucursal (opcional)",
+      "accountNumber": "Número de cuenta",
+      "country": "Código de país (2 letras)",
+      "currency": "Código de moneda (3 letras)",
+      "method": "Cómo verificar la cuenta",
+      "methodMicro": "Dos depósitos pequeños",
+      "methodCode": "Un código en la referencia de la transferencia",
+      "save": "Guardar cuenta",
+      "added": "Cuenta agregada. Atento a nuestra transferencia de verificación.",
+      "verify": "Verificar",
+      "verifyTitle": "Verificar la cuenta terminada en {{last4}}",
+      "verifyMicroHelp": "Ingresa los dos montos pequeños que enviamos a esta cuenta.",
+      "verifyCodeHelp": "Ingresa el código que aparece en la referencia de nuestra transferencia.",
+      "amount1": "Primer monto ({{currency}})",
+      "amount2": "Segundo monto ({{currency}})",
+      "code": "Código",
+      "verified": "Cuenta verificada",
+      "attemptsLeft": "Intentos restantes: {{count}}",
+      "coolingOff": "Primer retiro después del {{date}}",
+      "remove": "Eliminar",
+      "removeConfirm": "¿Eliminar la cuenta terminada en {{last4}}?",
+      "removed": "Cuenta eliminada",
+      "status": {
+        "pending_verification": "pendiente de verificación",
+        "verified": "verificada",
+        "held_for_review": "en revisión",
+        "failed": "verificación fallida"
+      }
+    },
+    "wage": {
+      "title": "Recibir tu pago en OxSteed Credit",
+      "intro": "Tu pago puede llegar como OxSteed Credit solo si estás de acuerdo. Puedes cambiar de opinión en cualquier momento.",
+      "statusGranted": "Aceptaste el {{date}} recibir tu pago en OxSteed Credit.",
+      "statusWithdrawn": "Elegiste recibir tu pago de otra forma: {{method}}.",
+      "statusNone": "No has aceptado recibir tu pago en OxSteed Credit.",
+      "readTerms": "Leer las condiciones",
+      "agree": "Acepto recibir mi pago en OxSteed Credit",
+      "grant": "Guardar mi elección",
+      "granted": "Gracias. Tu elección quedó guardada.",
+      "withdrawHelp": "Para dejar de hacerlo, elige cómo quieres que te paguen.",
+      "alternative": "Págame por",
+      "chooseAlternative": "Elige un método",
+      "withdraw": "Dejar de cobrar en Credit",
+      "withdrawn": "Tu elección quedó guardada.",
+      "alt": {
+        "bank_transfer": "transferencia bancaria",
+        "cash": "efectivo",
+        "check": "cheque",
+        "other": "otro método"
+      },
+      "requiredNote": "Los clientes solo pueden pagarte con OxSteed Credit después de que aceptes. Hasta entonces, te pagarán de otra forma."
+    },
+    "disclosures": {
+      "title": "Condiciones de OxSteed Credit",
+      "intro": "Lee estas condiciones antes de agregar o recibir OxSteed Credit.",
+      "allAccepted": "Aceptaste las condiciones vigentes.",
+      "accepted": "aceptado",
+      "showAll": "Ver todas las condiciones",
+      "hideAll": "Ocultar condiciones",
+      "accept": "He leído y acepto estas condiciones",
+      "acceptButton": "Aceptar",
+      "acceptedToast": "Gracias. Tu aceptación quedó guardada."
+    },
+    "windDown": {
+      "title": "OxSteed Credit va a cerrar",
+      "body": "Retira o gasta tu saldo antes del {{date}}.",
+      "after": "Tu dinero sigue protegido. Lo que quede después de esa fecha se guarda para ti como bien no reclamado, y todavía podrás reclamarlo.",
+      "destinationsTitle": "Dónde enviarte tu dinero",
+      "destinationsIntro": "Agrega una cuenta bancaria a tu nombre y confírmala para que podamos devolverte tu saldo antes del {{date}}. Las cuentas nuevas pueden recibir dinero después del período de espera de seguridad habitual.",
+      "holdingsLabel": "Tus saldos por devolver",
+      "destination": {
+        "ready": "Cuenta bancaria lista",
+        "missing": "Agrega una cuenta bancaria confirmada",
+        "cooling_off": "La cuenta bancaria puede recibir dinero desde el {{date}}"
+      },
+      "holderStatus": {
+        "pending": "Pendiente de devolución",
+        "notified": "Pendiente de devolución",
+        "instructed": "Pago enviado a tu banco",
+        "returned": "Tu banco devolvió el pago. Agrega o revisa tu cuenta.",
+        "paid": "Devuelto",
+        "zero": "No queda nada por devolver",
+        "unclaimed": "Guardado para ti como bien no reclamado"
+      },
+      "addDestination": "Agrega una cuenta bancaria para recuperar tu dinero",
+      "manageDestinations": "Revisa tus cuentas bancarias"
+    },
+    "erasure": {
+      "title": "La eliminación de tus datos está en pausa",
+      "blocked": "Todavía tienes OxSteed Credit, así que aún no podemos eliminar tus datos.",
+      "redeem": "Puedes retirar o gastar tu saldo primero.",
+      "unclaimedHelp": "O podemos entregar tu saldo al proceso de bienes no reclamados. Así tus datos se pueden eliminar y aún podrás reclamar el dinero más tarde.",
+      "unclaimed": "Entregar mi saldo como bien no reclamado",
+      "unclaimedConfirm": "¿Entregar tu saldo al proceso de bienes no reclamados?",
+      "unclaimedDone": "Listo. Tu solicitud de eliminación continuará."
     }
   },
   "securityPolicyPage": {

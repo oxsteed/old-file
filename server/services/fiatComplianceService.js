@@ -162,6 +162,13 @@ async function evaluateFundingCompliance({
         context: { fundingMethod: normalizedMethod },
       });
 
+      // 5b. Licence readiness §7: pre-acquisition disclosures accepted
+      //     (only when OXSTEED_CREDIT_REQUIRE_DISCLOSURE_ACCEPTANCE=true;
+      //     no query otherwise). Provisional dispute credit is exempt.
+      if (normalizedMethod !== 'credit_dispute_provisional') {
+        await require('./creditCompliance/disclosureService').assertPreAcquisitionAccepted(client, customerId, currency);
+      }
+
       // 6. Record the pass in the hash-chained audit trail.
       const checkedAt = new Date().toISOString();
       await writeComplianceAudit(client, {

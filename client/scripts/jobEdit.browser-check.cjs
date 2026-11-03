@@ -7,7 +7,7 @@ test('job edit: changed-fields patch, conflict recovery, field errors, and RTL',
   const mocks={
     '../context/AuthContext':`import React from 'react';export const AuthContext=React.createContext({});export const useAuth=()=>React.useContext(AuthContext);`,
     '../api/tokenValidator':`export const withTokenValidation=async callback=>callback();`,
-    '../api/axios':`export default {get:async(path)=>{const c=window.fixtureConfig;window.calls.push({method:'get',path});
+    '../api/axios':`export default {get:async(path)=>{const c=window.fixtureConfig;window.calls.push({method:'get',path});if(c.getDelay)await new Promise(r=>setTimeout(r,c.getDelay));
         if(/^\\/jobs\\/[^/]+$/.test(path))return {data:{...window.baseJob,...c.job,id:path.split('/').at(-1)}};return {data:{data:null}};},
       patch:async(path,body,options={})=>{const c=window.fixtureConfig;window.calls.push({method:'patch',path,body,headers:options.headers||{}});
         if(c.patchError){const e=new Error('Synthetic');e.response={status:c.patchError.status,data:c.patchError.data};throw e;}
@@ -64,6 +64,25 @@ test('job edit: changed-fields patch, conflict recovery, field errors, and RTL',
     await page.getByLabel('Title *',{exact:true}).fill('Kitchen sink repair (again)');await page.getByRole('button',{name:'Save changes'}).click();
     await page.getByText('Someone changed this job',{exact:false}).waitFor();
     assert.notEqual((await lastPatch()).headers['Idempotency-Key'],key1,'a new submit after a final error uses a new idempotency key');
+
+    // 2b. Reload while the server copy has moved on (version 5) and the load is slow:
+    // fields are locked during the load, the form is replaced exactly once, and text
+    // typed after the reload is never overwritten (regression: the form used to be
+    // reset twice, once by the job-version effect and once by the reload handler).
+    await page.evaluate(()=>{window.fixtureConfig={...window.fixtureConfig,patchError:null,getDelay:600,job:{version:5,title:'Kitchen sink repair (server)',original_title:'Kitchen sink repair (server)'}};});
+    const getsBefore=await page.evaluate(()=>window.calls.filter(c=>c.method==='get').length);
+    await page.getByRole('button',{name:'Load the latest version'}).click();
+    assert.equal(await page.getByLabel('Title *',{exact:true}).isDisabled(),true,'fields are locked while the latest version loads');
+    assert.equal(await page.getByRole('button',{name:'Load the latest version'}).isDisabled(),true,'reload cannot be started twice');
+    assert.equal(await page.getByRole('button',{name:'Save changes'}).isDisabled(),true,'save is blocked while reloading');
+    await page.waitForFunction(()=>document.querySelector('[id$="-title"]')?.value==='Kitchen sink repair (server)'&&!document.querySelector('[id$="-title"]').disabled);
+    assert.equal(await page.getByText('Someone changed this job',{exact:false}).count(),0,'conflict clears once the latest version is loaded');
+    await page.getByLabel('Title *',{exact:true}).fill('Kitchen sink repair (mine)');
+    await page.waitForTimeout(1000); // longer than the slow load: a late second reset would land here
+    assert.equal(await page.getByLabel('Title *',{exact:true}).inputValue(),'Kitchen sink repair (mine)','text typed after the reload is kept');
+    assert.equal(await page.evaluate(b=>window.calls.filter(c=>c.method==='get').length-b,getsBefore),1,'one fetch for one reload');
+    await page.getByRole('button',{name:'Save changes'}).click();await page.locator('#dest').waitFor();
+    assert.deepEqual((await lastPatch()).body,{title:'Kitchen sink repair (mine)',expected_version:5},'the save is based on the reloaded version');
 
     // 3. Server field codes are localized on the matching inputs.
     await configure({patchError:{status:422,data:{code:'validation_failed',fields:{location_city:'required',budget_max_cents:'budget_order'}}}});
