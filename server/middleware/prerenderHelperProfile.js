@@ -33,6 +33,7 @@ const SEO_COPY_KEYS = {
   '/about': { title: 'aboutPage.title', description: 'aboutPage.mission' },
   '/join': { title: 'join.heroTitle', description: 'join.heroSubtitle' },
   '/jobs': { title: 'jobsDir.metaTitle', description: 'jobsDir.metaDescription' },
+  '/careers': { title: 'careers.metaTitle', description: 'careers.metaDesc' },
   '/helpers': { title: 'helpersDir.heroTitle', description: 'helpersDir.metaDescription' },
   '/how-it-works': { title: 'howItWorks.title', description: 'howItWorks.subtitle' },
   '/help/restaurant': { title: 'publicSeo.help.restaurant.title', description: 'publicSeo.help.restaurant.description' },
@@ -570,6 +571,11 @@ const MARKETING_PAGES = {
   '/jobs': {
     title: 'Browse Local Jobs | OxSteed',
     description: 'Browse local service jobs and connect with customers who need dependable help.',
+    schemaType: 'CollectionPage',
+  },
+  '/careers': {
+    title: 'Careers at OxSteed',
+    description: 'Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.',
     schemaType: 'CollectionPage',
   },
   '/discover': {
@@ -1356,6 +1362,7 @@ const LEGACY_RESTAURANT_RE = /^\/food\/restaurants\/(\d+)$/i;
 const PUBLIC_TOOL_RE = /^\/tool-rentals\/(\d+)$/i;
 const PUBLIC_LOGISTICS_CAMPAIGN_RE = /^\/logistics\/campaigns\/(\d+)$/i;
 const PUBLIC_JOB_RE = /^\/jobs\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const PUBLIC_CAREER_RE = /^\/careers\/(\d+)$/;
 const LEGACY_JOB_RE = /^\/jobs\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const PUBLIC_MEDIA_POST_RE = /^\/media\/post\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
@@ -1462,6 +1469,7 @@ function isPublicSeoPath(pagePath) {
   if (PUBLIC_HELPER_RE.test(pagePath) || PUBLIC_BUSINESS_RE.test(pagePath)) return true;
   if (SLUG_HELPER_RE.test(pagePath) || SLUG_BUSINESS_RE.test(pagePath)) return true;
   if (PUBLIC_JOB_RE.test(pagePath) || PUBLIC_RESTAURANT_RE.test(pagePath)) return true;
+  if (PUBLIC_CAREER_RE.test(pagePath)) return true;
   if (PUBLIC_TOOL_RE.test(pagePath) || PUBLIC_LOGISTICS_CAMPAIGN_RE.test(pagePath)) return true;
   return false;
 }
@@ -1543,6 +1551,85 @@ async function handlePublicJob(jobId, template, res, next, req) {
   html = addLanguageAlternates(html, `${origin}${publicPath}`);
   html = injectJsonLd(html, jsonLd);
   html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, language));
+  html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
+  res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
+  res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
+  return res.send(html);
+}
+
+async function handleCareerOpening(openingId, template, res, next, req) {
+  // Same public filter as the careers API: open, moderation ok, not
+  // internal, inside the application window, live employer. Anything else
+  // is a 404 shell with noindex, never a public listing.
+  const { rows } = await pool.query(
+    `SELECT o.id, o.title, o.description, o.published_at, o.created_at,
+            o.applications_close_at, o.closes_at,
+            CASE WHEN o.employer_type = 'platform' THEN 'OxSteed' ELSE b.business_name END AS employer_name
+       FROM career_openings o
+       LEFT JOIN businesses b ON b.id = o.business_id
+      WHERE o.id = $1
+        AND o.status = 'open'
+        AND o.moderation_status = 'ok'
+        AND o.is_internal = FALSE
+        AND (o.opens_at IS NULL OR o.opens_at <= NOW())
+        AND (COALESCE(o.applications_close_at, o.closes_at) IS NULL
+             OR COALESCE(o.applications_close_at, o.closes_at) >= NOW())
+        AND (o.employer_type = 'platform'
+             OR (b.deleted_at IS NULL AND b.is_active = TRUE))
+      LIMIT 1`,
+    [Number(openingId)],
+  );
+  if (!rows[0]) {
+    return sendSeoNotFound(
+      template,
+      res,
+      `${base()}/careers/${openingId}`,
+      'Career Opening Not Found | OxSteed',
+      'This OxSteed career opening is no longer available.',
+    );
+  }
+
+  const opening = rows[0];
+  const origin = base();
+  const publicPath = `/careers/${opening.id}`;
+  const language = getRequestedLanguage(req);
+  const url = getLocalizedRequestUrl(publicPath, req);
+  const description = String(
+    opening.description
+      || `${opening.title} career opening at ${opening.employer_name || 'OxSteed'}.`,
+  ).replace(/\s+/g, ' ').trim().slice(0, 320);
+  const datePosted = opening.published_at || opening.created_at;
+  const validThrough = opening.applications_close_at || opening.closes_at;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'JobPosting',
+    title: opening.title,
+    description,
+    datePosted: datePosted ? new Date(datePosted).toISOString() : undefined,
+    validThrough: validThrough ? new Date(validThrough).toISOString() : undefined,
+    hiringOrganization: {
+      '@type': 'Organization',
+      name: opening.employer_name || 'OxSteed',
+    },
+    url,
+    inLanguage: language,
+    mainEntityOfPage: url,
+    isPartOf: { '@id': `${origin}/#website` },
+  };
+  const shell = `<div id="ssr-shell" data-career-id="${escapeHtml(String(opening.id))}" style="max-width:42rem;margin:0 auto;padding:2rem 1rem;">
+    <header><h1>${escapeHtml(opening.title)}</h1>${opening.employer_name ? `<p>${escapeHtml(opening.employer_name)}</p>` : ''}<p>${escapeHtml(description)}</p></header>
+  </div>`;
+  let html = replaceMeta(template, {
+    title: `${opening.title} | ${opening.employer_name || 'OxSteed'}`,
+    description,
+    url,
+    image: `${origin}/icons/icon-512.png`,
+  });
+  html = setDocumentLanguage(html, language);
+  html = addLanguageAlternates(html, `${origin}${publicPath}`);
+  html = injectJsonLd(html, jsonLd);
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(`${opening.title} | OxSteed`, url, req, language));
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
   res.set('Content-Type', 'text/html');
   res.set('Content-Language', language);
@@ -1965,6 +2052,14 @@ function prerenderPublicPages(req, res, next) {
   if (matchLogisticsCampaign) {
     return handleLogisticsCampaign(matchLogisticsCampaign[1], template, res, req).catch((err) => {
       logger.error('[prerender] logistics campaign error', { campaignId: matchLogisticsCampaign[1], error: err.message });
+      return next();
+    });
+  }
+
+  const matchCareer = p.match(PUBLIC_CAREER_RE);
+  if (matchCareer) {
+    return handleCareerOpening(matchCareer[1], template, res, next, req).catch((err) => {
+      logger.error('[prerender] career opening error', { openingId: matchCareer[1], error: err.message });
       return next();
     });
   }
