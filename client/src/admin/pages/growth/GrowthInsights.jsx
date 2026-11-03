@@ -190,6 +190,9 @@ export default function GrowthInsights({ section = 'overview' }) {
     [minimum, setMinimum] = useState(5);
   const [view, setView] = useState('map'),
     [snapshots, setSnapshots] = useState(null);
+  const [rerunDay, setRerunDay] = useState(''),
+    [rerunForce, setRerunForce] = useState(false),
+    [rerunResult, setRerunResult] = useState(null);
   const [rejecting, setRejecting] = useState(null),
     [reason, setReason] = useState('');
   const load = useCallback(async () => {
@@ -506,6 +509,57 @@ export default function GrowthInsights({ section = 'overview' }) {
             ))}
           </dl>
         </section>
+      )}
+      {section === 'overview' && (
+        <form
+          className="grid max-w-xl gap-3 rounded border p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(async () => {
+              try {
+                const r = await api.post('/admin/growth/rollups/rerun', {
+                  day: rerunDay || undefined,
+                  force: rerunForce,
+                });
+                setRerunResult(r.data.result);
+              } catch {
+                setRerunResult({ error: true });
+              }
+            });
+          }}
+        >
+          <h3 className="font-semibold">{label('rollupRerunTitle')}</h3>
+          <p>{label('rollupRerunDescription')}</p>
+          <label>
+            {label('rollupRerunDay')}
+            <input
+              className={input}
+              value={rerunDay}
+              placeholder="YYYY-MM-DD"
+              onChange={(e) => setRerunDay(e.target.value)}
+            />
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={rerunForce}
+              onChange={(e) => setRerunForce(e.target.checked)}
+            />{' '}
+            {label('rollupRerunForce')}
+          </label>
+          <button className="rounded border px-3 py-2" disabled={busy}>
+            {label('rollupRerunSubmit')}
+          </button>
+          {rerunResult && !rerunResult.error && !rerunResult.skipped && (
+            <p role="status">{label('rollupRerunDone')}</p>
+          )}
+          {rerunResult && rerunResult.skipped && (
+            <p role="status">{label('rollupRerunSkipped')}</p>
+          )}
+          {rerunResult && rerunResult.error && (
+            <p role="alert">{label('rollupRerunFailed')}</p>
+          )}
+        </form>
       )}
       {section === 'clusters' && (
         <form

@@ -38110,7 +38110,15 @@
       "importReport": "Importer le rapport",
       "reportImported": "{{tags}} identifiants importés ({{mapped}} rattachés à des campagnes).",
       "reportDuplicate": "Ce rapport a déjà été importé."
-    }
+    },
+    "rollupRerunTitle": "Relancer le cumul",
+    "rollupRerunDescription": "Recalcule un jour de cumul passe reste partiel. Un jour termine exige l'option forcer.",
+    "rollupRerunDay": "Jour (AAAA-MM-JJ)",
+    "rollupRerunForce": "Forcer le recalcul meme si le jour est deja termine",
+    "rollupRerunSubmit": "Relancer le cumul",
+    "rollupRerunDone": "Cumul recalcule.",
+    "rollupRerunSkipped": "Cumul ignore : deja termine.",
+    "rollupRerunFailed": "Echec de la relance du cumul."
   },
   "adminOperationalNotices": {
     "regionLabel": "Avis opérationnels",

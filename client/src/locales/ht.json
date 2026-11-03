@@ -38110,7 +38110,15 @@
       "importReport": "Enpòte rapò",
       "reportImported": "{{tags}} etikèt enpòte ({{mapped}} konekte ak kanpay).",
       "reportDuplicate": "Rapò sa a te deja enpòte."
-    }
+    },
+    "rollupRerunTitle": "Refe rolop",
+    "rollupRerunDescription": "Kalkile anko yon jou rolop ki te fini pasyel. Yon jou ki fini bezwen opsyon fose a.",
+    "rollupRerunDay": "Jou (AAAA-MM-JJ)",
+    "rollupRerunForce": "Fose rekalkil menm si jou a deja fini",
+    "rollupRerunSubmit": "Refe rolop",
+    "rollupRerunDone": "Rolop rekalkile.",
+    "rollupRerunSkipped": "Rolop sote: li deja fini.",
+    "rollupRerunFailed": "Refe rolop la echwe."
   },
   "adminOperationalNotices": {
     "regionLabel": "Avi operasyonèl",

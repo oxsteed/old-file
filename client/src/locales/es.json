@@ -38110,7 +38110,15 @@
       "importReport": "Importar informe",
       "reportImported": "Se importaron {{tags}} etiquetas ({{mapped}} vinculadas a campañas).",
       "reportDuplicate": "Este informe ya se importó."
-    }
+    },
+    "rollupRerunTitle": "Repetir rollup",
+    "rollupRerunDescription": "Vuelve a calcular un dia de rollup anterior que termino parcial. Un dia completado necesita la opcion forzar.",
+    "rollupRerunDay": "Dia (AAAA-MM-DD)",
+    "rollupRerunForce": "Forzar el recalculo aunque el dia ya este completado",
+    "rollupRerunSubmit": "Repetir rollup",
+    "rollupRerunDone": "Rollup recalculado.",
+    "rollupRerunSkipped": "Rollup omitido: ya esta completado.",
+    "rollupRerunFailed": "Error al repetir el rollup."
   },
   "adminOperationalNotices": {
     "regionLabel": "Avisos operativos",

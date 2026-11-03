@@ -38110,7 +38110,15 @@
       "importReport": "Import report",
       "reportImported": "Imported {{tags}} tracking tags ({{mapped}} matched to campaigns).",
       "reportDuplicate": "This report was already imported."
-    }
+    },
+    "rollupRerunTitle": "Rollup rerun",
+    "rollupRerunDescription": "Recompute a past rollup day that finished partial. A completed day needs the force option.",
+    "rollupRerunDay": "Day (YYYY-MM-DD)",
+    "rollupRerunForce": "Force recompute even if the day already completed",
+    "rollupRerunSubmit": "Rerun rollup",
+    "rollupRerunDone": "Rollup recomputed.",
+    "rollupRerunSkipped": "Rollup skipped: already complete.",
+    "rollupRerunFailed": "Rollup rerun failed."
   },
   "adminOperationalNotices": {
     "regionLabel": "Operational notices",
