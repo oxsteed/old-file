@@ -312,7 +312,8 @@ ddescribe('backoff is bounded and attempts exhaust to dead_letter', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer, { maxAttempts: 3 })]);
-    const claimed = await service.claimNextAccountJob('worker-a');
+    const claimOptions = { runId: run.id };
+    const claimed = await service.claimNextAccountJob('worker-a', 120, claimOptions);
     const before = Date.now();
     const failed = await service.failJob(claimed.id, 'worker-a', 1, 'transient export error', true);
     expect(failed.state).toBe('failed');
@@ -320,13 +321,17 @@ ddescribe('backoff is bounded and attempts exhaust to dead_letter', () => {
     const retryInMs = new Date(failed.next_retry_at).getTime() - before;
     expect(retryInMs).toBeGreaterThanOrEqual(25000);
     expect(retryInMs).toBeLessThanOrEqual(70000);
-    // Not claimable while the backoff window is open...
-    expect(await service.claimNextAccountJob('worker-b')).toBeNull();
+    // Control the fixture's window after verifying the generated delay so a
+    // slow runner cannot advance past it during the claim assertions.
+    await pool.query(
+      `UPDATE statement_account_jobs SET next_retry_at = transaction_timestamp() + interval '1 hour'
+       WHERE id = $1`, [claimed.id]);
+    expect(await service.claimNextAccountJob('worker-b', 120, claimOptions)).toBeNull();
     // ...but becomes claimable once the window elapses.
     await pool.query(
       `UPDATE statement_account_jobs SET next_retry_at = transaction_timestamp() - interval '1 second'
        WHERE id = $1`, [claimed.id]);
-    const retried = await service.claimNextAccountJob('worker-b');
+    const retried = await service.claimNextAccountJob('worker-b', 120, claimOptions);
     expect(retried).not.toBeNull();
     expect(retried.id).toBe(claimed.id);
     expect(String(retried.attempt_count)).toBe('2');
