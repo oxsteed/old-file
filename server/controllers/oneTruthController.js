@@ -1656,4 +1656,5 @@ exports.reviewSuspectPair = async (req, res) => {
 // Test seam (decision 10).
 exports._buildSuspectPairsIndexed = buildSuspectPairsIndexed;
 exports._buildSuspectPairsScoped = buildSuspectPairsScoped;
+exports._countScopedUsers = countScopedUsers;
 exports._oneTruthMaxPairs = oneTruthMaxPairs;
