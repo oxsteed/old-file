@@ -2806,5 +2806,24 @@
       "sha": "SHA-256",
       "storageCopy": "Copie stockée"
     }
-  }
+  },
+  "adminComplianceMatchDetails": "Détails de la correspondance",
+  "adminComplianceHideMatchDetails": "Masquer les détails",
+  "adminComplianceMatchLoading": "Chargement des détails…",
+  "adminComplianceMatchFailed": "Impossible de charger les détails. Rien n’est affiché car la consultation n’a pas pu être enregistrée.",
+  "adminComplianceNoMatches": "Aucune entrée de liste n’est enregistrée pour ce contrôle.",
+  "adminComplianceScreenedName": "Nom contrôlé",
+  "adminComplianceTopScore": "Score le plus élevé",
+  "adminComplianceMatchScore": "Score",
+  "adminComplianceMatchListEntry": "Entrée de la liste",
+  "adminComplianceMatchSource": "Liste",
+  "adminComplianceMatchVersion": "Version de la liste",
+  "adminComplianceMatchFields": "Correspondance sur",
+  "adminComplianceMatchField_primary_name": "nom principal",
+  "adminComplianceMatchField_alias": "alias",
+  "adminComplianceMatchField_weak_alias": "alias faible (confiance moindre)",
+  "adminComplianceMatchQuery": "Nom comparé",
+  "adminComplianceMatchPrograms": "Programmes",
+  "adminComplianceMatchCountries": "Pays",
+  "adminComplianceMatchBirthDates": "Dates de naissance"
 }

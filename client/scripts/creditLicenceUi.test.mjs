@@ -198,3 +198,41 @@ test('gap fill 2: the wage consent panel stands on its own, outside the cash-out
   const service = read(path.join(serverRoot, 'services/creditCompliance/wageConsentService.js'));
   assert.match(service, /relevant,/);
 });
+
+test('gap fill 3: the compliance queue shows sanctions match details from the licence API', () => {
+  const src = readClient('src/admin/pages/super/oxsteedCredit/CompliancePage.jsx');
+  assert.match(src, /\/admin\/super\/credit-licence\/sanctions\/screenings\/\$\{encodeURIComponent\(screeningId\)\}\/matches/);
+  assert.match(src, /<SanctionMatchDetails screeningId=\{hit\.id\}/);
+  for (const field of ['source_name', 'version_sha256', 'score', 'matched_fields', 'external_id']) assert.match(src, new RegExp(`m\\.${field}`));
+  const routes = routePatterns('routes/creditLicenceAdmin.js', '/admin/super/credit-licence');
+  assert.ok(routes.some((r) => r.method === 'get' && r.regex.test('/admin/super/credit-licence/sanctions/screenings/X/matches')));
+  const keys = new Set([...src.matchAll(/\bt\(\s*['"`](adminComplianceMatch[A-Za-z_]*|adminCompliance(?:Hide)?MatchDetails|adminComplianceScreenedName|adminComplianceTopScore|adminComplianceNoMatches)['"`]/g)].map((m) => m[1]));
+  for (const f of ['primary_name', 'alias', 'weak_alias']) keys.add(`adminComplianceMatchField_${f}`);
+  assert.ok(keys.size >= 15);
+  for (const lang of LEGACY_LANGS) {
+    const catalog = readJson(path.join(clientRoot, `src/i18n/locales/${lang}/credit.json`));
+    for (const key of keys) assert.equal(typeof catalog[key], 'string', `${lang}: missing ${key}`);
+  }
+});
+
+test('gap fill 4: sensitive licence reads are audited before the response is sent', () => {
+  const src = read(path.join(serverRoot, 'routes/creditLicenceAdmin.js'));
+  const block = (route) => {
+    const start = src.indexOf(`router.get('${route}'`);
+    assert.ok(start >= 0, `missing route ${route}`);
+    return src.slice(start, src.indexOf('}));', start));
+  };
+  for (const [route, action] of [
+    ['/sanctions/screenings/:id/matches', 'credit.sanctions.matches_viewed'],
+    ['/sanctions/search', 'credit.sanctions.name_searched'],
+    ['/safeguarding/export', 'credit.safeguarding.exported'],
+    ['/sar/:id/pack', 'credit.sar.pack_downloaded'],
+    ['/wind-down/:id/holders', 'credit.wind_down.holders_viewed'],
+  ]) {
+    const body = block(route);
+    const auditAt = body.indexOf(`await auditRead(req, {\n    actionType: '${action}'`);
+    assert.ok(auditAt >= 0, `${route} must audit ${action}`);
+    const sendAt = Math.max(body.lastIndexOf('res.json('), body.lastIndexOf('res.send('));
+    assert.ok(sendAt > auditAt, `${route} must audit before responding`);
+  }
+});

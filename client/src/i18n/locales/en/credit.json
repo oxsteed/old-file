@@ -2806,5 +2806,24 @@
       "sha": "SHA-256",
       "storageCopy": "Storage copy"
     }
-  }
+  },
+  "adminComplianceMatchDetails": "Match details",
+  "adminComplianceHideMatchDetails": "Hide match details",
+  "adminComplianceMatchLoading": "Loading match details…",
+  "adminComplianceMatchFailed": "Match details could not be loaded. Nothing was shown because the view could not be recorded.",
+  "adminComplianceNoMatches": "No list entries are stored for this screening.",
+  "adminComplianceScreenedName": "Name screened",
+  "adminComplianceTopScore": "Highest score",
+  "adminComplianceMatchScore": "Score",
+  "adminComplianceMatchListEntry": "List entry",
+  "adminComplianceMatchSource": "List",
+  "adminComplianceMatchVersion": "List version",
+  "adminComplianceMatchFields": "Matched on",
+  "adminComplianceMatchField_primary_name": "primary name",
+  "adminComplianceMatchField_alias": "alias",
+  "adminComplianceMatchField_weak_alias": "weak alias (lower confidence)",
+  "adminComplianceMatchQuery": "Name compared",
+  "adminComplianceMatchPrograms": "Programs",
+  "adminComplianceMatchCountries": "Countries",
+  "adminComplianceMatchBirthDates": "Birth dates"
 }

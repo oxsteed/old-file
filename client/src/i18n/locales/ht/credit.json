@@ -2806,5 +2806,24 @@
       "sha": "SHA-256",
       "storageCopy": "Kopi nan depo"
     }
-  }
+  },
+  "adminComplianceMatchDetails": "Detay koresponn lan",
+  "adminComplianceHideMatchDetails": "Kache detay yo",
+  "adminComplianceMatchLoading": "N ap chaje detay yo…",
+  "adminComplianceMatchFailed": "Nou pa t ka chaje detay yo. Nou pa montre anyen paske nou pa t ka anrejistre konsiltasyon an.",
+  "adminComplianceNoMatches": "Pa gen okenn antre lis ki anrejistre pou verifikasyon sa a.",
+  "adminComplianceScreenedName": "Non yo verifye",
+  "adminComplianceTopScore": "Pi gwo nòt",
+  "adminComplianceMatchScore": "Nòt",
+  "adminComplianceMatchListEntry": "Antre nan lis la",
+  "adminComplianceMatchSource": "Lis",
+  "adminComplianceMatchVersion": "Vèsyon lis la",
+  "adminComplianceMatchFields": "Koresponn sou",
+  "adminComplianceMatchField_primary_name": "non prensipal",
+  "adminComplianceMatchField_alias": "lòt non",
+  "adminComplianceMatchField_weak_alias": "lòt non fèb (mwens konfyans)",
+  "adminComplianceMatchQuery": "Non yo konpare",
+  "adminComplianceMatchPrograms": "Pwogram",
+  "adminComplianceMatchCountries": "Peyi",
+  "adminComplianceMatchBirthDates": "Dat nesans"
 }

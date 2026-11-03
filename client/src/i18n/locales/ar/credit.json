@@ -2806,5 +2806,24 @@
       "sha": "SHA-256",
       "storageCopy": "نسخة التخزين"
     }
-  }
+  },
+  "adminComplianceMatchDetails": "تفاصيل المطابقة",
+  "adminComplianceHideMatchDetails": "إخفاء التفاصيل",
+  "adminComplianceMatchLoading": "جارٍ تحميل تفاصيل المطابقة…",
+  "adminComplianceMatchFailed": "تعذر تحميل التفاصيل. لم يُعرض شيء لأنه تعذر تسجيل الاطلاع.",
+  "adminComplianceNoMatches": "لا توجد إدخالات قوائم محفوظة لهذا الفحص.",
+  "adminComplianceScreenedName": "الاسم المفحوص",
+  "adminComplianceTopScore": "أعلى درجة",
+  "adminComplianceMatchScore": "الدرجة",
+  "adminComplianceMatchListEntry": "إدخال القائمة",
+  "adminComplianceMatchSource": "القائمة",
+  "adminComplianceMatchVersion": "إصدار القائمة",
+  "adminComplianceMatchFields": "تطابق في",
+  "adminComplianceMatchField_primary_name": "الاسم الأساسي",
+  "adminComplianceMatchField_alias": "اسم مستعار",
+  "adminComplianceMatchField_weak_alias": "اسم مستعار ضعيف (ثقة أقل)",
+  "adminComplianceMatchQuery": "الاسم المقارن",
+  "adminComplianceMatchPrograms": "البرامج",
+  "adminComplianceMatchCountries": "الدول",
+  "adminComplianceMatchBirthDates": "تواريخ الميلاد"
 }

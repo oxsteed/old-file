@@ -2806,5 +2806,24 @@
       "sha": "SHA-256",
       "storageCopy": "Copia en almacenamiento"
     }
-  }
+  },
+  "adminComplianceMatchDetails": "Detalles de la coincidencia",
+  "adminComplianceHideMatchDetails": "Ocultar detalles",
+  "adminComplianceMatchLoading": "Cargando detalles de la coincidencia…",
+  "adminComplianceMatchFailed": "No se pudieron cargar los detalles. No se mostró nada porque no se pudo registrar la consulta.",
+  "adminComplianceNoMatches": "No hay entradas de lista guardadas para esta verificación.",
+  "adminComplianceScreenedName": "Nombre verificado",
+  "adminComplianceTopScore": "Puntuación más alta",
+  "adminComplianceMatchScore": "Puntuación",
+  "adminComplianceMatchListEntry": "Entrada de la lista",
+  "adminComplianceMatchSource": "Lista",
+  "adminComplianceMatchVersion": "Versión de la lista",
+  "adminComplianceMatchFields": "Coincide en",
+  "adminComplianceMatchField_primary_name": "nombre principal",
+  "adminComplianceMatchField_alias": "alias",
+  "adminComplianceMatchField_weak_alias": "alias débil (menor confianza)",
+  "adminComplianceMatchQuery": "Nombre comparado",
+  "adminComplianceMatchPrograms": "Programas",
+  "adminComplianceMatchCountries": "Países",
+  "adminComplianceMatchBirthDates": "Fechas de nacimiento"
 }

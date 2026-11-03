@@ -39,6 +39,20 @@ const svc = {
   anchors: () => require('../services/creditCompliance/auditAnchorService'),
   windDown: () => require('../services/creditCompliance/windDownService'),
 };
+/**
+ * Sensitive reads are audited before anything is sent (gap fill 4). The
+ * audit insert throws on failure, so a read that cannot be recorded is not
+ * served (same rule as report pack downloads).
+ */
+async function auditRead(req, { actionType, resourceType, resourceId, reason = null, customerId = null, metadata = {} }) {
+  const { insertComplianceAudit } = require('../services/creditCompliance/audit');
+  await insertComplianceAudit(require('../db'), {
+    actionType, actorUserId: req.user.id, customerId, resourceType, resourceId: String(resourceId), reason,
+    requestIp: req.ip || null, correlationId: req.correlationId || req.get?.('X-Request-ID') || null, metadata,
+  });
+}
+const sha256 = (value) => require('crypto').createHash('sha256').update(String(value)).digest('hex');
+
 const digits = (v, name = 'id') => {
   const s = String(v || '');
   if (!/^\d{1,18}$/.test(s)) throw new AppError(`Invalid ${name}`, 400, 'validation_failed');
@@ -99,14 +113,28 @@ router.post('/sanctions/sources/:id/refresh', h(async (req, res) => {
 // Publishers that block automated download: ingest the official file with
 // scripts/ingestSanctionsList.js (bodies are too large for the API parser).
 router.get('/sanctions/screenings/:id/matches', h(async (req, res) => {
-  res.json({ matches: await svc.lists().listScreeningMatches(require('../db'), uuid(req.params.id)) });
+  const id = uuid(req.params.id);
+  const details = await svc.lists().getScreeningMatchDetails(require('../db'), id);
+  await auditRead(req, {
+    actionType: 'credit.sanctions.matches_viewed', resourceType: 'credit_sanctions_screening', resourceId: id,
+    customerId: details.screening.subject_type === 'customer' ? details.screening.subject_id : null,
+    metadata: { matches: details.matches.length, subjectType: details.screening.subject_type },
+  });
+  res.json(details);
 }));
 router.get('/sanctions/custom', h(async (req, res) => {
   res.json({ entries: await svc.lists().listCustomEntries() });
 }));
 router.get('/sanctions/search', h(async (req, res) => {
   const q = String(req.query.q || '').slice(0, 200);
-  res.json({ matches: await svc.lists().searchName(require('../db'), q, { threshold: 0.8 }) });
+  const matches = await svc.lists().searchName(require('../db'), q, { threshold: 0.8 });
+  // The searched name is personal data: the audit keeps its hash and length,
+  // enough to prove what was searched without copying the name around.
+  await auditRead(req, {
+    actionType: 'credit.sanctions.name_searched', resourceType: 'credit_sanctions_search', resourceId: sha256(q.trim().toLowerCase()).slice(0, 32),
+    metadata: { querySha256: sha256(q.trim().toLowerCase()), queryLength: q.trim().length, results: matches.length },
+  });
+  res.json({ matches });
 }));
 
 // ── Safeguarding ────────────────────────────────────────────────────────
@@ -119,6 +147,10 @@ router.get('/safeguarding/export', h(async (req, res) => {
   const to = String(req.query.to || '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) throw new AppError('from and to dates are required', 400, 'validation_failed');
   const out = await svc.safeguarding().exportReconciliations({ from, to });
+  await auditRead(req, {
+    actionType: 'credit.safeguarding.exported', resourceType: 'credit_safeguarding_export', resourceId: `${from}..${to}`,
+    metadata: { from, to, sha256: out.sha256 },
+  });
   res.set('Content-Type', 'text/csv; charset=utf-8');
   res.set('Content-Disposition', `attachment; filename="safeguarding-${from}-${to}.csv"`);
   res.set('X-Content-SHA256', out.sha256);
@@ -142,7 +174,11 @@ router.post('/sar/:id/withdraw', h(async (req, res) => {
   res.json({ report: await svc.sar().withdraw({ actorUserId: req.user.id, sarId: uuid(req.params.id), reason: req.body?.reason }) });
 }));
 router.get('/sar/:id/pack', h(async (req, res) => {
-  const pack = await svc.sar().buildFilingPack(uuid(req.params.id));
+  const id = uuid(req.params.id);
+  const pack = await svc.sar().buildFilingPack(id);
+  await auditRead(req, {
+    actionType: 'credit.sar.pack_downloaded', resourceType: 'credit_sar', resourceId: id, metadata: { sha256: pack.sha256 },
+  });
   res.set('Content-Type', 'application/json; charset=utf-8');
   res.set('Content-Disposition', `attachment; filename="sar-${req.params.id}.json"`);
   res.set('X-Content-SHA256', pack.sha256);
@@ -255,7 +291,14 @@ router.get('/audit-anchors/:date', h(async (req, res) => {
 // ── Wind-down (§10) ─────────────────────────────────────────────────────
 router.get('/wind-down', h(async (req, res) => res.json(await svc.windDown().getStatus())));
 router.get('/wind-down/:id/holders', h(async (req, res) => {
-  res.json({ holders: await svc.windDown().listHolders({ planId: digits(req.params.id), status: req.query.status || null, limit: req.query.limit, afterId: req.query.after_id || null }) });
+  const planId = digits(req.params.id);
+  const status = req.query.status ? String(req.query.status).slice(0, 20) : null;
+  const holders = await svc.windDown().listHolders({ planId, status, limit: req.query.limit, afterId: req.query.after_id || null });
+  await auditRead(req, {
+    actionType: 'credit.wind_down.holders_viewed', resourceType: 'credit_wind_down_plan', resourceId: planId,
+    metadata: { status, afterId: req.query.after_id || null, rows: holders.length },
+  });
+  res.json({ holders });
 }));
 router.post('/wind-down/:id/notify', h(async (req, res) => {
   res.json(await svc.windDown().notifyHolders({ planId: digits(req.params.id), actorUserId: req.user.id, limit: req.body?.limit }));
