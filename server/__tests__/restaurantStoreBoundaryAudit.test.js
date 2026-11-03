@@ -98,6 +98,11 @@ const REVIEWED = {
   'services/cardStoreForward.js': SCOPED_CALLER,
   'services/chargebackEvidenceService.js': SYSTEM_JOB,
   'services/customer360Sources.js': CUSTOMER_OR_SELF,
+  // Customer 360 upgrades: the event-log backfill walks food_orders by
+  // primary key as a system job; health scores aggregate one customer's own
+  // orders.
+  'services/customer360Events.js': SYSTEM_JOB,
+  'services/customer360Health.js': CUSTOMER_OR_SELF,
   // Dual-approval queue enrichment: admin-only checker list (requireAdmin +
   // requireMoneyApprovalGrant) resolving each movement's own subject id to a
   // display name/status; never a caller-supplied store id.
