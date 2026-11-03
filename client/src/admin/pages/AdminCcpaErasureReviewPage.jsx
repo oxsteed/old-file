@@ -88,8 +88,8 @@ export default function AdminCcpaErasureReviewPage() {
                 <tr key={row.request_id} className="border-b border-gray-100 dark:border-gray-700/50">
                   <td className="px-4 py-3 font-mono text-sm">{row.request_id}</td>
                   <td className="px-4 py-3">{row.attempts}</td>
-                  <td className="px-4 py-3 text-sm break-words max-w-md">{row.last_error || '—'}</td>
-                  <td className="px-4 py-3 text-sm">{row.created_at ? new Date(row.created_at).toLocaleString() : '—'}</td>
+                  <td className="px-4 py-3 text-sm break-words max-w-md">{row.last_error || '-'}</td>
+                  <td className="px-4 py-3 text-sm">{row.created_at ? new Date(row.created_at).toLocaleString() : '-'}</td>
                   <td className="px-4 py-3">
                     <button
                       onClick={() => handleRequeue(row.request_id)}
