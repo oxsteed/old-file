@@ -37,5 +37,14 @@ Budget: about 4 hours. Breadth first, depth second, stop at a clean gated PR.
 - /learn decision RESOLVED at merge (commit 609f5d15d): /learn dropped from the sitemap and moved to noindex in the route resolver, because it is noindex in both LearnModePage PageMeta and the prerender shell, and that noindex looks deliberate (Learn is a gated mode experience). The seoRoute.learn locale key was removed from all five locales (exactly 4 lines each, byte-preserving otherwise) and shards regenerated. Sitemap test updated to assert /learn absent. If Emile ever wants Learn indexed, lift PageMeta noIndex + prerender noIndex and re-add all three.
 - Targeted re-verification after merge fix: seoMeta tests 10/10 pass; sitemap + robots + canonicalHost suites pass. prerenderMarketing suite fails (13 tests) ONLY because this fresh worktree has no client/dist yet (Track S used a temporary fixture); the gate runs build:ci first for exactly this reason.
 
-## Gate status
-- build:ci running (started after merge fix); full server suite to follow on the final tree.
+## Gate status (final tree, head 2295e0dd8 before this entry)
+- Client build:ci: EXIT 0 (built in 1m 22s, 1141 emitted assets verified). Run with NODE_OPTIONS=--max-old-space-size=4096, solo.
+- Growth instrumentation --check: coverage 1, interactive 2733, named 2733, files to annotate 0. No --write needed.
+- Full server suite: 10,267 passed, 11 failed, 464 skipped, 10,742 total, 812.9s, fresh DB migrated (1065 tables). The 11 failures are EXACTLY the known local base: querystringSecurity (8) + restaurantDevicePairingAudit.db (3). No branch-caused failures.
+- Prerender/sitemap/robots/canonical suites with real client/dist: 22/22 pass (the 13 prerender failures seen pre-build were purely the missing-dist fixture artifact).
+- Targeted: seoMeta node tests 10/10 pass.
+- Tree clean at push. 32 files, +2546/-12 vs base. No migrations, no lightmode file, no money/checkout changes.
+- Live verification NOT done: served sitemap/robots and rendered per-page meta against production require a deploy (Emile's domain); sitemap XML was parser-verified from a mocked-router run and JSON-LD blocks JSON-round-trip verified.
+
+## Delivered
+- Pushed fix/seo-2026-11-02; PR opened (see receipt). NOT merged (Emile merges).
