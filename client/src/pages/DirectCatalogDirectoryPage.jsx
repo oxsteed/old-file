@@ -4,6 +4,7 @@ import { ArrowRight, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import JsonLd, { buildItemList } from '../components/JsonLd';
 import { directCatalogIcon } from '../components/DirectCatalogIcons';
 import { getDirectCatalog } from '../api/direct';
 import { directCatalogHref, DIRECT_CATALOG_VIEWS } from '../utils/directCatalogNavigation';
@@ -183,6 +184,14 @@ export default function DirectCatalogDirectoryPage({ view = 'services' }) {
   return (
     <PageShell>
       <PageMeta title={`${title} | OxSteed Direct`} description={subtitle} url={`${window.location.origin}${definition.path}`} />
+      {/* SEO: ItemList only for the skills view, where each category is a
+          real link to its services page. Services and tools views are
+          skipped: their items have no per-item detail URL (only Book /
+          Request actions), so no URL is invented for them. */}
+      {isSkillsView && <JsonLd data={buildItemList(skillCategories.map((item) => ({
+        name: item.name,
+        url: `${window.location.origin}${directCatalogHref('services', { categorySlug: item.slug })}`,
+      })))} />}
       <main className="direct-catalog-content mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8" id="main-content">
         <header className="direct-catalog-header mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-950/80 px-5 py-4 shadow-lg">
           <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-slate-300">

@@ -1,5 +1,14 @@
 // Dynamic XML sitemap - static pages plus eligible public listings and profiles.
 // Loc uses APP_URL / CLIENT_URL (publicSiteUrl).
+//
+// Deliberately omitted (verified against App.jsx, launchScope, and server
+// routes): /discover redirects to /jobs while discoverEverything is off, so
+// only /jobs is listed; /features and /hire are redirect-only stubs to
+// /how-it-works and /helpers. /direct/service-area stays listed: the SPA
+// route redirects, but the server serves a real localized page at that path
+// (server/index.js mounts sendDirectServiceAreaPage before the SPA fallback).
+// Worst-case URL count stays near 23k (capped per section), far under the
+// 50k single-sitemap limit, so no sitemap index is needed.
 
 const express = require('express');
 const router = express.Router();
@@ -39,6 +48,7 @@ router.get('/', async (_req, res) => {
     const STATIC_URLS = [
       { loc: `${origin}/`, changefreq: 'weekly', priority: '1.0', localized: true },
       { loc: `${origin}/about`, changefreq: 'monthly', priority: '0.6', localized: true },
+      { loc: `${origin}/careers`, changefreq: 'weekly', priority: '0.7', localized: true },
       { loc: `${origin}/join`, changefreq: 'weekly', priority: '0.7', localized: true },
       { loc: `${origin}/helpers`, changefreq: 'daily', priority: '0.9', localized: true },
       { loc: `${origin}/jobs`, changefreq: 'daily', priority: '0.8', localized: true },
@@ -62,6 +72,7 @@ router.get('/', async (_req, res) => {
       { loc: `${origin}/qr-generator`, changefreq: 'monthly', priority: '0.6', localized: true },
       { loc: `${origin}/support/escalation`, changefreq: 'monthly', priority: '0.6', localized: true },
       { loc: `${origin}/restaurants`, changefreq: 'daily', priority: '0.7', localized: true },
+      { loc: `${origin}/media`, changefreq: 'daily', priority: '0.7', localized: true },
       { loc: `${origin}/terms`, changefreq: 'yearly', priority: '0.2', localized: true },
       { loc: `${origin}/privacy`, changefreq: 'yearly', priority: '0.2', localized: true },
       { loc: `${origin}/privacy/upcoming`, changefreq: 'yearly', priority: '0.2', localized: true },
@@ -159,6 +170,26 @@ router.get('/', async (_req, res) => {
         LIMIT 2000`,
     );
 
+    // Public career openings only: mirrors the public careers filter
+    // (open, moderation ok, not internal, inside the application window,
+    // live employer). Internal, draft, closed, filled, and removed
+    // openings never appear here.
+    const { rows: careerOpenings } = await pool.query(
+      `SELECT o.id, o.updated_at
+         FROM career_openings o
+         LEFT JOIN businesses b ON b.id = o.business_id
+        WHERE o.status = 'open'
+          AND o.moderation_status = 'ok'
+          AND o.is_internal = FALSE
+          AND (o.opens_at IS NULL OR o.opens_at <= NOW())
+          AND (COALESCE(o.applications_close_at, o.closes_at) IS NULL
+               OR COALESCE(o.applications_close_at, o.closes_at) >= NOW())
+          AND (o.employer_type = 'platform'
+               OR (b.deleted_at IS NULL AND b.is_active = TRUE))
+        ORDER BY o.updated_at DESC NULLS LAST
+        LIMIT 2000`,
+    );
+
     const entries = [
       ...STATIC_URLS.map(urlEntry),
       ...helpers.map((r) =>
@@ -211,6 +242,15 @@ router.get('/', async (_req, res) => {
           loc: `${origin}/logistics/campaigns/${r.id}`,
           changefreq: 'daily',
           priority: '0.65',
+          localized: true,
+          lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
+        }),
+      ),
+      ...careerOpenings.map((r) =>
+        urlEntry({
+          loc: `${origin}/careers/${r.id}`,
+          changefreq: 'weekly',
+          priority: '0.7',
           localized: true,
           lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
         }),

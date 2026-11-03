@@ -38499,5 +38499,207 @@
     "reopen": "Rouvrir le cas",
     "reopened": "Cas rouvert.",
     "confirmAccept": "Accepter cette résolution ? Cela clôt le cas comme résolu."
+  },
+  "seoRoute": {
+    "home": {
+      "title": "OxSteed: embauchez une aide locale aujourd'hui",
+      "description": "Publiez une mission, comparez les offres d'aides locales qualifiés et payez sur OxSteed. Gratuit pour commencer."
+    },
+    "about": {
+      "title": "À propos d'OxSteed",
+      "description": "Découvrez ce qu'OxSteed construit: un marché de services locaux qui relie les personnes à des aides qualifiés."
+    },
+    "howItWorks": {
+      "title": "Comment fonctionne OxSteed",
+      "description": "Publiez une mission, comparez les offres, embauchez en confiance et payez via OxSteed. Voyez comment cela fonctionne, étape par étape."
+    },
+    "howItWorksArea": {
+      "title": "Comment {{area}} fonctionne sur OxSteed",
+      "description": "Apprenez comment les missions {{area}} fonctionnent sur OxSteed, de la publication au paiement."
+    },
+    "helpers": {
+      "title": "Trouvez des aides locales",
+      "description": "Parcourez les aides locales qualifiés sur OxSteed, comparez les profils et demandez un devis."
+    },
+    "helperProfile": {
+      "title": "Aide locale sur OxSteed",
+      "description": "Consultez ce profil d'aide sur OxSteed, voyez les compétences et les avis, et demandez un devis."
+    },
+    "profile": {
+      "title": "Profil public sur OxSteed",
+      "description": "Consultez ce profil public sur OxSteed et contactez son auteur."
+    },
+    "jobs": {
+      "title": "Trouvez des missions locales",
+      "description": "Parcourez les missions ouvertes sur OxSteed et postulez pour travailler près de chez vous."
+    },
+    "jobPublic": {
+      "title": "Offre d'emploi sur OxSteed",
+      "description": "Consultez cette mission ouverte sur OxSteed et voyez comment postuler."
+    },
+    "direct": {
+      "title": "OxSteed Direct",
+      "description": "Réservez des services locaux directement sur OxSteed, des compétences aux outils et aux devis."
+    },
+    "directSkills": {
+      "title": "Compétences Direct sur OxSteed",
+      "description": "Parcourez les compétences disponibles via OxSteed Direct et trouvez la bonne aide."
+    },
+    "directServices": {
+      "title": "Services Direct sur OxSteed",
+      "description": "Parcourez les services disponibles via OxSteed Direct et demandez un devis."
+    },
+    "directTools": {
+      "title": "Outils Direct sur OxSteed",
+      "description": "Parcourez les outils disponibles via OxSteed Direct."
+    },
+    "directRequestQuote": {
+      "title": "Demandez un devis sur OxSteed Direct",
+      "description": "Dites à OxSteed Direct ce dont vous avez besoin et recevez un devis d'un prestataire local."
+    },
+    "restaurants": {
+      "title": "Restaurants locaux sur OxSteed",
+      "description": "Parcourez les restaurants locaux sur OxSteed et commandez à emporter ou en livraison."
+    },
+    "restaurantDetail": {
+      "title": "Restaurant sur OxSteed",
+      "description": "Consultez ce restaurant sur OxSteed, parcourez le menu et commandez."
+    },
+    "careers": {
+      "title": "Carrières chez OxSteed",
+      "description": "Voyez les postes ouverts chez OxSteed et postulez pour rejoindre l'équipe."
+    },
+    "careerDetail": {
+      "title": "Offre d'emploi chez OxSteed",
+      "description": "Consultez ce poste ouvert chez OxSteed et postulez."
+    },
+    "help": {
+      "title": "Centre d'aide OxSteed",
+      "description": "Trouvez de l'aide pour les outils de restaurant OxSteed, de la caisse et la cuisine à l'équipe et aux stocks."
+    },
+    "terms": {
+      "title": "Conditions d'utilisation",
+      "description": "Lisez les conditions d'utilisation d'OxSteed."
+    },
+    "privacy": {
+      "title": "Politique de confidentialité",
+      "description": "Lisez comment OxSteed collecte, utilise et protège vos informations."
+    },
+    "security": {
+      "title": "Sécurité chez OxSteed",
+      "description": "Apprenez comment OxSteed protège votre compte et vos données."
+    },
+    "accessibility": {
+      "title": "Accessibilité chez OxSteed",
+      "description": "Apprenez-en plus sur l'accessibilité sur OxSteed et comment obtenir de l'aide."
+    },
+    "cookiePolicy": {
+      "title": "Politique relative aux cookies",
+      "description": "Lisez comment OxSteed utilise les cookies et les technologies similaires."
+    },
+    "doNotSell": {
+      "title": "Ne pas vendre mes informations personnelles",
+      "description": "Apprenez comment refuser la vente ou le partage de vos informations personnelles sur OxSteed."
+    },
+    "enforcementPolicy": {
+      "title": "Politique d'application",
+      "description": "Lisez comment OxSteed applique ses règles."
+    },
+    "legalBackgroundCheck": {
+      "title": "Politique de vérification des antécédents",
+      "description": "Lisez la politique de vérification des antécédents d'OxSteed."
+    },
+    "legalArbitration": {
+      "title": "Convention d'arbitrage",
+      "description": "Lisez la convention d'arbitrage d'OxSteed."
+    },
+    "legalEscrowPolicy": {
+      "title": "Politique de séquestre",
+      "description": "Lisez comment OxSteed gère les paiements séquestrés."
+    },
+    "legalAccountTermination": {
+      "title": "Politique de résiliation de compte",
+      "description": "Lisez quand et comment OxSteed peut résilier un compte."
+    },
+    "legalDisputeResolution": {
+      "title": "Résolution des litiges",
+      "description": "Lisez comment les litiges sont résolus sur OxSteed."
+    },
+    "legalIndependentContractor": {
+      "title": "Accord de prestataire indépendant",
+      "description": "Lisez l'accord de prestataire indépendant d'OxSteed."
+    },
+    "join": {
+      "title": "Rejoignez OxSteed",
+      "description": "Créez votre compte OxSteed gratuit et commencez à embaucher ou à aider dès aujourd'hui."
+    },
+    "status": {
+      "title": "Statut d'OxSteed",
+      "description": "Vérifiez le statut actuel des services OxSteed."
+    },
+    "delivery": {
+      "title": "Livraison OxSteed",
+      "description": "Découvrez la livraison sur OxSteed, pour les clients et les chauffeurs."
+    },
+    "qrGenerator": {
+      "title": "Générateur de code QR",
+      "description": "Créez un code QR sur OxSteed pour les paiements et les liens."
+    },
+    "support": {
+      "title": "Assistance OxSteed",
+      "description": "Obtenez de l'aide de l'assistance OxSteed ou faites remonter un problème."
+    },
+    "consultingIntake": {
+      "title": "Admission en conseil",
+      "description": "Commencez une admission en conseil avec OxSteed."
+    },
+    "toolRentals": {
+      "title": "Location d'outils sur OxSteed",
+      "description": "Parcourez les outils à louer sur OxSteed."
+    },
+    "toolRentalDetail": {
+      "title": "Location d'outil sur OxSteed",
+      "description": "Consultez cette location d'outil sur OxSteed et vérifiez la disponibilité."
+    },
+    "campaigns": {
+      "title": "Campagnes logistiques sur OxSteed",
+      "description": "Parcourez les campagnes logistiques sur OxSteed."
+    },
+    "campaignDetail": {
+      "title": "Campagne logistique sur OxSteed",
+      "description": "Consultez cette campagne logistique sur OxSteed."
+    },
+    "businessProfile": {
+      "title": "Entreprise sur OxSteed",
+      "description": "Consultez cette entreprise sur OxSteed, voyez ses services et contactez-la."
+    },
+    "media": {
+      "title": "OxSteed Media",
+      "description": "Voyez les publications et les nouveautés de la communauté OxSteed."
+    },
+    "mediaPost": {
+      "title": "Publication sur OxSteed Media",
+      "description": "Consultez cette publication sur OxSteed Media."
+    },
+    "mediaCommunities": {
+      "title": "Communautés sur OxSteed Media",
+      "description": "Parcourez les communautés sur OxSteed Media."
+    },
+    "mediaCommunity": {
+      "title": "Communauté sur OxSteed Media",
+      "description": "Consultez cette communauté sur OxSteed Media."
+    },
+    "mediaSearch": {
+      "title": "Rechercher sur OxSteed Media",
+      "description": "Recherchez des publications et des personnes sur OxSteed Media."
+    },
+    "mediaCreator": {
+      "title": "Créateurs sur OxSteed Media",
+      "description": "Découvrez les créateurs sur OxSteed Media."
+    },
+    "mediaActor": {
+      "title": "Profil sur OxSteed Media",
+      "description": "Consultez ce profil sur OxSteed Media."
+    }
   }
 }

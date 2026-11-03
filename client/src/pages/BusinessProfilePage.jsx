@@ -23,6 +23,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
 import ProfileJsonLd from '../components/ProfileJsonLd';
+import JsonLd, { buildBreadcrumbList, buildFaqPage } from '../components/JsonLd';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
 import ProfileShareControls from '../components/helperProfile/ProfileShareControls';
 import {
@@ -981,6 +982,16 @@ export default function BusinessProfilePage() {
   // Canonical public URL for this business (vanity-slug aware).
   const canonicalUrl = `${getPublicSiteUrl()}${profileUrl || businessProfilePath({ businessId: id })}`;
 
+  // SEO (Track P): BreadcrumbList + FAQPage from loaded data only. The
+  // entity itself is the pre-existing ProfileJsonLd LocalBusiness block, so
+  // no second entity is emitted here. There is no /businesses list route,
+  // so the breadcrumb is Home > {business name}.
+  const businessSeoBreadcrumb = buildBreadcrumbList([
+    { name: 'Home', url: `${getPublicSiteUrl()}/` },
+    { name: helper.businessName, url: canonicalUrl },
+  ]);
+  const businessSeoFaq = sections.faqs ? buildFaqPage(faqs) : null;
+
   // Only show the Location card when the business actually has location data.
   const hasLocation = Boolean(
     (serviceLocation && (serviceLocation.city || serviceLocation.state)) || serviceLocation?.serviceLat != null,
@@ -1125,6 +1136,8 @@ export default function BusinessProfilePage() {
           location={serviceLocation}
           services={services}
         />
+        <JsonLd data={businessSeoBreadcrumb} />
+        <JsonLd data={businessSeoFaq} />
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
           <ProfileShareControls
@@ -1196,6 +1209,8 @@ export default function BusinessProfilePage() {
         location={serviceLocation}
         services={services}
       />
+      <JsonLd data={businessSeoBreadcrumb} />
+      <JsonLd data={businessSeoFaq} />
       <Navbar />
 
       {/* Business hero — PublicProfileSummaryCard via BusinessHeader / PublicProfileHero */}

@@ -33,6 +33,9 @@ import '../../styles/PublicProfileSummaryCard.css';
  * @param {*} [props.belowTitle]
  * @param {*} [props.footer]
  * @param {string} [props.className]
+ * @param {'h1'|'h3'} [props.nameHeadingTag] - SEO Track P: public profile
+ *   pages render the profile name as the page H1; every other consumer
+ *   (Studio preview, guarded pages) keeps the default h3.
  */
 export default function PublicProfileSummaryCard({
   variant = 'helper',
@@ -58,8 +61,10 @@ export default function PublicProfileSummaryCard({
   belowTitle = null,
   footer = null,
   className = '',
+  nameHeadingTag = 'h3',
 }) {
   const initial = String(name || '').trim().slice(0, 1).toUpperCase() || '·';
+  const NameHeading = nameHeadingTag === 'h1' ? 'h1' : 'h3';
   const classes = publicProfileSummaryCardClassName({ variant, surface, className });
 
   return (
@@ -70,13 +75,13 @@ export default function PublicProfileSummaryCard({
       </div>
       <div className="ppsc-body">
         <div className={`ppsc-avatar${variant === 'helper' ? ' round' : ''}`}>
-          {avatar ? <img src={avatar} alt="" /> : initial}
+          {avatar ? <img src={avatar} alt={name || ''} /> : initial}
         </div>
         <div className="ppsc-title-row">
           <div className="ppsc-title-block">
-            <h3 className={`ppsc-name${name ? '' : ' ppsc-muted'}`}>
+            <NameHeading className={`ppsc-name${name ? '' : ' ppsc-muted'}`}>
               {name || emptyName}
-            </h3>
+            </NameHeading>
             {typeLabel ? <span className="ppsc-type">{typeLabel}</span> : null}
             {belowTitle ? <div className="ppsc-below-title">{belowTitle}</div> : null}
           </div>

@@ -61,6 +61,7 @@ import { recordView } from '../../hooks/useRecentlyViewed';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
+import JsonLd, { buildBreadcrumbList } from '../../components/JsonLd';
 import { getPublicSiteUrl } from '../../utils/seoDescription';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
@@ -2215,6 +2216,56 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   })();
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  // SEO: openingHours are built only from structured operating_hours
+  // (open/close pairs). Free-text or localized hours strings are never
+  // parsed into schema values, and closed days are skipped.
+  const seoOpeningHours = (() => {
+    const raw = restaurant.operating_hours && typeof restaurant.operating_hours === 'object'
+      && !Array.isArray(restaurant.operating_hours)
+      ? (restaurant.operating_hours.weekly || restaurant.operating_hours)
+      : null;
+    if (!raw) return undefined;
+    const dayCode = { monday: 'Mo', tuesday: 'Tu', wednesday: 'We', thursday: 'Th', friday: 'Fr', saturday: 'Sa', sunday: 'Su' };
+    const out = [];
+    Object.entries(dayCode).forEach(([day, code]) => {
+      const value = raw[day];
+      if (!value || value.closed) return;
+      const ranges = Array.isArray(value) ? value : [value];
+      ranges.forEach((range) => {
+        if (range && range.open && range.close) out.push(`${code} ${range.open}-${range.close}`);
+      });
+    });
+    return out.length ? out : undefined;
+  })();
+  const seoImage = restaurant.cover_photo_url || restaurant.logo_url || '';
+  const seoImageUrl = seoImage.startsWith('http')
+    ? seoImage
+    : (seoImage.startsWith('/') ? `${getPublicSiteUrl()}${seoImage}` : undefined);
+  const seoRestaurant = {
+    '@context': 'https://schema.org',
+    '@type': 'Restaurant',
+    name: restaurant.display_name,
+    description: seoDescription || undefined,
+    image: seoImageUrl,
+    url: publicUrl,
+    servesCuisine: (Array.isArray(restaurant.cuisine_tags) && restaurant.cuisine_tags.length)
+      ? restaurant.cuisine_tags
+      : undefined,
+    address: (restaurant.address_street || restaurant.address_city || restaurant.address_state || restaurant.address_zip || restaurant.address_country)
+      ? {
+          '@type': 'PostalAddress',
+          streetAddress: restaurant.address_street || undefined,
+          addressLocality: restaurant.address_city || undefined,
+          addressRegion: restaurant.address_state || undefined,
+          postalCode: restaurant.address_zip || undefined,
+          addressCountry: restaurant.address_country || undefined,
+        }
+      : undefined,
+    openingHours: seoOpeningHours,
+    aggregateRating: (reviewCount > 0 && rating > 0)
+      ? { '@type': 'AggregateRating', ratingValue: rating.toFixed(1), reviewCount, bestRating: 5 }
+      : undefined,
+  };
   return (
     <>
       {!customerSnapshot && <PageMeta
@@ -2224,6 +2275,15 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
         url={publicUrl}
         type="restaurant"
       />}
+      {/* SEO: Restaurant from loaded data only. No menu URL: the menu is a
+          tab on this page, not a separate route. No telephone, price range,
+          or reviews are claimed because the loaded data does not carry them. */}
+      {!customerSnapshot && <JsonLd data={seoRestaurant} />}
+      {!customerSnapshot && <JsonLd data={buildBreadcrumbList([
+        { name: 'Home', url: 'https://oxsteed.com/' },
+        { name: 'Restaurants', url: 'https://oxsteed.com/restaurants' },
+        { name: restaurant.display_name, url: publicUrl },
+      ])} />}
       <Navbar />
       <div className="rp-root" style={rootStyle}>
         <div className="rp-page-wrap">
@@ -2265,7 +2325,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
           {/* ── Hero ── */}
           <div className="rp-hero-wrap" style={{ background: coverBg }}>
             {restaurant.cover_photo_url && (
-              <img src={restaurant.cover_photo_url} alt="" className="rp-hero-img" />
+              <img src={restaurant.cover_photo_url} alt={restaurant.display_name} className="rp-hero-img" />
             )}
             <div className="rp-hero-overlay" />
             <svg className="rp-hero-dots" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -2287,7 +2347,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
               <div style={{ width: 68, height: 68, borderRadius: 16, background: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, border: '3px solid #fff', boxShadow: '0 2px 16px rgba(0,0,0,0.16)', marginTop: -32, flexShrink: 0, overflow: 'hidden' }}>
                 {restaurant.logo_url
-                  ? <img src={restaurant.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ? <img src={restaurant.logo_url} alt={restaurant.display_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : emoji}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

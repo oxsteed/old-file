@@ -3,6 +3,8 @@ import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
+import JsonLd, { buildBreadcrumbList } from '../components/JsonLd';
+import { getPublicSiteUrl } from '../utils/seoDescription';
 import { ensureLegalContentLoaded } from '../i18n';
 import { TermsBlocks } from './terms/TermsBlocks';
 import type { TermsBlock } from './terms/termsTypes';
@@ -191,6 +193,13 @@ export default function LegalPolicyPage({
   return (
     <PageShell hideNav={embedded} hideFooter={embedded} mainId={embedded ? 'media-legal-content' : 'main-content'}>
       <PageMeta title={t(pk('title'))} description={metaDescription} />
+      {/* SEO: BreadcrumbList for the legal pages rendered by this component
+          (terms, privacy). The title is the page's own rendered H1 text and
+          the URL is the page's real route path. */}
+      <JsonLd data={buildBreadcrumbList([
+        { name: 'Home', url: `${getPublicSiteUrl()}/` },
+        { name: t(pk('title')), url: `${getPublicSiteUrl()}${typeof window !== 'undefined' ? window.location.pathname : ''}` },
+      ])} />
       <div className="min-h-screen bg-gray-950 text-gray-300 flex flex-col">
         <div className="bg-gradient-to-r from-orange-600/20 via-orange-500/10 to-transparent border-b border-gray-800">
           <div className="max-w-4xl mx-auto px-4 py-10 flex items-center gap-4">
