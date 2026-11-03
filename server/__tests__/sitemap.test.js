@@ -21,7 +21,8 @@ describe('public sitemap coverage', () => {
       .mockResolvedValueOnce({ rows: [] }) // jobs
       .mockResolvedValueOnce({ rows: [] }) // restaurants
       .mockResolvedValueOnce({ rows: [{ id: 41, updated_at: '2026-09-08T00:00:00.000Z' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 52, updated_at: '2026-09-08T00:00:00.000Z' }] });
+      .mockResolvedValueOnce({ rows: [{ id: 52, updated_at: '2026-09-08T00:00:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [] }); // career openings
 
     const res = await request(buildApp()).get('/sitemap.xml');
 
@@ -38,5 +39,47 @@ describe('public sitemap coverage', () => {
     expect(mockQuery.mock.calls[4][0]).toMatch(/t\.is_available = TRUE/);
     expect(mockQuery.mock.calls[5][0]).toMatch(/FROM pooled_orders/);
     expect(mockQuery.mock.calls[5][0]).toMatch(/po\.status IN/);
+  });
+
+  test('includes learn, careers, media, and only published career openings', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // helpers
+      .mockResolvedValueOnce({ rows: [] }) // businesses
+      .mockResolvedValueOnce({ rows: [] }) // jobs
+      .mockResolvedValueOnce({ rows: [] }) // restaurants
+      .mockResolvedValueOnce({ rows: [] }) // tools
+      .mockResolvedValueOnce({ rows: [] }) // campaigns
+      .mockResolvedValueOnce({ rows: [{ id: 77, updated_at: '2026-10-15T00:00:00.000Z' }] }); // career openings
+
+    const res = await request(buildApp()).get('/sitemap.xml');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/xml/);
+    expect(res.text).toContain('<loc>https://oxsteed.com/learn</loc>');
+    expect(res.text).toContain('hreflang="es" href="https://oxsteed.com/learn?lang=es"');
+    expect(res.text).toContain('<loc>https://oxsteed.com/careers</loc>');
+    expect(res.text).toContain('<loc>https://oxsteed.com/careers/77</loc>');
+    expect(res.text).toContain('<lastmod>2026-10-15</lastmod>');
+    expect(res.text).toContain('hreflang="fr" href="https://oxsteed.com/careers/77?lang=fr"');
+    expect(res.text).toContain('<loc>https://oxsteed.com/media</loc>');
+    // Redirect-only routes are never listed; only their targets are.
+    expect(res.text).not.toContain('<loc>https://oxsteed.com/discover</loc>');
+    expect(res.text).not.toContain('<loc>https://oxsteed.com/features</loc>');
+    expect(res.text).not.toContain('<loc>https://oxsteed.com/hire</loc>');
+    expect(res.text).toContain('<loc>https://oxsteed.com/jobs</loc>');
+    expect(res.text).toContain('<loc>https://oxsteed.com/how-it-works</loc>');
+    expect(res.text).toContain('<loc>https://oxsteed.com/helpers</loc>');
+    // The service-area page is server-rendered, not a redirect, so it stays.
+    expect(res.text).toContain('<loc>https://oxsteed.com/direct/service-area</loc>');
+    // Career openings use the same public filter as the careers API.
+    const careersSql = mockQuery.mock.calls[6][0];
+    expect(careersSql).toMatch(/FROM career_openings/);
+    expect(careersSql).toMatch(/o\.status = 'open'/);
+    expect(careersSql).toMatch(/o\.moderation_status = 'ok'/);
+    expect(careersSql).toMatch(/o\.is_internal = FALSE/);
+    // Well-formed XML: every opened url element is closed.
+    expect((res.text.match(/<url>/g) || []).length).toBe((res.text.match(/<\/url>/g) || []).length);
+    expect((res.text.match(/<url>/g) || []).length).toBeGreaterThan(0);
+    expect(res.text).toContain('</urlset>');
   });
 });
