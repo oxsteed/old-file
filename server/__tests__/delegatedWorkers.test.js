@@ -80,6 +80,58 @@ describe('web replacements delegate background work without starting consumers',
     expect(workers.timer).toBeNull();
   });
 
+  describe('timeout confirmation for serving replicas', () => {
+    const ready = () => ({
+      ok: true,
+      json: async () => ({ status: 'ready', checks: { workers: { ok: true, mode: 'combined' } } }),
+    });
+    const missDeadline = async (_url, { signal }) => {
+      await require('node:timers/promises').setTimeout(1000, undefined, { signal });
+    };
+
+    test('keeps the serving replica ready when a single timeout is followed by a successful probe', async () => {
+      const fetchImpl = jest.fn()
+        .mockImplementationOnce(ready)
+        .mockImplementationOnce(missDeadline)
+        .mockImplementationOnce(() => {
+          expect(runtimeState.snapshot().workersReady).toBe(true);
+          return ready();
+        });
+      const workers = new DelegatedWorkers({ url: 'http://app:5000/ready', timeoutMs: 20, fetchImpl });
+      try {
+        await workers.start();
+        runtimeState.update({ acceptingTraffic: true });
+        await expect(workers.observe()).resolves.toBe(true);
+        expect(fetchImpl).toHaveBeenCalledTimes(3);
+        expect(runtimeState.snapshot().workersReady).toBe(true);
+      } finally { await workers.stop(); }
+    });
+
+    test.each(['second timeout', 'explicit unhealthy', 'not yet serving'])(
+      'withdraws readiness for %s without unbounded retries', async (scenario) => {
+        const fetchImpl = jest.fn()
+          .mockImplementationOnce(ready)
+          .mockImplementation(scenario === 'explicit unhealthy' ? async () => ({ ok: false, status: 503 }) : missDeadline);
+        const workers = new DelegatedWorkers({ url: 'http://app:5000/ready', timeoutMs: 20, fetchImpl });
+        try {
+          await workers.start();
+          runtimeState.update({ acceptingTraffic: scenario !== 'not yet serving' });
+          await expect(workers.observe()).resolves.toBe(false);
+          expect(fetchImpl).toHaveBeenCalledTimes(scenario === 'second timeout' ? 3 : 2);
+          expect(runtimeState.snapshot().workersReady).toBe(false);
+        } finally { await workers.stop(); }
+      },
+    );
+
+    test('a timed-out initial observation refuses startup', async () => {
+      const fetchImpl = jest.fn(missDeadline);
+      const workers = new DelegatedWorkers({ url: 'http://app:5000/ready', timeoutMs: 20, fetchImpl });
+      await expect(workers.start()).rejects.toThrow('web replacement refused');
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(runtimeState.snapshot().workersReady).toBe(false);
+    });
+  });
+
   test('observations coalesce and shutdown drains local handles without stopping the background runtime', async () => {
     let release;
     const pending = new Promise(resolve => { release = resolve; });
