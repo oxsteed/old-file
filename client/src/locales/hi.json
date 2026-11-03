@@ -34769,5 +34769,67 @@
         "reject": "Return for review"
       }
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "ग्राहक दृश्य",
+    "viewCrm": "CRM ग्राहक",
+    "view360": "सभी ग्राहक (360)",
+    "intro": "इस व्यवसाय से संबंध रखने वाले सभी लोग: CRM ग्राहक, बुकिंग और रेस्टोरेंट ऑर्डर। आप केवल वही देखते हैं जिसकी आपकी भूमिका अनुमति देती है।",
+    "search": "ग्राहक खोजें",
+    "loading": "लोड हो रहा है…",
+    "loadFailed": "ग्राहक लोड नहीं हो सके। फिर से कोशिश करें।",
+    "forbidden": "आपकी भूमिका में ग्राहकों तक पहुँच शामिल नहीं है।",
+    "assignedOnly": "केवल आपको सौंपे गए ग्राहक दिखाए जा रहे हैं।",
+    "empty": "अभी कोई ग्राहक नहीं।",
+    "unnamed": "बिना नाम का ग्राहक",
+    "lastSeen": "अंतिम गतिविधि {{date}}",
+    "more": "और दिखाएँ",
+    "pick": "इस व्यवसाय के साथ इतिहास देखने के लिए ग्राहक चुनें।",
+    "scopeNote": "केवल इस व्यवसाय के अपने रिकॉर्ड दिखाए जाते हैं।",
+    "status": "स्थिति",
+    "email": "ईमेल",
+    "phone": "फ़ोन",
+    "lifetime": "कुल मूल्य",
+    "notes": "नोट्स",
+    "noCrm": "इस ग्राहक का अभी कोई CRM रिकॉर्ड नहीं है।",
+    "appointments": "अपॉइंटमेंट ({{count}})",
+    "noShows": "नहीं आए: {{count}}",
+    "orders": "ऑर्डर ({{count}})",
+    "paid": "भुगतान: {{amount}}",
+    "partialStores": "केवल आपके स्टोर के ऑर्डर शामिल हैं।",
+    "invoices": "इनवॉइस ({{count}})",
+    "outstanding": "बकाया: {{amount}}",
+    "restricted": "आपकी भूमिका में यह अनुभाग शामिल नहीं है।",
+    "none": "अभी कुछ नहीं।",
+    "via": {
+      "crm": "CRM",
+      "appointment": "बुकिंग",
+      "order": "ऑर्डर"
+    },
+    "appointmentStatus": {
+      "pending": "लंबित",
+      "confirmed": "पुष्ट",
+      "in_progress": "जारी",
+      "completed": "पूर्ण",
+      "cancelled": "रद्द",
+      "no_show": "नहीं आए"
+    },
+    "orderStatus": {
+      "received": "प्राप्त",
+      "accepted": "स्वीकृत",
+      "preparing": "तैयार हो रहा",
+      "ready": "तैयार",
+      "completed": "पूर्ण",
+      "cancelled": "रद्द",
+      "refunded": "धनवापसी"
+    },
+    "invoiceStatus": {
+      "draft": "ड्राफ़्ट",
+      "sent": "भेजा गया",
+      "paid": "भुगतान हुआ",
+      "overdue": "अतिदेय",
+      "cancelled": "रद्द",
+      "partial": "आंशिक भुगतान"
+    }
   }
 }

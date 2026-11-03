@@ -34768,5 +34768,67 @@
         "reject": "Return for review"
       }
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "Mwonekano wa wateja",
+    "viewCrm": "Wateja wa CRM",
+    "view360": "Wateja wote (360)",
+    "intro": "Kila mtu mwenye uhusiano na biashara hii: wateja wa CRM, miadi na oda za mgahawa. Unaona tu kile ambacho jukumu lako linaruhusu.",
+    "search": "Tafuta wateja",
+    "loading": "Inapakia…",
+    "loadFailed": "Imeshindwa kupakia wateja. Jaribu tena.",
+    "forbidden": "Jukumu lako halijumuishi ufikiaji wa wateja.",
+    "assignedOnly": "Inaonyesha wateja uliopewa tu.",
+    "empty": "Bado hakuna wateja.",
+    "unnamed": "Mteja asiye na jina",
+    "lastSeen": "Shughuli ya mwisho {{date}}",
+    "more": "Onyesha zaidi",
+    "pick": "Chagua mteja kuona historia yake na biashara hii.",
+    "scopeNote": "Rekodi za biashara hii pekee ndizo zinaonyeshwa.",
+    "status": "Hali",
+    "email": "Barua pepe",
+    "phone": "Simu",
+    "lifetime": "Thamani ya jumla",
+    "notes": "Maelezo",
+    "noCrm": "Mteja huyu bado hana rekodi ya CRM.",
+    "appointments": "Miadi ({{count}})",
+    "noShows": "Hawakufika: {{count}}",
+    "orders": "Oda ({{count}})",
+    "paid": "Imelipwa: {{amount}}",
+    "partialStores": "Oda za maduka yako pekee ndizo zimejumuishwa.",
+    "invoices": "Ankara ({{count}})",
+    "outstanding": "Inayodaiwa: {{amount}}",
+    "restricted": "Jukumu lako halijumuishi sehemu hii.",
+    "none": "Bado hakuna kitu.",
+    "via": {
+      "crm": "CRM",
+      "appointment": "Miadi",
+      "order": "Oda"
+    },
+    "appointmentStatus": {
+      "pending": "Inasubiri",
+      "confirmed": "Imethibitishwa",
+      "in_progress": "Inaendelea",
+      "completed": "Imekamilika",
+      "cancelled": "Imeghairiwa",
+      "no_show": "Hakufika"
+    },
+    "orderStatus": {
+      "received": "Imepokelewa",
+      "accepted": "Imekubaliwa",
+      "preparing": "Inaandaliwa",
+      "ready": "Iko tayari",
+      "completed": "Imekamilika",
+      "cancelled": "Imeghairiwa",
+      "refunded": "Imerejeshewa"
+    },
+    "invoiceStatus": {
+      "draft": "Rasimu",
+      "sent": "Imetumwa",
+      "paid": "Imelipwa",
+      "overdue": "Imechelewa",
+      "cancelled": "Imeghairiwa",
+      "partial": "Imelipwa kiasi"
+    }
   }
 }

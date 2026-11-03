@@ -34769,5 +34769,67 @@
         "reject": "Return for review"
       }
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "客户视图",
+    "viewCrm": "CRM 客户",
+    "view360": "所有客户（360）",
+    "intro": "与本商家有往来的所有人：CRM 客户、预约和餐厅订单。您只能看到您的角色允许的内容。",
+    "search": "搜索客户",
+    "loading": "加载中…",
+    "loadFailed": "无法加载客户，请重试。",
+    "forbidden": "您的角色无权访问客户。",
+    "assignedOnly": "仅显示分配给您的客户。",
+    "empty": "暂无客户。",
+    "unnamed": "未命名客户",
+    "lastSeen": "最近活动 {{date}}",
+    "more": "显示更多",
+    "pick": "选择一位客户以查看其与本商家的往来记录。",
+    "scopeNote": "仅显示本商家自己的记录。",
+    "status": "状态",
+    "email": "电子邮件",
+    "phone": "电话",
+    "lifetime": "累计价值",
+    "notes": "备注",
+    "noCrm": "该客户暂无 CRM 记录。",
+    "appointments": "预约（{{count}}）",
+    "noShows": "未到：{{count}}",
+    "orders": "订单（{{count}}）",
+    "paid": "已付：{{amount}}",
+    "partialStores": "仅包含您所在门店的订单。",
+    "invoices": "发票（{{count}}）",
+    "outstanding": "未付：{{amount}}",
+    "restricted": "您的角色不包含此部分。",
+    "none": "暂无内容。",
+    "via": {
+      "crm": "CRM",
+      "appointment": "预约",
+      "order": "订单"
+    },
+    "appointmentStatus": {
+      "pending": "待确认",
+      "confirmed": "已确认",
+      "in_progress": "进行中",
+      "completed": "已完成",
+      "cancelled": "已取消",
+      "no_show": "未到"
+    },
+    "orderStatus": {
+      "received": "已接收",
+      "accepted": "已接单",
+      "preparing": "制作中",
+      "ready": "已备好",
+      "completed": "已完成",
+      "cancelled": "已取消",
+      "refunded": "已退款"
+    },
+    "invoiceStatus": {
+      "draft": "草稿",
+      "sent": "已发送",
+      "paid": "已付款",
+      "overdue": "逾期",
+      "cancelled": "已取消",
+      "partial": "部分付款"
+    }
   }
 }

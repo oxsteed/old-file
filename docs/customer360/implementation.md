@@ -296,3 +296,33 @@ Background work runs in `server/jobs/customer360Upgrades.js`
 - UI: "Linked accounts" area (`upgrades/Links.jsx`).
 - Tests: `server/__tests__/customer360Links.db.test.js` and the shared
   client checks.
+
+### 6. Business-scoped Customer 360 for business and restaurant owners
+
+- Business Hub → Clients → "All customers (360)"
+  (`client/src/components/businessHub/BusinessCustomer360.jsx`), backed by
+  `GET /api/businesses/:businessId/customer360/customers` and
+  `GET …/customers/:customerKey` (`u-<user id>` or `c-<CRM client id>`).
+- Only the business's own relationship data: its CRM record (including its
+  own notes and contact details), its appointments, its invoices (matched
+  only on contact details the business itself recorded) and its restaurant
+  orders. Platform account email/phone, Credit, KYC, support and anything
+  from other businesses are never returned.
+- Authorization uses the production resolvers only: `requireBusinessAccess`
+  → `permissionsService.getEffectivePermissions` (catalog + per-membership
+  overrides) for `customers.view_all` / `customers.view_assigned`,
+  `calendar.view_all` / `calendar.view_self` and `invoices.view`; for each
+  restaurant `scopeModel.resolveRestaurantAccess` →
+  `getRestaurantPermissions` (`orders.view`) narrowed by
+  `getLocationScope` (store boundary). Assigned-only staff see customers
+  they created or serve by appointment. Without a customers permission the
+  API returns 403; unknown or out-of-scope customers return 404.
+- Every list and profile read is written to `business_audit_log`
+  (`customer360.customers_listed`, `customer360.customer_viewed`) and fails
+  closed if the audit cannot be written. Responses are `no-store`.
+- Migration `20261103120400_business_customer360.sql` adds the
+  per-business indexes that keep the list and profile bounded.
+- Copy in all 20 locales (`businessCustomer360`).
+- Tests: `server/__tests__/businessCustomer360.db.test.js` (owner, store-
+  scoped manager, assigned-only employee, deny override, outsider and
+  cross-business isolation) and `client/scripts/businessCustomer360.browser-check.cjs`.

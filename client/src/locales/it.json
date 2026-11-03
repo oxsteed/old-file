@@ -34769,5 +34769,67 @@
         "reject": "Return for review"
       }
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "Vista clienti",
+    "viewCrm": "Clienti CRM",
+    "view360": "Tutti i clienti (360)",
+    "intro": "Tutte le persone in relazione con questa attività: clienti CRM, prenotazioni e ordini del ristorante. Vedi solo ciò che il tuo ruolo consente.",
+    "search": "Cerca clienti",
+    "loading": "Caricamento…",
+    "loadFailed": "Impossibile caricare i clienti. Riprova.",
+    "forbidden": "Il tuo ruolo non include l’accesso ai clienti.",
+    "assignedOnly": "Sono mostrati solo i clienti assegnati a te.",
+    "empty": "Ancora nessun cliente.",
+    "unnamed": "Cliente senza nome",
+    "lastSeen": "Ultima attività {{date}}",
+    "more": "Mostra altro",
+    "pick": "Seleziona un cliente per vedere la sua cronologia con questa attività.",
+    "scopeNote": "Sono mostrati solo i dati propri di questa attività.",
+    "status": "Stato",
+    "email": "Email",
+    "phone": "Telefono",
+    "lifetime": "Valore totale",
+    "notes": "Note",
+    "noCrm": "Nessuna scheda CRM per questo cliente.",
+    "appointments": "Appuntamenti ({{count}})",
+    "noShows": "Assenze: {{count}}",
+    "orders": "Ordini ({{count}})",
+    "paid": "Pagato: {{amount}}",
+    "partialStores": "Sono inclusi solo gli ordini dei tuoi punti vendita.",
+    "invoices": "Fatture ({{count}})",
+    "outstanding": "Da pagare: {{amount}}",
+    "restricted": "Il tuo ruolo non include questa sezione.",
+    "none": "Ancora niente.",
+    "via": {
+      "crm": "CRM",
+      "appointment": "Prenotazione",
+      "order": "Ordine"
+    },
+    "appointmentStatus": {
+      "pending": "In attesa",
+      "confirmed": "Confermato",
+      "in_progress": "In corso",
+      "completed": "Completato",
+      "cancelled": "Annullato",
+      "no_show": "Assente"
+    },
+    "orderStatus": {
+      "received": "Ricevuto",
+      "accepted": "Accettato",
+      "preparing": "In preparazione",
+      "ready": "Pronto",
+      "completed": "Completato",
+      "cancelled": "Annullato",
+      "refunded": "Rimborsato"
+    },
+    "invoiceStatus": {
+      "draft": "Bozza",
+      "sent": "Inviata",
+      "paid": "Pagata",
+      "overdue": "Scaduta",
+      "cancelled": "Annullata",
+      "partial": "Pagata in parte"
+    }
   }
 }

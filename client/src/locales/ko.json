@@ -34769,5 +34769,67 @@
         "reject": "Return for review"
       }
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "고객 보기",
+    "viewCrm": "CRM 고객",
+    "view360": "전체 고객 (360)",
+    "intro": "이 비즈니스와 관계가 있는 모든 사람: CRM 고객, 예약, 레스토랑 주문. 역할에서 허용하는 내용만 볼 수 있습니다.",
+    "search": "고객 검색",
+    "loading": "불러오는 중…",
+    "loadFailed": "고객을 불러오지 못했습니다. 다시 시도하세요.",
+    "forbidden": "역할에 고객 접근 권한이 없습니다.",
+    "assignedOnly": "나에게 배정된 고객만 표시합니다.",
+    "empty": "아직 고객이 없습니다.",
+    "unnamed": "이름 없는 고객",
+    "lastSeen": "최근 활동 {{date}}",
+    "more": "더 보기",
+    "pick": "고객을 선택하면 이 비즈니스와의 기록을 볼 수 있습니다.",
+    "scopeNote": "이 비즈니스의 자체 기록만 표시됩니다.",
+    "status": "상태",
+    "email": "이메일",
+    "phone": "전화",
+    "lifetime": "누적 금액",
+    "notes": "메모",
+    "noCrm": "이 고객의 CRM 기록이 아직 없습니다.",
+    "appointments": "예약 ({{count}})",
+    "noShows": "노쇼: {{count}}",
+    "orders": "주문 ({{count}})",
+    "paid": "결제됨: {{amount}}",
+    "partialStores": "내 매장의 주문만 포함됩니다.",
+    "invoices": "청구서 ({{count}})",
+    "outstanding": "미결제: {{amount}}",
+    "restricted": "역할에 이 섹션이 포함되지 않습니다.",
+    "none": "아직 없습니다.",
+    "via": {
+      "crm": "CRM",
+      "appointment": "예약",
+      "order": "주문"
+    },
+    "appointmentStatus": {
+      "pending": "대기 중",
+      "confirmed": "확정",
+      "in_progress": "진행 중",
+      "completed": "완료",
+      "cancelled": "취소",
+      "no_show": "노쇼"
+    },
+    "orderStatus": {
+      "received": "접수",
+      "accepted": "수락",
+      "preparing": "준비 중",
+      "ready": "준비 완료",
+      "completed": "완료",
+      "cancelled": "취소",
+      "refunded": "환불"
+    },
+    "invoiceStatus": {
+      "draft": "초안",
+      "sent": "발송",
+      "paid": "결제 완료",
+      "overdue": "연체",
+      "cancelled": "취소",
+      "partial": "부분 결제"
+    }
   }
 }

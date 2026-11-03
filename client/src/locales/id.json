@@ -34798,5 +34798,67 @@
         "reject": "Return for review"
       }
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "Tampilan pelanggan",
+    "viewCrm": "Pelanggan CRM",
+    "view360": "Semua pelanggan (360)",
+    "intro": "Semua orang yang memiliki hubungan dengan bisnis ini: pelanggan CRM, pemesanan, dan pesanan restoran. Anda hanya melihat yang diizinkan peran Anda.",
+    "search": "Cari pelanggan",
+    "loading": "Memuat…",
+    "loadFailed": "Gagal memuat pelanggan. Coba lagi.",
+    "forbidden": "Peran Anda tidak mencakup akses ke pelanggan.",
+    "assignedOnly": "Hanya menampilkan pelanggan yang ditugaskan kepada Anda.",
+    "empty": "Belum ada pelanggan.",
+    "unnamed": "Pelanggan tanpa nama",
+    "lastSeen": "Aktivitas terakhir {{date}}",
+    "more": "Tampilkan lebih banyak",
+    "pick": "Pilih pelanggan untuk melihat riwayatnya dengan bisnis ini.",
+    "scopeNote": "Hanya catatan milik bisnis ini yang ditampilkan.",
+    "status": "Status",
+    "email": "Email",
+    "phone": "Telepon",
+    "lifetime": "Nilai total",
+    "notes": "Catatan",
+    "noCrm": "Pelanggan ini belum memiliki catatan CRM.",
+    "appointments": "Janji temu ({{count}})",
+    "noShows": "Tidak hadir: {{count}}",
+    "orders": "Pesanan ({{count}})",
+    "paid": "Dibayar: {{amount}}",
+    "partialStores": "Hanya pesanan dari toko Anda yang disertakan.",
+    "invoices": "Faktur ({{count}})",
+    "outstanding": "Belum dibayar: {{amount}}",
+    "restricted": "Peran Anda tidak mencakup bagian ini.",
+    "none": "Belum ada.",
+    "via": {
+      "crm": "CRM",
+      "appointment": "Pemesanan",
+      "order": "Pesanan"
+    },
+    "appointmentStatus": {
+      "pending": "Menunggu",
+      "confirmed": "Dikonfirmasi",
+      "in_progress": "Berlangsung",
+      "completed": "Selesai",
+      "cancelled": "Dibatalkan",
+      "no_show": "Tidak hadir"
+    },
+    "orderStatus": {
+      "received": "Diterima",
+      "accepted": "Disetujui",
+      "preparing": "Disiapkan",
+      "ready": "Siap",
+      "completed": "Selesai",
+      "cancelled": "Dibatalkan",
+      "refunded": "Dikembalikan"
+    },
+    "invoiceStatus": {
+      "draft": "Draf",
+      "sent": "Terkirim",
+      "paid": "Lunas",
+      "overdue": "Jatuh tempo",
+      "cancelled": "Dibatalkan",
+      "partial": "Dibayar sebagian"
+    }
   }
 }

@@ -34798,5 +34798,67 @@
         "reject": "Return for review"
       }
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "Müşteri görünümü",
+    "viewCrm": "CRM müşterileri",
+    "view360": "Tüm müşteriler (360)",
+    "intro": "Bu işletmeyle ilişkisi olan herkes: CRM müşterileri, rezervasyonlar ve restoran siparişleri. Yalnızca rolünüzün izin verdiklerini görürsünüz.",
+    "search": "Müşteri ara",
+    "loading": "Yükleniyor…",
+    "loadFailed": "Müşteriler yüklenemedi. Tekrar deneyin.",
+    "forbidden": "Rolünüz müşterilere erişim içermiyor.",
+    "assignedOnly": "Yalnızca size atanan müşteriler gösteriliyor.",
+    "empty": "Henüz müşteri yok.",
+    "unnamed": "Adsız müşteri",
+    "lastSeen": "Son etkinlik {{date}}",
+    "more": "Daha fazla göster",
+    "pick": "Bu işletmeyle geçmişini görmek için bir müşteri seçin.",
+    "scopeNote": "Yalnızca bu işletmenin kendi kayıtları gösterilir.",
+    "status": "Durum",
+    "email": "E-posta",
+    "phone": "Telefon",
+    "lifetime": "Toplam değer",
+    "notes": "Notlar",
+    "noCrm": "Bu müşterinin henüz CRM kaydı yok.",
+    "appointments": "Randevular ({{count}})",
+    "noShows": "Gelmedi: {{count}}",
+    "orders": "Siparişler ({{count}})",
+    "paid": "Ödenen: {{amount}}",
+    "partialStores": "Yalnızca mağazalarınızın siparişleri dahildir.",
+    "invoices": "Faturalar ({{count}})",
+    "outstanding": "Kalan: {{amount}}",
+    "restricted": "Rolünüz bu bölümü içermiyor.",
+    "none": "Henüz bir şey yok.",
+    "via": {
+      "crm": "CRM",
+      "appointment": "Rezervasyon",
+      "order": "Sipariş"
+    },
+    "appointmentStatus": {
+      "pending": "Beklemede",
+      "confirmed": "Onaylandı",
+      "in_progress": "Sürüyor",
+      "completed": "Tamamlandı",
+      "cancelled": "İptal edildi",
+      "no_show": "Gelmedi"
+    },
+    "orderStatus": {
+      "received": "Alındı",
+      "accepted": "Kabul edildi",
+      "preparing": "Hazırlanıyor",
+      "ready": "Hazır",
+      "completed": "Tamamlandı",
+      "cancelled": "İptal edildi",
+      "refunded": "İade edildi"
+    },
+    "invoiceStatus": {
+      "draft": "Taslak",
+      "sent": "Gönderildi",
+      "paid": "Ödendi",
+      "overdue": "Gecikmiş",
+      "cancelled": "İptal edildi",
+      "partial": "Kısmen ödendi"
+    }
   }
 }

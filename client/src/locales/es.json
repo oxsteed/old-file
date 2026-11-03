@@ -39086,5 +39086,67 @@
       "title": "Perfil en OxSteed Media",
       "description": "Mira este perfil en OxSteed Media."
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "Vista de clientes",
+    "viewCrm": "Clientes CRM",
+    "view360": "Todos los clientes (360)",
+    "intro": "Todas las personas con relación con este negocio: clientes del CRM, reservas y pedidos del restaurante. Solo ve lo que su rol permite.",
+    "search": "Buscar clientes",
+    "loading": "Cargando…",
+    "loadFailed": "No se pudieron cargar los clientes. Inténtelo de nuevo.",
+    "forbidden": "Su rol no incluye acceso a clientes.",
+    "assignedOnly": "Solo se muestran los clientes asignados a usted.",
+    "empty": "Aún no hay clientes.",
+    "unnamed": "Cliente sin nombre",
+    "lastSeen": "Última actividad {{date}}",
+    "more": "Ver más",
+    "pick": "Seleccione un cliente para ver su historial con este negocio.",
+    "scopeNote": "Solo se muestran los registros propios de este negocio.",
+    "status": "Estado",
+    "email": "Correo",
+    "phone": "Teléfono",
+    "lifetime": "Valor total",
+    "notes": "Notas",
+    "noCrm": "Este cliente aún no tiene registro en el CRM.",
+    "appointments": "Citas ({{count}})",
+    "noShows": "Ausencias: {{count}}",
+    "orders": "Pedidos ({{count}})",
+    "paid": "Pagado: {{amount}}",
+    "partialStores": "Solo se incluyen pedidos de sus tiendas.",
+    "invoices": "Facturas ({{count}})",
+    "outstanding": "Pendiente: {{amount}}",
+    "restricted": "Su rol no incluye esta sección.",
+    "none": "Nada todavía.",
+    "via": {
+      "crm": "CRM",
+      "appointment": "Reserva",
+      "order": "Pedido"
+    },
+    "appointmentStatus": {
+      "pending": "Pendiente",
+      "confirmed": "Confirmada",
+      "in_progress": "En curso",
+      "completed": "Completada",
+      "cancelled": "Cancelada",
+      "no_show": "Ausencia"
+    },
+    "orderStatus": {
+      "received": "Recibido",
+      "accepted": "Aceptado",
+      "preparing": "En preparación",
+      "ready": "Listo",
+      "completed": "Completado",
+      "cancelled": "Cancelado",
+      "refunded": "Reembolsado"
+    },
+    "invoiceStatus": {
+      "draft": "Borrador",
+      "sent": "Enviada",
+      "paid": "Pagada",
+      "overdue": "Vencida",
+      "cancelled": "Cancelada",
+      "partial": "Pago parcial"
+    }
   }
 }

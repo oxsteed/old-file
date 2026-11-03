@@ -39086,5 +39086,67 @@
       "title": "Profil sur OxSteed Media",
       "description": "Consultez ce profil sur OxSteed Media."
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "Vue clients",
+    "viewCrm": "Clients CRM",
+    "view360": "Tous les clients (360)",
+    "intro": "Toutes les personnes en relation avec cette entreprise : clients CRM, réservations et commandes du restaurant. Vous ne voyez que ce que votre rôle autorise.",
+    "search": "Rechercher des clients",
+    "loading": "Chargement…",
+    "loadFailed": "Impossible de charger les clients. Réessayez.",
+    "forbidden": "Votre rôle n’inclut pas l’accès aux clients.",
+    "assignedOnly": "Seuls les clients qui vous sont attribués sont affichés.",
+    "empty": "Aucun client pour l’instant.",
+    "unnamed": "Client sans nom",
+    "lastSeen": "Dernière activité {{date}}",
+    "more": "Afficher plus",
+    "pick": "Sélectionnez un client pour voir son historique avec cette entreprise.",
+    "scopeNote": "Seuls les dossiers propres à cette entreprise sont affichés.",
+    "status": "Statut",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "lifetime": "Valeur totale",
+    "notes": "Notes",
+    "noCrm": "Pas encore de fiche CRM pour ce client.",
+    "appointments": "Rendez-vous ({{count}})",
+    "noShows": "Absences : {{count}}",
+    "orders": "Commandes ({{count}})",
+    "paid": "Payé : {{amount}}",
+    "partialStores": "Seules les commandes de vos magasins sont incluses.",
+    "invoices": "Factures ({{count}})",
+    "outstanding": "Restant dû : {{amount}}",
+    "restricted": "Votre rôle n’inclut pas cette section.",
+    "none": "Rien pour l’instant.",
+    "via": {
+      "crm": "CRM",
+      "appointment": "Réservation",
+      "order": "Commande"
+    },
+    "appointmentStatus": {
+      "pending": "En attente",
+      "confirmed": "Confirmé",
+      "in_progress": "En cours",
+      "completed": "Terminé",
+      "cancelled": "Annulé",
+      "no_show": "Absence"
+    },
+    "orderStatus": {
+      "received": "Reçue",
+      "accepted": "Acceptée",
+      "preparing": "En préparation",
+      "ready": "Prête",
+      "completed": "Terminée",
+      "cancelled": "Annulée",
+      "refunded": "Remboursée"
+    },
+    "invoiceStatus": {
+      "draft": "Brouillon",
+      "sent": "Envoyée",
+      "paid": "Payée",
+      "overdue": "En retard",
+      "cancelled": "Annulée",
+      "partial": "Partiellement payée"
+    }
   }
 }

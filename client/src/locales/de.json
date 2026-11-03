@@ -34798,5 +34798,67 @@
         "reject": "Return for review"
       }
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "Kundenansicht",
+    "viewCrm": "CRM-Kunden",
+    "view360": "Alle Kunden (360)",
+    "intro": "Alle, die eine Beziehung zu diesem Unternehmen haben: CRM-Kunden, Buchungen und Restaurantbestellungen. Sie sehen nur, was Ihre Rolle erlaubt.",
+    "search": "Kunden suchen",
+    "loading": "Wird geladen…",
+    "loadFailed": "Kunden konnten nicht geladen werden. Bitte erneut versuchen.",
+    "forbidden": "Ihre Rolle umfasst keinen Zugriff auf Kunden.",
+    "assignedOnly": "Es werden nur Ihnen zugewiesene Kunden angezeigt.",
+    "empty": "Noch keine Kunden.",
+    "unnamed": "Unbenannter Kunde",
+    "lastSeen": "Letzte Aktivität {{date}}",
+    "more": "Mehr anzeigen",
+    "pick": "Wählen Sie einen Kunden, um seinen Verlauf mit diesem Unternehmen zu sehen.",
+    "scopeNote": "Es werden nur die eigenen Daten dieses Unternehmens angezeigt.",
+    "status": "Status",
+    "email": "E-Mail",
+    "phone": "Telefon",
+    "lifetime": "Gesamtwert",
+    "notes": "Notizen",
+    "noCrm": "Für diesen Kunden gibt es noch keinen CRM-Eintrag.",
+    "appointments": "Termine ({{count}})",
+    "noShows": "Nicht erschienen: {{count}}",
+    "orders": "Bestellungen ({{count}})",
+    "paid": "Bezahlt: {{amount}}",
+    "partialStores": "Nur Bestellungen aus Ihren Filialen sind enthalten.",
+    "invoices": "Rechnungen ({{count}})",
+    "outstanding": "Offen: {{amount}}",
+    "restricted": "Ihre Rolle umfasst diesen Bereich nicht.",
+    "none": "Noch nichts.",
+    "via": {
+      "crm": "CRM",
+      "appointment": "Buchung",
+      "order": "Bestellung"
+    },
+    "appointmentStatus": {
+      "pending": "Ausstehend",
+      "confirmed": "Bestätigt",
+      "in_progress": "Läuft",
+      "completed": "Abgeschlossen",
+      "cancelled": "Storniert",
+      "no_show": "Nicht erschienen"
+    },
+    "orderStatus": {
+      "received": "Eingegangen",
+      "accepted": "Angenommen",
+      "preparing": "In Zubereitung",
+      "ready": "Fertig",
+      "completed": "Abgeschlossen",
+      "cancelled": "Storniert",
+      "refunded": "Erstattet"
+    },
+    "invoiceStatus": {
+      "draft": "Entwurf",
+      "sent": "Gesendet",
+      "paid": "Bezahlt",
+      "overdue": "Überfällig",
+      "cancelled": "Storniert",
+      "partial": "Teilweise bezahlt"
+    }
   }
 }

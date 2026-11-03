@@ -39104,5 +39104,67 @@
       "title": "ملف على OxSteed Media",
       "description": "اعرض هذا الملف على OxSteed Media."
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "عرض العملاء",
+    "viewCrm": "عملاء إدارة العلاقات",
+    "view360": "جميع العملاء (360)",
+    "intro": "كل من له علاقة بهذا النشاط التجاري: عملاء إدارة العلاقات والحجوزات وطلبات المطعم. لا ترى إلا ما يسمح به دورك.",
+    "search": "ابحث عن العملاء",
+    "loading": "جارٍ التحميل…",
+    "loadFailed": "تعذّر تحميل العملاء. حاول مرة أخرى.",
+    "forbidden": "دورك لا يتضمن الوصول إلى العملاء.",
+    "assignedOnly": "يتم عرض العملاء المسندين إليك فقط.",
+    "empty": "لا يوجد عملاء بعد.",
+    "unnamed": "عميل بلا اسم",
+    "lastSeen": "آخر نشاط {{date}}",
+    "more": "عرض المزيد",
+    "pick": "اختر عميلًا لعرض سجله مع هذا النشاط التجاري.",
+    "scopeNote": "تُعرض سجلات هذا النشاط التجاري فقط.",
+    "status": "الحالة",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "lifetime": "القيمة الإجمالية",
+    "notes": "ملاحظات",
+    "noCrm": "لا يوجد سجل لهذا العميل في إدارة العلاقات بعد.",
+    "appointments": "المواعيد ({{count}})",
+    "noShows": "عدم الحضور: {{count}}",
+    "orders": "الطلبات ({{count}})",
+    "paid": "المدفوع: {{amount}}",
+    "partialStores": "تُضمَّن طلبات متاجرك فقط.",
+    "invoices": "الفواتير ({{count}})",
+    "outstanding": "المستحق: {{amount}}",
+    "restricted": "دورك لا يتضمن هذا القسم.",
+    "none": "لا شيء بعد.",
+    "via": {
+      "crm": "إدارة العلاقات",
+      "appointment": "حجز",
+      "order": "طلب"
+    },
+    "appointmentStatus": {
+      "pending": "قيد الانتظار",
+      "confirmed": "مؤكد",
+      "in_progress": "جارٍ",
+      "completed": "مكتمل",
+      "cancelled": "ملغى",
+      "no_show": "لم يحضر"
+    },
+    "orderStatus": {
+      "received": "مستلم",
+      "accepted": "مقبول",
+      "preparing": "قيد التحضير",
+      "ready": "جاهز",
+      "completed": "مكتمل",
+      "cancelled": "ملغى",
+      "refunded": "مسترد"
+    },
+    "invoiceStatus": {
+      "draft": "مسودة",
+      "sent": "مرسلة",
+      "paid": "مدفوعة",
+      "overdue": "متأخرة",
+      "cancelled": "ملغاة",
+      "partial": "مدفوعة جزئيًا"
+    }
   }
 }

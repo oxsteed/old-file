@@ -39086,5 +39086,67 @@
       "title": "Pwofil sou OxSteed Media",
       "description": "Gade pwofil sa a sou OxSteed Media."
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "Vi kliyan",
+    "viewCrm": "Kliyan CRM",
+    "view360": "Tout kliyan (360)",
+    "intro": "Tout moun ki gen yon relasyon ak biznis sa a: kliyan CRM, randevou ak kòmand restoran. Ou wè sèlman sa wòl ou pèmèt.",
+    "search": "Chèche kliyan",
+    "loading": "Ap chaje…",
+    "loadFailed": "Nou pa t ka chaje kliyan yo. Eseye ankò.",
+    "forbidden": "Wòl ou pa gen aksè a kliyan yo.",
+    "assignedOnly": "Se sèlman kliyan yo ba ou yo ki parèt.",
+    "empty": "Poko gen kliyan.",
+    "unnamed": "Kliyan san non",
+    "lastSeen": "Dènye aktivite {{date}}",
+    "more": "Montre plis",
+    "pick": "Chwazi yon kliyan pou wè istwa li ak biznis sa a.",
+    "scopeNote": "Se sèlman dosye pwòp biznis sa a ki parèt.",
+    "status": "Estati",
+    "email": "Imèl",
+    "phone": "Telefòn",
+    "lifetime": "Valè total",
+    "notes": "Nòt",
+    "noCrm": "Kliyan sa a poko gen dosye CRM.",
+    "appointments": "Randevou ({{count}})",
+    "noShows": "Pa t vini: {{count}}",
+    "orders": "Kòmand ({{count}})",
+    "paid": "Peye: {{amount}}",
+    "partialStores": "Se sèlman kòmand nan magazen ou yo ki ladan.",
+    "invoices": "Fakti ({{count}})",
+    "outstanding": "Rès pou peye: {{amount}}",
+    "restricted": "Wòl ou pa gen seksyon sa a.",
+    "none": "Poko gen anyen.",
+    "via": {
+      "crm": "CRM",
+      "appointment": "Randevou",
+      "order": "Kòmand"
+    },
+    "appointmentStatus": {
+      "pending": "Ap tann",
+      "confirmed": "Konfime",
+      "in_progress": "Ap fèt",
+      "completed": "Fini",
+      "cancelled": "Anile",
+      "no_show": "Pa t vini"
+    },
+    "orderStatus": {
+      "received": "Resevwa",
+      "accepted": "Aksepte",
+      "preparing": "Ap prepare",
+      "ready": "Pare",
+      "completed": "Fini",
+      "cancelled": "Anile",
+      "refunded": "Ranbouse"
+    },
+    "invoiceStatus": {
+      "draft": "Bouyon",
+      "sent": "Voye",
+      "paid": "Peye",
+      "overdue": "An reta",
+      "cancelled": "Anile",
+      "partial": "Peye an pati"
+    }
   }
 }

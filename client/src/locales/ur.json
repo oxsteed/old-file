@@ -34769,5 +34769,67 @@
         "reject": "Return for review"
       }
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "صارفین کا منظر",
+    "viewCrm": "CRM صارفین",
+    "view360": "تمام صارفین (360)",
+    "intro": "ہر وہ شخص جس کا اس کاروبار سے تعلق ہے: CRM صارفین، بکنگ اور ریستوران کے آرڈر۔ آپ صرف وہی دیکھتے ہیں جس کی آپ کا کردار اجازت دیتا ہے۔",
+    "search": "صارفین تلاش کریں",
+    "loading": "لوڈ ہو رہا ہے…",
+    "loadFailed": "صارفین لوڈ نہیں ہو سکے۔ دوبارہ کوشش کریں۔",
+    "forbidden": "آپ کے کردار میں صارفین تک رسائی شامل نہیں۔",
+    "assignedOnly": "صرف آپ کو تفویض کردہ صارفین دکھائے جا رہے ہیں۔",
+    "empty": "ابھی کوئی صارف نہیں۔",
+    "unnamed": "بے نام صارف",
+    "lastSeen": "آخری سرگرمی {{date}}",
+    "more": "مزید دکھائیں",
+    "pick": "اس کاروبار کے ساتھ تاریخ دیکھنے کے لیے صارف منتخب کریں۔",
+    "scopeNote": "صرف اس کاروبار کے اپنے ریکارڈ دکھائے جاتے ہیں۔",
+    "status": "حیثیت",
+    "email": "ای میل",
+    "phone": "فون",
+    "lifetime": "کل قدر",
+    "notes": "نوٹس",
+    "noCrm": "اس صارف کا ابھی کوئی CRM ریکارڈ نہیں۔",
+    "appointments": "ملاقاتیں ({{count}})",
+    "noShows": "غیر حاضر: {{count}}",
+    "orders": "آرڈر ({{count}})",
+    "paid": "ادا شدہ: {{amount}}",
+    "partialStores": "صرف آپ کے اسٹورز کے آرڈر شامل ہیں۔",
+    "invoices": "انوائسز ({{count}})",
+    "outstanding": "واجب الادا: {{amount}}",
+    "restricted": "آپ کے کردار میں یہ حصہ شامل نہیں۔",
+    "none": "ابھی کچھ نہیں۔",
+    "via": {
+      "crm": "CRM",
+      "appointment": "بکنگ",
+      "order": "آرڈر"
+    },
+    "appointmentStatus": {
+      "pending": "زیر التوا",
+      "confirmed": "تصدیق شدہ",
+      "in_progress": "جاری",
+      "completed": "مکمل",
+      "cancelled": "منسوخ",
+      "no_show": "غیر حاضر"
+    },
+    "orderStatus": {
+      "received": "موصول",
+      "accepted": "قبول",
+      "preparing": "تیار ہو رہا",
+      "ready": "تیار",
+      "completed": "مکمل",
+      "cancelled": "منسوخ",
+      "refunded": "رقم واپس"
+    },
+    "invoiceStatus": {
+      "draft": "مسودہ",
+      "sent": "بھیجا گیا",
+      "paid": "ادا شدہ",
+      "overdue": "زائد المیعاد",
+      "cancelled": "منسوخ",
+      "partial": "جزوی ادا"
+    }
   }
 }

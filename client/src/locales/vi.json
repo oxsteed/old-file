@@ -34769,5 +34769,67 @@
         "reject": "Return for review"
       }
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "Chế độ xem khách hàng",
+    "viewCrm": "Khách hàng CRM",
+    "view360": "Tất cả khách hàng (360)",
+    "intro": "Mọi người có quan hệ với doanh nghiệp này: khách hàng CRM, lịch hẹn và đơn hàng nhà hàng. Bạn chỉ thấy những gì vai trò của bạn cho phép.",
+    "search": "Tìm khách hàng",
+    "loading": "Đang tải…",
+    "loadFailed": "Không thể tải khách hàng. Hãy thử lại.",
+    "forbidden": "Vai trò của bạn không có quyền truy cập khách hàng.",
+    "assignedOnly": "Chỉ hiển thị khách hàng được giao cho bạn.",
+    "empty": "Chưa có khách hàng.",
+    "unnamed": "Khách hàng không tên",
+    "lastSeen": "Hoạt động gần nhất {{date}}",
+    "more": "Xem thêm",
+    "pick": "Chọn một khách hàng để xem lịch sử với doanh nghiệp này.",
+    "scopeNote": "Chỉ hiển thị hồ sơ của chính doanh nghiệp này.",
+    "status": "Trạng thái",
+    "email": "Email",
+    "phone": "Điện thoại",
+    "lifetime": "Tổng giá trị",
+    "notes": "Ghi chú",
+    "noCrm": "Khách hàng này chưa có hồ sơ CRM.",
+    "appointments": "Lịch hẹn ({{count}})",
+    "noShows": "Vắng mặt: {{count}}",
+    "orders": "Đơn hàng ({{count}})",
+    "paid": "Đã thanh toán: {{amount}}",
+    "partialStores": "Chỉ bao gồm đơn hàng từ cửa hàng của bạn.",
+    "invoices": "Hóa đơn ({{count}})",
+    "outstanding": "Còn nợ: {{amount}}",
+    "restricted": "Vai trò của bạn không có mục này.",
+    "none": "Chưa có gì.",
+    "via": {
+      "crm": "CRM",
+      "appointment": "Lịch hẹn",
+      "order": "Đơn hàng"
+    },
+    "appointmentStatus": {
+      "pending": "Đang chờ",
+      "confirmed": "Đã xác nhận",
+      "in_progress": "Đang diễn ra",
+      "completed": "Hoàn thành",
+      "cancelled": "Đã hủy",
+      "no_show": "Vắng mặt"
+    },
+    "orderStatus": {
+      "received": "Đã nhận",
+      "accepted": "Đã chấp nhận",
+      "preparing": "Đang chuẩn bị",
+      "ready": "Sẵn sàng",
+      "completed": "Hoàn thành",
+      "cancelled": "Đã hủy",
+      "refunded": "Đã hoàn tiền"
+    },
+    "invoiceStatus": {
+      "draft": "Nháp",
+      "sent": "Đã gửi",
+      "paid": "Đã thanh toán",
+      "overdue": "Quá hạn",
+      "cancelled": "Đã hủy",
+      "partial": "Thanh toán một phần"
+    }
   }
 }

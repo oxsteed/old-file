@@ -39086,5 +39086,67 @@
       "title": "Profile on OxSteed Media",
       "description": "View this profile on OxSteed Media."
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "Client view",
+    "viewCrm": "CRM clients",
+    "view360": "All customers (360)",
+    "intro": "Everyone who has a relationship with this business: CRM clients, bookings and restaurant orders. You only see what your role allows.",
+    "search": "Search customers",
+    "loading": "Loading…",
+    "loadFailed": "Could not load customers. Try again.",
+    "forbidden": "Your role does not include access to customers.",
+    "assignedOnly": "Showing only customers assigned to you.",
+    "empty": "No customers yet.",
+    "unnamed": "Unnamed customer",
+    "lastSeen": "Last activity {{date}}",
+    "more": "Show more",
+    "pick": "Select a customer to see their history with this business.",
+    "scopeNote": "Only this business's own records are shown.",
+    "status": "Status",
+    "email": "Email",
+    "phone": "Phone",
+    "lifetime": "Lifetime value",
+    "notes": "Notes",
+    "noCrm": "No CRM record for this customer yet.",
+    "appointments": "Appointments ({{count}})",
+    "noShows": "No-shows: {{count}}",
+    "orders": "Orders ({{count}})",
+    "paid": "Paid: {{amount}}",
+    "partialStores": "Only orders from your stores are included.",
+    "invoices": "Invoices ({{count}})",
+    "outstanding": "Outstanding: {{amount}}",
+    "restricted": "Your role does not include this section.",
+    "none": "Nothing yet.",
+    "via": {
+      "crm": "CRM",
+      "appointment": "Booking",
+      "order": "Order"
+    },
+    "appointmentStatus": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "no_show": "No-show"
+    },
+    "orderStatus": {
+      "received": "Received",
+      "accepted": "Accepted",
+      "preparing": "Preparing",
+      "ready": "Ready",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "refunded": "Refunded"
+    },
+    "invoiceStatus": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "cancelled": "Cancelled",
+      "partial": "Partly paid"
+    }
   }
 }

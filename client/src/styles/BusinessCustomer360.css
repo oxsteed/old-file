@@ -1,0 +1,18 @@
+/* Business Hub > Clients > All customers (business-scoped Customer 360). */
+.bc360-root { display: flex; flex-direction: column; gap: 0.75rem; }
+.bc360-intro, .bc360-muted { color: var(--muted-text); margin: 0; font-size: 0.9rem; line-height: 1.5; }
+.bc360-search { display: flex; flex-direction: column; gap: 0.25rem; max-inline-size: 24rem; }
+.bc360-search input { padding-block: 0.45rem; padding-inline: 0.6rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 8px; background: var(--card-bg, transparent); color: inherit; }
+.bc360-layout { display: grid; grid-template-columns: minmax(14rem, 1fr) 2fr; gap: 1rem; align-items: start; }
+.bc360-list ul, .bc360-section ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.bc360-list button { inline-size: 100%; text-align: start; display: flex; flex-direction: column; gap: 0.15rem; padding: 0.6rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 10px; background: var(--card-bg, transparent); color: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.bc360-list button[aria-pressed="true"] { border-color: #f97316; }
+.bc360-list span { color: var(--muted-text); font-size: 0.8rem; }
+.bc360-detail article { display: flex; flex-direction: column; gap: 0.75rem; overflow-wrap: anywhere; }
+.bc360-detail h3 { margin: 0; }
+.bc360-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.5rem; margin: 0; }
+.bc360-facts dt { color: var(--muted-text); font-size: 0.75rem; }
+.bc360-facts dd { margin: 0; }
+.bc360-section { border-block-start: 1px solid var(--border-color, #e5e7eb); padding-block-start: 0.5rem; }
+.bc360-section h4 { margin-block: 0 0.35rem; }
+@media (max-width: 720px) { .bc360-layout { grid-template-columns: 1fr; } }

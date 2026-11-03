@@ -34769,5 +34769,67 @@
         "reject": "Return for review"
       }
     }
+  },
+  "businessCustomer360": {
+    "viewLabel": "顧客ビュー",
+    "viewCrm": "CRM 顧客",
+    "view360": "すべての顧客（360）",
+    "intro": "このビジネスと関係のあるすべての人：CRM 顧客、予約、レストランの注文。表示されるのはあなたのロールで許可された内容のみです。",
+    "search": "顧客を検索",
+    "loading": "読み込み中…",
+    "loadFailed": "顧客を読み込めませんでした。もう一度お試しください。",
+    "forbidden": "あなたのロールには顧客へのアクセス権がありません。",
+    "assignedOnly": "あなたに割り当てられた顧客のみ表示しています。",
+    "empty": "まだ顧客はいません。",
+    "unnamed": "名前のない顧客",
+    "lastSeen": "最終アクティビティ {{date}}",
+    "more": "さらに表示",
+    "pick": "顧客を選ぶと、このビジネスとの履歴が表示されます。",
+    "scopeNote": "このビジネス自身の記録のみ表示されます。",
+    "status": "ステータス",
+    "email": "メール",
+    "phone": "電話",
+    "lifetime": "累計金額",
+    "notes": "メモ",
+    "noCrm": "この顧客の CRM 記録はまだありません。",
+    "appointments": "予約（{{count}}）",
+    "noShows": "無断キャンセル：{{count}}",
+    "orders": "注文（{{count}}）",
+    "paid": "支払済み：{{amount}}",
+    "partialStores": "あなたの店舗の注文のみ含まれます。",
+    "invoices": "請求書（{{count}}）",
+    "outstanding": "未払い：{{amount}}",
+    "restricted": "あなたのロールにはこのセクションが含まれません。",
+    "none": "まだありません。",
+    "via": {
+      "crm": "CRM",
+      "appointment": "予約",
+      "order": "注文"
+    },
+    "appointmentStatus": {
+      "pending": "保留中",
+      "confirmed": "確定",
+      "in_progress": "進行中",
+      "completed": "完了",
+      "cancelled": "キャンセル",
+      "no_show": "無断キャンセル"
+    },
+    "orderStatus": {
+      "received": "受付済み",
+      "accepted": "承認済み",
+      "preparing": "準備中",
+      "ready": "準備完了",
+      "completed": "完了",
+      "cancelled": "キャンセル",
+      "refunded": "返金済み"
+    },
+    "invoiceStatus": {
+      "draft": "下書き",
+      "sent": "送信済み",
+      "paid": "支払済み",
+      "overdue": "期限超過",
+      "cancelled": "キャンセル",
+      "partial": "一部支払済み"
+    }
   }
 }
