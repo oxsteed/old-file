@@ -38499,5 +38499,211 @@
     "reopen": "Relouvri ka a",
     "reopened": "Ka a relouvri.",
     "confirmAccept": "Aksepte rezolisyon sa a? Sa fèmen ka a kòm rezoud."
+  },
+  "seoRoute": {
+    "home": {
+      "title": "OxSteed: Jwenn Èd Lokal Jodi a",
+      "description": "Afiche yon travay, konpare òf nan men edè lokal ki kalifye, epi peye sou OxSteed. Gratis pou kòmanse."
+    },
+    "about": {
+      "title": "Konsènan OxSteed",
+      "description": "Aprann sa OxSteed ap bati: yon mache sèvis lokal ki konekte moun ak edè ki kalifye."
+    },
+    "howItWorks": {
+      "title": "Kijan OxSteed Fonksyone",
+      "description": "Afiche yon travay, konpare òf, anboche ak konfyans, epi peye atravè OxSteed. Wè kijan li fonksyone, etap pa etap."
+    },
+    "howItWorksArea": {
+      "title": "Kijan {{area}} Fonksyone sou OxSteed",
+      "description": "Aprann kijan travay {{area}} fonksyone sou OxSteed, depi afichaj rive nan peman."
+    },
+    "helpers": {
+      "title": "Jwenn Edè Lokal",
+      "description": "Gade edè lokal ki kalifye sou OxSteed, konpare pwofil, epi mande yon pri."
+    },
+    "helperProfile": {
+      "title": "Edè Lokal sou OxSteed",
+      "description": "Gade pwofil edè sa a sou OxSteed, wè konpetans ak revizyon, epi mande yon pri."
+    },
+    "profile": {
+      "title": "Pwofil Piblik sou OxSteed",
+      "description": "Gade pwofil piblik sa a sou OxSteed epi kontakte moun nan."
+    },
+    "jobs": {
+      "title": "Jwenn Travay Lokal",
+      "description": "Gade travay ki ouvè sou OxSteed epi aplike pou travay toupre w."
+    },
+    "jobPublic": {
+      "title": "Òf Travay sou OxSteed",
+      "description": "Gade travay ouvè sa a sou OxSteed epi wè kijan pou aplike."
+    },
+    "direct": {
+      "title": "OxSteed Direct",
+      "description": "Rezève sèvis lokal dirèkteman sou OxSteed, depi konpetans rive nan zouti ak pri."
+    },
+    "directSkills": {
+      "title": "Konpetans Direct sou OxSteed",
+      "description": "Gade konpetans ki disponib atravè OxSteed Direct epi jwenn bon èd la."
+    },
+    "directServices": {
+      "title": "Sèvis Direct sou OxSteed",
+      "description": "Gade sèvis ki disponib atravè OxSteed Direct epi mande yon pri."
+    },
+    "directTools": {
+      "title": "Zouti Direct sou OxSteed",
+      "description": "Gade zouti ki disponib atravè OxSteed Direct."
+    },
+    "directRequestQuote": {
+      "title": "Mande yon Pri sou OxSteed Direct",
+      "description": "Di OxSteed Direct sa w bezwen epi resevwa yon pri nan men yon founisè lokal."
+    },
+    "restaurants": {
+      "title": "Restoran Lokal sou OxSteed",
+      "description": "Gade restoran lokal sou OxSteed epi kòmande manje pou pran oswa pou livrezon."
+    },
+    "restaurantDetail": {
+      "title": "Restoran sou OxSteed",
+      "description": "Gade restoran sa a sou OxSteed, gade meni an, epi kòmande."
+    },
+    "learn": {
+      "title": "Aprann sou OxSteed",
+      "description": "Gid ak leson OxSteed pou ede w anboche byen epi travay byen."
+    },
+    "careers": {
+      "title": "Karyè nan OxSteed",
+      "description": "Wè pozisyon ki ouvè nan OxSteed epi aplike pou rantre nan ekip la."
+    },
+    "careerDetail": {
+      "title": "Òf Travay nan OxSteed",
+      "description": "Gade pozisyon ouvè sa a nan OxSteed epi aplike."
+    },
+    "help": {
+      "title": "Sant Èd OxSteed",
+      "description": "Jwenn èd pou zouti restoran OxSteed, depi POS ak kwizin rive nan ekip ak envantè."
+    },
+    "terms": {
+      "title": "Kondisyon Sèvis",
+      "description": "Li kondisyon sèvis OxSteed yo."
+    },
+    "privacy": {
+      "title": "Politik Konfidansyalite",
+      "description": "Li kijan OxSteed kolekte, itilize, epi pwoteje enfòmasyon w yo."
+    },
+    "security": {
+      "title": "Sekirite nan OxSteed",
+      "description": "Aprann kijan OxSteed pwoteje kont ou ak done w yo."
+    },
+    "accessibility": {
+      "title": "Aksesibilite nan OxSteed",
+      "description": "Aprann sou aksesibilite sou OxSteed ak kijan pou jwenn èd."
+    },
+    "cookiePolicy": {
+      "title": "Politik Cookie",
+      "description": "Li kijan OxSteed itilize cookie ak teknoloji ki sanble."
+    },
+    "doNotSell": {
+      "title": "Pa Vann Enfòmasyon Pèsonèl Mwen",
+      "description": "Aprann kijan pou refize vant oswa pataj enfòmasyon pèsonèl ou sou OxSteed."
+    },
+    "enforcementPolicy": {
+      "title": "Politik Aplikasyon Règ",
+      "description": "Li kijan OxSteed aplike règ li yo."
+    },
+    "legalBackgroundCheck": {
+      "title": "Politik Verifikasyon Istorik",
+      "description": "Li politik verifikasyon istorik OxSteed la."
+    },
+    "legalArbitration": {
+      "title": "Akò Abitraj",
+      "description": "Li akò abitraj OxSteed la."
+    },
+    "legalEscrowPolicy": {
+      "title": "Politik Escrow",
+      "description": "Li kijan OxSteed jere peman escrow."
+    },
+    "legalAccountTermination": {
+      "title": "Politik Fèmti Kont",
+      "description": "Li kilè ak kijan OxSteed ka fèmen yon kont."
+    },
+    "legalDisputeResolution": {
+      "title": "Rezolisyon Diskisyon",
+      "description": "Li kijan diskisyon rezoud sou OxSteed."
+    },
+    "legalIndependentContractor": {
+      "title": "Akò Kontraktè Endepandan",
+      "description": "Li akò kontraktè endepandan OxSteed la."
+    },
+    "join": {
+      "title": "Antre nan OxSteed",
+      "description": "Kreye kont OxSteed gratis ou epi kòmanse anboche oswa ede jodi a."
+    },
+    "status": {
+      "title": "Estati OxSteed",
+      "description": "Tcheke estati aktyèl sèvis OxSteed yo."
+    },
+    "delivery": {
+      "title": "Livrezon OxSteed",
+      "description": "Aprann sou livrezon sou OxSteed, pou kliyan ak chofè."
+    },
+    "qrGenerator": {
+      "title": "Jeneratè Kòd QR",
+      "description": "Kreye yon kòd QR sou OxSteed pou peman ak lyen."
+    },
+    "support": {
+      "title": "Sipò OxSteed",
+      "description": "Jwenn èd nan men sipò OxSteed oswa monte yon pwoblèm."
+    },
+    "consultingIntake": {
+      "title": "Antre Konsiltasyon",
+      "description": "Kòmanse yon antre konsiltasyon ak OxSteed."
+    },
+    "toolRentals": {
+      "title": "Lokasyon Zouti sou OxSteed",
+      "description": "Gade zouti pou lwe sou OxSteed."
+    },
+    "toolRentalDetail": {
+      "title": "Lokasyon Zouti sou OxSteed",
+      "description": "Gade lokasyon zouti sa a sou OxSteed epi tcheke disponibilite."
+    },
+    "campaigns": {
+      "title": "Kanpay Lojistik sou OxSteed",
+      "description": "Gade kanpay lojistik sou OxSteed."
+    },
+    "campaignDetail": {
+      "title": "Kanpay Lojistik sou OxSteed",
+      "description": "Gade kanpay lojistik sa a sou OxSteed."
+    },
+    "businessProfile": {
+      "title": "Biznis sou OxSteed",
+      "description": "Gade biznis sa a sou OxSteed, wè sèvis li yo, epi kontakte li."
+    },
+    "media": {
+      "title": "OxSteed Media",
+      "description": "Wè piblikasyon ak nouvèl nan kominote OxSteed la."
+    },
+    "mediaPost": {
+      "title": "Piblikasyon sou OxSteed Media",
+      "description": "Gade piblikasyon sa a sou OxSteed Media."
+    },
+    "mediaCommunities": {
+      "title": "Kominote sou OxSteed Media",
+      "description": "Gade kominote sou OxSteed Media."
+    },
+    "mediaCommunity": {
+      "title": "Kominote sou OxSteed Media",
+      "description": "Gade kominote sa a sou OxSteed Media."
+    },
+    "mediaSearch": {
+      "title": "Chèche sou OxSteed Media",
+      "description": "Chèche piblikasyon ak moun sou OxSteed Media."
+    },
+    "mediaCreator": {
+      "title": "Kreyatè sou OxSteed Media",
+      "description": "Dekouvri kreyatè sou OxSteed Media."
+    },
+    "mediaActor": {
+      "title": "Pwofil sou OxSteed Media",
+      "description": "Gade pwofil sa a sou OxSteed Media."
+    }
   }
 }
