@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
 import PageShell from '../../components/PageShell';
 import PageMeta from '../../components/PageMeta';
+import JsonLd, { buildItemList } from '../../components/JsonLd';
 import RecentlyViewedStrip from '../../components/RecentlyViewedStrip';
 import SaveSearchButton from '../../components/SaveSearchButton';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
@@ -497,6 +498,12 @@ export default function FoodHomePage() {
       description={t('food.home.subtitle')}
       url="https://oxsteed.com/restaurants"
     />
+    {/* SEO: ItemList of the restaurants actually rendered on this page.
+        No ratings, prices, or addresses are claimed here. */}
+    <JsonLd data={buildItemList(displayedRestaurants.slice(0, 100).map((r) => ({
+      name: r.display_name,
+      url: `https://oxsteed.com/restaurants/r/${r.id}`,
+    })))} />
     <div className="fd-home-page rd-page">
       <ProductHeader
         className="rd-nav"

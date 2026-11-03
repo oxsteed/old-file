@@ -17,6 +17,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import ProfileJsonLd from '../components/ProfileJsonLd';
+import JsonLd, { buildBreadcrumbList, buildFaqPage } from '../components/JsonLd';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
 import ProfileShareControls from '../components/helperProfile/ProfileShareControls';
 import { Flag, GraduationCap } from 'lucide-react';
@@ -310,6 +311,44 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
   const { helper, services, gallery, location, policies, reviews, faqs, visibility, chatSession } =
     data;
 
+  // SEO (Track P): ProfessionalService + BreadcrumbList + FAQPage, all from
+  // loaded profile data only. areaServed is omitted when the profile has no
+  // city/state; the pre-existing ProfileJsonLd Person block is left intact
+  // (removing shipped SEO is out of this track's scope).
+  const helperSeoName = helper.businessName || helper.ownerName;
+  const helperSeoUrl = `${getPublicSiteUrl()}/helpers/${(helper as any).profileSlug || (helper as any).profile_slug || helperUuid}`;
+  const helperSeoKnowsAbout = [
+    ...(helper.categories || []),
+    ...(services || []).map((s: any) => s.name).filter(Boolean),
+  ].slice(0, 24);
+  const helperSeoService = {
+    '@context': 'https://schema.org',
+    '@type': 'ProfessionalService',
+    name: helperSeoName,
+    description: helper.bio || helper.tagline || undefined,
+    url: helperSeoUrl,
+    areaServed: (helper.city || helper.state)
+      ? { '@type': 'AdministrativeArea', name: [helper.city, helper.state].filter(Boolean).join(', ') }
+      : undefined,
+    knowsAbout: helperSeoKnowsAbout.length ? helperSeoKnowsAbout : undefined,
+    hasOfferCatalog: (services || []).length > 0
+      ? {
+          '@type': 'OfferCatalog',
+          name: 'Services',
+          itemListElement: (services || []).slice(0, 20).map((s: any) => ({
+            '@type': 'Offer',
+            itemOffered: { '@type': 'Service', name: s.name },
+          })),
+        }
+      : undefined,
+  };
+  const helperSeoBreadcrumb = buildBreadcrumbList([
+    { name: 'Home', url: `${getPublicSiteUrl()}/` },
+    { name: 'Helpers', url: `${getPublicSiteUrl()}/helpers` },
+    { name: helperSeoName, url: helperSeoUrl },
+  ]);
+  const helperSeoFaq = visibility?.faqs ? buildFaqPage(faqs) : null;
+
   const isGuestVisitor = !user;
   const templateBehavior = getTemplateBehavior(
     LAUNCH_VISIBILITY.specializedProfileTemplates ? activeTemplate : 'default',
@@ -333,6 +372,9 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
           url={`${getPublicSiteUrl()}/helpers/${(data as any)?.helper?.profileSlug || helperUuid}`}
           type="profile"
         />}
+        {!customerSnapshot && <JsonLd data={helperSeoService} />}
+        {!customerSnapshot && <JsonLd data={helperSeoBreadcrumb} />}
+        {!customerSnapshot && <JsonLd data={helperSeoFaq} />}
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
           <ProfileShareControls
@@ -369,6 +411,9 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
         location={location}
         services={services}
       />}
+      {!customerSnapshot && <JsonLd data={helperSeoService} />}
+      {!customerSnapshot && <JsonLd data={helperSeoBreadcrumb} />}
+      {!customerSnapshot && <JsonLd data={helperSeoFaq} />}
       <Navbar />
 
       {/* Helper hero — PublicProfileSummaryCard via BusinessHeader / PublicProfileHero */}

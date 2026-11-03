@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import JsonLd, { buildBreadcrumbList, buildItemList } from '../components/JsonLd';
 import useAuth from '../hooks/useAuth';
 import {
   getHowItWorksStory,
@@ -143,6 +144,16 @@ export default function FeatureGuidePage() {
         title={t('howOxsteedWorks.experience.metaTitle')}
         description={t('howOxsteedWorks.experience.metaDescription')}
       />
+      {/* SEO: BreadcrumbList plus an ItemList of the experience guides this
+          page actually links to. No FAQPage: this page renders no FAQs. */}
+      <JsonLd data={buildBreadcrumbList([
+        { name: 'Home', url: 'https://oxsteed.com/' },
+        { name: 'How it works', url: 'https://oxsteed.com/how-it-works' },
+      ])} />
+      <JsonLd data={buildItemList(getExperienceAreaKeys().map((areaKey) => ({
+        name: t(`experienceGuides.areas.${experienceAreaTranslationKey(areaKey)}.title`, { defaultValue: areaKey }),
+        url: `https://oxsteed.com/how-it-works/${areaKey}`,
+      })))} />
       <div className="feature-guide-page how-works-page">
         <section className="how-works-hero" aria-labelledby="how-works-title">
           <div className="how-works-hero__glow" aria-hidden="true" />

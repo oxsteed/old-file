@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import '../styles/HomePage.css';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
+import JsonLd from '../components/JsonLd';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Hero from '../components/Hero';
@@ -625,6 +626,23 @@ export default function HomePage() {
     <PageShell>
     <div className="hp-root">
       <PageMeta url="https://oxsteed.com/" />
+      {/* SEO: Organization + WebSite. No sameAs: the repo declares no
+          OxSteed social profile URLs, so none are claimed here. */}
+      <JsonLd data={{
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@type': 'Organization',
+            name: 'OxSteed',
+            url: 'https://oxsteed.com',
+          },
+          {
+            '@type': 'WebSite',
+            name: 'OxSteed',
+            url: 'https://oxsteed.com',
+          },
+        ],
+      }} />
 
 
 

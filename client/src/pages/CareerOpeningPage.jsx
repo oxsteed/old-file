@@ -3,6 +3,7 @@ import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import JsonLd, { buildBreadcrumbList } from '../components/JsonLd';
 import { useAuth } from '../context/AuthContext';
 import {
   applyToCareerOpening, confirmGuestApplication, getCareerFacts, getPublicCareerOpening, startGuestApplication,
@@ -185,9 +186,49 @@ export default function CareerOpeningPage() {
   const { data: raw, loading, error, reload } = useLoad(() => getPublicCareerOpening(id), [id]);
   const opening = useMemo(() => localizedOpening(raw, i18n.language), [raw, i18n.language]);
 
+  // SEO (Track P): JobPosting from the loaded opening only. Salary is
+  // included only when both ends are finite numbers and the pay period maps
+  // to a schema unit; datePosted and employmentType are omitted because the
+  // loaded opening does not carry them as schema-ready values.
+  const careerPayUnit = { hourly: 'HOUR', weekly: 'WEEK', monthly: 'MONTH', yearly: 'YEAR', annual: 'YEAR' }[opening?.compensation_period];
+  const careerPayMin = opening ? Number(opening.compensation_min) : NaN;
+  const careerPayMax = opening ? Number(opening.compensation_max) : NaN;
+  const careerJobPosting = opening ? {
+    '@context': 'https://schema.org',
+    '@type': 'JobPosting',
+    title: opening.title,
+    description: opening.description || undefined,
+    url: `https://oxsteed.com/careers/${opening.id}`,
+    hiringOrganization: { '@type': 'Organization', name: opening.employer_name },
+    jobLocation: (opening.city || opening.region || opening.country_code)
+      ? {
+          '@type': 'Place',
+          address: {
+            '@type': 'PostalAddress',
+            addressLocality: opening.city || undefined,
+            addressRegion: opening.region || undefined,
+            addressCountry: opening.country_code || undefined,
+          },
+        }
+      : undefined,
+    baseSalary: (careerPayUnit && Number.isFinite(careerPayMin) && Number.isFinite(careerPayMax))
+      ? {
+          '@type': 'MonetaryAmount',
+          currency: opening.currency_code || 'USD',
+          value: { '@type': 'QuantitativeValue', minValue: careerPayMin, maxValue: careerPayMax, unitText: careerPayUnit },
+        }
+      : undefined,
+    validThrough: opening.applications_close_at || undefined,
+  } : null;
   return (
     <PageShell>
       <PageMeta title={opening ? `${opening.title} · ${opening.employer_name}` : t('careers.metaTitle')} description={t('careers.metaDesc')} />
+      <JsonLd data={careerJobPosting} />
+      <JsonLd data={opening ? buildBreadcrumbList([
+        { name: 'Home', url: 'https://oxsteed.com/' },
+        { name: 'Careers', url: 'https://oxsteed.com/careers' },
+        { name: opening.title, url: `https://oxsteed.com/careers/${opening.id}` },
+      ]) : null} />
       <div className="ox-careers">
         <Link className="ox-careers-btn" to="/careers">{t('careers.back')}</Link>
         {confirming ? <GuestConfirm openingId={id} /> : null}
@@ -209,17 +250,17 @@ export default function CareerOpeningPage() {
             {opening.is_translated ? <p className="ox-careers-subtle">{t('careers.machineTranslated')}</p> : null}
             {opening.employer_model === 'oxsteed_eor' ? <Notice>{t('careers.eorExplainer')}</Notice> : null}
             {opening.schedule_summary ? (
-              <section className="ox-careers-section"><h3>{t('careers.fields.schedule')}</h3><p className="ox-careers-prose">{opening.schedule_summary}</p></section>
+              <section className="ox-careers-section"><h2>{t('careers.fields.schedule')}</h2><p className="ox-careers-prose">{opening.schedule_summary}</p></section>
             ) : null}
             <section className="ox-careers-section">
-              <h3>{t('careers.fields.description')}</h3>
+              <h2>{t('careers.fields.description')}</h2>
               <p className="ox-careers-prose">{opening.description || t('careers.opening.noDescription')}</p>
             </section>
             {opening.requirements ? (
-              <section className="ox-careers-section"><h3>{t('careers.fields.requirements')}</h3><p className="ox-careers-prose">{opening.requirements}</p></section>
+              <section className="ox-careers-section"><h2>{t('careers.fields.requirements')}</h2><p className="ox-careers-prose">{opening.requirements}</p></section>
             ) : null}
             {opening.benefits_summary || opening.benefits ? (
-              <section className="ox-careers-section"><h3>{t('careers.fields.benefits')}</h3><p className="ox-careers-prose">{opening.benefits_summary || opening.benefits}</p></section>
+              <section className="ox-careers-section"><h2>{t('careers.fields.benefits')}</h2><p className="ox-careers-prose">{opening.benefits_summary || opening.benefits}</p></section>
             ) : null}
             {opening.background_check_required ? <Notice>{t('careers.opening.backgroundCheck')}</Notice> : null}
             <p className="ox-careers-subtle">{t('careers.opening.minAge', { age: opening.min_age || 18 })}</p>

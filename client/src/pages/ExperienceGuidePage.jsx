@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, Sparkles } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import JsonLd, { buildBreadcrumbList } from '../components/JsonLd';
 import useAuth from '../hooks/useAuth';
 import {
   getExperienceArea,
@@ -46,6 +47,11 @@ export default function ExperienceGuidePage() {
         title={t(`experienceGuides.areas.${translationKey}.metaTitle`, { defaultValue: `${areaTitle} | OxSteed` })}
         description={t(`experienceGuides.areas.${translationKey}.metaDescription`, { defaultValue: areaDescription })}
       />
+      <JsonLd data={buildBreadcrumbList([
+        { name: 'Home', url: 'https://oxsteed.com/' },
+        { name: 'How it works', url: 'https://oxsteed.com/how-it-works' },
+        { name: areaTitle, url: `https://oxsteed.com/how-it-works/${areaKey}` },
+      ])} />
       <div className="experience-guide">
         <header className="experience-guide__hero">
           <Link to="/how-it-works" className="experience-guide__back"><ArrowLeft size={16} aria-hidden="true" /> {t('experienceGuides.backToHub', { defaultValue: 'How OxSteed Works' })}</Link>

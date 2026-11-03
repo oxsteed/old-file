@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import JsonLd, { buildItemList } from '../components/JsonLd';
 import CountrySelect from '../components/CountrySelect';
 import { useAuth } from '../context/AuthContext';
 import { listPublicCareerOpenings } from '../api/careers';
@@ -54,6 +55,14 @@ export default function CareersPage() {
   return (
     <PageShell>
       <PageMeta title={t('careers.metaTitle')} description={t('careers.metaDesc')} />
+      {/* SEO: ItemList of the openings actually rendered, deduplicated
+          across the promoted and main lists. No salary or dates are
+          claimed here; the opening page carries the JobPosting. */}
+      <JsonLd data={buildItemList(
+        [...promoted, ...rows]
+          .filter((row, index, all) => row && row.id && all.findIndex((other) => other.id === row.id) === index)
+          .map((row) => ({ name: row.title, url: `https://oxsteed.com/careers/${row.id}` })),
+      )} />
       <div className="ox-careers">
         <p className="ox-careers-kicker">{t('careers.kicker')}</p>
         <h1>{businessId ? t('careers.businessTitle') : t('careers.title')}</h1>
