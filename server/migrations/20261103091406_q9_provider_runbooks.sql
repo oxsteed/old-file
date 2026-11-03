@@ -13,7 +13,19 @@
 --
 -- Each runbook covers detection, immediate containment, fail-closed
 -- behavior, and recovery verification, in that order.
+--
+-- NOTE on the ops_runbook_history trigger (migration 99983): it fires on
+-- every ops_runbooks insert and writes an admin_audit_log row with
+-- admin_id = NEW.updated_by. A migration-time seed has no admin actor,
+-- and admin_audit_log.admin_id is NOT NULL with a foreign key to
+-- users(id), so leaving updated_by NULL fails the migration and no
+-- real user row exists to point at on a fresh database. The seed
+-- therefore inserts with the trigger disabled and then writes the
+-- version snapshots itself (the same rows the trigger would have
+-- written), so seeded runbooks still have version history. The
+-- migration file itself is the audit record for the seed.
 
+ALTER TABLE ops_runbooks DISABLE TRIGGER ops_runbook_history;
 INSERT INTO ops_runbooks (code, title, category, body) VALUES
 ('provider-outage-stripe', 'Provider outage: Stripe', 'vendor', $rb$
 # Stripe outage
@@ -118,3 +130,8 @@ $rb$),
 - Close the incident only when: the provider is stable, the queue is drained or owned, sampled outputs are good, and no AI output reached a customer unchecked during the outage.
 $rb$)
 ON CONFLICT (code) DO NOTHING;
+ALTER TABLE ops_runbooks ENABLE TRIGGER ops_runbook_history;
+INSERT INTO ops_runbook_versions (runbook_id, version, snapshot)
+SELECT id, version, to_jsonb(r) FROM ops_runbooks r
+WHERE code IN ('provider-outage-stripe', 'provider-outage-database', 'provider-outage-redis', 'provider-outage-ai')
+ON CONFLICT DO NOTHING;
