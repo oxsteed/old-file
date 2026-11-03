@@ -170,3 +170,30 @@ exports.saveAnomalyWatch = handle(async (req, res) => {
   }, "customer360_anomaly_watch");
   res.json({ watch });
 });
+
+// ── Upgrade 5: link graph and guided merge review (never merges) ───────────
+const links = require("../services/customer360Links");
+async function linkKinds(req) {
+  const can = workspace.access(req);
+  return links.visibleKinds({ financial: await can(workspace.sources.payments), security: await can(workspace.sources.sessions) });
+}
+exports.links = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const kinds = await linkKinds(req);
+  const [graph, reviews] = await Promise.all([links.graph(user.id, kinds), links.reviewsFor(user.id)]);
+  await audit(req, "customer360_links_read", { description: JSON.stringify({ kinds, nodes: graph.nodes.length }) });
+  res.json({ ...graph, kinds, reviews, checklist: links.CHECKLIST, optionalChecklist: links.OPTIONAL_CHECKLIST, signalsEnabled: !!links.signalKey() });
+});
+exports.openLinkReview = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  if (!workspace.UUID.test(String(req.params.otherUserId))) throw new AppError("Invalid user id", 400, "invalid_user_id");
+  await workspace.target({ ...req, params: { userId: req.params.otherUserId } });
+  const review = await links.openReview({ customerId: user.id, otherId: req.params.otherUserId.toLowerCase(), kinds: await linkKinds(req), adminId: req.user.id, req });
+  res.status(201).json({ review });
+});
+exports.decideLinkReview = handle(async (req, res) => {
+  const user = await workspace.target(req);
+  const { checklist, reason, revision } = req.body || {};
+  const review = await links.decide({ reviewId: req.params.reviewId, customerId: user.id, action: req.params.action, checklist, reason, revision, adminId: req.user.id, req });
+  res.json({ review });
+});

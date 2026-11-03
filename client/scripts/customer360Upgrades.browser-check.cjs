@@ -39,6 +39,12 @@ const routes = `window.routes=[
   ['post',/\\/workspace\\/anomalies\\/\\d+\\/(snooze|unsnooze|acknowledge|resolve)$/,(o,b)=>{window.anomalyRows[0]={...window.anomalyRows[0],status:'snoozed',snoozed_until:b.until,revision:2};return{anomaly:window.anomalyRows[0]};}],
   ['get',/\\/customer360\\/anomaly-watches$/,()=>({watches:window.watches||[]})],
   ['put',/\\/customer360\\/anomaly-watches$/,(o,b)=>{window.watches=[{id:'w',source:b.source,statuses:['open'],min_age_minutes:0,enabled:b.enabled}];return{watch:window.watches[0]};}],
+  ['get',/\\/workspace\\/links$/,()=>({signalsEnabled:true,kinds:['address','card','bank'],common:[{kind:'address',holders:40}],checklist:['identityCompared','contactCompared','paymentInstrumentsCompared','activityReviewed'],optionalChecklist:['customerContacted'],
+    nodes:[{userId:'00000000-0000-4000-8000-0000000000bb',name:'Ana B.',emailMasked:'a***@example.com',createdAt:'2026-01-01T00:00:00Z',suspended:false,kinds:['card','address'],score:0.93}],edges:[],reviews:window.linkReview?[window.linkReview]:[]})],
+  ['post',/\\/workspace\\/links\\/[0-9a-f-]+\\/review$/,()=>{window.linkReview={id:'7',user_a:'${id}',user_b:'00000000-0000-4000-8000-0000000000bb',status:'in_review',checklist:{},score:0.93,revision:1};return{review:window.linkReview};}],
+  ['post',/\\/workspace\\/link-reviews\\/7\\/(checklist|duplicate|confirm|reject|distinct|dismiss)$/,(o,b,m)=>{const a=o.url.split('/').pop();const r=window.linkReview;
+    if(b.revision!==r.revision)throw{response:{data:{code:'revision_conflict'}}};
+    window.linkReview={...r,checklist:{...r.checklist,...(b.checklist||{})},status:a==='duplicate'?'awaiting_second_review':r.status,revision:r.revision+1};return{review:window.linkReview};}],
 ];
 window.anomalyRows=[{id:'5',customer_id:'${id}',kind:'new_country_login',status:'open',occurrences:2,first_detected_at:'2026-11-01T10:00:00Z',last_detected_at:'2026-11-02T10:00:00Z',evidence:{country:'FR',previousCountries:['HT']},snoozed_until:null,revision:1},
   {id:'4',customer_id:'${id}',kind:'refund_spike',status:'acknowledged',occurrences:1,first_detected_at:'2026-10-01T10:00:00Z',last_detected_at:'2026-10-01T10:00:00Z',evidence:{refunds7d:4,baselineWeekly:0.5},snoozed_until:null,revision:3}];
@@ -49,7 +55,7 @@ window.healthFixture={advisory:true,modelVersion:'c360-health-v1',computedAt:'20
 async function bundle() {
   const mocks = {
     "react-i18next": `export const useTranslation=()=>({i18n:{language:window.lang,resolvedLanguage:window.lang},t:(key,o={})=>{let v=key.startsWith('customerWorkspace.')?key.slice(18).split('.').reduce((a,k)=>a?.[k],window.catalogs[window.lang]):null;return String(v||o.defaultValue||key).replace(/\\{\\{(\\w+)\\}\\}/g,(_,k)=>o[k]??'');}});`,
-    "../../lib/adminApi": `const call=async(method,url,body,o={})=>{window.calls.push({method,url,body,params:o.params});if(url.endsWith('/workspace'))return{data:structuredClone(window.fixture)};for(const [m,re,fn] of window.routes){if(m===method&&re.test(url))return{data:fn(o.params?o:{params:{},...o},body),status:200};}throw new Error('unmocked '+method+' '+url);};const api={get:(u,o={})=>call('get',u,undefined,{params:{},...o}),post:(u,b,o)=>call('post',u,b,o),put:(u,b,o)=>call('put',u,b,o),patch:(u,b,o)=>call('patch',u,b,o),delete:(u,o)=>call('delete',u,undefined,o)};export default api;`,
+    "../../lib/adminApi": `const call=async(method,url,body,o={})=>{window.calls.push({method,url,body,params:o.params});if(url.endsWith('/workspace'))return{data:structuredClone(window.fixture)};for(const [m,re,fn] of window.routes){if(m===method&&re.test(url))return{data:fn(o.params?{...o,url}:{params:{},...o,url},body),status:200};}throw new Error('unmocked '+method+' '+url);};const api={get:(u,o={})=>call('get',u,undefined,{params:{},...o}),post:(u,b,o)=>call('post',u,b,o),put:(u,b,o)=>call('put',u,b,o),patch:(u,b,o)=>call('patch',u,b,o),delete:(u,o)=>call('delete',u,undefined,o)};export default api;`,
     "../../../lib/adminApi": "export { default } from '../../lib/adminApi';",
     "../../lib/GrantGuard": `export const useHasGrant=()=>({allowed:true});`,
     "../../../hooks/useAuth": `export const useAuth=()=>({user:window.viewer});`,
@@ -180,7 +186,26 @@ test("customer 360 upgrade panels work and lay out in five languages", async () 
     await an.getByLabel(copy.en.anomalies.watch.anomaliesSecurity).check();
     await page.waitForFunction(() => window.calls.some((c) => c.method === "put" && c.body?.source === "anomaliesSecurity" && c.body.enabled));
 
-    const panels = [["anomalies", '[data-panel="anomalies"]'], ["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
+    // Upgrade 5: link graph with guided review; nothing is merged.
+    await page.getByRole("button", { name: copy.en.areas.links, exact: true }).click();
+    const ln = page.locator('[data-panel="links"]');
+    await ln.getByText(copy.en.links.neverMerge).waitFor();
+    await ln.getByText(copy.en.links.score.replace("{{score}}", "93"), { exact: false }).waitFor();
+    await ln.getByRole("img", { name: copy.en.links.graphLabel.replace("{{count}}", "1") }).waitFor();
+    await ln.getByRole("button", { name: copy.en.links.review, exact: true }).click();
+    const propose = ln.getByRole("button", { name: copy.en.links.actions.duplicate, exact: true });
+    for (const k of ["identityCompared", "contactCompared", "paymentInstrumentsCompared", "activityReviewed"]) {
+      const before = await page.evaluate(() => window.linkReview.revision);
+      await ln.getByLabel(copy.en.links.checklist[k]).check();
+      await page.waitForFunction((b) => window.linkReview.revision > b, before);
+    }
+    assert.equal(await propose.isDisabled(), true);
+    await ln.getByLabel(copy.en.anomalies.reason).fill("Same card and address");
+    await propose.click();
+    await ln.getByText(copy.en.links.awaiting).waitFor();
+    assert.ok(await ln.getByRole("button", { name: copy.en.links.actions.confirm, exact: true }).isVisible());
+
+    const panels = [["links", '[data-panel="links"]'], ["anomalies", '[data-panel="anomalies"]'], ["assistant", '[data-panel="assistant"]'], ["events", '[data-panel="events"]'], ["health", '[data-panel="health"]']];
     for (const lang of LANGS)
       for (const dark of [false, true])
         for (const width of [320, 1360]) {

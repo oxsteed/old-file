@@ -423,7 +423,8 @@
       "quality": "Kalite ak done sous aktyèl",
       "events": "Istwa chanjman",
       "health": "Sante ak risk",
-      "anomalies": "Anomali"
+      "anomalies": "Anomali",
+      "links": "Kont ki gen lyen"
     },
     "sources": {
       "jobs": "Travay",
@@ -1022,6 +1023,54 @@
         "country": "Konekte soti {{country}}. Peyi nan 180 jou anvan yo: {{previous}}.",
         "refunds": "{{count}} ranbousman nan 7 jou (mwayèn abityèl pa semèn {{baseline}}).",
         "payouts": "{{count}} retrè ki echwe nan 7 jou."
+      }
+    },
+    "links": {
+      "title": "Kont ki gen lyen",
+      "hint": "Lòt kliyan ki pataje yon aparèy, yon kat, yon kont labank oswa yon adrès ak kliyan sa a. Yon nòt ki pi wo vle di lyen an pi fò; se pa yon prèv.",
+      "neverMerge": "Nou pa janm fizyone kont ni balans otomatikman. Yon doublon ki konfime sèlman anrejistre rezilta a; swiv pwosedi ki egziste yo pou nenpòt chanjman sou kont lan.",
+      "signalsOff": "Konparezon siyal yo pa konfigire sou sèvè sa a, kidonk se sèlman lyen ki te deja anrejistre yo ki parèt.",
+      "kindsShown": "Siyal ou ka wè: {{kinds}}",
+      "common": "Inyore paske anpil kliyan pataje yo: {{kinds}}",
+      "empty": "Pa gen kont ki gen lyen.",
+      "score": "Fòs lyen an {{score}}%",
+      "created": "Enskri {{time}}",
+      "suspended": "Sispann",
+      "review": "Kòmanse revizyon",
+      "reviews": "Revizyon",
+      "reviewTitle": "Revizyon — {{status}}",
+      "checklistTitle": "Lis verifikasyon (tout eleman obligatwa anvan ou pwopoze yon doublon)",
+      "awaiting": "N ap tann yon dezyèm administratè, ki diferan, pou konfime oswa retounen rezilta sa a.",
+      "nextSteps": "Rezilta a anrejistre sou de kont yo. Okenn kont ni balans pa chanje.",
+      "graphLabel": "Grafik lyen ak {{count}} kliyan ki gen lyen",
+      "checklistIncomplete": "Ranpli tout eleman obligatwa yo anvan.",
+      "secondAdmin": "Yon lòt administratè dwe konfime rezilta sa a.",
+      "kinds": {
+        "address": "Adrès",
+        "card": "Kat",
+        "bank": "Kont labank",
+        "device": "Aparèy"
+      },
+      "statuses": {
+        "in_review": "An revizyon",
+        "awaiting_second_review": "Ap tann dezyèm revizyon",
+        "confirmed_duplicate": "Doublon konfime",
+        "confirmed_distinct": "Moun diferan",
+        "dismissed": "Rejte"
+      },
+      "checklist": {
+        "identityCompared": "Idantite konpare",
+        "contactCompared": "Kontak konpare",
+        "paymentInstrumentsCompared": "Mwayen peman konpare",
+        "activityReviewed": "Aktivite resan revize",
+        "customerContacted": "Kliyan kontakte (opsyonèl)"
+      },
+      "actions": {
+        "duplicate": "Pwopoze doublon",
+        "distinct": "Moun diferan",
+        "dismiss": "Rejte",
+        "confirm": "Konfime doublon",
+        "reject": "Retounen pou revizyon"
       }
     }
   },

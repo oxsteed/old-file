@@ -276,7 +276,8 @@
       "quality": "Calidad y actualidad de fuentes",
       "events": "Historial de cambios",
       "health": "Salud y riesgo",
-      "anomalies": "Anomalías"
+      "anomalies": "Anomalías",
+      "links": "Cuentas vinculadas"
     },
     "sources": {
       "jobs": "Trabajos",
@@ -875,6 +876,54 @@
         "country": "Inició sesión desde {{country}}. Países en los 180 días anteriores: {{previous}}.",
         "refunds": "{{count}} reembolsos en 7 días (promedio semanal habitual {{baseline}}).",
         "payouts": "{{count}} retiros fallidos en 7 días."
+      }
+    },
+    "links": {
+      "title": "Cuentas vinculadas",
+      "hint": "Otros clientes que comparten un dispositivo, tarjeta, cuenta bancaria o dirección con este cliente. Una puntuación más alta indica un vínculo más fuerte; no es una prueba.",
+      "neverMerge": "Las cuentas y los saldos nunca se fusionan automáticamente. Un duplicado confirmado solo registra el hallazgo; siga los procedimientos existentes para cualquier cambio en la cuenta.",
+      "signalsOff": "La comparación de señales no está configurada en este servidor, por lo que solo se muestran los vínculos ya registrados.",
+      "kindsShown": "Señales que puede ver: {{kinds}}",
+      "common": "Ignoradas porque muchos clientes las comparten: {{kinds}}",
+      "empty": "No se encontraron cuentas vinculadas.",
+      "score": "Fuerza del vínculo {{score}} %",
+      "created": "Se registró {{time}}",
+      "suspended": "Suspendida",
+      "review": "Iniciar revisión",
+      "reviews": "Revisiones",
+      "reviewTitle": "Revisión — {{status}}",
+      "checklistTitle": "Lista de verificación (todos los elementos obligatorios antes de proponer un duplicado)",
+      "awaiting": "Esperando que un segundo administrador distinto confirme o devuelva este hallazgo.",
+      "nextSteps": "Hallazgo registrado en ambas cuentas. No se modificó ninguna cuenta ni saldo.",
+      "graphLabel": "Gráfico de vínculos con {{count}} clientes vinculados",
+      "checklistIncomplete": "Primero complete todos los elementos obligatorios.",
+      "secondAdmin": "Otro administrador debe confirmar este hallazgo.",
+      "kinds": {
+        "address": "Dirección",
+        "card": "Tarjeta",
+        "bank": "Cuenta bancaria",
+        "device": "Dispositivo"
+      },
+      "statuses": {
+        "in_review": "En revisión",
+        "awaiting_second_review": "Esperando segunda revisión",
+        "confirmed_duplicate": "Duplicado confirmado",
+        "confirmed_distinct": "Personas distintas",
+        "dismissed": "Descartada"
+      },
+      "checklist": {
+        "identityCompared": "Datos de identidad comparados",
+        "contactCompared": "Datos de contacto comparados",
+        "paymentInstrumentsCompared": "Métodos de pago comparados",
+        "activityReviewed": "Actividad reciente revisada",
+        "customerContacted": "Cliente contactado (opcional)"
+      },
+      "actions": {
+        "duplicate": "Proponer duplicado",
+        "distinct": "Personas distintas",
+        "dismiss": "Descartar",
+        "confirm": "Confirmar duplicado",
+        "reject": "Devolver a revisión"
       }
     }
   },

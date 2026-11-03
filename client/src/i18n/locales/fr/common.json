@@ -276,7 +276,8 @@
       "quality": "Qualité et fraîcheur des sources",
       "events": "Historique des modifications",
       "health": "Santé et risque",
-      "anomalies": "Anomalies"
+      "anomalies": "Anomalies",
+      "links": "Comptes liés"
     },
     "sources": {
       "jobs": "Missions",
@@ -875,6 +876,54 @@
         "country": "Connexion depuis {{country}}. Pays des 180 jours précédents : {{previous}}.",
         "refunds": "{{count}} remboursements en 7 jours (moyenne hebdomadaire habituelle {{baseline}}).",
         "payouts": "{{count}} virements échoués en 7 jours."
+      }
+    },
+    "links": {
+      "title": "Comptes liés",
+      "hint": "Autres clients partageant un appareil, une carte, un compte bancaire ou une adresse avec ce client. Un score plus élevé indique un lien plus fort ; ce n’est pas une preuve.",
+      "neverMerge": "Les comptes et les soldes ne sont jamais fusionnés automatiquement. Un doublon confirmé enregistre seulement le constat ; suivez les procédures existantes pour toute modification de compte.",
+      "signalsOff": "La correspondance des signaux n’est pas configurée sur ce serveur ; seuls les liens déjà enregistrés sont affichés.",
+      "kindsShown": "Signaux visibles : {{kinds}}",
+      "common": "Ignorés car partagés par de nombreux clients : {{kinds}}",
+      "empty": "Aucun compte lié trouvé.",
+      "score": "Force du lien {{score}} %",
+      "created": "Inscrit {{time}}",
+      "suspended": "Suspendu",
+      "review": "Commencer l’examen",
+      "reviews": "Examens",
+      "reviewTitle": "Examen — {{status}}",
+      "checklistTitle": "Liste de contrôle (tous les éléments obligatoires avant de proposer un doublon)",
+      "awaiting": "En attente qu’un second administrateur, différent, confirme ou renvoie ce constat.",
+      "nextSteps": "Constat enregistré sur les deux comptes. Aucun compte ni solde n’a été modifié.",
+      "graphLabel": "Graphe des liens avec {{count}} clients liés",
+      "checklistIncomplete": "Complétez d’abord tous les éléments obligatoires.",
+      "secondAdmin": "Un autre administrateur doit confirmer ce constat.",
+      "kinds": {
+        "address": "Adresse",
+        "card": "Carte",
+        "bank": "Compte bancaire",
+        "device": "Appareil"
+      },
+      "statuses": {
+        "in_review": "En cours d’examen",
+        "awaiting_second_review": "En attente du second examen",
+        "confirmed_duplicate": "Doublon confirmé",
+        "confirmed_distinct": "Personnes différentes",
+        "dismissed": "Classé"
+      },
+      "checklist": {
+        "identityCompared": "Identité comparée",
+        "contactCompared": "Coordonnées comparées",
+        "paymentInstrumentsCompared": "Moyens de paiement comparés",
+        "activityReviewed": "Activité récente examinée",
+        "customerContacted": "Client contacté (facultatif)"
+      },
+      "actions": {
+        "duplicate": "Proposer un doublon",
+        "distinct": "Personnes différentes",
+        "dismiss": "Classer",
+        "confirm": "Confirmer le doublon",
+        "reject": "Renvoyer en examen"
       }
     }
   },

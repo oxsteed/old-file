@@ -265,3 +265,34 @@ Background work runs in `server/jobs/customer360Upgrades.js`
 - UI: "Anomalies" area (`upgrades/Anomalies.jsx`).
 - Tests: `server/__tests__/customer360Anomalies.db.test.js` and the shared
   client checks.
+
+### 5. Weighted duplicate/fraud link graph and guided merge review
+
+- Migration `20261103120300_customer360_link_graph.sql`:
+  `customer_identity_signals` (keyed HMAC-SHA256 digests only — raw device
+  ids, card fingerprints, bank details and addresses are never stored) and
+  `customer_link_reviews` (one active review per pair; a database CHECK
+  requires two different admins for `confirmed_duplicate`).
+- Signals: devices and normalised addresses from `users`, bank accounts from
+  `credit_payout_destinations.account_fingerprint` (both swept continuously with a wrap-around
+  cursor by the `signals` worker task), and card fingerprints captured by the
+  payment worker when the Stripe payload includes charge details. Digests
+  are computed in SQL with `CUSTOMER360_SIGNAL_HMAC_KEY` (or a key derived
+  from `ENCRYPTION_KEY`); without a key nothing is recorded.
+- Edge score = 1 − Π(1 − weight) over distinct shared kinds (card 0.9, bank
+  0.9, device 0.6, address 0.3). Values shared by more than 25 customers
+  (apartment blocks, shared kiosks) are ignored and listed as "common".
+  Staff accounts are excluded.
+- Visibility follows grants: address always; card and bank need
+  `view_financials`; device needs super admin. Emails are masked.
+- Review flow (`POST …/links/:otherUserId/review`, `POST …/link-reviews/:id/
+  (checklist|duplicate|confirm|reject|distinct|dismiss)`): four required
+  checklist items, a reason on every decision, optimistic revisions, and a
+  second distinct admin to confirm a duplicate. Every step is audited.
+- Nothing is ever merged: a confirmed duplicate appends a
+  `link_review.confirmed_duplicate` event to both customers and leaves
+  accounts, balances and Credit untouched; any change follows the existing
+  procedures.
+- UI: "Linked accounts" area (`upgrades/Links.jsx`).
+- Tests: `server/__tests__/customer360Links.db.test.js` and the shared
+  client checks.

@@ -9,6 +9,7 @@ const logger = require("../utils/logger");
 const events = require("../services/customer360Events");
 const health = require("../services/customer360Health");
 const anomalies = require("../services/customer360Anomalies");
+const links = require("../services/customer360Links");
 
 const TASKS = [];
 function registerTask(name, everyMs, run) {
@@ -39,6 +40,12 @@ registerTask("anomalies", 60_000, async () => {
   await anomalies.scanRefunds();
   await anomalies.scanPayouts();
   await anomalies.expireSnoozes();
+});
+
+// Upgrade 5: refresh keyed identity-signal digests (wraps around continuously).
+registerTask("signals", 60_000, async () => {
+  await links.sweep("users");
+  await links.sweep("bank");
 });
 
 async function tick(now = Date.now()) {

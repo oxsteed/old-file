@@ -34537,7 +34537,8 @@
     "areas": {
       "events": "Change history",
       "health": "Health and risk",
-      "anomalies": "Anomalies"
+      "anomalies": "Anomalies",
+      "links": "Linked accounts"
     },
     "events": {
       "title": "Change history",
@@ -34718,6 +34719,54 @@
         "country": "Signed in from {{country}}. Countries in the previous 180 days: {{previous}}.",
         "refunds": "{{count}} refunds in 7 days (usual weekly average {{baseline}}).",
         "payouts": "{{count}} failed payouts in 7 days."
+      }
+    },
+    "links": {
+      "title": "Linked accounts",
+      "hint": "Other customers who share a device, card, bank account or address with this customer. A higher score means a stronger link; it is not proof.",
+      "neverMerge": "Accounts and balances are never merged automatically. A confirmed duplicate only records the finding; follow the existing procedures for any account change.",
+      "signalsOff": "Signal matching is not configured on this server, so only previously recorded links are shown.",
+      "kindsShown": "Signals you can see: {{kinds}}",
+      "common": "Ignored because many customers share them: {{kinds}}",
+      "empty": "No linked accounts found.",
+      "score": "Link strength {{score}}%",
+      "created": "Joined {{time}}",
+      "suspended": "Suspended",
+      "review": "Start review",
+      "reviews": "Reviews",
+      "reviewTitle": "Review — {{status}}",
+      "checklistTitle": "Checklist (all required items before proposing a duplicate)",
+      "awaiting": "Waiting for a second, different admin to confirm or return this finding.",
+      "nextSteps": "Finding recorded on both accounts. No accounts or balances were changed.",
+      "graphLabel": "Link graph with {{count}} linked customers",
+      "checklistIncomplete": "Complete every required checklist item first.",
+      "secondAdmin": "A different admin must confirm this finding.",
+      "kinds": {
+        "address": "Address",
+        "card": "Card",
+        "bank": "Bank account",
+        "device": "Device"
+      },
+      "statuses": {
+        "in_review": "In review",
+        "awaiting_second_review": "Awaiting second review",
+        "confirmed_duplicate": "Confirmed duplicate",
+        "confirmed_distinct": "Different people",
+        "dismissed": "Dismissed"
+      },
+      "checklist": {
+        "identityCompared": "Identity details compared",
+        "contactCompared": "Contact details compared",
+        "paymentInstrumentsCompared": "Payment methods compared",
+        "activityReviewed": "Recent activity reviewed",
+        "customerContacted": "Customer contacted (optional)"
+      },
+      "actions": {
+        "duplicate": "Propose duplicate",
+        "distinct": "Different people",
+        "dismiss": "Dismiss",
+        "confirm": "Confirm duplicate",
+        "reject": "Return for review"
       }
     }
   }

@@ -401,3 +401,25 @@
 .c360u-check input {
   min-block-size: auto;
 }
+.c360u-graph {
+  inline-size: 100%;
+  max-inline-size: 18rem;
+  block-size: auto;
+}
+.c360u-graph text {
+  font-size: 10px;
+  fill: var(--color-text);
+}
+.c360u-edge {
+  stroke: var(--color-border);
+}
+.c360u-node {
+  fill: var(--color-surface-2);
+  stroke: var(--color-text-muted);
+}
+.c360u-node.is-self {
+  fill: var(--color-primary);
+}
+.c360u-node.is-suspended {
+  stroke-dasharray: 3 2;
+}
