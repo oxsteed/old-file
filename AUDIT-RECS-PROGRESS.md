@@ -15,4 +15,6 @@
 
 - 2026-11-03 ~04:10 EST: coordinator worktree created, four tracks spawned.
 - Gate (still to run, in order): client build:ci first, then the full server suite on the final merged tree.
-- #663 close check (head must still be 16dac7ba3c398bd477ab7bd3e9e82a8f8d49c68d): still to do, by the coordinator at the end.
+- Gate round 1 (INVALID): fresh migrate failed at 20261103091406 (runbook seed vs ops_runbook_history trigger NULL admin_id), leaving later migrations unapplied; suite ran on a partial schema (10,314 passed / 18 failed). Not counted.
+- Gate round 2 (after the seed fix, full migrate clean, 4 runbooks + 4 version rows): 10,318 passed / 14 failed / 464 skipped. 11 are the known local base (querystringSecurity 8 + restaurantDevicePairingAudit.db 3). 3 extra were branch-caused and fixed by the coordinator: creditStepupTotp count 20 to 21 (new subscription_cancel action) and 2 ledgerSafeDeletion patterns (ledger FK names to operator audit events FK names after the 088b FK drop; the delete still fails and ledger rows still survive, only the named constraint changed). Both suites re-verified passing (19/19). Full suite re-run on the final tree is running to confirm the final counts.
+- #663 close check (head must still be 16dac7ba3c398bd477ab7bd3e9e82a8f8d49c68d): DONE, head matched, PR #663 CLOSED by the coordinator.
