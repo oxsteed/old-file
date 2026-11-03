@@ -1,7 +1,9 @@
 import { collectAdminActionStepup } from '../../lib/adminActionStepup';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
+import adminApi from '../../../lib/adminApi';
 import { useTranslation } from 'react-i18next';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import ConfirmDialog from '../../lib/ConfirmDialog';
@@ -90,6 +92,16 @@ function FeeRow({ row, onSave }) {
         value: sendValue,
         reason: reason || undefined,
       });
+      // Item 12: fee changes are dual-approved. A queued change is not in
+      // effect yet; the pending section below surfaces it until a different
+      // admin approves it in the Money approvals queue.
+      if (data && data.queued) {
+        toast.success(t('superFeeConfig.queued'));
+        onSave();
+        setEditing(false);
+        setConfirming(false);
+        return;
+      }
       if (data && data.stripe_sync === 'failed') {
         toast.error(data.message || t('superFeeConfig.stripeSyncFailed'));
         onSave();
@@ -251,6 +263,58 @@ function ChangeHistory({ history }) {
   );
 }
 
+// Pending fee approvals (item 12): fee changes queued for second-admin
+// approval are not in effect yet. This section surfaces them on the fee
+// config surface itself; approval or rejection happens in the Money
+// approvals queue. Best-effort: a list failure hides the section rather
+// than breaking the page.
+function PendingFeeApprovals() {
+  const { t } = useTranslation();
+  const [pending, setPending] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    adminApi.get('/admin/money-approvals', { params: { limit: 50 } })
+      .then(({ data }) => {
+        if (cancelled) return;
+        const rows = (data?.approvals || []).filter((a) => a.movementType === 'fee_config_change');
+        setPending(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setPending([]);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!pending || pending.length === 0) return null;
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+      <h2 className="text-sm font-semibold text-amber-800">
+        {t('superFeeConfig.pendingTitle')}
+      </h2>
+      <p className="text-xs text-amber-700 mt-1">
+        {t('superFeeConfig.pendingHint')}
+      </p>
+      <ul className="mt-3 space-y-2">
+        {pending.map((a) => (
+          <li key={a.id} className="text-sm text-gray-700 flex items-center justify-between gap-3">
+            <span>{a.resolvedSubject || a.referenceKey}</span>
+            <span className="text-xs text-gray-400 whitespace-nowrap">
+              {a.requestedAt ? new Date(a.requestedAt).toLocaleDateString() : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <Link
+        to="/admin/super/money-approvals"
+        className="inline-block mt-3 text-xs font-semibold text-orange-600 hover:text-orange-700">
+        {t('superFeeConfig.reviewQueue')}
+      </Link>
+    </div>
+  );
+}
+
 // Main FeeConfig page
 export default function FeeConfig() {
   const { t } = useTranslation();
@@ -296,6 +360,12 @@ export default function FeeConfig() {
       setShowReset(false);
       setResetReason('');
       reload();
+      // Item 12: a reset is dual-approved like any fee change. A queued
+      // reset is not in effect yet; the pending section surfaces it.
+      if (data && data.queued) {
+        toast.success(t('superFeeConfig.queued'));
+        return;
+      }
       if (data && data.stripe_sync === 'failed') {
         setActionError(t('superFeeConfig.stripeSyncFailedReset'));
       }
@@ -350,6 +420,8 @@ export default function FeeConfig() {
           </button>
         </div>
       )}
+
+      <PendingFeeApprovals />
 
       {showReset && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">

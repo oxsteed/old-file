@@ -483,17 +483,11 @@ exports.getRevenueChart = async (req, res) => {
     const period = PERIOD_INTERVAL[req.query.period] ? req.query.period : '30d';
     const { interval, trunc } = PERIOD_INTERVAL[period];
 
-    const { rows } = await db.query(`
-      SELECT
-        date_trunc($1, created_at) AS period,
-        COALESCE(SUM(CASE WHEN source_type = 'job_fee'      AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0)  AS job_fee_cents,
-        COALESCE(SUM(CASE WHEN source_type = 'subscription' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0)  AS subscription_cents,
-        COALESCE(SUM(CASE WHEN source_type = 'refund'                            THEN ABS(amount_cents) ELSE 0 END), 0) AS refunds_cents
-      FROM platform_ledger
-      WHERE created_at >= now() - $2::interval AND UPPER(currency) = UPPER($3)
-      GROUP BY 1
-      ORDER BY 1 ASC
-    `, [trunc, interval, currency]);
+    // Per-bucket revenue comes from the registry (platformRevenueByPeriod),
+    // sharing the canonical take list with platformRevenue, so this chart
+    // cannot silently diverge from the dashboard headline if that list
+    // ever gains a type.
+    const rows = await metricsRegistry.platformRevenueByPeriod(db, interval, trunc, currency);
 
     // Aggregate totals for the summary line
     const totals = rows.reduce((acc, r) => ({

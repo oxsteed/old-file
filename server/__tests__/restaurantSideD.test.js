@@ -111,6 +111,16 @@ describe('finding 51: parked backfill total', () => {
     expect(out.total).toBe(5);
     expect(out.rows).toHaveLength(1);
   });
+
+  test('Nov 3 item 6: listParkedDualPostingBackfill pages past the first page', async () => {
+    const out = await subBankService.listParkedDualPostingBackfill(pool, { limit: 100, offset: 200 });
+    expect(out.total).toBe(5);
+    expect(out.limit).toBe(100);
+    expect(out.offset).toBe(200);
+    const pageCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('OFFSET'));
+    expect(pageCall).toBeDefined();
+    expect(pageCall[1]).toEqual([100, 200]);
+  });
 });
 
 describe('finding 23: fraud cases with restaurant subjects', () => {

@@ -31,12 +31,18 @@ export default function SubscriptionsAdminPage() {
     setResult(null);
     try {
       // POST /api/admin/super/subscriptions/:id/cancel. The server requires
-      // a non-empty reason, ends credit subscriptions immediately, and
-      // cancels Stripe subscriptions at Stripe first. No admin list
-      // endpoint exists, so the id is entered by hand.
+      // a non-empty reason, a fresh step-up challenge, ends credit
+      // subscriptions immediately, and cancels Stripe subscriptions at
+      // Stripe first. No admin list endpoint exists, so the id is entered
+      // by hand.
+      const challengeResponse = await adminApi.post('/admin/super/subscriptions/stepup-challenges', {});
+      const challengeId = challengeResponse?.data?.challenge?.id;
+      if (!challengeId) throw new Error(t('adminSubscriptions.stepupFailed'));
+      const code = window.prompt(t('adminSubscriptions.stepupPrompt'));
+      if (!code?.trim()) throw new Error(t('adminSubscriptions.stepupRequired'));
       const { data: body } = await adminApi.post(
         `/admin/super/subscriptions/${encodeURIComponent(id)}/cancel`,
-        { reason },
+        { reason, stepupChallengeId: challengeId, stepupCode: code.trim() },
       );
       setResult(body?.subscription || null);
       setNotice(body?.alreadyCancelled

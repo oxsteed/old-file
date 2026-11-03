@@ -630,7 +630,25 @@ async function requestPendingAction({ actionType, payload, requestedBy, idempote
         [key]
       );
       const row = rows[0];
-      if (!row) throw error;
+      if (!row) {
+        // Nov 3 audit item 7: the remaining 23505 source for this insert
+        // is the pending settlement-payout partial unique index (a second
+        // maker won the race past the SELECT pre-check). Report it as
+        // the same friendly 409 the pre-check returns, not a raw 500.
+        if (normalizedType === 'credit_settlement_payout' && payload?.settlementId) {
+          const { rows: dupRows } = await pool.query(
+            `SELECT id FROM oxsteed_credit_pending_actions
+              WHERE action_type = 'credit_settlement_payout' AND status = 'pending'
+                AND payload->>'settlementId' = $1
+              LIMIT 1`,
+            [String(payload.settlementId)]
+          );
+          if (dupRows[0]) {
+            throw new AppError('A settlement payout is already queued for this settlement', 409, 'credit_settlement_payout_already_queued');
+          }
+        }
+        throw error;
+      }
       // ADM-115: a key reuse with a different action type or payload is a
       // conflict, not a replay. The idempotency key is globally unique, so
       // silently returning another intent's receipt would misattribute money

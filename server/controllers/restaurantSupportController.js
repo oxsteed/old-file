@@ -1510,6 +1510,21 @@ async function validateSupportResolutionAmount(clientOrPool, supportCase, resolu
 async function applyAdminApprovedResolution(client, { caseId, resolution, amount, adminId }) {
   const supportCase = await loadCase(client, caseId);
   if (!supportCase) throw new AppError('Support case not found', 404, 'case_not_found');
+  // Nov 3 audit item 3: a second pending action for the same case must
+  // never overwrite an offer, let alone one the customer already
+  // accepted. Terminal cases refuse outright; an identical replay
+  // returns the existing offer without a second notification, and
+  // differing terms are a conflict, not a silent overwrite.
+  if (['resolved', 'closed', 'canceled'].includes(supportCase.status)) {
+    throw new AppError('This support case is already closed to new resolutions', 409, 'case_already_resolved');
+  }
+  if (supportCase.status === 'resolution_offered') {
+    if (supportCase.final_resolution === resolution
+      && Number(supportCase.resolution_amount_cents) === Number(amount)) {
+      return supportCase;
+    }
+    throw new AppError('This case already has a resolution offer with different terms', 409, 'case_resolution_terms_changed');
+  }
   const { rows: [updated] } = await client.query(
     `UPDATE restaurant_support_cases
         SET status = 'resolution_offered',
@@ -1521,10 +1536,16 @@ async function applyAdminApprovedResolution(client, { caseId, resolution, amount
             refund_approved_at = CASE WHEN $2 IN ('refund','partial_refund') THEN NOW() ELSE refund_approved_at END,
             credit_status = CASE WHEN $2 = 'store_credit' THEN 'offered' ELSE credit_status END,
             store_credit_amount_cents = CASE WHEN $2 = 'store_credit' THEN $3 ELSE store_credit_amount_cents END
-      WHERE id = $1
+      WHERE id = $1 AND status NOT IN ('resolved', 'closed', 'canceled')
       RETURNING *`,
     [supportCase.id, resolution, amount, adminId]
   );
+  // The status predicate above is the race backstop for the pre-checks:
+  // a case that closed between the load and the update is refused
+  // instead of silently overwritten.
+  if (!updated) {
+    throw new AppError('This support case is already closed to new resolutions', 409, 'case_already_resolved');
+  }
   await logEvent(client, supportCase.id, {
     actorUserId: adminId,
     actorType: 'oxsteed',

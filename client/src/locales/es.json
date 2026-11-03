@@ -30004,7 +30004,8 @@
     "businessAudit": "Auditoría del negocio",
     "restaurantAnalytics": "Analítica de restaurantes",
     "webhookReceipts": "Recibos de webhook",
-    "restaurantWalletIntegrity": "Integridad de billeteras"
+    "restaurantWalletIntegrity": "Integridad de billeteras",
+    "legalCcpaErasureReview": "Revisión de eliminaciones"
   },
   "adminProfileVisibility": {
     "title": "Visibilidad de perfiles",
@@ -30610,7 +30611,7 @@
     "resetting": "Restableciendo...",
     "saving": "Guardando...",
     "subscriptionPrices": "Precios de suscripción",
-    "subtitle": "Todos los cambios de comisiones entran en vigor de inmediato para las nuevas transacciones. Cada cambio se registra con un rastro de auditoría completo.",
+    "subtitle": "Los cambios de tarifas requieren la aprobación de un segundo administrador antes de entrar en vigor. Todos los cambios se registran con un historial de auditoría completo.",
     "title": "Gestión de precios",
     "transactionFees": "Comisiones por transacción",
     "trialBody": "Los nuevos usuarios obtienen una prueba de {{days}} días con acceso al nivel pro antes de volver al nivel gratuito. Ajústalo para afectar a todos los nuevos registros.",
@@ -30618,13 +30619,17 @@
     "trialTitle": "Configuración de la duración de prueba",
     "updateFailed": "La actualización falló",
     "whyPlaceholder": "¿Por qué este cambio?",
-    "confirmMessage": "¿Guardar este cambio de comisión para {{label}}? Esto entra en vigor de inmediato.",
+    "confirmMessage": "¿Guardar este cambio de tarifa para {{label}}? Quedará pendiente de la aprobación de un segundo administrador y no entrará en vigor hasta que se apruebe.",
     "confirmTitle": "Guardar cambio de comisión",
     "invalidNumber": "Ingresa un número válido.",
     "valueOutOfRange": "El valor debe estar entre {{min}} y {{max}}.",
     "valueOutsideRange": "El valor está fuera del rango permitido.",
     "stripeSyncFailed": "Tarifa guardada, pero falló la sincronización del precio de Stripe. El precio de Stripe no se actualizó.",
-    "stripeSyncFailedReset": "Tarifas restablecidas a los valores predeterminados, pero falló la sincronización de precios de Stripe. Algunos precios de Stripe no se actualizaron."
+    "stripeSyncFailedReset": "Tarifas restablecidas a los valores predeterminados, pero falló la sincronización de precios de Stripe. Algunos precios de Stripe no se actualizaron.",
+    "pendingHint": "Estos cambios de tarifas aún no están en vigor. Otro administrador debe aprobarlos o rechazarlos en la cola de aprobaciones de dinero.",
+    "pendingTitle": "Cambios en espera de aprobación",
+    "queued": "Cambio de tarifa enviado para la aprobación de un segundo administrador.",
+    "reviewQueue": "Revisar en Aprobaciones de dinero"
   },
   "superFinancials": {
     "colAmount": "Monto",
@@ -33529,7 +33534,8 @@
     "typeAffiliatePayout": "Pago de afiliado",
     "subject": "Asunto",
     "reason": "Motivo",
-    "subjectUnknown": "Asunto desconocido"
+    "subjectUnknown": "Asunto desconocido",
+    "typeFeeConfig": "Cambio de configuración de tarifas"
   },
   "adminOrderFilters": {
     "searchOrders": "Buscar pedidos",
@@ -36162,7 +36168,10 @@
     "resultId": "Id:",
     "resultUser": "Usuario:",
     "resultStatus": "Estado:",
-    "resultPaymentMethod": "Método de pago:"
+    "resultPaymentMethod": "Método de pago:",
+    "stepupPrompt": "Escribe el código de verificación de tu aplicación de autenticación para confirmar esta cancelación.",
+    "stepupRequired": "Se requiere un código de verificación para cancelar una suscripción.",
+    "stepupFailed": "No se pudo iniciar la verificación de esta cancelación."
   },
   "statementOps": {
     "title": "Operaciones de estados de cuenta",
@@ -38110,7 +38119,15 @@
       "importReport": "Importar informe",
       "reportImported": "Se importaron {{tags}} etiquetas ({{mapped}} vinculadas a campañas).",
       "reportDuplicate": "Este informe ya se importó."
-    }
+    },
+    "rollupRerunTitle": "Repetir rollup",
+    "rollupRerunDescription": "Vuelve a calcular un dia de rollup anterior que termino parcial. Un dia completado necesita la opcion forzar.",
+    "rollupRerunDay": "Dia (AAAA-MM-DD)",
+    "rollupRerunForce": "Forzar el recalculo aunque el dia ya este completado",
+    "rollupRerunSubmit": "Repetir rollup",
+    "rollupRerunDone": "Rollup recalculado.",
+    "rollupRerunSkipped": "Rollup omitido: ya esta completado.",
+    "rollupRerunFailed": "Error al repetir el rollup."
   },
   "adminOperationalNotices": {
     "regionLabel": "Avisos operativos",
@@ -38701,5 +38718,24 @@
       "title": "Perfil en OxSteed Media",
       "description": "Mira este perfil en OxSteed Media."
     }
+  },
+  "adminCcpaErasureReview": {
+    "title": "Cola de revisión de eliminaciones",
+    "subtitle": "Trabajos de eliminación de privacidad que necesitan revisión del operador antes de completarse.",
+    "loading": "Cargando la cola de revisión…",
+    "requeue": "Volver a poner en cola",
+    "requeuing": "Poniendo en cola…",
+    "requeueDone": "Eliminación puesta en cola de nuevo.",
+    "requeueFailed": "Error al poner en cola de nuevo.",
+    "note": "Los trabajos puestos en cola de nuevo salen de esta lista cuando quedan pendientes otra vez.",
+    "table.requestId": "ID DE SOLICITUD",
+    "table.attempts": "INTENTOS",
+    "table.lastError": "ÚLTIMO ERROR",
+    "table.queuedAt": "EN COLA DESDE",
+    "table.actions": "ACCIONES",
+    "table.empty": "Ningún trabajo de eliminación necesita revisión.",
+    "pagination": "Mostrando del {{from}} al {{to}} de {{total}} trabajos",
+    "pagination.next": "Siguiente",
+    "pagination.previous": "Anterior"
   }
 }

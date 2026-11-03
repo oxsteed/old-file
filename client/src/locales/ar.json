@@ -30019,7 +30019,8 @@
     "businessAudit": "تدقيق العمل",
     "restaurantAnalytics": "تحليلات المطاعم",
     "webhookReceipts": "إيصالات Webhook",
-    "restaurantWalletIntegrity": "سلامة المحافظ"
+    "restaurantWalletIntegrity": "سلامة المحافظ",
+    "legalCcpaErasureReview": "مراجعة المحو"
   },
   "adminProfileVisibility": {
     "title": "ظهور الملفات الشخصية",
@@ -30625,7 +30626,7 @@
     "resetting": "جارٍ إعادة التعيين...",
     "saving": "جارٍ الحفظ...",
     "subscriptionPrices": "أسعار الاشتراك",
-    "subtitle": "تدخل جميع تغييرات الرسوم حيز التنفيذ فورًا للمعاملات الجديدة. يُسجَّل كل تغيير مع سجل تدقيق كامل.",
+    "subtitle": "تتطلب تغييرات الرسوم موافقة مشرف ثانٍ قبل أن تدخل حيز التنفيذ. ويُسجَّل كل تغيير مع سجل تدقيق كامل.",
     "title": "إدارة الأسعار",
     "transactionFees": "رسوم المعاملات",
     "trialBody": "يحصل المستخدمون الجدد على تجربة {{days}} يومًا مع الوصول إلى المستوى الاحترافي قبل العودة إلى المستوى المجاني. اضبط هذا للتأثير على جميع عمليات التسجيل الجديدة.",
@@ -30633,13 +30634,17 @@
     "trialTitle": "تكوين مدة التجربة",
     "updateFailed": "فشل التحديث",
     "whyPlaceholder": "لماذا هذا التغيير؟",
-    "confirmMessage": "حفظ تغيير الرسم لـ {{label}}؟ يسري هذا فورًا.",
+    "confirmMessage": "حفظ تغيير الرسم هذا لـ {{label}}؟ سيبقى بانتظار موافقة مشرف ثانٍ ولن يدخل حيز التنفيذ حتى تتم الموافقة عليه.",
     "confirmTitle": "حفظ تغيير الرسم",
     "invalidNumber": "أدخل رقمًا صالحًا.",
     "valueOutOfRange": "يجب أن تكون القيمة بين {{min}} و{{max}}.",
     "valueOutsideRange": "القيمة خارج النطاق المسموح.",
     "stripeSyncFailed": "تم حفظ الرسوم، لكن فشلت مزامنة سعر Stripe. لم يتم تحديث سعر Stripe.",
-    "stripeSyncFailedReset": "تمت إعادة تعيين الرسوم إلى القيم الافتراضية، لكن فشلت مزامنة أسعار Stripe. لم يتم تحديث بعض أسعار Stripe."
+    "stripeSyncFailedReset": "تمت إعادة تعيين الرسوم إلى القيم الافتراضية، لكن فشلت مزامنة أسعار Stripe. لم يتم تحديث بعض أسعار Stripe.",
+    "pendingHint": "لم تدخل تغييرات الرسوم هذه حيز التنفيذ بعد. يجب أن يوافق عليها مشرف آخر أو يرفضها في قائمة الموافقات المالية.",
+    "pendingTitle": "التغييرات بانتظار الموافقة",
+    "queued": "تم إرسال تغيير الرسوم لموافقة مشرف ثانٍ.",
+    "reviewQueue": "المراجعة في الموافقات المالية"
   },
   "superFinancials": {
     "colAmount": "المبلغ",
@@ -33547,7 +33552,8 @@
     "typeAffiliatePayout": "دفعة مسوّق",
     "subject": "الموضوع",
     "reason": "السبب",
-    "subjectUnknown": "موضوع غير معروف"
+    "subjectUnknown": "موضوع غير معروف",
+    "typeFeeConfig": "تغيير إعدادات الرسوم"
   },
   "adminOrderFilters": {
     "searchOrders": "البحث في الطلبات",
@@ -36180,7 +36186,10 @@
     "resultId": "المعرّف:",
     "resultUser": "المستخدم:",
     "resultStatus": "الحالة:",
-    "resultPaymentMethod": "طريقة الدفع:"
+    "resultPaymentMethod": "طريقة الدفع:",
+    "stepupPrompt": "أدخل رمز التحقق من تطبيق المصادقة لديك لتأكيد هذا الإلغاء.",
+    "stepupRequired": "رمز التحقق مطلوب لإلغاء الاشتراك.",
+    "stepupFailed": "تعذّر بدء التحقق لهذا الإلغاء."
   },
   "statementOps": {
     "title": "عمليات الكشوفات",
@@ -38128,7 +38137,15 @@
       "importReport": "استيراد التقرير",
       "reportImported": "تم استيراد {{tags}} رموز تتبّع ({{mapped}} مرتبطة بحملات).",
       "reportDuplicate": "تم استيراد هذا التقرير من قبل."
-    }
+    },
+    "rollupRerunTitle": "إعادة تجميع",
+    "rollupRerunDescription": "أعد حساب يوم تجميع سابق انتهى جزئيا. اليوم المكتمل يحتاج إلى خيار الإجبار.",
+    "rollupRerunDay": "اليوم (YYYY-MM-DD)",
+    "rollupRerunForce": "إجبار إعادة الحساب حتى لو كان اليوم مكتملا",
+    "rollupRerunSubmit": "إعادة تجميع",
+    "rollupRerunDone": "تمت إعادة حساب التجميع.",
+    "rollupRerunSkipped": "تم تخطي التجميع: مكتمل بالفعل.",
+    "rollupRerunFailed": "فشلت إعادة التجميع."
   },
   "adminOperationalNotices": {
     "regionLabel": "إشعارات تشغيلية",
@@ -38719,5 +38736,24 @@
       "title": "ملف على OxSteed Media",
       "description": "اعرض هذا الملف على OxSteed Media."
     }
+  },
+  "adminCcpaErasureReview": {
+    "title": "قائمة مراجعة المحو",
+    "subtitle": "مهام محو الخصوصية التي تحتاج إلى مراجعة المشغل قبل أن تكتمل.",
+    "loading": "جار تحميل قائمة المراجعة…",
+    "requeue": "إعادة الإدراج",
+    "requeuing": "جار إعادة الإدراج…",
+    "requeueDone": "تمت إعادة إدراج المحو.",
+    "requeueFailed": "فشلت إعادة الإدراج.",
+    "note": "المهام المعاد إدراجها تغادر هذه القائمة بمجرد أن تصبح معلقة مجددا.",
+    "table.requestId": "معرف الطلب",
+    "table.attempts": "المحاولات",
+    "table.lastError": "آخر خطأ",
+    "table.queuedAt": "أدرجت في",
+    "table.actions": "الإجراءات",
+    "table.empty": "لا توجد مهام محو تحتاج إلى مراجعة.",
+    "pagination": "عرض {{from}} إلى {{to}} من أصل {{total}} مهمة",
+    "pagination.next": "التالي",
+    "pagination.previous": "السابق"
   }
 }

@@ -17,11 +17,24 @@
  * replicas, verified to zero rows), plus the documented sketch residual.
  */
 const { withFencedJobLock } = require("./jobLockingService");
+
+// Verification failures used to rethrow hourly forever with no bound and
+// no incident. After this many failed verifications a batch is parked:
+// the rows leave the worker's selection (status 'parked' is not selected
+// below) and a high incident names them, so an operator inspects them
+// instead of the queue retrying without end.
+function verificationCap(env = process.env) {
+  const raw = parseInt(env.GROWTH_ERASURE_MAX_VERIFICATION_ATTEMPTS, 10);
+  if (Number.isFinite(raw) && raw > 0) return raw;
+  return 3;
+}
+
 async function run() {
   if (!process.env.GROWTH_CLICKHOUSE_URL) {
     // Preserve requests even after configuration is removed. Never discard an
     // erasure merely because its historical event store is currently offline.
-    const { rows } = await require('../db').query("SELECT COUNT(*)::int AS pending FROM growth_erasure_queue WHERE status<>'complete'");
+    // Parked rows are operator-held, not pending, so they stay out of this count.
+    const { rows } = await require('../db').query("SELECT COUNT(*)::int AS pending FROM growth_erasure_queue WHERE status IN ('pending','masked')");
     const pending = Number(rows[0]?.pending || 0);
     if (pending) await require('../services/incidentStore').recordIncident({
       type: 'growth_erasure_unavailable', severity: 'high',
@@ -34,7 +47,7 @@ async function run() {
     "growth-erasure",
     async (fence) => {
       const { rows } = await fence.db.query(
-        "SELECT * FROM growth_erasure_queue WHERE status<>'complete' AND requested_at<=NOW()-interval '5 minutes' ORDER BY id LIMIT 1000",
+        "SELECT * FROM growth_erasure_queue WHERE status IN ('pending','masked') AND requested_at<=NOW()-interval '5 minutes' ORDER BY id LIMIT 1000",
       );
       if (!rows.length) return { completed: 0 };
       for (const row of rows)
@@ -59,6 +72,7 @@ async function run() {
           },
         });
       }
+      let verificationFailed = null;
       for (const table of ["activity_events", "subject_activity_daily"]) {
         const result = await store.query({
           query: `SELECT count() AS remaining FROM growth.${table} FINAL WHERE subject_key IN {subjects:Array(String)}
@@ -66,8 +80,41 @@ async function run() {
           query_params: { subjects, devices },
           format: "JSONEachRow",
         });
-        if (Number((await result.json())[0].remaining) !== 0)
-          throw new Error("growth_erasure_verification_failed");
+        if (Number((await result.json())[0].remaining) !== 0) {
+          verificationFailed = table;
+          break;
+        }
+      }
+      if (verificationFailed) {
+        // Bookkeeping goes through the raw pool, not the fence transaction:
+        // below the cap this run still rethrows (the fence rolls back),
+        // and the attempt count must survive that rollback to bound retries.
+        const pool = require('../db');
+        const { rows: bumped } = await pool.query(
+          `UPDATE growth_erasure_queue SET verification_attempts = verification_attempts + 1,
+            verification = jsonb_build_object('method', 'synchronous_mutation_all_replicas',
+              'error', 'growth_erasure_verification_failed', 'table', $2)
+            WHERE id = ANY($1::bigint[]) RETURNING id, verification_attempts`,
+          [rows.map((r) => r.id), verificationFailed],
+        );
+        const attempts = Math.max(...bumped.map((r) => Number(r.verification_attempts || 0)), 0);
+        if (attempts >= verificationCap()) {
+          await pool.query(
+            `UPDATE growth_erasure_queue SET status = 'parked',
+              verification = verification || '{"parked":true}'::jsonb WHERE id = ANY($1::bigint[])`,
+            [rows.map((r) => r.id)],
+          );
+          // Same pattern as the unconfigured half above: a high incident
+          // names the parked batch instead of log-only hourly retries.
+          await require('../services/incidentStore').recordIncident({
+            type: 'growth_erasure_verification_parked', severity: 'high',
+            message: 'Growth erasure verification failed repeatedly; rows parked for operator review',
+            dedupeKey: 'growth:erasure:verification-parked',
+            details: { count: rows.length, table: verificationFailed, attempts },
+          });
+          return { completed: 0, parked: rows.length, verificationAttempts: attempts };
+        }
+        throw new Error("growth_erasure_verification_failed");
       }
       fence.assertActive();
       await fence.db.query(
@@ -80,4 +127,4 @@ async function run() {
     300,
   );
 }
-module.exports = { run };
+module.exports = { run, verificationCap };

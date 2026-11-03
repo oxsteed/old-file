@@ -30004,7 +30004,8 @@
     "businessAudit": "Audit du commerce",
     "restaurantAnalytics": "Analytique des restaurants",
     "webhookReceipts": "Reçus de webhook",
-    "restaurantWalletIntegrity": "Intégrité des portefeuilles"
+    "restaurantWalletIntegrity": "Intégrité des portefeuilles",
+    "legalCcpaErasureReview": "Révision des effacements"
   },
   "adminProfileVisibility": {
     "title": "Visibilité des profils",
@@ -30610,7 +30611,7 @@
     "resetting": "Réinitialisation...",
     "saving": "Enregistrement...",
     "subscriptionPrices": "Prix d’abonnement",
-    "subtitle": "Toutes les modifications de frais prennent effet immédiatement pour les nouvelles transactions. Chaque modification est journalisée avec une piste d’audit complète.",
+    "subtitle": "Les modifications de frais nécessitent l’approbation d’un second administrateur avant de prendre effet. Chaque modification est journalisée avec un historique d’audit complet.",
     "title": "Gestion des prix",
     "transactionFees": "Frais de transaction",
     "trialBody": "Les nouveaux utilisateurs bénéficient d’un essai de {{days}} jours avec accès au niveau Pro avant de revenir au niveau gratuit. Ajustez-le pour affecter toutes les nouvelles inscriptions.",
@@ -30618,13 +30619,17 @@
     "trialTitle": "Configuration de la durée d’essai",
     "updateFailed": "La mise à jour a échoué",
     "whyPlaceholder": "Pourquoi ce changement ?",
-    "confirmMessage": "Enregistrer cette modification de commission pour {{label}} ? Elle prend effet immédiatement.",
+    "confirmMessage": "Enregistrer cette modification de frais pour {{label}} ? Elle attendra l’approbation d’un second administrateur et ne prendra effet qu’après approbation.",
     "confirmTitle": "Enregistrer la modification de commission",
     "invalidNumber": "Saisissez un nombre valide.",
     "valueOutOfRange": "La valeur doit être comprise entre {{min}} et {{max}}.",
     "valueOutsideRange": "La valeur est hors de la plage autorisée.",
     "stripeSyncFailed": "Frais enregistrés, mais la synchronisation du prix Stripe a échoué. Le prix Stripe n’a pas été mis à jour.",
-    "stripeSyncFailedReset": "Frais réinitialisés aux valeurs par défaut, mais la synchronisation des prix Stripe a échoué. Certains prix Stripe n’ont pas été mis à jour."
+    "stripeSyncFailedReset": "Frais réinitialisés aux valeurs par défaut, mais la synchronisation des prix Stripe a échoué. Certains prix Stripe n’ont pas été mis à jour.",
+    "pendingHint": "Ces modifications de frais ne sont pas encore en vigueur. Un autre administrateur doit les approuver ou les rejeter dans la file d’approbation des mouvements.",
+    "pendingTitle": "Modifications en attente d’approbation",
+    "queued": "Modification de frais envoyée pour approbation par un second administrateur.",
+    "reviewQueue": "Examiner dans les approbations des mouvements"
   },
   "superFinancials": {
     "colAmount": "Montant",
@@ -33529,7 +33534,8 @@
     "typeAffiliatePayout": "Paiement d'affilié",
     "subject": "Objet",
     "reason": "Motif",
-    "subjectUnknown": "Objet inconnu"
+    "subjectUnknown": "Objet inconnu",
+    "typeFeeConfig": "Modification de la configuration des frais"
   },
   "adminOrderFilters": {
     "searchOrders": "Rechercher des commandes",
@@ -36162,7 +36168,10 @@
     "resultId": "Identifiant :",
     "resultUser": "Utilisateur :",
     "resultStatus": "Statut :",
-    "resultPaymentMethod": "Moyen de paiement :"
+    "resultPaymentMethod": "Moyen de paiement :",
+    "stepupPrompt": "Saisissez le code de vérification de votre application d'authentification pour confirmer cette annulation.",
+    "stepupRequired": "Un code de vérification est requis pour annuler un abonnement.",
+    "stepupFailed": "Impossible de lancer la vérification de cette annulation."
   },
   "statementOps": {
     "title": "Operations des releves",
@@ -38110,7 +38119,15 @@
       "importReport": "Importer le rapport",
       "reportImported": "{{tags}} identifiants importés ({{mapped}} rattachés à des campagnes).",
       "reportDuplicate": "Ce rapport a déjà été importé."
-    }
+    },
+    "rollupRerunTitle": "Relancer le cumul",
+    "rollupRerunDescription": "Recalcule un jour de cumul passe reste partiel. Un jour termine exige l'option forcer.",
+    "rollupRerunDay": "Jour (AAAA-MM-JJ)",
+    "rollupRerunForce": "Forcer le recalcul meme si le jour est deja termine",
+    "rollupRerunSubmit": "Relancer le cumul",
+    "rollupRerunDone": "Cumul recalcule.",
+    "rollupRerunSkipped": "Cumul ignore : deja termine.",
+    "rollupRerunFailed": "Echec de la relance du cumul."
   },
   "adminOperationalNotices": {
     "regionLabel": "Avis opérationnels",
@@ -38701,5 +38718,24 @@
       "title": "Profil sur OxSteed Media",
       "description": "Consultez ce profil sur OxSteed Media."
     }
+  },
+  "adminCcpaErasureReview": {
+    "title": "File de révision des effacements",
+    "subtitle": "Tâches d'effacement de confidentialité nécessitant un examen par un opérateur avant de pouvoir se terminer.",
+    "loading": "Chargement de la file de révision…",
+    "requeue": "Remettre en file",
+    "requeuing": "Remise en file…",
+    "requeueDone": "Effacement remis en file.",
+    "requeueFailed": "Échec de la remise en file.",
+    "note": "Les tâches remises en file quittent cette liste dès qu'elles sont de nouveau en attente.",
+    "table.requestId": "ID DE DEMANDE",
+    "table.attempts": "TENTATIVES",
+    "table.lastError": "DERNIÈRE ERREUR",
+    "table.queuedAt": "MISE EN FILE LE",
+    "table.actions": "ACTIONS",
+    "table.empty": "Aucune tâche d'effacement ne nécessite un examen.",
+    "pagination": "Affichage de {{from}} à {{to}} sur {{total}} tâches",
+    "pagination.next": "Suivant",
+    "pagination.previous": "Précédent"
   }
 }

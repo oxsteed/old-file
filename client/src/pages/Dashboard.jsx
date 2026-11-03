@@ -1370,10 +1370,8 @@ export default function Dashboard() {
                 badge: myJobs.length > 0 ? myJobs.length : 0},
               {to:'/helpers',        Ic:IcoSearch,      l:t('dashboard.browseHelpers'),          c:'text-blue-400'},
               {to:'/messages',       Ic:IcoChat,        l:t('messages.title'),                   c:'text-emerald-400', badge:unreadMsgs},
-              {to:'/planned-needs',  Ic:IcoClock,       l:t('dashboard.plannedNeeds.title'),     c:'text-purple-400',
-                badge: s?.planned_needs?.activating_soon_count || 0},
               {to:'/tool-rentals',   Ic:IcoSearch,      l:t('toolRentals.browsePage'),           c:'text-indigo-400'},
-            ].filter((a) => SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS || !['/planned-needs', '/tool-rentals'].includes(a.to)).map((a,i)=>(
+            ].filter((a) => SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS || !['/tool-rentals'].includes(a.to)).map((a,i)=>(
               <Link key={i} to={a.to} className="relative bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
                 <a.Ic size={18} cls={a.c}/><span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span>
                 {a.badge>0&&<span className="absolute top-2 right-2 bg-action text-on-action text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">{a.badge}</span>}
@@ -1387,11 +1385,6 @@ export default function Dashboard() {
               <CardHeader
                 icon={IcoClock}
                 title={t('dashboard.plannedNeeds.title')}
-                right={
-                  <Link to="/planned-needs" className="text-xs text-orange-400 hover:text-orange-300 font-medium">
-                    {t('dashboard.plannedNeeds.manage')}
-                  </Link>
-                }
               />
               {loading ? (
                 <div className="h-12 bg-gray-800 rounded-xl animate-pulse" />
@@ -1425,9 +1418,6 @@ export default function Dashboard() {
               ) : (
                 <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl">
                   <p className="text-sm text-gray-400">{t('dashboard.plannedNeeds.noPlannedNeeds')}</p>
-                  <Link to="/planned-needs" className="text-xs bg-action hover:bg-action-hover text-on-action font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">
-                    {t('dashboard.plannedNeeds.addOne')}
-                  </Link>
                 </div>
               )}
             </Card>
@@ -1523,7 +1513,6 @@ export default function Dashboard() {
           {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && LAUNCH_VISIBILITY.subscriptions && isFreeTier && (
             <div className="bg-gradient-to-r from-orange-500/10 via-orange-600/5 to-transparent border border-orange-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div><div className="flex items-center gap-2 mb-1"><IcoZap size={18} cls="text-orange-400"/><h3 className="text-lg font-bold text-white">{t('dashboard.upgrade.title')}</h3></div><p className="text-sm text-gray-400">{t('dashboard.upgrade.subtitle')}</p></div>
-              <Link to="/upgrade" className="bg-action hover:bg-action-hover text-on-action font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">{t('dashboard.upgrade.viewPlans')}</Link>
             </div>
           )}
         </>)}
@@ -1609,13 +1598,10 @@ export default function Dashboard() {
 
           {/* Planned Needs – sinking funds */}
           <Card className="mb-6">
-            <CardHeader icon={IcoClock} title={t('dashboard.money.sinkingFunds')} right={
-              <Link to="/planned-needs" className="text-xs text-orange-400 hover:text-orange-300 font-medium">{t('dashboard.plannedNeeds.manage')}</Link>
-            }/>
+            <CardHeader icon={IcoClock} title={t('dashboard.money.sinkingFunds')} />
             {moneyPlannedNeeds.length === 0 ? (
               <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl">
                 <p className="text-sm text-gray-500">{t('dashboard.plannedNeeds.noPlannedNeeds')}</p>
-                <Link to="/planned-needs" className="text-xs bg-action hover:bg-action-hover text-on-action font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">{t('dashboard.plannedNeeds.addOne')}</Link>
               </div>
             ) : (
               <div className="space-y-4">

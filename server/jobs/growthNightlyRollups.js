@@ -38,23 +38,36 @@ async function insertSets(conn, table, thirdColumn, map, day) {
   return rows.length;
 }
 
-async function run() {
-  if (
-    process.env.GROWTH_TRACKING_HARD_OFF !== "false" ||
-    new Date().getUTCHours() < 3
-  )
+// Manual rerun path for partial days: the nightly job targets only
+// yesterday, so a day that finished partial was never revisited once the
+// night moved on. run({ day }) recomputes any past day; run({ day, force })
+// also recomputes a day that already completed. An explicit day skips the
+// 03:00 UTC gate (past days hold complete data); the tracking hard-off
+// gate still applies. Triggered by POST /api/admin/growth/rollups/rerun
+// and the Growth Insights overview page.
+async function run({ day: requestedDay, force = false } = {}) {
+  const today = new Date().toISOString().slice(0, 10);
+  let day = requestedDay;
+  if (day !== undefined) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(Date.parse(`${day}T00:00:00Z`)) || day >= today)
+      throw Object.assign(new Error("growth_rollup_day_invalid"), { status: 400 });
+  } else {
+    day = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  }
+  if (process.env.GROWTH_TRACKING_HARD_OFF !== "false")
+    return { skipped: true };
+  if (requestedDay === undefined && new Date().getUTCHours() < 3)
     return { skipped: true };
   return withFencedJobLock(
     "growth-nightly",
     async (fence) => {
-      const day = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
       // The fenced run owns the job now; old running rows belong to lost leases.
       await fence.db.query("UPDATE growth_rollup_runs SET status='failed',completed_at=NOW() WHERE status='running' AND started_at<NOW()-interval '1 hour'");
       const { rows: done } = await fence.db.query(
         "SELECT id FROM growth_rollup_runs WHERE day=$1 AND status='complete'",
         [day],
       );
-      if (done.length) return { skipped: true };
+      if (done.length && !force) return { skipped: true, day, reason: 'already_complete' };
       const {
         rows: [run],
       } = await fence.db.query(
@@ -160,6 +173,12 @@ async function run() {
       const domain = await collectDomainDay(fence.db, day, shared);
       let propensity = null;
       await fence.fencedTransaction(async (conn) => {
+        // A recompute must not keep a partial run's subject sets:
+        // insertSets uses ON CONFLICT DO NOTHING, so stale members would
+        // survive a rerun. Clearing the day's sets first makes reruns
+        // exact; for a fresh day these deletes are no-ops.
+        await conn.query("DELETE FROM demand_subject_daily WHERE day=$1", [day]);
+        await conn.query("DELETE FROM supply_subject_daily WHERE day=$1", [day]);
         await insertSets(conn, "demand_subject_daily", "signal_type", shared.demand, day);
         await insertSets(conn, "supply_subject_daily", "role", shared.supply, day);
         await conn.query("DELETE FROM demand_daily WHERE day=$1", [day]);
@@ -253,6 +272,7 @@ async function run() {
         ],
       );
       return {
+        day,
         demand_cells: shared.demand.size,
         supply_cells: shared.supply.size,
         profiles,

@@ -3,9 +3,14 @@
 // Ledger-safe deletion (recommendation track 10): the food_customer_wallet_ledger
 // no-delete / no-update rules are append-only by design. A hard DELETE of a
 // user or restaurant with any ledger history fails schema-wide because the
-// ON DELETE CASCADE is rewritten to NOTHING and the referential-integrity
-// check then fails. The ledger-safe completion is anonymization (users) and
-// suspension (restaurants), never removal. These tests run against the
+// ON DELETE actions on the append-only tables are rewritten to NOTHING and
+// the referential-integrity check then fails. Since migration
+// 20261103091426 dropped the ledger FKs themselves (088b pattern), the
+// failing constraint named by that check is now the append-only operator
+// audit events table's SET NULL / CASCADE action, not the ledger FK; the
+// guarantee is unchanged: the delete fails and the ledger rows survive.
+// The ledger-safe completion is anonymization (users) and suspension
+// (restaurants), never removal. These tests run against the
 // disposable credit_statement_test database only, use synthetic rows, and
 // never hard-delete anything in cleanup.
 
@@ -147,7 +152,7 @@ describeDatabase('append-only ledger delete block', () => {
     }
     expect(caught).toBeTruthy();
     expect(caught.code).toBe('XX000');
-    expect(caught.message).toMatch(/food_customer_wallet_ledger_customer_id_fkey/);
+    expect(caught.message).toMatch(/food_customer_wallet_operator_audit_events_customer_id_fkey/);
     const { rows } = await pool.query(`SELECT COUNT(*)::int AS n FROM users WHERE id = $1`, [customer.id]);
     expect(rows[0].n).toBe(1);
   });
@@ -167,7 +172,7 @@ describeDatabase('append-only ledger delete block', () => {
     }
     expect(caught).toBeTruthy();
     expect(caught.code).toBe('XX000');
-    expect(caught.message).toMatch(/food_customer_wallet_ledger_restaurant_id_fkey/);
+    expect(caught.message).toMatch(/food_customer_wallet_operator_audit_even_wallet_account_id_fkey/);
     const { rows } = await pool.query(`SELECT COUNT(*)::int AS n FROM food_restaurants WHERE id = $1`, [restaurantId]);
     expect(rows[0].n).toBe(1);
   });

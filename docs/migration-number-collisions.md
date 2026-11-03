@@ -1,47 +1,79 @@
 # Migration number collisions (691, 699, 700, and growth-era numbering)
 
-Recorded 2026-10-07. Do NOT renumber these files — renaming requires a
+Recorded 2026-10-07. Do NOT renumber these files. Renaming requires a
 coordinated production `_migrations` row update on Emile's side.
 
 The migrator (`server/migrate.js`) keys applied migrations on the full
 `filename` (VARCHAR(255) UNIQUE), not the numeric prefix. Files are read in
-lexical order. Colliding numbers are therefore harmless as long as each
-file's statements are idempotent and non-overlapping — verified below.
+numeric leading-prefix order (`server/migrationOrder.js` sorts by the
+numeric value of the leading digits, breaking ties by the full filename).
+Colliding numbers are therefore harmless as long as each file's statements
+are idempotent and non-overlapping, verified below.
 
 ## 691 (two files)
-- `691_restaurant_payout_external_state.sql` — widens `restaurant_payouts`
+- `691_restaurant_payout_external_state.sql`: widens `restaurant_payouts`
   status CHECK (adds completed/failed/cancelled/reversed), adds provider
   transfer columns. All statements use IF NOT EXISTS / DROP IF EXISTS.
-- `691_settlement_issuance_schema.sql` — extends 683/684 issuance schema to
+- `691_settlement_issuance_schema.sql`: extends 683/684 issuance schema to
   settlement products (product VARCHAR widen, account_uuid, XOR check,
   settlement_document_id). Additive only.
 
 No overlapping tables or constraints.
 
 ## 699 (two files)
-- `699_hold_crew_size.sql` — adds hold_group_token/crew_index to
+- `699_hold_crew_size.sql`: adds hold_group_token/crew_index to
   `direct_slot_holds`, backfills, creates index. Idempotent.
-- `699_jobs_moderation_metadata.sql` — adds metadata JSONB to `jobs`,
+- `699_jobs_moderation_metadata.sql`: adds metadata JSONB to `jobs`,
   partial index on admin_flagged. Idempotent.
 
 No overlapping tables.
 
 ## 700 (two files)
-- `700_business_launch_archived_status.sql` — widens `consulting_requests`
+- `700_business_launch_archived_status.sql`: widens `consulting_requests`
   status CHECK to include 'archived'.
-- `700_direct_audit_indexes.sql` — adds indexes on `quote_requests`
+- `700_direct_audit_indexes.sql`: adds indexes on `quote_requests`
   (flow expression index, clientRequestId unique index).
 
 No overlapping tables or constraints.
 
 ## Rule going forward
-New migrations must use an unused prefix **and sort after the current last
-filename**. Do not fill historical gaps: the runner preserves lexical order.
-CI runs `scripts/check-migration-history.cjs` against the pull request base or
-previous push and rejects edits/removals, new duplicate prefixes and additions
-that would run before the historical tail. The next PostgreSQL prefix is
-currently 99988. Changing to numeric sorting requires a full-history rehearsal;
-existing 1551/610b-style ordering must not silently change on fresh installs.
+
+This section supersedes every earlier forward-looking rule in this file,
+including the lexical-order rule, the 999xx band plan, and the letter-band
+plan. Those were true before the Q11 runner change and are false now.
+
+1. **The runner sorts numerically.** `server/migrationOrder.js` sorts by
+   the numeric value of the leading digits, with the full filename as the
+   tiebreak. For every file up to `99994_` that order is identical to the
+   old text order, so already-applied names and checksums are untouched
+   and a fresh database replays history in exactly the old order.
+2. **New files use a 14-digit UTC timestamp prefix:**
+   `YYYYMMDDHHMMSS_name.sql`. A timestamp prefix always sorts after
+   `99994`, so new files always append after history. The 999xx band is
+   closed at `99994`: do not author a `99995_` (or any other numeric
+   prefix) file. CI rejects it.
+3. **The frozen legacy set is closed.** `server/migrationOrderLegacy.json`
+   lists every file that existed at the Q11 change, plus the duplicate
+   prefixes that history already contains. Never add to that list, and
+   never rename, renumber, or edit an applied migration. The checksum
+   guard fails startup if applied bytes change.
+4. **Append only, never fill gaps.** Every new file must sort after the
+   current last file and use an unused prefix. Gaps (`938`, `943`,
+   `99915`) stay gaps. They are recorded, not filled. Two PRs that pick
+   the same timestamp must rebase: the second to merge takes a later
+   timestamp before merging.
+5. **Enforcement is both CI and runtime.** CI runs
+   `scripts/check-migration-history.cjs` against the pull request base
+   and rejects edits, removals, duplicate prefixes, non-timestamp new
+   files, and additions that would run before the historical tail. The
+   runtime path enforces the same rule: `server/migrate.js` validates
+   every file outside the frozen legacy set with
+   `isValidTimestampMigration` and a sorts-after-legacy-tail check, and
+   fails startup on violation. A deploy path that runs migrate without
+   the CI gate therefore cannot land a mis-ordered migration.
+6. **Timestamps must be real UTC times.** The prefix must form a valid
+   UTC date and time (year 2026 or later). A 14-digit string that is not
+   a real calendar time is rejected by both CI and the runtime.
 
 The [2026-10-25 inventory](migration-prefix-inventory-2026-10-25.json) records
 all **33 duplicate numeric-prefix groups** across 1,007 SQL files and the
@@ -62,29 +94,7 @@ The original Demand & Sales Engine plan reserved `934`–`937` for deferred
 catalog and offer-email work. Those numbers were later used by additive growth
 migrations (`934_growth_notice_content_digest.sql` through
 `937_growth_clusters.sql`), while `938` and `943` remain unused. No applied
-migration is renamed or repurposed. The next growth changes use the first free
-numbers after the current tail: `956_growth_jurisdiction_optout_rules.sql`
-and `957_growth_campaign_personalization.sql`.
-
-## Ordering policy (D-ENG-11, 2026-10-26)
-
-`server/migrate.js` applies files in plain JavaScript string order
-(`Array.prototype.sort()` on file names). It does **not** parse numbers. The
-historical order therefore is lexical, and the `999xx` band runs after `998`
-only because `"999…" > "998…"` as strings. That is intentional and frozen:
-
-1. **Never rename, renumber or edit an applied migration.** The CI guard
-   (`scripts/check-migration-history.cjs`) fails a PR that changes or removes
-   an existing file.
-2. **Every new file must sort after the current last file** and use an
-   unused prefix. The same guard enforces this against the PR base.
-3. **Use the next free number in the current band.** As of this note the tail
-   is `99991_growth_age_verification.sql`; `99992`–`99999` remain.
-4. **After `99999`, switch to a letter band:** `A00001_…`, `A00002_…`, then
-   `B00001_…` when `A99999` is reached. Uppercase ASCII letters sort after
-   digits, so these append correctly without touching history. Do **not** use
-   `100000_…`: it sorts before `99999_…` and the guard rejects it.
-5. Gaps (`938`, `943`, `99915`) stay gaps. They are recorded, not filled.
-6. Two PRs that pick the same next number: the second to merge must rebase
-   and take the next free number before merging (the guard runs on the PR
-   base, so it catches the collision once the first PR lands).
+migration is renamed or repurposed. The sentence that once followed this
+note, prescribing `956_`/`957_` as the next growth numbers, is superseded
+by the timestamp rule above: growth changes, like all new changes, use a
+14-digit UTC timestamp prefix.
