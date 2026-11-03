@@ -253,7 +253,9 @@ import { DeferredSupportWidget as SupportWidget, DeferredCommandPalette as Comma
 import PwaInstallPrompt from './components/PwaInstallPrompt';
 import PushSoftAsk from './components/PushSoftAsk';
 import { LanguageProvider } from './context/LanguageContext';
-import { getLaunchRedirect } from './utils/launchScope';
+import { getLaunchRedirect, LAUNCH_VISIBILITY } from './utils/launchScope';
+import { useTranslation } from 'react-i18next';
+import { resolveRouteMeta, applyRouteMeta } from './utils/seoMeta';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -331,6 +333,37 @@ function RouteLoadingFallback() {
   return immersive
     ? <main id="main-content"><PageLoadingState /></main>
     : <PageShell><PageLoadingState /></PageShell>;
+}
+
+// Route-level SEO meta (client/src/utils/seoMeta.js). Runs on every route
+// change and sets a generic title/description/canonical/OG/Twitter/hreflang
+// set for public routes, or robots noindex,nofollow for private,
+// transactional, tokenized, and redirect routes. Renders nothing and adds no
+// interactive elements. Pages that render their own PageMeta load after this
+// effect and override the generic fallback with dynamic entity data.
+function RouteMeta() {
+  const { pathname } = useLocation();
+  const { t, i18n } = useTranslation();
+  useEffect(() => {
+    const resolved = resolveRouteMeta(pathname, { mediaLaunched: LAUNCH_VISIBILITY.oxsteedMedia });
+    if (resolved.noIndex) {
+      applyRouteMeta({ noIndex: true });
+      return;
+    }
+    const ogType = resolved.detailKind === 'restaurant'
+      ? 'restaurant'
+      : resolved.detailKind === 'helper' || resolved.detailKind === 'business'
+        ? 'profile'
+        : 'website';
+    applyRouteMeta({
+      title: t(`seoRoute.${resolved.key}.title`, resolved.titleParams),
+      description: t(`seoRoute.${resolved.key}.description`, resolved.titleParams),
+      canonicalPath: resolved.canonicalPath,
+      localized: resolved.localized,
+      type: ogType,
+    });
+  }, [pathname, i18n.language, t]);
+  return null;
 }
 
 function LaunchScopeRouteGate({ children }) {
@@ -413,6 +446,7 @@ export default function App() {
                 <PolicyNotice />
                 <DisplayInstallRestore />
                 <ScrollToTop />
+                <RouteMeta />
                 <PageviewBeacon />
                 <ImpersonationBanner />
                 <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
