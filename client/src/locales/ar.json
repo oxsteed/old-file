@@ -30019,7 +30019,8 @@
     "businessAudit": "تدقيق العمل",
     "restaurantAnalytics": "تحليلات المطاعم",
     "webhookReceipts": "إيصالات Webhook",
-    "restaurantWalletIntegrity": "سلامة المحافظ"
+    "restaurantWalletIntegrity": "سلامة المحافظ",
+    "legalCcpaErasureReview": "مراجعة المحو"
   },
   "adminProfileVisibility": {
     "title": "ظهور الملفات الشخصية",
@@ -38727,5 +38728,24 @@
       "title": "ملف على OxSteed Media",
       "description": "اعرض هذا الملف على OxSteed Media."
     }
+  },
+  "adminCcpaErasureReview": {
+    "title": "قائمة مراجعة المحو",
+    "subtitle": "مهام محو الخصوصية التي تحتاج إلى مراجعة المشغل قبل أن تكتمل.",
+    "loading": "جار تحميل قائمة المراجعة…",
+    "requeue": "إعادة الإدراج",
+    "requeuing": "جار إعادة الإدراج…",
+    "requeueDone": "تمت إعادة إدراج المحو.",
+    "requeueFailed": "فشلت إعادة الإدراج.",
+    "note": "المهام المعاد إدراجها تغادر هذه القائمة بمجرد أن تصبح معلقة مجددا.",
+    "table.requestId": "معرف الطلب",
+    "table.attempts": "المحاولات",
+    "table.lastError": "آخر خطأ",
+    "table.queuedAt": "أدرجت في",
+    "table.actions": "الإجراءات",
+    "table.empty": "لا توجد مهام محو تحتاج إلى مراجعة.",
+    "pagination": "عرض {{from}} إلى {{to}} من أصل {{total}} مهمة",
+    "pagination.next": "التالي",
+    "pagination.previous": "السابق"
   }
 }

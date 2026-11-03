@@ -17,6 +17,18 @@
  *
  * All functions fail open: a missing/unreachable Redis client simply skips
  * the cache and the request falls through to the AI provider.
+ *
+ * Invalidation: editing a Learn guide (adminUpdateGuide, adminDeleteGuide,
+ * publish-from-submission in controllers/learnController.js) calls
+ * invalidateGuideCache for that guide id, so a content edit retires the
+ * cached AI replies for the guide immediately instead of leaving them
+ * stale for the 7-day TTL. GUIDE_REVISION is a different key: it tracks
+ * the static platform guide in services/assistantGuide.js, which changes
+ * only by code edit and deploy, and its bump stays manual. Accepted
+ * stale windows, stated plainly: (a) a platform-guide edit without a
+ * GUIDE_REVISION bump serves cached replies for up to the 7-day TTL;
+ * (b) a chat that runs between a Learn-guide edit and its invalidation
+ * can re-cache a stale reply, bounded by the next edit or the TTL.
  */
 
 const crypto = require('crypto');
@@ -75,10 +87,36 @@ async function setCachedGuideReply(redis, guideId, step, language, reply, questi
   }
 }
 
+/**
+ * Delete every cached AI reply for one guide id, across revisions,
+ * steps, languages, and questions. Fail open: invalidation must never
+ * fail a guide edit, so errors only log. Returns the deleted count.
+ */
+async function invalidateGuideCache(redis, guideId) {
+  if (!redis) return 0;
+  const id = sanitizeSegment(guideId);
+  if (!id) return 0;
+  const pattern = `ox:ai:guide:*:${id}:step:*`;
+  try {
+    let cursor = '0';
+    let deleted = 0;
+    do {
+      const [next, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = next;
+      if (keys.length) deleted += await redis.del(...keys);
+    } while (cursor !== '0');
+    return deleted;
+  } catch (err) {
+    logger.warn('[GuideHelpCache] invalidation failed, stale entries expire by TTL', { message: err.message });
+    return 0;
+  }
+}
+
 module.exports = {
   GUIDE_CACHE_TTL_SECONDS,
   MAX_CACHED_REPLY_BYTES,
   buildGuideCacheKey,
   getCachedGuideReply,
   setCachedGuideReply,
+  invalidateGuideCache,
 };

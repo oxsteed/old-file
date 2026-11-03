@@ -205,6 +205,14 @@ function _resetKnowledgeCacheForTests() {
   kbCache.clear();
 }
 
+// Called from the Learn-guide edit path so an edit retires the cached
+// guide excerpts in this process immediately instead of waiting out the
+// 10-minute TTL. Residual, accepted: other server processes keep their
+// own copy for up to the TTL; the excerpt cache is small and short-lived.
+function clearGuidesCache() {
+  guideCache.clear();
+}
+
 module.exports = {
   HELP_PAGES,
   MAX_SNIPPETS,
@@ -214,5 +222,6 @@ module.exports = {
   businessIdFromPage,
   retrieveKnowledge,
   formatKnowledgeForAI,
+  clearGuidesCache,
   _resetKnowledgeCacheForTests,
 };

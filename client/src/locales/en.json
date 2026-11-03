@@ -30004,7 +30004,8 @@
     "businessAudit": "Business audit",
     "restaurantAnalytics": "Restaurant analytics",
     "webhookReceipts": "Webhook receipts",
-    "restaurantWalletIntegrity": "Restaurant wallet integrity"
+    "restaurantWalletIntegrity": "Restaurant wallet integrity",
+    "legalCcpaErasureReview": "Erasure Review"
   },
   "adminProfileVisibility": {
     "title": "Profile visibility",
@@ -38709,5 +38710,24 @@
       "title": "Profile on OxSteed Media",
       "description": "View this profile on OxSteed Media."
     }
+  },
+  "adminCcpaErasureReview": {
+    "title": "Erasure Review Queue",
+    "subtitle": "Privacy erasure jobs that need operator review before they can complete.",
+    "loading": "Loading review queue…",
+    "requeue": "Requeue",
+    "requeuing": "Requeueing…",
+    "requeueDone": "Erasure requeued.",
+    "requeueFailed": "Requeue failed.",
+    "note": "Requeued jobs leave this list once they are pending again.",
+    "table.requestId": "REQUEST ID",
+    "table.attempts": "ATTEMPTS",
+    "table.lastError": "LAST ERROR",
+    "table.queuedAt": "QUEUED AT",
+    "table.actions": "ACTIONS",
+    "table.empty": "No erasure jobs need review.",
+    "pagination": "Showing {{from}} to {{to}} of {{total}} jobs",
+    "pagination.next": "Next",
+    "pagination.previous": "Previous"
   }
 }

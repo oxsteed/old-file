@@ -874,6 +874,24 @@ exports.adminCreateGuide = async (req, res, next) => {
 };
 
 /**
+ * Retire cached guidance for one guide after an edit or delete. Never
+ * fails the edit itself: both caches fail open (Redis invalidation logs
+ * and returns 0; the excerpt cache clear is in-process and synchronous).
+ */
+async function invalidateGuideCaches(guideId) {
+  try {
+    require('../services/supportKnowledge').clearGuidesCache();
+  } catch (err) {
+    logger.warn('Learn guide excerpt cache clear failed (non-fatal)', { message: err.message });
+  }
+  try {
+    await require('../services/guideHelpCache').invalidateGuideCache(require('../utils/redis'), guideId);
+  } catch (err) {
+    logger.warn('Learn guide AI-reply cache invalidation failed (non-fatal)', { message: err.message });
+  }
+}
+
+/**
  * PUT /api/admin/learn/guides/:id
  * Admin — update a guide (partial update; only provided fields change).
  */
@@ -917,6 +935,9 @@ exports.adminUpdateGuide = async (req, res, next) => {
     if (rows[0].status === 'published' && (b.title !== undefined || b.intro !== undefined)) {
       tagGuideInBackground(rows[0].id);
     }
+    // Content, status, or metadata changed: cached AI replies and guide
+    // excerpts for this guide must not survive the edit (see guideHelpCache).
+    await invalidateGuideCaches(req.params.id);
     res.json({ success: true, guide: dbRowToGuide(rows[0]) });
   } catch (err) {
     next(new AppError('Failed to update guide', 500, 'update_guide_failed'));
@@ -931,6 +952,9 @@ exports.adminDeleteGuide = async (req, res, next) => {
   try {
     const { rowCount } = await pool.query('DELETE FROM learn_guides WHERE id = $1', [req.params.id]);
     if (!rowCount) return next(new AppError('Guide not found', 404, 'not_found'));
+    // A deleted guide id must not keep serving cached AI replies if the
+    // id is ever reused, and its excerpts must leave the support cache.
+    await invalidateGuideCaches(req.params.id);
     res.json({ success: true, deleted: true, id: req.params.id });
   } catch (err) {
     next(new AppError('Failed to delete guide', 500, 'delete_guide_failed'));

@@ -30004,7 +30004,8 @@
     "businessAudit": "Audit du commerce",
     "restaurantAnalytics": "Analytique des restaurants",
     "webhookReceipts": "Reçus de webhook",
-    "restaurantWalletIntegrity": "Intégrité des portefeuilles"
+    "restaurantWalletIntegrity": "Intégrité des portefeuilles",
+    "legalCcpaErasureReview": "Révision des effacements"
   },
   "adminProfileVisibility": {
     "title": "Visibilité des profils",
@@ -38709,5 +38710,24 @@
       "title": "Profil sur OxSteed Media",
       "description": "Consultez ce profil sur OxSteed Media."
     }
+  },
+  "adminCcpaErasureReview": {
+    "title": "File de révision des effacements",
+    "subtitle": "Tâches d'effacement de confidentialité nécessitant un examen par un opérateur avant de pouvoir se terminer.",
+    "loading": "Chargement de la file de révision…",
+    "requeue": "Remettre en file",
+    "requeuing": "Remise en file…",
+    "requeueDone": "Effacement remis en file.",
+    "requeueFailed": "Échec de la remise en file.",
+    "note": "Les tâches remises en file quittent cette liste dès qu'elles sont de nouveau en attente.",
+    "table.requestId": "ID DE DEMANDE",
+    "table.attempts": "TENTATIVES",
+    "table.lastError": "DERNIÈRE ERREUR",
+    "table.queuedAt": "MISE EN FILE LE",
+    "table.actions": "ACTIONS",
+    "table.empty": "Aucune tâche d'effacement ne nécessite un examen.",
+    "pagination": "Affichage de {{from}} à {{to}} sur {{total}} tâches",
+    "pagination.next": "Suivant",
+    "pagination.previous": "Précédent"
   }
 }
