@@ -96,6 +96,51 @@ const T = Object.freeze({
     ht: ['OxSteed Credit ap fèmen — n ap remèt ou lajan ou', 'OxSteed Credit ap fèmen. N ap remèt ou balans {amount} ou a. Ajoute oswa konfime yon kont bank pou peman nan aplikasyon an anvan {deadline}. Si ou pa fè anyen, n ap kontakte ou ankò epi n ap kenbe lajan ou an sekirite jiskaske ou reklame l.'],
     ar: ['خدمة OxSteed Credit ستُغلق — ستُعاد أموالك', 'ستُغلق خدمة OxSteed Credit. سيُعاد إليك رصيدك البالغ {amount}. أضف حسابًا مصرفيًا للدفع أو أكّده في التطبيق قبل {deadline}. إذا لم تفعل شيئًا، فسنتواصل معك مجددًا ونحفظ أموالك بأمان حتى تطالب بها.'],
   },
+  dispute_results: {
+    en: ['Written results of your report', 'We finished investigating your report ({reference}). Result: {outcome}. Explanation: {explanation} You can ask us for copies of the documents we relied on. If you disagree, reply through Help in the OxSteed app.'],
+    es: ['Resultado por escrito de tu reporte', 'Terminamos de investigar tu reporte ({reference}). Resultado: {outcome}. Explicación: {explanation} Puedes pedirnos copias de los documentos en los que nos basamos. Si no estás de acuerdo, responde desde Ayuda en la app de OxSteed.'],
+    fr: ['Résultat écrit de votre signalement', 'Nous avons terminé l’enquête sur votre signalement ({reference}). Résultat : {outcome}. Explication : {explanation} Vous pouvez demander une copie des documents sur lesquels nous nous sommes appuyés. En cas de désaccord, répondez depuis Aide dans l’application OxSteed.'],
+    ht: ['Rezilta ekri rapò ou a', 'Nou fini envestige rapò ou a ({reference}). Rezilta: {outcome}. Esplikasyon: {explanation} Ou ka mande nou kopi dokiman nou te itilize yo. Si ou pa dakò, reponn nan Èd nan aplikasyon OxSteed la.'],
+    ar: ['النتيجة المكتوبة لبلاغك', 'أنهينا التحقيق في بلاغك ({reference}). النتيجة: {outcome}. الشرح: {explanation} يمكنك أن تطلب منا نسخًا من المستندات التي اعتمدنا عليها. إذا لم توافق، فرُدّ من قسم المساعدة في تطبيق OxSteed.'],
+  },
+  dispute_provisional_reversal: {
+    en: ['We will take back the temporary credit', 'Our investigation of your report ({reference}) found no error. The temporary credit of {amount} we added to your balance will be removed on {date}. Until then you can keep using it. You can ask for the documents we relied on.'],
+    es: ['Retiraremos el crédito temporal', 'Nuestra investigación de tu reporte ({reference}) no encontró ningún error. El crédito temporal de {amount} que agregamos a tu saldo se retirará el {date}. Hasta entonces puedes seguir usándolo. Puedes pedir los documentos en los que nos basamos.'],
+    fr: ['Nous allons reprendre le crédit temporaire', 'Notre enquête sur votre signalement ({reference}) n’a trouvé aucune erreur. Le crédit temporaire de {amount} ajouté à votre solde sera retiré le {date}. D’ici là, vous pouvez continuer à l’utiliser. Vous pouvez demander les documents sur lesquels nous nous sommes appuyés.'],
+    ht: ['Nou pral retire kredi tanporè a', 'Envestigasyon nou fè sou rapò ou a ({reference}) pa jwenn okenn erè. Kredi tanporè {amount} nou te mete sou balans ou a ap retire {date}. Jiska dat sa a ou ka kontinye itilize l. Ou ka mande dokiman nou te itilize yo.'],
+    ar: ['سنسترد الرصيد المؤقت', 'لم يجد تحقيقنا في بلاغك ({reference}) أي خطأ. سيُخصم الرصيد المؤقت البالغ {amount} الذي أضفناه إلى رصيدك في {date}. يمكنك الاستمرار في استخدامه حتى ذلك الحين. يمكنك طلب المستندات التي اعتمدنا عليها.'],
+  },
+  cashout_dispute_received: {
+    en: ['We received your cash-out report', 'We received your report that a cash-out of {amount} did not arrive ({reference}). We will trace it with the bank and give you a written answer by {deadline}.'],
+    es: ['Recibimos tu reporte de retiro', 'Recibimos tu reporte de que un retiro de {amount} no llegó ({reference}). Lo rastrearemos con el banco y te daremos una respuesta por escrito antes del {deadline}.'],
+    fr: ['Nous avons reçu votre signalement de retrait', 'Nous avons reçu votre signalement indiquant qu’un retrait de {amount} n’est pas arrivé ({reference}). Nous allons le retracer avec la banque et vous répondrons par écrit avant le {deadline}.'],
+    ht: ['Nou resevwa rapò retrè ou a', 'Nou resevwa rapò ou ki di yon retrè {amount} pa rive ({reference}). N ap swiv li ak bank lan epi n ap ba ou yon repons ekri anvan {deadline}.'],
+    ar: ['استلمنا بلاغك عن السحب', 'استلمنا بلاغك بأن سحبًا بمبلغ {amount} لم يصل ({reference}). سنتتبعه مع البنك ونرسل إليك ردًا مكتوبًا قبل {deadline}.'],
+  },
+  escheat_completed: {
+    en: ['Your inactive balance was sent for safekeeping', 'Your OxSteed Credit balance of {amount} had no activity and you did not respond to our notices, so we moved it to unclaimed property. It is still yours: contact OxSteed support to get it back. If it has already been sent to {authority}, you can claim it there.'],
+    es: ['Tu saldo inactivo se envió para su resguardo', 'Tu saldo de Crédito OxSteed de {amount} no tuvo actividad y no respondiste a nuestros avisos, así que lo pasamos a bienes no reclamados. Sigue siendo tuyo: contacta al soporte de OxSteed para recuperarlo. Si ya se envió a {authority}, puedes reclamarlo allí.'],
+    fr: ['Votre solde inactif a été mis en sécurité', 'Votre solde Crédit OxSteed de {amount} n’a enregistré aucune opération et vous n’avez pas répondu à nos avis : nous l’avons donc transféré en avoirs non réclamés. Il vous appartient toujours : contactez le support OxSteed pour le récupérer. S’il a déjà été versé à {authority}, vous pouvez le réclamer auprès de cet organisme.'],
+    ht: ['Balans ou ki pa aktif la voye pou yo kenbe l an sekirite', 'Balans Kredi OxSteed ou a ki se {amount} pa t gen aktivite epi ou pa t reponn avi nou yo, kidonk nou mete l nan byen ki pa reklame. Li toujou pou ou: kontakte sipò OxSteed pou jwenn li ankò. Si nou te deja voye l bay {authority}, ou ka reklame l la.'],
+    ar: ['نُقل رصيدك غير النشط للحفظ', 'لم يشهد رصيدك في OxSteed البالغ {amount} أي نشاط ولم ترد على إشعاراتنا، لذا نقلناه إلى الأموال غير المطالب بها. ما زال ملكًا لك: تواصل مع دعم OxSteed لاسترداده. وإذا كان قد أُرسل بالفعل إلى {authority} فيمكنك المطالبة به لديها.'],
+  },
+  wind_down_redemption_sent: {
+    en: ['Your OxSteed Credit balance was paid out', 'We sent {amount} to your bank account ending in {last4}. This is the redemption of your OxSteed Credit balance because the service is closing.'],
+    es: ['Pagamos tu saldo de Crédito OxSteed', 'Enviamos {amount} a tu cuenta bancaria terminada en {last4}. Es el reembolso de tu saldo de Crédito OxSteed porque el servicio va a cerrar.'],
+    fr: ['Votre solde Crédit OxSteed a été versé', 'Nous avons envoyé {amount} sur votre compte bancaire se terminant par {last4}. Il s’agit du remboursement de votre solde Crédit OxSteed, car le service ferme.'],
+    ht: ['Nou peye balans Kredi OxSteed ou a', 'Nou voye {amount} sou kont bank ou ki fini ak {last4}. Se ranbousman balans Kredi OxSteed ou a paske sèvis la ap fèmen.'],
+    ar: ['صُرف رصيدك في OxSteed Credit', 'أرسلنا {amount} إلى حسابك المصرفي المنتهي بـ {last4}. هذا استرداد رصيدك في OxSteed Credit لأن الخدمة ستُغلق.'],
+  },
+});
+
+// Localised dispute outcomes for the {outcome} placeholder (outcome_key).
+const OUTCOMES = Object.freeze({
+  resolved_customer: { en: 'we found an error and corrected it in your favour', es: 'encontramos un error y lo corregimos a tu favor', fr: 'nous avons trouvé une erreur et l’avons corrigée en votre faveur', ht: 'nou jwenn yon erè epi nou korije l an favè ou', ar: 'وجدنا خطأً وصححناه لصالحك' },
+  resolved_merchant: { en: 'we found no error', es: 'no encontramos ningún error', fr: 'nous n’avons trouvé aucune erreur', ht: 'nou pa jwenn okenn erè', ar: 'لم نجد أي خطأ' },
+  rejected: { en: 'we could not confirm an error', es: 'no pudimos confirmar un error', fr: 'nous n’avons pas pu confirmer d’erreur', ht: 'nou pa t ka konfime yon erè', ar: 'لم نتمكن من تأكيد وجود خطأ' },
+  resolved: { en: 'your report is closed', es: 'tu reporte está cerrado', fr: 'votre signalement est clos', ht: 'rapò ou a fèmen', ar: 'تم إغلاق بلاغك' },
+  resolved_paid_confirmed: { en: 'the bank confirmed the payment reached your account', es: 'el banco confirmó que el pago llegó a tu cuenta', fr: 'la banque a confirmé que le paiement est arrivé sur votre compte', ht: 'bank lan konfime peman an rive sou kont ou', ar: 'أكد البنك وصول الدفعة إلى حسابك' },
+  resolved_reissued: { en: 'we are sending the payment again', es: 'enviaremos el pago de nuevo', fr: 'nous renvoyons le paiement', ht: 'n ap voye peman an ankò', ar: 'سنرسل الدفعة مرة أخرى' },
 });
 
 function normalizeLang(value) {
@@ -123,6 +168,7 @@ function renderNotice(key, language, params = {}, override = null) {
   if (!template) throw new Error(`Unknown Credit notice: ${key}`);
   const [subjectTpl, bodyTpl] = override || template[lang] || template.en;
   const values = { ...params };
+  if (values.outcome_key && OUTCOMES[values.outcome_key]) values.outcome = OUTCOMES[values.outcome_key][lang] || OUTCOMES[values.outcome_key].en;
   if (values.amount_minor !== undefined) values.amount = formatMoney(Number(values.amount_minor), values.currency || 'USD', INTL_LOCALE[lang]);
   for (const field of ['date', 'deadline']) {
     if (values[field] && /^\d{4}-\d{2}-\d{2}/.test(String(values[field]))) values[field] = formatDate(values[field], lang);
@@ -174,4 +220,4 @@ async function sendUserNotice({ userId, key, params = {}, idempotencyKey, db = p
   }
 }
 
-module.exports = { LANGS, NOTICES: T, normalizeLang, renderNotice, sendUserNotice };
+module.exports = { LANGS, OUTCOMES, NOTICES: T, normalizeLang, renderNotice, sendUserNotice };

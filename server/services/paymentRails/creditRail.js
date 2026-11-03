@@ -165,6 +165,9 @@ function feeFromTotal(quote) {
  * transaction). Fail-closed: insufficient Credit rolls the hire back.
  */
 async function placePaymentHold(client, { job, bid, customer, amountMinor, settlementCurrency, fxQuoteId = null, creditQuoteId = null, platformFeeMinor = 0, isImpersonated = false }) {
+  // Licence readiness §7: a worker may refuse wages in Credit. No query
+  // unless OXSTEED_CREDIT_WAGE_CONSENT_REQUIRED is on.
+  await require('../creditCompliance/wageConsentService').assertHelperAcceptsCreditWages(client, bid.helper_id);
   let fxQuote = null;
   const customerCurrency = supportedCreditCurrency(customer?.preferred_currency || 'USD') || 'USD';
   if (customerCurrency !== settlementCurrency) {

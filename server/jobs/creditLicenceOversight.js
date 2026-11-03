@@ -43,6 +43,8 @@ function tasks() {
       () => optional('../services/creditCompliance/accessReviewService', 'ensureCurrentReview')],
     ['credit-audit-anchor', process.env.CREDIT_AUDIT_ANCHOR_CRON || '55 23 * * *', 600,
       () => optional('../services/creditCompliance/auditAnchorService', 'anchorAuditChains')],
+    ['credit-audit-anchor-verify', process.env.CREDIT_AUDIT_ANCHOR_VERIFY_CRON || '20 7 * * *', 600,
+      () => optional('../services/creditCompliance/auditAnchorService', 'verifyAnchors')],
     ['credit-kyc-reverification', process.env.CREDIT_KYC_REVERIFICATION_CRON || '25 5 * * *', 900,
       () => optional('../services/creditCompliance/kycRequirementsService', 'runPeriodicTriggers')],
   ];

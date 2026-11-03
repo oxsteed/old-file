@@ -1289,14 +1289,18 @@ async function postJournalTransaction(client, input) {
     }
   }
   if (['escheatment', 'escheat_reclaim', 'escheat_remittance'].includes(input.transactionType)) {
+    // Mirrors the DB trigger: wallets escheat with no partner; helper wage
+    // balances (partner_payable) escheat with their own partner id.
     const t = input.transactionType;
+    const hasPartner = input.partnerId !== null && input.partnerId !== undefined;
+    const holderLeg = (account) => (account.account_type === 'customer_wallet' && !hasPartner)
+      || (account.account_type === 'partner_payable' && hasPartner && String(account.partner_id) === String(input.partnerId));
     const validDirection =
-      (t === 'escheatment' && debitAccount.account_type === 'customer_wallet' && creditAccount.account_type === 'unclaimed_property')
-      || (t === 'escheat_reclaim' && debitAccount.account_type === 'unclaimed_property' && creditAccount.account_type === 'customer_wallet')
-      || (t === 'escheat_remittance' && debitAccount.account_type === 'unclaimed_property' && creditAccount.account_type === 'platform_treasury');
+      (t === 'escheatment' && holderLeg(debitAccount) && creditAccount.account_type === 'unclaimed_property')
+      || (t === 'escheat_reclaim' && debitAccount.account_type === 'unclaimed_property' && holderLeg(creditAccount))
+      || (t === 'escheat_remittance' && !hasPartner && debitAccount.account_type === 'unclaimed_property' && creditAccount.account_type === 'platform_treasury');
     if (
       !validDirection
-      || (input.partnerId !== null && input.partnerId !== undefined)
       || (input.agreementId !== null && input.agreementId !== undefined)
     ) {
       throw new AppError('Credit escheat account direction is invalid', 400, 'credit_escheat_direction_invalid');
@@ -4067,6 +4071,11 @@ function formatDispute(row) {
     resolutionEntries: row.resolution_entries || {},
     // Migration 678: cumulative provisional credit issued while in review.
     provisionalCreditCents: Number(row.provisional_credit_cents || 0),
+    // Licence readiness (migration 20261103100000): error-resolution clocks.
+    notifiedAt: row.notified_at || null,
+    provisionalDueAt: row.provisional_due_at || null,
+    resolutionDueAt: row.resolution_due_at || null,
+    extendedWindow: row.extended_window === true,
     // Migration 685: provenance of the statement investigation that opened
     // this dispute, when any. Null on older rows and non-statement disputes.
     statement: row.statement_document_id ? {
@@ -4141,7 +4150,7 @@ const DISPUTE_SLA_HOURS_FALLBACK = Math.max(
   1,
   Number.parseInt(process.env.OXSTEED_CREDIT_DISPUTE_SLA_HOURS || '72', 10) || 72
 );
-const DISPUTE_TYPE_VALUES = ['unauthorized_topup', 'failed_payout', 'duplicate_charge', 'incorrect_amount', 'chargeback'];
+const DISPUTE_TYPE_VALUES = ['unauthorized_topup', 'failed_payout', 'duplicate_charge', 'incorrect_amount', 'chargeback', 'unauthorized_transfer', 'cashout_not_received'];
 
 async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId, idempotencyKey, requestIp, disputeType, statement, allowMediaCreatorOwner = false }) {
   const normalizedReason = normalizeString(reasonCode, 60);

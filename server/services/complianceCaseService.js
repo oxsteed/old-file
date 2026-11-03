@@ -42,6 +42,10 @@ const CASE_TYPES = Object.freeze([
   'safeguarding_shortfall',
   'sar_candidate',
   'dispute_pattern',
+  // Licence readiness (migration 20261103100100).
+  'access_review_revocation',
+  'audit_anchor_mismatch',
+  'dispute_deadline',
 ]);
 
 const CASE_STATUSES = Object.freeze(['open', 'investigating', 'resolved', 'escalated']);
