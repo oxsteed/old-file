@@ -1744,15 +1744,15 @@ function BusinessHubInner() {
             ) : null}
 
             {/* Tabs */}
-            <div className="bh-tabs">
+            <div className="bh-tabs" role="group" aria-label={t('businessHub.menu.aria')}>
               {visibleTabs.map(tb => (
-                <button key={tb} className={`bh-tab${tab === tb ? ' active' : ''}`} onClick={() => setTab(tb)} data-track="ui.83b215c0c9.12">
+                <button key={tb} type="button" aria-pressed={tab === tb} className={`bh-tab${tab === tb ? ' active' : ''}`} onClick={() => setTab(tb)} data-track="ui.83b215c0c9.12">
                   {tabLabel(tb)}
                 </button>
               ))}
             </div>
 
-            <Suspense fallback={<p className="bh-loading">{t('businessHub.rooms.loadingWorkspace')}</p>}>
+            <Suspense fallback={<p className="bh-loading" role="status">{t('businessHub.rooms.loadingWorkspace')}</p>}>
 
             {/* ── Profile tab ──────────────────────────────────────── */}
             {tab === 'profile' && (

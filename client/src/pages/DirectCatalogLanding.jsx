@@ -243,7 +243,7 @@ export function DirectCatalogContent({ profile, embedded = false }) {
 
 function CatalogState({ error, onRetry }) {
   const { t } = useTranslation();
-  if (!error) return <div className="mx-auto flex min-h-[420px] w-full max-w-[1500px] items-center justify-center px-4 py-12 text-slate-300">{t('directCatalog.loading', { defaultValue: 'Loading Direct services...' })}</div>;
+  if (!error) return <div role="status" className="mx-auto flex min-h-[420px] w-full max-w-[1500px] items-center justify-center px-4 py-12 text-slate-300">{t('directCatalog.loading', { defaultValue: 'Loading Direct services...' })}</div>;
   return <div className="mx-auto flex min-h-[420px] w-full max-w-[1500px] flex-col items-center justify-center gap-4 px-4 py-12 text-center text-slate-300"><p>{t('directCatalog.loadError', { defaultValue: 'Direct services are temporarily unavailable.' })}</p><button type="button" onClick={onRetry} className="rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600" data-track="ui.ceadfca363.3">{t('directCatalog.retry', { defaultValue: 'Try again' })}</button></div>;
 }
 
