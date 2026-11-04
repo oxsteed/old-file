@@ -7,6 +7,7 @@ import {
   LAUNCH_BUSINESS_HUB_TABS,
   LAUNCH_DEFAULTS,
   LAUNCH_VISIBILITY,
+  normalizeLaunchDashboardMode,
 } from './launchScope.js';
 
 function restoreLaunchVisibility() {
@@ -54,6 +55,18 @@ test('weekly self-audit 2026-11-04 item 1: flag-gated redirects lift when their 
   } finally {
     restoreLaunchVisibility();
   }
+});
+
+test('weekly self-audit 2026-11-04 item 2: the four restored modes normalize to themselves', () => {
+  assert.equal(normalizeLaunchDashboardMode('life_only', 'customer'), 'life_only');
+  assert.equal(normalizeLaunchDashboardMode('tool_owner', 'helper'), 'tool_owner');
+  assert.equal(normalizeLaunchDashboardMode('consultant', 'helper'), 'consultant');
+  assert.equal(normalizeLaunchDashboardMode('franchise_applicant', 'customer'), 'franchise_applicant');
+  // Existing mappings are untouched.
+  assert.equal(normalizeLaunchDashboardMode('customer', 'customer'), 'customer');
+  assert.equal(normalizeLaunchDashboardMode('helper', 'helper'), 'helper');
+  assert.equal(normalizeLaunchDashboardMode('business_owner', 'helper'), 'business_owner');
+  assert.equal(normalizeLaunchDashboardMode('admin', 'admin'), 'admin');
 });
 
 test('OxSteed Media routes remain available after launch', () => {
