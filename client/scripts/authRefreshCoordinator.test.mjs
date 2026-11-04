@@ -2,6 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { withCrossTabRefreshLock } from '../src/api/authRefreshCoordinator.js';
 import { isTransientRefreshFailure } from '../src/api/authRefreshPolicy.js';
+import { startsAuthSessionTransition } from '../src/api/authSessionEpoch.js';
+
+test('cookie-changing endpoints include supported sign-in aliases and mode-changing profile writes', () => {
+  for (const url of ['/auth/login', '/auth/login/2fa', '/auth/login/passkey', '/auth/register/verify-otp',
+    '/auth/internal-access/login', '/auth/internal-access/recovery/use', '/helper-registration/verify-otp',
+    '/passkeys/authentication/verify', '/auth/logout', '/auth/switch-role']) {
+    assert.equal(startsAuthSessionTransition(url, 'post'), true, url);
+  }
+  assert.equal(startsAuthSessionTransition('/api/auth/profile', 'put'), true);
+  assert.equal(startsAuthSessionTransition('/auth/me', 'patch'), true);
+  for (const url of ['/auth/me', '/auth/refresh', '/passkeys/authentication/options', '/food/orders']) {
+    assert.equal(startsAuthSessionTransition(url, 'get'), false, url);
+  }
+});
 
 function globals(t, values) {
   for (const [key, value] of Object.entries(values)) {

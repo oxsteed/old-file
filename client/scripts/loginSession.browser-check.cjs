@@ -63,7 +63,7 @@ async function fixture({ refreshable = false, legacyOnly = false, refreshFailure
     }
     let raw = '';for await (const chunk of req) raw += chunk;
     const body = raw ? JSON.parse(raw) : {};
-    calls.push({ path: url.pathname, method: req.method, body });
+    calls.push({ path: url.pathname, method: req.method, body, csrf: req.headers['x-csrf-token'] });
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-store');
     if (url.pathname === '/api/auth/me') {
@@ -100,8 +100,10 @@ async function fixture({ refreshable = false, legacyOnly = false, refreshFailure
         res.statusCode = 401;res.end('{"error":"Refresh token is required","code":"no_token"}');return;
       }
       refreshCount += 1;accessExpired = false;
+      res.setHeader('X-CSRF-Token', 'synthetic-rotated-csrf');
       res.setHeader('Set-Cookie', ['fixture_access=valid; HttpOnly; SameSite=Lax; Path=/',
-        'fixture_rt=valid; HttpOnly; SameSite=Lax; Path=/']);
+        'fixture_rt=valid; HttpOnly; SameSite=Lax; Path=/',
+        `fixture_identity=${responseUser.id}; HttpOnly; SameSite=Lax; Path=/`]);
       res.end(JSON.stringify({ success:true,user:responseUser }));return;
     }
     if (url.pathname === '/api/auth/login' && (!body.email || !body.password)) {
@@ -114,8 +116,19 @@ async function fixture({ refreshable = false, legacyOnly = false, refreshFailure
       if (loginFailure) { res.statusCode=loginFailure;res.end('{"error":"Synthetic incorrect credentials"}');return; }
       accessExpired = false;
       res.setHeader('Set-Cookie', ['fixture_access=valid; HttpOnly; SameSite=Lax; Path=/',
-        'fixture_rt=valid; HttpOnly; SameSite=Lax; Path=/']);
+        'fixture_rt=valid; HttpOnly; SameSite=Lax; Path=/',
+        `fixture_identity=${user.id}; HttpOnly; SameSite=Lax; Path=/`]);
       res.end(JSON.stringify({ user }));return;
+    }
+    if (url.pathname === '/api/auth/logout') {
+      res.setHeader('Set-Cookie', ['fixture_access=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+        'fixture_rt=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+        'fixture_identity=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0']);
+      res.end('{"success":true}');return;
+    }
+    if (url.pathname === '/api/auth/profile') {
+      res.statusCode = accessExpired ? 401 : 200;
+      res.end(JSON.stringify(accessExpired ? { error:'Synthetic expired access' } : { success:true, user }));return;
     }
     if (url.pathname === '/api/protected-write') {
       res.statusCode = accessExpired ? 401 : 200;
@@ -199,7 +212,7 @@ test('an older rejected refresh cannot expire a newer password login', async () 
     await page.evaluate(()=>{window.oldVerification=window.fixtureAuth.refreshUser().catch(error=>error.code);});
     await release.started;
     env.setRefreshFailure(null);env.setUser({id:'new-account'});
-    await page.evaluate(()=>window.fixtureAuth.login({email:'new@example.invalid',password:'Synthetic-password1'}));
+    await queueLoginAfterRefresh(page, release);
     assert.equal(await page.locator('[data-user]').innerText(),'new-account');
     release();await page.evaluate(()=>window.oldVerification);
     assert.equal(await page.locator('[data-user]').innerText(),'new-account');
@@ -215,12 +228,69 @@ test('an older successful refresh neither overwrites new-account storage nor rep
     env.expireAccess();release=env.delayRefresh();
     await page.evaluate(()=>{window.oldWrite=window.fixtureAPI.post('/protected-write',{synthetic:true}).catch(error=>error.code);});
     await release.started;env.setUser({id:'new-account'});
-    await page.evaluate(()=>window.fixtureAuth.login({email:'new@example.invalid',password:'Synthetic-password1'}));
+    await queueLoginAfterRefresh(page, release);
     release();await page.evaluate(()=>window.oldWrite);
     assert.equal(await page.locator('[data-user]').innerText(),'new-account');
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('user')).id),'new-account');
     assert.equal(env.calls.filter(call=>call.path==='/api/protected-write').length,1);
+    const cookies = await page.context().cookies();
+    assert.equal(cookies.find(cookie => cookie.name === 'fixture_identity')?.value, 'new-account');
   } finally { release();await env.close(); }
+});
+
+async function queueLoginAfterRefresh(page, release) {
+  await page.evaluate(() => { window.queuedLogin = window.fixtureAuth.login({ email:'new@example.invalid', password:'Synthetic-password1' }); });
+  await page.waitForFunction(async () => (await navigator.locks.query()).pending.some(lock => lock.name === 'oxsteed-auth-refresh'));
+  release();
+  await page.evaluate(() => window.queuedLogin);
+}
+
+test('logout in another tab waits for refresh cookies before clearing the shared session', async () => {
+  const env = await fixture({ refreshable:true });
+  let release = () => {};
+  try {
+    const context = await env.browser.newContext();
+    const first = await context.newPage();
+    const second = await context.newPage();
+    await seedCookieSession(first, env.url);
+    await first.goto(env.url+'/dashboard');
+    await first.locator('[data-user]').waitFor();
+    await second.goto(env.url+'/dashboard');
+    await second.locator('[data-user]').waitFor();
+    release = env.delayRefresh();
+    await first.evaluate(() => { window.pendingRotation = window.fixtureAuth.refreshSession().catch(error => error.code); });
+    await release.started;
+    await second.evaluate(() => { window.pendingLogout = window.fixtureAuth.logout(); });
+    await second.waitForFunction(async () => (await navigator.locks.query()).pending.some(lock => lock.name === 'oxsteed-auth-refresh'));
+    assert.equal(env.calls.some(call => call.path === '/api/auth/logout'), false);
+    release();
+    await second.evaluate(() => window.pendingLogout);
+    await first.evaluate(() => window.pendingRotation);
+    await first.waitForURL('**/login');
+    assert.equal(await first.locator('[data-user]').count(), 0);
+    const cookies = await context.cookies();
+    assert.equal(cookies.some(cookie => cookie.name.startsWith('fixture_')), false);
+  } finally { release(); await env.close(); }
+});
+
+test('a profile write can refresh and retry without nesting the cookie lock', { timeout:15000 }, async () => {
+  const env = await fixture({ refreshable:true });
+  try {
+    const page = await env.browser.newPage();
+    await seedCookieSession(page,env.url);
+    await page.goto(env.url+'/dashboard');
+    await page.locator('[data-user]').waitFor();
+    env.expireAccess();
+    const result = await page.evaluate(async () => {
+      const { data } = await window.fixtureAPI.put('/auth/profile',{ first_name:'Synthetic edit' });
+      return data.success;
+    });
+    assert.equal(result,true);
+    assert.equal(env.calls.filter(call=>call.path==='/api/auth/refresh').length,1);
+    const writes=env.calls.filter(call=>call.path==='/api/auth/profile');
+    assert.equal(writes.length,2);
+    assert.equal(writes[1].csrf,'synthetic-rotated-csrf');
+  } finally { await env.close(); }
 });
 
 test('an older 401 cannot start a refresh after the account has changed', async()=>{

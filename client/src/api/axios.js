@@ -2,6 +2,7 @@ import axios from 'axios';
 import { getCsrfToken } from './csrfToken';
 import { existingPromotionVisitorId, isPromotionConversionRequest } from '../utils/promotionVisitor';
 import { currentAuthEpoch, advanceAuthEpoch, assertCurrentAuthEpoch, startsAuthSessionTransition } from './authSessionEpoch';
+import { withCrossTabRefreshLock } from './authRefreshCoordinator';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -51,8 +52,21 @@ function getDeviceFingerprint() {
 api.interceptors.request.use((config) => {
   if (config._retry) assertCurrentAuthEpoch(config._authEpoch);
   // Fence earlier work before a credential-changing response can set cookies.
-  if (startsAuthSessionTransition(config.url)) config._authEpoch = advanceAuthEpoch();
+  const sessionTransition = startsAuthSessionTransition(config.url, config.method);
+  if (sessionTransition) config._authEpoch = advanceAuthEpoch();
   else config._authEpoch ??= currentAuthEpoch();
+  if (sessionTransition && !config._authCookieCoordinated) {
+    const adapter = axios.getAdapter(config.adapter || api.defaults.adapter);
+    config._authCookieCoordinated = true;
+    // Hold the same lock as refresh until the browser has processed response
+    // cookies. Fencing response data alone cannot undo an old Set-Cookie.
+    config.adapter = request => withCrossTabRefreshLock(() => {
+      const csrf = getCsrfToken();
+      if (csrf) request.headers['X-CSRF-Token'] = csrf;
+      else delete request.headers['X-CSRF-Token'];
+      return adapter(request);
+    });
+  }
   const token = sessionStorage.getItem('oxs:impersonation_token');
 
   // Only add Authorization header for impersonation; the normal session
