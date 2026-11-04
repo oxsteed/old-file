@@ -661,7 +661,8 @@ export default function App() {
                     <Route path="/settings/sessions" element={<Guarded><ProtectedRoute><SessionsSetup /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/your-data" element={<Guarded><ProtectedRoute><YourData /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
-                    <Route path="/settings/country" element={<Guarded><CountrySettings /></Guarded>} />
+                    {/* Weekly self-audit 2026-11-04 item 11: every sibling settings route wraps in ProtectedRoute; this one did not. */}
+                    <Route path="/settings/country" element={<Guarded><ProtectedRoute><CountrySettings /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/payment-policies" element={<Guarded><ProtectedRoute><HelperCancellationSettings /></ProtectedRoute></Guarded>} />
                     {/* Review P1-208: the stub editor is retired; the dashboard tab is the real editor. */}
                     <Route path="/dashboard/edit-profile" element={<Guarded><ProtectedRoute><Navigate to="/dashboard?tab=editprofile" replace /></ProtectedRoute></Guarded>} />
