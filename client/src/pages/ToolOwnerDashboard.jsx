@@ -129,7 +129,7 @@ export default function ToolOwnerDashboard() {
             </p>
           </div>
           <Link
-            to="/profile/tool-rentals/new"
+            to="/dashboard?tab=skills"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
           >
             <Plus size={16} /> {t('dashboards.toolOwner.listTool', { defaultValue: 'List a new tool' })}
@@ -179,7 +179,7 @@ export default function ToolOwnerDashboard() {
                 <h3 className="text-sm font-semibold">{t('dashboards.toolOwner.pendingRequests', { defaultValue: 'Pending requests' })}</h3>
               </div>
               {bookings.filter(b => b.status === 'pending').length > 0 && (
-                <Link to="/profile/tool-rentals/bookings" className="text-xs text-orange-400 hover:text-orange-300">
+                <Link to="/dashboard?tab=skills" className="text-xs text-orange-400 hover:text-orange-300">
                   {t('common.viewAll', { defaultValue: 'View all' })}
                 </Link>
               )}
@@ -204,7 +204,7 @@ export default function ToolOwnerDashboard() {
                         </div>
                       </div>
                       <Link
-                        to={`/profile/tool-rentals/bookings/${b.id}`}
+                        to={"/dashboard?tab=skills"}
                         className="text-xs px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold flex-shrink-0"
                       >
                         {t('common.review', { defaultValue: 'Review' })}
@@ -270,7 +270,7 @@ export default function ToolOwnerDashboard() {
             {listings.length === 0 ? (
               <div className="text-xs flex items-center gap-3 py-4" style={{ color: 'var(--color-text-muted)' }}>
                 <span>{loaded ? t('dashboards.toolOwner.noListings', { defaultValue: "You haven't listed any tools yet." }) : t('common.loading', { defaultValue: 'Loading...' })}</span>
-                <Link to="/profile/tool-rentals/new" className="text-orange-400 hover:text-orange-300 inline-flex items-center gap-1">
+                <Link to="/dashboard?tab=skills" className="text-orange-400 hover:text-orange-300 inline-flex items-center gap-1">
                   {t('dashboards.toolOwner.listFirst', { defaultValue: 'List your first tool' })} <ArrowRight size={12} />
                 </Link>
               </div>
@@ -288,7 +288,7 @@ export default function ToolOwnerDashboard() {
                         </span>
                       )}
                     </div>
-                    <Link to={`/profile/tool-rentals/${l.id}`} className="text-[11px] text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 mt-2">
+                    <Link to={"/dashboard?tab=skills"} className="text-[11px] text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 mt-2">
                       {t('common.edit', { defaultValue: 'Edit' })} <ArrowRight size={11} />
                     </Link>
                   </li>

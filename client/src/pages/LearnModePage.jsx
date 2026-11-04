@@ -3843,7 +3843,7 @@ function getPersona(user) {
 const HERO = {
   guest:         { titleKey: 'learn.page.hero.guest.title',         subKey: 'learn.page.hero.guest.sub',         ctaKey: null,                              href: null },
   customer:      { titleKey: 'learn.page.hero.customer.title',      subKey: 'learn.page.hero.customer.sub',      ctaKey: 'learn.page.hero.customer.cta',      href: '/join?mode=helper' },
-  helper:        { titleKey: 'learn.page.hero.helper.title',        subKey: 'learn.page.hero.helper.sub',        ctaKey: 'learn.page.hero.helper.cta',        href: '/helper-profile/skills' },
+  helper:        { titleKey: 'learn.page.hero.helper.title',        subKey: 'learn.page.hero.helper.sub',        ctaKey: 'learn.page.hero.helper.cta',        href: '/dashboard?tab=skills' },
   consultant:    { titleKey: 'learn.page.hero.consultant.title',    subKey: 'learn.page.hero.consultant.sub',    ctaKey: 'learn.page.hero.consultant.cta',    href: null },
   business:      { titleKey: 'learn.page.hero.business.title',      subKey: 'learn.page.hero.business.sub',      ctaKey: 'learn.page.hero.business.cta',      href: '/business-hub' },
   investor:      { titleKey: 'learn.page.hero.investor.title',      subKey: 'learn.page.hero.investor.sub',      ctaKey: 'learn.page.hero.investor.cta',      href: '/marketplace' },
@@ -4608,7 +4608,7 @@ export default function LearnModePage() {
               <strong>{helperPrompt.guideTitle}</strong> {t('learn.page.helperPromptCompleted')}
               {' '}{t('learn.page.helperPromptAdd', { skill: helperPrompt.skill })}
             </span>
-            <Link to="/helper-profile/skills" className="lrn-helper-prompt-cta">{t('learn.page.helperPromptLink')}</Link>
+            <Link to="/dashboard?tab=skills" className="lrn-helper-prompt-cta">{t('learn.page.helperPromptLink')}</Link>
             <button
               type="button"
               className="lrn-helper-prompt-close"
@@ -5284,7 +5284,7 @@ export default function LearnModePage() {
                               {persona === 'helper' ? (
                                 <>
                                   <p className="lrn-cta-label"><User size={13} aria-hidden="true" />{t('learn.page.ctaYouKnowSkill')}</p>
-                                  <Link to="/helper-profile/skills" className="lrn-cta-primary">{t('learn.page.addToProfile')}</Link>
+                                  <Link to="/dashboard?tab=skills" className="lrn-cta-primary">{t('learn.page.addToProfile')}</Link>
                                   <Link to={guide.hireHref} className="lrn-cta-secondary" onClick={() => trackLearnClick(guide.id, 'quote', guide.hireHref)}>{t('jobs.postJob', { defaultValue: 'Post a job in this category' })}</Link>
                                 </>
                               ) : persona === 'customer' ? (
@@ -5314,7 +5314,7 @@ export default function LearnModePage() {
                                 ? 'Complete this guide and add it to your Helper profile as a verified skill.'
                                 : 'Complete enough guides in a category and you can list yourself as a Helper, turning what you learn into income.'}
                             </span>
-                            <Link to={persona === 'helper' ? '/helper-profile/skills' : '/join?mode=helper'}>
+                            <Link to={persona === 'helper' ? '/dashboard?tab=skills' : '/join?mode=helper'}>
                               {persona === 'helper' ? 'Go to your profile' : 'See how it works'}
                             </Link>
                           </div>
