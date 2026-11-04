@@ -3,7 +3,6 @@ const router = express.Router();
 const consultingController = require('../controllers/allPhasesConsultingController');
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
-const { generalLimiter } = require('../middleware/rateLimiter');
 
 const adminAuth = [authenticate, requireAdmin, requirePermission('manage_operations')];
 
