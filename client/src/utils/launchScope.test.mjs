@@ -70,16 +70,29 @@ test('weekly self-audit 2026-11-04 item 2: the four restored modes normalize to 
 });
 
 test('OxSteed Media routes remain available after launch', () => {
-  assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, true);
-  assert.equal(getLaunchRedirect('/media'), null);
-  assert.equal(getLaunchRedirect('/media/search'), null);
-  assert.equal(getLaunchRedirect('/media/post/abc'), null);
+  // Weekly self-audit 2026-11-04 item 12: the build-time default is now
+  // false (matching the server); the routes open once the server launch
+  // map turns media on, as the boot fetch does in production.
+  try {
+    LAUNCH_VISIBILITY.oxsteedMedia = true;
+    assert.equal(getLaunchRedirect('/media'), null);
+    assert.equal(getLaunchRedirect('/media/search'), null);
+    assert.equal(getLaunchRedirect('/media/post/abc'), null);
+  } finally {
+    restoreLaunchVisibility();
+  }
 });
 
 test('Business Hub media tab follows oxsteedMedia launch flag', () => {
   assert.equal(isBusinessHubTabLaunched('overview'), true);
-  assert.equal(isBusinessHubTabLaunched('media'), true);
   assert.equal(LAUNCH_BUSINESS_HUB_TABS.has('media'), false);
+  try {
+    assert.equal(isBusinessHubTabLaunched('media'), false);
+    LAUNCH_VISIBILITY.oxsteedMedia = true;
+    assert.equal(isBusinessHubTabLaunched('media'), true);
+  } finally {
+    restoreLaunchVisibility();
+  }
 });
 
 test('P2-9-F04: intake triage tabs are launched so notification deep links open in-product', () => {
@@ -128,5 +141,6 @@ test('applyServerLaunchVisibility ignores null, empty, and non-object patches', 
   assert.doesNotThrow(() => applyServerLaunchVisibility({}));
   assert.doesNotThrow(() => applyServerLaunchVisibility('on'));
   assert.equal(LAUNCH_VISIBILITY.templates, false);
-  assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, true);
+  // Weekly self-audit 2026-11-04 item 12: build-time default is false.
+  assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, false);
 });

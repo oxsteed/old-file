@@ -105,7 +105,11 @@ export const LAUNCH_DEFAULTS = Object.freeze({
   // Review P3-7-F09: build-time default only. The server is the single source
   // of truth; main.jsx fetches /api/launch-visibility at boot and overrides
   // this via applyServerLaunchVisibility().
-  oxsteedMedia: true,
+  // Weekly self-audit 2026-11-04 item 12: false to match the server default
+  // (OXSTEED_MEDIA_LAUNCHED, default off). The old true default meant a
+  // failed or timed-out boot fetch rendered Media UI against gated Media
+  // APIs, the exact failure mode P3-7-F09 was built to prevent.
+  oxsteedMedia: false,
   discoverEverything: false,
   footerUtilityPills: true,
   // Weekly self-audit 2026-11-04 item 1: mirrors FRANCHISE_ENABLED on the
