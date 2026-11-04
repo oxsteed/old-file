@@ -32,6 +32,30 @@ test('launched surfaces are not redirected (footer links stay live)', () => {
   assert.equal(getLaunchRedirect('/products'), null);
 });
 
+test('weekly self-audit 2026-11-04 item 1: flag-gated redirects lift when their flag turns on', () => {
+  try {
+    assert.equal(getLaunchRedirect('/discover'), '/jobs');
+    assert.equal(getLaunchRedirect('/templates'), '/business-hub');
+    assert.equal(getLaunchRedirect('/franchise/status'), '/business-hub');
+    assert.equal(getLaunchRedirect('/consulting/portal'), '/business-hub');
+    assert.equal(getLaunchRedirect('/consultant-availability'), '/calendar');
+    LAUNCH_VISIBILITY.discoverEverything = true;
+    LAUNCH_VISIBILITY.templates = true;
+    LAUNCH_VISIBILITY.franchise = true;
+    LAUNCH_VISIBILITY.consulting = true;
+    assert.equal(getLaunchRedirect('/discover'), null);
+    assert.equal(getLaunchRedirect('/templates'), null);
+    assert.equal(getLaunchRedirect('/franchise/status'), null);
+    assert.equal(getLaunchRedirect('/consulting/portal'), null);
+    assert.equal(getLaunchRedirect('/consultant-availability'), null);
+    // Entries with no owning flag stay unconditional.
+    assert.equal(getLaunchRedirect('/network'), '/dashboard');
+    assert.equal(getLaunchRedirect('/cart'), '/restaurants');
+  } finally {
+    restoreLaunchVisibility();
+  }
+});
+
 test('OxSteed Media routes remain available after launch', () => {
   assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, true);
   assert.equal(getLaunchRedirect('/media'), null);

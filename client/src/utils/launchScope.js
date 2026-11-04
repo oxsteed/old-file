@@ -81,12 +81,22 @@ export const LAUNCH_DEFAULTS = Object.freeze({
   // Review P3-943: the Vortex APIs return 503 unless the server sets
   // VORTEX_ENABLED. The client mirrors it via VITE_VORTEX_ENABLED (set both).
   businessHubVortexAccess: VORTEX_CLIENT_ENABLED,
+  // Weekly self-audit 2026-11-04 item 1: consulting and franchise are real
+  // launch keys, not new flags. The server already gates their APIs
+  // (CONSULTING_ENABLED, FRANCHISE_ENABLED, both default off), and
+  // /api/launch-visibility serves them through LAUNCH_KEY_ENV, so the boot
+  // fetch overrides these build-time defaults. Both stay false here; only
+  // an env flip plus a redeploy turns either surface on.
+  consulting: false,
   // Review P3-7-F09: build-time default only. The server is the single source
   // of truth; main.jsx fetches /api/launch-visibility at boot and overrides
   // this via applyServerLaunchVisibility().
   oxsteedMedia: true,
   discoverEverything: false,
   footerUtilityPills: true,
+  // Weekly self-audit 2026-11-04 item 1: mirrors FRANCHISE_ENABLED on the
+  // server (default off). See the consulting comment above.
+  franchise: false,
   genericQrGenerator: false,
   helperEarnings: true,
   helperGrowthCenter: false,
@@ -138,32 +148,53 @@ export function isLaunchSelfSelectableMode(mode) {
   return LAUNCH_SELF_SELECTABLE_MODES.includes(mode);
 }
 
+// Weekly self-audit 2026-11-04 item 1: this table used to be flag-blind,
+// so flipping a launch flag could never restore its routes. Entries with a
+// `flag` redirect only while that LAUNCH_VISIBILITY key is off; when the
+// flag turns on, the route renders. Entries without a `flag` have no owning
+// launch flag in the client or on the server, so their redirect is
+// intentional and unconditional until a flag is defined for that product;
+// each such entry says so below rather than pretending a flag restores it.
+// The previous comment on /discover claimed flipping discoverEverything
+// restores it; that was false before this change because the code never
+// checked the flag. It is true now.
 const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
   // Review P1-7-F01 (by design): /discover is the "Discover Everything"
   // cross-entity search surface (DiscoverPage.jsx: helpers, jobs,
-  // businesses, tools, products). It is unlaunched (discoverEverything is
-  // false and the HomePage discover tab only renders when the flag is on),
-  // so the route intentionally redirects to /jobs, the launched discovery
-  // surface. Flipping discoverEverything to true restores it in one place.
-  { prefix: '/discover', to: '/jobs' },
+  // businesses, tools, products). While discoverEverything is off it
+  // redirects to /jobs, the launched discovery surface.
+  { prefix: '/discover', to: '/jobs', flag: 'discoverEverything' },
+  // No owning flag: translator has no launch key on either side, so this
+  // redirect stays unconditional until one is defined.
   { prefix: '/translator', to: '/' },
+  // No routes exist for these paths in App.jsx; the redirect is a legacy
+  // deep-link catch so old links land on /restaurants instead of NotFound,
+  // not a launch gate.
   { prefix: '/cart', to: '/restaurants' },
   { prefix: '/shared-cart', to: '/restaurants' },
   { prefix: '/checkout', to: '/restaurants' },
+  // No owning flag: the investor surface has no launch key on either side,
+  // so these redirects stay unconditional until one is defined.
   { prefix: '/investor/login', to: '/login' },
   { prefix: '/investor', to: '/dashboard' },
   // Review P3-7-F06: /affiliate is gated by the affiliateRewards flag rather
   // than a static redirect, so the flag has a real consumer.
+  // No owning flag for the entries below: network, planned-needs, car-care,
+  // upgrade, promote, and business-launch-status have no launch key on
+  // either side (networkBranchSwitcher gates only the branch switcher, not
+  // the /network product; businessAscension gates a HomePage upsell, not
+  // the launch-status page). Their redirects stay unconditional until a
+  // flag is defined for each product.
   { prefix: '/network', to: '/dashboard' },
   { prefix: '/planned-needs', to: '/dashboard' },
   { prefix: '/car-care', to: '/dashboard' },
   { prefix: '/upgrade', to: '/dashboard' },
-  { prefix: '/templates', to: '/business-hub' },
+  { prefix: '/templates', to: '/business-hub', flag: 'templates' },
   { prefix: '/promote', to: '/business-hub' },
-  { prefix: '/consultant-availability', to: '/calendar' },
-  { prefix: '/consulting', to: '/business-hub' },
+  { prefix: '/consultant-availability', to: '/calendar', flag: 'consulting' },
+  { prefix: '/consulting', to: '/business-hub', flag: 'consulting' },
   { prefix: '/business-launch-status', to: '/business-hub' },
-  { prefix: '/franchise', to: '/business-hub' },
+  { prefix: '/franchise', to: '/business-hub', flag: 'franchise' },
 ]);
 
 function mediaLaunchRedirect(pathname) {
@@ -203,7 +234,8 @@ export function getLaunchRedirect(pathname = '/') {
     return '/dashboard';
   }
 
-  return LAUNCH_ROUTE_REDIRECTS.find(({ prefix }) => matchesPathPrefix(normalizedPath, prefix))?.to || null;
+  return LAUNCH_ROUTE_REDIRECTS.find(({ prefix, flag }) => matchesPathPrefix(normalizedPath, prefix)
+    && (!flag || !LAUNCH_VISIBILITY[flag]))?.to || null;
 }
 
 export function normalizeLaunchDashboardMode(mode, role) {
