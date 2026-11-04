@@ -1,9 +1,9 @@
 import useNotifications from '../hooks/useNotifications';
-import { getAccountSnapshot, invalidateAccountSnapshots } from '../api/accountSnapshot';
+import useUnreadMessages from '../hooks/useUnreadMessages';
 import { useLocation } from 'react-router-dom';
 import PrefetchLink from './PrefetchLink';
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import ThemeToggle from './ThemeToggle';
@@ -18,7 +18,6 @@ import { useNavDisclosure } from '../hooks/useNavDisclosure';
 import { useSupportWorkspaceAccess } from '../hooks/useSupportWorkspaceAccess';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { canUseQrGenerator } from '../utils/modeAccess';
-import { useSocket } from '../hooks/useSocket';
 import '../styles/BusinessSwitcher.css';
 import { OxSteedIcon } from './OxSteedIcon';
 import './Navbar.css';
@@ -32,11 +31,10 @@ const SHOW_NETWORK_BRANCH_SWITCHER = LAUNCH_VISIBILITY.networkBranchSwitcher;
 
 export default function Navbar() {
   const { user, logout, isHelper } = useAuth();
-  const { socket } = useSocket();
   const { t } = useTranslation();
   const location = useLocation();
   const { unreadCount: unreadNotifs } = useNotifications();
-  const [unreadMsgs, setUnreadMsgs] = useState(0);
+  const { unreadCount: unreadMsgs } = useUnreadMessages();
   const currentMode = navbarMode(user);
   const { open: mobileOpen, setOpen: setMobileOpen, containerRef: mobileRef, triggerRef: mobileTriggerRef, panelId: mobilePanelId } = useNavDisclosure(currentMode);
   const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
@@ -47,49 +45,6 @@ export default function Navbar() {
   const navigation = navbarNavigation(user, { dashboardPath, workspacePath, showSupportWorkspace: showSupportWorkspaceNav });
   const showBusinessHub = !!user && navigation.showBusinessSwitcher;
   const modeLabel = t(MODE_CATALOG[currentMode]?.labelKey || 'modes.customer.label');
-
-  const refreshUnreadCounts = useCallback(async () => {
-    if (!user) {
-      setUnreadMsgs(0);
-      return;
-    }
-    const [msgRes, guestRes] = await Promise.allSettled([
-      getAccountSnapshot(user.id, '/messages/conversations'),
-      getAccountSnapshot(user.id, '/messages/guest-inquiries'),
-    ]);
-    const convos = msgRes.status === 'fulfilled'
-      ? (msgRes.value.data?.conversations || msgRes.value.data || [])
-      : [];
-    const guestInquiries = guestRes.status === 'fulfilled'
-      ? (guestRes.value.data?.inquiries || guestRes.value.data || [])
-      : [];
-    setUnreadMsgs(
-      (Array.isArray(convos) ? convos : []).filter((conversation) => Number(conversation.unread_count) > 0).length
-      + (Array.isArray(guestInquiries) ? guestInquiries : []).filter((inquiry) => Number(inquiry.unread_count) > 0).length,
-    );
-  }, [user]);
-
-  useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState === 'hidden') return;
-      invalidateAccountSnapshots(user?.id);
-      void refreshUnreadCounts();
-    };
-    void refreshUnreadCounts();
-    if (!user) return undefined;
-    const onVisibility = () => { if (document.visibilityState === 'visible') refresh(); };
-    const messageEvents = ['message:new', 'profile_chat:new_message', 'business_inbox:conversation', 'messages:read', 'connect'];
-    messageEvents.forEach((eventName) => socket?.on(eventName, refresh));
-    window.addEventListener('focus', refresh);
-    window.addEventListener('oxsteed:messages-read', refresh);
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      messageEvents.forEach((eventName) => socket?.off(eventName, refresh));
-      window.removeEventListener('focus', refresh);
-      window.removeEventListener('oxsteed:messages-read', refresh);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [refreshUnreadCounts, socket, user]);
 
   useEffect(() => { setResourcesMenuOpen(false); }, [location.pathname, location.search, currentMode]);
 
