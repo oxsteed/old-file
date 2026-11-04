@@ -71,10 +71,18 @@ registerTask("summary-dirty", 15_000, () => summaries.computeDirty({ limit: 200 
 registerTask("summary-stale", 60_000, () => summaries.sweepStale({ limit: 200 }));
 
 async function tick(now = Date.now()) {
+  const due = [];
   for (const task of TASKS) {
     if (task.running || now - task.lastAt < task.everyMs) continue;
     task.running = true;
     task.lastAt = now;
+    due.push(task);
+  }
+  // Run due tasks concurrently instead of serially: a slow summary recompute
+  // no longer starves anomaly scans, the lifecycle sweep, or queue SLA
+  // behind it. Each task keeps its own overlap guard (running flag) and
+  // its own error handling, so one failing task never blocks the rest.
+  await Promise.all(due.map(async (task) => {
     try {
       await task.run();
     } catch (error) {
@@ -82,7 +90,7 @@ async function tick(now = Date.now()) {
     } finally {
       task.running = false;
     }
-  }
+  }));
 }
 
 function startCustomer360Upgrades() {

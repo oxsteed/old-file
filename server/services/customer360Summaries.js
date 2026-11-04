@@ -18,6 +18,7 @@
  *    staleness (fresh / dirty / stale / outdated_model / missing) and age.
  */
 const db = require("../db");
+const { mapBounded } = require("../utils/boundedBatch");
 const { sources } = require("./customer360Sources");
 
 const MODEL_VERSION = "c360-summary-v1";
@@ -148,15 +149,17 @@ async function claim(where, order, limit) {
 }
 
 async function computeAll(ids) {
-  let computed = 0;
+  // Bounded concurrency: a 200-deep dirty queue no longer drains strictly
+  // serially, while the pool still caps simultaneous recomputes at 5.
   const failed = [];
-  for (const id of ids) {
+  let computed = 0;
+  await mapBounded(ids, 5, async (id) => {
     try {
       if (await computeOne(id)) computed += 1;
     } catch {
       failed.push(id);
     }
-  }
+  });
   // Release leases of failures early so a retry is not blocked for the lease.
   if (failed.length) await db.query(`UPDATE customer360_summaries SET claimed_until = NOW() + interval '5 minutes' WHERE customer_id = ANY($1)`, [failed]);
   return { computed, failed: failed.length };

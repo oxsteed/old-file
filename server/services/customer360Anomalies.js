@@ -66,24 +66,35 @@ async function scanLogins({ limit = 2000, env } = {}) {
   const { rows } = await db.query(
     `SELECT id, customer_id, entity_id, occurred_at, changes->>'country' AS country
        FROM customer_events WHERE id > $1 AND event_type = 'login.succeeded' ORDER BY id LIMIT $2`, [from, limit]);
+  const candidates = rows.filter((e) => /^[A-Z]{2}$/.test(String(e.country || "")));
   let found = 0;
-  for (const e of rows) {
-    if (!/^[A-Z]{2}$/.test(String(e.country || ""))) continue;
-    const { rows: [h] } = await db.query(
-      `SELECT COUNT(*)::int AS prior,
-              COUNT(*) FILTER (WHERE country_code = $3)::int AS same,
-              ARRAY(SELECT DISTINCT country_code FROM user_login_history
-                     WHERE user_id = $1 AND success AND id <> $2::bigint AND country_code IS NOT NULL
-                       AND COALESCE(login_at, created_at) BETWEEN $4::timestamptz - ($5 * INTERVAL '1 day') AND $4::timestamptz
+  if (candidates.length) {
+    // One grouped history lookup for the whole batch instead of one query
+    // per candidate event (same window, same exclusion, same country match).
+    const { rows: histories } = await db.query(
+      `SELECT v.user_id, v.entity_id,
+              COUNT(h.id)::int AS prior,
+              COUNT(*) FILTER (WHERE h.country_code = v.country)::int AS same,
+              ARRAY(SELECT DISTINCT h2.country_code FROM user_login_history h2
+                     WHERE h2.user_id = v.user_id AND h2.success AND h2.id <> v.entity_id AND h2.country_code IS NOT NULL
+                       AND COALESCE(h2.login_at, h2.created_at) BETWEEN v.occurred_at - ($5 * INTERVAL '1 day') AND v.occurred_at
                      LIMIT 5) AS previous
-         FROM user_login_history
-        WHERE user_id = $1 AND success AND id <> $2::bigint AND country_code IS NOT NULL
-          AND COALESCE(login_at, created_at) BETWEEN $4::timestamptz - ($5 * INTERVAL '1 day') AND $4::timestamptz`,
-      [e.customer_id, e.entity_id, e.country, e.occurred_at, t.countryLookbackDays]);
-    if (h.prior > 0 && h.same === 0) {
-      await detect(null, { customerId: e.customer_id, kind: "new_country_login",
-        evidence: { country: e.country, previousCountries: h.previous.sort() }, key: `login:${e.entity_id}` });
-      found += 1;
+         FROM (SELECT * FROM unnest($1::uuid[], $2::bigint[], $3::text[], $4::timestamptz[]))
+           AS v(user_id, entity_id, country, occurred_at)
+         LEFT JOIN user_login_history h
+           ON h.user_id = v.user_id AND h.success AND h.id <> v.entity_id AND h.country_code IS NOT NULL
+          AND COALESCE(h.login_at, h.created_at) BETWEEN v.occurred_at - ($5 * INTERVAL '1 day') AND v.occurred_at
+        GROUP BY v.user_id, v.entity_id, v.country, v.occurred_at`,
+      [candidates.map((e) => e.customer_id), candidates.map((e) => Number(e.entity_id)),
+       candidates.map((e) => e.country), candidates.map((e) => e.occurred_at), t.countryLookbackDays]);
+    const byEntity = new Map(histories.map((h) => [String(h.entity_id), h]));
+    for (const e of candidates) {
+      const h = byEntity.get(String(e.entity_id));
+      if (h && h.prior > 0 && h.same === 0) {
+        await detect(null, { customerId: e.customer_id, kind: "new_country_login",
+          evidence: { country: e.country, previousCountries: (h.previous || []).sort() }, key: `login:${e.entity_id}` });
+        found += 1;
+      }
     }
   }
   if (rows.length) await advance("anomalies_login", rows[rows.length - 1].id);
@@ -104,20 +115,28 @@ async function scanRefunds({ env } = {}) {
        FROM recent GROUP BY customer_id ORDER BY MAX(created_at) LIMIT 500`,
     [since]);
   let found = 0;
-  for (const r of rows) {
-    const { rows: [c] } = await db.query(
+  if (rows.length) {
+    // One grouped baseline lookup for all candidate customers instead of
+    // one query per customer.
+    const { rows: baselines } = await db.query(
       `WITH all_refunds AS (
-         SELECT ra.created_at FROM payment_refund_attempts ra JOIN payments p ON p.id = ra.payment_id WHERE p.payer_id = $1
-         UNION ALL SELECT created_at FROM food_credit_refunds WHERE customer_id = $1)
-       SELECT COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')::int AS week,
+         SELECT ra.created_at, p.payer_id AS customer_id FROM payment_refund_attempts ra JOIN payments p ON p.id = ra.payment_id WHERE p.payer_id = ANY($1)
+         UNION ALL SELECT created_at, customer_id FROM food_credit_refunds WHERE customer_id = ANY($1))
+       SELECT customer_id,
+              COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')::int AS week,
               COUNT(*) FILTER (WHERE created_at <= NOW() - INTERVAL '7 days' AND created_at > NOW() - INTERVAL '97 days')::int AS prior
-         FROM all_refunds`, [r.customer_id]);
-    const baseline = c.prior / (90 / 7);
-    if (c.week >= t.refundMin && c.week >= t.refundRatio * Math.max(baseline, 1 / t.refundRatio)) {
-      await detect(null, { customerId: r.customer_id, kind: "refund_spike",
-        evidence: { refunds7d: c.week, baselineWeekly: Math.round(baseline * 100) / 100 },
-        key: `refund:${r.customer_id}:${r.latest_us}` });
-      found += 1;
+         FROM all_refunds GROUP BY customer_id`,
+      [rows.map((r) => r.customer_id)]);
+    const byCustomer = new Map(baselines.map((b) => [b.customer_id, b]));
+    for (const r of rows) {
+      const c = byCustomer.get(r.customer_id) || { week: 0, prior: 0 };
+      const baseline = c.prior / (90 / 7);
+      if (c.week >= t.refundMin && c.week >= t.refundRatio * Math.max(baseline, 1 / t.refundRatio)) {
+        await detect(null, { customerId: r.customer_id, kind: "refund_spike",
+          evidence: { refunds7d: c.week, baselineWeekly: Math.round(baseline * 100) / 100 },
+          key: `refund:${r.customer_id}:${r.latest_us}` });
+        found += 1;
+      }
     }
   }
   if (rows.length) await advance("anomalies_refund", rows[rows.length - 1].latest_us);
@@ -133,14 +152,22 @@ async function scanPayouts({ env } = {}) {
       WHERE status = 'failed' AND updated_at > (TIMESTAMPTZ 'epoch' + $1::bigint * INTERVAL '1 microsecond')
       GROUP BY user_id ORDER BY MAX(updated_at) LIMIT 500`, [since]);
   let found = 0;
-  for (const r of rows) {
-    const { rows: [c] } = await db.query(
-      `SELECT COUNT(*)::int AS week FROM instant_payouts WHERE user_id = $1 AND status = 'failed' AND updated_at > NOW() - INTERVAL '7 days'`,
-      [r.user_id]);
-    if (c.week >= t.payoutMin) {
-      await detect(null, { customerId: r.user_id, kind: "payout_failures", evidence: { failures7d: c.week },
-        key: `payout:${r.user_id}:${r.latest_us}` });
-      found += 1;
+  if (rows.length) {
+    // One grouped count for all candidate customers instead of one query
+    // per customer.
+    const { rows: counts } = await db.query(
+      `SELECT user_id, COUNT(*)::int AS week FROM instant_payouts
+        WHERE user_id = ANY($1) AND status = 'failed' AND updated_at > NOW() - INTERVAL '7 days'
+        GROUP BY user_id`,
+      [rows.map((r) => r.user_id)]);
+    const byUser = new Map(counts.map((c) => [c.user_id, c.week]));
+    for (const r of rows) {
+      const week = byUser.get(r.user_id) || 0;
+      if (week >= t.payoutMin) {
+        await detect(null, { customerId: r.user_id, kind: "payout_failures", evidence: { failures7d: week },
+          key: `payout:${r.user_id}:${r.latest_us}` });
+        found += 1;
+      }
     }
   }
   if (rows.length) await advance("anomalies_payout", rows[rows.length - 1].latest_us);
