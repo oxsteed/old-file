@@ -3,7 +3,8 @@ import { deferAppUpdates, isUpdateSensitivePath } from '../utils/appUpdateSafety
 
 const EDITABLE = 'input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select, [contenteditable="true"]';
 const MODALS = '[role="dialog"][aria-modal="true"], dialog[open]';
-const visible = element => !element.hidden && element.getClientRects().length > 0;
+const visible = element => !element.hidden && element.getAttribute('data-pwa-control-overlap') !== 'true'
+  && element.getClientRects().length > 0;
 
 export function usePwaNoticeCoordination({ pathname, cookiesOpen, connectionStatus, waitingWorker }) {
   const [editedPath, setEditedPath] = useState(null);
@@ -52,7 +53,7 @@ export function usePwaNoticeCoordination({ pathname, cookiesOpen, connectionStat
     inspect();
     const observer = new MutationObserver(inspect);
     observer.observe(document.body, { childList: true, subtree: true, attributes: true,
-      attributeFilter: ['open', 'hidden', 'aria-hidden', 'aria-modal', 'data-update-defer', 'data-pwa-connection-recovery'] });
+      attributeFilter: ['open', 'hidden', 'aria-hidden', 'aria-modal', 'data-update-defer', 'data-pwa-connection-recovery', 'data-pwa-control-overlap'] });
     const root = document.documentElement;
     let cookieHeight = root.style.getPropertyValue('--cookie-banner-height');
     const rootObserver = new MutationObserver(records => {

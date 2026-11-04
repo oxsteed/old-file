@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import { useTranslation } from 'react-i18next';
 import SpeechToTextInput from './SpeechToTextInput';
+import SupportLauncher from './SupportLauncher';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -856,8 +857,8 @@ function markProactiveDismissed() {
     <>
       {/* ── FAB ── */}
       {(!open || !isMobile) && (
-        <button
-          data-pwa-support-launcher
+        <SupportLauncher
+          yieldToPage={!open}
           onClick={() => { setOpen(true); setMinimized(false); setUnread(0); }}
           aria-label={t('supportWidget.openAssistant')}
           className={`${isMediaPage ? 'media-support-launcher ' : ''}fixed bottom-20 end-4 sm:bottom-6 sm:end-6 z-40 flex items-center gap-2 px-3.5 py-2.5 bg-green-600 hover:bg-green-700 lg:bg-gray-900 lg:hover:bg-gray-950 text-white rounded-full shadow-md shadow-green-600/20 lg:shadow-black/30 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm`}
@@ -871,7 +872,7 @@ function markProactiveDismissed() {
               {unread}
             </span>
           )}
-        </button>
+        </SupportLauncher>
       )}
 
       {/* ── Chat panel ── */}
@@ -1397,14 +1398,14 @@ export default function SupportWidget({initialRequest}) {
   if (loading) return null;
   if (!isAvailable('aiSupport')) {
     return (
-      <button
+      <SupportLauncher
         type="button"
         onClick={() => navigate('/support/escalation')}
         className={`${isMediaPage ? 'media-support-launcher ' : ''}support-contact-fab fixed bottom-[4.75rem] lg:bottom-5 end-5 z-40 rounded-full bg-green-600 hover:bg-green-700 lg:bg-gray-900 lg:hover:bg-gray-950 px-4 py-3 text-sm font-semibold text-white shadow-xl transition`}
         aria-label={t('supportWidget.talkToHuman')}
       >
         {t('supportWidget.talkToHuman')}
-      </button>
+      </SupportLauncher>
     );
   }
 

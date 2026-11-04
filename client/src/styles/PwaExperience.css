@@ -57,6 +57,10 @@ html {
 }
 .pwa-connection-present [data-pwa-support-launcher],
 .pwa-keyboard-open [data-pwa-support-launcher] { display: none; }
+[data-pwa-support-launcher][data-pwa-control-overlap="true"] {
+  visibility: hidden;
+  pointer-events: none;
+}
 @media (min-width: 640px) {
   .fixed[data-pwa-support-launcher] { --pwa-support-bottom: 1.5rem; }
   .rp-float-cart[data-pwa-bottom-actions] { --pwa-action-bottom: 2rem; }
