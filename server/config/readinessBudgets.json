@@ -1,0 +1,5 @@
+{
+  "backgroundProbeTimeoutMs": 5000,
+  "backgroundConfirmationTimeoutMs": 5000,
+  "proxyHealthTimeoutMs": 15000
+}
