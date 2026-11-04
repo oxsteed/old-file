@@ -24,7 +24,10 @@ router.post('/sessions/:sessionId/deliverables', ...adminAuth, consultingControl
 router.post('/sessions/:sessionId/action-items', ...adminAuth, consultingController.addActionItem);
 
 // PHASE 4: Pricing & Packages
-router.get('/packages', generalLimiter, consultingController.getPackages);
+// Weekly self-audit 2026-11-04 item 8: the GET /packages registration
+// that used to sit here was unreachable (consultingPayment mounts first
+// on the same path, and the web client calls that handler). The shadowed
+// registration is deleted; the live GET lives in consultingPayment.js.
 router.post('/purchase', authenticate, consultingController.purchasePackage);
 
 // PHASE 5: Client Portal

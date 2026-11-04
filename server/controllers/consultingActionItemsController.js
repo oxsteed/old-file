@@ -57,68 +57,6 @@ exports.getSessionActionItems = async (req, res) => {
   }
 };
 
-// Create action item - admin/consultant only.
-exports.createActionItem = async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { title, description, dueDate, priority, assignedToType, clientVisible } = req.body;
-
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
-    if (!isAdmin) {
-      return res.status(403).json({ error: 'Admin access required to create action items' });
-    }
-
-    // Validate
-    if (!title || !title.trim()) {
-      return res.status(400).json({ error: 'Title is required' });
-    }
-    if (priority && !VALID_PRIORITIES.includes(priority.toLowerCase())) {
-      return res.status(400).json({ error: 'Invalid priority level' });
-    }
-    if (assignedToType && !VALID_ASSIGNED_TYPES.includes(assignedToType.toLowerCase())) {
-      return res.status(400).json({ error: 'Invalid assignment type' });
-    }
-
-    // Verify session exists before inserting (avoids FK violation 500).
-    const { rows: sessionCheck } = await db.query(
-      `SELECT status FROM consulting_sessions WHERE id = $1`,
-      [sessionId]
-    );
-    if (sessionCheck.length === 0) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
-    if (sessionCheck[0].status === 'cancelled') {
-      return res.status(409).json({ error: 'Cannot add action items to a cancelled session' });
-    }
-
-    const { rows } = await db.query(
-      `INSERT INTO consulting_action_items
-        (session_id, title, description, due_date, priority, assigned_to_type, client_visible)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, session_id, title, description, due_date, priority, assigned_to_type,
-                 client_visible, status, created_at, updated_at`,
-      [
-        sessionId,
-        title.trim(),
-        description || null,
-        dueDate || null,
-        priority?.toLowerCase() || 'medium',
-        assignedToType?.toLowerCase() || 'client',
-        coerceBool(clientVisible, true),
-      ]
-    );
-
-    logger.info('Action item created', { sessionId, itemId: rows[0].id, adminId: req.user.id });
-    res.status(201).json(rowToResponse(rows[0]));
-  } catch (err) {
-    logger.error('Failed to create action item', { error: err.message });
-    res.status(500).json({ error: 'Failed to create action item' });
-  }
-};
-
 // Update action item - admin only.
 exports.updateActionItem = async (req, res) => {
   try {
