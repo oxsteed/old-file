@@ -20312,6 +20312,19 @@
     "responseTime": "Bay paj, travay, aparèy, navigatè ak teknoloji asistans si sa konsène. Di nou ki lòt fòma oswa èd ou bezwen. Nou egzamine rapò epi bay baryè aksè priyorite."
   },
   "delivery": {
+    "driverPayoutHistory": {
+      "title": "Istwa peman mwen",
+      "subtitle": "Peman ki akimile pou livrezon ou te konplete yo. Operasyon apwouve peman yo epi anrejistre referans peman an; peman ki peye ak ki anile pa ka chanje.",
+      "totalPaid": "Total peye",
+      "totalPending": "Ap tann apwobasyon oswa peman",
+      "paidOn": "Peye le",
+      "jobHeader": "Travay",
+      "amountHeader": "Montan",
+      "statusHeader": "Estati",
+      "referenceHeader": "Referans peman",
+      "dateHeader": "Dat",
+      "viewHistory": "Wè istwa peman mwen"
+    },
     "metaTitle": "Livrez ak OxSteed - Soti A pou ale B",
     "metaDescription": "Rezève yon livrezon senp soti nan yon pwen pou ale nan yon lòt, oswa pran travay livrezon ki toupre w ak OxSteed.",
     "eyebrow": "Livrezon lokal ki senp",

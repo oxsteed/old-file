@@ -125,6 +125,7 @@ const OxsteedCreditTransactionPage = lazyWithRetry(() => import('./pages/food/Ox
 const LogisticsHomePage = lazyWithRetry(routeLoaders.logistics, { name: 'logistics' });
 const DeliveryPage = lazyWithRetry(() => import('./pages/DeliveryPage'));
 const DeliveryDetailPage = lazyWithRetry(() => import('./pages/DeliveryDetailPage'));
+const DriverPayoutHistoryPage = lazyWithRetry(() => import('./pages/DriverPayoutHistoryPage'));
 const DeliveryDispatchPage = lazyWithRetry(() => import('./pages/DeliveryDispatchPage'));
 const DeliveryTrackingOpsPage = lazyWithRetry(() => import('./pages/DeliveryTrackingOpsPage'));
 const PublicTrackingPage = lazyWithRetry(() => import('./pages/PublicTrackingPage'));
@@ -734,6 +735,8 @@ export default function App() {
                     {/* OxSteed Logistics branch (migration 247) */}
                     <Route path="/delivery"                  element={<Guarded><DeliveryRoute /></Guarded>} />
                     <Route path="/delivery/jobs/:id"           element={<Guarded><ProtectedRoute><RouteErrorBoundary><DeliveryDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Weekly self-audit 2026-11-04 item 9: driver payout history. Read-only; the endpoint scopes to the signed-in driver. */}
+                    <Route path="/delivery/payouts"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverPayoutHistoryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Public delivery tracking: signed token, no login required */}
                     <Route path="/t/:token"                    element={<Guarded><RouteErrorBoundary><PublicTrackingPage /></RouteErrorBoundary></Guarded>} />
                     {/* Public scan-to-pay: payment QR link, no login required */}

@@ -20312,6 +20312,19 @@
     "responseTime": "Please include the page, task, device, browser, and assistive technology if relevant. Tell us the alternative format or assistance you need. We review reports and prioritize barriers affecting access."
   },
   "delivery": {
+    "driverPayoutHistory": {
+      "title": "My payout history",
+      "subtitle": "Payouts accrued from deliveries you completed. Operations approves payouts and records the payment reference; paid and voided payouts cannot change.",
+      "totalPaid": "Total paid",
+      "totalPending": "Pending approval or payment",
+      "paidOn": "Paid on",
+      "jobHeader": "Job",
+      "amountHeader": "Amount",
+      "statusHeader": "Status",
+      "referenceHeader": "Payment reference",
+      "dateHeader": "Date",
+      "viewHistory": "View my payout history"
+    },
     "metaTitle": "OxSteed Delivery - Point to point",
     "metaDescription": "Book a simple point-to-point delivery or claim nearby delivery work with OxSteed.",
     "eyebrow": "Simple local delivery",

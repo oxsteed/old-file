@@ -20312,6 +20312,19 @@
     "responseTime": "Incluya página, tarea, dispositivo, navegador y tecnología de asistencia si corresponde. Indique el formato alternativo o ayuda que necesita. Revisamos informes y priorizamos barreras de acceso."
   },
   "delivery": {
+    "driverPayoutHistory": {
+      "title": "Mi historial de pagos",
+      "subtitle": "Pagos acumulados por las entregas que completaste. Operaciones aprueba los pagos y registra la referencia de pago; los pagos pagados y anulados no pueden cambiar.",
+      "totalPaid": "Total pagado",
+      "totalPending": "Pendiente de aprobación o pago",
+      "paidOn": "Pagado el",
+      "jobHeader": "Trabajo",
+      "amountHeader": "Monto",
+      "statusHeader": "Estado",
+      "referenceHeader": "Referencia de pago",
+      "dateHeader": "Fecha",
+      "viewHistory": "Ver mi historial de pagos"
+    },
     "metaTitle": "Entregas OxSteed - De punto a punto",
     "metaDescription": "Solicita una entrega sencilla de punto a punto o acepta trabajos cercanos con OxSteed.",
     "eyebrow": "Entrega local sencilla",
