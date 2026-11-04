@@ -169,6 +169,7 @@ function WorkspaceDialogLoading({ onClose }) {
 export default function BusinessHubPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const { businessId: workspaceBusinessId } = useParams();
 
   // guard — capability/mode check (helper-class + business_owner/team), not role list
   if (!user || !canAccessBusinessHub(user)) {
@@ -185,7 +186,7 @@ export default function BusinessHubPage() {
     );
   }
 
-  return <BusinessHubInner />;
+  return <BusinessHubInner key={JSON.stringify([user.id, workspaceBusinessId || ''])} />;
 }
 
 function BusinessHubInner() {
@@ -385,6 +386,12 @@ function BusinessHubInner() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving]   = useState(false);
   const [profileErr, setProfileErr]         = useState('');
+  const profileLifecycle = useRef({ mounted: true, request: null });
+  useEffect(() => {
+    const lifecycle = profileLifecycle.current;
+    lifecycle.mounted = true;
+    return () => { lifecycle.mounted = false; lifecycle.request = null; };
+  }, []);
 
   // content tabs (services, gallery, policies, faqs, hours, skills)
   const [services, setServices]             = useState([]);
@@ -694,12 +701,21 @@ function BusinessHubInner() {
     finally { setMembersLoading(false); }
   }, [bizId, t]);
 
-  const loadProfile = useCallback(async () => {
-    if (!bizId) return;
+  const loadProfile = useCallback(async ({ force = false } = {}) => {
+    const lifecycle = profileLifecycle.current;
+    if (!bizId || !lifecycle.mounted) return;
+    const previous = lifecycle.request;
+    if (previous?.businessId === String(bizId)
+      && (previous.pending || (previous.loaded && !force))) return;
+    const retained = previous?.businessId === String(bizId) && previous.loaded;
+    const request = { businessId: String(bizId), pending: true, loaded: Boolean(retained) };
+    lifecycle.request = request;
+    const current = () => lifecycle.mounted && lifecycle.request === request;
     setProfileLoading(true);
     setProfileErr('');
     try {
       const data = await getBusinessProfileForEditor(bizId);
+      if (!current()) return;
       const biz = data.business;
       const nextForm = profileFormFromBusiness(biz);
       setProfileForm(nextForm);
@@ -711,29 +727,20 @@ function BusinessHubInner() {
       setCoverPreview(biz.cover_photo_url || null);
       setLogoFile(null);
       setCoverFile(null);
+      request.loaded = true;
     } catch {
-      const listed = businesses.find((b) => String(b.id) === String(bizId)) || createdFromNav;
-      if (listed) {
-        const nextForm = profileFormFromBusiness(listed);
-        setProfileForm(nextForm);
-        profileFieldsBaselineRef.current = {
-          profile_headline: nextForm.profile_headline,
-          service_radius_miles: nextForm.service_radius_miles,
-        };
-        setLogoPreview(listed.logo_url || null);
-        setCoverPreview(listed.cover_photo_url || null);
-        setLogoFile(null);
-        setCoverFile(null);
-        setProfileErr('');
-      } else {
-        setProfileErr(t('businessHub.errorProfileLoad'));
-      }
+      if (!current()) return;
+      // A listing can omit editable fields. Do not treat it as a complete
+      // profile after a failed editor read and then save those omissions.
+      if (!retained) setProfileForm(null);
+      setProfileErr(t('businessHub.errorProfileLoad'));
     }
-    finally { setProfileLoading(false); }
-  }, [bizId, t, businesses, createdFromNav]);
+    finally { if (current()) { request.pending = false; setProfileLoading(false); } }
+  }, [bizId, t]);
 
   const handleSaveProfile = useCallback(async () => {
-    if (!profileForm) return false;
+    const lifecycle = profileLifecycle.current;
+    if (!profileForm || !lifecycle.mounted) return false;
     setProfileSaving(true);
     setProfileErr('');
     try {
@@ -785,17 +792,19 @@ function BusinessHubInner() {
             curR === '' || curR == null ? null : parseFloat(curR);
         }
       }
+      if (!lifecycle.mounted) return false;
       await updateBusiness(bizId, body);
+      if (!lifecycle.mounted) return true;
       toast.success(t('businessHub.toastProfileSaved'));
       setLogoFile(null);
       setCoverFile(null);
-      await loadProfile();
+      await loadProfile({ force: true });
       return true;
     } catch (e) {
-      setProfileErr(e?.response?.data?.error || t('businessHub.errorProfileSave'));
+      if (lifecycle.mounted) setProfileErr(e?.response?.data?.error || t('businessHub.errorProfileSave'));
       return false;
     } finally {
-      setProfileSaving(false);
+      if (lifecycle.mounted) setProfileSaving(false);
     }
   }, [bizId, profileForm, logoFile, coverFile, loadProfile, t]);
 
@@ -1750,9 +1759,11 @@ function BusinessHubInner() {
             <Suspense fallback={<p className="bh-loading" role="status">{t('businessHub.rooms.loadingWorkspace')}</p>}>
 
             {/* ── Profile tab ──────────────────────────────────────── */}
-            {tab === 'profile' && (
+            {canEditBizProfile && (tab === 'profile' || (profileForm && profileLifecycle.current.request?.businessId === String(bizId))) && (
+              <div hidden={tab !== 'profile'}>
+              <Suspense fallback={<p className="bh-loading" role="status">{t('businessHub.rooms.loadingWorkspace')}</p>}>
               <TabErrorBoundary label={t('businessHub.tabProfileLabel', { defaultValue: 'Profile' })} resetKey="profile">
-              {(profileLoading || (!profileForm && !profileErr)) ? <p className="bh-loading">{t('businessHub.loadingProfile')}</p> :
+              {(profileLoading || profileLifecycle.current.request?.businessId !== String(bizId) || (!profileForm && !profileErr)) ? <p className="bh-loading" role="status">{t('businessHub.loadingProfile')}</p> :
               !profileForm && profileErr ? (
                 <div className="bh-empty" style={{ marginTop: '1rem' }}>
                   <p className="bh-error" style={{ marginBottom: '1rem' }}>
@@ -1764,6 +1775,7 @@ function BusinessHubInner() {
                 </div>
               ) :
               <BusinessProfileEditor
+                active={tab === 'profile'}
                 form={profileForm}
                 logoPreview={logoPreview}
                 coverPreview={coverPreview}
@@ -1790,6 +1802,8 @@ function BusinessHubInner() {
                   : ''}
               />}
               </TabErrorBoundary>
+              </Suspense>
+              </div>
             )}
 
             {/* ── Services tab ─────────────────────────────────────── */}

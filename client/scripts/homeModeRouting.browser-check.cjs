@@ -69,17 +69,27 @@ test('the built homepage follows account mode and retains usable navigation duri
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     await context.addInitScript(() => localStorage.setItem('oxs:language', 'en'));
     const page = await context.newPage();
-    let releaseChunk;
+    let releaseAuth, releaseChunk, noteChunkRequest;
+    const authHeld = new Promise(resolve => { releaseAuth = resolve; });
     const held = new Promise(resolve => { releaseChunk = resolve; });
-    await context.route('**/assets/HomePage-*.js', async route => { await held; await route.continue(); });
+    const chunkRequested = new Promise(resolve => { noteChunkRequest = resolve; });
+    await context.route('**/api/auth/me', async route => { await authHeld; await route.continue(); });
+    await context.route('**/assets/HomePage-*.js', async route => { noteChunkRequest(); await held; await route.continue(); });
     try {
       await page.goto(fixture.origin + '/');
-      await page.locator('.ox-loading-state').waitFor();
-      assert.equal(await page.locator('.ox-navbar').count(), 1, 'navigation remains available during loading');
-      assert.equal(await page.locator('main').count(), 1, 'fallback keeps one main landmark');
+      await page.locator('.ox-loading-state:visible').waitFor();
+      releaseAuth();
+      await chunkRequested;
+      // Suspense can retain the auth-loading shell with display:none while
+      // showing the chunk fallback. Count the UI users can see and access.
+      await page.locator('.ox-loading-state:visible').waitFor();
+      assert.equal(await page.locator('.ox-loading-state:visible').count(), 1, 'one visible loading announcement');
+      assert.equal(await page.locator('.ox-navbar:visible').count(), 1, 'navigation remains available during loading');
+      assert.equal(await page.getByRole('main').count(), 1, 'fallback keeps one accessible main landmark');
       releaseChunk();
       await page.getByRole('heading', { name: catalogs.en.hero.title.replace(/\s+/g, ' '), exact: true }).waitFor();
-    } finally { releaseChunk(); await context.close(); }
+      assert.equal(await page.locator('.ox-loading-state:visible').count(), 0, 'loading clears when discovery is ready');
+    } finally { releaseAuth(); releaseChunk(); await context.close(); }
     console.log(JSON.stringify({ homeModes: results }));
   } finally { await browser.close(); await fixture.close(); }
 });
