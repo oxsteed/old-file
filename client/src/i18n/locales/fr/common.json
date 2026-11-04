@@ -5899,6 +5899,7 @@
       "specialDateAdd": "Ajouter une date spéciale",
       "specialDateDuplicate": "Chaque date spéciale ne peut être indiquée qu’une seule fois.",
       "tab": {
+        "home": "Accueil",
         "myshift": "Mon poste"
       },
       "orderCenter": {

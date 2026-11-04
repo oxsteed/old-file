@@ -5899,6 +5899,7 @@
       "specialDateAdd": "Agregar fecha especial",
       "specialDateDuplicate": "Cada fecha especial solo puede aparecer una vez.",
       "tab": {
+        "home": "Inicio",
         "myshift": "Mi turno"
       },
       "orderCenter": {

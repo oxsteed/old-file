@@ -24003,6 +24003,7 @@
       "addAnother": "Add another",
       "notLiveHint": "Your restaurant is not live yet. Add menu items, then press Go live under Settings.",
       "tab": {
+        "home": "Home",
         "orders": "Orders",
         "menu": "Menu",
         "settings": "Settings",

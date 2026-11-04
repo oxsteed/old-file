@@ -5899,6 +5899,7 @@
       "specialDateAdd": "Add special date",
       "specialDateDuplicate": "Each special date can only be listed once.",
       "tab": {
+        "home": "Home",
         "myshift": "My shift"
       },
       "orderCenter": {
