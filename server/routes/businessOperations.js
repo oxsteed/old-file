@@ -30,9 +30,15 @@ router.post('/:businessId/messages/:conversationId/release',               requi
 router.post('/:businessId/messages/:conversationId/reassign',              requireAuth, requireBusinessAccess({ minRole: 'manager' }), requireBusinessMessageAccess('assign'), businessConversationAssignmentController.reassignConversation);
 
 // ── SERVICES ROUTES ───────────────────────────────────────────
+// Weekly self-audit 2026-11-04 item 3: the POST and PUT service routes
+// that used to sit here (manager-gated, businessServicesController) were
+// unreachable: businesses.js mounts first on the same paths, so its
+// handlers (authenticate + businessIdAccess('any')) always win. The
+// manager-gated twins are deleted, not re-ordered, because re-ordering
+// would silently flip the live gate. The live floor is any associated
+// business member; the GET pair stays public storefront on both sides.
+// Staff assignment and availability below are not duplicated and stay.
 router.get ('/:businessId/services',                                                                                                    scopeExempt('public-storefront'), businessServicesController.listServices);
-router.post('/:businessId/services',                                       requireAuth, requireBusinessAccess({ minRole: 'manager' }), businessServicesController.createService);
-router.put ('/:businessId/services/:serviceId',                            requireAuth, requireBusinessAccess({ minRole: 'manager' }), businessServicesController.updateService);
 router.post('/:businessId/services/:serviceId/staff',                      requireAuth, requireBusinessAccess({ minRole: 'manager' }), businessServicesController.assignStaffToService);
 router.post('/:businessId/services/:serviceId/availability',               requireAuth, requireBusinessAccess({ minRole: 'manager' }), businessServicesController.setServiceAvailability);
 

@@ -4,7 +4,6 @@
 const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
-const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
 
 // Get all services for a business
 async function listServices(req, res, next) {
@@ -35,140 +34,6 @@ async function listServices(req, res, next) {
   } catch (error) {
     logger.error('Error listing services', { error, businessId: req.params.businessId });
     next(new AppError('Failed to list services', 500));
-  }
-}
-
-// Review P1-5-F04: preparation_minutes is the between-appointment buffer the
-// business engine applies (bookingSlotEngine). Clamp it to the same 0..240
-// range the engine uses so the stored value always matches applied behavior.
-function normalizePreparationMinutes(value) {
-  if (value === undefined || value === null || value === '') return 0;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) throw new AppError('Buffer minutes must be a number', 400);
-  if (parsed < 0 || parsed > 240) throw new AppError('Buffer minutes must be between 0 and 240', 400);
-  return parsed;
-}
-
-// Create new service
-async function createService(req, res, next) {
-  try {
-    const { businessId } = req.params;
-    const {
-      name, description, category, duration_minutes, preparation_minutes,
-      base_price_cents, max_capacity = 1, min_notice_hours = 24,
-      cancellation_policy_hours = 24, cancellation_fee_percent = 0
-    } = req.body;
-
-    // Validate required fields
-    if (!name || !duration_minutes || base_price_cents === undefined) {
-      return next(new AppError('Name, duration, and price are required', 400));
-    }
-
-    if (duration_minutes < 15) {
-      return next(new AppError('Service duration must be at least 15 minutes', 400));
-    }
-
-    if (base_price_cents < 0) {
-      return next(new AppError('Price cannot be negative', 400));
-    }
-
-    let preparationMinutes;
-    try {
-      preparationMinutes = normalizePreparationMinutes(preparation_minutes);
-    } catch (validationError) {
-      return next(validationError);
-    }
-
-    const result = await pool.query(
-      `INSERT INTO business_services
-       (business_id, name, description, category, duration_minutes, preparation_minutes,
-        base_price_cents, max_capacity, min_notice_hours, cancellation_policy_hours,
-        cancellation_fee_percent, created_by_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       RETURNING *`,
-      [businessId, name, description, category, duration_minutes, preparationMinutes,
-       base_price_cents, max_capacity, min_notice_hours, cancellation_policy_hours,
-       cancellation_fee_percent, req.user.id]
-    );
-
-    res.status(201).json(result.rows[0]);
-  } catch (error) {
-    logger.error('Error creating service', { error, businessId: req.params.businessId });
-    next(new AppError('Failed to create service', 500));
-  }
-}
-
-// Update service
-async function updateService(req, res, next) {
-  try {
-    const { businessId, serviceId } = req.params;
-    const updates = req.body;
-
-    // Whitelist updatable fields
-    const allowedFields = [
-      'name', 'description', 'category', 'duration_minutes', 'preparation_minutes',
-      'base_price_cents', 'max_capacity', 'min_notice_hours', 'cancellation_policy_hours',
-      'cancellation_fee_percent', 'is_active'
-    ];
-
-    const setClause = [];
-    const values = [];
-    let paramCount = 1;
-
-    for (const [key, value] of Object.entries(updates)) {
-      if (allowedFields.includes(key) && value !== undefined) {
-        // Review P1-5-F04: validate the buffer like the create path does.
-        if (key === 'preparation_minutes') {
-          let normalized;
-          try {
-            normalized = normalizePreparationMinutes(value);
-          } catch (validationError) {
-            return next(validationError);
-          }
-          setClause.push(`${key} = $${paramCount}`);
-          values.push(normalized);
-        } else {
-          setClause.push(`${key} = $${paramCount}`);
-          values.push(value);
-        }
-        paramCount++;
-      }
-    }
-
-    if (setClause.length === 0) {
-      return next(new AppError('No valid fields to update', 400));
-    }
-
-    values.push(serviceId, businessId);
-    const query = `
-      UPDATE business_services
-      SET ${setClause.join(', ')}, updated_at = NOW()
-      WHERE id = $${paramCount} AND business_id = $${paramCount + 1} AND deleted_at IS NULL
-      RETURNING *
-    `;
-
-    const result = await pool.query(query, values);
-
-    if (!result.rows.length) {
-      return next(new AppError('Service not found', 404));
-    }
-
-    // Audit fix (P2-3-F13): deactivating services can break publish
-    // readiness. Re-check and auto-unpublish if the business is now
-    // incomplete.
-    const { unpublished, missing } = await maybeUnpublishBusinessIfIncomplete(pool, req.params.businessId, {
-      actorUserId: req.user?.id || null, actorRole: 'owner',
-      impersonatedBy: req.impersonatedBy || null,
-    });
-    const payload = result.rows[0];
-    if (unpublished) {
-      payload.businessUnpublished = true;
-      payload.unpublishMissing = missing;
-    }
-    res.json(payload);
-  } catch (error) {
-    logger.error('Error updating service', { error, serviceId: req.params.serviceId });
-    next(new AppError('Failed to update service', 500));
   }
 }
 
@@ -339,8 +204,6 @@ async function getAvailableSlots(req, res, next) {
 
 module.exports = {
   listServices,
-  createService,
-  updateService,
   assignStaffToService,
   setServiceAvailability,
   getAvailableSlots

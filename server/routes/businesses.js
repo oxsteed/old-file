@@ -181,6 +181,11 @@ router.get('/:businessId/services/manage',       authenticate, requireBusinessAc
   return getBusinessServices(req, res, next);
 });
 router.get('/:businessId/services',              optionalAuth, scopeExempt('public-storefront'), getBusinessServices);
+// Weekly self-audit 2026-11-04 item 3: INTENTIONAL FLOOR. Service
+// create/update accept any associated business member ('any'), not just
+// managers. A stricter manager-gated twin used to exist in
+// businessOperations.js but was unreachable (this router mounts first);
+// it was deleted rather than kept as a misleading second gate.
 router.post('/:businessId/services',             authenticate, businessIdAccess('any'), createBusinessService);
 router.put('/:businessId/services/:serviceId',   authenticate, businessIdAccess('any'), updateBusinessService);
 router.delete('/:businessId/services/:serviceId', authenticate, businessIdAccess('any'), deleteBusinessService);
