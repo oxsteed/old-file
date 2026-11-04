@@ -89,8 +89,13 @@ export const useSocket = () => {
         auth:                    impersonationToken ? { token: impersonationToken } : {},
         transports:              ['websocket'],
         reconnection:            true,
-        reconnectionDelay:       500,      // was 2000 - reconnect quickly after a drop
-        reconnectionDelayMax:    4000,     // cap back-off at 4s
+        // Cost audit 2026-11-04 item 18: reconnects hammered at 500ms to
+        // a 4s plateau. The floor is now 2s and the cap 30s, so the delay
+        // keeps climbing steeply after the first few attempts (2s, 4s,
+        // 8s, 16s, 30s) instead of flattening at 4s. Attempt count (20)
+        // is unchanged; retries now spread over minutes, not seconds.
+        reconnectionDelay:       2000,
+        reconnectionDelayMax:    30000,
         reconnectionAttempts:    20,       // more attempts before giving up
         timeout:                 10000,    // handshake timeout (ms)
       }

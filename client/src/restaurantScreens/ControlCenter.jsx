@@ -105,7 +105,14 @@ export default function ScreenControlCenter({
     };
     refresh();
     const off = subscribeRestaurantDisplay(id, refresh),
-      timer = setInterval(refresh, 15000);
+      // Cost audit 2026-11-04 item 16: the merchant page's visibility
+      // gate. A hidden screen used to refetch fully every 15s; now the
+      // interval tick only refreshes while the screen is visible. The
+      // push subscription above stays ungated, so a visible screen still
+      // updates immediately on change.
+      timer = setInterval(() => {
+        if (document.visibilityState === 'visible') refresh();
+      }, 15000);
     return () => {
       live = false;
       sequence.current++;

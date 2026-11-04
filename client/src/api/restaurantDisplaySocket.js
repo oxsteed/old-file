@@ -14,6 +14,31 @@ import { realtimeNamespaceUrl } from '../lib/realtime';
 let socket = null;
 const roomUsers = new Map();
 
+// Cost audit 2026-11-04 item 17: a hidden in-store screen used to
+// reconnect forever at up to one attempt every 4s. Reconnect policy now
+// follows visibility: a visible screen never gives up (infinite attempts,
+// 500ms to 4s backoff), while a hidden screen is capped at 5 attempts on
+// a slow 10s to 30s backoff, and resumes with the visible policy the
+// moment the screen is visible again. A hidden screen that drops stays
+// current through its page's polling until it is visible again.
+function applyReconnectPolicy() {
+  if (!socket) return;
+  const manager = socket.io;
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+    manager.reconnectionAttempts(5);
+    manager.reconnectionDelay(10000);
+    manager.reconnectionDelayMax(30000);
+  } else {
+    manager.reconnectionAttempts(Infinity);
+    manager.reconnectionDelay(500);
+    manager.reconnectionDelayMax(4000);
+    // The hidden cap may have stopped reconnecting entirely; a visible
+    // screen resumes. While a reconnect is already in flight (active),
+    // connect() is a no-op, so this cannot double-connect.
+    if (!socket.active) socket.connect();
+  }
+}
+
 function getDisplaySocket() {
   if (!socket) {
     socket = io(realtimeNamespaceUrl('restaurant-display'), {
@@ -24,6 +49,10 @@ function getDisplaySocket() {
       reconnectionAttempts: Infinity,
       timeout: 10000,
     });
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', applyReconnectPolicy);
+      applyReconnectPolicy();
+    }
   }
   return socket;
 }
