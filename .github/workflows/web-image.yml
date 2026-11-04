@@ -56,7 +56,18 @@ jobs:
       - name: Verify container shutdown and schema preflight before issuing a release receipt
         run: |
           image_ref="$IMAGE@$(node -p 'JSON.parse(require("fs").readFileSync("image-metadata.json"))["containerimage.digest"]')"
-          docker pull "$image_ref"
+          # The pushed digest can take a few seconds to become readable.
+          for delay in 0 2 4 8 16; do
+            sleep "$delay"
+            if pull_output="$(docker pull "$image_ref" 2>&1)"; then
+              printf '%s\n' "$pull_output"
+              break
+            fi
+            printf '%s\n' "$pull_output" >&2
+            if [[ "$pull_output" != *'manifest unknown'* || "$delay" == 16 ]]; then
+              exit 1
+            fi
+          done
           node scripts/verify-container-shutdown.cjs --image "$image_ref"
           schema_result="$(printf '[]' | docker run --rm --interactive --pull=never --network=none \
             --read-only --cap-drop=ALL --no-healthcheck --memory=128m --cpus=0.5 \
