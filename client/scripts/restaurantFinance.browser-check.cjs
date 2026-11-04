@@ -17,9 +17,6 @@ test('restaurant finances: unavailable versus empty, permissions, safeguards, an
  const server=http.createServer((req,res)=>{if(req.url==='/fixture.js'){res.setHeader('content-type','text/javascript');res.end(js);}else res.end(`<html><head><style>:root{--primary-color:#9a3412;--app-text:#142036;--muted-text:#475569;--card-bg:#fff;--border-color:#dbe3ef;--soft-bg:#f1f5f9}html{font-family:Arial;background:#f7f9fc}.dark{--primary-color:#fb923c;--app-text:#e2e8f0;--muted-text:#cbd5e1;--card-bg:#162133;--border-color:#475569;--soft-bg:#1e293b;background:#0b1220}body{margin:0}#root{max-width:1200px;margin:auto;padding:16px}*{box-sizing:border-box}${baseCss}\n${css}</style></head><body><div id="root"></div><script>window.catalogs=${JSON.stringify(catalogs)};window.fx={};window.calls=[];</script><script type="module" src="/fixture.js"></script></body></html>`);});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const browser=await chromium.launch({channel:'chrome',headless:true});const page=await browser.newPage();
- // A re-render can dismiss a dialog before the handler runs; accepting an
- // already-closed dialog must not surface as an unhandled rejection.
- page.on('dialog', dialog => dialog.accept().catch(() => {}));
  const restaurant={id:2,business_id:3,currency_code:'USD',display_name:'Synthetic restaurant'};
  const base={getRestaurantPayoutStatus:{connected:false},getWalletPayoutBalance:{balanceCents:10000,currencyCode:'USD',minPayoutCents:2500,processorEnabled:false},listWalletPayouts:[],getRestaurantTopupEligibility:{eligibility:{status:'not_applied'}},listMerchantFoodWalletCreditRequests:[],getMerchantCreditApproval:[],getCreditReserveBalance:{},listCreditReserveLedger:[],getMerchantCreditExposure:{},listFoodRestaurantOxsteedCreditTransactions:{error:'credit_partner_not_found',status:404},listFoodRestaurantOxsteedCreditSettlements:{error:'credit_partner_not_found',status:404},getFoodRestaurantOxsteedCreditLedger:{error:'credit_partner_not_found',status:404}};
  let id=2;
@@ -41,7 +38,16 @@ test('restaurant finances: unavailable versus empty, permissions, safeguards, an
   await configure({getWalletPayoutBalance:{...base.getWalletPayoutBalance,processorEnabled:true}});
   await page.getByLabel(/Payout amount/).fill('24');assert.equal(await page.getByRole('button',{name:'Request payout',exact:true}).isEnabled(),false);
   await page.getByLabel(/Payout amount/).fill('101');assert.equal(await page.getByRole('button',{name:'Request payout',exact:true}).isEnabled(),false);
-  await page.getByLabel(/Payout amount/).fill('30');await page.getByRole('button',{name:'Request payout',exact:true}).click();
+  await page.getByLabel(/Payout amount/).fill('30');
+  await Promise.all([
+   page.waitForEvent('dialog').then(async dialog => {
+    assert.equal(dialog.type(),'confirm');
+    assert.ok(dialog.message().includes('$30.00'),'confirmation shows the requested payout amount');
+    await dialog.accept();
+   }),
+   page.getByRole('button',{name:'Request payout',exact:true}).click(),
+  ]);
+  await page.waitForFunction(()=>window.calls.some(call=>call.name==='requestWalletPayout'));
   const calls=await page.evaluate(()=>window.calls);assert.equal(calls.find(c=>c.name==='requestWalletPayout').args[1].amountCents,3000);assert.ok(calls.find(c=>c.name==='requestWalletPayout').args[2]);
   await configure({}, {canManagePayouts:false,canManageCredit:true});assert.equal(await page.getByRole('heading',{name:'Bank payouts',exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'Connect payouts',exact:true}).count(),0);
   await configure({getRestaurantPayoutStatus:{connected:true,status_verified:false,status_unavailable:true}});

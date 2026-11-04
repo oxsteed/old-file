@@ -24003,6 +24003,7 @@
       "addAnother": "Agregar otro",
       "notLiveHint": "Tu restaurante aún no está en vivo. Agrega platos y pulsa Activar en Configuración.",
       "tab": {
+        "home": "Inicio",
         "orders": "Pedidos",
         "menu": "Menú",
         "settings": "Configuración",

@@ -24003,6 +24003,7 @@
       "addAnother": "En ajouter un autre",
       "notLiveHint": "Votre restaurant n'est pas encore en ligne. Ajoutez des plats, puis appuyez sur Mettre en ligne dans Paramètres.",
       "tab": {
+        "home": "Accueil",
         "orders": "Commandes",
         "menu": "Menu",
         "settings": "Paramètres",

@@ -338,6 +338,11 @@ test('merchant operations desk opens one tool at a time', { timeout: 120000 }, a
     await page.evaluate(() => window.render('/restaurants/merchant?business=3&tab=operations&ops=checklists'));
     await page.getByRole('heading', { name: 'Checklists', exact: true }).waitFor();
 
+    for (const [language, label] of Object.entries({ en: 'Home', es: 'Inicio', fr: 'Accueil', ht: 'Akèy', ar: 'الرئيسية' })) {
+      await page.evaluate((language) => window.i18n.changeLanguage(language), language);
+      await page.getByRole('tab', { name: label, exact: true }).waitFor();
+    }
+
     await page.evaluate(async () => {
       document.documentElement.dir = 'rtl';
       document.documentElement.lang = 'ar';
