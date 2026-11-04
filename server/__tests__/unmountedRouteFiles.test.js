@@ -13,7 +13,9 @@ const ROUTES = path.join(SERVER, 'routes');
 
 // Known pre-existing unreferenced files outside decision 8's scope (not
 // tenant routers that were ever mounted). Shrink this list, never grow it.
-const KNOWN_UNREFERENCED = new Set(['apiVersion', 'businessQuotes']);
+// Weekly self-audit 2026-11-04 item 13 emptied it: apiVersion and
+// businessQuotes are deleted, so nothing remains allowlisted.
+const KNOWN_UNREFERENCED = new Set([]);
 
 function sources() {
   const files = [path.join(SERVER, 'index.js')];
@@ -28,6 +30,18 @@ describe('decision 8: no unmounted route files', () => {
     }
     for (const c of ['businessHealthController', 'businessTemplatesController']) {
       expect(fs.existsSync(path.join(SERVER, 'controllers', `${c}.js`))).toBe(false);
+    }
+  });
+
+  test('weekly self-audit 2026-11-04 item 13: the dead batch stays deleted', () => {
+    for (const f of ['apiVersion', 'businessQuotes']) {
+      expect(fs.existsSync(path.join(ROUTES, `${f}.js`))).toBe(false);
+    }
+    for (const c of ['consultingAdminController', 'translateController']) {
+      expect(fs.existsSync(path.join(SERVER, 'controllers', `${c}.js`))).toBe(false);
+    }
+    for (const s of ['bidCollisionDetectionService', 'bookingAbusePrevention']) {
+      expect(fs.existsSync(path.join(SERVER, 'services', `${s}.js`))).toBe(false);
     }
   });
 
