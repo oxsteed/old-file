@@ -218,6 +218,7 @@ const FeatureGuidePage = lazyWithRetry(() => import('./pages/FeatureGuidePage'))
 const ExperienceGuidePage = lazyWithRetry(() => import('./pages/ExperienceGuidePage'));
 const LearnModePage = lazyWithRetry(() => import('./pages/LearnModePage'));
 const PromotePage = lazyWithRetry(() => import('./pages/PromotePage'));
+const DirectCatalogLanding = lazyWithRetry(routeLoaders.direct, { name: 'direct' });
 const DirectPortalPage = lazyWithRetry(() => import('./pages/DirectPortalPage'));
 const DirectCatalogDirectoryPage = lazyWithRetry(() => import('./pages/DirectCatalogDirectoryPage'));
 const DirectBookSlotPage = lazyWithRetry(() => import('./pages/DirectBookSlotPage'));
@@ -512,7 +513,7 @@ export default function App() {
                     <Route path="/h/:helperId"        element={<LegacyHelperProfileRedirect />} />
                     <Route path="/discover"                element={<Guarded><DiscoverPage /></Guarded>} />
                     <Route path="/consulting-intake"       element={<Guarded><ConsultingIntakePage /></Guarded>} />
-                    <Route path="/direct"                  element={<Guarded><DirectPortalPage view="landing" /></Guarded>} />
+                    <Route path="/direct"                  element={<Guarded><RouteErrorBoundary><DirectCatalogLanding /></RouteErrorBoundary></Guarded>} />
                     <Route path="/direct/services"         element={<Guarded><DirectCatalogDirectoryPage view="services" /></Guarded>} />
                     <Route path="/direct/tools"            element={<Guarded><DirectCatalogDirectoryPage view="tools" /></Guarded>} />
                     <Route path="/direct/request-quote"    element={<Guarded><DirectPortalPage view="request" /></Guarded>} />

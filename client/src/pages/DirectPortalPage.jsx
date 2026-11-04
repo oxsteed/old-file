@@ -7,7 +7,8 @@ import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import { useAuth } from '../context/AuthContext';
 import { createMessageRequestId } from '../lib/messageRequestId';
-import DirectCatalogLanding from './DirectCatalogLanding';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+import { routeLoaders } from '../utils/routePrefetch';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import {
   acceptDirectRequest,
@@ -31,6 +32,8 @@ import {
   verifyPublicDirectQuoteCode,
   uploadDirectAsset,
 } from '../api/direct';
+
+const DirectCatalogLanding = lazyWithRetry(routeLoaders.direct, { name: 'direct' });
 
 const DEFAULT_PROFILE_BASE = {
   companyName: 'OxSteed',
