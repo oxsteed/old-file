@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import { useAuth } from '../context/AuthContext';
+import useDirectQuoteDraft from '../hooks/useDirectQuoteDraft';
 import { createMessageRequestId } from '../lib/messageRequestId';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { routeLoaders } from '../utils/routePrefetch';
@@ -336,6 +337,15 @@ export function DirectLandingPage() {
 }
 
 export function DirectQuoteRequestPage() {
+  const { user, initialized } = useAuth();
+  const { t } = useTranslation();
+  const [params] = useSearchParams();
+  const scope = JSON.stringify([user?.id || null, params.get('serviceId') || params.get('serviceSlug') || params.get('service') || null]);
+  if (!initialized) return <PageShell><p role="status">{t('common.loading')}</p></PageShell>;
+  return <DirectQuoteRequestForm key={scope} draftScope={scope} />;
+}
+
+function DirectQuoteRequestForm({ draftScope }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -351,18 +361,24 @@ export function DirectQuoteRequestPage() {
     : '';
   const [profile, setProfile] = useState(() => localizedDefaultProfile(t));
   const [loading, setLoading] = useState(false);
-  const [draftId] = useState(() => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`));
-  const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [catalogServiceSearch, setCatalogServiceSearch] = useState('');
-  const [selectedServiceIds, setSelectedServiceIds] = useState(() => (linkedServiceId ? [linkedServiceId] : []));
-  const [form, setForm] = useState({
-    ...EMPTY_FORM,
-    first_name: user?.first_name || '',
-    last_name: user?.last_name || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-  });
+  const { draft, current: draftRef, update: updateDraft, clear: clearDraft } = useDirectQuoteDraft(draftScope, () => ({
+    draftId: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`,
+    attachments: [],
+    selectedServiceIds: linkedServiceId ? [linkedServiceId] : [],
+    form: {
+      ...EMPTY_FORM,
+      first_name: user?.first_name || '',
+      last_name: user?.last_name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+    },
+  }));
+  const { draftId, attachments, selectedServiceIds, form } = draft;
+  const setForm = (updater) => updateDraft({ form: updater(draftRef.current.form) });
+  const setAttachments = (updater) => updateDraft({ attachments: updater(draftRef.current.attachments) });
+  const setSelectedServiceIds = (updater) => updateDraft({ selectedServiceIds: updater(draftRef.current.selectedServiceIds) });
   // P1-179: tell the customer early when their ZIP is outside Direct's areas.
   const [zipCoverage, setZipCoverage] = useState(null);
   useEffect(() => {
@@ -407,16 +423,6 @@ export function DirectQuoteRequestPage() {
     });
     return () => { active = false; };
   }, [i18n.resolvedLanguage]);
-
-  useEffect(() => {
-    setForm((current) => ({
-      ...current,
-      first_name: user?.first_name || current.first_name,
-      last_name: user?.last_name || current.last_name,
-      email: user?.email || current.email,
-      phone: user?.phone || current.phone,
-    }));
-  }, [user]);
 
   useEffect(() => {
     const linked = catalogServices.find((service) => (
@@ -557,6 +563,7 @@ export function DirectQuoteRequestPage() {
       };
 
       const response = await submitDirectRequest(payload);
+      clearDraft();
       toast.success(t('directPortal.request.messages.sent', { defaultValue: 'Quote request sent.' }));
       navigate(`/direct/request-quote/thanks?referenceId=${response.referenceId || response.requestId}`, {
         replace: true,

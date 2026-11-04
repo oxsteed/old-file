@@ -420,3 +420,42 @@ The prior rollout's three proxy 503s occurred at 07:54:08 UTC, before
 Coolify queued the replacement at 07:55:31 UTC. The container switch cannot
 explain those responses. The separate readiness failure occurred during
 candidate startup. Both observations remain in the availability audit.
+
+## November 4 production follow-up
+
+The reviewed schema batch added all 18 migrations atomically in 3.134 seconds
+after a physical backup passed checksum, PostgreSQL manifest/WAL verification,
+isolated startup and a rehearsal of the same batch. The live worker remained
+ready. The observer then promoted `7fdb54548` with 649 monitored requests and
+zero failures. Docker marked the replacement healthy before stopping the
+previous container. The pre-existing browser document navigated successfully,
+its old script remained available, and realtime reconnected in 1.319 seconds.
+The physical backup preserves two existing damaged operational indexes. A
+separate quote index has a timestamp operator-class mismatch. Repair of the
+logical backup path remains open.
+
+The next automatic rollout published the Direct route split in `bf1df8ea4`.
+Its monitor recorded 267 requests and zero failures, with the old browser
+document and script still usable. Live throttled Chromium cold navigation
+medians improved from 2,384 ms to 1,333 ms. Warm medians were 820 ms and 806 ms.
+The delayed catalog chunk kept navigation visible, and the quote portal loaded
+on demand. Food and Direct passed the unauthenticated Arabic mobile dark-mode
+layout checks. See `reviews/direct-catalog-navigation-2026-11-03.md`.
+
+The full goal remains active. Authenticated navigation, remaining draft surfaces,
+session races, and the final cross-product acceptance still need verification.
+
+## Direct quote draft recovery
+
+The quote form stores its current text, selected services, uploaded attachment
+references and upload draft ID in sessionStorage for the current tab. Recovery
+is scoped to the verified account and linked catalog service, with a 24-hour
+expiry. Account changes remount the form, so the previous account's contact
+details and photos leave the visible page. Successful submission clears the
+saved draft. A failed submission preserves it for an explicit retry.
+
+The focused browser check covers signed-in and guest reloads, an authentication
+outage, account switches, stable photo ownership, failure/reload without
+automatic submission, clearing after success, and expiry. The production client
+build and existing catalog/session recovery checks pass locally. This package
+still needs PR CI and publication. Closing the tab ends this recovery scope.
