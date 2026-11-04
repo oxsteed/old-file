@@ -9,11 +9,13 @@ const fulfillment = require('./restaurantGiftCardFulfillment');
 // uncertain older attempts require operator evidence, never a blind resend.
 const RETRY_WINDOW_MS = 23 * 60 * 60 * 1000;
 // Retrieval remains available beyond the 24h send-idempotency window.
-const STATUS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+// Cost audit 2026-11-04 item 11: status polling stops at 48h, not day 7.
+// Rows that age out move to needs_review and raise an operator incident
+// (below) instead of polling for a week.
+const STATUS_WINDOW_MS = 48 * 60 * 60 * 1000;
 // Cost bound (c94983de): at most this many status polls per accepted email.
-// With 15→240 min backoff, 48 polls covers the 7-day retrieval window
-// (~4 ramp polls + 6 per day), so the cap bounds cost without cutting
-// retrieval short at ~20 hours.
+// The 48h window, not this cap, is now the binding limit (15→240 min
+// backoff reaches ~15 polls in 48h); the cap stays as a backstop.
 const MAX_STATUS_POLLS = 48;
 function statusPollMinutes(polls) { return Math.min(240, 15 * 2 ** Math.min(4, Math.max(0, Number(polls) || 0))); }
 async function processGiftCardDelivery({
@@ -127,6 +129,18 @@ async function processGiftCardDelivery({
       ],
     );
     acknowledged += result.rowCount;
+    // A row that just moved to needs_review stops being a candidate, so
+    // without an alert it would sit silently. Raise one operator incident
+    // per fulfillment (deduped by id) at the moment of transition.
+    if (status === 'needs_review' && result.rowCount) {
+      await require('./incidentStore').recordIncident({
+        type: 'restaurant_gift_card_needs_review',
+        severity: 'high',
+        message: 'Gift card delivery requires operator review',
+        dedupeKey: `restaurant-gift-card-needs-review:${row.id}`,
+        details: { fulfillmentId: row.id, reason: error, providerEvent: event },
+      });
+    }
   }
   return { claimed: rows.length, acknowledged };
 }

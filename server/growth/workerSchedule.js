@@ -6,8 +6,8 @@ function entries(env = process.env) {
       [
         "growthActivityRelay",
         () => require("../jobs/activityOutboxRelay").run(),
-        15000,
-        {},
+        60 * 1000,
+        { notifyChannel: "oxsteed_activity_outbox" },
       ],
       [
         "growthActivityWriter",
