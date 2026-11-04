@@ -70,6 +70,19 @@ This runbook is intentionally short and action-oriented.
 3. Refund: `POST /api/payments/refund` (admin only).
 4. Document reason and notify user.
 
+## Money-path flags (weekly self-audit 2026-11-04 item 10)
+The full list with code defaults lives in `server/.env.example` under
+"Money-path flags"; env flips need a restart/redeploy. Defaults:
+- Off unless enabled: `AFFILIATE_ENABLED`, `FRANCHISE_ENABLED`,
+  `QR_CREDIT_ENABLED`, `SUBSCRIPTIONS_CREDIT_ENABLED`,
+  `LOGISTICS_PAYMENTS_ENABLED`, `PAYOUT_PROCESSOR_ENABLED`,
+  `RESTAURANT_SERVER_PRINTING_ENABLED` (exactly `'true'`).
+- Off unless `'1'`: `BUSINESS_INVOICE_CREDIT_PAY_ENABLED`,
+  `BUSINESS_INVOICE_STRIPE_CONNECT_ENABLED`, `LOGISTICS_CREDIT_PAY_ENABLED`.
+- Off unless `'true'`: `CARD_STORE_FORWARD_ENABLED`, `PAYMENT_CAPTURE_ASYNC`.
+- On when unset: `CHAT_PAYMENT_REQUEST_SWEEPER_ENABLED` (set `0` to disable),
+  `METRIC_SNAPSHOTS_ENABLED` (set exactly `'false'` to disable).
+
 ## Media CSAM (Cloudflare + owner video override)
 1. Operational steps, env vars, and daily-email match response:
    `docs/oxsteed-media-csam-cloudflare-runbook.md`.
