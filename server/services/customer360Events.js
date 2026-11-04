@@ -13,7 +13,9 @@
  * is only returned when the viewer may read the source it came from.
  */
 const db = require("../db");
+const logger = require("../utils/logger");
 const AppError = require("../utils/appError");
+const { mapBounded } = require("../utils/boundedBatch");
 const { withTransaction } = require("../utils/transaction");
 
 // Which workspace source governs visibility of each event source.
@@ -48,27 +50,122 @@ async function append(runner, e) {
   return Number(row.id);
 }
 
+/**
+ * Append one customer's claimed inbox rows in a single statement, inside
+ * the caller's transaction. The recursive CTE walks the batch in inbox-id
+ * order carrying the chain head: rows already present (dedupe_key) contribute
+ * their stored hash, and new rows get the exact hash customer_event_append()
+ * would compute (same concat, same UTC microsecond formatting, same jsonb
+ * canonical text), so the chain verifies identically. The per-customer
+ * advisory lock is the same one the procedure takes, so batch appends for
+ * one customer serialise across workers while different customers proceed
+ * concurrently. Callers must run this in a transaction: the lock is
+ * transaction-scoped.
+ */
+async function appendCustomerBatch(client, customerId, rows) {
+  await client.query(`SELECT pg_advisory_xact_lock(hashtextextended('customer_events:' || $1::text, 0))`, [customerId]);
+  const payload = rows.map((r) => ({
+    inbox_id: r.id,
+    occurred_at: r.occurred_at instanceof Date ? r.occurred_at.toISOString() : r.occurred_at,
+    source: r.source, event_type: r.event_type, actor_type: r.actor_type, actor_id: r.actor_id,
+    entity_type: r.entity_type, entity_id: r.entity_id, changes: r.changes || {}, dedupe_key: r.dedupe_key,
+  }));
+  const { rowCount } = await client.query(
+    `WITH RECURSIVE batch AS (
+       SELECT (x->>'inbox_id')::bigint AS inbox_id,
+              (x->>'occurred_at')::timestamptz AS occurred_at,
+              x->>'source' AS source, x->>'event_type' AS event_type,
+              x->>'actor_type' AS actor_type,
+              (x->>'actor_id')::uuid AS actor_id,
+              x->>'entity_type' AS entity_type, x->>'entity_id' AS entity_id,
+              COALESCE((x->'changes')::jsonb, '{}'::jsonb) AS changes,
+              x->>'dedupe_key' AS dedupe_key,
+              row_number() OVER (ORDER BY (x->>'inbox_id')::bigint) AS rn
+         FROM jsonb_array_elements($2::jsonb) x
+     ),
+     head AS (SELECT event_hash FROM customer_events WHERE customer_id = $1 ORDER BY id DESC LIMIT 1),
+     rec AS (
+       SELECT b.*, e.event_hash AS existing_hash,
+              (SELECT event_hash FROM head) AS prev_hash,
+              CASE WHEN e.id IS NOT NULL THEN e.event_hash
+                   ELSE encode(sha256(convert_to(concat_ws('|',
+                     COALESCE((SELECT event_hash FROM head), ''), $1::text,
+                     to_char(b.occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US'),
+                     b.source, b.event_type, b.actor_type, COALESCE(b.actor_id::text, ''),
+                     COALESCE(b.entity_type, ''), COALESCE(b.entity_id, ''), b.changes::text, b.dedupe_key), 'UTF8')), 'hex')::char(64)
+              END AS new_hash
+         FROM batch b LEFT JOIN customer_events e ON e.dedupe_key = b.dedupe_key
+        WHERE b.rn = 1
+       UNION ALL
+       SELECT b.*, e.event_hash AS existing_hash,
+              r.new_hash AS prev_hash,
+              CASE WHEN e.id IS NOT NULL THEN e.event_hash
+                   ELSE encode(sha256(convert_to(concat_ws('|',
+                     r.new_hash, $1::text,
+                     to_char(b.occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US'),
+                     b.source, b.event_type, b.actor_type, COALESCE(b.actor_id::text, ''),
+                     COALESCE(b.entity_type, ''), COALESCE(b.entity_id, ''), b.changes::text, b.dedupe_key), 'UTF8')), 'hex')::char(64)
+              END
+         FROM rec r JOIN batch b ON b.rn = r.rn + 1
+         LEFT JOIN customer_events e ON e.dedupe_key = b.dedupe_key
+     )
+     INSERT INTO customer_events (customer_id, occurred_at, source, event_type, actor_type, actor_id,
+       entity_type, entity_id, changes, dedupe_key, previous_hash, event_hash)
+     SELECT $1, occurred_at, source, left(event_type, 120), actor_type, actor_id,
+       left(entity_type, 60), left(entity_id, 160), changes, left(dedupe_key, 255), prev_hash, new_hash
+       FROM rec WHERE existing_hash IS NULL
+     ON CONFLICT (dedupe_key) DO NOTHING`,
+    [customerId, JSON.stringify(payload)],
+  );
+  return rowCount;
+}
+
 /** Move up to `limit` outbox rows into the hashed log. Safe to run on many workers. */
 async function drainInbox({ limit = 500 } = {}) {
-  return withTransaction(db, async (client) => {
+  // Claim only: the SELECT locks the rows for this instant, then releases.
+  // Appends run per customer on their own connections (bounded concurrency),
+  // and the final DELETE removes only rows whose event is now in the log, so
+  // a crashed or failed group is retried by the next tick instead of lost,
+  // and a row another worker already appended and deleted is simply a no-op.
+  const rows = await withTransaction(db, async (client) => {
     const { rows } = await client.query(
       `SELECT * FROM customer_event_inbox ORDER BY id LIMIT $1 FOR UPDATE SKIP LOCKED`,
       [Math.min(Math.max(1, limit), 2000)],
     );
-    if (!rows.length) return { moved: 0 };
-    // Group by customer so each chain lock is taken once per batch, in a
-    // stable order (prevents lock-order deadlocks between workers).
-    rows.sort((a, b) => (a.customer_id < b.customer_id ? -1 : a.customer_id > b.customer_id ? 1 : Number(a.id) - Number(b.id)));
-    for (const r of rows) {
-      await client.query(
-        `SELECT customer_event_append($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [r.customer_id, r.occurred_at, r.source, r.event_type, r.actor_type, r.actor_id,
-          r.entity_type, r.entity_id, r.changes, r.dedupe_key],
-      );
+    return rows;
+  }, "customer_event_drain_claim");
+  if (!rows.length) return { moved: 0 };
+  // Group by customer so each chain lock is taken once per batch, in a
+  // stable order (prevents lock-order deadlocks between workers).
+  rows.sort((a, b) => (a.customer_id < b.customer_id ? -1 : a.customer_id > b.customer_id ? 1 : Number(a.id) - Number(b.id)));
+  const groups = new Map();
+  for (const r of rows) {
+    if (!groups.has(r.customer_id)) groups.set(r.customer_id, []);
+    groups.get(r.customer_id).push(r);
+  }
+  const appended = [];
+  await mapBounded([...groups.entries()], 5, async ([customerId, groupRows]) => {
+    const client = await db.connect();
+    try {
+      await client.query("BEGIN");
+      await appendCustomerBatch(client, customerId, groupRows);
+      await client.query("COMMIT");
+      appended.push(...groupRows.map((r) => r.id));
+    } catch (err) {
+      await client.query("ROLLBACK").catch(() => {});
+      // One customer's failure must not strand the rest of the batch; its
+      // rows stay in the inbox and the next tick retries them.
+      logger.warn("Customer 360 event drain group failed, will retry", { customerId, rows: groupRows.length, message: err.message });
+    } finally {
+      client.release();
     }
-    await client.query(`DELETE FROM customer_event_inbox WHERE id = ANY($1::bigint[])`, [rows.map((r) => r.id)]);
-    return { moved: rows.length };
-  }, "customer_event_drain");
+  });
+  if (!appended.length) return { moved: 0 };
+  const { rowCount } = await db.query(
+    `DELETE FROM customer_event_inbox i WHERE i.id = ANY($1::bigint[])
+       AND EXISTS (SELECT 1 FROM customer_events e WHERE e.dedupe_key = i.dedupe_key)`,
+    [appended]);
+  return { moved: rowCount };
 }
 
 // One-time backfill walkers: each selects a primary-key batch. Row-per-event

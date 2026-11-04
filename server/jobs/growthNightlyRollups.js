@@ -2,6 +2,7 @@
 const { withFencedJobLock } = require("./jobLockingService");
 const gate = require("../growth/gate");
 const { withTransaction } = require("../utils/transaction");
+const { mapBounded } = require("../utils/boundedBatch");
 const db = require("../db");
 const {
   collectDomainDay,
@@ -125,18 +126,28 @@ async function run({ day: requestedDay, force = false } = {}) {
             const missing=jobIds.filter(id=>!nodeByJob.has(id));
             if(missing.length){
               const {rows:jobs}=await fence.db.query('SELECT id,title,description,category_id,job_type FROM jobs WHERE id=ANY($1::uuid[])',[missing]);
-              for(const job of jobs){
+              // Cost audit 2026-11-04 item 6: classification ran serially,
+              // one transaction per job. Batch it at bounded concurrency;
+              // each classification still runs in its own transaction.
+              await mapBounded(jobs, 5, async (job) => {
                 const classified=await withTransaction(db,conn=>require('../growth/classify').classify(conn,{
                   entity_type:'job',entity_id:job.id,text:`${job.title} ${job.description}`,category_id:job.category_id,job_type:job.job_type
                 }),'growth_classify');
                 nodeByJob.set(String(job.id),classified.review?null:classified.node_id);
-              }
+              });
             }
             await fence.fencedTransaction(async conn=>{
               // Sorted shared locks preserve withdrawal/erasure serialization.
               const keys=[...new Set(eligible.map(({row})=>require('../growth/identity').consentLock(row.subject_key)))].sort();
               await conn.query('SELECT pg_advisory_xact_lock_shared(hashtextextended(k,0)) FROM unnest($1::text[]) AS locks(k) ORDER BY k',[keys]);
-              const fresh=await gate.contexts(ids,{db:conn,lockPolicy:true});
+              // Cost audit 2026-11-04 item 6: the inner context build used
+              // to rebuild contexts for every subject in the block, even
+              // though the transaction below only reads contexts for
+              // ELIGIBLE rows. Build only those users' contexts (the
+              // lockPolicy build is still needed for withdrawal/erasure
+              // serialization, so it cannot be dropped entirely).
+              const eligibleUserIds=[...new Set(eligible.map(({subject})=>subject.user_id))];
+              const fresh=await gate.contexts(eligibleUserIds,{db:conn,lockPolicy:true});
               const writes=new Map();
               for(let i=0;i<eligible.length;i++){
                 const {row,subject}=eligible[i], node=nodeByJob.get(row.entity_id), ctx=fresh.get(subject.user_id);

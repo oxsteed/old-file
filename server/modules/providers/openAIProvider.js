@@ -1,4 +1,5 @@
 const https = require('https');
+const budget = require('../../services/openRouterSpendGuard');
 const logger = require('../../utils/logger');
 const {
   TRANSLATION_RESPONSE_SCHEMA,
@@ -9,6 +10,10 @@ const {
  * OpenAI translation adapter (fallback path for OpenRouter).
  *
  * Uses /v1/chat/completions with response_format=json_schema (strict).
+ *
+ * All paid calls are reserved against the shared spend budget first
+ * (services/openRouterSpendGuard); a denied reservation never reaches
+ * the network.
  *
  * Env vars:
  *   OPENAI_API_KEY                 (required)
@@ -45,7 +50,32 @@ function buildSystemPrompt({ sourceLanguage, targetLanguage, tone }) {
   ].join('\n');
 }
 
-function postJson(path, body) {
+/**
+ * Every paid OpenAI call passes through the shared spend budget first, the
+ * same reserve-then-settle boundary the OpenRouter adapter uses. A denied
+ * reservation never reaches the network: the error carries a fallback
+ * code so the provider chain falls through to free LibreTranslate instead
+ * of spending or failing translation outright, and a missing shared store
+ * in production denies (fail-closed) exactly as the guard does.
+ */
+async function postJson(path, body) {
+  if (!isConfigured()) {
+    const err = new Error('OPENAI_API_KEY is not configured');
+    err.code = 'PROVIDER_NOT_CONFIGURED';
+    throw err;
+  }
+  const reservation = await budget.reserve(body);
+  if (!reservation) {
+    const err = new Error('openai_spend_cap_exceeded');
+    err.code = 'PROVIDER_RATE_LIMITED';
+    throw err;
+  }
+  const result = await requestJson(path, body);
+  await budget.settle(reservation, result?.usage);
+  return result;
+}
+
+function requestJson(path, body) {
   return new Promise((resolve, reject) => {
     if (!isConfigured()) {
       const err = new Error('OPENAI_API_KEY is not configured');

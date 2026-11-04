@@ -1,11 +1,16 @@
 "use strict";
 const { publishBatch } = require("../services/restaurantScreenSync");
 const logger = require("../utils/logger");
+// Cost audit 2026-11-04 item 7: wake on insert via LISTEN/NOTIFY instead
+// of polling every 2s (about 43,200 guard SELECTs a day when idle). The
+// interval below is only a slow safety sweep for a missed notification.
+const SWEEP_MS = 60000;
 function startRestaurantScreenSync() {
   let stopped = false,
     running = null,
     lastWarning = 0,
-    lastCleanup = 0;
+    lastCleanup = 0,
+    unsubscribe = null;
   const run = () => {
     if (stopped || running) return;
     running = publishBatch()
@@ -29,12 +34,18 @@ function startRestaurantScreenSync() {
         running = null;
       });
   };
-  const timer = setInterval(run, 2000);
+  const timer = setInterval(run, SWEEP_MS);
   timer.unref?.();
+  try {
+    unsubscribe = require("../utils/notifyWakeup").subscribe("oxsteed_screen_events", run);
+  } catch (error) {
+    logger.warn("Restaurant screen notify wakeup unavailable, sweep only", { message: error.message });
+  }
   return {
     stop() {
       stopped = true;
       clearInterval(timer);
+      if (unsubscribe) unsubscribe();
       return running;
     },
   };

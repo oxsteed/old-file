@@ -139,11 +139,12 @@ function runScheduledWorkerOnce([name, workerFn, intervalMs, options], { log = l
 function startScheduledWorkers({ log = logger, schedule = SCHEDULED_WORKERS } = {}) {
   const inFlight = new Map();
   const timers = [];
+  const unsubscribes = [];
   let stopped = false;
   let stopPromise = null;
   for (const entry of schedule) {
-    const [name, , intervalMs] = entry;
-    const timer = setInterval(() => {
+    const [name, , intervalMs, options] = entry;
+    const trigger = () => {
       if (stopped || inFlight.has(name)) return;
       const run = Promise.resolve()
         .then(() => runScheduledWorkerOnce(entry, { log }))
@@ -158,9 +159,21 @@ function startScheduledWorkers({ log = logger, schedule = SCHEDULED_WORKERS } = 
           if (inFlight.get(name) === run) inFlight.delete(name);
         });
       inFlight.set(name, run);
-    }, intervalMs);
+    };
+    const timer = setInterval(trigger, intervalMs);
     timer.unref?.();
     timers.push(timer);
+    // Cost audit 2026-11-04 item 7: an entry with a notifyChannel also
+    // wakes on Postgres NOTIFY (transactional, so only committed rows
+    // wake it); the interval above remains as a slow safety sweep. The
+    // inFlight guard makes a notify that lands mid-run a no-op.
+    if (options?.notifyChannel) {
+      try {
+        unsubscribes.push(require('../utils/notifyWakeup').subscribe(options.notifyChannel, trigger));
+      } catch (error) {
+        log.warn('Scheduled worker notify wakeup unavailable, interval only', { worker: name, message: error.message });
+      }
+    }
   }
   log.info('Scheduled workers running in the API process', { workers: schedule.map(([n]) => n) });
   return {
@@ -169,6 +182,12 @@ function startScheduledWorkers({ log = logger, schedule = SCHEDULED_WORKERS } = 
       stopped = true;
       for (const t of timers) clearInterval(t);
       timers.length = 0;
+      for (const unsub of unsubscribes) {
+        try {
+          unsub();
+        } catch (_) { /* unsubscribe is best-effort on shutdown */ }
+      }
+      unsubscribes.length = 0;
       // Stop accepting new ticks, then let already-claimed work commit or
       // fail before the API tears down its database, Redis and ClickHouse
       // clients. This mirrors the dedicated worker's drain contract.

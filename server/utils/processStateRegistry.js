@@ -259,6 +259,16 @@ const ENTRIES = [
     classification: 'cache', shared: 'redis',
     rationale: 'Single-process fallback for the daily spend-cap breach alert deduplication set; Redis is authoritative when configured. Missing an alert only delays ops notification, never blocks chat.',
   },
+  {
+    file: 'services/restaurantAccountingProvider.js', name: 'metadataCaches',
+    classification: 'cache', shared: 'none',
+    rationale: 'Cost audit 2026-11-04 item 8: per-integration provider metadata cache (Organisation, account lookups), 60s TTL, 100-entry cap per integration. Backing truth is the provider API; only metadata responses are cached, never credentials or tokens.',
+  },
+  {
+    file: 'utils/notifyWakeup.js', name: 'listeners',
+    classification: 'ephemeral', shared: 'none',
+    rationale: 'Cost audit 2026-11-04 item 7: per-process Postgres NOTIFY subscriber registry (channel to callbacks) for outbox wakeups. Subscriptions die with the process; correctness never depends on them because the interval safety sweeps keep running.',
+  },
 ];
 
 for (const entry of ENTRIES) registerProcessState(entry);

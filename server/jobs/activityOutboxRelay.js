@@ -14,13 +14,38 @@ async function run() {
         const { rows } = await conn.query(
           "SELECT * FROM activity_outbox ORDER BY id LIMIT 500 FOR UPDATE SKIP LOCKED",
         );
+        // Cost audit 2026-11-04 item 14: the relay used to build a fresh
+        // gate context per row (several queries per row) inside one long
+        // transaction. Build the contexts once for the batch instead and
+        // decide per row in memory. Contexts are keyed by
+        // (user, trusted-signals): one batched contexts() call covers
+        // every user whose rows all carry the same signals, and only
+        // users with divergent rows get one extra call per signal set,
+        // so per-row signal semantics are exactly preserved.
+        const signalsByUser = new Map();
+        for (const row of rows) {
+          const key = JSON.stringify(row.trusted_signals ?? null);
+          if (!signalsByUser.has(row.user_id)) signalsByUser.set(row.user_id, new Map());
+          signalsByUser.get(row.user_id).set(key, row.trusted_signals);
+        }
+        const ctxByKey = new Map();
+        const singleSignalUsers = [...signalsByUser].filter(([, sets]) => sets.size === 1);
+        if (singleSignalUsers.length) {
+          const signals = new Map(singleSignalUsers.map(([id, sets]) => [id, [...sets.values()][0]]));
+          const ctxs = await gate.contexts(singleSignalUsers.map(([id]) => id), { db: conn, trustedSignals: signals });
+          for (const [id, ctx] of ctxs) ctxByKey.set(`${id}\0${[...signalsByUser.get(id).keys()][0]}`, ctx);
+        }
+        for (const [id, sets] of signalsByUser) {
+          if (sets.size === 1) continue;
+          for (const [key, signals] of sets) {
+            const ctxs = await gate.contexts([id], { db: conn, trustedSignals: new Map([[id, signals]]) });
+            ctxByKey.set(`${id}\0${key}`, ctxs.get(id));
+          }
+        }
         for (const row of rows) {
           fence.assertActive();
-          const permission = await gate.allow({
-            userId: row.user_id,
-            trustedSignals: row.trusted_signals,
-            db: conn,
-          });
+          const ctx = ctxByKey.get(`${row.user_id}\0${JSON.stringify(row.trusted_signals ?? null)}`);
+          const permission = await gate.allow(ctx, "activity");
           if (permission.allowed)
             await queue.enqueue(
               [

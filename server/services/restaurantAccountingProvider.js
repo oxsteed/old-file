@@ -54,18 +54,33 @@ async function api(integration,credentials,path,options={}){
   const c=config(integration.provider);
   const base=integration.provider==='xero'?c.api:`${c.api}/${encodeURIComponent(integration.external_company_id)}`;
   const cacheable = !options.method && (path === '/Organisation' || path.startsWith('/query?') || path.startsWith('/account/'));
-  if (!credentials.metadataCache) Object.defineProperty(credentials,'metadataCache',{value:new Map(),enumerable:false});
-  const key = `${integration.provider}:${integration.external_company_id}:${path}`;
-  const prior = credentials.metadataCache.get(key);
+  // Cost audit 2026-11-04 item 8: the metadata cache used to hang off the
+  // credentials object, and tokens() builds a fresh credentials object per
+  // batch, so the cache reset every batch and every metadata fetch paid
+  // again. The cache now lives in a per-integration store keyed by the
+  // stable integration id (falling back to provider + company), with the
+  // same 60s TTL and 100-entry cap per integration.
+  const cache = metadataCacheFor(integration);
+  const prior = cache.get(path);
   if (cacheable && prior && prior.expires>Date.now()) return prior.value;
   const request = () => json(`${base}${path}`,{...options,headers:{Authorization:`Bearer ${credentials.accessToken}`,
     Accept:'application/json','Content-Type':'application/json',...(integration.provider==='xero'?{'Xero-tenant-id':integration.external_company_id}:{}),...options.headers}});
   const value = await request();
   if (cacheable) {
-    if (credentials.metadataCache.size>=100) credentials.metadataCache.clear();
-    credentials.metadataCache.set(key,{value,expires:Date.now()+60000});
+    if (cache.size>=100) {
+      for (const [k, v] of cache) if (v.expires<=Date.now()) cache.delete(k);
+      if (cache.size>=100) cache.clear();
+    }
+    cache.set(path,{value,expires:Date.now()+60000});
   }
   return value;
+}
+const metadataCaches=new Map();
+function metadataCacheFor(integration){
+  const key=integration.id??`${integration.provider}:${integration.external_company_id}`;
+  let cache=metadataCaches.get(key);
+  if(!cache){cache=new Map();metadataCaches.set(key,cache);}
+  return cache;
 }
 const marker=id=>`OxSteed journal ${id}`;
 function qboLines(lines,accounts){return lines.map(line=>({Amount:Number(line.debit||0)+Number(line.credit||0),Description:line.description,

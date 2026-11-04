@@ -69,11 +69,16 @@ async function sendMessage(req, res) {
       const draftRow = await withTransaction(pool, async client => {
         const locked = await client.query('SELECT status FROM support_conversations WHERE id=$1 AND business_id=$2 FOR UPDATE', [conversationId,businessId]);
         if (!locked.rows.length || ['closed','resolved','merged'].includes(locked.rows[0].status)) throw new Error('conversation_not_open');
+        // Cost audit 2026-11-04 item 10: the cache key is business +
+        // conversation + content hash + language, deliberately WITHOUT
+        // requested_by. Two staff drafting the same reply used to pay for
+        // two identical generations; the INSERT below still records who
+        // requested the draft, but the lookup reuses it across staff.
         const cached = await client.query(`SELECT * FROM support_ai_reply_drafts
-          WHERE business_id=$1 AND conversation_id=$2 AND requested_by=$3
-            AND md5(source_content)=md5($4) AND source_content=$4 AND language=$5 AND status='pending'
+          WHERE business_id=$1 AND conversation_id=$2
+            AND md5(source_content)=md5($3) AND source_content=$3 AND language=$4 AND status='pending'
             AND created_at>NOW()-INTERVAL '24 hours' ORDER BY created_at DESC LIMIT 1`,
-          [businessId,conversationId,req.user.id,String(content).trim(),selectedLanguage]);
+          [businessId,conversationId,String(content).trim(),selectedLanguage]);
         if (cached.rows.length) return cached.rows[0];
       const { text: response, model: aiModel } = await callAiSupportDraft(String(content).trim(), selectedLanguage);
       const inserted = await client.query(

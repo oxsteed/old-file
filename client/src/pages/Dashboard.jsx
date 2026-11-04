@@ -1,5 +1,6 @@
-import { getAccountSnapshot } from '../api/accountSnapshot';
 import { useAuth } from '../hooks/useAuth';
+import useNotifications from '../hooks/useNotifications';
+import useUnreadMessages from '../hooks/useUnreadMessages';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
@@ -365,8 +366,6 @@ export default function Dashboard() {
   const [foodOrders, setFoodOrders] = useState([]);
   const [restaurantWallets, setRestaurantWallets] = useState([]);
   const [oxsteedCreditAccount, setOxsteedCreditAccount] = useState(null);
-  const [notifications, setNotifications] = useState([]);
-  const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [tab, setTab] = useState(() => {
@@ -875,23 +874,27 @@ export default function Dashboard() {
   const [homeTaskForm, setHomeTaskForm] = useState({ title:'', due_date:'', urgency:'low', frequency:'one_time', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'', home_id:'' });
   const [checklistForm, setChecklistForm] = useState({ title:'', due_date:'' });
 
+  // Cost audit 2026-11-04 item 12: the notification and message counts
+  // come from the shared stores Navbar already populates
+  // (useNotifications, useUnreadMessages), not from Dashboard's own
+  // notification/conversation fetches. Dashboard keeps its own fetch only
+  // for jobs, food orders, wallets, and credit.
+  const { unreadCount: unreadNotifs } = useNotifications();
+  const { unreadCount: unreadMsgs } = useUnreadMessages();
+
   const retryLoad = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
-      const [jobsRes, notifRes, msgRes, foodOrdersRes, walletsRes, creditRes] = await Promise.allSettled([
+      const [jobsRes, foodOrdersRes, walletsRes, creditRes] = await Promise.allSettled([
         api.get('/jobs/me/list'),
-        getAccountSnapshot(user?.id, '/notifications'),
-        getAccountSnapshot(user?.id, '/messages/conversations'),
         listMyFoodOrders(),
         listMyFoodRestaurantWallets(),
         getOxsteedCreditAccount().catch(() => null),
       ]);
-      const anyFailed = [jobsRes, notifRes, msgRes, foodOrdersRes, walletsRes].some(r => r.status === 'rejected');
+      const anyFailed = [jobsRes, foodOrdersRes, walletsRes].some(r => r.status === 'rejected');
       if (anyFailed) setError(true);
       if (jobsRes.status === 'fulfilled') setMyJobs(jobsRes.value.data?.jobs || jobsRes.value.data || []);
-      if (notifRes.status === 'fulfilled') setNotifications(notifRes.value.data?.notifications || notifRes.value.data || []);
-      if (msgRes.status === 'fulfilled') setConversations(msgRes.value.data?.conversations || msgRes.value.data || []);
       if (foodOrdersRes.status === 'fulfilled') setFoodOrders(foodOrdersRes.value?.orders || []);
       if (walletsRes.status === 'fulfilled') setRestaurantWallets(walletsRes.value || []);
       if (creditRes.status === 'fulfilled') setOxsteedCreditAccount(creditRes.value || null);
@@ -931,8 +934,6 @@ export default function Dashboard() {
       : hr < 17
         ? t('dashboard.greeting', { time: t('dashboard.afternoon'), name: displayName })
         : t('dashboard.greeting', { time: t('dashboard.evening'), name: displayName });
-  const unreadNotifs = Array.isArray(notifications) ? notifications.filter(n => !n.read && !n.read_at).length : 0;
-  const unreadMsgs = Array.isArray(conversations) ? conversations.filter(c => c.unread_count > 0).length : 0;
   const activeJobs = Array.isArray(myJobs)
     ? myJobs.filter((job) => ACTIVE_CUSTOMER_JOB_STATUSES.has(String(job.status || '').toLowerCase()))
     : [];

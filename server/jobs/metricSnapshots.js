@@ -67,21 +67,37 @@ async function writeRows(client, runId, { day, metric, key, scope, rows, source,
     // computed, so an absent currency reads as zero rather than missing.
     ? [{ dimensionKey: '', value: null, components: { currencies: rows.map(r => r.dimensionKey) } }, ...rows]
     : rows.length ? rows : [{ dimensionKey: '', value: null, components: {} }];
+  // Cost audit 2026-11-04 item 15: one multi-row INSERT per chunk instead
+  // of one INSERT per dimension row, with the same ON CONFLICT clause
+  // (update only on recompute) and the same running-run guard. Shared
+  // columns reuse parameters ($1-$9); each row adds three more.
+  // Chunked so a wide snapshot cannot approach the parameter limit.
   let written = 0;
-  for (const row of all) {
+  for (let start = 0; start < all.length; start += 500) {
+    const chunk = all.slice(start, start + 500);
+    const params = [day, metric, key, regionIds, kind, source, hash, runId, recompute === true];
+    const tuples = chunk.map((row, i) => {
+      params.push(row.dimensionKey, row.value, JSON.stringify(row.components));
+      const b = 10 + i * 3;
+      // Every reused parameter is cast to its column type: a VALUES list
+      // infers types from its own expressions, not from the INSERT
+      // target, so an uncast run_id (a bigint pg returns as a string)
+      // would otherwise type the column as text and fail the insert.
+      return `($1::DATE, $2::TEXT, $3::TEXT, $4::INTEGER[], $${b}::TEXT, $${b + 1}::NUMERIC, $${b + 2}::JSONB, $5::TEXT, $6::TEXT, $7::TEXT, $8::BIGINT)`;
+    }).join(',');
     const res = await client.query(
       `INSERT INTO metric_daily_snapshots
          (snapshot_date, metric_name, scope_key, region_ids, dimension_key, value, components,
           value_kind, source, definition_hash, run_id)
-       SELECT $1::DATE, $2, $3, $4::INTEGER[], $5, $6::NUMERIC, $7::JSONB, $8, $9, $10, $11
-        WHERE EXISTS (SELECT 1 FROM metric_snapshot_runs WHERE id = $11 AND status = 'running')
+       SELECT * FROM (VALUES ${tuples}) AS v(snapshot_date, metric_name, scope_key, region_ids, dimension_key, value, components,
+          value_kind, source, definition_hash, run_id)
+        WHERE EXISTS (SELECT 1 FROM metric_snapshot_runs WHERE id = $8 AND status = 'running')
        ON CONFLICT (snapshot_date, metric_name, scope_key, dimension_key) DO UPDATE SET
          value = EXCLUDED.value, components = EXCLUDED.components, source = EXCLUDED.source,
          definition_hash = EXCLUDED.definition_hash, run_id = EXCLUDED.run_id, computed_at = NOW(),
          region_ids = EXCLUDED.region_ids
-        WHERE $12::BOOLEAN`,
-      [day, metric, key, regionIds, row.dimensionKey, row.value, JSON.stringify(row.components),
-        kind, source, hash, runId, recompute === true]);
+        WHERE $9::BOOLEAN`,
+      params);
     written += res.rowCount;
   }
   return written;

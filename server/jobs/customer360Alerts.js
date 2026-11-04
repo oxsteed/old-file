@@ -7,9 +7,21 @@ const ANOMALY_KINDS = {
   anomaliesFinancial: ["refund_spike", "payout_failures"],
   anomaliesSecurity: ["new_country_login"],
 };
+// Global per-tick send cap across all alert rules: without it, 50 rules x
+// 25 anomalies could emit 1,250 notifications per minute for as long as a
+// storm lasts. Overflow is not dropped: it is rolled into one digest
+// notification per admin, and the undelivered anomalies keep their
+// not-yet-notified guard, so the next tick retries them.
+const tickCap = () => Math.max(1, Number(process.env.CUSTOMER360_ALERT_TICK_CAP) || 100);
+function newBudget() {
+  return { remaining: tickCap(), overflowByAdmin: new Map() };
+}
+function noteOverflow(budget, adminId, count = 1) {
+  budget.overflowByAdmin.set(adminId, (budget.overflowByAdmin.get(adminId) || 0) + count);
+}
 // Platform-wide anomaly watch (customer_id IS NULL): one notification per
 // bundled anomaly and status, never per repeat detection.
-async function evaluatePlatformAnomalyRule(rule, def) {
+async function evaluatePlatformAnomalyRule(rule, def, budget = null) {
   const kinds = ANOMALY_KINDS[rule.source];
   if (!kinds) return 0;
   const { rows } = await db.query(
@@ -22,6 +34,10 @@ async function evaluatePlatformAnomalyRule(rule, def) {
   );
   let sent = 0;
   for (const row of rows) {
+    if (budget && budget.remaining <= 0) {
+      noteOverflow(budget, rule.admin_id);
+      continue;
+    }
     const result = await sendNotification({
       userId: rule.admin_id,
       type: "customer360_attention",
@@ -31,7 +47,10 @@ async function evaluatePlatformAnomalyRule(rule, def) {
       data: { customer_id: row.customer_id, source: rule.source, record_id: row.id, status: row.status, kind: row.kind, area: def.area },
       idempotencyKey: `customer360-rule:${rule.id}:${row.id}:${row.status}`,
     });
-    if (result?.success) sent++;
+    if (result?.success) {
+      sent++;
+      if (budget) budget.remaining -= 1;
+    }
   }
   return sent;
 }
@@ -39,6 +58,7 @@ async function evaluateCustomer360Alerts() {
   const { rows: rules } = await db.query(
     `SELECT a.*,u.role,u.preferred_language FROM admin_customer_alert_rules a JOIN users u ON u.id=a.admin_id WHERE a.enabled AND u.role IN ('admin','super_admin') AND COALESCE(u.totp_enabled,false)=true AND u.is_active=true AND COALESCE(u.is_banned,false)=false AND COALESCE(u.is_suspended,false)=false ORDER BY a.last_evaluated_at ASC NULLS FIRST,a.id LIMIT 50`,
   );
+  const budget = newBudget();
   let sent = 0;
   for (const rule of rules) {
     try {
@@ -50,7 +70,7 @@ async function evaluateCustomer360Alerts() {
         };
       if (!def || !(await service.access(req)(def))) continue;
       if (!rule.customer_id) {
-        sent += await evaluatePlatformAnomalyRule(rule, def);
+        sent += await evaluatePlatformAnomalyRule(rule, def, budget);
         continue;
       }
       await service.target(req);
@@ -68,6 +88,10 @@ async function evaluateCustomer360Alerts() {
         ],
       );
       for (const row of rows) {
+        if (budget.remaining <= 0) {
+          noteOverflow(budget, rule.admin_id);
+          continue;
+        }
         const result = await sendNotification({
           userId: rule.admin_id,
           type: "customer360_attention",
@@ -82,7 +106,10 @@ async function evaluateCustomer360Alerts() {
           },
           idempotencyKey: `customer360-rule:${rule.id}:${row.id}:${row.status}`,
         });
-        if (result?.success) sent++;
+        if (result?.success) {
+          sent++;
+          budget.remaining -= 1;
+        }
       }
     } catch (error) {
       logger.warn("Customer 360 watch evaluation will retry", {
@@ -96,7 +123,22 @@ async function evaluateCustomer360Alerts() {
       );
     }
   }
-  return { sent };
+  // One digest per admin for everything the cap held back this tick. The
+  // minute-bucketed key keeps it to one digest per admin per tick while a
+  // storm lasts, instead of one notification per held-back anomaly.
+  let digested = 0;
+  for (const [adminId, overflow] of budget.overflowByAdmin) {
+    const result = await sendNotification({
+      userId: adminId,
+      type: "customer360_attention",
+      title: "Customer 360 anomaly digest",
+      body: "",
+      data: { overflow, digest: true },
+      idempotencyKey: `customer360-digest:${adminId}:${Math.floor(Date.now() / 60000)}`,
+    });
+    if (result?.success) digested++;
+  }
+  return { sent, digested, overflow: [...budget.overflowByAdmin.values()].reduce((a, b) => a + b, 0) };
 }
 function startCustomer360Alerts() {
   if (process.env.CUSTOMER360_ALERTS_ENABLED === "false") return { stop() {} };
