@@ -33,6 +33,16 @@ The updated operations browser case passed, including all five tab labels and
 Arabic mobile layout. `npm run build:ci` passed, including localization,
 TypeScript, production compilation, and emitted-asset verification.
 
+The initial full CI run exposed an existing finance-fixture race: it inspected
+the payout request immediately after clicking, while its confirmation dialog
+was still being accepted. The test now awaits the confirm event and acceptance,
+checks the displayed $30.00 amount, and waits for the synthetic API call before
+asserting its amount and idempotency key. No production payment is made.
+The updated finance browser case passed all thirty viewport/theme/language
+combinations along with its permission and unavailable-state assertions.
+This branch also includes the dedicated-client schema fixture shutdown repair
+from PR #685 so its full CI run cannot repeat that known cleanup race.
+
 ## Production boundary
 
 The signed-in Chrome account currently opens restaurant onboarding because it
