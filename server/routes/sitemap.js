@@ -4,7 +4,13 @@
 // Deliberately omitted (verified against App.jsx, launchScope, and server
 // routes): /discover redirects to /jobs while discoverEverything is off, so
 // only /jobs is listed; /features and /hire are redirect-only stubs to
-// /how-it-works and /helpers. /direct/service-area stays listed: the SPA
+// /how-it-works and /helpers. /food is not listed: FoodHomePage canonicalizes
+// to /restaurants, which is listed. /tool-rentals, /logistics/campaigns,
+// and /status lists are deliberately noindex (page-level PageMeta and the
+// prerender shell agree), so only their detail pages are listed.
+// /media/search is a search page and stays out; media detail sections are
+// listed only while OXSTEED_MEDIA_LAUNCHED is true, since they redirect to
+// / while the flag is off. /direct/service-area stays listed: the SPA
 // route redirects, but the server serves a real localized page at that path
 // (server/index.js mounts sendDirectServiceAreaPage before the SPA fallback).
 // Worst-case URL count stays near 23k (capped per section), far under the
@@ -41,6 +47,14 @@ function urlEntry({ loc, changefreq, priority, lastmod, localized = false }) {
   ].filter(Boolean).join('\n');
 }
 
+function mediaLaunched() {
+  // Mirrors the server default in server/middleware/launchGate.js
+  // (OXSTEED_MEDIA_LAUNCHED, default off). Media detail URLs redirect to
+  // / while the flag is off, so they are only enumerated while launched.
+  // The /media index itself stays listed unconditionally (pre-existing).
+  return String(process.env.OXSTEED_MEDIA_LAUNCHED || '').trim().toLowerCase() === 'true';
+}
+
 router.get('/', async (_req, res) => {
   try {
     const origin = getPublicSiteUrl();
@@ -53,6 +67,12 @@ router.get('/', async (_req, res) => {
       { loc: `${origin}/helpers`, changefreq: 'daily', priority: '0.9', localized: true },
       { loc: `${origin}/jobs`, changefreq: 'daily', priority: '0.8', localized: true },
       { loc: `${origin}/how-it-works`, changefreq: 'monthly', priority: '0.7', localized: true },
+      // One static entry per known ExperienceGuide area (see
+      // client/src/utils/experienceGuideModel.js EXPERIENCE_AREA_KEYS).
+      // These are real public guide pages, indexable per seoMeta.
+      ...['food', 'credit', 'restaurant-credit', 'direct', 'rentals', 'marketplace', 'messages', 'calendar', 'business', 'delivery', 'logistics', 'support', 'consulting', 'get-started', 'media'].map((area) => (
+        { loc: `${origin}/how-it-works/${area}`, changefreq: 'monthly', priority: '0.6', localized: true }
+      )),
       { loc: `${origin}/help/restaurant`, changefreq: 'monthly', priority: '0.5', localized: true },
       { loc: `${origin}/help/manager`, changefreq: 'monthly', priority: '0.5', localized: true },
       { loc: `${origin}/help/pos`, changefreq: 'monthly', priority: '0.5', localized: true },
@@ -73,6 +93,13 @@ router.get('/', async (_req, res) => {
       { loc: `${origin}/support/escalation`, changefreq: 'monthly', priority: '0.6', localized: true },
       { loc: `${origin}/restaurants`, changefreq: 'daily', priority: '0.7', localized: true },
       { loc: `${origin}/media`, changefreq: 'daily', priority: '0.7', localized: true },
+      // Media directories, listed only while the media flag is on (same
+      // gate as the detail sections below). /media/search is held out
+      // deliberately: search result pages do not belong in a sitemap.
+      ...(mediaLaunched() ? [
+        { loc: `${origin}/media/communities`, changefreq: 'daily', priority: '0.6', localized: false },
+        { loc: `${origin}/media/creator`, changefreq: 'monthly', priority: '0.5', localized: false },
+      ] : []),
       { loc: `${origin}/terms`, changefreq: 'yearly', priority: '0.2', localized: true },
       { loc: `${origin}/privacy`, changefreq: 'yearly', priority: '0.2', localized: true },
       { loc: `${origin}/privacy/upcoming`, changefreq: 'yearly', priority: '0.2', localized: true },
@@ -190,11 +217,61 @@ router.get('/', async (_req, res) => {
         LIMIT 2000`,
     );
 
+    // One careers page per business with a public opening (same filter as
+    // above, business-scoped). /business/:id/careers renders CareersPage
+    // scoped by that business id.
+    const { rows: businessCareers } = await pool.query(
+      `SELECT o.business_id AS id, MAX(o.updated_at) AS updated_at
+         FROM career_openings o
+         LEFT JOIN businesses b ON b.id = o.business_id
+        WHERE o.business_id IS NOT NULL
+          AND o.status = 'open'
+          AND o.moderation_status = 'ok'
+          AND o.is_internal = FALSE
+          AND (o.opens_at IS NULL OR o.opens_at <= NOW())
+          AND (COALESCE(o.applications_close_at, o.closes_at) IS NULL
+               OR COALESCE(o.applications_close_at, o.closes_at) >= NOW())
+          AND b.deleted_at IS NULL AND b.is_active = TRUE
+        GROUP BY o.business_id
+        ORDER BY MAX(o.updated_at) DESC NULLS LAST
+        LIMIT 2000`,
+    );
+
+    // Media details, only while the media flag is on (see mediaLaunched).
+    // Posts mirror the public feed filter exactly (mediaController): top
+    // level, public visibility, not deleted, not future-dated. Actors and
+    // communities have no hidden/banned state in their tables.
+    const { rows: mediaPosts } = mediaLaunched() ? await pool.query(
+      `SELECT p.id, p.updated_at
+         FROM media_posts p
+        WHERE p.visibility = 'public'
+          AND p.deleted_at IS NULL
+          AND p.parent_id IS NULL
+          AND p.created_at <= NOW()
+        ORDER BY p.updated_at DESC NULLS LAST
+        LIMIT 2000`,
+    ) : { rows: [] };
+    const { rows: mediaActors } = mediaLaunched() ? await pool.query(
+      `SELECT a.handle, a.updated_at
+         FROM media_actors a
+        ORDER BY a.updated_at DESC NULLS LAST
+        LIMIT 2000`,
+    ) : { rows: [] };
+    const { rows: mediaCommunities } = mediaLaunched() ? await pool.query(
+      `SELECT c.slug, c.created_at AS updated_at
+         FROM media_communities c
+        ORDER BY c.created_at DESC
+        LIMIT 2000`,
+    ) : { rows: [] };
+
     const entries = [
       ...STATIC_URLS.map(urlEntry),
       ...helpers.map((r) =>
         urlEntry({
-          loc: r.profile_slug ? `${origin}/h/${r.profile_slug}` : `${origin}/helpers/${r.id}`,
+          // Canonical helper URL: /h/:slug only redirects (client
+          // LegacyHelperProfileRedirect and the prerender shell both
+          // canonicalize it to /helpers/:param), so list the target.
+          loc: r.profile_slug ? `${origin}/helpers/${r.profile_slug}` : `${origin}/helpers/${r.id}`,
           changefreq: 'weekly',
           priority: '0.8',
           localized: true,
@@ -252,6 +329,42 @@ router.get('/', async (_req, res) => {
           changefreq: 'weekly',
           priority: '0.7',
           localized: true,
+          lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
+        }),
+      ),
+      ...businessCareers.map((r) =>
+        urlEntry({
+          loc: `${origin}/business/${r.id}/careers`,
+          changefreq: 'weekly',
+          priority: '0.6',
+          localized: true,
+          lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
+        }),
+      ),
+      ...mediaPosts.map((r) =>
+        urlEntry({
+          loc: `${origin}/media/post/${r.id}`,
+          changefreq: 'daily',
+          priority: '0.6',
+          localized: false,
+          lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
+        }),
+      ),
+      ...mediaActors.map((r) =>
+        urlEntry({
+          loc: `${origin}/media/${encodeURIComponent(r.handle)}`,
+          changefreq: 'weekly',
+          priority: '0.6',
+          localized: false,
+          lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
+        }),
+      ),
+      ...mediaCommunities.map((r) =>
+        urlEntry({
+          loc: `${origin}/media/communities/${encodeURIComponent(r.slug)}`,
+          changefreq: 'weekly',
+          priority: '0.6',
+          localized: false,
           lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
         }),
       ),

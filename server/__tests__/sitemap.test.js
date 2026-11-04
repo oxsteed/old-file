@@ -22,7 +22,11 @@ describe('public sitemap coverage', () => {
       .mockResolvedValueOnce({ rows: [] }) // restaurants
       .mockResolvedValueOnce({ rows: [{ id: 41, updated_at: '2026-09-08T00:00:00.000Z' }] })
       .mockResolvedValueOnce({ rows: [{ id: 52, updated_at: '2026-09-08T00:00:00.000Z' }] })
-      .mockResolvedValueOnce({ rows: [] }); // career openings
+      .mockResolvedValueOnce({ rows: [] }) // career openings
+      .mockResolvedValueOnce({ rows: [] }) // business careers
+      .mockResolvedValueOnce({ rows: [] }) // media posts (flag on in test setup)
+      .mockResolvedValueOnce({ rows: [] }) // media actors
+      .mockResolvedValueOnce({ rows: [] }); // media communities
 
     const res = await request(buildApp()).get('/sitemap.xml');
 
@@ -49,7 +53,11 @@ describe('public sitemap coverage', () => {
       .mockResolvedValueOnce({ rows: [] }) // restaurants
       .mockResolvedValueOnce({ rows: [] }) // tools
       .mockResolvedValueOnce({ rows: [] }) // campaigns
-      .mockResolvedValueOnce({ rows: [{ id: 77, updated_at: '2026-10-15T00:00:00.000Z' }] }); // career openings
+      .mockResolvedValueOnce({ rows: [{ id: 77, updated_at: '2026-10-15T00:00:00.000Z' }] }) // career openings
+      .mockResolvedValueOnce({ rows: [] }) // business careers
+      .mockResolvedValueOnce({ rows: [] }) // media posts (flag on in test setup)
+      .mockResolvedValueOnce({ rows: [] }) // media actors
+      .mockResolvedValueOnce({ rows: [] }); // media communities
 
     const res = await request(buildApp()).get('/sitemap.xml');
 
@@ -83,5 +91,76 @@ describe('public sitemap coverage', () => {
     expect((res.text.match(/<url>/g) || []).length).toBe((res.text.match(/<\/url>/g) || []).length);
     expect((res.text.match(/<url>/g) || []).length).toBeGreaterThan(0);
     expect(res.text).toContain('</urlset>');
+  });
+
+  test('lists canonical helper URLs, guide areas, and business careers pages (no media details while flag off)', async () => {
+    delete process.env.OXSTEED_MEDIA_LAUNCHED;
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 5, profile_slug: 'maria-plumbing', updated_at: '2026-09-08T00:00:00.000Z' }] }) // helpers
+      .mockResolvedValueOnce({ rows: [] }) // businesses
+      .mockResolvedValueOnce({ rows: [] }) // jobs
+      .mockResolvedValueOnce({ rows: [] }) // restaurants
+      .mockResolvedValueOnce({ rows: [] }) // tools
+      .mockResolvedValueOnce({ rows: [] }) // campaigns
+      .mockResolvedValueOnce({ rows: [] }) // career openings
+      .mockResolvedValueOnce({ rows: [{ id: 9, updated_at: '2026-09-09T00:00:00.000Z' }] }); // business careers
+
+    const res = await request(buildApp()).get('/sitemap.xml');
+
+    expect(res.status).toBe(200);
+    // /h/:slug only redirects to /helpers/:param, so the sitemap lists the target.
+    expect(res.text).toContain('<loc>https://oxsteed.com/helpers/maria-plumbing</loc>');
+    expect(res.text).not.toContain('<loc>https://oxsteed.com/h/maria-plumbing</loc>');
+    // Static guide areas are real public pages.
+    expect(res.text).toContain('<loc>https://oxsteed.com/how-it-works/food</loc>');
+    expect(res.text).toContain('<loc>https://oxsteed.com/how-it-works/delivery</loc>');
+    expect(res.text).toContain('hreflang="es" href="https://oxsteed.com/how-it-works/food?lang=es"');
+    // Business careers pages for businesses with a public opening.
+    expect(res.text).toContain('<loc>https://oxsteed.com/business/9/careers</loc>');
+    const businessCareersSql = mockQuery.mock.calls[7][0];
+    expect(businessCareersSql).toMatch(/FROM career_openings/);
+    expect(businessCareersSql).toMatch(/o\.business_id IS NOT NULL/);
+    // Media details stay out while the flag is off, even though /media is listed.
+    expect(res.text).toContain('<loc>https://oxsteed.com/media</loc>');
+    expect(res.text).not.toContain('/media/post/');
+    expect(res.text).not.toContain('<loc>https://oxsteed.com/media/communities</loc>');
+    expect(mockQuery.mock.calls.length).toBe(8);
+  });
+
+  test('lists media details and directories while the media flag is on', async () => {
+    const previous = process.env.OXSTEED_MEDIA_LAUNCHED;
+    process.env.OXSTEED_MEDIA_LAUNCHED = 'true';
+    try {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] }) // helpers
+        .mockResolvedValueOnce({ rows: [] }) // businesses
+        .mockResolvedValueOnce({ rows: [] }) // jobs
+        .mockResolvedValueOnce({ rows: [] }) // restaurants
+        .mockResolvedValueOnce({ rows: [] }) // tools
+        .mockResolvedValueOnce({ rows: [] }) // campaigns
+        .mockResolvedValueOnce({ rows: [] }) // career openings
+        .mockResolvedValueOnce({ rows: [] }) // business careers
+        .mockResolvedValueOnce({ rows: [{ id: '11111111-1111-1111-1111-111111111111', updated_at: '2026-09-08T00:00:00.000Z' }] }) // media posts
+        .mockResolvedValueOnce({ rows: [{ handle: 'maria', updated_at: '2026-09-08T00:00:00.000Z' }] }) // media actors
+        .mockResolvedValueOnce({ rows: [{ slug: 'springfield-food', created_at: '2026-09-08T00:00:00.000Z' }] }); // media communities
+
+      const res = await request(buildApp()).get('/sitemap.xml');
+
+      expect(res.status).toBe(200);
+      expect(res.text).toContain('<loc>https://oxsteed.com/media/post/11111111-1111-1111-1111-111111111111</loc>');
+      expect(res.text).toContain('<loc>https://oxsteed.com/media/maria</loc>');
+      expect(res.text).toContain('<loc>https://oxsteed.com/media/communities/springfield-food</loc>');
+      expect(res.text).toContain('<loc>https://oxsteed.com/media/communities</loc>');
+      expect(res.text).toContain('<loc>https://oxsteed.com/media/creator</loc>');
+      // Search pages never belong in a sitemap.
+      expect(res.text).not.toContain('<loc>https://oxsteed.com/media/search</loc>');
+      expect(mockQuery.mock.calls[8][0]).toMatch(/FROM media_posts/);
+      expect(mockQuery.mock.calls[8][0]).toMatch(/p\.visibility = 'public'/);
+      expect(mockQuery.mock.calls[9][0]).toMatch(/FROM media_actors/);
+      expect(mockQuery.mock.calls[10][0]).toMatch(/FROM media_communities/);
+    } finally {
+      if (previous === undefined) delete process.env.OXSTEED_MEDIA_LAUNCHED;
+      else process.env.OXSTEED_MEDIA_LAUNCHED = previous;
+    }
   });
 });
