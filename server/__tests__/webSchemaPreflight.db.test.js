@@ -7,7 +7,7 @@ const permitted = value => { try { const u = new URL(value); return ['postgres:'
   && [...u.searchParams.keys()].every(key => key === 'sslmode'); } catch { return false; } };
 if (rawUrl && !permitted(rawUrl)) throw Error('Schema preflight tests require an explicit disposable localhost database');
 const run = rawUrl ? describe : describe.skip;
-const { Pool } = jest.requireActual('pg');
+const { Pool, Client } = jest.requireActual('pg');
 const fs = require('fs'), os = require('os'), path = require('path'), crypto = require('crypto');
 const { verifyWebSchema } = require('../services/webSchemaPreflight');
 
@@ -97,7 +97,10 @@ run('read-only web startup on PostgreSQL', () => {
     let isolated;
     await pool.query(`CREATE DATABASE "${database}"`);
     try {
-      isolated = new Pool({connectionString:url.href,max:1});
+      // Client.end() waits for the socket's end event. Pool.end() can finish
+      // before its idle connection closes, racing DROP DATABASE during cleanup.
+      isolated = new Client({connectionString:url.href});
+      await isolated.connect();
       await isolated.query('CREATE TABLE public._migrations(filename text PRIMARY KEY,status text,checksum text)');
       await isolated.query("INSERT INTO public._migrations SELECT file,'applied',checksum FROM unnest($1::text[],$2::text[]) AS markers(file,checksum)",[catalog,checksums]);
       const writer = path.resolve(__dirname,'../migrate.js');
@@ -119,7 +122,7 @@ run('read-only web startup on PostgreSQL', () => {
       expect((await isolated.query("SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema='public' AND table_name<>'_migrations'")).rows[0].n).toBe(0);
     } finally {
       await isolated?.end();
-      await pool.query(`DROP DATABASE "${database}" WITH (FORCE)`);
+      await pool.query(`DROP DATABASE "${database}"`);
     }
   },60000);
 });

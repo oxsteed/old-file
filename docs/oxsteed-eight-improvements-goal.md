@@ -459,3 +459,12 @@ outage, account switches, stable photo ownership, failure/reload without
 automatic submission, clearing after success, and expiry. The production client
 build and existing catalog/session recovery checks pass locally. This package
 still needs PR CI and publication. Closing the tab ends this recovery scope.
+
+The first PR CI run passed the client checks but failed one of 1,014 executed
+server suites: the disposable schema-startup CLI test raced its pooled
+connection shutdown against a forced database drop. The fixture now uses a
+dedicated PostgreSQL Client, waits for its socket to close, and drops without
+FORCE. No error is swallowed and the startup assertions remain unchanged.
+All nine schema checks passed against a unique disposable Compose PostgreSQL
+instance; five further CLI repetitions passed and left no fixture databases.
+The production database and runtime schema code were not modified.
