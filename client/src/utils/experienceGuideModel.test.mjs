@@ -10,6 +10,7 @@ import {
   getRememberedExperienceRole,
   rememberExperienceRole,
 } from './experienceGuideModel.js';
+import { LAUNCH_DEFAULTS, LAUNCH_VISIBILITY } from './launchScope.js';
 
 function storage() {
   const values = new Map();
@@ -22,7 +23,16 @@ function storage() {
 test('the guide directory exposes every planned area', () => {
   assert.deepEqual(getExperienceAreaKeys(), EXPERIENCE_AREA_KEYS);
   assert.equal(EXPERIENCE_AREA_KEYS.length, 15);
-  assert.equal(getExperienceArea('media').enabled, true);
+  // Weekly self-audit 2026-11-04 item 12: the media area reads the live
+  // Media launch flag, whose build-time default is now false; the area
+  // itself is still planned, so enable the flag for this assertion.
+  const saved = LAUNCH_VISIBILITY.oxsteedMedia;
+  try {
+    LAUNCH_VISIBILITY.oxsteedMedia = true;
+    assert.equal(getExperienceArea('media').enabled, true);
+  } finally {
+    LAUNCH_VISIBILITY.oxsteedMedia = saved ?? LAUNCH_DEFAULTS.oxsteedMedia;
+  }
   assert.equal(experienceAreaTranslationKey('restaurant-credit'), 'restaurantCredit');
   assert.equal(experienceAreaTranslationKey('get-started'), 'getStarted');
 });

@@ -104,9 +104,14 @@ const LAUNCH_KEY_ENV = Object.freeze({
   businessHubRoleMenuWidgets: ['OXSTEED_LAUNCH_BUSINESS_HUB_ROLE_MENU_WIDGETS', false],
   businessHubSpecializedTemplates: ['OXSTEED_LAUNCH_BUSINESS_HUB_SPECIALIZED_TEMPLATES', false],
   businessHubVortexAccess: ['VORTEX_ENABLED', false],
+  // Weekly self-audit 2026-11-04 item 1: client launch keys for the
+  // consulting and franchise surfaces, mirroring their existing API gates.
+  // Defaults stay off; /api/launch-visibility serves these to the client.
+  consulting: ['CONSULTING_ENABLED', false],
   oxsteedMedia: ['OXSTEED_MEDIA_LAUNCHED', false],
   discoverEverything: ['OXSTEED_LAUNCH_DISCOVER_EVERYTHING', false],
   footerUtilityPills: ['OXSTEED_LAUNCH_FOOTER_UTILITY_PILLS', true],
+  franchise: ['FRANCHISE_ENABLED', false],
   genericQrGenerator: ['OXSTEED_LAUNCH_GENERIC_QR_GENERATOR', false],
   helperEarnings: ['OXSTEED_LAUNCH_HELPER_EARNINGS', true],
   helperGrowthCenter: ['OXSTEED_LAUNCH_HELPER_GROWTH_CENTER', false],

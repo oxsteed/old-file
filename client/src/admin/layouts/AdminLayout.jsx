@@ -31,6 +31,9 @@ export const REGULAR_NAV = [
   { tabKey: 'users', to: routePath('users'),            icon: Users,           labelKey: 'adminNav.users', grant: adminRoute('users').grant },
   { tabKey: 'jobs', to: routePath('jobs'),             icon: Briefcase,       labelKey: 'adminNav.jobs', grant: adminRoute('jobs').grant },
   { tabKey: 'reports', to: routePath('reports'),          icon: Flag,            labelKey: 'adminNav.reports'          },
+  // Weekly self-audit 2026-11-04 item 6: remaining URL-only pages, each
+  // with its manifest grant where one exists.
+  { tabKey: 'reportsDashboard', to: routePath('reportsDashboard'), icon: BarChart2, labelKey: 'adminNav.reportsDashboard', grant: adminRoute('reportsDashboard').grant },
   { tabKey: 'moderation', to: routePath('moderation'),       icon: Shield,          labelKey: 'adminNav.moderation'       },
   { tabKey: 'enforcement', to: routePath('enforcement'),      icon: AlertTriangle,   labelKey: 'adminNav.enforcement'      },
   { tabKey: 'contentRemovals', to: routePath('contentRemovals'), icon: Trash2,          labelKey: 'adminNav.contentRemovals' },
@@ -40,6 +43,7 @@ export const REGULAR_NAV = [
   { tabKey: 'quoteRequests', to: routePath('quoteRequests'),   icon: FileText,        labelKey: 'adminNav.quoteRequests', grant: adminRoute('quoteRequests').grant   },
   { tabKey: 'directOps', to: routePath('directOps'),           icon: HeartHandshake,   labelKey: 'adminNav.directOps',        external: true },
   { tabKey: 'directServiceAreas', to: routePath('directServiceAreas'), icon: MapPinned,    labelKey: 'adminNav.directServiceAreas', grant: adminRoute('directServiceAreas').grant },
+  { tabKey: 'markets', to: routePath('markets'), icon: Map, labelKey: 'adminNav.markets' },
   { tabKey: 'directCatalog', to: routePath('directCatalog'),       icon: Package,      labelKey: 'adminNav.directCatalog', grant: adminRoute('directCatalog').grant       },
   { tabKey: 'messages', to: routePath('messages'),         icon: MessageSquare,   labelKey: 'adminNav.messages',         grant: adminRoute('messages').grant },
   { tabKey: 'search', to: routePath('search'),           icon: Search,          labelKey: 'adminNav.search'           },
@@ -49,6 +53,8 @@ export const REGULAR_NAV = [
   { tabKey: 'restaurantMediaFlags', to: routePath('restaurantMediaFlags'), icon: Flag, labelKey: 'adminNav.restaurantMediaFlags', grant: adminRoute('restaurantMediaFlags').grant },
   { tabKey: 'foodFraudSignals', to: routePath('foodFraudSignals'), icon: ShieldAlert, labelKey: 'adminNav.foodFraudSignals', grant: adminRoute('foodFraudSignals').grant },
   { tabKey: 'businessAudit', to: routePath('businessAudit'), icon: ScrollText, labelKey: 'adminNav.businessAudit', grant: adminRoute('businessAudit').grant },
+  { tabKey: 'licenses', to: routePath('licenses'), icon: FileText, labelKey: 'adminNav.licenses' },
+  { tabKey: 'adminUserSettings', to: routePath('userSettings'), icon: Settings, labelKey: 'adminNav.adminUserSettings' },
   { tabKey: 'restaurantAnalytics', to: routePath('restaurantAnalytics'), icon: TrendingUp, labelKey: 'adminNav.restaurantAnalytics', grant: adminRoute('restaurantAnalytics').grant },
   { tabKey: 'toolRentals', to: routePath('toolRentals'),     icon: Wrench,          labelKey: 'adminNav.toolRentals', grant: adminRoute('toolRentals').grant     },
   { tabKey: 'plannedNeeds', to: routePath('plannedNeeds'),        icon: ClipboardList,      labelKey: 'adminNav.plannedNeeds', grant: adminRoute('plannedNeeds').grant    },
@@ -60,6 +66,7 @@ export const REGULAR_NAV = [
   { tabKey: 'scheduling', to: routePath('scheduling'), icon: Calendar,           labelKey: 'adminNav.scheduling'       },
   { tabKey: 'businessLaunch', to: routePath('businessLaunch'), icon: Briefcase,    labelKey: 'adminNav.businessLaunch'  },
   { tabKey: 'consultingSessions', to: routePath('consultingSessions'),  icon: Calendar,           labelKey: 'adminNav.consultingSessions' },
+  { tabKey: 'consultingAnalytics', to: routePath('consultingAnalytics'), icon: BarChart2, labelKey: 'adminNav.consultingAnalytics' },
   { tabKey: 'orgChart', to: routePath('orgChart'),  icon: Network,            labelKey: 'adminNav.orgChart'        },
   { tabKey: 'corporateAssignments', to: routePath('corporateAssignments'),icon: Crown,              labelKey: 'adminNav.corporateTitles' },
   { tabKey: 'logistics', to: routePath('logistics'),            icon: Truck,              labelKey: 'adminNav.logisticsOps'    },
@@ -86,6 +93,13 @@ export const SUPER_NAV = [
   { tabKey: 'financials', to: routePath('financials'),     icon: DollarSign,    labelKey: 'adminNav.financials',       grant: adminRoute('financials').grant },
   { tabKey: 'payouts', to: routePath('payouts'),          icon: FileText,       labelKey: 'adminNav.payouts',          grant: adminRoute('payouts').grant },
   { tabKey: 'affiliatePayouts', to: routePath('affiliatePayouts'), icon: DollarSign, labelKey: 'adminNav.affiliatePayouts', grant: adminRoute('affiliatePayouts').grant },
+  // Weekly self-audit 2026-11-04 item 6: these four money pages were wired
+  // in manifest, AdminApp, and allowlist but appeared in no nav and no
+  // palette, so they were URL-only. Each entry carries its page's grant.
+  { tabKey: 'featuredPlacements', to: routePath('featuredPlacements'), icon: Sparkles, labelKey: 'adminNav.featuredPlacements', grant: adminRoute('featuredPlacements').grant },
+  { tabKey: 'statementOperations', to: routePath('statementOperations'), icon: FileText, labelKey: 'adminNav.statementOperations', grant: adminRoute('statementOperations').grant },
+  { tabKey: 'restaurantPayouts', to: routePath('restaurantPayouts'), icon: Wallet, labelKey: 'adminNav.restaurantPayouts', grant: adminRoute('restaurantPayouts').grant },
+  { tabKey: 'restaurantPayRuns', to: routePath('restaurantPayRuns'), icon: DollarSign, labelKey: 'adminNav.restaurantPayRuns', grant: adminRoute('restaurantPayRuns').grant },
   { tabKey: 'paymentDisputes', to: routePath('paymentDisputes'), icon: Scale, labelKey: 'adminNav.paymentDisputes', grant: adminRoute('paymentDisputes').grant },
   { tabKey: 'chargebacks', to: routePath('chargebacks'), icon: CreditCard, labelKey: 'adminNav.chargebacks' },
   { tabKey: 'webhookReceipts', to: routePath('webhookReceipts'), icon: Activity, labelKey: 'adminNav.webhookReceipts' },
@@ -105,6 +119,14 @@ export const SUPER_NAV = [
   { tabKey: 'auditLog', to: routePath('auditLog'),      icon: ScrollText,    labelKey: 'adminNav.auditLog',        grant: adminRoute('auditLog').grant },
   { tabKey: 'userActionLog', to: routePath('userActionLog'), icon: ScrollText,    labelKey: 'adminNav.userActionLog', grant: adminRoute('userActionLog').grant },
   { tabKey: 'legalAcceptances', to: routePath('legalAcceptances'), icon: Scale,      labelKey: 'adminNav.legal'           },
+  // Weekly self-audit 2026-11-04 item 6: the legal set was URL-only from
+  // the sidebar (LegalSubNav links them once you are on a legal page, but
+  // nothing led there). Same no-grant pattern as legalAcceptances: super
+  // admins see them, regular admins do not.
+  { tabKey: 'legalAuditLog', to: routePath('legalAuditLog'), icon: ScrollText, labelKey: 'adminNav.legalAuditLog' },
+  { tabKey: 'legalComplianceMetrics', to: routePath('legalComplianceMetrics'), icon: BarChart2, labelKey: 'adminNav.legalComplianceMetrics' },
+  { tabKey: 'legalCcpaRequests', to: routePath('legalCcpaRequests'), icon: ShieldCheck, labelKey: 'adminNav.legalCcpaRequests' },
+  { tabKey: 'legalCcpaErasureReview', to: routePath('legalCcpaErasureReview'), icon: Trash2, labelKey: 'adminNav.legalCcpaErasureReview' },
   { tabKey: 'visitors', to: routePath('visitors'),    icon: Eye,         labelKey: 'adminNav.visitors',    grant: adminRoute('visitors').grant },
   { tabKey: 'profileVisibility', to: routePath('profileVisibility'), icon: EyeOff, labelKey: 'adminNav.profileVisibility', grant: adminRoute('profileVisibility').grant },
   { tabKey: 'oneTruth', to: routePath('oneTruth'),              icon: Fingerprint,   labelKey: 'adminNav.oneTruth'       },

@@ -206,6 +206,11 @@ export default function DeliveryDetailPage() {
         <section className="delivery-panel"><h2>{t('delivery.detail.timeline')}</h2><ol className="delivery-timeline">{activity.map((event) => <li key={event.id}><span className="delivery-timeline__dot" /><div><strong>{label('events', event.event_type)}</strong><time dateTime={event.created_at}>{date(event.created_at)}</time></div></li>)}</ol>{!activity.length && <p>{t('delivery.ui.noActivity')}</p>}</section>
       </div>
       {isAssigned && <DriverTrackingControls job={job} userId={user?.id} />}
+      {isAssigned && (
+        <section className="delivery-panel">
+          <Link to="/delivery/payouts">{t('delivery.driverPayoutHistory.viewHistory')}</Link>
+        </section>
+      )}
       <section className="delivery-panel"><h2>{t('delivery.ui.extras')}</h2>
         <div className="delivery-extra-list">{extras.map((item) => <div key={item.id}>
           <span>{label('extraCategories', item.category)}<p>{item.notes}</p></span><strong>{money(item.amount_cents, item.currency)}</strong><small>{paymentLabel(item)}</small>

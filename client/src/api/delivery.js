@@ -89,6 +89,14 @@ export const reconcileTelematicsConnection = (id, cursor) => mutate('post', `/de
 export const listTrackingLinks = (id) => api.get(`/delivery/jobs/${id}/tracking/links`).then((response) => response.data);
 export const revokeTrackingLink = (id, linkId, reason) => mutate('post', `/delivery/jobs/${id}/tracking/links/${linkId}/revoke`, { reason });
 
+// Weekly self-audit 2026-11-04 item 9: driver-facing payout history.
+// Read-only and scoped server-side to the signed-in driver; ops approval
+// and payment stay on the internal endpoints below.
+export const listMyDriverPayouts = (status) => {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return api.get(`/delivery/driver-payouts${query}`).then((response) => response.data);
+};
+
 export const listInternalDriverPayouts = (status, { limit, offset } = {}) => {
   const params = new URLSearchParams();
   if (status) params.set('status', status);

@@ -202,7 +202,19 @@ exports.addDeliverable = async (req, res) => {
 
 // PHASE 3: Add Action Item
 exports.addActionItem = async (req, res) => {
-  const { session_id, title, description, assigned_to_type, due_date, priority } = req.body;
+  // Weekly self-audit 2026-11-04 item 4: this is the only POST
+  // /sessions/:sessionId/action-items handler (the shadowed twin in
+  // consultingActionItems.js is deleted). The web client posts the session
+  // in the URL and camelCase fields, while this handler used to read a
+  // snake_case session_id from the body and ignore the rest, so a bare
+  // deletion would have broken creates on launch day. Accept both shapes;
+  // the URL session wins and the body session_id is a fallback.
+  const session_id = req.params.sessionId || req.body.session_id;
+  const { title, description } = req.body;
+  const assigned_to_type = req.body.assigned_to_type || req.body.assignedToType;
+  const due_date = req.body.due_date || req.body.dueDate;
+  const { priority } = req.body;
+  const client_visible = req.body.client_visible ?? req.body.clientVisible ?? true;
 
   // Validate assigned_to_type
   const validAssignedTypes = ['client', 'consultant'];
@@ -212,9 +224,9 @@ exports.addActionItem = async (req, res) => {
 
   try {
     const result = await db.query(
-      `INSERT INTO consulting_action_items (session_id, title, description, assigned_to_type, due_date, priority)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [session_id, title, description, assigned_to_type?.toLowerCase() || 'client', due_date, priority?.toLowerCase() || 'medium']
+      `INSERT INTO consulting_action_items (session_id, title, description, assigned_to_type, due_date, priority, client_visible)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [session_id, title, description, assigned_to_type?.toLowerCase() || 'client', due_date, priority?.toLowerCase() || 'medium', client_visible]
     );
     res.json(result.rows[0]);
   } catch (err) {

@@ -861,7 +861,8 @@ verifyPageHasNoHardcodedUiText('src/pages/HelperBusinessProfilePage.tsx', {
 verifyPageHasNoHardcodedUiText('src/pages/PublicProfile.jsx');
 verifyPageHasNoHardcodedUiText('src/pages/BookHelperPage.jsx');
 verifyPageHasNoHardcodedUiText('src/pages/BookBusinessPage.jsx');
-verifyPageHasNoHardcodedUiText('src/pages/BookServicePage.jsx');
+// Weekly self-audit 2026-11-04 item 7: BookServicePage.jsx is deleted
+// (route removed per Nov 1 R5; live booking is /book/business/:id).
 verifyPageHasNoHardcodedUiText('src/pages/MyBookingsPage.tsx');
 verifyPageHasNoHardcodedUiText('src/pages/food/FoodOrderConfirmation.jsx');
 verifyPageHasNoHardcodedUiText('src/pages/OrderHistoryPage.jsx');

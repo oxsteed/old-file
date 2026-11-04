@@ -7,6 +7,7 @@ import {
   LAUNCH_BUSINESS_HUB_TABS,
   LAUNCH_DEFAULTS,
   LAUNCH_VISIBILITY,
+  normalizeLaunchDashboardMode,
 } from './launchScope.js';
 
 function restoreLaunchVisibility() {
@@ -32,17 +33,66 @@ test('launched surfaces are not redirected (footer links stay live)', () => {
   assert.equal(getLaunchRedirect('/products'), null);
 });
 
+test('weekly self-audit 2026-11-04 item 1: flag-gated redirects lift when their flag turns on', () => {
+  try {
+    assert.equal(getLaunchRedirect('/discover'), '/jobs');
+    assert.equal(getLaunchRedirect('/templates'), '/business-hub');
+    assert.equal(getLaunchRedirect('/franchise/status'), '/business-hub');
+    assert.equal(getLaunchRedirect('/consulting/portal'), '/business-hub');
+    assert.equal(getLaunchRedirect('/consultant-availability'), '/calendar');
+    LAUNCH_VISIBILITY.discoverEverything = true;
+    LAUNCH_VISIBILITY.templates = true;
+    LAUNCH_VISIBILITY.franchise = true;
+    LAUNCH_VISIBILITY.consulting = true;
+    assert.equal(getLaunchRedirect('/discover'), null);
+    assert.equal(getLaunchRedirect('/templates'), null);
+    assert.equal(getLaunchRedirect('/franchise/status'), null);
+    assert.equal(getLaunchRedirect('/consulting/portal'), null);
+    assert.equal(getLaunchRedirect('/consultant-availability'), null);
+    // Entries with no owning flag stay unconditional.
+    assert.equal(getLaunchRedirect('/network'), '/dashboard');
+    assert.equal(getLaunchRedirect('/cart'), '/restaurants');
+  } finally {
+    restoreLaunchVisibility();
+  }
+});
+
+test('weekly self-audit 2026-11-04 item 2: the four restored modes normalize to themselves', () => {
+  assert.equal(normalizeLaunchDashboardMode('life_only', 'customer'), 'life_only');
+  assert.equal(normalizeLaunchDashboardMode('tool_owner', 'helper'), 'tool_owner');
+  assert.equal(normalizeLaunchDashboardMode('consultant', 'helper'), 'consultant');
+  assert.equal(normalizeLaunchDashboardMode('franchise_applicant', 'customer'), 'franchise_applicant');
+  // Existing mappings are untouched.
+  assert.equal(normalizeLaunchDashboardMode('customer', 'customer'), 'customer');
+  assert.equal(normalizeLaunchDashboardMode('helper', 'helper'), 'helper');
+  assert.equal(normalizeLaunchDashboardMode('business_owner', 'helper'), 'business_owner');
+  assert.equal(normalizeLaunchDashboardMode('admin', 'admin'), 'admin');
+});
+
 test('OxSteed Media routes remain available after launch', () => {
-  assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, true);
-  assert.equal(getLaunchRedirect('/media'), null);
-  assert.equal(getLaunchRedirect('/media/search'), null);
-  assert.equal(getLaunchRedirect('/media/post/abc'), null);
+  // Weekly self-audit 2026-11-04 item 12: the build-time default is now
+  // false (matching the server); the routes open once the server launch
+  // map turns media on, as the boot fetch does in production.
+  try {
+    LAUNCH_VISIBILITY.oxsteedMedia = true;
+    assert.equal(getLaunchRedirect('/media'), null);
+    assert.equal(getLaunchRedirect('/media/search'), null);
+    assert.equal(getLaunchRedirect('/media/post/abc'), null);
+  } finally {
+    restoreLaunchVisibility();
+  }
 });
 
 test('Business Hub media tab follows oxsteedMedia launch flag', () => {
   assert.equal(isBusinessHubTabLaunched('overview'), true);
-  assert.equal(isBusinessHubTabLaunched('media'), true);
   assert.equal(LAUNCH_BUSINESS_HUB_TABS.has('media'), false);
+  try {
+    assert.equal(isBusinessHubTabLaunched('media'), false);
+    LAUNCH_VISIBILITY.oxsteedMedia = true;
+    assert.equal(isBusinessHubTabLaunched('media'), true);
+  } finally {
+    restoreLaunchVisibility();
+  }
 });
 
 test('P2-9-F04: intake triage tabs are launched so notification deep links open in-product', () => {
@@ -91,5 +141,6 @@ test('applyServerLaunchVisibility ignores null, empty, and non-object patches', 
   assert.doesNotThrow(() => applyServerLaunchVisibility({}));
   assert.doesNotThrow(() => applyServerLaunchVisibility('on'));
   assert.equal(LAUNCH_VISIBILITY.templates, false);
-  assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, true);
+  // Weekly self-audit 2026-11-04 item 12: build-time default is false.
+  assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, false);
 });

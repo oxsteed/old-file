@@ -125,6 +125,7 @@ const OxsteedCreditTransactionPage = lazyWithRetry(() => import('./pages/food/Ox
 const LogisticsHomePage = lazyWithRetry(routeLoaders.logistics, { name: 'logistics' });
 const DeliveryPage = lazyWithRetry(() => import('./pages/DeliveryPage'));
 const DeliveryDetailPage = lazyWithRetry(() => import('./pages/DeliveryDetailPage'));
+const DriverPayoutHistoryPage = lazyWithRetry(() => import('./pages/DriverPayoutHistoryPage'));
 const DeliveryDispatchPage = lazyWithRetry(() => import('./pages/DeliveryDispatchPage'));
 const DeliveryTrackingOpsPage = lazyWithRetry(() => import('./pages/DeliveryTrackingOpsPage'));
 const PublicTrackingPage = lazyWithRetry(() => import('./pages/PublicTrackingPage'));
@@ -660,7 +661,8 @@ export default function App() {
                     <Route path="/settings/sessions" element={<Guarded><ProtectedRoute><SessionsSetup /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/your-data" element={<Guarded><ProtectedRoute><YourData /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
-                    <Route path="/settings/country" element={<Guarded><CountrySettings /></Guarded>} />
+                    {/* Weekly self-audit 2026-11-04 item 11: every sibling settings route wraps in ProtectedRoute; this one did not. */}
+                    <Route path="/settings/country" element={<Guarded><ProtectedRoute><CountrySettings /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/payment-policies" element={<Guarded><ProtectedRoute><HelperCancellationSettings /></ProtectedRoute></Guarded>} />
                     {/* Review P1-208: the stub editor is retired; the dashboard tab is the real editor. */}
                     <Route path="/dashboard/edit-profile" element={<Guarded><ProtectedRoute><Navigate to="/dashboard?tab=editprofile" replace /></ProtectedRoute></Guarded>} />
@@ -734,6 +736,8 @@ export default function App() {
                     {/* OxSteed Logistics branch (migration 247) */}
                     <Route path="/delivery"                  element={<Guarded><DeliveryRoute /></Guarded>} />
                     <Route path="/delivery/jobs/:id"           element={<Guarded><ProtectedRoute><RouteErrorBoundary><DeliveryDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Weekly self-audit 2026-11-04 item 9: driver payout history. Read-only; the endpoint scopes to the signed-in driver. */}
+                    <Route path="/delivery/payouts"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverPayoutHistoryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Public delivery tracking: signed token, no login required */}
                     <Route path="/t/:token"                    element={<Guarded><RouteErrorBoundary><PublicTrackingPage /></RouteErrorBoundary></Guarded>} />
                     {/* Public scan-to-pay: payment QR link, no login required */}
