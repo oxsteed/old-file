@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
+import { deferAppUpdates } from '../../utils/appUpdateSafety';
 import toast from 'react-hot-toast';
 import CountrySelect from '../CountrySelect';
 import RegionInput from '../RegionInput';
@@ -193,13 +194,14 @@ export default function BusinessProfileEditor({
   onJumpTab,
   bizId,
   restaurantSetupHref,
+  active = true,
 }) {
   const { t } = useTranslation();
   const country = form?.address_country || 'US';
   const listed = isListedBusiness(currentBiz);
   const isRestaurant = currentBiz?.business_kind === 'restaurant'
     || (!currentBiz?.business_kind && currentBiz?.business_mode === 'food');
-  const baselineRef = useRef('');
+  const [baseline, setBaseline] = useState(() => form ? serializeProfileState(form, logoPreview, coverPreview) : '');
   const baselineSnapRef = useRef(null);
   const [radiusDisplay, setRadiusDisplay] = useState(() => milesToDisplay(form?.service_radius_miles, country));
   const [copied, setCopied] = useState(false);
@@ -216,12 +218,12 @@ export default function BusinessProfileEditor({
   const effectiveCover = localCover !== undefined ? localCover : coverPreview;
 
   const dirty = form
-    ? serializeProfileState(form, effectiveLogo, effectiveCover) !== baselineRef.current
+    ? serializeProfileState(form, effectiveLogo, effectiveCover) !== baseline
     : false;
 
   useEffect(() => {
     if (!form || saving) return;
-    baselineRef.current = serializeProfileState(form, logoPreview, coverPreview);
+    setBaseline(serializeProfileState(form, logoPreview, coverPreview));
     baselineSnapRef.current = {
       form: { ...form },
       logo: logoPreview || null,
@@ -254,6 +256,7 @@ export default function BusinessProfileEditor({
   }, [bizId]);
 
   useEffect(() => {
+    if (!active) return undefined;
     function onKey(e) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
@@ -262,7 +265,12 @@ export default function BusinessProfileEditor({
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [saving, dirty, onSave]);
+  }, [active, saving, dirty, onSave]);
+
+  useEffect(() => {
+    if (!dirty) return undefined;
+    return deferAppUpdates();
+  }, [dirty]);
 
   useEffect(() => {
     if (!dirty) return undefined;
