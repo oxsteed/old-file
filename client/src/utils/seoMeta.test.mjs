@@ -4,6 +4,7 @@ import {
   applyRouteMeta,
   buildDetailMeta,
   hreflangAlternates,
+  isLocalizedPath,
   localizedUrl,
   resolveRouteMeta,
 } from './seoMeta.js';
@@ -24,7 +25,7 @@ test('public routes resolve to indexable locale keys', () => {
 });
 
 test('redirect routes never get indexable meta', () => {
-  for (const path of ['/discover', '/discover/anything', '/features', '/hire', '/h/abc', '/helpers/public/abc', '/register/customer', '/direct/service-area', '/cart/1', '/checkout/1']) {
+  for (const path of ['/discover', '/discover/anything', '/features', '/hire', '/h/abc', '/helpers/public/abc', '/register/customer', '/direct/service-area', '/cart/1', '/checkout/1', '/support']) {
     const resolved = resolveRouteMeta(path);
     assert.equal(resolved.noIndex, true, path);
     assert.equal(resolved.redirect, true, path);
@@ -32,7 +33,7 @@ test('redirect routes never get indexable meta', () => {
 });
 
 test('authenticated, transactional, and tokenized routes are noindex', () => {
-  for (const path of ['/admin/users', '/login', '/dashboard', '/messages', '/settings', '/jobs/42/edit', '/jobs/42', '/careers/me', '/support/my-tickets/1', '/support/agent', '/restaurants/support/cases', '/invoice/p/token', '/media/compose', '/media/bookmarks', '/media/notifications', '/media/messages', '/direct/admin/dashboard', '/direct/quotes/1', '/direct/book/1', '/direct/jobs/1', '/direct/payments/1', '/direct/history', '/direct/support', '/direct/account', '/saved-searches', '/bids/1', '/t/token', '/pay/code']) {
+  for (const path of ['/admin/users', '/login', '/dashboard', '/messages', '/settings', '/jobs/42/edit', '/jobs/42', '/careers/me', '/support/my-tickets/1', '/support/agent', '/restaurants/support/cases', '/invoice/p/token', '/media/compose', '/media/bookmarks', '/media/notifications', '/media/messages', '/direct/admin/dashboard', '/direct/quotes/1', '/direct/book/1', '/direct/jobs/1', '/direct/payments/1', '/direct/history', '/direct/support', '/direct/account', '/saved-searches', '/bids/1', '/t/token', '/pay/code', '/delivery/payouts']) {
     assert.equal(resolveRouteMeta(path).noIndex, true, path);
   }
 });
@@ -49,6 +50,21 @@ test('legacy food restaurant URLs canonicalize to the restaurants route', () => 
   assert.equal(resolved.key, 'restaurantDetail');
   assert.equal(resolved.canonicalPath, '/restaurants/r/12');
   assert.equal(resolveRouteMeta('/restaurants/r/12').canonicalPath, '/restaurants/r/12');
+});
+
+test('food home canonicalizes to restaurants, matching its PageMeta', () => {
+  const resolved = resolveRouteMeta('/food');
+  assert.equal(resolved.key, 'restaurants');
+  assert.equal(resolved.canonicalPath, '/restaurants');
+  assert.equal(resolved.noIndex, false);
+});
+
+test('localized paths cover food and business careers pages', () => {
+  assert.equal(isLocalizedPath('/food'), true);
+  assert.equal(isLocalizedPath('/business/42/careers'), true);
+  assert.equal(isLocalizedPath('/support/escalation'), true);
+  assert.equal(resolveRouteMeta('/business/42/careers').key, 'careers');
+  assert.equal(resolveRouteMeta('/business/42/careers').localized, true);
 });
 
 test('how-it-works area slugs humanize without inventing content', () => {

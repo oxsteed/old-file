@@ -599,7 +599,7 @@ export default function App() {
                     <Route path="/food/track/:token"     element={<FoodTrackPage />} />
 
                     {/* ── Support & Help ───────────────────────────────────── */}
-                    <Route path="/support"                element={<Guarded><SupportEscalationPage /></Guarded>} />
+                    <Route path="/support"                element={<Navigate to="/support/escalation" replace />} />
                     <Route path="/support/escalation"     element={<Guarded><SupportEscalationPage /></Guarded>} />
                     <Route path="/support/my-tickets/:ticketId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SupportTicketDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/support/agent" element={<Guarded><ProtectedRoute><SupportAgentPortalPage /></ProtectedRoute></Guarded>} />
