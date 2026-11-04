@@ -5,7 +5,7 @@
 const logger = require('../utils/logger');
 const runtimeState = require('../services/runtimeState');
 
-const RETRY_TIMEOUT_MS = 1500;
+const { backgroundProbeTimeoutMs, backgroundConfirmationTimeoutMs } = require('../config/readinessBudgets.json');
 
 function backgroundReadinessUrl(value) {
   let url;
@@ -19,7 +19,7 @@ function backgroundReadinessUrl(value) {
 }
 
 class DelegatedWorkers {
-  constructor({ url = process.env.BACKGROUND_READINESS_URL, fetchImpl = fetch, intervalMs = 5000, timeoutMs = 5000 } = {}) {
+  constructor({ url = process.env.BACKGROUND_READINESS_URL, fetchImpl = fetch, intervalMs = 5000, timeoutMs = backgroundProbeTimeoutMs } = {}) {
     this.url = backgroundReadinessUrl(url);
     if (!Number.isInteger(intervalMs) || intervalMs < 100 || intervalMs > 60000
         || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10000) {
@@ -64,7 +64,9 @@ class DelegatedWorkers {
       // replica one bounded confirmation attempt before withdrawing traffic.
       if (result === 'timeout' && this.started && this.lastOk && !this.stopping
           && runtimeState.snapshot().acceptingTraffic) {
-        result = await this.probe(Math.min(this.timeoutMs, RETRY_TIMEOUT_MS));
+        // A confirmation must allow the same work as the initial probe. A
+        // shorter deadline rejects a recovering worker before it can reply.
+        result = await this.probe(Math.min(this.timeoutMs, backgroundConfirmationTimeoutMs));
       }
       const ok = result === 'ready';
       if (this.lastOk === true && !ok) logger.warn('Background runtime no longer ready');

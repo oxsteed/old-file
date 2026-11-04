@@ -162,3 +162,52 @@ and two successive timeouts each produced 503. The earlier three proxy 503s
 occurred before candidate startup and had no upstream response. Their cause
 remains open. This source change needs CI and another monitored production
 rollout before availability acceptance.
+
+## Readiness deadline hierarchy (November 4 follow-up)
+
+The live proxy used a 3-second health-check deadline, while the web runtime's
+background observation allowed 5 seconds followed by a shorter 1.5-second
+confirmation. At 11:49-11:50 UTC the proxy returned nineteen 503s without an
+origin response; the web logged two background probe timeouts and withdrawal.
+The first proxy failure preceded the worker-state change, so worker-state
+withdrawal alone does not explain the entire window.
+
+`server/config/readinessBudgets.json` now defines a 5-second initial observation,
+a confirmation of up to 5 seconds, and a 15-second proxy health deadline.
+There is still only one confirmation, only for a previously ready serving web
+replica. Initial startup, explicit unhealthy responses, failed confirmation,
+database checks, shutdown and readiness status semantics remain strict.
+Successful readiness results are not cached. The existing public GET/HEAD-only
+retry policy is unchanged and writes are not replayed.
+
+`node scripts/configure-web-readiness.cjs --check` previews the desired proxy
+deadline. After source verification, `--apply` stores it in managed Coolify
+labels for the next verified rolling replacement; it does not modify the
+running container. Do not treat saving labels as proof the live deadline changed.
+The new configuration uses the `health5` service and router namespace. Reusing
+`health4` with a different deadline would give the Docker provider conflicting
+definitions while old and new containers overlap. New normal routers have one
+more priority point; exact readiness routers use 5001. Existing TLS and security
+middleware references are retained, and repeated configuration is idempotent.
+
+`node scripts/rehearse-readiness-deadlines.cjs --image <existing-node-image>`
+uses the installed Traefik image and an internal disposable network. Its slow
+but healthy backend answers readiness in 3.5 seconds while serving other
+requests promptly. The observed run recorded 24 legacy-deadline failures and
+zero aligned-deadline failures across 41 samples. Explicit unhealthy status
+withdrew routing in 2.48 seconds; an unresponsive health request withdrew it
+in 15.9 seconds. A synthetic write arrived exactly once. No production data,
+credentials, volumes, deployments or network settings were used by the fixture.
+
+The extended run also exercised overlapping versioned file-provider routers
+and removed the old route after takeover: 37 rollover samples had zero failures.
+That run observed 22 legacy failures and zero aligned failures across 40 slow
+readiness samples; explicit failure withdrew traffic in 2.865 seconds and an
+unresponsive probe in 16.14 seconds. These rehearsals reproduce the deadline
+failure mode, but do not prove it was the only cause of the production incident.
+
+Focused validation passed 21 Jest cases, 18 deployment/configuration cases,
+and five footer cases. The footer browser expectation was corrected for the
+latest default branch's intentional unlaunched Media state; the enabled Media
+case remains covered in the navigation model tests. PR CI, configuration
+installation, schema catch-up and a monitored live rollout remain required.

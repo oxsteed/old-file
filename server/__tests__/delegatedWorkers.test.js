@@ -107,6 +107,31 @@ describe('web replacements delegate background work without starting consumers',
       } finally { await workers.stop(); }
     });
 
+    test('a recovering worker gets the normal probe budget for confirmation', async () => {
+      const delay = require('node:timers/promises').setTimeout;
+      const fetchImpl = jest.fn()
+        .mockImplementationOnce(ready)
+        .mockImplementationOnce(async (_url, { signal }) => {
+          await delay(3000, undefined, { signal });
+          return ready();
+        })
+        .mockImplementationOnce(async (_url, { signal }) => {
+          // Slower than the old 1.5s confirmation but within the 2s probe
+          // budget. Serving traffic must remain available until it replies.
+          expect(runtimeState.snapshot().workersReady).toBe(true);
+          await delay(1700, undefined, { signal });
+          return ready();
+        });
+      const workers = new DelegatedWorkers({ url: 'http://app:5000/ready', timeoutMs: 2000, fetchImpl });
+      try {
+        await workers.start();
+        runtimeState.update({ acceptingTraffic: true });
+        await expect(workers.observe()).resolves.toBe(true);
+        expect(fetchImpl).toHaveBeenCalledTimes(3);
+        expect(runtimeState.snapshot().workersReady).toBe(true);
+      } finally { await workers.stop(); }
+    }, 15000);
+
     test.each(['second timeout', 'explicit unhealthy', 'not yet serving'])(
       'withdraws readiness for %s without unbounded retries', async (scenario) => {
         const fetchImpl = jest.fn()

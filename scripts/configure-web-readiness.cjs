@@ -5,6 +5,9 @@
 // try another ready backend without weakening readiness or replaying writes.
 const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
+const { proxyHealthTimeoutMs } = require('../server/config/readinessBudgets.json');
+const LEGACY_HEALTH_SERVICE = 'oxsteed-web-sqbntzhvwhbbywhs9prfhw51-health4';
+const HEALTH_SERVICE = 'oxsteed-web-sqbntzhvwhbbywhs9prfhw51-health5';
 const RETRY = 'oxsteed-ready-retry';
 const ROUTER_PREFIX = 'oxsteed-ready-';
 const retryConfig = { attempts: 3, initialInterval: '100ms', timeout: '1500ms', status: ['503'], maxRequestBodyBytes: 1024, retryNonIdempotentMethod: false };
@@ -15,21 +18,55 @@ function readinessLabels(source) {
     if (position < 1) throw Error('Invalid managed label');
     return [line.slice(0, position), line.slice(position + 1)];
   }));
+  if ([...labels.keys()].some(key => key.startsWith(`traefik.http.services.${LEGACY_HEALTH_SERVICE}.`))
+      && [...labels.keys()].some(key => key.startsWith(`traefik.http.services.${HEALTH_SERVICE}.`))) throw Error('Mixed readiness service configurations');
   for (const key of labels.keys()) if (key.startsWith(`traefik.http.routers.${ROUTER_PREFIX}`) || key.startsWith(`traefik.http.middlewares.${RETRY}.`)) labels.delete(key);
+  // Different health configurations must not share Docker-provider service
+  // or router names during overlap. Publish a new namespace only after its
+  // container is healthy; the previous container retains its original routes.
+  for (const [key] of [...labels].filter(([key]) => /^traefik\.http\.routers\.[^.]+\.rule$/.test(key))) {
+    const original = key.slice(0, -5);
+    const service = labels.get(`${original}.service`);
+    if (service !== LEGACY_HEALTH_SERVICE && service !== HEALTH_SERVICE) throw Error('Unexpected readiness service');
+    if (service === HEALTH_SERVICE) {
+      if (!original.endsWith('-health5')) throw Error('Unexpected readiness router namespace');
+      continue;
+    }
+    const next = original.endsWith('-health4') ? original.slice(0, -1) + '5' : original + '-health5';
+    const priority = Number(labels.get(`${original}.priority`) || 0);
+    if (!Number.isInteger(priority) || priority < 0 || priority >= 5000) throw Error('Unexpected web router priority');
+    for (const [name, value] of [...labels]) if (name.startsWith(original + '.')) {
+      labels.delete(name); labels.set(next + name.slice(original.length), value);
+    }
+    labels.set(`${next}.service`, HEALTH_SERVICE);
+    labels.set(`${next}.priority`, String(priority + 1));
+  }
+  const legacyService = `traefik.http.services.${LEGACY_HEALTH_SERVICE}.`;
+  for (const [key, value] of [...labels]) if (key.startsWith(legacyService)) {
+    labels.delete(key);
+    labels.set(`traefik.http.services.${HEALTH_SERVICE}.` + key.slice(legacyService.length), value);
+  }
+  const health = `traefik.http.services.${HEALTH_SERVICE}.loadbalancer.healthcheck`;
+  labels.delete(`${health}.timeout`);
   const rules = [...labels].filter(([key]) => /^traefik\.http\.routers\.[^.]+\.rule$/.test(key));
   if (!rules.length) throw Error('No existing routers');
   for (const [key, rule] of rules) {
     const original = key.slice(0, -5);
     if (!/^Host\(`(?:www\.|api\.|status\.)?oxsteed\.com`\) && PathPrefix\(`\/`\)$/.test(rule)) throw Error('Unexpected web router scope');
     const service = labels.get(`${original}.service`);
-    if (service !== 'oxsteed-web-sqbntzhvwhbbywhs9prfhw51-health4') throw Error('Unexpected readiness service');
+    if (service !== HEALTH_SERVICE) throw Error('Unexpected readiness service');
     const router = `traefik.http.routers.${ROUTER_PREFIX}${original.slice('traefik.http.routers.'.length)}`;
     labels.set(`${router}.rule`, `(${rule}) && Path(\`/ready\`) && (Method(\`GET\`) || Method(\`HEAD\`))`);
     labels.set(`${router}.service`, service);
-    labels.set(`${router}.priority`, '5000');
+    labels.set(`${router}.priority`, '5001');
     labels.set(`${router}.middlewares`, [labels.get(`${original}.middlewares`), RETRY].filter(Boolean).join(','));
     for (const [name, value] of [...labels]) if (name.startsWith(original + '.') && /\.(entrypoints|tls|tls\.[^.]+)$/.test(name.slice(original.length))) labels.set(router + name.slice(original.length), value);
   }
+  if (labels.get(`${health}.path`) !== '/ready') throw Error('Unexpected private readiness path');
+  // The edge must allow the bounded background observation to finish. It
+  // still withdraws immediately on an explicit 503; no successful result is
+  // cached, and startup, dependency and shutdown checks stay unchanged.
+  labels.set(`${health}.timeout`, `${proxyHealthTimeoutMs / 1000}s`);
   for (const [key, value] of Object.entries(retryConfig)) labels.set(`traefik.http.middlewares.${RETRY}.retry.${key.toLowerCase()}`, Array.isArray(value) ? value.join(',') : String(value));
   return { labels: [...labels].map(([key, value]) => `${key}=${value}`).join('\n'), routers: rules.length };
 }
@@ -52,7 +89,7 @@ function configure(apply = false) {
     const encoded = Buffer.from(result.labels).toString('base64');
     controller(String.raw`if(App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists())throw new RuntimeException('Active deployment');if(hash('sha256',base64_decode($a->custom_labels,true))!=='${digest(source)}')throw new RuntimeException('Concurrent labels change');$a->update(['custom_labels'=>'${encoded}']);$result=['saved'=>true];`);
   }
-  return { applied: apply, changed: result.labels !== source, routers: result.routers, retry: retryConfig, activeContainersUnchanged: true, next: 'Labels take effect on the next verified rolling replacement.' };
+  return { applied: apply, changed: result.labels !== source, routers: result.routers, retry: retryConfig, proxyHealthTimeoutMs, activeContainersUnchanged: true, next: 'Labels take effect on the next verified rolling replacement.' };
 }
 if (require.main === module) {
   try { if (!['--check','--apply'].includes(process.argv[2]) || process.argv.length !== 3) throw Error('Use --check or --apply'); console.log(JSON.stringify(configure(process.argv[2] === '--apply'))); }
