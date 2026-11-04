@@ -26,6 +26,7 @@ test('updates defer to unfinished work and overlays, with notice clearance in bo
       import React,{useState}from'react';import{createRoot}from'react-dom/client';
       import{BrowserRouter,useNavigate,useLocation}from'react-router-dom';
       import Runtime from'./src/components/PwaRuntime';import Notice from'./src/components/ServiceWorkerUpdateNotice';
+      import Launcher from'./src/components/SupportLauncher';
       import Consent from'./src/components/CookieConsent';import{CookieConsentContext}from'./src/context/CookieConsentContext';
       import{connectionChanged}from'./src/utils/pwaRuntime';
       function Harness(){const navigate=useNavigate(),{pathname}=useLocation();const[cookies,setCookies]=useState(false),[settings,setSettings]=useState(false),[modal,setModal]=useState(false),[cart,setCart]=useState(false);
@@ -34,7 +35,7 @@ test('updates defer to unfinished work and overlays, with notice clearance in bo
         return <CookieConsentContext.Provider value={consent}><Runtime/><main><h1>Current page {pathname}</h1>
           {pathname==='/edit'&&<input aria-label="Unfinished notes"/>}<button>Done focusing</button>
           {cart&&<div className="rp-float-cart" data-update-defer="true" data-pwa-bottom-actions>Active restaurant cart</div>}
-          <button data-pwa-support-launcher className="fixed bottom-20 end-4 sm:bottom-6 sm:end-6" style={{width:100,height:44}} onClick={()=>setModal(true)}>Assistant</button>
+          <Launcher yieldToPage={!modal} className="fixed bottom-20 end-4 sm:bottom-6 sm:end-6" style={{width:100,height:44}} onClick={()=>setModal(true)}>Assistant</Launcher>
           {modal&&<section role="dialog" aria-modal="true"><h2>Support conversation</h2><button onClick={()=>setModal(false)}>Close conversation</button></section>}
         </main><Consent/><Notice/></CookieConsentContext.Provider>}
       createRoot(document.getElementById('root')).render(<BrowserRouter><Harness/></BrowserRouter>);
