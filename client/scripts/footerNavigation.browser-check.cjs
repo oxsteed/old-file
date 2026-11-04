@@ -63,8 +63,9 @@ test('footer layouts, shared support access, cookie settings and preserved invit
   try{
     browser=await chromium.launch({headless:true,channel:'chrome'});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);await page.waitForFunction(()=>window.configure);
-    // The production default hides Media until explicitly launched. The model
-    // unit suite separately covers the enabled launch flag.
+    // Weekly self-audit 2026-11-04 item 12: the build-time Media default is
+    // now false (matching the server), so the default-visibility footer
+    // omits /media; it returns once the launch map turns media on.
     const expected=[['/restaurants','/direct','/delivery'],['/how-it-works','/about','/careers','/consulting-intake'],['/support','/learn','/vortex']];
     for(const language of ['en','fr','ar'])for(const theme of ['dark','light'])for(const mode of ['guest','customer','helper','business_owner']){
       await page.evaluate(options=>window.configure(options),{mode,language,theme});
