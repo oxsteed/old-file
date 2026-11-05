@@ -15,6 +15,10 @@ router.get('/consultants/:consultantId/blocked-dates', authenticate, consultantS
 router.post('/consultants/:consultantId/blocked-dates', authenticate, consultantSchedulingController.addBlockedDate);
 router.delete('/consultants/:consultantId/blocked-dates/:dateId', authenticate, consultantSchedulingController.removeBlockedDate);
 
+// Create the pending_confirmation scheduled row that unblocks payment +
+// booking for a client-owned session (see createScheduledSession).
+router.post('/sessions', authenticate, consultantSchedulingController.createScheduledSession);
+
 // Book a time slot for a session
 router.post('/sessions/:sessionId/book-slot', authenticate, consultantSchedulingController.bookTimeSlot);
 

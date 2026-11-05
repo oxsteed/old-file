@@ -25,7 +25,10 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
+import { schedulingApi } from '../api/scheduling';
 import { useAuth } from '../context/AuthContext';
+import ConsultantScheduleSelector from '../components/ConsultantScheduleSelector';
+import ConsultingPaymentModal from '../components/ConsultingPaymentModal';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
@@ -184,12 +187,18 @@ function ActionItemRow({ item, t }) {
 
 // ── session card (active engagement) ────────────────────────────────────────
 
-function ActiveSessionHero({ session, t }) {
+function ActiveSessionHero({ session, t, onBookReschedule, onScheduleSession, schedulingBusy }) {
   const pct = Number(session.progress_pct) || 0;
   const phase = Number(session.current_phase) || 1;
-  const nextSession = session.scheduled_date
+  // A pending_confirmation scheduled row carries only the 1970-01-01 sentinel
+  // date (its date/time columns are NOT NULL), so it must never render as a
+  // real appointment. Only confirmed/completed rows show a next session;
+  // sessions with no scheduled row fall back to the legacy scheduled_at.
+  const hasScheduledRow = session.scheduled_id != null;
+  const isConfirmedSchedule = ['confirmed', 'completed'].includes(session.scheduled_status);
+  const nextSession = isConfirmedSchedule && session.scheduled_date
     ? `${session.scheduled_date}T${session.scheduled_time || '09:00'}`
-    : session.scheduled_at;
+    : (!hasScheduledRow ? session.scheduled_at : null);
 
   return (
     <Card padding={6} className="overflow-hidden" style={{ background: 'radial-gradient(circle at top left, rgba(249,115,22,0.18), transparent 35%), radial-gradient(circle at top right, rgba(56,189,248,0.12), transparent 30%), var(--color-surface)' }}>
@@ -223,14 +232,44 @@ function ActiveSessionHero({ session, t }) {
                 {t('consultingPortal.nextSession', { defaultValue: 'Next session' })}
               </div>
               <div className="text-sm font-semibold mt-0.5">{fmtDate(nextSession)}</div>
-              <button
-                type="button"
-                onClick={() => toast(t('consultingPortal.meetingLinkSoon', { defaultValue: 'Meeting link will be available 15 min before.' }))}
-                className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-orange-400 hover:text-orange-300" data-track="ui.719d896ad2.1"
-              >
-                <Video size={11} /> {t('consultingPortal.joinMeeting', { defaultValue: 'Join meeting' })}
-              </button>
+              {session.meeting_link ? (
+                <a
+                  href={session.meeting_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-orange-400 hover:text-orange-300" data-track="ui.719d896ad2.1"
+                >
+                  <Video size={11} /> {t('consultingPortal.joinMeeting', { defaultValue: 'Join meeting' })}
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => toast(t('consultingPortal.meetingLinkSoon', { defaultValue: 'Meeting link will be available 15 min before.' }))}
+                  className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-orange-400 hover:text-orange-300" data-track="ui.719d896ad2.1"
+                >
+                  <Video size={11} /> {t('consultingPortal.joinMeeting', { defaultValue: 'Join meeting' })}
+                </button>
+              )}
             </div>
+          )}
+          {session.scheduled_id && session.consultant_assigned_id && (
+            <button
+              type="button"
+              onClick={onBookReschedule}
+              className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              <CalendarClock size={12} /> {t('consultingPortal.bookReschedule')}
+            </button>
+          )}
+          {!session.scheduled_id && (
+            <button
+              type="button"
+              onClick={onScheduleSession}
+              disabled={schedulingBusy}
+              className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60"
+            >
+              <CalendarClock size={12} /> {t('consultingPortal.scheduleSession')}
+            </button>
           )}
         </div>
       </div>
@@ -320,6 +359,10 @@ export default function ConsultingFullPortal() {
   const [purchases, setPurchases] = useState([]);
   const [packages, setPackages] = useState([]);
   const [actionItems, setActionItems] = useState({});  // sessionId -> []
+  const [schedulingSession, setSchedulingSession] = useState(null); // session open in the booking widget
+  const [paymentSession, setPaymentSession] = useState(null); // session open in the payment modal
+  const [paymentReturnsToWidget, setPaymentReturnsToWidget] = useState(false);
+  const [creatingSchedule, setCreatingSchedule] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   // 1. Load dashboard + packages in parallel.
@@ -358,6 +401,72 @@ export default function ConsultingFullPortal() {
     });
     return () => { cancelled = true; };
   }, [sessions]);
+
+  // Re-read the dashboard (sessions + purchases) and return the sessions.
+  const fetchDashboardSessions = async () => {
+    try {
+      const d = await api.get('/consulting/portal/dashboard').then(r => r.data);
+      if (Array.isArray(d?.sessions)) setSessions(d.sessions);
+      if (Array.isArray(d?.purchases)) setPurchases(d.purchases);
+      return Array.isArray(d?.sessions) ? d.sessions : sessions;
+    } catch {
+      return sessions;
+    }
+  };
+
+  // Slice B wiring: a session with no scheduled row gets one created, then
+  // proceeds to payment (the new row is unpaid by construction) and, once
+  // paid, to the booking widget when a consultant is assigned.
+  const handleScheduleSession = async (session) => {
+    if (!session || creatingSchedule) return;
+    setCreatingSchedule(true);
+    try {
+      const { data } = await schedulingApi.createScheduledSession(
+        session.id,
+        session.consultant_assigned_id || null,
+      );
+      const updated = {
+        ...session,
+        scheduled_id: data.id,
+        scheduled_status: data.status || 'pending_confirmation',
+        scheduled_date: data.scheduled_date,
+        scheduled_time: data.scheduled_time,
+        is_paid: false,
+      };
+      setSessions((prev) => prev.map((s) => (s.id === session.id ? updated : s)));
+      setPaymentReturnsToWidget(true);
+      setPaymentSession(updated);
+    } catch (err) {
+      toast.error(t('common.errorUpdating'));
+    } finally {
+      setCreatingSchedule(false);
+    }
+  };
+
+  // Payment success: close the modal, refresh, then reopen the booking
+  // widget for the same session when a consultant is assigned so the user
+  // can book immediately instead of hunting for the button again.
+  const handlePaymentSuccess = async () => {
+    const paidSession = paymentSession;
+    const returnToWidget = paymentReturnsToWidget;
+    setPaymentSession(null);
+    setPaymentReturnsToWidget(false);
+    if (!paidSession || !returnToWidget) return;
+    const fresh = await fetchDashboardSessions();
+    const current = fresh.find((s) => s.id === paidSession.id) || paidSession;
+    if (current.consultant_assigned_id) setSchedulingSession(current);
+    else toast(t('consultingPortal.consultantPending'));
+  };
+
+  // Open booking for any session row: create the row first when missing,
+  // open the widget when a consultant is assigned, otherwise explain why
+  // booking cannot start yet.
+  const openBookingFor = (session) => {
+    if (!session) return;
+    if (!session.scheduled_id) { handleScheduleSession(session); return; }
+    if (session.consultant_assigned_id) setSchedulingSession(session);
+    else toast(t('consultingPortal.consultantPending'));
+  };
 
   const activeSession = useMemo(
     () => sessions.find(s => ['pending', 'scheduled'].includes(s.status)) || sessions[0] || null,
@@ -549,7 +658,15 @@ export default function ConsultingFullPortal() {
       <Navbar />
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
-        {activeSession && <ActiveSessionHero session={activeSession} t={t} />}
+        {activeSession && (
+          <ActiveSessionHero
+            session={activeSession}
+            t={t}
+            onBookReschedule={() => openBookingFor(activeSession)}
+            onScheduleSession={() => handleScheduleSession(activeSession)}
+            schedulingBusy={creatingSchedule}
+          />
+        )}
 
         {/* Stats strip */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -659,17 +776,22 @@ export default function ConsultingFullPortal() {
                           {s.service_tier ? `${s.service_tier} · ` : ''}{s.business_name || `Session #${s.id}`}
                         </div>
                         <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                          {s.scheduled_date
-                            ? fmtDate(`${s.scheduled_date}T${s.scheduled_time || '09:00'}`)
-                            : (s.scheduled_at ? fmtDate(s.scheduled_at) : t('consultingPortal.tba', { defaultValue: 'TBA' }))}
+                          {s.scheduled_status === 'pending_confirmation'
+                            ? t('consultingPortal.tba', { defaultValue: 'TBA' })
+                            : (s.scheduled_date
+                              ? fmtDate(`${s.scheduled_date}T${s.scheduled_time || '09:00'}`)
+                              : (s.scheduled_at ? fmtDate(s.scheduled_at) : t('consultingPortal.tba', { defaultValue: 'TBA' })))}
                         </div>
                       </div>
-                      <Link
-                        to={`/consulting/${s.id}`}
+                      {/* Was a dead link to /consulting/:id (no such route):
+                          it now opens booking for that session in place. */}
+                      <button
+                        type="button"
+                        onClick={() => openBookingFor(s)}
                         className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 flex-shrink-0"
                       >
-                        {t('common.view', { defaultValue: 'View' })} <ArrowRight size={11} />
-                      </Link>
+                        {t('consultingPortal.reschedule')} <ArrowRight size={11} />
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -693,12 +815,9 @@ export default function ConsultingFullPortal() {
                           {t('consultingPortal.completedOn', { defaultValue: 'Completed' })} {fmtDate(s.completed_at || s.updated_at, { includeTime: false })}
                         </div>
                       </div>
-                      <Link
-                        to={`/consulting/${s.id}/feedback`}
-                        className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 flex-shrink-0"
-                      >
-                        {t('consultingPortal.giveFeedback', { defaultValue: 'Give feedback' })} <ArrowRight size={11} />
-                      </Link>
+                      {/* Dead link to /consulting/:id/feedback removed: the only
+                          feedback route is /consulting/feedback/:sessionId/:token,
+                          reached from the token link emailed after a session. */}
                     </li>
                   ))}
                 </ul>
@@ -754,6 +873,42 @@ export default function ConsultingFullPortal() {
           </div>
         </div>
       </main>
+
+      {/* Booking widget modal: no new route, mounted inside the portal. */}
+      {schedulingSession && schedulingSession.scheduled_id && schedulingSession.consultant_assigned_id && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', zIndex: 1000, overflowY: 'auto', padding: '1rem',
+          }}
+          onClick={() => setSchedulingSession(null)}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: '540px' }}>
+            <ConsultantScheduleSelector
+              consultantId={schedulingSession.consultant_assigned_id}
+              sessionId={schedulingSession.scheduled_id}
+              onScheduleConfirmed={() => { setSchedulingSession(null); fetchDashboardSessions(); }}
+              onCancel={() => setSchedulingSession(null)}
+              onPaymentRequired={() => {
+                setSchedulingSession(null);
+                setPaymentReturnsToWidget(true);
+                setPaymentSession(schedulingSession);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Existing payment modal: on 402 from the widget, and after a
+          Schedule-session row creation, payment happens here; on success
+          the widget reopens so booking can be retried immediately. */}
+      <ConsultingPaymentModal
+        sessionId={paymentSession?.id}
+        isOpen={!!paymentSession}
+        onClose={() => { setPaymentSession(null); setPaymentReturnsToWidget(false); }}
+        onSuccess={handlePaymentSuccess}
+      />
 
       <Footer />
     </div>

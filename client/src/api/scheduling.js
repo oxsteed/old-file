@@ -50,6 +50,17 @@ export const schedulingApi = {
     return api.delete(`/scheduling/consultants/${consultantId}/blocked-dates/${dateId}`);
   },
 
+  // Create the pending_confirmation scheduled row for a consulting session
+  // (unblocks payment-intent, then booking). preferredDate is validated
+  // server-side only and is not stored as the booked time.
+  createScheduledSession: (consultingSessionId, consultantId = null, preferredDate = null) => {
+    return api.post('/scheduling/sessions', {
+      consultingSessionId,
+      ...(consultantId ? { consultantId } : {}),
+      ...(preferredDate ? { preferredDate } : {}),
+    });
+  },
+
   // Book a time slot for a consulting session
   bookTimeSlot: (sessionId, consultantId, date, startTime, durationMinutes = 120, meetingLink = null, timezone = 'America/New_York') => {
     return api.post(`/scheduling/sessions/${sessionId}/book-slot`, {
