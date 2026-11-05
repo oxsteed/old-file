@@ -50,7 +50,7 @@ test('suite targets only a disposable loopback database', () => {
 });
 
 if (CAN_RUN_DB) {
-process.env.DATABASE_URL=<redacted>
+  process.env.DATABASE_URL = RAW_URL;
   process.env.NODE_ENV = 'test';
   process.env.LOG_LEVEL = 'error';
 }
@@ -76,7 +76,7 @@ async function addLocation(restaurantId, name, { country, state, timezone, curre
      VALUES ($1, $2, $3, $4, $5, $6, FALSE) RETURNING id`,
     [restaurantId, name, country, state, timezone, currency]
   );
-  return loc.id;
+  return Number(loc.id); // pg returns BIGINT ids as strings; normalize.
 }
 
 async function addTimeEntry(businessId, userId, locationId, date, hours, breaks) {
@@ -107,7 +107,7 @@ ddescribe('Phase 1: California pay period end to end', () => {
        VALUES ($1, $2, $3, 'America/Los_Angeles', 'USD') RETURNING id`,
       [businessId, owner, 'Phase 1 Bistro']
     );
-    const restaurantId = r.id;
+    const restaurantId = Number(r.id);
     const caLocationId = await addLocation(restaurantId, 'Los Angeles', {
       country: 'US', state: 'CA', timezone: 'America/Los_Angeles', currency: 'USD',
     });

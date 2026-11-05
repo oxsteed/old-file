@@ -805,7 +805,7 @@ async function getPredictabilityPremiums({ businessId, fromDate, toDate, timezon
         AND created_at < ((($4::date + 1))::timestamp AT TIME ZONE $3)
         ${storeFilter(locationIds, 'location_id', 5)}
       GROUP BY user_id, location_id`,
-    storeParams([businessId, fromDate, toDate, timezone], locationIds)
+    storeParams([businessId, fromDate, timezone, toDate], locationIds)
   );
   const byUser = new Map();
   for (const row of rows) {
