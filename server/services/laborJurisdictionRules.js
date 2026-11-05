@@ -6,15 +6,34 @@
 // vendor is connected its findings would arrive through a separate adapter,
 // not through this module.
 //
-// Jurisdiction presets encode the well-known statutory baselines:
+// Jurisdiction presets encode the well-known statutory baselines. They
+// are STARTING POINTS, not legal advice: statutes change, and a stored
+// row always wins over its preset (explicit values override; NULL falls
+// back to the preset). An operator in any jurisdiction must confirm the
+// preset against current local law before relying on it for pay.
 //
 //   US-FED : 40h weekly overtime (FLSA).
 //   US-CA  : 8h daily OT, 12h double time, 7th consecutive day OT, 10h rest
-//            between shifts (clopening guard), 30-min meal break after 5h.
+//            between shifts (clopening guard), 30-min meal break after 5h,
+//            one hour at the regular rate per missed meal period
+//            (Cal. Labor Code 226.7).
 //   US-NYC : Fair Workweek fast-food: 14-day advance notice (predictability),
 //            11h rest between shifts. US-SFO / US-SEA / US-CHI / US-OR share
 //            the Fair Workweek family with their own notice/rest values.
+//   GB-UK  : Working Time Regulations 1998: 48h average weekly maximum,
+//            no statutory daily-overtime premium, no statutory meal-break
+//            premium (20-min rest break after 6h, unpaid).
+//   CA-ON  : Ontario ESA: overtime after 44h/week, no daily overtime,
+//            30-min meal break after 5h (unpaid, no premium).
+//   HT     : Haiti Labour Code: 8h day / 48h week, overtime at 1.5x,
+//            no double-time tier, no 7th-day rule.
 //   CUSTOM : every parameter set explicitly per location.
+//
+// Pay rules are jurisdiction-driven through this table: the payroll
+// service reads these parameters per location and never branches on a
+// country or state code. California is one row in the table, not the
+// logic. A jurisdiction with no daily-overtime threshold simply has
+// daily_overtime_hours NULL, and the calc pays straight time.
 //
 // The engine is advisory: evaluateSchedule returns warnings; the publish
 // endpoint stores them on the schedule version (evidence) and returns them
@@ -33,10 +52,12 @@ const PRESETS = {
     min_rest_between_shifts_hours: 8,
     meal_break_after_minutes: 360,
     meal_break_duration_minutes: 30,
+    meal_break_premium_hours: null,
     minor_max_daily_hours: 8,
     minor_max_weekly_hours: 40,
     minor_latest_end_time: '22:00',
     schedule_notice_hours: null,
+    predictability_premium_hours: null,
   },
   'US-CA': {
     weekly_overtime_hours: 40,
@@ -46,10 +67,14 @@ const PRESETS = {
     min_rest_between_shifts_hours: 10,
     meal_break_after_minutes: 300,
     meal_break_duration_minutes: 30,
+    // Cal. Labor Code 226.7: one hour at the regular rate per workday
+    // a meal period is missed.
+    meal_break_premium_hours: 1,
     minor_max_daily_hours: 8,
     minor_max_weekly_hours: 48,
     minor_latest_end_time: '22:00',
     schedule_notice_hours: null,
+    predictability_premium_hours: null,
   },
   'US-NYC': {
     weekly_overtime_hours: 40,
@@ -59,10 +84,16 @@ const PRESETS = {
     min_rest_between_shifts_hours: 11,
     meal_break_after_minutes: 360,
     meal_break_duration_minutes: 30,
+    meal_break_premium_hours: null,
     minor_max_daily_hours: 8,
     minor_max_weekly_hours: 40,
     minor_latest_end_time: '22:00',
     schedule_notice_hours: 336, // 14 days, Fair Workweek predictability
+    // NYC Fair Workweek sets dollar premiums ($10-$75 by change type),
+    // not hours. The table stores the hours-equivalent default of one
+    // hour at the regular rate; a location may override it with the
+    // exact statutory amount expressed in hours, or a CUSTOM row.
+    predictability_premium_hours: 1,
   },
   'US-SFO': {
     weekly_overtime_hours: 40,
@@ -72,10 +103,12 @@ const PRESETS = {
     min_rest_between_shifts_hours: 11,
     meal_break_after_minutes: 300,
     meal_break_duration_minutes: 30,
+    meal_break_premium_hours: 1,
     minor_max_daily_hours: 8,
     minor_max_weekly_hours: 48,
     minor_latest_end_time: '22:00',
     schedule_notice_hours: 336,
+    predictability_premium_hours: 1,
   },
   'US-SEA': {
     weekly_overtime_hours: 40,
@@ -85,10 +118,12 @@ const PRESETS = {
     min_rest_between_shifts_hours: 10,
     meal_break_after_minutes: 360,
     meal_break_duration_minutes: 30,
+    meal_break_premium_hours: null,
     minor_max_daily_hours: 8,
     minor_max_weekly_hours: 40,
     minor_latest_end_time: '22:00',
     schedule_notice_hours: 336,
+    predictability_premium_hours: 1,
   },
   'US-CHI': {
     weekly_overtime_hours: 40,
@@ -98,10 +133,12 @@ const PRESETS = {
     min_rest_between_shifts_hours: 10,
     meal_break_after_minutes: 450,
     meal_break_duration_minutes: 20,
+    meal_break_premium_hours: null,
     minor_max_daily_hours: 8,
     minor_max_weekly_hours: 40,
     minor_latest_end_time: '21:00',
     schedule_notice_hours: 240, // 10 days
+    predictability_premium_hours: 1,
   },
   'US-OR': {
     weekly_overtime_hours: 40,
@@ -111,10 +148,57 @@ const PRESETS = {
     min_rest_between_shifts_hours: 10,
     meal_break_after_minutes: 360,
     meal_break_duration_minutes: 30,
+    meal_break_premium_hours: null,
     minor_max_daily_hours: 8,
     minor_max_weekly_hours: 40,
     minor_latest_end_time: '22:00',
     schedule_notice_hours: 336,
+    predictability_premium_hours: 1,
+  },
+  'GB-UK': {
+    weekly_overtime_hours: 48,
+    daily_overtime_hours: null,
+    daily_doubletime_hours: null,
+    seventh_day_overtime: false,
+    min_rest_between_shifts_hours: 11,
+    meal_break_after_minutes: 360,
+    meal_break_duration_minutes: 20,
+    meal_break_premium_hours: null,
+    minor_max_daily_hours: 8,
+    minor_max_weekly_hours: 40,
+    minor_latest_end_time: '22:00',
+    schedule_notice_hours: null,
+    predictability_premium_hours: null,
+  },
+  'CA-ON': {
+    weekly_overtime_hours: 44,
+    daily_overtime_hours: null,
+    daily_doubletime_hours: null,
+    seventh_day_overtime: false,
+    min_rest_between_shifts_hours: 11,
+    meal_break_after_minutes: 300,
+    meal_break_duration_minutes: 30,
+    meal_break_premium_hours: null,
+    minor_max_daily_hours: 8,
+    minor_max_weekly_hours: 48,
+    minor_latest_end_time: '22:00',
+    schedule_notice_hours: null,
+    predictability_premium_hours: null,
+  },
+  HT: {
+    weekly_overtime_hours: 48,
+    daily_overtime_hours: 8,
+    daily_doubletime_hours: null,
+    seventh_day_overtime: false,
+    min_rest_between_shifts_hours: 10,
+    meal_break_after_minutes: 300,
+    meal_break_duration_minutes: 30,
+    meal_break_premium_hours: null,
+    minor_max_daily_hours: 8,
+    minor_max_weekly_hours: 48,
+    minor_latest_end_time: '22:00',
+    schedule_notice_hours: null,
+    predictability_premium_hours: null,
   },
   CUSTOM: {},
 };
@@ -127,11 +211,35 @@ const RULE_COLUMNS = [
   'min_rest_between_shifts_hours',
   'meal_break_after_minutes',
   'meal_break_duration_minutes',
+  // Premium rules, in hours at the regular rate. NULL on a stored row
+  // falls back to the preset; a preset NULL means "no premium rule".
+  'meal_break_premium_hours',
   'minor_max_daily_hours',
   'minor_max_weekly_hours',
   'minor_latest_end_time',
   'schedule_notice_hours',
+  'predictability_premium_hours',
 ];
+
+// Predictability premium owed for one late schedule change, in hours at
+// the regular rate. The stored/preset rule wins when set. Where a
+// jurisdiction has a notice statute but no premium amount of its own,
+// the documented default is one hour at the regular rate. Where there
+// is no notice statute at all, no premium is owed. Returns null when
+// no premium is owed.
+function predictabilityPremiumHours(rules) {
+  const r = rules || resolveRules(null);
+  if (r.predictability_premium_hours != null) return Number(r.predictability_premium_hours);
+  if (r.schedule_notice_hours != null) return 1;
+  return null;
+}
+
+// Meal-break premium owed per missed meal period, in hours at the
+// regular rate, or null where the jurisdiction requires no premium.
+function mealBreakPremiumHours(rules) {
+  const r = rules || resolveRules(null);
+  return r.meal_break_premium_hours == null ? null : Number(r.meal_break_premium_hours);
+}
 
 // Merge the stored row over its preset: explicit NULLs fall back to the
 // preset, so a location only overrides what it means to.
@@ -160,6 +268,29 @@ async function getJurisdiction(db, restaurantId, locationId) {
     logger.warn('laborJurisdictionRules.getJurisdiction failed', { err: err.message });
     return resolveRules(null);
   }
+}
+
+// Batch version of getJurisdiction: resolved rules per location id for
+// one restaurant. Locations with no stored row resolve to the US-FED
+// preset (weekly-only), exactly like getJurisdiction.
+async function getJurisdictions(db, restaurantId, locationIds) {
+  const result = new Map();
+  const ids = [...new Set((locationIds || []).map(Number).filter((n) => Number.isSafeInteger(n) && n > 0))];
+  if (!restaurantId || !ids.length) return result;
+  try {
+    const { rows } = await db.query(
+      `SELECT * FROM restaurant_labor_jurisdictions
+        WHERE restaurant_id = $1 AND location_id = ANY($2::bigint[]) AND is_active`,
+      [restaurantId, ids]
+    );
+    for (const row of rows) result.set(Number(row.location_id), resolveRules(row));
+  } catch (err) {
+    logger.warn('laborJurisdictionRules.getJurisdictions failed', { err: err.message });
+  }
+  for (const id of ids) {
+    if (!result.has(id)) result.set(id, resolveRules(null));
+  }
+  return result;
 }
 
 // Shift length in hours from the shift's start/end time strings.
@@ -252,9 +383,10 @@ function under16Warnings(userId, mine, list) {
 
 // ── Fair Workweek: changes to a published shift ─────────────────────
 // Inside the notice window an employer-initiated edit or cancellation owes
-// predictability pay (amount set by local law; recorded, not computed).
-// Employee-requested changes (swaps, their own request) are recorded with
-// no premium. Pure.
+// predictability pay: premium_hours from the jurisdiction's premium rule
+// (see predictabilityPremiumHours), priced at the regular rate by the
+// caller. Employee-requested changes (swaps, their own request) are
+// recorded with no premium. Pure.
 function evaluateChange({ before, after = null, rules, now = new Date(), employeeRequested = false }) {
   const r = rules || resolveRules(null);
   const starts = [before, after].filter(Boolean).map((s) => shiftStartDateTime(s).getTime());
@@ -262,7 +394,11 @@ function evaluateChange({ before, after = null, rules, now = new Date(), employe
   const hoursBeforeStart = Math.round(((soonest - now.getTime()) / 3600000) * 100) / 100;
   const notice = r.schedule_notice_hours == null ? null : Number(r.schedule_notice_hours);
   const premiumDue = !employeeRequested && notice != null && hoursBeforeStart >= 0 && hoursBeforeStart < notice;
-  return { premium_due: premiumDue, hours_before_start: hoursBeforeStart, notice_hours: notice, jurisdiction_code: r.jurisdiction_code };
+  return {
+    premium_due: premiumDue,
+    premium_hours: premiumDue ? predictabilityPremiumHours(r) : null,
+    hours_before_start: hoursBeforeStart, notice_hours: notice, jurisdiction_code: r.jurisdiction_code,
+  };
 }
 
 /**
@@ -442,6 +578,9 @@ module.exports = {
   RULE_COLUMNS,
   resolveRules,
   getJurisdiction,
+  getJurisdictions,
+  predictabilityPremiumHours,
+  mealBreakPremiumHours,
   evaluateSchedule,
   evaluateChange,
   FLSA_UNDER_16,
