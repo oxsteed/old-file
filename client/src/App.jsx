@@ -600,8 +600,11 @@ export default function App() {
                     <Route path="/shared-cart/:shareToken" element={<Guarded><SharedCartPage /></Guarded>} />
                     <Route path="/checkout/:cartId"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><CheckoutPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Marketplace order detail lives under /marketplace/orders, NOT
-                        /checkout: the launch gate unconditionally bounces /checkout/*
-                        to /restaurants, so a /checkout/orders route could never render. */}
+                        /checkout: the order page is buyer-scoped and read-only, and
+                        keeping it out of the /checkout prefix avoids coupling it to
+                        the checkout launch gate (which, since the 2026-11-04
+                        marketplace flip, renders /checkout when
+                        productMarketplace is on). */}
                     <Route path="/marketplace/orders/:orderId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><MarketplaceOrderPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Life detail pages: private, reached from the Life dashboard
                         only. Deliberately not in the sitemap and noindex in seoMeta. */}

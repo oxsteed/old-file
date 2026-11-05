@@ -4357,6 +4357,7 @@
     "empty": "لا توجد عناصر في هذه القائمة بعد.",
     "remove": "إزالة",
     "cardOpen": "عرض قائمة القطع",
+    "openSharedCart": "فتح العربة المشتركة",
     "cardItems": "{{count}} عناصر",
     "defaultName": "قطع لـ {{kit}}",
     "kits": {

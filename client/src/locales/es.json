@@ -4357,6 +4357,7 @@
     "empty": "Aún no hay artículos en esta lista.",
     "remove": "Quitar",
     "cardOpen": "Ver lista de materiales",
+    "openSharedCart": "Abrir carrito compartido",
     "cardItems": "{{count}} artículos",
     "defaultName": "Materiales para {{kit}}",
     "kits": {

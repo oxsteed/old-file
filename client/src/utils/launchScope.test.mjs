@@ -40,6 +40,17 @@ test('weekly self-audit 2026-11-04 item 1: flag-gated redirects lift when their 
     assert.equal(getLaunchRedirect('/franchise/status'), '/business-hub');
     assert.equal(getLaunchRedirect('/consulting/portal'), '/business-hub');
     assert.equal(getLaunchRedirect('/consultant-availability'), '/calendar');
+    // Marketplace checkout flip (2026-11-04): the purchase path defaults on,
+    // so cart/shared-cart/checkout render by default and bounce only while
+    // productMarketplace is explicitly off.
+    assert.equal(getLaunchRedirect('/cart/abc'), null);
+    assert.equal(getLaunchRedirect('/shared-cart/abc'), null);
+    assert.equal(getLaunchRedirect('/checkout/abc'), null);
+    LAUNCH_VISIBILITY.productMarketplace = false;
+    assert.equal(getLaunchRedirect('/cart/abc'), '/restaurants');
+    assert.equal(getLaunchRedirect('/shared-cart/abc'), '/restaurants');
+    assert.equal(getLaunchRedirect('/checkout/abc'), '/restaurants');
+    LAUNCH_VISIBILITY.productMarketplace = true;
     LAUNCH_VISIBILITY.discoverEverything = true;
     LAUNCH_VISIBILITY.templates = true;
     LAUNCH_VISIBILITY.franchise = true;
@@ -49,9 +60,9 @@ test('weekly self-audit 2026-11-04 item 1: flag-gated redirects lift when their 
     assert.equal(getLaunchRedirect('/franchise/status'), null);
     assert.equal(getLaunchRedirect('/consulting/portal'), null);
     assert.equal(getLaunchRedirect('/consultant-availability'), null);
+    assert.equal(getLaunchRedirect('/cart/abc'), null);
     // Entries with no owning flag stay unconditional.
     assert.equal(getLaunchRedirect('/network'), '/dashboard');
-    assert.equal(getLaunchRedirect('/cart'), '/restaurants');
   } finally {
     restoreLaunchVisibility();
   }

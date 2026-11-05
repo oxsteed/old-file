@@ -25,10 +25,21 @@ test('public routes resolve to indexable locale keys', () => {
 });
 
 test('redirect routes never get indexable meta', () => {
-  for (const path of ['/discover', '/discover/anything', '/features', '/hire', '/h/abc', '/helpers/public/abc', '/register/customer', '/direct/service-area', '/cart/1', '/checkout/1', '/support']) {
+  for (const path of ['/discover', '/discover/anything', '/features', '/hire', '/h/abc', '/helpers/public/abc', '/register/customer', '/direct/service-area', '/support']) {
     const resolved = resolveRouteMeta(path);
     assert.equal(resolved.noIndex, true, path);
     assert.equal(resolved.redirect, true, path);
+  }
+});
+
+test('marketplace purchase routes render after the flip but stay noindex', () => {
+  // 2026-11-04 marketplace flip: /cart, /shared-cart, and /checkout render
+  // real pages now, so they are no longer redirect patterns — but they stay
+  // noindex as authenticated/transactional routes.
+  for (const path of ['/cart/1', '/shared-cart/abc', '/checkout/1']) {
+    const resolved = resolveRouteMeta(path);
+    assert.equal(resolved.noIndex, true, path);
+    assert.equal(resolved.redirect, false, path);
   }
 });
 

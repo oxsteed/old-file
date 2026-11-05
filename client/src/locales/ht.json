@@ -4544,6 +4544,7 @@
     "empty": "Pokò gen atik nan lis sa a.",
     "remove": "Retire",
     "cardOpen": "Wè lis pyès la",
+    "openSharedCart": "Ouvri panye pataje",
     "cardItems": "{{count}} atik",
     "defaultName": "Pyès pou {{kit}}",
     "kits": {

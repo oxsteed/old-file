@@ -123,7 +123,12 @@ const LAUNCH_KEY_ENV = Object.freeze({
   jobMaterialsLogistics: ['OXSTEED_LAUNCH_JOB_MATERIALS_LOGISTICS', false],
   networkBranchSwitcher: ['OXSTEED_LAUNCH_NETWORK_BRANCH_SWITCHER', false],
   personalLifeDashboard: ['OXSTEED_LAUNCH_PERSONAL_LIFE_DASHBOARD', false],
-  productMarketplace: ['OXSTEED_LAUNCH_PRODUCT_MARKETPLACE', false],
+  // Marketplace checkout flip (2026-11-04, Emile-authorized): the purchase
+  // path (carts, shared carts, marketplace products, job kits) is launched,
+  // so this defaults on. Setting OXSTEED_LAUNCH_PRODUCT_MARKETPLACE=false
+  // plus a redeploy turns it back off (envFlagEnabled honors an explicit
+  // false over the default).
+  productMarketplace: ['OXSTEED_LAUNCH_PRODUCT_MARKETPLACE', true],
   resourcesMenu: ['OXSTEED_LAUNCH_RESOURCES_MENU', false],
   specializedProfileTemplates: ['OXSTEED_LAUNCH_SPECIALIZED_PROFILE_TEMPLATES', false],
   subscriptions: ['OXSTEED_LAUNCH_SUBSCRIPTIONS', false],
@@ -149,7 +154,9 @@ function getServerLaunchVisibility() {
 // with the client UI instead of rendering against 404s.
 const LAUNCH_VISIBILITY = Object.freeze({
   templates: envFlagEnabled('OXSTEED_LAUNCH_TEMPLATES', false),
-  productMarketplace: envFlagEnabled('OXSTEED_LAUNCH_PRODUCT_MARKETPLACE', false),
+  // Marketplace checkout flip (2026-11-04): default on, matching
+  // LAUNCH_KEY_ENV above; explicit env false still turns it off.
+  productMarketplace: envFlagEnabled('OXSTEED_LAUNCH_PRODUCT_MARKETPLACE', true),
   specializedProfileTemplates: envFlagEnabled('OXSTEED_LAUNCH_SPECIALIZED_PROFILE_TEMPLATES', false),
   oxsteedMedia: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', false),
 });

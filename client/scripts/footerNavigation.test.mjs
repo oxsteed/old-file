@@ -5,17 +5,22 @@ import { footerNavigation } from '../src/utils/footerNavigation.js';
 import { LAUNCH_VISIBILITY } from '../src/utils/launchScope.js';
 
 const paths = groups => groups.map(group => group.links.map(item => item.to));
-const expected = [['/restaurants', '/direct', '/delivery', '/media'],
+const expected = [['/restaurants', '/direct', '/delivery', '/media', '/products'],
   ['/how-it-works', '/about', '/careers', '/consulting-intake'], ['/support', '/learn', '/vortex']];
 test('footer destinations and order stay consistent for guests, current modes and legacy accounts', () => {
   // Weekly self-audit 2026-11-04 item 12: the build-time Media default is
   // now false (matching the server), so the default-visibility footer
   // omits /media; it returns once the launch map turns media on.
+  // Marketplace checkout flip (2026-11-04): productMarketplace now defaults
+  // on, so the default-visibility footer includes /products; it drops out
+  // only when the flag is explicitly off.
   const launched = { ...LAUNCH_VISIBILITY, oxsteedMedia: true };
-  const unlaunched = [['/restaurants', '/direct', '/delivery'], expected[1], expected[2]];
+  const unlaunched = [['/restaurants', '/direct', '/delivery', '/products'], expected[1], expected[2]];
+  const marketplaceOff = [['/restaurants', '/direct', '/delivery'], expected[1], expected[2]];
   for (const user of [null, ...['customer', 'helper', 'business_owner', 'business_employee', 'admin'].map(default_mode => ({id:1,default_mode})), {id:1,role:'helper_pro'}]) {
     assert.deepEqual(paths(footerNavigation(user, { visibility: launched })), expected);
     assert.deepEqual(paths(footerNavigation(user)), unlaunched);
+    assert.deepEqual(paths(footerNavigation(user, { visibility: { ...LAUNCH_VISIBILITY, productMarketplace: false } })), marketplaceOff);
     assert.deepEqual(footerNavigation(user).map(group => group.id), ['explore', 'company', 'help']);
   }
 });

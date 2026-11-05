@@ -4357,6 +4357,7 @@
     "empty": "No items in this list yet.",
     "remove": "Remove",
     "cardOpen": "View parts list",
+    "openSharedCart": "Open shared cart",
     "cardItems": "{{count}} items",
     "defaultName": "Parts for {{kit}}",
     "kits": {

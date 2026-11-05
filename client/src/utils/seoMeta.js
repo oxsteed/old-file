@@ -190,9 +190,6 @@ const REDIRECT_PATTERNS = [
   /^\/translator(?:\/.*)?$/,
   /^\/register(?:\/.*)?$/,
   /^\/direct\/service-area(?:\/.*)?$/,
-  /^\/cart(?:\/.*)?$/,
-  /^\/shared-cart(?:\/.*)?$/,
-  /^\/checkout(?:\/.*)?$/,
   /^\/orders\/[^/]+$/, // OrderIdRedirect to /food/orders/:id
   /^\/helpers\/public\/[^/]+$/, // LegacyHelperProfileRedirect to /helpers/:id
   /^\/h\/[^/]+$/, // LegacyHelperProfileRedirect to /helpers/:id
@@ -236,6 +233,12 @@ const NOINDEX_PREFIXES = [
   '/my-bids',
   '/my-bookings',
   '/my-jobs',
+  // Marketplace purchase path (2026-11-04 flip): these render real pages
+  // now, so they are no longer redirect patterns — but they stay noindex
+  // as authenticated/transactional routes.
+  '/cart',
+  '/shared-cart',
+  '/checkout',
   '/post-job',
   '/book',
   '/saved-searches',

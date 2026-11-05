@@ -130,7 +130,12 @@ export const LAUNCH_DEFAULTS = Object.freeze({
   jobMaterialsLogistics: false,
   networkBranchSwitcher: false,
   personalLifeDashboard: false,
-  productMarketplace: false,
+  // Marketplace checkout flip (2026-11-04, Emile-authorized): the
+  // marketplace purchase path is launched, so this defaults on to match the
+  // server. The server remains the source of truth via
+  // /api/launch-visibility; setting OXSTEED_LAUNCH_PRODUCT_MARKETPLACE=false
+  // plus a redeploy turns the whole path back off.
+  productMarketplace: true,
   resourcesMenu: false,
   specializedProfileTemplates: false,
   subscriptions: false,
@@ -192,12 +197,15 @@ const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
   // No owning flag: translator has no launch key on either side, so this
   // redirect stays unconditional until one is defined.
   { prefix: '/translator', to: '/' },
-  // No routes exist for these paths in App.jsx; the redirect is a legacy
-  // deep-link catch so old links land on /restaurants instead of NotFound,
-  // not a launch gate.
-  { prefix: '/cart', to: '/restaurants' },
-  { prefix: '/shared-cart', to: '/restaurants' },
-  { prefix: '/checkout', to: '/restaurants' },
+  // Marketplace purchase path (2026-11-04 flip, Emile-authorized):
+  // parameterized routes DO exist for these paths in App.jsx
+  // (/cart/:cartId, /shared-cart/:shareToken, /checkout/:cartId), and the
+  // server gates their APIs on productMarketplace. While that flag is off
+  // these bounce to /restaurants; when it is on (the default since the
+  // flip) the cart, shared-cart, and checkout pages render.
+  { prefix: '/cart', to: '/restaurants', flag: 'productMarketplace' },
+  { prefix: '/shared-cart', to: '/restaurants', flag: 'productMarketplace' },
+  { prefix: '/checkout', to: '/restaurants', flag: 'productMarketplace' },
   // UI gaps item 2: investor now has a launch key (OXSTEED_LAUNCH_INVESTOR,
   // default off), so these redirects are flag-conditional like
   // franchise/consulting. Off keeps today's bounce to /login and

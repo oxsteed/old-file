@@ -4357,6 +4357,7 @@
     "empty": "Aucun article dans cette liste pour le moment.",
     "remove": "Retirer",
     "cardOpen": "Voir la liste de pièces",
+    "openSharedCart": "Ouvrir le panier partagé",
     "cardItems": "{{count}} articles",
     "defaultName": "Pièces pour {{kit}}",
     "kits": {

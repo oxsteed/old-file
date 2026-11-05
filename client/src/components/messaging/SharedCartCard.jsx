@@ -1,15 +1,17 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { LAUNCH_VISIBILITY } from '../../utils/launchScope.js';
 import { sharedCartCardData } from './sharedCartCard.js';
 
 /**
  * Rich shared-cart card rendered inside chat timelines / inbox threads.
  * Reuses the messenger quote card styling so shared carts look native in chat.
  *
- * Gated dead link (Nov 3 audit): the card used to link to /shared-cart/:token,
- * which the launch gate redirects to /restaurants, losing the cart. The open
- * action is removed until shared carts launch; the card still shows the cart
- * summary. sharedCartCardData still computes href for the (future) launch.
+ * The open action was removed in the Nov 3 audit because the launch gate
+ * bounced /shared-cart/:token to /restaurants. Since the 2026-11-04
+ * marketplace flip, the link renders again, gated on productMarketplace so
+ * it never points at a bounce while the flag is off.
  */
 export default function SharedCartCard({ att }) {
   const { t } = useTranslation();
@@ -28,6 +30,12 @@ export default function SharedCartCard({ att }) {
         <span>{card.items}</span>
         <strong>{card.total}</strong>
       </div>
+
+      {LAUNCH_VISIBILITY.productMarketplace && card.href ? (
+        <Link to={card.href} className="messenger-quote-card__open">
+          {t('partsList.openSharedCart')}
+        </Link>
+      ) : null}
     </div>
   );
 }

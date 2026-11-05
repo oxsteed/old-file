@@ -44,18 +44,55 @@ describe('launchGate middleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  // Marketplace checkout flip (2026-11-04): the purchase path defaults on,
+  // so the block case needs an explicit env false, and the default/on case
+  // must pass through. The boot snapshot is computed at require time, so
+  // both cases re-require the middleware in isolation.
   test.each([
     ['/api/carts', '/cart-1/payment-intent'],
     ['/api/carts', '/cart-1/confirm'],
     ['/api/shared-carts', '/share-1'],
     ['/api/job-kits', '/'],
-  ])('P2-652: blocks the unlaunched marketplace purchase path %s%s', (baseUrl, path) => {
-    const gate = launchGate();
-    const res = mockRes();
-    const next = jest.fn();
-    gate({ ...mockReq({ baseUrl, path }), method: 'POST' }, res, next);
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(next).not.toHaveBeenCalled();
+  ])('P2-652: blocks the marketplace purchase path when productMarketplace is off %s%s', (baseUrl, path) => {
+    const prev = process.env.OXSTEED_LAUNCH_PRODUCT_MARKETPLACE;
+    process.env.OXSTEED_LAUNCH_PRODUCT_MARKETPLACE = 'false';
+    try {
+      jest.isolateModules(() => {
+        const { launchGate: freshGate } = require('../middleware/launchGate');
+        const gate = freshGate();
+        const res = mockRes();
+        const next = jest.fn();
+        gate({ ...mockReq({ baseUrl, path }), method: 'POST' }, res, next);
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(next).not.toHaveBeenCalled();
+      });
+    } finally {
+      if (prev === undefined) delete process.env.OXSTEED_LAUNCH_PRODUCT_MARKETPLACE;
+      else process.env.OXSTEED_LAUNCH_PRODUCT_MARKETPLACE = prev;
+    }
+  });
+
+  test.each([
+    ['/api/carts', '/cart-1/payment-intent'],
+    ['/api/shared-carts', '/share-1'],
+    ['/api/job-kits', '/'],
+  ])('P2-652: marketplace purchase path passes by default after the flip %s%s', (baseUrl, path) => {
+    const prev = process.env.OXSTEED_LAUNCH_PRODUCT_MARKETPLACE;
+    delete process.env.OXSTEED_LAUNCH_PRODUCT_MARKETPLACE;
+    try {
+      jest.isolateModules(() => {
+        const { launchGate: freshGate } = require('../middleware/launchGate');
+        const gate = freshGate();
+        const res = mockRes();
+        const next = jest.fn();
+        gate({ ...mockReq({ baseUrl, path }), method: 'POST' }, res, next);
+        expect(next).toHaveBeenCalled();
+        expect(res.status).not.toHaveBeenCalled();
+      });
+    } finally {
+      if (prev === undefined) delete process.env.OXSTEED_LAUNCH_PRODUCT_MARKETPLACE;
+      else process.env.OXSTEED_LAUNCH_PRODUCT_MARKETPLACE = prev;
+    }
   });
 
   test('allows admin templates path through', () => {
@@ -131,7 +168,7 @@ describe('server launch visibility map (Nov 1 audit item 11)', () => {
     }
   });
 
-  test('defaults mirror the current client behavior: nothing flips on or off', () => {
+  test('defaults mirror the current client behavior: marketplace path on, the rest unchanged', () => {
     const { getServerLaunchVisibility } = require('../middleware/launchGate');
     const launches = getServerLaunchVisibility();
     expect(Object.keys(launches)).toHaveLength(33);
@@ -142,7 +179,10 @@ describe('server launch visibility map (Nov 1 audit item 11)', () => {
       // franchise/consulting, so its routes keep today's bounce.
       investor: false,
       templates: false,
-      productMarketplace: false,
+      // Marketplace checkout flip (2026-11-04, Emile-authorized): the
+      // purchase path defaults on, so the visibility map reports true
+      // when the env var is unset.
+      productMarketplace: true,
       specializedProfileTemplates: false,
       oxsteedMedia: false,
       discoverEverything: false,
