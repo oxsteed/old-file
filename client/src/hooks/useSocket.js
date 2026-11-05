@@ -1,8 +1,25 @@
 import useAppResume from './useAppResume';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { io }                                       from 'socket.io-client';
 import { useAuth }                                  from './useAuth';
 import { realtimeNamespaceUrl }                     from '../lib/realtime';
+
+// PWA startup budget (2026-11-05): socket.io-client is ~27KB and was
+// statically imported through the Navbar's notification hooks, so it rode
+// the startup bundle. It loads on demand the first time a signed-in
+// session needs realtime; the promise is shared so concurrent hook
+// instances create one socket, not one each.
+let socketClientPromise = null;
+function loadSocketClient() {
+  if (!socketClientPromise) {
+    socketClientPromise = import('socket.io-client')
+      .then((mod) => mod.io)
+      .catch((err) => {
+        socketClientPromise = null;
+        throw err;
+      });
+  }
+  return socketClientPromise;
+}
 
 // Module-level singleton - one socket per browser tab regardless of how many
 // components call useSocket(). Re-created only on explicit disconnect/logout.
@@ -77,85 +94,99 @@ export const useSocket = () => {
     // The access token travels via the httpOnly oxsteed_access cookie, which
     // the browser sends on the WebSocket handshake automatically. Only an
     // impersonation session passes its short-lived token explicitly.
-    const impersonationToken = sessionStorage.getItem('oxs:impersonation_token');
-
+    // The client loads here (see loadSocketClient above) instead of at
+    // module scope, so the first realtime connection waits one chunk load.
+    let cancelled = false;
     console.log('[useSocket] Creating new Socket.io connection');
     setConnected(false);
     setConnectionState('connecting');
     notifyListeners(false, 'connecting');
-    socketInstance = io(
-      realtimeNamespaceUrl('chat'),
-      {
-        auth:                    impersonationToken ? { token: impersonationToken } : {},
-        transports:              ['websocket'],
-        reconnection:            true,
-        // Cost audit 2026-11-04 item 18: reconnects hammered at 500ms to
-        // a 4s plateau. The floor is now 2s and the cap 30s, so the delay
-        // keeps climbing steeply after the first few attempts (2s, 4s,
-        // 8s, 16s, 30s) instead of flattening at 4s. Attempt count (20)
-        // is unchanged; retries now spread over minutes, not seconds.
-        reconnectionDelay:       2000,
-        reconnectionDelayMax:    30000,
-        reconnectionAttempts:    20,       // more attempts before giving up
-        timeout:                 10000,    // handshake timeout (ms)
-      }
-    );
+    loadSocketClient()
+      .then((io) => {
+        if (cancelled || socketInstance) return;
+        const impersonationToken = sessionStorage.getItem('oxs:impersonation_token');
+        socketInstance = io(
+          realtimeNamespaceUrl('chat'),
+          {
+            auth:                    impersonationToken ? { token: impersonationToken } : {},
+            transports:              ['websocket'],
+            reconnection:            true,
+            // Cost audit 2026-11-04 item 18: reconnects hammered at 500ms to
+            // a 4s plateau. The floor is now 2s and the cap 30s, so the delay
+            // keeps climbing steeply after the first few attempts (2s, 4s,
+            // 8s, 16s, 30s) instead of flattening at 4s. Attempt count (20)
+            // is unchanged; retries now spread over minutes, not seconds.
+            reconnectionDelay:       2000,
+            reconnectionDelayMax:    30000,
+            reconnectionAttempts:    20,       // more attempts before giving up
+            timeout:                 10000,    // handshake timeout (ms)
+          }
+        );
 
-    socketInstance.on('connect', () => {
-      console.log('[useSocket] Socket connected successfully');
-      setConnected(true);
-      setConnectionState('connected');
-      notifyListeners(true, 'connected');
-    });
+        socketInstance.on('connect', () => {
+          console.log('[useSocket] Socket connected successfully');
+          setConnected(true);
+          setConnectionState('connected');
+          notifyListeners(true, 'connected');
+        });
 
-    socketInstance.on('disconnect', () => {
-      console.log('[useSocket] Socket disconnected');
-      const nextState = socketInstance?.active ? 'reconnecting' : 'offline';
-      setConnected(false);
-      setConnectionState(nextState);
-      notifyListeners(false, nextState);
-    });
+        socketInstance.on('disconnect', () => {
+          console.log('[useSocket] Socket disconnected');
+          const nextState = socketInstance?.active ? 'reconnecting' : 'offline';
+          setConnected(false);
+          setConnectionState(nextState);
+          notifyListeners(false, nextState);
+        });
 
-    socketInstance.on('connect_error', (err) => {
-      console.error('[useSocket] Connection error:', err.message, err);
-      const nextState = socketInstance?.active ? 'reconnecting' : 'offline';
-      setConnected(false);
-      setConnectionState(nextState);
-      notifyListeners(false, nextState);
-    });
+        socketInstance.on('connect_error', (err) => {
+          console.error('[useSocket] Connection error:', err.message, err);
+          const nextState = socketInstance?.active ? 'reconnecting' : 'offline';
+          setConnected(false);
+          setConnectionState(nextState);
+          notifyListeners(false, nextState);
+        });
 
-    // Refresh the impersonation token before each reconnect attempt, if any.
-    // The normal session re-authenticates via the httpOnly cookie.
-    socketInstance.io.on('reconnect_attempt', () => {
-      const impersonationToken = sessionStorage.getItem('oxs:impersonation_token');
-      if (socketInstance) {
-        socketInstance.auth = impersonationToken ? { token: impersonationToken } : {};
-      }
-      setConnectionState('reconnecting');
-      notifyListeners(false, 'reconnecting');
-    });
-    socketInstance.io.on('reconnect_failed', () => {
-      setConnected(false);
-      setConnectionState('offline');
-      notifyListeners(false, 'offline');
-    });
+        // Refresh the impersonation token before each reconnect attempt, if any.
+        // The normal session re-authenticates via the httpOnly cookie.
+        socketInstance.io.on('reconnect_attempt', () => {
+          const impersonationToken = sessionStorage.getItem('oxs:impersonation_token');
+          if (socketInstance) {
+            socketInstance.auth = impersonationToken ? { token: impersonationToken } : {};
+          }
+          setConnectionState('reconnecting');
+          notifyListeners(false, 'reconnecting');
+        });
+        socketInstance.io.on('reconnect_failed', () => {
+          setConnected(false);
+          setConnectionState('offline');
+          notifyListeners(false, 'offline');
+        });
 
-    // Server emits this when an admin bans or deactivates the account.
-    socketInstance.on('force_logout', () => {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-      socketInstance?.disconnect();
-      socketInstance = null;
-      setConnectionState('offline');
-      notifyListeners(false, 'offline');
-      window.location.replace('/login');
-    });
+        // Server emits this when an admin bans or deactivates the account.
+        socketInstance.on('force_logout', () => {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+          socketInstance?.disconnect();
+          socketInstance = null;
+          setConnectionState('offline');
+          notifyListeners(false, 'offline');
+          window.location.replace('/login');
+        });
 
-    socketRef.current = socketInstance;
+        socketRef.current = socketInstance;
+      })
+      .catch((err) => {
+        console.error('[useSocket] Failed to load realtime client:', err);
+        setConnected(false);
+        setConnectionState('offline');
+        notifyListeners(false, 'offline');
+      });
 
-    // Intentionally no cleanup: keep socket alive across component unmounts.
+    // No disconnect on unmount: keep socket alive across component unmounts.
     // Explicit disconnect happens only on logout (see disconnect() below).
+    // The cleanup only cancels a still-pending client load.
+    return () => { cancelled = true; };
   }, [user]);
 
   const joinConversation = useCallback((conversationId) => {

@@ -3,7 +3,6 @@ import { setDraftAccount } from '../utils/jobDraftStore';
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { authAPI, clearStoredSession } from '../api/auth';
 import api from '../api/axios';
-import { setDisplayDeviceStaffSession } from '../api/food';
 import { useLanguage } from './LanguageContext';
 import { isTransientRefreshFailure } from '../api/authRefreshPolicy';
 import { advanceAuthEpoch, currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
@@ -80,8 +79,16 @@ export function AuthProvider({ children }) {
 
   // Kitchen displays authorize with the pairing token only when no staff
   // user session is active; keep the food API's device-auth helper in sync.
+  // PWA startup budget (2026-11-05): api/food is ~17KB and was the only
+  // reason it rode the startup bundle (AuthContext is in the shell graph).
+  // The flag is only read by food API calls, which happen after auth, so
+  // syncing it one chunk load later is safe.
   useEffect(() => {
-    setDisplayDeviceStaffSession(Boolean(user));
+    let active = true;
+    import('../api/food')
+      .then((mod) => { if (active) mod.setDisplayDeviceStaffSession(Boolean(user)); })
+      .catch(() => { /* Device-auth sync is best-effort. */ });
+    return () => { active = false; };
   }, [user]);
 
   // The axios interceptor clears storage on a dead session; mirror that into
