@@ -1,0 +1,98 @@
+/* StaffScheduler styles (Phase 2 punch-correction review).
+   The component otherwise uses inline styles throughout (grandfathered
+   under the CSP baseline); new Phase 2 surfaces use classes so the
+   no-new-inline-styles gate stays green. */
+
+.staff-sched-corrections {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.staff-sched-corrections-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.staff-sched-corrections-head h4 {
+  margin: 0;
+}
+
+.staff-sched-close-stale-btn {
+  padding: 0.5rem 1rem;
+  background: #0ea5e9;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.staff-sched-corrections-empty {
+  margin: 0.75rem 0 0;
+  color: var(--muted-text);
+  font-size: 0.875rem;
+}
+
+.staff-sched-correction-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-top: 1px solid var(--border-color);
+  padding: 0.75rem 0 0;
+  margin-top: 0.75rem;
+}
+
+.staff-sched-correction-text {
+  flex: 1;
+}
+
+.staff-sched-correction-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.staff-sched-correction-detail {
+  font-size: 0.8125rem;
+  color: var(--muted-text);
+}
+
+.staff-sched-correction-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.staff-sched-correction-approve,
+.staff-sched-correction-reject {
+  padding: 0.4rem 0.75rem;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.staff-sched-correction-approve {
+  background: #10b981;
+}
+
+.staff-sched-correction-reject {
+  background: #ef4444;
+}
+
+.staff-sched-system-closed-badge {
+  margin-inline-start: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+}

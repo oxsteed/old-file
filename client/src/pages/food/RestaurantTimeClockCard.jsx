@@ -191,7 +191,7 @@ export default function RestaurantTimeClockCard({ restaurant }) {
         )}
       </div>
       {!open && (
-        <div className="fd-field" style={{ marginTop: 8 }}>
+        <div className="fd-field tc-pin-field">
           <label htmlFor="tc-staff-pin">{t('food.timeClock.staffPin')}</label>
           <input
             id="tc-staff-pin"
@@ -222,18 +222,18 @@ export default function RestaurantTimeClockCard({ restaurant }) {
             <li key={e.id}>
               {fmtDay(String(e.entry_date).slice(0, 10))} · <bdi dir="ltr">{fmtTime(e.clock_in_at)}–{e.clock_out_at ? fmtTime(e.clock_out_at) : '…'}</bdi>
               {e.hours != null && ` · ${t('food.timeClock.hours', { hours: Number(e.hours).toFixed(2) })}`}
-              {e.system_closed && <span style={{ marginInlineStart: '0.5rem', fontSize: '0.7rem', fontWeight: 600, color: '#92400e', background: '#fef3c7', borderRadius: '999px', padding: '0.15rem 0.5rem' }}>{t('food.timeClock.systemClosed')}</span>}
+              {e.system_closed && <span className="fd-badge-system-closed">{t('food.timeClock.systemClosed')}</span>}
               {e.clock_out_at && !pendingCorrectionFor(e.id) && correctionFor !== e.id && (
-                <button type="button" className="fd-btn fd-btn-secondary" disabled={busy}
-                  onClick={() => openCorrection(e)} style={{ marginInlineStart: '0.5rem' }}
+                <button type="button" className="fd-btn fd-btn-secondary tc-inline-btn" disabled={busy}
+                  onClick={() => openCorrection(e)}
                   data-track="restaurant_time_correction_request">
                   {t('food.timeClock.requestCorrection')}
                 </button>
               )}
-              {pendingCorrectionFor(e.id) && <span className="fd-card-meta" style={{ marginInlineStart: '0.5rem' }}>{t('food.timeClock.correctionPending')}</span>}
+              {pendingCorrectionFor(e.id) && <span className="fd-card-meta tc-correction-pending">{t('food.timeClock.correctionPending')}</span>}
               {correctionFor === e.id && (
-                <form onSubmit={submitCorrection} className="fd-ops-form" style={{ marginTop: 8 }}>
-                  <div className="fd-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                <form onSubmit={submitCorrection} className="fd-ops-form tc-correction-form">
+                  <div className="fd-row">
                     <div className="fd-field">
                       <label htmlFor={`tc-corr-in-${e.id}`}>{t('food.timeClock.correctionClockIn')}</label>
                       <input id={`tc-corr-in-${e.id}`} type="datetime-local" value={correctionForm.clock_in_at} onChange={(ev) => setCorrectionForm((f) => ({ ...f, clock_in_at: ev.target.value }))} />
@@ -247,7 +247,7 @@ export default function RestaurantTimeClockCard({ restaurant }) {
                     <label htmlFor={`tc-corr-reason-${e.id}`}>{t('food.timeClock.correctionReason')}</label>
                     <input id={`tc-corr-reason-${e.id}`} value={correctionForm.reason} maxLength={1000} onChange={(ev) => setCorrectionForm((f) => ({ ...f, reason: ev.target.value }))} required />
                   </div>
-                  <div className="fd-row" style={{ gap: 8 }}>
+                  <div className="fd-row">
                     <button type="submit" className="fd-btn fd-btn-secondary" disabled={busy} data-track="restaurant_time_correction_send">{t('food.timeClock.sendCorrection')}</button>
                     <button type="button" className="fd-btn fd-btn-secondary" disabled={busy} onClick={() => setCorrectionFor(null)}>{t('common.cancel')}</button>
                   </div>

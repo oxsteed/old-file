@@ -3385,3 +3385,18 @@ input[type="color"].fd-settings-color {
 .fd-card-not-orderable { opacity: 0.6; }
 .fd-row-between { justify-content: space-between; gap: 0.75rem; }
 .fd-pager-row { gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+
+/* Phase 2 punch integrity: system-closed badge, correction form, PIN field. */
+.fd-badge-system-closed {
+  margin-inline-start: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+}
+.tc-pin-field { margin-top: 8px; }
+.tc-correction-form { margin-top: 8px; }
+.tc-inline-btn { margin-inline-start: 0.5rem; }
+.tc-correction-pending { margin-inline-start: 0.5rem; }
