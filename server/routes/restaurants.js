@@ -375,6 +375,19 @@ router.get('/:restaurantId/team/activity', requireRestaurantAccess(), payrollRep
 router.get('/:restaurantId/tip-pool', requireRestaurantAccess(), payrollReports.getTipPoolSettings);
 router.put('/:restaurantId/tip-pool', requireRestaurantAccess(), payrollReports.updateTipPoolSettings);
 router.post('/:restaurantId/tips/cash-declarations', requireRestaurantAccess(), payrollReports.declareCashTip);
+// Phase 3 Track B: employee self-service. Self-scoped reads (tips/mine,
+// pay/mine, stubs) need no payroll.view — the controller scopes by
+// req.user.id and never reads a client-supplied user id. Self-declared
+// cash tips enter manager review as pending; confirm/reject need
+// payroll.manage. Draft pay runs never produce a stub.
+router.get('/:restaurantId/tips/mine', requireRestaurantAccess(), payrollReports.getMyTips);
+router.get('/:restaurantId/pay/mine', requireRestaurantAccess(), payrollReports.getMyPay);
+router.get('/:restaurantId/pay/mine/stubs', requireRestaurantAccess(), payrollReports.listMyPayStubs);
+router.get('/:restaurantId/pay/mine/stubs/:payRunId', requireRestaurantAccess(), payrollReports.getMyPayStub);
+router.get('/:restaurantId/tips/cash-declarations/mine', requireRestaurantAccess(), payrollReports.listMyCashTips);
+router.post('/:restaurantId/tips/cash-declarations/mine', requireRestaurantAccess(), payrollReports.declareMyCashTip);
+router.post('/:restaurantId/tips/cash-declarations/:declarationId/confirm', requireRestaurantAccess(), payrollReports.confirmCashTip);
+router.post('/:restaurantId/tips/cash-declarations/:declarationId/reject', requireRestaurantAccess(), payrollReports.rejectCashTip);
 // F-22: pay-run records (immutable payroll snapshots + native CSV export).
 // The export route is registered before :payRunId so the .csv suffix wins.
 router.post('/:restaurantId/pay-runs', requireRestaurantAccess(), payrollReports.createPayRun);

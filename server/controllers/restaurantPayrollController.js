@@ -335,6 +335,149 @@ exports.declareCashTip = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// ── Employee self-service (Phase 3 Track B) ─────────────────────────
+// Self-scoped reads: the caller sees ONLY their own tips/pay, scoped
+// server-side by req.user.id. No payroll.view is required (employees
+// do not hold it); membership is enforced by restaurantAccess, and no
+// client-supplied user id is ever read — a query/body user id cannot
+// widen the scope. Draft pay runs never produce a stub.
+
+exports.getMyTips = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
+    const scope = await getLocationScope(restaurant, req.user.id);
+    const mine = await payroll.getMyTips({
+      restaurant, fromDate, toDate, userId: req.user.id, locationIds: scope.location_ids,
+    });
+    res.json(mine);
+  } catch (err) { next(err); }
+};
+
+exports.getMyPay = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
+    const scope = await getLocationScope(restaurant, req.user.id);
+    const mine = await payroll.getMyPay({
+      restaurant, fromDate, toDate, userId: req.user.id, locationIds: scope.location_ids,
+    });
+    res.json(mine);
+  } catch (err) { next(err); }
+};
+
+exports.listMyPayStubs = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    const stubs = await payroll.listMyPayStubs(restaurant.id, req.user.id);
+    res.json({ stubs });
+  } catch (err) { next(err); }
+};
+
+exports.getMyPayStub = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    const payRunId = parsePositiveInt(req.params.payRunId);
+    if (!payRunId) throw new AppError('Pay stub not found', 404, 'pay_stub_not_found');
+    const stub = await payroll.getMyPayStub(restaurant.id, payRunId, req.user.id);
+    if (!stub) throw new AppError('Pay stub not found', 404, 'pay_stub_not_found');
+    res.json({ stub });
+  } catch (err) { next(err); }
+};
+
+exports.listMyCashTips = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
+    const rows = await payroll.listDeclaredCashTipsForUser(restaurant.id, req.user.id, fromDate, toDate);
+    res.json({ declarations: rows.map(payroll.declarationShape) });
+  } catch (err) { next(err); }
+};
+
+// Self-declared cash tips: the declaration is the caller's own
+// (staff_user_id and declared_by both come from req.user.id), enters
+// the manager-review state as 'pending', and does NOT flow into pay
+// until a manager confirms it. Same amount/date/note validation and
+// idempotency-key dedupe as the manager path.
+exports.declareMyCashTip = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    const body = req.body || {};
+    const businessDate = body.date || body.businessDate || body.business_date;
+    const amountCents = strictInteger(body.amountCents ?? body.amount_cents, { max: 1000000 });
+    if (!payroll.isRealDateString(businessDate)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { date: 'A valid date (YYYY-MM-DD) is required' });
+    }
+    if (!Number.isInteger(amountCents) || amountCents <= 0 || amountCents > 1000000) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { amountCents: 'Amount must be a positive number of cents up to 1000000' });
+    }
+    const scope = await getLocationScope(restaurant, req.user.id);
+    const locationId = body.locationId == null ? null : strictInteger(body.locationId);
+    if ((body.locationId != null && !locationId) || (scope.mode === 'assigned' && !locationId)) throw new AppError('A valid store is required', 400, 'invalid_location_id');
+    if (locationId) {
+      const { rows } = await pool.query('SELECT id FROM restaurant_locations WHERE restaurant_id=$1 AND id=$2 AND status <> \'archived\'', [restaurant.id, locationId]);
+      if (!rows.length) throw new AppError('Location not found', 404, 'location_not_found');
+      await assertLocationAccess(restaurant, req.user.id, locationId);
+    }
+    const roster = await payroll.getRoster(restaurant.business_id, scope.location_ids, restaurant.id);
+    if (!roster.some((m) => m.user_id === req.user.id)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { staffUserId: 'Staff member is not on this restaurant team' });
+    }
+    const declaration = await payroll.declareCashTip(restaurant.id, {
+      staffUserId: req.user.id,
+      locationId,
+      businessDate: String(businessDate),
+      amountCents,
+      declaredBy: req.user.id,
+      note: body.note ? String(body.note).slice(0, 500) : null,
+      status: 'pending',
+      idempotencyKey: normalizeCashTipIdempotencyKey(req.get?.('Idempotency-Key') || body.idempotencyKey || body.idempotency_key),
+    });
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.cash_tip.self_declared',
+      target_type: 'user',
+      target_id: req.user.id,
+      after_state: { location_id: locationId, amount_cents: amountCents, business_date: String(businessDate), declaration_id: declaration.id, status: 'pending' },
+    });
+    res.status(declaration.replayed ? 200 : 201).json({ declaration: payroll.declarationShape(declaration), replayed: !!declaration.replayed });
+  } catch (err) { next(err); }
+};
+
+// Manager review of a self-declared cash tip. payroll.manage only;
+// the employee cannot confirm their own declaration. Only a pending
+// row can move, so a confirm/reject can never double-apply.
+async function reviewMyCashTip(req, res, next, status, action) {
+  try {
+    const restaurant = await restaurantAccess(req);
+    await requirePayrollManage(restaurant, req.user.id);
+    const declarationId = parsePositiveInt(req.params.declarationId);
+    if (!declarationId) throw new AppError('Cash tip declaration not found', 404, 'cash_tip_not_found');
+    const reviewed = await payroll.reviewCashTip(restaurant.id, declarationId, { status, reviewedBy: req.user.id });
+    if (!reviewed) {
+      const { rows } = await pool.query(
+        'SELECT id FROM restaurant_declared_cash_tips WHERE id = $1 AND restaurant_id = $2',
+        [declarationId, restaurant.id]
+      );
+      if (!rows.length) throw new AppError('Cash tip declaration not found', 404, 'cash_tip_not_found');
+      throw new AppError('Only a pending cash tip declaration can be reviewed', 409, 'cash_tip_not_pending');
+    }
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action,
+      target_type: 'user',
+      target_id: reviewed.staff_user_id,
+      after_state: { declaration_id: reviewed.id, status: reviewed.status, amount_cents: reviewed.amount_cents, business_date: reviewed.business_date },
+    });
+    res.json({ declaration: payroll.declarationShape(reviewed) });
+  } catch (err) { next(err); }
+}
+
+exports.confirmCashTip = (req, res, next) => reviewMyCashTip(req, res, next, 'confirmed', 'restaurant.cash_tip.confirmed');
+exports.rejectCashTip = (req, res, next) => reviewMyCashTip(req, res, next, 'rejected', 'restaurant.cash_tip.rejected');
+
 // ── Pay runs (F-22) ──────────────────────────────────────────────────
 // A pay run is an immutable snapshot of one payroll period: wages and tips
 // per employee as computed at finalization time, so the exported CSV

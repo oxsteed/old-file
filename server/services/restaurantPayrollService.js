@@ -198,23 +198,28 @@ async function saveTipPoolSettings(restaurantId, { poolingEnabled, tipOutRules, 
   return row;
 }
 
-async function declareCashTip(restaurantId, { staffUserId, businessDate, amountCents, declaredBy, note, locationId = null, idempotencyKey = null }) {
+async function declareCashTip(restaurantId, { staffUserId, businessDate, amountCents, declaredBy, note, locationId = null, idempotencyKey = null, status = 'confirmed' }) {
   const key = typeof idempotencyKey === 'string' && idempotencyKey.trim() ? idempotencyKey.trim().slice(0, 128) : null;
+  // Review state (Phase 3 Track B): manager-entered declarations are
+  // confirmed at entry; employee self-declarations arrive 'pending'
+  // and stay out of pay until a manager confirms them.
+  const reviewStatus = status === 'pending' || status === 'rejected' ? status : 'confirmed';
+  const declarationColumns = 'id, restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key, status, reviewed_by, reviewed_at, created_at';
   // Background-jobs audit (finding P1): dedupe on a client-generated key
   // so a retry cannot double-declare and inflate the payroll basis. A
   // replay returns the original row instead of inserting a duplicate.
   if (key) {
     const { rows: [row] } = await pool.query(
       `INSERT INTO restaurant_declared_cash_tips
-         (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
-       RETURNING id, restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key, created_at`,
-      [restaurantId, staffUserId, businessDate, amountCents, declaredBy || null, note || null, locationId, key]
+       RETURNING ${declarationColumns}`,
+      [restaurantId, staffUserId, businessDate, amountCents, declaredBy || null, note || null, locationId, key, reviewStatus]
     );
     if (row) return row;
     const { rows: [existing] } = await pool.query(
-      `SELECT id, restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key, created_at
+      `SELECT ${declarationColumns}
          FROM restaurant_declared_cash_tips
         WHERE restaurant_id = $1 AND idempotency_key = $2
         LIMIT 1`,
@@ -224,12 +229,47 @@ async function declareCashTip(restaurantId, { staffUserId, businessDate, amountC
   }
   const { rows: [row] } = await pool.query(
     `INSERT INTO restaurant_declared_cash_tips
-       (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, created_at`,
-    [restaurantId, staffUserId, businessDate, amountCents, declaredBy || null, note || null, locationId]
+       (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING ${declarationColumns}`,
+    [restaurantId, staffUserId, businessDate, amountCents, declaredBy || null, note || null, locationId, reviewStatus]
   );
   return row;
+}
+
+// One employee's own declared cash tips in a period, every status:
+// the employee sees pending/confirmed/rejected; pay only ever sees
+// confirmed (see getDeclaredCashTips).
+async function listDeclaredCashTipsForUser(restaurantId, staffUserId, fromDate, toDate) {
+  const { rows } = await pool.query(
+    `SELECT id, restaurant_id, staff_user_id, business_date, amount_cents,
+            declared_by, note, location_id, idempotency_key, status,
+            reviewed_by, reviewed_at, created_at
+       FROM restaurant_declared_cash_tips
+      WHERE restaurant_id = $1 AND staff_user_id = $2
+        AND business_date >= $3 AND business_date <= $4
+      ORDER BY business_date DESC, id DESC`,
+    [restaurantId, staffUserId, fromDate, toDate]
+  );
+  return rows;
+}
+
+// Manager review of a self-declared cash tip. Only a pending row can
+// move; confirming puts it into pay from the next computation on,
+// rejecting keeps it out of pay forever. Returns null when the row
+// does not exist or is not pending (the caller distinguishes).
+async function reviewCashTip(restaurantId, declarationId, { status, reviewedBy }) {
+  const next = status === 'rejected' ? 'rejected' : 'confirmed';
+  const { rows: [row] } = await pool.query(
+    `UPDATE restaurant_declared_cash_tips
+        SET status = $3, reviewed_by = $4, reviewed_at = NOW()
+      WHERE id = $1 AND restaurant_id = $2 AND status = 'pending'
+      RETURNING id, restaurant_id, staff_user_id, business_date, amount_cents,
+                declared_by, note, location_id, idempotency_key, status,
+                reviewed_by, reviewed_at, created_at`,
+    [declarationId, restaurantId, next, reviewedBy || null]
+  );
+  return row || null;
 }
 
 // ── Roster ───────────────────────────────────────────────────────────
@@ -979,10 +1019,14 @@ async function getOrderTips(restaurantId, fromDate, toDate, timezone, locationId
 }
 
 async function getDeclaredCashTips(restaurantId, fromDate, toDate, locationIds = null) {
+  // Review state (Phase 3 Track B): only CONFIRMED declarations count
+  // toward tips and pay. A pending self-declaration, or a rejected one,
+  // must never inflate the payroll basis.
   const { rows } = await pool.query(
     `SELECT staff_user_id, COALESCE(SUM(amount_cents), 0)::int AS tips_cents
        FROM restaurant_declared_cash_tips
-      WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3${storeFilter(locationIds, 'location_id', 4)}
+      WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3
+        AND status = 'confirmed'${storeFilter(locationIds, 'location_id', 4)}
       GROUP BY staff_user_id`,
     storeParams([restaurantId, fromDate, toDate], locationIds)
   );
@@ -1315,6 +1359,150 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
   };
 }
 
+// ── Employee self-service (Phase 3 Track B) ─────────────────────────
+// Every function here is scoped by the caller's own user id, passed in
+// by the controller from req.user.id. No caller-supplied user id is
+// ever accepted, so one employee cannot widen the scope to another's
+// numbers. All math is the Phase 1-corrected computeTipAllocations /
+// computeLabor, filtered to the caller after the fact — never recomputed.
+
+function declarationShape(row) {
+  if (!row) return null;
+  return {
+    id: Number(row.id),
+    restaurant_id: Number(row.restaurant_id),
+    staff_user_id: row.staff_user_id,
+    business_date: row.business_date instanceof Date
+      ? row.business_date.toISOString().slice(0, 10)
+      : String(row.business_date).slice(0, 10),
+    amount_cents: Number(row.amount_cents),
+    declared_by: row.declared_by || null,
+    note: row.note || null,
+    location_id: row.location_id == null ? null : Number(row.location_id),
+    idempotency_key: row.idempotency_key || null,
+    status: row.status || 'confirmed',
+    reviewed_by: row.reviewed_by || null,
+    reviewed_at: row.reviewed_at || null,
+    created_at: row.created_at || null,
+  };
+}
+
+// The caller's own tips for a period: one entry per currency the caller
+// actually earned in, plus their own declared cash tips (every status,
+// so pending declarations are visible but clearly not yet in pay).
+async function getMyTips({ restaurant, fromDate, toDate, userId, locationIds = null }) {
+  const allocations = await computeTipAllocations({ restaurant, fromDate, toDate, locationIds });
+  const currencies = [];
+  for (const bucket of allocations.currencies) {
+    const mine = (bucket.employees || []).find((e) => e.user_id === userId);
+    if (!mine) continue;
+    currencies.push({
+      currency: bucket.currency,
+      pooling_enabled: bucket.pooling_enabled,
+      gross_tips_cents: mine.gross_tips_cents,
+      tip_out_cents: mine.tip_out_cents,
+      tip_in_cents: mine.tip_in_cents,
+      net_tips_cents: mine.net_tips_cents,
+    });
+  }
+  const declared = await listDeclaredCashTipsForUser(restaurant.id, userId, fromDate, toDate);
+  return {
+    from_date: fromDate,
+    to_date: toDate,
+    timezone: allocations.timezone,
+    currencies,
+    cash_tips: declared.map(declarationShape),
+  };
+}
+
+// The caller's own pay for a period: their single computeLabor row
+// (hours, wages, premiums, tips, total) or null when they are not on
+// the roster / earned nothing in the period.
+async function getMyPay({ restaurant, fromDate, toDate, userId, locationIds = null }) {
+  const labor = await computeLabor({ restaurant, fromDate, toDate, locationIds });
+  const employee = (labor.employees || []).find((e) => e.user_id === userId) || null;
+  return {
+    from_date: labor.from_date,
+    to_date: labor.to_date,
+    timezone: labor.timezone,
+    currency: labor.currency,
+    currency_minor_unit_decimals: labor.currency_minor_unit_decimals,
+    employee,
+  };
+}
+
+const PAY_STUB_STATUSES = ['finalized', 'paid'];
+
+// Finalized (or paid) pay runs that carry a line for the caller, most
+// recent period first. Draft and voided runs are never listed: a draft
+// is not a pay statement, and a voided run is not payable.
+async function listMyPayStubs(restaurantId, userId) {
+  const { rows } = await pool.query(
+    `SELECT pr.id, pr.period_from, pr.period_to, pr.status, pr.finalized_at,
+            l.staff_label, l.total_pay_cents
+       FROM restaurant_pay_runs pr
+       JOIN restaurant_pay_run_lines l ON l.pay_run_id = pr.id
+      WHERE pr.restaurant_id = $1 AND pr.status = ANY($3::text[])
+        AND l.staff_user_id = $2
+      ORDER BY pr.period_from DESC, pr.id DESC`,
+    [restaurantId, userId, PAY_STUB_STATUSES]
+  );
+  return rows.map((row) => ({
+    pay_run_id: Number(row.id),
+    period_from: row.period_from instanceof Date ? row.period_from.toISOString().slice(0, 10) : String(row.period_from).slice(0, 10),
+    period_to: row.period_to instanceof Date ? row.period_to.toISOString().slice(0, 10) : String(row.period_to).slice(0, 10),
+    status: row.status,
+    finalized_at: row.finalized_at || null,
+    staff_label: row.staff_label || null,
+    total_pay_cents: Number(row.total_pay_cents),
+  }));
+}
+
+// One pay stub: the finalized/paid run plus the caller's own line only.
+// Returns null when the run is not finalized/paid, has no line for the
+// caller, or does not exist — all three read the same to the caller.
+async function getMyPayStub(restaurantId, payRunId, userId) {
+  const { rows: [run] } = await pool.query(
+    `SELECT id, period_from, period_to, status, finalized_at, totals
+       FROM restaurant_pay_runs
+      WHERE id = $1 AND restaurant_id = $2 AND status = ANY($3::text[])`,
+    [payRunId, restaurantId, PAY_STUB_STATUSES]
+  );
+  if (!run) return null;
+  const { rows: [line] } = await pool.query(
+    `SELECT * FROM restaurant_pay_run_lines
+      WHERE pay_run_id = $1 AND staff_user_id = $2`,
+    [payRunId, userId]
+  );
+  if (!line) return null;
+  return {
+    pay_run: {
+      id: Number(run.id),
+      period_from: run.period_from instanceof Date ? run.period_from.toISOString().slice(0, 10) : String(run.period_from).slice(0, 10),
+      period_to: run.period_to instanceof Date ? run.period_to.toISOString().slice(0, 10) : String(run.period_to).slice(0, 10),
+      status: run.status,
+      finalized_at: run.finalized_at || null,
+      totals: run.totals || {},
+    },
+    line: {
+      staff_label: line.staff_label || null,
+      regular_hours: Number(line.regular_hours),
+      overtime_hours: Number(line.overtime_hours),
+      doubletime_hours: Number(line.doubletime_hours || 0),
+      hourly_wage_cents: line.hourly_wage_cents == null ? null : Number(line.hourly_wage_cents),
+      regular_wages_cents: line.regular_wages_cents == null ? null : Number(line.regular_wages_cents),
+      overtime_wages_cents: line.overtime_wages_cents == null ? null : Number(line.overtime_wages_cents),
+      doubletime_wages_cents: line.doubletime_wages_cents == null ? null : Number(line.doubletime_wages_cents),
+      wages_cents: line.wages_cents == null ? null : Number(line.wages_cents),
+      meal_break_premium_cents: Number(line.meal_break_premium_cents || 0),
+      predictability_premium_cents: Number(line.predictability_premium_cents || 0),
+      gross_tips_cents: Number(line.gross_tips_cents),
+      net_tips_cents: Number(line.net_tips_cents),
+      total_pay_cents: Number(line.total_pay_cents),
+    },
+  };
+}
+
 function buildPayrollCsv(labor) {
   const header = [
     'employee', 'user_id', 'job_role', 'hours', 'regular_hours', 'overtime_hours', 'scheduled_hours',
@@ -1529,6 +1717,13 @@ module.exports = {
   getTipPoolSettings,
   saveTipPoolSettings,
   declareCashTip,
+  listDeclaredCashTipsForUser,
+  reviewCashTip,
+  declarationShape,
+  getMyTips,
+  getMyPay,
+  listMyPayStubs,
+  getMyPayStub,
   getRoster,
   getLaborPolicy,
   saveLaborPolicy,
