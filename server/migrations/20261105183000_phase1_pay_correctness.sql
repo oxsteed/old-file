@@ -44,6 +44,17 @@ ALTER TABLE restaurant_labor_jurisdictions
   ADD COLUMN IF NOT EXISTS predictability_premium_hours NUMERIC(5,2),
   ADD COLUMN IF NOT EXISTS meal_break_premium_hours NUMERIC(5,2);
 
+-- The code CHECK from migration 99913 only allowed the US presets.
+-- Widen it to the international preset set (the rule table's keys are
+-- the source of truth; the CHECK just keeps typos out of the table).
+-- The constraint is dropped and re-added rather than edited in place:
+-- 99913 itself is byte-immutable, so the change lives here.
+ALTER TABLE restaurant_labor_jurisdictions
+  DROP CONSTRAINT IF EXISTS restaurant_labor_jurisdictions_code_check;
+ALTER TABLE restaurant_labor_jurisdictions
+  ADD CONSTRAINT restaurant_labor_jurisdictions_code_check
+  CHECK (jurisdiction_code IN ('US-FED','US-CA','US-NYC','US-SFO','US-SEA','US-CHI','US-OR','GB-UK','CA-ON','HT','CUSTOM'));
+
 -- ── Labor policy per location (restaurant row stays the fallback) ───
 CREATE TABLE IF NOT EXISTS restaurant_location_labor_policies (
   restaurant_id BIGINT NOT NULL REFERENCES food_restaurants(id) ON DELETE CASCADE,
