@@ -1,5 +1,6 @@
 import { canAccessBusinessHub, canPostJobs } from './modeAccess.js';
 import { businessHubLandingPath } from './businessProfileForm.js';
+import { LAUNCH_VISIBILITY } from './launchScope.js';
 
 const BUSINESS_MODES = new Set(['business_owner', 'business_manager', 'business_representative', 'business_employee']);
 
@@ -38,6 +39,14 @@ export function navbarNavigation(user, { dashboardPath = '/dashboard', workspace
     const provider = ['helper', 'helper_pro', 'broker'].includes(user?.role);
     primary = [link('browseJobs', '/jobs', 'nav.browseJobs'), link('orderFood', '/restaurants', 'nav.localFoodDirectory')];
     if (canPostJobs(effectiveUser)) primary.push(link('postJob', '/post-job', 'nav.postJob'));
+    // UI gaps item 12: mode-appropriate links, only where the destination
+    // actually renders. /tool-rentals is a real route; franchise,
+    // consulting, and investor destinations are flag-gated, so their links
+    // appear exactly when the flag is on and never point at a bounce.
+    if (mode === 'tool_owner') primary.push(link('toolRentals', '/tool-rentals', 'toolRentals.browsePage'));
+    if (mode === 'consultant' && LAUNCH_VISIBILITY.consulting) primary.push(link('consulting', '/consulting', 'adminNav.consulting'));
+    if (mode === 'franchise_applicant' && LAUNCH_VISIBILITY.franchise) primary.push(link('franchise', '/franchise/status', 'adminNav.franchiseStatus'));
+    if (mode === 'investor' && LAUNCH_VISIBILITY.investor) primary.push(link('investor', '/investor/dashboard', 'investorDashboard.header.title'));
     primary.push(link('messages', provider ? '/helper/messages' : '/messages', 'nav.messages'), link('dashboard', dashboardPath, 'nav.dashboard'));
   }
   const account = [];

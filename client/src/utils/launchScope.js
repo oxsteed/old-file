@@ -115,6 +115,13 @@ export const LAUNCH_DEFAULTS = Object.freeze({
   // Weekly self-audit 2026-11-04 item 1: mirrors FRANCHISE_ENABLED on the
   // server (default off). See the consulting comment above.
   franchise: false,
+  // UI gaps item 2: mirrors OXSTEED_LAUNCH_INVESTOR on the server
+  // (default off). The investor routes previously had no launch key at
+  // all, so their redirects were unconditional and investor login could
+  // never land on its own dashboard. With this key the redirects are
+  // flag-conditional like franchise/consulting: off keeps today's bounce
+  // to /login and /dashboard, on lets the investor routes render.
+  investor: false,
   genericQrGenerator: false,
   helperEarnings: true,
   helperGrowthCenter: false,
@@ -191,10 +198,12 @@ const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
   { prefix: '/cart', to: '/restaurants' },
   { prefix: '/shared-cart', to: '/restaurants' },
   { prefix: '/checkout', to: '/restaurants' },
-  // No owning flag: the investor surface has no launch key on either side,
-  // so these redirects stay unconditional until one is defined.
-  { prefix: '/investor/login', to: '/login' },
-  { prefix: '/investor', to: '/dashboard' },
+  // UI gaps item 2: investor now has a launch key (OXSTEED_LAUNCH_INVESTOR,
+  // default off), so these redirects are flag-conditional like
+  // franchise/consulting. Off keeps today's bounce to /login and
+  // /dashboard; on lets the investor routes render.
+  { prefix: '/investor/login', to: '/login', flag: 'investor' },
+  { prefix: '/investor', to: '/dashboard', flag: 'investor' },
   // Review P3-7-F06: /affiliate is gated by the affiliateRewards flag rather
   // than a static redirect, so the flag has a real consumer.
   // No owning flag for the entries below: network, planned-needs, car-care,

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { getLaunchRedirect } from '../utils/launchScope';
 import {
   Activity,
   Briefcase,
@@ -107,6 +108,14 @@ export const DASHBOARD_QUICK_LINKS = {
 export default function DashboardQuickLinks({ items, className = '', activity = {}, onActivityOpen, onAction }) {
   const { t } = useTranslation();
 
+  // UI gaps item 3: hide links whose targets the launch gate currently
+  // bounces, the same way the command palette filters gated pages. A
+  // franchise/consultant quick link that lands on Business Hub is worse
+  // than no link: it reads as a broken destination. The links reappear
+  // automatically when their flags turn on, since getLaunchRedirect then
+  // returns null for them.
+  const visibleItems = (items || []).filter((item) => !getLaunchRedirect(item.to));
+
   return (
     <nav
       className={`dashboard-quick-links ${className}`.trim()}
@@ -115,7 +124,7 @@ export default function DashboardQuickLinks({ items, className = '', activity = 
       <span className="dashboard-quick-links__label">
         {t('dashboard.customer.quickLinks', { defaultValue: 'Quick links' })}
       </span>
-      {items.map(({ to, labelKey, defaultLabel, Icon, tone, activityKey, action, pro }) => (
+      {visibleItems.map(({ to, labelKey, defaultLabel, Icon, tone, activityKey, action, pro }) => (
         <Link
           key={to}
           to={to}

@@ -112,6 +112,9 @@ const LAUNCH_KEY_ENV = Object.freeze({
   discoverEverything: ['OXSTEED_LAUNCH_DISCOVER_EVERYTHING', false],
   footerUtilityPills: ['OXSTEED_LAUNCH_FOOTER_UTILITY_PILLS', true],
   franchise: ['FRANCHISE_ENABLED', false],
+  // UI gaps item 2: investor launch key, mirroring the client default.
+  // Default off; env flip plus redeploy restores the investor routes.
+  investor: ['OXSTEED_LAUNCH_INVESTOR', false],
   genericQrGenerator: ['OXSTEED_LAUNCH_GENERIC_QR_GENERATOR', false],
   helperEarnings: ['OXSTEED_LAUNCH_HELPER_EARNINGS', true],
   helperGrowthCenter: ['OXSTEED_LAUNCH_HELPER_GROWTH_CENTER', false],
