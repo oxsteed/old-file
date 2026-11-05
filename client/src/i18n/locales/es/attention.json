@@ -161,6 +161,7 @@
       "business_name": "Nombre del negocio",
       "address_city": "Ciudad o ubicación del servicio",
       "description": "Descripción"
-    }
+    },
+    "saveFirst": "Guarda los cambios antes de publicar o actualizar."
   }
 }

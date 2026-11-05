@@ -161,6 +161,7 @@
       "business_name": "Nom de l’entreprise",
       "address_city": "Ville ou lieu de prestation",
       "description": "Description"
-    }
+    },
+    "saveFirst": "Enregistrez les modifications avant de publier ou d’actualiser."
   }
 }

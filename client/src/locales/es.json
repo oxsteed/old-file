@@ -6327,7 +6327,11 @@
       "tools": "Indica las herramientas, permisos o materiales especiales que deben considerar."
     },
     "whatHappensNext": "Qué sucede después",
-    "whatHappensNextBody": "Cuando el trabajo esté activo, los ayudantes que coincidan con la ubicación, categoría y requisitos podrán enviar ofertas. Puedes comparar propuestas, hacer preguntas y contratar cuando estés listo."
+    "whatHappensNextBody": "Cuando el trabajo esté activo, los ayudantes que coincidan con la ubicación, categoría y requisitos podrán enviar ofertas. Puedes comparar propuestas, hacer preguntas y contratar cuando estés listo.",
+    "mediaSkipped": "Se omitieron {{dropped}} archivos: tipo no admitido o límite por pestaña superado.",
+    "reviewFixNeeded": "Corrige estos datos antes de publicar.",
+    "draftSaved": "Borrador guardado.",
+    "draftSaveFailed": "No se pudo guardar el borrador."
   },
   "jobDetail": {
     "customerConfirmsEscrow": "En trabajos con pago protegido, el cliente confirma la finalización y eso libera tu pago.",
@@ -6547,7 +6551,8 @@
     "disputeOpened": "Disputa abierta. Notificamos a nuestro equipo y a la otra parte.",
     "signWorkAgreement": "Revisa y firma el acuerdo de trabajo",
     "viewWorkAgreement": "Ver acuerdo de trabajo",
-    "createWorkAgreement": "Crear un acuerdo de trabajo"
+    "createWorkAgreement": "Crear un acuerdo de trabajo",
+    "reviewsLoadFailed": "No se pudieron cargar las reseñas."
   },
   "myJobs": {
     "cancelUndoNote": "Tendrás 5 segundos para deshacerlo después de confirmar.",
@@ -10898,7 +10903,9 @@
       "cancelled": "Cancelada",
       "published": "Publicada",
       "regenerated": "Renovada"
-    }
+    },
+    "loadFailed": "No se pudieron cargar tus necesidades planificadas.",
+    "pauseFailed": "No se pudo cambiar la pausa."
   },
   "helperRegister": {
     "step4": {
@@ -15882,7 +15889,8 @@
     "cardPayNotSucceeded": "El pago con tarjeta no se completó. No se marcó ningún pedido como pagado.",
     "cardPayConfirmFailed": "No pudimos confirmar el pago con tarjeta. Si se hizo un cargo en tu tarjeta, contacta a soporte con el ID del pedido.",
     "cardPayIntentFailed": "No pudimos iniciar un pago con tarjeta para este carrito. Inténtalo de nuevo o registra una prueba de pago.",
-    "cardPayUnavailable": "Los pagos con tarjeta no están disponibles ahora. Registra una prueba de pago en su lugar."
+    "cardPayUnavailable": "Los pagos con tarjeta no están disponibles ahora. Registra una prueba de pago en su lugar.",
+    "cardPaidNext": "Tu pago con tarjeta está completo. El pedido {{order}} está pagado. No necesitas registrar otro pago para este pedido."
   },
   "myBids": {
     "title": "Mis ofertas",
@@ -17290,7 +17298,9 @@
         "businessConsultant": "Consigue un consultor empresarial",
         "consultingSubtitle": "¿Trabajas para lograr \"{{goal}}\"? Los consultores de OxSteed pueden ayudarte a acelerarlo.",
         "findConsultant": "Buscar un consultor"
-      }
+      },
+      "loadFailed": "No se pudieron cargar algunas secciones.",
+      "sectionFailed": "No se pudo cargar esta sección."
     },
     "toolOwner": {
       "title": "Alquileres de herramientas",
@@ -26578,7 +26588,9 @@
     "inventoryMovedBanner": "Tools and coverage moved",
     "inventoryMovedBody": "Gestiona el inventario de ofertas en Catálogo y Zonas de servicio: Ajustes ya no edita herramientas ni listas de cobertura.",
     "openCatalog": "Open Catalog",
-    "openServiceAreas": "Open Service Areas"
+    "openServiceAreas": "Open Service Areas",
+    "confirmCancelJob": "¿Cancelar este trabajo? Esta acción no se puede deshacer.",
+    "jobCancelled": "Trabajo cancelado."
   },
   "inventoryHelpCenter": {
     "metaTitle": "Centro de ayuda de inventario",
@@ -30556,7 +30568,10 @@
     "webhookReceipts": "Recibos de webhook",
     "restaurantWalletIntegrity": "Integridad de billeteras",
     "oxsteedCreditLicence": "Licencia de Credit",
-    "legalCcpaErasureReview": "Revisión de eliminaciones"
+    "legalCcpaErasureReview": "Revisión de eliminaciones",
+    "foodOrders": "Pedidos de comida",
+    "mediaFlags": "Reportes de medios",
+    "franchiseStatus": "Estado de la solicitud"
   },
   "adminProfileVisibility": {
     "title": "Visibilidad de perfiles",

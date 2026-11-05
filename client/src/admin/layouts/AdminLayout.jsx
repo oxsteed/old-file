@@ -37,6 +37,9 @@ export const REGULAR_NAV = [
   { tabKey: 'moderation', to: routePath('moderation'),       icon: Shield,          labelKey: 'adminNav.moderation'       },
   { tabKey: 'enforcement', to: routePath('enforcement'),      icon: AlertTriangle,   labelKey: 'adminNav.enforcement'      },
   { tabKey: 'contentRemovals', to: routePath('contentRemovals'), icon: Trash2,          labelKey: 'adminNav.contentRemovals' },
+  // UI gaps item 18: media flags were routed and grant-guarded but in no
+  // nav, so they were URL-only. Same pattern as the dead-ends item-6 set.
+  { tabKey: 'mediaFlags', to: routePath('mediaFlags'), icon: Flag, labelKey: 'adminNav.mediaFlags', grant: adminRoute('mediaFlags').grant },
   { tabKey: 'skills', to: routePath('skills'),           icon: Wrench,          labelKey: 'adminNav.skills', grant: adminRoute('skills').grant },
   { tabKey: 'support', to: routePath('support'),          icon: HeadphonesIcon,  labelKey: 'adminNav.supportTickets', grant: adminRoute('support').grant  },
   { tabKey: 'supportChat', to: routePath('supportChat'),     icon: MessageSquare,   labelKey: 'adminNav.liveSupport'     },
@@ -60,6 +63,9 @@ export const REGULAR_NAV = [
   { tabKey: 'plannedNeeds', to: routePath('plannedNeeds'),        icon: ClipboardList,      labelKey: 'adminNav.plannedNeeds', grant: adminRoute('plannedNeeds').grant    },
   { tabKey: 'payments', to: routePath('payments'),             icon: CreditCard,         labelKey: 'adminNav.payments',        grant: adminRoute('payments').grant },
   { tabKey: 'orders', to: routePath('orders'),               icon: ShoppingCart,       labelKey: 'adminNav.orders'           },
+  // UI gaps item 18: food orders were routed and grant-guarded but in no
+  // nav, so they were URL-only. Same pattern as the dead-ends item-6 set.
+  { tabKey: 'foodOrders', to: routePath('foodOrders'), icon: ShoppingCart, labelKey: 'adminNav.foodOrders', grant: adminRoute('foodOrders').grant },
   { tabKey: 'templates', to: routePath('templates'),            icon: Layers,             labelKey: 'adminNav.templates'        },
   { tabKey: 'consulting', to: routePath('consulting'),           icon: HeartHandshake,     labelKey: 'adminNav.consulting'       },
   { tabKey: 'consultingPayments', to: routePath('consultingPayments'),  icon: CreditCard,         labelKey: 'adminNav.consultingPay'   },
