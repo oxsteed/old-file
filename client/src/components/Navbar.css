@@ -66,6 +66,17 @@
           .ox-nav-mobile-menu { text-align: end; }
           .ox-nav-mobile-menu .ox-nav-signout { text-align: end; }
         }
+        @media (max-width: 375px) {
+          /* 320px header: the four 44px controls plus the language
+             selector (76px) leave no room for the mode label once the
+             palette trigger joined the row (UI gaps item 11) - the row
+             overflowed by 4px for customer/en and 38px for business
+             owner/en, whose label fills its 5.5rem cap. Hiding the
+             label below 375px (it stays visible in the open menu via
+             ModeSwitcher, and returns at 376px with 16px to spare)
+             keeps the logo and every control. */
+          .ox-nav-mobile-mode { display: none; }
+        }
         .ox-nav-join-option {
           display: flex;
           flex-direction: column;

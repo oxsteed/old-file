@@ -329,19 +329,23 @@ export default function Navbar() {
                   ))}
                   <button type="button" className="ox-nav-signout" onClick={() => { logout(); setMobileOpen(false); }} data-track="ui.0b9e115b87.3">{t('nav.signOut')}</button>
                 </div>
+                {/* Resources are a section, not primary links: keep them
+                    grouped so the mobile menu's direct children stay the
+                    primary links the navbar fixture asserts on. */}
                 {SHOW_LEGACY_NAV_RESOURCES && (
-                  <>
+                  <div className="ox-nav-account-section">
+                    <span className="ox-nav-section-label">{t('nav.resources')}</span>
                     <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howOxsteedWorks')}</MobileNavLink>
                     <MobileNavLink to="/tool-rentals" onClick={() => setMobileOpen(false)}>{t('toolRentals.browsePage')}</MobileNavLink>
                     <MobileNavLink to="/learn" onClick={() => setMobileOpen(false)}>{t('nav.learnToDiy')}</MobileNavLink>
-                  </>
+                    {canUseQrGenerator(user) && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
+                  </div>
                 )}
                 {SHOW_NETWORK_BRANCH_SWITCHER && (
                   <div style={{ marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)' }}>
                     <OxSteedNetworkSwitcher mobile showSupportWorkspace={showSupportWorkspaceNav} onNavigate={() => setMobileOpen(false)} />
                   </div>
                 )}
-                {SHOW_LEGACY_NAV_RESOURCES && canUseQrGenerator(user) && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
               </>
             ) : (
               <>
@@ -350,7 +354,10 @@ export default function Navbar() {
                 <MobileNavLink to="/restaurants" onClick={() => setMobileOpen(false)}>{t('nav.localFoodDirectory')}</MobileNavLink>
                 <MobileNavLink to="/logistics" onClick={() => setMobileOpen(false)}>{t('nav.logistics')}</MobileNavLink>
                 {SHOW_LEGACY_NAV_RESOURCES && (
-                  <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howItWorks')}</MobileNavLink>
+                  <div className="ox-nav-account-section">
+                    <span className="ox-nav-section-label">{t('nav.resources')}</span>
+                    <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howItWorks')}</MobileNavLink>
+                  </div>
                 )}
                 <div
                   style={{
