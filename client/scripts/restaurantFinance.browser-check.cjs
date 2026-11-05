@@ -39,14 +39,18 @@ test('restaurant finances: unavailable versus empty, permissions, safeguards, an
   await page.getByLabel(/Payout amount/).fill('24');assert.equal(await page.getByRole('button',{name:'Request payout',exact:true}).isEnabled(),false);
   await page.getByLabel(/Payout amount/).fill('101');assert.equal(await page.getByRole('button',{name:'Request payout',exact:true}).isEnabled(),false);
   await page.getByLabel(/Payout amount/).fill('30');
-  await Promise.all([
-   page.waitForEvent('dialog').then(async dialog => {
-    assert.equal(dialog.type(),'confirm');
-    assert.ok(dialog.message().includes('$30.00'),'confirmation shows the requested payout amount');
-    await dialog.accept();
-   }),
-   page.getByRole('button',{name:'Request payout',exact:true}).click(),
-  ]);
+  const dialogHandled = new Promise((resolve, reject) => {
+   page.once('dialog', async dialog => {
+    try {
+     assert.equal(dialog.type(),'confirm');
+     assert.ok(dialog.message().includes('$30.00'),'confirmation shows the requested payout amount');
+     await dialog.accept();
+     resolve();
+    } catch (err) { reject(err); }
+   });
+  });
+  await page.getByRole('button',{name:'Request payout',exact:true}).click();
+  await dialogHandled;
   await page.waitForFunction(()=>window.calls.some(call=>call.name==='requestWalletPayout'));
   const calls=await page.evaluate(()=>window.calls);assert.equal(calls.find(c=>c.name==='requestWalletPayout').args[1].amountCents,3000);assert.ok(calls.find(c=>c.name==='requestWalletPayout').args[2]);
   await configure({}, {canManagePayouts:false,canManageCredit:true});assert.equal(await page.getByRole('heading',{name:'Bank payouts',exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'Connect payouts',exact:true}).count(),0);
