@@ -15890,7 +15890,8 @@
     "cardPayConfirmFailed": "No pudimos confirmar el pago con tarjeta. Si se hizo un cargo en tu tarjeta, contacta a soporte con el ID del pedido.",
     "cardPayIntentFailed": "No pudimos iniciar un pago con tarjeta para este carrito. Inténtalo de nuevo o registra una prueba de pago.",
     "cardPayUnavailable": "Los pagos con tarjeta no están disponibles ahora. Registra una prueba de pago en su lugar.",
-    "cardPaidNext": "Tu pago con tarjeta está completo. El pedido {{order}} está pagado. No necesitas registrar otro pago para este pedido."
+    "cardPaidNext": "Tu pago con tarjeta está completo. El pedido {{order}} está pagado. No necesitas registrar otro pago para este pedido.",
+    "viewOrder": "Ver pedido"
   },
   "myBids": {
     "title": "Mis ofertas",
@@ -17243,6 +17244,71 @@
     "admin": {
       "label": "Administrador",
       "hint": "Administra la plataforma OxSteed."
+    }
+  },
+  "lifePages": {
+    "backToDashboard": "Volver al panel",
+    "viewAll": "Ver todo",
+    "loading": "Cargando…",
+    "loadFailed": "No se pudo cargar esta página. Inténtalo de nuevo.",
+    "expenses": {
+      "title": "Gastos",
+      "subtitle": "Tus ingresos y gastos, en un solo lugar.",
+      "income": "Ingresos",
+      "expenses": "Gastos",
+      "net": "Neto",
+      "empty": "Aún no hay gastos registrados.",
+      "filter": { "all": "Todo", "expense": "Gastos", "income": "Ingresos" }
+    },
+    "goals": {
+      "title": "Metas",
+      "subtitle": "Sigue tu progreso hacia cada meta.",
+      "empty": "Aún no tienes metas.",
+      "completed": "Completada",
+      "progress": "{{current}} de {{target}}"
+    },
+    "homeTasks": {
+      "title": "Tareas del hogar",
+      "subtitle": "Todo lo pendiente en casa, en un solo lugar.",
+      "empty": "No hay tareas pendientes.",
+      "completed": "Completada",
+      "filter": { "all": "Todo", "open": "Abiertas", "completed": "Completadas" }
+    },
+    "vehicles": {
+      "title": "Garaje",
+      "subtitle": "Tus vehículos, en un solo lugar.",
+      "empty": "Aún no tienes vehículos guardados."
+    },
+    "homes": {
+      "title": "Propiedades",
+      "subtitle": "Tus hogares, en un solo lugar.",
+      "empty": "Aún no tienes propiedades guardadas.",
+      "beds": "{{count}} hab.",
+      "baths": "{{count}} baños",
+      "sqft": "{{count}} pies²",
+      "built": "Construida en {{year}}",
+      "floodZone": "Zona de inundación: {{zone}}"
+    },
+    "order": {
+      "title": "Pedido {{id}}",
+      "notFound": "Pedido no encontrado",
+      "notFoundBody": "Es posible que este pedido pertenezca a otra cuenta o ya no exista.",
+      "backToProducts": "Volver a los productos",
+      "items": "Artículos",
+      "noItems": "Este pedido no tiene artículos.",
+      "quantity": "Cantidad: {{count}}",
+      "each": "c/u",
+      "subtotal": "Subtotal",
+      "tax": "Impuestos",
+      "shipping": "Envío",
+      "discount": "Descuento",
+      "total": "Total",
+      "payment": "Pago",
+      "paymentStatus": "Estado del pago",
+      "paymentReference": "Referencia de pago",
+      "paymentAmount": "Importe pagado",
+      "noPayment": "Aún no hay un pago registrado para este pedido.",
+      "statusLabel": "Estado: {{status}}"
     }
   },
   "dashboards": {

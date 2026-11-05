@@ -15890,7 +15890,8 @@
     "cardPayConfirmFailed": "Nous n'avons pas pu confirmer le paiement par carte. Si votre carte a été débitée, contactez l'assistance avec l'identifiant de la commande.",
     "cardPayIntentFailed": "Nous n'avons pas pu lancer un paiement par carte pour ce panier. Réessayez ou enregistrez une preuve de paiement.",
     "cardPayUnavailable": "Les paiements par carte ne sont pas disponibles pour le moment. Veuillez plutôt enregistrer une preuve de paiement.",
-    "cardPaidNext": "Votre paiement par carte est terminé. La commande {{order}} est payée. Vous n’avez pas besoin d’enregistrer un autre paiement pour cette commande."
+    "cardPaidNext": "Votre paiement par carte est terminé. La commande {{order}} est payée. Vous n’avez pas besoin d’enregistrer un autre paiement pour cette commande.",
+    "viewOrder": "Voir la commande"
   },
   "myBids": {
     "title": "Mes enchères",
@@ -17243,6 +17244,71 @@
     "admin": {
       "label": "Administrateur",
       "hint": "Administrez la plateforme OxSteed."
+    }
+  },
+  "lifePages": {
+    "backToDashboard": "Retour au tableau de bord",
+    "viewAll": "Tout voir",
+    "loading": "Chargement…",
+    "loadFailed": "Échec du chargement de cette page. Réessayez.",
+    "expenses": {
+      "title": "Dépenses",
+      "subtitle": "Vos revenus et dépenses, au même endroit.",
+      "income": "Revenus",
+      "expenses": "Dépenses",
+      "net": "Net",
+      "empty": "Aucune dépense enregistrée pour le moment.",
+      "filter": { "all": "Tout", "expense": "Dépenses", "income": "Revenus" }
+    },
+    "goals": {
+      "title": "Objectifs",
+      "subtitle": "Suivez vos progrès vers chaque objectif.",
+      "empty": "Vous n'avez pas encore d'objectifs.",
+      "completed": "Terminé",
+      "progress": "{{current}} sur {{target}}"
+    },
+    "homeTasks": {
+      "title": "Tâches ménagères",
+      "subtitle": "Tout ce qui vous attend à la maison, au même endroit.",
+      "empty": "Aucune tâche en attente.",
+      "completed": "Terminée",
+      "filter": { "all": "Toutes", "open": "Ouvertes", "completed": "Terminées" }
+    },
+    "vehicles": {
+      "title": "Garage",
+      "subtitle": "Vos véhicules, au même endroit.",
+      "empty": "Aucun véhicule enregistré pour le moment."
+    },
+    "homes": {
+      "title": "Propriétés",
+      "subtitle": "Vos propriétés, au même endroit.",
+      "empty": "Aucune propriété enregistrée pour le moment.",
+      "beds": "{{count}} ch.",
+      "baths": "{{count}} sdb",
+      "sqft": "{{count}} pi²",
+      "built": "Construit en {{year}}",
+      "floodZone": "Zone inondable : {{zone}}"
+    },
+    "order": {
+      "title": "Commande {{id}}",
+      "notFound": "Commande introuvable",
+      "notFoundBody": "Cette commande appartient peut-être à un autre compte ou n'existe plus.",
+      "backToProducts": "Retour aux produits",
+      "items": "Articles",
+      "noItems": "Cette commande ne contient aucun article.",
+      "quantity": "Quantité : {{count}}",
+      "each": "l'unité",
+      "subtotal": "Sous-total",
+      "tax": "Taxes",
+      "shipping": "Livraison",
+      "discount": "Réduction",
+      "total": "Total",
+      "payment": "Paiement",
+      "paymentStatus": "Statut du paiement",
+      "paymentReference": "Référence de paiement",
+      "paymentAmount": "Montant payé",
+      "noPayment": "Aucun paiement enregistré pour cette commande pour le moment.",
+      "statusLabel": "Statut : {{status}}"
     }
   },
   "dashboards": {

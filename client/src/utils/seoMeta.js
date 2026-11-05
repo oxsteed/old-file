@@ -293,6 +293,10 @@ const NOINDEX_PATTERNS = [
   /^\/pay\/[^/]+(?:\/.*)?$/,
   /^\/delivery\/jobs\/[^/]+$/,
   /^\/delivery\/payouts$/, // Private driver page; otherwise unmatched-default noindex only.
+  /^\/life-dashboard(?:\/.*)?$/, // Private Life detail pages, reached from the Life dashboard only.
+  /^\/vehicles$/, // Private garage page, reached from the Life dashboard only.
+  /^\/house$/, // Private properties page, reached from the Life dashboard only.
+  /^\/marketplace\/orders(?:\/.*)?$/, // Private buyer order detail page.
   /^\/delivery\/operations(?:\/.*)?$/,
   /^\/direct\/admin(?:\/.*)?$/,
   /^\/direct\/quotes(?:\/.*)?$/,

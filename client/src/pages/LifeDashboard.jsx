@@ -4,16 +4,22 @@
 // the personal-life surfaces that the OxSteed backend has been quietly
 // shipping for the customer side:
 //
-//   /api/life-pulse                       financial health score + timeline
+//   /api/life/pulse                       financial health score + timeline
 //   /api/planned-needs                    recurring jobs (auto-publish)
 //   /api/planned-needs/projection         next-90-day cost outlook
 //   /api/planned-needs/suggestions        "you should plan for X"
-//   /api/life-dashboard/summary           expenses/budgets/goals roll-up
-//   /api/life-dashboard/expenses          recent expense feed
-//   /api/life-dashboard/goals             goal progress
-//   /api/life-dashboard/home-tasks        open home tasks
-//   /api/vehicles                         garage count
-//   /api/house                            properties count
+//   /api/life/summary                     expenses/budgets/goals roll-up
+//   /api/life/expenses                    recent expense feed
+//   /api/life/goals                       goal progress
+//   /api/life/home-tasks                  open home tasks
+//   /api/vehicles/my                      garage list
+//   /api/house/my                         properties list
+//
+// NOTE (detail pages build): the fetch URLs above are the real server
+// paths. An earlier version of this file called /life-dashboard/*,
+// /life-pulse, /vehicles, and /house, none of which exist on the server,
+// so those sections always failed. The detail pages under
+// /life-dashboard/*, /vehicles, and /house use the same real APIs.
 //
 // Everything is best-effort — if one endpoint is down or missing, that card
 // shows an empty/loading state but the page still renders.
@@ -132,9 +138,9 @@ function buildCrossSells({ vehicles, homes, goals, expenses, summary, t }) {
 
   // Goals shortfall → suggest side income (rent tools)
   const shortfallGoal = goals.find(g =>
-    g.target_amount > 0 &&
-    (g.current_amount / g.target_amount) < 0.5 &&
-    g.status !== 'completed'
+    g.target_value > 0 &&
+    (g.current_value / g.target_value) < 0.5 &&
+    !g.is_completed
   );
   if (shortfallGoal) {
     suggestions.push({
@@ -240,16 +246,16 @@ export default function LifeDashboard() {
     let cancelled = false;
     const safeGet = (url) => api.get(url).then(r => ({ ok: true, data: r.data })).catch(() => ({ ok: false, data: null }));
     Promise.all([
-      safeGet('/life-pulse'),
+      safeGet('/life/pulse?window=1m'),
       safeGet('/planned-needs?status=active'),
       safeGet('/planned-needs/projection?days=90'),
       safeGet('/planned-needs/suggestions'),
-      safeGet('/life-dashboard/summary'),
-      safeGet('/life-dashboard/expenses?limit=5'),
-      safeGet('/life-dashboard/goals'),
-      safeGet('/life-dashboard/home-tasks?status=open&limit=5'),
-      safeGet('/vehicles'),
-      safeGet('/house'),
+      safeGet('/life/summary'),
+      safeGet('/life/expenses?limit=5'),
+      safeGet('/life/goals'),
+      safeGet('/life/home-tasks'),
+      safeGet('/vehicles/my'),
+      safeGet('/house/my'),
     ]).then((all) => {
       if (cancelled) return;
       const sectionKeys = ['pulse', 'needs', 'projection', 'suggestions', 'summary', 'expenses', 'goals', 'homeTasks', 'vehicles', 'homes'];
@@ -257,14 +263,28 @@ export default function LifeDashboard() {
       all.forEach((res, i) => { if (!res.ok) failed[sectionKeys[i]] = true; });
       setFailedSections(failed);
       const [p, n, pr, s, sm, ex, g, ht, v, h] = all.map((r) => r.data);
-      setPulse(p);
+      // The pulse endpoint returns { pulse_score, score_breakdown } while
+      // this page renders pulse.score.{overall,label,coverage,buffer,
+      // reliability,obligations}; normalize once here.
+      setPulse(p ? {
+        score: {
+          overall: p.pulse_score,
+          label: null,
+          coverage: p.score_breakdown?.coverage,
+          buffer: p.score_breakdown?.buffer,
+          reliability: p.score_breakdown?.reliability,
+          obligations: p.score_breakdown?.obligations,
+        },
+      } : null);
       setNeeds(Array.isArray(n?.items) ? n.items : (Array.isArray(n) ? n : []));
       setProjection(pr);
       setSuggestions(Array.isArray(s?.items) ? s.items : (Array.isArray(s) ? s : []));
-      setSummary(sm?.summary || sm);
+      // /life/summary returns { finances: { total_income, total_expenses,
+      // net, ... }, ... }; this page reads summary.total_income directly.
+      setSummary(sm?.finances || sm);
       setExpenses(Array.isArray(ex?.expenses) ? ex.expenses : []);
       setGoals(Array.isArray(g?.goals) ? g.goals : (Array.isArray(g) ? g : []));
-      setHomeTasks(Array.isArray(ht?.tasks) ? ht.tasks : (Array.isArray(ht) ? ht : []));
+      setHomeTasks(Array.isArray(ht?.home_tasks) ? ht.home_tasks : (Array.isArray(ht) ? ht : []));
       setVehicles(Array.isArray(v?.vehicles) ? v.vehicles : (Array.isArray(v) ? v : []));
       setHomes(Array.isArray(h?.homes) ? h.homes : (Array.isArray(h) ? h : []));
       setLoaded(true);
@@ -387,6 +407,7 @@ export default function LifeDashboard() {
           <Card
             title={t('dashboards.life.recentExpenses', { defaultValue: 'Recent activity' })}
             icon={<Wallet size={16} className="text-orange-500" />}
+            action={<Link to="/life-dashboard/expenses" className="text-xs font-semibold text-orange-400 underline">{t('lifePages.viewAll')}</Link>}
           >
             {expenses.length === 0 ? (
               <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
@@ -414,6 +435,7 @@ export default function LifeDashboard() {
           <Card
             title={t('dashboards.life.goals', { defaultValue: 'Goals' })}
             icon={<Target size={16} className="text-orange-500" />}
+            action={<Link to="/life-dashboard/goals" className="text-xs font-semibold text-orange-400 underline">{t('lifePages.viewAll')}</Link>}
           >
             {goals.length === 0 ? (
               <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
@@ -422,7 +444,7 @@ export default function LifeDashboard() {
             ) : (
               <ul className="flex flex-col gap-3">
                 {goals.slice(0, 4).map((g) => {
-                  const pct = g.target_amount > 0 ? Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)) : 0;
+                  const pct = g.target_value > 0 ? Math.min(100, Math.round((g.current_value / g.target_value) * 100)) : 0;
                   return (
                     <li key={g.id}>
                       <div className="flex justify-between items-baseline">
@@ -442,6 +464,7 @@ export default function LifeDashboard() {
           <Card
             title={t('dashboards.life.homeTasks', { defaultValue: 'Home tasks' })}
             icon={<ListChecks size={16} className="text-orange-500" />}
+            action={<Link to="/life-dashboard/home-tasks" className="text-xs font-semibold text-orange-400 underline">{t('lifePages.viewAll')}</Link>}
           >
             {homeTasks.length === 0 ? (
               <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
@@ -495,23 +518,22 @@ export default function LifeDashboard() {
         />
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {/* UI-gap fix 1: no /vehicles or /house detail pages exist, so
-              these tiles render their counts without a dead link instead
-              of 404ing. The detail pages are still owed. */}
-          <div className="rounded-lg border p-4 flex items-center gap-3" style={{ borderColor: 'var(--color-border)' }}>
+          {/* Detail pages now exist, so these tiles link again (they were
+              de-linked while the destinations did not exist). */}
+          <Link to="/vehicles" className="rounded-lg border p-4 flex items-center gap-3 hover:bg-orange-500/5 transition" style={{ borderColor: 'var(--color-border)' }}>
             <Car size={20} className="text-orange-500" />
             <div>
               <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('dashboards.life.garage', { defaultValue: 'Garage' })}</div>
               <div className="text-lg font-semibold">{vehicles.length}</div>
             </div>
-          </div>
-          <div className="rounded-lg border p-4 flex items-center gap-3" style={{ borderColor: 'var(--color-border)' }}>
+          </Link>
+          <Link to="/house" className="rounded-lg border p-4 flex items-center gap-3 hover:bg-orange-500/5 transition" style={{ borderColor: 'var(--color-border)' }}>
             <Home size={20} className="text-orange-500" />
             <div>
               <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('dashboards.life.properties', { defaultValue: 'Properties' })}</div>
               <div className="text-lg font-semibold">{homes.length}</div>
             </div>
-          </div>
+          </Link>
           <div className="rounded-lg border p-4 flex items-center gap-3" style={{ borderColor: 'var(--color-border)' }}>
             <CalendarClock size={20} className="text-orange-500" />
             <div>

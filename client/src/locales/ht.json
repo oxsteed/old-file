@@ -15890,7 +15890,8 @@
     "cardPayConfirmFailed": "Nou pa t kapab konfime peman ak kat la. Si kat ou a te debite, kontakte sipò ak ID kòmand lan.",
     "cardPayIntentFailed": "Nou pa t kapab kòmanse yon peman ak kat pou panye sa a. Eseye ankò oswa anrejistre yon prèv peman.",
     "cardPayUnavailable": "Peman ak kat pa disponib kounye a. Anrejistre yon prèv peman pito.",
-    "cardPaidNext": "Peman kat ou a fini. Lòd {{order}} peye. Ou pa bezwen anrejistre yon lòt peman pou lòd sa a."
+    "cardPaidNext": "Peman kat ou a fini. Lòd {{order}} peye. Ou pa bezwen anrejistre yon lòt peman pou lòd sa a.",
+    "viewOrder": "Wè kòmand lan"
   },
   "myBids": {
     "title": "Òf mwen yo",
@@ -17243,6 +17244,71 @@
     "admin": {
       "label": "Administratè",
       "hint": "Administre platfòm OxSteed la."
+    }
+  },
+  "lifePages": {
+    "backToDashboard": "Retounen nan tablodbò",
+    "viewAll": "Wè tout",
+    "loading": "Ap chaje…",
+    "loadFailed": "Chajman paj sa a echwe. Eseye ankò.",
+    "expenses": {
+      "title": "Depans",
+      "subtitle": "Revni ak depans ou, nan yon sèl kote.",
+      "income": "Revni",
+      "expenses": "Depans",
+      "net": "Nèt",
+      "empty": "Pa gen depans anrejistre ankò.",
+      "filter": { "all": "Tout", "expense": "Depans", "income": "Revni" }
+    },
+    "goals": {
+      "title": "Objektif",
+      "subtitle": "Swiv pwogrè ou pou chak objektif.",
+      "empty": "Ou poko gen objektif.",
+      "completed": "Fini",
+      "progress": "{{current}} sou {{target}}"
+    },
+    "homeTasks": {
+      "title": "Travay kay",
+      "subtitle": "Tout sa k ap tann ou lakay, nan yon sèl kote.",
+      "empty": "Pa gen travay k ap tann.",
+      "completed": "Fini",
+      "filter": { "all": "Tout", "open": "Ouvè", "completed": "Fini" }
+    },
+    "vehicles": {
+      "title": "Garaj",
+      "subtitle": "Machin ou yo, nan yon sèl kote.",
+      "empty": "Ou poko gen machin anrejistre."
+    },
+    "homes": {
+      "title": "Pwopriyete",
+      "subtitle": "Kay ou yo, nan yon sèl kote.",
+      "empty": "Ou poko gen kay anrejistre.",
+      "beds": "{{count}} chanm",
+      "baths": "{{count}} twalèt",
+      "sqft": "{{count}} pye²",
+      "built": "Bati an {{year}}",
+      "floodZone": "Zòn inondasyon: {{zone}}"
+    },
+    "order": {
+      "title": "Kòmann {{id}}",
+      "notFound": "Kòmann pa jwenn",
+      "notFoundBody": "Kòmann sa a ka pou yon lòt kont oswa li pa egziste ankò.",
+      "backToProducts": "Retounen nan pwodwi yo",
+      "items": "Atik",
+      "noItems": "Kòmann sa a pa gen atik.",
+      "quantity": "Kantite: {{count}}",
+      "each": "chak",
+      "subtotal": "Soutotal",
+      "tax": "Taks",
+      "shipping": "Livrezon",
+      "discount": "Rabè",
+      "total": "Total",
+      "payment": "Peman",
+      "paymentStatus": "Eta peman an",
+      "paymentReference": "Referans peman",
+      "paymentAmount": "Montan peye",
+      "noPayment": "Poko gen peman anrejistre pou kòmann sa a.",
+      "statusLabel": "Eta: {{status}}"
     }
   },
   "dashboards": {

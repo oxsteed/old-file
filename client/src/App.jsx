@@ -200,6 +200,12 @@ const ProductMarketplacePage = lazyWithRetry(() => import('./pages/ProductMarket
 const ShoppingCartPage = lazyWithRetry(() => import('./pages/ShoppingCartPage'));
 const SharedCartPage = lazyWithRetry(() => import('./pages/SharedCartPage'));
 const CheckoutPage = lazyWithRetry(() => import('./pages/CheckoutPage'));
+const MarketplaceOrderPage = lazyWithRetry(() => import('./pages/MarketplaceOrderPage'));
+const LifeExpensesPage = lazyWithRetry(() => import('./pages/LifeExpensesPage'));
+const LifeGoalsPage = lazyWithRetry(() => import('./pages/LifeGoalsPage'));
+const LifeHomeTasksPage = lazyWithRetry(() => import('./pages/LifeHomeTasksPage'));
+const LifeVehiclesPage = lazyWithRetry(() => import('./pages/LifeVehiclesPage'));
+const LifeHomesPage = lazyWithRetry(() => import('./pages/LifeHomesPage'));
 const OrderHistoryPage = lazyWithRetry(() => import('./pages/OrderHistoryPage'));
 const OrderDetailsPage = lazyWithRetry(() => import('./pages/OrderDetailsPage'));
 const SupportTicketDetailPage = lazyWithRetry(() => import('./pages/SupportTicketDetailPage'));
@@ -593,6 +599,17 @@ export default function App() {
                     <Route path="/cart/:cartId"           element={<Guarded><ProtectedRoute><ShoppingCartPage /></ProtectedRoute></Guarded>} />
                     <Route path="/shared-cart/:shareToken" element={<Guarded><SharedCartPage /></Guarded>} />
                     <Route path="/checkout/:cartId"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><CheckoutPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Marketplace order detail lives under /marketplace/orders, NOT
+                        /checkout: the launch gate unconditionally bounces /checkout/*
+                        to /restaurants, so a /checkout/orders route could never render. */}
+                    <Route path="/marketplace/orders/:orderId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><MarketplaceOrderPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Life detail pages: private, reached from the Life dashboard
+                        only. Deliberately not in the sitemap and noindex in seoMeta. */}
+                    <Route path="/life-dashboard/expenses"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><LifeExpensesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/life-dashboard/goals"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><LifeGoalsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/life-dashboard/home-tasks" element={<Guarded><ProtectedRoute><RouteErrorBoundary><LifeHomeTasksPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/vehicles"                  element={<Guarded><ProtectedRoute><RouteErrorBoundary><LifeVehiclesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/house"                     element={<Guarded><ProtectedRoute><RouteErrorBoundary><LifeHomesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/orders"                  element={<Guarded><ProtectedRoute><OrderHistoryPage /></ProtectedRoute></Guarded>} />
                     <Route path="/orders/:id"             element={<Guarded><ProtectedRoute><OrderIdRedirect /></ProtectedRoute></Guarded>} />
                     <Route path="/food/orders/:orderId"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrderDetailsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

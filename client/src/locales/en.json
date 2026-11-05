@@ -15971,7 +15971,8 @@
     "cardPayConfirmFailed": "We could not confirm the card payment. If your card was charged, contact support with the order ID.",
     "cardPayIntentFailed": "We could not start a card payment for this cart. Please try again or record a payment proof.",
     "cardPayUnavailable": "Card payments are not available right now. Please record a payment proof instead.",
-    "cardPaidNext": "Your card payment is complete. Order {{order}} is paid. You do not need to record another payment for this order."
+    "cardPaidNext": "Your card payment is complete. Order {{order}} is paid. You do not need to record another payment for this order.",
+    "viewOrder": "View order"
   },
   "myBids": {
     "title": "My Bids",
@@ -17243,6 +17244,71 @@
     "admin": {
       "label": "Admin",
       "hint": "Administer the OxSteed platform."
+    }
+  },
+  "lifePages": {
+    "backToDashboard": "Back to dashboard",
+    "viewAll": "View all",
+    "loading": "Loading…",
+    "loadFailed": "Could not load this page. Try again.",
+    "expenses": {
+      "title": "Expenses",
+      "subtitle": "Your income and spending, in one place.",
+      "income": "Income",
+      "expenses": "Expenses",
+      "net": "Net",
+      "empty": "No expenses recorded yet.",
+      "filter": { "all": "All", "expense": "Expenses", "income": "Income" }
+    },
+    "goals": {
+      "title": "Goals",
+      "subtitle": "Track your progress toward each goal.",
+      "empty": "You have no goals yet.",
+      "completed": "Completed",
+      "progress": "{{current}} of {{target}}"
+    },
+    "homeTasks": {
+      "title": "Home tasks",
+      "subtitle": "Everything waiting for you at home, in one place.",
+      "empty": "No tasks waiting.",
+      "completed": "Completed",
+      "filter": { "all": "All", "open": "Open", "completed": "Completed" }
+    },
+    "vehicles": {
+      "title": "Garage",
+      "subtitle": "Your vehicles, in one place.",
+      "empty": "No vehicles saved yet."
+    },
+    "homes": {
+      "title": "Properties",
+      "subtitle": "Your homes, in one place.",
+      "empty": "No homes saved yet.",
+      "beds": "{{count}} beds",
+      "baths": "{{count}} baths",
+      "sqft": "{{count}} sq ft",
+      "built": "Built in {{year}}",
+      "floodZone": "Flood zone: {{zone}}"
+    },
+    "order": {
+      "title": "Order {{id}}",
+      "notFound": "Order not found",
+      "notFoundBody": "This order may belong to another account or no longer exist.",
+      "backToProducts": "Back to products",
+      "items": "Items",
+      "noItems": "This order has no items.",
+      "quantity": "Quantity: {{count}}",
+      "each": "each",
+      "subtotal": "Subtotal",
+      "tax": "Tax",
+      "shipping": "Shipping",
+      "discount": "Discount",
+      "total": "Total",
+      "payment": "Payment",
+      "paymentStatus": "Payment status",
+      "paymentReference": "Payment reference",
+      "paymentAmount": "Amount paid",
+      "noPayment": "No payment recorded for this order yet.",
+      "statusLabel": "Status: {{status}}"
     }
   },
   "dashboards": {

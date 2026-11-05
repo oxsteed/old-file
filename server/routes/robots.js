@@ -107,6 +107,10 @@ router.get('/', (req, res) => {
     'Disallow: /delivery/jobs',
     'Disallow: /delivery/operations',
     'Disallow: /delivery/payouts',
+    'Disallow: /life-dashboard',
+    'Disallow: /vehicles',
+    'Disallow: /house',
+    'Disallow: /marketplace/orders',
     // Logistics operations. The blanket /logistics/ prefix is intentionally
     // NOT blocked: /logistics/campaigns/:id is in the sitemap.
     'Disallow: /logistics/login',

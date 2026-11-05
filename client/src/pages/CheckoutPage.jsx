@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js';
 import { useTranslation } from 'react-i18next';
@@ -289,12 +289,17 @@ function CheckoutPageContent() {
                 second payment-proof record for the same cart. The server
                 does not reject a duplicate record for one cart, so this
                 UI guard is the protection; card processing itself is
-                untouched. There is no customer marketplace order detail
-                page, so the paid note carries the order id instead of a
-                link to the wrong order family (/orders is food orders). */}
+                untouched. The paid note now links to the buyer marketplace
+                order detail page (/marketplace/orders/:id), not to /orders,
+                which is food-order history. */}
             {cardPaid ? (
               <p className="text-[var(--color-text-muted)] leading-relaxed">
-                {t('checkout.cardPaidNext', { order: cardPaid.orderId || cardPaid.order?.id || '' })}
+                {t('checkout.cardPaidNext', { order: cardPaid.orderId || cardPaid.order?.id || '' })}{' '}
+                {(cardPaid.orderId || cardPaid.order?.id) && (
+                  <Link to={`/marketplace/orders/${cardPaid.orderId || cardPaid.order?.id}`} className="font-semibold text-orange-500 underline">
+                    {t('checkout.viewOrder')}
+                  </Link>
+                )}
               </p>
             ) : (
               <p className="text-[var(--color-text-muted)] leading-relaxed">
