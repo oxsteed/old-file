@@ -463,6 +463,28 @@ async function getLocationPayContext(restaurantId, locationIds = null) {
 
 // ── Hours (actual + scheduled) ───────────────────────────────────────
 
+// Phase 2: hours that came from a system-closed punch, per user.
+// System-closed hours are real stamped hours (they are paid), but they
+// must stay visible as system-closed in payroll: a manager reviews
+// them before the pay run instead of discovering a forgotten punch
+// after it was paid. Voided entries are excluded, like everywhere else.
+async function getSystemClosedByUser(businessId, fromDate, toDate, locationIds = null) {
+  const { rows } = await pool.query(
+    `SELECT user_id, COUNT(*)::int AS entries, COALESCE(SUM(hours_worked), 0)::float8 AS hours
+       FROM business_time_entries
+      WHERE business_id = $1 AND entry_date >= $2 AND entry_date <= $3
+        AND system_closed_at IS NOT NULL AND voided_at IS NULL
+        ${storeFilter(locationIds, 'location_id', 4)}
+      GROUP BY user_id`,
+    storeParams([businessId, fromDate, toDate], locationIds)
+  );
+  const map = new Map();
+  for (const row of rows) {
+    map.set(row.user_id, { entries: Number(row.entries) || 0, hours: Number(row.hours) || 0 });
+  }
+  return map;
+}
+
 // Actual recorded hours per user from business_time_entries (the
 // hours_worked model the working staff-scheduling API writes).
 async function getHoursByUser(businessId, fromDate, toDate, locationIds = null) {
@@ -1114,13 +1136,14 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
     ? payContext.locationsById.get(singleLocationId)?.currency_code || null
     : null;
   const effectiveCurrency = locationCurrency || restaurantCurrency;
-  const [roster, hoursByUser, scheduledByUser, revenues, tipAllocations, fallbackPolicy] = await Promise.all([
+  const [roster, hoursByUser, scheduledByUser, revenues, tipAllocations, fallbackPolicy, systemClosedByUser] = await Promise.all([
     getRoster(businessId, locationIds, restaurant.id),
     getHoursByUser(businessId, fromDate, toDate, locationIds),
     getScheduledHoursByUser(businessId, restaurant.id, fromDate, toDate, locationIds),
     getRevenueByCurrency(restaurant.id, fromDate, toDate, timezone, locationIds),
     computeTipAllocations({ restaurant, fromDate, toDate, locationIds }),
     getLaborPolicy(restaurant.id),
+    getSystemClosedByUser(businessId, fromDate, toDate, locationIds),
   ]);
   // The policy this report was computed under: the single scoped
   // store's own policy when one store is in scope, else the
@@ -1228,6 +1251,11 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
       overtime_hours: employeeOvertimeHours,
       doubletime_hours: employeeDoubletimeHours,
       scheduled_hours: scheduledHours,
+      // Phase 2: hours from system-closed (forgotten) punches, kept
+      // visible in payroll so they are reviewed, never silently paid
+      // as ordinary hours.
+      system_closed_hours: Math.round(((systemClosedByUser.get(userId)?.hours) || 0) * 100) / 100,
+      system_closed_entries: (systemClosedByUser.get(userId)?.entries) || 0,
       hourly_wage_cents: wage,
       regular_wages_cents: regularWagesCents,
       overtime_wages_cents: employeeOvertimeWagesCents,

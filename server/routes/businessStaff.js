@@ -35,5 +35,13 @@ router.post  ('/:businessId/staff/clock-out/:entryId',   requireAuth, requireBus
 router.post  ('/:businessId/staff/time-entries/:entryId/break', requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.punchBreak);
 router.patch ('/:businessId/staff/time-entries/:entryId',       requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.editTimeEntry);
 router.post  ('/:businessId/staff/time-entries/:entryId/void',  requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.voidTimeEntry);
+// Phase 2: close-of-day check for forgotten punches (manager runs the
+// same sweep the nightly job runs) and the employee punch-correction
+// flow (request -> manager approve/reject; nothing changes while pending).
+router.post  ('/:businessId/staff/time-entries/close-stale',   requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.closeStaleTimeEntries);
+router.post  ('/:businessId/staff/time-entries/:entryId/corrections', requireAuth, requireBusinessAccess({ minRole: 'any' }), ctrl.requestTimeEntryCorrection);
+router.get   ('/:businessId/staff/time-entry-corrections',     requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.listTimeEntryCorrections);
+router.get   ('/:businessId/staff/time-entry-corrections/mine', requireAuth, requireBusinessAccess({ minRole: 'any' }), ctrl.listMyTimeEntryCorrections);
+router.post  ('/:businessId/staff/time-entry-corrections/:correctionId/decide', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.decideTimeEntryCorrection);
 
 module.exports = router;

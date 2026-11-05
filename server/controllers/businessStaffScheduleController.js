@@ -5,6 +5,13 @@ const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const laborJurisdiction = require('../services/laborJurisdictionRules');
+// Phase 2 punch integrity (goal goal_a0fc7c0f0394): hours are computed
+// from epoch instants (DST-correct) in one shared module, and the
+// close-of-day sweep lives in restaurantPunchCloseout.js.
+const { breakSeconds, computedHours, haversineMeters, finiteCoordinate } = require('../services/restaurantPunchHours');
+const { closeStalePunches } = require('../services/restaurantPunchCloseout');
+const { validateStaffPinForRestaurant } = require('../services/restaurantStaffIdentityService');
+const AppError = require('../utils/appError');
 
 // Shifts
 //
@@ -413,26 +420,7 @@ async function decideShiftSwap(req, res, next, status) {
 exports.approveShiftSwapRequest = (req, res, next) => decideShiftSwap(req, res, next, 'approved');
 exports.rejectShiftSwapRequest = (req, res, next) => decideShiftSwap(req, res, next, 'rejected');
 
-function breakSeconds(breaks, nowMs) {
-  if (!Array.isArray(breaks)) return 0;
-  let total = 0;
-  for (const b of breaks) {
-    const start = Date.parse(b?.started_at || '');
-    if (!Number.isFinite(start)) continue;
-    const end = b?.ended_at ? Date.parse(b.ended_at) : nowMs;
-    if (Number.isFinite(end) && end > start) total += (end - start) / 1000;
-  }
-  return total;
-}
-
-function computedHours(entry, nowMs = Date.now()) {
-  if (!entry?.clock_in_at) return entry?.hours_worked != null ? Number(entry.hours_worked) : null;
-  const start = new Date(entry.clock_in_at).getTime();
-  const end = entry.clock_out_at ? new Date(entry.clock_out_at).getTime() : nowMs;
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
-  const net = (end - start) / 1000 - breakSeconds(entry.breaks, nowMs);
-  return Math.round(Math.max(0, net) / 36) / 100;
-}
+exports.computedHours = computedHours;
 
 function presentTimeEntry(entry) {
   if (!entry) return entry;
@@ -440,6 +428,12 @@ function presentTimeEntry(entry) {
     ...entry,
     hours: computedHours(entry),
     break_minutes: Math.round(breakSeconds(entry.breaks, Date.now()) / 60),
+    // Phase 2: a system-closed punch was closed by the close-of-day
+    // sweep at a documented policy time, not by the employee or a
+    // manager. The flag travels with the hours everywhere they are
+    // shown so it is never silently treated as a normal clock-out.
+    system_closed: entry.system_closed_at != null,
+    system_closed_reason: entry.system_closed_reason || null,
     // Legacy client field aliases (StaffScheduler renders clock_in/out).
     clock_in: entry.clock_in_at || null,
     clock_out: entry.clock_out_at || null,
@@ -519,40 +513,161 @@ exports.listMyTimeEntries = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// Phase 2 punch integrity: the per-location punch context.
+//
+// Timezone is a per-location property, never assumed: the store's own
+// timezone wins, then the business timezone, then UTC. An unknown or
+// invalid name falls back instead of failing the punch (same
+// fail-open as the pre-Phase-2 business-timezone fallback).
+// Coordinates are the store's own restaurant_locations row: a store
+// with coordinates configured opts into geofence enforcement, a store
+// without them does not. The restaurant id is needed for the staff
+// PIN lookup (PINs are keyed by restaurant).
+async function resolvePunchContext(businessId, locationId) {
+  if (locationId == null) {
+    const { rows: [biz] } = await pool.query(
+      'SELECT timezone FROM businesses WHERE id = $1', [businessId]
+    );
+    return { locationId: null, restaurantId: null, timezone: biz?.timezone || 'UTC', latitude: null, longitude: null };
+  }
+  const { rows: [row] } = await pool.query(
+    `SELECT l.timezone AS loc_tz, l.latitude, l.longitude, l.restaurant_id,
+            b.timezone AS biz_tz
+       FROM restaurant_locations l
+       JOIN food_restaurants r ON r.id = l.restaurant_id
+       JOIN businesses b ON b.id = r.business_id
+      WHERE l.id = $1 AND b.id = $2`,
+    [locationId, businessId]
+  );
+  if (!row) {
+    const { rows: [biz] } = await pool.query(
+      'SELECT timezone FROM businesses WHERE id = $1', [businessId]
+    );
+    return { locationId, restaurantId: null, timezone: biz?.timezone || 'UTC', latitude: null, longitude: null };
+  }
+  return {
+    locationId,
+    restaurantId: row.restaurant_id == null ? null : Number(row.restaurant_id),
+    timezone: row.loc_tz || row.biz_tz || 'UTC',
+    latitude: finiteCoordinate(row.latitude, -90, 90),
+    longitude: finiteCoordinate(row.longitude, -180, 180),
+  };
+}
+
+async function validTimezone(name) {
+  if (!name || typeof name !== 'string') return false;
+  const { rows } = await pool.query(
+    'SELECT 1 FROM pg_timezone_names WHERE name = $1', [name]
+  );
+  return rows.length > 0;
+}
+
+// Phase 2 geofence radius: 200 m around the store. GPS on a phone
+// inside a restaurant drifts tens of metres; 200 m absorbs that
+// drift (and a punch from the car park) while still catching a punch
+// from home. The radius is a documented constant, not per-store
+// configuration: no store has asked to tune it, and a tunable radius
+// is a way to quietly disable the check.
+const PUNCH_GEOFENCE_RADIUS_METERS = 200;
+
 exports.clockIn = async (req, res, next) => {
   const { businessId } = req.params;
   try {
     if (!await assertShiftMember(businessId, req.user.id)) {
       return res.status(403).json({ error: 'Not a member of this business' });
     }
-    const open = await pool.query(
-      `SELECT id FROM business_time_entries
-        WHERE business_id=$1 AND user_id=$2
-          AND clock_in_at IS NOT NULL AND clock_out_at IS NULL AND voided_at IS NULL`,
-      [businessId, req.user.id]
-    );
-    if (open.rows.length) return res.status(409).json({ error: 'Already clocked in' });
+    // The store is resolved first: the punch's timezone, geofence
+    // centre, and PIN scope all come from it.
+    const locationId = await payrollLocation(businessId, req.user?.id, req.body?.locationId ?? req.body?.location_id ?? null);
+    const punchCtx = await resolvePunchContext(businessId, locationId);
+    const timezone = await validTimezone(punchCtx.timezone) ? punchCtx.timezone : 'UTC';
     const source = PUNCH_SOURCES.has(req.body?.source) ? req.body.source : 'web';
+    const latitude = finiteCoordinate(req.body?.latitude, -90, 90);
+    const longitude = finiteCoordinate(req.body?.longitude, -180, 180);
     const punchMeta = {
       ip: req.ip || null,
       deviceLabel: typeof req.body?.device_label === 'string' ? req.body.device_label.slice(0, 120) : null,
-      latitude: Number.isFinite(Number(req.body?.latitude)) && req.body?.latitude != null ? Number(req.body.latitude) : null,
-      longitude: Number.isFinite(Number(req.body?.longitude)) && req.body?.longitude != null ? Number(req.body.longitude) : null,
+      latitude,
+      longitude,
     };
-    const row = await pool.query(
-      `INSERT INTO business_time_entries (business_id, user_id, entry_date, clock_in_at, source, punch_meta, location_id)
-       VALUES ($1,$2,
-               -- F-22: the work date is the business-local calendar day,
-               -- not the database server's date.
-               COALESCE((SELECT (NOW() AT TIME ZONE NULLIF(b.timezone, ''))::date
-                           FROM businesses b
-                          WHERE b.id = $1
-                            AND NULLIF(b.timezone, '') IN (SELECT name FROM pg_timezone_names)),
-                        CURRENT_DATE),
-               NOW(), $3, $4::jsonb, $5) RETURNING *`,
-      [businessId, req.user.id, source, JSON.stringify(punchMeta), await payrollLocation(businessId, req.user?.id, req.body?.locationId ?? req.body?.location_id ?? null)]
-    );
-    res.status(201).json(presentTimeEntry(row.rows[0]));
+    // Geofence (opt-in per location: no coordinates on the store row
+    // means no enforcement, and a punch that supplies no coordinates
+    // is never blocked for the absence alone — a device without
+    // location permission cannot prove where it is, and blocking it
+    // would strand the shift. The outcome is recorded on the punch
+    // either way so a manager can see an unchecked punch).
+    if (punchCtx.latitude != null && punchCtx.longitude != null) {
+      if (latitude == null || longitude == null) {
+        punchMeta.geofence = { checked: false, reason: 'no_coordinates' };
+      } else {
+        const distance = Math.round(haversineMeters(
+          { lat: punchCtx.latitude, lng: punchCtx.longitude },
+          { lat: latitude, lng: longitude }
+        ));
+        const within = distance <= PUNCH_GEOFENCE_RADIUS_METERS;
+        punchMeta.geofence = { checked: true, within, distance_meters: distance, radius_meters: PUNCH_GEOFENCE_RADIUS_METERS };
+        if (!within) {
+          return res.status(403).json({ error: 'Clock-in is outside this store. Clock in at the store to start your shift.' });
+        }
+      }
+    } else {
+      punchMeta.geofence = { checked: false, reason: 'not_configured' };
+    }
+    // Staff PIN (opt-in per employee per store: enforcement only
+    // applies where the employee holds an active PIN of their own at
+    // this store, or a restaurant-wide one. No PIN configured means
+    // current behaviour, no new block. Where one is configured the
+    // PIN must be the clocking-in employee's own: a borrowed PIN from
+    // a coworker is buddy punching, not proof of presence).
+    if (punchCtx.restaurantId != null && locationId != null) {
+      const { rows: [pinRow] } = await pool.query(
+        `SELECT id FROM restaurant_staff_pins
+          WHERE restaurant_id = $1 AND staff_user_id = $2 AND is_active = TRUE
+            AND (location_id IS NOT DISTINCT FROM $3::bigint OR location_id IS NULL)
+          LIMIT 1`,
+        [punchCtx.restaurantId, req.user.id, locationId]
+      );
+      if (pinRow) {
+        const pin = typeof req.body?.staff_pin === 'string' ? req.body.staff_pin : '';
+        if (!pin) {
+          return res.status(401).json({ error: 'A staff PIN is required to clock in at this store', code: 'staff_pin_required' });
+        }
+        const verified = await validateStaffPinForRestaurant({
+          restaurantId: punchCtx.restaurantId, pin, locationId,
+        });
+        if (String(verified?.staff?.userId || '') !== String(req.user.id)) {
+          return res.status(403).json({ error: 'That staff PIN does not belong to you', code: 'staff_pin_mismatch' });
+        }
+        punchMeta.staff_pin_verified = true;
+        punchMeta.staff_pin_id = verified.pinRow?.id || pinRow.id;
+      }
+    }
+    // Atomic clock-in: the partial unique index on open entries is
+    // the guard, not a preceding SELECT. ON CONFLICT ... DO NOTHING
+    // with the index predicate means two simultaneous clock-ins
+    // (web + POS/kiosk on a Friday night) admit exactly one open
+    // entry: the loser inserts nothing and gets a clean 409. A
+    // voided entry never blocks a new clock-in (the predicate
+    // requires voided_at IS NULL).
+    const row = await withTransaction(pool, async (client) => {
+      const { rows } = await client.query(
+        `INSERT INTO business_time_entries (business_id, user_id, entry_date, clock_in_at, source, punch_meta, location_id)
+         VALUES ($1,$2,
+                 -- F-22 / Phase 2: the work date is the business-local
+                 -- calendar day of the punch's own store, not the
+                 -- database server's date and not another store's.
+                 (NOW() AT TIME ZONE $3)::date,
+                 NOW(), $4, $5::jsonb, $6)
+         ON CONFLICT (business_id, user_id)
+           WHERE clock_in_at IS NOT NULL AND clock_out_at IS NULL AND voided_at IS NULL
+           DO NOTHING
+         RETURNING *`,
+        [businessId, req.user.id, timezone, source, JSON.stringify(punchMeta), locationId]
+      );
+      return rows[0] || null;
+    }, 'clock_in');
+    if (!row) return res.status(409).json({ error: 'Already clocked in' });
+    res.status(201).json(presentTimeEntry(row));
   } catch (err) { next(err); }
 };
 
@@ -589,6 +704,15 @@ exports.clockOut = async (req, res, next) => {
 
 // Break start/end on an open punch. Breaks live in the entry's breaks
 // JSONB array as { started_at, ended_at } pairs.
+//
+// Phase 2: the old code read the row, mutated the array in memory, and
+// wrote it back with no lock, so two concurrent break updates (phone
+// + kiosk, or a double-tap) could each read the same array and one
+// break was silently lost. The read-modify-write now runs inside one
+// transaction with SELECT ... FOR UPDATE: the second writer blocks
+// until the first commits, then re-reads the updated array. The
+// UPDATE also re-checks clock_out_at IS NULL / voided_at IS NULL so
+// a punch closed concurrently cannot gain a break afterwards.
 exports.punchBreak = async (req, res, next) => {
   const { businessId, entryId } = req.params;
   const action = req.body?.action === 'end' ? 'end' : 'start';
@@ -600,20 +724,36 @@ exports.punchBreak = async (req, res, next) => {
     if (String(entry.user_id) !== String(req.user.id) && !await isBusinessManager(req, businessId, req.user.id)) {
       return res.status(403).json({ error: 'You can only manage breaks on your own time entry' });
     }
-    const breaks = Array.isArray(entry.breaks) ? [...entry.breaks] : [];
-    const openBreak = breaks.find((b) => b && !b.ended_at);
-    if (action === 'start') {
-      if (openBreak) return res.status(409).json({ error: 'A break is already in progress' });
-      breaks.push({ started_at: new Date().toISOString(), ended_at: null });
-    } else {
-      if (!openBreak) return res.status(409).json({ error: 'No break is in progress' });
-      openBreak.ended_at = new Date().toISOString();
-    }
-    const row = await pool.query(
-      'UPDATE business_time_entries SET breaks=$1::jsonb WHERE id=$2 AND business_id=$3 RETURNING *',
-      [JSON.stringify(breaks), entryId, businessId]
-    );
-    res.json(presentTimeEntry(row.rows[0]));
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [locked] } = await client.query(
+        `SELECT * FROM business_time_entries
+          WHERE id = $1 AND business_id = $2 FOR UPDATE`,
+        [entryId, businessId]
+      );
+      if (!locked || locked.voided_at || !locked.clock_in_at || locked.clock_out_at) {
+        return { missing: true };
+      }
+      const breaks = Array.isArray(locked.breaks) ? [...locked.breaks] : [];
+      const openBreak = breaks.find((b) => b && !b.ended_at);
+      if (action === 'start') {
+        if (openBreak) return { conflict: 'A break is already in progress' };
+        breaks.push({ started_at: new Date().toISOString(), ended_at: null });
+      } else {
+        if (!openBreak) return { conflict: 'No break is in progress' };
+        openBreak.ended_at = new Date().toISOString();
+      }
+      const { rows: [updated] } = await client.query(
+        `UPDATE business_time_entries SET breaks = $1::jsonb
+          WHERE id = $2 AND business_id = $3 AND clock_out_at IS NULL AND voided_at IS NULL
+          RETURNING *`,
+        [JSON.stringify(breaks), entryId, businessId]
+      );
+      if (!updated) return { missing: true };
+      return { entry: updated };
+    }, 'punch_break');
+    if (result.missing) return res.status(404).json({ error: 'Active entry not found' });
+    if (result.conflict) return res.status(409).json({ error: result.conflict });
+    res.json(presentTimeEntry(result.entry));
   } catch (err) { next(err); }
 };
 
@@ -754,6 +894,308 @@ exports.voidTimeEntry = async (req, res, next) => {
     } finally {
       client.release();
     }
+  } catch (err) { next(err); }
+};
+
+// ── Phase 2: employee punch-correction requests ────────────────────
+// Before this, only a manager could fix a punch (edit with a reason,
+// or void). An employee who forgot to clock out, or whose punch has
+// the wrong time, had no way to ask.
+//
+// A request writes a pending business_time_entry_corrections row and
+// changes NOTHING on the entry: hours, pay, and every display stay
+// exactly as punched until a manager approves. Approval applies the
+// change through the same append-only business_time_entry_edits audit
+// as a manager edit (editor = the requesting employee, approved_by =
+// the deciding manager, reason = the employee's reason), so an
+// approved correction is indistinguishable in the audit trail from a
+// manager edit and a rejected one leaves no trace on the entry.
+// One pending correction per entry: a second request while one is
+// undecided is a 409 (partial unique index in the Phase 2 migration).
+
+function presentCorrection(row) {
+  if (!row) return row;
+  return {
+    id: row.id,
+    entry_id: row.entry_id,
+    business_id: row.business_id,
+    requester_user_id: row.requester_user_id,
+    requester_name: row.requester_name || null,
+    user_name: row.user_name || null,
+    entry_date: row.entry_date instanceof Date
+      ? row.entry_date.toISOString().slice(0, 10)
+      : (row.entry_date ? String(row.entry_date).slice(0, 10) : null),
+    current_clock_in_at: row.current_clock_in_at || null,
+    current_clock_out_at: row.current_clock_out_at || null,
+    requested_clock_in_at: row.requested_clock_in_at || null,
+    requested_clock_out_at: row.requested_clock_out_at || null,
+    clears_clock_out: row.clears_clock_out === true,
+    requested_description: row.requested_description ?? null,
+    reason: row.reason,
+    status: row.status,
+    decided_by: row.decided_by || null,
+    decided_at: row.decided_at || null,
+    decision_reason: row.decision_reason || null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+const CORRECTION_SELECT = `
+  SELECT c.*,
+         COALESCE(ru.display_name_preference, ru.first_name || ' ' || ru.last_name) AS requester_name,
+         COALESCE(eu.display_name_preference, eu.first_name || ' ' || eu.last_name) AS user_name,
+         te.entry_date, te.clock_in_at AS current_clock_in_at, te.clock_out_at AS current_clock_out_at
+    FROM business_time_entry_corrections c
+    JOIN business_time_entries te ON te.id = c.entry_id
+    LEFT JOIN users ru ON ru.id = c.requester_user_id
+    LEFT JOIN users eu ON eu.id = te.user_id`;
+
+exports.requestTimeEntryCorrection = async (req, res, next) => {
+  const { businessId, entryId } = req.params;
+  const { clock_in_at, clock_out_at, description, reason } = req.body || {};
+  try {
+    if (!reason || !String(reason).trim()) {
+      return res.status(400).json({ error: 'A reason is required to request a punch correction' });
+    }
+    if (clock_in_at === undefined && clock_out_at === undefined && description === undefined) {
+      return res.status(400).json({ error: 'No correction supplied' });
+    }
+    const entry = await loadTimeEntry(businessId, entryId, req);
+    if (!entry || entry.voided_at) return res.status(404).json({ error: 'Entry not found' });
+    // The employee the punch belongs to, or a manager acting for them.
+    if (String(entry.user_id) !== String(req.user.id) && !await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'You can only request corrections for your own punches' });
+    }
+    const nextIn = clock_in_at !== undefined && clock_in_at !== null ? new Date(clock_in_at) : null;
+    const nextOut = clock_out_at !== undefined && clock_out_at !== null ? new Date(clock_out_at) : null;
+    if ((clock_in_at !== undefined && clock_in_at !== null && (!nextIn || Number.isNaN(nextIn.getTime())))
+      || (clock_out_at !== undefined && clock_out_at !== null && (!nextOut || Number.isNaN(nextOut.getTime())))) {
+      return res.status(400).json({ error: 'clock_in_at and clock_out_at must be valid datetimes' });
+    }
+    const mergedIn = nextIn || (entry.clock_in_at ? new Date(entry.clock_in_at) : null);
+    const mergedOut = clock_out_at === null ? null : (nextOut || (entry.clock_out_at ? new Date(entry.clock_out_at) : null));
+    if (mergedIn && mergedOut && mergedOut <= mergedIn) {
+      return res.status(400).json({ error: 'clock_out_at must be after clock_in_at' });
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO business_time_entry_corrections
+         (entry_id, business_id, requester_user_id,
+          requested_clock_in_at, requested_clock_out_at, clears_clock_out,
+          requested_description, reason)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [
+        entryId,
+        businessId,
+        req.user.id,
+        nextIn ? nextIn.toISOString() : null,
+        nextOut ? nextOut.toISOString() : null,
+        clock_out_at === null,
+        description !== undefined ? (description || null) : null,
+        String(reason).slice(0, 1000),
+      ]
+    );
+    return res.status(201).json(presentCorrection(rows[0]));
+  } catch (err) {
+    // 23505: the one-pending-correction-per-entry unique index.
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'A correction is already pending for this punch' });
+    }
+    return next(err);
+  }
+};
+
+exports.listTimeEntryCorrections = async (req, res, next) => {
+  const { businessId } = req.params;
+  const status = String(req.query.status || '').toLowerCase();
+  try {
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can review punch corrections' });
+    }
+    const where = ['c.business_id = $1'];
+    const params = [businessId];
+    if (['pending', 'approved', 'rejected'].includes(status)) {
+      where.push(`c.status = $${params.length + 1}`);
+      params.push(status);
+    }
+    const { rows } = await pool.query(
+      `${CORRECTION_SELECT} WHERE ${where.join(' AND ')} ORDER BY c.created_at DESC, c.id DESC LIMIT 200`,
+      params
+    );
+    res.json(rows.map(presentCorrection));
+  } catch (err) { next(err); }
+};
+
+exports.listMyTimeEntryCorrections = async (req, res, next) => {
+  const { businessId } = req.params;
+  try {
+    if (!await assertShiftMember(businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Not a member of this business' });
+    }
+    const { rows } = await pool.query(
+      `${CORRECTION_SELECT} WHERE c.business_id = $1 AND c.requester_user_id = $2
+        ORDER BY c.created_at DESC, c.id DESC LIMIT 100`,
+      [businessId, req.user.id]
+    );
+    res.json(rows.map(presentCorrection));
+  } catch (err) { next(err); }
+};
+
+exports.decideTimeEntryCorrection = async (req, res, next) => {
+  const { businessId, correctionId } = req.params;
+  const decision = req.body?.decision === 'rejected' ? 'rejected' : (req.body?.decision === 'approved' ? 'approved' : null);
+  const decisionReason = typeof req.body?.reason === 'string' ? req.body.reason.slice(0, 1000) : null;
+  try {
+    if (!decision) {
+      return res.status(400).json({ error: "decision must be 'approved' or 'rejected'" });
+    }
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can decide punch corrections' });
+    }
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [correction] } = await client.query(
+        `SELECT * FROM business_time_entry_corrections
+          WHERE id = $1 AND business_id = $2 FOR UPDATE`,
+        [correctionId, businessId]
+      );
+      if (!correction) return { missing: true };
+      if (correction.status !== 'pending') return { conflict: 'This correction has already been decided' };
+      const { rows: [entry] } = await client.query(
+        `SELECT * FROM business_time_entries WHERE id = $1 AND business_id = $2 FOR UPDATE`,
+        [correction.entry_id, businessId]
+      );
+      if (!entry || entry.voided_at) return { conflict: 'The punch no longer exists or was voided' };
+      if (decision === 'rejected') {
+        const { rows: [updated] } = await client.query(
+          `UPDATE business_time_entry_corrections
+              SET status = 'rejected', decided_by = $1, decided_at = NOW(),
+                  decision_reason = $2, updated_at = NOW()
+            WHERE id = $3 AND business_id = $4 RETURNING *`,
+          [req.user.id, decisionReason, correctionId, businessId]
+        );
+        return { correction: updated };
+      }
+      // Approved: apply exactly the requested changes, through the
+      // append-only edit audit, as if the manager had made the edit
+      // themselves with the employee as editor.
+      const changes = [];
+      if (correction.requested_clock_in_at != null) {
+        changes.push({ field: 'clock_in_at', oldValue: entry.clock_in_at, newValue: new Date(correction.requested_clock_in_at).toISOString() });
+      }
+      // A requested clock-out is a new time; an explicit clear
+      // (clears_clock_out) reopens the punch. An unrequested clock-out
+      // leaves the stored value untouched.
+      if (correction.requested_clock_out_at != null) {
+        changes.push({ field: 'clock_out_at', oldValue: entry.clock_out_at, newValue: new Date(correction.requested_clock_out_at).toISOString() });
+      } else if (correction.clears_clock_out) {
+        changes.push({ field: 'clock_out_at', oldValue: entry.clock_out_at, newValue: null });
+      }
+      if (correction.requested_description !== null && correction.requested_description !== undefined) {
+        changes.push({ field: 'description', oldValue: entry.description, newValue: correction.requested_description });
+      }
+      const merged = { ...entry };
+      for (const change of changes) merged[change.field] = change.newValue;
+      if (merged.clock_in_at && merged.clock_out_at
+        && new Date(merged.clock_out_at) <= new Date(merged.clock_in_at)) {
+        return { conflict: 'The requested clock_out_at is not after clock_in_at' };
+      }
+      const hours = merged.clock_in_at && merged.clock_out_at
+        ? Math.max(0.01, computedHours(merged))
+        : merged.clock_in_at ? null : entry.hours_worked;
+      // The work date follows the (possibly corrected) clock-in, in
+      // the punch's own store timezone, same rule as clockIn.
+      let entryDate = entry.entry_date;
+      if (correction.requested_clock_in_at != null) {
+        const ctx = await resolvePunchContext(businessId, entry.location_id);
+        const tz = await validTimezone(ctx.timezone) ? ctx.timezone : 'UTC';
+        const { rows: [d] } = await client.query(
+          'SELECT ($1::timestamptz AT TIME ZONE $2)::date AS d',
+          [merged.clock_in_at, tz]
+        );
+        entryDate = d?.d || entryDate;
+      }
+      const { rows: [updatedEntry] } = await client.query(
+        `UPDATE business_time_entries
+            SET clock_in_at = $1::timestamptz,
+                clock_out_at = $2::timestamptz,
+                description = $3,
+                hours_worked = $4,
+                entry_date = $5::date,
+                approved_by = $6
+          WHERE id = $7 AND business_id = $8 AND voided_at IS NULL
+          RETURNING *`,
+        [
+          merged.clock_in_at ? new Date(merged.clock_in_at).toISOString() : null,
+          merged.clock_out_at ? new Date(merged.clock_out_at).toISOString() : null,
+          merged.description ?? null,
+          hours,
+          entryDate instanceof Date ? entryDate.toISOString().slice(0, 10) : String(entryDate).slice(0, 10),
+          req.user.id,
+          entry.id,
+          businessId,
+        ]
+      );
+      if (!updatedEntry) return { conflict: 'The punch no longer exists or was voided' };
+      for (const change of changes) {
+        await client.query(
+          `INSERT INTO business_time_entry_edits (entry_id, business_id, editor_user_id, approved_by, field, old_value, new_value, reason)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [
+            entry.id,
+            businessId,
+            correction.requester_user_id,
+            req.user.id,
+            change.field,
+            change.oldValue == null ? null : String(change.oldValue instanceof Date ? change.oldValue.toISOString() : change.oldValue),
+            change.newValue == null ? null : String(change.newValue),
+            String(correction.reason).slice(0, 1000),
+          ]
+        );
+      }
+      const { rows: [updated] } = await client.query(
+        `UPDATE business_time_entry_corrections
+            SET status = 'approved', decided_by = $1, decided_at = NOW(),
+                decision_reason = $2, updated_at = NOW()
+          WHERE id = $3 AND business_id = $4 RETURNING *`,
+        [req.user.id, decisionReason, correctionId, businessId]
+      );
+      return { correction: updated, entry: updatedEntry };
+    }, 'decide_time_entry_correction');
+    if (result.missing) return res.status(404).json({ error: 'Correction request not found' });
+    if (result.conflict) return res.status(409).json({ error: result.conflict });
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: `business.staff.time_entry_correction.${decision}`,
+      target_type: 'time_entry_correction',
+      target_id: result.correction?.id,
+      before_state: { status: 'pending' },
+      after_state: result.correction,
+    });
+    return res.json({
+      correction: presentCorrection(result.correction),
+      ...(result.entry ? { entry: presentTimeEntry(result.entry) } : {}),
+    });
+  } catch (err) { next(err); }
+};
+
+// Phase 2: the manager-triggered close-of-day check. Same sweep the
+// nightly job runs (server/jobs/restaurantPunchCloseoutJob.js): open
+// punches past their close time are closed at that close time and
+// flagged system-closed, and the manager is notified. Returns the
+// entries it closed so the manager can review them before payroll.
+exports.closeStaleTimeEntries = async (req, res, next) => {
+  const { businessId } = req.params;
+  try {
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can run the close-of-day punch check' });
+    }
+    const result = await closeStalePunches({ businessId: Number(businessId) });
+    return res.json({
+      closed: result.closed.map((e) => presentTimeEntry(e)),
+      notified: result.notified,
+      notify_errors: result.notifyErrors,
+      errors: result.errors,
+    });
   } catch (err) { next(err); }
 };
 
