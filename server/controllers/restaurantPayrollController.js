@@ -18,6 +18,7 @@ const payroll = require('../services/restaurantPayrollService');
 const { getLocationScope, assertLocationAccess } = require('../services/restaurantLocationAccessService');
 const { strictInteger } = require('../utils/strictInteger');
 const { withTransaction } = require('../utils/transaction');
+const { formatMinorUnits } = require('../utils/currencyPrecision');
 
 
 function parsePositiveInt(value) {
@@ -115,7 +116,10 @@ exports.getLaborPolicy = async (req, res, next) => {
   try {
     const restaurant = await restaurantAccess(req);
     await requirePayrollView(restaurant, req.user.id);
-    const policy = await payroll.getLaborPolicy(restaurant.id);
+    const locationId = req.query?.locationId === undefined ? null : strictInteger(req.query.locationId);
+    if (req.query?.locationId !== undefined && !locationId) throw new AppError('Invalid store', 400, 'invalid_location_id');
+    if (locationId) await assertLocationAccess(restaurant, req.user.id, locationId);
+    const policy = await payroll.getLaborPolicy(restaurant.id, locationId);
     res.json({ policy });
   } catch (err) { next(err); }
 };
@@ -124,16 +128,27 @@ exports.updateLaborPolicy = async (req, res, next) => {
   try {
     const restaurant = await restaurantAccess(req);
     await requireCatalogPermission(restaurant, req.user.id, 'payroll.manage', 'payroll_permission_required', 'Required permission: payroll.manage');
-    const scope = await getLocationScope(restaurant, req.user.id);
-    if (scope.mode === 'assigned') throw new AppError('Brand settings require all-store access', 403, 'location_scope_forbidden');
     const body = req.body || {};
-    const current = await payroll.getLaborPolicy(restaurant.id);
+    const locationId = body.locationId ?? body.location_id ?? req.query?.locationId;
+    const parsedLocationId = locationId === undefined || locationId === null ? null : strictInteger(locationId);
+    if (locationId !== undefined && locationId !== null && !parsedLocationId) throw new AppError('Invalid store', 400, 'invalid_location_id');
+    if (parsedLocationId) {
+      // A per-location policy needs access to that store, not
+      // all-store access: a store manager sets their own store's policy.
+      await assertLocationAccess(restaurant, req.user.id, parsedLocationId);
+    } else {
+      const scope = await getLocationScope(restaurant, req.user.id);
+      if (scope.mode === 'assigned') throw new AppError('Brand settings require all-store access', 403, 'location_scope_forbidden');
+    }
+    const current = await payroll.getLaborPolicy(restaurant.id, parsedLocationId);
     const policy = await payroll.saveLaborPolicy(restaurant.id, {
       overtime_threshold_hours: body.overtime_threshold_hours ?? body.overtimeThresholdHours ?? current.overtime_threshold_hours,
       overtime_multiplier_bps: body.overtime_multiplier_bps ?? body.overtimeMultiplierBps ?? current.overtime_multiplier_bps,
       break_after_minutes: body.break_after_minutes ?? body.breakAfterMinutes ?? current.break_after_minutes,
       break_duration_minutes: body.break_duration_minutes ?? body.breakDurationMinutes ?? current.break_duration_minutes,
-    }, req.user.id);
+      country_code: body.country_code ?? body.countryCode ?? current.country_code,
+      region_code: body.region_code ?? body.regionCode ?? current.region_code,
+    }, req.user.id, parsedLocationId);
     await logBusinessAction(req, {
       business_id: restaurant.business_id,
       actor_role: restaurant.effective_role || null,
@@ -357,10 +372,15 @@ function payRunLinesFromLabor(labor) {
     staff_label: e.name || null,
     regular_hours: Number(e.regular_hours) || 0,
     overtime_hours: Number(e.overtime_hours) || 0,
+    doubletime_hours: Number(e.doubletime_hours) || 0,
     hourly_wage_cents: e.hourly_wage_cents == null ? null : Math.round(Number(e.hourly_wage_cents)),
     regular_wages_cents: e.regular_wages_cents == null ? null : Math.round(Number(e.regular_wages_cents)),
     overtime_wages_cents: e.overtime_wages_cents == null ? null : Math.round(Number(e.overtime_wages_cents)),
+    doubletime_wages_cents: e.doubletime_wages_cents == null ? null : Math.round(Number(e.doubletime_wages_cents)),
     wages_cents: e.wages_cents == null ? null : Math.round(Number(e.wages_cents)),
+    meal_break_premium_cents: Math.round(Number(e.meal_break_premium_cents) || 0),
+    predictability_premium_cents: Math.round(Number(e.predictability_premium_cents) || 0),
+    unpriced_premium_hours: Math.round((Number(e.unpriced_premium_hours) || 0) * 100) / 100,
     gross_tips_cents: Math.round(Number(e.gross_tips_cents) || 0),
     net_tips_cents: Math.round(Number(e.net_tips_cents) || 0),
     total_pay_cents: Math.round(Number(e.total_pay_cents) || 0),
@@ -372,19 +392,26 @@ async function insertPayRunLines(client, payRunId, lines) {
     await client.query(
       `INSERT INTO restaurant_pay_run_lines
          (pay_run_id, staff_user_id, staff_label, regular_hours, overtime_hours,
-          hourly_wage_cents, regular_wages_cents, overtime_wages_cents, wages_cents,
+          doubletime_hours, hourly_wage_cents, regular_wages_cents, overtime_wages_cents,
+          doubletime_wages_cents, wages_cents, meal_break_premium_cents,
+          predictability_premium_cents, unpriced_premium_hours,
           gross_tips_cents, net_tips_cents, total_pay_cents)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
       [
         payRunId,
         line.staff_user_id,
         line.staff_label,
         line.regular_hours,
         line.overtime_hours,
+        line.doubletime_hours,
         line.hourly_wage_cents,
         line.regular_wages_cents,
         line.overtime_wages_cents,
+        line.doubletime_wages_cents,
         line.wages_cents,
+        line.meal_break_premium_cents,
+        line.predictability_premium_cents,
+        line.unpriced_premium_hours,
         line.gross_tips_cents,
         line.net_tips_cents,
         line.total_pay_cents,
@@ -461,10 +488,15 @@ function payRunShape(run) {
       staff_label: line.staff_label,
       regular_hours: Number(line.regular_hours),
       overtime_hours: Number(line.overtime_hours),
+      doubletime_hours: Number(line.doubletime_hours || 0),
       hourly_wage_cents: line.hourly_wage_cents == null ? null : Number(line.hourly_wage_cents),
       regular_wages_cents: line.regular_wages_cents == null ? null : Number(line.regular_wages_cents),
       overtime_wages_cents: line.overtime_wages_cents == null ? null : Number(line.overtime_wages_cents),
+      doubletime_wages_cents: line.doubletime_wages_cents == null ? null : Number(line.doubletime_wages_cents),
       wages_cents: line.wages_cents == null ? null : Number(line.wages_cents),
+      meal_break_premium_cents: Number(line.meal_break_premium_cents || 0),
+      predictability_premium_cents: Number(line.predictability_premium_cents || 0),
+      unpriced_premium_hours: Number(line.unpriced_premium_hours || 0),
       gross_tips_cents: Number(line.gross_tips_cents),
       net_tips_cents: Number(line.net_tips_cents),
       total_pay_cents: Number(line.total_pay_cents),
@@ -618,13 +650,28 @@ exports.finalizePayRun = async (req, res, next) => {
           { count: missingWageLines.length }
         );
       }
+      // Money fails closed: premium hours with no wage to price them
+      // would finalize as zero-owed. Set the wage rates first.
+      const unpricedLines = lines.filter((line) => Number(line.unpriced_premium_hours || 0) > 0);
+      if (unpricedLines.length) {
+        throw new AppError(
+          'Some premium hours have no wage rate to price them; set wage rates before finalizing',
+          409,
+          'pay_run_unpriced_premiums',
+          { count: unpricedLines.length }
+        );
+      }
       const sum = (pick) => lines.reduce((total, line) => total + (Number(pick(line)) || 0), 0);
       const totals = {
         currency: restaurant.currency_code || 'USD',
         employees: lines.length,
         total_regular_hours: Math.round(sum((l) => l.regular_hours) * 100) / 100,
         total_overtime_hours: Math.round(sum((l) => l.overtime_hours) * 100) / 100,
+        total_doubletime_hours: Math.round(sum((l) => l.doubletime_hours) * 100) / 100,
         total_wages_cents: Math.round(sum((l) => l.wages_cents)),
+        total_doubletime_wages_cents: Math.round(sum((l) => l.doubletime_wages_cents)),
+        total_meal_break_premium_cents: Math.round(sum((l) => l.meal_break_premium_cents)),
+        total_predictability_premium_cents: Math.round(sum((l) => l.predictability_premium_cents)),
         total_gross_tips_cents: Math.round(sum((l) => l.gross_tips_cents)),
         total_net_tips_cents: Math.round(sum((l) => l.net_tips_cents)),
         total_pay_cents: Math.round(sum((l) => l.total_pay_cents)),
@@ -720,16 +767,20 @@ exports.exportPayRunCsv = async (req, res, next) => {
       ? run.period_to.toISOString().slice(0, 10)
       : String(run.period_to).slice(0, 10);
     const header = [
-      'employee_name', 'user_id', 'regular_hours', 'overtime_hours',
-      'hourly_wage_cents', 'regular_wages_cents', 'overtime_wages_cents', 'wages_cents',
+      'employee_name', 'user_id', 'regular_hours', 'overtime_hours', 'doubletime_hours',
+      'hourly_wage_cents', 'regular_wages_cents', 'overtime_wages_cents', 'doubletime_wages_cents', 'wages_cents',
+      'meal_break_premium_cents', 'predictability_premium_cents',
       'gross_tips_cents', 'net_tips_cents', 'total_pay_cents',
     ];
+    const runCurrency = restaurant.currency_code || 'USD';
+    const runTotal = (run.lines || []).reduce((sum, line) => sum + (Number(line.total_pay_cents) || 0), 0);
     const lines = [
-      `# OxSteed payroll export — run ${run.id}, ${periodFrom} to ${periodTo}, status ${run.status}, finalized ${run.finalized_at || 'n/a'}`,
+      `# OxSteed payroll export — run ${run.id}, ${periodFrom} to ${periodTo}, status ${run.status}, finalized ${run.finalized_at || 'n/a'}, total ${formatMinorUnits(runTotal, runCurrency)}`,
       header.join(','),
       ...run.lines.map((line) => [
-        line.staff_label, line.staff_user_id, line.regular_hours, line.overtime_hours,
-        line.hourly_wage_cents, line.regular_wages_cents, line.overtime_wages_cents, line.wages_cents,
+        line.staff_label, line.staff_user_id, line.regular_hours, line.overtime_hours, line.doubletime_hours,
+        line.hourly_wage_cents, line.regular_wages_cents, line.overtime_wages_cents, line.doubletime_wages_cents, line.wages_cents,
+        line.meal_break_premium_cents, line.predictability_premium_cents,
         line.gross_tips_cents, line.net_tips_cents, line.total_pay_cents,
       ].map(csvCell).join(',')),
     ];

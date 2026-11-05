@@ -941,7 +941,9 @@ exports.publishShifts = async (req, res, next) => {
 // out of scope (Emile's call); this only stores and serves the native
 // engine's inputs.
 
-const JURISDICTION_CODES = new Set(['US-FED', 'US-CA', 'US-NYC', 'US-SFO', 'US-SEA', 'US-CHI', 'US-OR', 'CUSTOM']);
+// Jurisdiction codes are the rule table's preset keys: adding a
+// preset adds a settable code, with no second list to keep in sync.
+const JURISDICTION_CODES = new Set(Object.keys(laborJurisdiction.PRESETS));
 
 // ── S-20: minors and Fair Workweek schedule changes ─────────────────────
 async function minorBands(businessId, userIds) {
@@ -964,7 +966,11 @@ const shiftSnapshot = (row) => row && ({
 });
 
 // A change to a published shift is recorded; inside the notice window an
-// employer-initiated change is flagged for predictability pay.
+// employer-initiated change is flagged for predictability pay, and the
+// amount is computed at change time: premium hours from the jurisdiction's
+// premium rule, priced at the employee's wage of record. When the wage is
+// unknown the hours are stored with a NULL amount so payroll prices them
+// from the current wage at report time instead of silently paying zero.
 async function recordScheduleChange(req, { businessId, before, after, changeType }) {
   if (!before?.published_at) return null;
   const rules = await laborJurisdiction.getJurisdiction(pool, Number(before.restaurant_id) || null, Number(before.location_id) || null);
@@ -972,16 +978,49 @@ async function recordScheduleChange(req, { businessId, before, after, changeType
   const b = shiftSnapshot(before), a = after ? shiftSnapshot(after) : null;
   if (a && b.shift_date === a.shift_date && b.start_time === a.start_time && b.end_time === a.end_time && b.user_id === a.user_id) return null;
   const verdict = laborJurisdiction.evaluateChange({ before: b, after: a, rules, employeeRequested });
+  let premiumHours = verdict.premium_hours;
+  let premiumCents = null;
+  let premiumCurrency = null;
+  if (verdict.premium_due && premiumHours != null && before.user_id) {
+    const { rows: [wageRow] } = await pool.query(
+      `SELECT COALESCE(
+              CASE WHEN lm.pay_rate_period = 'hour' THEN lm.pay_rate_cents END,
+              bm.hourly_wage_cents,
+              CASE WHEN bm.pay_rate_period = 'hour' THEN bm.pay_rate_cents END
+            ) AS hourly_wage_cents
+         FROM business_members bm
+         LEFT JOIN restaurant_location_memberships lm
+           ON lm.membership_id = bm.id AND lm.restaurant_id = $2 AND lm.location_id = $3 AND lm.status = 'active'
+        WHERE bm.business_id = $1 AND bm.member_id = $4 AND bm.status = 'active'`,
+      [businessId, Number(before.restaurant_id) || null, Number(before.location_id) || null, before.user_id]
+    ).catch(() => ({ rows: [] }));
+    const wage = wageRow?.hourly_wage_cents == null ? null : Number(wageRow.hourly_wage_cents);
+    if (wage != null) premiumCents = Math.round(Number(premiumHours) * wage);
+    const { rows: [currencyRow] } = await pool.query(
+      `SELECT l.currency_code AS location_currency, r.currency_code AS restaurant_currency
+         FROM food_restaurants r
+         LEFT JOIN restaurant_locations l ON l.id = $2 AND l.restaurant_id = r.id
+        WHERE r.id = $1`,
+      [Number(before.restaurant_id) || null, Number(before.location_id) || null]
+    ).catch(() => ({ rows: [] }));
+    premiumCurrency = currencyRow?.location_currency || currencyRow?.restaurant_currency || null;
+  }
   const { rows: [row] } = await pool.query(
     `INSERT INTO business_staff_schedule_changes
        (business_id, shift_id, user_id, restaurant_id, location_id, change_type, before_state, after_state,
-        hours_before_start, notice_hours, jurisdiction_code, employee_requested, premium_due, changed_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+        hours_before_start, notice_hours, jurisdiction_code, employee_requested, premium_due,
+        premium_hours, premium_cents, premium_currency_code, changed_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
     [businessId, before.id, before.user_id || null, before.restaurant_id || null, before.location_id || null, changeType,
       JSON.stringify(b), a ? JSON.stringify(a) : null, verdict.hours_before_start, verdict.notice_hours, verdict.jurisdiction_code,
-      employeeRequested, verdict.premium_due, req.user.id]
+      employeeRequested, verdict.premium_due, premiumHours, premiumCents, premiumCurrency, req.user.id]
   );
-  return { id: Number(row.id), premium_due: row.premium_due, notice_hours: row.notice_hours, hours_before_start: Number(row.hours_before_start), jurisdiction_code: row.jurisdiction_code };
+  return {
+    id: Number(row.id), premium_due: row.premium_due, premium_hours: row.premium_hours == null ? null : Number(row.premium_hours),
+    premium_cents: row.premium_cents == null ? null : Number(row.premium_cents),
+    premium_currency_code: row.premium_currency_code || null,
+    notice_hours: row.notice_hours, hours_before_start: Number(row.hours_before_start), jurisdiction_code: row.jurisdiction_code,
+  };
 }
 
 exports.getLaborProfile = async (req, res, next) => {
@@ -1035,7 +1074,8 @@ exports.listScheduleChanges = async (req, res, next) => {
     if (req.query.premium === 'true') where += ' AND premium_due';
     const { rows } = await pool.query(
       `SELECT id, shift_id, user_id, location_id, change_type, before_state, after_state, hours_before_start, notice_hours,
-              jurisdiction_code, employee_requested, premium_due, changed_by, created_at
+              jurisdiction_code, employee_requested, premium_due, premium_hours, premium_cents, premium_currency_code,
+              changed_by, created_at
          FROM business_staff_schedule_changes WHERE ${where} ORDER BY created_at DESC LIMIT 200`,
       params
     );
