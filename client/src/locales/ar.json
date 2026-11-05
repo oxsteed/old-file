@@ -21856,6 +21856,9 @@
     "actions": {
       "refresh": "تحديث"
     },
+    "currency": {
+      "label": "عملة الإيرادات"
+    },
     "status": {
       "agreementLabel": "اتفاقية",
       "trainingLabel": "التدريب"

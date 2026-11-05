@@ -21845,6 +21845,9 @@
     "actions": {
       "refresh": "Refresh"
     },
+    "currency": {
+      "label": "Revenue currency"
+    },
     "status": {
       "agreementLabel": "Agreement",
       "trainingLabel": "Training"

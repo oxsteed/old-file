@@ -21845,6 +21845,9 @@
     "actions": {
       "refresh": "Mete ajou"
     },
+    "currency": {
+      "label": "Lajan revni"
+    },
     "status": {
       "agreementLabel": "Akò",
       "trainingLabel": "Fòmasyon"

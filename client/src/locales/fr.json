@@ -21845,6 +21845,9 @@
     "actions": {
       "refresh": "Actualiser"
     },
+    "currency": {
+      "label": "Devise des revenus"
+    },
     "status": {
       "agreementLabel": "Convention",
       "trainingLabel": "Formation"

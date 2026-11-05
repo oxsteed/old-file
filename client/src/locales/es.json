@@ -21845,6 +21845,9 @@
     "actions": {
       "refresh": "Actualizar"
     },
+    "currency": {
+      "label": "Moneda de los ingresos"
+    },
     "status": {
       "agreementLabel": "Acuerdo",
       "trainingLabel": "Capacitación"

@@ -57,6 +57,14 @@ function parseNonNegativeInt(value, fallback = null) {
   return parsed;
 }
 
+// Franchise fee currency: a validated 3-letter ISO code, uppercased.
+// Anything else falls back to USD (creation path) or is rejected by the
+// upsert validator below; never stored unvalidated.
+function normalizeCurrencyCode(value) {
+  const code = String(value || '').trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(code) ? code : 'USD';
+}
+
 async function ensureProgram(client) {
   const programResult = await client.query(
     `SELECT id, default_currency, initial_fee_cents, royalty_bps, marketing_fee_bps, term_years
@@ -266,8 +274,9 @@ async function createFranchiseApplication(req, res) {
            initial_fee_cents,
            royalty_bps,
            marketing_fee_bps,
-           term_years
-         ) VALUES ($1, $2, $3, $4, $5, $6)`,
+           term_years,
+           currency
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           applicationId,
           'v1',
@@ -275,6 +284,9 @@ async function createFranchiseApplication(req, res) {
           program.royalty_bps,
           program.marketing_fee_bps,
           program.term_years,
+          // New agreements inherit the program's fee currency; without this
+          // the fee was reported as dollars regardless of the program.
+          normalizeCurrencyCode(program.default_currency),
         ]
       );
 
@@ -778,6 +790,17 @@ async function upsertFranchiseAgreement(req, res) {
   const marketingFeeBps = body.marketing_fee_bps !== undefined ? parseNonNegativeInt(body.marketing_fee_bps, null) : null;
   const termYears = body.term_years !== undefined ? parsePositiveInt(body.term_years, null) : null;
 
+  // Franchise fee currency: accepted only as a validated 3-letter ISO code.
+  // An invalid code is rejected rather than stored or silently read as USD.
+  let agreementCurrency = null;
+  if (body.currency !== undefined && body.currency !== null && body.currency !== '') {
+    const code = String(body.currency).trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(code)) {
+      return res.status(400).json({ error: 'Invalid currency. Use a 3-letter ISO code.' });
+    }
+    agreementCurrency = code;
+  }
+
   // Review P2-9-F09: agreement "signing" was admin-asserted — the applicant
   // never signed. The admin upsert now ignores any applicant signature
   // fields; only the applicant's own POST /applications/:id/agreement/sign
@@ -821,9 +844,10 @@ async function upsertFranchiseAgreement(req, res) {
            signed_at,
            countersigned_by,
            countersigned_at,
-           notes
+           notes,
+           currency
          ) VALUES (
-           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15
          )
          ON CONFLICT (application_id) DO UPDATE SET
            agreement_version = COALESCE(EXCLUDED.agreement_version, franchise_agreements.agreement_version),
@@ -839,6 +863,7 @@ async function upsertFranchiseAgreement(req, res) {
            countersigned_by = COALESCE(EXCLUDED.countersigned_by, franchise_agreements.countersigned_by),
            countersigned_at = COALESCE(EXCLUDED.countersigned_at, franchise_agreements.countersigned_at),
            notes = COALESCE(EXCLUDED.notes, franchise_agreements.notes),
+           currency = COALESCE(EXCLUDED.currency, franchise_agreements.currency),
            updated_at = NOW()`,
         [
           id,
@@ -857,6 +882,7 @@ async function upsertFranchiseAgreement(req, res) {
           body.countersigned_by || req.user?.id || null,
           body.countersigned_at || null,
           asTrimmed(body.notes),
+          agreementCurrency,
         ]
       );
 

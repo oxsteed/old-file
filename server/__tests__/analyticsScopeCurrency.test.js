@@ -204,16 +204,29 @@ describe('(c) franchise territory revenue currency', () => {
   const franchiseCtrl = require('../controllers/franchiseTerritoryController');
 
   function mockTerritoryQueries() {
-    db.query.mockImplementation(async (text) => {
+    db.query.mockImplementation(async (text, params) => {
       const sql = String(text);
       if (sql.includes('information_schema')) return { rows: [{ '?column?': 1 }] };
       if (sql.includes('FROM franchise_applications')) {
         return { rows: [{ id: 1, desired_country: 'US', desired_region: 'OH', desired_city: 'Springfield', status: 'launched', agreement_status: 'signed', training_status: 'done', launch_readiness_status: 'ready', linked_business_id: 42, desired_brand_name: 'Test', current_company_name: 'Test', checklist_done: 1, checklist_all: 1 }] };
       }
-      if (sql.includes('FROM platform_ledger')) return { rows: [{ rev_30d: '5000', rev_total: '9000' }] };
+      // Branch the ledger mock by bound currency, like the real table:
+      // linked_business_id=42 holds USD and EUR rows that must never mix.
+      if (sql.includes('DISTINCT') && sql.includes('FROM platform_ledger')) {
+        return { rows: [{ currency: 'EUR' }, { currency: 'USD' }] };
+      }
+      if (sql.includes('FROM platform_ledger')) {
+        const bound = String(params && params[1] ? params[1] : 'usd').toLowerCase();
+        return bound === 'eur'
+          ? { rows: [{ rev_30d: '20000', rev_total: '70000' }] }
+          : { rows: [{ rev_30d: '10000', rev_total: '40000' }] };
+      }
       return { rows: [] };
     });
   }
+
+  const revenueCalls = () => db.query.mock.calls.filter(([t]) =>
+    String(t).includes('FROM platform_ledger') && !String(t).includes('DISTINCT'));
 
   test('revenue query binds the requested currency and names it in the response', async () => {
     mockTerritoryQueries();
@@ -222,7 +235,11 @@ describe('(c) franchise territory revenue currency', () => {
     await franchiseCtrl.getTerritoryStats(req, res);
     const body = res.json.mock.calls[0][0];
     expect(body.territory_kpis.revenue_currency_code).toBe('EUR');
-    const revCall = db.query.mock.calls.find(([t]) => String(t).includes('FROM platform_ledger'));
+    // EUR rows only: the USD 10000/40000 must not be added in.
+    expect(body.territory_kpis.revenue_30d_cents).toBe(20000);
+    expect(body.territory_kpis.revenue_total_cents).toBe(70000);
+    expect(body.territory_kpis.available_revenue_currencies).toEqual(['EUR', 'USD']);
+    const revCall = revenueCalls()[0];
     expect(revCall[0]).toMatch('UPPER(currency) = UPPER($2)');
     expect(revCall[1]).toEqual([42, 'eur']);
   });
@@ -234,8 +251,18 @@ describe('(c) franchise territory revenue currency', () => {
     await franchiseCtrl.getTerritoryStats(req, res);
     const body = res.json.mock.calls[0][0];
     expect(body.territory_kpis.revenue_currency_code).toBe('USD');
+    expect(body.territory_kpis.revenue_30d_cents).toBe(10000);
+    expect(body.territory_kpis.revenue_total_cents).toBe(40000);
+    const callsBeforeInvalid = revenueCalls().length;
     const res2 = mockRes();
     await franchiseCtrl.getTerritoryStats({ user: { id: 5 }, query: { currency: 'xx' } }, res2);
     expect(res2.status).toHaveBeenCalledWith(400);
+    expect(revenueCalls().length).toBe(callsBeforeInvalid);
+    // A 4-letter code is not a valid ISO code either, and must also run
+    // no revenue query.
+    const res3 = mockRes();
+    await franchiseCtrl.getTerritoryStats({ user: { id: 5 }, query: { currency: 'USDD' } }, res3);
+    expect(res3.status).toHaveBeenCalledWith(400);
+    expect(revenueCalls().length).toBe(callsBeforeInvalid);
   });
 });
