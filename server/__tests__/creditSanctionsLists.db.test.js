@@ -166,8 +166,23 @@ describeDatabase('in-house sanctions lists (licence readiness)', () => {
       `SELECT reason FROM credit_sanctions_screening_requests WHERE subject_id = $1 AND processed_at IS NULL`, [id]
     );
     expect(queued[0].reason).toBe('signup');
-    const summary = await lists.processScreeningQueue({ limit: 500 });
-    expect(summary.hits).toBeGreaterThanOrEqual(1);
+    // The queue is global: every user created by every suite in this run
+    // leaves a signup request ahead of ours, and requests have no foreign
+    // key to users, so deleting test users never drains them. A single
+    // bounded drain may never reach this subject once the backlog passes
+    // the limit. Drain like the scheduled worker does (it runs every
+    // 2 minutes) until our request is processed.
+    let hits = 0;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const summary = await lists.processScreeningQueue({ limit: 500 });
+      hits += summary.hits;
+      const { rows: done } = await pool.query(
+        `SELECT processed_at FROM credit_sanctions_screening_requests WHERE subject_id = $1`, [id]
+      );
+      if (done[0] && done[0].processed_at) break;
+      if (summary.processed === 0) break;
+    }
+    expect(hits).toBeGreaterThanOrEqual(1);
     const { rows: cases } = await pool.query(
       `SELECT case_type FROM oxsteed_credit_compliance_cases WHERE subject_type = 'customer' AND subject_id = $1`, [id]
     );
