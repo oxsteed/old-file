@@ -134,10 +134,13 @@ describe('server launch visibility map (Nov 1 audit item 11)', () => {
   test('defaults mirror the current client behavior: nothing flips on or off', () => {
     const { getServerLaunchVisibility } = require('../middleware/launchGate');
     const launches = getServerLaunchVisibility();
-    expect(Object.keys(launches)).toHaveLength(32);
+    expect(Object.keys(launches)).toHaveLength(33);
     expect(launches).toMatchObject({
       consulting: false,
       franchise: false,
+      // UI gaps item 2: investor launch key, default off like
+      // franchise/consulting, so its routes keep today's bounce.
+      investor: false,
       templates: false,
       productMarketplace: false,
       specializedProfileTemplates: false,
