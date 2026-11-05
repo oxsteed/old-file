@@ -232,7 +232,7 @@ export default function RestaurantTimeClockCard({ restaurant }) {
               )}
               {pendingCorrectionFor(e.id) && <span className="fd-card-meta tc-correction-pending">{t('food.timeClock.correctionPending')}</span>}
               {correctionFor === e.id && (
-                <form onSubmit={submitCorrection} className="fd-ops-form tc-correction-form">
+                <form onSubmit={submitCorrection} className="fd-ops-form tc-correction-form" data-track="ui.e15af3906a.2">
                   <div className="fd-row">
                     <div className="fd-field">
                       <label htmlFor={`tc-corr-in-${e.id}`}>{t('food.timeClock.correctionClockIn')}</label>
@@ -249,7 +249,7 @@ export default function RestaurantTimeClockCard({ restaurant }) {
                   </div>
                   <div className="fd-row">
                     <button type="submit" className="fd-btn fd-btn-secondary" disabled={busy} data-track="restaurant_time_correction_send">{t('food.timeClock.sendCorrection')}</button>
-                    <button type="button" className="fd-btn fd-btn-secondary" disabled={busy} onClick={() => setCorrectionFor(null)}>{t('common.cancel')}</button>
+                    <button type="button" className="fd-btn fd-btn-secondary" disabled={busy} onClick={() => setCorrectionFor(null)} data-track="ui.e15af3906a.3">{t('common.cancel')}</button>
                   </div>
                 </form>
               )}
