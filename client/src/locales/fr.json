@@ -24995,6 +24995,21 @@
         "withdrawn": "Retirée"
       }
     },
+    "employeePortal": {
+      "title": "Portail employé",
+      "tabs": {
+        "myshift": "Mon poste",
+        "mytips": "Mes pourboires",
+        "mypay": "Ma paie",
+        "availability": "Disponibilités",
+        "swaps": "Échanges de poste"
+      },
+      "notAvailable": "Pas encore disponible.",
+      "notMember": "Vous ne faites pas partie de l'équipe de ce restaurant.",
+      "backToMyRestaurants": "Retour à mes restaurants",
+      "employedBy": "Employé par {{restaurant}}",
+      "poweredBy": "Powered by OxSteed"
+    },
     "offlineCard": {
       "title": "Paiements par carte hors ligne à vérifier",
       "intro": "Paiements par carte pris pendant une panne qui ont dépassé une limite, ne correspondent pas à leur commande ou n'ont jamais été remontés. Accepter conserve un paiement confirmé par Stripe. Annuler n'est possible que si Stripe n'a aucun débit.",

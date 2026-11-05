@@ -24995,6 +24995,21 @@
         "withdrawn": "Withdrawn"
       }
     },
+    "employeePortal": {
+      "title": "Employee portal",
+      "tabs": {
+        "myshift": "My shift",
+        "mytips": "My tips",
+        "mypay": "My pay",
+        "availability": "Availability",
+        "swaps": "Swaps"
+      },
+      "notAvailable": "Not available yet.",
+      "notMember": "You are not a member of this restaurant's team.",
+      "backToMyRestaurants": "Back to my restaurants",
+      "employedBy": "Employed by {{restaurant}}",
+      "poweredBy": "Powered by OxSteed"
+    },
     "offlineCard": {
       "title": "Offline card payments to review",
       "intro": "Card payments taken during an outage that broke a limit, didn't match their order, or were never reported back. Accept keeps a payment Stripe confirms. Void is only possible when Stripe has no charge.",

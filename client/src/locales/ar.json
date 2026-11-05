@@ -25006,6 +25006,21 @@
         "withdrawn": "مسحوبة"
       }
     },
+    "employeePortal": {
+      "title": "بوابة الموظف",
+      "tabs": {
+        "myshift": "ورديتي",
+        "mytips": "إكرامياتي",
+        "mypay": "راتبي",
+        "availability": "التوفر",
+        "swaps": "تبديل الورديات"
+      },
+      "notAvailable": "غير متاح بعد.",
+      "notMember": "أنت لست عضوًا في فريق هذا المطعم.",
+      "backToMyRestaurants": "العودة إلى مطاعمي",
+      "employedBy": "موظف لدى {{restaurant}}",
+      "poweredBy": "Powered by OxSteed"
+    },
     "offlineCard": {
       "title": "مدفوعات البطاقات دون اتصال بانتظار المراجعة",
       "intro": "مدفوعات بطاقات أُخذت أثناء انقطاع وتجاوزت حدًا، أو لم تطابق طلبها، أو لم يُبلَّغ عنها أبدًا. القبول يُبقي دفعة يؤكدها Stripe. الإلغاء ممكن فقط عندما لا يوجد لدى Stripe أي خصم.",

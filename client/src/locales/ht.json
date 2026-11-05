@@ -24995,6 +24995,21 @@
         "withdrawn": "Retire"
       }
     },
+    "employeePortal": {
+      "title": "Pòtal anplwaye",
+      "tabs": {
+        "myshift": "Orè mwen",
+        "mytips": "Poubwa mwen yo",
+        "mypay": "Peman mwen",
+        "availability": "Disponibilite",
+        "swaps": "Echanj orè"
+      },
+      "notAvailable": "Li poko disponib.",
+      "notMember": "Ou pa manm ekip restoran sa a.",
+      "backToMyRestaurants": "Tounen sou restoran mwen yo",
+      "employedBy": "Anplwaye pa {{restaurant}}",
+      "poweredBy": "Powered by OxSteed"
+    },
     "offlineCard": {
       "title": "Peman kat san entènèt pou revize",
       "intro": "Peman kat yo te pran pandan yon pàn ki depase yon limit, ki pa koresponn ak kòmand yo, oswa ki pa janm rapòte. Aksepte kenbe yon peman Stripe konfime. Anile posib sèlman lè Stripe pa gen okenn chaj.",

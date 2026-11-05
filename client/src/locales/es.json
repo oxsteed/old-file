@@ -24995,6 +24995,21 @@
         "withdrawn": "Retirada"
       }
     },
+    "employeePortal": {
+      "title": "Portal del empleado",
+      "tabs": {
+        "myshift": "Mi turno",
+        "mytips": "Mis propinas",
+        "mypay": "Mi pago",
+        "availability": "Disponibilidad",
+        "swaps": "Cambios de turno"
+      },
+      "notAvailable": "Aún no disponible.",
+      "notMember": "No formas parte del equipo de este restaurante.",
+      "backToMyRestaurants": "Volver a mis restaurantes",
+      "employedBy": "Empleado por {{restaurant}}",
+      "poweredBy": "Powered by OxSteed"
+    },
     "offlineCard": {
       "title": "Pagos con tarjeta sin conexión por revisar",
       "intro": "Pagos con tarjeta tomados durante una caída que superaron un límite, no coincidieron con su pedido o nunca se reportaron. Aceptar conserva un pago que Stripe confirma. Anular solo es posible si Stripe no tiene ningún cargo.",
