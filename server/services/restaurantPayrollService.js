@@ -35,6 +35,12 @@ const pool = require('../db');
 // Shared CSV cell sanitizer (ADM-152): neutralizes formula injection
 // (leading =, +, -, @) on top of RFC 4180 quoting.
 const { csvCell } = require('../utils/csv');
+// Jurisdiction rule tables drive the pay calc (Phase 1, international
+// by default): daily/double-time/7th-day thresholds and premium rules
+// come from the location's jurisdiction row, never from a hardcoded
+// country branch. California is one row in that table, not the logic.
+const laborJurisdiction = require('./laborJurisdictionRules');
+const { minorUnitDecimals } = require('../utils/currencyPrecision');
 
 function storeFilter(locationIds, column, parameter) {
   return locationIds === null ? '' : ` AND ${column} = ANY($${parameter}::bigint[])`;
@@ -286,6 +292,12 @@ function normalizeLaborPolicy(row, restaurantId = null) {
   const source = row || {};
   return {
     restaurant_id: restaurantId != null ? restaurantId : source.restaurant_id,
+    // NULL location_id = the restaurant-level fallback policy. A
+    // per-location row carries its location id plus the country and
+    // region it applies in.
+    location_id: source.location_id == null ? null : Number(source.location_id),
+    country_code: source.country_code || null,
+    region_code: source.region_code || null,
     overtime_threshold_hours: Number(source.overtime_threshold_hours ?? DEFAULT_LABOR_POLICY.overtime_threshold_hours),
     overtime_multiplier_bps: Number(source.overtime_multiplier_bps ?? DEFAULT_LABOR_POLICY.overtime_multiplier_bps),
     break_after_minutes: Number(source.break_after_minutes ?? DEFAULT_LABOR_POLICY.break_after_minutes),
@@ -295,7 +307,21 @@ function normalizeLaborPolicy(row, restaurantId = null) {
   };
 }
 
-async function getLaborPolicy(restaurantId) {
+// Effective policy for one location: the location's own row when one
+// exists, otherwise the restaurant-level fallback. locationId NULL
+// returns the fallback directly.
+async function getLaborPolicy(restaurantId, locationId = null) {
+  if (locationId != null) {
+    const { rows: [locationRow] } = await pool.query(
+      `SELECT restaurant_id, location_id, country_code, region_code,
+              overtime_threshold_hours, overtime_multiplier_bps,
+              break_after_minutes, break_duration_minutes, updated_by, updated_at
+         FROM restaurant_location_labor_policies
+        WHERE restaurant_id = $1 AND location_id = $2`,
+      [restaurantId, locationId]
+    );
+    if (locationRow) return normalizeLaborPolicy(locationRow, restaurantId);
+  }
   const { rows: [row] } = await pool.query(
     `SELECT restaurant_id, overtime_threshold_hours, overtime_multiplier_bps,
             break_after_minutes, break_duration_minutes, updated_by, updated_at
@@ -305,8 +331,7 @@ async function getLaborPolicy(restaurantId) {
   return normalizeLaborPolicy(row, restaurantId);
 }
 
-async function saveLaborPolicy(restaurantId, policy, updatedBy) {
-  const normalized = normalizeLaborPolicy({ ...policy, restaurant_id: restaurantId });
+function validateLaborPolicy(normalized) {
   if (!Number.isFinite(normalized.overtime_threshold_hours)
     || normalized.overtime_threshold_hours <= 0 || normalized.overtime_threshold_hours > 168) {
     const err = new Error('overtime_threshold_hours must be between 0 and 168');
@@ -331,6 +356,54 @@ async function saveLaborPolicy(restaurantId, policy, updatedBy) {
     err.code = 'validation_failed';
     throw err;
   }
+}
+
+async function saveLaborPolicy(restaurantId, policy, updatedBy, locationId = null) {
+  const normalized = normalizeLaborPolicy({ ...policy, restaurant_id: restaurantId });
+  validateLaborPolicy(normalized);
+  if (locationId != null) {
+    // Country/region default to the location's own address when the
+    // caller does not state them: the policy row records where it
+    // applies, it does not make the caller retype the address.
+    let countryCode = normalized.country_code;
+    let regionCode = normalized.region_code;
+    if (countryCode == null || regionCode == null) {
+      const { rows: [loc] } = await pool.query(
+        `SELECT address_country, address_state FROM restaurant_locations
+          WHERE restaurant_id = $1 AND id = $2 AND status <> 'archived'`,
+        [restaurantId, locationId]
+      );
+      if (!loc) {
+        const err = new Error('Location not found');
+        err.code = 'validation_failed';
+        throw err;
+      }
+      countryCode = countryCode || loc.address_country || null;
+      regionCode = regionCode || loc.address_state || null;
+    }
+    const { rows: [row] } = await pool.query(
+      `INSERT INTO restaurant_location_labor_policies
+         (restaurant_id, location_id, overtime_threshold_hours, overtime_multiplier_bps,
+          break_after_minutes, break_duration_minutes, country_code, region_code, updated_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       ON CONFLICT (restaurant_id, location_id) DO UPDATE SET
+         overtime_threshold_hours = EXCLUDED.overtime_threshold_hours,
+         overtime_multiplier_bps = EXCLUDED.overtime_multiplier_bps,
+         break_after_minutes = EXCLUDED.break_after_minutes,
+         break_duration_minutes = EXCLUDED.break_duration_minutes,
+         country_code = EXCLUDED.country_code,
+         region_code = EXCLUDED.region_code,
+         updated_by = EXCLUDED.updated_by,
+         updated_at = NOW()
+       RETURNING restaurant_id, location_id, country_code, region_code,
+                 overtime_threshold_hours, overtime_multiplier_bps,
+                 break_after_minutes, break_duration_minutes, updated_by, updated_at`,
+      [restaurantId, locationId, normalized.overtime_threshold_hours, normalized.overtime_multiplier_bps,
+        normalized.break_after_minutes, normalized.break_duration_minutes,
+        countryCode, regionCode, updatedBy || null]
+    );
+    return normalizeLaborPolicy(row, restaurantId);
+  }
   const { rows: [row] } = await pool.query(
     `INSERT INTO restaurant_labor_policies
        (restaurant_id, overtime_threshold_hours, overtime_multiplier_bps,
@@ -349,6 +422,43 @@ async function saveLaborPolicy(restaurantId, policy, updatedBy) {
       normalized.break_after_minutes, normalized.break_duration_minutes, updatedBy || null]
   );
   return normalizeLaborPolicy(row, restaurantId);
+}
+
+// Per-location pay context for one restaurant: effective labor policy
+// per location, resolved jurisdiction rules per location, and the
+// location's own currency/country/timezone. The pay calc reads rules
+// from here, never from a hardcoded country branch. When locationIds
+// is null the context covers every location of the restaurant.
+async function getLocationPayContext(restaurantId, locationIds = null) {
+  const [policyRows, jurisdictionMap, locationRows] = await Promise.all([
+    pool.query(
+      `SELECT restaurant_id, location_id, country_code, region_code,
+              overtime_threshold_hours, overtime_multiplier_bps,
+              break_after_minutes, break_duration_minutes, updated_by, updated_at
+         FROM restaurant_location_labor_policies WHERE restaurant_id = $1`,
+      [restaurantId]
+    ).then(({ rows }) => rows),
+    laborJurisdiction.getJurisdictions(pool, restaurantId, locationIds),
+    pool.query(
+      `SELECT id, currency_code, address_country, address_state, timezone
+         FROM restaurant_locations WHERE restaurant_id = $1 AND status <> 'archived'`,
+      [restaurantId]
+    ).then(({ rows }) => rows),
+  ]);
+  const policiesByLocation = new Map();
+  for (const row of policyRows) {
+    policiesByLocation.set(Number(row.location_id), normalizeLaborPolicy(row, restaurantId));
+  }
+  const locationsById = new Map();
+  for (const row of locationRows) {
+    locationsById.set(Number(row.id), {
+      currency_code: row.currency_code || null,
+      country_code: row.address_country || null,
+      region_code: row.address_state || null,
+      timezone: row.timezone || null,
+    });
+  }
+  return { policiesByLocation, jurisdictionsByLocation: jurisdictionMap, locationsById };
 }
 
 // ── Hours (actual + scheduled) ───────────────────────────────────────
@@ -370,24 +480,188 @@ async function getHoursByUser(businessId, fromDate, toDate, locationIds = null) 
   return map;
 }
 
-// Calculate per-person hours under the restaurant's weekly overtime and break
-// policy. `entry_date` is the local business date captured at clock-in, which
-// keeps the calculation deterministic across DST boundaries.
-function calculatePolicyHours(rows, policy) {
+// ── Jurisdiction-driven hour tiering ─────────────────────────────────
+// The pay calc reads its rules from the location's jurisdiction row,
+// never from a hardcoded country branch.
+//
+// Tiering order, per person:
+//   1. Daily buckets (per entry_date, per location): hours up to the
+//      jurisdiction's daily threshold are regular; hours between the
+//      daily and double-time thresholds are overtime (1.5x); hours
+//      past the double-time threshold are double time (2x). A
+//      jurisdiction with no daily threshold (NULL) pays straight time
+//      for the whole day.
+//   2. 7th consecutive day: where the jurisdiction has the rule, the
+//      seventh consecutive worked day inside one Sunday-start workweek
+//      pays the first daily-threshold hours at 1.5x and the rest at 2x,
+//      with no regular hours that day. (A streak is counted inside the
+//      workweek; a day off, or the week boundary, resets it.)
+//   3. Weekly overtime: regular hours past the labor policy's weekly
+//      threshold convert to overtime. Hours already tiered as daily
+//      overtime or double time are NOT counted again.
+//   4. Meal-break premium: where the jurisdiction requires it, an entry
+//      that runs past the meal-break point without a long enough break
+//      earns premium hours at the regular rate (e.g. one hour in
+//      California). The policy-based breakExceptions count is kept
+//      alongside it and is unchanged.
+//
+// `rulesResolver` is a function (locationId) => jurisdiction rules, a
+// single rules object applied to every row, or null for the US-FED
+// preset (weekly-only). Rows carry entry_date, hours_worked, breaks,
+// clock_in_at and location_id.
+//
+// Returns { byUser, allocations }: byUser maps user_id to the summed
+// tiers; allocations is the per-row split (user, date, location,
+// regular/overtime/doubletime hours, missed-meal and premium hours),
+// which scoped (single-store) reports filter after the cross-store
+// weekly threshold has been applied to the full set.
+function tierRows(rows, policy, rulesResolver) {
+  const resolve = typeof rulesResolver === 'function'
+    ? (locationId) => rulesResolver(locationId) || laborJurisdiction.resolveRules(null)
+    : () => (rulesResolver || laborJurisdiction.resolveRules(null));
+  const round2 = (n) => Math.round(n * 100) / 100;
+
+  const rowsByUser = new Map();
+  for (const row of rows || []) {
+    if (row.user_id == null) continue;
+    const list = rowsByUser.get(row.user_id) || [];
+    list.push(row);
+    rowsByUser.set(row.user_id, list);
+  }
+
   const byUser = new Map();
-  for (const row of rows) {
-    const user = byUser.get(row.user_id) || { totalHours: 0, overtimeHours: 0, breakExceptions: 0, weeks: new Map() };
-    const hours = Math.max(0, Number(row.hours_worked) || 0);
-    const entryDate = row.entry_date instanceof Date
+  const allocations = [];
+  for (const [userId, userRows] of rowsByUser) {
+    const sorted = [...userRows].sort((a, b) => {
+      const da = String(a.entry_date).slice(0, 10);
+      const db = String(b.entry_date).slice(0, 10);
+      if (da !== db) return da < db ? -1 : 1;
+      const ca = a.clock_in_at ? new Date(a.clock_in_at).getTime() : 0;
+      const cb = b.clock_in_at ? new Date(b.clock_in_at).getTime() : 0;
+      if (ca !== cb) return ca - cb;
+      return (Number(a.id) || 0) - (Number(b.id) || 0);
+    });
+    const entryDate = (row) => row.entry_date instanceof Date
       ? row.entry_date.toISOString().slice(0, 10)
       : String(row.entry_date).slice(0, 10);
-    const date = new Date(`${entryDate}T12:00:00Z`);
-    const weekStart = new Date(date);
-    weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
-    const weekKey = weekStart.toISOString().slice(0, 10);
-    user.weeks.set(weekKey, (user.weeks.get(weekKey) || 0) + hours);
-    user.totalHours += hours;
-    if (hours * 60 >= policy.break_after_minutes) {
+    const weekStartOf = (dateStr) => {
+      const date = new Date(`${dateStr}T12:00:00Z`);
+      date.setUTCDate(date.getUTCDate() - date.getUTCDay());
+      return date.toISOString().slice(0, 10);
+    };
+
+    // Consecutive-day streaks, counted inside each Sunday-start week.
+    const streakByDate = new Map();
+    const datesByWeek = new Map();
+    for (const row of sorted) {
+      const week = weekStartOf(entryDate(row));
+      const set = datesByWeek.get(week) || new Set();
+      set.add(entryDate(row));
+      datesByWeek.set(week, set);
+    }
+    for (const dates of datesByWeek.values()) {
+      let streak = 0;
+      let prev = null;
+      for (const day of [...dates].sort()) {
+        const prevDay = prev ? shiftDateString(prev, 1) : null;
+        streak = prevDay === day ? streak + 1 : 1;
+        streakByDate.set(day, streak);
+        prev = day;
+      }
+    }
+
+    // Daily buckets per (date, location): tier the day's total, then
+    // hand the tiers to the day's rows in chronological order.
+    const dayGroups = new Map();
+    for (const row of sorted) {
+      const key = `${entryDate(row)}|${row.location_id == null ? '' : row.location_id}`;
+      const group = dayGroups.get(key) || { date: entryDate(row), locationId: row.location_id, rows: [], total: 0 };
+      group.rows.push(row);
+      group.total += Math.max(0, Number(row.hours_worked) || 0);
+      dayGroups.set(key, group);
+    }
+    const rowSplit = new Map(); // row -> { regular, overtime, doubletime }
+    for (const group of dayGroups.values()) {
+      const rules = resolve(group.locationId == null ? null : Number(group.locationId));
+      const H = group.total;
+      const daily = rules.daily_overtime_hours == null ? null : Number(rules.daily_overtime_hours);
+      const dbl = rules.daily_doubletime_hours == null ? null : Number(rules.daily_doubletime_hours);
+      const isSeventh = rules.seventh_day_overtime === true && streakByDate.get(group.date) === 7;
+      let regular = 0;
+      let overtime = 0;
+      let doubletime = 0;
+      if (isSeventh) {
+        // First daily-threshold hours at 1.5x, the rest at 2x.
+        const cap = daily == null ? 8 : daily;
+        overtime = Math.min(H, cap);
+        doubletime = Math.max(0, H - cap);
+      } else if (daily != null) {
+        regular = Math.min(H, daily);
+        const rest = Math.max(0, H - daily);
+        const otCap = dbl == null ? Infinity : Math.max(0, dbl - daily);
+        overtime = Math.min(rest, otCap);
+        doubletime = Math.max(0, rest - overtime);
+      } else {
+        regular = H;
+      }
+      let remaining = { regular, overtime, doubletime };
+      for (const row of group.rows) {
+        const hours = Math.max(0, Number(row.hours_worked) || 0);
+        const split = { regular: 0, overtime: 0, doubletime: 0 };
+        let left = hours;
+        for (const tier of ['regular', 'overtime', 'doubletime']) {
+          const take = Math.min(left, remaining[tier]);
+          split[tier] = take;
+          remaining[tier] -= take;
+          left -= take;
+        }
+        // Defensive: any rounding residue lands in the tier it came from.
+        if (left > 0) split.regular += left;
+        rowSplit.set(row, split);
+      }
+    }
+
+    // Weekly overtime: convert regular hours past the policy threshold
+    // to overtime, walking the week chronologically so the last regular
+    // hours in the week are the overtime ones.
+    const weeks = new Map();
+    for (const row of sorted) {
+      const week = weekStartOf(entryDate(row));
+      const split = rowSplit.get(row);
+      weeks.set(week, (weeks.get(week) || 0)
+        + (split.regular + split.overtime + split.doubletime));
+    }
+    const weeklyRegular = new Map();
+    for (const row of sorted) {
+      const week = weekStartOf(entryDate(row));
+      weeklyRegular.set(week, (weeklyRegular.get(week) || 0) + (rowSplit.get(row)?.regular || 0));
+    }
+    const weeklyExcess = new Map();
+    for (const [week, regularTotal] of weeklyRegular) {
+      weeklyExcess.set(week, Math.max(0, regularTotal - policy.overtime_threshold_hours));
+    }
+    for (const row of sorted) {
+      const week = weekStartOf(entryDate(row));
+      let excess = weeklyExcess.get(week) || 0;
+      if (excess > 0) {
+        const split = rowSplit.get(row);
+        const convert = Math.min(split.regular, excess);
+        split.regular -= convert;
+        split.overtime += convert;
+        weeklyExcess.set(week, excess - convert);
+      }
+    }
+
+    // Per-row meal-break premium (jurisdiction) and break exceptions
+    // (policy, unchanged semantics).
+    const user = {
+      totalHours: 0, regularHours: 0, overtimeHours: 0, doubletimeHours: 0,
+      breakExceptions: 0, missedMealBreaks: 0, mealBreakPremiumHours: 0, weeks,
+    };
+    for (const row of sorted) {
+      const rules = resolve(row.location_id == null ? null : Number(row.location_id));
+      const hours = Math.max(0, Number(row.hours_worked) || 0);
+      const split = rowSplit.get(row);
       const breaks = Array.isArray(row.breaks) ? row.breaks : [];
       const breakMinutes = breaks.reduce((sum, item) => {
         const start = Date.parse(item?.started_at || '');
@@ -395,49 +669,90 @@ function calculatePolicyHours(rows, policy) {
         return Number.isFinite(start) && Number.isFinite(end) && end > start
           ? sum + ((end - start) / 60000) : sum;
       }, 0);
-      if (breakMinutes < policy.break_duration_minutes) user.breakExceptions += 1;
+      let missedMeal = 0;
+      let mealPremiumHours = 0;
+      if (rules.meal_break_after_minutes != null && hours * 60 >= Number(rules.meal_break_after_minutes)
+        && breakMinutes < Number(rules.meal_break_duration_minutes ?? 0)) {
+        missedMeal = 1;
+        mealPremiumHours = laborJurisdiction.mealBreakPremiumHours(rules) || 0;
+      }
+      let breakException = 0;
+      if (hours * 60 >= policy.break_after_minutes && breakMinutes < policy.break_duration_minutes) {
+        breakException = 1;
+      }
+      user.totalHours += hours;
+      user.regularHours += split.regular;
+      user.overtimeHours += split.overtime;
+      user.doubletimeHours += split.doubletime;
+      user.breakExceptions += breakException;
+      user.missedMealBreaks += missedMeal;
+      user.mealBreakPremiumHours += mealPremiumHours;
+      allocations.push({
+        user_id: userId,
+        entry_date: entryDate(row),
+        location_id: row.location_id == null ? null : Number(row.location_id),
+        regular: split.regular,
+        overtime: split.overtime,
+        doubletime: split.doubletime,
+        missed_meal_breaks: missedMeal,
+        meal_break_premium_hours: mealPremiumHours,
+        break_exception: breakException,
+      });
     }
-    byUser.set(row.user_id, user);
+    user.totalHours = round2(user.totalHours);
+    user.regularHours = round2(user.regularHours);
+    user.overtimeHours = round2(user.overtimeHours);
+    user.doubletimeHours = round2(user.doubletimeHours);
+    user.mealBreakPremiumHours = round2(user.mealBreakPremiumHours);
+    byUser.set(userId, user);
   }
-  for (const user of byUser.values()) {
-    for (const weeklyHours of user.weeks.values()) {
-      user.overtimeHours += Math.max(0, weeklyHours - policy.overtime_threshold_hours);
-    }
-    user.overtimeHours = Math.round(user.overtimeHours * 100) / 100;
-    user.totalHours = Math.round(user.totalHours * 100) / 100;
-  }
-  return byUser;
+  return { byUser, allocations };
+}
+
+// Calculate per-person hours under the restaurant's overtime/break
+// policy and the locations' jurisdiction rules. `entry_date` is the
+// local business date captured at clock-in, which keeps the calculation
+// deterministic across DST boundaries. Kept backward compatible: with
+// no rules resolver the US-FED preset applies (weekly-only), so the
+// old weekly-threshold behavior is unchanged.
+function calculatePolicyHours(rows, policy, rulesResolver = null) {
+  return tierRows(rows, policy, rulesResolver).byUser;
 }
 
 // Attribute overtime after applying the person's full weekly threshold across
 // stores. Filtering punches first would silently reset overtime at each store.
-function scopedPolicyHours(rows, policy, locationIds, fromDate, toDate) {
-  const weekly = new Map();
+// Daily/double-time tiers and meal premiums are per (day, location), so
+// they attribute by row; the weekly threshold is applied to the full
+// cross-store set first, then the in-scope rows are summed.
+function scopedPolicyHours(rows, policy, locationIds, fromDate, toDate, rulesResolver = null) {
+  const { allocations } = tierRows(rows, policy, rulesResolver);
   const result = new Map();
-  for (const row of rows) {
-    const day = row.entry_date instanceof Date ? row.entry_date.toISOString().slice(0, 10) : String(row.entry_date).slice(0, 10);
-    const date = new Date(`${day}T12:00:00Z`);
-    const sunday = shiftDateString(day, -date.getUTCDay());
-    const key = `${row.user_id}:${sunday}`;
-    const before = weekly.get(key) || 0;
-    const hours = Math.max(0, Number(row.hours_worked) || 0);
-    weekly.set(key, before + hours);
-    if (!locationIds.includes(Number(row.location_id)) || day < fromDate || day > toDate) continue;
-    const entry = calculatePolicyHours([row], policy).get(row.user_id);
-    const user = result.get(row.user_id) || { totalHours: 0, overtimeHours: 0, breakExceptions: 0 };
-    user.totalHours += hours;
-    user.overtimeHours += Math.max(0, before + hours - policy.overtime_threshold_hours) - Math.max(0, before - policy.overtime_threshold_hours);
-    user.breakExceptions += entry.breakExceptions;
-    result.set(row.user_id, user);
+  for (const alloc of allocations) {
+    if (!locationIds.includes(Number(alloc.location_id)) || alloc.entry_date < fromDate || alloc.entry_date > toDate) continue;
+    const user = result.get(alloc.user_id) || {
+      totalHours: 0, regularHours: 0, overtimeHours: 0, doubletimeHours: 0,
+      breakExceptions: 0, missedMealBreaks: 0, mealBreakPremiumHours: 0,
+    };
+    user.totalHours += alloc.regular + alloc.overtime + alloc.doubletime;
+    user.regularHours += alloc.regular;
+    user.overtimeHours += alloc.overtime;
+    user.doubletimeHours += alloc.doubletime;
+    user.breakExceptions += alloc.break_exception;
+    user.missedMealBreaks += alloc.missed_meal_breaks;
+    user.mealBreakPremiumHours += alloc.meal_break_premium_hours;
+    result.set(alloc.user_id, user);
   }
   for (const user of result.values()) {
     user.totalHours = Math.round(user.totalHours * 100) / 100;
+    user.regularHours = Math.round(user.regularHours * 100) / 100;
     user.overtimeHours = Math.round(user.overtimeHours * 100) / 100;
+    user.doubletimeHours = Math.round(user.doubletimeHours * 100) / 100;
+    user.mealBreakPremiumHours = Math.round(user.mealBreakPremiumHours * 100) / 100;
   }
   return result;
 }
 
-async function getPolicyHoursByUser(businessId, fromDate, toDate, policy, locationIds = null) {
+async function getPolicyHoursByUser(businessId, fromDate, toDate, policy, locationIds = null, payContext = null) {
   const rangeStart = locationIds === null ? fromDate : shiftDateString(fromDate, -new Date(`${fromDate}T12:00:00Z`).getUTCDay());
   const rangeEnd = locationIds === null ? toDate : shiftDateString(toDate, 6 - new Date(`${toDate}T12:00:00Z`).getUTCDay());
   const { rows } = await pool.query(
@@ -448,7 +763,64 @@ async function getPolicyHoursByUser(businessId, fromDate, toDate, policy, locati
       ORDER BY entry_date, clock_in_at NULLS FIRST, id`,
     [businessId, rangeStart, rangeEnd]
   );
-  return locationIds === null ? calculatePolicyHours(rows, policy) : scopedPolicyHours(rows, policy, locationIds, fromDate, toDate);
+  const rulesResolver = (locationId) => {
+    if (payContext?.jurisdictionsByLocation?.has(locationId)) {
+      return payContext.jurisdictionsByLocation.get(locationId);
+    }
+    return laborJurisdiction.resolveRules(null);
+  };
+  // Single-store scope prices the week under that store's own policy;
+  // a multi-store or brand-wide view prices it under the restaurant
+  // fallback policy (the cross-store weekly threshold is one number).
+  let effectivePolicy = policy;
+  if (Array.isArray(locationIds) && locationIds.length === 1
+    && payContext?.policiesByLocation?.has(Number(locationIds[0]))) {
+    effectivePolicy = payContext.policiesByLocation.get(Number(locationIds[0]));
+  }
+  return locationIds === null
+    ? calculatePolicyHours(rows, effectivePolicy, rulesResolver)
+    : scopedPolicyHours(rows, effectivePolicy, locationIds, fromDate, toDate, rulesResolver);
+}
+
+// ── Predictability premiums ──────────────────────────────────────────
+
+// Sum predictability premiums for a period from the recorded schedule
+// changes. The amount is the one stored at change time when the wage
+// was known; when it was not, it is priced here from the current wage
+// of record. Hours that still cannot be priced (no wage at all) are
+// reported as unpriced hours so they are never silently treated as
+// zero-owed: pay-run finalization fails closed while any remain.
+async function getPredictabilityPremiums({ businessId, fromDate, toDate, timezone, locationIds = null, wagesByUser = new Map() }) {
+  const { rows } = await pool.query(
+    `SELECT user_id, location_id,
+            COUNT(*)::int AS change_count,
+            COALESCE(SUM(premium_hours), 0)::float8 AS premium_hours,
+            COALESCE(SUM(premium_cents), 0)::int AS stored_cents,
+            COUNT(*) FILTER (WHERE premium_cents IS NULL AND premium_hours IS NOT NULL)::int AS unpriced_rows,
+            COALESCE(SUM(premium_hours) FILTER (WHERE premium_cents IS NULL), 0)::float8 AS unpriced_hours
+       FROM business_staff_schedule_changes
+      WHERE business_id = $1 AND premium_due
+        AND created_at >= (($2::date)::timestamp AT TIME ZONE $3)
+        AND created_at < ((($4::date + 1))::timestamp AT TIME ZONE $3)
+        ${storeFilter(locationIds, 'location_id', 5)}
+      GROUP BY user_id, location_id`,
+    storeParams([businessId, fromDate, toDate, timezone], locationIds)
+  );
+  const byUser = new Map();
+  for (const row of rows) {
+    const user = byUser.get(row.user_id) || { premium_cents: 0, premium_hours: 0, unpriced_premium_hours: 0, change_count: 0 };
+    const wage = wagesByUser.get(row.user_id);
+    const storedCents = Number(row.stored_cents) || 0;
+    const unpricedHours = Number(row.unpriced_hours) || 0;
+    const pricedNow = wage != null && unpricedHours > 0 ? Math.round(unpricedHours * wage) : 0;
+    const stillUnpriced = wage != null ? 0 : unpricedHours;
+    user.premium_cents += storedCents + pricedNow;
+    user.premium_hours += Number(row.premium_hours) || 0;
+    user.unpriced_premium_hours += stillUnpriced;
+    user.change_count += Number(row.change_count) || 0;
+    byUser.set(row.user_id, user);
+  }
+  return byUser;
 }
 
 // Scheduled hours per user from business_staff_shifts (person-based
@@ -730,8 +1102,18 @@ async function computeTipAllocations({ restaurant, fromDate, toDate, locationIds
 async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }) {
   const timezone = resolveReportTimezone(restaurant);
   const businessId = restaurant.business_id;
+  // Currency is per location: a single-store view prices in that
+  // store's currency when it has one, otherwise the restaurant's.
+  // Amounts stay integer minor units; the currency's precision is
+  // reported alongside so clients format them correctly.
+  const payContext = await getLocationPayContext(restaurant.id, locationIds);
+  const singleLocationId = Array.isArray(locationIds) && locationIds.length === 1 ? Number(locationIds[0]) : null;
   const restaurantCurrency = restaurant.currency_code || 'USD';
-  const [roster, hoursByUser, scheduledByUser, revenues, tipAllocations, laborPolicy] = await Promise.all([
+  const locationCurrency = singleLocationId != null
+    ? payContext.locationsById.get(singleLocationId)?.currency_code || null
+    : null;
+  const effectiveCurrency = locationCurrency || restaurantCurrency;
+  const [roster, hoursByUser, scheduledByUser, revenues, tipAllocations, fallbackPolicy] = await Promise.all([
     getRoster(businessId, locationIds, restaurant.id),
     getHoursByUser(businessId, fromDate, toDate, locationIds),
     getScheduledHoursByUser(businessId, restaurant.id, fromDate, toDate, locationIds),
@@ -739,11 +1121,25 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
     computeTipAllocations({ restaurant, fromDate, toDate, locationIds }),
     getLaborPolicy(restaurant.id),
   ]);
-  const policyHours = await getPolicyHoursByUser(businessId, fromDate, toDate, laborPolicy, locationIds);
+  // The policy this report was computed under: the single scoped
+  // store's own policy when one store is in scope, else the
+  // restaurant-level fallback.
+  const laborPolicy = singleLocationId != null && payContext.policiesByLocation.has(singleLocationId)
+    ? payContext.policiesByLocation.get(singleLocationId)
+    : fallbackPolicy;
+  const policyHours = await getPolicyHoursByUser(businessId, fromDate, toDate, laborPolicy, locationIds, payContext);
+  const rosterByIdForWages = new Map(roster.map((m) => [m.user_id, m]));
+  const wagesByUser = new Map();
+  for (const [userId, member] of rosterByIdForWages) {
+    if (member.hourly_wage_cents != null) wagesByUser.set(userId, Number(member.hourly_wage_cents));
+  }
+  const predictabilityPremiums = await getPredictabilityPremiums({
+    businessId, fromDate, toDate, timezone, locationIds, wagesByUser,
+  });
 
   const tipsFor = (currency) => tipAllocations.currencies.find((c) => c.currency === currency)
     || { employees: [], unattributed_cents: 0, total_tips_cents: 0 };
-  const primaryTips = tipsFor(restaurantCurrency);
+  const primaryTips = tipsFor(effectiveCurrency);
   const tipsByUser = new Map(primaryTips.employees.map((e) => [e.user_id, e]));
 
   const employeeIds = new Set([
@@ -751,6 +1147,7 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
     ...hoursByUser.keys(),
     ...scheduledByUser.keys(),
     ...tipsByUser.keys(),
+    ...predictabilityPremiums.keys(),
   ]);
   const rosterById = new Map(roster.map((m) => [m.user_id, m]));
 
@@ -759,29 +1156,63 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
   let laborCostCents = 0;
   let overtimeHours = 0;
   let overtimeWagesCents = 0;
+  let doubletimeHours = 0;
+  let doubletimeWagesCents = 0;
+  let mealBreakPremiumCents = 0;
+  let predictabilityPremiumCents = 0;
+  let unpricedPremiumHours = 0;
+  let missedMealBreaks = 0;
   let breakExceptions = 0;
   const missingWageUserIds = [];
   const employees = [];
   for (const userId of employeeIds) {
     const member = rosterById.get(userId);
-    const policy = policyHours.get(userId) || { totalHours: 0, overtimeHours: 0, breakExceptions: 0 };
+    const policy = policyHours.get(userId) || { totalHours: 0, regularHours: 0, overtimeHours: 0, doubletimeHours: 0, breakExceptions: 0, missedMealBreaks: 0, mealBreakPremiumHours: 0 };
     const hours = Math.round((policy.totalHours || hoursByUser.get(userId) || 0) * 100) / 100;
-    const employeeOvertimeHours = Math.min(hours, Math.max(0, Number(policy.overtimeHours) || 0));
-    const regularHours = Math.max(0, Math.round((hours - employeeOvertimeHours) * 100) / 100);
+    const regularHours = Math.max(0, Math.min(hours, Math.round((Number(policy.regularHours) || 0) * 100) / 100));
+    const employeeOvertimeHours = Math.max(0, Math.min(hours - regularHours, Math.round((Number(policy.overtimeHours) || 0) * 100) / 100));
+    const employeeDoubletimeHours = Math.max(0, Math.min(
+      hours - regularHours - employeeOvertimeHours,
+      Math.round((Number(policy.doubletimeHours) || 0) * 100) / 100));
+    const employeeMealPremiumHours = Math.round((Number(policy.mealBreakPremiumHours) || 0) * 100) / 100;
+    const employeeMissedMeals = Number(policy.missedMealBreaks) || 0;
     const scheduledHours = Math.round((scheduledByUser.get(userId) || 0) * 100) / 100;
     const wage = member && member.hourly_wage_cents != null ? Number(member.hourly_wage_cents) : null;
     const regularWagesCents = wage != null ? Math.round(regularHours * wage) : null;
     const employeeOvertimeWagesCents = wage != null
       ? Math.round(employeeOvertimeHours * wage * (laborPolicy.overtime_multiplier_bps / 10000)) : null;
-    const wagesCents = wage != null ? regularWagesCents + employeeOvertimeWagesCents : null;
+    // Double time is 2x the regular rate by definition.
+    const employeeDoubletimeWagesCents = wage != null
+      ? Math.round(employeeDoubletimeHours * wage * 2) : null;
+    const employeeMealPremiumCents = wage != null
+      ? Math.round(employeeMealPremiumHours * wage) : 0;
+    const premium = predictabilityPremiums.get(userId)
+      || { premium_cents: 0, premium_hours: 0, unpriced_premium_hours: 0 };
+    const employeePredictabilityCents = Math.round(Number(premium.premium_cents) || 0);
+    // Premium hours with no wage to price them are unpriced, never
+    // silently zero: meal premiums need a wage, predictability
+    // premiums already carry their own unpriced hours.
+    const employeeUnpricedPremiumHours = Math.round(
+      ((Number(premium.unpriced_premium_hours) || 0) + (wage == null ? employeeMealPremiumHours : 0)) * 100) / 100;
+    const wagesCents = wage != null
+      ? regularWagesCents + employeeOvertimeWagesCents + employeeDoubletimeWagesCents : null;
     if (hours > 0 && wage == null && member && member.membership_role !== 'owner') {
       missingWageUserIds.push(userId);
     }
+    // Labor cost is everything owed for the work: wages plus both
+    // premium types.
     if (wagesCents != null) laborCostCents += wagesCents;
+    laborCostCents += employeeMealPremiumCents + employeePredictabilityCents;
     totalHours += hours;
     totalScheduledHours += scheduledHours;
     overtimeHours += employeeOvertimeHours;
     if (employeeOvertimeWagesCents != null) overtimeWagesCents += employeeOvertimeWagesCents;
+    doubletimeHours += employeeDoubletimeHours;
+    if (employeeDoubletimeWagesCents != null) doubletimeWagesCents += employeeDoubletimeWagesCents;
+    mealBreakPremiumCents += employeeMealPremiumCents;
+    predictabilityPremiumCents += employeePredictabilityCents;
+    unpricedPremiumHours += employeeUnpricedPremiumHours;
+    missedMealBreaks += employeeMissedMeals;
     breakExceptions += Number(policy.breakExceptions) || 0;
     const tips = tipsByUser.get(userId) || {
       gross_tips_cents: 0, tip_out_cents: 0, tip_in_cents: 0, net_tips_cents: 0,
@@ -794,22 +1225,30 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
       hours,
       regular_hours: regularHours,
       overtime_hours: employeeOvertimeHours,
+      doubletime_hours: employeeDoubletimeHours,
       scheduled_hours: scheduledHours,
       hourly_wage_cents: wage,
       regular_wages_cents: regularWagesCents,
       overtime_wages_cents: employeeOvertimeWagesCents,
+      doubletime_wages_cents: employeeDoubletimeWagesCents,
       wages_cents: wagesCents,
       break_exceptions: Number(policy.breakExceptions) || 0,
+      missed_meal_breaks: employeeMissedMeals,
+      meal_break_premium_hours: employeeMealPremiumHours,
+      meal_break_premium_cents: employeeMealPremiumCents,
+      predictability_premium_hours: Math.round((Number(premium.premium_hours) || 0) * 100) / 100,
+      predictability_premium_cents: employeePredictabilityCents,
+      unpriced_premium_hours: employeeUnpricedPremiumHours,
       gross_tips_cents: tips.gross_tips_cents,
       tip_out_cents: tips.tip_out_cents,
       tip_in_cents: tips.tip_in_cents,
       net_tips_cents: tips.net_tips_cents,
-      total_pay_cents: (wagesCents || 0) + tips.net_tips_cents,
+      total_pay_cents: (wagesCents || 0) + employeeMealPremiumCents + employeePredictabilityCents + tips.net_tips_cents,
     });
   }
   employees.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
-  const primaryRevenue = revenues.find((r) => r.currency === restaurantCurrency);
+  const primaryRevenue = revenues.find((r) => r.currency === effectiveCurrency);
   const revenueCents = primaryRevenue ? primaryRevenue.revenue_cents : 0;
   const laborPercent = revenueCents > 0
     ? Math.round((laborCostCents / revenueCents) * 10000) / 100
@@ -822,7 +1261,8 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
     from_date: fromDate,
     to_date: toDate,
     timezone,
-    currency: restaurantCurrency,
+    currency: effectiveCurrency,
+    currency_minor_unit_decimals: minorUnitDecimals(effectiveCurrency),
     revenues,
     revenue_cents: revenueCents,
     labor_cost_cents: laborCostCents,
@@ -831,6 +1271,12 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
     scheduled_hours: Math.round(totalScheduledHours * 100) / 100,
     overtime_hours: Math.round(overtimeHours * 100) / 100,
     overtime_wages_cents: overtimeWagesCents,
+    doubletime_hours: Math.round(doubletimeHours * 100) / 100,
+    doubletime_wages_cents: doubletimeWagesCents,
+    meal_break_premium_cents: mealBreakPremiumCents,
+    predictability_premium_cents: predictabilityPremiumCents,
+    unpriced_premium_hours: Math.round(unpricedPremiumHours * 100) / 100,
+    missed_meal_breaks: missedMealBreaks,
     break_exceptions: breakExceptions,
     labor_policy: laborPolicy,
     sales_per_labor_hour_cents: salesPerLaborHourCents,
@@ -846,6 +1292,11 @@ function buildPayrollCsv(labor) {
     'hourly_wage_cents', 'regular_wages_cents', 'overtime_wages_cents', 'wages_cents', 'break_exceptions', 'gross_tips_cents', 'tip_out_cents',
     'tip_in_cents', 'net_tips_cents', 'total_pay_cents', 'currency',
     'period_from', 'period_to',
+    // Phase 1 pay lines, appended so existing positional consumers keep
+    // working. All amounts are integer minor units in labor.currency.
+    'doubletime_hours', 'doubletime_wages_cents',
+    'missed_meal_breaks', 'meal_break_premium_hours', 'meal_break_premium_cents',
+    'predictability_premium_hours', 'predictability_premium_cents', 'unpriced_premium_hours',
   ];
   const lines = [header.join(',')];
   for (const e of labor.employees) {
@@ -870,6 +1321,14 @@ function buildPayrollCsv(labor) {
       labor.currency,
       labor.from_date,
       labor.to_date,
+      e.doubletime_hours ?? 0,
+      e.doubletime_wages_cents == null ? '' : e.doubletime_wages_cents,
+      e.missed_meal_breaks ?? 0,
+      e.meal_break_premium_hours ?? 0,
+      e.meal_break_premium_cents ?? 0,
+      e.predictability_premium_hours ?? 0,
+      e.predictability_premium_cents ?? 0,
+      e.unpriced_premium_hours ?? 0,
     ].map(csvCell).join(','));
   }
   return lines.join('\n') + '\n';
@@ -891,7 +1350,14 @@ async function computeExceptions({ restaurant, fromDate, toDate, locationIds = n
   const businessId = restaurant.business_id;
   const params = storeParams([restaurantId, fromDate, toDate, timezone], locationIds);
 
-  const [payments, discounts, drawerEvents, missingPunches, roster] = await Promise.all([
+  const payContext = await getLocationPayContext(restaurantId, locationIds);
+  const fallbackPolicy = await getLaborPolicy(restaurantId);
+  const singleLocationId = Array.isArray(locationIds) && locationIds.length === 1 ? Number(locationIds[0]) : null;
+  const effectivePolicy = singleLocationId != null && payContext.policiesByLocation.has(singleLocationId)
+    ? payContext.policiesByLocation.get(singleLocationId)
+    : fallbackPolicy;
+
+  const [payments, discounts, drawerEvents, missingPunches, roster, policyHours] = await Promise.all([
     pool.query(
       `SELECT created_by AS user_id,
               COUNT(*) FILTER (WHERE status = 'voided')::int AS voids,
@@ -956,15 +1422,26 @@ async function computeExceptions({ restaurant, fromDate, toDate, locationIds = n
       storeParams([businessId, fromDate, toDate, restaurantId], locationIds)
     ),
     getRoster(businessId, locationIds, restaurant.id),
+    getPolicyHoursByUser(businessId, fromDate, toDate, effectivePolicy, locationIds, payContext),
   ]);
 
   const rosterById = new Map(roster.map((m) => [m.user_id, m]));
+  const wagesByUser = new Map();
+  for (const m of roster) {
+    if (m.hourly_wage_cents != null) wagesByUser.set(m.user_id, Number(m.hourly_wage_cents));
+  }
+  const predictabilityPremiums = await getPredictabilityPremiums({
+    businessId, fromDate, toDate, timezone, locationIds, wagesByUser,
+  });
   const byUser = new Map();
   const blank = () => ({
     voids: 0, voided_cents: 0, refunds: 0, refund_cents: 0,
     comps: 0, comp_cents: 0, discounted_orders: 0, discount_cents: 0,
     no_sales: 0, payouts: 0, payout_cents: 0, cash_outs: 0, cash_out_cents: 0,
     missing_punches: 0,
+    missed_meal_breaks: 0, meal_break_premium_hours: 0, meal_break_premium_cents: 0,
+    predictability_premium_count: 0, predictability_premium_cents: 0,
+    unpriced_premium_hours: 0,
   });
   const merge = (userId, source) => {
     if (!userId) return;
@@ -978,6 +1455,26 @@ async function computeExceptions({ restaurant, fromDate, toDate, locationIds = n
   for (const r of discounts.rows) merge(r.user_id, r);
   for (const r of drawerEvents.rows) merge(r.user_id, r);
   for (const r of missingPunches.rows) merge(r.user_id, r);
+  // Missed meal breaks and their premium, priced from the wage of
+  // record; unpriced when there is no wage.
+  for (const [userId, policy] of policyHours) {
+    const wage = wagesByUser.get(userId);
+    const mealHours = Number(policy.mealBreakPremiumHours) || 0;
+    merge(userId, {
+      missed_meal_breaks: Number(policy.missedMealBreaks) || 0,
+      meal_break_premium_hours: mealHours,
+      meal_break_premium_cents: wage != null ? Math.round(mealHours * wage) : 0,
+      unpriced_premium_hours: wage == null ? mealHours : 0,
+    });
+  }
+  for (const [userId, premium] of predictabilityPremiums) {
+    const row = byUser.get(userId) || blank();
+    row.predictability_premium_count = Number(premium.change_count) || 0;
+    row.predictability_premium_cents = Math.round(Number(premium.premium_cents) || 0);
+    row.unpriced_premium_hours = Math.round(((row.unpriced_premium_hours || 0)
+      + (Number(premium.unpriced_premium_hours) || 0)) * 100) / 100;
+    byUser.set(userId, row);
+  }
 
   const employees = [...byUser.entries()].map(([userId, counts]) => {
     const member = rosterById.get(userId);
@@ -1007,8 +1504,11 @@ module.exports = {
   getLaborPolicy,
   saveLaborPolicy,
   normalizeLaborPolicy,
+  getLocationPayContext,
   getPolicyHoursByUser,
   calculatePolicyHours,
+  tierRows,
+  getPredictabilityPremiums,
   computeTipAllocations,
   computeLabor,
   buildPayrollCsv,
