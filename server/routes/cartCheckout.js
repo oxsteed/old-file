@@ -21,6 +21,10 @@ try {
 }
 
 router.get('/:cartId/session', requireAuth, checkoutController.getCheckoutSession || notAvailable);
+// Read-only buyer view of one marketplace order (buyer-scoped in SQL; see
+// getMarketplaceOrder). Registered before the :cartId routes so the static
+// 'orders' segment can never be captured as a cart id.
+router.get('/orders/:orderId', requireAuth, checkoutController.getMarketplaceOrder || notAvailable);
 // Review P2-7-F07: admins must be able to restrict checkout here too.
 // Review P2-7-F06/F08: checkout moves money; require verified email and
 // current terms like the other payment entry points.
