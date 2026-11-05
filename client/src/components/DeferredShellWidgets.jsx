@@ -75,14 +75,24 @@ export function DeferredCommandPalette() {
   const { Component, error, retry } = useDeferredModule(loadPalette, ready);
   useEffect(() => {
     if (ready) return;
-    const open = (event) => {
+    const openOnHotkey = (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setReady(true);
       }
     };
-    window.addEventListener('keydown', open);
-    return () => window.removeEventListener('keydown', open);
+    // The navbar palette trigger dispatches this event, but the only other
+    // listener lives inside the lazily loaded palette itself, so without
+    // this the first click fires into nothing (and on mobile, where there
+    // is no hotkey, the button never works). Loading mounts the palette
+    // with initialOpen, so the click opens it, not just loads it.
+    const openOnEvent = () => setReady(true);
+    window.addEventListener('keydown', openOnHotkey);
+    window.addEventListener('oxsteed:open-command-palette', openOnEvent);
+    return () => {
+      window.removeEventListener('keydown', openOnHotkey);
+      window.removeEventListener('oxsteed:open-command-palette', openOnEvent);
+    };
   }, [ready]);
   if (Component) return <Component initialOpen />;
   return ready && error ? (
