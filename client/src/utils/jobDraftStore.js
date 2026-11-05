@@ -115,6 +115,21 @@ export async function saveJobDraft(owner, draft) {
   const sequence = (saveSequences.get(owner) || 0) + 1;
   saveSequences.set(owner, sequence);
   if (activeAccount !== owner) return { saved: false, photosSaved: false };
+  // UI gaps item 5: a save from a non-photos tab must not clobber photos
+  // stored by an earlier photos-tab save. Carry the existing record's
+  // files, signature, and count forward; the photos-only rule stays.
+  let preserved = null;
+  if (draft.mediaTab !== 'photos') {
+    try {
+      preserved = await transact((store, done) => {
+        const get = store.get(owner);
+        get.onsuccess = () => done(get.result || null);
+      });
+    } catch {
+      /* Preserve nothing; the save below still stores the new text. */
+    }
+    if (preserved && preserved.savedAt < Date.now() - TTL) preserved = null;
+  }
   const files = draft.mediaTab === 'photos' ? draft.files || [] : [];
   const supported =
     files.length <= 5 &&
@@ -125,16 +140,18 @@ export async function saveJobDraft(owner, draft) {
         ) && file.size <= 10 * 1024 * 1024,
     ) &&
     files.reduce((n, file) => n + file.size, 0) <= 50 * 1024 * 1024;
-  const fileSignature = files
-    .map((file) => {
-      const m = metadataFor(file);
-      return [m.name, m.size, m.lastModified, m.type].join(':');
-    })
-    .join('|');
+  const fileSignature = preserved
+    ? preserved.fileSignature || ''
+    : files
+        .map((file) => {
+          const m = metadataFor(file);
+          return [m.name, m.size, m.lastModified, m.type].join(':');
+        })
+        .join('|');
   const record = {
     owner,
     fileSignature,
-    photoCount: files.length,
+    photoCount: preserved ? preserved.photoCount || 0 : files.length,
     payload: draft.payload,
     wizard_step: draft.wizard_step,
     mediaTab: draft.mediaTab,
@@ -149,18 +166,22 @@ export async function saveJobDraft(owner, draft) {
   try {
     // Normalize file-backed inputs to structured-cloneable bytes. WebKit can
     // reject a direct File reference from a file picker even while it previews.
-    const storedFiles = await Promise.all(
-      (supported ? files : []).map((file) => {
-        if (!serializedFiles.has(file))
-          serializedFiles.set(
-            file,
-            file
-              .arrayBuffer()
-              .then((bytes) => ({ ...metadataFor(file), bytes })),
-          );
-        return serializedFiles.get(file);
-      }),
-    );
+    // Preserved files are already serialized byte objects from the existing
+    // record, so they pass through untouched.
+    const storedFiles = preserved
+      ? preserved.files || []
+      : await Promise.all(
+          (supported ? files : []).map((file) => {
+            if (!serializedFiles.has(file))
+              serializedFiles.set(
+                file,
+                file
+                  .arrayBuffer()
+                  .then((bytes) => ({ ...metadataFor(file), bytes })),
+              );
+            return serializedFiles.get(file);
+          }),
+        );
     const committed = await transact((store, done) => {
       if (
         activeAccount !== owner ||
