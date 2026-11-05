@@ -104,7 +104,10 @@ export default function Login({ embedded = false, returnTo } = {}) {
 
     if (loggedInUser?.email_verified && !diditGateSatisfied(loggedInUser)) {
       toast.success(t('login.verifyIdentityToast'));
-      navigate(embedded ? `/media/verify-identity?returnTo=${encodeURIComponent(from)}` : '/verify-identity', { replace: true });
+      // UI gaps item 6: the non-embedded verify path used to drop the
+      // return path, so a gated login landed on a dashboard instead of
+      // the booking. Carry returnTo exactly like the embedded path.
+      navigate(`/verify-identity?returnTo=${encodeURIComponent(from)}`, { replace: true });
       return;
     }
 

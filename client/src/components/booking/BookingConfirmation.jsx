@@ -29,11 +29,13 @@ export default function BookingConfirmation({
   helperName,
   onConfirm,
   onBack,
-  loading
+  loading,
+  initialAgreed = false,
+  onAgreementChange,
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || 'en';
-  const [agreed, setAgreed] = useState(false);
+  const [agreed, setAgreed] = useState(initialAgreed);
   const [confirmationHours, setConfirmationHours] = useState(24);
   const deadlineLimitHours = useMemo(
     () => getDeadlineLimitHours(bookingData.requestedDate, bookingData.requestedStartTime),
@@ -192,7 +194,7 @@ export default function BookingConfirmation({
             <input
               type="checkbox"
               checked={agreed}
-              onChange={e => setAgreed(e.target.checked)} data-track="ui.98ea5ee9e6.1"
+              onChange={e => { setAgreed(e.target.checked); onAgreementChange?.(e.target.checked); }} data-track="ui.98ea5ee9e6.1"
             />
             <span>{t('booking.agreeToTerms')}</span>
           </label>
