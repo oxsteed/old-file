@@ -152,6 +152,13 @@ function VortexModal({ onClose, initialToken = '' }) {
     if (initialToken) { setToken(initialToken); setTab('token'); }
   }, [initialToken]);
 
+  // UI gaps item 13: Escape dismisses, matching the other modals.
+  useEffect(() => {
+    const handler = (event) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
   function stashAndGoToLogin(value) {
     if (value) {
       try {
@@ -293,7 +300,7 @@ function VortexModal({ onClose, initialToken = '' }) {
 
   return (
     <div style={overlayStyle} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={boxStyle}>
+      <div style={boxStyle} role="dialog" aria-modal="true" aria-label={t('footer.vortexTitle')}>
         <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700 }}>{t('footer.vortexTitle')}</h2>
 
         {!anySuccess && (
@@ -340,6 +347,7 @@ function VortexModal({ onClose, initialToken = '' }) {
                     <input
                       type="text"
                       placeholder={t('footer.vortexCodePlaceholder')}
+                      aria-label={t('footer.vortexTabCode')}
                       value={code}
                       onChange={e => { setCode(e.target.value.toUpperCase()); setCodeError(''); }}
                       maxLength={32}
@@ -404,6 +412,7 @@ function VortexModal({ onClose, initialToken = '' }) {
             <input
               type="text"
               placeholder={t('footer.vortexPlaceholder')}
+              aria-label={t('footer.vortexTabToken')}
               value={token}
               onChange={e => { setToken(e.target.value); setError(''); }}
               maxLength={64}

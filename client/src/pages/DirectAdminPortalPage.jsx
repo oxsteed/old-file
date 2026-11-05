@@ -980,6 +980,9 @@ function DirectAdminCalendarView() {
       if (['completed', 'closed', 'cancelled'].includes(updated.status)) {
         setData((current) => current ? { ...current, upcoming: (current.upcoming || []).filter((item) => item.id !== updated.id) } : current);
         setSelectedJob(null);
+        // UI gaps item 10: cancelling used to remove the job with no
+        // feedback at all. Confirm the outcome explicitly.
+        if (updated.status === 'cancelled') toast.success(t('directAdminPortal.jobCancelled'));
       } else {
         setData((current) => current ? { ...current, upcoming: (current.upcoming || []).map((item) => item.id === updated.id ? { ...item, ...updated } : item) } : current);
       }
@@ -1180,7 +1183,7 @@ function DirectAdminCalendarView() {
             {selectedJob.user_id && <div className="mt-3 flex flex-wrap items-center gap-3 text-sm"><Link to={`/direct/admin/customers/${selectedJob.user_id}`} className="font-semibold text-orange-300 hover:text-orange-200">{t('directAdminPortal.openCustomerHistory', { defaultValue: 'Open customer history' })} <ChevronRight size={15} className="inline" /></Link><span className="text-slate-500">{customerContext ? t('directAdminPortal.customerContextStats', { requests: customerContext.requests?.length || 0, locations: customerContext.locations?.length || 0, defaultValue: '{{requests}} prior Direct requests · {{locations}} saved locations' }) : t('directAdminPortal.loadingCustomerContext', { defaultValue: 'Loading customer context…' })}</span></div>}
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button type="button" onClick={() => updateSelectedJob('completed')} disabled={actionSaving} className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-50">{t('directAdminPortal.markComplete', { defaultValue: 'Mark complete' })}</button>
-              <button type="button" onClick={() => updateSelectedJob('cancelled')} disabled={actionSaving} className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200 disabled:opacity-50">{t('directAdminPortal.cancelJob', { defaultValue: 'Cancel job' })}</button>
+              <button type="button" onClick={() => { if (window.confirm(t('directAdminPortal.confirmCancelJob'))) updateSelectedJob('cancelled'); }} disabled={actionSaving} className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200 disabled:opacity-50">{t('directAdminPortal.cancelJob', { defaultValue: 'Cancel job' })}</button>
               <Link to={`/direct/admin/jobs/${selectedJob.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">{t('directAdminPortal.openFullWorkOrder', { defaultValue: 'Open full work order' })} <ChevronRight size={15} /></Link>
               <a href={googleCalendarUrl(selectedJob, t)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">{t('directAdminPortal.openInGoogleCalendar', { defaultValue: 'Open in Google Calendar' })} <ChevronRight size={15} /></a>
             </div>

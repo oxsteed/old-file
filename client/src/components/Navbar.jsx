@@ -18,6 +18,7 @@ import { useNavDisclosure } from '../hooks/useNavDisclosure';
 import { useSupportWorkspaceAccess } from '../hooks/useSupportWorkspaceAccess';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { canUseQrGenerator } from '../utils/modeAccess';
+import { openCommandPalette } from './CommandPalette';
 import '../styles/BusinessSwitcher.css';
 import { OxSteedIcon } from './OxSteedIcon';
 import './Navbar.css';
@@ -238,6 +239,22 @@ export default function Navbar() {
             {showBusinessHub && <BusinessSwitcher />}
             <LanguageSelector />
             <ThemeToggle />
+            {/* UI gaps item 11: visible palette trigger (was hotkey-only).
+                The hotkey keeps working; this button dispatches the same open. */}
+            <button
+              type="button"
+              className="ox-btn ox-btn-ghost ox-btn-sm"
+              aria-label={t('commandPalette.title')}
+              title={t('commandPalette.title')}
+              onClick={openCommandPalette}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }} data-track="ui.0b9e115b87.4"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <line x1="21" y1="21" x2="16.5" y2="16.5" />
+              </svg>
+              <kbd style={{ fontSize: '0.7rem', opacity: 0.75 }}>Ctrl K</kbd>
+            </button>
           </div>
 
           {/* Mobile: keep persistent controls intentionally small. Account and
@@ -251,6 +268,20 @@ export default function Navbar() {
           }}>
             <LanguageSelector menuAlign="start" />
             <ThemeToggle />
+            {/* UI gaps item 11: mobile trigger, next to the menu button. */}
+            <button
+              type="button"
+              aria-label={t('commandPalette.title')}
+              title={t('commandPalette.title')}
+              onClick={openCommandPalette}
+              className="ox-btn-icon"
+              style={{ color: 'var(--color-nav-link)' }} data-track="ui.0b9e115b87.5"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <line x1="21" y1="21" x2="16.5" y2="16.5" />
+              </svg>
+            </button>
             <button
               ref={mobileTriggerRef}
               type="button"

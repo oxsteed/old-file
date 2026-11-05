@@ -75,12 +75,30 @@ export default function BidAcceptanceModal({
     onConfirm({ payment_method: selectedPaymentMethod });
   };
 
+  // UI gaps item 17: Escape dismisses, matching the Booking/Invoice/
+  // PlatformApproval modals. Bid/payment logic is untouched.
+  React.useEffect(() => {
+    const handler = (event) => { if (event.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onCancel]);
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-6">
-          {t('bidAcceptanceModal.choosePaymentMethod') || 'Choose Payment Method'}
-        </h2>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-label={t('bidAcceptanceModal.choosePaymentMethod')}>
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-2xl font-bold mb-6">
+            {t('bidAcceptanceModal.choosePaymentMethod') || 'Choose Payment Method'}
+          </h2>
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label={t('common.close')}
+            className="shrink-0 px-2 py-1 text-xl leading-none text-gray-500 hover:text-gray-800 dark:hover:text-gray-200" data-track="ui.23ac95a2f4.6"
+          >
+            ✕
+          </button>
+        </div>
 
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
           {t('bidAcceptanceModal.selectPaymentExplanation') || 'Select how you\'ll pay for this job. Each option has different cancellation terms.'}

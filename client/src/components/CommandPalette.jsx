@@ -23,6 +23,20 @@ import './CommandPalette.css';
 
 const MAX_VISIBLE = 30;
 
+// UI gaps item 11: the palette was hotkey-only. Navbar trigger buttons
+// dispatch this event; both palette variants listen, so the same button
+// opens the palette in the client and admin shells.
+export function openCommandPalette() {
+  window.dispatchEvent(new CustomEvent('oxsteed:open-command-palette'));
+}
+
+function usePaletteOpenEvent(onOpen) {
+  useEffect(() => {
+    window.addEventListener('oxsteed:open-command-palette', onOpen);
+    return () => window.removeEventListener('oxsteed:open-command-palette', onOpen);
+  }, [onOpen]);
+}
+
 function usePaletteHotkey(onToggle) {
   useEffect(() => {
     const handler = (event) => {
@@ -192,6 +206,8 @@ function ClientCommandPalette({initialOpen = false}) {
   const toggle = useCallback(() => setOpen((value) => !value), []);
   usePaletteHotkey(toggle);
   const close = useCallback(() => setOpen(false), []);
+  const openFromEvent = useCallback(() => setOpen(true), []);
+  usePaletteOpenEvent(openFromEvent);
 
   const staticItems = useMemo(() => {
     const { pages, actions } = buildClientItems(t);
@@ -222,6 +238,8 @@ function AdminCommandPalette({initialOpen = false}) {
   const toggle = useCallback(() => setOpen((value) => !value), []);
   usePaletteHotkey(toggle);
   const close = useCallback(() => setOpen(false), []);
+  const openFromEvent = useCallback(() => setOpen(true), []);
+  usePaletteOpenEvent(openFromEvent);
 
   const items = useMemo(() => buildAdminItems(t, {
     isSuper: user?.role === 'super_admin',
