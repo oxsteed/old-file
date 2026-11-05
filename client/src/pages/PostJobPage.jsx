@@ -1131,6 +1131,12 @@ export default function PostJobPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  function prevStep() {
+    setErrors({});
+    set({ step: form.step - 1 });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   // UI gaps item 4: the sidebar Submit runs the same step-1 validation
   // as Next instead of jumping to Review with errors cleared. On failure
   // it lands on step 1 with the errors; on success it goes to Review.
