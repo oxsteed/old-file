@@ -25019,7 +25019,56 @@
       "notMember": "أنت لست عضوًا في فريق هذا المطعم.",
       "backToMyRestaurants": "العودة إلى مطاعمي",
       "employedBy": "موظف لدى {{restaurant}}",
-      "poweredBy": "Powered by OxSteed"
+      "poweredBy": "Powered by OxSteed",
+      "shared": {
+        "period": "الفترة",
+        "currentPeriod": "الفترة الحالية",
+        "loadError": "تعذّر تحميل هذا العنصر. حاول مرة أخرى."
+      },
+      "myTips": {
+        "grossTips": "الإكراميات المكتسبة",
+        "tipOut": "الإكراميات الموزعة",
+        "tipIn": "الإكراميات الواردة",
+        "netTips": "صافي الإكراميات",
+        "noTips": "لا توجد إكراميات في هذه الفترة.",
+        "declaredCashTips": "الإكراميات النقدية المصرح بها",
+        "noDeclaredCashTips": "لا توجد إكراميات نقدية مصرح بها في هذه الفترة.",
+        "declareTitle": "التصريح بإكرامية نقدية",
+        "amount": "المبلغ",
+        "date": "التاريخ",
+        "note": "ملاحظة (اختياري)",
+        "declareSubmit": "صرّح بالإكرامية",
+        "declareSuccess": "تم التصريح بالإكرامية النقدية. وستُحتسب في أجرك بعد أن يؤكدها المدير.",
+        "declareError": "تعذّر التصريح بهذه الإكرامية. تحقق من المبلغ والتاريخ ثم حاول مرة أخرى.",
+        "pendingReview": "بانتظار مراجعة المدير.",
+        "status": {
+          "pending": "قيد الانتظار",
+          "confirmed": "مؤكدة",
+          "rejected": "مرفوضة"
+        }
+      },
+      "myPay": {
+        "hours": "ساعات العمل",
+        "regularHours": "الساعات العادية",
+        "overtimeHours": "ساعات العمل الإضافي",
+        "doubletimeHours": "ساعات الأجر المضاعف",
+        "regularWages": "الأجر العادي",
+        "overtimeWages": "أجر العمل الإضافي",
+        "doubletimeWages": "أجر الساعات المضاعفة",
+        "mealBreakPremium": "علاوة استراحة الوجبة",
+        "predictabilityPremium": "علاوة القدرة على التنبؤ",
+        "grossTips": "إجمالي الإكراميات",
+        "netTips": "صافي الإكراميات",
+        "totalPay": "إجمالي الأجر",
+        "noPay": "لا يوجد أجر في هذه الفترة.",
+        "stubsTitle": "قسائم الأجر",
+        "noStubs": "لا توجد قسائم أجر نهائية بعد.",
+        "viewStub": "عرض القسيمة",
+        "stubTitle": "قسيمة الأجر",
+        "finalizedOn": "تم الانتهاء منها في {{date}}",
+        "statusFinalized": "نهائية",
+        "statusPaid": "مدفوعة"
+      }
     },
     "offlineCard": {
       "title": "مدفوعات البطاقات دون اتصال بانتظار المراجعة",

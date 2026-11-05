@@ -25008,7 +25008,56 @@
       "notMember": "No formas parte del equipo de este restaurante.",
       "backToMyRestaurants": "Volver a mis restaurantes",
       "employedBy": "Empleado por {{restaurant}}",
-      "poweredBy": "Powered by OxSteed"
+      "poweredBy": "Powered by OxSteed",
+      "shared": {
+        "period": "Periodo",
+        "currentPeriod": "Periodo actual",
+        "loadError": "No se pudo cargar esto. Inténtalo de nuevo."
+      },
+      "myTips": {
+        "grossTips": "Propinas ganadas",
+        "tipOut": "Propinas compartidas",
+        "tipIn": "Propinas recibidas",
+        "netTips": "Propinas netas",
+        "noTips": "No hay propinas en este periodo.",
+        "declaredCashTips": "Propinas en efectivo declaradas",
+        "noDeclaredCashTips": "No hay propinas en efectivo declaradas en este periodo.",
+        "declareTitle": "Declarar una propina en efectivo",
+        "amount": "Cantidad",
+        "date": "Fecha",
+        "note": "Nota (opcional)",
+        "declareSubmit": "Declarar propina",
+        "declareSuccess": "Propina en efectivo declarada. Se contará en tu pago después de que un gerente la confirme.",
+        "declareError": "No se pudo declarar esta propina. Revisa la cantidad y la fecha, e inténtalo de nuevo.",
+        "pendingReview": "Pendiente de revisión por un gerente.",
+        "status": {
+          "pending": "Pendiente",
+          "confirmed": "Confirmada",
+          "rejected": "Rechazada"
+        }
+      },
+      "myPay": {
+        "hours": "Horas trabajadas",
+        "regularHours": "Horas regulares",
+        "overtimeHours": "Horas extra",
+        "doubletimeHours": "Horas a doble tarifa",
+        "regularWages": "Salario regular",
+        "overtimeWages": "Salario de horas extra",
+        "doubletimeWages": "Salario a doble tarifa",
+        "mealBreakPremium": "Prima por descanso para comer",
+        "predictabilityPremium": "Prima de previsibilidad",
+        "grossTips": "Propinas brutas",
+        "netTips": "Propinas netas",
+        "totalPay": "Pago total",
+        "noPay": "No hay pago en este periodo.",
+        "stubsTitle": "Recibos de pago",
+        "noStubs": "Aún no hay recibos de pago finalizados.",
+        "viewStub": "Ver recibo",
+        "stubTitle": "Recibo de pago",
+        "finalizedOn": "Finalizado el {{date}}",
+        "statusFinalized": "Finalizado",
+        "statusPaid": "Pagado"
+      }
     },
     "offlineCard": {
       "title": "Pagos con tarjeta sin conexión por revisar",

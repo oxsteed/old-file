@@ -25008,7 +25008,56 @@
       "notMember": "Vous ne faites pas partie de l'équipe de ce restaurant.",
       "backToMyRestaurants": "Retour à mes restaurants",
       "employedBy": "Employé par {{restaurant}}",
-      "poweredBy": "Powered by OxSteed"
+      "poweredBy": "Powered by OxSteed",
+      "shared": {
+        "period": "Période",
+        "currentPeriod": "Période en cours",
+        "loadError": "Impossible de charger ceci. Réessayez."
+      },
+      "myTips": {
+        "grossTips": "Pourboires gagnés",
+        "tipOut": "Pourboires reversés",
+        "tipIn": "Pourboires reçus",
+        "netTips": "Pourboires nets",
+        "noTips": "Aucun pourboire sur cette période.",
+        "declaredCashTips": "Pourboires en espèces déclarés",
+        "noDeclaredCashTips": "Aucun pourboire en espèces déclaré sur cette période.",
+        "declareTitle": "Déclarer un pourboire en espèces",
+        "amount": "Montant",
+        "date": "Date",
+        "note": "Note (facultatif)",
+        "declareSubmit": "Déclarer le pourboire",
+        "declareSuccess": "Pourboire en espèces déclaré. Il comptera dans votre paie après confirmation par un responsable.",
+        "declareError": "Impossible de déclarer ce pourboire. Vérifiez le montant et la date, puis réessayez.",
+        "pendingReview": "En attente de validation par un responsable.",
+        "status": {
+          "pending": "En attente",
+          "confirmed": "Confirmé",
+          "rejected": "Refusé"
+        }
+      },
+      "myPay": {
+        "hours": "Heures travaillées",
+        "regularHours": "Heures normales",
+        "overtimeHours": "Heures supplémentaires",
+        "doubletimeHours": "Heures à double tarif",
+        "regularWages": "Salaire normal",
+        "overtimeWages": "Salaire des heures supplémentaires",
+        "doubletimeWages": "Salaire à double tarif",
+        "mealBreakPremium": "Prime de pause repas",
+        "predictabilityPremium": "Prime de prévisibilité",
+        "grossTips": "Pourboires bruts",
+        "netTips": "Pourboires nets",
+        "totalPay": "Paie totale",
+        "noPay": "Aucune paie sur cette période.",
+        "stubsTitle": "Fiches de paie",
+        "noStubs": "Aucune fiche de paie finalisée pour le moment.",
+        "viewStub": "Voir la fiche",
+        "stubTitle": "Fiche de paie",
+        "finalizedOn": "Finalisée le {{date}}",
+        "statusFinalized": "Finalisée",
+        "statusPaid": "Payée"
+      }
     },
     "offlineCard": {
       "title": "Paiements par carte hors ligne à vérifier",

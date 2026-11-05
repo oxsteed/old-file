@@ -25008,7 +25008,56 @@
       "notMember": "Ou pa manm ekip restoran sa a.",
       "backToMyRestaurants": "Tounen sou restoran mwen yo",
       "employedBy": "Anplwaye pa {{restaurant}}",
-      "poweredBy": "Powered by OxSteed"
+      "poweredBy": "Powered by OxSteed",
+      "shared": {
+        "period": "Peryòd",
+        "currentPeriod": "Peryòd aktyèl la",
+        "loadError": "Nou pa t kapab chaje sa a. Eseye ankò."
+      },
+      "myTips": {
+        "grossTips": "Tip ou te genyen",
+        "tipOut": "Tip ou te bay",
+        "tipIn": "Tip ou te resevwa",
+        "netTips": "Tip nèt",
+        "noTips": "Pa gen tip nan peryòd sa a.",
+        "declaredCashTips": "Tip lajan kach ou te deklare",
+        "noDeclaredCashTips": "Pa gen tip lajan kach ou te deklare nan peryòd sa a.",
+        "declareTitle": "Deklare yon tip lajan kach",
+        "amount": "Montan",
+        "date": "Dat",
+        "note": "Nòt (si ou vle)",
+        "declareSubmit": "Deklare tip la",
+        "declareSuccess": "Tip lajan kach la deklare. L ap konte nan peye ou apre yon manadjè konfime li.",
+        "declareError": "Nou pa t kapab deklare tip sa a. Tcheke montan an ak dat la, apre eseye ankò.",
+        "pendingReview": "Ap tann yon manadjè revize li.",
+        "status": {
+          "pending": "An atant",
+          "confirmed": "Konfime",
+          "rejected": "Refize"
+        }
+      },
+      "myPay": {
+        "hours": "Èdtan ou te travay",
+        "regularHours": "Èdtan nòmal",
+        "overtimeHours": "Èdtan siplemantè",
+        "doubletimeHours": "Èdtan doub tarif",
+        "regularWages": "Salè nòmal",
+        "overtimeWages": "Salè èdtan siplemantè",
+        "doubletimeWages": "Salè doub tarif",
+        "mealBreakPremium": "Prim poz manje",
+        "predictabilityPremium": "Prim previzibilite",
+        "grossTips": "Tip brit",
+        "netTips": "Tip nèt",
+        "totalPay": "Peye total",
+        "noPay": "Pa gen peye nan peryòd sa a.",
+        "stubsTitle": "Fich peye",
+        "noStubs": "Pa gen fich peye finalize ankò.",
+        "viewStub": "Wè fich la",
+        "stubTitle": "Fich peye",
+        "finalizedOn": "Finalize nan dat {{date}}",
+        "statusFinalized": "Finalize",
+        "statusPaid": "Peye"
+      }
     },
     "offlineCard": {
       "title": "Peman kat san entènèt pou revize",

@@ -320,6 +320,33 @@ export const updateTipPoolSettings = (restaurantId, payload) =>
 export const declareCashTip = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/tips/cash-declarations`, payload).then((r) => r.data?.declaration);
 
+// ── Employee portal self-service (Phase 3 Track B) ────────────────────
+// Self-scoped reads: the server scopes every call by the signed-in
+// user, so these return only the caller's own tips, pay and stubs.
+export const getMyTips = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/tips/mine`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
+export const getMyPay = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/pay/mine`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
+export const listMyPayStubs = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/pay/mine/stubs`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.stubs || []);
+
+export const getMyPayStub = (restaurantId, payRunId) =>
+  api.get(`/restaurants/${restaurantId}/pay/mine/stubs/${payRunId}`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.stub);
+
+export const listMyCashTips = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/tips/cash-declarations/mine`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.declarations || []);
+
+export const declareMyCashTip = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/tips/cash-declarations/mine`, payload).then((r) => r.data);
+
+export const confirmCashTipDeclaration = (restaurantId, declarationId) =>
+  api.post(`/restaurants/${restaurantId}/tips/cash-declarations/${declarationId}/confirm`).then((r) => r.data?.declaration);
+
+export const rejectCashTipDeclaration = (restaurantId, declarationId) =>
+  api.post(`/restaurants/${restaurantId}/tips/cash-declarations/${declarationId}/reject`).then((r) => r.data?.declaration);
+
 export const listStaffDocumentPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/staff-documents`,{params, timeout: PANEL_LOAD_TIMEOUT_MS}).then(r=>r.data);
 export const listSopAcknowledgementPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/sop-acknowledgements`,{params, timeout: PANEL_LOAD_TIMEOUT_MS}).then(r=>r.data);
 

@@ -25008,7 +25008,56 @@
       "notMember": "You are not a member of this restaurant's team.",
       "backToMyRestaurants": "Back to my restaurants",
       "employedBy": "Employed by {{restaurant}}",
-      "poweredBy": "Powered by OxSteed"
+      "poweredBy": "Powered by OxSteed",
+      "shared": {
+        "period": "Period",
+        "currentPeriod": "Current period",
+        "loadError": "Could not load this. Try again."
+      },
+      "myTips": {
+        "grossTips": "Tips earned",
+        "tipOut": "Tipped out",
+        "tipIn": "Tipped in",
+        "netTips": "Net tips",
+        "noTips": "No tips in this period.",
+        "declaredCashTips": "Declared cash tips",
+        "noDeclaredCashTips": "No cash tips declared in this period.",
+        "declareTitle": "Declare a cash tip",
+        "amount": "Amount",
+        "date": "Date",
+        "note": "Note (optional)",
+        "declareSubmit": "Declare cash tip",
+        "declareSuccess": "Cash tip declared. It counts toward your pay after a manager confirms it.",
+        "declareError": "Could not declare this cash tip. Check the amount and date, then try again.",
+        "pendingReview": "Pending manager review.",
+        "status": {
+          "pending": "Pending",
+          "confirmed": "Confirmed",
+          "rejected": "Rejected"
+        }
+      },
+      "myPay": {
+        "hours": "Hours worked",
+        "regularHours": "Regular hours",
+        "overtimeHours": "Overtime hours",
+        "doubletimeHours": "Double-time hours",
+        "regularWages": "Regular wages",
+        "overtimeWages": "Overtime wages",
+        "doubletimeWages": "Double-time wages",
+        "mealBreakPremium": "Meal-break premium",
+        "predictabilityPremium": "Predictability premium",
+        "grossTips": "Gross tips",
+        "netTips": "Net tips",
+        "totalPay": "Total pay",
+        "noPay": "No pay in this period.",
+        "stubsTitle": "Pay stubs",
+        "noStubs": "No finalized pay stubs yet.",
+        "viewStub": "View stub",
+        "stubTitle": "Pay stub",
+        "finalizedOn": "Finalized on {{date}}",
+        "statusFinalized": "Finalized",
+        "statusPaid": "Paid"
+      }
     },
     "offlineCard": {
       "title": "Offline card payments to review",

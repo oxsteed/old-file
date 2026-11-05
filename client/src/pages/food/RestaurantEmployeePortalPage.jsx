@@ -16,7 +16,8 @@
 // - PORTAL_TAB_IDS: add a tab id here and a label under
 //   food.employeePortal.tabs in all five locales.
 // - renderTabContent: replace a tab's EmployeePortalEmptyState with the
-//   real panel. Track B owns 'mytips' and 'mypay'; Track C owns
+//   real panel. Track B owns 'mytips' and 'mypay' (landed:
+//   RestaurantMyTipsPanel / RestaurantMyPayPanel); Track C owns
 //   'availability' and 'swaps'.
 // - EmployeePortalEmptyState: the shared placeholder for tabs whose track
 //   has not landed yet. It promises nothing about timing.
@@ -32,7 +33,8 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listMyFoodRestaurants } from '../../api/food';
 import RestaurantTimeClockCard from './RestaurantTimeClockCard';
-import EmployedByRestaurant from './EmployedByRestaurant';
+import RestaurantMyTipsPanel from './RestaurantMyTipsPanel';
+import RestaurantMyPayPanel from './RestaurantMyPayPanel';
 import '../../styles/FoodPages.css';
 import './RestaurantEmployeePortalPage.css';
 
@@ -57,15 +59,11 @@ function renderTabContent(tab, restaurant) {
   if (tab === 'myshift') {
     return <RestaurantTimeClockCard restaurant={restaurant} />;
   }
+  if (tab === 'mytips') {
+    return <RestaurantMyTipsPanel restaurant={restaurant} />;
+  }
   if (tab === 'mypay') {
-    // Pay surface placeholder: the Employed by line already applies here,
-    // and Track B keeps it when the real pay surface replaces this.
-    return (
-      <>
-        <EmployeePortalEmptyState />
-        <EmployedByRestaurant restaurantName={restaurant.display_name} />
-      </>
-    );
+    return <RestaurantMyPayPanel restaurant={restaurant} />;
   }
   return <EmployeePortalEmptyState />;
 }

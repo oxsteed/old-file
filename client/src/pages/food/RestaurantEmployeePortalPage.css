@@ -95,6 +95,123 @@
   text-decoration: none;
 }
 
+/* Phase 3 Track B panels (My tips, My pay). Flexbox rows and logical
+   properties only, so the Arabic RTL layout mirrors automatically. */
+.ep-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ep-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 12px;
+}
+
+.ep-section h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.ep-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ep-row-strong {
+  font-weight: 700;
+  border-top: 1px solid rgba(128, 128, 128, 0.35);
+  padding-top: 0.35rem;
+}
+
+.ep-period-label {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.ep-note {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.ep-notice {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+}
+
+.ep-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ep-list-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ep-list-row > span:first-child {
+  flex: 1 1 auto;
+}
+
+.ep-status {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.ep-status-pending {
+  background: rgba(245, 158, 11, 0.18);
+  color: #b45309;
+}
+
+.ep-status-confirmed {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+}
+
+.ep-status-rejected {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+}
+
+.ep-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ep-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.ep-field select,
+.ep-field input {
+  font: inherit;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(128, 128, 128, 0.45);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+}
+
 .ep-footer {
   margin-top: 2rem;
   padding-top: 1rem;
