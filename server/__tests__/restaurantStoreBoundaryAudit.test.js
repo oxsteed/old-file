@@ -113,6 +113,12 @@ const REVIEWED = {
   'services/profileVisibilityActiveWork.js': CUSTOMER_OR_SELF,
   'services/restaurantDeliveryMarketplaceService.js': SCOPED_CALLER,
   'services/restaurantDeviceCredentials.js': DEVICE_BOUND,
+  // Punch closeout (Phase 2): the close-of-day sweep closes forgotten
+  // punches across ALL stores of one business, by design — either the
+  // nightly system job or a business-level manager action (role-gated,
+  // business-scoped). The per-entry shift lookup is location-matched
+  // (location_id IS NOT DISTINCT FROM the punch's store).
+  'services/restaurantPunchCloseout.js': BUSINESS_LEVEL,
   'services/restaurantInventoryAuditService.js': SCOPED_CALLER,
   'services/restaurantInventoryOrderService.js': SCOPED_CALLER,
   'services/restaurantKitchenFireService.js': SCOPED_CALLER,
