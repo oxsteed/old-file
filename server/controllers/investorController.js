@@ -68,6 +68,7 @@ exports.getKpis = async (req, res) => {
         COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND created_at >= now() - $2::interval
                            AND created_at <  now() - $1::interval)                                                 AS new_users_prev,
         COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND email_verified = TRUE)                      AS verified_users
+      FROM users
     `, [cur, prevInterval]);
 
     // ── Helper quality ─────────────────────────────────────────────────
@@ -181,9 +182,9 @@ exports.getKpis = async (req, res) => {
         total_users:         safeInt(userRows?.total_users),
         total_customers:     safeInt(userRows?.total_customers),
         total_helpers:       safeInt(userRows?.total_helpers),
-        new_users_cur,
-        new_users_prev,
-        new_users_delta:     new_users_cur - safeInt(userRows?.new_users_prev ?? 0),
+        new_users_cur:      safeInt(userRows?.new_users_cur),
+        new_users_prev:      safeInt(userRows?.new_users_prev),
+        new_users_delta:     safeInt(userRows?.new_users_cur) - safeInt(userRows?.new_users_prev ?? 0),
         verified_users:      safeInt(userRows?.verified_users),
         verified_helpers,
         avg_helper_rating,
