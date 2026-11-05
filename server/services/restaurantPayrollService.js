@@ -622,8 +622,9 @@ function tierRows(rows, policy, rulesResolver) {
     }
 
     // Weekly overtime: convert regular hours past the policy threshold
-    // to overtime, walking the week chronologically so the last regular
-    // hours in the week are the overtime ones.
+    // to overtime, walking the week in REVERSE chronological order so
+    // the last regular hours in the week are the overtime ones (the
+    // threshold is crossed at the end of the week, not the start).
     const weeks = new Map();
     for (const row of sorted) {
       const week = weekStartOf(entryDate(row));
@@ -640,7 +641,7 @@ function tierRows(rows, policy, rulesResolver) {
     for (const [week, regularTotal] of weeklyRegular) {
       weeklyExcess.set(week, Math.max(0, regularTotal - policy.overtime_threshold_hours));
     }
-    for (const row of sorted) {
+    for (const row of [...sorted].reverse()) {
       const week = weekStartOf(entryDate(row));
       let excess = weeklyExcess.get(week) || 0;
       if (excess > 0) {
@@ -1507,6 +1508,7 @@ module.exports = {
   getLocationPayContext,
   getPolicyHoursByUser,
   calculatePolicyHours,
+  scopedPolicyHours,
   tierRows,
   getPredictabilityPremiums,
   computeTipAllocations,
