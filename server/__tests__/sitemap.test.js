@@ -94,7 +94,13 @@ describe('public sitemap coverage', () => {
   });
 
   test('lists canonical helper URLs, guide areas, and business careers pages (no media details while flag off)', async () => {
-    delete process.env.OXSTEED_MEDIA_LAUNCHED;
+    // All-launch flip (2026-11-04): mediaLaunched() is default-true now,
+    // so the off case must set an explicit 'false'; deleting the var no
+    // longer opts out. Restored after so the later on-case (and any
+    // following file) still sees the setup default.
+    const previousMedia = process.env.OXSTEED_MEDIA_LAUNCHED;
+    process.env.OXSTEED_MEDIA_LAUNCHED = 'false';
+    try {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 5, profile_slug: 'maria-plumbing', updated_at: '2026-09-08T00:00:00.000Z' }] }) // helpers
       .mockResolvedValueOnce({ rows: [] }) // businesses
@@ -125,6 +131,10 @@ describe('public sitemap coverage', () => {
     expect(res.text).not.toContain('/media/post/');
     expect(res.text).not.toContain('<loc>https://oxsteed.com/media/communities</loc>');
     expect(mockQuery.mock.calls.length).toBe(8);
+    } finally {
+      if (previousMedia === undefined) delete process.env.OXSTEED_MEDIA_LAUNCHED;
+      else process.env.OXSTEED_MEDIA_LAUNCHED = previousMedia;
+    }
   });
 
   test('lists media details and directories while the media flag is on', async () => {

@@ -77,69 +77,75 @@ export const LAUNCH_BUSINESS_HUB_TABS = new Set([
 ]);
 
 export const LAUNCH_DEFAULTS = Object.freeze({
-  // 2026-11-02 admin-ops audit item 15: affiliate defaults OFF to match
-  // the affiliate API gate (AFFILIATE_ENABLED unset means the API 503s).
-  // With this off, /affiliate redirects to /dashboard and affiliate UI
-  // does not render until /api/launch-visibility overrides it at boot.
-  affiliateRewards: false,
-  aiKnowledge: false,
-  backgroundChecks: false,
-  businessAscension: false,
-  businessHubAdvancedOps: false,
-  businessHubFinancialPlanning: false,
-  businessHubGrowthTools: false,
-  businessHubProductCommerce: false,
-  businessHubRoleMenu: false,
-  businessHubRoleMenuWidgets: false,
-  businessHubSpecializedTemplates: false,
-  // Review P3-943: the Vortex APIs return 503 unless the server sets
-  // VORTEX_ENABLED. The client mirrors it via VITE_VORTEX_ENABLED (set both).
+  // All-launch flip (2026-11-04, Emile-authorized): every launch key
+  // defaults ON. The 2026-11-02 affiliate pairing concern (client true
+  // while the API defaulted off, rendering UI against 503 APIs) is closed
+  // because the affiliate API gate now defaults on too. Explicit env
+  // false plus a redeploy still turns a surface back off, and the server
+  // remains the source of truth via /api/launch-visibility at boot.
+  affiliateRewards: true,
+  aiKnowledge: true,
+  backgroundChecks: true,
+  businessAscension: true,
+  businessHubAdvancedOps: true,
+  businessHubFinancialPlanning: true,
+  businessHubGrowthTools: true,
+  businessHubProductCommerce: true,
+  businessHubRoleMenu: true,
+  businessHubRoleMenuWidgets: true,
+  businessHubSpecializedTemplates: true,
+  // Review P3-943: TRAP, unchanged by the all-launch flip. The Vortex
+  // client keys still mirror the build-time VITE_VORTEX_ENABLED, NOT a
+  // literal true: if the client build omits VITE_VORTEX_ENABLED=true,
+  // these read false until main.jsx fetches /api/launch-visibility at
+  // boot and overrides them with the server default (now true). A
+  // failed or timed-out boot fetch therefore still hides Vortex UI even
+  // though the server APIs are launched. Set VITE_VORTEX_ENABLED=true
+  // at build time to close that gap; the server default alone does not.
   businessHubVortexAccess: VORTEX_CLIENT_ENABLED,
   // Weekly self-audit 2026-11-04 item 1: consulting and franchise are real
-  // launch keys, not new flags. The server already gates their APIs
-  // (CONSULTING_ENABLED, FRANCHISE_ENABLED, both default off), and
-  // /api/launch-visibility serves them through LAUNCH_KEY_ENV, so the boot
-  // fetch overrides these build-time defaults. Both stay false here; only
-  // an env flip plus a redeploy turns either surface on.
-  consulting: false,
+  // launch keys, not new flags. The server gates their APIs
+  // (CONSULTING_ENABLED, FRANCHISE_ENABLED, both default on since the
+  // all-launch flip), and /api/launch-visibility serves them through
+  // LAUNCH_KEY_ENV, so the boot fetch overrides these build-time defaults.
+  consulting: true,
   // Review P3-7-F09: build-time default only. The server is the single source
   // of truth; main.jsx fetches /api/launch-visibility at boot and overrides
-  // this via applyServerLaunchVisibility().
-  // Weekly self-audit 2026-11-04 item 12: false to match the server default
-  // (OXSTEED_MEDIA_LAUNCHED, default off). The old true default meant a
-  // failed or timed-out boot fetch rendered Media UI against gated Media
-  // APIs, the exact failure mode P3-7-F09 was built to prevent.
-  oxsteedMedia: false,
-  discoverEverything: false,
+  // this via applyServerLaunchVisibility(). Default on since the
+  // all-launch flip, matching the server (OXSTEED_MEDIA_LAUNCHED).
+  oxsteedMedia: true,
+  discoverEverything: true,
   footerUtilityPills: true,
   // Weekly self-audit 2026-11-04 item 1: mirrors FRANCHISE_ENABLED on the
-  // server (default off). See the consulting comment above.
-  franchise: false,
+  // server (default on since the all-launch flip). See the consulting
+  // comment above.
+  franchise: true,
   // UI gaps item 2: mirrors OXSTEED_LAUNCH_INVESTOR on the server
-  // (default off). The investor routes previously had no launch key at
-  // all, so their redirects were unconditional and investor login could
-  // never land on its own dashboard. With this key the redirects are
-  // flag-conditional like franchise/consulting: off keeps today's bounce
-  // to /login and /dashboard, on lets the investor routes render.
-  investor: false,
-  genericQrGenerator: false,
+  // (default on since the all-launch flip). The investor routes previously
+  // had no launch key at all, so their redirects were unconditional and
+  // investor login could never land on its own dashboard. With this key
+  // the redirects are flag-conditional like franchise/consulting: off
+  // keeps the bounce to /login and /dashboard, on lets the investor
+  // routes render.
+  investor: true,
+  genericQrGenerator: true,
   helperEarnings: true,
-  helperGrowthCenter: false,
+  helperGrowthCenter: true,
   helperInvoices: true,
   jobEscrowLabels: true,
-  jobMaterialsLogistics: false,
-  networkBranchSwitcher: false,
-  personalLifeDashboard: false,
+  jobMaterialsLogistics: true,
+  networkBranchSwitcher: true,
+  personalLifeDashboard: true,
   // Marketplace checkout flip (2026-11-04, Emile-authorized): the
   // marketplace purchase path is launched, so this defaults on to match the
   // server. The server remains the source of truth via
   // /api/launch-visibility; setting OXSTEED_LAUNCH_PRODUCT_MARKETPLACE=false
   // plus a redeploy turns the whole path back off.
   productMarketplace: true,
-  resourcesMenu: false,
-  specializedProfileTemplates: false,
-  subscriptions: false,
-  templates: false,
+  resourcesMenu: true,
+  specializedProfileTemplates: true,
+  subscriptions: true,
+  templates: true,
   toolRentals: true,
   vortexWorkspaceEntry: VORTEX_CLIENT_ENABLED,
 });

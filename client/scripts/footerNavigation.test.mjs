@@ -8,21 +8,23 @@ const paths = groups => groups.map(group => group.links.map(item => item.to));
 const expected = [['/restaurants', '/direct', '/delivery', '/media', '/products'],
   ['/how-it-works', '/about', '/careers', '/consulting-intake'], ['/support', '/learn', '/vortex']];
 test('footer destinations and order stay consistent for guests, current modes and legacy accounts', () => {
-  // Weekly self-audit 2026-11-04 item 12: the build-time Media default is
-  // now false (matching the server), so the default-visibility footer
-  // omits /media; it returns once the launch map turns media on.
-  // Marketplace checkout flip (2026-11-04): productMarketplace now defaults
-  // on, so the default-visibility footer includes /products; it drops out
-  // only when the flag is explicitly off.
-  const launched = { ...LAUNCH_VISIBILITY, oxsteedMedia: true };
-  const unlaunched = [['/restaurants', '/direct', '/delivery', '/products'], expected[1], expected[2]];
-  const marketplaceOff = [['/restaurants', '/direct', '/delivery'], expected[1], expected[2]];
-  for (const user of [null, ...['customer', 'helper', 'business_owner', 'business_employee', 'admin'].map(default_mode => ({id:1,default_mode})), {id:1,role:'helper_pro'}]) {
-    assert.deepEqual(paths(footerNavigation(user, { visibility: launched })), expected);
-    assert.deepEqual(paths(footerNavigation(user)), unlaunched);
+  // All-launch flip (2026-11-04): the default-visibility footer gains
+  // /media (after /delivery) alongside /products; both drop out only
+  // when their flag is explicitly off. Pro users additionally gain
+  // /qr-generator now that genericQrGenerator defaults on.
+  const expectedPro = [expected[0], expected[1], [...expected[2], '/qr-generator']];
+  const mediaOff = [['/restaurants', '/direct', '/delivery', '/products'], expected[1], expected[2]];
+  const mediaOffPro = [mediaOff[0], expected[1], [...expected[2], '/qr-generator']];
+  const marketplaceOff = [['/restaurants', '/direct', '/delivery', '/media'], expected[1], expected[2]];
+  for (const user of [null, ...['customer', 'helper', 'business_owner', 'business_employee', 'admin'].map(default_mode => ({id:1,default_mode}))]) {
+    assert.deepEqual(paths(footerNavigation(user)), expected);
+    assert.deepEqual(paths(footerNavigation(user, { visibility: { ...LAUNCH_VISIBILITY, oxsteedMedia: false } })), mediaOff);
     assert.deepEqual(paths(footerNavigation(user, { visibility: { ...LAUNCH_VISIBILITY, productMarketplace: false } })), marketplaceOff);
     assert.deepEqual(footerNavigation(user).map(group => group.id), ['explore', 'company', 'help']);
   }
+  const pro = { id: 1, role: 'helper_pro' };
+  assert.deepEqual(paths(footerNavigation(pro)), expectedPro);
+  assert.deepEqual(paths(footerNavigation(pro, { visibility: { ...LAUNCH_VISIBILITY, oxsteedMedia: false } })), mediaOffPro);
 });
 test('launch flags and Pro entitlement independently gate secondary destinations', () => {
   const pro = { id: 1, role: 'helper_pro' };
@@ -31,7 +33,11 @@ test('launch flags and Pro entitlement independently gate secondary destinations
   for (const user of [null, {id:2,role:'helper',membership_tier:'free'}]) {
     assert.ok(!paths(footerNavigation(user, {visibility})).flat().includes('/qr-generator'));
   }
-  assert.ok(!paths(footerNavigation(pro)).flat().includes('/qr-generator'));
+  // All-launch flip (2026-11-04): genericQrGenerator defaults on, so a
+  // Pro user gets /qr-generator by default; non-Pro users still do not.
+  assert.ok(paths(footerNavigation(pro)).flat().includes('/qr-generator'));
+  assert.ok(!paths(footerNavigation(null)).flat().includes('/qr-generator'));
+  assert.ok(!paths(footerNavigation(pro, { visibility: { ...LAUNCH_VISIBILITY, genericQrGenerator: false } })).flat().includes('/qr-generator'));
 });
 test('Support workspace requires both a signed-in account and confirmed membership', () => {
   assert.ok(!paths(footerNavigation(null, {showSupportWorkspace:true})).flat().includes('/support/agent'));

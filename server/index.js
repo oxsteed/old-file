@@ -528,7 +528,7 @@ app.get('/api/launch-visibility', (req, res) => {
   const { envFlagEnabled } = require('./middleware/featureFlags');
   const { getServerLaunchVisibility } = require('./middleware/launchGate');
   res.json({
-    media: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', false),
+    media: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', true),
     launches: getServerLaunchVisibility(),
   });
 });
@@ -684,9 +684,11 @@ app.use('/api/helper-quotes', helperQuotesRoutes);
 const savedSearchesRoutes = require('./routes/savedSearches');
 app.use('/api/saved-searches', savedSearchesRoutes);
 app.use('/api/qr-codes',     qrCodesRoutes);
-// Review P3-940: consulting is unlaunched; every consulting router (payments,
-// purchase, scheduling, ...) carries the same CONSULTING_ENABLED gate.
-const requireConsultingLaunched = require('./middleware/featureFlags').requireFeatureEnabled('Consulting', 'CONSULTING_ENABLED', false);
+// Review P3-940: consulting is launched by default since the all-launch
+// flip (2026-11-04); every consulting router (payments, purchase,
+// scheduling, ...) carries the same CONSULTING_ENABLED gate, and explicit
+// CONSULTING_ENABLED=false still 503s.
+const requireConsultingLaunched = require('./middleware/featureFlags').requireFeatureEnabled('Consulting', 'CONSULTING_ENABLED', true);
 // NOTE: specific /api/consulting routers must mount before consultingRoutes,
 // whose GET /:id would otherwise swallow /consultants, /packages, /analytics.
 app.use('/api/consulting',   requireConsultingLaunched, consultingPaymentRoutes);

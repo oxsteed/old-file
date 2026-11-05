@@ -24,7 +24,7 @@ const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 // routes. Removing (kicking) an ACTIVE member is core team management, not a
 // Vortex code flow, so it stays available whenever the caller holds
 // team.remove_member.
-const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED', false);
+const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED', true);
 
 const access = require('../controllers/businessAccessCodesController');
 const team   = require('../controllers/businessTeamController');

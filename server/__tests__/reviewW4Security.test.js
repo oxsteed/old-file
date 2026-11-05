@@ -178,8 +178,12 @@ describe('P2-616 payout methods cannot be self-verified', () => {
 });
 
 describe('P3-942 subscription checkout gate', () => {
-  test('new subscription purchases are refused while SUBSCRIPTIONS_ENABLED is off', async () => {
-    delete process.env.SUBSCRIPTIONS_ENABLED;
+  test('new subscription purchases are refused while SUBSCRIPTIONS_ENABLED is explicitly off', async () => {
+    // All-launch flip (2026-11-04): SUBSCRIPTIONS_ENABLED defaults on,
+    // so the refused case needs an explicit 'false'; deleting the var
+    // would now pass the gate.
+    const previous = process.env.SUBSCRIPTIONS_ENABLED;
+    process.env.SUBSCRIPTIONS_ENABLED = 'false';
     let router;
     jest.isolateModules(() => { router = require('../routes/subscription'); });
     const layer = router.stack.find((l) => l.route?.path === '/checkout' && l.route.methods.post);
@@ -187,7 +191,29 @@ describe('P3-942 subscription checkout gate', () => {
     // locate the gate by middleware name instead of a brittle stack index.
     const gate = layer.route.stack.find((s) => s.handle?.name === 'featureFlagMiddleware').handle;
     const r = res(); const next = jest.fn();
-    await gate({ user: { id: USER_ID } }, r, next);
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 503, code: 'feature_disabled' }));
+    try {
+      await gate({ user: { id: USER_ID } }, r, next);
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 503, code: 'feature_disabled' }));
+    } finally {
+      if (previous === undefined) delete process.env.SUBSCRIPTIONS_ENABLED;
+      else process.env.SUBSCRIPTIONS_ENABLED = previous;
+    }
+  });
+
+  test('new subscription purchases pass by default after the all-launch flip', async () => {
+    const previous = process.env.SUBSCRIPTIONS_ENABLED;
+    delete process.env.SUBSCRIPTIONS_ENABLED;
+    try {
+      let router;
+      jest.isolateModules(() => { router = require('../routes/subscription'); });
+      const layer = router.stack.find((l) => l.route?.path === '/checkout' && l.route.methods.post);
+      const gate = layer.route.stack.find((s) => s.handle?.name === 'featureFlagMiddleware').handle;
+      const next = jest.fn();
+      await gate({ user: { id: USER_ID } }, {}, next);
+      expect(next).toHaveBeenCalledWith();
+    } finally {
+      if (previous === undefined) delete process.env.SUBSCRIPTIONS_ENABLED;
+      else process.env.SUBSCRIPTIONS_ENABLED = previous;
+    }
   });
 });

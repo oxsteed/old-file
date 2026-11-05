@@ -2473,11 +2473,11 @@ function readOnlyEnvFlagSnapshot() {
   return {
     paymentLayers: paymentLayersSnapshot(),
     launch: {
-      OXSTEED_MEDIA_LAUNCHED: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', false),
-      VORTEX_ENABLED: envFlagEnabled('VORTEX_ENABLED', false),
-      AFFILIATE_ENABLED: envFlagEnabled('AFFILIATE_ENABLED', false),
-      CONSULTING_ENABLED: envFlagEnabled('CONSULTING_ENABLED', false),
-      SUBSCRIPTIONS_ENABLED: envFlagEnabled('SUBSCRIPTIONS_ENABLED', false),
+      OXSTEED_MEDIA_LAUNCHED: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', true),
+      VORTEX_ENABLED: envFlagEnabled('VORTEX_ENABLED', true),
+      AFFILIATE_ENABLED: envFlagEnabled('AFFILIATE_ENABLED', true),
+      CONSULTING_ENABLED: envFlagEnabled('CONSULTING_ENABLED', true),
+      SUBSCRIPTIONS_ENABLED: envFlagEnabled('SUBSCRIPTIONS_ENABLED', true),
     },
     security: {
       // Secret material is never returned; only whether the origin lock can

@@ -49,10 +49,14 @@ function urlEntry({ loc, changefreq, priority, lastmod, localized = false }) {
 
 function mediaLaunched() {
   // Mirrors the server default in server/middleware/launchGate.js
-  // (OXSTEED_MEDIA_LAUNCHED, default off). Media detail URLs redirect to
-  // / while the flag is off, so they are only enumerated while launched.
-  // The /media index itself stays listed unconditionally (pre-existing).
-  return String(process.env.OXSTEED_MEDIA_LAUNCHED || '').trim().toLowerCase() === 'true';
+  // (OXSTEED_MEDIA_LAUNCHED, default on since the all-launch flip,
+  // 2026-11-04). Media detail URLs redirect to / while the flag is
+  // explicitly off, so they are enumerated unless opted out; the /media
+  // index itself stays listed unconditionally (pre-existing). Reads
+  // through envFlagEnabled so an explicit 'false' still opts out, and no
+  // Coolify env var is needed for media details to enter the sitemap.
+  const { envFlagEnabled } = require('../middleware/featureFlags');
+  return envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', true);
 }
 
 router.get('/', async (_req, res) => {

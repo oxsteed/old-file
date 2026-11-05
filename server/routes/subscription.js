@@ -9,7 +9,7 @@ const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const checkRestrictions = require('../middleware/checkRestrictions');
 // Review P3-942: subscriptions are unlaunched in the client; new purchases are
 // gated server-side too. Existing subscribers can still view, cancel and use the portal.
-const requireSubscriptionsLaunched = requireFeatureEnabled('Subscriptions', 'SUBSCRIPTIONS_ENABLED', false);
+const requireSubscriptionsLaunched = requireFeatureEnabled('Subscriptions', 'SUBSCRIPTIONS_ENABLED', true);
 
 // Subscription routes
 router.get('/plans', subCtrl.getPlans);

@@ -6,7 +6,7 @@ const { generalLimiter } = require('../middleware/rateLimiter');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 
 // Audit fix: Consulting is launch-hidden. Gate the API to match the UI.
-const requireConsultingEnabled = requireFeatureEnabled('Consulting', 'CONSULTING_ENABLED', false);
+const requireConsultingEnabled = requireFeatureEnabled('Consulting', 'CONSULTING_ENABLED', true);
 
 // Public endpoints
 router.post('/submit', generalLimiter, requireConsultingEnabled, consultingController.submitConsultingRequest);

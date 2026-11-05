@@ -18,9 +18,11 @@ function restoreLaunchVisibility() {
 
 test('server launch state overrides the build-time media default', () => {
   try {
-    // Weekly self-audit 2026-11-04 item 12: the build-time default is now
-    // false (matching the server); the server map still overrides it.
-    assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, false); // build default
+    // All-launch flip (2026-11-04): the build-time default is now true
+    // (matching the server); the server map still overrides it, and an
+    // explicit server false still bounces media to /.
+    assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, true); // build default
+    assert.equal(getLaunchRedirect('/media'), null);
     applyServerLaunchVisibility({ media: false });
     assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, false);
     assert.equal(getLaunchRedirect('/media'), '/');
@@ -35,7 +37,8 @@ test('server launch state overrides the build-time media default', () => {
 
 test('non-boolean or missing patch values are ignored', () => {
   try {
-    // Start from launched state explicitly; the build default is false.
+    // Start from launched state explicitly; the build default is true
+    // since the all-launch flip, so this also covers the default.
     applyServerLaunchVisibility({ media: true });
     applyServerLaunchVisibility(null);
     applyServerLaunchVisibility({ media: 'false' });
@@ -63,6 +66,16 @@ test('order detail paths are not rewritten to the order list', () => {
 
 // The specialty intake redirect stays wired to its launch flag.
 test('specialty intake paths still honor the specializedProfileTemplates flag', () => {
-  assert.equal(getLaunchRedirect('/business/acme/maintenance-request'), '/business/acme');
+  try {
+    // All-launch flip (2026-11-04): renders by default; bounces only
+    // while the flag is explicitly off.
+    assert.equal(getLaunchRedirect('/business/acme/maintenance-request'), null);
+    LAUNCH_VISIBILITY.specializedProfileTemplates = false;
+    assert.equal(getLaunchRedirect('/business/acme/maintenance-request'), '/business/acme');
+    LAUNCH_VISIBILITY.specializedProfileTemplates = true;
+    assert.equal(getLaunchRedirect('/business/acme/maintenance-request'), null);
+  } finally {
+    restoreLaunchVisibility();
+  }
   assert.equal(getLaunchRedirect('/jobs'), null);
 });

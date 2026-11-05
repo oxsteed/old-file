@@ -12,9 +12,10 @@ const { affiliatePayableCents } = require('../utils/affiliatePayableCents');
 const affiliatePayoutsController = require('../controllers/affiliatePayoutsController');
 const AffiliateAnalyticsController = require('../controllers/AffiliateAnalyticsController');
 
-// Audit fix: affiliate system is gated behind a feature flag (defaults off).
-// The UI is hidden but the API was fully live.
-router.use(requireFeatureEnabled('Affiliate', 'AFFILIATE_ENABLED', false));
+// Audit fix: affiliate system is gated behind a feature flag (defaults on
+// since the all-launch flip, 2026-11-04; explicit AFFILIATE_ENABLED=false
+// still 503s). The UI is hidden but the API was fully live.
+router.use(requireFeatureEnabled('Affiliate', 'AFFILIATE_ENABLED', true));
 
 // ── Stats (must be before /:programId to avoid route clash) ──────────────
 router.get('/stats/all', requireAuth, affiliatePayoutsController.getAffiliateStats);
