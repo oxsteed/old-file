@@ -24,28 +24,29 @@
  * Run with:
 *   STATEMENT_TEST_DATABASE_URL=<redacted>
  *     npx jest __tests__/restaurantPayrollPhase1.db.test.js
- * Without it, the DB describes skip (fail closed).
+ * Without it, the DB describes skip (fail closed). The guard targets
+ * the disposable credit_statement_test database used by the full
+ * suite (same pattern as restaurantPayRuns.db.test.js): it never
+ * throws, it just skips when the URL is anything else.
  */
 jest.unmock('pg');
 
 const crypto = require('crypto');
+
+const RAW_URL = process.env.STATEMENT_TEST_DATABASE_URL || '';
 
 function isDisposableDb(value) {
   try {
     const url = new URL(value);
     return ['postgres:', 'postgresql:'].includes(url.protocol)
       && ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(url.hostname)
-      && ['/st_t6'].includes(url.pathname);
+      && url.pathname === '/credit_statement_test';
   } catch { return false; }
-}
-const RAW_URL = process.env.STATEMENT_TEST_DATABASE_URL || '';
-if (RAW_URL && !isDisposableDb(RAW_URL)) {
-  throw new Error('Payroll DB tests require an explicit loopback disposable database');
 }
 const CAN_RUN_DB = isDisposableDb(RAW_URL);
 const ddescribe = CAN_RUN_DB ? describe : describe.skip;
 
-test('suite targets only a disposable loopback database', () => {
+test('suite targets only the disposable credit_statement_test database', () => {
   expect(isDisposableDb(RAW_URL)).toBe(CAN_RUN_DB);
 });
 

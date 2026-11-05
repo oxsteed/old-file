@@ -40,6 +40,7 @@ const STORE_TABLES = [
   'restaurant_kitchen_events',
   'restaurant_kitchen_stations',
   'restaurant_labor_jurisdictions',
+  'restaurant_location_labor_policies',
   'restaurant_location_memberships',
   'restaurant_pos_approvals',
   'restaurant_pos_drawer_events',
@@ -109,7 +110,6 @@ const REVIEWED = {
   // display name/status; never a caller-supplied store id.
   'services/dualApprovalService.js': PLATFORM_ADMIN,
   'services/foodAbandonedOrderSweeper.js': SYSTEM_JOB,
-  'services/laborJurisdictionRules.js': SCOPED_CALLER,
   'services/profileVisibilityActiveWork.js': CUSTOMER_OR_SELF,
   'services/restaurantDeliveryMarketplaceService.js': SCOPED_CALLER,
   'services/restaurantDeviceCredentials.js': DEVICE_BOUND,
