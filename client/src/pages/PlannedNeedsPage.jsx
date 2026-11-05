@@ -1082,7 +1082,7 @@ export default function PlannedNeedsPage() {
                 <div className="pn-empty-v2" role="alert">
                   <p className="pn-empty-title">{t('plannedNeeds.loadFailed')}</p>
                   <p className="pn-empty-sub">{t('common.tryAgain')}</p>
-                  <button type="button" className="pn-inline-cta" onClick={() => { setLoading(true); loadNeeds(); }}>
+                  <button type="button" className="pn-inline-cta" onClick={() => { setLoading(true); loadNeeds(); }} data-track="ui.9f3c395c29.34">
                     {t('common.retry')}
                   </button>
                 </div>

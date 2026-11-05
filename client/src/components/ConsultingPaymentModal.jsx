@@ -84,7 +84,7 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
                 color: 'var(--color-text-muted)',
                 display: 'flex',
                 alignItems: 'center',
-              }}
+              }} data-track-private
             >
               <X size={24} />
             </button>
@@ -117,7 +117,7 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
                         cursor: 'pointer',
                         background: selectedPackage === pkg.id ? 'var(--color-surface)' : 'var(--color-bg)',
                         textAlign: 'left',
-                      }}
+                      }} data-track-private
                     >
                       <div style={{ fontWeight: 700, color: 'var(--color-text)' }}>{pkg.package_name}</div>
                       <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginTop: '0.3rem' }}>
@@ -174,7 +174,7 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
                 color: 'var(--color-text)',
                 fontWeight: '600',
                 cursor: 'pointer',
-              }}
+              }} data-track-private
             >
               {t('common.cancel')}
             </button>
@@ -191,7 +191,7 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
                 fontWeight: '600',
                 cursor: selectedPkg ? 'pointer' : 'not-allowed',
                 opacity: selectedPkg ? 1 : 0.6,
-              }}
+              }} data-track-private
             >
               {t('payment.recordDirectButton')}
             </button>

@@ -2126,7 +2126,7 @@ export default function PostJobPage() {
                         <li key={k}>{msg}</li>
                       ))}
                     </ul>
-                    <button type="button" className="pjw-btn pjw-btn-ghost" style={{ marginTop:'.5rem' }} onClick={() => { set({ step: 1 }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                    <button type="button" className="pjw-btn pjw-btn-ghost" style={{ marginTop:'.5rem' }} onClick={() => { set({ step: 1 }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} data-track="ui.2ed5b810ee.47">
                       {t('postJob.edit')}
                     </button>
                   </div>

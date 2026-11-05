@@ -177,7 +177,7 @@ function PaletteDialog({ open, onClose, items, loading }) {
                   aria-selected={active}
                   className={`cmdk-item${active ? ' cmdk-item-active' : ''}`}
                   onMouseEnter={() => setActiveIndex(index)}
-                  onClick={() => selectItem(item)}
+                  onClick={() => selectItem(item)} data-track="ui.74372074ef.1"
                 >
                   <span className="cmdk-item-label">{item.label}</span>
                   {item.path && <span className="cmdk-item-path">{item.path}</span>}

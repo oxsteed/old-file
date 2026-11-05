@@ -256,7 +256,7 @@ function ActiveSessionHero({ session, t, onBookReschedule, onScheduleSession, sc
             <button
               type="button"
               onClick={onBookReschedule}
-              className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white"
+              className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white" data-track="ui.719d896ad2.2"
             >
               <CalendarClock size={12} /> {t('consultingPortal.bookReschedule')}
             </button>
@@ -266,7 +266,7 @@ function ActiveSessionHero({ session, t, onBookReschedule, onScheduleSession, sc
               type="button"
               onClick={onScheduleSession}
               disabled={schedulingBusy}
-              className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60" data-track="ui.719d896ad2.3"
             >
               <CalendarClock size={12} /> {t('consultingPortal.scheduleSession')}
             </button>
@@ -788,7 +788,7 @@ export default function ConsultingFullPortal() {
                       <button
                         type="button"
                         onClick={() => openBookingFor(s)}
-                        className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 flex-shrink-0"
+                        className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 flex-shrink-0" data-track="ui.719d896ad2.4"
                       >
                         {t('consultingPortal.reschedule')} <ArrowRight size={11} />
                       </button>

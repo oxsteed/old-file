@@ -326,7 +326,7 @@ export default function AdminLayout() {
           type="button"
           onClick={closeSidebar}
           aria-label={t('closeMenu')}
-          className="lg:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white transition p-1"
+          className="lg:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white transition p-1" data-track-private
         >
           <X size={18} />
         </button>
@@ -342,7 +342,7 @@ export default function AdminLayout() {
                 onClick={() => setTabSettingsOpen((open) => !open)}
                 aria-expanded={tabSettingsOpen}
                 aria-controls="admin-tab-settings"
-                className="flex min-w-0 items-center gap-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+                className="flex min-w-0 items-center gap-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900" data-track-private
               >
                 <Settings2 size={14} className="shrink-0 text-orange-400" />
                 <span className="truncate">{t('adminNav.tabSettings')}</span>
@@ -357,7 +357,7 @@ export default function AdminLayout() {
                 aria-label={simpleMode ? t('adminNav.switchToFullAria') : t('adminNav.switchToSimpleAria')}
                 onClick={toggleSimpleMode}
                 title={simpleMode ? t('adminNav.switchToFullTitle') : t('adminNav.switchToSimpleTitle')}
-                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 ${simpleMode ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
+                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 ${simpleMode ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`} data-track-private
               >
                 <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${simpleMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
               </button>
@@ -377,7 +377,7 @@ export default function AdminLayout() {
                       type="button"
                       onClick={() => setAdminNavMode(value)}
                       aria-pressed={simpleMode === value}
-                      className={`rounded-lg border px-2 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${simpleMode === value ? 'border-orange-500/70 bg-orange-500/10 text-white' : 'border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-900/60 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                      className={`rounded-lg border px-2 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${simpleMode === value ? 'border-orange-500/70 bg-orange-500/10 text-white' : 'border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-900/60 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 hover:text-gray-700 dark:hover:text-gray-200'}`} data-track-private
                     >
                       <span className="flex items-center justify-between gap-1 text-[11px] font-semibold">
                         {t(labelKey)}
@@ -405,7 +405,7 @@ export default function AdminLayout() {
                 type="button"
                 onClick={() => setSidebarNavSearch('')}
                 aria-label={t('adminNav.clearTabSearch')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-500 hover:text-gray-900 dark:hover:text-white" data-track-private
               >
                 <X size={13} />
               </button>
@@ -430,7 +430,7 @@ export default function AdminLayout() {
             </p>
             {visibleRegularNav.map(({ to, icon: Icon, labelKey, external }) => (
               external ? (
-                <a key={to} href={to} className={navClass({ isActive: false })} onClick={closeSidebar}>
+                <a key={to} href={to} className={navClass({ isActive: false })} onClick={closeSidebar} data-track-private>
                   <Icon size={16} />
                   {t(labelKey)}
                 </a>
@@ -480,7 +480,7 @@ export default function AdminLayout() {
             supportLiveReady
               ? 'border-green-700/50 bg-green-500/10 text-green-300 hover:bg-green-500/15'
               : 'border-gray-300 dark:border-gray-700 bg-gray-50/40 dark:bg-gray-950/40 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-900 dark:hover:text-white'
-          }`}
+          }`} data-track-private
         >
           <span className={`h-2.5 w-2.5 rounded-full ${supportLiveReady ? 'bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.6)]' : supportAvailable ? 'bg-amber-400' : 'bg-gray-600'}`} />
           <span className="min-w-0">
@@ -497,7 +497,7 @@ export default function AdminLayout() {
             onClick={toggleTheme}
             aria-label={isDark ? t('adminNav.lightMode') : t('adminNav.darkMode')}
             title={isDark ? t('adminNav.lightMode') : t('adminNav.darkMode')}
-            className="p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-all shrink-0 ml-2"
+            className="p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-all shrink-0 ml-2" data-track-private
           >
             {isDark ? <Sun size={15} /> : <Moon size={15} />}
           </button>
@@ -506,7 +506,7 @@ export default function AdminLayout() {
           type="button"
           onClick={handleLogout}
           aria-label={t('adminNav.signOut')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-950 hover:text-red-300 transition-all"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-950 hover:text-red-300 transition-all" data-track-private
         >
           <LogOut size={16} />
           {t('adminNav.signOut')}
@@ -548,7 +548,7 @@ export default function AdminLayout() {
             aria-expanded={sidebarOpen}
             aria-controls="admin-mobile-sidebar"
             aria-label={t('openMenu')}
-            className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
+            className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition" data-track-private
           >
             <Menu size={20} />
           </button>
@@ -557,7 +557,7 @@ export default function AdminLayout() {
             <span className="font-bold text-gray-900 dark:text-white text-sm">OxSteed Admin</span>
           </div>
           {/* Mobile search bar */}
-          <form onSubmit={handleSearchSubmit} className="flex-1 mx-1">
+          <form onSubmit={handleSearchSubmit} className="flex-1 mx-1" data-track-private>
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
               <input
@@ -574,7 +574,7 @@ export default function AdminLayout() {
             onClick={toggleTheme}
             aria-label={isDark ? t('adminNav.lightMode') : t('adminNav.darkMode')}
             title={isDark ? t('adminNav.lightMode') : t('adminNav.darkMode')}
-            className="p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+            className="p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-all" data-track-private
           >
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
@@ -582,7 +582,7 @@ export default function AdminLayout() {
 
         {/* Desktop search bar */}
         <div className="hidden lg:flex items-center px-4 py-2.5 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shrink-0">
-          <form onSubmit={handleSearchSubmit} className="w-full max-w-sm">
+          <form onSubmit={handleSearchSubmit} className="w-full max-w-sm" data-track-private>
             <div className="relative">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
               <input

@@ -195,7 +195,7 @@ export default function ConsultantScheduleSelector({
                 type="button"
                 style={dateButtonStyle(selectedDate === dateObj.date)}
                 onClick={() => handleDateSelect(dateObj.date)}
-                disabled={loading}
+                disabled={loading} data-track="ui.1e38907353.1"
               >
                 <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{dateObj.dayOfWeek}</div>
                 <div style={{ fontWeight: 'bold', marginTop: '0.25rem' }}>
@@ -219,7 +219,7 @@ export default function ConsultantScheduleSelector({
                 type="button"
                 style={slotButtonStyle(selectedSlot === slot)}
                 onClick={() => handleSlotSelect(slot)}
-                disabled={loading}
+                disabled={loading} data-track="ui.1e38907353.2"
               >
                 {slot}
               </button>
@@ -286,7 +286,7 @@ export default function ConsultantScheduleSelector({
       )}
 
       <div style={buttonGroupStyle}>
-        <button type="button" style={secondaryButtonStyle} onClick={handleBack} disabled={loading}>
+        <button type="button" style={secondaryButtonStyle} onClick={handleBack} disabled={loading} data-track="ui.1e38907353.3">
           {step === 'selectDate' ? t('common.cancel') : t('common.back')}
         </button>
         {step !== 'selectDate' && (
@@ -294,7 +294,7 @@ export default function ConsultantScheduleSelector({
             type="button"
             style={primaryButtonStyle}
             onClick={handlePrimary}
-            disabled={(step === 'selectTime' && !selectedSlot) || loading}
+            disabled={(step === 'selectTime' && !selectedSlot) || loading} data-track="ui.1e38907353.4"
           >
             {step === 'selectTime' ? (loading ? t('common.loading') : t('common.next')) : t('scheduling.confirmBooking')}
           </button>

@@ -45,7 +45,7 @@ export default function AdminOperationalNotices() {
               type="button"
               data-track="admin_operational_notice_dismiss"
               onClick={() => dismiss(notice.id)}
-              className="shrink-0 rounded-md border border-amber-400 px-3 py-1 font-medium hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:hover:bg-amber-900"
+              className="shrink-0 rounded-md border border-amber-400 px-3 py-1 font-medium hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:hover:bg-amber-900" data-track-private
             >
               {t('adminOperationalNotices.dismiss')}
             </button>

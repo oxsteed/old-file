@@ -325,7 +325,7 @@ export default function LifeDashboard() {
             <button
               type="button"
               onClick={() => { setLoaded(false); setFailedSections({}); setLoadAttempt((a) => a + 1); }}
-              className="shrink-0 text-sm font-semibold text-red-300 underline"
+              className="shrink-0 text-sm font-semibold text-red-300 underline" data-track="ui.3a64f0eab7.2"
             >
               {t('common.retry')}
             </button>

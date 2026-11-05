@@ -39,12 +39,12 @@ function CardForm({ clientSecret, paymentId, onPaid }) {
   };
 
   return (
-    <form onSubmit={submit} style={{ display: 'grid', gap: '0.75rem', marginTop: '1rem' }}>
+    <form onSubmit={submit} style={{ display: 'grid', gap: '0.75rem', marginTop: '1rem' }} data-track="ui.8f2f090b3d.1">
       <div style={{ padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '6px', direction: 'ltr' }}>
         <CardElement options={{ style: { base: { fontSize: '16px' } } }} />
       </div>
       {error && <p role="alert" style={{ color: '#EF4444' }}>{error}</p>}
-      <button type="submit" disabled={busy || !stripe} style={{ padding: '0.75rem 1.5rem', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600 }}>
+      <button type="submit" disabled={busy || !stripe} style={{ padding: '0.75rem 1.5rem', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600 }} data-track="ui.8f2f090b3d.2">
         {busy ? t('payment.consultingCardProcessing') : t('payment.consultingCardPay')}
       </button>
     </form>
@@ -74,7 +74,7 @@ export default function ConsultingCardPay({ sessionId, packageId, onPaid }) {
 
   if (!intent) {
     return (
-      <button type="button" onClick={start} disabled={loading || !packageId} style={{ padding: '0.75rem 1.5rem', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600 }}>
+      <button type="button" onClick={start} disabled={loading || !packageId} style={{ padding: '0.75rem 1.5rem', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600 }} data-track="ui.8f2f090b3d.3">
         {t('payment.consultingCardStart')}
       </button>
     );
