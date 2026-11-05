@@ -384,6 +384,6 @@ describe('P3-7-F09: server exposes launch state', () => {
   test('index.js serves GET /api/launch-visibility from the env flag', () => {
     const src = readSource('index.js');
     expect(src).toMatch(/app\.get\('\/api\/launch-visibility'/);
-    expect(src).toMatch(/envFlagEnabled\('OXSTEED_MEDIA_LAUNCHED', false\)/);
+    expect(src).toMatch(/envFlagEnabled\('OXSTEED_MEDIA_LAUNCHED', true\)/);
   });
 });

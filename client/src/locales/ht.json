@@ -4544,6 +4544,7 @@
     "empty": "Pokò gen atik nan lis sa a.",
     "remove": "Retire",
     "cardOpen": "Wè lis pyès la",
+    "openSharedCart": "Ouvri panye pataje",
     "cardItems": "{{count}} atik",
     "defaultName": "Pyès pou {{kit}}",
     "kits": {
@@ -6514,7 +6515,11 @@
       "tools": "Ekri zouti, pèmi, oswa materyèl espesyal moun yo dwe prevwa."
     },
     "whatHappensNext": "Sa k ap pase apre",
-    "whatHappensNextBody": "Lè travay la an dirèk, moun ki mache ak kote, kategori, ak kondisyon yo ka voye òf. Ou ka konpare òf, poze lòt kesyon, epi anboche lè ou pare."
+    "whatHappensNextBody": "Lè travay la an dirèk, moun ki mache ak kote, kategori, ak kondisyon yo ka voye òf. Ou ka konpare òf, poze lòt kesyon, epi anboche lè ou pare.",
+    "mediaSkipped": "{{dropped}} fichye yo sote: kalite pa sipòte oswa limit pou chak onglet depase.",
+    "reviewFixNeeded": "Korije enfòmasyon sa yo anvan ou pibliye.",
+    "draftSaved": "Bouyon an sove.",
+    "draftSaveFailed": "Bouyon an pa t sove."
   },
   "jobDetail": {
     "customerConfirmsEscrow": "Sou travay ak peman pwoteje, se kliyan an ki konfime travay la fini, sa lage peman ou.",
@@ -6734,7 +6739,8 @@
     "disputeOpened": "Diskisyon an louvri. Nou avèti ekip nou an ak lòt pati a.",
     "signWorkAgreement": "Revize epi siyen akò travay la",
     "viewWorkAgreement": "Gade akò travay la",
-    "createWorkAgreement": "Kreye yon akò travay"
+    "createWorkAgreement": "Kreye yon akò travay",
+    "reviewsLoadFailed": "Revizyon yo pa t chaje."
   },
   "myJobs": {
     "cancelUndoNote": "W ap gen 5 segonn pou defèt li apre konfimasyon.",
@@ -10898,7 +10904,9 @@
       "cancelled": "Anile",
       "published": "Pibliye",
       "regenerated": "Renouvle"
-    }
+    },
+    "loadFailed": "Bezwen planifye ou yo pa t chaje.",
+    "pauseFailed": "Poz la pa t chanje."
   },
   "helperRegister": {
     "step4": {
@@ -15882,7 +15890,9 @@
     "cardPayNotSucceeded": "Peman ak kat la pa fini. Okenn kòmand pa make kòm peye.",
     "cardPayConfirmFailed": "Nou pa t kapab konfime peman ak kat la. Si kat ou a te debite, kontakte sipò ak ID kòmand lan.",
     "cardPayIntentFailed": "Nou pa t kapab kòmanse yon peman ak kat pou panye sa a. Eseye ankò oswa anrejistre yon prèv peman.",
-    "cardPayUnavailable": "Peman ak kat pa disponib kounye a. Anrejistre yon prèv peman pito."
+    "cardPayUnavailable": "Peman ak kat pa disponib kounye a. Anrejistre yon prèv peman pito.",
+    "cardPaidNext": "Peman kat ou a fini. Lòd {{order}} peye. Ou pa bezwen anrejistre yon lòt peman pou lòd sa a.",
+    "viewOrder": "Wè kòmand lan"
   },
   "myBids": {
     "title": "Òf mwen yo",
@@ -17237,6 +17247,71 @@
       "hint": "Administre platfòm OxSteed la."
     }
   },
+  "lifePages": {
+    "backToDashboard": "Retounen nan tablodbò",
+    "viewAll": "Wè tout",
+    "loading": "Ap chaje…",
+    "loadFailed": "Chajman paj sa a echwe. Eseye ankò.",
+    "expenses": {
+      "title": "Depans",
+      "subtitle": "Revni ak depans ou, nan yon sèl kote.",
+      "income": "Revni",
+      "expenses": "Depans",
+      "net": "Nèt",
+      "empty": "Pa gen depans anrejistre ankò.",
+      "filter": { "all": "Tout", "expense": "Depans", "income": "Revni" }
+    },
+    "goals": {
+      "title": "Objektif",
+      "subtitle": "Swiv pwogrè ou pou chak objektif.",
+      "empty": "Ou poko gen objektif.",
+      "completed": "Fini",
+      "progress": "{{current}} sou {{target}}"
+    },
+    "homeTasks": {
+      "title": "Travay kay",
+      "subtitle": "Tout sa k ap tann ou lakay, nan yon sèl kote.",
+      "empty": "Pa gen travay k ap tann.",
+      "completed": "Fini",
+      "filter": { "all": "Tout", "open": "Ouvè", "completed": "Fini" }
+    },
+    "vehicles": {
+      "title": "Garaj",
+      "subtitle": "Machin ou yo, nan yon sèl kote.",
+      "empty": "Ou poko gen machin anrejistre."
+    },
+    "homes": {
+      "title": "Pwopriyete",
+      "subtitle": "Kay ou yo, nan yon sèl kote.",
+      "empty": "Ou poko gen kay anrejistre.",
+      "beds": "{{count}} chanm",
+      "baths": "{{count}} twalèt",
+      "sqft": "{{count}} pye²",
+      "built": "Bati an {{year}}",
+      "floodZone": "Zòn inondasyon: {{zone}}"
+    },
+    "order": {
+      "title": "Kòmann {{id}}",
+      "notFound": "Kòmann pa jwenn",
+      "notFoundBody": "Kòmann sa a ka pou yon lòt kont oswa li pa egziste ankò.",
+      "backToProducts": "Retounen nan pwodwi yo",
+      "items": "Atik",
+      "noItems": "Kòmann sa a pa gen atik.",
+      "quantity": "Kantite: {{count}}",
+      "each": "chak",
+      "subtotal": "Soutotal",
+      "tax": "Taks",
+      "shipping": "Livrezon",
+      "discount": "Rabè",
+      "total": "Total",
+      "payment": "Peman",
+      "paymentStatus": "Eta peman an",
+      "paymentReference": "Referans peman",
+      "paymentAmount": "Montan peye",
+      "noPayment": "Poko gen peman anrejistre pou kòmann sa a.",
+      "statusLabel": "Eta: {{status}}"
+    }
+  },
   "dashboards": {
     "life": {
       "title": "Lavi ou, an gwo plan",
@@ -17290,7 +17365,9 @@
         "businessConsultant": "Jwenn yon konsiltan biznis",
         "consultingSubtitle": "Ou ap travay pou \"{{goal}}\"? Konsiltan OxSteed yo ka ede akselere l.",
         "findConsultant": "Jwenn yon konsiltan"
-      }
+      },
+      "loadFailed": "Gen kèk seksyon ki pa t chaje.",
+      "sectionFailed": "Seksyon sa a pa t chaje."
     },
     "toolOwner": {
       "title": "Lokasyon zouti",
@@ -17529,6 +17606,8 @@
     "dueOverdue": "An reta · ",
     "priorityHigh": "Wo",
     "recentlyDone": "Fin fè dènyèman ({{count}})",
+    "reschedule": "Repwograme",
+    "scheduleSession": "Pwograme sesyon an",
     "overdue": "An reta",
     "upcoming": "Sesyon kap vini",
     "completed": "Fini",
@@ -17543,6 +17622,7 @@
     "openConversation": "Ouvri konvèsasyon",
     "activePackages": "Pakèt ou yo",
     "bookMoreTitle": "Bezwen plis èd?",
+    "bookReschedule": "Rezève oswa repwograme sesyon an",
     "bookMoreHint": "Ajoute yon lòt pakèt oswa pwograme yon sesyon swivi ak konsiltan w.",
     "addPackage": "Ajoute yon pakèt",
     "messageConsultant": "Voye mesaj bay konsiltan w",
@@ -21767,6 +21847,9 @@
     },
     "actions": {
       "refresh": "Mete ajou"
+    },
+    "currency": {
+      "label": "Lajan revni"
     },
     "status": {
       "agreementLabel": "Akò",
@@ -26578,7 +26661,9 @@
     "inventoryMovedBanner": "Tools and coverage moved",
     "inventoryMovedBody": "Jere envantè òf yo nan Katalòg ak Zòn sèvis: Paramèt pa modifye zouti ni lis kouvèti ankò.",
     "openCatalog": "Open Catalog",
-    "openServiceAreas": "Open Service Areas"
+    "openServiceAreas": "Open Service Areas",
+    "confirmCancelJob": "Anile travay sa a? Aksyon sa a pa ka defèt.",
+    "jobCancelled": "Travay la anile."
   },
   "inventoryHelpCenter": {
     "metaTitle": "Sant èd Envantè",
@@ -30556,7 +30641,10 @@
     "webhookReceipts": "Resi webhook",
     "restaurantWalletIntegrity": "Entegrite bòs",
     "oxsteedCreditLicence": "Lisans Credit",
-    "legalCcpaErasureReview": "Revizyon efasman"
+    "legalCcpaErasureReview": "Revizyon efasman",
+    "foodOrders": "Lòd manje",
+    "mediaFlags": "Drapò medya",
+    "franchiseStatus": "Eta aplikasyon an"
   },
   "adminProfileVisibility": {
     "title": "Vizibilite pwofil",

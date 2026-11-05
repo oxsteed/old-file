@@ -13,6 +13,7 @@ router.get('/', (req, res) => {
     'Disallow: /admin/',
     'Disallow: /dashboard',
     'Disallow: /helper-dashboard',
+    'Disallow: /business-hub',
     'Disallow: /helper/',
     'Disallow: /messages',
     'Disallow: /settings',
@@ -40,11 +41,19 @@ router.get('/', (req, res) => {
     // Transactional and tokenized URLs. /pay/ stays allowed: it is a public
     // scan-to-pay entry surface. /t/ and /food/track/ are signed tracking
     // tokens with no indexable public content, like /invoice/p/ below.
+    // /food itself stays crawlable: FoodHomePage canonicalizes to
+    // /restaurants, and /food/restaurants/:id canonicalizes to
+    // /restaurants/r/:id. Only the transactional/operations paths under
+    // /food are blocked.
     'Disallow: /cart',
     'Disallow: /checkout',
     'Disallow: /orders',
-    'Disallow: /food',
+    'Disallow: /food/orders',
     'Disallow: /food/track/',
+    'Disallow: /food/kitchen',
+    'Disallow: /food/queue',
+    'Disallow: /food/kiosk',
+    'Disallow: /food/merchant',
     'Disallow: /t/',
     'Disallow: /book/',
     'Disallow: /offers/',
@@ -97,6 +106,11 @@ router.get('/', (req, res) => {
     'Disallow: /restaurants/screens',
     'Disallow: /delivery/jobs',
     'Disallow: /delivery/operations',
+    'Disallow: /delivery/payouts',
+    'Disallow: /life-dashboard',
+    'Disallow: /vehicles',
+    'Disallow: /house',
+    'Disallow: /marketplace/orders',
     // Logistics operations. The blanket /logistics/ prefix is intentionally
     // NOT blocked: /logistics/campaigns/:id is in the sitemap.
     'Disallow: /logistics/login',
@@ -120,10 +134,16 @@ router.get('/', (req, res) => {
     'Disallow: /logistics/checkout',
     'Disallow: /logistics/payments',
     'Disallow: /logistics/campaigns/new',
-    // Consulting private areas. /consulting-intake stays crawlable.
+    // Consulting private areas. /consulting-intake stays crawlable, so the
+    // redirect prefix uses a trailing slash (a bare /consulting rule would
+    // also match /consulting-intake).
+    'Disallow: /consulting/',
     'Disallow: /consulting/portal',
     'Disallow: /consulting/contractor-dashboard',
     'Disallow: /consulting/feedback/',
+    'Disallow: /franchise/apply',
+    'Disallow: /franchise/status',
+    'Disallow: /franchise/territory',
     'Disallow: /invoice/p/',
     'Disallow: /shared-cart/',
     '',

@@ -19,7 +19,16 @@ function restoreLaunchVisibility() {
 test('business workspace URLs are not redirected to the public profile', () => {
   assert.equal(getLaunchRedirect('/business/1/workspace'), null);
   assert.equal(getLaunchRedirect('/business/1/workspace/profile'), null);
-  assert.equal(getLaunchRedirect('/business/1/maintenance-request'), '/business/1');
+  // All-launch flip (2026-11-04): the specialty intake renders by
+  // default now; it bounces only while specializedProfileTemplates is
+  // explicitly off.
+  assert.equal(getLaunchRedirect('/business/1/maintenance-request'), null);
+  try {
+    LAUNCH_VISIBILITY.specializedProfileTemplates = false;
+    assert.equal(getLaunchRedirect('/business/1/maintenance-request'), '/business/1');
+  } finally {
+    restoreLaunchVisibility();
+  }
 });
 
 test('hiring is available in Business Hub for owners and managers', () => {
@@ -35,11 +44,37 @@ test('launched surfaces are not redirected (footer links stay live)', () => {
 
 test('weekly self-audit 2026-11-04 item 1: flag-gated redirects lift when their flag turns on', () => {
   try {
+    // All-launch flip (2026-11-04): these render by default now; the
+    // bounce cases below set the flags explicitly off first, and the
+    // lift cases set them back on.
+    assert.equal(getLaunchRedirect('/discover'), null);
+    assert.equal(getLaunchRedirect('/templates'), null);
+    assert.equal(getLaunchRedirect('/franchise/status'), null);
+    assert.equal(getLaunchRedirect('/consulting/portal'), null);
+    assert.equal(getLaunchRedirect('/consultant-availability'), null);
+    assert.equal(getLaunchRedirect('/affiliate'), null);
+    LAUNCH_VISIBILITY.discoverEverything = false;
+    LAUNCH_VISIBILITY.templates = false;
+    LAUNCH_VISIBILITY.franchise = false;
+    LAUNCH_VISIBILITY.consulting = false;
+    LAUNCH_VISIBILITY.affiliateRewards = false;
     assert.equal(getLaunchRedirect('/discover'), '/jobs');
     assert.equal(getLaunchRedirect('/templates'), '/business-hub');
     assert.equal(getLaunchRedirect('/franchise/status'), '/business-hub');
     assert.equal(getLaunchRedirect('/consulting/portal'), '/business-hub');
     assert.equal(getLaunchRedirect('/consultant-availability'), '/calendar');
+    assert.equal(getLaunchRedirect('/affiliate'), '/dashboard');
+    // Marketplace checkout flip (2026-11-04): the purchase path defaults on,
+    // so cart/shared-cart/checkout render by default and bounce only while
+    // productMarketplace is explicitly off.
+    assert.equal(getLaunchRedirect('/cart/abc'), null);
+    assert.equal(getLaunchRedirect('/shared-cart/abc'), null);
+    assert.equal(getLaunchRedirect('/checkout/abc'), null);
+    LAUNCH_VISIBILITY.productMarketplace = false;
+    assert.equal(getLaunchRedirect('/cart/abc'), '/restaurants');
+    assert.equal(getLaunchRedirect('/shared-cart/abc'), '/restaurants');
+    assert.equal(getLaunchRedirect('/checkout/abc'), '/restaurants');
+    LAUNCH_VISIBILITY.productMarketplace = true;
     LAUNCH_VISIBILITY.discoverEverything = true;
     LAUNCH_VISIBILITY.templates = true;
     LAUNCH_VISIBILITY.franchise = true;
@@ -49,12 +84,22 @@ test('weekly self-audit 2026-11-04 item 1: flag-gated redirects lift when their 
     assert.equal(getLaunchRedirect('/franchise/status'), null);
     assert.equal(getLaunchRedirect('/consulting/portal'), null);
     assert.equal(getLaunchRedirect('/consultant-availability'), null);
+    assert.equal(getLaunchRedirect('/cart/abc'), null);
     // Entries with no owning flag stay unconditional.
     assert.equal(getLaunchRedirect('/network'), '/dashboard');
-    assert.equal(getLaunchRedirect('/cart'), '/restaurants');
   } finally {
     restoreLaunchVisibility();
   }
+});
+
+test('all-launch flip (2026-11-04): affiliateRewards defaults true and /affiliate renders', () => {
+  // The router-level gate test (server affiliatePayoutGate.test.js) covers
+  // the API side; this pins the client side of the same pairing so the
+  // UI cannot render against a 503 again.
+  assert.equal(LAUNCH_DEFAULTS.affiliateRewards, true);
+  assert.equal(LAUNCH_VISIBILITY.affiliateRewards, true);
+  assert.equal(getLaunchRedirect('/affiliate'), null);
+  assert.equal(getLaunchRedirect('/affiliate/dashboard'), null);
 });
 
 test('weekly self-audit 2026-11-04 item 2: the four restored modes normalize to themselves', () => {
@@ -70,14 +115,16 @@ test('weekly self-audit 2026-11-04 item 2: the four restored modes normalize to 
 });
 
 test('OxSteed Media routes remain available after launch', () => {
-  // Weekly self-audit 2026-11-04 item 12: the build-time default is now
-  // false (matching the server); the routes open once the server launch
-  // map turns media on, as the boot fetch does in production.
+  // All-launch flip (2026-11-04): the build-time default is now true
+  // (matching the server); the routes bounce only while the flag is
+  // explicitly off.
+  assert.equal(getLaunchRedirect('/media'), null);
+  assert.equal(getLaunchRedirect('/media/search'), null);
+  assert.equal(getLaunchRedirect('/media/post/abc'), null);
   try {
-    LAUNCH_VISIBILITY.oxsteedMedia = true;
-    assert.equal(getLaunchRedirect('/media'), null);
-    assert.equal(getLaunchRedirect('/media/search'), null);
-    assert.equal(getLaunchRedirect('/media/post/abc'), null);
+    LAUNCH_VISIBILITY.oxsteedMedia = false;
+    assert.equal(getLaunchRedirect('/media'), '/');
+    assert.equal(getLaunchRedirect('/media/post/abc'), '/');
   } finally {
     restoreLaunchVisibility();
   }
@@ -87,6 +134,9 @@ test('Business Hub media tab follows oxsteedMedia launch flag', () => {
   assert.equal(isBusinessHubTabLaunched('overview'), true);
   assert.equal(LAUNCH_BUSINESS_HUB_TABS.has('media'), false);
   try {
+    // All-launch flip (2026-11-04): on by default; off only explicitly.
+    assert.equal(isBusinessHubTabLaunched('media'), true);
+    LAUNCH_VISIBILITY.oxsteedMedia = false;
     assert.equal(isBusinessHubTabLaunched('media'), false);
     LAUNCH_VISIBILITY.oxsteedMedia = true;
     assert.equal(isBusinessHubTabLaunched('media'), true);
@@ -129,8 +179,10 @@ test('applyServerLaunchVisibility ignores non-boolean values and keeps the legac
       launches: { templates: 'yes', subscriptions: 1, oxsteedMedia: 'true' },
     });
     assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, false);
-    assert.equal(LAUNCH_VISIBILITY.templates, false);
-    assert.equal(LAUNCH_VISIBILITY.subscriptions, false);
+    // Non-boolean values are ignored, so these keep their defaults,
+    // which are true since the all-launch flip (2026-11-04).
+    assert.equal(LAUNCH_VISIBILITY.templates, true);
+    assert.equal(LAUNCH_VISIBILITY.subscriptions, true);
   } finally {
     restoreLaunchVisibility();
   }
@@ -140,7 +192,7 @@ test('applyServerLaunchVisibility ignores null, empty, and non-object patches', 
   assert.doesNotThrow(() => applyServerLaunchVisibility(null));
   assert.doesNotThrow(() => applyServerLaunchVisibility({}));
   assert.doesNotThrow(() => applyServerLaunchVisibility('on'));
-  assert.equal(LAUNCH_VISIBILITY.templates, false);
-  // Weekly self-audit 2026-11-04 item 12: build-time default is false.
-  assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, false);
+  assert.equal(LAUNCH_VISIBILITY.templates, true);
+  // All-launch flip (2026-11-04): build-time defaults are true.
+  assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, true);
 });

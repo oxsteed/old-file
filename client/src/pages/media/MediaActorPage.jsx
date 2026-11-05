@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getActor, toggleFollow } from '../../api/media';
 import MediaPostCard from './MediaPostCard';
 import { useMediaGuestGate } from './MediaGuestGate';
+import JsonLd from '../../components/JsonLd';
 
 export default function MediaActorPage() {
   const { handle: routeHandle } = useParams();
@@ -63,6 +64,17 @@ export default function MediaActorPage() {
 
   return (
     <div className="media-actor-page">
+      <JsonLd data={{
+        '@context': 'https://schema.org',
+        '@type': 'ProfilePage',
+        mainEntity: {
+          '@type': 'Person',
+          name: actor.display_name,
+          alternateName: `@${actor.handle}`,
+          image: actor.avatar_url || undefined,
+          url: `https://oxsteed.com/media/${actor.handle}`,
+        },
+      }} />
       <div className="media-actor-header">
         {actor.avatar_url ? (
           <img src={actor.avatar_url} alt={actor.display_name} className="media-actor-avatar" />

@@ -1381,10 +1381,28 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null, req =
       await paymentRails.onComplete(client, fullJob[0], { actorUserId: actorUserId || job.client_id });
     }
 
+    // Stamp the final price at completion so investor GMV (SUM of
+    // final_price_cents over non-deleted completed jobs) counts this job.
+    // No runtime writer of final_price / final_price_cents existed before
+    // this stamp (only the migration-352 backfill and test fixtures wrote
+    // the cents column, and the migration-760 canonical-fields trigger
+    // syncs every other money pair but NOT final_price), so completed jobs
+    // landed in the unpriced bucket and GMV understated by construction.
+    // Priority mirrors workAgreementController's price fallback: an
+    // explicitly recorded final price wins, then the decimal final_price
+    // converted exactly as migration 352 did (ROUND(final_price * 100)),
+    // then the agreed job value (kept current through approved change
+    // orders by jobChangeOrderFinance). Budgets, payouts and ledger take
+    // are never used here. COALESCE keeps an existing stamp untouched and
+    // leaves a job with no price at all unpriced (NULL), not zero-filled.
+    // All right-hand sides read the pre-update row, so the decimal mirror
+    // below is consistent with the stamped cents value.
     const { rows } = await client.query(`
       UPDATE jobs SET
         status = 'completed',
         completed_at = now(),
+        final_price_cents = COALESCE(final_price_cents, ROUND(final_price * 100)::int, job_value_cents),
+        final_price = COALESCE(final_price, final_price_cents / 100.0, job_value_cents / 100.0),
         updated_at = now()
       WHERE id = $1 AND status = 'in_progress'
         -- A change order approved meanwhile still needs re-authorization.

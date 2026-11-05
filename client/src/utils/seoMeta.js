@@ -75,7 +75,7 @@ export function hreflangAlternates(path) {
 // (no-param) URL and no hreflang alternates are emitted.
 const LOCALIZED_PATHS = new Set([
   '/', '/about', '/careers', '/join', '/jobs', '/helpers', '/how-it-works', '/delivery', '/restaurants',
-  '/consulting-intake', '/direct', '/direct/services', '/direct/request-quote',
+  '/food', '/consulting-intake', '/direct', '/direct/services', '/direct/request-quote',
   '/support/escalation', '/terms', '/privacy', '/security', '/accessibility',
   '/enforcement-policy', '/do-not-sell', '/cookie-policy',
   '/legal/background-check', '/legal/arbitration', '/legal/escrow-policy',
@@ -88,6 +88,7 @@ export function isLocalizedPath(path) {
   if (LOCALIZED_PATHS.has(normalized)) return true;
   if (normalized.startsWith('/help/')) return true;
   if (/^\/how-it-works\/[^/]+$/.test(normalized)) return true;
+  if (/^\/business\/[^/]+\/careers$/.test(normalized)) return true;
   return /^\/(helpers\/public|businesses\/public|jobs\/public|restaurants\/r|tool-rentals|logistics\/campaigns)\/[^/]+$/.test(normalized);
 }
 
@@ -130,7 +131,10 @@ const INDEXABLE_ROUTES = [
   { pattern: /^\/restaurants\/r\/[^/]+$/, key: 'restaurantDetail', detailKind: 'restaurant' },
   { pattern: /^\/food\/restaurants\/[^/]+$/, key: 'restaurantDetail', detailKind: 'restaurant', canonicalPath: (path) => path.replace(/^\/food\/restaurants\//, '/restaurants/r/') },
   { pattern: /^\/restaurants$/, key: 'restaurants' },
-  { pattern: /^\/food$/, key: 'restaurants' },
+  // /food renders FoodHomePage but that page canonicalizes to /restaurants
+  // (its PageMeta url), so the route layer canonicalizes the same way and
+  // the sitemap lists only the canonical target.
+  { pattern: /^\/food$/, key: 'restaurants', canonicalPath: () => '/restaurants' },
   { pattern: /^\/careers\/[^/]+$/, key: 'careerDetail', detailKind: 'career' },
   { pattern: /^\/business\/[^/]+\/careers$/, key: 'careers' },
   { pattern: /^\/careers$/, key: 'careers' },
@@ -154,7 +158,6 @@ const INDEXABLE_ROUTES = [
   { pattern: /^\/delivery$/, key: 'delivery' },
   { pattern: /^\/qr-generator$/, key: 'qrGenerator' },
   { pattern: /^\/support\/escalation$/, key: 'support' },
-  { pattern: /^\/support$/, key: 'support' },
   { pattern: /^\/consulting-intake$/, key: 'consultingIntake' },
   { pattern: /^\/tool-rentals\/[^/]+$/, key: 'toolRentalDetail', detailKind: 'toolRental' },
   { pattern: /^\/tool-rentals$/, key: 'toolRentals' },
@@ -187,9 +190,6 @@ const REDIRECT_PATTERNS = [
   /^\/translator(?:\/.*)?$/,
   /^\/register(?:\/.*)?$/,
   /^\/direct\/service-area(?:\/.*)?$/,
-  /^\/cart(?:\/.*)?$/,
-  /^\/shared-cart(?:\/.*)?$/,
-  /^\/checkout(?:\/.*)?$/,
   /^\/orders\/[^/]+$/, // OrderIdRedirect to /food/orders/:id
   /^\/helpers\/public\/[^/]+$/, // LegacyHelperProfileRedirect to /helpers/:id
   /^\/h\/[^/]+$/, // LegacyHelperProfileRedirect to /helpers/:id
@@ -201,6 +201,7 @@ const REDIRECT_PATTERNS = [
   /^\/templates(?:\/.*)?$/,
   /^\/promote(?:\/.*)?$/,
   /^\/consulting$/,
+  /^\/support$/, // Same page as /support/escalation; App.jsx redirects there.
   /^\/business-launch-status(?:\/.*)?$/,
   /^\/franchise$/,
   /^\/investor(?:\/.*)?$/,
@@ -232,6 +233,12 @@ const NOINDEX_PREFIXES = [
   '/my-bids',
   '/my-bookings',
   '/my-jobs',
+  // Marketplace purchase path (2026-11-04 flip): these render real pages
+  // now, so they are no longer redirect patterns — but they stay noindex
+  // as authenticated/transactional routes.
+  '/cart',
+  '/shared-cart',
+  '/checkout',
   '/post-job',
   '/book',
   '/saved-searches',
@@ -288,6 +295,11 @@ const NOINDEX_PATTERNS = [
   /^\/t\/[^/]+$/,
   /^\/pay\/[^/]+(?:\/.*)?$/,
   /^\/delivery\/jobs\/[^/]+$/,
+  /^\/delivery\/payouts$/, // Private driver page; otherwise unmatched-default noindex only.
+  /^\/life-dashboard(?:\/.*)?$/, // Private Life detail pages, reached from the Life dashboard only.
+  /^\/vehicles$/, // Private garage page, reached from the Life dashboard only.
+  /^\/house$/, // Private properties page, reached from the Life dashboard only.
+  /^\/marketplace\/orders(?:\/.*)?$/, // Private buyer order detail page.
   /^\/delivery\/operations(?:\/.*)?$/,
   /^\/direct\/admin(?:\/.*)?$/,
   /^\/direct\/quotes(?:\/.*)?$/,

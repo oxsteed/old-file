@@ -1626,7 +1626,7 @@ function BusinessHubInner() {
                 to={isRestaurantBusiness ? `/restaurant-settlement/statements${currentBiz?.restaurant_id ? `?accountId=${encodeURIComponent(currentBiz.restaurant_id)}` : ''}` : `/business/statements?accountId=${encodeURIComponent(bizId)}`}>
                 {t(isRestaurantBusiness ? 'statementCenter.restaurantSettlement' : 'statementCenter.business')}
               </Link>}
-              {bizId && canEditBizProfile && LAUNCH_VISIBILITY.businessHubSpecializedTemplates && (
+              {bizId && canEditBizProfile && LAUNCH_VISIBILITY.templates && (
                 <Link
                   to={`/templates?type=business&bizId=${encodeURIComponent(bizId)}`}
                   className="bh-view-profile-link"

@@ -4357,6 +4357,7 @@
     "empty": "لا توجد عناصر في هذه القائمة بعد.",
     "remove": "إزالة",
     "cardOpen": "عرض قائمة القطع",
+    "openSharedCart": "فتح العربة المشتركة",
     "cardItems": "{{count}} عناصر",
     "defaultName": "قطع لـ {{kit}}",
     "kits": {
@@ -6327,7 +6328,11 @@
       "tools": "اذكر الأدوات أو التصاريح أو المواد الخاصة المتوقعة."
     },
     "whatHappensNext": "ماذا يحدث بعد ذلك",
-    "whatHappensNextBody": "بعد نشر العمل، يمكن للأشخاص المطابقين للموقع والفئة والمتطلبات إرسال عروض. يمكنك مقارنة العروض وطرح الأسئلة والتوظيف عندما تكون جاهزًا."
+    "whatHappensNextBody": "بعد نشر العمل، يمكن للأشخاص المطابقين للموقع والفئة والمتطلبات إرسال عروض. يمكنك مقارنة العروض وطرح الأسئلة والتوظيف عندما تكون جاهزًا.",
+    "mediaSkipped": "تم تخطي {{dropped}} ملف: نوع غير مدعوم أو تجاوز حد التبويب.",
+    "reviewFixNeeded": "صحح هذه البيانات قبل النشر.",
+    "draftSaved": "تم حفظ المسودة.",
+    "draftSaveFailed": "تعذر حفظ المسودة."
   },
   "jobDetail": {
     "customerConfirmsEscrow": "في المهام ذات الدفع المحمي، يؤكد العميل الإنجاز، وهذا ما يحرر دفعتك.",
@@ -6547,7 +6552,8 @@
     "disputeOpened": "تم فتح النزاع. تم إخطار فريقنا والطرف الآخر.",
     "signWorkAgreement": "راجع اتفاقية العمل ووقّعها",
     "viewWorkAgreement": "عرض اتفاقية العمل",
-    "createWorkAgreement": "إنشاء اتفاقية عمل"
+    "createWorkAgreement": "إنشاء اتفاقية عمل",
+    "reviewsLoadFailed": "تعذر تحميل المراجعات."
   },
   "myJobs": {
     "cancelUndoNote": "سيكون لديك 5 ثوانٍ للتراجع بعد التأكيد.",
@@ -10898,7 +10904,9 @@
       "cancelled": "تم الإلغاء",
       "published": "نشر",
       "regenerated": "متجدد"
-    }
+    },
+    "loadFailed": "تعذر تحميل احتياجاتك المخططة.",
+    "pauseFailed": "تعذر تغيير الإيقاف المؤقت."
   },
   "helperRegister": {
     "step4": {
@@ -15974,7 +15982,9 @@
     "cardPayNotSucceeded": "لم يكتمل الدفع بالبطاقة. لم يتم وضع علامة مدفوع على أي طلب.",
     "cardPayConfirmFailed": "تعذر علينا تأكيد الدفع بالبطاقة. إذا تم الخصم من بطاقتك، تواصل مع الدعم ومعك رقم الطلب.",
     "cardPayIntentFailed": "تعذر علينا بدء دفع بالبطاقة لهذه السلة. حاول مجدداً أو سجل إثبات دفع.",
-    "cardPayUnavailable": "الدفع بالبطاقة غير متاح الآن. سجل إثبات دفع بدلاً من ذلك."
+    "cardPayUnavailable": "الدفع بالبطاقة غير متاح الآن. سجل إثبات دفع بدلاً من ذلك.",
+    "cardPaidNext": "اكتمل الدفع بالبطاقة. الطلب {{order}} مدفوع. لا حاجة لتسجيل دفعة أخرى لهذا الطلب.",
+    "viewOrder": "عرض الطلب"
   },
   "myBids": {
     "title": "عروض الأسعار الخاصة بي",
@@ -17248,6 +17258,71 @@
       "hint": "أدر منصة OxSteed."
     }
   },
+  "lifePages": {
+    "backToDashboard": "العودة إلى لوحة التحكم",
+    "viewAll": "عرض الكل",
+    "loading": "جارٍ التحميل…",
+    "loadFailed": "تعذّر تحميل هذه الصفحة. حاول مرة أخرى.",
+    "expenses": {
+      "title": "المصاريف",
+      "subtitle": "دخلك ومصاريفك في مكان واحد.",
+      "income": "الدخل",
+      "expenses": "المصاريف",
+      "net": "الصافي",
+      "empty": "لا مصاريف مسجلة بعد.",
+      "filter": { "all": "الكل", "expense": "مصاريف", "income": "دخل" }
+    },
+    "goals": {
+      "title": "الأهداف",
+      "subtitle": "تتبّع تقدمك نحو كل هدف.",
+      "empty": "ليس لديك أهداف بعد.",
+      "completed": "مكتمل",
+      "progress": "{{current}} من {{target}}"
+    },
+    "homeTasks": {
+      "title": "مهام المنزل",
+      "subtitle": "كل ما ينتظرك في المنزل في مكان واحد.",
+      "empty": "لا مهام معلقة.",
+      "completed": "مكتملة",
+      "filter": { "all": "الكل", "open": "المفتوحة", "completed": "المكتملة" }
+    },
+    "vehicles": {
+      "title": "المرآب",
+      "subtitle": "مركباتك في مكان واحد.",
+      "empty": "لا مركبات محفوظة بعد."
+    },
+    "homes": {
+      "title": "العقارات",
+      "subtitle": "منازلك في مكان واحد.",
+      "empty": "لا عقارات محفوظة بعد.",
+      "beds": "{{count}} غرف نوم",
+      "baths": "{{count}} حمامات",
+      "sqft": "{{count}} قدم مربعة",
+      "built": "بُنيت عام {{year}}",
+      "floodZone": "منطقة الفيضان: {{zone}}"
+    },
+    "order": {
+      "title": "الطلب {{id}}",
+      "notFound": "الطلب غير موجود",
+      "notFoundBody": "قد يكون هذا الطلب لحساب آخر أو لم يعد موجودًا.",
+      "backToProducts": "العودة إلى المنتجات",
+      "items": "العناصر",
+      "noItems": "هذا الطلب بلا عناصر.",
+      "quantity": "الكمية: {{count}}",
+      "each": "للقطعة",
+      "subtotal": "المجموع الفرعي",
+      "tax": "الضرائب",
+      "shipping": "الشحن",
+      "discount": "الخصم",
+      "total": "الإجمالي",
+      "payment": "الدفع",
+      "paymentStatus": "حالة الدفع",
+      "paymentReference": "مرجع الدفع",
+      "paymentAmount": "المبلغ المدفوع",
+      "noPayment": "لا دفعة مسجلة لهذا الطلب بعد.",
+      "statusLabel": "الحالة: {{status}}"
+    }
+  },
   "dashboards": {
     "life": {
       "title": "حياتك، في لمحة",
@@ -17301,7 +17376,9 @@
         "businessConsultant": "احصل على مستشار أعمال",
         "consultingSubtitle": "هل تعمل لتحقيق «{{goal}}»؟ يمكن لمستشاري OxSteed تسريع ذلك.",
         "findConsultant": "العثور على مستشار"
-      }
+      },
+      "loadFailed": "تعذر تحميل بعض الأقسام.",
+      "sectionFailed": "تعذر تحميل هذا القسم."
     },
     "toolOwner": {
       "title": "تأجير الأدوات",
@@ -17540,6 +17617,8 @@
     "dueOverdue": "متأخر",
     "priorityHigh": "مرتفع",
     "recentlyDone": "اكتمل مؤخرًا ({{count}})",
+    "reschedule": "إعادة الجدولة",
+    "scheduleSession": "جدولة الجلسة",
     "overdue": "متأخر",
     "upcoming": "الجلسات القادمة",
     "completed": "مكتمل",
@@ -17554,6 +17633,7 @@
     "openConversation": "فتح محادثة",
     "activePackages": "الحزم الخاصة بك",
     "bookMoreTitle": "هل تريد المزيد من المساعدة؟",
+    "bookReschedule": "حجز الجلسة أو إعادة جدولتها",
     "bookMoreHint": "أضف حزمة أخرى أو حدد موعدًا لجلسة متابعة مع مستشارك.",
     "addPackage": "إضافة اداة",
     "messageConsultant": "مراسلة مستشارك",
@@ -21778,6 +21858,9 @@
     },
     "actions": {
       "refresh": "تحديث"
+    },
+    "currency": {
+      "label": "عملة الإيرادات"
     },
     "status": {
       "agreementLabel": "اتفاقية",
@@ -26593,7 +26676,9 @@
     "inventoryMovedBanner": "Tools and coverage moved",
     "inventoryMovedBody": "أدر مخزون العروض في الكتالوج ومناطق الخدمة، فالإعدادات لم تعد تحرر الأدوات أو قوائم التغطية.",
     "openCatalog": "Open Catalog",
-    "openServiceAreas": "Open Service Areas"
+    "openServiceAreas": "Open Service Areas",
+    "confirmCancelJob": "إلغاء هذه المهمة؟ لا يمكن التراجع عن هذا الإجراء.",
+    "jobCancelled": "تم إلغاء المهمة."
   },
   "inventoryHelpCenter": {
     "metaTitle": "مركز مساعدة المخزون",
@@ -30571,7 +30656,10 @@
     "webhookReceipts": "إيصالات Webhook",
     "restaurantWalletIntegrity": "سلامة المحافظ",
     "oxsteedCreditLicence": "ترخيص Credit",
-    "legalCcpaErasureReview": "مراجعة المحو"
+    "legalCcpaErasureReview": "مراجعة المحو",
+    "foodOrders": "طلبات الطعام",
+    "mediaFlags": "بلاغات الوسائط",
+    "franchiseStatus": "حالة الطلب"
   },
   "adminProfileVisibility": {
     "title": "ظهور الملفات الشخصية",

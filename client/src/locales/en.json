@@ -4357,6 +4357,7 @@
     "empty": "No items in this list yet.",
     "remove": "Remove",
     "cardOpen": "View parts list",
+    "openSharedCart": "Open shared cart",
     "cardItems": "{{count}} items",
     "defaultName": "Parts for {{kit}}",
     "kits": {
@@ -6327,7 +6328,11 @@
       "tools": "List any special tools, permits, or materials helpers should expect."
     },
     "whatHappensNext": "What happens next",
-    "whatHappensNextBody": "Once your job is live, helpers who match the location, category, and requirements can send bids. You can compare offers, ask follow-up questions, and hire when you are ready."
+    "whatHappensNextBody": "Once your job is live, helpers who match the location, category, and requirements can send bids. You can compare offers, ask follow-up questions, and hire when you are ready.",
+    "mediaSkipped": "{{dropped}} file(s) skipped: unsupported type or over the per-tab limit.",
+    "reviewFixNeeded": "Fix these details before posting.",
+    "draftSaved": "Draft saved.",
+    "draftSaveFailed": "Could not save the draft."
   },
   "jobDetail": {
     "customerConfirmsEscrow": "On protected-payment jobs the customer confirms completion, which releases your payment.",
@@ -6547,7 +6552,8 @@
     "disputeOpened": "Dispute opened. Our team and the other party have been notified.",
     "signWorkAgreement": "Review and sign the work agreement",
     "viewWorkAgreement": "View work agreement",
-    "createWorkAgreement": "Create a work agreement"
+    "createWorkAgreement": "Create a work agreement",
+    "reviewsLoadFailed": "Reviews could not be loaded."
   },
   "myJobs": {
     "cancelUndoNote": "You will have 5 seconds to undo after confirming.",
@@ -10898,7 +10904,9 @@
       "cancelled": "Cancelled",
       "published": "Posted",
       "regenerated": "Renewed"
-    }
+    },
+    "loadFailed": "Could not load your planned needs.",
+    "pauseFailed": "Could not change the pause setting."
   },
   "helperRegister": {
     "step4": {
@@ -15963,7 +15971,9 @@
     "cardPayNotSucceeded": "The card payment did not complete. No order was marked paid.",
     "cardPayConfirmFailed": "We could not confirm the card payment. If your card was charged, contact support with the order ID.",
     "cardPayIntentFailed": "We could not start a card payment for this cart. Please try again or record a payment proof.",
-    "cardPayUnavailable": "Card payments are not available right now. Please record a payment proof instead."
+    "cardPayUnavailable": "Card payments are not available right now. Please record a payment proof instead.",
+    "cardPaidNext": "Your card payment is complete. Order {{order}} is paid. You do not need to record another payment for this order.",
+    "viewOrder": "View order"
   },
   "myBids": {
     "title": "My Bids",
@@ -17237,6 +17247,71 @@
       "hint": "Administer the OxSteed platform."
     }
   },
+  "lifePages": {
+    "backToDashboard": "Back to dashboard",
+    "viewAll": "View all",
+    "loading": "Loading…",
+    "loadFailed": "Could not load this page. Try again.",
+    "expenses": {
+      "title": "Expenses",
+      "subtitle": "Your income and spending, in one place.",
+      "income": "Income",
+      "expenses": "Expenses",
+      "net": "Net",
+      "empty": "No expenses recorded yet.",
+      "filter": { "all": "All", "expense": "Expenses", "income": "Income" }
+    },
+    "goals": {
+      "title": "Goals",
+      "subtitle": "Track your progress toward each goal.",
+      "empty": "You have no goals yet.",
+      "completed": "Completed",
+      "progress": "{{current}} of {{target}}"
+    },
+    "homeTasks": {
+      "title": "Home tasks",
+      "subtitle": "Everything waiting for you at home, in one place.",
+      "empty": "No tasks waiting.",
+      "completed": "Completed",
+      "filter": { "all": "All", "open": "Open", "completed": "Completed" }
+    },
+    "vehicles": {
+      "title": "Garage",
+      "subtitle": "Your vehicles, in one place.",
+      "empty": "No vehicles saved yet."
+    },
+    "homes": {
+      "title": "Properties",
+      "subtitle": "Your homes, in one place.",
+      "empty": "No homes saved yet.",
+      "beds": "{{count}} beds",
+      "baths": "{{count}} baths",
+      "sqft": "{{count}} sq ft",
+      "built": "Built in {{year}}",
+      "floodZone": "Flood zone: {{zone}}"
+    },
+    "order": {
+      "title": "Order {{id}}",
+      "notFound": "Order not found",
+      "notFoundBody": "This order may belong to another account or no longer exist.",
+      "backToProducts": "Back to products",
+      "items": "Items",
+      "noItems": "This order has no items.",
+      "quantity": "Quantity: {{count}}",
+      "each": "each",
+      "subtotal": "Subtotal",
+      "tax": "Tax",
+      "shipping": "Shipping",
+      "discount": "Discount",
+      "total": "Total",
+      "payment": "Payment",
+      "paymentStatus": "Payment status",
+      "paymentReference": "Payment reference",
+      "paymentAmount": "Amount paid",
+      "noPayment": "No payment recorded for this order yet.",
+      "statusLabel": "Status: {{status}}"
+    }
+  },
   "dashboards": {
     "life": {
       "title": "Your life, at a glance",
@@ -17290,7 +17365,9 @@
         "businessConsultant": "Get a business consultant",
         "consultingSubtitle": "Working toward \"{{goal}}\"? OxSteed consultants can accelerate it.",
         "findConsultant": "Find a consultant"
-      }
+      },
+      "loadFailed": "Some sections could not be loaded.",
+      "sectionFailed": "Could not load this section."
     },
     "toolOwner": {
       "title": "Tool rentals",
@@ -17529,6 +17606,8 @@
     "dueOverdue": "Overdue · ",
     "priorityHigh": "High",
     "recentlyDone": "Recently completed ({{count}})",
+    "reschedule": "Reschedule",
+    "scheduleSession": "Schedule session",
     "overdue": "Overdue",
     "upcoming": "Upcoming sessions",
     "completed": "Completed",
@@ -17543,6 +17622,7 @@
     "openConversation": "Open conversation",
     "activePackages": "Your packages",
     "bookMoreTitle": "Need more help?",
+    "bookReschedule": "Book or reschedule session",
     "bookMoreHint": "Add another package or schedule a follow-up session with your consultant.",
     "addPackage": "Add a package",
     "messageConsultant": "Message your consultant",
@@ -21767,6 +21847,9 @@
     },
     "actions": {
       "refresh": "Refresh"
+    },
+    "currency": {
+      "label": "Revenue currency"
     },
     "status": {
       "agreementLabel": "Agreement",
@@ -26578,7 +26661,9 @@
     "inventoryMovedBanner": "Tools and coverage moved",
     "inventoryMovedBody": "Manage offer inventory in Catalog and Service Areas — Settings no longer edits tools or coverage lists.",
     "openCatalog": "Open Catalog",
-    "openServiceAreas": "Open Service Areas"
+    "openServiceAreas": "Open Service Areas",
+    "confirmCancelJob": "Cancel this job? This action cannot be undone.",
+    "jobCancelled": "Job cancelled."
   },
   "inventoryHelpCenter": {
     "metaTitle": "Inventory Help Center",
@@ -30556,7 +30641,10 @@
     "webhookReceipts": "Webhook receipts",
     "restaurantWalletIntegrity": "Restaurant wallet integrity",
     "oxsteedCreditLicence": "Credit licence",
-    "legalCcpaErasureReview": "Erasure Review"
+    "legalCcpaErasureReview": "Erasure Review",
+    "foodOrders": "Food orders",
+    "mediaFlags": "Media flags",
+    "franchiseStatus": "Application status"
   },
   "adminProfileVisibility": {
     "title": "Profile visibility",

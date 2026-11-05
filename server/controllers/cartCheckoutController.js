@@ -476,8 +476,63 @@ async function processAffiliateCommissions(orderId, userId) {
   }
 }
 
+async function getMarketplaceOrder(req, res) {
+  // Read-only buyer view of one marketplace order. The order lookup is
+  // scoped to the requesting buyer in SQL (id AND customer_id); another
+  // buyer's order and a missing order both return the same 404, so no
+  // order existence or ownership information leaks across buyers.
+  try {
+    const userId = req.user?.id;
+    if (!userId) return sendError(res, 401, 'Unauthorized');
+    const { orderId } = req.params;
+    if (!orderId) return sendError(res, 400, 'Order ID required');
+
+    const order = await pool.query(
+      `SELECT id, customer_id, cart_id, total_cents, subtotal_cents,
+              tax_cents, shipping_cents, discount_cents, status,
+              shipping_address, created_at, completed_at
+         FROM marketplace_orders
+        WHERE id = $1 AND customer_id = $2`,
+      [orderId, userId]
+    );
+    if (!order.rows.length) return sendError(res, 404, 'Order not found');
+
+    const items = await pool.query(
+      `SELECT oi.id, oi.product_id, oi.quantity, oi.unit_price_cents,
+              oi.total_price_cents, mp.name AS product_name
+         FROM marketplace_order_items oi
+         JOIN marketplace_products mp ON mp.id = oi.product_id
+        WHERE oi.order_id = $1
+        ORDER BY oi.id`,
+      [orderId]
+    );
+
+    const payment = await pool.query(
+      `SELECT payment_intent_id, amount_cents, currency, status, completed_at
+         FROM marketplace_transactions
+        WHERE order_id = $1
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [orderId]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        order: order.rows[0],
+        items: items.rows,
+        payment: payment.rows[0] || null,
+      },
+    });
+  } catch (error) {
+    logger.error('Error getting marketplace order', { error });
+    sendError(res, 500, 'Failed to get order');
+  }
+}
+
 module.exports = {
   getCheckoutSession,
   createPaymentIntent,
-  confirmPayment
+  confirmPayment,
+  getMarketplaceOrder
 };

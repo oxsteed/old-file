@@ -2213,6 +2213,10 @@ exports.getMoneyOverview = async (req, res) => {
       launchedStores: 0,
       averageRoyaltyBps: 0,
       averageMarketingFeeBps: 0,
+      // T36-F01 follow-up: per-currency fee breakdown. Headline fee totals
+      // below are the reporting currency (USD) only; non-USD fees never
+      // enter them and appear only here. No FX conversion anywhere.
+      byCurrency: [],
     };
     if (hasFranchisePrograms) {
       const { rows } = await db.query(`
@@ -2222,23 +2226,65 @@ exports.getMoneyOverview = async (req, res) => {
       franchise.activePrograms = safeInt(rows[0]?.active_programs);
     }
     if (hasFranchiseAgreements) {
-      const { rows } = await db.query(`
-        SELECT
-          COALESCE(SUM(CASE WHEN signed_at IS NOT NULL THEN initial_fee_cents ELSE 0 END), 0) AS signed_initial_fees_cents,
-          COALESCE(SUM(CASE WHEN signed_at IS NULL THEN initial_fee_cents ELSE 0 END), 0) AS pending_initial_fees_cents,
-          COUNT(*) FILTER (WHERE signed_at IS NOT NULL) AS signed_agreements,
-          COALESCE(AVG(NULLIF(royalty_bps, 0)), 0) AS average_royalty_bps,
-          COALESCE(AVG(NULLIF(marketing_fee_bps, 0)), 0) AS average_marketing_fee_bps
-        FROM franchise_agreements
-      `);
-      franchise = {
-        ...franchise,
-        signedInitialFeesCents: safeInt(rows[0]?.signed_initial_fees_cents),
-        pendingInitialFeesCents: safeInt(rows[0]?.pending_initial_fees_cents),
-        signedAgreements: safeInt(rows[0]?.signed_agreements),
-        averageRoyaltyBps: Math.round(safeFloat(rows[0]?.average_royalty_bps)),
-        averageMarketingFeeBps: Math.round(safeFloat(rows[0]?.average_marketing_fee_bps)),
-      };
+      const hasFranchiseCurrency = await columnExists('franchise_agreements', 'currency');
+      if (hasFranchiseCurrency) {
+        // Currency-scoped (T36-F01 pattern): group fees by currency and
+        // headline only the reporting currency. Summing initial fees across
+        // currencies as dollars was meaningless; EUR fees now surface only
+        // in byCurrency, never in period/lifetime/pending or pipelineCents.
+        const { rows } = await db.query(`
+          SELECT
+            UPPER(currency) AS currency,
+            COALESCE(SUM(CASE WHEN signed_at IS NOT NULL THEN initial_fee_cents ELSE 0 END), 0) AS signed_initial_fees_cents,
+            COALESCE(SUM(CASE WHEN signed_at IS NULL THEN initial_fee_cents ELSE 0 END), 0) AS pending_initial_fees_cents,
+            COUNT(*) FILTER (WHERE signed_at IS NOT NULL) AS signed_agreements,
+            COALESCE(SUM(NULLIF(royalty_bps, 0)), 0) AS royalty_bps_sum,
+            COUNT(NULLIF(royalty_bps, 0)) AS royalty_bps_count,
+            COALESCE(SUM(NULLIF(marketing_fee_bps, 0)), 0) AS marketing_fee_bps_sum,
+            COUNT(NULLIF(marketing_fee_bps, 0)) AS marketing_fee_bps_count
+          FROM franchise_agreements
+          GROUP BY UPPER(currency)
+          ORDER BY currency ASC
+        `);
+        franchise.byCurrency = rows.map((row) => ({
+          currency: row.currency || REPORTING_CURRENCY,
+          signedInitialFeesCents: safeInt(row.signed_initial_fees_cents),
+          pendingInitialFeesCents: safeInt(row.pending_initial_fees_cents),
+          signedAgreements: safeInt(row.signed_agreements),
+        }));
+        const reporting = franchise.byCurrency.find((row) => row.currency === REPORTING_CURRENCY);
+        franchise.signedInitialFeesCents = reporting?.signedInitialFeesCents || 0;
+        franchise.pendingInitialFeesCents = reporting?.pendingInitialFeesCents || 0;
+        franchise.signedAgreements = reporting?.signedAgreements || 0;
+        // Bps are currency-free, so the averages still span all agreements;
+        // recomputed exactly from per-currency sums and nonzero counts.
+        const royaltySum = rows.reduce((sum, row) => sum + safeInt(row.royalty_bps_sum), 0);
+        const royaltyCount = rows.reduce((sum, row) => sum + safeInt(row.royalty_bps_count), 0);
+        const marketingSum = rows.reduce((sum, row) => sum + safeInt(row.marketing_fee_bps_sum), 0);
+        const marketingCount = rows.reduce((sum, row) => sum + safeInt(row.marketing_fee_bps_count), 0);
+        franchise.averageRoyaltyBps = royaltyCount > 0 ? Math.round(royaltySum / royaltyCount) : 0;
+        franchise.averageMarketingFeeBps = marketingCount > 0 ? Math.round(marketingSum / marketingCount) : 0;
+      } else {
+        // Pre-migration table without a currency column: keep the previous
+        // ungrouped totals (every fee was implicitly reported as USD).
+        const { rows } = await db.query(`
+          SELECT
+            COALESCE(SUM(CASE WHEN signed_at IS NOT NULL THEN initial_fee_cents ELSE 0 END), 0) AS signed_initial_fees_cents,
+            COALESCE(SUM(CASE WHEN signed_at IS NULL THEN initial_fee_cents ELSE 0 END), 0) AS pending_initial_fees_cents,
+            COUNT(*) FILTER (WHERE signed_at IS NOT NULL) AS signed_agreements,
+            COALESCE(AVG(NULLIF(royalty_bps, 0)), 0) AS average_royalty_bps,
+            COALESCE(AVG(NULLIF(marketing_fee_bps, 0)), 0) AS average_marketing_fee_bps
+          FROM franchise_agreements
+        `);
+        franchise = {
+          ...franchise,
+          signedInitialFeesCents: safeInt(rows[0]?.signed_initial_fees_cents),
+          pendingInitialFeesCents: safeInt(rows[0]?.pending_initial_fees_cents),
+          signedAgreements: safeInt(rows[0]?.signed_agreements),
+          averageRoyaltyBps: Math.round(safeFloat(rows[0]?.average_royalty_bps)),
+          averageMarketingFeeBps: Math.round(safeFloat(rows[0]?.average_marketing_fee_bps)),
+        };
+      }
     }
     if (hasFranchiseApplications) {
       const { rows } = await db.query(`
@@ -2404,6 +2450,9 @@ exports.getMoneyOverview = async (req, res) => {
         count: franchise.pipelineApplications,
         note: 'Captures configured initial fees, royalties, and marketing fees for signed and in-flight franchise agreements.',
         sources: ['franchise_programs', 'franchise_agreements', 'franchise_applications'],
+        // Headline cents above are the reporting currency (USD) only.
+        // Non-USD fees appear only in this per-currency breakdown.
+        byCurrency: franchise.byCurrency,
       },
     ];
 
@@ -2473,11 +2522,11 @@ function readOnlyEnvFlagSnapshot() {
   return {
     paymentLayers: paymentLayersSnapshot(),
     launch: {
-      OXSTEED_MEDIA_LAUNCHED: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', false),
-      VORTEX_ENABLED: envFlagEnabled('VORTEX_ENABLED', false),
-      AFFILIATE_ENABLED: envFlagEnabled('AFFILIATE_ENABLED', false),
-      CONSULTING_ENABLED: envFlagEnabled('CONSULTING_ENABLED', false),
-      SUBSCRIPTIONS_ENABLED: envFlagEnabled('SUBSCRIPTIONS_ENABLED', false),
+      OXSTEED_MEDIA_LAUNCHED: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', true),
+      VORTEX_ENABLED: envFlagEnabled('VORTEX_ENABLED', true),
+      AFFILIATE_ENABLED: envFlagEnabled('AFFILIATE_ENABLED', true),
+      CONSULTING_ENABLED: envFlagEnabled('CONSULTING_ENABLED', true),
+      SUBSCRIPTIONS_ENABLED: envFlagEnabled('SUBSCRIPTIONS_ENABLED', true),
     },
     security: {
       // Secret material is never returned; only whether the origin lock can

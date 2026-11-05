@@ -19,6 +19,11 @@ const EMPTY_CALENDAR_DRAFT = {
   customService: false,
   fallbackChoice: 'post',
   selectedDateStr: '',
+  // UI gaps item 6: the picked slot and the agreement checkbox, so a
+  // guest who confirms while logged out and returns from sign-in lands
+  // back on the confirmation step with both intact.
+  selectedSlot: null,
+  agreementAccepted: false,
 };
 
 function bookingDraftKey(helperId, businessId) {
@@ -42,6 +47,8 @@ function loadBookingDraft(key, serviceHint) {
       customService: parsed.customService === true,
       fallbackChoice: parsed.fallbackChoice === 'expire' ? 'expire' : 'post',
       selectedDateStr: typeof parsed.selectedDateStr === 'string' ? parsed.selectedDateStr : '',
+      selectedSlot: parsed.selectedSlot && typeof parsed.selectedSlot === 'object' ? parsed.selectedSlot : null,
+      agreementAccepted: parsed.agreementAccepted === true,
     };
   } catch {
     return base;
@@ -88,17 +95,20 @@ export default function BookingFlow({ helperId, helperName, businessId, business
   const [searchParams] = useSearchParams();
   const serviceHint = searchParams.get('serviceHint') || '';
 
-  const [step, setStep] = useState('calendar');
-  const [bookingData, setBookingData] = useState(null);
-  const [bookingRequest, setBookingRequest] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
   // Calendar-step draft lifted out of BookingCalendar so going Back (which
   // unmounts it) doesn't drop the typed service details. Also mirrored to
   // sessionStorage so a refresh restores the draft. Scoped per helper/business.
   const draftKey = bookingDraftKey(helperId, businessId);
   const [calendarDraft, setCalendarDraft] = useState(() => loadBookingDraft(draftKey, serviceHint));
+  // UI gaps item 6: a draft carrying a picked slot restores straight onto
+  // the confirmation step, so a guest returning from sign-in does not
+  // have to re-pick the slot or re-check the agreement.
+  const [step, setStep] = useState(() => (loadBookingDraft(draftKey, serviceHint).selectedSlot ? 'confirmation' : 'calendar'));
+  const [bookingData, setBookingData] = useState(() => loadBookingDraft(draftKey, serviceHint).selectedSlot || null);
+  const [bookingRequest, setBookingRequest] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   const updateCalendarDraft = useCallback(
     (patch) => setCalendarDraft((prev) => ({ ...prev, ...patch })),
     []
@@ -111,12 +121,17 @@ export default function BookingFlow({ helperId, helperName, businessId, business
 
   const handleSelectSlot = (data) => {
     setBookingData(data);
+    setCalendarDraft((prev) => ({ ...prev, selectedSlot: data, agreementAccepted: false }));
     setStep('confirmation');
     setError(null);
   };
 
   const handleConfirmBooking = async (formData) => {
     if (!isLoggedIn) {
+      // UI gaps item 6: save the picked slot and the (already accepted)
+      // agreement synchronously before navigating away. Relying on the
+      // setState-plus-effect save would lose them when the flow unmounts.
+      saveBookingDraft(draftKey, { ...calendarDraft, selectedSlot: bookingData, agreementAccepted: true });
       // Preserve whichever flow the customer started in (helper or business)
       const returnPath = businessId
         ? `/book/business/${businessId}${businessName ? `?businessName=${encodeURIComponent(businessName)}` : ''}`
@@ -188,10 +203,17 @@ export default function BookingFlow({ helperId, helperName, businessId, business
     return () => clearInterval(iv);
   }, [step, bookingRequest?.id, bookingRequest?.status]);
 
+  // Going back deliberately abandons the picked slot, so a later return
+  // to the flow does not resurrect it onto the confirm step.
+  const backToCalendar = () => {
+    setStep('calendar');
+    setBookingData(null);
+    setCalendarDraft((prev) => ({ ...prev, selectedSlot: null, agreementAccepted: false }));
+  };
+
   const handleGoBack = () => {
     if (step === 'confirmation') {
-      setStep('calendar');
-      setBookingData(null);
+      backToCalendar();
       setError(null);
     } else if (step === 'status') {
       setStep('calendar');
@@ -292,8 +314,10 @@ export default function BookingFlow({ helperId, helperName, businessId, business
             bookingData={bookingData}
             helperName={helperName}
             onConfirm={handleConfirmBooking}
-            onBack={() => setStep('calendar')}
+            onBack={backToCalendar}
             loading={loading}
+            initialAgreed={calendarDraft.agreementAccepted}
+            onAgreementChange={(agreed) => setCalendarDraft((prev) => ({ ...prev, agreementAccepted: agreed }))}
           />
         )}
 

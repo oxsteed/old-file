@@ -181,6 +181,8 @@ export default function PlannedNeedsPage() {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // UI gaps item 9: a load failure must not masquerade as "no needs".
+  const [loadFailed, setLoadFailed] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showSrcs, setShowSrcs] = useState(false);
 
@@ -194,6 +196,7 @@ export default function PlannedNeedsPage() {
 
   const loadNeeds = useCallback(async () => {
     try {
+      setLoadFailed(false);
       const [needsRes, bookingsRes] = await Promise.all([
         api.get('/planned-needs'),
         api.get('/bookings'),
@@ -213,6 +216,7 @@ export default function PlannedNeedsPage() {
       setBookings(scheduledBookings);
     } catch (e) {
       console.error(e);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -517,7 +521,9 @@ export default function PlannedNeedsPage() {
       await loadNeeds();
       await loadProjection(window_);
     } catch (e) {
-      console.error(e);
+      // UI gaps item 9: surface the failure like the sibling actions do
+      // (delete/complete toast) instead of failing silently.
+      toast.error(e?.response?.data?.error || t('plannedNeeds.pauseFailed'));
     }
   }
 
@@ -1072,6 +1078,15 @@ export default function PlannedNeedsPage() {
           <>
             <p className="pn-section-title">{t('plannedNeeds.activeSection', { count: filteredActive.length })}</p>
             {filteredActive.length === 0 && activeNeeds.length === 0 ? (
+              loadFailed ? (
+                <div className="pn-empty-v2" role="alert">
+                  <p className="pn-empty-title">{t('plannedNeeds.loadFailed')}</p>
+                  <p className="pn-empty-sub">{t('common.tryAgain')}</p>
+                  <button type="button" className="pn-inline-cta" onClick={() => { setLoading(true); loadNeeds(); }} data-track="ui.9f3c395c29.34">
+                    {t('common.retry')}
+                  </button>
+                </div>
+              ) : (
               <div className="pn-empty-v2">
                 <div className="pn-empty-illustration" aria-hidden>
                   <CalendarDays size={48} strokeWidth={1.25} />
@@ -1089,6 +1104,7 @@ export default function PlannedNeedsPage() {
                   ))}
                 </div>
               </div>
+              )
             ) : filteredActive.length === 0 ? (
               <p className="pn-muted-center">{t('plannedNeeds.filterEmpty')}</p>
             ) : viewMode === 'calendar' ? (

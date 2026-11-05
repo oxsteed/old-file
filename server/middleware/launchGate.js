@@ -84,49 +84,61 @@ const GATED_PREFIXES = Object.freeze([
 // variables (OXSTEED_MEDIA_LAUNCHED, VORTEX_ENABLED, AFFILIATE_ENABLED);
 // the rest use OXSTEED_LAUNCH_<KEY>.
 const LAUNCH_KEY_ENV = Object.freeze({
-  // 2026-11-02 admin-ops audit item 15: affiliate defaults OFF to match
-  // the affiliate API gate (requireFeatureEnabled 'AFFILIATE_ENABLED',
-  // false). Previously true here while the API defaulted off, so the
-  // client rendered affiliate UI against 503 APIs when the env var was
-  // unset. Note: /api/launch-visibility reads this map from env live at
+  // All-launch flip (2026-11-04, Emile-authorized): every launch key
+  // defaults ON. The 2026-11-02 affiliate pairing concern (client true
+  // while the API defaulted off, rendering UI against 503 APIs) is closed
+  // because the affiliate API gate now defaults on too, so the map and the
+  // gate agree when the env var is unset. Explicit env false still turns
+  // a launch back off (envFlagEnabled honors it over the default).
+  // Note: /api/launch-visibility reads this map from env live at
   // request time; it is NOT the boot snapshot the hard API gates use, so
   // an env flip without a redeploy can show a launch as live that the
   // API still blocks (or vice versa).
-  affiliateRewards: ['AFFILIATE_ENABLED', false],
-  aiKnowledge: ['OXSTEED_LAUNCH_AI_KNOWLEDGE', false],
-  backgroundChecks: ['OXSTEED_LAUNCH_BACKGROUND_CHECKS', false],
-  businessAscension: ['OXSTEED_LAUNCH_BUSINESS_ASCENSION', false],
-  businessHubAdvancedOps: ['OXSTEED_LAUNCH_BUSINESS_HUB_ADVANCED_OPS', false],
-  businessHubFinancialPlanning: ['OXSTEED_LAUNCH_BUSINESS_HUB_FINANCIAL_PLANNING', false],
-  businessHubGrowthTools: ['OXSTEED_LAUNCH_BUSINESS_HUB_GROWTH_TOOLS', false],
-  businessHubProductCommerce: ['OXSTEED_LAUNCH_BUSINESS_HUB_PRODUCT_COMMERCE', false],
-  businessHubRoleMenu: ['OXSTEED_LAUNCH_BUSINESS_HUB_ROLE_MENU', false],
-  businessHubRoleMenuWidgets: ['OXSTEED_LAUNCH_BUSINESS_HUB_ROLE_MENU_WIDGETS', false],
-  businessHubSpecializedTemplates: ['OXSTEED_LAUNCH_BUSINESS_HUB_SPECIALIZED_TEMPLATES', false],
-  businessHubVortexAccess: ['VORTEX_ENABLED', false],
+  affiliateRewards: ['AFFILIATE_ENABLED', true],
+  aiKnowledge: ['OXSTEED_LAUNCH_AI_KNOWLEDGE', true],
+  backgroundChecks: ['OXSTEED_LAUNCH_BACKGROUND_CHECKS', true],
+  businessAscension: ['OXSTEED_LAUNCH_BUSINESS_ASCENSION', true],
+  businessHubAdvancedOps: ['OXSTEED_LAUNCH_BUSINESS_HUB_ADVANCED_OPS', true],
+  businessHubFinancialPlanning: ['OXSTEED_LAUNCH_BUSINESS_HUB_FINANCIAL_PLANNING', true],
+  businessHubGrowthTools: ['OXSTEED_LAUNCH_BUSINESS_HUB_GROWTH_TOOLS', true],
+  businessHubProductCommerce: ['OXSTEED_LAUNCH_BUSINESS_HUB_PRODUCT_COMMERCE', true],
+  businessHubRoleMenu: ['OXSTEED_LAUNCH_BUSINESS_HUB_ROLE_MENU', true],
+  businessHubRoleMenuWidgets: ['OXSTEED_LAUNCH_BUSINESS_HUB_ROLE_MENU_WIDGETS', true],
+  businessHubSpecializedTemplates: ['OXSTEED_LAUNCH_BUSINESS_HUB_SPECIALIZED_TEMPLATES', true],
+  businessHubVortexAccess: ['VORTEX_ENABLED', true],
   // Weekly self-audit 2026-11-04 item 1: client launch keys for the
   // consulting and franchise surfaces, mirroring their existing API gates.
-  // Defaults stay off; /api/launch-visibility serves these to the client.
-  consulting: ['CONSULTING_ENABLED', false],
-  oxsteedMedia: ['OXSTEED_MEDIA_LAUNCHED', false],
-  discoverEverything: ['OXSTEED_LAUNCH_DISCOVER_EVERYTHING', false],
+  // Defaults on since the all-launch flip; /api/launch-visibility serves
+  // these to the client.
+  consulting: ['CONSULTING_ENABLED', true],
+  oxsteedMedia: ['OXSTEED_MEDIA_LAUNCHED', true],
+  discoverEverything: ['OXSTEED_LAUNCH_DISCOVER_EVERYTHING', true],
   footerUtilityPills: ['OXSTEED_LAUNCH_FOOTER_UTILITY_PILLS', true],
-  franchise: ['FRANCHISE_ENABLED', false],
-  genericQrGenerator: ['OXSTEED_LAUNCH_GENERIC_QR_GENERATOR', false],
+  franchise: ['FRANCHISE_ENABLED', true],
+  // UI gaps item 2: investor launch key, mirroring the client default.
+  // Default on since the all-launch flip; env false plus redeploy
+  // restores the investor bounce.
+  investor: ['OXSTEED_LAUNCH_INVESTOR', true],
+  genericQrGenerator: ['OXSTEED_LAUNCH_GENERIC_QR_GENERATOR', true],
   helperEarnings: ['OXSTEED_LAUNCH_HELPER_EARNINGS', true],
-  helperGrowthCenter: ['OXSTEED_LAUNCH_HELPER_GROWTH_CENTER', false],
+  helperGrowthCenter: ['OXSTEED_LAUNCH_HELPER_GROWTH_CENTER', true],
   helperInvoices: ['OXSTEED_LAUNCH_HELPER_INVOICES', true],
   jobEscrowLabels: ['OXSTEED_LAUNCH_JOB_ESCROW_LABELS', true],
-  jobMaterialsLogistics: ['OXSTEED_LAUNCH_JOB_MATERIALS_LOGISTICS', false],
-  networkBranchSwitcher: ['OXSTEED_LAUNCH_NETWORK_BRANCH_SWITCHER', false],
-  personalLifeDashboard: ['OXSTEED_LAUNCH_PERSONAL_LIFE_DASHBOARD', false],
-  productMarketplace: ['OXSTEED_LAUNCH_PRODUCT_MARKETPLACE', false],
-  resourcesMenu: ['OXSTEED_LAUNCH_RESOURCES_MENU', false],
-  specializedProfileTemplates: ['OXSTEED_LAUNCH_SPECIALIZED_PROFILE_TEMPLATES', false],
-  subscriptions: ['OXSTEED_LAUNCH_SUBSCRIPTIONS', false],
-  templates: ['OXSTEED_LAUNCH_TEMPLATES', false],
+  jobMaterialsLogistics: ['OXSTEED_LAUNCH_JOB_MATERIALS_LOGISTICS', true],
+  networkBranchSwitcher: ['OXSTEED_LAUNCH_NETWORK_BRANCH_SWITCHER', true],
+  personalLifeDashboard: ['OXSTEED_LAUNCH_PERSONAL_LIFE_DASHBOARD', true],
+  // Marketplace checkout flip (2026-11-04, Emile-authorized): the purchase
+  // path (carts, shared carts, marketplace products, job kits) is launched,
+  // so this defaults on. Setting OXSTEED_LAUNCH_PRODUCT_MARKETPLACE=false
+  // plus a redeploy turns it back off (envFlagEnabled honors an explicit
+  // false over the default).
+  productMarketplace: ['OXSTEED_LAUNCH_PRODUCT_MARKETPLACE', true],
+  resourcesMenu: ['OXSTEED_LAUNCH_RESOURCES_MENU', true],
+  specializedProfileTemplates: ['OXSTEED_LAUNCH_SPECIALIZED_PROFILE_TEMPLATES', true],
+  subscriptions: ['OXSTEED_LAUNCH_SUBSCRIPTIONS', true],
+  templates: ['OXSTEED_LAUNCH_TEMPLATES', true],
   toolRentals: ['OXSTEED_LAUNCH_TOOL_RENTALS', true],
-  vortexWorkspaceEntry: ['VORTEX_ENABLED', false],
+  vortexWorkspaceEntry: ['VORTEX_ENABLED', true],
 });
 
 // Read at call time so /api/launch-visibility always reflects the running
@@ -145,10 +157,12 @@ function getServerLaunchVisibility() {
 // prefixes it blocks, so a launch enabled via env unblocks its APIs in step
 // with the client UI instead of rendering against 404s.
 const LAUNCH_VISIBILITY = Object.freeze({
-  templates: envFlagEnabled('OXSTEED_LAUNCH_TEMPLATES', false),
-  productMarketplace: envFlagEnabled('OXSTEED_LAUNCH_PRODUCT_MARKETPLACE', false),
-  specializedProfileTemplates: envFlagEnabled('OXSTEED_LAUNCH_SPECIALIZED_PROFILE_TEMPLATES', false),
-  oxsteedMedia: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', false),
+  // All-launch flip (2026-11-04): every boot-snapshot launch defaults on,
+  // matching LAUNCH_KEY_ENV above; explicit env false still turns it off.
+  templates: envFlagEnabled('OXSTEED_LAUNCH_TEMPLATES', true),
+  productMarketplace: envFlagEnabled('OXSTEED_LAUNCH_PRODUCT_MARKETPLACE', true),
+  specializedProfileTemplates: envFlagEnabled('OXSTEED_LAUNCH_SPECIALIZED_PROFILE_TEMPLATES', true),
+  oxsteedMedia: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', true),
 });
 
 function isLaunchGateDisabled() {
@@ -161,13 +175,17 @@ function isLaunchGateDisabled() {
  * so the assistant never recommends a product the user cannot access.
  */
 function getLaunchVisibility() {
+  // All-launch flip (2026-11-04): affiliate reads through envFlagEnabled
+  // with default true like every other launch surface, so an unset env
+  // var reports it launched instead of off. LOGISTICS_PAYMENTS_ENABLED is
+  // deliberately NOT flipped (not a launch flag); its strict read stays.
   const on = (v) => String(v || '').trim().toLowerCase() === 'true';
   return {
     templates: LAUNCH_VISIBILITY.templates,
     productMarketplace: LAUNCH_VISIBILITY.productMarketplace,
     specializedProfileTemplates: LAUNCH_VISIBILITY.specializedProfileTemplates,
     oxsteedMedia: LAUNCH_VISIBILITY.oxsteedMedia,
-    affiliate: on(process.env.AFFILIATE_ENABLED),
+    affiliate: envFlagEnabled('AFFILIATE_ENABLED', true),
     logisticsPayments: on(process.env.LOGISTICS_PAYMENTS_ENABLED),
   };
 }

@@ -8,6 +8,7 @@ import { formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import { fetchBookingPrefillForJob } from '../api/bookings';
 import api from '../api/axios';
+import toast from 'react-hot-toast';
 import '../styles/PostJobPage.css';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
@@ -792,6 +793,11 @@ export default function PostJobPage() {
   const [serverDraftReady, setServerDraftReady] = useState(false);
   const [draftRecovery, setDraftRecovery] = useState(null);
   const draftEdits = useRef(0);
+  // UI gaps item 5: per-tab stash so switching media tabs keeps each
+  // tab's files in-session instead of discarding them.
+  const mediaStash = useRef({});
+  // UI gaps item 14: visible count when picked files are dropped.
+  const [mediaNotice, setMediaNotice] = useState(null);
   const localDraftTimer = useRef();
   const lastDraftPhotos = useRef(null);
   const shareId = searchParams.get('share');
@@ -917,7 +923,10 @@ export default function PostJobPage() {
       if (!active) return;
       if (local && revision === draftEdits.current) {
         const files=local.files||[], previews=files.map(file=>URL.createObjectURL(file));
-        setForm(f=>({...f,...local.payload,step:Math.min(4,Math.max(1,local.wizard_step||1)),mediaTab:local.mediaTab||'photos',mediaFiles:files,mediaPreviews:previews}));
+        // UI gaps item 5: the store only ever persists photos, so a
+        // restore carrying files belongs on the photos tab even when the
+        // saved tab was video/audio (the non-photos save preserved them).
+        setForm(f=>({...f,...local.payload,step:Math.min(4,Math.max(1,local.wizard_step||1)),mediaTab:files.length?'photos':(local.mediaTab||'photos'),mediaFiles:files,mediaPreviews:previews}));
         setDraftRecovery((local.photoCount||0)>files.length?'photosUnavailable':'restored');setDraftReady(true);
       }
       setDraftReady(true);
@@ -1056,7 +1065,13 @@ export default function PostJobPage() {
         : ['audio/mpeg','audio/mp3','audio/wav','audio/x-wav','audio/ogg','audio/webm','audio/aac','audio/x-aac'];
 
     const maxFiles = form.mediaTab === 'photos' ? 5 : 1;
-    const valid = Array.from(files).filter(f => allowed.includes(f.type)).slice(0, maxFiles - form.mediaFiles.length);
+    const picked = Array.from(files);
+    const valid = picked.filter(f => allowed.includes(f.type)).slice(0, maxFiles - form.mediaFiles.length);
+    // UI gaps item 14: the allow-list and caps are unchanged, but a pick
+    // that drops files (wrong type, including iPhone HEIC, or over the
+    // per-tab cap) must say so instead of silently keeping nothing.
+    const dropped = picked.length - valid.length;
+    setMediaNotice(dropped > 0 ? t('postJob.mediaSkipped', { dropped }) : null);
     if (!valid.length) return;
 
     const previews = valid.map(f => URL.createObjectURL(f));
@@ -1065,6 +1080,20 @@ export default function PostJobPage() {
       mediaFiles:    [...f.mediaFiles,    ...valid],
       mediaPreviews: [...f.mediaPreviews, ...previews],
     }));
+  }
+
+  // UI gaps item 5: switching tabs stashes the current tab's files and
+  // restores the target tab's, so nothing is silently discarded. The
+  // draft store still only persists photos (its size/type safety rule);
+  // a non-photos save now carries stored photos forward instead of
+  // overwriting them with an empty list (see jobDraftStore).
+  function switchMediaTab(tab) {
+    if (tab === form.mediaTab) return;
+    draftEdits.current++;
+    mediaStash.current[form.mediaTab] = { files: form.mediaFiles, previews: form.mediaPreviews };
+    const restored = mediaStash.current[tab] || { files: [], previews: [] };
+    setMediaNotice(null);
+    setForm(f => ({ ...f, mediaTab: tab, mediaFiles: restored.files, mediaPreviews: restored.previews }));
   }
 
   function removeMedia(idx) {
@@ -1108,9 +1137,39 @@ export default function PostJobPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  // UI gaps item 4: the sidebar Submit runs the same step-1 validation
+  // as Next instead of jumping to Review with errors cleared. On failure
+  // it lands on step 1 with the errors; on success it goes to Review.
+  function sidebarSubmit() {
+    if (form.step === 4) { handleSubmit(); return; }
+    const errs = validateStep(1);
+    if (Object.keys(errs).length) { setErrors(errs); set({ step: 1 }); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    setErrors({});
+    set({ step: 4 });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // UI gaps item 15: both Save Draft buttons now confirm success and
+  // report failure. The form-actions button still navigates to the
+  // dashboard on success; the sidebar button confirms in place.
+  async function saveDraftManually(navigateAfter) {
+    try {
+      await api.put('/jobs/draft', { wizard_step: form.step, payload: form });
+      toast.success(t('postJob.draftSaved'));
+      if (navigateAfter) navigate('/dashboard');
+    } catch {
+      toast.error(t('postJob.draftSaveFailed'));
+    }
+  }
+
   // ── Submit ────────────────────────────────────────────────────────────────
   async function handleSubmit() {
     if (!form.termsAccepted) { setErrors({ terms: 'You must accept the terms to post.' }); return; }
+    // UI gaps item 4: never post with invalid step-1 fields, even when a
+    // restored draft lands straight on Review. Bounce to step 1, where
+    // the fields and their errors render, instead of sending bad data.
+    const step1Errs = validateStep(1);
+    if (Object.keys(step1Errs).length) { setErrors(step1Errs); set({ step: 1 }); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     set({ submitting: true });
     setErrors({});
     try {
@@ -1483,7 +1542,7 @@ export default function PostJobPage() {
                       <button
                         key={tab} type="button"
                         className={`pjw-media-tab${form.mediaTab===tab?' is-active':''}`}
-                        onClick={() => { setForm(f => ({ ...f, mediaTab: tab, mediaFiles: [], mediaPreviews: [] })); }} data-track="ui.2ed5b810ee.15"
+                        onClick={() => switchMediaTab(tab)} data-track="ui.2ed5b810ee.15"
                       >
                         {tab === 'photos' ? '📷' : tab === 'video' ? '🎬' : '🎙'}
                         {t(`postJob.mediaTabs.${tab}`)}
@@ -1513,6 +1572,7 @@ export default function PostJobPage() {
                   <input ref={photoInputRef}  type="file" accept="image/*"       multiple style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
                   <input ref={videoInputRef}  type="file" accept="video/*"                style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
                   <input ref={audioInputRef}  type="file" accept="audio/*"                style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
+                  {mediaNotice && <div className="pjw-field-error" role="alert" style={{ marginTop:'.5rem' }}>{mediaNotice}</div>}
 
                   {/* Live capture buttons - use real getUserMedia */}
                   {form.mediaTab === 'photos' && (
@@ -2055,6 +2115,23 @@ export default function PostJobPage() {
                   </div>
                 )}
 
+                {/* UI gaps item 4: server field errors used to be invisible
+                    on Review (only terms/submit rendered here). List them
+                    with a jump back to step 1, where the fields live. */}
+                {Object.entries(errors).some(([k]) => k !== 'terms' && k !== 'submit') && (
+                  <div className="pjw-field-error" role="alert" style={{ marginBottom:'.75rem' }}>
+                    <p style={{ margin: 0, fontWeight: 600 }}>{t('postJob.reviewFixNeeded')}</p>
+                    <ul style={{ margin:'.25rem 0 0', paddingLeft:'1.25rem' }}>
+                      {Object.entries(errors).filter(([k]) => k !== 'terms' && k !== 'submit').map(([k, msg]) => (
+                        <li key={k}>{msg}</li>
+                      ))}
+                    </ul>
+                    <button type="button" className="pjw-btn pjw-btn-ghost" style={{ marginTop:'.5rem' }} onClick={() => { set({ step: 1 }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} data-track="ui.2ed5b810ee.47">
+                      {t('postJob.edit')}
+                    </button>
+                  </div>
+                )}
+
                 {/* Terms */}
                 <div className="pjw-terms-row">
                   <input type="checkbox" id="pjw-terms" checked={form.termsAccepted} onChange={e => set({ termsAccepted: e.target.checked })} data-track="ui.2ed5b810ee.38" />
@@ -2076,7 +2153,7 @@ export default function PostJobPage() {
               </button>
               <div className="pjw-form-actions-right">
                 <button type="button" className="pjw-btn pjw-btn-ghost"
-                  onClick={() => api.put('/jobs/draft', { wizard_step: form.step, payload: form }).then(() => navigate('/dashboard'))} data-track="ui.2ed5b810ee.40">
+                  onClick={() => saveDraftManually(true)} data-track="ui.2ed5b810ee.40">
                   {t('postJob.saveDraft')}
                 </button>
                 {form.step < 4
@@ -2135,14 +2212,14 @@ export default function PostJobPage() {
                   {t('postJob.requirementsToConfirm', { count: activeReqs.length })}
                 </p>
                 <button type="button" className="pjw-btn pjw-btn-primary pjw-btn-full"
-                  onClick={form.step === 4 ? handleSubmit : () => { setErrors({}); set({ step: 4 }); }}
+                  onClick={sidebarSubmit}
                   disabled={form.submitting} data-track="ui.2ed5b810ee.43">
                   {form.submitting ? t('postJob.submitting') : t('postJob.submitJob')}
                   {!form.submitting && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>}
                 </button>
                 <button type="button" className="pjw-btn pjw-btn-secondary pjw-btn-full"
                   style={{ fontSize:'.8rem' }}
-                  onClick={() => api.put('/jobs/draft', { wizard_step: form.step, payload: form })} data-track="ui.2ed5b810ee.44">
+                  onClick={() => saveDraftManually(false)} data-track="ui.2ed5b810ee.44">
                   {t('postJob.saveDraft')}
                 </button>
                 {form.draftSaving && <p className="pjw-draft-saving">{t('postJob.savingDraft')}</p>}

@@ -302,10 +302,19 @@ exports.purchasePackage = async (req, res) => {
 exports.getPortalDashboard = async (req, res) => {
   try {
     const sessions = await db.query(
-      `SELECT cs.*, csp.current_phase, csp.progress_pct, css.scheduled_date, css.scheduled_time
+      `SELECT cs.*, csp.current_phase, csp.progress_pct,
+              css.id AS scheduled_id, css.status AS scheduled_status,
+              css.scheduled_date, css.scheduled_time, css.meeting_link, css.timezone,
+              TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) AS consultant_name,
+              u.email AS consultant_email,
+              EXISTS (
+                SELECT 1 FROM consulting_payments cp
+                WHERE cp.session_scheduled_id = css.id AND cp.status = 'completed'
+              ) AS is_paid
        FROM consulting_sessions cs
        LEFT JOIN consulting_session_phases csp ON cs.id = csp.session_id
        LEFT JOIN consulting_sessions_scheduled css ON cs.id = css.session_id
+       LEFT JOIN users u ON u.id = cs.consultant_assigned_id
        WHERE cs.user_id = $1 ORDER BY cs.created_at DESC`,
       [req.user.id]
     );

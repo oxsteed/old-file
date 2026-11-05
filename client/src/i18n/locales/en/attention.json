@@ -161,6 +161,7 @@
       "business_name": "Business name",
       "address_city": "City or service location",
       "description": "Description"
-    }
+    },
+    "saveFirst": "Save your changes before publishing or refreshing."
   }
 }

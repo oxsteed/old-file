@@ -4357,6 +4357,7 @@
     "empty": "Aucun article dans cette liste pour le moment.",
     "remove": "Retirer",
     "cardOpen": "Voir la liste de pièces",
+    "openSharedCart": "Ouvrir le panier partagé",
     "cardItems": "{{count}} articles",
     "defaultName": "Pièces pour {{kit}}",
     "kits": {
@@ -6327,7 +6328,11 @@
       "tools": "Indiquez les outils, permis ou matériaux particuliers à prévoir."
     },
     "whatHappensNext": "Prochaine étape",
-    "whatHappensNextBody": "Une fois l’annonce publiée, les prestataires correspondant au lieu, à la catégorie et aux exigences peuvent envoyer des offres. Comparez-les, posez des questions et engagez quelqu’un lorsque vous êtes prêt."
+    "whatHappensNextBody": "Une fois l’annonce publiée, les prestataires correspondant au lieu, à la catégorie et aux exigences peuvent envoyer des offres. Comparez-les, posez des questions et engagez quelqu’un lorsque vous êtes prêt.",
+    "mediaSkipped": "{{dropped}} fichier(s) ignoré(s) : type non pris en charge ou limite par onglet dépassée.",
+    "reviewFixNeeded": "Corrigez ces informations avant de publier.",
+    "draftSaved": "Brouillon enregistré.",
+    "draftSaveFailed": "Impossible d'enregistrer le brouillon."
   },
   "jobDetail": {
     "customerConfirmsEscrow": "Pour les missions à paiement protégé, le client confirme la fin, ce qui débloque votre paiement.",
@@ -6547,7 +6552,8 @@
     "disputeOpened": "Litige ouvert. Notre équipe et l'autre partie ont été prévenues.",
     "signWorkAgreement": "Relire et signer l’accord de travail",
     "viewWorkAgreement": "Voir l’accord de travail",
-    "createWorkAgreement": "Créer un accord de travail"
+    "createWorkAgreement": "Créer un accord de travail",
+    "reviewsLoadFailed": "Impossible de charger les avis."
   },
   "myJobs": {
     "cancelUndoNote": "Vous aurez 5 secondes pour annuler après confirmation.",
@@ -10898,7 +10904,9 @@
       "cancelled": "Annulé",
       "published": "Publié",
       "regenerated": "Renouvelé"
-    }
+    },
+    "loadFailed": "Impossible de charger vos besoins planifiés.",
+    "pauseFailed": "Impossible de modifier la pause."
   },
   "helperRegister": {
     "step4": {
@@ -15882,7 +15890,9 @@
     "cardPayNotSucceeded": "Le paiement par carte n'a pas abouti. Aucune commande n'a été marquée payée.",
     "cardPayConfirmFailed": "Nous n'avons pas pu confirmer le paiement par carte. Si votre carte a été débitée, contactez l'assistance avec l'identifiant de la commande.",
     "cardPayIntentFailed": "Nous n'avons pas pu lancer un paiement par carte pour ce panier. Réessayez ou enregistrez une preuve de paiement.",
-    "cardPayUnavailable": "Les paiements par carte ne sont pas disponibles pour le moment. Veuillez plutôt enregistrer une preuve de paiement."
+    "cardPayUnavailable": "Les paiements par carte ne sont pas disponibles pour le moment. Veuillez plutôt enregistrer une preuve de paiement.",
+    "cardPaidNext": "Votre paiement par carte est terminé. La commande {{order}} est payée. Vous n’avez pas besoin d’enregistrer un autre paiement pour cette commande.",
+    "viewOrder": "Voir la commande"
   },
   "myBids": {
     "title": "Mes enchères",
@@ -17237,6 +17247,71 @@
       "hint": "Administrez la plateforme OxSteed."
     }
   },
+  "lifePages": {
+    "backToDashboard": "Retour au tableau de bord",
+    "viewAll": "Tout voir",
+    "loading": "Chargement…",
+    "loadFailed": "Échec du chargement de cette page. Réessayez.",
+    "expenses": {
+      "title": "Dépenses",
+      "subtitle": "Vos revenus et dépenses, au même endroit.",
+      "income": "Revenus",
+      "expenses": "Dépenses",
+      "net": "Net",
+      "empty": "Aucune dépense enregistrée pour le moment.",
+      "filter": { "all": "Tout", "expense": "Dépenses", "income": "Revenus" }
+    },
+    "goals": {
+      "title": "Objectifs",
+      "subtitle": "Suivez vos progrès vers chaque objectif.",
+      "empty": "Vous n'avez pas encore d'objectifs.",
+      "completed": "Terminé",
+      "progress": "{{current}} sur {{target}}"
+    },
+    "homeTasks": {
+      "title": "Tâches ménagères",
+      "subtitle": "Tout ce qui vous attend à la maison, au même endroit.",
+      "empty": "Aucune tâche en attente.",
+      "completed": "Terminée",
+      "filter": { "all": "Toutes", "open": "Ouvertes", "completed": "Terminées" }
+    },
+    "vehicles": {
+      "title": "Garage",
+      "subtitle": "Vos véhicules, au même endroit.",
+      "empty": "Aucun véhicule enregistré pour le moment."
+    },
+    "homes": {
+      "title": "Propriétés",
+      "subtitle": "Vos propriétés, au même endroit.",
+      "empty": "Aucune propriété enregistrée pour le moment.",
+      "beds": "{{count}} ch.",
+      "baths": "{{count}} sdb",
+      "sqft": "{{count}} pi²",
+      "built": "Construit en {{year}}",
+      "floodZone": "Zone inondable : {{zone}}"
+    },
+    "order": {
+      "title": "Commande {{id}}",
+      "notFound": "Commande introuvable",
+      "notFoundBody": "Cette commande appartient peut-être à un autre compte ou n'existe plus.",
+      "backToProducts": "Retour aux produits",
+      "items": "Articles",
+      "noItems": "Cette commande ne contient aucun article.",
+      "quantity": "Quantité : {{count}}",
+      "each": "l'unité",
+      "subtotal": "Sous-total",
+      "tax": "Taxes",
+      "shipping": "Livraison",
+      "discount": "Réduction",
+      "total": "Total",
+      "payment": "Paiement",
+      "paymentStatus": "Statut du paiement",
+      "paymentReference": "Référence de paiement",
+      "paymentAmount": "Montant payé",
+      "noPayment": "Aucun paiement enregistré pour cette commande pour le moment.",
+      "statusLabel": "Statut : {{status}}"
+    }
+  },
   "dashboards": {
     "life": {
       "title": "Votre vie, en un coup d'œil",
@@ -17290,7 +17365,9 @@
         "businessConsultant": "Trouver un consultant d’entreprise",
         "consultingSubtitle": "Vous travaillez vers « {{goal}} » ? Les consultants OxSteed peuvent accélérer le projet.",
         "findConsultant": "Trouver un consultant"
-      }
+      },
+      "loadFailed": "Certaines sections n'ont pas pu être chargées.",
+      "sectionFailed": "Cette section n'a pas pu être chargée."
     },
     "toolOwner": {
       "title": "Location d'outils",
@@ -17529,6 +17606,8 @@
     "dueOverdue": "En retard · ",
     "priorityHigh": "Élevé",
     "recentlyDone": "Récemment terminés ({{count}})",
+    "reschedule": "Reprogrammer",
+    "scheduleSession": "Programmer la séance",
     "overdue": "En retard",
     "upcoming": "Séances à venir",
     "completed": "Terminées",
@@ -17543,6 +17622,7 @@
     "openConversation": "Ouvrir la conversation",
     "activePackages": "Vos forfaits",
     "bookMoreTitle": "Besoin d'aide supplémentaire ?",
+    "bookReschedule": "Réserver ou reprogrammer la séance",
     "bookMoreHint": "Ajoutez un autre forfait ou planifiez une séance de suivi avec votre consultant.",
     "addPackage": "Ajouter un forfait",
     "messageConsultant": "Envoyer un message à votre consultant",
@@ -21767,6 +21847,9 @@
     },
     "actions": {
       "refresh": "Actualiser"
+    },
+    "currency": {
+      "label": "Devise des revenus"
     },
     "status": {
       "agreementLabel": "Convention",
@@ -26578,7 +26661,9 @@
     "inventoryMovedBanner": "Tools and coverage moved",
     "inventoryMovedBody": "Gérez le stock des offres dans Catalogue et Zones de service : les Paramètres ne modifient plus outils ni listes de couverture.",
     "openCatalog": "Open Catalog",
-    "openServiceAreas": "Open Service Areas"
+    "openServiceAreas": "Open Service Areas",
+    "confirmCancelJob": "Annuler ce travail ? Cette action est irréversible.",
+    "jobCancelled": "Travail annulé."
   },
   "inventoryHelpCenter": {
     "metaTitle": "Centre d'aide Inventaire",
@@ -30556,7 +30641,10 @@
     "webhookReceipts": "Reçus de webhook",
     "restaurantWalletIntegrity": "Intégrité des portefeuilles",
     "oxsteedCreditLicence": "Licence Credit",
-    "legalCcpaErasureReview": "Révision des effacements"
+    "legalCcpaErasureReview": "Révision des effacements",
+    "foodOrders": "Commandes",
+    "mediaFlags": "Signalements médias",
+    "franchiseStatus": "Statut de la demande"
   },
   "adminProfileVisibility": {
     "title": "Visibilité des profils",

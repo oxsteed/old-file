@@ -12,6 +12,9 @@ export default function ReviewsList({ userId }) {
   const [page,    setPage]     = useState(1);
   const [hasMore, setHasMore]  = useState(true);
   const [loading, setLoading]  = useState(true);
+  // UI gaps item 8: a failed stats fetch must render an error with a
+  // retry, not the blank tab the old `if (!stats) return null` produced.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const fetchReviews = async (reset = false) => {
     setLoading(true);
@@ -28,8 +31,10 @@ export default function ReviewsList({ userId }) {
       }
       setStats(data.stats);
       setHasMore(data.reviews.length === 10);
+      setLoadFailed(false);
     } catch (err) {
       console.error(err);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -37,7 +42,24 @@ export default function ReviewsList({ userId }) {
 
   useEffect(() => { fetchReviews(true); }, [userId]);
 
-  if (!stats) return null;
+  if (!stats) {
+    if (loading) return null;
+    if (loadFailed) {
+      return (
+        <div role="alert" className="text-center py-10">
+          <p className="text-sm text-gray-500 mb-4">{t('jobDetail.reviewsLoadFailed')}</p>
+          <button
+            type="button"
+            onClick={() => fetchReviews(true)}
+            className="px-5 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition" data-track="ui.bb48ed4fdc.3"
+          >
+            {t('common.retry')}
+          </button>
+        </div>
+      );
+    }
+    return null;
+  }
 
   const totalReviews = parseInt(stats.total_reviews || 0);
   const avgRating    = parseFloat(stats.average_rating || 0);

@@ -98,3 +98,106 @@ describe('T36 follow-up: subscriptions revenue channel uses the (source, currenc
     expect(subscriptions.periodCents).not.toBe(5900);
   });
 });
+
+describe('franchise currency: money-overview franchise channel is USD-headline only', () => {
+  // Regression for the franchise residual: franchise_agreements.initial_fee_cents
+  // was summed with no currency at all, so a EUR fee landed in the USD headline
+  // and in summary.pipelineCents. Fixed behavior: the headline sums the
+  // reporting currency (USD) only; every other currency appears solely in the
+  // per-currency breakdown. No FX conversion anywhere.
+  function installFranchiseDispatch({ currencyColumn = true } = {}) {
+    mockQuery.mockImplementation((sql, params) => {
+      const text = String(sql);
+      if (text.startsWith('SHOW search_path')) {
+        return Promise.resolve({ rows: [{ search_path: 'public' }] });
+      }
+      if (text.includes('information_schema.tables')) {
+        const name = Array.isArray(params) ? params[1] : null;
+        const exists = ['platform_ledger', 'franchise_programs', 'franchise_agreements', 'franchise_applications'].includes(name);
+        return Promise.resolve({ rows: exists ? [{ '1': 1 }] : [] });
+      }
+      if (text.includes('information_schema.columns')) {
+        const table = Array.isArray(params) ? params[1] : null;
+        const column = Array.isArray(params) ? params[2] : null;
+        const exists = currencyColumn && table === 'franchise_agreements' && column === 'currency';
+        return Promise.resolve({ rows: exists ? [{ '1': 1 }] : [] });
+      }
+      if (text.includes('FROM franchise_programs')) {
+        return Promise.resolve({ rows: [{ active_programs: '1' }] });
+      }
+      if (text.includes('FROM franchise_agreements') && text.includes('GROUP BY UPPER(currency)')) {
+        return Promise.resolve({
+          rows: [
+            {
+              currency: 'EUR', signed_initial_fees_cents: '2500000', pending_initial_fees_cents: '3000000',
+              signed_agreements: '1', royalty_bps_sum: '600', royalty_bps_count: '1',
+              marketing_fee_bps_sum: '200', marketing_fee_bps_count: '1',
+            },
+            {
+              currency: 'USD', signed_initial_fees_cents: '2500000', pending_initial_fees_cents: '0',
+              signed_agreements: '1', royalty_bps_sum: '600', royalty_bps_count: '1',
+              marketing_fee_bps_sum: '200', marketing_fee_bps_count: '1',
+            },
+          ],
+        });
+      }
+      if (text.includes('FROM franchise_agreements')) {
+        return Promise.resolve({
+          rows: [{
+            signed_initial_fees_cents: '5000000', pending_initial_fees_cents: '3000000',
+            signed_agreements: '2', average_royalty_bps: '600', average_marketing_fee_bps: '200',
+          }],
+        });
+      }
+      if (text.includes('FROM franchise_applications')) {
+        return Promise.resolve({ rows: [{ pipeline_applications: '0', launched_stores: '0' }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+  }
+
+  test('USD signed fee headlines alone; EUR fee lives only in byCurrency', async () => {
+    installFranchiseDispatch({ currencyColumn: true });
+    const res = makeRes();
+    await controller.getMoneyOverview({ query: {} }, res);
+    const payload = res.json.mock.calls[0][0];
+    const franchise = (payload.channels || []).find((c) => c.key === 'franchise_program');
+    expect(franchise).toBeDefined();
+    // 2,500,000 USD + 2,500,000 EUR must not sum to 5,000,000.
+    expect(franchise.lifetimeCents).toBe(2500000);
+    expect(franchise.periodCents).toBe(2500000);
+    expect(franchise.lifetimeCents).not.toBe(5000000);
+    const eur = (franchise.byCurrency || []).find((row) => row.currency === 'EUR');
+    expect(eur).toBeDefined();
+    expect(eur.signedInitialFeesCents).toBe(2500000);
+    expect(eur.pendingInitialFeesCents).toBe(3000000);
+    const usd = (franchise.byCurrency || []).find((row) => row.currency === 'USD');
+    expect(usd).toBeDefined();
+    expect(usd.signedInitialFeesCents).toBe(2500000);
+  });
+
+  test('summary.pipelineCents excludes a non-USD pending fee', async () => {
+    installFranchiseDispatch({ currencyColumn: true });
+    const res = makeRes();
+    await controller.getMoneyOverview({ query: {} }, res);
+    const payload = res.json.mock.calls[0][0];
+    const franchise = (payload.channels || []).find((c) => c.key === 'franchise_program');
+    expect(franchise.pendingCents).toBe(0);
+    // Consulting and marketplace pendings are 0 in this dispatch, so any
+    // EUR pending leaking into the headline would show up here.
+    expect(payload.summary.pipelineCents).toBe(0);
+    expect(payload.summary.pipelineCents).not.toBe(3000000);
+  });
+
+  test('pre-migration table without a currency column keeps the old totals', async () => {
+    installFranchiseDispatch({ currencyColumn: false });
+    const res = makeRes();
+    await controller.getMoneyOverview({ query: {} }, res);
+    const payload = res.json.mock.calls[0][0];
+    const franchise = (payload.channels || []).find((c) => c.key === 'franchise_program');
+    expect(franchise).toBeDefined();
+    expect(franchise.lifetimeCents).toBe(5000000);
+    expect(franchise.pendingCents).toBe(3000000);
+    expect(franchise.byCurrency).toEqual([]);
+  });
+});

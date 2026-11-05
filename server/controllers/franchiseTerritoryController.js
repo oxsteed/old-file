@@ -142,6 +142,7 @@ exports.getTerritoryStats = async (req, res) => {
       return res.status(400).json({ error: revenueCurrencyError });
     }
     let revenue_30d_cents = 0, revenue_total_cents = 0;
+    let available_revenue_currencies = [];
     if (hasLedger && appRow.linked_business_id) {
       const [rv] = await safeQuery(`
         SELECT
@@ -152,6 +153,18 @@ exports.getTerritoryStats = async (req, res) => {
       `, [appRow.linked_business_id, revenueCurrency]);
       revenue_30d_cents   = safeInt(rv?.rev_30d);
       revenue_total_cents = safeInt(rv?.rev_total);
+      // Distinct ledger currencies for this business, so the page's currency
+      // selector offers real options instead of guessing. Fail-open: an
+      // empty list just leaves the selector on the USD default.
+      const currencyRows = await safeQuery(`
+        SELECT DISTINCT UPPER(currency) AS currency
+          FROM platform_ledger
+         WHERE reference_id = $1 AND currency IS NOT NULL
+         ORDER BY currency ASC
+      `, [appRow.linked_business_id]);
+      available_revenue_currencies = currencyRows
+        .map((row) => String(row?.currency || '').toUpperCase())
+        .filter((code) => /^[A-Z]{3}$/.test(code));
     }
 
     // ── Compliance score ─────────────────────────────────────────
@@ -189,6 +202,7 @@ exports.getTerritoryStats = async (req, res) => {
         revenue_30d_cents,
         revenue_total_cents,
         revenue_currency_code: revenueCurrency.toUpperCase(),
+        available_revenue_currencies,
       },
     });
   } catch (err) {

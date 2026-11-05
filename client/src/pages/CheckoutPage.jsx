@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js';
 import { useTranslation } from 'react-i18next';
@@ -285,16 +285,36 @@ function CheckoutPageContent() {
 
           <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow p-6 space-y-4">
             <h2 className="text-lg font-semibold">{t('checkout.whatNext')}</h2>
-            <p className="text-[var(--color-text-muted)] leading-relaxed">
-              {t('checkout.whatNextBody')}
-            </p>
+            {/* UI gaps item 7: once the card is paid, stop offering a
+                second payment-proof record for the same cart. The server
+                does not reject a duplicate record for one cart, so this
+                UI guard is the protection; card processing itself is
+                untouched. The paid note now links to the buyer marketplace
+                order detail page (/marketplace/orders/:id), not to /orders,
+                which is food-order history. */}
+            {cardPaid ? (
+              <p className="text-[var(--color-text-muted)] leading-relaxed">
+                {t('checkout.cardPaidNext', { order: cardPaid.orderId || cardPaid.order?.id || '' })}{' '}
+                {(cardPaid.orderId || cardPaid.order?.id) && (
+                  <Link to={`/marketplace/orders/${cardPaid.orderId || cardPaid.order?.id}`} className="font-semibold text-orange-500 underline">
+                    {t('checkout.viewOrder')}
+                  </Link>
+                )}
+              </p>
+            ) : (
+              <p className="text-[var(--color-text-muted)] leading-relaxed">
+                {t('checkout.whatNextBody')}
+              </p>
+            )}
             <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => setPaymentRecordOpen(true)}
-                className="bg-primary text-white px-5 py-3 rounded-xl font-semibold hover:bg-primary-dark" data-track="ui.137ad6cada.3"
-              >
-                {t('checkout.recordPaymentProof')}
-              </button>
+              {!cardPaid && (
+                <button
+                  onClick={() => setPaymentRecordOpen(true)}
+                  className="bg-primary text-white px-5 py-3 rounded-xl font-semibold hover:bg-primary-dark" data-track="ui.137ad6cada.3"
+                >
+                  {t('checkout.recordPaymentProof')}
+                </button>
+              )}
               <button
                 onClick={() => navigate(cartId ? `/cart/${cartId}` : '/products')}
                 className="bg-[var(--color-surface-2)] text-[var(--color-text)] px-5 py-3 rounded-xl font-semibold hover:bg-[var(--color-surface-3)]" data-track="ui.137ad6cada.4"

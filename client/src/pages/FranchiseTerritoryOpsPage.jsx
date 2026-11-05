@@ -17,11 +17,29 @@ import api from '../api/axios';
 import PageShell from '../components/PageShell';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const fmtCents = (c) => {
-  const d = (c ?? 0) / 100;
-  if (d >= 1_000_000) return `$${(d / 1_000_000).toFixed(1)}M`;
-  if (d >= 1_000)     return `$${(d / 1_000).toFixed(1)}K`;
-  return `$${d.toFixed(0)}`;
+// Zero-decimal currencies (mirrors server revenueDivisor): their minor unit
+// is the major unit, so cents must not be divided by 100.
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  'bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga',
+  'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf',
+]);
+const fmtCents = (c, currencyCode = 'USD') => {
+  const raw = String(currencyCode || '');
+  const code = /^[A-Za-z]{3}$/.test(raw) ? raw.toUpperCase() : 'USD';
+  const divisor = ZERO_DECIMAL_CURRENCIES.has(code.toLowerCase()) ? 1 : 100;
+  const major = (c ?? 0) / divisor;
+  try {
+    if (Math.abs(major) >= 1_000) {
+      return new Intl.NumberFormat(undefined, {
+        style: 'currency', currency: code, notation: 'compact', maximumFractionDigits: 1,
+      }).format(major);
+    }
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency', currency: code, maximumFractionDigits: 0,
+    }).format(major);
+  } catch {
+    return `$${major.toFixed(0)}`;
+  }
 };
 const fmt = (n) => (n ?? 0).toLocaleString();
 const pct = (n) => n != null ? `${n}%` : '—';
@@ -74,13 +92,17 @@ export default function FranchiseTerritoryOpsPage() {
   const [helpers, setHelpers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
+  // Revenue currency, default USD to match the server default. The selector
+  // is sent as ?currency= so operators outside the US stop seeing every
+  // revenue tile silently converted to dollars by the USD default.
+  const [currency, setCurrency] = useState('USD');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [sRes, hRes] = await Promise.all([
-        api.get('/franchise/territory-stats'),
+        api.get(`/franchise/territory-stats?currency=${currency.toLowerCase()}`),
         api.get('/franchise/territory-helpers'),
       ]);
       setStats(sRes.data);
@@ -90,12 +112,20 @@ export default function FranchiseTerritoryOpsPage() {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, currency]);
 
   useEffect(() => { load(); }, [load]);
 
   const app      = stats?.application ?? {};
   const kpis     = stats?.territory_kpis ?? {};
+  // The currency the server actually scoped the revenue to; falls back to
+  // the selected currency while loading or if an older response omits it.
+  const revenueCurrencyCode = kpis.revenue_currency_code || currency;
+  const currencyOptions = [...new Set([
+    'USD',
+    ...(kpis.available_revenue_currencies ?? []),
+    revenueCurrencyCode,
+  ])].filter((code) => /^[A-Z]{3}$/.test(code));
   const territory = [app.city, app.region, app.country].filter(Boolean).join(', ');
   const trainingLabel = app.training_status && TRAINING_LABEL_KEYS[app.training_status]
     ? t(TRAINING_LABEL_KEYS[app.training_status])
@@ -178,6 +208,21 @@ export default function FranchiseTerritoryOpsPage() {
           )}
 
           {/* ── KPI grid ───────────────────────────────────────────── */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="territory-revenue-currency" className="text-xs text-gray-400">
+              {t('franchiseTerritoryPage.currency.label')}
+            </label>
+            <select
+              id="territory-revenue-currency"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              className="rounded-xl border border-gray-800 bg-gray-900 px-2.5 py-1.5 text-sm text-white"
+            >
+              {currencyOptions.map((code) => (
+                <option key={code} value={code}>{code}</option>
+              ))}
+            </select>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
             <KpiTile icon={Users}      label={t('franchiseTerritoryPage.kpis.helpers')} loading={loading}
               value={fmt(kpis.helpers_total)}   sub={t('franchiseTerritoryPage.kpis.helpersVerified', { count: fmt(kpis.helpers_verified) })} accent="blue" />
@@ -188,7 +233,7 @@ export default function FranchiseTerritoryOpsPage() {
             <KpiTile icon={CheckCircle2} label={t('franchiseTerritoryPage.kpis.completionRate')}    loading={loading}
               value={pct(kpis.completion_rate)} sub={t('franchiseTerritoryPage.kpis.completedJobs', { count: fmt(kpis.jobs_completed) })} accent="emerald" />
             <KpiTile icon={DollarSign} label={t('franchiseTerritoryPage.kpis.revenue')}        loading={loading}
-              value={fmtCents(kpis.revenue_30d_cents)} sub={t('franchiseTerritoryPage.kpis.revenueTotal', { amount: fmtCents(kpis.revenue_total_cents) })} accent="purple" />
+              value={fmtCents(kpis.revenue_30d_cents, revenueCurrencyCode)} sub={`${t('franchiseTerritoryPage.kpis.revenueTotal', { amount: fmtCents(kpis.revenue_total_cents, revenueCurrencyCode) })} (${revenueCurrencyCode})`} accent="purple" />
             <KpiTile icon={ShieldCheck} label={t('franchiseTerritoryPage.kpis.compliance')}          loading={loading}
               value={pct(app.compliance_pct)} sub={t('franchiseTerritoryPage.compliance.stepsComplete', {
                 done: app.checklist_done ?? 0,

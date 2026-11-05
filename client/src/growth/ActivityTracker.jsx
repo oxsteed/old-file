@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCookieConsentContext } from "../context/CookieConsentContext";
@@ -12,17 +12,46 @@ import {
   readSession,
   touchSession,
 } from "./tracker.mjs";
-import eventProps from "./eventProps.json";
-import routes from "./routes.json";
-import elementKeys from "./elementKeys.json";
+// PWA startup budget (2026-11-05): the three registries below total ~66KB
+// (elementKeys alone is ~59KB) and were statically imported, so they rode
+// the startup bundle. They load on demand after mount instead; tracking
+// stays gated on the /api/activity/config fetch anyway, which resolves
+// after the local chunk load, so no events are lost. Until they resolve,
+// track() is a no-op and no page.view fires.
 import { TrackingContext, useTrack } from "./useTrack";
 import { getCsrfToken } from "../api/csrfToken";
-const namedKeys = new Set(elementKeys);
 export { useTrack };
 export default function ActivityTracker({ children }) {
   const { user } = useAuth();
   const { preferences } = useCookieConsentContext();
   const { i18n } = useTranslation();
+  const [registries, setRegistries] = useState(null);
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      import("./eventProps.json"),
+      import("./routes.json"),
+      import("./elementKeys.json"),
+    ])
+      .then(([eventPropsMod, routesMod, elementKeysMod]) => {
+        if (!active) return;
+        setRegistries({
+          eventProps: eventPropsMod.default,
+          routes: routesMod.default,
+          elementKeys: elementKeysMod.default,
+        });
+      })
+      .catch(() => {
+        /* Registries stay unloaded; track() stays a no-op. */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const namedKeys = useMemo(
+    () => new Set(registries?.elementKeys ?? []),
+    [registries],
+  );
   const location = useLocation(),
     queue = useRef([]),
     config = useRef(null),
@@ -48,8 +77,8 @@ export default function ActivityTracker({ children }) {
   }, []);
   const track = useCallback(
     (name, props) => {
-      if (!config.current?.enabled) return;
-      props = safeProps(name, props, eventProps, routes);
+      if (!config.current?.enabled || !registries) return;
+      props = safeProps(name, props, registries.eventProps, registries.routes);
       if (!props) return;
       // Session id lives in sessionStorage with 30-minute idle rotation
       // (spec 5.2); touchSession persists it and never throws.
@@ -64,7 +93,7 @@ export default function ActivityTracker({ children }) {
       });
       if (queue.current.length >= 20) flush();
     },
-    [flush],
+    [flush, registries],
   );
   useEffect(() => {
     let active = true;
@@ -86,7 +115,9 @@ export default function ActivityTracker({ children }) {
         const data = await response.json();
         if (!active) return;
         config.current = data;
-        const route = routeTemplate(window.location.pathname, routes);
+        const route = registries
+          ? routeTemplate(window.location.pathname, registries.routes)
+          : null;
         if (data.enabled && route) track("page.view", { route });
         // No persistent device id is required by this signed-in-only implementation.
       } catch {
@@ -115,13 +146,14 @@ export default function ActivityTracker({ children }) {
     session.current = metadata.current.session;
   }, [i18n.resolvedLanguage]);
   useEffect(() => {
-    const route = routeTemplate(location.pathname, routes);
+    if (!registries) return;
+    const route = routeTemplate(location.pathname, registries.routes);
     if (route) track("page.view", { route });
-  }, [location.pathname, track]);
+  }, [location.pathname, track, registries]);
   useEffect(() => {
     const capture = (event) => {
-      if (!config.current?.enabled) return;
-      const route = routeTemplate(window.location.pathname, routes);
+      if (!config.current?.enabled || !registries) return;
+      const route = routeTemplate(window.location.pathname, registries.routes);
       if (!route) return;
       const element =
         event.target instanceof Element

@@ -12,7 +12,7 @@ const businessPublicSignals = require('../controllers/businessPublicSignalsContr
 
 // Audit fix: Vortex is launch-hidden. Gate the leftover Vortex APIs in this
 // router to match the UI and the /api/vortex routes.
-const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED', false);
+const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED', true);
 const upload  = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 

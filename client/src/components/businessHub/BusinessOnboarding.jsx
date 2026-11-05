@@ -129,6 +129,10 @@ export default function BusinessOnboarding({ businessId, onAttentionAction }) {
       {!published && !data.permissions?.canPublish && <p>{text('ownerOnly')}</p>}
       <Link to={base} onClick={navigateSafely}>{text('workspace')}</Link>
     </div>
+    {/* UI gaps item 19: Refresh and Publish are disabled while the form
+        is dirty, with no reason given. Say so next to them instead of
+        auto-publishing unsaved edits. */}
+    {dirty && !busy && <p>{text('saveFirst')}</p>}
     {notice && <p role={['saveError', 'incomplete'].includes(notice) ? 'alert' : 'status'}>{text(notice)}</p>}
   </section>;
 }

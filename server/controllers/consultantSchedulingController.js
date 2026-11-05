@@ -205,6 +205,105 @@ exports.getAvailableSlots = async (req, res) => {
   }
 };
 
+// Create the scheduled row a consulting session needs before it can be paid
+// for and booked. This is the one client-creatable row in the chain:
+//   intake/purchase -> POST /scheduling/sessions (this handler)
+//     -> POST /consulting/payment-intent -> Stripe confirm
+//     -> POST /consulting/confirm-payment -> widget -> book-slot -> confirmed
+//
+// The scheduled row's date/time columns are NOT NULL (migration 103), so a
+// row that only exists to unblock payment cannot carry NULLs. It carries the
+// sentinel 1970-01-01 / 00:00 with status 'pending_confirmation' instead.
+// The sentinel is never a real appointment: it is excluded from availability
+// checks (those only look at 'confirmed'/'completed' rows), the portal hides
+// it behind the pending_confirmation status, and book-slot overwrites it with
+// the real date/time when the slot is confirmed. A preferredDate, when sent,
+// is validated for shape only and is NOT stored: the booked slot is the one
+// chosen later in the widget.
+exports.createScheduledSession = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const consultingSessionId = Number(req.body?.consultingSessionId ?? req.body?.sessionId);
+    const consultantId = req.body?.consultantId || null;
+    const preferredDate = req.body?.preferredDate || null;
+
+    if (!Number.isInteger(consultingSessionId) || consultingSessionId <= 0) {
+      return res.status(400).json({ error: 'consultingSessionId required' });
+    }
+
+    const { rows: sessionRows } = await db.query(
+      `SELECT id, user_id, consultant_assigned_id
+       FROM consulting_sessions WHERE id = $1`,
+      [consultingSessionId]
+    );
+
+    if (sessionRows.length === 0) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const session = sessionRows[0];
+
+    // Same owner check as bookTimeSlot / createPaymentIntent: only the
+    // session owner (or an admin) may create the row that unblocks payment.
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    if (!isAdmin && session.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized for this session' });
+    }
+
+    if (consultantId) {
+      // A non-admin owner books only the consultant already assigned to the
+      // session; an admin may (re)assign by passing a different consultant.
+      if (!isAdmin && session.consultant_assigned_id && session.consultant_assigned_id !== consultantId) {
+        return res.status(409).json({ error: 'Consultant does not match the assigned consultant' });
+      }
+      const { rows: consultantRows } = await db.query(
+        `SELECT id FROM users WHERE id = $1`,
+        [consultantId]
+      );
+      if (consultantRows.length === 0) {
+        return res.status(404).json({ error: 'Consultant not found' });
+      }
+    }
+
+    if (preferredDate != null) {
+      const parsed = /^\d{4}-\d{2}-\d{2}$/.test(preferredDate) ? new Date(`${preferredDate}T00:00:00Z`) : null;
+      if (!parsed || Number.isNaN(parsed.getTime())) {
+        return res.status(400).json({ error: 'preferredDate must be a valid date (YYYY-MM-DD)' });
+      }
+    }
+
+    // Idempotent: the scheduled table has a UNIQUE(session_id), and a
+    // retried or refreshed "Schedule session" click must return the row
+    // instead of failing on the unique constraint.
+    const { rows: existingRows } = await db.query(
+      `SELECT id, session_id, scheduled_date, scheduled_time, duration_minutes,
+              consultant_assigned_id, meeting_link, timezone, status
+       FROM consulting_sessions_scheduled WHERE session_id = $1`,
+      [consultingSessionId]
+    );
+    if (existingRows.length > 0) {
+      return res.json({ ...existingRows[0], alreadyScheduled: true });
+    }
+
+    const { rows } = await db.query(
+      `INSERT INTO consulting_sessions_scheduled
+         (session_id, scheduled_date, scheduled_time, duration_minutes, consultant_assigned_id, status)
+       VALUES ($1, '1970-01-01', '00:00', 120, $2, 'pending_confirmation')
+       RETURNING id, session_id, scheduled_date, scheduled_time, duration_minutes,
+                 consultant_assigned_id, meeting_link, timezone, status`,
+      [consultingSessionId, consultantId || session.consultant_assigned_id || null]
+    );
+
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    logger.error('Failed to create scheduled session', { error: err.message });
+    res.status(500).json({ error: 'Failed to create scheduled session' });
+  }
+};
+
 // Book a time slot for a consulting session
 exports.bookTimeSlot = async (req, res) => {
   try {

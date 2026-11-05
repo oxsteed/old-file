@@ -10,18 +10,40 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { useMyScopes } from '../admin/lib/GrantGuard';
-import {
-  buildAdminItems,
-  buildClientItems,
-  fetchDynamicRecents,
-  orderForEmptyQuery,
-  pushRecentId,
-  readRecentIds,
-  searchItems,
-} from './commandPaletteItems';
 import './CommandPalette.css';
 
+// PWA startup budget (2026-11-05): commandPaletteItems pulls in the admin
+// layout (AdminLayout + adminRouteManifest, ~36KB) for the admin nav
+// sections. The palette dialog already renders a loading state while items
+// resolve, so the module loads on demand after the palette mounts instead
+// of riding the startup bundle.
+function usePaletteItemsModule() {
+  const [module, setModule] = useState(null);
+  useEffect(() => {
+    let active = true;
+    import('./commandPaletteItems')
+      .then((loaded) => { if (active) setModule(loaded); })
+      .catch(() => { /* Palette stays in its loading state. */ });
+    return () => { active = false; };
+  }, []);
+  return module;
+}
+
 const MAX_VISIBLE = 30;
+
+// UI gaps item 11: the palette was hotkey-only. Navbar trigger buttons
+// dispatch this event; both palette variants listen, so the same button
+// opens the palette in the client and admin shells.
+export function openCommandPalette() {
+  window.dispatchEvent(new CustomEvent('oxsteed:open-command-palette'));
+}
+
+function usePaletteOpenEvent(onOpen) {
+  useEffect(() => {
+    window.addEventListener('oxsteed:open-command-palette', onOpen);
+    return () => window.removeEventListener('oxsteed:open-command-palette', onOpen);
+  }, [onOpen]);
+}
 
 function usePaletteHotkey(onToggle) {
   useEffect(() => {
@@ -36,7 +58,7 @@ function usePaletteHotkey(onToggle) {
   }, [onToggle]);
 }
 
-function PaletteDialog({ open, onClose, items, loading }) {
+function PaletteDialog({ open, onClose, items, loading, itemsApi }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -50,7 +72,7 @@ function PaletteDialog({ open, onClose, items, loading }) {
     if (open) {
       setQuery('');
       setActiveIndex(0);
-      setRecentIds(readRecentIds());
+      setRecentIds(itemsApi ? itemsApi.readRecentIds() : []);
       document.body.style.overflow = 'hidden';
       const frame = requestAnimationFrame(() => inputRef.current?.focus());
       return () => {
@@ -59,12 +81,13 @@ function PaletteDialog({ open, onClose, items, loading }) {
       };
     }
     return undefined;
-  }, [open ]);
+  }, [open, itemsApi ]);
 
   const visibleItems = useMemo(() => {
-    if (!query.trim()) return orderForEmptyQuery(items, recentIds).slice(0, MAX_VISIBLE);
-    return searchItems(items, query).slice(0, MAX_VISIBLE);
-  }, [items, query, recentIds]);
+    if (!itemsApi) return [];
+    if (!query.trim()) return itemsApi.orderForEmptyQuery(items, recentIds).slice(0, MAX_VISIBLE);
+    return itemsApi.searchItems(items, query).slice(0, MAX_VISIBLE);
+  }, [items, query, recentIds, itemsApi]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -76,10 +99,10 @@ function PaletteDialog({ open, onClose, items, loading }) {
 
   const selectItem = useCallback((item) => {
     if (!item) return;
-    pushRecentId(item.id);
+    itemsApi?.pushRecentId?.(item.id);
     onClose();
     navigate(item.path);
-  }, [navigate, onClose]);
+  }, [navigate, onClose, itemsApi]);
 
   const onInputKeyDown = (event) => {
     if (event.key === 'ArrowDown') {
@@ -163,7 +186,7 @@ function PaletteDialog({ open, onClose, items, loading }) {
                   aria-selected={active}
                   className={`cmdk-item${active ? ' cmdk-item-active' : ''}`}
                   onMouseEnter={() => setActiveIndex(index)}
-                  onClick={() => selectItem(item)}
+                  onClick={() => selectItem(item)} data-track="ui.74372074ef.1"
                 >
                   <span className="cmdk-item-label">{item.label}</span>
                   {item.path && <span className="cmdk-item-path">{item.path}</span>}
@@ -188,29 +211,33 @@ function ClientCommandPalette({initialOpen = false}) {
   const [dynamicItems, setDynamicItems] = useState([]);
   const [dynamicLoading, setDynamicLoading] = useState(false);
   const fetchedRef = useRef(false);
+  const itemsModule = usePaletteItemsModule();
 
   const toggle = useCallback(() => setOpen((value) => !value), []);
   usePaletteHotkey(toggle);
   const close = useCallback(() => setOpen(false), []);
+  const openFromEvent = useCallback(() => setOpen(true), []);
+  usePaletteOpenEvent(openFromEvent);
 
   const staticItems = useMemo(() => {
-    const { pages, actions } = buildClientItems(t);
+    if (!itemsModule) return [];
+    const { pages, actions } = itemsModule.buildClientItems(t);
     return [...pages, ...actions];
-  }, [t]);
+  }, [itemsModule, t]);
 
   useEffect(() => {
-    if (open && user && !fetchedRef.current) {
+    if (open && user && itemsModule && !fetchedRef.current) {
       fetchedRef.current = true;
       setDynamicLoading(true);
-      fetchDynamicRecents(t)
+      itemsModule.fetchDynamicRecents(t)
         .then((items) => setDynamicItems(items))
         .finally(() => setDynamicLoading(false));
     }
-  }, [open, user, t]);
+  }, [open, user, t, itemsModule]);
 
   const items = useMemo(() => [...dynamicItems, ...staticItems], [dynamicItems, staticItems]);
 
-  return <PaletteDialog open={open} onClose={close} items={items} loading={dynamicLoading} />;
+  return <PaletteDialog open={open} onClose={close} items={items} loading={dynamicLoading || !itemsModule} itemsApi={itemsModule} />;
 }
 
 function AdminCommandPalette({initialOpen = false}) {
@@ -218,17 +245,20 @@ function AdminCommandPalette({initialOpen = false}) {
   const { user } = useAuth();
   const { scopes } = useMyScopes();
   const [open, setOpen] = useState(initialOpen);
+  const itemsModule = usePaletteItemsModule();
 
   const toggle = useCallback(() => setOpen((value) => !value), []);
   usePaletteHotkey(toggle);
   const close = useCallback(() => setOpen(false), []);
+  const openFromEvent = useCallback(() => setOpen(true), []);
+  usePaletteOpenEvent(openFromEvent);
 
-  const items = useMemo(() => buildAdminItems(t, {
+  const items = useMemo(() => itemsModule ? itemsModule.buildAdminItems(t, {
     isSuper: user?.role === 'super_admin',
     scopes: Array.isArray(scopes) ? scopes : [],
-  }), [t, user, scopes]);
+  }) : [], [itemsModule, t, user, scopes]);
 
-  return <PaletteDialog open={open} onClose={close} items={items} loading={false} />;
+  return <PaletteDialog open={open} onClose={close} items={items} loading={!itemsModule} itemsApi={itemsModule} />;
 }
 
 export default function CommandPalette({initialOpen = false}) {

@@ -23,7 +23,9 @@ const { vortexRedeemLimiter } = require('../middleware/rateLimiter');
 const access = require('../controllers/businessAccessCodesController');
 
 // Audit fix: Vortex is launch-hidden. Gate the API to match the UI.
-const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED', false);
+// Default on since the all-launch flip (2026-11-04); explicit
+// VORTEX_ENABLED=false still 503s.
+const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED', true);
 const team   = require('../controllers/businessTeamController');
 
 // ── Code preview / redeem ────────────────────────────────────────────────────

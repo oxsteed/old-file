@@ -157,7 +157,7 @@ export function BusinessProcurementTab({ businessId }) {
             {t('businessHub.procurement.newSourcingRequest')}
           </Link>
           <Link
-            to="/logistics/procurement"
+            to="/logistics/business-procurement"
             style={{
               padding: '0.5rem 1rem', borderRadius: '0.5rem',
               border: '1px solid #334155', color: '#94a3b8',
@@ -303,7 +303,7 @@ export function BusinessProcurementTab({ businessId }) {
       <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <h3 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600 }}>{t('businessHub.procurement.recurringPrograms')}</h3>
-          <Link to="/logistics/procurement" style={{ fontSize: '0.8125rem', color: '#f97316', textDecoration: 'none' }}>
+          <Link to="/logistics/business-procurement" style={{ fontSize: '0.8125rem', color: '#f97316', textDecoration: 'none' }}>
             {t('businessHub.procurement.seeAll')} ↗
           </Link>
         </div>
