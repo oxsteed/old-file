@@ -8885,7 +8885,21 @@
         "in": "في:",
         "out": "خارج:",
         "stillWorking": "لا يزال يعمل",
-        "clockOut": "خارج"
+        "clockOut": "خارج",
+        "systemClosed": "أُغلق بواسطة النظام"
+      },
+      "corrections": {
+        "title": "تصحيحات تسجيل الدوام",
+        "empty": "لا توجد تصحيحات معلقة لتسجيل الدوام.",
+        "approve": "اعتماد",
+        "reject": "رفض",
+        "decided": "تم البت في التصحيح",
+        "decideFail": "تعذر البت في التصحيح"
+      },
+      "closeStale": {
+        "button": "تشغيل فحص نهاية اليوم",
+        "done": "تم إغلاق {{count}} من تسجيلات الدوام المنسية ووضع علامة عليها بأن النظام أغلقها.",
+        "fail": "فشل فحص نهاية اليوم"
       },
       "toastLoadShiftsFail": "فشل تحميل التحولات",
       "toastLoadTimeFail": "فشل تحميل إدخالات الوقت",
@@ -24957,6 +24971,17 @@
       "recentPunches": "تسجيلاتي الأخيرة",
       "noPunches": "لا توجد تسجيلات في الأسبوعين الماضيين.",
       "hours": "{{hours}} ساعة",
+      "systemClosed": "أُغلق بواسطة النظام",
+      "staffPin": "الرقم السري للموظف (فقط إذا كان متجرك يتطلبه)",
+      "staffPinPlaceholder": "أدخل الرقم السري الخاص بك",
+      "requestCorrection": "طلب تصحيح",
+      "correctionClockIn": "وقت بدء الدوام المصحح",
+      "correctionClockOut": "وقت انتهاء الدوام المصحح",
+      "correctionReason": "ما الذي يجب تغييره ولماذا",
+      "correctionSent": "تم إرسال طلب التصحيح. سيراجعه مديرك.",
+      "correctionInvalid": "أضف سببًا للتصحيح.",
+      "correctionPending": "تم طلب التصحيح",
+      "sendCorrection": "إرسال الطلب",
       "timeOff": "الإجازات",
       "timeOffType": "النوع",
       "timeOffTypes": {

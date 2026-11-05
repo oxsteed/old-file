@@ -8266,7 +8266,21 @@
         "in": "Entrada:",
         "out": "Salida:",
         "stillWorking": "En curso",
-        "clockOut": "Salir"
+        "clockOut": "Salir",
+        "systemClosed": "Cerrado por el sistema"
+      },
+      "corrections": {
+        "title": "Correcciones de fichaje",
+        "empty": "No hay correcciones de fichaje pendientes.",
+        "approve": "Aprobar",
+        "reject": "Rechazar",
+        "decided": "Corrección decidida",
+        "decideFail": "No se pudo decidir la corrección"
+      },
+      "closeStale": {
+        "button": "Ejecutar revisión de cierre del día",
+        "done": "{{count}} fichajes olvidados cerrados y marcados como cerrados por el sistema.",
+        "fail": "La revisión de cierre del día falló"
       },
       "toastLoadShiftsFail": "No se pudieron cargar los turnos",
       "toastLoadTimeFail": "No se pudieron cargar los registros de tiempo",
@@ -24946,6 +24960,17 @@
       "recentPunches": "Mis marcas recientes",
       "noPunches": "No hay marcas en las últimas dos semanas.",
       "hours": "{{hours}} h",
+      "systemClosed": "Cerrado por el sistema",
+      "staffPin": "PIN de empleado (solo si tu tienda lo requiere)",
+      "staffPinPlaceholder": "Ingresa tu PIN de empleado",
+      "requestCorrection": "Solicitar corrección",
+      "correctionClockIn": "Entrada corregida",
+      "correctionClockOut": "Salida corregida",
+      "correctionReason": "Qué debe cambiar y por qué",
+      "correctionSent": "Corrección solicitada. Tu gerente la revisará.",
+      "correctionInvalid": "Agrega un motivo para la corrección.",
+      "correctionPending": "Corrección solicitada",
+      "sendCorrection": "Enviar solicitud",
       "timeOff": "Tiempo libre",
       "timeOffType": "Tipo",
       "timeOffTypes": {

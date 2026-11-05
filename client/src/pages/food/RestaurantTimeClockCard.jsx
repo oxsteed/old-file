@@ -17,6 +17,15 @@ function todayIso() {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
+// datetime-local value (local wall clock) from an ISO instant.
+function toLocalInput(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function RestaurantTimeClockCard({ restaurant }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -28,6 +37,12 @@ export default function RestaurantTimeClockCard({ restaurant }) {
   const [requests, setRequests] = useState([]);
   const [busy, setBusy] = useState(false);
   const [timeOff, setTimeOff] = useState({ request_type: 'vacation', start_date: todayIso(), end_date: todayIso(), reason: '' });
+  // Phase 2: optional staff PIN (only used where the store requires
+  // one) and the employee punch-correction flow.
+  const [staffPin, setStaffPin] = useState('');
+  const [myCorrections, setMyCorrections] = useState([]);
+  const [correctionFor, setCorrectionFor] = useState(null);
+  const [correctionForm, setCorrectionForm] = useState({ clock_in_at: '', clock_out_at: '', reason: '' });
 
   const fmt = useCallback((value, opts) => {
     if (!value) return '';
@@ -40,10 +55,11 @@ export default function RestaurantTimeClockCard({ restaurant }) {
   const load = useCallback(async () => {
     if (!businessId) return;
     try {
-      const [mine, shiftRes, offRes] = await Promise.all([
+      const [mine, shiftRes, offRes, corrRes] = await Promise.all([
         api.get(`${base}/time-entries/mine`),
         api.get(`${base}/shifts`, { params: { user_id: user?.id, from: todayIso() } }),
         api.get(`${base}/time-off`),
+        api.get(`${base}/time-entry-corrections/mine`).catch(() => ({ data: [] })),
       ]);
       setEntries(Array.isArray(mine.data?.entries) ? mine.data.entries : []);
       setOpen(mine.data?.open_entry || null);
@@ -51,6 +67,7 @@ export default function RestaurantTimeClockCard({ restaurant }) {
       setShifts(shiftRows.filter((s) => !user?.id || String(s.user_id) === String(user.id)).slice(0, 10));
       const offRows = Array.isArray(offRes.data) ? offRes.data : (offRes.data?.requests || []);
       setRequests(offRows.filter((r) => !user?.id || String(r.user_id) === String(user.id)).slice(0, 10));
+      setMyCorrections(Array.isArray(corrRes.data) ? corrRes.data : []);
     } catch {
       /* the card stays usable; actions report their own errors */
     }
@@ -72,6 +89,55 @@ export default function RestaurantTimeClockCard({ restaurant }) {
   };
 
   const onBreak = open && Array.isArray(open.breaks) && open.breaks.some((b) => b && !b.ended_at);
+
+  // Phase 2 punch proof: the device location is sent best-effort so
+  // a store with a geofence configured can verify the punch. A denied
+  // or unavailable location never blocks clock-in: the server only
+  // enforces the geofence when the punch actually carries coordinates.
+  const clockIn = async () => {
+    const pos = await new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (p) => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
+        () => resolve(null),
+        { timeout: 5000, maximumAge: 60000 }
+      );
+    });
+    await act(
+      () => api.post(`${base}/clock-in`, {
+        source: 'web',
+        ...(pos || {}),
+        ...(staffPin ? { staff_pin: staffPin } : {}),
+      }),
+      'food.timeClock.clockedInOk'
+    ).then(() => setStaffPin(''));
+  };
+
+  const pendingCorrectionFor = (entryId) => myCorrections.find((c) => c.entry_id === entryId && c.status === 'pending');
+
+  const openCorrection = (entry) => {
+    setCorrectionFor(entry.id);
+    setCorrectionForm({
+      clock_in_at: toLocalInput(entry.clock_in_at),
+      clock_out_at: toLocalInput(entry.clock_out_at),
+      reason: '',
+    });
+  };
+
+  const submitCorrection = (e) => {
+    e.preventDefault();
+    if (!correctionForm.reason.trim()) {
+      toast.error(t('food.timeClock.correctionInvalid'));
+      return;
+    }
+    const body = { reason: correctionForm.reason.trim() };
+    if (correctionForm.clock_in_at) body.clock_in_at = new Date(correctionForm.clock_in_at).toISOString();
+    if (correctionForm.clock_out_at) body.clock_out_at = new Date(correctionForm.clock_out_at).toISOString();
+    act(
+      () => api.post(`${base}/time-entries/${correctionFor}/corrections`, body),
+      'food.timeClock.correctionSent'
+    ).then(() => { setCorrectionFor(null); setCorrectionForm({ clock_in_at: '', clock_out_at: '', reason: '' }); });
+  };
 
   const submitTimeOff = (e) => {
     e.preventDefault();
@@ -97,7 +163,7 @@ export default function RestaurantTimeClockCard({ restaurant }) {
       <div className="fd-row" style={{ gap: 8, flexWrap: 'wrap' }}>
         {!open && (
           <button type="button" className="fd-btn" disabled={busy}
-            onClick={() => act(() => api.post(`${base}/clock-in`, { source: 'web' }), 'food.timeClock.clockedInOk')}
+            onClick={clockIn}
             data-track="restaurant_time_clock_in">
             {t('food.timeClock.clockIn')}
           </button>
@@ -124,6 +190,21 @@ export default function RestaurantTimeClockCard({ restaurant }) {
           </button>
         )}
       </div>
+      {!open && (
+        <div className="fd-field" style={{ marginTop: 8 }}>
+          <label htmlFor="tc-staff-pin">{t('food.timeClock.staffPin')}</label>
+          <input
+            id="tc-staff-pin"
+            type="password"
+            inputMode="numeric"
+            autoComplete="off"
+            value={staffPin}
+            maxLength={32}
+            onChange={(e) => setStaffPin(e.target.value)}
+            placeholder={t('food.timeClock.staffPinPlaceholder')}
+          />
+        </div>
+      )}
 
       <h4>{t('food.timeClock.myShifts')}</h4>
       {shifts.length === 0 ? <p className="fd-card-meta">{t('food.timeClock.noShifts')}</p> : (
@@ -141,6 +222,37 @@ export default function RestaurantTimeClockCard({ restaurant }) {
             <li key={e.id}>
               {fmtDay(String(e.entry_date).slice(0, 10))} · <bdi dir="ltr">{fmtTime(e.clock_in_at)}–{e.clock_out_at ? fmtTime(e.clock_out_at) : '…'}</bdi>
               {e.hours != null && ` · ${t('food.timeClock.hours', { hours: Number(e.hours).toFixed(2) })}`}
+              {e.system_closed && <span style={{ marginInlineStart: '0.5rem', fontSize: '0.7rem', fontWeight: 600, color: '#92400e', background: '#fef3c7', borderRadius: '999px', padding: '0.15rem 0.5rem' }}>{t('food.timeClock.systemClosed')}</span>}
+              {e.clock_out_at && !pendingCorrectionFor(e.id) && correctionFor !== e.id && (
+                <button type="button" className="fd-btn fd-btn-secondary" disabled={busy}
+                  onClick={() => openCorrection(e)} style={{ marginInlineStart: '0.5rem' }}
+                  data-track="restaurant_time_correction_request">
+                  {t('food.timeClock.requestCorrection')}
+                </button>
+              )}
+              {pendingCorrectionFor(e.id) && <span className="fd-card-meta" style={{ marginInlineStart: '0.5rem' }}>{t('food.timeClock.correctionPending')}</span>}
+              {correctionFor === e.id && (
+                <form onSubmit={submitCorrection} className="fd-ops-form" style={{ marginTop: 8 }}>
+                  <div className="fd-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                    <div className="fd-field">
+                      <label htmlFor={`tc-corr-in-${e.id}`}>{t('food.timeClock.correctionClockIn')}</label>
+                      <input id={`tc-corr-in-${e.id}`} type="datetime-local" value={correctionForm.clock_in_at} onChange={(ev) => setCorrectionForm((f) => ({ ...f, clock_in_at: ev.target.value }))} />
+                    </div>
+                    <div className="fd-field">
+                      <label htmlFor={`tc-corr-out-${e.id}`}>{t('food.timeClock.correctionClockOut')}</label>
+                      <input id={`tc-corr-out-${e.id}`} type="datetime-local" value={correctionForm.clock_out_at} onChange={(ev) => setCorrectionForm((f) => ({ ...f, clock_out_at: ev.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="fd-field">
+                    <label htmlFor={`tc-corr-reason-${e.id}`}>{t('food.timeClock.correctionReason')}</label>
+                    <input id={`tc-corr-reason-${e.id}`} value={correctionForm.reason} maxLength={1000} onChange={(ev) => setCorrectionForm((f) => ({ ...f, reason: ev.target.value }))} required />
+                  </div>
+                  <div className="fd-row" style={{ gap: 8 }}>
+                    <button type="submit" className="fd-btn fd-btn-secondary" disabled={busy} data-track="restaurant_time_correction_send">{t('food.timeClock.sendCorrection')}</button>
+                    <button type="button" className="fd-btn fd-btn-secondary" disabled={busy} onClick={() => setCorrectionFor(null)}>{t('common.cancel')}</button>
+                  </div>
+                </form>
+              )}
             </li>
           ))}
         </ul>

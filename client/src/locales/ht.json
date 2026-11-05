@@ -8453,7 +8453,21 @@
         "in": "Antre:",
         "out": "Sòti:",
         "stillWorking": "Ap travay toujou",
-        "clockOut": "Sòti"
+        "clockOut": "Sòti",
+        "systemClosed": "Sistèm nan fèmen li"
+      },
+      "corrections": {
+        "title": "Koreksyon pwenntaj",
+        "empty": "Pa gen koreksyon pwenntaj k ap tann.",
+        "approve": "Apwouve",
+        "reject": "Rejte",
+        "decided": "Koreksyon an deside",
+        "decideFail": "Pa t kapab deside koreksyon an"
+      },
+      "closeStale": {
+        "button": "Fè verifikasyon fen jounen an",
+        "done": "{{count}} pwenntaj yo bliye fèmen epi make kòm sistèm nan fèmen yo.",
+        "fail": "Verifikasyon fen jounen an echwe"
       },
       "toastLoadShiftsFail": "Nou pa t kapab chaje shift yo",
       "toastLoadTimeFail": "Nou pa t kapab chaje antre tan yo",
@@ -24946,6 +24960,17 @@
       "recentPunches": "Dènye pwen mwen yo",
       "noPunches": "Pa gen pwen nan de dènye semèn yo.",
       "hours": "{{hours}} è",
+      "systemClosed": "Sistèm nan fèmen li",
+      "staffPin": "PIN anplwaye (sèlman si magazen ou mande li)",
+      "staffPinPlaceholder": "Antre PIN anplwaye ou",
+      "requestCorrection": "Mande koreksyon",
+      "correctionClockIn": "Lè antre korije",
+      "correctionClockOut": "Lè sòti korije",
+      "correctionReason": "Kisa ki dwe chanje, epi poukisa",
+      "correctionSent": "Yo mande koreksyon an. Manadjè ou ap verifye li.",
+      "correctionInvalid": "Mete yon rezon pou koreksyon an.",
+      "correctionPending": "Koreksyon yo mande",
+      "sendCorrection": "Voye demann lan",
       "timeOff": "Konje",
       "timeOffType": "Kalite",
       "timeOffTypes": {

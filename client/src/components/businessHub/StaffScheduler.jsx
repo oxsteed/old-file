@@ -14,6 +14,8 @@ export function StaffScheduler({ businessId, isManager = false }) {
   const [shifts, setShifts] = useState([]);
   const [timeEntries, setTimeEntries] = useState([]);
   const [timeOff, setTimeOff] = useState([]);
+  // Phase 2: pending punch corrections awaiting a manager decision.
+  const [corrections, setCorrections] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ user_id: '', shift_start: '', shift_end: '', role: '', notes: '' });
@@ -65,9 +67,36 @@ export function StaffScheduler({ businessId, isManager = false }) {
 
   const loadTime = async () => {
     setLoading(true);
-    try { const res = await api.get(`/businesses/${businessId}/staff/time-entries`); setTimeEntries(res.data || []); }
+    try {
+      const res = await api.get(`/businesses/${businessId}/staff/time-entries`); setTimeEntries(res.data || []);
+      // Phase 2: managers review pending punch corrections on the time tab.
+      if (isManager) {
+        try {
+          const corr = await api.get(`/businesses/${businessId}/staff/time-entry-corrections`, { params: { status: 'pending' } });
+          setCorrections(Array.isArray(corr.data) ? corr.data : []);
+        } catch { setCorrections([]); }
+      }
+    }
     catch { toast.error(t('businessHub.staffScheduler.toastLoadTimeFail')); }
     finally { setLoading(false); }
+  };
+
+  // Phase 2: run the close-of-day check for forgotten punches (same
+  // sweep the nightly job runs) and decide a correction request.
+  const runCloseStale = async () => {
+    try {
+      const res = await api.post(`/businesses/${businessId}/staff/time-entries/close-stale`, {});
+      toast.success(t('businessHub.staffScheduler.closeStale.done', { count: res.data?.closed?.length ?? 0 }));
+      loadTime();
+    } catch { toast.error(t('businessHub.staffScheduler.closeStale.fail')); }
+  };
+
+  const decideCorrection = async (id, decision) => {
+    try {
+      await api.post(`/businesses/${businessId}/staff/time-entry-corrections/${id}/decide`, { decision });
+      toast.success(t('businessHub.staffScheduler.corrections.decided'));
+      loadTime();
+    } catch { toast.error(t('businessHub.staffScheduler.corrections.decideFail')); }
   };
 
   const loadTimeOff = async () => {
@@ -281,11 +310,42 @@ export function StaffScheduler({ businessId, isManager = false }) {
           </div>
         ))
       ) : tab === 'time' ? (
-        timeEntries.length === 0 ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-text)' }}><Clock size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} /><p>{t('businessHub.staffScheduler.emptyTime')}</p></div>
+        <div>
+          {isManager && (
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1rem 1.25rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <h4 style={{ margin: 0 }}>{t('businessHub.staffScheduler.corrections.title')}</h4>
+                <button onClick={runCloseStale} style={{ padding: '0.5rem 1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }} data-track="ui.34ed3b0a4c.14">
+                  {t('businessHub.staffScheduler.closeStale.button')}
+                </button>
+              </div>
+              {corrections.length === 0 ? (
+                <p style={{ margin: '0.75rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>{t('businessHub.staffScheduler.corrections.empty')}</p>
+              ) : corrections.map((c) => (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderTop: '1px solid var(--border-color)', padding: '0.75rem 0 0', marginTop: '0.75rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{c.requester_name || c.user_name} · {fmtDate(c.entry_date)}</div>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--muted-text)' }}>
+                      {c.requested_clock_in_at ? `${t('businessHub.staffScheduler.time.in')} ${new Date(c.requested_clock_in_at).toLocaleString(i18n.language)} ` : ''}
+                      {c.requested_clock_out_at ? `· ${t('businessHub.staffScheduler.time.out')} ${new Date(c.requested_clock_out_at).toLocaleString(i18n.language)} ` : ''}
+                      {c.reason ? `· ${c.reason}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button onClick={() => decideCorrection(c.id, 'approved')} style={{ padding: '0.4rem 0.75rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.15">{t('businessHub.staffScheduler.corrections.approve')}</button>
+                    <button onClick={() => decideCorrection(c.id, 'rejected')} style={{ padding: '0.4rem 0.75rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.16">{t('businessHub.staffScheduler.corrections.reject')}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {timeEntries.length === 0 ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-text)' }}><Clock size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} /><p>{t('businessHub.staffScheduler.emptyTime')}</p></div>
         : timeEntries.map(e => (
           <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.75rem 1rem', marginBottom: '0.5rem' }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>{e.user_name}</div>
+              <div style={{ fontWeight: 600 }}>{e.user_name}
+                {e.system_closed && <span style={{ marginInlineStart: '0.5rem', fontSize: '0.7rem', fontWeight: 600, color: '#92400e', background: '#fef3c7', borderRadius: '999px', padding: '0.15rem 0.5rem' }}>{t('businessHub.staffScheduler.time.systemClosed')}</span>}
+              </div>
               <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>
                 {t('businessHub.staffScheduler.time.in')} {new Date(e.clock_in).toLocaleString(i18n.language)}{' '}
                 {e.clock_out ? `· ${t('businessHub.staffScheduler.time.out')} ${new Date(e.clock_out).toLocaleString(i18n.language)}` : `· ${t('businessHub.staffScheduler.time.stillWorking')}`}
@@ -294,7 +354,8 @@ export function StaffScheduler({ businessId, isManager = false }) {
             <div style={{ fontWeight: 600, color: e.clock_out ? '#10b981' : '#f59e0b' }}>{formatDuration(parseFloat(e.hours))}</div>
             {!e.clock_out && <button onClick={() => clockOut(e.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.7"><LogOut size={12} /> {t('businessHub.staffScheduler.time.clockOut')}</button>}
           </div>
-        ))
+        ))}
+        </div>
       ) : (
         <div>
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>

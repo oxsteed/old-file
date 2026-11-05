@@ -8885,7 +8885,21 @@
         "in": "Entrée :",
         "out": "Sortie :",
         "stillWorking": "En cours",
-        "clockOut": "Sortir"
+        "clockOut": "Sortir",
+        "systemClosed": "Fermé par le système"
+      },
+      "corrections": {
+        "title": "Corrections de pointage",
+        "empty": "Aucune correction de pointage en attente.",
+        "approve": "Approuver",
+        "reject": "Refuser",
+        "decided": "Correction traitée",
+        "decideFail": "Impossible de traiter la correction"
+      },
+      "closeStale": {
+        "button": "Lancer la vérification de fin de journée",
+        "done": "{{count}} pointages oubliés fermés et marqués comme fermés par le système.",
+        "fail": "La vérification de fin de journée a échoué"
       },
       "toastLoadShiftsFail": "Impossible de charger les shifts",
       "toastLoadTimeFail": "Impossible de charger les pointages",
@@ -24946,6 +24960,17 @@
       "recentPunches": "Mes pointages récents",
       "noPunches": "Aucun pointage ces deux dernières semaines.",
       "hours": "{{hours}} h",
+      "systemClosed": "Fermé par le système",
+      "staffPin": "Code PIN (seulement si votre magasin l’exige)",
+      "staffPinPlaceholder": "Saisissez votre code PIN",
+      "requestCorrection": "Demander une correction",
+      "correctionClockIn": "Entrée corrigée",
+      "correctionClockOut": "Sortie corrigée",
+      "correctionReason": "Ce qui doit changer, et pourquoi",
+      "correctionSent": "Correction demandée. Votre responsable va l’examiner.",
+      "correctionInvalid": "Ajoutez un motif pour la correction.",
+      "correctionPending": "Correction demandée",
+      "sendCorrection": "Envoyer la demande",
       "timeOff": "Congés",
       "timeOffType": "Type",
       "timeOffTypes": {

@@ -8885,7 +8885,21 @@
         "in": "In:",
         "out": "Out:",
         "stillWorking": "Still working",
-        "clockOut": "Out"
+        "clockOut": "Out",
+        "systemClosed": "System-closed"
+      },
+      "corrections": {
+        "title": "Punch corrections",
+        "empty": "No pending punch corrections.",
+        "approve": "Approve",
+        "reject": "Reject",
+        "decided": "Correction decided",
+        "decideFail": "Failed to decide the correction"
+      },
+      "closeStale": {
+        "button": "Run close-of-day check",
+        "done": "{{count}} forgotten punches closed and flagged as system-closed.",
+        "fail": "The close-of-day check failed"
       },
       "toastLoadShiftsFail": "Failed to load shifts",
       "toastLoadTimeFail": "Failed to load time entries",
@@ -24946,6 +24960,17 @@
       "recentPunches": "My recent punches",
       "noPunches": "No punches in the last two weeks.",
       "hours": "{{hours}} h",
+      "systemClosed": "System-closed",
+      "staffPin": "Staff PIN (only if your store requires one)",
+      "staffPinPlaceholder": "Enter your staff PIN",
+      "requestCorrection": "Request correction",
+      "correctionClockIn": "Corrected clock-in",
+      "correctionClockOut": "Corrected clock-out",
+      "correctionReason": "What should change, and why",
+      "correctionSent": "Correction requested. Your manager will review it.",
+      "correctionInvalid": "Add a reason for the correction.",
+      "correctionPending": "Correction requested",
+      "sendCorrection": "Send request",
       "timeOff": "Time off",
       "timeOffType": "Type",
       "timeOffTypes": {
