@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { UtensilsCrossed } from 'lucide-react';
 import EmptyState from '../../components/EmptyState';
 import api from '../../api/axios';
-import { getFoodRestaurant, formatFoodMoney } from '../../api/food';
+import { getFoodRestaurant, formatFoodMoney, listRestaurantTables } from '../../api/food';
 import { FoodBrand } from './foodShared';
 import { isNetworkFailure, usePosSync } from './usePosSync';
 import { clearPersistedCheckout, readPersistedCheckout, writePersistedCheckout } from './posCheckoutPersistence';
@@ -332,6 +332,11 @@ export default function RestaurantPOSPage() {
   const [ticket, setTicket] = useState([]); // [{item, qty, note, mods, unitCents}]
   const [fulfillment, setFulfillment] = useState('dine_in');
   const [tableName, setTableName] = useState('');
+  // Phase 6 (gap 13): the ticket's real table (id + covers). The free-text
+  // label stays as a fallback for tables not on the floor plan.
+  const [tables, setTables] = useState([]);
+  const [tableId, setTableId] = useState('');
+  const [covers, setCovers] = useState('');
   const [guestName, setGuestName] = useState('');
 
   const [modItem, setModItem] = useState(null);
@@ -364,6 +369,8 @@ export default function RestaurantPOSPage() {
       setTicket(Array.isArray(saved.ticket) ? saved.ticket : []);
       setFulfillment(saved.fulfillment || 'dine_in');
       setTableName(saved.tableName || '');
+      setTableId(saved.tableId ? String(saved.tableId) : '');
+      setCovers(saved.covers ? String(saved.covers) : '');
       setGuestName(saved.guestName || '');
       setCheckoutId(saved.checkoutId || null);
       setCheckoutOrder(saved.checkoutOrder || null);
@@ -381,11 +388,13 @@ export default function RestaurantPOSPage() {
       ticket,
       fulfillment,
       tableName,
+      tableId,
+      covers,
       guestName,
       checkoutId,
       checkoutOrder,
     });
-  }, [checkoutHydrated, restaurantId, ticket, fulfillment, tableName, guestName, checkoutId, checkoutOrder]);
+  }, [checkoutHydrated, restaurantId, ticket, fulfillment, tableName, tableId, covers, guestName, checkoutId, checkoutOrder]);
 
   const load = useCallback(async () => {
     try {
@@ -420,6 +429,14 @@ export default function RestaurantPOSPage() {
       const membershipPermissions = membership?.permissions || [];
       setCanUsePos(membershipPermissions.includes('*') || membershipPermissions.includes('pos.use'));
       setActiveShift(selectedShift);
+      // Phase 6 (gap 13): the floor-plan tables for this store, so a
+      // dine-in ticket names a real table instead of free text.
+      const tableLocationId = r?.location?.id ?? selectedShift?.location_id ?? null;
+      if (tableLocationId) {
+        listRestaurantTables(restaurantId, { locationId: tableLocationId })
+          .then((data) => setTables((data?.tables || []).filter((row) => row.status === 'active')))
+          .catch(() => {});
+      }
       const cats = r?.categories || (r?.menu || []).map(({ items: _items, ...category }) => category);
       const its = r?.items || [...(r?.menu || []).flatMap((category) => category.items || []), ...(r?.uncategorizedItems || [])];
       // attach modifier groups to items
@@ -618,6 +635,8 @@ export default function RestaurantPOSPage() {
       shift_id: activeShift.id,
       fulfillment_type: fulfillment,
       table_name: tableName || undefined,
+      table_id: tableId ? Number(tableId) : undefined,
+      covers: covers ? Number(covers) : undefined,
       guest_name: guestName || undefined,
       client_order_id: activeCheckoutId,
       payment_mode: method === 'oxsteed_credit' ? 'oxsteed_credit' : 'pay_at_restaurant',
@@ -664,6 +683,8 @@ export default function RestaurantPOSPage() {
         }
         setTicket([]);
         setTableName('');
+        setTableId('');
+        setCovers('');
         setGuestName('');
         resetCheckout();
         clearPersistedCheckout(restaurantId);
@@ -703,6 +724,8 @@ export default function RestaurantPOSPage() {
       setCompletedOrder(checkoutOrder);
       setTicket([]);
       setTableName('');
+      setTableId('');
+      setCovers('');
       setGuestName('');
       resetCheckout();
       clearPersistedCheckout(restaurantId);
@@ -732,6 +755,8 @@ export default function RestaurantPOSPage() {
         }
         setTicket([]);
         setTableName('');
+        setTableId('');
+        setCovers('');
         setGuestName('');
         resetCheckout();
         clearPersistedCheckout(restaurantId);
@@ -769,6 +794,8 @@ export default function RestaurantPOSPage() {
         setCompletedOrder(order);
         setTicket([]);
         setTableName('');
+        setTableId('');
+        setCovers('');
         setGuestName('');
         resetCheckout();
         clearPersistedCheckout(restaurantId);
@@ -845,7 +872,40 @@ export default function RestaurantPOSPage() {
                 </button>
               </>
             )}
+            {fulfillment === 'dine_in' && tables.length > 0 && (
+              <select
+                aria-label={t('food.pos.table')}
+                className="fd-pos-meta-input"
+                value={tableId}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setTableId(next);
+                  const chosen = tables.find((row) => String(row.id) === next);
+                  if (chosen) setTableName(chosen.name);
+                  if (!next) setCovers('');
+                }}
+              >
+                <option value="">{t('food.pos.table')}</option>
+                {tables.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.name} · {row.capacity}
+                  </option>
+                ))}
+              </select>
+            )}
             <input aria-label={t('food.pos.table')} className="fd-pos-meta-input" value={tableName} onChange={(e) => setTableName(e.target.value)} placeholder={t('food.pos.table')} />
+            {fulfillment === 'dine_in' && tableId && (
+              <input
+                aria-label={t('food.pos.covers')}
+                className="fd-pos-meta-input"
+                type="number"
+                min="1"
+                max="1000"
+                value={covers}
+                onChange={(e) => setCovers(e.target.value)}
+                placeholder={t('food.pos.covers')}
+              />
+            )}
             <input aria-label={t('food.pos.guestName')} className="fd-pos-meta-input" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder={t('food.pos.guestName')} />
           </div>
           <Link className="fd-btn-secondary fd-btn-sm" to={`/restaurants/merchant`}>{t('food.common.back')}</Link>

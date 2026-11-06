@@ -206,6 +206,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
           target_type: r.target_type,
           target_key: r.target_key || '',
           percent: String((Number(r.percent_bps) || 0) / 100),
+          weight_basis: r.weight_basis || 'equal',
         })));
       })
       // A failed tip-pool read used to make the whole section silently
@@ -243,6 +244,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
           target_type: r.target_type,
           target_key: r.target_type === 'role' ? r.target_key.trim() : null,
           percent_bps: Math.round(Number(r.percent) * 100),
+          weight_basis: r.weight_basis || 'equal',
         })),
       };
       const saved = await updateTipPoolSettings(restaurantId, payload);
@@ -600,6 +602,15 @@ export function PayrollPanel({ t, restaurant, from, to }) {
                 value={rule.percent}
                 onChange={(e) => setRules((rs) => rs.map((r, i) => (i === idx ? { ...r, percent: e.target.value } : r)))}
               />
+              <select
+                aria-label={t('restaurants.ops.reports.tipPool.ruleWeightBasis')}
+                value={rule.weight_basis || 'equal'}
+                onChange={(e) => setRules((rs) => rs.map((r, i) => (i === idx ? { ...r, weight_basis: e.target.value } : r)))}
+              >
+                <option value="equal">{t('restaurants.ops.reports.tipPool.weightEqual')}</option>
+                <option value="hours">{t('restaurants.ops.reports.tipPool.weightHours')}</option>
+                <option value="gross_tips">{t('restaurants.ops.reports.tipPool.weightGrossTips')}</option>
+              </select>
               <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary"
                 onClick={() => setRules((rs) => rs.filter((_, i) => i !== idx))} data-track="ui.aa258f5ea1.3">
                 {t('restaurants.ops.reports.tipPool.removeRule')}
@@ -608,7 +619,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
           ))}
           <div className="fd-ops-inventory-row">
             <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary"
-              onClick={() => setRules((rs) => [...rs, { target_type: 'role', target_key: '', percent: '5' }])} data-track="ui.aa258f5ea1.4">
+              onClick={() => setRules((rs) => [...rs, { target_type: 'role', target_key: '', percent: '5', weight_basis: 'equal' }])} data-track="ui.aa258f5ea1.4">
               {t('restaurants.ops.reports.tipPool.addRule')}
             </button>
             <button type="button" className="fd-btn fd-btn-sm" onClick={saveTipSettings} disabled={savingTips} data-track="ui.aa258f5ea1.5">
