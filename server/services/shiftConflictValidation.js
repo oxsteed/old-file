@@ -378,4 +378,4 @@ async function validateShift(db, opts) {
   return { violations, warnings };
 }
 
-module.exports = { validateShift };
+module.exports = { validateShift, shiftHours };
