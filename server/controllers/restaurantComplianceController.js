@@ -248,14 +248,24 @@ exports.createScheduledReport = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const input = scheduledReports.validateScheduleInput(req.body || {});
     assertLocationInScope(restaurant.locationScope, input.locationId);
+    // Phase 8 Track D/E: a digest's anchor restaurant must belong
+    // to the digest's brand, or the digest would report on a brand
+    // the anchor never joined.
+    if (input.brandId != null) {
+      const brandService = require('../services/restaurantBrandService');
+      const restaurants = await brandService.listBrandRestaurants(pool, input.brandId);
+      if (!restaurants.some((row) => Number(row.id) === restaurantId)) {
+        throw new AppError('This restaurant does not belong to that brand', 400, 'validation_failed');
+      }
+    }
     const { rows: [row] } = await pool.query(
       `INSERT INTO restaurant_scheduled_reports
-         (restaurant_id, location_id, report_type, frequency,
+         (restaurant_id, location_id, brand_id, report_type, frequency,
           delivery_channel, recipients, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
        RETURNING *`,
       [
-        restaurantId, input.locationId, input.reportType, input.frequency,
+        restaurantId, input.locationId, input.brandId, input.reportType, input.frequency,
         input.deliveryChannel, JSON.stringify(input.recipients), req.user.id,
       ]
     );
@@ -278,15 +288,22 @@ exports.updateScheduledReport = async (req, res, next) => {
     if (!scheduleId) throw new AppError('Schedule not found', 404, 'schedule_not_found');
     const input = scheduledReports.validateScheduleInput(req.body || {});
     assertLocationInScope(restaurant.locationScope, input.locationId);
+    if (input.brandId != null) {
+      const brandService = require('../services/restaurantBrandService');
+      const restaurants = await brandService.listBrandRestaurants(pool, input.brandId);
+      if (!restaurants.some((row) => Number(row.id) === restaurantId)) {
+        throw new AppError('This restaurant does not belong to that brand', 400, 'validation_failed');
+      }
+    }
     const { rows: [row] } = await pool.query(
       `UPDATE restaurant_scheduled_reports
-          SET location_id = $2, report_type = $3, frequency = $4,
-              delivery_channel = $5, recipients = $6::jsonb,
-              enabled = COALESCE($7::boolean, enabled), updated_at = NOW()
-        WHERE id = $1 AND restaurant_id = $8
+          SET location_id = $2, brand_id = $3, report_type = $4, frequency = $5,
+              delivery_channel = $6, recipients = $7::jsonb,
+              enabled = COALESCE($8::boolean, enabled), updated_at = NOW()
+        WHERE id = $1 AND restaurant_id = $9
         RETURNING *`,
       [
-        scheduleId, input.locationId, input.reportType, input.frequency,
+        scheduleId, input.locationId, input.brandId, input.reportType, input.frequency,
         input.deliveryChannel, JSON.stringify(input.recipients),
         req.body?.enabled ?? null, restaurantId,
       ]

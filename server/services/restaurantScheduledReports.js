@@ -27,8 +27,12 @@ const { sendNotification } = require('./notificationService');
 const { sendEmail } = require('../utils/email');
 const { computeLabor, computeExceptions } = require('./restaurantPayrollService');
 const reportsController = require('../controllers/restaurantReportsController');
+const brandService = require('./restaurantBrandService');
+const franchiseReportService = require('./restaurantFranchiseReportService');
+const fx = require('./restaurantFxService');
 
-const REPORT_TYPES = ['daily_close', 'labor', 'exceptions'];
+const REPORT_TYPES = ['daily_close', 'labor', 'exceptions', 'hq_digest', 'franchise_digest'];
+const DIGEST_TYPES = ['hq_digest', 'franchise_digest'];
 const FREQUENCIES = ['daily', 'weekly'];
 const CHANNELS = ['in_app', 'email', 'both'];
 
@@ -59,6 +63,16 @@ function validateScheduleInput(body = {}) {
   if (!REPORT_TYPES.includes(body.reportType)) throw Object.assign(new Error('Unknown report type'), { status: 400, code: 'validation_failed' });
   if (body.frequency != null && !FREQUENCIES.includes(body.frequency)) throw Object.assign(new Error('Unknown frequency'), { status: 400, code: 'validation_failed' });
   if (body.deliveryChannel != null && !CHANNELS.includes(body.deliveryChannel)) throw Object.assign(new Error('Unknown delivery channel'), { status: 400, code: 'validation_failed' });
+  // Phase 8 Track D/E: HQ and franchise digests are brand-scoped;
+  // the anchor restaurant must belong to the brand (checked at
+  // creation in the controller, re-checked at build time).
+  let brandId = null;
+  if (DIGEST_TYPES.includes(body.reportType)) {
+    brandId = Number(body.brandId ?? body.brand_id);
+    if (!Number.isSafeInteger(brandId) || brandId <= 0) {
+      throw Object.assign(new Error('A brand is required for HQ and franchise digests'), { status: 400, code: 'validation_failed' });
+    }
+  }
   const { users, emails } = parseRecipients(body.recipients);
   const channel = body.deliveryChannel || 'in_app';
   if ((channel === 'in_app' || channel === 'both') && users.length === 0) {
@@ -73,6 +87,7 @@ function validateScheduleInput(body = {}) {
     deliveryChannel: channel,
     recipients: body.recipients,
     locationId: body.locationId == null ? null : Number(body.locationId),
+    brandId,
   };
 }
 
@@ -84,8 +99,58 @@ function summarizeReport(reportType, report) {
   if (reportType === 'labor') {
     return `Labor ${report.from_date} to ${report.to_date}: ${report.total_hours || 0} hours, labor cost ${report.currency || ''} ${((report.labor_cost_cents || 0) / 100).toFixed(2)} (${report.labor_percent ?? 'n/a'}% of sales).`;
   }
+  if (reportType === 'hq_digest') {
+    const converted = report.converted?.convertedTotalCents;
+    const native = (report.totals || []).map((t) => `${t.currencyCode} ${((t.netCollectedCents || 0) / 100).toFixed(2)}`).join(', ');
+    return `HQ digest ${report.from} to ${report.to}: ${report.storeCount || 0} stores, sales ${native || 'none'}${converted == null ? '' : `, converted ${report.converted.reportingCurrency} ${(converted / 100).toFixed(2)}`}.`;
+  }
+  if (reportType === 'franchise_digest') {
+    const converted = report.totals?.salesConvertedCents;
+    return `Franchise digest ${report.from} to ${report.to}: ${report.stores?.length || 0} stores${converted == null ? '' : `, sales converted ${report.reportingCurrency} ${(converted / 100).toFixed(2)}`}.`;
+  }
   const flagged = (report.employees || []).filter((e) => (e.voids || 0) + (e.refunds || 0) + (e.missing_punches || 0) + (e.waived_breaks || 0) > 0).length;
   return `Exceptions ${report.from_date} to ${report.to_date}: ${flagged} staff member(s) with flags.`;
+}
+
+// Phase 8 Track D/E: the digest builders. Both reuse the live
+// rollup/report services — never a custom report builder — and both
+// stamp the same snapshot (never a locked close) as every other
+// scheduled report.
+async function buildHqDigest(db, { schedule, fromDate, toDate }) {
+  const brandId = Number(schedule.brand_id);
+  const comparison = await brandService.getStoreComparison(db, {
+    brandId,
+    from: `${fromDate}T00:00:00.000Z`,
+    to: `${toDate}T00:00:00.000Z`,
+  });
+  const restaurants = await brandService.listBrandRestaurants(db, brandId);
+  const policy = await fx.getFxPolicy(db, { brandId });
+  const rateDate = fx.resolveRateDate(policy, toDate);
+  const converted = await fx.convertBreakdown(db, {
+    entries: (comparison.totals || []).map((entry) => ({
+      currencyCode: entry.currencyCode,
+      amountCents: Number(entry.netCollectedCents || 0),
+    })),
+    reportingCurrency: policy.reportingCurrency,
+    rateDate,
+    rateSource: policy.rateSource,
+  });
+  return {
+    ...comparison,
+    converted: { ...converted, isDefaultPolicy: policy.isDefault },
+    restaurantNames: restaurants.map((row) => ({ id: Number(row.id), displayName: row.display_name })),
+  };
+}
+
+async function buildFranchiseDigest(db, { schedule, fromDate, toDate }) {
+  const brandId = Number(schedule.brand_id);
+  const restaurants = await brandService.listBrandRestaurants(db, brandId);
+  return franchiseReportService.getFranchiseReport(db, {
+    brandId,
+    accessibleRestaurantIds: restaurants.map((row) => Number(row.id)),
+    from: fromDate,
+    to: toDate,
+  });
 }
 
 async function buildScheduledReport(db, { restaurant, schedule, businessDate, asOf = new Date() } = {}) {
@@ -97,6 +162,21 @@ async function buildScheduledReport(db, { restaurant, schedule, businessDate, as
     report = await reportsController._computeDailyClose(restaurant.id, restaurant, { date: businessDate });
   } else if (schedule.report_type === 'labor') {
     report = await computeLabor({ restaurant, fromDate, toDate, locationIds });
+  } else if (schedule.report_type === 'hq_digest') {
+    // The anchor restaurant must belong to the digest's brand; a
+    // brand move after creation fails the digest instead of
+    // reporting on a brand the anchor left.
+    const restaurants = await brandService.listBrandRestaurants(db, Number(schedule.brand_id));
+    if (!restaurants.some((row) => Number(row.id) === Number(restaurant.id))) {
+      throw new Error('The anchor restaurant no longer belongs to this digest brand');
+    }
+    report = await buildHqDigest(db, { schedule, fromDate, toDate });
+  } else if (schedule.report_type === 'franchise_digest') {
+    const restaurants = await brandService.listBrandRestaurants(db, Number(schedule.brand_id));
+    if (!restaurants.some((row) => Number(row.id) === Number(restaurant.id))) {
+      throw new Error('The anchor restaurant no longer belongs to this digest brand');
+    }
+    report = await buildFranchiseDigest(db, { schedule, fromDate, toDate });
   } else {
     report = await computeExceptions({ restaurant, fromDate, toDate, locationIds });
   }

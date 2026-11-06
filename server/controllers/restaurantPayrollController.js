@@ -242,7 +242,10 @@ exports.getTipPoolSettings = async (req, res, next) => {
   try {
     const restaurant = await restaurantAccess(req);
     await requireCatalogPermission(restaurant, req.user.id, 'payroll.view', 'payroll_permission_required', 'Required permission: payroll.view');
-    const settings = await payroll.getTipPoolSettings(restaurant.id);
+    const locationId = req.query?.locationId === undefined ? null : strictInteger(req.query.locationId);
+    if (req.query?.locationId !== undefined && !locationId) throw new AppError('Invalid store', 400, 'invalid_location_id');
+    if (locationId) await assertLocationAccess(restaurant, req.user.id, locationId);
+    const settings = await payroll.getTipPoolSettings(restaurant.id, locationId);
     res.json({ settings });
   } catch (err) { next(err); }
 };
@@ -251,16 +254,26 @@ exports.updateTipPoolSettings = async (req, res, next) => {
   try {
     const restaurant = await restaurantAccess(req);
     await requireCatalogPermission(restaurant, req.user.id, 'payroll.manage', 'payroll_permission_required', 'Required permission: payroll.manage');
-    const scope = await getLocationScope(restaurant, req.user.id);
-    if (scope.mode === 'assigned') throw new AppError('Brand settings require all-store access', 403, 'location_scope_forbidden');
     const body = req.body || {};
+    // Phase 8 Track B: a store manager sets their own store's pool;
+    // the restaurant-level pool still needs all-store access, same
+    // as the per-location labor policy.
+    const locationId = body.locationId ?? body.location_id ?? req.query?.locationId;
+    const parsedLocationId = locationId === undefined || locationId === null ? null : strictInteger(locationId);
+    if (locationId !== undefined && locationId !== null && !parsedLocationId) throw new AppError('Invalid store', 400, 'invalid_location_id');
+    if (parsedLocationId) {
+      await assertLocationAccess(restaurant, req.user.id, parsedLocationId);
+    } else {
+      const scope = await getLocationScope(restaurant, req.user.id);
+      if (scope.mode === 'assigned') throw new AppError('Brand settings require all-store access', 403, 'location_scope_forbidden');
+    }
     let settings;
     try {
       settings = await payroll.saveTipPoolSettings(restaurant.id, {
         poolingEnabled: body.pooling_enabled ?? body.poolingEnabled,
         tipOutRules: body.tip_out_rules ?? body.tipOutRules ?? [],
         updatedBy: req.user.id,
-      });
+      }, parsedLocationId);
     } catch (err) {
       if (err && err.code === 'validation_failed') {
         throw new AppError(err.message, 400, 'validation_failed');
@@ -276,6 +289,8 @@ exports.updateTipPoolSettings = async (req, res, next) => {
       after_state: {
         pooling_enabled: settings.pooling_enabled,
         tip_out_rules: settings.tip_out_rules,
+        location_id: settings.location_id ?? null,
+        source: settings.source,
       },
     });
     res.json({ settings });
@@ -532,7 +547,7 @@ function payRunLinesFromLabor(labor) {
   }));
 }
 
-async function insertPayRunLines(client, payRunId, lines) {
+async function insertPayRunLines(client, payRunId, lines, lineLocationId = null) {
   for (const line of lines) {
     await client.query(
       `INSERT INTO restaurant_pay_run_lines
@@ -540,8 +555,9 @@ async function insertPayRunLines(client, payRunId, lines) {
           doubletime_hours, hourly_wage_cents, regular_wages_cents, overtime_wages_cents,
           doubletime_wages_cents, wages_cents, meal_break_premium_cents,
           predictability_premium_cents, unpriced_premium_hours,
-          gross_tips_cents, tip_out_cents, tip_in_cents, net_tips_cents, total_pay_cents)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+          gross_tips_cents, tip_out_cents, tip_in_cents, net_tips_cents, total_pay_cents,
+          location_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
       [
         payRunId,
         line.staff_user_id,
@@ -562,9 +578,35 @@ async function insertPayRunLines(client, payRunId, lines) {
         line.tip_in_cents,
         line.net_tips_cents,
         line.total_pay_cents,
+        lineLocationId,
       ]
     );
   }
+}
+
+// Phase 8 Track B: the explicit store list a run was computed from.
+// An all-store caller has location_ids null, so the run records the
+// restaurant's stores explicitly — a later store list change cannot
+// rewrite what the run covered.
+async function resolveRunLocationIds(clientOrPool, restaurantId, scope) {
+  if (Array.isArray(scope.location_ids) && scope.location_ids.length) {
+    return scope.location_ids.map((id) => Number(id));
+  }
+  const { rows } = await clientOrPool.query(
+    `SELECT id FROM restaurant_locations
+      WHERE restaurant_id = $1 AND status <> 'archived' ORDER BY id`,
+    [restaurantId]
+  );
+  return rows.map((row) => Number(row.id));
+}
+
+// A run's scope label for per-store views. Legacy runs predate
+// scoping (location_ids empty): they covered the whole restaurant
+// and are never silently attributed to one store.
+function payRunScopeLabel(run) {
+  const ids = Array.isArray(run.location_ids) ? run.location_ids.map((id) => Number(id)) : [];
+  if (!ids.length) return 'unscoped_legacy';
+  return ids.length === 1 ? 'single_store' : 'multi_store';
 }
 
 async function getPayRunWithLines(clientOrPool, restaurantId, payRunId) {
@@ -633,6 +675,13 @@ function payRunShape(run) {
     period_to: run.period_to,
     status: run.status,
     totals: run.totals || {},
+    // Phase 8 Track B: the store scope the run was built from and
+    // the currency it was priced in (snapshotted at creation).
+    location_ids: Array.isArray(run.location_ids) ? run.location_ids.map((id) => Number(id)) : [],
+    locationIds: Array.isArray(run.location_ids) ? run.location_ids.map((id) => Number(id)) : [],
+    scope: payRunScopeLabel(run),
+    currency_code: run.currency_code || null,
+    currencyCode: run.currency_code || null,
     created_by: run.created_by,
     finalized_by: run.finalized_by,
     finalized_at: run.finalized_at,
@@ -670,6 +719,7 @@ function payRunShape(run) {
       id: Number(line.id),
       staff_user_id: line.staff_user_id,
       staff_label: line.staff_label,
+      location_id: line.location_id == null ? null : Number(line.location_id),
       regular_hours: Number(line.regular_hours),
       overtime_hours: Number(line.overtime_hours),
       doubletime_hours: Number(line.doubletime_hours || 0),
@@ -697,14 +747,21 @@ exports.createPayRun = async (req, res, next) => {
     const { fromDate, toDate } = parsePayRunPeriodOr400(req.body || {}, restaurant);
     const scope = await getLocationScope(restaurant, req.user.id);
     const labor = await payroll.computeLabor({ restaurant, fromDate, toDate, locationIds: scope.location_ids });
+    // Phase 8 Track B: the run records the stores it was computed
+    // from and the currency it was priced in. Lines carry a store
+    // only when the run covers exactly one store — computeLabor
+    // attributes overtime across stores per employee, so a
+    // multi-store line cannot be split by store after the fact.
+    const locationIds = await resolveRunLocationIds(pool, restaurant.id, scope);
+    const lineLocationId = locationIds.length === 1 ? locationIds[0] : null;
     const run = await withTransaction(pool, async (client) => {
       const { rows: [created] } = await client.query(
-        `INSERT INTO restaurant_pay_runs (restaurant_id, period_from, period_to, status, created_by)
-         VALUES ($1, $2, $3, 'draft', $4)
+        `INSERT INTO restaurant_pay_runs (restaurant_id, period_from, period_to, status, created_by, location_ids, currency_code)
+         VALUES ($1, $2, $3, 'draft', $4, $5::bigint[], $6)
          RETURNING *`,
-        [restaurant.id, fromDate, toDate, req.user.id]
+        [restaurant.id, fromDate, toDate, req.user.id, locationIds, restaurant.currency_code || 'USD']
       );
-      await insertPayRunLines(client, created.id, payRunLinesFromLabor(labor));
+      await insertPayRunLines(client, created.id, payRunLinesFromLabor(labor), lineLocationId);
       return created;
     }, 'restaurant_create_pay_run');
     await logBusinessAction(req, {
@@ -713,7 +770,7 @@ exports.createPayRun = async (req, res, next) => {
       action: 'restaurant.pay_run.created',
       target_type: 'restaurant_pay_run',
       target_id: run.id,
-      after_state: { period_from: fromDate, period_to: toDate, status: 'draft', lines: labor.employees.length },
+      after_state: { period_from: fromDate, period_to: toDate, status: 'draft', lines: labor.employees.length, location_ids: locationIds },
     });
     res.status(201).json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.id)) });
   } catch (err) { next(err); }
@@ -725,18 +782,40 @@ exports.listPayRuns = async (req, res, next) => {
     await requirePayrollView(restaurant, req.user.id);
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
     const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+    // Phase 8 Track B: per-store views. ?locationId= lists runs that
+    // cover that store. A store-scoped reader only ever sees runs
+    // covering their stores — and never a legacy unscoped run, whose
+    // lines span stores they cannot see. An all-store reader sees
+    // every run, with unscoped legacy runs flagged on the shape.
+    const scope = await getLocationScope(restaurant, req.user.id);
+    const requestedLocationId = req.query?.locationId === undefined ? null : strictInteger(req.query.locationId);
+    if (req.query?.locationId !== undefined && !requestedLocationId) throw new AppError('Invalid store', 400, 'invalid_location_id');
+    if (requestedLocationId) await assertLocationAccess(restaurant, req.user.id, requestedLocationId);
+    const params = [restaurant.id];
+    let where = 'pr.restaurant_id = $1';
+    if (scope.mode === 'assigned') {
+      const visible = (Array.isArray(scope.location_ids) ? scope.location_ids.map((id) => Number(id)) : [])
+        .filter((id) => !requestedLocationId || id === requestedLocationId);
+      if (!visible.length) return res.json({ payRuns: [], total: 0, limit, offset });
+      params.push(visible);
+      where += ` AND pr.location_ids && $${params.length}::bigint[]`;
+    } else if (requestedLocationId) {
+      params.push([requestedLocationId]);
+      where += ` AND pr.location_ids @> $${params.length}::bigint[]`;
+    }
+    const countParams = params.slice();
     const { rows } = await pool.query(
       `SELECT pr.*, (SELECT COUNT(*)::int FROM restaurant_pay_run_lines l WHERE l.pay_run_id = pr.id) AS line_count,
               (SELECT COALESCE(SUM(amount_cents), 0)::int FROM restaurant_pay_run_payout_links l WHERE l.pay_run_id = pr.id) AS linked_payout_cents
          FROM restaurant_pay_runs pr
-        WHERE pr.restaurant_id = $1
+        WHERE ${where}
         ORDER BY pr.period_from DESC, pr.id DESC
-        LIMIT $2 OFFSET $3`,
-      [restaurant.id, limit, offset]
+        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
     );
     const { rows: [countRow] } = await pool.query(
-      'SELECT COUNT(*)::int AS total FROM restaurant_pay_runs WHERE restaurant_id = $1',
-      [restaurant.id]
+      `SELECT COUNT(*)::int AS total FROM restaurant_pay_runs pr WHERE ${where}`,
+      countParams
     );
     res.json({
       payRuns: rows.map((row) => ({ ...payRunShape({ ...row, lines: [] }), line_count: row.line_count })),
@@ -744,6 +823,19 @@ exports.listPayRuns = async (req, res, next) => {
     });
   } catch (err) { next(err); }
 };
+
+// Phase 8 Track B: a store-scoped reader only sees runs covering
+// their stores. A legacy unscoped run spans stores they cannot see,
+// so it reads as not found rather than leaking its contents.
+async function assertPayRunInScope(restaurant, userId, run) {
+  const scope = await getLocationScope(restaurant, userId);
+  if (scope.mode !== 'assigned') return;
+  const ids = Array.isArray(run.location_ids) ? run.location_ids.map((id) => Number(id)) : [];
+  const visible = Array.isArray(scope.location_ids) ? scope.location_ids.map((id) => Number(id)) : [];
+  if (!ids.length || !ids.some((id) => visible.includes(id))) {
+    throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+  }
+}
 
 exports.getPayRun = async (req, res, next) => {
   try {
@@ -753,6 +845,7 @@ exports.getPayRun = async (req, res, next) => {
     if (!payRunId) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
     const run = await getPayRunWithLines(pool, restaurant.id, payRunId);
     if (!run) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+    await assertPayRunInScope(restaurant, req.user.id, run);
     res.json({ payRun: payRunShape(run) });
   } catch (err) { next(err); }
 };
@@ -773,6 +866,13 @@ exports.rebuildPayRun = async (req, res, next) => {
       if (existing.status !== 'draft') {
         throw new AppError('Only draft pay runs can be rebuilt', 409, 'pay_run_not_draft');
       }
+      // Phase 8 Track B: a rebuild recomputes the run's own stored
+      // scope, not the caller's current scope — the run's stores are
+      // part of the run. Legacy unscoped runs keep the caller scope.
+      const storedLocationIds = Array.isArray(existing.location_ids)
+        ? existing.location_ids.map((id) => Number(id))
+        : [];
+      const rebuildLocationIds = storedLocationIds.length ? storedLocationIds : scope.location_ids;
       const labor = await payroll.computeLabor({
         restaurant,
         fromDate: existing.period_from instanceof Date
@@ -781,10 +881,15 @@ exports.rebuildPayRun = async (req, res, next) => {
         toDate: existing.period_to instanceof Date
           ? existing.period_to.toISOString().slice(0, 10)
           : String(existing.period_to).slice(0, 10),
-        locationIds: scope.location_ids,
+        locationIds: rebuildLocationIds,
       });
       await client.query('DELETE FROM restaurant_pay_run_lines WHERE pay_run_id = $1', [payRunId]);
-      await insertPayRunLines(client, payRunId, payRunLinesFromLabor(labor));
+      await insertPayRunLines(
+        client,
+        payRunId,
+        payRunLinesFromLabor(labor),
+        rebuildLocationIds && rebuildLocationIds.length === 1 ? Number(rebuildLocationIds[0]) : null
+      );
       const { rows: [updated] } = await client.query(
         'UPDATE restaurant_pay_runs SET updated_at = NOW() WHERE id = $1 RETURNING *',
         [payRunId]
@@ -849,7 +954,9 @@ exports.finalizePayRun = async (req, res, next) => {
       }
       const sum = (pick) => lines.reduce((total, line) => total + (Number(pick(line)) || 0), 0);
       const totals = {
-        currency: restaurant.currency_code || 'USD',
+        // Phase 8 Track B: the run's own currency snapshot prices the
+        // finalized totals, not the restaurant's current currency.
+        currency: existing.currency_code || restaurant.currency_code || 'USD',
         employees: lines.length,
         total_regular_hours: Math.round(sum((l) => l.regular_hours) * 100) / 100,
         total_overtime_hours: Math.round(sum((l) => l.overtime_hours) * 100) / 100,
@@ -884,43 +991,50 @@ exports.finalizePayRun = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// Shared maker-checker approve core: the HQ pay-run approval
+// endpoint (Phase 8 Track D) runs the same checks as the
+// per-restaurant approve, with a different audit action.
+async function approvePayRunTx(client, { restaurantId, payRunId, approverUserId }) {
+  const { rows: [existing] } = await client.query(
+    'SELECT * FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
+    [payRunId, restaurantId]
+  );
+  if (!existing) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+  if (existing.status !== 'finalized') {
+    throw new AppError('Only finalized pay runs can be approved', 409, 'pay_run_not_finalized');
+  }
+  if (existing.approved_by) {
+    throw new AppError('This pay run is already approved', 409, 'pay_run_already_approved');
+  }
+  // Maker-checker, same pattern as dualApprovalService: the user
+  // who finalized the run can never approve it. The DB CHECK on
+  // restaurant_pay_runs is the second line of defense.
+  if (String(existing.finalized_by) === String(approverUserId)) {
+    throw new AppError(
+      'The user who finalized a pay run cannot approve it; a different payroll manager must approve',
+      403,
+      'pay_run_self_approval'
+    );
+  }
+  const { rows: [updated] } = await client.query(
+    `UPDATE restaurant_pay_runs
+        SET approved_by = $2, approved_at = NOW(), updated_at = NOW()
+      WHERE id = $1
+      RETURNING *`,
+    [payRunId, approverUserId]
+  );
+  return updated;
+}
+
 exports.approvePayRun = async (req, res, next) => {
   try {
     const restaurant = await restaurantAccess(req);
     await requirePayrollManage(restaurant, req.user.id);
     const payRunId = parsePositiveInt(req.params.payRunId);
     if (!payRunId) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
-    const run = await withTransaction(pool, async (client) => {
-      const { rows: [existing] } = await client.query(
-        'SELECT * FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
-        [payRunId, restaurant.id]
-      );
-      if (!existing) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
-      if (existing.status !== 'finalized') {
-        throw new AppError('Only finalized pay runs can be approved', 409, 'pay_run_not_finalized');
-      }
-      if (existing.approved_by) {
-        throw new AppError('This pay run is already approved', 409, 'pay_run_already_approved');
-      }
-      // Maker-checker, same pattern as dualApprovalService: the user
-      // who finalized the run can never approve it. The DB CHECK on
-      // restaurant_pay_runs is the second line of defense.
-      if (String(existing.finalized_by) === String(req.user.id)) {
-        throw new AppError(
-          'The user who finalized a pay run cannot approve it; a different payroll manager must approve',
-          403,
-          'pay_run_self_approval'
-        );
-      }
-      const { rows: [updated] } = await client.query(
-        `UPDATE restaurant_pay_runs
-            SET approved_by = $2, approved_at = NOW(), updated_at = NOW()
-          WHERE id = $1
-          RETURNING *`,
-        [payRunId, req.user.id]
-      );
-      return updated;
-    }, 'restaurant_approve_pay_run');
+    const run = await withTransaction(pool, async (client) =>
+      approvePayRunTx(client, { restaurantId: restaurant.id, payRunId, approverUserId: req.user.id }),
+    'restaurant_approve_pay_run');
     await logBusinessAction(req, {
       business_id: restaurant.business_id,
       actor_role: restaurant.effective_role || null,
@@ -932,6 +1046,10 @@ exports.approvePayRun = async (req, res, next) => {
     res.json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.id)) });
   } catch (err) { next(err); }
 };
+
+exports._approvePayRunTx = approvePayRunTx;
+exports._payRunShape = payRunShape;
+exports._getPayRunWithLines = getPayRunWithLines;
 
 // Phase 5: nothing leaves a finalized run (export file or payout
 // link) until a second payroll manager has approved it. Paid runs
@@ -1010,6 +1128,7 @@ exports.exportPayRunCsv = async (req, res, next) => {
     if (!payRunId) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
     const run = await getPayRunWithLines(pool, restaurant.id, payRunId);
     if (!run) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+    await assertPayRunInScope(restaurant, req.user.id, run);
     if (run.status === 'draft') {
       throw new AppError('Only finalized pay runs can be exported', 409, 'pay_run_not_finalized');
     }
@@ -1026,8 +1145,29 @@ exports.exportPayRunCsv = async (req, res, next) => {
     const periodTo = run.period_to instanceof Date
       ? run.period_to.toISOString().slice(0, 10)
       : String(run.period_to).slice(0, 10);
-    const runCurrency = restaurant.currency_code || 'USD';
-    const runTotal = (run.lines || []).reduce((sum, line) => sum + (Number(line.total_pay_cents) || 0), 0);
+    // Phase 8 Track B: the run's own currency snapshot prices the
+    // export, not the restaurant's current currency.
+    const runCurrency = run.currency_code || restaurant.currency_code || 'USD';
+    // Per-store export: a run's lines carry a store only when the run
+    // covers exactly one store. Exporting one store out of a
+    // multi-store run would misattribute shared lines, so it fails
+    // closed — the per-store labor report is the store-level view
+    // for multi-store runs.
+    const exportLocationId = req.query?.locationId === undefined ? null : strictInteger(req.query.locationId);
+    if (req.query?.locationId !== undefined && !exportLocationId) throw new AppError('Invalid store', 400, 'invalid_location_id');
+    let exportLines = run.lines || [];
+    if (exportLocationId) {
+      const runLocationIds = Array.isArray(run.location_ids) ? run.location_ids.map((id) => Number(id)) : [];
+      if (runLocationIds.length !== 1 || runLocationIds[0] !== exportLocationId) {
+        throw new AppError(
+          'Only a pay run built for exactly that store can be exported per store; this run covers other stores',
+          409,
+          'pay_run_not_store_scoped'
+        );
+      }
+      exportLines = exportLines.filter((line) => line.location_id == null || Number(line.location_id) === exportLocationId);
+    }
+    const runTotal = exportLines.reduce((sum, line) => sum + (Number(line.total_pay_cents) || 0), 0);
     // Phase 5 provider export: the same approved, finalized lines in a
     // payroll-provider import shape (ADP / Gusto / QuickBooks Payroll).
     // No tax columns: withholding and filing stay with the provider.
@@ -1044,18 +1184,18 @@ exports.exportPayRunCsv = async (req, res, next) => {
         'regular_wages_cents', 'overtime_wages_cents', 'doubletime_wages_cents',
         'meal_break_premium_cents', 'predictability_premium_cents',
         'gross_tips_cents', 'tip_out_cents', 'tip_in_cents', 'net_tips_cents',
-        'total_pay_cents', 'currency_code',
+        'total_pay_cents', 'currency_code', 'location_id',
       ];
       const providerLines = [
         `# Payroll provider export — run ${run.id}, ${periodFrom} to ${periodTo}, status ${run.status}, approved ${run.approved_at || 'n/a'}, total ${formatMinorUnits(runTotal, runCurrency)}`,
         providerHeader.join(','),
-        ...run.lines.map((line) => [
+        ...exportLines.map((line) => [
           line.staff_label, line.staff_user_id, periodFrom, periodTo,
           line.regular_hours, line.overtime_hours, line.doubletime_hours,
           line.regular_wages_cents, line.overtime_wages_cents, line.doubletime_wages_cents,
           line.meal_break_premium_cents, line.predictability_premium_cents,
           line.gross_tips_cents, line.tip_out_cents, line.tip_in_cents, line.net_tips_cents,
-          line.total_pay_cents, runCurrency,
+          line.total_pay_cents, runCurrency, line.location_id ?? '',
         ].map(csvCell).join(',')),
       ];
       await logBusinessAction(req, {
@@ -1064,7 +1204,7 @@ exports.exportPayRunCsv = async (req, res, next) => {
         action: 'restaurant.pay_run.exported',
         target_type: 'restaurant_pay_run',
         target_id: run.id,
-        metadata: { status: run.status, employees: run.lines.length, format: 'provider' },
+        metadata: { status: run.status, employees: exportLines.length, format: 'provider', location_id: exportLocationId },
       });
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="pay-run-${run.id}-${periodFrom}-to-${periodTo}-provider.csv"`);
@@ -1076,15 +1216,17 @@ exports.exportPayRunCsv = async (req, res, next) => {
       'hourly_wage_cents', 'regular_wages_cents', 'overtime_wages_cents', 'doubletime_wages_cents', 'wages_cents',
       'meal_break_premium_cents', 'predictability_premium_cents',
       'gross_tips_cents', 'tip_out_cents', 'tip_in_cents', 'net_tips_cents', 'total_pay_cents',
+      'location_id',
     ];
     const lines = [
       `# OxSteed payroll export — run ${run.id}, ${periodFrom} to ${periodTo}, status ${run.status}, finalized ${run.finalized_at || 'n/a'}, approved ${run.approved_at || 'n/a'}, total ${formatMinorUnits(runTotal, runCurrency)}`,
       header.join(','),
-      ...run.lines.map((line) => [
+      ...exportLines.map((line) => [
         line.staff_label, line.staff_user_id, line.regular_hours, line.overtime_hours, line.doubletime_hours,
         line.hourly_wage_cents, line.regular_wages_cents, line.overtime_wages_cents, line.doubletime_wages_cents, line.wages_cents,
         line.meal_break_premium_cents, line.predictability_premium_cents,
         line.gross_tips_cents, line.tip_out_cents, line.tip_in_cents, line.net_tips_cents, line.total_pay_cents,
+        line.location_id ?? '',
       ].map(csvCell).join(',')),
     ];
     await logBusinessAction(req, {
@@ -1093,7 +1235,7 @@ exports.exportPayRunCsv = async (req, res, next) => {
       action: 'restaurant.pay_run.exported',
       target_type: 'restaurant_pay_run',
       target_id: run.id,
-      metadata: { status: run.status, employees: run.lines.length },
+      metadata: { status: run.status, employees: exportLines.length, location_id: exportLocationId },
     });
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="pay-run-${run.id}-${periodFrom}-to-${periodTo}.csv"`);

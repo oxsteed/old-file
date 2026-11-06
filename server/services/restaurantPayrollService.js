@@ -185,23 +185,70 @@ function normalizeTipOutRules(rules) {
   return normalized;
 }
 
-async function getTipPoolSettings(restaurantId) {
+async function getTipPoolSettings(restaurantId, locationId = null) {
+  // Phase 8 Track B: a store's own tip-pool row wins; otherwise the
+  // restaurant-level row is the fallback (same shape as the Phase 1
+  // per-location labor policies). The `source` field says which one
+  // answered so a store manager can see the fallback is in effect.
+  if (locationId != null) {
+    const { rows: [locationRow] } = await pool.query(
+      `SELECT restaurant_id, location_id, pooling_enabled, tip_out_rules, updated_by, updated_at
+         FROM restaurant_location_tip_pool_settings
+        WHERE restaurant_id = $1 AND location_id = $2`,
+      [restaurantId, locationId]
+    );
+    if (locationRow) {
+      return {
+        restaurant_id: restaurantId,
+        location_id: Number(locationRow.location_id),
+        pooling_enabled: locationRow.pooling_enabled === true,
+        tip_out_rules: normalizeTipOutRules(Array.isArray(locationRow.tip_out_rules) ? locationRow.tip_out_rules : []),
+        updated_by: locationRow.updated_by,
+        updated_at: locationRow.updated_at,
+        source: 'location',
+      };
+    }
+  }
   const { rows: [row] } = await pool.query(
     'SELECT restaurant_id, pooling_enabled, tip_out_rules, updated_by, updated_at FROM restaurant_tip_pool_settings WHERE restaurant_id = $1',
     [restaurantId]
   );
-  if (!row) return { restaurant_id: restaurantId, pooling_enabled: false, tip_out_rules: [], updated_by: null, updated_at: null };
+  if (!row) return { restaurant_id: restaurantId, location_id: locationId != null ? Number(locationId) : null, pooling_enabled: false, tip_out_rules: [], updated_by: null, updated_at: null, source: 'restaurant_fallback' };
   return {
     restaurant_id: row.restaurant_id,
+    location_id: locationId != null ? Number(locationId) : null,
     pooling_enabled: row.pooling_enabled === true,
     tip_out_rules: normalizeTipOutRules(Array.isArray(row.tip_out_rules) ? row.tip_out_rules : []),
     updated_by: row.updated_by,
     updated_at: row.updated_at,
+    source: 'restaurant_fallback',
   };
 }
 
-async function saveTipPoolSettings(restaurantId, { poolingEnabled, tipOutRules, updatedBy }) {
+async function saveTipPoolSettings(restaurantId, { poolingEnabled, tipOutRules, updatedBy }, locationId = null) {
   const rules = normalizeTipOutRules(tipOutRules || []);
+  if (locationId != null) {
+    const { rows: [row] } = await pool.query(
+      `INSERT INTO restaurant_location_tip_pool_settings (restaurant_id, location_id, pooling_enabled, tip_out_rules, updated_by)
+       VALUES ($1, $2, $3, $4::jsonb, $5)
+       ON CONFLICT (restaurant_id, location_id) DO UPDATE
+         SET pooling_enabled = EXCLUDED.pooling_enabled,
+             tip_out_rules = EXCLUDED.tip_out_rules,
+             updated_by = EXCLUDED.updated_by,
+             updated_at = NOW()
+       RETURNING restaurant_id, location_id, pooling_enabled, tip_out_rules, updated_by, updated_at`,
+      [restaurantId, locationId, poolingEnabled === true, JSON.stringify(rules), updatedBy || null]
+    );
+    return {
+      restaurant_id: row.restaurant_id,
+      location_id: Number(row.location_id),
+      pooling_enabled: row.pooling_enabled === true,
+      tip_out_rules: normalizeTipOutRules(Array.isArray(row.tip_out_rules) ? row.tip_out_rules : []),
+      updated_by: row.updated_by,
+      updated_at: row.updated_at,
+      source: 'location',
+    };
+  }
   const { rows: [row] } = await pool.query(
     `INSERT INTO restaurant_tip_pool_settings (restaurant_id, pooling_enabled, tip_out_rules, updated_by)
      VALUES ($1, $2, $3::jsonb, $4)
@@ -213,7 +260,15 @@ async function saveTipPoolSettings(restaurantId, { poolingEnabled, tipOutRules, 
      RETURNING restaurant_id, pooling_enabled, tip_out_rules, updated_by, updated_at`,
     [restaurantId, poolingEnabled === true, JSON.stringify(rules), updatedBy || null]
   );
-  return row;
+  return {
+    restaurant_id: row.restaurant_id,
+    location_id: null,
+    pooling_enabled: row.pooling_enabled === true,
+    tip_out_rules: normalizeTipOutRules(Array.isArray(row.tip_out_rules) ? row.tip_out_rules : []),
+    updated_by: row.updated_by,
+    updated_at: row.updated_at,
+    source: 'restaurant_fallback',
+  };
 }
 
 async function declareCashTip(restaurantId, { staffUserId, businessDate, amountCents, declaredBy, note, locationId = null, idempotencyKey = null, status = 'confirmed' }) {
@@ -1064,7 +1119,15 @@ async function computeTipAllocations({ restaurant, fromDate, toDate, locationIds
   const timezone = resolveReportTimezone(restaurant);
   const restaurantId = restaurant.id;
   const businessId = restaurant.business_id;
-  const settings = await getTipPoolSettings(restaurantId);
+  const settings = await getTipPoolSettings(
+    restaurantId,
+    // Phase 8 Track B: a single-store computation prices tips with
+    // that store's own pool settings. A multi-store computation
+    // cannot price one pool two ways, so it keeps the
+    // restaurant-level fallback — the per-store split is visible in
+    // the per-store labor view, not inside one pooled allocation.
+    Array.isArray(locationIds) && locationIds.length === 1 ? Number(locationIds[0]) : null
+  );
   const [orderTips, cashTips, roster, hoursByUser] = await Promise.all([
     getOrderTips(restaurantId, fromDate, toDate, timezone, locationIds),
     getDeclaredCashTips(restaurantId, fromDate, toDate, locationIds),

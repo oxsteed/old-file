@@ -223,6 +223,29 @@ router.post('/:restaurantId/hq/menu/publish', requireRestaurantAccess(), hq.publ
 router.get('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.listRegions);
 router.post('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.createRegion);
 router.patch('/:restaurantId/hq/regions/:regionId', requireRestaurantAccess(), hq.updateRegion);
+// Phase 8 Track A: FX policy (reporting currency, rate source, rate
+// date) and stored exchange rates. No live feed: rates are data an
+// admin enters or imports.
+router.get('/:restaurantId/hq/fx-policy', requireRestaurantAccess(), hq.getFxPolicy);
+router.put('/:restaurantId/hq/fx-policy', requireRestaurantAccess(), hq.updateFxPolicy);
+router.get('/:restaurantId/hq/fx-rates', requireRestaurantAccess(), hq.listFxRates);
+router.post('/:restaurantId/hq/fx-rates', requireRestaurantAccess(), hq.createFxRate);
+// Phase 8 Track D: HQ-level pay-run approval (maker-checker, same
+// core as the per-restaurant approve) and per-location labor-policy
+// administration from HQ.
+router.post('/:restaurantId/hq/pay-runs/:payRunId/approve', requireRestaurantAccess(), hq.approvePayRun);
+router.get('/:restaurantId/hq/labor-policies', requireRestaurantAccess(), hq.listLaborPolicies);
+router.put('/:restaurantId/hq/labor-policies/:locationId', requireRestaurantAccess(), hq.updateStoreLaborPolicy);
+// Phase 8 Track D: inter-store labor borrowing and the shared-roster
+// read a scheduler uses to place a worker at another store.
+const laborBorrows = require('../controllers/restaurantLaborBorrowController');
+router.get('/:restaurantId/labor-borrows', requireRestaurantAccess(), laborBorrows.listBorrows);
+router.post('/:restaurantId/labor-borrows', requireRestaurantAccess(), laborBorrows.requestBorrow);
+router.post('/:restaurantId/labor-borrows/:borrowId/approve', requireRestaurantAccess(), laborBorrows.approveBorrow);
+router.post('/:restaurantId/labor-borrows/:borrowId/decline', requireRestaurantAccess(), laborBorrows.declineBorrow);
+router.post('/:restaurantId/labor-borrows/:borrowId/cancel', requireRestaurantAccess(), laborBorrows.cancelBorrow);
+router.post('/:restaurantId/labor-borrows/:borrowId/complete', requireRestaurantAccess(), laborBorrows.completeBorrow);
+router.get('/:restaurantId/shared-roster', requireRestaurantAccess(), laborBorrows.getSharedRoster);
 router.get('/:restaurantId/accounting/integrations', requireRestaurantAccess(), accounting.list);
 router.get('/:restaurantId/accounting/exports', requireRestaurantAccess(), accounting.listExports);
 router.post('/:restaurantId/accounting/:provider/oauth/start', requireRestaurantAccess(), accounting.startOAuth);
