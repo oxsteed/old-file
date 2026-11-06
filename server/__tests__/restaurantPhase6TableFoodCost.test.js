@@ -238,6 +238,29 @@ describe('Phase 6: plate cost and margin', () => {
     expect(cost.margin_cents).toBe(1497);
   });
 
+  test('CLP (0 decimals, missing from the old local table) prices like JPY, not like USD', async () => {
+    mockFoodCostQueries({ restaurantCurrency: 'CLP', itemCurrency: 'CLP' });
+    const cost = await computeMenuItemFoodCost(client, { restaurantId: 3, menuItemId: 41 });
+    // Plate cost 3.10 major units = 3 minor units at 0 decimals
+    // (the old table defaulted CLP to 100 minor units per major, so
+    // it reported 310). Price 1500 minor units, margin 1497.
+    expect(cost.cost_cents).toBe(3);
+    expect(cost.margin_cents).toBe(1497);
+    expect(cost.components[0].line_cost_cents).toBe(3);
+  });
+
+  test('JOD (3 decimals, missing from the old local table) prices in fils, not cents', async () => {
+    mockFoodCostQueries({ restaurantCurrency: 'JOD', itemCurrency: 'JOD' });
+    const cost = await computeMenuItemFoodCost(client, { restaurantId: 3, menuItemId: 41 });
+    // Plate cost 3.10 major units = 3100 fils at 3 decimals (the
+    // old table defaulted JOD to 100 minor units per major, so it
+    // reported 310). Lines: 2500 + 600 fils.
+    expect(cost.cost_cents).toBe(3100);
+    expect(cost.margin_cents).toBe(1500 - 3100);
+    expect(cost.components[0].line_cost_cents).toBe(2500);
+    expect(cost.components[1].line_cost_cents).toBe(600);
+  });
+
   test('margin-sorted list puts the lowest margin first and null margins last', async () => {
     mockQuery.mockImplementation(async (sql) => {
       if (sql.startsWith('SELECT currency_code FROM food_restaurants')) return { rows: [restaurantRow] };

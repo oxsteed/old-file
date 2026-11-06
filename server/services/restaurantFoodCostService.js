@@ -12,14 +12,12 @@
 // (JPY 0, BHD 3, most 2) instead of a hardcoded 100.
 
 const { AppError } = require('../middleware/errorHandler');
-
-// Minor units per major unit, by ISO 4217 currency. Only the currencies
-// with a non-2 exponent need entries; everything else defaults to 100.
-const MINOR_UNITS = { JPY: 1, KRW: 1, VND: 1, BHD: 1000, KWD: 1000, OMR: 1000, TND: 1000 };
-
-function minorUnitsPerMajor(currencyCode) {
-  return MINOR_UNITS[String(currencyCode || '').toUpperCase()] || 100;
-}
+// Minor-unit precision comes from the shared ISO 4217 module, never
+// from a local copy: a local table drifts (it once listed only
+// JPY/KRW/VND as 0-decimal and BHD/KWD/OMR/TND as 3-decimal, missing
+// CLP, JOD and the rest) and silently misprices every dish in the
+// missing currencies.
+const { minorUnitsPerMajor } = require('../utils/currencyPrecision');
 
 function costLine(row) {
   const required = Number(row.required_quantity) || 0;
