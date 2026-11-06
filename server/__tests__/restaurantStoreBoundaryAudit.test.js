@@ -33,6 +33,10 @@ const STORE_TABLES = [
   'restaurant_inventory_audit_events',
   'restaurant_inventory_availability_events',
   'restaurant_inventory_items',
+  // Phase 6 (gap 14): lots carry the store so FEFO consumption and the
+  // lots list stay store-scoped; lot consumptions are order-scoped
+  // (restaurant_id only) and modifier mappings are restaurant-scoped.
+  'restaurant_inventory_lots',
   'restaurant_inventory_order_reservations',
   'restaurant_inventory_purchase_requests',
   'restaurant_inventory_receipts',
