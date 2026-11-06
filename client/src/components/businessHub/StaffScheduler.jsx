@@ -20,6 +20,15 @@ export function StaffScheduler({ businessId, isManager = false }) {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ user_id: '', shift_start: '', shift_end: '', role: '', notes: '' });
+  const [editingId, setEditingId] = useState(null);
+  // Phase 4 Track A: structured violations block the save and are shown
+  // inline on the form; availability warnings ride along with a
+  // successful save instead of blocking it.
+  const [formViolations, setFormViolations] = useState([]);
+  const [saveWarnings, setSaveWarnings] = useState([]);
+  // Phase 4 Track A: manager swap-approval queue (target-accepted only).
+  const [swapRequests, setSwapRequests] = useState([]);
+  const [swapViolations, setSwapViolations] = useState({});
   // Review P1-5-F02: shifts only feed availability when they carry the staff
   // member's user id, so the form requires picking a team member.
   const [staffMembers, setStaffMembers] = useState([]);
@@ -64,6 +73,60 @@ export function StaffScheduler({ businessId, isManager = false }) {
     try { const res = await api.get(`/businesses/${businessId}/staff/shifts`); setShifts(res.data || []); }
     catch { toast.error(t('businessHub.staffScheduler.toastLoadShiftsFail')); }
     finally { setLoading(false); }
+    loadSwaps();
+  };
+
+  // Phase 4 Track A: the manager approves swaps from this surface. Only
+  // target-accepted requests wait on a manager; the rest are not theirs
+  // to decide yet.
+  const loadSwaps = async () => {
+    if (!isManager) { setSwapRequests([]); return; }
+    try {
+      const res = await api.get(`/businesses/${businessId}/staff/shift-swaps`);
+      setSwapRequests((res.data?.requests || []).filter((r) => r.status === 'target_accepted'));
+    } catch { setSwapRequests([]); }
+  };
+
+  const decideSwap = async (id, decision) => {
+    setSwapViolations((prev) => ({ ...prev, [id]: [] }));
+    try {
+      await api.post(`/businesses/${businessId}/staff/shift-swaps/${id}/${decision}`, {});
+      toast.success(t(decision === 'approve' ? 'businessHub.staffScheduler.swaps.approved' : 'businessHub.staffScheduler.swaps.rejected'));
+      loadSwaps();
+      loadShifts();
+    } catch (err) {
+      const violations = err?.response?.data?.violations;
+      if (err?.response?.status === 409 && Array.isArray(violations) && violations.length) {
+        setSwapViolations((prev) => ({ ...prev, [id]: violations }));
+        return;
+      }
+      toast.error(t(decision === 'approve' ? 'businessHub.staffScheduler.swaps.approveFail' : 'businessHub.staffScheduler.swaps.rejectFail'));
+    }
+  };
+
+  // Phase 4 Track A: each violation code maps to one static locale key
+  // so the message is localized from the code + params, never from
+  // English sent by the server. Unknown codes fall back to the key the
+  // server sent, then to the code itself.
+  const violationText = (v) => {
+    const p = v.params || {};
+    switch (v.code) {
+      case 'shift_overlap': return t('businessHub.staffScheduler.validation.shiftOverlap', p);
+      case 'time_off_overlap': return t('businessHub.staffScheduler.validation.timeOffOverlap', p);
+      case 'availability_outside_window': return t('businessHub.staffScheduler.validation.availabilityOutsideWindow', p);
+      case 'availability_no_window': return t('businessHub.staffScheduler.validation.availabilityNoWindow', p);
+      case 'minor_daily_hours': return t('businessHub.staffScheduler.validation.minorDailyHours', p);
+      case 'minor_weekly_hours': return t('businessHub.staffScheduler.validation.minorWeeklyHours', p);
+      case 'minor_latest_end': return t('businessHub.staffScheduler.validation.minorLatestEnd', p);
+      case 'minor_under16_daily_hours': return p.schoolDay === 'school'
+        ? t('businessHub.staffScheduler.validation.minorUnder16DailyHoursSchool', p)
+        : t('businessHub.staffScheduler.validation.minorUnder16DailyHoursNonSchool', p);
+      case 'minor_under16_weekly_hours': return p.schoolDay === 'school'
+        ? t('businessHub.staffScheduler.validation.minorUnder16WeeklyHoursSchool', p)
+        : t('businessHub.staffScheduler.validation.minorUnder16WeeklyHoursNonSchool', p);
+      case 'minor_under16_window': return t('businessHub.staffScheduler.validation.minorUnder16Window', p);
+      default: return v.message_key ? t(v.message_key, p) : v.code;
+    }
   };
 
   const loadTime = async () => {
@@ -110,8 +173,45 @@ export function StaffScheduler({ businessId, isManager = false }) {
   const saveShift = async () => {
     if (!form.user_id) return toast.error(t('businessHub.staffScheduler.toastStaffRequired'));
     if (!form.shift_start || !form.shift_end) return toast.error(t('businessHub.staffScheduler.toastShiftTimesRequired'));
-    try { await api.post(`/businesses/${businessId}/staff/shifts`, { ...form }); toast.success(t('businessHub.staffScheduler.toastShiftAdded')); setShowForm(false); setForm({ user_id: '', shift_start: '', shift_end: '', role: '', notes: '' }); loadShifts(); }
-    catch { toast.error(t('businessHub.staffScheduler.toastShiftSaveFail')); }
+    setFormViolations([]);
+    try {
+      const res = editingId
+        ? await api.put(`/businesses/${businessId}/staff/shifts/${editingId}`, { ...form })
+        : await api.post(`/businesses/${businessId}/staff/shifts`, { ...form });
+      toast.success(t(editingId ? 'businessHub.staffScheduler.toastShiftUpdated' : 'businessHub.staffScheduler.toastShiftAdded'));
+      // Phase 4 Track A: availability warnings do not block the save;
+      // they are shown above the shift list until dismissed.
+      if (res.data?.warnings?.length) setSaveWarnings(res.data.warnings);
+      setShowForm(false); setEditingId(null); setForm({ user_id: '', shift_start: '', shift_end: '', role: '', notes: '' }); loadShifts();
+    } catch (err) {
+      const violations = err?.response?.data?.violations;
+      if (err?.response?.status === 409 && Array.isArray(violations) && violations.length) {
+        setFormViolations(violations);
+        return;
+      }
+      toast.error(t('businessHub.staffScheduler.toastShiftSaveFail'));
+    }
+  };
+
+  // Phase 4 Track A: the same form edits a shift, so update-time
+  // conflicts surface inline exactly like create-time ones.
+  const startEdit = (s) => {
+    setForm({
+      user_id: s.user_id || '',
+      shift_start: String(s.shift_start || '').slice(0, 16),
+      shift_end: String(s.shift_end || '').slice(0, 16),
+      role: s.role || '',
+      notes: s.notes || '',
+    });
+    setEditingId(s.id);
+    setFormViolations([]);
+    setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setFormViolations([]);
   };
 
   // S-24: deletion goes through ConfirmDialog; the actual delete runs here.
@@ -243,6 +343,24 @@ export function StaffScheduler({ businessId, isManager = false }) {
         </div>
       )}
 
+      {/* Phase 4 Track A: availability warnings from a saved shift. The
+          save went through; these are notes for the manager, not errors. */}
+      {saveWarnings.length > 0 && (
+        <div role="status" style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <strong style={{ fontSize: '0.875rem' }}>{t('businessHub.staffScheduler.validation.warningsTitle')}</strong>
+            <button type="button" onClick={() => setSaveWarnings([])} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }} aria-label={t('common.dismiss')} data-track="ui.34ed3b0a4c.20">
+              ✕
+            </button>
+          </div>
+          <ul style={{ margin: 0, paddingInlineStart: '1.25rem', fontSize: '0.8125rem' }}>
+            {saveWarnings.map((w, i) => (
+              <li key={i}>{violationText(w)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* S-24: real tab semantics — tablist/tab/tabpanel with aria-selected. */}
       <div role="tablist" aria-label={t('businessHub.staffScheduler.title')} onKeyDown={onTabKeyDown} style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
         {tabDefs.map(([id, label, icon]) => (
@@ -265,7 +383,7 @@ export function StaffScheduler({ businessId, isManager = false }) {
       <div role="tabpanel" id={`staff-sched-panel-${tab}`} aria-labelledby={`staff-sched-tab-${tab}`}>
       {showForm && tab === 'shifts' && (
         <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
-          <h4 style={{ margin: '0 0 1rem' }}>{t('businessHub.staffScheduler.newShift')}</h4>
+          <h4 style={{ margin: '0 0 1rem' }}>{t(editingId ? 'businessHub.staffScheduler.editShift' : 'businessHub.staffScheduler.newShift')}</h4>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label htmlFor={staffFieldId} style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.fields.staff')}</label>
@@ -289,15 +407,66 @@ export function StaffScheduler({ businessId, isManager = false }) {
               <input id={roleFieldId} type="text" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', boxSizing: 'border-box' }} />
             </div>
           </div>
+          {/* Phase 4 Track A: blocking conflicts stay on the form until fixed. */}
+          {formViolations.length > 0 && (
+            <div role="alert" style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '0.5rem' }}>
+              <strong style={{ fontSize: '0.875rem' }}>{t('businessHub.staffScheduler.validation.title')}</strong>
+              <ul style={{ margin: '0.5rem 0 0', paddingInlineStart: '1.25rem', fontSize: '0.8125rem' }}>
+                {formViolations.map((v, i) => (
+                  <li key={i}>{violationText(v)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button onClick={() => setShowForm(false)} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }} data-track="ui.34ed3b0a4c.4">{t('common.cancel')}</button>
+            <button onClick={closeForm} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }} data-track="ui.34ed3b0a4c.4">{t('common.cancel')}</button>
             <button onClick={saveShift} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.34ed3b0a4c.5">{t('common.save')}</button>
           </div>
         </div>
       )}
 
       {loading ? <p style={{ color: 'var(--muted-text)' }}>{t('common.loading')}</p> : tab === 'shifts' ? (
-        shifts.length === 0 ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-text)' }}><Users size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} /><p>{t('businessHub.staffScheduler.emptyShifts')}</p></div>
+        <>
+          {/* Phase 4 Track A: swaps the target already accepted, waiting on
+              a manager. A validation failure stays on the request inline;
+              the swap stays pending so it can be approved once fixed. */}
+          {isManager && swapRequests.length > 0 && (
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 1rem' }}>{t('businessHub.staffScheduler.swaps.title')}</h4>
+              {swapRequests.map((r) => {
+                const requester = staffMembers.find((m) => String(m.user_id) === String(r.requester_user_id));
+                const target = staffMembers.find((m) => String(m.user_id) === String(r.target_user_id));
+                const violations = swapViolations[r.id] || [];
+                return (
+                  <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', borderTop: '1px solid var(--border-color)', padding: '0.75rem 0' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>
+                        {fmtDate(r.shift_date)} · {String(r.start_time || '').slice(0, 5)} – {String(r.end_time || '').slice(0, 5)}{r.role_label ? ` · ${r.role_label}` : ''}
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>
+                        {t('businessHub.staffScheduler.swaps.requestedBy', { name: requester ? staffName(requester) : '' })} · {t('businessHub.staffScheduler.swaps.offeredTo', { name: target ? staffName(target) : '' })}
+                      </div>
+                      {violations.length > 0 && (
+                        <div role="alert" style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '0.5rem', fontSize: '0.8125rem' }}>
+                          <strong>{t('businessHub.staffScheduler.validation.title')}</strong>
+                          <ul style={{ margin: '0.25rem 0 0', paddingInlineStart: '1.25rem' }}>
+                            {violations.map((v, i) => (
+                              <li key={i}>{violationText(v)}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button onClick={() => decideSwap(r.id, 'approve')} style={{ padding: '0.4rem 0.75rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.18">{t('businessHub.staffScheduler.swaps.approve')}</button>
+                      <button onClick={() => decideSwap(r.id, 'reject')} style={{ padding: '0.4rem 0.75rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.19">{t('businessHub.staffScheduler.swaps.reject')}</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {shifts.length === 0 ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-text)' }}><Users size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} /><p>{t('businessHub.staffScheduler.emptyShifts')}</p></div>
         : shifts.map(s => (
           <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.75rem 1rem', marginBottom: '0.5rem' }}>
             <div style={{ flex: 1 }}>
@@ -307,9 +476,11 @@ export function StaffScheduler({ businessId, isManager = false }) {
               </div>
               <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>{new Date(s.shift_start).toLocaleString(i18n.language)} – {new Date(s.shift_end).toLocaleString(i18n.language)}</div>
             </div>
+            {isManager && <button onClick={() => startEdit(s)} aria-label={t('businessHub.staffScheduler.editShiftLabel', { name: s.user_name || '' })} style={{ padding: '0.4rem 0.75rem', border: '1px solid var(--border-color)', background: 'transparent', cursor: 'pointer', color: 'var(--app-text)', borderRadius: '0.5rem', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.17">{t('common.edit')}</button>}
             <button onClick={() => setDeleteTarget(s.id)} aria-label={t('businessHub.staffScheduler.deleteShiftLabel')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.34ed3b0a4c.6"><Trash2 size={14} /></button>
           </div>
-        ))
+        ))}
+        </>
       ) : tab === 'time' ? (
         <div>
           {isManager && (

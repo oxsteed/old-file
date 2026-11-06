@@ -4,9 +4,9 @@
 // requests. A request waits on the target first: only after the
 // target accepts does it wait on a manager, and a target decline
 // closes it. Manager approval stays in the existing manager surfaces;
-// this panel never approves or rejects. No conflict validation runs
-// at request or approval time (overlap, time-off, availability, minor
-// checks are Phase 4).
+// this panel never approves or rejects. Phase 4 Track A validates the
+// reassignment at approval time (overlap, time-off, availability,
+// minor checks); the request itself is not validated.
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
