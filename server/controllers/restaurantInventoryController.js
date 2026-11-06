@@ -18,6 +18,7 @@ const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { computeMenuItemFoodCost, listMenuFoodCosts } = require('../services/restaurantFoodCostService');
+const { draftAutoReorderRequests } = require('../services/restaurantInventoryReorderService');
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
 const { logInventoryAudit } = require('../services/restaurantInventoryAuditService');
 const restaurantLocationService = require('../services/restaurantLocationService');
@@ -1361,6 +1362,34 @@ exports.deleteModifierMapping = async (req, res, next) => {
       return { mapping };
     });
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Auto-reorder drafts (Phase 6, gap 14) ────────────────────────────────
+// Drafts purchase requests for items below their reorder point. Drafts
+// only: nothing is ordered or approved here; a manager reviews the drafts
+// in the purchase-request list like any manual request.
+exports.draftAutoReorders = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, UPDATE_INVENTORY);
+    const locationIds = restaurant.locationScope?.mode === 'assigned'
+      ? restaurant.locationScope.location_ids
+      : null;
+    const result = await draftAutoReorderRequests(pool, {
+      restaurantId,
+      locationIds,
+      actorUserId: req.user.id,
+    });
+    res.status(201).json({
+      drafted: result.created,
+      skipped: result.skipped,
+      drafted_count: result.created.length,
+      skipped_count: result.skipped.length,
+    });
   } catch (err) {
     next(err);
   }

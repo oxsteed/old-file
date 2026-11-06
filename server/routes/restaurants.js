@@ -416,6 +416,7 @@ router.delete('/:restaurantId/inventory/mappings/:mappingId', requireRestaurantA
 router.post('/:restaurantId/inventory/mappings/bootstrap-defaults', requireRestaurantAccess(), inventory.bootstrapMappings);
 router.get('/:restaurantId/inventory/purchase-requests', requireRestaurantAccess(), inventory.listPurchaseRequests);
 router.post('/:restaurantId/inventory/purchase-requests', requireRestaurantAccess(), inventory.createPurchaseRequest);
+router.post('/:restaurantId/inventory/auto-reorder', requireRestaurantAccess(), inventory.draftAutoReorders);
 router.patch('/:restaurantId/inventory/purchase-requests/:requestId', requireRestaurantAccess(), inventory.updatePurchaseRequest);
 router.get('/:restaurantId/inventory/supplier-issues', requireRestaurantAccess(), inventory.listSupplierIssues);
 router.post('/:restaurantId/inventory/supplier-issues', requireRestaurantAccess(), inventory.createSupplierIssue);
