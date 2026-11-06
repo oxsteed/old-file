@@ -4804,6 +4804,9 @@ exports.createPosOrder = async (req, res, next) => {
           id: orderItem.id,
           menuItemId: line.item.id,
           quantity: line.quantity,
+          // Phase 6 (gap 14): modifier selections deplete inventory through
+          // their own mappings (extra chicken depletes chicken).
+          modifiers: line.modifiers.map((modifier) => ({ modifierId: modifier.id })),
         });
         for (const modifier of line.modifiers) {
           await client.query(

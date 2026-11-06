@@ -4167,6 +4167,9 @@ exports.createOrder = async (req, res, next) => {
           id: orderItem.id,
           menuItemId: normalized.menuItem.id,
           quantity: normalized.quantity,
+          // Phase 6 (gap 14): modifier selections deplete inventory through
+          // their own mappings (extra chicken depletes chicken).
+          modifiers: normalized.modifiers.map((modifier) => ({ modifierId: modifier.id })),
         });
         for (const modifier of normalized.modifiers) {
           await client.query(

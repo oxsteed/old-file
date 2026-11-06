@@ -19,7 +19,8 @@ function unavailableError(row, requestedQuantity, availableQuantity) {
     409,
     'inventory_unavailable',
     {
-      menuItemId: Number(row.menu_item_id),
+      menuItemId: row.menu_item_id ? Number(row.menu_item_id) : null,
+      modifierId: row.modifier_id ? Number(row.modifier_id) : null,
       inventoryItemId: row.inventory_item_id ? Number(row.inventory_item_id) : null,
       inventoryItemName: row.inventory_item_name || null,
       requestedQuantity,
@@ -45,6 +46,74 @@ async function lockMappedInventory(client, restaurantId, menuItemIds, locationId
       FOR UPDATE OF rii`,
     params
   );
+}
+
+// Phase 6 (gap 14): modifier depletion. Modifier options map to inventory
+// items through restaurant_inventory_modifier_mappings, keyed on the
+// modifier option (food_modifiers.id), not the dish. Lock those rows the
+// same way as dish mappings so two concurrent orders cannot oversell the
+// same modifier ingredient.
+async function lockModifierMappedInventory(client, restaurantId, modifierIds, locationId = null) {
+  if (!modifierIds.length) return;
+  const params = [restaurantId, modifierIds];
+  const locationFilter = locationId ? ` AND rii.location_id = $${params.push(locationId)}` : '';
+  await client.query(
+    `SELECT rii.id
+       FROM restaurant_inventory_items rii
+       JOIN restaurant_inventory_modifier_mappings mm
+         ON mm.inventory_item_id = rii.id
+        AND mm.restaurant_id = rii.restaurant_id
+      WHERE rii.restaurant_id = $1
+        AND rii.is_active = TRUE
+        AND mm.auto_manage = TRUE
+        AND mm.modifier_id = ANY($2::bigint[])${locationFilter}
+      ORDER BY rii.id
+      FOR UPDATE OF rii`,
+    params
+  );
+}
+
+async function loadModifierMappings(client, restaurantId, modifierIds, locationId = null) {
+  const params = [restaurantId, modifierIds];
+  const locationFilter = locationId ? ` AND rii.location_id = $${params.push(locationId)}` : '';
+  const reservationLocation = locationId ? ` AND location_id = $${params.length}` : '';
+  const mappingLocation = locationId
+    ? ` AND EXISTS (
+             SELECT 1 FROM restaurant_inventory_items mapped_item
+              WHERE mapped_item.id = mm.inventory_item_id
+                AND mapped_item.restaurant_id = mm.restaurant_id
+                AND mapped_item.location_id = $${params.length}
+           )`
+    : '';
+  const { rows } = await client.query(
+    `SELECT mm.modifier_id,
+            mm.inventory_item_id,
+            (mm.required_quantity * mm.conversion_factor * 100.0
+              / NULLIF(mm.yield_percent, 0)) AS required_quantity,
+            rii.id AS active_inventory_item_id,
+            rii.name AS inventory_item_name,
+            rii.quantity AS on_hand_quantity,
+            COALESCE(reserved.quantity, 0) AS reserved_quantity
+       FROM restaurant_inventory_modifier_mappings mm
+       LEFT JOIN restaurant_inventory_items rii
+         ON rii.id = mm.inventory_item_id
+        AND rii.restaurant_id = mm.restaurant_id
+        AND rii.is_active = TRUE${locationFilter}
+       LEFT JOIN (
+         SELECT inventory_item_id, SUM(quantity) AS quantity
+           FROM restaurant_inventory_order_reservations
+          WHERE restaurant_id = $1
+            AND status = 'reserved'
+            AND (expires_at IS NULL OR expires_at > NOW())${reservationLocation}
+          GROUP BY inventory_item_id
+       ) reserved ON reserved.inventory_item_id = mm.inventory_item_id
+      WHERE mm.restaurant_id = $1
+        AND mm.auto_manage = TRUE
+        AND mm.modifier_id = ANY($2::bigint[])${mappingLocation}
+      ORDER BY mm.inventory_item_id, mm.modifier_id`,
+    params
+  );
+  return rows;
 }
 
 async function loadMappings(client, restaurantId, menuItemIds, locationId = null) {
@@ -112,6 +181,15 @@ async function reserveInventoryForOrder(client, {
       id: Number(item.id),
       menuItemId: Number(item.menuItemId || item.menu_item_id),
       quantity: asPositiveNumber(item.quantity),
+      // Phase 6 (gap 14): the modifier options selected on this line. Each
+      // selected option depletes its mapped inventory once per dish unit.
+      modifierIds: uniquePositiveIds(
+        Array.isArray(item.modifiers)
+          ? item.modifiers.map((modifier) => (typeof modifier === 'object' && modifier !== null
+            ? (modifier.modifierId ?? modifier.modifier_id ?? modifier.id)
+            : modifier))
+          : (item.modifierIds || item.modifier_ids || [])
+      ),
     }))
     .filter((item) => Number.isInteger(item.id) && item.id > 0
       && Number.isInteger(item.menuItemId) && item.menuItemId > 0
@@ -119,9 +197,14 @@ async function reserveInventoryForOrder(client, {
   if (!items.length) return { reservations: [] };
 
   const menuItemIds = uniquePositiveIds(items.map((item) => item.menuItemId));
+  const modifierIds = uniquePositiveIds(items.flatMap((item) => item.modifierIds));
   await lockMappedInventory(client, restaurantId, menuItemIds, locationId);
+  await lockModifierMappedInventory(client, restaurantId, modifierIds, locationId);
   const mappings = await loadMappings(client, restaurantId, menuItemIds, locationId);
-  if (!mappings.length) return { reservations: [] };
+  const modifierMappings = modifierIds.length
+    ? await loadModifierMappings(client, restaurantId, modifierIds, locationId)
+    : [];
+  if (!mappings.length && !modifierMappings.length) return { reservations: [] };
 
   const mappingsByMenuItem = new Map();
   for (const mapping of mappings) {
@@ -129,21 +212,49 @@ async function reserveInventoryForOrder(client, {
     list.push(mapping);
     mappingsByMenuItem.set(Number(mapping.menu_item_id), list);
   }
+  const modifierMappingsByModifier = new Map();
+  for (const mapping of modifierMappings) {
+    const list = modifierMappingsByModifier.get(Number(mapping.modifier_id)) || [];
+    list.push(mapping);
+    modifierMappingsByModifier.set(Number(mapping.modifier_id), list);
+  }
 
   const demandByInventoryItem = new Map();
+  // One reservation row per (order line, inventory item): base-dish demand
+  // and modifier demand for the same ingredient merge, because the
+  // reservations table is unique on (food_order_item_id, inventory_item_id).
+  const reservationDemand = new Map();
+  const collectDemand = (item, mapping) => {
+    const requiredQuantity = asPositiveNumber(mapping.required_quantity);
+    if (!requiredQuantity) return;
+    const demand = item.quantity * requiredQuantity;
+    const inventoryItemId = Number(mapping.inventory_item_id);
+    demandByInventoryItem.set(
+      inventoryItemId,
+      (demandByInventoryItem.get(inventoryItemId) || 0) + demand
+    );
+    const key = `${item.id}:${inventoryItemId}`;
+    const existing = reservationDemand.get(key) || {
+      orderItemId: item.id,
+      menuItemId: item.menuItemId,
+      inventoryItemId,
+      quantity: 0,
+    };
+    existing.quantity += demand;
+    reservationDemand.set(key, existing);
+  };
   for (const item of items) {
     for (const mapping of mappingsByMenuItem.get(item.menuItemId) || []) {
-      const requiredQuantity = asPositiveNumber(mapping.required_quantity);
-      if (!requiredQuantity) continue;
-      const demand = item.quantity * requiredQuantity;
-      demandByInventoryItem.set(
-        Number(mapping.inventory_item_id),
-        (demandByInventoryItem.get(Number(mapping.inventory_item_id)) || 0) + demand
-      );
+      collectDemand(item, mapping);
+    }
+    for (const modifierId of item.modifierIds) {
+      for (const mapping of modifierMappingsByModifier.get(modifierId) || []) {
+        collectDemand(item, mapping);
+      }
     }
   }
 
-  for (const mapping of mappings) {
+  for (const mapping of [...mappings, ...modifierMappings]) {
     const inventoryItemId = Number(mapping.inventory_item_id);
     const requiredDemand = demandByInventoryItem.get(inventoryItemId) || 0;
     if (!requiredDemand) continue;
@@ -157,31 +268,31 @@ async function reserveInventoryForOrder(client, {
   }
 
   const createdReservations = [];
-  for (const item of items) {
-    for (const mapping of mappingsByMenuItem.get(item.menuItemId) || []) {
-      const requiredQuantity = asPositiveNumber(mapping.required_quantity);
-      const quantity = item.quantity * requiredQuantity;
-      if (!quantity) continue;
-      const reservationColumns = locationId
-        ? 'restaurant_id, location_id, food_order_id, food_order_item_id, inventory_item_id, menu_item_id, quantity, expires_at'
-        : 'restaurant_id, food_order_id, food_order_item_id, inventory_item_id, menu_item_id, quantity, expires_at';
-      const reservationValues = locationId
-        ? '$1,$2,$3,$4,$5,$6,$7,$8'
-        : '$1,$2,$3,$4,$5,$6,$7';
-      const reservationParams = locationId
-        ? [restaurantId, locationId, orderId, item.id, mapping.inventory_item_id, item.menuItemId, quantity, reservationExpiresAt]
-        : [restaurantId, orderId, item.id, mapping.inventory_item_id, item.menuItemId, quantity, reservationExpiresAt];
-      const { rows: [reservation] } = await client.query(
-        `INSERT INTO restaurant_inventory_order_reservations
-           (${reservationColumns})
-         VALUES (${reservationValues})
-         RETURNING *`,
-        reservationParams
-      );
-      createdReservations.push(reservation);
-    }
+  for (const demand of reservationDemand.values()) {
+    const reservationColumns = locationId
+      ? 'restaurant_id, location_id, food_order_id, food_order_item_id, inventory_item_id, menu_item_id, quantity, expires_at'
+      : 'restaurant_id, food_order_id, food_order_item_id, inventory_item_id, menu_item_id, quantity, expires_at';
+    const reservationValues = locationId
+      ? '$1,$2,$3,$4,$5,$6,$7,$8'
+      : '$1,$2,$3,$4,$5,$6,$7';
+    const reservationParams = locationId
+      ? [restaurantId, locationId, orderId, demand.orderItemId, demand.inventoryItemId, demand.menuItemId, demand.quantity, reservationExpiresAt]
+      : [restaurantId, orderId, demand.orderItemId, demand.inventoryItemId, demand.menuItemId, demand.quantity, reservationExpiresAt];
+    const { rows: [reservation] } = await client.query(
+      `INSERT INTO restaurant_inventory_order_reservations
+         (${reservationColumns})
+       VALUES (${reservationValues})
+       RETURNING *`,
+      reservationParams
+    );
+    createdReservations.push(reservation);
   }
-  await refreshMenuAvailability(client, restaurantId, mappings.map((mapping) => mapping.inventory_item_id), locationId);
+  await refreshMenuAvailability(
+    client,
+    restaurantId,
+    [...mappings, ...modifierMappings].map((mapping) => mapping.inventory_item_id),
+    locationId
+  );
   return { reservations: createdReservations };
 }
 
