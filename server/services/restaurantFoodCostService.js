@@ -47,8 +47,11 @@ function buildFoodCost({ item, restaurantCurrency, components }) {
   const costCents = Math.round(costMajor * minorUnits);
   const currencyMismatch = currencyCode !== costCurrency;
   const priceCents = Number(item.price_cents) || 0;
-  const marginCents = currencyMismatch ? null : priceCents - costCents;
-  const marginPercent = currencyMismatch || priceCents <= 0
+  // No recipe means no cost basis: report the margin as unknown, never as
+  // a 100% margin on a zero cost, or an unmapped dish looks free to make.
+  const noCostBasis = components.length === 0;
+  const marginCents = currencyMismatch || noCostBasis ? null : priceCents - costCents;
+  const marginPercent = currencyMismatch || noCostBasis || priceCents <= 0
     ? null
     : Math.round(((priceCents - costCents) / priceCents) * 10000) / 100;
   return {

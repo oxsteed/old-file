@@ -10683,3 +10683,4 @@ exports.publicScreenDevice = publicDevice;
 // N-07 test seam.
 exports._restaurantPermissionArea = restaurantPermissionArea;
 exports._RESTAURANT_PERMISSION_DENIALS = RESTAURANT_PERMISSION_DENIALS;
+exports._resolvePosTable = resolvePosTable;
