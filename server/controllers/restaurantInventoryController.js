@@ -17,6 +17,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
+const { computeMenuItemFoodCost, listMenuFoodCosts } = require('../services/restaurantFoodCostService');
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
 const { logInventoryAudit } = require('../services/restaurantInventoryAuditService');
 const restaurantLocationService = require('../services/restaurantLocationService');
@@ -1117,6 +1118,51 @@ exports.bootstrapMappings = async (req, res, next) => {
     });
 
     return exports.listMappings(req, res, next);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Plate cost / margin (Phase 6, gap 10) ────────────────────────────────
+// Computed on read from the live mappings and unit costs, so a mapping edit
+// or a supplier price change is reflected immediately; nothing is cached.
+function foodCostLocationIds(restaurant) {
+  return restaurant.locationScope?.mode === 'assigned'
+    ? restaurant.locationScope.location_ids
+    : null;
+}
+
+exports.getMenuItemFoodCost = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const menuItemId = parsePositiveInt(req.params.itemId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const foodCost = await computeMenuItemFoodCost(pool, {
+      restaurantId,
+      menuItemId,
+      locationIds: foodCostLocationIds(restaurant),
+    });
+    res.json({ food_cost: foodCost });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listMenuFoodCosts = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const sort = ['margin_asc', 'margin_desc', 'name'].includes(req.query.sort)
+      ? req.query.sort
+      : 'margin_asc';
+    const foodCosts = await listMenuFoodCosts(pool, {
+      restaurantId,
+      locationIds: foodCostLocationIds(restaurant),
+      sort,
+    });
+    res.json({ food_costs: foodCosts, sort });
   } catch (err) {
     next(err);
   }

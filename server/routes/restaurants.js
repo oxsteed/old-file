@@ -284,6 +284,10 @@ router.post('/:restaurantId/pos/menu-items/:itemId/sold-out', (req, _res, next) 
 router.get('/:restaurantId/inventory/adjustments', requireRestaurantAccess(), inventory.listAdjustments);
 router.get('/:restaurantId/inventory/mappings', requireRestaurantAccess(), inventory.listMappings);
 router.post('/:restaurantId/inventory/mappings', requireRestaurantAccess(), inventory.upsertMapping);
+// Phase 6 (gap 10): plate cost / margin. The list route is registered
+// before the :itemId route so "food-cost" is not read as an item id.
+router.get('/:restaurantId/menu-items/food-cost', requireRestaurantAccess(), inventory.listMenuFoodCosts);
+router.get('/:restaurantId/menu-items/:itemId/food-cost', requireRestaurantAccess(), inventory.getMenuItemFoodCost);
 
 // Staff training (franchise system)
 router.get('/:restaurantId/training/modules', requireRestaurantAccess(), training.listModules);
