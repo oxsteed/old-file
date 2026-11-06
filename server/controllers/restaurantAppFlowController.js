@@ -237,6 +237,38 @@ function normalizeString(value, max = 255) {
   return s ? s.slice(0, max) : null;
 }
 
+// Phase 6 (gap 13): table identity on orders. A table_id must belong to the
+// same restaurant and, when the order is pinned to a store, the same store.
+// Returns { tableId, table, covers } with tableId null when no table was
+// requested; throws 404/409 on mismatch so a ticket can never claim a table
+// from another store (or a disabled/over-capacity one).
+async function resolvePosTable(client, { restaurantId, locationId, tableId, covers }) {
+  const requestedTableId = parsePositiveInt(tableId);
+  let requestedCovers = null;
+  if (covers !== undefined && covers !== null && covers !== '') {
+    requestedCovers = parsePositiveInt(covers);
+    if (!requestedCovers || requestedCovers > 1000) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { covers: 'Must be between 1 and 1000' });
+    }
+  }
+  if (!requestedTableId) return { tableId: null, table: null, covers: requestedCovers };
+  const { rows: [table] } = await client.query(
+    `SELECT * FROM restaurant_tables WHERE id = $1 AND restaurant_id = $2`,
+    [requestedTableId, restaurantId]
+  );
+  if (!table) throw new AppError('Table not found', 404, 'table_not_found');
+  if (locationId != null && Number(table.location_id) !== Number(locationId)) {
+    throw new AppError('Table belongs to a different store', 409, 'table_location_mismatch');
+  }
+  if (table.status !== 'active') {
+    throw new AppError('Table is disabled', 409, 'table_unavailable');
+  }
+  if (requestedCovers != null && Number(table.capacity) < requestedCovers) {
+    throw new AppError('Table capacity exceeded', 409, 'table_capacity_exceeded');
+  }
+  return { tableId: Number(table.id), table, covers: requestedCovers };
+}
+
 function asBool(value, fallback = false) {
   if (value === undefined || value === null) return fallback;
   if (typeof value === 'boolean') return value;
@@ -4654,6 +4686,18 @@ exports.createPosOrder = async (req, res, next) => {
         tax: orderTax,
       });
       const queueNumber = await nextQueueNumber(client, restaurantId, posTimezone, new Date(), posLocationId);
+      // Phase 6 (gap 13): a POS ticket may name a real table. The table must
+      // belong to this restaurant and to the store the ticket is pinned to.
+      const posTable = await resolvePosTable(client, {
+        restaurantId,
+        locationId: posLocationId,
+        tableId: req.body.tableId ?? req.body.table_id,
+        covers: req.body.covers ?? req.body.coversCount ?? req.body.covers_count ?? req.body.partySize ?? req.body.party_size,
+      });
+      const tableLabel = normalizeString(
+        req.body.tableLabel || req.body.table_label || req.body.tableName || req.body.table_name,
+        80
+      ) || (posTable.table ? normalizeString(posTable.table.name, 80) : null);
       const requestedPaymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 24);
       if (requestedPaymentStatus && requestedPaymentStatus !== 'unpaid') {
         throw new AppError(
@@ -4685,11 +4729,11 @@ exports.createPosOrder = async (req, res, next) => {
            (restaurant_id, business_id, customer_id, guest_name, guest_phone, guest_email,
             order_source, fulfillment_type, payment_status, subtotal_cents, tax_cents,
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
-            tip_cents, discount_cents, total_cents, currency_code, table_label,
+            tip_cents, discount_cents, total_cents, currency_code, table_label, table_id, covers,
             queue_number, promised_at, notes, metadata, client_order_id, acting_staff_user_id, location_id,
             kitchen_ticket_fired_at, tax_exempt, tax_exempt_reason, tax_rule_snapshot)
-         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW() + ($21 || ' minutes')::interval,$22,$23,$24,$25,$26,
-            ${fireKitchenOnCreate ? 'NOW()' : 'NULL'},$27,$28,$29)
+         VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW() + ($23 || ' minutes')::interval,$24,$25,$26,$27,$28,
+            ${fireKitchenOnCreate ? 'NOW()' : 'NULL'},$29,$30,$31)
          RETURNING *`,
         [
           restaurantId,
@@ -4711,10 +4755,11 @@ exports.createPosOrder = async (req, res, next) => {
           total,
           restaurantRow.currency_code || 'USD',
           // F-13: the web POS sends table_name; accept every spelling.
-          normalizeString(
-            req.body.tableLabel || req.body.table_label || req.body.tableName || req.body.table_name,
-            80
-          ),
+          // Phase 6: when a real table was resolved, its name is the label
+          // unless the caller sent an explicit one.
+          tableLabel,
+          posTable.tableId,
+          posTable.covers,
           queueNumber,
           restaurantRow.prep_time_min || 15,
           normalizeString(req.body.notes, 1000),
@@ -4958,6 +5003,65 @@ exports.updatePosTicket = async (req, res, next) => {
         ]
       );
       if (!order) throw new AppError('Ticket transition is no longer allowed', 409, 'illegal_ticket_transition');
+      // Phase 6 (gap 13): a ticket-state change may also (re)assign the
+      // ticket to a real table, or clear it (tableId: null). Same validation
+      // as order creation: the table must belong to this restaurant and to
+      // the ticket's store. Covers without a table are dropped.
+      const tableIdProvided = req.body.tableId !== undefined || req.body.table_id !== undefined;
+      const coversProvided = req.body.covers !== undefined || req.body.coversCount !== undefined || req.body.covers_count !== undefined;
+      let assignedOrder = order;
+      if (tableIdProvided || coversProvided) {
+        const requestedTableId = req.body.tableId ?? req.body.table_id;
+        const requestedCovers = req.body.covers ?? req.body.coversCount ?? req.body.covers_count;
+        let nextTableId = order.table_id;
+        let nextCovers = order.covers;
+        let nextTable = null;
+        if (tableIdProvided) {
+          if (requestedTableId === null) {
+            nextTableId = null;
+            nextCovers = null;
+          } else {
+            const resolved = await resolvePosTable(client, {
+              restaurantId,
+              locationId: order.location_id,
+              tableId: requestedTableId,
+              covers: requestedCovers ?? order.covers,
+            });
+            nextTableId = resolved.tableId;
+            nextTable = resolved.table;
+            nextCovers = resolved.covers;
+          }
+        } else if (coversProvided) {
+          const resolved = await resolvePosTable(client, {
+            restaurantId,
+            locationId: order.location_id,
+            tableId: order.table_id,
+            covers: requestedCovers,
+          });
+          nextCovers = resolved.covers;
+        }
+        if (!nextTableId) nextCovers = null;
+        const explicitLabel = normalizeString(
+          req.body.tableLabel || req.body.table_label || req.body.tableName || req.body.table_name,
+          80
+        );
+        const { rows: [refreshed] } = await client.query(
+          `UPDATE food_orders
+              SET table_id = $1,
+                  covers = $2,
+                  table_label = CASE WHEN $3::boolean THEN COALESCE($4, table_label) ELSE table_label END,
+                  updated_at = NOW()
+            WHERE id = $5 RETURNING *`,
+          [
+            nextTableId,
+            nextCovers,
+            nextTable != null,
+            explicitLabel || (nextTable ? normalizeString(nextTable.name, 80) : null),
+            order.id,
+          ]
+        );
+        assignedOrder = refreshed;
+      }
       if (order.status === 'cancelled') {
         await releaseInventoryForOrder(client, { restaurantId, orderId: order.id, locationId: order.location_id });
       }
@@ -4990,7 +5094,7 @@ exports.updatePosTicket = async (req, res, next) => {
       if (voidApproval) {
         await linkApproval(client, voidApproval.id);
       }
-      return { order, event };
+      return { order: assignedOrder, event };
     }, 'restaurant_pos_ticket_update');
     broadcastRestaurant(restaurant, 'food:pos:ticket:updated', result);
     res.json({ order: result.order });
@@ -5195,10 +5299,10 @@ exports.splitPosOrder = async (req, res, next) => {
          (restaurant_id, business_id, customer_id, guest_name, guest_phone, guest_email,
             order_source, fulfillment_type, status, payment_status, subtotal_cents, tax_cents,
             service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
-            tip_cents, discount_cents, total_cents, currency_code, table_label, queue_number,
+            tip_cents, discount_cents, total_cents, currency_code, table_label, table_id, covers, queue_number,
             promised_at, notes, metadata, pos_ticket_state, pos_parent_order_id, location_id,
             kitchen_ticket_fired_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'unpaid',$10,0,0,0,$11,$12,$13,$14,0,$15,$16,$17,$18,$19,$20,'open',$21,$22,$23)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'unpaid',$10,0,0,0,$11,$12,$13,$14,0,$15,$16,$17,$18,$19,$20,$21,$22,'open',$23,$24,$25)
          RETURNING *`,
         [
           restaurantId,
@@ -5217,6 +5321,9 @@ exports.splitPosOrder = async (req, res, next) => {
           childDiscount,
           source.currency_code,
           source.table_label,
+          // Phase 6 (gap 13): a split child stays on the source ticket's table.
+          source.table_id,
+          source.covers,
           queueNumber,
           source.promised_at,
           normalizeString(req.body.notes, 1000) || source.notes,
@@ -7776,7 +7883,7 @@ exports.getKitchenFeed = async (req, res, next) => {
     const { rows: orders } = await pool.query(
       `SELECT fo.id, fo.restaurant_id, fo.business_id, fo.order_source,
               fo.fulfillment_type, fo.status, fo.payment_status,
-              fo.currency_code, fo.table_label, fo.queue_number,
+              fo.currency_code, fo.table_label, fo.table_id, fo.covers, fo.queue_number,
               fo.promised_at, fo.created_at, fo.updated_at,
               fo.accepted_at, fo.ready_at, fo.completed_at,
               fo.kitchen_stage, fo.preparation_started_at,

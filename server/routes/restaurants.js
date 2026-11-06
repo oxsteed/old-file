@@ -215,6 +215,7 @@ router.delete('/:restaurantId/location-access/:membershipId', requireRestaurantA
 // Every handler still resolves the effective restaurant permission in the
 // controller; the route gate provides the canonical tenant boundary.
 router.get('/:restaurantId/tables', requireRestaurantAccess(), hosting.listTables);
+router.get('/:restaurantId/tables/:tableId', requireRestaurantAccess(), hosting.getTableDetail);
 router.post('/:restaurantId/tables', requireRestaurantAccess(), hosting.createTable);
 router.post('/:restaurantId/tables/:tableId/seating', requireRestaurantAccess(), hosting.setSeating);
 router.patch('/:restaurantId/tables/:tableId', requireRestaurantAccess(), hosting.updateTable);
