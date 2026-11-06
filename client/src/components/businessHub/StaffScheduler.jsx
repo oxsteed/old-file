@@ -497,14 +497,14 @@ export function StaffScheduler({ businessId, isManager = false }) {
       {/* Phase 4 Track A: availability warnings from a saved shift. The
           save went through; these are notes for the manager, not errors. */}
       {saveWarnings.length > 0 && (
-        <div role="status" style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '0.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <strong style={{ fontSize: '0.875rem' }}>{t('businessHub.staffScheduler.validation.warningsTitle')}</strong>
-            <button type="button" onClick={() => setSaveWarnings([])} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }} aria-label={t('common.dismiss')} data-track="ui.34ed3b0a4c.20">
+        <div role="status" className="staff-sched-warnings-banner">
+          <div className="staff-sched-banner-head">
+            <strong className="staff-sched-text-sm">{t('businessHub.staffScheduler.validation.warningsTitle')}</strong>
+            <button type="button" onClick={() => setSaveWarnings([])} className="staff-sched-dismiss-btn" aria-label={t('common.dismiss')} data-track="ui.34ed3b0a4c.20">
               ✕
             </button>
           </div>
-          <ul style={{ margin: 0, paddingInlineStart: '1.25rem', fontSize: '0.8125rem' }}>
+          <ul className="staff-sched-list">
             {saveWarnings.map((w, i) => (
               <li key={i}>{violationText(w)}</li>
             ))}
@@ -534,7 +534,7 @@ export function StaffScheduler({ businessId, isManager = false }) {
       <div role="tabpanel" id={`staff-sched-panel-${tab}`} aria-labelledby={`staff-sched-tab-${tab}`}>
       {showForm && tab === 'shifts' && (
         <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
-          <h4 style={{ margin: '0 0 1rem' }}>{t(editingId ? 'businessHub.staffScheduler.editShift' : 'businessHub.staffScheduler.newShift')}</h4>
+          <h4 className="staff-sched-section-title">{t(editingId ? 'businessHub.staffScheduler.editShift' : 'businessHub.staffScheduler.newShift')}</h4>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label htmlFor={staffFieldId} style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.fields.staff')}</label>
@@ -560,9 +560,9 @@ export function StaffScheduler({ businessId, isManager = false }) {
           </div>
           {/* Phase 4 Track A: blocking conflicts stay on the form until fixed. */}
           {formViolations.length > 0 && (
-            <div role="alert" style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '0.5rem' }}>
-              <strong style={{ fontSize: '0.875rem' }}>{t('businessHub.staffScheduler.validation.title')}</strong>
-              <ul style={{ margin: '0.5rem 0 0', paddingInlineStart: '1.25rem', fontSize: '0.8125rem' }}>
+            <div role="alert" className="staff-sched-error-banner">
+              <strong className="staff-sched-text-sm">{t('businessHub.staffScheduler.validation.title')}</strong>
+              <ul className="staff-sched-error-list">
                 {formViolations.map((v, i) => (
                   <li key={i}>{violationText(v)}</li>
                 ))}
@@ -570,7 +570,7 @@ export function StaffScheduler({ businessId, isManager = false }) {
             </div>
           )}
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button onClick={closeForm} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }} data-track="ui.34ed3b0a4c.4">{t('common.cancel')}</button>
+            <button onClick={closeForm} className="staff-sched-btn-cancel" data-track="ui.34ed3b0a4c.4">{t('common.cancel')}</button>
             <button onClick={saveShift} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.34ed3b0a4c.5">{t('common.save')}</button>
           </div>
         </div>
@@ -582,25 +582,25 @@ export function StaffScheduler({ businessId, isManager = false }) {
               a manager. A validation failure stays on the request inline;
               the swap stays pending so it can be approved once fixed. */}
           {isManager && swapRequests.length > 0 && (
-            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
-              <h4 style={{ margin: '0 0 1rem' }}>{t('businessHub.staffScheduler.swaps.title')}</h4>
+            <div className="staff-sched-card">
+              <h4 className="staff-sched-section-title">{t('businessHub.staffScheduler.swaps.title')}</h4>
               {swapRequests.map((r) => {
                 const requester = staffMembers.find((m) => String(m.user_id) === String(r.requester_user_id));
                 const target = staffMembers.find((m) => String(m.user_id) === String(r.target_user_id));
                 const violations = swapViolations[r.id] || [];
                 return (
-                  <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', borderTop: '1px solid var(--border-color)', padding: '0.75rem 0' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600 }}>
+                  <div key={r.id} className="staff-sched-swap-row">
+                    <div className="staff-sched-flex-1">
+                      <div className="staff-sched-bold">
                         {fmtDate(r.shift_date)} · {String(r.start_time || '').slice(0, 5)} – {String(r.end_time || '').slice(0, 5)}{r.role_label ? ` · ${r.role_label}` : ''}
                       </div>
-                      <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>
+                      <div className="staff-sched-text-muted">
                         {t('businessHub.staffScheduler.swaps.requestedBy', { name: requester ? staffName(requester) : '' })} · {t('businessHub.staffScheduler.swaps.offeredTo', { name: target ? staffName(target) : '' })}
                       </div>
                       {violations.length > 0 && (
-                        <div role="alert" style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '0.5rem', fontSize: '0.8125rem' }}>
+                        <div role="alert" className="staff-sched-inline-alert">
                           <strong>{t('businessHub.staffScheduler.validation.title')}</strong>
-                          <ul style={{ margin: '0.25rem 0 0', paddingInlineStart: '1.25rem' }}>
+                          <ul className="staff-sched-inline-alert-list">
                             {violations.map((v, i) => (
                               <li key={i}>{violationText(v)}</li>
                             ))}
@@ -608,9 +608,9 @@ export function StaffScheduler({ businessId, isManager = false }) {
                         </div>
                       )}
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={() => decideSwap(r.id, 'approve')} style={{ padding: '0.4rem 0.75rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.18">{t('businessHub.staffScheduler.swaps.approve')}</button>
-                      <button onClick={() => decideSwap(r.id, 'reject')} style={{ padding: '0.4rem 0.75rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.19">{t('businessHub.staffScheduler.swaps.reject')}</button>
+                    <div className="staff-sched-actions-row">
+                      <button onClick={() => decideSwap(r.id, 'approve')} className="staff-sched-btn-approve" data-track="ui.34ed3b0a4c.18">{t('businessHub.staffScheduler.swaps.approve')}</button>
+                      <button onClick={() => decideSwap(r.id, 'reject')} className="staff-sched-btn-reject" data-track="ui.34ed3b0a4c.19">{t('businessHub.staffScheduler.swaps.reject')}</button>
                     </div>
                   </div>
                 );
@@ -621,33 +621,33 @@ export function StaffScheduler({ businessId, isManager = false }) {
               copy-week, and shift templates (manager only). The forecast
               is a projection, not pay. */}
           {isManager && (
-            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
-              <h4 style={{ margin: '0 0 1rem' }}>{t('businessHub.staffScheduler.forecast.title')}</h4>
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '1rem' }}>
+            <div className="staff-sched-card">
+              <h4 className="staff-sched-section-title">{t('businessHub.staffScheduler.forecast.title')}</h4>
+              <div className="staff-sched-form-row">
                 <div>
-                  <label htmlFor="forecast-from" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.forecast.from')}</label>
-                  <input id="forecast-from" type="date" value={forecastRange.from} onChange={(e) => setForecastRange((f) => ({ ...f, from: e.target.value }))} style={{ padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }} />
+                  <label htmlFor="forecast-from" className="staff-sched-field-label">{t('businessHub.staffScheduler.forecast.from')}</label>
+                  <input id="forecast-from" type="date" value={forecastRange.from} onChange={(e) => setForecastRange((f) => ({ ...f, from: e.target.value }))} className="staff-sched-field-input" />
                 </div>
                 <div>
-                  <label htmlFor="forecast-to" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.forecast.to')}</label>
-                  <input id="forecast-to" type="date" value={forecastRange.to} onChange={(e) => setForecastRange((f) => ({ ...f, to: e.target.value }))} style={{ padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }} />
+                  <label htmlFor="forecast-to" className="staff-sched-field-label">{t('businessHub.staffScheduler.forecast.to')}</label>
+                  <input id="forecast-to" type="date" value={forecastRange.to} onChange={(e) => setForecastRange((f) => ({ ...f, to: e.target.value }))} className="staff-sched-field-input" />
                 </div>
-                <button onClick={() => loadForecast(forecastRange.from, forecastRange.to)} style={{ padding: '0.5rem 1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.34ed3b0a4c.21">{t('businessHub.staffScheduler.forecast.refresh')}</button>
+                <button onClick={() => loadForecast(forecastRange.from, forecastRange.to)} className="staff-sched-btn-blue" data-track="ui.34ed3b0a4c.21">{t('businessHub.staffScheduler.forecast.refresh')}</button>
               </div>
-              {!forecast ? <p style={{ color: 'var(--muted-text)', fontSize: '0.875rem', margin: 0 }}>{t('businessHub.staffScheduler.forecast.empty')}</p> : (
+              {!forecast ? <p className="staff-sched-empty-note">{t('businessHub.staffScheduler.forecast.empty')}</p> : (
                 <div>
-                  <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem' }}>
+                  <p className="staff-sched-para">
                     {t('businessHub.staffScheduler.forecast.totals', { hours: forecast.total_hours, overtime: forecast.total_overtime_hours, cost: formatMoney(forecast.total_cost_cents, forecast.currency_code) })}
                   </p>
                   {forecast.missing_wage_user_ids?.length > 0 && (
-                    <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: '#b45309' }}>{t('businessHub.staffScheduler.forecast.missingWage', { count: forecast.missing_wage_user_ids.length })}</p>
+                    <p className="staff-sched-para-warn">{t('businessHub.staffScheduler.forecast.missingWage', { count: forecast.missing_wage_user_ids.length })}</p>
                   )}
                   {forecast.per_person.map((p) => (
-                    <div key={p.user_id} style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem', borderTop: '1px solid var(--border-color)', padding: '0.5rem 0' }}>
-                      <span style={{ flex: 1, fontWeight: 600 }}>{p.user_name || p.user_id}</span>
+                    <div key={p.user_id} className="staff-sched-forecast-row">
+                      <span className="staff-sched-row-title">{p.user_name || p.user_id}</span>
                       <span>{t('businessHub.staffScheduler.forecast.hours', { hours: p.hours })}</span>
                       <span>{formatMoney(p.cost_cents, forecast.currency_code)}</span>
-                      {p.projected_overtime && <span style={{ fontWeight: 600, color: '#b45309' }}>{t('businessHub.staffScheduler.forecast.overtimeFlag', { hours: p.overtime_hours })}</span>}
+                      {p.projected_overtime && <span className="staff-sched-overtime-flag">{t('businessHub.staffScheduler.forecast.overtimeFlag', { hours: p.overtime_hours })}</span>}
                     </div>
                   ))}
                 </div>
@@ -655,27 +655,27 @@ export function StaffScheduler({ businessId, isManager = false }) {
             </div>
           )}
           {isManager && (
-            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
-              <h4 style={{ margin: '0 0 1rem' }}>{t('businessHub.staffScheduler.copyWeek.title')}</h4>
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div className="staff-sched-card">
+              <h4 className="staff-sched-section-title">{t('businessHub.staffScheduler.copyWeek.title')}</h4>
+              <div className="staff-sched-form-row-flush">
                 <div>
-                  <label htmlFor="copy-source" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.copyWeek.sourceWeek')}</label>
-                  <input id="copy-source" type="date" value={copyForm.source_week_start} onChange={(e) => setCopyForm((f) => ({ ...f, source_week_start: e.target.value }))} style={{ padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }} />
+                  <label htmlFor="copy-source" className="staff-sched-field-label">{t('businessHub.staffScheduler.copyWeek.sourceWeek')}</label>
+                  <input id="copy-source" type="date" value={copyForm.source_week_start} onChange={(e) => setCopyForm((f) => ({ ...f, source_week_start: e.target.value }))} className="staff-sched-field-input" />
                 </div>
                 <div>
-                  <label htmlFor="copy-target" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.copyWeek.targetWeek')}</label>
-                  <input id="copy-target" type="date" value={copyForm.target_week_start} onChange={(e) => setCopyForm((f) => ({ ...f, target_week_start: e.target.value }))} style={{ padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }} />
+                  <label htmlFor="copy-target" className="staff-sched-field-label">{t('businessHub.staffScheduler.copyWeek.targetWeek')}</label>
+                  <input id="copy-target" type="date" value={copyForm.target_week_start} onChange={(e) => setCopyForm((f) => ({ ...f, target_week_start: e.target.value }))} className="staff-sched-field-input" />
                 </div>
-                <button onClick={runCopyWeek} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.34ed3b0a4c.22">{t('businessHub.staffScheduler.copyWeek.copy')}</button>
+                <button onClick={runCopyWeek} className="staff-sched-btn-orange" data-track="ui.34ed3b0a4c.22">{t('businessHub.staffScheduler.copyWeek.copy')}</button>
               </div>
-              <p style={{ margin: '0.75rem 0 0', fontSize: '0.8125rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.copyWeek.hint')}</p>
+              <p className="staff-sched-hint">{t('businessHub.staffScheduler.copyWeek.hint')}</p>
               {copyResult && (
-                <div style={{ marginTop: '1rem' }}>
-                  <p style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
+                <div className="staff-sched-margin-top">
+                  <p className="staff-sched-subhead">
                     {t('businessHub.staffScheduler.copyWeek.result', { created: copyResult.created?.length ?? 0, skipped: copyResult.skipped?.length ?? 0 })}
                   </p>
                   {(copyResult.skipped || []).length > 0 && (
-                    <ul style={{ margin: 0, paddingInlineStart: '1.25rem', fontSize: '0.8125rem' }}>
+                    <ul className="staff-sched-list">
                       {copyResult.skipped.map((s, i) => {
                         const member = staffMembers.find((m) => String(m.user_id) === String(s.user_id));
                         return (
@@ -693,33 +693,33 @@ export function StaffScheduler({ businessId, isManager = false }) {
             </div>
           )}
           {isManager && (
-            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
-              <h4 style={{ margin: '0 0 1rem' }}>{t('businessHub.staffScheduler.templates.title')}</h4>
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '1rem' }}>
+            <div className="staff-sched-card">
+              <h4 className="staff-sched-section-title">{t('businessHub.staffScheduler.templates.title')}</h4>
+              <div className="staff-sched-form-row">
                 <div>
-                  <label htmlFor="template-name" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.templates.name')}</label>
-                  <input id="template-name" type="text" value={templateForm.name} onChange={(e) => setTemplateForm((f) => ({ ...f, name: e.target.value }))} style={{ padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }} />
+                  <label htmlFor="template-name" className="staff-sched-field-label">{t('businessHub.staffScheduler.templates.name')}</label>
+                  <input id="template-name" type="text" value={templateForm.name} onChange={(e) => setTemplateForm((f) => ({ ...f, name: e.target.value }))} className="staff-sched-field-input" />
                 </div>
                 <div>
-                  <label htmlFor="template-week" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.templates.week')}</label>
-                  <input id="template-week" type="date" value={templateForm.week_start} onChange={(e) => setTemplateForm((f) => ({ ...f, week_start: e.target.value }))} style={{ padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }} />
+                  <label htmlFor="template-week" className="staff-sched-field-label">{t('businessHub.staffScheduler.templates.week')}</label>
+                  <input id="template-week" type="date" value={templateForm.week_start} onChange={(e) => setTemplateForm((f) => ({ ...f, week_start: e.target.value }))} className="staff-sched-field-input" />
                 </div>
-                <button onClick={saveTemplate} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.34ed3b0a4c.23">{t('businessHub.staffScheduler.templates.save')}</button>
+                <button onClick={saveTemplate} className="staff-sched-btn-orange" data-track="ui.34ed3b0a4c.23">{t('businessHub.staffScheduler.templates.save')}</button>
                 <div>
-                  <label htmlFor="template-target" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.templates.applyWeek')}</label>
-                  <input id="template-target" type="date" value={templateTargetWeek} onChange={(e) => setTemplateTargetWeek(e.target.value)} style={{ padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }} />
+                  <label htmlFor="template-target" className="staff-sched-field-label">{t('businessHub.staffScheduler.templates.applyWeek')}</label>
+                  <input id="template-target" type="date" value={templateTargetWeek} onChange={(e) => setTemplateTargetWeek(e.target.value)} className="staff-sched-field-input" />
                 </div>
               </div>
-              {templates.length === 0 ? <p style={{ color: 'var(--muted-text)', fontSize: '0.875rem', margin: 0 }}>{t('businessHub.staffScheduler.templates.empty')}</p> : templates.map((tpl) => (
-                <div key={tpl.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center', fontSize: '0.875rem', borderTop: '1px solid var(--border-color)', padding: '0.5rem 0' }}>
-                  <span style={{ flex: 1, fontWeight: 600 }}>{tpl.name} · {t('businessHub.staffScheduler.templates.shiftCount', { count: tpl.shift_count })}</span>
-                  <button onClick={() => applyTemplate(tpl.id)} style={{ padding: '0.4rem 0.75rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.24">{t('businessHub.staffScheduler.templates.apply')}</button>
-                  <button onClick={() => deleteTemplate(tpl.id)} style={{ padding: '0.4rem 0.75rem', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--app-text)' }} data-track="ui.34ed3b0a4c.25">{t('common.delete')}</button>
+              {templates.length === 0 ? <p className="staff-sched-empty-note">{t('businessHub.staffScheduler.templates.empty')}</p> : templates.map((tpl) => (
+                <div key={tpl.id} className="staff-sched-template-row">
+                  <span className="staff-sched-row-title">{tpl.name} · {t('businessHub.staffScheduler.templates.shiftCount', { count: tpl.shift_count })}</span>
+                  <button onClick={() => applyTemplate(tpl.id)} className="staff-sched-btn-approve" data-track="ui.34ed3b0a4c.24">{t('businessHub.staffScheduler.templates.apply')}</button>
+                  <button onClick={() => deleteTemplate(tpl.id)} className="staff-sched-btn-delete-sm" data-track="ui.34ed3b0a4c.25">{t('common.delete')}</button>
                 </div>
               ))}
             </div>
           )}
-          {shifts.length === 0 ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-text)' }}><Users size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} /><p>{t('businessHub.staffScheduler.emptyShifts')}</p></div>
+          {shifts.length === 0 ? <div className="staff-sched-empty-state"><Users size={48} className="staff-sched-empty-icon" /><p>{t('businessHub.staffScheduler.emptyShifts')}</p></div>
         : shifts.map(s => (
           <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.75rem 1rem', marginBottom: '0.5rem' }}>
             <div style={{ flex: 1 }}>
@@ -729,7 +729,7 @@ export function StaffScheduler({ businessId, isManager = false }) {
               </div>
               <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>{new Date(s.shift_start).toLocaleString(i18n.language)} – {new Date(s.shift_end).toLocaleString(i18n.language)}</div>
             </div>
-            {isManager && <button onClick={() => startEdit(s)} aria-label={t('businessHub.staffScheduler.editShiftLabel', { name: s.user_name || '' })} style={{ padding: '0.4rem 0.75rem', border: '1px solid var(--border-color)', background: 'transparent', cursor: 'pointer', color: 'var(--app-text)', borderRadius: '0.5rem', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.17">{t('common.edit')}</button>}
+            {isManager && <button onClick={() => startEdit(s)} aria-label={t('businessHub.staffScheduler.editShiftLabel', { name: s.user_name || '' })} className="staff-sched-btn-edit-sm" data-track="ui.34ed3b0a4c.17">{t('common.edit')}</button>}
             <button onClick={() => setDeleteTarget(s.id)} aria-label={t('businessHub.staffScheduler.deleteShiftLabel')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.34ed3b0a4c.6"><Trash2 size={14} /></button>
           </div>
         ))}
@@ -786,12 +786,12 @@ export function StaffScheduler({ businessId, isManager = false }) {
           {/* Phase 4 Track B: manager sets accrual policies and grants
               accrual; balances are listed here so approvals are not blind. */}
           {isManager && (
-            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
-              <h4 style={{ margin: '0 0 1rem' }}>{t('businessHub.staffScheduler.pto.policyTitle')}</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div className="staff-sched-card">
+              <h4 className="staff-sched-section-title">{t('businessHub.staffScheduler.pto.policyTitle')}</h4>
+              <div className="staff-sched-grid-2col">
                 <div>
-                  <label htmlFor="pto-member" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.fields.staff')}</label>
-                  <select id="pto-member" value={policyForm.user_id} onChange={(e) => setPolicyForm((f) => ({ ...f, user_id: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', boxSizing: 'border-box' }}>
+                  <label htmlFor="pto-member" className="staff-sched-field-label">{t('businessHub.staffScheduler.fields.staff')}</label>
+                  <select id="pto-member" value={policyForm.user_id} onChange={(e) => setPolicyForm((f) => ({ ...f, user_id: e.target.value }))} className="staff-sched-field-input-full">
                     <option value="">{t('businessHub.staffScheduler.fields.staffPlaceholder')}</option>
                     {staffMembers.map((m) => (
                       <option key={m.user_id} value={m.user_id}>{staffName(m)}</option>
@@ -799,49 +799,49 @@ export function StaffScheduler({ businessId, isManager = false }) {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="pto-type" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.timeOff.type')}</label>
-                  <select id="pto-type" value={policyForm.request_type} onChange={(e) => setPolicyForm((f) => ({ ...f, request_type: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', boxSizing: 'border-box' }}>
+                  <label htmlFor="pto-type" className="staff-sched-field-label">{t('businessHub.staffScheduler.timeOff.type')}</label>
+                  <select id="pto-type" value={policyForm.request_type} onChange={(e) => setPolicyForm((f) => ({ ...f, request_type: e.target.value }))} className="staff-sched-field-input-full">
                     {['vacation', 'sick', 'personal', 'unpaid', 'other'].map((k) => (
                       <option key={k} value={k}>{t(`businessHub.staffScheduler.timeOff.types.${k}`)}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="pto-amount" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.pto.accrualAmount')}</label>
-                  <input id="pto-amount" type="number" min="0" step="0.5" value={policyForm.accrual_amount} onChange={(e) => setPolicyForm((f) => ({ ...f, accrual_amount: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', boxSizing: 'border-box' }} />
+                  <label htmlFor="pto-amount" className="staff-sched-field-label">{t('businessHub.staffScheduler.pto.accrualAmount')}</label>
+                  <input id="pto-amount" type="number" min="0" step="0.5" value={policyForm.accrual_amount} onChange={(e) => setPolicyForm((f) => ({ ...f, accrual_amount: e.target.value }))} className="staff-sched-field-input-full" />
                 </div>
                 <div>
-                  <label htmlFor="pto-unit" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.pto.accrualUnit')}</label>
-                  <select id="pto-unit" value={policyForm.accrual_unit} onChange={(e) => setPolicyForm((f) => ({ ...f, accrual_unit: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', boxSizing: 'border-box' }}>
+                  <label htmlFor="pto-unit" className="staff-sched-field-label">{t('businessHub.staffScheduler.pto.accrualUnit')}</label>
+                  <select id="pto-unit" value={policyForm.accrual_unit} onChange={(e) => setPolicyForm((f) => ({ ...f, accrual_unit: e.target.value }))} className="staff-sched-field-input-full">
                     <option value="days">{t('businessHub.staffScheduler.pto.unitDays')}</option>
                     <option value="hours">{t('businessHub.staffScheduler.pto.unitHours')}</option>
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="pto-period" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.pto.accrualPeriod')}</label>
-                  <select id="pto-period" value={policyForm.accrual_period} onChange={(e) => setPolicyForm((f) => ({ ...f, accrual_period: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', boxSizing: 'border-box' }}>
+                  <label htmlFor="pto-period" className="staff-sched-field-label">{t('businessHub.staffScheduler.pto.accrualPeriod')}</label>
+                  <select id="pto-period" value={policyForm.accrual_period} onChange={(e) => setPolicyForm((f) => ({ ...f, accrual_period: e.target.value }))} className="staff-sched-field-input-full">
                     {['weekly', 'monthly', 'yearly', 'once'].map((k) => (
                       <option key={k} value={k}>{t(`businessHub.staffScheduler.pto.periods.${k}`)}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="pto-cap" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.pto.carryoverCap')}</label>
-                  <input id="pto-cap" type="number" min="0" step="0.5" value={policyForm.carryover_cap} onChange={(e) => setPolicyForm((f) => ({ ...f, carryover_cap: e.target.value }))} placeholder={t('businessHub.staffScheduler.pto.noCap')} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', boxSizing: 'border-box' }} />
+                  <label htmlFor="pto-cap" className="staff-sched-field-label">{t('businessHub.staffScheduler.pto.carryoverCap')}</label>
+                  <input id="pto-cap" type="number" min="0" step="0.5" value={policyForm.carryover_cap} onChange={(e) => setPolicyForm((f) => ({ ...f, carryover_cap: e.target.value }))} placeholder={t('businessHub.staffScheduler.pto.noCap')} className="staff-sched-field-input-full" />
                 </div>
                 <div>
-                  <label htmlFor="pto-initial" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.pto.initialBalance')}</label>
-                  <input id="pto-initial" type="number" min="0" step="0.5" value={policyForm.initial_balance} onChange={(e) => setPolicyForm((f) => ({ ...f, initial_balance: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', boxSizing: 'border-box' }} />
+                  <label htmlFor="pto-initial" className="staff-sched-field-label">{t('businessHub.staffScheduler.pto.initialBalance')}</label>
+                  <input id="pto-initial" type="number" min="0" step="0.5" value={policyForm.initial_balance} onChange={(e) => setPolicyForm((f) => ({ ...f, initial_balance: e.target.value }))} className="staff-sched-field-input-full" />
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button onClick={grantAccrual} style={{ padding: '0.5rem 1rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.34ed3b0a4c.26">{t('businessHub.staffScheduler.pto.grantAccrual')}</button>
-                <button onClick={savePolicy} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }} data-track="ui.34ed3b0a4c.27">{t('businessHub.staffScheduler.pto.savePolicy')}</button>
+              <div className="staff-sched-actions-end">
+                <button onClick={grantAccrual} className="staff-sched-btn-blue" data-track="ui.34ed3b0a4c.26">{t('businessHub.staffScheduler.pto.grantAccrual')}</button>
+                <button onClick={savePolicy} className="staff-sched-btn-orange" data-track="ui.34ed3b0a4c.27">{t('businessHub.staffScheduler.pto.savePolicy')}</button>
               </div>
               {balances.length > 0 && (
-                <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+                <div className="staff-sched-divider-block">
                   {balances.map((b) => (
-                    <div key={`${b.user_id}-${b.request_type}`} style={{ fontSize: '0.875rem', padding: '0.25rem 0' }}>
+                    <div key={`${b.user_id}-${b.request_type}`} className="staff-sched-balance-row">
                       {b.user_name || b.user_id} · {t(`businessHub.staffScheduler.timeOff.types.${b.request_type}`)} · {formatBalance(b)}
                     </div>
                   ))}
@@ -876,7 +876,7 @@ export function StaffScheduler({ businessId, isManager = false }) {
             {/* Phase 4 Track B: the requester's remaining balance for
                 the selected type (staff see only their own). */}
             {!isManager && balances.find((b) => b.request_type === timeOffForm.request_type) && (
-              <p style={{ margin: '0.75rem 0 0', fontSize: '0.875rem', color: 'var(--muted-text)' }}>
+              <p className="staff-sched-note">
                 {formatBalance(balances.find((b) => b.request_type === timeOffForm.request_type))}
               </p>
             )}
@@ -895,7 +895,7 @@ export function StaffScheduler({ businessId, isManager = false }) {
                   {r.reason ? ` · ${r.reason}` : ''}
                 </div>
                 {balanceFor(r.user_id, r.request_type) && (
-                  <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>{formatBalance(balanceFor(r.user_id, r.request_type))}</div>
+                  <div className="staff-sched-text-muted">{formatBalance(balanceFor(r.user_id, r.request_type))}</div>
                 )}
               </div>
               {r.status === 'pending' && isManager && (

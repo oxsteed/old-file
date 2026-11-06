@@ -96,3 +96,319 @@
   border-radius: 999px;
   padding: 0.15rem 0.5rem;
 }
+
+/* Phase 4 (tracks A/B): classes for the swap, forecast, copy-week,
+   template, and PTO surfaces, converted from inline styles so the
+   no-new-inline-styles gate stays green. One class per identical
+   declaration set; values reproduce the inline styles exactly. */
+
+.staff-sched-field-label {
+  display: block;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+  color: var(--muted-text);
+}
+
+.staff-sched-field-input {
+  padding: 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: var(--card-bg);
+  color: var(--app-text);
+}
+
+.staff-sched-field-input-full {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: var(--card-bg);
+  color: var(--app-text);
+  box-sizing: border-box;
+}
+
+.staff-sched-section-title {
+  margin: 0 0 1rem;
+}
+
+.staff-sched-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.staff-sched-btn-orange {
+  padding: 0.5rem 1rem;
+  background: #f97316;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.staff-sched-text-sm {
+  font-size: 0.875rem;
+}
+
+.staff-sched-list {
+  margin: 0;
+  padding-inline-start: 1.25rem;
+  font-size: 0.8125rem;
+}
+
+.staff-sched-text-muted {
+  font-size: 0.875rem;
+  color: var(--muted-text);
+}
+
+.staff-sched-btn-approve {
+  padding: 0.4rem 0.75rem;
+  background: #10b981;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.staff-sched-form-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.staff-sched-btn-blue {
+  padding: 0.5rem 1rem;
+  background: #0ea5e9;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.staff-sched-empty-note {
+  color: var(--muted-text);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.staff-sched-row-title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.staff-sched-warnings-banner {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 0.5rem;
+}
+
+.staff-sched-banner-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.staff-sched-dismiss-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.staff-sched-error-banner {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 0.5rem;
+}
+
+.staff-sched-error-list {
+  margin: 0.5rem 0 0;
+  padding-inline-start: 1.25rem;
+  font-size: 0.8125rem;
+}
+
+.staff-sched-btn-cancel {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--app-text);
+  cursor: pointer;
+}
+
+.staff-sched-swap-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  border-top: 1px solid var(--border-color);
+  padding: 0.75rem 0;
+}
+
+.staff-sched-flex-1 {
+  flex: 1;
+}
+
+.staff-sched-bold {
+  font-weight: 600;
+}
+
+.staff-sched-inline-alert {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.staff-sched-inline-alert-list {
+  margin: 0.25rem 0 0;
+  padding-inline-start: 1.25rem;
+}
+
+.staff-sched-actions-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.staff-sched-btn-reject {
+  padding: 0.4rem 0.75rem;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.staff-sched-para {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+}
+
+.staff-sched-para-warn {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  color: #b45309;
+}
+
+.staff-sched-forecast-row {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.875rem;
+  border-top: 1px solid var(--border-color);
+  padding: 0.5rem 0;
+}
+
+.staff-sched-overtime-flag {
+  font-weight: 600;
+  color: #b45309;
+}
+
+.staff-sched-form-row-flush {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.staff-sched-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--muted-text);
+}
+
+.staff-sched-margin-top {
+  margin-top: 1rem;
+}
+
+.staff-sched-subhead {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.staff-sched-template-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  font-size: 0.875rem;
+  border-top: 1px solid var(--border-color);
+  padding: 0.5rem 0;
+}
+
+.staff-sched-btn-delete-sm {
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--app-text);
+}
+
+.staff-sched-empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: var(--muted-text);
+}
+
+.staff-sched-empty-icon {
+  opacity: 0.3;
+  margin-bottom: 1rem;
+}
+
+.staff-sched-btn-edit-sm {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  cursor: pointer;
+  color: var(--app-text);
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.staff-sched-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.staff-sched-actions-end {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.staff-sched-divider-block {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.75rem;
+}
+
+.staff-sched-balance-row {
+  font-size: 0.875rem;
+  padding: 0.25rem 0;
+}
+
+.staff-sched-note {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+  color: var(--muted-text);
+}
