@@ -187,6 +187,37 @@ exports.listItems = async (req, res, next) => {
   }
 };
 
+// Phase 6 (gap 14): lots for one inventory item, FEFO order (earliest
+// expiry first, no-expiry last), with an expired flag so the dashboard can
+// surface short-dated stock before it becomes waste.
+exports.listItemLots = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const itemId = parsePositiveInt(req.params.itemId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const { rows: [item] } = await pool.query(
+      `SELECT id, name, location_id FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2`,
+      [itemId, restaurantId]
+    );
+    if (!item) throw new AppError('Inventory item not found', 404, 'inventory_item_not_found');
+    await assertExistingItemLocationAccess(restaurant, req.user.id, item.location_id, pool);
+    const { rows } = await pool.query(
+      `SELECT l.*,
+              (l.expires_at IS NOT NULL AND l.expires_at <= NOW()) AS is_expired,
+              (l.expires_at IS NOT NULL AND l.expires_at > NOW()
+                AND l.expires_at <= NOW() + INTERVAL '7 days') AS expires_soon
+         FROM restaurant_inventory_lots l
+        WHERE l.restaurant_id = $1 AND l.inventory_item_id = $2
+        ORDER BY l.expires_at ASC NULLS LAST, l.created_at ASC, l.id ASC`,
+      [restaurantId, itemId]
+    );
+    res.json({ item, lots: rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.createItem = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);

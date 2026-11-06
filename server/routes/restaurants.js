@@ -269,6 +269,7 @@ router.get('/:restaurantId/inventory/audit-events', requireRestaurantAccess(), i
 router.get('/:restaurantId/inventory/hooks/status', requireRestaurantAccess(), appFlow.getInventoryHookStatus);
 router.post('/:restaurantId/inventory/hooks/sync', requireRestaurantAccess(), appFlow.syncMenuAvailability);
 router.get('/:restaurantId/inventory/items', requireRestaurantAccess(), inventory.listItems);
+router.get('/:restaurantId/inventory/items/:itemId/lots', requireRestaurantAccess(), inventory.listItemLots);
 router.post('/:restaurantId/inventory/items', requireRestaurantAccess(), inventory.createItem);
 router.patch('/:restaurantId/inventory/items/:itemId', requireRestaurantAccess(), inventory.updateItem);
 router.delete('/:restaurantId/inventory/items/:itemId', requireRestaurantAccess(), inventory.deleteItem);

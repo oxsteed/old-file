@@ -310,6 +310,44 @@ async function releaseInventoryForOrder(client, { restaurantId, orderId, locatio
   return { released: rows.length };
 }
 
+// Phase 6 (gap 14): FEFO lot allocation. Consumption draws down the
+// earliest-expiring lots first (no-expiry lots last, ties by receipt order).
+// Lots are a breakdown of on-hand stock, never the authority: stock that
+// arrived before lots existed, or via a plain adjustment, has no lot row,
+// so any remainder is simply left unallocated instead of failing the order.
+async function consumeLotsForReservation(client, { restaurantId, orderId, inventoryItemId, quantity, locationId = null }) {
+  const params = [restaurantId, inventoryItemId];
+  const locationFilter = locationId ? ` AND location_id = $${params.push(locationId)}` : '';
+  const { rows: lots } = await client.query(
+    `SELECT id, quantity
+       FROM restaurant_inventory_lots
+      WHERE restaurant_id = $1 AND inventory_item_id = $2 AND quantity > 0${locationFilter}
+      ORDER BY expires_at ASC NULLS LAST, created_at ASC, id ASC
+      FOR UPDATE`,
+    params
+  );
+  let remaining = Number(quantity);
+  let allocated = 0;
+  for (const lot of lots) {
+    if (remaining <= 0) break;
+    const take = Math.min(Number(lot.quantity), remaining);
+    if (take <= 0) continue;
+    await client.query(
+      `UPDATE restaurant_inventory_lots SET quantity = quantity - $1, updated_at = NOW() WHERE id = $2`,
+      [take, lot.id]
+    );
+    await client.query(
+      `INSERT INTO restaurant_inventory_lot_consumptions
+         (restaurant_id, lot_id, inventory_item_id, food_order_id, quantity)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [restaurantId, lot.id, inventoryItemId, orderId, take]
+    );
+    remaining -= take;
+    allocated += take;
+  }
+  return { allocated, unallocated: remaining };
+}
+
 async function consumeInventoryForOrder(client, { restaurantId, orderId, locationId = null, actorUserId = null }) {
   const params = [restaurantId, orderId];
   const locationFilter = locationId ? ` AND r.location_id = $${params.push(locationId)}` : '';
@@ -399,6 +437,16 @@ async function consumeInventoryForOrder(client, { restaurantId, orderId, locatio
         WHERE id = $1 AND status = 'reserved'`,
       [reservation.id]
     );
+    // Phase 6 (gap 14): draw the consumed quantity out of the
+    // earliest-expiring lots first. Best-effort: unallocated remainder
+    // (pre-lot stock) never blocks the order.
+    await consumeLotsForReservation(client, {
+      restaurantId,
+      orderId,
+      inventoryItemId,
+      quantity,
+      locationId,
+    });
     consumedInventoryItemIds.push(reservation.inventory_item_id);
   }
   await refreshMenuAvailability(client, restaurantId, consumedInventoryItemIds, locationId);
