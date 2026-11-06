@@ -162,13 +162,14 @@ test('phase 7 temperature logs: breach row, new reading posts, breach links to a
     }, { fx, props: { restaurant } });
 
     await page.getByText('Temperature logs', { exact: true }).waitFor();
-    await page.getByText('Walk-in fridge').first().waitFor();
+    await page.getByText('Breach', { exact: true }).waitFor();
 
     // The breach row shows the flag and the configured range; the
     // in-range row shows its reading without a flag.
     await page.getByText('Breach', { exact: true }).waitFor();
     await page.getByText('8.5°C').waitFor();
-    await page.getByText('(2–4°C)', { exact: true }).waitFor();
+    const firstRow = await page.locator('.fd-list li').first().textContent();
+    assert.match(firstRow || '', /\(2–4°C\)/);
     await page.getByText(/1 breaches/).waitFor();
     assert.equal(pageErrors.length, 0, `page errors: ${pageErrors.join('; ')}`);
 
