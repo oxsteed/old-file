@@ -384,8 +384,18 @@ async function decideShiftSwap(req, res, next, status) {
       const swap = rows[0];
       if (!swap) return { missing: true };
       const scopedShift=await workforce.assertRecord(storeContext,'business_staff_shifts',swap.shift_id,client);
+      // Phase 3 Track C: approval requires target acceptance first.
+      // 'requested' means the target has not answered yet; 'target_accepted'
+      // means the target agreed and the request waits on a manager. A
+      // manager may reject at either pending stage, but may only approve
+      // after the target accepted.
+      if (status === 'approved') {
+        if (swap.status === 'requested') return { targetPending: true };
+        if (swap.status !== 'target_accepted') return { conflict: true };
+      } else if (swap.status !== 'requested' && swap.status !== 'target_accepted') {
+        return { conflict: true };
+      }
       if(status==='approved')await workforce.assertStaff(storeContext,swap.target_user_id,client,scopedShift?.location_id);
-      if (swap.status !== 'requested') return { conflict: true };
       if (status === 'approved') {
         if (!swap.target_user_id) return { noTarget: true };
         await client.query(
@@ -400,9 +410,10 @@ async function decideShiftSwap(req, res, next, status) {
           WHERE id=$3 AND business_id=$4 RETURNING *`,
         [status, req.user.id, requestId, businessId]
       );
-      return { request: updated[0] };
+      return { request: updated[0], beforeStatus: swap.status };
     });
     if (result.missing) return res.status(404).json({ error: 'Shift swap request not found' });
+    if (result.targetPending) return res.status(409).json({ error: 'The target staff member has not accepted this swap yet' });
     if (result.conflict) return res.status(409).json({ error: 'Shift swap request is no longer pending' });
     if (result.noTarget) return res.status(409).json({ error: 'A target staff member is required before approval' });
     await logBusinessAction(req, {
@@ -410,12 +421,60 @@ async function decideShiftSwap(req, res, next, status) {
       action: `business.staff.shift_swap.${status}`,
       target_type: 'shift_swap_request',
       target_id: result.request?.id,
-      before_state: { status: 'requested' },
+      before_state: { status: result.beforeStatus || 'requested' },
       after_state: result.request,
     });
     return res.json({ request: result.request });
   } catch (err) { return next(err); }
 }
+
+// Phase 3 Track C: the named target accepts or declines a swap request.
+// Only the target may call this; the requester (and any other staff
+// member) gets a 403, and a request that already left 'requested' gets
+// a 409. Accept moves the request to 'target_accepted' (pending manager
+// decision); decline closes it as 'declined'.
+exports.respondShiftSwapRequest = async (req, res, next) => {
+  const { businessId, requestId } = req.params;
+  const action = req.body?.action || req.body?.response || null;
+  if (action !== 'accept' && action !== 'decline') {
+    return res.status(400).json({ error: 'action must be accept or decline' });
+  }
+  try {
+    const result = await withTransaction(pool, async (client) => {
+      const { rows } = await client.query(
+        `SELECT * FROM business_shift_swap_requests
+          WHERE id=$1 AND business_id=$2 FOR UPDATE`,
+        [requestId, businessId]
+      );
+      const swap = rows[0];
+      if (!swap) return { missing: true };
+      if (String(swap.target_user_id) !== String(req.user.id)) {
+        return { forbidden: true };
+      }
+      if (swap.status !== 'requested') return { conflict: true };
+      const nextStatus = action === 'accept' ? 'target_accepted' : 'declined';
+      const { rows: updated } = await client.query(
+        `UPDATE business_shift_swap_requests
+            SET status=$1, target_responded_at=NOW(), updated_at=NOW()
+          WHERE id=$2 AND business_id=$3 RETURNING *`,
+        [nextStatus, requestId, businessId]
+      );
+      return { request: updated[0] };
+    });
+    if (result.missing) return res.status(404).json({ error: 'Shift swap request not found' });
+    if (result.forbidden) return res.status(403).json({ error: 'Only the named target can respond to this swap request' });
+    if (result.conflict) return res.status(409).json({ error: 'Shift swap request is no longer waiting for the target' });
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: `business.staff.shift_swap.target_${action === 'accept' ? 'accepted' : 'declined'}`,
+      target_type: 'shift_swap_request',
+      target_id: result.request?.id,
+      before_state: { status: 'requested' },
+      after_state: result.request,
+    });
+    return res.json({ request: result.request });
+  } catch (err) { return next(err); }
+};
 
 exports.approveShiftSwapRequest = (req, res, next) => decideShiftSwap(req, res, next, 'approved');
 exports.rejectShiftSwapRequest = (req, res, next) => decideShiftSwap(req, res, next, 'rejected');

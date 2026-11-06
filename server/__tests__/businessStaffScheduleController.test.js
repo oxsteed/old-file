@@ -252,7 +252,9 @@ describe('businessStaffScheduleController availability and shift swaps', () => {
 
   test('manager approval atomically reassigns the shift and closes the request', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 19, shift_id: 7, status: 'requested', target_user_id: '00000000-0000-4000-8000-0000000000bb', assigned_user_id: '00000000-0000-4000-8000-0000000000aa' }] })
+      // Phase 3 Track C: approval requires target acceptance first, so
+      // the pending row the manager decides is 'target_accepted'.
+      .mockResolvedValueOnce({ rows: [{ id: 19, shift_id: 7, status: 'target_accepted', target_user_id: '00000000-0000-4000-8000-0000000000bb', assigned_user_id: '00000000-0000-4000-8000-0000000000aa' }] })
       .mockResolvedValueOnce({ rows: [] }) // shift reassignment
       .mockResolvedValueOnce({ rows: [{ id: 19, status: 'approved' }] });
     const req = {
@@ -265,5 +267,21 @@ describe('businessStaffScheduleController availability and shift swaps', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.request.status).toBe('approved');
     expect(mockQuery.mock.calls[1][0]).toMatch(/UPDATE business_staff_shifts SET user_id/);
+  });
+
+  test('manager approval before target acceptance is a 409', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 19, shift_id: 7, status: 'requested', target_user_id: '00000000-0000-4000-8000-0000000000bb', assigned_user_id: '00000000-0000-4000-8000-0000000000aa' }] });
+    const req = {
+      params: { businessId: '2', requestId: '19' },
+      user: { id: '00000000-0000-4000-8000-0000000000cc' },
+      businessRole: 'manager',
+    };
+    const res = mockRes();
+    await ctrl.approveShiftSwapRequest(req, res, next);
+    expect(res.statusCode).toBe(409);
+    expect(res.body.error).toMatch(/not accepted/i);
+    // The guard answers from the row read alone: no reassignment ran.
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });
