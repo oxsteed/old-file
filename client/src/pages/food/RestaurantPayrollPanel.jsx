@@ -23,6 +23,16 @@ import {
   getTipPoolSettings,
   updateTipPoolSettings,
   declareCashTip,
+  listPayRuns,
+  createPayRun,
+  getPayRun,
+  rebuildPayRun,
+  finalizePayRun,
+  approvePayRun,
+  voidPayRun,
+  downloadPayRunCsv,
+  linkPayRunPayout,
+  recordPayRunDisbursement,
 } from '../../api/restaurants';
 
 function apiErr(err, fallback) {
@@ -56,6 +66,119 @@ export function PayrollPanel({ t, restaurant, from, to }) {
   const [savingTips, setSavingTips] = useState(false);
   const [cashForm, setCashForm] = useState({ staffUserId: '', date: to, amount: '', note: '' });
   const [exporting, setExporting] = useState(false);
+
+  // ── Pay runs (Phase 5) ──
+  const [payRuns, setPayRuns] = useState(null);
+  const [payRunsError, setPayRunsError] = useState(null); // 'payroll' | 'generic'
+  const [payRunForm, setPayRunForm] = useState({ from, to });
+  const [selectedPayRun, setSelectedPayRun] = useState(null);
+  const [payRunBusy, setPayRunBusy] = useState(false);
+  const [payoutForm, setPayoutForm] = useState({ payoutId: '', note: '' });
+  const [disbForm, setDisbForm] = useState({ lineId: '', method: 'bank_transfer', reference: '' });
+  const canManagePayRuns = permits(restaurant, 'payroll.manage') && selection.brandAccess;
+
+  const loadPayRuns = useCallback(() => {
+    setPayRunsError(null);
+    setPayRuns(null);
+    listPayRuns(restaurantId, { limit: 20 })
+      .then((data) => setPayRuns(data?.payRuns || []))
+      .catch((error) => setPayRunsError(error?.response?.status === 403 ? 'payroll' : 'generic'));
+  }, [restaurantId]);
+
+  useEffect(() => { loadPayRuns(); }, [loadPayRuns]);
+
+  const runPayRunAction = async (label, fn) => {
+    setPayRunBusy(true);
+    try {
+      const run = await fn();
+      if (run) {
+        setSelectedPayRun(run);
+        setPayRuns((rows) => (rows || []).map((row) => (Number(row.id) === Number(run.id) ? { ...row, ...run } : row)));
+      }
+      toast.success(label);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.payRuns.actionError')));
+    } finally {
+      setPayRunBusy(false);
+    }
+  };
+
+  const onCreatePayRun = async (e) => {
+    e.preventDefault();
+    if (!payRunForm.from || !payRunForm.to) return;
+    setPayRunBusy(true);
+    try {
+      const run = await createPayRun(restaurantId, { periodFrom: payRunForm.from, periodTo: payRunForm.to });
+      toast.success(t('restaurants.ops.reports.payRuns.created'));
+      loadPayRuns();
+      if (run) setSelectedPayRun(run);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.payRuns.actionError')));
+    } finally {
+      setPayRunBusy(false);
+    }
+  };
+
+  const onOpenPayRun = async (payRunId) => {
+    setPayRunBusy(true);
+    try {
+      const run = await getPayRun(restaurantId, payRunId);
+      setSelectedPayRun(run);
+      setDisbForm({ lineId: '', method: 'bank_transfer', reference: '' });
+      setPayoutForm({ payoutId: '', note: '' });
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.payRuns.actionError')));
+    } finally {
+      setPayRunBusy(false);
+    }
+  };
+
+  const onExportPayRun = async (payRunId, format) => {
+    setPayRunBusy(true);
+    try {
+      const blob = await downloadPayRunCsv(restaurantId, payRunId, format);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `pay-run-${payRunId}${format === 'provider' ? '-provider' : ''}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.payRuns.exportError')));
+    } finally {
+      setPayRunBusy(false);
+    }
+  };
+
+  const onLinkPayout = async (e) => {
+    e.preventDefault();
+    if (!selectedPayRun || !payoutForm.payoutId.trim()) return;
+    await runPayRunAction(
+      t('restaurants.ops.reports.payRuns.payoutLinked'),
+      () => linkPayRunPayout(restaurantId, selectedPayRun.id, {
+        restaurantPayoutId: payoutForm.payoutId.trim(),
+        note: payoutForm.note || undefined,
+      }),
+    );
+  };
+
+  const onRecordDisbursement = async (e) => {
+    e.preventDefault();
+    if (!selectedPayRun || !disbForm.lineId) return;
+    const line = (selectedPayRun.lines || []).find((l) => String(l.id) === String(disbForm.lineId));
+    if (!line) return;
+    await runPayRunAction(
+      t('restaurants.ops.reports.payRuns.disbursementRecorded'),
+      () => recordPayRunDisbursement(restaurantId, selectedPayRun.id, {
+        payRunLineId: Number(line.id),
+        amountCents: Math.round(Number(line.total_pay_cents) || 0),
+        method: disbForm.method,
+        reference: disbForm.reference || undefined,
+      }),
+    );
+  };
 
   const loadLabor=useCallback(()=>{
     const generation=++laborGeneration.current;if(!locationId)return;
@@ -241,6 +364,203 @@ export function PayrollPanel({ t, restaurant, from, to }) {
             {t('restaurants.ops.reports.payroll.exportCsv')}
           </button>
         </>
+      )}
+
+      {/* ── Pay runs (Phase 5) ── */}
+      <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.payRuns.title')}</h3>
+      {payRunsError === 'payroll' ? (
+        <p className="fd-ops-notice">{t('restaurants.ops.reports.payroll.permissionNote')}</p>
+      ) : payRunsError === 'generic' ? (
+        <div className="fd-empty" role="alert"><p>{t('restaurants.ops.reports.payRuns.loadError')}</p><button type="button" className="fd-btn fd-btn-sm" onClick={loadPayRuns} data-track="ui.aa258f5ea1.13">{t('restaurants.ops.shared.retry')}</button></div>
+      ) : !payRuns ? (
+        <div className="fd-empty">{t('food.common.loading')}</div>
+      ) : (
+        <>
+          {canManagePayRuns && (
+            <form onSubmit={onCreatePayRun} className="fd-card" data-track="ui.aa258f5ea1.14">
+              <p className="fd-card-meta">{t('restaurants.ops.reports.payRuns.createTitle')}</p>
+              <div className="fd-ops-inventory-row">
+                <input
+                  aria-label={t('restaurants.ops.reports.payRuns.periodFrom')}
+                  type="date" value={payRunForm.from || ''}
+                  onChange={(e) => setPayRunForm((f) => ({ ...f, from: e.target.value }))}
+                />
+                <input
+                  aria-label={t('restaurants.ops.reports.payRuns.periodTo')}
+                  type="date" value={payRunForm.to || ''}
+                  onChange={(e) => setPayRunForm((f) => ({ ...f, to: e.target.value }))}
+                />
+                <button type="submit" className="fd-btn fd-btn-sm" disabled={payRunBusy} data-track="ui.aa258f5ea1.15">{t('restaurants.ops.reports.payRuns.create')}</button>
+              </div>
+            </form>
+          )}
+          {payRuns.length === 0 ? (
+            <EmptyState icon={Users} title={t('restaurants.ops.reports.payRuns.none')} />
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">{t('restaurants.ops.reports.payRuns.period')}</th>
+                    <th scope="col">{t('restaurants.ops.reports.payRuns.status')}</th>
+                    <th scope="col">{t('restaurants.ops.reports.payRuns.totalPay')}</th>
+                    <th scope="col">{t('restaurants.ops.reports.payRuns.approval')}</th>
+                    <th scope="col"><span className="sr-only">{t('restaurants.ops.reports.payRuns.view')}</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payRuns.map((run) => (
+                    <tr key={run.id}>
+                      <td>{String(run.period_from || '').slice(0, 10)} - {String(run.period_to || '').slice(0, 10)}</td>
+                      <td>{t(`restaurants.ops.reports.payRuns.status.${run.status}`)}</td>
+                      <td>{money(run.totals?.total_pay_cents ?? run.linkedPayoutCents ?? 0)}</td>
+                      <td>{run.approved_by ? t('restaurants.ops.reports.payRuns.approved') : t('restaurants.ops.reports.payRuns.notApproved')}</td>
+                      <td>
+                        <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payRunBusy} onClick={() => onOpenPayRun(run.id)} data-track="ui.aa258f5ea1.16">
+                          {t('restaurants.ops.reports.payRuns.view')}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {selectedPayRun && (
+        <div className="fd-card">
+          <p className="fd-card-meta">
+            {t('restaurants.ops.reports.payRuns.run', { id: selectedPayRun.id })} · {String(selectedPayRun.period_from || '').slice(0, 10)} - {String(selectedPayRun.period_to || '').slice(0, 10)} · {t(`restaurants.ops.reports.payRuns.status.${selectedPayRun.status}`)}
+          </p>
+          <p className="fd-card-meta">
+            {selectedPayRun.status === 'finalized' && !selectedPayRun.approved_by
+              ? t('restaurants.ops.reports.payRuns.awaitingApproval')
+              : selectedPayRun.approved_by
+                ? t('restaurants.ops.reports.payRuns.approvedNote')
+                : ''}
+          </p>
+          {(selectedPayRun.lines || []).length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">{t('restaurants.ops.reports.payroll.employee')}</th>
+                    <th scope="col">{t('restaurants.ops.reports.payroll.hours')}</th>
+                    <th scope="col">{t('restaurants.ops.reports.payroll.wages')}</th>
+                    <th scope="col">{t('restaurants.ops.reports.payRuns.grossTips')}</th>
+                    <th scope="col">{t('restaurants.ops.reports.payRuns.tipOut')}</th>
+                    <th scope="col">{t('restaurants.ops.reports.payRuns.tipIn')}</th>
+                    <th scope="col">{t('restaurants.ops.reports.payroll.netTips')}</th>
+                    <th scope="col">{t('restaurants.ops.reports.payroll.totalPay')}</th>
+                    <th scope="col">{t('restaurants.ops.reports.payRuns.disbursed')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedPayRun.lines.map((line) => {
+                    const disbursed = (selectedPayRun.disbursements || []).find((d) => Number(d.payRunLineId) === Number(line.id));
+                    return (
+                      <tr key={line.id}>
+                        <td>{line.staff_label || line.staff_user_id}</td>
+                        <td>{line.regular_hours} + {line.overtime_hours} OT + {line.doubletime_hours} DT</td>
+                        <td>{line.wages_cents == null ? '—' : money(line.wages_cents)}</td>
+                        <td>{money(line.gross_tips_cents)}</td>
+                        <td>{money(line.tip_out_cents)}</td>
+                        <td>{money(line.tip_in_cents)}</td>
+                        <td>{money(line.net_tips_cents)}</td>
+                        <td>{money(line.total_pay_cents)}</td>
+                        <td>{disbursed ? money(disbursed.amountCents) : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {selectedPayRun.disbursementCoverage && (
+            <p className="fd-card-meta">
+              {t('restaurants.ops.reports.payRuns.coverage', {
+                covered: selectedPayRun.disbursementCoverage.lines_covered,
+                total: selectedPayRun.disbursementCoverage.lines_total,
+                disbursed: money(selectedPayRun.disbursementCoverage.disbursed_cents),
+                runTotal: money(selectedPayRun.disbursementCoverage.run_total_cents),
+              })}
+            </p>
+          )}
+          {canManagePayRuns && (
+            <div className="fd-ops-inventory-row">
+              {selectedPayRun.status === 'draft' && (
+                <>
+                  <button type="button" className="fd-btn fd-btn-sm" disabled={payRunBusy} onClick={() => runPayRunAction(t('restaurants.ops.reports.payRuns.finalized'), () => finalizePayRun(restaurantId, selectedPayRun.id))} data-track="ui.aa258f5ea1.17">{t('restaurants.ops.reports.payRuns.finalize')}</button>
+                  <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payRunBusy} onClick={() => runPayRunAction(t('restaurants.ops.reports.payRuns.rebuilt'), () => rebuildPayRun(restaurantId, selectedPayRun.id))} data-track="ui.aa258f5ea1.18">{t('restaurants.ops.reports.payRuns.rebuild')}</button>
+                </>
+              )}
+              {selectedPayRun.status === 'finalized' && !selectedPayRun.approved_by && (
+                <button type="button" className="fd-btn fd-btn-sm" disabled={payRunBusy} onClick={() => runPayRunAction(t('restaurants.ops.reports.payRuns.approved'), () => approvePayRun(restaurantId, selectedPayRun.id))} data-track="ui.aa258f5ea1.19">{t('restaurants.ops.reports.payRuns.approve')}</button>
+              )}
+              {(selectedPayRun.status === 'finalized' || selectedPayRun.status === 'paid') && (
+                <>
+                  <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payRunBusy} onClick={() => onExportPayRun(selectedPayRun.id, 'native')} data-track="ui.aa258f5ea1.20">{t('restaurants.ops.reports.payRuns.exportCsv')}</button>
+                  <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payRunBusy} onClick={() => onExportPayRun(selectedPayRun.id, 'provider')} data-track="ui.aa258f5ea1.21">{t('restaurants.ops.reports.payRuns.exportProvider')}</button>
+                </>
+              )}
+              {(selectedPayRun.status === 'draft' || selectedPayRun.status === 'finalized') && (
+                <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payRunBusy} onClick={() => runPayRunAction(t('restaurants.ops.reports.payRuns.voided'), () => voidPayRun(restaurantId, selectedPayRun.id))} data-track="ui.aa258f5ea1.22">{t('restaurants.ops.reports.payRuns.void')}</button>
+              )}
+              <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={() => setSelectedPayRun(null)} data-track="ui.aa258f5ea1.23">{t('restaurants.ops.reports.payRuns.close')}</button>
+            </div>
+          )}
+          {canManagePayRuns && selectedPayRun.status === 'finalized' && selectedPayRun.approved_by && (
+            <>
+              <form onSubmit={onLinkPayout} className="fd-ops-inventory-row" data-track="ui.aa258f5ea1.26">
+                <input
+                  aria-label={t('restaurants.ops.reports.payRuns.payoutId')}
+                  value={payoutForm.payoutId}
+                  placeholder={t('restaurants.ops.reports.payRuns.payoutIdPlaceholder')}
+                  onChange={(e) => setPayoutForm((f) => ({ ...f, payoutId: e.target.value }))}
+                />
+                <input
+                  aria-label={t('restaurants.ops.reports.payRuns.payoutNote')}
+                  value={payoutForm.note}
+                  placeholder={t('restaurants.ops.reports.payRuns.payoutNotePlaceholder')}
+                  onChange={(e) => setPayoutForm((f) => ({ ...f, note: e.target.value }))}
+                />
+                <button type="submit" className="fd-btn fd-btn-sm" disabled={payRunBusy || !payoutForm.payoutId.trim()} data-track="ui.aa258f5ea1.24">{t('restaurants.ops.reports.payRuns.linkPayout')}</button>
+              </form>
+              <form onSubmit={onRecordDisbursement} className="fd-ops-inventory-row" data-track="ui.aa258f5ea1.27">
+                <select
+                  aria-label={t('restaurants.ops.reports.payRuns.disburseEmployee')}
+                  value={disbForm.lineId}
+                  onChange={(e) => setDisbForm((f) => ({ ...f, lineId: e.target.value }))}
+                >
+                  <option value="">{t('restaurants.ops.reports.payRuns.disburseSelect')}</option>
+                  {(selectedPayRun.lines || []).filter((line) => !(selectedPayRun.disbursements || []).some((d) => Number(d.payRunLineId) === Number(line.id))).map((line) => (
+                    <option key={line.id} value={line.id}>{line.staff_label || line.staff_user_id} · {money(line.total_pay_cents)}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label={t('restaurants.ops.reports.payRuns.disburseMethod')}
+                  value={disbForm.method}
+                  onChange={(e) => setDisbForm((f) => ({ ...f, method: e.target.value }))}
+                >
+                  <option value="bank_transfer">{t('restaurants.ops.reports.payRuns.method.bank_transfer')}</option>
+                  <option value="cash">{t('restaurants.ops.reports.payRuns.method.cash')}</option>
+                  <option value="check">{t('restaurants.ops.reports.payRuns.method.check')}</option>
+                  <option value="provider_export">{t('restaurants.ops.reports.payRuns.method.provider_export')}</option>
+                </select>
+                <input
+                  aria-label={t('restaurants.ops.reports.payRuns.disburseReference')}
+                  value={disbForm.reference}
+                  placeholder={t('restaurants.ops.reports.payRuns.disburseReferencePlaceholder')}
+                  onChange={(e) => setDisbForm((f) => ({ ...f, reference: e.target.value }))}
+                />
+                <button type="submit" className="fd-btn fd-btn-sm" disabled={payRunBusy || !disbForm.lineId} data-track="ui.aa258f5ea1.25">{t('restaurants.ops.reports.payRuns.recordDisbursement')}</button>
+              </form>
+              <p className="fd-card-meta">{t('restaurants.ops.reports.payRuns.disburseHint')}</p>
+            </>
+          )}
+        </div>
       )}
 
       {/* ── Tip pool + declared cash tips ── */}

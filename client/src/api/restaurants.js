@@ -320,6 +320,42 @@ export const updateTipPoolSettings = (restaurantId, payload) =>
 export const declareCashTip = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/tips/cash-declarations`, payload).then((r) => r.data?.declaration);
 
+// ── Pay runs (Phase 5) ─────────────────────────────────────────────
+// Merchant pay-run surface. The server enforces payroll.view on reads
+// and payroll.manage on mutations, plus the maker-checker rule: the
+// user who finalized a run cannot approve it, and a finalized run
+// cannot be exported, linked to a payout, or disbursed until a
+// second payroll manager has approved it.
+export const listPayRuns = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/pay-runs`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
+export const createPayRun = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs`, payload).then((r) => r.data?.payRun);
+
+export const getPayRun = (restaurantId, payRunId) =>
+  api.get(`/restaurants/${restaurantId}/pay-runs/${payRunId}`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.payRun);
+
+export const rebuildPayRun = (restaurantId, payRunId) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/rebuild`).then((r) => r.data?.payRun);
+
+export const finalizePayRun = (restaurantId, payRunId) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/finalize`).then((r) => r.data?.payRun);
+
+export const approvePayRun = (restaurantId, payRunId) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/approve`).then((r) => r.data?.payRun);
+
+export const voidPayRun = (restaurantId, payRunId) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/void`).then((r) => r.data?.payRun);
+
+export const downloadPayRunCsv = (restaurantId, payRunId, format = 'native') =>
+  api.get(`/restaurants/${restaurantId}/pay-runs/${payRunId}/export.csv`, { params: { format }, responseType: 'blob' }).then((r) => r.data);
+
+export const linkPayRunPayout = (restaurantId, payRunId, payload) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/payout-links`, payload).then((r) => r.data?.payRun);
+
+export const recordPayRunDisbursement = (restaurantId, payRunId, payload) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/disbursements`, payload).then((r) => r.data?.payRun);
+
 // ── Employee portal self-service (Phase 3 Track B) ────────────────────
 // Self-scoped reads: the server scopes every call by the signed-in
 // user, so these return only the caller's own tips, pay and stubs.

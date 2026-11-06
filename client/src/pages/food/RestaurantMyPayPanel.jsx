@@ -108,6 +108,8 @@ export default function RestaurantMyPayPanel({ restaurant }) {
           <EpRow label={t('food.employeePortal.myPay.mealBreakPremium')} value={money(employee.meal_break_premium_cents)} />
           <EpRow label={t('food.employeePortal.myPay.predictabilityPremium')} value={money(employee.predictability_premium_cents)} />
           <EpRow label={t('food.employeePortal.myPay.grossTips')} value={money(employee.gross_tips_cents)} />
+          <EpRow label={t('food.employeePortal.myPay.tipOut')} value={money(employee.tip_out_cents)} />
+          <EpRow label={t('food.employeePortal.myPay.tipIn')} value={money(employee.tip_in_cents)} />
           <EpRow label={t('food.employeePortal.myPay.netTips')} value={money(employee.net_tips_cents)} />
           <EpRow label={t('food.employeePortal.myPay.totalPay')} value={money(employee.total_pay_cents)} strong />
         </section>
@@ -166,6 +168,8 @@ export default function RestaurantMyPayPanel({ restaurant }) {
               <EpRow label={t('food.employeePortal.myPay.mealBreakPremium')} value={money(stub.line.meal_break_premium_cents)} />
               <EpRow label={t('food.employeePortal.myPay.predictabilityPremium')} value={money(stub.line.predictability_premium_cents)} />
               <EpRow label={t('food.employeePortal.myPay.grossTips')} value={money(stub.line.gross_tips_cents)} />
+              <EpRow label={t('food.employeePortal.myPay.tipOut')} value={money(stub.line.tip_out_cents)} />
+              <EpRow label={t('food.employeePortal.myPay.tipIn')} value={money(stub.line.tip_in_cents)} />
               <EpRow label={t('food.employeePortal.myPay.netTips')} value={money(stub.line.net_tips_cents)} />
               <EpRow label={t('food.employeePortal.myPay.totalPay')} value={money(stub.line.total_pay_cents)} strong />
               <EmployedByRestaurant restaurantName={restaurant?.display_name} />
