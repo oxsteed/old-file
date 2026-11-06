@@ -273,6 +273,9 @@ export const resolveHubOfflineSale = (restaurantId, hubId, saleId, payload) =>
 // Restaurant host stand (floor-plan tables, reservations, and walk-in queue).
 export const listRestaurantTables = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/tables`, { params }).then((r) => r.data || { tables: [], location: null });
+// Phase 6 (gap 13): table detail with the table's open tickets.
+export const getRestaurantTableDetail = (restaurantId, tableId) =>
+  api.get(`/restaurants/${restaurantId}/tables/${tableId}`).then((r) => r.data);
 export const createRestaurantTable = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/tables`, payload).then((r) => r.data?.table);
 export const updateRestaurantTable = (restaurantId, tableId, payload) =>
