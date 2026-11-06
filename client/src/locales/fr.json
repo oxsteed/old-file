@@ -24804,7 +24804,8 @@
       "shiftClosed": "Service clôturé",
       "closeSummary": "Attendu {{expected}}, compté {{counted}}, écart {{variance}}.",
       "closePaidOrders": "{{count}} commandes payées",
-      "multipleOpenShifts": "{{count}} services sont ouverts. Les commandes utilisent le premier service affiché. Clôturez les services supplémentaires avant de prendre de nouvelles commandes."
+      "multipleOpenShifts": "{{count}} services sont ouverts. Les commandes utilisent le premier service affiché. Clôturez les services supplémentaires avant de prendre de nouvelles commandes.",
+      "covers": "Couverts"
     },
     "inv": {
       "title": "Inventaire",
@@ -24855,7 +24856,31 @@
       "pollError": "Impossible d'actualiser les données d'inventaire. Les dernières données enregistrées sont affichées.",
       "showing": "Affichage de {{from}} à {{to}} sur {{total}}",
       "previous": "Précédent",
-      "next": "Suivant"
+      "next": "Suivant",
+      "tab_modifiers": "Modificateurs",
+      "autoReorder": "Créer les réassorts",
+      "autoReorderDone": "{{drafted}} réassorts créés, {{skipped}} ignorés",
+      "showLots": "Lots",
+      "hideLots": "Masquer les lots",
+      "noLots": "Aucun lot enregistré. Le stock reçu avant le suivi des lots n’a pas de ligne de lot.",
+      "noLotNumber": "Sans numéro de lot",
+      "expires": "Expire",
+      "expired": "Expiré",
+      "expiresSoon": "Expire bientôt",
+      "autoDraft": "Brouillon auto",
+      "approved": "Approuvé",
+      "approve": "Approuver",
+      "markOrdered": "Marquer commandé",
+      "requestUpdated": "Demande d’achat mise à jour",
+      "modifierHint": "Les options de modificateur consomment le stock assigné une fois par plat. Sans assignation, un modificateur ne consomme rien.",
+      "modifierOption": "Option de modificateur",
+      "inventoryItem": "Article d’inventaire",
+      "requiredQuantity": "Quantité requise",
+      "usageLabel": "Libellé d’usage",
+      "addMapping": "Ajouter une assignation",
+      "noModifierMappings": "Aucune assignation de modificateur pour le moment.",
+      "mappingDeleted": "Assignation supprimée",
+      "modifierMappingSaved": "Assignation de modificateur enregistrée"
     },
     "crew": {
       "title": "Équipe",
@@ -25191,7 +25216,22 @@
     "menuManager": {
       "partialGroups": "{{failed}} groupes d'options sur {{total}} n'ont pas pu être enregistrés ({{firstError}}). L'article est enregistré ; enregistrez à nouveau pour réessayer les groupes manquants.",
       "bulkPartial": "{{updated}} articles mis à jour, {{failed}} en échec : {{names}}. Les articles en échec restent sélectionnés.",
-      "bulkFailed": "{{failed}} articles en échec : {{names}}. Ils restent sélectionnés pour un nouvel essai."
+      "bulkFailed": "{{failed}} articles en échec : {{names}}. Ils restent sélectionnés pour un nouvel essai.",
+      "showFoodCost": "Coût alimentaire",
+      "hideFoodCost": "Masquer le coût alimentaire",
+      "foodCostTitle": "Coût par plat et marge",
+      "foodCostHint": "Le coût provient des recettes et des prix fournisseurs en direct. Marge la plus faible en premier.",
+      "sortLowestMargin": "Marge la plus faible",
+      "sortHighestMargin": "Marge la plus élevée",
+      "sortName": "Nom",
+      "noFoodCost": "Aucun article publié pour le moment.",
+      "foodCostItem": "Article",
+      "foodCostPrice": "Prix",
+      "foodCostCost": "Coût par plat",
+      "foodCostMargin": "Marge",
+      "noRecipe": "Sans recette",
+      "currencyMismatch": "Devises mixtes",
+      "itemFoodCost": "Coût {{cost}} · Marge {{margin}} %"
     }
   },
   "network": {
@@ -25278,7 +25318,15 @@
         "pending": "En attente",
         "notifyReservation": "Envoyer un SMS",
         "reservationNotified": "SMS envoyé",
-        "reservationSmsError": "Impossible d’envoyer le SMS de la réservation"
+        "reservationSmsError": "Impossible d’envoyer le SMS de la réservation",
+        "tableTab": "Addition de la table",
+        "covers": "Couverts",
+        "openTickets": "Additions ouvertes",
+        "total": "Total",
+        "items": "articles",
+        "noOpenTickets": "Aucune addition ouverte sur cette table.",
+        "releaseWarning": "Cette table a encore des additions ouvertes. La libérer ne les fermera pas.",
+        "releaseAnyway": "Libérer quand même"
       },
       "comingSoon": "Bientôt disponible",
       "opAtAGlance": "En un coup d'œil",
@@ -26216,7 +26264,11 @@
           "cashSaved": "Pourboires en espèces déclarés.",
           "cashInvalid": "Choisissez un membre, une date et un montant positif.",
           "cashError": "Impossible d'enregistrer la déclaration.",
-          "loadError": "Impossible de charger les paramètres de la cagnotte de pourboires."
+          "loadError": "Impossible de charger les paramètres de la cagnotte de pourboires.",
+          "ruleWeightBasis": "Répartir par",
+          "weightEqual": "Parts égales",
+          "weightHours": "Heures travaillées",
+          "weightGrossTips": "Pourboires bruts"
         },
         "exceptions": {
           "title": "Exceptions par employé",

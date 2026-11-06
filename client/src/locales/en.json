@@ -24804,7 +24804,8 @@
       "shiftClosed": "Shift closed",
       "closeSummary": "Expected {{expected}}, counted {{counted}}, variance {{variance}}.",
       "closePaidOrders": "{{count}} paid orders",
-      "multipleOpenShifts": "{{count}} shifts are open. Orders are using the first shift shown. Close the extra shifts before taking new orders."
+      "multipleOpenShifts": "{{count}} shifts are open. Orders are using the first shift shown. Close the extra shifts before taking new orders.",
+      "covers": "Covers"
     },
     "inv": {
       "title": "Inventory",
@@ -24855,7 +24856,31 @@
       "pollError": "Inventory data could not be refreshed. Showing the last saved data.",
       "showing": "Showing {{from}}–{{to}} of {{total}}",
       "previous": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "tab_modifiers": "Modifiers",
+      "autoReorder": "Draft reorders",
+      "autoReorderDone": "{{drafted}} reorders drafted, {{skipped}} skipped",
+      "showLots": "Lots",
+      "hideLots": "Hide lots",
+      "noLots": "No lots recorded. Stock received before lot tracking has no lot row.",
+      "noLotNumber": "No lot number",
+      "expires": "Expires",
+      "expired": "Expired",
+      "expiresSoon": "Expires soon",
+      "autoDraft": "Auto draft",
+      "approved": "Approved",
+      "approve": "Approve",
+      "markOrdered": "Mark ordered",
+      "requestUpdated": "Purchase request updated",
+      "modifierHint": "Modifier options deplete the mapped inventory once per dish. Without a mapping, a modifier depletes nothing.",
+      "modifierOption": "Modifier option",
+      "inventoryItem": "Inventory item",
+      "requiredQuantity": "Required quantity",
+      "usageLabel": "Usage label",
+      "addMapping": "Add mapping",
+      "noModifierMappings": "No modifier mappings yet.",
+      "mappingDeleted": "Mapping deleted",
+      "modifierMappingSaved": "Modifier mapping saved"
     },
     "crew": {
       "title": "Crew",
@@ -25191,7 +25216,22 @@
     "menuManager": {
       "partialGroups": "{{failed}} of {{total}} option groups failed to save ({{firstError}}). The item is saved; save again to retry the missing groups.",
       "bulkPartial": "{{updated}} items updated, {{failed}} failed: {{names}}. The failed items are still selected.",
-      "bulkFailed": "{{failed}} items failed: {{names}}. They are still selected for retry."
+      "bulkFailed": "{{failed}} items failed: {{names}}. They are still selected for retry.",
+      "showFoodCost": "Food cost",
+      "hideFoodCost": "Hide food cost",
+      "foodCostTitle": "Plate cost and margin",
+      "foodCostHint": "Cost comes from the live recipe mappings and supplier prices. Lowest margin first.",
+      "sortLowestMargin": "Lowest margin",
+      "sortHighestMargin": "Highest margin",
+      "sortName": "Name",
+      "noFoodCost": "No published items yet.",
+      "foodCostItem": "Item",
+      "foodCostPrice": "Price",
+      "foodCostCost": "Plate cost",
+      "foodCostMargin": "Margin",
+      "noRecipe": "No recipe",
+      "currencyMismatch": "Mixed currencies",
+      "itemFoodCost": "Cost {{cost}} · Margin {{margin}}%"
     }
   },
   "network": {
@@ -25278,7 +25318,15 @@
         "pending": "Pending",
         "notifyReservation": "Send SMS",
         "reservationNotified": "SMS sent",
-        "reservationSmsError": "Could not send reservation SMS"
+        "reservationSmsError": "Could not send reservation SMS",
+        "tableTab": "Table tab",
+        "covers": "Covers",
+        "openTickets": "Open tickets",
+        "total": "Total",
+        "items": "items",
+        "noOpenTickets": "No open tickets on this table.",
+        "releaseWarning": "This table still has open tickets. Releasing it will not close them.",
+        "releaseAnyway": "Release anyway"
       },
       "comingSoon": "Coming next",
       "opAtAGlance": "At a glance",
@@ -25918,7 +25966,11 @@
           "cashSaved": "Cash tips declared.",
           "cashInvalid": "Pick a team member, a date and a positive amount.",
           "cashError": "Could not save the cash tip declaration.",
-          "loadError": "Tip pool settings could not be loaded."
+          "loadError": "Tip pool settings could not be loaded.",
+          "ruleWeightBasis": "Split by",
+          "weightEqual": "Equal shares",
+          "weightHours": "Hours worked",
+          "weightGrossTips": "Gross tips"
         },
         "exceptions": {
           "title": "Exceptions by employee",

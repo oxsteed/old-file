@@ -24804,7 +24804,8 @@
       "shiftClosed": "Turno cerrado",
       "closeSummary": "Esperado {{expected}}, contado {{counted}}, diferencia {{variance}}.",
       "closePaidOrders": "{{count}} pedidos pagados",
-      "multipleOpenShifts": "{{count}} turnos están abiertos. Los pedidos usan el primer turno mostrado. Cierra los turnos extra antes de tomar pedidos nuevos."
+      "multipleOpenShifts": "{{count}} turnos están abiertos. Los pedidos usan el primer turno mostrado. Cierra los turnos extra antes de tomar pedidos nuevos.",
+      "covers": "Comensales"
     },
     "inv": {
       "title": "Inventario",
@@ -24855,7 +24856,31 @@
       "pollError": "No se pudieron actualizar los datos del inventario. Se muestra la última información guardada.",
       "showing": "Mostrando {{from}}–{{to}} de {{total}}",
       "previous": "Anterior",
-      "next": "Siguiente"
+      "next": "Siguiente",
+      "tab_modifiers": "Modificadores",
+      "autoReorder": "Crear pedidos",
+      "autoReorderDone": "{{drafted}} pedidos creados, {{skipped}} omitidos",
+      "showLots": "Lotes",
+      "hideLots": "Ocultar lotes",
+      "noLots": "No hay lotes registrados. El stock recibido antes del seguimiento de lotes no tiene fila de lote.",
+      "noLotNumber": "Sin número de lote",
+      "expires": "Vence",
+      "expired": "Vencido",
+      "expiresSoon": "Vence pronto",
+      "autoDraft": "Borrador automático",
+      "approved": "Aprobado",
+      "approve": "Aprobar",
+      "markOrdered": "Marcar como pedido",
+      "requestUpdated": "Solicitud de compra actualizada",
+      "modifierHint": "Las opciones de modificador consumen el inventario asignado una vez por plato. Sin asignación, un modificador no consume nada.",
+      "modifierOption": "Opción de modificador",
+      "inventoryItem": "Artículo de inventario",
+      "requiredQuantity": "Cantidad requerida",
+      "usageLabel": "Etiqueta de uso",
+      "addMapping": "Agregar asignación",
+      "noModifierMappings": "Aún no hay asignaciones de modificadores.",
+      "mappingDeleted": "Asignación eliminada",
+      "modifierMappingSaved": "Asignación de modificador guardada"
     },
     "crew": {
       "title": "Equipo",
@@ -25191,7 +25216,22 @@
     "menuManager": {
       "partialGroups": "{{failed}} de {{total}} grupos de opciones no se guardaron ({{firstError}}). El artículo está guardado; guarda de nuevo para reintentar los grupos faltantes.",
       "bulkPartial": "{{updated}} artículos actualizados, {{failed}} fallaron: {{names}}. Los artículos fallidos siguen seleccionados.",
-      "bulkFailed": "{{failed}} artículos fallaron: {{names}}. Siguen seleccionados para reintentar."
+      "bulkFailed": "{{failed}} artículos fallaron: {{names}}. Siguen seleccionados para reintentar.",
+      "showFoodCost": "Costo de alimentos",
+      "hideFoodCost": "Ocultar costo de alimentos",
+      "foodCostTitle": "Costo por plato y margen",
+      "foodCostHint": "El costo proviene de las recetas y los precios de proveedor en vivo. Margen más bajo primero.",
+      "sortLowestMargin": "Margen más bajo",
+      "sortHighestMargin": "Margen más alto",
+      "sortName": "Nombre",
+      "noFoodCost": "Aún no hay artículos publicados.",
+      "foodCostItem": "Artículo",
+      "foodCostPrice": "Precio",
+      "foodCostCost": "Costo por plato",
+      "foodCostMargin": "Margen",
+      "noRecipe": "Sin receta",
+      "currencyMismatch": "Monedas mixtas",
+      "itemFoodCost": "Costo {{cost}} · Margen {{margin}}%"
     }
   },
   "network": {
@@ -25278,7 +25318,15 @@
         "pending": "Pendiente",
         "notifyReservation": "Enviar SMS",
         "reservationNotified": "SMS enviado",
-        "reservationSmsError": "No se pudo enviar el SMS de la reserva"
+        "reservationSmsError": "No se pudo enviar el SMS de la reserva",
+        "tableTab": "Cuenta de mesa",
+        "covers": "Comensales",
+        "openTickets": "Cuentas abiertas",
+        "total": "Total",
+        "items": "artículos",
+        "noOpenTickets": "No hay cuentas abiertas en esta mesa.",
+        "releaseWarning": "Esta mesa aún tiene cuentas abiertas. Liberarla no las cerrará.",
+        "releaseAnyway": "Liberar de todos modos"
       },
       "comingSoon": "Próximamente",
       "opAtAGlance": "De un vistazo",
@@ -26216,7 +26264,11 @@
           "cashSaved": "Propinas en efectivo declaradas.",
           "cashInvalid": "Elija un miembro del equipo, una fecha y un importe positivo.",
           "cashError": "No se pudo guardar la declaración de propinas en efectivo.",
-          "loadError": "No se pudo cargar la configuración del fondo de propinas."
+          "loadError": "No se pudo cargar la configuración del fondo de propinas.",
+          "ruleWeightBasis": "Repartir por",
+          "weightEqual": "Partes iguales",
+          "weightHours": "Horas trabajadas",
+          "weightGrossTips": "Propinas brutas"
         },
         "exceptions": {
           "title": "Excepciones por empleado",

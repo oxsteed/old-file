@@ -24804,7 +24804,8 @@
       "shiftClosed": "Chif fèmen",
       "closeSummary": "Te dwe {{expected}}, konte {{counted}}, diferans {{variance}}.",
       "closePaidOrders": "{{count}} kòmann peye",
-      "multipleOpenShifts": "{{count}} chif ouvè. Kòmann yo ap itilize premye chif ki parèt la. Fèmen chif anplis yo anvan w pran nouvo kòmann."
+      "multipleOpenShifts": "{{count}} chif ouvè. Kòmann yo ap itilize premye chif ki parèt la. Fèmen chif anplis yo anvan w pran nouvo kòmann.",
+      "covers": "Kouvè"
     },
     "inv": {
       "title": "Envantè",
@@ -24855,7 +24856,31 @@
       "pollError": "Done inventè yo pa t ka mete ajou. N ap montre dènye done ki te anrejistre yo.",
       "showing": "Montre {{from}}–{{to}} sou {{total}}",
       "previous": "Anvan",
-      "next": "Apre"
+      "next": "Apre",
+      "tab_modifiers": "Modifikatè",
+      "autoReorder": "Kreye lòd yo",
+      "autoReorderDone": "{{drafted}} lòd kreye, {{skipped}} yo pa fèt",
+      "showLots": "Lo",
+      "hideLots": "Kache lo yo",
+      "noLots": "Pa gen lo anrejistre. Stòk ki te resevwa anvan swivi lo yo pa gen liy lo.",
+      "noLotNumber": "Pa gen nimewo lo",
+      "expires": "Ekspire",
+      "expired": "Ekspire",
+      "expiresSoon": "Ap ekspire talè",
+      "autoDraft": "Bwouyon otomatik",
+      "approved": "Apwouve",
+      "approve": "Apwouve",
+      "markOrdered": "Make kòm kòmande",
+      "requestUpdated": "Demann acha a mete ajou",
+      "modifierHint": "Opsyon modifikatè yo konsome envantè yo asiyen an yon fwa pa pla. San yon asiyasyon, yon modifikatè pa konsome anyen.",
+      "modifierOption": "Opsyon modifikatè",
+      "inventoryItem": "Atik envantè",
+      "requiredQuantity": "Kantite nesesè",
+      "usageLabel": "Etikèt itilizasyon",
+      "addMapping": "Ajoute asiyasyon",
+      "noModifierMappings": "Pa gen asiyasyon modifikatè pou kounye a.",
+      "mappingDeleted": "Asiyasyon efase",
+      "modifierMappingSaved": "Asiyasyon modifikatè anrejistre"
     },
     "crew": {
       "title": "Ekip",
@@ -25191,7 +25216,22 @@
     "menuManager": {
       "partialGroups": "{{failed}} sou {{total}} gwoup opsyon pa t ka anrejistre ({{firstError}}). Atik la anrejistre; anrejistre ankò pou re-eseye gwoup ki manke yo.",
       "bulkPartial": "{{updated}} atik mete ajou, {{failed}} echwe: {{names}}. Atik ki echwe yo toujou chwazi.",
-      "bulkFailed": "{{failed}} atik echwe: {{names}}. Yo toujou chwazi pou re-eseye."
+      "bulkFailed": "{{failed}} atik echwe: {{names}}. Yo toujou chwazi pou re-eseye.",
+      "showFoodCost": "Pri manje",
+      "hideFoodCost": "Kache pri manje",
+      "foodCostTitle": "Pri pa pla ak maj",
+      "foodCostHint": "Pri a soti nan resèt yo ak pri founisè yo an dirèk. Maj ki pi ba a an premye.",
+      "sortLowestMargin": "Maj ki pi ba",
+      "sortHighestMargin": "Maj ki pi wo",
+      "sortName": "Non",
+      "noFoodCost": "Pa gen atik pibliye pou kounye a.",
+      "foodCostItem": "Atik",
+      "foodCostPrice": "Pri",
+      "foodCostCost": "Pri pa pla",
+      "foodCostMargin": "Maj",
+      "noRecipe": "Pa gen resèt",
+      "currencyMismatch": "Lajan melanje",
+      "itemFoodCost": "Pri {{cost}} · Maj {{margin}}%"
     }
   },
   "network": {
@@ -25278,7 +25318,15 @@
         "pending": "An atant",
         "notifyReservation": "Voye SMS",
         "reservationNotified": "SMS voye",
-        "reservationSmsError": "Pa t kapab voye SMS rezèvasyon an"
+        "reservationSmsError": "Pa t kapab voye SMS rezèvasyon an",
+        "tableTab": "Adisyon tab la",
+        "covers": "Kouvè",
+        "openTickets": "Adisyon ouvè",
+        "total": "Total",
+        "items": "atik",
+        "noOpenTickets": "Pa gen adisyon ouvè sou tab sa a.",
+        "releaseWarning": "Tab sa a gen adisyon ouvè toujou. Lage li pap fèmen yo.",
+        "releaseAnyway": "Lage li kanmenm"
       },
       "comingSoon": "Ap vini talè",
       "opAtAGlance": "Yon ti gade",
@@ -26216,7 +26264,11 @@
           "cashSaved": "Tibwa kach deklare.",
           "cashInvalid": "Chwazi yon manm ekip, yon dat ak yon montan pozitif.",
           "cashError": "Nou pa t kapab anrejistre deklarasyon tibwa kach la.",
-          "loadError": "Paramèt pisin pourbwa yo pa t ka chaje."
+          "loadError": "Paramèt pisin pourbwa yo pa t ka chaje.",
+          "ruleWeightBasis": "Separe pa",
+          "weightEqual": "Pati egal",
+          "weightHours": "Èdtan travay",
+          "weightGrossTips": "Poubway brit"
         },
         "exceptions": {
           "title": "Eksepsyon pa anplwaye",

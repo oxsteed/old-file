@@ -24815,7 +24815,8 @@
       "shiftClosed": "أُغلقت الوردية",
       "closeSummary": "المتوقع {{expected}}، المعدود {{counted}}، الفرق {{variance}}.",
       "closePaidOrders": "{{count}} طلب مدفوع",
-      "multipleOpenShifts": "هناك {{count}} ورديات مفتوحة. تستخدم الطلبات أول وردية معروضة. أغلق الورديات الإضافية قبل استقبال طلبات جديدة."
+      "multipleOpenShifts": "هناك {{count}} ورديات مفتوحة. تستخدم الطلبات أول وردية معروضة. أغلق الورديات الإضافية قبل استقبال طلبات جديدة.",
+      "covers": "عدد الضيوف"
     },
     "inv": {
       "title": "المخزون",
@@ -24866,7 +24867,31 @@
       "pollError": "تعذّر تحديث بيانات المخزون. يتم عرض آخر بيانات محفوظة.",
       "showing": "عرض {{from}}–{{to}} من {{total}}",
       "previous": "السابق",
-      "next": "التالي"
+      "next": "التالي",
+      "tab_modifiers": "المعدِّلات",
+      "autoReorder": "إنشاء طلبات إعادة",
+      "autoReorderDone": "تم إنشاء {{drafted}} طلبات، وتم تخطي {{skipped}}",
+      "showLots": "الدفعات",
+      "hideLots": "إخفاء الدفعات",
+      "noLots": "لا توجد دفعات مسجلة. المخزون المستلم قبل تتبع الدفعات ليس له صف دفعة.",
+      "noLotNumber": "لا يوجد رقم دفعة",
+      "expires": "تنتهي",
+      "expired": "منتهية",
+      "expiresSoon": "تنتهي قريباً",
+      "autoDraft": "مسودة تلقائية",
+      "approved": "معتمَد",
+      "approve": "اعتماد",
+      "markOrdered": "وضع علامة مطلوب",
+      "requestUpdated": "تم تحديث طلب الشراء",
+      "modifierHint": "تستهلك خيارات المعدِّلات المخزون المخصّص لها مرة واحدة لكل طبق. وبدون تخصيص، لا يستهلك المعدِّل شيئاً.",
+      "modifierOption": "خيار المعدِّل",
+      "inventoryItem": "عنصر المخزون",
+      "requiredQuantity": "الكمية المطلوبة",
+      "usageLabel": "تسمية الاستخدام",
+      "addMapping": "إضافة تخصيص",
+      "noModifierMappings": "لا توجد تخصيصات معدِّلات بعد.",
+      "mappingDeleted": "تم حذف التخصيص",
+      "modifierMappingSaved": "تم حفظ تخصيص المعدِّل"
     },
     "crew": {
       "title": "فريق العمل",
@@ -25202,7 +25227,22 @@
     "menuManager": {
       "partialGroups": "تعذّر حفظ {{failed}} من أصل {{total}} مجموعة خيارات ({{firstError}}). تم حفظ العنصر؛ احفظ مجددًا لإعادة محاولة المجموعات الناقصة.",
       "bulkPartial": "تم تحديث {{updated}} عنصر، وفشل {{failed}}: {{names}}. العناصر الفاشلة ما زالت محددة.",
-      "bulkFailed": "فشل {{failed}} عنصر: {{names}}. ما زالت محددة لإعادة المحاولة."
+      "bulkFailed": "فشل {{failed}} عنصر: {{names}}. ما زالت محددة لإعادة المحاولة.",
+      "showFoodCost": "تكلفة الطعام",
+      "hideFoodCost": "إخفاء تكلفة الطعام",
+      "foodCostTitle": "تكلفة الطبق والهامش",
+      "foodCostHint": "التكلفة من وصفات المكونات وأسعار الموردين المباشرة. الأقل هامشاً أولاً.",
+      "sortLowestMargin": "الأقل هامشاً",
+      "sortHighestMargin": "الأعلى هامشاً",
+      "sortName": "الاسم",
+      "noFoodCost": "لا توجد عناصر منشورة بعد.",
+      "foodCostItem": "العنصر",
+      "foodCostPrice": "السعر",
+      "foodCostCost": "تكلفة الطبق",
+      "foodCostMargin": "الهامش",
+      "noRecipe": "لا وصفة",
+      "currencyMismatch": "عملات مختلطة",
+      "itemFoodCost": "التكلفة {{cost}} · الهامش {{margin}}٪"
     }
   },
   "network": {
@@ -25289,7 +25329,15 @@
         "pending": "قيد الانتظار",
         "notifyReservation": "إرسال رسالة نصية",
         "reservationNotified": "تم إرسال الرسالة",
-        "reservationSmsError": "تعذر إرسال رسالة الحجز النصية"
+        "reservationSmsError": "تعذر إرسال رسالة الحجز النصية",
+        "tableTab": "فاتورة الطاولة",
+        "covers": "عدد الضيوف",
+        "openTickets": "الفواتير المفتوحة",
+        "total": "الإجمالي",
+        "items": "عناصر",
+        "noOpenTickets": "لا توجد فواتير مفتوحة على هذه الطاولة.",
+        "releaseWarning": "ما زالت هذه الطاولة تحتوي على فواتير مفتوحة. تحريرها لن يغلقها.",
+        "releaseAnyway": "حرّر على أي حال"
       },
       "comingSoon": "قريبًا",
       "opAtAGlance": "نظرة سريعة",
@@ -26231,7 +26279,11 @@
           "cashSaved": "تم التصريح بالإكراميات النقدية.",
           "cashInvalid": "اختر عضو فريق وتاريخا ومبلغا موجبا.",
           "cashError": "تعذر حفظ تصريح الإكراميات النقدية.",
-          "loadError": "تعذّر تحميل إعدادات مجمّع الإكراميات."
+          "loadError": "تعذّر تحميل إعدادات مجمّع الإكراميات.",
+          "ruleWeightBasis": "التقسيم حسب",
+          "weightEqual": "حصص متساوية",
+          "weightHours": "ساعات العمل",
+          "weightGrossTips": "إجمالي الإكراميات"
         },
         "exceptions": {
           "title": "الاستثناءات حسب الموظف",
