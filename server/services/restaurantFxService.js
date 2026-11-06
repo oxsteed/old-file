@@ -10,9 +10,12 @@
 //
 // Convention, stated on every converted figure: one unit of
 // base_currency buys `rate` units of quote_currency, so
-// amount_quote = amount_base * rate, rounded to the nearest minor
-// unit (Math.round on integer cents). Same-currency conversion is
-// exactly 1 and needs no stored row.
+// amount_quote = amount_base * rate. Amounts are integer minor
+// units, but the rate is major-to-major, so the conversion goes
+// through major units on both sides using each currency's own
+// minor-unit exponent (JPY 0, BHD 3, most 2): converting minor
+// units directly would be off by 100x for JPY and 1000x for BHD.
+// Same-currency conversion is exactly 1 and needs no stored row.
 //
 // Policy default (product decision still owed from Emile — see the
 // Phase 8 report): reporting currency = the restaurant's primary
@@ -22,6 +25,7 @@
 // for brand rollups) wins over the default.
 
 const AppError = require('../utils/appError');
+const { minorUnitDecimals } = require('../utils/currencyPrecision');
 
 const CURRENCY_RE = /^[A-Z]{3}$/;
 const RATE_SOURCES = ['stored', 'admin_entered', 'import'];
@@ -231,11 +235,21 @@ async function convertAmount(client, { amountCents, fromCurrency, toCurrency, ra
       rateDate: normalizeRateDate(rateDate),
     };
   }
+  // The rate is major-to-major while the amount is integer minor
+  // units, so convert through major units on both sides: divide by
+  // the source currency's minor units per major, multiply by the
+  // rate, then multiply by the target currency's minor units per
+  // major and round to the nearest target minor unit.
+  const fromDecimals = minorUnitDecimals(rate.baseCurrency);
+  const toDecimals = minorUnitDecimals(rate.quoteCurrency);
+  const convertedCents = Math.round(
+    (amount / 10 ** fromDecimals) * rate.rate * 10 ** toDecimals
+  );
   return {
     missingRate: false,
     fromCurrency: rate.baseCurrency,
     toCurrency: rate.quoteCurrency,
-    convertedCents: Math.round(amount * rate.rate),
+    convertedCents,
     amountCents: amount,
     rate: rate.rate,
     rateDate: rate.rateDate,
