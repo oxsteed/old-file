@@ -12,7 +12,8 @@
  *   - hours computed at clock-out, net of breaks,
  *   - clock-out ownership (owner or manager only),
  *   - append-only audited edits with a reason and manager approver,
- *   - voiding instead of hard deletes in BOTH time-entry APIs.
+ *   - voiding instead of hard deletes in the live time-entry API
+ *     (manual-hours create + void).
  *
  * Run with:
  *   ST_T3_TEST_DATABASE_URL=postgresql://.../st_t3 \
@@ -54,7 +55,6 @@ if (CAN_RUN_DB) {
 const { errorHandler } = require('../middleware/errorHandler');
 const pool = require('../db');
 const scheduleCtrl = require('../controllers/businessStaffScheduleController');
-const staffCtrl = require('../controllers/staffSchedulingController');
 
 jest.setTimeout(60000);
 
@@ -75,9 +75,7 @@ function appFor(userId, businessRole) {
   app.post('/api/businesses/:businessId/staff/time-entries/:entryId/break', scheduleCtrl.punchBreak);
   app.patch('/api/businesses/:businessId/staff/time-entries/:entryId', scheduleCtrl.editTimeEntry);
   app.post('/api/businesses/:businessId/staff/time-entries/:entryId/void', scheduleCtrl.voidTimeEntry);
-  app.post('/api/businesses/:businessId/time-entries', staffCtrl.logHours);
-  app.get('/api/businesses/:businessId/time-entries', staffCtrl.getTimeEntries);
-  app.delete('/api/businesses/:businessId/time-entries/:id', staffCtrl.deleteTimeEntry);
+  app.post('/api/businesses/:businessId/staff/time-entries', scheduleCtrl.createManualTimeEntry);
   app.use(errorHandler);
   return app;
 }
@@ -241,28 +239,29 @@ ddescribe('time clock punch model (S-05)', () => {
     expect(list.body.some((e) => e.id === entryId)).toBe(false);
   });
 
-  test('the parallel scheduling API voids instead of hard-deleting, and manual logs carry an approver', async () => {
+  test('the live manual-hours API voids instead of hard-deleting, and manual logs carry an approver', async () => {
     const logged = await request(appFor(F.owner, 'owner'))
-      .post(`/api/businesses/${F.businessId}/time-entries`)
+      .post(`/api/businesses/${F.businessId}/staff/time-entries`)
       .send({ user_id: F.employee, hours_worked: 3.5, description: 'Deep clean' });
     expect(logged.status).toBe(201);
     const entryId = logged.body.entry.id;
     expect(logged.body.entry.approved_by).toBe(F.owner);
+    expect(logged.body.entry.source).toBe('manual');
 
     const removed = await request(appFor(F.owner, 'owner'))
-      .delete(`/api/businesses/${F.businessId}/time-entries/${entryId}`)
-      .send({});
+      .post(`/api/businesses/${F.businessId}/staff/time-entries/${entryId}/void`)
+      .send({ reason: 'Duplicate entry' });
     expect(removed.status).toBe(200);
-    expect(removed.body.voided).toBe(true);
+    expect(removed.body.voided_at).toBeTruthy();
 
     const { rows: [row] } = await pool.query('SELECT * FROM business_time_entries WHERE id = $1', [entryId]);
     expect(row).toBeTruthy();
     expect(row.voided_at).toBeTruthy();
 
     const list = await request(appFor(F.owner, 'owner'))
-      .get(`/api/businesses/${F.businessId}/time-entries`);
+      .get(`/api/businesses/${F.businessId}/staff/time-entries`);
     expect(list.status).toBe(200);
-    expect(list.body.entries.some((e) => e.id === entryId)).toBe(false);
+    expect(list.body.some((e) => e.id === entryId)).toBe(false);
   });
 });
 
