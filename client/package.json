@@ -36,6 +36,7 @@
     "test:realtime-url": "node --test scripts/realtimeUrl.test.mjs",
     "test:restaurant-discovery": "node --test scripts/restaurantDiscovery.test.mjs",
     "test:restaurant-finance-browser": "node --test scripts/restaurantFinance.browser-check.cjs",
+    "test:restaurant-multi-location-browser": "node --test scripts/restaurantMultiLocation.browser-check.cjs",
     "test:restaurant-accessibility": "node --test scripts/restaurantAccessibility.test.mjs",
     "test:business-profile-editor": "node --test scripts/businessProfileEditor.test.mjs",
     "test:profile-studio": "node --test scripts/profileStudio.test.mjs scripts/businessProfileEditor.test.mjs",
