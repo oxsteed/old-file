@@ -40,7 +40,7 @@ import {
   downloadLaborRollupCsv,
 } from '../../api/restaurants';
 import { PayrollPanel } from './RestaurantPayrollPanel';
-import { formatFoodMoney } from '../../api/food';
+import { formatFoodMoney, listRestaurantBrands } from '../../api/food';
 
 function apiErr(err, fallback) {
   const m = err?.response?.data?.error?.message || err?.response?.data?.message;
@@ -838,7 +838,7 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
 // policy) hides these sections without breaking the rest of the page.
 // Scheduled deliveries are snapshots stamped with an as-of time, not
 // locked closes: the daily close is re-computed from live orders.
-const SCHEDULE_REPORT_TYPES = ['daily_close', 'labor', 'exceptions'];
+const SCHEDULE_REPORT_TYPES = ['daily_close', 'labor', 'exceptions', 'hq_digest', 'franchise_digest'];
 const SCHEDULE_FREQUENCIES = ['daily', 'weekly'];
 const SCHEDULE_CHANNELS = ['in_app', 'email', 'both'];
 const RETENTION_CLASSES = ['time_entries', 'pay_runs', 'schedule_versions', 'staff_documents', 'tip_records', 'audit_events'];
@@ -852,7 +852,8 @@ function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
   const [deliveries, setDeliveries] = useState([]);
   const [policies, setPolicies] = useState(null);
   const [erasureRequests, setErasureRequests] = useState([]);
-  const [scheduleForm, setScheduleForm] = useState({ reportType: 'daily_close', frequency: 'daily', deliveryChannel: 'in_app', userIds: '', emails: '' });
+  const [scheduleForm, setScheduleForm] = useState({ reportType: 'daily_close', frequency: 'daily', deliveryChannel: 'in_app', userIds: '', emails: '', brandId: '' });
+  const [brands, setBrands] = useState([]);
   const [erasureForm, setErasureForm] = useState({ userId: '', reason: '' });
   const [policyDrafts, setPolicyDrafts] = useState({});
   const [busy, setBusy] = useState(false);
@@ -871,12 +872,16 @@ function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
       listScheduledReportDeliveries(restaurantId).catch(() => []),
       getRetentionPolicies(restaurantId).catch((err) => { if (err?.response?.status === 403) return null; throw err; }),
       listErasureRequests(restaurantId).catch(() => []),
+      // Phase 8: HQ/franchise digests need a brand; a merchant with
+      // no brands simply never sees the brand picker.
+      listRestaurantBrands().catch(() => []),
     ])
-      .then(([sc, dl, pol, er]) => {
+      .then(([sc, dl, pol, er, br]) => {
         if (sc !== null) setSchedules(sc);
         setDeliveries(Array.isArray(dl) ? dl : []);
         if (pol !== null) setPolicies(pol);
         setErasureRequests(Array.isArray(er) ? er : []);
+        setBrands(Array.isArray(br) ? br : []);
       })
       .catch(() => { /* sections stay hidden on load failure */ });
   }, [restaurantId]);
@@ -917,9 +922,14 @@ function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
         frequency: scheduleForm.frequency,
         deliveryChannel: scheduleForm.deliveryChannel,
         recipients,
+        // Phase 8: HQ/franchise digests are brand-scoped; the server
+        // rejects a digest without a brand that owns this restaurant.
+        ...(scheduleForm.reportType === 'hq_digest' || scheduleForm.reportType === 'franchise_digest'
+          ? { brandId: Number(scheduleForm.brandId) }
+          : {}),
       });
       toast.success(t('restaurants.ops.reports.scheduled.created', 'Scheduled report saved.'));
-      setScheduleForm({ reportType: 'daily_close', frequency: 'daily', deliveryChannel: 'in_app', userIds: '', emails: '' });
+      setScheduleForm({ reportType: 'daily_close', frequency: 'daily', deliveryChannel: 'in_app', userIds: '', emails: '', brandId: '' });
       loadSchedules();
     } catch (err) {
       toast.error(apiErr(err, t('restaurants.ops.reports.scheduled.createError', 'Could not save the scheduled report.')));
@@ -1104,6 +1114,15 @@ function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
                 ))}
               </select>
             </div>
+            {(scheduleForm.reportType === 'hq_digest' || scheduleForm.reportType === 'franchise_digest') && (
+              <div className="fd-field">
+                <label htmlFor="sr-brand">{t('restaurants.ops.reports.scheduled.brand', 'Brand')}</label>
+                <select id="sr-brand" value={scheduleForm.brandId} onChange={(e) => setScheduleForm((f) => ({ ...f, brandId: e.target.value }))} required>
+                  <option value="">{t('restaurants.ops.reports.scheduled.brandPlaceholder', 'Choose a brand')}</option>
+                  {brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}
+                </select>
+              </div>
+            )}
             <div className="fd-field">
               <label htmlFor="sr-users">{t('restaurants.ops.reports.scheduled.userIds', 'Recipient user IDs (comma-separated)')}</label>
               <input id="sr-users" value={scheduleForm.userIds} onChange={(e) => setScheduleForm((f) => ({ ...f, userIds: e.target.value }))} placeholder="12, 34" />

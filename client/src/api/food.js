@@ -239,6 +239,44 @@ export const createRestaurantHQRegion = (restaurantId, payload) =>
 export const updateRestaurantHQRegion = (restaurantId, regionId, payload) =>
   api.patch(`/restaurants/${restaurantId}/hq/regions/${regionId}`, payload).then((r) => r.data?.region);
 
+// Phase 8 Track A: FX policy (reporting currency, rate source, rate
+// date) and stored exchange rates. Rates are data an admin enters;
+// there is no live rate feed.
+export const getRestaurantHQFxPolicy = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/hq/fx-policy`).then((r) => r.data?.policy);
+export const updateRestaurantHQFxPolicy = (restaurantId, payload) =>
+  api.put(`/restaurants/${restaurantId}/hq/fx-policy`, payload).then((r) => r.data?.policy);
+export const listRestaurantHQFxRates = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/hq/fx-rates`, { params }).then((r) => r.data?.rates || []);
+export const createRestaurantHQFxRate = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/hq/fx-rates`, payload).then((r) => r.data?.rate);
+
+// Phase 8 Track D: HQ-level pay-run approval (maker-checker, same
+// core as the per-restaurant approve) and per-location labor-policy
+// administration from HQ.
+export const approveRestaurantHQPayRun = (restaurantId, payRunId) =>
+  api.post(`/restaurants/${restaurantId}/hq/pay-runs/${payRunId}/approve`).then((r) => r.data?.payRun);
+export const listRestaurantHQLaborPolicies = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/hq/labor-policies`).then((r) => r.data?.policies || []);
+export const updateRestaurantHQLaborPolicy = (restaurantId, locationId, payload) =>
+  api.put(`/restaurants/${restaurantId}/hq/labor-policies/${locationId}`, payload).then((r) => r.data?.policy);
+
+// Phase 8 Track D: inter-store labor borrowing and the shared roster.
+export const listLaborBorrows = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/labor-borrows`, { params }).then((r) => r.data?.borrows || []);
+export const requestLaborBorrow = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/labor-borrows`, payload).then((r) => r.data?.borrow);
+export const approveLaborBorrow = (restaurantId, borrowId) =>
+  api.post(`/restaurants/${restaurantId}/labor-borrows/${borrowId}/approve`).then((r) => r.data?.borrow);
+export const declineLaborBorrow = (restaurantId, borrowId) =>
+  api.post(`/restaurants/${restaurantId}/labor-borrows/${borrowId}/decline`).then((r) => r.data?.borrow);
+export const cancelLaborBorrow = (restaurantId, borrowId) =>
+  api.post(`/restaurants/${restaurantId}/labor-borrows/${borrowId}/cancel`).then((r) => r.data?.borrow);
+export const completeLaborBorrow = (restaurantId, borrowId) =>
+  api.post(`/restaurants/${restaurantId}/labor-borrows/${borrowId}/complete`).then((r) => r.data?.borrow);
+export const getSharedRoster = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/shared-roster`, { params }).then((r) => r.data);
+
 // Brand HQ console (F-02 phase 2): the brand groups restaurants across
 // businesses; every call is scoped server-side to accessible restaurants.
 export const listRestaurantBrands = () =>
@@ -255,6 +293,50 @@ export const attachBrandRestaurant = (brandId, payload) =>
   api.post(`/restaurant-brands/${brandId}/restaurants`, payload).then((r) => r.data);
 export const detachBrandRestaurant = (brandId, restaurantId) =>
   api.delete(`/restaurant-brands/${brandId}/restaurants/${restaurantId}`).then((r) => r.data);
+
+// Phase 8 Track A: brand FX policy + stored rates (brand rollups
+// convert with the brand policy).
+export const getBrandFxPolicy = (brandId) =>
+  api.get(`/restaurant-brands/${brandId}/fx-policy`).then((r) => r.data?.policy);
+export const updateBrandFxPolicy = (brandId, payload) =>
+  api.put(`/restaurant-brands/${brandId}/fx-policy`, payload).then((r) => r.data?.policy);
+export const listBrandFxRates = (brandId, params = {}) =>
+  api.get(`/restaurant-brands/${brandId}/fx-rates`, { params }).then((r) => r.data?.rates || []);
+export const createBrandFxRate = (brandId, payload) =>
+  api.post(`/restaurant-brands/${brandId}/fx-rates`, payload).then((r) => r.data?.rate);
+
+// Phase 8 Track C: cross-restaurant payroll — a read-first
+// cross-store pay-run view, then consolidated finalize/approve.
+export const listBrandPayRuns = (brandId, params = {}) =>
+  api.get(`/restaurant-brands/${brandId}/pay-runs`, { params }).then((r) => r.data?.payRuns || []);
+export const listPayRunConsolidations = (brandId, params = {}) =>
+  api.get(`/restaurant-brands/${brandId}/pay-runs/consolidations`, { params }).then((r) => r.data?.consolidations || []);
+export const createPayRunConsolidation = (brandId, payload) =>
+  api.post(`/restaurant-brands/${brandId}/pay-runs/consolidations`, payload).then((r) => r.data?.consolidation);
+export const getPayRunConsolidation = (brandId, consolidationId) =>
+  api.get(`/restaurant-brands/${brandId}/pay-runs/consolidations/${consolidationId}`).then((r) => r.data?.consolidation);
+export const finalizePayRunConsolidation = (brandId, consolidationId) =>
+  api.post(`/restaurant-brands/${brandId}/pay-runs/consolidations/${consolidationId}/finalize`).then((r) => r.data?.consolidation);
+export const approvePayRunConsolidation = (brandId, consolidationId) =>
+  api.post(`/restaurant-brands/${brandId}/pay-runs/consolidations/${consolidationId}/approve`).then((r) => r.data?.consolidation);
+export const voidPayRunConsolidation = (brandId, consolidationId) =>
+  api.post(`/restaurant-brands/${brandId}/pay-runs/consolidations/${consolidationId}/void`).then((r) => r.data?.consolidation);
+
+// Phase 8 Track D: staged brand menu rollout — pilot restaurants
+// first, then every remaining target, one advance per stage.
+export const listMenuRollouts = (brandId) =>
+  api.get(`/restaurant-brands/${brandId}/menu/rollouts`).then((r) => r.data?.rollouts || []);
+export const createMenuRollout = (brandId, payload) =>
+  api.post(`/restaurant-brands/${brandId}/menu/rollouts`, payload).then((r) => r.data?.rollout);
+export const advanceMenuRollout = (brandId, rolloutId) =>
+  api.post(`/restaurant-brands/${brandId}/menu/rollouts/${rolloutId}/advance`).then((r) => r.data?.rollout);
+export const cancelMenuRollout = (brandId, rolloutId) =>
+  api.post(`/restaurant-brands/${brandId}/menu/rollouts/${rolloutId}/cancel`).then((r) => r.data?.rollout);
+
+// Phase 8 Track E: franchise reporting per store with conversion
+// and royalty/fee reporting from the stored agreement terms.
+export const getBrandFranchiseReport = (brandId, params = {}) =>
+  api.get(`/restaurant-brands/${brandId}/franchise-report`, { params }).then((r) => r.data);
 
 // In-store hub + offline cash replay (F-08 phase 2). The hub is the
 // designated per-store device that relays LAN traffic while offline and

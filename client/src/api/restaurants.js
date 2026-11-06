@@ -336,8 +336,8 @@ export const getExceptionsReport = (restaurantId, params = {}) =>
 export const getTeamActivity = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/team/activity`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
-export const getTipPoolSettings = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/tip-pool`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.settings);
+export const getTipPoolSettings = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/tip-pool`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.settings);
 
 export const updateTipPoolSettings = (restaurantId, payload) =>
   api.put(`/restaurants/${restaurantId}/tip-pool`, payload).then((r) => r.data?.settings);

@@ -3400,3 +3400,16 @@ input[type="color"].fd-settings-color {
 .tc-correction-form { margin-top: 8px; }
 .tc-inline-btn { margin-inline-start: 0.5rem; }
 .tc-correction-pending { margin-inline-start: 0.5rem; }
+
+/* Phase 8 (multi-location HQ/brand panels): layout helpers that
+   replace inline styles. Inline style={} renders as an inline style
+   attribute, which the CSP migration blocks, so new panels use these. */
+.fd-stack { margin-top: 1rem; }
+.fd-stack-sm { margin-top: 0.75rem; }
+.fd-form-row-end { gap: 0.75rem; align-items: end; }
+.fd-field-narrow { max-width: 24rem; }
+.fd-input-currency { width: 5rem; }
+.fd-input-rate { width: 7rem; }
+.fd-scroll-x { overflow-x: auto; }
+.fd-list-disc { margin: 0.5rem 0 0 1rem; padding: 0; list-style: disc; }
+.fd-list-disc-sm { margin: 0.25rem 0 0 1rem; padding: 0; list-style: disc; }

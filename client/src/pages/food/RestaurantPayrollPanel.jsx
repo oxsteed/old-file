@@ -62,6 +62,9 @@ export function PayrollPanel({ t, restaurant, from, to }) {
   const [actionFilter, setActionFilter] = useState('');
   const [tipSettings, setTipSettings] = useState(null);
   const [tipSettingsError, setTipSettingsError] = useState(false);
+  // Phase 8 Track B: per-store tip pools. 'all' is the restaurant-level
+  // pool (the fallback); a single store edits that store's own pool.
+  const [tipScope, setTipScope] = useState('all');
   const [rules, setRules] = useState([]);
   const [savingTips, setSavingTips] = useState(false);
   const [cashForm, setCashForm] = useState({ staffUserId: '', date: to, amount: '', note: '' });
@@ -199,7 +202,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
 
   const loadTipSettings = useCallback(() => {
     setTipSettingsError(false);
-    getTipPoolSettings(restaurantId)
+    getTipPoolSettings(restaurantId, tipScope === 'all' ? {} : { locationId: tipScope })
       .then((settings) => {
         setTipSettings(settings);
         setRules((settings?.tip_out_rules || []).map((r) => ({
@@ -212,7 +215,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
       // A failed tip-pool read used to make the whole section silently
       // vanish; surface it with a retry instead.
       .catch(() => setTipSettingsError(true));
-  }, [restaurantId]);
+  }, [restaurantId, tipScope]);
 
   useEffect(() => { loadTipSettings(); }, [loadTipSettings]);
 
@@ -246,6 +249,9 @@ export function PayrollPanel({ t, restaurant, from, to }) {
           percent_bps: Math.round(Number(r.percent) * 100),
           weight_basis: r.weight_basis || 'equal',
         })),
+        // Phase 8 Track B: a store-scoped save writes that store's
+        // pool; 'all' writes the restaurant-level fallback pool.
+        ...(tipScope === 'all' ? {} : { locationId: Number(tipScope) }),
       };
       const saved = await updateTipPoolSettings(restaurantId, payload);
       setTipSettings(saved);
@@ -570,6 +576,16 @@ export function PayrollPanel({ t, restaurant, from, to }) {
       {tipSettingsError && <p role="alert">{t('restaurants.ops.reports.tipPool.loadError')} <button type="button" className="fd-btn fd-btn-sm" onClick={loadTipSettings} data-track="ui.aa258f5ea1.12">{t('restaurants.ops.shared.retry')}</button></p>}
       {tipSettings && canManageTips && (
         <div className="fd-card">
+          <div className="fd-field fd-field-narrow">
+            <label htmlFor="tip-pool-scope">{t('restaurants.ops.reports.tipPool.scopeLabel')}</label>
+            <select id="tip-pool-scope" value={tipScope} onChange={(e) => setTipScope(e.target.value)} data-track="ui.aa258f5ea1.13">
+              <option value="all">{t('restaurants.ops.reports.tipPool.scopeAll')}</option>
+              {(selection.stores || []).map((store) => (
+                <option key={store.id} value={store.id}>{store.name}</option>
+              ))}
+            </select>
+            <p className="fd-card-meta">{t('restaurants.ops.reports.tipPool.scopeHint')}</p>
+          </div>
           <label className="fd-card-meta">
             <input
               type="checkbox"
