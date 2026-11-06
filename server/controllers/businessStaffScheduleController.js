@@ -9,6 +9,13 @@ const laborJurisdiction = require('../services/laborJurisdictionRules');
 // time-off, availability warnings, minor limits) for create/update/
 // swap approval. Blocking vs warning is decided in that module.
 const { validateShift } = require('../services/shiftConflictValidation');
+// Phase 4 Track B: PTO balances + accrual, copy-week/templates, and
+// the scheduled-cost forecast. The forecast is a projection only; it
+// never writes pay lines.
+const pto = require('../services/ptoBalances');
+const { copyCandidates } = require('../services/scheduleCopy');
+const { computeScheduleForecast } = require('../services/scheduleForecast');
+const { getLaborPolicy } = require('../services/restaurantPayrollService');
 // Phase 2 punch integrity (goal goal_a0fc7c0f0394): hours are computed
 // from epoch instants (DST-correct) in one shared module, and the
 // close-of-day sweep lives in restaurantPunchCloseout.js.
@@ -1780,6 +1787,25 @@ exports.createTimeOffRequest = async (req, res, next) => {
       if (!rest) return res.status(400).json({ error: 'Restaurant does not belong to this business' });
       restaurantId = rid;
     }
+    // Phase 4 Track B: a request that would take the balance below
+    // zero is rejected here, with the remaining balance, instead of
+    // silently going negative. Unconfigured types ('unpaid', or no
+    // policy for this employee) are not balance-checked.
+    const balanceCheck = await pto.checkSufficient(
+      pool, Number(businessId), req.user.id,
+      valid.requestType, valid.startDate, valid.endDate
+    );
+    if (balanceCheck.enforced && !balanceCheck.ok) {
+      return res.status(409).json({
+        error: 'insufficient_pto_balance',
+        code: 'insufficient_pto_balance',
+        request_type: valid.requestType,
+        balance: balanceCheck.balance,
+        required: balanceCheck.required,
+        unit: balanceCheck.unit,
+        days: balanceCheck.days,
+      });
+    }
     const { rows: [request] } = await pool.query(
       `INSERT INTO business_time_off_requests
          (business_id, user_id, restaurant_id, request_type, start_date, end_date, reason)
@@ -1796,7 +1822,17 @@ exports.createTimeOffRequest = async (req, res, next) => {
       target_id: request.id,
       after_state: request,
     });
-    return res.status(201).json({ request, conflicts });
+    return res.status(201).json({
+      request,
+      conflicts,
+      ...(balanceCheck.enforced ? {
+        pto_balance: {
+          balance: balanceCheck.balance,
+          required: balanceCheck.required,
+          unit: balanceCheck.unit,
+        },
+      } : {}),
+    });
   } catch (err) { return next(err); }
 };
 
@@ -1846,14 +1882,48 @@ exports.decideTimeOffRequest = async (req, res, next) => {
       return res.status(400).json({ error: 'decision must be approved or denied' });
     }
     if(storeContext?.scope.mode==='assigned'){const {rows:[target]}=await pool.query('SELECT user_id FROM business_time_off_requests WHERE id=$1 AND business_id=$2',[requestId,businessId]);if(!target)return res.status(404).json({error:'Not found'});await workforce.assertStaff(storeContext,target.user_id);}
-    const { rows: [request] } = await pool.query(
-      `UPDATE business_time_off_requests
-          SET status = $1, decided_by = $2, decided_at = NOW(), updated_at = NOW()
-        WHERE id = $3 AND business_id = $4 AND status = 'pending'
-        RETURNING *`,
-      [decision, req.user.id, requestId, businessId]
-    );
-    if (!request) return res.status(404).json({ error: 'Pending time-off request not found' });
+    // Phase 4 Track B: approval and its balance decrement happen in
+    // one transaction, so the status can never flip without the
+    // balance moving (and vice versa). The decrement is guarded by
+    // `balance >= required`: if the balance moved since the request
+    // was made, approval 409s and the request stays pending. Denial
+    // never touches the balance.
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [pending] } = await client.query(
+        `SELECT * FROM business_time_off_requests
+          WHERE id = $1 AND business_id = $2 AND status = 'pending' FOR UPDATE`,
+        [requestId, businessId]
+      );
+      if (!pending) return { missing: true };
+      let decrement = null;
+      if (decision === 'approved') {
+        decrement = await pto.decrementForApproval(
+          client, Number(businessId), pending.user_id, pending.request_type,
+          pending.start_date, pending.end_date, pending.id, req.user.id
+        );
+        if (decrement.enforced && decrement.ok === false) return { insufficient: decrement };
+      }
+      const { rows: [updated] } = await client.query(
+        `UPDATE business_time_off_requests
+            SET status = $1, decided_by = $2, decided_at = NOW(), updated_at = NOW()
+          WHERE id = $3 AND business_id = $4 AND status = 'pending'
+          RETURNING *`,
+        [decision, req.user.id, requestId, businessId]
+      );
+      return { request: updated, decrement };
+    }, 'decide_time_off_request');
+    if (result.missing) return res.status(404).json({ error: 'Pending time-off request not found' });
+    if (result.insufficient) {
+      return res.status(409).json({
+        error: 'insufficient_pto_balance',
+        code: 'insufficient_pto_balance',
+        balance: result.insufficient.balance,
+        required: result.insufficient.required,
+        unit: result.insufficient.unit,
+        days: result.insufficient.days,
+      });
+    }
+    const request = result.request;
     await logBusinessAction(req, {
       business_id: Number(businessId),
       action: `business.staff.time_off.${decision}`,
@@ -1878,7 +1948,16 @@ exports.decideTimeOffRequest = async (req, res, next) => {
         },
       },
     }).catch(() => {});
-    return res.json({ request });
+    return res.json({
+      request,
+      ...(result.decrement?.decremented ? {
+        pto_balance: {
+          balance: result.decrement.balanceAfter,
+          required: result.decrement.required,
+          unit: result.decrement.unit,
+        },
+      } : {}),
+    });
   } catch (err) { return next(err); }
 };
 
@@ -1902,5 +1981,474 @@ exports.cancelTimeOffRequest = async (req, res, next) => {
       after_state: request,
     });
     return res.json({ request });
+  } catch (err) { return next(err); }
+};
+
+// ── Phase 4 Track B: PTO balances, copy-week, templates, forecast ────
+// PTO balances are hours/days owed, not money. The forecast is a
+// projection for the scheduler UI, never a pay write.
+
+function addDays(dateStr, days) {
+  const d = new Date(`${String(dateStr).slice(0, 10)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// Monday-start week key, same convention as shiftConflictValidation.
+function mondayOf(dateStr) {
+  const d = new Date(`${String(dateStr).slice(0, 10)}T12:00:00Z`);
+  const offset = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - offset);
+  return d.toISOString().slice(0, 10);
+}
+
+function isMonday(dateStr) {
+  return new Date(`${String(dateStr).slice(0, 10)}T12:00:00Z`).getUTCDay() === 1;
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Balances + the policy behind them, per employee per type. Managers
+// see everyone (or one user with ?user_id=); anyone else sees only
+// their own balance.
+exports.listTimeOffBalances = async (req, res, next) => {
+  const { businessId } = req.params;
+  const { user_id } = req.query;
+  try {
+    const manager = await isBusinessManager(req, businessId, req.user.id);
+    const params = [businessId];
+    let scope = 'p.business_id = $1';
+    if (!manager) {
+      params.push(req.user.id);
+      scope += ` AND p.user_id = $${params.length}`;
+    } else if (user_id) {
+      params.push(user_id);
+      scope += ` AND p.user_id = $${params.length}`;
+    }
+    const { rows } = await pool.query(
+      `SELECT p.user_id, p.request_type,
+              COALESCE(b.balance, 0) AS balance,
+              COALESCE(b.unit, p.accrual_unit) AS unit,
+              p.accrual_amount, p.accrual_unit, p.accrual_period, p.carryover_cap,
+              COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name) AS user_name
+         FROM business_time_off_policies p
+         LEFT JOIN business_time_off_balances b
+           ON b.business_id = p.business_id AND b.user_id = p.user_id AND b.request_type = p.request_type
+         LEFT JOIN users u ON u.id = p.user_id
+        WHERE ${scope}
+        UNION ALL
+       SELECT b.user_id, b.request_type, b.balance, b.unit,
+              NULL AS accrual_amount, NULL AS accrual_unit, NULL AS accrual_period, NULL AS carryover_cap,
+              COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name) AS user_name
+         FROM business_time_off_balances b
+         LEFT JOIN business_time_off_policies p
+           ON p.business_id = b.business_id AND p.user_id = b.user_id AND p.request_type = b.request_type
+         LEFT JOIN users u ON u.id = b.user_id
+        WHERE b.business_id = $1 AND p.id IS NULL
+          ${!manager ? `AND b.user_id = $2` : (user_id ? `AND b.user_id = $2` : '')}
+        ORDER BY user_id, request_type`,
+      params
+    );
+    return res.json({ balances: rows });
+  } catch (err) { return next(err); }
+};
+
+// Manager-only: set (or replace) one employee's accrual rule for one
+// time-off type. Creates the balance row with initial_balance when
+// there is none yet; an existing balance is never reset by this call.
+// Changing the unit while a nonzero balance sits in the old unit is
+// refused: the manager grants or the balance drains first, so a unit
+// change can never silently revalue owed time.
+exports.setTimeOffPolicy = async (req, res, next) => {
+  const { businessId, userId } = req.params;
+  const body = req.body || {};
+  try {
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can set time-off policies' });
+    }
+    const requestType = String(body.request_type || body.requestType || '').toLowerCase();
+    if (!TIME_OFF_TYPES.has(requestType)) {
+      return res.status(400).json({ error: `request_type must be one of: ${[...TIME_OFF_TYPES].join(', ')}` });
+    }
+    const accrualAmount = Number(body.accrual_amount ?? body.accrualAmount);
+    if (!Number.isFinite(accrualAmount) || accrualAmount < 0) {
+      return res.status(400).json({ error: 'accrual_amount must be a number >= 0' });
+    }
+    const accrualUnit = String(body.accrual_unit || body.accrualUnit || 'days').toLowerCase();
+    if (!['hours', 'days'].includes(accrualUnit)) {
+      return res.status(400).json({ error: "accrual_unit must be 'hours' or 'days'" });
+    }
+    const accrualPeriod = String(body.accrual_period || body.accrualPeriod || 'monthly').toLowerCase();
+    if (!['weekly', 'monthly', 'yearly', 'once'].includes(accrualPeriod)) {
+      return res.status(400).json({ error: "accrual_period must be 'weekly', 'monthly', 'yearly' or 'once'" });
+    }
+    const carryoverCap = body.carryover_cap ?? body.carryoverCap ?? null;
+    const cap = carryoverCap === null || carryoverCap === '' ? null : Number(carryoverCap);
+    if (cap !== null && (!Number.isFinite(cap) || cap < 0)) {
+      return res.status(400).json({ error: 'carryover_cap must be a number >= 0 or null' });
+    }
+    const initialBalance = body.initial_balance ?? body.initialBalance ?? null;
+    const initial = initialBalance === null || initialBalance === '' ? null : Number(initialBalance);
+    if (initial !== null && (!Number.isFinite(initial) || initial < 0)) {
+      return res.status(400).json({ error: 'initial_balance must be a number >= 0 or null' });
+    }
+    if (!await assertBusinessMember(businessId, userId)) {
+      return res.status(400).json({ error: 'User is not a member of this business' });
+    }
+    const result = await withTransaction(pool, async (client) => {
+      const existing = await pto.getBalance(client, Number(businessId), userId, requestType);
+      if (existing && existing.unit !== accrualUnit && Number(existing.balance) !== 0) {
+        return { unitConflict: true, balance: Number(existing.balance), unit: existing.unit };
+      }
+      const { rows: [policy] } = await client.query(
+        `INSERT INTO business_time_off_policies
+           (business_id, user_id, request_type, accrual_amount, accrual_unit, accrual_period, carryover_cap, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         ON CONFLICT (business_id, user_id, request_type) DO UPDATE SET
+           accrual_amount = EXCLUDED.accrual_amount,
+           accrual_unit = EXCLUDED.accrual_unit,
+           accrual_period = EXCLUDED.accrual_period,
+           carryover_cap = EXCLUDED.carryover_cap,
+           updated_at = NOW()
+         RETURNING *`,
+        [businessId, userId, requestType, accrualAmount, accrualUnit, accrualPeriod, cap, req.user.id]
+      );
+      const { rows: [balanceRow] } = await client.query(
+        `INSERT INTO business_time_off_balances (business_id, user_id, request_type, balance, unit)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (business_id, user_id, request_type) DO UPDATE SET unit = EXCLUDED.unit
+         RETURNING *`,
+        [businessId, userId, requestType, initial ?? 0, accrualUnit]
+      );
+      if (initial !== null && initial > 0 && !existing) {
+        await client.query(
+          `INSERT INTO business_time_off_accrual_events
+             (business_id, user_id, request_type, amount, unit, event_type, balance_after, created_by)
+           VALUES ($1,$2,$3,$4,$5,'initial',$4,$6)`,
+          [businessId, userId, requestType, initial, accrualUnit, req.user.id]
+        );
+      }
+      return { policy, balance: balanceRow };
+    }, 'set_time_off_policy');
+    if (result.unitConflict) {
+      return res.status(400).json({
+        error: `Cannot change the accrual unit while a balance of ${result.balance} ${result.unit} remains; grant or drain it first`,
+        code: 'pto_unit_conflict',
+        balance: result.balance,
+        unit: result.unit,
+      });
+    }
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.staff.time_off.policy_set',
+      target_type: 'time_off_policy',
+      target_id: result.policy.id,
+      after_state: result.policy,
+    });
+    return res.json({ policy: result.policy, balance: result.balance });
+  } catch (err) { return next(err); }
+};
+
+// Manager-only: grant one accrual period's worth to every matching
+// policy (or one employee / one type with user_id / request_type).
+// The carryover cap is enforced per policy inside grantAccrual;
+// accrual beyond the cap is not banked and is reported as capped.
+// This is the manager-triggered grant (Track B choice): one explicit
+// call, one auditable event per policy, no background job.
+exports.grantTimeOffAccrual = async (req, res, next) => {
+  const { businessId } = req.params;
+  const { user_id, request_type } = req.body || {};
+  try {
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can grant time-off accrual' });
+    }
+    const params = [businessId];
+    let where = 'business_id = $1';
+    if (user_id) { params.push(user_id); where += ` AND user_id = $${params.length}`; }
+    if (request_type) {
+      if (!TIME_OFF_TYPES.has(String(request_type).toLowerCase())) {
+        return res.status(400).json({ error: `request_type must be one of: ${[...TIME_OFF_TYPES].join(', ')}` });
+      }
+      params.push(String(request_type).toLowerCase());
+      where += ` AND request_type = $${params.length}`;
+    }
+    const { rows: policies } = await pool.query(
+      `SELECT * FROM business_time_off_policies WHERE ${where} ORDER BY user_id, request_type`,
+      params
+    );
+    const grants = await withTransaction(pool, async (client) => {
+      const out = [];
+      for (const policy of policies) out.push(await pto.grantAccrual(client, policy, req.user.id));
+      return out;
+    }, 'grant_time_off_accrual');
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.staff.time_off.accrual_granted',
+      target_type: 'time_off_policy',
+      after_state: { grants },
+    });
+    return res.json({ grants });
+  } catch (err) { return next(err); }
+};
+
+// Manager-only: duplicate a published week of shifts as DRAFTS in a
+// target week (same weekday/time/role/person). Conflicting candidates
+// are skipped with their reasons; one bad shift never fails the copy.
+exports.copyWeek = async (req, res, next) => {
+  const { businessId } = req.params;
+  const { source_week_start, target_week_start } = req.body || {};
+  try {
+    const storeContext = await workforce.context(req);
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can copy a schedule week' });
+    }
+    if (!DATE_ONLY_RE.test(String(source_week_start || '')) || !DATE_ONLY_RE.test(String(target_week_start || ''))) {
+      return res.status(400).json({ error: 'source_week_start and target_week_start are required as YYYY-MM-DD' });
+    }
+    if (!isMonday(source_week_start) || !isMonday(target_week_start)) {
+      return res.status(400).json({ error: 'source_week_start and target_week_start must both be Mondays' });
+    }
+    const sourceEnd = addDays(source_week_start, 6);
+    const offsetDays = Math.round(
+      (new Date(`${target_week_start}T12:00:00Z`) - new Date(`${source_week_start}T12:00:00Z`)) / 86400000
+    );
+    const { rows: source } = await pool.query(
+      `SELECT * FROM business_staff_shifts
+        WHERE business_id = $1 AND published_at IS NOT NULL
+          AND shift_date >= $2::date AND shift_date <= $3::date
+        ORDER BY shift_date, start_time`,
+      [businessId, source_week_start, sourceEnd]
+    );
+    const candidates = (source || []).map((shift) => ({
+      ...shift,
+      source_shift_id: shift.id,
+      shift_date: addDays(shift.shift_date, offsetDays),
+    }));
+    const result = await copyCandidates(pool, {
+      businessId,
+      candidates,
+      assertScope: async (userId, locationId) => {
+        await workforce.assertStaff(storeContext, userId, pool, locationId);
+      },
+    });
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.staff.shifts.week_copied',
+      target_type: 'shift_week',
+      after_state: {
+        source_week_start, target_week_start,
+        created: result.created.length, skipped: result.skipped.length,
+      },
+    });
+    return res.json({
+      source_week_start, target_week_start,
+      created: result.created, skipped: result.skipped,
+    });
+  } catch (err) { return next(err); }
+};
+
+// Manager-only: list saved shift templates with their shift counts.
+exports.listShiftTemplates = async (req, res, next) => {
+  const { businessId } = req.params;
+  try {
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can view shift templates' });
+    }
+    const { rows } = await pool.query(
+      `SELECT t.*, COUNT(s.id)::int AS shift_count
+         FROM business_shift_templates t
+         LEFT JOIN business_shift_template_shifts s ON s.template_id = t.id
+        WHERE t.business_id = $1
+        GROUP BY t.id
+        ORDER BY t.name`,
+      [businessId]
+    );
+    return res.json({ templates: rows });
+  } catch (err) { return next(err); }
+};
+
+// Manager-only: save a published week's shifts as a named template.
+// The template stores day_of_week + times, not dates, and applies
+// through the same copy path as copy-week.
+exports.saveShiftTemplate = async (req, res, next) => {
+  const { businessId } = req.params;
+  const { name, week_start } = req.body || {};
+  try {
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can save shift templates' });
+    }
+    const templateName = String(name || '').trim().slice(0, 120);
+    if (!templateName) return res.status(400).json({ error: 'name is required' });
+    if (!DATE_ONLY_RE.test(String(week_start || '')) || !isMonday(week_start)) {
+      return res.status(400).json({ error: 'week_start is required as a Monday (YYYY-MM-DD)' });
+    }
+    const weekEnd = addDays(week_start, 6);
+    const { rows: source } = await pool.query(
+      `SELECT * FROM business_staff_shifts
+        WHERE business_id = $1 AND published_at IS NOT NULL
+          AND shift_date >= $2::date AND shift_date <= $3::date
+        ORDER BY shift_date, start_time`,
+      [businessId, week_start, weekEnd]
+    );
+    if (!source.length) {
+      return res.status(400).json({ error: 'No published shifts in that week to save as a template' });
+    }
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [template] } = await client.query(
+        `INSERT INTO business_shift_templates (business_id, name, created_by)
+         VALUES ($1,$2,$3) RETURNING *`,
+        [businessId, templateName, req.user.id]
+      );
+      for (const shift of source) {
+        const dow = new Date(`${String(shift.shift_date).slice(0, 10)}T12:00:00Z`).getUTCDay();
+        await client.query(
+          `INSERT INTO business_shift_template_shifts
+             (template_id, user_id, day_of_week, start_time, end_time, role_label, notes, location_id, restaurant_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [template.id, shift.user_id, dow, shift.start_time, shift.end_time,
+            shift.role_label ?? null, shift.notes ?? null,
+            shift.location_id ?? null, shift.restaurant_id ?? null]
+        );
+      }
+      return { template, shift_count: source.length };
+    }, 'save_shift_template');
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.staff.shift_template.saved',
+      target_type: 'shift_template',
+      target_id: result.template.id,
+      after_state: { name: templateName, week_start, shift_count: result.shift_count },
+    });
+    return res.status(201).json(result);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'A template with this name already exists' });
+    }
+    return next(err);
+  }
+};
+
+// Manager-only: apply a saved template as DRAFTS in a target week,
+// through the same copy path (and the same skip-and-report rules) as
+// copy-week. day_of_week 0 = Sunday, so Monday + ((dow + 6) % 7).
+exports.applyShiftTemplate = async (req, res, next) => {
+  const { businessId, templateId } = req.params;
+  const { target_week_start } = req.body || {};
+  try {
+    const storeContext = await workforce.context(req);
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can apply shift templates' });
+    }
+    if (!DATE_ONLY_RE.test(String(target_week_start || '')) || !isMonday(target_week_start)) {
+      return res.status(400).json({ error: 'target_week_start is required as a Monday (YYYY-MM-DD)' });
+    }
+    const { rows: [template] } = await pool.query(
+      'SELECT * FROM business_shift_templates WHERE id = $1 AND business_id = $2',
+      [templateId, businessId]
+    );
+    if (!template) return res.status(404).json({ error: 'Template not found' });
+    const { rows: templateShifts } = await pool.query(
+      `SELECT * FROM business_shift_template_shifts
+        WHERE template_id = $1 ORDER BY day_of_week, start_time`,
+      [templateId]
+    );
+    const candidates = (templateShifts || []).map((shift) => ({
+      ...shift,
+      template_shift_id: shift.id,
+      shift_date: addDays(target_week_start, (Number(shift.day_of_week) + 6) % 7),
+    }));
+    const result = await copyCandidates(pool, {
+      businessId,
+      candidates,
+      assertScope: async (userId, locationId) => {
+        await workforce.assertStaff(storeContext, userId, pool, locationId);
+      },
+    });
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.staff.shift_template.applied',
+      target_type: 'shift_template',
+      target_id: template.id,
+      after_state: {
+        target_week_start, created: result.created.length, skipped: result.skipped.length,
+      },
+    });
+    return res.json({
+      template_id: template.id, template_name: template.name,
+      target_week_start,
+      created: result.created, skipped: result.skipped,
+    });
+  } catch (err) { return next(err); }
+};
+
+// Manager-only: delete a saved shift template (its shifts cascade).
+exports.deleteShiftTemplate = async (req, res, next) => {
+  const { businessId, templateId } = req.params;
+  try {
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can delete shift templates' });
+    }
+    const { rows: [deleted] } = await pool.query(
+      'DELETE FROM business_shift_templates WHERE id = $1 AND business_id = $2 RETURNING *',
+      [templateId, businessId]
+    );
+    if (!deleted) return res.status(404).json({ error: 'Template not found' });
+    return res.json({ success: true });
+  } catch (err) { return next(err); }
+};
+
+// Manager-only, read-only: project labor cost over the DRAFT shifts in
+// a date range (default: the current Monday-Sunday week). Scheduled
+// hours x the wage of record, with projected weekly overtime flagged
+// where a week's scheduled hours cross the labor-policy threshold.
+// This is a projection for the scheduler UI: it writes nothing, and
+// no pay line, pay run, or ledger row is created or changed here.
+exports.getScheduleForecast = async (req, res, next) => {
+  const { businessId } = req.params;
+  const { from, to, restaurant_id } = req.query;
+  try {
+    if (!await isBusinessManager(req, businessId, req.user.id)) {
+      return res.status(403).json({ error: 'Only a manager can view the scheduled-cost forecast' });
+    }
+    const weekStart = mondayOf(todayIso());
+    const fromDate = from ? String(from) : weekStart;
+    const toDate = to ? String(to) : addDays(weekStart, 6);
+    if (!DATE_ONLY_RE.test(fromDate) || !DATE_ONLY_RE.test(toDate) || toDate < fromDate) {
+      return res.status(400).json({ error: 'from and to are required as YYYY-MM-DD with to on or after from' });
+    }
+    const rangeDays = Math.round(
+      (new Date(`${toDate}T12:00:00Z`) - new Date(`${fromDate}T12:00:00Z`)) / 86400000
+    ) + 1;
+    if (rangeDays > 93) {
+      return res.status(400).json({ error: 'Forecast range is capped at 93 days' });
+    }
+    let restaurantId = null;
+    if (restaurant_id) {
+      const rid = Number(restaurant_id);
+      if (!Number.isFinite(rid)) return res.status(400).json({ error: 'restaurant_id must be a number' });
+      const { rows: [rest] } = await pool.query(
+        'SELECT id FROM food_restaurants WHERE id = $1 AND business_id = $2',
+        [rid, businessId]
+      );
+      if (!rest) return res.status(400).json({ error: 'Restaurant does not belong to this business' });
+      restaurantId = rid;
+    } else {
+      const { rows: [rest] } = await pool.query(
+        'SELECT id FROM food_restaurants WHERE business_id = $1 ORDER BY id LIMIT 1',
+        [businessId]
+      );
+      restaurantId = rest?.id ?? null;
+    }
+    const policy = await getLaborPolicy(restaurantId);
+    const forecast = await computeScheduleForecast(pool, {
+      businessId,
+      from: fromDate,
+      to: toDate,
+      overtimeThresholdHours: Number(policy.overtime_threshold_hours),
+      overtimeMultiplierBps: Number(policy.overtime_multiplier_bps),
+    });
+    return res.json(forecast);
   } catch (err) { return next(err); }
 };

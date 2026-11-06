@@ -21,6 +21,18 @@ router.get   ('/:businessId/staff/time-off',             requireAuth, requireBus
 router.post  ('/:businessId/staff/time-off',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.createTimeOffRequest);
 router.post  ('/:businessId/staff/time-off/:requestId/decide', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.decideTimeOffRequest);
 router.post  ('/:businessId/staff/time-off/:requestId/cancel', requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.cancelTimeOffRequest);
+// Phase 4 Track B: PTO balances + accrual (manager-set policies,
+// manager-triggered grants; balances shown to the employee too).
+router.get   ('/:businessId/staff/time-off/balances',    requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.listTimeOffBalances);
+router.put   ('/:businessId/staff/members/:userId/time-off-policy', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.setTimeOffPolicy);
+router.post  ('/:businessId/staff/time-off/accrue',      requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.grantTimeOffAccrual);
+// Phase 4 Track B: copy-week, shift templates, scheduled-cost forecast.
+router.post  ('/:businessId/staff/shifts/copy-week',     requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.copyWeek);
+router.get   ('/:businessId/staff/shift-templates',      requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.listShiftTemplates);
+router.post  ('/:businessId/staff/shift-templates',      requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.saveShiftTemplate);
+router.post  ('/:businessId/staff/shift-templates/:templateId/apply', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.applyShiftTemplate);
+router.delete('/:businessId/staff/shift-templates/:templateId', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.deleteShiftTemplate);
+router.get   ('/:businessId/staff/shifts/forecast',      requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.getScheduleForecast);
 router.get   ('/:businessId/staff/availability',          requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.listAvailability);
 router.put   ('/:businessId/staff/availability',          requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.replaceAvailability);
 router.get   ('/:businessId/staff/shift-swaps',           requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.listShiftSwapRequests);
