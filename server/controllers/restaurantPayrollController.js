@@ -525,6 +525,8 @@ function payRunLinesFromLabor(labor) {
     predictability_premium_cents: Math.round(Number(e.predictability_premium_cents) || 0),
     unpriced_premium_hours: Math.round((Number(e.unpriced_premium_hours) || 0) * 100) / 100,
     gross_tips_cents: Math.round(Number(e.gross_tips_cents) || 0),
+    tip_out_cents: Math.round(Number(e.tip_out_cents) || 0),
+    tip_in_cents: Math.round(Number(e.tip_in_cents) || 0),
     net_tips_cents: Math.round(Number(e.net_tips_cents) || 0),
     total_pay_cents: Math.round(Number(e.total_pay_cents) || 0),
   }));
@@ -538,8 +540,8 @@ async function insertPayRunLines(client, payRunId, lines) {
           doubletime_hours, hourly_wage_cents, regular_wages_cents, overtime_wages_cents,
           doubletime_wages_cents, wages_cents, meal_break_premium_cents,
           predictability_premium_cents, unpriced_premium_hours,
-          gross_tips_cents, net_tips_cents, total_pay_cents)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+          gross_tips_cents, tip_out_cents, tip_in_cents, net_tips_cents, total_pay_cents)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
       [
         payRunId,
         line.staff_user_id,
@@ -556,6 +558,8 @@ async function insertPayRunLines(client, payRunId, lines) {
         line.predictability_premium_cents,
         line.unpriced_premium_hours,
         line.gross_tips_cents,
+        line.tip_out_cents,
+        line.tip_in_cents,
         line.net_tips_cents,
         line.total_pay_cents,
       ]
@@ -596,7 +600,28 @@ async function getPayRunWithLines(clientOrPool, restaurantId, payRunId) {
     if (runCurrency && link.currency_code && String(link.currency_code).toUpperCase() !== runCurrency) return sum;
     return sum + Number(link.amount_cents || 0);
   }, 0);
-  return { ...run, lines, payout_links: payoutLinks, linked_payout_cents: linkedPayoutCents };
+  // Phase 5: the disbursement ledger rides with the run too, with the
+  // coverage summary the merchant UI and the paid flip both read.
+  const { rows: disbursements } = await clientOrPool.query(
+    `SELECT * FROM restaurant_pay_run_disbursements
+      WHERE pay_run_id = $1 ORDER BY id`,
+    [payRunId]
+  ).catch(() => ({ rows: [] }));
+  const runTotalCents = (run.totals && typeof run.totals === 'object')
+    ? Math.round(Number(run.totals.total_pay_cents || 0))
+    : (lines || []).reduce((sum, line) => sum + (Number(line.total_pay_cents) || 0), 0);
+  const disbursedCents = disbursements.reduce((sum, d) => sum + (Number(d.amount_cents) || 0), 0);
+  const coveredLineIds = new Set(disbursements.map((d) => Number(d.pay_run_line_id)));
+  const disbursementCoverage = {
+    run_total_cents: runTotalCents,
+    disbursed_cents: disbursedCents,
+    lines_total: (lines || []).length,
+    lines_covered: (lines || []).filter((line) => coveredLineIds.has(Number(line.id))).length,
+    fully_covered: (lines || []).length > 0
+      && (lines || []).every((line) => coveredLineIds.has(Number(line.id)))
+      && disbursedCents === runTotalCents,
+  };
+  return { ...run, lines, payout_links: payoutLinks, linked_payout_cents: linkedPayoutCents, disbursements, disbursement_coverage: disbursementCoverage };
 }
 
 function payRunShape(run) {
@@ -611,6 +636,8 @@ function payRunShape(run) {
     created_by: run.created_by,
     finalized_by: run.finalized_by,
     finalized_at: run.finalized_at,
+    approved_by: run.approved_by || null,
+    approved_at: run.approved_at || null,
     created_at: run.created_at,
     updated_at: run.updated_at,
     payoutLinks: (run.payout_links || run.payoutLinks || []).map((link) => ({
@@ -625,6 +652,20 @@ function payRunShape(run) {
       createdAt: link.created_at || link.createdAt || null,
     })),
     linkedPayoutCents: Number(run.linked_payout_cents ?? run.linkedPayoutCents ?? 0),
+    disbursements: (run.disbursements || []).map((d) => ({
+      id: Number(d.id),
+      payRunLineId: Number(d.pay_run_line_id ?? d.payRunLineId),
+      staff_user_id: d.staff_user_id,
+      staff_label: d.staff_label || null,
+      amountCents: Number(d.amount_cents ?? d.amountCents),
+      currencyCode: d.currency_code || d.currencyCode || 'USD',
+      method: d.method,
+      reference: d.reference || null,
+      note: d.note || null,
+      recordedBy: d.recorded_by || d.recordedBy || null,
+      recordedAt: d.recorded_at || d.recordedAt || null,
+    })),
+    disbursementCoverage: run.disbursement_coverage || run.disbursementCoverage || null,
     lines: (run.lines || []).map((line) => ({
       id: Number(line.id),
       staff_user_id: line.staff_user_id,
@@ -641,6 +682,8 @@ function payRunShape(run) {
       predictability_premium_cents: Number(line.predictability_premium_cents || 0),
       unpriced_premium_hours: Number(line.unpriced_premium_hours || 0),
       gross_tips_cents: Number(line.gross_tips_cents),
+      tip_out_cents: Number(line.tip_out_cents || 0),
+      tip_in_cents: Number(line.tip_in_cents || 0),
       net_tips_cents: Number(line.net_tips_cents),
       total_pay_cents: Number(line.total_pay_cents),
     })),
@@ -841,6 +884,70 @@ exports.finalizePayRun = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.approvePayRun = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    await requirePayrollManage(restaurant, req.user.id);
+    const payRunId = parsePositiveInt(req.params.payRunId);
+    if (!payRunId) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+    const run = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        'SELECT * FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
+        [payRunId, restaurant.id]
+      );
+      if (!existing) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+      if (existing.status !== 'finalized') {
+        throw new AppError('Only finalized pay runs can be approved', 409, 'pay_run_not_finalized');
+      }
+      if (existing.approved_by) {
+        throw new AppError('This pay run is already approved', 409, 'pay_run_already_approved');
+      }
+      // Maker-checker, same pattern as dualApprovalService: the user
+      // who finalized the run can never approve it. The DB CHECK on
+      // restaurant_pay_runs is the second line of defense.
+      if (String(existing.finalized_by) === String(req.user.id)) {
+        throw new AppError(
+          'The user who finalized a pay run cannot approve it; a different payroll manager must approve',
+          403,
+          'pay_run_self_approval'
+        );
+      }
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_pay_runs
+            SET approved_by = $2, approved_at = NOW(), updated_at = NOW()
+          WHERE id = $1
+          RETURNING *`,
+        [payRunId, req.user.id]
+      );
+      return updated;
+    }, 'restaurant_approve_pay_run');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.pay_run.approved',
+      target_type: 'restaurant_pay_run',
+      target_id: run.id,
+      after_state: { status: 'finalized', approved_by: req.user.id, finalized_by: run.finalized_by },
+    });
+    res.json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.id)) });
+  } catch (err) { next(err); }
+};
+
+// Phase 5: nothing leaves a finalized run (export file or payout
+// link) until a second payroll manager has approved it. Paid runs
+// already released money through an approved path, so they stay
+// exportable as the settled record.
+function assertPayRunApprovedForRelease(run) {
+  if (run.status === 'paid') return;
+  if (!run.approved_by) {
+    throw new AppError(
+      'This pay run needs approval from a second payroll manager before it can be exported or linked to a payout',
+      409,
+      'pay_run_not_approved'
+    );
+  }
+}
+
 exports.voidPayRun = async (req, res, next) => {
   try {
     const restaurant = await restaurantAccess(req);
@@ -854,6 +961,15 @@ exports.voidPayRun = async (req, res, next) => {
       [payRunId, restaurant.id, 'paid']
     );
     if (paidRow) throw new AppError('A paid pay run cannot be voided', 409, 'pay_run_paid');
+    // Phase 5: money already recorded as disbursed cannot be voided
+    // away; the disbursement ledger is the record of what left.
+    const { rows: [disbursedRow] } = await pool.query(
+      'SELECT COUNT(*)::int AS n FROM restaurant_pay_run_disbursements WHERE pay_run_id = $1',
+      [payRunId]
+    );
+    if (Number(disbursedRow?.n || 0) > 0) {
+      throw new AppError('A pay run with recorded disbursements cannot be voided', 409, 'pay_run_has_disbursements');
+    }
     const { rows: [run] } = await pool.query(
       `UPDATE restaurant_pay_runs
           SET status = 'voided', updated_at = NOW()
@@ -903,28 +1019,72 @@ exports.exportPayRunCsv = async (req, res, next) => {
     if (run.status === 'voided') {
       throw new AppError('Voided pay runs cannot be exported', 409, 'pay_run_voided');
     }
+    assertPayRunApprovedForRelease(run);
     const periodFrom = run.period_from instanceof Date
       ? run.period_from.toISOString().slice(0, 10)
       : String(run.period_from).slice(0, 10);
     const periodTo = run.period_to instanceof Date
       ? run.period_to.toISOString().slice(0, 10)
       : String(run.period_to).slice(0, 10);
+    const runCurrency = restaurant.currency_code || 'USD';
+    const runTotal = (run.lines || []).reduce((sum, line) => sum + (Number(line.total_pay_cents) || 0), 0);
+    // Phase 5 provider export: the same approved, finalized lines in a
+    // payroll-provider import shape (ADP / Gusto / QuickBooks Payroll).
+    // No tax columns: withholding and filing stay with the provider.
+    // Amounts are integer minor units in the run currency, stated on
+    // every row so a multi-currency file can never be misread.
+    const format = String(req.query?.format || 'native').toLowerCase();
+    if (!['native', 'provider'].includes(format)) {
+      throw new AppError('Unknown pay-run export format', 400, 'pay_run_export_format_unknown');
+    }
+    if (format === 'provider') {
+      const providerHeader = [
+        'employee_name', 'employee_id', 'period_from', 'period_to',
+        'regular_hours', 'overtime_hours', 'doubletime_hours',
+        'regular_wages_cents', 'overtime_wages_cents', 'doubletime_wages_cents',
+        'meal_break_premium_cents', 'predictability_premium_cents',
+        'gross_tips_cents', 'tip_out_cents', 'tip_in_cents', 'net_tips_cents',
+        'total_pay_cents', 'currency_code',
+      ];
+      const providerLines = [
+        `# Payroll provider export — run ${run.id}, ${periodFrom} to ${periodTo}, status ${run.status}, approved ${run.approved_at || 'n/a'}, total ${formatMinorUnits(runTotal, runCurrency)}`,
+        providerHeader.join(','),
+        ...run.lines.map((line) => [
+          line.staff_label, line.staff_user_id, periodFrom, periodTo,
+          line.regular_hours, line.overtime_hours, line.doubletime_hours,
+          line.regular_wages_cents, line.overtime_wages_cents, line.doubletime_wages_cents,
+          line.meal_break_premium_cents, line.predictability_premium_cents,
+          line.gross_tips_cents, line.tip_out_cents, line.tip_in_cents, line.net_tips_cents,
+          line.total_pay_cents, runCurrency,
+        ].map(csvCell).join(',')),
+      ];
+      await logBusinessAction(req, {
+        business_id: restaurant.business_id,
+        actor_role: restaurant.effective_role || null,
+        action: 'restaurant.pay_run.exported',
+        target_type: 'restaurant_pay_run',
+        target_id: run.id,
+        metadata: { status: run.status, employees: run.lines.length, format: 'provider' },
+      });
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="pay-run-${run.id}-${periodFrom}-to-${periodTo}-provider.csv"`);
+      res.send(`${providerLines.join('\n')}\n`);
+      return;
+    }
     const header = [
       'employee_name', 'user_id', 'regular_hours', 'overtime_hours', 'doubletime_hours',
       'hourly_wage_cents', 'regular_wages_cents', 'overtime_wages_cents', 'doubletime_wages_cents', 'wages_cents',
       'meal_break_premium_cents', 'predictability_premium_cents',
-      'gross_tips_cents', 'net_tips_cents', 'total_pay_cents',
+      'gross_tips_cents', 'tip_out_cents', 'tip_in_cents', 'net_tips_cents', 'total_pay_cents',
     ];
-    const runCurrency = restaurant.currency_code || 'USD';
-    const runTotal = (run.lines || []).reduce((sum, line) => sum + (Number(line.total_pay_cents) || 0), 0);
     const lines = [
-      `# OxSteed payroll export — run ${run.id}, ${periodFrom} to ${periodTo}, status ${run.status}, finalized ${run.finalized_at || 'n/a'}, total ${formatMinorUnits(runTotal, runCurrency)}`,
+      `# OxSteed payroll export — run ${run.id}, ${periodFrom} to ${periodTo}, status ${run.status}, finalized ${run.finalized_at || 'n/a'}, approved ${run.approved_at || 'n/a'}, total ${formatMinorUnits(runTotal, runCurrency)}`,
       header.join(','),
       ...run.lines.map((line) => [
         line.staff_label, line.staff_user_id, line.regular_hours, line.overtime_hours, line.doubletime_hours,
         line.hourly_wage_cents, line.regular_wages_cents, line.overtime_wages_cents, line.doubletime_wages_cents, line.wages_cents,
         line.meal_break_premium_cents, line.predictability_premium_cents,
-        line.gross_tips_cents, line.net_tips_cents, line.total_pay_cents,
+        line.gross_tips_cents, line.tip_out_cents, line.tip_in_cents, line.net_tips_cents, line.total_pay_cents,
       ].map(csvCell).join(',')),
     ];
     await logBusinessAction(req, {
@@ -972,6 +1132,8 @@ exports.linkPayRunPayout = async (req, res, next) => {
       if (existing.status !== 'finalized') {
         throw new AppError('Only finalized pay runs can be linked to payouts', 409, 'pay_run_not_finalized');
       }
+      // Phase 5: a finalized-but-unapproved run cannot link payouts.
+      assertPayRunApprovedForRelease(existing);
       const { rows: [payout] } = await client.query(
         'SELECT * FROM restaurant_payouts WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
         [payoutId, restaurant.id]
@@ -1049,5 +1211,135 @@ exports.linkPayRunPayout = async (req, res, next) => {
       after_state: { status: run.status, payout_id: payoutId },
     });
     res.json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.id)) });
+  } catch (err) { next(err); }
+};
+
+// ── Pay-run disbursement ledger (Phase 5) ───────────────────────────
+// Per-employee payment records linked to run lines. A disbursement
+// records money that actually left for one employee: its amount must
+// equal that employee's line total exactly (no partial, no overpay),
+// one record per line, and the run flips to 'paid' only when every
+// line is covered and the per-employee amounts sum to the run total.
+// The ledger never moves money itself; it records disbursements made
+// through the restaurant's bank, cash, check, or payroll provider.
+
+const DISBURSEMENT_METHODS = ['bank_transfer', 'cash', 'check', 'provider_export'];
+
+exports.listPayRunDisbursements = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    await requirePayrollView(restaurant, req.user.id);
+    const payRunId = parsePositiveInt(req.params.payRunId);
+    if (!payRunId) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+    const run = await getPayRunWithLines(pool, restaurant.id, payRunId);
+    if (!run) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+    res.json({ payRun: payRunShape(run) });
+  } catch (err) { next(err); }
+};
+
+exports.recordPayRunDisbursement = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    await requirePayrollManage(restaurant, req.user.id);
+    const payRunId = parsePositiveInt(req.params.payRunId);
+    if (!payRunId) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+    const payRunLineId = strictInteger(req.body?.payRunLineId ?? req.body?.pay_run_line_id);
+    if (!payRunLineId) throw new AppError('A pay-run line id is required', 400, 'pay_run_disbursement_line_required');
+    // Zero-total lines (no hours, no tips) still need a zero-amount
+    // record to be covered, so the minimum here is 0, not 1.
+    const amountCents = strictInteger(req.body?.amountCents ?? req.body?.amount_cents, { min: 0 });
+    if (amountCents == null || amountCents < 0) {
+      throw new AppError('A non-negative integer amount in minor units is required', 400, 'pay_run_disbursement_amount_required');
+    }
+    const method = typeof req.body?.method === 'string' ? req.body.method.trim() : 'bank_transfer';
+    if (!DISBURSEMENT_METHODS.includes(method)) {
+      throw new AppError('Unknown disbursement method', 400, 'pay_run_disbursement_method_unknown');
+    }
+    const reference = typeof req.body?.reference === 'string' ? req.body.reference.trim().slice(0, 160) || null : null;
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 500) || null : null;
+    const run = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        'SELECT * FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
+        [payRunId, restaurant.id]
+      );
+      if (!existing) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+      if (existing.status !== 'finalized') {
+        throw new AppError('Disbursements can only be recorded for finalized pay runs', 409, 'pay_run_not_finalized');
+      }
+      // Disbursement is a release of money: it needs the same second
+      // approver as an export or payout link.
+      assertPayRunApprovedForRelease(existing);
+      const { rows: [line] } = await client.query(
+        'SELECT * FROM restaurant_pay_run_lines WHERE id = $1 AND pay_run_id = $2 FOR UPDATE',
+        [payRunLineId, payRunId]
+      );
+      if (!line) throw new AppError('Pay-run line not found', 404, 'pay_run_line_not_found');
+      const lineTotal = Math.round(Number(line.total_pay_cents) || 0);
+      if (amountCents !== lineTotal) {
+        throw new AppError(
+          'A disbursement must equal the employee line total exactly',
+          409,
+          'pay_run_disbursement_amount_mismatch',
+          { expected_cents: lineTotal, received_cents: amountCents }
+        );
+      }
+      const { rows: [duplicate] } = await client.query(
+        'SELECT id FROM restaurant_pay_run_disbursements WHERE pay_run_line_id = $1',
+        [payRunLineId]
+      );
+      if (duplicate) {
+        throw new AppError('This pay-run line already has a disbursement', 409, 'pay_run_disbursement_duplicate');
+      }
+      const currencyCode = (restaurant.currency_code || 'USD').toUpperCase();
+      const { rows: [recorded] } = await client.query(
+        `INSERT INTO restaurant_pay_run_disbursements
+           (pay_run_id, pay_run_line_id, staff_user_id, staff_label,
+            amount_cents, currency_code, method, reference, note, recorded_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING *`,
+        [payRunId, payRunLineId, line.staff_user_id, line.staff_label,
+          amountCents, currencyCode, method, reference, note, req.user.id]
+      );
+      // Reconcile: the run is paid only when every line is covered and
+      // the per-employee amounts sum to the run total. Anything short
+      // stays finalized, never half-paid.
+      const { rows: lines } = await client.query(
+        'SELECT id, total_pay_cents FROM restaurant_pay_run_lines WHERE pay_run_id = $1',
+        [payRunId]
+      );
+      const { rows: disbursements } = await client.query(
+        'SELECT pay_run_line_id, amount_cents FROM restaurant_pay_run_disbursements WHERE pay_run_id = $1',
+        [payRunId]
+      );
+      const covered = new Set(disbursements.map((d) => Number(d.pay_run_line_id)));
+      const runTotal = lines.reduce((sum, l) => sum + (Number(l.total_pay_cents) || 0), 0);
+      const disbursed = disbursements.reduce((sum, d) => sum + (Number(d.amount_cents) || 0), 0);
+      const fullyCovered = lines.length > 0
+        && lines.every((l) => covered.has(Number(l.id)))
+        && disbursed === runTotal;
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_pay_runs
+            SET status = CASE WHEN $2 THEN 'paid' ELSE status END, updated_at = NOW()
+          WHERE id = $1
+          RETURNING *`,
+        [payRunId, fullyCovered]
+      );
+      return { run: updated, disbursement: recorded, fullyCovered };
+    }, 'restaurant_pay_run_disbursement');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.pay_run.disbursement_recorded',
+      target_type: 'restaurant_pay_run',
+      target_id: run.run.id,
+      after_state: {
+        status: run.run.status,
+        pay_run_line_id: payRunLineId,
+        amount_cents: amountCents,
+        method,
+        fully_covered: run.fullyCovered,
+      },
+    });
+    res.status(201).json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.run.id)) });
   } catch (err) { next(err); }
 };

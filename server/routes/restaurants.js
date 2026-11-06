@@ -396,8 +396,13 @@ router.get('/:restaurantId/pay-runs/:payRunId/export.csv', requireRestaurantAcce
 router.get('/:restaurantId/pay-runs/:payRunId', requireRestaurantAccess(), payrollReports.getPayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/rebuild', requireRestaurantAccess(), payrollReports.rebuildPayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/finalize', requireRestaurantAccess(), payrollReports.finalizePayRun);
+router.post('/:restaurantId/pay-runs/:payRunId/approve', requireRestaurantAccess(), payrollReports.approvePayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/void', requireRestaurantAccess(), payrollReports.voidPayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/payout-links', requireRestaurantAccess(), payrollReports.linkPayRunPayout);
+// Phase 5: disbursement ledger. Recording is a money release, so it
+// needs the same second approver as an export or payout link.
+router.get('/:restaurantId/pay-runs/:payRunId/disbursements', requireRestaurantAccess(), payrollReports.listPayRunDisbursements);
+router.post('/:restaurantId/pay-runs/:payRunId/disbursements', requireRestaurantAccess(), payrollReports.recordPayRunDisbursement);
 router.delete('/:restaurantId/inventory/mappings/:mappingId', requireRestaurantAccess(), inventory.deleteMapping);
 router.post('/:restaurantId/inventory/mappings/bootstrap-defaults', requireRestaurantAccess(), inventory.bootstrapMappings);
 router.get('/:restaurantId/inventory/purchase-requests', requireRestaurantAccess(), inventory.listPurchaseRequests);

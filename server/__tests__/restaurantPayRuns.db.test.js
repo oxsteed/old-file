@@ -118,6 +118,7 @@ ddescribe('F-22 pay-run records', () => {
 
   beforeAll(async () => {
     const owner = await makeUser();
+    const checker = await makeUser();
     const manager = await makeUser();
     const { rows: [biz] } = await pool.query(
       'INSERT INTO businesses (user_id, business_name) VALUES ($1, $2) RETURNING id',
@@ -137,10 +138,14 @@ ddescribe('F-22 pay-run records', () => {
       id: rest.id, business_id: biz.id, timezone: 'America/New_York', currency_code: 'USD',
     };
     accessByUser.set(String(owner), { ...base, effective_role: 'owner', effective_membership_id: null });
+    // Phase 5 checker: a second payroll.manage holder, distinct from
+    // the maker. Owner role holds every permission in the mock, same
+    // as the maker, so the only difference is identity.
+    accessByUser.set(String(checker), { ...base, effective_role: 'owner', effective_membership_id: null });
     accessByUser.set(String(manager), {
       ...base, effective_role: 'manager', effective_membership_id: membership.id,
     });
-    F = { owner, manager, businessId: biz.id, restaurantId: rest.id };
+    F = { owner, checker, manager, businessId: biz.id, restaurantId: rest.id };
   });
 
   afterAll(async () => {
@@ -185,6 +190,28 @@ ddescribe('F-22 pay-run records', () => {
     );
     expect(again.err).toMatchObject({ code: 'pay_run_not_draft' });
 
+    // Phase 5: a finalized-but-unapproved run cannot export.
+    const unapprovedExport = await call(
+      controller.exportPayRunCsv,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: run.id }, user: { id: F.owner } })
+    );
+    expect(unapprovedExport.err).toMatchObject({ code: 'pay_run_not_approved' });
+
+    // The maker cannot approve their own run.
+    const selfApprove = await call(
+      controller.approvePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: run.id }, user: { id: F.owner } })
+    );
+    expect(selfApprove.err).toMatchObject({ code: 'pay_run_self_approval' });
+
+    const approved = await call(
+      controller.approvePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: run.id }, user: { id: F.checker } })
+    );
+    expect(approved.err).toBeNull();
+    expect(approved.res.payload.payRun.approved_by).toBe(F.checker);
+    expect(approved.res.payload.payRun.approved_at).not.toBeNull();
+
     const exported = await call(
       controller.exportPayRunCsv,
       mockReq({ params: { restaurantId: F.restaurantId, payRunId: run.id }, user: { id: F.owner } })
@@ -193,6 +220,7 @@ ddescribe('F-22 pay-run records', () => {
     expect(exported.res.headers['Content-Type']).toContain('text/csv');
     expect(exported.res.headers['Content-Disposition']).toContain(`pay-run-${run.id}`);
     expect(exported.res.body).toContain('employee_name,user_id,regular_hours');
+    expect(exported.res.body).toContain('tip_out_cents,tip_in_cents');
     expect(exported.res.body).toContain(`run ${run.id}`);
 
     const listed = await call(
@@ -269,10 +297,231 @@ ddescribe('F-22 pay-run records', () => {
     expect(deniedExport.err).toMatchObject({ code: 'payroll_permission_required' });
   });
 
+  test('Phase 5: provider export renders approved lines with currency per row', async () => {
+    const created = await call(
+      controller.createPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId }, body: period(), user: { id: F.owner } })
+    );
+    expect(created.err).toBeNull();
+    const runId = created.res.payload.payRun.id;
+    const finalized = await call(
+      controller.finalizePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.owner } })
+    );
+    expect(finalized.err).toBeNull();
+
+    // Provider format is a release too: unapproved runs cannot use it.
+    const blocked = await call(
+      controller.exportPayRunCsv,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, query: { format: 'provider' }, user: { id: F.owner } })
+    );
+    expect(blocked.err).toMatchObject({ code: 'pay_run_not_approved' });
+
+    const approved = await call(
+      controller.approvePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.checker } })
+    );
+    expect(approved.err).toBeNull();
+    const again = await call(
+      controller.approvePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.checker } })
+    );
+    expect(again.err).toMatchObject({ code: 'pay_run_already_approved' });
+
+    const exported = await call(
+      controller.exportPayRunCsv,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, query: { format: 'provider' }, user: { id: F.owner } })
+    );
+    expect(exported.err).toBeNull();
+    expect(exported.res.headers['Content-Disposition']).toContain('-provider.csv');
+    expect(exported.res.body).toContain('employee_name,employee_id,period_from,period_to');
+    expect(exported.res.body).toContain('tip_out_cents,tip_in_cents');
+    expect(exported.res.body).toContain('currency_code');
+
+    const unknown = await call(
+      controller.exportPayRunCsv,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, query: { format: 'xml' }, user: { id: F.owner } })
+    );
+    expect(unknown.err).toMatchObject({ code: 'pay_run_export_format_unknown' });
+  });
+
+  test('Phase 5: disbursement ledger reconciles per-employee amounts to the run total', async () => {
+    const created = await call(
+      controller.createPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId }, body: period(), user: { id: F.owner } })
+    );
+    expect(created.err).toBeNull();
+    const runId = created.res.payload.payRun.id;
+    // Two waged lines with known totals: 17000 + 9000 = 26000.
+    const { rows: lines } = await pool.query(
+      `INSERT INTO restaurant_pay_run_lines
+         (pay_run_id, staff_user_id, staff_label, regular_hours, overtime_hours,
+          hourly_wage_cents, regular_wages_cents, wages_cents,
+          gross_tips_cents, tip_out_cents, tip_in_cents, net_tips_cents, total_pay_cents)
+       VALUES
+         ($1, $2, 'Ana', 10, 0, 1500, 15000, 15000, 2000, 500, 0, 1500, 17000),
+         ($1, $3, 'Ben', 5, 0, 1800, 9000, 9000, 0, 0, 0, 0, 9000)
+       RETURNING id, total_pay_cents`,
+      [runId, F.owner, F.checker]
+    );
+    const [lineA, lineB] = lines;
+    const finalized = await call(
+      controller.finalizePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.owner } })
+    );
+    expect(finalized.err).toBeNull();
+    expect(finalized.res.payload.payRun.totals.total_pay_cents).toBe(26000);
+    expect(finalized.res.payload.payRun.lines.find((l) => Number(l.id) === Number(lineA.id)).tip_out_cents).toBe(500);
+    // The run also carries the zero-hour roster lines computeLabor
+    // produced; every line, including a zero-total one, must be
+    // covered before the run can read as paid.
+    const { rows: allLines } = await pool.query(
+      'SELECT id, total_pay_cents FROM restaurant_pay_run_lines WHERE pay_run_id = $1 ORDER BY id',
+      [runId]
+    );
+    const zeroLines = allLines.filter((l) => Number(l.total_pay_cents) === 0);
+    expect(allLines).toHaveLength(2 + zeroLines.length);
+
+    // Disbursement before approval fails closed.
+    const early = await call(
+      controller.recordPayRunDisbursement,
+      mockReq({
+        params: { restaurantId: F.restaurantId, payRunId: runId },
+        body: { payRunLineId: lineA.id, amountCents: 17000, method: 'bank_transfer' },
+        user: { id: F.owner },
+      })
+    );
+    expect(early.err).toMatchObject({ code: 'pay_run_not_approved' });
+
+    const approved = await call(
+      controller.approvePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.checker } })
+    );
+    expect(approved.err).toBeNull();
+
+    // A disbursement must equal the line total exactly.
+    const mismatch = await call(
+      controller.recordPayRunDisbursement,
+      mockReq({
+        params: { restaurantId: F.restaurantId, payRunId: runId },
+        body: { payRunLineId: lineA.id, amountCents: 17001, method: 'bank_transfer' },
+        user: { id: F.owner },
+      })
+    );
+    expect(mismatch.err).toMatchObject({ code: 'pay_run_disbursement_amount_mismatch' });
+
+    const first = await call(
+      controller.recordPayRunDisbursement,
+      mockReq({
+        params: { restaurantId: F.restaurantId, payRunId: runId },
+        body: { payRunLineId: lineA.id, amountCents: 17000, method: 'bank_transfer', reference: 'ACH-1' },
+        user: { id: F.owner },
+      })
+    );
+    expect(first.err).toBeNull();
+    expect(first.res.statusCode).toBe(201);
+    // One of two lines covered: still finalized, never half-paid.
+    expect(first.res.payload.payRun.status).toBe('finalized');
+    expect(first.res.payload.payRun.disbursementCoverage).toMatchObject({
+      lines_covered: 1, lines_total: allLines.length, disbursed_cents: 17000, run_total_cents: 26000, fully_covered: false,
+    });
+
+    const duplicate = await call(
+      controller.recordPayRunDisbursement,
+      mockReq({
+        params: { restaurantId: F.restaurantId, payRunId: runId },
+        body: { payRunLineId: lineA.id, amountCents: 17000, method: 'cash' },
+        user: { id: F.owner },
+      })
+    );
+    expect(duplicate.err).toMatchObject({ code: 'pay_run_disbursement_duplicate' });
+
+    const second = await call(
+      controller.recordPayRunDisbursement,
+      mockReq({
+        params: { restaurantId: F.restaurantId, payRunId: runId },
+        body: { payRunLineId: lineB.id, amountCents: 9000, method: 'provider_export', reference: 'GUSTO-7' },
+        user: { id: F.owner },
+      })
+    );
+    expect(second.err).toBeNull();
+    // Both waged lines covered, but zero-total lines remain: the run
+    // is still not fully covered, so it stays finalized.
+    expect(second.res.payload.payRun.status).toBe('finalized');
+    expect(second.res.payload.payRun.disbursementCoverage).toMatchObject({
+      lines_covered: 2, lines_total: allLines.length, disbursed_cents: 26000, run_total_cents: 26000, fully_covered: false,
+    });
+
+    // Cover the zero-total lines with zero-amount records: now every
+    // line is covered and the sum equals the run total, so it is paid.
+    let paid = null;
+    for (const zeroLine of zeroLines) {
+      paid = await call(
+        controller.recordPayRunDisbursement,
+        mockReq({
+          params: { restaurantId: F.restaurantId, payRunId: runId },
+          body: { payRunLineId: zeroLine.id, amountCents: 0, method: 'bank_transfer' },
+          user: { id: F.owner },
+        })
+      );
+      expect(paid.err).toBeNull();
+    }
+    expect(paid.res.payload.payRun.status).toBe('paid');
+    expect(paid.res.payload.payRun.disbursementCoverage).toMatchObject({
+      lines_covered: allLines.length, lines_total: allLines.length,
+      disbursed_cents: 26000, run_total_cents: 26000, fully_covered: true,
+    });
+    expect(paid.res.payload.payRun.disbursements).toHaveLength(allLines.length);
+  });
+
+  test('Phase 5: a run with disbursements cannot be voided away', async () => {
+    const created = await call(
+      controller.createPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId }, body: period(), user: { id: F.owner } })
+    );
+    expect(created.err).toBeNull();
+    const runId = created.res.payload.payRun.id;
+    const { rows: lines } = await pool.query(
+      `INSERT INTO restaurant_pay_run_lines
+         (pay_run_id, staff_user_id, staff_label, regular_hours,
+          hourly_wage_cents, wages_cents, gross_tips_cents, net_tips_cents, total_pay_cents)
+       VALUES ($1, $2, 'Ana', 10, 1500, 15000, 0, 0, 15000),
+              ($1, $3, 'Ben', 5, 1800, 9000, 0, 0, 9000)
+       RETURNING id`,
+      [runId, F.owner, F.checker]
+    );
+    await call(
+      controller.finalizePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.owner } })
+    );
+    await call(
+      controller.approvePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.checker } })
+    );
+    const recorded = await call(
+      controller.recordPayRunDisbursement,
+      mockReq({
+        params: { restaurantId: F.restaurantId, payRunId: runId },
+        body: { payRunLineId: lines[0].id, amountCents: 15000, method: 'cash' },
+        user: { id: F.owner },
+      })
+    );
+    expect(recorded.err).toBeNull();
+    // One line disbursed: still finalized, but the money record blocks voiding.
+    expect(recorded.res.payload.payRun.status).toBe('finalized');
+    const voided = await call(
+      controller.voidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.owner } })
+    );
+    expect(voided.err).toMatchObject({ code: 'pay_run_has_disbursements' });
+  });
+
   test('pay-run actions are audited', async () => {
     expect(await auditCount(F.businessId, 'restaurant.pay_run.created')).toBeGreaterThan(0);
     expect(await auditCount(F.businessId, 'restaurant.pay_run.finalized')).toBeGreaterThan(0);
+    expect(await auditCount(F.businessId, 'restaurant.pay_run.approved')).toBeGreaterThan(0);
     expect(await auditCount(F.businessId, 'restaurant.pay_run.exported')).toBeGreaterThan(0);
+    expect(await auditCount(F.businessId, 'restaurant.pay_run.disbursement_recorded')).toBeGreaterThan(0);
     expect(await auditCount(F.businessId, 'restaurant.pay_run.voided')).toBeGreaterThan(0);
   });
 });

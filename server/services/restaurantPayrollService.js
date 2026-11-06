@@ -1475,6 +1475,12 @@ async function getMyPayStub(restaurantId, payRunId, userId) {
     [payRunId, userId]
   );
   if (!line) return null;
+  // Phase 5: the run totals are every employee's pay summed together,
+  // so they never leave the server on an employee-scoped stub. The
+  // caller gets their own line plus the run currency only.
+  const runCurrency = (run.totals && typeof run.totals === 'object' && run.totals.currency)
+    ? String(run.totals.currency)
+    : null;
   return {
     pay_run: {
       id: Number(run.id),
@@ -1482,7 +1488,7 @@ async function getMyPayStub(restaurantId, payRunId, userId) {
       period_to: run.period_to instanceof Date ? run.period_to.toISOString().slice(0, 10) : String(run.period_to).slice(0, 10),
       status: run.status,
       finalized_at: run.finalized_at || null,
-      totals: run.totals || {},
+      totals: runCurrency ? { currency: runCurrency } : {},
     },
     line: {
       staff_label: line.staff_label || null,
@@ -1497,6 +1503,8 @@ async function getMyPayStub(restaurantId, payRunId, userId) {
       meal_break_premium_cents: Number(line.meal_break_premium_cents || 0),
       predictability_premium_cents: Number(line.predictability_premium_cents || 0),
       gross_tips_cents: Number(line.gross_tips_cents),
+      tip_out_cents: Number(line.tip_out_cents || 0),
+      tip_in_cents: Number(line.tip_in_cents || 0),
       net_tips_cents: Number(line.net_tips_cents),
       total_pay_cents: Number(line.total_pay_cents),
     },

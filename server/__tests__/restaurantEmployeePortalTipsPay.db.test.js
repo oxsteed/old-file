@@ -320,6 +320,20 @@ ddescribe('Phase 3 Track B: employee tips, pay and pay stubs', () => {
     expect(JSON.stringify(carlStub.res.payload)).not.toContain(fx.server);
   });
 
+  test('a stub carries no run-wide totals and shows the tip-out/in breakdown', async () => {
+    const saraStub = await call(controller.getMyPayStub, mockReq({
+      params: { restaurantId: String(fx.restaurantId), payRunId: String(payRunId) },
+      user: { id: fx.server },
+    }));
+    expect(saraStub.err).toBeNull();
+    // Run-wide totals (17000 + 9000 = 26000) never reach the employee.
+    expect(saraStub.res.payload.stub.pay_run.totals).toEqual({ currency: 'USD' });
+    expect(JSON.stringify(saraStub.res.payload)).not.toContain('26000');
+    expect(saraStub.res.payload.stub.line).toMatchObject({
+      tip_out_cents: 0, tip_in_cents: 0, gross_tips_cents: 2000, net_tips_cents: 2000,
+    });
+  });
+
   test('a pending self-declared cash tip does not affect tips or pay', async () => {
     const { res, err } = await call(controller.declareMyCashTip, mockReq({
       params: { restaurantId: String(fx.restaurantId) },
