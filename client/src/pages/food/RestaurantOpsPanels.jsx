@@ -832,7 +832,7 @@ export function TemperatureLogsPanel({ t, restaurant, bare, onStats, staffMode =
           })}
         </p>
       )}
-      <form onSubmit={submit} className="fd-row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
+      <form onSubmit={submit} className="fd-row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'end' }} data-track="ui.52793f2559.32">
         <div className="fd-field">
           <label htmlFor="tl-area">{t('restaurants.ops.temperature.areaLabel', 'Storage area')}</label>
           <select id="tl-area" value={form.areaId} onChange={(e) => setForm((f) => ({ ...f, areaId: e.target.value }))}>
@@ -863,7 +863,7 @@ export function TemperatureLogsPanel({ t, restaurant, bare, onStats, staffMode =
       )}
       <div className="fd-row" style={{ gap: 8, marginTop: 8 }}>
         <label className="fd-field fd-field-inline">
-          <input type="checkbox" checked={breachOnly} onChange={(e) => setBreachOnly(e.target.checked)} />
+          <input type="checkbox" checked={breachOnly} onChange={(e) => setBreachOnly(e.target.checked)} data-track="ui.52793f2559.33" />
           <span>{t('restaurants.ops.temperature.breachesOnly', 'Breaches only')}</span>
         </label>
         <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={load} data-track="restaurant_temperature_log_refresh">

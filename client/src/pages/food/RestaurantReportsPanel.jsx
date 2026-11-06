@@ -1079,7 +1079,7 @@ function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
         <>
           <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.scheduled.title', 'Scheduled reports')}</h3>
           <p className="fd-card-meta">{t('restaurants.ops.reports.scheduled.snapshotNote', 'Scheduled reports are snapshots stamped with the time they were built, not locked closes. The daily close is re-computed from live orders.')}</p>
-          <form onSubmit={submitSchedule} className="fd-row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
+          <form onSubmit={submitSchedule} className="fd-row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'end' }} data-track="ui.e7f53817fe.14">
             <div className="fd-field">
               <label htmlFor="sr-type">{t('restaurants.ops.reports.scheduled.reportType', 'Report')}</label>
               <select id="sr-type" value={scheduleForm.reportType} onChange={(e) => setScheduleForm((f) => ({ ...f, reportType: e.target.value }))}>
@@ -1177,7 +1177,7 @@ function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
               </div>
             ))}
           </div>
-          <form onSubmit={submitErasure} className="fd-row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'end', marginTop: 8 }}>
+          <form onSubmit={submitErasure} className="fd-row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'end', marginTop: 8 }} data-track="ui.e7f53817fe.15">
             <div className="fd-field">
               <label htmlFor="er-user">{t('restaurants.ops.reports.retention.erasureUser', 'Staff user ID')}</label>
               <input id="er-user" inputMode="numeric" value={erasureForm.userId} onChange={(e) => setErasureForm((f) => ({ ...f, userId: e.target.value }))} />
