@@ -219,6 +219,38 @@ ddescribe('Phase 1: California pay period end to end', () => {
     expect(csv).toContain('predictability_premium_cents');
   });
 
+  test('a premium priced in another currency never lands in the run (finding 6)', async () => {
+    // A EUR premium for Ana at the CA store: 2h x 1500, priced in
+    // euros at change time. The USD run must exclude it from pay
+    // and report it, not convert it or drop it silently.
+    await pool.query(
+      `INSERT INTO business_staff_schedule_changes
+         (business_id, shift_id, user_id, restaurant_id, location_id, change_type,
+          before_state, after_state, hours_before_start, notice_hours, jurisdiction_code,
+          employee_requested, premium_due, premium_hours, premium_cents, premium_currency_code, created_at)
+       VALUES ($1, 1, $2, $3, $4, 'edited',
+          '{"shift_date":"2026-11-06","start_time":"09:00","end_time":"17:00"}'::jsonb,
+          '{"shift_date":"2026-11-06","start_time":"12:00","end_time":"17:00"}'::jsonb,
+          48, 336, 'CUSTOM', FALSE, TRUE, 2, 3000, 'EUR', '2026-11-04T12:00:00Z')`,
+      [fx.businessId, fx.ana, fx.restaurantId, fx.caLocationId]
+    );
+    const labor = await payrollService.computeLabor({
+      restaurant: { id: fx.restaurantId, business_id: fx.businessId, currency_code: 'USD', timezone: 'America/Los_Angeles' },
+      fromDate: RANGE.from, toDate: RANGE.to, locationIds: [fx.caLocationId],
+    });
+    const ana = labor.employees.find((e) => e.user_id === fx.ana);
+    expect(ana).toBeDefined();
+    // Premium hours count every recorded premium (1h USD + 2h EUR);
+    // only the USD amount is paid.
+    expect(ana.predictability_premium_hours).toBe(3);
+    expect(ana.predictability_premium_cents).toBe(2000);
+    expect(ana.excluded_predictability_premium_cents).toBe(3000);
+    expect(ana.excluded_predictability_premium_currencies).toEqual(['EUR']);
+    expect(ana.total_pay_cents).toBe(117000);
+    expect(labor.predictability_premium_cents).toBe(2000);
+    expect(labor.excluded_predictability_premium_cents).toBe(3000);
+  });
+
   test('the London store under GB-UK pays the same 11 hours as straight time, in GBP', async () => {
     const labor = await payrollService.computeLabor({
       restaurant: { id: fx.restaurantId, business_id: fx.businessId, currency_code: 'USD', timezone: 'Europe/London' },
@@ -237,6 +269,28 @@ ddescribe('Phase 1: California pay period end to end', () => {
     expect(ben.total_pay_cents).toBe(19800);
     // London has no per-location policy row: the restaurant fallback.
     expect(labor.labor_policy.location_id).toBe(null);
+  });
+
+  test('the London store under GB-UK pays weekly OT above 48h, not 40h (finding 2)', async () => {
+    // Ben already has Mon 11h; add Tue-Fri 10h each. 51h week, no
+    // explicit policy row for London, so the GB-UK jurisdiction
+    // threshold (48h) governs over the 40h default: 48 regular + 3
+    // weekly OT. At 1800/hr: 48 x 1800 + 3 x 2700 = 94,500.
+    for (const date of ['2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06']) {
+      await addTimeEntry(fx.businessId, fx.ben, fx.gbLocationId, date, 10, BREAK_30);
+    }
+    const labor = await payrollService.computeLabor({
+      restaurant: { id: fx.restaurantId, business_id: fx.businessId, currency_code: 'USD', timezone: 'Europe/London' },
+      fromDate: RANGE.from, toDate: RANGE.to, locationIds: [fx.gbLocationId],
+    });
+    const ben = labor.employees.find((e) => e.user_id === fx.ben);
+    expect(ben).toBeDefined();
+    expect(ben.hours).toBe(51);
+    expect(ben.regular_hours).toBe(48);
+    expect(ben.overtime_hours).toBe(3);
+    expect(ben.doubletime_hours).toBe(0);
+    expect(ben.wages_cents).toBe(94500);
+    expect(ben.total_pay_cents).toBe(94500);
   });
 
   test('getLaborPolicy resolves per location from the database', async () => {
