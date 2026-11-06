@@ -145,6 +145,17 @@ function normalizeTipOutRules(rules) {
       err.code = 'validation_failed';
       throw err;
     }
+    // Phase 6 (gap 12): how the pot is split among the rule's recipients.
+    // 'equal' is the historical behavior and the default, so existing pools
+    // do not change; 'hours' weights by hours worked in the period and
+    // 'gross_tips' by gross tips earned. Per-shift/per-day pooling is
+    // deliberately not part of this change.
+    const weightBasis = String(rule.weight_basis || rule.weightBasis || 'equal').trim().toLowerCase();
+    if (!['equal', 'hours', 'gross_tips'].includes(weightBasis)) {
+      const err = new Error("Tip-out weight_basis must be 'equal', 'hours', or 'gross_tips'");
+      err.code = 'validation_failed';
+      throw err;
+    }
     const dedupeKey = `${targetType}:${targetKey.toLowerCase()}`;
     if (seen.has(dedupeKey)) {
       const err = new Error(`Duplicate tip-out rule for ${dedupeKey}`);
@@ -157,6 +168,7 @@ function normalizeTipOutRules(rules) {
       target_type: targetType,
       target_key: targetType === 'role' ? targetKey : null,
       percent_bps: percentBps,
+      weight_basis: weightBasis,
     });
   }
   if (totalBps > 10000) {
@@ -1128,7 +1140,27 @@ async function computeTipAllocations({ restaurant, fromDate, toDate, locationIds
         }
         const payable = pot - remaining;
         if (payable <= 0) continue;
-        const shares = distributeCents(payable, recipients.map((userId) => ({ key: userId, weight: 1 })));
+        // Phase 6 (gap 12): weight the split by the rule's weight_basis.
+        // 'equal' is the historical headcount split; 'hours' weights by
+        // hours worked in the period (hoursByUser, already fetched) and
+        // 'gross_tips' by gross tips earned. When every recipient weighs
+        // zero under hours/gross_tips (e.g. support staff with no recorded
+        // hours or tips), fall back to equal so the pot still distributes
+        // in full and cent conservation holds.
+        const weightBasis = rule.weight_basis || 'equal';
+        const weightedRecipients = recipients.map((userId) => ({
+          key: userId,
+          weight: weightBasis === 'hours'
+            ? (hoursByUser.get(userId) || 0)
+            : weightBasis === 'gross_tips'
+              ? (bucket.gross.get(userId) || 0)
+              : 1,
+        }));
+        const totalWeight = weightedRecipients.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0);
+        const shares = distributeCents(
+          payable,
+          totalWeight > 0 ? weightedRecipients : recipients.map((userId) => ({ key: userId, weight: 1 }))
+        );
         for (const [userId, cents] of shares) {
           if (cents > 0) tipIn.set(userId, (tipIn.get(userId) || 0) + cents);
         }

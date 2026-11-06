@@ -643,6 +643,11 @@ exports.createPurchaseRequest = async (req, res, next) => {
     }
 
     const status = PURCHASE_STATUSES.includes(req.body.status) ? req.body.status : 'pending';
+    // Phase 6 (gap 14): a request cannot be born already approved. Approval
+    // is a second person's act (see updatePurchaseRequest).
+    if (status === 'approved' || status === 'ordered') {
+      throw new AppError('A purchase request cannot be created already approved; a second manager must approve it', 409, 'purchase_request_requires_approval');
+    }
     const urgency = URGENCY_LEVELS.includes(req.body.urgency) ? req.body.urgency : 'medium';
     const estimatedCost = req.body.estimatedCost == null ? null : parseQty(req.body.estimatedCost, 'estimatedCost');
     const estimatedUnitCostCents = parseEstimatedUnitCostCents(req.body.estimatedUnitCostCents ?? req.body.estimated_unit_cost_cents);
@@ -731,6 +736,11 @@ exports.updatePurchaseRequest = async (req, res, next) => {
     if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');
     const scope = locationScopeClause(restaurant.locationScope, '', i + 2);
+    // Phase 6 (gap 14): the approval move, if any, is gated below on the
+    // requester != approver rule and records the approver.
+    const targetStatus = req.body.status !== undefined && PURCHASE_STATUSES.includes(req.body.status)
+      ? req.body.status
+      : null;
 
     const request = await withTransaction(pool, async (client) => {
       const { rows: [updated] } = await client.query(
@@ -740,12 +750,33 @@ exports.updatePurchaseRequest = async (req, res, next) => {
         [...vals, requestId, restaurantId, ...scope.values]
       );
       if (!updated) throw new AppError('Purchase request not found', 404, 'purchase_request_not_found');
-      await logInventoryAudit(client, auditEntry(restaurant, 'purchase_request_updated', 'purchase_request', updated.id, req, {
-        status: updated.status,
-        urgency: updated.urgency,
+      let approvedRequest = updated;
+      if (targetStatus === 'approved' || targetStatus === 'ordered') {
+        // Dual control: the requester can never approve (or order) their
+        // own request. The throw rolls the status move back with it.
+        if (updated.requested_by && String(updated.requested_by) === String(req.user.id)) {
+          throw new AppError('The person who requested a purchase cannot approve it', 409, 'purchase_approval_self_approval');
+        }
+        // Record the approver (first approver wins: an approved request
+        // later moved to ordered keeps its original approver).
+        const { rows: [withApprover] } = await client.query(
+          `UPDATE restaurant_inventory_purchase_requests
+              SET approved_by = COALESCE(approved_by, $2),
+                  approved_at = COALESCE(approved_at, NOW()),
+                  updated_at = NOW()
+            WHERE id = $1 AND restaurant_id = $3
+            RETURNING *`,
+          [requestId, req.user.id, restaurantId]
+        );
+        approvedRequest = withApprover || updated;
+      }
+      await logInventoryAudit(client, auditEntry(restaurant, 'purchase_request_updated', 'purchase_request', approvedRequest.id, req, {
+        status: approvedRequest.status,
+        urgency: approvedRequest.urgency,
+        approvedBy: approvedRequest.approved_by || null,
         changedFields: sets.filter((set) => !set.startsWith('updated_at')).map((set) => set.split(' = ')[0]),
       }));
-      return updated;
+      return approvedRequest;
     });
     res.json({ request });
   } catch (err) {
