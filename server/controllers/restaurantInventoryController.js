@@ -1235,6 +1235,33 @@ exports.listMenuFoodCosts = async (req, res, next) => {
 // A modifier option (e.g. extra chicken) depletes its mapped inventory at
 // order time, once per dish unit, through reserveInventoryForOrder. Without
 // a mapping a modifier depletes nothing; the dish mappings are untouched.
+// Phase 6 (gap 14): the modifier options a mapping can target, so the
+// inventory page can offer a picker instead of a bare id field.
+exports.listModifierOptions = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const { rows } = await pool.query(
+      `SELECT fm.id,
+              fm.name AS modifier_name,
+              mg.id AS modifier_group_id,
+              mg.name AS modifier_group_name,
+              mg.menu_item_id,
+              fmi.name AS menu_item_name
+         FROM food_modifiers fm
+         JOIN food_modifier_groups mg ON mg.id = fm.modifier_group_id
+         JOIN food_menu_items fmi ON fmi.id = mg.menu_item_id AND fmi.restaurant_id = mg.restaurant_id
+        WHERE mg.restaurant_id = $1
+        ORDER BY fmi.name ASC, mg.name ASC, fm.sort_order ASC, fm.id ASC`,
+      [restaurantId]
+    );
+    res.json({ options: rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.listModifierMappings = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);

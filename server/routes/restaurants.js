@@ -286,6 +286,7 @@ router.get('/:restaurantId/inventory/adjustments', requireRestaurantAccess(), in
 router.get('/:restaurantId/inventory/mappings', requireRestaurantAccess(), inventory.listMappings);
 router.post('/:restaurantId/inventory/mappings', requireRestaurantAccess(), inventory.upsertMapping);
 router.get('/:restaurantId/inventory/modifier-mappings', requireRestaurantAccess(), inventory.listModifierMappings);
+router.get('/:restaurantId/inventory/modifier-options', requireRestaurantAccess(), inventory.listModifierOptions);
 router.post('/:restaurantId/inventory/modifier-mappings', requireRestaurantAccess(), inventory.upsertModifierMapping);
 router.delete('/:restaurantId/inventory/modifier-mappings/:mappingId', requireRestaurantAccess(), inventory.deleteModifierMapping);
 // Phase 6 (gap 10): plate cost / margin. The list route is registered
