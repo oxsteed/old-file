@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS restaurant_daily_rollups (
   computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL,
   CHECK (from_date <= to_date),
-  UNIQUE (restaurant_id, location_id, from_date, to_date, kind) NULLS NOT DISTINCT
+  UNIQUE NULLS NOT DISTINCT (restaurant_id, location_id, from_date, to_date, kind)
 );
 CREATE INDEX IF NOT EXISTS idx_daily_rollups_expiry
   ON restaurant_daily_rollups(restaurant_id, expires_at);
@@ -166,7 +166,7 @@ CREATE TABLE IF NOT EXISTS restaurant_retention_policies (
   updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (restaurant_id, location_id, record_class) NULLS NOT DISTINCT
+  UNIQUE NULLS NOT DISTINCT (restaurant_id, location_id, record_class)
 );
 
 CREATE TABLE IF NOT EXISTS restaurant_erasure_requests (

@@ -93,7 +93,7 @@ async function setRetentionPolicy(db, {
        (restaurant_id, location_id, record_class, retention_years,
         jurisdiction_code, source, updated_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
-     ON CONFLICT (restaurant_id, location_id, record_class) NULLS NOT DISTINCT
+     ON CONFLICT (restaurant_id, location_id, record_class)
        DO UPDATE SET retention_years = EXCLUDED.retention_years,
                      jurisdiction_code = EXCLUDED.jurisdiction_code,
                      source = EXCLUDED.source,

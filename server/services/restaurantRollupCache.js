@@ -44,7 +44,7 @@ async function getCachedRollup(db, {
         currency_code, payload, expires_at)
      VALUES ($1, $2, $3::date, $4::date, $5, $6, $7::jsonb,
              NOW() + ($8::int * INTERVAL '1 second'))
-     ON CONFLICT (restaurant_id, location_id, from_date, to_date, kind) NULLS NOT DISTINCT
+     ON CONFLICT (restaurant_id, location_id, from_date, to_date, kind)
        DO UPDATE SET payload = EXCLUDED.payload,
                      currency_code = EXCLUDED.currency_code,
                      computed_at = NOW(),
