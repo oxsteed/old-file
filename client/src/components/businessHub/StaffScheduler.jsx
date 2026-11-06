@@ -214,7 +214,11 @@ export function StaffScheduler({ businessId, isManager = false }) {
     setForecastRange({ from: rangeFrom, to: rangeTo });
     try {
       const res = await api.get(`/businesses/${businessId}/staff/shifts/forecast`, { params: { from: rangeFrom, to: rangeTo } });
-      setForecast(res.data || null);
+      // The forecast must be an object with a per_person array; anything
+      // else (e.g. a bare array from a mis-shaped response) would crash
+      // the render at forecast.per_person.map, so treat it as no forecast.
+      const data = res.data;
+      setForecast(data && typeof data === 'object' && !Array.isArray(data) && Array.isArray(data.per_person) ? data : null);
     } catch { setForecast(null); }
   };
 
