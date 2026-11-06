@@ -18,7 +18,8 @@
 // - renderTabContent: replace a tab's EmployeePortalEmptyState with the
 //   real panel. Track B owns 'mytips' and 'mypay' (landed:
 //   RestaurantMyTipsPanel / RestaurantMyPayPanel); Track C owns
-//   'availability' and 'swaps'.
+//   'availability' and 'swaps' (landed: RestaurantAvailabilityPanel /
+//   RestaurantSwapsPanel).
 // - EmployeePortalEmptyState: the shared placeholder for tabs whose track
 //   has not landed yet. It promises nothing about timing.
 // - EmployedByRestaurant (./EmployedByRestaurant.jsx): render on every
@@ -35,6 +36,8 @@ import { listMyFoodRestaurants } from '../../api/food';
 import RestaurantTimeClockCard from './RestaurantTimeClockCard';
 import RestaurantMyTipsPanel from './RestaurantMyTipsPanel';
 import RestaurantMyPayPanel from './RestaurantMyPayPanel';
+import RestaurantAvailabilityPanel from './RestaurantAvailabilityPanel';
+import RestaurantSwapsPanel from './RestaurantSwapsPanel';
 import '../../styles/FoodPages.css';
 import './RestaurantEmployeePortalPage.css';
 
@@ -64,6 +67,12 @@ function renderTabContent(tab, restaurant) {
   }
   if (tab === 'mypay') {
     return <RestaurantMyPayPanel restaurant={restaurant} />;
+  }
+  if (tab === 'availability') {
+    return <RestaurantAvailabilityPanel restaurant={restaurant} />;
+  }
+  if (tab === 'swaps') {
+    return <RestaurantSwapsPanel restaurant={restaurant} />;
   }
   return <EmployeePortalEmptyState />;
 }

@@ -25057,6 +25057,48 @@
         "finalizedOn": "Finalizado el {{date}}",
         "statusFinalized": "Finalizado",
         "statusPaid": "Pagado"
+      },
+      "availability": {
+        "title": "Mi disponibilidad",
+        "intro": "Indica al restaurante cuándo puedes trabajar normalmente. Los días se repiten cada semana.",
+        "noWindows": "Aún no hay disponibilidad.",
+        "addWindow": "Agregar horario",
+        "start": "Inicio",
+        "end": "Fin",
+        "remove": "Quitar",
+        "save": "Guardar disponibilidad",
+        "saved": "Disponibilidad guardada.",
+        "saveError": "No se pudo guardar la disponibilidad. Revisa las horas e inténtalo de nuevo.",
+        "maxReached": "Puedes configurar hasta 42 horarios.",
+        "notCheckedNote": "Los turnos aún no se comparan con esto."
+      },
+      "swaps": {
+        "title": "Cambios de turno",
+        "requestTitle": "Pedir un cambio",
+        "myShift": "Mi turno",
+        "target": "Cambiar con",
+        "note": "Nota (opcional)",
+        "submit": "Pedir cambio",
+        "requestSuccess": "Solicitud enviada. {{name}} debe aceptar antes de que un encargado pueda aprobarla.",
+        "requestError": "No se pudo enviar la solicitud. Inténtalo de nuevo.",
+        "inboxTitle": "Cambios para mí",
+        "noInbox": "Nadie te ha pedido tomar un turno.",
+        "myRequestsTitle": "Mis solicitudes de cambio",
+        "noRequests": "No has pedido ningún cambio.",
+        "noShifts": "No tienes próximos turnos para cambiar.",
+        "accept": "Aceptar",
+        "decline": "Rechazar",
+        "respondError": "No se pudo enviar tu respuesta. Inténtalo de nuevo.",
+        "requestedBy": "De {{name}}",
+        "offeredTo": "Ofrecido a {{name}}",
+        "status": {
+          "requested": "Esperando que {{name}} acepte",
+          "target_accepted": "Esperando la aprobación de un encargado",
+          "approved": "Aprobado",
+          "declined": "Rechazado",
+          "rejected": "Denegado",
+          "cancelled": "Cancelado"
+        }
       }
     },
     "offlineCard": {

@@ -25057,6 +25057,48 @@
         "finalizedOn": "Finalize nan dat {{date}}",
         "statusFinalized": "Finalize",
         "statusPaid": "Peye"
+      },
+      "availability": {
+        "title": "Disponibilite mwen",
+        "intro": "Di restoran an ki lè ou ka travay nòmalman. Jou yo repete chak semèn.",
+        "noWindows": "Ou poko mete disponibilite.",
+        "addWindow": "Ajoute lè",
+        "start": "Kòmansman",
+        "end": "Fen",
+        "remove": "Retire",
+        "save": "Anrejistre disponibilite",
+        "saved": "Disponibilite anrejistre.",
+        "saveError": "Pa t ka anrejistre disponibilite a. Tcheke lè yo epi eseye ankò.",
+        "maxReached": "Ou ka mete jiska 42 peryòd.",
+        "notCheckedNote": "Yo poko tcheke orè yo ak sa a."
+      },
+      "swaps": {
+        "title": "Echanj orè",
+        "requestTitle": "Mande yon echanj",
+        "myShift": "Orè mwen",
+        "target": "Echanje ak",
+        "note": "Nòt (si ou vle)",
+        "submit": "Mande echanj la",
+        "requestSuccess": "Demann lan voye. {{name}} dwe aksepte anvan yon responsab ka apwouve li.",
+        "requestError": "Pa t ka voye demann lan. Eseye ankò.",
+        "inboxTitle": "Echanj pou mwen",
+        "noInbox": "Pèsonn pa mande ou pran yon orè.",
+        "myRequestsTitle": "Demann echanj mwen yo",
+        "noRequests": "Ou pa t mande okenn echanj.",
+        "noShifts": "Ou pa gen okenn orè k ap vini pou echanje.",
+        "accept": "Aksepte",
+        "decline": "Refize",
+        "respondError": "Pa t ka voye repons ou. Eseye ankò.",
+        "requestedBy": "Soti nan {{name}}",
+        "offeredTo": "Pwopoze bay {{name}}",
+        "status": {
+          "requested": "N ap tann {{name}} aksepte",
+          "target_accepted": "N ap tann yon responsab apwouve",
+          "approved": "Apwouve",
+          "declined": "Refize",
+          "rejected": "Rejte",
+          "cancelled": "Anile"
+        }
       }
     },
     "offlineCard": {

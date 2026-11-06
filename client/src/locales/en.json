@@ -25057,6 +25057,48 @@
         "finalizedOn": "Finalized on {{date}}",
         "statusFinalized": "Finalized",
         "statusPaid": "Paid"
+      },
+      "availability": {
+        "title": "My availability",
+        "intro": "Tell the restaurant when you can usually work. Days repeat every week.",
+        "noWindows": "No availability set yet.",
+        "addWindow": "Add hours",
+        "start": "Start",
+        "end": "End",
+        "remove": "Remove",
+        "save": "Save availability",
+        "saved": "Availability saved.",
+        "saveError": "Could not save availability. Check the times and try again.",
+        "maxReached": "You can set up to 42 time windows.",
+        "notCheckedNote": "Shifts are not checked against this yet."
+      },
+      "swaps": {
+        "title": "Shift swaps",
+        "requestTitle": "Request a swap",
+        "myShift": "My shift",
+        "target": "Swap with",
+        "note": "Note (optional)",
+        "submit": "Request swap",
+        "requestSuccess": "Swap request sent. {{name}} needs to accept before a manager can approve it.",
+        "requestError": "Could not send this swap request. Try again.",
+        "inboxTitle": "Swaps for me",
+        "noInbox": "No one has asked you to take a shift.",
+        "myRequestsTitle": "My swap requests",
+        "noRequests": "You have not requested any swaps.",
+        "noShifts": "You have no upcoming shifts to swap.",
+        "accept": "Accept",
+        "decline": "Decline",
+        "respondError": "Could not send your answer. Try again.",
+        "requestedBy": "From {{name}}",
+        "offeredTo": "Offered to {{name}}",
+        "status": {
+          "requested": "Waiting for {{name}} to accept",
+          "target_accepted": "Waiting for a manager to approve",
+          "approved": "Approved",
+          "declined": "Declined",
+          "rejected": "Rejected",
+          "cancelled": "Cancelled"
+        }
       }
     },
     "offlineCard": {

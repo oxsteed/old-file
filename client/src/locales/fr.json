@@ -25057,6 +25057,48 @@
         "finalizedOn": "Finalisée le {{date}}",
         "statusFinalized": "Finalisée",
         "statusPaid": "Payée"
+      },
+      "availability": {
+        "title": "Mes disponibilités",
+        "intro": "Indiquez au restaurant quand vous pouvez habituellement travailler. Les jours se répètent chaque semaine.",
+        "noWindows": "Aucune disponibilité définie.",
+        "addWindow": "Ajouter des heures",
+        "start": "Début",
+        "end": "Fin",
+        "remove": "Retirer",
+        "save": "Enregistrer les disponibilités",
+        "saved": "Disponibilités enregistrées.",
+        "saveError": "Impossible d'enregistrer les disponibilités. Vérifiez les heures et réessayez.",
+        "maxReached": "Vous pouvez définir jusqu'à 42 plages horaires.",
+        "notCheckedNote": "Les quarts ne sont pas encore comparés à ceci."
+      },
+      "swaps": {
+        "title": "Échanges de quarts",
+        "requestTitle": "Demander un échange",
+        "myShift": "Mon quart",
+        "target": "Échanger avec",
+        "note": "Note (facultatif)",
+        "submit": "Demander l'échange",
+        "requestSuccess": "Demande envoyée. {{name}} doit accepter avant qu'un responsable puisse l'approuver.",
+        "requestError": "Impossible d'envoyer cette demande. Réessayez.",
+        "inboxTitle": "Échanges pour moi",
+        "noInbox": "Personne ne vous a demandé de prendre un quart.",
+        "myRequestsTitle": "Mes demandes d'échange",
+        "noRequests": "Vous n'avez demandé aucun échange.",
+        "noShifts": "Vous n'avez aucun quart à venir à échanger.",
+        "accept": "Accepter",
+        "decline": "Refuser",
+        "respondError": "Impossible d'envoyer votre réponse. Réessayez.",
+        "requestedBy": "De {{name}}",
+        "offeredTo": "Proposé à {{name}}",
+        "status": {
+          "requested": "En attente de l'acceptation de {{name}}",
+          "target_accepted": "En attente de l'approbation d'un responsable",
+          "approved": "Approuvé",
+          "declined": "Refusé",
+          "rejected": "Rejeté",
+          "cancelled": "Annulé"
+        }
       }
     },
     "offlineCard": {

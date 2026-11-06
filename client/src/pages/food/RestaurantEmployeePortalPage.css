@@ -174,19 +174,37 @@
   font-weight: 600;
 }
 
-.ep-status-pending {
+.ep-status-pending,
+.ep-status-target_accepted {
   background: rgba(245, 158, 11, 0.18);
   color: #b45309;
 }
 
-.ep-status-confirmed {
+.ep-status-confirmed,
+.ep-status-approved {
   background: rgba(34, 197, 94, 0.15);
   color: #15803d;
 }
 
-.ep-status-rejected {
+.ep-status-rejected,
+.ep-status-declined,
+.ep-status-cancelled {
   background: rgba(239, 68, 68, 0.15);
   color: #b91c1c;
+}
+
+/* Phase 3 Track C panels (Availability, Swaps). Flexbox rows and
+   logical properties only, so the Arabic RTL layout mirrors
+   automatically. */
+.ep-window-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ep-window-row .ep-field {
+  flex: 1 1 auto;
 }
 
 .ep-form {
