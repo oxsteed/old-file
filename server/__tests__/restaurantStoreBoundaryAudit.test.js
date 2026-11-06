@@ -13,6 +13,7 @@ const path = require('path');
 // Tables with both restaurant_id and location_id (verified against the
 // migrated schema by the .db companion check below).
 const STORE_TABLES = [
+  'business_shift_template_shifts',
   'business_staff_schedule_changes',
   'business_staff_shifts',
   'display_pairings',
@@ -127,6 +128,14 @@ const REVIEWED = {
   'services/restaurantPosPaymentLedgerService.js': SCOPED_CALLER,
   'services/restaurantPrepTimeService.js': SCOPED_CALLER,
   'services/restaurantStoreMenuService.js': SCOPED_CALLER,
+  // Phase 4 scheduling helpers: called only from businessStaffScheduleController
+  // after it resolved and asserted the business/location scope. validateShift
+  // is parameterized by business + user and never reads across businesses;
+  // copyCandidates additionally asserts scope per candidate shift; the
+  // forecast reads drafts of one business only (business_id = $1).
+  'services/shiftConflictValidation.js': SCOPED_CALLER,
+  'services/scheduleCopy.js': SCOPED_CALLER,
+  'services/scheduleForecast.js': SCOPED_CALLER,
   'services/restaurantTerminalOffline.js': DEVICE_BOUND,
   'services/settlementStatementService.js': BUSINESS_LEVEL,
   'services/staffOffboarding.js': BUSINESS_LEVEL,
