@@ -597,9 +597,9 @@ function evaluateMinorPunch({
   hoursWorkedToday = 0, hoursWorkedThisWeek = 0,
 } = {}) {
   const r = rules || resolveRules(null);
-  if (!band || (band !== 'under_16' && band !== 'age_16_17')) return { applies: false, violations: [], warnings: [] };
+  if (!band || (band !== 'under_16' && band !== 'age_16_17')) return { applies: false, violations: [], warnings: [], blocked: false };
   if (minorUntil && workDate && String(workDate) > String(minorUntil)) {
-    return { applies: false, violations: [], warnings: [] };
+    return { applies: false, violations: [], warnings: [], blocked: false };
   }
   const violations = [];
   const warnings = [];
