@@ -95,6 +95,56 @@ export default function RestaurantTimeClockCard({ restaurant }) {
 
   const onBreak = open && Array.isArray(open.breaks) && open.breaks.some((b) => b && !b.ended_at);
 
+  // Phase 7 (gap 17): meal-break attestation at clock-out. The server
+  // never blocks clock-out on a missing attestation, so the prompt is
+  // skippable; it only shows for shifts long enough that a meal break
+  // could be required (the jurisdiction decides the exact threshold).
+  const [attestPrompt, setAttestPrompt] = useState(false);
+  const [attestWaiver, setAttestWaiver] = useState(false);
+  const [attestWaiverReason, setAttestWaiverReason] = useState('');
+  const openHours = open?.clock_in_at
+    ? (Date.now() - new Date(open.clock_in_at).getTime()) / 3600000
+    : 0;
+
+  const clockOut = async (breakAttestation) => {
+    setBusy(true);
+    try {
+      const res = await api.post(`${base}/clock-out/${open.id}`, breakAttestation ? { breakAttestation } : {});
+      toast.success(t('food.timeClock.clockedOutOk'));
+      const data = res.data || {};
+      if (Number(data.meal_break_premium_hours) > 0) {
+        toast(t('food.timeClock.attestationPremium'), { icon: 'ℹ️' });
+      }
+      if (data.break_attestation_disputed) {
+        toast(t('food.timeClock.attestationDisputed'), { icon: '⚠️' });
+      }
+      setAttestPrompt(false);
+      setAttestWaiver(false);
+      setAttestWaiverReason('');
+      await load();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('food.timeClock.actionError')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onClockOutClick = () => {
+    if (openHours >= 4 && !attestPrompt) {
+      setAttestPrompt(true);
+      return;
+    }
+    clockOut(null);
+  };
+
+  const confirmWaiver = () => {
+    if (!attestWaiverReason.trim()) {
+      toast.error(t('food.timeClock.attestationWaiverReasonRequired'));
+      return;
+    }
+    clockOut({ mealBreakTaken: false, waived: true, waiverReason: attestWaiverReason.trim() });
+  };
+
   // Phase 2 punch proof: the device location is sent best-effort so
   // a store with a geofence configured can verify the punch. A denied
   // or unavailable location never blocks clock-in: the server only
@@ -189,12 +239,55 @@ export default function RestaurantTimeClockCard({ restaurant }) {
         )}
         {open && (
           <button type="button" className="fd-btn" disabled={busy || onBreak}
-            onClick={() => act(() => api.post(`${base}/clock-out/${open.id}`, {}), 'food.timeClock.clockedOutOk')}
+            onClick={onClockOutClick}
             data-track="restaurant_time_clock_out">
             {t('food.timeClock.clockOut')}
           </button>
         )}
       </div>
+      {open && attestPrompt && (
+        <div className="fd-card" role="group" aria-label={t('food.timeClock.attestationQuestion')}>
+          <p><strong>{t('food.timeClock.attestationQuestion')}</strong></p>
+          <div className="fd-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" className="fd-btn fd-btn-sm" disabled={busy}
+              onClick={() => clockOut({ mealBreakTaken: true })}
+              data-track="restaurant_time_break_attest_taken">
+              {t('food.timeClock.attestationTaken')}
+            </button>
+            <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={busy}
+              onClick={() => setAttestWaiver(true)}
+              data-track="restaurant_time_break_attest_waive">
+              {t('food.timeClock.attestationWaived')}
+            </button>
+            <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={busy}
+              onClick={() => clockOut({ mealBreakTaken: false })}
+              data-track="restaurant_time_break_attest_missed">
+              {t('food.timeClock.attestationMissed')}
+            </button>
+            <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={busy}
+              onClick={() => clockOut(null)}
+              data-track="restaurant_time_break_attest_skip">
+              {t('food.timeClock.attestationSkip')}
+            </button>
+          </div>
+          {attestWaiver && (
+            <div className="fd-field" style={{ marginTop: 8 }}>
+              <label htmlFor="tc-waiver-reason">{t('food.timeClock.attestationWaiverReason')}</label>
+              <input
+                id="tc-waiver-reason"
+                type="text"
+                value={attestWaiverReason}
+                onChange={(e) => setAttestWaiverReason(e.target.value)}
+                placeholder={t('food.timeClock.attestationWaiverReasonPlaceholder')}
+              />
+              <button type="button" className="fd-btn fd-btn-sm" disabled={busy} onClick={confirmWaiver}
+                data-track="restaurant_time_break_attest_waive_confirm">
+                {t('food.timeClock.attestationConfirmWaiver')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       {!open && (
         <div className="fd-field tc-pin-field">
           <label htmlFor="tc-staff-pin">{t('food.timeClock.staffPin')}</label>

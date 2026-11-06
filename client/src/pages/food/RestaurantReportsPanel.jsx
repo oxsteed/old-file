@@ -25,6 +25,19 @@ import {
   getLoyaltyReport,
   listAccountingIntegrations,
   listAccountingExports,
+  getPrimeCost,
+  listScheduledReports,
+  createScheduledReport,
+  deleteScheduledReport,
+  runScheduledReportNow,
+  listScheduledReportDeliveries,
+  getRetentionPolicies,
+  setRetentionPolicy,
+  listErasureRequests,
+  createErasureRequest,
+  decideErasureRequest,
+  runErasureRequest,
+  downloadLaborRollupCsv,
 } from '../../api/restaurants';
 import { PayrollPanel } from './RestaurantPayrollPanel';
 import { formatFoodMoney } from '../../api/food';
@@ -813,6 +826,401 @@ export function ReportsPanel({ t, restaurant, bare, onStats }) {
 
       {/* ── Payroll, tips, labor + team activity (S-04/S-15/S-16) ── */}
       <PayrollPanel t={t} restaurant={restaurant} from={from} to={to} />
+
+      {/* ── Phase 7: prime cost, scheduled reports, retention/erasure ── */}
+      <ComplianceReportsSections t={t} restaurant={restaurant} from={from} to={to} currency={currency} />
     </div>
+  );
+}
+
+// ── Phase 7 (gaps 15, 19, 20, 21): prime cost, scheduled reports,
+// retention and erasure. Fetched independently so a 403 (reports
+// policy) hides these sections without breaking the rest of the page.
+// Scheduled deliveries are snapshots stamped with an as-of time, not
+// locked closes: the daily close is re-computed from live orders.
+const SCHEDULE_REPORT_TYPES = ['daily_close', 'labor', 'exceptions'];
+const SCHEDULE_FREQUENCIES = ['daily', 'weekly'];
+const SCHEDULE_CHANNELS = ['in_app', 'email', 'both'];
+const RETENTION_CLASSES = ['time_entries', 'pay_runs', 'schedule_versions', 'staff_documents', 'tip_records', 'audit_events'];
+
+function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
+  const { i18n } = useTranslation();
+  const restaurantId = restaurant.id;
+  const [prime, setPrime] = useState(null);
+  const [primeHidden, setPrimeHidden] = useState(false);
+  const [schedules, setSchedules] = useState(null);
+  const [deliveries, setDeliveries] = useState([]);
+  const [policies, setPolicies] = useState(null);
+  const [erasureRequests, setErasureRequests] = useState([]);
+  const [scheduleForm, setScheduleForm] = useState({ reportType: 'daily_close', frequency: 'daily', deliveryChannel: 'in_app', userIds: '', emails: '' });
+  const [erasureForm, setErasureForm] = useState({ userId: '', reason: '' });
+  const [policyDrafts, setPolicyDrafts] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [exportingRollup, setExportingRollup] = useState(false);
+
+  const loadPrime = useCallback(() => {
+    getPrimeCost(restaurantId, { from, to })
+      .then(setPrime)
+      .catch((err) => { if (err?.response?.status === 403) setPrimeHidden(true); });
+  }, [restaurantId, from, to]);
+  useEffect(() => { loadPrime(); }, [loadPrime]);
+
+  const loadSchedules = useCallback(() => {
+    Promise.all([
+      listScheduledReports(restaurantId).catch((err) => { if (err?.response?.status === 403) return null; throw err; }),
+      listScheduledReportDeliveries(restaurantId).catch(() => []),
+      getRetentionPolicies(restaurantId).catch((err) => { if (err?.response?.status === 403) return null; throw err; }),
+      listErasureRequests(restaurantId).catch(() => []),
+    ])
+      .then(([sc, dl, pol, er]) => {
+        if (sc !== null) setSchedules(sc);
+        setDeliveries(Array.isArray(dl) ? dl : []);
+        if (pol !== null) setPolicies(pol);
+        setErasureRequests(Array.isArray(er) ? er : []);
+      })
+      .catch(() => { /* sections stay hidden on load failure */ });
+  }, [restaurantId]);
+  useEffect(() => { loadSchedules(); }, [loadSchedules]);
+
+  const downloadBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const onExportLaborRollup = async () => {
+    setExportingRollup(true);
+    try {
+      downloadBlob(await downloadLaborRollupCsv(restaurantId, { from, to }), `labor-rollup-${from}-to-${to}.csv`);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.exportError')));
+    } finally {
+      setExportingRollup(false);
+    }
+  };
+
+  const submitSchedule = async (e) => {
+    e.preventDefault();
+    const recipients = [
+      ...scheduleForm.userIds.split(',').map((s) => s.trim()).filter(Boolean).map((user_id) => ({ user_id })),
+      ...scheduleForm.emails.split(',').map((s) => s.trim()).filter(Boolean).map((email) => ({ email })),
+    ];
+    setBusy(true);
+    try {
+      await createScheduledReport(restaurantId, {
+        reportType: scheduleForm.reportType,
+        frequency: scheduleForm.frequency,
+        deliveryChannel: scheduleForm.deliveryChannel,
+        recipients,
+      });
+      toast.success(t('restaurants.ops.reports.scheduled.created', 'Scheduled report saved.'));
+      setScheduleForm({ reportType: 'daily_close', frequency: 'daily', deliveryChannel: 'in_app', userIds: '', emails: '' });
+      loadSchedules();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.scheduled.createError', 'Could not save the scheduled report.')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitErasure = async (e) => {
+    e.preventDefault();
+    if (!erasureForm.userId.trim()) {
+      toast.error(t('restaurants.ops.reports.retention.erasureUserRequired', 'Enter the staff user ID to erase.'));
+      return;
+    }
+    setBusy(true);
+    try {
+      await createErasureRequest(restaurantId, { userId: Number(erasureForm.userId), reason: erasureForm.reason.trim() || undefined });
+      toast.success(t('restaurants.ops.reports.retention.erasureCreated', 'Erasure request created.'));
+      setErasureForm({ userId: '', reason: '' });
+      loadSchedules();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.retention.erasureError', 'Could not create the erasure request.')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const savePolicy = async (recordClass) => {
+    const years = Number(policyDrafts[recordClass]);
+    if (!Number.isInteger(years) || years < 1 || years > 30) {
+      toast.error(t('restaurants.ops.reports.retention.yearsInvalid', 'Retention must be 1 to 30 years.'));
+      return;
+    }
+    setBusy(true);
+    try {
+      await setRetentionPolicy(restaurantId, { recordClass, retentionYears: years });
+      toast.success(t('restaurants.ops.reports.retention.saved', 'Retention policy saved.'));
+      loadSchedules();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.retention.saveError', 'Could not save the retention policy.')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const policyFor = (recordClass) => {
+    if (!policies) return null;
+    if (Array.isArray(policies)) return policies.find((p) => (p.record_class || p.recordClass) === recordClass) || null;
+    return policies[recordClass] || null;
+  };
+  const policyYears = (recordClass) => {
+    const p = policyFor(recordClass);
+    if (policyDrafts[recordClass] != null) return policyDrafts[recordClass];
+    return p ? (p.retention_years ?? p.retentionYears ?? 7) : 7;
+  };
+
+  const actOnErasure = async (requestId, action, payload) => {
+    setBusy(true);
+    try {
+      if (action === 'decide') await decideErasureRequest(restaurantId, requestId, payload);
+      else await runErasureRequest(restaurantId, requestId);
+      toast.success(t('restaurants.ops.reports.retention.erasureUpdated', 'Erasure request updated.'));
+      loadSchedules();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.retention.erasureError', 'Could not update the erasure request.')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const primeCurrency = prime?.currency || currency;
+  const servers = Array.isArray(prime?.servers?.servers) ? prime.servers.servers : [];
+  const unattributed = prime?.servers?.unattributed || null;
+  const daypartRows = Array.isArray(prime?.dayparts?.dayparts) ? prime.dayparts.dayparts : [];
+
+  return (
+    <>
+      {/* ── Prime cost ── */}
+      {!primeHidden && prime && (
+        <>
+          <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.prime.title', 'Prime cost')}</h3>
+          <div className="fd-ops-checklists-grid">
+            <div className="fd-ops-checklist-card">
+              <strong>{moneyMinor(prime.prime_cost_cents || 0, primeCurrency, i18n.language)}</strong>
+              <p className="fd-card-meta">
+                {t('restaurants.ops.reports.prime.primeCost', 'Prime cost')}
+                {prime.prime_cost_pct != null ? ` · ${prime.prime_cost_pct}% ${t('restaurants.ops.reports.prime.ofRevenue', 'of revenue')}` : ''}
+              </p>
+            </div>
+            <div className="fd-ops-checklist-card">
+              <strong>{moneyMinor(prime.labor?.labor_cost_cents || 0, primeCurrency, i18n.language)}</strong>
+              <p className="fd-card-meta">
+                {t('restaurants.ops.reports.prime.labor', 'Labor')}
+                {prime.labor?.labor_percent != null ? ` · ${prime.labor.labor_percent}%` : ''}
+                {` · ${Number(prime.labor?.total_hours || 0).toFixed(1)} ${t('restaurants.ops.reports.prime.hours', 'hours')}`}
+              </p>
+            </div>
+            <div className="fd-ops-checklist-card">
+              <strong>{moneyMinor(prime.food?.actual_cost_cents || 0, primeCurrency, i18n.language)}</strong>
+              <p className="fd-card-meta">
+                {t('restaurants.ops.reports.prime.foodActual', 'Food cost (actual)')}
+                {prime.food?.actual_cost_pct != null ? ` · ${prime.food.actual_cost_pct}%` : ''}
+                {prime.food?.theoretical_cost_pct != null ? ` · ${t('restaurants.ops.reports.prime.theoretical', { pct: prime.food.theoretical_cost_pct })}` : ''}
+              </p>
+            </div>
+            <div className="fd-ops-checklist-card">
+              <strong>{moneyMinor(prime.revenue_cents || 0, primeCurrency, i18n.language)}</strong>
+              <p className="fd-card-meta">{t('restaurants.ops.reports.prime.revenue', 'Revenue')}</p>
+            </div>
+          </div>
+          <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={onExportLaborRollup} disabled={exportingRollup} data-track="restaurant_labor_rollup_csv">
+            {t('restaurants.ops.reports.prime.downloadLaborRollup', 'Download labor rollup CSV')}
+          </button>
+          {servers.length > 0 && (
+            <>
+              <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.prime.byServer', 'Sales by server')}</h3>
+              <div className="fd-ops-inventory-list">
+                {servers.map((s) => (
+                  <div key={s.user_id} className="fd-ops-inventory-row">
+                    <span>{t('restaurants.ops.reports.prime.server', { id: s.user_id })}</span>
+                    <span className="fd-card-meta">
+                      {t('restaurants.ops.reports.prime.orders', { count: s.orders || 0 })} · {moneyMinor(s.net_sales_cents || 0, primeCurrency, i18n.language)} · {t('restaurants.ops.reports.prime.tips', { amount: moneyMinor(s.tips_cents || 0, primeCurrency, i18n.language) })}
+                    </span>
+                  </div>
+                ))}
+                {unattributed && (
+                  <div className="fd-ops-inventory-row">
+                    <span>{t('restaurants.ops.reports.prime.unattributed', 'No server recorded')}</span>
+                    <span className="fd-card-meta">
+                      {t('restaurants.ops.reports.prime.orders', { count: unattributed.orders || 0 })} · {moneyMinor(unattributed.net_sales_cents || 0, primeCurrency, i18n.language)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          {daypartRows.length > 0 && (
+            <>
+              <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.prime.byDaypart', 'Sales by daypart')}</h3>
+              <div className="fd-ops-inventory-list">
+                {daypartRows.map((d) => (
+                  <div key={d.key} className="fd-ops-inventory-row">
+                    <span>{d.label || d.key}</span>
+                    <span className="fd-card-meta">
+                      {t('restaurants.ops.reports.prime.orders', { count: d.orders || 0 })} · {moneyMinor(d.net_sales_cents || 0, primeCurrency, i18n.language)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── Scheduled reports ── */}
+      {schedules !== null && (
+        <>
+          <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.scheduled.title', 'Scheduled reports')}</h3>
+          <p className="fd-card-meta">{t('restaurants.ops.reports.scheduled.snapshotNote', 'Scheduled reports are snapshots stamped with the time they were built, not locked closes. The daily close is re-computed from live orders.')}</p>
+          <form onSubmit={submitSchedule} className="fd-row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
+            <div className="fd-field">
+              <label htmlFor="sr-type">{t('restaurants.ops.reports.scheduled.reportType', 'Report')}</label>
+              <select id="sr-type" value={scheduleForm.reportType} onChange={(e) => setScheduleForm((f) => ({ ...f, reportType: e.target.value }))}>
+                {SCHEDULE_REPORT_TYPES.map((rt) => (
+                  <option key={rt} value={rt}>{t(`restaurants.ops.reports.scheduled.type.${rt}`, rt)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="fd-field">
+              <label htmlFor="sr-freq">{t('restaurants.ops.reports.scheduled.frequency', 'Frequency')}</label>
+              <select id="sr-freq" value={scheduleForm.frequency} onChange={(e) => setScheduleForm((f) => ({ ...f, frequency: e.target.value }))}>
+                {SCHEDULE_FREQUENCIES.map((fr) => (
+                  <option key={fr} value={fr}>{t(`restaurants.ops.reports.scheduled.frequency.${fr}`, fr)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="fd-field">
+              <label htmlFor="sr-channel">{t('restaurants.ops.reports.scheduled.channel', 'Delivery')}</label>
+              <select id="sr-channel" value={scheduleForm.deliveryChannel} onChange={(e) => setScheduleForm((f) => ({ ...f, deliveryChannel: e.target.value }))}>
+                {SCHEDULE_CHANNELS.map((ch) => (
+                  <option key={ch} value={ch}>{t(`restaurants.ops.reports.scheduled.channel.${ch}`, ch)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="fd-field">
+              <label htmlFor="sr-users">{t('restaurants.ops.reports.scheduled.userIds', 'Recipient user IDs (comma-separated)')}</label>
+              <input id="sr-users" value={scheduleForm.userIds} onChange={(e) => setScheduleForm((f) => ({ ...f, userIds: e.target.value }))} placeholder="12, 34" />
+            </div>
+            <div className="fd-field">
+              <label htmlFor="sr-emails">{t('restaurants.ops.reports.scheduled.emails', 'Recipient emails (comma-separated)')}</label>
+              <input id="sr-emails" value={scheduleForm.emails} onChange={(e) => setScheduleForm((f) => ({ ...f, emails: e.target.value }))} placeholder="owner@example.com" />
+            </div>
+            <button type="submit" className="fd-btn fd-btn-sm" disabled={busy} data-track="restaurant_scheduled_report_create">
+              {t('restaurants.ops.reports.scheduled.create', 'Schedule report')}
+            </button>
+          </form>
+          {schedules.length === 0 ? (
+            <p className="fd-card-meta">{t('restaurants.ops.reports.scheduled.none', 'No scheduled reports yet.')}</p>
+          ) : (
+            <ul className="fd-list">
+              {schedules.map((s) => (
+                <li key={s.id}>
+                  {t(`restaurants.ops.reports.scheduled.type.${s.report_type}`, s.report_type)}
+                  {' · '}{t(`restaurants.ops.reports.scheduled.frequency.${s.frequency}`, s.frequency)}
+                  {' · '}{t(`restaurants.ops.reports.scheduled.channel.${s.delivery_channel}`, s.delivery_channel)}
+                  {s.last_business_date ? ` · ${t('restaurants.ops.reports.scheduled.lastRun', { date: String(s.last_business_date).slice(0, 10) })}` : ''}
+                  {' '}
+                  <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={busy} onClick={async () => { setBusy(true); try { await runScheduledReportNow(restaurantId, s.id); toast.success(t('restaurants.ops.reports.scheduled.ran', 'Report sent.')); loadSchedules(); } catch (err) { toast.error(apiErr(err, t('restaurants.ops.reports.scheduled.runError', 'Could not send the report.'))); } finally { setBusy(false); } }} data-track="restaurant_scheduled_report_run_now">
+                    {t('restaurants.ops.reports.scheduled.runNow', 'Send now')}
+                  </button>
+                  {' '}
+                  <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={busy} onClick={async () => { setBusy(true); try { await deleteScheduledReport(restaurantId, s.id); loadSchedules(); } catch (err) { toast.error(apiErr(err, t('restaurants.ops.reports.scheduled.deleteError', 'Could not delete the schedule.'))); } finally { setBusy(false); } }} data-track="restaurant_scheduled_report_delete">
+                    {t('food.common.delete', 'Delete')}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {deliveries.length > 0 && (
+            <>
+              <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.scheduled.deliveries', 'Recent deliveries')}</h3>
+              <ul className="fd-list">
+                {deliveries.slice(0, 10).map((d) => (
+                  <li key={d.id}>
+                    {String(d.business_date).slice(0, 10)} · {t(`restaurants.ops.reports.scheduled.type.${d.report_type}`, d.report_type)} · {d.status}
+                    {d.as_of ? ` · ${t('restaurants.ops.reports.scheduled.asOf', { time: new Date(d.as_of).toLocaleString(i18n.language) })}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── Retention + erasure ── */}
+      {policies !== null && (
+        <>
+          <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.retention.title', 'Retention and erasure')}</h3>
+          <p className="fd-card-meta">{t('restaurants.ops.reports.retention.note', 'Records are kept for the years below, then former staff are anonymized. History rows are never deleted.')}</p>
+          <div className="fd-ops-inventory-list">
+            {RETENTION_CLASSES.map((rc) => (
+              <div key={rc} className="fd-ops-inventory-row">
+                <span>{t(`restaurants.ops.reports.retention.class.${rc}`, rc)}</span>
+                <span className="fd-card-meta">
+                  <label>
+                    {t('restaurants.ops.reports.retention.years', 'Years')}{' '}
+                    <input type="number" min="1" max="30" step="1" style={{ width: 64 }} value={policyYears(rc)} onChange={(e) => setPolicyDrafts((d) => ({ ...d, [rc]: e.target.value }))} aria-label={t(`restaurants.ops.reports.retention.class.${rc}`, rc)} />
+                  </label>
+                  {' '}
+                  <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={busy} onClick={() => savePolicy(rc)} data-track="restaurant_retention_policy_save">
+                    {t('restaurants.ops.reports.retention.save', 'Save')}
+                  </button>
+                  {policyFor(rc)?.source ? ` · ${policyFor(rc).source}` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+          <form onSubmit={submitErasure} className="fd-row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'end', marginTop: 8 }}>
+            <div className="fd-field">
+              <label htmlFor="er-user">{t('restaurants.ops.reports.retention.erasureUser', 'Staff user ID')}</label>
+              <input id="er-user" inputMode="numeric" value={erasureForm.userId} onChange={(e) => setErasureForm((f) => ({ ...f, userId: e.target.value }))} />
+            </div>
+            <div className="fd-field">
+              <label htmlFor="er-reason">{t('restaurants.ops.reports.retention.erasureReason', 'Reason (optional)')}</label>
+              <input id="er-reason" value={erasureForm.reason} onChange={(e) => setErasureForm((f) => ({ ...f, reason: e.target.value }))} />
+            </div>
+            <button type="submit" className="fd-btn fd-btn-sm" disabled={busy} data-track="restaurant_erasure_request_create">
+              {t('restaurants.ops.reports.retention.requestErasure', 'Request erasure')}
+            </button>
+          </form>
+          {erasureRequests.length > 0 && (
+            <ul className="fd-list">
+              {erasureRequests.map((r) => (
+                <li key={r.id}>
+                  {t('restaurants.ops.reports.retention.requestFor', { id: r.user_id })} · {r.status}
+                  {r.status === 'requested' && (
+                    <>
+                      {' '}
+                      <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={busy} onClick={() => actOnErasure(r.id, 'decide', { decision: 'approved' })} data-track="restaurant_erasure_request_approve">
+                        {t('restaurants.ops.reports.retention.approve', 'Approve')}
+                      </button>
+                      {' '}
+                      <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={busy} onClick={() => actOnErasure(r.id, 'decide', { decision: 'rejected' })} data-track="restaurant_erasure_request_reject">
+                        {t('restaurants.ops.reports.retention.reject', 'Reject')}
+                      </button>
+                    </>
+                  )}
+                  {r.status === 'approved' && (
+                    <>
+                      {' '}
+                      <button type="button" className="fd-btn fd-btn-sm" disabled={busy} onClick={() => actOnErasure(r.id, 'run')} data-track="restaurant_erasure_request_run">
+                        {t('restaurants.ops.reports.retention.run', 'Run erasure')}
+                      </button>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </>
   );
 }

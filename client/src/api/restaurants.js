@@ -411,6 +411,71 @@ export const rejectCashTipDeclaration = (restaurantId, declarationId) =>
 export const listStaffDocumentPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/staff-documents`,{params, timeout: PANEL_LOAD_TIMEOUT_MS}).then(r=>r.data);
 export const listSopAcknowledgementPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/sop-acknowledgements`,{params, timeout: PANEL_LOAD_TIMEOUT_MS}).then(r=>r.data);
 
+// ── Phase 7: compliance + reporting ─────────────────────────────────────
+// Temperature logs, prime cost, scheduled reports, retention/erasure.
+// The server enforces analytics.view_financial on reports, settings.manage
+// on policy/erasure management, and any active member may record a
+// temperature reading (same as checklist runs).
+export const listTemperatureLogs = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/temperature-logs`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
+export const recordTemperatureLog = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/temperature-logs`, payload).then((r) => r.data);
+
+// Storage areas carry the temperature range a log is checked against.
+export const listStorageAreas = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/inventory/areas`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.areas || []);
+
+export const linkTemperatureCorrectiveAction = (restaurantId, logId, payload) =>
+  api.post(`/restaurants/${restaurantId}/temperature-logs/${logId}/corrective-action`, payload).then((r) => r.data?.log);
+
+// Late attestation for a punch already closed. The live clock-out prompt
+// sends the attestation inside the clock-out call itself (business-scoped).
+export const recordBreakAttestation = (businessId, entryId, payload) =>
+  api.post(`/businesses/${businessId}/staff/time-entries/${entryId}/break-attestation`, payload).then((r) => r.data);
+
+export const getPrimeCost = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/prime-cost`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
+export const listScheduledReports = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/scheduled-reports`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.schedules || []);
+
+export const createScheduledReport = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/scheduled-reports`, payload).then((r) => r.data?.schedule);
+
+export const updateScheduledReport = (restaurantId, scheduleId, payload) =>
+  api.put(`/restaurants/${restaurantId}/scheduled-reports/${scheduleId}`, payload).then((r) => r.data?.schedule);
+
+export const deleteScheduledReport = (restaurantId, scheduleId) =>
+  api.delete(`/restaurants/${restaurantId}/scheduled-reports/${scheduleId}`);
+
+export const runScheduledReportNow = (restaurantId, scheduleId, payload = {}) =>
+  api.post(`/restaurants/${restaurantId}/scheduled-reports/${scheduleId}/run-now`, payload).then((r) => r.data);
+
+export const listScheduledReportDeliveries = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/scheduled-reports/deliveries`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.deliveries || []);
+
+export const getRetentionPolicies = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/retention-policies`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.policies || []);
+
+export const setRetentionPolicy = (restaurantId, payload) =>
+  api.put(`/restaurants/${restaurantId}/retention-policies`, payload).then((r) => r.data?.policy);
+
+export const listErasureRequests = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/erasure-requests`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.requests || []);
+
+export const createErasureRequest = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/erasure-requests`, payload).then((r) => r.data?.request);
+
+export const decideErasureRequest = (restaurantId, requestId, payload) =>
+  api.post(`/restaurants/${restaurantId}/erasure-requests/${requestId}/decide`, payload).then((r) => r.data?.request);
+
+export const runErasureRequest = (restaurantId, requestId) =>
+  api.post(`/restaurants/${restaurantId}/erasure-requests/${requestId}/run`).then((r) => r.data?.request);
+
+export const downloadLaborRollupCsv = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/hq/labor-rollup.csv`, { params, responseType: 'blob' }).then((r) => r.data);
+
 export const saveAccountingIntegration = (id, provider, payload) =>
   api.put(`/restaurants/${id}/accounting/integrations/${provider}`, { ...payload, provider }).then(r => r.data.integration);
 export const connectAccountingProvider = (id, provider) =>

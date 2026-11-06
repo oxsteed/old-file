@@ -23487,7 +23487,8 @@
       "remove": "Remove",
       "yes": "Yes",
       "no": "No",
-      "error": "Could not update the restaurant"
+      "error": "Could not update the restaurant",
+      "refresh": "Refresh"
     },
     "home": {
       "title": "Local Food Directory",
@@ -25079,7 +25080,18 @@
         "denied": "Declined",
         "cancelled": "Cancelled",
         "withdrawn": "Withdrawn"
-      }
+      },
+      "attestationQuestion": "Did you take your meal break?",
+      "attestationTaken": "Yes, I took my break",
+      "attestationWaived": "No, I waived it",
+      "attestationMissed": "No, I missed it",
+      "attestationWaiverReason": "Why did you waive it?",
+      "attestationWaiverReasonPlaceholder": "Short reason",
+      "attestationWaiverReasonRequired": "Add a short reason for the waiver.",
+      "attestationSkip": "Skip for now",
+      "attestationPremium": "A meal-break premium may apply to this shift.",
+      "attestationDisputed": "Your break statement differs from the punch record; a manager will review it.",
+      "attestationConfirmWaiver": "Confirm waiver"
     },
     "employeePortal": {
       "title": "Employee portal",
@@ -26004,6 +26016,83 @@
           "unitsSold": "{{units}} sold",
           "noData": "No identified customer orders in the last 90 days.",
           "loadError": "Could not load loyalty analytics."
+        },
+        "prime": {
+          "title": "Prime cost",
+          "primeCost": "Prime cost",
+          "ofRevenue": "of revenue",
+          "labor": "Labor",
+          "hours": "hours",
+          "foodActual": "Food cost (actual)",
+          "theoretical": "{{pct}}% theoretical",
+          "revenue": "Revenue",
+          "downloadLaborRollup": "Download labor rollup CSV",
+          "byServer": "Sales by server",
+          "server": "Server {{id}}",
+          "orders": "{{count}} orders",
+          "tips": "Tips {{amount}}",
+          "unattributed": "No server recorded",
+          "byDaypart": "Sales by daypart"
+        },
+        "scheduled": {
+          "title": "Scheduled reports",
+          "snapshotNote": "Scheduled reports are snapshots stamped with the time they were built, not locked closes. The daily close is re-computed from live orders.",
+          "reportType": "Report",
+          "frequency": {
+            "daily": "Daily",
+            "weekly": "Weekly"
+          },
+          "channel": {
+            "in_app": "In app",
+            "email": "Email",
+            "both": "Both"
+          },
+          "userIds": "Recipient user IDs (comma-separated)",
+          "emails": "Recipient emails (comma-separated)",
+          "create": "Schedule report",
+          "created": "Scheduled report saved.",
+          "createError": "Could not save the scheduled report.",
+          "none": "No scheduled reports yet.",
+          "lastRun": "Last run {{date}}",
+          "ran": "Report sent.",
+          "runError": "Could not send the report.",
+          "runNow": "Send now",
+          "deleteError": "Could not delete the schedule.",
+          "deliveries": "Recent deliveries",
+          "asOf": "as of {{time}}",
+          "type": {
+            "daily_close": "Daily close",
+            "labor": "Labor",
+            "exceptions": "Exceptions"
+          }
+        },
+        "retention": {
+          "title": "Retention and erasure",
+          "note": "Records are kept for the years below, then former staff are anonymized. History rows are never deleted.",
+          "years": "Years",
+          "save": "Save",
+          "saved": "Retention policy saved.",
+          "saveError": "Could not save the retention policy.",
+          "yearsInvalid": "Retention must be 1 to 30 years.",
+          "erasureUser": "Staff user ID",
+          "erasureReason": "Reason (optional)",
+          "requestErasure": "Request erasure",
+          "erasureCreated": "Erasure request created.",
+          "erasureError": "Could not create the erasure request.",
+          "erasureUpdated": "Erasure request updated.",
+          "erasureUserRequired": "Enter the staff user ID to erase.",
+          "requestFor": "Erasure for user {{id}}",
+          "approve": "Approve",
+          "reject": "Reject",
+          "run": "Run erasure",
+          "class": {
+            "time_entries": "Time entries",
+            "pay_runs": "Pay runs",
+            "schedule_versions": "Schedule versions",
+            "staff_documents": "Staff documents",
+            "tip_records": "Tip records",
+            "audit_events": "Audit events"
+          }
         }
       },
       "opChipTraining": "{{count}} training",
@@ -26312,6 +26401,33 @@
             }
           ]
         }
+      },
+      "temperature": {
+        "title": "Temperature logs",
+        "desc": "Daily fridge and freezer readings, checked against each area range.",
+        "summary": "{{readings}} readings today · {{breaches}} breaches · {{areas}} areas logged",
+        "areaLabel": "Storage area",
+        "areaPlaceholder": "Choose an area",
+        "stationLabel": "Station (optional)",
+        "readingLabel": "Reading (°C)",
+        "noteLabel": "Note (optional)",
+        "record": "Record reading",
+        "noAreas": "No storage areas yet. Add one in Inventory first so readings can be checked against a range.",
+        "breachesOnly": "Breaches only",
+        "noLogs": "No readings logged today yet.",
+        "breach": "Breach",
+        "range": "{{min}}–{{max}}°C",
+        "noRange": "no range set",
+        "actionLinkedShort": "Linked to action #{{id}}",
+        "chooseAction": "Choose corrective action",
+        "linkAction": "Link action",
+        "loadError": "Could not load temperature logs",
+        "invalid": "Choose an area and enter a reading.",
+        "breachRecorded": "Breach recorded. Managers have been notified.",
+        "recorded": "Reading recorded.",
+        "recordError": "Could not record the reading.",
+        "actionLinked": "Corrective action linked.",
+        "linkError": "Could not link the action."
       }
     },
     "accountingRuntime": {

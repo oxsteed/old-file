@@ -23487,7 +23487,8 @@
       "remove": "Quitar",
       "yes": "Sí",
       "no": "No",
-      "error": "No se pudo actualizar el restaurante"
+      "error": "No se pudo actualizar el restaurante",
+      "refresh": "Actualizar"
     },
     "home": {
       "title": "Local Food Directory",
@@ -25079,7 +25080,18 @@
         "denied": "Rechazada",
         "cancelled": "Cancelada",
         "withdrawn": "Retirada"
-      }
+      },
+      "attestationQuestion": "¿Tomaste tu descanso para comer?",
+      "attestationTaken": "Sí, tomé mi descanso",
+      "attestationWaived": "No, renuncié a él",
+      "attestationMissed": "No, me lo perdí",
+      "attestationWaiverReason": "¿Por qué renunciaste a él?",
+      "attestationWaiverReasonPlaceholder": "Motivo breve",
+      "attestationWaiverReasonRequired": "Agrega un motivo breve para la renuncia.",
+      "attestationSkip": "Omitir por ahora",
+      "attestationPremium": "Es posible que se aplique una prima por descanso para comer a este turno.",
+      "attestationDisputed": "Tu declaración de descanso difiere del registro de fichaje; un gerente la revisará.",
+      "attestationConfirmWaiver": "Confirmar renuncia"
     },
     "employeePortal": {
       "title": "Portal del empleado",
@@ -26302,6 +26314,83 @@
           "unitsSold": "{{units}} vendidos",
           "noData": "No hay pedidos identificados de clientes en los últimos 90 días.",
           "loadError": "No se pudieron cargar las analíticas de lealtad."
+        },
+        "prime": {
+          "title": "Costo primo",
+          "primeCost": "Costo primo",
+          "ofRevenue": "de los ingresos",
+          "labor": "Mano de obra",
+          "hours": "horas",
+          "foodActual": "Costo de alimentos (real)",
+          "theoretical": "{{pct}} % teórico",
+          "revenue": "Ingresos",
+          "downloadLaborRollup": "Descargar CSV del resumen de mano de obra",
+          "byServer": "Ventas por mesero",
+          "server": "Mesero {{id}}",
+          "orders": "{{count}} pedidos",
+          "tips": "Propinas {{amount}}",
+          "unattributed": "Sin mesero registrado",
+          "byDaypart": "Ventas por franja horaria"
+        },
+        "scheduled": {
+          "title": "Informes programados",
+          "snapshotNote": "Los informes programados son instantáneas con la hora de creación, no cierres bloqueados. El cierre diario se recalcula a partir de los pedidos en vivo.",
+          "reportType": "Informe",
+          "frequency": {
+            "daily": "Diario",
+            "weekly": "Semanal"
+          },
+          "channel": {
+            "in_app": "En la app",
+            "email": "Email",
+            "both": "Ambos"
+          },
+          "userIds": "ID de usuarios destinatarios (separados por comas)",
+          "emails": "Correos destinatarios (separados por comas)",
+          "create": "Programar informe",
+          "created": "Informe programado guardado.",
+          "createError": "No se pudo guardar el informe programado.",
+          "none": "Aún no hay informes programados.",
+          "lastRun": "Último envío {{date}}",
+          "ran": "Informe enviado.",
+          "runError": "No se pudo enviar el informe.",
+          "runNow": "Enviar ahora",
+          "deleteError": "No se pudo eliminar la programación.",
+          "deliveries": "Entregas recientes",
+          "asOf": "a las {{time}}",
+          "type": {
+            "daily_close": "Cierre diario",
+            "labor": "Mano de obra",
+            "exceptions": "Excepciones"
+          }
+        },
+        "retention": {
+          "title": "Retención y eliminación",
+          "note": "Los registros se conservan durante los años indicados y luego se anonimiza al personal anterior. Las filas de historial nunca se eliminan.",
+          "years": "Años",
+          "save": "Guardar",
+          "saved": "Política de retención guardada.",
+          "saveError": "No se pudo guardar la política de retención.",
+          "yearsInvalid": "La retención debe ser de 1 a 30 años.",
+          "erasureUser": "ID de usuario del personal",
+          "erasureReason": "Motivo (opcional)",
+          "requestErasure": "Solicitar eliminación",
+          "erasureCreated": "Solicitud de eliminación creada.",
+          "erasureError": "No se pudo crear la solicitud de eliminación.",
+          "erasureUpdated": "Solicitud de eliminación actualizada.",
+          "erasureUserRequired": "Ingresa el ID de usuario del personal a eliminar.",
+          "requestFor": "Eliminación del usuario {{id}}",
+          "approve": "Aprobar",
+          "reject": "Rechazar",
+          "run": "Ejecutar eliminación",
+          "class": {
+            "time_entries": "Registros de tiempo",
+            "pay_runs": "Nóminas",
+            "schedule_versions": "Versiones de horario",
+            "staff_documents": "Documentos del personal",
+            "tip_records": "Registros de propinas",
+            "audit_events": "Eventos de auditoría"
+          }
         }
       },
       "offline": {
@@ -26312,6 +26401,33 @@
         "offline": "Sin conexión",
         "syncing": "Sincronizando…",
         "pendingSync": "{{count}} por sincronizar"
+      },
+      "temperature": {
+        "title": "Registros de temperatura",
+        "desc": "Lecturas diarias de refrigerador y congelador, verificadas según el rango de cada área.",
+        "summary": "{{readings}} lecturas hoy · {{breaches}} incumplimientos · {{areas}} áreas registradas",
+        "areaLabel": "Área de almacenamiento",
+        "areaPlaceholder": "Elige un área",
+        "stationLabel": "Estación (opcional)",
+        "readingLabel": "Lectura (°C)",
+        "noteLabel": "Nota (opcional)",
+        "record": "Registrar lectura",
+        "noAreas": "Aún no hay áreas de almacenamiento. Agrega una en Inventario primero para verificar las lecturas según un rango.",
+        "breachesOnly": "Solo incumplimientos",
+        "noLogs": "Aún no hay lecturas registradas hoy.",
+        "breach": "Incumplimiento",
+        "range": "{{min}}–{{max}}°C",
+        "noRange": "sin rango definido",
+        "actionLinkedShort": "Vinculado a la acción n.º {{id}}",
+        "chooseAction": "Elige una acción correctiva",
+        "linkAction": "Vincular acción",
+        "loadError": "No se pudieron cargar los registros de temperatura",
+        "invalid": "Elige un área e ingresa una lectura.",
+        "breachRecorded": "Incumplimiento registrado. Se notificó a los gerentes.",
+        "recorded": "Lectura registrada.",
+        "recordError": "No se pudo registrar la lectura.",
+        "actionLinked": "Acción correctiva vinculada.",
+        "linkError": "No se pudo vincular la acción."
       }
     },
     "accountingRuntime": {

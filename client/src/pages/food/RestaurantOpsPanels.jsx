@@ -14,6 +14,8 @@ import {
   startChecklistRun, listChecklistRuns, getChecklistRun,
   listSops, createSop, updateSop, deleteSop,
   listInventoryItems, createInventoryItem, deleteInventoryItem,
+  listStorageAreas, listTemperatureLogs, recordTemperatureLog,
+  linkTemperatureCorrectiveAction, listCorrectiveActions,
 } from '../../api/restaurants';
 import {
   toggleRunItemOffline, completeChecklistRunOffline, adjustInventoryItemOffline,
@@ -708,6 +710,212 @@ function AdjustModal({ t, item, onClose, onApply }) {
           <button type="submit" className="fd-btn fd-btn-sm" disabled={busy} data-track="ui.52793f2559.28">{t('restaurants.ops.inventory.apply', 'Apply')}</button>
         </div>
       </form>
+    </div>
+  );
+}
+
+// ── Temperature logs (Phase 7, gap 11) ─────────────────────────────────────
+// Daily fridge/freezer readings checked against the storage area's
+// configured range. A breach flags the row and notifies managers
+// server-side; a manager links the breach to a corrective action from
+// the existing audits flow (the action stays the workflow, the log is
+// the evidence trail).
+function todayIso() {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+const CLOSED_ACTION_STATUSES = new Set(['done', 'completed', 'cancelled', 'closed']);
+
+export function TemperatureLogsPanel({ t, restaurant, bare, onStats, staffMode = false }) {
+  const selection = useOperationStore(restaurant);
+  const restaurantId = restaurant.id;
+  const [areas, setAreas] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [actions, setActions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [breachOnly, setBreachOnly] = useState(false);
+  const [form, setForm] = useState({ areaId: '', stationLabel: '', readingCelsius: '', note: '' });
+  const [linkFor, setLinkFor] = useState(null);
+  const [linkActionId, setLinkActionId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setLoadError(false);
+    Promise.all([
+      listStorageAreas(restaurantId),
+      listTemperatureLogs(restaurantId, {
+        date: todayIso(),
+        locationId: selection.locationId || undefined,
+        breachOnly: breachOnly || undefined,
+      }),
+      listCorrectiveActions(restaurantId).catch(() => []),
+    ])
+      .then(([ar, lg, ac]) => {
+        setAreas(Array.isArray(ar) ? ar : []);
+        setLogs(Array.isArray(lg?.logs) ? lg.logs : []);
+        setSummary(lg?.summary || null);
+        setActions((Array.isArray(ac) ? ac : []).filter((a) => !CLOSED_ACTION_STATUSES.has(String(a.status || '').toLowerCase())));
+        onStats?.({ temperatureLogs: Array.isArray(lg?.logs) ? lg.logs.length : 0 });
+      })
+      .catch((err) => { setLoadError(true); toast.error(apiErr(err, t('restaurants.ops.temperature.loadError', 'Could not load temperature logs'))); })
+      .finally(() => setLoading(false));
+  }, [restaurantId, t, onStats, selection.locationId, breachOnly]);
+  useEffect(() => { load(); }, [load]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const reading = Number(form.readingCelsius);
+    if (!form.areaId || !Number.isFinite(reading)) {
+      toast.error(t('restaurants.ops.temperature.invalid', 'Choose an area and enter a reading.'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await recordTemperatureLog(restaurantId, {
+        areaId: Number(form.areaId),
+        stationLabel: form.stationLabel.trim() || undefined,
+        readingCelsius: reading,
+        note: form.note.trim() || undefined,
+        locationId: selection.locationId || undefined,
+      });
+      if (res?.breach) toast.error(t('restaurants.ops.temperature.breachRecorded', 'Breach recorded. Managers have been notified.'));
+      else toast.success(t('restaurants.ops.temperature.recorded', 'Reading recorded.'));
+      setForm({ areaId: form.areaId, stationLabel: '', readingCelsius: '', note: '' });
+      load();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.temperature.recordError', 'Could not record the reading.')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const link = async (logId) => {
+    if (!linkActionId) return;
+    setBusy(true);
+    try {
+      await linkTemperatureCorrectiveAction(restaurantId, logId, { correctiveActionId: Number(linkActionId) });
+      toast.success(t('restaurants.ops.temperature.actionLinked', 'Corrective action linked.'));
+      setLinkFor(null);
+      setLinkActionId('');
+      load();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.temperature.linkError', 'Could not link the action.')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const areaRange = (area) => {
+    if (area == null) return '';
+    if (area.temperature_min_c != null && area.temperature_max_c != null) {
+      return `${Number(area.temperature_min_c)}–${Number(area.temperature_max_c)}°C`;
+    }
+    return area.temperature_range || '';
+  };
+
+  if (loading) return <div className="fd-empty">{t('food.common.loading', 'Loading…')}</div>;
+  if (loadError) return <div className="fd-empty">{t('restaurants.ops.temperature.loadError', 'Could not load temperature logs')}</div>;
+
+  return (
+    <div className="fd-ops-panel">
+      {!bare && <h3 className="fd-ops-panel-title">{t('restaurants.ops.temperature.title', 'Temperature logs')}</h3>}
+      {summary && (
+        <p className="fd-card-meta">
+          {t('restaurants.ops.temperature.summary', {
+            readings: summary.readings || 0,
+            breaches: summary.breaches || 0,
+            areas: summary.areas_logged || 0,
+          })}
+        </p>
+      )}
+      <form onSubmit={submit} className="fd-row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
+        <div className="fd-field">
+          <label htmlFor="tl-area">{t('restaurants.ops.temperature.areaLabel', 'Storage area')}</label>
+          <select id="tl-area" value={form.areaId} onChange={(e) => setForm((f) => ({ ...f, areaId: e.target.value }))}>
+            <option value="">{t('restaurants.ops.temperature.areaPlaceholder', 'Choose an area')}</option>
+            {areas.map((a) => (
+              <option key={a.id} value={a.id}>{a.name}{areaRange(a) ? ` (${areaRange(a)})` : ''}</option>
+            ))}
+          </select>
+        </div>
+        <div className="fd-field">
+          <label htmlFor="tl-station">{t('restaurants.ops.temperature.stationLabel', 'Station (optional)')}</label>
+          <input id="tl-station" value={form.stationLabel} onChange={(e) => setForm((f) => ({ ...f, stationLabel: e.target.value }))} />
+        </div>
+        <div className="fd-field">
+          <label htmlFor="tl-reading">{t('restaurants.ops.temperature.readingLabel', 'Reading (°C)')}</label>
+          <input id="tl-reading" type="number" step="0.1" inputMode="decimal" value={form.readingCelsius} onChange={(e) => setForm((f) => ({ ...f, readingCelsius: e.target.value }))} required />
+        </div>
+        <div className="fd-field">
+          <label htmlFor="tl-note">{t('restaurants.ops.temperature.noteLabel', 'Note (optional)')}</label>
+          <input id="tl-note" value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} />
+        </div>
+        <button type="submit" className="fd-btn fd-btn-sm" disabled={busy} data-track="restaurant_temperature_log_record">
+          {t('restaurants.ops.temperature.record', 'Record reading')}
+        </button>
+      </form>
+      {areas.length === 0 && (
+        <p className="fd-card-meta">{t('restaurants.ops.temperature.noAreas', 'No storage areas yet. Add one in Inventory first so readings can be checked against a range.')}</p>
+      )}
+      <div className="fd-row" style={{ gap: 8, marginTop: 8 }}>
+        <label className="fd-field fd-field-inline">
+          <input type="checkbox" checked={breachOnly} onChange={(e) => setBreachOnly(e.target.checked)} />
+          <span>{t('restaurants.ops.temperature.breachesOnly', 'Breaches only')}</span>
+        </label>
+        <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={load} data-track="restaurant_temperature_log_refresh">
+          {t('food.common.refresh', 'Refresh')}
+        </button>
+      </div>
+      {logs.length === 0 ? (
+        <p className="fd-card-meta">{t('restaurants.ops.temperature.noLogs', 'No readings logged today yet.')}</p>
+      ) : (
+        <ul className="fd-list">
+          {logs.map((log) => (
+            <li key={log.id}>
+              <bdi dir="ltr">{log.recorded_at ? new Date(log.recorded_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}</bdi>
+              {' · '}{log.area_name || log.area_id}
+              {log.station_label ? ` · ${log.station_label}` : ''}
+              {' · '}<bdi dir="ltr">{Number(log.reading_celsius)}°C</bdi>
+              {log.threshold_min_c != null && log.threshold_max_c != null
+                ? ` (${t('restaurants.ops.temperature.range', { min: Number(log.threshold_min_c), max: Number(log.threshold_max_c) })})`
+                : ` (${t('restaurants.ops.temperature.noRange', 'no range set')})`}
+              {log.breach && (
+                <span> · <strong>{t('restaurants.ops.temperature.breach', 'Breach')}</strong></span>
+              )}
+              {log.note ? ` · ${log.note}` : ''}
+              {log.corrective_action_id ? (
+                <span> · {t('restaurants.ops.temperature.actionLinkedShort', { id: log.corrective_action_id })}</span>
+              ) : log.breach && !staffMode && (
+                <span>
+                  {' · '}
+                  {linkFor === log.id ? (
+                    <>
+                      <select value={linkActionId} onChange={(e) => setLinkActionId(e.target.value)} aria-label={t('restaurants.ops.temperature.chooseAction', 'Choose corrective action')}>
+                        <option value="">{t('restaurants.ops.temperature.chooseAction', 'Choose corrective action')}</option>
+                        {actions.map((a) => (
+                          <option key={a.id} value={a.id}>{a.title || a.description || `#${a.id}`}</option>
+                        ))}
+                      </select>
+                      {' '}
+                      <button type="button" className="fd-btn fd-btn-sm" disabled={busy || !linkActionId} onClick={() => link(log.id)} data-track="restaurant_temperature_log_link_action">
+                        {t('restaurants.ops.temperature.linkAction', 'Link action')}
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={() => { setLinkFor(log.id); setLinkActionId(''); }} data-track="restaurant_temperature_log_link_start">
+                      {t('restaurants.ops.temperature.linkAction', 'Link action')}
+                    </button>
+                  )}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

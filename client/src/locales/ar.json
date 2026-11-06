@@ -23498,7 +23498,8 @@
       "remove": "إزالة",
       "yes": "نعم",
       "no": "لا",
-      "error": "تعذّر تحديث المطعم"
+      "error": "تعذّر تحديث المطعم",
+      "refresh": "تحديث"
     },
     "home": {
       "title": "أوكس ستيد فود",
@@ -25090,7 +25091,18 @@
         "denied": "مرفوضة",
         "cancelled": "ملغاة",
         "withdrawn": "مسحوبة"
-      }
+      },
+      "attestationQuestion": "هل أخذت استراحة وجبتك؟",
+      "attestationTaken": "نعم، أخذت استراحتي",
+      "attestationWaived": "لا، تنازلت عنه",
+      "attestationMissed": "لا، فاتني",
+      "attestationWaiverReason": "لماذا تنازلت عنه؟",
+      "attestationWaiverReasonPlaceholder": "سبب مختصر",
+      "attestationWaiverReasonRequired": "أضف سببًا مختصرًا للتنازل.",
+      "attestationSkip": "تخطَّ الآن",
+      "attestationPremium": "قد تُطبَّق علاوة استراحة وجبة على هذه الوردية.",
+      "attestationDisputed": "بيان استراحتك يختلف عن سجل البصمة؛ وسيراجعه مدير.",
+      "attestationConfirmWaiver": "تأكيد التنازل"
     },
     "employeePortal": {
       "title": "بوابة الموظف",
@@ -26317,6 +26329,83 @@
           "unitsSold": "تم بيع {{units}}",
           "noData": "لا توجد طلبات عملاء محددة خلال آخر 90 يومًا.",
           "loadError": "تعذر تحميل تحليلات الولاء."
+        },
+        "prime": {
+          "title": "التكلفة الأولية",
+          "primeCost": "التكلفة الأولية",
+          "ofRevenue": "من الإيرادات",
+          "labor": "العمالة",
+          "hours": "ساعات",
+          "foodActual": "تكلفة الطعام (الفعلية)",
+          "theoretical": "{{pct}}٪ نظري",
+          "revenue": "الإيرادات",
+          "downloadLaborRollup": "تنزيل ملف CSV لملخص العمالة",
+          "byServer": "المبيعات حسب النادل",
+          "server": "النادل {{id}}",
+          "orders": "{{count}} طلب",
+          "tips": "الإكراميات {{amount}}",
+          "unattributed": "لم يُسجَّل نادل",
+          "byDaypart": "المبيعات حسب الفترة"
+        },
+        "scheduled": {
+          "title": "التقارير المجدولة",
+          "snapshotNote": "التقارير المجدولة لقطات مختومة بوقت إنشائها، وليست إغلاقات مقفلة. يُعاد حساب الإغلاق اليومي من الطلبات المباشرة.",
+          "reportType": "التقرير",
+          "frequency": {
+            "daily": "يومي",
+            "weekly": "أسبوعي"
+          },
+          "channel": {
+            "in_app": "داخل التطبيق",
+            "email": "البريد الإلكتروني",
+            "both": "كلاهما"
+          },
+          "userIds": "معرّفات المستخدمين المستلمين (مفصولة بفواصل)",
+          "emails": "رسائل البريد الإلكتروني للمستلمين (مفصولة بفواصل)",
+          "create": "جدولة التقرير",
+          "created": "تم حفظ التقرير المجدول.",
+          "createError": "تعذّر حفظ التقرير المجدول.",
+          "none": "لا توجد تقارير مجدولة بعد.",
+          "lastRun": "آخر إرسال {{date}}",
+          "ran": "تم إرسال التقرير.",
+          "runError": "تعذّر إرسال التقرير.",
+          "runNow": "أرسل الآن",
+          "deleteError": "تعذّر حذف الجدولة.",
+          "deliveries": "عمليات التسليم الأخيرة",
+          "asOf": "اعتبارًا من {{time}}",
+          "type": {
+            "daily_close": "الإغلاق اليومي",
+            "labor": "العمالة",
+            "exceptions": "الاستثناءات"
+          }
+        },
+        "retention": {
+          "title": "الاحتفاظ والمحو",
+          "note": "تُحفظ السجلات للسنوات أدناه، ثم يُجهَّل هوية الموظفين السابقين. ولا تُحذف صفوف السجل أبدًا.",
+          "years": "سنوات",
+          "save": "حفظ",
+          "saved": "تم حفظ سياسة الاحتفاظ.",
+          "saveError": "تعذّر حفظ سياسة الاحتفاظ.",
+          "yearsInvalid": "يجب أن يكون الاحتفاظ من سنة إلى 30 سنة.",
+          "erasureUser": "معرّف المستخدم للموظف",
+          "erasureReason": "السبب (اختياري)",
+          "requestErasure": "طلب المحو",
+          "erasureCreated": "تم إنشاء طلب المحو.",
+          "erasureError": "تعذّر إنشاء طلب المحو.",
+          "erasureUpdated": "تم تحديث طلب المحو.",
+          "erasureUserRequired": "أدخل معرّف المستخدم للموظف المراد محوه.",
+          "requestFor": "محو المستخدم {{id}}",
+          "approve": "اعتماد",
+          "reject": "رفض",
+          "run": "تنفيذ المحو",
+          "class": {
+            "time_entries": "إدخالات الوقت",
+            "pay_runs": "دفعات الرواتب",
+            "schedule_versions": "إصدارات الجداول",
+            "staff_documents": "مستندات الموظفين",
+            "tip_records": "سجلات الإكراميات",
+            "audit_events": "أحداث التدقيق"
+          }
         }
       },
       "offline": {
@@ -26327,6 +26416,33 @@
         "offline": "دون اتصال",
         "syncing": "جارٍ المزامنة…",
         "pendingSync": "{{count}} بانتظار المزامنة"
+      },
+      "temperature": {
+        "title": "سجلات درجة الحرارة",
+        "desc": "قراءات يومية للثلاجة والمجمّد، تُفحص وفق نطاق كل منطقة.",
+        "summary": "{{readings}} قراءة اليوم · {{breaches}} تجاوز · {{areas}} منطقة مسجلة",
+        "areaLabel": "منطقة التخزين",
+        "areaPlaceholder": "اختر منطقة",
+        "stationLabel": "المحطة (اختياري)",
+        "readingLabel": "القراءة (°م)",
+        "noteLabel": "ملاحظة (اختياري)",
+        "record": "تسجيل القراءة",
+        "noAreas": "لا توجد مناطق تخزين بعد. أضف منطقة في المخزون أولًا حتى يمكن فحص القراءات وفق نطاق.",
+        "breachesOnly": "التجاوزات فقط",
+        "noLogs": "لا توجد قراءات مسجلة اليوم بعد.",
+        "breach": "تجاوز",
+        "range": "{{min}}–{{max}}°م",
+        "noRange": "لم يُحدد نطاق",
+        "actionLinkedShort": "مرتبط بالإجراء رقم {{id}}",
+        "chooseAction": "اختر إجراءً تصحيحيًا",
+        "linkAction": "ربط الإجراء",
+        "loadError": "تعذّر تحميل سجلات درجة الحرارة",
+        "invalid": "اختر منطقة وأدخل قراءة.",
+        "breachRecorded": "تم تسجيل التجاوز. وتم إشعار المديرين.",
+        "recorded": "تم تسجيل القراءة.",
+        "recordError": "تعذّر تسجيل القراءة.",
+        "actionLinked": "تم ربط الإجراء التصحيحي.",
+        "linkError": "تعذّر ربط الإجراء."
       }
     },
     "accountingRuntime": {

@@ -23487,7 +23487,8 @@
       "remove": "Retire",
       "yes": "Wi",
       "no": "Non",
-      "error": "Nou pa t kapab mete restoran an ajou"
+      "error": "Nou pa t kapab mete restoran an ajou",
+      "refresh": "Aktyalize"
     },
     "home": {
       "title": "Local Food Directory",
@@ -25079,7 +25080,18 @@
         "denied": "Refize",
         "cancelled": "Anile",
         "withdrawn": "Retire"
-      }
+      },
+      "attestationQuestion": "Èske ou te pran poz manje ou a?",
+      "attestationTaken": "Wi, mwen te pran poz mwen",
+      "attestationWaived": "Non, mwen te refize l",
+      "attestationMissed": "Non, mwen te rate l",
+      "attestationWaiverReason": "Poukisa ou te refize l?",
+      "attestationWaiverReasonPlaceholder": "Rezon kout",
+      "attestationWaiverReasonRequired": "Mete yon rezon kout pou refi a.",
+      "attestationSkip": "Sote pou kounye a",
+      "attestationPremium": "Yon prim poz manje ka aplike pou chif sa a.",
+      "attestationDisputed": "Deklarasyon poz ou a diferan ak dosye pwentaj la; yon manadjè ap revize l.",
+      "attestationConfirmWaiver": "Konfime refi a"
     },
     "employeePortal": {
       "title": "Pòtal anplwaye",
@@ -26302,6 +26314,83 @@
           "unitsSold": "{{units}} vann",
           "noData": "Pa gen kòmann kliyan idantifye nan dènye 90 jou yo.",
           "loadError": "Pa t kapab chaje analiz fidelite yo."
+        },
+        "prime": {
+          "title": "Pri total",
+          "primeCost": "Pri total",
+          "ofRevenue": "nan revni",
+          "labor": "Travay",
+          "hours": "èdtan",
+          "foodActual": "Pri manje (reyèl)",
+          "theoretical": "{{pct}}% teyorik",
+          "revenue": "Revni",
+          "downloadLaborRollup": "Telechaje CSV rezime travay la",
+          "byServer": "Vant pa sèvè",
+          "server": "Sèvè {{id}}",
+          "orders": "{{count}} kòmand",
+          "tips": "Tip {{amount}}",
+          "unattributed": "Pa gen sèvè anrejistre",
+          "byDaypart": "Vant pa moman jounen an"
+        },
+        "scheduled": {
+          "title": "Rapò pwograme",
+          "snapshotNote": "Rapò pwograme yo se foto yo pran nan moman yo te fèt la, yo pa fèmen. Fèmen chak jou a yo kalkile l ankò apati kòmand yo an dirèk.",
+          "reportType": "Rapò",
+          "frequency": {
+            "daily": "Chak jou",
+            "weekly": "Chak semèn"
+          },
+          "channel": {
+            "in_app": "Nan aplikasyon an",
+            "email": "Imèl",
+            "both": "Toulede"
+          },
+          "userIds": "ID itilizatè k ap resevwa yo (separe ak vigil)",
+          "emails": "Imèl moun k ap resevwa yo (separe ak vigil)",
+          "create": "Pwograme rapò a",
+          "created": "Rapò pwograme a anrejistre.",
+          "createError": "Pa t ka anrejistre rapò pwograme a.",
+          "none": "Pa gen rapò pwograme ankò.",
+          "lastRun": "Dènye voye {{date}}",
+          "ran": "Rapò a voye.",
+          "runError": "Pa t ka voye rapò a.",
+          "runNow": "Voye kounye a",
+          "deleteError": "Pa t ka efase pwogramasyon an.",
+          "deliveries": "Livrezon resan yo",
+          "asOf": "nan {{time}}",
+          "type": {
+            "daily_close": "Fèmen chak jou",
+            "labor": "Travay",
+            "exceptions": "Eksepsyon"
+          }
+        },
+        "retention": {
+          "title": "Konsèvasyon ak efasman",
+          "note": "Dosye yo kenbe pou ane ki anba yo, apre sa yo anonimze ansyen anplwaye yo. Liy istwa yo pa janm efase.",
+          "years": "Ane",
+          "save": "Anrejistre",
+          "saved": "Règ konsèvasyon an anrejistre.",
+          "saveError": "Pa t ka anrejistre règ konsèvasyon an.",
+          "yearsInvalid": "Konsèvasyon an dwe 1 a 30 ane.",
+          "erasureUser": "ID itilizatè anplwaye a",
+          "erasureReason": "Rezon (si ou vle)",
+          "requestErasure": "Mande efasman",
+          "erasureCreated": "Demann efasman an kreye.",
+          "erasureError": "Pa t ka kreye demann efasman an.",
+          "erasureUpdated": "Demann efasman an mete ajou.",
+          "erasureUserRequired": "Mete ID itilizatè anplwaye pou efase a.",
+          "requestFor": "Efasman pou itilizatè {{id}}",
+          "approve": "Apwouve",
+          "reject": "Rejte",
+          "run": "Fè efasman an",
+          "class": {
+            "time_entries": "Antre tan",
+            "pay_runs": "Peman",
+            "schedule_versions": "Vèsyon orè",
+            "staff_documents": "Dokiman anplwaye",
+            "tip_records": "Dosye tip",
+            "audit_events": "Evènman odit"
+          }
         }
       },
       "offline": {
@@ -26312,6 +26401,33 @@
         "offline": "Pa gen koneksyon",
         "syncing": "Ap senkronize…",
         "pendingSync": "{{count}} ap tann"
+      },
+      "temperature": {
+        "title": "Dosye tanperati",
+        "desc": "Lekti chak jou pou frijidè ak frizè, yo tcheke yo dapre limit chak zòn.",
+        "summary": "{{readings}} lekti jodi a · {{breaches}} vyolasyon · {{areas}} zòn anrejistre",
+        "areaLabel": "Zòn depo",
+        "areaPlaceholder": "Chwazi yon zòn",
+        "stationLabel": "Estasyon (si ou vle)",
+        "readingLabel": "Lekti (°C)",
+        "noteLabel": "Nòt (si ou vle)",
+        "record": "Anrejistre lekti a",
+        "noAreas": "Pa gen zòn depo ankò. Ajoute youn nan Envantè anvan pou lekti yo ka tcheke dapre yon limit.",
+        "breachesOnly": "Vyolasyon sèlman",
+        "noLogs": "Pa gen lekti anrejistre jodi a ankò.",
+        "breach": "Vyolasyon",
+        "range": "{{min}}–{{max}}°C",
+        "noRange": "pa gen limit",
+        "actionLinkedShort": "Lye ak aksyon #{{id}}",
+        "chooseAction": "Chwazi yon aksyon korektif",
+        "linkAction": "Lye aksyon an",
+        "loadError": "Pa t ka chaje dosye tanperati yo",
+        "invalid": "Chwazi yon zòn epi mete yon lekti.",
+        "breachRecorded": "Vyolasyon an anrejistre. Manadjè yo te avèti.",
+        "recorded": "Lekti a anrejistre.",
+        "recordError": "Pa t ka anrejistre lekti a.",
+        "actionLinked": "Aksyon korektif la lye.",
+        "linkError": "Pa t ka lye aksyon an."
       }
     },
     "accountingRuntime": {

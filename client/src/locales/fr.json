@@ -23487,7 +23487,8 @@
       "remove": "Retirer",
       "yes": "Oui",
       "no": "Non",
-      "error": "Impossible de mettre à jour le restaurant"
+      "error": "Impossible de mettre à jour le restaurant",
+      "refresh": "Actualiser"
     },
     "home": {
       "title": "Local Food Directory",
@@ -25079,7 +25080,18 @@
         "denied": "Refusée",
         "cancelled": "Annulée",
         "withdrawn": "Retirée"
-      }
+      },
+      "attestationQuestion": "Avez-vous pris votre pause repas ?",
+      "attestationTaken": "Oui, j'ai pris ma pause",
+      "attestationWaived": "Non, j'y ai renoncé",
+      "attestationMissed": "Non, je l'ai manqué",
+      "attestationWaiverReason": "Pourquoi y avez-vous renoncé ?",
+      "attestationWaiverReasonPlaceholder": "Motif bref",
+      "attestationWaiverReasonRequired": "Ajoutez un bref motif pour la renonciation.",
+      "attestationSkip": "Ignorer pour l'instant",
+      "attestationPremium": "Une prime de pause repas pourrait s’appliquer à ce poste.",
+      "attestationDisputed": "Votre déclaration de pause diffère du pointage ; un responsable l’examinera.",
+      "attestationConfirmWaiver": "Confirmer la renonciation"
     },
     "employeePortal": {
       "title": "Portail employé",
@@ -26302,6 +26314,83 @@
           "unitsSold": "{{units}} vendus",
           "noData": "Aucune commande client identifiée au cours des 90 derniers jours.",
           "loadError": "Impossible de charger les analyses de fidélité."
+        },
+        "prime": {
+          "title": "Coût prime",
+          "primeCost": "Coût prime",
+          "ofRevenue": "du chiffre d'affaires",
+          "labor": "Main-d'œuvre",
+          "hours": "heures",
+          "foodActual": "Coût des aliments (réel)",
+          "theoretical": "{{pct}} % théorique",
+          "revenue": "Chiffre d'affaires",
+          "downloadLaborRollup": "Télécharger le CSV du récapitulatif de main-d’œuvre",
+          "byServer": "Ventes par serveur",
+          "server": "Serveur {{id}}",
+          "orders": "{{count}} commandes",
+          "tips": "Pourboires {{amount}}",
+          "unattributed": "Aucun serveur enregistré",
+          "byDaypart": "Ventes par moment de la journée"
+        },
+        "scheduled": {
+          "title": "Rapports planifiés",
+          "snapshotNote": "Les rapports planifiés sont des instantanés horodatés à leur création, pas des clôtures verrouillées. La clôture quotidienne est recalculée à partir des commandes en direct.",
+          "reportType": "Rapport",
+          "frequency": {
+            "daily": "Quotidien",
+            "weekly": "Hebdomadaire"
+          },
+          "channel": {
+            "in_app": "Dans l'app",
+            "email": "E-mail",
+            "both": "Les deux"
+          },
+          "userIds": "ID des utilisateurs destinataires (séparés par des virgules)",
+          "emails": "E-mails des destinataires (séparés par des virgules)",
+          "create": "Planifier le rapport",
+          "created": "Rapport planifié enregistré.",
+          "createError": "Impossible d’enregistrer le rapport planifié.",
+          "none": "Aucun rapport planifié pour l’instant.",
+          "lastRun": "Dernier envoi {{date}}",
+          "ran": "Rapport envoyé.",
+          "runError": "Impossible d’envoyer le rapport.",
+          "runNow": "Envoyer maintenant",
+          "deleteError": "Impossible de supprimer la planification.",
+          "deliveries": "Envois récents",
+          "asOf": "au {{time}}",
+          "type": {
+            "daily_close": "Clôture quotidienne",
+            "labor": "Main-d'œuvre",
+            "exceptions": "Exceptions"
+          }
+        },
+        "retention": {
+          "title": "Conservation et effacement",
+          "note": "Les enregistrements sont conservés pendant les années ci-dessous, puis les anciens employés sont anonymisés. Les lignes d’historique ne sont jamais supprimées.",
+          "years": "Années",
+          "save": "Enregistrer",
+          "saved": "Politique de conservation enregistrée.",
+          "saveError": "Impossible d’enregistrer la politique de conservation.",
+          "yearsInvalid": "La conservation doit être de 1 à 30 ans.",
+          "erasureUser": "ID de l'employé",
+          "erasureReason": "Motif (facultatif)",
+          "requestErasure": "Demander l'effacement",
+          "erasureCreated": "Demande d'effacement créée.",
+          "erasureError": "Impossible de créer la demande d'effacement.",
+          "erasureUpdated": "Demande d'effacement mise à jour.",
+          "erasureUserRequired": "Saisissez l'ID de l'employé à effacer.",
+          "requestFor": "Effacement de l'utilisateur {{id}}",
+          "approve": "Approuver",
+          "reject": "Rejeter",
+          "run": "Exécuter l'effacement",
+          "class": {
+            "time_entries": "Pointages",
+            "pay_runs": "Paies",
+            "schedule_versions": "Versions de planning",
+            "staff_documents": "Documents du personnel",
+            "tip_records": "Relevés de pourboires",
+            "audit_events": "Événements d'audit"
+          }
         }
       },
       "offline": {
@@ -26312,6 +26401,33 @@
         "offline": "Hors ligne",
         "syncing": "Synchronisation…",
         "pendingSync": "{{count}} à synchroniser"
+      },
+      "temperature": {
+        "title": "Relevés de température",
+        "desc": "Relevés quotidiens du réfrigérateur et du congélateur, vérifiés par rapport à la plage de chaque zone.",
+        "summary": "{{readings}} relevés aujourd'hui · {{breaches}} écarts · {{areas}} zones relevées",
+        "areaLabel": "Zone de stockage",
+        "areaPlaceholder": "Choisir une zone",
+        "stationLabel": "Poste (facultatif)",
+        "readingLabel": "Relevé (°C)",
+        "noteLabel": "Note (facultative)",
+        "record": "Enregistrer le relevé",
+        "noAreas": "Aucune zone de stockage pour l'instant. Ajoutez-en une dans Inventaire afin de vérifier les relevés par rapport à une plage.",
+        "breachesOnly": "Écarts seulement",
+        "noLogs": "Aucun relevé enregistré aujourd'hui pour l'instant.",
+        "breach": "Écart",
+        "range": "{{min}}–{{max}}°C",
+        "noRange": "aucune plage définie",
+        "actionLinkedShort": "Lié à l'action n° {{id}}",
+        "chooseAction": "Choisir une action corrective",
+        "linkAction": "Lier l'action",
+        "loadError": "Impossible de charger les relevés de température",
+        "invalid": "Choisissez une zone et saisissez un relevé.",
+        "breachRecorded": "Écart enregistré. Les responsables ont été notifiés.",
+        "recorded": "Relevé enregistré.",
+        "recordError": "Impossible d'enregistrer le relevé.",
+        "actionLinked": "Action corrective liée.",
+        "linkError": "Impossible de lier l'action."
       }
     },
     "accountingRuntime": {
