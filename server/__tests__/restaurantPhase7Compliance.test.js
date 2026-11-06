@@ -317,6 +317,23 @@ describe('Phase 7: rollup cache staleness (gap 20)', () => {
     expect(second.payload.totals.labor_cost_cents).toBe(100);
     expect(compute).toHaveBeenCalledTimes(1);
   });
+
+  test('a cached row whose payload is not a rollup is treated as a miss and recomputed', async () => {
+    // Regression: the HQ test mocks pool.query to return location
+    // rows for every query, so the cache SELECT once "found" a row
+    // with no payload at all and the endpoint served a body with no
+    // stores/totals. A malformed row must never be served.
+    const compute = jest.fn(async () => ({ totals: { currency: 'USD', labor_cost_cents: 100 }, stores: [] }));
+    mockQuery.mockResolvedValueOnce({ rows: [{ payload: { id: 1, display_name: 'Downtown' }, computed_at: '2026-11-06T10:00:00Z', expires_at: '2026-11-06T10:15:00Z' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{}] });
+    const result = await getCachedRollup(client, {
+      restaurantId: 3, locationId: null, fromDate: '2026-11-05', toDate: '2026-11-05', kind: 'hq_labor', compute,
+    });
+    expect(compute).toHaveBeenCalledTimes(1);
+    expect(result.is_cached).toBe(false);
+    expect(result.payload.totals.labor_cost_cents).toBe(100);
+    expect(typeof result.computed_at).toBe('string');
+  });
 });
 
 describe('Phase 7: scheduled delivery (gap 19)', () => {

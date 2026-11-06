@@ -17,6 +17,18 @@
 
 const ROLLUP_TTL_SECONDS = 900; // 15 minutes
 
+// A cached row is only served when its payload is a rollup of the
+// shape the HQ endpoint returns ({ scope, totals, stores }). Anything
+// else (a half-written row, a row from an older schema, or a caller
+// whose query layer returned unrelated rows) is treated as a cache
+// miss and recomputed: serving a malformed payload would silently
+// break the endpoint instead of costing one recomputation.
+function isRollupPayload(payload) {
+  return payload != null && typeof payload === 'object'
+    && Array.isArray(payload.stores)
+    && payload.totals != null && typeof payload.totals === 'object';
+}
+
 async function getCachedRollup(db, {
   restaurantId, locationId = null, fromDate, toDate, kind, compute,
 } = {}) {
@@ -28,7 +40,7 @@ async function getCachedRollup(db, {
         AND expires_at > NOW()`,
     [restaurantId, locationId, fromDate, toDate, kind]
   );
-  if (cached) {
+  if (cached && isRollupPayload(cached.payload)) {
     return {
       payload: cached.payload,
       is_cached: true,
@@ -56,11 +68,16 @@ async function getCachedRollup(db, {
       JSON.stringify(payload), ROLLUP_TTL_SECONDS,
     ]
   );
+  // The upsert returns the stored row; if the caller cannot return
+  // it (a stubbed query layer), fall back to now so the response
+  // still states when the rollup was computed.
+  const computedAt = row?.computed_at || new Date().toISOString();
+  const expiresAt = row?.expires_at || new Date(Date.now() + ROLLUP_TTL_SECONDS * 1000).toISOString();
   return {
     payload,
     is_cached: false,
-    computed_at: row.computed_at,
-    expires_at: row.expires_at,
+    computed_at: computedAt,
+    expires_at: expiresAt,
     stale_after_seconds: ROLLUP_TTL_SECONDS,
   };
 }
