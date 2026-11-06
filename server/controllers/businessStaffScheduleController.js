@@ -243,8 +243,8 @@ exports.deleteShift = async (req, res, next) => {
 // is computed at clock-out (net of breaks), edits are append-only rows in
 // business_time_entry_edits with a reason and a manager approver, and
 // entries are voided, never hard-deleted. Manual-hours entries created
-// through staffSchedulingController.logHours keep working alongside:
-// they carry entry_date + hours_worked and no punch timestamps.
+// through createManualTimeEntry below carry entry_date + hours_worked
+// and no punch timestamps.
 
 const PUNCH_SOURCES = new Set(['web', 'pos', 'kiosk', 'mobile', 'manual']);
 
@@ -641,6 +641,64 @@ exports.listMyTimeEntries = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// Manual-hours entries (Phase 4 Track C): the live replacement for
+// the retired legacy scheduler's logHours. Mirrors that handler, not
+// a redesign: same fields (user_id, entry_date, hours_worked,
+// description, location_id), same validation (hours must be > 0 and
+// <= 24), same row shape (source='manual', approved_by = the calling
+// manager), same S-16 audit row (business.time_entry.logged). The
+// created entry flows into computeLabor exactly like a legacy manual
+// row: same table, same columns, same voided_at NULL. No
+// business_time_entry_edits row on create: the legacy handler wrote
+// none either.
+exports.createManualTimeEntry = async (req, res, next) => {
+  try {
+    const { businessId } = req.params;
+    const storeContext = await workforce.context(req);
+    const userId = req.user.id;
+    const { user_id, entry_date, hours_worked, description } = req.body;
+
+    if (!await isBusinessManager(req, businessId, userId)) return res.status(403).json({ error: 'Access denied' });
+    if (!user_id || !hours_worked) return res.status(400).json({ error: 'user_id and hours_worked required' });
+
+    const memberCheck = await pool.query(
+      `SELECT 1 FROM business_members WHERE business_id=$1 AND member_id=$2 AND status='active'
+       UNION SELECT 1 FROM businesses WHERE id=$1 AND user_id=$2`,
+      [businessId, user_id]
+    );
+    if (!memberCheck.rows.length) {
+      return res.status(400).json({ error: 'User is not a member of this business' });
+    }
+
+    const hours = parseFloat(hours_worked);
+    if (isNaN(hours) || hours <= 0 || hours > 24) {
+      return res.status(400).json({ error: 'hours_worked must be between 0 and 24' });
+    }
+
+    const locationId = await payrollLocation(businessId, req.user?.id, req.body.locationId ?? req.body.location_id ?? null);
+    await workforce.assertStaff(storeContext, user_id, pool, locationId);
+    const { rows } = await pool.query(
+      `INSERT INTO business_time_entries (business_id, user_id, entry_date, hours_worked, description, approved_by, source, location_id)
+       VALUES ($1,$2,$3,$4,$5,$6,'manual',$7) RETURNING *`,
+      [businessId, user_id, entry_date || new Date().toISOString().split('T')[0], hours, description || null, userId, locationId]
+    );
+    // S-16: time entries feed payroll; creating one is an auditable
+    // staff action.
+    await logBusinessAction(req, {
+      business_id: Number(businessId),
+      action: 'business.time_entry.logged',
+      target_type: 'time_entry',
+      target_id: rows[0].id,
+      after_state: {
+        user_id, entry_date: rows[0].entry_date, hours_worked: rows[0].hours_worked,
+      },
+    });
+    res.status(201).json({ entry: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Phase 2 punch integrity: the per-location punch context.
 //
 // Timezone is a per-location property, never assumed: the store's own
@@ -1014,6 +1072,23 @@ exports.voidTimeEntry = async (req, res, next) => {
          VALUES ($1,$2,$3,$4,'voided_at',NULL,NOW()::text,$5)`,
         [entryId, businessId, req.user.id, req.user.id, String(reason).slice(0, 1000)]
       );
+      // S-16: voiding a time entry affects payroll evidence; mirror the void
+      // into the business audit log (with the entry's state) so it is visible
+      // in the Team activity view, not only in the entry edit log. Same
+      // payload shape the retired legacy deleteTimeEntry wrote.
+      await logBusinessAction(req, {
+        business_id: Number(businessId),
+        action: 'business.time_entry.voided',
+        target_type: 'time_entry',
+        target_id: entryId,
+        before_state: {
+          user_id: entry.user_id,
+          entry_date: entry.entry_date,
+          hours_worked: entry.hours_worked,
+          description: entry.description,
+        },
+        after_state: { voided: true, void_reason: String(reason).slice(0, 1000) },
+      });
       await client.query('COMMIT');
       return res.json(presentTimeEntry(row.rows[0]));
     } catch (err) {
