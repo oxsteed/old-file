@@ -120,25 +120,33 @@ exports.getStoreComparison = async (req, res, next) => {
     // Phase 8 Track A: converted brand totals alongside the native
     // per-currency totals. The brand policy wins; with no stored
     // policy the default reporting currency is the first accessible
-    // restaurant's primary location currency.
+    // restaurant's primary location currency. Conversion is
+    // enrichment on a read: when the FX lookup itself fails, the
+    // native comparison is still returned with converted null.
     const anchorRestaurantId = accessible[0]?.restaurant?.id ?? null;
-    const policy = await fx.getFxPolicy(pool, { brandId });
-    const effectivePolicy = policy.isDefault && anchorRestaurantId
-      ? { ...policy, reportingCurrency: (await fx.getFxPolicy(pool, { restaurantId: anchorRestaurantId })).reportingCurrency }
-      : policy;
-    const rateDate = fx.resolveRateDate(effectivePolicy, String(range.to).slice(0, 10));
-    filtered.converted = {
-      ...(await fx.convertBreakdown(pool, {
-        entries: (filtered.totals || []).map((entry) => ({
-          currencyCode: entry.currencyCode,
-          amountCents: Number(entry.netCollectedCents || 0),
+    let converted = null;
+    try {
+      const policy = await fx.getFxPolicy(pool, { brandId });
+      const effectivePolicy = policy.isDefault && anchorRestaurantId
+        ? { ...policy, reportingCurrency: (await fx.getFxPolicy(pool, { restaurantId: anchorRestaurantId })).reportingCurrency }
+        : policy;
+      const rateDate = fx.resolveRateDate(effectivePolicy, String(range.to).slice(0, 10));
+      converted = {
+        ...(await fx.convertBreakdown(pool, {
+          entries: (filtered.totals || []).map((entry) => ({
+            currencyCode: entry.currencyCode,
+            amountCents: Number(entry.netCollectedCents || 0),
+          })),
+          reportingCurrency: effectivePolicy.reportingCurrency,
+          rateDate,
+          rateSource: effectivePolicy.rateSource,
         })),
-        reportingCurrency: effectivePolicy.reportingCurrency,
-        rateDate,
-        rateSource: effectivePolicy.rateSource,
-      })),
-      isDefaultPolicy: effectivePolicy.isDefault,
-    };
+        isDefaultPolicy: effectivePolicy.isDefault,
+      };
+    } catch {
+      converted = null;
+    }
+    filtered.converted = converted;
     res.json(filtered);
   } catch (error) { next(error); }
 };

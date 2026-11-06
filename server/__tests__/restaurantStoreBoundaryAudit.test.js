@@ -48,6 +48,9 @@ const STORE_TABLES = [
   'restaurant_labor_jurisdictions',
   'restaurant_location_labor_policies',
   'restaurant_location_memberships',
+  // Phase 8 (Track B): per-store tip pools; the store's own row
+  // wins, otherwise the restaurant-level fallback.
+  'restaurant_location_tip_pool_settings',
   'restaurant_pos_approvals',
   'restaurant_pos_drawer_events',
   'restaurant_pos_payments',

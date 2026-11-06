@@ -102,10 +102,16 @@ async function getFxPolicy(client, { restaurantId = null, brandId = null } = {})
     row = rows[0] || null;
   }
   if (row) {
+    // A stored row is validated on read, not just on write: a corrupt
+    // row must fail closed here (callers degrade to native-only
+    // totals) instead of flowing an undefined currency into a
+    // conversion that throws mid-rollup.
+    const mode = String(row.rate_date_mode || 'period_end').trim().toLowerCase();
+    if (!RATE_DATE_MODES.includes(mode)) throw new AppError('Unknown rate date mode', 400, 'validation_failed');
     return {
-      reportingCurrency: row.reporting_currency,
-      rateSource: row.rate_source,
-      rateDateMode: row.rate_date_mode,
+      reportingCurrency: normalizeCurrencyCode(row.reporting_currency, 'reporting currency'),
+      rateSource: normalizeRateSource(row.rate_source),
+      rateDateMode: mode,
       rateDate: row.rate_date ? toDateOnly(row.rate_date) : null,
       isDefault: false,
       updatedAt: row.updated_at,

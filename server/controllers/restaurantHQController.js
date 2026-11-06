@@ -154,22 +154,30 @@ exports.rollup = async (req, res, next) => {
     // per-store sales above, never replacing them. Every converted
     // figure carries its source currency, rate, and rate date; a
     // missing rate leaves the converted total null and names the
-    // currencies with no stored rate.
-    const policy = await fx.getFxPolicy(pool, { restaurantId: anchor.id });
-    const rateDate = fx.resolveRateDate(policy, payroll.shiftDateString(range.to, -1));
-    const converted = await fx.convertBreakdown(pool, {
-      entries: salesRows.map((entry) => ({
-        currencyCode: entry.currency_code,
-        amountCents: Number(entry.net_collected_cents || 0),
-      })),
-      reportingCurrency: policy.reportingCurrency,
-      rateDate,
-      rateSource: policy.rateSource,
-    });
+    // currencies with no stored rate. Conversion is enrichment on a
+    // read: when the FX lookup itself fails, the native rollup is
+    // still returned with converted null, never a failed read.
+    let converted = null;
+    try {
+      const policy = await fx.getFxPolicy(pool, { restaurantId: anchor.id });
+      const rateDate = fx.resolveRateDate(policy, payroll.shiftDateString(range.to, -1));
+      const breakdown = await fx.convertBreakdown(pool, {
+        entries: salesRows.map((entry) => ({
+          currencyCode: entry.currency_code,
+          amountCents: Number(entry.net_collected_cents || 0),
+        })),
+        reportingCurrency: policy.reportingCurrency,
+        rateDate,
+        rateSource: policy.rateSource,
+      });
+      converted = { ...breakdown, isDefaultPolicy: policy.isDefault };
+    } catch {
+      converted = null;
+    }
     res.json({
       scope: { businessId: Number(anchor.business_id), restaurantId: Number(anchor.id), storeCount: stores.length, from: range.from, to: range.to, timezone: range.timezone },
       stores,
-      converted: { ...converted, isDefaultPolicy: policy.isDefault },
+      converted,
     });
   } catch (err) { next(err); }
 };
@@ -194,9 +202,18 @@ async function buildLaborRollup(db, anchor, accessible, range) {
   // Phase 8 Track A: converted totals alongside the native ones.
   // The native totals below still null on multi-currency; the
   // converted totals are the comparable number, with the rate and
-  // rate date on every converted line.
-  const policy = await fx.getFxPolicy(db, { restaurantId: anchor.id });
-  const rateDate = fx.resolveRateDate(policy, payroll.shiftDateString(range.to, -1));
+  // rate date on every converted line. Conversion is enrichment on
+  // a read: when the FX lookup itself fails, the native rollup is
+  // still returned with converted null, never a failed read.
+  let policy = null;
+  let rateDate = null;
+  try {
+    policy = await fx.getFxPolicy(db, { restaurantId: anchor.id });
+    rateDate = fx.resolveRateDate(policy, payroll.shiftDateString(range.to, -1));
+  } catch {
+    policy = null;
+    rateDate = null;
+  }
   const missingCurrencies = new Set();
   let convertedLaborCostCents = 0;
   let convertedRevenueCents = 0;
@@ -216,7 +233,7 @@ async function buildLaborRollup(db, anchor, accessible, range) {
     if (labor.currency) currencies.add(labor.currency);
     let laborCostConvertedCents = null;
     let revenueConvertedCents = null;
-    if (labor.currency) {
+    if (labor.currency && policy) {
       const cost = await fx.convertAmount(db, {
         amountCents: labor.labor_cost_cents || 0,
         fromCurrency: labor.currency,
@@ -268,7 +285,7 @@ async function buildLaborRollup(db, anchor, accessible, range) {
       labor_cost_cents: currencies.size <= 1 ? totalLaborCostCents : null,
       revenue_cents: currencies.size <= 1 ? totalRevenueCents : null,
       labor_percent: currencies.size <= 1 && totalRevenueCents > 0 ? Math.round((totalLaborCostCents / totalRevenueCents) * 1000) / 10 : null,
-      converted: {
+      converted: policy ? {
         reportingCurrency: policy.reportingCurrency,
         rateDate,
         rateSource: policy.rateSource,
@@ -279,7 +296,7 @@ async function buildLaborRollup(db, anchor, accessible, range) {
           ? null
           : Math.round((convertedLaborCostCents / convertedRevenueCents) * 1000) / 10,
         missingCurrencies: missing,
-      },
+      } : null,
     },
     stores,
   };
