@@ -92,6 +92,31 @@ export const listInventoryPurchaseRequestPage = (restaurantId, params = {}) =>
 export const createInventoryPurchaseRequest = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/inventory/purchase-requests`, payload).then((r) => r.data?.request);
 
+export const updateInventoryPurchaseRequest = (restaurantId, requestId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/inventory/purchase-requests/${requestId}`, payload).then((r) => r.data?.request);
+
+// Phase 6 (gap 14): auto-reorder drafts from par levels. Drafts only.
+export const draftAutoReorders = (restaurantId) =>
+  api.post(`/restaurants/${restaurantId}/inventory/auto-reorder`).then((r) => r.data);
+
+// Phase 6 (gap 10): plate cost / margin per dish, computed on read.
+export const listMenuFoodCosts = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/menu-items/food-cost`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+export const getMenuItemFoodCost = (restaurantId, itemId) =>
+  api.get(`/restaurants/${restaurantId}/menu-items/${itemId}/food-cost`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.food_cost);
+
+// Phase 6 (gap 14): modifier depletion mappings and lot tracking.
+export const listInventoryModifierMappings = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/inventory/modifier-mappings`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.mappings || []);
+export const listInventoryModifierOptions = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/inventory/modifier-options`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.options || []);
+export const createInventoryModifierMapping = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/inventory/modifier-mappings`, payload).then((r) => r.data?.mapping);
+export const deleteInventoryModifierMapping = (restaurantId, mappingId) =>
+  api.delete(`/restaurants/${restaurantId}/inventory/modifier-mappings/${mappingId}`);
+export const listInventoryItemLots = (restaurantId, itemId) =>
+  api.get(`/restaurants/${restaurantId}/inventory/items/${itemId}/lots`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
 export const listInventorySupplierIssuePage = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/inventory/supplier-issues`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
