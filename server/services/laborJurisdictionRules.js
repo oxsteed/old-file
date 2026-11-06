@@ -573,6 +573,81 @@ function evaluateSchedule(shifts, { rules, existingShifts = [], now = new Date()
   return warnings;
 }
 
+// ── Phase 7: punch-time minor check ──────────────────────────────────
+// evaluateSchedule only warns at publish; a minor could still punch in
+// for a non-compliant shift. This is the punch-time counterpart, pure
+// so the clock-in handler and tests share it exactly.
+//
+// Inputs are all business-local wall-clock values for the day of the
+// punch: clockInTime 'HH:MM', the day's published shift (or null),
+// hours already worked today / this week (closed punches only; the
+// open punch being created is not counted yet), and the projected
+// totals if the shift runs to its scheduled end.
+//
+// A violation BLOCKS the punch (409 with the rule named): the law
+// states a hard limit and the punch would break it. A missing
+// published shift only WARNS (flagged on the punch for a manager):
+// plenty of legitimate shifts are unscheduled cover, and stranding a
+// minor at the door over a missing schedule row is not enforcement,
+// it is a staffing failure. An expired minor_until (band no longer
+// applies) returns applies:false.
+function evaluateMinorPunch({
+  band, minorUntil = null, rules,
+  workDate, clockInTime, shift = null,
+  hoursWorkedToday = 0, hoursWorkedThisWeek = 0,
+} = {}) {
+  const r = rules || resolveRules(null);
+  if (!band || (band !== 'under_16' && band !== 'age_16_17')) return { applies: false, violations: [], warnings: [] };
+  if (minorUntil && workDate && String(workDate) > String(minorUntil)) {
+    return { applies: false, violations: [], warnings: [] };
+  }
+  const violations = [];
+  const warnings = [];
+  const shiftHoursValue = shift ? shiftHours(shift) : 0;
+  const projectedDayHours = Math.round((Number(hoursWorkedToday) + shiftHoursValue) * 100) / 100;
+  const projectedWeekHours = Math.round((Number(hoursWorkedThisWeek) + shiftHoursValue) * 100) / 100;
+  const endTime = shift ? String(shift.end_time || '').slice(0, 5) : null;
+  if (!shift) {
+    warnings.push({
+      rule: 'minor_no_shift',
+      message: `Minor clocked in on ${workDate} with no published shift for the day; a manager should confirm the shift is compliant.`,
+    });
+  }
+  if (band === 'under_16') {
+    const L = FLSA_UNDER_16;
+    const latest = isSummer(workDate) ? L.summer_latest_end : L.latest_end;
+    if (clockInTime && clockInTime < L.earliest_start) {
+      violations.push({ rule: 'minor_u16_window', message: `Under-16 clock-in at ${clockInTime}; federal law allows work from ${L.earliest_start}.` });
+    }
+    if (endTime && (endTime > latest || (shift && endTime <= String(shift.start_time || '').slice(0, 5)))) {
+      violations.push({ rule: 'minor_u16_window', message: `Under-16 shift on ${workDate} ends at ${endTime}; federal law allows work until ${latest}.` });
+    }
+    const dailyLimit = isSchoolDay(workDate) ? L.school_day_hours : L.non_school_day_hours;
+    if (projectedDayHours > dailyLimit) {
+      violations.push({ rule: 'minor_u16_daily', message: `Under-16 would work ${projectedDayHours}h on ${workDate}; limit ${dailyLimit}h${isSchoolDay(workDate) ? ' on a school day (if school is in session)' : ''}.` });
+    }
+    const schoolWeek = isSchoolDay(workDate);
+    const weeklyLimit = schoolWeek ? L.school_week_hours : L.non_school_week_hours;
+    if (projectedWeekHours > weeklyLimit) {
+      violations.push({ rule: 'minor_u16_weekly', message: `Under-16 would work ${projectedWeekHours}h in the week of ${workDate}; limit ${weeklyLimit}h${schoolWeek ? ' in a school week (if school is in session)' : ''}.` });
+    }
+  } else {
+    const dailyLimit = r.minor_max_daily_hours == null ? null : Number(r.minor_max_daily_hours);
+    const weeklyLimit = r.minor_max_weekly_hours == null ? null : Number(r.minor_max_weekly_hours);
+    const latest = r.minor_latest_end_time ? String(r.minor_latest_end_time).slice(0, 5) : null;
+    if (latest && endTime && endTime > latest) {
+      violations.push({ rule: 'minor_latest_end', message: `Shift on ${workDate} ends at ${endTime}; the jurisdiction allows minors to work until ${latest}.` });
+    }
+    if (dailyLimit != null && projectedDayHours > dailyLimit) {
+      violations.push({ rule: 'minor_daily', message: `Minor would work ${projectedDayHours}h on ${workDate}; the jurisdiction allows ${dailyLimit}h per day.` });
+    }
+    if (weeklyLimit != null && projectedWeekHours > weeklyLimit) {
+      violations.push({ rule: 'minor_weekly', message: `Minor would work ${projectedWeekHours}h this week; the jurisdiction allows ${weeklyLimit}h per week.` });
+    }
+  }
+  return { applies: true, band, violations, warnings, blocked: violations.length > 0 };
+}
+
 module.exports = {
   PRESETS,
   RULE_COLUMNS,
@@ -583,6 +658,7 @@ module.exports = {
   mealBreakPremiumHours,
   evaluateSchedule,
   evaluateChange,
+  evaluateMinorPunch,
   FLSA_UNDER_16,
   isSchoolDay,
   isSummer,

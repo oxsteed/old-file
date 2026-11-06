@@ -49,6 +49,8 @@ router.get   ('/:businessId/staff/time-entries/mine',    requireAuth, requireBus
 router.post  ('/:businessId/staff/clock-in',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.clockIn);
 router.post  ('/:businessId/staff/clock-out/:entryId',   requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.clockOut);
 router.post  ('/:businessId/staff/time-entries/:entryId/break', requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.punchBreak);
+// Phase 7 (gap 17): file or correct a break attestation after clock-out.
+router.post  ('/:businessId/staff/time-entries/:entryId/break-attestation', requireAuth, requireBusinessAccess({ minRole: 'any' }), ctrl.recordBreakAttestation);
 router.patch ('/:businessId/staff/time-entries/:entryId',       requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.editTimeEntry);
 router.post  ('/:businessId/staff/time-entries/:entryId/void',  requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.voidTimeEntry);
 // Phase 2: close-of-day check for forgotten punches (manager runs the

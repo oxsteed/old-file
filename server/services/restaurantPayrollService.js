@@ -41,6 +41,12 @@ const { csvCell } = require('../utils/csv');
 // country branch. California is one row in that table, not the logic.
 const laborJurisdiction = require('./laborJurisdictionRules');
 const { minorUnitDecimals } = require('../utils/currencyPrecision');
+// Phase 7 (gap 17): break attestations surface in the labor and
+// exceptions reports. The attestation never changes the premium math
+// (tierRows still prices from the punch record); it only confirms or
+// disputes it, so the report counts attested, waived, and disputed
+// breaks alongside the premium the punch record already owes.
+const breakAttestation = require('./restaurantBreakAttestation');
 
 function storeFilter(locationIds, column, parameter) {
   return locationIds === null ? '' : ` AND ${column} = ANY($${parameter}::bigint[])`;
@@ -1212,7 +1218,7 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
     ? payContext.locationsById.get(singleLocationId)?.currency_code || null
     : null;
   const effectiveCurrency = locationCurrency || restaurantCurrency;
-  const [roster, hoursByUser, scheduledByUser, revenues, tipAllocations, fallbackPolicy, systemClosedByUser] = await Promise.all([
+  const [roster, hoursByUser, scheduledByUser, revenues, tipAllocations, fallbackPolicy, systemClosedByUser, attestationByUser] = await Promise.all([
     getRoster(businessId, locationIds, restaurant.id),
     getHoursByUser(businessId, fromDate, toDate, locationIds),
     getScheduledHoursByUser(businessId, restaurant.id, fromDate, toDate, locationIds),
@@ -1220,6 +1226,7 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
     computeTipAllocations({ restaurant, fromDate, toDate, locationIds }),
     getLaborPolicy(restaurant.id),
     getSystemClosedByUser(businessId, fromDate, toDate, locationIds),
+    breakAttestation.attestationSummaryByUser(pool, { businessId, fromDate, toDate, locationIds }),
   ]);
   // The policy this report was computed under: the single scoped
   // store's own policy when one store is in scope, else the
@@ -1263,6 +1270,10 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
   let unpricedPremiumHours = 0;
   let missedMealBreaks = 0;
   let breakExceptions = 0;
+  let attestedBreaks = 0;
+  let waivedBreaks = 0;
+  let missedBreaksAttested = 0;
+  let disputedAttestations = 0;
   const missingWageUserIds = [];
   const employees = [];
   for (const userId of employeeIds) {
@@ -1314,6 +1325,13 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
     unpricedPremiumHours += employeeUnpricedPremiumHours;
     missedMealBreaks += employeeMissedMeals;
     breakExceptions += Number(policy.breakExceptions) || 0;
+    const attestation = attestationByUser.get(userId);
+    if (attestation) {
+      attestedBreaks += attestation.attestations;
+      waivedBreaks += attestation.waived_breaks;
+      missedBreaksAttested += attestation.missed_breaks;
+      disputedAttestations += attestation.disputed_attestations;
+    }
     const tips = tipsByUser.get(userId) || {
       gross_tips_cents: 0, tip_out_cents: 0, tip_in_cents: 0, net_tips_cents: 0,
     };
@@ -1383,6 +1401,12 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
     unpriced_premium_hours: Math.round(unpricedPremiumHours * 100) / 100,
     missed_meal_breaks: missedMealBreaks,
     break_exceptions: breakExceptions,
+    break_attestations: {
+      attested: attestedBreaks,
+      waived: waivedBreaks,
+      missed_attested: missedBreaksAttested,
+      disputed: disputedAttestations,
+    },
     labor_policy: laborPolicy,
     sales_per_labor_hour_cents: salesPerLaborHourCents,
     missing_wage_user_ids: missingWageUserIds,
@@ -1614,7 +1638,7 @@ async function computeExceptions({ restaurant, fromDate, toDate, locationIds = n
     ? payContext.policiesByLocation.get(singleLocationId)
     : fallbackPolicy;
 
-  const [payments, discounts, drawerEvents, missingPunches, roster, policyHours] = await Promise.all([
+  const [payments, discounts, drawerEvents, missingPunches, roster, policyHours, attestationByUser] = await Promise.all([
     pool.query(
       `SELECT created_by AS user_id,
               COUNT(*) FILTER (WHERE status = 'voided')::int AS voids,
@@ -1680,6 +1704,7 @@ async function computeExceptions({ restaurant, fromDate, toDate, locationIds = n
     ),
     getRoster(businessId, locationIds, restaurant.id),
     getPolicyHoursByUser(businessId, fromDate, toDate, effectivePolicy, locationIds, payContext),
+    breakAttestation.attestationSummaryByUser(pool, { businessId, fromDate, toDate, locationIds }),
   ]);
 
   const rosterById = new Map(roster.map((m) => [m.user_id, m]));
@@ -1697,6 +1722,11 @@ async function computeExceptions({ restaurant, fromDate, toDate, locationIds = n
     no_sales: 0, payouts: 0, payout_cents: 0, cash_outs: 0, cash_out_cents: 0,
     missing_punches: 0,
     missed_meal_breaks: 0, meal_break_premium_hours: 0, meal_break_premium_cents: 0,
+    // Phase 7 (gap 17): waived/missed breaks the employee attested, and
+    // attestations that dispute the punch record. The premium for these
+    // already flows through meal_break_premium_cents above (Phase 1
+    // math on the punch record); these counts are the exception surface.
+    waived_breaks: 0, missed_breaks_attested: 0, disputed_attestations: 0,
     predictability_premium_count: 0, predictability_premium_cents: 0,
     unpriced_premium_hours: 0,
   });
@@ -1731,6 +1761,13 @@ async function computeExceptions({ restaurant, fromDate, toDate, locationIds = n
     row.unpriced_premium_hours = Math.round(((row.unpriced_premium_hours || 0)
       + (Number(premium.unpriced_premium_hours) || 0)) * 100) / 100;
     byUser.set(userId, row);
+  }
+  for (const [userId, attestation] of attestationByUser) {
+    merge(userId, {
+      waived_breaks: attestation.waived_breaks,
+      missed_breaks_attested: attestation.missed_breaks,
+      disputed_attestations: attestation.disputed_attestations,
+    });
   }
 
   const employees = [...byUser.entries()].map(([userId, counts]) => {

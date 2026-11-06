@@ -37,7 +37,8 @@ const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const enforceUploadQuota = require('../middleware/uploadQuota');
-const { authenticatedLimiter, strictLimiter, generalLimiter, staffPinAttemptLimiter } = require('../middleware/rateLimiter');
+const { authenticatedLimiter, strictLimiter, generalLimiter, staffPinAttemptLimiter, kitchenFeedLimiter } = require('../middleware/rateLimiter');
+const compliance = require('../controllers/restaurantComplianceController');
 const media = require('../controllers/restaurantMediaController');
 const { requireKitchenDeviceOrStaff } = require('../controllers/restaurantDisplayController');
 const hosting = require('../controllers/restaurantHostingController');
@@ -76,7 +77,7 @@ router.post('/:restaurantId/devices/:deviceId/screen-items/:orderItemId/action',
 router.post('/:restaurantId/devices/pair', strictLimiter, scopeExempt('device-credential'), appFlow.pairDevice);
 router.get('/:restaurantId/devices/:deviceId/runtime-config', scopeExempt('device-credential'), appFlow.getDeviceRuntimeConfig);
 router.post('/:restaurantId/devices/:deviceId/heartbeat', scopeExempt('device-credential'), appFlow.deviceHeartbeat);
-router.get('/:restaurantId/devices/:deviceId/kitchen-feed', scopeExempt('device-credential'), appFlow.getKitchenFeed);
+router.get('/:restaurantId/devices/:deviceId/kitchen-feed', kitchenFeedLimiter, scopeExempt('device-credential'), appFlow.getKitchenFeed);
 router.post('/:restaurantId/devices/:deviceId/kitchen-feed/ack', scopeExempt('device-credential'), appFlow.ackKitchenFeed);
 router.get('/:restaurantId/devices/:deviceId/printer-jobs', appFlow.authenticateKitchenPrinterDevice, scopeExempt('device-credential'), appFlow.listPrinterJobs);
 router.post('/:restaurantId/devices/:deviceId/printer-jobs/:jobId/claim', appFlow.authenticateKitchenPrinterDevice, scopeExempt('device-credential'), appFlow.claimPrinterJob);
@@ -130,7 +131,7 @@ router.post(
 // pairing id (multiple TVs share one NAT IP) so devices never consume the
 // anonymous IP budget. Stations, audit, printer jobs, events and every other
 // kitchen route below stay staff-only.
-router.get('/:restaurantId/kitchen/feed', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.getKitchenFeed);
+router.get('/:restaurantId/kitchen/feed', requireKitchenDeviceOrStaff, kitchenFeedLimiter, scopeExempt('device-credential'), appFlow.getKitchenFeed);
 router.post('/:restaurantId/kitchen/orders/:orderId/ack', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.ackKitchenTicket);
 router.post('/:restaurantId/kitchen/orders/:orderId/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenOrderAction);
 router.post('/:restaurantId/kitchen/items/:orderItemId/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenItemAction);
@@ -193,6 +194,30 @@ router.patch('/:restaurantId/delivery/marketplace-orders/:orderId', requireResta
 router.get('/:restaurantId/hq/rollup', requireRestaurantAccess(), hq.rollup);
 // S-18: HQ cross-store labor rollup (per-store hours, cost, labor %).
 router.get('/:restaurantId/hq/labor-rollup', requireRestaurantAccess(), hq.laborRollup);
+// Phase 7 (gap 20): labor-rollup CSV export (same rows as the JSON rollup).
+router.get('/:restaurantId/hq/labor-rollup.csv', requireRestaurantAccess(), hq.laborRollupCsv);
+// Phase 7: compliance hardening + reporting. Temperature logs (gap 11),
+// prime cost (gap 15), break attestations (gap 17), scheduled report
+// delivery (gap 19), retention + erasure (gap 21). Permission gates
+// live inside the compliance controller (reports policy for reads,
+// settings.manage for policy/erasure management).
+router.post('/:restaurantId/temperature-logs', requireRestaurantAccess(), compliance.recordTemperatureLog);
+router.get('/:restaurantId/temperature-logs', requireRestaurantAccess(), compliance.listTemperatureLogs);
+router.post('/:restaurantId/temperature-logs/:logId/corrective-action', requireRestaurantAccess(), compliance.linkTemperatureCorrectiveAction);
+router.get('/:restaurantId/reports/prime-cost', requireRestaurantAccess(), compliance.primeCost);
+router.get('/:restaurantId/break-attestations', requireRestaurantAccess(), compliance.listBreakAttestations);
+router.get('/:restaurantId/scheduled-reports', requireRestaurantAccess(), compliance.listScheduledReports);
+router.post('/:restaurantId/scheduled-reports', requireRestaurantAccess(), compliance.createScheduledReport);
+router.put('/:restaurantId/scheduled-reports/:scheduleId', requireRestaurantAccess(), compliance.updateScheduledReport);
+router.delete('/:restaurantId/scheduled-reports/:scheduleId', requireRestaurantAccess(), compliance.deleteScheduledReport);
+router.get('/:restaurantId/scheduled-reports/deliveries', requireRestaurantAccess(), compliance.listScheduledReportDeliveries);
+router.post('/:restaurantId/scheduled-reports/:scheduleId/run-now', requireRestaurantAccess(), compliance.runScheduledReportNow);
+router.get('/:restaurantId/retention-policies', requireRestaurantAccess(), compliance.getRetentionPolicies);
+router.put('/:restaurantId/retention-policies', requireRestaurantAccess(), compliance.setRetentionPolicy);
+router.get('/:restaurantId/erasure-requests', requireRestaurantAccess(), compliance.listErasureRequests);
+router.post('/:restaurantId/erasure-requests', requireRestaurantAccess(), compliance.createErasureRequest);
+router.post('/:restaurantId/erasure-requests/:requestId/decide', requireRestaurantAccess(), compliance.decideErasureRequest);
+router.post('/:restaurantId/erasure-requests/:requestId/run', requireRestaurantAccess(), compliance.runErasureRequest);
 router.post('/:restaurantId/hq/menu/preview', requireRestaurantAccess(), hq.previewMenuOverrides);
 router.post('/:restaurantId/hq/menu/publish', requireRestaurantAccess(), hq.publishMenuOverrides);
 router.get('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.listRegions);

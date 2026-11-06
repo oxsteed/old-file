@@ -25,6 +25,7 @@ const STORE_TABLES = [
   'restaurant_crew_task_events',
   'restaurant_crew_tasks',
   'restaurant_daily_counters',
+  'restaurant_daily_rollups',
   'restaurant_declared_cash_tips',
   'restaurant_delivery_marketplace_integrations',
   'restaurant_delivery_marketplace_orders',
@@ -56,9 +57,11 @@ const STORE_TABLES = [
   'restaurant_printer_jobs',
   'restaurant_printer_settings',
   'restaurant_reservations',
+  'restaurant_retention_policies',
   'restaurant_runner_settlements',
   'restaurant_runner_tasks',
   'restaurant_schedule_versions',
+  'restaurant_scheduled_reports',
   'restaurant_screen_events',
   'restaurant_screen_tickets',
   'restaurant_staff_pins',
@@ -66,6 +69,7 @@ const STORE_TABLES = [
   'restaurant_store_menu_overrides',
   'restaurant_tables',
   'restaurant_tax_rules',
+  'restaurant_temperature_logs',
   'restaurant_terminal_offline_leases',
   'restaurant_terminal_offline_payments',
   'restaurant_terminal_offline_permits',
@@ -140,6 +144,14 @@ const REVIEWED = {
   'services/shiftConflictValidation.js': SCOPED_CALLER,
   'services/scheduleCopy.js': SCOPED_CALLER,
   'services/scheduleForecast.js': SCOPED_CALLER,
+  // Phase 7 compliance services: called only from the compliance
+  // controller after it resolved the restaurant access and the
+  // location scope; every write carries the caller's restaurant_id
+  // and location_id. The temperature service's breach alert notifies
+  // managers of the same business only.
+  'services/restaurantTemperatureService.js': SCOPED_CALLER,
+  'services/restaurantRetentionService.js': SCOPED_CALLER,
+  'services/restaurantRollupCache.js': SCOPED_CALLER,
   'services/restaurantTerminalOffline.js': DEVICE_BOUND,
   'services/settlementStatementService.js': BUSINESS_LEVEL,
   'services/staffOffboarding.js': BUSINESS_LEVEL,

@@ -11,6 +11,10 @@ const hq = require('../services/restaurantHQService');
 const { getLocationScope } = require('../services/restaurantLocationAccessService');
 const { withTransaction } = require('../utils/transaction');
 const { logBusinessAction } = require('../services/businessAuditLog');
+// Phase 7 (gap 20): brand-wide labor rollups are cached with a
+// documented staleness; the CSV export shares the same computation.
+const rollupCache = require('../services/restaurantRollupCache');
+const { csvCell } = require('../utils/csv');
 
 function dateRange(req, restaurant) {
   try {
@@ -152,79 +156,160 @@ exports.rollup = async (req, res, next) => {
 // S-18: HQ cross-store labor rollup. Per-store hours, labor cost and
 // labor % of sales for every accessible store, plus cross-store totals.
 // Gated on settings.manage (HQ hierarchy) and payroll.view (pay data).
+//
+// Phase 7 (gap 20): the per-store loop runs one full labor computation
+// per store in sequence, so brand-wide reads are cached for 15 minutes
+// (restaurantRollupCache) and every response states its staleness
+// (is_cached / computed_at / stale_after_seconds). Assigned-scope
+// reads are NOT cached: the cache key cannot tell two different
+// assigned store lists apart, so a scoped read always computes live.
+async function buildLaborRollup(anchor, accessible, range) {
+  const stores = [];
+  let totalHours = 0;
+  let totalLaborCostCents = 0;
+  let totalRevenueCents = 0;
+  let totalOvertimeHours = 0;
+  const currencies = new Set();
+  for (const store of accessible) {
+    const labor = await payroll.computeLabor({
+      restaurant: anchor,
+      fromDate: range.from,
+      toDate: range.to,
+      locationIds: [Number(store.id)],
+    });
+    totalHours += labor.total_hours || 0;
+    totalLaborCostCents += labor.labor_cost_cents || 0;
+    totalRevenueCents += labor.revenue_cents || 0;
+    // S-18: overtime is computed on each person's hours across every store
+    // of the business, then attributed to the store where it was worked.
+    totalOvertimeHours += labor.overtime_hours || 0;
+    if (labor.currency) currencies.add(labor.currency);
+    stores.push({
+      location_id: Number(store.id),
+      display_name: store.display_name,
+      total_hours: labor.total_hours,
+      scheduled_hours: labor.scheduled_hours,
+      overtime_hours: labor.overtime_hours,
+      labor_cost_cents: labor.labor_cost_cents,
+      labor_percent: labor.labor_percent,
+      sales_per_labor_hour_cents: labor.sales_per_labor_hour_cents,
+      revenue_cents: labor.revenue_cents,
+      currency: labor.currency,
+      employee_count: (labor.employees || []).length,
+      missing_wage_count: (labor.missing_wage_user_ids || []).length,
+    });
+  }
+  return {
+    scope: { businessId: Number(anchor.business_id), restaurantId: Number(anchor.id), storeCount: stores.length, from: range.from, to: range.to, timezone: range.timezone },
+    totals: {
+      total_hours: Math.round(totalHours * 100) / 100,
+      overtime_hours: Math.round(totalOvertimeHours * 100) / 100,
+      // Money totals only make sense in one currency.
+      currency: currencies.size <= 1 ? [...currencies][0] || null : null,
+      labor_cost_cents: currencies.size <= 1 ? totalLaborCostCents : null,
+      revenue_cents: currencies.size <= 1 ? totalRevenueCents : null,
+      labor_percent: currencies.size <= 1 && totalRevenueCents > 0 ? Math.round((totalLaborCostCents / totalRevenueCents) * 1000) / 10 : null,
+    },
+    stores,
+  };
+}
+
+async function loadLaborRollupScope(req) {
+  const anchorId = v.integer(req.params.restaurantId, 'restaurantId');
+  if (!Number.isSafeInteger(anchorId) || anchorId <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  const anchor = await resolveRestaurantAccess(req.user.id, anchorId);
+  if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['settings.manage','reports.view']))) {
+    throw new AppError('You do not have permission to view the HQ rollup', 403, 'forbidden');
+  }
+  if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['payroll.view']))) {
+    throw new AppError('Viewing payroll requires the payroll.view permission', 403, 'payroll_permission_required');
+  }
+  const locationScope = await getLocationScope(anchor, req.user.id);
+  const locationParams = [anchor.id];
+  const locationFilter = locationScope.mode === 'assigned' ? ' AND l.id = ANY($2::bigint[])' : '';
+  if (locationScope.mode === 'assigned') locationParams.push(locationScope.location_ids);
+  const { rows: accessible } = await pool.query(
+    `SELECT l.id, l.name AS display_name
+       FROM restaurant_locations l
+      WHERE l.restaurant_id = $1${locationFilter}
+      ORDER BY l.is_primary DESC, l.id`,
+    locationParams
+  );
+  const ids = accessible.map((row) => Number(row.id));
+  if (!ids.length) throw new AppError('No accessible stores found', 403, 'hq_scope_empty');
+  const range = dateRange(req, anchor);
+  return { anchor, accessible, range, locationScope };
+}
+
 exports.laborRollup = async (req, res, next) => {
   try {
-    const anchorId = v.integer(req.params.restaurantId, 'restaurantId');
-    if (!Number.isSafeInteger(anchorId) || anchorId <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-    const anchor = await resolveRestaurantAccess(req.user.id, anchorId);
-    if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['settings.manage','reports.view']))) {
-      throw new AppError('You do not have permission to view the HQ rollup', 403, 'forbidden');
+    const { anchor, accessible, range, locationScope } = await loadLaborRollupScope(req);
+    if (locationScope.mode === 'assigned') {
+      const rollup = await buildLaborRollup(anchor, accessible, range);
+      return res.json({ ...rollup, is_cached: false, computed_at: new Date().toISOString(), stale_after_seconds: null });
     }
-    if (!(await permissions.hasRestaurantPermission(anchor, req.user.id, ['payroll.view']))) {
-      throw new AppError('Viewing payroll requires the payroll.view permission', 403, 'payroll_permission_required');
-    }
-    const locationScope = await getLocationScope(anchor, req.user.id);
-    const locationParams = [anchor.id];
-    const locationFilter = locationScope.mode === 'assigned' ? ' AND l.id = ANY($2::bigint[])' : '';
-    if (locationScope.mode === 'assigned') locationParams.push(locationScope.location_ids);
-    const { rows: accessible } = await pool.query(
-      `SELECT l.id, l.name AS display_name
-         FROM restaurant_locations l
-        WHERE l.restaurant_id = $1${locationFilter}
-        ORDER BY l.is_primary DESC, l.id`,
-      locationParams
-    );
-    const ids = accessible.map((row) => Number(row.id));
-    if (!ids.length) throw new AppError('No accessible stores found', 403, 'hq_scope_empty');
-    const range = dateRange(req, anchor);
-    const stores = [];
-    let totalHours = 0;
-    let totalLaborCostCents = 0;
-    let totalRevenueCents = 0;
-    let totalOvertimeHours = 0;
-    const currencies = new Set();
-    for (const store of accessible) {
-      const labor = await payroll.computeLabor({
-        restaurant: anchor,
+    const cached = await rollupCache.getCachedRollup(pool, {
+      restaurantId: anchor.id,
+      locationId: null,
+      fromDate: range.from,
+      toDate: range.to,
+      kind: 'hq_labor',
+      compute: () => buildLaborRollup(anchor, accessible, range),
+    });
+    res.json({ ...cached.payload, is_cached: cached.is_cached, computed_at: cached.computed_at, stale_after_seconds: cached.stale_after_seconds });
+  } catch (err) { next(err); }
+};
+
+// Phase 7 (gap 20): the labor rollup finally exports. Same rows as the
+// JSON rollup, same computation (cached for brand-wide reads), one row
+// per store plus a totals row. Multi-currency totals stay blank rather
+// than adding dollars to gourdes.
+exports.laborRollupCsv = async (req, res, next) => {
+  try {
+    const { anchor, accessible, range, locationScope } = await loadLaborRollupScope(req);
+    let rollup;
+    if (locationScope.mode === 'assigned') {
+      rollup = await buildLaborRollup(anchor, accessible, range);
+    } else {
+      const cached = await rollupCache.getCachedRollup(pool, {
+        restaurantId: anchor.id,
+        locationId: null,
         fromDate: range.from,
         toDate: range.to,
-        locationIds: [Number(store.id)],
+        kind: 'hq_labor',
+        compute: () => buildLaborRollup(anchor, accessible, range),
       });
-      totalHours += labor.total_hours || 0;
-      totalLaborCostCents += labor.labor_cost_cents || 0;
-      totalRevenueCents += labor.revenue_cents || 0;
-      // S-18: overtime is computed on each person's hours across every store
-      // of the business, then attributed to the store where it was worked.
-      totalOvertimeHours += labor.overtime_hours || 0;
-      if (labor.currency) currencies.add(labor.currency);
-      stores.push({
-        location_id: Number(store.id),
-        display_name: store.display_name,
-        total_hours: labor.total_hours,
-        scheduled_hours: labor.scheduled_hours,
-        overtime_hours: labor.overtime_hours,
-        labor_cost_cents: labor.labor_cost_cents,
-        labor_percent: labor.labor_percent,
-        sales_per_labor_hour_cents: labor.sales_per_labor_hour_cents,
-        revenue_cents: labor.revenue_cents,
-        currency: labor.currency,
-        employee_count: (labor.employees || []).length,
-        missing_wage_count: (labor.missing_wage_user_ids || []).length,
-      });
+      rollup = cached.payload;
     }
-    res.json({
-      scope: { businessId: Number(anchor.business_id), restaurantId: Number(anchor.id), storeCount: stores.length, from: range.from, to: range.to, timezone: range.timezone },
-      totals: {
-        total_hours: Math.round(totalHours * 100) / 100,
-        overtime_hours: Math.round(totalOvertimeHours * 100) / 100,
-        // Money totals only make sense in one currency.
-        currency: currencies.size <= 1 ? [...currencies][0] || null : null,
-        labor_cost_cents: currencies.size <= 1 ? totalLaborCostCents : null,
-        revenue_cents: currencies.size <= 1 ? totalRevenueCents : null,
-        labor_percent: currencies.size <= 1 && totalRevenueCents > 0 ? Math.round((totalLaborCostCents / totalRevenueCents) * 1000) / 10 : null,
-      },
-      stores,
-    });
+    const lines = [[
+      'from_date', 'to_date', 'location_id', 'location_name', 'currency',
+      'total_hours', 'scheduled_hours', 'overtime_hours', 'labor_cost_cents',
+      'revenue_cents', 'labor_percent', 'sales_per_labor_hour_cents',
+      'employee_count', 'missing_wage_count',
+    ].join(',')];
+    for (const store of rollup.stores) {
+      lines.push([
+        rollup.scope.from, rollup.scope.to, store.location_id,
+        csvCell(store.display_name), store.currency ?? '',
+        store.total_hours ?? '', store.scheduled_hours ?? '', store.overtime_hours ?? '',
+        store.labor_cost_cents ?? '', store.revenue_cents ?? '',
+        store.labor_percent ?? '', store.sales_per_labor_hour_cents ?? '',
+        store.employee_count ?? '', store.missing_wage_count ?? '',
+      ].join(','));
+    }
+    lines.push([
+      rollup.scope.from, rollup.scope.to, '', csvCell('TOTAL'),
+      rollup.totals.currency ?? '',
+      rollup.totals.total_hours ?? '', '', rollup.totals.overtime_hours ?? '',
+      rollup.totals.labor_cost_cents ?? '', rollup.totals.revenue_cents ?? '',
+      rollup.totals.labor_percent ?? '', '', '', '',
+    ].join(','));
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="labor-rollup-${rollup.scope.from}-to-${rollup.scope.to}.csv"`
+    );
+    res.send(`${lines.join('\n')}\n`);
   } catch (err) { next(err); }
 };
 

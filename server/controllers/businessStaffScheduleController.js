@@ -23,6 +23,12 @@ const { breakSeconds, computedHours, haversineMeters, finiteCoordinate } = requi
 const { closeStalePunches } = require('../services/restaurantPunchCloseout');
 const { validateStaffPinForRestaurant } = require('../services/restaurantStaffIdentityService');
 const AppError = require('../utils/appError');
+const logger = require('../utils/logger');
+// Phase 7 (gap 17): break attestation at clock-out. The attestation is
+// evidence only — the premium still prices from the punch record in
+// restaurantPayrollService.tierRows; this module only records the
+// employee's statement and reports what the record already owes.
+const breakAttestationService = require('../services/restaurantBreakAttestation');
 
 // Shifts
 //
@@ -756,6 +762,69 @@ async function validTimezone(name) {
 // is a way to quietly disable the check.
 const PUNCH_GEOFENCE_RADIUS_METERS = 200;
 
+// Phase 7 (gap 17): punch-time minor check. Loads the minor band, the
+// day's published shift, hours already worked today / this week, and
+// the store's jurisdiction rules, then evaluates them with the pure
+// laborJurisdictionRules.evaluateMinorPunch. Returns
+// { applies, violations, warnings, blocked }. A missing profile, an
+// expired band, or a lookup failure means "no check": the punch
+// proceeds (fail-open on the check itself, never on the law — a
+// violation that IS found still blocks).
+async function checkMinorPunch({ businessId, userId, locationId, restaurantId, timezone }) {
+  const none = { applies: false, violations: [], warnings: [], blocked: false };
+  try {
+    const { rows: [profile] } = await pool.query(
+      `SELECT minor_band, minor_until::text AS minor_until
+         FROM business_staff_labor_profiles
+        WHERE business_id = $1 AND user_id = $2`,
+      [businessId, userId]
+    );
+    if (!profile?.minor_band) return none;
+    const { rows: [local] } = await pool.query(
+      `SELECT (NOW() AT TIME ZONE $1)::date AS work_date,
+              TO_CHAR(NOW() AT TIME ZONE $1, 'HH24:MI') AS clock_in_time`,
+      [timezone]
+    );
+    const workDate = String(local.work_date);
+    if (profile.minor_until && workDate > String(profile.minor_until)) return none;
+    const { rows: [shift] } = await pool.query(
+      `SELECT id, shift_date, start_time, end_time
+         FROM business_staff_shifts
+        WHERE business_id = $1 AND user_id = $2 AND shift_date = $3::date
+          AND published_at IS NOT NULL
+        ORDER BY start_time LIMIT 1`,
+      [businessId, userId, workDate]
+    );
+    const { rows: [hours] } = await pool.query(
+      `SELECT
+         COALESCE(SUM(hours_worked) FILTER (WHERE entry_date = $3::date), 0)::float8 AS today,
+         COALESCE(SUM(hours_worked) FILTER (WHERE entry_date >= ($3::date - (((EXTRACT(DOW FROM $3::date) + 6) % 7)::int))), 0)::float8 AS week
+         FROM business_time_entries
+        WHERE business_id = $1 AND user_id = $2 AND voided_at IS NULL
+          AND hours_worked IS NOT NULL`,
+      [businessId, userId, workDate]
+    );
+    const rules = await laborJurisdiction.getJurisdiction(pool, restaurantId, locationId);
+    return laborJurisdiction.evaluateMinorPunch({
+      band: profile.minor_band,
+      minorUntil: profile.minor_until,
+      rules,
+      workDate,
+      clockInTime: local.clock_in_time,
+      shift: shift ? {
+        shift_date: workDate,
+        start_time: String(shift.start_time).slice(0, 5),
+        end_time: String(shift.end_time).slice(0, 5),
+      } : null,
+      hoursWorkedToday: Number(hours?.today || 0),
+      hoursWorkedThisWeek: Number(hours?.week || 0),
+    });
+  } catch (err) {
+    logger.warn('Minor punch check failed, allowing punch', { businessId, userId, error: err.message });
+    return none;
+  }
+}
+
 exports.clockIn = async (req, res, next) => {
   const { businessId } = req.params;
   try {
@@ -828,6 +897,30 @@ exports.clockIn = async (req, res, next) => {
         punchMeta.staff_pin_id = verified.pinRow?.id || pinRow.id;
       }
     }
+    // Phase 7 (gap 17): punch-time minor check. Schedule warnings do
+    // not stop a minor punching in for a non-compliant shift, so the
+    // check runs here, against the day's published shift and the
+    // jurisdiction rules for this store. A hard violation (outside the
+    // legal window, over the daily/weekly hour limit) blocks the punch
+    // with the rule named. A missing published shift only flags the
+    // punch for a manager: legitimate cover shifts are unscheduled,
+    // and stranding a minor over a missing schedule row is not
+    // enforcement. An expired minor_until means the band no longer
+    // applies and the check is skipped.
+    const minorCheck = await checkMinorPunch({
+      businessId, userId: req.user.id, locationId,
+      restaurantId: punchCtx.restaurantId, timezone,
+    });
+    if (minorCheck.blocked) {
+      return res.status(409).json({
+        error: 'This shift is not compliant with the minor labor rules for this store',
+        code: 'minor_shift_violation',
+        violations: minorCheck.violations,
+      });
+    }
+    if (minorCheck.warnings?.length) {
+      punchMeta.minor_flag = { warnings: minorCheck.warnings };
+    }
     // Atomic clock-in: the partial unique index on open entries is
     // the guard, not a preceding SELECT. ON CONFLICT ... DO NOTHING
     // with the index predicate means two simultaneous clock-ins
@@ -853,6 +946,22 @@ exports.clockIn = async (req, res, next) => {
       return rows[0] || null;
     }, 'clock_in');
     if (!row) return res.status(409).json({ error: 'Already clocked in' });
+    if (minorCheck.warnings?.length) {
+      // The flag is already on the punch (punch_meta.minor_flag); the
+      // audit row is the manager-visible copy. It must never fail a
+      // clock-in that already succeeded.
+      try {
+        await logBusinessAction(req, {
+          business_id: Number(businessId),
+          action: 'business.time_entry.minor_flagged',
+          target_type: 'time_entry',
+          target_id: row.id,
+          after_state: { warnings: minorCheck.warnings },
+        });
+      } catch (err) {
+        logger.warn('Minor punch flag audit failed', { entryId: row.id, error: err.message });
+      }
+    }
     res.status(201).json(presentTimeEntry(row));
   } catch (err) { next(err); }
 };
@@ -884,7 +993,109 @@ exports.clockOut = async (req, res, next) => {
       [hours, notes || null, entryId, businessId]
     );
     if (!row.rows.length) return res.status(404).json({ error: 'Active entry not found' });
-    res.json(presentTimeEntry(row.rows[0]));
+    const closed = row.rows[0];
+    // Phase 7 (gap 17): break attestation rides on clock-out. The
+    // attestation is recorded after the punch closes; a failure to
+    // record it never fails the clock-out itself (the punch is the
+    // record of work — the statement can be filed late through the
+    // standalone endpoint). The response says whether the shift
+    // qualified for a meal break, whether the attestation is missing,
+    // and what premium the punch record already owes under Phase 1.
+    const attestation = await handleClockOutAttestation(req, { businessId, entry: closed, hours });
+    res.json({ ...presentTimeEntry(closed), ...attestation });
+  } catch (err) { next(err); }
+};
+
+// Phase 7 (gap 17): attestation handling shared by clock-out and the
+// standalone late-attestation endpoint. Pure outcome object, never
+// throws: the punch already closed and the statement is secondary.
+async function handleClockOutAttestation(req, { businessId, entry, hours }) {
+  const outcome = {
+    break_attestation: null,
+    break_attestation_required: false,
+    break_attestation_missing: false,
+    meal_break_premium_hours: 0,
+    break_attestation_disputed: false,
+    break_attestation_error: null,
+  };
+  try {
+    let restaurantId = null;
+    if (entry.location_id != null) {
+      const { rows: [loc] } = await pool.query(
+        'SELECT restaurant_id FROM restaurant_locations WHERE id = $1',
+        [entry.location_id]
+      );
+      restaurantId = loc?.restaurant_id == null ? null : Number(loc.restaurant_id);
+    }
+    const rules = await laborJurisdiction.getJurisdiction(pool, restaurantId, entry.location_id);
+    const missedByPunch = breakAttestationService.punchShowsMissedMeal(entry, rules);
+    outcome.meal_break_premium_hours = missedByPunch
+      ? (laborJurisdiction.mealBreakPremiumHours(rules) || 0) : 0;
+    outcome.break_attestation_required = rules.meal_break_after_minutes != null
+      && Number(hours || 0) * 60 >= Number(rules.meal_break_after_minutes);
+    const body = req.body?.breakAttestation || req.body?.break_attestation || null;
+    if (!body) {
+      outcome.break_attestation_missing = outcome.break_attestation_required;
+      return outcome;
+    }
+    // A manager closing someone else's punch cannot attest for them.
+    if (String(entry.user_id) !== String(req.user.id)) {
+      outcome.break_attestation_error = 'Only the entry owner can attest to their break';
+      outcome.break_attestation_missing = outcome.break_attestation_required;
+      return outcome;
+    }
+    const recorded = await breakAttestationService.recordBreakAttestation(pool, {
+      businessId,
+      userId: req.user.id,
+      timeEntryId: entry.id,
+      mealBreakTaken: body.mealBreakTaken ?? body.meal_break_taken,
+      restBreakTaken: body.restBreakTaken ?? body.rest_break_taken ?? false,
+      waived: body.waived ?? false,
+      waiverReason: body.waiverReason ?? body.waiver_reason ?? null,
+      attestedBy: req.user.id,
+    });
+    outcome.break_attestation = recorded.attestation;
+    outcome.break_attestation_missing = false;
+    outcome.break_attestation_disputed = recorded.disputed;
+    outcome.meal_break_premium_hours = recorded.mealBreakPremiumHours;
+  } catch (err) {
+    outcome.break_attestation_error = err.message || 'Attestation could not be recorded';
+    outcome.break_attestation_missing = outcome.break_attestation_required;
+  }
+  return outcome;
+}
+
+// Phase 7 (gap 17): file (or correct) a break attestation after
+// clock-out, e.g. when the clock-out prompt was skipped. One
+// attestation per entry; re-posting replaces the statement (the
+// service upserts) but never rewrites the punch itself.
+exports.recordBreakAttestation = async (req, res, next) => {
+  try {
+    const { businessId, entryId } = req.params;
+    const entry = await loadTimeEntry(businessId, entryId, req);
+    if (!entry || entry.voided_at || !entry.clock_in_at || !entry.clock_out_at) {
+      return res.status(404).json({ error: 'Closed entry not found' });
+    }
+    if (String(entry.user_id) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Only the entry owner can attest to their break' });
+    }
+    const body = req.body || {};
+    const recorded = await breakAttestationService.recordBreakAttestation(pool, {
+      businessId,
+      userId: req.user.id,
+      timeEntryId: entry.id,
+      mealBreakTaken: body.mealBreakTaken ?? body.meal_break_taken,
+      restBreakTaken: body.restBreakTaken ?? body.rest_break_taken ?? false,
+      waived: body.waived ?? false,
+      waiverReason: body.waiverReason ?? body.waiver_reason ?? null,
+      attestedBy: req.user.id,
+    });
+    res.json({
+      attestation: recorded.attestation,
+      missed_meal_break: recorded.missedMealBreak,
+      meal_break_premium_hours: recorded.mealBreakPremiumHours,
+      disputed: recorded.disputed,
+    });
   } catch (err) { next(err); }
 };
 

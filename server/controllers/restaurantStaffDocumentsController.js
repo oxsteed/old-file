@@ -29,6 +29,10 @@ const DOC_TYPES = [
   "id_document",
   "policy_handbook",
   "sop_document",
+  // Phase 7 (gap 17): work permits for minors live in the same vault
+  // (the doc_type CHECK in migration 950 is widened by the Phase 7
+  // migration, and expiry alerts already cover dated documents).
+  "work_permit",
   "other",
 ];
 const STATUSES = ["pending", "verified", "rejected"];
