@@ -2449,6 +2449,14 @@ exports.getScheduleForecast = async (req, res, next) => {
       overtimeThresholdHours: Number(policy.overtime_threshold_hours),
       overtimeMultiplierBps: Number(policy.overtime_multiplier_bps),
     });
-    return res.json(forecast);
+    let currencyCode = 'USD';
+    if (restaurantId) {
+      const { rows: [rest] } = await pool.query(
+        'SELECT currency_code FROM food_restaurants WHERE id = $1',
+        [restaurantId]
+      );
+      if (rest?.currency_code) currencyCode = rest.currency_code;
+    }
+    return res.json({ ...forecast, currency_code: currencyCode });
   } catch (err) { return next(err); }
 };

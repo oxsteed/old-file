@@ -37,6 +37,9 @@ export default function RestaurantTimeClockCard({ restaurant }) {
   const [requests, setRequests] = useState([]);
   const [busy, setBusy] = useState(false);
   const [timeOff, setTimeOff] = useState({ request_type: 'vacation', start_date: todayIso(), end_date: todayIso(), reason: '' });
+  // Phase 4 Track B: the employee's own PTO balances, shown next to
+  // the request form for the selected type.
+  const [balances, setBalances] = useState([]);
   // Phase 2: optional staff PIN (only used where the store requires
   // one) and the employee punch-correction flow.
   const [staffPin, setStaffPin] = useState('');
@@ -55,12 +58,14 @@ export default function RestaurantTimeClockCard({ restaurant }) {
   const load = useCallback(async () => {
     if (!businessId) return;
     try {
-      const [mine, shiftRes, offRes, corrRes] = await Promise.all([
+      const [mine, shiftRes, offRes, corrRes, balRes] = await Promise.all([
         api.get(`${base}/time-entries/mine`),
         api.get(`${base}/shifts`, { params: { user_id: user?.id, from: todayIso() } }),
         api.get(`${base}/time-off`),
         api.get(`${base}/time-entry-corrections/mine`).catch(() => ({ data: [] })),
+        api.get(`${base}/time-off/balances`).catch(() => ({ data: { balances: [] } })),
       ]);
+      setBalances(Array.isArray(balRes.data?.balances) ? balRes.data.balances : []);
       setEntries(Array.isArray(mine.data?.entries) ? mine.data.entries : []);
       setOpen(mine.data?.open_entry || null);
       const shiftRows = Array.isArray(shiftRes.data) ? shiftRes.data : (shiftRes.data?.shifts || []);
@@ -280,6 +285,12 @@ export default function RestaurantTimeClockCard({ restaurant }) {
           <label htmlFor="tc-off-reason">{t('food.timeClock.reason')}</label>
           <input id="tc-off-reason" value={timeOff.reason} maxLength={2000} onChange={(e) => setTimeOff((f) => ({ ...f, reason: e.target.value }))} />
         </div>
+        {(() => {
+          const balance = balances.find((b) => b.request_type === timeOff.request_type);
+          if (!balance) return null;
+          const unit = balance.unit === 'hours' ? t('food.timeClock.balanceUnitHours') : t('food.timeClock.balanceUnitDays');
+          return <p className="fd-card-meta">{t('food.timeClock.balanceRemaining', { balance: Number(balance.balance), unit })}</p>;
+        })()}
         <button type="submit" className="fd-btn fd-btn-secondary" disabled={busy} data-track="restaurant_time_off_request">
           {t('food.timeClock.requestTimeOff')}
         </button>
