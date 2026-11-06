@@ -71,9 +71,14 @@ ddescribe('minor profiles and schedule changes', () => {
 
   test('editing or cancelling a published shift inside the notice window records predictability pay', async () => {
     const day = isoDay(3);
+    // Phase 4: shift edits now validate minor rules, and this employee
+    // carries an under-16 profile from the test above (3h school-day cap).
+    // Predictability pay is what this test exercises, so clear the minor
+    // profile first; the minor behavior is covered by the tests above.
+    const owners = app(owner, 'owner');
+    expect((await request(owners).put(`/b/${businessId}/staff/members/${employee}/labor-profile`).send({ minor_band: null, minor_until: null })).status).toBe(200);
     const { rows: [s] } = await pool.query(`INSERT INTO business_staff_shifts(business_id,user_id,shift_date,start_time,end_time,restaurant_id,location_id,published_at,published_by)
       VALUES($1,$2,$3,'09:00','17:00',$4,$5,NOW(),$6) RETURNING id`, [businessId, employee, day, restaurantId, locationId, owner]);
-    const owners = app(owner, 'owner');
     const edit = await request(owners).put(`/b/${businessId}/staff/shifts/${s.id}`).send({ shift_start: `${day}T11:00` });
     expect(edit.status).toBe(200);
     expect(edit.body.schedule_change).toMatchObject({ premium_due: true, notice_hours: 336, jurisdiction_code: 'US-NYC' });
