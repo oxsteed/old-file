@@ -5,6 +5,10 @@ const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const laborJurisdiction = require('../services/laborJurisdictionRules');
+// Phase 4 Track A: shared conflict validation (overlap, approved
+// time-off, availability warnings, minor limits) for create/update/
+// swap approval. Blocking vs warning is decided in that module.
+const { validateShift } = require('../services/shiftConflictValidation');
 // Phase 2 punch integrity (goal goal_a0fc7c0f0394): hours are computed
 // from epoch instants (DST-correct) in one shared module, and the
 // close-of-day sweep lives in restaurantPunchCloseout.js.
@@ -125,12 +129,27 @@ exports.createShift = async (req, res, next) => {
     if (!await assertShiftMember(businessId, user_id)) {
       return res.status(400).json({ error: 'User is not a member of this business' });
     }
+    // Phase 4 Track A: blocking conflicts 409 with structured violations;
+    // availability warnings ride along with the created shift instead.
+    const validation = await validateShift(pool, {
+      businessId, userId: user_id,
+      shiftDate: parts.shiftDate, startTime: parts.startTime, endTime: parts.endTime,
+      locationId,
+    });
+    if (validation.violations.length) {
+      return res.status(409).json({
+        error: 'shift_conflicts', code: 'shift_conflicts',
+        violations: validation.violations, warnings: validation.warnings,
+      });
+    }
     const row = await pool.query(
       `INSERT INTO business_staff_shifts (business_id, user_id, shift_date, start_time, end_time, role_label, notes, location_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
       [businessId, user_id, parts.shiftDate, parts.startTime, parts.endTime, role || null, notes || null, locationId]
     );
-    res.status(201).json(row.rows[0]);
+    res.status(201).json(validation.warnings.length
+      ? { ...row.rows[0], warnings: validation.warnings }
+      : row.rows[0]);
   } catch (err) { next(err); }
 };
 
@@ -156,6 +175,28 @@ exports.updateShift = async (req, res, next) => {
       if (parts.error) return res.status(400).json({ error: parts.error });
       ({ shiftDate, startTime, endTime } = parts);
     }
+    // Phase 4 Track A: validate only when the time actually moves, so a
+    // role/notes-only edit is never blocked by a pre-existing conflict,
+    // and the shift being edited never conflicts with itself.
+    let validation = null;
+    if (shiftDate !== undefined
+      && (shiftDate !== wallDatePart(beforeRow.shift_date)
+        || startTime !== wallTimePart(beforeRow.start_time)
+        || endTime !== wallTimePart(beforeRow.end_time))) {
+      validation = await validateShift(pool, {
+        businessId, userId: beforeRow.user_id,
+        shiftDate, startTime, endTime,
+        excludeShiftId: shiftId,
+        locationId: beforeRow.location_id ?? null,
+        restaurantId: beforeRow.restaurant_id ?? null,
+      });
+      if (validation.violations.length) {
+        return res.status(409).json({
+          error: 'shift_conflicts', code: 'shift_conflicts',
+          violations: validation.violations, warnings: validation.warnings,
+        });
+      }
+    }
     const row = await pool.query(
       `UPDATE business_staff_shifts
           SET shift_date = COALESCE($1, shift_date),
@@ -169,7 +210,8 @@ exports.updateShift = async (req, res, next) => {
     if (!row.rows.length) return res.status(404).json({ error: 'Not found' });
     // S-20: a change to a published shift is Fair Workweek evidence.
     const scheduleChange = await recordScheduleChange(req, { businessId, before: beforeRow, after: row.rows[0], changeType: 'edited' });
-    res.json(scheduleChange ? { ...row.rows[0], schedule_change: scheduleChange } : row.rows[0]);
+    const updated = scheduleChange ? { ...row.rows[0], schedule_change: scheduleChange } : row.rows[0];
+    res.json(validation?.warnings?.length ? { ...updated, warnings: validation.warnings } : updated);
   } catch (err) { next(err); }
 };
 
@@ -375,7 +417,10 @@ async function decideShiftSwap(req, res, next, status) {
     }
     const result = await withTransaction(pool, async (client) => {
       const { rows } = await client.query(
-        `SELECT r.*, s.user_id AS assigned_user_id
+        `SELECT r.*, s.user_id AS assigned_user_id,
+                s.shift_date::text AS shift_date,
+                s.start_time::text AS start_time, s.end_time::text AS end_time,
+                s.location_id, s.restaurant_id
            FROM business_shift_swap_requests r
            JOIN business_staff_shifts s ON s.id=r.shift_id AND s.business_id=r.business_id
           WHERE r.id=$1 AND r.business_id=$2 FOR UPDATE`,
@@ -398,6 +443,17 @@ async function decideShiftSwap(req, res, next, status) {
       if(status==='approved')await workforce.assertStaff(storeContext,swap.target_user_id,client,scopedShift?.location_id);
       if (status === 'approved') {
         if (!swap.target_user_id) return { noTarget: true };
+        // Phase 4 Track A: the reassignment is a shift write for the
+        // target, so it gets the same conflict validation as create/
+        // update. A blocking violation 409s and the swap stays pending.
+        const validation = await validateShift(client, {
+          businessId, userId: swap.target_user_id,
+          shiftDate: swap.shift_date, startTime: swap.start_time, endTime: swap.end_time,
+          excludeShiftId: swap.shift_id,
+          locationId: swap.location_id ?? null,
+          restaurantId: swap.restaurant_id ?? null,
+        });
+        if (validation.violations.length) return { validation };
         await client.query(
           `UPDATE business_staff_shifts SET user_id=$1
             WHERE id=$2 AND business_id=$3 AND user_id=$4`,
@@ -416,6 +472,12 @@ async function decideShiftSwap(req, res, next, status) {
     if (result.targetPending) return res.status(409).json({ error: 'The target staff member has not accepted this swap yet' });
     if (result.conflict) return res.status(409).json({ error: 'Shift swap request is no longer pending' });
     if (result.noTarget) return res.status(409).json({ error: 'A target staff member is required before approval' });
+    if (result.validation) {
+      return res.status(409).json({
+        error: 'shift_conflicts', code: 'shift_conflicts',
+        violations: result.validation.violations, warnings: result.validation.warnings,
+      });
+    }
     await logBusinessAction(req, {
       business_id: Number(businessId),
       action: `business.staff.shift_swap.${status}`,
