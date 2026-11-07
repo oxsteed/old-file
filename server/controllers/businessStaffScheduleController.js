@@ -3014,9 +3014,11 @@ exports.getScheduleForecast = async (req, res, next) => {
       businessId,
       from: fromDate,
       to: toDate,
-      overtimeThresholdHours: Number(policy.overtime_threshold_hours),
-      overtimeMultiplierBps: Number(policy.overtime_multiplier_bps),
+      // The full normalized labor policy, so the forecast's tiering
+      // (daily OT, double time, meal premiums) matches pay.
+      policy,
       workweekStartDay: startDay,
+      restaurantId,
     });
     let currencyCode = 'USD';
     if (restaurantId) {
