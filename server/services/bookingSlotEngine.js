@@ -248,7 +248,8 @@ async function computeSlots(args) {
             AND shift_date BETWEEN $3::date AND $4::date
             -- S-04: unpublished drafts are plans, not commitments; they do
             -- not block customer bookings until a manager publishes them.
-            AND published_at IS NOT NULL`,
+            -- A cancelled shift is not a commitment either.
+            AND published_at IS NOT NULL AND cancelled_at IS NULL`,
         [businessId, staffIds, toIso(rangeStart).slice(0, 10), toIso(rangeEnd).slice(0, 10)]
       ),
     ]);

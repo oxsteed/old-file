@@ -63,6 +63,16 @@ if (rawUrl) {
         id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT, location_id BIGINT, inventory_item_id BIGINT,
         food_order_id BIGINT, food_order_item_id BIGINT, menu_item_id BIGINT,
         quantity NUMERIC(12,3), status TEXT DEFAULT 'reserved', expires_at TIMESTAMPTZ, released_at TIMESTAMPTZ, consumed_at TIMESTAMPTZ);
+      CREATE TEMP TABLE restaurant_inventory_lots (
+        id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT, inventory_item_id BIGINT,
+        location_id BIGINT, lot_number VARCHAR(120),
+        quantity NUMERIC(12,3) NOT NULL DEFAULT 0, received_quantity NUMERIC(12,3) NOT NULL DEFAULT 0,
+        expires_at TIMESTAMPTZ, receipt_id BIGINT, received_by UUID,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+      CREATE TEMP TABLE restaurant_inventory_lot_consumptions (
+        id BIGSERIAL PRIMARY KEY, restaurant_id BIGINT, lot_id BIGINT,
+        inventory_item_id BIGINT, food_order_id BIGINT,
+        quantity NUMERIC(12,3) NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
       CREATE TEMP TABLE restaurant_store_menu_overrides (
         restaurant_id BIGINT, location_id BIGINT, menu_item_id BIGINT,
         price_cents INTEGER,

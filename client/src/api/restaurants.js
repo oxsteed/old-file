@@ -92,6 +92,31 @@ export const listInventoryPurchaseRequestPage = (restaurantId, params = {}) =>
 export const createInventoryPurchaseRequest = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/inventory/purchase-requests`, payload).then((r) => r.data?.request);
 
+export const updateInventoryPurchaseRequest = (restaurantId, requestId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/inventory/purchase-requests/${requestId}`, payload).then((r) => r.data?.request);
+
+// Phase 6 (gap 14): auto-reorder drafts from par levels. Drafts only.
+export const draftAutoReorders = (restaurantId) =>
+  api.post(`/restaurants/${restaurantId}/inventory/auto-reorder`).then((r) => r.data);
+
+// Phase 6 (gap 10): plate cost / margin per dish, computed on read.
+export const listMenuFoodCosts = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/menu-items/food-cost`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+export const getMenuItemFoodCost = (restaurantId, itemId) =>
+  api.get(`/restaurants/${restaurantId}/menu-items/${itemId}/food-cost`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.food_cost);
+
+// Phase 6 (gap 14): modifier depletion mappings and lot tracking.
+export const listInventoryModifierMappings = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/inventory/modifier-mappings`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.mappings || []);
+export const listInventoryModifierOptions = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/inventory/modifier-options`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.options || []);
+export const createInventoryModifierMapping = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/inventory/modifier-mappings`, payload).then((r) => r.data?.mapping);
+export const deleteInventoryModifierMapping = (restaurantId, mappingId) =>
+  api.delete(`/restaurants/${restaurantId}/inventory/modifier-mappings/${mappingId}`);
+export const listInventoryItemLots = (restaurantId, itemId) =>
+  api.get(`/restaurants/${restaurantId}/inventory/items/${itemId}/lots`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
 export const listInventorySupplierIssuePage = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/inventory/supplier-issues`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
@@ -311,8 +336,8 @@ export const getExceptionsReport = (restaurantId, params = {}) =>
 export const getTeamActivity = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/team/activity`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 
-export const getTipPoolSettings = (restaurantId) =>
-  api.get(`/restaurants/${restaurantId}/tip-pool`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.settings);
+export const getTipPoolSettings = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/tip-pool`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.settings);
 
 export const updateTipPoolSettings = (restaurantId, payload) =>
   api.put(`/restaurants/${restaurantId}/tip-pool`, payload).then((r) => r.data?.settings);
@@ -320,8 +345,139 @@ export const updateTipPoolSettings = (restaurantId, payload) =>
 export const declareCashTip = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/tips/cash-declarations`, payload).then((r) => r.data?.declaration);
 
+// ── Pay runs (Phase 5) ─────────────────────────────────────────────
+// Merchant pay-run surface. The server enforces payroll.view on reads
+// and payroll.manage on mutations, plus the maker-checker rule: the
+// user who finalized a run cannot approve it, and a finalized run
+// cannot be exported, linked to a payout, or disbursed until a
+// second payroll manager has approved it.
+export const listPayRuns = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/pay-runs`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
+export const createPayRun = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs`, payload).then((r) => r.data?.payRun);
+
+export const getPayRun = (restaurantId, payRunId) =>
+  api.get(`/restaurants/${restaurantId}/pay-runs/${payRunId}`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.payRun);
+
+export const rebuildPayRun = (restaurantId, payRunId) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/rebuild`).then((r) => r.data?.payRun);
+
+export const finalizePayRun = (restaurantId, payRunId) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/finalize`).then((r) => r.data?.payRun);
+
+export const approvePayRun = (restaurantId, payRunId) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/approve`).then((r) => r.data?.payRun);
+
+export const voidPayRun = (restaurantId, payRunId) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/void`).then((r) => r.data?.payRun);
+
+export const approveVoidPayRun = (restaurantId, payRunId) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/void-approve`).then((r) => r.data?.payRun);
+
+export const downloadPayRunCsv = (restaurantId, payRunId, format = 'native') =>
+  api.get(`/restaurants/${restaurantId}/pay-runs/${payRunId}/export.csv`, { params: { format }, responseType: 'blob' }).then((r) => r.data);
+
+export const linkPayRunPayout = (restaurantId, payRunId, payload) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/payout-links`, payload).then((r) => r.data?.payRun);
+
+export const recordPayRunDisbursement = (restaurantId, payRunId, payload) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/disbursements`, payload).then((r) => r.data?.payRun);
+
+// ── Employee portal self-service (Phase 3 Track B) ────────────────────
+// Self-scoped reads: the server scopes every call by the signed-in
+// user, so these return only the caller's own tips, pay and stubs.
+export const getMyTips = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/tips/mine`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
+export const getMyPay = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/pay/mine`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
+export const listMyPayStubs = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/pay/mine/stubs`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.stubs || []);
+
+export const getMyPayStub = (restaurantId, payRunId) =>
+  api.get(`/restaurants/${restaurantId}/pay/mine/stubs/${payRunId}`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.stub);
+
+export const listMyCashTips = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/tips/cash-declarations/mine`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.declarations || []);
+
+export const declareMyCashTip = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/tips/cash-declarations/mine`, payload).then((r) => r.data);
+
+export const confirmCashTipDeclaration = (restaurantId, declarationId) =>
+  api.post(`/restaurants/${restaurantId}/tips/cash-declarations/${declarationId}/confirm`).then((r) => r.data?.declaration);
+
+export const rejectCashTipDeclaration = (restaurantId, declarationId) =>
+  api.post(`/restaurants/${restaurantId}/tips/cash-declarations/${declarationId}/reject`).then((r) => r.data?.declaration);
+
 export const listStaffDocumentPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/staff-documents`,{params, timeout: PANEL_LOAD_TIMEOUT_MS}).then(r=>r.data);
 export const listSopAcknowledgementPage=(restaurantId,params={})=>api.get(`/restaurants/${restaurantId}/sop-acknowledgements`,{params, timeout: PANEL_LOAD_TIMEOUT_MS}).then(r=>r.data);
+
+// ── Phase 7: compliance + reporting ─────────────────────────────────────
+// Temperature logs, prime cost, scheduled reports, retention/erasure.
+// The server enforces analytics.view_financial on reports, settings.manage
+// on policy/erasure management, and any active member may record a
+// temperature reading (same as checklist runs).
+export const listTemperatureLogs = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/temperature-logs`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
+export const recordTemperatureLog = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/temperature-logs`, payload).then((r) => r.data);
+
+// Storage areas carry the temperature range a log is checked against.
+export const listStorageAreas = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/inventory/areas`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.areas || []);
+
+export const linkTemperatureCorrectiveAction = (restaurantId, logId, payload) =>
+  api.post(`/restaurants/${restaurantId}/temperature-logs/${logId}/corrective-action`, payload).then((r) => r.data?.log);
+
+// Late attestation for a punch already closed. The live clock-out prompt
+// sends the attestation inside the clock-out call itself (business-scoped).
+export const recordBreakAttestation = (businessId, entryId, payload) =>
+  api.post(`/businesses/${businessId}/staff/time-entries/${entryId}/break-attestation`, payload).then((r) => r.data);
+
+export const getPrimeCost = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/reports/prime-cost`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
+
+export const listScheduledReports = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/scheduled-reports`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.schedules || []);
+
+export const createScheduledReport = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/scheduled-reports`, payload).then((r) => r.data?.schedule);
+
+export const updateScheduledReport = (restaurantId, scheduleId, payload) =>
+  api.put(`/restaurants/${restaurantId}/scheduled-reports/${scheduleId}`, payload).then((r) => r.data?.schedule);
+
+export const deleteScheduledReport = (restaurantId, scheduleId) =>
+  api.delete(`/restaurants/${restaurantId}/scheduled-reports/${scheduleId}`);
+
+export const runScheduledReportNow = (restaurantId, scheduleId, payload = {}) =>
+  api.post(`/restaurants/${restaurantId}/scheduled-reports/${scheduleId}/run-now`, payload).then((r) => r.data);
+
+export const listScheduledReportDeliveries = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/scheduled-reports/deliveries`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.deliveries || []);
+
+export const getRetentionPolicies = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/retention-policies`, { timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.policies || []);
+
+export const setRetentionPolicy = (restaurantId, payload) =>
+  api.put(`/restaurants/${restaurantId}/retention-policies`, payload).then((r) => r.data?.policy);
+
+export const listErasureRequests = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/erasure-requests`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.requests || []);
+
+export const createErasureRequest = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/erasure-requests`, payload).then((r) => r.data?.request);
+
+export const decideErasureRequest = (restaurantId, requestId, payload) =>
+  api.post(`/restaurants/${restaurantId}/erasure-requests/${requestId}/decide`, payload).then((r) => r.data?.request);
+
+export const runErasureRequest = (restaurantId, requestId) =>
+  api.post(`/restaurants/${restaurantId}/erasure-requests/${requestId}/run`).then((r) => r.data?.request);
+
+export const downloadLaborRollupCsv = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/hq/labor-rollup.csv`, { params, responseType: 'blob' }).then((r) => r.data);
 
 export const saveAccountingIntegration = (id, provider, payload) =>
   api.put(`/restaurants/${id}/accounting/integrations/${provider}`, { ...payload, provider }).then(r => r.data.integration);

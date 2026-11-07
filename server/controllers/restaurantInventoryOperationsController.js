@@ -37,6 +37,18 @@ function quantity(value, field = 'quantity') {
   return Math.round(number * 1000) / 1000;
 }
 
+// Phase 6 (gap 14): lot expiry is a calendar date (or timestamp). A past
+// date is allowed at receipt time (the stock may already be short-dated);
+// FEFO ordering, not a rejection, is what expiry drives.
+function parseLotExpiry(value, field = 'expiresAt') {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { [field]: 'Must be a valid date' });
+  }
+  return parsed.toISOString();
+}
+
 function invoiceTotalCents(value, field = 'invoiceTotalCents') {
   if (value === undefined || value === null || value === '') return null;
   const number = Number(value);
@@ -1155,6 +1167,9 @@ exports.createReceipt = async (req, res, next) => {
         }
         assertScopedLocation(await getLocationScope(restaurant,req.user.id,client),item.location_id);
         const lineUnitCost = unitCostCents(line.unitCostCents ?? line.unit_cost_cents, `lines.${index}.unitCostCents`);
+        // Phase 6 (gap 14): the lot this receipt brings in, with its expiry.
+        const lotNumber = text(line.lotNumber ?? line.lot_number, 120);
+        const lotExpiresAt = parseLotExpiry(line.expiresAt ?? line.expires_at ?? line.expiryDate ?? line.expiry_date, `lines.${index}.expiresAt`);
         auditLines.push({
           itemId: item.id,
           itemName: item.name,
@@ -1164,15 +1179,19 @@ exports.createReceipt = async (req, res, next) => {
           unit: item.unit,
           unitCostCents: lineUnitCost,
           issueType: text(line.issueType, 32),
+          lotNumber,
+          expiresAt: lotExpiresAt,
         });
         const { rows: [receiptLine] } = await client.query(
           `INSERT INTO restaurant_inventory_receipt_lines
              (receipt_id, restaurant_id, item_id, item_name, expected_quantity,
-              received_quantity, accepted_quantity, unit, unit_cost_cents, issue_type, issue_note)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+              received_quantity, accepted_quantity, unit, unit_cost_cents, issue_type, issue_note,
+              lot_number, expires_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
            RETURNING id`,
           [receipt.id, restaurantId, item.id, item.name, expected, received, accepted, item.unit,
-            lineUnitCost, text(line.issueType, 32), text(line.issueNote, 1000)]
+            lineUnitCost, text(line.issueType, 32), text(line.issueNote, 1000),
+            lotNumber, lotExpiresAt]
         );
         if (lineUnitCost != null) {
           // F-23: the receiving price feeds the vendor price history ledger.
@@ -1190,6 +1209,18 @@ exports.createReceipt = async (req, res, next) => {
           await client.query(
             `UPDATE restaurant_inventory_items SET quantity = $1, updated_at = NOW() WHERE id = $2`,
             [after, item.id]
+          );
+          // Phase 6 (gap 14): the accepted quantity arrives as one lot, so
+          // FEFO consumption can draw the earliest-expiring stock first.
+          // A line with no lot number still gets a lot row (lot_number
+          // null, expires_at null sorts last) so its stock participates.
+          await client.query(
+            `INSERT INTO restaurant_inventory_lots
+               (restaurant_id, inventory_item_id, location_id, lot_number,
+                quantity, received_quantity, expires_at, receipt_id, received_by)
+             VALUES ($1,$2,$3,$4,$5,$5,$6,$7,$8)`,
+            [restaurantId, item.id, item.location_id ?? receiptLocationId,
+              lotNumber, accepted, lotExpiresAt, receipt.id, req.user.id]
           );
           await client.query(
             `INSERT INTO restaurant_inventory_adjustments

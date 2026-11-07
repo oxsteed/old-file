@@ -20,7 +20,7 @@
  *     person / action / date, and is business-scoped;
  *   - the exception report counts voids, refunds, comps, discounts,
  *     no-sales, payouts and missing time entries per employee;
- *   - time-entry create/delete in staffSchedulingController now write
+ *   - time-entry create/void in businessStaffScheduleController write
  *     business_audit_log rows (S-16 gap).
  *
  * The scope-model gate is stubbed (its own suite covers the real
@@ -69,7 +69,7 @@ const { resolveRestaurantAccess } = require('../services/scopeModel');
 const pool = require('../db');
 const controller = require('../controllers/restaurantPayrollController');
 const payrollService = require('../services/restaurantPayrollService');
-const schedulingCtrl = require('../controllers/staffSchedulingController');
+const scheduleCtrl = require('../controllers/businessStaffScheduleController');
 const { logBusinessAction } = require('../services/businessAuditLog');
 
 const accessByUser = new Map();
@@ -506,11 +506,17 @@ ddescribe('S-16 exceptions, activity and time-entry audit (fxC)', () => {
     const manager = await makeUser('Marge', 'Manager');
     const server = await makeUser('Steve', 'Server');
     const cook = await makeUser('Cory', 'Cook');
-    await addMember(businessId, owner, manager, 'manager');
+    const managerMembership = await addMember(businessId, owner, manager, 'manager');
     await addMember(businessId, owner, server, 'employee', { jobRole: 'Server', wage: 1500 });
     await addMember(businessId, owner, cook, 'employee', { jobRole: 'Cook', wage: 1800 });
     fx = { owner, businessId, restaurantId, manager, server, cook };
     registerAccess(owner, restaurantId, businessId, 'owner');
+    // Phase 4 Track C: the live time-entry handlers resolve the caller's
+    // store scope through the mocked scopeModel, so the manager needs
+    // registered access like fxB's managers. Without it
+    // workforce.context throws 'Restaurant not found' and the S-16
+    // test below fails before the handler runs (baseline failure).
+    registerAccess(manager, restaurantId, businessId, 'manager', managerMembership);
 
     const shiftId = await newShift(fx, server);
     // A normal paid order on Steve's shift, with a discount.
@@ -612,7 +618,7 @@ ddescribe('S-16 exceptions, activity and time-entry audit (fxC)', () => {
     expect(byPrefix.res.payload.total).toBe(2);
   });
 
-  test('time-entry create and delete write audit rows (S-16 gap)', async () => {
+  test('time-entry create and void write audit rows (S-16 gap)', async () => {
     const managerReq = {
       params: { businessId: String(fx.businessId) },
       body: { user_id: fx.server, entry_date: '2026-10-08', hours_worked: 3.5, description: 'Audit probe' },
@@ -623,19 +629,20 @@ ddescribe('S-16 exceptions, activity and time-entry audit (fxC)', () => {
     };
     const res1 = mockRes();
     const next1 = jest.fn();
-    await schedulingCtrl.logHours(managerReq, res1, next1);
+    await scheduleCtrl.createManualTimeEntry(managerReq, res1, next1);
     expect(next1).not.toHaveBeenCalled();
     expect(res1.statusCode).toBe(201);
     const entryId = res1.payload.entry.id;
 
     const res2 = mockRes();
     const next2 = jest.fn();
-    await schedulingCtrl.deleteTimeEntry(
-      { ...managerReq, params: { businessId: String(fx.businessId), id: String(entryId) }, body: {} },
+    await scheduleCtrl.voidTimeEntry(
+      { ...managerReq, params: { businessId: String(fx.businessId), entryId: String(entryId) }, body: { reason: 'Voided via scheduling API' } },
       res2, next2
     );
     expect(next2).not.toHaveBeenCalled();
-    expect(res2.payload.success).toBe(true);
+    expect(res2.statusCode).toBe(200);
+    expect(res2.payload.voided_at).toBeTruthy();
 
     const { rows } = await pool.query(
       `SELECT action, before_state FROM business_audit_log

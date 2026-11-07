@@ -37,6 +37,7 @@ const {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
   consumeInventoryForOrder,
+  restoreInventoryForOrder,
 } = require('../services/restaurantInventoryOrderService');
 const permissionsService = require('../services/permissionsService');
 // Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
@@ -4167,6 +4168,9 @@ exports.createOrder = async (req, res, next) => {
           id: orderItem.id,
           menuItemId: normalized.menuItem.id,
           quantity: normalized.quantity,
+          // Phase 6 (gap 14): modifier selections deplete inventory through
+          // their own mappings (extra chicken depletes chicken).
+          modifiers: normalized.modifiers.map((modifier) => ({ modifierId: modifier.id })),
         });
         for (const modifier of normalized.modifiers) {
           await client.query(
@@ -5464,6 +5468,16 @@ exports.updateOrderStatus = async (req, res, next) => {
           orderId: order.id,
           locationId: order.location_id,
         });
+        // Design-review item 54: a completed order already consumed its
+        // stock, so cancelling/refunding it restores what was consumed.
+        // Release-only paths (never-completed orders) are unaffected:
+        // restore only touches 'consumed' reservations.
+        await restoreInventoryForOrder(client, {
+          restaurantId,
+          orderId: order.id,
+          locationId: order.location_id,
+          actorUserId: req.user?.id || null,
+        });
         // M13: claw back loyalty points earned on completion so refunded
         // orders cannot farm points.
         await clawBackFoodLoyaltyOnRefund(client, order);
@@ -5553,6 +5567,11 @@ exports.updateOrderStatus = async (req, res, next) => {
           await accrueTerritoryRoyalty({
             client: pool,
             amountCents: Number(order.total_cents || 0),
+            // Item 44: the order's store governs through the explicit
+            // mapping; an unmapped store accrues nothing. Legacy
+            // orders with no location fall back to the territory
+            // point (the restaurant address) below.
+            locationId: order.location_id ?? null,
             city: restaurant.address_city || null,
             region: restaurant.address_state || null,
             sourceType: 'food_order',

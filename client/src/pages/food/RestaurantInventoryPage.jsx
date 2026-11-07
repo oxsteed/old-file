@@ -18,19 +18,26 @@ import EmptyState from '../../components/EmptyState';
 import { getFoodRestaurant } from '../../api/food';
 import {
   adjustInventoryItem,
+  createInventoryModifierMapping,
   createInventoryPurchaseRequest,
   createInventorySupplierIssue,
+  deleteInventoryModifierMapping,
+  draftAutoReorders,
   getInventoryDashboard,
+  listInventoryItemLots,
   listInventoryItems,
+  listInventoryModifierMappings,
+  listInventoryModifierOptions,
   listInventoryPurchaseRequestPage,
   listInventorySupplierIssuePage,
+  updateInventoryPurchaseRequest,
 } from '../../api/restaurants';
 import { useDisplayPoller } from '../../hooks/useDisplayPoller';
 import { FoodBrand, apiErrorMessage } from './foodShared';
 import PageShell from '../../components/PageShell';
 import '../../styles/FoodPages.css';
 
-const TABS = ['items', 'requests', 'issues', 'waste'];
+const TABS = ['items', 'requests', 'issues', 'waste', 'modifiers'];
 const ADJ_TYPES = ['receive', 'waste', 'usage', 'count', 'correction'];
 const PAGE_SIZE = 25;
 
@@ -244,6 +251,14 @@ export default function RestaurantInventoryPage() {
   const [showRequest, setShowRequest] = useState(false);
   const [showIssue, setShowIssue] = useState(false);
   const [search, setSearch] = useState('');
+  // Phase 6: lots per item, modifier depletion mappings, auto-reorder.
+  const [lotsFor, setLotsFor] = useState(null);
+  const [lotsLoading, setLotsLoading] = useState(false);
+  const [modifierMappings, setModifierMappings] = useState([]);
+  const [modifierOptions, setModifierOptions] = useState([]);
+  const [modifierForm, setModifierForm] = useState({ modifierId: '', inventoryItemId: '', requiredQuantity: '', usageLabel: '' });
+  const [modifierSaving, setModifierSaving] = useState(false);
+  const [autoReordering, setAutoReordering] = useState(false);
   const settledRef = useRef(false);
 
   // Dashboard + items poll with the Kitchen/Queue board pattern: a failed
@@ -302,6 +317,81 @@ export default function RestaurantInventoryPage() {
 
   useEffect(() => { loadRequests(); }, [loadRequests]);
   useEffect(() => { loadIssues(); }, [loadIssues]);
+
+  const loadModifiers = useCallback(async () => {
+    try {
+      const [mappings, options] = await Promise.all([
+        listInventoryModifierMappings(restaurantId),
+        listInventoryModifierOptions(restaurantId),
+      ]);
+      setModifierMappings(mappings);
+      setModifierOptions(options);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('food.common.loadError')));
+    }
+  }, [restaurantId]);
+
+  useEffect(() => { if (tab === 'modifiers') loadModifiers(); }, [tab, loadModifiers]);
+
+  const handleAutoReorder = async () => {
+    setAutoReordering(true);
+    try {
+      const result = await draftAutoReorders(restaurantId);
+      toast.success(t('food.inv.autoReorderDone', { drafted: result.drafted_count ?? 0, skipped: result.skipped_count ?? 0 }));
+      setRequestsOffset(0);
+      loadRequests(0);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('food.common.loadError')));
+    } finally {
+      setAutoReordering(false);
+    }
+  };
+
+  const handleRequestStatus = async (request, status) => {
+    try {
+      await updateInventoryPurchaseRequest(restaurantId, request.id, { status });
+      toast.success(t('food.inv.requestUpdated'));
+      loadRequests();
+    } catch (err) {
+      // The PO approval gate refuses self-approval with a 409; surface
+      // the server's message so the operator knows a second manager
+      // must approve.
+      toast.error(apiErrorMessage(err, t('food.common.loadError')));
+    }
+  };
+
+  const openLots = async (item) => {
+    if (lotsFor?.itemId === item.id) { setLotsFor(null); return; }
+    setLotsLoading(true);
+    try {
+      const data = await listInventoryItemLots(restaurantId, item.id);
+      setLotsFor({ itemId: item.id, item: data?.item || item, lots: data?.lots || [] });
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('food.common.loadError')));
+    } finally {
+      setLotsLoading(false);
+    }
+  };
+
+  const saveModifierMapping = async () => {
+    if (!modifierForm.modifierId || !modifierForm.inventoryItemId || !modifierForm.requiredQuantity || !modifierForm.usageLabel.trim()) return;
+    setModifierSaving(true);
+    try {
+      await createInventoryModifierMapping(restaurantId, {
+        modifierId: Number(modifierForm.modifierId),
+        inventoryItemId: Number(modifierForm.inventoryItemId),
+        requiredQuantity: Number(modifierForm.requiredQuantity),
+        usageLabel: modifierForm.usageLabel.trim(),
+      });
+      toast.success(t('food.inv.modifierMappingSaved'));
+      setModifierForm({ modifierId: '', inventoryItemId: '', requiredQuantity: '', usageLabel: '' });
+      loadModifiers();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('food.common.loadError')));
+    } finally {
+      setModifierSaving(false);
+    }
+  };
 
   const handleAdjust = async ({ itemId, ...payload }) => {
     try {
@@ -386,6 +476,9 @@ export default function RestaurantInventoryPage() {
           <div>
             <div className="fd-inv-bar">
               <input aria-label={t('food.inv.searchItems')} className="fd-searchbar" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('food.inv.searchItems')} />
+              <button type="button" className="fd-btn fd-btn-sm" disabled={autoReordering} onClick={handleAutoReorder} data-track="ui.a4070f708e.20">
+                {autoReordering ? t('food.common.saving') : t('food.inv.autoReorder')}
+              </button>
             </div>
             {lowItems.length > 0 && (
               <div className="fd-inv-alert">
@@ -400,18 +493,48 @@ export default function RestaurantInventoryPage() {
                 const low = isLow(item);
                 const stock = onHand(item);
                 return (
-                  <div key={item.id} className={`fd-inv-item${low ? ' fd-inv-item--low' : ''}`}>
-                    <div className="fd-inv-item-main">
-                      <strong>{item.name}</strong>
-                      <span className="fd-tag">{item.category || t('food.inv.uncategorized')}</span>
+                  <div key={item.id}>
+                    <div className={`fd-inv-item${low ? ' fd-inv-item--low' : ''}`}>
+                      <div className="fd-inv-item-main">
+                        <strong>{item.name}</strong>
+                        <span className="fd-tag">{item.category || t('food.inv.uncategorized')}</span>
+                      </div>
+                      <div className="fd-inv-item-stock">
+                        <span className={low ? 'fd-inv-low-text' : ''}>{stock ?? '—'} {item.unit}</span>
+                        {item.par_level != null && <span className="fd-inv-par"> / par {item.par_level}</span>}
+                      </div>
+                      <button className="fd-btn-sm fd-btn-secondary" onClick={() => openLots(item)} data-track="ui.a4070f708e.21">
+                        {lotsFor?.itemId === item.id ? t('food.inv.hideLots') : t('food.inv.showLots')}
+                      </button>
+                      <button className="fd-btn-sm fd-btn-secondary" onClick={() => setAdjustItem({ item, initialType: 'receive' })} data-track="ui.a4070f708e.8">
+                        {t('food.inv.adjust')}
+                      </button>
                     </div>
-                    <div className="fd-inv-item-stock">
-                      <span className={low ? 'fd-inv-low-text' : ''}>{stock ?? '—'} {item.unit}</span>
-                      {item.par_level != null && <span className="fd-inv-par"> / par {item.par_level}</span>}
-                    </div>
-                    <button className="fd-btn-sm fd-btn-secondary" onClick={() => setAdjustItem({ item, initialType: 'receive' })} data-track="ui.a4070f708e.8">
-                      {t('food.inv.adjust')}
-                    </button>
+                    {lotsFor?.itemId === item.id && (
+                      <div className="fd-inv-lots" data-testid={`inventory-lots-${item.id}`}>
+                        {lotsLoading ? (
+                          <span className="fd-card-meta">{t('food.common.loading')}</span>
+                        ) : lotsFor.lots.length === 0 ? (
+                          <span className="fd-card-meta">{t('food.inv.noLots')}</span>
+                        ) : (
+                          lotsFor.lots.map((lot) => (
+                            <div key={lot.id} className="fd-inv-item">
+                              <div className="fd-inv-item-main">
+                                <strong>{lot.lot_number || t('food.inv.noLotNumber')}</strong>
+                                {lot.expires_at && (
+                                  <span className="fd-card-meta">
+                                    {t('food.inv.expires')} {new Date(lot.expires_at).toLocaleDateString()}
+                                    {lot.is_expired ? ` · ${t('food.inv.expired')}` : ''}
+                                    {!lot.is_expired && lot.expires_soon ? ` · ${t('food.inv.expiresSoon')}` : ''}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="fd-inv-item-stock">{Number(lot.quantity)} {item.unit}</div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -448,9 +571,21 @@ export default function RestaurantInventoryPage() {
                   <div className="fd-inv-item-main">
                     <strong>{r.item_name}</strong>
                     {r.supplier_name && <span className="fd-card-meta">{r.supplier_name}</span>}
+                    {r.source === 'auto_reorder' && <span className="fd-tag">{t('food.inv.autoDraft')}</span>}
+                    {r.approved_by && <span className="fd-card-meta">{t('food.inv.approved')}</span>}
                   </div>
                   <div className="fd-inv-item-stock">{r.requested_quantity} {r.unit}</div>
                   <span className={`fd-tag fd-inv-status-${r.status || 'pending'}`}>{r.status || 'pending'}</span>
+                  {r.status === 'pending' && (
+                    <button type="button" className="fd-btn-sm fd-btn-secondary" onClick={() => handleRequestStatus(r, 'approved')} data-track="ui.a4070f708e.22">
+                      {t('food.inv.approve')}
+                    </button>
+                  )}
+                  {['pending', 'approved'].includes(r.status) && (
+                    <button type="button" className="fd-btn-sm fd-btn-secondary" onClick={() => handleRequestStatus(r, 'ordered')} data-track="ui.a4070f708e.23">
+                      {t('food.inv.markOrdered')}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -515,6 +650,93 @@ export default function RestaurantInventoryPage() {
                     onClick={() => { setAdjustItem({ item, initialType: 'waste' }); }} data-track="ui.a4070f708e.13"
                   >
                     {t('food.inv.logWaste')}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Modifier depletion tab: map a modifier option (e.g. extra
+            chicken) to the inventory it depletes, so ordering it draws
+            stock down at order time. */}
+        {tab === 'modifiers' && (
+          <div>
+            <div className="fd-inv-bar">
+              <span className="fd-card-meta">{t('food.inv.modifierHint')}</span>
+            </div>
+            <div className="fd-inv-bar">
+              <select
+                aria-label={t('food.inv.modifierOption')}
+                value={modifierForm.modifierId}
+                onChange={(e) => setModifierForm((f) => ({ ...f, modifierId: e.target.value }))}
+              >
+                <option value="">{t('food.inv.modifierOption')}</option>
+                {modifierOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.menu_item_name} · {opt.modifier_group_name} · {opt.modifier_name}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label={t('food.inv.inventoryItem')}
+                value={modifierForm.inventoryItemId}
+                onChange={(e) => setModifierForm((f) => ({ ...f, inventoryItemId: e.target.value }))}
+              >
+                <option value="">{t('food.inv.inventoryItem')}</option>
+                {items.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>
+                ))}
+              </select>
+              <input
+                aria-label={t('food.inv.requiredQuantity')}
+                type="number"
+                step="0.001"
+                min="0"
+                placeholder={t('food.inv.requiredQuantity')}
+                value={modifierForm.requiredQuantity}
+                onChange={(e) => setModifierForm((f) => ({ ...f, requiredQuantity: e.target.value }))}
+              />
+              <input
+                aria-label={t('food.inv.usageLabel')}
+                placeholder={t('food.inv.usageLabel')}
+                value={modifierForm.usageLabel}
+                onChange={(e) => setModifierForm((f) => ({ ...f, usageLabel: e.target.value }))}
+              />
+              <button
+                type="button"
+                className="fd-btn fd-btn-sm"
+                disabled={modifierSaving || !modifierForm.modifierId || !modifierForm.inventoryItemId || !modifierForm.requiredQuantity || !modifierForm.usageLabel.trim()}
+                onClick={saveModifierMapping} data-track="ui.a4070f708e.24"
+              >
+                {modifierSaving ? t('food.common.saving') : t('food.inv.addMapping')}
+              </button>
+            </div>
+            <div className="fd-inv-list">
+              {modifierMappings.length === 0 && (
+                <EmptyState icon={Package} title={t('food.inv.noModifierMappings')} />
+              )}
+              {modifierMappings.map((mapping) => (
+                <div key={mapping.id} className="fd-inv-item">
+                  <div className="fd-inv-item-main">
+                    <strong>{mapping.menu_item_name} · {mapping.modifier_group_name} · {mapping.modifier_name}</strong>
+                    <span className="fd-card-meta">{mapping.usage_label} · {mapping.required_quantity} {mapping.required_unit || ''}</span>
+                  </div>
+                  <div className="fd-inv-item-stock">{mapping.inventory_item_name}</div>
+                  <button
+                    type="button"
+                    className="fd-btn-sm fd-btn-secondary"
+                    onClick={async () => {
+                      try {
+                        await deleteInventoryModifierMapping(restaurantId, mapping.id);
+                        toast.success(t('food.inv.mappingDeleted'));
+                        loadModifiers();
+                      } catch (err) {
+                        toast.error(apiErrorMessage(err, t('food.common.loadError')));
+                      }
+                    }} data-track="ui.a4070f708e.25"
+                  >
+                    {t('food.common.delete')}
                   </button>
                 </div>
               ))}

@@ -1,0 +1,240 @@
+/* Restaurant employee portal shell (Phase 3, Track A). The restaurant's
+   accent drives the active tab and the logo fallback tile through
+   --portal-accent, set inline on .ep-root from brand_accent_hex. Layout
+   uses flexbox and logical properties so the Arabic RTL layout (the app
+   sets dir="rtl" on <html>) mirrors automatically. */
+
+.ep-root {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.ep-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ep-logo,
+.ep-logo-fallback {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: 12px;
+}
+
+.ep-logo {
+  object-fit: cover;
+}
+
+.ep-logo-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--portal-accent, #ff8c00);
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.ep-header-text h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+.ep-header-text p {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.ep-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 1rem;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.35);
+}
+
+.ep-tab {
+  padding: 0.6rem 0.8rem;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ep-tab-active {
+  color: var(--portal-accent, #ff8c00);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--portal-accent, #ff8c00);
+}
+
+.ep-content {
+  padding: 1rem 0;
+}
+
+.ep-empty {
+  margin: 0;
+  opacity: 0.75;
+}
+
+.ep-employed-by {
+  margin: 1rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.ep-back-link {
+  display: inline-block;
+  margin-top: 1rem;
+  text-decoration: none;
+}
+
+/* Phase 3 Track B panels (My tips, My pay). Flexbox rows and logical
+   properties only, so the Arabic RTL layout mirrors automatically. */
+.ep-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ep-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 12px;
+}
+
+.ep-section h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.ep-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ep-row-strong {
+  font-weight: 700;
+  border-top: 1px solid rgba(128, 128, 128, 0.35);
+  padding-top: 0.35rem;
+}
+
+.ep-period-label {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.ep-note {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.ep-notice {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+}
+
+.ep-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ep-list-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ep-list-row > span:first-child {
+  flex: 1 1 auto;
+}
+
+.ep-status {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.ep-status-pending,
+.ep-status-target_accepted {
+  background: rgba(245, 158, 11, 0.18);
+  color: #b45309;
+}
+
+.ep-status-confirmed,
+.ep-status-approved {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+}
+
+.ep-status-rejected,
+.ep-status-declined,
+.ep-status-cancelled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+}
+
+/* Phase 3 Track C panels (Availability, Swaps). Flexbox rows and
+   logical properties only, so the Arabic RTL layout mirrors
+   automatically. */
+.ep-window-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ep-window-row .ep-field {
+  flex: 1 1 auto;
+}
+
+.ep-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ep-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.ep-field select,
+.ep-field input {
+  font: inherit;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(128, 128, 128, 0.45);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+}
+
+.ep-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(128, 128, 128, 0.35);
+  text-align: center;
+  font-size: 0.8rem;
+  opacity: 0.6;
+}

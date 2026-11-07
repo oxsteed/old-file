@@ -126,7 +126,7 @@ async function linkPayout(restaurantId, runId, payoutId, owner) {
   );
 }
 
-async function makeFinalizedRun(restaurantId, owner, totalPayCents) {
+async function makeFinalizedRun(restaurantId, owner, totalPayCents, checker) {
   const created = await call(
     controller.createPayRun,
     mockReq({ params: { restaurantId }, body: { periodFrom: '2026-10-01', periodTo: '2026-10-15' }, user: { id: owner } })
@@ -138,6 +138,14 @@ async function makeFinalizedRun(restaurantId, owner, totalPayCents) {
     mockReq({ params: { restaurantId, payRunId: runId }, user: { id: owner } })
   );
   expect(finalized.err).toBeNull();
+  // Phase 5 dual control: the maker (owner) cannot approve; a second
+  // payroll manager must approve before any payout link or export.
+  const approved = await call(
+    controller.approvePayRun,
+    mockReq({ params: { restaurantId, payRunId: runId }, user: { id: checker } })
+  );
+  expect(approved.err).toBeNull();
+  expect(approved.res.payload.payRun.approved_by).toBe(checker);
   // The labor computation has no rows in this fixture, so stamp a test
   // total directly; the link logic reads totals.total_pay_cents.
   await pool.query(
@@ -152,6 +160,7 @@ ddescribe('finding 25: pay-run payout linkage', () => {
 
   beforeAll(async () => {
     const owner = await makeUser();
+    const checker = await makeUser();
     const { rows: [biz] } = await pool.query(
       'INSERT INTO businesses (user_id, business_name) VALUES ($1, $2) RETURNING id',
       [owner, `Pay Link ${crypto.randomUUID().slice(0, 8)}`]
@@ -165,7 +174,11 @@ ddescribe('finding 25: pay-run payout linkage', () => {
       id: rest.id, business_id: biz.id, timezone: 'America/New_York', currency_code: 'USD',
       effective_role: 'owner', effective_membership_id: null,
     });
-    F = { owner, businessId: biz.id, restaurantId: rest.id };
+    accessByUser.set(String(checker), {
+      id: rest.id, business_id: biz.id, timezone: 'America/New_York', currency_code: 'USD',
+      effective_role: 'owner', effective_membership_id: null,
+    });
+    F = { owner, checker, businessId: biz.id, restaurantId: rest.id };
   });
 
   afterAll(async () => {
@@ -173,7 +186,7 @@ ddescribe('finding 25: pay-run payout linkage', () => {
   });
 
   test('linking payouts that cover total pay moves the run to paid; a paid run cannot be voided', async () => {
-    const runId = await makeFinalizedRun(F.restaurantId, F.owner, 5000);
+    const runId = await makeFinalizedRun(F.restaurantId, F.owner, 5000, F.checker);
     const payoutId = await makeCompletedPayout(F.restaurantId, F.owner, 5000);
     const linked = await call(
       controller.linkPayRunPayout,
@@ -207,7 +220,7 @@ ddescribe('finding 25: pay-run payout linkage', () => {
   });
 
   test('a partial link leaves the run finalized with the linked total, and voided runs cannot export', async () => {
-    const runId = await makeFinalizedRun(F.restaurantId, F.owner, 8000);
+    const runId = await makeFinalizedRun(F.restaurantId, F.owner, 8000, F.checker);
     const payoutId = await makeCompletedPayout(F.restaurantId, F.owner, 5000);
     const linked = await call(
       controller.linkPayRunPayout,
@@ -221,9 +234,18 @@ ddescribe('finding 25: pay-run payout linkage', () => {
     expect(linked.res.payload.payRun.status).toBe('finalized');
     expect(linked.res.payload.payRun.linkedPayoutCents).toBe(5000);
 
-    const voided = await call(
+    // Finding 41: voiding a finalized run is two-step — the owner
+    // (finalizer) requests, a second manager approves.
+    const requested = await call(
       controller.voidPayRun,
       mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.owner } })
+    );
+    expect(requested.err).toBeNull();
+    expect(requested.res.statusCode).toBe(202);
+    expect(requested.res.payload.payRun.status).toBe('finalized');
+    const voided = await call(
+      controller.approveVoidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.checker } })
     );
     expect(voided.err).toBeNull();
     expect(voided.res.payload.payRun.status).toBe('voided');
@@ -236,8 +258,8 @@ ddescribe('finding 25: pay-run payout linkage', () => {
   });
 
   test('Nov 3 item 1: one completed payout cannot mark two pay runs paid', async () => {
-    const runA = await makeFinalizedRun(F.restaurantId, F.owner, 5000);
-    const runB = await makeFinalizedRun(F.restaurantId, F.owner, 5000);
+    const runA = await makeFinalizedRun(F.restaurantId, F.owner, 5000, F.checker);
+    const runB = await makeFinalizedRun(F.restaurantId, F.owner, 5000, F.checker);
     const payoutId = await makeCompletedPayout(F.restaurantId, F.owner, 5000);
     const first = await linkPayout(F.restaurantId, runA, payoutId, F.owner);
     expect(first.err).toBeNull();
@@ -249,8 +271,8 @@ ddescribe('finding 25: pay-run payout linkage', () => {
   });
 
   test('Nov 3 item 1: a payout larger than one run splits across runs only up to its amount', async () => {
-    const runA = await makeFinalizedRun(F.restaurantId, F.owner, 5000);
-    const runB = await makeFinalizedRun(F.restaurantId, F.owner, 5000);
+    const runA = await makeFinalizedRun(F.restaurantId, F.owner, 5000, F.checker);
+    const runB = await makeFinalizedRun(F.restaurantId, F.owner, 5000, F.checker);
     const payoutId = await makeCompletedPayout(F.restaurantId, F.owner, 8000);
     const first = await linkPayout(F.restaurantId, runA, payoutId, F.owner);
     expect(first.err).toBeNull();
@@ -262,7 +284,7 @@ ddescribe('finding 25: pay-run payout linkage', () => {
   });
 
   test('Nov 3 item 2: a payout in another currency cannot fund the run', async () => {
-    const runId = await makeFinalizedRun(F.restaurantId, F.owner, 5000);
+    const runId = await makeFinalizedRun(F.restaurantId, F.owner, 5000, F.checker);
     const payoutId = await makeCompletedPayout(F.restaurantId, F.owner, 5000, 'EUR');
     const linked = await linkPayout(F.restaurantId, runId, payoutId, F.owner);
     expect(linked.err).toMatchObject({ code: 'pay_run_payout_currency_mismatch' });
@@ -271,7 +293,7 @@ ddescribe('finding 25: pay-run payout linkage', () => {
   });
 
   test('a non-completed payout cannot be linked', async () => {
-    const runId = await makeFinalizedRun(F.restaurantId, F.owner, 5000);
+    const runId = await makeFinalizedRun(F.restaurantId, F.owner, 5000, F.checker);
     const payoutId = crypto.randomUUID();
     await pool.query(
       `INSERT INTO restaurant_payouts
@@ -288,5 +310,28 @@ ddescribe('finding 25: pay-run payout linkage', () => {
       })
     );
     expect(linked.err).toMatchObject({ code: 'pay_run_payout_not_completed' });
+  });
+
+  test('Phase 5: a finalized-but-unapproved run cannot link a payout', async () => {
+    const created = await call(
+      controller.createPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId }, body: { periodFrom: '2026-10-01', periodTo: '2026-10-15' }, user: { id: F.owner } })
+    );
+    expect(created.err).toBeNull();
+    const runId = created.res.payload.payRun.id;
+    const finalized = await call(
+      controller.finalizePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.owner } })
+    );
+    expect(finalized.err).toBeNull();
+    await pool.query(
+      `UPDATE restaurant_pay_runs SET totals = jsonb_set(totals, '{total_pay_cents}', $2::jsonb) WHERE id = $1`,
+      [runId, JSON.stringify(5000)]
+    );
+    const payoutId = await makeCompletedPayout(F.restaurantId, F.owner, 5000);
+    const linked = await linkPayout(F.restaurantId, runId, payoutId, F.owner);
+    expect(linked.err).toMatchObject({ code: 'pay_run_not_approved' });
+    const { rows: [runRow] } = await pool.query('SELECT status FROM restaurant_pay_runs WHERE id = $1', [runId]);
+    expect(runRow.status).toBe('finalized');
   });
 });

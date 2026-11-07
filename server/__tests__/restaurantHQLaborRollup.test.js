@@ -35,6 +35,9 @@ test('per-store hours, overtime and cost with currency-safe totals', async () =>
   expect(status).toBe(200);
   expect(body.stores.map((s) => [s.location_id, s.overtime_hours, s.missing_wage_count])).toEqual([[1, 0, 0], [2, 5, 1]]);
   expect(body.totals).toMatchObject({ total_hours: 55, overtime_hours: 5, labor_cost_cents: 85000, currency: 'USD', labor_percent: 34 });
+  // The FX lookup cannot run against the stubbed pool, so the native
+  // rollup is returned with converted null, never a failed read.
+  expect(body.totals.converted).toBeNull();
 });
 
 test('mixed currencies never produce a summed money total', async () => {
@@ -51,6 +54,10 @@ test('payroll.view is required and assigned managers only see their stores', asy
   pool.query.mockResolvedValue({ rows: [{ id: 2, display_name: 'Airport' }] });
   jest.spyOn(payroll, 'computeLabor').mockResolvedValue({ total_hours: 1, overtime_hours: 0, labor_cost_cents: 1, revenue_cents: 1, currency: 'USD', employees: [], missing_wage_user_ids: [] });
   const { body } = await run();
-  expect(pool.query.mock.calls.at(-1)[1]).toEqual([7, [2]]);
+  // The locations query carries the assigned scope; the FX policy
+  // lookup runs after it, and the stubbed query log accumulates
+  // across tests, so take the last locations call.
+  const locationCalls = pool.query.mock.calls.filter(([sql]) => String(sql).includes('FROM restaurant_locations'));
+  expect(locationCalls.at(-1)[1]).toEqual([7, [2]]);
   expect(body.stores).toHaveLength(1);
 });

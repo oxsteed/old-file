@@ -60,20 +60,41 @@ ddescribe('minor profiles and schedule changes', () => {
     expect(cols.some((c) => /birth|dob/.test(c))).toBe(false);
   });
 
-  test('publishing a minor shift returns minor warnings', async () => {
+  test('publishing a minor shift outside the permitted window is blocked (findings 51 + 30)', async () => {
     const day = isoDay(30);
-    await pool.query(`INSERT INTO business_staff_shifts(business_id,user_id,shift_date,start_time,end_time,restaurant_id,location_id) VALUES($1,$2,$3,'06:00','20:30',$4,$5)`, [businessId, employee, day, restaurantId, locationId]);
+    const { rows: [draft] } = await pool.query(`INSERT INTO business_staff_shifts(business_id,user_id,shift_date,start_time,end_time,restaurant_id,location_id) VALUES($1,$2,$3,'06:00','20:30',$4,$5) RETURNING id`, [businessId, employee, day, restaurantId, locationId]);
     const res = await request(app(owner, 'owner')).post(`/b/${businessId}/staff/shifts/publish`).send({ restaurant_id: restaurantId });
-    expect(res.status).toBe(200);
-    const rules = (res.body.rule_warnings || []).map((w) => w.rule);
-    expect(rules).toEqual(expect.arrayContaining(['minor_u16_window']));
+    // Findings 51 + 30: the under-16 work window is a blocking violation,
+    // so publish 409s the whole batch instead of publishing with a
+    // warning (the pre-fix behavior this test used to assert). Nothing
+    // is published, and the advisory school-day cap (finding 31) still
+    // rides along in the 409 body as a warning.
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('shift_conflicts');
+    expect((res.body.violations || []).map((v) => v.code)).toEqual(expect.arrayContaining(['minor_under16_window']));
+    expect((res.body.warnings || []).map((w) => w.code)).toEqual(expect.arrayContaining(['minor_under16_daily_hours']));
+    const { rows: [stillDraft] } = await pool.query('SELECT published_at FROM business_staff_shifts WHERE id = $1', [draft.id]);
+    expect(stillDraft.published_at).toBeNull();
+    // Advisory only: a within-window shift that breaks just the guessed
+    // school-day cap still publishes, with the minor warning attached.
+    await pool.query('DELETE FROM business_staff_shifts WHERE id = $1', [draft.id]);
+    await pool.query(`INSERT INTO business_staff_shifts(business_id,user_id,shift_date,start_time,end_time,restaurant_id,location_id) VALUES($1,$2,$3,'07:00','12:00',$4,$5)`, [businessId, employee, day, restaurantId, locationId]);
+    const ok = await request(app(owner, 'owner')).post(`/b/${businessId}/staff/shifts/publish`).send({ restaurant_id: restaurantId });
+    expect(ok.status).toBe(200);
+    const rules = (ok.body.rule_warnings || []).map((w) => w.rule);
+    expect(rules).toEqual(expect.arrayContaining(['minor_u16_daily']));
   });
 
   test('editing or cancelling a published shift inside the notice window records predictability pay', async () => {
     const day = isoDay(3);
+    // Phase 4: shift edits now validate minor rules, and this employee
+    // carries an under-16 profile from the test above (3h school-day cap).
+    // Predictability pay is what this test exercises, so clear the minor
+    // profile first; the minor behavior is covered by the tests above.
+    const owners = app(owner, 'owner');
+    expect((await request(owners).put(`/b/${businessId}/staff/members/${employee}/labor-profile`).send({ minor_band: null, minor_until: null })).status).toBe(200);
     const { rows: [s] } = await pool.query(`INSERT INTO business_staff_shifts(business_id,user_id,shift_date,start_time,end_time,restaurant_id,location_id,published_at,published_by)
       VALUES($1,$2,$3,'09:00','17:00',$4,$5,NOW(),$6) RETURNING id`, [businessId, employee, day, restaurantId, locationId, owner]);
-    const owners = app(owner, 'owner');
     const edit = await request(owners).put(`/b/${businessId}/staff/shifts/${s.id}`).send({ shift_start: `${day}T11:00` });
     expect(edit.status).toBe(200);
     expect(edit.body.schedule_change).toMatchObject({ premium_due: true, notice_hours: 336, jurisdiction_code: 'US-NYC' });

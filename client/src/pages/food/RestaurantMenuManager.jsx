@@ -15,6 +15,7 @@ import {
   updateFoodModifierGroup,
   uploadFoodAsset,
 } from '../../api/food';
+import { listMenuFoodCosts } from '../../api/restaurants';
 import { apiErrorMessage } from './foodShared';
 
 const blankItem = () => ({
@@ -84,7 +85,30 @@ export default function RestaurantMenuManager({ t, restaurant }) {
   const [itemEditor, setItemEditor] = useState(null);
   const [categoryEditor, setCategoryEditor] = useState(null);
   const [modifierEditor, setModifierEditor] = useState(null);
+  // Phase 6 (gap 10): plate cost / margin, computed on read from the live
+  // recipe mappings. Null until the operator opens the view.
+  const [foodCosts, setFoodCosts] = useState(null);
+  const [foodCostLoading, setFoodCostLoading] = useState(false);
+  const [foodCostSort, setFoodCostSort] = useState('margin_asc');
   const csvInputRef = useRef(null);
+
+  const loadFoodCosts = useCallback(async (sort) => {
+    setFoodCostLoading(true);
+    try {
+      const data = await listMenuFoodCosts(restaurant.id, { sort });
+      setFoodCosts(data?.food_costs || []);
+      setFoodCostSort(data?.sort || sort);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('food.merchant.menuError', 'Could not load the menu')));
+    } finally {
+      setFoodCostLoading(false);
+    }
+  }, [restaurant.id, t]);
+
+  const foodCostById = useMemo(
+    () => new Map((foodCosts || []).map((entry) => [entry.menu_item_id, entry])),
+    [foodCosts]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -342,8 +366,78 @@ export default function RestaurantMenuManager({ t, restaurant }) {
           <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} data-track="ui.e0bc80ad9e.5" />
           {t('food.menuManager.showArchived', 'Show archived')}
         </label>
+        <button
+          type="button"
+          className="fd-btn fd-btn-secondary fd-btn-sm"
+          onClick={() => {
+            if (foodCosts) setFoodCosts(null);
+            else loadFoodCosts(foodCostSort);
+          }} data-track="ui.e0bc80ad9e.47"
+        >
+          {foodCosts
+            ? t('food.menuManager.hideFoodCost')
+            : t('food.menuManager.showFoodCost')}
+        </button>
         <input ref={csvInputRef} type="file" accept=".csv,text/csv" hidden onChange={handleCsvImport} />
       </div>
+
+      {foodCosts && (
+        <section className="fd-menu-food-cost" aria-label={t('food.menuManager.foodCostTitle')} data-testid="menu-food-cost">
+          <header className="fd-menu-category-header">
+            <div>
+              <h3>{t('food.menuManager.foodCostTitle')}</h3>
+              <span>{t('food.menuManager.foodCostHint')}</span>
+            </div>
+            <div className="fd-menu-category-actions">
+              <button type="button" className="fd-btn fd-btn-sm" disabled={foodCostSort === 'margin_asc'} onClick={() => loadFoodCosts('margin_asc')} data-track="ui.e0bc80ad9e.48">
+                {t('food.menuManager.sortLowestMargin')}
+              </button>
+              <button type="button" className="fd-btn fd-btn-sm" disabled={foodCostSort === 'margin_desc'} onClick={() => loadFoodCosts('margin_desc')} data-track="ui.e0bc80ad9e.49">
+                {t('food.menuManager.sortHighestMargin')}
+              </button>
+              <button type="button" className="fd-btn fd-btn-sm" disabled={foodCostSort === 'name'} onClick={() => loadFoodCosts('name')} data-track="ui.e0bc80ad9e.50">
+                {t('food.menuManager.sortName')}
+              </button>
+            </div>
+          </header>
+          {foodCostLoading ? (
+            <p className="fd-card-meta">{t('food.common.loading', 'Loading menu…')}</p>
+          ) : foodCosts.length === 0 ? (
+            <p className="fd-card-meta">{t('food.menuManager.noFoodCost')}</p>
+          ) : (
+            <table className="fd-table">
+              <thead>
+                <tr>
+                  <th>{t('food.menuManager.foodCostItem')}</th>
+                  <th>{t('food.menuManager.foodCostPrice')}</th>
+                  <th>{t('food.menuManager.foodCostCost')}</th>
+                  <th>{t('food.menuManager.foodCostMargin')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {foodCosts.map((entry) => (
+                  <tr key={entry.menu_item_id}>
+                    <td>{entry.name}</td>
+                    <td>{formatFoodMoney(entry.price_cents, entry.currency_code)}</td>
+                    <td>
+                      {!entry.has_mappings
+                        ? t('food.menuManager.noRecipe')
+                        : formatFoodMoney(entry.cost_cents, entry.cost_currency_code)}
+                    </td>
+                    <td>
+                      {entry.margin_percent == null
+                        ? (entry.currency_mismatch
+                          ? t('food.menuManager.currencyMismatch')
+                          : '—')
+                        : `${entry.margin_percent}%`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
 
       {selectedIds.size > 0 && (
         <div className="fd-menu-bulkbar" role="region" aria-label={t('food.menuManager.bulkActions', 'Bulk actions')}>
@@ -393,6 +487,16 @@ export default function RestaurantMenuManager({ t, restaurant }) {
                     <strong>{item.name}</strong>
                     <span>{formatFoodMoney(item.price_cents, restaurant.currency_code)}</span>
                   </div>
+                  {foodCostById.has(item.id) && (
+                    <p className="fd-card-meta">
+                      {foodCostById.get(item.id).has_mappings
+                        ? t('food.menuManager.itemFoodCost', {
+                          cost: formatFoodMoney(foodCostById.get(item.id).cost_cents, foodCostById.get(item.id).cost_currency_code),
+                          margin: foodCostById.get(item.id).margin_percent ?? '—',
+                        })
+                        : t('food.menuManager.noRecipe')}
+                    </p>
+                  )}
                   <p>{item.description || t('food.menuManager.noDescription', 'No description')}</p>
                   <div className="fd-menu-owner-badges">
                     <span className={item.publication_status === 'draft' ? 'fd-state-draft' : 'fd-state-live'}>{item.publication_status === 'draft' ? t('food.menuManager.draft', 'Draft') : t('food.menuManager.live', 'Live')}</span>

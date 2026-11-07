@@ -101,6 +101,8 @@ const CarCarePage = lazyWithRetry(() => import('./pages/CarCarePage'));
 const FoodHomePage = lazyWithRetry(routeLoaders.restaurants, { name: 'restaurants' });
 const FoodRestaurantPage = lazyWithRetry(() => import('./pages/food/FoodRestaurantPage'));
 const FoodMerchantPage = lazyWithRetry(() => import('./pages/food/FoodMerchantPage'));
+// Phase 3: restaurant-branded employee portal (own route per restaurant).
+const RestaurantEmployeePortalPage = lazyWithRetry(() => import('./pages/food/RestaurantEmployeePortalPage'));
 const FoodKitchenPage = lazyWithRetry(() => import('./pages/food/FoodKitchenPage'));
 const KitchenPairingPage = lazyWithRetry(() => import('./pages/food/KitchenPairingPage'));
 const FoodQueueBoardPage = lazyWithRetry(() => import('./pages/food/FoodQueueBoardPage'));
@@ -729,6 +731,11 @@ export default function App() {
                     <Route path="/restaurants/queue/:restaurantId"   element={<RouteErrorBoundary><FoodQueueBoardPage /></RouteErrorBoundary>} />
                     <Route path="/restaurants/kiosk/:restaurantId"   element={<RouteErrorBoundary><FoodKioskPage /></RouteErrorBoundary>} />
                     <Route path="/restaurants/merchant"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><FoodMerchantPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Phase 3: restaurant-branded employee portal. Keyed by
+                        restaurant id like every other /restaurants/:restaurantId
+                        route; membership is enforced by the portal's data
+                        source (GET /food/my/restaurants) and by the staff API. */}
+                    <Route path="/restaurants/:restaurantId/portal"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantEmployeePortalPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/restaurants/screens/:restaurantId/:screenRole" element={<RouteErrorBoundary><ManagedRestaurantScreen /></RouteErrorBoundary>} />
                     <Route path="/restaurants/kitchen/:restaurantId"   element={<DeviceOrStaffRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></DeviceOrStaffRoute>} />
                     {/* Public kitchen-tablet setup entry: no auth, no token. */}

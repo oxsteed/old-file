@@ -13,6 +13,7 @@ const path = require('path');
 // Tables with both restaurant_id and location_id (verified against the
 // migrated schema by the .db companion check below).
 const STORE_TABLES = [
+  'business_shift_template_shifts',
   'business_staff_schedule_changes',
   'business_staff_shifts',
   'display_pairings',
@@ -24,6 +25,7 @@ const STORE_TABLES = [
   'restaurant_crew_task_events',
   'restaurant_crew_tasks',
   'restaurant_daily_counters',
+  'restaurant_daily_rollups',
   'restaurant_declared_cash_tips',
   'restaurant_delivery_marketplace_integrations',
   'restaurant_delivery_marketplace_orders',
@@ -32,6 +34,10 @@ const STORE_TABLES = [
   'restaurant_inventory_audit_events',
   'restaurant_inventory_availability_events',
   'restaurant_inventory_items',
+  // Phase 6 (gap 14): lots carry the store so FEFO consumption and the
+  // lots list stay store-scoped; lot consumptions are order-scoped
+  // (restaurant_id only) and modifier mappings are restaurant-scoped.
+  'restaurant_inventory_lots',
   'restaurant_inventory_order_reservations',
   'restaurant_inventory_purchase_requests',
   'restaurant_inventory_receipts',
@@ -40,7 +46,11 @@ const STORE_TABLES = [
   'restaurant_kitchen_events',
   'restaurant_kitchen_stations',
   'restaurant_labor_jurisdictions',
+  'restaurant_location_labor_policies',
   'restaurant_location_memberships',
+  // Phase 8 (Track B): per-store tip pools; the store's own row
+  // wins, otherwise the restaurant-level fallback.
+  'restaurant_location_tip_pool_settings',
   'restaurant_pos_approvals',
   'restaurant_pos_drawer_events',
   'restaurant_pos_payments',
@@ -50,9 +60,11 @@ const STORE_TABLES = [
   'restaurant_printer_jobs',
   'restaurant_printer_settings',
   'restaurant_reservations',
+  'restaurant_retention_policies',
   'restaurant_runner_settlements',
   'restaurant_runner_tasks',
   'restaurant_schedule_versions',
+  'restaurant_scheduled_reports',
   'restaurant_screen_events',
   'restaurant_screen_tickets',
   'restaurant_staff_pins',
@@ -60,6 +72,7 @@ const STORE_TABLES = [
   'restaurant_store_menu_overrides',
   'restaurant_tables',
   'restaurant_tax_rules',
+  'restaurant_temperature_logs',
   'restaurant_terminal_offline_leases',
   'restaurant_terminal_offline_payments',
   'restaurant_terminal_offline_permits',
@@ -109,10 +122,15 @@ const REVIEWED = {
   // display name/status; never a caller-supplied store id.
   'services/dualApprovalService.js': PLATFORM_ADMIN,
   'services/foodAbandonedOrderSweeper.js': SYSTEM_JOB,
-  'services/laborJurisdictionRules.js': SCOPED_CALLER,
   'services/profileVisibilityActiveWork.js': CUSTOMER_OR_SELF,
   'services/restaurantDeliveryMarketplaceService.js': SCOPED_CALLER,
   'services/restaurantDeviceCredentials.js': DEVICE_BOUND,
+  // Punch closeout (Phase 2): the close-of-day sweep closes forgotten
+  // punches across ALL stores of one business, by design — either the
+  // nightly system job or a business-level manager action (role-gated,
+  // business-scoped). The per-entry shift lookup is location-matched
+  // (location_id IS NOT DISTINCT FROM the punch's store).
+  'services/restaurantPunchCloseout.js': BUSINESS_LEVEL,
   'services/restaurantInventoryAuditService.js': SCOPED_CALLER,
   'services/restaurantInventoryOrderService.js': SCOPED_CALLER,
   'services/restaurantKitchenFireService.js': SCOPED_CALLER,
@@ -121,6 +139,28 @@ const REVIEWED = {
   'services/restaurantPosPaymentLedgerService.js': SCOPED_CALLER,
   'services/restaurantPrepTimeService.js': SCOPED_CALLER,
   'services/restaurantStoreMenuService.js': SCOPED_CALLER,
+  // Phase 4 scheduling helpers: called only from businessStaffScheduleController
+  // after it resolved and asserted the business/location scope. validateShift
+  // is parameterized by business + user and never reads across businesses;
+  // copyCandidates additionally asserts scope per candidate shift; the
+  // forecast reads drafts of one business only (business_id = $1).
+  'services/shiftConflictValidation.js': SCOPED_CALLER,
+  'services/scheduleCopy.js': SCOPED_CALLER,
+  // PTO balances (findings 25-27): called only from
+  // businessStaffScheduleController after it resolved and asserted the
+  // business/location scope. The scheduled-hours lookup reads the
+  // employee's own shifts (business_id + user_id) across the stores
+  // they work at, because a time-off request spans all of them; it
+  // never reads across businesses.
+  'services/ptoBalances.js': SCOPED_CALLER,
+  // Phase 7 compliance services: called only from the compliance
+  // controller after it resolved the restaurant access and the
+  // location scope; every write carries the caller's restaurant_id
+  // and location_id. The temperature service's breach alert notifies
+  // managers of the same business only.
+  'services/restaurantTemperatureService.js': SCOPED_CALLER,
+  'services/restaurantRetentionService.js': SCOPED_CALLER,
+  'services/restaurantRollupCache.js': SCOPED_CALLER,
   'services/restaurantTerminalOffline.js': DEVICE_BOUND,
   'services/settlementStatementService.js': BUSINESS_LEVEL,
   'services/staffOffboarding.js': BUSINESS_LEVEL,

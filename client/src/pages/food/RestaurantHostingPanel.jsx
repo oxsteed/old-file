@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   listRestaurantTables,
+  getRestaurantTableDetail,
   createRestaurantTable,
   updateRestaurantTable,
   listRestaurantReservations,
@@ -14,7 +16,7 @@ import {
   updateRestaurantWaitlistEntry,
 } from "../../api/food";
 import api from "../../api/axios";
-import { apiErrorMessage } from "./foodShared";
+import { apiErrorMessage, formatMinorUnits } from "./foodShared";
 import {
   useOperationStore,
   OperationStorePicker,
@@ -86,6 +88,10 @@ export default function RestaurantHostingPanel({ t, restaurant }) {
   const [reservationOffset, setReservationOffset] = useState(0),
     [waitOffset, setWaitOffset] = useState(0),
     [waitStatus, setWaitStatus] = useState("");
+  // Phase 6 (gap 13): table-detail view and the seating-release guard.
+  const [tableDetail, setTableDetail] = useState(null),
+    [tableDetailLoading, setTableDetailLoading] = useState(false),
+    [releaseWarning, setReleaseWarning] = useState(null);
   const [from, setFrom] = useState(() => localDate(timeZone)),
     [to, setTo] = useState("");
   const reserveKey = useRef(null),
@@ -274,6 +280,59 @@ export default function RestaurantHostingPanel({ t, restaurant }) {
         [kind === "waitlist" ? "waitlistId" : "reservationId"]: item.id,
       }),
     );
+  };
+  // Phase 6 (gap 13): open a table's tab: its seating plus every open
+  // ticket, with covers and totals.
+  const openTableDetail = async (item) => {
+    setTableDetailLoading(true);
+    setReleaseWarning(null);
+    try {
+      setTableDetail(await getRestaurantTableDetail(restaurant.id, item.id));
+    } catch (error) {
+      toast.error(
+        apiErrorMessage(error, t("restaurants.ops.shared.loadError")),
+      );
+    } finally {
+      setTableDetailLoading(false);
+    }
+  };
+  // Phase 6 (gap 13): releasing a table with open tickets is refused by
+  // the server (409 table_has_open_tickets) until the operator confirms
+  // explicitly. The warning names the open tickets; confirming releases
+  // the seating only and never closes the tickets.
+  const releaseTable = async (item, confirm = false) => {
+    setBusy(true);
+    try {
+      await api.post(`/restaurants/${restaurant.id}/tables/${item.id}/seating`, {
+        action: "release",
+        ...(confirm ? { confirm: true } : {}),
+      });
+      setReleaseWarning(null);
+      if (tableDetail?.table?.id === item.id) setTableDetail(null);
+      await load();
+    } catch (error) {
+      const data = error?.response?.data || {};
+      if (
+        error?.response?.status === 409 &&
+        data.code === "table_has_open_tickets"
+      ) {
+        const fields = data.fields || {};
+        setReleaseWarning({
+          tableId: item.id,
+          tableName: item.name,
+          openTicketIds: fields.openTicketIds || [],
+          openTicketCount: fields.openTicketCount || 0,
+          openTotalCents: fields.openTotalCents || 0,
+          currencyCode: fields.currencyCode || null,
+        });
+      } else {
+        toast.error(
+          apiErrorMessage(error, t("restaurants.ops.shared.saveError")),
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
   };
   const chooseTable = (kind, item) => (
     <select
@@ -510,6 +569,99 @@ export default function RestaurantHostingPanel({ t, restaurant }) {
                 );
               })}
           </div>
+          {tableDetail && (
+            <section className="fd-settings-card" data-testid="restaurant-table-detail" aria-label={t("restaurants.ops.hosting.tableTab")}>
+              <div className="fd-row" style={{ justifyContent: "space-between" }}>
+                <h4>
+                  {tableDetail.table?.name} · {t("restaurants.ops.hosting.tableTab")}
+                </h4>
+                <button
+                  type="button"
+                  className="fd-btn"
+                  onClick={() => setTableDetail(null)} data-track="ui.96de179235.23"
+                >
+                  {t("food.common.close")}
+                </button>
+              </div>
+              {tableDetail.seating && (
+                <p className="fd-card-meta">
+                  {shared("occupied")} · {tableDetail.seating.party_size}{" "}
+                  {t("restaurants.ops.hosting.covers")}
+                  {tableDetail.seating.reservation_guest_name || tableDetail.seating.waitlist_guest_name
+                    ? ` · ${tableDetail.seating.reservation_guest_name || tableDetail.seating.waitlist_guest_name}`
+                    : ""}
+                </p>
+              )}
+              <p className="fd-card-meta">
+                {t("restaurants.ops.hosting.openTickets")}: {tableDetail.totals?.open_ticket_count || 0}
+                {" · "}
+                {t("restaurants.ops.hosting.covers")}: {tableDetail.totals?.covers || 0}
+                {" · "}
+                {t("restaurants.ops.hosting.total")}:{" "}
+                {formatMinorUnits(
+                  tableDetail.totals?.total_cents || 0,
+                  tableDetail.tickets?.[0]?.currency_code || restaurant.currency_code,
+                )}
+              </p>
+              {(tableDetail.tickets || []).length === 0 ? (
+                <p className="fd-card-meta">{t("restaurants.ops.hosting.noOpenTickets")}</p>
+              ) : (
+                <ul>
+                  {tableDetail.tickets.map((ticket) => (
+                    <li key={ticket.id}>
+                      <Link to={`/restaurants/queue/${restaurant.id}`}>
+                        #{ticket.queue_number || ticket.id}
+                      </Link>
+                      {" · "}
+                      {ticket.guest_name || ticket.table_label || ""}
+                      {" · "}
+                      {ticket.item_count} {t("restaurants.ops.hosting.items")}
+                      {" · "}
+                      {ticket.covers != null && (
+                        <>{ticket.covers} {t("restaurants.ops.hosting.covers")} · </>
+                      )}
+                      {formatMinorUnits(ticket.total_cents, ticket.currency_code)}
+                      {" · "}
+                      {ticket.pos_ticket_state || ticket.status}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+          {releaseWarning && (
+            <div className="fd-inv-alert" role="alert" data-testid="restaurant-release-warning">
+              <p>
+                {t("restaurants.ops.hosting.releaseWarning")}
+              </p>
+              <p className="fd-card-meta">
+                {releaseWarning.tableName} · {releaseWarning.openTicketCount}{" "}
+                {t("restaurants.ops.hosting.openTickets")} ·{" "}
+                {t("restaurants.ops.hosting.total")}:{" "}
+                {formatMinorUnits(releaseWarning.openTotalCents, releaseWarning.currencyCode || restaurant.currency_code)}
+              </p>
+              <div className="fd-row">
+                <button
+                  type="button"
+                  className="fd-btn"
+                  disabled={busy}
+                  onClick={() => {
+                    const item = data.tables.find((row) => row.id === releaseWarning.tableId);
+                    if (item) releaseTable(item, true);
+                  }} data-track="ui.96de179235.24"
+                >
+                  {t("restaurants.ops.hosting.releaseAnyway")}
+                </button>
+                <button
+                  type="button"
+                  className="fd-btn"
+                  onClick={() => setReleaseWarning(null)} data-track="ui.96de179235.25"
+                >
+                  {shared("cancel")}
+                </button>
+              </div>
+            </div>
+          )}
           {data.tables.map((item) => {
             const seating = data.seatings.find(
               (row) => String(row.table_id) === String(item.id),
@@ -519,6 +671,14 @@ export default function RestaurantHostingPanel({ t, restaurant }) {
                 <span>
                   {item.name} · {item.capacity} · {statusLabel(item.status)}
                 </span>
+                <button
+                  type="button"
+                  className="fd-btn"
+                  disabled={busy || tableDetailLoading}
+                  onClick={() => openTableDetail(item)} data-track="ui.96de179235.26"
+                >
+                  {t("restaurants.ops.hosting.tableTab")}
+                </button>
                 {canEdit && (
                   <button
                     type="button"
@@ -560,14 +720,7 @@ export default function RestaurantHostingPanel({ t, restaurant }) {
                       type="button"
                       className="fd-btn"
                       disabled={busy}
-                      onClick={() =>
-                        act(() =>
-                          api.post(
-                            `/restaurants/${restaurant.id}/tables/${item.id}/seating`,
-                            { action: "release" },
-                          ),
-                        )
-                      } data-track="ui.96de179235.6"
+                      onClick={() => releaseTable(item)} data-track="ui.96de179235.6"
                     >
                       {shared("release")}
                     </button>

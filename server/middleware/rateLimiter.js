@@ -833,6 +833,35 @@ const entityResolveLimiter = rateLimit({
 // 60/minute per IP covers 5s polling (12/min) for ~4-5 displays behind one
 // NAT IP with headroom. Keyed by req.ip with no skip for missing auth
 // (fail-closed per P3-13-F22).
+// Kitchen display feed (Phase 7, gap 20): the KDS polls every 5s per
+// screen, and the feed query re-aggregates all open tickets every
+// poll, so a runaway poller (or a fleet of screens behind one NAT IP)
+// can hammer the same tables the POS is writing. 30/minute per feed
+// consumer — one poll per 2s, matching the server's own 2000 ms
+// nextPollAfterMs guidance — covers healthy 5s polling (12/min) with
+// headroom and 429s anything faster. Keyed by the feed consumer, NOT
+// by IP: several screens share one restaurant Wi-Fi, and keying by IP
+// would let one chatty screen eat the budget of all the others (same
+// reasoning as deviceApiLimiter). The device route carries :deviceId;
+// the staff route keys on the signed-in user + restaurant.
+const kitchenFeedLimiter = rateLimit({
+  ...createStoreOption('rl:kitchen_feed:'),
+  windowMs: 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => {
+    if (req.params?.deviceId) return `device:${req.params.deviceId}`;
+    if (req.displayDevice?.pairingId) return `device:${req.displayDevice.pairingId}`;
+    if (req.user?.id) return `user:${req.user.id}:${req.params?.restaurantId || 'unknown'}`;
+    return `ip:${req.ip}`;
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many kitchen feed requests. Please slow down.',
+    retryAfter: '1 minute',
+  },
+});
+
 const displayPollLimiter = rateLimit({
   ...createStoreOption('rl:display_poll:'),
   windowMs: 60 * 1000,
@@ -979,6 +1008,7 @@ module.exports = {
   entityResolveLimiter,
   vortexRedeemLimiter,
   displayPollLimiter,
+  kitchenFeedLimiter,
   deviceApiLimiter,
   staffPinAttemptLimiter,
 };

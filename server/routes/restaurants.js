@@ -37,7 +37,8 @@ const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const enforceUploadQuota = require('../middleware/uploadQuota');
-const { authenticatedLimiter, strictLimiter, generalLimiter, staffPinAttemptLimiter } = require('../middleware/rateLimiter');
+const { authenticatedLimiter, strictLimiter, generalLimiter, staffPinAttemptLimiter, kitchenFeedLimiter } = require('../middleware/rateLimiter');
+const compliance = require('../controllers/restaurantComplianceController');
 const media = require('../controllers/restaurantMediaController');
 const { requireKitchenDeviceOrStaff } = require('../controllers/restaurantDisplayController');
 const hosting = require('../controllers/restaurantHostingController');
@@ -76,7 +77,7 @@ router.post('/:restaurantId/devices/:deviceId/screen-items/:orderItemId/action',
 router.post('/:restaurantId/devices/pair', strictLimiter, scopeExempt('device-credential'), appFlow.pairDevice);
 router.get('/:restaurantId/devices/:deviceId/runtime-config', scopeExempt('device-credential'), appFlow.getDeviceRuntimeConfig);
 router.post('/:restaurantId/devices/:deviceId/heartbeat', scopeExempt('device-credential'), appFlow.deviceHeartbeat);
-router.get('/:restaurantId/devices/:deviceId/kitchen-feed', scopeExempt('device-credential'), appFlow.getKitchenFeed);
+router.get('/:restaurantId/devices/:deviceId/kitchen-feed', kitchenFeedLimiter, scopeExempt('device-credential'), appFlow.getKitchenFeed);
 router.post('/:restaurantId/devices/:deviceId/kitchen-feed/ack', scopeExempt('device-credential'), appFlow.ackKitchenFeed);
 router.get('/:restaurantId/devices/:deviceId/printer-jobs', appFlow.authenticateKitchenPrinterDevice, scopeExempt('device-credential'), appFlow.listPrinterJobs);
 router.post('/:restaurantId/devices/:deviceId/printer-jobs/:jobId/claim', appFlow.authenticateKitchenPrinterDevice, scopeExempt('device-credential'), appFlow.claimPrinterJob);
@@ -130,7 +131,7 @@ router.post(
 // pairing id (multiple TVs share one NAT IP) so devices never consume the
 // anonymous IP budget. Stations, audit, printer jobs, events and every other
 // kitchen route below stay staff-only.
-router.get('/:restaurantId/kitchen/feed', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.getKitchenFeed);
+router.get('/:restaurantId/kitchen/feed', requireKitchenDeviceOrStaff, kitchenFeedLimiter, scopeExempt('device-credential'), appFlow.getKitchenFeed);
 router.post('/:restaurantId/kitchen/orders/:orderId/ack', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.ackKitchenTicket);
 router.post('/:restaurantId/kitchen/orders/:orderId/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenOrderAction);
 router.post('/:restaurantId/kitchen/items/:orderItemId/action', requireKitchenDeviceOrStaff, scopeExempt('device-credential'), appFlow.performKitchenItemAction);
@@ -193,11 +194,58 @@ router.patch('/:restaurantId/delivery/marketplace-orders/:orderId', requireResta
 router.get('/:restaurantId/hq/rollup', requireRestaurantAccess(), hq.rollup);
 // S-18: HQ cross-store labor rollup (per-store hours, cost, labor %).
 router.get('/:restaurantId/hq/labor-rollup', requireRestaurantAccess(), hq.laborRollup);
+// Phase 7 (gap 20): labor-rollup CSV export (same rows as the JSON rollup).
+router.get('/:restaurantId/hq/labor-rollup.csv', requireRestaurantAccess(), hq.laborRollupCsv);
+// Phase 7: compliance hardening + reporting. Temperature logs (gap 11),
+// prime cost (gap 15), break attestations (gap 17), scheduled report
+// delivery (gap 19), retention + erasure (gap 21). Permission gates
+// live inside the compliance controller (reports policy for reads,
+// settings.manage for policy/erasure management).
+router.post('/:restaurantId/temperature-logs', requireRestaurantAccess(), compliance.recordTemperatureLog);
+router.get('/:restaurantId/temperature-logs', requireRestaurantAccess(), compliance.listTemperatureLogs);
+router.post('/:restaurantId/temperature-logs/:logId/corrective-action', requireRestaurantAccess(), compliance.linkTemperatureCorrectiveAction);
+router.get('/:restaurantId/reports/prime-cost', requireRestaurantAccess(), compliance.primeCost);
+router.get('/:restaurantId/break-attestations', requireRestaurantAccess(), compliance.listBreakAttestations);
+router.get('/:restaurantId/scheduled-reports', requireRestaurantAccess(), compliance.listScheduledReports);
+router.post('/:restaurantId/scheduled-reports', requireRestaurantAccess(), compliance.createScheduledReport);
+router.put('/:restaurantId/scheduled-reports/:scheduleId', requireRestaurantAccess(), compliance.updateScheduledReport);
+router.delete('/:restaurantId/scheduled-reports/:scheduleId', requireRestaurantAccess(), compliance.deleteScheduledReport);
+router.get('/:restaurantId/scheduled-reports/deliveries', requireRestaurantAccess(), compliance.listScheduledReportDeliveries);
+router.post('/:restaurantId/scheduled-reports/:scheduleId/run-now', requireRestaurantAccess(), compliance.runScheduledReportNow);
+router.get('/:restaurantId/retention-policies', requireRestaurantAccess(), compliance.getRetentionPolicies);
+router.put('/:restaurantId/retention-policies', requireRestaurantAccess(), compliance.setRetentionPolicy);
+router.get('/:restaurantId/erasure-requests', requireRestaurantAccess(), compliance.listErasureRequests);
+router.post('/:restaurantId/erasure-requests', requireRestaurantAccess(), compliance.createErasureRequest);
+router.post('/:restaurantId/erasure-requests/:requestId/decide', requireRestaurantAccess(), compliance.decideErasureRequest);
+router.post('/:restaurantId/erasure-requests/:requestId/run', requireRestaurantAccess(), compliance.runErasureRequest);
 router.post('/:restaurantId/hq/menu/preview', requireRestaurantAccess(), hq.previewMenuOverrides);
 router.post('/:restaurantId/hq/menu/publish', requireRestaurantAccess(), hq.publishMenuOverrides);
 router.get('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.listRegions);
 router.post('/:restaurantId/hq/regions', requireRestaurantAccess(), hq.createRegion);
 router.patch('/:restaurantId/hq/regions/:regionId', requireRestaurantAccess(), hq.updateRegion);
+// Phase 8 Track A: FX policy (reporting currency, rate source, rate
+// date) and stored exchange rates. No live feed: rates are data an
+// admin enters or imports.
+router.get('/:restaurantId/hq/fx-policy', requireRestaurantAccess(), hq.getFxPolicy);
+router.put('/:restaurantId/hq/fx-policy', requireRestaurantAccess(), hq.updateFxPolicy);
+router.get('/:restaurantId/hq/fx-rates', requireRestaurantAccess(), hq.listFxRates);
+router.post('/:restaurantId/hq/fx-rates', requireRestaurantAccess(), hq.createFxRate);
+// Phase 8 Track D: HQ-level pay-run approval (maker-checker, same
+// core as the per-restaurant approve) and per-location labor-policy
+// administration from HQ.
+router.post('/:restaurantId/hq/pay-runs/:payRunId/approve', requireRestaurantAccess(), hq.approvePayRun);
+router.get('/:restaurantId/hq/labor-policies', requireRestaurantAccess(), hq.listLaborPolicies);
+router.put('/:restaurantId/hq/labor-policies/:locationId', requireRestaurantAccess(), hq.updateStoreLaborPolicy);
+// Phase 8 Track D: inter-store labor borrowing and the shared-roster
+// read a scheduler uses to place a worker at another store.
+const laborBorrows = require('../controllers/restaurantLaborBorrowController');
+router.get('/:restaurantId/labor-borrows', requireRestaurantAccess(), laborBorrows.listBorrows);
+router.post('/:restaurantId/labor-borrows', requireRestaurantAccess(), laborBorrows.requestBorrow);
+router.post('/:restaurantId/labor-borrows/:borrowId/approve', requireRestaurantAccess(), laborBorrows.approveBorrow);
+router.post('/:restaurantId/labor-borrows/:borrowId/decline', requireRestaurantAccess(), laborBorrows.declineBorrow);
+router.post('/:restaurantId/labor-borrows/:borrowId/cancel', requireRestaurantAccess(), laborBorrows.cancelBorrow);
+router.post('/:restaurantId/labor-borrows/:borrowId/complete', requireRestaurantAccess(), laborBorrows.completeBorrow);
+router.get('/:restaurantId/shared-roster', requireRestaurantAccess(), laborBorrows.getSharedRoster);
 router.get('/:restaurantId/accounting/integrations', requireRestaurantAccess(), accounting.list);
 router.get('/:restaurantId/accounting/exports', requireRestaurantAccess(), accounting.listExports);
 router.post('/:restaurantId/accounting/:provider/oauth/start', requireRestaurantAccess(), accounting.startOAuth);
@@ -215,6 +263,7 @@ router.delete('/:restaurantId/location-access/:membershipId', requireRestaurantA
 // Every handler still resolves the effective restaurant permission in the
 // controller; the route gate provides the canonical tenant boundary.
 router.get('/:restaurantId/tables', requireRestaurantAccess(), hosting.listTables);
+router.get('/:restaurantId/tables/:tableId', requireRestaurantAccess(), hosting.getTableDetail);
 router.post('/:restaurantId/tables', requireRestaurantAccess(), hosting.createTable);
 router.post('/:restaurantId/tables/:tableId/seating', requireRestaurantAccess(), hosting.setSeating);
 router.patch('/:restaurantId/tables/:tableId', requireRestaurantAccess(), hosting.updateTable);
@@ -268,6 +317,7 @@ router.get('/:restaurantId/inventory/audit-events', requireRestaurantAccess(), i
 router.get('/:restaurantId/inventory/hooks/status', requireRestaurantAccess(), appFlow.getInventoryHookStatus);
 router.post('/:restaurantId/inventory/hooks/sync', requireRestaurantAccess(), appFlow.syncMenuAvailability);
 router.get('/:restaurantId/inventory/items', requireRestaurantAccess(), inventory.listItems);
+router.get('/:restaurantId/inventory/items/:itemId/lots', requireRestaurantAccess(), inventory.listItemLots);
 router.post('/:restaurantId/inventory/items', requireRestaurantAccess(), inventory.createItem);
 router.patch('/:restaurantId/inventory/items/:itemId', requireRestaurantAccess(), inventory.updateItem);
 router.delete('/:restaurantId/inventory/items/:itemId', requireRestaurantAccess(), inventory.deleteItem);
@@ -283,6 +333,14 @@ router.post('/:restaurantId/pos/menu-items/:itemId/sold-out', (req, _res, next) 
 router.get('/:restaurantId/inventory/adjustments', requireRestaurantAccess(), inventory.listAdjustments);
 router.get('/:restaurantId/inventory/mappings', requireRestaurantAccess(), inventory.listMappings);
 router.post('/:restaurantId/inventory/mappings', requireRestaurantAccess(), inventory.upsertMapping);
+router.get('/:restaurantId/inventory/modifier-mappings', requireRestaurantAccess(), inventory.listModifierMappings);
+router.get('/:restaurantId/inventory/modifier-options', requireRestaurantAccess(), inventory.listModifierOptions);
+router.post('/:restaurantId/inventory/modifier-mappings', requireRestaurantAccess(), inventory.upsertModifierMapping);
+router.delete('/:restaurantId/inventory/modifier-mappings/:mappingId', requireRestaurantAccess(), inventory.deleteModifierMapping);
+// Phase 6 (gap 10): plate cost / margin. The list route is registered
+// before the :itemId route so "food-cost" is not read as an item id.
+router.get('/:restaurantId/menu-items/food-cost', requireRestaurantAccess(), inventory.listMenuFoodCosts);
+router.get('/:restaurantId/menu-items/:itemId/food-cost', requireRestaurantAccess(), inventory.getMenuItemFoodCost);
 
 // Staff training (franchise system)
 router.get('/:restaurantId/training/modules', requireRestaurantAccess(), training.listModules);
@@ -375,6 +433,19 @@ router.get('/:restaurantId/team/activity', requireRestaurantAccess(), payrollRep
 router.get('/:restaurantId/tip-pool', requireRestaurantAccess(), payrollReports.getTipPoolSettings);
 router.put('/:restaurantId/tip-pool', requireRestaurantAccess(), payrollReports.updateTipPoolSettings);
 router.post('/:restaurantId/tips/cash-declarations', requireRestaurantAccess(), payrollReports.declareCashTip);
+// Phase 3 Track B: employee self-service. Self-scoped reads (tips/mine,
+// pay/mine, stubs) need no payroll.view — the controller scopes by
+// req.user.id and never reads a client-supplied user id. Self-declared
+// cash tips enter manager review as pending; confirm/reject need
+// payroll.manage. Draft pay runs never produce a stub.
+router.get('/:restaurantId/tips/mine', requireRestaurantAccess(), payrollReports.getMyTips);
+router.get('/:restaurantId/pay/mine', requireRestaurantAccess(), payrollReports.getMyPay);
+router.get('/:restaurantId/pay/mine/stubs', requireRestaurantAccess(), payrollReports.listMyPayStubs);
+router.get('/:restaurantId/pay/mine/stubs/:payRunId', requireRestaurantAccess(), payrollReports.getMyPayStub);
+router.get('/:restaurantId/tips/cash-declarations/mine', requireRestaurantAccess(), payrollReports.listMyCashTips);
+router.post('/:restaurantId/tips/cash-declarations/mine', requireRestaurantAccess(), payrollReports.declareMyCashTip);
+router.post('/:restaurantId/tips/cash-declarations/:declarationId/confirm', requireRestaurantAccess(), payrollReports.confirmCashTip);
+router.post('/:restaurantId/tips/cash-declarations/:declarationId/reject', requireRestaurantAccess(), payrollReports.rejectCashTip);
 // F-22: pay-run records (immutable payroll snapshots + native CSV export).
 // The export route is registered before :payRunId so the .csv suffix wins.
 router.post('/:restaurantId/pay-runs', requireRestaurantAccess(), payrollReports.createPayRun);
@@ -383,12 +454,26 @@ router.get('/:restaurantId/pay-runs/:payRunId/export.csv', requireRestaurantAcce
 router.get('/:restaurantId/pay-runs/:payRunId', requireRestaurantAccess(), payrollReports.getPayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/rebuild', requireRestaurantAccess(), payrollReports.rebuildPayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/finalize', requireRestaurantAccess(), payrollReports.finalizePayRun);
+router.post('/:restaurantId/pay-runs/:payRunId/approve', requireRestaurantAccess(), payrollReports.approvePayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/void', requireRestaurantAccess(), payrollReports.voidPayRun);
+// Finding 41: completing a void of a finalized/approved run needs a
+// second payroll manager, distinct from the void requester and the
+// finalizer. Draft runs void in one step and never reach this route.
+router.post('/:restaurantId/pay-runs/:payRunId/void-approve', requireRestaurantAccess(), payrollReports.approveVoidPayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/payout-links', requireRestaurantAccess(), payrollReports.linkPayRunPayout);
+// Phase 5: disbursement ledger. Recording is a money release, so it
+// needs the same second approver as an export or payout link.
+router.get('/:restaurantId/pay-runs/:payRunId/disbursements', requireRestaurantAccess(), payrollReports.listPayRunDisbursements);
+router.post('/:restaurantId/pay-runs/:payRunId/disbursements', requireRestaurantAccess(), payrollReports.recordPayRunDisbursement);
+// Finding 9: void/reverse a wrongly recorded disbursement. Same
+// access + permission checks as recording; the controller adds the
+// second-approver and maker-checker gates.
+router.post('/:restaurantId/pay-runs/:payRunId/disbursements/:disbursementId/void', requireRestaurantAccess(), payrollReports.voidPayRunDisbursement);
 router.delete('/:restaurantId/inventory/mappings/:mappingId', requireRestaurantAccess(), inventory.deleteMapping);
 router.post('/:restaurantId/inventory/mappings/bootstrap-defaults', requireRestaurantAccess(), inventory.bootstrapMappings);
 router.get('/:restaurantId/inventory/purchase-requests', requireRestaurantAccess(), inventory.listPurchaseRequests);
 router.post('/:restaurantId/inventory/purchase-requests', requireRestaurantAccess(), inventory.createPurchaseRequest);
+router.post('/:restaurantId/inventory/auto-reorder', requireRestaurantAccess(), inventory.draftAutoReorders);
 router.patch('/:restaurantId/inventory/purchase-requests/:requestId', requireRestaurantAccess(), inventory.updatePurchaseRequest);
 router.get('/:restaurantId/inventory/supplier-issues', requireRestaurantAccess(), inventory.listSupplierIssues);
 router.post('/:restaurantId/inventory/supplier-issues', requireRestaurantAccess(), inventory.createSupplierIssue);

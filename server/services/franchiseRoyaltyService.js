@@ -16,14 +16,31 @@
  *   occur in a franchise territory (jobs, food orders, Direct bookings,
  *   marketplace sales).
  *
+ * Item 44: reporting no longer string-matches a store to an agreement —
+ * stores map explicitly through franchise_location_agreements. Accrual
+ * follows the same table wherever the revenue belongs to a store: pass
+ * locationId (food orders carry one) and the mapped agreement governs;
+ * an unmapped store accrues nothing (fail closed, no string fallback),
+ * so report and accrual can never disagree about a store. Revenue with
+ * no store — a job's location, a marketplace shipping address, a Direct
+ * booking's service city — is only a territory point, so it keeps the
+ * deterministic city-then-region match below (findTerritoryAgreement).
+ * That match is genuinely different: there is no location to map, and
+ * unifying it would mean inventing a store for a job. Legacy food
+ * orders with no location_id also fall back to it for the same reason.
+ *
  * Pure bookkeeping: credits the franchise owner's platform_ledger and
  * accrues the marketing-fee share on the agreement. No money moves here.
  */
 
 const logger = require('../utils/logger');
+const locationAgreements = require('./restaurantFranchiseLocationAgreementService');
 
 /**
  * Find the single franchise agreement that owns a territory point.
+ * Territory points only: revenue with no store (a job location, a
+ * shipping address, a Direct service city). Store revenue must go
+ * through the explicit mapping (see accrueTerritoryRoyalty).
  * Returns the row or null when nothing matches.
  */
 async function findTerritoryAgreement(client, city, region) {
@@ -65,6 +82,10 @@ async function findTerritoryAgreement(client, city, region) {
  * @param {object} args
  * @param {object} args.client pg client (or pool) — the caller owns the transaction
  * @param {number} args.amountCents gross revenue of the event, in cents
+ * @param {number} [args.locationId] when the revenue belongs to a
+ *   store, its restaurant_location id: the explicit mapping governs
+ *   and an unmapped store accrues nothing (no string fallback).
+ *   Omit it only for territory-point revenue with no store.
  * @param {string} [args.city]
  * @param {string} [args.region]
  * @param {string} args.sourceType e.g. 'job', 'food_order', 'direct_booking', 'marketplace_sale'
@@ -72,12 +93,29 @@ async function findTerritoryAgreement(client, city, region) {
  * @param {string} args.description ledger description
  * @returns {object|null} { agreementId, ownerUserId, royaltyCents, marketingCents } or null when no territory matches
  */
-async function accrueTerritoryRoyalty({ client, amountCents, city, region, sourceType, sourceId, description }) {
+async function accrueTerritoryRoyalty({ client, amountCents, locationId, city, region, sourceType, sourceId, description }) {
   const gross = Number(amountCents);
   if (!Number.isSafeInteger(gross) || gross <= 0) return null;
-  if (!city && !region) return null;
+  if (locationId == null && !city && !region) return null;
 
-  const agreement = await findTerritoryAgreement(client, city, region);
+  let agreement;
+  if (locationId != null) {
+    // Store revenue: the explicit mapping is the only source of
+    // truth. Unmapped (or mapped to a no-longer-launched agreement)
+    // accrues nothing — never fall back to string matching, or the
+    // report and the accrual would disagree about the same store.
+    const mapped = await locationAgreements.findLocationAgreement(client, locationId);
+    if (!mapped || !mapped.ownerUserId) return null;
+    agreement = {
+      application_id: mapped.applicationId,
+      owner_user_id: mapped.ownerUserId,
+      agreement_id: mapped.agreementId,
+      royalty_bps: mapped.royaltyBps,
+      marketing_fee_bps: mapped.marketingFeeBps,
+    };
+  } else {
+    agreement = await findTerritoryAgreement(client, city, region);
+  }
   if (!agreement || !agreement.owner_user_id) return null;
 
   const royaltyCents = Math.round((gross * agreement.royalty_bps) / 10000);
@@ -87,30 +125,43 @@ async function accrueTerritoryRoyalty({ client, amountCents, city, region, sourc
 
   if (royaltyCents > 0) {
     const idempotencyKey = `franchise-royalty:${sourceType}:${sourceId}`;
-    const { rowCount } = await client.query(
-      `INSERT INTO platform_ledger
-         (user_id, type, amount_cents, description, metadata, source_type, idempotency_key)
-       VALUES ($1, 'franchise_royalty', $2, $3, $4, 'franchise_royalty', $5)
-       ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING`,
-      [
-        agreement.owner_user_id,
-        royaltyCents,
-        description || `Territory royalty — ${sourceType} ${sourceId} in ${city || region}`,
-        JSON.stringify({
-          source_type: sourceType,
-          source_id: String(sourceId),
-          agreement_id: agreement.agreement_id,
-          application_id: agreement.application_id,
-          royalty_bps: agreement.royalty_bps,
-          gross_cents: gross,
-        }),
-        idempotencyKey,
-      ]
+    const duplicate = { agreementId: agreement.agreement_id, ownerUserId: agreement.owner_user_id, royaltyCents: 0, marketingCents: 0, duplicate: true };
+    // Idempotency without ON CONFLICT: platform_ledger is append-only
+    // (ledger_no_update / ledger_no_delete rules, migration 001) and
+    // Postgres refuses INSERT ... ON CONFLICT on a table with rules,
+    // so the old upsert errored on the real table and no store
+    // royalty could ever accrue (the isolated-schema royalty tests
+    // build a rule-free ledger, which hid it). Pre-check, then a
+    // plain insert; a 23505 from a racing duplicate is the same
+    // duplicate outcome. A duplicate accrues neither side again.
+    const { rows: existing } = await client.query(
+      'SELECT id FROM platform_ledger WHERE idempotency_key = $1 LIMIT 1',
+      [idempotencyKey]
     );
-    if (rowCount === 0) {
-      // Already accrued for this revenue event; do not double-count the
-      // marketing accrual either.
-      return { agreementId: agreement.agreement_id, ownerUserId: agreement.owner_user_id, royaltyCents: 0, marketingCents: 0, duplicate: true };
+    if (existing.length) return duplicate;
+    try {
+      await client.query(
+        `INSERT INTO platform_ledger
+           (user_id, type, amount_cents, description, metadata, source_type, idempotency_key)
+         VALUES ($1, 'franchise_royalty', $2, $3, $4, 'franchise_royalty', $5)`,
+        [
+          agreement.owner_user_id,
+          royaltyCents,
+          description || `Territory royalty — ${sourceType} ${sourceId} in ${city || region}`,
+          JSON.stringify({
+            source_type: sourceType,
+            source_id: String(sourceId),
+            agreement_id: agreement.agreement_id,
+            application_id: agreement.application_id,
+            royalty_bps: agreement.royalty_bps,
+            gross_cents: gross,
+          }),
+          idempotencyKey,
+        ]
+      );
+    } catch (error) {
+      if (error?.code === '23505') return duplicate;
+      throw error;
     }
     logger.info('[franchise] Territory royalty accrued', {
       sourceType, sourceId, royaltyCents, ownerUserId: agreement.owner_user_id,
