@@ -240,4 +240,112 @@ suite('S-04 schedule publishing + time-off (DB)', () => {
     });
     expect(bad.res.statusCode).toBe(400);
   });
+
+  test('publish 409s on blocking violations and publishes nothing (finding 51)', async () => {
+    // Two overlapping drafts for the same person, inserted directly:
+    // createShift would have 409ed the second one, so a pre-existing
+    // conflicting pair can only arrive via another path (or legacy rows).
+    const { rows: [d1] } = await db.query(
+      `INSERT INTO business_staff_shifts (business_id, user_id, shift_date, start_time, end_time, role_label)
+       VALUES ($1, $2, '2026-11-16', '09:00', '17:00', 'Cashier') RETURNING id`,
+      [bizId, EMPLOYEE]
+    );
+    const { rows: [d2] } = await db.query(
+      `INSERT INTO business_staff_shifts (business_id, user_id, shift_date, start_time, end_time, role_label)
+       VALUES ($1, $2, '2026-11-16', '12:00', '20:00', 'Cashier') RETURNING id`,
+      [bizId, EMPLOYEE]
+    );
+    const pub = await call(ctrl.publishShifts, {
+      ...asManager(MANAGER),
+      body: { from: '2026-11-16', to: '2026-11-16' },
+    });
+    expect(pub.error).toBeNull();
+    expect(pub.res.statusCode).toBe(409);
+    expect(pub.res.body.code).toBe('shift_conflicts');
+    expect(pub.res.body.violations.map((v) => v.code)).toContain('shift_overlap');
+    // All-or-nothing: neither draft was published.
+    const { rows } = await db.query(
+      'SELECT published_at FROM business_staff_shifts WHERE id = ANY($1::bigint[])',
+      [[d1.id, d2.id]]
+    );
+    expect(rows.every((r) => r.published_at == null)).toBe(true);
+  });
+
+  test('publish 409s when a draft falls inside leave approved after it was created (finding 51)', async () => {
+    const draft = await call(ctrl.createShift, {
+      ...asManager(MANAGER),
+      body: { user_id: EMPLOYEE2, shift_start: '2026-11-17T09:00', shift_end: '2026-11-17T17:00', role: 'Cashier' },
+    });
+    expect(draft.res.statusCode).toBe(201);
+    const created = await call(ctrl.createTimeOffRequest, {
+      ...asEmployee(EMPLOYEE2),
+      body: { request_type: 'vacation', start_date: '2026-11-17', end_date: '2026-11-18' },
+    });
+    expect(created.res.statusCode).toBe(201);
+    const approved = await call(ctrl.decideTimeOffRequest, {
+      ...asManager(MANAGER),
+      params: { businessId: String(bizId), requestId: String(created.res.body.request.id) },
+      body: { decision: 'approved' },
+    });
+    expect(approved.res.body.request.status).toBe('approved');
+    const pub = await call(ctrl.publishShifts, {
+      ...asManager(MANAGER),
+      body: { from: '2026-11-17', to: '2026-11-17' },
+    });
+    expect(pub.res.statusCode).toBe(409);
+    expect(pub.res.body.violations.map((v) => v.code)).toContain('time_off_overlap');
+    const { rows } = await db.query(
+      'SELECT published_at FROM business_staff_shifts WHERE id = $1',
+      [draft.res.body.id]
+    );
+    expect(rows[0].published_at).toBeNull();
+  });
+
+  test('publish evaluates each location under its own jurisdiction rules (finding 30)', async () => {
+    const { rows: [rest] } = await db.query(
+      `INSERT INTO food_restaurants (business_id, owner_user_id, display_name)
+       VALUES ($1, $2, 'Publish Rules Grill') RETURNING id`,
+      [bizId, OWNER]
+    );
+    const { rows: [locA] } = await db.query(
+      `INSERT INTO restaurant_locations (restaurant_id, name, timezone) VALUES ($1, 'CA Store', 'America/Los_Angeles') RETURNING id`,
+      [rest.id]
+    );
+    const { rows: [locB] } = await db.query(
+      `INSERT INTO restaurant_locations (restaurant_id, name, timezone) VALUES ($1, 'FED Store', 'America/New_York') RETURNING id`,
+      [rest.id]
+    );
+    await db.query(
+      `INSERT INTO restaurant_labor_jurisdictions (restaurant_id, location_id, jurisdiction_code)
+       VALUES ($1, $2, 'US-CA'), ($1, $3, 'US-FED')`,
+      [rest.id, locA.id, locB.id]
+    );
+    // Two 10h shifts for the same adult on different days/stores.
+    // California prices 8h daily overtime (advisory at publish);
+    // US-FED has no daily threshold, so the second day warns nothing.
+    for (const [loc, date] of [[locA, '2026-11-09'], [locB, '2026-11-10']]) {
+      await db.query(
+        `INSERT INTO business_staff_shifts (business_id, user_id, shift_date, start_time, end_time, role_label, location_id, restaurant_id)
+         VALUES ($1, $2, $3, '09:00', '19:00', 'Server', $4, $5)`,
+        [bizId, EMPLOYEE, date, loc.id, rest.id]
+      );
+    }
+    const pub = await call(ctrl.publishShifts, {
+      ...asManager(MANAGER),
+      body: { from: '2026-11-09', to: '2026-11-10', restaurant_id: rest.id },
+    });
+    expect(pub.error).toBeNull();
+    expect(pub.res.statusCode).toBe(200);
+    expect(pub.res.body.published).toBe(2);
+    // The 10h day clears the 12h double-time threshold under CA rules
+    // (the advisory count sees the just-published shift twice, once as
+    // context and once as the publish, a pre-existing duplication in
+    // the advisory evaluation, so 20h is reported). Exactly one
+    // double-time warning, for the California day: the old code ran
+    // the whole batch under the first shift's (CA) rules and warned
+    // for both days; per-location evaluation warns only for the CA day.
+    const dailyDt = (pub.res.body.rule_warnings || []).filter((w) => w.rule === 'daily_doubletime');
+    expect(dailyDt).toHaveLength(1);
+    expect(dailyDt[0].message).toContain('2026-11-09');
+  });
 });

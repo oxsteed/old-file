@@ -375,13 +375,23 @@ export function StaffScheduler({ businessId, isManager = false }) {
   // S-20: the response carries native jurisdiction warnings; they are
   // shown below the publish button until dismissed.
   const [ruleWarnings, setRuleWarnings] = useState([]);
+  // Finding 51: a publish blocked by a conflict names the blocking
+  // violation(s) inline, so the manager can fix the shift and retry.
+  const [publishViolations, setPublishViolations] = useState([]);
   const publishDrafts = async () => {
     try {
       const res = await api.post(`/businesses/${businessId}/staff/shifts/publish`, {});
       toast.success(t('businessHub.staffScheduler.toastPublished', { count: res.data?.published ?? 0 }));
       setRuleWarnings(res.data?.rule_warnings || []);
+      setPublishViolations([]);
       loadShifts();
-    } catch { toast.error(t('businessHub.staffScheduler.toastPublishFail')); }
+    } catch (err) {
+      if (err?.response?.status === 409 && Array.isArray(err.response.data?.violations)) {
+        setPublishViolations(err.response.data.violations);
+        return;
+      }
+      toast.error(t('businessHub.staffScheduler.toastPublishFail'));
+    }
   };
 
   const clockIn = async () => {
@@ -494,6 +504,25 @@ export function StaffScheduler({ businessId, isManager = false }) {
           <ul style={{ margin: 0, paddingInlineStart: '1.25rem', fontSize: '0.8125rem' }}>
             {ruleWarnings.map((w, i) => (
               <li key={i}>{w.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Finding 51: the publish was blocked by a conflict. The
+          blocking violation(s) stay on screen until fixed; nothing
+          was published. */}
+      {publishViolations.length > 0 && (
+        <div role="alert" className="staff-sched-error-banner">
+          <div className="staff-sched-banner-head">
+            <strong className="staff-sched-text-sm">{t('businessHub.staffScheduler.validation.title')}</strong>
+            <button type="button" onClick={() => setPublishViolations([])} className="staff-sched-dismiss-btn" aria-label={t('common.dismiss')}>
+              ✕
+            </button>
+          </div>
+          <ul className="staff-sched-error-list">
+            {publishViolations.map((v, i) => (
+              <li key={i}>{violationText(v)}</li>
             ))}
           </ul>
         </div>

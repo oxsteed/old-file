@@ -1729,13 +1729,56 @@ exports.publishShifts = async (req, res, next) => {
          AND co.employer_model = 'oxsteed_eor'
          AND NOT EXISTS (SELECT 1 FROM career_eor_assignments ea
                           WHERE ea.application_id = cr.application_id AND ea.status IN ('ready','active')))`;
-    params.push(req.user.id);
+    // Findings 51 + 30: blocking validation runs BEFORE anything is
+    // published, over the exact drafts this publish would flip. Each
+    // draft is validated with its own location's rules (validateShift
+    // resolves the jurisdiction per location), so a multi-location
+    // batch is never judged under one store's rules. Any blocking
+    // violation 409s the whole publish, naming the violation(s), and
+    // nothing is published; advisory warnings never block. The publish
+    // then flips exactly the validated ids, so a draft created
+    // concurrently after validation is not swept in unvalidated.
+    const { rows: drafts } = await pool.query(
+      `SELECT id, user_id, shift_date, start_time, end_time, role_label, location_id, restaurant_id
+         FROM business_staff_shifts
+        WHERE ${where}
+        ORDER BY shift_date, start_time`,
+      params
+    );
+    const blockingViolations = [];
+    const publishWarnings = [];
+    for (const draft of drafts) {
+      const dateStr = draft.shift_date instanceof Date
+        ? draft.shift_date.toISOString().slice(0, 10)
+        : String(draft.shift_date).slice(0, 10);
+      const validation = await validateShift(pool, {
+        businessId,
+        userId: draft.user_id,
+        shiftDate: dateStr,
+        startTime: String(draft.start_time).slice(0, 5),
+        endTime: String(draft.end_time).slice(0, 5),
+        excludeShiftId: draft.id,
+        locationId: draft.location_id ?? null,
+        restaurantId: draft.restaurant_id ?? null,
+      });
+      blockingViolations.push(...validation.violations);
+      publishWarnings.push(...validation.warnings);
+    }
+    if (blockingViolations.length) {
+      return res.status(409).json({
+        error: 'shift_conflicts',
+        code: 'shift_conflicts',
+        violations: blockingViolations,
+        warnings: publishWarnings,
+      });
+    }
+    const draftIds = drafts.map((d) => Number(d.id));
     const { rows: published } = await pool.query(
       `UPDATE business_staff_shifts
-          SET published_at = NOW(), published_by = $${params.length}
-        WHERE ${where}
+          SET published_at = NOW(), published_by = $2
+        WHERE id = ANY($1::bigint[]) AND published_at IS NULL
         RETURNING id, user_id, shift_date, start_time, end_time, role_label, location_id, restaurant_id`,
-      params
+      [draftIds, req.user.id]
     );
 
     // One summary notification per assigned staff member (S-17). The
@@ -1781,12 +1824,13 @@ exports.publishShifts = async (req, res, next) => {
 
     // S-20: native jurisdiction rules are evaluated on every publish and
     // the batch is kept as an immutable version row (evidence). Advisory
-    // only: warnings never block the publish.
+    // only: warnings never block the publish (the blocking check above
+    // already ran). Finding 30: the batch is evaluated per location,
+    // grouped by location_id, each group under its own store's rules.
     let ruleWarnings = [];
     try {
       const pubRestaurantId = Number(restaurant_id) || null;
       const pubLocationId = published.find((s) => s.location_id)?.location_id || null;
-      const rules = await laborJurisdiction.getJurisdiction(pool, pubRestaurantId, pubLocationId);
       const toDateStr = (d) => {
         if (!d) return null;
         if (d instanceof Date) return d.toISOString().slice(0, 10);
@@ -1815,10 +1859,53 @@ exports.publishShifts = async (req, res, next) => {
         return {
           id: s.id, user_id: s.user_id, shift_date: date,
           start_time: s.start_time, end_time: s.end_time,
+          location_id: s.location_id ?? null, restaurant_id: s.restaurant_id ?? null,
           ...(m && date < m.until ? { is_minor: true, minor_band: m.band } : {}),
         };
       });
-      ruleWarnings = laborJurisdiction.evaluateSchedule(evaluated, { rules, existingShifts });
+      // Per-location rules, resolved in bulk per restaurant; a shift
+      // with no location falls back to the US-FED preset, as before.
+      // The same published-shifts context is passed to every group:
+      // weekly totals are per person across locations, not per store.
+      const locationIds = [...new Set(
+        published.map((s) => s.location_id).filter((id) => id != null)
+      )].map(Number);
+      const rulesByLocation = new Map();
+      if (locationIds.length) {
+        const { rows: locRows } = await pool.query(
+          'SELECT id, restaurant_id FROM restaurant_locations WHERE id = ANY($1::bigint[])',
+          [locationIds]
+        );
+        const byRestaurant = new Map();
+        for (const loc of locRows) {
+          const list = byRestaurant.get(Number(loc.restaurant_id)) || [];
+          list.push(Number(loc.id));
+          byRestaurant.set(Number(loc.restaurant_id), list);
+        }
+        for (const [restId, ids] of byRestaurant) {
+          const rulesMap = await laborJurisdiction.getJurisdictions(pool, restId, ids);
+          for (const [locId, rules] of rulesMap) rulesByLocation.set(locId, rules);
+        }
+      }
+      const groups = new Map();
+      for (const shift of evaluated) {
+        const locId = shift.location_id == null ? null : Number(shift.location_id);
+        const key = locId == null ? 'none' : locId;
+        let group = groups.get(key);
+        if (!group) {
+          group = {
+            rules: locId == null
+              ? laborJurisdiction.resolveRules(null)
+              : (rulesByLocation.get(locId) || laborJurisdiction.resolveRules(null)),
+            shifts: [],
+          };
+          groups.set(key, group);
+        }
+        group.shifts.push(shift);
+      }
+      for (const group of groups.values()) {
+        ruleWarnings.push(...laborJurisdiction.evaluateSchedule(group.shifts, { rules: group.rules, existingShifts }));
+      }
       await pool.query(
         `INSERT INTO restaurant_schedule_versions
            (business_id, restaurant_id, location_id, published_by,
