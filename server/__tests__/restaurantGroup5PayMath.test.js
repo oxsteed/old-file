@@ -31,6 +31,84 @@ const entry = (userId, date, hours, breaks = noBreaks, locationId = 1) => ({
   clock_in_at: `${date}T09:00:00Z`, clock_out_at: `${date}T20:00:00Z`,
 });
 
+describe('Finding 17: overnight hours split across local dates at midnight', () => {
+  const ny = () => 'America/New_York';
+  // 2026-11-02 is a Monday; EST (-05:00) applies after the Nov 1
+  // DST change. The overnight entries below are single punches whose
+  // clock-out is the next local morning.
+  const overnight = (userId, date, clockIn, clockOut, hours, breaks = noBreaks, locationId = 1) => ({
+    user_id: userId, entry_date: date, hours_worked: hours, breaks, location_id: locationId,
+    clock_in_at: clockIn, clock_out_at: clockOut,
+  });
+
+  test('a 12-hour overnight CA shift tiers as two 6-hour days, not 8 regular + 4 OT', () => {
+    const rows = [overnight('u1', '2026-11-02', '2026-11-02T18:00:00-05:00', '2026-11-03T06:00:00-05:00', 12)];
+    const { byUser, allocations } = payroll.tierRows(rows, POLICY_40, CA, { timezoneFor: ny });
+    const result = byUser.get('u1');
+    expect(result.totalHours).toBe(12);
+    expect(result.regularHours).toBe(12);
+    expect(result.overtimeHours).toBe(0);
+    expect(result.doubletimeHours).toBe(0);
+    // Old code bucketed all 12h on the clock-in date: 8 + 4 OT.
+    expect(allocations).toHaveLength(2);
+    expect(allocations[0]).toMatchObject({ entry_date: '2026-11-02', regular: 6, overtime: 0 });
+    expect(allocations[1]).toMatchObject({ entry_date: '2026-11-03', regular: 6, overtime: 0 });
+  });
+
+  test('a 13-hour overnight CA shift tiers as 6 + 7 regular hours, with no double time', () => {
+    const rows = [overnight('u1', '2026-11-02', '2026-11-02T18:00:00-05:00', '2026-11-03T07:00:00-05:00', 13)];
+    const result = payroll.calculatePolicyHours(rows, POLICY_40, CA, { timezoneFor: ny }).get('u1');
+    expect(result.totalHours).toBe(13);
+    expect(result.regularHours).toBe(13);
+    expect(result.overtimeHours).toBe(0);
+    expect(result.doubletimeHours).toBe(0);
+  });
+
+  test('spring-forward night: 22:00 EST to 06:00 EDT is 7 elapsed hours, 2 + 5 across midnight', () => {
+    // 2026-03-07 22:00 EST (-05:00) to 2026-03-08 06:00 EDT (-04:00):
+    // 7 elapsed hours, not 8. The split follows the local dates.
+    const rows = [overnight('u1', '2026-03-07', '2026-03-07T22:00:00-05:00', '2026-03-08T06:00:00-04:00', 7)];
+    const { byUser, allocations } = payroll.tierRows(rows, POLICY_40, L.resolveRules(null), { timezoneFor: ny });
+    expect(byUser.get('u1').totalHours).toBe(7);
+    expect(allocations).toHaveLength(2);
+    expect(allocations[0]).toMatchObject({ entry_date: '2026-03-07', regular: 2 });
+    expect(allocations[1]).toMatchObject({ entry_date: '2026-03-08', regular: 5 });
+  });
+
+  test('a break spanning midnight is subtracted where it falls', () => {
+    // 22:00-06:00 (8h gross) with a 30-minute break 23:30-00:00:
+    // 1.5 net hours on the first date, 6 on the second.
+    const breaks = [{ started_at: '2026-11-02T23:30:00-05:00', ended_at: '2026-11-03T00:00:00-05:00' }];
+    const rows = [overnight('u1', '2026-11-02', '2026-11-02T22:00:00-05:00', '2026-11-03T06:00:00-05:00', 7.5, breaks)];
+    const { byUser, allocations } = payroll.tierRows(rows, POLICY_40, L.resolveRules(null), { timezoneFor: ny });
+    expect(byUser.get('u1').totalHours).toBe(7.5);
+    expect(allocations).toHaveLength(2);
+    expect(allocations[0]).toMatchObject({ entry_date: '2026-11-02', regular: 1.5 });
+    expect(allocations[1]).toMatchObject({ entry_date: '2026-11-03', regular: 6 });
+  });
+
+  test('a row without clock times stays whole on its entry date', () => {
+    const rows = [{ user_id: 'u1', entry_date: '2026-11-02', hours_worked: 12, breaks: noBreaks, location_id: 1 }];
+    const result = payroll.calculatePolicyHours(rows, POLICY_40, CA, { timezoneFor: ny }).get('u1');
+    expect(result.totalHours).toBe(12);
+    expect(result.regularHours).toBe(8);
+    expect(result.overtimeHours).toBe(4);
+  });
+
+  test('the split follows the location timezone, not UTC', () => {
+    // 22:00-06:00 UTC is one local date in Los Angeles (14:00-22:00)
+    // but two in UTC: the same punch tiers differently by zone.
+    const rows = [overnight('u1', '2026-11-02', '2026-11-02T22:00:00Z', '2026-11-03T06:00:00Z', 8)];
+    const la = payroll.tierRows(rows, POLICY_40, CA, { timezoneFor: () => 'America/Los_Angeles' });
+    expect(la.allocations).toHaveLength(1);
+    expect(la.allocations[0]).toMatchObject({ entry_date: '2026-11-02', regular: 8 });
+    const utc = payroll.tierRows(rows, POLICY_40, CA, { timezoneFor: () => 'UTC' });
+    expect(utc.allocations).toHaveLength(2);
+    expect(utc.allocations[0]).toMatchObject({ entry_date: '2026-11-02', regular: 2 });
+    expect(utc.allocations[1]).toMatchObject({ entry_date: '2026-11-03', regular: 6 });
+  });
+});
+
 describe('Finding 47: the double-time multiplier is a policy parameter', () => {
   test('normalizeLaborPolicy defaults double time to 2x', () => {
     const policy = payroll.normalizeLaborPolicy(null);

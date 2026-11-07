@@ -41,6 +41,7 @@ const { csvCell } = require('../utils/csv');
 // come from the location's jurisdiction row, never from a hardcoded
 // country branch. California is one row in that table, not the logic.
 const laborJurisdiction = require('./laborJurisdictionRules');
+const punchHours = require('./restaurantPunchHours');
 const { minorUnitDecimals } = require('../utils/currencyPrecision');
 // Phase 7 (gap 17): break attestations surface in the labor and
 // exceptions reports. The attestation never changes the premium math
@@ -584,7 +585,7 @@ async function saveLaborPolicy(restaurantId, policy, updatedBy, locationId = nul
 // from here, never from a hardcoded country branch. When locationIds
 // is null the context covers every location of the restaurant.
 async function getLocationPayContext(restaurantId, locationIds = null) {
-  const [policyRows, jurisdictionMap, locationRows] = await Promise.all([
+  const [policyRows, jurisdictionMap, locationRows, restaurantRow] = await Promise.all([
     pool.query(
       `SELECT restaurant_id, location_id, country_code, region_code,
               overtime_threshold_hours, overtime_multiplier_bps, doubletime_multiplier_bps,
@@ -598,6 +599,10 @@ async function getLocationPayContext(restaurantId, locationIds = null) {
          FROM restaurant_locations WHERE restaurant_id = $1 AND status <> 'archived'`,
       [restaurantId]
     ).then(({ rows }) => rows),
+    pool.query(
+      'SELECT timezone FROM food_restaurants WHERE id = $1',
+      [restaurantId]
+    ).then(({ rows }) => rows[0] || null),
   ]);
   const policiesByLocation = new Map();
   for (const row of policyRows) {
@@ -612,7 +617,9 @@ async function getLocationPayContext(restaurantId, locationIds = null) {
       timezone: row.timezone || null,
     });
   }
-  return { policiesByLocation, jurisdictionsByLocation: jurisdictionMap, locationsById };
+  // The restaurant timezone is the fallback for the overnight split
+  // when a location carries none of its own.
+  return { policiesByLocation, jurisdictionsByLocation: jurisdictionMap, locationsById, timezone: restaurantRow?.timezone || null };
 }
 
 // ── Hours (actual + scheduled) ───────────────────────────────────────
@@ -668,7 +675,8 @@ async function getHoursByUser(businessId, fromDate, toDate, locationIds = null) 
 //      jurisdiction with no daily threshold (NULL) pays straight time
 //      for the whole day.
 //   2. 7th consecutive day: where the jurisdiction has the rule, the
-//      seventh consecutive worked day inside one Sunday-start workweek
+//      seventh consecutive worked day inside one workweek (the
+//      jurisdiction's workweek start, Sunday by default)
 //      pays the first daily-threshold hours at 1.5x and the rest at 2x,
 //      with no regular hours that day. (A streak is counted inside the
 //      workweek; a day off, or the week boundary, resets it.)
@@ -686,16 +694,44 @@ async function getHoursByUser(businessId, fromDate, toDate, locationIds = null) 
 // preset (weekly-only). Rows carry entry_date, hours_worked, breaks,
 // clock_in_at and location_id.
 //
+// `options.timezoneFor` is a function (locationId) => IANA timezone
+// for the midnight split below; `options.defaultTimezone` is the
+// fallback when a location has none (UTC). A row whose clock-in and
+// clock-out fall on different local dates is split at local midnight
+// before any tiering, so overnight hours tier on the day they were
+// actually worked (finding 17); rows without usable clock times stay
+// whole on their entry_date.
+//
+// The workweek start is the jurisdiction's (finding 32): each row's
+// week is computed from its own location's rules, defaulting to
+// Sunday. A week spanning locations with different starts groups by
+// each row's own week start.
+//
 // Returns { byUser, allocations }: byUser maps user_id to the summed
 // tiers; allocations is the per-row split (user, date, location,
 // regular/overtime/doubletime hours, missed-meal and premium hours),
 // which scoped (single-store) reports filter after the cross-store
 // weekly threshold has been applied to the full set.
-function tierRows(rows, policy, rulesResolver) {
+function tierRows(rows, policy, rulesResolver, options = {}) {
   const resolve = typeof rulesResolver === 'function'
     ? (locationId) => rulesResolver(locationId) || laborJurisdiction.resolveRules(null)
     : () => (rulesResolver || laborJurisdiction.resolveRules(null));
   const round2 = (n) => Math.round(n * 100) / 100;
+  const timezoneFor = typeof options.timezoneFor === 'function' ? options.timezoneFor : null;
+  const defaultTimezone = options.defaultTimezone || 'UTC';
+  const timezoneOf = (locationId) => {
+    const tz = timezoneFor ? timezoneFor(locationId) : null;
+    return tz || defaultTimezone;
+  };
+  // Fail closed on a CUSTOM jurisdiction that leaves overtime
+  // parameters NULL (finding 48): the run must not silently pay
+  // straight time. Checked once per distinct rules object.
+  const payableChecked = new Set();
+  const assertPayable = (rules) => {
+    if (!rules || payableChecked.has(rules)) return;
+    payableChecked.add(rules);
+    laborJurisdiction.assertPayableRules(rules);
+  };
 
   const rowsByUser = new Map();
   for (const row of rows || []) {
@@ -720,17 +756,42 @@ function tierRows(rows, policy, rulesResolver) {
     const entryDate = (row) => row.entry_date instanceof Date
       ? row.entry_date.toISOString().slice(0, 10)
       : String(row.entry_date).slice(0, 10);
-    const weekStartOf = (dateStr) => {
-      const date = new Date(`${dateStr}T12:00:00Z`);
-      date.setUTCDate(date.getUTCDate() - date.getUTCDay());
-      return date.toISOString().slice(0, 10);
-    };
+    const weekStartOf = (dateStr, locationId) => laborJurisdiction.weekStartOf(
+      dateStr, laborJurisdiction.workweekStartDay(resolve(locationId == null ? null : Number(locationId)))
+    );
+    // Overnight rows split at local midnight before any tiering, so
+    // the hours land on the local dates they were worked. Each piece
+    // keeps the original row's location and user and carries the
+    // breaks that start on its date, whole, for the meal-break test.
+    const pieces = [];
+    for (const row of sorted) {
+      assertPayable(resolve(row.location_id == null ? null : Number(row.location_id)));
+      const splits = punchHours.splitAcrossLocalDates({
+        clockInAt: row.clock_in_at,
+        clockOutAt: row.clock_out_at,
+        hoursWorked: row.hours_worked,
+        breaks: row.breaks,
+        timezone: timezoneOf(row.location_id == null ? null : Number(row.location_id)),
+        entryDate: entryDate(row),
+      });
+      for (const piece of splits) {
+        pieces.push({
+          ...row,
+          entry_date: piece.date,
+          hours_worked: piece.hours,
+          breaks: piece.breaks,
+          clock_in_at: piece.startMs != null ? new Date(piece.startMs).toISOString() : row.clock_in_at,
+          clock_out_at: piece.endMs != null ? new Date(piece.endMs).toISOString() : row.clock_out_at,
+        });
+      }
+    }
+    const sortedPieces = pieces;
 
-    // Consecutive-day streaks, counted inside each Sunday-start week.
+    // Consecutive-day streaks, counted inside each workweek.
     const streakByDate = new Map();
     const datesByWeek = new Map();
-    for (const row of sorted) {
-      const week = weekStartOf(entryDate(row));
+    for (const row of sortedPieces) {
+      const week = weekStartOf(entryDate(row), row.location_id == null ? null : Number(row.location_id));
       const set = datesByWeek.get(week) || new Set();
       set.add(entryDate(row));
       datesByWeek.set(week, set);
@@ -756,7 +817,7 @@ function tierRows(rows, policy, rulesResolver) {
     // lowest double-time threshold, and seventh-day overtime if any
     // location in the day has it.
     const dayGroups = new Map();
-    for (const row of sorted) {
+    for (const row of sortedPieces) {
       const key = entryDate(row);
       const group = dayGroups.get(key) || { date: entryDate(row), rows: [], total: 0 };
       group.rows.push(row);
@@ -812,15 +873,15 @@ function tierRows(rows, policy, rulesResolver) {
     // the last regular hours in the week are the overtime ones (the
     // threshold is crossed at the end of the week, not the start).
     const weeks = new Map();
-    for (const row of sorted) {
-      const week = weekStartOf(entryDate(row));
+    for (const row of sortedPieces) {
+      const week = weekStartOf(entryDate(row), row.location_id == null ? null : Number(row.location_id));
       const split = rowSplit.get(row);
       weeks.set(week, (weeks.get(week) || 0)
         + (split.regular + split.overtime + split.doubletime));
     }
     const weeklyRegular = new Map();
-    for (const row of sorted) {
-      const week = weekStartOf(entryDate(row));
+    for (const row of sortedPieces) {
+      const week = weekStartOf(entryDate(row), row.location_id == null ? null : Number(row.location_id));
       weeklyRegular.set(week, (weeklyRegular.get(week) || 0) + (rowSplit.get(row)?.regular || 0));
     }
     const weeklyExcess = new Map();
@@ -836,8 +897,8 @@ function tierRows(rows, policy, rulesResolver) {
     const policyThreshold = Number(policy.overtime_threshold_hours);
     const policyExplicit = policy.overtime_threshold_explicit !== false;
     const jurisdictionWeekly = new Map();
-    for (const row of sorted) {
-      const week = weekStartOf(entryDate(row));
+    for (const row of sortedPieces) {
+      const week = weekStartOf(entryDate(row), row.location_id == null ? null : Number(row.location_id));
       const rules = resolve(row.location_id == null ? null : Number(row.location_id));
       const weekly = rules.weekly_overtime_hours == null ? null : Number(rules.weekly_overtime_hours);
       if (weekly == null) continue;
@@ -853,8 +914,8 @@ function tierRows(rows, policy, rulesResolver) {
           : jurisdictionThreshold;
       weeklyExcess.set(week, Math.max(0, regularTotal - effectiveThreshold));
     }
-    for (const row of [...sorted].reverse()) {
-      const week = weekStartOf(entryDate(row));
+    for (const row of [...sortedPieces].reverse()) {
+      const week = weekStartOf(entryDate(row), row.location_id == null ? null : Number(row.location_id));
       let excess = weeklyExcess.get(week) || 0;
       if (excess > 0) {
         const split = rowSplit.get(row);
@@ -871,7 +932,7 @@ function tierRows(rows, policy, rulesResolver) {
       totalHours: 0, regularHours: 0, overtimeHours: 0, doubletimeHours: 0,
       breakExceptions: 0, missedMealBreaks: 0, mealBreakPremiumHours: 0, weeks,
     };
-    for (const row of sorted) {
+    for (const row of sortedPieces) {
       const rules = resolve(row.location_id == null ? null : Number(row.location_id));
       const hours = Math.max(0, Number(row.hours_worked) || 0);
       const split = rowSplit.get(row);
@@ -928,8 +989,8 @@ function tierRows(rows, policy, rulesResolver) {
 // deterministic across DST boundaries. Kept backward compatible: with
 // no rules resolver the US-FED preset applies (weekly-only), so the
 // old weekly-threshold behavior is unchanged.
-function calculatePolicyHours(rows, policy, rulesResolver = null) {
-  return tierRows(rows, policy, rulesResolver).byUser;
+function calculatePolicyHours(rows, policy, rulesResolver = null, options = {}) {
+  return tierRows(rows, policy, rulesResolver, options).byUser;
 }
 
 // Attribute overtime after applying the person's full weekly threshold across
@@ -937,8 +998,8 @@ function calculatePolicyHours(rows, policy, rulesResolver = null) {
 // Daily/double-time tiers are per person per day across locations, so
 // they attribute by row; the weekly threshold is applied to the full
 // cross-store set first, then the in-scope rows are summed.
-function scopedPolicyHours(rows, policy, locationIds, fromDate, toDate, rulesResolver = null) {
-  const { allocations } = tierRows(rows, policy, rulesResolver);
+function scopedPolicyHours(rows, policy, locationIds, fromDate, toDate, rulesResolver = null, options = {}) {
+  const { allocations } = tierRows(rows, policy, rulesResolver, options);
   const result = new Map();
   for (const alloc of allocations) {
     if (!locationIds.includes(Number(alloc.location_id)) || alloc.entry_date < fromDate || alloc.entry_date > toDate) continue;
@@ -982,6 +1043,13 @@ async function getPolicyHoursByUser(businessId, fromDate, toDate, policy, locati
     }
     return laborJurisdiction.resolveRules(null);
   };
+  // Overnight hours split at the location's local midnight: the
+  // location's own timezone wins, then the restaurant's, then UTC.
+  const timezoneFor = (locationId) => {
+    const loc = payContext?.locationsById?.get(Number(locationId));
+    return loc?.timezone || payContext?.timezone || 'UTC';
+  };
+  const tierOptions = { timezoneFor, defaultTimezone: payContext?.timezone || 'UTC' };
   // Single-store scope prices the week under that store's own policy;
   // a multi-store or brand-wide view prices it under the restaurant
   // fallback policy (the cross-store weekly threshold is one number).
@@ -991,8 +1059,8 @@ async function getPolicyHoursByUser(businessId, fromDate, toDate, policy, locati
     effectivePolicy = payContext.policiesByLocation.get(Number(locationIds[0]));
   }
   return locationIds === null
-    ? calculatePolicyHours(rows, effectivePolicy, rulesResolver)
-    : scopedPolicyHours(rows, effectivePolicy, locationIds, fromDate, toDate, rulesResolver);
+    ? calculatePolicyHours(rows, effectivePolicy, rulesResolver, tierOptions)
+    : scopedPolicyHours(rows, effectivePolicy, locationIds, fromDate, toDate, rulesResolver, tierOptions);
 }
 
 // ── Predictability premiums ──────────────────────────────────────────
