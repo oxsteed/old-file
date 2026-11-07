@@ -461,6 +461,10 @@ router.post('/:restaurantId/pay-runs/:payRunId/payout-links', requireRestaurantA
 // needs the same second approver as an export or payout link.
 router.get('/:restaurantId/pay-runs/:payRunId/disbursements', requireRestaurantAccess(), payrollReports.listPayRunDisbursements);
 router.post('/:restaurantId/pay-runs/:payRunId/disbursements', requireRestaurantAccess(), payrollReports.recordPayRunDisbursement);
+// Finding 9: void/reverse a wrongly recorded disbursement. Same
+// access + permission checks as recording; the controller adds the
+// second-approver and maker-checker gates.
+router.post('/:restaurantId/pay-runs/:payRunId/disbursements/:disbursementId/void', requireRestaurantAccess(), payrollReports.voidPayRunDisbursement);
 router.delete('/:restaurantId/inventory/mappings/:mappingId', requireRestaurantAccess(), inventory.deleteMapping);
 router.post('/:restaurantId/inventory/mappings/bootstrap-defaults', requireRestaurantAccess(), inventory.bootstrapMappings);
 router.get('/:restaurantId/inventory/purchase-requests', requireRestaurantAccess(), inventory.listPurchaseRequests);

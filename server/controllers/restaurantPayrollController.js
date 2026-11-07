@@ -652,8 +652,12 @@ async function getPayRunWithLines(clientOrPool, restaurantId, payRunId) {
   const runTotalCents = (run.totals && typeof run.totals === 'object')
     ? Math.round(Number(run.totals.total_pay_cents || 0))
     : (lines || []).reduce((sum, line) => sum + (Number(line.total_pay_cents) || 0), 0);
-  const disbursedCents = disbursements.reduce((sum, d) => sum + (Number(d.amount_cents) || 0), 0);
-  const coveredLineIds = new Set(disbursements.map((d) => Number(d.pay_run_line_id)));
+  // Finding 9: a voided (reversed) disbursement stays visible in the
+  // ledger but no longer counts toward coverage — its line is unpaid
+  // again until a new disbursement is recorded for it.
+  const recordedDisbursements = disbursements.filter((d) => d.status !== 'voided');
+  const disbursedCents = recordedDisbursements.reduce((sum, d) => sum + (Number(d.amount_cents) || 0), 0);
+  const coveredLineIds = new Set(recordedDisbursements.map((d) => Number(d.pay_run_line_id)));
   const disbursementCoverage = {
     run_total_cents: runTotalCents,
     disbursed_cents: disbursedCents,
@@ -713,6 +717,12 @@ function payRunShape(run) {
       note: d.note || null,
       recordedBy: d.recorded_by || d.recordedBy || null,
       recordedAt: d.recorded_at || d.recordedAt || null,
+      // Finding 9: a reversed disbursement stays in the ledger as
+      // reversed, never deleted.
+      status: d.status || 'recorded',
+      voidedBy: d.voided_by || d.voidedBy || null,
+      voidedAt: d.voided_at || d.voidedAt || null,
+      voidReason: d.void_reason || d.voidReason || null,
     })),
     disbursementCoverage: run.disbursement_coverage || run.disbursementCoverage || null,
     lines: (run.lines || []).map((line) => ({
@@ -952,6 +962,75 @@ exports.finalizePayRun = async (req, res, next) => {
           { count: unpricedLines.length }
         );
       }
+      // Finding 15: finalize also fails closed on work still in
+      // flight in the run period. A system-closed punch, a pending
+      // punch correction, or a pending cash-tip declaration means
+      // the period's pay basis is not settled yet; the manager
+      // clears the named item and finalizes again. No silent
+      // override, and the error names exactly what is pending.
+      const periodFrom = existing.period_from instanceof Date
+        ? existing.period_from.toISOString().slice(0, 10)
+        : String(existing.period_from).slice(0, 10);
+      const periodTo = existing.period_to instanceof Date
+        ? existing.period_to.toISOString().slice(0, 10)
+        : String(existing.period_to).slice(0, 10);
+      const runLocationIds = Array.isArray(existing.location_ids)
+        ? existing.location_ids.map((id) => Number(id))
+        : [];
+      const scoped = runLocationIds.length > 0;
+      const { rows: [systemClosedRow] } = await client.query(
+        `SELECT COUNT(*)::int AS n FROM business_time_entries
+          WHERE business_id = $1 AND entry_date >= $2 AND entry_date <= $3
+            AND system_closed_at IS NOT NULL AND voided_at IS NULL
+            ${scoped ? 'AND (location_id IS NULL OR location_id = ANY($4::bigint[]))' : ''}`,
+        scoped
+          ? [restaurant.business_id, periodFrom, periodTo, runLocationIds]
+          : [restaurant.business_id, periodFrom, periodTo]
+      );
+      if (Number(systemClosedRow?.n || 0) > 0) {
+        throw new AppError(
+          'Some punches in this period were closed by the system and still need review; review them before finalizing',
+          409,
+          'pay_run_finalize_system_closed_entries',
+          { count: Number(systemClosedRow.n) }
+        );
+      }
+      const { rows: [pendingCorrectionRow] } = await client.query(
+        `SELECT COUNT(*)::int AS n
+           FROM business_time_entry_corrections c
+           JOIN business_time_entries e ON e.id = c.entry_id
+          WHERE c.business_id = $1 AND c.status = 'pending'
+            AND e.entry_date >= $2 AND e.entry_date <= $3 AND e.voided_at IS NULL
+            ${scoped ? 'AND (e.location_id IS NULL OR e.location_id = ANY($4::bigint[]))' : ''}`,
+        scoped
+          ? [restaurant.business_id, periodFrom, periodTo, runLocationIds]
+          : [restaurant.business_id, periodFrom, periodTo]
+      );
+      if (Number(pendingCorrectionRow?.n || 0) > 0) {
+        throw new AppError(
+          'Some punch corrections in this period are still pending; decide them before finalizing',
+          409,
+          'pay_run_finalize_pending_corrections',
+          { count: Number(pendingCorrectionRow.n) }
+        );
+      }
+      const { rows: [pendingTipRow] } = await client.query(
+        `SELECT COUNT(*)::int AS n FROM restaurant_declared_cash_tips
+          WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3
+            AND status = 'pending'
+            ${scoped ? 'AND (location_id IS NULL OR location_id = ANY($4::bigint[]))' : ''}`,
+        scoped
+          ? [restaurant.id, periodFrom, periodTo, runLocationIds]
+          : [restaurant.id, periodFrom, periodTo]
+      );
+      if (Number(pendingTipRow?.n || 0) > 0) {
+        throw new AppError(
+          'Some cash-tip declarations in this period are still pending review; confirm or reject them before finalizing',
+          409,
+          'pay_run_finalize_pending_cash_tips',
+          { count: Number(pendingTipRow.n) }
+        );
+      }
       const sum = (pick) => lines.reduce((total, line) => total + (Number(pick(line)) || 0), 0);
       const totals = {
         // Phase 8 Track B: the run's own currency snapshot prices the
@@ -1079,10 +1158,33 @@ exports.voidPayRun = async (req, res, next) => {
       [payRunId, restaurant.id, 'paid']
     );
     if (paidRow) throw new AppError('A paid pay run cannot be voided', 409, 'pay_run_paid');
+    // Finding 40: a member run of a live (finalized or approved)
+    // consolidation cannot be voided away underneath it — the
+    // consolidation snapshot would go stale. Void the consolidation
+    // first (which dissolves the group without touching the runs),
+    // then void the run. Draft consolidations do not block: their
+    // finalize re-verifies members are still finalized.
+    const { rows: [liveConsolidation] } = await pool.query(
+      `SELECT c.id FROM restaurant_pay_run_consolidation_members m
+         JOIN restaurant_pay_run_consolidations c ON c.id = m.consolidation_id
+        WHERE m.pay_run_id = $1 AND c.status IN ('finalized', 'approved')`,
+      [payRunId]
+    );
+    if (liveConsolidation) {
+      throw new AppError(
+        `This pay run belongs to live consolidation ${liveConsolidation.id}; void the consolidation first`,
+        409,
+        'pay_run_in_live_consolidation',
+        { consolidation_id: Number(liveConsolidation.id) }
+      );
+    }
     // Phase 5: money already recorded as disbursed cannot be voided
     // away; the disbursement ledger is the record of what left.
+    // Finding 9: only live ('recorded') disbursements block — a
+    // reversed disbursement no longer holds the run hostage.
     const { rows: [disbursedRow] } = await pool.query(
-      'SELECT COUNT(*)::int AS n FROM restaurant_pay_run_disbursements WHERE pay_run_id = $1',
+      `SELECT COUNT(*)::int AS n FROM restaurant_pay_run_disbursements
+        WHERE pay_run_id = $1 AND status = 'recorded'`,
       [payRunId]
     );
     if (Number(disbursedRow?.n || 0) > 0) {
@@ -1425,8 +1527,11 @@ exports.recordPayRunDisbursement = async (req, res, next) => {
           { expected_cents: lineTotal, received_cents: amountCents }
         );
       }
+      // Finding 9: a voided disbursement frees its line for a
+      // corrected re-recording; only a live one is a duplicate.
       const { rows: [duplicate] } = await client.query(
-        'SELECT id FROM restaurant_pay_run_disbursements WHERE pay_run_line_id = $1',
+        `SELECT id FROM restaurant_pay_run_disbursements
+          WHERE pay_run_line_id = $1 AND status = 'recorded'`,
         [payRunLineId]
       );
       if (duplicate) {
@@ -1450,7 +1555,8 @@ exports.recordPayRunDisbursement = async (req, res, next) => {
         [payRunId]
       );
       const { rows: disbursements } = await client.query(
-        'SELECT pay_run_line_id, amount_cents FROM restaurant_pay_run_disbursements WHERE pay_run_id = $1',
+        `SELECT pay_run_line_id, amount_cents FROM restaurant_pay_run_disbursements
+          WHERE pay_run_id = $1 AND status = 'recorded'`,
         [payRunId]
       );
       const covered = new Set(disbursements.map((d) => Number(d.pay_run_line_id)));
@@ -1485,92 +1591,85 @@ exports.recordPayRunDisbursement = async (req, res, next) => {
     res.status(201).json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.run.id)) });
   } catch (err) { next(err); }
 };
-      // Finding 15: finalize also fails closed on work still in
-      // flight in the run period. A system-closed punch, a pending
-      // punch correction, or a pending cash-tip declaration means
-      // the period's pay basis is not settled yet; the manager
-      // clears the named item and finalizes again. No silent
-      // override, and the error names exactly what is pending.
-      const periodFrom = existing.period_from instanceof Date
-        ? existing.period_from.toISOString().slice(0, 10)
-        : String(existing.period_from).slice(0, 10);
-      const periodTo = existing.period_to instanceof Date
-        ? existing.period_to.toISOString().slice(0, 10)
-        : String(existing.period_to).slice(0, 10);
-      const runLocationIds = Array.isArray(existing.location_ids)
-        ? existing.location_ids.map((id) => Number(id))
-        : [];
-      const scoped = runLocationIds.length > 0;
-      const { rows: [systemClosedRow] } = await client.query(
-        `SELECT COUNT(*)::int AS n FROM business_time_entries
-          WHERE business_id = $1 AND entry_date >= $2 AND entry_date <= $3
-            AND system_closed_at IS NOT NULL AND voided_at IS NULL
-            ${scoped ? 'AND (location_id IS NULL OR location_id = ANY($4::bigint[]))' : ''}`,
-        scoped
-          ? [restaurant.business_id, periodFrom, periodTo, runLocationIds]
-          : [restaurant.business_id, periodFrom, periodTo]
-      );
-      if (Number(systemClosedRow?.n || 0) > 0) {
-        throw new AppError(
-          'Some punches in this period were closed by the system and still need review; review them before finalizing',
-          409,
-          'pay_run_finalize_system_closed_entries',
-          { count: Number(systemClosedRow.n) }
-        );
-      }
-      const { rows: [pendingCorrectionRow] } = await client.query(
-        `SELECT COUNT(*)::int AS n
-           FROM business_time_entry_corrections c
-           JOIN business_time_entries e ON e.id = c.entry_id
-          WHERE c.business_id = $1 AND c.status = 'pending'
-            AND e.entry_date >= $2 AND e.entry_date <= $3 AND e.voided_at IS NULL
-            ${scoped ? 'AND (e.location_id IS NULL OR e.location_id = ANY($4::bigint[]))' : ''}`,
-        scoped
-          ? [restaurant.business_id, periodFrom, periodTo, runLocationIds]
-          : [restaurant.business_id, periodFrom, periodTo]
-      );
-      if (Number(pendingCorrectionRow?.n || 0) > 0) {
-        throw new AppError(
-          'Some punch corrections in this period are still pending; decide them before finalizing',
-          409,
-          'pay_run_finalize_pending_corrections',
-          { count: Number(pendingCorrectionRow.n) }
-        );
-      }
-      const { rows: [pendingTipRow] } = await client.query(
-        `SELECT COUNT(*)::int AS n FROM restaurant_declared_cash_tips
-          WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3
-            AND status = 'pending'
-            ${scoped ? 'AND (location_id IS NULL OR location_id = ANY($4::bigint[]))' : ''}`,
-        scoped
-          ? [restaurant.id, periodFrom, periodTo, runLocationIds]
-          : [restaurant.id, periodFrom, periodTo]
-      );
-      if (Number(pendingTipRow?.n || 0) > 0) {
-        throw new AppError(
-          'Some cash-tip declarations in this period are still pending review; confirm or reject them before finalizing',
-          409,
-          'pay_run_finalize_pending_cash_tips',
-          { count: Number(pendingTipRow.n) }
-        );
-      }
-    // Finding 40: a member run of a live (finalized or approved)
-    // consolidation cannot be voided away underneath it — the
-    // consolidation snapshot would go stale. Void the consolidation
-    // first (which dissolves the group without touching the runs),
-    // then void the run. Draft consolidations do not block: their
-    // finalize re-verifies members are still finalized.
-    const { rows: [liveConsolidation] } = await pool.query(
-      `SELECT c.id FROM restaurant_pay_run_consolidation_members m
-         JOIN restaurant_pay_run_consolidations c ON c.id = m.consolidation_id
-        WHERE m.pay_run_id = $1 AND c.status IN ('finalized', 'approved')`,
-      [payRunId]
-    );
-    if (liveConsolidation) {
-      throw new AppError(
-        `This pay run belongs to live consolidation ${liveConsolidation.id}; void the consolidation first`,
-        409,
-        'pay_run_in_live_consolidation',
-        { consolidation_id: Number(liveConsolidation.id) }
-      );
+
+// Finding 9: a wrongly recorded disbursement used to block voiding
+// the run forever. Reversing it is an audit-visible correction, not
+// an edit: the row stays in the ledger with status 'voided', its line
+// reads unpaid again, and a paid run drops back to finalized so the
+// run can then be voided normally or re-disbursed correctly. Allowed
+// while the run is finalized or paid, under the same gates as
+// recording (payroll.manage + a second approver's approval), and the
+// user who recorded it cannot void it themselves.
+exports.voidPayRunDisbursement = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    await requirePayrollManage(restaurant, req.user.id);
+    const payRunId = parsePositiveInt(req.params.payRunId);
+    const disbursementId = parsePositiveInt(req.params.disbursementId);
+    if (!payRunId || !disbursementId) {
+      throw new AppError('Pay-run disbursement not found', 404, 'pay_run_disbursement_not_found');
     }
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 500) || null : null;
+    const run = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        'SELECT * FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
+        [payRunId, restaurant.id]
+      );
+      if (!existing) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+      if (existing.status !== 'finalized' && existing.status !== 'paid') {
+        throw new AppError('Only disbursements of a finalized pay run can be voided', 409, 'pay_run_not_finalized');
+      }
+      assertPayRunApprovedForRelease(existing);
+      const { rows: [disbursement] } = await client.query(
+        `SELECT * FROM restaurant_pay_run_disbursements
+          WHERE id = $1 AND pay_run_id = $2 FOR UPDATE`,
+        [disbursementId, payRunId]
+      );
+      if (!disbursement) throw new AppError('Pay-run disbursement not found', 404, 'pay_run_disbursement_not_found');
+      if (disbursement.status === 'voided') {
+        throw new AppError('This disbursement has already been voided', 409, 'pay_run_disbursement_already_voided');
+      }
+      if (disbursement.recorded_by && String(disbursement.recorded_by) === String(req.user.id)) {
+        throw new AppError(
+          'The user who recorded a disbursement cannot void it; a different payroll manager must void it',
+          403,
+          'pay_run_disbursement_self_void'
+        );
+      }
+      const { rows: [voided] } = await client.query(
+        `UPDATE restaurant_pay_run_disbursements
+            SET status = 'voided', voided_by = $2, voided_at = NOW(), void_reason = $3
+          WHERE id = $1
+          RETURNING *`,
+        [disbursementId, req.user.id, reason]
+      );
+      // A paid run is paid only while every line is covered; with a
+      // line uncovered again it returns to finalized.
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_pay_runs
+            SET status = CASE WHEN status = 'paid' THEN 'finalized' ELSE status END,
+                updated_at = NOW()
+          WHERE id = $1
+          RETURNING *`,
+        [payRunId]
+      );
+      return { run: updated, disbursement: voided };
+    }, 'restaurant_pay_run_disbursement_void');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: 'restaurant.pay_run.disbursement_voided',
+      target_type: 'restaurant_pay_run',
+      target_id: run.run.id,
+      after_state: {
+        status: run.run.status,
+        disbursement_id: disbursementId,
+        pay_run_line_id: run.disbursement.pay_run_line_id,
+        amount_cents: run.disbursement.amount_cents,
+        voided_by: req.user.id,
+        reason,
+      },
+    });
+    res.json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.run.id)) });
+  } catch (err) { next(err); }
+};
