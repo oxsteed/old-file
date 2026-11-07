@@ -516,7 +516,7 @@ export function StaffScheduler({ businessId, isManager = false }) {
         <div role="alert" className="staff-sched-error-banner">
           <div className="staff-sched-banner-head">
             <strong className="staff-sched-text-sm">{t('businessHub.staffScheduler.validation.title')}</strong>
-            <button type="button" onClick={() => setPublishViolations([])} className="staff-sched-dismiss-btn" aria-label={t('common.dismiss')}>
+            <button type="button" onClick={() => setPublishViolations([])} className="staff-sched-dismiss-btn" aria-label={t('common.dismiss')} data-track="ui.34ed3b0a4c.28">
               ✕
             </button>
           </div>
