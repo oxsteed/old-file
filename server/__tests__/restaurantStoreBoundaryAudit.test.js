@@ -146,7 +146,13 @@ const REVIEWED = {
   // forecast reads drafts of one business only (business_id = $1).
   'services/shiftConflictValidation.js': SCOPED_CALLER,
   'services/scheduleCopy.js': SCOPED_CALLER,
-  'services/scheduleForecast.js': SCOPED_CALLER,
+  // PTO balances (findings 25-27): called only from
+  // businessStaffScheduleController after it resolved and asserted the
+  // business/location scope. The scheduled-hours lookup reads the
+  // employee's own shifts (business_id + user_id) across the stores
+  // they work at, because a time-off request spans all of them; it
+  // never reads across businesses.
+  'services/ptoBalances.js': SCOPED_CALLER,
   // Phase 7 compliance services: called only from the compliance
   // controller after it resolved the restaurant access and the
   // location scope; every write carries the caller's restaurant_id
