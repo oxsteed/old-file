@@ -167,7 +167,29 @@ describe('shift conflict validation on create', () => {
     expect(res.body.violations[0].params.limit).toBe('22:00');
   });
 
-  test('under-16 school-day limit blocks', async () => {
+  test('under-16 school-day limit warns but does not block (finding 31, applied per review)', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }) // membership
+      .mockResolvedValueOnce({ rows: [] }) // other shifts
+      .mockResolvedValueOnce({ rows: [] }) // approved time-off
+      .mockResolvedValueOnce({ rows: [] }) // availability windows
+      .mockResolvedValueOnce({ rows: [{ minor_band: 'under_16', minor_until: '2030-01-01' }] }) // labor profile
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] }); // insert
+    const res = mockRes();
+    // Wednesday in October is a guessed school day: the 3h under-16
+    // daily cap applies on top of the jurisdiction's 8h minor limit,
+    // but the guess is advisory now, so the 8h shift saves with a
+    // warning instead of 409ing.
+    await ctrl.createShift(createReq({ shift_start: `${DAY}T09:00`, shift_end: `${DAY}T17:00` }), res, next);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.warnings).toHaveLength(1);
+    expect(res.body.warnings[0].code).toBe('minor_under16_daily_hours');
+    expect(res.body.warnings[0].severity).toBe('warning');
+    expect(res.body.warnings[0].params.schoolDay).toBe('school');
+  });
+
+  test('under-16 non-school-day limit still blocks', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }) // membership
       .mockResolvedValueOnce({ rows: [] }) // other shifts
@@ -175,12 +197,14 @@ describe('shift conflict validation on create', () => {
       .mockResolvedValueOnce({ rows: [] }) // availability windows
       .mockResolvedValueOnce({ rows: [{ minor_band: 'under_16', minor_until: '2030-01-01' }] }); // labor profile
     const res = mockRes();
-    // Wednesday in October is a school day: the 3h under-16 daily cap
-    // applies on top of the jurisdiction's 8h minor limit.
-    await ctrl.createShift(createReq({ shift_start: `${DAY}T09:00`, shift_end: `${DAY}T17:00` }), res, next);
+    // Saturday 2026-10-17 is a non-school day: the 8h cap rests on
+    // statutory dates, not the guessed school calendar, so a 9h
+    // shift still 409s.
+    await ctrl.createShift(createReq({ shift_start: '2026-10-17T09:00', shift_end: '2026-10-17T18:00' }), res, next);
 
     expect(res.statusCode).toBe(409);
     expect(codes(res.body)).toContain('minor_under16_daily_hours');
+    expect(res.body.violations.find((v) => v.code === 'minor_under16_daily_hours').params.schoolDay).toBe('non-school');
   });
 
   test('happy path creates the shift with no violations or warnings', async () => {

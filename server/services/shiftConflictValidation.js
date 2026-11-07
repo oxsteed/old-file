@@ -16,7 +16,11 @@
 //   - minor_*: the shift would break a minor limit from the person's labor
 //     profile and the location's jurisdiction rules (daily / weekly hours,
 //     latest end time, and the federal under-16 school-day rules the
-//     jurisdiction engine already knows).
+//     jurisdiction engine already knows). The under-16 school-day /
+//     school-week hour caps are advisory, not blocking (finding 31):
+//     whether a weekday is a school day is a guess until a school
+//     calendar input exists, so those two caps warn; the non-school
+//     caps and the under-16 work window still block.
 // WARNING ONLY (returned alongside success, never blocks the save):
 //   - availability_*: the shift falls outside the person's stored
 //     availability windows. Many staff have never set availability, and
@@ -399,9 +403,16 @@ async function validateShift(db, opts) {
       const schoolDay = laborJurisdiction.isSchoolDay(day);
       const dayLimit = schoolDay ? L.school_day_hours : L.non_school_day_hours;
       if (dayHours > dayLimit) {
-        violations.push({
+        // Finding 31 (applied per review): the school-day limit is
+        // advisory, never blocking. Whether a weekday is a school day
+        // is a guess (Sep-May weekdays; isSchoolDay), and no school
+        // calendar or holiday input exists to correct it, so a shift
+        // that breaks only the guessed school-day cap warns instead
+        // of 409ing. The non-school cap (weekends, summer) rests on
+        // statutory dates, not the guess, and still blocks.
+        const entry = {
           code: 'minor_under16_daily_hours',
-          severity: 'blocking',
+          severity: schoolDay ? 'warning' : 'blocking',
           field: 'shift_end',
           user_id: userId,
           message_key: 'businessHub.staffScheduler.validation.minorUnder16DailyHours',
@@ -409,16 +420,17 @@ async function validateShift(db, opts) {
             shiftDate: day, hours: dayHours.toFixed(1), limit: dayLimit,
             schoolDay: schoolDay ? 'school' : 'non-school',
           },
-        });
+        };
+        (schoolDay ? warnings : violations).push(entry);
       }
       const weekShifts = others.filter((s) => weekStartOf(dateOnly(s.shift_date), startDay) === weekStart);
       const schoolWeek = weekShifts.some((s) => laborJurisdiction.isSchoolDay(dateOnly(s.shift_date)))
         || laborJurisdiction.isSchoolDay(weekStart);
       const weekLimit = schoolWeek ? L.school_week_hours : L.non_school_week_hours;
       if (weekHours > weekLimit) {
-        violations.push({
+        const entry = {
           code: 'minor_under16_weekly_hours',
-          severity: 'blocking',
+          severity: schoolWeek ? 'warning' : 'blocking',
           field: 'shift_end',
           user_id: userId,
           message_key: 'businessHub.staffScheduler.validation.minorUnder16WeeklyHours',
@@ -426,7 +438,8 @@ async function validateShift(db, opts) {
             weekStart, hours: weekHours.toFixed(1), limit: weekLimit,
             schoolDay: schoolWeek ? 'school' : 'non-school',
           },
-        });
+        };
+        (schoolWeek ? warnings : violations).push(entry);
       }
       const latest = laborJurisdiction.isSummer(day) ? L.summer_latest_end : L.latest_end;
       const startWall = minutesToTime(candStart);

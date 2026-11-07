@@ -724,7 +724,11 @@ function evaluateSchedule(shifts, { rules, existingShifts = [], now = new Date()
 // published shift only WARNS (flagged on the punch for a manager):
 // plenty of legitimate shifts are unscheduled cover, and stranding a
 // minor at the door over a missing schedule row is not enforcement,
-// it is a staffing failure. An expired minor_until (band no longer
+// it is a staffing failure. The under-16 school-day / school-week
+// hour caps also only WARN (finding 31, applied per review): whether
+// a weekday is a school day is a guessed calendar, so the cap is
+// advisory until a school calendar input exists; the non-school caps
+// and the work window still block. An expired minor_until (band no longer
 // applies) returns applies:false.
 function evaluateMinorPunch({
   band, minorUntil = null, rules,
@@ -759,12 +763,20 @@ function evaluateMinorPunch({
     }
     const dailyLimit = isSchoolDay(workDate) ? L.school_day_hours : L.non_school_day_hours;
     if (projectedDayHours > dailyLimit) {
-      violations.push({ rule: 'minor_u16_daily', message: `Under-16 would work ${projectedDayHours}h on ${workDate}; limit ${dailyLimit}h${isSchoolDay(workDate) ? ' on a school day (if school is in session)' : ''}.` });
+      // Finding 31 (applied per review): the school-day cap is
+      // advisory, never blocking — the school calendar is a guess
+      // (see isSchoolDay), so it warns; the non-school cap still
+      // blocks the punch.
+      const entry = { rule: 'minor_u16_daily', message: `Under-16 would work ${projectedDayHours}h on ${workDate}; limit ${dailyLimit}h${isSchoolDay(workDate) ? ' on a school day (if school is in session)' : ''}.` };
+      if (isSchoolDay(workDate)) warnings.push(entry);
+      else violations.push(entry);
     }
     const schoolWeek = isSchoolDay(workDate);
     const weeklyLimit = schoolWeek ? L.school_week_hours : L.non_school_week_hours;
     if (projectedWeekHours > weeklyLimit) {
-      violations.push({ rule: 'minor_u16_weekly', message: `Under-16 would work ${projectedWeekHours}h in the week of ${workDate}; limit ${weeklyLimit}h${schoolWeek ? ' in a school week (if school is in session)' : ''}.` });
+      const entry = { rule: 'minor_u16_weekly', message: `Under-16 would work ${projectedWeekHours}h in the week of ${workDate}; limit ${weeklyLimit}h${schoolWeek ? ' in a school week (if school is in session)' : ''}.` };
+      if (schoolWeek) warnings.push(entry);
+      else violations.push(entry);
     }
   } else {
     const dailyLimit = r.minor_max_daily_hours == null ? null : Number(r.minor_max_daily_hours);

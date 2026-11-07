@@ -134,14 +134,15 @@ describe('Phase 7: punch-time minor check (gap 17)', () => {
     expect(result.violations.map((v) => v.rule)).toContain('minor_u16_window');
   });
 
-  test('under-16 school-day 3h limit blocks; a compliant shift passes with no warning', () => {
-    const blocked = evaluateMinorPunch({
+  test('under-16 school-day 3h limit warns, not blocks; a compliant shift passes with no warning (finding 31, applied per review)', () => {
+    const warned = evaluateMinorPunch({
       band: 'under_16', rules: ca, workDate: '2026-11-06', clockInTime: '15:00',
       shift: { shift_date: '2026-11-06', start_time: '15:00', end_time: '19:00' },
       hoursWorkedToday: 0, hoursWorkedThisWeek: 0,
     });
-    expect(blocked.blocked).toBe(true);
-    expect(blocked.violations.map((v) => v.rule)).toContain('minor_u16_daily');
+    expect(warned.blocked).toBe(false);
+    expect(warned.warnings.map((w) => w.rule)).toContain('minor_u16_daily');
+    expect(warned.violations).toEqual([]);
     const ok = evaluateMinorPunch({
       band: 'under_16', rules: ca, workDate: '2026-11-07', clockInTime: '09:00',
       shift: { shift_date: '2026-11-07', start_time: '09:00', end_time: '12:00' },
@@ -149,6 +150,14 @@ describe('Phase 7: punch-time minor check (gap 17)', () => {
     });
     expect(ok.blocked).toBe(false);
     expect(ok.warnings).toEqual([]);
+    // Saturday is a non-school day: the 8h cap still blocks.
+    const blocked = evaluateMinorPunch({
+      band: 'under_16', rules: ca, workDate: '2026-11-07', clockInTime: '09:00',
+      shift: { shift_date: '2026-11-07', start_time: '09:00', end_time: '18:00' },
+      hoursWorkedToday: 0, hoursWorkedThisWeek: 0,
+    });
+    expect(blocked.blocked).toBe(true);
+    expect(blocked.violations.map((v) => v.rule)).toContain('minor_u16_daily');
   });
 
   test('16-17 latest end blocks; no published shift warns but does not block', () => {
