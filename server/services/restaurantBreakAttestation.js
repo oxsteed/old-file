@@ -16,10 +16,19 @@
 //   - An attestation that disagrees with the punch record is stored as
 //     disputed and surfaced for a manager; it never suppresses a premium
 //     the punch record owes. Failing closed toward paying the worker.
-//   - A missing attestation on a qualifying shift does not block
-//     clock-out (a worker must never be stranded by a prompt), but the
-//     clock-out response flags it and the exceptions report counts it
-//     via the attestation summary.
+//   - A missing attestation on a qualifying shift blocks the owner's
+//     clock-out (409 break_attestation_required) until they attest or
+//     waive with a reason; a waiver always satisfies the requirement, so
+//     a worker is never stranded by the prompt. A manager closing
+//     someone else's punch is not blocked (they cannot attest for the
+//     worker) and the missing attestation is flagged for the
+//     late-attestation endpoint. The clock-out response flags a missing
+//     attestation and the exceptions report counts it via the
+//     attestation summary.
+//   - Attestations are append-only (item 43): re-attesting inserts a
+//     new version; the first statement is never rewritten. Every reader
+//     below sees the latest version per time_entry_id only
+//     (DISTINCT ON ... ORDER BY attested_at DESC, id DESC).
 
 const { AppError } = require('../middleware/errorHandler');
 const laborJurisdiction = require('./laborJurisdictionRules');
@@ -86,20 +95,14 @@ async function recordBreakAttestation(db, {
   // Dispute in either direction: the statement and the record disagree.
   const disputed = (mealBreakTaken === true && missedByPunch)
     || (mealBreakTaken === false && !waived && !missedByPunch);
+  // Append-only (item 43): every call inserts a new version. The
+  // previous statement stays in the table; readers see latest-only.
   const { rows: [row] } = await db.query(
     `INSERT INTO restaurant_break_attestations
        (business_id, user_id, time_entry_id, entry_date, location_id,
         meal_break_taken, rest_break_taken, waived, waiver_reason,
         attested_by, disputed)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-     ON CONFLICT (time_entry_id) DO UPDATE
-       SET meal_break_taken = EXCLUDED.meal_break_taken,
-           rest_break_taken = EXCLUDED.rest_break_taken,
-           waived = EXCLUDED.waived,
-           waiver_reason = EXCLUDED.waiver_reason,
-           attested_by = EXCLUDED.attested_by,
-           attested_at = NOW(),
-           disputed = EXCLUDED.disputed
      RETURNING *`,
     [
       businessId,
@@ -125,9 +128,25 @@ async function recordBreakAttestation(db, {
   };
 }
 
+// Latest attestation version for one entry, or null when the worker
+// has not attested yet. Clock-out gates on this: an earlier version
+// never satisfies a later clock-out, and a missing row blocks it.
+async function latestAttestation(db, { businessId, timeEntryId }) {
+  const { rows: [row] } = await db.query(
+    `SELECT * FROM restaurant_break_attestations
+      WHERE business_id = $1 AND time_entry_id = $2
+      ORDER BY attested_at DESC, id DESC
+      LIMIT 1`,
+    [businessId, timeEntryId]
+  );
+  return row || null;
+}
+
 // Per-user attestation counts for a period, for the exceptions report:
 // waived and attested-missed breaks are the exceptions a manager must
 // see; disputed rows are the ones where statement and record disagree.
+// Latest version only: an entry re-attested twice counts once, under
+// its newest statement.
 async function attestationSummaryByUser(db, { businessId, fromDate, toDate, locationIds = null }) {
   const params = [businessId, fromDate, toDate];
   let locationFilter = '';
@@ -141,8 +160,12 @@ async function attestationSummaryByUser(db, { businessId, fromDate, toDate, loca
             COUNT(*) FILTER (WHERE waived)::int AS waived_breaks,
             COUNT(*) FILTER (WHERE NOT meal_break_taken AND NOT waived)::int AS missed_breaks,
             COUNT(*) FILTER (WHERE disputed)::int AS disputed_attestations
-       FROM restaurant_break_attestations
-      WHERE business_id = $1 AND entry_date >= $2::date AND entry_date <= $3::date${locationFilter}
+       FROM (
+         SELECT DISTINCT ON (time_entry_id) *
+           FROM restaurant_break_attestations
+          WHERE business_id = $1 AND entry_date >= $2::date AND entry_date <= $3::date${locationFilter}
+          ORDER BY time_entry_id, attested_at DESC, id DESC
+       ) latest
       GROUP BY user_id`,
     params
   );
@@ -166,11 +189,17 @@ async function listAttestations(db, { businessId, fromDate = null, toDate = null
   if (disputedOnly) where.push('disputed = TRUE');
   params.push(Math.min(Math.max(Number(limit) || 100, 1), 200));
   params.push(Math.max(Number(offset) || 0, 0));
+  // Latest version only: an entry re-attested twice appears once,
+  // under its newest statement.
   const { rows } = await db.query(
     `SELECT a.*, COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name) AS user_name
-       FROM restaurant_break_attestations a
+       FROM (
+         SELECT DISTINCT ON (time_entry_id) *
+           FROM restaurant_break_attestations
+          WHERE ${where.join(' AND ')}
+          ORDER BY time_entry_id, attested_at DESC, id DESC
+       ) a
        JOIN users u ON u.id = a.user_id
-      WHERE ${where.join(' AND ')}
       ORDER BY a.entry_date DESC, a.attested_at DESC, a.id DESC
       LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params
@@ -180,6 +209,7 @@ async function listAttestations(db, { businessId, fromDate = null, toDate = null
 
 module.exports = {
   recordBreakAttestation,
+  latestAttestation,
   attestationSummaryByUser,
   listAttestations,
   punchShowsMissedMeal,

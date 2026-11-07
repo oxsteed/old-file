@@ -103,7 +103,7 @@ async function computeScheduleForecast(db, {
               ON lm.membership_id = bm.id AND lm.location_id = s.location_id
              AND (s.restaurant_id IS NULL OR lm.restaurant_id = s.restaurant_id)
              AND lm.status = 'active'
-      WHERE s.business_id = $1 AND s.published_at IS NULL
+      WHERE s.business_id = $1 AND s.published_at IS NULL AND s.cancelled_at IS NULL
         AND s.shift_date >= $2::date AND s.shift_date <= $3::date
       ORDER BY s.shift_date, s.start_time`,
     [businessId, from, to]

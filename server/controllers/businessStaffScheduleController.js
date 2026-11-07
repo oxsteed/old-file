@@ -103,6 +103,8 @@ exports.listShifts = async (req, res, next) => {
     // row with its published flag; everyone else sees published shifts.
     const manager = await isBusinessManager(req, businessId, req.user.id);
     if (!manager) where += ' AND s.published_at IS NOT NULL';
+    // Item 61: cancelled (soft-deleted) shifts never list as active.
+    where += ' AND s.cancelled_at IS NULL';
     where += workforce.clause(storeContext,'s',params);
     const rows = await pool.query(
       `SELECT s.*,
@@ -174,7 +176,7 @@ exports.updateShift = async (req, res, next) => {
     await workforce.assertRecord(storeContext,'business_staff_shifts',shiftId);
     // S-20: the prior row is kept for the Fair Workweek change record.
     const current = await pool.query(
-      'SELECT * FROM business_staff_shifts WHERE id = $1 AND business_id = $2',
+      'SELECT * FROM business_staff_shifts WHERE id = $1 AND business_id = $2 AND cancelled_at IS NULL',
       [shiftId, businessId]
     );
     if (!current.rows.length) return res.status(404).json({ error: 'Not found' });
@@ -217,7 +219,7 @@ exports.updateShift = async (req, res, next) => {
               end_time   = COALESCE($3, end_time),
               role_label = COALESCE($4, role_label),
               notes      = COALESCE($5, notes)
-        WHERE id = $6 AND business_id = $7 RETURNING *`,
+        WHERE id = $6 AND business_id = $7 AND cancelled_at IS NULL RETURNING *`,
       [shiftDate || null, startTime || null, endTime || null, role || null, notes || null, shiftId, businessId]
     );
     if (!row.rows.length) return res.status(404).json({ error: 'Not found' });
@@ -233,7 +235,16 @@ exports.deleteShift = async (req, res, next) => {
   try {
     const storeContext = await workforce.context(req);
     await workforce.assertRecord(storeContext,'business_staff_shifts',shiftId);
-    const { rows: [deleted] } = await pool.query('DELETE FROM business_staff_shifts WHERE id=$1 AND business_id=$2 RETURNING *', [shiftId, businessId]);
+    // Item 61: soft-delete. The row survives with cancelled_at set so
+    // the shift itself (not just the Fair Workweek before_state in the
+    // schedule-change row) stays auditable. An already-cancelled shift
+    // matches no row and takes the same path as a missing one: success
+    // with no schedule_change.
+    const { rows: [deleted] } = await pool.query(
+      `UPDATE business_staff_shifts SET cancelled_at = NOW()
+        WHERE id=$1 AND business_id=$2 AND cancelled_at IS NULL RETURNING *`,
+      [shiftId, businessId]
+    );
     const scheduleChange = deleted ? await recordScheduleChange(req, { businessId, before: deleted, after: null, changeType: 'deleted' }) : null;
     res.json({ success: true, ...(scheduleChange ? { schedule_change: scheduleChange } : {}) });
   } catch (err) { next(err); }
@@ -370,7 +381,7 @@ exports.listShiftSwapRequests = async (req, res, next) => {
     const { rows } = await pool.query(
       `SELECT r.*, s.shift_date, s.start_time, s.end_time, s.role_label, s.user_id AS assigned_user_id
          FROM business_shift_swap_requests r
-         JOIN business_staff_shifts s ON s.id=r.shift_id AND s.business_id=r.business_id
+         JOIN business_staff_shifts s ON s.id=r.shift_id AND s.business_id=r.business_id AND s.cancelled_at IS NULL
         WHERE r.business_id=$1${filter}
         ORDER BY r.created_at DESC, r.id DESC`,
       params
@@ -388,7 +399,7 @@ exports.createShiftSwapRequest = async (req, res, next) => {
     const scopedShift=await workforce.assertRecord(storeContext,'business_staff_shifts',shiftId);
     const { rows: shifts } = await pool.query(
       `SELECT id, user_id, shift_date, start_time, end_time
-         FROM business_staff_shifts WHERE id=$1 AND business_id=$2`,
+         FROM business_staff_shifts WHERE id=$1 AND business_id=$2 AND cancelled_at IS NULL`,
       [shiftId, businessId]
     );
     const shift = shifts[0];
@@ -435,7 +446,7 @@ async function decideShiftSwap(req, res, next, status) {
                 s.start_time::text AS start_time, s.end_time::text AS end_time,
                 s.location_id, s.restaurant_id
            FROM business_shift_swap_requests r
-           JOIN business_staff_shifts s ON s.id=r.shift_id AND s.business_id=r.business_id
+           JOIN business_staff_shifts s ON s.id=r.shift_id AND s.business_id=r.business_id AND s.cancelled_at IS NULL
           WHERE r.id=$1 AND r.business_id=$2 FOR UPDATE`,
         [requestId, businessId]
       );
@@ -469,7 +480,7 @@ async function decideShiftSwap(req, res, next, status) {
         if (validation.violations.length) return { validation };
         await client.query(
           `UPDATE business_staff_shifts SET user_id=$1
-            WHERE id=$2 AND business_id=$3 AND user_id=$4`,
+            WHERE id=$2 AND business_id=$3 AND user_id=$4 AND cancelled_at IS NULL`,
           [swap.target_user_id, swap.shift_id, businessId, swap.assigned_user_id]
         );
       }
@@ -799,7 +810,7 @@ async function checkMinorPunch({ businessId, userId, locationId, restaurantId, t
       `SELECT id, shift_date, start_time, end_time
          FROM business_staff_shifts
         WHERE business_id = $1 AND user_id = $2 AND shift_date = $3::date
-          AND published_at IS NOT NULL
+          AND published_at IS NOT NULL AND cancelled_at IS NULL
         ORDER BY start_time LIMIT 1`,
       [businessId, userId, workDate]
     );
@@ -1002,7 +1013,8 @@ exports.clockOut = async (req, res, next) => {
     }
     // S-05: clockOut previously never checked ownership — anyone could
     // clock out anyone. Only the entry owner, or a manager, may close it.
-    if (String(entry.user_id) !== String(req.user.id) && !await isBusinessManager(req, businessId, req.user.id)) {
+    const isOwner = String(entry.user_id) === String(req.user.id);
+    if (!isOwner && !await isBusinessManager(req, businessId, req.user.id)) {
       return res.status(403).json({ error: 'You can only clock out your own time entry' });
     }
     const now = new Date();
@@ -1010,91 +1022,108 @@ exports.clockOut = async (req, res, next) => {
     // hours_worked > 0 check rejects; a closed punch counts at minimum
     // one centihour.
     const hours = Math.max(0.01, computedHours({ ...entry, clock_out_at: now }, now.getTime()));
-    const row = await pool.query(
-      `UPDATE business_time_entries
-          SET clock_out_at=NOW(), hours_worked=$1,
-              description = COALESCE($2, description)
-        WHERE id=$3 AND business_id=$4 AND clock_out_at IS NULL AND voided_at IS NULL
-        RETURNING *`,
-      [hours, notes || null, entryId, businessId]
-    );
-    if (!row.rows.length) return res.status(404).json({ error: 'Active entry not found' });
-    const closed = row.rows[0];
-    // Phase 7 (gap 17): break attestation rides on clock-out. The
-    // attestation is recorded after the punch closes; a failure to
-    // record it never fails the clock-out itself (the punch is the
-    // record of work — the statement can be filed late through the
-    // standalone endpoint). The response says whether the shift
-    // qualified for a meal break, whether the attestation is missing,
-    // and what premium the punch record already owes under Phase 1.
-    const attestation = await handleClockOutAttestation(req, { businessId, entry: closed, hours });
-    res.json({ ...presentTimeEntry(closed), ...attestation });
+    // Phase 7 (gap 17) + item 63: the meal-break premium is priced
+    // from the punch record here (hours + recorded breaks + jurisdiction
+    // rules), never from the attestation. The attestation is evidence
+    // only. A jurisdiction lookup failure cannot strand the worker:
+    // the shift is treated as not qualifying and the error is reported,
+    // and the premium itself is priced again from the punch record at
+    // pay time.
+    let restaurantId = null;
+    let rules = null;
+    let rulesError = null;
+    try {
+      if (entry.location_id != null) {
+        const { rows: [loc] } = await pool.query(
+          'SELECT restaurant_id FROM restaurant_locations WHERE id = $1',
+          [entry.location_id]
+        );
+        restaurantId = loc?.restaurant_id == null ? null : Number(loc.restaurant_id);
+      }
+      rules = await laborJurisdiction.getJurisdiction(pool, restaurantId, entry.location_id);
+    } catch (err) {
+      rulesError = err.message || 'Jurisdiction rules could not be loaded';
+    }
+    const closedEntry = { ...entry, clock_out_at: now, hours_worked: hours };
+    const missedByPunch = rules ? breakAttestationService.punchShowsMissedMeal(closedEntry, rules) : false;
+    const premiumHours = missedByPunch
+      ? (laborJurisdiction.mealBreakPremiumHours(rules) || 0) : 0;
+    const qualifies = rules != null && rules.meal_break_after_minutes != null
+      && hours * 60 >= Number(rules.meal_break_after_minutes);
+    const body = req.body?.breakAttestation || req.body?.break_attestation || null;
+    // Item 63: the owner of a qualifying shift must attest or waive
+    // (with a reason) before clock-out completes. A waiver satisfies
+    // the requirement, so a worker is never stranded by the prompt. A
+    // manager closing someone else's punch cannot attest for them, so
+    // they are not blocked; the missing attestation is flagged and can
+    // be filed late through the standalone endpoint.
+    let existing = null;
+    if (isOwner && qualifies) {
+      existing = await breakAttestationService.latestAttestation(pool, { businessId, timeEntryId: entry.id });
+      if (!existing && !body) {
+        return res.status(409).json({
+          error: 'break_attestation_required',
+          code: 'break_attestation_required',
+          message: 'A meal-break statement is required before clock-out. Attest whether you took your break, or waive it with a reason.',
+          break_attestation_required: true,
+          meal_break_premium_hours: premiumHours,
+        });
+      }
+    }
+    // The punch close and the attestation record in one transaction:
+    // an invalid attestation (for example a waiver without a reason)
+    // fails the clock-out instead of closing the punch and losing the
+    // statement, so the worker retries with a complete statement.
+    const result = await withTransaction(pool, async (client) => {
+      const row = await client.query(
+        `UPDATE business_time_entries
+            SET clock_out_at=NOW(), hours_worked=$1,
+                description = COALESCE($2, description)
+          WHERE id=$3 AND business_id=$4 AND clock_out_at IS NULL AND voided_at IS NULL
+          RETURNING *`,
+        [hours, notes || null, entryId, businessId]
+      );
+      if (!row.rows.length) return { missing: true };
+      const closed = row.rows[0];
+      let attestation = existing;
+      let disputed = false;
+      let attestationError = rulesError;
+      if (body && !isOwner) {
+        attestationError = 'Only the entry owner can attest to their break';
+      } else if (body && isOwner) {
+        const recorded = await breakAttestationService.recordBreakAttestation(client, {
+          businessId,
+          userId: req.user.id,
+          timeEntryId: entry.id,
+          mealBreakTaken: body.mealBreakTaken ?? body.meal_break_taken,
+          restBreakTaken: body.restBreakTaken ?? body.rest_break_taken ?? false,
+          waived: body.waived ?? false,
+          waiverReason: body.waiverReason ?? body.waiver_reason ?? null,
+          attestedBy: req.user.id,
+        });
+        attestation = recorded.attestation;
+        disputed = recorded.disputed;
+      }
+      return { closed, attestation, disputed, attestationError };
+    });
+    if (result.missing) return res.status(404).json({ error: 'Active entry not found' });
+    res.json({
+      ...presentTimeEntry(result.closed),
+      break_attestation: result.attestation || null,
+      break_attestation_required: qualifies,
+      break_attestation_missing: qualifies && !result.attestation,
+      meal_break_premium_hours: premiumHours,
+      break_attestation_disputed: result.disputed,
+      break_attestation_error: result.attestationError || null,
+    });
   } catch (err) { next(err); }
 };
 
-// Phase 7 (gap 17): attestation handling shared by clock-out and the
-// standalone late-attestation endpoint. Pure outcome object, never
-// throws: the punch already closed and the statement is secondary.
-async function handleClockOutAttestation(req, { businessId, entry, hours }) {
-  const outcome = {
-    break_attestation: null,
-    break_attestation_required: false,
-    break_attestation_missing: false,
-    meal_break_premium_hours: 0,
-    break_attestation_disputed: false,
-    break_attestation_error: null,
-  };
-  try {
-    let restaurantId = null;
-    if (entry.location_id != null) {
-      const { rows: [loc] } = await pool.query(
-        'SELECT restaurant_id FROM restaurant_locations WHERE id = $1',
-        [entry.location_id]
-      );
-      restaurantId = loc?.restaurant_id == null ? null : Number(loc.restaurant_id);
-    }
-    const rules = await laborJurisdiction.getJurisdiction(pool, restaurantId, entry.location_id);
-    const missedByPunch = breakAttestationService.punchShowsMissedMeal(entry, rules);
-    outcome.meal_break_premium_hours = missedByPunch
-      ? (laborJurisdiction.mealBreakPremiumHours(rules) || 0) : 0;
-    outcome.break_attestation_required = rules.meal_break_after_minutes != null
-      && Number(hours || 0) * 60 >= Number(rules.meal_break_after_minutes);
-    const body = req.body?.breakAttestation || req.body?.break_attestation || null;
-    if (!body) {
-      outcome.break_attestation_missing = outcome.break_attestation_required;
-      return outcome;
-    }
-    // A manager closing someone else's punch cannot attest for them.
-    if (String(entry.user_id) !== String(req.user.id)) {
-      outcome.break_attestation_error = 'Only the entry owner can attest to their break';
-      outcome.break_attestation_missing = outcome.break_attestation_required;
-      return outcome;
-    }
-    const recorded = await breakAttestationService.recordBreakAttestation(pool, {
-      businessId,
-      userId: req.user.id,
-      timeEntryId: entry.id,
-      mealBreakTaken: body.mealBreakTaken ?? body.meal_break_taken,
-      restBreakTaken: body.restBreakTaken ?? body.rest_break_taken ?? false,
-      waived: body.waived ?? false,
-      waiverReason: body.waiverReason ?? body.waiver_reason ?? null,
-      attestedBy: req.user.id,
-    });
-    outcome.break_attestation = recorded.attestation;
-    outcome.break_attestation_missing = false;
-    outcome.break_attestation_disputed = recorded.disputed;
-    outcome.meal_break_premium_hours = recorded.mealBreakPremiumHours;
-  } catch (err) {
-    outcome.break_attestation_error = err.message || 'Attestation could not be recorded';
-    outcome.break_attestation_missing = outcome.break_attestation_required;
-  }
-  return outcome;
-}
-
 // Phase 7 (gap 17): file (or correct) a break attestation after
-// clock-out, e.g. when the clock-out prompt was skipped. One
-// attestation per entry; re-posting replaces the statement (the
-// service upserts) but never rewrites the punch itself.
+// clock-out, e.g. when the clock-out was closed by a manager and the
+// worker attests late. Attestations are append-only (item 43):
+// re-posting inserts a new version and readers see only the latest;
+// it never rewrites the punch itself.
 exports.recordBreakAttestation = async (req, res, next) => {
   try {
     const { businessId, entryId } = req.params;
@@ -1724,7 +1753,7 @@ exports.publishShifts = async (req, res, next) => {
     if (!biz) return res.status(404).json({ error: 'Business not found' });
 
     const params = [businessId];
-    let where = 'business_id = $1 AND published_at IS NULL';
+    let where = 'business_id = $1 AND published_at IS NULL AND cancelled_at IS NULL';
     if (Array.isArray(shift_ids) && shift_ids.length) {
       const ids = shift_ids.map(Number).filter(Number.isFinite);
       if (!ids.length) return res.status(400).json({ error: 'shift_ids must be a non-empty array of ids' });
@@ -1797,7 +1826,7 @@ exports.publishShifts = async (req, res, next) => {
     const { rows: published } = await pool.query(
       `UPDATE business_staff_shifts
           SET published_at = NOW(), published_by = $2
-        WHERE id = ANY($1::bigint[]) AND published_at IS NULL
+        WHERE id = ANY($1::bigint[]) AND published_at IS NULL AND cancelled_at IS NULL
         RETURNING id, user_id, shift_date, start_time, end_time, role_label, location_id, restaurant_id`,
       [draftIds, req.user.id]
     );
@@ -1865,7 +1894,7 @@ exports.publishShifts = async (req, res, next) => {
                   start_time::text AS start_time, end_time::text AS end_time,
                   location_id, restaurant_id
              FROM business_staff_shifts
-            WHERE business_id = $1 AND published_at IS NOT NULL
+            WHERE business_id = $1 AND published_at IS NOT NULL AND cancelled_at IS NULL
               AND shift_date >= $2::date - INTERVAL '8 days'
               AND shift_date <= $3::date + INTERVAL '1 day'`,
           [businessId, dates[0], dates[dates.length - 1]]
@@ -2230,7 +2259,7 @@ async function findTimeOffConflicts(businessId, userId, startDate, endDate) {
   const { rows } = await pool.query(
     `SELECT id, shift_date, start_time, end_time, role_label
        FROM business_staff_shifts
-      WHERE business_id = $1 AND user_id = $2 AND published_at IS NOT NULL
+      WHERE business_id = $1 AND user_id = $2 AND published_at IS NOT NULL AND cancelled_at IS NULL
         AND shift_date BETWEEN $3::date AND $4::date
       ORDER BY shift_date, start_time`,
     [businessId, userId, startDate, endDate]
@@ -2505,7 +2534,13 @@ exports.cancelTimeOffRequest = async (req, res, next) => {
 // projection for the scheduler UI, never a pay write.
 
 function addDays(dateStr, days) {
-  const d = new Date(`${String(dateStr).slice(0, 10)}T12:00:00Z`);
+  // wallDatePart handles the Date objects node-pg returns for DATE
+  // columns: String(date) gives 'Mon Nov 09 2026 ...', whose first
+  // ten characters are not a date. copyWeek feeds source rows
+  // straight from the database, so a plain String() slice threw
+  // RangeError on every real copy (mocked tests only ever passed
+  // strings, so they never saw it).
+  const d = new Date(`${wallDatePart(dateStr)}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
@@ -2782,7 +2817,7 @@ exports.copyWeek = async (req, res, next) => {
     );
     const { rows: source } = await pool.query(
       `SELECT * FROM business_staff_shifts
-        WHERE business_id = $1 AND published_at IS NOT NULL
+        WHERE business_id = $1 AND published_at IS NOT NULL AND cancelled_at IS NULL
           AND shift_date >= $2::date AND shift_date <= $3::date
         ORDER BY shift_date, start_time`,
       [businessId, source_week_start, sourceEnd]
@@ -2860,7 +2895,7 @@ exports.saveShiftTemplate = async (req, res, next) => {
     const weekEnd = addDays(week_start, 6);
     const { rows: source } = await pool.query(
       `SELECT * FROM business_staff_shifts
-        WHERE business_id = $1 AND published_at IS NOT NULL
+        WHERE business_id = $1 AND published_at IS NOT NULL AND cancelled_at IS NULL
           AND shift_date >= $2::date AND shift_date <= $3::date
         ORDER BY shift_date, start_time`,
       [businessId, week_start, weekEnd]
@@ -2875,7 +2910,10 @@ exports.saveShiftTemplate = async (req, res, next) => {
         [businessId, templateName, req.user.id]
       );
       for (const shift of source) {
-        const dow = new Date(`${String(shift.shift_date).slice(0, 10)}T12:00:00Z`).getUTCDay();
+        // Same Date-object class as addDays above: node-pg returns
+        // DATE columns as Date objects, and String() on one is not a
+        // date. wallDatePart normalizes both shapes.
+        const dow = new Date(`${wallDatePart(shift.shift_date)}T12:00:00Z`).getUTCDay();
         await client.query(
           `INSERT INTO business_shift_template_shifts
              (template_id, user_id, day_of_week, start_time, end_time, role_label, notes, location_id, restaurant_id)

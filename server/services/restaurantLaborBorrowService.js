@@ -75,6 +75,7 @@ async function assertNoConflict(client, { businessId, restaurantId, staffUserId,
   const { rows: shifts } = await client.query(
     `SELECT id FROM business_staff_shifts
       WHERE business_id = $1 AND user_id = $2 AND shift_date = $3::date
+        AND cancelled_at IS NULL
         AND start_time < $5::time AND $4::time < end_time
       LIMIT 1`,
     params
@@ -290,6 +291,7 @@ async function getSharedRoster(client, { restaurantId, businessId, locationIds =
       `SELECT user_id, shift_date, start_time, end_time, role_label
          FROM business_staff_shifts
         WHERE business_id = $1 AND user_id = ANY($2::uuid[])
+          AND cancelled_at IS NULL
           AND shift_date >= $3::date AND shift_date <= $4::date
         ORDER BY shift_date, start_time`,
       [businessId, userIds, fromDate, toDate]

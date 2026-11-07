@@ -8538,6 +8538,7 @@
       "toastClockInFail": "Nou pa t kapab kòmanse tan",
       "toastClockedOut": "Tan fini!",
       "toastClockOutFail": "Nou pa t kapab fini tan",
+      "toastAttestationRequired": "Soti a bezwen yon deklarasyon sou poz manje. Mande anplwaye a konfime l nan revèy la.",
       "toastStaffRequired": "Tanpri chwazi yon manm ekip",
       "labor": {
         "minorsTitle": "Minè",
@@ -25083,6 +25084,7 @@
         "withdrawn": "Retire"
       },
       "attestationQuestion": "Èske ou te pran poz manje ou a?",
+      "attestationRequired": "Pou w soti, ou dwe bay yon deklarasyon sou poz manje ou. Konfime si ou te pran poz ou a, oswa refize l avèk yon rezon.",
       "attestationTaken": "Wi, mwen te pran poz mwen",
       "attestationWaived": "Non, mwen te refize l",
       "attestationMissed": "Non, mwen te rate l",
@@ -26458,7 +26460,17 @@
           "noSales": "Ouvèti san vant",
           "payouts": "Peman kès",
           "missingPunches": "Anrejistreman èdtan ki manke",
-          "missingPunchesHint": "Anrejistreman ki manke yo konte orè ki pwograme san èdtan anrejistre. Pou konnen reta egzak, fòk gen lè antre yo, sa jounal èdtan an pa konsève."
+          "missingPunchesHint": "Anrejistreman ki manke yo konte orè ki pwograme san èdtan anrejistre. Pou konnen reta egzak, fòk gen lè antre yo, sa jounal èdtan an pa konsève.",
+          "punchEnforcement": {
+            "title": "Kontwol pwentaj",
+            "location": "Magazen",
+            "geofence": "Jeofans",
+            "staffWithoutPin": "Anplwaye san PIN",
+            "geofenceConfigured": "Konfigire",
+            "geofenceNotConfigured": "Pa konfigire",
+            "staffWithoutPinCount": "{{without}} sou {{total}} san PIN",
+            "hint": "Kontwol jeofans ak PIN yo mache selman kote yo konfigire. Mete kowòdone magazen an ak PIN anplwaye yo pou aktive kontwol pwentaj yo."
+          }
         },
         "activity": {
           "title": "Aktivite ekip la",

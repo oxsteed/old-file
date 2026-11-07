@@ -95,11 +95,15 @@ export default function RestaurantTimeClockCard({ restaurant }) {
 
   const onBreak = open && Array.isArray(open.breaks) && open.breaks.some((b) => b && !b.ended_at);
 
-  // Phase 7 (gap 17): meal-break attestation at clock-out. The server
-  // never blocks clock-out on a missing attestation, so the prompt is
-  // skippable; it only shows for shifts long enough that a meal break
-  // could be required (the jurisdiction decides the exact threshold).
+  // Phase 7 (gap 17) + item 63: meal-break attestation at clock-out.
+  // On a qualifying shift the server blocks clock-out (409
+  // break_attestation_required) until the worker attests or waives with
+  // a reason; the prompt then reopens and Skip is hidden, because
+  // skipping would just 409 again. It only shows for shifts long
+  // enough that a meal break could be required (the jurisdiction
+  // decides the exact threshold).
   const [attestPrompt, setAttestPrompt] = useState(false);
+  const [attestRequired, setAttestRequired] = useState(false);
   const [attestWaiver, setAttestWaiver] = useState(false);
   const [attestWaiverReason, setAttestWaiverReason] = useState('');
   const openHours = open?.clock_in_at
@@ -119,11 +123,24 @@ export default function RestaurantTimeClockCard({ restaurant }) {
         toast(t('food.timeClock.attestationDisputed'), { icon: '⚠️' });
       }
       setAttestPrompt(false);
+      setAttestRequired(false);
       setAttestWaiver(false);
       setAttestWaiverReason('');
       await load();
     } catch (err) {
-      toast.error(apiErrorMessage(err, t('food.timeClock.actionError')));
+      // Item 63: the server blocks a qualifying clock-out with 409
+      // until the worker attests or waives. Reopen the prompt (hiding
+      // Skip) so the worker can answer and resubmit instead of seeing
+      // a generic failure.
+      if (err?.response?.status === 409
+        && (err?.response?.data?.code === 'break_attestation_required'
+          || err?.response?.data?.error === 'break_attestation_required')) {
+        setAttestPrompt(true);
+        setAttestRequired(true);
+        toast.error(t('food.timeClock.attestationRequired'));
+      } else {
+        toast.error(apiErrorMessage(err, t('food.timeClock.actionError')));
+      }
     } finally {
       setBusy(false);
     }
@@ -264,11 +281,13 @@ export default function RestaurantTimeClockCard({ restaurant }) {
               data-track="restaurant_time_break_attest_missed">
               {t('food.timeClock.attestationMissed')}
             </button>
-            <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={busy}
-              onClick={() => clockOut(null)}
-              data-track="restaurant_time_break_attest_skip">
-              {t('food.timeClock.attestationSkip')}
-            </button>
+            {!attestRequired && (
+              <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={busy}
+                onClick={() => clockOut(null)}
+                data-track="restaurant_time_break_attest_skip">
+                {t('food.timeClock.attestationSkip')}
+              </button>
+            )}
           </div>
           {attestWaiver && (
             <div className="fd-field" style={{ marginTop: 8 }}>

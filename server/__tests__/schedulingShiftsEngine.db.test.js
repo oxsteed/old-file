@@ -76,6 +76,10 @@ describeDb('scheduling write path feeds the slot engine (P1-5-F02, P1-6-F03, P1-
     // Migration 99906 (S-04) added published_at to business_staff_shifts; the
     // slot engine filters on it. Mirror it in the fixture schema.
     await db.query(`ALTER TABLE ${schema}.business_staff_shifts ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ`);
+    // Migration 20261107140000 (item 61) added cancelled_at to
+    // business_staff_shifts; every active-shift reader filters on it.
+    // Mirror it in the fixture schema.
+    await db.query(`ALTER TABLE ${schema}.business_staff_shifts ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`);
     const ownedTables = await db.query(`SELECT table_name FROM information_schema.tables
       WHERE table_schema=$1 AND table_name IN ('business_staff_shifts','business_time_entries')`, [schema]);
     expect(ownedTables.rows).toHaveLength(2);

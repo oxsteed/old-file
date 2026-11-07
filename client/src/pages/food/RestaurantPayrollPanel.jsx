@@ -744,6 +744,36 @@ export function PayrollPanel({ t, restaurant, from, to }) {
       )}
       <p className="fd-card-meta">{t('restaurants.ops.reports.exceptions.missingPunchesHint')}</p>
 
+      {/* ── Punch enforcement nudge (item 33): the exceptions report
+          carries per-store geofence/PIN setup state; nothing is blocked
+          from here, the manager just sees what is not set up yet. */}
+      {exceptions.punch_enforcement && (exceptions.punch_enforcement.locations || []).length > 0 && (
+        <>
+          <h4 className="fd-ops-subhead">{t('restaurants.ops.reports.exceptions.punchEnforcement.title')}</h4>
+          <div className="fd-table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">{t('restaurants.ops.reports.exceptions.punchEnforcement.location')}</th>
+                  <th scope="col">{t('restaurants.ops.reports.exceptions.punchEnforcement.geofence')}</th>
+                  <th scope="col">{t('restaurants.ops.reports.exceptions.punchEnforcement.staffWithoutPin')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {exceptions.punch_enforcement.locations.map((loc) => (
+                  <tr key={loc.location_id}>
+                    <td>{loc.location_name || loc.location_id}</td>
+                    <td>{loc.geofence_configured ? t('restaurants.ops.reports.exceptions.punchEnforcement.geofenceConfigured') : t('restaurants.ops.reports.exceptions.punchEnforcement.geofenceNotConfigured')}</td>
+                    <td>{t('restaurants.ops.reports.exceptions.punchEnforcement.staffWithoutPinCount', { without: loc.staff_without_pin, total: loc.staff_total })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="fd-card-meta">{t('restaurants.ops.reports.exceptions.punchEnforcement.hint')}</p>
+        </>
+      )}
+
       {/* ── Team activity ── */}
       <div className="fd-row"><button type="button" className="fd-btn" disabled={!activityOffset} onClick={()=>setActivityOffset(n=>Math.max(0,n-50))} data-track="ui.aa258f5ea1.9">{t('restaurants.ops.shared.previous')}</button><button type="button" className="fd-btn" disabled={!activity||activityOffset+50>=(activity.total||0)} onClick={()=>setActivityOffset(n=>n+50)} data-track="ui.aa258f5ea1.10">{t('restaurants.ops.shared.next')}</button></div>
       <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.activity.title')}</h3>

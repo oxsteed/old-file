@@ -82,7 +82,8 @@ function requestDays(startDate, endDate) {
 // Scheduled hours for one person over a date range: the sum of the
 // durations of every stored shift whose shift_date falls in the range
 // (draft or published; a draft is still planned work, the same rule
-// validateShift uses for overlap). Durations come from the shared
+// validateShift uses for overlap). A cancelled shift is not planned
+// work and contributes nothing. Durations come from the shared
 // shiftHours, so overnight shifts count whole on their start date
 // and a shift starting the day before the range is not counted. A
 // date with no shift contributes 0.
@@ -92,6 +93,7 @@ async function scheduledHoursFor(db, businessId, userId, startDate, endDate) {
             start_time::text AS start_time, end_time::text AS end_time
        FROM business_staff_shifts
       WHERE business_id = $1 AND user_id = $2
+        AND cancelled_at IS NULL
         AND shift_date >= $3::date AND shift_date <= $4::date`,
     [businessId, userId, toDateStr(startDate), toDateStr(endDate)]
   );

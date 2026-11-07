@@ -380,28 +380,27 @@ exports.runScheduledReportNow = async (req, res, next) => {
     const payload = await scheduledReports.buildScheduledReport(pool, {
       restaurant, schedule, businessDate, asOf,
     });
-    const { rows: [delivery] } = await pool.query(
-      `INSERT INTO restaurant_scheduled_report_deliveries
-         (scheduled_report_id, business_date, report_type, as_of,
-          snapshot, locked_close, channel, status, recipient_count)
-       VALUES ($1, $2::date, $3, $4, TRUE, FALSE, $5, 'sent', 0)
-       ON CONFLICT (scheduled_report_id, business_date) DO NOTHING
-       RETURNING *`,
-      [schedule.id, businessDate, schedule.report_type, asOf.toISOString(), schedule.delivery_channel]
-    );
-    if (!delivery) return res.json({ delivery: null, replayed: true, payload });
-    const recipientCount = await scheduledReports.deliverScheduledReport(pool, { schedule, payload });
-    await pool.query(
-      'UPDATE restaurant_scheduled_report_deliveries SET recipient_count = $1 WHERE id = $2',
-      [recipientCount, delivery.id]
-    );
-    await pool.query(
-      `UPDATE restaurant_scheduled_reports
-          SET last_run_at = NOW(), last_business_date = $2::date, updated_at = NOW()
-        WHERE id = $1`,
-      [schedule.id, businessDate]
-    );
-    res.json({ delivery: { ...delivery, recipient_count: recipientCount }, replayed: false, payload });
+    // Item 14 (same defect as the nightly run): claim the delivery
+    // as 'pending' before sending, so a failed manual send is
+    // recorded 'failed' and retryable instead of stuck 'sent'.
+    const claim = await scheduledReports.claimScheduledReportDelivery(pool, {
+      schedule, businessDate, asOf,
+    });
+    if (!claim.delivery) return res.json({ delivery: null, replayed: true, payload });
+    try {
+      const recipientCount = await scheduledReports.deliverScheduledReport(pool, { schedule, payload });
+      await scheduledReports.markDeliverySent(pool, { deliveryId: claim.delivery.id, recipientCount });
+      await pool.query(
+        `UPDATE restaurant_scheduled_reports
+            SET last_run_at = NOW(), last_business_date = $2::date, updated_at = NOW()
+          WHERE id = $1`,
+        [schedule.id, businessDate]
+      );
+      res.json({ delivery: { ...claim.delivery, status: 'sent', recipient_count: recipientCount }, replayed: false, payload });
+    } catch (err) {
+      await scheduledReports.markDeliveryFailed(pool, { deliveryId: claim.delivery.id, error: err.message }).catch(() => {});
+      throw err;
+    }
   } catch (err) { next(err); }
 };
 

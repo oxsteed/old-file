@@ -265,7 +265,96 @@ ddescribe('time clock punch model (S-05)', () => {
   });
 });
 
-// S-04 / N-02 / F-22: the restaurant "My time" card and business-local dates.
+// Item 63: on a qualifying shift the owner's clock-out is blocked
+// (409 break_attestation_required) until they attest or waive; a
+// waiver or an attestation completes it, and a short shift is
+// unaffected. No restaurant/location rows exist here, so the
+// jurisdiction resolves to the US-FED preset (meal break due after
+// 360 minutes): a 6-hour punch qualifies, a 2-hour punch does not.
+ddescribe('break attestation gate at clock-out (items 43, 63)', () => {
+  let H = {};
+
+  beforeAll(async () => {
+    const owner = await newUser('gate-owner');
+    const employee = await newUser('gate-employee');
+    const { rows: [biz] } = await pool.query(
+      'INSERT INTO businesses (user_id, business_name) VALUES ($1, $2) RETURNING id',
+      [owner, `Gate Clock ${crypto.randomUUID().slice(0, 8)}`]
+    );
+    const { rows: [memberUser] } = await pool.query('SELECT email FROM users WHERE id = $1', [employee]);
+    await pool.query(
+      `INSERT INTO business_members (business_id, owner_id, member_id, invite_email, role, status)
+       VALUES ($1, $2, $3, $4, 'employee', 'active')`,
+      [biz.id, owner, employee, memberUser.email]
+    );
+    H = { owner, employee, businessId: biz.id };
+  });
+
+  async function openPunchBackdated(hours) {
+    const app = appFor(H.employee, 'employee');
+    const inRes = await request(app).post(`/api/businesses/${H.businessId}/staff/clock-in`).send({});
+    expect(inRes.status).toBe(201);
+    await pool.query(
+      `UPDATE business_time_entries SET clock_in_at = NOW() - ($1 || ' hours')::interval WHERE id = $2`,
+      [String(hours), inRes.body.id]
+    );
+    return inRes.body.id;
+  }
+
+  test('a qualifying clock-out without an attestation 409s and leaves the punch open', async () => {
+    const entryId = await openPunchBackdated(6);
+    const blocked = await request(appFor(H.employee, 'employee'))
+      .post(`/api/businesses/${H.businessId}/staff/clock-out/${entryId}`)
+      .send({});
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.code).toBe('break_attestation_required');
+    const { rows: [row] } = await pool.query(
+      'SELECT clock_out_at FROM business_time_entries WHERE id = $1', [entryId]
+    );
+    expect(row.clock_out_at).toBeNull();
+
+    const waived = await request(appFor(H.employee, 'employee'))
+      .post(`/api/businesses/${H.businessId}/staff/clock-out/${entryId}`)
+      .send({ breakAttestation: { mealBreakTaken: false, waived: true, waiverReason: 'Lunch rush' } });
+    expect(waived.status).toBe(200);
+    expect(waived.body.break_attestation).toBeTruthy();
+    expect(waived.body.break_attestation.waived).toBe(true);
+    const { rows: attestations } = await pool.query(
+      'SELECT * FROM restaurant_break_attestations WHERE time_entry_id = $1', [entryId]
+    );
+    expect(attestations).toHaveLength(1);
+    expect(attestations[0].waiver_reason).toBe('Lunch rush');
+  });
+
+  test('a qualifying clock-out with an attestation completes and stores it', async () => {
+    const entryId = await openPunchBackdated(6);
+    const out = await request(appFor(H.employee, 'employee'))
+      .post(`/api/businesses/${H.businessId}/staff/clock-out/${entryId}`)
+      .send({ breakAttestation: { mealBreakTaken: true } });
+    expect(out.status).toBe(200);
+    expect(out.body.break_attestation).toBeTruthy();
+    expect(out.body.break_attestation.meal_break_taken).toBe(true);
+    // The punch record shows a missed meal break (6h, no breaks), so
+    // the "taken" statement is disputed; the premium still prices from
+    // the punch record, not the statement.
+    expect(out.body.break_attestation_disputed).toBe(true);
+    const { rows: attestations } = await pool.query(
+      'SELECT * FROM restaurant_break_attestations WHERE time_entry_id = $1', [entryId]
+    );
+    expect(attestations).toHaveLength(1);
+    expect(attestations[0].disputed).toBe(true);
+  });
+
+  test('a non-qualifying clock-out is unaffected by the gate', async () => {
+    const entryId = await openPunchBackdated(2);
+    const out = await request(appFor(H.employee, 'employee'))
+      .post(`/api/businesses/${H.businessId}/staff/clock-out/${entryId}`)
+      .send({});
+    expect(out.status).toBe(200);
+    expect(out.body.break_attestation_required).toBe(false);
+    expect(out.body.break_attestation_missing).toBe(false);
+  });
+});
 ddescribe('own time entries and business-local work dates (S-04, F-22)', () => {
   let G = {};
 

@@ -8970,6 +8970,7 @@
       "toastClockInFail": "Impossible de pointer",
       "toastClockedOut": "Pointage de sortie effectué !",
       "toastClockOutFail": "Impossible de pointer la sortie",
+      "toastAttestationRequired": "La sortie nécessite une déclaration de pause repas. Demandez à l'employé de la confirmer depuis le pointeur.",
       "toastStaffRequired": "Veuillez sélectionner un membre de l’équipe",
       "labor": {
         "minorsTitle": "Mineurs",
@@ -25083,6 +25084,7 @@
         "withdrawn": "Retirée"
       },
       "attestationQuestion": "Avez-vous pris votre pause repas ?",
+      "attestationRequired": "La sortie nécessite une déclaration de pause repas. Confirmez si vous avez pris votre pause ou renoncez-y avec un motif.",
       "attestationTaken": "Oui, j'ai pris ma pause",
       "attestationWaived": "Non, j'y ai renoncé",
       "attestationMissed": "Non, je l'ai manqué",
@@ -26458,7 +26460,17 @@
           "noSales": "Ouvertures sans vente",
           "payouts": "Sorties de caisse",
           "missingPunches": "Heures manquantes",
-          "missingPunchesHint": "Les heures manquantes comptent les services planifiés sans heures enregistrées. La ponctualité exacte exige des heures de pointage, que le journal d'heures ne conserve pas."
+          "missingPunchesHint": "Les heures manquantes comptent les services planifiés sans heures enregistrées. La ponctualité exacte exige des heures de pointage, que le journal d'heures ne conserve pas.",
+          "punchEnforcement": {
+            "title": "Controle des pointages",
+            "location": "Magasin",
+            "geofence": "Georeperage",
+            "staffWithoutPin": "Personnel sans code PIN",
+            "geofenceConfigured": "Configure",
+            "geofenceNotConfigured": "Non configure",
+            "staffWithoutPinCount": "{{without}} sur {{total}} sans code PIN",
+            "hint": "Les controles de georeperage et de code PIN ne fonctionnent que la ou ils sont configures. Ajoutez les coordonnees du magasin et les codes PIN du personnel pour activer les controles de pointage."
+          }
         },
         "activity": {
           "title": "Activité de l'équipe",

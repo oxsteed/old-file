@@ -401,7 +401,19 @@ export function StaffScheduler({ businessId, isManager = false }) {
 
   const clockOut = async (id) => {
     try { await api.post(`/businesses/${businessId}/staff/clock-out/${id}`); toast.success(t('businessHub.staffScheduler.toastClockedOut')); loadTime(); }
-    catch { toast.error(t('businessHub.staffScheduler.toastClockOutFail')); }
+    catch (err) {
+      // Item 63: a manager closing their own qualifying punch without
+      // an attestation gets a 409; they cannot attest for someone else,
+      // so the scheduler only surfaces it and the worker attests from
+      // the time clock.
+      if (err?.response?.status === 409
+        && (err?.response?.data?.code === 'break_attestation_required'
+          || err?.response?.data?.error === 'break_attestation_required')) {
+        toast.error(t('businessHub.staffScheduler.toastAttestationRequired'));
+        return;
+      }
+      toast.error(t('businessHub.staffScheduler.toastClockOutFail'));
+    }
   };
 
   // S-04: time-off request lifecycle.

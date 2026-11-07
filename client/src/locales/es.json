@@ -8351,6 +8351,7 @@
       "toastClockInFail": "No se pudo registrar la entrada",
       "toastClockedOut": "¡Salida registrada!",
       "toastClockOutFail": "No se pudo registrar la salida",
+      "toastAttestationRequired": "La salida necesita una declaración de descanso. Pide al empleado que la confirme desde el reloj.",
       "toastStaffRequired": "Selecciona un miembro del equipo",
       "labor": {
         "minorsTitle": "Menores",
@@ -25083,6 +25084,7 @@
         "withdrawn": "Retirada"
       },
       "attestationQuestion": "¿Tomaste tu descanso para comer?",
+      "attestationRequired": "Para registrar la salida necesitas una declaración de descanso. Confirma si tomaste tu descanso o renuncia a él con un motivo.",
       "attestationTaken": "Sí, tomé mi descanso",
       "attestationWaived": "No, renuncié a él",
       "attestationMissed": "No, me lo perdí",
@@ -26458,7 +26460,17 @@
           "noSales": "Aperturas sin venta",
           "payouts": "Pagos de caja",
           "missingPunches": "Registros de horas faltantes",
-          "missingPunchesHint": "Los registros faltantes cuentan turnos programados sin horas registradas. La puntualidad exacta necesita horas de fichaje, que el registro de horas no guarda."
+          "missingPunchesHint": "Los registros faltantes cuentan turnos programados sin horas registradas. La puntualidad exacta necesita horas de fichaje, que el registro de horas no guarda.",
+          "punchEnforcement": {
+            "title": "Control de fichajes",
+            "location": "Tienda",
+            "geofence": "Geocerca",
+            "staffWithoutPin": "Personal sin PIN",
+            "geofenceConfigured": "Configurada",
+            "geofenceNotConfigured": "Sin configurar",
+            "staffWithoutPinCount": "{{without}} de {{total}} sin PIN",
+            "hint": "Los controles de geocerca y PIN solo funcionan donde estan configurados. Agrega las coordenadas de la tienda y los PIN del personal para activar los controles de fichaje."
+          }
         },
         "activity": {
           "title": "Actividad del equipo",

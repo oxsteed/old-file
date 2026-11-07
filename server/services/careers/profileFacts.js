@@ -66,7 +66,7 @@ async function computeFacts(db, userId, { graceMinutes = 7 } = {}) {
           AND t.voided_at IS NULL AND t.clock_in_at IS NOT NULL
           AND t.clock_in_at BETWEEN ((s.shift_date + s.start_time) AT TIME ZONE COALESCE(l.timezone, 'UTC')) - INTERVAL '3 hours'
                                 AND ((s.shift_date + s.start_time) AT TIME ZONE COALESCE(l.timezone, 'UTC')) + INTERVAL '3 hours'
-        WHERE s.user_id = $1 AND s.published_at IS NOT NULL AND s.shift_date >= CURRENT_DATE - 365
+        WHERE s.user_id = $1 AND s.published_at IS NOT NULL AND s.cancelled_at IS NULL AND s.shift_date >= CURRENT_DATE - 365
         GROUP BY s.id, s.shift_date, s.start_time, l.timezone
      )
      SELECT COUNT(*)::int AS n,

@@ -8970,6 +8970,7 @@
       "toastClockInFail": "Failed to clock in",
       "toastClockedOut": "Clocked out!",
       "toastClockOutFail": "Failed to clock out",
+      "toastAttestationRequired": "Clock-out needs a meal-break statement. Ask the employee to attest from the time clock.",
       "toastStaffRequired": "Please select a staff member",
       "labor": {
         "minorsTitle": "Minors",
@@ -25083,6 +25084,7 @@
         "withdrawn": "Withdrawn"
       },
       "attestationQuestion": "Did you take your meal break?",
+      "attestationRequired": "Clock-out needs a meal-break statement. Confirm whether you took your break, or waive it with a reason.",
       "attestationTaken": "Yes, I took my break",
       "attestationWaived": "No, I waived it",
       "attestationMissed": "No, I missed it",
@@ -26001,7 +26003,17 @@
           "noSales": "No-sales",
           "payouts": "Payouts",
           "missingPunches": "Missing time entries",
-          "missingPunchesHint": "Missing time entries count scheduled shifts with no matching hours record. Punch-level lateness needs clock-in times, which the hours log does not store."
+          "missingPunchesHint": "Missing time entries count scheduled shifts with no matching hours record. Punch-level lateness needs clock-in times, which the hours log does not store.",
+          "punchEnforcement": {
+            "title": "Punch enforcement",
+            "location": "Store",
+            "geofence": "Geofence",
+            "staffWithoutPin": "Staff without a PIN",
+            "geofenceConfigured": "Set up",
+            "geofenceNotConfigured": "Not set up",
+            "staffWithoutPinCount": "{{without}} of {{total}} without a PIN",
+            "hint": "Geofence and PIN checks only run where they are set up. Add store coordinates and staff PINs to turn on clock-in checks."
+          }
         },
         "activity": {
           "title": "Team activity",

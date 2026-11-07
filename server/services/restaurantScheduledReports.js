@@ -16,10 +16,16 @@
 // locked_close=false).
 //
 // No duplicate sends: the deliveries table has a UNIQUE
-// (scheduled_report_id, business_date) key and the job inserts with
-// ON CONFLICT DO NOTHING. A second run for the same business day
-// replays instead of re-sending. Each schedule is isolated: one
-// failing schedule never blocks the others.
+// (scheduled_report_id, business_date) key. The send loop claims the
+// row first (status 'pending'), then marks it 'sent' only after
+// delivery succeeds or 'failed' on error — a delivery that throws
+// mid-send is never recorded 'sent', and a failed date stays due
+// (last_business_date advances only on success) so the next run
+// retries it. A second run for the same business day replays instead
+// of re-sending. Each schedule is isolated: one failing schedule
+// never blocks the others.
+
+const PENDING_STALE_MINUTES = 60;
 
 const pool = require('../db');
 const logger = require('../utils/logger');
@@ -241,6 +247,80 @@ async function deliverScheduledReport(db, { schedule, payload } = {}) {
   return recipientCount;
 }
 
+// Claim the delivery row for one schedule and business date, so the
+// send loop can record the outcome on the claimed row instead of
+// inserting a second row (the old code inserted 'sent' before
+// delivery, and the failure insert hit the same ON CONFLICT DO
+// NOTHING dedupe key, so a partial failure was recorded as sent and
+// never retried).
+//
+// Returns { delivery, outcome }:
+//   - 'claimed' / 'reclaimed' / 'reclaimed_stale': the caller owns
+//     the row (status 'pending') and must mark it 'sent' or 'failed'.
+//   - 'already_sent': the date was delivered; the caller must skip it.
+//   - 'in_progress' / 'skipped': another run owns the date, or the
+//     claim lost a race; the caller must not send.
+// A 'failed' row is re-claimed so the date is retried. A 'pending'
+// row older than PENDING_STALE_MINUTES is a crashed run and is
+// re-claimed too, so a crash between claim and outcome cannot lose
+// the date forever; a fresh 'pending' row means a live run owns it.
+async function claimScheduledReportDelivery(db, { schedule, businessDate, asOf, now = new Date() } = {}) {
+  const { rows: [claimed] } = await db.query(
+    `INSERT INTO restaurant_scheduled_report_deliveries
+       (scheduled_report_id, business_date, report_type, as_of,
+        snapshot, locked_close, channel, status, recipient_count)
+     VALUES ($1, $2::date, $3, $4, TRUE, FALSE, $5, 'pending', 0)
+     ON CONFLICT (scheduled_report_id, business_date) DO NOTHING
+     RETURNING *`,
+    [schedule.id, businessDate, schedule.report_type, asOf.toISOString(), schedule.delivery_channel]
+  );
+  if (claimed) return { delivery: claimed, outcome: 'claimed' };
+
+  const { rows: [existing] } = await db.query(
+    `SELECT * FROM restaurant_scheduled_report_deliveries
+      WHERE scheduled_report_id = $1 AND business_date = $2::date`,
+    [schedule.id, businessDate]
+  );
+  // No row despite the conflict: the row vanished under us (or the
+  // mock has no row). Never send without a claim.
+  if (!existing) return { delivery: null, outcome: 'skipped' };
+  if (existing.status === 'sent') return { delivery: null, outcome: 'already_sent' };
+  if (existing.status === 'failed' || existing.status === 'pending') {
+    if (existing.status === 'pending') {
+      const claimedAt = existing.created_at ? new Date(existing.created_at).getTime() : NaN;
+      const stale = Number.isNaN(claimedAt)
+        || new Date(now).getTime() - claimedAt > PENDING_STALE_MINUTES * 60 * 1000;
+      if (!stale) return { delivery: null, outcome: 'in_progress' };
+    }
+    const { rows: [reclaimed] } = await db.query(
+      `UPDATE restaurant_scheduled_report_deliveries
+          SET status = 'pending', error = NULL
+        WHERE id = $1 AND status = $2
+        RETURNING *`,
+      [existing.id, existing.status]
+    );
+    if (reclaimed) return { delivery: reclaimed, outcome: existing.status === 'failed' ? 'reclaimed' : 'reclaimed_stale' };
+    return { delivery: null, outcome: 'skipped' };
+  }
+  return { delivery: null, outcome: 'skipped' };
+}
+
+async function markDeliverySent(db, { deliveryId, recipientCount }) {
+  await db.query(
+    `UPDATE restaurant_scheduled_report_deliveries
+        SET status = 'sent', recipient_count = $1 WHERE id = $2`,
+    [recipientCount, deliveryId]
+  );
+}
+
+async function markDeliveryFailed(db, { deliveryId, error }) {
+  await db.query(
+    `UPDATE restaurant_scheduled_report_deliveries
+        SET status = 'failed', error = $1 WHERE id = $2`,
+    [String(error == null ? '' : error).slice(0, 1000), deliveryId]
+  );
+}
+
 // Run every due schedule once. `now` is injectable for tests. The
 // business date is yesterday in the restaurant's own timezone: the
 // report covers a finished day, never a day still in service.
@@ -267,6 +347,7 @@ async function runDueScheduledReports(db = pool, { now = new Date() } = {}) {
       : (lastRun == null || lastRun < businessDate);
     if (!isDue) continue;
     result.due += 1;
+    let delivery = null;
     try {
       const restaurant = {
         id: Number(schedule.restaurant_id),
@@ -275,28 +356,19 @@ async function runDueScheduledReports(db = pool, { now = new Date() } = {}) {
         currency_code: schedule.currency_code,
       };
       const asOf = new Date(now);
-      const payload = await buildScheduledReport(db, { restaurant, schedule, businessDate, asOf });
-      // The ledger insert is the dedupe: a second run for the same
-      // business day inserts nothing and sends nothing.
-      const { rows: [delivery] } = await db.query(
-        `INSERT INTO restaurant_scheduled_report_deliveries
-           (scheduled_report_id, business_date, report_type, as_of,
-            snapshot, locked_close, channel, status, recipient_count)
-         VALUES ($1, $2::date, $3, $4, TRUE, FALSE, $5, 'sent', 0)
-         ON CONFLICT (scheduled_report_id, business_date) DO NOTHING
-         RETURNING *`,
-        [schedule.id, businessDate, schedule.report_type, asOf.toISOString(), schedule.delivery_channel]
-      );
-      if (!delivery) {
+      // Claim first: the row is 'pending' until delivery succeeds.
+      // A 'sent' row skips, a 'failed' row is re-claimed and retried.
+      const claim = await claimScheduledReportDelivery(db, { schedule, businessDate, asOf, now });
+      if (!claim.delivery) {
         result.skipped += 1;
         continue;
       }
+      delivery = claim.delivery;
+      const payload = await buildScheduledReport(db, { restaurant, schedule, businessDate, asOf });
       const recipientCount = await deliverScheduledReport(db, { schedule, payload });
-      await db.query(
-        `UPDATE restaurant_scheduled_report_deliveries
-            SET recipient_count = $1 WHERE id = $2`,
-        [recipientCount, delivery.id]
-      );
+      await markDeliverySent(db, { deliveryId: delivery.id, recipientCount });
+      // last_business_date advances only on success: a failed date
+      // stays due and is retried on the next run.
       await db.query(
         `UPDATE restaurant_scheduled_reports
             SET last_run_at = NOW(), last_business_date = $2::date, updated_at = NOW()
@@ -308,16 +380,15 @@ async function runDueScheduledReports(db = pool, { now = new Date() } = {}) {
       result.failed += 1;
       result.errors.push({ schedule_id: Number(schedule.id), error: err.message });
       logger.error('Scheduled restaurant report failed', { scheduleId: schedule.id, error: err.message });
-      try {
-        await db.query(
-          `INSERT INTO restaurant_scheduled_report_deliveries
-             (scheduled_report_id, business_date, report_type, as_of,
-              snapshot, locked_close, channel, status, recipient_count, error)
-           VALUES ($1, $2::date, $3, $4, TRUE, FALSE, $5, 'failed', 0, $6)
-           ON CONFLICT (scheduled_report_id, business_date) DO NOTHING`,
-          [schedule.id, businessDate, schedule.report_type, new Date(now).toISOString(), schedule.delivery_channel, String(err.message).slice(0, 1000)]
-        );
-      } catch { /* the failure ledger is best-effort; the error above is the record */ }
+      // Record the failure on the claimed row (no second INSERT: the
+      // dedupe key already belongs to the claim). If the claim itself
+      // threw there is no row to mark; last_business_date is untouched
+      // either way, so the date stays due and the next run retries.
+      if (delivery) {
+        try {
+          await markDeliveryFailed(db, { deliveryId: delivery.id, error: err.message });
+        } catch { /* the failure ledger is best-effort; the error above is the record */ }
+      }
     }
   }
   return result;
@@ -332,6 +403,10 @@ module.exports = {
   summarizeReport,
   buildScheduledReport,
   deliverScheduledReport,
+  claimScheduledReportDelivery,
+  markDeliverySent,
+  markDeliveryFailed,
+  PENDING_STALE_MINUTES,
   runDueScheduledReports,
   localDateString,
   shiftDateString,

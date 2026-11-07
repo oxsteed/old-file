@@ -3036,6 +3036,7 @@ input[type="color"].fd-settings-color {
 .fd-ops-toolbar--end { justify-content: flex-end; }
 .fd-ops-panel-title { margin: 0; font-size: 1rem; font-weight: 700; }
 .fd-ops-subhead { margin: 1.25rem 0 0.5rem; font-size: 0.92rem; font-weight: 700; }
+.fd-table-scroll { overflow-x: auto; }
 
 /* Checklists */
 .fd-ops-checklists-grid {

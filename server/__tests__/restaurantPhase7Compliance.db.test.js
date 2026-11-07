@@ -424,6 +424,38 @@ ddescribe('Phase 7: compliance on the migrated schema', () => {
     expect(summary.disputed_attestations).toBe(1);
   });
 
+  test('a second attestation appends a version; readers see the latest statement only (item 43)', async () => {
+    // entryId already carries a disputed "taken" attestation from the
+    // previous test. Correcting it must keep the first statement.
+    const corrected = await breakAttestation.recordBreakAttestation(pool, {
+      businessId, userId: staffId, timeEntryId: entryId, mealBreakTaken: false,
+    });
+    expect(corrected.disputed).toBe(false);
+    const { rows: versions } = await pool.query(
+      'SELECT id, meal_break_taken FROM restaurant_break_attestations WHERE time_entry_id = $1 ORDER BY id',
+      [entryId]
+    );
+    expect(versions).toHaveLength(2);
+    expect(versions[0].meal_break_taken).toBe(true);
+    expect(versions[1].meal_break_taken).toBe(false);
+    const latest = await breakAttestation.latestAttestation(pool, { businessId, timeEntryId: entryId });
+    expect(latest.id).toBe(versions[1].id);
+    expect(latest.meal_break_taken).toBe(false);
+    const byUser = await breakAttestation.attestationSummaryByUser(pool, {
+      businessId, fromDate: '2026-11-06', toDate: '2026-11-06',
+    });
+    const summary = byUser.get(staffId);
+    expect(summary.attestations).toBe(2);
+    expect(summary.waived_breaks).toBe(1);
+    expect(summary.missed_breaks).toBe(1);
+    expect(summary.disputed_attestations).toBe(0);
+    const listed = await breakAttestation.listAttestations(pool, {
+      businessId, fromDate: '2026-11-06', toDate: '2026-11-06',
+    });
+    expect(listed).toHaveLength(2);
+    expect(listed.find((a) => Number(a.time_entry_id) === entryId).meal_break_taken).toBe(false);
+  });
+
   test('prime cost matches the hand-checked fixture', async () => {
     const prime = await primeCost.computePrimeCost({
       restaurant: { id: restaurantId, business_id: businessId, timezone: 'UTC', currency_code: 'USD' },

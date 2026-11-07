@@ -40,9 +40,10 @@
 // hardcoded country rule.
 //
 // Overlap counts every stored shift for the person, draft or published:
-// business_staff_shifts has no status/cancelled column, and a draft is
-// still planned work, so a draft overlapping a published shift is a real
-// conflict. The shift being updated is excluded by id.
+// a draft is still planned work, so a draft overlapping a published
+// shift is a real conflict. A cancelled (soft-deleted) shift is not
+// planned work anymore and never conflicts. The shift being updated
+// is excluded by id.
 //
 // Violations are structured so the UI can show them inline: each has a
 // machine-readable code, a severity, the form field it concerns, the
@@ -144,6 +145,7 @@ async function validateShift(db, opts) {
        FROM business_staff_shifts
       WHERE business_id = $1 AND user_id = $2
         AND shift_date >= $3::date AND shift_date <= $4::date
+        AND cancelled_at IS NULL
       ORDER BY shift_date, start_time`,
     [businessId, userId, rangeStart, rangeEnd]
   );

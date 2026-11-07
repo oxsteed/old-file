@@ -58,7 +58,7 @@ jest.mock('../controllers/restaurantReportsController', () => ({
 
 const { parseRangeText, resolveThresholds, isBreach, recordTemperatureLog, linkCorrectiveAction } = require('../services/restaurantTemperatureService');
 const { evaluateMinorPunch, resolveRules } = require('../services/laborJurisdictionRules');
-const { recordBreakAttestation } = require('../services/restaurantBreakAttestation');
+const { recordBreakAttestation, latestAttestation, attestationSummaryByUser, listAttestations } = require('../services/restaurantBreakAttestation');
 const { computePrimeCost, computeFoodCostTotals, computeServerBreakdown, computeDaypartBreakdown } = require('../services/restaurantPrimeCostService');
 const { getCachedRollup, ROLLUP_TTL_SECONDS } = require('../services/restaurantRollupCache');
 const scheduledReports = require('../services/restaurantScheduledReports');
@@ -263,6 +263,44 @@ describe('Phase 7: break attestation (gap 17)', () => {
       businessId: 42, userId: USER_ID, timeEntryId: 5, mealBreakTaken: true, waived: true, waiverReason: 'x',
     })).rejects.toMatchObject({ status: 400 });
     expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('a second attestation appends a new version instead of rewriting the first (item 43)', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [entry] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ restaurant_id: 3 }] });
+    mockQuery.mockResolvedValueOnce({ rows: [caRow] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 11, time_entry_id: 5, meal_break_taken: false, waived: false, disputed: false }] });
+    const recorded = await recordBreakAttestation(client, {
+      businessId: 42, userId: USER_ID, timeEntryId: 5, mealBreakTaken: false,
+    });
+    expect(recorded.attestation.id).toBe(11);
+    const insertSql = mockQuery.mock.calls[3][0];
+    expect(insertSql).toMatch(/INSERT INTO restaurant_break_attestations/);
+    expect(insertSql).not.toMatch(/ON CONFLICT/);
+  });
+
+  test('summary, list and latest lookup read the latest version only (item 43)', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [
+      { user_id: USER_ID, attestations: 1, waived_breaks: 0, missed_breaks: 1, disputed_attestations: 0 },
+    ] });
+    const byUser = await attestationSummaryByUser(client, {
+      businessId: 42, fromDate: '2026-11-06', toDate: '2026-11-06',
+    });
+    expect(mockQuery.mock.calls[0][0]).toMatch(/DISTINCT ON \(time_entry_id\)/);
+    expect(byUser.get(USER_ID).missed_breaks).toBe(1);
+
+    mockQuery.mockResolvedValueOnce({ rows: [
+      { id: 11, time_entry_id: 5, meal_break_taken: false, user_name: 'Test User' },
+    ] });
+    const listed = await listAttestations(client, { businessId: 42 });
+    expect(mockQuery.mock.calls[1][0]).toMatch(/DISTINCT ON \(time_entry_id\)/);
+    expect(listed).toHaveLength(1);
+    expect(listed[0].meal_break_taken).toBe(false);
+
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 11, time_entry_id: 5, meal_break_taken: false }] });
+    const latest = await latestAttestation(client, { businessId: 42, timeEntryId: 5 });
+    expect(mockQuery.mock.calls[2][0]).toMatch(/ORDER BY attested_at DESC, id DESC/);
+    expect(latest.id).toBe(11);
   });
 });
 
