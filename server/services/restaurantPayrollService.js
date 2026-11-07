@@ -55,6 +55,17 @@ function storeFilter(locationIds, column, parameter) {
 }
 function storeParams(params, locationIds) { return locationIds === null ? params : [...params, locationIds]; }
 
+// Finding 57: the restaurant currency is schema NOT NULL, so a
+// missing value here means corrupt data — fail visibly instead of
+// silently pricing in USD.
+function requireRestaurantCurrency(restaurant) {
+  const code = String(restaurant?.currency_code || '').trim().toUpperCase();
+  if (!code) {
+    throw new AppError('This restaurant has no currency configured; payroll cannot be priced', 409, 'restaurant_currency_missing');
+  }
+  return code;
+}
+
 const MAX_RANGE_DAYS = 366;
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -1381,7 +1392,7 @@ async function computeTipAllocations({ restaurant, fromDate, toDate, locationIds
     getHoursByUser(businessId, fromDate, toDate, locationIds),
   ]);
   const rosterById = new Map(roster.map((m) => [m.user_id, m]));
-  const restaurantCurrency = restaurant.currency_code || 'USD';
+  const restaurantCurrency = requireRestaurantCurrency(restaurant);
 
   // Gross per currency per user; declared cash lands in the
   // restaurant's own currency.
@@ -1522,7 +1533,7 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
   // reported alongside so clients format them correctly.
   const payContext = await getLocationPayContext(restaurant.id, locationIds);
   const singleLocationId = Array.isArray(locationIds) && locationIds.length === 1 ? Number(locationIds[0]) : null;
-  const restaurantCurrency = restaurant.currency_code || 'USD';
+  const restaurantCurrency = requireRestaurantCurrency(restaurant);
   const locationCurrency = singleLocationId != null
     ? payContext.locationsById.get(singleLocationId)?.currency_code || null
     : null;
@@ -2034,8 +2045,8 @@ async function computeExceptions({ restaurant, fromDate, toDate, locationIds = n
   // currency as the labor report for this scope, so the two reports
   // can never disagree about a premium (see getPredictabilityPremiums).
   const exceptionCurrency = singleLocationId != null
-    ? payContext.locationsById.get(singleLocationId)?.currency_code || restaurant.currency_code || 'USD'
-    : restaurant.currency_code || 'USD';
+    ? payContext.locationsById.get(singleLocationId)?.currency_code || requireRestaurantCurrency(restaurant)
+    : requireRestaurantCurrency(restaurant);
   const predictabilityPremiums = await getPredictabilityPremiums({
     businessId, fromDate, toDate, timezone, locationIds, wagesByUser,
     currency: exceptionCurrency,
@@ -2405,7 +2416,10 @@ async function getCorrectionHourDeltas(clientOrPool, { restaurant, sourceRun, ex
 async function buildCarryForwardItems(clientOrPool, {
   restaurant, targetPeriodFrom, targetPeriodTo, locationIds = null, currency = null, wagesByUser = new Map(), excludeTargetRunId = -1,
 }) {
-  const runCurrency = (currency || restaurant.currency_code || 'USD').toString().trim().toUpperCase();
+  // Finding 57: the run currency is the caller's priced currency
+  // (labor.currency) or the restaurant's configured currency — never
+  // an invented USD.
+  const runCurrency = String(currency || requireRestaurantCurrency(restaurant)).trim().toUpperCase();
   const { ids: targetIds, scoped: targetScoped } = locationScopeClause(locationIds);
   const { rows: sources } = await clientOrPool.query(
     `SELECT * FROM restaurant_pay_runs

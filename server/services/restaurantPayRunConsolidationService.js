@@ -56,7 +56,7 @@ function memberShape(member) {
     payRunId: Number(member.pay_run_id),
     restaurantId: Number(member.restaurant_id),
     locationIds: Array.isArray(member.location_ids) ? member.location_ids.map((id) => Number(id)) : [],
-    currencyCode: member.currency_code || 'USD',
+    currencyCode: member.currency_code || (member.totals && member.totals.currency) || null,
     totals: member.totals || {},
     attribution: memberAttribution(member),
     status: member.run_status || null,
@@ -101,7 +101,7 @@ async function listBrandPayRuns(client, { brandId, restaurantIds, from = null, t
     status: row.status,
     totals: row.totals || {},
     locationIds: Array.isArray(row.location_ids) ? row.location_ids.map((id) => Number(id)) : [],
-    currencyCode: row.currency_code || (row.totals && row.totals.currency) || 'USD',
+    currencyCode: row.currency_code || (row.totals && row.totals.currency) || null,
     approvedBy: row.approved_by || null,
     lineCount: Number(row.line_count || 0),
     attribution: memberAttribution({ location_ids: row.location_ids }),
@@ -111,10 +111,15 @@ async function listBrandPayRuns(client, { brandId, restaurantIds, from = null, t
 // Per-currency sums over the member snapshots, plus a converted
 // total in the brand reporting currency. A missing rate leaves the
 // converted total null and names the gap — never a guessed rate.
+// Finding 57: a member run with no currency anywhere fails visibly
+// here (finalize/approve time) instead of silently summing as USD.
 async function computeConsolidationTotals(client, { members, brandId, periodTo }) {
   const byCurrency = new Map();
   for (const member of members) {
-    const currency = member.currencyCode || 'USD';
+    const currency = member.currencyCode || (member.totals && member.totals.currency) || null;
+    if (!currency) {
+      throw new AppError(`Pay run ${Number(member.payRunId)} has no currency; it cannot be consolidated`, 409, 'consolidation_member_currency_missing');
+    }
     const total = Math.round(Number(member.totals?.total_pay_cents || 0));
     byCurrency.set(currency, (byCurrency.get(currency) || 0) + total);
   }
@@ -196,7 +201,7 @@ async function createConsolidation(client, { brandId = null, anchorRestaurantId,
     payRunId: Number(row.id),
     restaurantId: Number(row.restaurant_id),
     locationIds: Array.isArray(row.location_ids) ? row.location_ids.map((id) => Number(id)) : [],
-    currencyCode: row.currency_code || (row.totals && row.totals.currency) || 'USD',
+    currencyCode: row.currency_code || (row.totals && row.totals.currency) || null,
     totals: row.totals || {},
   }));
   const totals = await computeConsolidationTotals(client, { members, brandId, periodTo });

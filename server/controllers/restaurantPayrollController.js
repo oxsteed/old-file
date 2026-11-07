@@ -25,6 +25,27 @@ function parsePositiveInt(value) {
   return strictInteger(value);
 }
 
+// Finding 7: one pay run has exactly one currency anchor — the
+// currency its lines were priced in, snapshotted on the run row at
+// creation (labor.currency: the single-store location currency when
+// one store is in scope, else the restaurant currency). Every
+// settlement read and write (link, disbursement, finalize, export,
+// list/detail linked totals) resolves through this helper. A run
+// with no currency anywhere fails visibly instead of silently
+// pricing in USD: the restaurant currency is schema NOT NULL, so a
+// missing value means corrupt data, never a default. A finalized
+// run's totals carry the currency too, which covers legacy runs
+// created before the snapshot column existed.
+function resolveRunCurrency(run, restaurant) {
+  const code = String(
+    run?.currency_code || run?.totals?.currency || restaurant?.currency_code || ''
+  ).trim().toUpperCase();
+  if (!code) {
+    throw new AppError('This pay run has no currency; it cannot be priced or settled', 409, 'pay_run_currency_missing');
+  }
+  return code;
+}
+
 // Background-jobs audit (finding P1): client-generated idempotency keys
 // for cash-tip declarations. Optional for backward compatibility; when
 // present the key must look like an opaque token (same character class as
@@ -630,17 +651,25 @@ async function getPayRunWithLines(clientOrPool, restaurantId, payRunId) {
       WHERE l.pay_run_id = $1 ORDER BY l.id`,
     [payRunId]
   ).catch(() => ({ rows: [] }));
-  // Nov 3 audit items 1-2: the linked total counts only links in the
-  // restaurant's currency. A legacy cross-currency link must never push
-  // a run to paid on a mixed-currency sum.
+  // Finding 7 + Nov 3 audit items 1-2: the linked total counts
+  // only links in the run's own currency (run.currency_code, the
+  // snapshot taken at creation). A legacy cross-currency link must
+  // never push a run to paid on a mixed-currency sum. Runs created
+  // before the snapshot column existed fall back to the restaurant
+  // currency for the filter; a link with no recorded currency still
+  // counts, matching the pre-existing read.
   let runCurrency = null;
-  try {
-    const { rows: [restaurantRow] } = await clientOrPool.query(
-      'SELECT currency_code FROM food_restaurants WHERE id = $1',
-      [restaurantId]
-    );
-    if (restaurantRow?.currency_code) runCurrency = String(restaurantRow.currency_code).toUpperCase();
-  } catch { /* unknown currency: fall back to the unfiltered sum below */ }
+  if (run.currency_code) {
+    runCurrency = String(run.currency_code).toUpperCase();
+  } else {
+    try {
+      const { rows: [restaurantRow] } = await clientOrPool.query(
+        'SELECT currency_code FROM food_restaurants WHERE id = $1',
+        [restaurantId]
+      );
+      if (restaurantRow?.currency_code) runCurrency = String(restaurantRow.currency_code).toUpperCase();
+    } catch { /* unknown currency: fall back to the unfiltered sum below */ }
+  }
   const linkedPayoutCents = payoutLinks.reduce((sum, link) => {
     if (runCurrency && link.currency_code && String(link.currency_code).toUpperCase() !== runCurrency) return sum;
     return sum + Number(link.amount_cents || 0);
@@ -731,7 +760,7 @@ function payRunShape(run) {
       payRunId: Number(link.pay_run_id ?? link.payRunId),
       restaurantPayoutId: link.restaurant_payout_id ?? link.restaurantPayoutId,
       amountCents: Number(link.amount_cents ?? link.amountCents),
-      currencyCode: link.currency_code || link.currencyCode || 'USD',
+      currencyCode: link.currency_code || link.currencyCode || null,
       linkedBy: link.linked_by || link.linkedBy || null,
       note: link.note || null,
       payoutStatus: link.payout_status || link.payoutStatus || null,
@@ -744,7 +773,7 @@ function payRunShape(run) {
       staff_user_id: d.staff_user_id,
       staff_label: d.staff_label || null,
       amountCents: Number(d.amount_cents ?? d.amountCents),
-      currencyCode: d.currency_code || d.currencyCode || 'USD',
+      currencyCode: d.currency_code || d.currencyCode || null,
       method: d.method,
       reference: d.reference || null,
       note: d.note || null,
@@ -799,6 +828,11 @@ exports.createPayRun = async (req, res, next) => {
     const { fromDate, toDate } = parsePayRunPeriodOr400(req.body || {}, restaurant);
     const scope = await getLocationScope(restaurant, req.user.id);
     const labor = await payroll.computeLabor({ restaurant, fromDate, toDate, locationIds: scope.location_ids });
+    // Finding 7: the run's currency anchor is the currency its
+    // lines were priced in (labor.currency), snapshotted here and
+    // used by every settlement path afterwards — never the
+    // restaurant currency when a single store prices in its own.
+    const runCurrency = labor.currency;
     // Phase 8 Track B: the run records the stores it was computed
     // from and the currency it was priced in. Lines carry a store
     // only when the run covers exactly one store — computeLabor
@@ -819,7 +853,7 @@ exports.createPayRun = async (req, res, next) => {
       targetPeriodFrom: fromDate,
       targetPeriodTo: toDate,
       locationIds,
-      currency: restaurant.currency_code || 'USD',
+      currency: runCurrency,
       wagesByUser,
     });
     const run = await withTransaction(pool, async (client) => {
@@ -827,7 +861,7 @@ exports.createPayRun = async (req, res, next) => {
         `INSERT INTO restaurant_pay_runs (restaurant_id, period_from, period_to, status, created_by, location_ids, currency_code)
          VALUES ($1, $2, $3, 'draft', $4, $5::bigint[], $6)
          RETURNING *`,
-        [restaurant.id, fromDate, toDate, req.user.id, locationIds, restaurant.currency_code || 'USD']
+        [restaurant.id, fromDate, toDate, req.user.id, locationIds, runCurrency]
       );
       await insertPayRunLines(client, created.id, payRunLinesFromLabor(labor), lineLocationId);
       if (carryItems.length) {
@@ -878,7 +912,10 @@ exports.listPayRuns = async (req, res, next) => {
     const countParams = params.slice();
     const { rows } = await pool.query(
       `SELECT pr.*, (SELECT COUNT(*)::int FROM restaurant_pay_run_lines l WHERE l.pay_run_id = pr.id) AS line_count,
-              (SELECT COALESCE(SUM(amount_cents), 0)::int FROM restaurant_pay_run_payout_links l WHERE l.pay_run_id = pr.id) AS linked_payout_cents
+              (SELECT COALESCE(SUM(amount_cents), 0)::int FROM restaurant_pay_run_payout_links l
+                WHERE l.pay_run_id = pr.id
+                  AND (l.currency_code IS NULL OR pr.currency_code IS NULL
+                       OR UPPER(l.currency_code) = UPPER(pr.currency_code))) AS linked_payout_cents
          FROM restaurant_pay_runs pr
         WHERE ${where}
         ORDER BY pr.period_from DESC, pr.id DESC
@@ -980,7 +1017,7 @@ exports.rebuildPayRun = async (req, res, next) => {
           ? existing.period_to.toISOString().slice(0, 10)
           : String(existing.period_to).slice(0, 10),
         locationIds: rebuildLocationIds,
-        currency: restaurant.currency_code || 'USD',
+        currency: labor.currency,
         wagesByUser: rebuildWagesByUser,
         excludeTargetRunId: payRunId,
       });
@@ -995,9 +1032,12 @@ exports.rebuildPayRun = async (req, res, next) => {
           );
         }
       }
+      // Finding 7: a rebuild re-derives every line from labor, so the
+      // run's currency snapshot moves with it (draft-only; finalized
+      // runs can never be rebuilt).
       const { rows: [updated] } = await client.query(
-        'UPDATE restaurant_pay_runs SET updated_at = NOW() WHERE id = $1 RETURNING *',
-        [payRunId]
+        'UPDATE restaurant_pay_runs SET updated_at = NOW(), currency_code = $2 WHERE id = $1 RETURNING *',
+        [payRunId, labor.currency]
       );
       return updated;
     }, 'restaurant_rebuild_pay_run');
@@ -1128,9 +1168,9 @@ exports.finalizePayRun = async (req, res, next) => {
       }
       const sum = (pick) => lines.reduce((total, line) => total + (Number(pick(line)) || 0), 0);
       const totals = {
-        // Phase 8 Track B: the run's own currency snapshot prices the
+        // Finding 7: the run's own currency snapshot prices the
         // finalized totals, not the restaurant's current currency.
-        currency: existing.currency_code || restaurant.currency_code || 'USD',
+        currency: resolveRunCurrency(existing, restaurant),
         employees: lines.length,
         total_regular_hours: Math.round(sum((l) => l.regular_hours) * 100) / 100,
         total_overtime_hours: Math.round(sum((l) => l.overtime_hours) * 100) / 100,
@@ -1430,9 +1470,9 @@ exports.exportPayRunCsv = async (req, res, next) => {
     const periodTo = run.period_to instanceof Date
       ? run.period_to.toISOString().slice(0, 10)
       : String(run.period_to).slice(0, 10);
-    // Phase 8 Track B: the run's own currency snapshot prices the
+    // Finding 7: the run's own currency snapshot prices the
     // export, not the restaurant's current currency.
-    const runCurrency = run.currency_code || restaurant.currency_code || 'USD';
+    const runCurrency = resolveRunCurrency(run, restaurant);
     // Per-store export: a run's lines carry a store only when the run
     // covers exactly one store. Exporting one store out of a
     // multi-store run would misattribute shared lines, so it fails
@@ -1569,10 +1609,12 @@ exports.linkPayRunPayout = async (req, res, next) => {
       if (payout.status !== 'completed') {
         throw new AppError('Only completed payouts can be linked to a pay run', 409, 'pay_run_payout_not_completed');
       }
-      // Nov 3 audit items 1-2: the run's currency is the restaurant's
-      // currency. A payout in another currency can never fund this run,
-      // and a mixed-currency sum must never flip it to paid.
-      const runCurrency = (restaurant.currency_code || 'USD').toUpperCase();
+      // Finding 7 + Nov 3 audit items 1-2: the run's currency is
+      // its own snapshot (labor.currency at creation), never the
+      // restaurant's current currency. A payout in another currency
+      // can never fund this run, and a mixed-currency sum must never
+      // flip it to paid.
+      const runCurrency = resolveRunCurrency(existing, restaurant);
       const payoutCurrency = (payout.currency_code || runCurrency).toUpperCase();
       if (payoutCurrency !== runCurrency) {
         throw new AppError('This payout is in a different currency from the pay run', 409, 'pay_run_payout_currency_mismatch');
@@ -1617,7 +1659,7 @@ exports.linkPayRunPayout = async (req, res, next) => {
         `INSERT INTO restaurant_pay_run_payout_links
            (pay_run_id, restaurant_payout_id, amount_cents, currency_code, linked_by, note)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [payRunId, payoutId, linkAmount, payout.currency_code || restaurant.currency_code || 'USD', req.user.id, note]
+        [payRunId, payoutId, linkAmount, payoutCurrency, req.user.id, note]
       );
       const newLinked = alreadyLinked + linkAmount;
       const { rows: [updated] } = await client.query(
@@ -1720,7 +1762,9 @@ exports.recordPayRunDisbursement = async (req, res, next) => {
       if (duplicate) {
         throw new AppError('This pay-run line already has a disbursement', 409, 'pay_run_disbursement_duplicate');
       }
-      const currencyCode = (restaurant.currency_code || 'USD').toUpperCase();
+      // Finding 7: the disbursement is stamped in the run's own
+      // currency, the same anchor as the lines it settles.
+      const currencyCode = resolveRunCurrency(existing, restaurant);
       const { rows: [recorded] } = await client.query(
         `INSERT INTO restaurant_pay_run_disbursements
            (pay_run_id, pay_run_line_id, staff_user_id, staff_label,

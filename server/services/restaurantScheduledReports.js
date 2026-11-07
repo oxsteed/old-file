@@ -23,6 +23,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { formatMinorUnits } = require('../utils/currencyPrecision');
 const { sendNotification } = require('./notificationService');
 const { sendEmail } = require('../utils/email');
 const { computeLabor, computeExceptions } = require('./restaurantPayrollService');
@@ -93,20 +94,22 @@ function validateScheduleInput(body = {}) {
 
 function summarizeReport(reportType, report) {
   if (reportType === 'daily_close') {
-    const totals = (report.brand_totals || []).map((b) => `${b.currency} ${((b.totals?.revenue_cents || 0) / 100).toFixed(2)}`).join(', ');
+    // Finding 22: minor units format in their own currency's
+    // precision (JPY has no decimals, BHD has three), never / 100.
+    const totals = (report.brand_totals || []).map((b) => formatMinorUnits(b.totals?.revenue_cents || 0, b.currency)).join(', ');
     return `Sales close for ${report.business_date}: revenue ${totals || 'none'}.`;
   }
   if (reportType === 'labor') {
-    return `Labor ${report.from_date} to ${report.to_date}: ${report.total_hours || 0} hours, labor cost ${report.currency || ''} ${((report.labor_cost_cents || 0) / 100).toFixed(2)} (${report.labor_percent ?? 'n/a'}% of sales).`;
+    return `Labor ${report.from_date} to ${report.to_date}: ${report.total_hours || 0} hours, labor cost ${formatMinorUnits(report.labor_cost_cents || 0, report.currency)} (${report.labor_percent ?? 'n/a'}% of sales).`;
   }
   if (reportType === 'hq_digest') {
     const converted = report.converted?.convertedTotalCents;
-    const native = (report.totals || []).map((t) => `${t.currencyCode} ${((t.netCollectedCents || 0) / 100).toFixed(2)}`).join(', ');
-    return `HQ digest ${report.from} to ${report.to}: ${report.storeCount || 0} stores, sales ${native || 'none'}${converted == null ? '' : `, converted ${report.converted.reportingCurrency} ${(converted / 100).toFixed(2)}`}.`;
+    const native = (report.totals || []).map((t) => formatMinorUnits(t.netCollectedCents || 0, t.currencyCode)).join(', ');
+    return `HQ digest ${report.from} to ${report.to}: ${report.storeCount || 0} stores, sales ${native || 'none'}${converted == null ? '' : `, converted ${formatMinorUnits(converted, report.converted.reportingCurrency)}`}.`;
   }
   if (reportType === 'franchise_digest') {
     const converted = report.totals?.salesConvertedCents;
-    return `Franchise digest ${report.from} to ${report.to}: ${report.stores?.length || 0} stores${converted == null ? '' : `, sales converted ${report.reportingCurrency} ${(converted / 100).toFixed(2)}`}.`;
+    return `Franchise digest ${report.from} to ${report.to}: ${report.stores?.length || 0} stores${converted == null ? '' : `, sales converted ${formatMinorUnits(converted, report.reportingCurrency)}`}.`;
   }
   const flagged = (report.employees || []).filter((e) => (e.voids || 0) + (e.refunds || 0) + (e.missing_punches || 0) + (e.waived_breaks || 0) > 0).length;
   return `Exceptions ${report.from_date} to ${report.to_date}: ${flagged} staff member(s) with flags.`;

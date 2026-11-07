@@ -438,7 +438,7 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
                     <td>
                       {row.labor_cost_cents == null ? "—" : moneyMinor(row.labor_cost_cents, row.currency || "USD", i18n.language)}
                       {row.labor_cost_converted_cents != null && labor.totals?.converted && (
-                        <span className="fd-muted"> · {moneyMinor(row.labor_cost_converted_cents, labor.totals.converted.currency, i18n.language)}</span>
+                        <span className="fd-muted"> · {moneyMinor(row.labor_cost_converted_cents, labor.totals.converted.reportingCurrency, i18n.language)}</span>
                       )}
                       {row.missing_wage_count > 0 && (
                         <span className="fd-muted"> · {t("restaurants.ops.hq.labor.missingWages", { count: row.missing_wage_count })}</span>
@@ -462,13 +462,13 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
                   </tr>
                   {labor.totals.converted && (
                     <tr>
-                      <th scope="row">{t("restaurants.ops.hq.labor.convertedTotal", { currency: labor.totals.converted.currency })}</th>
+                      <th scope="row">{t("restaurants.ops.hq.labor.convertedTotal", { currency: labor.totals.converted.reportingCurrency })}</th>
                       <td colSpan="3">
                         {labor.totals.converted.missingCurrencies?.length > 0
                           ? t("restaurants.ops.hq.fx.missingRate", { currencies: labor.totals.converted.missingCurrencies.join(", ") })
                           : ""}
                       </td>
-                      <td>{labor.totals.converted.laborCostCents == null ? "—" : moneyMinor(labor.totals.converted.laborCostCents, labor.totals.converted.currency, i18n.language)}</td>
+                      <td>{labor.totals.converted.laborCostCents == null ? "—" : moneyMinor(labor.totals.converted.laborCostCents, labor.totals.converted.reportingCurrency, i18n.language)}</td>
                       <td>{pct(labor.totals.converted.laborPercent)}</td>
                       <td>—</td>
                     </tr>

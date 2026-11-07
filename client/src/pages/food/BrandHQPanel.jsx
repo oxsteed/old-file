@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { Building2, Coins, FileText, Layers, Network, RefreshCw, Send, ShieldCheck, TrendingUp, Wallet } from 'lucide-react';
 import {
@@ -25,6 +26,7 @@ import {
   getBrandFranchiseReport,
 } from '../../api/food';
 import { apiErrorMessage } from './foodShared';
+import { moneyMinor } from '../../lib/moneyExact';
 
 function isoDate(daysFromToday = 0) {
   const date = new Date();
@@ -32,20 +34,20 @@ function isoDate(daysFromToday = 0) {
   return date.toISOString().slice(0, 10);
 }
 
-function money(cents, currency = 'USD') {
-  if (cents == null) return '—';
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
-}
-
 function percent(value) {
   return value == null ? '—' : `${Number(value).toFixed(1)}%`;
 }
 
 export default function BrandHQPanel({ t, restaurant }) {
+  const { i18n } = useTranslation();
+  // Finding 20: money renders in the currency's own precision via
+  // the shared helper (JPY has no decimals, BHD has three), never
+  // cents / 100. A missing currency renders as an em dash, never as
+  // invented USD.
+  const money = (cents, currency) => {
+    if (cents == null || !currency) return '—';
+    return moneyMinor(cents, currency, i18n.language);
+  };
   const [brands, setBrands] = useState([]);
   const [brandId, setBrandId] = useState('');
   const [overview, setOverview] = useState(null);
@@ -650,7 +652,7 @@ export default function BrandHQPanel({ t, restaurant }) {
               <li key={consolidation.id}>
                 {consolidation.periodFrom} → {consolidation.periodTo} · {consolidation.status} · {consolidation.members?.length || 0} {t('restaurants.ops.brandHq.consolidations.members')}
                 {consolidation.totals?.converted?.convertedTotalCents != null && (
-                  <> · {money(consolidation.totals.converted.convertedTotalCents, consolidation.totals.converted.reportingCurrency || 'USD')}</>
+                  <> · {money(consolidation.totals.converted.convertedTotalCents, consolidation.totals.converted.reportingCurrency)}</>
                 )}
                 {consolidation.status === 'draft' && (
                   <>
