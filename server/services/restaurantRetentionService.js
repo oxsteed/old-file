@@ -161,9 +161,13 @@ async function anonymizeFormerStaff(db, { businessId, restaurantId, userId, reta
   // The minor band + until date is personal data about a child; once
   // retention expires it goes. (A band that is still current — the
   // person is still a minor — is never anonymized by this job.)
+  // Finding 60: the delete must honor that comment — a profile whose
+  // minor_until is still in the future stays. minor_until is the date
+  // the band ends, so a band ending today has expired.
   const profile = await db.query(
     `DELETE FROM business_staff_labor_profiles
       WHERE business_id = $1 AND user_id = $2
+        AND (minor_until IS NULL OR minor_until <= CURRENT_DATE)
       RETURNING user_id`,
     [businessId, userId]
   );
