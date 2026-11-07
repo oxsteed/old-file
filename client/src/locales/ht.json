@@ -8438,8 +8438,8 @@
       },
       "copyWeek": {
         "title": "Kopye yon semèn",
-        "sourceWeek": "Semèn sous (lendi)",
-        "targetWeek": "Semèn sib (lendi)",
+        "sourceWeek": "Kòmansman semèn sous la",
+        "targetWeek": "Kòmansman semèn sib la",
         "copy": "Kopye semèn nan",
         "hint": "Chif pibliye semèn sous la kopye kòm bouyon. Chif ki an konfli yo sote epi yo nan lis anba a.",
         "result": "{{created}} bouyon kreye, {{skipped}} sote",
@@ -8462,10 +8462,10 @@
       "templates": {
         "title": "Modèl chif",
         "name": "Non modèl la",
-        "week": "Semèn pou anrejistre (lendi)",
+        "week": "Semèn pou anrejistre",
         "save": "Anrejistre modèl la",
         "apply": "Aplike",
-        "applyWeek": "Aplike nan semèn (lendi)",
+        "applyWeek": "Aplike nan semèn",
         "shiftCount": "{{count}} chif",
         "empty": "Pa gen modèl anrejistre pou kounye a.",
         "toastNameWeekRequired": "Mete yon non modèl ak yon semèn",

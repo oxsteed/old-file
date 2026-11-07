@@ -16,9 +16,12 @@ const STAFF = '00000000-0000-4000-8000-0000000000aa';
 const TARGET = '00000000-0000-4000-8000-0000000000bb';
 const MANAGER = '00000000-0000-4000-8000-0000000000cc';
 
-// Source week: Monday 2026-11-02. Target week: Monday 2026-11-09.
-const SOURCE_MON = '2026-11-02';
-const TARGET_MON = '2026-11-09';
+// Source week: Sunday 2026-11-01. Target week: Sunday 2026-11-08.
+// The workweek starts Sunday by default (finding 32); the source
+// shifts below (Mon/Tue) and the target conflict (Mon) sit inside
+// those Sunday weeks exactly as they did inside the Monday weeks.
+const SOURCE_MON = '2026-11-01';
+const TARGET_MON = '2026-11-08';
 
 beforeEach(() => {
   resetMocks();
@@ -91,12 +94,44 @@ describe('copyWeek', () => {
     expect(inserts[0][1][2]).toBe('2026-11-10');
   });
 
-  test('both week starts must be Mondays', async () => {
+  test('both week starts must be Sundays (the default workweek start)', async () => {
     const req = managerReq({ source_week_start: '2026-11-03', target_week_start: TARGET_MON });
     const res = mockRes();
     await ctrl.copyWeek(req, res, next);
     expect(res.statusCode).toBe(400);
     expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('a scoped request uses the location jurisdiction Monday start', async () => {
+    // The location's jurisdiction row starts its week Monday, so
+    // Monday week starts are accepted when the request scopes to it.
+    const sourceShifts = [
+      { id: 11, user_id: STAFF, shift_date: '2026-11-02', start_time: '09:00:00', end_time: '17:00:00', role_label: 'Cashier', notes: null, location_id: 11, restaurant_id: 7 },
+    ];
+    mockQuery.mockImplementation(async (sql, params) => {
+      const s = String(sql);
+      if (s.includes('FROM restaurant_labor_jurisdictions')) {
+        return { rows: [{ restaurant_id: 7, location_id: 11, jurisdiction_code: 'US-FED', workweek_start_day: 1 }] };
+      }
+      if (s.includes('FROM business_staff_shifts') && s.includes('published_at IS NOT NULL')) {
+        return { rows: sourceShifts };
+      }
+      if (s.includes('FROM business_staff_shifts')) return { rows: [] };
+      if (s.includes('FROM business_time_off_requests')) return { rows: [] };
+      if (s.includes('FROM business_staff_availability')) return { rows: [] };
+      if (s.includes('FROM business_staff_labor_profiles')) return { rows: [] };
+      if (s.includes('INSERT INTO business_staff_shifts')) {
+        return { rows: [{ id: 99, user_id: params[1], shift_date: params[2], published_at: null }] };
+      }
+      return { rows: [] };
+    });
+    const req = managerReq({ source_week_start: '2026-11-02', target_week_start: '2026-11-09', restaurant_id: 7, location_id: 11 });
+    const res = mockRes();
+    await ctrl.copyWeek(req, res, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(200);
+    expect(res.body.created).toHaveLength(1);
+    expect(res.body.created[0].shift_date).toBe('2026-11-09');
   });
 
   test('non-managers cannot copy a week', async () => {

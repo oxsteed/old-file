@@ -8870,8 +8870,8 @@
       },
       "copyWeek": {
         "title": "Copier une semaine",
-        "sourceWeek": "Semaine source (lundi)",
-        "targetWeek": "Semaine cible (lundi)",
+        "sourceWeek": "Début de la semaine source",
+        "targetWeek": "Début de la semaine cible",
         "copy": "Copier la semaine",
         "hint": "Les quarts publiés de la semaine source sont copiés comme brouillons. Les quarts en conflit sont ignorés et listés ci-dessous.",
         "result": "{{created}} brouillons créés, {{skipped}} ignorés",
@@ -8894,10 +8894,10 @@
       "templates": {
         "title": "Modèles de quarts",
         "name": "Nom du modèle",
-        "week": "Semaine à enregistrer (lundi)",
+        "week": "Semaine à enregistrer",
         "save": "Enregistrer le modèle",
         "apply": "Appliquer",
-        "applyWeek": "Appliquer à la semaine (lundi)",
+        "applyWeek": "Appliquer à la semaine",
         "shiftCount": "{{count}} quarts",
         "empty": "Aucun modèle enregistré pour l'instant.",
         "toastNameWeekRequired": "Saisissez un nom de modèle et une semaine",

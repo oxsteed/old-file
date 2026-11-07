@@ -1090,8 +1090,24 @@ function scopedPolicyHours(rows, policy, locationIds, fromDate, toDate, rulesRes
 }
 
 async function getPolicyHoursByUser(businessId, fromDate, toDate, policy, locationIds = null, payContext = null) {
-  const rangeStart = locationIds === null ? fromDate : shiftDateString(fromDate, -new Date(`${fromDate}T12:00:00Z`).getUTCDay());
-  const rangeEnd = locationIds === null ? toDate : shiftDateString(toDate, 6 - new Date(`${toDate}T12:00:00Z`).getUTCDay());
+  // Widen the fetch to whole workweeks so weekly overtime is computed
+  // from full weeks: each in-scope location's week may start on a
+  // different day (finding 32), so the range covers the earliest week
+  // start and the latest week end among them. Without a pay context
+  // the Sunday default reproduces the previous widening exactly.
+  let rangeStart = fromDate;
+  let rangeEnd = toDate;
+  if (locationIds !== null) {
+    const startDays = (Array.isArray(locationIds) ? locationIds : [])
+      .map((id) => payContext?.jurisdictionsByLocation?.get(Number(id)))
+      .filter(Boolean)
+      .map((rules) => laborJurisdiction.workweekStartDay(rules));
+    const days = startDays.length ? startDays : [0];
+    const starts = days.map((d) => laborJurisdiction.weekStartOf(fromDate, d));
+    const ends = days.map((d) => shiftDateString(laborJurisdiction.weekStartOf(toDate, d), 6));
+    rangeStart = starts.sort()[0];
+    rangeEnd = ends.sort().pop();
+  }
   const { rows } = await pool.query(
     `SELECT user_id, entry_date, hours_worked, breaks, clock_in_at, clock_out_at, location_id
        FROM business_time_entries

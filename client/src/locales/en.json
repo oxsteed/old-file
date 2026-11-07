@@ -8870,8 +8870,8 @@
       },
       "copyWeek": {
         "title": "Copy a week",
-        "sourceWeek": "Source week (Monday)",
-        "targetWeek": "Target week (Monday)",
+        "sourceWeek": "Source week start",
+        "targetWeek": "Target week start",
         "copy": "Copy week",
         "hint": "Published shifts from the source week are copied as drafts. Shifts that conflict are skipped and listed below.",
         "result": "{{created}} drafts created, {{skipped}} skipped",
@@ -8894,10 +8894,10 @@
       "templates": {
         "title": "Shift templates",
         "name": "Template name",
-        "week": "Week to save (Monday)",
+        "week": "Week to save",
         "save": "Save template",
         "apply": "Apply",
-        "applyWeek": "Apply to week (Monday)",
+        "applyWeek": "Apply to week",
         "shiftCount": "{{count}} shifts",
         "empty": "No templates saved yet.",
         "toastNameWeekRequired": "Enter a template name and a week",

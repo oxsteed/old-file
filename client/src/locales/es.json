@@ -8251,8 +8251,8 @@
       },
       "copyWeek": {
         "title": "Copiar una semana",
-        "sourceWeek": "Semana de origen (lunes)",
-        "targetWeek": "Semana de destino (lunes)",
+        "sourceWeek": "Inicio de la semana de origen",
+        "targetWeek": "Inicio de la semana de destino",
         "copy": "Copiar semana",
         "hint": "Los turnos publicados de la semana de origen se copian como borradores. Los turnos en conflicto se omiten y se enumeran abajo.",
         "result": "{{created}} borradores creados, {{skipped}} omitidos",
@@ -8275,10 +8275,10 @@
       "templates": {
         "title": "Plantillas de turnos",
         "name": "Nombre de la plantilla",
-        "week": "Semana a guardar (lunes)",
+        "week": "Semana a guardar",
         "save": "Guardar plantilla",
         "apply": "Aplicar",
-        "applyWeek": "Aplicar a la semana (lunes)",
+        "applyWeek": "Aplicar a la semana",
         "shiftCount": "{{count}} turnos",
         "empty": "Aún no hay plantillas guardadas.",
         "toastNameWeekRequired": "Escribe un nombre de plantilla y una semana",

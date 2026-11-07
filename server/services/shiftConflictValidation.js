@@ -59,12 +59,13 @@ function dayOfWeek(dateStr) {
   return new Date(`${dateStr}T12:00:00Z`).getUTCDay();
 }
 
-// Monday-start week key, same convention as the jurisdiction engine.
-function mondayOf(dateStr) {
-  const d = new Date(`${dateStr}T12:00:00Z`);
-  const offset = (d.getUTCDay() + 6) % 7;
-  d.setUTCDate(d.getUTCDate() - offset);
-  return d.toISOString().slice(0, 10);
+// The workweek starts on the jurisdiction's workweek_start_day
+// (Sunday by default); see laborJurisdictionRules.weekStartOf. The
+// shift query below is widened to cover any start day, and the minor
+// week-hours grouping inside validateShift uses the resolved rules'
+// start, so this module carries no week definition of its own.
+function weekStartOf(dateStr, startDay) {
+  return laborJurisdiction.weekStartOf(dateStr, startDay);
 }
 
 function toMinutes(time) {
@@ -123,12 +124,12 @@ async function validateShift(db, opts) {
   const candHours = Math.round(((candEnd - candStart) / 60) * 100) / 100;
   const overnight = candEndRaw <= candStart;
 
-  // One query covers every time-based check: the person's shifts from the
-  // day before the candidate (an overnight shift starting yesterday can
-  // spill into today) through the end of the candidate's week plus a day.
-  const weekMonday = mondayOf(day);
-  const rangeStart = addDays(day, -1) < weekMonday ? addDays(day, -1) : weekMonday;
-  const rangeEnd = addDays(addDays(weekMonday, 6), 1);
+  // One query covers every time-based check: the person's shifts from a
+  // week before the candidate (an overnight shift starting yesterday
+  // can spill into today, and the containing workweek starts up to six
+  // days before it under any workweek start) through a week after.
+  const rangeStart = addDays(day, -7);
+  const rangeEnd = addDays(day, 7);
   const { rows: otherShifts } = await db.query(
     `SELECT id, shift_date::text AS shift_date,
             start_time::text AS start_time, end_time::text AS end_time
@@ -270,12 +271,18 @@ async function validateShift(db, opts) {
       db, resolvedRestaurantId ? Number(resolvedRestaurantId) : null,
       locationId != null ? Number(locationId) : null
     );
+    // The workweek is the jurisdiction's (Sunday by default): the
+    // minor weekly caps are measured inside that week, not a Monday
+    // week. A jurisdiction lookup failure propagates (finding 29)
+    // instead of silently skipping the minor check.
+    const startDay = laborJurisdiction.workweekStartDay(rules);
+    const weekStart = weekStartOf(day, startDay);
 
     const dayHours = others
       .filter((s) => dateOnly(s.shift_date) === day)
       .reduce((sum, s) => sum + shiftHours(s), 0) + candHours;
     const weekHours = others
-      .filter((s) => mondayOf(dateOnly(s.shift_date)) === weekMonday)
+      .filter((s) => weekStartOf(dateOnly(s.shift_date), startDay) === weekStart)
       .reduce((sum, s) => sum + shiftHours(s), 0) + candHours;
 
     if (rules.minor_max_daily_hours != null && dayHours > Number(rules.minor_max_daily_hours)) {
@@ -299,7 +306,7 @@ async function validateShift(db, opts) {
         user_id: userId,
         message_key: 'businessHub.staffScheduler.validation.minorWeeklyHours',
         params: {
-          weekStart: weekMonday, hours: weekHours.toFixed(1),
+          weekStart, hours: weekHours.toFixed(1),
           limit: Number(rules.minor_max_weekly_hours),
         },
       });
@@ -339,9 +346,9 @@ async function validateShift(db, opts) {
           },
         });
       }
-      const weekShifts = others.filter((s) => mondayOf(dateOnly(s.shift_date)) === weekMonday);
+      const weekShifts = others.filter((s) => weekStartOf(dateOnly(s.shift_date), startDay) === weekStart);
       const schoolWeek = weekShifts.some((s) => laborJurisdiction.isSchoolDay(dateOnly(s.shift_date)))
-        || laborJurisdiction.isSchoolDay(weekMonday);
+        || laborJurisdiction.isSchoolDay(weekStart);
       const weekLimit = schoolWeek ? L.school_week_hours : L.non_school_week_hours;
       if (weekHours > weekLimit) {
         violations.push({
@@ -351,7 +358,7 @@ async function validateShift(db, opts) {
           user_id: userId,
           message_key: 'businessHub.staffScheduler.validation.minorUnder16WeeklyHours',
           params: {
-            weekStart: weekMonday, hours: weekHours.toFixed(1), limit: weekLimit,
+            weekStart, hours: weekHours.toFixed(1), limit: weekLimit,
             schoolDay: schoolWeek ? 'school' : 'non-school',
           },
         });

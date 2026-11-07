@@ -73,7 +73,9 @@ describe('computeScheduleForecast', () => {
     expect(cy.cost_cents).toBe(24000);
 
     expect(forecast.per_week).toEqual([
-      { week_start: '2026-11-02', hours: 69, overtime_hours: 5, cost_cents: 119000 },
+      // The workweek starts Sunday by default: the Mon-Sat shifts sit
+      // in the week starting Sunday 2026-11-01.
+      { week_start: '2026-11-01', hours: 69, overtime_hours: 5, cost_cents: 119000 },
     ]);
   });
 
@@ -109,6 +111,21 @@ describe('computeScheduleForecast', () => {
     expect(forecast.total_overtime_hours).toBe(10);
     expect(forecast.total_cost_cents).toBe(2 * 95000);
     expect(forecast.per_week).toHaveLength(2);
+    // Sunday-start weeks: 2026-11-01 and 2026-11-08.
+    expect(forecast.per_week.map((w) => w.week_start)).toEqual(['2026-11-01', '2026-11-08']);
+  });
+
+  test('a Monday-start jurisdiction groups the same shifts into Monday weeks', async () => {
+    const db = fakeDb(fixtureShifts());
+    const forecast = await computeScheduleForecast(db, {
+      businessId: 2, from: '2026-11-02', to: '2026-11-08',
+      overtimeThresholdHours: 40, overtimeMultiplierBps: 15000,
+      workweekStartDay: 1,
+    });
+    expect(forecast.workweek_start_day).toBe(1);
+    expect(forecast.per_week).toEqual([
+      { week_start: '2026-11-02', hours: 69, overtime_hours: 5, cost_cents: 119000 },
+    ]);
   });
 
   test('no draft shifts means a zero forecast, and the query only reads drafts', async () => {

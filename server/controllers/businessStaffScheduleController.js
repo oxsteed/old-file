@@ -795,16 +795,21 @@ async function checkMinorPunch({ businessId, userId, locationId, restaurantId, t
         ORDER BY start_time LIMIT 1`,
       [businessId, userId, workDate]
     );
+    // The week's hours are measured inside the jurisdiction's
+    // workweek (Sunday by default), not a Monday week.
+    const rules = await laborJurisdiction.getJurisdiction(pool, restaurantId, locationId);
+    const weekStart = laborJurisdiction.weekStartOf(
+      workDate, laborJurisdiction.workweekStartDay(rules)
+    );
     const { rows: [hours] } = await pool.query(
       `SELECT
          COALESCE(SUM(hours_worked) FILTER (WHERE entry_date = $3::date), 0)::float8 AS today,
-         COALESCE(SUM(hours_worked) FILTER (WHERE entry_date >= ($3::date - (((EXTRACT(DOW FROM $3::date) + 6) % 7)::int))), 0)::float8 AS week
+         COALESCE(SUM(hours_worked) FILTER (WHERE entry_date >= $4::date), 0)::float8 AS week
          FROM business_time_entries
         WHERE business_id = $1 AND user_id = $2 AND voided_at IS NULL
           AND hours_worked IS NOT NULL`,
-      [businessId, userId, workDate]
+      [businessId, userId, workDate, weekStart]
     );
-    const rules = await laborJurisdiction.getJurisdiction(pool, restaurantId, locationId);
     return laborJurisdiction.evaluateMinorPunch({
       band: profile.minor_band,
       minorUntil: profile.minor_until,
@@ -2352,17 +2357,33 @@ function addDays(dateStr, days) {
   return d.toISOString().slice(0, 10);
 }
 
-// Monday-start week key, same convention as shiftConflictValidation.
-function mondayOf(dateStr) {
-  const d = new Date(`${String(dateStr).slice(0, 10)}T12:00:00Z`);
-  const offset = (d.getUTCDay() + 6) % 7;
-  d.setUTCDate(d.getUTCDate() - offset);
-  return d.toISOString().slice(0, 10);
+// ── Workweek start (finding 32) ───────────────────────────────────────
+// One definition, from the jurisdiction rules: the week's first day is
+// the location's workweek_start_day (Sunday by default), never a
+// hardcoded Monday. resolveWorkweekStartDay reads it for a location
+// when one is in scope, else the restaurant's first active
+// jurisdiction row, else Sunday (no row configured). A lookup failure
+// propagates (finding 29) instead of silently falling back to a
+// Monday week.
+async function resolveWorkweekStartDay({ restaurantId, locationId }) {
+  if (restaurantId == null) return 0;
+  if (locationId != null) {
+    const rules = await laborJurisdiction.getJurisdiction(pool, restaurantId, locationId);
+    return laborJurisdiction.workweekStartDay(rules);
+  }
+  const { rows: [row] } = await pool.query(
+    `SELECT * FROM restaurant_labor_jurisdictions
+      WHERE restaurant_id = $1 AND is_active ORDER BY location_id LIMIT 1`,
+    [restaurantId]
+  );
+  return laborJurisdiction.workweekStartDay(laborJurisdiction.resolveRules(row || null));
 }
 
-function isMonday(dateStr) {
-  return new Date(`${String(dateStr).slice(0, 10)}T12:00:00Z`).getUTCDay() === 1;
+function isWeekStart(dateStr, startDay) {
+  return laborJurisdiction.weekStartOf(dateStr, startDay) === String(dateStr).slice(0, 10);
 }
+
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -2556,7 +2577,7 @@ exports.grantTimeOffAccrual = async (req, res, next) => {
 // are skipped with their reasons; one bad shift never fails the copy.
 exports.copyWeek = async (req, res, next) => {
   const { businessId } = req.params;
-  const { source_week_start, target_week_start } = req.body || {};
+  const { source_week_start, target_week_start, restaurant_id, location_id } = req.body || {};
   try {
     const storeContext = await workforce.context(req);
     if (!await isBusinessManager(req, businessId, req.user.id)) {
@@ -2565,8 +2586,14 @@ exports.copyWeek = async (req, res, next) => {
     if (!DATE_ONLY_RE.test(String(source_week_start || '')) || !DATE_ONLY_RE.test(String(target_week_start || ''))) {
       return res.status(400).json({ error: 'source_week_start and target_week_start are required as YYYY-MM-DD' });
     }
-    if (!isMonday(source_week_start) || !isMonday(target_week_start)) {
-      return res.status(400).json({ error: 'source_week_start and target_week_start must both be Mondays' });
+    // The copied week starts on the jurisdiction's workweek start
+    // (Sunday by default; a scoped request uses that location's).
+    const startDay = await resolveWorkweekStartDay({
+      restaurantId: restaurant_id != null ? Number(restaurant_id) : null,
+      locationId: location_id != null ? Number(location_id) : null,
+    });
+    if (!isWeekStart(source_week_start, startDay) || !isWeekStart(target_week_start, startDay)) {
+      return res.status(400).json({ error: `source_week_start and target_week_start must both be ${WEEKDAY_NAMES[startDay]}s` });
     }
     const sourceEnd = addDays(source_week_start, 6);
     const offsetDays = Math.round(
@@ -2632,15 +2659,22 @@ exports.listShiftTemplates = async (req, res, next) => {
 // through the same copy path as copy-week.
 exports.saveShiftTemplate = async (req, res, next) => {
   const { businessId } = req.params;
-  const { name, week_start } = req.body || {};
+  const { name, week_start, restaurant_id, location_id } = req.body || {};
   try {
     if (!await isBusinessManager(req, businessId, req.user.id)) {
       return res.status(403).json({ error: 'Only a manager can save shift templates' });
     }
     const templateName = String(name || '').trim().slice(0, 120);
     if (!templateName) return res.status(400).json({ error: 'name is required' });
-    if (!DATE_ONLY_RE.test(String(week_start || '')) || !isMonday(week_start)) {
-      return res.status(400).json({ error: 'week_start is required as a Monday (YYYY-MM-DD)' });
+    if (!DATE_ONLY_RE.test(String(week_start || ''))) {
+      return res.status(400).json({ error: 'week_start is required as YYYY-MM-DD' });
+    }
+    const startDay = await resolveWorkweekStartDay({
+      restaurantId: restaurant_id != null ? Number(restaurant_id) : null,
+      locationId: location_id != null ? Number(location_id) : null,
+    });
+    if (!isWeekStart(week_start, startDay)) {
+      return res.status(400).json({ error: `week_start is required as a ${WEEKDAY_NAMES[startDay]} (YYYY-MM-DD)` });
     }
     const weekEnd = addDays(week_start, 6);
     const { rows: source } = await pool.query(
@@ -2693,14 +2727,21 @@ exports.saveShiftTemplate = async (req, res, next) => {
 // copy-week. day_of_week 0 = Sunday, so Monday + ((dow + 6) % 7).
 exports.applyShiftTemplate = async (req, res, next) => {
   const { businessId, templateId } = req.params;
-  const { target_week_start } = req.body || {};
+  const { target_week_start, restaurant_id, location_id } = req.body || {};
   try {
     const storeContext = await workforce.context(req);
     if (!await isBusinessManager(req, businessId, req.user.id)) {
       return res.status(403).json({ error: 'Only a manager can apply shift templates' });
     }
-    if (!DATE_ONLY_RE.test(String(target_week_start || '')) || !isMonday(target_week_start)) {
-      return res.status(400).json({ error: 'target_week_start is required as a Monday (YYYY-MM-DD)' });
+    if (!DATE_ONLY_RE.test(String(target_week_start || ''))) {
+      return res.status(400).json({ error: 'target_week_start is required as YYYY-MM-DD' });
+    }
+    const startDay = await resolveWorkweekStartDay({
+      restaurantId: restaurant_id != null ? Number(restaurant_id) : null,
+      locationId: location_id != null ? Number(location_id) : null,
+    });
+    if (!isWeekStart(target_week_start, startDay)) {
+      return res.status(400).json({ error: `target_week_start is required as a ${WEEKDAY_NAMES[startDay]} (YYYY-MM-DD)` });
     }
     const { rows: [template] } = await pool.query(
       'SELECT * FROM business_shift_templates WHERE id = $1 AND business_id = $2',
@@ -2712,10 +2753,13 @@ exports.applyShiftTemplate = async (req, res, next) => {
         WHERE template_id = $1 ORDER BY day_of_week, start_time`,
       [templateId]
     );
+    // day_of_week 0 = Sunday; the offset counts forward from the
+    // workweek start, so a Monday-start week maps Monday to +0 and a
+    // Sunday-start week maps Sunday to +0.
     const candidates = (templateShifts || []).map((shift) => ({
       ...shift,
       template_shift_id: shift.id,
-      shift_date: addDays(target_week_start, (Number(shift.day_of_week) + 6) % 7),
+      shift_date: addDays(target_week_start, (Number(shift.day_of_week) - startDay + 7) % 7),
     }));
     const result = await copyCandidates(pool, {
       businessId,
@@ -2758,29 +2802,18 @@ exports.deleteShiftTemplate = async (req, res, next) => {
 };
 
 // Manager-only, read-only: project labor cost over the DRAFT shifts in
-// a date range (default: the current Monday-Sunday week). Scheduled
-// hours x the wage of record, with projected weekly overtime flagged
-// where a week's scheduled hours cross the labor-policy threshold.
+// a date range (default: the current workweek under the restaurant's
+// jurisdiction rules). Scheduled hours x the wage of record, with
+// projected weekly overtime flagged where a week's scheduled hours
+// cross the labor-policy threshold.
 // This is a projection for the scheduler UI: it writes nothing, and
 // no pay line, pay run, or ledger row is created or changed here.
 exports.getScheduleForecast = async (req, res, next) => {
   const { businessId } = req.params;
-  const { from, to, restaurant_id } = req.query;
+  const { from, to, restaurant_id, location_id } = req.query;
   try {
     if (!await isBusinessManager(req, businessId, req.user.id)) {
       return res.status(403).json({ error: 'Only a manager can view the scheduled-cost forecast' });
-    }
-    const weekStart = mondayOf(todayIso());
-    const fromDate = from ? String(from) : weekStart;
-    const toDate = to ? String(to) : addDays(weekStart, 6);
-    if (!DATE_ONLY_RE.test(fromDate) || !DATE_ONLY_RE.test(toDate) || toDate < fromDate) {
-      return res.status(400).json({ error: 'from and to are required as YYYY-MM-DD with to on or after from' });
-    }
-    const rangeDays = Math.round(
-      (new Date(`${toDate}T12:00:00Z`) - new Date(`${fromDate}T12:00:00Z`)) / 86400000
-    ) + 1;
-    if (rangeDays > 93) {
-      return res.status(400).json({ error: 'Forecast range is capped at 93 days' });
     }
     let restaurantId = null;
     if (restaurant_id) {
@@ -2799,6 +2832,23 @@ exports.getScheduleForecast = async (req, res, next) => {
       );
       restaurantId = rest?.id ?? null;
     }
+    // The default range is the current workweek under the
+    // jurisdiction's workweek start (Sunday by default); an explicit
+    // from/to still wins.
+    const locationId = location_id ? Number(location_id) : null;
+    const startDay = await resolveWorkweekStartDay({ restaurantId, locationId });
+    const weekStart = laborJurisdiction.weekStartOf(todayIso(), startDay);
+    const fromDate = from ? String(from) : weekStart;
+    const toDate = to ? String(to) : addDays(weekStart, 6);
+    if (!DATE_ONLY_RE.test(fromDate) || !DATE_ONLY_RE.test(toDate) || toDate < fromDate) {
+      return res.status(400).json({ error: 'from and to are required as YYYY-MM-DD with to on or after from' });
+    }
+    const rangeDays = Math.round(
+      (new Date(`${toDate}T12:00:00Z`) - new Date(`${fromDate}T12:00:00Z`)) / 86400000
+    ) + 1;
+    if (rangeDays > 93) {
+      return res.status(400).json({ error: 'Forecast range is capped at 93 days' });
+    }
     const policy = await getLaborPolicy(restaurantId);
     const forecast = await computeScheduleForecast(pool, {
       businessId,
@@ -2806,6 +2856,7 @@ exports.getScheduleForecast = async (req, res, next) => {
       to: toDate,
       overtimeThresholdHours: Number(policy.overtime_threshold_hours),
       overtimeMultiplierBps: Number(policy.overtime_multiplier_bps),
+      workweekStartDay: startDay,
     });
     let currencyCode = 'USD';
     if (restaurantId) {

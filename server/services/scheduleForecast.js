@@ -6,7 +6,8 @@
 // a date range, for the scheduler UI only. It never writes pay lines,
 // never touches a pay run, and never corrects the ledger.
 //
-// Math, per person per Monday-start week:
+// Math, per person per workweek (the jurisdiction's workweek start,
+// Sunday by default):
 //   scheduled hours = sum of draft shift durations (overnight shifts
 //   count past midnight, via the same shiftHours as Track A's
 //   validation, so the forecast and the validator agree on a shift's
@@ -28,12 +29,14 @@
 // misconverted.
 
 const { shiftHours } = require('./shiftConflictValidation');
+const laborJurisdiction = require('./laborJurisdictionRules');
 
-function mondayOf(dateStr) {
-  const d = new Date(`${dateStr}T12:00:00Z`);
-  const offset = (d.getUTCDay() + 6) % 7;
-  d.setUTCDate(d.getUTCDate() - offset);
-  return d.toISOString().slice(0, 10);
+// The workweek starts on the jurisdiction's workweek_start_day
+// (Sunday by default); see laborJurisdictionRules.weekStartOf. The
+// forecast groups draft shifts by that week, never a hardcoded Monday
+// week, so the projected overtime lines up with the pay calc's weeks.
+function weekStartOf(dateStr, startDay) {
+  return laborJurisdiction.weekStartOf(dateStr, startDay);
 }
 
 function round2(value) {
@@ -43,6 +46,7 @@ function round2(value) {
 async function computeScheduleForecast(db, {
   businessId, from, to,
   overtimeThresholdHours = 40, overtimeMultiplierBps = 15000,
+  workweekStartDay = 0,
 }) {
   const { rows: shifts } = await db.query(
     `SELECT s.id, s.user_id,
@@ -78,13 +82,14 @@ async function computeScheduleForecast(db, {
   let totalOvertimeHours = 0;
   let totalCostCents = 0;
 
+  const startDay = laborJurisdiction.workweekStartDay({ workweek_start_day: workweekStartDay });
   // Hours are tallied per person per week first: overtime is a weekly
   // threshold, so a person at 45 hours in one week and 10 in the next
   // owes 5 overtime hours, not 15.
   const weekly = new Map(); // `${userId}|${week}` -> { userId, name, wage, week, hours }
   for (const shift of shifts || []) {
     const hours = shiftHours(shift);
-    const week = mondayOf(String(shift.shift_date).slice(0, 10));
+    const week = weekStartOf(String(shift.shift_date).slice(0, 10), startDay);
     const key = `${shift.user_id}|${week}`;
     let entry = weekly.get(key);
     if (!entry) {
@@ -145,6 +150,7 @@ async function computeScheduleForecast(db, {
     from, to,
     overtime_threshold_hours: overtimeThresholdHours,
     overtime_multiplier_bps: overtimeMultiplierBps,
+    workweek_start_day: startDay,
     draft_shift_count: (shifts || []).length,
     total_hours: totalHours,
     total_regular_hours: totalRegularHours,
@@ -156,4 +162,4 @@ async function computeScheduleForecast(db, {
   };
 }
 
-module.exports = { computeScheduleForecast, mondayOf };
+module.exports = { computeScheduleForecast, weekStartOf };
