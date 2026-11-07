@@ -80,6 +80,58 @@ export const FOOD_STATUS_KEYS = {
   refunded: 'food.status.refunded',
 };
 
+// Per-currency minor-unit precision (Phase 3 Track B; mirrors
+// server/utils/currencyPrecision.js). Money travels in integer minor
+// units; how many minor units make one major unit depends on the
+// currency, never on the country the code runs in: JPY has 0 decimals,
+// BHD has 3, most have 2. Unknown codes fall back to 2 decimals.
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  'BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW',
+  'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF',
+]);
+const THREE_DECIMAL_CURRENCIES = new Set([
+  'BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND',
+]);
+
+export function minorUnitDecimals(currencyCode) {
+  const code = typeof currencyCode === 'string' ? currencyCode.trim().toUpperCase() : '';
+  if (!/^[A-Z]{3}$/.test(code)) return 2;
+  if (ZERO_DECIMAL_CURRENCIES.has(code)) return 0;
+  if (THREE_DECIMAL_CURRENCIES.has(code)) return 3;
+  return 2;
+}
+
+// Format an integer-minor-unit amount in its own currency, using the
+// currency's own precision and the viewer's locale.
+export function formatMinorUnits(amountMinor, currencyCode, locale) {
+  const code = typeof currencyCode === 'string' ? currencyCode.trim().toUpperCase() : '';
+  const decimals = minorUnitDecimals(code);
+  const major = (Number(amountMinor) || 0) / 10 ** decimals;
+  if (!/^[A-Z]{3}$/.test(code)) {
+    return new Intl.NumberFormat(locale, {
+      minimumFractionDigits: decimals, maximumFractionDigits: decimals,
+    }).format(major);
+  }
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency', currency: code,
+      minimumFractionDigits: decimals, maximumFractionDigits: decimals,
+    }).format(major);
+  } catch {
+    return new Intl.NumberFormat(locale, {
+      minimumFractionDigits: decimals, maximumFractionDigits: decimals,
+    }).format(major);
+  }
+}
+
+// A major-unit amount typed by the user (e.g. 12.50) as integer minor
+// units, or null when the input is not a positive amount.
+export function majorToMinorUnits(value, currencyCode) {
+  const parsed = Number.parseFloat(String(value).replace(',', '.'));
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.round(parsed * 10 ** minorUnitDecimals(currencyCode));
+}
+
 // Shared API error extractor (was copy-pasted across the food pages).
 // N-07: restaurant permission denials carry fields.permission_area; show the
 // localized "you can't use the register / kitchen / ..." copy instead of the

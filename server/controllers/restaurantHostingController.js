@@ -352,10 +352,76 @@ exports.listTables = async (req, res, next) => {
       [restaurant.id, location.id],
     );
     const { rows: tickets } = await pool.query(
-      `SELECT id,queue_number,table_label FROM food_orders WHERE restaurant_id=$1 AND location_id=$2 AND fulfillment_type='dine_in' AND status NOT IN ('completed','cancelled','refunded') ORDER BY created_at DESC LIMIT 100`,
+      `SELECT id,queue_number,table_label,table_id,covers,total_cents,currency_code,pos_ticket_state,created_at FROM food_orders WHERE restaurant_id=$1 AND location_id=$2 AND fulfillment_type='dine_in' AND status NOT IN ('completed','cancelled','refunded') ORDER BY created_at DESC LIMIT 100`,
       [restaurant.id, location.id],
     );
     res.json({ location, tables: rows, seatings, tickets });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Phase 6 (gap 13): a table-detail view. A manager or server opening a
+// table sees the table, its current seating, and every open ticket on it,
+// with covers and totals, so the tab is visible before the table is
+// released. Tickets link into the POS by order id.
+exports.getTableDetail = async (req, res, next) => {
+  try {
+    const restaurant = await access(req, [
+      "restaurant.manage",
+      "pos.use",
+      "orders.manage",
+    ]);
+    const tableId = positiveId(req.params.tableId, "table");
+    const {
+      rows: [table],
+    } = await pool.query(
+      `SELECT * FROM restaurant_tables WHERE restaurant_id=$1 AND id=$2`,
+      [restaurant.id, tableId],
+    );
+    if (!table)
+      throw new AppError("Table not found", 404, "table_not_found");
+    await assertLocationAccess(restaurant, req.user.id, table.location_id, pool);
+    const [{ rows: seatings }, { rows: tickets }] = await Promise.all([
+      pool.query(
+        `SELECT st.*,
+                r.guest_name AS reservation_guest_name,
+                w.guest_name AS waitlist_guest_name
+           FROM restaurant_table_seatings st
+           LEFT JOIN restaurant_reservations r ON r.id = st.reservation_id
+           LEFT JOIN restaurant_waitlist_entries w ON w.id = st.waitlist_id
+          WHERE st.restaurant_id=$1 AND st.table_id=$2 AND st.closed_at IS NULL
+          ORDER BY st.created_at ASC`,
+        [restaurant.id, tableId],
+      ),
+      pool.query(
+        `SELECT fo.id, fo.queue_number, fo.table_label, fo.covers, fo.status,
+                fo.pos_ticket_state, fo.fulfillment_type, fo.subtotal_cents,
+                fo.tax_cents, fo.tip_cents, fo.discount_cents, fo.total_cents,
+                fo.currency_code, fo.guest_name, fo.created_at, fo.updated_at,
+                COALESCE((SELECT COUNT(*)::int FROM food_order_items foi WHERE foi.order_id = fo.id), 0) AS item_count
+           FROM food_orders fo
+          WHERE fo.restaurant_id=$1 AND fo.table_id=$2
+            AND fo.status NOT IN ('completed','cancelled','refunded')
+          ORDER BY fo.created_at ASC`,
+        [restaurant.id, tableId],
+      ),
+    ]);
+    const totals = tickets.reduce(
+      (sum, ticket) => ({
+        open_ticket_count: sum.open_ticket_count + 1,
+        total_cents: sum.total_cents + Number(ticket.total_cents || 0),
+        covers: sum.covers + Number(ticket.covers || 0),
+      }),
+      { open_ticket_count: 0, total_cents: 0, covers: 0 },
+    );
+    res.json({
+      table,
+      seating: seatings[0] || null,
+      seatings,
+      tickets,
+      totals,
+    });
   } catch (error) {
     next(error);
   }
@@ -1284,6 +1350,38 @@ exports.setSeating = async (req, res, next) => {
           throw new AppError("Table not found", 404, "table_not_found");
         await assertLocationAccess(r, req.user.id, table.location_id, client);
         if (b.action === "release") {
+          // Phase 6 (gap 13): releasing a table must never silently orphan
+          // its open tickets. With open tickets on the table the release is
+          // refused with a structured warning (ticket ids + count + total)
+          // unless the caller explicitly confirms; confirmed releases close
+          // the seating only and leave the tickets open.
+          const { rows: openTickets } = await client.query(
+            `SELECT id, queue_number, total_cents, currency_code
+               FROM food_orders
+              WHERE restaurant_id=$1 AND table_id=$2
+                AND status NOT IN ('completed','cancelled','refunded')
+              ORDER BY created_at ASC`,
+            [r.id, tableId],
+          );
+          const confirmed =
+            b.confirm === true || b.force === true || b.confirmOpenTickets === true;
+          if (openTickets.length && !confirmed) {
+            throw new AppError(
+              "Table has open tickets",
+              409,
+              "table_has_open_tickets",
+              {
+                tableId,
+                openTicketIds: openTickets.map((ticket) => Number(ticket.id)),
+                openTicketCount: openTickets.length,
+                openTotalCents: openTickets.reduce(
+                  (sum, ticket) => sum + Number(ticket.total_cents || 0),
+                  0,
+                ),
+                currencyCode: openTickets[0]?.currency_code || null,
+              },
+            );
+          }
           const { rows: released } = await client.query(
             "UPDATE restaurant_table_seatings SET closed_at=NOW() WHERE restaurant_id=$1 AND table_id=$2 AND closed_at IS NULL RETURNING *",
             [r.id, tableId],
@@ -1298,7 +1396,16 @@ exports.setSeating = async (req, res, next) => {
               target_id: tableId,
               before_state: { ...row, closed_at: null },
               after_state: row,
-              metadata: { location_id: table.location_id },
+              metadata: {
+                location_id: table.location_id,
+                ...(openTickets.length
+                  ? {
+                      openTicketIds: openTickets.map((ticket) => Number(ticket.id)),
+                      openTicketCount: openTickets.length,
+                      releaseConfirmedWithOpenTickets: true,
+                    }
+                  : {}),
+              },
             });
           return null;
         }

@@ -10,6 +10,7 @@ const AppError = require('../utils/appError');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const permissions = require('../services/permissionsService');
 const brand = require('../services/restaurantBrandService');
+const fx = require('../services/restaurantFxService');
 const { getLocationScope } = require('../services/restaurantLocationAccessService');
 const { withTransaction } = require('../utils/transaction');
 const { logBusinessAction } = require('../services/businessAuditLog');
@@ -67,6 +68,9 @@ function filterStoresByScope(payload, accessible) {
   return payload;
 }
 
+exports.loadBrandRestaurants = loadBrandRestaurants;
+exports.brandIdParam = brandIdParam;
+
 exports.listBrands = async (req, res, next) => {
   try {
     const { rows } = await pool.query(
@@ -113,7 +117,123 @@ exports.getStoreComparison = async (req, res, next) => {
     comparison.restaurants = comparison.restaurants.filter((entry) => allowed.has(Number(entry.restaurant.id)));
     const filtered = filterStoresByScope(comparison, accessible);
     filtered.ranked = (filtered.ranked || []).filter((store) => allowed.has(Number(store.restaurantId)));
+    // Phase 8 Track A: converted brand totals alongside the native
+    // per-currency totals. The brand policy wins; with no stored
+    // policy the default reporting currency is the first accessible
+    // restaurant's primary location currency. Conversion is
+    // enrichment on a read: when the FX lookup itself fails, the
+    // native comparison is still returned with converted null.
+    const anchorRestaurantId = accessible[0]?.restaurant?.id ?? null;
+    let converted = null;
+    try {
+      const policy = await fx.getFxPolicy(pool, { brandId });
+      const effectivePolicy = policy.isDefault && anchorRestaurantId
+        ? { ...policy, reportingCurrency: (await fx.getFxPolicy(pool, { restaurantId: anchorRestaurantId })).reportingCurrency }
+        : policy;
+      const rateDate = fx.resolveRateDate(effectivePolicy, String(range.to).slice(0, 10));
+      converted = {
+        ...(await fx.convertBreakdown(pool, {
+          entries: (filtered.totals || []).map((entry) => ({
+            currencyCode: entry.currencyCode,
+            amountCents: Number(entry.netCollectedCents || 0),
+          })),
+          reportingCurrency: effectivePolicy.reportingCurrency,
+          rateDate,
+          rateSource: effectivePolicy.rateSource,
+        })),
+        isDefaultPolicy: effectivePolicy.isDefault,
+      };
+    } catch {
+      converted = null;
+    }
+    filtered.converted = converted;
     res.json(filtered);
+  } catch (error) { next(error); }
+};
+
+// ── Phase 8 Track A: brand FX policy + stored rates ────────────────
+// Same stored-rate table as the restaurant-level endpoints; the
+// brand policy governs brand rollups, the restaurant policy governs
+// that restaurant's HQ rollup.
+exports.getBrandFxPolicy = async (req, res, next) => {
+  try {
+    const brandId = brandIdParam(req);
+    await loadBrandRestaurants(req, brandId);
+    const policy = await fx.getFxPolicy(pool, { brandId });
+    res.json({ policy });
+  } catch (error) { next(error); }
+};
+
+exports.updateBrandFxPolicy = async (req, res, next) => {
+  try {
+    const brandId = brandIdParam(req);
+    const accessible = await loadBrandRestaurants(req, brandId, { permission: 'settings.manage' });
+    const body = req.body || {};
+    const policy = await withTransaction(pool, async (client) => {
+      const saved = await fx.setFxPolicy(client, {
+        brandId,
+        reportingCurrency: body.reportingCurrency ?? body.reporting_currency,
+        rateSource: body.rateSource ?? body.rate_source,
+        rateDateMode: body.rateDateMode ?? body.rate_date_mode,
+        rateDate: body.rateDate ?? body.rate_date,
+        actorUserId: req.user.id,
+      });
+      await logBusinessAction(req, {
+        business_id: accessible[0].restaurant.business_id,
+        actor_role: accessible[0].restaurant.effective_role,
+        action: 'restaurant.brand_fx_policy.updated',
+        target_type: 'restaurant_brand',
+        target_id: brandId,
+        after_state: saved,
+        client,
+        throwOnError: true,
+      });
+      return saved;
+    }, 'restaurant_brand_fx_policy_update');
+    res.json({ policy });
+  } catch (error) { next(error); }
+};
+
+exports.listBrandFxRates = async (req, res, next) => {
+  try {
+    const brandId = brandIdParam(req);
+    await loadBrandRestaurants(req, brandId);
+    const rates = await fx.listRates(pool, {
+      baseCurrency: req.query?.base ?? req.query?.baseCurrency ?? null,
+      quoteCurrency: req.query?.quote ?? req.query?.quoteCurrency ?? null,
+      limit: req.query?.limit,
+    });
+    res.json({ rates });
+  } catch (error) { next(error); }
+};
+
+exports.createBrandFxRate = async (req, res, next) => {
+  try {
+    const brandId = brandIdParam(req);
+    const accessible = await loadBrandRestaurants(req, brandId, { permission: 'settings.manage' });
+    const body = req.body || {};
+    const rate = await withTransaction(pool, async (client) => {
+      const saved = await fx.createRate(client, {
+        baseCurrency: body.baseCurrency ?? body.base_currency,
+        quoteCurrency: body.quoteCurrency ?? body.quote_currency,
+        rate: body.rate,
+        rateDate: body.rateDate ?? body.rate_date,
+        source: body.source,
+        actorUserId: req.user.id,
+      });
+      await logBusinessAction(req, {
+        business_id: accessible[0].restaurant.business_id,
+        actor_role: accessible[0].restaurant.effective_role,
+        action: 'restaurant.brand_fx_rate.created',
+        target_type: 'restaurant_brand',
+        target_id: brandId,
+        after_state: saved,
+        client,
+        throwOnError: true,
+      });
+      return saved;
+    }, 'restaurant_brand_fx_rate_create');
+    res.status(201).json({ rate });
   } catch (error) { next(error); }
 };
 

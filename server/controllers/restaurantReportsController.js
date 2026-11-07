@@ -986,6 +986,11 @@ exports.salesBiExportNdjson = async (req, res, next) => {
 };
 
 exports._localRangeTest = { parseLocalRange, localMidnightUtcMs };
+// Phase 7 (gap 19): the scheduled-report job reuses the same close
+// computation as the on-demand endpoint, never a second definition.
+// The close stays re-computable: this returns live data as of the
+// call, it does not lock anything.
+exports._computeDailyClose = computeDailyClose;
 exports._accountingTest = { accountingLines, buildAccountingCsv, ACCOUNTING_ACCOUNT_CODES, loadSalesJournalRows };
 
 // ── Inventory ────────────────────────────────────────────────────────────────

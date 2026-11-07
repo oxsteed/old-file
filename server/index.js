@@ -91,7 +91,6 @@ const businessProfileImagesRoutes   = require('./routes/businessProfileImages');
 const businessFinanceRoutes         = require('./routes/businessFinance');
 const businessRecurringBillingRoutes = require('./routes/businessRecurringBilling');
 const businessStaffRoutes           = require('./routes/businessStaff');
-const staffSchedulingRoutes         = require('./routes/staffScheduling');
 const businessReviewMgmtRoutes      = require('./routes/businessReviewMgmt');
 const businessMarketingRoutes       = require('./routes/businessMarketing');
 const businessWaitlistRoutes        = require('./routes/businessWaitlist');
@@ -615,7 +614,6 @@ app.use('/api/businesses', pricingRulesAdminRoutes);
 app.use('/api/businesses', businessFinanceRoutes);
 app.use('/api/businesses', businessRecurringBillingRoutes);
 app.use('/api/businesses', businessStaffRoutes);
-app.use('/api/businesses', staffSchedulingRoutes);
 app.use('/api/businesses', businessReviewMgmtRoutes);
 app.use('/api/businesses', businessMarketingRoutes);
 // Decision 1: public, token-scoped broadcast open/click/unsubscribe tracking.

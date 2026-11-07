@@ -452,7 +452,11 @@ ddescribe('pause and resume gate claims', () => {
     await service.discoverAccountJobs(run.id, [accountFor(customer)]);
     const paused = await service.pauseRun(run.id);
     expect(paused.state).toBe('paused');
-    expect(await service.claimNextAccountJob('worker-a')).toBeNull();
+    // Scope the claim to this run: the unscoped claim can return a leftover
+    // claimable job from an earlier test's run in the shared DB, which made
+    // this assertion order-dependent in CI. The invariant under test is that
+    // the paused run itself yields no jobs.
+    expect(await service.claimNextAccountJob('worker-a', 120, { runId: run.id })).toBeNull();
     const resumed = await service.resumeRun(run.id);
     expect(resumed.state).toBe('discovering');
     const claimed = await service.claimNextAccountJob('worker-a', 120, { runId: run.id });

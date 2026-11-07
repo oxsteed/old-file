@@ -171,7 +171,7 @@ test('merchant operations desk opens one tool at a time', { timeout: 120000 }, a
     await page.getByRole('searchbox', { name: 'Find a tool' }).fill('no matching tool');
     await page.getByText('No tools match your search. Try another word.').waitFor();
     await page.getByRole('button', { name: 'Clear search', exact: true }).click();
-    assert.equal(await page.locator('.fd-ops-tile:visible').count(), 13);
+    assert.equal(await page.locator('.fd-ops-tile:visible').count(), 14); // 13 + temperature logs (Phase 7)
 
     await page.screenshot({ path: path.join(artifactDir, 'operations-desk-desktop.png'), fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });

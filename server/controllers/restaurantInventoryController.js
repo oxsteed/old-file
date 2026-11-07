@@ -17,6 +17,8 @@ const { AppError } = require('../middleware/errorHandler');
 const { resolveRestaurantAccess } = require('../services/scopeModel');
 const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
+const { computeMenuItemFoodCost, listMenuFoodCosts } = require('../services/restaurantFoodCostService');
+const { draftAutoReorderRequests } = require('../services/restaurantInventoryReorderService');
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
 const { logInventoryAudit } = require('../services/restaurantInventoryAuditService');
 const restaurantLocationService = require('../services/restaurantLocationService');
@@ -181,6 +183,37 @@ exports.listItems = async (req, res, next) => {
       [restaurantId, ...scope.values]
     );
     res.json({ items: rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Phase 6 (gap 14): lots for one inventory item, FEFO order (earliest
+// expiry first, no-expiry last), with an expired flag so the dashboard can
+// surface short-dated stock before it becomes waste.
+exports.listItemLots = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const itemId = parsePositiveInt(req.params.itemId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const { rows: [item] } = await pool.query(
+      `SELECT id, name, location_id FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2`,
+      [itemId, restaurantId]
+    );
+    if (!item) throw new AppError('Inventory item not found', 404, 'inventory_item_not_found');
+    await assertExistingItemLocationAccess(restaurant, req.user.id, item.location_id, pool);
+    const { rows } = await pool.query(
+      `SELECT l.*,
+              (l.expires_at IS NOT NULL AND l.expires_at <= NOW()) AS is_expired,
+              (l.expires_at IS NOT NULL AND l.expires_at > NOW()
+                AND l.expires_at <= NOW() + INTERVAL '7 days') AS expires_soon
+         FROM restaurant_inventory_lots l
+        WHERE l.restaurant_id = $1 AND l.inventory_item_id = $2
+        ORDER BY l.expires_at ASC NULLS LAST, l.created_at ASC, l.id ASC`,
+      [restaurantId, itemId]
+    );
+    res.json({ item, lots: rows });
   } catch (err) {
     next(err);
   }
@@ -610,6 +643,11 @@ exports.createPurchaseRequest = async (req, res, next) => {
     }
 
     const status = PURCHASE_STATUSES.includes(req.body.status) ? req.body.status : 'pending';
+    // Phase 6 (gap 14): a request cannot be born already approved. Approval
+    // is a second person's act (see updatePurchaseRequest).
+    if (status === 'approved' || status === 'ordered') {
+      throw new AppError('A purchase request cannot be created already approved; a second manager must approve it', 409, 'purchase_request_requires_approval');
+    }
     const urgency = URGENCY_LEVELS.includes(req.body.urgency) ? req.body.urgency : 'medium';
     const estimatedCost = req.body.estimatedCost == null ? null : parseQty(req.body.estimatedCost, 'estimatedCost');
     const estimatedUnitCostCents = parseEstimatedUnitCostCents(req.body.estimatedUnitCostCents ?? req.body.estimated_unit_cost_cents);
@@ -698,6 +736,11 @@ exports.updatePurchaseRequest = async (req, res, next) => {
     if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');
     const scope = locationScopeClause(restaurant.locationScope, '', i + 2);
+    // Phase 6 (gap 14): the approval move, if any, is gated below on the
+    // requester != approver rule and records the approver.
+    const targetStatus = req.body.status !== undefined && PURCHASE_STATUSES.includes(req.body.status)
+      ? req.body.status
+      : null;
 
     const request = await withTransaction(pool, async (client) => {
       const { rows: [updated] } = await client.query(
@@ -707,12 +750,33 @@ exports.updatePurchaseRequest = async (req, res, next) => {
         [...vals, requestId, restaurantId, ...scope.values]
       );
       if (!updated) throw new AppError('Purchase request not found', 404, 'purchase_request_not_found');
-      await logInventoryAudit(client, auditEntry(restaurant, 'purchase_request_updated', 'purchase_request', updated.id, req, {
-        status: updated.status,
-        urgency: updated.urgency,
+      let approvedRequest = updated;
+      if (targetStatus === 'approved' || targetStatus === 'ordered') {
+        // Dual control: the requester can never approve (or order) their
+        // own request. The throw rolls the status move back with it.
+        if (updated.requested_by && String(updated.requested_by) === String(req.user.id)) {
+          throw new AppError('The person who requested a purchase cannot approve it', 409, 'purchase_approval_self_approval');
+        }
+        // Record the approver (first approver wins: an approved request
+        // later moved to ordered keeps its original approver).
+        const { rows: [withApprover] } = await client.query(
+          `UPDATE restaurant_inventory_purchase_requests
+              SET approved_by = COALESCE(approved_by, $2),
+                  approved_at = COALESCE(approved_at, NOW()),
+                  updated_at = NOW()
+            WHERE id = $1 AND restaurant_id = $3
+            RETURNING *`,
+          [requestId, req.user.id, restaurantId]
+        );
+        approvedRequest = withApprover || updated;
+      }
+      await logInventoryAudit(client, auditEntry(restaurant, 'purchase_request_updated', 'purchase_request', approvedRequest.id, req, {
+        status: approvedRequest.status,
+        urgency: approvedRequest.urgency,
+        approvedBy: approvedRequest.approved_by || null,
         changedFields: sets.filter((set) => !set.startsWith('updated_at')).map((set) => set.split(' = ')[0]),
       }));
-      return updated;
+      return approvedRequest;
     });
     res.json({ request });
   } catch (err) {
@@ -1117,6 +1181,273 @@ exports.bootstrapMappings = async (req, res, next) => {
     });
 
     return exports.listMappings(req, res, next);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Plate cost / margin (Phase 6, gap 10) ────────────────────────────────
+// Computed on read from the live mappings and unit costs, so a mapping edit
+// or a supplier price change is reflected immediately; nothing is cached.
+function foodCostLocationIds(restaurant) {
+  return restaurant.locationScope?.mode === 'assigned'
+    ? restaurant.locationScope.location_ids
+    : null;
+}
+
+exports.getMenuItemFoodCost = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const menuItemId = parsePositiveInt(req.params.itemId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const foodCost = await computeMenuItemFoodCost(pool, {
+      restaurantId,
+      menuItemId,
+      locationIds: foodCostLocationIds(restaurant),
+    });
+    res.json({ food_cost: foodCost });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listMenuFoodCosts = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const sort = ['margin_asc', 'margin_desc', 'name'].includes(req.query.sort)
+      ? req.query.sort
+      : 'margin_asc';
+    const foodCosts = await listMenuFoodCosts(pool, {
+      restaurantId,
+      locationIds: foodCostLocationIds(restaurant),
+      sort,
+    });
+    res.json({ food_costs: foodCosts, sort });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Modifier → inventory mappings (Phase 6, gap 14) ──────────────────────
+// A modifier option (e.g. extra chicken) depletes its mapped inventory at
+// order time, once per dish unit, through reserveInventoryForOrder. Without
+// a mapping a modifier depletes nothing; the dish mappings are untouched.
+// Phase 6 (gap 14): the modifier options a mapping can target, so the
+// inventory page can offer a picker instead of a bare id field.
+exports.listModifierOptions = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const { rows } = await pool.query(
+      `SELECT fm.id,
+              fm.name AS modifier_name,
+              mg.id AS modifier_group_id,
+              mg.name AS modifier_group_name,
+              mg.menu_item_id,
+              fmi.name AS menu_item_name
+         FROM food_modifiers fm
+         JOIN food_modifier_groups mg ON mg.id = fm.modifier_group_id
+         JOIN food_menu_items fmi ON fmi.id = mg.menu_item_id AND fmi.restaurant_id = mg.restaurant_id
+        WHERE mg.restaurant_id = $1
+        ORDER BY fmi.name ASC, mg.name ASC, fm.sort_order ASC, fm.id ASC`,
+      [restaurantId]
+    );
+    res.json({ options: rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listModifierMappings = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+    const scope = locationScopeClause(restaurant.locationScope, 'rii', 2);
+    const { rows } = await pool.query(
+      `SELECT mm.id,
+              mm.modifier_id,
+              fm.name AS modifier_name,
+              mg.name AS modifier_group_name,
+              mg.menu_item_id,
+              fmi.name AS menu_item_name,
+              mm.inventory_item_id,
+              rii.name AS inventory_item_name,
+              mm.usage_label,
+              mm.required_quantity,
+              COALESCE(mm.required_unit, rii.unit) AS required_unit,
+              mm.conversion_factor,
+              mm.yield_percent,
+              mm.auto_manage
+         FROM restaurant_inventory_modifier_mappings mm
+         JOIN food_modifiers fm ON fm.id = mm.modifier_id
+         JOIN food_modifier_groups mg ON mg.id = fm.modifier_group_id
+         JOIN food_menu_items fmi ON fmi.id = mg.menu_item_id AND fmi.restaurant_id = mm.restaurant_id
+         JOIN restaurant_inventory_items rii
+           ON rii.id = mm.inventory_item_id
+          AND rii.restaurant_id = mm.restaurant_id
+        WHERE mm.restaurant_id = $1${scope.sql}
+        ORDER BY fmi.name ASC, mg.name ASC, fm.name ASC`,
+      [restaurantId, ...scope.values]
+    );
+    res.json({ mappings: rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.upsertModifierMapping = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
+    const modifierId = parsePositiveInt(req.body.modifierId || req.body.modifier_id);
+    const inventoryItemId = parsePositiveInt(req.body.inventoryItemId || req.body.inventory_item_id);
+    const usageLabel = normalizeString(req.body.usageLabel || req.body.usage_label, 120);
+    const requiredQuantity = parseQty(req.body.requiredQuantity ?? req.body.required_quantity ?? 0.001, 'requiredQuantity');
+    const requiredUnit = normalizeString(req.body.requiredUnit || req.body.required_unit, 24);
+    const conversionFactor = parseQty(req.body.conversionFactor ?? req.body.conversion_factor ?? 1, 'conversionFactor');
+    const yieldPercent = parseQty(req.body.yieldPercent ?? req.body.yield_percent ?? 100, 'yieldPercent');
+    if (!modifierId || !inventoryItemId || !usageLabel) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        modifierId: 'Modifier option is required',
+        inventoryItemId: 'Inventory item is required',
+        usageLabel: 'Usage label is required',
+      });
+    }
+    if (requiredQuantity === null || requiredQuantity <= 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        requiredQuantity: 'Required quantity must be greater than zero',
+      });
+    }
+    if (conversionFactor === null || conversionFactor <= 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        conversionFactor: 'Conversion factor must be greater than zero',
+      });
+    }
+    if (yieldPercent === null || yieldPercent <= 0 || yieldPercent > 100) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        yieldPercent: 'Yield percent must be greater than zero and at most 100',
+      });
+    }
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [ownership] } = await client.query(
+        `SELECT EXISTS(
+                  SELECT 1 FROM restaurant_inventory_items
+                   WHERE id = $2 AND restaurant_id = $1 AND is_active = TRUE
+                ) AS inventory_exists,
+                EXISTS(
+                  SELECT 1 FROM food_modifiers fm
+                    JOIN food_modifier_groups mg ON mg.id = fm.modifier_group_id
+                   WHERE fm.id = $3 AND mg.restaurant_id = $1
+                ) AS modifier_exists,
+                (SELECT location_id FROM restaurant_inventory_items
+                  WHERE id = $2 AND restaurant_id = $1) AS location_id`,
+        [restaurantId, inventoryItemId, modifierId]
+      );
+      if (!ownership.inventory_exists) throw new AppError('Inventory item not found', 404, 'inventory_item_not_found');
+      if (!ownership.modifier_exists) throw new AppError('Modifier option not found', 404, 'modifier_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, ownership.location_id, client);
+      const { rows: [mapping] } = await client.query(
+        `INSERT INTO restaurant_inventory_modifier_mappings
+           (restaurant_id, modifier_id, inventory_item_id, usage_label,
+            required_quantity, required_unit, conversion_factor, yield_percent,
+            auto_manage, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         ON CONFLICT (restaurant_id, modifier_id, inventory_item_id)
+         DO UPDATE SET usage_label = EXCLUDED.usage_label,
+                       required_quantity = EXCLUDED.required_quantity,
+                       required_unit = EXCLUDED.required_unit,
+                       conversion_factor = EXCLUDED.conversion_factor,
+                       yield_percent = EXCLUDED.yield_percent,
+                       auto_manage = EXCLUDED.auto_manage,
+                       updated_at = NOW()
+         RETURNING *`,
+        [restaurantId, modifierId, inventoryItemId, usageLabel, requiredQuantity,
+          requiredUnit, conversionFactor, yieldPercent,
+          req.body.autoManage !== false && req.body.auto_manage !== false, req.user.id]
+      );
+      await logInventoryAudit(client, auditEntry(restaurant, 'modifier_mapping_upserted', 'modifier_mapping', mapping.id, req, {
+        inventoryItemId: mapping.inventory_item_id,
+        modifierId: mapping.modifier_id,
+        usageLabel: mapping.usage_label,
+        requiredQuantity: mapping.required_quantity,
+        requiredUnit: mapping.required_unit,
+        conversionFactor: mapping.conversion_factor,
+        yieldPercent: mapping.yield_percent,
+        autoManage: mapping.auto_manage,
+      }));
+      return { mapping };
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteModifierMapping = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const mappingId = parsePositiveInt(req.params.mappingId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        `SELECT mm.id, rii.location_id
+           FROM restaurant_inventory_modifier_mappings mm
+           JOIN restaurant_inventory_items rii
+             ON rii.id = mm.inventory_item_id AND rii.restaurant_id = mm.restaurant_id
+          WHERE mm.id = $1 AND mm.restaurant_id = $2 FOR UPDATE OF mm`,
+        [mappingId, restaurantId]
+      );
+      if (!existing) throw new AppError('Inventory modifier mapping not found', 404, 'inventory_modifier_mapping_not_found');
+      await assertExistingItemLocationAccess(restaurant, req.user.id, existing.location_id, client);
+      const { rows: [mapping] } = await client.query(
+        `DELETE FROM restaurant_inventory_modifier_mappings
+          WHERE id = $1 AND restaurant_id = $2 RETURNING *`,
+        [mappingId, restaurantId]
+      );
+      if (!mapping) throw new AppError('Inventory modifier mapping not found', 404, 'inventory_modifier_mapping_not_found');
+      await logInventoryAudit(client, auditEntry(restaurant, 'modifier_mapping_deleted', 'modifier_mapping', mapping.id, req, {
+        locationId: existing.location_id,
+        inventoryItemId: mapping.inventory_item_id,
+        modifierId: mapping.modifier_id,
+      }));
+      return { mapping };
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Auto-reorder drafts (Phase 6, gap 14) ────────────────────────────────
+// Drafts purchase requests for items below their reorder point. Drafts
+// only: nothing is ordered or approved here; a manager reviews the drafts
+// in the purchase-request list like any manual request.
+exports.draftAutoReorders = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, UPDATE_INVENTORY);
+    const locationIds = restaurant.locationScope?.mode === 'assigned'
+      ? restaurant.locationScope.location_ids
+      : null;
+    const result = await draftAutoReorderRequests(pool, {
+      restaurantId,
+      locationIds,
+      actorUserId: req.user.id,
+    });
+    res.status(201).json({
+      drafted: result.created,
+      skipped: result.skipped,
+      drafted_count: result.created.length,
+      skipped_count: result.skipped.length,
+    });
   } catch (err) {
     next(err);
   }

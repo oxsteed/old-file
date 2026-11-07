@@ -56,7 +56,7 @@ const KNOWN_SQL = `
     UNION ALL
     SELECT s.user_id, MAX((s.shift_date)::timestamptz), 0, COUNT(*)::int, FALSE
       FROM business_staff_shifts s
-     WHERE s.business_id = $1 AND s.user_id IS NOT NULL AND s.published_at IS NOT NULL AND s.shift_date < CURRENT_DATE
+     WHERE s.business_id = $1 AND s.user_id IS NOT NULL AND s.published_at IS NOT NULL AND s.cancelled_at IS NULL AND s.shift_date < CURRENT_DATE
      GROUP BY s.user_id
     UNION ALL
     SELECT r.user_id, MAX(r.removed_at), 0, 0, TRUE

@@ -32,6 +32,12 @@ describe('businessStaffScheduleController shifts (P1-5-F02)', () => {
   test('createShift writes the slot-engine schema, not legacy columns', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }) // membership check
+      // Phase 4 Track A: validateShift queries before the insert (other
+      // shifts, approved time-off, availability, labor profile), all empty.
+      .mockResolvedValueOnce({ rows: [] }) // other shifts
+      .mockResolvedValueOnce({ rows: [] }) // approved time-off
+      .mockResolvedValueOnce({ rows: [] }) // availability windows
+      .mockResolvedValueOnce({ rows: [] }) // labor profile
       .mockResolvedValueOnce({ rows: [{ id: 7 }] }); // insert
     const req = {
       params: { businessId: '2' },
@@ -47,7 +53,7 @@ describe('businessStaffScheduleController shifts (P1-5-F02)', () => {
     await ctrl.createShift(req, res, next);
 
     expect(res.statusCode).toBe(201);
-    const [sql, params] = mockQuery.mock.calls[1];
+    const [sql, params] = mockQuery.mock.calls[5];
     expect(sql).toMatch(/INSERT INTO business_staff_shifts/);
     expect(sql).toContain('shift_date');
     expect(sql).toContain('start_time');
@@ -110,7 +116,12 @@ describe('businessStaffScheduleController shifts (P1-5-F02)', () => {
   test('createShift represents an overnight shift the engine understands', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 8 }] });
+      // Phase 4 Track A: validateShift queries before the insert.
+      .mockResolvedValueOnce({ rows: [] }) // other shifts
+      .mockResolvedValueOnce({ rows: [] }) // approved time-off
+      .mockResolvedValueOnce({ rows: [] }) // availability windows
+      .mockResolvedValueOnce({ rows: [] }) // labor profile
+      .mockResolvedValueOnce({ rows: [{ id: 8 }] }); // insert
     const req = {
       params: { businessId: '2' },
       body: {
@@ -122,7 +133,7 @@ describe('businessStaffScheduleController shifts (P1-5-F02)', () => {
     const res = mockRes();
     await ctrl.createShift(req, res, next);
     expect(res.statusCode).toBe(201);
-    const [, params] = mockQuery.mock.calls[1];
+    const [, params] = mockQuery.mock.calls[5];
     // Same shape the engine's overnight-shift branch (+1 day on end<=start) reads.
     expect(params.slice(2, 5)).toEqual(['2026-10-14', '22:00:00', '06:00:00']);
   });
@@ -162,6 +173,12 @@ describe('businessStaffScheduleController shifts (P1-5-F02)', () => {
   test('updateShift converts datetimes and never touches a status column', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ shift_date: '2026-10-14', start_time: '09:00:00', end_time: '17:00:00' }] })
+      // Phase 4 Track A: the time moves, so validateShift queries run
+      // before the update (other shifts, time-off, availability, profile).
+      .mockResolvedValueOnce({ rows: [] }) // other shifts
+      .mockResolvedValueOnce({ rows: [] }) // approved time-off
+      .mockResolvedValueOnce({ rows: [] }) // availability windows
+      .mockResolvedValueOnce({ rows: [] }) // labor profile
       .mockResolvedValueOnce({ rows: [{ id: 7 }] });
     const req = {
       params: { businessId: '2', shiftId: '7' },
@@ -171,7 +188,7 @@ describe('businessStaffScheduleController shifts (P1-5-F02)', () => {
     await ctrl.updateShift(req, res, next);
 
     expect(res.statusCode).toBe(200);
-    const [sql, params] = mockQuery.mock.calls[1];
+    const [sql, params] = mockQuery.mock.calls[5];
     expect(sql).toMatch(/UPDATE business_staff_shifts/);
     expect(sql).toContain('shift_date');
     expect(sql).not.toMatch(/shift_start/);
@@ -184,6 +201,12 @@ describe('businessStaffScheduleController shift updates (node-pg types)', () => 
   test('updateShift handles node-pg Date objects for shift_date', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ shift_date: new Date(Date.UTC(2026, 9, 14)), start_time: '09:00:00', end_time: '17:00:00' }] })
+      // Phase 4 Track A: the end time moves, so validateShift queries run
+      // before the update.
+      .mockResolvedValueOnce({ rows: [] }) // other shifts
+      .mockResolvedValueOnce({ rows: [] }) // approved time-off
+      .mockResolvedValueOnce({ rows: [] }) // availability windows
+      .mockResolvedValueOnce({ rows: [] }) // labor profile
       .mockResolvedValueOnce({ rows: [{ id: 7 }] });
     const req = {
       params: { businessId: '2', shiftId: '7' },
@@ -193,7 +216,7 @@ describe('businessStaffScheduleController shift updates (node-pg types)', () => 
     await ctrl.updateShift(req, res, next);
 
     expect(res.statusCode).toBe(200);
-    const [, params] = mockQuery.mock.calls[1];
+    const [, params] = mockQuery.mock.calls[5];
     expect(params.slice(0, 3)).toEqual(['2026-10-14', '09:00:00', '18:00:00']);
   });
 });
@@ -252,7 +275,16 @@ describe('businessStaffScheduleController availability and shift swaps', () => {
 
   test('manager approval atomically reassigns the shift and closes the request', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 19, shift_id: 7, status: 'requested', target_user_id: '00000000-0000-4000-8000-0000000000bb', assigned_user_id: '00000000-0000-4000-8000-0000000000aa' }] })
+      // Phase 3 Track C: approval requires target acceptance first, so
+      // the pending row the manager decides is 'target_accepted'.
+      // Phase 4 Track A: the select now carries the shift's date/times
+      // so the reassignment can be validated for the target.
+      .mockResolvedValueOnce({ rows: [{ id: 19, shift_id: 7, status: 'target_accepted', target_user_id: '00000000-0000-4000-8000-0000000000bb', assigned_user_id: '00000000-0000-4000-8000-0000000000aa', shift_date: '2026-10-14', start_time: '09:00:00', end_time: '17:00:00', location_id: null, restaurant_id: null }] })
+      // Phase 4 Track A: validateShift queries for the target, all clean.
+      .mockResolvedValueOnce({ rows: [] }) // target's other shifts
+      .mockResolvedValueOnce({ rows: [] }) // target's approved time-off
+      .mockResolvedValueOnce({ rows: [] }) // target's availability windows
+      .mockResolvedValueOnce({ rows: [] }) // target's labor profile
       .mockResolvedValueOnce({ rows: [] }) // shift reassignment
       .mockResolvedValueOnce({ rows: [{ id: 19, status: 'approved' }] });
     const req = {
@@ -264,6 +296,22 @@ describe('businessStaffScheduleController availability and shift swaps', () => {
     await ctrl.approveShiftSwapRequest(req, res, next);
     expect(res.statusCode).toBe(200);
     expect(res.body.request.status).toBe('approved');
-    expect(mockQuery.mock.calls[1][0]).toMatch(/UPDATE business_staff_shifts SET user_id/);
+    expect(mockQuery.mock.calls[5][0]).toMatch(/UPDATE business_staff_shifts SET user_id/);
+  });
+
+  test('manager approval before target acceptance is a 409', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 19, shift_id: 7, status: 'requested', target_user_id: '00000000-0000-4000-8000-0000000000bb', assigned_user_id: '00000000-0000-4000-8000-0000000000aa' }] });
+    const req = {
+      params: { businessId: '2', requestId: '19' },
+      user: { id: '00000000-0000-4000-8000-0000000000cc' },
+      businessRole: 'manager',
+    };
+    const res = mockRes();
+    await ctrl.approveShiftSwapRequest(req, res, next);
+    expect(res.statusCode).toBe(409);
+    expect(res.body.error).toMatch(/not accepted/i);
+    // The guard answers from the row read alone: no reassignment ran.
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });

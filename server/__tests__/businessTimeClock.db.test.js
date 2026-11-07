@@ -12,7 +12,8 @@
  *   - hours computed at clock-out, net of breaks,
  *   - clock-out ownership (owner or manager only),
  *   - append-only audited edits with a reason and manager approver,
- *   - voiding instead of hard deletes in BOTH time-entry APIs.
+ *   - voiding instead of hard deletes in the live time-entry API
+ *     (manual-hours create + void).
  *
  * Run with:
  *   ST_T3_TEST_DATABASE_URL=postgresql://.../st_t3 \
@@ -54,7 +55,6 @@ if (CAN_RUN_DB) {
 const { errorHandler } = require('../middleware/errorHandler');
 const pool = require('../db');
 const scheduleCtrl = require('../controllers/businessStaffScheduleController');
-const staffCtrl = require('../controllers/staffSchedulingController');
 
 jest.setTimeout(60000);
 
@@ -75,9 +75,7 @@ function appFor(userId, businessRole) {
   app.post('/api/businesses/:businessId/staff/time-entries/:entryId/break', scheduleCtrl.punchBreak);
   app.patch('/api/businesses/:businessId/staff/time-entries/:entryId', scheduleCtrl.editTimeEntry);
   app.post('/api/businesses/:businessId/staff/time-entries/:entryId/void', scheduleCtrl.voidTimeEntry);
-  app.post('/api/businesses/:businessId/time-entries', staffCtrl.logHours);
-  app.get('/api/businesses/:businessId/time-entries', staffCtrl.getTimeEntries);
-  app.delete('/api/businesses/:businessId/time-entries/:id', staffCtrl.deleteTimeEntry);
+  app.post('/api/businesses/:businessId/staff/time-entries', scheduleCtrl.createManualTimeEntry);
   app.use(errorHandler);
   return app;
 }
@@ -241,32 +239,122 @@ ddescribe('time clock punch model (S-05)', () => {
     expect(list.body.some((e) => e.id === entryId)).toBe(false);
   });
 
-  test('the parallel scheduling API voids instead of hard-deleting, and manual logs carry an approver', async () => {
+  test('the live manual-hours API voids instead of hard-deleting, and manual logs carry an approver', async () => {
     const logged = await request(appFor(F.owner, 'owner'))
-      .post(`/api/businesses/${F.businessId}/time-entries`)
+      .post(`/api/businesses/${F.businessId}/staff/time-entries`)
       .send({ user_id: F.employee, hours_worked: 3.5, description: 'Deep clean' });
     expect(logged.status).toBe(201);
     const entryId = logged.body.entry.id;
     expect(logged.body.entry.approved_by).toBe(F.owner);
+    expect(logged.body.entry.source).toBe('manual');
 
     const removed = await request(appFor(F.owner, 'owner'))
-      .delete(`/api/businesses/${F.businessId}/time-entries/${entryId}`)
-      .send({});
+      .post(`/api/businesses/${F.businessId}/staff/time-entries/${entryId}/void`)
+      .send({ reason: 'Duplicate entry' });
     expect(removed.status).toBe(200);
-    expect(removed.body.voided).toBe(true);
+    expect(removed.body.voided_at).toBeTruthy();
 
     const { rows: [row] } = await pool.query('SELECT * FROM business_time_entries WHERE id = $1', [entryId]);
     expect(row).toBeTruthy();
     expect(row.voided_at).toBeTruthy();
 
     const list = await request(appFor(F.owner, 'owner'))
-      .get(`/api/businesses/${F.businessId}/time-entries`);
+      .get(`/api/businesses/${F.businessId}/staff/time-entries`);
     expect(list.status).toBe(200);
-    expect(list.body.entries.some((e) => e.id === entryId)).toBe(false);
+    expect(list.body.some((e) => e.id === entryId)).toBe(false);
   });
 });
 
-// S-04 / N-02 / F-22: the restaurant "My time" card and business-local dates.
+// Item 63: on a qualifying shift the owner's clock-out is blocked
+// (409 break_attestation_required) until they attest or waive; a
+// waiver or an attestation completes it, and a short shift is
+// unaffected. No restaurant/location rows exist here, so the
+// jurisdiction resolves to the US-FED preset (meal break due after
+// 360 minutes): a 6-hour punch qualifies, a 2-hour punch does not.
+ddescribe('break attestation gate at clock-out (items 43, 63)', () => {
+  let H = {};
+
+  beforeAll(async () => {
+    const owner = await newUser('gate-owner');
+    const employee = await newUser('gate-employee');
+    const { rows: [biz] } = await pool.query(
+      'INSERT INTO businesses (user_id, business_name) VALUES ($1, $2) RETURNING id',
+      [owner, `Gate Clock ${crypto.randomUUID().slice(0, 8)}`]
+    );
+    const { rows: [memberUser] } = await pool.query('SELECT email FROM users WHERE id = $1', [employee]);
+    await pool.query(
+      `INSERT INTO business_members (business_id, owner_id, member_id, invite_email, role, status)
+       VALUES ($1, $2, $3, $4, 'employee', 'active')`,
+      [biz.id, owner, employee, memberUser.email]
+    );
+    H = { owner, employee, businessId: biz.id };
+  });
+
+  async function openPunchBackdated(hours) {
+    const app = appFor(H.employee, 'employee');
+    const inRes = await request(app).post(`/api/businesses/${H.businessId}/staff/clock-in`).send({});
+    expect(inRes.status).toBe(201);
+    await pool.query(
+      `UPDATE business_time_entries SET clock_in_at = NOW() - ($1 || ' hours')::interval WHERE id = $2`,
+      [String(hours), inRes.body.id]
+    );
+    return inRes.body.id;
+  }
+
+  test('a qualifying clock-out without an attestation 409s and leaves the punch open', async () => {
+    const entryId = await openPunchBackdated(6);
+    const blocked = await request(appFor(H.employee, 'employee'))
+      .post(`/api/businesses/${H.businessId}/staff/clock-out/${entryId}`)
+      .send({});
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.code).toBe('break_attestation_required');
+    const { rows: [row] } = await pool.query(
+      'SELECT clock_out_at FROM business_time_entries WHERE id = $1', [entryId]
+    );
+    expect(row.clock_out_at).toBeNull();
+
+    const waived = await request(appFor(H.employee, 'employee'))
+      .post(`/api/businesses/${H.businessId}/staff/clock-out/${entryId}`)
+      .send({ breakAttestation: { mealBreakTaken: false, waived: true, waiverReason: 'Lunch rush' } });
+    expect(waived.status).toBe(200);
+    expect(waived.body.break_attestation).toBeTruthy();
+    expect(waived.body.break_attestation.waived).toBe(true);
+    const { rows: attestations } = await pool.query(
+      'SELECT * FROM restaurant_break_attestations WHERE time_entry_id = $1', [entryId]
+    );
+    expect(attestations).toHaveLength(1);
+    expect(attestations[0].waiver_reason).toBe('Lunch rush');
+  });
+
+  test('a qualifying clock-out with an attestation completes and stores it', async () => {
+    const entryId = await openPunchBackdated(6);
+    const out = await request(appFor(H.employee, 'employee'))
+      .post(`/api/businesses/${H.businessId}/staff/clock-out/${entryId}`)
+      .send({ breakAttestation: { mealBreakTaken: true } });
+    expect(out.status).toBe(200);
+    expect(out.body.break_attestation).toBeTruthy();
+    expect(out.body.break_attestation.meal_break_taken).toBe(true);
+    // The punch record shows a missed meal break (6h, no breaks), so
+    // the "taken" statement is disputed; the premium still prices from
+    // the punch record, not the statement.
+    expect(out.body.break_attestation_disputed).toBe(true);
+    const { rows: attestations } = await pool.query(
+      'SELECT * FROM restaurant_break_attestations WHERE time_entry_id = $1', [entryId]
+    );
+    expect(attestations).toHaveLength(1);
+    expect(attestations[0].disputed).toBe(true);
+  });
+
+  test('a non-qualifying clock-out is unaffected by the gate', async () => {
+    const entryId = await openPunchBackdated(2);
+    const out = await request(appFor(H.employee, 'employee'))
+      .post(`/api/businesses/${H.businessId}/staff/clock-out/${entryId}`)
+      .send({});
+    expect(out.status).toBe(200);
+    expect(out.body.break_attestation_required).toBe(false);
+    expect(out.body.break_attestation_missing).toBe(false);
+  });
+});
 ddescribe('own time entries and business-local work dates (S-04, F-22)', () => {
   let G = {};
 

@@ -9,7 +9,6 @@ import { auditSource, auditFiles } from './a11yStaticAudit.mjs';
 const STAFF_SURFACES = [
   'src/components/businessHub/StaffScheduler.jsx',
   'src/components/businessHub/StaffLaborRulesPanel.jsx',
-  'src/components/businessHub/StaffSchedulingTab.jsx',
   'src/components/businessHub/StaffCreateAppointmentModal.jsx',
   'src/components/businessHub/MemberPermissionsEditor.jsx',
   'src/pages/food/RestaurantTrainingPanels.jsx',

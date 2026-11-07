@@ -26,7 +26,6 @@ const reports = require('../controllers/restaurantReportsController');
 const access = require('../controllers/restaurantLocationAccessController');
 const devices = require('../controllers/restaurantDeviceController');
 const schedule = require('../controllers/businessStaffScheduleController');
-const legacySchedule = require('../controllers/staffSchedulingController');
 const hubs = require('../controllers/storeHubController');
 const members = require('../controllers/businessMembersController');
 const url = process.env.RESTAURANT_STORE_TEST_DATABASE_URL;
@@ -524,39 +523,31 @@ if (url) {
         }),
       );
     });
-    test.each([
-      ['modern', schedule.listShifts],
-      ['legacy', legacySchedule.getWeekSchedule],
-    ])('%s schedule hides sibling shifts', async (_name, handler) => {
-      const data = success(await call(handler));
-      const shifts = Array.isArray(data)
-        ? data
-        : data.shifts || data.schedule.flatMap((row) => row.shifts);
+    // The legacy week-schedule handler is retired (Phase 4 Track C);
+    // the live shift list is the only schedule read left, and it
+    // carries the same store scoping.
+    test('live schedule hides sibling shifts', async () => {
+      const data = success(await call(schedule.listShifts));
+      const shifts = Array.isArray(data) ? data : data.shifts;
       expect(shifts.map((r) => r.id)).toContain(shiftA.id);
       expect(shifts.map((r) => r.id)).not.toContain(shiftB.id);
     });
-    test.each([
-      ['modern', schedule.deleteShift, 'shiftId'],
-      ['legacy', legacySchedule.deleteShift, 'id'],
-    ])(
-      '%s schedule cannot delete sibling shift',
-      async (_name, handler, param) => {
-        forbidden(
-          await call(handler, { params: { [param]: String(shiftB.id) } }),
-        );
-        expect(
-          (
-            await pool.query(
-              'SELECT id FROM business_staff_shifts WHERE id=$1',
-              [shiftB.id],
-            )
-          ).rowCount,
-        ).toBe(1);
-      },
-    );
+    test('live schedule cannot delete sibling shift', async () => {
+      forbidden(
+        await call(schedule.deleteShift, { params: { shiftId: String(shiftB.id) } }),
+      );
+      expect(
+        (
+          await pool.query(
+            'SELECT id FROM business_staff_shifts WHERE id=$1',
+            [shiftB.id],
+          )
+        ).rowCount,
+      ).toBe(1);
+    });
     test('manual payroll entry and punch edits cannot access sibling staff', async () => {
       forbidden(
-        await call(legacySchedule.logHours, {
+        await call(schedule.createManualTimeEntry, {
           body: { user_id: managerB, hours_worked: 8 },
         }),
       );

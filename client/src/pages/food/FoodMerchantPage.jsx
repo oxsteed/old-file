@@ -4,7 +4,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard, Building2, Network, WifiOff, Monitor } from 'lucide-react';
+import { Home, Receipt, UtensilsCrossed, Wallet, Settings, ClipboardList, ShoppingBag, Clock, ChefHat, Palette, UserCheck, MapPin, Tag, ClipboardCheck, Package, BookOpen, GraduationCap, ShieldCheck, BarChart3, HelpingHand, Tv, CalendarDays, CreditCard, Building2, Network, WifiOff, Monitor, Thermometer } from 'lucide-react';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import api from '../../api/axios';
 import RestaurantOfflineCardQueue from './RestaurantOfflineCardQueue';
@@ -36,7 +36,7 @@ import ScreenControlCenter from '../../restaurantScreens/ControlCenter';
 import LocationsPanel from './FoodLocationsPanel';
 import TimezoneSelect, { DETECTED_TIMEZONE } from './TimezoneSelect.jsx';
 import PromotionsPanel from './FoodPromotionsPanel';
-import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
+import { ChecklistsPanel, SopsPanel, InventoryPanel, TemperatureLogsPanel } from './RestaurantOpsPanels';
 import { TrainingPanel } from './RestaurantTrainingPanels';
 import RestaurantMyShiftPanel from './RestaurantMyShiftPanel';
 import { AuditsPanel } from './RestaurantAuditPanels';
@@ -2107,6 +2107,7 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
     { key: 'screens', group: 'floor', icon: Monitor, title: t('restaurants.ops.desk.screensTitle', 'In-store screens'), desc: t('restaurants.ops.desk.screensDesc', 'Kitchen, kiosk, queue, and the devices on the floor.'), manager: false },
     { key: 'hosting', group: 'floor', icon: CalendarDays, title: t('restaurants.ops.hosting.title', 'Host stand'), desc: t('restaurants.ops.hosting.subtitle', 'Manage tables, reservations, and walk-ins for this restaurant.'), manager: true },
     { key: 'checklists', group: 'floor', icon: ClipboardCheck, title: t('restaurants.ops.checklists.title', 'Checklists'), desc: t('restaurants.ops.opChecklistsDesc', 'Daily opening, closing, and safety routines your team runs.'), manager: true },
+    { key: 'temperature-logs', group: 'floor', icon: Thermometer, title: t('restaurants.ops.temperature.title', 'Temperature logs'), desc: t('restaurants.ops.temperature.desc', 'Daily fridge and freezer readings, checked against each area range.'), manager: true },
     { key: 'inventory', group: 'floor', icon: Package, title: t('restaurants.ops.inventory.title', 'Inventory'), desc: t('restaurants.ops.opInventoryDesc', 'Ingredients and supplies on hand, with low-stock alerts.'), manager: true },
     { key: 'sops', group: 'standards', icon: BookOpen, title: t('restaurants.ops.sops.title', 'SOP library'), desc: t('restaurants.ops.opSopsDesc', 'How things are done, written down for the whole team.'), manager: true },
     { key: 'training', group: 'standards', icon: GraduationCap, title: t('restaurants.ops.training.title', 'Staff training'), desc: t('restaurants.ops.opTrainingDesc', 'Lessons and quizzes assigned to your team, with completion tracking.'), manager: true },
@@ -2336,6 +2337,11 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
         {canManageRestaurant && (
           <SettingsCard icon={ClipboardCheck} title={t('restaurants.ops.checklists.title', 'Checklists')} desc={t('restaurants.ops.opChecklistsDesc', 'Daily opening, closing, and safety routines your team runs.')} cardKey="checklists" registerRef={registerCard} wide hidden={active !== 'checklists'}>
             <ChecklistsPanel t={t} restaurant={restaurant} bare onStats={report} />
+          </SettingsCard>
+        )}
+        {canManageRestaurant && (
+          <SettingsCard icon={Thermometer} title={t('restaurants.ops.temperature.title', 'Temperature logs')} desc={t('restaurants.ops.temperature.desc', 'Daily fridge and freezer readings, checked against each area range.')} cardKey="temperature-logs" registerRef={registerCard} wide hidden={active !== 'temperature-logs'}>
+            <TemperatureLogsPanel t={t} restaurant={restaurant} bare onStats={report} />
           </SettingsCard>
         )}
         {canManageRestaurant && (
