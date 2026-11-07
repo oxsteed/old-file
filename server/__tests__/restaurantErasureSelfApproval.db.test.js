@@ -175,4 +175,64 @@ ddescribe('Finding 46: erasure requests need a second manager to approve', () =>
     expect(selfReject.err).toBeNull();
     expect(selfReject.res.payload.request.status).toBe('rejected');
   });
+
+  test('running an erasure without an offboarding record is refused with 409', async () => {
+    const requestId = await makeRequest(F.businessId, F.restaurantId, F.staff, F.owner);
+    const approved = await call(
+      controller.decideErasureRequest,
+      mockReq({
+        params: { restaurantId: String(F.restaurantId), requestId: String(requestId) },
+        body: { decision: 'approved' },
+        user: { id: F.manager2 },
+      })
+    );
+    expect(approved.err).toBeNull();
+    const run = async (userId) => call(
+      controller.runErasureRequest,
+      mockReq({
+        params: { restaurantId: String(F.restaurantId), requestId: String(requestId) },
+        user: { id: userId },
+      })
+    );
+    // No offboarding record exists for the staff member: the run is
+    // refused, never completed, and the request stays approved.
+    const refused = await run(F.owner);
+    expect(refused.err).toMatchObject({ code: 'retention_record_missing', statusCode: 409 });
+    const { rows: [stillApproved] } = await pool.query(
+      'SELECT status FROM restaurant_erasure_requests WHERE id = $1', [requestId]
+    );
+    expect(stillApproved.status).toBe('approved');
+    // An offboarding record whose retention has not expired is
+    // refused too, with the unexpired-retention code.
+    await pool.query(
+      `INSERT INTO staff_offboarding_records
+         (business_id, user_id, removed_by, reason, retain_until)
+       VALUES ($1, $2, $3, 'Left the business', '2033-01-01')`,
+      [F.businessId, F.staff, F.owner]
+    );
+    const unexpired = await run(F.owner);
+    // The unexpired path answers 409 JSON (the pre-existing skipped
+    // shape), it does not throw.
+    expect(unexpired.err).toBeNull();
+    expect(unexpired.res.statusCode).toBe(409);
+    expect(unexpired.res.payload.code).toBe('retention_not_expired');
+    // Once retention has expired the same request completes.
+    await pool.query(
+      `UPDATE staff_offboarding_records SET retain_until = '2020-01-01'
+        WHERE business_id = $1 AND user_id = $2`,
+      [F.businessId, F.staff]
+    );
+    const completed = await run(F.owner);
+    expect(completed.err).toBeNull();
+    expect(completed.res.payload.request.status).toBe('completed');
+    // Clean up: the expired offboarding record would otherwise leave
+    // the other tests' still-approved requests for the same staff
+    // member due for the global retention sweep (the sweep test
+    // counts completed requests across all businesses).
+    await pool.query(
+      'DELETE FROM staff_offboarding_records WHERE business_id = $1 AND user_id = $2',
+      [F.businessId, F.staff]
+    );
+    await pool.query('DELETE FROM restaurant_erasure_requests WHERE id = $1', [requestId]);
+  });
 });

@@ -78,6 +78,7 @@ ddescribe('Phase 7: compliance on the migrated schema', () => {
   let foreignActionId;
   let entryId;
   let waivedEntryId;
+  let payRunId;
   let orderId;
   let menuItemId;
   let itemId;
@@ -283,6 +284,37 @@ ddescribe('Phase 7: compliance on the migrated schema', () => {
        VALUES ($1, $2, $3, 'Left the business', '2020-01-01')`,
       [businessId, staffId, ownerId],
     );
+    // Finding 13 fixture: the person's name on a retained pay-run
+    // line, in a time-entry edit note, and inside audit-log JSON.
+    // Amounts are fixed so the erasure test can prove they survive.
+    ({ rows: [{ id: payRunId }] } = await pool.query(
+      `INSERT INTO restaurant_pay_runs
+         (restaurant_id, period_from, period_to, status)
+       VALUES ($1, '2026-11-02', '2026-11-08', 'finalized') RETURNING id`,
+      [restaurantId],
+    ));
+    payRunId = Number(payRunId);
+    await pool.query(
+      `INSERT INTO restaurant_pay_run_lines
+         (pay_run_id, staff_user_id, staff_label, regular_hours, total_pay_cents)
+       VALUES ($1, $2, 'Phase Staff', 8, 8000)`,
+      [payRunId, staffId],
+    );
+    await pool.query(
+      `INSERT INTO business_time_entry_edits
+         (entry_id, business_id, editor_user_id, approved_by, field, old_value, new_value, reason)
+       VALUES ($1, $2, $3, $3, 'clock_in_at', '09:00', '09:05', 'Fixed clock-in for Phase Staff')`,
+      [entryId, businessId, ownerId],
+    );
+    await pool.query(
+      `INSERT INTO business_audit_log
+         (business_id, actor_user_id, action, target_type, target_id, before_state, after_state)
+       VALUES ($1, $2, 'business.member.updated', 'member', $3,
+               $4::jsonb, $5::jsonb)`,
+      [businessId, ownerId, staffId,
+       JSON.stringify({ note: 'Phase Staff was on the rota' }),
+       JSON.stringify({ note: 'Phase Staff asked for Friday off', member: { first_name: 'Phase', last_name: 'Staff' } })],
+    );
   });
 
   afterAll(async () => {
@@ -478,6 +510,27 @@ ddescribe('Phase 7: compliance on the migrated schema', () => {
     expect(calls).toBe(2);
   });
 
+  test('anonymization refuses when no retention deadline exists', async () => {
+    const outcome = await retention.anonymizeFormerStaff(pool, {
+      businessId, restaurantId, userId: staffId,
+    });
+    expect(outcome.skipped).toBe(true);
+    expect(outcome.reason).toBe('retention_not_established');
+    // Nothing was touched: the document, the note, the minor profile,
+    // the pay-run label and the audit row are all still there for the
+    // erasure test that follows.
+    const { rows: [doc] } = await pool.query(
+      'SELECT deleted_at FROM restaurant_staff_documents WHERE restaurant_id = $1 AND user_id = $2',
+      [restaurantId, staffId],
+    );
+    expect(doc.deleted_at).toBeNull();
+    const { rows: entries } = await pool.query(
+      'SELECT description FROM business_time_entries WHERE id = $1',
+      [entryId],
+    );
+    expect(entries[0].description).toBe('Covered for a coworker');
+  });
+
   test('retention policy resolves and anonymization clears personal data but keeps history', async () => {
     const stored = await retention.setRetentionPolicy(pool, {
       restaurantId, recordClass: 'time_entries', retentionYears: 10, source: 'operator', updatedBy: ownerId,
@@ -492,7 +545,13 @@ ddescribe('Phase 7: compliance on the migrated schema', () => {
     expect(outcome.skipped).toBe(false);
     expect(outcome.documents_deleted).toBe(1);
     expect(outcome.time_entry_notes_cleared).toBe(1);
-    expect(outcome.labor_profile_removed).toBe(1);
+    // Finding 60: the fixture minor band runs to 2027-01-01, still
+    // current, so the labor profile stays.
+    expect(outcome.labor_profile_removed).toBe(0);
+    // Finding 13: the name comes off the retained rows; amounts stay.
+    expect(outcome.pay_run_labels_cleared).toBe(1);
+    expect(outcome.time_entry_edits_scrubbed).toBe(1);
+    expect(outcome.audit_names_scrubbed).toBe(1);
     expect(outcome.history_rows_retained).toBe(3);
     const { rows: [doc] } = await pool.query(
       'SELECT deleted_at FROM restaurant_staff_documents WHERE restaurant_id = $1 AND user_id = $2',
@@ -507,10 +566,106 @@ ddescribe('Phase 7: compliance on the migrated schema', () => {
     expect(entries.every((e) => e.description == null)).toBe(true);
     expect(Number(entries[0].hours_worked)).toBe(8);
     const { rows: profiles } = await pool.query(
-      'SELECT 1 FROM business_staff_labor_profiles WHERE business_id = $1 AND user_id = $2',
+      'SELECT minor_until::text AS minor_until FROM business_staff_labor_profiles WHERE business_id = $1 AND user_id = $2',
       [businessId, staffId],
     );
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0].minor_until).toBe('2027-01-01');
+    const { rows: [line] } = await pool.query(
+      'SELECT staff_label, total_pay_cents FROM restaurant_pay_run_lines WHERE pay_run_id = $1',
+      [payRunId],
+    );
+    expect(line.staff_label).toBe('Former staff');
+    expect(Number(line.total_pay_cents)).toBe(8000);
+    const { rows: [edit] } = await pool.query(
+      'SELECT reason FROM business_time_entry_edits WHERE entry_id = $1',
+      [entryId],
+    );
+    expect(edit.reason).toBe('Fixed clock-in for Former staff');
+    const { rows: [audit] } = await pool.query(
+      `SELECT before_state, after_state FROM business_audit_log
+        WHERE business_id = $1 AND action = 'business.member.updated'`,
+      [businessId],
+    );
+    expect(JSON.stringify(audit.before_state)).not.toContain('Phase Staff');
+    expect(JSON.stringify(audit.after_state)).not.toContain('Phase');
+    expect(audit.after_state.note).toBe('Former staff asked for Friday off');
+    expect(audit.after_state.member.first_name).toBe('Former staff');
+    expect(audit.after_state.member.last_name).toBe('Former staff');
+  });
+
+  test('a jurisdiction retention row only wins for its own jurisdiction_code', async () => {
+    // 'pay_runs' class: a restaurant-wide jurisdiction row (US-CA,
+    // 10y) against a location-scoped operator row (5y). The unique
+    // constraint allows one row per (restaurant, location, class), so
+    // the two rows compete across locations.
+    await retention.setRetentionPolicy(pool, {
+      restaurantId, recordClass: 'pay_runs', retentionYears: 10,
+      jurisdictionCode: 'US-CA', source: 'jurisdiction', updatedBy: ownerId,
+    });
+    await retention.setRetentionPolicy(pool, {
+      restaurantId, locationId, recordClass: 'pay_runs', retentionYears: 5,
+      source: 'operator', updatedBy: ownerId,
+    });
+    const matching = await retention.getRetentionPolicy(pool, {
+      restaurantId, locationId, recordClass: 'pay_runs', jurisdictionCode: 'US-CA',
+    });
+    expect(matching.retention_years).toBe(10);
+    expect(matching.source).toBe('jurisdiction');
+    const other = await retention.getRetentionPolicy(pool, {
+      restaurantId, locationId, recordClass: 'pay_runs', jurisdictionCode: 'US-NY',
+    });
+    expect(other.retention_years).toBe(5);
+    expect(other.source).toBe('operator');
+    const none = await retention.getRetentionPolicy(pool, {
+      restaurantId, locationId, recordClass: 'pay_runs',
+    });
+    expect(none.retention_years).toBe(5);
+    expect(none.source).toBe('operator');
+    await pool.query(
+      'DELETE FROM restaurant_retention_policies WHERE restaurant_id = $1 AND record_class = $2',
+      [restaurantId, 'pay_runs'],
+    );
+  });
+
+  test('an expired minor band is deleted while a current one is kept', async () => {
+    const formerMinorId = crypto.randomUUID();
+    await pool.query(
+      'INSERT INTO users (id, email, password_hash, first_name, last_name) VALUES ($1, $2, $3, $4, $5)',
+      [formerMinorId, `phase7-former-minor-${suffix}@example.com`, 'test-hash', 'Former', 'Minor'],
+    );
+    await pool.query(
+      `INSERT INTO business_staff_labor_profiles (business_id, user_id, minor_band, minor_until)
+       VALUES ($1, $2, 'age_16_17', '2020-01-01')`,
+      [businessId, formerMinorId],
+    );
+    const outcome = await retention.anonymizeFormerStaff(pool, {
+      businessId, restaurantId, userId: formerMinorId, retainUntil: '2020-01-01',
+    });
+    expect(outcome.skipped).toBe(false);
+    expect(outcome.labor_profile_removed).toBe(1);
+    const { rows: profiles } = await pool.query(
+      'SELECT 1 FROM business_staff_labor_profiles WHERE business_id = $1 AND user_id = $2',
+      [businessId, formerMinorId],
+    );
     expect(profiles).toHaveLength(0);
+    // A re-run for the fixture staff member still keeps the current
+    // band (and the Finding 13 scrubs are idempotent second time round).
+    const reRun = await retention.anonymizeFormerStaff(pool, {
+      businessId, restaurantId, userId: staffId, retainUntil: '2020-01-01',
+    });
+    expect(reRun.labor_profile_removed).toBe(0);
+    expect(reRun.pay_run_labels_cleared).toBe(0);
+    expect(reRun.time_entry_edits_scrubbed).toBe(0);
+    expect(reRun.audit_names_scrubbed).toBe(0);
+    // The temp user cannot be deleted: this database carries
+    // no-delete/no-update rules on food_customer_wallet_operator_audit_events
+    // that rewrite the ON DELETE SET NULL check, so every DELETE FROM
+    // users fails with "referential integrity query ... gave
+    // unexpected result" (pre-existing quirk; the suite's own
+    // afterAll swallows the same failure). The row is inert in the
+    // disposable database, keyed by a unique test email.
+    await pool.query('DELETE FROM users WHERE id = $1', [formerMinorId]).catch(() => {});
   });
 
   test('retention sweep completes an approved erasure past its deadline', async () => {

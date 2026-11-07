@@ -392,14 +392,50 @@ describe('Phase 7: retention policy + anonymization (gap 21)', () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
+  test('a jurisdiction row only wins for its own jurisdiction_code', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ retention_years: 10, jurisdiction_code: 'US-CA', source: 'jurisdiction', location_id: null }] });
+    const policy = await retention.getRetentionPolicy(client, { restaurantId: 3, recordClass: 'time_entries', jurisdictionCode: 'US-CA' });
+    expect(policy.retention_years).toBe(10);
+    expect(policy.source).toBe('jurisdiction');
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(String(sql)).toContain('jurisdiction_code');
+    expect(params).toContain('US-CA');
+    // A non-matching code must not let the jurisdiction row win: the
+    // lookup asks the database for matching-code rows only, so the
+    // operator row is what comes back.
+    mockQuery.mockResolvedValueOnce({ rows: [{ retention_years: 5, jurisdiction_code: null, source: 'operator', location_id: null }] });
+    const other = await retention.getRetentionPolicy(client, { restaurantId: 3, recordClass: 'time_entries', jurisdictionCode: 'US-NY' });
+    expect(other.retention_years).toBe(5);
+    expect(other.source).toBe('operator');
+    const [, otherParams] = mockQuery.mock.calls[1];
+    expect(otherParams).toContain('US-NY');
+  });
+
   test('anonymization never deletes history rows and skips unexpired retention', async () => {
     const skipped = await retention.anonymizeFormerStaff(client, {
       businessId: 42, restaurantId: 3, userId: USER_ID, retainUntil: '2033-01-01',
     });
     expect(skipped.skipped).toBe(true);
     expect(mockQuery).not.toHaveBeenCalled();
+    // Finding 12: no retention deadline refuses the erasure outright.
+    const noGate = await retention.anonymizeFormerStaff(client, {
+      businessId: 42, restaurantId: 3, userId: USER_ID,
+    });
+    expect(noGate).toEqual({ skipped: true, reason: 'retention_not_established', retain_until: null });
+    expect(mockQuery).not.toHaveBeenCalled();
+    // Query order: name lookup, documents, time-entry notes,
+    // pay-run labels, time-entry edits (full name, first, last),
+    // audit JSON (full name, "first", "last"), labor profile, history.
+    mockQuery.mockResolvedValueOnce({ rows: [{ first_name: 'Phase', last_name: 'Staff' }] });
     mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rowCount: 2 });
+    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 11 }] });
+    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 21 }] });
+    mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+    mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 31 }] });
+    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 31 }] });
+    mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
     mockQuery.mockResolvedValueOnce({ rowCount: 1 });
     mockQuery.mockResolvedValueOnce({ rows: [{ retained: 5 }] });
     const outcome = await retention.anonymizeFormerStaff(client, {
@@ -407,12 +443,25 @@ describe('Phase 7: retention policy + anonymization (gap 21)', () => {
     });
     expect(outcome.skipped).toBe(false);
     expect(outcome.time_entry_notes_cleared).toBe(2);
+    expect(outcome.pay_run_labels_cleared).toBe(1);
+    expect(outcome.time_entry_edits_scrubbed).toBe(1);
+    // The same audit row matched the full-name and the quoted
+    // first-name pass; it is one scrubbed row, not two.
+    expect(outcome.audit_names_scrubbed).toBe(1);
     expect(outcome.labor_profile_removed).toBe(1);
     expect(outcome.history_rows_retained).toBe(5);
+    expect(mockQuery.mock.calls.flatMap((c) => c[1] || [])).toContain('Former staff');
     const sql = mockQuery.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(sql).toMatch(/UPDATE restaurant_pay_run_lines/);
+    expect(sql).toMatch(/UPDATE business_time_entry_edits/);
+    expect(sql).toMatch(/UPDATE business_audit_log/);
+    // Finding 60: the labor-profile delete honors minor_until.
+    expect(sql).toMatch(/minor_until/);
     expect(sql).not.toMatch(/DELETE FROM business_time_entries/);
     expect(sql).not.toMatch(/DELETE FROM business_staff_shifts/);
     expect(sql).not.toMatch(/DELETE FROM business_staff_schedule_changes/);
+    expect(sql).not.toMatch(/DELETE FROM restaurant_pay_run_lines/);
+    expect(sql).not.toMatch(/DELETE FROM business_audit_log/);
   });
 });
 
