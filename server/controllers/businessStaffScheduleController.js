@@ -2414,23 +2414,68 @@ exports.decideTimeOffRequest = async (req, res, next) => {
 exports.cancelTimeOffRequest = async (req, res, next) => {
   const { businessId, requestId } = req.params;
   try {
-    const { rows: [request] } = await pool.query(
-      `UPDATE business_time_off_requests
-          SET status = 'cancelled', updated_at = NOW()
-        WHERE id = $1 AND business_id = $2 AND user_id = $3 AND status = 'pending'
-        RETURNING *`,
-      [requestId, businessId, req.user.id]
-    );
-    if (!request) return res.status(404).json({ error: 'Pending time-off request not found' });
+    // Finding 25: an APPROVED request can be cancelled too, and the
+    // balance approval consumed is refunded. The request row is
+    // locked and the status flip and the refund happen in one
+    // transaction, so cancelling twice restores once: the second
+    // cancel finds the request already cancelled. The requester or a
+    // manager may cancel; anyone else gets a 403. Denied and already
+    // cancelled requests cannot be cancelled again.
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [request] } = await client.query(
+        `SELECT * FROM business_time_off_requests
+          WHERE id = $1 AND business_id = $2 FOR UPDATE`,
+        [requestId, businessId]
+      );
+      if (!request) return { missing: true };
+      const manager = await isBusinessManager(req, businessId, req.user.id);
+      if (String(request.user_id) !== String(req.user.id) && !manager) {
+        return { forbidden: true };
+      }
+      if (request.status !== 'pending' && request.status !== 'approved') {
+        return { notCancellable: true };
+      }
+      let refund = null;
+      if (request.status === 'approved') {
+        refund = await pto.refundForCancellation(
+          client, Number(businessId), request.user_id, request.request_type,
+          request.id, req.user.id
+        );
+      }
+      const { rows: [cancelled] } = await client.query(
+        `UPDATE business_time_off_requests
+            SET status = 'cancelled', updated_at = NOW()
+          WHERE id = $1 AND business_id = $2 AND status IN ('pending', 'approved')
+          RETURNING *`,
+        [requestId, businessId]
+      );
+      if (!cancelled) return { notCancellable: true };
+      return { request: cancelled, beforeStatus: request.status, refund };
+    }, 'cancel_time_off_request');
+    if (result.missing || result.notCancellable) {
+      return res.status(404).json({ error: 'Time-off request not found or cannot be cancelled' });
+    }
+    if (result.forbidden) {
+      return res.status(403).json({ error: 'Only the requester or a manager can cancel a time-off request' });
+    }
     await logBusinessAction(req, {
       business_id: Number(businessId),
       action: 'business.staff.time_off.cancelled',
       target_type: 'time_off_request',
-      target_id: request.id,
-      before_state: { status: 'pending' },
-      after_state: request,
+      target_id: result.request.id,
+      before_state: { status: result.beforeStatus },
+      after_state: result.request,
     });
-    return res.json({ request });
+    return res.json({
+      request: result.request,
+      ...(result.refund?.refunded ? {
+        pto_balance: {
+          restored: result.refund.amount,
+          unit: result.refund.unit,
+          balance: result.refund.balanceAfter,
+        },
+      } : {}),
+    });
   } catch (err) { return next(err); }
 };
 

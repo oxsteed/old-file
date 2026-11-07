@@ -301,6 +301,59 @@ suite('S-04 schedule publishing + time-off (DB)', () => {
     expect(rows[0].published_at).toBeNull();
   });
 
+  test('time-off: cancelling an approved request refunds the balance once (finding 25)', async () => {
+    const policy = await call(ctrl.setTimeOffPolicy, {
+      ...asManager(MANAGER),
+      params: { businessId: String(bizId), userId: EMPLOYEE2 },
+      body: { request_type: 'vacation', accrual_amount: 5, accrual_unit: 'days', accrual_period: 'monthly' },
+    });
+    expect(policy.error).toBeNull();
+    expect(policy.res.statusCode).toBe(200);
+    const granted = await call(ctrl.grantTimeOffAccrual, {
+      ...asManager(MANAGER),
+      body: { user_id: EMPLOYEE2, request_type: 'vacation' },
+    });
+    expect(granted.res.body.grants[0].balance_after).toBe(5);
+    const created = await call(ctrl.createTimeOffRequest, {
+      ...asEmployee(EMPLOYEE2),
+      body: { request_type: 'vacation', start_date: '2026-12-10', end_date: '2026-12-11' },
+    });
+    expect(created.res.statusCode).toBe(201);
+    expect(created.res.body.pto_balance.required).toBe(2);
+    const approved = await call(ctrl.decideTimeOffRequest, {
+      ...asManager(MANAGER),
+      params: { businessId: String(bizId), requestId: String(created.res.body.request.id) },
+      body: { decision: 'approved' },
+    });
+    expect(approved.res.body.pto_balance.balance).toBe(3);
+    const cancelled = await call(ctrl.cancelTimeOffRequest, {
+      ...asEmployee(EMPLOYEE2),
+      params: { businessId: String(bizId), requestId: String(created.res.body.request.id) },
+    });
+    expect(cancelled.error).toBeNull();
+    expect(cancelled.res.body.request.status).toBe('cancelled');
+    expect(cancelled.res.body.pto_balance).toEqual({ restored: 2, unit: 'days', balance: 5 });
+    // Cancelling again is a 404 and the balance stays refunded once.
+    const again = await call(ctrl.cancelTimeOffRequest, {
+      ...asEmployee(EMPLOYEE2),
+      params: { businessId: String(bizId), requestId: String(created.res.body.request.id) },
+    });
+    expect(again.res.statusCode).toBe(404);
+    const { rows: [balance] } = await db.query(
+      `SELECT balance FROM business_time_off_balances
+        WHERE business_id = $1 AND user_id = $2 AND request_type = 'vacation'`,
+      [bizId, EMPLOYEE2]
+    );
+    expect(Number(balance.balance)).toBe(5);
+    const { rows: reversals } = await db.query(
+      `SELECT amount, event_type FROM business_time_off_accrual_events
+        WHERE request_id = $1 AND event_type = 'reversal'`,
+      [created.res.body.request.id]
+    );
+    expect(reversals).toHaveLength(1);
+    expect(Number(reversals[0].amount)).toBe(2);
+  });
+
   test('publish evaluates each location under its own jurisdiction rules (finding 30)', async () => {
     const { rows: [rest] } = await db.query(
       `INSERT INTO food_restaurants (business_id, owner_user_id, display_name)

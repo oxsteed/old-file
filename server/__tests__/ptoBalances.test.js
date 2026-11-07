@@ -54,6 +54,12 @@ describe('ptoBalances service', () => {
     expect(pto.requestDays('2026-11-02', '2026-11-04')).toBe(3);
   });
 
+  test('requestDays accepts node-pg Date objects, as stored rows come back', () => {
+    expect(pto.requestDays(new Date('2026-12-10T00:00:00.000Z'), new Date('2026-12-11T00:00:00.000Z'))).toBe(2);
+    expect(pto.consumptionFor({ accrual_unit: 'days' }, new Date('2026-12-10T00:00:00.000Z'), new Date('2026-12-11T00:00:00.000Z')))
+      .toEqual({ amount: 2, unit: 'days', days: 2 });
+  });
+
   test('consumption is days for a days policy and days x 8 hours for an hours policy', () => {
     expect(pto.consumptionFor({ accrual_unit: 'days' }, '2026-11-02', '2026-11-04'))
       .toEqual({ amount: 3, unit: 'days', days: 3 });
@@ -182,6 +188,41 @@ describe('ptoBalances service', () => {
     expect(result.balance).toBe(1);
     expect(result.required).toBe(3);
   });
+
+  test('refundForCancellation: restores exactly what approval took, as a reversal event', async () => {
+    const db = fakeDb([
+      ["event_type = 'approval'", async () => ({ rows: [{ amount: -3, unit: 'days', balance_after: 7 }] })],
+      ["event_type = 'reversal'", async () => ({ rows: [] })],
+      ['UPDATE business_time_off_balances', async () => ({ rows: [{ balance: 10 }] })],
+      ['INSERT INTO business_time_off_accrual_events', async () => ({ rows: [] })],
+    ]);
+    const result = await pto.refundForCancellation(db, 2, STAFF, 'vacation', 41, MANAGER);
+    expect(result).toEqual({ refunded: true, amount: 3, unit: 'days', balanceAfter: 10 });
+    const updateCall = db.query.mock.calls.find(([sql]) => String(sql).includes('UPDATE business_time_off_balances'));
+    expect(updateCall[1][0]).toBe(3);
+    const eventCall = db.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO business_time_off_accrual_events'));
+    expect(eventCall[1][3]).toBe(3);
+    expect(eventCall[1][5]).toBe(41);
+  });
+
+  test('refundForCancellation: a second refund for the same request restores nothing', async () => {
+    const db = fakeDb([
+      ["event_type = 'approval'", async () => ({ rows: [{ amount: -3, unit: 'days', balance_after: 7 }] })],
+      ["event_type = 'reversal'", async () => ({ rows: [{ id: 9 }] })],
+    ]);
+    const result = await pto.refundForCancellation(db, 2, STAFF, 'vacation', 41, MANAGER);
+    expect(result).toEqual({ refunded: false, reason: 'already_refunded' });
+    expect(db.query.mock.calls.some(([sql]) => String(sql).includes('UPDATE business_time_off_balances'))).toBe(false);
+  });
+
+  test('refundForCancellation: an approval that never decremented refunds nothing', async () => {
+    const db = fakeDb([
+      ["event_type = 'approval'", async () => ({ rows: [] })],
+    ]);
+    const result = await pto.refundForCancellation(db, 2, STAFF, 'unpaid', 41, MANAGER);
+    expect(result).toEqual({ refunded: false, reason: 'no_approval_event' });
+    expect(db.query.mock.calls.some(([sql]) => String(sql).includes('UPDATE business_time_off_balances'))).toBe(false);
+  });
 });
 
 describe('createTimeOffRequest balance check', () => {
@@ -237,6 +278,96 @@ describe('createTimeOffRequest balance check', () => {
     const unpaidRes = mockRes();
     await ctrl.createTimeOffRequest(unpaidReq, unpaidRes, next);
     expect(unpaidRes.statusCode).toBe(201);
+  });
+});
+
+describe('cancelTimeOffRequest approved refund (finding 25)', () => {
+  function routeCancel({ status, approvalAmount = -3 }) {
+    mockQuery.mockImplementation(async (sql) => {
+      const s = String(sql);
+      if (s.includes('FROM business_time_off_requests') && s.includes('FOR UPDATE')) {
+        return { rows: [{ id: 41, user_id: STAFF, request_type: 'vacation', start_date: '2026-11-02', end_date: '2026-11-04', status }] };
+      }
+      if (s.includes('FROM business_time_off_accrual_events') && s.includes("event_type = 'approval'")) {
+        return { rows: approvalAmount == null ? [] : [{ amount: approvalAmount, unit: 'days', balance_after: 7 }] };
+      }
+      if (s.includes('FROM business_time_off_accrual_events') && s.includes("event_type = 'reversal'")) {
+        return { rows: [] };
+      }
+      if (s.includes('UPDATE business_time_off_balances')) {
+        return { rows: [{ balance: 10 }] };
+      }
+      if (s.includes('UPDATE business_time_off_requests')) {
+        return { rows: [{ id: 41, status: 'cancelled', request_type: 'vacation' }] };
+      }
+      return { rows: [] };
+    });
+  }
+
+  test('cancelling an approved request refunds the balance and ends cancelled', async () => {
+    routeCancel({ status: 'approved' });
+    const req = {
+      params: { businessId: '2', requestId: '41' },
+      user: { id: STAFF },
+      businessRole: 'employee',
+    };
+    const res = mockRes();
+    await ctrl.cancelTimeOffRequest(req, res, next);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.request.status).toBe('cancelled');
+    expect(res.body.pto_balance).toEqual({ restored: 3, unit: 'days', balance: 10 });
+    const eventCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO business_time_off_accrual_events'));
+    expect(eventCall[1][3]).toBe(3);
+    expect(eventCall[1][5]).toBe(41);
+  });
+
+  test('cancelling twice restores once: the second cancel is a 404 and touches no balance', async () => {
+    routeCancel({ status: 'approved' });
+    const req = {
+      params: { businessId: '2', requestId: '41' },
+      user: { id: STAFF },
+      businessRole: 'employee',
+    };
+    const first = mockRes();
+    await ctrl.cancelTimeOffRequest(req, first, next);
+    expect(first.statusCode).toBe(200);
+
+    // The request is cancelled now: the row read returns that status.
+    // Clear the first cancel's calls so the assertions below only see
+    // the second cancel (mockClear keeps the implementation).
+    mockQuery.mockClear();
+    routeCancel({ status: 'cancelled' });
+    const second = mockRes();
+    await ctrl.cancelTimeOffRequest(req, second, next);
+    expect(second.statusCode).toBe(404);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('UPDATE business_time_off_balances'))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO business_time_off_accrual_events'))).toBe(false);
+  });
+
+  test('a manager can cancel an approved request for someone else', async () => {
+    routeCancel({ status: 'approved' });
+    const req = {
+      params: { businessId: '2', requestId: '41' },
+      user: { id: MANAGER },
+      businessRole: 'manager',
+    };
+    const res = mockRes();
+    await ctrl.cancelTimeOffRequest(req, res, next);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.pto_balance.restored).toBe(3);
+  });
+
+  test('another employee cannot cancel the request', async () => {
+    routeCancel({ status: 'approved' });
+    const req = {
+      params: { businessId: '2', requestId: '41' },
+      user: { id: '00000000-0000-4000-8000-0000000000bb' },
+      businessRole: 'employee',
+    };
+    const res = mockRes();
+    await ctrl.cancelTimeOffRequest(req, res, next);
+    expect(res.statusCode).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('UPDATE business_time_off_requests'))).toBe(false);
   });
 });
 

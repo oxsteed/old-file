@@ -35,7 +35,10 @@
 //     was made, approval 409s and the request stays pending.
 //   - Cancelled / denied requests never touch the balance (only
 //     pending requests can be cancelled, and approval is the only
-//     transition that decrements).
+//     transition that decrements), except that cancelling an APPROVED
+//     request refunds exactly what approval took, as a 'reversal'
+//     accrual event (finding 25): the status flip and the refund
+//     happen in one transaction, so cancelling twice restores once.
 //   - Carryover cap: a grant banks at most up to the cap; accrual
 //     beyond the cap is not banked and is reported as capped.
 //   - Accrual is granted by a manager-triggered endpoint, not a job:
@@ -50,9 +53,18 @@
 const WORKDAY_HOURS = 8;
 
 // Whole calendar days in [startDate, endDate], inclusive of both ends.
+// Dates arrive as 'YYYY-MM-DD' strings from request validation and as
+// node-pg Date objects from stored rows (decide/cancel read the request
+// back from the database): a Date stringifies as 'Thu Dec 10 2026 ...',
+// so it must go through toISOString first, or the range parses as
+// invalid and the consumption silently computes 0 (approval would
+// then decrement nothing and record a 0-amount event).
 function requestDays(startDate, endDate) {
-  const start = new Date(`${String(startDate).slice(0, 10)}T12:00:00Z`);
-  const end = new Date(`${String(endDate).slice(0, 10)}T12:00:00Z`);
+  const toDateStr = (value) => (
+    value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10)
+  );
+  const start = new Date(`${toDateStr(startDate)}T12:00:00Z`);
+  const end = new Date(`${toDateStr(endDate)}T12:00:00Z`);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
   return Math.round((end - start) / 86400000) + 1;
 }
@@ -155,10 +167,55 @@ async function decrementForApproval(client, businessId, userId, requestType, sta
   };
 }
 
-// Grant one policy's accrual to its balance, enforcing the carryover
-// cap. Must run inside the caller's transaction. Returns the grant as
-// reported to the manager, including the capped flag when the cap ate
-// part (or all) of the grant.
+// Refund the balance an APPROVED request consumed, when that request
+// is cancelled. Must run inside the caller's transaction, next to the
+// status flip, so a cancellation can never restore twice: the row is
+// locked and the status moves approved -> cancelled exactly once, and
+// the reversal is recorded only when no reversal exists yet for the
+// request. The refund is the exact amount the approval event recorded
+// (never a recomputation: the schedule may have changed since
+// approval, and the ledger is the record of what was taken). Unpaid
+// and unconfigured approvals never decremented, so they have no
+// approval event and nothing to refund. Uses the existing 'reversal'
+// event type, so no schema change is needed.
+async function refundForCancellation(client, businessId, userId, requestType, requestId, cancelledBy) {
+  const { rows: [approval] } = await client.query(
+    `SELECT amount, unit, balance_after
+       FROM business_time_off_accrual_events
+      WHERE business_id = $1 AND user_id = $2 AND request_type = $3
+        AND request_id = $4 AND event_type = 'approval'
+      ORDER BY id DESC LIMIT 1`,
+    [businessId, userId, requestType, requestId]
+  );
+  if (!approval) return { refunded: false, reason: 'no_approval_event' };
+  const restored = -toNumber(approval.amount);
+  if (restored <= 0) return { refunded: false, reason: 'nothing_consumed' };
+  const { rows: [existing] } = await client.query(
+    `SELECT id FROM business_time_off_accrual_events
+      WHERE business_id = $1 AND user_id = $2 AND request_type = $3
+        AND request_id = $4 AND event_type = 'reversal'
+      LIMIT 1`,
+    [businessId, userId, requestType, requestId]
+  );
+  if (existing) return { refunded: false, reason: 'already_refunded' };
+  const { rows: [updated] } = await client.query(
+    `UPDATE business_time_off_balances
+        SET balance = balance + $1::numeric, updated_at = NOW()
+      WHERE business_id = $2 AND user_id = $3 AND request_type = $4
+      RETURNING balance`,
+    [restored, businessId, userId, requestType]
+  );
+  if (!updated) return { refunded: false, reason: 'no_balance_row' };
+  const balanceAfter = toNumber(updated.balance);
+  await client.query(
+    `INSERT INTO business_time_off_accrual_events
+       (business_id, user_id, request_type, amount, unit, event_type, request_id, balance_after, created_by)
+     VALUES ($1,$2,$3,$4,$5,'reversal',$6,$7,$8)`,
+    [businessId, userId, requestType, restored, approval.unit,
+      requestId, balanceAfter, cancelledBy || null]
+  );
+  return { refunded: true, amount: restored, unit: approval.unit, balanceAfter };
+}
 async function grantAccrual(client, policy, grantedBy) {
   const amount = toNumber(policy.accrual_amount);
   const unit = policy.accrual_unit || 'days';
@@ -209,5 +266,6 @@ module.exports = {
   getBalance,
   checkSufficient,
   decrementForApproval,
+  refundForCancellation,
   grantAccrual,
 };
