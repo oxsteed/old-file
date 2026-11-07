@@ -473,6 +473,102 @@ ddescribe('Phase 2: employee punch-correction flow', () => {
   });
 });
 
+ddescribe('Phase 2: finding 10 — no self-approval on punch edits or corrections', () => {
+  let F = {};
+
+  beforeAll(async () => {
+    const owner = await newUser('owner');
+    const manager2 = await newUser('manager2');
+    const employee = await newUser('employee');
+    const businessId = await makeBusiness(owner, `Phase 2 SelfApproval ${crypto.randomUUID().slice(0, 8)}`);
+    await addMember(businessId, owner, employee);
+    F = { owner, manager2, employee, businessId };
+  });
+
+  async function insertClosedPunch(userId) {
+    const { rows: [row] } = await pool.query(
+      `INSERT INTO business_time_entries
+         (business_id, user_id, entry_date, clock_in_at, clock_out_at, hours_worked)
+       VALUES ($1, $2, '2026-10-06'::date, '2026-10-06T13:00:00Z'::timestamptz, '2026-10-06T21:00:00Z'::timestamptz, 8)
+       RETURNING id`,
+      [F.businessId, userId]
+    );
+    return Number(row.id);
+  }
+
+  test('a manager editing their own punch files a correction request instead of self-approving', async () => {
+    const entryId = await insertClosedPunch(F.owner);
+    const routed = await request(appFor(F.owner, 'owner'))
+      .patch(`/api/businesses/${F.businessId}/staff/time-entries/${entryId}`)
+      .send({ clock_out_at: '2026-10-06T22:00:00Z', reason: 'Stayed an hour late' });
+    expect(routed.status).toBe(201);
+    expect(routed.body.status).toBe('pending');
+    expect(routed.body.requester_user_id).toBe(F.owner);
+    expect(Number(routed.body.entry_id)).toBe(entryId);
+    // The entry is untouched and carries no self-approval stamp.
+    const { rows: [untouched] } = await pool.query(
+      'SELECT clock_out_at, hours_worked, approved_by FROM business_time_entries WHERE id = $1', [entryId]
+    );
+    expect(new Date(untouched.clock_out_at).toISOString()).toBe('2026-10-06T21:00:00.000Z');
+    expect(Number(untouched.hours_worked)).toBe(8);
+    expect(untouched.approved_by).toBeNull();
+    const { rows: edits } = await pool.query(
+      'SELECT * FROM business_time_entry_edits WHERE entry_id = $1', [entryId]
+    );
+    expect(edits).toHaveLength(0);
+    // A second self-edit while one is pending is a 409, not a new request.
+    const dup = await request(appFor(F.owner, 'owner'))
+      .patch(`/api/businesses/${F.businessId}/staff/time-entries/${entryId}`)
+      .send({ clock_out_at: '2026-10-06T22:30:00Z', reason: 'Again' });
+    expect(dup.status).toBe(409);
+    // A different manager decides it, and the change lands with the
+    // requester as editor and the decider as approver.
+    const decided = await request(appFor(F.manager2, 'manager'))
+      .post(`/api/businesses/${F.businessId}/staff/time-entry-corrections/${routed.body.id}/decide`)
+      .send({ decision: 'approved' });
+    expect(decided.status).toBe(200);
+    expect(decided.body.correction.status).toBe('approved');
+    expect(Number(decided.body.entry.hours_worked)).toBe(9);
+    const { rows: [edit] } = await pool.query(
+      `SELECT * FROM business_time_entry_edits WHERE entry_id = $1 AND field = 'clock_out_at'`, [entryId]
+    );
+    expect(edit.editor_user_id).toBe(F.owner);
+    expect(edit.approved_by).toBe(F.manager2);
+  });
+
+  test('a manager cannot decide their own correction request', async () => {
+    const entryId = await insertClosedPunch(F.manager2);
+    const created = await request(appFor(F.manager2, 'manager'))
+      .post(`/api/businesses/${F.businessId}/staff/time-entries/${entryId}/corrections`)
+      .send({ clock_out_at: '2026-10-06T22:00:00Z', reason: 'Stayed late' });
+    expect(created.status).toBe(201);
+    const selfDecide = await request(appFor(F.manager2, 'manager'))
+      .post(`/api/businesses/${F.businessId}/staff/time-entry-corrections/${created.body.id}/decide`)
+      .send({ decision: 'approved' });
+    expect(selfDecide.status).toBe(409);
+    expect(String(selfDecide.body.error)).toContain('own punch correction');
+    const decided = await request(appFor(F.owner, 'owner'))
+      .post(`/api/businesses/${F.businessId}/staff/time-entry-corrections/${created.body.id}/decide`)
+      .send({ decision: 'approved' });
+    expect(decided.status).toBe(200);
+    expect(decided.body.correction.status).toBe('approved');
+  });
+
+  test('a manager editing another employee punch still applies directly', async () => {
+    const entryId = await insertClosedPunch(F.employee);
+    const edited = await request(appFor(F.owner, 'owner'))
+      .patch(`/api/businesses/${F.businessId}/staff/time-entries/${entryId}`)
+      .send({ description: 'Covered the bar', reason: 'Fix the station note' });
+    expect(edited.status).toBe(200);
+    expect(edited.body.description).toBe('Covered the bar');
+    const { rows: [edit] } = await pool.query(
+      `SELECT * FROM business_time_entry_edits WHERE entry_id = $1 AND field = 'description'`, [entryId]
+    );
+    expect(edit.editor_user_id).toBe(F.owner);
+    expect(edit.approved_by).toBe(F.owner);
+  });
+});
+
 ddescribe('Phase 2: DST-boundary punch computes real elapsed hours', () => {
   test('22:00 EST to 06:00 EDT on spring-forward night is 7 hours, not 8', async () => {
     const owner = await newUser('owner');

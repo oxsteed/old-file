@@ -1158,6 +1158,12 @@ exports.punchBreak = async (req, res, next) => {
 // field leaves a business_time_entry_edits row with the old and new
 // values, the editor, the approving manager (the editor must be one),
 // and a mandatory reason. Nothing about the original record is lost.
+//
+// Finding 10: a manager editing their OWN punch never applies
+// directly — that would stamp their own approval. Their edit becomes
+// a pending correction request (same shape as an employee request) for
+// a different manager to decide, and the entry stays untouched until
+// then. Editing another employee's punch still applies directly.
 exports.editTimeEntry = async (req, res, next) => {
   const { businessId, entryId } = req.params;
   const { clock_in_at, clock_out_at, description, reason } = req.body || {};
@@ -1192,6 +1198,37 @@ exports.editTimeEntry = async (req, res, next) => {
     if (merged.clock_in_at && merged.clock_out_at
       && new Date(merged.clock_out_at) <= new Date(merged.clock_in_at)) {
       return res.status(400).json({ error: 'clock_out_at must be after clock_in_at' });
+    }
+    // Finding 10: the entry is the editor's own punch. Do not apply
+    // the edit with the editor as approver; file it as a pending
+    // correction request for a different manager to decide instead.
+    if (String(entry.user_id) === String(req.user.id)) {
+      try {
+        const { rows } = await pool.query(
+          `INSERT INTO business_time_entry_corrections
+             (entry_id, business_id, requester_user_id,
+              requested_clock_in_at, requested_clock_out_at, clears_clock_out,
+              requested_description, reason)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+          [
+            entryId,
+            businessId,
+            req.user.id,
+            nextIn ? nextIn.toISOString() : null,
+            nextOut ? nextOut.toISOString() : null,
+            clock_out_at === null,
+            description !== undefined ? (description || null) : null,
+            String(reason).slice(0, 1000),
+          ]
+        );
+        return res.status(201).json(presentCorrection(rows[0]));
+      } catch (err) {
+        // 23505: the one-pending-correction-per-entry unique index.
+        if (err.code === '23505') {
+          return res.status(409).json({ error: 'A correction is already pending for this punch' });
+        }
+        throw err;
+      }
     }
     const hours = merged.clock_in_at && merged.clock_out_at
       ? Math.max(0.01, computedHours(merged))
@@ -1474,6 +1511,11 @@ exports.decideTimeEntryCorrection = async (req, res, next) => {
       );
       if (!correction) return { missing: true };
       if (correction.status !== 'pending') return { conflict: 'This correction has already been decided' };
+      // Finding 10: a manager can never decide their own correction
+      // request — approval or rejection both need a different manager.
+      if (String(correction.requester_user_id) === String(req.user.id)) {
+        return { conflict: 'You cannot decide your own punch correction request; a different manager must decide it' };
+      }
       const { rows: [entry] } = await client.query(
         `SELECT * FROM business_time_entries WHERE id = $1 AND business_id = $2 FOR UPDATE`,
         [correction.entry_id, businessId]
