@@ -416,6 +416,10 @@ async function getRoster(businessId, locationIds = null, restaurantId = null) {
 const DEFAULT_LABOR_POLICY = Object.freeze({
   overtime_threshold_hours: 40,
   overtime_multiplier_bps: 15000,
+  // Double time pays 2x the regular rate unless the policy says
+  // otherwise (finding 47): the multiplier is a policy parameter in
+  // the same shape as overtime_multiplier_bps, never a hardcoded 2.
+  doubletime_multiplier_bps: 20000,
   break_after_minutes: 360,
   break_duration_minutes: 30,
 });
@@ -439,6 +443,7 @@ function normalizeLaborPolicy(row, restaurantId = null) {
     // time at the lower of the two.
     overtime_threshold_explicit: source.overtime_threshold_hours != null,
     overtime_multiplier_bps: Number(source.overtime_multiplier_bps ?? DEFAULT_LABOR_POLICY.overtime_multiplier_bps),
+    doubletime_multiplier_bps: Number(source.doubletime_multiplier_bps ?? DEFAULT_LABOR_POLICY.doubletime_multiplier_bps),
     break_after_minutes: Number(source.break_after_minutes ?? DEFAULT_LABOR_POLICY.break_after_minutes),
     break_duration_minutes: Number(source.break_duration_minutes ?? DEFAULT_LABOR_POLICY.break_duration_minutes),
     updated_by: source.updated_by || null,
@@ -453,7 +458,7 @@ async function getLaborPolicy(restaurantId, locationId = null) {
   if (locationId != null) {
     const { rows: [locationRow] } = await pool.query(
       `SELECT restaurant_id, location_id, country_code, region_code,
-              overtime_threshold_hours, overtime_multiplier_bps,
+              overtime_threshold_hours, overtime_multiplier_bps, doubletime_multiplier_bps,
               break_after_minutes, break_duration_minutes, updated_by, updated_at
          FROM restaurant_location_labor_policies
         WHERE restaurant_id = $1 AND location_id = $2`,
@@ -462,7 +467,7 @@ async function getLaborPolicy(restaurantId, locationId = null) {
     if (locationRow) return normalizeLaborPolicy(locationRow, restaurantId);
   }
   const { rows: [row] } = await pool.query(
-    `SELECT restaurant_id, overtime_threshold_hours, overtime_multiplier_bps,
+    `SELECT restaurant_id, overtime_threshold_hours, overtime_multiplier_bps, doubletime_multiplier_bps,
             break_after_minutes, break_duration_minutes, updated_by, updated_at
        FROM restaurant_labor_policies WHERE restaurant_id = $1`,
     [restaurantId]
@@ -480,6 +485,12 @@ function validateLaborPolicy(normalized) {
   if (!Number.isInteger(normalized.overtime_multiplier_bps)
     || normalized.overtime_multiplier_bps < 10000 || normalized.overtime_multiplier_bps > 50000) {
     const err = new Error('overtime_multiplier_bps must be between 10000 and 50000');
+    err.code = 'validation_failed';
+    throw err;
+  }
+  if (!Number.isInteger(normalized.doubletime_multiplier_bps)
+    || normalized.doubletime_multiplier_bps < 10000 || normalized.doubletime_multiplier_bps > 50000) {
+    const err = new Error('doubletime_multiplier_bps must be between 10000 and 50000');
     err.code = 'validation_failed';
     throw err;
   }
@@ -522,12 +533,13 @@ async function saveLaborPolicy(restaurantId, policy, updatedBy, locationId = nul
     }
     const { rows: [row] } = await pool.query(
       `INSERT INTO restaurant_location_labor_policies
-         (restaurant_id, location_id, overtime_threshold_hours, overtime_multiplier_bps,
+         (restaurant_id, location_id, overtime_threshold_hours, overtime_multiplier_bps, doubletime_multiplier_bps,
           break_after_minutes, break_duration_minutes, country_code, region_code, updated_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        ON CONFLICT (restaurant_id, location_id) DO UPDATE SET
          overtime_threshold_hours = EXCLUDED.overtime_threshold_hours,
          overtime_multiplier_bps = EXCLUDED.overtime_multiplier_bps,
+         doubletime_multiplier_bps = EXCLUDED.doubletime_multiplier_bps,
          break_after_minutes = EXCLUDED.break_after_minutes,
          break_duration_minutes = EXCLUDED.break_duration_minutes,
          country_code = EXCLUDED.country_code,
@@ -535,9 +547,10 @@ async function saveLaborPolicy(restaurantId, policy, updatedBy, locationId = nul
          updated_by = EXCLUDED.updated_by,
          updated_at = NOW()
        RETURNING restaurant_id, location_id, country_code, region_code,
-                 overtime_threshold_hours, overtime_multiplier_bps,
+                 overtime_threshold_hours, overtime_multiplier_bps, doubletime_multiplier_bps,
                  break_after_minutes, break_duration_minutes, updated_by, updated_at`,
       [restaurantId, locationId, normalized.overtime_threshold_hours, normalized.overtime_multiplier_bps,
+        normalized.doubletime_multiplier_bps,
         normalized.break_after_minutes, normalized.break_duration_minutes,
         countryCode, regionCode, updatedBy || null]
     );
@@ -545,19 +558,21 @@ async function saveLaborPolicy(restaurantId, policy, updatedBy, locationId = nul
   }
   const { rows: [row] } = await pool.query(
     `INSERT INTO restaurant_labor_policies
-       (restaurant_id, overtime_threshold_hours, overtime_multiplier_bps,
+       (restaurant_id, overtime_threshold_hours, overtime_multiplier_bps, doubletime_multiplier_bps,
         break_after_minutes, break_duration_minutes, updated_by)
-     VALUES ($1,$2,$3,$4,$5,$6)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
      ON CONFLICT (restaurant_id) DO UPDATE SET
        overtime_threshold_hours = EXCLUDED.overtime_threshold_hours,
        overtime_multiplier_bps = EXCLUDED.overtime_multiplier_bps,
+       doubletime_multiplier_bps = EXCLUDED.doubletime_multiplier_bps,
        break_after_minutes = EXCLUDED.break_after_minutes,
        break_duration_minutes = EXCLUDED.break_duration_minutes,
        updated_by = EXCLUDED.updated_by,
        updated_at = NOW()
-     RETURNING restaurant_id, overtime_threshold_hours, overtime_multiplier_bps,
+     RETURNING restaurant_id, overtime_threshold_hours, overtime_multiplier_bps, doubletime_multiplier_bps,
                break_after_minutes, break_duration_minutes, updated_by, updated_at`,
     [restaurantId, normalized.overtime_threshold_hours, normalized.overtime_multiplier_bps,
+      normalized.doubletime_multiplier_bps,
       normalized.break_after_minutes, normalized.break_duration_minutes, updatedBy || null]
   );
   return normalizeLaborPolicy(row, restaurantId);
@@ -572,7 +587,7 @@ async function getLocationPayContext(restaurantId, locationIds = null) {
   const [policyRows, jurisdictionMap, locationRows] = await Promise.all([
     pool.query(
       `SELECT restaurant_id, location_id, country_code, region_code,
-              overtime_threshold_hours, overtime_multiplier_bps,
+              overtime_threshold_hours, overtime_multiplier_bps, doubletime_multiplier_bps,
               break_after_minutes, break_duration_minutes, updated_by, updated_at
          FROM restaurant_location_labor_policies WHERE restaurant_id = $1`,
       [restaurantId]
@@ -1441,9 +1456,11 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null }
     const regularWagesCents = wage != null ? Math.round(regularHours * wage) : null;
     const employeeOvertimeWagesCents = wage != null
       ? Math.round(employeeOvertimeHours * wage * (laborPolicy.overtime_multiplier_bps / 10000)) : null;
-    // Double time is 2x the regular rate by definition.
+    // Double time pays the policy's doubletime multiplier (2x by
+    // default), never a hardcoded 2: the rate is a policy parameter
+    // in the same shape as the overtime multiplier.
     const employeeDoubletimeWagesCents = wage != null
-      ? Math.round(employeeDoubletimeHours * wage * 2) : null;
+      ? Math.round(employeeDoubletimeHours * wage * (Number(laborPolicy.doubletime_multiplier_bps ?? 20000) / 10000)) : null;
     const employeeMealPremiumCents = wage != null
       ? Math.round(employeeMealPremiumHours * wage) : 0;
     const premium = predictabilityPremiums.get(userId)

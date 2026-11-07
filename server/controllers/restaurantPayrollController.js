@@ -144,6 +144,7 @@ exports.updateLaborPolicy = async (req, res, next) => {
     const policy = await payroll.saveLaborPolicy(restaurant.id, {
       overtime_threshold_hours: body.overtime_threshold_hours ?? body.overtimeThresholdHours ?? current.overtime_threshold_hours,
       overtime_multiplier_bps: body.overtime_multiplier_bps ?? body.overtimeMultiplierBps ?? current.overtime_multiplier_bps,
+      doubletime_multiplier_bps: body.doubletime_multiplier_bps ?? body.doubletimeMultiplierBps ?? current.doubletime_multiplier_bps,
       break_after_minutes: body.break_after_minutes ?? body.breakAfterMinutes ?? current.break_after_minutes,
       break_duration_minutes: body.break_duration_minutes ?? body.breakDurationMinutes ?? current.break_duration_minutes,
       country_code: body.country_code ?? body.countryCode ?? current.country_code,

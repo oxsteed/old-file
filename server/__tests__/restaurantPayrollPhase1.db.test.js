@@ -302,4 +302,55 @@ ddescribe('Phase 1: California pay period end to end', () => {
     expect(gb.location_id).toBe(null);
     expect(gb.overtime_threshold_hours).toBe(40);
   });
+
+  test('double time pays the policy multiplier, not a hardcoded 2x (finding 47)', async () => {
+    // A fresh worker, one 13-hour Monday at the CA store with no break:
+    // 8 regular + 4 daily OT + 1 double time. At 2000/hr the default
+    // 2x prices the double hour at 4000; a 2.5x policy prices it 5000.
+    const cy = await makeUser('Cy', 'Chen');
+    const { rows: [membership] } = await pool.query(
+      `INSERT INTO business_members (business_id, owner_id, member_id, role, invite_email, status, job_role, hourly_wage_cents)
+       VALUES ($1, $2, $3, 'employee', $4, 'active', 'Cook', 2000) RETURNING id`,
+      [fx.businessId, fx.ana, cy, `member-${cy.slice(0, 8)}@example.invalid`]
+    );
+    await pool.query(
+      `INSERT INTO restaurant_location_memberships (restaurant_id, location_id, membership_id, status)
+       VALUES ($1, $2, $3, 'active')`,
+      [fx.restaurantId, fx.caLocationId, membership.id]
+    );
+    await pool.query(
+      `INSERT INTO business_time_entries
+         (business_id, user_id, entry_date, hours_worked, breaks, clock_in_at, clock_out_at, location_id)
+       VALUES ($1, $2, '2026-11-09', 13, '[]'::jsonb, '2026-11-09T09:00:00-07:00', '2026-11-09T22:00:00-07:00', $3)`,
+      [fx.businessId, cy, fx.caLocationId]
+    );
+    const run = {
+      restaurant: { id: fx.restaurantId, business_id: fx.businessId, currency_code: 'USD', timezone: 'America/Los_Angeles' },
+      fromDate: '2026-11-09', toDate: '2026-11-09', locationIds: [fx.caLocationId],
+    };
+    const before = await payrollService.computeLabor(run);
+    const cyBefore = before.employees.find((e) => e.user_id === cy);
+    expect(cyBefore.doubletime_hours).toBe(1);
+    expect(cyBefore.doubletime_wages_cents).toBe(4000);
+    expect(cyBefore.wages_cents).toBe(8 * 2000 + 4 * 3000 + 4000);
+    expect(before.labor_policy.doubletime_multiplier_bps).toBe(20000);
+
+    await payrollService.saveLaborPolicy(
+      fx.restaurantId,
+      { ...(await payrollService.getLaborPolicy(fx.restaurantId, fx.caLocationId)), doubletime_multiplier_bps: 25000 },
+      fx.ana, fx.caLocationId
+    );
+    const after = await payrollService.computeLabor(run);
+    const cyAfter = after.employees.find((e) => e.user_id === cy);
+    expect(cyAfter.doubletime_hours).toBe(1);
+    expect(cyAfter.doubletime_wages_cents).toBe(5000);
+    expect(cyAfter.wages_cents).toBe(8 * 2000 + 4 * 3000 + 5000);
+    expect(after.labor_policy.doubletime_multiplier_bps).toBe(25000);
+
+    await payrollService.saveLaborPolicy(
+      fx.restaurantId,
+      { ...(await payrollService.getLaborPolicy(fx.restaurantId, fx.caLocationId)), doubletime_multiplier_bps: 20000 },
+      fx.ana, fx.caLocationId
+    );
+  });
 });
