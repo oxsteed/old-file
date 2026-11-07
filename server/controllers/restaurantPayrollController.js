@@ -556,8 +556,8 @@ async function insertPayRunLines(client, payRunId, lines, lineLocationId = null)
           doubletime_wages_cents, wages_cents, meal_break_premium_cents,
           predictability_premium_cents, unpriced_premium_hours,
           gross_tips_cents, tip_out_cents, tip_in_cents, net_tips_cents, total_pay_cents,
-          location_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+          location_id, carry_forward_source_run_id, carry_forward_kind)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
       [
         payRunId,
         line.staff_user_id,
@@ -579,6 +579,8 @@ async function insertPayRunLines(client, payRunId, lines, lineLocationId = null)
         line.net_tips_cents,
         line.total_pay_cents,
         lineLocationId,
+        line.carry_forward_source_run_id ?? null,
+        line.carry_forward_kind ?? null,
       ]
     );
   }
@@ -667,7 +669,28 @@ async function getPayRunWithLines(clientOrPool, restaurantId, payRunId) {
       && (lines || []).every((line) => coveredLineIds.has(Number(line.id)))
       && disbursedCents === runTotalCents,
   };
-  return { ...run, lines, payout_links: payoutLinks, linked_payout_cents: linkedPayoutCents, disbursements, disbursement_coverage: disbursementCoverage };
+  // Finding 5 (half b): a finalized run reports inputs recorded after
+  // its finalization that have not been carried forward yet, so the
+  // money is flagged instead of silently vanishing. The indicator is
+  // advisory: a failed lookup must never break the run read itself.
+  let inputsChangedSinceFinalization = null;
+  if (run.finalized_at) {
+    try {
+      const { rows: [bizRow] } = await clientOrPool.query(
+        'SELECT business_id FROM food_restaurants WHERE id = $1',
+        [restaurantId]
+      );
+      if (bizRow) {
+        inputsChangedSinceFinalization = await payroll.getLateInputsSummary(clientOrPool, {
+          businessId: bizRow.business_id,
+          restaurantId,
+          run,
+          currency: run.currency_code,
+        });
+      }
+    } catch { /* indicator unavailable; the run read still succeeds */ }
+  }
+  return { ...run, lines, payout_links: payoutLinks, linked_payout_cents: linkedPayoutCents, disbursements, disbursement_coverage: disbursementCoverage, inputs_changed_since_finalization: inputsChangedSinceFinalization };
 }
 
 function payRunShape(run) {
@@ -725,6 +748,8 @@ function payRunShape(run) {
       voidReason: d.void_reason || d.voidReason || null,
     })),
     disbursementCoverage: run.disbursement_coverage || run.disbursementCoverage || null,
+    // Finding 5 (half b): late inputs outstanding on this finalized run.
+    inputsChangedSinceFinalization: run.inputs_changed_since_finalization || run.inputsChangedSinceFinalization || null,
     lines: (run.lines || []).map((line) => ({
       id: Number(line.id),
       staff_user_id: line.staff_user_id,
@@ -746,6 +771,13 @@ function payRunShape(run) {
       tip_in_cents: Number(line.tip_in_cents || 0),
       net_tips_cents: Number(line.net_tips_cents),
       total_pay_cents: Number(line.total_pay_cents),
+      // Finding 5 (half a): a carried-forward line says so, with the
+      // source run it was carried from. It is never silently merged
+      // into the employee's regular line.
+      is_carry_forward: line.carry_forward_source_run_id != null,
+      carried_forward_from_run_id: line.carry_forward_source_run_id == null
+        ? null : Number(line.carry_forward_source_run_id),
+      carry_forward_kind: line.carry_forward_kind || null,
     })),
   };
 }
@@ -764,6 +796,22 @@ exports.createPayRun = async (req, res, next) => {
     // multi-store line cannot be split by store after the fact.
     const locationIds = await resolveRunLocationIds(pool, restaurant.id, scope);
     const lineLocationId = locationIds.length === 1 ? locationIds[0] : null;
+    // Finding 5 (half a): inputs recorded after an earlier run
+    // finalized ride into this run as clearly-marked carry-forward
+    // lines. Priced from the current wage of record.
+    const wagesByUser = new Map(
+      (labor.employees || [])
+        .filter((e) => e.user_id != null && e.hourly_wage_cents != null)
+        .map((e) => [String(e.user_id), Number(e.hourly_wage_cents)])
+    );
+    const carryItems = await payroll.buildCarryForwardItems(pool, {
+      restaurant,
+      targetPeriodFrom: fromDate,
+      targetPeriodTo: toDate,
+      locationIds,
+      currency: restaurant.currency_code || 'USD',
+      wagesByUser,
+    });
     const run = await withTransaction(pool, async (client) => {
       const { rows: [created] } = await client.query(
         `INSERT INTO restaurant_pay_runs (restaurant_id, period_from, period_to, status, created_by, location_ids, currency_code)
@@ -772,6 +820,10 @@ exports.createPayRun = async (req, res, next) => {
         [restaurant.id, fromDate, toDate, req.user.id, locationIds, restaurant.currency_code || 'USD']
       );
       await insertPayRunLines(client, created.id, payRunLinesFromLabor(labor), lineLocationId);
+      if (carryItems.length) {
+        const carryLines = await payroll.applyCarryForward(client, created.id, carryItems);
+        if (carryLines.length) await insertPayRunLines(client, created.id, carryLines, lineLocationId);
+      }
       return created;
     }, 'restaurant_create_pay_run');
     await logBusinessAction(req, {
@@ -894,12 +946,45 @@ exports.rebuildPayRun = async (req, res, next) => {
         locationIds: rebuildLocationIds,
       });
       await client.query('DELETE FROM restaurant_pay_run_lines WHERE pay_run_id = $1', [payRunId]);
+      // Finding 5: a rebuild re-derives the carry-forward lines too;
+      // this run's own old claims are dropped first so they do not
+      // block re-claiming the same inputs.
+      await client.query('DELETE FROM restaurant_pay_run_carry_forwards WHERE target_pay_run_id = $1', [payRunId]);
       await insertPayRunLines(
         client,
         payRunId,
         payRunLinesFromLabor(labor),
         rebuildLocationIds && rebuildLocationIds.length === 1 ? Number(rebuildLocationIds[0]) : null
       );
+      const rebuildWagesByUser = new Map(
+        (labor.employees || [])
+          .filter((e) => e.user_id != null && e.hourly_wage_cents != null)
+          .map((e) => [String(e.user_id), Number(e.hourly_wage_cents)])
+      );
+      const rebuildCarryItems = await payroll.buildCarryForwardItems(pool, {
+        restaurant,
+        targetPeriodFrom: existing.period_from instanceof Date
+          ? existing.period_from.toISOString().slice(0, 10)
+          : String(existing.period_from).slice(0, 10),
+        targetPeriodTo: existing.period_to instanceof Date
+          ? existing.period_to.toISOString().slice(0, 10)
+          : String(existing.period_to).slice(0, 10),
+        locationIds: rebuildLocationIds,
+        currency: restaurant.currency_code || 'USD',
+        wagesByUser: rebuildWagesByUser,
+        excludeTargetRunId: payRunId,
+      });
+      if (rebuildCarryItems.length) {
+        const rebuildCarryLines = await payroll.applyCarryForward(client, payRunId, rebuildCarryItems);
+        if (rebuildCarryLines.length) {
+          await insertPayRunLines(
+            client,
+            payRunId,
+            rebuildCarryLines,
+            rebuildLocationIds && rebuildLocationIds.length === 1 ? Number(rebuildLocationIds[0]) : null
+          );
+        }
+      }
       const { rows: [updated] } = await client.query(
         'UPDATE restaurant_pay_runs SET updated_at = NOW() WHERE id = $1 RETURNING *',
         [payRunId]

@@ -1930,6 +1930,489 @@ async function computeExceptions({ restaurant, fromDate, toDate, locationIds = n
   return { from_date: fromDate, to_date: toDate, timezone, employees };
 }
 
+// ── Late inputs after finalization (finding 5) ───────────────────────
+// A finalized run is an immutable snapshot, but the world does not
+// stop at finalization: a predictability premium can be recorded
+// late, a cash tip confirmed late, a punch correction approved late.
+// Each of those was windowed out of the run it belonged to, and
+// without a catch-up it would never be paid. Two halves:
+//
+// (a) Carry-forward: when the next run for the same restaurant is
+//     built, late inputs from earlier finalized runs are pulled in
+//     as separate, clearly-marked lines (carry_forward_* columns),
+//     never merged into the regular lines. restaurant_pay_run_
+//     carry_forwards records every carried input so one input is
+//     never carried twice; the claim is an INSERT ... ON CONFLICT
+//     DO NOTHING inside the run-creation transaction, so two runs
+//     built at once cannot double-pay the same input.
+// (b) Indicator: a finalized run reports inputs_changed_since_
+//     finalization — late inputs that exist and have not been carried
+//     forward yet — so a manager can see the money is outstanding.
+//
+// Pricing notes, all fail-closed:
+// - Premiums carry only in the run currency (finding 6). A premium
+//   stored in another currency, or with no recorded currency, stays
+//   flagged in the indicator instead of being silently converted.
+//   A premium with hours but no stored amount is priced at the
+//   employee's current wage; with no wage at all its hours ride as
+//   unpriced_premium_hours, which blocks finalization.
+// - Late cash tips carry at face value as direct net tips. The prior
+//   period's tip pool is not re-run: the pool already settled, and
+//   re-pooling would rewrite other employees' settled shares.
+// - Late-approved corrections change hours, so they are priced from
+//   a recompute of the source period: current tier hours minus the
+//   finalized lines' tier hours (carry-forward lines excluded from
+//   the baseline), minus hours already carried, priced at the current
+//   wage with the current overtime multiplier. Only a positive net
+//   delta carries; a negative delta means the employee was overpaid
+//   in the source run, which is flagged in the indicator and never
+//   auto-deducted from a later run.
+
+function runDateOnly(value) {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value).slice(0, 10);
+}
+
+function locationScopeClause(locationIds) {
+  const ids = Array.isArray(locationIds) ? locationIds.map((id) => Number(id)).filter((id) => Number.isSafeInteger(id)) : [];
+  return { ids, scoped: ids.length > 0 };
+}
+
+// Late predictability premiums for one source run: recorded after
+// its finalization, for a shift dated inside its period. `excludeTargetRunId`
+// is the run being (re)built, whose own carry rows must not count as
+// "already carried" (-1 when there is no such run).
+async function getLatePremiums(clientOrPool, { businessId, sourceRun, excludeTargetRunId = -1 }) {
+  const { ids, scoped } = locationScopeClause(sourceRun.location_ids);
+  const params = [businessId, sourceRun.finalized_at, runDateOnly(sourceRun.period_from), runDateOnly(sourceRun.period_to)];
+  const locationClause = scoped ? `AND (sc.location_id IS NULL OR sc.location_id = ANY($${params.push(ids)}::bigint[]))` : '';
+  const excludeParam = params.push(excludeTargetRunId);
+  const { rows } = await clientOrPool.query(
+    `SELECT sc.id, sc.user_id, sc.premium_cents, sc.premium_hours, sc.premium_currency_code
+       FROM business_staff_schedule_changes sc
+      WHERE sc.business_id = $1 AND sc.premium_due AND sc.created_at > $2
+        AND (sc.before_state->>'shift_date')::date >= $3
+        AND (sc.before_state->>'shift_date')::date <= $4
+        ${locationClause}
+        AND NOT EXISTS (
+          SELECT 1 FROM restaurant_pay_run_carry_forwards cf
+           WHERE cf.input_type = 'premium' AND cf.input_id = sc.id
+             AND cf.target_pay_run_id <> $${excludeParam})
+      ORDER BY sc.id`,
+    params
+  );
+  return rows;
+}
+
+// Late-confirmed cash tips for one source run: business date inside
+// its period, confirmed after its finalization. A declaration
+// confirmed at creation has no reviewed_at, so its created_at is the
+// confirmation time in that case.
+async function getLateCashTips(clientOrPool, { restaurantId, sourceRun, excludeTargetRunId = -1 }) {
+  const { ids, scoped } = locationScopeClause(sourceRun.location_ids);
+  const params = [restaurantId, runDateOnly(sourceRun.period_from), runDateOnly(sourceRun.period_to), sourceRun.finalized_at];
+  const locationClause = scoped ? `AND (location_id IS NULL OR location_id = ANY($${params.push(ids)}::bigint[]))` : '';
+  const excludeParam = params.push(excludeTargetRunId);
+  const { rows } = await clientOrPool.query(
+    `SELECT id, staff_user_id, amount_cents
+       FROM restaurant_declared_cash_tips
+      WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3
+        AND status = 'confirmed'
+        AND (reviewed_at > $4 OR (reviewed_at IS NULL AND created_at > $4))
+        ${locationClause}
+        AND NOT EXISTS (
+          SELECT 1 FROM restaurant_pay_run_carry_forwards cf
+           WHERE cf.input_type = 'cash_tip' AND cf.input_id = restaurant_declared_cash_tips.id
+             AND cf.target_pay_run_id <> $${excludeParam})
+      ORDER BY id`,
+    params
+  );
+  return rows;
+}
+
+// Late-approved punch corrections for one source run: decided after
+// its finalization, for an entry dated inside its period. A
+// correction is covered when a correction-hours carry row for the
+// same employee was created after the decision — the carry is a
+// per-employee hours delta, so coverage is per employee, not per
+// correction row.
+async function getLateCorrectionCount(clientOrPool, { businessId, sourceRun, excludeTargetRunId = -1 }) {
+  const { ids, scoped } = locationScopeClause(sourceRun.location_ids);
+  const params = [businessId, sourceRun.finalized_at, runDateOnly(sourceRun.period_from), runDateOnly(sourceRun.period_to)];
+  const locationClause = scoped ? `AND (e.location_id IS NULL OR e.location_id = ANY($${params.push(ids)}::bigint[]))` : '';
+  const sourceParam = params.push(sourceRun.id);
+  const excludeParam = params.push(excludeTargetRunId);
+  const { rows: [row] } = await clientOrPool.query(
+    `SELECT COUNT(*)::int AS n
+       FROM business_time_entry_corrections c
+       JOIN business_time_entries e ON e.id = c.entry_id
+      WHERE c.business_id = $1 AND c.status = 'approved' AND c.decided_at > $2
+        AND e.entry_date >= $3 AND e.entry_date <= $4
+        ${locationClause}
+        AND NOT EXISTS (
+          SELECT 1 FROM restaurant_pay_run_carry_forwards cf
+           WHERE cf.source_pay_run_id = $${sourceParam} AND cf.input_type = 'correction_hours'
+             AND cf.staff_user_id = e.user_id AND cf.created_at >= c.decided_at
+             AND cf.target_pay_run_id <> $${excludeParam})`,
+    params
+  );
+  return Number(row?.n || 0);
+}
+
+async function getLateInputsSummary(clientOrPool, { businessId, restaurantId, run, currency = null }) {
+  const empty = {
+    has_late_inputs: false,
+    late_premiums: { count: 0, cents: 0, other_currency_count: 0, unpriced_hours: 0 },
+    late_cash_tips: { count: 0, cents: 0 },
+    late_corrections: { count: 0 },
+    carried_forward: { premiums: 0, cash_tips: 0, correction_hours: 0 },
+  };
+  if (!run || !run.finalized_at) return empty;
+  const runCurrency = (currency || run.currency_code || '').toString().trim().toUpperCase() || null;
+  const [premiums, tips, correctionCount, carried] = await Promise.all([
+    getLatePremiums(clientOrPool, { businessId, sourceRun: run, excludeTargetRunId: -1 }),
+    getLateCashTips(clientOrPool, { restaurantId, sourceRun: run, excludeTargetRunId: -1 }),
+    getLateCorrectionCount(clientOrPool, { businessId, sourceRun: run, excludeTargetRunId: -1 }),
+    clientOrPool.query(
+      `SELECT input_type, COUNT(*)::int AS n FROM restaurant_pay_run_carry_forwards
+        WHERE source_pay_run_id = $1 GROUP BY input_type`,
+      [run.id]
+    ).catch(() => ({ rows: [] })),
+  ]);
+  const summary = { ...empty, late_corrections: { count: correctionCount } };
+  for (const row of carried.rows || []) {
+    if (row.input_type === 'premium') summary.carried_forward.premiums = Number(row.n) || 0;
+    if (row.input_type === 'cash_tip') summary.carried_forward.cash_tips = Number(row.n) || 0;
+    if (row.input_type === 'correction_hours') summary.carried_forward.correction_hours = Number(row.n) || 0;
+  }
+  for (const row of premiums) {
+    const storedCurrency = row.premium_currency_code ? String(row.premium_currency_code).trim().toUpperCase() : null;
+    summary.late_premiums.count += 1;
+    if (runCurrency && storedCurrency !== runCurrency) {
+      summary.late_premiums.other_currency_count += 1;
+    } else {
+      summary.late_premiums.cents += Number(row.premium_cents) || 0;
+      if (row.premium_cents == null) summary.late_premiums.unpriced_hours += Number(row.premium_hours) || 0;
+    }
+  }
+  for (const row of tips) {
+    summary.late_cash_tips.count += 1;
+    summary.late_cash_tips.cents += Number(row.amount_cents) || 0;
+  }
+  summary.has_late_inputs = summary.late_premiums.count > 0
+    || summary.late_cash_tips.count > 0
+    || summary.late_corrections.count > 0;
+  return summary;
+}
+
+// Per-employee correction-hour deltas for one source run, from a
+// recompute of the source period. Returns a Map userId -> {
+// regular_hours, overtime_hours, doubletime_hours, wages_cents,
+// hourly_wage_cents } for positive nets only.
+async function getCorrectionHourDeltas(clientOrPool, { restaurant, sourceRun, excludeTargetRunId = -1 }) {
+  const sourceLocationIds = locationScopeClause(sourceRun.location_ids).scoped
+    ? locationScopeClause(sourceRun.location_ids).ids
+    : null;
+  const { rows: lines } = await clientOrPool.query(
+    `SELECT staff_user_id,
+            COALESCE(SUM(regular_hours), 0)::float8 AS regular_hours,
+            COALESCE(SUM(overtime_hours), 0)::float8 AS overtime_hours,
+            COALESCE(SUM(doubletime_hours), 0)::float8 AS doubletime_hours
+       FROM restaurant_pay_run_lines
+      WHERE pay_run_id = $1 AND carry_forward_source_run_id IS NULL
+      GROUP BY staff_user_id`,
+    [sourceRun.id]
+  );
+  const baseline = new Map(lines.map((row) => [String(row.staff_user_id), {
+    regular_hours: Number(row.regular_hours) || 0,
+    overtime_hours: Number(row.overtime_hours) || 0,
+    doubletime_hours: Number(row.doubletime_hours) || 0,
+  }]));
+  const { rows: carriedRows } = await clientOrPool.query(
+    `SELECT staff_user_id, details FROM restaurant_pay_run_carry_forwards
+      WHERE source_pay_run_id = $1 AND input_type = 'correction_hours'
+        AND target_pay_run_id <> $2`,
+    [sourceRun.id, excludeTargetRunId]
+  ).catch(() => ({ rows: [] }));
+  const alreadyCarried = new Map();
+  for (const row of carriedRows) {
+    const key = String(row.staff_user_id);
+    const details = row.details && typeof row.details === 'object' ? row.details : {};
+    const prev = alreadyCarried.get(key) || { regular_hours: 0, overtime_hours: 0, doubletime_hours: 0 };
+    prev.regular_hours += Number(details.regular_hours) || 0;
+    prev.overtime_hours += Number(details.overtime_hours) || 0;
+    prev.doubletime_hours += Number(details.doubletime_hours) || 0;
+    alreadyCarried.set(key, prev);
+  }
+  const labor = await computeLabor({
+    restaurant,
+    fromDate: runDateOnly(sourceRun.period_from),
+    toDate: runDateOnly(sourceRun.period_to),
+    locationIds: sourceLocationIds,
+  });
+  const multiplier = Number(labor?.labor_policy?.overtime_multiplier_bps || 15000) / 10000;
+  // Wages for the delta come from the business membership directly,
+  // not the recompute's roster: the recompute is store-scoped, and a
+  // member without a store assignment would read as wageless even
+  // though the business has a wage of record for them.
+  const deltaUserIds = [];
+  const rawDeltas = [];
+  for (const employee of labor.employees || []) {
+    if (employee.user_id == null) continue;
+    const key = String(employee.user_id);
+    const base = baseline.get(key) || { regular_hours: 0, overtime_hours: 0, doubletime_hours: 0 };
+    const carried = alreadyCarried.get(key) || { regular_hours: 0, overtime_hours: 0, doubletime_hours: 0 };
+    const regular = Math.round(((Number(employee.regular_hours) || 0) - base.regular_hours - carried.regular_hours) * 100) / 100;
+    const overtime = Math.round(((Number(employee.overtime_hours) || 0) - base.overtime_hours - carried.overtime_hours) * 100) / 100;
+    const doubletime = Math.round(((Number(employee.doubletime_hours) || 0) - base.doubletime_hours - carried.doubletime_hours) * 100) / 100;
+    if (regular === 0 && overtime === 0 && doubletime === 0) continue;
+    rawDeltas.push({ user_id: employee.user_id, regular, overtime, doubletime, fallbackWage: employee.hourly_wage_cents });
+    deltaUserIds.push(employee.user_id);
+  }
+  const wagesByUser = new Map();
+  if (deltaUserIds.length) {
+    const { rows: wageRows } = await clientOrPool.query(
+      `SELECT member_id,
+              COALESCE(hourly_wage_cents,
+                       CASE WHEN pay_rate_period = 'hour' THEN pay_rate_cents END) AS wage_cents
+         FROM business_members
+        WHERE business_id = $1 AND member_id = ANY($2::uuid[]) AND status = 'active'`,
+      [restaurant.business_id, deltaUserIds]
+    ).catch(() => ({ rows: [] }));
+    for (const row of wageRows) {
+      if (row.wage_cents != null) wagesByUser.set(String(row.member_id), Number(row.wage_cents));
+    }
+  }
+  const deltas = new Map();
+  for (const raw of rawDeltas) {
+    const key = String(raw.user_id);
+    const wage = wagesByUser.get(key) ?? (raw.fallbackWage == null ? null : Number(raw.fallbackWage));
+    // No wage of record: the delta cannot be priced. It stays
+    // flagged on the source run's indicator instead of being
+    // carried at a guessed rate (or blocking the new run).
+    if (wage == null) continue;
+    const wages = Math.round(raw.regular * wage + raw.overtime * wage * multiplier + raw.doubletime * wage * 2);
+    // A negative net is an overpayment in the source run. It is
+    // flagged, never auto-deducted from a later run.
+    if (wages <= 0) continue;
+    deltas.set(key, {
+      user_id: raw.user_id,
+      regular_hours: raw.regular,
+      overtime_hours: raw.overtime,
+      doubletime_hours: raw.doubletime,
+      hourly_wage_cents: wage,
+      regular_wages_cents: Math.round(raw.regular * wage),
+      overtime_wages_cents: Math.round(raw.overtime * wage * multiplier),
+      doubletime_wages_cents: Math.round(raw.doubletime * wage * 2),
+      wages_cents: wages,
+    });
+  }
+  return deltas;
+}
+
+// Collect every not-yet-carried late input from finalized runs
+// before the target period. Returns claimable items; the caller
+// claims them inside the run-creation transaction via
+// applyCarryForward, which drops any item another run claimed first.
+// `wagesByUser` prices premiums that were stored as hours only.
+async function buildCarryForwardItems(clientOrPool, {
+  restaurant, targetPeriodFrom, targetPeriodTo, locationIds = null, currency = null, wagesByUser = new Map(), excludeTargetRunId = -1,
+}) {
+  const runCurrency = (currency || restaurant.currency_code || 'USD').toString().trim().toUpperCase();
+  const { ids: targetIds, scoped: targetScoped } = locationScopeClause(locationIds);
+  const { rows: sources } = await clientOrPool.query(
+    `SELECT * FROM restaurant_pay_runs
+      WHERE restaurant_id = $1 AND status IN ('finalized', 'paid')
+        AND period_to < $2
+      ORDER BY period_to DESC, id DESC
+      LIMIT 5`,
+    [restaurant.id, runDateOnly(targetPeriodFrom)]
+  ).catch(() => ({ rows: [] }));
+  const items = [];
+  for (const source of sources) {
+    // A source run only feeds a target that covers at least one of
+    // its stores (or either side is unscoped/legacy).
+    const { ids: sourceIds, scoped: sourceScoped } = locationScopeClause(source.location_ids);
+    if (targetScoped && sourceScoped && !sourceIds.some((id) => targetIds.includes(id))) continue;
+    const businessId = restaurant.business_id;
+    const [premiums, tips, deltas] = await Promise.all([
+      getLatePremiums(clientOrPool, { businessId, sourceRun: source, excludeTargetRunId }),
+      getLateCashTips(clientOrPool, { restaurantId: restaurant.id, sourceRun: source, excludeTargetRunId }),
+      getCorrectionHourDeltas(clientOrPool, { restaurant, sourceRun: source, excludeTargetRunId }),
+    ]);
+    for (const row of premiums) {
+      const storedCurrency = row.premium_currency_code ? String(row.premium_currency_code).trim().toUpperCase() : null;
+      if (storedCurrency !== runCurrency) continue;
+      // A premium stored as hours only is priced at the current wage;
+      // fall back to the business membership when the new run's
+      // (possibly store-scoped) labor has no wage for this employee.
+      let wage = wagesByUser.get(String(row.user_id));
+      if (wage == null) {
+        const { rows: [wageRow] } = await clientOrPool.query(
+          `SELECT COALESCE(hourly_wage_cents,
+                           CASE WHEN pay_rate_period = 'hour' THEN pay_rate_cents END) AS wage_cents
+             FROM business_members
+            WHERE business_id = $1 AND member_id = $2 AND status = 'active'`,
+          [businessId, row.user_id]
+        ).catch(() => ({ rows: [] }));
+        if (wageRow?.wage_cents != null) {
+          wage = Number(wageRow.wage_cents);
+          wagesByUser.set(String(row.user_id), wage);
+        }
+      }
+      const storedCents = row.premium_cents == null ? null : Number(row.premium_cents);
+      const pricedCents = storedCents != null
+        ? storedCents
+        : (wage != null ? Math.round((Number(row.premium_hours) || 0) * wage) : null);
+      items.push({
+        source_pay_run_id: Number(source.id),
+        input_type: 'premium',
+        input_id: Number(row.id),
+        staff_user_id: row.user_id,
+        amount_cents: pricedCents == null ? 0 : pricedCents,
+        unpriced_premium_hours: pricedCents == null ? Math.round((Number(row.premium_hours) || 0) * 100) / 100 : 0,
+        predictability_premium_cents: pricedCents == null ? 0 : pricedCents,
+      });
+    }
+    for (const row of tips) {
+      items.push({
+        source_pay_run_id: Number(source.id),
+        input_type: 'cash_tip',
+        input_id: Number(row.id),
+        staff_user_id: row.staff_user_id,
+        amount_cents: Number(row.amount_cents) || 0,
+        gross_tips_cents: Number(row.amount_cents) || 0,
+        net_tips_cents: Number(row.amount_cents) || 0,
+      });
+    }
+    for (const delta of deltas.values()) {
+      items.push({
+        source_pay_run_id: Number(source.id),
+        input_type: 'correction_hours',
+        input_id: null,
+        staff_user_id: delta.user_id,
+        amount_cents: delta.wages_cents,
+        regular_hours: delta.regular_hours,
+        overtime_hours: delta.overtime_hours,
+        doubletime_hours: delta.doubletime_hours,
+        hourly_wage_cents: delta.hourly_wage_cents,
+        regular_wages_cents: delta.regular_wages_cents,
+        overtime_wages_cents: delta.overtime_wages_cents,
+        doubletime_wages_cents: delta.doubletime_wages_cents,
+        wages_cents: delta.wages_cents,
+        correction_details: {
+          regular_hours: delta.regular_hours,
+          overtime_hours: delta.overtime_hours,
+          doubletime_hours: delta.doubletime_hours,
+          wages_cents: delta.wages_cents,
+        },
+      });
+    }
+  }
+  return items;
+}
+
+// Claim carry-forward items inside the run-creation transaction and
+// build the marked lines for the claimed ones. Items another run
+// claimed first are dropped (ON CONFLICT DO NOTHING), so a late
+// input is paid exactly once. Returns the pay-run-line-shaped rows
+// (with carry_forward_* markers) for the caller to insert.
+async function applyCarryForward(client, targetPayRunId, items) {
+  const claimed = [];
+  for (const item of items) {
+    const { rows } = await client.query(
+      `INSERT INTO restaurant_pay_run_carry_forwards
+         (source_pay_run_id, target_pay_run_id, input_type, input_id,
+          staff_user_id, amount_cents, details)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+       ON CONFLICT DO NOTHING
+       RETURNING id`,
+      [
+        item.source_pay_run_id,
+        targetPayRunId,
+        item.input_type,
+        item.input_id,
+        item.staff_user_id,
+        item.amount_cents,
+        JSON.stringify(item.correction_details || {}),
+      ]
+    );
+    if (rows.length) claimed.push(item);
+  }
+  if (!claimed.length) return [];
+  // One marked line per employee per source run, so a carry is never
+  // silently merged into that employee's regular line.
+  const byKey = new Map();
+  for (const item of claimed) {
+    const key = `${item.source_pay_run_id}|${String(item.staff_user_id)}`;
+    const line = byKey.get(key) || {
+      staff_user_id: item.staff_user_id,
+      staff_label: null,
+      regular_hours: 0,
+      overtime_hours: 0,
+      doubletime_hours: 0,
+      hourly_wage_cents: null,
+      regular_wages_cents: 0,
+      overtime_wages_cents: 0,
+      doubletime_wages_cents: 0,
+      wages_cents: 0,
+      meal_break_premium_cents: 0,
+      predictability_premium_cents: 0,
+      unpriced_premium_hours: 0,
+      gross_tips_cents: 0,
+      tip_out_cents: 0,
+      tip_in_cents: 0,
+      net_tips_cents: 0,
+      total_pay_cents: 0,
+      carry_forward_source_run_id: item.source_pay_run_id,
+      carry_forward_kind: item.input_type,
+      _kinds: new Set(),
+    };
+    line._kinds.add(item.input_type);
+    if (item.input_type === 'premium') {
+      line.predictability_premium_cents += Number(item.predictability_premium_cents) || 0;
+      line.unpriced_premium_hours = Math.round(((Number(line.unpriced_premium_hours) || 0)
+        + (Number(item.unpriced_premium_hours) || 0)) * 100) / 100;
+    }
+    if (item.input_type === 'cash_tip') {
+      line.gross_tips_cents += Number(item.gross_tips_cents) || 0;
+      line.net_tips_cents += Number(item.net_tips_cents) || 0;
+    }
+    if (item.input_type === 'correction_hours') {
+      line.regular_hours = Math.round(((Number(line.regular_hours) || 0) + (Number(item.regular_hours) || 0)) * 100) / 100;
+      line.overtime_hours = Math.round(((Number(line.overtime_hours) || 0) + (Number(item.overtime_hours) || 0)) * 100) / 100;
+      line.doubletime_hours = Math.round(((Number(line.doubletime_hours) || 0) + (Number(item.doubletime_hours) || 0)) * 100) / 100;
+      line.hourly_wage_cents = item.hourly_wage_cents;
+      line.regular_wages_cents += Number(item.regular_wages_cents) || 0;
+      line.overtime_wages_cents += Number(item.overtime_wages_cents) || 0;
+      line.doubletime_wages_cents += Number(item.doubletime_wages_cents) || 0;
+      line.wages_cents += Number(item.wages_cents) || 0;
+    }
+    byKey.set(key, line);
+  }
+  const lines = [...byKey.values()];
+  // Names for the marked lines, from the users table.
+  const userIds = [...new Set(lines.map((line) => String(line.staff_user_id)).filter(Boolean))];
+  if (userIds.length) {
+    const { rows } = await client.query(
+      `SELECT id, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), email) AS name
+         FROM users WHERE id = ANY($1::uuid[])`,
+      [userIds]
+    ).catch(() => ({ rows: [] }));
+    const names = new Map(rows.map((row) => [String(row.id), row.name]));
+    for (const line of lines) line.staff_label = names.get(String(line.staff_user_id)) || null;
+  }
+  for (const line of lines) {
+    line.total_pay_cents = (Number(line.wages_cents) || 0)
+      + (Number(line.meal_break_premium_cents) || 0)
+      + (Number(line.predictability_premium_cents) || 0)
+      + (Number(line.net_tips_cents) || 0);
+    line.carry_forward_kind = line._kinds.size > 1 ? 'mixed' : [...line._kinds][0];
+    delete line._kinds;
+  }
+  return lines.filter((line) => Number(line.total_pay_cents) !== 0 || Number(line.unpriced_premium_hours) > 0);
+}
+
 module.exports = {
   resolveReportTimezone,
   isRealDateString,
@@ -1961,4 +2444,7 @@ module.exports = {
   buildPayrollCsv,
   computeExceptions,
   distributeCents,
+  getLateInputsSummary,
+  buildCarryForwardItems,
+  applyCarryForward,
 };

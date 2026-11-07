@@ -479,8 +479,237 @@ ddescribe('Finding 9: a wrongly recorded disbursement can be reversed', () => {
     );
     expect(voided.err).toMatchObject({ code: 'pay_run_not_finalized' });
   });
+});
 
-  afterAll(async () => {
-    await pool.end().catch(() => {});
+ddescribe('Finding 5: late inputs carry forward, and finalized runs flag them', () => {
+  test('finalized run flags late premium, late-confirmed tip, and late-approved correction', async () => {
+    const owner = await makeUser();
+    const checker = await makeUser();
+    const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    const staff = await makeStaff(businessId, owner, 2000);
+    const run = await createRun(owner, restaurantId, '2026-10-01', '2026-10-15');
+    expect((await finalizeRun(owner, restaurantId, run.id)).err).toBeNull();
+    const clean = await getRun(owner, restaurantId, run.id);
+    expect(clean.inputsChangedSinceFinalization).toMatchObject({ has_late_inputs: false });
+
+    // A premium recorded after finalization, for a shift in the period.
+    await pool.query(
+      `INSERT INTO business_staff_schedule_changes
+         (business_id, shift_id, user_id, restaurant_id, change_type,
+          before_state, after_state, premium_due, premium_hours, premium_cents,
+          premium_currency_code, changed_by, created_at)
+       VALUES ($1, 1, $2, $3, 'edited',
+               '{"shift_date":"2026-10-05","start_time":"09:00","end_time":"17:00"}'::jsonb,
+               '{"shift_date":"2026-10-05","start_time":"10:00","end_time":"17:00"}'::jsonb,
+               TRUE, 1, 5000, 'USD', $4, NOW())`,
+      [businessId, staff, restaurantId, owner]
+    );
+    // A cash tip for a date in the period, confirmed after finalization.
+    await pool.query(
+      `INSERT INTO restaurant_declared_cash_tips
+         (restaurant_id, staff_user_id, business_date, amount_cents, status, reviewed_by, reviewed_at, created_at)
+       VALUES ($1, $2, '2026-10-06', 3000, 'confirmed', $3, NOW(), NOW())`,
+      [restaurantId, staff, checker]
+    );
+    // A punch correction approved after finalization, for an entry in the period.
+    const { rows: [entry] } = await pool.query(
+      `INSERT INTO business_time_entries
+         (business_id, user_id, entry_date, clock_in_at, clock_out_at, hours_worked)
+       VALUES ($1, $2, '2026-10-07', '2026-10-07T13:00:00Z', '2026-10-07T21:00:00Z', 8)
+       RETURNING id`,
+      [businessId, staff]
+    );
+    await pool.query(
+      `INSERT INTO business_time_entry_corrections
+         (entry_id, business_id, requester_user_id, requested_clock_out_at, reason,
+          status, decided_by, decided_at)
+       VALUES ($1, $2, $3, '2026-10-07T22:00:00Z', 'stayed late',
+               'approved', $4, NOW())`,
+      [entry.id, businessId, staff, checker]
+    );
+
+    const flagged = await getRun(owner, restaurantId, run.id);
+    expect(flagged.inputsChangedSinceFinalization).toMatchObject({
+      has_late_inputs: true,
+      late_premiums: { count: 1, cents: 5000 },
+      late_cash_tips: { count: 1, cents: 3000 },
+      late_corrections: { count: 1 },
+    });
   });
+
+  test('next run carries late premium and tip as marked lines, and never carries them twice', async () => {
+    const owner = await makeUser();
+    const checker = await makeUser();
+    const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    const staff = await makeStaff(businessId, owner, 2000);
+    const run1 = await createRun(owner, restaurantId, '2026-10-01', '2026-10-15');
+    expect((await finalizeRun(owner, restaurantId, run1.id)).err).toBeNull();
+    await pool.query(
+      `INSERT INTO business_staff_schedule_changes
+         (business_id, shift_id, user_id, restaurant_id, change_type,
+          before_state, after_state, premium_due, premium_hours, premium_cents,
+          premium_currency_code, changed_by, created_at)
+       VALUES ($1, 1, $2, $3, 'edited',
+               '{"shift_date":"2026-10-05","start_time":"09:00","end_time":"17:00"}'::jsonb,
+               '{"shift_date":"2026-10-05","start_time":"10:00","end_time":"17:00"}'::jsonb,
+               TRUE, 1, 5000, 'USD', $4, NOW())`,
+      [businessId, staff, restaurantId, owner]
+    );
+    await pool.query(
+      `INSERT INTO restaurant_declared_cash_tips
+         (restaurant_id, staff_user_id, business_date, amount_cents, status, reviewed_by, reviewed_at, created_at)
+       VALUES ($1, $2, '2026-10-06', 3000, 'confirmed', $3, NOW(), NOW())`,
+      [restaurantId, staff, checker]
+    );
+
+    const run2 = await createRun(owner, restaurantId, '2026-10-16', '2026-10-31');
+    const carryLines = run2.lines.filter((line) => line.is_carry_forward);
+    expect(carryLines).toHaveLength(1);
+    expect(carryLines[0]).toMatchObject({
+      carried_forward_from_run_id: Number(run1.id),
+      carry_forward_kind: 'mixed',
+      predictability_premium_cents: 5000,
+      gross_tips_cents: 3000,
+      net_tips_cents: 3000,
+      total_pay_cents: 8000,
+    });
+    // The employee's regular line for the new period is separate.
+    expect(run2.lines.filter((line) => !line.is_carry_forward && line.staff_user_id === staff)).toHaveLength(1);
+
+    // The source run no longer flags them: they were carried.
+    const source = await getRun(owner, restaurantId, run1.id);
+    expect(source.inputsChangedSinceFinalization).toMatchObject({
+      has_late_inputs: false,
+      carried_forward: { premiums: 1, cash_tips: 1 },
+    });
+
+    // A third run carries nothing twice.
+    const run3 = await createRun(owner, restaurantId, '2026-11-01', '2026-11-15');
+    expect(run3.lines.filter((line) => line.is_carry_forward)).toHaveLength(0);
+  });
+
+  test('next run carries late-approved correction hours at the current wage', async () => {
+    const owner = await makeUser();
+    const checker = await makeUser();
+    const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    const staff = await makeStaff(businessId, owner, 2000);
+    // 8h on 2026-10-06 at $20/h: the first run pays $160.
+    await pool.query(
+      `INSERT INTO business_time_entries
+         (business_id, user_id, entry_date, clock_in_at, clock_out_at, hours_worked)
+       VALUES ($1, $2, '2026-10-06', '2026-10-06T13:00:00Z', '2026-10-06T21:00:00Z', 8)`,
+      [businessId, staff]
+    );
+    const run1 = await createRun(owner, restaurantId, '2026-10-01', '2026-10-15');
+    const staffLine1 = run1.lines.find((line) => line.staff_user_id === staff);
+    expect(staffLine1).toMatchObject({ regular_hours: 8, wages_cents: 16000 });
+    expect((await finalizeRun(owner, restaurantId, run1.id)).err).toBeNull();
+
+    // Correction approved after finalization: the punch really ran
+    // 10h. The entry now says so, as the approval would have left it.
+    const { rows: [entry] } = await pool.query(
+      "SELECT id FROM business_time_entries WHERE business_id = $1 AND entry_date = '2026-10-06'",
+      [businessId]
+    );
+    await pool.query(
+      `INSERT INTO business_time_entry_corrections
+         (entry_id, business_id, requester_user_id, requested_clock_out_at, reason,
+          status, decided_by, decided_at)
+       VALUES ($1, $2, $3, '2026-10-06T23:00:00Z', 'stayed late',
+               'approved', $4, NOW())`,
+      [entry.id, businessId, staff, checker]
+    );
+    await pool.query(
+      "UPDATE business_time_entries SET clock_out_at = '2026-10-06T23:00:00Z', hours_worked = 10 WHERE id = $1",
+      [entry.id]
+    );
+
+    const run2 = await createRun(owner, restaurantId, '2026-10-16', '2026-10-31');
+    const carryLines = run2.lines.filter((line) => line.is_carry_forward);
+    expect(carryLines).toHaveLength(1);
+    expect(carryLines[0]).toMatchObject({
+      carried_forward_from_run_id: Number(run1.id),
+      carry_forward_kind: 'correction_hours',
+      regular_hours: 2,
+      wages_cents: 4000,
+      total_pay_cents: 4000,
+    });
+
+    // A third run does not carry the same 2h again.
+    const run3 = await createRun(owner, restaurantId, '2026-11-01', '2026-11-15');
+    expect(run3.lines.filter((line) => line.is_carry_forward)).toHaveLength(0);
+  });
+
+  test('rebuilding a draft re-derives its carry lines without duplicating them', async () => {
+    const owner = await makeUser();
+    const checker = await makeUser();
+    const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    const staff = await makeStaff(businessId, owner, 2000);
+    const run1 = await createRun(owner, restaurantId, '2026-10-01', '2026-10-15');
+    expect((await finalizeRun(owner, restaurantId, run1.id)).err).toBeNull();
+    await pool.query(
+      `INSERT INTO business_staff_schedule_changes
+         (business_id, shift_id, user_id, restaurant_id, change_type,
+          before_state, after_state, premium_due, premium_hours, premium_cents,
+          premium_currency_code, changed_by, created_at)
+       VALUES ($1, 1, $2, $3, 'edited',
+               '{"shift_date":"2026-10-05","start_time":"09:00","end_time":"17:00"}'::jsonb,
+               '{"shift_date":"2026-10-05","start_time":"10:00","end_time":"17:00"}'::jsonb,
+               TRUE, 1, 5000, 'USD', $4, NOW())`,
+      [businessId, staff, restaurantId, owner]
+    );
+    const run2 = await createRun(owner, restaurantId, '2026-10-16', '2026-10-31');
+    expect(run2.lines.filter((line) => line.is_carry_forward)).toHaveLength(1);
+    const rebuilt = await call(
+      controller.rebuildPayRun,
+      mockReq({ params: { restaurantId, payRunId: run2.id }, user: { id: owner } })
+    );
+    expect(rebuilt.err).toBeNull();
+    const carryLines = rebuilt.res.payload.payRun.lines.filter((line) => line.is_carry_forward);
+    expect(carryLines).toHaveLength(1);
+    expect(carryLines[0]).toMatchObject({
+      carried_forward_from_run_id: Number(run1.id),
+      predictability_premium_cents: 5000,
+      total_pay_cents: 5000,
+    });
+    const { rows: [carryRow] } = await pool.query(
+      "SELECT COUNT(*)::int AS n FROM restaurant_pay_run_carry_forwards WHERE target_pay_run_id = $1",
+      [run2.id]
+    );
+    expect(carryRow.n).toBe(1);
+  });
+
+  test('a premium in another currency is flagged, not carried at face value', async () => {
+    const owner = await makeUser();
+    const checker = await makeUser();
+    const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    const staff = await makeStaff(businessId, owner, 2000);
+    const run1 = await createRun(owner, restaurantId, '2026-10-01', '2026-10-15');
+    expect((await finalizeRun(owner, restaurantId, run1.id)).err).toBeNull();
+    await pool.query(
+      `INSERT INTO business_staff_schedule_changes
+         (business_id, shift_id, user_id, restaurant_id, change_type,
+          before_state, after_state, premium_due, premium_hours, premium_cents,
+          premium_currency_code, changed_by, created_at)
+       VALUES ($1, 1, $2, $3, 'edited',
+               '{"shift_date":"2026-10-05","start_time":"09:00","end_time":"17:00"}'::jsonb,
+               '{"shift_date":"2026-10-05","start_time":"10:00","end_time":"17:00"}'::jsonb,
+               TRUE, 1, 5000, 'EUR', $4, NOW())`,
+      [businessId, staff, restaurantId, owner]
+    );
+    const flagged = await getRun(owner, restaurantId, run1.id);
+    expect(flagged.inputsChangedSinceFinalization).toMatchObject({
+      has_late_inputs: true,
+      late_premiums: { count: 1, cents: 0, other_currency_count: 1 },
+    });
+    const run2 = await createRun(owner, restaurantId, '2026-10-16', '2026-10-31');
+    expect(run2.lines.filter((line) => line.is_carry_forward)).toHaveLength(0);
+    // Still flagged on the source run: it was not carried.
+    const stillFlagged = await getRun(owner, restaurantId, run1.id);
+    expect(stillFlagged.inputsChangedSinceFinalization.has_late_inputs).toBe(true);
+  });
+});
+
+afterAll(async () => {
+  await pool.end().catch(() => {});
 });
