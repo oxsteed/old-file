@@ -37,15 +37,22 @@ async function getRetentionPolicy(db, { restaurantId, locationId = null, recordC
   if (!isRecordClass(recordClass)) {
     throw new AppError('Unknown record class', 400, 'validation_failed');
   }
+  // Finding 34: a jurisdiction-source row only wins when its
+  // jurisdiction_code matches the requested one. A jurisdiction row
+  // for another jurisdiction (or no requested code at all) must not
+  // outrank a location or operator row. Precedence otherwise
+  // unchanged: jurisdiction, then operator, then default; a
+  // location-scoped row beats a restaurant-wide one within a source.
   const { rows } = await db.query(
     `SELECT * FROM restaurant_retention_policies
       WHERE restaurant_id = $1 AND record_class = $2
         AND (location_id IS NULL OR location_id = $3::bigint)
+        AND (source <> 'jurisdiction' OR jurisdiction_code = $4)
       ORDER BY
         CASE WHEN source = 'jurisdiction' THEN 0 WHEN source = 'operator' THEN 1 ELSE 2 END,
         location_id NULLS LAST
       LIMIT 1`,
-    [restaurantId, recordClass, locationId]
+    [restaurantId, recordClass, locationId, jurisdictionCode]
   );
   const row = rows[0] || null;
   if (row) {
@@ -66,10 +73,10 @@ async function getRetentionPolicy(db, { restaurantId, locationId = null, recordC
   };
 }
 
-async function getRetentionPolicies(db, { restaurantId, locationId = null } = {}) {
+async function getRetentionPolicies(db, { restaurantId, locationId = null, jurisdictionCode = null } = {}) {
   const policies = {};
   for (const recordClass of RECORD_CLASSES) {
-    policies[recordClass] = await getRetentionPolicy(db, { restaurantId, locationId, recordClass });
+    policies[recordClass] = await getRetentionPolicy(db, { restaurantId, locationId, recordClass, jurisdictionCode });
   }
   return policies;
 }
