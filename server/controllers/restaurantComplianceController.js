@@ -550,6 +550,17 @@ exports.runErasureRequest = async (req, res, next) => {
         ORDER BY created_at DESC LIMIT 1`,
       [Number(restaurant.business_id), request.user_id]
     );
+    // Finding 12: erasure needs an offboarding record with an expired
+    // retain_until. With no record the gate was silently bypassed
+    // (retainUntil null skipped the date check); refuse instead of
+    // completing, naming the missing retention.
+    if (!offboarding) {
+      throw new AppError(
+        'No offboarding retention record exists for this person; erasure requires an expired retention record',
+        409,
+        'retention_record_missing'
+      );
+    }
     const outcome = await retentionService.anonymizeFormerStaff(pool, {
       businessId: Number(restaurant.business_id),
       restaurantId: request.restaurant_id == null ? restaurantId : Number(request.restaurant_id),
@@ -557,6 +568,13 @@ exports.runErasureRequest = async (req, res, next) => {
       retainUntil: offboarding?.retain_until || null,
     });
     if (outcome.skipped) {
+      if (outcome.reason === 'retention_not_established') {
+        return res.status(409).json({
+          error: 'No offboarding retention record exists for this person; erasure requires an expired retention record',
+          code: 'retention_record_missing',
+          retain_until: null,
+        });
+      }
       return res.status(409).json({
         error: 'Retention has not expired for this person',
         code: 'retention_not_expired',

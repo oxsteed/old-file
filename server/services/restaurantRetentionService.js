@@ -118,13 +118,20 @@ async function setRetentionPolicy(db, {
 
 // Anonymize one former staff member's restaurant-scoped personal data.
 // `retainUntil` is the offboarding retention deadline for the person;
-// anonymization only runs once it has passed. Returns counts of what
-// was cleared; history rows (time entries, pay runs, schedule versions,
-// audit rows) are counted as retained, never touched.
+// anonymization only runs once it has passed, and a missing deadline
+// (no offboarding record) refuses the erasure outright — it never
+// means "no retention applies". Returns counts of what was cleared;
+// history rows (time entries, pay runs, schedule versions, audit rows)
+// are counted as retained, never touched.
 async function anonymizeFormerStaff(db, { businessId, restaurantId, userId, retainUntil } = {}) {
   if (!businessId || !userId) throw new AppError('businessId and userId are required', 400, 'validation_failed');
   if (retainUntil && new Date(retainUntil) > new Date()) {
     return { skipped: true, reason: 'retention_not_expired', retain_until: retainUntil };
+  }
+  // Finding 12: no retention deadline means no expired retention has
+  // been established — fail closed, never anonymize on a missing gate.
+  if (!retainUntil) {
+    return { skipped: true, reason: 'retention_not_established', retain_until: null };
   }
   const counts = { documents_deleted: 0, time_entry_notes_cleared: 0, labor_profile_removed: 0, history_rows_retained: 0 };
   // Staff documents: the file goes through the storage cleanup queue
