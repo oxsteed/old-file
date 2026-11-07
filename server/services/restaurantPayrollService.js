@@ -2334,6 +2334,10 @@ async function getCorrectionHourDeltas(clientOrPool, { restaurant, sourceRun, ex
     locationIds: sourceLocationIds,
   });
   const multiplier = Number(labor?.labor_policy?.overtime_multiplier_bps || 15000) / 10000;
+  // Finding 47: double time prices at the policy multiplier, not a
+  // hardcoded 2x — the same parameter computeLabor uses, so a carried
+  // correction pays what the next run would pay for the same hour.
+  const doubletimeMultiplier = Number(labor?.labor_policy?.doubletime_multiplier_bps ?? 20000) / 10000;
   // Wages for the delta come from the business membership directly,
   // not the recompute's roster: the recompute is store-scoped, and a
   // member without a store assignment would read as wageless even
@@ -2374,7 +2378,7 @@ async function getCorrectionHourDeltas(clientOrPool, { restaurant, sourceRun, ex
     // flagged on the source run's indicator instead of being
     // carried at a guessed rate (or blocking the new run).
     if (wage == null) continue;
-    const wages = Math.round(raw.regular * wage + raw.overtime * wage * multiplier + raw.doubletime * wage * 2);
+    const wages = Math.round(raw.regular * wage + raw.overtime * wage * multiplier + raw.doubletime * wage * doubletimeMultiplier);
     // A negative net is an overpayment in the source run. It is
     // flagged, never auto-deducted from a later run.
     if (wages <= 0) continue;
@@ -2386,7 +2390,7 @@ async function getCorrectionHourDeltas(clientOrPool, { restaurant, sourceRun, ex
       hourly_wage_cents: wage,
       regular_wages_cents: Math.round(raw.regular * wage),
       overtime_wages_cents: Math.round(raw.overtime * wage * multiplier),
-      doubletime_wages_cents: Math.round(raw.doubletime * wage * 2),
+      doubletime_wages_cents: Math.round(raw.doubletime * wage * doubletimeMultiplier),
       wages_cents: wages,
     });
   }

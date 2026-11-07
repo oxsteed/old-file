@@ -353,4 +353,86 @@ ddescribe('Phase 1: California pay period end to end', () => {
       fx.ana, fx.caLocationId
     );
   });
+
+  test('carried correction doubletime hours price at the policy multiplier, not 2x (finding 47)', async () => {
+    // A fresh worker, one 13-hour Monday at the CA store with no break:
+    // 8 regular + 4 daily OT + 1 double time. The correction extends
+    // the punch to 14h, so the carried delta is exactly 1 double-time
+    // hour. At 2000/hr a 2.5x policy prices it 5000; the old hardcoded
+    // 2x priced it 4000.
+    const dee = await makeUser('Dee', 'Diaz');
+    const { rows: [membership] } = await pool.query(
+      `INSERT INTO business_members (business_id, owner_id, member_id, role, invite_email, status, job_role, hourly_wage_cents)
+       VALUES ($1, $2, $3, 'employee', $4, 'active', 'Cook', 2000) RETURNING id`,
+      [fx.businessId, fx.ana, dee, `member-${dee.slice(0, 8)}@example.invalid`]
+    );
+    await pool.query(
+      `INSERT INTO restaurant_location_memberships (restaurant_id, location_id, membership_id, status)
+       VALUES ($1, $2, $3, 'active')`,
+      [fx.restaurantId, fx.caLocationId, membership.id]
+    );
+    await pool.query(
+      `INSERT INTO business_time_entries
+         (business_id, user_id, entry_date, hours_worked, breaks, clock_in_at, clock_out_at, location_id)
+       VALUES ($1, $2, '2026-11-16', 13, '[]'::jsonb, '2026-11-16T09:00:00-07:00', '2026-11-16T22:00:00-07:00', $3)`,
+      [fx.businessId, dee, fx.caLocationId]
+    );
+    const run = {
+      restaurant: { id: fx.restaurantId, business_id: fx.businessId, currency_code: 'USD', timezone: 'America/Los_Angeles' },
+      fromDate: '2026-11-16', toDate: '2026-11-22', locationIds: [fx.caLocationId],
+    };
+    const baseline = await payrollService.computeLabor(run);
+    const deeBefore = baseline.employees.find((e) => e.user_id === dee);
+    expect(deeBefore).toMatchObject({ regular_hours: 8, overtime_hours: 4, doubletime_hours: 1 });
+    const { rows: [sourceRun] } = await pool.query(
+      `INSERT INTO restaurant_pay_runs (restaurant_id, period_from, period_to, status, created_by, location_ids, currency_code)
+       VALUES ($1, '2026-11-16', '2026-11-22', 'finalized', $2, $3::bigint[], 'USD') RETURNING id`,
+      [fx.restaurantId, fx.ana, [fx.caLocationId]]
+    );
+    await pool.query(
+      `INSERT INTO restaurant_pay_run_lines
+         (pay_run_id, staff_user_id, staff_label, regular_hours, overtime_hours, doubletime_hours,
+          hourly_wage_cents, regular_wages_cents, wages_cents,
+          gross_tips_cents, tip_out_cents, tip_in_cents, net_tips_cents, total_pay_cents)
+       VALUES ($1, $2, 'Dee', $3, $4, $5, 2000, $6, $7, 0, 0, 0, 0, $7)`,
+      [sourceRun.id, dee, deeBefore.regular_hours, deeBefore.overtime_hours, deeBefore.doubletime_hours,
+        deeBefore.regular_wages_cents, deeBefore.wages_cents]
+    );
+
+    await payrollService.saveLaborPolicy(
+      fx.restaurantId,
+      { ...(await payrollService.getLaborPolicy(fx.restaurantId, fx.caLocationId)), doubletime_multiplier_bps: 25000 },
+      fx.ana, fx.caLocationId
+    );
+    try {
+      // The punch really ran 14h; the correction is approved after
+      // the source run finalized, so the next run carries the delta.
+      await pool.query(
+        "UPDATE business_time_entries SET clock_out_at = '2026-11-16T23:00:00-07:00', hours_worked = 14 WHERE business_id = $1 AND user_id = $2 AND entry_date = '2026-11-16'",
+        [fx.businessId, dee]
+      );
+      const items = await payrollService.buildCarryForwardItems(pool, {
+        restaurant: { id: fx.restaurantId, business_id: fx.businessId, currency_code: 'USD' },
+        targetPeriodFrom: '2026-11-23', targetPeriodTo: '2026-11-29',
+        locationIds: [fx.caLocationId], currency: 'USD',
+        wagesByUser: new Map(), excludeTargetRunId: -1,
+      });
+      const corrections = items.filter((item) => item.input_type === 'correction_hours');
+      expect(corrections).toHaveLength(1);
+      expect(corrections[0]).toMatchObject({
+        source_pay_run_id: Number(sourceRun.id),
+        staff_user_id: dee,
+        regular_hours: 0,
+        overtime_hours: 0,
+        doubletime_hours: 1,
+        amount_cents: 5000,
+      });
+    } finally {
+      await payrollService.saveLaborPolicy(
+        fx.restaurantId,
+        { ...(await payrollService.getLaborPolicy(fx.restaurantId, fx.caLocationId)), doubletime_multiplier_bps: 20000 },
+        fx.ana, fx.caLocationId
+      );
+    }
+  });
 });
