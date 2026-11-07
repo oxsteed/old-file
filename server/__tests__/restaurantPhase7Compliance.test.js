@@ -174,6 +174,35 @@ describe('Phase 7: punch-time minor check (gap 17)', () => {
     });
     expect(flagged.blocked).toBe(false);
     expect(flagged.warnings.map((w) => w.rule)).toContain('minor_no_shift');
+    // Finding 49: the unscheduled shift is capped at the
+    // jurisdiction's minor max daily hours (CA: 8h), less the hours
+    // already worked today. A cap of 0 still surfaces.
+    expect(flagged.shift_cap_hours).toBe(8);
+    const partlyWorked = evaluateMinorPunch({
+      band: 'age_16_17', rules: ca, workDate: '2026-11-06', clockInTime: '15:00',
+      shift: null, hoursWorkedToday: 3, hoursWorkedThisWeek: 3,
+    });
+    expect(partlyWorked.shift_cap_hours).toBe(5);
+    const overLimit = evaluateMinorPunch({
+      band: 'age_16_17', rules: ca, workDate: '2026-11-06', clockInTime: '20:00',
+      shift: null, hoursWorkedToday: 9, hoursWorkedThisWeek: 9,
+    });
+    expect(overLimit.shift_cap_hours).toBe(0);
+    // A scheduled shift has no cap: its own hours are evaluated.
+    expect(blocked.shift_cap_hours).toBeNull();
+  });
+
+  test('no minor max daily hours means no cap, only the warning (finding 49)', () => {
+    const custom = resolveRules({ jurisdiction_code: 'CUSTOM' });
+    // The CUSTOM preset carries no minor max daily hours at all.
+    expect(custom.minor_max_daily_hours == null).toBe(true);
+    const flagged = evaluateMinorPunch({
+      band: 'age_16_17', rules: custom, workDate: '2026-11-06', clockInTime: '09:00',
+      shift: null, hoursWorkedToday: 0, hoursWorkedThisWeek: 0,
+    });
+    expect(flagged.blocked).toBe(false);
+    expect(flagged.warnings.map((w) => w.rule)).toContain('minor_no_shift');
+    expect(flagged.shift_cap_hours).toBeNull();
   });
 
   test('an expired minor_until means the band no longer applies', () => {

@@ -699,3 +699,49 @@ ddescribe('Phase 2: geofence and staff-PIN proof are opt-in per location', () =>
       .post(`/api/businesses/${F.businessId}/staff/clock-out/${res.body.id}`).send({});
   });
 });
+
+ddescribe('Phase 7: unscheduled minor clock-in surfaces the shift cap (finding 49)', () => {
+  let F = {};
+
+  beforeAll(async () => {
+    const owner = await newUser('owner');
+    const minor = await newUser('minor');
+    const businessId = await makeBusiness(owner, `Phase 7 Minor Cap ${crypto.randomUUID().slice(0, 8)}`);
+    await addMember(businessId, owner, minor);
+    const restaurantId = await addRestaurant(businessId, owner);
+    const locationId = await addLocation(restaurantId, {});
+    const { rows: [{ id: membershipId }] } = await pool.query(
+      'SELECT id FROM business_members WHERE business_id = $1 AND member_id = $2',
+      [businessId, minor]
+    );
+    await pool.query(
+      `INSERT INTO restaurant_location_memberships (restaurant_id, location_id, membership_id, status)
+       VALUES ($1, $2, $3, 'active')`,
+      [restaurantId, locationId, membershipId]
+    );
+    await pool.query(
+      `INSERT INTO restaurant_labor_jurisdictions (restaurant_id, location_id, jurisdiction_code)
+       VALUES ($1, $2, 'US-CA')`,
+      [restaurantId, locationId]
+    );
+    await pool.query(
+      `INSERT INTO business_staff_labor_profiles (business_id, user_id, minor_band, minor_until)
+       VALUES ($1, $2, 'age_16_17', '2030-01-01')`,
+      [businessId, minor]
+    );
+    F = { owner, minor, businessId, restaurantId, locationId };
+  });
+
+  test('clock-in with no published shift is allowed and capped at the CA 8h daily minor limit', async () => {
+    const res = await request(appFor(F.minor, 'employee'))
+      .post(`/api/businesses/${F.businessId}/staff/clock-in`)
+      .send({ locationId: F.locationId });
+    expect(res.status).toBe(201);
+    // No hours worked today, CA minor max daily is 8h: the cap is 8.
+    expect(res.body.minor_shift_cap).toBe(8);
+    expect(res.body.punch_meta.minor_flag.shift_cap_hours).toBe(8);
+    expect(res.body.punch_meta.minor_flag.warnings.map((w) => w.rule)).toContain('minor_no_shift');
+    await request(appFor(F.minor, 'employee'))
+      .post(`/api/businesses/${F.businessId}/staff/clock-out/${res.body.id}`).send({});
+  });
+});

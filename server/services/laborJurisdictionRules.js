@@ -746,10 +746,24 @@ function evaluateMinorPunch({
   const projectedDayHours = Math.round((Number(hoursWorkedToday) + shiftHoursValue) * 100) / 100;
   const projectedWeekHours = Math.round((Number(hoursWorkedThisWeek) + shiftHoursValue) * 100) / 100;
   const endTime = shift ? String(shift.end_time || '').slice(0, 5) : null;
+  // Finding 49: an unscheduled minor's shift is capped at the
+  // jurisdiction's minor max daily hours from the resolved rules,
+  // less the hours already worked today. The cap is informational —
+  // the punch is still allowed (see the clock-in comment) — but the
+  // manager and the punching minor both see the limit. The source is
+  // exactly rules.minor_max_daily_hours, never the FLSA under-16
+  // school-day limit: that limit is a guessed school calendar (see
+  // finding 31) and must not drive enforcement. A jurisdiction with
+  // no minor max daily hours gets no cap (shift_cap_hours null) and
+  // keeps the plain warning.
+  const maxDaily = r.minor_max_daily_hours == null ? null : Number(r.minor_max_daily_hours);
+  const shiftCapHours = !shift && maxDaily != null
+    ? Math.max(0, Math.round((maxDaily - Number(hoursWorkedToday)) * 100) / 100)
+    : null;
   if (!shift) {
     warnings.push({
       rule: 'minor_no_shift',
-      message: `Minor clocked in on ${workDate} with no published shift for the day; a manager should confirm the shift is compliant.`,
+      message: `Minor clocked in on ${workDate} with no published shift for the day; a manager should confirm the shift is compliant.${shiftCapHours == null ? '' : ` The shift is capped at ${shiftCapHours}h today (${Number(hoursWorkedToday)}h already worked; jurisdiction daily limit ${maxDaily}h).`}`,
     });
   }
   if (band === 'under_16') {
@@ -792,7 +806,10 @@ function evaluateMinorPunch({
       violations.push({ rule: 'minor_weekly', message: `Minor would work ${projectedWeekHours}h this week; the jurisdiction allows ${weeklyLimit}h per week.` });
     }
   }
-  return { applies: true, band, violations, warnings, blocked: violations.length > 0 };
+  return {
+    applies: true, band, violations, warnings, blocked: violations.length > 0,
+    shift_cap_hours: shiftCapHours,
+  };
 }
 
 module.exports = {

@@ -785,7 +785,15 @@ async function checkMinorPunch({ businessId, userId, locationId, restaurantId, t
               TO_CHAR(NOW() AT TIME ZONE $1, 'HH24:MI') AS clock_in_time`,
       [timezone]
     );
-    const workDate = String(local.work_date);
+    // node-pg returns a DATE column as a Date object, not a string:
+    // String() on it gives 'Sat Nov 07 2026 00:00:00 GMT+0000 ...',
+    // which compares greater than any 'YYYY-MM-DD' minor_until and
+    // silently skipped the check for every minor with an expiry set
+    // (the same Date-object class as the PTO requestDays fix). The
+    // work date is the ISO calendar day from here on.
+    const workDate = local.work_date instanceof Date
+      ? local.work_date.toISOString().slice(0, 10)
+      : String(local.work_date).slice(0, 10);
     if (profile.minor_until && workDate > String(profile.minor_until)) return none;
     const { rows: [shift] } = await pool.query(
       `SELECT id, shift_date, start_time, end_time
@@ -924,7 +932,15 @@ exports.clockIn = async (req, res, next) => {
       });
     }
     if (minorCheck.warnings?.length) {
-      punchMeta.minor_flag = { warnings: minorCheck.warnings };
+      // Finding 49: the cap travels on the punch itself (inside
+      // punch_meta.minor_flag, which presentTimeEntry returns) so a
+      // manager reviewing the entry sees the limit, not just the
+      // warning. A cap of 0 still surfaces: the punch was allowed,
+      // but the minor has no hours left today.
+      punchMeta.minor_flag = {
+        warnings: minorCheck.warnings,
+        shift_cap_hours: minorCheck.shift_cap_hours ?? null,
+      };
     }
     // Atomic clock-in: the partial unique index on open entries is
     // the guard, not a preceding SELECT. ON CONFLICT ... DO NOTHING
@@ -967,7 +983,12 @@ exports.clockIn = async (req, res, next) => {
         logger.warn('Minor punch flag audit failed', { entryId: row.id, error: err.message });
       }
     }
-    res.status(201).json(presentTimeEntry(row));
+    // Finding 49: the unscheduled minor's shift cap, top-level for
+    // the punching client. Only present when the minor check applied;
+    // null when the jurisdiction carries no minor max daily hours.
+    const body = presentTimeEntry(row);
+    if (minorCheck.applies) body.minor_shift_cap = minorCheck.shift_cap_hours ?? null;
+    res.status(201).json(body);
   } catch (err) { next(err); }
 };
 
