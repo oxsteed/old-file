@@ -24,6 +24,9 @@ import {
   advanceMenuRollout,
   cancelMenuRollout,
   getBrandFranchiseReport,
+  listBrandFranchiseMappings,
+  assignBrandFranchiseMapping,
+  removeBrandFranchiseMapping,
 } from '../../api/food';
 import { apiErrorMessage } from './foodShared';
 import { moneyMinor } from '../../lib/moneyExact';
@@ -76,6 +79,10 @@ export default function BrandHQPanel({ t, restaurant }) {
   const [selectedRunIds, setSelectedRunIds] = useState([]);
   const [franchiseReport, setFranchiseReport] = useState(null);
   const [franchiseError, setFranchiseError] = useState('');
+  // Item 44: explicit store-to-agreement mappings + the operator's
+  // per-store selection before assigning.
+  const [franchiseMappings, setFranchiseMappings] = useState(null);
+  const [mappingSelection, setMappingSelection] = useState({});
 
   const load = useCallback(async (id) => {
     if (!id) return;
@@ -117,6 +124,9 @@ export default function BrandHQPanel({ t, restaurant }) {
         setFranchiseReport(null);
         setFranchiseError(apiErrorMessage(err, t('restaurants.ops.brandHq.franchise.loadError')));
       }
+      try {
+        setFranchiseMappings(await listBrandFranchiseMappings(id));
+      } catch { setFranchiseMappings(null); }
     } catch (err) {
       setError(apiErrorMessage(err, t('restaurants.ops.brandHq.loadError')));
     } finally {
@@ -343,6 +353,42 @@ export default function BrandHQPanel({ t, restaurant }) {
 
   const finalizedRuns = brandPayRuns.filter((run) => run.status === 'finalized');
   const openRollout = rollouts.find((rollout) => rollout.status !== 'cancelled' && rollout.stage !== 'rolled_out');
+
+  // ── Item 44: assign / change / remove a store's agreement ──────
+  const agreementLabel = (agreement) => {
+    const territory = [agreement.territoryCity, agreement.territoryRegion].filter(Boolean).join(', ');
+    const terms = t('restaurants.ops.brandHq.franchise.royaltyBps', { bps: agreement.royaltyBps });
+    return territory ? `${territory} · ${terms}` : terms;
+  };
+
+  const assignMapping = async (locationId) => {
+    const agreementId = mappingSelection[locationId];
+    if (!brandId || !agreementId) return;
+    setPublishing(true);
+    try {
+      await assignBrandFranchiseMapping(brandId, { locationId: Number(locationId), agreementId });
+      toast.success(t('restaurants.ops.brandHq.franchise.mappings.assigned'));
+      await load(brandId);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('restaurants.ops.brandHq.franchise.mappings.assignError')));
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const removeMapping = async (locationId) => {
+    if (!brandId) return;
+    setPublishing(true);
+    try {
+      await removeBrandFranchiseMapping(brandId, locationId);
+      toast.success(t('restaurants.ops.brandHq.franchise.mappings.removed'));
+      await load(brandId);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('restaurants.ops.brandHq.franchise.mappings.removeError')));
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   if (loading) return <div className="fd-empty" role="status">{t('restaurants.ops.brandHq.loading')}</div>;
   if (error) return <div className="fd-empty" role="alert">{error}</div>;
@@ -731,7 +777,89 @@ export default function BrandHQPanel({ t, restaurant }) {
               {' · '}{t('restaurants.ops.brandHq.franchise.totalsMarketing')}: {franchiseReport.totals.marketingFeeConvertedCents == null ? '—' : money(franchiseReport.totals.marketingFeeConvertedCents, franchiseReport.reportingCurrency)}
               {' · '}{t('restaurants.ops.brandHq.franchise.totalsInitial')}: {franchiseReport.totals.initialFeesConvertedCents == null ? '—' : money(franchiseReport.totals.initialFeesConvertedCents, franchiseReport.reportingCurrency)}
             </p>
+            {(franchiseReport.ambiguousStores || []).length > 0 && (
+              <div className="fd-stack-sm">
+                <p role="alert"><strong>{t('restaurants.ops.brandHq.franchise.mappings.ambiguousTitle')}</strong></p>
+                <p className="fd-card-meta">{t('restaurants.ops.brandHq.franchise.mappings.ambiguousHint')}</p>
+                <ul className="fd-card-meta fd-list-disc-sm">
+                  {(franchiseReport.ambiguousStores || []).map((store) => (
+                    <li key={store.locationId}>
+                      {store.locationName} · {store.restaurantName} · {t('restaurants.ops.brandHq.franchise.mappings.ambiguousCount', { count: store.ambiguousCandidateCount })}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </>
+        )}
+        {franchiseMappings && (
+          <div className="fd-stack-sm">
+            <h5 className="fd-settings-subhead fd-settings-subhead--flush">{t('restaurants.ops.brandHq.franchise.mappings.title')}</h5>
+            <p className="fd-card-meta">{t('restaurants.ops.brandHq.franchise.mappings.hint')}</p>
+            {(franchiseMappings.unmappedStores || []).length > 0 && (
+              <div className="fd-stack-sm">
+                <p><strong>{t('restaurants.ops.brandHq.franchise.mappings.unmappedTitle')}</strong></p>
+                <ul className="fd-card-meta fd-list-disc-sm">
+                  {(franchiseMappings.unmappedStores || []).map((store) => (
+                    <li key={store.locationId}>
+                      {store.locationName} · {store.restaurantName}
+                      <span className="fd-row">
+                        <select
+                          aria-label={t('restaurants.ops.brandHq.franchise.mappings.selectAgreement')}
+                          value={mappingSelection[store.locationId] || ''}
+                          onChange={(event) => setMappingSelection((current) => ({ ...current, [store.locationId]: event.target.value }))}
+                        >
+                          <option value="">{t('restaurants.ops.brandHq.franchise.mappings.selectAgreement')}</option>
+                          {(franchiseMappings.agreements || []).map((agreement) => (
+                            <option key={agreement.agreementId} value={agreement.agreementId}>{agreementLabel(agreement)}</option>
+                          ))}
+                        </select>
+                        <button type="button" className="fd-btn fd-btn-sm" disabled={publishing || !mappingSelection[store.locationId]} onClick={() => assignMapping(store.locationId)} data-track="ui.eb078cc8b5.21">
+                          {t('restaurants.ops.brandHq.franchise.mappings.assign')}
+                        </button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {(franchiseMappings.mappings || []).length > 0 && (
+              <ul className="fd-card-meta fd-list-disc-sm">
+                {(franchiseMappings.mappings || []).map((mapping) => (
+                  <li key={mapping.locationId}>
+                    {mapping.locationName} · {mapping.restaurantName} · {agreementLabel(mapping.agreement)}
+                    {mapping.agreement.mappingAmbiguous && ` · ${t('restaurants.ops.brandHq.franchise.mappings.ambiguousTitle')}`}
+                    <span className="fd-row">
+                      <select
+                        aria-label={t('restaurants.ops.brandHq.franchise.mappings.selectAgreement')}
+                        value={mappingSelection[mapping.locationId] ?? mapping.agreement.agreementId}
+                        onChange={(event) => setMappingSelection((current) => ({ ...current, [mapping.locationId]: event.target.value }))}
+                      >
+                        {(franchiseMappings.agreements || []).map((agreement) => (
+                          <option key={agreement.agreementId} value={agreement.agreementId}>{agreementLabel(agreement)}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="fd-btn fd-btn-sm"
+                        disabled={publishing || (mappingSelection[mapping.locationId] ?? mapping.agreement.agreementId) === mapping.agreement.agreementId}
+                        onClick={() => assignMapping(mapping.locationId)}
+                        data-track="ui.eb078cc8b5.22"
+                      >
+                        {t('restaurants.ops.brandHq.franchise.mappings.change')}
+                      </button>
+                      <button type="button" className="fd-btn fd-btn-sm" disabled={publishing} onClick={() => removeMapping(mapping.locationId)} data-track="ui.eb078cc8b5.23">
+                        {t('restaurants.ops.brandHq.franchise.mappings.unassign')}
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(franchiseMappings.unmappedStores || []).length === 0 && (franchiseMappings.mappings || []).length === 0 && (
+              <p className="fd-card-meta">{t('restaurants.ops.brandHq.franchise.mappings.noStores')}</p>
+            )}
+          </div>
         )}
       </div>
 

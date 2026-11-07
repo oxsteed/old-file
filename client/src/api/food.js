@@ -338,6 +338,15 @@ export const cancelMenuRollout = (brandId, rolloutId) =>
 export const getBrandFranchiseReport = (brandId, params = {}) =>
   api.get(`/restaurant-brands/${brandId}/franchise-report`, { params }).then((r) => r.data);
 
+// Item 44: explicit store-to-agreement mappings. A store with no
+// mapping reports as unmapped; an operator assigns one here.
+export const listBrandFranchiseMappings = (brandId) =>
+  api.get(`/restaurant-brands/${brandId}/franchise-mappings`).then((r) => r.data);
+export const assignBrandFranchiseMapping = (brandId, payload) =>
+  api.post(`/restaurant-brands/${brandId}/franchise-mappings`, payload).then((r) => r.data?.mapping);
+export const removeBrandFranchiseMapping = (brandId, locationId) =>
+  api.delete(`/restaurant-brands/${brandId}/franchise-mappings/${locationId}`).then((r) => r.data);
+
 // In-store hub + offline cash replay (F-08 phase 2). The hub is the
 // designated per-store device that relays LAN traffic while offline and
 // uploads queued cash sales for idempotent replay on reconnect.

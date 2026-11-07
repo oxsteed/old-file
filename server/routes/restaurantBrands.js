@@ -49,6 +49,13 @@ router.post('/:brandId/menu/rollouts/:rolloutId/cancel', menuRollouts.cancelRoll
 // and royalty/fee reporting from the stored agreement terms.
 const franchiseReport = require('../controllers/restaurantFranchiseReportController');
 router.get('/:brandId/franchise-report', franchiseReport.getFranchiseReport);
+// Item 44: explicit store-to-agreement mappings. Read with the same
+// reports.view grant as the franchise report; assign/unassign with
+// settings.manage, the same grant as the brand FX policy.
+const franchiseMappings = require('../controllers/restaurantFranchiseLocationAgreementController');
+router.get('/:brandId/franchise-mappings', franchiseMappings.listFranchiseMappings);
+router.post('/:brandId/franchise-mappings', franchiseMappings.assignFranchiseMapping);
+router.delete('/:brandId/franchise-mappings/:locationId', franchiseMappings.removeFranchiseMapping);
 router.post('/:brandId/restaurants', brand.attachRestaurant);
 router.delete('/:brandId/restaurants/:restaurantId', scopeExempt('resource-scoped'), brand.detachRestaurant);
 

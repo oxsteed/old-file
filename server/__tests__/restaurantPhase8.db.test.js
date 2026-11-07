@@ -158,11 +158,19 @@ describeDb('Phase 8 multi-location', () => {
          VALUES ($1, $2, $2, 'Phase8', 'Owner', $3, 'US', 'Springfield', 'OH', 'launched') RETURNING id`,
         [programId, ownerId, `p8-franchise-${ownerId.slice(0, 8)}@example.invalid`]
       )).rows[0].id;
-      await client.query(
+      const agreementId = (await client.query(
         `INSERT INTO franchise_agreements
            (application_id, royalty_bps, marketing_fee_bps, initial_fee_cents, currency, signed_at)
-         VALUES ($1, 500, 100, 100000, 'USD', NOW())`,
+         VALUES ($1, 500, 100, 100000, 'USD', NOW()) RETURNING id`,
         [applicationId]
+      )).rows[0].id;
+      // Item 44: the store's agreement is explicit now, never
+      // string-matched. Record the mapping the backfill would have
+      // made for this Springfield OH store.
+      await client.query(
+        `INSERT INTO franchise_location_agreements (location_id, agreement_id, source, ambiguous, ambiguous_candidate_count)
+         VALUES ($1, $2, 'backfill', FALSE, 0)`,
+        [storeA1, agreementId]
       );
     }
     // One paid order at store A1 (USD 100.00) so the franchise

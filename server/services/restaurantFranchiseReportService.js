@@ -11,11 +11,25 @@
 // fee schedule in the model beyond those stored terms, so there is
 // nothing else to report.
 //
-// A store maps to its franchise agreement through territory: the
-// same deterministic city-then-region match the royalty accrual
-// uses (franchiseRoyaltyService.findTerritoryAgreement). A store
-// whose city/region matches no launched agreement reports with no
-// agreement and no royalty — it is listed, not dropped.
+// A store maps to its franchise agreement EXPLICITLY, through
+// franchise_location_agreements (design-review item 44) — never
+// through city/region string matching. When two launched agreements
+// covered the same city, the old most-recently-updated-wins string
+// match attributed the store (and its royalty and marketing fee) to
+// the wrong franchisee. A store with no mapping reports with no
+// agreement and no royalty — it is listed in `unmappedStores`, not
+// dropped and never string-matched. A backfilled mapping whose old
+// match was ambiguous is flagged on the store (`mappingAmbiguous`)
+// and listed in `ambiguousStores` so an operator can confirm it.
+//
+// The royalty ACCRUAL for store revenue (food orders, which carry a
+// location_id) reads the same table through
+// franchiseRoyaltyService.accrueTerritoryRoyalty. Revenue that is only
+// a territory point (jobs, marketplace shipping addresses, Direct
+// bookings) has no store to map, so it keeps the deterministic
+// territory match in franchiseRoyaltyService.findTerritoryAgreement;
+// report and accrual agree wherever a store exists, and the
+// territory-point path is documented there, not silently unified.
 //
 // Permission boundary: an HQ caller sees every store they can
 // already access; a franchisee (the owner_user_id of a launched
@@ -27,6 +41,7 @@ const AppError = require('../utils/appError');
 const fx = require('./restaurantFxService');
 const brandService = require('./restaurantBrandService');
 const hq = require('./restaurantHQService');
+const locationAgreements = require('./restaurantFranchiseLocationAgreementService');
 
 function dateOnly(value, field = 'date') {
   const text = value instanceof Date ? value.toISOString().slice(0, 10) : String(value || '').slice(0, 10);
@@ -59,36 +74,11 @@ async function listFranchiseeAgreements(client, userId) {
   return rows;
 }
 
-// Territory match for reporting: the same deterministic ordering
-// as the royalty accrual (exact city outranks region, then the most
-// recently updated agreement, then the lowest application id) — but
-// WITHOUT the accrual's royalty_bps > 0 filter, because a launched
-// agreement with a zero royalty still governs its store and must
-// show in the report with zero royalty, not as "no agreement".
-async function findReportingAgreement(client, city, region) {
-  const { rows } = await client.query(
-    `SELECT fa.id AS application_id,
-            fagr.id AS agreement_id
-       FROM franchise_applications fa
-       JOIN franchise_agreements fagr ON fagr.application_id = fa.id
-      WHERE fa.status = 'launched'
-        AND (
-          ($1::text IS NOT NULL AND btrim($1::text) <> ''
-             AND LOWER(TRIM(COALESCE(fa.desired_city, ''))) = LOWER(TRIM($1::text)))
-          OR
-          ($2::text IS NOT NULL AND btrim($2::text) <> ''
-             AND LOWER(TRIM(COALESCE(fa.desired_region, ''))) = LOWER(TRIM($2::text)))
-        )
-      ORDER BY
-        CASE WHEN ($1::text IS NOT NULL AND btrim($1::text) <> ''
-                   AND LOWER(TRIM(COALESCE(fa.desired_city, ''))) = LOWER(TRIM($1::text)))
-             THEN 0 ELSE 1 END,
-        fagr.updated_at DESC,
-        fa.id ASC
-      LIMIT 1`,
-    [city || null, region || null]
-  );
-  return rows[0] || null;
+// Reporting agreement for one store: the explicit mapping only.
+// No city/region string fallback — an unmapped store reports as
+// unmapped, never guessed. Returns the mapped agreement row or null.
+async function findReportingAgreement(client, locationId) {
+  return locationAgreements.findLocationAgreement(client, locationId);
 }
 
 async function getFranchiseReport(client, {
@@ -114,11 +104,16 @@ async function getFranchiseReport(client, {
   const rateDate = fx.resolveRateDate(policy, toDate);
 
   const stores = [];
+  const unmappedStores = [];
+  const ambiguousStores = [];
   const perCurrencySales = new Map();
   const perCurrencyRoyalty = new Map();
   const perCurrencyMarketing = new Map();
   const perCurrencyInitialFees = new Map();
   const missingCurrencies = new Set();
+  const staleCurrencies = new Set();
+  let maxRateAgeDays = null;
+  let stalestRateDate = null;
   let convertedSalesTotal = 0;
   let convertedRoyaltyTotal = 0;
   let convertedMarketingTotal = 0;
@@ -153,64 +148,50 @@ async function getFranchiseReport(client, {
         orderCount: Number(row.order_count || 0),
         netCollectedCents: Number(row.net_collected_cents || 0),
       }));
-      // Territory match: exact city first, then region, most recent
-      // agreement first — the same deterministic rule as accrual.
-      const agreement = await findReportingAgreement(
-        client,
-        location.address_city,
-        location.address_state
-      );
+      // Explicit mapping only: the store's agreement comes from
+      // franchise_location_agreements, never from a city/region
+      // string match. No mapping means no agreement, full stop.
+      const agreement = await findReportingAgreement(client, Number(location.id));
       let agreementOut = null;
       let royaltyLines = [];
       if (agreement) {
-        const { rows: [detail] } = await client.query(
-          `SELECT fagr.id AS agreement_id, fagr.royalty_bps, fagr.marketing_fee_bps,
-                  fagr.initial_fee_cents, fagr.currency, fagr.territory_exclusive,
-                  fa.owner_user_id, fa.desired_city, fa.desired_region
-             FROM franchise_agreements fagr
-             JOIN franchise_applications fa ON fa.id = fagr.application_id
-            WHERE fagr.id = $1`,
-          [agreement.agreement_id]
-        );
-        if (detail) {
-          agreementOut = {
-            agreementId: String(detail.agreement_id),
-            ownerUserId: detail.owner_user_id,
-            royaltyBps: Number(detail.royalty_bps || 0),
-            marketingFeeBps: Number(detail.marketing_fee_bps || 0),
-            initialFeeCents: detail.initial_fee_cents == null ? null : Number(detail.initial_fee_cents),
-            currency: detail.currency || null,
-            territoryExclusive: detail.territory_exclusive === true,
-            territoryCity: detail.desired_city || null,
-            territoryRegion: detail.desired_region || null,
-          };
-          if (!agreementsSeen.has(String(detail.agreement_id))) {
-            agreementsSeen.set(String(detail.agreement_id), agreementOut);
-            const feeCurrency = agreementOut.currency;
-            if (agreementOut.initialFeeCents != null) {
-              perCurrencyInitialFees.set(
-                feeCurrency,
-                (perCurrencyInitialFees.get(feeCurrency) || 0) + agreementOut.initialFeeCents
-              );
-            }
+        agreementOut = {
+          agreementId: String(agreement.agreementId),
+          ownerUserId: agreement.ownerUserId,
+          royaltyBps: Number(agreement.royaltyBps || 0),
+          marketingFeeBps: Number(agreement.marketingFeeBps || 0),
+          initialFeeCents: agreement.initialFeeCents,
+          currency: agreement.currency,
+          territoryExclusive: agreement.territoryExclusive === true,
+          territoryCity: agreement.territoryCity,
+          territoryRegion: agreement.territoryRegion,
+        };
+        if (!agreementsSeen.has(String(agreementOut.agreementId))) {
+          agreementsSeen.set(String(agreementOut.agreementId), agreementOut);
+          const feeCurrency = agreementOut.currency;
+          if (agreementOut.initialFeeCents != null) {
+            perCurrencyInitialFees.set(
+              feeCurrency,
+              (perCurrencyInitialFees.get(feeCurrency) || 0) + agreementOut.initialFeeCents
+            );
           }
-          // Royalty and marketing fee accrue on this store's sales in
-          // the period, at the stored basis points, in the sale
-          // currency. The agreement currency is the denomination of
-          // the initial fee, not a conversion instruction for sales.
-          royaltyLines = sales.map((sale) => {
-            const royaltyCents = Math.round((sale.netCollectedCents * agreementOut.royaltyBps) / 10000);
-            const marketingCents = Math.round((sale.netCollectedCents * agreementOut.marketingFeeBps) / 10000);
-            return {
-              currencyCode: sale.currencyCode,
-              salesCents: sale.netCollectedCents,
-              royaltyBps: agreementOut.royaltyBps,
-              royaltyCents,
-              marketingFeeBps: agreementOut.marketingFeeBps,
-              marketingCents,
-            };
-          });
         }
+        // Royalty and marketing fee accrue on this store's sales in
+        // the period, at the stored basis points, in the sale
+        // currency. The agreement currency is the denomination of
+        // the initial fee, not a conversion instruction for sales.
+        royaltyLines = sales.map((sale) => {
+          const royaltyCents = Math.round((sale.netCollectedCents * agreementOut.royaltyBps) / 10000);
+          const marketingCents = Math.round((sale.netCollectedCents * agreementOut.marketingFeeBps) / 10000);
+          return {
+            currencyCode: sale.currencyCode,
+            salesCents: sale.netCollectedCents,
+            royaltyBps: agreementOut.royaltyBps,
+            royaltyCents,
+            marketingFeeBps: agreementOut.marketingFeeBps,
+            marketingCents,
+          };
+        });
       }
       // Franchisee boundary: a franchisee sees only stores matching
       // their own agreements. HQ callers (franchiseeUserId null) see
@@ -225,7 +206,7 @@ async function getFranchiseReport(client, {
         perCurrencyRoyalty.set(line.currencyCode, (perCurrencyRoyalty.get(line.currencyCode) || 0) + line.royaltyCents);
         perCurrencyMarketing.set(line.currencyCode, (perCurrencyMarketing.get(line.currencyCode) || 0) + line.marketingCents);
       }
-      stores.push({
+      const storeOut = {
         restaurantId: Number(restaurant.id),
         restaurantName: restaurant.display_name,
         locationId: Number(location.id),
@@ -236,16 +217,46 @@ async function getFranchiseReport(client, {
         sales,
         agreement: agreementOut,
         royalty: royaltyLines,
-        // No agreement matched: the store still reports its sales;
-        // royalty is simply absent, never zero-filled from a guess.
+        // No mapping: the store still reports its sales; royalty is
+        // simply absent, never zero-filled from a guess. The store is
+        // also listed in unmappedStores so an operator can assign it.
         noAgreement: agreementOut == null,
-      });
+        mappingSource: agreement ? agreement.mappingSource : null,
+        // Backfilled from an ambiguous old string match: the
+        // attribution is the old winner, flagged for confirmation.
+        mappingAmbiguous: agreement ? agreement.mappingAmbiguous === true : false,
+      };
+      if (agreementOut == null) {
+        unmappedStores.push({
+          locationId: storeOut.locationId,
+          locationName: storeOut.locationName,
+          restaurantId: storeOut.restaurantId,
+          restaurantName: storeOut.restaurantName,
+          city: storeOut.city,
+          region: storeOut.region,
+        });
+      } else if (agreement.mappingAmbiguous) {
+        ambiguousStores.push({
+          locationId: storeOut.locationId,
+          locationName: storeOut.locationName,
+          restaurantId: storeOut.restaurantId,
+          restaurantName: storeOut.restaurantName,
+          agreementId: agreementOut.agreementId,
+          ambiguousCandidateCount: agreement.ambiguousCandidateCount,
+        });
+      }
+      stores.push(storeOut);
     }
   }
 
   // Converted totals: sales, royalties, and marketing fees each
   // convert from their own native currency. Any currency without a
-  // stored rate leaves its converted total null and is named.
+  // stored rate leaves its converted total null and is named. The
+  // staleness summary is aggregated across all four conversions in
+  // the breakdown's own shape (any stale line, the union of stale
+  // currencies, the oldest rate's age and date), so a converted
+  // franchise total built on an old rate carries the same warning
+  // the HQ rollups surface — no new threshold, just carried through.
   async function convertMap(map) {
     const entries = [...map.entries()].map(([currencyCode, amountCents]) => ({ currencyCode, amountCents }));
     const converted = await fx.convertBreakdown(client, {
@@ -255,6 +266,11 @@ async function getFranchiseReport(client, {
       rateSource: policy.rateSource,
     });
     for (const missing of converted.missingCurrencies) missingCurrencies.add(missing);
+    for (const stale of converted.staleCurrencies || []) staleCurrencies.add(stale);
+    if (converted.maxRateAgeDays != null && (maxRateAgeDays == null || converted.maxRateAgeDays > maxRateAgeDays)) {
+      maxRateAgeDays = converted.maxRateAgeDays;
+      stalestRateDate = converted.stalestRateDate;
+    }
     return converted;
   }
   const salesConverted = await convertMap(perCurrencySales);
@@ -275,7 +291,13 @@ async function getFranchiseReport(client, {
     rateSource: policy.rateSource,
     isDefaultPolicy: policy.isDefault,
     missingCurrencies: [...missingCurrencies],
+    stale: staleCurrencies.size > 0,
+    staleCurrencies: [...staleCurrencies],
+    maxRateAgeDays,
+    stalestRateDate,
     stores,
+    unmappedStores,
+    ambiguousStores,
     agreements: [...agreementsSeen.values()],
     totals: {
       salesByCurrency: asList(perCurrencySales),
@@ -293,4 +315,5 @@ async function getFranchiseReport(client, {
 module.exports = {
   getFranchiseReport,
   listFranchiseeAgreements,
+  findReportingAgreement,
 };

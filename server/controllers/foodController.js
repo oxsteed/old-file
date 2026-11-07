@@ -5567,6 +5567,11 @@ exports.updateOrderStatus = async (req, res, next) => {
           await accrueTerritoryRoyalty({
             client: pool,
             amountCents: Number(order.total_cents || 0),
+            // Item 44: the order's store governs through the explicit
+            // mapping; an unmapped store accrues nothing. Legacy
+            // orders with no location fall back to the territory
+            // point (the restaurant address) below.
+            locationId: order.location_id ?? null,
             city: restaurant.address_city || null,
             region: restaurant.address_state || null,
             sourceType: 'food_order',
