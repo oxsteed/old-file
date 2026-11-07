@@ -290,13 +290,14 @@ describe('Phase 1: predictability premium is jurisdiction-driven', () => {
   const before = { shift_date: '2026-10-30', start_time: '09:00', end_time: '17:00' };
   const after = { shift_date: '2026-10-30', start_time: '12:00', end_time: '17:00' };
 
-  test('US-NYC inside the 14-day window owes one hour at the regular rate', () => {
+  test('US-NYC inside the 14-day window owes the statutory dollar premium, not one hour at the wage', () => {
     const nyc = L.resolveRules({ jurisdiction_code: 'US-NYC' });
     const verdict = L.evaluateChange({ before, after, rules: nyc, now });
     expect(verdict.premium_due).toBe(true);
-    expect(verdict.premium_hours).toBe(1);
-    // At 2000/hr the premium line is 2,000 minor units.
-    expect(verdict.premium_hours * 2000).toBe(2000);
+    // The change cuts hours (8h -> 5h) with 93h notice: the
+    // reduce/cancel 24h-7 days tier is $45 (Local Law 107).
+    expect(verdict.premium_cents).toBe(4500);
+    expect(verdict.premium_hours).toBe(null);
   });
 
   test('US-FED has no notice rule, so no premium is owed', () => {

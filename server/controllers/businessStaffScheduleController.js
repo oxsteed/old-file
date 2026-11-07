@@ -1865,10 +1865,11 @@ const shiftSnapshot = (row) => row && ({
 
 // A change to a published shift is recorded; inside the notice window an
 // employer-initiated change is flagged for predictability pay, and the
-// amount is computed at change time: premium hours from the jurisdiction's
-// premium rule, priced at the employee's wage of record. When the wage is
-// unknown the hours are stored with a NULL amount so payroll prices them
-// from the current wage at report time instead of silently paying zero.
+// amount is computed at change time: dollar jurisdictions (US-NYC) store
+// the statutory amount directly; hours-based jurisdictions price premium
+// hours at the employee's wage of record. When the wage is unknown the
+// hours are stored with a NULL amount so payroll prices them from the
+// current wage at report time instead of silently paying zero.
 async function recordScheduleChange(req, { businessId, before, after, changeType }) {
   if (!before?.published_at) return null;
   const rules = await laborJurisdiction.getJurisdiction(pool, Number(before.restaurant_id) || null, Number(before.location_id) || null);
@@ -1876,12 +1877,18 @@ async function recordScheduleChange(req, { businessId, before, after, changeType
   const b = shiftSnapshot(before), a = after ? shiftSnapshot(after) : null;
   if (a && b.shift_date === a.shift_date && b.start_time === a.start_time && b.end_time === a.end_time && b.user_id === a.user_id) return null;
   const verdict = laborJurisdiction.evaluateChange({ before: b, after: a, rules, employeeRequested });
+  // Dollar jurisdictions (US-NYC Fair Workweek) price the premium from
+  // the tier table: premium_cents is the statutory amount, no wage
+  // needed, so it is stored as-is and never repriced. Hours-based
+  // jurisdictions price premium_hours at the wage of record here, or
+  // leave the amount NULL for payroll to price at report time.
   let premiumHours = verdict.premium_hours;
-  let premiumCents = null;
+  let premiumCents = verdict.premium_cents;
   let premiumCurrency = null;
-  if (verdict.premium_due && premiumHours != null && before.user_id) {
-    const { rows: [wageRow] } = await pool.query(
-      `SELECT COALESCE(
+  if (verdict.premium_due && before.user_id) {
+    if (premiumCents == null && premiumHours != null) {
+      const { rows: [wageRow] } = await pool.query(
+        `SELECT COALESCE(
               CASE WHEN lm.pay_rate_period = 'hour' THEN lm.pay_rate_cents END,
               bm.hourly_wage_cents,
               CASE WHEN bm.pay_rate_period = 'hour' THEN bm.pay_rate_cents END
@@ -1890,18 +1897,25 @@ async function recordScheduleChange(req, { businessId, before, after, changeType
          LEFT JOIN restaurant_location_memberships lm
            ON lm.membership_id = bm.id AND lm.restaurant_id = $2 AND lm.location_id = $3 AND lm.status = 'active'
         WHERE bm.business_id = $1 AND bm.member_id = $4 AND bm.status = 'active'`,
-      [businessId, Number(before.restaurant_id) || null, Number(before.location_id) || null, before.user_id]
-    ).catch(() => ({ rows: [] }));
-    const wage = wageRow?.hourly_wage_cents == null ? null : Number(wageRow.hourly_wage_cents);
-    if (wage != null) premiumCents = Math.round(Number(premiumHours) * wage);
-    const { rows: [currencyRow] } = await pool.query(
-      `SELECT l.currency_code AS location_currency, r.currency_code AS restaurant_currency
-         FROM food_restaurants r
-         LEFT JOIN restaurant_locations l ON l.id = $2 AND l.restaurant_id = r.id
-        WHERE r.id = $1`,
-      [Number(before.restaurant_id) || null, Number(before.location_id) || null]
-    ).catch(() => ({ rows: [] }));
-    premiumCurrency = currencyRow?.location_currency || currencyRow?.restaurant_currency || null;
+        [businessId, Number(before.restaurant_id) || null, Number(before.location_id) || null, before.user_id]
+      ).catch(() => ({ rows: [] }));
+      const wage = wageRow?.hourly_wage_cents == null ? null : Number(wageRow.hourly_wage_cents);
+      if (wage != null) premiumCents = Math.round(Number(premiumHours) * wage);
+    }
+    // The currency is recorded for any premium that carries an amount
+    // or unpriced hours, dollar or hours-based alike: the pay run
+    // scopes stored amounts by this currency and excludes (never
+    // silently converts) amounts recorded in another one.
+    if (premiumCents != null || premiumHours != null) {
+      const { rows: [currencyRow] } = await pool.query(
+        `SELECT l.currency_code AS location_currency, r.currency_code AS restaurant_currency
+           FROM food_restaurants r
+           LEFT JOIN restaurant_locations l ON l.id = $2 AND l.restaurant_id = r.id
+          WHERE r.id = $1`,
+        [Number(before.restaurant_id) || null, Number(before.location_id) || null]
+      ).catch(() => ({ rows: [] }));
+      premiumCurrency = currencyRow?.location_currency || currencyRow?.restaurant_currency || null;
+    }
   }
   const { rows: [row] } = await pool.query(
     `INSERT INTO business_staff_schedule_changes
@@ -2036,8 +2050,24 @@ exports.setLaborJurisdiction = async (req, res, next) => {
     const cols = laborJurisdiction.RULE_COLUMNS;
     const values = cols.map((c) => {
       const v = req.body?.[c];
-      return v === undefined || v === null || v === '' ? null : v;
+      if (v === undefined || v === null || v === '') return null;
+      // The tier table is a JSON object; send it as JSON text so the
+      // JSONB column stores the object, not a "[object Object]" string.
+      return typeof v === 'object' ? JSON.stringify(v) : v;
     });
+    // A CUSTOM row that leaves overtime parameters NULL is not
+    // payable: NULL means "no rule" for CUSTOM, not "use the
+    // default", and the pay path fails closed on it. Refuse the row
+    // here, naming the missing parameters, instead of saving a
+    // configuration that can only pay straight time.
+    const candidate = { jurisdiction_code: code };
+    cols.forEach((c, i) => { candidate[c] = values[i]; });
+    const missingParams = laborJurisdiction.customRulesErrors(
+      laborJurisdiction.resolveRules(candidate)
+    );
+    if (missingParams.length) {
+      return res.status(400).json({ error: `CUSTOM jurisdiction leaves overtime parameters unset: ${missingParams.join(', ')}` });
+    }
     // Deactivate the old row (history is kept), insert the new config.
     await pool.query(
       `UPDATE restaurant_labor_jurisdictions SET is_active = FALSE, updated_at = NOW()
