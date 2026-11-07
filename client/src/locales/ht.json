@@ -25151,6 +25151,7 @@
         "tipOut": "Tip ou te bay",
         "tipIn": "Tip ou te resevwa",
         "netTips": "Tip nèt",
+        "netTipsInCurrency": "Tip nèt ({{currency}})",
         "totalPay": "Peye total",
         "noPay": "Pa gen peye nan peryòd sa a.",
         "stubsTitle": "Fich peye",
@@ -25567,6 +25568,7 @@
         "convertedTotal": "total konvèti",
         "rate": "to {{rate}} nan dat {{date}}",
         "noRate": "pa gen to anrejistre",
+        "staleRate": "Chif konvèti yo sèvi ak yon to anrejistre depi {{date}}, ki gen {{days}} jou. Yo antre to yo alamen, kidonk verifye to a toujou valab.",
         "reportingCurrencyLabel": "Lajan rapò",
         "rateSourceLabel": "Sous to a",
         "sourceStored": "To anrejistre yo",
@@ -25626,7 +25628,8 @@
         "reviewError": "Pa t kapab revize prete a.",
         "rosterTitle": "Lis anplwaye pataje",
         "shifts": "{{count}} orè",
-        "borrowed": "{{count}} prete"
+        "borrowed": "{{count}} prete",
+        "overnight": "fini nan demen"
       }
       },
       "brandHq": {
@@ -25689,6 +25692,7 @@
         "convertedTotal": "total konvèti",
         "rate": "to {{rate}} nan dat {{date}}",
         "noRate": "pa gen to anrejistre",
+        "staleRate": "Chif konvèti yo sèvi ak yon to anrejistre depi {{date}}, ki gen {{days}} jou. Yo antre to yo alamen, kidonk verifye to a toujou valab.",
         "reportingCurrencyLabel": "Lajan rapò",
         "rateSourceLabel": "Sous to a",
         "sourceStored": "To anrejistre yo",
@@ -25761,7 +25765,24 @@
         "totalsSales": "Vant",
         "totalsRoyalty": "Devwa",
         "totalsMarketing": "Maketing",
-        "totalsInitial": "Frè inisyal"
+        "totalsInitial": "Frè inisyal",
+        "mappings": {
+          "title": "Akò pa magazen",
+          "hint": "Chak magazen gen yon akò franchiz. Yon magazen san akò rapòte lavant li yo san redevans.",
+          "unmappedTitle": "Magazen san akò",
+          "ambiguousTitle": "Akò pou konfime",
+          "ambiguousHint": "Magazen sa yo te asiyen apati teritwa ki kouvri youn lòt. Konfime akò a kòrèk.",
+          "ambiguousCount": "{{count}} akò te koresponn ak magazen sa a",
+          "selectAgreement": "Chwazi yon akò",
+          "assign": "Asiyen",
+          "change": "Chanje",
+          "unassign": "Retire",
+          "assigned": "Akò asiyen.",
+          "removed": "Akò retire.",
+          "assignError": "Pa t kapab asiyen akò a.",
+          "removeError": "Pa t kapab retire akò a.",
+          "noStores": "Pa gen magazen nan mak sa a pou kounye a."
+        }
       }
       },
       "storeHub": {
@@ -26339,6 +26360,8 @@
           "laborPercent": "% travay sou vant nèt",
           "laborCost": "Pri travay",
           "netSales": "Vant nèt yo kolekte",
+          "multiCurrencyRevenue": "Vant yo te kolekte nan plis pase yon lajan ({{amounts}}). Chif vant nèt anwo a se total {{currency}} sèlman.",
+          "multiCurrencyTips": "Yo te genyen tibwa nan lòt lajan tou ({{amounts}}). Tibwa sa yo pa nan total anwo yo epi yo pa ka finalize yon pewòl toutotan yo la.",
           "hoursWorked": "Èdtan travay",
           "scheduledHours": "{{hours}} pwograme",
           "salesPerLaborHour": "Vant pa èdtan travay",

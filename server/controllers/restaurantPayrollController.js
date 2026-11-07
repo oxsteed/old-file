@@ -19,6 +19,7 @@ const { getLocationScope, assertLocationAccess } = require('../services/restaura
 const { strictInteger } = require('../utils/strictInteger');
 const { withTransaction } = require('../utils/transaction');
 const { formatMinorUnits } = require('../utils/currencyPrecision');
+const { csvCell } = require('../utils/csv');
 
 
 function parsePositiveInt(value) {
@@ -1166,6 +1167,39 @@ exports.finalizePayRun = async (req, res, next) => {
           { count: Number(pendingTipRow.n) }
         );
       }
+      // Item 18: finalize also fails closed on tips earned in a
+      // currency other than the run's anchored currency. The run
+      // prices its lines in the anchor only and there is no agreed
+      // FX conversion, so finalizing would pay those employees
+      // short. Draft creation stays open so managers can see the
+      // problem in the labor report; finalizing names the foreign
+      // currencies and amounts, and the manager finalizes again
+      // once the period holds tips in the anchor currency only.
+      const anchoredCurrency = resolveRunCurrency(existing, restaurant);
+      const allocations = await payroll.computeTipAllocations({
+        restaurant,
+        fromDate: periodFrom,
+        toDate: periodTo,
+        locationIds: scoped ? runLocationIds : null,
+      });
+      const foreignTips = (allocations.currencies || [])
+        .filter((bucket) => String(bucket.currency).toUpperCase() !== anchoredCurrency
+          && Number(bucket.total_tips_cents) > 0)
+        .map((bucket) => ({
+          currency: String(bucket.currency).toUpperCase(),
+          total_tips_cents: Number(bucket.total_tips_cents),
+        }));
+      if (foreignTips.length) {
+        const named = foreignTips
+          .map((entry) => `${formatMinorUnits(entry.total_tips_cents, entry.currency)} (${entry.currency})`)
+          .join(', ');
+        throw new AppError(
+          `Tips were earned in another currency in this period (${named}), but this pay run is anchored in ${anchoredCurrency}. Finalizing would pay those tips short, so resolve the foreign-currency tips before finalizing`,
+          409,
+          'pay_run_finalize_multi_currency_tips',
+          { anchored_currency: anchoredCurrency, currencies: foreignTips }
+        );
+      }
       const sum = (pick) => lines.reduce((total, line) => total + (Number(pick(line)) || 0), 0);
       const totals = {
         // Finding 7: the run's own currency snapshot prices the
@@ -1439,11 +1473,6 @@ exports.approveVoidPayRun = async (req, res, next) => {
     res.json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.id)) });
   } catch (err) { next(err); }
 };
-
-function csvCell(value) {
-  const text = value === null || value === undefined ? '' : String(value);
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
 
 exports.exportPayRunCsv = async (req, res, next) => {
   try {

@@ -361,6 +361,21 @@ export function PayrollPanel({ t, restaurant, from, to }) {
               {t('restaurants.ops.reports.payroll.missingWage', { count: labor.missing_wage_user_ids.length })}
             </p>
           )}
+          {(labor.revenues || []).filter((r) => Number(r.revenue_cents) > 0).length > 1 && (
+            <p className="fd-ops-notice fd-ops-notice--warn">
+              {t('restaurants.ops.reports.payroll.multiCurrencyRevenue', {
+                amounts: (labor.revenues || []).filter((r) => Number(r.revenue_cents) > 0).map((r) => moneyMinor(Number(r.revenue_cents), r.currency, i18n.language)).join(' · '),
+                currency: labor.currency,
+              })}
+            </p>
+          )}
+          {(labor.tips_by_currency || []).filter((b) => b.currency !== labor.currency && Number(b.total_tips_cents) > 0).length > 0 && (
+            <p className="fd-ops-notice fd-ops-notice--warn">
+              {t('restaurants.ops.reports.payroll.multiCurrencyTips', {
+                amounts: (labor.tips_by_currency || []).filter((b) => b.currency !== labor.currency && Number(b.total_tips_cents) > 0).map((b) => moneyMinor(Number(b.total_tips_cents), b.currency, i18n.language)).join(' · '),
+              })}
+            </p>
+          )}
           {employees.length === 0 ? (
             <EmptyState icon={Users} title={t('restaurants.ops.reports.payroll.noData')} />
           ) : (
@@ -383,7 +398,12 @@ export function PayrollPanel({ t, restaurant, from, to }) {
                       <td>{emp.job_role || emp.membership_role || ''}</td>
                       <td>{emp.hours}</td>
                       <td>{emp.wages_cents == null ? '—' : money(emp.wages_cents)}</td>
-                      <td>{money(emp.net_tips_cents)}</td>
+                      <td>
+                        {money(emp.net_tips_cents)}
+                        {Object.entries(emp.tips_by_currency || {}).filter(([code]) => code !== labor.currency).map(([code, bucket]) => (
+                          <div key={code} className="fd-card-meta">{moneyMinor(Number(bucket.net_tips_cents) || 0, code, i18n.language)}</div>
+                        ))}
+                      </td>
                       <td>{money(emp.total_pay_cents)}</td>
                     </tr>
                   ))}

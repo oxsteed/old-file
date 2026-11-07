@@ -25151,6 +25151,7 @@
         "tipOut": "Tipped out",
         "tipIn": "Tipped in",
         "netTips": "Net tips",
+        "netTipsInCurrency": "Net tips ({{currency}})",
         "totalPay": "Total pay",
         "noPay": "No pay in this period.",
         "stubsTitle": "Pay stubs",
@@ -25882,6 +25883,8 @@
           "laborPercent": "Labor % of net sales",
           "laborCost": "Labor cost",
           "netSales": "Net collected sales",
+          "multiCurrencyRevenue": "Sales were collected in more than one currency ({{amounts}}). The net sales figure above is the {{currency}} total only.",
+          "multiCurrencyTips": "Tips were also earned in other currencies ({{amounts}}). Those tips are not included in the totals above, and a pay run cannot be finalized while they remain.",
           "hoursWorked": "Hours worked",
           "scheduledHours": "{{hours}} scheduled",
           "salesPerLaborHour": "Sales per labor hour",
@@ -26181,6 +26184,7 @@
         "convertedTotal": "converted total",
         "rate": "rate {{rate}} on {{date}}",
         "noRate": "no stored rate",
+        "staleRate": "Converted figures use a stored rate from {{date}}, {{days}} days old. Rates are entered manually, so check that the rate is still current.",
         "reportingCurrencyLabel": "Reporting currency",
         "rateSourceLabel": "Rate source",
         "sourceStored": "Stored rates",
@@ -26240,7 +26244,8 @@
         "reviewError": "Could not review the borrow.",
         "rosterTitle": "Shared roster",
         "shifts": "{{count}} shifts",
-        "borrowed": "{{count}} borrows"
+        "borrowed": "{{count}} borrows",
+        "overnight": "ends next day"
       }
       },
       "brandHq": {
@@ -26303,6 +26308,7 @@
         "convertedTotal": "converted total",
         "rate": "rate {{rate}} on {{date}}",
         "noRate": "no stored rate",
+        "staleRate": "Converted figures use a stored rate from {{date}}, {{days}} days old. Rates are entered manually, so check that the rate is still current.",
         "reportingCurrencyLabel": "Reporting currency",
         "rateSourceLabel": "Rate source",
         "sourceStored": "Stored rates",
@@ -26375,7 +26381,24 @@
         "totalsSales": "Sales",
         "totalsRoyalty": "Royalty",
         "totalsMarketing": "Marketing",
-        "totalsInitial": "Initial fees"
+        "totalsInitial": "Initial fees",
+        "mappings": {
+          "title": "Store agreements",
+          "hint": "Each store is assigned to one franchise agreement. A store without an agreement reports its sales with no royalty.",
+          "unmappedTitle": "Stores without an agreement",
+          "ambiguousTitle": "Agreements to confirm",
+          "ambiguousHint": "These stores were assigned from overlapping territories. Confirm the agreement is correct.",
+          "ambiguousCount": "{{count}} agreements matched this store",
+          "selectAgreement": "Select an agreement",
+          "assign": "Assign",
+          "change": "Change",
+          "unassign": "Remove",
+          "assigned": "Agreement assigned.",
+          "removed": "Agreement removed.",
+          "assignError": "Could not assign the agreement.",
+          "removeError": "Could not remove the agreement.",
+          "noStores": "No stores in this brand yet."
+        }
       }
       },
       "storeHub": {

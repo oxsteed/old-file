@@ -111,6 +111,9 @@ export default function RestaurantMyPayPanel({ restaurant }) {
           <EpRow label={t('food.employeePortal.myPay.tipOut')} value={money(employee.tip_out_cents)} />
           <EpRow label={t('food.employeePortal.myPay.tipIn')} value={money(employee.tip_in_cents)} />
           <EpRow label={t('food.employeePortal.myPay.netTips')} value={money(employee.net_tips_cents)} />
+          {Object.entries(employee.tips_by_currency || {}).filter(([code]) => code !== (pay?.currency || currency)).map(([code, bucket]) => (
+            <EpRow key={code} label={t('food.employeePortal.myPay.netTipsInCurrency', { currency: code })} value={money(bucket.net_tips_cents, code)} />
+          ))}
           <EpRow label={t('food.employeePortal.myPay.totalPay')} value={money(employee.total_pay_cents)} strong />
         </section>
       )}

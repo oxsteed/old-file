@@ -25151,6 +25151,7 @@
         "tipOut": "Pourboires reversés",
         "tipIn": "Pourboires reçus",
         "netTips": "Pourboires nets",
+        "netTipsInCurrency": "Pourboires nets ({{currency}})",
         "totalPay": "Paie totale",
         "noPay": "Aucune paie sur cette période.",
         "stubsTitle": "Fiches de paie",
@@ -25567,6 +25568,7 @@
         "convertedTotal": "total converti",
         "rate": "taux {{rate}} au {{date}}",
         "noRate": "aucun taux enregistré",
+        "staleRate": "Les montants convertis utilisent un taux enregistré du {{date}}, vieux de {{days}} jours. Les taux sont saisis manuellement, vérifiez donc que le taux est toujours d’actualité.",
         "reportingCurrencyLabel": "Devise de reporting",
         "rateSourceLabel": "Source du taux",
         "sourceStored": "Taux enregistrés",
@@ -25626,7 +25628,8 @@
         "reviewError": "Impossible d'examiner le prêt.",
         "rosterTitle": "Effectif partagé",
         "shifts": "{{count}} postes",
-        "borrowed": "{{count}} prêts"
+        "borrowed": "{{count}} prêts",
+        "overnight": "se termine le lendemain"
       }
       },
       "brandHq": {
@@ -25689,6 +25692,7 @@
         "convertedTotal": "total converti",
         "rate": "taux {{rate}} au {{date}}",
         "noRate": "aucun taux enregistré",
+        "staleRate": "Les montants convertis utilisent un taux enregistré du {{date}}, vieux de {{days}} jours. Les taux sont saisis manuellement, vérifiez donc que le taux est toujours d’actualité.",
         "reportingCurrencyLabel": "Devise de reporting",
         "rateSourceLabel": "Source du taux",
         "sourceStored": "Taux enregistrés",
@@ -25761,7 +25765,24 @@
         "totalsSales": "Ventes",
         "totalsRoyalty": "Redevance",
         "totalsMarketing": "Marketing",
-        "totalsInitial": "Frais initiaux"
+        "totalsInitial": "Frais initiaux",
+        "mappings": {
+          "title": "Accords par magasin",
+          "hint": "Chaque magasin est rattaché à un seul accord de franchise. Un magasin sans accord déclare ses ventes sans redevance.",
+          "unmappedTitle": "Magasins sans accord",
+          "ambiguousTitle": "Accords à confirmer",
+          "ambiguousHint": "Ces magasins ont été rattachés à partir de territoires qui se chevauchent. Confirmez que l'accord est correct.",
+          "ambiguousCount": "{{count}} accords correspondaient à ce magasin",
+          "selectAgreement": "Sélectionner un accord",
+          "assign": "Attribuer",
+          "change": "Modifier",
+          "unassign": "Retirer",
+          "assigned": "Accord attribué.",
+          "removed": "Accord retiré.",
+          "assignError": "Impossible d'attribuer l'accord.",
+          "removeError": "Impossible de retirer l'accord.",
+          "noStores": "Aucun magasin dans cette marque pour le moment."
+        }
       }
       },
       "storeHub": {
@@ -26339,6 +26360,8 @@
           "laborPercent": "% de main-d'œuvre sur les ventes nettes",
           "laborCost": "Coût de main-d'œuvre",
           "netSales": "Ventes nettes encaissées",
+          "multiCurrencyRevenue": "Les ventes ont été encaissées dans plusieurs devises ({{amounts}}). Le chiffre des ventes nettes ci-dessus est le total en {{currency}} uniquement.",
+          "multiCurrencyTips": "Des pourboires ont aussi été gagnés dans d'autres devises ({{amounts}}). Ces pourboires ne sont pas inclus dans les totaux ci-dessus et une paie ne peut pas être finalisée tant qu'ils restent.",
           "hoursWorked": "Heures travaillées",
           "scheduledHours": "{{hours}} planifiées",
           "salesPerLaborHour": "Ventes par heure de travail",

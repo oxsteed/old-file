@@ -25151,6 +25151,7 @@
         "tipOut": "Propinas compartidas",
         "tipIn": "Propinas recibidas",
         "netTips": "Propinas netas",
+        "netTipsInCurrency": "Propinas netas ({{currency}})",
         "totalPay": "Pago total",
         "noPay": "No hay pago en este periodo.",
         "stubsTitle": "Recibos de pago",
@@ -25567,6 +25568,7 @@
         "convertedTotal": "total convertido",
         "rate": "tasa {{rate}} el {{date}}",
         "noRate": "sin tasa guardada",
+        "staleRate": "Las cifras convertidas usan una tasa guardada del {{date}}, de hace {{days}} días. Las tasas se ingresan manualmente, así que comprueba que la tasa siga vigente.",
         "reportingCurrencyLabel": "Moneda de informe",
         "rateSourceLabel": "Origen de la tasa",
         "sourceStored": "Tasas guardadas",
@@ -25626,7 +25628,8 @@
         "reviewError": "No se pudo revisar el préstamo.",
         "rosterTitle": "Plantilla compartida",
         "shifts": "{{count}} turnos",
-        "borrowed": "{{count}} préstamos"
+        "borrowed": "{{count}} préstamos",
+        "overnight": "termina al día siguiente"
       }
       },
       "brandHq": {
@@ -25689,6 +25692,7 @@
         "convertedTotal": "total convertido",
         "rate": "tasa {{rate}} el {{date}}",
         "noRate": "sin tasa guardada",
+        "staleRate": "Las cifras convertidas usan una tasa guardada del {{date}}, de hace {{days}} días. Las tasas se ingresan manualmente, así que comprueba que la tasa siga vigente.",
         "reportingCurrencyLabel": "Moneda de informe",
         "rateSourceLabel": "Origen de la tasa",
         "sourceStored": "Tasas guardadas",
@@ -25761,7 +25765,24 @@
         "totalsSales": "Ventas",
         "totalsRoyalty": "Regalía",
         "totalsMarketing": "Marketing",
-        "totalsInitial": "Cuotas iniciales"
+        "totalsInitial": "Cuotas iniciales",
+        "mappings": {
+          "title": "Acuerdos por tienda",
+          "hint": "Cada tienda está asignada a un acuerdo de franquicia. Una tienda sin acuerdo reporta sus ventas sin regalías.",
+          "unmappedTitle": "Tiendas sin acuerdo",
+          "ambiguousTitle": "Acuerdos por confirmar",
+          "ambiguousHint": "Estas tiendas se asignaron desde territorios superpuestos. Confirme que el acuerdo es correcto.",
+          "ambiguousCount": "{{count}} acuerdos coincidían con esta tienda",
+          "selectAgreement": "Seleccione un acuerdo",
+          "assign": "Asignar",
+          "change": "Cambiar",
+          "unassign": "Quitar",
+          "assigned": "Acuerdo asignado.",
+          "removed": "Acuerdo eliminado.",
+          "assignError": "No se pudo asignar el acuerdo.",
+          "removeError": "No se pudo quitar el acuerdo.",
+          "noStores": "Aún no hay tiendas en esta marca."
+        }
       }
       },
       "storeHub": {
@@ -26339,6 +26360,8 @@
           "laborPercent": "% de mano de obra sobre ventas netas",
           "laborCost": "Costo laboral",
           "netSales": "Ventas netas cobradas",
+          "multiCurrencyRevenue": "Las ventas se cobraron en más de una moneda ({{amounts}}). La cifra de ventas netas anterior es solo el total en {{currency}}.",
+          "multiCurrencyTips": "También se ganaron propinas en otras monedas ({{amounts}}). Esas propinas no están incluidas en los totales anteriores y no se puede finalizar una nómina mientras sigan ahí.",
           "hoursWorked": "Horas trabajadas",
           "scheduledHours": "{{hours}} programadas",
           "salesPerLaborHour": "Ventas por hora laboral",

@@ -1617,12 +1617,30 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null, 
     || { employees: [], unattributed_cents: 0, total_tips_cents: 0 };
   const primaryTips = tipsFor(effectiveCurrency);
   const tipsByUser = new Map(primaryTips.employees.map((e) => [e.user_id, e]));
+  // Item 18: tips in any other currency must never silently drop out
+  // of the labor result. Build a per-currency map for every bucket so
+  // each employee (and the run-level result below) carries the buckets
+  // they earned in. No FX conversion is applied anywhere: amounts
+  // stay in their own currency's minor units.
+  const tipsByCurrencyByUser = new Map(); // userId -> { currency -> tip row }
+  for (const bucket of tipAllocations.currencies || []) {
+    for (const entry of bucket.employees || []) {
+      if (!tipsByCurrencyByUser.has(entry.user_id)) tipsByCurrencyByUser.set(entry.user_id, {});
+      tipsByCurrencyByUser.get(entry.user_id)[bucket.currency] = {
+        gross_tips_cents: entry.gross_tips_cents,
+        tip_out_cents: entry.tip_out_cents,
+        tip_in_cents: entry.tip_in_cents,
+        net_tips_cents: entry.net_tips_cents,
+      };
+    }
+  }
 
   const employeeIds = new Set([
     ...roster.map((m) => m.user_id),
     ...hoursByUser.keys(),
     ...scheduledByUser.keys(),
     ...tipsByUser.keys(),
+    ...tipsByCurrencyByUser.keys(),
     ...predictabilityPremiums.keys(),
   ]);
   const rosterById = new Map(roster.map((m) => [m.user_id, m]));
@@ -1742,10 +1760,36 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null, 
       tip_out_cents: tips.tip_out_cents,
       tip_in_cents: tips.tip_in_cents,
       net_tips_cents: tips.net_tips_cents,
+      // Item 18: per-currency tip buckets for this employee. The flat
+      // gross/net fields above are the anchored (primary) currency
+      // only; total_pay_cents likewise counts primary-currency tips
+      // only. Buckets in other currencies are listed here in their
+      // own currency, never converted and never folded into the
+      // totals, so they stay visible instead of silently dropped.
+      tips_by_currency: { ...(tipsByCurrencyByUser.get(userId) || {}) },
       total_pay_cents: (wagesCents || 0) + employeeMealPremiumCents + employeePredictabilityCents + tips.net_tips_cents,
     });
   }
   employees.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+  // Item 18: run-level per-currency tip totals, summed from the same
+  // allocation buckets the employees above were built from. The
+  // anchored currency is one entry among them; any other entry is a
+  // currency whose tips are NOT in labor_cost/total_pay. Revenue
+  // below is likewise primary-currency only for the ratio; the full
+  // per-currency revenue list rides in `revenues` unchanged.
+  const tipsByCurrency = (tipAllocations.currencies || []).map((bucket) => {
+    const sum = (pick) => (bucket.employees || []).reduce((total, e) => total + (Number(pick(e)) || 0), 0);
+    return {
+      currency: bucket.currency,
+      gross_tips_cents: sum((e) => e.gross_tips_cents),
+      tip_out_cents: sum((e) => e.tip_out_cents),
+      tip_in_cents: sum((e) => e.tip_in_cents),
+      net_tips_cents: sum((e) => e.net_tips_cents),
+      total_tips_cents: Number(bucket.total_tips_cents) || 0,
+      unattributed_cents: Number(bucket.unattributed_cents) || 0,
+    };
+  });
 
   const primaryRevenue = revenues.find((r) => r.currency === effectiveCurrency);
   const revenueCents = primaryRevenue ? primaryRevenue.revenue_cents : 0;
@@ -1788,6 +1832,8 @@ async function computeLabor({ restaurant, fromDate, toDate, locationIds = null, 
     sales_per_labor_hour_cents: salesPerLaborHourCents,
     missing_wage_user_ids: missingWageUserIds,
     unattributed_tips_cents: primaryTips.unattributed_cents,
+    unattributed_tips_by_currency: tipsByCurrency.map((b) => ({ currency: b.currency, unattributed_cents: b.unattributed_cents })),
+    tips_by_currency: tipsByCurrency,
     employees,
   };
 }
