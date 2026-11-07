@@ -354,6 +354,29 @@ suite('S-04 schedule publishing + time-off (DB)', () => {
     expect(Number(reversals[0].amount)).toBe(2);
   });
 
+  test('time-off: a second accrual grant in the same period is refused (finding 26)', async () => {
+    // EMPLOYEE2's vacation policy was granted once this month by the
+    // finding-25 test above; a second grant for the same period 409s
+    // and the balance is untouched.
+    const again = await call(ctrl.grantTimeOffAccrual, {
+      ...asManager(MANAGER),
+      body: { user_id: EMPLOYEE2, request_type: 'vacation' },
+    });
+    expect(again.res.statusCode).toBe(409);
+    expect(again.res.body.code).toBe('pto_accrual_already_granted');
+    expect(again.res.body.refusals).toHaveLength(1);
+    const now = new Date();
+    const thisMonth = `monthly:${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    expect(again.res.body.refusals[0].period).toBe(thisMonth);
+    expect(again.res.body.refusals[0].existing_grant.amount).toBe(5);
+    const { rows: [balance] } = await db.query(
+      `SELECT balance FROM business_time_off_balances
+        WHERE business_id = $1 AND user_id = $2 AND request_type = 'vacation'`,
+      [bizId, EMPLOYEE2]
+    );
+    expect(Number(balance.balance)).toBe(5);
+  });
+
   test('publish evaluates each location under its own jurisdiction rules (finding 30)', async () => {
     const { rows: [rest] } = await db.query(
       `INSERT INTO food_restaurants (business_id, owner_user_id, display_name)

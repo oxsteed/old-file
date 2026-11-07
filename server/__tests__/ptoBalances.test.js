@@ -131,7 +131,7 @@ describe('ptoBalances service', () => {
     expect(grant.balance_after).toBe(10);
     expect(grant.capped).toBe(true);
     // The accrual event records only what was actually banked.
-    const eventCall = db.query.mock.calls.find(([sql]) => String(sql).includes('accrual_events'));
+    const eventCall = db.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO business_time_off_accrual_events'));
     expect(eventCall[1][3]).toBe(2);
   });
 
@@ -149,7 +149,9 @@ describe('ptoBalances service', () => {
     expect(grant.granted).toBe(0);
     expect(grant.balance_after).toBe(10);
     expect(grant.capped).toBe(true);
-    expect(db.query.mock.calls.some(([sql]) => String(sql).includes('accrual_events'))).toBe(false);
+    // No new grant event is recorded (the period check reads the
+    // ledger, but records nothing).
+    expect(db.query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO business_time_off_accrual_events'))).toBe(false);
   });
 
   test('decrementForApproval: approval decrements and records the event', async () => {
@@ -222,6 +224,64 @@ describe('ptoBalances service', () => {
     const result = await pto.refundForCancellation(db, 2, STAFF, 'unpaid', 41, MANAGER);
     expect(result).toEqual({ refunded: false, reason: 'no_approval_event' });
     expect(db.query.mock.calls.some(([sql]) => String(sql).includes('UPDATE business_time_off_balances'))).toBe(false);
+  });
+
+  test('grantAccrual: a second grant in the same policy period is refused', async () => {
+    const policy = {
+      id: 7, business_id: 2, user_id: STAFF, request_type: 'vacation',
+      accrual_amount: 2, accrual_unit: 'days', accrual_period: 'monthly', carryover_cap: null,
+    };
+    const db = fakeDb([
+      ['FROM business_time_off_accrual_events', async () => ({
+        rows: [{ amount: 2, unit: 'days', balance_after: 5, created_at: new Date() }],
+      })],
+    ]);
+    const grant = await pto.grantAccrual(db, policy, MANAGER);
+    expect(grant.refused).toBe(true);
+    expect(grant.granted).toBe(0);
+    expect(grant.period).toMatch(/^monthly:\d{4}-\d{2}$/);
+    expect(grant.existing_grant.amount).toBe(2);
+    expect(grant.existing_grant.balanceAfter).toBe(5);
+    // Nothing was banked: no balance write and no new event.
+    expect(db.query.mock.calls.some(([sql]) => String(sql).includes('UPDATE business_time_off_balances'))).toBe(false);
+    expect(db.query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO business_time_off_accrual_events'))).toBe(false);
+  });
+
+  test('grantAccrual: a grant from a different period is granted', async () => {
+    const lastMonth = new Date();
+    lastMonth.setUTCMonth(lastMonth.getUTCMonth() - 1);
+    const policy = {
+      id: 7, business_id: 2, user_id: STAFF, request_type: 'vacation',
+      accrual_amount: 2, accrual_unit: 'days', accrual_period: 'monthly', carryover_cap: null,
+    };
+    const db = fakeDb([
+      ['FROM business_time_off_accrual_events', async () => ({
+        rows: [{ amount: 2, unit: 'days', balance_after: 2, created_at: lastMonth }],
+      })],
+      ['INSERT INTO business_time_off_balances', async () => ({ rows: [] })],
+      ['FROM business_time_off_balances', async () => ({ rows: [{ balance: 2 }] })],
+      ['UPDATE business_time_off_balances', async () => ({ rows: [] })],
+      ['INSERT INTO business_time_off_accrual_events', async () => ({ rows: [] })],
+    ]);
+    const grant = await pto.grantAccrual(db, policy, MANAGER);
+    expect(grant.refused).toBeUndefined();
+    expect(grant.granted).toBe(2);
+    expect(grant.balance_after).toBe(4);
+  });
+
+  test('grantAccrual: a once policy with any prior grant is refused', async () => {
+    const policy = {
+      id: 8, business_id: 2, user_id: STAFF, request_type: 'sick',
+      accrual_amount: 1, accrual_unit: 'days', accrual_period: 'once', carryover_cap: null,
+    };
+    const db = fakeDb([
+      ['FROM business_time_off_accrual_events', async () => ({
+        rows: [{ amount: 1, unit: 'days', balance_after: 1, created_at: new Date('2025-01-15T00:00:00.000Z') }],
+      })],
+    ]);
+    const grant = await pto.grantAccrual(db, policy, MANAGER);
+    expect(grant.refused).toBe(true);
+    expect(grant.period).toBe('once');
   });
 });
 
@@ -436,5 +496,62 @@ describe('decideTimeOffRequest balance decrement', () => {
     expect(res.statusCode).toBe(200);
     expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('business_time_off_balances'))).toBe(false);
     expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('business_time_off_policies'))).toBe(false);
+  });
+});
+
+describe('grantTimeOffAccrual period guard (finding 26)', () => {
+  function routeGrant({ priorGrant }) {
+    const policy = {
+      id: 7, business_id: 2, user_id: STAFF, request_type: 'vacation',
+      accrual_amount: 2, accrual_unit: 'days', accrual_period: 'monthly', carryover_cap: null,
+    };
+    mockQuery.mockImplementation(async (sql) => {
+      const s = String(sql);
+      if (s.includes('SELECT * FROM business_time_off_policies')) return { rows: [policy] };
+      if (s.includes('FOR UPDATE')) return { rows: [{ id: 7 }] };
+      if (s.includes('FROM business_time_off_accrual_events')) {
+        return { rows: priorGrant ? [priorGrant] : [] };
+      }
+      if (s.includes('INSERT INTO business_time_off_balances')) return { rows: [{ balance: 0 }] };
+      if (s.includes('UPDATE business_time_off_balances')) return { rows: [] };
+      return { rows: [] };
+    });
+  }
+
+  test('a second grant in the same period 409s naming the period and the existing grant', async () => {
+    routeGrant({ priorGrant: { amount: 2, unit: 'days', balance_after: 5, created_at: new Date() } });
+    const req = {
+      params: { businessId: '2' },
+      body: { user_id: STAFF, request_type: 'vacation' },
+      user: { id: MANAGER },
+      businessRole: 'manager',
+    };
+    const res = mockRes();
+    await ctrl.grantTimeOffAccrual(req, res, next);
+    expect(res.statusCode).toBe(409);
+    expect(res.body.code).toBe('pto_accrual_already_granted');
+    expect(res.body.refusals).toHaveLength(1);
+    expect(res.body.refusals[0].period).toMatch(/^monthly:\d{4}-\d{2}$/);
+    expect(res.body.refusals[0].accrual_period).toBe('monthly');
+    expect(res.body.refusals[0].existing_grant.amount).toBe(2);
+    expect(res.body.refusals[0].existing_grant.balanceAfter).toBe(5);
+    // Nothing was granted: no balance write and no new event.
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('UPDATE business_time_off_balances'))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO business_time_off_accrual_events'))).toBe(false);
+  });
+
+  test('a grant with no prior grant in the period succeeds', async () => {
+    routeGrant({ priorGrant: null });
+    const req = {
+      params: { businessId: '2' },
+      body: { user_id: STAFF, request_type: 'vacation' },
+      user: { id: MANAGER },
+      businessRole: 'manager',
+    };
+    const res = mockRes();
+    await ctrl.grantTimeOffAccrual(req, res, next);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.grants).toHaveLength(1);
+    expect(res.body.grants[0].granted).toBe(2);
   });
 });

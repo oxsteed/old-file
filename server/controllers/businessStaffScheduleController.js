@@ -2666,6 +2666,8 @@ exports.setTimeOffPolicy = async (req, res, next) => {
 // policy (or one employee / one type with user_id / request_type).
 // The carryover cap is enforced per policy inside grantAccrual;
 // accrual beyond the cap is not banked and is reported as capped.
+// One grant per policy period at most (finding 26): a second grant
+// for the same period 409s, naming the period and the existing grant.
 // This is the manager-triggered grant (Track B choice): one explicit
 // call, one auditable event per policy, no background job.
 exports.grantTimeOffAccrual = async (req, res, next) => {
@@ -2689,11 +2691,37 @@ exports.grantTimeOffAccrual = async (req, res, next) => {
       `SELECT * FROM business_time_off_policies WHERE ${where} ORDER BY user_id, request_type`,
       params
     );
-    const grants = await withTransaction(pool, async (client) => {
+    // Finding 26: one grant per policy period. The check runs inside
+    // the same transaction as the grants (and locks each policy row),
+    // so a multi-policy call never partially grants: any refusal
+    // 409s the whole call before anything is granted.
+    const result = await withTransaction(pool, async (client) => {
+      const refusals = [];
+      for (const policy of policies) {
+        const check = await pto.checkAccrualPeriod(client, policy);
+        if (check.refused) {
+          refusals.push({
+            user_id: policy.user_id,
+            request_type: policy.request_type,
+            accrual_period: check.accrualPeriod,
+            period: check.period,
+            existing_grant: check.existingGrant,
+          });
+        }
+      }
+      if (refusals.length) return { refusals };
       const out = [];
       for (const policy of policies) out.push(await pto.grantAccrual(client, policy, req.user.id));
-      return out;
+      return { grants: out };
     }, 'grant_time_off_accrual');
+    if (result.refusals) {
+      return res.status(409).json({
+        error: 'pto_accrual_already_granted',
+        code: 'pto_accrual_already_granted',
+        refusals: result.refusals,
+      });
+    }
+    const grants = result.grants;
     await logBusinessAction(req, {
       business_id: Number(businessId),
       action: 'business.staff.time_off.accrual_granted',

@@ -45,10 +45,14 @@
 //     one explicit call, one auditable grant per policy, no background
 //     scheduler to drift or double-fire. The accrual_period on the
 //     policy records the intended cadence; the manager grants on that
-//     cadence.
+//     cadence. One grant per policy period at most (finding 26): a
+//     second grant in the same period is refused, naming the period
+//     and the existing grant.
 //
 // Balances are hours/days owed, not money: nothing in this module
 // reads or writes pay lines, wages, or the ledger.
+
+const laborJurisdiction = require('./laborJurisdictionRules');
 
 const WORKDAY_HOURS = 8;
 
@@ -216,7 +220,98 @@ async function refundForCancellation(client, businessId, userId, requestType, re
   );
   return { refunded: true, amount: restored, unit: approval.unit, balanceAfter };
 }
+// ── Finding 26: one grant per policy period ────────────────────────
+// The policy's accrual_period is the cadence (weekly / monthly /
+// yearly / once, from the policy row; no new period definition is
+// invented). The period key is derived from the ledger event's
+// created_at in UTC: a calendar month, a calendar year, the Sunday-
+// start workweek containing the date (the system's one workweek
+// definition; the policy has no location, so the default Sunday start
+// applies), or 'once' for a one-time grant. A second grant whose key
+// matches the current period is refused.
+//
+// checkAccrualPeriod locks the policy row first, so the check-and-
+// grant sequence serializes: two concurrent grants for the same
+// policy wait on the lock, and the second one re-reads the ledger
+// after the first commits instead of double-granting.
+function periodKeyFor(date, period) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  if (period === 'yearly') return `yearly:${y}`;
+  if (period === 'weekly') return `weekly:${laborJurisdiction.weekStartOf(`${y}-${m}-${day}`, 0)}`;
+  if (period === 'once') return 'once';
+  return `monthly:${y}-${m}`;
+}
+
+async function lastAccrualGrant(client, policy) {
+  const { rows: [row] } = await client.query(
+    `SELECT amount, unit, balance_after, created_at
+       FROM business_time_off_accrual_events
+      WHERE business_id = $1 AND user_id = $2 AND request_type = $3
+        AND event_type = 'accrual'
+      ORDER BY created_at DESC, id DESC LIMIT 1`,
+    [policy.business_id, policy.user_id, policy.request_type]
+  );
+  return row || null;
+}
+
+async function checkAccrualPeriod(client, policy, now = new Date()) {
+  const period = policy.accrual_period || 'monthly';
+  const currentKey = periodKeyFor(now, period);
+  if (policy.id != null) {
+    await client.query(
+      'SELECT id FROM business_time_off_policies WHERE id = $1 FOR UPDATE',
+      [policy.id]
+    );
+  }
+  const last = await lastAccrualGrant(client, policy);
+  if (!last) return { refused: false, period: currentKey, accrualPeriod: period };
+  if (periodKeyFor(last.created_at, period) !== currentKey) {
+    return { refused: false, period: currentKey, accrualPeriod: period };
+  }
+  return {
+    refused: true,
+    period: currentKey,
+    accrualPeriod: period,
+    existingGrant: {
+      amount: toNumber(last.amount),
+      unit: last.unit,
+      grantedAt: last.created_at instanceof Date
+        ? last.created_at.toISOString() : String(last.created_at),
+      balanceAfter: toNumber(last.balance_after),
+    },
+  };
+}
+
+// Grant one policy's accrual to its balance, enforcing the carryover
+// cap. Must run inside the caller's transaction. Returns the grant as
+// reported to the manager, including the capped flag when the cap ate
+// part (or all) of the grant. A second grant for the same policy
+// period is refused (see checkAccrualPeriod above) instead of
+// double-granting.
 async function grantAccrual(client, policy, grantedBy) {
+  const periodCheck = await checkAccrualPeriod(client, policy);
+  if (periodCheck.refused) {
+    const balanceRow = await getBalance(
+      client, policy.business_id, policy.user_id, policy.request_type
+    );
+    return {
+      user_id: policy.user_id,
+      request_type: policy.request_type,
+      granted: 0,
+      unit: policy.accrual_unit || 'days',
+      balance_after: balanceRow ? toNumber(balanceRow.balance) : 0,
+      capped: false,
+      carryover_cap: policy.carryover_cap == null ? null : toNumber(policy.carryover_cap),
+      refused: true,
+      period: periodCheck.period,
+      accrual_period: periodCheck.accrualPeriod,
+      existing_grant: periodCheck.existingGrant,
+    };
+  }
   const amount = toNumber(policy.accrual_amount);
   const unit = policy.accrual_unit || 'days';
   const cap = policy.carryover_cap == null ? null : toNumber(policy.carryover_cap);
@@ -267,5 +362,7 @@ module.exports = {
   checkSufficient,
   decrementForApproval,
   refundForCancellation,
+  checkAccrualPeriod,
+  periodKeyFor,
   grantAccrual,
 };
