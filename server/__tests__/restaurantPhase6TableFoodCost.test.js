@@ -64,12 +64,59 @@ beforeEach(() => {
 describe('Phase 6: POS table validation (resolvePosTable)', () => {
   test('accepts a table of the same restaurant and store, within capacity', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [tableRow] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 21, order_id: null }] });
     const result = await appFlow._resolvePosTable(client, { restaurantId: 3, locationId: 7, tableId: 11, covers: 3 });
     expect(result).toEqual({ tableId: 11, table: tableRow, covers: 3 });
     expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining('FROM restaurant_tables WHERE id = $1 AND restaurant_id = $2'),
       [11, 3],
     );
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('FROM restaurant_table_seatings WHERE table_id = $1 AND restaurant_id = $2 AND closed_at IS NULL FOR UPDATE'),
+      [11, 3],
+    );
+  });
+
+  test('accepts with an open unlinked seating', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [tableRow] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 21, order_id: null }] });
+    const result = await appFlow._resolvePosTable(client, { restaurantId: 3, locationId: 7, tableId: 11, covers: 3 });
+    expect(result).toEqual({ tableId: 11, table: tableRow, covers: 3 });
+  });
+
+  test('accepts with walkIn true and no open seating', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [tableRow] });
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const result = await appFlow._resolvePosTable(client, { restaurantId: 3, locationId: 7, tableId: 11, covers: 3, walkIn: true });
+    expect(result).toEqual({ tableId: 11, table: tableRow, covers: 3 });
+  });
+
+  test('no open seating and no walkIn is a 409 table_not_seated', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [tableRow] });
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await expect(appFlow._resolvePosTable(client, { restaurantId: 3, locationId: 7, tableId: 11, covers: 3 }))
+      .rejects.toMatchObject({ status: 409, code: 'table_not_seated' });
+  });
+
+  test('open seating linked to another order is a 409 table_occupied', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [tableRow] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 21, order_id: 99 }] });
+    await expect(appFlow._resolvePosTable(client, { restaurantId: 3, locationId: 7, tableId: 11, covers: 3, orderId: 55 }))
+      .rejects.toMatchObject({ status: 409, code: 'table_occupied' });
+  });
+
+  test('open seating linked to another order stays occupied even for a walk-in', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [tableRow] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 21, order_id: 99 }] });
+    await expect(appFlow._resolvePosTable(client, { restaurantId: 3, locationId: 7, tableId: 11, covers: 3, walkIn: true, orderId: 55 }))
+      .rejects.toMatchObject({ status: 409, code: 'table_occupied' });
+  });
+
+  test('accepts when the open seating is linked to the same order', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [tableRow] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 21, order_id: 55 }] });
+    const result = await appFlow._resolvePosTable(client, { restaurantId: 3, locationId: 7, tableId: 11, covers: 3, orderId: 55 });
+    expect(result).toEqual({ tableId: 11, table: tableRow, covers: 3 });
   });
 
   test('no table requested resolves to nulls without querying', async () => {

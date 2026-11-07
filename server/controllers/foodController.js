@@ -37,6 +37,7 @@ const {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
   consumeInventoryForOrder,
+  restoreInventoryForOrder,
 } = require('../services/restaurantInventoryOrderService');
 const permissionsService = require('../services/permissionsService');
 // Canonical restaurant access gate (analytics scope model, Phase 1 Item 6).
@@ -5466,6 +5467,16 @@ exports.updateOrderStatus = async (req, res, next) => {
           restaurantId,
           orderId: order.id,
           locationId: order.location_id,
+        });
+        // Design-review item 54: a completed order already consumed its
+        // stock, so cancelling/refunding it restores what was consumed.
+        // Release-only paths (never-completed orders) are unaffected:
+        // restore only touches 'consumed' reservations.
+        await restoreInventoryForOrder(client, {
+          restaurantId,
+          orderId: order.id,
+          locationId: order.location_id,
+          actorUserId: req.user?.id || null,
         });
         // M13: claw back loyalty points earned on completion so refunded
         // orders cannot farm points.

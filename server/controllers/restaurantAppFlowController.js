@@ -242,7 +242,7 @@ function normalizeString(value, max = 255) {
 // Returns { tableId, table, covers } with tableId null when no table was
 // requested; throws 404/409 on mismatch so a ticket can never claim a table
 // from another store (or a disabled/over-capacity one).
-async function resolvePosTable(client, { restaurantId, locationId, tableId, covers }) {
+async function resolvePosTable(client, { restaurantId, locationId, tableId, covers, walkIn = false, orderId = null }) {
   const requestedTableId = parsePositiveInt(tableId);
   let requestedCovers = null;
   if (covers !== undefined && covers !== null && covers !== '') {
@@ -266,7 +266,20 @@ async function resolvePosTable(client, { restaurantId, locationId, tableId, cove
   if (requestedCovers != null && Number(table.capacity) < requestedCovers) {
     throw new AppError('Table capacity exceeded', 409, 'table_capacity_exceeded');
   }
-  return { tableId: Number(table.id), table, covers: requestedCovers };
+  // Item 53: a ticket may only claim a table that has a party seated, unless
+  // the server attests the party is at the table (walk-in) or the seating
+  // already belongs to this order. An open seating linked to another order
+  // still blocks, even for a walk-in.
+  const { rows: [seating] } = await client.query(
+    `SELECT id, order_id FROM restaurant_table_seatings WHERE table_id = $1 AND restaurant_id = $2 AND closed_at IS NULL FOR UPDATE`,
+    [requestedTableId, restaurantId]
+  );
+  if (seating && seating.order_id != null && Number(seating.order_id) !== Number(orderId)) {
+    throw new AppError('Table is occupied by another order', 409, 'table_occupied');
+  }
+  if (asBool(walkIn)) return { tableId: Number(table.id), table, covers: requestedCovers };
+  if (seating) return { tableId: Number(table.id), table, covers: requestedCovers };
+  throw new AppError('This table has no party seated. Seat the party first or mark the ticket as a walk-in.', 409, 'table_not_seated');
 }
 
 function asBool(value, fallback = false) {
@@ -4693,6 +4706,8 @@ exports.createPosOrder = async (req, res, next) => {
         locationId: posLocationId,
         tableId: req.body.tableId ?? req.body.table_id,
         covers: req.body.covers ?? req.body.coversCount ?? req.body.covers_count ?? req.body.partySize ?? req.body.party_size,
+        walkIn: req.body.walkIn ?? req.body.walk_in,
+        orderId: null,
       });
       const tableLabel = normalizeString(
         req.body.tableLabel || req.body.table_label || req.body.tableName || req.body.table_name,
@@ -5029,6 +5044,8 @@ exports.updatePosTicket = async (req, res, next) => {
               locationId: order.location_id,
               tableId: requestedTableId,
               covers: requestedCovers ?? order.covers,
+              walkIn: req.body.walkIn ?? req.body.walk_in,
+              orderId: order.id,
             });
             nextTableId = resolved.tableId;
             nextTable = resolved.table;
@@ -5040,6 +5057,8 @@ exports.updatePosTicket = async (req, res, next) => {
             locationId: order.location_id,
             tableId: order.table_id,
             covers: requestedCovers,
+            walkIn: req.body.walkIn ?? req.body.walk_in,
+            orderId: order.id,
           });
           nextCovers = resolved.covers;
         }

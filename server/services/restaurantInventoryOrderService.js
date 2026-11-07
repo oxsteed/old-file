@@ -312,6 +312,8 @@ async function releaseInventoryForOrder(client, { restaurantId, orderId, locatio
 
 // Phase 6 (gap 14): FEFO lot allocation. Consumption draws down the
 // earliest-expiring lots first (no-expiry lots last, ties by receipt order).
+// Expired lots are never consumed: they stay on hand for write-off, so an
+// expired lot with stock left cannot be served ahead of a fresh lot.
 // Lots are a breakdown of on-hand stock, never the authority: stock that
 // arrived before lots existed, or via a plain adjustment, has no lot row,
 // so any remainder is simply left unallocated instead of failing the order.
@@ -321,7 +323,8 @@ async function consumeLotsForReservation(client, { restaurantId, orderId, invent
   const { rows: lots } = await client.query(
     `SELECT id, quantity
        FROM restaurant_inventory_lots
-      WHERE restaurant_id = $1 AND inventory_item_id = $2 AND quantity > 0${locationFilter}
+      WHERE restaurant_id = $1 AND inventory_item_id = $2 AND quantity > 0
+        AND (expires_at IS NULL OR expires_at > NOW())${locationFilter}
       ORDER BY expires_at ASC NULLS LAST, created_at ASC, id ASC
       FOR UPDATE`,
     params
@@ -453,6 +456,91 @@ async function consumeInventoryForOrder(client, { restaurantId, orderId, locatio
   return { consumed: reservations.length };
 }
 
+// Design-review item 54: restore stock consumed by a completed order when
+// that order is later cancelled or refunded. Only 'consumed' reservations
+// are selected, so a second call restores nothing (idempotent). No new
+// status or adjustment-type values: the reservation returns to 'released'
+// and the stock movement is a 'correction'. A restored row keeps both
+// consumed_at and released_at set, which distinguishes it from a
+// never-consumed release (released_at set, consumed_at null).
+async function restoreInventoryForOrder(client, { restaurantId, orderId, locationId = null, actorUserId = null }) {
+  const params = [restaurantId, orderId];
+  const locationFilter = locationId ? ` AND r.location_id = $${params.push(locationId)}` : '';
+  const { rows: reservations } = await client.query(
+    `SELECT r.id, r.inventory_item_id, r.quantity,
+            rii.name AS inventory_item_name
+       FROM restaurant_inventory_order_reservations r
+       JOIN restaurant_inventory_items rii
+         ON rii.id = r.inventory_item_id AND rii.restaurant_id = r.restaurant_id
+      WHERE r.restaurant_id = $1 AND r.food_order_id = $2 AND r.status = 'consumed'${locationFilter}
+      ORDER BY r.inventory_item_id, r.id
+      FOR UPDATE OF r, rii`,
+    params
+  );
+  if (!reservations.length) return { restored: 0 };
+
+  const restoredInventoryItemIds = [];
+  // Lot consumptions are keyed by (food_order_id, inventory_item_id), not
+  // by reservation, and one order can hold several reservations for the
+  // same item (one per order line). Restoring lots per reservation would
+  // replay the same consumption rows twice, so each consumption row is
+  // restored exactly once per call.
+  const restoredLotConsumptionIds = new Set();
+  for (const reservation of reservations) {
+    const quantity = Number(reservation.quantity);
+    const { rows: [updatedItem] } = await client.query(
+      `UPDATE restaurant_inventory_items
+          SET quantity = quantity + $1, updated_at = NOW()
+        WHERE id = $2 AND restaurant_id = $3
+        RETURNING quantity`,
+      [quantity, reservation.inventory_item_id, restaurantId]
+    );
+    if (!updatedItem) {
+      throw new AppError('Inventory changed before this order could be restored', 409,
+        'inventory_consistency_conflict', { inventoryItemId: Number(reservation.inventory_item_id), inventoryItemName: reservation.inventory_item_name });
+    }
+    await client.query(
+      `INSERT INTO restaurant_inventory_adjustments
+         (restaurant_id, item_id, item_name, adjustment_type, quantity_delta, quantity_after,
+          note, adjusted_by, source_type, source_id)
+       VALUES ($1,$2,$3,'correction',$4,$5,$6,$7,'food_order',$8)`,
+      [
+        restaurantId,
+        reservation.inventory_item_id,
+        reservation.inventory_item_name,
+        quantity,
+        updatedItem.quantity,
+        `Restored after cancellation/refund of food order #${orderId}`,
+        actorUserId,
+        orderId,
+      ]
+    );
+    const { rows: lotConsumptions } = await client.query(
+      `SELECT id, lot_id, quantity
+         FROM restaurant_inventory_lot_consumptions
+        WHERE food_order_id = $1 AND inventory_item_id = $2`,
+      [orderId, reservation.inventory_item_id]
+    );
+    for (const consumption of lotConsumptions) {
+      if (restoredLotConsumptionIds.has(Number(consumption.id))) continue;
+      restoredLotConsumptionIds.add(Number(consumption.id));
+      await client.query(
+        `UPDATE restaurant_inventory_lots SET quantity = quantity + $1, updated_at = NOW() WHERE id = $2`,
+        [Number(consumption.quantity), consumption.lot_id]
+      );
+    }
+    await client.query(
+      `UPDATE restaurant_inventory_order_reservations
+          SET status = 'released', released_at = COALESCE(released_at, NOW())
+        WHERE id = $1 AND status = 'consumed'`,
+      [reservation.id]
+    );
+    restoredInventoryItemIds.push(reservation.inventory_item_id);
+  }
+  await refreshMenuAvailability(client, restaurantId, restoredInventoryItemIds, locationId);
+  return { restored: reservations.length };
+}
+
 async function releaseExpiredInventoryReservations() {
   const { rows } = await pool.query(
     `UPDATE restaurant_inventory_order_reservations
@@ -484,5 +572,6 @@ module.exports = {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
   consumeInventoryForOrder,
+  restoreInventoryForOrder,
   releaseExpiredInventoryReservations,
 };

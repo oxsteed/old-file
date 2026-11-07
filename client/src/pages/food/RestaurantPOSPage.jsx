@@ -636,6 +636,7 @@ export default function RestaurantPOSPage() {
       fulfillment_type: fulfillment,
       table_name: tableName || undefined,
       table_id: tableId ? Number(tableId) : undefined,
+      walk_in: tableId ? true : undefined,
       covers: covers ? Number(covers) : undefined,
       guest_name: guestName || undefined,
       client_order_id: activeCheckoutId,
