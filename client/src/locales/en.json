@@ -8942,6 +8942,7 @@
         "warningsTitle": "Availability note",
         "shiftOverlap": "Overlaps another shift on {{conflictingDate}} ({{conflictingStart}} to {{conflictingEnd}}).",
         "timeOffOverlap": "Falls inside approved {{type}} time off ({{startDate}} to {{endDate}}).",
+        "borrowOverlap": "Overlaps an approved borrow at another store on {{borrowDate}} ({{borrowStart}} to {{borrowEnd}}).",
         "availabilityOutsideWindow": "Outside the staff member's availability on {{shiftDate}} ({{start}} to {{end}}).",
         "availabilityNoWindow": "The staff member has no availability set for {{shiftDate}}.",
         "minorDailyHours": "Minor would work {{hours}} hours on {{shiftDate}} (limit {{limit}} hours).",

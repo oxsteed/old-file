@@ -246,6 +246,79 @@ describe('shift conflict validation on update', () => {
   });
 });
 
+describe('shift conflict validation: approved labor borrows (finding 37)', () => {
+  const { validateShift } = require('../services/shiftConflictValidation');
+
+  // Fake db keyed on SQL fragments, in order (same shape as the PTO
+  // service tests). The borrow query only runs when the shift has a
+  // restaurant context; these tests pass restaurantId explicitly.
+  function fakeDb({ borrows = [] } = {}) {
+    const calls = [];
+    return {
+      calls,
+      query: jest.fn(async (sql, params) => {
+        calls.push(String(sql));
+        const s = String(sql);
+        if (s.includes('FROM business_staff_shifts')) return { rows: [] };
+        if (s.includes('FROM business_time_off_requests')) return { rows: [] };
+        if (s.includes('FROM restaurant_labor_borrows')) return { rows: borrows };
+        if (s.includes('FROM business_staff_availability')) return { rows: [] };
+        if (s.includes('FROM business_staff_labor_profiles')) return { rows: [] };
+        return { rows: [] };
+      }),
+    };
+  }
+  const baseOpts = {
+    businessId: 2, userId: STAFF, shiftDate: DAY,
+    startTime: '09:00', endTime: '17:00', restaurantId: 7,
+  };
+
+  test('an overlapping approved borrow blocks like an overlapping shift', async () => {
+    const db = fakeDb({
+      borrows: [{ id: 55, shift_date: DAY, start_time: '12:00:00', end_time: '20:00:00', borrow_location_id: 9 }],
+    });
+    const { violations, warnings } = await validateShift(db, baseOpts);
+    expect(violations.map((v) => v.code)).toEqual(['borrow_overlap']);
+    expect(violations[0].severity).toBe('blocking');
+    expect(violations[0].message_key).toBe('businessHub.staffScheduler.validation.borrowOverlap');
+    expect(violations[0].borrow_id).toBe(55);
+    expect(violations[0].params.borrowDate).toBe(DAY);
+    expect(warnings).toEqual([]);
+    // Only approved borrows are ever read.
+    expect(db.calls.find((sql) => sql.includes('restaurant_labor_borrows'))).toMatch(/status = 'approved'/);
+  });
+
+  test('a borrow at a non-overlapping time does not block', async () => {
+    const db = fakeDb({
+      borrows: [{ id: 55, shift_date: DAY, start_time: '17:00:00', end_time: '21:00:00', borrow_location_id: 9 }],
+    });
+    const { violations } = await validateShift(db, baseOpts);
+    expect(violations).toEqual([]);
+  });
+
+  test('an overnight candidate overlapping the next morning borrow blocks', async () => {
+    const db = fakeDb({
+      borrows: [{ id: 56, shift_date: '2026-10-15', start_time: '02:00:00', end_time: '06:00:00', borrow_location_id: 9 }],
+    });
+    const { violations } = await validateShift(db, {
+      ...baseOpts, startTime: '22:00', endTime: '06:00',
+    });
+    expect(violations.map((v) => v.code)).toEqual(['borrow_overlap']);
+    expect(violations[0].params.borrowDate).toBe('2026-10-15');
+  });
+
+  test('no restaurant context means no borrow check runs', async () => {
+    const db = fakeDb({
+      borrows: [{ id: 55, shift_date: DAY, start_time: '12:00:00', end_time: '20:00:00', borrow_location_id: 9 }],
+    });
+    const { violations } = await validateShift(db, {
+      businessId: 2, userId: STAFF, shiftDate: DAY, startTime: '09:00', endTime: '17:00',
+    });
+    expect(violations).toEqual([]);
+    expect(db.calls.some((sql) => sql.includes('restaurant_labor_borrows'))).toBe(false);
+  });
+});
+
 describe('shift conflict validation on swap approval', () => {
   function swapRow(overrides = {}) {
     return {

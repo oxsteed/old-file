@@ -8942,6 +8942,7 @@
         "warningsTitle": "ملاحظة حول التوفر",
         "shiftOverlap": "تتداخل مع وردية أخرى في {{conflictingDate}} (من {{conflictingStart}} إلى {{conflictingEnd}}).",
         "timeOffOverlap": "تقع ضمن إجازة {{type}} معتمدة (من {{startDate}} إلى {{endDate}}).",
+        "borrowOverlap": "يتعارض مع إعارة معتمدة في متجر آخر بتاريخ {{borrowDate}} (من {{borrowStart}} إلى {{borrowEnd}}).",
         "availabilityOutsideWindow": "خارج أوقات توفر الموظف في {{shiftDate}} (من {{start}} إلى {{end}}).",
         "availabilityNoWindow": "لم يسجل الموظف أي توفر ليوم {{shiftDate}}.",
         "minorDailyHours": "سيعمل القاصر {{hours}} ساعات في {{shiftDate}} (الحد {{limit}} ساعات).",

@@ -124,6 +124,7 @@ export function StaffScheduler({ businessId, isManager = false }) {
     const p = v.params || {};
     switch (v.code) {
       case 'shift_overlap': return t('businessHub.staffScheduler.validation.shiftOverlap', p);
+      case 'borrow_overlap': return t('businessHub.staffScheduler.validation.borrowOverlap', p);
       case 'time_off_overlap': return t('businessHub.staffScheduler.validation.timeOffOverlap', p);
       case 'availability_outside_window': return t('businessHub.staffScheduler.validation.availabilityOutsideWindow', p);
       case 'availability_no_window': return t('businessHub.staffScheduler.validation.availabilityNoWindow', p);

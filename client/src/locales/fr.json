@@ -8942,6 +8942,7 @@
         "warningsTitle": "Note de disponibilité",
         "shiftOverlap": "Chevauche un autre shift le {{conflictingDate}} (de {{conflictingStart}} à {{conflictingEnd}}).",
         "timeOffOverlap": "Tombe pendant un congé approuvé ({{type}}) du {{startDate}} au {{endDate}}.",
+        "borrowOverlap": "Chevauche un prêt approuvé dans un autre établissement le {{borrowDate}} (de {{borrowStart}} à {{borrowEnd}}).",
         "availabilityOutsideWindow": "En dehors des disponibilités du membre du personnel le {{shiftDate}} (de {{start}} à {{end}}).",
         "availabilityNoWindow": "Le membre du personnel n’a aucune disponibilité enregistrée pour le {{shiftDate}}.",
         "minorDailyHours": "Le mineur travaillerait {{hours}} heures le {{shiftDate}} (limite de {{limit}} heures).",

@@ -8323,6 +8323,7 @@
         "warningsTitle": "Nota de disponibilidad",
         "shiftOverlap": "Se superpone con otro turno el {{conflictingDate}} (de {{conflictingStart}} a {{conflictingEnd}}).",
         "timeOffOverlap": "Coincide con tiempo libre aprobado de tipo {{type}} (del {{startDate}} al {{endDate}}).",
+        "borrowOverlap": "Se solapa con un préstamo aprobado en otra tienda el {{borrowDate}} (de {{borrowStart}} a {{borrowEnd}}).",
         "availabilityOutsideWindow": "Fuera de la disponibilidad del empleado el {{shiftDate}} (de {{start}} a {{end}}).",
         "availabilityNoWindow": "El empleado no tiene disponibilidad registrada para el {{shiftDate}}.",
         "minorDailyHours": "El menor trabajaría {{hours}} horas el {{shiftDate}} (límite de {{limit}} horas).",

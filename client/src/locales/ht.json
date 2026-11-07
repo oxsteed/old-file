@@ -8510,6 +8510,7 @@
         "warningsTitle": "Nòt sou disponiblite",
         "shiftOverlap": "Li kwoze ak yon lòt shift {{conflictingDate}} a ({{conflictingStart}} rive {{conflictingEnd}}).",
         "timeOffOverlap": "Li tonbe nan konje {{type}} ki apwouve ({{startDate}} rive {{endDate}}).",
+        "borrowOverlap": "Li kwoze yon prete apwouve nan yon lòt magazen {{borrowDate}} a ({{borrowStart}} rive {{borrowEnd}}).",
         "availabilityOutsideWindow": "Li deyò disponiblite anplwaye a {{shiftDate}} a ({{start}} rive {{end}}).",
         "availabilityNoWindow": "Anplwaye a pa gen okenn disponiblite anrejistre pou {{shiftDate}} a.",
         "minorDailyHours": "Minè a ta travay {{hours}} èdtan {{shiftDate}} a (limit {{limit}} èdtan).",

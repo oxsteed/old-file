@@ -8,6 +8,10 @@
 // ── Blocking vs warning (the recorded product decision) ──────────────
 // BLOCKING (409, the write does not happen):
 //   - shift_overlap: the person already has a shift covering this time.
+//   - borrow_overlap: the person already has an APPROVED labor borrow
+//     covering this time at another store. Only approved borrows count:
+//     a requested borrow is not a commitment yet, and a declined /
+//     completed / cancelled one never blocks.
 //   - time_off_overlap: the shift falls inside an APPROVED time-off range.
 //   - minor_*: the shift would break a minor limit from the person's labor
 //     profile and the location's jurisdiction rules (daily / weekly hours,
@@ -195,6 +199,67 @@ async function validateShift(db, opts) {
       },
       time_off_request_id: Number(request.id),
     });
+  }
+
+  // (b2) Overlap with the person's APPROVED labor borrows at other
+  // stores (finding 37). An approved borrow is a commitment exactly
+  // like a published shift: the approval-time re-check decays the
+  // moment a home-store shift is published afterwards, so the shift
+  // validator must see borrows too. Only 'approved' borrows count.
+  // Borrows are restaurant-scoped, so without a restaurant (no
+  // restaurantId and no location to derive one from) there is nothing
+  // to check: a non-restaurant business has no borrows. A borrow
+  // never spans midnight (requestBorrow rejects start >= end), but
+  // an overnight candidate can spill into the next morning, so the
+  // window covers the following day too.
+  let borrowRestaurantId = restaurantId;
+  if (!borrowRestaurantId && locationId != null) {
+    try {
+      const { rows: [loc] } = await db.query(
+        'SELECT restaurant_id FROM restaurant_locations WHERE id = $1',
+        [locationId]
+      );
+      borrowRestaurantId = loc?.restaurant_id || null;
+    } catch (err) {
+      borrowRestaurantId = null;
+    }
+  }
+  if (borrowRestaurantId != null) {
+    const borrowEnd = overnight ? addDays(day, 1) : day;
+    const { rows: borrows } = await db.query(
+      `SELECT id, shift_date::text AS shift_date,
+              start_time::text AS start_time, end_time::text AS end_time,
+              borrow_location_id
+         FROM restaurant_labor_borrows
+        WHERE restaurant_id = $1 AND staff_user_id = $2 AND status = 'approved'
+          AND shift_date >= $3::date AND shift_date <= $4::date
+        ORDER BY shift_date, start_time`,
+      [borrowRestaurantId, userId, day, borrowEnd]
+    );
+    for (const borrow of borrows || []) {
+      const interval = shiftInterval(borrow, day);
+      if (!interval) continue;
+      if (interval.start < candEnd && candStart < interval.end) {
+        violations.push({
+          code: 'borrow_overlap',
+          severity: 'blocking',
+          field: 'shift_start',
+          user_id: userId,
+          message_key: 'businessHub.staffScheduler.validation.borrowOverlap',
+          params: {
+            shiftDate: day,
+            start: minutesToTime(candStart % 1440),
+            end: minutesToTime(candEndRaw),
+            borrowDate: dateOnly(borrow.shift_date),
+            borrowStart: String(borrow.start_time).slice(0, 5),
+            borrowEnd: String(borrow.end_time).slice(0, 5),
+          },
+          borrow_id: Number(borrow.id),
+          borrow_location_id: borrow.borrow_location_id == null
+            ? null : Number(borrow.borrow_location_id),
+        });
+      }
+    }
   }
 
   // (c) Stored availability windows: warning only, never blocking (see
