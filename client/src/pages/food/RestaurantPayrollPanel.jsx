@@ -747,7 +747,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
       {/* ── Punch enforcement nudge (item 33): the exceptions report
           carries per-store geofence/PIN setup state; nothing is blocked
           from here, the manager just sees what is not set up yet. */}
-      {exceptions.punch_enforcement && (exceptions.punch_enforcement.locations || []).length > 0 && (
+      {exceptions?.punch_enforcement && (exceptions.punch_enforcement.locations || []).length > 0 && (
         <>
           <h4 className="fd-ops-subhead">{t('restaurants.ops.reports.exceptions.punchEnforcement.title')}</h4>
           <div className="fd-table-scroll">
