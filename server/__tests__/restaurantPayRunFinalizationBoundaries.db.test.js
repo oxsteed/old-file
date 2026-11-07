@@ -169,6 +169,21 @@ async function approveRun(userId, restaurantId, runId) {
   );
 }
 
+// Finding 41: voiding a finalized run is two-step — the owner
+// (finalizer) requests, the checker approves.
+async function voidRun(owner, checker, restaurantId, runId) {
+  const requested = await call(
+    controller.voidPayRun,
+    mockReq({ params: { restaurantId, payRunId: runId }, user: { id: owner } })
+  );
+  expect(requested.err).toBeNull();
+  expect(requested.res.statusCode).toBe(202);
+  return call(
+    controller.approveVoidPayRun,
+    mockReq({ params: { restaurantId, payRunId: runId }, user: { id: checker } })
+  );
+}
+
 async function getRun(userId, restaurantId, runId) {
   const fetched = await call(
     controller.getPayRun,
@@ -345,10 +360,7 @@ ddescribe('Finding 40: voiding a run in a live consolidation is blocked', () => 
     expect(voidedConsolidation.err).toBeNull();
     expect(voidedConsolidation.res.payload.consolidation.status).toBe('voided');
 
-    const voided = await call(
-      controller.voidPayRun,
-      mockReq({ params: { restaurantId: a.restaurantId, payRunId: runA.id }, user: { id: owner } })
-    );
+    const voided = await voidRun(owner, checker, a.restaurantId, runA.id);
     expect(voided.err).toBeNull();
     expect(voided.res.payload.payRun.status).toBe('voided');
   });
@@ -377,10 +389,7 @@ ddescribe('Finding 40: voiding a run in a live consolidation is blocked', () => 
     );
     expect(created.err).toBeNull();
     expect(created.res.payload.consolidation.status).toBe('draft');
-    const voided = await call(
-      controller.voidPayRun,
-      mockReq({ params: { restaurantId: a.restaurantId, payRunId: runA.id }, user: { id: owner } })
-    );
+    const voided = await voidRun(owner, checker, a.restaurantId, runA.id);
     expect(voided.err).toBeNull();
     expect(voided.res.payload.payRun.status).toBe('voided');
   });
@@ -467,10 +476,7 @@ ddescribe('Finding 9: a wrongly recorded disbursement can be reversed', () => {
       })
     );
     expect(reVoided.err).toBeNull();
-    const runVoided = await call(
-      controller.voidPayRun,
-      mockReq({ params: { restaurantId, payRunId: run.id }, user: { id: owner } })
-    );
+    const runVoided = await voidRun(owner, checker, restaurantId, run.id);
     expect(runVoided.err).toBeNull();
     expect(runVoided.res.payload.payRun.status).toBe('voided');
   });

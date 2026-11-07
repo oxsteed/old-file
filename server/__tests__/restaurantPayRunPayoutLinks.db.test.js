@@ -234,9 +234,18 @@ ddescribe('finding 25: pay-run payout linkage', () => {
     expect(linked.res.payload.payRun.status).toBe('finalized');
     expect(linked.res.payload.payRun.linkedPayoutCents).toBe(5000);
 
-    const voided = await call(
+    // Finding 41: voiding a finalized run is two-step — the owner
+    // (finalizer) requests, a second manager approves.
+    const requested = await call(
       controller.voidPayRun,
       mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.owner } })
+    );
+    expect(requested.err).toBeNull();
+    expect(requested.res.statusCode).toBe(202);
+    expect(requested.res.payload.payRun.status).toBe('finalized');
+    const voided = await call(
+      controller.approveVoidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.checker } })
     );
     expect(voided.err).toBeNull();
     expect(voided.res.payload.payRun.status).toBe('voided');

@@ -456,6 +456,10 @@ router.post('/:restaurantId/pay-runs/:payRunId/rebuild', requireRestaurantAccess
 router.post('/:restaurantId/pay-runs/:payRunId/finalize', requireRestaurantAccess(), payrollReports.finalizePayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/approve', requireRestaurantAccess(), payrollReports.approvePayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/void', requireRestaurantAccess(), payrollReports.voidPayRun);
+// Finding 41: completing a void of a finalized/approved run needs a
+// second payroll manager, distinct from the void requester and the
+// finalizer. Draft runs void in one step and never reach this route.
+router.post('/:restaurantId/pay-runs/:payRunId/void-approve', requireRestaurantAccess(), payrollReports.approveVoidPayRun);
 router.post('/:restaurantId/pay-runs/:payRunId/payout-links', requireRestaurantAccess(), payrollReports.linkPayRunPayout);
 // Phase 5: disbursement ledger. Recording is a money release, so it
 // needs the same second approver as an export or payout link.

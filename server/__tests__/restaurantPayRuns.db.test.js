@@ -234,12 +234,32 @@ ddescribe('F-22 pay-run records', () => {
   });
 
   test('void is append-only; double void fails closed', async () => {
-    const voided = await call(
+    // Finding 41: voiding a finalized run is two-step. The request
+    // records the maker and returns 202 with the run still finalized.
+    const requested = await call(
       controller.voidPayRun,
       mockReq({ params: { restaurantId: F.restaurantId, payRunId: F.finalizedRunId }, user: { id: F.owner } })
     );
+    expect(requested.err).toBeNull();
+    expect(requested.res.statusCode).toBe(202);
+    expect(requested.res.payload.payRun.status).toBe('finalized');
+    expect(requested.res.payload.payRun.void_requested_by).toBe(F.owner);
+    expect(requested.res.payload.payRun.voidPending).toBe(true);
+    // A second request while one is pending is a 409.
+    const dup = await call(
+      controller.voidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: F.finalizedRunId }, user: { id: F.owner } })
+    );
+    expect(dup.err).toMatchObject({ code: 'pay_run_void_already_requested' });
+    // A second payroll manager completes the void.
+    const voided = await call(
+      controller.approveVoidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: F.finalizedRunId }, user: { id: F.checker } })
+    );
     expect(voided.err).toBeNull();
     expect(voided.res.payload.payRun.status).toBe('voided');
+    expect(voided.res.payload.payRun.void_approved_by).toBe(F.checker);
+    expect(voided.res.payload.payRun.voidPending).toBe(false);
     // The row still exists with its snapshot intact.
     const fetched = await call(
       controller.getPayRun,
@@ -253,6 +273,69 @@ ddescribe('F-22 pay-run records', () => {
       mockReq({ params: { restaurantId: F.restaurantId, payRunId: F.finalizedRunId }, user: { id: F.owner } })
     );
     expect(again.err).toMatchObject({ code: 'pay_run_already_voided' });
+    const againApprove = await call(
+      controller.approveVoidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: F.finalizedRunId }, user: { id: F.checker } })
+    );
+    expect(againApprove.err).toMatchObject({ code: 'pay_run_already_voided' });
+  });
+
+  test('finding 41: the void requester and the finalizer cannot approve the void; drafts still void in one step', async () => {
+    const approver = await makeUser();
+    accessByUser.set(String(approver), {
+      id: F.restaurantId, business_id: F.businessId, timezone: 'America/New_York', currency_code: 'USD',
+      effective_role: 'owner', effective_membership_id: null,
+    });
+    const created = await call(
+      controller.createPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId }, body: period(), user: { id: F.owner } })
+    );
+    expect(created.err).toBeNull();
+    const runId = created.res.payload.payRun.id;
+    const finalized = await call(
+      controller.finalizePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.owner } })
+    );
+    expect(finalized.err).toBeNull();
+    // The void requester is the checker here, not the finalizer.
+    const requested = await call(
+      controller.voidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.checker } })
+    );
+    expect(requested.err).toBeNull();
+    expect(requested.res.statusCode).toBe(202);
+    // Neither the requester nor the finalizer can approve the void.
+    const selfApprove = await call(
+      controller.approveVoidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.checker } })
+    );
+    expect(selfApprove.err).toMatchObject({ code: 'pay_run_void_self_approval', statusCode: 403 });
+    const finalizerApprove = await call(
+      controller.approveVoidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.owner } })
+    );
+    expect(finalizerApprove.err).toMatchObject({ code: 'pay_run_void_finalizer_approval', statusCode: 403 });
+    const voided = await call(
+      controller.approveVoidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: approver } })
+    );
+    expect(voided.err).toBeNull();
+    expect(voided.res.payload.payRun.status).toBe('voided');
+
+    // A draft run still voids in one step by one manager.
+    const draft = await call(
+      controller.createPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId }, body: period(), user: { id: F.owner } })
+    );
+    expect(draft.err).toBeNull();
+    const draftVoided = await call(
+      controller.voidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: draft.res.payload.payRun.id }, user: { id: F.owner } })
+    );
+    expect(draftVoided.err).toBeNull();
+    expect(draftVoided.res.statusCode).toBe(200);
+    expect(draftVoided.res.payload.payRun.status).toBe('voided');
+    expect(draftVoided.res.payload.payRun.void_requested_by).toBeNull();
   });
 
   test('finalize fails closed when hours lack a wage rate', async () => {

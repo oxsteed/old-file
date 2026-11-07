@@ -30,6 +30,7 @@ import {
   finalizePayRun,
   approvePayRun,
   voidPayRun,
+  approveVoidPayRun,
   downloadPayRunCsv,
   linkPayRunPayout,
   recordPayRunDisbursement,
@@ -99,6 +100,28 @@ export function PayrollPanel({ t, restaurant, from, to }) {
         setPayRuns((rows) => (rows || []).map((row) => (Number(row.id) === Number(run.id) ? { ...row, ...run } : row)));
       }
       toast.success(label);
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.payRuns.actionError')));
+    } finally {
+      setPayRunBusy(false);
+    }
+  };
+
+  // Finding 41: voiding a finalized run is two-step. The void call
+  // records the request and answers 202 with the run still finalized,
+  // so the toast says a second manager must approve it instead of
+  // claiming the run is voided.
+  const onVoidPayRun = async () => {
+    setPayRunBusy(true);
+    try {
+      const run = await voidPayRun(restaurantId, selectedPayRun.id);
+      if (run) {
+        setSelectedPayRun(run);
+        setPayRuns((rows) => (rows || []).map((row) => (Number(row.id) === Number(run.id) ? { ...row, ...run } : row)));
+      }
+      toast.success(run?.voidPending
+        ? t('restaurants.ops.reports.payRuns.voidRequested')
+        : t('restaurants.ops.reports.payRuns.voided'));
     } catch (err) {
       toast.error(apiErr(err, t('restaurants.ops.reports.payRuns.actionError')));
     } finally {
@@ -496,6 +519,9 @@ export function PayrollPanel({ t, restaurant, from, to }) {
               })}
             </p>
           )}
+          {canManagePayRuns && selectedPayRun.status === 'finalized' && selectedPayRun.void_requested_by && (
+            <p className="fd-card-meta">{t('restaurants.ops.reports.payRuns.voidPending')}</p>
+          )}
           {canManagePayRuns && (
             <div className="fd-ops-inventory-row">
               {selectedPayRun.status === 'draft' && (
@@ -513,8 +539,11 @@ export function PayrollPanel({ t, restaurant, from, to }) {
                   <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payRunBusy} onClick={() => onExportPayRun(selectedPayRun.id, 'provider')} data-track="ui.aa258f5ea1.21">{t('restaurants.ops.reports.payRuns.exportProvider')}</button>
                 </>
               )}
-              {(selectedPayRun.status === 'draft' || selectedPayRun.status === 'finalized') && (
-                <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payRunBusy} onClick={() => runPayRunAction(t('restaurants.ops.reports.payRuns.voided'), () => voidPayRun(restaurantId, selectedPayRun.id))} data-track="ui.aa258f5ea1.22">{t('restaurants.ops.reports.payRuns.void')}</button>
+              {selectedPayRun.status === 'finalized' && selectedPayRun.void_requested_by && (
+                <button type="button" className="fd-btn fd-btn-sm" disabled={payRunBusy} onClick={() => runPayRunAction(t('restaurants.ops.reports.payRuns.voided'), () => approveVoidPayRun(restaurantId, selectedPayRun.id))} data-track="ui.aa258f5ea1.28">{t('restaurants.ops.reports.payRuns.voidApprove')}</button>
+              )}
+              {(selectedPayRun.status === 'draft' || (selectedPayRun.status === 'finalized' && !selectedPayRun.void_requested_by)) && (
+                <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payRunBusy} onClick={onVoidPayRun} data-track="ui.aa258f5ea1.22">{t('restaurants.ops.reports.payRuns.void')}</button>
               )}
               <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={() => setSelectedPayRun(null)} data-track="ui.aa258f5ea1.23">{t('restaurants.ops.reports.payRuns.close')}</button>
             </div>

@@ -372,6 +372,9 @@ export const approvePayRun = (restaurantId, payRunId) =>
 export const voidPayRun = (restaurantId, payRunId) =>
   api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/void`).then((r) => r.data?.payRun);
 
+export const approveVoidPayRun = (restaurantId, payRunId) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/void-approve`).then((r) => r.data?.payRun);
+
 export const downloadPayRunCsv = (restaurantId, payRunId, format = 'native') =>
   api.get(`/restaurants/${restaurantId}/pay-runs/${payRunId}/export.csv`, { params: { format }, responseType: 'blob' }).then((r) => r.data);
 

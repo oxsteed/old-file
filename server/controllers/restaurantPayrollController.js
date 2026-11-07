@@ -714,6 +714,15 @@ function payRunShape(run) {
     finalized_at: run.finalized_at,
     approved_by: run.approved_by || null,
     approved_at: run.approved_at || null,
+    // Finding 41: the two-step void. void_requested_by/at is the maker
+    // (the manager who asked for the void); void_approved_by/at is the
+    // checker who completed it. voidPending is true while a finalized
+    // run waits for that second manager.
+    void_requested_by: run.void_requested_by || null,
+    void_requested_at: run.void_requested_at || null,
+    void_approved_by: run.void_approved_by || null,
+    void_approved_at: run.void_approved_at || null,
+    voidPending: run.void_requested_by != null && run.void_approved_by == null && run.status !== 'voided',
     created_at: run.created_at,
     updated_at: run.updated_at,
     payoutLinks: (run.payout_links || run.payoutLinks || []).map((link) => ({
@@ -1230,6 +1239,52 @@ function assertPayRunApprovedForRelease(run) {
   }
 }
 
+// Shared void guards (findings 40 and 9): a member run of a live
+// (finalized or approved) consolidation, or a run with recorded
+// disbursements, cannot be voided. Checked at the void-request step
+// and re-verified at the void-approval step, so nothing changes
+// underneath a pending request.
+async function assertPayRunVoidable(client, payRunId) {
+  // Finding 40: a member run of a live consolidation cannot be voided
+  // away underneath it — the consolidation snapshot would go stale.
+  // Void the consolidation first (which dissolves the group without
+  // touching the runs), then void the run. Draft consolidations do
+  // not block: their finalize re-verifies members are still finalized.
+  const { rows: [liveConsolidation] } = await client.query(
+    `SELECT c.id FROM restaurant_pay_run_consolidation_members m
+       JOIN restaurant_pay_run_consolidations c ON c.id = m.consolidation_id
+      WHERE m.pay_run_id = $1 AND c.status IN ('finalized', 'approved')`,
+    [payRunId]
+  );
+  if (liveConsolidation) {
+    throw new AppError(
+      `This pay run belongs to live consolidation ${liveConsolidation.id}; void the consolidation first`,
+      409,
+      'pay_run_in_live_consolidation',
+      { consolidation_id: Number(liveConsolidation.id) }
+    );
+  }
+  // Phase 5: money already recorded as disbursed cannot be voided
+  // away; the disbursement ledger is the record of what left.
+  // Finding 9: only live ('recorded') disbursements block — a
+  // reversed disbursement no longer holds the run hostage.
+  const { rows: [disbursedRow] } = await client.query(
+    `SELECT COUNT(*)::int AS n FROM restaurant_pay_run_disbursements
+      WHERE pay_run_id = $1 AND status = 'recorded'`,
+    [payRunId]
+  );
+  if (Number(disbursedRow?.n || 0) > 0) {
+    throw new AppError('A pay run with recorded disbursements cannot be voided', 409, 'pay_run_has_disbursements');
+  }
+}
+
+// Finding 41: voiding a finalized or approved pay run needs a second
+// manager's approval, like every other release step (finalize is the
+// maker, approve is the checker). This endpoint is the maker step: for
+// a finalized run it records the void request and returns 202 with the
+// run still finalized; approveVoidPayRun is the checker step that
+// completes the void. A draft run still voids in one step, because
+// nothing has been finalized or approved yet.
 exports.voidPayRun = async (req, res, next) => {
   try {
     const restaurant = await restaurantAccess(req);
@@ -1238,65 +1293,107 @@ exports.voidPayRun = async (req, res, next) => {
     if (!payRunId) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
     // Finding 25: a paid run has money attached; voiding it away would
     // erase the linkage. Paid runs stay paid.
-    const { rows: [paidRow] } = await pool.query(
-      'SELECT id FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2 AND status = $3',
-      [payRunId, restaurant.id, 'paid']
-    );
-    if (paidRow) throw new AppError('A paid pay run cannot be voided', 409, 'pay_run_paid');
-    // Finding 40: a member run of a live (finalized or approved)
-    // consolidation cannot be voided away underneath it — the
-    // consolidation snapshot would go stale. Void the consolidation
-    // first (which dissolves the group without touching the runs),
-    // then void the run. Draft consolidations do not block: their
-    // finalize re-verifies members are still finalized.
-    const { rows: [liveConsolidation] } = await pool.query(
-      `SELECT c.id FROM restaurant_pay_run_consolidation_members m
-         JOIN restaurant_pay_run_consolidations c ON c.id = m.consolidation_id
-        WHERE m.pay_run_id = $1 AND c.status IN ('finalized', 'approved')`,
-      [payRunId]
-    );
-    if (liveConsolidation) {
-      throw new AppError(
-        `This pay run belongs to live consolidation ${liveConsolidation.id}; void the consolidation first`,
-        409,
-        'pay_run_in_live_consolidation',
-        { consolidation_id: Number(liveConsolidation.id) }
-      );
-    }
-    // Phase 5: money already recorded as disbursed cannot be voided
-    // away; the disbursement ledger is the record of what left.
-    // Finding 9: only live ('recorded') disbursements block — a
-    // reversed disbursement no longer holds the run hostage.
-    const { rows: [disbursedRow] } = await pool.query(
-      `SELECT COUNT(*)::int AS n FROM restaurant_pay_run_disbursements
-        WHERE pay_run_id = $1 AND status = 'recorded'`,
-      [payRunId]
-    );
-    if (Number(disbursedRow?.n || 0) > 0) {
-      throw new AppError('A pay run with recorded disbursements cannot be voided', 409, 'pay_run_has_disbursements');
-    }
-    const { rows: [run] } = await pool.query(
-      `UPDATE restaurant_pay_runs
-          SET status = 'voided', updated_at = NOW()
-        WHERE id = $1 AND restaurant_id = $2 AND status IN ('draft', 'finalized')
-        RETURNING *`,
-      [payRunId, restaurant.id]
-    );
-    if (!run) {
-      const { rows: [existing] } = await pool.query(
-        'SELECT id FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2',
+    const run = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        'SELECT * FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
         [payRunId, restaurant.id]
       );
       if (!existing) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
-      throw new AppError('This pay run is already voided', 409, 'pay_run_already_voided');
-    }
+      if (existing.status === 'paid') throw new AppError('A paid pay run cannot be voided', 409, 'pay_run_paid');
+      if (existing.status === 'voided') throw new AppError('This pay run is already voided', 409, 'pay_run_already_voided');
+      await assertPayRunVoidable(client, payRunId);
+      if (existing.status === 'draft') {
+        const { rows: [voided] } = await client.query(
+          `UPDATE restaurant_pay_runs
+              SET status = 'voided', updated_at = NOW()
+            WHERE id = $1 AND restaurant_id = $2 AND status = 'draft'
+            RETURNING *`,
+          [payRunId, restaurant.id]
+        );
+        return { run: voided, requested: false };
+      }
+      if (existing.void_requested_by) {
+        throw new AppError('A void has already been requested for this pay run; a different payroll manager must approve it', 409, 'pay_run_void_already_requested');
+      }
+      const { rows: [requested] } = await client.query(
+        `UPDATE restaurant_pay_runs
+            SET void_requested_by = $2, void_requested_at = NOW(), updated_at = NOW()
+          WHERE id = $1 AND restaurant_id = $3 AND status = 'finalized' AND void_requested_by IS NULL
+          RETURNING *`,
+        [payRunId, req.user.id, restaurant.id]
+      );
+      if (!requested) throw new AppError('This pay run is already voided', 409, 'pay_run_already_voided');
+      return { run: requested, requested: true };
+    }, 'restaurant_void_pay_run');
+    await logBusinessAction(req, {
+      business_id: restaurant.business_id,
+      actor_role: restaurant.effective_role || null,
+      action: run.requested ? 'restaurant.pay_run.void_requested' : 'restaurant.pay_run.voided',
+      target_type: 'restaurant_pay_run',
+      target_id: run.run.id,
+      after_state: run.requested
+        ? { status: 'finalized', void_requested_by: req.user.id }
+        : { status: 'voided' },
+    });
+    if (run.requested) return res.status(202).json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.run.id)) });
+    res.json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.run.id)) });
+  } catch (err) { next(err); }
+};
+
+// Finding 41, checker step: a second payroll manager completes a
+// pending void request. The approver must differ from both the void
+// requester and the finalizer, where those are known; the DB CHECK on
+// restaurant_pay_runs is the second line of defense. The void guards
+// (live consolidation, recorded disbursements) are re-verified here,
+// so a request cannot complete over a run that changed underneath it.
+exports.approveVoidPayRun = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    await requirePayrollManage(restaurant, req.user.id);
+    const payRunId = parsePositiveInt(req.params.payRunId);
+    if (!payRunId) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+    const run = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        'SELECT * FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
+        [payRunId, restaurant.id]
+      );
+      if (!existing) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
+      if (existing.status === 'voided') throw new AppError('This pay run is already voided', 409, 'pay_run_already_voided');
+      if (existing.status !== 'finalized' || !existing.void_requested_by) {
+        throw new AppError('No void has been requested for this pay run; request the void first', 409, 'pay_run_void_not_requested');
+      }
+      if (String(existing.void_requested_by) === String(req.user.id)) {
+        throw new AppError(
+          'The user who requested a pay-run void cannot approve it; a different payroll manager must approve',
+          403,
+          'pay_run_void_self_approval'
+        );
+      }
+      if (existing.finalized_by != null && String(existing.finalized_by) === String(req.user.id)) {
+        throw new AppError(
+          'The user who finalized a pay run cannot approve its void; a different payroll manager must approve',
+          403,
+          'pay_run_void_finalizer_approval'
+        );
+      }
+      await assertPayRunVoidable(client, payRunId);
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_pay_runs
+            SET status = 'voided', void_approved_by = $2, void_approved_at = NOW(), updated_at = NOW()
+          WHERE id = $1 AND restaurant_id = $3 AND status = 'finalized' AND void_requested_by IS NOT NULL
+          RETURNING *`,
+        [payRunId, req.user.id, restaurant.id]
+      );
+      if (!updated) throw new AppError('This pay run is already voided', 409, 'pay_run_already_voided');
+      return updated;
+    }, 'restaurant_approve_pay_run_void');
     await logBusinessAction(req, {
       business_id: restaurant.business_id,
       actor_role: restaurant.effective_role || null,
       action: 'restaurant.pay_run.voided',
       target_type: 'restaurant_pay_run',
       target_id: run.id,
-      after_state: { status: 'voided' },
+      after_state: { status: 'voided', void_requested_by: run.void_requested_by, void_approved_by: req.user.id },
     });
     res.json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.id)) });
   } catch (err) { next(err); }
