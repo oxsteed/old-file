@@ -683,11 +683,12 @@ async function getHoursByUser(businessId, fromDate, toDate, locationIds = null) 
 //   3. Weekly overtime: regular hours past the labor policy's weekly
 //      threshold convert to overtime. Hours already tiered as daily
 //      overtime or double time are NOT counted again.
-//   4. Meal-break premium: where the jurisdiction requires it, an entry
-//      that runs past the meal-break point without a long enough break
-//      earns premium hours at the regular rate (e.g. one hour in
-//      California). The policy-based breakExceptions count is kept
-//      alongside it and is unchanged.
+//   4. Meal-break premium: where the jurisdiction requires it, one
+//      premium per person per day when the day's total hours pass the
+//      meal-break point without one continuous break of the required
+//      duration (e.g. one hour in California). Split breaks never add
+//      up to a meal period. The policy-based breakExceptions count is
+//      kept alongside it, per original punch.
 //
 // `rulesResolver` is a function (locationId) => jurisdiction rules, a
 // single rules object applied to every row, or null for the US-FED
@@ -774,7 +775,17 @@ function tierRows(rows, policy, rulesResolver, options = {}) {
         timezone: timezoneOf(row.location_id == null ? null : Number(row.location_id)),
         entryDate: entryDate(row),
       });
-      for (const piece of splits) {
+      // The policy break exception is per original punch, not per
+      // split piece: an overnight row split in two must not count
+      // twice. Each piece carries its source row's hours and total
+      // break minutes; only the first piece can raise the exception.
+      const sourceBreakMinutes = (Array.isArray(row.breaks) ? row.breaks : []).reduce((sum, item) => {
+        const start = Date.parse(item?.started_at || '');
+        const end = Date.parse(item?.ended_at || '');
+        return Number.isFinite(start) && Number.isFinite(end) && end > start
+          ? sum + ((end - start) / 60000) : sum;
+      }, 0);
+      splits.forEach((piece, index) => {
         pieces.push({
           ...row,
           entry_date: piece.date,
@@ -782,8 +793,11 @@ function tierRows(rows, policy, rulesResolver, options = {}) {
           breaks: piece.breaks,
           clock_in_at: piece.startMs != null ? new Date(piece.startMs).toISOString() : row.clock_in_at,
           clock_out_at: piece.endMs != null ? new Date(piece.endMs).toISOString() : row.clock_out_at,
+          firstPieceOfSource: index === 0,
+          sourceHours: Math.max(0, Number(row.hours_worked) || 0),
+          sourceBreakMinutes,
         });
-      }
+      });
     }
     const sortedPieces = pieces;
 
@@ -926,32 +940,81 @@ function tierRows(rows, policy, rulesResolver, options = {}) {
       }
     }
 
-    // Per-row meal-break premium (jurisdiction) and break exceptions
-    // (policy, unchanged semantics).
+    // Meal-break premium, one per person per day (finding 16): the
+    // day's TOTAL hours decide whether a meal period was owed, and
+    // only one CONTINUOUS break of the required duration satisfies
+    // it — two 15-minute breaks do not add up to a 30-minute meal.
+    // The strictest rule among the day's locations governs (earliest
+    // trigger, longest required break, largest premium), matching
+    // the daily-tier strictest-wins rule. The premium is attributed
+    // to the day's first piece in the allocations, so scoped reports
+    // still sum it exactly once. A missed meal is counted even where
+    // the jurisdiction pays no premium for it (GB-UK).
+    const mealByDate = new Map(); // date -> { missed, premiumHours }
+    const firstPieceByDate = new Set(); // the first piece object per date
+    const seenDates = new Set();
+    const dayPieces = new Map();
+    for (const row of sortedPieces) {
+      const date = entryDate(row);
+      if (!seenDates.has(date)) {
+        seenDates.add(date);
+        firstPieceByDate.add(row);
+      }
+      const list = dayPieces.get(date) || [];
+      list.push(row);
+      dayPieces.set(date, list);
+    }
+    for (const [date, dayRows] of dayPieces) {
+      const dayRules = dayRows.map((row) => resolve(row.location_id == null ? null : Number(row.location_id)));
+      const afters = dayRules
+        .map((r) => (r.meal_break_after_minutes == null ? null : Number(r.meal_break_after_minutes)))
+        .filter((v) => v != null);
+      if (!afters.length) continue;
+      const totalHours = dayRows.reduce((sum, r) => sum + Math.max(0, Number(r.hours_worked) || 0), 0);
+      if (totalHours * 60 < Math.min(...afters)) continue;
+      const durations = dayRules
+        .map((r) => (r.meal_break_duration_minutes == null ? null : Number(r.meal_break_duration_minutes)))
+        .filter((v) => v != null);
+      const duration = durations.length ? Math.max(...durations) : 0;
+      // Longest single continuous break that day. Breaks were
+      // attributed whole to the piece their start falls on, so a
+      // break spanning midnight still counts at its full length.
+      let longestBreak = 0;
+      for (const row of dayRows) {
+        for (const item of Array.isArray(row.breaks) ? row.breaks : []) {
+          const start = Date.parse(item?.started_at || '');
+          const end = Date.parse(item?.ended_at || '');
+          if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+            longestBreak = Math.max(longestBreak, (end - start) / 60000);
+          }
+        }
+      }
+      if (longestBreak < duration) {
+        const premiumHours = Math.max(0, ...dayRules.map((r) => laborJurisdiction.mealBreakPremiumHours(r) || 0));
+        mealByDate.set(date, { missed: 1, premiumHours });
+      }
+    }
+
+    // Per-piece tiers with the per-day meal-break premium (above) and
+    // the policy break exception, which stays per original punch.
     const user = {
       totalHours: 0, regularHours: 0, overtimeHours: 0, doubletimeHours: 0,
       breakExceptions: 0, missedMealBreaks: 0, mealBreakPremiumHours: 0, weeks,
     };
     for (const row of sortedPieces) {
-      const rules = resolve(row.location_id == null ? null : Number(row.location_id));
       const hours = Math.max(0, Number(row.hours_worked) || 0);
       const split = rowSplit.get(row);
-      const breaks = Array.isArray(row.breaks) ? row.breaks : [];
-      const breakMinutes = breaks.reduce((sum, item) => {
-        const start = Date.parse(item?.started_at || '');
-        const end = Date.parse(item?.ended_at || '');
-        return Number.isFinite(start) && Number.isFinite(end) && end > start
-          ? sum + ((end - start) / 60000) : sum;
-      }, 0);
+      const date = entryDate(row);
+      const dayMeal = mealByDate.get(date);
       let missedMeal = 0;
       let mealPremiumHours = 0;
-      if (rules.meal_break_after_minutes != null && hours * 60 >= Number(rules.meal_break_after_minutes)
-        && breakMinutes < Number(rules.meal_break_duration_minutes ?? 0)) {
-        missedMeal = 1;
-        mealPremiumHours = laborJurisdiction.mealBreakPremiumHours(rules) || 0;
+      if (dayMeal && firstPieceByDate.has(row)) {
+        missedMeal = dayMeal.missed;
+        mealPremiumHours = dayMeal.premiumHours;
       }
       let breakException = 0;
-      if (hours * 60 >= policy.break_after_minutes && breakMinutes < policy.break_duration_minutes) {
+      if (row.firstPieceOfSource && row.sourceHours * 60 >= policy.break_after_minutes
+        && row.sourceBreakMinutes < policy.break_duration_minutes) {
         breakException = 1;
       }
       user.totalHours += hours;
@@ -963,7 +1026,7 @@ function tierRows(rows, policy, rulesResolver, options = {}) {
       user.mealBreakPremiumHours += mealPremiumHours;
       allocations.push({
         user_id: userId,
-        entry_date: entryDate(row),
+        entry_date: date,
         location_id: row.location_id == null ? null : Number(row.location_id),
         regular: split.regular,
         overtime: split.overtime,

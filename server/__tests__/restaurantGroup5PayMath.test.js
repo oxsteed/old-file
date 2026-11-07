@@ -109,6 +109,75 @@ describe('Finding 17: overnight hours split across local dates at midnight', () 
   });
 });
 
+describe('Finding 16: one meal-break premium per person per day, one continuous break', () => {
+  const fifteen = (day, hour) => ({ started_at: `2026-11-02T${hour}:00:00Z`, ended_at: `2026-11-02T${hour}:15:00Z` });
+
+  test('a split shift earns one premium for the day, not zero and not two', () => {
+    // Two 3-hour CA entries, no breaks: neither entry alone passes
+    // the 5-hour meal point, but the day totals 6 hours with no meal
+    // break. One premium, not the old zero (per-row hours) and not
+    // two (one per row).
+    const rows = [entry('u1', '2026-11-02', 3), entry('u1', '2026-11-02', 3)];
+    const result = payroll.calculatePolicyHours(rows, POLICY_40, CA).get('u1');
+    expect(result.missedMealBreaks).toBe(1);
+    expect(result.mealBreakPremiumHours).toBe(1);
+  });
+
+  test('two 15-minute breaks do not add up to a 30-minute meal period', () => {
+    const breaks = [fifteen('2026-11-02', '12'), fifteen('2026-11-02', '15')];
+    const result = payroll.calculatePolicyHours(
+      [entry('u1', '2026-11-02', 6, breaks)], POLICY_40, CA
+    ).get('u1');
+    expect(result.missedMealBreaks).toBe(1);
+    expect(result.mealBreakPremiumHours).toBe(1);
+  });
+
+  test('two long entries on one day earn one premium, not two', () => {
+    const rows = [entry('u1', '2026-11-02', 6), entry('u1', '2026-11-02', 6)];
+    const result = payroll.calculatePolicyHours(rows, POLICY_40, CA).get('u1');
+    expect(result.missedMealBreaks).toBe(1);
+    expect(result.mealBreakPremiumHours).toBe(1);
+  });
+
+  test('two days earn one premium each', () => {
+    const rows = [entry('u1', '2026-11-02', 6), entry('u1', '2026-11-03', 6)];
+    const result = payroll.calculatePolicyHours(rows, POLICY_40, CA).get('u1');
+    expect(result.missedMealBreaks).toBe(2);
+    expect(result.mealBreakPremiumHours).toBe(2);
+  });
+
+  test('a split day across two locations still earns one premium, under the strictest rule', () => {
+    // 3h at a CA store + 3h at a GB-UK store, no breaks: one 6-hour
+    // day, the CA 30-minute meal rule governs, premium 1 hour.
+    const rows = [entry('u1', '2026-11-02', 3, noBreaks, 1), entry('u1', '2026-11-02', 3, noBreaks, 2)];
+    const resolver = (locationId) => (locationId === 1 ? CA : L.resolveRules({ jurisdiction_code: 'GB-UK' }));
+    const result = payroll.calculatePolicyHours(rows, POLICY_40, resolver).get('u1');
+    expect(result.missedMealBreaks).toBe(1);
+    expect(result.mealBreakPremiumHours).toBe(1);
+  });
+
+  test('a 30-minute break split across two entries still satisfies the meal period', () => {
+    // The break is one continuous 30 minutes even though the punch
+    // was split into two entries around it.
+    const breaks = [{ started_at: '2026-11-02T12:00:00Z', ended_at: '2026-11-02T12:30:00Z' }];
+    const rows = [entry('u1', '2026-11-02', 3, breaks), entry('u1', '2026-11-02', 3)];
+    const result = payroll.calculatePolicyHours(rows, POLICY_40, CA).get('u1');
+    expect(result.missedMealBreaks).toBe(0);
+    expect(result.mealBreakPremiumHours).toBe(0);
+  });
+
+  test('the policy break exception stays per punch when a row splits overnight', () => {
+    // One 12-hour overnight punch with no break: one break exception,
+    // not one per split piece.
+    const rows = [{
+      user_id: 'u1', entry_date: '2026-11-02', hours_worked: 12, breaks: noBreaks, location_id: 1,
+      clock_in_at: '2026-11-02T18:00:00-05:00', clock_out_at: '2026-11-03T06:00:00-05:00',
+    }];
+    const result = payroll.calculatePolicyHours(rows, POLICY_40, CA, { timezoneFor: () => 'America/New_York' }).get('u1');
+    expect(result.breakExceptions).toBe(1);
+  });
+});
+
 describe('Finding 47: the double-time multiplier is a policy parameter', () => {
   test('normalizeLaborPolicy defaults double time to 2x', () => {
     const policy = payroll.normalizeLaborPolicy(null);
