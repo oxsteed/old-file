@@ -60,13 +60,29 @@ ddescribe('minor profiles and schedule changes', () => {
     expect(cols.some((c) => /birth|dob/.test(c))).toBe(false);
   });
 
-  test('publishing a minor shift returns minor warnings', async () => {
+  test('publishing a minor shift outside the permitted window is blocked (findings 51 + 30)', async () => {
     const day = isoDay(30);
-    await pool.query(`INSERT INTO business_staff_shifts(business_id,user_id,shift_date,start_time,end_time,restaurant_id,location_id) VALUES($1,$2,$3,'06:00','20:30',$4,$5)`, [businessId, employee, day, restaurantId, locationId]);
+    const { rows: [draft] } = await pool.query(`INSERT INTO business_staff_shifts(business_id,user_id,shift_date,start_time,end_time,restaurant_id,location_id) VALUES($1,$2,$3,'06:00','20:30',$4,$5) RETURNING id`, [businessId, employee, day, restaurantId, locationId]);
     const res = await request(app(owner, 'owner')).post(`/b/${businessId}/staff/shifts/publish`).send({ restaurant_id: restaurantId });
-    expect(res.status).toBe(200);
-    const rules = (res.body.rule_warnings || []).map((w) => w.rule);
-    expect(rules).toEqual(expect.arrayContaining(['minor_u16_window']));
+    // Findings 51 + 30: the under-16 work window is a blocking violation,
+    // so publish 409s the whole batch instead of publishing with a
+    // warning (the pre-fix behavior this test used to assert). Nothing
+    // is published, and the advisory school-day cap (finding 31) still
+    // rides along in the 409 body as a warning.
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('shift_conflicts');
+    expect((res.body.violations || []).map((v) => v.code)).toEqual(expect.arrayContaining(['minor_under16_window']));
+    expect((res.body.warnings || []).map((w) => w.code)).toEqual(expect.arrayContaining(['minor_under16_daily_hours']));
+    const { rows: [stillDraft] } = await pool.query('SELECT published_at FROM business_staff_shifts WHERE id = $1', [draft.id]);
+    expect(stillDraft.published_at).toBeNull();
+    // Advisory only: a within-window shift that breaks just the guessed
+    // school-day cap still publishes, with the minor warning attached.
+    await pool.query('DELETE FROM business_staff_shifts WHERE id = $1', [draft.id]);
+    await pool.query(`INSERT INTO business_staff_shifts(business_id,user_id,shift_date,start_time,end_time,restaurant_id,location_id) VALUES($1,$2,$3,'07:00','12:00',$4,$5)`, [businessId, employee, day, restaurantId, locationId]);
+    const ok = await request(app(owner, 'owner')).post(`/b/${businessId}/staff/shifts/publish`).send({ restaurant_id: restaurantId });
+    expect(ok.status).toBe(200);
+    const rules = (ok.body.rule_warnings || []).map((w) => w.rule);
+    expect(rules).toEqual(expect.arrayContaining(['minor_u16_daily']));
   });
 
   test('editing or cancelling a published shift inside the notice window records predictability pay', async () => {
