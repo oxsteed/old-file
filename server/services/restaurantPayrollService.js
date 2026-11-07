@@ -32,6 +32,7 @@
  */
 
 const pool = require('../db');
+const AppError = require('../utils/appError');
 // Shared CSV cell sanitizer (ADM-152): neutralizes formula injection
 // (leading =, +, -, @) on top of RFC 4180 quoting.
 const { csvCell } = require('../utils/csv');
@@ -331,8 +332,26 @@ async function listDeclaredCashTipsForUser(restaurantId, staffUserId, fromDate, 
 // move; confirming puts it into pay from the next computation on,
 // rejecting keeps it out of pay forever. Returns null when the row
 // does not exist or is not pending (the caller distinguishes).
+//
+// Finding 23: the reviewer can never be the person the tip belongs
+// to — a payroll manager cannot confirm (or reject) their own cash-tip
+// declaration. The check lives here, at the service boundary, so both
+// controller paths (confirm and reject) are covered by the one rule.
 async function reviewCashTip(restaurantId, declarationId, { status, reviewedBy }) {
   const next = status === 'rejected' ? 'rejected' : 'confirmed';
+  const { rows: [existing] } = await pool.query(
+    `SELECT id, staff_user_id, status FROM restaurant_declared_cash_tips
+      WHERE id = $1 AND restaurant_id = $2`,
+    [declarationId, restaurantId]
+  );
+  if (!existing || existing.status !== 'pending') return null;
+  if (reviewedBy != null && String(existing.staff_user_id) === String(reviewedBy)) {
+    throw new AppError(
+      'You cannot review your own cash-tip declaration; a different payroll manager must confirm or reject it',
+      403,
+      'cash_tip_self_review'
+    );
+  }
   const { rows: [row] } = await pool.query(
     `UPDATE restaurant_declared_cash_tips
         SET status = $3, reviewed_by = $4, reviewed_at = NOW()

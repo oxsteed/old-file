@@ -414,6 +414,39 @@ ddescribe('Phase 3 Track B: employee tips, pay and pay stubs', () => {
     expect(again.err.statusCode).toBe(409);
   });
 
+  test('finding 23: a payroll manager cannot confirm or reject their own cash-tip declaration', async () => {
+    const manager2 = await makeUser('Mona', 'Manager');
+    registerAccess(manager2, fx.restaurantId, fx.businessId, 'owner');
+    const declared = await call(controller.declareMyCashTip, mockReq({
+      params: { restaurantId: String(fx.restaurantId) },
+      body: { date: '2026-10-08', amountCents: 1500, note: 'Bar tips', idempotencyKey: 'trackb-owner-0001' },
+      user: { id: fx.owner },
+    }));
+    expect(declared.err).toBeNull();
+    expect(declared.res.payload.declaration.status).toBe('pending');
+    const declarationId = declared.res.payload.declaration.id;
+    // The declarant holds payroll.manage, so the permission gate passes
+    // and the self-review rule itself must refuse, on both paths.
+    const selfConfirm = await call(controller.confirmCashTip, mockReq({
+      params: { restaurantId: String(fx.restaurantId), declarationId: String(declarationId) },
+      user: { id: fx.owner },
+    }));
+    expect(selfConfirm.err).toMatchObject({ code: 'cash_tip_self_review', statusCode: 403 });
+    const selfReject = await call(controller.rejectCashTip, mockReq({
+      params: { restaurantId: String(fx.restaurantId), declarationId: String(declarationId) },
+      user: { id: fx.owner },
+    }));
+    expect(selfReject.err).toMatchObject({ code: 'cash_tip_self_review', statusCode: 403 });
+    // The declaration is still pending; a different manager can decide it.
+    const confirmed = await call(controller.confirmCashTip, mockReq({
+      params: { restaurantId: String(fx.restaurantId), declarationId: String(declarationId) },
+      user: { id: manager2 },
+    }));
+    expect(confirmed.err).toBeNull();
+    expect(confirmed.res.payload.declaration.status).toBe('confirmed');
+    expect(confirmed.res.payload.declaration.reviewed_by).toBe(manager2);
+  });
+
   test('a rejected self-declaration never flows into pay', async () => {
     const { res, err } = await call(controller.declareMyCashTip, mockReq({
       params: { restaurantId: String(fx.restaurantId) },
