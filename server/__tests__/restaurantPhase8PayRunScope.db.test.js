@@ -410,6 +410,13 @@ ddescribe('Phase 8 pay-run scope + HQ approvals', () => {
         mockReq({ params: { restaurantId, payRunId: runId }, user: { id: F.owner } })
       );
       expect(finalized.err).toBeNull();
+      // Finding 8: member runs need their own second-manager approval
+      // before they can join a consolidation.
+      const approved = await call(
+        payrollController.approvePayRun,
+        mockReq({ params: { restaurantId, payRunId: runId }, user: { id: F.checker } })
+      );
+      expect(approved.err).toBeNull();
     }
     const view = await call(
       consolidationController.listBrandPayRuns,

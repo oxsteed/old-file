@@ -309,6 +309,10 @@ ddescribe('Finding 40: voiding a run in a live consolidation is blocked', () => 
     const runB = await createRun(owner, b.restaurantId, '2026-10-01', '2026-10-15');
     expect((await finalizeRun(owner, a.restaurantId, runA.id)).err).toBeNull();
     expect((await finalizeRun(owner, b.restaurantId, runB.id)).err).toBeNull();
+    // Finding 8: member runs need their own second-manager approval
+    // before they can join a consolidation.
+    expect((await approveRun(checker, a.restaurantId, runA.id)).err).toBeNull();
+    expect((await approveRun(checker, b.restaurantId, runB.id)).err).toBeNull();
     const created = await call(
       consolidationController.createConsolidation,
       mockReq({
@@ -359,6 +363,10 @@ ddescribe('Finding 40: voiding a run in a live consolidation is blocked', () => 
     const runB = await createRun(owner, b.restaurantId, '2026-10-01', '2026-10-15');
     expect((await finalizeRun(owner, a.restaurantId, runA.id)).err).toBeNull();
     expect((await finalizeRun(owner, b.restaurantId, runB.id)).err).toBeNull();
+    // Finding 8: member runs need their own second-manager approval
+    // before they can join a consolidation.
+    expect((await approveRun(checker, a.restaurantId, runA.id)).err).toBeNull();
+    expect((await approveRun(checker, b.restaurantId, runB.id)).err).toBeNull();
     const created = await call(
       consolidationController.createConsolidation,
       mockReq({

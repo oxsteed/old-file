@@ -60,6 +60,7 @@ function memberShape(member) {
     totals: member.totals || {},
     attribution: memberAttribution(member),
     status: member.run_status || null,
+    approvedBy: member.run_approved_by || null,
     periodFrom: member.period_from ? dateOnly(member.period_from) : null,
     periodTo: member.period_to ? dateOnly(member.period_to) : null,
   };
@@ -84,7 +85,7 @@ async function listBrandPayRuns(client, { brandId, restaurantIds, from = null, t
   }
   const { rows } = await client.query(
     `SELECT pr.id, pr.restaurant_id, pr.period_from, pr.period_to, pr.status,
-            pr.totals, pr.location_ids, pr.currency_code,
+            pr.totals, pr.location_ids, pr.currency_code, pr.approved_by,
             (SELECT COUNT(*)::int FROM restaurant_pay_run_lines l WHERE l.pay_run_id = pr.id) AS line_count
        FROM restaurant_pay_runs pr
       WHERE ${where}
@@ -101,6 +102,7 @@ async function listBrandPayRuns(client, { brandId, restaurantIds, from = null, t
     totals: row.totals || {},
     locationIds: Array.isArray(row.location_ids) ? row.location_ids.map((id) => Number(id)) : [],
     currencyCode: row.currency_code || (row.totals && row.totals.currency) || 'USD',
+    approvedBy: row.approved_by || null,
     lineCount: Number(row.line_count || 0),
     attribution: memberAttribution({ location_ids: row.location_ids }),
   }));
@@ -174,6 +176,20 @@ async function createConsolidation(client, { brandId = null, anchorRestaurantId,
   if (alreadyGrouped.length) {
     throw new AppError('One or more pay runs already belong to an open consolidation', 409, 'pay_run_already_consolidated');
   }
+  // Finding 8: a finalized-but-never-approved member run must not
+  // ride into a consolidation and get approved as part of the group.
+  // Every member needs its own second-manager approval first; the
+  // approver must differ from the finalizer (the DB CHECK is the
+  // second line of defense, this is the fail-closed read of it).
+  const unapproved = runs.filter((row) => row.approved_by == null
+    || String(row.approved_by) === String(row.finalized_by));
+  if (unapproved.length) {
+    throw new AppError(
+      `Only individually approved pay runs can join a consolidation; pay run ${unapproved.map((row) => Number(row.id)).join(', ')} has not been approved by a second payroll manager`,
+      409,
+      'pay_run_not_approved'
+    );
+  }
   const periodFrom = dateOnly(runs[0].period_from);
   const periodTo = dateOnly(runs[0].period_to);
   const members = runs.map((row) => ({
@@ -216,7 +232,7 @@ async function getConsolidation(client, { consolidationId, brandId = null }) {
   );
   if (!row) return null;
   const { rows: members } = await client.query(
-    `SELECT m.*, pr.status AS run_status, pr.period_from, pr.period_to
+    `SELECT m.*, pr.status AS run_status, pr.approved_by AS run_approved_by, pr.period_from, pr.period_to
        FROM restaurant_pay_run_consolidation_members m
        JOIN restaurant_pay_runs pr ON pr.id = m.pay_run_id
       WHERE m.consolidation_id = $1
@@ -270,6 +286,21 @@ async function listConsolidations(client, { brandId = null, anchorRestaurantId =
   return rows.map((row) => consolidationShape(row));
 }
 
+// Finding 8: the join-time check is not enough on its own — a member
+// run's approval is never revoked, but the finalize/approve steps
+// re-verify it anyway so a consolidation can never finalize or
+// approve over a member that was never individually approved.
+function assertMembersApproved(members) {
+  const unapproved = (members || []).filter((member) => member.approvedBy == null);
+  if (unapproved.length) {
+    throw new AppError(
+      `Only individually approved pay runs can join a consolidation; pay run ${unapproved.map((member) => Number(member.payRunId)).join(', ')} has not been approved by a second payroll manager`,
+      409,
+      'pay_run_not_approved'
+    );
+  }
+}
+
 // Maker step: finalize the draft. Every member run must still be
 // finalized — a member voided after joining blocks the group.
 async function finalizeConsolidation(client, { consolidationId, actorUserId }) {
@@ -285,6 +316,7 @@ async function finalizeConsolidation(client, { consolidationId, actorUserId }) {
   if (broken.length) {
     throw new AppError('A member pay run is no longer finalized; remove it or wait for it to finalize again', 409, 'consolidation_member_not_finalized');
   }
+  assertMembersApproved(current.members);
   const totals = await computeConsolidationTotals(client, {
     members: current.members,
     brandId: existing.brand_id,
@@ -320,6 +352,8 @@ async function approveConsolidation(client, { consolidationId, actorUserId }) {
       'consolidation_self_approval'
     );
   }
+  const current = await getConsolidation(client, { consolidationId: id });
+  assertMembersApproved(current.members);
   const { rows: [updated] } = await client.query(
     `UPDATE restaurant_pay_run_consolidations
         SET status = 'approved', approved_by = $2, approved_at = NOW(), updated_at = NOW()
@@ -327,8 +361,8 @@ async function approveConsolidation(client, { consolidationId, actorUserId }) {
       RETURNING *`,
     [id, actorUserId]
   );
-  const current = await getConsolidation(client, { consolidationId: id });
-  return { ...updated, members: current.members };
+  const after = await getConsolidation(client, { consolidationId: id });
+  return { ...updated, members: after.members };
 }
 
 // Voiding dissolves the group; the member runs are untouched and

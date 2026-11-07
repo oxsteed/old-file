@@ -279,13 +279,16 @@ describeDb('Phase 8 multi-location', () => {
 
   // ── Track C: consolidations ────────────────────────────────────
 
+  // Finding 8: member runs must be individually approved (by a second
+  // manager, distinct from the finalizer) before they can join a
+  // consolidation, so the fixture stamps the checker's approval.
   async function insertFinalizedRun(restaurantId, totals, locationIds = []) {
     const { rows: [run] } = await client.query(
       `INSERT INTO restaurant_pay_runs
-         (restaurant_id, period_from, period_to, status, totals, created_by, finalized_by, finalized_at, location_ids, currency_code)
-       VALUES ($1, '2026-10-01'::date, '2026-10-15'::date, 'finalized', $2::jsonb, $3, $3, NOW(), $4::bigint[], $5)
+         (restaurant_id, period_from, period_to, status, totals, created_by, finalized_by, finalized_at, approved_by, approved_at, location_ids, currency_code)
+       VALUES ($1, '2026-10-01'::date, '2026-10-15'::date, 'finalized', $2::jsonb, $3, $3, NOW(), $5, NOW(), $4::bigint[], $6)
        RETURNING id`,
-      [restaurantId, JSON.stringify(totals), ownerId, locationIds, totals.currency]
+      [restaurantId, JSON.stringify(totals), ownerId, locationIds, checkerId, totals.currency]
     );
     return Number(run.id);
   }
@@ -373,6 +376,58 @@ describeDb('Phase 8 multi-location', () => {
       brandId, anchorRestaurantId: restaurantA, payRunIds: [runA], actorUserId: ownerId,
     })).rejects.toMatchObject({ code: 'pay_run_already_consolidated' });
     await consolidations.voidConsolidation(client, { consolidationId: first });
+  });
+
+  test('finding 8: a finalized-but-unapproved member run cannot join a consolidation', async () => {
+    const unapproved = (await client.query(
+      `INSERT INTO restaurant_pay_runs
+         (restaurant_id, period_from, period_to, status, totals, created_by, finalized_by, finalized_at, location_ids, currency_code)
+       VALUES ($1, '2026-10-01'::date, '2026-10-15'::date, 'finalized', '{"currency":"USD","total_pay_cents":100}'::jsonb, $2, $2, NOW(), $3::bigint[], 'USD')
+       RETURNING id`,
+      [restaurantA, ownerId, [storeA1]]
+    )).rows[0].id;
+    let caught = null;
+    try {
+      await consolidations.createConsolidation(client, {
+        brandId, anchorRestaurantId: restaurantA, payRunIds: [Number(unapproved)], actorUserId: ownerId,
+      });
+    } catch (err) { caught = err; }
+    expect(caught).toMatchObject({ code: 'pay_run_not_approved' });
+    expect(String(caught.message)).toContain(String(unapproved));
+    // A second manager's approval of the member run unblocks the join.
+    await client.query(
+      'UPDATE restaurant_pay_runs SET approved_by = $2, approved_at = NOW() WHERE id = $1',
+      [unapproved, checkerId]
+    );
+    const id = await consolidations.createConsolidation(client, {
+      brandId, anchorRestaurantId: restaurantA, payRunIds: [Number(unapproved)], actorUserId: ownerId,
+    });
+    expect(Number(id)).toBeGreaterThan(0);
+    await consolidations.voidConsolidation(client, { consolidationId: id });
+  });
+
+  test('finding 8: finalize/approve re-verify member approval, not just join time', async () => {
+    const runA = await insertFinalizedRun(restaurantA, { currency: 'USD', total_pay_cents: 100 }, [storeA1]);
+    const id = await consolidations.createConsolidation(client, {
+      brandId, anchorRestaurantId: restaurantA, payRunIds: [runA], actorUserId: ownerId,
+    });
+    // Simulate the member approval disappearing after joining (no API
+    // clears it; the re-check is defense in depth): finalize must fail.
+    await client.query('UPDATE restaurant_pay_runs SET approved_by = NULL, approved_at = NULL WHERE id = $1', [runA]);
+    await expect(consolidations.finalizeConsolidation(client, {
+      consolidationId: id, actorUserId: ownerId,
+    })).rejects.toMatchObject({ code: 'pay_run_not_approved' });
+    await client.query(
+      'UPDATE restaurant_pay_runs SET approved_by = $2, approved_at = NOW() WHERE id = $1',
+      [runA, checkerId]
+    );
+    const finalized = await consolidations.finalizeConsolidation(client, { consolidationId: id, actorUserId: ownerId });
+    expect(finalized.status).toBe('finalized');
+    await client.query('UPDATE restaurant_pay_runs SET approved_by = NULL, approved_at = NULL WHERE id = $1', [runA]);
+    await expect(consolidations.approveConsolidation(client, {
+      consolidationId: id, actorUserId: checkerId,
+    })).rejects.toMatchObject({ code: 'pay_run_not_approved' });
+    await consolidations.voidConsolidation(client, { consolidationId: id });
   });
 
   // ── Track D: staged rollouts + borrowing ───────────────────────
