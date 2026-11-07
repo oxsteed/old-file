@@ -54,17 +54,29 @@ describe('ptoBalances service', () => {
     expect(pto.requestDays('2026-11-02', '2026-11-04')).toBe(3);
   });
 
-  test('requestDays accepts node-pg Date objects, as stored rows come back', () => {
+  test('requestDays accepts node-pg Date objects, as stored rows come back', async () => {
     expect(pto.requestDays(new Date('2026-12-10T00:00:00.000Z'), new Date('2026-12-11T00:00:00.000Z'))).toBe(2);
-    expect(pto.consumptionFor({ accrual_unit: 'days' }, new Date('2026-12-10T00:00:00.000Z'), new Date('2026-12-11T00:00:00.000Z')))
+    expect(await pto.consumptionFor(fakeDb([]), { accrual_unit: 'days' }, 2, STAFF, new Date('2026-12-10T00:00:00.000Z'), new Date('2026-12-11T00:00:00.000Z')))
       .toEqual({ amount: 2, unit: 'days', days: 2 });
   });
 
-  test('consumption is days for a days policy and days x 8 hours for an hours policy', () => {
-    expect(pto.consumptionFor({ accrual_unit: 'days' }, '2026-11-02', '2026-11-04'))
+  test('consumption is days for a days policy; hours policies consume scheduled hours (finding 27)', async () => {
+    const noShifts = fakeDb([]);
+    expect(await pto.consumptionFor(noShifts, { accrual_unit: 'days' }, 2, STAFF, '2026-11-02', '2026-11-04'))
       .toEqual({ amount: 3, unit: 'days', days: 3 });
-    expect(pto.consumptionFor({ accrual_unit: 'hours' }, '2026-11-02', '2026-11-04'))
-      .toEqual({ amount: 24, unit: 'hours', days: 3 });
+    // Mon 6h + Tue 4h scheduled, Wed unscheduled: the hours policy
+    // charges 10h, not 3 days x 8h, and the unscheduled day is 0.
+    const withShifts = fakeDb([
+      ['FROM business_staff_shifts', async () => ({ rows: [
+        { shift_date: '2026-11-02', start_time: '09:00:00', end_time: '15:00:00' },
+        { shift_date: '2026-11-03', start_time: '09:00:00', end_time: '13:00:00' },
+      ] })],
+    ]);
+    expect(await pto.consumptionFor(withShifts, { accrual_unit: 'hours' }, 2, STAFF, '2026-11-02', '2026-11-04'))
+      .toEqual({ amount: 10, unit: 'hours', days: 3, scheduled_hours: 10 });
+    // No scheduled shifts at all: the consumption is 0.
+    expect(await pto.consumptionFor(noShifts, { accrual_unit: 'hours' }, 2, STAFF, '2026-11-02', '2026-11-04'))
+      .toEqual({ amount: 0, unit: 'hours', days: 3, scheduled_hours: 0 });
   });
 
   test('checkSufficient: no policy means unconfigured, not an error', async () => {
@@ -191,6 +203,23 @@ describe('ptoBalances service', () => {
     expect(result.required).toBe(3);
   });
 
+  test('decrementForApproval: an hours request over unscheduled dates consumes 0 and draws nothing', async () => {
+    const db = fakeDb([
+      ['FROM business_time_off_policies', async () => ({ rows: [{ accrual_unit: 'hours' }] })],
+      ['FROM business_staff_shifts', async () => ({ rows: [] })],
+      ['FROM business_time_off_balances', async () => ({ rows: [{ balance: 4 }] })],
+    ]);
+    const result = await pto.decrementForApproval(
+      db, 2, STAFF, 'vacation', '2026-11-02', '2026-11-04', 41, MANAGER
+    );
+    expect(result.decremented).toBe(true);
+    expect(result.nothing_consumed).toBe(true);
+    expect(result.required).toBe(0);
+    expect(result.balanceAfter).toBe(4);
+    expect(db.query.mock.calls.some(([sql]) => String(sql).includes('UPDATE business_time_off_balances'))).toBe(false);
+    expect(db.query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO business_time_off_accrual_events'))).toBe(false);
+  });
+
   test('refundForCancellation: restores exactly what approval took, as a reversal event', async () => {
     const db = fakeDb([
       ["event_type = 'approval'", async () => ({ rows: [{ amount: -3, unit: 'days', balance_after: 7 }] })],
@@ -286,7 +315,7 @@ describe('ptoBalances service', () => {
 });
 
 describe('createTimeOffRequest balance check', () => {
-  function routeCreate({ policy, balance }) {
+  function routeCreate({ policy, balance, shifts = [] }) {
     mockQuery.mockImplementation(async (sql) => {
       const s = String(sql);
       if (s.includes('FROM business_members')) return { rows: [{ '?column?': 1 }] };
@@ -295,7 +324,7 @@ describe('createTimeOffRequest balance check', () => {
       if (s.includes('INSERT INTO business_time_off_requests')) {
         return { rows: [{ id: 5, status: 'pending', request_type: 'vacation' }] };
       }
-      if (s.includes('FROM business_staff_shifts')) return { rows: [] };
+      if (s.includes('FROM business_staff_shifts')) return { rows: shifts };
       return { rows: [] };
     });
   }
@@ -338,6 +367,45 @@ describe('createTimeOffRequest balance check', () => {
     const unpaidRes = mockRes();
     await ctrl.createTimeOffRequest(unpaidReq, unpaidRes, next);
     expect(unpaidRes.statusCode).toBe(201);
+  });
+
+  test('an hours-unit request charges scheduled hours, not days x 8 (finding 27)', async () => {
+    const shifts = [
+      { shift_date: '2026-11-02', start_time: '09:00:00', end_time: '15:00:00' },
+      { shift_date: '2026-11-03', start_time: '09:00:00', end_time: '13:00:00' },
+    ];
+    // 6h + 4h scheduled, Wed unscheduled: 10h required, not 24h.
+    routeCreate({ policy: { accrual_unit: 'hours' }, balance: 8, shifts });
+    const shortReq = {
+      params: { businessId: '2' },
+      body: { request_type: 'vacation', start_date: '2026-11-02', end_date: '2026-11-04' },
+      user: { id: STAFF },
+    };
+    const shortRes = mockRes();
+    await ctrl.createTimeOffRequest(shortReq, shortRes, next);
+    expect(shortRes.statusCode).toBe(409);
+    expect(shortRes.body.code).toBe('insufficient_pto_balance');
+    expect(shortRes.body.required).toBe(10);
+    expect(shortRes.body.unit).toBe('hours');
+
+    routeCreate({ policy: { accrual_unit: 'hours' }, balance: 12, shifts });
+    const okRes = mockRes();
+    await ctrl.createTimeOffRequest(shortReq, okRes, next);
+    expect(okRes.statusCode).toBe(201);
+    expect(okRes.body.pto_balance).toEqual({ balance: 12, required: 10, unit: 'hours' });
+  });
+
+  test('an hours-unit request over unscheduled dates consumes 0 and is created', async () => {
+    routeCreate({ policy: { accrual_unit: 'hours' }, balance: 0, shifts: [] });
+    const req = {
+      params: { businessId: '2' },
+      body: { request_type: 'vacation', start_date: '2026-11-02', end_date: '2026-11-04' },
+      user: { id: STAFF },
+    };
+    const res = mockRes();
+    await ctrl.createTimeOffRequest(req, res, next);
+    expect(res.statusCode).toBe(201);
+    expect(res.body.pto_balance).toEqual({ balance: 0, required: 0, unit: 'hours' });
   });
 });
 

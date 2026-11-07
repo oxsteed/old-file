@@ -377,6 +377,45 @@ suite('S-04 schedule publishing + time-off (DB)', () => {
     expect(Number(balance.balance)).toBe(5);
   });
 
+  test('time-off: an hours policy consumes scheduled hours, not days x 8 (finding 27)', async () => {
+    const policy = await call(ctrl.setTimeOffPolicy, {
+      ...asManager(MANAGER),
+      params: { businessId: String(bizId), userId: EMPLOYEE2 },
+      body: { request_type: 'sick', accrual_amount: 20, accrual_unit: 'hours', accrual_period: 'monthly' },
+    });
+    expect(policy.res.statusCode).toBe(200);
+    const granted = await call(ctrl.grantTimeOffAccrual, {
+      ...asManager(MANAGER),
+      body: { user_id: EMPLOYEE2, request_type: 'sick' },
+    });
+    expect(granted.res.body.grants[0].balance_after).toBe(20);
+    // Mon 6h + Tue 4h scheduled, Wed unscheduled.
+    for (const [date, start, end] of [['2026-12-14', '09:00', '15:00'], ['2026-12-15', '09:00', '13:00']]) {
+      const shift = await call(ctrl.createShift, {
+        ...asManager(MANAGER),
+        body: { user_id: EMPLOYEE2, shift_start: `${date}T${start}`, shift_end: `${date}T${end}`, role: 'Cashier' },
+      });
+      expect(shift.res.statusCode).toBe(201);
+    }
+    const created = await call(ctrl.createTimeOffRequest, {
+      ...asEmployee(EMPLOYEE2),
+      body: { request_type: 'sick', start_date: '2026-12-14', end_date: '2026-12-16' },
+    });
+    expect(created.res.statusCode).toBe(201);
+    expect(created.res.body.pto_balance).toEqual({ balance: 20, required: 10, unit: 'hours' });
+    const approved = await call(ctrl.decideTimeOffRequest, {
+      ...asManager(MANAGER),
+      params: { businessId: String(bizId), requestId: String(created.res.body.request.id) },
+      body: { decision: 'approved' },
+    });
+    expect(approved.res.body.pto_balance).toEqual({ balance: 10, required: 10, unit: 'hours' });
+    const cancelled = await call(ctrl.cancelTimeOffRequest, {
+      ...asEmployee(EMPLOYEE2),
+      params: { businessId: String(bizId), requestId: String(created.res.body.request.id) },
+    });
+    expect(cancelled.res.body.pto_balance).toEqual({ restored: 10, unit: 'hours', balance: 20 });
+  });
+
   test('publish evaluates each location under its own jurisdiction rules (finding 30)', async () => {
     const { rows: [rest] } = await db.query(
       `INSERT INTO food_restaurants (business_id, owner_user_id, display_name)

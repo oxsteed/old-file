@@ -19,10 +19,15 @@
 //
 // Rules, in one place:
 //   - A request consumes whole calendar days, inclusive of both ends.
-//     A days-unit policy consumes that many days; an hours-unit policy
-//     consumes days * WORKDAY_HOURS hours. The 8-hour day is the one
-//     documented convention here; it is a time convention, not a pay
-//     rule, and it never touches money.
+//     A days-unit policy consumes that many days. An hours-unit policy
+//     consumes the SCHEDULED hours on the requested dates (finding 27):
+//     the sum of the person's shift durations on those dates, so a
+//     weekend day or a day with no scheduled shift consumes 0, and
+//     there is no flat 8h day. A request over dates with no scheduled
+//     hours at all consumes 0 and draws nothing. The 8-hour day
+//     (WORKDAY_HOURS) is no longer used for consumption; it is kept
+//     only as the documented convention it was. Balances are hours/days
+//     owed, not money: consumption never touches pay.
 //   - 'unpaid' time off never draws a balance: there is nothing owed
 //     to draw from, so it is never balance-checked or decremented.
 //   - Create-time check: a request that would take the balance below
@@ -53,6 +58,7 @@
 // reads or writes pay lines, wages, or the ledger.
 
 const laborJurisdiction = require('./laborJurisdictionRules');
+const { shiftHours } = require('./shiftConflictValidation');
 
 const WORKDAY_HOURS = 8;
 
@@ -73,11 +79,45 @@ function requestDays(startDate, endDate) {
   return Math.round((end - start) / 86400000) + 1;
 }
 
+// Scheduled hours for one person over a date range: the sum of the
+// durations of every stored shift whose shift_date falls in the range
+// (draft or published; a draft is still planned work, the same rule
+// validateShift uses for overlap). Durations come from the shared
+// shiftHours, so overnight shifts count whole on their start date
+// and a shift starting the day before the range is not counted. A
+// date with no shift contributes 0.
+async function scheduledHoursFor(db, businessId, userId, startDate, endDate) {
+  const { rows: shifts } = await db.query(
+    `SELECT shift_date::text AS shift_date,
+            start_time::text AS start_time, end_time::text AS end_time
+       FROM business_staff_shifts
+      WHERE business_id = $1 AND user_id = $2
+        AND shift_date >= $3::date AND shift_date <= $4::date`,
+    [businessId, userId, toDateStr(startDate), toDateStr(endDate)]
+  );
+  let total = 0;
+  for (const shift of shifts || []) total += shiftHours(shift);
+  return Math.round(total * 100) / 100;
+}
+
+// Date to 'YYYY-MM-DD', accepting the strings validation produces and
+// the Date objects node-pg returns for stored rows (see requestDays).
+function toDateStr(value) {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+}
+
 // What one request consumes against a policy, in the policy's unit.
-function consumptionFor(policy, startDate, endDate) {
+// A days-unit policy consumes the whole calendar days in the range.
+// An hours-unit policy consumes the scheduled hours on the requested
+// dates (see scheduledHoursFor): a date with no scheduled shift
+// consumes 0, so a request over unscheduled dates consumes 0 and
+// draws nothing from the balance.
+async function consumptionFor(db, policy, businessId, userId, startDate, endDate) {
   const days = requestDays(startDate, endDate);
   const unit = policy?.accrual_unit || 'days';
-  return { amount: unit === 'hours' ? days * WORKDAY_HOURS : days, unit, days };
+  if (unit !== 'hours') return { amount: days, unit, days };
+  const scheduled = await scheduledHoursFor(db, businessId, userId, startDate, endDate);
+  return { amount: scheduled, unit, days, scheduled_hours: scheduled };
 }
 
 function toNumber(value) {
@@ -115,7 +155,7 @@ async function checkSufficient(db, businessId, userId, requestType, startDate, e
   if (requestType === 'unpaid') return { enforced: false, reason: 'unpaid' };
   const policy = await getPolicy(db, businessId, userId, requestType);
   if (!policy) return { enforced: false, reason: 'no_policy' };
-  const consumption = consumptionFor(policy, startDate, endDate);
+  const consumption = await consumptionFor(db, policy, businessId, userId, startDate, endDate);
   const balanceRow = await getBalance(db, businessId, userId, requestType);
   const balance = balanceRow ? toNumber(balanceRow.balance) : 0;
   if (balance < consumption.amount) {
@@ -140,7 +180,18 @@ async function decrementForApproval(client, businessId, userId, requestType, sta
   if (requestType === 'unpaid') return { decremented: false, enforced: false, reason: 'unpaid' };
   const policy = await getPolicy(client, businessId, userId, requestType);
   if (!policy) return { decremented: false, enforced: false, reason: 'no_policy' };
-  const consumption = consumptionFor(policy, startDate, endDate);
+  const consumption = await consumptionFor(client, policy, businessId, userId, startDate, endDate);
+  // A request over dates with no scheduled hours consumes 0: the
+  // approval goes through and draws nothing, so no balance write
+  // and no zero-amount ledger event are recorded.
+  if (consumption.amount <= 0) {
+    const balanceRow = await getBalance(client, businessId, userId, requestType);
+    return {
+      decremented: true, enforced: true, ok: true, nothing_consumed: true,
+      balanceAfter: balanceRow ? toNumber(balanceRow.balance) : 0,
+      required: 0, unit: consumption.unit, days: consumption.days,
+    };
+  }
   const { rows: [updated] } = await client.query(
     `UPDATE business_time_off_balances
         SET balance = balance - $1::numeric, updated_at = NOW()
@@ -357,6 +408,7 @@ module.exports = {
   WORKDAY_HOURS,
   requestDays,
   consumptionFor,
+  scheduledHoursFor,
   getPolicy,
   getBalance,
   checkSufficient,
