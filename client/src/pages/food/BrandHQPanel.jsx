@@ -438,6 +438,9 @@ export default function BrandHQPanel({ t, restaurant }) {
             ) : (
               <p><strong>{money(comparison.converted.convertedTotalCents, comparison.converted.reportingCurrency)}</strong> {t('restaurants.ops.brandHq.fx.convertedTotal')}</p>
             )}
+            {comparison.converted.stale && comparison.converted.stalestRateDate && (
+              <p role="alert">{t('restaurants.ops.brandHq.fx.staleRate', { date: comparison.converted.stalestRateDate, days: comparison.converted.maxRateAgeDays })}</p>
+            )}
             <ul className="fd-card-meta fd-list-disc-sm">
               {(comparison.converted.lines || []).map((line) => (
                 <li key={line.currencyCode}>

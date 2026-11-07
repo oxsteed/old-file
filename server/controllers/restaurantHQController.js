@@ -215,6 +215,17 @@ async function buildLaborRollup(db, anchor, accessible, range) {
     rateDate = null;
   }
   const missingCurrencies = new Set();
+  const staleCurrencies = new Set();
+  let maxRateAgeDays = null;
+  let stalestRateDate = null;
+  const noteRateAge = (converted) => {
+    if (!converted || converted.missingRate) return;
+    if (converted.rateStale) staleCurrencies.add(converted.fromCurrency);
+    if (converted.rateAgeDays != null && (maxRateAgeDays == null || converted.rateAgeDays > maxRateAgeDays)) {
+      maxRateAgeDays = converted.rateAgeDays;
+      stalestRateDate = converted.rateDate;
+    }
+  };
   let convertedLaborCostCents = 0;
   let convertedRevenueCents = 0;
   for (const store of accessible) {
@@ -233,6 +244,10 @@ async function buildLaborRollup(db, anchor, accessible, range) {
     if (labor.currency) currencies.add(labor.currency);
     let laborCostConvertedCents = null;
     let revenueConvertedCents = null;
+    let laborCostRateAgeDays = null;
+    let laborCostRateStale = false;
+    let revenueRateAgeDays = null;
+    let revenueRateStale = false;
     if (labor.currency && policy) {
       const cost = await fx.convertAmount(db, {
         amountCents: labor.labor_cost_cents || 0,
@@ -248,11 +263,17 @@ async function buildLaborRollup(db, anchor, accessible, range) {
         rateDate,
         rateSource: policy.rateSource,
       });
+      noteRateAge(cost);
+      noteRateAge(revenue);
       if (cost.missingRate || revenue.missingRate) {
         missingCurrencies.add(labor.currency);
       } else {
         laborCostConvertedCents = cost.convertedCents;
         revenueConvertedCents = revenue.convertedCents;
+        laborCostRateAgeDays = cost.rateAgeDays;
+        laborCostRateStale = cost.rateStale;
+        revenueRateAgeDays = revenue.rateAgeDays;
+        revenueRateStale = revenue.rateStale;
         convertedLaborCostCents += cost.convertedCents;
         convertedRevenueCents += revenue.convertedCents;
       }
@@ -269,12 +290,17 @@ async function buildLaborRollup(db, anchor, accessible, range) {
       revenue_cents: labor.revenue_cents,
       currency: labor.currency,
       labor_cost_converted_cents: laborCostConvertedCents,
+      labor_cost_rate_age_days: laborCostRateAgeDays,
+      labor_cost_rate_stale: laborCostRateStale,
       revenue_converted_cents: revenueConvertedCents,
+      revenue_rate_age_days: revenueRateAgeDays,
+      revenue_rate_stale: revenueRateStale,
       employee_count: (labor.employees || []).length,
       missing_wage_count: (labor.missing_wage_user_ids || []).length,
     });
   }
   const missing = [...missingCurrencies];
+  const stale = [...staleCurrencies];
   return {
     scope: { businessId: Number(anchor.business_id), restaurantId: Number(anchor.id), storeCount: stores.length, from: range.from, to: range.to, timezone: range.timezone },
     totals: {
@@ -296,6 +322,13 @@ async function buildLaborRollup(db, anchor, accessible, range) {
           ? null
           : Math.round((convertedLaborCostCents / convertedRevenueCents) * 1000) / 10,
         missingCurrencies: missing,
+        // Item 64: which converted lines used a stored rate older
+        // than the FX staleness threshold, and the oldest rate's
+        // age and date, so the UI can warn on the converted totals.
+        stale: stale.length > 0,
+        staleCurrencies: stale,
+        maxRateAgeDays,
+        stalestRateDate,
       } : null,
     },
     stores,

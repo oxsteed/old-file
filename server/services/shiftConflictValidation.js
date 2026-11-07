@@ -215,9 +215,12 @@ async function validateShift(db, opts) {
   // Borrows are restaurant-scoped, so without a restaurant (no
   // restaurantId and no location to derive one from) there is nothing
   // to check: a non-restaurant business has no borrows. A borrow
-  // never spans midnight (requestBorrow rejects start >= end), but
-  // an overnight candidate can spill into the next morning, so the
-  // window covers the following day too.
+  // spans midnight like a shift (end <= start ends the next
+  // morning), so the window covers the previous day too — an
+  // overnight borrow starting yesterday can spill into this
+  // morning — and the following day for an overnight candidate.
+  // shiftInterval already turns both into absolute minutes, so the
+  // overlap test below needs no special-casing.
   let borrowRestaurantId = restaurantId;
   if (!borrowRestaurantId && locationId != null) {
     try {
@@ -232,6 +235,7 @@ async function validateShift(db, opts) {
   }
   if (borrowRestaurantId != null) {
     const borrowEnd = overnight ? addDays(day, 1) : day;
+    const borrowStart = addDays(day, -1);
     const { rows: borrows } = await db.query(
       `SELECT id, shift_date::text AS shift_date,
               start_time::text AS start_time, end_time::text AS end_time,
@@ -240,7 +244,7 @@ async function validateShift(db, opts) {
         WHERE restaurant_id = $1 AND staff_user_id = $2 AND status = 'approved'
           AND shift_date >= $3::date AND shift_date <= $4::date
         ORDER BY shift_date, start_time`,
-      [borrowRestaurantId, userId, day, borrowEnd]
+      [borrowRestaurantId, userId, borrowStart, borrowEnd]
     );
     for (const borrow of borrows || []) {
       const interval = shiftInterval(borrow, day);

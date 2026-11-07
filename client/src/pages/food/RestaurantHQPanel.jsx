@@ -398,6 +398,9 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
           ) : (
             <p><strong>{moneyMinor(converted.convertedTotalCents, converted.reportingCurrency, i18n.language)}</strong> {t("restaurants.ops.hq.fx.convertedTotal")}</p>
           )}
+          {converted.stale && converted.stalestRateDate && (
+            <p role="alert">{t("restaurants.ops.hq.fx.staleRate", { date: converted.stalestRateDate, days: converted.maxRateAgeDays })}</p>
+          )}
           <ul className="fd-card-meta fd-list-disc">
             {(converted.lines || []).map((line) => (
               <li key={line.currencyCode}>
@@ -477,6 +480,9 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
               )}
             </table>
           </div>
+          {labor.totals.converted?.stale && labor.totals.converted.stalestRateDate && (
+            <p role="alert">{t("restaurants.ops.hq.fx.staleRate", { date: labor.totals.converted.stalestRateDate, days: labor.totals.converted.maxRateAgeDays })}</p>
+          )}
         </section>
       )}
       {canManage && (
@@ -850,6 +856,7 @@ export default function RestaurantHQPanel({ t, restaurant, bare = false }) {
               {pendingBorrows.map((borrow) => (
                 <li key={borrow.id}>
                   {borrow.shiftDate} {borrow.startTime}–{borrow.endTime}
+                  {borrow.endTime <= borrow.startTime ? ` · ${t("restaurants.ops.hq.borrows.overnight")}` : ""}
                   {borrow.roleLabel ? ` · ${borrow.roleLabel}` : ""}
                   {" "}
                   <button type="button" className="fd-btn fd-btn-sm" disabled={busy} onClick={() => reviewBorrow(borrow.id, true)} data-track="ui.ec032c849d.16">

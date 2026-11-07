@@ -31,6 +31,29 @@ const CURRENCY_RE = /^[A-Z]{3}$/;
 const RATE_SOURCES = ['stored', 'admin_entered', 'import'];
 const RATE_DATE_MODES = ['period_end', 'rate_date'];
 
+// Display-warning threshold only (item 64): a stored rate dated more
+// than this many days before the requested rate date is flagged
+// stale in converted responses so the UI can say the figure uses an
+// old rate. It never changes which rate is used — getRate still
+// returns the latest stored rate on or before the date, however old
+// — and it is not a rate-source or rate-date decision (Emile's call,
+// still open).
+const FX_RATE_STALE_AFTER_DAYS = 30;
+
+// Whole days between a stored rate's date and the requested rate
+// date (0 when the rate is dated the requested day; never negative
+// for rates getRate returns, since it only picks rates on or before
+// the requested date).
+function rateAgeDays(storedRateDate, requestedRateDate) {
+  const stored = new Date(`${toDateOnly(storedRateDate)}T12:00:00Z`);
+  const requested = new Date(`${toDateOnly(requestedRateDate)}T12:00:00Z`);
+  return Math.max(0, Math.round((requested - stored) / 86400000));
+}
+
+function isRateStale(ageDays) {
+  return ageDays > FX_RATE_STALE_AFTER_DAYS;
+}
+
 function normalizeCurrencyCode(value, field = 'currency') {
   const code = String(value || '').trim().toUpperCase();
   if (!CURRENCY_RE.test(code)) {
@@ -190,7 +213,7 @@ async function getRate(client, { baseCurrency, quoteCurrency, rateDate, rateSour
   const date = normalizeRateDate(rateDate);
   const source = normalizeRateSource(rateSource);
   if (base === quote) {
-    return { baseCurrency: base, quoteCurrency: quote, rate: 1, rateDate: date, source: 'same_currency', stored: false };
+    return { baseCurrency: base, quoteCurrency: quote, rate: 1, rateDate: date, source: 'same_currency', stored: false, rateAgeDays: 0, rateStale: false };
   }
   const params = [base, quote, date];
   let sourceFilter = '';
@@ -208,13 +231,17 @@ async function getRate(client, { baseCurrency, quoteCurrency, rateDate, rateSour
     params
   );
   if (!row) return null;
+  const storedRateDate = toDateOnly(row.rate_date);
+  const ageDays = rateAgeDays(storedRateDate, date);
   return {
     baseCurrency: row.base_currency,
     quoteCurrency: row.quote_currency,
     rate: Number(row.rate),
-    rateDate: toDateOnly(row.rate_date),
+    rateDate: storedRateDate,
     source: row.source,
     stored: true,
+    rateAgeDays: ageDays,
+    rateStale: isRateStale(ageDays),
   };
 }
 
@@ -233,6 +260,8 @@ async function convertAmount(client, { amountCents, fromCurrency, toCurrency, ra
       fromCurrency: normalizeCurrencyCode(fromCurrency, 'source currency'),
       toCurrency: normalizeCurrencyCode(toCurrency, 'reporting currency'),
       rateDate: normalizeRateDate(rateDate),
+      rateAgeDays: null,
+      rateStale: false,
     };
   }
   // The rate is major-to-major while the amount is integer minor
@@ -254,6 +283,8 @@ async function convertAmount(client, { amountCents, fromCurrency, toCurrency, ra
     rate: rate.rate,
     rateDate: rate.rateDate,
     rateSource: rate.source,
+    rateAgeDays: rate.rateAgeDays,
+    rateStale: rate.rateStale,
   };
 }
 
@@ -268,7 +299,10 @@ async function convertBreakdown(client, { entries, reportingCurrency, rateDate, 
   const source = normalizeRateSource(rateSource);
   const lines = [];
   const missing = [];
+  const staleCurrencies = [];
   let convertedTotalCents = 0;
+  let maxRateAgeDays = null;
+  let stalestRateDate = null;
   for (const entry of entries || []) {
     const currencyCode = normalizeCurrencyCode(entry.currencyCode || entry.currency_code, 'entry currency');
     const amountCents = Math.round(Number(entry.amountCents ?? entry.net_collected_cents ?? entry.netCollectedCents ?? 0));
@@ -277,9 +311,14 @@ async function convertBreakdown(client, { entries, reportingCurrency, rateDate, 
     });
     if (converted.missingRate) {
       missing.push(currencyCode);
-      lines.push({ currencyCode, amountCents, convertedCents: null, rate: null, rateDate: date, rateSource: source, missingRate: true });
+      lines.push({ currencyCode, amountCents, convertedCents: null, rate: null, rateDate: date, rateSource: source, missingRate: true, rateAgeDays: null, rateStale: false });
     } else {
       convertedTotalCents += converted.convertedCents;
+      if (converted.rateStale) staleCurrencies.push(currencyCode);
+      if (converted.rateAgeDays != null && (maxRateAgeDays == null || converted.rateAgeDays > maxRateAgeDays)) {
+        maxRateAgeDays = converted.rateAgeDays;
+        stalestRateDate = converted.rateDate;
+      }
       lines.push({
         currencyCode,
         amountCents,
@@ -288,6 +327,8 @@ async function convertBreakdown(client, { entries, reportingCurrency, rateDate, 
         rateDate: converted.rateDate,
         rateSource: converted.rateSource,
         missingRate: false,
+        rateAgeDays: converted.rateAgeDays,
+        rateStale: converted.rateStale,
       });
     }
   }
@@ -298,6 +339,14 @@ async function convertBreakdown(client, { entries, reportingCurrency, rateDate, 
     lines,
     missingCurrencies: [...new Set(missing)],
     convertedTotalCents: missing.length ? null : convertedTotalCents,
+    // Staleness summary for the whole response: any converted line
+    // using a rate older than FX_RATE_STALE_AFTER_DAYS, which
+    // currencies those are, and the oldest rate's age and date so
+    // the UI can name it without recomputing.
+    stale: staleCurrencies.length > 0,
+    staleCurrencies: [...new Set(staleCurrencies)],
+    maxRateAgeDays,
+    stalestRateDate,
   };
 }
 
@@ -365,6 +414,9 @@ async function createRate(client, { baseCurrency, quoteCurrency, rate, rateDate,
 }
 
 module.exports = {
+  FX_RATE_STALE_AFTER_DAYS,
+  rateAgeDays,
+  isRateStale,
   normalizeCurrencyCode,
   normalizeRate,
   normalizeRateDate,

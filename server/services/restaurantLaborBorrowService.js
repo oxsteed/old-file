@@ -42,6 +42,35 @@ function timeOnly(value, field = 'time') {
   return text.length === 5 ? `${text}:00` : text;
 }
 
+function addDays(dateStr, days) {
+  const d = new Date(`${dateStr}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function toMinutes(time) {
+  const m = String(time || '').match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+// A stored shift/borrow interval in minutes relative to midnight of
+// baseDate. Overnight rows (end <= start) run past midnight into the
+// next day; end == start is a 24h row. This mirrors
+// shiftConflictValidation.shiftInterval, the same convention shifts
+// use, so a borrow and a shift covering the same wall-clock minutes
+// always compare equal.
+function storedInterval(row, baseDate) {
+  const start = toMinutes(row.start_time);
+  const end = toMinutes(row.end_time);
+  if (start == null || end == null) return null;
+  const dayDiff = Math.round(
+    (new Date(`${dateOnly(row.shift_date)}T12:00:00Z`) - new Date(`${baseDate}T12:00:00Z`)) / 86400000
+  );
+  const intervalStart = dayDiff * 1440 + start;
+  return { start: intervalStart, end: intervalStart + (end <= start ? end + 1440 - start : end - start) };
+}
+
 function borrowShape(row) {
   if (!row) return null;
   return {
@@ -67,38 +96,57 @@ function borrowShape(row) {
 }
 
 // Overlap check: an approved borrow, or a published business shift,
-// for the same worker on the same day whose time window intersects
-// the requested window. Abutting shifts (one ends as the other
-// starts) do not overlap.
+// for the same worker whose time window intersects the requested
+// window. Abutting shifts (one ends as the other starts) do not
+// overlap. Both sides may span midnight (a shift or borrow with
+// end <= start ends the next morning; end == start is 24h, the same
+// convention as shiftConflictValidation), so the check runs on
+// absolute minute intervals over the day before through the day
+// after the borrow date: an overnight borrow must see shifts on the
+// next date, and a daytime borrow must see overnight shifts and
+// borrows from the previous date that run into it. A plain
+// single-date SQL time comparison gets both of those wrong.
 async function assertNoConflict(client, { businessId, restaurantId, staffUserId, shiftDate, startTime, endTime, excludeBorrowId = null }) {
-  const params = [businessId, staffUserId, shiftDate, startTime, endTime];
+  const day = dateOnly(shiftDate, 'shift date');
+  const start = toMinutes(startTime);
+  const endRaw = toMinutes(endTime);
+  if (start == null || endRaw == null) throw new AppError('Valid start and end times are required', 400, 'validation_failed');
+  const end = endRaw <= start ? endRaw + 1440 : endRaw;
+  const windowStart = addDays(day, -1);
+  const windowEnd = addDays(day, 1);
   const { rows: shifts } = await client.query(
-    `SELECT id FROM business_staff_shifts
-      WHERE business_id = $1 AND user_id = $2 AND shift_date = $3::date
+    `SELECT shift_date, start_time, end_time FROM business_staff_shifts
+      WHERE business_id = $1 AND user_id = $2
+        AND shift_date >= $3::date AND shift_date <= $4::date
         AND cancelled_at IS NULL
-        AND start_time < $5::time AND $4::time < end_time
-      LIMIT 1`,
-    params
+      ORDER BY shift_date, start_time`,
+    [businessId, staffUserId, windowStart, windowEnd]
   );
-  if (shifts.length) {
-    throw new AppError('This worker already has a shift overlapping that time', 409, 'borrow_shift_conflict');
+  for (const shift of shifts) {
+    const interval = storedInterval(shift, day);
+    if (interval && interval.start < end && start < interval.end) {
+      throw new AppError('This worker already has a shift overlapping that time', 409, 'borrow_shift_conflict');
+    }
   }
-  const borrowParams = [restaurantId, staffUserId, shiftDate, startTime, endTime];
+  const borrowParams = [restaurantId, staffUserId, windowStart, windowEnd];
   let exclude = '';
   if (excludeBorrowId != null) {
     borrowParams.push(excludeBorrowId);
     exclude = ` AND id <> $${borrowParams.length}`;
   }
   const { rows: borrows } = await client.query(
-    `SELECT id FROM restaurant_labor_borrows
-      WHERE restaurant_id = $1 AND staff_user_id = $2 AND shift_date = $3::date
-        AND status = 'approved'
-        AND start_time < $5::time AND $4::time < end_time${exclude}
-      LIMIT 1`,
+    `SELECT shift_date, start_time, end_time FROM restaurant_labor_borrows
+      WHERE restaurant_id = $1 AND staff_user_id = $2
+        AND shift_date >= $3::date AND shift_date <= $4::date
+        AND status = 'approved'${exclude}
+      ORDER BY shift_date, start_time`,
     borrowParams
   );
-  if (borrows.length) {
-    throw new AppError('This worker already has an approved borrow overlapping that time', 409, 'borrow_overlap');
+  for (const borrow of borrows) {
+    const interval = storedInterval(borrow, day);
+    if (interval && interval.start < end && start < interval.end) {
+      throw new AppError('This worker already has an approved borrow overlapping that time', 409, 'borrow_overlap');
+    }
   }
 }
 
@@ -141,7 +189,10 @@ async function requestBorrow(client, {
   const date = dateOnly(shiftDate, 'shift date');
   const start = timeOnly(startTime, 'start time');
   const end = timeOnly(endTime, 'end time');
-  if (start >= end) throw new AppError('The borrow must end after it starts', 400, 'validation_failed');
+  // Borrows span midnight like shifts: end <= start means the borrow
+  // ends the next morning (end == start is a 24h borrow), the same
+  // convention shiftConflictValidation.shiftInterval uses for shifts.
+  // No end-after-start rejection: a night borrow is 22:00-06:00.
   await assertBorrowParties(client, { restaurantId, businessId, staffUserId: staff, homeLocationId: home, borrowLocationId: borrow });
   await assertNoConflict(client, { businessId, restaurantId, staffUserId: staff, shiftDate: date, startTime: start, endTime: end });
   const { rows: [row] } = await client.query(
@@ -259,6 +310,15 @@ async function transitionBorrow(client, { borrowId, restaurantId, fromStatuses, 
 // Shared roster: every active team member with a home store, their
 // published shifts in the window, and their approved borrows there.
 // The read a scheduler uses to place a worker at another store.
+//
+// Store scoping (item 45): the members query filters by the caller's
+// locations, but shifts and borrows must be filtered the same way or
+// a store-scoped caller sees other stores' shifts. The visible set
+// is the passed locationIds when given; otherwise (all locations
+// visible) it is the members' home locations from the members query.
+// Shifts with no location_id (legacy rows migration 994 left
+// unassigned) match no visible store and are excluded rather than
+// leaked — the same fail-closed stance 994 takes for scoped reports.
 async function getSharedRoster(client, { restaurantId, businessId, locationIds = null, from, to }) {
   const fromDate = dateOnly(from, 'from date');
   const toDate = dateOnly(to, 'to date');
@@ -284,6 +344,11 @@ async function getSharedRoster(client, { restaurantId, businessId, locationIds =
     params
   );
   const userIds = members.map((row) => row.user_id);
+  // Visible stores for the shift/borrow reads: the caller's scope
+  // when given, else the members' home stores.
+  const visibleLocationIds = Array.isArray(locationIds) && locationIds.length
+    ? [...new Set(locationIds.map((id) => Number(id)))]
+    : [...new Set(members.map((row) => Number(row.home_location_id)))];
   let shiftsByUser = new Map();
   let borrowsByUser = new Map();
   if (userIds.length) {
@@ -291,10 +356,11 @@ async function getSharedRoster(client, { restaurantId, businessId, locationIds =
       `SELECT user_id, shift_date, start_time, end_time, role_label
          FROM business_staff_shifts
         WHERE business_id = $1 AND user_id = ANY($2::uuid[])
+          AND location_id = ANY($5::bigint[])
           AND cancelled_at IS NULL
           AND shift_date >= $3::date AND shift_date <= $4::date
         ORDER BY shift_date, start_time`,
-      [businessId, userIds, fromDate, toDate]
+      [businessId, userIds, fromDate, toDate, visibleLocationIds]
     );
     for (const shift of shifts) {
       if (!shiftsByUser.has(shift.user_id)) shiftsByUser.set(shift.user_id, []);
@@ -305,8 +371,12 @@ async function getSharedRoster(client, { restaurantId, businessId, locationIds =
         roleLabel: shift.role_label || null,
       });
     }
+    // listBorrows already scopes to borrows involving a visible store
+    // (home or borrow side); without the visible set it would return
+    // the whole restaurant's approved borrows to a store-scoped caller.
     const borrows = await listBorrows(client, {
       restaurantId,
+      locationIds: visibleLocationIds,
       from: fromDate,
       to: toDate,
       status: 'approved',
