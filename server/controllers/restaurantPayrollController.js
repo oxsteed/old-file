@@ -1554,3 +1554,23 @@ exports.recordPayRunDisbursement = async (req, res, next) => {
           { count: Number(pendingTipRow.n) }
         );
       }
+    // Finding 40: a member run of a live (finalized or approved)
+    // consolidation cannot be voided away underneath it — the
+    // consolidation snapshot would go stale. Void the consolidation
+    // first (which dissolves the group without touching the runs),
+    // then void the run. Draft consolidations do not block: their
+    // finalize re-verifies members are still finalized.
+    const { rows: [liveConsolidation] } = await pool.query(
+      `SELECT c.id FROM restaurant_pay_run_consolidation_members m
+         JOIN restaurant_pay_run_consolidations c ON c.id = m.consolidation_id
+        WHERE m.pay_run_id = $1 AND c.status IN ('finalized', 'approved')`,
+      [payRunId]
+    );
+    if (liveConsolidation) {
+      throw new AppError(
+        `This pay run belongs to live consolidation ${liveConsolidation.id}; void the consolidation first`,
+        409,
+        'pay_run_in_live_consolidation',
+        { consolidation_id: Number(liveConsolidation.id) }
+      );
+    }
