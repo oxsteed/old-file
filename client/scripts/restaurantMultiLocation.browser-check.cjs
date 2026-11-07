@@ -181,7 +181,9 @@ test('multi-location HQ: converted rollup, FX policy, pay-run approval, labor bo
             }],
             totals: {
               total_hours: 120, overtime_hours: 8, labor_cost_cents: null, currency: null, labor_percent: null,
-              converted: { currency: 'USD', laborCostCents: 380, revenueCents: 760, laborPercent: 50, missingCurrencies: [] },
+              // Finding 21: the server sends reportingCurrency on the
+              // converted object, never a currency key.
+              converted: { reportingCurrency: 'USD', laborCostCents: 380, revenueCents: 760, laborPercent: 50, missingCurrencies: [] },
             },
           } };
         }
