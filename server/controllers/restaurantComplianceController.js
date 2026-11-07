@@ -498,6 +498,25 @@ exports.decideErasureRequest = async (req, res, next) => {
     if (!requestId || (decision !== 'approved' && decision !== 'rejected')) {
       throw new AppError('decision must be approved or rejected', 400, 'validation_failed');
     }
+    const { rows: [existing] } = await pool.query(
+      `SELECT * FROM restaurant_erasure_requests
+        WHERE id = $1 AND business_id = $2`,
+      [requestId, Number(restaurant.business_id)]
+    );
+    if (!existing || existing.status !== 'requested') {
+      throw new AppError('Erasure request not found or already decided', 404, 'erasure_request_not_found');
+    }
+    // Finding 46: a manager can never approve their own erasure
+    // request — erasing personal data needs a second manager's
+    // approval. (Rejecting your own request is a withdrawal, not an
+    // approval, so it stays allowed.)
+    if (decision === 'approved' && String(existing.requested_by) === String(req.user.id)) {
+      throw new AppError(
+        'You cannot approve your own erasure request; a different manager must approve it',
+        409,
+        'erasure_self_approval'
+      );
+    }
     const { rows: [row] } = await pool.query(
       `UPDATE restaurant_erasure_requests
           SET status = $1, decided_by = $2, decided_at = NOW(), updated_at = NOW()
