@@ -1485,3 +1485,72 @@ exports.recordPayRunDisbursement = async (req, res, next) => {
     res.status(201).json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.run.id)) });
   } catch (err) { next(err); }
 };
+      // Finding 15: finalize also fails closed on work still in
+      // flight in the run period. A system-closed punch, a pending
+      // punch correction, or a pending cash-tip declaration means
+      // the period's pay basis is not settled yet; the manager
+      // clears the named item and finalizes again. No silent
+      // override, and the error names exactly what is pending.
+      const periodFrom = existing.period_from instanceof Date
+        ? existing.period_from.toISOString().slice(0, 10)
+        : String(existing.period_from).slice(0, 10);
+      const periodTo = existing.period_to instanceof Date
+        ? existing.period_to.toISOString().slice(0, 10)
+        : String(existing.period_to).slice(0, 10);
+      const runLocationIds = Array.isArray(existing.location_ids)
+        ? existing.location_ids.map((id) => Number(id))
+        : [];
+      const scoped = runLocationIds.length > 0;
+      const { rows: [systemClosedRow] } = await client.query(
+        `SELECT COUNT(*)::int AS n FROM business_time_entries
+          WHERE business_id = $1 AND entry_date >= $2 AND entry_date <= $3
+            AND system_closed_at IS NOT NULL AND voided_at IS NULL
+            ${scoped ? 'AND (location_id IS NULL OR location_id = ANY($4::bigint[]))' : ''}`,
+        scoped
+          ? [restaurant.business_id, periodFrom, periodTo, runLocationIds]
+          : [restaurant.business_id, periodFrom, periodTo]
+      );
+      if (Number(systemClosedRow?.n || 0) > 0) {
+        throw new AppError(
+          'Some punches in this period were closed by the system and still need review; review them before finalizing',
+          409,
+          'pay_run_finalize_system_closed_entries',
+          { count: Number(systemClosedRow.n) }
+        );
+      }
+      const { rows: [pendingCorrectionRow] } = await client.query(
+        `SELECT COUNT(*)::int AS n
+           FROM business_time_entry_corrections c
+           JOIN business_time_entries e ON e.id = c.entry_id
+          WHERE c.business_id = $1 AND c.status = 'pending'
+            AND e.entry_date >= $2 AND e.entry_date <= $3 AND e.voided_at IS NULL
+            ${scoped ? 'AND (e.location_id IS NULL OR e.location_id = ANY($4::bigint[]))' : ''}`,
+        scoped
+          ? [restaurant.business_id, periodFrom, periodTo, runLocationIds]
+          : [restaurant.business_id, periodFrom, periodTo]
+      );
+      if (Number(pendingCorrectionRow?.n || 0) > 0) {
+        throw new AppError(
+          'Some punch corrections in this period are still pending; decide them before finalizing',
+          409,
+          'pay_run_finalize_pending_corrections',
+          { count: Number(pendingCorrectionRow.n) }
+        );
+      }
+      const { rows: [pendingTipRow] } = await client.query(
+        `SELECT COUNT(*)::int AS n FROM restaurant_declared_cash_tips
+          WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3
+            AND status = 'pending'
+            ${scoped ? 'AND (location_id IS NULL OR location_id = ANY($4::bigint[]))' : ''}`,
+        scoped
+          ? [restaurant.id, periodFrom, periodTo, runLocationIds]
+          : [restaurant.id, periodFrom, periodTo]
+      );
+      if (Number(pendingTipRow?.n || 0) > 0) {
+        throw new AppError(
+          'Some cash-tip declarations in this period are still pending review; confirm or reject them before finalizing',
+          409,
+          'pay_run_finalize_pending_cash_tips',
+          { count: Number(pendingTipRow.n) }
+        );
+      }
