@@ -21,7 +21,10 @@ async function runRestaurantScheduledReportsJob(db = pool, options = {}) {
   let result = { locked: false };
   await withFencedJobLock(JOB_NAME, async (fence) => {
     fence.assertActive();
-    result = { locked: true, ...(await runDueScheduledReports(db, options)) };
+    // Background-jobs audit #43: the run goes through the fence's
+    // handle, not the raw pool, so a worker that lost its lease cannot
+    // keep building and marking deliveries.
+    result = { locked: true, ...(await runDueScheduledReports(fence.db, options)) };
   }, 900, { throwOnError: true });
   logger.info('Restaurant scheduled reports run finished', result);
   return result;

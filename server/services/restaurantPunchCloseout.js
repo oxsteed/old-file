@@ -215,9 +215,36 @@ async function notifyCloseoutFailure(db, { now = new Date() } = {}) {
   return { alerted, alertErrors, businesses };
 }
 
-async function closeStalePunches({ businessId = null, db = pool, now = new Date(), notify = true } = {}) {
+// One entry's close, in its own transaction. With a fence the lease is
+// re-verified inside the transaction (fence.fencedTransaction), so a
+// stale worker's close is refused instead of committed after lease
+// loss; without one the raw-pool transaction runs as before. A work
+// function returning null means "nothing to close" (closed or voided
+// concurrently); the empty transaction still commits harmlessly.
+async function runEntryTransaction({ db, fence }, work) {
+  if (fence) return fence.fencedTransaction(work);
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await work(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function closeStalePunches({ businessId = null, db = pool, fence = null, now = new Date(), notify = true } = {}) {
   const nowMs = new Date(now).getTime();
   const graceCutoff = new Date(nowMs - STALE_GRACE_MINUTES * 60 * 1000);
+  // Background-jobs audit #43: when the fenced job hands us its fence,
+  // every write in this sweep goes through fence.db, so a worker that
+  // lost its lease cannot keep closing punches through the raw pool.
+  // Without a fence (on-demand endpoint, tests) the supplied db is used.
+  const handle = fence ? fence.db : db;
   // Open entries only; the close time is computed in SQL so the shift
   // end (a business-local wall clock) converts to an instant in the
   // store's timezone with DST handled by AT TIME ZONE. The shift used
@@ -232,7 +259,7 @@ async function closeStalePunches({ businessId = null, db = pool, now = new Date(
   // of closing the punch in the past. Cancelled shifts never close a
   // punch (cancelled_at IS NULL on both the close-time subquery and
   // the has_shift check).
-  const { rows: open } = await db.query(
+  const { rows: open } = await handle.query(
     `SELECT te.*,
             COALESCE(l.timezone, b.timezone, 'UTC') AS tz,
             b.business_name AS business_name,
@@ -294,78 +321,82 @@ async function closeStalePunches({ businessId = null, db = pool, now = new Date(
     // Still inside the grace window for this close time: leave it open.
     if (closeAt.getTime() > graceCutoff.getTime()) continue;
 
-    const client = await db.connect();
+    // Each entry closes in its own transaction. With a fence the lease
+    // is re-verified inside the transaction (fence.fencedTransaction),
+    // so a stale worker cannot commit a close after lease loss; without
+    // one the raw-pool transaction runs as before. The close commits
+    // before the manager is notified: notification failure never rolls
+    // a close back.
+    let closedEntry = null;
     try {
-      await client.query('BEGIN');
-      const { rows: locked } = await client.query(
-        `SELECT * FROM business_time_entries
-          WHERE id = $1 AND business_id = $2 AND clock_out_at IS NULL AND voided_at IS NULL
-          FOR UPDATE`,
-        [entry.id, entry.business_id]
-      );
-      if (!locked.length) {
-        await client.query('ROLLBACK');
-        continue; // closed or voided concurrently; nothing to do.
-      }
-      const current = locked[0];
-      const hours = Math.max(
-        0.01,
-        computedHours({ ...current, clock_out_at: closeAt }, closeAt.getTime())
-      );
-      const { rows: [updated] } = await client.query(
-        `UPDATE business_time_entries
-            SET clock_out_at = $1, hours_worked = $2,
-                system_closed_at = NOW(), system_closed_reason = $3
-          WHERE id = $4 AND business_id = $5 AND clock_out_at IS NULL AND voided_at IS NULL
-          RETURNING *`,
-        [closeAt.toISOString(), hours, reason, entry.id, entry.business_id]
-      );
-      if (!updated) {
-        await client.query('ROLLBACK');
-        continue;
-      }
-      // Audit trail: the close is an edit like any other, with no human
-      // editor or approver (both NULL): the system closed it.
-      await client.query(
-        `INSERT INTO business_time_entry_edits
-           (entry_id, business_id, editor_user_id, approved_by, field, old_value, new_value, reason)
-         VALUES ($1, $2, NULL, NULL, 'clock_out_at', NULL, $3, $4)`,
-        [
-          entry.id,
-          entry.business_id,
-          closeAt.toISOString(),
-          reason === 'auto_close_shift_end'
-            ? 'System auto-close at the end of the published shift (forgotten punch)'
-            : 'System auto-close at clock-in + 12 hours: no published shift, forgotten punch',
-        ]
-      );
-      await client.query('COMMIT');
-      const closedEntry = {
-        ...updated,
-        system_closed: true,
-        hours: Number(updated.hours_worked),
-        entryId: Number(entry.id),
-        userId: entry.user_id,
-        employeeName: entry.employee_name || null,
-        businessName: entry.business_name || null,
-        entryDate: entry.entry_date instanceof Date
-          ? entry.entry_date.toISOString().slice(0, 10)
-          : String(entry.entry_date || '').slice(0, 10),
-        closedAtLabel: closeAt.toISOString(),
-        close_reason: reason,
-      };
-      closed.push(closedEntry);
-      if (notify) {
-        const result = await notifyManagers(db, entry.business_id, closedEntry);
-        notified += result.notified;
-        notifyErrors += result.notifyErrors;
-      }
+      closedEntry = await runEntryTransaction({ db, fence }, async (client) => {
+        const { rows: locked } = await client.query(
+          `SELECT * FROM business_time_entries
+            WHERE id = $1 AND business_id = $2 AND clock_out_at IS NULL AND voided_at IS NULL
+            FOR UPDATE`,
+          [entry.id, entry.business_id]
+        );
+        if (!locked.length) return null; // closed or voided concurrently; nothing to do.
+        const current = locked[0];
+        const hours = Math.max(
+          0.01,
+          computedHours({ ...current, clock_out_at: closeAt }, closeAt.getTime())
+        );
+        const { rows: [updated] } = await client.query(
+          `UPDATE business_time_entries
+              SET clock_out_at = $1, hours_worked = $2,
+                  system_closed_at = NOW(), system_closed_reason = $3
+            WHERE id = $4 AND business_id = $5 AND clock_out_at IS NULL AND voided_at IS NULL
+            RETURNING *`,
+          [closeAt.toISOString(), hours, reason, entry.id, entry.business_id]
+        );
+        if (!updated) return null;
+        // Audit trail: the close is an edit like any other, with no human
+        // editor or approver (both NULL): the system closed it.
+        await client.query(
+          `INSERT INTO business_time_entry_edits
+             (entry_id, business_id, editor_user_id, approved_by, field, old_value, new_value, reason)
+           VALUES ($1, $2, NULL, NULL, 'clock_out_at', NULL, $3, $4)`,
+          [
+            entry.id,
+            entry.business_id,
+            closeAt.toISOString(),
+            reason === 'auto_close_shift_end'
+              ? 'System auto-close at the end of the published shift (forgotten punch)'
+              : 'System auto-close at clock-in + 12 hours: no published shift, forgotten punch',
+          ]
+        );
+        return {
+          ...updated,
+          system_closed: true,
+          hours: Number(updated.hours_worked),
+          entryId: Number(entry.id),
+          userId: entry.user_id,
+          employeeName: entry.employee_name || null,
+          businessName: entry.business_name || null,
+          entryDate: entry.entry_date instanceof Date
+            ? entry.entry_date.toISOString().slice(0, 10)
+            : String(entry.entry_date || '').slice(0, 10),
+          closedAtLabel: closeAt.toISOString(),
+          close_reason: reason,
+        };
+      });
     } catch (err) {
-      await client.query('ROLLBACK').catch(() => {});
       errors.push({ entryId: Number(entry.id), error: err.message });
       logger.warn('Punch closeout: failed to close entry', { entryId: entry.id, error: err.message });
-    } finally {
-      client.release();
+      continue;
+    }
+    if (!closedEntry) continue;
+    closed.push(closedEntry);
+    if (notify) {
+      try {
+        const result = await notifyManagers(handle, entry.business_id, closedEntry);
+        notified += result.notified;
+        notifyErrors += result.notifyErrors;
+      } catch (err) {
+        notifyErrors += 1;
+        logger.warn('Punch closeout: manager notification failed', { businessId: entry.business_id, entryId: entry.id, error: err.message });
+      }
     }
   }
 
@@ -381,7 +412,7 @@ async function closeStalePunches({ businessId = null, db = pool, now = new Date(
   let missingNotified = 0;
   let missingNotifyErrors = 0;
   try {
-    const { rows: unpunched } = await db.query(
+    const { rows: unpunched } = await handle.query(
       `SELECT sh.*,
               COALESCE(l.timezone, b.timezone, 'UTC') AS tz,
               b.business_name AS business_name,
@@ -420,7 +451,7 @@ async function closeStalePunches({ businessId = null, db = pool, now = new Date(
       };
       missing.push(missingPunch);
       if (notify) {
-        const result = await notifyMissingPunch(db, shift.business_id, missingPunch);
+        const result = await notifyMissingPunch(handle, shift.business_id, missingPunch);
         missingNotified += result.notified;
         missingNotifyErrors += result.notifyErrors;
       }

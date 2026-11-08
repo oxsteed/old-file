@@ -21,8 +21,12 @@ const JOB_NAME = 'restaurant-punch-closeout';
 const CRON_EXPRESSION = '0 0 * * * *'; // hourly, top of the hour
 const RETRY_DELAY_MS = 5000; // one short retry when the sweep throws
 
-async function sweep(db = pool) {
-  const result = await closeStalePunches({ db });
+async function sweep(db = pool, fence = null) {
+  // Background-jobs audit #43: the sweep runs on the fence's handle,
+  // not the raw pool, so a worker that lost its lease cannot keep
+  // closing punches. closeStalePunches routes its per-entry
+  // transactions through fence.fencedTransaction when given the fence.
+  const result = await closeStalePunches({ db, fence });
   return {
     closed: result.closed.length,
     notified: result.notified,
@@ -41,7 +45,7 @@ async function runRestaurantPunchCloseoutJob(db = pool, { retryDelayMs = RETRY_D
     try {
       await withFencedJobLock(JOB_NAME, async (fence) => {
         fence.assertActive();
-        result = { locked: true, ...(await sweep(db)) };
+        result = { locked: true, ...(await sweep(fence.db, fence)) };
       }, 900, { throwOnError: true });
     } catch (err) {
       lastError = err;
