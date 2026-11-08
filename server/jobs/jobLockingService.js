@@ -152,8 +152,23 @@ async function releaseJobLock(jobName, lockValue) {
   }
 }
 
-async function refreshJobLock(jobName, lockValue, ttlSeconds = 300) {
-  if (!lockValue) return false;
+/**
+ * Renewal outcome, distinguished so callers never confuse a transient
+ * database error with a lost lease (background-jobs audit, Oct 30
+ * item 6, STILL LIVE at 51ccc1453):
+ *   - 'refreshed': the row still belongs to this worker and now expires
+ *     ttlSeconds from now.
+ *   - 'expired': the row is gone, belongs to another worker, or already
+ *     expired: the lease is genuinely lost.
+ *   - 'error': the renewal query itself threw (transient DB blip). The
+ *     lease state is UNKNOWN: fencing here would abort a healthy run,
+ *     and deleting the lock row would let a replica acquire the lock
+ *     while this run keeps writing. The caller must keep the timer
+ *     running and retry; if the database stays down the lease expires
+ *     on its own and a later renewal reports 'expired'.
+ */
+async function refreshJobLockState(jobName, lockValue, ttlSeconds = 300) {
+  if (!lockValue) return 'expired';
   try {
     const { rows } = await pool.query(
       `UPDATE cron_job_locks
@@ -162,11 +177,15 @@ async function refreshJobLock(jobName, lockValue, ttlSeconds = 300) {
         RETURNING lock_id`,
       [`job_lock:${jobName}`, lockValue, ttlSeconds]
     );
-    return rows.length > 0;
+    return rows.length > 0 ? 'refreshed' : 'expired';
   } catch (err) {
     logger.warn('Lock renewal failed', { jobName, error: err.message });
-    return false;
+    return 'error';
   }
+}
+
+async function refreshJobLock(jobName, lockValue, ttlSeconds = 300) {
+  return (await refreshJobLockState(jobName, lockValue, ttlSeconds)) === 'refreshed';
 }
 
 /**
@@ -195,15 +214,23 @@ async function withFencedJobLock(jobName, handler, ttlSeconds = 300, { throwOnLo
 
   const renewalIntervalMs = Math.max(1000, Math.floor(Number(ttlSeconds) * 1000 / 3));
   const renewalTimer = setInterval(() => {
-    refreshJobLock(jobName, lockValue, ttlSeconds).then((refreshed) => {
-      if (!refreshed) {
-        // E03: the lease is gone (expired or taken over). Fence immediately
-        // so no further writes go out, stop renewing, and best-effort
-        // release our stale row.
-        fence._onLeaseLost();
-        clearInterval(renewalTimer);
-        releaseJobLock(jobName, lockValue).catch(() => {});
+    refreshJobLockState(jobName, lockValue, ttlSeconds).then((state) => {
+      if (state === 'refreshed') return;
+      if (state === 'error') {
+        // Oct 30 item 6: a renewal ERROR is not a lost lease. Do not
+        // fence and do not delete the lock row: the run keeps its lease
+        // (or the lease expires on its own) and the next tick retries.
+        // Fencing here turned a transient DB blip into exactly the
+        // concurrent double-write the fence exists to prevent.
+        logger.warn('Lock renewal error; keeping lease and retrying next tick', { jobName });
+        return;
       }
+      // E03: the lease is gone (expired or taken over). Fence immediately
+      // so no further writes go out, stop renewing, and best-effort
+      // release our stale row.
+      fence._onLeaseLost();
+      clearInterval(renewalTimer);
+      releaseJobLock(jobName, lockValue).catch(() => {});
     }).catch((err) => {
       logger.warn('Unexpected lock renewal failure', { jobName, error: err.message });
     });
@@ -253,6 +280,7 @@ module.exports = {
   createFence,
   acquireJobLock,
   refreshJobLock,
+  refreshJobLockState,
   releaseJobLock,
   withJobLock,
   withFencedJobLock,
