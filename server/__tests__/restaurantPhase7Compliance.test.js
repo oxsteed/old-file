@@ -499,10 +499,12 @@ describe('Phase 7: retention policy + anonymization (gap 21)', () => {
     });
     expect(noGate).toEqual({ skipped: true, reason: 'retention_not_established', retain_until: null });
     expect(mockQuery).not.toHaveBeenCalled();
-    // Query order: name lookup, documents, time-entry notes,
+    // Query order: name lookup, documents, orphaned storage keys
+    // (#40: soft-deleted docs with no queue row), time-entry notes,
     // pay-run labels, time-entry edits (full name, first, last),
     // audit JSON (full name, "first", "last"), labor profile, history.
     mockQuery.mockResolvedValueOnce({ rows: [{ first_name: 'Phase', last_name: 'Staff' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rowCount: 2 });
     mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 11 }] });
