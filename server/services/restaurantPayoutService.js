@@ -716,11 +716,17 @@ async function reconcilePayouts({ limit = 50 } = {}) {
         });
         summary.confirmed += 1;
       } else {
+        // Background-jobs audit #38: the outbox row is insert-only here.
+        // A row parked in 'attention' (12 failed transfer attempts, or a
+        // changed destination) is terminal until an operator acts: flipping
+        // it back to 'pending' with available_at = NOW() resurrected it
+        // on the next 5-minute tick, so the 12-attempt cap was never
+        // terminal, and it reset the exponential backoff for every
+        // in-flight payout. ON CONFLICT DO NOTHING leaves an existing
+        // row (any status, any available_at) exactly as the drain left it.
         await pool.query(
           `INSERT INTO restaurant_payout_outbox (payout_id, available_at)
-           VALUES ($1, NOW()) ON CONFLICT (payout_id) DO UPDATE
-           SET status = CASE WHEN restaurant_payout_outbox.status = 'attention' THEN 'pending' ELSE restaurant_payout_outbox.status END,
-               available_at = NOW(), updated_at = NOW()`, [payout.id]
+           VALUES ($1, NOW()) ON CONFLICT (payout_id) DO NOTHING`, [payout.id]
         );
         summary.requeued += 1;
       }
