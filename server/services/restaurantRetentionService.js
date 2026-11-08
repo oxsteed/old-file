@@ -186,6 +186,28 @@ async function anonymizeFormerStaff(db, { businessId, restaurantId, userId, reta
     // outcome row.
     if (doc.storage_key) storageKeysToDelete.push(doc.storage_key);
   }
+  // Background-jobs audit #40: a retry after a mid-person throw
+  // must recover the keys of documents that were already
+  // soft-deleted but never queued (the first attempt discarded its
+  // in-memory key list with the exception, and the retry's select
+  // above finds no live docs). A soft-deleted document whose key
+  // has no queue row at all is an unqueued file: a pending or
+  // already-deleted queue row means the file is handled. These keys
+  // are returned for enqueueing but do NOT count as
+  // documents_deleted again.
+  const { rows: orphaned } = await db.query(
+    `SELECT storage_key FROM restaurant_staff_documents
+      WHERE restaurant_id = $1 AND user_id = $2 AND deleted_at IS NOT NULL
+        AND storage_key IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM storage_deletion_queue q
+           WHERE q.storage_key = restaurant_staff_documents.storage_key
+        )`,
+    [restaurantId, userId]
+  );
+  for (const row of orphaned) {
+    if (row.storage_key) storageKeysToDelete.push(row.storage_key);
+  }
   // Free-text descriptions on time entries may name people or places;
   // the hours, dates and pay inputs stay exactly as recorded.
   const notes = await db.query(
