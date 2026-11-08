@@ -13,8 +13,12 @@
 //     published shift for that employee on the punch's work date when
 //     one exists (the shift end is a business-local wall clock,
 //     converted to an instant in the store's timezone, so DST is
-//     handled by PostgreSQL's AT TIME ZONE), otherwise clock-in +
-//     AUTO_CLOSE_CAP_HOURS.
+//     handled by PostgreSQL's AT TIME ZONE). A clock-in just outside
+//     the shift window (early, or after midnight for an overnight
+//     shift that started yesterday) has no containing shift, but a
+//     shift still exists that day: the close time is then that
+//     shift's end (the nearest shift end after clock-in), not the
+//     12-hour cap. Otherwise clock-in + AUTO_CLOSE_CAP_HOURS.
 //   - AUTO_CLOSE_CAP_HOURS is 12: no single shift is credited beyond
 //     12 hours without a manager looking at it. A 12-hour cap is
 //     above any lawful single shift in the jurisdictions in the rule
@@ -38,9 +42,11 @@
 //     notification is best-effort.
 //   - A published shift from the preceding business day (per store
 //     timezone) with no time entry is flagged as a missing punch and
-//     the manager is notified once per missing shift. The
-//     yesterday-only window gives the once-only property: older dates
-//     are never notified, and a shift with an entry is never flagged.
+//     the manager is notified once per missing shift per manager (the
+//     notification carries an idempotency key, background-jobs audit
+//     #42). The yesterday-only window plus the key give the once-only
+//     property even though the job runs hourly. Older dates are never
+//     notified, and a shift with an entry is never flagged.
 //   - Runs hourly (server/jobs/restaurantPunchCloseoutJob.js) and on
 //     demand from the manager close-stale endpoint. Re-running is a
 //     no-op: closed entries are no longer open, so they are never
@@ -135,6 +141,15 @@ async function notifyMissingPunch(db, businessId, missing) {
             businessName: missing.businessName || '',
           },
         },
+        // Background-jobs audit #42: the missing-punch window is the
+        // same "yesterday" date for a full day and the job runs
+        // hourly, so without this key one forgotten punch re-notified
+        // every manager ~24 times a day (plus duplicates from the
+        // on-demand endpoint). The key is per manager because the
+        // notification table dedupes globally on delivery_key: a
+        // shared per-shift key would notify only the first manager
+        // and silently drop the rest.
+        idempotencyKey: `missing-punch:${missing.shiftId}:${missing.shiftDate}:${managerId}`,
       });
       notified += 1;
     } catch (err) {
@@ -253,43 +268,51 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
   // day, so a split shift closes at the end of the shift actually
   // worked. An overnight shift (end_time <= start_time) contains
   // clock-ins at or after its start or before its end, and closes
-  // the next morning: shift_date + end_time + 1 day. A close time at
-  // or before clock-in (no containing shift) is not a real close
-  // time: the JS fallback below then applies the 12-hour cap instead
-  // of closing the punch in the past. Cancelled shifts never close a
-  // punch (cancelled_at IS NULL on both the close-time subquery and
-  // the has_shift check).
+  // the next morning: shift_date + end_time + 1 day. When no shift
+  // contains the clock-in, the fallback close is the nearest shift
+  // end after clock-in over shifts on the entry date and the day
+  // before (background-jobs audit #44): an early clock-in, or an
+  // after-midnight clock-in for an overnight shift that started
+  // yesterday, closes at that shift's end instead of the 12-hour
+  // cap. Only when no shift exists at all does the JS fallback below
+  // apply the cap. Cancelled shifts never close a punch
+  // (cancelled_at IS NULL on both subqueries).
   const { rows: open } = await handle.query(
     `SELECT te.*,
             COALESCE(l.timezone, b.timezone, 'UTC') AS tz,
             b.business_name AS business_name,
             COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name) AS employee_name,
-            COALESCE(
-              (SELECT ((sh.shift_date + sh.end_time
-                         + CASE WHEN sh.end_time <= sh.start_time THEN INTERVAL '1 day' ELSE INTERVAL '0 days' END)
-                        AT TIME ZONE COALESCE(l.timezone, b.timezone, 'UTC'))
-                 FROM business_staff_shifts sh
-                WHERE sh.business_id = te.business_id
-                  AND sh.user_id = te.user_id
-                  AND sh.shift_date = te.entry_date
-                  AND sh.published_at IS NOT NULL
-                  AND sh.cancelled_at IS NULL
-                  AND sh.location_id IS NOT DISTINCT FROM te.location_id
-                  AND te.clock_in_at >= ((sh.shift_date + sh.start_time) AT TIME ZONE COALESCE(l.timezone, b.timezone, 'UTC'))
-                  AND te.clock_in_at < ((sh.shift_date + sh.end_time
-                         + CASE WHEN sh.end_time <= sh.start_time THEN INTERVAL '1 day' ELSE INTERVAL '0 days' END)
-                        AT TIME ZONE COALESCE(l.timezone, b.timezone, 'UTC'))
-                ORDER BY sh.start_time DESC LIMIT 1),
-              te.clock_in_at + ($3::int * INTERVAL '1 hour')) AS close_at,
-            EXISTS (
-              SELECT 1 FROM business_staff_shifts sh
-               WHERE sh.business_id = te.business_id
-                 AND sh.user_id = te.user_id
-                 AND sh.shift_date = te.entry_date
-                 AND sh.published_at IS NOT NULL
-                 AND sh.cancelled_at IS NULL
-                 AND sh.location_id IS NOT DISTINCT FROM te.location_id
-            ) AS has_shift
+            (SELECT ((sh.shift_date + sh.end_time
+                       + CASE WHEN sh.end_time <= sh.start_time THEN INTERVAL '1 day' ELSE INTERVAL '0 days' END)
+                      AT TIME ZONE COALESCE(l.timezone, b.timezone, 'UTC'))
+               FROM business_staff_shifts sh
+              WHERE sh.business_id = te.business_id
+                AND sh.user_id = te.user_id
+                AND sh.shift_date = te.entry_date
+                AND sh.published_at IS NOT NULL
+                AND sh.cancelled_at IS NULL
+                AND sh.location_id IS NOT DISTINCT FROM te.location_id
+                AND te.clock_in_at >= ((sh.shift_date + sh.start_time) AT TIME ZONE COALESCE(l.timezone, b.timezone, 'UTC'))
+                AND te.clock_in_at < ((sh.shift_date + sh.end_time
+                       + CASE WHEN sh.end_time <= sh.start_time THEN INTERVAL '1 day' ELSE INTERVAL '0 days' END)
+                      AT TIME ZONE COALESCE(l.timezone, b.timezone, 'UTC'))
+              ORDER BY sh.start_time DESC LIMIT 1) AS containing_close_at,
+            (SELECT ((sh.shift_date + sh.end_time
+                       + CASE WHEN sh.end_time <= sh.start_time THEN INTERVAL '1 day' ELSE INTERVAL '0 days' END)
+                      AT TIME ZONE COALESCE(l.timezone, b.timezone, 'UTC'))
+               FROM business_staff_shifts sh
+              WHERE sh.business_id = te.business_id
+                AND sh.user_id = te.user_id
+                AND sh.shift_date IN (te.entry_date, te.entry_date - 1)
+                AND sh.published_at IS NOT NULL
+                AND sh.cancelled_at IS NULL
+                AND sh.location_id IS NOT DISTINCT FROM te.location_id
+                AND ((sh.shift_date + sh.end_time
+                       + CASE WHEN sh.end_time <= sh.start_time THEN INTERVAL '1 day' ELSE INTERVAL '0 days' END)
+                      AT TIME ZONE COALESCE(l.timezone, b.timezone, 'UTC')) > te.clock_in_at
+              ORDER BY ((sh.shift_date + sh.end_time
+                       + CASE WHEN sh.end_time <= sh.start_time THEN INTERVAL '1 day' ELSE INTERVAL '0 days' END)
+                      AT TIME ZONE COALESCE(l.timezone, b.timezone, 'UTC')) ASC LIMIT 1) AS fallback_close_at
        FROM business_time_entries te
        JOIN businesses b ON b.id = te.business_id
        LEFT JOIN restaurant_locations l ON l.id = te.location_id
@@ -300,7 +323,7 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
         AND ($1::int IS NULL OR te.business_id = $1)
         AND te.clock_in_at <= $2::timestamptz
       ORDER BY te.clock_in_at ASC`,
-    [businessId, graceCutoff.toISOString(), AUTO_CLOSE_CAP_HOURS]
+    [businessId, graceCutoff.toISOString()]
   );
 
   const closed = [];
@@ -310,11 +333,17 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
 
   for (const entry of open) {
     const clockInMs = new Date(entry.clock_in_at).getTime();
-    let closeAt = entry.close_at ? new Date(entry.close_at) : null;
-    let reason = entry.has_shift ? 'auto_close_shift_end' : 'auto_close_12h_cap';
-    // A close time at or before clock-in (overnight shift stored
-    // end-before-start) is not a real close time: fall back to the cap.
-    if (!closeAt || Number.isNaN(closeAt.getTime()) || closeAt.getTime() <= clockInMs) {
+    // The close time is the containing shift's end when one exists,
+    // else the fallback shift end (#44), else the 12-hour cap. A
+    // close time at or before clock-in is not a real close time: the
+    // cap applies instead of closing the punch in the past.
+    const containingAt = entry.containing_close_at ? new Date(entry.containing_close_at) : null;
+    const fallbackAt = entry.fallback_close_at ? new Date(entry.fallback_close_at) : null;
+    let closeAt = containingAt && !Number.isNaN(containingAt.getTime())
+      ? containingAt
+      : fallbackAt && !Number.isNaN(fallbackAt.getTime()) ? fallbackAt : null;
+    let reason = closeAt ? 'auto_close_shift_end' : 'auto_close_12h_cap';
+    if (!closeAt || closeAt.getTime() <= clockInMs) {
       closeAt = new Date(clockInMs + AUTO_CLOSE_CAP_HOURS * 3600 * 1000);
       reason = 'auto_close_12h_cap';
     }

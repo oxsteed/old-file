@@ -289,7 +289,7 @@ function openEntry(overrides = {}) {
   return {
     id: 11, business_id: 42, user_id: USER_ID, location_id: null,
     entry_date: '2026-11-06', clock_in_at: '2026-11-06T09:00:00Z',
-    close_at: '2026-11-06T12:00:00Z', has_shift: true,
+    containing_close_at: '2026-11-06T12:00:00Z', fallback_close_at: null,
     employee_name: 'Sam', business_name: 'Bistro', tz: 'UTC',
     ...overrides,
   };
@@ -310,14 +310,19 @@ describe('Item 28: closeout closes at the containing shift end', () => {
     // Overnight: end <= start closes the next morning.
     expect(openSql).toContain('sh.end_time <= sh.start_time');
     expect(openSql).toContain("INTERVAL '1 day'");
-    // Cancelled shifts never close a punch: both subqueries.
+    // Cancelled shifts never close a punch: both subqueries
+    // (containing + #44 fallback).
     const cancelled = (openSql.match(/sh\.cancelled_at IS NULL/g) || []).length;
     expect(cancelled).toBe(2);
+    // Background-jobs audit #44: the fallback covers shifts on the
+    // entry date and the day before, and only ends after clock-in.
+    expect(openSql).toContain('te.entry_date - 1');
+    expect(openSql).toContain('fallback_close_at');
   });
 
   test('a split shift closes at the first shift end, not the latest end of the day', async () => {
     const { db, clientQueries } = makeCloseoutDb({
-      openRows: [openEntry({ close_at: '2026-11-06T12:00:00Z' })],
+      openRows: [openEntry({ containing_close_at: '2026-11-06T12:00:00Z' })],
     });
     const result = await closeStalePunches({ db, now: new Date('2026-11-06T13:00:00Z') });
     expect(result.closed).toHaveLength(1);
@@ -335,7 +340,7 @@ describe('Item 28: closeout closes at the containing shift end', () => {
     const { db, clientQueries } = makeCloseoutDb({
       openRows: [openEntry({
         clock_in_at: '2026-11-06T22:30:00Z',
-        close_at: '2026-11-07T06:00:00Z',
+        containing_close_at: '2026-11-07T06:00:00Z',
       })],
     });
     const result = await closeStalePunches({ db, now: new Date('2026-11-07T07:00:00Z') });
@@ -348,7 +353,57 @@ describe('Item 28: closeout closes at the containing shift end', () => {
 
   test('a close time at or before clock-in still falls back to the 12h cap', async () => {
     const { db, clientQueries } = makeCloseoutDb({
-      openRows: [openEntry({ close_at: '2026-11-06T09:00:00Z' })],
+      openRows: [openEntry({ containing_close_at: '2026-11-06T09:00:00Z' })],
+    });
+    const result = await closeStalePunches({ db, now: new Date('2026-11-06T22:00:00Z') });
+    expect(result.closed).toHaveLength(1);
+    expect(result.closed[0].close_reason).toBe('auto_close_12h_cap');
+    const update = clientQueries.find((q) => /UPDATE business_time_entries/.test(q.sql));
+    expect(update.params[0]).toBe('2026-11-06T21:00:00.000Z'); // clock-in + 12h
+  });
+});
+
+describe('Background-jobs audit #44: the 12h cap fires only when no shift exists at all', () => {
+  test('an early clock-in closes at the shift end, not clock-in + 12h', async () => {
+    const { db, clientQueries } = makeCloseoutDb({
+      openRows: [openEntry({
+        entry_date: '2026-11-06',
+        clock_in_at: '2026-11-06T21:30:00Z',
+        containing_close_at: null,
+        fallback_close_at: '2026-11-07T06:00:00Z',
+      })],
+    });
+    const result = await closeStalePunches({ db, now: new Date('2026-11-07T07:00:00Z') });
+    expect(result.closed).toHaveLength(1);
+    expect(result.closed[0].close_reason).toBe('auto_close_shift_end');
+    const update = clientQueries.find((q) => /UPDATE business_time_entries/.test(q.sql));
+    expect(update.params[0]).toBe('2026-11-07T06:00:00.000Z'); // shift end, not 09:30
+    expect(update.params[1]).toBe(8.5); // 21:30 to 06:00
+  });
+
+  test('an after-midnight clock-in for yesterday overnight shift closes at that shift end', async () => {
+    const { db, clientQueries } = makeCloseoutDb({
+      openRows: [openEntry({
+        entry_date: '2026-11-07',
+        clock_in_at: '2026-11-07T00:30:00Z',
+        containing_close_at: null,
+        fallback_close_at: '2026-11-07T06:00:00Z',
+      })],
+    });
+    const result = await closeStalePunches({ db, now: new Date('2026-11-07T07:00:00Z') });
+    expect(result.closed).toHaveLength(1);
+    expect(result.closed[0].close_reason).toBe('auto_close_shift_end');
+    const update = clientQueries.find((q) => /UPDATE business_time_entries/.test(q.sql));
+    expect(update.params[0]).toBe('2026-11-07T06:00:00.000Z');
+    expect(update.params[1]).toBe(5.5); // 00:30 to 06:00
+  });
+
+  test('no shift at all still falls back to the 12h cap', async () => {
+    const { db, clientQueries } = makeCloseoutDb({
+      openRows: [openEntry({
+        containing_close_at: null,
+        fallback_close_at: null,
+      })],
     });
     const result = await closeStalePunches({ db, now: new Date('2026-11-06T22:00:00Z') });
     expect(result.closed).toHaveLength(1);
@@ -376,6 +431,15 @@ describe('Item 52: missing-punch alert', () => {
     expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
       type: 'staff_time_entry_missing_punch',
     }));
+    // Background-jobs audit #42: the notification carries a
+    // per-shift per-day per-manager idempotency key, so the hourly
+    // job cannot re-notify the same missing shift all day. The key
+    // is per manager because the notifications table dedupes globally
+    // on delivery_key: a shared key would notify only the first
+    // manager.
+    expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+      idempotencyKey: `missing-punch:21:2026-11-06:${MANAGER_ID}`,
+    }));
     const body = sendNotification.mock.calls[0][0].body;
     expect(body).toContain('2026-11-06');
     // The window is yesterday only, per store timezone; cancelled
@@ -393,6 +457,22 @@ describe('Item 52: missing-punch alert', () => {
     expect(result.missing).toHaveLength(0);
     expect(result.missingNotified).toBe(0);
     expect(sendNotification).not.toHaveBeenCalled();
+  });
+
+  test('the missing-punch key is stable across hourly runs, so the second run dedupes', async () => {
+    const missingRows = [{
+      id: 21, business_id: 42, user_id: USER_ID,
+      shift_date: '2026-11-06', start_time: '08:00:00', end_time: '16:00:00',
+      employee_name: 'Sam', business_name: 'Bistro',
+    }];
+    const first = makeCloseoutDb({ missingRows });
+    await closeStalePunches({ db: first.db, now: new Date('2026-11-07T10:00:00Z') });
+    const second = makeCloseoutDb({ missingRows });
+    await closeStalePunches({ db: second.db, now: new Date('2026-11-07T11:00:00Z') });
+    expect(sendNotification).toHaveBeenCalledTimes(2);
+    const keys = sendNotification.mock.calls.map(([args]) => args.idempotencyKey);
+    expect(keys[0]).toBe(`missing-punch:21:2026-11-06:${MANAGER_ID}`);
+    expect(keys[1]).toBe(keys[0]);
   });
 });
 
