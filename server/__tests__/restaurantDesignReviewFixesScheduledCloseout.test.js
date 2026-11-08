@@ -18,10 +18,10 @@
 const { mockQuery, resetMocks } = require('./setup');
 
 jest.mock('../services/notificationService', () => ({
-  sendNotification: jest.fn(async () => ({})),
+  sendNotification: jest.fn(async () => ({ success: true })),
 }));
 jest.mock('../utils/email', () => ({
-  sendEmail: jest.fn(async () => ({})),
+  sendEmail: jest.fn(async () => ({ success: true })),
 }));
 jest.mock('../services/restaurantPayrollService', () => ({
   computeLabor: jest.fn(async () => ({
@@ -151,6 +151,95 @@ describe('Item 14: scheduled-report claim / retry', () => {
     const stale = await scheduledReports.runDueScheduledReports(client, { now });
     expect(stale.sent).toBe(1);
     expect(sendNotification).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Background-jobs audit #41: {success:false} sends are failed deliveries, never sent', () => {
+  const { sendEmail } = require('../utils/email');
+
+  test('an in-app send returning {success:false} marks the day failed, never sent', async () => {
+    const now = new Date('2026-11-06T10:00:00Z');
+    mockQuery.mockResolvedValueOnce({ rows: [scheduleRow()] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 7, status: 'pending' }] });
+    sendNotification.mockResolvedValueOnce({ success: false, error: 'Email provider down' });
+    const result = await scheduledReports.runDueScheduledReports(client, { now });
+    expect(result.due).toBe(1);
+    expect(result.sent).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(result.errors[0].error).toContain('Email provider down');
+    const sqls = mockQuery.mock.calls.map(([sql]) => String(sql));
+    expect(sqls.join('\n')).toContain("status = 'failed'");
+    expect(sqls.join('\n')).not.toContain("status = 'sent'");
+    // last_business_date advances only on success: the failed date
+    // stays due and is retried on the next run.
+    expect(sqls.join('\n')).not.toContain('last_business_date');
+  });
+
+  test('a partial failure counts only the delivered recipients and records them on the failed row', async () => {
+    const now = new Date('2026-11-06T10:00:00Z');
+    mockQuery.mockResolvedValueOnce({ rows: [scheduleRow({
+      recipients: [{ user_id: USER_ID }, { user_id: MANAGER_ID }],
+    })] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 7, status: 'pending' }] });
+    sendNotification
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({ success: false, error: 'push failed' });
+    const result = await scheduledReports.runDueScheduledReports(client, { now });
+    expect(result.sent).toBe(0);
+    expect(result.failed).toBe(1);
+    // The failure ledger keeps the delivered count (1 of 2), so the
+    // retry knows the first recipient already received it.
+    const failureCall = mockQuery.mock.calls
+      .find(([sql]) => String(sql).includes("status = 'failed'"));
+    expect(failureCall[1][2]).toBe(1);
+    const sqls = mockQuery.mock.calls.map(([sql]) => String(sql));
+    expect(sqls.join('\n')).not.toContain("status = 'sent'");
+    expect(sqls.join('\n')).not.toContain('last_business_date');
+  });
+
+  test('an email send returning {success:false} fails the delivery the same way', async () => {
+    const now = new Date('2026-11-06T10:00:00Z');
+    mockQuery.mockResolvedValueOnce({ rows: [scheduleRow({
+      delivery_channel: 'email',
+      recipients: [{ email: 'manager@example.com' }],
+    })] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 7, status: 'pending' }] });
+    sendEmail.mockResolvedValueOnce({ success: false, error: 'Email not configured', code: 'email_not_configured' });
+    const result = await scheduledReports.runDueScheduledReports(client, { now });
+    expect(result.sent).toBe(0);
+    expect(result.failed).toBe(1);
+    const sqls = mockQuery.mock.calls.map(([sql]) => String(sql));
+    expect(sqls.join('\n')).toContain("status = 'failed'");
+    expect(sqls.join('\n')).not.toContain("status = 'sent'");
+  });
+
+  test('deliverScheduledReport reports delivered and failed counts per recipient', async () => {
+    const outcome = await scheduledReports.deliverScheduledReport(client, {
+      schedule: scheduleRow({
+        delivery_channel: 'both',
+        recipients: [{ user_id: USER_ID }, { email: 'manager@example.com' }],
+      }),
+      payload: {
+        scheduled_report_id: 1, report_type: 'labor', business_date: '2026-11-05',
+        as_of: new Date('2026-11-06T10:00:00Z').toISOString(), summary: 'Labor 8 hours.',
+      },
+    });
+    expect(outcome).toMatchObject({ delivered: 2, failed: 0, errors: [] });
+    sendNotification.mockResolvedValueOnce({ success: false, error: 'nope' });
+    const partial = await scheduledReports.deliverScheduledReport(client, {
+      schedule: scheduleRow({
+        delivery_channel: 'both',
+        recipients: [{ user_id: USER_ID }, { email: 'manager@example.com' }],
+      }),
+      payload: {
+        scheduled_report_id: 1, report_type: 'labor', business_date: '2026-11-05',
+        as_of: new Date('2026-11-06T10:00:00Z').toISOString(), summary: 'Labor 8 hours.',
+      },
+    });
+    expect(partial.delivered).toBe(1);
+    expect(partial.failed).toBe(1);
+    expect(partial.errors).toHaveLength(1);
+    expect(partial.errors[0]).toMatchObject({ channel: 'in_app', error: 'nope' });
   });
 });
 
