@@ -29,11 +29,18 @@ const SWEEP_RESULT = {
   errors: [],
 };
 
+let fakeFence;
+
 beforeEach(() => {
   jest.clearAllMocks();
-  // Default: the fence runs the handler immediately.
+  // Default: the fence runs the handler immediately, handing it a
+  // fence whose db handle is distinct from the raw pool.
+  fakeFence = {
+    assertActive: jest.fn(),
+    db: { query: jest.fn(async () => ({ rows: [] })) },
+  };
   withFencedJobLock.mockImplementation(async (_name, handler) => {
-    await handler({ assertActive: jest.fn() });
+    await handler(fakeFence);
     return { completed: true };
   });
   closeStalePunches.mockResolvedValue(SWEEP_RESULT);
@@ -51,6 +58,11 @@ describe('Item 50: punch closeout job', () => {
     expect(result).toMatchObject({ locked: true, closed: 1, missing: 1, missingNotified: 1 });
     expect(withFencedJobLock).toHaveBeenCalledTimes(1);
     expect(closeStalePunches).toHaveBeenCalledTimes(1);
+    // Background-jobs audit #43: the sweep runs on the fence's handle,
+    // with the fence itself, never on the raw pool passed to the job.
+    expect(closeStalePunches).toHaveBeenCalledWith(
+      expect.objectContaining({ db: fakeFence.db, fence: fakeFence }),
+    );
     expect(notifyCloseoutFailure).not.toHaveBeenCalled();
   });
 
@@ -58,7 +70,7 @@ describe('Item 50: punch closeout job', () => {
     withFencedJobLock
       .mockRejectedValueOnce(new Error('connection dropped'))
       .mockImplementationOnce(async (_name, handler) => {
-        await handler({ assertActive: jest.fn() });
+        await handler(fakeFence);
         return { completed: true };
       });
     const result = await job.runRestaurantPunchCloseoutJob(pool, { retryDelayMs: 0 });

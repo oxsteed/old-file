@@ -514,3 +514,36 @@ test('reconciliation does not auto-send a legacy payout without a journal refere
     expect.anything(),
   );
 });
+
+test('background-jobs audit #38: reconciliation never resurrects an attention-parked outbox row', async () => {
+  // A payout with a journal reference but no Stripe transfer id takes
+  // the requeue branch. Before the fix the ON CONFLICT clause flipped
+  // an 'attention' row back to 'pending' with available_at = NOW(),
+  // so the drain's 12-attempt terminal park was undone in the same
+  // job run and the payout retried every 5 minutes forever.
+  const payout = {
+    id: 'payout-38',
+    status: 'processing',
+    ledger_transaction_id: TXN_UUID,
+    stripe_transfer_id: null,
+    restaurant_id: 42,
+    amount_cents: 2000,
+    currency_code: 'USD',
+  };
+  pool.query.mockImplementation(async (sql) => {
+    if (String(sql).includes('FROM restaurant_payouts')) return { rows: [payout] };
+    return { rows: [] };
+  });
+
+  const summary = await service.reconcilePayouts();
+
+  expect(summary).toMatchObject({ inspected: 1, requeued: 1, failed: 0 });
+  expect(stripeFactory.__instance.transfers.retrieve).not.toHaveBeenCalled();
+  const outboxInsert = pool.query.mock.calls.find(([sql]) =>
+    String(sql).includes('INSERT INTO restaurant_payout_outbox'));
+  expect(outboxInsert).toBeDefined();
+  expect(outboxInsert[0]).toContain('ON CONFLICT (payout_id) DO NOTHING');
+  expect(outboxInsert[0]).not.toContain('DO UPDATE');
+  expect(outboxInsert[0]).not.toContain("'pending'");
+  expect(outboxInsert[0]).not.toContain('attention');
+});

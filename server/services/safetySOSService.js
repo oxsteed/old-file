@@ -32,15 +32,21 @@ async function notifySOS(event, { escalation = false, db = pool, notify = sendNo
   });
   return { delivered };
 }
-async function escalateUnacknowledgedSOS({ db = pool, limit = 50 } = {}) {
-  const { rows } = await db.query(`WITH batch AS (
+async function escalateUnacknowledgedSOS({ db = pool, limit = 50, fence = null } = {}) {
+  // Background-jobs audit #39: the fleet runner hands us the fence;
+  // the claim and the escalation writes go through fence.db, so a
+  // worker that lost its lease stops instead of re-escalating through
+  // the raw pool. Without a fence (direct calls, tests) the supplied
+  // db is used as before.
+  const handle = fence ? fence.db : db;
+  const { rows } = await handle.query(`WITH batch AS (
     SELECT id FROM safety_sos_events WHERE acknowledged_at IS NULL
       AND created_at < NOW()-INTERVAL '5 minutes'
       AND (last_escalated_at IS NULL OR last_escalated_at<NOW()-INTERVAL '15 minutes')
     ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT $1
   ) UPDATE safety_sos_events s SET last_escalated_at=NOW(), escalation_count=escalation_count+1
     FROM batch b WHERE s.id=b.id RETURNING s.*`, [Math.min(100, Math.max(1, parseInt(limit,10) || 50))]);
-  for (const event of rows) await notifySOS(event, { escalation: true, db });
+  for (const event of rows) await notifySOS(event, { escalation: true, db: handle });
   return { escalated: rows.length };
 }
 module.exports = { notifySOS, escalateUnacknowledgedSOS };

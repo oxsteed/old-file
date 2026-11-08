@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { acquireJobLock, refreshJobLock, withJobLock } = require('../jobs/jobLockingService');
+const { acquireJobLock, refreshJobLock, refreshJobLockState, withJobLock } = require('../jobs/jobLockingService');
 
 beforeEach(() => resetMocks());
 
@@ -64,4 +64,65 @@ test('releases the lease and surfaces handler failures to the worker caller', as
   await expect(withJobLock('test-job', handler, 60)).rejects.toThrow('database unavailable');
 
   expect(mockQuery.mock.calls[1][0]).toMatch(/DELETE FROM cron_job_locks/);
+});
+
+describe('Oct 30 item 6: a renewal error is not lease loss', () => {
+  test('refreshJobLockState distinguishes refreshed, expired, and error', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ lock_id: 'job_lock:test-job' }] });
+    await expect(refreshJobLockState('test-job', 'v', 120)).resolves.toBe('refreshed');
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await expect(refreshJobLockState('test-job', 'v', 120)).resolves.toBe('expired');
+    mockQuery.mockRejectedValueOnce(new Error('db blip'));
+    await expect(refreshJobLockState('test-job', 'v', 120)).resolves.toBe('error');
+    // The boolean wrapper keeps its old contract: only 'refreshed' is true.
+    mockQuery.mockRejectedValueOnce(new Error('db blip'));
+    await expect(refreshJobLock('test-job', 'v', 120)).resolves.toBe(false);
+  });
+
+  test('a renewal error keeps the lease and does not fence; a later expiry does', async () => {
+    jest.useFakeTimers();
+    try {
+      let renewals = 0;
+      mockQuery.mockImplementation(async (sql) => {
+        if (sql.includes('INSERT INTO cron_job_locks')) return { rows: [{ lock_id: 'job_lock:test-job' }] };
+        if (sql.includes('UPDATE cron_job_locks')) {
+          renewals += 1;
+          if (renewals === 1) throw new Error('transient db blip');
+          return { rows: [] }; // second renewal: the lease is genuinely gone
+        }
+        if (sql.includes('DELETE FROM cron_job_locks')) return { rows: [] };
+        return { rows: [] };
+      });
+      let fenceRef = null;
+      let resolveHandler;
+      const handlerDone = new Promise((resolve) => { resolveHandler = resolve; });
+      const handler = jest.fn((fence) => {
+        fenceRef = fence;
+        return handlerDone;
+      });
+      // TTL 3s: the renewal loop ticks every 1000ms.
+      const run = withJobLock('test-job', handler, 3);
+      await jest.advanceTimersByTimeAsync(0);
+      expect(handler).toHaveBeenCalledTimes(1);
+      const deletes = () => mockQuery.mock.calls.filter(([sql]) =>
+        String(sql).includes('DELETE FROM cron_job_locks'));
+
+      // First renewal tick: the DB throws. The lease is kept, the fence
+      // stays active, and no lock row is deleted.
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(fenceRef.isActive()).toBe(true);
+      expect(deletes()).toHaveLength(0);
+
+      // Second renewal tick: the lease is genuinely expired. Now it
+      // fences and the stale row is released.
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(fenceRef.isActive()).toBe(false);
+      expect(deletes().length).toBeGreaterThanOrEqual(1);
+
+      resolveHandler({ done: true });
+      await expect(run).resolves.toEqual({ done: true });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

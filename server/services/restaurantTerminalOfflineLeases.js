@@ -125,11 +125,16 @@ async function flag(client,offlineId,reason){
 
 // Attach an offline payment to its order (once the offline ticket has been
 // accepted) as a pending tender, then let Stripe's intent settle it.
-async function attach({restaurantId,offlineId}){
-  const {rows:[payment]}=await pool.query('SELECT * FROM restaurant_terminal_offline_payments WHERE offline_id=$1 AND restaurant_id=$2',[offlineId,restaurantId]);
-  if(!payment)throw new AppError('Offline payment not found',404,'terminal_offline_payment_not_found');
-  if(['declined','voided'].includes(payment.status))return {payment,attached:false};
-  const attachedState=await withTransaction(pool,async client=>{
+// The fleet sweep passes its fence: writes go through fence.db and the
+// attach transaction re-verifies the lease inside the transaction, so a
+// stale sweep cannot attach (and settle) a payment after lease loss.
+async function attach({ restaurantId, offlineId, fence = null }) {
+  const handle = fence ? fence.db : pool;
+  const runTx = (work) => (fence ? fence.fencedTransaction(work) : withTransaction(pool, work));
+  const { rows: [payment] } = await handle.query('SELECT * FROM restaurant_terminal_offline_payments WHERE offline_id=$1 AND restaurant_id=$2', [offlineId, restaurantId]);
+  if (!payment) throw new AppError('Offline payment not found', 404, 'terminal_offline_payment_not_found');
+  if (['declined', 'voided'].includes(payment.status)) return { payment, attached: false };
+  const attachedState = await runTx(async client => {
     const {rows:[p]}=await client.query('SELECT * FROM restaurant_terminal_offline_payments WHERE offline_id=$1 FOR UPDATE',[offlineId]);
     const {rows:[permitExisting]}=await client.query('SELECT * FROM restaurant_terminal_offline_permits WHERE id=$1',[offlineId]);
     if(permitExisting)return {payment:p,permit:permitExisting};
@@ -171,31 +176,36 @@ async function attach({restaurantId,offlineId}){
   // so the flag-off path is query-identical to before.
   const holdForManagerReview = cardStoreForward.isGloballyEnabled()
     && cardStoreForward.shouldHoldForManagerReview(
-      await cardStoreForward.getStoreForwardPolicy(pool, restaurantId, attachedState.payment.location_id));
+      await cardStoreForward.getStoreForwardPolicy(handle, restaurantId, attachedState.payment.location_id));
   try{
     const settled=await offline.reconcileForwarded({restaurantId,permitId:offlineId,intentId,holdForManagerReview});
     if(settled?.held){
-      await withTransaction(pool,client=>flag(client,offlineId,'manual_review_required'));
+      await runTx(client=>flag(client,offlineId,'manual_review_required'));
       return {...attachedState,attached:true,settled:false,held:true,flagged:true};
     }
     return {...attachedState,attached:true,settled:true,result:settled};
   }catch(error){
     if(!(error instanceof AppError))throw error;
-    await withTransaction(pool,client=>flag(client,offlineId,error.code||'stripe_mismatch'));
+    await runTx(client=>flag(client,offlineId,error.code||'stripe_mismatch'));
     return {...attachedState,attached:true,settled:false,flagged:true,code:error.code};
   }
 }
 
 // Background sweep: expire leases, attach payments whose tickets were
 // accepted, and chase permits the device never reported back via Stripe.
-async function sweep({limit=200,now=new Date()}={}){
+// The fleet runner passes its fence (background-jobs audit #39): every
+// write in the sweep goes through fence.db, so a worker that lost its
+// lease stops instead of expiring leases and settling payments through
+// the raw pool.
+async function sweep({limit=200,now=new Date(),fence=null}={}){
+  const handle = fence ? fence.db : pool;
   const out={expired:0,attached:0,reconciled:0,flagged:0};
-  out.expired=(await pool.query("UPDATE restaurant_terminal_offline_leases SET status='expired',closed_at=NOW() WHERE status='active' AND expires_at<=$1",[now])).rowCount;
-  const {rows:waiting}=await pool.query(`SELECT p.offline_id,p.restaurant_id FROM restaurant_terminal_offline_payments p
+  out.expired=(await handle.query("UPDATE restaurant_terminal_offline_leases SET status='expired',closed_at=NOW() WHERE status='active' AND expires_at<=$1",[now])).rowCount;
+  const {rows:waiting}=await handle.query(`SELECT p.offline_id,p.restaurant_id FROM restaurant_terminal_offline_payments p
     WHERE p.status IN ('recorded','requires_reconciliation') AND NOT EXISTS (SELECT 1 FROM restaurant_terminal_offline_permits t WHERE t.id=p.offline_id)
     ORDER BY p.created_at LIMIT $1`,[limit]);
-  for(const w of waiting){const r=await attach({restaurantId:w.restaurant_id,offlineId:w.offline_id}).catch(()=>null);if(r?.attached)out.attached+=1;}
-  const {rows:permits}=await pool.query(`SELECT * FROM restaurant_terminal_offline_permits
+  for(const w of waiting){const r=await attach({restaurantId:w.restaurant_id,offlineId:w.offline_id,fence}).catch(()=>null);if(r?.attached)out.attached+=1;}
+  const {rows:permits}=await handle.query(`SELECT * FROM restaurant_terminal_offline_permits
     WHERE status IN ('issued','forwarded') AND expires_at<$1 AND (last_checked_at IS NULL OR last_checked_at<$1::timestamptz-INTERVAL '10 minutes')
     ORDER BY expires_at LIMIT $2`,[now,limit]);
   // One policy read per store per sweep pass: the settlement-mode decision
@@ -206,16 +216,16 @@ async function sweep({limit=200,now=new Date()}={}){
     // to before. Flag on: one policy read per store per sweep pass.
     if(!cardStoreForward.isGloballyEnabled())return false;
     const key=`${permit.restaurant_id}:${permit.location_id}`;
-    if(!policyCache.has(key))policyCache.set(key,await cardStoreForward.getStoreForwardPolicy(pool,permit.restaurant_id,permit.location_id));
+    if(!policyCache.has(key))policyCache.set(key,await cardStoreForward.getStoreForwardPolicy(handle,permit.restaurant_id,permit.location_id));
     return cardStoreForward.shouldHoldForManagerReview(policyCache.get(key));
   };
   for(const permit of permits){
-    await pool.query('UPDATE restaurant_terminal_offline_permits SET last_checked_at=$2 WHERE id=$1',[permit.id,now]);
+    await handle.query('UPDATE restaurant_terminal_offline_permits SET last_checked_at=$2 WHERE id=$1',[permit.id,now]);
     try{
       let intentId=permit.provider_payment_intent_id;
       if(!intentId){
         const found=await terminal.searchConnectedIntentByOfflineId(permit.id,permit.provider_account_id);
-        if(found.length>1){await pool.query("UPDATE restaurant_terminal_offline_permits SET status='requires_reconciliation' WHERE id=$1",[permit.id]);out.flagged+=1;continue;}
+        if(found.length>1){await handle.query("UPDATE restaurant_terminal_offline_permits SET status='requires_reconciliation' WHERE id=$1",[permit.id]);out.flagged+=1;continue;}
         intentId=found[0]?.id;
       }
       if(intentId){
@@ -224,7 +234,7 @@ async function sweep({limit=200,now=new Date()}={}){
         continue;
       }
       if(new Date(permit.expires_at).getTime()<now.getTime()-UNFORWARDED_REVIEW_HOURS*3600*1000){
-        await pool.query("UPDATE restaurant_terminal_offline_permits SET status='requires_reconciliation' WHERE id=$1 AND status='issued'",[permit.id]);out.flagged+=1;
+        await handle.query("UPDATE restaurant_terminal_offline_permits SET status='requires_reconciliation' WHERE id=$1 AND status='issued'",[permit.id]);out.flagged+=1;
       }
     }catch{/* Stripe unreachable or mismatch: retried next sweep; mismatches surface via reconcile */}
   }

@@ -306,3 +306,54 @@ describe('Item 52: missing-punch alert', () => {
     expect(sendNotification).not.toHaveBeenCalled();
   });
 });
+
+// ── Background-jobs audit #43: the fenced sweep routes through the
+// fence, never the raw pool. The fake fence's db.query delegates to
+// the fake db (same routing), and fencedTransaction runs the work
+// against the fake transaction client, so the close still lands end
+// to end while proving the routing.
+const { LeaseLostError } = require('../jobs/jobLockingService');
+
+function makeFence({ db, client }) {
+  const fence = {
+    assertActive: jest.fn(),
+    db: { query: jest.fn(async (...args) => db.query(...args)) },
+    fencedTransaction: jest.fn(async (work) => work(client)),
+  };
+  return fence;
+}
+
+describe('Background-jobs audit #43: closeout routes through the fence', () => {
+  test('with a fence the per-entry close uses fencedTransaction, never db.connect', async () => {
+    const { db, client } = makeCloseoutDb({
+      openRows: [openEntry({ close_at: '2026-11-06T12:00:00Z' })],
+    });
+    const fence = makeFence({ db, client });
+    const result = await closeStalePunches({ db, fence, now: new Date('2026-11-06T13:00:00Z') });
+    expect(result.closed).toHaveLength(1);
+    expect(result.closed[0].close_reason).toBe('auto_close_shift_end');
+    expect(fence.fencedTransaction).toHaveBeenCalledTimes(1);
+    expect(db.connect).not.toHaveBeenCalled();
+    // The sweep selects went through fence.db, not the raw pool handle.
+    expect(fence.db.query).toHaveBeenCalled();
+    expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'staff_time_entry_system_closed',
+    }));
+  });
+
+  test('a lost lease refuses the sweep before any close is attempted', async () => {
+    const { db, client } = makeCloseoutDb({
+      openRows: [openEntry({ close_at: '2026-11-06T12:00:00Z' })],
+    });
+    const fence = {
+      assertActive: jest.fn(),
+      db: { query: jest.fn(async () => { throw new LeaseLostError('restaurant-punch-closeout'); }) },
+      fencedTransaction: jest.fn(),
+    };
+    await expect(closeStalePunches({ db, fence, now: new Date('2026-11-06T13:00:00Z') }))
+      .rejects.toThrow('lease lost');
+    expect(fence.fencedTransaction).not.toHaveBeenCalled();
+    expect(db.connect).not.toHaveBeenCalled();
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+});

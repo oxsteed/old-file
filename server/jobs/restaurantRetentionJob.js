@@ -127,7 +127,11 @@ async function runRestaurantRetentionJob(db = pool) {
   let result = { locked: false };
   await withFencedJobLock(JOB_NAME, async (fence) => {
     fence.assertActive();
-    result = { locked: true, ...(await sweep(db)) };
+    // Background-jobs audit #43: the sweep runs on the fence's handle,
+    // not the raw pool, so a worker that lost its lease cannot keep
+    // anonymizing. anonymizePerson / anonymizeFormerStaff only ever
+    // call db.query, so fence.db is a drop-in handle here.
+    result = { locked: true, ...(await sweep(fence.db)) };
   }, 900, { throwOnError: true });
   logger.info('Restaurant retention sweep finished', result);
   return result;
