@@ -277,17 +277,28 @@ class BackgroundWorkers {
         });
       });
 
-      const translationJobCron = process.env.TRANSLATION_JOB_POLL_CRON || '*/30 * * * * *';
-      if (!cron.validate(translationJobCron)) {
-        throw new Error(`Invalid TRANSLATION_JOB_POLL_CRON: ${translationJobCron}`);
-      }
-      cron.schedule(translationJobCron, async () => {
-        try {
-          await pollTranslationJobs();
-        } catch (err) {
-          this.log.warn('Translation job poll failed', { error: err.message });
+      // Background-jobs audit, Oct 30 item 28 (cadence residual): the
+      // API cron and the dedicated worker used to poll concurrently at
+      // different cadences (30s here, 1.5s in workerMain.js). The claim
+      // is atomic, so jobs were never double-processed, but every tick
+      // was duplicate polling. The cron now runs only when no dedicated
+      // worker is deployed, like the fleet below, so exactly one poller
+      // exists per deployment; its default cadence matches the worker's
+      // 1.5s poll as closely as cron allows (every 2s), and
+      // TRANSLATION_JOB_POLL_CRON still overrides it.
+      if (!dedicatedWorkerProcess()) {
+        const translationJobCron = process.env.TRANSLATION_JOB_POLL_CRON || '*/2 * * * * *';
+        if (!cron.validate(translationJobCron)) {
+          throw new Error(`Invalid TRANSLATION_JOB_POLL_CRON: ${translationJobCron}`);
         }
-      });
+        cron.schedule(translationJobCron, async () => {
+          try {
+            await pollTranslationJobs();
+          } catch (err) {
+            this.log.warn('Translation job poll failed', { error: err.message });
+          }
+        });
+      }
 
       this.captureCronTasks(existingTaskIds);
 
