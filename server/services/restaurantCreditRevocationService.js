@@ -139,8 +139,20 @@ function migrationIdempotencyKey(restaurantId, customerId, revokedAtEpoch) {
   return `revocation-migration:${restaurantId}:${customerId}:${revokedAtEpoch}`;
 }
 
-async function claimDueRevocations(limit) {
-  return withTransaction(pool, async (client) => {
+// Background-jobs audit #39: the fleet runner hands the worker its
+// fence. runTx routes a transaction through fence.fencedTransaction
+// (lease re-verified inside the transaction) when a fence is present,
+// else the raw-pool transaction as before; dbFor picks the query
+// handle. Without a fence (direct calls, tests) behavior is unchanged.
+function runTx(fence, work, name) {
+  return fence ? fence.fencedTransaction(work) : withTransaction(pool, work, name);
+}
+function dbFor(fence) {
+  return fence ? fence.db : pool;
+}
+
+async function claimDueRevocations(limit, fence = null) {
+  return runTx(fence, async (client) => {
     const { rows } = await client.query(
       `SELECT *
          FROM restaurant_credit_approvals
@@ -156,14 +168,14 @@ async function claimDueRevocations(limit) {
   }, 'credit_revocation_claim');
 }
 
-async function recordFailedMigration({ restaurantId, account, revokedAtEpoch, error }) {
+async function recordFailedMigration({ restaurantId, account, revokedAtEpoch, error, fence = null }) {
   const customerId = String(account.customer_id);
   const key = migrationIdempotencyKey(restaurantId, customerId, revokedAtEpoch);
   const failureCode = String((error && error.code) || 'migration_failed').slice(0, 80);
   const failureMessage = String((error && error.message) || 'Unknown error').slice(0, 500);
   const currencyCode = String(account.currency_code || 'USD').toUpperCase().slice(0, 3);
   try {
-    await pool.query(
+    await dbFor(fence).query(
       `INSERT INTO restaurant_credit_migrations
          (customer_id, restaurant_id, amount_cents, currency_code, status,
           failure_code, failure_message, idempotency_key)
@@ -198,11 +210,11 @@ async function recordFailedMigration({ restaurantId, account, revokedAtEpoch, er
  * Credit. The wallet debit + migration record commit atomically; any error
  * rolls the whole transaction back and the balance is untouched.
  */
-async function migrateAccountBalance({ restaurantId, account, revokedAtEpoch }) {
+async function migrateAccountBalance({ restaurantId, account, revokedAtEpoch, fence = null }) {
   const customerId = String(account.customer_id);
   const key = migrationIdempotencyKey(restaurantId, customerId, revokedAtEpoch);
 
-  return withTransaction(pool, async (client) => {
+  return runTx(fence, async (client) => {
     // Idempotency: a completed migration for this revocation is never re-run.
     const { rows: existing } = await client.query(
       `SELECT id FROM restaurant_credit_migrations
@@ -295,13 +307,13 @@ async function migrateAccountBalance({ restaurantId, account, revokedAtEpoch }) 
   }, 'credit_revocation_migrate_account');
 }
 
-async function migrateRestaurantBalances(approval, summary) {
+async function migrateRestaurantBalances(approval, summary, fence = null) {
   const restaurantId = Number(approval.restaurant_id);
   const revokedAtEpoch = approval.revoked_at
     ? Math.floor(new Date(approval.revoked_at).getTime() / 1000)
     : 0;
 
-  const { rows: accounts } = await pool.query(
+  const { rows: accounts } = await dbFor(fence).query(
     `SELECT id, customer_id, currency_code, balance_cents,
             COALESCE(reserved_cents, 0) AS reserved_cents, status
        FROM food_customer_wallet_accounts
@@ -313,7 +325,7 @@ async function migrateRestaurantBalances(approval, summary) {
 
   for (const account of accounts) {
     try {
-      const result = await migrateAccountBalance({ restaurantId, account, revokedAtEpoch });
+      const result = await migrateAccountBalance({ restaurantId, account, revokedAtEpoch, fence });
       if (result.migrated) {
         summary.customersMigrated += 1;
         summary.totalMigratedCents += result.amountCents;
@@ -323,7 +335,7 @@ async function migrateRestaurantBalances(approval, summary) {
     } catch (error) {
       summary.customersFailed += 1;
       // The per-customer transaction rolled back: the balance is untouched.
-      await recordFailedMigration({ restaurantId, account, revokedAtEpoch, error });
+      await recordFailedMigration({ restaurantId, account, revokedAtEpoch, error, fence });
       logger.warn('[RevocationMigration] customer migration failed; balance untouched, will retry', {
         restaurantId: String(restaurantId),
         customerId: String(account.customer_id),
@@ -335,7 +347,7 @@ async function migrateRestaurantBalances(approval, summary) {
 
   // Only mark the restaurant migrated when no migratable balance remains.
   // Failed migrations leave balances untouched, so the next run retries them.
-  const { rows: [remaining] } = await pool.query(
+  const { rows: [remaining] } = await dbFor(fence).query(
     `SELECT COUNT(*)::int AS n
        FROM food_customer_wallet_accounts
       WHERE restaurant_id = $1
@@ -343,7 +355,7 @@ async function migrateRestaurantBalances(approval, summary) {
     [restaurantId]
   );
   if (remaining && remaining.n === 0) {
-    await pool.query(
+    await dbFor(fence).query(
       `UPDATE restaurant_credit_approvals
           SET migrated_at = NOW(), updated_at = NOW()
         WHERE restaurant_id = $1`,
@@ -366,7 +378,7 @@ async function migrateRestaurantBalances(approval, summary) {
  * ended and migrates remaining customer balances to OxSteed Credit.
  * Exported for the scheduled worker (see workers/scheduledWorkerSchedule.js).
  */
-async function processRevocationGracePeriods({ limit = 100 } = {}) {
+async function processRevocationGracePeriods({ limit = 100, fence = null } = {}) {
   const summary = {
     restaurantsProcessed: 0,
     customersMigrated: 0,
@@ -374,13 +386,17 @@ async function processRevocationGracePeriods({ limit = 100 } = {}) {
     customersSkipped: 0,
     totalMigratedCents: 0,
   };
-  const approvals = await claimDueRevocations(limit);
+  // Background-jobs audit #39: the fleet runner hands us the fence;
+  // the claim, the per-customer migration transactions, and the
+  // migrated_at stamp all route through it, so a worker that lost its
+  // lease stops instead of migrating balances through the raw pool.
+  const approvals = await claimDueRevocations(limit, fence);
   if (!approvals.length) {
     return { ...summary, ran: false };
   }
   for (const approval of approvals) {
     try {
-      await migrateRestaurantBalances(approval, summary);
+      await migrateRestaurantBalances(approval, summary, fence);
     } catch (error) {
       logger.error('[RevocationMigration] restaurant pass failed', {
         restaurantId: String(approval.restaurant_id),

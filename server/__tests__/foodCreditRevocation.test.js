@@ -525,3 +525,57 @@ describe('grace-period auto-migration worker', () => {
     expect(debitFoodWallet).not.toHaveBeenCalled();
   });
 });
+
+// Background-jobs audit #39: the fleet worker takes options.fence and
+// routes the claim, the per-customer migration transactions, and the
+// migrated_at stamp through it. The fake fence's db.query delegates
+// to the same mockQuery router, and fencedTransaction runs the work
+// against a client bound to it, so the migration still lands end to
+// end while proving the routing.
+describe('grace-period worker fence adoption (background-jobs audit #39)', () => {
+  const { LeaseLostError } = require('../jobs/jobLockingService');
+
+  function makeRevocationFence() {
+    const client = { query: (...args) => mockQuery(...args), release: () => {} };
+    return {
+      assertActive: jest.fn(),
+      db: { query: jest.fn(async (...args) => mockQuery(...args)) },
+      fencedTransaction: jest.fn(async (work) => work(client)),
+    };
+  }
+
+  test('a fenced run migrates through fence.fencedTransaction and fence.db', async () => {
+    dbState.claimRow = approvalRow({ status: 'revoked' });
+    dbState.accounts = [accountRow()];
+    dbState.remainingCount = 0;
+    const fence = makeRevocationFence();
+
+    const summary = await revocationService.processRevocationGracePeriods({ limit: 10, fence });
+
+    expect(summary.ran).toBe(true);
+    expect(summary.customersMigrated).toBe(1);
+    expect(summary.totalMigratedCents).toBe(5000);
+    expect(debitFoodWallet).toHaveBeenCalledTimes(1);
+    // Claim + per-customer migration both ran as fenced transactions.
+    expect(fence.fencedTransaction).toHaveBeenCalledTimes(2);
+    // The accounts select and the migrated_at stamp went through
+    // fence.db, not the raw pool.
+    const fenceSqls = fence.db.query.mock.calls.map(([sql]) => String(sql));
+    expect(fenceSqls.some((s) => s.includes('FROM food_customer_wallet_accounts'))).toBe(true);
+    expect(fenceSqls.some((s) => s.includes('SET migrated_at'))).toBe(true);
+    expect(calls.approvalUpdates).toBe(1);
+  });
+
+  test('a lost lease refuses the run before any migration', async () => {
+    dbState.claimRow = approvalRow({ status: 'revoked' });
+    dbState.accounts = [accountRow()];
+    const fence = {
+      assertActive: jest.fn(),
+      db: { query: jest.fn(async () => ({ rows: [] })) },
+      fencedTransaction: jest.fn(async () => { throw new LeaseLostError('scheduled-worker:processRevocationGracePeriods'); }),
+    };
+    await expect(revocationService.processRevocationGracePeriods({ limit: 10, fence }))
+      .rejects.toThrow('lease lost');
+    expect(debitFoodWallet).not.toHaveBeenCalled();
+  });
+});

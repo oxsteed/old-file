@@ -23,15 +23,23 @@ async function processGiftCardDelivery({
   send = email.sendEmail,
   inspect = email.getEmailDeliveryStatus,
   limit = 20,
+  fence = null,
 } = {}) {
-  await db.query(`UPDATE restaurant_gift_card_fulfillments SET payload_ciphertext=NULL,
+  // Background-jobs audit #39: the fleet runner hands us the fence;
+  // every claim and status write goes through fence.db, so a worker
+  // that lost its lease stops instead of delivering through the raw
+  // pool. Without a fence (direct calls, tests) the supplied db is
+  // used as before. This worker only ever calls db.query, so fence.db
+  // is a drop-in handle.
+  const handle = fence ? fence.db : db;
+  await handle.query(`UPDATE restaurant_gift_card_fulfillments SET payload_ciphertext=NULL,
     status=CASE WHEN status IN ('pending','sending','accepted','ready') THEN 'needs_review' ELSE status END,
     lease_token=NULL,lease_expires_at=NULL,last_error='payload_expired',updated_at=NOW()
     WHERE payload_ciphertext IS NOT NULL AND payload_expires_at<=NOW()`);
   if (!fulfillment.enabled() || !email.emailDeliveryAvailable())
     return { skipped: true, reason: 'delivery_disabled_or_unconfigured' };
   const token = crypto.randomUUID();
-  const { rows } = await db.query(
+  const { rows } = await handle.query(
     `WITH candidates AS (
     SELECT id FROM restaurant_gift_card_fulfillments
     WHERE kind='e_gift' AND payload_ciphertext IS NOT NULL AND payload_expires_at>NOW()
@@ -108,7 +116,7 @@ async function processGiftCardDelivery({
             : 'pending';
       error = 'provider_request_failed';
     }
-    const result = await db.query(
+    const result = await handle.query(
       `UPDATE restaurant_gift_card_fulfillments SET status=$3,provider_id=$4,provider_event=$5,
       last_error=$6,lease_token=NULL,lease_expires_at=NULL,
       payload_ciphertext=CASE WHEN $3='delivered' THEN NULL ELSE payload_ciphertext END,

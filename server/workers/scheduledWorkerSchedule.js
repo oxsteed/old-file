@@ -111,6 +111,16 @@ function runScheduledWorkerOnce([name, workerFn, intervalMs, options], { log = l
   // and the runner forwards it inside the worker's options so a fleet
   // worker can route writes through fence.db. Workers that ignore it keep
   // their previous behavior; existing options pass through unchanged.
+  //
+  // Fence adoption (background-jobs audit #39, Nov 8 2026): the
+  // money-adjacent five accept options.fence and route writes via
+  // fence.db (terminal offline sweep, accounting delivery, gift-card
+  // delivery, revocation grace periods, SOS escalation). The remaining
+  // fleet workers do not take the fence yet: their backstop is
+  // per-service idempotency (SKIP LOCKED claims, idempotent upserts,
+  // deduped outbox rows), not the fence. Threading the fence into the
+  // next worker means accepting options.fence and routing its writes
+  // through fence.db (transactions via fence.fencedTransaction).
   return withFencedJobLock(`scheduled-worker:${name}`, (fence) => workerFn({ ...options, fence }), lockTtlSeconds(intervalMs))
     .then((summary) => {
       if (!summary?.skipped) log.info('Scheduled worker completed', { worker: name, summary });
