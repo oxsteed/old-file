@@ -35,3 +35,25 @@ test('ClickHouse migrations keep their letter-prefixed text order', () => {
   assert.deepEqual(violations(ch, new Map([...ch, ['server/migrations-clickhouse/C003_next.sql', 'n']])), []);
   assert.ok(violations(ch, new Map([...ch, ['server/migrations-clickhouse/C001_old.sql', 'n']])).length);
 });
+
+test('allows only both byte-identical PR #699 renames from the failed baseline', () => {
+  const failedBase = 'd11ee1568168de95474eb9bc839a4b76a647b10f';
+  const latest = ['server/migrations/20261109080000_customer360_worker_heartbeats.sql', 'latest'];
+  const index = 'stripe_chargebacks_payment_intent_index.sql';
+  const payout = 'payout_transactions_completed_at.sql';
+  const indexBlob = '5e7a6dbc1e9ad0a4a1a955a50a86339f0373320b';
+  const payoutBlob = '85a2fe3faed37ce159592aab72671c2b530fd912';
+  const before = new Map([latest,
+    [`server/migrations/20261109020000_${index}`, indexBlob],
+    [`server/migrations/20261109020100_${payout}`, payoutBlob]]);
+  const newIndex = `server/migrations/20261109231751_${index}`;
+  const newPayout = `server/migrations/20261109231752_${payout}`;
+  const after = new Map([latest, [newIndex, indexBlob], [newPayout, payoutBlob]]);
+  assert.deepEqual(violations(before, after, failedBase), []);
+  assert.match(violations(before, after).join(), /changed or removed/);
+  assert.match(violations(before, new Map(after).set(newIndex, 'changed'), failedBase).join(), /changed or removed/);
+  assert.match(violations(before, new Map([latest, [newIndex, indexBlob]]), failedBase).join(), /changed or removed/);
+  assert.match(violations(before, new Map(after).set(latest[0], 'changed'), failedBase).join(), /changed or removed/);
+  const backdated = 'server/migrations/20261109060000_other.sql';
+  assert.match(violations(before, new Map(after).set(backdated, 'new'), failedBase).join(), /must sort after/);
+});

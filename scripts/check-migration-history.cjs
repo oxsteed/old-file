@@ -14,6 +14,17 @@ const CLICKHOUSE_DIR = 'server/migrations-clickhouse/';
 const MIGRATION_DIRS = [SERVER_DIR, CLICKHOUSE_DIR];
 const sqlFile = file => MIGRATION_DIRS.some(dir => file.startsWith(dir)) && file.endsWith('.sql');
 
+// PR #699 merged two out-of-order migrations. Its push failed this check,
+// and neither filename was recorded in production. Allow only the exact
+// byte-preserving rename of both files from that failed baseline.
+const REPAIR_BASE = 'd11ee1568168de95474eb9bc839a4b76a647b10f';
+const RETIMESTAMPED = [
+  ['20261109020000_stripe_chargebacks_payment_intent_index.sql',
+    '20261109231751_stripe_chargebacks_payment_intent_index.sql', '5e7a6dbc1e9ad0a4a1a955a50a86339f0373320b'],
+  ['20261109020100_payout_transactions_completed_at.sql',
+    '20261109231752_payout_transactions_completed_at.sql', '85a2fe3faed37ce159592aab72671c2b530fd912'],
+];
+
 // server/migrations runs in NUMERIC prefix order (Q11, server/migrationOrder.js)
 // and new files must use a YYYYMMDDHHMMSS_ timestamp prefix. ClickHouse
 // migrations keep their own letter-prefixed text order.
@@ -39,7 +50,14 @@ function prefixOf(dir, base) {
   return base.match(/^[A-Z]?\d+/)?.[0] || null;
 }
 
-function violations(before, after) {
+function violations(before, after, baseSha) {
+  if (baseSha === REPAIR_BASE && RETIMESTAMPED.every(([oldName, newName, blob]) =>
+    before.get(SERVER_DIR + oldName) === blob && !after.has(SERVER_DIR + oldName)
+      && !before.has(SERVER_DIR + newName) && after.get(SERVER_DIR + newName) === blob
+  )) {
+    before = new Map(before);
+    for (const [oldName] of RETIMESTAMPED) before.delete(SERVER_DIR + oldName);
+  }
   const errors = [];
   for (const [name, contents] of before) {
     if (after.get(name) !== contents) errors.push(`Existing migration changed or removed: ${name}`);
@@ -78,7 +96,7 @@ if (require.main === module) {
   const event = process.env.GITHUB_EVENT_PATH ? JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')) : {};
   const base = process.argv[2] || event.pull_request?.base?.sha || event.before;
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-  const errors = violations(snapshot(base), snapshot(head));
+  const errors = violations(snapshot(base), snapshot(head), base);
   if (errors.length) { console.error(errors.join('\n')); process.exitCode = 1; }
   else console.log('Migration history is immutable; new filenames append in runner order.');
 }
