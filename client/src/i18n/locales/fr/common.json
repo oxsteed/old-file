@@ -1182,8 +1182,34 @@
         "not_assignee": "Seul l’administrateur qui l’a pris peut le libérer.",
         "view_name_taken": "Vous avez déjà une vue avec ce nom.",
         "global_grant_required": "Le tableau d’équipe nécessite une autorisation clients pour toute la plateforme.",
-        "resolution_required": "Choisissez une résolution."
-      }
+        "resolution_required": "Choisissez une résolution.",
+        "queue_exists": "Une file avec cette clé existe déjà.",
+        "invalid_queue_key": "La clé doit contenir de 2 à 40 lettres minuscules, chiffres ou tirets bas.",
+        "invalid_name": "Le nom doit comporter de 1 à 80 caractères.",
+        "invalid_sla": "Le délai de réponse doit être compris entre 5 et 43 200 minutes."
+      },
+      "setup": {
+        "title": "Configuration des files",
+        "hint": "Réservé aux super-administrateurs. Le délai de réponse (SLA) va de {{min}} à {{max}} minutes. Les files automatiques gardent leur clé.",
+        "feed": "automatique",
+        "name": "Nom",
+        "description": "Description",
+        "slaMinutes": "Délai de réponse (minutes)",
+        "active": "Active",
+        "save": "Enregistrer la file",
+        "new": "Nouvelle file",
+        "key": "Clé",
+        "create": "Créer la file",
+        "created": "File créée.",
+        "saved": "File enregistrée."
+      },
+      "manageView": "Gérer cette vue",
+      "renameView": "Renommer ou partager",
+      "newViewName": "Nouveau nom",
+      "saveRename": "Enregistrer le nom",
+      "updateView": "Enregistrer les filtres actuels dans cette vue",
+      "viewRenamed": "Vue renommée.",
+      "viewUpdated": "Vue mise à jour."
     },
     "summary": {
       "title": "Synthèse client",
@@ -1221,6 +1247,55 @@
         "outdated_model": "Calculée {{time}} par une ancienne version.",
         "missing": "Elle sera calculée en arrière-plan."
       }
+    },
+    "ops": {
+      "title": "Opérations Customer 360",
+      "hint": "Le travail qui concerne de nombreux clients : les files de l’équipe, les anomalies sur toute la plateforme et l’état de mise à jour des résumés clients.",
+      "tabs": {
+        "queues": "Files de l’équipe",
+        "anomalies": "Toutes les anomalies",
+        "summaries": "État des résumés"
+      },
+      "queuesHint": "Prenez, libérez et résolvez les éléments de tous les clients. Les vues enregistrées gardent vos filtres habituels.",
+      "anomaliesTitle": "Anomalies de tous les clients",
+      "anomaliesHint": "Seuls les types autorisés par vos accès sont listés. Chaque action exige un motif et est consignée dans le journal d’audit."
+    },
+    "summaryHealth": {
+      "title": "État des résumés clients",
+      "hint": "Indique si les améliorations Customer 360 sont activées, le retard de reconstruction des résumés et la dernière exécution de chaque tâche de fond.",
+      "states": {
+        "healthy": "Bon état",
+        "disabled": "Désactivé",
+        "not_started": "Pas encore démarré",
+        "failing": "En échec",
+        "behind": "En retard"
+      },
+      "workerStates": {
+        "ok": "À l’heure",
+        "late": "En retard",
+        "failing": "En échec"
+      },
+      "enabled": "{{flag}} est activé",
+      "disabledFlag": "{{flag}} est désactivé",
+      "modelVersion": "Version du résumé",
+      "ttl": "Reconstruit au moins toutes les",
+      "rows": "Résumés (estimation)",
+      "dirty": "En attente de reconstruction",
+      "oldestDirty": "Attente la plus longue",
+      "stale": "Délai de reconstruction dépassé",
+      "outdatedModel": "Sur une version antérieure",
+      "eventLag": "Événements pas encore traités",
+      "atLeast": "au moins {{count}}",
+      "hours": "{{count}} h",
+      "workers": "Tâches de fond",
+      "task": "Tâche",
+      "status": "État",
+      "lastOk": "Dernière réussite",
+      "lastError": "Dernière erreur",
+      "failures": "Échecs consécutifs",
+      "noWorkers": "Aucune tâche de fond n’a encore donné signe de vie sur un serveur.",
+      "checked": "Vérifié : {{time}}",
+      "refresh": "Actualiser"
     }
   },
   "screens": {

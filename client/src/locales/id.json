@@ -27169,7 +27169,8 @@
     "supportQa": "Ulasan QA",
     "supportSettings": "Pengaturan",
     "supportAuditLog": "Log Audit",
-    "oxsteedCreditLicence": "Lisensi Credit"
+    "oxsteedCreditLicence": "Lisensi Credit",
+    "customer360Ops": "Operasional Customer 360"
   },
   "adminProfileVisibility": {
     "title": "Visibilitas profil",
@@ -35035,8 +35036,34 @@
         "not_assignee": "Only the admin who claimed it can release it.",
         "view_name_taken": "You already have a view with this name.",
         "global_grant_required": "The team board needs a platform-wide customer permission.",
-        "resolution_required": "Choose a resolution."
-      }
+        "resolution_required": "Choose a resolution.",
+        "queue_exists": "Antrean dengan kunci ini sudah ada.",
+        "invalid_queue_key": "Gunakan 2–40 huruf kecil, angka, atau garis bawah untuk kunci.",
+        "invalid_name": "Nama harus 1–80 karakter.",
+        "invalid_sla": "Waktu respons harus 5–43.200 menit."
+      },
+      "setup": {
+        "title": "Pengaturan antrean",
+        "hint": "Khusus super admin. Waktu respons (SLA) adalah {{min}}–{{max}} menit. Antrean otomatis tetap memakai kuncinya.",
+        "feed": "otomatis",
+        "name": "Nama",
+        "description": "Deskripsi",
+        "slaMinutes": "Waktu respons (menit)",
+        "active": "Aktif",
+        "save": "Simpan antrean",
+        "new": "Antrean baru",
+        "key": "Kunci",
+        "create": "Buat antrean",
+        "created": "Antrean dibuat.",
+        "saved": "Antrean disimpan."
+      },
+      "manageView": "Kelola tampilan ini",
+      "renameView": "Ganti nama atau bagikan",
+      "newViewName": "Nama baru",
+      "saveRename": "Simpan nama",
+      "updateView": "Simpan filter saat ini ke tampilan ini",
+      "viewRenamed": "Nama tampilan diganti.",
+      "viewUpdated": "Tampilan diperbarui."
     },
     "summary": {
       "title": "Customer summary",
@@ -35074,6 +35101,55 @@
         "outdated_model": "Computed {{time}} by an older version.",
         "missing": "It will be computed in the background."
       }
+    },
+    "ops": {
+      "title": "Operasional Customer 360",
+      "hint": "Pekerjaan yang mencakup banyak pelanggan: antrean tim, anomali di seluruh platform, dan apakah ringkasan pelanggan sudah terbaru.",
+      "tabs": {
+        "queues": "Antrean tim",
+        "anomalies": "Semua anomali",
+        "summaries": "Kondisi ringkasan"
+      },
+      "queuesHint": "Ambil, lepaskan, dan selesaikan item untuk semua pelanggan. Tampilan tersimpan menyimpan filter yang paling sering Anda gunakan.",
+      "anomaliesTitle": "Anomali semua pelanggan",
+      "anomaliesHint": "Hanya jenis yang diizinkan oleh akses Anda yang ditampilkan. Setiap tindakan memerlukan alasan dan dicatat di log audit."
+    },
+    "summaryHealth": {
+      "title": "Kondisi ringkasan pelanggan",
+      "hint": "Menunjukkan apakah peningkatan Customer 360 aktif, seberapa jauh penyusunan ulang ringkasan tertinggal, dan kapan setiap tugas latar belakang terakhir berjalan.",
+      "states": {
+        "healthy": "Sehat",
+        "disabled": "Dimatikan",
+        "not_started": "Belum dimulai",
+        "failing": "Gagal",
+        "behind": "Tertinggal"
+      },
+      "workerStates": {
+        "ok": "Tepat waktu",
+        "late": "Terlambat",
+        "failing": "Gagal"
+      },
+      "modelVersion": "Versi ringkasan",
+      "ttl": "Disusun ulang setidaknya setiap",
+      "rows": "Ringkasan (perkiraan)",
+      "dirty": "Menunggu disusun ulang",
+      "oldestDirty": "Tunggu terlama",
+      "stale": "Melewati waktu penyusunan ulang",
+      "outdatedModel": "Versi lama",
+      "eventLag": "Peristiwa yang belum diproses",
+      "atLeast": "setidaknya {{count}}",
+      "hours": "{{count}} jam",
+      "workers": "Tugas latar belakang",
+      "task": "Tugas",
+      "status": "Status",
+      "lastOk": "Terakhir berhasil",
+      "lastError": "Galat terakhir",
+      "failures": "Gagal berturut-turut",
+      "noWorkers": "Belum ada tugas latar belakang yang melapor di server mana pun.",
+      "checked": "Diperiksa {{time}}",
+      "refresh": "Muat ulang",
+      "enabled": "{{flag}} aktif",
+      "disabledFlag": "{{flag}} nonaktif"
     }
   },
   "businessCustomer360": {

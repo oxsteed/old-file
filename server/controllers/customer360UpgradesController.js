@@ -250,6 +250,11 @@ exports.inboxTemplate = handle(async (req, res) => {
   const u = await inbox.recipient(user.id);
   const t = inboxTemplates.render(String(req.params.templateKey), String(req.query.language || inbox.preferredLanguage(u)), { firstName: u.first_name });
   if (!t) throw new AppError("Unknown template", 404, "template_not_found");
+  // Gap fill 12: rendering reads the customer's name and language, so it is
+  // an audited read like every other workspace read.
+  await audit(req, "customer360_inbox_template_read", {
+    description: JSON.stringify({ template: String(req.params.templateKey).slice(0, 60), language: t.language || null }),
+  });
   res.json(t);
 });
 exports.inboxSend = handle(async (req, res) => {
@@ -379,6 +384,16 @@ exports.summary = handle(async (req, res) => {
   const body = await summaries.present(loaded, await summaryScope(req));
   await audit(req, "customer360_summary_read", { description: JSON.stringify({ state: body.staleness.state, areas: body.areas.length, computedNow: loaded.computedNow }) });
   res.json(body);
+});
+// Gap fill 8: platform-wide summary freshness and worker status (no customer data).
+exports.summaryHealth = handle(async (req, res) => {
+  await requireBoard(req);
+  const result = await summaries.health();
+  await logAdminAction({
+    adminId: req.user.id, action: "customer360_summary_health_read", targetType: "customer360", targetId: null,
+    description: JSON.stringify({ state: result.state, dirty: result.dirty }), req, throwOnError: true,
+  });
+  res.json(result);
 });
 exports.recomputeSummary = handle(async (req, res) => {
   const user = await workspace.target(req);

@@ -27169,7 +27169,8 @@
     "supportQa": "QA جائزہ",
     "supportSettings": "ترتیبات",
     "supportAuditLog": "آڈٹ لاگ",
-    "oxsteedCreditLicence": "Credit لائسنس"
+    "oxsteedCreditLicence": "Credit لائسنس",
+    "customer360Ops": "Customer 360 آپریشنز"
   },
   "adminProfileVisibility": {
     "title": "پروفائل کی نمائش",
@@ -35006,8 +35007,34 @@
         "not_assignee": "Only the admin who claimed it can release it.",
         "view_name_taken": "You already have a view with this name.",
         "global_grant_required": "The team board needs a platform-wide customer permission.",
-        "resolution_required": "Choose a resolution."
-      }
+        "resolution_required": "Choose a resolution.",
+        "queue_exists": "اس کلید والی قطار پہلے سے موجود ہے۔",
+        "invalid_queue_key": "کلید کے لیے 2–40 چھوٹے حروف، ہندسے یا انڈر اسکور استعمال کریں۔",
+        "invalid_name": "نام 1–80 حروف کا ہونا چاہیے۔",
+        "invalid_sla": "جواب کا وقت 5–43,200 منٹ ہونا چاہیے۔"
+      },
+      "setup": {
+        "title": "قطار کی ترتیب",
+        "hint": "صرف سپر ایڈمنز کے لیے۔ جواب کا وقت (SLA) {{min}}–{{max}} منٹ ہے۔ خودکار قطاروں کی کلید نہیں بدلتی۔",
+        "feed": "خودکار",
+        "name": "نام",
+        "description": "تفصیل",
+        "slaMinutes": "جواب کا وقت (منٹ)",
+        "active": "فعال",
+        "save": "قطار محفوظ کریں",
+        "new": "نئی قطار",
+        "key": "کلید",
+        "create": "قطار بنائیں",
+        "created": "قطار بن گئی۔",
+        "saved": "قطار محفوظ ہو گئی۔"
+      },
+      "manageView": "اس منظر کا نظم کریں",
+      "renameView": "نام بدلیں یا شیئر کریں",
+      "newViewName": "نیا نام",
+      "saveRename": "نام محفوظ کریں",
+      "updateView": "موجودہ فلٹر اس منظر میں محفوظ کریں",
+      "viewRenamed": "منظر کا نام بدل گیا۔",
+      "viewUpdated": "منظر اپ ڈیٹ ہو گیا۔"
     },
     "summary": {
       "title": "Customer summary",
@@ -35045,6 +35072,55 @@
         "outdated_model": "Computed {{time}} by an older version.",
         "missing": "It will be computed in the background."
       }
+    },
+    "ops": {
+      "title": "Customer 360 آپریشنز",
+      "hint": "ایسا کام جو کئی صارفین سے متعلق ہو: ٹیم کی قطاریں، پورے پلیٹ فارم کی بے قاعدگیاں، اور یہ کہ صارف خلاصے تازہ ہیں یا نہیں۔",
+      "tabs": {
+        "queues": "ٹیم کی قطاریں",
+        "anomalies": "تمام بے قاعدگیاں",
+        "summaries": "خلاصوں کی حالت"
+      },
+      "queuesHint": "تمام صارفین کے آئٹمز لیں، چھوڑیں اور حل کریں۔ محفوظ کردہ منظر آپ کے سب سے زیادہ استعمال ہونے والے فلٹر رکھتے ہیں۔",
+      "anomaliesTitle": "تمام صارفین کی بے قاعدگیاں",
+      "anomaliesHint": "صرف وہی اقسام دکھائی جاتی ہیں جن کی آپ کی رسائی اجازت دیتی ہے۔ ہر کارروائی کے لیے وجہ درکار ہے اور وہ آڈٹ لاگ میں درج ہوتی ہے۔"
+    },
+    "summaryHealth": {
+      "title": "صارف خلاصوں کی حالت",
+      "hint": "دکھاتا ہے کہ Customer 360 اپ گریڈ آن ہیں یا نہیں، خلاصوں کی دوبارہ تیاری کتنی پیچھے ہے، اور ہر پس منظر کا کام آخری بار کب چلا۔",
+      "states": {
+        "healthy": "درست",
+        "disabled": "بند",
+        "not_started": "ابھی شروع نہیں ہوا",
+        "failing": "ناکام ہو رہا ہے",
+        "behind": "پیچھے ہے"
+      },
+      "workerStates": {
+        "ok": "وقت پر",
+        "late": "دیر سے",
+        "failing": "ناکام ہو رہا ہے"
+      },
+      "modelVersion": "خلاصے کا ورژن",
+      "ttl": "کم از کم ہر اتنے وقت میں دوبارہ تیار",
+      "rows": "خلاصے (تخمینہ)",
+      "dirty": "دوبارہ تیاری کے منتظر",
+      "oldestDirty": "سب سے طویل انتظار",
+      "stale": "دوبارہ تیاری کا وقت گزر چکا",
+      "outdatedModel": "پرانے ورژن پر",
+      "eventLag": "ابھی تک پروسیس نہ ہونے والے ایونٹس",
+      "atLeast": "کم از کم {{count}}",
+      "hours": "{{count}} گھنٹے",
+      "workers": "پس منظر کے کام",
+      "task": "کام",
+      "status": "حالت",
+      "lastOk": "آخری کامیابی",
+      "lastError": "آخری خرابی",
+      "failures": "مسلسل ناکامیاں",
+      "noWorkers": "ابھی تک کسی سرور پر کسی پس منظر کے کام نے رپورٹ نہیں دی۔",
+      "checked": "جانچا گیا: {{time}}",
+      "refresh": "ریفریش کریں",
+      "enabled": "{{flag}} آن ہے",
+      "disabledFlag": "{{flag}} آف ہے"
     }
   },
   "businessCustomer360": {

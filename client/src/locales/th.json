@@ -27169,7 +27169,8 @@
     "supportQa": "รีวิว QA",
     "supportSettings": "การตั้งค่า",
     "supportAuditLog": "บันทึกการตรวจสอบ",
-    "oxsteedCreditLicence": "ใบอนุญาต Credit"
+    "oxsteedCreditLicence": "ใบอนุญาต Credit",
+    "customer360Ops": "การปฏิบัติงาน Customer 360"
   },
   "adminProfileVisibility": {
     "title": "การมองเห็นโปรไฟล์",
@@ -35035,8 +35036,34 @@
         "not_assignee": "Only the admin who claimed it can release it.",
         "view_name_taken": "You already have a view with this name.",
         "global_grant_required": "The team board needs a platform-wide customer permission.",
-        "resolution_required": "Choose a resolution."
-      }
+        "resolution_required": "Choose a resolution.",
+        "queue_exists": "มีคิวที่ใช้คีย์นี้อยู่แล้ว",
+        "invalid_queue_key": "ใช้ตัวอักษรพิมพ์เล็ก ตัวเลข หรือขีดล่าง 2–40 ตัวสำหรับคีย์",
+        "invalid_name": "ชื่อต้องมี 1–80 อักขระ",
+        "invalid_sla": "เวลาตอบกลับต้องอยู่ระหว่าง 5–43,200 นาที"
+      },
+      "setup": {
+        "title": "ตั้งค่าคิว",
+        "hint": "สำหรับผู้ดูแลระดับสูงเท่านั้น เวลาตอบกลับ (SLA) คือ {{min}}–{{max}} นาที คิวอัตโนมัติจะใช้คีย์เดิม",
+        "feed": "อัตโนมัติ",
+        "name": "ชื่อ",
+        "description": "คำอธิบาย",
+        "slaMinutes": "เวลาตอบกลับ (นาที)",
+        "active": "ใช้งานอยู่",
+        "save": "บันทึกคิว",
+        "new": "คิวใหม่",
+        "key": "คีย์",
+        "create": "สร้างคิว",
+        "created": "สร้างคิวแล้ว",
+        "saved": "บันทึกคิวแล้ว"
+      },
+      "manageView": "จัดการมุมมองนี้",
+      "renameView": "เปลี่ยนชื่อหรือแชร์",
+      "newViewName": "ชื่อใหม่",
+      "saveRename": "บันทึกชื่อ",
+      "updateView": "บันทึกตัวกรองปัจจุบันลงในมุมมองนี้",
+      "viewRenamed": "เปลี่ยนชื่อมุมมองแล้ว",
+      "viewUpdated": "อัปเดตมุมมองแล้ว"
     },
     "summary": {
       "title": "Customer summary",
@@ -35074,6 +35101,55 @@
         "outdated_model": "Computed {{time}} by an older version.",
         "missing": "It will be computed in the background."
       }
+    },
+    "ops": {
+      "title": "การปฏิบัติงาน Customer 360",
+      "hint": "งานที่เกี่ยวกับลูกค้าจำนวนมาก: คิวของทีม ความผิดปกติทั่วทั้งแพลตฟอร์ม และสรุปลูกค้าเป็นปัจจุบันหรือไม่",
+      "tabs": {
+        "queues": "คิวของทีม",
+        "anomalies": "ความผิดปกติทั้งหมด",
+        "summaries": "สถานะของสรุป"
+      },
+      "queuesHint": "รับ ปล่อย และปิดรายการของลูกค้าทุกคน มุมมองที่บันทึกไว้จะเก็บตัวกรองที่คุณใช้บ่อย",
+      "anomaliesTitle": "ความผิดปกติของลูกค้าทั้งหมด",
+      "anomaliesHint": "แสดงเฉพาะประเภทที่สิทธิ์ของคุณอนุญาต ทุกการดำเนินการต้องระบุเหตุผลและบันทึกไว้ในบันทึกการตรวจสอบ"
+    },
+    "summaryHealth": {
+      "title": "สถานะสรุปข้อมูลลูกค้า",
+      "hint": "แสดงว่าการอัปเกรด Customer 360 เปิดอยู่หรือไม่ การสร้างสรุปใหม่ล่าช้าเท่าใด และงานเบื้องหลังแต่ละงานทำงานครั้งล่าสุดเมื่อใด",
+      "states": {
+        "healthy": "ปกติ",
+        "disabled": "ปิดอยู่",
+        "not_started": "ยังไม่เริ่ม",
+        "failing": "ล้มเหลว",
+        "behind": "ล่าช้า"
+      },
+      "workerStates": {
+        "ok": "ตรงเวลา",
+        "late": "ล่าช้า",
+        "failing": "ล้มเหลว"
+      },
+      "modelVersion": "เวอร์ชันของสรุป",
+      "ttl": "สร้างใหม่อย่างน้อยทุก",
+      "rows": "จำนวนสรุป (โดยประมาณ)",
+      "dirty": "รอสร้างใหม่",
+      "oldestDirty": "รอนานที่สุด",
+      "stale": "เลยกำหนดสร้างใหม่",
+      "outdatedModel": "เวอร์ชันเก่า",
+      "eventLag": "เหตุการณ์ที่ยังไม่ได้ประมวลผล",
+      "atLeast": "อย่างน้อย {{count}}",
+      "hours": "{{count}} ชม.",
+      "workers": "งานเบื้องหลัง",
+      "task": "งาน",
+      "status": "สถานะ",
+      "lastOk": "สำเร็จครั้งล่าสุด",
+      "lastError": "ข้อผิดพลาดล่าสุด",
+      "failures": "ล้มเหลวติดต่อกัน",
+      "noWorkers": "ยังไม่มีงานเบื้องหลังรายงานผลจากเซิร์ฟเวอร์ใดเลย",
+      "checked": "ตรวจสอบเมื่อ {{time}}",
+      "refresh": "รีเฟรช",
+      "enabled": "{{flag}} เปิดอยู่",
+      "disabledFlag": "{{flag}} ปิดอยู่"
     }
   },
   "businessCustomer360": {

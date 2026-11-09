@@ -24,7 +24,7 @@ test("event changes render without inventing redacted values", () => {
 
 test("every upgrade area and key exists in all 20 legacy locales with core translations", () => {
   const en = legacy("en").customerWorkspace;
-  const upgradeRoots = ["events", "health", "ai", "anomalies", "links", "lifecycle", "inbox", "playbooks", "queues", "summary"];
+  const upgradeRoots = ["events", "health", "ai", "anomalies", "links", "lifecycle", "inbox", "playbooks", "queues", "summary", "ops", "summaryHealth"];
   const keys = walk(Object.fromEntries(upgradeRoots.map((k) => [k, en[k]])));
   assert.ok(keys.length > 30);
   for (const l of LANGS) {
@@ -45,4 +45,56 @@ test("upgrade panels use logical CSS only", () => {
   const upgrade = css.slice(css.indexOf("/* Customer 360 upgrade panels"));
   assert.ok(upgrade.length > 100);
   assert.doesNotMatch(upgrade, /\b(margin|padding|border)-(left|right)\b|\b(left|right)\s*:|text-align:\s*(left|right)/);
+});
+
+const src = (p) => fs.readFileSync(new URL(p, root), "utf8");
+
+test("gap fill 15: queue items navigate inside the admin app", () => {
+  const board = src("admin/pages/customer360/upgrades/TeamBoard.jsx");
+  assert.match(board, /import \{ Link \} from "react-router-dom"/);
+  assert.match(board, /<Link to=\{`\/admin\/customers\/\$\{encodeURIComponent\(item\.customer_id\)\}\/360\?area=queues`\}>/);
+  for (const f of ["TeamBoard.jsx", "Queues.jsx", "AnomalyQueue.jsx"]) assert.doesNotMatch(src(`admin/pages/customer360/upgrades/${f}`), /<a href=/, f);
+});
+
+test("gap fills 5 and 11: super-only queue setup and saved-view rename send the revision", () => {
+  const board = src("admin/pages/customer360/upgrades/TeamBoard.jsx");
+  assert.match(board, /\{isSuper && <QueueSetup /);
+  assert.match(board, /adminApi\.post\(`\/admin\/customer360\/queues`, \{\s*queueKey:/);
+  assert.match(board, /adminApi\.patch\(`\/admin\/customer360\/queues\/\$\{encodeURIComponent\(q\.id\)\}`, \{\s*revision: q\.revision/);
+  assert.match(board, /adminApi\.put\(`\/admin\/customer360\/saved-views\/\$\{encodeURIComponent\(current\.id\)\}`, \{[\s\S]{0,120}revision: current\.revision/);
+  assert.match(board, /current\?\.mine && \(/, "only the owner may rename a view");
+  const queues = src("admin/pages/customer360/upgrades/Queues.jsx");
+  assert.match(queues, /<TeamBoard [^>]*isSuper=\{isSuper\}/);
+});
+
+test("gap fills 6-8: standalone routes are registered, grant-guarded, served and in the nav", async () => {
+  const { ADMIN_ROUTE_MANIFEST } = await import("../src/admin/adminRouteManifest.js");
+  const app = src("admin/AdminApp.jsx");
+  const spa = fs.readFileSync(new URL("../../server/utils/adminSpaRoutes.js", root), "utf8");
+  for (const [key, view] of [["customer360Queues", "queues"], ["customer360Anomalies", "anomalies"], ["customer360Summaries", "summaries"]]) {
+    assert.equal(ADMIN_ROUTE_MANIFEST[key].grant, "manage_users", key);
+    assert.match(app, new RegExp(`path=\\{adminRoute\\('${key}'\\)\\.relative\\} element=\\{<GrantGuard grant=\\{adminRoute\\('${key}'\\)\\.grant\\}><Customer360Ops view="${view}" \\/>`), key);
+    assert.ok(spa.includes(`'${ADMIN_ROUTE_MANIFEST[key].path}'`), `${key} served by the server SPA allowlist`);
+  }
+  const layout = src("admin/layouts/AdminLayout.jsx");
+  assert.match(layout, /tabKey: 'customer360Ops', to: routePath\('customer360Queues'\).*labelKey: 'adminNav\.customer360Ops', grant: adminRoute\('customer360Queues'\)\.grant/);
+  for (const l of LANGS) assert.equal(typeof legacy(l).adminNav?.customer360Ops, "string", `${l}: adminNav.customer360Ops`);
+  const routes = fs.readFileSync(new URL("../../server/routes/admin.js", root), "utf8");
+  assert.match(routes, /router\.get\('\/customer360\/summaries\/health', requireAdmin, requirePermission\('manage_users'\)/);
+});
+
+test("gap fill 7: the platform anomaly list pages with nextBefore and acts through the customer route", () => {
+  const q = src("admin/pages/customer360/upgrades/AnomalyQueue.jsx");
+  assert.match(q, /adminApi\.get\(`\/admin\/customer360\/anomalies`/);
+  assert.match(q, /setNext\(r\.data\.nextBefore\)/);
+  assert.match(q, /\/admin\/users\/\$\{encodeURIComponent\(a\.customer_id\)\}\/workspace\/anomalies\//);
+  assert.match(q, /revision: a\.revision/);
+});
+
+test("gap fill 8: summary health shows the flag and every worker state with translated copy", () => {
+  const h = src("admin/pages/customer360/upgrades/SummaryHealth.jsx");
+  assert.match(h, /\/admin\/customer360\/summaries\/health/);
+  const en = legacy("en").customerWorkspace.summaryHealth;
+  for (const s of ["healthy", "disabled", "not_started", "failing", "behind"]) assert.equal(typeof en.states[s], "string", s);
+  for (const s of ["ok", "late", "failing"]) assert.equal(typeof en.workerStates[s], "string", s);
 });

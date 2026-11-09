@@ -1329,8 +1329,34 @@
         "not_assignee": "Se sèlman administratè ki te pran l la ki ka lage l.",
         "view_name_taken": "Ou deja gen yon vi ak non sa a.",
         "global_grant_required": "Tablo ekip la bezwen yon pèmisyon kliyan pou tout platfòm nan.",
-        "resolution_required": "Chwazi yon rezolisyon."
-      }
+        "resolution_required": "Chwazi yon rezolisyon.",
+        "queue_exists": "Gen yon lis atant ki gen kle sa a deja.",
+        "invalid_queue_key": "Kle a dwe gen 2 a 40 lèt miniskil, chif oswa tirè anba.",
+        "invalid_name": "Non an dwe gen 1 a 80 karaktè.",
+        "invalid_sla": "Delè repons lan dwe ant 5 ak 43 200 minit."
+      },
+      "setup": {
+        "title": "Konfigirasyon lis atant",
+        "hint": "Se pou super administratè sèlman. Delè repons lan (SLA) se {{min}} a {{max}} minit. Lis atant otomatik yo kenbe kle yo.",
+        "feed": "otomatik",
+        "name": "Non",
+        "description": "Deskripsyon",
+        "slaMinutes": "Delè repons (minit)",
+        "active": "Aktif",
+        "save": "Anrejistre lis atant lan",
+        "new": "Nouvo lis atant",
+        "key": "Kle",
+        "create": "Kreye lis atant lan",
+        "created": "Lis atant lan kreye.",
+        "saved": "Lis atant lan anrejistre."
+      },
+      "manageView": "Jere vi sa a",
+      "renameView": "Chanje non oswa pataje",
+      "newViewName": "Nouvo non",
+      "saveRename": "Anrejistre non an",
+      "updateView": "Anrejistre filt aktyèl yo nan vi sa a",
+      "viewRenamed": "Non vi a chanje.",
+      "viewUpdated": "Vi a mete ajou."
     },
     "summary": {
       "title": "Rezime kliyan an",
@@ -1368,6 +1394,55 @@
         "outdated_model": "Kalkile {{time}} ak yon ansyen vèsyon.",
         "missing": "L ap kalkile an aryè-plan."
       }
+    },
+    "ops": {
+      "title": "Operasyon Customer 360",
+      "hint": "Travay ki kouvri anpil kliyan: lis atant ekip la, anomali sou tout platfòm nan, epi si rezime kliyan yo ajou.",
+      "tabs": {
+        "queues": "Lis atant ekip la",
+        "anomalies": "Tout anomali yo",
+        "summaries": "Eta rezime yo"
+      },
+      "queuesHint": "Pran, lage epi rezoud eleman pou tout kliyan. Vi ou anrejistre yo kenbe filt ou itilize plis yo.",
+      "anomaliesTitle": "Anomali pou tout kliyan",
+      "anomaliesHint": "Se sèlman kalite aksè ou pèmèt yo ki parèt. Chak aksyon bezwen yon rezon epi li anrejistre nan jounal odit la."
+    },
+    "summaryHealth": {
+      "title": "Eta rezime kliyan yo",
+      "hint": "Montre si amelyorasyon Customer 360 yo limen, konbyen reyolaj rezime yo an reta, ak ki lè chak travay an awyèplan te dènye kouri.",
+      "states": {
+        "healthy": "An sante",
+        "disabled": "Etenn",
+        "not_started": "Poko kòmanse",
+        "failing": "Ap echwe",
+        "behind": "An reta"
+      },
+      "workerStates": {
+        "ok": "A lè",
+        "late": "An reta",
+        "failing": "Ap echwe"
+      },
+      "enabled": "{{flag}} limen",
+      "disabledFlag": "{{flag}} etenn",
+      "modelVersion": "Vèsyon rezime a",
+      "ttl": "Rebati omwen chak",
+      "rows": "Rezime (estimasyon)",
+      "dirty": "Ap tann pou rebati",
+      "oldestDirty": "Pi long tan datant",
+      "stale": "Depase lè pou rebati",
+      "outdatedModel": "Sou yon ansyen vèsyon",
+      "eventLag": "Evènman ki poko trete",
+      "atLeast": "omwen {{count}}",
+      "hours": "{{count}} è",
+      "workers": "Travay an awyèplan",
+      "task": "Travay",
+      "status": "Eta",
+      "lastOk": "Dènye siksè",
+      "lastError": "Dènye erè",
+      "failures": "Echèk youn dèyè lòt",
+      "noWorkers": "Okenn travay an awyèplan poko bay rapò sou okenn sèvè.",
+      "checked": "Verifye: {{time}}",
+      "refresh": "Rafrechi"
     }
   },
   "screens": {
@@ -31273,7 +31348,8 @@
     "legalCcpaErasureReview": "Revizyon efasman",
     "foodOrders": "Lòd manje",
     "mediaFlags": "Drapò medya",
-    "franchiseStatus": "Eta aplikasyon an"
+    "franchiseStatus": "Eta aplikasyon an",
+    "customer360Ops": "Operasyon Customer 360"
   },
   "adminProfileVisibility": {
     "title": "Vizibilite pwofil",

@@ -190,10 +190,14 @@ async function list({ customerId = null, kinds, statuses = ["open", "snoozed", "
   if (!kinds.length) return [];
   const { rows } = await db.query(
     `SELECT a.id::text, a.customer_id, a.kind, a.status, a.occurrences, a.first_detected_at, a.last_detected_at,
-            a.evidence, a.snoozed_until, a.handled_at, a.revision
+            a.evidence, a.snoozed_until, a.handled_at, a.revision,
+            COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), 'Customer') AS customer_name
        FROM customer_anomalies a
+       LEFT JOIN users u ON u.id = a.customer_id
       WHERE ($1::uuid IS NULL OR a.customer_id = $1) AND a.kind = ANY($2::text[]) AND a.status = ANY($3::text[])
-        AND ($4::bigint IS NULL OR a.id < $4::bigint)
+        -- Keyset on the sort order (last_detected_at, id); the cursor is the
+        -- last row's id, so pages never skip or repeat when times tie.
+        AND ($4::bigint IS NULL OR (a.last_detected_at, a.id) < (SELECT c.last_detected_at, c.id FROM customer_anomalies c WHERE c.id = $4::bigint))
       ORDER BY a.last_detected_at DESC, a.id DESC LIMIT $5`,
     [customerId, kinds, statuses, before, Math.min(Math.max(1, limit), 200)]);
   return rows;

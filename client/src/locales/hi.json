@@ -27169,7 +27169,8 @@
     "supportQa": "QA समीक्षाएं",
     "supportSettings": "सेटिंग्स",
     "supportAuditLog": "ऑडिट लॉग",
-    "oxsteedCreditLicence": "Credit लाइसेंस"
+    "oxsteedCreditLicence": "Credit लाइसेंस",
+    "customer360Ops": "Customer 360 संचालन"
   },
   "adminProfileVisibility": {
     "title": "प्रोफ़ाइल दृश्यता",
@@ -35006,8 +35007,34 @@
         "not_assignee": "Only the admin who claimed it can release it.",
         "view_name_taken": "You already have a view with this name.",
         "global_grant_required": "The team board needs a platform-wide customer permission.",
-        "resolution_required": "Choose a resolution."
-      }
+        "resolution_required": "Choose a resolution.",
+        "queue_exists": "इस कुंजी वाली कतार पहले से मौजूद है।",
+        "invalid_queue_key": "कुंजी के लिए 2–40 छोटे अक्षर, अंक या अंडरस्कोर इस्तेमाल करें।",
+        "invalid_name": "नाम 1–80 वर्णों का होना चाहिए।",
+        "invalid_sla": "प्रतिक्रिया समय 5–43,200 मिनट होना चाहिए।"
+      },
+      "setup": {
+        "title": "कतार सेटअप",
+        "hint": "केवल सुपर एडमिन के लिए। प्रतिक्रिया समय (SLA) {{min}}–{{max}} मिनट है। स्वचालित कतारों की कुंजी नहीं बदलती।",
+        "feed": "स्वचालित",
+        "name": "नाम",
+        "description": "विवरण",
+        "slaMinutes": "प्रतिक्रिया समय (मिनट)",
+        "active": "सक्रिय",
+        "save": "कतार सहेजें",
+        "new": "नई कतार",
+        "key": "कुंजी",
+        "create": "कतार बनाएँ",
+        "created": "कतार बन गई।",
+        "saved": "कतार सहेजी गई।"
+      },
+      "manageView": "इस दृश्य को प्रबंधित करें",
+      "renameView": "नाम बदलें या साझा करें",
+      "newViewName": "नया नाम",
+      "saveRename": "नाम सहेजें",
+      "updateView": "मौजूदा फ़िल्टर इस दृश्य में सहेजें",
+      "viewRenamed": "दृश्य का नाम बदला गया।",
+      "viewUpdated": "दृश्य अपडेट किया गया।"
     },
     "summary": {
       "title": "Customer summary",
@@ -35045,6 +35072,55 @@
         "outdated_model": "Computed {{time}} by an older version.",
         "missing": "It will be computed in the background."
       }
+    },
+    "ops": {
+      "title": "Customer 360 संचालन",
+      "hint": "कई ग्राहकों से जुड़ा काम: टीम की कतारें, पूरे प्लेटफ़ॉर्म की असामान्यताएँ, और क्या ग्राहक सारांश अद्यतन हैं।",
+      "tabs": {
+        "queues": "टीम कतारें",
+        "anomalies": "सभी असामान्यताएँ",
+        "summaries": "सारांश की स्थिति"
+      },
+      "queuesHint": "सभी ग्राहकों के आइटम लें, छोड़ें और हल करें। सहेजे गए दृश्य आपके सबसे अधिक उपयोग किए गए फ़िल्टर रखते हैं।",
+      "anomaliesTitle": "सभी ग्राहकों की असामान्यताएँ",
+      "anomaliesHint": "केवल वही प्रकार दिखाए जाते हैं जिनकी आपकी पहुँच अनुमति देती है। हर कार्रवाई के लिए कारण ज़रूरी है और वह ऑडिट लॉग में दर्ज होती है।"
+    },
+    "summaryHealth": {
+      "title": "ग्राहक सारांश की स्थिति",
+      "hint": "दिखाता है कि Customer 360 अपग्रेड चालू हैं या नहीं, सारांश पुनर्निर्माण कितना पीछे है, और हर पृष्ठभूमि कार्य आख़िरी बार कब चला।",
+      "states": {
+        "healthy": "ठीक है",
+        "disabled": "बंद",
+        "not_started": "अभी शुरू नहीं हुआ",
+        "failing": "विफल हो रहा है",
+        "behind": "पीछे है"
+      },
+      "workerStates": {
+        "ok": "समय पर",
+        "late": "देर से",
+        "failing": "विफल हो रहा है"
+      },
+      "modelVersion": "सारांश संस्करण",
+      "ttl": "कम से कम हर इतने समय में दोबारा बनता है",
+      "rows": "सारांश (अनुमानित)",
+      "dirty": "पुनर्निर्माण की प्रतीक्षा में",
+      "oldestDirty": "सबसे लंबी प्रतीक्षा",
+      "stale": "पुनर्निर्माण का समय निकल गया",
+      "outdatedModel": "पुराने संस्करण पर",
+      "eventLag": "अभी तक संसाधित न हुए इवेंट",
+      "atLeast": "कम से कम {{count}}",
+      "hours": "{{count}} घंटे",
+      "workers": "पृष्ठभूमि कार्य",
+      "task": "कार्य",
+      "status": "स्थिति",
+      "lastOk": "अंतिम सफलता",
+      "lastError": "अंतिम त्रुटि",
+      "failures": "लगातार विफलताएँ",
+      "noWorkers": "अभी तक किसी भी सर्वर पर किसी पृष्ठभूमि कार्य ने रिपोर्ट नहीं की है।",
+      "checked": "जाँचा गया: {{time}}",
+      "refresh": "रीफ़्रेश करें",
+      "enabled": "{{flag}} चालू है",
+      "disabledFlag": "{{flag}} बंद है"
     }
   },
   "businessCustomer360": {

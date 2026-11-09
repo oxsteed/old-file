@@ -27169,7 +27169,8 @@
     "supportQa": "QA-Prüfungen",
     "supportSettings": "Einstellungen",
     "supportAuditLog": "Audit-Protokoll",
-    "oxsteedCreditLicence": "Credit-Lizenz"
+    "oxsteedCreditLicence": "Credit-Lizenz",
+    "customer360Ops": "Customer 360 Betrieb"
   },
   "adminProfileVisibility": {
     "title": "Profilsichtbarkeit",
@@ -35035,8 +35036,34 @@
         "not_assignee": "Only the admin who claimed it can release it.",
         "view_name_taken": "You already have a view with this name.",
         "global_grant_required": "The team board needs a platform-wide customer permission.",
-        "resolution_required": "Choose a resolution."
-      }
+        "resolution_required": "Choose a resolution.",
+        "queue_exists": "Eine Warteschlange mit diesem Schlüssel gibt es bereits.",
+        "invalid_queue_key": "Verwenden Sie für den Schlüssel 2–40 Kleinbuchstaben, Ziffern oder Unterstriche.",
+        "invalid_name": "Der Name muss 1–80 Zeichen lang sein.",
+        "invalid_sla": "Die Reaktionszeit muss 5–43.200 Minuten betragen."
+      },
+      "setup": {
+        "title": "Warteschlangen einrichten",
+        "hint": "Nur für Super-Admins. Die Reaktionszeit (SLA) beträgt {{min}}–{{max}} Minuten. Automatische Warteschlangen behalten ihren Schlüssel.",
+        "feed": "automatisch",
+        "name": "Name",
+        "description": "Beschreibung",
+        "slaMinutes": "Reaktionszeit (Minuten)",
+        "active": "Aktiv",
+        "save": "Warteschlange speichern",
+        "new": "Neue Warteschlange",
+        "key": "Schlüssel",
+        "create": "Warteschlange anlegen",
+        "created": "Warteschlange angelegt.",
+        "saved": "Warteschlange gespeichert."
+      },
+      "manageView": "Diese Ansicht verwalten",
+      "renameView": "Umbenennen oder teilen",
+      "newViewName": "Neuer Name",
+      "saveRename": "Namen speichern",
+      "updateView": "Aktuelle Filter in dieser Ansicht speichern",
+      "viewRenamed": "Ansicht umbenannt.",
+      "viewUpdated": "Ansicht aktualisiert."
     },
     "summary": {
       "title": "Customer summary",
@@ -35074,6 +35101,55 @@
         "outdated_model": "Computed {{time}} by an older version.",
         "missing": "It will be computed in the background."
       }
+    },
+    "ops": {
+      "title": "Customer 360 Betrieb",
+      "hint": "Arbeit, die viele Kunden betrifft: die Team-Warteschlangen, Auffälligkeiten auf der gesamten Plattform und ob die Kundenzusammenfassungen aktuell sind.",
+      "tabs": {
+        "queues": "Team-Warteschlangen",
+        "anomalies": "Alle Auffälligkeiten",
+        "summaries": "Zustand der Zusammenfassungen"
+      },
+      "queuesHint": "Übernehmen, freigeben und erledigen Sie Einträge aller Kunden. Gespeicherte Ansichten behalten Ihre häufigsten Filter.",
+      "anomaliesTitle": "Auffälligkeiten aller Kunden",
+      "anomaliesHint": "Es werden nur die Arten angezeigt, die Ihre Berechtigungen erlauben. Jede Aktion braucht eine Begründung und wird im Prüfprotokoll erfasst."
+    },
+    "summaryHealth": {
+      "title": "Zustand der Kundenzusammenfassungen",
+      "hint": "Zeigt, ob die Customer 360 Erweiterungen eingeschaltet sind, wie weit die Neuberechnung der Zusammenfassungen zurückliegt und wann jede Hintergrundaufgabe zuletzt lief.",
+      "states": {
+        "healthy": "In Ordnung",
+        "disabled": "Ausgeschaltet",
+        "not_started": "Noch nicht gestartet",
+        "failing": "Fehlerhaft",
+        "behind": "Im Rückstand"
+      },
+      "workerStates": {
+        "ok": "Pünktlich",
+        "late": "Verspätet",
+        "failing": "Fehlerhaft"
+      },
+      "modelVersion": "Version der Zusammenfassung",
+      "ttl": "Mindestens neu berechnet alle",
+      "rows": "Zusammenfassungen (geschätzt)",
+      "dirty": "Warten auf Neuberechnung",
+      "oldestDirty": "Längste Wartezeit",
+      "stale": "Neuberechnung überfällig",
+      "outdatedModel": "Ältere Version",
+      "eventLag": "Noch nicht verarbeitete Ereignisse",
+      "atLeast": "mindestens {{count}}",
+      "hours": "{{count}} Std.",
+      "workers": "Hintergrundaufgaben",
+      "task": "Aufgabe",
+      "status": "Status",
+      "lastOk": "Letzter Erfolg",
+      "lastError": "Letzter Fehler",
+      "failures": "Fehler in Folge",
+      "noWorkers": "Bisher hat auf keinem Server eine Hintergrundaufgabe Rückmeldung gegeben.",
+      "checked": "Geprüft: {{time}}",
+      "refresh": "Aktualisieren",
+      "enabled": "{{flag}} ist aktiviert",
+      "disabledFlag": "{{flag}} ist deaktiviert"
     }
   },
   "businessCustomer360": {

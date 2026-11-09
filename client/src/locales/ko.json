@@ -27169,7 +27169,8 @@
     "supportQa": "QA 리뷰",
     "supportSettings": "설정",
     "supportAuditLog": "감사 로그",
-    "oxsteedCreditLicence": "Credit 라이선스"
+    "oxsteedCreditLicence": "Credit 라이선스",
+    "customer360Ops": "Customer 360 운영"
   },
   "adminProfileVisibility": {
     "title": "프로필 공개 상태",
@@ -35006,8 +35007,34 @@
         "not_assignee": "Only the admin who claimed it can release it.",
         "view_name_taken": "You already have a view with this name.",
         "global_grant_required": "The team board needs a platform-wide customer permission.",
-        "resolution_required": "Choose a resolution."
-      }
+        "resolution_required": "Choose a resolution.",
+        "queue_exists": "이 키를 사용하는 대기열이 이미 있습니다.",
+        "invalid_queue_key": "키에는 영문 소문자, 숫자, 밑줄을 2~40자로 사용하세요.",
+        "invalid_name": "이름은 1~80자여야 합니다.",
+        "invalid_sla": "응답 시간은 5~43,200분이어야 합니다."
+      },
+      "setup": {
+        "title": "대기열 설정",
+        "hint": "슈퍼 관리자 전용입니다. 응답 시간(SLA)은 {{min}}~{{max}}분입니다. 자동 대기열은 키가 유지됩니다.",
+        "feed": "자동",
+        "name": "이름",
+        "description": "설명",
+        "slaMinutes": "응답 시간(분)",
+        "active": "활성",
+        "save": "대기열 저장",
+        "new": "새 대기열",
+        "key": "키",
+        "create": "대기열 만들기",
+        "created": "대기열을 만들었습니다.",
+        "saved": "대기열을 저장했습니다."
+      },
+      "manageView": "이 보기 관리",
+      "renameView": "이름 변경 또는 공유",
+      "newViewName": "새 이름",
+      "saveRename": "이름 저장",
+      "updateView": "현재 필터를 이 보기에 저장",
+      "viewRenamed": "보기 이름을 변경했습니다.",
+      "viewUpdated": "보기를 업데이트했습니다."
     },
     "summary": {
       "title": "Customer summary",
@@ -35045,6 +35072,55 @@
         "outdated_model": "Computed {{time}} by an older version.",
         "missing": "It will be computed in the background."
       }
+    },
+    "ops": {
+      "title": "Customer 360 운영",
+      "hint": "여러 고객에 걸친 작업: 팀 대기열, 플랫폼 전체의 이상 징후, 고객 요약이 최신인지 여부.",
+      "tabs": {
+        "queues": "팀 대기열",
+        "anomalies": "모든 이상 징후",
+        "summaries": "요약 상태"
+      },
+      "queuesHint": "모든 고객의 항목을 맡고, 해제하고, 해결합니다. 저장된 보기는 자주 쓰는 필터를 유지합니다.",
+      "anomaliesTitle": "전체 고객의 이상 징후",
+      "anomaliesHint": "접근 권한이 허용하는 유형만 표시됩니다. 모든 작업에는 사유가 필요하며 감사 로그에 기록됩니다."
+    },
+    "summaryHealth": {
+      "title": "고객 요약 상태",
+      "hint": "Customer 360 업그레이드가 켜져 있는지, 요약 재구성이 얼마나 밀렸는지, 각 백그라운드 작업이 마지막으로 언제 실행됐는지 보여 줍니다.",
+      "states": {
+        "healthy": "정상",
+        "disabled": "꺼짐",
+        "not_started": "아직 시작되지 않음",
+        "failing": "실패 중",
+        "behind": "지연됨"
+      },
+      "workerStates": {
+        "ok": "정시",
+        "late": "늦음",
+        "failing": "실패 중"
+      },
+      "modelVersion": "요약 버전",
+      "ttl": "최소 재구성 주기",
+      "rows": "요약 수(추정)",
+      "dirty": "재구성 대기 중",
+      "oldestDirty": "가장 오래된 대기",
+      "stale": "재구성 시점 경과",
+      "outdatedModel": "이전 버전",
+      "eventLag": "아직 처리되지 않은 이벤트",
+      "atLeast": "최소 {{count}}",
+      "hours": "{{count}}시간",
+      "workers": "백그라운드 작업",
+      "task": "작업",
+      "status": "상태",
+      "lastOk": "마지막 성공",
+      "lastError": "마지막 오류",
+      "failures": "연속 실패",
+      "noWorkers": "아직 어떤 서버에서도 백그라운드 작업 보고가 없습니다.",
+      "checked": "확인 시각: {{time}}",
+      "refresh": "새로 고침",
+      "enabled": "{{flag}} 켜짐",
+      "disabledFlag": "{{flag}} 꺼짐"
     }
   },
   "businessCustomer360": {

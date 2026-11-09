@@ -248,4 +248,61 @@ async function backlog() {
   return r;
 }
 
-module.exports = { MODEL_VERSION, ttlHours, computeOne, markFromEvents, computeDirty, sweepStale, staleness, load, present, backlog };
+const COUNT_CAP = 100000;
+
+/**
+ * Gap fill 8: everything the admin summary-health screen shows. Counts that
+ * could scan millions of rows are capped (COUNT_CAP, reported as capped) and
+ * use the dirty / computed_at indexes; the total is the planner estimate.
+ * Worker state comes from customer360_worker_heartbeats, so it is correct
+ * whichever instance runs the loop.
+ */
+async function health({ now = new Date() } = {}) {
+  const enabled = process.env.CUSTOMER360_UPGRADES_ENABLED !== "false";
+  const hours = ttlHours();
+  const cutoff = new Date(now.getTime() - hours * 3600_000).toISOString();
+  const [b, stale, outdated, est, latest, beats] = await Promise.all([
+    backlog(),
+    db.query(`SELECT COUNT(*)::int AS n FROM (SELECT 1 FROM customer360_summaries WHERE computed_at < $1 LIMIT ${COUNT_CAP + 1}) s`, [cutoff]),
+    db.query(`SELECT COUNT(*)::int AS n FROM (SELECT 1 FROM customer360_summaries WHERE model_version <> $1 LIMIT ${COUNT_CAP + 1}) s`, [MODEL_VERSION]),
+    db.query(`SELECT GREATEST(reltuples, 0)::bigint::text AS n FROM pg_class WHERE oid = 'customer360_summaries'::regclass`),
+    db.query(`SELECT COALESCE(MAX(id), 0)::text AS id FROM customer_events`),
+    db.query(`SELECT task, every_ms, last_started_at, last_finished_at, last_ok_at, last_error_at, last_error_code, last_duration_ms,
+                     consecutive_failures, runs::text, failures::text, instance, updated_at
+                FROM customer360_worker_heartbeats ORDER BY task`),
+  ]);
+  const capped = (n) => ({ count: Math.min(n, COUNT_CAP), capped: n > COUNT_CAP });
+  const latestEventId = String(latest.rows[0]?.id || "0");
+  const consumerId = b.consumer_event_id == null ? null : String(b.consumer_event_id);
+  const lag = consumerId == null ? null : String(BigInt(latestEventId) - BigInt(consumerId) > 0n ? BigInt(latestEventId) - BigInt(consumerId) : 0n);
+  const workers = beats.rows.map((w) => {
+    const lastOk = w.last_ok_at ? new Date(w.last_ok_at).getTime() : null;
+    const lateAfter = Math.max(3 * w.every_ms, 60_000);
+    let status = "ok";
+    if (w.consecutive_failures > 0) status = "failing";
+    else if (!lastOk || now.getTime() - lastOk > lateAfter) status = "late";
+    return { ...w, status };
+  });
+  const summaryTasks = workers.filter((w) => w.task.startsWith("summary-"));
+  let state = "healthy";
+  if (!enabled) state = "disabled";
+  else if (!summaryTasks.length) state = "not_started";
+  else if (summaryTasks.some((w) => w.status === "failing")) state = "failing";
+  else if (summaryTasks.some((w) => w.status === "late") || (b.oldest_dirty_seconds || 0) > 3600) state = "behind";
+  return {
+    enabled,
+    state,
+    modelVersion: MODEL_VERSION,
+    ttlHours: hours,
+    estimatedRows: est.rows[0]?.n || "0",
+    dirty: b.dirty,
+    oldestDirtySeconds: b.oldest_dirty_seconds,
+    stale: capped(stale.rows[0].n),
+    outdatedModel: capped(outdated.rows[0].n),
+    events: { latestEventId, consumerEventId: consumerId, lag },
+    workers,
+    checkedAt: now.toISOString(),
+  };
+}
+
+module.exports = { MODEL_VERSION, ttlHours, computeOne, markFromEvents, computeDirty, sweepStale, staleness, load, present, backlog, health, COUNT_CAP };

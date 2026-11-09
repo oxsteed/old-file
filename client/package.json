@@ -6,6 +6,7 @@
   "scripts": {
     "test:customer360-workspace": "node --test scripts/customer360Workspace.test.mjs",
     "test:customer360-upgrades": "node --test scripts/customer360Upgrades.test.mjs",
+    "test:customer360-ops-browser": "node --test scripts/customer360Ops.browser-check.cjs",
     "test:restaurant-screens": "node --test scripts/restaurantScreens.browser-check.cjs",
     "test:merchant-operations-desk": "node --test scripts/merchantOperationsDesk.test.mjs scripts/merchantOperationsDesk.browser-check.cjs",
     "test:signup-validation": "node --test scripts/signupValidation.test.mjs",

@@ -3773,5 +3773,86 @@
     "changedOn": "Chính sách quyền riêng tư của chúng tôi đã thay đổi vào {{date}}.",
     "changesOn": "Chính sách quyền riêng tư của chúng tôi sẽ thay đổi vào {{date}}.",
     "dismiss": "Đóng"
+  },
+  "customerWorkspace": {
+    "ops": {
+      "title": "Vận hành Customer 360",
+      "hint": "Công việc liên quan đến nhiều khách hàng: hàng đợi của nhóm, bất thường trên toàn nền tảng và việc tóm tắt khách hàng có cập nhật hay không.",
+      "tabs": {
+        "queues": "Hàng đợi của nhóm",
+        "anomalies": "Tất cả bất thường",
+        "summaries": "Tình trạng tóm tắt"
+      },
+      "queuesHint": "Nhận, trả và xử lý mục của mọi khách hàng. Chế độ xem đã lưu giữ các bộ lọc bạn dùng nhiều nhất.",
+      "anomaliesTitle": "Bất thường của mọi khách hàng",
+      "anomaliesHint": "Chỉ liệt kê các loại mà quyền truy cập của bạn cho phép. Mỗi thao tác cần lý do và được ghi vào nhật ký kiểm tra."
+    },
+    "queues": {
+      "errors": {
+        "queue_exists": "Đã có hàng đợi dùng khóa này.",
+        "invalid_queue_key": "Dùng 2–40 chữ thường, chữ số hoặc dấu gạch dưới cho khóa.",
+        "invalid_name": "Tên phải có 1–80 ký tự.",
+        "invalid_sla": "Thời gian phản hồi phải từ 5–43.200 phút."
+      },
+      "setup": {
+        "title": "Thiết lập hàng đợi",
+        "hint": "Chỉ dành cho quản trị viên cấp cao. Thời gian phản hồi (SLA) là {{min}}–{{max}} phút. Hàng đợi tự động giữ nguyên khóa.",
+        "feed": "tự động",
+        "name": "Tên",
+        "description": "Mô tả",
+        "slaMinutes": "Thời gian phản hồi (phút)",
+        "active": "Đang hoạt động",
+        "save": "Lưu hàng đợi",
+        "new": "Hàng đợi mới",
+        "key": "Khóa",
+        "create": "Tạo hàng đợi",
+        "created": "Đã tạo hàng đợi.",
+        "saved": "Đã lưu hàng đợi."
+      },
+      "manageView": "Quản lý chế độ xem này",
+      "renameView": "Đổi tên hoặc chia sẻ",
+      "newViewName": "Tên mới",
+      "saveRename": "Lưu tên",
+      "updateView": "Lưu bộ lọc hiện tại vào chế độ xem này",
+      "viewRenamed": "Đã đổi tên chế độ xem.",
+      "viewUpdated": "Đã cập nhật chế độ xem."
+    },
+    "summaryHealth": {
+      "title": "Tình trạng tóm tắt khách hàng",
+      "hint": "Cho biết các nâng cấp Customer 360 có đang bật không, việc dựng lại tóm tắt chậm bao nhiêu và mỗi tác vụ nền chạy lần cuối khi nào.",
+      "states": {
+        "healthy": "Ổn định",
+        "disabled": "Đã tắt",
+        "not_started": "Chưa bắt đầu",
+        "failing": "Đang lỗi",
+        "behind": "Bị chậm"
+      },
+      "workerStates": {
+        "ok": "Đúng hạn",
+        "late": "Trễ",
+        "failing": "Đang lỗi"
+      },
+      "modelVersion": "Phiên bản tóm tắt",
+      "ttl": "Dựng lại tối thiểu mỗi",
+      "rows": "Số tóm tắt (ước tính)",
+      "dirty": "Đang chờ dựng lại",
+      "oldestDirty": "Chờ lâu nhất",
+      "stale": "Quá hạn dựng lại",
+      "outdatedModel": "Phiên bản cũ",
+      "eventLag": "Sự kiện chưa xử lý",
+      "atLeast": "ít nhất {{count}}",
+      "hours": "{{count}} giờ",
+      "workers": "Tác vụ nền",
+      "task": "Tác vụ",
+      "status": "Trạng thái",
+      "lastOk": "Thành công gần nhất",
+      "lastError": "Lỗi gần nhất",
+      "failures": "Lỗi liên tiếp",
+      "noWorkers": "Chưa có tác vụ nền nào báo cáo trên bất kỳ máy chủ nào.",
+      "checked": "Đã kiểm tra {{time}}",
+      "refresh": "Làm mới",
+      "enabled": "{{flag}} đang bật",
+      "disabledFlag": "{{flag}} đang tắt"
+    }
   }
 }

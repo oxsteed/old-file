@@ -17,7 +17,7 @@ import {
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
   HeartHandshake, Calendar, UserPlus, Map, MapPinned, ShoppingCart, Layers, Fingerprint,
   AlertTriangle, Crown, Globe, Network, Package, Truck, ShieldAlert, BookOpen, Link2,
-  Settings2, Check, Wallet, Activity, Eye, EyeOff, Sparkles, Scale, ShieldCheck,
+  Settings2, Check, Wallet, Activity, Eye, EyeOff, Sparkles, Scale, ShieldCheck, ListChecks,
 } from 'lucide-react';
 
 const ADMIN_NAV_MODE_KEY = 'oxsteed:admin-nav-mode';
@@ -29,6 +29,7 @@ export const REGULAR_NAV = [
   { tabKey: 'dashboard', to: routePath('dashboard'),        icon: LayoutDashboard, labelKey: 'adminNav.dashboard', grant: adminRoute('dashboard').grant },
   { tabKey: 'operations', to: routePath('operations'),       icon: Activity,        labelKey: 'adminNav.operationsOverview', grant: adminRoute('operations').grant },
   { tabKey: 'users', to: routePath('users'),            icon: Users,           labelKey: 'adminNav.users', grant: adminRoute('users').grant },
+  { tabKey: 'customer360Ops', to: routePath('customer360Queues'), icon: ListChecks, labelKey: 'adminNav.customer360Ops', grant: adminRoute('customer360Queues').grant },
   { tabKey: 'jobs', to: routePath('jobs'),             icon: Briefcase,       labelKey: 'adminNav.jobs', grant: adminRoute('jobs').grant },
   { tabKey: 'reports', to: routePath('reports'),          icon: Flag,            labelKey: 'adminNav.reports'          },
   // Weekly self-audit 2026-11-04 item 6: remaining URL-only pages, each

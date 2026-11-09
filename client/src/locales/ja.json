@@ -27169,7 +27169,8 @@
     "supportQa": "QAレビュー",
     "supportSettings": "設定",
     "supportAuditLog": "監査ログ",
-    "oxsteedCreditLicence": "Credit ライセンス"
+    "oxsteedCreditLicence": "Credit ライセンス",
+    "customer360Ops": "Customer 360 運用"
   },
   "adminProfileVisibility": {
     "title": "プロフィールの公開設定",
@@ -35006,8 +35007,34 @@
         "not_assignee": "Only the admin who claimed it can release it.",
         "view_name_taken": "You already have a view with this name.",
         "global_grant_required": "The team board needs a platform-wide customer permission.",
-        "resolution_required": "Choose a resolution."
-      }
+        "resolution_required": "Choose a resolution.",
+        "queue_exists": "このキーのキューは既に存在します。",
+        "invalid_queue_key": "キーには半角小文字・数字・アンダースコアを2〜40文字で使用してください。",
+        "invalid_name": "名前は1〜80文字にしてください。",
+        "invalid_sla": "応答時間は5〜43,200分にしてください。"
+      },
+      "setup": {
+        "title": "キューの設定",
+        "hint": "スーパー管理者のみ。応答時間（SLA）は{{min}}〜{{max}}分です。自動キューのキーは変わりません。",
+        "feed": "自動",
+        "name": "名前",
+        "description": "説明",
+        "slaMinutes": "応答時間（分）",
+        "active": "有効",
+        "save": "キューを保存",
+        "new": "新しいキュー",
+        "key": "キー",
+        "create": "キューを作成",
+        "created": "キューを作成しました。",
+        "saved": "キューを保存しました。"
+      },
+      "manageView": "このビューを管理",
+      "renameView": "名前の変更・共有",
+      "newViewName": "新しい名前",
+      "saveRename": "名前を保存",
+      "updateView": "現在のフィルターをこのビューに保存",
+      "viewRenamed": "ビューの名前を変更しました。",
+      "viewUpdated": "ビューを更新しました。"
     },
     "summary": {
       "title": "Customer summary",
@@ -35045,6 +35072,55 @@
         "outdated_model": "Computed {{time}} by an older version.",
         "missing": "It will be computed in the background."
       }
+    },
+    "ops": {
+      "title": "Customer 360 運用",
+      "hint": "多くの顧客にまたがる作業：チームのキュー、プラットフォーム全体の異常、顧客サマリーが最新かどうか。",
+      "tabs": {
+        "queues": "チームのキュー",
+        "anomalies": "すべての異常",
+        "summaries": "サマリーの状態"
+      },
+      "queuesHint": "すべての顧客の項目を担当・解除・解決します。保存ビューにはよく使うフィルターが残ります。",
+      "anomaliesTitle": "全顧客の異常",
+      "anomaliesHint": "アクセス権で許可された種類のみ表示されます。各操作には理由が必要で、監査ログに記録されます。"
+    },
+    "summaryHealth": {
+      "title": "顧客サマリーの状態",
+      "hint": "Customer 360 の拡張機能が有効か、サマリーの再構築がどれだけ遅れているか、各バックグラウンドタスクが最後にいつ実行されたかを表示します。",
+      "states": {
+        "healthy": "正常",
+        "disabled": "オフ",
+        "not_started": "未開始",
+        "failing": "失敗中",
+        "behind": "遅延"
+      },
+      "workerStates": {
+        "ok": "定刻",
+        "late": "遅延",
+        "failing": "失敗中"
+      },
+      "modelVersion": "サマリーのバージョン",
+      "ttl": "最低でも再構築される間隔",
+      "rows": "サマリー数（推定）",
+      "dirty": "再構築待ち",
+      "oldestDirty": "最長の待ち時間",
+      "stale": "再構築期限切れ",
+      "outdatedModel": "旧バージョン",
+      "eventLag": "未処理のイベント",
+      "atLeast": "{{count}} 以上",
+      "hours": "{{count}} 時間",
+      "workers": "バックグラウンドタスク",
+      "task": "タスク",
+      "status": "状態",
+      "lastOk": "最終成功",
+      "lastError": "最終エラー",
+      "failures": "連続失敗回数",
+      "noWorkers": "どのサーバーでもまだバックグラウンドタスクの報告がありません。",
+      "checked": "確認日時: {{time}}",
+      "refresh": "更新",
+      "enabled": "{{flag}} はオンです",
+      "disabledFlag": "{{flag}} はオフです"
     }
   },
   "businessCustomer360": {

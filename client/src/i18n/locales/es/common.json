@@ -1182,8 +1182,34 @@
         "not_assignee": "Solo el administrador que lo tomó puede liberarlo.",
         "view_name_taken": "Ya tiene una vista con este nombre.",
         "global_grant_required": "El tablero del equipo requiere un permiso de clientes para toda la plataforma.",
-        "resolution_required": "Elija una resolución."
-      }
+        "resolution_required": "Elija una resolución.",
+        "queue_exists": "Ya existe una cola con esta clave.",
+        "invalid_queue_key": "Usa de 2 a 40 letras minúsculas, dígitos o guiones bajos para la clave.",
+        "invalid_name": "El nombre debe tener entre 1 y 80 caracteres.",
+        "invalid_sla": "El tiempo de respuesta debe estar entre 5 y 43.200 minutos."
+      },
+      "setup": {
+        "title": "Configuración de colas",
+        "hint": "Solo superadministradores. El tiempo de respuesta (SLA) es de {{min}} a {{max}} minutos. Las colas automáticas conservan su clave.",
+        "feed": "automática",
+        "name": "Nombre",
+        "description": "Descripción",
+        "slaMinutes": "Tiempo de respuesta (minutos)",
+        "active": "Activa",
+        "save": "Guardar cola",
+        "new": "Nueva cola",
+        "key": "Clave",
+        "create": "Crear cola",
+        "created": "Cola creada.",
+        "saved": "Cola guardada."
+      },
+      "manageView": "Gestionar esta vista",
+      "renameView": "Renombrar o compartir",
+      "newViewName": "Nuevo nombre",
+      "saveRename": "Guardar nombre",
+      "updateView": "Guardar los filtros actuales en esta vista",
+      "viewRenamed": "Vista renombrada.",
+      "viewUpdated": "Vista actualizada."
     },
     "summary": {
       "title": "Resumen del cliente",
@@ -1221,6 +1247,55 @@
         "outdated_model": "Calculado {{time}} con una versión anterior.",
         "missing": "Se calculará en segundo plano."
       }
+    },
+    "ops": {
+      "title": "Operaciones de Customer 360",
+      "hint": "Trabajo que abarca a muchos clientes: las colas del equipo, las anomalías de toda la plataforma y si los resúmenes de clientes están al día.",
+      "tabs": {
+        "queues": "Colas del equipo",
+        "anomalies": "Todas las anomalías",
+        "summaries": "Estado de los resúmenes"
+      },
+      "queuesHint": "Reclama, libera y resuelve elementos de todos los clientes. Las vistas guardadas conservan los filtros que más usas.",
+      "anomaliesTitle": "Anomalías de todos los clientes",
+      "anomaliesHint": "Solo se muestran los tipos que permite tu acceso. Cada acción requiere un motivo y queda registrada en el registro de auditoría."
+    },
+    "summaryHealth": {
+      "title": "Estado de los resúmenes de clientes",
+      "hint": "Muestra si las mejoras de Customer 360 están activadas, cuánto se ha retrasado la reconstrucción de resúmenes y cuándo se ejecutó por última vez cada tarea en segundo plano.",
+      "states": {
+        "healthy": "Correcto",
+        "disabled": "Desactivado",
+        "not_started": "Aún no ha empezado",
+        "failing": "Con errores",
+        "behind": "Con retraso"
+      },
+      "workerStates": {
+        "ok": "Al día",
+        "late": "Retrasada",
+        "failing": "Con errores"
+      },
+      "enabled": "{{flag}} está activado",
+      "disabledFlag": "{{flag}} está desactivado",
+      "modelVersion": "Versión del resumen",
+      "ttl": "Se reconstruye como mínimo cada",
+      "rows": "Resúmenes (estimación)",
+      "dirty": "En espera de reconstrucción",
+      "oldestDirty": "Espera más larga",
+      "stale": "Fuera de su plazo de reconstrucción",
+      "outdatedModel": "En una versión anterior",
+      "eventLag": "Eventos aún sin procesar",
+      "atLeast": "al menos {{count}}",
+      "hours": "{{count}} h",
+      "workers": "Tareas en segundo plano",
+      "task": "Tarea",
+      "status": "Estado",
+      "lastOk": "Último éxito",
+      "lastError": "Último error",
+      "failures": "Errores seguidos",
+      "noWorkers": "Ninguna tarea en segundo plano ha informado todavía en ningún servidor.",
+      "checked": "Comprobado: {{time}}",
+      "refresh": "Actualizar"
     }
   },
   "screens": {

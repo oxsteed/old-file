@@ -70,6 +70,39 @@ registerTask("summary-events", 15_000, async () => {
 registerTask("summary-dirty", 15_000, () => summaries.computeDirty({ limit: 200 }));
 registerTask("summary-stale", 60_000, () => summaries.sweepStale({ limit: 200 }));
 
+const INSTANCE = `${require("os").hostname()}:${process.pid}`.slice(0, 120);
+
+/**
+ * Gap fill 8: record each run in customer360_worker_heartbeats so the admin
+ * summary-health screen can tell running, late and failing tasks apart from
+ * any instance. A heartbeat failure is logged and never stops the task loop.
+ */
+async function heartbeat(task, { startedAt, ok, error = null }) {
+  try {
+    const db = require("../db");
+    await db.query(
+      `INSERT INTO customer360_worker_heartbeats
+         (task, every_ms, last_started_at, last_finished_at, last_ok_at, last_error_at, last_error_code, last_duration_ms,
+          consecutive_failures, runs, failures, instance, updated_at)
+       VALUES ($1, $2, $3, NOW(), CASE WHEN $4 THEN NOW() END, CASE WHEN $4 THEN NULL ELSE NOW() END, $5,
+               GREATEST(0, (EXTRACT(EPOCH FROM NOW() - $3::timestamptz) * 1000)::int), CASE WHEN $4 THEN 0 ELSE 1 END, 1, CASE WHEN $4 THEN 0 ELSE 1 END, $6, NOW())
+       ON CONFLICT (task) DO UPDATE SET
+         every_ms = EXCLUDED.every_ms, last_started_at = EXCLUDED.last_started_at, last_finished_at = NOW(),
+         last_ok_at = CASE WHEN $4 THEN NOW() ELSE customer360_worker_heartbeats.last_ok_at END,
+         last_error_at = CASE WHEN $4 THEN customer360_worker_heartbeats.last_error_at ELSE NOW() END,
+         last_error_code = CASE WHEN $4 THEN customer360_worker_heartbeats.last_error_code ELSE $5 END,
+         last_duration_ms = EXCLUDED.last_duration_ms,
+         consecutive_failures = CASE WHEN $4 THEN 0 ELSE customer360_worker_heartbeats.consecutive_failures + 1 END,
+         runs = customer360_worker_heartbeats.runs + 1,
+         failures = customer360_worker_heartbeats.failures + CASE WHEN $4 THEN 0 ELSE 1 END,
+         instance = EXCLUDED.instance, updated_at = NOW()`,
+      [task.name, task.everyMs, new Date(startedAt).toISOString(), ok, error ? String(error.code || error.name || "error").slice(0, 80) : null, INSTANCE]
+    );
+  } catch (err) {
+    logger.warn("Customer 360 heartbeat not recorded", { task: task.name, code: err.code });
+  }
+}
+
 async function tick(now = Date.now()) {
   const due = [];
   for (const task of TASKS) {
@@ -83,10 +116,13 @@ async function tick(now = Date.now()) {
   // behind it. Each task keeps its own overlap guard (running flag) and
   // its own error handling, so one failing task never blocks the rest.
   await Promise.all(due.map(async (task) => {
+    const startedAt = Date.now();
     try {
       await task.run();
+      await heartbeat(task, { startedAt, ok: true });
     } catch (error) {
       logger.warn("Customer 360 background task will retry", { task: task.name, code: error.code, message: error.message });
+      await heartbeat(task, { startedAt, ok: false, error });
     } finally {
       task.running = false;
     }
@@ -111,4 +147,4 @@ function startCustomer360Upgrades() {
   };
 }
 
-module.exports = { startCustomer360Upgrades, registerTask, tick, TASKS };
+module.exports = { startCustomer360Upgrades, registerTask, tick, heartbeat, TASKS };
