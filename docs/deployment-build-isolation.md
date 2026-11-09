@@ -57,9 +57,16 @@ node scripts/promote-prebuilt-web.cjs --run <serving-release-image-run-id> --rec
 
 Recovery verifies the same image and migration evidence as a normal promotion.
 It requires no healthy web replica and keeps the combined app in service.
-The old combined runtime continues owning background jobs, database/Redis,
-uploads and persistent retained browser assets. Schema/background releases
-remain coordinated separately; a web image cannot migrate production storage.
+The old combined runtime continues owning background jobs during web
+promotion. A normal web image cannot migrate production storage. For additive
+schema releases, review `deploy/web-schema-bridge.json` against the exact
+serving commit and image, and record the hashes of the complete migration
+delta. The bridge workflow rejects any unreviewed SQL change. Before running
+the bounded schema transaction, the observer checks the old worker owner and
+installs the same compatibility hashes on it. Rehearse the reviewed SQL on an
+isolated restore before merging the schema release. The observer reads the
+plan from the verified candidate commit and checks it against the immutable
+bridge receipt.
 
 After one verified manual promotion, install the single automatic controller:
 

@@ -198,10 +198,9 @@ straight to `old-files-claude` with no PR, and the branch stayed red for about
    reviewable in history.
 4. **No force-pushes** to the default branch, ever.
 
-Enforcement is a repository-settings change that only a repository admin
-should make (it is deliberately not automated from this repo). The intended
-settings, for the owner to apply in *Settings → Branches* or with the GitHub
-API:
+On November 9, PR #699 passed against an older base and then failed post-merge
+CI because two migration timestamps predated the current schema tail.
+The repository now enforces the following settings on `old-files-claude`:
 
 - Require a pull request before merging (0 required approvals is acceptable
   for a solo owner; raise it when reviewers exist).

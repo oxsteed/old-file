@@ -4,16 +4,12 @@
 // artifacts; this process is the only component allowed to promote them.
 const { execFileSync } = require('node:child_process');
 const { ghJson, REPOSITORY, BRANCH } = require('./verify-web-release.cjs');
-const { promote } = require('./promote-prebuilt-web.cjs');
+const { bridgePlan, promote } = require('./promote-prebuilt-web.cjs');
 const { watch } = require('./watch-verified-web-image.cjs');
 
 const BRIDGE_WORKFLOW = 'web-schema-bridge.yml';
 const WEB_APPLICATION = 'sqbntzhvwhbbywhs9prfhw51';
 const COMBINED_APPLICATION = 'tdrapz1vvcoftfwsk7fcdq0h';
-const PLAN_FILES = [
-  '20261108173000_franchise_royalty_redrive.sql',
-  '20261109080000_customer360_worker_heartbeats.sql',
-];
 
 function command(args, input = undefined) {
   return execFileSync(args[0], args.slice(1), {
@@ -158,20 +154,29 @@ async function promoteCombinedWorker(gitSha, { runDocker = docker, sleep = ms =>
   }
 }
 
-function bridgePlanPath() {
-  const path = require('node:path');
-  const local = path.join(__dirname, 'deploy/web-schema-bridge-20261102.json');
-  return require('node:fs').existsSync(local)
-    ? local : path.join(__dirname, '../deploy/web-schema-bridge-20261102.json');
+function installCombinedCompatibility(id, migrations) {
+  docker(['exec', '--user', '0', '--interactive', '--workdir', '/app/server', id, 'node', '-e', String.raw`
+    const fs = require('node:fs');
+    const { loadCompatibility } = require('./services/migrationCompatibility');
+    const file = 'migration-compatibility.json';
+    const approved = loadCompatibility();
+    for (const [name, hash] of Object.entries(JSON.parse(fs.readFileSync(0, 'utf8')))) {
+      if (Object.hasOwn(approved, name) && approved[name] !== hash) throw Error('Conflicting schema approval');
+      approved[name] = hash;
+    }
+    const tmp = file + '.next';
+    fs.writeFileSync(tmp, JSON.stringify({ version: 1, migrations: approved }), { mode: 0o644, flag: 'wx' });
+    try { loadCompatibility(tmp); fs.renameSync(tmp, file); }
+    finally { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); }
+  `], JSON.stringify(migrations));
 }
 
-function applyBridgeSchema({ gitSha, runId, list = () => docker([
+function applyBridgeSchema({ gitSha, runId, plan, list = () => docker([
   'ps', '--quiet', '--no-trunc', '--filter', `label=coolify.applicationUuid=${WEB_APPLICATION}`,
   '--filter', 'health=healthy',
   ]), inspect = id => docker(['inspect', '--format', '{{json .}}', id]), exec = (id, args) => docker(['exec', id, ...args]),
-  combinedList = () => docker(['ps', '--quiet', '--no-trunc', '--filter', `label=coolify.applicationUuid=${COMBINED_APPLICATION}`, '--filter', 'health=healthy']),
-  copyManifest = (id) => docker(['cp', bridgePlanPath(), `${id}:/app/server/migration-compatibility.json`]),
-  verifyCombined = id => JSON.parse(exec(id, ['node', '-e', "fetch('http://127.0.0.1:5000/ready').then(async r=>{console.log(await r.text());process.exit(r.ok?0:1)})"])) } = {}) {
+  combinedList = healthyCombinedContainers, copyManifest = installCombinedCompatibility,
+  verifyCombined = combinedReady } = {}) {
   const ids = String(list()).split(/\s+/).filter(Boolean);
   const candidates = ids.map(id => {
     let info;
@@ -185,21 +190,33 @@ function applyBridgeSchema({ gitSha, runId, list = () => docker([
     return { status: 'waiting_for_schema_apply', gitSha, runId,
       reason: candidates.length ? 'ambiguous_schema_bridge_runtime' : 'schema_bridge_not_healthy' };
   }
+  const combined = combinedList();
+  if (combined.length !== 1) {
+    return { status: 'waiting_for_schema_apply', gitSha, runId, reason: 'combined_runtime_not_healthy' };
+  }
+  try {
+    const verifyOwner = () => {
+      const ready = verifyCombined(combined[0]);
+      if (ready.status !== 'ready' || ready.releaseMetadata?.gitSha !== plan.baseCommit
+          || ready.checks?.workers?.mode !== 'combined') throw Error('Expected healthy worker owner');
+    };
+    verifyOwner();
+    copyManifest(combined[0], plan.migrations);
+    verifyOwner();
+  } catch {
+    return { status: 'waiting_for_schema_apply', gitSha, runId, reason: 'combined_runtime_compatibility_not_ready' };
+  }
   let result;
   try {
     result = JSON.parse(exec(candidates[0].id, ['node', '/app/scripts/apply-reviewed-web-schema.cjs', '--apply']));
   } catch {
     return { status: 'waiting_for_schema_apply', gitSha, runId, reason: 'schema_apply_failed' };
   }
-  const applied = new Set(result.applied || []);
-  if (result.ok !== true || result.pending?.length || PLAN_FILES.some(file => !applied.has(file))) {
+  if (result.ok !== true || !Array.isArray(result.pending) || result.pending.length
+      || !Array.isArray(result.applied) || result.applied.some(file => !Object.hasOwn(plan.migrations, file))) {
     return { status: 'waiting_for_schema_apply', gitSha, runId, reason: 'schema_apply_incomplete' };
   }
-  const combined = String(combinedList()).split(/\s+/).filter(Boolean);
-  if (combined.length !== 1) return { status: 'waiting_for_schema_apply', gitSha, runId, reason: 'combined_runtime_not_healthy' };
-  try { copyManifest(combined[0]); verifyCombined(combined[0]); }
-  catch { return { status: 'waiting_for_schema_apply', gitSha, runId, reason: 'combined_runtime_compatibility_not_ready' }; }
-  return { status: 'schema_applied', gitSha, runId, applied: PLAN_FILES };
+  return { status: 'schema_applied', gitSha, runId, applied: result.applied };
 }
 
 async function promoteAutomatic(runId, deps = {}) {
@@ -215,7 +232,8 @@ async function promoteAutomatic(runId, deps = {}) {
     if (!['finished', 'already_current'].includes(bridgeResult.status)) {
       return { status: 'waiting_for_schema_apply', gitSha: initial.gitSha, bridgeRunId: String(bridge.id), bridgeStatus: bridgeResult.status };
     }
-    const applied = (deps.applySchema || applyBridgeSchema)({ gitSha: initial.gitSha, runId: String(bridge.id) });
+    const plan = (deps.loadPlan || bridgePlan)(initial.gitSha);
+    const applied = (deps.applySchema || applyBridgeSchema)({ gitSha: initial.gitSha, runId: String(bridge.id), plan });
     if (applied.status !== 'schema_applied') return applied;
     web = await (deps.promote || promote)(runId);
   }
