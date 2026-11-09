@@ -11,9 +11,16 @@ const checksum = sql => crypto.createHash('sha256').update(sql).digest('hex');
 // markers commit together: the serving bridge never sees partially applied DDL.
 // Do not establish a checksum baseline for legacy rows during this operation.
 async function applyReviewedSchema({ pool, apply = false,
-  migrationsDir = path.join(__dirname, '../server/migrations'), plan = PLAN }) {
+  migrationsDir = path.join(__dirname, '../server/migrations'),
+  reviewedDir = process.env.REVIEWED_MIGRATIONS_DIR || null, plan = PLAN }) {
   const files = sortMigrationFiles(fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')));
   const sources = new Map(files.map(f => [f, fs.readFileSync(path.join(migrationsDir, f), 'utf8')]));
+  if (reviewedDir && fs.existsSync(reviewedDir)) {
+    for (const file of fs.readdirSync(reviewedDir).filter(f => f.endsWith('.sql'))) {
+      if (!sources.has(file)) { files.push(file); sources.set(file, fs.readFileSync(path.join(reviewedDir, file), 'utf8')); }
+    }
+    files.splice(0, files.length, ...sortMigrationFiles(files));
+  }
   for (const [name, hash] of Object.entries(plan.migrations)) {
     if (!sources.has(name) || checksum(sources.get(name)) !== hash) throw Error('Reviewed migration source changed');
     // This release plan contains no transaction controls. A future plan must
@@ -53,3 +60,26 @@ async function applyReviewedSchema({ pool, apply = false,
 }
 
 module.exports = { applyReviewedSchema };
+
+if (require.main === module) {
+  const apply = process.argv.length === 3 && process.argv[2] === '--apply';
+  if (!apply && !(process.argv.length === 2)) {
+    console.error('Use --apply to commit the reviewed schema plan, or no arguments for read-only preflight.');
+    process.exitCode = 1;
+  } else if (!process.env.DATABASE_URL) {
+    console.error('DATABASE_URL is required inside the serving runtime.');
+    process.exitCode = 1;
+  } else {
+    const { Pool } = require('../server/node_modules/pg');
+    const { getDatabaseSslConfig } = require('../server/utils/databaseConfig');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL,
+      ssl: getDatabaseSslConfig(process.env.DATABASE_URL, process.env.NODE_ENV),
+      max: 1, connectionTimeoutMillis: 5000, statement_timeout: 10000 });
+    applyReviewedSchema({ pool, apply }).then(result => {
+      console.log(JSON.stringify(result));
+    }).catch(error => {
+      console.error(error.message);
+      process.exitCode = 1;
+    }).finally(() => pool.end());
+  }
+}

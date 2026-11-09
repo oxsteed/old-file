@@ -1,10 +1,10 @@
 'use strict';
 const fs=require('node:fs');const path=require('node:path');const os=require('node:os');const {execFileSync}=require('node:child_process');
 const LABEL='com.oxsteed.web-release';
-const files=['verify-web-release.cjs','promote-prebuilt-web.cjs','watch-verified-web-image.cjs'];
+const files=['verify-web-release.cjs','promote-prebuilt-web.cjs','watch-verified-web-image.cjs','automatic-web-release.cjs'];
 const xml=s=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 function plist(bundle,node,searchPath){
- const args=[node,path.join(bundle,'watch-verified-web-image.cjs'),'--state-file',path.join(bundle,'state.json')];
+ const args=[node,path.join(bundle,'automatic-web-release.cjs'),'--state-file',path.join(bundle,'state.json')];
  return `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict><key>Label</key><string>${LABEL}</string><key>ProgramArguments</key><array>${args.map(a=>`<string>${xml(a)}</string>`).join('')}</array><key>StartInterval</key><integer>60</integer><key>RunAtLoad</key><true/><key>WorkingDirectory</key><string>${xml(bundle)}</string><key>EnvironmentVariables</key><dict><key>PATH</key><string>${xml(searchPath)}</string></dict><key>StandardOutPath</key><string>${xml(path.join(bundle,'observer.log'))}</string><key>StandardErrorPath</key><string>${xml(path.join(bundle,'observer-error.log'))}</string></dict></plist>\n`;
 }
 function main(){

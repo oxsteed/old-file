@@ -83,6 +83,25 @@ Inventory and preserve the scanner database volume and network aliases too.
 
 The deployment configuration has not been changed by this planning package.
 
+## Automatic schema bridge and handoff controller - 2026-11-09
+
+The release observer now remains the single host-side deployment owner. When a
+verified web image reports reviewed pending migrations, it dispatches the
+matching `Verified web schema bridge` workflow once, promotes that immutable
+bridge while the existing combined runtime continues to own workers, applies
+the exact reviewed migrations through the healthy bridge container's guarded
+transaction, and retries the original candidate. The bridge carries only the
+two additive migrations from the current default-branch candidate and refuses
+unreviewed, changed, duplicate, or incomplete markers. A failed bridge or
+schema apply leaves the last healthy release serving and is retried on the
+next observer cycle.
+
+This closes the automation gap between image publication and schema catch-up;
+it does not authorize overlapping background workers. The bridge and web
+candidate remain `OXSTEED_RUNTIME_ROLE=web`, while the existing combined
+runtime remains the sole worker owner until a separately verified worker
+handoff is implemented and rehearsed.
+
 ## Runtime prerequisites implemented - 2026-10-28
 
 Six workers started after listening now have stop handles owned by the shared

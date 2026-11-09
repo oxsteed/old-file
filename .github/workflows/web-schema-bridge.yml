@@ -1,6 +1,11 @@
 name: Verified web schema bridge
 on:
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact successful default-branch commit whose schema is being bridged
+        required: true
+        type: string
 permissions:
   contents: read
   actions: read
@@ -15,10 +20,12 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     env:
-      RELEASE_SHA: ${{ github.sha }}
+      RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
       IMAGE: ghcr.io/oxsteed/old-file-web
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_SHA }}
       - name: Require verified default-branch source
         env:
           GH_TOKEN: ${{ github.token }}
