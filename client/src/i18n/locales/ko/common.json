@@ -76,7 +76,8 @@
     "explore": "탐색",
     "help": "도움말",
     "compactTagline": "지역 도움, 음식, 비즈니스 서비스.",
-    "teamAccess": "팀 접속 (Vortex)"
+    "teamAccess": "팀 접속 (Vortex)",
+    "creditTerms": "OxSteed Credit 약관"
   },
   "nav": {
     "findHelp": "도움 찾기",
@@ -3854,5 +3855,20 @@
       "enabled": "{{flag}} 켜짐",
       "disabledFlag": "{{flag}} 꺼짐"
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "OxSteed Credit 약관 | OxSteed",
+    "metaDescription": "계정을 만들기 전에 OxSteed Credit의 약관, 수수료, 보호 내용을 읽어 보세요.",
+    "title": "OxSteed Credit 약관",
+    "intro": "이 약관은 계정 없이도 읽을 수 있습니다. 동의는 로그인한 뒤 처음 OxSteed Credit을 충전하거나 받기 전에 합니다.",
+    "currency": "수수료 표시 통화",
+    "loading": "약관을 불러오는 중…",
+    "loadFailed": "약관을 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.",
+    "pendingTitle": "법무 승인 대기 중입니다.",
+    "pendingBody": "이 문구의 일부는 법무팀이 아직 승인하지 않은 초안입니다. 거주 지역에서 OxSteed Credit이 제공되기 전에 변경될 수 있습니다.",
+    "draftBadge": "초안",
+    "version": "버전 {{version}}",
+    "acceptNote": "이 약관에 동의하고 OxSteed Credit을 사용하려면 계정에 로그인하세요.",
+    "signIn": "로그인"
   }
 }

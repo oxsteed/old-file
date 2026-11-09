@@ -76,7 +76,8 @@
     "explore": "探索",
     "help": "帮助",
     "compactTagline": "本地帮手、美食与商业服务。",
-    "teamAccess": "团队入口（Vortex）"
+    "teamAccess": "团队入口（Vortex）",
+    "creditTerms": "OxSteed Credit 条款"
   },
   "nav": {
     "findHelp": "找帮手",
@@ -3854,5 +3855,20 @@
       "enabled": "{{flag}} 已开启",
       "disabledFlag": "{{flag}} 已关闭"
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "OxSteed Credit 条款 | OxSteed",
+    "metaDescription": "在创建账户之前，请阅读 OxSteed Credit 的条款、费用和保障。",
+    "title": "OxSteed Credit 条款",
+    "intro": "无需账户即可阅读这些条款。您只需在登录后、首次充值或接收 OxSteed Credit 之前接受这些条款。",
+    "currency": "费用显示币种",
+    "loading": "正在加载条款…",
+    "loadFailed": "无法加载条款，请稍后重试。",
+    "pendingTitle": "待法务批准。",
+    "pendingBody": "部分文本为草稿，尚未经我们的法务团队批准。在您所在地区推出 OxSteed Credit 之前可能会有变更。",
+    "draftBadge": "草稿",
+    "version": "版本 {{version}}",
+    "acceptNote": "如需接受这些条款并使用 OxSteed Credit，请登录您的账户。",
+    "signIn": "登录"
   }
 }

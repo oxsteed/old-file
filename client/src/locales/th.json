@@ -1412,7 +1412,8 @@
     "independentContractor": "ผู้รับจ้างอิสระ",
     "howOxsteedWorks": "OxSteed ทำงานอย่างไร",
     "careers": "อาชีพ",
-    "callOxSteed": "โทรหา OxSteed ที่ {{phone}}"
+    "callOxSteed": "โทรหา OxSteed ที่ {{phone}}",
+    "creditTerms": "ข้อกำหนดของ OxSteed Credit"
   },
   "accountTermination": {
     "pageTitle": "นโยบายการยุติบัญชี",
@@ -35374,5 +35375,20 @@
         "description": "การตรวจสอบที่ปกป้องคุณและผู้อื่นจากการฉ้อโกง เราไม่แสดงรายการ แต่คุณสอบถามฝ่ายสนับสนุนได้"
       }
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "ข้อกำหนดของ OxSteed Credit | OxSteed",
+    "metaDescription": "อ่านข้อกำหนด ค่าธรรมเนียม และการคุ้มครองของ OxSteed Credit ก่อนสร้างบัญชี",
+    "title": "ข้อกำหนดของ OxSteed Credit",
+    "intro": "คุณอ่านข้อกำหนดนี้ได้โดยไม่ต้องมีบัญชี คุณจะยอมรับหลังจากลงชื่อเข้าใช้แล้ว ก่อนเติมหรือรับ OxSteed Credit ครั้งแรก",
+    "currency": "แสดงค่าธรรมเนียมเป็น",
+    "loading": "กำลังโหลดข้อกำหนด…",
+    "loadFailed": "โหลดข้อกำหนดไม่ได้ โปรดลองอีกครั้งในอีกสักครู่",
+    "pendingTitle": "รอการอนุมัติด้านกฎหมาย",
+    "pendingBody": "ข้อความบางส่วนนี้เป็นฉบับร่างที่ทีมกฎหมายของเรายังไม่ได้อนุมัติ และอาจเปลี่ยนแปลงก่อนที่ OxSteed Credit จะเปิดให้บริการในพื้นที่ของคุณ",
+    "draftBadge": "ฉบับร่าง",
+    "version": "เวอร์ชัน {{version}}",
+    "acceptNote": "หากต้องการยอมรับข้อกำหนดและใช้ OxSteed Credit โปรดลงชื่อเข้าใช้บัญชีของคุณ",
+    "signIn": "ลงชื่อเข้าใช้"
   }
 }

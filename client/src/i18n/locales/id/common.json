@@ -76,7 +76,8 @@
     "explore": "Jelajahi",
     "help": "Bantuan",
     "compactTagline": "Bantuan lokal, makanan, dan layanan bisnis.",
-    "teamAccess": "Akses tim (Vortex)"
+    "teamAccess": "Akses tim (Vortex)",
+    "creditTerms": "Ketentuan OxSteed Credit"
   },
   "nav": {
     "findHelp": "Cari Bantuan",
@@ -3854,5 +3855,20 @@
       "enabled": "{{flag}} aktif",
       "disabledFlag": "{{flag}} nonaktif"
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "Ketentuan OxSteed Credit | OxSteed",
+    "metaDescription": "Baca ketentuan, biaya, dan perlindungan OxSteed Credit sebelum membuat akun.",
+    "title": "Ketentuan OxSteed Credit",
+    "intro": "Anda dapat membaca ketentuan ini tanpa akun. Anda menyetujuinya hanya setelah masuk, sebelum pertama kali menambah atau menerima OxSteed Credit.",
+    "currency": "Tampilkan biaya dalam",
+    "loading": "Memuat ketentuan…",
+    "loadFailed": "Ketentuan tidak dapat dimuat. Silakan coba lagi sebentar lagi.",
+    "pendingTitle": "Menunggu persetujuan hukum.",
+    "pendingBody": "Sebagian teks ini adalah draf yang belum disetujui tim hukum kami. Teks ini dapat berubah sebelum OxSteed Credit tersedia di wilayah Anda.",
+    "draftBadge": "Draf",
+    "version": "Versi {{version}}",
+    "acceptNote": "Untuk menyetujui ketentuan ini dan menggunakan OxSteed Credit, masuk ke akun Anda.",
+    "signIn": "Masuk"
   }
 }

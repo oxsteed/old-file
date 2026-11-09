@@ -1412,7 +1412,8 @@
     "independentContractor": "Bağımsız Yüklenici",
     "howOxsteedWorks": "OxSteed Nasıl Çalışır",
     "careers": "Kariyer",
-    "callOxSteed": "OxSteed'i {{phone}} numarasından arayın"
+    "callOxSteed": "OxSteed'i {{phone}} numarasından arayın",
+    "creditTerms": "OxSteed Credit koşulları"
   },
   "accountTermination": {
     "pageTitle": "Hesap Sonlandırma Politikası",
@@ -35374,5 +35375,20 @@
         "description": "Sizi ve başkalarını dolandırıcılığa karşı koruyan kontroller. Bunları listelemiyoruz, ancak destek ekibine sorabilirsiniz."
       }
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "OxSteed Credit koşulları | OxSteed",
+    "metaDescription": "Hesap oluşturmadan önce OxSteed Credit koşullarını, ücretlerini ve korumalarını okuyun.",
+    "title": "OxSteed Credit koşulları",
+    "intro": "Bu koşulları hesap olmadan okuyabilirsiniz. Onları yalnızca oturum açtıktan sonra, ilk kez OxSteed Credit eklemeden veya almadan önce kabul edersiniz.",
+    "currency": "Ücretleri şu para biriminde göster",
+    "loading": "Koşullar yükleniyor…",
+    "loadFailed": "Koşullar yüklenemedi. Lütfen birazdan tekrar deneyin.",
+    "pendingTitle": "Hukuki onay bekleniyor.",
+    "pendingBody": "Bu metnin bir kısmı, hukuk ekibimizin henüz onaylamadığı bir taslaktır. OxSteed Credit yaşadığınız yerde sunulmadan önce değişebilir.",
+    "draftBadge": "Taslak",
+    "version": "Sürüm {{version}}",
+    "acceptNote": "Bu koşulları kabul edip OxSteed Credit kullanmak için hesabınızda oturum açın.",
+    "signIn": "Oturum aç"
   }
 }

@@ -1412,7 +1412,8 @@
     "independentContractor": "Kontraktor Independen",
     "howOxsteedWorks": "Cara Kerja OxSteed",
     "careers": "Karier",
-    "callOxSteed": "Hubungi OxSteed di {{phone}}"
+    "callOxSteed": "Hubungi OxSteed di {{phone}}",
+    "creditTerms": "Ketentuan OxSteed Credit"
   },
   "accountTermination": {
     "pageTitle": "Kebijakan Pengakhiran Akun",
@@ -35374,5 +35375,20 @@
         "description": "Pemeriksaan yang melindungi Anda dan orang lain dari penipuan. Kami tidak mencantumkannya, tetapi Anda bisa bertanya kepada dukungan."
       }
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "Ketentuan OxSteed Credit | OxSteed",
+    "metaDescription": "Baca ketentuan, biaya, dan perlindungan OxSteed Credit sebelum membuat akun.",
+    "title": "Ketentuan OxSteed Credit",
+    "intro": "Anda dapat membaca ketentuan ini tanpa akun. Anda menyetujuinya hanya setelah masuk, sebelum pertama kali menambah atau menerima OxSteed Credit.",
+    "currency": "Tampilkan biaya dalam",
+    "loading": "Memuat ketentuan…",
+    "loadFailed": "Ketentuan tidak dapat dimuat. Silakan coba lagi sebentar lagi.",
+    "pendingTitle": "Menunggu persetujuan hukum.",
+    "pendingBody": "Sebagian teks ini adalah draf yang belum disetujui tim hukum kami. Teks ini dapat berubah sebelum OxSteed Credit tersedia di wilayah Anda.",
+    "draftBadge": "Draf",
+    "version": "Versi {{version}}",
+    "acceptNote": "Untuk menyetujui ketentuan ini dan menggunakan OxSteed Credit, masuk ke akun Anda.",
+    "signIn": "Masuk"
   }
 }

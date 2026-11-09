@@ -1412,7 +1412,8 @@
     "independentContractor": "Appaltatore indipendente",
     "howOxsteedWorks": "Come funziona OxSteed",
     "careers": "Carriere",
-    "callOxSteed": "Chiami OxSteed al numero {{phone}}"
+    "callOxSteed": "Chiami OxSteed al numero {{phone}}",
+    "creditTerms": "Termini di OxSteed Credit"
   },
   "accountTermination": {
     "pageTitle": "Normativa sulla terminazione dell'account",
@@ -35345,5 +35346,20 @@
         "description": "Controlli che proteggono te e gli altri dalle frodi. Non li elenchiamo, ma puoi chiedere informazioni all’assistenza."
       }
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "Termini di OxSteed Credit | OxSteed",
+    "metaDescription": "Leggi termini, commissioni e tutele di OxSteed Credit prima di creare un account.",
+    "title": "Termini di OxSteed Credit",
+    "intro": "Puoi leggere questi termini senza un account. Li accetti solo dopo aver effettuato l’accesso, prima di aggiungere o ricevere OxSteed Credit per la prima volta.",
+    "currency": "Mostra le commissioni in",
+    "loading": "Caricamento dei termini…",
+    "loadFailed": "Impossibile caricare i termini. Riprova tra un momento.",
+    "pendingTitle": "In attesa di approvazione legale.",
+    "pendingBody": "Parte di questo testo è una bozza non ancora approvata dal nostro team legale. Potrebbe cambiare prima che OxSteed Credit sia offerto dove vivi.",
+    "draftBadge": "Bozza",
+    "version": "Versione {{version}}",
+    "acceptNote": "Per accettare questi termini e usare OxSteed Credit, accedi al tuo account.",
+    "signIn": "Accedi"
   }
 }

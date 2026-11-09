@@ -1412,7 +1412,8 @@
     "independentContractor": "個人事業主",
     "howOxsteedWorks": "OxSteedの使い方",
     "careers": "採用情報",
-    "callOxSteed": "{{phone}}までOxSteedにお電話ください"
+    "callOxSteed": "{{phone}}までOxSteedにお電話ください",
+    "creditTerms": "OxSteed Credit の規約"
   },
   "accountTermination": {
     "pageTitle": "アカウント停止ポリシー",
@@ -35345,5 +35346,20 @@
         "description": "あなたと他の利用者を不正から守るための確認です。一覧は表示しませんが、サポートにお問い合わせいただけます。"
       }
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "OxSteed Credit の規約 | OxSteed",
+    "metaDescription": "アカウントを作成する前に、OxSteed Credit の規約、手数料、保護内容をご確認ください。",
+    "title": "OxSteed Credit の規約",
+    "intro": "この規約はアカウントがなくても読めます。同意は、サインイン後、初めて OxSteed Credit を追加または受け取る前に行います。",
+    "currency": "手数料の表示通貨",
+    "loading": "規約を読み込んでいます…",
+    "loadFailed": "規約を読み込めませんでした。しばらくしてからもう一度お試しください。",
+    "pendingTitle": "法務の承認待ちです。",
+    "pendingBody": "この文章の一部は、法務チームがまだ承認していない下書きです。お住まいの地域で OxSteed Credit が提供される前に変更される場合があります。",
+    "draftBadge": "下書き",
+    "version": "バージョン {{version}}",
+    "acceptNote": "この規約に同意して OxSteed Credit を利用するには、アカウントにサインインしてください。",
+    "signIn": "サインイン"
   }
 }

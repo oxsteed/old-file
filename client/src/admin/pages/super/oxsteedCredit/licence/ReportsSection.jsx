@@ -20,6 +20,7 @@ export default function ReportsSection() {
   const anchors = useLicenceGet('/audit-anchors', { limit: 60 });
   const action = useLicenceAction();
   const [form, setForm] = useState({ packType: '', from: isoDay(-30), to: isoDay(0) });
+  const [anchor, setAnchor] = useState(null);
 
   const generate = async (event) => {
     event.preventDefault();
@@ -28,6 +29,13 @@ export default function ReportsSection() {
   };
   const download = (pack, name) => action.run(() => downloadLicenceFile(`/report-packs/${encodeURIComponent(pack.id)}/files/${encodeURIComponent(name)}`, `${pack.pack_type}-${pack.period_from}-${pack.period_to}-${name}`));
   const anchorNow = async () => { await action.run(() => adminApi.post(`${LICENCE_API}/audit-anchors/run`), 'adminLicence.done'); anchors.reload(); };
+  // Gap fill 10: open one day's anchor (GET /audit-anchors/:date) to read
+  // the exact payload whose SHA-256 was sent out of band.
+  const openAnchor = async (row) => {
+    if (anchor?.anchor_date === row.anchor_date) { setAnchor(null); return; }
+    const result = await action.run(() => adminApi.get(`${LICENCE_API}/audit-anchors/${encodeURIComponent(row.anchor_date)}`));
+    if (result) setAnchor(result.data);
+  };
   const verify = async () => { await action.run(() => adminApi.post(`${LICENCE_API}/audit-anchors/verify`, { limit: 30 }), 'adminLicence.done'); anchors.reload(); };
 
   return (
@@ -79,7 +87,20 @@ export default function ReportsSection() {
             { key: 'last_verification', label: 'result', render: (v) => (!v ? '—' : v.ok ? t('adminLicence.verifiedOk') : t('adminLicence.verifyProblems', { problems: (v.problems || []).join(', ') })) },
             { key: 'last_verified_at', label: 'checked', kind: 'date' },
           ]}
+          actions={(row) => (
+            <ActionButton disabled={action.busy} onClick={() => openAnchor(row)}>
+              {anchor?.anchor_date === row.anchor_date ? t('adminLicence.hide') : t('adminLicence.viewAnchor')}
+            </ActionButton>
+          )}
         />
+        {anchor && (
+          <section aria-label={t('adminLicence.anchorDetailTitle', { date: anchor.anchor_date })} data-anchor={anchor.anchor_date} className="space-y-2">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('adminLicence.anchorDetailTitle', { date: anchor.anchor_date })}</h3>
+            <p className="text-xs text-gray-500">{t('adminLicence.anchorDetailHelp')}</p>
+            <p className="text-xs"><span className="font-semibold">{t('adminLicence.col.sha')}</span> <code dir="ltr" className="break-all">{anchor.payload_sha256}</code></p>
+            <pre dir="ltr" className="max-h-96 overflow-auto rounded-lg bg-gray-50 dark:bg-gray-950 p-3 text-start text-xs">{JSON.stringify(anchor.payload, null, 2)}</pre>
+          </section>
+        )}
       </Panel>
     </div>
   );

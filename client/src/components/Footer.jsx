@@ -88,6 +88,7 @@ export default function Footer() {
         <div className="site-footer__utility">
           <nav className="site-footer__legal-links" aria-label={t('footer.legal')}>
             <FooterLink to="/terms">{t('footer.terms')}</FooterLink>
+            <FooterLink to="/legal/credit-terms">{t('footer.creditTerms')}</FooterLink>
             <FooterLink to="/privacy">{t('footer.privacy')}</FooterLink>
             <FooterLink to="/security">{t('footer.security')}</FooterLink>
             <FooterLink to="/cookie-policy">{t('footer.cookiePolicy')}</FooterLink>

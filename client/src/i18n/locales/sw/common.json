@@ -773,7 +773,8 @@
     "explore": "Gundua",
     "help": "Msaada",
     "compactTagline": "Huduma za karibu: msaada, chakula na biashara.",
-    "teamAccess": "Ufikiaji wa timu (Vortex)"
+    "teamAccess": "Ufikiaji wa timu (Vortex)",
+    "creditTerms": "Masharti ya OxSteed Credit"
   },
   "nav": {
     "findHelp": "Tafuta Msaada",
@@ -3852,5 +3853,20 @@
       "enabled": "{{flag}} imewashwa",
       "disabledFlag": "{{flag}} imezimwa"
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "Masharti ya OxSteed Credit | OxSteed",
+    "metaDescription": "Soma masharti, ada na kinga za OxSteed Credit kabla ya kufungua akaunti.",
+    "title": "Masharti ya OxSteed Credit",
+    "intro": "Unaweza kusoma masharti haya bila akaunti. Unayakubali tu baada ya kuingia, kabla ya kuongeza au kupokea OxSteed Credit kwa mara ya kwanza.",
+    "currency": "Onyesha ada kwa",
+    "loading": "Inapakia masharti…",
+    "loadFailed": "Masharti hayakuweza kupakiwa. Tafadhali jaribu tena baada ya muda mfupi.",
+    "pendingTitle": "Inasubiri idhini ya kisheria.",
+    "pendingBody": "Sehemu ya maandishi haya ni rasimu ambayo timu yetu ya sheria bado haijaidhinisha. Inaweza kubadilika kabla OxSteed Credit haijatolewa unapoishi.",
+    "draftBadge": "Rasimu",
+    "version": "Toleo {{version}}",
+    "acceptNote": "Ili kukubali masharti haya na kutumia OxSteed Credit, ingia kwenye akaunti yako.",
+    "signIn": "Ingia"
   }
 }

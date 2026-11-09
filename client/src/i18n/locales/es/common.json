@@ -1662,7 +1662,8 @@
     "explore": "Explorar",
     "help": "Ayuda",
     "compactTagline": "Ayuda local, comida y servicios empresariales.",
-    "teamAccess": "Acceso al equipo (Vortex)"
+    "teamAccess": "Acceso al equipo (Vortex)",
+    "creditTerms": "Términos de OxSteed Credit"
   },
   "nav": {
     "findHelp": "Buscar ayuda",
@@ -6472,5 +6473,20 @@
     "previous": "Anterior",
     "next": "Siguiente",
     "closeBooking": "Cerrar detalles de la reserva"
+  },
+  "creditTermsPage": {
+    "metaTitle": "Términos de OxSteed Credit | OxSteed",
+    "metaDescription": "Lea los términos, comisiones y protecciones de OxSteed Credit antes de crear una cuenta.",
+    "title": "Términos de OxSteed Credit",
+    "intro": "Puede leer estos términos sin una cuenta. Solo los acepta después de iniciar sesión, antes de agregar o recibir OxSteed Credit por primera vez.",
+    "currency": "Mostrar comisiones en",
+    "loading": "Cargando los términos…",
+    "loadFailed": "No se pudieron cargar los términos. Inténtelo de nuevo en un momento.",
+    "pendingTitle": "Pendiente de aprobación legal.",
+    "pendingBody": "Parte de este texto es un borrador que nuestro equipo legal aún no ha aprobado. Puede cambiar antes de que OxSteed Credit se ofrezca donde usted vive.",
+    "draftBadge": "Borrador",
+    "version": "Versión {{version}}",
+    "acceptNote": "Para aceptar estos términos y usar OxSteed Credit, inicie sesión en su cuenta.",
+    "signIn": "Iniciar sesión"
   }
 }

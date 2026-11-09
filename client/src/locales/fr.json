@@ -3170,7 +3170,8 @@
     "vortexCodePlaceholder": "VRTX-XXXXX-XXXXX",
     "vortexCodeError": "Veuillez saisir un code d’accès valide.",
     "vortexCodeRedeemed": "Vous avez rejoint {{name}}.",
-    "vortexCodePending": "Demande envoyée. Le propriétaire a été notifié pour approuver votre accès."
+    "vortexCodePending": "Demande envoyée. Le propriétaire a été notifié pour approuver votre accès.",
+    "creditTerms": "Conditions d’OxSteed Credit"
   },
   "accountTermination": {
     "pageTitle": "Politique de Résiliation de Compte",
@@ -40477,5 +40478,20 @@
     "pagination": "Affichage de {{from}} à {{to}} sur {{total}} tâches",
     "pagination.next": "Suivant",
     "pagination.previous": "Précédent"
+  },
+  "creditTermsPage": {
+    "metaTitle": "Conditions d’OxSteed Credit | OxSteed",
+    "metaDescription": "Lisez les conditions, frais et protections d’OxSteed Credit avant de créer un compte.",
+    "title": "Conditions d’OxSteed Credit",
+    "intro": "Vous pouvez lire ces conditions sans compte. Vous ne les acceptez qu’après vous être connecté, avant d’ajouter ou de recevoir OxSteed Credit pour la première fois.",
+    "currency": "Afficher les frais en",
+    "loading": "Chargement des conditions…",
+    "loadFailed": "Impossible de charger les conditions. Réessayez dans un instant.",
+    "pendingTitle": "En attente de validation juridique.",
+    "pendingBody": "Une partie de ce texte est un brouillon que notre équipe juridique n’a pas encore approuvé. Il peut changer avant qu’OxSteed Credit soit proposé là où vous vivez.",
+    "draftBadge": "Brouillon",
+    "version": "Version {{version}}",
+    "acceptNote": "Pour accepter ces conditions et utiliser OxSteed Credit, connectez-vous à votre compte.",
+    "signIn": "Se connecter"
   }
 }

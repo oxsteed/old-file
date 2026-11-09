@@ -76,7 +76,8 @@
     "explore": "تلاش کریں",
     "help": "مدد",
     "compactTagline": "مقامی مدد، کھانا اور کاروباری خدمات۔",
-    "teamAccess": "ٹیم رسائی (Vortex)"
+    "teamAccess": "ٹیم رسائی (Vortex)",
+    "creditTerms": "OxSteed Credit کی شرائط"
   },
   "nav": {
     "findHelp": "مدد تلاش کریں",
@@ -3854,5 +3855,20 @@
       "enabled": "{{flag}} آن ہے",
       "disabledFlag": "{{flag}} آف ہے"
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "OxSteed Credit کی شرائط | OxSteed",
+    "metaDescription": "اکاؤنٹ بنانے سے پہلے OxSteed Credit کی شرائط، فیس اور تحفظات پڑھیں۔",
+    "title": "OxSteed Credit کی شرائط",
+    "intro": "آپ یہ شرائط اکاؤنٹ کے بغیر پڑھ سکتے ہیں۔ آپ انہیں صرف سائن ان کرنے کے بعد، پہلی بار OxSteed Credit شامل کرنے یا وصول کرنے سے پہلے قبول کرتے ہیں۔",
+    "currency": "فیس اس کرنسی میں دکھائیں",
+    "loading": "شرائط لوڈ ہو رہی ہیں…",
+    "loadFailed": "شرائط لوڈ نہیں ہو سکیں۔ براہ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔",
+    "pendingTitle": "قانونی منظوری زیر التوا ہے۔",
+    "pendingBody": "اس متن کا کچھ حصہ مسودہ ہے جسے ہماری قانونی ٹیم نے ابھی منظور نہیں کیا۔ آپ کے علاقے میں OxSteed Credit پیش کیے جانے سے پہلے یہ بدل سکتا ہے۔",
+    "draftBadge": "مسودہ",
+    "version": "ورژن {{version}}",
+    "acceptNote": "ان شرائط کو قبول کرنے اور OxSteed Credit استعمال کرنے کے لیے اپنے اکاؤنٹ میں سائن ان کریں۔",
+    "signIn": "سائن ان کریں"
   }
 }

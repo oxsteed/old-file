@@ -36,6 +36,39 @@ function parseKey(raw) {
   throw new AppError('Invalid customer', 400, 'invalid_customer_key');
 }
 
+const RESTAURANT_BATCH = 200;
+
+/** Yields every restaurant id of a business in id order, RESTAURANT_BATCH at a time. */
+async function* businessRestaurantIds(businessId, db = pool, batch = RESTAURANT_BATCH) {
+  let after = 0;
+  for (;;) {
+    const { rows } = await db.query(
+      'SELECT id FROM food_restaurants WHERE business_id = $1 AND id > $2 ORDER BY id LIMIT $3', [businessId, after, batch]);
+    for (const r of rows) yield r.id;
+    if (rows.length < batch) return;
+    after = rows[rows.length - 1].id;
+  }
+}
+
+/*
+ * Keyset cursor for the customer list: the last row's (last_at, rkey) in the
+ * list order (last_at DESC NULLS LAST, rkey). Opaque base64url JSON.
+ */
+function encodeCursor(row) {
+  return Buffer.from(JSON.stringify([row.last_at ? new Date(row.last_at).toISOString() : null, row.rkey])).toString('base64url');
+}
+function decodeCursor(raw) {
+  if (raw == null || raw === '') return null;
+  try {
+    const [at, key] = JSON.parse(Buffer.from(String(raw).slice(0, 400), 'base64url').toString('utf8'));
+    if (typeof key !== 'string' || !/^(u-[0-9a-f-]{36}|c-\d{1,18})$/i.test(key)) throw new Error('key');
+    if (at !== null && (typeof at !== 'string' || Number.isNaN(Date.parse(at)))) throw new Error('at');
+    return { at, key };
+  } catch {
+    throw new AppError('Invalid cursor', 400, 'invalid_cursor');
+  }
+}
+
 /** Resolve what this caller may see for this business. Fails closed. */
 async function scopeFor(req, db = pool) {
   const perms = req.permissions || new Set();
@@ -48,8 +81,9 @@ async function scopeFor(req, db = pool) {
   // Restaurant orders: per restaurant, production resolver + store scope.
   const orderRestaurants = [];
   const orderLocations = [];
-  const { rows: restaurants } = await db.query('SELECT id FROM food_restaurants WHERE business_id = $1 ORDER BY id LIMIT 100', [req.business.id]);
-  for (const { id } of restaurants) {
+  // Gap fill 14: every restaurant of the business, read in keyset pages
+  // (no fixed cap), so large chains are covered completely.
+  for await (const id of businessRestaurantIds(req.business.id, db)) {
     let restaurant;
     try {
       restaurant = await resolveRestaurantAccess(userId, id);
@@ -122,27 +156,37 @@ function displayName(row) {
   return null;
 }
 
-async function list(req, { search = '', offset = 0 } = {}) {
+async function list(req, { search = '', cursor = null } = {}) {
   const scope = await scopeFor(req);
   requireCustomers(scope);
   const q = String(search || '').trim().slice(0, 80).toLowerCase();
-  const off = Math.min(Math.max(Number.parseInt(offset, 10) || 0, 0), 2000);
-  const params = [...relParams(scope), q ? `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%` : null, PAGE + 1, off];
+  const after = decodeCursor(cursor);
+  // Gap fill 14: keyset paging instead of a capped OFFSET, so every customer
+  // is reachable and pages never repeat or skip when new activity arrives.
+  // Order: last_at DESC NULLS LAST, rkey ASC. Rows after the cursor are
+  // those with an older last_at, the same last_at and a larger key, or (once
+  // past the dated rows) a NULL last_at.
+  const params = [...relParams(scope), q ? `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%` : null, PAGE + 1,
+    after ? after.at : null, after ? after.key : null, Boolean(after)];
   const { rows } = await pool.query(
     `WITH ${REL_CTE}
      SELECT m.rkey, m.client_id, m.name, m.last_at, m.via, u.first_name, u.last_name
        FROM merged m LEFT JOIN users u ON u.id = m.user_id::uuid
-      WHERE $7::text IS NULL OR lower(COALESCE(m.name, u.first_name || ' ' || COALESCE(u.last_name, ''), '')) LIKE $7
+      WHERE ($7::text IS NULL OR lower(COALESCE(m.name, u.first_name || ' ' || COALESCE(u.last_name, ''), '')) LIKE $7)
+        AND (NOT $11::boolean
+             OR ($9::timestamptz IS NOT NULL AND (m.last_at < $9::timestamptz OR m.last_at IS NULL OR (m.last_at = $9::timestamptz AND m.rkey > $10)))
+             OR ($9::timestamptz IS NULL AND m.last_at IS NULL AND m.rkey > $10))
       ORDER BY m.last_at DESC NULLS LAST, m.rkey
-      LIMIT $8 OFFSET $9`, params);
-  const customers = rows.slice(0, PAGE).map((r) => ({
+      LIMIT $8`, params);
+  const page = rows.slice(0, PAGE);
+  const customers = page.map((r) => ({
     key: r.rkey, clientId: r.client_id ? String(r.client_id) : null, name: displayName(r), lastAt: r.last_at, via: r.via,
   }));
   await logBusinessAction(req, {
     action: 'customer360.customers_listed', target_type: 'business', target_id: req.business.id, throwOnError: true,
-    metadata: { count: customers.length, searched: !!q, offset: off, scope: scope.customers },
+    metadata: { count: customers.length, searched: !!q, paged: Boolean(after), scope: scope.customers },
   });
-  return { customers, nextOffset: rows.length > PAGE ? off + PAGE : null, access: accessSummary(scope) };
+  return { customers, nextCursor: rows.length > PAGE ? encodeCursor(page[page.length - 1]) : null, access: accessSummary(scope) };
 }
 
 function accessSummary(scope) {
@@ -228,4 +272,4 @@ async function profile(req, rawKey) {
   return { customer, sections, access: accessSummary(scope) };
 }
 
-module.exports = { list, profile, scopeFor, parseKey, PAGE };
+module.exports = { list, profile, scopeFor, parseKey, businessRestaurantIds, encodeCursor, decodeCursor, PAGE, RESTAURANT_BATCH };

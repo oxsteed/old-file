@@ -76,7 +76,8 @@
     "explore": "Khám phá",
     "help": "Trợ giúp",
     "compactTagline": "Dịch vụ giúp việc, ẩm thực và doanh nghiệp tại địa phương.",
-    "teamAccess": "Truy cập nhóm (Vortex)"
+    "teamAccess": "Truy cập nhóm (Vortex)",
+    "creditTerms": "Điều khoản OxSteed Credit"
   },
   "nav": {
     "findHelp": "Tìm người giúp việc",
@@ -3854,5 +3855,20 @@
       "enabled": "{{flag}} đang bật",
       "disabledFlag": "{{flag}} đang tắt"
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "Điều khoản OxSteed Credit | OxSteed",
+    "metaDescription": "Đọc điều khoản, phí và các biện pháp bảo vệ của OxSteed Credit trước khi tạo tài khoản.",
+    "title": "Điều khoản OxSteed Credit",
+    "intro": "Bạn có thể đọc các điều khoản này mà không cần tài khoản. Bạn chỉ chấp nhận chúng sau khi đăng nhập, trước khi nạp hoặc nhận OxSteed Credit lần đầu.",
+    "currency": "Hiển thị phí bằng",
+    "loading": "Đang tải điều khoản…",
+    "loadFailed": "Không thể tải điều khoản. Vui lòng thử lại sau giây lát.",
+    "pendingTitle": "Đang chờ phê duyệt pháp lý.",
+    "pendingBody": "Một phần văn bản này là bản nháp mà đội ngũ pháp lý của chúng tôi chưa phê duyệt. Nội dung có thể thay đổi trước khi OxSteed Credit được cung cấp tại nơi bạn sống.",
+    "draftBadge": "Bản nháp",
+    "version": "Phiên bản {{version}}",
+    "acceptNote": "Để chấp nhận các điều khoản này và sử dụng OxSteed Credit, hãy đăng nhập vào tài khoản của bạn.",
+    "signIn": "Đăng nhập"
   }
 }

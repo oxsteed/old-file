@@ -12,7 +12,7 @@ const wrap = (fn) => async (req, res, next) => {
 };
 
 exports.list = wrap(async (req, res) => {
-  res.json(await svc.list(req, { search: req.query.search, offset: req.query.offset }));
+  res.json(await svc.list(req, { search: req.query.search, cursor: req.query.cursor }));
 });
 exports.profile = wrap(async (req, res) => {
   res.json(await svc.profile(req, req.params.customerKey));

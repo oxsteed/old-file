@@ -1662,7 +1662,8 @@
     "explore": "استكشف",
     "help": "المساعدة",
     "compactTagline": "مساعدة محلية وطعام وخدمات للأعمال.",
-    "teamAccess": "دخول الفريق (Vortex)"
+    "teamAccess": "دخول الفريق (Vortex)",
+    "creditTerms": "شروط OxSteed Credit"
   },
   "nav": {
     "findHelp": "العثور على مساعدة",
@@ -6472,5 +6473,20 @@
     "previous": "السابق",
     "next": "التالي",
     "closeBooking": "إغلاق تفاصيل الحجز"
+  },
+  "creditTermsPage": {
+    "metaTitle": "شروط OxSteed Credit | OxSteed",
+    "metaDescription": "اقرأ شروط OxSteed Credit ورسومه وأوجه الحماية قبل إنشاء حساب.",
+    "title": "شروط OxSteed Credit",
+    "intro": "يمكنك قراءة هذه الشروط دون حساب. لا تقبلها إلا بعد تسجيل الدخول، قبل أول إضافة أو استلام لـ OxSteed Credit.",
+    "currency": "عرض الرسوم بـ",
+    "loading": "جارٍ تحميل الشروط…",
+    "loadFailed": "تعذّر تحميل الشروط. يُرجى المحاولة مرة أخرى بعد قليل.",
+    "pendingTitle": "بانتظار الاعتماد القانوني.",
+    "pendingBody": "بعض هذا النص مسودة لم يعتمدها فريقنا القانوني بعد. قد يتغير قبل تقديم OxSteed Credit في منطقتك.",
+    "draftBadge": "مسودة",
+    "version": "الإصدار {{version}}",
+    "acceptNote": "لقبول هذه الشروط واستخدام OxSteed Credit، سجّل الدخول إلى حسابك.",
+    "signIn": "تسجيل الدخول"
   }
 }

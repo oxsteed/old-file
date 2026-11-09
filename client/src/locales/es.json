@@ -3170,7 +3170,8 @@
     "vortexCodePlaceholder": "VRTX-XXXXX-XXXXX",
     "vortexCodeError": "Ingresa un código de acceso válido.",
     "vortexCodeRedeemed": "Te uniste a {{name}}.",
-    "vortexCodePending": "Solicitud enviada. El propietario ha sido notificado para aprobar tu acceso."
+    "vortexCodePending": "Solicitud enviada. El propietario ha sido notificado para aprobar tu acceso.",
+    "creditTerms": "Términos de OxSteed Credit"
   },
   "accountTermination": {
     "pageTitle": "Política de Cancelación de Cuenta",
@@ -40477,5 +40478,20 @@
     "pagination": "Mostrando del {{from}} al {{to}} de {{total}} trabajos",
     "pagination.next": "Siguiente",
     "pagination.previous": "Anterior"
+  },
+  "creditTermsPage": {
+    "metaTitle": "Términos de OxSteed Credit | OxSteed",
+    "metaDescription": "Lea los términos, comisiones y protecciones de OxSteed Credit antes de crear una cuenta.",
+    "title": "Términos de OxSteed Credit",
+    "intro": "Puede leer estos términos sin una cuenta. Solo los acepta después de iniciar sesión, antes de agregar o recibir OxSteed Credit por primera vez.",
+    "currency": "Mostrar comisiones en",
+    "loading": "Cargando los términos…",
+    "loadFailed": "No se pudieron cargar los términos. Inténtelo de nuevo en un momento.",
+    "pendingTitle": "Pendiente de aprobación legal.",
+    "pendingBody": "Parte de este texto es un borrador que nuestro equipo legal aún no ha aprobado. Puede cambiar antes de que OxSteed Credit se ofrezca donde usted vive.",
+    "draftBadge": "Borrador",
+    "version": "Versión {{version}}",
+    "acceptNote": "Para aceptar estos términos y usar OxSteed Credit, inicie sesión en su cuenta.",
+    "signIn": "Iniciar sesión"
   }
 }

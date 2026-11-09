@@ -285,6 +285,9 @@ router.get('/audit-anchors/:date', h(async (req, res) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new AppError('Invalid date', 400, 'validation_failed');
   const anchor = await svc.anchors().getAnchor(date);
   if (!anchor) throw new AppError('Anchor not found', 404, 'credit_audit_anchor_not_found');
+  await auditRead(req, {
+    actionType: 'credit.audit_anchor.viewed', resourceType: 'credit_audit_anchor', resourceId: date, metadata: { sha256: anchor.payload_sha256 },
+  });
   res.json(anchor);
 }));
 

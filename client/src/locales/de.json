@@ -1412,7 +1412,8 @@
     "independentContractor": "Freier Auftragnehmer",
     "howOxsteedWorks": "Wie OxSteed funktioniert",
     "careers": "Karriere",
-    "callOxSteed": "Rufen Sie OxSteed unter {{phone}} an"
+    "callOxSteed": "Rufen Sie OxSteed unter {{phone}} an",
+    "creditTerms": "Bedingungen für OxSteed Credit"
   },
   "accountTermination": {
     "pageTitle": "Richtlinie zur Kontosperrung",
@@ -35374,5 +35375,20 @@
         "description": "Prüfungen, die dich und andere vor Betrug schützen. Wir listen sie nicht auf, aber du kannst den Support danach fragen."
       }
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "Bedingungen für OxSteed Credit | OxSteed",
+    "metaDescription": "Lesen Sie die Bedingungen, Gebühren und Schutzmaßnahmen von OxSteed Credit, bevor Sie ein Konto erstellen.",
+    "title": "Bedingungen für OxSteed Credit",
+    "intro": "Sie können diese Bedingungen ohne Konto lesen. Sie akzeptieren sie erst nach der Anmeldung, bevor Sie zum ersten Mal OxSteed Credit aufladen oder erhalten.",
+    "currency": "Gebühren anzeigen in",
+    "loading": "Bedingungen werden geladen …",
+    "loadFailed": "Die Bedingungen konnten nicht geladen werden. Bitte versuchen Sie es gleich noch einmal.",
+    "pendingTitle": "Rechtliche Freigabe ausstehend.",
+    "pendingBody": "Ein Teil dieses Textes ist ein Entwurf, den unser Rechtsteam noch nicht freigegeben hat. Er kann sich ändern, bevor OxSteed Credit in Ihrer Region angeboten wird.",
+    "draftBadge": "Entwurf",
+    "version": "Version {{version}}",
+    "acceptNote": "Um diese Bedingungen zu akzeptieren und OxSteed Credit zu nutzen, melden Sie sich bei Ihrem Konto an.",
+    "signIn": "Anmelden"
   }
 }

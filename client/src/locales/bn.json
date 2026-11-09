@@ -1412,7 +1412,8 @@
     "independentContractor": "স্বাধীন ঠিকাদার",
     "howOxsteedWorks": "কিভাবে OxSteed কাজ করে",
     "careers": "কেরিয়ার",
-    "callOxSteed": "OxSteed {{phone}} এ কল করুন"
+    "callOxSteed": "OxSteed {{phone}} এ কল করুন",
+    "creditTerms": "OxSteed Credit-এর শর্তাবলি"
   },
   "accountTermination": {
     "pageTitle": "অ্যাকাউন্ট সমাপ্তি নীতি",
@@ -35374,5 +35375,20 @@
         "description": "যে পরীক্ষাগুলো আপনাকে ও অন্যদের প্রতারণা থেকে রক্ষা করে। আমরা এগুলোর তালিকা দিই না, তবে সহায়তায় জিজ্ঞাসা করতে পারেন।"
       }
     }
+  },
+  "creditTermsPage": {
+    "metaTitle": "OxSteed Credit-এর শর্তাবলি | OxSteed",
+    "metaDescription": "অ্যাকাউন্ট খোলার আগে OxSteed Credit-এর শর্ত, ফি ও সুরক্ষা পড়ুন।",
+    "title": "OxSteed Credit-এর শর্তাবলি",
+    "intro": "অ্যাকাউন্ট ছাড়াই এই শর্তাবলি পড়তে পারেন। সাইন ইন করার পরে, প্রথমবার OxSteed Credit যোগ বা গ্রহণ করার আগে আপনি এগুলো গ্রহণ করবেন।",
+    "currency": "ফি দেখান এই মুদ্রায়",
+    "loading": "শর্তাবলি লোড হচ্ছে…",
+    "loadFailed": "শর্তাবলি লোড করা যায়নি। একটু পরে আবার চেষ্টা করুন।",
+    "pendingTitle": "আইনি অনুমোদনের অপেক্ষায়।",
+    "pendingBody": "এই লেখার কিছু অংশ খসড়া, যা আমাদের আইনি দল এখনো অনুমোদন করেনি। আপনার এলাকায় OxSteed Credit চালু হওয়ার আগে এটি বদলাতে পারে।",
+    "draftBadge": "খসড়া",
+    "version": "সংস্করণ {{version}}",
+    "acceptNote": "এই শর্তাবলি গ্রহণ করে OxSteed Credit ব্যবহার করতে আপনার অ্যাকাউন্টে সাইন ইন করুন।",
+    "signIn": "সাইন ইন"
   }
 }
