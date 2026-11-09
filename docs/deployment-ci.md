@@ -26,6 +26,10 @@ manually dispatchable for a deliberate recovery or rehearsal. This direct
 dispatch is the release gate; a missed or duplicated webhook cannot silently
 select a different commit.
 
+The first split default-branch measurement was run `42596399340`: all four
+required checks completed in 15:32 from run creation to the final required
+check, below the 17-minute target.
+
 ## Startup checksum failure on 2026-10-18
 
 Production returned the proxy's plain `404 page not found` while the app
