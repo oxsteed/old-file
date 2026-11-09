@@ -112,6 +112,28 @@ async function runAffiliateCommissionBatch() {
 
     for (const row of commissionsToProcess.rows) {
       try {
+        // Oct 30 item 17: a program with a NULL rate used to throw in
+        // commissionCentsForSale on every nightly run, logging forever
+        // with no incident while the NOT EXISTS check kept re-selecting
+        // the row. Skip it with a deduped incident per program instead.
+        if (row.affiliate_program_id && row.commission_rate == null) {
+          logger.warn('Skipping commission for affiliate program with no rate', {
+            orderId: row.order_id,
+            affiliateProgramId: row.affiliate_program_id,
+          });
+          try {
+            await require('../services/incidentStore').recordIncident({
+              type: 'affiliate_program_missing_commission_rate',
+              severity: 'high',
+              message: `Affiliate program ${row.affiliate_program_id} has no commission rate; its commissions are skipped`,
+              dedupeKey: `affiliate-program-null-rate:${row.affiliate_program_id}`,
+              details: { affiliateProgramId: row.affiliate_program_id, orderId: row.order_id },
+            });
+          } catch (incidentError) {
+            logger.error('Affiliate null-rate incident could not be recorded', { error: incidentError.message });
+          }
+          continue;
+        }
         const commissionCents = commissionCentsForSale(row.sale_amount, row.commission_rate);
 
         // Create commission record
@@ -156,10 +178,14 @@ async function runAffiliateCommissionBatch() {
 
     // Auto-confirm old pending commissions (30+ days), but never confirm
     // a commission whose order stopped being payable: a refunded or
-    // cancelled order, or any succeeded refund row against it. Completed
-    // orders still confirm (fulfilment is the happy path); only money-back
-    // states block. Checked at confirm time, not just at creation, because
-    // an order can be refunded after its commission is created.
+    // cancelled order, any succeeded refund row against it, or an open or
+    // lost Stripe dispute on the order's charge. A won dispute keeps the
+    // money, so it does not block; a charge_refunded dispute returned the
+    // money, so it blocks like a refund. The dispute link runs through
+    // marketplace_transactions.payment_intent_id because no dispute path
+    // marks a marketplace order refunded (Oct 30 item 4, chargeback half).
+    // Checked at confirm time, not just at creation, because an order can
+    // be refunded or disputed after its commission is created.
     const confirmedCount = await pool.query(
       `UPDATE affiliate_commissions
        SET status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP
@@ -178,6 +204,17 @@ async function runAffiliateCommissionBatch() {
          SELECT 1 FROM marketplace_transaction_refunds mtr
          WHERE mtr.order_id = affiliate_commissions.order_id
            AND mtr.status = 'succeeded'
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM marketplace_transactions mt
+         JOIN stripe_chargebacks sc
+           ON sc.stripe_payment_intent_id = mt.payment_intent_id
+         WHERE mt.order_id = affiliate_commissions.order_id
+           AND sc.stripe_status IN (
+             'needs_response', 'warning_needs_response',
+             'under_review', 'warning_under_review',
+             'lost', 'charge_refunded'
+           )
        )`
     );
 
@@ -187,6 +224,22 @@ async function runAffiliateCommissionBatch() {
     });
   } catch (error) {
     logger.error('Affiliate commission batch job failed', { error });
+    // Oct 30 item 8: the old log-only catch made a failed money job
+    // invisible to every incident surface, because the fenced caller then
+    // always reported success. Record a deduped incident and rethrow so
+    // the failure is visible and the run is not reported as success.
+    try {
+      await require('../services/incidentStore').recordIncident({
+        type: 'affiliate_commission_batch_failed',
+        severity: 'high',
+        message: 'Affiliate commission batch job failed',
+        dedupeKey: 'affiliate-commission-batch-failed',
+        details: { error: error.message },
+      });
+    } catch (incidentError) {
+      logger.error('Affiliate commission batch incident could not be recorded', { error: incidentError.message });
+    }
+    throw error;
   }
 }
 
@@ -198,9 +251,15 @@ function startAffiliateCommissionBatchJob() {
   const cron = require('node-cron');
   let stopped = false;
 
-  // Run once at startup after a delay (catch-up for downtime).
-  const startupTimer = setTimeout(async () => {
-    if (!stopped) await processAffiliateCommissionBatch();
+  // Run once at startup after a delay (catch-up for downtime). The batch
+  // rethrows on failure (Oct 30 item 8), so the timer and the cron
+  // callback both log a failed run instead of an unhandled rejection.
+  const startupTimer = setTimeout(() => {
+    if (!stopped) {
+      processAffiliateCommissionBatch().catch((error) => {
+        logger.error('Affiliate commission batch startup run failed', { error: error.message });
+      });
+    }
   }, 60000); // Wait 1 minute
 
   // Background-jobs audit (finding J4): the old hand-rolled setTimeout
@@ -209,8 +268,12 @@ function startAffiliateCommissionBatchJob() {
   // node-cron pins the run to 01:00 UTC daily. Overlap is impossible: the
   // batch itself runs under the fenced job lock, so a slow run makes the
   // next tick skip instead of double-running.
-  const task = cron.schedule('0 1 * * *', async () => {
-    if (!stopped) await processAffiliateCommissionBatch();
+  const task = cron.schedule('0 1 * * *', () => {
+    if (!stopped) {
+      processAffiliateCommissionBatch().catch((error) => {
+        logger.error('Affiliate commission batch run failed', { error: error.message });
+      });
+    }
   }, { timezone: 'UTC' });
   logger.info('Affiliate commission batch scheduled', { cron: '0 1 * * *', timezone: 'UTC' });
 

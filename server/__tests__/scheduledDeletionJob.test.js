@@ -78,8 +78,7 @@ test('OTP challenge retention defaults to 30 days and is bounded', async () => {
   delete process.env.OTP_CHALLENGE_RETENTION_DAYS;
 });
 
-test('P3-11-F03: audit rows are reassigned to the sentinel, never nulled, so a user with audit history can be hard-deleted', async () => {
-  const SENTINEL = '00000000-0000-0000-0000-000000000000';
+test('P3-11-F03: audit rows are reassigned to the sentinel, never nulled, so a user with audit history can be hard-deleted', async () => {  const SENTINEL = '00000000-0000-0000-0000-000000000000';
   const user = { id: '11111111-1111-4111-8111-111111111111', email: 'admin@example.com' };
   mockQuery.mockImplementation(async (sql) => {
     const text = String(sql);
@@ -109,4 +108,72 @@ test('P3-11-F03: audit rows are reassigned to the sentinel, never nulled, so a u
   // The user row itself is deleted and the transaction commits.
   expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM users'))).toBe(true);
   expect(mockQuery.mock.calls.some(([sql]) => String(sql) === 'COMMIT')).toBe(true);
+});
+
+describe('growth erasure blocker when the pepper is unset (Oct 30 item 11)', () => {
+  const user = { id: '22222222-2222-4222-8222-222222222222', email: 'growth@example.com' };
+  const OLD_PEPPER = process.env.GROWTH_SUBJECT_PEPPER;
+
+  function mockDeletionQueries({ growthRows }) {
+    mockQuery.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (text.includes('information_schema.tables')) return { rows: [{ exists: true }] };
+      if (text.includes('AS has_credit_records')) return { rows: [{ has_credit_records: false }] };
+      if (text.includes('FROM user_interest_profiles WHERE user_id')) {
+        return { rows: growthRows ? [{ '?column?': 1 }] : [] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+  }
+
+  beforeEach(() => {
+    resetMocks();
+    delete process.env.GROWTH_SUBJECT_PEPPER;
+  });
+
+  afterAll(() => {
+    if (OLD_PEPPER === undefined) delete process.env.GROWTH_SUBJECT_PEPPER;
+    else process.env.GROWTH_SUBJECT_PEPPER = OLD_PEPPER;
+  });
+
+  test('hasGrowthRows finds the first user_id-keyed growth table with rows', async () => {
+    const { hasGrowthRows } = require('../jobs/scheduledDeletionJob');
+    mockQuery.mockImplementation(async (sql) => {
+      if (String(sql).includes('information_schema.tables')) return { rows: [{ exists: true }] };
+      if (String(sql).includes('FROM user_interest_profiles WHERE user_id')) return { rows: [{ '?column?': 1 }] };
+      return { rows: [] };
+    });
+    await expect(hasGrowthRows({ query: mockQuery }, user.id)).resolves.toBe('user_interest_profiles');
+  });
+
+  test('hasGrowthRows returns null when no growth table holds rows', async () => {
+    const { hasGrowthRows } = require('../jobs/scheduledDeletionJob');
+    mockQuery.mockImplementation(async (sql) => {
+      if (String(sql).includes('information_schema.tables')) return { rows: [{ exists: true }] };
+      return { rows: [] };
+    });
+    await expect(hasGrowthRows({ query: mockQuery }, user.id)).resolves.toBeNull();
+  });
+
+  test('a user with growth rows is retained, rolled back, and incidented instead of deleted', async () => {
+    mockDeletionQueries({ growthRows: true });
+    await hardDeleteUser(user);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM users'))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql) === 'COMMIT')).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql) === 'ROLLBACK')).toBe(true);
+    const incident = mockQuery.mock.calls.find(
+      ([sql, params]) => String(sql).includes('INSERT INTO incident_log')
+        && Array.isArray(params) && params.includes(`account-deletion-growth-blocked:${user.id}`)
+    );
+    expect(incident).toBeTruthy();
+    expect(incident[1][0]).toBe('account_deletion_growth_erasure_blocked');
+    expect(incident[1][1]).toBe('high');
+  });
+
+  test('a user with no growth rows deletes normally while the pepper is unset', async () => {
+    mockDeletionQueries({ growthRows: false });
+    await hardDeleteUser(user);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM users'))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql) === 'COMMIT')).toBe(true);
+  });
 });

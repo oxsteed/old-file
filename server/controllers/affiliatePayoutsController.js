@@ -553,9 +553,11 @@ async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = f
       // payout_transactions like the legacy admin route does, keyed on the
       // canonical per-payout Stripe idempotency key, so the settlement
       // reconciliation sweep sees transfers from both processors.
+      // completed_at is stamped here because the row is born completed;
+      // the payout_transactions trigger backstops any other writer.
       await client.query(
-        `INSERT INTO payout_transactions (payout_id, transaction_status, idempotency_key, external_transaction_id)
-         VALUES ($1, 'completed', $2, $3)
+        `INSERT INTO payout_transactions (payout_id, transaction_status, idempotency_key, external_transaction_id, completed_at)
+         VALUES ($1, 'completed', $2, $3, CURRENT_TIMESTAMP)
          ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING`,
         [payoutId, `affiliate-payout:${payoutId}`, transfer.id]
       );
