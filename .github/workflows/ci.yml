@@ -757,3 +757,44 @@ jobs:
       - name: Remove ClickHouse fixture
         if: always()
         run: docker rm -f oxsteed-growth-clickhouse-ci >/dev/null 2>&1 || true
+
+  dispatch-verified-web-image:
+    name: Dispatch verified web image
+    needs:
+      - client-build
+      - client-browser
+      - server-check
+      - statement-capacity
+      - install-check
+      - media-isolated
+      - migration-rehearsal
+      - growth-clickhouse-rehearsal
+    if: >-
+      ${{ always() &&
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/old-files-claude' &&
+          needs.client-build.result == 'success' &&
+          needs.client-browser.result == 'success' &&
+          needs.server-check.result == 'success' &&
+          needs.statement-capacity.result == 'success' &&
+          needs.install-check.result == 'success' &&
+          needs.media-isolated.result == 'success' &&
+          needs.migration-rehearsal.result == 'success' &&
+          needs.growth-clickhouse-rehearsal.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch image build for this verified commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          gh api --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/workflows/web-image.yml/dispatches" \
+            --input - <<JSON
+          {"ref":"${GITHUB_REF_NAME}","inputs":{"release_sha":"${RELEASE_SHA}"}}
+          JSON

@@ -7,20 +7,31 @@ const runtimeState = require('../services/runtimeState');
 
 const { backgroundProbeTimeoutMs, backgroundConfirmationTimeoutMs } = require('../config/readinessBudgets.json');
 
-function backgroundReadinessUrl(value) {
+function backgroundReadinessUrl(value, setting = 'BACKGROUND_READINESS_URL') {
   let url;
-  try { url = new URL(value); } catch { throw new Error('Web runtime requires BACKGROUND_READINESS_URL.'); }
+  try { url = new URL(value); } catch { throw new Error(`Web runtime requires a valid ${setting}.`); }
   if (url.protocol !== 'http:' || url.username || url.password || url.search || url.hash
       || url.pathname !== '/ready' || !/^[a-z0-9][a-z0-9-]{0,127}$/i.test(url.hostname)
       || url.hostname === 'localhost') {
-    throw new Error('BACKGROUND_READINESS_URL must name the private background runtime readiness endpoint.');
+    throw new Error(`${setting} must name a private background runtime readiness endpoint.`);
   }
   return url.href;
 }
 
 class DelegatedWorkers {
-  constructor({ url = process.env.BACKGROUND_READINESS_URL, fetchImpl = fetch, intervalMs = 5000, timeoutMs = backgroundProbeTimeoutMs } = {}) {
-    this.url = backgroundReadinessUrl(url);
+  constructor({
+    url = process.env.BACKGROUND_READINESS_URL,
+    fallbackUrl = process.env.BACKGROUND_READINESS_FALLBACK_URL,
+    fetchImpl = fetch,
+    intervalMs = 5000,
+    timeoutMs = backgroundProbeTimeoutMs,
+  } = {}) {
+    this.urls = [backgroundReadinessUrl(url)];
+    if (fallbackUrl) {
+      const alternate = backgroundReadinessUrl(fallbackUrl, 'BACKGROUND_READINESS_FALLBACK_URL');
+      if (alternate === this.urls[0]) throw new Error('Background readiness endpoints must be distinct.');
+      this.urls.push(alternate);
+    }
     if (!Number.isInteger(intervalMs) || intervalMs < 100 || intervalMs > 60000
         || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10000) {
       throw new TypeError('Background readiness observation requires bounded polling and timeout intervals.');
@@ -37,21 +48,37 @@ class DelegatedWorkers {
     this.lastOk = null;
   }
 
-  async probe(timeoutMs) {
-    const signal = AbortSignal.timeout(timeoutMs);
+  async probeEndpoint(url, signal) {
     try {
-      const response = await this.fetch(this.url, { redirect: 'error', signal });
-      if (!response.ok) return 'unavailable';
+      const response = await this.fetch(url, { redirect: 'error', signal });
+      if (!response.ok) return false;
       const result = await response.json();
       // Do not delegate to another web facade or accept liveness alone.
-      const ok = result.status === 'ready' && result.checks?.workers?.ok === true
+      return result.status === 'ready' && result.checks?.workers?.ok === true
         && [undefined, 'combined'].includes(result.checks.workers.mode);
-      return ok ? 'ready' : 'unavailable';
     } catch {
       // Do not log the URL or body. Fetch errors can embed the private endpoint.
-      const timedOut = signal.aborted && signal.reason?.name === 'TimeoutError';
-      logger.warn('Background readiness observation failed', { timedOut });
-      return timedOut ? 'timeout' : 'unavailable';
+      const reason = signal.aborted ? signal.reason?.name : undefined;
+      if (reason !== 'AbortError') logger.warn('Background readiness observation failed', { timedOut: reason === 'TimeoutError' });
+      return false;
+    }
+  }
+
+  async probe(timeoutMs) {
+    const deadline = AbortSignal.timeout(timeoutMs);
+    const complete = new AbortController();
+    const signal = AbortSignal.any([deadline, complete.signal]);
+    try {
+      await Promise.any(this.urls.map(async url => {
+        if (!await this.probeEndpoint(url, signal)) throw new Error('Background runtime unavailable');
+      }));
+      return 'ready';
+    } catch {
+      return deadline.aborted ? 'timeout' : 'unavailable';
+    } finally {
+      // Both endpoints share one deadline. A slow standby cannot hold up a
+      // healthy response from the active worker.
+      complete.abort();
     }
   }
 

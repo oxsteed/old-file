@@ -1,10 +1,11 @@
 name: Verified web image
 on:
-  workflow_run:
-    workflows: [CI]
-    branches: [old-files-claude]
-    types: [completed]
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact successful default-branch commit to build
+        required: false
+        type: string
 permissions:
   contents: read
   actions: read
@@ -16,15 +17,10 @@ concurrency:
   cancel-in-progress: false
 jobs:
   image:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push' &&
-       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     env:
-      RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
       IMAGE: ghcr.io/oxsteed/old-file-web
     steps:
       - uses: actions/checkout@v7

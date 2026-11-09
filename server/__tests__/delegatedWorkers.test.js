@@ -36,6 +36,58 @@ describe('web replacements delegate background work without starting consumers',
     }
   });
 
+  test('either private endpoint can prove worker readiness during a handoff', async () => {
+    const primary = 'http://worker-a:5000/ready';
+    const alternate = 'http://worker-b:5000/ready';
+    let active = primary;
+    const fetchImpl = jest.fn(async url => ({
+      ok: true,
+      json: async () => ({
+        status: 'ready',
+        checks: { workers: { ok: true, mode: url === active ? 'combined' : 'delegated' } },
+      }),
+    }));
+    const workers = new DelegatedWorkers({ url: primary, fallbackUrl: alternate, fetchImpl });
+    try {
+      await workers.start();
+      active = alternate;
+      await expect(workers.observe()).resolves.toBe(true);
+      expect(runtimeState.snapshot().workersReady).toBe(true);
+      active = null;
+      await expect(workers.observe()).resolves.toBe(false);
+      expect(runtimeState.snapshot().workersReady).toBe(false);
+    } finally { await workers.stop(); }
+  });
+
+  test('a healthy worker cancels the other observation without waiting for its deadline', async () => {
+    const primary = 'http://worker-a:5000/ready';
+    const alternate = 'http://worker-b:5000/ready';
+    let pendingSignal;
+    const workers = new DelegatedWorkers({
+      url: primary,
+      fallbackUrl: alternate,
+      fetchImpl: async (url, { signal }) => {
+        if (url === primary) {
+          pendingSignal = signal;
+          await require('node:timers/promises').setTimeout(10000, undefined, { signal });
+        }
+        return { ok: true, json: async () => ({ status: 'ready', checks: { workers: { ok: true, mode: 'combined' } } }) };
+      },
+    });
+    try {
+      await workers.start();
+      expect(pendingSignal.aborted).toBe(true);
+      expect(pendingSignal.reason.name).toBe('AbortError');
+    } finally { await workers.stop(); }
+  });
+
+  test('the alternate endpoint must be private and distinct', () => {
+    const url = 'http://worker-a:5000/ready';
+    expect(() => new DelegatedWorkers({ url, fallbackUrl: url })).toThrow('must be distinct');
+    expect(() => new DelegatedWorkers({ url, fallbackUrl: 'http://external.example/ready' }))
+      .toThrow('BACKGROUND_READINESS_FALLBACK_URL');
+  });
+
   test('a responsive background check may take longer than 1.5 seconds without falsely withdrawing web readiness', async () => {
     const delay = require('node:timers/promises').setTimeout;
     const workers = new DelegatedWorkers({ url: 'http://app:5000/ready', fetchImpl: async (_url, { signal }) => {
