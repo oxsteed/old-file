@@ -949,7 +949,25 @@ app.use(errorHandler);
 // ── APPLICATION LIFECYCLE ─────────────────────────────────────
 const { ApplicationRuntime } = require('./bootstrap/applicationRuntime');
 const { runsBackgroundWorkers } = require('./utils/runtimeRole');
-const runtime = new ApplicationRuntime({ httpServer, realtime, pool, redis });
+let statementExportStarted = false;
+let auxiliaryWorkersStarted = false;
+async function startWorkerOwnerExtras() {
+  if (!runsBackgroundWorkers()) return;
+  // These resources belong to the same database-backed owner as the cron and
+  // timer registry. A standby replacement must not start them while the old
+  // process still owns the advisory lock.
+  if (!statementExportStarted) {
+    const statementExportJobs = require('./services/statementExportJobService');
+    statementExportJobs.start();
+    runtime.workers.handles.push({ stop: () => statementExportJobs.stop() });
+    statementExportStarted = true;
+  }
+  if (httpServer.listening && !auxiliaryWorkersStarted) {
+    require('./bootstrap/auxiliaryWorkers').startAuxiliaryWorkers({ workers: runtime.workers, log: logger });
+    auxiliaryWorkersStarted = true;
+  }
+}
+const runtime = new ApplicationRuntime({ httpServer, realtime, pool, redis, onWorkerOwnerAcquired: startWorkerOwnerExtras });
 
 async function listen() {
   await new Promise((resolve, reject) => {
@@ -964,13 +982,6 @@ async function listen() {
 
 async function startServer() {
   await runtime.prepare();
-  // Dependencies/migrations are ready before the durable export worker starts.
-  // BackgroundWorkers owns its stop handle before pool/Redis teardown.
-  if (runsBackgroundWorkers()) {
-    const statementExportJobs = require('./services/statementExportJobService');
-    statementExportJobs.start();
-    runtime.workers.handles.push({stop:()=>statementExportJobs.stop()});
-  }
   try {
     await reloadFeeConfig();
   } catch (err) {
@@ -998,9 +1009,7 @@ async function startServer() {
   await listen();
   runtime.markListening();
   // Preserve post-listen startup, with every stop owned by the shared runtime.
-  if (runsBackgroundWorkers()) {
-    require('./bootstrap/auxiliaryWorkers').startAuxiliaryWorkers({ workers: runtime.workers, log: logger });
-  }
+  await startWorkerOwnerExtras();
   logger.info(`OxSteed v2 server running on port ${PORT}`, {
     env: process.env.NODE_ENV || 'development',
     realtimeNamespaces: ['/chat', '/support', '/restaurant-display'],

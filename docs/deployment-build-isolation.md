@@ -78,6 +78,17 @@ Independent Coolify push triggers remain disabled; this observer owns promotion.
 A failed remote build/pull never queues a replacement. Keep image receipts and
 prior known-good images for diagnosis and recovery.
 
+The observer now promotes the combined worker application after the web image
+is healthy. Combined runtimes hold a PostgreSQL advisory ownership lock on one
+pool session. A replacement may boot as `combined-standby`, but it does not
+register cron/timer consumers, statement export, or auxiliary workers until the
+previous owner drains and releases the session. The standby then acquires the
+lock and promotes itself to `combined`; the web replacement continues to accept
+traffic only while a `combined` owner is ready. The first rollout from the
+legacy runtime is guarded by a scoped graceful stop and automatic restart of
+the retained owner if the worker deployment fails. This is the single-owner
+handoff boundary; it does not copy production credentials into CI or the image.
+
 In the November 3 host rehearsal, the candidate-side checker ran in a
 disposable networkless Colima container. With the live image's migration
 catalog it accepted the production markers. With the default-branch catalog

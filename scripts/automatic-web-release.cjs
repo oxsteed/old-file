@@ -45,6 +45,119 @@ function docker(args, input) {
   return command(['docker', '--context', 'colima', ...args], input);
 }
 
+function combinedController(code) {
+  const encoded = Buffer.from(String.raw`
+    $a=App\Models\Application::where('uuid','${COMBINED_APPLICATION}')->firstOrFail();
+    if($a->git_repository!=='oxsteed/old-file'||$a->git_branch!=='${BRANCH}'||$a->build_pack!=='dockercompose'
+      ||$a->settings->is_auto_deploy_enabled||$a->settings->is_consistent_container_name_enabled)
+      throw new RuntimeException('Unsafe combined worker deployment target');
+  ` + code + `echo 'OXSTEED_RESULT:'.json_encode($result);`).toString('base64');
+  const output = docker(['exec','coolify','php','artisan','tinker','--execute',`eval(base64_decode('${encoded}'));`]);
+  const match = /OXSTEED_RESULT:(.*)/.exec(output);
+  if (!match) throw new Error('Controller did not return a worker deployment receipt.');
+  return JSON.parse(match[1]);
+}
+
+function healthyCombinedContainers(runDocker = docker) {
+  return runDocker([
+    'ps', '--quiet', '--no-trunc', '--filter', `label=coolify.applicationUuid=${COMBINED_APPLICATION}`,
+    '--filter', 'label=com.docker.compose.service=app', '--filter', 'health=healthy',
+  ]).split(/\s+/).filter(Boolean);
+}
+
+function combinedReady(id, runDocker = docker) {
+  return JSON.parse(runDocker(['exec', id, 'node', '-e',
+    "fetch('http://127.0.0.1:5000/ready').then(async r=>{console.log(await r.text());process.exit(r.ok?0:1)})"]));
+}
+
+async function promoteCombinedWorker(gitSha, { runDocker = docker, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+  const current = combinedController(String.raw`
+    $latest=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->orderByDesc('id')->first();
+    $active=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists();
+    $result=['active'=>$active,'latest'=>$latest?['status'=>$latest->status,'commit'=>$latest->commit]:null];
+  `);
+  if (current.active) return { status: 'worker_release_in_progress', gitSha };
+  if (current.latest?.commit === gitSha && ['failed', 'cancelled-by-user'].includes(current.latest.status)) {
+    throw new Error('This worker replacement was rejected; inspect it before an explicit retry.');
+  }
+  const healthy = healthyCombinedContainers(runDocker);
+  if (current.latest?.commit === gitSha && current.latest.status === 'finished' && healthy.length === 1) {
+    try {
+      const ready = combinedReady(healthy[0], runDocker);
+      if (ready.status === 'ready' && ready.checks?.workers?.mode === 'combined'
+          && ready.releaseMetadata?.gitSha === gitSha) {
+        return { status: 'worker_already_current', gitSha };
+      }
+    } catch { /* retry the exact source commit below */ }
+  }
+  // The first worker-aware release must not overlap the legacy combined
+  // runtime, which predates the advisory ownership lock. Later replacements
+  // can roll alongside the old owner and wait in combined-standby until the
+  // old process drains and releases the lock.
+  let bootstrapOwner = false;
+  let legacyContainer = null;
+  if (healthy.length === 1) {
+    try {
+      runDocker(['exec', healthy[0], 'node', '-e', "require('./bootstrap/workerOwnership'); process.stdout.write('owner-aware')"]);
+    } catch {
+      bootstrapOwner = true;
+      legacyContainer = healthy[0];
+      runDocker(['stop', '--time', '30', legacyContainer]);
+    }
+  }
+  try {
+  const queued = combinedController(String.raw`
+    $a->environment_variables()->updateOrCreate(['key'=>'SOURCE_COMMIT','is_preview'=>false],['value'=>'${gitSha}','is_runtime'=>true,'is_buildtime'=>true,'is_literal'=>true]);
+    $a->environment_variables()->updateOrCreate(['key'=>'COMMIT_SHA','is_preview'=>false],['value'=>'${gitSha}','is_runtime'=>true,'is_buildtime'=>true,'is_literal'=>true]);
+    $a->environment_variables()->updateOrCreate(['key'=>'GIT_SHA','is_preview'=>false],['value'=>'${gitSha}','is_runtime'=>true,'is_buildtime'=>true,'is_literal'=>true]);
+    $uuid=new_public_id();
+    queue_application_deployment(application:$a,deployment_uuid:$uuid,commit:'${gitSha}',force_rebuild:true);
+    $result=['deployment'=>$uuid];
+  `);
+  if (!/^[a-z0-9]{1,64}$/.test(queued.deployment)) throw new Error('Invalid worker deployment receipt.');
+  const deadline = Date.now() + 900000;
+  while (Date.now() < deadline) {
+    const state = combinedController(String.raw`
+      $q=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->where('deployment_uuid','${queued.deployment}')->firstOrFail();
+      $result=['status'=>$q->status,'commit'=>$q->commit];
+    `);
+    if (['failed','cancelled-by-user'].includes(state.status)) {
+      throw new Error(`Worker replacement ${queued.deployment} was ${state.status}; inspect the retained owner.`);
+    }
+    if (state.status === 'finished') {
+      const candidates = healthyCombinedContainers(runDocker);
+      if (candidates.length !== 1) {
+        await sleep(5000);
+        continue;
+      }
+      try {
+        const ready = combinedReady(candidates[0], runDocker);
+        if (ready.status === 'ready' && ready.checks?.workers?.mode === 'combined'
+            && ready.releaseMetadata?.gitSha === gitSha) {
+          return { status: 'worker_finished', gitSha, deployment: queued.deployment };
+        }
+      } catch { /* keep observing until the replacement owns workers */ }
+    }
+    await sleep(5000);
+  }
+  throw new Error('Timed out waiting for the worker replacement; inspect its exact deployment.');
+  } catch (error) {
+    if (bootstrapOwner && legacyContainer) {
+      try {
+        runDocker(['start', legacyContainer]);
+        const recoveryDeadline = Date.now() + 120000;
+        while (Date.now() < recoveryDeadline) {
+          try {
+            if (combinedReady(legacyContainer, runDocker).status === 'ready') break;
+          } catch { /* keep waiting for the retained owner */ }
+          await sleep(2000);
+        }
+      } catch { /* preserve the original deployment error */ }
+    }
+    throw error;
+  }
+}
+
 function bridgePlanPath() {
   const path = require('node:path');
   const local = path.join(__dirname, 'deploy/web-schema-bridge-20261102.json');
@@ -90,20 +203,28 @@ function applyBridgeSchema({ gitSha, runId, list = () => docker([
 }
 
 async function promoteAutomatic(runId, deps = {}) {
-  const candidate = await (deps.promote || promote)(runId);
-  if (!['waiting_for_schema', 'waiting_for_schema_apply'].includes(candidate.status)) return candidate;
-  const bridge = ensureBridge(candidate.gitSha, deps.api || ghJson, deps.dispatch || dispatchBridge);
-  if (!bridge) return { status: 'waiting_for_schema_bridge', gitSha: candidate.gitSha };
-  if (bridge.status !== 'completed' || bridge.conclusion !== 'success') {
-    return { status: 'waiting_for_schema_bridge', gitSha: candidate.gitSha, bridgeRunId: String(bridge.id), bridgeStatus: bridge.status, bridgeConclusion: bridge.conclusion };
+  const initial = await (deps.promote || promote)(runId);
+  let web = initial;
+  if (['waiting_for_schema', 'waiting_for_schema_apply'].includes(initial.status)) {
+    const bridge = ensureBridge(initial.gitSha, deps.api || ghJson, deps.dispatch || dispatchBridge);
+    if (!bridge) return { status: 'waiting_for_schema_bridge', gitSha: initial.gitSha };
+    if (bridge.status !== 'completed' || bridge.conclusion !== 'success') {
+      return { status: 'waiting_for_schema_bridge', gitSha: initial.gitSha, bridgeRunId: String(bridge.id), bridgeStatus: bridge.status, bridgeConclusion: bridge.conclusion };
+    }
+    const bridgeResult = await (deps.promote || promote)(String(bridge.id), { bridge: true });
+    if (!['finished', 'already_current'].includes(bridgeResult.status)) {
+      return { status: 'waiting_for_schema_apply', gitSha: initial.gitSha, bridgeRunId: String(bridge.id), bridgeStatus: bridgeResult.status };
+    }
+    const applied = (deps.applySchema || applyBridgeSchema)({ gitSha: initial.gitSha, runId: String(bridge.id) });
+    if (applied.status !== 'schema_applied') return applied;
+    web = await (deps.promote || promote)(runId);
   }
-  const bridgeResult = await (deps.promote || promote)(String(bridge.id), { bridge: true });
-  if (!['finished', 'already_current'].includes(bridgeResult.status)) {
-    return { status: 'waiting_for_schema_apply', gitSha: candidate.gitSha, bridgeRunId: String(bridge.id), bridgeStatus: bridgeResult.status };
+  if (!['finished', 'already_current'].includes(web.status)) return web;
+  const worker = await (deps.promoteWorker || promoteCombinedWorker)(web.gitSha);
+  if (!['worker_finished', 'worker_already_current'].includes(worker.status)) {
+    return { status: 'waiting_for_worker_promotion', gitSha: web.gitSha, workerStatus: worker.status };
   }
-  const applied = (deps.applySchema || applyBridgeSchema)({ gitSha: candidate.gitSha, runId: String(bridge.id) });
-  if (applied.status !== 'schema_applied') return applied;
-  return (deps.promote || promote)(runId);
+  return { ...web, worker: worker.status, gitSha: web.gitSha };
 }
 
 async function main(stateFile) {
@@ -121,4 +242,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { bridgeRuns, ensureBridge, applyBridgeSchema, promoteAutomatic };
+module.exports = { bridgeRuns, ensureBridge, applyBridgeSchema, promoteAutomatic, promoteCombinedWorker };

@@ -88,11 +88,16 @@ const { processSupportFollowUpReminders } = require('../services/supportFollowUp
 const { processBusinessInvoicePaymentReminders } = require('../services/businessInvoicePaymentReminderWorker');
 const { recoverStaleSupportChannelDeliveries } = require('../services/supportChannelDeliveryRecovery');
 const { dedicatedWorkerProcess } = require('../utils/workerTopology');
+const runtimeState = require('../services/runtimeState');
+const { WorkerOwnership } = require('./workerOwnership');
 
 class BackgroundWorkers {
-  constructor({ log = logger } = {}) {
+  constructor({ log = logger, pool, onOwnerAcquired } = {}) {
     this.log = log;
     this.started = false;
+    this.owned = false;
+    this.onOwnerAcquired = onOwnerAcquired;
+    this.ownership = pool ? new WorkerOwnership({ pool, log }) : null;
     this.cronTaskIds = new Set();
     this.handles = [];
   }
@@ -105,6 +110,20 @@ class BackgroundWorkers {
 
   start() {
     if (this.started) throw new Error('Background workers have already been started');
+    this.started = true;
+    if (this.ownership) {
+      return this.ownership.start({ onAcquired: () => this.startOwned() }).then(mode => {
+        if (!this.owned) runtimeState.update({ workersReady: true, workerMode: mode });
+        return this;
+      });
+    }
+    this.startOwned();
+    return this;
+  }
+
+  startOwned() {
+    if (this.owned) return this;
+    this.owned = true;
     const existingTaskIds = new Set(cron.getTasks().keys());
 
     try {
@@ -311,22 +330,25 @@ class BackgroundWorkers {
       if (!dedicatedWorkerProcess()) {
         this.handles.push(require('../workers/scheduledWorkerSchedule').startScheduledWorkers({ log: this.log }));
       }
-      this.started = true;
       this.log.info('Background workers started', {
         cronTasks: this.cronTaskIds.size,
         timerWorkers: this.handles.filter(Boolean).length,
       });
+      runtimeState.update({ workersReady: true, workerMode: 'combined' });
+      const extraStart = this.onOwnerAcquired?.();
+      if (extraStart?.catch) extraStart.catch(error => this.log.warn('Worker owner hook failed', { error: error.message }));
       return this;
     } catch (err) {
       // Capture tasks created before the failure so rollback owns and stops
       // every partial worker registration.
       this.captureCronTasks(existingTaskIds);
-      this.stop();
+      void this.stopOwned();
+      this.started = false;
       throw err;
     }
   }
 
-  stop() {
+  async stopOwned() {
     const draining = [];
     for (const taskId of this.cronTaskIds) {
       const task = cron.getTask(taskId);
@@ -346,16 +368,26 @@ class BackgroundWorkers {
 
     this.cronTaskIds.clear();
     this.handles = [];
-    this.started = false;
+    this.owned = false;
     return Promise.allSettled(draining);
   }
 
+  async stop() {
+    if (!this.started && !this.ownership?.started) return;
+    await this.stopOwned();
+    await this.ownership?.stop();
+    this.started = false;
+    runtimeState.update({ workersReady: false, workerMode: 'combined' });
+  }
+
   status() {
-    return {
+    const status = {
       started: this.started,
       cronTasks: this.cronTaskIds.size,
       timerWorkers: this.handles.filter(Boolean).length,
     };
+    if (this.ownership) Object.assign(status, { owner: this.owned, mode: this.ownership.mode });
+    return status;
   }
 }
 

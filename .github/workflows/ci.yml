@@ -86,7 +86,7 @@ jobs:
         run: node scripts/splitLocaleCatalogs.mjs
 
       - name: Deployment command regression tests
-        run: node --test scripts/deploy-coolify.test.cjs scripts/compute-content-release.test.cjs scripts/provision-release-metadata.test.cjs scripts/reconcile-coolify-host.test.cjs scripts/reconcile-rejected-web-candidates.test.cjs scripts/install-coolify-host-reconciler.test.cjs scripts/verify-web-release.test.cjs scripts/promote-prebuilt-web.test.cjs scripts/install-web-release-observer.test.cjs scripts/watch-verified-web-image.test.cjs scripts/configure-web-readiness.test.cjs scripts/apply-reviewed-web-schema.test.cjs
+        run: node --test scripts/deploy-coolify.test.cjs scripts/compute-content-release.test.cjs scripts/provision-release-metadata.test.cjs scripts/reconcile-coolify-host.test.cjs scripts/reconcile-rejected-web-candidates.test.cjs scripts/install-coolify-host-reconciler.test.cjs scripts/verify-web-release.test.cjs scripts/promote-prebuilt-web.test.cjs scripts/automatic-web-release.test.cjs scripts/install-web-release-observer.test.cjs scripts/watch-verified-web-image.test.cjs scripts/configure-web-readiness.test.cjs scripts/apply-reviewed-web-schema.test.cjs
 
       - name: Scale harness regression tests (V2-P1-05)
         run: node --test scripts/scale/scale-harness.test.cjs
