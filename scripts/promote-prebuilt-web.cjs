@@ -7,6 +7,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { REPOSITORY, BRANCH, ghJson, verifyCommit } = require('./verify-web-release.cjs');
 const APPLICATION = 'sqbntzhvwhbbywhs9prfhw51';
+const COMBINED_APPLICATION = 'tdrapz1vvcoftfwsk7fcdq0h';
 const IMAGE = 'ghcr.io/oxsteed/old-file-web';
 function command(program, args, input, timeout = 120000) {
   try { return execFileSync(program, args, { input, encoding:'utf8',timeout,stdio:['pipe','pipe','pipe'] }).trim(); }
@@ -67,16 +68,24 @@ function pulledImageMatches(info,receipt,manifest) {
     &&[manifest.indexDigest,manifest.platformDigest,manifest.configDigest].includes(info.id);
 }
 
-function preflightSchema(reference, runDocker = docker) {
-  const containers = runDocker(['ps', '--quiet', '--filter', `label=coolify.applicationUuid=${APPLICATION}`,
-    '--filter', 'health=healthy']).split('\n');
-  if (containers.length !== 1 || !/^[a-f0-9]{12,64}$/.test(containers[0])) {
-    throw new Error('Schema preflight requires exactly one healthy production web container.');
+function healthyContainer(application, runDocker = docker) {
+  const service = application === COMBINED_APPLICATION ? ['--filter', 'label=com.docker.compose.service=app'] : [];
+  const output = runDocker(['ps', '--quiet', '--no-trunc', '--filter', `label=coolify.applicationUuid=${application}`,
+    '--filter', 'health=healthy', ...service]);
+  if (!output) return null;
+  if (!/^[a-f0-9]{64}$/.test(output)) {
+    throw new Error('Schema preflight found ambiguous healthy production containers.');
   }
+  return output;
+}
 
-  // Use the serving web container's connection. Only migration metadata leaves
-  // it. The candidate receives that snapshot without production access.
-  const snapshot = runDocker(['exec', '--workdir', '/app/server', containers[0], 'node', '-e', `
+function preflightSchema(reference, runDocker = docker) {
+  const container = healthyContainer(APPLICATION, runDocker) || healthyContainer(COMBINED_APPLICATION, runDocker);
+  if (!container) return { status: 'waiting_for_healthy_runtime' };
+
+  // Read from the healthy web or combined application. The candidate receives
+  // only migration metadata and has no production network or credentials.
+  const snapshot = runDocker(['exec', '--workdir', '/app/server', container, 'node', '-e', `
     const { Client } = require('pg');
     const { getDatabaseSslConfig } = require('./utils/databaseConfig');
     const { DATABASE_URL, NODE_ENV } = process.env;
@@ -107,18 +116,34 @@ function preflightSchema(reference, runDocker = docker) {
   if (counts.unexpected || counts.incomplete || counts.changed || counts.duplicate || !counts.pending) {
     throw new Error('Candidate schema markers are incompatible; inspect before an explicit retry.');
   }
-  return counts;
+  return { status: 'waiting_for_schema', counts };
 }
 
-async function ready(sha,imageId) {
+async function publicReadiness() {
   try {
     const response=await fetch('https://oxsteed.com/ready',{signal:AbortSignal.timeout(8000),headers:{'cache-control':'no-cache'}});
     const result=await response.json();
-    return response.ok&&result.status==='ready'&&result.releaseMetadata?.gitSha===sha
-      &&(!imageId||result.releaseMetadata?.imageDigest===imageId);
-  } catch {return false;}
+    return response.ok && result.status === 'ready' ? result : null;
+  } catch {return null;}
 }
-async function promote(runId,{redeploy=false,bridge=false}={}) {
+async function ready(sha,imageId) {
+  const result = await publicReadiness();
+  return result?.releaseMetadata?.gitSha === sha
+    && result.releaseMetadata.imageDigest === imageId && result.checks?.workers?.mode === 'delegated';
+}
+
+async function requireRecoverySource(sha, { findContainer = healthyContainer, readPublic = publicReadiness } = {}) {
+  if (findContainer(APPLICATION) || !findContainer(COMBINED_APPLICATION)) {
+    throw new Error('Recovery requires an unhealthy or absent web app and one healthy combined app.');
+  }
+  const current = await readPublic();
+  if (current?.releaseMetadata?.gitSha !== sha || current.checks?.workers?.mode !== 'combined') {
+    throw new Error('Recovery image must match the healthy combined release serving public traffic.');
+  }
+}
+
+async function promote(runId,{redeploy=false,bridge=false,recover=false}={}) {
+  if (recover && (redeploy || bridge)) throw new Error('Recovery cannot be combined with other promotion modes.');
   if(!/^\d+$/.test(String(runId)))throw new Error('A numeric workflow run ID is required.');
   const run=ghJson(['api',`repos/${REPOSITORY}/actions/runs/${runId}`]);
   // Validate the workflow before downloading any artifact.
@@ -130,8 +155,10 @@ async function promote(runId,{redeploy=false,bridge=false}={}) {
     const file=path.join(directory,'web-image-receipt.json');
     if(fs.readdirSync(directory).length!==1||fs.statSync(file).size>4096)throw new Error('Unexpected image receipt artifact.');
     const receipt=validateReceipt(JSON.parse(fs.readFileSync(file)),run,{bridge});
-    const latest=ghJson(['api',`repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha;
-    if(receipt.gitSha!==latest)return {status:'waiting_for_current_default_branch_image',gitSha:receipt.gitSha};
+    if (recover) await requireRecoverySource(receipt.gitSha);
+    else if (receipt.gitSha !== ghJson(['api', `repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha) {
+      return { status: 'waiting_for_current_default_branch_image', gitSha: receipt.gitSha };
+    }
     verifyCommit(receipt.gitSha);
     const current=controller(String.raw`$latest=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->orderByDesc('id')->first();$active=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists();$result=['buildPack'=>$a->build_pack,'image'=>$a->docker_registry_image_name,'tag'=>$a->docker_registry_image_tag,'active'=>$active,'latest'=>$latest?['status'=>$latest->status,'commit'=>$latest->commit]:null];`);
     if(current.active)return {status:'release_in_progress',gitSha:receipt.gitSha};
@@ -150,9 +177,10 @@ async function promote(runId,{redeploy=false,bridge=false}={}) {
     // Historical bridge images predate the snapshot checker and use their own
     // explicitly reviewed promotion path. Automatic web releases always check.
     if (!bridge) {
-      const counts = preflightSchema(reference);
-      if (counts) return { status: 'waiting_for_schema', gitSha: receipt.gitSha, counts };
-      if (ghJson(['api',`repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha !== receipt.gitSha) {
+      const blocked = preflightSchema(reference);
+      if (blocked) return { ...blocked, gitSha: receipt.gitSha };
+      if (recover) await requireRecoverySource(receipt.gitSha);
+      else if (ghJson(['api',`repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha !== receipt.gitSha) {
         return { status: 'waiting_for_current_default_branch_image', gitSha: receipt.gitSha };
       }
     }
@@ -176,7 +204,7 @@ async function promote(runId,{redeploy=false,bridge=false}={}) {
 }
 if(require.main===module){
   const args=process.argv.slice(2);
-  if(args.length<2||args[0]!=='--run'||args.some((a,i)=>i>1&&!['--redeploy','--bridge'].includes(a))){console.error('Use --run <verified-image-run-id> [--redeploy] [--bridge]');process.exitCode=1;}
-  else promote(args[1],{redeploy:args.includes('--redeploy'),bridge:args.includes('--bridge')}).then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(e.message);process.exitCode=1;});
+  if(args.length<2||args[0]!=='--run'||args.some((a,i)=>i>1&&!['--redeploy','--bridge','--recover'].includes(a))){console.error('Use --run <verified-image-run-id> [--redeploy|--bridge|--recover]');process.exitCode=1;}
+  else promote(args[1],{redeploy:args.includes('--redeploy'),bridge:args.includes('--bridge'),recover:args.includes('--recover')}).then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(e.message);process.exitCode=1;});
 }
-module.exports={validateReceipt,verifyAnonymousPull,pulledImageMatches,preflightSchema,promote};
+module.exports={validateReceipt,verifyAnonymousPull,pulledImageMatches,preflightSchema,requireRecoverySource,promote};

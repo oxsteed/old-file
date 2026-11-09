@@ -36,3 +36,19 @@ test('rechecks pending migrations after five minutes and sees newer releases imm
   assert.deepEqual(attempted, ['123', '123', '124']);
  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('recovers the same image after the former terminal no-healthy-web preflight', async () => {
+ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'web-observer-runtime-test-'));
+ const file = path.join(dir, 'state.json');
+ try {
+  fs.writeFileSync(file, JSON.stringify({ runId: '123', status: 'failed',
+   error: 'Schema preflight requires exactly one healthy production web container.' }));
+  const api = () => ({ workflow_runs: [{ id: 123, conclusion: 'success', event: 'workflow_run' }] });
+  const promoteImage = async () => ({ status: 'waiting_for_healthy_runtime' });
+  assert.equal((await watch(file, { api, promoteImage })).status, 'waiting_for_healthy_runtime');
+  assert.equal((await watch(file, { api, promoteImage })).status, 'already_observed');
+  const state = JSON.parse(fs.readFileSync(file));
+  fs.writeFileSync(file, JSON.stringify({ ...state, at: '2000-01-01T00:00:00Z' }));
+  assert.equal((await watch(file, { api, promoteImage: async () => ({ status: 'finished' }) })).status, 'finished');
+ } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
