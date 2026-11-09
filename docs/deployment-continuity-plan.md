@@ -170,6 +170,15 @@ dependencies, invalid roles, and unbounded observation settings. Readiness
 reports `workers.mode=delegated`; the existing background process stays running.
 Per-process Credit limit cache refresh remains active and has an owned stop.
 
+For a staged worker replacement, web can use a second private worker readiness
+endpoint configured by `BACKGROUND_READINESS_FALLBACK_URL`. Both endpoints
+share the existing observation deadline. Web accepts the first response that
+proves a ready worker runtime and cancels the remaining request. If neither
+endpoint is ready, the existing withdrawal rules still apply. Enable the
+second endpoint as part of a verified single-owner worker rollout. This
+setting only changes readiness observation. Worker activation and ownership
+remain the release controller's responsibility.
+
 Realtime startup now waits for both adapter connections and shared adapter
 installation. Losing either connection withdraws realtime readiness. Shutdown
 disconnects local sockets on each namespace rather than broadcasting a cluster
