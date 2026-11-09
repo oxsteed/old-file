@@ -211,10 +211,23 @@ async function buildScheduledReport(db, { restaurant, schedule, businessDate, as
 async function deliverScheduledReport(db, { schedule, payload } = {}) {
   const { users, emails } = parseRecipients(schedule.recipients);
   const channel = schedule.delivery_channel;
-  let recipientCount = 0;
+  // Background-jobs audit #41: both senders signal failure by return
+  // value, not by throwing (sendNotification returns {success:false}
+  // on any error; sendEmail returns {success:false} on an unconfigured
+  // provider, a Resend rejection, or an exception). Counting a send
+  // as delivered merely because it did not throw marked Resend-down
+  // days 'sent' with a full recipient_count, and the next run skipped
+  // them. Only a send whose result is not {success:false} counts;
+  // a result of {success:false} is a failed recipient. Callers must
+  // treat any failed recipient as a failed delivery (retryable), not
+  // a partial success: the retry re-sends, and the idempotency keys
+  // below dedupe the recipients who already received it.
+  let delivered = 0;
+  let failed = 0;
+  const errors = [];
   if (channel === 'in_app' || channel === 'both') {
     for (const userId of users) {
-      await sendNotification({
+      const result = await sendNotification({
         userId,
         type: 'restaurant_scheduled_report',
         title: `Scheduled report: ${payload.report_type} (${payload.business_date})`,
@@ -230,21 +243,31 @@ async function deliverScheduledReport(db, { schedule, payload } = {}) {
         action_url: '/restaurants/merchant?tab=reports',
         idempotencyKey: `scheduled-report:${schedule.id}:${payload.business_date}:${userId}`,
       });
-      recipientCount += 1;
+      if (result?.success === false) {
+        failed += 1;
+        errors.push({ recipient: userId, channel: 'in_app', error: result?.error || 'Notification delivery failed' });
+      } else {
+        delivered += 1;
+      }
     }
   }
   if (channel === 'email' || channel === 'both') {
     for (const email of emails) {
-      await sendEmail({
+      const result = await sendEmail({
         to: email,
         subject: `Scheduled report: ${payload.report_type} (${payload.business_date})`,
         text: `${payload.summary}\nSnapshot as of ${payload.as_of}; not a locked close.`,
         idempotencyKey: `scheduled-report:${schedule.id}:${payload.business_date}:${email}`,
       });
-      recipientCount += 1;
+      if (result?.success === false) {
+        failed += 1;
+        errors.push({ recipient: email, channel: 'email', error: result?.error || 'Email delivery failed' });
+      } else {
+        delivered += 1;
+      }
     }
   }
-  return recipientCount;
+  return { delivered, failed, errors };
 }
 
 // Claim the delivery row for one schedule and business date, so the
@@ -313,11 +336,12 @@ async function markDeliverySent(db, { deliveryId, recipientCount }) {
   );
 }
 
-async function markDeliveryFailed(db, { deliveryId, error }) {
+async function markDeliveryFailed(db, { deliveryId, error, recipientCount = null }) {
   await db.query(
     `UPDATE restaurant_scheduled_report_deliveries
-        SET status = 'failed', error = $1 WHERE id = $2`,
-    [String(error == null ? '' : error).slice(0, 1000), deliveryId]
+        SET status = 'failed', error = $1,
+            recipient_count = COALESCE($3, recipient_count) WHERE id = $2`,
+    [String(error == null ? '' : error).slice(0, 1000), deliveryId, recipientCount]
   );
 }
 
@@ -365,8 +389,20 @@ async function runDueScheduledReports(db = pool, { now = new Date() } = {}) {
       }
       delivery = claim.delivery;
       const payload = await buildScheduledReport(db, { restaurant, schedule, businessDate, asOf });
-      const recipientCount = await deliverScheduledReport(db, { schedule, payload });
-      await markDeliverySent(db, { deliveryId: delivery.id, recipientCount });
+      const outcome = await deliverScheduledReport(db, { schedule, payload });
+      // Background-jobs audit #41: a {success:false} recipient is a
+      // failed delivery, not a partial success. Throw so the catch
+      // below marks the claimed row 'failed' (keeping the delivered
+      // count) and the date stays due for retry; the retry dedupes
+      // recipients who already received it via the idempotency keys.
+      if (outcome.failed > 0) {
+        const err = new Error(
+          `Scheduled report delivery failed for ${outcome.failed} of ${outcome.delivered + outcome.failed} recipient(s): ${outcome.errors.map((e) => e.error).join('; ')}`
+        );
+        err.deliveryRecipientCount = outcome.delivered;
+        throw err;
+      }
+      await markDeliverySent(db, { deliveryId: delivery.id, recipientCount: outcome.delivered });
       // last_business_date advances only on success: a failed date
       // stays due and is retried on the next run.
       await db.query(
@@ -386,7 +422,7 @@ async function runDueScheduledReports(db = pool, { now = new Date() } = {}) {
       // either way, so the date stays due and the next run retries.
       if (delivery) {
         try {
-          await markDeliveryFailed(db, { deliveryId: delivery.id, error: err.message });
+          await markDeliveryFailed(db, { deliveryId: delivery.id, error: err.message, recipientCount: err.deliveryRecipientCount ?? null });
         } catch { /* the failure ledger is best-effort; the error above is the record */ }
       }
     }

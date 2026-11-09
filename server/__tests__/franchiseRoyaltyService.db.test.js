@@ -24,7 +24,7 @@ if (url) {
 jest.unmock('pg');
 jest.unmock('../db');
 const db = require('../db');
-const { findTerritoryAgreement, accrueTerritoryRoyalty } = require('../services/franchiseRoyaltyService');
+const { findTerritoryAgreement, accrueTerritoryRoyalty, retryFailedRoyalties } = require('../services/franchiseRoyaltyService');
 
 const describeDb = url ? describe : describe.skip;
 
@@ -36,15 +36,15 @@ describeDb('franchise territory royalty service', () => {
     await db.query(`CREATE SCHEMA ${schema}`);
     await db.query(`CREATE TABLE ${schema}.users (id UUID PRIMARY KEY)`);
     await db.query(`CREATE TABLE ${schema}.franchise_applications (
-      id SERIAL PRIMARY KEY,
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       owner_user_id UUID REFERENCES users(id),
       desired_city TEXT,
       desired_region TEXT,
       status TEXT NOT NULL DEFAULT 'draft'
     )`);
     await db.query(`CREATE TABLE ${schema}.franchise_agreements (
-      id SERIAL PRIMARY KEY,
-      application_id INTEGER REFERENCES franchise_applications(id),
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      application_id UUID REFERENCES franchise_applications(id),
       royalty_bps INTEGER NOT NULL DEFAULT 0,
       marketing_fee_bps INTEGER NOT NULL DEFAULT 0,
       marketing_fee_accrued_cents INTEGER NOT NULL DEFAULT 0,
@@ -61,6 +61,35 @@ describeDb('franchise territory royalty service', () => {
       idempotency_key TEXT,
       UNIQUE (idempotency_key)
     )`);
+    // Background-jobs audit #45: fee idempotency record + failure
+    // outbox, mirroring migration 20261108173000.
+    await db.query(`CREATE TABLE ${schema}.franchise_marketing_fee_accruals (
+      id SERIAL PRIMARY KEY,
+      agreement_id UUID REFERENCES franchise_agreements(id),
+      source_type TEXT NOT NULL,
+      source_id TEXT NOT NULL,
+      marketing_cents INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (agreement_id, source_type, source_id)
+    )`);
+    await db.query(`CREATE TABLE ${schema}.franchise_royalty_failures (
+      id SERIAL PRIMARY KEY,
+      source_type TEXT NOT NULL,
+      source_id TEXT NOT NULL,
+      agreement_id UUID REFERENCES franchise_agreements(id),
+      amount_cents INTEGER NOT NULL,
+      location_id BIGINT,
+      city TEXT,
+      region TEXT,
+      description TEXT,
+      error TEXT,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      next_retry_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      resolved_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await db.query(`CREATE UNIQUE INDEX fr_royalty_failures_open ON ${schema}.franchise_royalty_failures (source_type, source_id) WHERE resolved_at IS NULL`);
     for (const id of [ownerA, ownerB]) await db.query('INSERT INTO users(id) VALUES($1)', [id]);
   });
 
@@ -129,5 +158,99 @@ describeDb('franchise territory royalty service', () => {
     expect(await accrueTerritoryRoyalty({ client: db, amountCents: 10000, city: 'Nowhere', region: 'ZZ', sourceType: 'job', sourceId: 'x' })).toBeNull();
     expect(await accrueTerritoryRoyalty({ client: db, amountCents: 0, city: 'Denver', region: 'Colorado', sourceType: 'job', sourceId: 'y' })).toBeNull();
     expect(await accrueTerritoryRoyalty({ client: db, amountCents: 10000, city: null, region: null, sourceType: 'job', sourceId: 'z' })).toBeNull();
+  });
+
+  // Background-jobs audit #45: the marketing fee has its own
+  // idempotency, and failed accruals are recorded for re-drive.
+  test('a repeated accrue never double-counts the marketing fee, even when the royalty rounds to 0', async () => {
+    const { agreementId } = await application({ owner: ownerA, city: 'Tulsa', region: 'Oklahoma', royaltyBps: 10, marketingBps: 500 });
+    const args = {
+      client: db, amountCents: 100, city: 'Tulsa', region: 'Oklahoma',
+      sourceType: 'job', sourceId: 'job-zero-royalty', description: 'test zero royalty',
+    };
+    const first = await accrueTerritoryRoyalty(args);
+    expect(first.royaltyCents).toBe(0); // 0.1 rounds to 0: no ledger insert
+    expect(first.marketingCents).toBe(5);
+    // The second call has no ledger row to gate on, so the old bare
+    // UPDATE double-counted the fee here. The fee record gates it.
+    await accrueTerritoryRoyalty(args);
+    const agreement = await db.query('SELECT marketing_fee_accrued_cents FROM franchise_agreements WHERE id = $1', [agreementId]);
+    expect(agreement.rows[0].marketing_fee_accrued_cents).toBe(5);
+    const ledger = await db.query(`SELECT count(*) FROM platform_ledger WHERE idempotency_key = 'franchise-royalty:job:job-zero-royalty'`);
+    expect(Number(ledger.rows[0].count)).toBe(0);
+  });
+
+  test('a duplicate royalty still accrues the fee when the first attempt never reached it', async () => {
+    const { agreementId } = await application({ owner: ownerA, city: 'Boise', region: 'Idaho', royaltyBps: 500, marketingBps: 200 });
+    // Simulate the old crash window: the royalty insert landed but
+    // the fee UPDATE never ran.
+    await db.query(
+      `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata, source_type, idempotency_key)
+       VALUES ($1, 'franchise_royalty', 500, 'test royalty', '{}'::jsonb, 'franchise_royalty', 'franchise-royalty:job:job-crash')`,
+      [ownerA]
+    );
+    const first = await accrueTerritoryRoyalty({
+      client: db, amountCents: 10000, city: 'Boise', region: 'Idaho',
+      sourceType: 'job', sourceId: 'job-crash', description: 'test crash window',
+    });
+    expect(first.duplicate).toBe(true);
+    expect(first.marketingCents).toBe(200); // the fee IS applied on the duplicate path
+    const agreement = await db.query('SELECT marketing_fee_accrued_cents FROM franchise_agreements WHERE id = $1', [agreementId]);
+    expect(agreement.rows[0].marketing_fee_accrued_cents).toBe(200);
+    // And exactly once: a further replay accrues nothing more.
+    const second = await accrueTerritoryRoyalty({
+      client: db, amountCents: 10000, city: 'Boise', region: 'Idaho',
+      sourceType: 'job', sourceId: 'job-crash', description: 'test crash window',
+    });
+    expect(second.duplicate).toBe(true);
+    expect(second.marketingCents).toBe(0);
+    const agreementAgain = await db.query('SELECT marketing_fee_accrued_cents FROM franchise_agreements WHERE id = $1', [agreementId]);
+    expect(agreementAgain.rows[0].marketing_fee_accrued_cents).toBe(200);
+  });
+
+  test('a failed accrual is recorded for re-drive and the redrive resolves it', async () => {
+    const { agreementId } = await application({ owner: ownerA, city: 'Reno', region: 'Nevada', royaltyBps: 500, marketingBps: 200 });
+    const args = {
+      client: db, amountCents: 10000, city: 'Reno', region: 'Nevada',
+      sourceType: 'job', sourceId: 'job-redrive', description: 'test redrive',
+    };
+    // Break the accrual after the royalty lands: a wrapper client
+    // that fails the fee store only. (Dropping a schema-local table
+    // cannot force the failure: the search_path falls through to the
+    // same table in public on the migrated test database.)
+    const failingClient = {
+      query: async (sql, params) => {
+        if (String(sql).includes('franchise_marketing_fee_accruals')) {
+          throw new Error('simulated fee store outage');
+        }
+        return db.query(sql, params);
+      },
+    };
+    await expect(accrueTerritoryRoyalty({ ...args, client: failingClient })).rejects.toThrow('simulated fee store outage');
+    const failures = await db.query(
+      `SELECT * FROM franchise_royalty_failures WHERE source_type = 'job' AND source_id = 'job-redrive' AND resolved_at IS NULL`
+    );
+    expect(failures.rows).toHaveLength(1);
+    expect(failures.rows[0].amount_cents).toBe(10000);
+    expect(failures.rows[0].agreement_id).toBe(agreementId);
+    expect(failures.rows[0].error).toContain('simulated fee store outage');
+    // The royalty itself landed before the fee failed.
+    const ledgerBefore = await db.query(`SELECT * FROM platform_ledger WHERE idempotency_key = 'franchise-royalty:job:job-redrive'`);
+    expect(ledgerBefore.rows).toHaveLength(1);
+    expect(ledgerBefore.rows[0].amount_cents).toBe(500);
+    // Re-drive with a healthy client: the duplicate royalty is
+    // recognized and the fee lands exactly once.
+    const redrive = await retryFailedRoyalties(db);
+    expect(redrive).toMatchObject({ attempted: 1, resolved: 1, failed: 0 });
+    const ledger = await db.query(`SELECT count(*) FROM platform_ledger WHERE idempotency_key = 'franchise-royalty:job:job-redrive'`);
+    expect(Number(ledger.rows[0].count)).toBe(1);
+    const agreement = await db.query('SELECT marketing_fee_accrued_cents FROM franchise_agreements WHERE id = $1', [agreementId]);
+    expect(agreement.rows[0].marketing_fee_accrued_cents).toBe(200);
+    const resolved = await db.query(
+      `SELECT resolved_at FROM franchise_royalty_failures WHERE source_type = 'job' AND source_id = 'job-redrive'`
+    );
+    expect(resolved.rows[0].resolved_at).toBeTruthy();
+    // Nothing left due: a second redrive attempts nothing.
+    expect(await retryFailedRoyalties(db)).toMatchObject({ attempted: 0, resolved: 0 });
   });
 });

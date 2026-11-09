@@ -388,7 +388,17 @@ exports.runScheduledReportNow = async (req, res, next) => {
     });
     if (!claim.delivery) return res.json({ delivery: null, replayed: true, payload });
     try {
-      const recipientCount = await scheduledReports.deliverScheduledReport(pool, { schedule, payload });
+      // Background-jobs audit #41: a {success:false} recipient is a
+      // failed delivery, not a partial success. Throw so the catch
+      // below marks the claimed row 'failed' (keeping the delivered
+      // count) and the date stays retryable.
+      const outcome = await scheduledReports.deliverScheduledReport(pool, { schedule, payload });
+      if (outcome.failed > 0) {
+        const err = new Error(`Scheduled report delivery failed for ${outcome.failed} of ${outcome.delivered + outcome.failed} recipient(s): ${outcome.errors.map((e) => e.error).join('; ')}`);
+        err.deliveryRecipientCount = outcome.delivered;
+        throw err;
+      }
+      const recipientCount = outcome.delivered;
       await scheduledReports.markDeliverySent(pool, { deliveryId: claim.delivery.id, recipientCount });
       await pool.query(
         `UPDATE restaurant_scheduled_reports
@@ -398,7 +408,7 @@ exports.runScheduledReportNow = async (req, res, next) => {
       );
       res.json({ delivery: { ...claim.delivery, status: 'sent', recipient_count: recipientCount }, replayed: false, payload });
     } catch (err) {
-      await scheduledReports.markDeliveryFailed(pool, { deliveryId: claim.delivery.id, error: err.message }).catch(() => {});
+      await scheduledReports.markDeliveryFailed(pool, { deliveryId: claim.delivery.id, error: err.message, recipientCount: err.deliveryRecipientCount ?? null }).catch(() => {});
       throw err;
     }
   } catch (err) { next(err); }

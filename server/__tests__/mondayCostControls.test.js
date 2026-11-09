@@ -40,7 +40,7 @@ test('oversized broadcast refuses expansion; the allowed audience uses the check
 });
 test('an idle screen outbox does not begin a transaction',async()=>{
   mockQuery.mockResolvedValue({rows:[]});
-  await expect(publishBatch()).resolves.toEqual({published:0});
+  await expect(publishBatch()).resolves.toEqual({published:0,failed:[]});
   expect(mockQuery).toHaveBeenCalledTimes(1);
 });
 test('duplicate AI work shares a promise, failed work retries and cache capacity stays bounded',async()=>{

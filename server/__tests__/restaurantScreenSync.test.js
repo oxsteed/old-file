@@ -1,10 +1,15 @@
 jest.mock("../db", () => ({ query: jest.fn(), connect: jest.fn() }));
+jest.mock("../services/socketService", () => ({
+  broadcastToRestaurantDisplay: jest.fn(),
+}));
 const pool = require("../db");
+const { broadcastToRestaurantDisplay } = require("../services/socketService");
 const {
   positive,
   cursor,
   deviceHealth,
   changes,
+  publishBatch,
 } = require("../services/restaurantScreenSync");
 afterEach(() => jest.clearAllMocks());
 test("strict scope and cursor validation rejects unsafe numeric coercion", () => {
@@ -95,4 +100,43 @@ test("fully pruned history cannot silently advance over unapplied changes", asyn
     .mockResolvedValueOnce({ rows: [{ revision: "40" }] })
     .mockResolvedValueOnce({ rows: [] });
   expect((await changes({ restaurantId: 2 }, 1)).resetRequired).toBe(true);
+});
+
+// Background-jobs audit #46: one unavailable transport used to throw
+// out of the whole batch, rolling back every restaurant's
+// published_at marks. A failed broadcast now skips just that
+// restaurant and the rest still publish. (setup.js mocks
+// withTransaction to run against pool.query, so the queued mock
+// responses below are the pending check, the FOR UPDATE select, and
+// the per-restaurant UPDATE.)
+test("publishBatch skips the failed restaurant and still publishes the rest", async () => {
+  pool.query
+    .mockResolvedValueOnce({ rows: [{ "?column?": 1 }] })
+    .mockResolvedValueOnce({
+      rows: [
+        { restaurant_id: 7, revision: "3" },
+        { restaurant_id: 8, revision: "5" },
+      ],
+    })
+    .mockResolvedValueOnce({ rows: [] });
+  broadcastToRestaurantDisplay
+    .mockReturnValueOnce(true) // restaurant 7 publishes
+    .mockReturnValueOnce(false); // restaurant 8 transport down
+  const result = await publishBatch();
+  expect(result).toEqual({
+    published: 1,
+    failed: [{ restaurantId: 8, error: "Restaurant display transport is unavailable" }],
+  });
+  expect(broadcastToRestaurantDisplay).toHaveBeenCalledTimes(2);
+  const updates = pool.query.mock.calls.filter(([sql]) => /UPDATE restaurant_screen_events/.test(String(sql)));
+  expect(updates).toHaveLength(1);
+  expect(updates[0][1]).toEqual([7, "3"]);
+});
+
+test("publishBatch with nothing pending publishes nothing and opens no transaction", async () => {
+  pool.query.mockResolvedValueOnce({ rows: [] });
+  const result = await publishBatch();
+  expect(result).toEqual({ published: 0, failed: [] });
+  expect(pool.query).toHaveBeenCalledTimes(1);
+  expect(broadcastToRestaurantDisplay).not.toHaveBeenCalled();
 });

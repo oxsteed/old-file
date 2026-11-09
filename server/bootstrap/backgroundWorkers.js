@@ -35,6 +35,7 @@ const { startStaffInviteExpiryJob } = require('../jobs/staffInviteExpiryJob'); /
 const { startRestaurantPunchCloseoutJob } = require('../jobs/restaurantPunchCloseoutJob'); // Phase 2 punch integrity
 const { startRestaurantScheduledReportsJob } = require('../jobs/restaurantScheduledReportsJob'); // Phase 7 scheduled reports
 const { startRestaurantRetentionJob } = require('../jobs/restaurantRetentionJob'); // Phase 7 retention/erasure
+const { startFranchiseRoyaltyRedriveJob } = require('../jobs/franchiseRoyaltyRedriveJob'); // Background-jobs audit #45 royalty re-drive
 const { startCareersJobs } = require('../jobs/careersJobs');
 const { startChatQuoteExpiryJob } = require('../jobs/chatQuoteExpiryJob');
 const { startSupportTicketSlaJob } = require('../jobs/supportTicketSlaJob');
@@ -129,6 +130,7 @@ class BackgroundWorkers {
       startRestaurantPunchCloseoutJob();
       startRestaurantScheduledReportsJob();
       startRestaurantRetentionJob();
+      startFranchiseRoyaltyRedriveJob();
       startCareersJobs();
       startChatQuoteExpiryJob();
       startSupportTicketSlaJob();

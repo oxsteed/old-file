@@ -168,13 +168,15 @@ async function snapshot(scope, query = {}) {
 async function publishBatch() {
   const socketService = require("./socketService");
   const pending = await pool.query("SELECT 1 FROM restaurant_screen_events WHERE published_at IS NULL LIMIT 1");
-  if (!pending.rows.length) return { published: 0 };
+  if (!pending.rows.length) return { published: 0, failed: [] };
   return withTransaction(
     pool,
     async (client) => {
       const { rows } = await client.query(
         "SELECT restaurant_id,MAX(revision)::text AS revision FROM (SELECT restaurant_id,revision FROM restaurant_screen_events WHERE published_at IS NULL ORDER BY created_at LIMIT 2000 FOR UPDATE SKIP LOCKED) e GROUP BY restaurant_id",
       );
+      const failed = [];
+      let published = 0;
       for (const row of rows) {
         // Broadcast no tickets, customer data, or credentials to the public room.
         const sent = socketService.broadcastToRestaurantDisplay(
@@ -182,14 +184,23 @@ async function publishBatch() {
           "food:display:changed",
           { restaurantId: row.restaurant_id, revision: Number(row.revision) },
         );
-        if (sent === false)
-          throw new Error("Restaurant display transport is unavailable");
+        // Background-jobs audit #46: one unavailable transport used
+        // to throw out of the whole batch, rolling back every
+        // restaurant's published_at marks, so the outbox grew
+        // unboundedly while the transport was down. A failed
+        // broadcast now skips just that restaurant (its events stay
+        // unpublished for the next sweep) and the rest still publish.
+        if (sent === false) {
+          failed.push({ restaurantId: row.restaurant_id, error: "Restaurant display transport is unavailable" });
+          continue;
+        }
         await client.query(
           "UPDATE restaurant_screen_events SET published_at=NOW() WHERE restaurant_id=$1 AND revision<=$2 AND published_at IS NULL",
           [row.restaurant_id, row.revision],
         );
+        published += 1;
       }
-      return rows.length;
+      return { published, failed };
     },
     "restaurant_screen_outbox",
   );

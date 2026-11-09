@@ -20,7 +20,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { withFencedJobLock } = require('./jobLockingService');
 const { anonymizeFormerStaff } = require('../services/restaurantRetentionService');
-const { enqueueStorageDeletion } = require('../services/storageCleanupService');
+const { enqueueStorageDeletion, resolveKey } = require('../services/storageCleanupService');
 
 const JOB_NAME = 'restaurant-retention-sweep';
 const CRON_EXPRESSION = '0 30 3 * * 0'; // weekly, Sunday 03:30 server time
@@ -30,8 +30,7 @@ async function anonymizePerson(db, { businessId, userId, retainUntil }) {
     'SELECT id FROM food_restaurants WHERE business_id = $1 ORDER BY id',
     [businessId]
   );
-  const totals = { documents_deleted: 0, time_entry_notes_cleared: 0, labor_profile_removed: 0, history_rows_retained: 0 };
-  const storageKeys = [];
+  const totals = { documents_deleted: 0, time_entry_notes_cleared: 0, labor_profile_removed: 0, history_rows_retained: 0, storage_keys_enqueued: 0 };
   for (const restaurant of restaurants) {
     const outcome = await anonymizeFormerStaff(db, {
       businessId, restaurantId: Number(restaurant.id), userId, retainUntil,
@@ -41,10 +40,24 @@ async function anonymizePerson(db, { businessId, userId, retainUntil }) {
     totals.time_entry_notes_cleared += outcome.time_entry_notes_cleared;
     totals.labor_profile_removed += outcome.labor_profile_removed;
     totals.history_rows_retained = Math.max(totals.history_rows_retained, outcome.history_rows_retained);
-    storageKeys.push(...(outcome.storageKeysToDelete || []));
-  }
-  for (const key of storageKeys) {
-    await enqueueStorageDeletion(key, 'staff_erasure');
+    // Background-jobs audit #40: enqueue this restaurant's keys NOW,
+    // before moving to the next restaurant. The old code accumulated
+    // keys across restaurants and enqueued only after the loop, so a
+    // throw in a later restaurant discarded already-anonymized
+    // restaurants' keys; the retry then found no docs (already
+    // soft-deleted) and completed the erasure with the files still in
+    // storage. The enqueue runs on the same handle as the sweep (the
+    // fence's handle in the job path), and a failed enqueue for a
+    // resolvable key fails the erasure instead of completing it: the
+    // retry re-derives the key from the soft-deleted row.
+    for (const key of outcome.storageKeysToDelete || []) {
+      if (!resolveKey(key)) continue; // data: URLs and empty keys name no object
+      const queued = await enqueueStorageDeletion(key, 'staff_erasure', { client: db });
+      if (!queued) {
+        throw new Error(`Failed to queue storage deletion for a staff document in restaurant ${restaurant.id}`);
+      }
+      totals.storage_keys_enqueued += 1;
+    }
   }
   return { skipped: false, ...totals };
 }
