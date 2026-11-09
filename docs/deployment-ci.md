@@ -18,6 +18,14 @@ workflow the same way and record runner
 queue time separately if it materially affects the comparison. The target is
 17 minutes or less on a successful default-branch run.
 
+After every successful default-branch CI push, the `dispatch-verified-web-image`
+job waits for all verification jobs and dispatches `.github/workflows/web-image.yml`
+with the exact commit SHA. The image workflow verifies that SHA before publishing
+an immutable ARM64 image and receipt for the Mac release observer. It remains
+manually dispatchable for a deliberate recovery or rehearsal. This direct
+dispatch is the release gate; a missed or duplicated webhook cannot silently
+select a different commit.
+
 ## Startup checksum failure on 2026-10-18
 
 Production returned the proxy's plain `404 page not found` while the app
