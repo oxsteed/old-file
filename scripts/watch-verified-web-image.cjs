@@ -2,7 +2,10 @@
 const fs=require('node:fs');const path=require('node:path');
 const {ghJson,REPOSITORY,BRANCH}=require('./verify-web-release.cjs');
 const {promote}=require('./promote-prebuilt-web.cjs');
-const SCHEMA_RECHECK_MS = 5 * 60 * 1000;
+const PREFLIGHT_RECHECK_MS = 5 * 60 * 1000;
+const PREFLIGHT_WAIT = ['waiting_for_schema', 'waiting_for_healthy_runtime'];
+const RETRYABLE = ['started', 'release_in_progress', 'waiting_for_runtime_identity',
+  'waiting_for_current_default_branch_image', ...PREFLIGHT_WAIT];
 async function watch(stateFile,{api=ghJson,promoteImage=promote}={}){
  fs.mkdirSync(path.dirname(stateFile),{recursive:true,mode:0o700});
  const lock=stateFile+'.lock';let descriptor;
@@ -15,10 +18,13 @@ async function watch(stateFile,{api=ghJson,promoteImage=promote}={}){
   if(!run)return{status:'waiting_for_verified_image'};
   const previous=fs.existsSync(stateFile)?JSON.parse(fs.readFileSync(stateFile)):{};
   if (previous.runId === String(run.id)) {
-   if (previous.status === 'waiting_for_schema' && Date.now() - Date.parse(previous.at) < SCHEMA_RECHECK_MS) {
+   if (PREFLIGHT_WAIT.includes(previous.status) && Date.now() - Date.parse(previous.at) < PREFLIGHT_RECHECK_MS) {
     return { status: 'already_observed', previousStatus: previous.status };
    }
-   if (!['started','release_in_progress','waiting_for_runtime_identity','waiting_for_current_default_branch_image','waiting_for_schema'].includes(previous.status)) return {status:'already_observed',previousStatus:previous.status};
+   // Versions before fallback discovery recorded this pre-queue condition as a failure.
+   const legacyPreflight = previous.status === 'failed'
+     && previous.error === 'Schema preflight requires exactly one healthy production web container.';
+   if (!RETRYABLE.includes(previous.status) && !legacyPreflight) return {status:'already_observed',previousStatus:previous.status};
   }
   save({runId:String(run.id),status:'started'});
   try{const result=await promoteImage(String(run.id));save({...result,runId:String(run.id)});return result;}

@@ -32,8 +32,9 @@ node scripts/promote-prebuilt-web.cjs --run <successful-image-workflow-id>
 
 Promotion verifies the workflow, artifact receipt, current default branch,
 required CI checks, pulled image digest, ARM64 architecture and OCI revision.
-It then queries only migration markers from the serving web app's database in
-a read-only transaction. The exact candidate image compares those markers to
+It then queries only migration markers in a read-only transaction, using the
+healthy web app or, during recovery, the uniquely identified healthy combined
+app. The exact candidate image compares those markers to
 its SQL catalog and checksum policy without a network, credentials or volumes.
 Missing migrations hold the release before Coolify settings or the queue are
 changed. Other marker conflicts require investigation and an explicit retry.
@@ -47,6 +48,15 @@ It refuses a conflicting deployment or an older source commit.
 
 `--redeploy` explicitly repeats the current verified image for continuity
 rehearsals. Normal invocation skips an already-current healthy release.
+`--recover` can restore an unavailable web app using a verified image for the
+exact commit already serving public traffic from the healthy combined app:
+
+```sh
+node scripts/promote-prebuilt-web.cjs --run <serving-release-image-run-id> --recover
+```
+
+Recovery verifies the same image and migration evidence as a normal promotion.
+It requires no healthy web replica and keeps the combined app in service.
 The old combined runtime continues owning background jobs, database/Redis,
 uploads and persistent retained browser assets. Schema/background releases
 remain coordinated separately; a web image cannot migrate production storage.
@@ -59,8 +69,8 @@ node scripts/install-web-release-observer.cjs --install
 
 The user LaunchAgent checks for successful image receipts once a minute, locks
 against overlapping releases, and records each attempted run. A release waiting
-for migrations is rechecked every five minutes and can be superseded by a newer
-image receipt. The startup schema check still runs against the replacement's
+for migrations or a healthy schema source is rechecked every five minutes and
+can be superseded by a newer image receipt. The startup schema check still runs against the replacement's
 own database configuration. A failed run requires inspection before an explicit
 retry or a new image run. The observer's
 installed bundle and state live under `~/Library/Application Support/OxSteed/web-release`.
