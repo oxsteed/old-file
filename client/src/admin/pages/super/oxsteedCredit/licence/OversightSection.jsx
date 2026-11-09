@@ -5,7 +5,7 @@ import { AdminActionDialog, useCreditDialog } from '../shared';
 import {
   ActionButton, Field, LICENCE_API, LicenceTable, Notices, Panel, inputClass, requestOversight, useLicenceAction, useLicenceGet,
 } from './licenceShared';
-import { templateFor } from './oversightTemplates';
+import { actionTypeLabel, templateFor } from './oversightTemplates';
 
 /**
  * Two-administrator oversight queue for every licence control: request an
@@ -37,7 +37,7 @@ export default function OversightSection() {
   const approve = async (row) => {
     await action.run(async () => {
       const { data } = await adminApi.post('/admin/super/oxsteed-credit/stepup-challenges', { actionType: 'pending_action_approve', pendingActionId: row.id });
-      const code = await requestDialog({ kind: 'text', title: t('agentAdjQueueStepupTitle'), description: t('adminLicence.stepupDescription', { type: row.actionType }), label: t('agentAdjQueueStepupLabel') });
+      const code = await requestDialog({ kind: 'text', title: t('agentAdjQueueStepupTitle'), description: t('adminLicence.stepupDescription', { type: actionTypeLabel(t, row.actionType) }), label: t('agentAdjQueueStepupLabel') });
       if (!code) throw Object.assign(new Error('cancelled'), { response: { data: { code: 'credit_stepup_challenge_required' } } });
       await adminApi.post(`${LICENCE_API}/oversight-actions/${encodeURIComponent(row.id)}/decision`, {
         decision: 'approve', stepupChallengeId: data?.challenge?.id, stepupCode: code,
@@ -61,7 +61,7 @@ export default function OversightSection() {
           <Field label={t('adminLicence.col.type')}>
             <select required value={actionType} onChange={(e) => chooseType(e.target.value)} className={inputClass}>
               <option value="">{t('adminLicence.chooseType')}</option>
-              {(types.data?.actionTypes || []).map((type) => <option key={type} value={type}>{type}</option>)}
+              {(types.data?.actionTypes || []).map((type) => <option key={type} value={type}>{actionTypeLabel(t, type)}</option>)}
             </select>
           </Field>
           <Field label={t('adminLicence.payload')}>
@@ -81,7 +81,7 @@ export default function OversightSection() {
         <LicenceTable
           rows={list.data?.pendingActions || []}
           columns={[
-            { key: 'actionType', label: 'type' },
+            { key: 'actionType', label: 'type', render: (v) => <span title={v}>{actionTypeLabel(t, v)}</span> },
             { key: 'status' },
             { key: 'payload', render: (v) => <code dir="ltr" className="whitespace-pre-wrap break-all">{JSON.stringify(Object.fromEntries(Object.entries(v || {}).filter(([k]) => k !== 'idempotencyKey')))}</code> },
             { key: 'requestedBy', label: 'requestedBy' },

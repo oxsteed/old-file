@@ -72,7 +72,7 @@ test('footer layouts, shared support access, cookie settings and preserved invit
       for(const width of [320,390,768,1360,1600]){
         await page.setViewportSize({width,height:850});await page.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));
         assert.deepEqual(await page.locator('.site-footer__group').evaluateAll(groups=>groups.map(group=>[...group.querySelectorAll('a')].map(a=>a.getAttribute('href')))),expected,`${mode} ${language} ${theme} ${width}`);
-        assert.equal(await page.locator('.site-footer__legal-links a').count(),6);
+        assert.equal(await page.locator('.site-footer__legal-links a').count(),7);
         assert.equal(await page.locator('.site-footer__legal-links button').count(),1);
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`no overflow ${language} ${width}`);
         const report=await page.locator('.site-footer').evaluate(footer=>{

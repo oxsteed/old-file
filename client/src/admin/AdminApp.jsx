@@ -25,6 +25,7 @@ const adminQueryClient = new QueryClient({
 const SuperDashboard = lazyWithRetry(() => import('./pages/super/Dashboard'));
 const UserDetail = lazyWithRetry(() => import('./pages/super/UserDetail'));
 const Customer360 = lazyWithRetry(() => import('./pages/Customer360'));
+const Customer360Ops = lazyWithRetry(() => import('./pages/customer360/OpsPage'));
 const ConversationsAdmin = lazyWithRetry(() => import('./pages/super/ConversationsAdmin'));
 const Financials = lazyWithRetry(() => import('./pages/super/Financials'));
 const PlatformSettings = lazyWithRetry(() => import('./pages/super/PlatformSettings'));
@@ -274,6 +275,9 @@ export default function AdminApp() {
           <Route path={adminRoute('users').relative} element={<GrantGuard grant={adminRoute('users').grant}><UsersList /></GrantGuard>} />
           <Route path={adminRoute('userDetail').relative} element={<UserDetail />} />
           <Route path={adminRoute('customer360').relative} element={<Customer360 />} />
+          <Route path={adminRoute('customer360Queues').relative} element={<GrantGuard grant={adminRoute('customer360Queues').grant}><Customer360Ops view="queues" /></GrantGuard>} />
+          <Route path={adminRoute('customer360Anomalies').relative} element={<GrantGuard grant={adminRoute('customer360Anomalies').grant}><Customer360Ops view="anomalies" /></GrantGuard>} />
+          <Route path={adminRoute('customer360Summaries').relative} element={<GrantGuard grant={adminRoute('customer360Summaries').grant}><Customer360Ops view="summaries" /></GrantGuard>} />
           <Route path={adminRoute('jobs').relative} element={<GrantGuard grant={adminRoute('jobs').grant}><JobsList /></GrantGuard>} />
           <Route path={adminRoute('jobDetail').relative} element={<GrantGuard grant={adminRoute('jobDetail').grant}><JobDetail /></GrantGuard>} />
           <Route path={adminRoute('reports').relative} element={<GrantGuard grant={adminRoute('reports').grant}><ReportsList /></GrantGuard>} />

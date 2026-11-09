@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import adminApi from "../../../lib/adminApi";
 
-const STATUSES = ["open", "snoozed", "acknowledged", "resolved"];
-const ACTIONS = { open: ["snooze", "acknowledge", "resolve"], snoozed: ["unsnooze", "acknowledge", "resolve"], acknowledged: ["resolve"], resolved: [] };
+export const STATUSES = ["open", "snoozed", "acknowledged", "resolved"];
+export const ACTIONS = { open: ["snooze", "acknowledge", "resolve"], snoozed: ["unsnooze", "acknowledge", "resolve"], acknowledged: ["resolve"], resolved: [] };
 
-function Evidence({ a, copy }) {
+export function Evidence({ a, copy }) {
   const e = a.evidence || {};
   if (a.kind === "new_country_login")
     return <p>{copy("anomalies.evidence.country", { country: e.country, previous: (e.previousCountries || []).join(", ") || "—" })}</p>;

@@ -49,7 +49,23 @@ async function createDraft({ actorUserId, caseIds, narrative = '' }) {
   }, 'credit_sar_draft');
 }
 
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Validate a draft edit before it reaches the database (gap fill 10). */
+function validateDraftEdit({ narrative, activityFrom, activityTo, amountMinor, currencyCode }) {
+  if (narrative !== undefined && narrative !== null && typeof narrative !== 'string') throw new AppError('narrative must be text', 400, 'validation_failed');
+  for (const [name, v] of [['activityFrom', activityFrom], ['activityTo', activityTo]]) {
+    if (v && (!DAY.test(String(v)) || Number.isNaN(Date.parse(`${v}T00:00:00Z`)))) throw new AppError(`${name} must be YYYY-MM-DD`, 400, 'validation_failed');
+  }
+  if (activityFrom && activityTo && String(activityFrom) > String(activityTo)) throw new AppError('activityFrom is after activityTo', 400, 'validation_failed');
+  if (amountMinor !== undefined && amountMinor !== null && !(Number.isSafeInteger(Number(amountMinor)) && Number(amountMinor) >= 0)) {
+    throw new AppError('amountMinor must be a whole number of minor units', 400, 'validation_failed');
+  }
+  if (currencyCode && !/^[A-Z]{3}$/.test(String(currencyCode))) throw new AppError('currencyCode must be a 3-letter code', 400, 'validation_failed');
+}
+
 async function updateDraft({ actorUserId, sarId, narrative, activityFrom, activityTo, amountMinor, currencyCode }) {
+  validateDraftEdit({ narrative, activityFrom, activityTo, amountMinor, currencyCode });
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `UPDATE credit_sar_reports
@@ -191,4 +207,4 @@ function registerOversightActions(register) {
   register('credit_sar_approve', applyApprove);
 }
 
-module.exports = { createDraft, updateDraft, submitForApproval, returnToDraft, applyApprove, markFiled, withdraw, buildFilingPack, checkDeadlines, list, registerOversightActions };
+module.exports = { createDraft, updateDraft, validateDraftEdit, submitForApproval, returnToDraft, applyApprove, markFiled, withdraw, buildFilingPack, checkDeadlines, list, registerOversightActions };

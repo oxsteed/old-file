@@ -773,7 +773,8 @@
     "explore": "Gundua",
     "help": "Msaada",
     "compactTagline": "Huduma za karibu: msaada, chakula na biashara.",
-    "teamAccess": "Ufikiaji wa timu (Vortex)"
+    "teamAccess": "Ufikiaji wa timu (Vortex)",
+    "creditTerms": "Masharti ya OxSteed Credit"
   },
   "nav": {
     "findHelp": "Tafuta Msaada",
@@ -3771,5 +3772,101 @@
     "changedOn": "Sera yetu ya Faragha ilibadilika tarehe {{date}}.",
     "changesOn": "Sera yetu ya Faragha itabadilika tarehe {{date}}.",
     "dismiss": "Ondoa"
+  },
+  "customerWorkspace": {
+    "ops": {
+      "title": "Shughuli za Customer 360",
+      "hint": "Kazi inayohusu wateja wengi: foleni za timu, hitilafu kwenye jukwaa zima, na kama muhtasari wa wateja uko sasa.",
+      "tabs": {
+        "queues": "Foleni za timu",
+        "anomalies": "Hitilafu zote",
+        "summaries": "Hali ya muhtasari"
+      },
+      "queuesHint": "Chukua, achilia na utatue vipengee vya wateja wote. Mionekano iliyohifadhiwa inahifadhi vichujio unavyotumia zaidi.",
+      "anomaliesTitle": "Hitilafu za wateja wote",
+      "anomaliesHint": "Ni aina tu zinazoruhusiwa na ufikiaji wako ndizo zinaonyeshwa. Kila hatua inahitaji sababu na hurekodiwa kwenye kumbukumbu ya ukaguzi."
+    },
+    "queues": {
+      "errors": {
+        "queue_exists": "Foleni yenye ufunguo huu tayari ipo.",
+        "invalid_queue_key": "Tumia herufi ndogo, tarakimu au mistari ya chini 2–40 kwa ufunguo.",
+        "invalid_name": "Jina lazima liwe na herufi 1–80.",
+        "invalid_sla": "Muda wa kujibu lazima uwe dakika 5–43,200."
+      },
+      "setup": {
+        "title": "Mipangilio ya foleni",
+        "hint": "Kwa wasimamizi wakuu pekee. Muda wa kujibu (SLA) ni dakika {{min}}–{{max}}. Foleni za kiotomatiki hubaki na ufunguo wake.",
+        "feed": "kiotomatiki",
+        "name": "Jina",
+        "description": "Maelezo",
+        "slaMinutes": "Muda wa kujibu (dakika)",
+        "active": "Hai",
+        "save": "Hifadhi foleni",
+        "new": "Foleni mpya",
+        "key": "Ufunguo",
+        "create": "Unda foleni",
+        "created": "Foleni imeundwa.",
+        "saved": "Foleni imehifadhiwa."
+      },
+      "manageView": "Simamia mwonekano huu",
+      "renameView": "Badilisha jina au shiriki",
+      "newViewName": "Jina jipya",
+      "saveRename": "Hifadhi jina",
+      "updateView": "Hifadhi vichujio vya sasa kwenye mwonekano huu",
+      "viewRenamed": "Jina la mwonekano limebadilishwa.",
+      "viewUpdated": "Mwonekano umesasishwa."
+    },
+    "summaryHealth": {
+      "title": "Hali ya muhtasari wa wateja",
+      "hint": "Huonyesha kama maboresho ya Customer 360 yamewashwa, ujenzi upya wa muhtasari umechelewa kiasi gani, na kila kazi ya chinichini iliendeshwa lini mara ya mwisho.",
+      "states": {
+        "healthy": "Iko sawa",
+        "disabled": "Imezimwa",
+        "not_started": "Bado haijaanza",
+        "failing": "Inashindwa",
+        "behind": "Imechelewa"
+      },
+      "workerStates": {
+        "ok": "Kwa wakati",
+        "late": "Imechelewa",
+        "failing": "Inashindwa"
+      },
+      "modelVersion": "Toleo la muhtasari",
+      "ttl": "Hujengwa upya angalau kila",
+      "rows": "Muhtasari (makadirio)",
+      "dirty": "Zinasubiri kujengwa upya",
+      "oldestDirty": "Kusubiri kwa muda mrefu zaidi",
+      "stale": "Muda wa kujenga upya umepita",
+      "outdatedModel": "Toleo la zamani",
+      "eventLag": "Matukio ambayo bado hayajachakatwa",
+      "atLeast": "angalau {{count}}",
+      "hours": "saa {{count}}",
+      "workers": "Kazi za chinichini",
+      "task": "Kazi",
+      "status": "Hali",
+      "lastOk": "Mafanikio ya mwisho",
+      "lastError": "Hitilafu ya mwisho",
+      "failures": "Kushindwa mfululizo",
+      "noWorkers": "Bado hakuna kazi ya chinichini iliyoripoti kwenye seva yoyote.",
+      "checked": "Imekaguliwa {{time}}",
+      "refresh": "Onyesha upya",
+      "enabled": "{{flag}} imewashwa",
+      "disabledFlag": "{{flag}} imezimwa"
+    }
+  },
+  "creditTermsPage": {
+    "metaTitle": "Masharti ya OxSteed Credit | OxSteed",
+    "metaDescription": "Soma masharti, ada na kinga za OxSteed Credit kabla ya kufungua akaunti.",
+    "title": "Masharti ya OxSteed Credit",
+    "intro": "Unaweza kusoma masharti haya bila akaunti. Unayakubali tu baada ya kuingia, kabla ya kuongeza au kupokea OxSteed Credit kwa mara ya kwanza.",
+    "currency": "Onyesha ada kwa",
+    "loading": "Inapakia masharti…",
+    "loadFailed": "Masharti hayakuweza kupakiwa. Tafadhali jaribu tena baada ya muda mfupi.",
+    "pendingTitle": "Inasubiri idhini ya kisheria.",
+    "pendingBody": "Sehemu ya maandishi haya ni rasimu ambayo timu yetu ya sheria bado haijaidhinisha. Inaweza kubadilika kabla OxSteed Credit haijatolewa unapoishi.",
+    "draftBadge": "Rasimu",
+    "version": "Toleo {{version}}",
+    "acceptNote": "Ili kukubali masharti haya na kutumia OxSteed Credit, ingia kwenye akaunti yako.",
+    "signIn": "Ingia"
   }
 }

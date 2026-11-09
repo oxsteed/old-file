@@ -1329,8 +1329,34 @@
         "not_assignee": "Only the admin who claimed it can release it.",
         "view_name_taken": "You already have a view with this name.",
         "global_grant_required": "The team board needs a platform-wide customer permission.",
-        "resolution_required": "Choose a resolution."
-      }
+        "resolution_required": "Choose a resolution.",
+        "queue_exists": "A queue with this key already exists.",
+        "invalid_queue_key": "Use 2–40 lowercase letters, digits or underscores for the key.",
+        "invalid_name": "The name must be 1–80 characters.",
+        "invalid_sla": "The response time must be 5–43,200 minutes."
+      },
+      "setup": {
+        "title": "Queue setup",
+        "hint": "Super admins only. The response time (SLA) is {{min}}–{{max}} minutes. Automatic queues keep their key.",
+        "feed": "automatic",
+        "name": "Name",
+        "description": "Description",
+        "slaMinutes": "Response time (minutes)",
+        "active": "Active",
+        "save": "Save queue",
+        "new": "New queue",
+        "key": "Key",
+        "create": "Create queue",
+        "created": "Queue created.",
+        "saved": "Queue saved."
+      },
+      "manageView": "Manage this view",
+      "renameView": "Rename or share",
+      "newViewName": "New name",
+      "saveRename": "Save name",
+      "updateView": "Save current filters to this view",
+      "viewRenamed": "View renamed.",
+      "viewUpdated": "View updated."
     },
     "summary": {
       "title": "Customer summary",
@@ -1368,6 +1394,55 @@
         "outdated_model": "Computed {{time}} by an older version.",
         "missing": "It will be computed in the background."
       }
+    },
+    "ops": {
+      "title": "Customer 360 operations",
+      "hint": "Work that covers many customers: the team queues, anomalies across the platform, and whether customer summaries are up to date.",
+      "tabs": {
+        "queues": "Team queues",
+        "anomalies": "All anomalies",
+        "summaries": "Summary health"
+      },
+      "queuesHint": "Claim, release and resolve items for every customer. Saved views keep the filters you use most.",
+      "anomaliesTitle": "Anomalies across all customers",
+      "anomaliesHint": "Only the kinds your access allows are listed. Every action needs a reason and is recorded in the audit log."
+    },
+    "summaryHealth": {
+      "title": "Customer summary health",
+      "hint": "Shows whether the Customer 360 upgrades are switched on, how far summary rebuilding is behind, and when each background task last ran.",
+      "states": {
+        "healthy": "Healthy",
+        "disabled": "Switched off",
+        "not_started": "Not started yet",
+        "failing": "Failing",
+        "behind": "Behind"
+      },
+      "workerStates": {
+        "ok": "On time",
+        "late": "Late",
+        "failing": "Failing"
+      },
+      "enabled": "{{flag}} is on",
+      "disabledFlag": "{{flag}} is off",
+      "modelVersion": "Summary version",
+      "ttl": "Rebuilt at least every",
+      "rows": "Summaries (estimate)",
+      "dirty": "Waiting to rebuild",
+      "oldestDirty": "Oldest wait",
+      "stale": "Past their rebuild time",
+      "outdatedModel": "On an older version",
+      "eventLag": "Events not yet processed",
+      "atLeast": "at least {{count}}",
+      "hours": "{{count}} h",
+      "workers": "Background tasks",
+      "task": "Task",
+      "status": "Status",
+      "lastOk": "Last success",
+      "lastError": "Last error",
+      "failures": "Failures in a row",
+      "noWorkers": "No background task has reported yet on any server.",
+      "checked": "Checked {{time}}",
+      "refresh": "Refresh"
     }
   },
   "screens": {
@@ -3095,7 +3170,8 @@
     "independentContractor": "Independent Contractor",
     "howOxsteedWorks": "How OxSteed Works",
     "careers": "Careers",
-    "callOxSteed": "Call OxSteed at {{phone}}"
+    "callOxSteed": "Call OxSteed at {{phone}}",
+    "creditTerms": "OxSteed Credit terms"
   },
   "accountTermination": {
     "pageTitle": "Account Termination Policy",
@@ -31273,7 +31349,8 @@
     "legalCcpaErasureReview": "Erasure Review",
     "foodOrders": "Food orders",
     "mediaFlags": "Media flags",
-    "franchiseStatus": "Application status"
+    "franchiseStatus": "Application status",
+    "customer360Ops": "Customer 360 operations"
   },
   "adminProfileVisibility": {
     "title": "Profile visibility",
@@ -40401,5 +40478,20 @@
     "pagination": "Showing {{from}} to {{to}} of {{total}} jobs",
     "pagination.next": "Next",
     "pagination.previous": "Previous"
+  },
+  "creditTermsPage": {
+    "metaTitle": "OxSteed Credit terms | OxSteed",
+    "metaDescription": "Read the OxSteed Credit terms, fees and protections before you create an account.",
+    "title": "OxSteed Credit terms",
+    "intro": "You can read these terms without an account. You accept them only after you sign in, before you first add or receive OxSteed Credit.",
+    "currency": "Show fees in",
+    "loading": "Loading the terms…",
+    "loadFailed": "The terms could not be loaded. Please try again in a moment.",
+    "pendingTitle": "Pending legal approval.",
+    "pendingBody": "Some of this text is a draft that our legal team has not approved yet. It may change before OxSteed Credit is offered where you live.",
+    "draftBadge": "Draft",
+    "version": "Version {{version}}",
+    "acceptNote": "To accept these terms and use OxSteed Credit, sign in to your account.",
+    "signIn": "Sign in"
   }
 }

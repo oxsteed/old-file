@@ -76,7 +76,8 @@
     "explore": "Explorar",
     "help": "Ajuda",
     "compactTagline": "Ajuda local, comida e serviços para negócios.",
-    "teamAccess": "Acesso da equipe (Vortex)"
+    "teamAccess": "Acesso da equipe (Vortex)",
+    "creditTerms": "Termos do OxSteed Credit"
   },
   "nav": {
     "findHelp": "Encontrar ajuda",
@@ -3773,5 +3774,101 @@
     "changedOn": "Nossa Política de Privacidade mudou em {{date}}.",
     "changesOn": "Nossa Política de Privacidade mudará em {{date}}.",
     "dismiss": "Dispensar"
+  },
+  "customerWorkspace": {
+    "ops": {
+      "title": "Operações Customer 360",
+      "hint": "Trabalho que abrange muitos clientes: as filas da equipa, as anomalias em toda a plataforma e se os resumos de clientes estão atualizados.",
+      "tabs": {
+        "queues": "Filas da equipa",
+        "anomalies": "Todas as anomalias",
+        "summaries": "Estado dos resumos"
+      },
+      "queuesHint": "Assuma, liberte e resolva itens de todos os clientes. As vistas guardadas mantêm os filtros que mais usa.",
+      "anomaliesTitle": "Anomalias de todos os clientes",
+      "anomaliesHint": "Só são listados os tipos que o seu acesso permite. Cada ação exige um motivo e fica registada no registo de auditoria."
+    },
+    "queues": {
+      "errors": {
+        "queue_exists": "Já existe uma fila com esta chave.",
+        "invalid_queue_key": "Use 2–40 letras minúsculas, dígitos ou sublinhados na chave.",
+        "invalid_name": "O nome deve ter 1–80 caracteres.",
+        "invalid_sla": "O tempo de resposta deve ser de 5 a 43 200 minutos."
+      },
+      "setup": {
+        "title": "Configuração das filas",
+        "hint": "Apenas para superadministradores. O tempo de resposta (SLA) é de {{min}} a {{max}} minutos. As filas automáticas mantêm a chave.",
+        "feed": "automática",
+        "name": "Nome",
+        "description": "Descrição",
+        "slaMinutes": "Tempo de resposta (minutos)",
+        "active": "Ativa",
+        "save": "Guardar fila",
+        "new": "Nova fila",
+        "key": "Chave",
+        "create": "Criar fila",
+        "created": "Fila criada.",
+        "saved": "Fila guardada."
+      },
+      "manageView": "Gerir esta vista",
+      "renameView": "Mudar o nome ou partilhar",
+      "newViewName": "Novo nome",
+      "saveRename": "Guardar nome",
+      "updateView": "Guardar os filtros atuais nesta vista",
+      "viewRenamed": "Nome da vista alterado.",
+      "viewUpdated": "Vista atualizada."
+    },
+    "summaryHealth": {
+      "title": "Estado dos resumos de clientes",
+      "hint": "Mostra se as melhorias do Customer 360 estão ativas, o atraso da reconstrução dos resumos e quando cada tarefa em segundo plano foi executada pela última vez.",
+      "states": {
+        "healthy": "Saudável",
+        "disabled": "Desligado",
+        "not_started": "Ainda não iniciado",
+        "failing": "Com falhas",
+        "behind": "Atrasado"
+      },
+      "workerStates": {
+        "ok": "Dentro do prazo",
+        "late": "Atrasada",
+        "failing": "Com falhas"
+      },
+      "modelVersion": "Versão do resumo",
+      "ttl": "Reconstruído pelo menos a cada",
+      "rows": "Resumos (estimativa)",
+      "dirty": "A aguardar reconstrução",
+      "oldestDirty": "Espera mais longa",
+      "stale": "Reconstrução em atraso",
+      "outdatedModel": "Versão antiga",
+      "eventLag": "Eventos por processar",
+      "atLeast": "pelo menos {{count}}",
+      "hours": "{{count}} h",
+      "workers": "Tarefas em segundo plano",
+      "task": "Tarefa",
+      "status": "Estado",
+      "lastOk": "Último sucesso",
+      "lastError": "Último erro",
+      "failures": "Falhas seguidas",
+      "noWorkers": "Nenhuma tarefa em segundo plano reportou ainda em qualquer servidor.",
+      "checked": "Verificado: {{time}}",
+      "refresh": "Atualizar",
+      "enabled": "{{flag}} está ativado",
+      "disabledFlag": "{{flag}} está desativado"
+    }
+  },
+  "creditTermsPage": {
+    "metaTitle": "Termos do OxSteed Credit | OxSteed",
+    "metaDescription": "Leia os termos, as comissões e as proteções do OxSteed Credit antes de criar uma conta.",
+    "title": "Termos do OxSteed Credit",
+    "intro": "Pode ler estes termos sem conta. Só os aceita depois de iniciar sessão, antes de adicionar ou receber OxSteed Credit pela primeira vez.",
+    "currency": "Mostrar comissões em",
+    "loading": "A carregar os termos…",
+    "loadFailed": "Não foi possível carregar os termos. Tente novamente daqui a pouco.",
+    "pendingTitle": "A aguardar aprovação jurídica.",
+    "pendingBody": "Parte deste texto é um rascunho que a nossa equipa jurídica ainda não aprovou. Pode mudar antes de o OxSteed Credit ser oferecido onde vive.",
+    "draftBadge": "Rascunho",
+    "version": "Versão {{version}}",
+    "acceptNote": "Para aceitar estes termos e usar o OxSteed Credit, inicie sessão na sua conta.",
+    "signIn": "Iniciar sessão"
   }
 }

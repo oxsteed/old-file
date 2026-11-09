@@ -27,6 +27,7 @@ export default function ComplianceSection() {
   const [query, setQuery] = useState('');
   const [matches, setMatches] = useState(null);
   const [range, setRange] = useState({ from: isoDay(-30), to: isoDay(0) });
+  const [editing, setEditing] = useState(null);
 
   const refreshSource = async (row) => { await action.run(() => adminApi.post(`${LICENCE_API}/sanctions/sources/${encodeURIComponent(row.id)}/refresh`), 'adminLicence.done'); sources.reload(); };
   const search = async (event) => {
@@ -55,6 +56,25 @@ export default function ComplianceSection() {
     await action.run(() => adminApi.post(`${LICENCE_API}/sar`, { caseIds: caseIds.split(/[\s,]+/).filter(Boolean), narrative }), 'adminLicence.done');
     sar.reload();
   };
+  // Gap fill 10: edit a draft report (PATCH /sar/:id; the server only
+  // accepts drafts). Amounts are integers in minor units of the currency.
+  const startEdit = (row) => setEditing({
+    id: row.id, narrative: row.narrative || '', activityFrom: String(row.activity_from || '').slice(0, 10), activityTo: String(row.activity_to || '').slice(0, 10),
+    amountMinor: row.amount_minor == null ? '' : String(row.amount_minor), currencyCode: row.currency_code || '',
+  });
+  const saveDraft = async (event) => {
+    event.preventDefault();
+    const e = editing;
+    if (e.amountMinor !== '' && !/^\d{1,15}$/.test(e.amountMinor)) { action.setError(t('adminLicence.sarBadAmount')); return; }
+    if (e.currencyCode && !/^[A-Z]{3}$/.test(e.currencyCode)) { action.setError(t('adminLicence.sarBadCurrency')); return; }
+    if (e.activityFrom && e.activityTo && e.activityFrom > e.activityTo) { action.setError(t('adminLicence.sarBadRange')); return; }
+    const done = await action.run(() => adminApi.patch(`${LICENCE_API}/sar/${encodeURIComponent(e.id)}`, {
+      narrative: e.narrative, activityFrom: e.activityFrom || null, activityTo: e.activityTo || null,
+      amountMinor: e.amountMinor === '' ? null : Number(e.amountMinor), currencyCode: e.currencyCode || null,
+    }), 'adminLicence.draftSaved');
+    if (done) { setEditing(null); sar.reload(); }
+  };
+  const setE = (patch) => setEditing((x) => ({ ...x, ...patch }));
   const sarStep = async (row, step) => {
     let body = {};
     if (step === 'file') {
@@ -155,6 +175,7 @@ export default function ComplianceSection() {
           ]}
           actions={(row) => (
             <>
+              {row.status === 'draft' && <ActionButton disabled={action.busy} onClick={() => startEdit(row)}>{t('adminLicence.editDraft')}</ActionButton>}
               {row.status === 'draft' && <ActionButton disabled={action.busy} onClick={() => sarStep(row, 'submit')}>{t('adminLicence.submitForApproval')}</ActionButton>}
               {row.status === 'pending_approval' && (
                 <>
@@ -168,6 +189,25 @@ export default function ComplianceSection() {
             </>
           )}
         />
+        {editing && (
+          <form onSubmit={saveDraft} className="grid gap-3 sm:grid-cols-2" data-form="sar-edit">
+            <h3 className="sm:col-span-2 text-sm font-semibold text-gray-900 dark:text-white">{t('adminLicence.editDraftTitle')}</h3>
+            <div className="sm:col-span-2">
+              <Field label={t('adminLicence.narrative')}>
+                <textarea required rows={6} maxLength={20000} value={editing.narrative} onChange={(ev) => setE({ narrative: ev.target.value })} className={inputClass} />
+              </Field>
+              <p className="mt-1 text-xs text-gray-500">{t('adminLicence.narrativeHelp')}</p>
+            </div>
+            <Field label={t('adminLicence.sarActivityFrom')}><input type="date" dir="ltr" value={editing.activityFrom} onChange={(ev) => setE({ activityFrom: ev.target.value })} className={inputClass} /></Field>
+            <Field label={t('adminLicence.sarActivityTo')}><input type="date" dir="ltr" value={editing.activityTo} onChange={(ev) => setE({ activityTo: ev.target.value })} className={inputClass} /></Field>
+            <Field label={t('adminLicence.sarAmountMinor')}><input dir="ltr" inputMode="numeric" value={editing.amountMinor} onChange={(ev) => setE({ amountMinor: ev.target.value.trim() })} className={inputClass} /></Field>
+            <Field label={t('adminLicence.col.currency')}><input dir="ltr" maxLength={3} value={editing.currencyCode} onChange={(ev) => setE({ currencyCode: ev.target.value.toUpperCase().trim() })} className={inputClass} /></Field>
+            <div className="sm:col-span-2 flex flex-wrap gap-2">
+              <ActionButton type="submit" tone="primary" disabled={action.busy || editing.narrative.trim().length === 0}>{t('adminLicence.saveDraft')}</ActionButton>
+              <ActionButton disabled={action.busy} onClick={() => setEditing(null)}>{t('adminLicence.cancelEdit')}</ActionButton>
+            </div>
+          </form>
+        )}
       </Panel>
       <AdminActionDialog dialog={dialog} onResolve={resolveDialog} />
     </div>

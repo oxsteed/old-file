@@ -25,23 +25,24 @@ export default function BusinessCustomer360({ bizId, currency }) {
   const { t } = useTranslation();
   const copy = (key, o) => t(`${K}.${key}`, o);
   const [search, setSearch] = useState('');
-  const [list, setList] = useState({ customers: [], nextOffset: null });
+  const [list, setList] = useState({ customers: [], nextCursor: null });
   const [state, setState] = useState('loading');
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState(null);
   const [detailState, setDetailState] = useState('idle');
   const latest = useRef(0);
 
-  const load = async (offset = 0, signal) => {
-    const data = await listBusinessCustomers360(bizId, { search: search || undefined, offset }, { signal });
-    setList((prev) => ({ ...data, customers: offset ? [...prev.customers, ...data.customers] : data.customers }));
+  // Gap fill 14: keyset paging; "more" passes the server's opaque cursor.
+  const load = async (cursor = null, signal) => {
+    const data = await listBusinessCustomers360(bizId, { search: search || undefined, cursor: cursor || undefined }, { signal });
+    setList((prev) => ({ ...data, customers: cursor ? [...prev.customers, ...data.customers] : data.customers }));
   };
   useEffect(() => {
     if (!bizId) return undefined;
     const c = new AbortController();
     const timer = setTimeout(() => {
       setState('loading');
-      load(0, c.signal).then(() => !c.signal.aborted && setState('ready')).catch((e) => {
+      load(null, c.signal).then(() => !c.signal.aborted && setState('ready')).catch((e) => {
         if (c.signal.aborted) return;
         setState(e?.response?.status === 403 ? 'forbidden' : 'error');
       });
@@ -89,8 +90,8 @@ export default function BusinessCustomer360({ bizId, currency }) {
                 ))}
               </ul>
             )}
-            {list.nextOffset != null && (
-              <button type="button" className="bct-btn ghost" onClick={() => load(list.nextOffset).catch(() => setState('error'))} data-track="ui.31436a55e3.2">{copy('more')}</button>
+            {list.nextCursor && (
+              <button type="button" className="bct-btn ghost" onClick={() => load(list.nextCursor).catch(() => setState('error'))} data-track="ui.31436a55e3.2">{copy('more')}</button>
             )}
           </div>
           <div className="bc360-detail" aria-live="polite">

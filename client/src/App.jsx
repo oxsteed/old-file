@@ -63,6 +63,7 @@ const AccessibilityPage = lazyWithRetry(() => import('./pages/accessibility'));
 const BackgroundCheckPage = lazyWithRetry(() => import('./pages/BackgroundCheckPage'));
 const ArbitrationPage = lazyWithRetry(() => import('./pages/ArbitrationPage'));
 const EscrowPolicyPage = lazyWithRetry(() => import('./pages/EscrowPolicyPage'));
+const CreditTermsPage = lazyWithRetry(() => import('./pages/CreditTermsPage'));
 const AccountTerminationPage = lazyWithRetry(() => import('./pages/AccountTerminationPage'));
 const DisputeResolutionPage = lazyWithRetry(() => import('./pages/DisputeResolutionPage'));
 const IndependentContractorPage = lazyWithRetry(() => import('./pages/IndependentContractorPage'));
@@ -644,6 +645,7 @@ export default function App() {
                     <Route path="/legal/background-check"      element={<Guarded><BackgroundCheckPage /></Guarded>} />
                     <Route path="/legal/arbitration"           element={<Guarded><ArbitrationPage /></Guarded>} />
                     <Route path="/legal/escrow-policy"         element={<Guarded><EscrowPolicyPage /></Guarded>} />
+                    <Route path="/legal/credit-terms"          element={<Guarded><CreditTermsPage /></Guarded>} />
                     <Route path="/legal/account-termination"   element={<Guarded><AccountTerminationPage /></Guarded>} />
                     <Route path="/legal/dispute-resolution"    element={<Guarded><DisputeResolutionPage /></Guarded>} />
                     <Route path="/legal/independent-contractor" element={<Guarded><IndependentContractorPage /></Guarded>} />

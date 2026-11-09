@@ -16,7 +16,7 @@ const copy = Object.fromEntries(
   }),
 );
 const fixtures = `
-window.list={customers:[{key:'u-a',clientId:'1',name:'Anne Client',lastAt:'2026-11-01T10:00:00Z',via:['crm','order']},{key:'c-9',clientId:'9',name:'Walk-in Wally with a very long name that must wrap nicely',lastAt:null,via:['crm']}],nextOffset:null,access:{customers:'all',appointments:'all',invoices:true,orders:true}};
+window.list={customers:[{key:'u-a',clientId:'1',name:'Anne Client',lastAt:'2026-11-01T10:00:00Z',via:['crm','order']},{key:'c-9',clientId:'9',name:'Walk-in Wally with a very long name that must wrap nicely',lastAt:null,via:['crm']}],nextCursor:null,access:{customers:'all',appointments:'all',invoices:true,orders:true}};
 window.detail={customer:{key:'u-a',name:'Anne Client',via:['crm','order'],client:{id:'1',status:'active',email:'anne@biz.example',phone:'+509 555 0100',notes:'Prefers mornings',lifetimeValueCents:12000}},
   sections:{appointments:{state:'ready',total:1,noShows:1,items:[{id:'x',at:'2026-10-30T10:00:00Z',status:'no_show',service:'Tasting'}]},
     orders:{state:'ready',total:2,paidCents:3500,partialStores:true,items:[{id:'1',at:'2026-10-29T10:00:00Z',status:'completed',totalCents:2500,currency:'USD',restaurant:'Lakay Grill'}]},

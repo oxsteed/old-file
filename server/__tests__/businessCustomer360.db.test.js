@@ -166,4 +166,43 @@ describeDatabase('business-scoped customer 360', () => {
     expect((await as(ids.owner).get(`/api/businesses/${ids.biz}/customer360/customers/c-99999999999`)).status).toBe(404);
     expect((await as(ids.owner).get(`/api/businesses/${ids.biz}/customer360/customers/x`)).status).toBe(400);
   });
+
+  test('gap fill 14: every restaurant counts and keyset pages cover every customer exactly once', async () => {
+    const { RESTAURANT_BATCH, PAGE } = require('../services/businessCustomer360');
+    const owner3 = await newUser('owner3');
+    const late = await newUser('lateCustomer');
+    const { rows: [{ id: biz3 }] } = await pool.query(`INSERT INTO businesses (user_id, business_name) VALUES ($1, 'Big Chain') RETURNING id`, [owner3]);
+    // More restaurants than one batch; the only order is at the last one.
+    const { rows: rests } = await pool.query(
+      `INSERT INTO food_restaurants (business_id, owner_user_id, display_name)
+       SELECT $1, $2, 'Chain ' || g FROM generate_series(1, $3::int) g RETURNING id`, [biz3, owner3, RESTAURANT_BATCH + 5]);
+    const lastRest = rests.map((r) => Number(r.id)).sort((a, b) => a - b).pop();
+    const { rows: [{ id: lastLoc }] } = await pool.query(`INSERT INTO restaurant_locations (restaurant_id, name) VALUES ($1, 'Far') RETURNING id`, [lastRest]);
+    await pool.query(
+      `INSERT INTO food_orders (restaurant_id, business_id, location_id, customer_id, status, payment_status, total_cents, queue_number)
+       VALUES ($1, $2, $3, $4, 'completed', 'paid', 500, 9901)`, [lastRest, biz3, lastLoc, late]);
+    // Many CRM clients with the same timestamp, so ties must page on the key.
+    await pool.query(
+      `INSERT INTO business_clients (business_id, display_name, created_by, updated_at)
+       SELECT $1, 'Client ' || g, $2, TIMESTAMPTZ '2026-01-01 12:00:00+00' FROM generate_series(1, $3::int) g`, [biz3, owner3, PAGE * 2 + 7]);
+    const seen = [];
+    let cursor = null;
+    let pages = 0;
+    do {
+      const res = await as(owner3).get(`/api/businesses/${biz3}/customer360/customers${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`);
+      expect(res.status).toBe(200);
+      expect(res.body).not.toHaveProperty('nextOffset');
+      seen.push(...res.body.customers.map((c) => c.key));
+      cursor = res.body.nextCursor;
+      pages += 1;
+    } while (cursor && pages < 20);
+    expect(cursor).toBeNull();
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen.length).toBe(PAGE * 2 + 7 + 1);
+    expect(seen).toContain(`u-${late}`);
+    expect(pages).toBe(3);
+    expect((await as(owner3).get(`/api/businesses/${biz3}/customer360/customers?cursor=not-a-cursor`)).status).toBe(400);
+    const forged = Buffer.from(JSON.stringify(['2026-01-01T00:00:00Z', "x'; DROP TABLE users; --"])).toString('base64url');
+    expect((await as(owner3).get(`/api/businesses/${biz3}/customer360/customers?cursor=${forged}`)).status).toBe(400);
+  });
 });

@@ -76,7 +76,8 @@
     "explore": "Keşfet",
     "help": "Yardım",
     "compactTagline": "Yerel yardım, yemek ve işletme hizmetleri.",
-    "teamAccess": "Ekip erişimi (Vortex)"
+    "teamAccess": "Ekip erişimi (Vortex)",
+    "creditTerms": "OxSteed Credit koşulları"
   },
   "nav": {
     "findHelp": "Yardım Bul",
@@ -3773,5 +3774,101 @@
     "changedOn": "Gizlilik Politikamız {{date}} tarihinde değişti.",
     "changesOn": "Gizlilik Politikamız {{date}} tarihinde değişecek.",
     "dismiss": "Kapat"
+  },
+  "customerWorkspace": {
+    "ops": {
+      "title": "Customer 360 operasyonları",
+      "hint": "Birçok müşteriyi kapsayan işler: ekip kuyrukları, platform genelindeki anormallikler ve müşteri özetlerinin güncel olup olmadığı.",
+      "tabs": {
+        "queues": "Ekip kuyrukları",
+        "anomalies": "Tüm anormallikler",
+        "summaries": "Özet durumu"
+      },
+      "queuesHint": "Tüm müşterilerin öğelerini üstlenin, bırakın ve çözün. Kayıtlı görünümler en sık kullandığınız filtreleri saklar.",
+      "anomaliesTitle": "Tüm müşterilerdeki anormallikler",
+      "anomaliesHint": "Yalnızca erişiminizin izin verdiği türler listelenir. Her işlem bir gerekçe gerektirir ve denetim günlüğüne kaydedilir."
+    },
+    "queues": {
+      "errors": {
+        "queue_exists": "Bu anahtara sahip bir kuyruk zaten var.",
+        "invalid_queue_key": "Anahtar için 2–40 küçük harf, rakam veya alt çizgi kullanın.",
+        "invalid_name": "Ad 1–80 karakter olmalıdır.",
+        "invalid_sla": "Yanıt süresi 5–43.200 dakika olmalıdır."
+      },
+      "setup": {
+        "title": "Kuyruk ayarları",
+        "hint": "Yalnızca süper yöneticiler. Yanıt süresi (SLA) {{min}}–{{max}} dakikadır. Otomatik kuyruklar anahtarlarını korur.",
+        "feed": "otomatik",
+        "name": "Ad",
+        "description": "Açıklama",
+        "slaMinutes": "Yanıt süresi (dakika)",
+        "active": "Etkin",
+        "save": "Kuyruğu kaydet",
+        "new": "Yeni kuyruk",
+        "key": "Anahtar",
+        "create": "Kuyruk oluştur",
+        "created": "Kuyruk oluşturuldu.",
+        "saved": "Kuyruk kaydedildi."
+      },
+      "manageView": "Bu görünümü yönet",
+      "renameView": "Yeniden adlandır veya paylaş",
+      "newViewName": "Yeni ad",
+      "saveRename": "Adı kaydet",
+      "updateView": "Geçerli filtreleri bu görünüme kaydet",
+      "viewRenamed": "Görünüm yeniden adlandırıldı.",
+      "viewUpdated": "Görünüm güncellendi."
+    },
+    "summaryHealth": {
+      "title": "Müşteri özetlerinin durumu",
+      "hint": "Customer 360 iyileştirmelerinin açık olup olmadığını, özetlerin yeniden oluşturulmasının ne kadar geride kaldığını ve her arka plan görevinin en son ne zaman çalıştığını gösterir.",
+      "states": {
+        "healthy": "Sağlıklı",
+        "disabled": "Kapalı",
+        "not_started": "Henüz başlamadı",
+        "failing": "Başarısız",
+        "behind": "Geride"
+      },
+      "workerStates": {
+        "ok": "Zamanında",
+        "late": "Gecikmiş",
+        "failing": "Başarısız"
+      },
+      "modelVersion": "Özet sürümü",
+      "ttl": "En az şu sıklıkta yeniden oluşturulur",
+      "rows": "Özetler (tahmini)",
+      "dirty": "Yeniden oluşturulmayı bekleyen",
+      "oldestDirty": "En uzun bekleme",
+      "stale": "Yeniden oluşturma süresi geçmiş",
+      "outdatedModel": "Eski sürümde",
+      "eventLag": "Henüz işlenmemiş olaylar",
+      "atLeast": "en az {{count}}",
+      "hours": "{{count}} sa",
+      "workers": "Arka plan görevleri",
+      "task": "Görev",
+      "status": "Durum",
+      "lastOk": "Son başarı",
+      "lastError": "Son hata",
+      "failures": "Art arda hata",
+      "noWorkers": "Henüz hiçbir sunucuda bir arka plan görevi rapor vermedi.",
+      "checked": "Kontrol: {{time}}",
+      "refresh": "Yenile",
+      "enabled": "{{flag}} açık",
+      "disabledFlag": "{{flag}} kapalı"
+    }
+  },
+  "creditTermsPage": {
+    "metaTitle": "OxSteed Credit koşulları | OxSteed",
+    "metaDescription": "Hesap oluşturmadan önce OxSteed Credit koşullarını, ücretlerini ve korumalarını okuyun.",
+    "title": "OxSteed Credit koşulları",
+    "intro": "Bu koşulları hesap olmadan okuyabilirsiniz. Onları yalnızca oturum açtıktan sonra, ilk kez OxSteed Credit eklemeden veya almadan önce kabul edersiniz.",
+    "currency": "Ücretleri şu para biriminde göster",
+    "loading": "Koşullar yükleniyor…",
+    "loadFailed": "Koşullar yüklenemedi. Lütfen birazdan tekrar deneyin.",
+    "pendingTitle": "Hukuki onay bekleniyor.",
+    "pendingBody": "Bu metnin bir kısmı, hukuk ekibimizin henüz onaylamadığı bir taslaktır. OxSteed Credit yaşadığınız yerde sunulmadan önce değişebilir.",
+    "draftBadge": "Taslak",
+    "version": "Sürüm {{version}}",
+    "acceptNote": "Bu koşulları kabul edip OxSteed Credit kullanmak için hesabınızda oturum açın.",
+    "signIn": "Oturum aç"
   }
 }

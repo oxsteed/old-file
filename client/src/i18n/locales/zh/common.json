@@ -76,7 +76,8 @@
     "explore": "探索",
     "help": "帮助",
     "compactTagline": "本地帮手、美食与商业服务。",
-    "teamAccess": "团队入口（Vortex）"
+    "teamAccess": "团队入口（Vortex）",
+    "creditTerms": "OxSteed Credit 条款"
   },
   "nav": {
     "findHelp": "找帮手",
@@ -3773,5 +3774,101 @@
     "changedOn": "我们的隐私政策已于 {{date}} 变更。",
     "changesOn": "我们的隐私政策将于 {{date}} 变更。",
     "dismiss": "关闭"
+  },
+  "customerWorkspace": {
+    "ops": {
+      "title": "Customer 360 运营",
+      "hint": "涉及众多客户的工作：团队队列、全平台异常，以及客户摘要是否为最新。",
+      "tabs": {
+        "queues": "团队队列",
+        "anomalies": "全部异常",
+        "summaries": "摘要状态"
+      },
+      "queuesHint": "认领、释放并解决所有客户的条目。已保存的视图会保留您最常用的筛选条件。",
+      "anomaliesTitle": "所有客户的异常",
+      "anomaliesHint": "仅列出您的权限允许的类型。每项操作都需要填写原因，并记录在审计日志中。"
+    },
+    "queues": {
+      "errors": {
+        "queue_exists": "已存在使用此键的队列。",
+        "invalid_queue_key": "键请使用 2–40 个小写字母、数字或下划线。",
+        "invalid_name": "名称须为 1–80 个字符。",
+        "invalid_sla": "响应时间须为 5–43,200 分钟。"
+      },
+      "setup": {
+        "title": "队列设置",
+        "hint": "仅限超级管理员。响应时间（SLA）为 {{min}}–{{max}} 分钟。自动队列保留其键。",
+        "feed": "自动",
+        "name": "名称",
+        "description": "描述",
+        "slaMinutes": "响应时间（分钟）",
+        "active": "启用",
+        "save": "保存队列",
+        "new": "新建队列",
+        "key": "键",
+        "create": "创建队列",
+        "created": "队列已创建。",
+        "saved": "队列已保存。"
+      },
+      "manageView": "管理此视图",
+      "renameView": "重命名或共享",
+      "newViewName": "新名称",
+      "saveRename": "保存名称",
+      "updateView": "将当前筛选条件保存到此视图",
+      "viewRenamed": "视图已重命名。",
+      "viewUpdated": "视图已更新。"
+    },
+    "summaryHealth": {
+      "title": "客户摘要状态",
+      "hint": "显示 Customer 360 升级是否已开启、摘要重建落后多少，以及每个后台任务上次运行的时间。",
+      "states": {
+        "healthy": "正常",
+        "disabled": "已关闭",
+        "not_started": "尚未启动",
+        "failing": "失败",
+        "behind": "滞后"
+      },
+      "workerStates": {
+        "ok": "准时",
+        "late": "延迟",
+        "failing": "失败"
+      },
+      "modelVersion": "摘要版本",
+      "ttl": "最长重建间隔",
+      "rows": "摘要数（估算）",
+      "dirty": "等待重建",
+      "oldestDirty": "最长等待",
+      "stale": "已超过重建时间",
+      "outdatedModel": "旧版本",
+      "eventLag": "尚未处理的事件",
+      "atLeast": "至少 {{count}}",
+      "hours": "{{count}} 小时",
+      "workers": "后台任务",
+      "task": "任务",
+      "status": "状态",
+      "lastOk": "上次成功",
+      "lastError": "上次错误",
+      "failures": "连续失败",
+      "noWorkers": "尚无任何服务器上的后台任务报告状态。",
+      "checked": "检查时间：{{time}}",
+      "refresh": "刷新",
+      "enabled": "{{flag}} 已开启",
+      "disabledFlag": "{{flag}} 已关闭"
+    }
+  },
+  "creditTermsPage": {
+    "metaTitle": "OxSteed Credit 条款 | OxSteed",
+    "metaDescription": "在创建账户之前，请阅读 OxSteed Credit 的条款、费用和保障。",
+    "title": "OxSteed Credit 条款",
+    "intro": "无需账户即可阅读这些条款。您只需在登录后、首次充值或接收 OxSteed Credit 之前接受这些条款。",
+    "currency": "费用显示币种",
+    "loading": "正在加载条款…",
+    "loadFailed": "无法加载条款，请稍后重试。",
+    "pendingTitle": "待法务批准。",
+    "pendingBody": "部分文本为草稿，尚未经我们的法务团队批准。在您所在地区推出 OxSteed Credit 之前可能会有变更。",
+    "draftBadge": "草稿",
+    "version": "版本 {{version}}",
+    "acceptNote": "如需接受这些条款并使用 OxSteed Credit，请登录您的账户。",
+    "signIn": "登录"
   }
 }

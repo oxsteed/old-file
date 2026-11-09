@@ -76,7 +76,8 @@
     "explore": "Esplora",
     "help": "Aiuto",
     "compactTagline": "Aiuto locale, cibo e servizi per le aziende.",
-    "teamAccess": "Accesso team (Vortex)"
+    "teamAccess": "Accesso team (Vortex)",
+    "creditTerms": "Termini di OxSteed Credit"
   },
   "nav": {
     "findHelp": "Trova aiuto",
@@ -1296,7 +1297,7 @@
         "instructed": "Pagamento inviato alla tua banca",
         "returned": "E' un'altra volta. E' un'altra volta.",
         "paid": "Tornato a voi",
-        "zero": "n.",
+        "zero": "Non resta nulla da restituire",
         "unclaimed": "Tenuto per voi come proprietà non reclamata"
       },
       "addDestination": "Aggiungi un conto in banca per recuperare i tuoi soldi",
@@ -3773,5 +3774,101 @@
     "changedOn": "La nostra Informativa sulla privacy è cambiata il {{date}}.",
     "changesOn": "La nostra Informativa sulla privacy cambierà il {{date}}.",
     "dismiss": "Chiudi"
+  },
+  "customerWorkspace": {
+    "ops": {
+      "title": "Operazioni Customer 360",
+      "hint": "Attività che riguardano molti clienti: le code del team, le anomalie su tutta la piattaforma e lo stato di aggiornamento dei riepiloghi clienti.",
+      "tabs": {
+        "queues": "Code del team",
+        "anomalies": "Tutte le anomalie",
+        "summaries": "Stato dei riepiloghi"
+      },
+      "queuesHint": "Prendi in carico, rilascia e risolvi gli elementi di tutti i clienti. Le viste salvate conservano i filtri che usi più spesso.",
+      "anomaliesTitle": "Anomalie di tutti i clienti",
+      "anomaliesHint": "Sono elencati solo i tipi consentiti dai tuoi accessi. Ogni azione richiede un motivo e viene registrata nel registro di audit."
+    },
+    "queues": {
+      "errors": {
+        "queue_exists": "Esiste già una coda con questa chiave.",
+        "invalid_queue_key": "Usa da 2 a 40 lettere minuscole, cifre o trattini bassi per la chiave.",
+        "invalid_name": "Il nome deve avere da 1 a 80 caratteri.",
+        "invalid_sla": "Il tempo di risposta deve essere tra 5 e 43.200 minuti."
+      },
+      "setup": {
+        "title": "Configurazione delle code",
+        "hint": "Solo per super amministratori. Il tempo di risposta (SLA) va da {{min}} a {{max}} minuti. Le code automatiche mantengono la loro chiave.",
+        "feed": "automatica",
+        "name": "Nome",
+        "description": "Descrizione",
+        "slaMinutes": "Tempo di risposta (minuti)",
+        "active": "Attiva",
+        "save": "Salva la coda",
+        "new": "Nuova coda",
+        "key": "Chiave",
+        "create": "Crea la coda",
+        "created": "Coda creata.",
+        "saved": "Coda salvata."
+      },
+      "manageView": "Gestisci questa vista",
+      "renameView": "Rinomina o condividi",
+      "newViewName": "Nuovo nome",
+      "saveRename": "Salva il nome",
+      "updateView": "Salva i filtri attuali in questa vista",
+      "viewRenamed": "Vista rinominata.",
+      "viewUpdated": "Vista aggiornata."
+    },
+    "summaryHealth": {
+      "title": "Stato dei riepiloghi clienti",
+      "hint": "Indica se i miglioramenti di Customer 360 sono attivi, quanto è in ritardo la ricostruzione dei riepiloghi e quando è stata eseguita l’ultima volta ogni attività in background.",
+      "states": {
+        "healthy": "Regolare",
+        "disabled": "Disattivato",
+        "not_started": "Non ancora avviato",
+        "failing": "In errore",
+        "behind": "In ritardo"
+      },
+      "workerStates": {
+        "ok": "Puntuale",
+        "late": "In ritardo",
+        "failing": "In errore"
+      },
+      "modelVersion": "Versione del riepilogo",
+      "ttl": "Ricostruito almeno ogni",
+      "rows": "Riepiloghi (stima)",
+      "dirty": "In attesa di ricostruzione",
+      "oldestDirty": "Attesa più lunga",
+      "stale": "Ricostruzione scaduta",
+      "outdatedModel": "Versione precedente",
+      "eventLag": "Eventi non ancora elaborati",
+      "atLeast": "almeno {{count}}",
+      "hours": "{{count}} h",
+      "workers": "Attività in background",
+      "task": "Attività",
+      "status": "Stato",
+      "lastOk": "Ultimo esito positivo",
+      "lastError": "Ultimo errore",
+      "failures": "Errori consecutivi",
+      "noWorkers": "Nessuna attività in background ha ancora inviato dati da alcun server.",
+      "checked": "Verificato: {{time}}",
+      "refresh": "Aggiorna",
+      "enabled": "{{flag}} è attivo",
+      "disabledFlag": "{{flag}} è disattivato"
+    }
+  },
+  "creditTermsPage": {
+    "metaTitle": "Termini di OxSteed Credit | OxSteed",
+    "metaDescription": "Leggi termini, commissioni e tutele di OxSteed Credit prima di creare un account.",
+    "title": "Termini di OxSteed Credit",
+    "intro": "Puoi leggere questi termini senza un account. Li accetti solo dopo aver effettuato l’accesso, prima di aggiungere o ricevere OxSteed Credit per la prima volta.",
+    "currency": "Mostra le commissioni in",
+    "loading": "Caricamento dei termini…",
+    "loadFailed": "Impossibile caricare i termini. Riprova tra un momento.",
+    "pendingTitle": "In attesa di approvazione legale.",
+    "pendingBody": "Parte di questo testo è una bozza non ancora approvata dal nostro team legale. Potrebbe cambiare prima che OxSteed Credit sia offerto dove vivi.",
+    "draftBadge": "Bozza",
+    "version": "Versione {{version}}",
+    "acceptNote": "Per accettare questi termini e usare OxSteed Credit, accedi al tuo account.",
+    "signIn": "Accedi"
   }
 }

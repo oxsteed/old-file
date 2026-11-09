@@ -12,6 +12,7 @@ export const OVERSIGHT_TEMPLATES = Object.freeze({
   credit_escheat_execute: { caseId: '' },
   credit_escheat_reclaim: { caseId: '', verificationNote: '' },
   credit_escheat_remit: { caseIds: [], authorityReference: '' },
+  credit_fx_reference_rate_entry: { quoteCurrency: 'HTG', unitsPerUsd: '', rateDate: 'YYYY-MM-DD', note: '' },
   credit_kyc_requirement_waive: { requirementId: '', reason: '' },
   credit_limit_reference_rate_update: { currencyCode: 'HTG', unitsPerUsd: '', asOf: 'YYYY-MM-DD', source: 'BRH' },
   credit_limit_rule_update: { scope: 'currency', scopeCode: 'HTG', kycTier: null, limitKey: '', amountMinor: 0, currencyCode: 'HTG', active: true, note: '' },
@@ -27,6 +28,22 @@ export const OVERSIGHT_TEMPLATES = Object.freeze({
   credit_wind_down_cancel: { planId: '', reason: '' },
 });
 
+/** Translated label for an oversight action type; unknown types show the code. */
+export function actionTypeLabel(t, actionType) {
+  return t(`adminLicence.actionTypes.${actionType}`, { defaultValue: actionType });
+}
+
 export function templateFor(actionType) {
   return JSON.stringify(OVERSIGHT_TEMPLATES[actionType] || {}, null, 2);
+}
+
+/** Client-side mirror of server/services/fx/manualReferenceRate.js validate(). */
+export function manualRateProblem(form) {
+  const q = String(form.quoteCurrency || '').trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(q) || q === 'USD') return 'fxManualBadCurrency';
+  const units = String(form.unitsPerUsd || '').trim();
+  if (!/^\d{1,8}(\.\d{1,8})?$/.test(units) || Number(units) <= 0) return 'fxManualBadRate';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(form.rateDate || ''))) return 'fxManualBadDate';
+  if (String(form.note || '').trim().length < 5) return 'fxManualBadNote';
+  return null;
 }
