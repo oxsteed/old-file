@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test');const assert=require('node:assert/strict');
-const {validateReceipt,verifyAnonymousPull,pulledImageMatches,preflightSchema}=require('./promote-prebuilt-web.cjs');
+const {validateReceipt,verifyAnonymousPull,pulledImageMatches,preflightSchema,requireRecoverySource}=require('./promote-prebuilt-web.cjs');
 const receipt={gitSha:'a'.repeat(40),digest:'sha256:'+'b'.repeat(64),runId:'123',architecture:'arm64',image:'ghcr.io/oxsteed/old-file-web'};
 const run={id:123,status:'completed',conclusion:'success',head_branch:'old-files-claude',path:'.github/workflows/web-image.yml',event:'workflow_run'};
 test('bridge promotion requires its own successful manual workflow, pinned base and explicit mode',()=>{
@@ -48,7 +48,7 @@ test('schema preflight reads the healthy app database and checks the exact candi
   const fakeDocker = (args, input) => {
     if (args[0] === 'ps') {
       assert.ok(args.includes('health=healthy'));
-      return 'a'.repeat(12);
+      return 'a'.repeat(64);
     }
     if (args[0] === 'exec') {
       assert.match(args.at(-1), /BEGIN READ ONLY/);
@@ -61,12 +61,43 @@ test('schema preflight reads the healthy app database and checks the exact candi
     assert.equal(input, snapshot);
     return JSON.stringify(verdict);
   };
-  assert.deepEqual(preflightSchema(reference, fakeDocker), counts);
+  assert.deepEqual(preflightSchema(reference, fakeDocker), { status: 'waiting_for_schema', counts });
   verdict = { ok: true, appliedMigrations: 1 };
   assert.equal(preflightSchema(reference, fakeDocker), null);
   verdict = { ok: false, counts: { ...counts, changed: 1 } };
   assert.throws(() => preflightSchema(reference, fakeDocker), /markers are incompatible/);
   verdict = { ok: true };
   assert.throws(() => preflightSchema(reference, fakeDocker), /invalid schema preflight result/);
-  assert.throws(() => preflightSchema(reference, () => ''), /exactly one healthy/);
+  assert.deepEqual(preflightSchema(reference, () => ''), { status: 'waiting_for_healthy_runtime' });
+  assert.throws(() => preflightSchema(reference, () => ['a', 'b'].map(char => char.repeat(64)).join('\n')), /ambiguous/);
+});
+
+test('an unavailable web app uses only the healthy combined app for its schema snapshot', () => {
+  const combined = 'b'.repeat(64);
+  const calls = [];
+  const docker = args => {
+    calls.push(args);
+    if (args[0] === 'ps') return args.includes('label=com.docker.compose.service=app') ? combined : '';
+    if (args[0] === 'exec') return '[]';
+    return JSON.stringify({ ok: true, appliedMigrations: 1 });
+  };
+  assert.equal(preflightSchema('synthetic-image', docker), null);
+  assert.ok(calls[0].includes('label=coolify.applicationUuid=sqbntzhvwhbbywhs9prfhw51'));
+  assert.ok(calls[1].includes('label=coolify.applicationUuid=tdrapz1vvcoftfwsk7fcdq0h'));
+  assert.ok(calls[2].includes(combined));
+});
+
+test('recovery requires the exact healthy combined release serving public traffic', async () => {
+  const fallback = {
+    releaseMetadata: { gitSha: receipt.gitSha },
+    checks: { workers: { mode: 'combined' } },
+  };
+  const findContainer = uuid => uuid === 'tdrapz1vvcoftfwsk7fcdq0h' ? 'b'.repeat(64) : null;
+  await requireRecoverySource(receipt.gitSha, { findContainer, readPublic: async () => fallback });
+  await assert.rejects(requireRecoverySource('c'.repeat(40), { findContainer, readPublic: async () => fallback }), /match/);
+  await assert.rejects(requireRecoverySource(receipt.gitSha, { findContainer, readPublic: async () => null }), /match/);
+  await assert.rejects(requireRecoverySource(receipt.gitSha, { findContainer: () => 'a'.repeat(64) }), /unhealthy or absent/);
+  await assert.rejects(requireRecoverySource(receipt.gitSha, { findContainer: () => null }), /one healthy combined/);
+  const delegated = { ...fallback, checks: { workers: { mode: 'delegated' } } };
+  await assert.rejects(requireRecoverySource(receipt.gitSha, { findContainer, readPublic: async () => delegated }), /match/);
 });
