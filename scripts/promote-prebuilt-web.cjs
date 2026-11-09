@@ -9,6 +9,10 @@ const { REPOSITORY, BRANCH, ghJson, verifyCommit } = require('./verify-web-relea
 const APPLICATION = 'sqbntzhvwhbbywhs9prfhw51';
 const COMBINED_APPLICATION = 'tdrapz1vvcoftfwsk7fcdq0h';
 const IMAGE = 'ghcr.io/oxsteed/old-file-web';
+function bridgePlan() {
+  const file = path.join(__dirname, 'deploy/web-schema-bridge-20261102.json');
+  return require(fs.existsSync(file) ? file : path.join(__dirname, '../deploy/web-schema-bridge-20261102.json'));
+}
 function command(program, args, input, timeout = 120000) {
   try { return execFileSync(program, args, { input, encoding:'utf8',timeout,stdio:['pipe','pipe','pipe'] }).trim(); }
   catch { throw new Error(`${program} operation failed; credentials and response bodies were omitted.`); }
@@ -23,7 +27,7 @@ function validateReceipt(receipt, run, { bridge = false } = {}) {
     throw new Error('Unverified release workflow or image receipt.');
   }
   if (bridge ? receipt.kind !== 'schema-bridge'
-    || receipt.baseImage !== require('../deploy/web-schema-bridge-20261102.json').baseImage
+    || receipt.baseImage !== bridgePlan().baseImage
     : receipt.kind !== undefined) throw new Error('Unexpected bridge receipt; explicit bridge promotion is required.');
   return receipt;
 }

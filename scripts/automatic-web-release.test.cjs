@@ -24,6 +24,9 @@ test('schema apply requires exactly one healthy bridge with the expected revisio
       '20261108173000_franchise_royalty_redrive.sql',
       '20261109080000_customer360_worker_heartbeats.sql',
     ] }),
+    combinedList: () => 'combined',
+    copyManifest: () => {},
+    verifyCombined: () => ({ status: 'ready' }),
   });
   assert.equal(result.status, 'schema_applied');
   assert.equal(applyBridgeSchema({ gitSha: 'b'.repeat(40), runId: '22', list: () => 'one two', inspect: () => JSON.stringify({ Config: { Labels: { 'org.opencontainers.image.revision': 'b'.repeat(40), 'com.oxsteed.release.kind': 'schema-bridge' } } }) }).status, 'waiting_for_schema_apply');
