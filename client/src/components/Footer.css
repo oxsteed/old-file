@@ -136,6 +136,9 @@
 
 .site-footer__bottom {
   padding-top: 1rem;
+  /* Keep the last wrapped legal row clear of the fixed assistant launcher
+     (bottom: 24px, ~44px tall) on tablet widths; phones override below. */
+  padding-bottom: 2.5rem;
   color: var(--color-text-muted);
   font-size: 0.8rem;
   line-height: 1.45;
