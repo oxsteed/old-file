@@ -11,8 +11,9 @@ function main(){
  if(process.platform!=='darwin'||process.argv[2]!=='--install')throw Error('Run --install on the production Mac after release acceptance.');
  const bundle=path.join(os.homedir(),'Library/Application Support/OxSteed/web-release');
  const agent=path.join(os.homedir(),'Library/LaunchAgents',LABEL+'.plist');
- fs.mkdirSync(bundle,{recursive:true,mode:0o700});fs.mkdirSync(path.dirname(agent),{recursive:true});
+ fs.mkdirSync(bundle,{recursive:true,mode:0o700});fs.mkdirSync(path.join(bundle,'deploy'),{recursive:true,mode:0o700});fs.mkdirSync(path.dirname(agent),{recursive:true});
  for(const name of files)fs.copyFileSync(path.join(__dirname,name),path.join(bundle,name));
+ fs.copyFileSync(path.join(__dirname,'../deploy/web-schema-bridge-20261102.json'),path.join(bundle,'deploy/web-schema-bridge-20261102.json'));
  fs.writeFileSync(agent,plist(bundle,process.execPath,process.env.PATH||'/usr/local/bin:/usr/bin:/bin'),{mode:0o600});
  execFileSync('plutil',['-lint',agent],{stdio:['ignore','pipe','pipe']});
  try{execFileSync('launchctl',['bootout',`gui/${process.getuid()}/${LABEL}`],{stdio:['ignore','pipe','pipe']});}catch{}
