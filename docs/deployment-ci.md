@@ -1,5 +1,23 @@
 # GitHub Actions and Coolify deployment
 
+## Parallel CI verification
+
+The client build publishes one `client/dist` artifact per CI run. The browser
+and server jobs use that artifact from the same run, including for server
+prerender checks. The million-row statement export runs on a separate
+disposable PostgreSQL instance. The migration rehearsal starts independently
+and keeps its own database.
+
+The release verifier still requires the same four check names. `Server and
+Client Verification` checks the result of every client, browser, server, and
+statement capacity job. A failed, skipped, or cancelled job cannot satisfy it.
+
+The two pre-split comparison runs, `42545933098` and `42588223015`, took 22:16
+and 26:14 from run creation to the last required check. Measure the new
+workflow the same way and record runner
+queue time separately if it materially affects the comparison. The target is
+17 minutes or less on a successful default-branch run.
+
 ## Startup checksum failure on 2026-10-18
 
 Production returned the proxy's plain `404 page not found` while the app
