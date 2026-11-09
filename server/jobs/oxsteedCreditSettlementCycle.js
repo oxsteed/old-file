@@ -163,14 +163,20 @@ async function findPartnerStatus(partnerId) {
 async function ensureSettlementAgreement(partner, cycle, fence = null) {
   const existing = await findActiveAgreement(partner.id, cycle.periodStart, cycle.periodEnd);
   if (existing) return { agreementId: existing.id, created: false };
-  // Deterministic idempotency key: a crashed run that created the draft but
-  // died before activating replays safely instead of minting a duplicate.
+  // Deterministic idempotency key, scoped per cycle: a crashed run that
+  // created the draft but died before activating replays safely instead of
+  // minting a duplicate (same key, same startsAt, same hash). The old
+  // partner-only key was a permanent 409 trap: once the first agreement
+  // was ended, the next cycle called createAgreement with the same key and
+  // different startsAt/cycle_type, and the hash mismatch 409ed the cycle
+  // for that partner every night (Oct 30 item 3). A new cycle mints
+  // under its own key, so an ended agreement never blocks a later cycle.
   const { agreement } = await createAgreement({
     partnerId: partner.id,
     startsAt: cycle.periodStart,
     endsAt: null,
     reason: `Automated settlement cycle ${cycle.cycleType} (${formatUtcDate(cycle.periodStart)} to ${formatUtcDate(cycle.periodEnd)})`,
-    idempotencyKey: `credit-settlement-cycle-agreement:${partner.id}`,
+    idempotencyKey: `credit-settlement-cycle-agreement:${partner.id}:${cycle.cycleType}:${formatUtcDate(cycle.periodStart)}`,
     actorUserId: CREDIT_SYSTEM_ACTOR,
     metadata: { source: 'settlement-cycle', cycle_type: cycle.cycleType },
     fence,
@@ -622,6 +628,7 @@ module.exports = {
   runOxsteedCreditSettlementCycle,
   redriveSkippedSettlements,
   checkReserveLevels,
+  ensureSettlementAgreement,
   planCycles,
   parseWeeklyWeekday,
   parseWarnMultiplier,

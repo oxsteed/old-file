@@ -18,23 +18,27 @@ const { withFencedJobLock } = require('./jobLockingService');
 
 const TIMEZONE = 'UTC';
 
-// [jobName, cron, lockSeconds, () => Promise]
+// [jobName, cron, lockSeconds, () => Promise, complianceCritical]
+// complianceCritical marks the sanctions/AML/SAR tasks (Oct 30 item 12):
+// when their module is missing, optional() returns a silent skip and the
+// task reports success-shaped results forever while no screening runs.
+// Those skips raise a high-severity incident instead of passing quietly.
 function tasks() {
   return [
     ['credit-fx-reference-refresh', process.env.CREDIT_FX_REFERENCE_CRON || '15 14,18,22 * * 1-5', 120,
       () => require('../services/fx/brhReferenceRate').refreshBrhReferenceRate(pool)],
     ['credit-sanctions-list-refresh', process.env.CREDIT_SANCTIONS_REFRESH_CRON || '20 */6 * * *', 1800,
-      () => optional('../services/creditCompliance/sanctionsListService', 'refreshAllSources')],
+      () => optional('../services/creditCompliance/sanctionsListService', 'refreshAllSources'), true],
     ['credit-sanctions-rescreen', process.env.CREDIT_SANCTIONS_RESCREEN_CRON || '50 */6 * * *', 3600,
-      () => optional('../services/creditCompliance/sanctionsListService', 'rescreenAfterListChanges')],
+      () => optional('../services/creditCompliance/sanctionsListService', 'rescreenAfterListChanges'), true],
     ['credit-sanctions-queue', process.env.CREDIT_SANCTIONS_QUEUE_CRON || '*/2 * * * *', 600,
-      () => optional('../services/creditCompliance/sanctionsListService', 'processScreeningQueue')],
+      () => optional('../services/creditCompliance/sanctionsListService', 'processScreeningQueue'), true],
     ['credit-safeguarding-reconciliation', process.env.CREDIT_SAFEGUARDING_CRON || '30 3 * * *', 900,
       () => optional('../services/creditCompliance/safeguardingService', 'runDailyReconciliation')],
     ['credit-aml-monitor', process.env.CREDIT_AML_MONITOR_CRON || '10 * * * *', 900,
-      () => optional('../services/creditCompliance/amlRules', 'runBatchRules')],
+      () => optional('../services/creditCompliance/amlRules', 'runBatchRules'), true],
     ['credit-sar-deadlines', process.env.CREDIT_SAR_DEADLINE_CRON || '5 */2 * * *', 300,
-      () => optional('../services/creditCompliance/sarService', 'checkDeadlines')],
+      () => optional('../services/creditCompliance/sarService', 'checkDeadlines'), true],
     ['credit-dispute-sla', process.env.CREDIT_DISPUTE_SLA_CRON || '*/15 * * * *', 600,
       () => optional('../services/creditCompliance/disputeSlaService', 'runSlaSweep')],
     ['credit-dormancy', process.env.CREDIT_DORMANCY_CRON || '40 4 * * *', 1800,
@@ -61,13 +65,32 @@ async function optional(modulePath, fnName) {
   return mod[fnName]();
 }
 
-async function runTask(jobName, lockSeconds, fn) {
+async function runTask(jobName, lockSeconds, fn, { critical = false } = {}) {
   try {
     let result = null;
     await withFencedJobLock(jobName, async (fence) => {
       fence.assertActive();
       result = await fn();
     }, lockSeconds, { throwOnLockError: false });
+    // Oct 30 item 12: a missing compliance module returns
+    // { skipped: 'not_installed' } and runTask used to return it as a
+    // normal result, so a sanctions/AML/SAR task could report success
+    // forever while no screening ran. For the compliance-critical tasks
+    // a skipped module is a high-severity incident instead.
+    if (result && result.skipped === 'not_installed' && critical) {
+      logger.error('Credit oversight task skipped: compliance module not installed', { jobName });
+      try {
+        await require('../services/incidentStore').recordIncident({
+          type: 'credit_oversight_module_missing',
+          severity: 'high',
+          message: `Credit oversight task ${jobName} skipped: its compliance module is not installed`,
+          dedupeKey: `credit-oversight-missing:${jobName}`,
+          details: { jobName, skipped: 'not_installed' },
+        });
+      } catch (incidentError) {
+        logger.error('Credit oversight incident could not be recorded', { jobName, error: incidentError.message });
+      }
+    }
     return result;
   } catch (error) {
     logger.error('Credit oversight task failed', { jobName, error: error.message });
@@ -87,11 +110,11 @@ async function runTask(jobName, lockSeconds, fn) {
 }
 
 function startCreditLicenceOversightJobs() {
-  for (const [jobName, expression, lockSeconds, fn] of tasks()) {
+  for (const [jobName, expression, lockSeconds, fn, critical] of tasks()) {
     if (!cron.validate(expression)) throw new Error(`Invalid cron for ${jobName}: ${expression}`);
-    cron.schedule(expression, () => { runTask(jobName, lockSeconds, fn); }, { timezone: TIMEZONE });
+    cron.schedule(expression, () => { runTask(jobName, lockSeconds, fn, { critical: Boolean(critical) }); }, { timezone: TIMEZONE });
   }
   logger.info('Credit licence oversight jobs scheduled', { count: tasks().length });
 }
 
-module.exports = { tasks, runTask, startCreditLicenceOversightJobs };
+module.exports = { tasks, runTask, startCreditLicenceOversightJobs, optional };

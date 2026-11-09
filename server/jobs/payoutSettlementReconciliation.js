@@ -29,18 +29,24 @@ async function runPayoutSettlementReconciliation({ limit = BATCH_SIZE } = {}) {
     fence.assertActive(); // E03: abort the run if the job lease was lost
     result.locked = true;
     const unsettled = await fence.db.query(
+      // Oct 30 item 10: the window runs on completed_at, the real
+      // completion moment, not updated_at, which any later touch resets.
+      // A repeatedly touched unsettled payout used to never raise its
+      // exception because every touch restarted the 48-hour clock.
+      // completed_at is stamped once by the payout_transactions trigger
+      // and never moves; COALESCE covers rows that predate the column.
       `SELECT t.id, t.payout_id, t.external_transaction_id, t.transaction_status,
-              t.updated_at AS completed_at
+              COALESCE(t.completed_at, t.updated_at) AS completed_at
          FROM payout_transactions t
          LEFT JOIN payout_reconciliation pr
                 ON pr.payout_id = t.payout_id
                AND pr.reconciled = TRUE
         WHERE t.transaction_status = 'completed'
-          AND t.updated_at < CURRENT_TIMESTAMP - INTERVAL '48 hours'
+          AND COALESCE(t.completed_at, t.updated_at) < CURRENT_TIMESTAMP - $2::interval
           AND pr.id IS NULL
-        ORDER BY t.updated_at ASC, t.id ASC
+        ORDER BY COALESCE(t.completed_at, t.updated_at) ASC, t.id ASC
         LIMIT $1`,
-      [boundedLimit]
+      [boundedLimit, SETTLEMENT_GRACE_INTERVAL]
     );
     result.inspected = unsettled.rows.length;
     for (const row of unsettled.rows) {

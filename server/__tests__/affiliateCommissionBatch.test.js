@@ -82,3 +82,78 @@ describe('affiliate auto-confirm refund guard', () => {
     expect(String(select[0])).toMatch(/mo\.completed_at IS NOT NULL/);
   });
 });
+
+describe('affiliate auto-confirm chargeback guard (Oct 30 item 4)', () => {
+  beforeEach(() => {
+    resetMocks();
+  });
+
+  async function runBatchAndGetUpdate() {
+    await runAffiliateCommissionBatch();
+    const update = mockQuery.mock.calls.find(([sql]) => String(sql).includes('UPDATE affiliate_commissions'));
+    expect(update).toBeTruthy();
+    return String(update[0]);
+  }
+
+  test('auto-confirm skips orders with an open or lost chargeback', async () => {
+    const sql = await runBatchAndGetUpdate();
+    expect(sql).toMatch(/JOIN stripe_chargebacks/);
+    expect(sql).toMatch(/sc\.stripe_payment_intent_id = mt\.payment_intent_id/);
+    expect(sql).toMatch(/'needs_response'/);
+    expect(sql).toMatch(/'under_review'/);
+    expect(sql).toMatch(/'lost'/);
+    expect(sql).toMatch(/'charge_refunded'/);
+  });
+
+  test('a won dispute does not block auto-confirm', async () => {
+    const sql = await runBatchAndGetUpdate();
+    // The blocking list names only money-back states; 'won' keeps the
+    // money, so it must not appear as a blocking status.
+    expect(sql).not.toMatch(/'won'/);
+  });
+});
+
+describe('affiliate batch failure visibility (Oct 30 item 8)', () => {
+  beforeEach(() => {
+    resetMocks();
+  });
+
+  test('a failed batch records a deduped incident and rethrows instead of logging only', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('db down'));
+    await expect(runAffiliateCommissionBatch()).rejects.toThrow('db down');
+    const incident = mockQuery.mock.calls.find(
+      ([sql, params]) => String(sql).includes('INSERT INTO incident_log')
+        && Array.isArray(params) && params.includes('affiliate-commission-batch-failed')
+    );
+    expect(incident).toBeTruthy();
+    expect(incident[1][0]).toBe('affiliate_commission_batch_failed');
+    expect(incident[1][1]).toBe('high');
+  });
+});
+
+describe('affiliate null-rate skip (Oct 30 item 17)', () => {
+  beforeEach(() => {
+    resetMocks();
+  });
+
+  test('a program with a NULL rate records a deduped incident and skips the row instead of throwing nightly', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (String(sql).includes('FROM marketplace_order_items')) {
+        return { rows: [{
+          order_id: 'ord-1', item_id: 'it-1', sale_amount: '10000', sale_currency: 'USD',
+          helper_user_id: 'helper-1', affiliate_program_id: 'prog-1', commission_rate: null,
+        }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    await runAffiliateCommissionBatch();
+    const commissionInsert = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO affiliate_commissions'));
+    expect(commissionInsert).toBeFalsy();
+    const incident = mockQuery.mock.calls.find(
+      ([sql, params]) => String(sql).includes('INSERT INTO incident_log')
+        && Array.isArray(params) && params.includes('affiliate-program-null-rate:prog-1')
+    );
+    expect(incident).toBeTruthy();
+    expect(incident[1][0]).toBe('affiliate_program_missing_commission_rate');
+  });
+});

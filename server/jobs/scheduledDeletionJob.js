@@ -73,6 +73,30 @@ async function findCreditRetentionTables() {
   return candidates.filter((_, index) => exists[index]);
 }
 
+// Oct 30 item 11: growth erasure needs the subject pepper to derive the
+// subject key. Without it, growth_device_links rows (keyed by subject_key,
+// not user_id) cannot even be found, and queued ClickHouse history cannot
+// be addressed. The user_id-keyed growth tables are checkable, so a user
+// with rows in any of them must not be hard-deleted while the pepper is
+// unset, or their growth data survives silently.
+const GROWTH_USER_TABLES = [
+  'user_interest_profiles',
+  'propensity_scores',
+  'growth_subject_eligibility',
+];
+
+async function hasGrowthRows(client, userId) {
+  for (const table of GROWTH_USER_TABLES) {
+    if (!(await tableExists(table))) continue;
+    const { rows } = await client.query(
+      `SELECT 1 FROM ${table} WHERE user_id = $1 LIMIT 1`,
+      [String(userId)]
+    );
+    if (rows.length) return table;
+  }
+  return null;
+}
+
 async function hasCreditRecords(client, userId, tables) {
   if (!tables.length) return false;
   const predicates = [];
@@ -261,7 +285,24 @@ async function hardDeleteUser(user, { throwOnError = false } = {}) {
     }
     await require('../services/privacyActivityData').erase(client,userId);
     await require('../services/careers/privacy').erase(client,userId);
-    if(process.env.GROWTH_SUBJECT_PEPPER)await require('../growth/rights').erase(client,userId);
+    if (process.env.GROWTH_SUBJECT_PEPPER) {
+      await require('../growth/rights').erase(client,userId);
+    } else {
+      // Oct 30 item 11: without the pepper, growth erasure cannot run
+      // (rights.erase derives the subject key from it), so deleting the
+      // user would leave their growth rows behind with no record. Fail
+      // the cycle for this user when growth rows exist, exactly like a
+      // financial blocker: the account is retained for manual erasure
+      // and the incident below stays open until an operator resolves it.
+      // A user with no growth rows deletes normally.
+      const growthTable = await hasGrowthRows(client, userId);
+      if (growthTable) {
+        const error = new Error(`Growth erasure unavailable: GROWTH_SUBJECT_PEPPER is unset and ${growthTable} holds rows for this user`);
+        error.code = 'account_growth_erasure_blocked';
+        error.statusCode = 409;
+        throw error;
+      }
+    }
 
     const q = (sql, params) => client.query(sql, params);
 
@@ -400,6 +441,26 @@ async function hardDeleteUser(user, { throwOnError = false } = {}) {
       } catch (incidentErr) {
         logger.error('scheduledDeletionJob: blocker incident failed (non-fatal)', { userId, error: incidentErr.message });
       }
+    } else if (err && err.code === 'account_growth_erasure_blocked') {
+      // Oct 30 item 11: the growth pepper is unset and this user has
+      // growth rows, so erasure cannot run. Same shape as the financial
+      // blocker: retain the account, deduped incident per user, daily
+      // retries bump occurrence_count until an operator erases manually
+      // (device links and queued ClickHouse history need manual erasure
+      // too: they are keyed by the pepper-derived subject key).
+      logger.error('scheduledDeletionJob: user retained for growth erasure (pepper unset)', {
+        userId,
+        email: user.email,
+        error: err.message,
+      });
+      try {
+        await require('../services/incidentStore').recordIncident({ type: 'account_deletion_growth_erasure_blocked', severity: 'high',
+          message: 'Scheduled account deletion stalled: growth erasure unavailable (pepper unset)',
+          dedupeKey: `account-deletion-growth-blocked:${userId}`,
+          details: { userId, code: 'account_growth_erasure_blocked', scheduledAt: user.deletion_scheduled_at } });
+      } catch (incidentErr) {
+        logger.error('scheduledDeletionJob: growth blocker incident failed (non-fatal)', { userId, error: incidentErr.message });
+      }
     } else if (err && err.code === '23503') {
     // RESTRICT-guarded audit children (migration 624) fail closed here:
     // deleting the user would wipe audit evidence, so the user is retained
@@ -448,4 +509,4 @@ function startScheduledDeletionJob() {
   logger.info('scheduledDeletionJob: registered (daily at 03:00 UTC)');
 }
 
-module.exports = { startScheduledDeletionJob, hardDeleteExpiredAccounts, cleanupExpiredSessionData, hardDeleteUser };
+module.exports = { startScheduledDeletionJob, hardDeleteExpiredAccounts, cleanupExpiredSessionData, hardDeleteUser, hasGrowthRows };

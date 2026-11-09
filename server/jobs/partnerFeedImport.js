@@ -34,11 +34,30 @@ function priceSanityRatio() {
   return parsePositiveInt(process.env.PARTNER_FEED_PRICE_RATIO) || 5;
 }
 
-function isSanePriceChange(previousCents, nextCents) {
+function isSanePriceChange(previousCents, nextCents, previousCurrency, nextCurrency) {
   if (!Number.isSafeInteger(nextCents) || nextCents <= 0) return false;
   if (!Number.isSafeInteger(previousCents) || previousCents <= 0) return true;
+  // Oct 30 item 14: the ratio is currency-blind, so a currency change
+  // compares incomparable units. A price move across currencies is never
+  // sane on its face; it quarantines for admin review. Currencies are
+  // optional parameters so older two-argument callers keep today's
+  // behavior when neither side supplies one.
+  if (previousCurrency && nextCurrency && String(previousCurrency).toUpperCase() !== String(nextCurrency).toUpperCase()) return false;
   const ratio = priceSanityRatio();
   return nextCents <= previousCents * ratio && nextCents * ratio >= previousCents;
+}
+
+// Oct 30 item 14: a first-seen item has no live price to compare
+// against, so the ratio guard cannot protect it. A $0 price or a price
+// above this absolute ceiling ($1,000,000) quarantines instead of
+// landing live. Env-overridable like the ratio.
+function firstSeenPriceCeilingCents() {
+  return parsePositiveInt(process.env.PARTNER_FEED_FIRST_SEEN_PRICE_CEILING_CENTS) || 100000000;
+}
+
+function isSaneFirstSeenPrice(priceCents) {
+  if (!Number.isSafeInteger(priceCents) || priceCents <= 0) return false;
+  return priceCents <= firstSeenPriceCeilingCents();
 }
 
 // 21 columns; 4 are literals in the VALUES clause (TRUE, NOW(), 0, NOW()),
@@ -228,24 +247,45 @@ async function importFeed(runner, feed, deps = {}) {
     // of the upsert) and reported on the run for admin review instead of
     // silently overwriting live prices.
     const { rows: previousPrices } = await runner.query(
-      `SELECT feed_item_id, price_cents FROM marketplace_products
+      `SELECT feed_item_id, price_cents, currency FROM marketplace_products
         WHERE partner_id = $1 AND feed_item_id = ANY($2)`,
       [feed.partner_id, items.map((i) => i.feedItemId)],
     );
     const previousByItemId = new Map(
-      previousPrices.map((r) => [r.feed_item_id, Number(r.price_cents)]),
+      previousPrices.map((r) => [r.feed_item_id, { priceCents: Number(r.price_cents), currency: r.currency }]),
     );
     const quarantined = [];
     const saneItems = [];
     for (const item of items) {
       const previous = previousByItemId.get(item.feedItemId);
-      if (previous !== undefined && !isSanePriceChange(previous, item.priceCents)) {
+      // Oct 30 item 14: a first-seen item has no previous price, so the
+      // ratio guard never ran on it and a $0 or absurd price landed live.
+      // First-seen items must pass the absolute sanity check instead.
+      if (previous === undefined) {
+        if (!isSaneFirstSeenPrice(item.priceCents)) {
+          quarantined.push({
+            feed_item_id: item.feedItemId,
+            name: item.name,
+            previous_price_cents: null,
+            feed_price_cents: item.priceCents,
+            currency: item.currency,
+            reason: item.priceCents <= 0 ? 'first_seen_zero_price' : 'first_seen_above_ceiling',
+          });
+          continue;
+        }
+        saneItems.push(item);
+        continue;
+      }
+      if (!isSanePriceChange(previous.priceCents, item.priceCents, previous.currency, item.currency)) {
         quarantined.push({
           feed_item_id: item.feedItemId,
           name: item.name,
-          previous_price_cents: previous,
+          previous_price_cents: previous.priceCents,
           feed_price_cents: item.priceCents,
           currency: item.currency,
+          reason: previous.currency && item.currency && String(previous.currency).toUpperCase() !== String(item.currency).toUpperCase()
+            ? 'currency_changed'
+            : 'price_jump',
         });
         continue;
       }
@@ -412,9 +452,20 @@ async function applyQuarantine(feedId) {
         : [];
       if (!report.length) return { applied: 0, runId: run?.id || null };
       let applied = 0;
+      let skipped = 0;
       for (const q of report) {
         const priceCents = Number(q.feed_price_cents);
-        if (!q.feed_item_id || !Number.isSafeInteger(priceCents) || priceCents < 0)
+        // Oct 30 item 14: the guard defines <= 0 as insane, but this
+        // path used to accept $0 (it skipped only < 0). Reject $0 here
+        // too. First-seen entries (previous_price_cents null) have no
+        // product row to update: the item never landed, so there is
+        // nothing to apply; the feed must be corrected and the next
+        // import picks it up. They are counted as skipped, not applied.
+        if (q.previous_price_cents === null || q.previous_price_cents === undefined) {
+          skipped += 1;
+          continue;
+        }
+        if (!q.feed_item_id || !Number.isSafeInteger(priceCents) || priceCents <= 0)
           continue;
         const { rowCount } = await conn.query(
           `UPDATE marketplace_products
@@ -428,10 +479,10 @@ async function applyQuarantine(feedId) {
         `UPDATE partner_feed_runs SET quarantine_report = '[]'::jsonb, rows_quarantined = 0 WHERE id = $1`,
         [run.id],
       );
-      return { applied, runId: run.id, quarantined: report.length };
+      return { applied, skipped, runId: run.id, quarantined: report.length };
     },
     "partner_feed_quarantine_apply",
   );
 }
 
-module.exports = { run: runDue, runDue, runFeed, importFeed, loadFeed, allowedHostsFor, applyQuarantine, isSanePriceChange, buildUpsertBatch, UPSERT_PARAMS_PER_ROW };
+module.exports = { run: runDue, runDue, runFeed, importFeed, loadFeed, allowedHostsFor, applyQuarantine, isSanePriceChange, isSaneFirstSeenPrice, firstSeenPriceCeilingCents, buildUpsertBatch, UPSERT_PARAMS_PER_ROW };

@@ -3,7 +3,8 @@
 // Background-jobs audit (finding G2): partner feed price-sanity guard.
 // isSanePriceChange quarantines zero/negative feed prices and moves beyond
 // PARTNER_FEED_PRICE_RATIO (default 5x) in either direction.
-const { isSanePriceChange, buildUpsertBatch, UPSERT_PARAMS_PER_ROW } = require('../jobs/partnerFeedImport');
+const { isSanePriceChange, isSaneFirstSeenPrice, firstSeenPriceCeilingCents, applyQuarantine, buildUpsertBatch, UPSERT_PARAMS_PER_ROW } = require('../jobs/partnerFeedImport');
+const { mockQuery, resetMocks } = require('./setup');
 
 function fakeItem(n) {
   return {
@@ -84,5 +85,63 @@ describe('batched upsert placeholder numbering', () => {
     expect(params[UPSERT_PARAMS_PER_ROW + 1]).toBe('item-2');
     expect(params[UPSERT_PARAMS_PER_ROW + 5]).toBe(200);
     expect(params[UPSERT_PARAMS_PER_ROW + 9]).toBe(42); // partner_id
+  });
+});
+
+describe('partner feed price guard gaps (Oct 30 item 14)', () => {
+  const OLD_CEILING = process.env.PARTNER_FEED_FIRST_SEEN_PRICE_CEILING_CENTS;
+  afterEach(() => {
+    if (OLD_CEILING === undefined) delete process.env.PARTNER_FEED_FIRST_SEEN_PRICE_CEILING_CENTS;
+    else process.env.PARTNER_FEED_FIRST_SEEN_PRICE_CEILING_CENTS = OLD_CEILING;
+    resetMocks();
+  });
+
+  test('a price move across currencies is insane even inside the ratio', () => {
+    expect(isSanePriceChange(1000, 1000, 'USD', 'EUR')).toBe(false);
+    expect(isSanePriceChange(1000, 1000, 'USD', 'USD')).toBe(true);
+    expect(isSanePriceChange(1000, 1000, 'usd', 'USD')).toBe(true);
+  });
+
+  test('without currencies on either side the ratio still decides', () => {
+    expect(isSanePriceChange(1000, 6000)).toBe(false);
+    expect(isSanePriceChange(1000, 4000)).toBe(true);
+    expect(isSanePriceChange(1000, 4000, 'USD', undefined)).toBe(true);
+  });
+
+  test('first-seen prices must be positive and under the absolute ceiling', () => {
+    expect(isSaneFirstSeenPrice(0)).toBe(false);
+    expect(isSaneFirstSeenPrice(-5)).toBe(false);
+    expect(isSaneFirstSeenPrice(1000)).toBe(true);
+    expect(isSaneFirstSeenPrice(100000000)).toBe(true); // exactly $1,000,000
+    expect(isSaneFirstSeenPrice(100000001)).toBe(false);
+    expect(firstSeenPriceCeilingCents()).toBe(100000000);
+  });
+
+  test('the first-seen ceiling is env-tunable', () => {
+    process.env.PARTNER_FEED_FIRST_SEEN_PRICE_CEILING_CENTS = '5000';
+    expect(firstSeenPriceCeilingCents()).toBe(5000);
+    expect(isSaneFirstSeenPrice(5001)).toBe(false);
+    expect(isSaneFirstSeenPrice(5000)).toBe(true);
+  });
+
+  test('applyQuarantine rejects $0 and skips first-seen entries instead of counting them applied', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (text.includes('FROM partner_feeds')) return { rows: [{ id: 'feed-1', partner_id: 7 }] };
+      if (text.includes('FROM partner_feed_runs')) {
+        return { rows: [{ id: 'run-1', quarantine_report: [
+          { feed_item_id: 'zero', feed_price_cents: 0, previous_price_cents: 1000, reason: 'price_jump' },
+          { feed_item_id: 'first', feed_price_cents: 500, previous_price_cents: null, reason: 'first_seen_zero_price' },
+          { feed_item_id: 'jump', feed_price_cents: 2000, previous_price_cents: 1000, reason: 'price_jump' },
+        ] }] };
+      }
+      if (text.includes('UPDATE marketplace_products')) return { rows: [], rowCount: 1 };
+      return { rows: [], rowCount: 0 };
+    });
+    const result = await applyQuarantine('feed-1');
+    expect(result).toEqual({ applied: 1, skipped: 1, runId: 'run-1', quarantined: 3 });
+    const productUpdates = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('UPDATE marketplace_products'));
+    expect(productUpdates).toHaveLength(1);
+    expect(productUpdates[0][1][1]).toBe('jump');
   });
 });

@@ -22,6 +22,7 @@ test('affiliate auto-confirm DB suite requires explicit synthetic disposable dat
 });
 
 dbDescribe('affiliate auto-confirm never confirms refunded orders', () => {
+  let tag;
   let customerId;
   let helperId;
   let programId;
@@ -29,12 +30,16 @@ dbDescribe('affiliate auto-confirm never confirms refunded orders', () => {
   let refundedOrderId;
   let partialRefundOrderId;
   let cleanOrderId;
+  let chargebackedOrderId;
+  let wonChargebackOrderId;
   let refundedCommissionId;
   let partialCommissionId;
   let cleanCommissionId;
+  let chargebackedCommissionId;
+  let wonChargebackCommissionId;
 
   beforeAll(async () => {
-    const tag = crypto.randomBytes(8).toString('hex');
+    tag = crypto.randomBytes(8).toString('hex');
     customerId = crypto.randomUUID();
     helperId = crypto.randomUUID();
     for (const [id, label, role] of [[customerId, 'customer', 'customer'], [helperId, 'helper', 'helper']]) {
@@ -95,13 +100,43 @@ dbDescribe('affiliate auto-confirm never confirms refunded orders', () => {
 
     cleanOrderId = await makeOrder('paid');
     cleanCommissionId = await makeCommission(cleanOrderId);
+
+    // Oct 30 item 4 (chargeback half): a lost chargeback blocks
+    // auto-confirm even though the order itself is still 'paid'; a won
+    // dispute does not (the money was kept).
+    chargebackedOrderId = await makeOrder('paid');
+    chargebackedCommissionId = await makeCommission(chargebackedOrderId);
+    await pool.query(
+      `INSERT INTO marketplace_transactions(order_id, payment_intent_id, amount_cents, status)
+       VALUES ($1, $2, 10000, 'succeeded')`,
+      [chargebackedOrderId, `pi_cb_lost_${tag}`]
+    );
+    await pool.query(
+      `INSERT INTO stripe_chargebacks(stripe_dispute_id, stripe_payment_intent_id, amount_cents, currency_code, stripe_status)
+       VALUES ($1, $2, 10000, 'USD', 'lost')`,
+      [`dp_lost_${tag}`, `pi_cb_lost_${tag}`]
+    );
+
+    wonChargebackOrderId = await makeOrder('paid');
+    wonChargebackCommissionId = await makeCommission(wonChargebackOrderId);
+    await pool.query(
+      `INSERT INTO marketplace_transactions(order_id, payment_intent_id, amount_cents, status)
+       VALUES ($1, $2, 10000, 'succeeded')`,
+      [wonChargebackOrderId, `pi_cb_won_${tag}`]
+    );
+    await pool.query(
+      `INSERT INTO stripe_chargebacks(stripe_dispute_id, stripe_payment_intent_id, amount_cents, currency_code, stripe_status)
+       VALUES ($1, $2, 10000, 'USD', 'won')`,
+      [`dp_won_${tag}`, `pi_cb_won_${tag}`]
+    );
   }, 120000);
 
   afterAll(async () => {
-    await pool.query(`DELETE FROM affiliate_commissions WHERE id IN ($1, $2, $3)`, [refundedCommissionId, partialCommissionId, cleanCommissionId]);
+    await pool.query(`DELETE FROM affiliate_commissions WHERE id IN ($1, $2, $3, $4, $5)`, [refundedCommissionId, partialCommissionId, cleanCommissionId, chargebackedCommissionId, wonChargebackCommissionId]);
+    await pool.query(`DELETE FROM stripe_chargebacks WHERE stripe_dispute_id LIKE $1`, [`dp_%_${tag}`]);
     await pool.query(`DELETE FROM marketplace_transaction_refunds WHERE order_id = $1`, [partialRefundOrderId]);
-    await pool.query(`DELETE FROM marketplace_transactions WHERE order_id = $1`, [partialRefundOrderId]);
-    await pool.query(`DELETE FROM marketplace_orders WHERE id IN ($1, $2, $3)`, [refundedOrderId, partialRefundOrderId, cleanOrderId]);
+    await pool.query(`DELETE FROM marketplace_transactions WHERE order_id IN ($1, $2, $3)`, [partialRefundOrderId, chargebackedOrderId, wonChargebackOrderId]);
+    await pool.query(`DELETE FROM marketplace_orders WHERE id IN ($1, $2, $3, $4, $5)`, [refundedOrderId, partialRefundOrderId, cleanOrderId, chargebackedOrderId, wonChargebackOrderId]);
     await pool.query(`DELETE FROM affiliate_programs WHERE id = $1`, [programId]);
     await pool.query(`DELETE FROM marketplace_products WHERE id = $1`, [productId]);
     // Synthetic users are intentionally left behind: deleting users rows is
@@ -111,17 +146,21 @@ dbDescribe('affiliate auto-confirm never confirms refunded orders', () => {
     await pool.end();
   });
 
-  test('refunded, partially refunded, and clean commissions confirm correctly', async () => {
+  test('refunded, partially refunded, chargebacked, and clean commissions confirm correctly', async () => {
     await runAffiliateCommissionBatch();
     const { rows } = await pool.query(
-      `SELECT id, status FROM affiliate_commissions WHERE id IN ($1, $2, $3)`,
-      [refundedCommissionId, partialCommissionId, cleanCommissionId]
+      `SELECT id, status FROM affiliate_commissions WHERE id IN ($1, $2, $3, $4, $5)`,
+      [refundedCommissionId, partialCommissionId, cleanCommissionId, chargebackedCommissionId, wonChargebackCommissionId]
     );
     const byId = Object.fromEntries(rows.map((r) => [String(r.id), r.status]));
     // Money-back states never confirm: no commission is paid out on them.
     expect(byId[String(refundedCommissionId)]).toBe('pending');
     expect(byId[String(partialCommissionId)]).toBe('pending');
-    // The clean paid order's old pending commission still confirms.
+    // A lost chargeback blocks auto-confirm even on a still-paid order.
+    expect(byId[String(chargebackedCommissionId)]).toBe('pending');
+    // The clean paid order's old pending commission still confirms, as
+    // does a commission whose dispute was won (the money was kept).
     expect(byId[String(cleanCommissionId)]).toBe('confirmed');
+    expect(byId[String(wonChargebackCommissionId)]).toBe('confirmed');
   });
 });

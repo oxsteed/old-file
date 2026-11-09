@@ -11,6 +11,10 @@ const CRON_EXPRESSION = '*/5 * * * *';
 const CRON_TIMEZONE = 'UTC';
 const JOB_NAME = 'marketplace-refund-reconciliation';
 const BATCH_SIZE = 50;
+// 5-minute cadence: 48 attempts is about four hours of retries. Mirrors
+// the payment refund cap (Oct 30 item 9): without it a failing refund
+// re-queues forever with no terminal state and no escalation.
+const MAX_RECONCILIATION_ATTEMPTS = Number(process.env.MARKETPLACE_REFUND_MAX_RECONCILIATION_ATTEMPTS || 48);
 
 async function runMarketplaceRefundReconciliation({ limit = BATCH_SIZE } = {}) {
   const boundedLimit = Math.min(BATCH_SIZE, Math.max(1, Number(limit) || BATCH_SIZE));
@@ -62,18 +66,25 @@ async function runMarketplaceRefundReconciliation({ limit = BATCH_SIZE } = {}) {
         result.failed += 1;
         const attempts = (Number(row.reconciliation_attempts) || 0) + 1;
         const errorMessage = String(error.message || 'Reconciliation failed').slice(0, 1000);
+        // Terminal cap, mirroring payment refunds: after the cap the
+        // refund is terminal 'failed' and an operator exception is raised
+        // instead of re-queueing forever.
+        const terminal = attempts >= MAX_RECONCILIATION_ATTEMPTS;
         await fence.db.query(
           `UPDATE marketplace_transaction_refunds
-              SET last_error = $2, updated_at = CURRENT_TIMESTAMP
+              SET last_error = $2, updated_at = CURRENT_TIMESTAMP,
+                  status = CASE WHEN $3 THEN 'failed' ELSE status END
             WHERE id = $1 AND status = 'pending'`,
-          [row.id, errorMessage]
+          [row.id, errorMessage, terminal]
         );
         logger.warn('Marketplace refund reconciliation attempt failed', { refundId: row.id, error: error.message });
         await recordException({
           domain: 'marketplace_refund',
           referenceId: row.id,
-          severity: attempts >= 3 ? 'critical' : 'warning',
-          summary: `Marketplace refund reconciliation attempt failed for refund ${row.id}`,
+          severity: terminal || attempts >= 3 ? 'critical' : 'warning',
+          summary: terminal
+            ? `Marketplace refund ${row.id} failed permanently after ${attempts} tries; manual action required`
+            : `Marketplace refund reconciliation attempt failed for refund ${row.id}`,
           details: { error: errorMessage, attempts },
           sourceRunId: JOB_NAME,
         });
