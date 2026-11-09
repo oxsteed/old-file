@@ -49,6 +49,7 @@ test('schema apply requires exactly one healthy bridge with the expected revisio
 
 test('automatic promotion bridges, applies, then retries the exact candidate', async () => {
   const promoted = [];
+  const plan = { baseCommit: 'a'.repeat(40), migrations: {} };
   const result = await promoteAutomatic('candidate', {
     api: () => ({ workflow_runs: [{ id: 7, head_sha: 'c'.repeat(40), event: 'workflow_dispatch', status: 'completed', conclusion: 'success' }] }),
     promote: async (runId, options) => {
@@ -56,7 +57,11 @@ test('automatic promotion bridges, applies, then retries the exact candidate', a
       if (runId === 'candidate') return promoted.length > 2 ? { status: 'finished' } : { status: 'waiting_for_schema', gitSha: 'c'.repeat(40) };
       return { status: 'already_current' };
     },
-    applySchema: () => ({ status: 'schema_applied' }),
+    loadPlan: sha => { assert.equal(sha, 'c'.repeat(40)); return plan; },
+    applySchema: options => {
+      assert.equal(options.plan, plan);
+      return { status: 'schema_applied' };
+    },
     promoteWorker: async sha => ({ status: 'worker_finished', gitSha: sha }),
   });
   assert.equal(result.status, 'finished');

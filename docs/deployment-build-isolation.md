@@ -64,8 +64,9 @@ serving commit and image, and record the hashes of the complete migration
 delta. The bridge workflow rejects any unreviewed SQL change. Before running
 the bounded schema transaction, the observer checks the old worker owner and
 installs the same compatibility hashes on it. Rehearse the reviewed SQL on an
-isolated restore and install the matching observer bundle before merging a
-schema release that updates the plan.
+isolated restore before merging the schema release. The observer reads the
+plan from the verified candidate commit and checks it against the immutable
+bridge receipt.
 
 After one verified manual promotion, install the single automatic controller:
 

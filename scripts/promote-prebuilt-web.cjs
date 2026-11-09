@@ -10,20 +10,29 @@ const { REPOSITORY, BRANCH, ghJson, verifyCommit } = require('./verify-web-relea
 const APPLICATION = 'sqbntzhvwhbbywhs9prfhw51';
 const COMBINED_APPLICATION = 'tdrapz1vvcoftfwsk7fcdq0h';
 const IMAGE = 'ghcr.io/oxsteed/old-file-web';
-function bridgePlanPath() {
-  const file = path.join(__dirname, 'deploy/web-schema-bridge.json');
-  return fs.existsSync(file) ? file : path.join(__dirname, '../deploy/web-schema-bridge.json');
-}
-function bridgePlan() {
-  const source = fs.readFileSync(bridgePlanPath());
-  return { ...JSON.parse(source), checksum: createHash('sha256').update(source).digest('hex') };
+function bridgePlan(sha, api = ghJson) {
+  if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error('A full candidate commit is required for the schema plan.');
+  const file = api(['api', `repos/${REPOSITORY}/contents/deploy/web-schema-bridge.json?ref=${sha}`]);
+  if (file.type !== 'file' || file.encoding !== 'base64' || typeof file.content !== 'string'
+      || file.content.length > 32_768) throw new Error('Invalid schema bridge plan file.');
+  const source = Buffer.from(file.content, 'base64');
+  const plan = JSON.parse(source);
+  if (plan.version !== 1 || !/^[a-f0-9]{40}$/.test(plan.baseCommit)
+      || !/^ghcr\.io\/oxsteed\/old-file-web@sha256:[a-f0-9]{64}$/.test(plan.baseImage)
+      || !plan.migrations || typeof plan.migrations !== 'object'
+      || !Object.keys(plan.migrations).length
+      || Object.entries(plan.migrations).some(([name, hash]) =>
+        !/^\d{14}_[a-z0-9_]+\.sql$/.test(name) || !/^[a-f0-9]{64}$/.test(hash))) {
+    throw new Error('Invalid schema bridge plan.');
+  }
+  return { ...plan, checksum: createHash('sha256').update(source).digest('hex') };
 }
 function command(program, args, input, timeout = 120000) {
   try { return execFileSync(program, args, { input, encoding:'utf8',timeout,stdio:['pipe','pipe','pipe'] }).trim(); }
   catch { throw new Error(`${program} operation failed; credentials and response bodies were omitted.`); }
 }
 const docker = (args, input, timeout = 600000) => command('docker',['--context','colima',...args],input,timeout);
-function validateReceipt(receipt, run, { bridge = false } = {}) {
+function validateReceipt(receipt, run, { bridge = false, plan } = {}) {
   if(run.status!=='completed'||run.conclusion!=='success'||run.head_branch!==BRANCH
     ||run.path!==(bridge ? '.github/workflows/web-schema-bridge.yml' : '.github/workflows/web-image.yml')
     ||!(bridge ? ['workflow_dispatch'] : ['workflow_run','workflow_dispatch']).includes(run.event)
@@ -31,8 +40,7 @@ function validateReceipt(receipt, run, { bridge = false } = {}) {
     ||!/^[a-f0-9]{40}$/.test(receipt.gitSha)||!/^sha256:[a-f0-9]{64}$/.test(receipt.digest)) {
     throw new Error('Unverified release workflow or image receipt.');
   }
-  const plan = bridge ? bridgePlan() : null;
-  if (bridge ? receipt.kind !== 'schema-bridge'
+  if (bridge ? !plan || receipt.kind !== 'schema-bridge' || run.head_sha !== receipt.gitSha
     || receipt.baseImage !== plan.baseImage || receipt.planChecksum !== plan.checksum
     : receipt.kind !== undefined) throw new Error('Unexpected bridge receipt; explicit bridge promotion is required.');
   return receipt;
@@ -173,7 +181,9 @@ async function promote(runId,{redeploy=false,bridge=false,recover=false}={}) {
     command('gh',['run','download',String(runId),'--repo',REPOSITORY,'--name','web-image-receipt','--dir',directory]);
     const file=path.join(directory,'web-image-receipt.json');
     if(fs.readdirSync(directory).length!==1||fs.statSync(file).size>4096)throw new Error('Unexpected image receipt artifact.');
-    const receipt=validateReceipt(JSON.parse(fs.readFileSync(file)),run,{bridge});
+    const candidate=JSON.parse(fs.readFileSync(file));
+    const plan=bridge ? bridgePlan(candidate.gitSha) : undefined;
+    const receipt=validateReceipt(candidate,run,{bridge,plan});
     if (recover) await requireRecoverySource(receipt.gitSha);
     else if (receipt.gitSha !== ghJson(['api', `repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha) {
       return { status: 'waiting_for_current_default_branch_image', gitSha: receipt.gitSha };
@@ -203,7 +213,7 @@ async function promote(runId,{redeploy=false,bridge=false,recover=false}={}) {
         return { status: 'waiting_for_current_default_branch_image', gitSha: receipt.gitSha };
       }
     } else {
-      await requireBridgeSource(bridgePlan());
+      await requireBridgeSource(plan);
     }
     const queued=controller(String.raw`
       if($a->health_check_path!=='/ready'||App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists())throw new RuntimeException('Health or active deployment conflict');

@@ -171,7 +171,7 @@ function installCombinedCompatibility(id, migrations) {
   `], JSON.stringify(migrations));
 }
 
-function applyBridgeSchema({ gitSha, runId, plan = bridgePlan(), list = () => docker([
+function applyBridgeSchema({ gitSha, runId, plan, list = () => docker([
   'ps', '--quiet', '--no-trunc', '--filter', `label=coolify.applicationUuid=${WEB_APPLICATION}`,
   '--filter', 'health=healthy',
   ]), inspect = id => docker(['inspect', '--format', '{{json .}}', id]), exec = (id, args) => docker(['exec', id, ...args]),
@@ -232,7 +232,8 @@ async function promoteAutomatic(runId, deps = {}) {
     if (!['finished', 'already_current'].includes(bridgeResult.status)) {
       return { status: 'waiting_for_schema_apply', gitSha: initial.gitSha, bridgeRunId: String(bridge.id), bridgeStatus: bridgeResult.status };
     }
-    const applied = (deps.applySchema || applyBridgeSchema)({ gitSha: initial.gitSha, runId: String(bridge.id) });
+    const plan = (deps.loadPlan || bridgePlan)(initial.gitSha);
+    const applied = (deps.applySchema || applyBridgeSchema)({ gitSha: initial.gitSha, runId: String(bridge.id), plan });
     if (applied.status !== 'schema_applied') return applied;
     web = await (deps.promote || promote)(runId);
   }
