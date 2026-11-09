@@ -3,6 +3,7 @@
    tokens from OxsteedCreditPage.css and fall back for other hosts. */
 .ox-licence-panel { margin-block-start: 18px; }
 .ox-licence-body { display: grid; gap: 16px; padding-inline: 23px; padding-block-end: 20px; }
+.ox-licence-body--flush { padding-inline: 0; }
 .ox-licence-block { display: grid; gap: 8px; }
 .ox-licence-block h3, .ox-licence-form h3, .ox-licence-form h4, .ox-licence-terms h3, .ox-licence-terms h4 { margin: 0; color: var(--oc-ink, inherit); font-size: 15px; font-weight: 750; }
 .ox-licence-copy { margin: 0; color: var(--oc-muted, #555); font-size: 13px; line-height: 1.55; }

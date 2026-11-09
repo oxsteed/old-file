@@ -49,7 +49,7 @@ export default function CreditTermsPage() {
           </p>
         )}
         {state.status === 'ready' && (
-          <div className="ox-licence-body mt-4" style={{ paddingInline: 0 }}>
+          <div className="ox-licence-body ox-licence-body--flush mt-4">
             {state.items.map((item) => (
               <section key={item.kind} className="ox-licence-terms" lang={item.language} data-kind={item.kind}>
                 <h2 className="text-base font-semibold">
