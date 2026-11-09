@@ -20,7 +20,7 @@ async function closeRedis(redis) {
 }
 
 class ApplicationRuntime {
-  constructor({ httpServer, realtime, pool, redis, log = logger, workers, drain } = {}) {
+  constructor({ httpServer, realtime, pool, redis, log = logger, workers, drain, onWorkerOwnerAcquired } = {}) {
     if (!httpServer || !realtime || !pool) {
       throw new TypeError('ApplicationRuntime requires httpServer, realtime, and pool');
     }
@@ -29,6 +29,7 @@ class ApplicationRuntime {
     this.pool = pool;
     this.redis = redis;
     this.log = log;
+    this.onWorkerOwnerAcquired = onWorkerOwnerAcquired;
     this.role = runtimeRole();
     // Web routing checks /ready every second. Keep existing HTTP requests and
     // connections alive while the proxy withdraws this instance from routing.
@@ -37,7 +38,9 @@ class ApplicationRuntime {
     // job modules must not accidentally register consumers before prepare().
     this.workers = workers || (this.role === 'web'
       ? new (require('./delegatedWorkers').DelegatedWorkers)()
-      : new (require('./backgroundWorkers').BackgroundWorkers)({ log }));
+      : new (require('./backgroundWorkers').BackgroundWorkers)({
+        log, pool, onOwnerAcquired: onWorkerOwnerAcquired,
+      }));
     this.shutdownPromise = null;
     runtimeState.update({ realtimeReady: typeof realtime.ready !== 'function' });
   }
@@ -66,7 +69,11 @@ class ApplicationRuntime {
     }
 
     await this.workers.start();
-    runtimeState.update({ workersReady: true, workerMode: this.role === 'web' ? 'delegated' : 'combined' });
+    const workerStatus = typeof this.workers.status === 'function' ? this.workers.status() : null;
+    runtimeState.update({
+      workersReady: true,
+      workerMode: this.role === 'web' ? 'delegated' : (workerStatus?.mode || 'combined'),
+    });
   }
 
   markListening() {

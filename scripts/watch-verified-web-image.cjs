@@ -6,7 +6,8 @@ const PREFLIGHT_RECHECK_MS = 5 * 60 * 1000;
 const PREFLIGHT_WAIT = ['waiting_for_schema', 'waiting_for_healthy_runtime'];
 const RETRYABLE = ['started', 'release_in_progress', 'waiting_for_runtime_identity',
   'waiting_for_current_default_branch_image', 'waiting_for_schema_bridge',
-  'waiting_for_schema_apply', ...PREFLIGHT_WAIT];
+  'waiting_for_schema_apply', 'waiting_for_worker_promotion',
+  'worker_release_in_progress', ...PREFLIGHT_WAIT];
 async function watch(stateFile,{api=ghJson,promoteImage=promote}={}){
  fs.mkdirSync(path.dirname(stateFile),{recursive:true,mode:0o700});
  const lock=stateFile+'.lock';let descriptor;

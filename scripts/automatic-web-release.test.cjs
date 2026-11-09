@@ -42,7 +42,9 @@ test('automatic promotion bridges, applies, then retries the exact candidate', a
       return { status: 'already_current' };
     },
     applySchema: () => ({ status: 'schema_applied' }),
+    promoteWorker: async sha => ({ status: 'worker_finished', gitSha: sha }),
   });
   assert.equal(result.status, 'finished');
+  assert.equal(result.worker, 'worker_finished');
   assert.deepEqual(promoted, [['candidate', undefined], ['7', { bridge: true }], ['candidate', undefined]]);
 });
