@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "baseCommit": "73e7777314bbed5e0ad92f2bd3e8d8d43861a03c",
+  "baseImage": "ghcr.io/oxsteed/old-file-web@sha256:217aa1e87ddb3897a2cb6cc21619c67f8c976f6fbfc65eb246f014cf97d8bf81",
+  "sourceHashes": {
+    "services/readinessService.js": "3541a0d2ca8446c9aeea7cff028b9b697917c29fd7f5b94957358e64a0ac20ad",
+    "services/webSchemaPreflight.js": "df57ab139679e78323dd7802092baf42001343ec4646a94291a276e1264b371a"
+  },
+  "migrations": {
+    "20261109231751_stripe_chargebacks_payment_intent_index.sql": "c21b498f46babe1c83a6c33437500e2a74eb0175fda054461e08088ef8d39991",
+    "20261109231752_payout_transactions_completed_at.sql": "43c1dd3fd8e73916bde007f7ccb7b7a8ceeaa79582e8bd4576eff216504798b3"
+  }
+}

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { sortMigrationFiles } = require('../server/migrationOrder');
-const PLAN = require('../deploy/web-schema-bridge-20261102.json');
+const PLAN = require('../deploy/web-schema-bridge.json');
 const checksum = sql => crypto.createHash('sha256').update(sql).digest('hex');
 
 // Operator-run only, after the bridge is live. All reviewed additions and their
@@ -40,6 +40,7 @@ async function applyReviewedSchema({ pool, apply = false,
     if (rows.length !== recorded.size) throw Error('Duplicate migration markers');
     for (const row of rows) {
       if (!sources.has(row.filename) || row.status !== 'applied'
+          || (Object.hasOwn(plan.migrations, row.filename) && row.checksum !== plan.migrations[row.filename])
           || (row.checksum && row.checksum !== checksum(sources.get(row.filename)))) throw Error('Existing migration metadata is incompatible');
     }
     const pending = files.filter(file => !recorded.has(file));

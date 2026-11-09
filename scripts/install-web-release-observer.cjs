@@ -13,7 +13,7 @@ function main(){
  const agent=path.join(os.homedir(),'Library/LaunchAgents',LABEL+'.plist');
  fs.mkdirSync(bundle,{recursive:true,mode:0o700});fs.mkdirSync(path.join(bundle,'deploy'),{recursive:true,mode:0o700});fs.mkdirSync(path.dirname(agent),{recursive:true});
  for(const name of files)fs.copyFileSync(path.join(__dirname,name),path.join(bundle,name));
- fs.copyFileSync(path.join(__dirname,'../deploy/web-schema-bridge-20261102.json'),path.join(bundle,'deploy/web-schema-bridge-20261102.json'));
+ fs.copyFileSync(path.join(__dirname,'../deploy/web-schema-bridge.json'),path.join(bundle,'deploy/web-schema-bridge.json'));
  fs.writeFileSync(agent,plist(bundle,process.execPath,process.env.PATH||'/usr/local/bin:/usr/bin:/bin'),{mode:0o600});
  execFileSync('plutil',['-lint',agent],{stdio:['ignore','pipe','pipe']});
  try{execFileSync('launchctl',['bootout',`gui/${process.getuid()}/${LABEL}`],{stdio:['ignore','pipe','pipe']});}catch{}

@@ -1,17 +1,26 @@
 'use strict';
 const test=require('node:test');const assert=require('node:assert/strict');
-const {validateReceipt,verifyAnonymousPull,pulledImageMatches,preflightSchema,requireRecoverySource}=require('./promote-prebuilt-web.cjs');
+const {bridgePlan,validateReceipt,verifyAnonymousPull,pulledImageMatches,preflightSchema,requireRecoverySource,requireBridgeSource}=require('./promote-prebuilt-web.cjs');
 const receipt={gitSha:'a'.repeat(40),digest:'sha256:'+'b'.repeat(64),runId:'123',architecture:'arm64',image:'ghcr.io/oxsteed/old-file-web'};
 const run={id:123,status:'completed',conclusion:'success',head_branch:'old-files-claude',path:'.github/workflows/web-image.yml',event:'workflow_run'};
 test('bridge promotion requires its own successful manual workflow, pinned base and explicit mode',()=>{
- const bridge={...receipt,kind:'schema-bridge',baseImage:require('../deploy/web-schema-bridge-20261102.json').baseImage};
+ const plan=bridgePlan();
+ const bridge={...receipt,kind:'schema-bridge',baseImage:plan.baseImage,planChecksum:plan.checksum};
  const bridgeRun={...run,path:'.github/workflows/web-schema-bridge.yml',event:'workflow_dispatch'};
  assert.equal(validateReceipt(bridge,bridgeRun,{bridge:true}),bridge);
  assert.throws(()=>validateReceipt(bridge,bridgeRun));
  assert.throws(()=>validateReceipt(bridge,run,{bridge:true}));
  assert.throws(()=>validateReceipt(receipt,bridgeRun,{bridge:true}));
  assert.throws(()=>validateReceipt({...bridge,baseImage:'unreviewed'},bridgeRun,{bridge:true}));
+ assert.throws(()=>validateReceipt({...bridge,planChecksum:'unreviewed'},bridgeRun,{bridge:true}));
  assert.throws(()=>validateReceipt(bridge,{...bridgeRun,event:'workflow_run'},{bridge:true}));
+});
+test('a bridge can only be promoted over its exact healthy web image',async()=>{
+ const plan=bridgePlan();
+ const live={releaseMetadata:{gitSha:plan.baseCommit,imageDigest:plan.baseImage.split('@')[1]},checks:{workers:{mode:'delegated'}}};
+ await requireBridgeSource(plan,async()=>live);
+ await assert.rejects(requireBridgeSource(plan,async()=>null),/exact healthy web image/);
+ await assert.rejects(requireBridgeSource(plan,async()=>({...live,releaseMetadata:{...live.releaseMetadata,imageDigest:'different'}})),/exact healthy web image/);
 });
 test('accepts exact immutable receipt and rejects untrusted, failed, foreign, or malformed input before pulling',()=>{
  assert.equal(validateReceipt(receipt,run),receipt);

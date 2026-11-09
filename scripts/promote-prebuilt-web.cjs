@@ -4,14 +4,19 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const { REPOSITORY, BRANCH, ghJson, verifyCommit } = require('./verify-web-release.cjs');
 const APPLICATION = 'sqbntzhvwhbbywhs9prfhw51';
 const COMBINED_APPLICATION = 'tdrapz1vvcoftfwsk7fcdq0h';
 const IMAGE = 'ghcr.io/oxsteed/old-file-web';
+function bridgePlanPath() {
+  const file = path.join(__dirname, 'deploy/web-schema-bridge.json');
+  return fs.existsSync(file) ? file : path.join(__dirname, '../deploy/web-schema-bridge.json');
+}
 function bridgePlan() {
-  const file = path.join(__dirname, 'deploy/web-schema-bridge-20261102.json');
-  return require(fs.existsSync(file) ? file : path.join(__dirname, '../deploy/web-schema-bridge-20261102.json'));
+  const source = fs.readFileSync(bridgePlanPath());
+  return { ...JSON.parse(source), checksum: createHash('sha256').update(source).digest('hex') };
 }
 function command(program, args, input, timeout = 120000) {
   try { return execFileSync(program, args, { input, encoding:'utf8',timeout,stdio:['pipe','pipe','pipe'] }).trim(); }
@@ -26,8 +31,9 @@ function validateReceipt(receipt, run, { bridge = false } = {}) {
     ||!/^[a-f0-9]{40}$/.test(receipt.gitSha)||!/^sha256:[a-f0-9]{64}$/.test(receipt.digest)) {
     throw new Error('Unverified release workflow or image receipt.');
   }
+  const plan = bridge ? bridgePlan() : null;
   if (bridge ? receipt.kind !== 'schema-bridge'
-    || receipt.baseImage !== bridgePlan().baseImage
+    || receipt.baseImage !== plan.baseImage || receipt.planChecksum !== plan.checksum
     : receipt.kind !== undefined) throw new Error('Unexpected bridge receipt; explicit bridge promotion is required.');
   return receipt;
 }
@@ -146,6 +152,15 @@ async function requireRecoverySource(sha, { findContainer = healthyContainer, re
   }
 }
 
+async function requireBridgeSource(plan, readPublic = publicReadiness) {
+  const current = await readPublic();
+  if (current?.releaseMetadata?.gitSha !== plan.baseCommit
+      || current.releaseMetadata.imageDigest !== plan.baseImage.split('@')[1]
+      || current.checks?.workers?.mode !== 'delegated') {
+    throw new Error('The schema bridge must preserve the exact healthy web image currently serving traffic.');
+  }
+}
+
 async function promote(runId,{redeploy=false,bridge=false,recover=false}={}) {
   if (recover && (redeploy || bridge)) throw new Error('Recovery cannot be combined with other promotion modes.');
   if(!/^\d+$/.test(String(runId)))throw new Error('A numeric workflow run ID is required.');
@@ -187,6 +202,8 @@ async function promote(runId,{redeploy=false,bridge=false,recover=false}={}) {
       else if (ghJson(['api',`repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha !== receipt.gitSha) {
         return { status: 'waiting_for_current_default_branch_image', gitSha: receipt.gitSha };
       }
+    } else {
+      await requireBridgeSource(bridgePlan());
     }
     const queued=controller(String.raw`
       if($a->health_check_path!=='/ready'||App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists())throw new RuntimeException('Health or active deployment conflict');
@@ -211,4 +228,4 @@ if(require.main===module){
   if(args.length<2||args[0]!=='--run'||args.some((a,i)=>i>1&&!['--redeploy','--bridge','--recover'].includes(a))){console.error('Use --run <verified-image-run-id> [--redeploy|--bridge|--recover]');process.exitCode=1;}
   else promote(args[1],{redeploy:args.includes('--redeploy'),bridge:args.includes('--bridge'),recover:args.includes('--recover')}).then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(e.message);process.exitCode=1;});
 }
-module.exports={validateReceipt,verifyAnonymousPull,pulledImageMatches,preflightSchema,requireRecoverySource,promote};
+module.exports={bridgePlan,validateReceipt,verifyAnonymousPull,pulledImageMatches,preflightSchema,requireRecoverySource,requireBridgeSource,promote};
