@@ -1,12 +1,18 @@
 # Temporary compatibility release. Keep the serving application and browser
 # assets byte-for-byte; replace only the two schema checkers and their helper.
-FROM ghcr.io/oxsteed/old-file-web@sha256:e0fbb62cb51d1ce76877e9840a99bc20bde4da7c103e92a1d5892081d8d595ee
+FROM ghcr.io/oxsteed/old-file-web@sha256:580ed618ca9158c1e79f26b688bba2bc54ab2e8e7906b1f391e626ccbcf44463
 ARG SOURCE_COMMIT
 ENV SOURCE_COMMIT=${SOURCE_COMMIT}
 LABEL org.opencontainers.image.revision="${SOURCE_COMMIT}" \
       com.oxsteed.release.kind="schema-bridge" \
-      com.oxsteed.release.base="f6d7543381736f899571c14d14b26e1a6ace3c45"
+      com.oxsteed.release.base="51ccc1453807086794b759d5d3f67d2ff409e796"
 COPY deploy/web-schema-bridge-20261102.json /tmp/schema-bridge-plan.json
 RUN node -e 'const fs=require("fs"),c=require("crypto"),p=require("/tmp/schema-bridge-plan.json"); for(const [f,h] of Object.entries(p.sourceHashes)) { if(c.createHash("sha256").update(fs.readFileSync("/app/server/"+f)).digest("hex")!==h) throw Error("Bridge base source mismatch"); } fs.writeFileSync("/app/server/migration-compatibility.json",JSON.stringify({version:1,migrations:p.migrations})); fs.writeFileSync("/app/server/.release",process.env.SOURCE_COMMIT); fs.writeFileSync("/app/server/.release-metadata.json",JSON.stringify({schemaVersion:1,gitSha:process.env.SOURCE_COMMIT}));'
 COPY server/services/migrationCompatibility.js server/services/readinessService.js server/services/webSchemaPreflight.js /app/server/services/
+# Carry the reviewed DDL and the guarded applier into the bridge so the host
+# controller can apply exactly this plan while the bridge remains routable.
+COPY scripts/apply-reviewed-web-schema.cjs /app/scripts/apply-reviewed-web-schema.cjs
+ENV REVIEWED_MIGRATIONS_DIR=/app/reviewed-migrations
+COPY server/migrations/20261108173000_franchise_royalty_redrive.sql server/migrations/20261109080000_customer360_worker_heartbeats.sql /app/reviewed-migrations/
+COPY deploy/web-schema-bridge-20261102.json /app/deploy/web-schema-bridge-20261102.json
 # Inherit the verified dumb-init entrypoint, startup scripts and health check.
