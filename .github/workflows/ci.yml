@@ -11,41 +11,50 @@ on:
     branches: [old-files-claude]
 
 jobs:
-  install-check:
-    name: Server and Client Verification
+  client-build:
+    name: Build and validate client
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
       contents: read
-    services:
-      postgres:
-        image: ghcr.io/cloudnative-pg/postgis:16-3.4
-        env:
-          POSTGRES_USER: oxsteed
-          POSTGRES_PASSWORD: statement-test-password
-          POSTGRES_DB: credit_statement_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U oxsteed -d credit_statement_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
 
-      logistics-postgres:
-        image: ghcr.io/cloudnative-pg/postgis:16-3.4
-        env:
-          POSTGRES_USER: oxsteed
-          POSTGRES_PASSWORD: synthetic-logistics-test-password
-          POSTGRES_DB: credit_statement_test
-        ports:
-          - 5434:5432
-        options: >-
-          --health-cmd "pg_isready -U oxsteed -d credit_statement_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
 
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Generate client locale shards
+        working-directory: client
+        run: node scripts/splitLocaleCatalogs.mjs
+
+      - name: Client localization, type, and production build checks
+        working-directory: client
+        run: npm run build:ci
+
+      - name: Share the validated client build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-client-dist
+          path: client/dist
+          if-no-files-found: error
+          include-hidden-files: true
+          overwrite: true
+          retention-days: 7
+
+  client-browser:
+    name: Client browser and smoke tests
+    needs: client-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -56,6 +65,12 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '22'
+
+      - name: Download this run's client build
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-client-dist
+          path: client/dist
 
       - name: Immutable migration history and filename order
         run: |
@@ -103,10 +118,6 @@ jobs:
       - name: Growth policy and notice content consistency
         run: node scripts/growth-policy-manifest.cjs --check
 
-      - name: Client localization, type, and production build checks
-        working-directory: client
-        run: npm run build:ci
-
       - name: Install Chrome for browser regression tests
         uses: browser-actions/setup-chrome@v2
         with:
@@ -138,9 +149,67 @@ jobs:
           OXSTEED_E2E_2FA_CODE: ${{ secrets.OXSTEED_E2E_2FA_CODE }}
         run: npm run test:admin-authenticated
 
+  server-check:
+    name: Server regression and integration tests
+    needs: client-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: ghcr.io/cloudnative-pg/postgis:16-3.4
+        env:
+          POSTGRES_USER: oxsteed
+          POSTGRES_PASSWORD: statement-test-password
+          POSTGRES_DB: credit_statement_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U oxsteed -d credit_statement_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+      logistics-postgres:
+        image: ghcr.io/cloudnative-pg/postgis:16-3.4
+        env:
+          POSTGRES_USER: oxsteed
+          POSTGRES_PASSWORD: synthetic-logistics-test-password
+          POSTGRES_DB: credit_statement_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U oxsteed -d credit_statement_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Download this run's client build
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-client-dist
+          path: client/dist
+
       - name: Install server dependencies
         working-directory: server
         run: npm ci
+
+      - name: Install Chrome for browser regression tests
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
 
       - name: Restaurant LAN outage and printer recovery
         run: node --test scripts/restaurant-store-hub.test.cjs scripts/restaurant-store-hub.browser.test.cjs
@@ -373,8 +442,6 @@ jobs:
           OXSTEED_MEDIA_LAUNCHED: 'true'
           MEDIA_PUBLIC_VIDEO_INTERIM: 'true'
         run: |
-          # Complete the capacity case before running the remaining suites.
-          npx jest __tests__/statementExportJobs.millionRow.db.test.js --runInBand --json --outputFile=million-row-results.json
           # Invoke Jest directly: npm test adds --forceExit in package.json.
           npx jest --runInBand --detectOpenHandles --json --outputFile=statement-test-results.json --testPathIgnorePatterns=statementExportJobs.millionRow
           node ../scripts/assert-statement-db-tests.cjs statement-test-results.json
@@ -394,6 +461,71 @@ jobs:
           else
             echo "Skipping live database verification (set CI_DATABASE_URL secret for active-job, Credit schema, and Direct catalog checks)."
           fi
+
+  statement-capacity:
+    name: Million-row statement export
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: ghcr.io/cloudnative-pg/postgis:16-3.4
+        env:
+          POSTGRES_USER: oxsteed
+          POSTGRES_PASSWORD: statement-test-password
+          POSTGRES_DB: credit_statement_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U oxsteed -d credit_statement_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Migrate disposable statement test database
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
+          NODE_ENV: test
+        run: npm run migrate
+
+      - name: Verify the million-row statement export
+        working-directory: server
+        env:
+          NODE_ENV: test
+          STATEMENT_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
+          STATEMENT_REQUIRE_DB_TESTS: 'true'
+        run: |
+          npx jest __tests__/statementExportJobs.millionRow.db.test.js --runInBand --json --outputFile=million-row-results.json
+          node -e 'const result = require("./million-row-results.json"); if (!result.success || result.numPassedTests < 1 || result.numPendingTests !== 0) process.exit(1)'
+
+  install-check:
+    # The release verifier requires this exact check name.
+    name: Server and Client Verification
+    needs: [client-build, client-browser, server-check, statement-capacity]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require every verification job to pass
+        env:
+          VERIFICATION_RESULTS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success")' <<< "$VERIFICATION_RESULTS"
 
   media-isolated:
     name: Disposable Media safety and upload harness
@@ -506,7 +638,6 @@ jobs:
     name: PostgreSQL migration rehearsal
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    needs: install-check
     permissions:
       contents: read
     services:
