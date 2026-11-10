@@ -1,4 +1,10 @@
-# Prebuilt images for uninterrupted web replacements
+# Historical prebuilt web deployment
+
+Production now deploys default-branch pushes through Coolify's GitHub App
+webhook and the combined Compose application, as described in
+[deployment-ci.md](deployment-ci.md). The host image observer is disabled.
+The experiments and evidence below describe the previous deployment path.
+
 
 Production is an 8 GiB Mac with a roughly 5.8 GiB Colima VM. The old web app
 remaining healthy did not guarantee availability: compilation on that same VM

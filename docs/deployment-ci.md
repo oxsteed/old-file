@@ -1,5 +1,24 @@
 # GitHub Actions and Coolify deployment
 
+## Automatic production deployment
+
+Every push to `old-files-claude` in `oxsteed/old-file` triggers the GitHub App
+webhook at `https://coolify.oxsteed.com/webhooks/source/github/events`.
+Coolify application `tdrapz1vvcoftfwsk7fcdq0h` follows that branch, builds
+`docker-compose.coolify.yml`, runs the normal startup migrations, and starts
+the combined web/API and background runtime. A restart can briefly interrupt
+service. Check `/ready` and its Git SHA after deployment.
+
+Coolify owns automatic deployment. The former Mac web-release observer is
+disabled, and the separate web resource is retired after the combined app
+serves the current release. Database, Redis, uploads, retained web assets,
+scanner storage, and local backups stay on their existing mounts.
+
+Coolify supplies `SOURCE_COMMIT` for each deployment, including during the
+build. Static commit and image metadata overrides must be absent so the
+browser and server report the deployed commit.
+
+
 ## Parallel CI verification
 
 The client build publishes one `client/dist` artifact per CI run. The browser
@@ -18,13 +37,9 @@ workflow the same way and record runner
 queue time separately if it materially affects the comparison. The target is
 17 minutes or less on a successful default-branch run.
 
-After every successful default-branch CI push, the `dispatch-verified-web-image`
-job waits for all verification jobs and dispatches `.github/workflows/web-image.yml`
-with the exact commit SHA. The image workflow verifies that SHA before publishing
-an immutable ARM64 image and receipt for the Mac release observer. It remains
-manually dispatchable for a deliberate recovery or rehearsal. This direct
-dispatch is the release gate; a missed or duplicated webhook cannot silently
-select a different commit.
+Default-branch pushes deploy through Coolify's GitHub App webhook. CI continues
+to verify pushes and pull requests independently. The image workflows remain
+available for manual use.
 
 The first split default-branch measurement was run `42596399340`: all four
 required checks completed in 15:32 from run creation to the final required
