@@ -1,5 +1,5 @@
-# Temporary compatibility release. Keep the serving application and browser
-# assets byte-for-byte; add the reviewed schema manifest and guarded applier.
+# Temporary compatibility release. Keep the serving application routes and
+# browser assets; add the reviewed schema and worker readiness handoff support.
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 ARG BASE_COMMIT
@@ -10,6 +10,7 @@ LABEL org.opencontainers.image.revision="${SOURCE_COMMIT}" \
       com.oxsteed.release.base="${BASE_COMMIT}"
 COPY deploy/web-schema-bridge.json /app/deploy/web-schema-bridge.json
 RUN node -e 'const fs=require("fs"),c=require("crypto"),p=require("/app/deploy/web-schema-bridge.json"); for(const [f,h] of Object.entries(p.sourceHashes)) { if(c.createHash("sha256").update(fs.readFileSync("/app/server/"+f)).digest("hex")!==h) throw Error("Bridge base source mismatch"); } fs.writeFileSync("/app/server/migration-compatibility.json",JSON.stringify({version:1,migrations:p.migrations})); fs.writeFileSync("/app/server/.release",process.env.SOURCE_COMMIT); fs.writeFileSync("/app/server/.release-metadata.json",JSON.stringify({schemaVersion:1,gitSha:process.env.SOURCE_COMMIT}));'
+COPY server/bootstrap/delegatedWorkers.js /app/server/bootstrap/delegatedWorkers.js
 # Carry the reviewed DDL and the guarded applier into the bridge so the host
 # controller can apply exactly this plan while the bridge remains routable.
 COPY scripts/apply-reviewed-web-schema.cjs /app/scripts/apply-reviewed-web-schema.cjs

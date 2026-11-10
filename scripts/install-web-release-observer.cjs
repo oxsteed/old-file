@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs');const path=require('node:path');const os=require('node:os');const {execFileSync}=require('node:child_process');
 const LABEL='com.oxsteed.web-release';
-const files=['verify-web-release.cjs','promote-prebuilt-web.cjs','watch-verified-web-image.cjs','automatic-web-release.cjs'];
+const files=['verify-web-release.cjs','promote-prebuilt-web.cjs','watch-verified-web-image.cjs','automatic-web-release.cjs','handoff-worker.cjs'];
 const xml=s=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 function plist(bundle,node,searchPath){
  const args=[node,path.join(bundle,'automatic-web-release.cjs'),'--state-file',path.join(bundle,'state.json')];

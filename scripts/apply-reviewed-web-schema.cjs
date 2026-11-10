@@ -21,12 +21,22 @@ async function applyReviewedSchema({ pool, apply = false,
     }
     files.splice(0, files.length, ...sortMigrationFiles(files));
   }
+  const statements = new Map();
   for (const [name, hash] of Object.entries(plan.migrations)) {
     if (!sources.has(name) || checksum(sources.get(name)) !== hash) throw Error('Reviewed migration source changed');
-    // This release plan contains no transaction controls. A future plan must
-    // be reviewed separately instead of weakening this atomic boundary.
-    const sql = sources.get(name).replace(/--[^\n]*/g, '');
-    if (/\b(?:BEGIN|COMMIT|ROLLBACK)\s*;/i.test(sql.replace(/\$\$[\s\S]*?\$\$/g, ''))) throw Error('Migration controls its own transaction');
+    let sql = sources.get(name);
+    if (plan.transactionWrapped?.includes(name)) {
+      // Keep the original file and checksum for migration history. Replace
+      // only the reviewed outer transaction with the bridge's transaction.
+      const wrapper = /^(?:\s|--[^\n]*\n)*BEGIN;([\s\S]+)\nCOMMIT;\s*$/i.exec(sql);
+      if (!wrapper) throw Error('Reviewed migration has an unexpected transaction wrapper');
+      sql = wrapper[1];
+    }
+    const executable = sql.replace(/--[^\n]*/g, '').replace(/\$\$[\s\S]*?\$\$/g, '');
+    if (/(?:^|;)\s*(?:BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT|PREPARE\s+TRANSACTION)\b/i.test(executable)) {
+      throw Error('Migration controls its own transaction');
+    }
+    statements.set(name, sql);
   }
   const client = await pool.connect();
   try {
@@ -47,7 +57,7 @@ async function applyReviewedSchema({ pool, apply = false,
     if (pending.some(file => !Object.hasOwn(plan.migrations, file))) throw Error('Unreviewed pending migration');
     if (apply) {
       for (const file of pending) {
-        await client.query(sources.get(file));
+        await client.query(statements.get(file));
         await client.query("INSERT INTO _migrations(filename,status,checksum,started_at,applied_at,error) VALUES($1,'applied',$2,now(),now(),NULL)", [file, plan.migrations[file]]);
       }
     }

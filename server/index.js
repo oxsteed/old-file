@@ -952,7 +952,7 @@ const { runsBackgroundWorkers } = require('./utils/runtimeRole');
 let statementExportStarted = false;
 let auxiliaryWorkersStarted = false;
 async function startWorkerOwnerExtras() {
-  if (!runsBackgroundWorkers()) return;
+  if (!runsBackgroundWorkers() || !runtime.workers.status().owner) return;
   // These resources belong to the same database-backed owner as the cron and
   // timer registry. A standby replacement must not start them while the old
   // process still owns the advisory lock.

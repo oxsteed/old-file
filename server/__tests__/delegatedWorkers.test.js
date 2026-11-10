@@ -59,6 +59,60 @@ describe('web replacements delegate background work without starting consumers',
     } finally { await workers.stop(); }
   });
 
+  test('a serving web replica waits within the probe budget for a healthy standby to acquire ownership', async () => {
+    const primary = 'http://worker-a:5000/ready';
+    const alternate = 'http://worker-b:5000/ready';
+    let incumbentReady = true;
+    let probes = 0;
+    const workers = new DelegatedWorkers({
+      url: primary,
+      fallbackUrl: alternate,
+      timeoutMs: 500,
+      fetchImpl: async url => ({
+        ok: url !== primary || incumbentReady,
+        json: async () => ({ status: 'ready', checks: { workers: {
+          ok: true, mode: url === primary || ++probes > 1 ? 'combined' : 'combined-standby',
+        } } }),
+      }),
+    });
+    try {
+      await workers.start();
+      runtimeState.update({ acceptingTraffic: true });
+      incumbentReady = false;
+      probes = 0;
+      await expect(workers.observe()).resolves.toBe(true);
+      expect(probes).toBe(2);
+      expect(runtimeState.snapshot().workersReady).toBe(true);
+    } finally { await workers.stop(); }
+  });
+
+  test('rechecks the incumbent if the staged worker disappears during rollback', async () => {
+    const primary = 'http://worker-a:5000/ready';
+    const alternate = 'http://worker-b:5000/ready';
+    let rollback = false;
+    let incumbentProbes = 0;
+    let standbyProbes = 0;
+    const workers = new DelegatedWorkers({
+      url: primary,
+      fallbackUrl: alternate,
+      timeoutMs: 900,
+      fetchImpl: async url => ({
+        ok: !rollback || (url === primary ? ++incumbentProbes >= 3 : ++standbyProbes === 1),
+        json: async () => ({ status: 'ready', checks: { workers: {
+          ok: true, mode: url === primary ? 'combined' : 'combined-standby',
+        } } }),
+      }),
+    });
+    try {
+      await workers.start();
+      runtimeState.update({ acceptingTraffic: true });
+      rollback = true;
+      await expect(workers.observe()).resolves.toBe(true);
+      expect(incumbentProbes).toBe(3);
+      expect(standbyProbes).toBe(3);
+    } finally { await workers.stop(); }
+  });
+
   test('a healthy worker cancels the other observation without waiting for its deadline', async () => {
     const primary = 'http://worker-a:5000/ready';
     const alternate = 'http://worker-b:5000/ready';

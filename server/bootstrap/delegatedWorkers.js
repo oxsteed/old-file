@@ -4,6 +4,7 @@
 // runtime stays running on its private network throughout web promotion.
 const logger = require('../utils/logger');
 const runtimeState = require('../services/runtimeState');
+const { setTimeout: delay } = require('node:timers/promises');
 
 const { backgroundProbeTimeoutMs, backgroundConfirmationTimeoutMs } = require('../config/readinessBudgets.json');
 
@@ -51,35 +52,51 @@ class DelegatedWorkers {
   async probeEndpoint(url, signal) {
     try {
       const response = await this.fetch(url, { redirect: 'error', signal });
-      if (!response.ok) return false;
+      if (!response.ok) return 'unavailable';
       const result = await response.json();
-      // Do not delegate to another web facade or accept liveness alone.
-      return result.status === 'ready' && result.checks?.workers?.ok === true
-        && [undefined, 'combined'].includes(result.checks.workers.mode);
+      if (result.status !== 'ready' || result.checks?.workers?.ok !== true) return 'unavailable';
+      const { mode } = result.checks.workers;
+      if (mode === undefined || mode === 'combined') return 'ready';
+      return mode === 'combined-standby' ? 'standby' : 'unavailable';
     } catch {
       // Do not log the URL or body. Fetch errors can embed the private endpoint.
       const reason = signal.aborted ? signal.reason?.name : undefined;
       if (reason !== 'AbortError') logger.warn('Background readiness observation failed', { timedOut: reason === 'TimeoutError' });
-      return false;
+      return 'unavailable';
     }
   }
 
-  async probe(timeoutMs) {
+  async probe(timeoutMs, handoff = false) {
     const deadline = AbortSignal.timeout(timeoutMs);
     const complete = new AbortController();
     const signal = AbortSignal.any([deadline, complete.signal]);
+    const canWaitForHandoff = this.urls.length > 1 && this.started && this.lastOk
+      && runtimeState.snapshot().acceptingTraffic;
     try {
-      await Promise.any(this.urls.map(async url => {
-        if (!await this.probeEndpoint(url, signal)) throw new Error('Background runtime unavailable');
-      }));
-      return 'ready';
+      for (;;) {
+        try {
+          await Promise.any(this.urls.map(async url => {
+            const result = await this.probeEndpoint(url, signal);
+            if (result === 'ready') return;
+            if (result === 'standby') handoff = true;
+            throw new Error('Background runtime unavailable');
+          }));
+          return 'ready';
+        } catch {
+          if (!canWaitForHandoff || !handoff) break;
+          // A verified standby may take over, or the incumbent may return
+          // during rollback. Recheck both within the existing probe budget.
+          await delay(200, undefined, { signal });
+        }
+      }
     } catch {
-      return deadline.aborted ? 'timeout' : 'unavailable';
+      // The delay is aborted when the bounded handoff observation expires.
     } finally {
       // Both endpoints share one deadline. A slow standby cannot hold up a
       // healthy response from the active worker.
       complete.abort();
     }
+    return deadline.aborted ? (handoff && canWaitForHandoff ? 'handoff_timeout' : 'timeout') : 'unavailable';
   }
 
   async observe() {
@@ -89,11 +106,11 @@ class DelegatedWorkers {
       let result = await this.probe(this.timeoutMs);
       // A missed deadline is inconclusive. Give a previously ready, serving
       // replica one bounded confirmation attempt before withdrawing traffic.
-      if (result === 'timeout' && this.started && this.lastOk && !this.stopping
+      if (['timeout', 'handoff_timeout'].includes(result) && this.started && this.lastOk && !this.stopping
           && runtimeState.snapshot().acceptingTraffic) {
         // A confirmation must allow the same work as the initial probe. A
         // shorter deadline rejects a recovering worker before it can reply.
-        result = await this.probe(Math.min(this.timeoutMs, backgroundConfirmationTimeoutMs));
+        result = await this.probe(Math.min(this.timeoutMs, backgroundConfirmationTimeoutMs), result === 'handoff_timeout');
       }
       const ok = result === 'ready';
       if (this.lastOk === true && !ok) logger.warn('Background runtime no longer ready');
@@ -128,4 +145,4 @@ class DelegatedWorkers {
   }
 }
 
-module.exports = { DelegatedWorkers, backgroundReadinessUrl };
+module.exports = { DelegatedWorkers, backgroundReadinessUrl, WORKER_HANDOFF_PROTOCOL: 1 };

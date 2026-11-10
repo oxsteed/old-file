@@ -3,7 +3,7 @@
 const logger = require('../utils/logger');
 const runtimeState = require('../services/runtimeState');
 const { checkReadiness } = require('../services/readinessService');
-const { runtimeRole } = require('../utils/runtimeRole');
+const { runtimeRole, usesManagedWorkerHandoff } = require('../utils/runtimeRole');
 const { setTimeout: delay } = require('node:timers/promises');
 
 function closeHttpServer(server) {
@@ -39,7 +39,7 @@ class ApplicationRuntime {
     this.workers = workers || (this.role === 'web'
       ? new (require('./delegatedWorkers').DelegatedWorkers)()
       : new (require('./backgroundWorkers').BackgroundWorkers)({
-        log, pool, onOwnerAcquired: onWorkerOwnerAcquired,
+        log, pool, onOwnerAcquired: onWorkerOwnerAcquired, managed: usesManagedWorkerHandoff(),
       }));
     this.shutdownPromise = null;
     runtimeState.update({ realtimeReady: typeof realtime.ready !== 'function' });

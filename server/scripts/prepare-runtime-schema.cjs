@@ -1,6 +1,6 @@
 'use strict';
 
-const { runtimeRole } = require('../utils/runtimeRole');
+const { runtimeRole, usesManagedWorkerHandoff } = require('../utils/runtimeRole');
 
 async function verifyUsingEnvironment(env) {
   const { Pool } = require('pg');
@@ -16,9 +16,8 @@ async function verifyUsingEnvironment(env) {
 
 async function prepareRuntimeSchema({ env = process.env, verify = verifyUsingEnvironment,
   migrate = () => require('../migrate').migrate() } = {}) {
-  // Resolve the role before importing either database path. A web replacement
-  // never loads the writer, including its checksum backfill and marker DDL.
-  if (runtimeRole(env) === 'web') return verify(env);
+  // Staged replacements check the schema without loading the migration writer.
+  if (usesManagedWorkerHandoff(env) || runtimeRole(env) === 'web') return verify(env);
   return migrate();
 }
 

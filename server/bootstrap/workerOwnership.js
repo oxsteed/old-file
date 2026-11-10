@@ -9,10 +9,13 @@
 const LOCK_KEY = 'oxsteed:background-workers:v1';
 
 class WorkerOwnership {
-  constructor({ pool, pollMs = 1000, log = console } = {}) {
+  constructor({ pool, pollMs = 1000, log = console, mayAcquire = () => true,
+    onLeaseLost = () => process.exit(1) } = {}) {
     this.pool = pool;
     this.pollMs = pollMs;
     this.log = log;
+    this.mayAcquire = mayAcquire;
+    this.onLeaseLost = onLeaseLost;
     this.client = null;
     this.owner = false;
     this.started = false;
@@ -25,38 +28,50 @@ class WorkerOwnership {
   get mode() { return this.owner ? 'combined' : 'combined-standby'; }
 
   async tryAcquire() {
-    if (this.owner || this.stopping) return this.owner;
+    if (this.owner || this.stopping || !this.mayAcquire()) return this.owner;
     if (!this.pool?.connect) return false;
     const client = await this.pool.connect();
+    let retained = false;
+    let failure;
+    const onError = () => {
+      if (this.client !== client) return;
+      this.log.error?.('Worker ownership session lost; terminating the worker process');
+      this.onLeaseLost();
+    };
+    client.on?.('error', onError);
     try {
+      if (this.stopping) return false;
       const result = await client.query(
         'SELECT pg_try_advisory_lock(hashtext($1)) AS acquired',
         [LOCK_KEY],
       );
-      if (result.rows[0]?.acquired !== true) {
-        client.release();
-        return false;
-      }
+      if (result.rows[0]?.acquired !== true) return false;
+      // If shutdown began during the lock query, discard the locked session
+      // without starting any consumers.
+      if (this.stopping) { failure = true; return false; }
       this.client = client;
+      if (this.onAcquired) await this.onAcquired();
       this.owner = true;
-      if (this.timer) {
-        clearInterval(this.timer);
-        this.timer = null;
-      }
-      try {
-        if (this.onAcquired) await this.onAcquired();
-      } catch (error) {
-        this.owner = false;
-        this.client = null;
-        try { await client.query('SELECT pg_advisory_unlock(hashtext($1))', [LOCK_KEY]); } catch { /* best effort */ }
-        try { client.release(); } catch { /* best effort */ }
-        throw error;
-      }
+      this.onConnectionError = onError;
+      retained = true;
+      clearInterval(this.timer);
+      this.timer = null;
       return true;
     } catch (error) {
-      try { client.release(); } catch { /* best effort */ }
+      failure = error;
+      this.client = null;
       throw error;
+    } finally {
+      if (!retained) {
+        client.off?.('error', onError);
+        client.release(failure);
+      }
     }
+  }
+
+  acquire() {
+    this.acquireInFlight = this.tryAcquire().finally(() => { this.acquireInFlight = null; });
+    return this.acquireInFlight;
   }
 
   async start({ onAcquired } = {}) {
@@ -71,31 +86,32 @@ class WorkerOwnership {
       if (this.onAcquired) await this.onAcquired();
       return this.mode;
     }
-    if (await this.tryAcquire()) return this.mode;
+    if (await this.acquire() || this.stopping) return this.mode;
     this.timer = setInterval(() => {
       if (this.acquireInFlight || this.stopping || this.owner) return;
-      this.acquireInFlight = this.tryAcquire()
-        .catch(error => this.log.warn?.('Worker ownership retry failed', { error: error.message }))
-        .finally(() => { this.acquireInFlight = null; });
+      void this.acquire().catch(error => this.log.warn?.('Worker ownership retry failed', { error: error.message }));
     }, this.pollMs);
     this.timer.unref?.();
     return this.mode;
   }
 
-  async stop() {
+  async stop(drain = async () => {}) {
     this.stopping = true;
     clearInterval(this.timer);
     this.timer = null;
-    await this.acquireInFlight;
+    await this.acquireInFlight?.catch(() => {});
+    await drain();
     const client = this.client;
     this.client = null;
     this.owner = false;
     this.started = false;
     if (client) {
+      let failure;
       try {
         await client.query('SELECT pg_advisory_unlock(hashtext($1))', [LOCK_KEY]);
-      } catch { /* disconnects already release the lock */ }
-      try { client.release(); } catch { /* best effort */ }
+      } catch (error) { failure = error; }
+      client.off?.('error', this.onConnectionError);
+      client.release(failure);
     }
   }
 }

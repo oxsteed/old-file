@@ -18,12 +18,18 @@ function bridgePlan(sha, api = ghJson) {
   const source = Buffer.from(file.content, 'base64');
   const plan = JSON.parse(source);
   if (plan.version !== 1 || !/^[a-f0-9]{40}$/.test(plan.baseCommit)
+      || (plan.workerBaseCommit !== undefined && !/^[a-f0-9]{40}$/.test(plan.workerBaseCommit))
       || !/^ghcr\.io\/oxsteed\/old-file-web@sha256:[a-f0-9]{64}$/.test(plan.baseImage)
       || !plan.migrations || typeof plan.migrations !== 'object'
       || !Object.keys(plan.migrations).length
       || Object.entries(plan.migrations).some(([name, hash]) =>
         !/^\d{14}_[a-z0-9_]+\.sql$/.test(name) || !/^[a-f0-9]{64}$/.test(hash))) {
     throw new Error('Invalid schema bridge plan.');
+  }
+  if (plan.transactionWrapped !== undefined && (!Array.isArray(plan.transactionWrapped)
+      || new Set(plan.transactionWrapped).size !== plan.transactionWrapped.length
+      || plan.transactionWrapped.some(name => !Object.hasOwn(plan.migrations, name)))) {
+    throw new Error('Invalid schema bridge transaction wrappers.');
   }
   return { ...plan, checksum: createHash('sha256').update(source).digest('hex') };
 }
@@ -169,8 +175,7 @@ async function requireBridgeSource(plan, readPublic = publicReadiness) {
   }
 }
 
-async function promote(runId,{redeploy=false,bridge=false,recover=false,beforePromotion}={}) {
-  if (recover && (redeploy || bridge)) throw new Error('Recovery cannot be combined with other promotion modes.');
+function readVerifiedReceipt(runId, { bridge = false } = {}) {
   if(!/^\d+$/.test(String(runId)))throw new Error('A numeric workflow run ID is required.');
   const run=ghJson(['api',`repos/${REPOSITORY}/actions/runs/${runId}`]);
   // Validate the workflow before downloading any artifact.
@@ -184,60 +189,76 @@ async function promote(runId,{redeploy=false,bridge=false,recover=false,beforePr
     const candidate=JSON.parse(fs.readFileSync(file));
     const plan=bridge ? bridgePlan(candidate.gitSha) : undefined;
     const receipt=validateReceipt(candidate,run,{bridge,plan});
+    verifyCommit(receipt.gitSha);
+    return { receipt, plan };
+  } finally {fs.rmSync(directory,{recursive:true,force:true});}
+}
+
+function requireCurrentHead(sha) {
+  return sha === ghJson(['api', `repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha;
+}
+
+async function pullVerifiedImage(receipt) {
+  const manifest=await verifyAnonymousPull(receipt.digest);
+  const reference=`${IMAGE}@${receipt.digest}`;
+  docker(['pull','--platform','linux/arm64',reference]);
+  const info=JSON.parse(docker(['image','inspect',reference,'--format','{"id":{{json .Id}},"architecture":{{json .Architecture}},"revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}},"digests":{{json .RepoDigests}}}']));
+  if(!pulledImageMatches(info,receipt,manifest))throw new Error('Pulled image identity differs from the verified release.');
+  return { reference, info };
+}
+
+async function promote(runId,{redeploy=false,bridge=false,recover=false,beforePromotion}={}) {
+  if (recover && (redeploy || bridge)) throw new Error('Recovery cannot be combined with other promotion modes.');
+  const { receipt, plan } = readVerifiedReceipt(runId, { bridge });
+  if (recover) await requireRecoverySource(receipt.gitSha);
+  else if (!requireCurrentHead(receipt.gitSha)) {
+    return { status: 'waiting_for_current_default_branch_image', gitSha: receipt.gitSha };
+  }
+  const hold = await beforePromotion?.(receipt.gitSha);
+  if (hold) return hold;
+  const current=controller(String.raw`$latest=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->orderByDesc('id')->first();$active=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists();$result=['buildPack'=>$a->build_pack,'image'=>$a->docker_registry_image_name,'tag'=>$a->docker_registry_image_tag,'active'=>$active,'latest'=>$latest?['status'=>$latest->status,'commit'=>$latest->commit]:null];`);
+  if(current.active)return {status:'release_in_progress',gitSha:receipt.gitSha};
+  const sameTarget=current.buildPack==='dockerimage'&&current.image===IMAGE&&current.tag===`sha256-${receipt.digest.slice(7)}`;
+  if(!redeploy&&sameTarget&&current.latest?.commit===receipt.gitSha&&['failed','cancelled-by-user'].includes(current.latest.status))throw new Error('This replacement was rejected; inspect it before an explicit retry.');
+  if(!redeploy&&current.buildPack==='dockerimage'&&current.image===IMAGE&&current.tag===`sha256-${receipt.digest.slice(7)}`&&await ready(receipt.gitSha,receipt.digest))return {status:'already_current',gitSha:receipt.gitSha};
+  if(!redeploy&&sameTarget&&current.latest?.commit===receipt.gitSha&&current.latest.status==='finished')return {status:'waiting_for_runtime_identity',gitSha:receipt.gitSha};
+  // Coolify's image buildpack pulls from the registry itself. Prove that
+  // this source-only image is anonymously readable; never copy a user token
+  // into the production VM or controller.
+  const { reference, info } = await pullVerifiedImage(receipt);
+  // Historical bridge images predate the snapshot checker and use their own
+  // explicitly reviewed promotion path. Automatic web releases always check.
+  if (!bridge) {
+    const blocked = preflightSchema(reference);
+    if (blocked) return { ...blocked, gitSha: receipt.gitSha };
     if (recover) await requireRecoverySource(receipt.gitSha);
-    else if (receipt.gitSha !== ghJson(['api', `repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha) {
+    else if (!requireCurrentHead(receipt.gitSha)) {
       return { status: 'waiting_for_current_default_branch_image', gitSha: receipt.gitSha };
     }
-    verifyCommit(receipt.gitSha);
-    const hold = await beforePromotion?.(receipt.gitSha);
-    if (hold) return hold;
-    const current=controller(String.raw`$latest=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->orderByDesc('id')->first();$active=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists();$result=['buildPack'=>$a->build_pack,'image'=>$a->docker_registry_image_name,'tag'=>$a->docker_registry_image_tag,'active'=>$active,'latest'=>$latest?['status'=>$latest->status,'commit'=>$latest->commit]:null];`);
-    if(current.active)return {status:'release_in_progress',gitSha:receipt.gitSha};
-    const sameTarget=current.buildPack==='dockerimage'&&current.image===IMAGE&&current.tag===`sha256-${receipt.digest.slice(7)}`;
-    if(!redeploy&&sameTarget&&current.latest?.commit===receipt.gitSha&&['failed','cancelled-by-user'].includes(current.latest.status))throw new Error('This replacement was rejected; inspect it before an explicit retry.');
-    if(!redeploy&&current.buildPack==='dockerimage'&&current.image===IMAGE&&current.tag===`sha256-${receipt.digest.slice(7)}`&&await ready(receipt.gitSha,receipt.digest))return {status:'already_current',gitSha:receipt.gitSha};
-    if(!redeploy&&sameTarget&&current.latest?.commit===receipt.gitSha&&current.latest.status==='finished')return {status:'waiting_for_runtime_identity',gitSha:receipt.gitSha};
-    // Coolify's image buildpack pulls from the registry itself. Prove that
-    // this source-only image is anonymously readable; never copy a user token
-    // into the production VM or controller.
-    const manifest=await verifyAnonymousPull(receipt.digest);
-    const reference=`${IMAGE}@${receipt.digest}`;
-    docker(['pull','--platform','linux/arm64',reference]);
-    const info=JSON.parse(docker(['image','inspect',reference,'--format','{"id":{{json .Id}},"architecture":{{json .Architecture}},"revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}},"digests":{{json .RepoDigests}}}']));
-    if(!pulledImageMatches(info,receipt,manifest))throw new Error('Pulled image identity differs from the verified release.');
-    // Historical bridge images predate the snapshot checker and use their own
-    // explicitly reviewed promotion path. Automatic web releases always check.
-    if (!bridge) {
-      const blocked = preflightSchema(reference);
-      if (blocked) return { ...blocked, gitSha: receipt.gitSha };
-      if (recover) await requireRecoverySource(receipt.gitSha);
-      else if (ghJson(['api',`repos/${REPOSITORY}/git/ref/heads/${BRANCH}`]).object.sha !== receipt.gitSha) {
-        return { status: 'waiting_for_current_default_branch_image', gitSha: receipt.gitSha };
-      }
-    } else {
-      await requireBridgeSource(plan);
-    }
-    const queued=controller(String.raw`
-      if($a->health_check_path!=='/ready'||App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists())throw new RuntimeException('Health or active deployment conflict');
-      $a->update(['build_pack'=>'dockerimage','docker_registry_image_name'=>'${IMAGE}','docker_registry_image_tag'=>'sha256-${receipt.digest.slice(7)}','git_commit_sha'=>'${receipt.gitSha}']);
-      $a->environment_variables()->updateOrCreate(['key'=>'IMAGE_DIGEST','is_preview'=>false],['value'=>'${receipt.digest}','is_runtime'=>true,'is_buildtime'=>false,'is_literal'=>true]);
-      $uuid=new_public_id();queue_application_deployment(application:$a,deployment_uuid:$uuid,commit:'${receipt.gitSha}',force_rebuild:false);
-      $result=['deployment'=>$uuid];
-    `);
-    if(!/^[a-z0-9]{1,64}$/.test(queued.deployment))throw new Error('Invalid deployment receipt.');
-    const deadline=Date.now()+600000;
-    while(Date.now()<deadline){
-      const state=controller(String.raw`$q=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->where('deployment_uuid','${queued.deployment}')->firstOrFail();$result=['status'=>$q->status];`);
-      if(['failed','cancelled-by-user'].includes(state.status))throw new Error(`Replacement ${queued.deployment} was ${state.status}; inspect the retained working release.`);
-      if(state.status==='finished'&&await ready(receipt.gitSha,receipt.digest))return {status:'finished',gitSha:receipt.gitSha,imageDigest:receipt.digest,imageId:info.id,deployment:queued.deployment,runId:String(runId)};
-      await new Promise(resolve=>setTimeout(resolve,5000));
-    }
-    throw new Error('Replacement observation timed out; inspect its exact deployment before retrying.');
-  } finally {fs.rmSync(directory,{recursive:true,force:true});}
+  } else {
+    await requireBridgeSource(plan);
+  }
+  const queued=controller(String.raw`
+    if($a->health_check_path!=='/ready'||App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists())throw new RuntimeException('Health or active deployment conflict');
+    $a->update(['build_pack'=>'dockerimage','docker_registry_image_name'=>'${IMAGE}','docker_registry_image_tag'=>'sha256-${receipt.digest.slice(7)}','git_commit_sha'=>'${receipt.gitSha}']);
+    $a->environment_variables()->updateOrCreate(['key'=>'IMAGE_DIGEST','is_preview'=>false],['value'=>'${receipt.digest}','is_runtime'=>true,'is_buildtime'=>false,'is_literal'=>true]);
+    $uuid=new_public_id();queue_application_deployment(application:$a,deployment_uuid:$uuid,commit:'${receipt.gitSha}',force_rebuild:false);
+    $result=['deployment'=>$uuid];
+  `);
+  if(!/^[a-z0-9]{1,64}$/.test(queued.deployment))throw new Error('Invalid deployment receipt.');
+  const deadline=Date.now()+600000;
+  while(Date.now()<deadline){
+    const state=controller(String.raw`$q=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->where('deployment_uuid','${queued.deployment}')->firstOrFail();$result=['status'=>$q->status];`);
+    if(['failed','cancelled-by-user'].includes(state.status))throw new Error(`Replacement ${queued.deployment} was ${state.status}; inspect the retained working release.`);
+    if(state.status==='finished'&&await ready(receipt.gitSha,receipt.digest))return {status:'finished',gitSha:receipt.gitSha,imageDigest:receipt.digest,imageId:info.id,deployment:queued.deployment,runId:String(runId)};
+    await new Promise(resolve=>setTimeout(resolve,5000));
+  }
+  throw new Error('Replacement observation timed out; inspect its exact deployment before retrying.');
 }
 if(require.main===module){
   const args=process.argv.slice(2);
   if(args.length<2||args[0]!=='--run'||args.some((a,i)=>i>1&&!['--redeploy','--bridge','--recover'].includes(a))){console.error('Use --run <verified-image-run-id> [--redeploy|--bridge|--recover]');process.exitCode=1;}
   else promote(args[1],{redeploy:args.includes('--redeploy'),bridge:args.includes('--bridge'),recover:args.includes('--recover')}).then(r=>console.log(JSON.stringify(r))).catch(e=>{console.error(e.message);process.exitCode=1;});
 }
-module.exports={bridgePlan,validateReceipt,verifyAnonymousPull,pulledImageMatches,preflightSchema,requireRecoverySource,requireBridgeSource,promote};
+module.exports={bridgePlan,validateReceipt,verifyAnonymousPull,pulledImageMatches,preflightSchema,requireRecoverySource,requireBridgeSource,
+  readVerifiedReceipt, requireCurrentHead, pullVerifiedImage, promote};

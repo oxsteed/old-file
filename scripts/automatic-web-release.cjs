@@ -6,10 +6,10 @@ const { execFileSync } = require('node:child_process');
 const { ghJson, REPOSITORY, BRANCH } = require('./verify-web-release.cjs');
 const { bridgePlan, promote } = require('./promote-prebuilt-web.cjs');
 const { watch } = require('./watch-verified-web-image.cjs');
+const { healthyWorkerContainers } = require('./handoff-worker.cjs');
 
 const BRIDGE_WORKFLOW = 'web-schema-bridge.yml';
 const WEB_APPLICATION = 'sqbntzhvwhbbywhs9prfhw51';
-const COMBINED_APPLICATION = 'tdrapz1vvcoftfwsk7fcdq0h';
 
 function command(args, input = undefined) {
   return execFileSync(args[0], args.slice(1), {
@@ -41,13 +41,6 @@ function docker(args, input) {
   return command(['docker', '--context', 'colima', ...args], input);
 }
 
-function healthyCombinedContainers(runDocker = docker) {
-  return runDocker([
-    'ps', '--quiet', '--no-trunc', '--filter', `label=coolify.applicationUuid=${COMBINED_APPLICATION}`,
-    '--filter', 'label=com.docker.compose.service=app', '--filter', 'health=healthy',
-  ]).split(/\s+/).filter(Boolean);
-}
-
 function combinedReady(id, runDocker = docker) {
   return JSON.parse(runDocker(['exec', id, 'node', '-e',
     "fetch('http://127.0.0.1:5000/ready').then(async r=>{console.log(await r.text());process.exit(r.ok?0:1)})"]));
@@ -66,7 +59,7 @@ function isWebOnly(file) {
     || file.startsWith('.github/') || OBSERVER_FILES.has(file));
 }
 
-function verifyWorkerContinuity(gitSha, { list = healthyCombinedContainers, read = combinedReady, api = ghJson } = {}) {
+function verifyWorkerContinuity(gitSha, { list = healthyWorkerContainers, read = combinedReady, api = ghJson } = {}) {
   const healthy = list();
   const unavailable = { status: 'waiting_for_healthy_runtime', gitSha };
   if (healthy.length !== 1) return unavailable;
@@ -111,7 +104,7 @@ function applyBridgeSchema({ gitSha, runId, plan, list = () => docker([
   'ps', '--quiet', '--no-trunc', '--filter', `label=coolify.applicationUuid=${WEB_APPLICATION}`,
   '--filter', 'health=healthy',
   ]), inspect = id => docker(['inspect', '--format', '{{json .}}', id]), exec = (id, args) => docker(['exec', id, ...args]),
-  combinedList = healthyCombinedContainers, copyManifest = installCombinedCompatibility,
+  combinedList = healthyWorkerContainers, copyManifest = installCombinedCompatibility,
   verifyCombined = combinedReady } = {}) {
   const ids = String(list()).split(/\s+/).filter(Boolean);
   const candidates = ids.map(id => {
@@ -133,7 +126,7 @@ function applyBridgeSchema({ gitSha, runId, plan, list = () => docker([
   try {
     const verifyOwner = () => {
       const ready = verifyCombined(combined[0]);
-      if (ready.status !== 'ready' || ready.releaseMetadata?.gitSha !== plan.baseCommit
+      if (ready.status !== 'ready' || ready.releaseMetadata?.gitSha !== (plan.workerBaseCommit ?? plan.baseCommit)
           || ready.checks?.workers?.mode !== 'combined') throw Error('Expected healthy worker owner');
     };
     verifyOwner();
