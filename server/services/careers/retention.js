@@ -78,6 +78,18 @@ async function anonymizeApplication(db, applicationId) {
   await db.query('UPDATE career_interviews SET notes = NULL, location = NULL WHERE application_id = $1', [applicationId]);
   await db.query('DELETE FROM careers_private.career_eeo_responses WHERE application_id = $1', [applicationId]);
   await db.query('DELETE FROM career_guest_apply_requests WHERE application_id = $1', [applicationId]);
+  // Marketplace data tied to the application (docs/careers/marketplace.md §11).
+  await db.query('DELETE FROM career_message_threads WHERE application_id = $1', [applicationId]);
+  await db.query('DELETE FROM career_ai_match_scores WHERE application_id = $1', [applicationId]);
+  await db.query(
+    `DELETE FROM career_interview_notes WHERE interview_id IN (SELECT id FROM career_interviews WHERE application_id = $1)`,
+    [applicationId]
+  );
+  await db.query(
+    `UPDATE career_interview_proposals SET candidate_message = NULL, notes = NULL, location = NULL WHERE application_id = $1`,
+    [applicationId]
+  );
+  await db.query('UPDATE career_applications SET screener_answers = NULL WHERE id = $1', [applicationId]);
 }
 
 async function sweepExpired({ db = pool, limit = 500 } = {}) {

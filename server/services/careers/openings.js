@@ -4,7 +4,10 @@
 // (careers spec §6.5, §7; fixes C-04, C-05, C-09, C-10, C-16).
 
 const { AppError } = require('../../middleware/errorHandler');
-const { OPENING_STATUS_TRANSITIONS, ACTIVE_STAGES, slugify } = require('../careerCatalog');
+const {
+  OPENING_STATUS_TRANSITIONS, ACTIVE_STAGES, slugify, INDUSTRIES, EXPERIENCE_LEVELS, POSTED_WITHIN_DAYS, SEARCH_SORTS,
+  PATH_STAGES, WORKPLACE_TYPES,
+} = require('../careerCatalog');
 const { parseOpening } = require('./validation');
 const { checkOpeningWithRules } = require('./compliance');
 const { assertCanHireRole, assertLocationsInScope } = require('./access');
@@ -23,6 +26,7 @@ const PUBLIC_COLUMNS = `
   o.employer_model, o.allow_guest_applications, o.min_age, o.ai_ranking_enabled,
   o.background_check_required, o.content_locale, o.translations, o.published_at,
   o.created_at, o.updated_at, o.requirement_tags,
+  o.industry, o.experience_level, o.same_day_hire, o.urgently_hiring, o.posted_by_agency_id IS NOT NULL AS via_agency,
   (o.promoted_until IS NOT NULL AND o.promoted_until > NOW()) AS is_promoted,
   CASE WHEN o.employer_type = 'platform' THEN 'OxSteed' ELSE b.business_name END AS employer_name,
   CASE WHEN o.employer_type = 'platform' THEN 'oxsteed'
@@ -85,6 +89,23 @@ function buildPublicWhere(query, params, centroid) {
     if (Number.isFinite(n) && n >= 0) add('o.compensation_max >= $?', n);
   }
   if (query.pay_period) add('o.compensation_period = $?', String(query.pay_period));
+  // Multi-value facets: comma lists or repeated params, unknown values dropped.
+  const list = (v, allowed) => [...new Set((Array.isArray(v) ? v : String(v ?? '').split(','))
+    .map((x) => String(x).trim()).filter((x) => allowed.includes(x)))].slice(0, allowed.length);
+  const industries = list(query.industry, INDUSTRIES);
+  if (industries.length) add('o.industry = ANY($?::text[])', industries);
+  const levels = list(query.experience, EXPERIENCE_LEVELS);
+  if (levels.length) add('o.experience_level = ANY($?::text[])', levels);
+  const types = list(query.types, PATH_STAGES);
+  if (types.length) add('o.path_stage = ANY($?::text[])', types);
+  const workplaces = list(query.workplaces, WORKPLACE_TYPES);
+  if (workplaces.length) add('o.workplace_type = ANY($?::text[])', workplaces);
+  const within = Number(query.posted_within);
+  if (POSTED_WITHIN_DAYS.includes(within)) add("COALESCE(o.published_at, o.created_at) >= NOW() - ($?::int * INTERVAL '1 day')", within);
+  if (String(query.same_day || '') === 'true') where.push('o.same_day_hire = TRUE');
+  if (String(query.urgent || '') === 'true') where.push('o.urgently_hiring = TRUE');
+  if (String(query.sponsorship || '') === 'true') where.push('o.sponsorship_available = TRUE');
+  if (String(query.guest_apply || '') === 'true') where.push('o.allow_guest_applications = TRUE');
   const q = String(query.q || '').trim().slice(0, 120);
   if (q) {
     params.push(q);
@@ -112,7 +133,89 @@ function buildPublicWhere(query, params, centroid) {
  * returned separately in `promoted` (labeled); `openings` is the organic
  * list, ordered by publish date, and is identical with or without boosts.
  */
+// Hourly-equivalent pay ceiling, used to sort across pay periods.
+const HOURLY_MAX_SQL = `(o.compensation_max / CASE o.compensation_period
+  WHEN 'hourly' THEN 1 WHEN 'daily' THEN 8 WHEN 'per_shift' THEN 8 WHEN 'monthly' THEN 173 ELSE 2080 END)`;
+
+function sortClause(sort, { centroidParams, q }) {
+  switch (sort) {
+    case 'oldest': return 'COALESCE(o.published_at, o.created_at) ASC, o.id ASC';
+    case 'pay_high': return `${HOURLY_MAX_SQL} DESC NULLS LAST, o.id DESC`;
+    case 'pay_low': return `${HOURLY_MAX_SQL} ASC NULLS LAST, o.id DESC`;
+    case 'relevance': return q
+      ? `ts_rank(o.search_tsv, websearch_to_tsquery('simple', $${q})) DESC, COALESCE(o.published_at, o.created_at) DESC, o.id DESC`
+      : 'COALESCE(o.published_at, o.created_at) DESC, o.id DESC';
+    case 'distance': return centroidParams
+      ? `(SELECT MIN(d) FROM (
+            SELECT ST_Distance(gc.geog, ST_SetSRID(ST_MakePoint($${centroidParams[0]}, $${centroidParams[1]}), 4326)::geography) AS d
+              FROM geo_postal_centroids gc WHERE gc.id = o.postal_centroid_id
+            UNION ALL
+            SELECT ST_Distance(ST_SetSRID(ST_MakePoint(rl.longitude, rl.latitude), 4326)::geography,
+                               ST_SetSRID(ST_MakePoint($${centroidParams[0]}, $${centroidParams[1]}), 4326)::geography)
+              FROM restaurant_locations rl WHERE rl.id = ANY(o.location_ids) AND rl.latitude IS NOT NULL) x) ASC NULLS LAST, o.id DESC`
+      : 'COALESCE(o.published_at, o.created_at) DESC, o.id DESC';
+    default: return 'COALESCE(o.published_at, o.created_at) DESC, o.id DESC';
+  }
+}
+
+/**
+ * Sorted, page-numbered listing (sort other than "newest", or an explicit
+ * page). Returns the total so the UI can show page links. Promoted
+ * openings stay in their own labeled list and never change this order.
+ */
+async function listPublicPaged(db, query, centroid) {
+  const pageSize = [10, 20, 50].includes(Number(query.page_size)) ? Number(query.page_size) : 20;
+  const page = Math.min(Math.max(Number.parseInt(query.page, 10) || 1, 1), 500);
+  const params = [];
+  const where = buildPublicWhere(query, params, centroid);
+  const qText = String(query.q || '').trim().slice(0, 120);
+  const qIndex = qText ? params.indexOf(qText) + 1 : null;
+  const centroidParams = centroid ? [params.length - 2, params.length - 1] : null;
+  const sort = SEARCH_SORTS.includes(query.sort) ? query.sort : 'newest';
+  const order = sortClause(sort, { centroidParams, q: qIndex || null });
+  const { rows: [{ total }] } = await db.query(
+    `SELECT COUNT(*)::int AS total FROM career_openings o LEFT JOIN businesses b ON b.id = o.business_id WHERE ${where.join(' AND ')}`,
+    params
+  );
+  const pageParams = [...params, pageSize, (page - 1) * pageSize];
+  const { rows } = await db.query(
+    `SELECT ${PUBLIC_COLUMNS}
+       FROM career_openings o
+       LEFT JOIN businesses b ON b.id = o.business_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY ${order}
+      LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
+    pageParams
+  );
+  let promoted = [];
+  if (page === 1) {
+    const { rows: promo } = await db.query(
+      `SELECT ${PUBLIC_COLUMNS} FROM career_openings o LEFT JOIN businesses b ON b.id = o.business_id
+        WHERE ${where.join(' AND ')} AND o.promoted_until > NOW()
+        ORDER BY o.promoted_until DESC, o.id DESC LIMIT 3`,
+      params
+    );
+    promoted = promo;
+  }
+  return {
+    openings: rows,
+    promoted,
+    nextCursor: null,
+    page,
+    pageSize,
+    total,
+    pages: Math.max(1, Math.ceil(total / pageSize)),
+    sort,
+    near: centroid ? { found: true, country: centroid.country } : null,
+  };
+}
+
 async function listPublic(db, query = {}) {
+  if ((query.sort && query.sort !== 'newest') || query.page) {
+    const centroid = await resolvePostal(db, { postal: query.near, country: query.country });
+    if (query.near && !centroid) return { openings: [], promoted: [], nextCursor: null, page: 1, total: 0, pages: 1, near: { found: false } };
+    return listPublicPaged(db, query, centroid);
+  }
   const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 50);
   const centroid = await resolvePostal(db, { postal: query.near, country: query.country });
   if (query.near && !centroid) return { openings: [], promoted: [], nextCursor: null, near: { found: false } };
@@ -331,6 +434,8 @@ async function saveOpening(db, { access, user, body, existing = null, employerTy
     ai_ranking_enabled: value.ai_ranking_enabled, is_internal: value.is_internal, employer_model: value.employer_model,
     background_check_required: value.background_check_required, background_check_package: value.background_check_package,
     background_check_reason: value.background_check_reason, content_locale: value.content_locale,
+    industry: value.industry, experience_level: value.experience_level, same_day_hire: value.same_day_hire,
+    urgently_hiring: value.urgently_hiring, screener_auto_reject: value.screener_auto_reject,
     translations: JSON.stringify(value.translations), pay_required_reason: compliance.payRequiredReason,
     status: requested,
   };
@@ -356,7 +461,11 @@ async function saveOpening(db, { access, user, body, existing = null, employerTy
       [existing.id, ...keys.map((k) => cols[k])]
     ));
   } else {
-    const all = { ...cols, employer_type: employerType, business_id: businessId, created_by: user.id };
+    const all = {
+      ...cols, employer_type: employerType, business_id: businessId, created_by: user.id,
+      // Staffing agency posting for a client (docs/careers/marketplace.md §12).
+      posted_by_agency_id: access?.agencyBusinessId || null,
+    };
     const keys = Object.keys(all);
     ({ rows: [row] } = await db.query(
       `INSERT INTO career_openings (${keys.join(', ')}, published_at)
@@ -425,6 +534,7 @@ module.exports = {
   decodeCursor,
   resolvePostal,
   listPublic,
+  listPublicPaged,
   getPublic,
   uniqueSlug,
   resolveStores,

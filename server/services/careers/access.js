@@ -98,6 +98,44 @@ async function resolveHiringAccess(user, businessId, { db = pool } = {}) {
   };
 }
 
+/**
+ * Staffing-agency access to a client business (docs/careers/marketplace.md
+ * §12): an active career_agency_links row granting `permission`, and the
+ * caller has hiring access in the agency business. Agency access covers
+ * only openings the agency posted (checked in assertCanManageOpening),
+ * hires only into the base employee role, and never approves above range.
+ */
+async function resolveAgencyAccess(user, clientBusinessId, permission, { db = pool, agencyBusinessId = null } = {}) {
+  if (!user || clientBusinessId == null) return null;
+  const params = [clientBusinessId, permission];
+  let filter = '';
+  if (agencyBusinessId) { params.push(agencyBusinessId); filter = 'AND l.agency_business_id = $3'; }
+  const { rows } = await db.query(
+    `SELECT l.agency_business_id, b.business_name
+       FROM career_agency_links l JOIN businesses b ON b.id = l.client_business_id
+      WHERE l.client_business_id = $1 AND l.status = 'active' AND $2 = ANY(l.permissions) ${filter}`,
+    params
+  );
+  for (const link of rows) {
+    const agency = await resolveHiringAccess(user, link.agency_business_id, { db });
+    if (agency?.canHire) {
+      return {
+        businessId: Number(clientBusinessId),
+        businessName: link.business_name,
+        ownerId: null,
+        role: 'agency',
+        membershipId: null,
+        isOwner: false,
+        canHire: true,
+        scope: { mode: 'agency', regionIds: null, locationIds: null },
+        canApproveAboveRange: false,
+        agencyBusinessId: Number(link.agency_business_id),
+      };
+    }
+  }
+  return null;
+}
+
 async function requireHiringAccess(user, businessId, opts) {
   if (!user) throw new AppError('Authentication required', 401, 'auth_required');
   const access = await resolveHiringAccess(user, businessId, opts);
@@ -110,6 +148,7 @@ async function requireHiringAccess(user, businessId, opts) {
 function canHireRole(access, teamRole) {
   if (!access) return false;
   if (access.kind === 'platform' || access.isOwner) return true;
+  if (access.role === 'agency') return (teamRole || 'employee') === 'employee';
   return canActOnRole(access.role, teamRole || 'employee');
 }
 
@@ -124,7 +163,7 @@ function assertCanHireRole(access, teamRole) {
 function locationsInScope(access, locationIds) {
   if (!access || access.kind === 'platform') return true;
   const mode = access.scope?.mode;
-  if (access.isOwner || mode === 'business' || mode === 'brand') return true;
+  if (access.isOwner || mode === 'business' || mode === 'brand' || mode === 'agency') return true;
   const ids = (locationIds || []).map(Number).filter(Boolean);
   if (!ids.length) return false;
   const allowed = new Set(access.scope.locationIds || []);
@@ -149,7 +188,17 @@ async function assertCanManageOpening(user, opening, { db = pool, write = true }
     if (!(await canManagePlatformHiring(user, db))) throw new AppError('Opening not found', 404, 'not_found');
     return { kind: 'platform', isOwner: false, role: 'platform', canApproveAboveRange: true, scope: { mode: 'business' } };
   }
-  const access = await requireHiringAccess(user, opening.business_id, { db });
+  let access;
+  try {
+    access = await requireHiringAccess(user, opening.business_id, { db });
+  } catch (err) {
+    // An agency manages only the openings it posted for this client.
+    const agency = opening.posted_by_agency_id
+      ? await resolveAgencyAccess(user, opening.business_id, 'manage_pipeline', { db, agencyBusinessId: opening.posted_by_agency_id })
+      : null;
+    if (!agency) throw err;
+    access = agency;
+  }
   if (!locationsInScope(access, opening.location_ids)) throw new AppError('Opening not found', 404, 'not_found');
   if (write) assertCanHireRole(access, opening.team_role);
   return { kind: 'business', ...access };
@@ -162,6 +211,7 @@ module.exports = {
   canManagePlatformHiring,
   canModerateCareers,
   resolveHiringAccess,
+  resolveAgencyAccess,
   requireHiringAccess,
   canHireRole,
   assertCanHireRole,
