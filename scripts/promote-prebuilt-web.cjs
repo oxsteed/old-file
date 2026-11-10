@@ -169,7 +169,7 @@ async function requireBridgeSource(plan, readPublic = publicReadiness) {
   }
 }
 
-async function promote(runId,{redeploy=false,bridge=false,recover=false}={}) {
+async function promote(runId,{redeploy=false,bridge=false,recover=false,beforePromotion}={}) {
   if (recover && (redeploy || bridge)) throw new Error('Recovery cannot be combined with other promotion modes.');
   if(!/^\d+$/.test(String(runId)))throw new Error('A numeric workflow run ID is required.');
   const run=ghJson(['api',`repos/${REPOSITORY}/actions/runs/${runId}`]);
@@ -189,6 +189,8 @@ async function promote(runId,{redeploy=false,bridge=false,recover=false}={}) {
       return { status: 'waiting_for_current_default_branch_image', gitSha: receipt.gitSha };
     }
     verifyCommit(receipt.gitSha);
+    const hold = await beforePromotion?.(receipt.gitSha);
+    if (hold) return hold;
     const current=controller(String.raw`$latest=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->orderByDesc('id')->first();$active=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists();$result=['buildPack'=>$a->build_pack,'image'=>$a->docker_registry_image_name,'tag'=>$a->docker_registry_image_tag,'active'=>$active,'latest'=>$latest?['status'=>$latest->status,'commit'=>$latest->commit]:null];`);
     if(current.active)return {status:'release_in_progress',gitSha:receipt.gitSha};
     const sameTarget=current.buildPack==='dockerimage'&&current.image===IMAGE&&current.tag===`sha256-${receipt.digest.slice(7)}`;

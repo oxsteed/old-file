@@ -3,7 +3,7 @@ const fs=require('node:fs');const path=require('node:path');
 const {ghJson,REPOSITORY,BRANCH}=require('./verify-web-release.cjs');
 const {promote}=require('./promote-prebuilt-web.cjs');
 const PREFLIGHT_RECHECK_MS = 5 * 60 * 1000;
-const PREFLIGHT_WAIT = ['waiting_for_schema', 'waiting_for_healthy_runtime'];
+const PREFLIGHT_WAIT = ['waiting_for_schema', 'waiting_for_healthy_runtime', 'worker_release_requires_rolling_target'];
 const RETRYABLE = ['started', 'release_in_progress', 'waiting_for_runtime_identity',
   'waiting_for_current_default_branch_image', 'waiting_for_schema_bridge',
   'waiting_for_schema_apply', 'waiting_for_worker_promotion',

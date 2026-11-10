@@ -85,16 +85,19 @@ Independent Coolify push triggers remain disabled; this observer owns promotion.
 A failed remote build/pull never queues a replacement. Keep image receipts and
 prior known-good images for diagnosis and recovery.
 
-The observer now promotes the combined worker application after the web image
-is healthy. Combined runtimes hold a PostgreSQL advisory ownership lock on one
-pool session. A replacement may boot as `combined-standby`, but it does not
-register cron/timer consumers, statement export, or auxiliary workers until the
-previous owner drains and releases the session. The standby then acquires the
-lock and promotes itself to `combined`; the web replacement continues to accept
-traffic only while a `combined` owner is ready. The first rollout from the
-legacy runtime is guarded by a scoped graceful stop and automatic restart of
-the retained owner if the worker deployment fails. This is the single-owner
-handoff boundary; it does not copy production credentials into CI or the image.
+Combined runtimes hold a PostgreSQL advisory ownership lock on one pool
+session. A replacement can start in `combined-standby` without registering
+consumers. However, Coolify 4.6.0 forcibly stops the old Compose services before
+starting the replacements. The November 9 deployment of `2f98890` returned
+503 on 13 homepage and 13 readiness samples over approximately 52 seconds
+during that worker replacement. The web/schema promotion preceding it passed.
+
+The observer retains the current worker. It allows client, documentation,
+workflow, and listed observer-file changes to promote independently after
+verification. A release that needs a different server or schema records
+`worker_release_requires_rolling_target` before queuing a web or schema
+replacement. Keep this gate until a rolling worker target has demonstrated
+standby startup, single ownership, and safe recovery of a failed candidate.
 
 In the November 3 host rehearsal, the candidate-side checker ran in a
 disposable networkless Colima container. With the live image's migration
