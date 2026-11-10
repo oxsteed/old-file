@@ -24,6 +24,7 @@ const {
   findApprovedTranslationByCacheKey,
   saveTranslation,
   getTranslationById,
+  getTranslationForRequester,
   listTranslationHistory,
   createTranslationJob,
   claimNextQueuedTranslationJob,
@@ -459,6 +460,7 @@ module.exports = {
   createBatchTranslationJob,
   processNextBatchJob,
   getTranslationById,
+  getTranslationForRequester,
   listTranslationHistory,
   getTranslationJobById,
 };

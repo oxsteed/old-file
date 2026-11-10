@@ -7,6 +7,21 @@ const { enqueueConversationMessageNotifications } = require('../services/message
 const { withTransaction } = require('../utils/transaction');
 const { emitDomainEvent } = require('../growth/emit');
 
+// F-18: shared-cart quantities are whole units in a sane range.
+const MAX_SHARED_CART_QUANTITY = 999;
+function isValidQuantity(value) {
+  const n = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+  return Number.isSafeInteger(n) && n >= 1 && n <= MAX_SHARED_CART_QUANTITY;
+}
+
+// F-18: a link shared with a named customer is bound to that customer (and
+// the sharer); an open link (no customer_id) stays usable by link holders.
+function mayActOnSharedCart(sharedCart, userId) {
+  if (!sharedCart.customer_id) return true;
+  if (!userId) return false;
+  return String(userId) === String(sharedCart.customer_id) || String(userId) === String(sharedCart.shared_by);
+}
+
 /**
  * Post the shared-cart card message into a conversation.
  * Mirrors the quote-share flow: the message carries a human-readable
@@ -379,7 +394,7 @@ const modifySharedCart = async (req, res) => {
 
     // Verify share token and permissions
     const shareQuery = `
-      SELECT sc.id, sc.cart_id, sc.can_modify, sc.expires_at
+      SELECT sc.id, sc.cart_id, sc.can_modify, sc.expires_at, sc.customer_id, sc.shared_by
       FROM shared_carts sc
       WHERE sc.share_token = $1
         AND (sc.expires_at IS NULL OR sc.expires_at > NOW())
@@ -396,6 +411,11 @@ const modifySharedCart = async (req, res) => {
     if (!sharedCart.can_modify) {
       return sendError(res, 403, 'This cart cannot be modified');
     }
+    // F-18: a cart shared with a named customer can only be changed by that
+    // customer (or the sharer), not by anyone holding the link.
+    if (!mayActOnSharedCart(sharedCart, req.user?.id)) {
+      return sendError(res, 403, 'This cart was shared with a specific customer', 'shared_cart_customer_mismatch');
+    }
 
     // Update item
     const updates = [];
@@ -403,8 +423,8 @@ const modifySharedCart = async (req, res) => {
     let paramCount = 3;
 
     if (quantity !== undefined) {
-      if (quantity <= 0) {
-        return sendError(res, 400, 'Quantity must be greater than 0');
+      if (!isValidQuantity(quantity)) {
+        return sendError(res, 400, `Quantity must be a whole number from 1 to ${MAX_SHARED_CART_QUANTITY}`);
       }
       updates.push(`quantity = $${paramCount}`);
       params.push(quantity);
@@ -467,13 +487,13 @@ const addItemToSharedCart = async (req, res) => {
       return sendError(res, 400, 'Product ID is required');
     }
 
-    if (quantity <= 0) {
-      return sendError(res, 400, 'Quantity must be greater than 0');
+    if (!isValidQuantity(quantity)) {
+      return sendError(res, 400, `Quantity must be a whole number from 1 to ${MAX_SHARED_CART_QUANTITY}`);
     }
 
     // Verify share token and permissions
     const shareQuery = `
-      SELECT sc.id, sc.cart_id, sc.can_modify, sc.expires_at
+      SELECT sc.id, sc.cart_id, sc.can_modify, sc.expires_at, sc.customer_id, sc.shared_by
       FROM shared_carts sc
       WHERE sc.share_token = $1
         AND (sc.expires_at IS NULL OR sc.expires_at > NOW())
@@ -489,6 +509,11 @@ const addItemToSharedCart = async (req, res) => {
 
     if (!sharedCart.can_modify) {
       return sendError(res, 403, 'This cart cannot be modified');
+    }
+    // F-18: a cart shared with a named customer can only be changed by that
+    // customer (or the sharer), not by anyone holding the link.
+    if (!mayActOnSharedCart(sharedCart, req.user?.id)) {
+      return sendError(res, 403, 'This cart was shared with a specific customer', 'shared_cart_customer_mismatch');
     }
 
     // Get product price
@@ -539,7 +564,7 @@ const removeItemFromSharedCart = async (req, res) => {
 
     // Verify share token and permissions
     const shareQuery = `
-      SELECT sc.id, sc.cart_id, sc.can_modify, sc.expires_at
+      SELECT sc.id, sc.cart_id, sc.can_modify, sc.expires_at, sc.customer_id, sc.shared_by
       FROM shared_carts sc
       WHERE sc.share_token = $1
         AND (sc.expires_at IS NULL OR sc.expires_at > NOW())
@@ -555,6 +580,11 @@ const removeItemFromSharedCart = async (req, res) => {
 
     if (!sharedCart.can_modify) {
       return sendError(res, 403, 'This cart cannot be modified');
+    }
+    // F-18: a cart shared with a named customer can only be changed by that
+    // customer (or the sharer), not by anyone holding the link.
+    if (!mayActOnSharedCart(sharedCart, req.user?.id)) {
+      return sendError(res, 403, 'This cart was shared with a specific customer', 'shared_cart_customer_mismatch');
     }
 
     // Remove item
@@ -600,7 +630,7 @@ const approveCart = async (req, res) => {
 
     // Get shared cart
     const shareQuery = `
-      SELECT sc.id, sc.cart_id, sc.expires_at
+      SELECT sc.id, sc.cart_id, sc.expires_at, sc.customer_id, sc.shared_by
       FROM shared_carts sc
       WHERE sc.share_token = $1
         AND (sc.expires_at IS NULL OR sc.expires_at > NOW())
@@ -613,6 +643,11 @@ const approveCart = async (req, res) => {
     }
 
     const sharedCart = shareResult.rows[0];
+
+    // F-18: only the named customer may approve a cart shared with them.
+    if (sharedCart.customer_id && String(sharedCart.customer_id) !== String(customerId)) {
+      return sendError(res, 403, 'This cart was shared with a specific customer', 'shared_cart_customer_mismatch');
+    }
 
     // Create approval record
     const query = `
@@ -739,6 +774,8 @@ const revokeShare = async (req, res) => {
 };
 
 module.exports = {
+  _isValidQuantity: isValidQuantity,
+  _mayActOnSharedCart: mayActOnSharedCart,
   listMySharedCarts,
   shareCart,
   viewSharedCart,

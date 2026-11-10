@@ -6,7 +6,7 @@ const {
   translateText,
   translateLegacyBatch,
   createBatchTranslationJob,
-  getTranslationById,
+  getTranslationForRequester,
   listTranslationHistory,
   getTranslationJobById,
 } = require('./translationService');
@@ -75,7 +75,7 @@ async function handleBatch(req, res) {
 }
 
 async function handleGetJob(req, res) {
-  const job = await getTranslationJobById(req.params.jobId, currentUserId(req));
+  const job = await getTranslationJobById(req.params.jobId, currentUserId(req), { scope: 'requester' });
   if (!job) {
     return res.status(404).json({ error: 'JOB_NOT_FOUND', message: 'Translation job not found' });
   }
@@ -83,7 +83,7 @@ async function handleGetJob(req, res) {
 }
 
 async function handleGetTranslation(req, res) {
-  const translation = await getTranslationById(req.params.id);
+  const translation = await getTranslationForRequester(req.params.id, currentUserId(req));
   if (!translation) {
     return res.status(404).json({ error: 'TRANSLATION_NOT_FOUND', message: 'Translation not found' });
   }
