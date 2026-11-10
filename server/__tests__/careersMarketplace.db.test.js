@@ -203,13 +203,51 @@ ddescribe('careers marketplace (real database)', () => {
     expect(byPay.body.page).toBe(1);
     const bad = await request(app).get('/api/careers/openings?sort=nonsense');
     expect(bad.status).toBe(200);
-    // Impressions are counted asynchronously; views de-duplicate per viewer.
+    // Views de-duplicate per viewer.
     const v1 = await request(app).post(`/api/careers/openings/${ids.opening}/events`).set('X-Forwarded-For', '10.9.9.9').send({ metric: 'view' });
     const v2 = await request(app).post(`/api/careers/openings/${ids.opening}/events`).set('X-Forwarded-For', '10.9.9.9').send({ metric: 'view' });
     expect(v1.status).toBe(202);
     expect(v1.body.counted).toBe(true);
     expect(v2.body.counted).toBe(false);
     expect((await request(app).post(`/api/careers/openings/${ids.opening}/events`).send({ metric: 'apply' })).status).toBe(400);
+  });
+
+  test('only consented batches count public search impressions once per viewer per day', async () => {
+    const draft = await as(ids.owner).post(`${E}/openings`, openingBody({ title: 'Draft opening', status: 'draft' }));
+    expect(draft.status).toBe(201);
+    const draftId = draft.body.opening.id;
+    const endpoint = '/api/careers/openings/impressions';
+    const guest = () => request(app).post(endpoint).set('X-Forwarded-For', '10.9.9.12');
+    const totals = async () => {
+      const { rows } = await pool.query(
+        `SELECT o.id, COALESCE(m.impressions, 0) AS impressions
+           FROM career_openings o
+           LEFT JOIN career_opening_metrics_daily m ON m.opening_id = o.id AND m.day = CURRENT_DATE
+          WHERE o.id = ANY($1::bigint[]) ORDER BY o.id`,
+        [[ids.opening, ids.opening2, draftId]]
+      );
+      return Object.fromEntries(rows.map((row) => [row.id, row.impressions]));
+    };
+    const payload = { opening_ids: [ids.opening2, ids.opening, String(ids.opening), draftId, '9223372036854775807'], analytics_consent: true };
+
+    expect((await request(app).get('/api/careers/openings?page=1')).status).toBe(200);
+    expect((await guest().send({ opening_ids: payload.opening_ids })).status).toBe(204);
+    expect((await guest().set('Sec-GPC', '1').send(payload)).status).toBe(204);
+    for (const opening_ids of [[], {}, [true], ['9223372036854775808'], Array(61).fill(ids.opening)]) {
+      expect((await guest().send({ ...payload, opening_ids })).status).toBe(400);
+    }
+    expect((await request(app).post(`/api/careers/openings/${ids.opening}/events`).send({ metric: 'impression' })).status).toBe(400);
+    expect(await totals()).toEqual({ [ids.opening]: 0, [ids.opening2]: 0, [draftId]: 0 });
+
+    const attempts = await Promise.all([guest().send(payload), guest().send(payload)]);
+    expect(attempts.map((attempt) => attempt.status)).toEqual([204, 204]);
+    expect(await totals()).toEqual({ [ids.opening]: 1, [ids.opening2]: 1, [draftId]: 0 });
+
+    expect((await as(ids.worker).post(endpoint, { ...payload, opening_ids: [ids.opening] })).status).toBe(204);
+    expect(await totals()).toEqual({ [ids.opening]: 2, [ids.opening2]: 1, [draftId]: 0 });
+    const dashboard = await as(ids.owner).get(`${E}/analytics?business_id=${ids.biz}`);
+    expect(dashboard.status).toBe(200);
+    expect(dashboard.body.openings.find((row) => Number(row.id) === ids.opening).impressions).toBe(2);
   });
 
   // ── Save, follow, alerts ─────────────────────────────────────────────────

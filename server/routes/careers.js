@@ -36,6 +36,7 @@ router.post('/openings/:id(\\d+)/guest-apply/confirm', careersGuestLimiter, pub.
 // storefront reads, not tenant ids.
 router.post('/openings/:id(\\d+)/report', optionalAuth, careersReportLimiter, mk.reportOpening);
 router.post('/openings/:id(\\d+)/events', optionalAuth, careersEventLimiter, mk.trackEvent);
+router.post('/openings/impressions', optionalAuth, careersEventLimiter, mk.trackImpressions);
 router.get('/employers', mk.directory);
 router.get('/employers/:slug', optionalAuth, mk.employerPage);
 router.get('/employers/:slug/reviews', mk.employerReviews);

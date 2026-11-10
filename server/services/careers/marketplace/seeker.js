@@ -19,6 +19,8 @@ const MAX_ALERTS = 20;
 const MAX_SAVED = 500;
 const ALERT_BATCH = 10;
 const AUTO_FLAG_REPORTS = 3;
+const MAX_IMPRESSIONS_PER_BATCH = 60;
+const MAX_BIGINT_ID = 9223372036854775807n;
 
 // ── Saved jobs ───────────────────────────────────────────────────────────────
 
@@ -428,37 +430,54 @@ async function resolveOpeningReports(db, { openingId, admin, outcome, note }) {
 // ── Funnel metrics ──────────────────────────────────────────────────────────
 
 /**
- * Count a view or apply start at most once per viewer per day (keyed hash,
- * never the raw identity). Impressions and shares are counted as sent.
+ * Count a job-page view, apply start or share at most once per viewer per day.
  */
 async function trackEvent(db, { openingId, metric, viewer }) {
   const id = requireId(openingId, 'Opening not found');
-  const map = { view: 'views', apply_start: 'apply_starts', share: 'shares', impression: 'impressions' };
-  const column = map[metric];
-  if (!column) throw new AppError('Validation failed', 400, 'validation_failed', { metric: 'Unknown metric' });
+  const columns = { view: 'views', apply_start: 'apply_starts', share: 'shares' };
+  if (!Object.hasOwn(columns, metric)) throw new AppError('Validation failed', 400, 'validation_failed', { metric: 'Unknown metric' });
   const opening = await openings.getPublic(db, { id });
   if (!opening) return { counted: false };
-  if (metric === 'view' || metric === 'apply_start' || metric === 'share') {
-    const { rowCount } = await db.query(
-      `INSERT INTO career_opening_metric_marks (opening_id, day, metric, viewer_hash) VALUES ($1, CURRENT_DATE, $2, $3)
-       ON CONFLICT DO NOTHING`,
-      [id, metric, viewer]
-    );
-    if (!rowCount) return { counted: false };
-  }
-  await bumpMetric(db, id, column);
+  const { rowCount } = await db.query(
+    `INSERT INTO career_opening_metric_marks (opening_id, day, metric, viewer_hash) VALUES ($1, CURRENT_DATE, $2, $3)
+     ON CONFLICT DO NOTHING`,
+    [id, metric, viewer]
+  );
+  if (!rowCount) return { counted: false };
+  await bumpMetric(db, id, columns[metric]);
   return { counted: true };
 }
 
-async function trackImpressions(db, openingIds) {
-  const ids = [...new Set((openingIds || []).map(Number).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 60);
-  if (!ids.length) return;
+function isImpressionOpeningId(id) {
+  if (typeof id === 'number') return Number.isSafeInteger(id) && id > 0;
+  return typeof id === 'string' && /^[1-9]\d{0,18}$/.test(id) && BigInt(id) <= MAX_BIGINT_ID;
+}
+
+async function trackImpressions(db, openingIds, viewer) {
+  if (!Array.isArray(openingIds) || !openingIds.length || openingIds.length > MAX_IMPRESSIONS_PER_BATCH
+      || !openingIds.every(isImpressionOpeningId)) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      opening_ids: 'Send 1 to 60 positive opening IDs',
+    });
+  }
+  const ids = [...new Set(openingIds.map(String))];
+  // Only newly marked public openings count. One statement makes retries
+  // safe and keeps the marks and totals in sync if a write fails.
   await db.query(
-    `INSERT INTO career_opening_metrics_daily (opening_id, day, impressions)
-     SELECT x, CURRENT_DATE, 1 FROM unnest($1::bigint[]) AS x
-      WHERE EXISTS (SELECT 1 FROM career_openings o WHERE o.id = x)
+    `WITH new_impressions AS (
+       INSERT INTO career_opening_metric_marks (opening_id, day, metric, viewer_hash)
+       SELECT o.id, CURRENT_DATE, 'impression', $2
+         FROM career_openings o
+         LEFT JOIN businesses b ON b.id = o.business_id
+        WHERE o.id = ANY($1::bigint[]) AND ${openings.PUBLIC_FILTER}
+        ORDER BY o.id
+       ON CONFLICT DO NOTHING
+       RETURNING opening_id, day
+     )
+     INSERT INTO career_opening_metrics_daily (opening_id, day, impressions)
+     SELECT opening_id, day, 1 FROM new_impressions ORDER BY opening_id
      ON CONFLICT (opening_id, day) DO UPDATE SET impressions = career_opening_metrics_daily.impressions + 1`,
-    [ids]
+    [ids, viewer]
   );
 }
 

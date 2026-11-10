@@ -17,16 +17,17 @@ const shared = {
   '../components/JsonLd': 'export default () => null; export const buildItemList = (x) => x;',
   '../components/CountrySelect': 'export default () => null;',
   '../context/AuthContext': `export const useAuth = () => ({user: window.signedIn ? {id: 'u1', role: 'customer'} : null});`,
+  '../context/CookieConsentContext': 'export const useCookieConsentContext = () => ({preferences: {analytics: window.analyticsConsent}});',
 };
 const api = `
   const call = (name, args) => { window.calls.push({name, args}); };
   export async function listPublicCareerOpenings(params) {
     call('list', params);
     const page = params.page || 1;
-    const openings = Array.from({length: 2}, (_, i) => ({id: page * 10 + i, title: 'Line cook ' + (page * 10 + i), employer_type: 'business',
+    const openings = Array.from({length: window.showPromotion ? 3 : 2}, (_, i) => ({id: page * 10 + i, title: 'Line cook ' + (page * 10 + i), employer_type: 'business',
       business_id: 7, employer_name: 'Taco Spot', country_code: 'US', workplace_type: 'onsite', employment_type: 'full_time',
       same_day_hire: i === 0, urgently_hiring: i === 1, pay_min: 18, pay_max: 22, pay_currency: 'USD', pay_period: 'hourly'}));
-    return {openings, promoted: [], total: 57, pages: 6};
+    return {openings, promoted: window.showPromotion ? [openings[0]] : [], total: 57, pages: 6};
   }
   export async function createCareerAlert(body) { call('alert', body); return {alert: {id: 1}}; }
   export async function saveCareerJob(id) { call('save', id); }
@@ -35,6 +36,7 @@ const api = `
   export async function unfollowCareerEmployer(key) { call('unfollow', key); }
   export async function reportCareerOpening(id, body) { call('report', {id, ...body}); }
   export async function trackCareerEvent(id, type) { call('track', {id, type}); }
+  export async function trackCareerImpressions(ids) { call('impressions', ids); }
 `;
 
 async function bundle(entry) {
@@ -42,6 +44,7 @@ async function bundle(entry) {
   const result = await build({
     stdin: {contents: entry, resolveDir: path.resolve(__dirname, '..'), loader: 'jsx'},
     bundle: true, write: false, loader: {'.css': 'empty'}, jsx: 'automatic',
+    define: {'import.meta.env': '{}'},
     plugins: [{name: 'careers-marketplace-mocks', setup(plugin) {
       plugin.onResolve({filter: /.*/}, (args) => (mocks[args.path] ? {path: args.path, namespace: 'mk-test'} : undefined));
       plugin.onLoad({filter: /.*/, namespace: 'mk-test'}, (args) => ({contents: mocks[args.path], loader: 'js'}));
@@ -50,10 +53,10 @@ async function bundle(entry) {
   return result.outputFiles[0].contents;
 }
 
-async function withPage(js, fn, {signedIn = true} = {}) {
+async function withPage(js, fn, {signedIn = true, analyticsConsent = false, showPromotion = false} = {}) {
   const server = http.createServer((req, res) => {
     if (req.url === '/app.js') { res.setHeader('Content-Type', 'text/javascript'); res.end(js); }
-    else res.end(`<div id="root"></div><script>window.calls=[];window.toasts=[];window.toastErrors=[];window.signedIn=${signedIn};</script><script src="/app.js"></script>`);
+    else res.end(`<div id="root"></div><script>window.calls=[];window.toasts=[];window.toastErrors=[];window.signedIn=${signedIn};window.analyticsConsent=${analyticsConsent};window.showPromotion=${showPromotion};</script><script src="/app.js"></script>`);
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   let browser;
@@ -118,7 +121,26 @@ test('job search sends filters, sort and page, and saves the search as an alert'
     assert.equal(alert.criteria.same_day, 'true');
     assert.equal(alert.frequency, 'daily');
     assert.ok(await page.evaluate(() => window.toasts.includes('careers.mk.alerts.created')));
+    assert.deepEqual(await calls(page, 'impressions'), []);
   });
+});
+
+test('search batches visible cards and counts a duplicate promoted card once', async () => {
+  const js = await bundle(`import React from 'react'; import {createRoot} from 'react-dom/client'; import {MemoryRouter} from 'react-router-dom';
+    import Page from './src/pages/CareersPage.jsx';
+    createRoot(document.getElementById('root')).render(<MemoryRouter><style>{
+      '.ox-careers-card { position: absolute; top: 250px; width: 300px; height: 140px; overflow: hidden; }'
+      + '.ox-careers-section .ox-careers-card { top: 50px; }'
+      + '[data-career-opening-id="11"] { left: 350px; }'
+      + '[data-career-opening-id="12"] { top: 1200px; }'
+    }</style><Page /></MemoryRouter>);`);
+  await withPage(js, async (page) => {
+    await page.waitForFunction(() => window.calls.some((c) => c.name === 'impressions'));
+    assert.deepEqual((await calls(page, 'impressions')).map((ids) => ids.sort()), [['10', '11']]);
+    await page.locator('[data-career-opening-id="12"]').scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => window.calls.some((c) => c.name === 'impressions' && c.args.includes('12')));
+    assert.deepEqual((await calls(page, 'impressions')).map((ids) => ids.sort()), [['10', '11'], ['12']]);
+  }, {analyticsConsent: true, showPromotion: true, signedIn: false});
 });
 
 test('signed-out visitors get a login link instead of saving an alert', async () => {

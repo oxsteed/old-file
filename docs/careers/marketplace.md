@@ -387,10 +387,19 @@ Hiring → *Analytics* shows, per opening, for 7, 30 or 90 days:
 The data is counts only, with no applicant identities. CSV export is
 formula-neutralized and gated by the plan when plans are on.
 
-Views, apply starts and shares are recorded from the job page. Per-card
-impressions in search results are **not** sent from the client yet,
-because one call per card would hit `careersEventLimiter`. The impressions
-metric stays at 0 until a batched impression endpoint exists.
+Views, apply starts and shares are recorded from the job page. Careers
+search sends batches of opening IDs to `POST /api/careers/openings/impressions`
+as cards become at least half visible in a foreground tab. This requires
+analytics consent and honors Global Privacy Control. Listing requests
+are read-only.
+
+The rate-limited endpoint accepts up to 60 IDs and counts only currently
+public openings. A short-lived daily keyed hash of the signed-in account
+or guest IP deduplicates repeated exposures, including promoted and
+organic placements. The marks and daily totals update atomically. The
+existing nightly job prunes old marks, and the dashboard exposes aggregate
+counts. Job-page views can also come from direct links or visitors who
+decline analytics, so the two counts cover different audiences.
 
 ## 15. Worker settings: available now, SMS, saved screener answers
 
@@ -522,7 +531,6 @@ Notes on the Indeed column:
   scraping breaks the sources' terms. Not built.
 - **Paid candidate services** (résumé writing, coaching), paid banner ads
   and ATS integrations. HOTS has announced these but they are not live.
-- **Per-card search impressions** (see §14).
 
 ## 19. Launch checklist (ops and legal)
 

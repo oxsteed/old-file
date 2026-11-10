@@ -7,7 +7,7 @@ export default function OpeningCard({ opening, promoted = false, match = null })
   const o = localizedOpening(opening, i18n.language);
   const pay = formatPayRange(o, i18n.language);
   return (
-    <Link className="ox-careers-card" to={`/careers/${o.id}`}>
+    <Link className="ox-careers-card" to={`/careers/${o.id}`} data-career-opening-id={o.id}>
       <div className="ox-careers-row">
         <p className="ox-careers-kicker">
           {o.employer_name}

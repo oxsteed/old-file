@@ -109,25 +109,24 @@ Local results at ded0247c2, all passing:
 - the new browser check (3 tests);
 - server careers jest: 4 suites, 109 tests.
 
-## Left to do
+## PR follow-up
 
-1. **PR #712 title and description.** The current title, "Record exact-image
-   kiosk pilot verification", is stale. Rewrite it for the careers
-   marketplace (keep a line about the earlier kiosk docs commit 83890bbea).
-   List the features with commits and flags, the skipped items, the Indeed
-   sources, the tests, and the ops steps. Use `gh pr edit 712 --repo
-   oxsteed/old-file --title ... --body-file ...`.
-2. **CI.** Run 42849951932 was in progress for b368aa10c when I stopped. The
-   later push of ded0247c2 starts a new run. Watch it until it is fully
-   green: `gh run list --repo oxsteed/old-file --branch
-   codex/credit-kiosk-release-evidence`. No failing jobs were known at
-   handoff.
-3. **Known gaps, already documented:**
-   - Per-card search impressions are not sent; the analytics impressions
-     metric stays at 0 until a batched endpoint exists.
-   - Job fairs, the ~40k imported listings and scraping were skipped on
-     purpose (`marketplace.md` §18).
-4. **Bugbot** could not run (usage limit). No review comments are pending.
+- PR #712 is titled "Add the OxSteed Careers marketplace." Its description
+  includes kiosk evidence commit `83890bbea`, marketplace commits, flags,
+  exclusions, Indeed sources, tests and launch prerequisites.
+- Careers search now records consented, visible card impressions through a
+  batched endpoint. The listing GET no longer increments impressions.
+  See `marketplace.md` §14 for counting and privacy details.
+- Follow-up verification passed in four Careers Jest suites (110 tests)
+  after running `node migrate.js` against disposable PostGIS. The four
+  cases in `node --test scripts/careersMarketplace.browser-check.cjs`
+  also passed. Production verification is pending release.
+- Job fairs, bulk listing imports and scraping are excluded as described
+  in `marketplace.md` §18.
+- CI run 42851218655 passed on the original handoff commit `c3eb7303c`.
+  Check the run for the current PR head before review.
+- Bugbot reported a neutral error on the handoff commit. No review comments
+  were pending when the title was updated.
 
 ## Feature flags (all off or empty by default)
 

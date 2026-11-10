@@ -111,6 +111,8 @@ export const adminSavePayRule = (code, payload) => api.put(`/careers/admin/pay-r
 // Public
 export const reportCareerOpening = (id, payload) => api.post(`/careers/openings/${enc(id)}/report`, payload).then(data);
 export const trackCareerEvent = (id, metric) => api.post(`/careers/openings/${enc(id)}/events`, { metric }).then(data).catch(() => null);
+export const trackCareerImpressions = (openingIds) =>
+  api.post('/careers/openings/impressions', { opening_ids: openingIds, analytics_consent: true }).catch(() => null);
 export const listCareerEmployers = (params = {}) => api.get('/careers/employers', { params }).then(data);
 export const getCareerEmployer = (slug) => api.get(`/careers/employers/${enc(slug)}`).then(data);
 export const listEmployerReviews = (slug, params = {}) => api.get(`/careers/employers/${enc(slug)}/reviews`, { params }).then(data);

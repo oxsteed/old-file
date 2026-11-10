@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +7,9 @@ import PageShell from '../components/PageShell';
 import JsonLd, { buildItemList } from '../components/JsonLd';
 import CountrySelect from '../components/CountrySelect';
 import { useAuth } from '../context/AuthContext';
-import { createCareerAlert, listPublicCareerOpenings } from '../api/careers';
+import { useCookieConsentContext } from '../context/CookieConsentContext';
+import { hasGlobalPrivacyControl } from '../utils/consentScripts';
+import { createCareerAlert, listPublicCareerOpenings, trackCareerImpressions } from '../api/careers';
 import { Loading, LoadError, Empty, useCareerErrors } from '../components/careers/ui';
 import OpeningCard from '../components/careers/OpeningCard';
 import { DEPARTMENTS, PATH_STAGES, PAY_PERIODS, WORKPLACE_TYPES } from '../features/careers/careersModel';
@@ -21,6 +23,7 @@ import '../styles/CareerSystem.css';
 export default function CareersPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { preferences } = useCookieConsentContext();
   const { businessId } = useParams();
   const errorText = useCareerErrors();
   const blank = {
@@ -38,6 +41,8 @@ export default function CareersPage() {
   const [nearFound, setNearFound] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const searchRoot = useRef(null);
+  const analyticsConsent = preferences?.analytics === true;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,6 +67,43 @@ export default function CareersPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!analyticsConsent || hasGlobalPrivacyControl() || typeof IntersectionObserver !== 'function'
+        || (!rows.length && !promoted.length)) return;
+
+    const cards = searchRoot.current.querySelectorAll('[data-career-opening-id]');
+    const seen = new Set();
+    const observer = new IntersectionObserver((entries) => {
+      if (document.visibilityState !== 'visible') return;
+      const batch = [];
+      for (const entry of entries) {
+        if (entry.intersectionRatio < 0.5) continue;
+        observer.unobserve(entry.target);
+        const id = entry.target.dataset.careerOpeningId;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        batch.push(id);
+      }
+      if (batch.length) trackCareerImpressions(batch);
+    }, { threshold: 0.5 });
+
+    const syncVisibility = () => {
+      observer.disconnect();
+      observer.takeRecords();
+      if (document.visibilityState !== 'visible') return;
+      for (const card of cards) {
+        if (!seen.has(card.dataset.careerOpeningId)) observer.observe(card);
+      }
+    };
+    syncVisibility();
+    document.addEventListener('visibilitychange', syncVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', syncVisibility);
+      observer.disconnect();
+      observer.takeRecords();
+    };
+  }, [analyticsConsent, rows, promoted]);
+
   const set = (key) => (value) => setFilters((prev) => ({ ...prev, [key]: value }));
   const search = (next = filters) => { setApplied(next); setPage(1); };
   const goTo = (n) => { setPage(n); window.scrollTo?.({ top: 0, behavior: 'smooth' }); };
@@ -84,7 +126,7 @@ export default function CareersPage() {
           .filter((row, index, all) => row && row.id && all.findIndex((other) => other.id === row.id) === index)
           .map((row) => ({ name: row.title, url: `https://oxsteed.com/careers/${row.id}` })),
       )} />
-      <div className="ox-careers">
+      <div className="ox-careers" ref={searchRoot}>
         <p className="ox-careers-kicker">{t('careers.kicker')}</p>
         <h1>{businessId ? t('careers.businessTitle') : t('careers.title')}</h1>
         <p className="ox-careers-lead">{t('careers.subtitle')}</p>

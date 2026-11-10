@@ -119,6 +119,13 @@ exports.trackEvent = handle(async (req, res) => {
   res.status(202).json(result);
 });
 
+exports.trackImpressions = handle(async (req, res) => {
+  if (req.body?.analytics_consent === true && req.get('Sec-GPC') !== '1') {
+    await seeker.trackImpressions(pool, req.body.opening_ids, viewerHash(req));
+  }
+  res.status(204).end();
+});
+
 exports.calendarCallback = handle(async (req, res) => {
   const target = await calendar.finishConnect(pool, {
     provider: req.params.provider, state: req.query.state, code: req.query.code, error: req.query.error,

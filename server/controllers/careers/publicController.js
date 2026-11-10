@@ -12,7 +12,6 @@ const { jobsForYou, credentialCodes, haversineKm } = require('../../services/car
 const { factsForViewer } = require('../../services/careers/profileFacts');
 const screeners = require('../../services/careers/marketplace/screeners');
 const employers = require('../../services/careers/marketplace/employers');
-const seeker = require('../../services/careers/marketplace/seeker');
 
 // Strip internal fields from public payloads.
 function publicOpening(o) {
@@ -25,8 +24,6 @@ exports.getCatalog = (_req, res) => res.json({ catalog: getCareerCatalog() });
 
 exports.listOpenings = handle(async (req, res) => {
   const result = await openings.listPublic(pool, req.query || {});
-  // Search impressions for employer analytics; never blocks the response.
-  seeker.trackImpressions(pool, result.openings.map((o) => o.id)).catch(() => {});
   res.json({ ...result, openings: result.openings.map(publicOpening), promoted: result.promoted.map(publicOpening) });
 });
 
