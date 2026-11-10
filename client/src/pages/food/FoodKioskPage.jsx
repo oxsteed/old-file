@@ -410,7 +410,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
     return (
       <div className="fd-screen" ref={rootRef}>
         <KioskOverlays rootRef={rootRef} offline={offline} />
-        <section className="fd-kiosk-start" aria-live="polite">
+        <section className="fd-kiosk-start" aria-live="polite" data-track-private>
           <h1>{f(creditReceipt ? "creditReceipt" : "creditChecking")}</h1>
           {creditReceipt ? (
             <>
@@ -721,7 +721,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
               </button>
             </div>
             {creditStorageKey && managed.creditCheckoutEnabled && quoted?.totalCents > 0 && !quoted.estimated && (
-              <form className="fd-field" onSubmit={payWithCredit} autoComplete="off">
+              <form className="fd-field" onSubmit={payWithCredit} autoComplete="off" data-track-private>
                 <label htmlFor="fd-kiosk-credit-card">{f("creditScanCard")}</label>
                 <input id="fd-kiosk-credit-card" name="credential" type="password" maxLength={200} required autoComplete="off"
                   onKeyDown={(event) => {
