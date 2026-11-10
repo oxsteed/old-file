@@ -23,6 +23,18 @@ Vendor-backed features answer `503 provider_not_configured` and send nothing.
 | `GROWTH_OLLAMA_URL` | – | The **self-hosted** Ollama endpoint (shared with Growth). No outside AI and no fallback model: if Ollama or the pinned digest is missing the feature returns to rules / applied order | Ollama host on the private network |
 | `CAREERS_OLLAMA_MODEL`, `CAREERS_OLLAMA_MODEL_DIGEST` | – | Extraction model and its sha256 digest (pinned; a digest mismatch disables the call) | Reviewed model |
 | `CAREERS_OLLAMA_RANK_MODEL`, `CAREERS_OLLAMA_RANK_DIGEST` | – | Ranking model and digest, pinned separately so a Growth model change never changes hiring | Model covered by the bias audit |
+| `CAREERS_PLANS_ENABLED` | `false` | Employer subscription plans with a free trial ([marketplace.md §10.1](marketplace.md)) | Stripe recurring prices, pricing and auto-renewal terms approved |
+| `CAREERS_STRIPE_PRICE_PLAN_STARTER`, `CAREERS_STRIPE_PRICE_PLAN_GROWTH`, `CAREERS_STRIPE_PRICE_PLAN_PRO` | – | Plan price ids; subscription events use the same `CAREERS_STRIPE_WEBHOOK_SECRET` endpoint | as above |
+| `CAREERS_PLAN_TRIAL_DAYS` | `14` | Free-trial length, one trial per business (0–60) | – |
+| `CAREERS_REFERRALS_ENABLED` | `false` | Employer referral program with two-admin payouts (§10.2) | Program terms, payout and tax process |
+| `CAREERS_REFERRAL_RATE_BPS`, `CAREERS_REFERRAL_MONTHS` | `1500`, `6` | Commission rate (basis points) and window (months) | as above |
+| `CAREERS_CALENDAR_GOOGLE_ENABLED` + `CAREERS_GOOGLE_CLIENT_ID`, `CAREERS_GOOGLE_CLIENT_SECRET` | `false` | Google Calendar free/busy for interview slots (§6.2) | Google OAuth client with `calendar.freebusy`, verified consent screen |
+| `CAREERS_CALENDAR_MICROSOFT_ENABLED` + `CAREERS_MICROSOFT_CLIENT_ID`, `CAREERS_MICROSOFT_CLIENT_SECRET`, `CAREERS_MICROSOFT_TENANT` | `false`, tenant `common` | Outlook / Microsoft 365 free/busy (§6.2) | Entra app with `Calendars.ReadBasic`, `User.Read`, `offline_access` |
+| `CAREERS_OAUTH_CALLBACK_BASE` | – | API origin for `/api/careers/calendar/<provider>/callback` | Register the redirect URIs |
+| `CAREERS_VIDEO_ROOM_ENABLED` + `CAREERS_WEBRTC_ICE_SERVERS` | `false` | In-house WebRTC interview room (§6.4) | Your own TURN server; privacy notice reviewed |
+| `CAREERS_SMS_ENABLED` | `false` | Careers texts (alerts, interview reminders) through the existing `smsNotificationService` (§15) | Twilio 10DLC/toll-free registration, TCPA consent copy reviewed |
+| `CAREERS_AI_RESUME_PARSE_ENABLED` | `false` | Résumé parsing on the self-hosted Ollama, contact details removed first (§8.2) | `CAREERS_OLLAMA_MODEL` and digest |
+| `CAREERS_AI_MATCH_ENABLED` | `false` | Advisory résumé-to-job match; also needs the AI ranking gate below (§9) | `CAREERS_OLLAMA_RANK_MODEL` and digest, bias audit per market |
 | `CAREERS_IP_PEPPER` | falls back to `JWT_SECRET` | Pepper for hashing guest IPs in rate limits | Set a dedicated secret |
 | `CAPTCHA_ENABLED`, `CAPTCHA_PROVIDER`, `CAPTCHA_SECRET` | `false` | Existing `verifyCaptcha` middleware, already in front of guest apply | **There is no client captcha widget yet** (see §5); leave off until one ships |
 
