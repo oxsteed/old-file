@@ -106,7 +106,7 @@ async function createUser(role = 'customer') {
 }
 
 function bearer(userId) {
-  return `Bearer ${jwt.sign({ id: userId, role: 'customer', typ: 'access' }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
+  return `Bearer ${jwt.sign({ id: userId, role: 'customer', typ: 'access', sid: 'test-session' }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
 }
 
 async function createOxsteedAccount(customerId, currency) {

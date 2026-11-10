@@ -76,7 +76,7 @@ describeDatabase('helper listing identity gate against migrated PostgreSQL', () 
       'INSERT INTO helper_profiles (user_id, is_listed) VALUES ($1, FALSE)',
       [id],
     );
-    const token = jwt.sign({ id, role: 'helper', typ: 'access' }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '5m' });
+    const token = jwt.sign({ id, role: 'helper', typ: 'access', sid: 'test-session' }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '5m' });
     return { id, auth: { Authorization: `Bearer ${token}` } };
   }
 

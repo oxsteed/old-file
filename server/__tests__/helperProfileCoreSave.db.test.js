@@ -65,7 +65,7 @@ describeDatabase('PUT /api/helper-profile/core against migrated PostgreSQL', () 
         [id],
       );
     }
-    const token = jwt.sign({ id, role: 'helper', typ: 'access' }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '5m' });
+    const token = jwt.sign({ id, role: 'helper', typ: 'access', sid: 'test-session' }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '5m' });
     return { id, auth: { Authorization: `Bearer ${token}` } };
   }
 

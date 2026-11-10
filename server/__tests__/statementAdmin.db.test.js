@@ -66,7 +66,7 @@ const GRANTOR = 'a0a0a0a0-0000-4000-8000-000000000099';
 const MARKER = 'SECRET_MARKER_DB_XYZ_9f8e7d6c';
 
 function bearer(userId) {
-  return `Bearer ${jwt.sign({ id: userId, role: 'admin', typ: 'access' }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
+  return `Bearer ${jwt.sign({ id: userId, role: 'admin', typ: 'access', sid: 'test-session' }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
 }
 
 function buildApp() {
