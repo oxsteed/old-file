@@ -20,7 +20,7 @@ const userSkillsRoutes = require('../routes/userSkills');
 
 const TEST_USER_ID = 99;
 const TEST_TOKEN = jwt.sign(
-  { id: TEST_USER_ID, email: 'test@example.com', role: 'customer' },
+  { typ: 'access', sid: 'test-session',  id: TEST_USER_ID, email: 'test@example.com', role: 'customer' },
   process.env.JWT_SECRET
 );
 

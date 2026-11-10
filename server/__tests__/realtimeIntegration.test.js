@@ -92,7 +92,7 @@ describe('shared realtime server', () => {
   });
 
   test('connects and exchanges events on chat, support, restaurant-display, and Media namespaces', async () => {
-    const token = jwt.sign({ id: 'user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const token = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
     const chat = await connect(`${baseUrl}/chat`, { auth: { token } });
     clients.push(chat);
     const chatEvent = once(chat, 'notification:test');
@@ -137,14 +137,14 @@ describe('shared realtime server', () => {
 
   test('rejects revoked access tokens during support socket handshake', async () => {
     tokenRevocationService.isRevoked.mockResolvedValueOnce(true);
-    const token = jwt.sign({ id: 'revoked-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const token = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'revoked-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
 
     await expect(connect(`${baseUrl}/support`, { auth: { token } }))
       .rejects.toThrow('Token has been revoked');
   });
 
   test('keeps an active support agent online until their final workspace disconnects', async () => {
-    const token = jwt.sign({ id: 'agent-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const token = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'agent-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
     const first = await connect(`${baseUrl}/support`, { auth: { token } });
     const second = await connect(`${baseUrl}/support`, { auth: { token } });
     clients.push(first, second);
@@ -174,8 +174,8 @@ describe('shared realtime server', () => {
       sql.includes('FROM support_conversations sc') ? { rows: [{ id: 'ticket-1' }] } : { rows: [] }
     ));
 
-    const customerToken = jwt.sign({ id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
-    const observerToken = jwt.sign({ id: 'observer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const customerToken = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const observerToken = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'observer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
     const customer = await connect(`${baseUrl}/support`, { auth: { token: customerToken } });
     const observer = await connect(`${baseUrl}/support`, { auth: { token: observerToken } });
     clients.push(customer, observer);
@@ -204,9 +204,9 @@ describe('shared realtime server', () => {
       sql.includes('FROM support_conversations sc') ? { rows: [{ id: 'ticket-1' }] } : { rows: [] }
     ));
 
-    const firstAgentToken = jwt.sign({ id: 'agent-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
-    const secondAgentToken = jwt.sign({ id: 'agent-user-2' }, process.env.JWT_SECRET, { expiresIn: '5m' });
-    const customerToken = jwt.sign({ id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const firstAgentToken = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'agent-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const secondAgentToken = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'agent-user-2' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const customerToken = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
     const firstAgent = await connect(`${baseUrl}/support`, { auth: { token: firstAgentToken } });
     const secondAgent = await connect(`${baseUrl}/support`, { auth: { token: secondAgentToken } });
     const customer = await connect(`${baseUrl}/support`, { auth: { token: customerToken } });
@@ -249,7 +249,7 @@ describe('shared realtime server', () => {
       return { rows: [] };
     });
 
-    const token = jwt.sign({ id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const token = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
     const support = await connect(`${baseUrl}/support`, { auth: { token } });
     clients.push(support);
     support.emit('customer:join', { visitorName: 'Customer' });
@@ -279,8 +279,8 @@ describe('shared realtime server', () => {
       return { rows: [] };
     });
 
-    const customerToken = jwt.sign({ id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
-    const observerToken = jwt.sign({ id: 'observer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const customerToken = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const observerToken = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'observer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
     const customer = await connect(`${baseUrl}/support`, { auth: { token: customerToken } });
     const observer = await connect(`${baseUrl}/support`, { auth: { token: observerToken } });
     clients.push(customer, observer);
@@ -358,7 +358,7 @@ describe('shared realtime server', () => {
       return { rows: [] };
     });
 
-    const token = jwt.sign({ id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const token = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
     const support = await connect(`${baseUrl}/support`, { auth: { token } });
     clients.push(support);
     support.userRole = 'admin';
@@ -385,7 +385,7 @@ describe('shared realtime server', () => {
       return { rows: [], rowCount: 1 };
     });
 
-    const token = jwt.sign({ id: 'agent-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const token = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'agent-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
     const support = await connect(`${baseUrl}/support`, { auth: { token } });
     clients.push(support);
     support.emit('ticket:join', { ticketId: 'ticket-1' });
@@ -418,7 +418,7 @@ describe('shared realtime server', () => {
       return { rows: [] };
     });
 
-    const token = jwt.sign({ id: 'admin-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const token = jwt.sign({ typ: 'access', sid: 'test-session',  id: 'admin-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
     const support = await connect(`${baseUrl}/support`, { auth: { token } });
     clients.push(support);
     support.emit('ticket:join', { ticketId: 'ticket-1' });

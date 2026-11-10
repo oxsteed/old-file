@@ -23,7 +23,7 @@ jobs:
       RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
       IMAGE: ghcr.io/oxsteed/old-file-web
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.RELEASE_SHA }}
       - name: Require verified default-branch source
@@ -86,7 +86,7 @@ jobs:
             runId: process.env.GITHUB_RUN_ID, architecture: 'arm64',
           }, null, 2));
           JS
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: web-image-receipt
           path: web-image-receipt.json

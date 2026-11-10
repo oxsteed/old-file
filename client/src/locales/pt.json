@@ -353,12 +353,12 @@
         }
       },
       "ai": {
-        "name": "IA (Meta, OpenRouter, Ollama)",
-        "description": "Chat de suporte e IA em segundo plano com cadeia de fallback: Meta primeiro para tráfego autenticado, depois nível gratuito do OpenRouter, depois Ollama local.",
-        "customerSafeSummary": "Quando todos os provedores de IA estão indisponíveis, o chat exibe mensagem de serviço indisponível e oferece suporte humano. O tráfego anônimo nunca consome tokens pagos.",
-        "retryNote": "Cadeia de fallback: Meta primeiro para tráfego autenticado, depois nível gratuito do OpenRouter, depois Ollama local. O tráfego anônimo nunca consome tokens da Meta.",
-        "budgetNote": "O nível de colaborador da Meta tem limites de requisições menores; o nível gratuito do OpenRouter e o Ollama local não têm custo. Nenhum orçamento por solicitação é aplicado no código.",
-        "rotationProcedure": "Gire META_AI_API_KEY no console da Meta e OPENROUTER_API_KEY no OpenRouter; atualize os segredos do Coolify; verifique o chat de suporte.",
+        "name": "IA (Ollama auto-hospedado)",
+        "description": "O chat de suporte, a triagem, os rascunhos e a tradução rodam no servidor Ollama auto-hospedado da OxSteed. Nenhum provedor de IA externo é usado.",
+        "customerSafeSummary": "Quando o servidor de IA está fora do ar, o chat mostra uma mensagem de serviço indisponível e oferece suporte humano.",
+        "retryNote": "Apenas um provedor: o servidor Ollama auto-hospedado. Chamadas com falha são repetidas e depois o recurso passa para o suporte humano ou entrada manual.",
+        "budgetNote": "Auto-hospedado: sem custo por token. A capacidade depende do hardware do servidor Ollama.",
+        "rotationProcedure": "Não há chaves de API para rotacionar. Mantenha OLLAMA_URL em um host interno permitido e troque o modelo com OLLAMA_MODEL; depois verifique o chat de suporte.",
         "capabilities": {
           "support_chat": {
             "label": "Chat de suporte",
@@ -2644,7 +2644,15 @@
       "deleteAccount": "Excluir conta",
       "confirmTitle": "Exclua sua conta",
       "confirmDesc": "Esta ação não pode ser desfeita. Todos os seus dados serão excluídos permanentemente.",
-      "yesDelete": "Sim, excluir minha conta"
+      "yesDelete": "Sim, excluir minha conta",
+      "currentPasswordLabel": "Senha atual",
+      "totpCodeLabel": "Código do autenticador",
+      "totpCodeHint": "Necessário apenas se a autenticação em dois fatores estiver ativada.",
+      "reauthPasswordRequired": "Digite sua senha atual para confirmar.",
+      "reauthTotpRequired": "Digite o código do seu app autenticador para confirmar.",
+      "reauthInvalid": "Sua senha ou código de verificação está incorreto.",
+      "reauthUnavailable": "Sua conta ainda não tem senha. Use \"Esqueci minha senha\" para criar uma e tente novamente.",
+      "impersonationBlocked": "Não é possível excluir a conta enquanto um agente de suporte a está visualizando."
     },
     "preferencesTab": "Preferências",
     "tabPaymentPolicies": "Políticas de Pagamento",

@@ -32,12 +32,12 @@ function buildApp() {
 }
 
 function accessCookie(userId = 7) {
-  const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, { algorithm: 'HS256' });
+  const token = jwt.sign({ typ: 'access', sid: 'test-session',  id: userId }, process.env.JWT_SECRET, { algorithm: 'HS256' });
   return `oxsteed_access=${token}`;
 }
 
 function impersonationBearer({ secret = process.env.JWT_SECRET, expiresIn = '15m' } = {}) {
-  return jwt.sign({ id: 8, impersonation: true }, secret, { algorithm: 'HS256', expiresIn });
+  return jwt.sign({ typ: 'access', id: 8, impersonation: true, impersonated_by: 1, jti: 'imp-jti' }, secret, { algorithm: 'HS256', expiresIn });
 }
 
 async function withLiveEnv(fn) {
@@ -64,7 +64,7 @@ describe('item 16: verified impersonation for the CSRF exemption', () => {
 
   test('an expired impersonation bearer does not skip the CSRF check', async () => {
     const expired = jwt.sign(
-      { id: 8, impersonation: true, exp: Math.floor(Date.now() / 1000) - 60 },
+      { typ: 'access', sid: 'test-session',  id: 8, impersonation: true, exp: Math.floor(Date.now() / 1000) - 60 },
       process.env.JWT_SECRET,
       { algorithm: 'HS256' }
     );

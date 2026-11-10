@@ -35,7 +35,7 @@ describe('P1-111 passkey counters', () => {
       .mockResolvedValueOnce({ rows: [{ challenge: 'c1' }], rowCount: 1 })
       .mockResolvedValue({ rows: [], rowCount: 1 });
   }
-  const token = () => jwt.sign({ id: USER_ID, isPasskeyToken: true }, process.env.JWT_SECRET, { algorithm: 'HS256' });
+  const token = () => jwt.sign({ typ: 'passkey_login', id: USER_ID, isPasskeyToken: true }, process.env.JWT_SECRET, { algorithm: 'HS256', audience: 'oxsteed:passkey-login' });
 
   test('synced passkeys that always report counter 0 can sign in', async () => {
     primePasskey(0);

@@ -20,10 +20,10 @@ const jwt = require('jsonwebtoken');
 
 const restaurantPayoutRoutes = require('../routes/restaurantPayouts');
 
-const OWNER_TOKEN = jwt.sign({ id: 1, email: 'owner@test.com', role: 'customer' }, process.env.JWT_SECRET);
-const STAFF_TOKEN = jwt.sign({ id: 2, email: 'staff@test.com', role: 'customer' }, process.env.JWT_SECRET);
-const SUPER_TOKEN = jwt.sign({ id: 3, email: 'super@test.com', role: 'super_admin' }, process.env.JWT_SECRET);
-const ADMIN_TOKEN = jwt.sign({ id: 4, email: 'admin@test.com', role: 'admin' }, process.env.JWT_SECRET);
+const OWNER_TOKEN = jwt.sign({ typ: 'access', sid: 'test-session',  id: 1, email: 'owner@test.com', role: 'customer' }, process.env.JWT_SECRET);
+const STAFF_TOKEN = jwt.sign({ typ: 'access', sid: 'test-session',  id: 2, email: 'staff@test.com', role: 'customer' }, process.env.JWT_SECRET);
+const SUPER_TOKEN = jwt.sign({ typ: 'access', sid: 'test-session',  id: 3, email: 'super@test.com', role: 'super_admin' }, process.env.JWT_SECRET);
+const ADMIN_TOKEN = jwt.sign({ typ: 'access', sid: 'test-session',  id: 4, email: 'admin@test.com', role: 'admin' }, process.env.JWT_SECRET);
 
 function baseUser(overrides) {
   return {

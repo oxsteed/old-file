@@ -12,11 +12,8 @@ const {
 
 const MAX_PARTNER_CREDIT_EXPORT_ROWS = 5000;
 
-function csvCell(value) {
-  const raw = value === null || value === undefined ? '' : String(value);
-  const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
-  return `"${safe.replace(/"/g, '""')}"`;
-}
+// F-15: the shared hardened helper (hidden-lead and control-character aware).
+const csvCell = require('../utils/csv').csvQuotedCell;
 
 function parseReportDate(value, fieldName) {
   if (!value) return null;

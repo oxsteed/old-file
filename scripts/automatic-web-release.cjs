@@ -41,19 +41,6 @@ function docker(args, input) {
   return command(['docker', '--context', 'colima', ...args], input);
 }
 
-function combinedController(code) {
-  const encoded = Buffer.from(String.raw`
-    $a=App\Models\Application::where('uuid','${COMBINED_APPLICATION}')->firstOrFail();
-    if($a->git_repository!=='oxsteed/old-file'||$a->git_branch!=='${BRANCH}'||$a->build_pack!=='dockercompose'
-      ||$a->settings->is_auto_deploy_enabled||$a->settings->is_consistent_container_name_enabled)
-      throw new RuntimeException('Unsafe combined worker deployment target');
-  ` + code + `echo 'OXSTEED_RESULT:'.json_encode($result);`).toString('base64');
-  const output = docker(['exec','coolify','php','artisan','tinker','--execute',`eval(base64_decode('${encoded}'));`]);
-  const match = /OXSTEED_RESULT:(.*)/.exec(output);
-  if (!match) throw new Error('Controller did not return a worker deployment receipt.');
-  return JSON.parse(match[1]);
-}
-
 function healthyCombinedContainers(runDocker = docker) {
   return runDocker([
     'ps', '--quiet', '--no-trunc', '--filter', `label=coolify.applicationUuid=${COMBINED_APPLICATION}`,
@@ -66,92 +53,41 @@ function combinedReady(id, runDocker = docker) {
     "fetch('http://127.0.0.1:5000/ready').then(async r=>{console.log(await r.text());process.exit(r.ok?0:1)})"]));
 }
 
-async function promoteCombinedWorker(gitSha, { runDocker = docker, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
-  const current = combinedController(String.raw`
-    $latest=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->orderByDesc('id')->first();
-    $active=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->whereIn('status',['queued','in_progress'])->exists();
-    $result=['active'=>$active,'latest'=>$latest?['status'=>$latest->status,'commit'=>$latest->commit]:null];
-  `);
-  if (current.active) return { status: 'worker_release_in_progress', gitSha };
-  if (current.latest?.commit === gitSha && ['failed', 'cancelled-by-user'].includes(current.latest.status)) {
-    throw new Error('This worker replacement was rejected; inspect it before an explicit retry.');
+const OBSERVER_FILES = new Set([
+  'scripts/automatic-web-release.cjs',
+  'scripts/automatic-web-release.test.cjs',
+  'scripts/promote-prebuilt-web.cjs',
+  'scripts/promote-prebuilt-web.test.cjs',
+  'scripts/watch-verified-web-image.cjs',
+]);
+
+function isWebOnly(file) {
+  return typeof file === 'string' && (file.startsWith('client/') || file.startsWith('docs/')
+    || file.startsWith('.github/') || OBSERVER_FILES.has(file));
+}
+
+function verifyWorkerContinuity(gitSha, { list = healthyCombinedContainers, read = combinedReady, api = ghJson } = {}) {
+  const healthy = list();
+  const unavailable = { status: 'waiting_for_healthy_runtime', gitSha };
+  if (healthy.length !== 1) return unavailable;
+  let ready;
+  try { ready = read(healthy[0]); } catch { return unavailable; }
+  const workerSha = ready.releaseMetadata?.gitSha;
+  if (ready.status !== 'ready' || ready.checks?.workers?.mode !== 'combined' || !/^[a-f0-9]{40}$/.test(workerSha)) {
+    return unavailable;
   }
-  const healthy = healthyCombinedContainers(runDocker);
-  if (current.latest?.commit === gitSha && current.latest.status === 'finished' && healthy.length === 1) {
-    try {
-      const ready = combinedReady(healthy[0], runDocker);
-      if (ready.status === 'ready' && ready.checks?.workers?.mode === 'combined'
-          && ready.releaseMetadata?.gitSha === gitSha) {
-        return { status: 'worker_already_current', gitSha };
-      }
-    } catch { /* retry the exact source commit below */ }
+  if (workerSha === gitSha) return { status: 'worker_already_current', gitSha, workerSha };
+  // Coolify's Compose path stops every old service before starting the new
+  // deployment. Keep the healthy owner and allow only changes that can ship
+  // independently of it until a rolling worker target exists.
+  const diff = api(['api', `repos/${REPOSITORY}/compare/${workerSha}...${gitSha}?per_page=1`,
+    '--jq', '{status, files: [.files[]? | {filename, previous_filename}]}']);
+  if (diff.status === 'ahead' && Array.isArray(diff.files) && diff.files.length > 0 && diff.files.length < 300
+      && diff.files.every(file => isWebOnly(file.filename)
+        && (file.previous_filename == null || isWebOnly(file.previous_filename)))) {
+    return { status: 'worker_retained', gitSha, workerSha };
   }
-  // The first worker-aware release must not overlap the legacy combined
-  // runtime, which predates the advisory ownership lock. Later replacements
-  // can roll alongside the old owner and wait in combined-standby until the
-  // old process drains and releases the lock.
-  let bootstrapOwner = false;
-  let legacyContainer = null;
-  if (healthy.length === 1) {
-    try {
-      runDocker(['exec', healthy[0], 'node', '-e', "require('./bootstrap/workerOwnership'); process.stdout.write('owner-aware')"]);
-    } catch {
-      bootstrapOwner = true;
-      legacyContainer = healthy[0];
-      runDocker(['stop', '--time', '30', legacyContainer]);
-    }
-  }
-  try {
-  const queued = combinedController(String.raw`
-    $a->environment_variables()->updateOrCreate(['key'=>'SOURCE_COMMIT','is_preview'=>false],['value'=>'${gitSha}','is_runtime'=>true,'is_buildtime'=>true,'is_literal'=>true]);
-    $a->environment_variables()->updateOrCreate(['key'=>'COMMIT_SHA','is_preview'=>false],['value'=>'${gitSha}','is_runtime'=>true,'is_buildtime'=>true,'is_literal'=>true]);
-    $a->environment_variables()->updateOrCreate(['key'=>'GIT_SHA','is_preview'=>false],['value'=>'${gitSha}','is_runtime'=>true,'is_buildtime'=>true,'is_literal'=>true]);
-    $uuid=new_public_id();
-    queue_application_deployment(application:$a,deployment_uuid:$uuid,commit:'${gitSha}',force_rebuild:true);
-    $result=['deployment'=>$uuid];
-  `);
-  if (!/^[a-z0-9]{1,64}$/.test(queued.deployment)) throw new Error('Invalid worker deployment receipt.');
-  const deadline = Date.now() + 900000;
-  while (Date.now() < deadline) {
-    const state = combinedController(String.raw`
-      $q=App\Models\ApplicationDeploymentQueue::where('application_id',$a->id)->where('deployment_uuid','${queued.deployment}')->firstOrFail();
-      $result=['status'=>$q->status,'commit'=>$q->commit];
-    `);
-    if (['failed','cancelled-by-user'].includes(state.status)) {
-      throw new Error(`Worker replacement ${queued.deployment} was ${state.status}; inspect the retained owner.`);
-    }
-    if (state.status === 'finished') {
-      const candidates = healthyCombinedContainers(runDocker);
-      if (candidates.length !== 1) {
-        await sleep(5000);
-        continue;
-      }
-      try {
-        const ready = combinedReady(candidates[0], runDocker);
-        if (ready.status === 'ready' && ready.checks?.workers?.mode === 'combined'
-            && ready.releaseMetadata?.gitSha === gitSha) {
-          return { status: 'worker_finished', gitSha, deployment: queued.deployment };
-        }
-      } catch { /* keep observing until the replacement owns workers */ }
-    }
-    await sleep(5000);
-  }
-  throw new Error('Timed out waiting for the worker replacement; inspect its exact deployment.');
-  } catch (error) {
-    if (bootstrapOwner && legacyContainer) {
-      try {
-        runDocker(['start', legacyContainer]);
-        const recoveryDeadline = Date.now() + 120000;
-        while (Date.now() < recoveryDeadline) {
-          try {
-            if (combinedReady(legacyContainer, runDocker).status === 'ready') break;
-          } catch { /* keep waiting for the retained owner */ }
-          await sleep(2000);
-        }
-      } catch { /* preserve the original deployment error */ }
-    }
-    throw error;
-  }
+  return { status: 'worker_release_requires_rolling_target', gitSha, workerSha };
 }
 
 function installCombinedCompatibility(id, migrations) {
@@ -220,7 +156,14 @@ function applyBridgeSchema({ gitSha, runId, plan, list = () => docker([
 }
 
 async function promoteAutomatic(runId, deps = {}) {
-  const initial = await (deps.promote || promote)(runId);
+  const promoteImage = deps.promote || promote;
+  let worker;
+  const beforePromotion = sha => {
+    worker = (deps.verifyWorker || verifyWorkerContinuity)(sha);
+    if (!['worker_already_current', 'worker_retained'].includes(worker.status)) return worker;
+    return null;
+  };
+  const initial = await promoteImage(runId, { beforePromotion });
   let web = initial;
   if (['waiting_for_schema', 'waiting_for_schema_apply'].includes(initial.status)) {
     const bridge = ensureBridge(initial.gitSha, deps.api || ghJson, deps.dispatch || dispatchBridge);
@@ -235,14 +178,10 @@ async function promoteAutomatic(runId, deps = {}) {
     const plan = (deps.loadPlan || bridgePlan)(initial.gitSha);
     const applied = (deps.applySchema || applyBridgeSchema)({ gitSha: initial.gitSha, runId: String(bridge.id), plan });
     if (applied.status !== 'schema_applied') return applied;
-    web = await (deps.promote || promote)(runId);
+    web = await promoteImage(runId, { beforePromotion });
   }
   if (!['finished', 'already_current'].includes(web.status)) return web;
-  const worker = await (deps.promoteWorker || promoteCombinedWorker)(web.gitSha);
-  if (!['worker_finished', 'worker_already_current'].includes(worker.status)) {
-    return { status: 'waiting_for_worker_promotion', gitSha: web.gitSha, workerStatus: worker.status };
-  }
-  return { ...web, worker: worker.status, gitSha: web.gitSha };
+  return { ...web, worker: worker.status, workerSha: worker.workerSha };
 }
 
 async function main(stateFile) {
@@ -260,4 +199,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { bridgeRuns, ensureBridge, applyBridgeSchema, promoteAutomatic, promoteCombinedWorker };
+module.exports = { bridgeRuns, ensureBridge, applyBridgeSchema, promoteAutomatic, verifyWorkerContinuity };

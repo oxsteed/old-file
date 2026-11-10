@@ -7,7 +7,7 @@ const request = require('supertest');
 const { getVerifiedAuthUserId, generalLimiter, authenticatedLimiter } = require('../middleware/rateLimiter');
 
 function sign(payload = { id: 401 }, options = {}, secret = process.env.JWT_SECRET) {
-  return jwt.sign(payload, secret, { algorithm: 'HS256', ...options });
+  return jwt.sign({ typ: 'access', sid: 'test-session', ...payload }, secret, { algorithm: 'HS256', ...options });
 }
 function req(cookie, bearer) {
   return { headers: {
@@ -37,11 +37,11 @@ describe('verified browser-session budget', () => {
   });
 
   test('verified impersonation Bearer takes precedence over the admin cookie', () => {
-    expect(getVerifiedAuthUserId(req(`oxsteed_access=${sign({ id: 405 })}`, sign({ id: 406, isImpersonated: true })))).toBe(406);
+    expect(getVerifiedAuthUserId(req(`oxsteed_access=${sign({ id: 405 })}`, sign({ id: 406, impersonation: true, impersonated_by: 1, jti: 'imp-jti' })))).toBe(406);
   });
 
   test('invalid impersonation cannot inherit a valid admin-cookie budget', () => {
-    const invalid = sign({ id: 407, isImpersonated: true }, {}, 'synthetic-wrong-signing-key');
+    const invalid = sign({ id: 407, impersonation: true, impersonated_by: 1, jti: 'imp-jti' }, {}, 'synthetic-wrong-signing-key');
     expect(getVerifiedAuthUserId(req(`oxsteed_access=${sign()}`, invalid))).toBeNull();
   });
 

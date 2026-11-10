@@ -151,8 +151,8 @@ describe('item 4: chat turn returns a stored proposal', () => {
 
   test('signed-in: reply stripped, proposal validated + stored, card payload returned', async () => {
     mockQuery.mockImplementation(async (sql) => snapshotAndActionRows(sql));
-    process.env.OPENROUTER_API_KEY = 'k';
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: 'I can reopen it.\n[[action:{"type":"reopen_ticket","ticket_id":"tk-9"}]]' } }] }) });
+    process.env.OLLAMA_URL = 'http://localhost:11434';
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ message: { content: 'I can reopen it.\n[[action:{"type":"reopen_ticket","ticket_id":"tk-9"}]]' } }) });
     const req = { user: { id: USER, role: 'customer' }, body: { messages: [{ role: 'user', content: 'reopen my ticket' }], pageContext: { path: '/support' } } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
     await chatController.chatMessage(req, res, jest.fn());
@@ -169,8 +169,8 @@ describe('item 4: chat turn returns a stored proposal', () => {
 
   test('guests never get a proposal and never see the action rules', async () => {
     mockQuery.mockImplementation(async () => ({ rows: [] }));
-    process.env.OPENROUTER_API_KEY = 'k';
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: 'Sure [[action:{"type":"open_cookie_preferences"}]]' } }] }) });
+    process.env.OLLAMA_URL = 'http://localhost:11434';
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ message: { content: 'Sure [[action:{"type":"open_cookie_preferences"}]]' } }) });
     const req = { body: { messages: [{ role: 'user', content: 'cookies' }] } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
     await chatController.chatMessage(req, res, jest.fn());

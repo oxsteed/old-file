@@ -278,6 +278,18 @@ describe('cashOutWithCard PIN handling', () => {
     })).rejects.toMatchObject({ code: 'credit_card_customer_inactive', statusCode: 403 });
   });
 
+  it.each([
+    ['suspended', { owner_is_suspended: true }],
+    ['restricted', { owner_is_restricted: true }],
+  ])('a %s owner cannot spend with the card (kiosk checkout review)', async (_label, flags) => {
+    const client = { query: jest.fn().mockResolvedValueOnce({ rows: [{
+      id: CARD_ID, customer_id: CUSTOMER_ID, status: 'active', owner_is_active: true, expires_at: null, ...flags,
+    }] }) };
+    await expect(cardService.resolveCardByCredential(client, 'raw-credential'))
+      .rejects.toMatchObject({ code: 'credit_card_customer_blocked', statusCode: 403 });
+    expect(client.query.mock.calls[0][0]).toMatch(/deleted_at IS NULL/);
+  });
+
   it('rejects an idempotent replay whose key was used by a different card (H3)', async () => {
     const otherCardId = '88888888-8888-4888-8888-888888888888';
     mockQuery

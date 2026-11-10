@@ -43,8 +43,7 @@ const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const { normalizeAttachmentReference } = require('../utils/mediaUrlValidation');
 
-router.use(authenticate);
-router.use((_req, res, next) => {
+router.use('/statements/disputes/:disputeId/messages', authenticate, (_req, res, next) => {
   res.set('Cache-Control', 'private, no-store');
   res.set('X-Content-Type-Options', 'nosniff');
   next();

@@ -250,16 +250,6 @@ const ENTRIES = [
     rationale: 'Restaurant-to-business lookup cache for the F-20 baseline audit: 10min freshness, 5000-entry cap with clear. Backing truth is PostgreSQL food_restaurants; staleness only delays a business_id change reaching audit entries.',
   },
   {
-    file: 'services/openRouterSpendGuard.js', name: 'localSpend',
-    classification: 'cache', shared: 'redis',
-    rationale: 'Development-only daily AI budget reservations; production requires atomic Redis reservations and fails closed when unavailable. One current UTC day is retained.',
-  },
-  {
-    file: 'services/openRouterSpendGuard.js', name: 'localAlerts',
-    classification: 'cache', shared: 'redis',
-    rationale: 'Single-process fallback for the daily spend-cap breach alert deduplication set; Redis is authoritative when configured. Missing an alert only delays ops notification, never blocks chat.',
-  },
-  {
     file: 'services/restaurantAccountingProvider.js', name: 'metadataCaches',
     classification: 'cache', shared: 'none',
     rationale: 'Cost audit 2026-11-04 item 8: per-integration provider metadata cache (Organisation, account lookups), 60s TTL, 100-entry cap per integration. Backing truth is the provider API; only metadata responses are cached, never credentials or tokens.',

@@ -14,6 +14,7 @@ const { mockQuery, resetMocks } = require('./setup');
 
 jest.mock('../services/socketService', () => ({
   broadcastToBusinessInbox: jest.fn(),
+  broadcastToBusinessOrders: jest.fn(),
   broadcastToRestaurantDisplay: jest.fn(),
 }));
 jest.mock('../services/notificationService', () => ({
@@ -153,6 +154,7 @@ async function flushAsyncSideEffects() {
 beforeEach(() => {
   resetMocks();
   socketService.broadcastToBusinessInbox.mockClear();
+  socketService.broadcastToBusinessOrders.mockClear();
   socketService.broadcastToRestaurantDisplay.mockClear();
   sendNotification.mockClear();
   smsNotificationService.sendDirectSMS.mockClear();
@@ -263,7 +265,10 @@ describe('food order loop E2E (F7)', () => {
     expect(createRes.body.trackingToken).toBeTruthy();
     expect(createRes.body.replayed).toBe(false);
 
-    expect(socketService.broadcastToBusinessInbox).toHaveBeenCalledWith(
+    // F-12: order events go to the permission-gated orders room (the socket
+    // layer reduces them to identifiers), never to the business inbox room.
+    expect(socketService.broadcastToBusinessInbox).not.toHaveBeenCalled();
+    expect(socketService.broadcastToBusinessOrders).toHaveBeenCalledWith(
       BUSINESS_ID,
       'food:order:created',
       expect.objectContaining({

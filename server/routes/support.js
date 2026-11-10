@@ -1988,10 +1988,8 @@ router.get('/audit/export', strictLimiter, async (req, res, next) => {
        ${where} ORDER BY a.created_at DESC LIMIT $${limitParam}`,
       values
     );
-    const csvCell = (value) => {
-      const text = String(value ?? '').replace(/^[=+\-@]/, "'$&");
-      return `"${text.replace(/"/g, '""')}"`;
-    };
+    // F-15: shared hardened CSV helper.
+    const csvCell = require('../utils/csv').csvQuotedCell;
     const lines = [
       ['timestamp', 'actor', 'action', 'resource_type', 'resource_id', 'description'].map(csvCell).join(','),
       ...rows.map((row) => [row.created_at, row.admin_name, row.action, row.target_type, row.target_id, row.description].map(csvCell).join(',')),

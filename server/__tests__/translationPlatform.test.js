@@ -170,39 +170,48 @@ describe('providerRegistry.resolveChain', () => {
     registry = require(REGISTRY_MODULE);
   });
 
-  it('returns the default chain when no env override is set', () => {
-    expect(registry.resolveChain()).toEqual(['openrouter', 'openai', 'libretranslate']);
+  it('returns the self-hosted default chain when no env override is set (security review F-04)', () => {
+    expect(registry.resolveChain()).toEqual(['ollama', 'libretranslate']);
   });
 
   it('honors TRANSLATION_PROVIDER as a legacy single-provider override', () => {
+    process.env.TRANSLATION_PROVIDER = 'libretranslate';
+    jest.resetModules();
+    const r = require(REGISTRY_MODULE);
+    expect(r.resolveChain()).toEqual(['libretranslate']);
+  });
+
+  it('ignores a legacy override naming a retired external provider', () => {
     process.env.TRANSLATION_PROVIDER = 'openai';
     jest.resetModules();
     const r = require(REGISTRY_MODULE);
-    expect(r.resolveChain()).toEqual(['openai']);
+    expect(r.resolveChain()).toEqual(['ollama', 'libretranslate']);
+    expect(r.getProviderById('openrouter')).toBeNull();
+    expect(r.getProviderById('openai')).toBeNull();
   });
 
   it('honors TRANSLATION_PRIMARY_PROVIDER + TRANSLATION_FALLBACK_PROVIDERS', () => {
-    process.env.TRANSLATION_PRIMARY_PROVIDER = 'openai';
-    process.env.TRANSLATION_FALLBACK_PROVIDERS = 'libretranslate,openrouter';
+    process.env.TRANSLATION_PRIMARY_PROVIDER = 'libretranslate';
+    process.env.TRANSLATION_FALLBACK_PROVIDERS = 'ollama';
     jest.resetModules();
     const r = require(REGISTRY_MODULE);
-    expect(r.resolveChain()).toEqual(['openai', 'libretranslate', 'openrouter']);
+    expect(r.resolveChain()).toEqual(['libretranslate', 'ollama']);
   });
 
-  it('ignores unknown provider names in env overrides', () => {
-    process.env.TRANSLATION_PRIMARY_PROVIDER = 'openai';
-    process.env.TRANSLATION_FALLBACK_PROVIDERS = 'invalid,openrouter,also-invalid';
+  it('ignores unknown and retired provider names in env overrides', () => {
+    process.env.TRANSLATION_PRIMARY_PROVIDER = 'libretranslate';
+    process.env.TRANSLATION_FALLBACK_PROVIDERS = 'invalid,openrouter,openai,also-invalid';
     jest.resetModules();
     const r = require(REGISTRY_MODULE);
-    expect(r.resolveChain()).toEqual(['openai', 'openrouter']);
+    expect(r.resolveChain()).toEqual(['libretranslate']);
   });
 
   it('deduplicates if primary appears in fallback list', () => {
-    process.env.TRANSLATION_PRIMARY_PROVIDER = 'openai';
-    process.env.TRANSLATION_FALLBACK_PROVIDERS = 'openai,openrouter';
+    process.env.TRANSLATION_PRIMARY_PROVIDER = 'ollama';
+    process.env.TRANSLATION_FALLBACK_PROVIDERS = 'ollama,libretranslate';
     jest.resetModules();
     const r = require(REGISTRY_MODULE);
-    expect(r.resolveChain()).toEqual(['openai', 'openrouter']);
+    expect(r.resolveChain()).toEqual(['ollama', 'libretranslate']);
   });
 });
 
@@ -215,6 +224,14 @@ describe('providerRegistry.translateWithFallback', () => {
     delete process.env.TRANSLATION_PRIMARY_PROVIDER;
     delete process.env.TRANSLATION_FALLBACK_PROVIDERS;
     registry = require(REGISTRY_MODULE);
+    // The fakes below stand in for any two chain members.
+    process.env.TRANSLATION_PRIMARY_PROVIDER = 'fake-primary';
+    process.env.TRANSLATION_FALLBACK_PROVIDERS = 'fake-secondary,libretranslate';
+  });
+
+  afterEach(() => {
+    delete process.env.TRANSLATION_PRIMARY_PROVIDER;
+    delete process.env.TRANSLATION_FALLBACK_PROVIDERS;
   });
 
   function makeFakeProvider(id, impl) {
@@ -222,14 +239,14 @@ describe('providerRegistry.translateWithFallback', () => {
   }
 
   it('returns first provider result when it succeeds', async () => {
-    const primary = makeFakeProvider('openrouter', async () => ({
+    const primary = makeFakeProvider('fake-primary', async () => ({
       translatedText: 'Bonjour',
-      provider: 'openrouter',
+      provider: 'fake-primary',
       model: 'm',
       confidence: 0.9,
       warnings: [],
     }));
-    const restore1 = registry.__testOverrideProvider('openrouter', primary);
+    const restore1 = registry.__testOverrideProvider('fake-primary', primary);
     try {
       const result = await registry.translateWithFallback({
         text: 'hi',
@@ -244,32 +261,32 @@ describe('providerRegistry.translateWithFallback', () => {
   });
 
   it('falls back on PROVIDER_TIMEOUT', async () => {
-    const primary = makeFakeProvider('openrouter', async () => {
+    const primary = makeFakeProvider('fake-primary', async () => {
       const err = new Error('timeout');
       err.code = 'PROVIDER_TIMEOUT';
       throw err;
     });
-    const secondary = makeFakeProvider('openai', async () => ({
+    const secondary = makeFakeProvider('fake-secondary', async () => ({
       translatedText: 'Hola',
-      provider: 'openai',
+      provider: 'fake-secondary',
       model: 'm',
       confidence: 0.85,
       warnings: [],
     }));
-    const restore1 = registry.__testOverrideProvider('openrouter', primary);
-    const restore2 = registry.__testOverrideProvider('openai', secondary);
+    const restore1 = registry.__testOverrideProvider('fake-primary', primary);
+    const restore2 = registry.__testOverrideProvider('fake-secondary', secondary);
     try {
       const attempts = [];
       const result = await registry.translateWithFallback(
         { text: 'hi', sourceLanguage: 'en', targetLanguage: 'es' },
         { onAttempt: (a) => attempts.push(a) }
       );
-      expect(result.provider).toBe('openai');
+      expect(result.provider).toBe('fake-secondary');
       expect(primary.translate).toHaveBeenCalledTimes(1);
       expect(secondary.translate).toHaveBeenCalledTimes(1);
       expect(attempts).toEqual([
-        expect.objectContaining({ providerId: 'openrouter', ok: false }),
-        expect.objectContaining({ providerId: 'openai', ok: true }),
+        expect.objectContaining({ providerId: 'fake-primary', ok: false }),
+        expect.objectContaining({ providerId: 'fake-secondary', ok: true }),
       ]);
     } finally {
       restore1();
@@ -278,27 +295,27 @@ describe('providerRegistry.translateWithFallback', () => {
   });
 
   it('falls back on PROVIDER_RESPONSE_SHAPE (malformed JSON)', async () => {
-    const primary = makeFakeProvider('openrouter', async () => {
+    const primary = makeFakeProvider('fake-primary', async () => {
       const err = new Error('bad shape');
       err.code = 'PROVIDER_RESPONSE_SHAPE';
       throw err;
     });
-    const secondary = makeFakeProvider('openai', async () => ({
+    const secondary = makeFakeProvider('fake-secondary', async () => ({
       translatedText: 'Bonjour',
-      provider: 'openai',
+      provider: 'fake-secondary',
       model: 'm',
       confidence: 0.8,
       warnings: [],
     }));
-    const r1 = registry.__testOverrideProvider('openrouter', primary);
-    const r2 = registry.__testOverrideProvider('openai', secondary);
+    const r1 = registry.__testOverrideProvider('fake-primary', primary);
+    const r2 = registry.__testOverrideProvider('fake-secondary', secondary);
     try {
       const result = await registry.translateWithFallback({
         text: 'hi',
         sourceLanguage: 'en',
         targetLanguage: 'fr',
       });
-      expect(result.provider).toBe('openai');
+      expect(result.provider).toBe('fake-secondary');
     } finally {
       r1();
       r2();
@@ -306,21 +323,21 @@ describe('providerRegistry.translateWithFallback', () => {
   });
 
   it('does NOT fall back on deterministic 4xx (PROVIDER_4XX) — re-throws immediately', async () => {
-    const primary = makeFakeProvider('openrouter', async () => {
+    const primary = makeFakeProvider('fake-primary', async () => {
       const err = new Error('unsupported language pair');
       err.code = 'PROVIDER_4XX';
       err.statusCode = 400;
       throw err;
     });
-    const secondary = makeFakeProvider('openai', async () => ({
+    const secondary = makeFakeProvider('fake-secondary', async () => ({
       translatedText: 'should-not-run',
-      provider: 'openai',
+      provider: 'fake-secondary',
       model: 'm',
       confidence: 1,
       warnings: [],
     }));
-    const r1 = registry.__testOverrideProvider('openrouter', primary);
-    const r2 = registry.__testOverrideProvider('openai', secondary);
+    const r1 = registry.__testOverrideProvider('fake-primary', primary);
+    const r2 = registry.__testOverrideProvider('fake-secondary', secondary);
     try {
       await expect(
         registry.translateWithFallback({ text: 'hi', sourceLanguage: 'en', targetLanguage: 'fr' })
@@ -333,12 +350,12 @@ describe('providerRegistry.translateWithFallback', () => {
   });
 
   it('throws ALL_PROVIDERS_FAILED when every link errors with a fallback-trigger', async () => {
-    const primary = makeFakeProvider('openrouter', async () => {
+    const primary = makeFakeProvider('fake-primary', async () => {
       const err = new Error('network');
       err.code = 'PROVIDER_NETWORK';
       throw err;
     });
-    const secondary = makeFakeProvider('openai', async () => {
+    const secondary = makeFakeProvider('fake-secondary', async () => {
       const err = new Error('timeout');
       err.code = 'PROVIDER_TIMEOUT';
       throw err;
@@ -350,8 +367,8 @@ describe('providerRegistry.translateWithFallback', () => {
       translate: jest.fn(),
       detectLanguage: jest.fn(),
     };
-    const r1 = registry.__testOverrideProvider('openrouter', primary);
-    const r2 = registry.__testOverrideProvider('openai', secondary);
+    const r1 = registry.__testOverrideProvider('fake-primary', primary);
+    const r2 = registry.__testOverrideProvider('fake-secondary', secondary);
     const r3 = registry.__testOverrideProvider('libretranslate', libreUnconfigured);
     try {
       await expect(
@@ -366,27 +383,27 @@ describe('providerRegistry.translateWithFallback', () => {
 
   it('skips unconfigured providers entirely', async () => {
     const primary = {
-      id: 'openrouter',
+      id: 'fake-primary',
       isConfigured: () => false,
       translate: jest.fn(),
       detectLanguage: jest.fn(),
     };
-    const secondary = makeFakeProvider('openai', async () => ({
+    const secondary = makeFakeProvider('fake-secondary', async () => ({
       translatedText: 'Bonjour',
-      provider: 'openai',
+      provider: 'fake-secondary',
       model: 'm',
       confidence: 0.9,
       warnings: [],
     }));
-    const r1 = registry.__testOverrideProvider('openrouter', primary);
-    const r2 = registry.__testOverrideProvider('openai', secondary);
+    const r1 = registry.__testOverrideProvider('fake-primary', primary);
+    const r2 = registry.__testOverrideProvider('fake-secondary', secondary);
     try {
       const result = await registry.translateWithFallback({
         text: 'hi',
         sourceLanguage: 'en',
         targetLanguage: 'fr',
       });
-      expect(result.provider).toBe('openai');
+      expect(result.provider).toBe('fake-secondary');
       expect(primary.translate).not.toHaveBeenCalled();
     } finally {
       r1();
@@ -401,8 +418,8 @@ describe('providerRegistry.translateWithFallback', () => {
       translate: jest.fn(),
       detectLanguage: jest.fn(),
     });
-    const r1 = registry.__testOverrideProvider('openrouter', unconfigured('openrouter'));
-    const r2 = registry.__testOverrideProvider('openai', unconfigured('openai'));
+    const r1 = registry.__testOverrideProvider('fake-primary', unconfigured('fake-primary'));
+    const r2 = registry.__testOverrideProvider('fake-secondary', unconfigured('fake-secondary'));
     const r3 = registry.__testOverrideProvider('libretranslate', unconfigured('libretranslate'));
     try {
       await expect(

@@ -353,12 +353,12 @@
         }
       },
       "ai": {
-        "name": "人工智能（Meta、OpenRouter、Ollama）",
-        "description": "通过后备链支持聊天和后台 AI：首先是用于登录流量的 Meta，然后是 OpenRouter 免费层，然后是本地 Ollama。",
-        "customerSafeSummary": "当所有人工智能提供商都出现故障时，聊天会显示服务不可用的消息并提供人工支持。匿名流量从不花费付费代币。",
-        "retryNote": "后备链首先是用于登录流量的 Meta，然后是 OpenRouter 免费层，然后是本地 Ollama。匿名流量从不花费 Meta 代币。",
-        "budgetNote": "元贡献者等级的速率限制较低； OpenRouter 免费套餐和本地 Ollama 免费。代码中不强制执行每个请求的预算。",
-        "rotationProcedure": "轮换Meta控制台中的META_AI_API_KEY和OpenRouter中的OPENROUTER_API_KEY；更新 Coolify 秘密；验证支持聊天。",
+        "name": "AI（自托管 Ollama）",
+        "description": "支持聊天、分流、草稿和翻译均在 OxSteed 自托管的 Ollama 服务器上运行，不使用任何外部 AI 提供商。",
+        "customerSafeSummary": "AI 服务器不可用时，聊天会显示服务不可用的提示，并提供人工支持。",
+        "retryNote": "只有一个提供方：自托管的 Ollama 服务器。失败的调用会重试，之后功能会转为人工支持或手动输入。",
+        "budgetNote": "自托管：没有按令牌计费的成本。处理能力取决于 Ollama 服务器的硬件。",
+        "rotationProcedure": "没有需要轮换的 API 密钥。请将 OLLAMA_URL 保持在允许列表中的内部主机上，并通过 OLLAMA_MODEL 更换模型，然后验证支持聊天。",
         "capabilities": {
           "support_chat": {
             "label": "支持聊天",
@@ -2644,7 +2644,15 @@
       "deleteAccount": "删除账户",
       "confirmTitle": "删除你的账户",
       "confirmDesc": "此操作无法撤销。你的所有数据将被永久删除。",
-      "yesDelete": "是，删除我的账户"
+      "yesDelete": "是，删除我的账户",
+      "currentPasswordLabel": "当前密码",
+      "totpCodeLabel": "验证器代码",
+      "totpCodeHint": "仅在启用双重验证时需要。",
+      "reauthPasswordRequired": "请输入当前密码以确认。",
+      "reauthTotpRequired": "请输入验证器应用中的代码以确认。",
+      "reauthInvalid": "密码或验证码不正确。",
+      "reauthUnavailable": "您的账户尚未设置密码。请使用“忘记密码”设置密码后重试。",
+      "impersonationBlocked": "客服人员查看您的账户期间无法删除账户。"
     },
     "preferencesTab": "偏好",
     "tabPaymentPolicies": "付款政策",

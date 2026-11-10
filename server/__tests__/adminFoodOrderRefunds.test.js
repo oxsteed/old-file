@@ -105,14 +105,14 @@ describe('admin food order refunds (P2-1-F14)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.provider).toBe('oxsteed_credit');
-    // The credit-rail reversal is keyed on the order reference and shares the
-    // merchant/agent idempotency key.
+    // The credit-rail reversal is keyed on the order reference and the
+    // already-refunded total (F-14).
     expect(refundCreditForReferenceInTransaction).toHaveBeenCalledTimes(1);
     expect(refundCreditForReferenceInTransaction.mock.calls[0][1]).toMatchObject({
       referenceType: 'food_order',
       referenceId: '101',
       amountCents: 2500,
-      idempotencyKey: 'admin-food-refund:101:2500:oxsteed-credit',
+      idempotencyKey: 'admin-food-refund:101:0:2500:oxsteed-credit',
       actorType: 'admin',
     });
     // The wallet ledger path must not be touched for rail payments.

@@ -39,7 +39,7 @@ function buildApp() {
 
 function authHeader() {
   const token = jwt.sign(
-    { id: USER_ID, email: 'export@example.com', role: 'customer' },
+    { typ: 'access', sid: 'test-session',  id: USER_ID, email: 'export@example.com', role: 'customer' },
     process.env.JWT_SECRET,
     { algorithm: 'HS256' },
   );

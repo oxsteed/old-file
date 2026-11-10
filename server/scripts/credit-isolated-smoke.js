@@ -39,7 +39,7 @@ async function main() {
   const customer = await request(baseUrl, '/api/auth/me', { headers: customerHeaders });
   if (String(customer.user?.id) !== CUSTOMER_ID) throw new Error('Authenticated customer identity did not match the fixture');
 
-  const adminToken = jwt.sign({ id: ADMIN_ID, role: 'super_admin' }, process.env.JWT_SECRET, { expiresIn: '5m', algorithm: 'HS256' });
+  const adminToken = jwt.sign({ id: ADMIN_ID, role: 'super_admin', typ: 'access', sid: 'isolated-smoke' }, process.env.JWT_SECRET, { expiresIn: '5m', algorithm: 'HS256' });
   const adminHeaders = { authorization: `Bearer ${adminToken}` };
   const railBefore = await request(baseUrl, '/api/admin/super/oxsteed-credit/rail', { headers: adminHeaders });
   if (railBefore.rail?.enabled !== false) throw new Error('Credit rail fixture was not initially suspended');

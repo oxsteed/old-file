@@ -157,12 +157,18 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
     // two admins refunding the same order concurrently dedupe instead of
     // double-refunding. The FOR UPDATE lock above makes the second request
     // see the updated payment_status and replay.
-    const idempotencyKey = `admin-food-refund:${orderId}:${refundAmount}`;
+    // F-14: the provider key also carries the amount already refunded, so a
+    // second legitimate partial refund of the same amount is a new refund at
+    // Stripe / the wallet / the credit journal instead of a replay of the
+    // first one (which the ledger below would otherwise book twice). A
+    // concurrent duplicate still serializes on the row lock and sees the
+    // updated refunded total.
+    const idempotencyKey = `admin-food-refund:${orderId}:${alreadyRefundedCents}:${refundAmount}`;
     if (!skipDualApproval) {
       const gate = await require('../services/dualApprovalService').requestMoneyMovementApproval({
         movementType: 'food_refund', referenceKey: `food_order:${orderId}`,
         amountCents: refundAmount, currencyCode: order.currency_code || 'USD', requestedBy: req.user.id,
-        idempotencyKey: `${idempotencyKey}:${alreadyRefundedCents}`,
+        idempotencyKey: `admin-food-refund:${orderId}:${refundAmount}:${alreadyRefundedCents}`,
         payload: { orderId, amountCents: refundAmount, expectedRefundedCents: alreadyRefundedCents, reason: reason.trim(), makerAdminId: req.user.id },
       });
       if (gate.queued) return { gate };
@@ -237,7 +243,7 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
             referenceId: String(order.id),
             amountCents: refundAmount,
             // Shared with the kitchen/agent refund paths so the two dedupe.
-            idempotencyKey: `admin-food-refund:${orderId}:${refundAmount}:oxsteed-credit`,
+            idempotencyKey: `${idempotencyKey}:oxsteed-credit`,
             actorUserId: req.user.id,
             actorType: 'admin',
             reason: trimmedReason,
@@ -266,6 +272,20 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
       }
     }
 
+    // F-14: never book the same provider refund twice. If the provider
+    // handed back a refund this order already recorded (an idempotent
+    // replay), fail closed instead of adding it to the refunded total.
+    const recordedRefundIds = Array.isArray(order.metadata?.admin_refund_ids)
+      ? order.metadata.admin_refund_ids.map(String)
+      : [];
+    if (refundResult.refund_id && recordedRefundIds.includes(String(refundResult.refund_id))) {
+      logger.error('Admin refund returned an already-recorded refund id', { orderId, refundId: refundResult.refund_id });
+      throw refundError(409, {
+        error: 'The payment provider returned a refund that is already recorded for this order',
+        code: 'food_refund_replayed',
+      });
+    }
+
     // Update order payment status from the cumulative refunded total.
     // ADM-003: 'partially_refunded' is now a legal payment_status (migration 832).
     const cumulativeRefundedCents = alreadyRefundedCents + refundAmount;
@@ -273,6 +293,9 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
     // Shared counter (finding 3): stamp both keys so the agent and
     // kitchen paths read the same cumulative total.
     const nextMetadata = withRefundedCents(order.metadata, cumulativeRefundedCents);
+    if (refundResult.refund_id) {
+      nextMetadata.admin_refund_ids = [...recordedRefundIds, String(refundResult.refund_id)].slice(-100);
+    }
     await client.query(
       `UPDATE food_orders SET payment_status = $1, metadata = $2::jsonb, updated_at = NOW() WHERE id = $3`,
       [newStatus, JSON.stringify(nextMetadata), orderId]
@@ -323,7 +346,7 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
     if (order.customer_id) {
       await notifyRefundIssued({
         userId: order.customer_id,
-        idempotencyKey: `admin-food-refund:${orderId}:${refundAmount}:issued`,
+        idempotencyKey: `${idempotencyKey}:issued`,
         amountCents: refundAmount,
         currency: order.currency_code,
         surface: 'food_order',

@@ -353,12 +353,12 @@
         }
       },
       "ai": {
-        "name": "AI (Meta, OpenRouter, Ollama)",
-        "description": "Obrolan dukungan dan AI latar belakang melalui rantai cadangan: Meta dulu untuk lalu lintas masuk, lalu tingkat gratis OpenRouter, lalu Ollama lokal.",
-        "customerSafeSummary": "Saat semua penyedia AI mati, obrolan menampilkan pesan layanan-tidak-tersedia dan menawarkan dukungan manusia. Lalu lintas anonim tidak pernah menghabiskan token berbayar.",
-        "retryNote": "Rantai cadangan adalah Meta dulu untuk lalu lintas masuk, lalu tingkat gratis OpenRouter, lalu Ollama lokal. Lalu lintas anonim tidak pernah menghabiskan token Meta.",
-        "budgetNote": "Tingkat kontributor Meta memiliki batas laju lebih rendah; tingkat gratis OpenRouter dan Ollama lokal tidak dikenakan biaya. Tidak ada anggaran per permintaan yang ditegakkan dalam kode.",
-        "rotationProcedure": "Rotasi META_AI_API_KEY di konsol Meta dan OPENROUTER_API_KEY di OpenRouter; perbarui secret Coolify; verifikasi obrolan dukungan.",
+        "name": "AI (Ollama yang di-host sendiri)",
+        "description": "Chat dukungan, triase, draf, dan terjemahan berjalan di server Ollama yang di-host sendiri oleh OxSteed. Tidak ada penyedia AI eksternal yang digunakan.",
+        "customerSafeSummary": "Saat server AI mati, chat menampilkan pesan layanan tidak tersedia dan menawarkan dukungan dari petugas.",
+        "retryNote": "Hanya satu penyedia: server Ollama yang di-host sendiri. Panggilan yang gagal dicoba ulang, lalu fitur beralih ke dukungan petugas atau entri manual.",
+        "budgetNote": "Di-host sendiri: tanpa biaya per token. Kapasitas bergantung pada perangkat keras server Ollama.",
+        "rotationProcedure": "Tidak ada kunci API yang perlu dirotasi. Simpan OLLAMA_URL di host internal yang diizinkan dan ganti model dengan OLLAMA_MODEL; lalu verifikasi chat dukungan.",
         "capabilities": {
           "support_chat": {
             "label": "Obrolan dukungan",
@@ -2644,7 +2644,15 @@
       "deleteAccount": "Hapus Akun",
       "confirmTitle": "Hapus Akun Anda",
       "confirmDesc": "Tindakan ini tidak dapat dibatalkan. Semua data Anda akan dihapus secara permanen.",
-      "yesDelete": "Ya, Hapus Akun Saya"
+      "yesDelete": "Ya, Hapus Akun Saya",
+      "currentPasswordLabel": "Kata sandi saat ini",
+      "totpCodeLabel": "Kode autentikator",
+      "totpCodeHint": "Hanya diperlukan jika autentikasi dua faktor aktif.",
+      "reauthPasswordRequired": "Masukkan kata sandi saat ini untuk mengonfirmasi.",
+      "reauthTotpRequired": "Masukkan kode dari aplikasi autentikator untuk mengonfirmasi.",
+      "reauthInvalid": "Kata sandi atau kode verifikasi salah.",
+      "reauthUnavailable": "Akun Anda belum memiliki kata sandi. Gunakan \"Lupa kata sandi\" untuk membuatnya, lalu coba lagi.",
+      "impersonationBlocked": "Akun tidak dapat dihapus saat agen dukungan sedang melihat akun Anda."
     },
     "preferencesTab": "Preferensi",
     "tabPaymentPolicies": "Kebijakan Pembayaran",

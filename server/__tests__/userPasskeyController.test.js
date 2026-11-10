@@ -97,9 +97,9 @@ describe('user passkey controls', () => {
       authenticationInfo: { newCounter: 1 },
     });
     const passkeyToken = jwt.sign(
-      { id: USER_ID, isPasskeyToken: true },
+      { typ: 'passkey_login', id: USER_ID, isPasskeyToken: true },
       process.env.JWT_SECRET,
-      { expiresIn: '5m' }
+      { expiresIn: '5m', audience: 'oxsteed:passkey-login' }
     );
     const clientData = Buffer.from(JSON.stringify({ challenge: 'c' })).toString('base64url');
     const responseBody = { id: 'cred-1', response: { clientDataJSON: clientData, transports: [] } };

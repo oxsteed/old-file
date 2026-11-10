@@ -114,37 +114,23 @@ describe('guest caps', () => {
   });
 });
 
-describe('adapter guest integration', () => {
-  test('guest hold mode is rejected', async () => {
-    const client = freshClient();
-    await expect(
-      adapter.spendWithCreditInTransaction(client, {
-        participantRef: { type: 'restaurant', subjectId: '1' },
-        customerId: null,
-        guestSessionId: 'sess-1',
-        amountCents: 1000,
-        currency: 'USD',
-        surface: 'pos',
-        mode: 'hold',
-        referenceType: 'test',
-        referenceId: 'r1',
-      })
-    ).rejects.toMatchObject({ code: 'credit_guest_hold_not_supported' });
-  });
-
-  test('guest over ticket cap is rejected before participant resolution', async () => {
-    const client = mockClient(async () => { throw new Error('should not query'); });
-    await expect(
-      adapter.spendWithCreditInTransaction(client, {
-        participantRef: { type: 'restaurant', subjectId: '1' },
-        customerId: null,
-        guestSessionId: 'sess-1',
-        amountCents: 10000,
-        currency: 'USD',
-        surface: 'food_online',
-        referenceType: 'test',
-        referenceId: 'r1',
-      })
-    ).rejects.toMatchObject({ code: 'credit_guest_cap_exceeded' });
+describe('adapter guest integration (security review F-01)', () => {
+  test('guest hold and debit spends are refused before any query', async () => {
+    for (const extra of [{ surface: 'pos', mode: 'hold' }, { surface: 'food_online', amountCents: 10000 }]) {
+      const client = mockClient(async () => { throw new Error('should not query'); });
+      await expect(
+        adapter.spendWithCreditInTransaction(client, {
+          participantRef: { type: 'restaurant', subjectId: '1' },
+          customerId: null,
+          guestSessionId: 'sess-1',
+          amountCents: 1000,
+          currency: 'USD',
+          surface: 'food_online',
+          referenceType: 'test',
+          referenceId: 'r1',
+          ...extra,
+        })
+      ).rejects.toMatchObject({ code: 'credit_sign_in_required' });
+    }
   });
 });

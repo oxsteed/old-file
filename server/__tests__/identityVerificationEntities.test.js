@@ -3,11 +3,9 @@
 /**
  * Phase two: Didit identity verification tied to entity IDs (migration 671).
  *
- * - Webhook approved  -> upserts a didit identity_verifications row anchored
- *   to the person's public_id, flips the helper trust badge.
- * - Webhook duplicate -> records a 'duplicate' row and a duplicate_of link
- *   from the new person's ID to the canonical person's ID.
- * - Webhook declined  -> records 'failed' (review -> 'processing').
+ * (F-09: the webhook cases exercised the removed legacy
+ * diditController.handleWebhook; the live handler is covered by
+ * diditV3Webhook.test.js.)
  * - GET /api/entities/:publicId -> identity_verified boolean for persons.
  * - Credit rail 'didit' provider: grants tier 2 for verified, falls back to
  *   manual review when unverified, fails closed on DB error.
@@ -20,11 +18,9 @@
 process.env.DIDIT_WEBHOOK_SECRET = process.env.DIDIT_WEBHOOK_SECRET || 'test-didit-secret';
 
 const { mockQuery, resetMocks } = require('./setup');
-const crypto = require('crypto');
 const express = require('express');
 const request = require('supertest');
 
-const { handleWebhook } = require('../controllers/diditController');
 const { computeCheckChar, ALPHABET } = require('../lib/entityIds');
 const { getVerificationProvider } = require('../services/identityVerificationService');
 
@@ -41,29 +37,10 @@ jest.mock('../middleware/rateLimiter', () => ({
 
 const entityRoutes = require('../routes/entities');
 
-function sign(rawBody, secret = 'test-didit-secret') {
-  return crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-}
-
-function webhookApp() {
-  const app = express();
-  app.post('/api/didit/webhook', express.raw({ type: 'application/json' }), handleWebhook);
-  return app;
-}
-
 function entityApp() {
   const app = express();
   app.use('/api/entities', entityRoutes);
   return app;
-}
-
-function sendWebhook(app, body) {
-  const raw = JSON.stringify(body);
-  return request(app)
-    .post('/api/didit/webhook')
-    .set('Content-Type', 'application/json')
-    .set('x-webhook-signature', sign(raw))
-    .send(raw);
 }
 
 function makePublicId() {
@@ -75,100 +52,6 @@ function makePublicId() {
 const PERSON_ID = makePublicId();
 
 beforeEach(() => resetMocks());
-
-// ── Webhook: approved ────────────────────────────────────────────────────────
-describe('didit webhook - approved links verification to entity ID', () => {
-  test('upserts didit row anchored to public_id and flips helper badge', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 'user-uuid-1', didit_status: 'pending' }] }) // find user by session
-      .mockResolvedValueOnce({ rows: [] })                                              // identity_hash not seen
-      .mockResolvedValueOnce({ rowCount: 1, rows: [] })                                  // users verified update
-      .mockResolvedValueOnce({ rows: [] })                                              // entity_ids lookup miss
-      .mockResolvedValueOnce({ rows: [{ public_id: PERSON_ID }] })                      // mint_entity_id
-      .mockResolvedValueOnce({ rows: [] })                                              // insert entity_ids
-      .mockResolvedValueOnce({ rowCount: 0, rows: [] })                                  // upsert UPDATE miss
-      .mockResolvedValueOnce({ rows: [{ id: 7 }] })                                      // upsert INSERT
-      .mockResolvedValueOnce({ rowCount: 1, rows: [] });                                 // helper badge
-
-    const res = await sendWebhook(webhookApp(), {
-      session_id: 'sess_approved_1',
-      status: 'approved',
-      identity_hash: 'hash-abc',
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('verified');
-
-    const calls = mockQuery.mock.calls.map((c) => c[0]);
-    const ivInsert = mockQuery.mock.calls.find((c) => c[0].includes('INSERT INTO identity_verifications'));
-    expect(ivInsert).toBeTruthy();
-    expect(ivInsert[1]).toEqual(expect.arrayContaining(['user-uuid-1', PERSON_ID, 'sess_approved_1', 'hash-abc', 'verified']));
-
-    const badgeCall = mockQuery.mock.calls.find((c) => c[0].includes('UPDATE helper_profiles SET is_identity_verified'));
-    expect(badgeCall).toBeTruthy();
-    expect(badgeCall[1]).toEqual(['user-uuid-1']);
-    expect(calls.some((t) => t.includes('UPDATE users') && t.includes('didit_status'))).toBe(true);
-  });
-});
-
-// ── Webhook: duplicate ───────────────────────────────────────────────────────
-describe('didit webhook - duplicate creates duplicate_of link', () => {
-  test('records duplicate row and links new person to canonical person', async () => {
-    const newId = makePublicId();
-    const canonId = makePublicId();
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 'user-uuid-2', didit_status: 'pending' }] }) // user by session
-      .mockResolvedValueOnce({ rows: [{ id: 'user-uuid-1', email: 'a@example.com' }] }) // hash already on user-1
-      .mockResolvedValueOnce({ rowCount: 1, rows: [] })                                 // users duplicate update
-      .mockResolvedValueOnce({ rows: [] })                                             // entity lookup miss (new)
-      .mockResolvedValueOnce({ rows: [{ public_id: newId }] })                         // mint new
-      .mockResolvedValueOnce({ rows: [] })                                             // insert new
-      .mockResolvedValueOnce({ rows: [{ public_id: canonId }] })                       // entity lookup hit (canonical)
-      .mockResolvedValueOnce({ rowCount: 0, rows: [] })                                // upsert UPDATE miss
-      .mockResolvedValueOnce({ rows: [{ id: 9 }] })                                     // upsert INSERT
-      .mockResolvedValueOnce({ rows: [] })                                             // grantLink close
-      .mockResolvedValueOnce({ rows: [{ id: 3 }] });                                    // grantLink insert
-
-    const res = await sendWebhook(webhookApp(), {
-      session_id: 'sess_dup_1',
-      status: 'approved',
-      identity_hash: 'hash-seen-before',
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('duplicate');
-
-    const dupInsert = mockQuery.mock.calls.find((c) => c[0].includes('INSERT INTO identity_verifications'));
-    expect(dupInsert[1]).toEqual(expect.arrayContaining(['user-uuid-2', newId, 'duplicate']));
-
-    const linkInsert = mockQuery.mock.calls.find((c) => c[0].includes('INSERT INTO entity_links'));
-    expect(linkInsert).toBeTruthy();
-    expect(linkInsert[1]).toEqual(expect.arrayContaining([newId, canonId, 'duplicate_of']));
-  });
-});
-
-// ── Webhook: declined / review ───────────────────────────────────────────────
-describe('didit webhook - declined records failed', () => {
-  test('declined upserts a failed row anchored to the entity id', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 'user-uuid-1', didit_status: 'pending' }] })
-      .mockResolvedValueOnce({ rowCount: 1, rows: [] })              // users failed update
-      .mockResolvedValueOnce({ rows: [{ public_id: PERSON_ID }] })   // entity lookup hit
-      .mockResolvedValueOnce({ rowCount: 0, rows: [] })              // upsert UPDATE miss
-      .mockResolvedValueOnce({ rows: [{ id: 11 }] });                // upsert INSERT
-
-    const res = await sendWebhook(webhookApp(), {
-      session_id: 'sess_declined_1',
-      status: 'declined',
-      identity_hash: null,
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('failed');
-    const ivInsert = mockQuery.mock.calls.find((c) => c[0].includes('INSERT INTO identity_verifications'));
-    expect(ivInsert[1]).toEqual(expect.arrayContaining([PERSON_ID, 'failed']));
-  });
-});
 
 // ── Resolve endpoint: identity_verified ──────────────────────────────────────
 describe('GET /api/entities/:publicId - identity_verified', () => {

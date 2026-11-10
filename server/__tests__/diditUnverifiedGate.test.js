@@ -76,7 +76,7 @@ function userRow(overrides = {}) {
 }
 
 function token() {
-  return jwt.sign({ id: 7 }, process.env.JWT_SECRET, { algorithm: 'HS256' });
+  return jwt.sign({ typ: 'access', sid: 'test-session',  id: 7 }, process.env.JWT_SECRET, { algorithm: 'HS256' });
 }
 
 beforeEach(() => {

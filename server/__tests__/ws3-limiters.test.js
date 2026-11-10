@@ -24,7 +24,7 @@ const { webhookRateLimit } = require('../middleware/webhookAuth');
 const JWT_SECRET = process.env.JWT_SECRET;
 
 function signToken(payload, secret = JWT_SECRET, options = {}) {
-  return jwt.sign(payload, secret, { algorithm: 'HS256', ...options });
+  return jwt.sign({ typ: 'access', sid: 'test-session', ...payload }, secret, { algorithm: 'HS256', ...options });
 }
 
 function fakeReq(authorization) {

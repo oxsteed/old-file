@@ -1299,6 +1299,18 @@
     }
   },
   "screens": {
+    "creditPay": "Pay with OxSteed Credit",
+    "creditScanCard": "Scan your Credit card",
+    "creditPin": "Card PIN",
+    "creditReceipt": "Credit receipt",
+    "creditChecking": "Checking Credit payment",
+    "creditPaid": "Payment confirmed",
+    "creditPaymentChanged": "Payment status has changed. Ask staff for help.",
+    "creditOrderReference": "Reference {{id}}",
+    "creditCheckReceipt": "Check receipt",
+    "creditReceiptPending": "The result is uncertain. Check the receipt before paying again. If it stays unavailable, show the reference to staff.",
+    "creditDeclined": "Credit payment was declined. Check your card and PIN or choose another payment method.",
+    "creditStorageUnavailable": "This kiosk could not save a recovery reference. Credit payment was not started.",
     "dataFreshness": "Data freshness",
     "fresh": "Caught up",
     "catchingUp": "Catch-up required",

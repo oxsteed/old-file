@@ -83,13 +83,12 @@ describe('review W9: OxSteed Credit settlement and maker-checker fixes', () => {
     expect(src).not.toMatch(/BREAK_GLASS|break_glass_self_approval/);
   });
 
-  test('P1-9-F05: break-glass needs the DB flag on AND fewer than 2 super admins', async () => {
-    // Flag on but a second super admin exists: the two-person rule stands.
+  test('F-06: no break-glass even with the old flag on and a single super admin', async () => {
     route([
       [/FROM feature_flags WHERE key = 'credit_single_admin_self_approval'/, { rows: [{ is_enabled: true }] }],
       [/feature_flags/, { rows: [{ is_enabled: true }] }],
       [/oxsteed_credit_rail_freezes/, { rows: [] }],
-      [/FROM users/, { rows: [{ n: 2 }] }],
+      [/FROM users/, { rows: [{ n: 1 }] }],
       [/FROM oxsteed_credit_pending_actions/, { rows: [{ id: 1, status: 'pending', requested_by: 'u1', action_type: 'credit_settlement_approval', payload: {}, expires_at: null }] }],
     ]);
     const { decidePendingAction } = require('../services/oxsteedCreditPendingActionService');

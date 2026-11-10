@@ -357,6 +357,9 @@ describe('checkout fields', () => {
     let capturedInsertParams = null;
     mockQuery.mockImplementation(async (sql, params) => {
       if (/SELECT \* FROM food_orders/.test(sql)) return { rows: [], rowCount: 0 };
+      if (/FROM food_card_payment_intents/.test(sql)) {
+        return { rows: [{ id: 9, customer_id: '00000000-0000-4000-8000-000000000123' }], rowCount: 1 };
+      }
       if (/FROM food_restaurants/.test(sql)) {
         return { rows: [{ ...RESTAURANT_ROW }], rowCount: 1 };
       }
@@ -427,6 +430,93 @@ describe('checkout fields', () => {
     expect(stripeMock.paymentIntents.update).toHaveBeenCalledWith('pi_test_1', {
       metadata: { food_order_id: '42' },
     });
+  });
+});
+
+describe('security review F-13: one card payment funds one order', () => {
+  const DINER = '00000000-0000-4000-8000-000000000123';
+  function succeededIntent() {
+    stripeMock.paymentIntents.retrieve.mockResolvedValue({
+      id: 'pi_once', amount: 1000, currency: 'usd', status: 'succeeded',
+      transfer_data: { destination: 'acct_123' },
+    });
+    stripeMock.paymentIntents.update.mockResolvedValue({ id: 'pi_once' });
+  }
+  function routeQueries({ intentRecord, usedAfterLock = false, onInsert }) {
+    let lockTaken = false;
+    mockQuery.mockImplementation(async (sql, params) => {
+      if (/SELECT \* FROM food_orders/.test(sql)) return { rows: [], rowCount: 0 };
+      if (/FROM food_restaurants WHERE id = \$1 FOR UPDATE/.test(sql)) { lockTaken = true; return { rows: [{ id: 1 }] }; }
+      if (/FROM food_restaurants/.test(sql)) return { rows: [{ ...RESTAURANT_ROW }], rowCount: 1 };
+      if (/FROM food_menu_items fmi/.test(sql)) return { rows: [{ ...MENU_ITEM_ROW }], rowCount: 1 };
+      if (/FROM food_card_payment_intents/.test(sql)) {
+        expect(sql).toMatch(/FOR UPDATE/);
+        return { rows: intentRecord ? [intentRecord] : [], rowCount: intentRecord ? 1 : 0 };
+      }
+      if (/SELECT id FROM food_orders WHERE stripe_payment_intent_id/.test(sql)) {
+        // Before the lock the intent looks unused (the race window); after
+        // the lock a concurrent submission has already consumed it.
+        return { rows: lockTaken && usedAfterLock ? [{ id: 41 }] : [], rowCount: 0 };
+      }
+      if (/INSERT INTO restaurant_daily_counters/.test(sql)) return { rows: [{ last_queue_number: 3 }], rowCount: 1 };
+      if (/INSERT INTO food_orders/.test(sql)) {
+        if (onInsert) return onInsert(params);
+        return { rows: [{ id: 42, restaurant_id: 1, payment_status: 'paid', total_cents: 1000, currency_code: 'USD', metadata: {} }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+  }
+  const submit = (key) => request(buildFoodApp())
+    .post('/api/food/restaurants/1/orders')
+    .set('Idempotency-Key', key)
+    .send({ restaurantId: 1, paymentMode: 'card', items: [{ menuItemId: 10, quantity: 1 }], stripePaymentIntentId: 'pi_once' });
+
+  test('a second submission that passed the pre-lock probe is refused under the lock', async () => {
+    succeededIntent();
+    routeQueries({ intentRecord: { id: 9, customer_id: DINER }, usedAfterLock: true });
+    const res = await submit('order-key-race-2');
+    expect(res.status).toBe(402);
+    expect(res.body.code).toBe('card_payment_already_used');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(false);
+  });
+
+  test('an intent this checkout never minted for the restaurant is refused', async () => {
+    succeededIntent();
+    routeQueries({ intentRecord: null });
+    const res = await submit('order-key-foreign');
+    expect(res.status).toBe(402);
+    expect(res.body.code).toBe('card_payment_not_recognized');
+  });
+
+  test("another customer's intent is refused", async () => {
+    succeededIntent();
+    routeQueries({ intentRecord: { id: 9, customer_id: '00000000-0000-4000-8000-0000000000ff' } });
+    const res = await submit('order-key-other-customer');
+    expect(res.status).toBe(402);
+    expect(res.body.code).toBe('card_payment_customer_mismatch');
+  });
+
+  test('the unique index backstop maps to the same 402', async () => {
+    succeededIntent();
+    routeQueries({
+      intentRecord: { id: 9, customer_id: DINER },
+      onInsert: () => {
+        const err = new Error('duplicate key value violates unique constraint');
+        err.code = '23505';
+        err.constraint = 'uq_food_orders_stripe_payment_intent';
+        throw err;
+      },
+    });
+    const res = await submit('order-key-index');
+    expect(res.status).toBe(402);
+    expect(res.body.code).toBe('card_payment_already_used');
+  });
+
+  test('the migration adds a partial unique index on food_orders.stripe_payment_intent_id', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const sql = fs.readFileSync(path.join(__dirname, '../migrations/20261110104300_food_orders_unique_payment_intent.sql'), 'utf8');
+    expect(sql).toMatch(/CREATE UNIQUE INDEX IF NOT EXISTS uq_food_orders_stripe_payment_intent\s+ON food_orders \(stripe_payment_intent_id\)\s+WHERE stripe_payment_intent_id IS NOT NULL/);
   });
 });
 

@@ -80,8 +80,8 @@ const OTHER_USER_ID = '33333333-3333-4333-8333-333333333333';
 const RESTAURANT_ID = 7;
 const TOPUP_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
-const USER_TOKEN = jwt.sign({ id: USER_ID }, process.env.JWT_SECRET, { expiresIn: '15m' });
-const OTHER_USER_TOKEN = jwt.sign({ id: OTHER_USER_ID }, process.env.JWT_SECRET, { expiresIn: '15m' });
+const USER_TOKEN = jwt.sign({ typ: 'access', sid: 'test-session',  id: USER_ID }, process.env.JWT_SECRET, { expiresIn: '15m' });
+const OTHER_USER_TOKEN = jwt.sign({ typ: 'access', sid: 'test-session',  id: OTHER_USER_ID }, process.env.JWT_SECRET, { expiresIn: '15m' });
 
 function baseUser(overrides) {
   return {

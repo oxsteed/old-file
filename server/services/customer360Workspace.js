@@ -310,11 +310,8 @@ async function workspace(req) {
     ),
   };
 }
-function csvCell(value) {
-  let s = value == null ? "" : String(value);
-  if (/^[\s]*[=+\-@\t\r]/.test(s)) s = "'" + s;
-  return '"' + s.replace(/"/g, '""') + '"';
-}
+// F-15: the shared hardened helper.
+const csvCell = require("../utils/csv").csvQuotedCell;
 module.exports = {
   sources,
   filters,

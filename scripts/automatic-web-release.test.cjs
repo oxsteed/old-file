@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { ensureBridge, applyBridgeSchema, promoteAutomatic } = require('./automatic-web-release.cjs');
+const { ensureBridge, applyBridgeSchema, promoteAutomatic, verifyWorkerContinuity } = require('./automatic-web-release.cjs');
 
 test('dispatches one schema bridge for a pending candidate and reuses it', () => {
   const calls = [];
@@ -53,8 +53,12 @@ test('automatic promotion bridges, applies, then retries the exact candidate', a
   const result = await promoteAutomatic('candidate', {
     api: () => ({ workflow_runs: [{ id: 7, head_sha: 'c'.repeat(40), event: 'workflow_dispatch', status: 'completed', conclusion: 'success' }] }),
     promote: async (runId, options) => {
-      promoted.push([runId, options]);
-      if (runId === 'candidate') return promoted.length > 2 ? { status: 'finished' } : { status: 'waiting_for_schema', gitSha: 'c'.repeat(40) };
+      promoted.push(runId);
+      if (runId === 'candidate') {
+        assert.equal(options.beforePromotion('c'.repeat(40)), null);
+        return promoted.length > 2 ? { status: 'finished' } : { status: 'waiting_for_schema', gitSha: 'c'.repeat(40) };
+      }
+      assert.deepEqual(options, { bridge: true });
       return { status: 'already_current' };
     },
     loadPlan: sha => { assert.equal(sha, 'c'.repeat(40)); return plan; },
@@ -62,9 +66,33 @@ test('automatic promotion bridges, applies, then retries the exact candidate', a
       assert.equal(options.plan, plan);
       return { status: 'schema_applied' };
     },
-    promoteWorker: async sha => ({ status: 'worker_finished', gitSha: sha }),
+    verifyWorker: sha => ({ status: 'worker_already_current', workerSha: sha }),
   });
   assert.equal(result.status, 'finished');
-  assert.equal(result.worker, 'worker_finished');
-  assert.deepEqual(promoted, [['candidate', undefined], ['7', { bridge: true }], ['candidate', undefined]]);
+  assert.equal(result.worker, 'worker_already_current');
+  assert.deepEqual(promoted, ['candidate', '7', 'candidate']);
+});
+
+test('allows only independent web changes while retaining the healthy Compose worker', async () => {
+  const workerSha = 'a'.repeat(40), gitSha = 'b'.repeat(40);
+  const opts = {
+    list: () => ['owner'],
+    read: () => ({ status: 'ready', releaseMetadata: { gitSha: workerSha }, checks: { workers: { mode: 'combined' } } }),
+  };
+  const check = files => verifyWorkerContinuity(gitSha, { ...opts, api: () => ({ status: 'ahead', files }) });
+  assert.equal(verifyWorkerContinuity(workerSha, opts).status, 'worker_already_current');
+  assert.equal(check([{ filename: 'client/src/routes.tsx' }]).status, 'worker_retained');
+  assert.equal(check([{ filename: 'client/src/routes.tsx', previous_filename: 'server/jobs/foo.js' }]).status,
+    'worker_release_requires_rolling_target');
+  assert.equal(check([{ filename: 'server/migrations/20261110120000_next.sql' }]).status,
+    'worker_release_requires_rolling_target');
+  assert.equal(check([]).status, 'worker_release_requires_rolling_target');
+  assert.equal(verifyWorkerContinuity(gitSha, { ...opts, list: () => ['one', 'two'] }).status, 'waiting_for_healthy_runtime');
+
+  const held = await promoteAutomatic('candidate', {
+    promote: async (runId, { beforePromotion }) => beforePromotion(gitSha),
+    verifyWorker: () => check([{ filename: 'server/jobs/foo.js' }]),
+    api: () => { throw new Error('must not dispatch a bridge for a held release'); },
+  });
+  assert.equal(held.status, 'worker_release_requires_rolling_target');
 });

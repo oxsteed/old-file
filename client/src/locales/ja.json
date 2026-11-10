@@ -353,12 +353,12 @@
         }
       },
       "ai": {
-        "name": "AI (Meta, OpenRouter, Ollama)",
-        "description": "サポートチャットとバックグラウンドAIはフォールバック構成で動作します。ログイン済みトラフィックはまずMeta、次にOpenRouterの無料枠、最後にローカルのOllamaを使用します。",
-        "customerSafeSummary": "すべてのAIプロバイダーが停止した場合、チャットには利用できない旨のメッセージが表示され、有人サポートへご案内します。匿名トラフィックでは有料トークンを消費しません。",
-        "retryNote": "フォールバック構成は、ログイン済みトラフィックはまずMeta、次にOpenRouterの無料枠、最後にローカルのOllamaです。匿名トラフィックではMetaのトークンを消費しません。",
-        "budgetNote": "Metaのcontributor tierはレート制限が低めです。OpenRouterの無料枠とローカルのOllamaは無料です。リクエストごとの予算制限はコードでは適用されません。",
-        "rotationProcedure": "MetaコンソールでMETA_AI_API_KEYを、OpenRouterでOPENROUTER_API_KEYをローテーションし、Coolifyのシークレットを更新して、サポートチャットを確認します。",
+        "name": "AI（セルフホストの Ollama）",
+        "description": "サポートチャット、振り分け、下書き、翻訳は OxSteed のセルフホスト Ollama サーバーで動作します。外部の AI プロバイダーは使用しません。",
+        "customerSafeSummary": "AI サーバーが停止している場合、チャットはサービス利用不可のメッセージを表示し、担当者によるサポートを案内します。",
+        "retryNote": "プロバイダーは1つだけです：セルフホストの Ollama サーバー。失敗した呼び出しは再試行され、その後は担当者サポートまたは手入力に切り替わります。",
+        "budgetNote": "セルフホスト：トークンごとの費用はありません。処理能力は Ollama サーバーのハードウェアに依存します。",
+        "rotationProcedure": "ローテーションする API キーはありません。OLLAMA_URL を許可された内部ホストに保ち、モデルは OLLAMA_MODEL で変更してください。その後サポートチャットを確認します。",
         "capabilities": {
           "support_chat": {
             "label": "サポートチャット",
@@ -2644,7 +2644,15 @@
       "deleteAccount": "アカウントを削除",
       "confirmTitle": "アカウントを削除",
       "confirmDesc": "この操作は取り消せません。すべてのデータが完全に削除されます。",
-      "yesDelete": "はい、アカウントを削除する"
+      "yesDelete": "はい、アカウントを削除する",
+      "currentPasswordLabel": "現在のパスワード",
+      "totpCodeLabel": "認証コード",
+      "totpCodeHint": "2段階認証が有効な場合のみ必要です。",
+      "reauthPasswordRequired": "確認のため現在のパスワードを入力してください。",
+      "reauthTotpRequired": "確認のため認証アプリのコードを入力してください。",
+      "reauthInvalid": "パスワードまたは確認コードが正しくありません。",
+      "reauthUnavailable": "アカウントにはまだパスワードがありません。「パスワードをお忘れですか」で設定してから、もう一度お試しください。",
+      "impersonationBlocked": "サポート担当者がアカウントを表示している間は、アカウントを削除できません。"
     },
     "preferencesTab": "設定",
     "tabPaymentPolicies": "支払いポリシー",

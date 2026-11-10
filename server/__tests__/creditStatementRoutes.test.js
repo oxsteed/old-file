@@ -28,7 +28,7 @@ beforeEach(() => {
   renderStatementPdfInWorker.mockResolvedValue(Buffer.from('%PDF-synthetic'));
 });
 function bearer(claims = {}) {
-  return `Bearer ${jwt.sign({ id: OWNER, role: user.role, ...claims }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
+  return `Bearer ${jwt.sign({ typ: 'access', sid: 'test-session',  id: OWNER, role: user.role, ...claims }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
 }
 test.each(['/api/oxsteed-credit/documents', '/api/food/customer/wallets/42/statements', adminPath])('anonymous requests cannot read %s', async url => {
   await request(app).get(url).expect(401); expect(getStatement).not.toHaveBeenCalled();

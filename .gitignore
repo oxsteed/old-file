@@ -24,3 +24,6 @@ coverage/
 **/.codex_tmp/
 /server/__sync_probe.txt
 /chess-cheat-sheet.pdf
+
+# Local-storage uploads written by tests and local dev (utils/storage.js default LOCAL_UPLOAD_DIR)
+server/runtime/
