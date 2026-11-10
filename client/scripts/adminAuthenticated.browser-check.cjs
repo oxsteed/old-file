@@ -6,10 +6,16 @@
 // or with OXSTEED_E2E_EMAIL, OXSTEED_E2E_PASSWORD, and
 // OXSTEED_E2E_SIGNATURE_NAME. Credentials and storage state stay outside the
 // repository and are never printed.
+//
+// F-11: use a dedicated least-privilege, non-production test admin. For 2FA
+// set OXSTEED_E2E_TOTP_SECRET (the account's base32 TOTP secret) so a fresh
+// RFC 6238 code is generated at sign-in; OXSTEED_E2E_2FA_CODE (a static code)
+// is still accepted as a fallback but should be retired.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { totpCode } = require('./e2eTotp.cjs');
 const { chromium } = require('playwright-core');
 
 const baseURL = process.env.OXSTEED_E2E_BASE_URL || process.env.E2E_BASE_URL || '';
@@ -17,7 +23,13 @@ const storageStatePath = process.env.OXSTEED_E2E_STORAGE_STATE || '';
 const email = process.env.OXSTEED_E2E_EMAIL || '';
 const password = process.env.OXSTEED_E2E_PASSWORD || '';
 const signatureName = process.env.OXSTEED_E2E_SIGNATURE_NAME || '';
-const twoFactorCode = process.env.OXSTEED_E2E_2FA_CODE || '';
+const staticTwoFactorCode = process.env.OXSTEED_E2E_2FA_CODE || '';
+const totpSecret = process.env.OXSTEED_E2E_TOTP_SECRET || '';
+
+function currentTwoFactorCode() {
+  if (totpSecret) return totpCode(totpSecret);
+  return staticTwoFactorCode;
+}
 const configured = Boolean(baseURL && (storageStatePath || (email && password && signatureName)));
 
 function staticAdminRoutes() {
@@ -65,7 +77,8 @@ async function ensureAuthenticated(page) {
   await page.getByRole('button', { name: /sign in/i }).click();
 
   if (await page.locator('#two-factor-code').count()) {
-    assert.ok(twoFactorCode, '2FA is required; set OXSTEED_E2E_2FA_CODE for the browser matrix');
+    const twoFactorCode = currentTwoFactorCode();
+    assert.ok(twoFactorCode, '2FA is required; set OXSTEED_E2E_TOTP_SECRET for the browser matrix');
     await page.locator('#two-factor-code').fill(twoFactorCode);
     await page.getByRole('button', { name: /verify|continue|sign in/i }).click();
   }
@@ -141,3 +154,4 @@ test('key admin surfaces survive responsive, theme, reduced-motion, and Arabic l
 if (!configured) {
   process.stdout.write('Authenticated admin browser matrix skipped: set OXSTEED_E2E_BASE_URL plus storage state or test credentials.\n');
 }
+
