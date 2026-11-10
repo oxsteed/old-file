@@ -463,6 +463,13 @@ ddescribe('careers marketplace (real database)', () => {
     expect((await scheduling.sendReminders(pool)).sent).toBe(0);
     // Video room stays off until flagged.
     expect((await as(ids.worker).get(`/api/careers/me/applications/${ids.application}/interviews/${ids.interview}/room`)).status).toBe(503);
+    // The room key is a capability secret: the team view only says a room exists.
+    await pool.query("UPDATE career_interviews SET video_room_key = $2 WHERE id = $1", [ids.interview, crypto.randomUUID()]);
+    const teamView = await as(ids.manager).get(`${E}/applications/${ids.application}`);
+    expect(teamView.status).toBe(200);
+    expect(JSON.stringify(teamView.body)).not.toContain('video_room_key');
+    expect(teamView.body.application.interviews.find((i) => String(i.id) === String(ids.interview)).has_video_room).toBe(true);
+    await pool.query('UPDATE career_interviews SET video_room_key = NULL WHERE id = $1', [ids.interview]);
   });
 
   test('calendar connect is off until configured; callbacks reject bad state', async () => {
