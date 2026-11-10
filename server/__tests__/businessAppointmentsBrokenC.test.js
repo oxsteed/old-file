@@ -582,19 +582,21 @@ describe('P1-9-F05: single-super-admin maker-checker break-glass', () => {
     expect(feeScheduleService.updateFeeScheduleRow).not.toHaveBeenCalled();
   });
 
-  test('flag ON + single super admin: self-approval succeeds with step-up and audit mark', async () => {
+  // Security review F-06: the single-admin break-glass is retired. Even a
+  // lone super admin with the old flag row ON and a valid step-up cannot
+  // approve their own money movement.
+  test('flag ON + single super admin: self-approval is still 403 (F-06)', async () => {
     breakGlassFlag = true;
     superAdminCount = 1;
-    const result = await decidePendingAction({
+    await expect(decidePendingAction({
       actionId: ACTION_ID,
       decidedBy: MAKER_ID,
       decision: 'approve',
       stepupChallengeId: 'challenge-1',
       stepupCode: '123456',
-    });
-    expect(result.pendingAction.status).toBe('approved');
-    expect(result.replayed).toBe(false);
-    expect(feeScheduleService.updateFeeScheduleRow).toHaveBeenCalledTimes(1);
+    })).rejects.toMatchObject({ status: 403, code: 'credit_self_approval_forbidden' });
+    expect(feeScheduleService.updateFeeScheduleRow).not.toHaveBeenCalled();
+    expect(mockQuery.mock.calls.some(([sql]) => /credit_single_admin_self_approval/.test(String(sql)))).toBe(false);
   });
 
   test('flag ON + two super admins: self-approval still 403', async () => {

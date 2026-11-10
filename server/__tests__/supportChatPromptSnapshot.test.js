@@ -82,8 +82,8 @@ describe('item 0: first name only', () => {
 
   test('chat sends the first name but never surname, email or phone', async () => {
     mockQuery.mockImplementation(async (sql) => fullSnapshotRows(sql));
-    process.env.OPENROUTER_API_KEY = 'k';
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: 'Hi Ana' } }] }) });
+    process.env.OLLAMA_URL = 'http://localhost:11434';
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ message: { content: 'Hi Ana' } }) });
     const req = { user: { id: USER, role: 'customer', first_name: 'Ana', last_name: 'Ruiz', email: 'ana@example.com', phone: '+15550100' }, body: { messages: [{ role: 'user', content: 'hello' }] } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
     await chatController.chatMessage(req, res, jest.fn());
@@ -97,8 +97,8 @@ describe('item 0: first name only', () => {
 
   test('cached Learn guide turns never carry the name or snapshot', async () => {
     mockQuery.mockImplementation(async (sql) => fullSnapshotRows(sql));
-    process.env.OPENROUTER_API_KEY = 'k';
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: 'Step help' } }] }) });
+    process.env.OLLAMA_URL = 'http://localhost:11434';
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ message: { content: 'Step help' } }) });
     const req = { user: { id: USER, role: 'customer' }, body: { guide_help: { guide_id: 'g1', step: 1 }, messages: [{ role: 'user', content: 'guide question' }] } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
     await chatController.chatMessage(req, res, jest.fn());

@@ -841,6 +841,27 @@ describe('food controller', () => {
     expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
+  // Security review F-01 (Critical) regression: an anonymous caller used to
+  // place OxSteed Credit orders funded by the platform treasury, with caps
+  // keyed on a guestSessionId / X-Guest-Session value it chose itself.
+  test('an anonymous caller cannot pay a food order with OxSteed Credit', async () => {
+    for (const [i, session] of ['fresh-1', 'fresh-2', 'fresh-3'].entries()) {
+      const res = await request(buildGuestApp())
+        .post('/api/food/restaurants/3/orders')
+        .set('Idempotency-Key', `guest-credit-${i}`)
+        .set('X-Guest-Session', session)
+        .send({
+          guestSessionId: session,
+          fulfillmentType: 'pickup',
+          paymentMode: 'oxsteed_credit',
+          items: [{ menuItemId: 11, quantity: 1 }],
+        });
+      expect(res.status).toBe(401);
+      expect(res.body.code).toBe('authentication_required');
+    }
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
   test('updates order status through restaurant-scoped access', async () => {
     mockQuery
       .mockResolvedValueOnce({

@@ -5,6 +5,7 @@ const AppError = require("../utils/appError");
 const sync = require("../services/restaurantScreenSync");
 const app = require("./restaurantAppFlowController");
 const food = require("./foodController");
+const creditKiosk = require("../services/creditKioskCheckout");
 const { getLocationScope } = require("../services/restaurantLocationAccessService");
 
 async function access(req, manage = false) {
@@ -79,7 +80,8 @@ const handler = (fn) => async (req, res, next) => {
 };
 exports.snapshot = handler(async (req, res) => {
   const scope = await access(req);
-  res.json(await sync.snapshot(scope, req.query));
+  const snapshot = await sync.snapshot(scope, req.query);
+  res.json({ ...snapshot, creditCheckoutEnabled: creditKiosk.isCheckoutEnabled(scope) });
 });
 exports.changes = handler(async (req, res) => {
   const scope = await access(req);
@@ -378,6 +380,63 @@ exports.createOrder = handler(async (req, res) => {
   await food.createOrder(req, res, (error) => {
     throw error;
   });
+});
+
+exports.createCreditOrder = handler(async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  const { credential, pin, expectedTotalCents, menuFingerprint, items, fulfillmentType } = req.body || {};
+  // Credentials are consumed only by the paired-device checkout, never by
+  // generic order metadata, request fingerprints, or offline ticket storage.
+  delete req.body?.credential;
+  delete req.body?.pin;
+  const scope = await access(req);
+  if (!creditKiosk.isCheckoutEnabled(scope))
+    throw new AppError("Credit checkout is unavailable on this device", 403, "credit_kiosk_disabled");
+  const attemptKey = creditKiosk.orderKey(scope.device.id, req.get("Idempotency-Key"));
+  if (!Number.isSafeInteger(expectedTotalCents) || expectedTotalCents <= 0
+      || !Array.isArray(items) || items.length === 0 || !Array.isArray(menuFingerprint)
+      || !["dine_in", "pickup"].includes(fulfillmentType)) {
+    throw new AppError("A current kiosk quote is required", 400, "credit_kiosk_quote_required");
+  }
+  if (typeof credential !== "string" || !credential.trim() || credential.length > 200
+      || typeof pin !== "string" || !/^\d{4,8}$/.test(pin)) {
+    throw new AppError("Card and PIN required", 400, "credit_kiosk_card_required");
+  }
+  req.user = undefined;
+  req.restaurantDevice = scope.device;
+  req.screenLocationId = scope.locationId;
+  req.screenExpectedFingerprint = menuFingerprint;
+  req.screenExpectedTotal = expectedTotalCents;
+  req.creditKioskCheckout = { credential, pin, attemptKey, deviceId: scope.device.id };
+  req.body = {
+    items, fulfillmentType, locationId: scope.locationId,
+    orderSource: "kiosk", paymentMode: "oxsteed_credit",
+  };
+  try {
+    await food.createOrder(req, res, (error) => { throw error; });
+  } finally {
+    delete req.creditKioskCheckout;
+  }
+});
+
+exports.creditOrderReceipt = handler(async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  const scope = await access(req);
+  if (!creditKiosk.isManagedKiosk(scope))
+    throw new AppError("Paired kiosk required", 403, "forbidden");
+  const key = creditKiosk.orderKey(scope.device.id, req.params.attemptId);
+  const { rows: [order] } = await pool.query(
+    `SELECT id, queue_number, total_cents, currency_code, payment_status
+       FROM food_orders
+      WHERE restaurant_id=$1 AND location_id=$2
+        AND metadata->>'clientOrderId'=$3
+        AND metadata->>'creditKioskDeviceId'=$4
+        AND metadata->>'oxsteedCreditTransactionId' IS NOT NULL
+      LIMIT 1`,
+    [scope.restaurantId, scope.locationId, key, String(scope.device.id)],
+  );
+  if (!order) throw new AppError("Receipt is not available", 404, "credit_kiosk_receipt_not_found");
+  res.json({ receipt: creditKiosk.receiptForOrder(order) });
 });
 
 exports.orderAction = async (req, res, next) => {

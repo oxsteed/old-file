@@ -353,12 +353,12 @@
         }
       },
       "ai": {
-        "name": "KI (Meta, OpenRouter, Ollama)",
-        "description": "Support-Chat und Hintergrund-KI über eine Fallback-Kette: zuerst Meta für angemeldeten Datenverkehr, dann OpenRouter Free-Tier, dann lokales Ollama.",
-        "customerSafeSummary": "Wenn alle KI-Anbieter ausfallen, zeigt der Chat eine Meldung zur Nichtverfügbarkeit und bietet menschliche Unterstützung an. Anonymer Datenverkehr verbraucht niemals kostenpflichtige Tokens.",
-        "retryNote": "Fallback-Kette: zuerst Meta für angemeldeten Datenverkehr, dann OpenRouter Free-Tier, dann lokales Ollama. Anonymer Datenverkehr verbraucht niemals Meta-Tokens.",
-        "budgetNote": "Die Meta-Contributor-Stufe hat niedrigere Ratenlimits; OpenRouter Free-Tier und lokales Ollama kosten nichts. Im Code wird kein Budget pro Anfrage erzwungen.",
-        "rotationProcedure": "Rotieren Sie META_AI_API_KEY in der Meta-Konsole und OPENROUTER_API_KEY in OpenRouter; aktualisieren Sie die Coolify-Secrets; prüfen Sie den Support-Chat.",
+        "name": "KI (selbst gehostetes Ollama)",
+        "description": "Support-Chat, Triage, Entwürfe und Übersetzung laufen auf dem selbst gehosteten Ollama-Server von OxSteed. Es wird kein externer KI-Anbieter genutzt.",
+        "customerSafeSummary": "Wenn der KI-Server ausfällt, zeigt der Chat eine Meldung „Dienst nicht verfügbar“ und bietet menschlichen Support an.",
+        "retryNote": "Nur ein Anbieter: der selbst gehostete Ollama-Server. Fehlgeschlagene Aufrufe werden wiederholt, danach weicht die Funktion auf menschlichen Support oder manuelle Eingabe aus.",
+        "budgetNote": "Selbst gehostet: keine Kosten pro Token. Die Kapazität hängt von der Hardware des Ollama-Servers ab.",
+        "rotationProcedure": "Keine API-Schlüssel zu rotieren. Halten Sie OLLAMA_URL auf einem zugelassenen internen Host und ändern Sie das Modell mit OLLAMA_MODEL; prüfen Sie danach den Support-Chat.",
         "capabilities": {
           "support_chat": {
             "label": "Support-Chat",
@@ -2644,7 +2644,15 @@
       "deleteAccount": "Konto löschen",
       "confirmTitle": "Ihr Konto löschen",
       "confirmDesc": "Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre Daten werden dauerhaft gelöscht.",
-      "yesDelete": "Ja, mein Konto löschen"
+      "yesDelete": "Ja, mein Konto löschen",
+      "currentPasswordLabel": "Aktuelles Passwort",
+      "totpCodeLabel": "Authentifizierungscode",
+      "totpCodeHint": "Nur erforderlich, wenn die Zwei-Faktor-Authentifizierung aktiviert ist.",
+      "reauthPasswordRequired": "Geben Sie zur Bestätigung Ihr aktuelles Passwort ein.",
+      "reauthTotpRequired": "Geben Sie zur Bestätigung den Code aus Ihrer Authentifizierungs-App ein.",
+      "reauthInvalid": "Ihr Passwort oder Bestätigungscode ist falsch.",
+      "reauthUnavailable": "Ihr Konto hat noch kein Passwort. Legen Sie über „Passwort vergessen“ eines fest und versuchen Sie es erneut.",
+      "impersonationBlocked": "Das Konto kann nicht gelöscht werden, während ein Support-Mitarbeiter es ansieht."
     },
     "preferencesTab": "Präferenzen",
     "tabPaymentPolicies": "Zahlungsrichtlinien",

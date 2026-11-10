@@ -296,14 +296,8 @@ router.get('/archive/:id/verify', async (req, res, next) => {
 });
 
 // ── CSV export (accessible, machine-readable rendition of the original) ────
-function csvCell(value) {
-  // Same hardened text contract as creditStatementPdf.csvCell. Quoting alone
-  // does not neutralize spreadsheet formulas hidden behind Unicode controls.
-  let text = String(value ?? '').replace(/\u0000/g, '');
-  const candidate = text.replace(/^[\s\uFEFF\u200E\u200F\u202A-\u202E\u2066-\u2069]+/u, '');
-  if (/^[=+\-@]/.test(candidate) || /^[\t\r\n]/.test(text)) text = `'${text}`;
-  return `"${text.replace(/"/g, '""')}"`;
-}
+// F-15: one hardened implementation for every export.
+const csvCell = require('../utils/csv').csvQuotedCell;
 
 function csvFilename(document) {
   // No PII: product, period, and currency identify the statement.

@@ -15,9 +15,7 @@ const { getStatementCenter } = require('../services/statementCenterService');
 
 const router = express.Router();
 
-router.use(authenticate);
-
-router.get('/statements/center', async (req, res, next) => {
+router.get('/statements/center', authenticate, async (req, res, next) => {
   try {
     // Personal financial surface: never cacheable, never shared.
     res.set('Cache-Control', 'private, no-store');

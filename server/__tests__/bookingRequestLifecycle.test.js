@@ -16,6 +16,7 @@ jest.mock('../services/socketService', () => ({
   broadcastToUser: jest.fn(),
   broadcastToConversation: jest.fn(),
   broadcastToBusinessCalendar: jest.fn(),
+  userHasBusinessPermission: jest.fn().mockResolvedValue(true),
   io: null,
 }));
 jest.mock('../services/helperAvailabilityService', () => ({
@@ -768,17 +769,35 @@ describe('bookingRequestLifecycle', () => {
       'booking:updated',
       expect.any(Object),
     );
-    // other members get user-room fanout; helper not double-counted as extra loop target
+    // F-12: other members get the user-room fan-out only when they can see
+    // the whole business calendar, and only as an identifier envelope.
     expect(socketService.broadcastToUser).toHaveBeenCalledWith(
       'member-2',
       'booking:updated',
-      expect.any(Object),
+      { bookingId: 'br-biz', status: 'pending', event: 'requested', actorId: 'c1', conversationId: null, businessId: 'biz-1' },
     );
     expect(socketService.broadcastToUser).toHaveBeenCalledWith(
       'member-3',
       'booking:new',
-      expect.any(Object),
+      expect.not.objectContaining({ booking: expect.anything() }),
     );
+  });
+
+  test('F-12: emitBookingEvent skips members without calendar.view_all', async () => {
+    socketService.userHasBusinessPermission.mockImplementation(async (_bid, uid) => uid === 'member-2');
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 'member-2' }, { id: 'member-3' }] });
+    await lifecycle.emitBookingEvent({
+      booking: {
+        id: 'br-biz2', helper_id: 'owner-h', customer_id: 'c1', business_id: 'biz-1', status: 'pending',
+        service_name: 'Cut', requested_date: '2026-09-22', requested_start_time: '09:00:00', requested_end_time: '10:00:00',
+      },
+      event: 'requested',
+      actorId: 'c1',
+    });
+    const targets = socketService.broadcastToUser.mock.calls.map((c) => c[0]);
+    expect(targets).toContain('member-2');
+    expect(targets).not.toContain('member-3');
+    socketService.userHasBusinessPermission.mockResolvedValue(true);
   });
 
   test('emitBookingEvent skips business fanout when business_id unset', async () => {

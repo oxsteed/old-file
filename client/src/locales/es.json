@@ -1446,6 +1446,18 @@
     }
   },
   "screens": {
+    "creditPay": "Pagar con OxSteed Credit",
+    "creditScanCard": "Escanea tu tarjeta Credit",
+    "creditPin": "PIN de la tarjeta",
+    "creditReceipt": "Recibo de Credit",
+    "creditChecking": "Verificando el pago con Credit",
+    "creditPaid": "Pago confirmado",
+    "creditPaymentChanged": "El estado del pago cambió. Pide ayuda al personal.",
+    "creditOrderReference": "Referencia {{id}}",
+    "creditCheckReceipt": "Consultar recibo",
+    "creditReceiptPending": "El resultado aún no se conoce. Consulta el recibo antes de volver a pagar. Si sigue sin aparecer, muestra la referencia al personal.",
+    "creditDeclined": "El pago con Credit fue rechazado. Revisa tu tarjeta y tu PIN o elige otra forma de pago.",
+    "creditStorageUnavailable": "El quiosco no pudo guardar una referencia de recuperación. El pago con Credit no se inició.",
     "dataFreshness": "Actualización de datos",
     "fresh": "Actualizado",
     "catchingUp": "Necesita sincronizar",
@@ -2110,12 +2122,12 @@
         }
       },
       "ai": {
-        "name": "IA (Meta, OpenRouter, Ollama)",
-        "description": "Chat de soporte e IA en segundo plano con cadena de respaldo: Meta primero para el tráfico autenticado, luego el nivel gratuito de OpenRouter y después Ollama local.",
-        "customerSafeSummary": "Cuando todos los proveedores de IA fallan, el chat muestra un mensaje de servicio no disponible y ofrece soporte humano. El tráfico anónimo nunca gasta tokens de pago.",
-        "retryNote": "La cadena de respaldo es Meta primero para el tráfico autenticado, luego OpenRouter gratuito y después Ollama local. El tráfico anónimo nunca gasta tokens de Meta.",
-        "budgetNote": "El nivel de contribuidor de Meta tiene límites más bajos; el nivel gratuito de OpenRouter y Ollama local no cuestan nada. El código no aplica presupuesto por solicitud.",
-        "rotationProcedure": "Rote META_AI_API_KEY en la consola de Meta y OPENROUTER_API_KEY en OpenRouter; actualice los secretos de Coolify; verifique el chat de soporte.",
+        "name": "IA (Ollama autoalojado)",
+        "description": "El chat de soporte, la clasificación, los borradores y la traducción se ejecutan en el servidor Ollama autoalojado de OxSteed. No se usa ningún proveedor de IA externo.",
+        "customerSafeSummary": "Cuando el servidor de IA no está disponible, el chat muestra un mensaje de servicio no disponible y ofrece soporte humano.",
+        "retryNote": "Un solo proveedor: el servidor Ollama autoalojado. Las llamadas fallidas se reintentan y luego la función pasa a soporte humano o entrada manual.",
+        "budgetNote": "Autoalojado: sin costo por token. La capacidad depende del hardware del servidor Ollama.",
+        "rotationProcedure": "No hay claves de API que rotar. Mantén OLLAMA_URL en un host interno permitido y cambia el modelo con OLLAMA_MODEL; luego verifica el chat de soporte.",
         "capabilities": {
           "support_chat": {
             "label": "Chat de soporte",
@@ -4406,7 +4418,15 @@
       "deleteAccount": "Eliminar Cuenta",
       "confirmTitle": "Eliminar Tu Cuenta",
       "confirmDesc": "Esta acción no se puede deshacer. Todos tus datos serán eliminados permanentemente.",
-      "yesDelete": "Sí, Eliminar Mi Cuenta"
+      "yesDelete": "Sí, Eliminar Mi Cuenta",
+      "currentPasswordLabel": "Contraseña actual",
+      "totpCodeLabel": "Código del autenticador",
+      "totpCodeHint": "Solo es necesario si la autenticación en dos pasos está activada.",
+      "reauthPasswordRequired": "Ingresa tu contraseña actual para confirmar.",
+      "reauthTotpRequired": "Ingresa el código de tu app de autenticación para confirmar.",
+      "reauthInvalid": "Tu contraseña o código de verificación es incorrecto.",
+      "reauthUnavailable": "Tu cuenta aún no tiene contraseña. Usa \"Olvidé mi contraseña\" para crear una y vuelve a intentarlo.",
+      "impersonationBlocked": "No se puede eliminar la cuenta mientras un agente de soporte la está viendo."
     },
     "tabPaymentPolicies": "Políticas de pago",
     "accountDeleteHasBalance": "Todavía tienes un saldo, una retención o un pago pendiente. Retira o usa tu saldo restante y espera a que terminen los pagos pendientes antes de eliminar tu cuenta, o escribe a support@oxsteed.com.",
@@ -10777,6 +10797,10 @@
       "masters": {
         "label": "Interruptores principales",
         "description": "Activa o desactiva un canal completo. Tienen prioridad sobre los interruptores individuales."
+      },
+      "restaurant": {
+        "label": "Alertas del restaurante",
+        "description": "Alertas de control horario, temperatura e informes programados para los restaurantes que gestionas."
       }
     },
     "prefs": {
@@ -10791,6 +10815,10 @@
       "in_app_subscription": "Actualizaciones de suscripción",
       "in_app_new_message": "Nuevos mensajes de chat",
       "in_app_message_mention": "Cuando se me mencione en el chat",
+      "in_app_staff_time_entry_system_closed": "Fichajes olvidados cerrados automáticamente",
+      "in_app_staff_time_entry_missing_punch": "Fichajes faltantes en turnos programados",
+      "in_app_restaurant_temperature_breach": "Alertas de temperatura fuera de rango",
+      "in_app_restaurant_scheduled_report": "Informes programados del restaurante",
       "push_new_job_nearby": "Nuevo trabajo cercano",
       "push_new_bid": "Nueva oferta recibida",
       "push_bid_accepted": "Oferta aceptada",

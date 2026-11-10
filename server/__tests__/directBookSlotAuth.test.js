@@ -46,7 +46,7 @@ const user = {
 };
 
 function bearer(claims = {}) {
-  return `Bearer ${jwt.sign({ id: OWNER, role: user.role, ...claims }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
+  return `Bearer ${jwt.sign({ typ: 'access', sid: 'test-session',  id: OWNER, role: user.role, ...claims }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
 }
 
 const payload = {

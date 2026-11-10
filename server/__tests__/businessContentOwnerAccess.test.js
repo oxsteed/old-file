@@ -74,7 +74,7 @@ describe('owner sees own unlisted business content through the real router', () 
   });
 
   function bearer(id) {
-    return `Bearer ${jwt.sign({ id, role: 'customer' }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '5m' })}`;
+    return `Bearer ${jwt.sign({ typ: 'access', sid: 'test-session',  id, role: 'customer' }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '5m' })}`;
   }
 
   test.each(['gallery', 'policies', 'faqs', 'hours'])('owner GET /%s -> 200', async (path) => {

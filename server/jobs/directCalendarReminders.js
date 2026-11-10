@@ -6,6 +6,16 @@ const { sendEmail } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { maskEmail } = require('../utils/directQuote');
+const { withFencedJobLock } = require('./jobLockingService');
+
+// Oct 30 item 29 / audit #49: the direct starter runs two sweeps on one
+// 5-minute interval, the second accruing franchise royalties per
+// completed visit. A pass slower than 5 minutes used to overlap itself
+// and a second API replica ran it concurrently. The starter below holds
+// one fenced lock across both sweeps (plus the in-process running flag),
+// and completeFinishedDirectVisits works in bounded batches of 200.
+const JOB_NAME = 'direct-calendar-reminders';
+const COMPLETED_VISITS_BATCH_LIMIT = 200;
 
 function reminderTypeFor(startAt) {
   const hoursUntil = (new Date(startAt).getTime() - Date.now()) / (60 * 60 * 1000);
@@ -106,23 +116,42 @@ async function processDirectCalendarReminders() {
 // Review P2-9-F13: franchise royalties accrue on Direct bookings too, not
 // just job completion. The sweep accrues per completed visit (idempotent);
 // failures are non-fatal and logged.
+// Audit #49: the completing UPDATE used to be unbounded (no LIMIT or
+// ordering), so after an outage one tick completed thousands of stale
+// visits in a single transaction and then accrued royalties serially per
+// visit. It now completes in bounded batches of
+// COMPLETED_VISITS_BATCH_LIMIT, oldest window first, looping until a
+// batch comes back short. Completion itself stays idempotent (a second
+// pass finds no `scheduled` rows); the bound limits latency and lease
+// pressure, not double-completion. The caller (the starter) holds the
+// fenced lock across the whole bounded run, so batches from one pass
+// cannot interleave with another tick or replica.
 async function completeFinishedDirectVisits() {
-  const { rows } = await db.query(
-    `WITH done AS (
-       UPDATE quote_requests
-          SET status = 'completed', completed_at = COALESCE(completed_at, NOW()), updated_at = NOW()
-        WHERE COALESCE(metadata->>'flow', 'direct') = 'direct'
-          AND status = 'scheduled'
-          AND payment_status IN ('paid', 'confirmed')
-          AND COALESCE(scheduled_end_at, scheduled_start_at) < NOW() - INTERVAL '1 hour'
-        RETURNING id, quote_amount_cents, service_city)
-     INSERT INTO direct_request_events (quote_request_id, actor_role, event_type, title, details, payload)
-     SELECT id, 'system', 'request_completed', 'Visit completed', 'The visit window ended and payment is settled.', '{}'::jsonb
-       FROM done
-     RETURNING quote_request_id`
-  );
-  const completedIds = rows.map((r) => r.quote_request_id);
-  if (completedIds.length > 0) {
+  let total = 0;
+  for (;;) {
+    const { rows } = await db.query(
+      `WITH done AS (
+         UPDATE quote_requests
+            SET status = 'completed', completed_at = COALESCE(completed_at, NOW()), updated_at = NOW()
+          WHERE id IN (
+            SELECT id
+              FROM quote_requests
+             WHERE COALESCE(metadata->>'flow', 'direct') = 'direct'
+               AND status = 'scheduled'
+               AND payment_status IN ('paid', 'confirmed')
+               AND COALESCE(scheduled_end_at, scheduled_start_at) < NOW() - INTERVAL '1 hour'
+             ORDER BY COALESCE(scheduled_end_at, scheduled_start_at) ASC, id ASC
+             LIMIT ${COMPLETED_VISITS_BATCH_LIMIT}
+          )
+          RETURNING id, quote_amount_cents, service_city)
+       INSERT INTO direct_request_events (quote_request_id, actor_role, event_type, title, details, payload)
+       SELECT id, 'system', 'request_completed', 'Visit completed', 'The visit window ended and payment is settled.', '{}'::jsonb
+         FROM done
+       RETURNING quote_request_id`
+    );
+    const completedIds = rows.map((r) => r.quote_request_id);
+    if (completedIds.length === 0) break;
+    total += completedIds.length;
     try {
       const { rows: done } = await db.query(
         `SELECT id, quote_amount_cents, service_city
@@ -149,17 +178,47 @@ async function completeFinishedDirectVisits() {
     } catch (err) {
       logger.error('Direct royalty accrual sweep failed (non-fatal)', { error: err.message });
     }
+    if (completedIds.length < COMPLETED_VISITS_BATCH_LIMIT) break;
   }
-  return rows.length;
+  return total;
 }
 
 function startDirectCalendarReminderJob() {
-  const interval = setInterval(() => {
-    processDirectCalendarReminders().catch((err) => logger.error('Direct calendar reminder job failed', { error: err.message }));
-    completeFinishedDirectVisits().catch((err) => logger.error('Direct auto-complete sweep failed', { error: err.message }));
-  }, 5 * 60 * 1000);
+  let stopped = false;
+  let running = null;
+  // Oct 30 item 29: one 5-minute interval used to fire both sweeps
+  // concurrently with no guard and no lock, so a slow pass overlapped
+  // itself and a second API replica ran it concurrently. Both sweeps now
+  // run sequentially inside a single fenced lock (TTL matches the
+  // 5-minute cadence; the renewal timer keeps it alive for a long pass),
+  // and the running flag skips an overlapping tick in this process. The
+  // lock is held across the whole bounded completeFinishedDirectVisits
+  // run (#49), not per batch, so no second tick can interleave between
+  // batches. Each sweep still logs its own failure without aborting the
+  // other, as before.
+  const tick = () => {
+    if (stopped || running) return;
+    running = withFencedJobLock(JOB_NAME, async () => {
+      await processDirectCalendarReminders()
+        .catch((err) => logger.error('Direct calendar reminder job failed', { error: err.message }));
+      await completeFinishedDirectVisits()
+        .catch((err) => logger.error('Direct auto-complete sweep failed', { error: err.message }));
+    }, 300)
+      .catch((err) => logger.error('Direct calendar reminder job failed', { error: err.message }))
+      .finally(() => {
+        running = null;
+      });
+  };
+  const interval = setInterval(tick, 5 * 60 * 1000);
+  interval.unref?.();
   logger.info('Direct calendar reminder job started');
-  return { stop: () => clearInterval(interval) };
+  return {
+    stop: () => {
+      stopped = true;
+      clearInterval(interval);
+      return running;
+    },
+  };
 }
 
-module.exports = { processDirectCalendarReminders, completeFinishedDirectVisits, startDirectCalendarReminderJob };
+module.exports = { processDirectCalendarReminders, completeFinishedDirectVisits, startDirectCalendarReminderJob, JOB_NAME, COMPLETED_VISITS_BATCH_LIMIT };

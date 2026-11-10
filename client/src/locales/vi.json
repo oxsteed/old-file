@@ -353,12 +353,12 @@
         }
       },
       "ai": {
-        "name": "AI (Meta, OpenRouter, Ollama)",
-        "description": "Trò chuyện hỗ trợ và AI nền trên chuỗi dự phòng: Meta trước cho lưu lượng đã đăng nhập, sau đó là gói miễn phí OpenRouter, rồi Ollama cục bộ.",
-        "customerSafeSummary": "Khi tất cả nhà cung cấp AI đều sập, trò chuyện hiển thị thông báo dịch vụ không khả dụng và đề nghị hỗ trợ con người. Lưu lượng ẩn danh không bao giờ tiêu token trả phí.",
-        "retryNote": "Chuỗi dự phòng là Meta trước cho lưu lượng đã đăng nhập, sau đó là gói miễn phí OpenRouter, rồi Ollama cục bộ. Lưu lượng ẩn danh không bao giờ tiêu token Meta.",
-        "budgetNote": "Gói cộng tác viên Meta có giới hạn tốc độ thấp hơn; gói miễn phí OpenRouter và Ollama cục bộ không tốn chi phí. Không có ngân sách theo yêu cầu nào được thực thi trong mã.",
-        "rotationProcedure": "Luân chuyển META_AI_API_KEY trong bảng điều khiển Meta và OPENROUTER_API_KEY trong OpenRouter; cập nhật secret Coolify; xác minh trò chuyện hỗ trợ.",
+        "name": "AI (Ollama tự lưu trữ)",
+        "description": "Trò chuyện hỗ trợ, phân loại, bản nháp và bản dịch chạy trên máy chủ Ollama do OxSteed tự lưu trữ. Không dùng nhà cung cấp AI bên ngoài nào.",
+        "customerSafeSummary": "Khi máy chủ AI ngừng hoạt động, trò chuyện hiển thị thông báo dịch vụ không khả dụng và đề nghị hỗ trợ từ nhân viên.",
+        "retryNote": "Chỉ một nhà cung cấp: máy chủ Ollama tự lưu trữ. Lệnh gọi lỗi được thử lại, sau đó tính năng chuyển sang hỗ trợ từ nhân viên hoặc nhập thủ công.",
+        "budgetNote": "Tự lưu trữ: không tốn phí theo token. Năng lực phụ thuộc vào phần cứng của máy chủ Ollama.",
+        "rotationProcedure": "Không có khóa API cần xoay vòng. Giữ OLLAMA_URL trên máy chủ nội bộ được cho phép và đổi mô hình bằng OLLAMA_MODEL; sau đó kiểm tra trò chuyện hỗ trợ.",
         "capabilities": {
           "support_chat": {
             "label": "Trò chuyện hỗ trợ",
@@ -2644,7 +2644,15 @@
       "deleteAccount": "Xóa tài khoản",
       "confirmTitle": "Xóa tài khoản của bạn",
       "confirmDesc": "Hành động này không thể hoàn tác. Tất cả dữ liệu của bạn sẽ bị xóa vĩnh viễn.",
-      "yesDelete": "Có, xóa tài khoản của tôi"
+      "yesDelete": "Có, xóa tài khoản của tôi",
+      "currentPasswordLabel": "Mật khẩu hiện tại",
+      "totpCodeLabel": "Mã xác thực",
+      "totpCodeHint": "Chỉ cần khi đã bật xác thực hai yếu tố.",
+      "reauthPasswordRequired": "Nhập mật khẩu hiện tại để xác nhận.",
+      "reauthTotpRequired": "Nhập mã từ ứng dụng xác thực để xác nhận.",
+      "reauthInvalid": "Mật khẩu hoặc mã xác minh không đúng.",
+      "reauthUnavailable": "Tài khoản của bạn chưa có mật khẩu. Dùng \"Quên mật khẩu\" để đặt mật khẩu rồi thử lại.",
+      "impersonationBlocked": "Không thể xóa tài khoản khi nhân viên hỗ trợ đang xem tài khoản của bạn."
     },
     "preferencesTab": "Tùy chọn",
     "tabPaymentPolicies": "Chính sách thanh toán",

@@ -74,13 +74,13 @@ async function stripExif(buffer) {
 }
 
 // ── Pure-JS fallback (no native deps) ────────────────────────────────────────
-// JPEG: walk markers before SOS; drop APP1 Exif, APP1 XMP, APP2 (ICC),
-//   APP13 (Photoshop/IRB). Everything after SOS is copied verbatim.
-// PNG: drop eXIf / tEXt / iTXt / zTXt ancillary chunks.
-// WebP: drop EXIF / XMP chunks from the RIFF container and fix the RIFF size.
-
-const EXIF_SIG = Buffer.from('Exif\0\0', 'ascii');
-const XMP_SIG = Buffer.from('http://ns.adobe.com/xap/1.0/', 'ascii');
+// Security review F-03: the fallback is an allow-list, not a deny-list.
+// JPEG: keep only structural segments plus APP0 (JFIF) and APP14 (Adobe);
+//   copy the scan data through the first EOI and drop any trailing bytes.
+// PNG: keep only rendering chunks (IHDR/PLTE/IDAT/IEND and colour/animation
+//   chunks); drop metadata, private and unknown chunks and anything after IEND.
+// WebP: keep only image-data chunks, clear the VP8X metadata flags and
+//   recompute the RIFF size.
 
 function isJpeg(b) { return b.length > 2 && b[0] === 0xff && b[1] === 0xd8; }
 function isPng(b) {
@@ -100,8 +100,8 @@ function stripJpegSegments(buffer) {
   while (i + 1 < buffer.length) {
     if (buffer[i] !== 0xff) break;
     const marker = buffer[i + 1];
-    if (marker === 0xda) { // SOS: entropy-coded data follows; copy the rest verbatim
-      parts.push(buffer.subarray(i));
+    if (marker === 0xda) { // SOS: entropy-coded data follows; copy it through EOI only
+      parts.push(copyScanThroughEoi(buffer, i));
       return Buffer.concat(parts);
     }
     if (marker === 0xd9) { // EOI
@@ -116,18 +116,39 @@ function stripJpegSegments(buffer) {
     const len = buffer.readUInt16BE(i + 2);
     const segEnd = i + 2 + len;
     if (segEnd > buffer.length) break;
-    const payload = buffer.subarray(i + 4, segEnd);
-    const isExifApp1 = marker === 0xe1 && payload.length >= 6 && payload.subarray(0, 6).equals(EXIF_SIG);
-    const isXmpApp1 = marker === 0xe1 && payload.length >= XMP_SIG.length
-      && payload.subarray(0, XMP_SIG.length).equals(XMP_SIG);
-    const drop = isExifApp1 || isXmpApp1 || marker === 0xe2 /* APP2 ICC */ || marker === 0xed; /* APP13 */
+    // Security review F-03: allow-list instead of deny-list. Every APPn and
+    // COM segment is dropped except APP0 (JFIF) and APP14 (Adobe colour
+    // transform), so the fallback cannot carry an attacker payload in a
+    // metadata segment.
+    const isJfifApp0 = marker === 0xe0;
+    const isAdobeApp14 = marker === 0xee;
+    const isAppOrComment = (marker >= 0xe0 && marker <= 0xef) || marker === 0xfe;
+    const drop = isAppOrComment && !isJfifApp0 && !isAdobeApp14;
     if (!drop) parts.push(buffer.subarray(i, segEnd));
     i = segEnd;
   }
-  return Buffer.concat(parts);
+  throw new Error('stripExif fallback: truncated JPEG');
 }
 
-const PNG_DROP_CHUNKS = new Set(['eXIf', 'tEXt', 'iTXt', 'zTXt']);
+// Copy SOS onwards up to and including the first EOI. 0xFFD9 cannot occur in
+// entropy-coded data (0xFF is byte-stuffed), so anything after it is trailing
+// junk that a polyglot could use.
+function copyScanThroughEoi(buffer, start) {
+  for (let j = start + 2; j + 1 < buffer.length; j += 1) {
+    if (buffer[j] === 0xff && buffer[j + 1] === 0xd9) return buffer.subarray(start, j + 2);
+  }
+  throw new Error('stripExif fallback: JPEG without EOI');
+}
+
+// Security review F-03: keep only the chunks needed to render the pixels.
+// Unknown, private and metadata chunks (eXIf, tEXt, iTXt, zTXt, iCCP and any
+// attacker-named chunk) are dropped, and nothing after IEND is kept.
+const PNG_KEEP_CHUNKS = new Set([
+  'IHDR', 'PLTE', 'IDAT', 'IEND', 'tRNS', 'gAMA', 'cHRM', 'sRGB', 'sBIT', 'bKGD', 'pHYs',
+  'acTL', 'fcTL', 'fdAT',
+]);
+
+const PNG_IEND = Buffer.from([0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
 
 function stripPngChunks(buffer) {
   const parts = [buffer.subarray(0, 8)]; // signature
@@ -137,14 +158,26 @@ function stripPngChunks(buffer) {
     const type = buffer.toString('ascii', i + 4, i + 8);
     const end = i + 12 + len;
     if (end > buffer.length) break;
-    if (!PNG_DROP_CHUNKS.has(type)) parts.push(buffer.subarray(i, end));
+    if (parts.length === 1 && type !== 'IHDR') throw new Error('stripExif fallback: PNG without IHDR');
+    if (PNG_KEEP_CHUNKS.has(type)) parts.push(buffer.subarray(i, end));
     i = end;
-    if (type === 'IEND') break;
+    if (type === 'IEND') return Buffer.concat(parts);
   }
+  // Some encoders write a damaged or missing IEND (which is why libpng
+  // rejected the file and we are here). Keep the decodable chunks and close
+  // the stream with a well-formed IEND; the unparseable tail is discarded.
+  if (parts.length < 2 || !parts.some((c) => c.toString('ascii', 4, 8) === 'IDAT')) {
+    throw new Error('stripExif fallback: PNG without image data');
+  }
+  parts.push(PNG_IEND);
   return Buffer.concat(parts);
 }
 
-const WEBP_DROP_CHUNKS = new Set(['EXIF', 'XMP ']);
+// Security review F-03: only image-data chunks survive; EXIF, XMP, ICCP and
+// unknown chunks are dropped and the RIFF size is recomputed, which also
+// destroys any polyglot header crafted in the original size bytes.
+const WEBP_KEEP_CHUNKS = new Set(['VP8 ', 'VP8L', 'VP8X', 'ALPH', 'ANIM', 'ANMF']);
+const VP8X_METADATA_FLAGS = 0x20 /* ICC */ | 0x08 /* EXIF */ | 0x04; /* XMP */
 
 function stripWebpChunks(buffer) {
   const chunks = [];
@@ -155,12 +188,18 @@ function stripWebpChunks(buffer) {
     const size = buffer.readUInt32LE(i + 4);
     const end = i + 8 + size + (size % 2);
     if (end > buffer.length) break;
-    if (!WEBP_DROP_CHUNKS.has(fourcc)) {
-      chunks.push(buffer.subarray(i, end));
+    if (WEBP_KEEP_CHUNKS.has(fourcc)) {
+      let chunk = buffer.subarray(i, end);
+      if (fourcc === 'VP8X' && size >= 1) {
+        chunk = Buffer.from(chunk);
+        chunk[8] &= ~VP8X_METADATA_FLAGS;
+      }
+      chunks.push(chunk);
       bodyLen += 8 + size + (size % 2);
     }
     i = end;
   }
+  if (!chunks.length) throw new Error('stripExif fallback: WebP without image data');
   const header = Buffer.alloc(12);
   buffer.copy(header, 0, 0, 12);
   header.writeUInt32LE(bodyLen, 4); // RIFF size = file size - 8

@@ -24,7 +24,7 @@ const SECRET = process.env.JWT_SECRET || 'test-secret-for-unit-tests-00000000';
 
 function impersonationToken(overrides = {}) {
   return jwt.sign(
-    {
+    { typ: 'access', sid: 'test-session', 
       id: 'victim-1',
       impersonation: true,
       impersonated_by: 'admin-1',

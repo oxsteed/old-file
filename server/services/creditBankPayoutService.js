@@ -85,12 +85,8 @@ async function createInstruction(client, { purpose, idempotencyKey, destination,
   return { instruction: row, replayed: true };
 }
 
-function csvCell(value) {
-  const s = value === null || value === undefined ? '' : String(value);
-  // Neutralise spreadsheet formulas; quote everything.
-  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-  return `"${safe.replace(/"/g, '""')}"`;
-}
+// F-15: the shared hardened helper; neutralise formulas, quote everything.
+const csvCell = require('../utils/csv').csvQuotedCell;
 
 function minorToDecimal(minor, currency) {
   const { currencyExponent } = require('../validation/money');

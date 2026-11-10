@@ -185,6 +185,13 @@ exports.updatePreferences = async (req, res, next) => {
       'in_app_job_completed','in_app_payment_released',
       'in_app_new_review','in_app_dispute_update','in_app_subscription',
       'in_app_new_message',
+      // Background-jobs audit #51: restaurant alert toggles (one per type;
+      // the keys are the canonical in_app_<type> keys honored by
+      // prefAllows in notificationService.js).
+      'in_app_staff_time_entry_system_closed',
+      'in_app_staff_time_entry_missing_punch',
+      'in_app_restaurant_temperature_breach',
+      'in_app_restaurant_scheduled_report',
       'push_new_bid','push_bid_accepted',
       'push_payment_released','push_dispute_update',
       'push_new_message',

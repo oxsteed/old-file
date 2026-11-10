@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs/promises');
-const path = require('path');
+const { Readable } = require('stream');
+const { resolveServedType, applyStoredObjectHeaders } = require('../utils/storageContentSafety');
 const { isStatementStorageKey } = require('../utils/statementStorage');
 const {
   LOCAL_STORAGE_ROOT,
@@ -61,24 +62,15 @@ async function sendLocalFile(req, res, { signed = false } = {}) {
       readLocalObjectMeta(key),
     ]);
 
-    if (meta?.contentType) {
-      res.type(meta.contentType);
-    } else {
-      res.type(path.extname(filePath) || 'application/octet-stream');
-    }
+    // Security review F-03: the served type comes from the bytes, never the
+    // file name; anything that is not plain media is a nosniff attachment.
+    const served = resolveServedType({ buffer, storedType: meta?.contentType, key });
+    applyStoredObjectHeaders(res, { ...served, filename: meta?.originalName || null });
 
     if (signed) {
       res.setHeader('Cache-Control', 'private, max-age=0, no-store');
     } else {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    }
-
-    if (meta?.originalName) {
-      const safeFilename = path.basename(String(meta.originalName))
-        .replace(/[^A-Za-z0-9._ -]/g, '_')
-        .replace(/\.{2,}/g, '.')
-        .slice(0, 160) || 'download';
-      res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"`);
     }
 
     return res.send(buffer);
@@ -96,14 +88,28 @@ async function sendRemotePublicFile(req, res) {
   const stream = await getObjectStream(key);
   if (!stream) return res.status(404).json({ error: 'File not found' });
 
-  res.type(path.extname(key) || 'application/octet-stream');
+  // Security review F-03: sniff the first chunk instead of trusting the
+  // key's extension, then stream the rest unchanged.
+  const iterator = stream[Symbol.asyncIterator]();
+  let first;
+  try {
+    first = await iterator.next();
+  } catch {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  const head = first.done ? Buffer.alloc(0) : Buffer.from(first.value);
+  const served = resolveServedType({ buffer: head.length ? head : null, key });
+  applyStoredObjectHeaders(res, served);
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-  res.setHeader('Content-Disposition', 'inline');
-  stream.on('error', () => {
+  const rest = Readable.from((async function* remaining() {
+    if (head.length) yield head;
+    for (let next = await iterator.next(); !next.done; next = await iterator.next()) yield next.value;
+  })());
+  rest.on('error', () => {
     if (!res.headersSent) res.status(404).json({ error: 'File not found' });
     else res.destroy();
   });
-  return stream.pipe(res);
+  return rest.pipe(res);
 }
 
 router.get('/public/*', (req, res) => {

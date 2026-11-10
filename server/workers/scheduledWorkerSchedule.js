@@ -106,6 +106,84 @@ function lockTtlSeconds(intervalMs) {
   return Math.max(60, Math.min(Math.ceil(intervalMs / 1000), 30 * 60));
 }
 
+// Background-jobs audit #47 + Oct 30 item 30(b): the fleet had no
+// heartbeat and no skipped-streak signal. The only heartbeat table is
+// credit-scoped (oxsteed_credit_worker_heartbeats), and this fix adds
+// NO migration. Instead the runner keeps per-worker run state in
+// memory: last outcome, last run / success timestamps, consecutive
+// skips and failures, and which incidents this process raised so they
+// can be resolved when the worker recovers.
+//
+// LIMITS (honest, by design): state resets on process restart and is
+// per-process, so in a multi-replica deployment each replica sees only
+// its own ticks; a worker that is skipped in every replica still raises
+// one deduped incident per worker (the incident_log upsert collapses
+// repeats on the open dedupe key), so the cross-replica signal is the
+// incident, not this map. If cross-replica heartbeat visibility is ever
+// required, persist this state in a fleet_worker_heartbeats table
+// mirroring oxsteed_credit_worker_heartbeats (job_name PK, last_run_at,
+// last_success_at, last_error, consecutive_failures, updated_at) and
+// have a watchdog read it the way oxsteedCreditWorkerWatchdog does;
+// until then this map plus the incidents below is the fleet signal.
+// getFleetWorkerHeartbeats() exposes the snapshot for an admin/debug
+// endpoint or a future watchdog to read without a migration.
+const SKIPPED_STREAK_ALERT_THRESHOLD = 3;
+const fleetWorkerState = new Map();
+
+function getFleetWorkerState(name, intervalMs) {
+  let state = fleetWorkerState.get(name);
+  if (!state) {
+    state = {
+      worker: name,
+      intervalMs: intervalMs ?? null,
+      consecutiveSkips: 0,
+      consecutiveFailures: 0,
+      lastRunAt: null,
+      lastSuccessAt: null,
+      lastOutcome: null,
+      streakIncidentOpen: false,
+      fenceIncidentOpen: false,
+      lockErrorIncidentOpen: false,
+    };
+    fleetWorkerState.set(name, state);
+  }
+  if (intervalMs != null) state.intervalMs = intervalMs;
+  return state;
+}
+
+function getFleetWorkerHeartbeat(name) {
+  const state = fleetWorkerState.get(name);
+  return state ? { ...state } : null;
+}
+
+function getFleetWorkerHeartbeats() {
+  return [...fleetWorkerState.values()].map((state) => ({ ...state }));
+}
+
+// Test/observability support: drop all in-memory fleet state.
+function resetFleetWorkerState() {
+  fleetWorkerState.clear();
+}
+
+function skippedStreakDedupeKey(name) {
+  return `scheduled-worker:${name}:skipped-streak`;
+}
+
+function fencedDedupeKey(name) {
+  return `scheduled-worker:${name}:fenced`;
+}
+
+function lockErrorDedupeKey(name) {
+  return `scheduled-worker:${name}:lock-error`;
+}
+
+async function resolveFleetWorkerIncidents(name, dedupeKeys, resolutionNotes) {
+  if (!dedupeKeys.length) return [];
+  // resolveOpenIncidentsByDedupeKeys never throws; a failed resolve is
+  // logged inside incidentStore and the worker run is unaffected.
+  return incidentStore.resolveOpenIncidentsByDedupeKeys(dedupeKeys, resolutionNotes);
+}
+
 function runScheduledWorkerOnce([name, workerFn, intervalMs, options], { log = logger } = {}) {
   // Fleet fence delivery: withFencedJobLock hands its handler the fence,
   // and the runner forwards it inside the worker's options so a fleet
@@ -121,12 +199,133 @@ function runScheduledWorkerOnce([name, workerFn, intervalMs, options], { log = l
   // deduped outbox rows), not the fence. Threading the fence into the
   // next worker means accepting options.fence and routing its writes
   // through fence.db (transactions via fence.fencedTransaction).
-  return withFencedJobLock(`scheduled-worker:${name}`, (fence) => workerFn({ ...options, fence }), lockTtlSeconds(intervalMs))
-    .then((summary) => {
-      if (!summary?.skipped) log.info('Scheduled worker completed', { worker: name, summary });
+  //
+  // throwOnLockError (30(d)): a lock-store failure throws a
+  // JobLockAcquisitionError instead of reading as contention, so the
+  // catch below can log and count it distinctly. The handler never runs
+  // on this path: fail closed.
+  return withFencedJobLock(`scheduled-worker:${name}`, (fence) => workerFn({ ...options, fence }), lockTtlSeconds(intervalMs), { throwOnLockError: true })
+    .then(async (summary) => {
+      const state = getFleetWorkerState(name, intervalMs);
+      state.lastRunAt = new Date().toISOString();
+      // 30(d), non-throwing shape: a lock-acquisition error surfaced as a
+      // summary (e.g. a future caller without throwOnLockError). It is
+      // not contention and must not count toward the skip streak.
+      if (summary?.lockError) {
+        state.lastOutcome = 'lock-error';
+        state.lockErrorIncidentOpen = true;
+        log.error('Scheduled worker lock acquisition failed', {
+          worker: name,
+          error: summary?.error || 'lock store error',
+        });
+        await incidentStore.recordIncident({
+          type: 'scheduled_worker_lock_error',
+          severity: 'critical',
+          message: `Scheduled worker ${name} could not acquire its lock`,
+          dedupeKey: lockErrorDedupeKey(name),
+          details: { worker: name, error: String(summary?.error || 'lock store error').slice(0, 2000) },
+        });
+        return summary;
+      }
+      if (summary?.skipped && summary?.lockSkipped) {
+        // #47: a lock-skipped run used to produce no runner log line at
+        // all. Log it with the streak, and raise one deduped incident
+        // once the streak reaches the threshold; the incident_log upsert
+        // refreshes the same open incident on later ticks instead of
+        // spamming one row per tick. Only lock skips count: a worker
+        // that returns { skipped: true } itself (disabled flag, idle
+        // outbox, already-complete day) ran fine and must not trip the
+        // streak — it falls through to the ran path below.
+        state.lastOutcome = 'skipped';
+        state.consecutiveSkips += 1;
+        state.consecutiveFailures = 0;
+        log.warn?.('Scheduled worker skipped (lock held by another instance)', {
+          worker: name,
+          consecutiveSkips: state.consecutiveSkips,
+          intervalMs,
+        });
+        if (state.consecutiveSkips >= SKIPPED_STREAK_ALERT_THRESHOLD) {
+          state.streakIncidentOpen = true;
+          await incidentStore.recordIncident({
+            type: 'scheduled_worker_skipped_streak',
+            severity: 'warning',
+            message: `Scheduled worker ${name} skipped ${state.consecutiveSkips} consecutive runs; another instance may hold a stale lock`,
+            dedupeKey: skippedStreakDedupeKey(name),
+            details: {
+              worker: name,
+              consecutiveSkips: state.consecutiveSkips,
+              intervalMs,
+            },
+          });
+        }
+        return summary;
+      }
+      // The worker ran. A fenced run is not a success (half its pass was
+      // abandoned; withFencedJobLock already recorded the fenced
+      // incident), and it still breaks a skip streak: the lock was
+      // acquired, so the worker is no longer being skipped.
+      const wasFenced = summary?.fenced === true;
+      state.lastOutcome = wasFenced ? 'fenced' : 'completed';
+      state.consecutiveFailures = 0;
+      if (!wasFenced) state.lastSuccessAt = state.lastRunAt;
+      if (wasFenced) {
+        state.fenceIncidentOpen = true;
+        log.warn?.('Scheduled worker fenced after lease loss', { worker: name });
+      } else {
+        log.info('Scheduled worker completed', { worker: name, summary });
+      }
+      const toResolve = [];
+      if (state.consecutiveSkips > 0) {
+        state.consecutiveSkips = 0;
+        if (state.streakIncidentOpen) {
+          toResolve.push(skippedStreakDedupeKey(name));
+          state.streakIncidentOpen = false;
+        }
+      }
+      if (!wasFenced) {
+        // Recovery: a clean run resolves the fence / lock-error
+        // incidents this process raised. Only the keys we raised are
+        // resolved, so a healthy run costs no incident write.
+        if (state.fenceIncidentOpen) {
+          toResolve.push(fencedDedupeKey(name));
+          state.fenceIncidentOpen = false;
+        }
+        if (state.lockErrorIncidentOpen) {
+          toResolve.push(lockErrorDedupeKey(name));
+          state.lockErrorIncidentOpen = false;
+        }
+      }
+      if (toResolve.length) {
+        await resolveFleetWorkerIncidents(
+          name,
+          toResolve,
+          `Scheduled worker ${name} ran again; the skipped/fenced/lock-error condition cleared.`,
+        );
+      }
       return summary;
     })
-    .catch((err) => {
+    .catch(async (err) => {
+      const state = getFleetWorkerState(name, intervalMs);
+      state.lastRunAt = new Date().toISOString();
+      state.consecutiveSkips = 0;
+      state.consecutiveFailures += 1;
+      // 30(d): a lock-acquisition error is neither contention nor a
+      // worker failure. Log and count it distinctly; the handler never
+      // ran, so there is nothing to retry inside this tick.
+      if (err?.code === 'LOCK_ACQUISITION_ERROR' || err?.name === 'JobLockAcquisitionError') {
+        state.lastOutcome = 'lock-error';
+        state.lockErrorIncidentOpen = true;
+        log.error('Scheduled worker lock acquisition failed', { worker: name, error: err.message });
+        await incidentStore.recordIncident({
+          type: 'scheduled_worker_lock_error',
+          severity: 'critical',
+          message: `Scheduled worker ${name} could not acquire its lock`,
+          dedupeKey: lockErrorDedupeKey(name),
+          details: { worker: name, error: String(err?.message || err).slice(0, 2000) },
+        });
+        return { lockError: true, error: err.message };
+      }
+      state.lastOutcome = 'failed';
       log.error('Scheduled worker failed', { worker: name, error: err.message });
       // Background-jobs audit (finding J1): a failing fleet worker was
       // invisible (one log line, no heartbeat). Record an incident so a
@@ -208,4 +407,13 @@ function startScheduledWorkers({ log = logger, schedule = SCHEDULED_WORKERS } = 
   };
 }
 
-module.exports = { SCHEDULED_WORKERS, startScheduledWorkers, runScheduledWorkerOnce, lockTtlSeconds };
+module.exports = {
+  SCHEDULED_WORKERS,
+  startScheduledWorkers,
+  runScheduledWorkerOnce,
+  lockTtlSeconds,
+  SKIPPED_STREAK_ALERT_THRESHOLD,
+  getFleetWorkerHeartbeat,
+  getFleetWorkerHeartbeats,
+  resetFleetWorkerState,
+};

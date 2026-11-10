@@ -50,6 +50,21 @@ Sentry.init({
   tracesSampleRate,
   profilesSampleRate,
   transport: getLocalCaptureTransport(),
+  // Security review F-05: never attach request bodies, cookies or query
+  // strings (they carry passwords, OTPs, PINs, bank details and tokens).
+  // telemetryPrivacy scrubs whatever else reaches an event.
+  integrations: [
+    Sentry.httpIntegration({ maxIncomingRequestBodySize: 'none' }),
+    Sentry.requestDataIntegration({
+      include: { cookies: false, data: false, headers: true, ip: false, query_string: false, url: true },
+    }),
+  ],
+  beforeBreadcrumb(breadcrumb) {
+    return require('./utils/telemetryPrivacy').scrubBreadcrumb(breadcrumb);
+  },
+  beforeSendTransaction(event) {
+    return require('./utils/telemetryPrivacy').scrubTelemetryEvent(event);
+  },
   beforeSend(event) {
     // Filter Redis "Connection is closed" errors during graceful shutdown.
     // These are expected when the process is tearing down, not real bugs.
@@ -57,6 +72,6 @@ Sentry.init({
     if (typeof msg === 'string' && msg.includes('Connection is closed') && global.__isShuttingDown) {
       return null;
     }
-    return require('./utils/telemetryPrivacy').scrubGrowthTelemetry(event);
+    return require('./utils/telemetryPrivacy').scrubTelemetryEvent(event);
   },
 });

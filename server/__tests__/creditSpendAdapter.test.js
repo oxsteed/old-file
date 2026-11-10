@@ -74,6 +74,31 @@ const baseArgs = {
 };
 
 describe('surface/mode matrix', () => {
+  test('card checkout for a food order debits only under the existing food POS permission', async () => {
+    const client = participantClient();
+    const args = { ...baseArgs, surface: 'card_kiosk_order' };
+    await expect(adapter.spendWithCreditInTransaction(client, args))
+      .rejects.toMatchObject({ code: 'credit_surface_not_allowed' });
+    participantService.resolveParticipant.mockResolvedValue(
+      mockResolvedParticipant({ participant: { allowed_surfaces: ['food_pos'] } }),
+    );
+    const purchase = jest.spyOn(creditService, 'purchaseWithCreditInTransaction').mockResolvedValue({ transaction: { id: 'sale' } });
+    const rail = jest.spyOn(creditService, 'assertCreditRailEnabled').mockResolvedValue(undefined);
+    try {
+      await expect(adapter.spendWithCreditInTransaction(client, args)).resolves.toMatchObject({ mode: 'debit' });
+      expect(purchase).toHaveBeenCalledWith(client, expect.objectContaining({
+        surface: 'food_pos',
+        referenceType: 'food_order',
+        metadata: expect.objectContaining({ creditSpendSurface: 'card_kiosk_order' }),
+      }));
+      await expect(adapter.spendWithCreditInTransaction(client, { ...args, surface: 'card_kiosk' }))
+        .rejects.toMatchObject({ code: 'credit_surface_not_allowed' });
+    } finally {
+      purchase.mockRestore();
+      rail.mockRestore();
+    }
+  });
+
   test('debit surfaces accept debit (explicit)', async () => {
     const client = legacyClient();
     const purchase = { transaction: { id: 'tx-1' }, replayed: false };
@@ -302,49 +327,36 @@ describe('idempotency', () => {
   });
 });
 
-describe('guest spend', () => {
-  test('guest over the cap is rejected', async () => {
-    const client = legacyClient();
-    await expect(
-      adapter.spendWithCreditInTransaction(client, {
-        ...baseArgs,
-        customerId: null,
-        guestSessionId: 'sess-1',
-        amountCents: 6000,
-      })
-    ).rejects.toMatchObject({ code: 'credit_guest_cap_exceeded' });
-  });
-
-  test('guest under the cap proceeds', async () => {
-    const client = legacyClient();
-    const purchase = { transaction: { id: 'tx-5' } };
-    const spy = jest.spyOn(creditService, 'purchaseWithCreditInTransaction').mockResolvedValue(purchase);
-    const guestSpy = jest.spyOn(creditService, 'purchaseWithGuestCreditInTransaction').mockResolvedValue(purchase);
-    const railSpy = jest.spyOn(creditService, 'assertCreditRailEnabled').mockResolvedValue(undefined);
+describe('guest spend (retired by security review F-01)', () => {
+  test.each([
+    ['a fresh client-chosen session id', { guestSessionId: `sess-${Date.now()}`, amountCents: 1000 }],
+    ['a QR-style request id', { guestSessionId: 'qr:1:attacker-key-0001', amountCents: 2500 }],
+    ['no session at all', {}],
+  ])('an anonymous spend with %s never reaches the ledger', async (_label, extra) => {
+    const client = mockClient(async () => { throw new Error('must not query'); });
+    const guestSpy = jest.spyOn(creditService, 'purchaseWithGuestCreditInTransaction');
+    const spy = jest.spyOn(creditService, 'purchaseWithCreditInTransaction');
     try {
-      const result = await adapter.spendWithCreditInTransaction(client, {
-        ...baseArgs,
-        customerId: null,
-        guestSessionId: 'sess-1',
-        amountCents: 1000,
-      });
-      expect(result.mode).toBe('debit');
-      const guestCall = guestSpy.mock.calls[0];
-      const debitCall = spy.mock.calls[0];
-      const callArgs = guestCall ? guestCall[1] : debitCall[1];
-      expect(callArgs.metadata.guestSessionId).toBe('sess-1');
+      await expect(
+        adapter.spendWithCreditInTransaction(client, { ...baseArgs, customerId: null, ...extra })
+      ).rejects.toMatchObject({ code: 'credit_sign_in_required', statusCode: 401 });
+      expect(guestSpy).not.toHaveBeenCalled();
+      expect(spy).not.toHaveBeenCalled();
+      expect(client.query).not.toHaveBeenCalled();
     } finally {
-      spy.mockRestore();
       guestSpy.mockRestore();
-      railSpy.mockRestore();
+      spy.mockRestore();
     }
   });
 
-  test('no customer and no guest session is rejected', async () => {
-    const client = legacyClient();
-    await expect(
-      adapter.spendWithCreditInTransaction(client, { ...baseArgs, customerId: null })
-    ).rejects.toMatchObject({ code: 'credit_spender_required' });
+  test('the platform-funded guest purchase itself fails closed', async () => {
+    await expect(creditService.purchaseWithGuestCreditInTransaction({}, { guestFingerprint: 'fp', amountCents: 100 }))
+      .rejects.toMatchObject({ code: 'credit_sign_in_required' });
+  });
+
+  test('guests are never offered OxSteed Credit at quote time', async () => {
+    await expect(creditService.getGuestCreditEligibility({ restaurantId: 1, amountCents: 100, currencyCode: 'USD' }))
+      .resolves.toMatchObject({ eligible: false, reasonCode: 'credit_sign_in_required' });
   });
 });
 

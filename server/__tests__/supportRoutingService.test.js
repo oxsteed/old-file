@@ -13,8 +13,7 @@ beforeEach(() => {
 
 describe('SupportRoutingService', () => {
   test('fails closed to human routing when AI is not configured', async () => {
-    delete process.env.OPENAI_API_KEY;
-    delete process.env.OPENROUTER_API_KEY;
+    delete process.env.OLLAMA_URL;
 
     const result = await SupportRoutingService.analyzeWithAI('I need help with my account.', 'account');
 

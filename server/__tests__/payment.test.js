@@ -29,7 +29,7 @@ const jwt     = require('jsonwebtoken');
 
 const paymentRoutes = require('../routes/payments');
 
-const TOKEN = jwt.sign({ id: 1, email: 'c@test.com', role: 'customer' }, process.env.JWT_SECRET);
+const TOKEN = jwt.sign({ typ: 'access', sid: 'test-session',  id: 1, email: 'c@test.com', role: 'customer' }, process.env.JWT_SECRET);
 
 const MOCK_AUTH_USER = {
   id: 1, first_name: 'Alice', last_name: 'Smith', email: 'c@test.com',

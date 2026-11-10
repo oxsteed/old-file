@@ -131,6 +131,8 @@ const {
   getGuestCreditEligibility,
 } = require('../services/oxsteedCreditService');
 const { spendWithCreditInTransaction } = require('../services/creditSpendAdapter');
+const creditKiosk = require('../services/creditKioskCheckout');
+const creditCards = require('../services/oxsteedCreditCardService');
 const {
   recordWalletCreditPaymentForOrder,
   recordWalletCreditRefundForOrder,
@@ -574,7 +576,17 @@ function assertFoodOrderIdempotencyMatch(order, fingerprint, clientOrderId) {
   );
 }
 
-function buildFoodOrderIdempotencyLookup({ restaurantId, customerId, clientOrderId }) {
+function buildFoodOrderIdempotencyLookup({ restaurantId, customerId, clientOrderId, kioskCheckout }) {
+  if (kioskCheckout) {
+    // The key already contains the trusted device ID. Scope replays across
+    // customers so the same kiosk attempt cannot charge a different card.
+    return {
+      text: `SELECT * FROM food_orders
+            WHERE restaurant_id = $1 AND metadata->>'clientOrderId' = $2
+            LIMIT 1`,
+      values: [restaurantId, clientOrderId],
+    };
+  }
   if (customerId) {
     return {
       text: `SELECT * FROM food_orders
@@ -1943,7 +1955,9 @@ function promotionAuditSnapshot(promotion) {
 
 function emitRestaurantOrder(businessId, event, payload) {
   try {
-    if (businessId) socketService.broadcastToBusinessInbox(businessId, event, payload);
+    // F-12: orders room (order/kitchen/POS permission); the socket layer
+    // reduces the payload to identifiers, clients refetch over REST.
+    if (businessId) socketService.broadcastToBusinessOrders(businessId, event, payload);
   } catch (_) {
     // Socket delivery is best-effort; API writes are authoritative.
   }
@@ -3258,6 +3272,7 @@ exports.quoteOrder = async (req, res, next) => {
 
 exports.createOrder = async (req, res, next) => {
   try {
+    const kioskCheckout = req.creditKioskCheckout;
     const restaurantId = parsePositiveInt(req.params.restaurantId || req.body.restaurantId || req.body.restaurant_id);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const paymentContract = normalizeFoodPaymentMode(req.body.paymentMode || req.body.payment_mode);
@@ -3268,17 +3283,20 @@ exports.createOrder = async (req, res, next) => {
       if(!Number.isSafeInteger(quotedTotal)||quotedTotal<0)throw new AppError('Invalid quoted total',400,'validation_failed');
       req.screenExpectedTotal=quotedTotal;req.screenExpectedFingerprint=req.body.menuFingerprint;
     }
-    const orderCustomerId=req.screenTicket ? null : req.user?.id;
+    const sessionCustomerId = req.screenTicket ? null : req.user?.id;
     // Legacy/native paired-device orders retain their trusted location too.
     if(req.restaurantDevice&&req.screenLocationId===undefined)req.screenLocationId=req.restaurantDevice.location_id||null;
     const requestedOrderLocationId = storeMenu.pinnedLocation(req.body.locationId ?? req.body.location_id, req.screenLocationId);
-    const isGuest = !orderCustomerId;
-    // Locked decision #1: guest Credit allowed with risk limits (enforced in
-    // the spend adapter). Guests may also pay at the restaurant/counter, or
-    // use restaurant_credit on kiosk orders created as requires_payment for
-    // later POS QR redemption (no wallet is debited at order creation).
+    const isGuest = !sessionCustomerId;
+    // Guests may pay at the restaurant/counter, or use restaurant_credit on
+    // kiosk orders created as requires_payment for later POS QR redemption
+    // (no wallet is debited at order creation). Security review F-01: guest
+    // OxSteed Credit (platform-funded, capped on a client-chosen session id)
+    // is retired; Credit is spent only by a signed-in customer or by the
+    // paired kiosk's card + PIN checkout, which debits the card owner.
     // All other payment modes still require sign-in.
-    const guestAllowedModes = ['oxsteed_credit', 'pay_at_restaurant', 'pay_at_counter', 'restaurant_credit'];
+    const guestAllowedModes = ['pay_at_restaurant', 'pay_at_counter', 'restaurant_credit'];
+    if (kioskCheckout) guestAllowedModes.push('oxsteed_credit');
     if (isGuest && !guestAllowedModes.includes(paymentContract.canonical)) {
       throw new AppError('Sign in to complete your order', 401, 'authentication_required');
     }
@@ -3293,14 +3311,17 @@ exports.createOrder = async (req, res, next) => {
     if (headerClientOrderId && bodyClientOrderId && headerClientOrderId !== bodyClientOrderId) {
       throw new AppError('Idempotency-Key does not match clientOrderId', 400, 'food_order_idempotency_conflict');
     }
-    const clientOrderId = headerClientOrderId || bodyClientOrderId;
+    const clientOrderId = kioskCheckout?.attemptKey || headerClientOrderId || bodyClientOrderId;
     // H12: every food order needs a client-supplied idempotency key, not just
     // stored-value modes. Without it, retried pay_now checkouts can create
     // duplicate orders and duplicate Stripe sessions.
     if (!clientOrderId) {
       throw new AppError('Idempotency-Key is required for food orders', 400, 'food_order_idempotency_required');
     }
-    const idempotencyFingerprint = clientOrderId
+    if (!kioskCheckout && clientOrderId.startsWith(creditKiosk.ORDER_KEY_PREFIX)) {
+      throw new AppError('Invalid order idempotency key', 400, 'food_order_idempotency_conflict');
+    }
+    const requestFingerprint = clientOrderId
       ? buildFoodOrderIdempotencyFingerprint({
         restaurantId,
         paymentMode: paymentContract.canonical,
@@ -3308,7 +3329,18 @@ exports.createOrder = async (req, res, next) => {
       })
       : null;
 
-    const createdOrder = await withTransaction(pool, async (client) => {
+    const createOrderTransaction = () => withTransaction(pool, async (client) => {
+      // A replay is bound to the same card and cart without persisting the
+      // card credential or PIN. New payments verify the PIN under row lock.
+      const cardIdentity = kioskCheckout
+        ? await creditCards.resolveCardIdentityByCredential(client, kioskCheckout.credential)
+        : null;
+      const orderCustomerId = cardIdentity?.customer_id || sessionCustomerId;
+      const idempotencyFingerprint = cardIdentity
+        ? crypto.createHash('sha256').update(JSON.stringify([
+          requestFingerprint, cardIdentity.id, req.screenExpectedTotal, req.screenExpectedFingerprint,
+        ])).digest('hex')
+        : requestFingerprint;
       if(req.screenTicket){
         const {rows:[review]}=await client.query('SELECT * FROM restaurant_screen_tickets WHERE id=$1 AND restaurant_id=$2 FOR UPDATE',[req.screenTicket.id,restaurantId]);
         if(!review || review.status==='dismissed')throw new AppError('Offline ticket is no longer available',409,'screen_ticket_conflict');
@@ -3319,6 +3351,7 @@ exports.createOrder = async (req, res, next) => {
           restaurantId,
           customerId: orderCustomerId,
           clientOrderId,
+          kioskCheckout,
         });
         const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
         if (existingOrders[0]) {
@@ -3384,6 +3417,7 @@ exports.createOrder = async (req, res, next) => {
           restaurantId,
           customerId: orderCustomerId,
           clientOrderId,
+          kioskCheckout,
         });
         const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
         if (existingOrders[0]) {
@@ -3422,6 +3456,9 @@ exports.createOrder = async (req, res, next) => {
       storeMenu.assertLocation(orderLocation, null);
       storeMenu.useStoreDetails(restaurant, orderLocation);
       const orderLocationId = orderLocation ? Number(orderLocation.id) : null;
+      if (kioskCheckout && restaurant.currency_code !== 'USD') {
+        throw new AppError('Kiosk Credit checkout requires USD', 409, 'credit_kiosk_currency_unsupported');
+      }
       const orderTimezone = orderLocation?.timezone || restaurant.timezone;
       const orderOperatingHours = restaurant.operating_hours;
       const stripeStatus = getRestaurantStripeStatus(restaurant);
@@ -4039,6 +4076,8 @@ exports.createOrder = async (req, res, next) => {
           } : {}),
         };
 
+      if (kioskCheckout) metadata.creditKioskDeviceId = String(kioskCheckout.deviceId);
+
       // Short locked critical section (F-18): every network call above
       // (Stripe verification) is complete, so the restaurant row lock is
       // taken only now and held only for database work. It serializes this
@@ -4055,6 +4094,7 @@ exports.createOrder = async (req, res, next) => {
           restaurantId,
           customerId: orderCustomerId,
           clientOrderId,
+          kioskCheckout,
         });
         const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
         if (existingOrders[0]) {
@@ -4071,6 +4111,40 @@ exports.createOrder = async (req, res, next) => {
             trackingToken: existing.metadata?.trackingToken || existing.metadata?.tracking_token || null,
             replayed: true,
           };
+        }
+      }
+      if (cardPaymentIntentId) {
+        // Security review F-13: one succeeded card PaymentIntent pays for
+        // exactly one order. The "already used" probe above runs before this
+        // lock, so N parallel submissions of the same intent all passed it
+        // during the Stripe retrieve window. Re-check under the restaurant
+        // lock (every creator for this restaurant serializes here, and the
+        // intent's destination is this restaurant), lock the intent's own
+        // record, and require that the intent was minted by this checkout
+        // flow for this restaurant and, when it was minted for a signed-in
+        // customer, for this same customer. The partial unique index
+        // uq_food_orders_stripe_payment_intent is the database backstop.
+        const { rows: [intentRecord] } = await client.query(
+          `SELECT id, customer_id
+             FROM food_card_payment_intents
+            WHERE restaurant_id = $1 AND stripe_payment_intent_id = $2
+            ORDER BY id
+            LIMIT 1
+            FOR UPDATE`,
+          [restaurantId, cardPaymentIntentId]
+        );
+        if (!intentRecord) {
+          throw new AppError('The card payment was not started for this restaurant', 402, 'card_payment_not_recognized');
+        }
+        if (intentRecord.customer_id && String(intentRecord.customer_id) !== String(orderCustomerId || '')) {
+          throw new AppError('The card payment belongs to a different customer', 402, 'card_payment_customer_mismatch');
+        }
+        const { rows: lockedUse } = await client.query(
+          `SELECT id FROM food_orders WHERE stripe_payment_intent_id = $1 LIMIT 1`,
+          [cardPaymentIntentId]
+        );
+        if (lockedUse[0]) {
+          throw new AppError('This card payment has already been used for an order', 402, 'card_payment_already_used');
         }
       }
       const queueNumber = await nextQueueNumber(client, restaurantId, orderTimezone, new Date(), orderLocationId);
@@ -4270,15 +4344,18 @@ exports.createOrder = async (req, res, next) => {
             reason: 'zero_total_order',
           });
         } else {
+          const card = kioskCheckout
+            ? await creditCards.resolveCardByCredential(client, kioskCheckout.credential)
+            : null;
+          if (card) await creditCards.verifyCardPin(client, card, kioskCheckout.pin);
           const creditResult = await spendWithCreditInTransaction(client, {
             participantRef: { type: 'restaurant', subjectId: restaurantId },
-            customerId: req.user?.id || null,
-            guestSessionId: !req.user?.id
-              ? (req.body.guestSessionId || req.body.guest_session_id || req.get('X-Guest-Session') || `food-guest:${created.id}`)
-              : null,
+            // F-01: always a real customer (the session user or the
+            // verified card's owner); the adapter refuses anything else.
+            customerId: card?.customer_id || orderCustomerId || null,
             amountCents: total,
             currency: normalizeCurrency(restaurant.currency_code),
-            surface: 'food_online',
+            surface: card ? 'card_kiosk_order' : 'food_online',
             referenceType: 'food_order',
             referenceId: String(created.id),
             idempotencyKey: `food-order:${created.id}:oxsteed-credit`,
@@ -4297,6 +4374,7 @@ exports.createOrder = async (req, res, next) => {
             requestIp: req.ip || null,
             description: `Order #${created.id} · ${fulfillmentType}`,
             metadata: {
+              ...(card ? { cardId: card.id, kioskDeviceId: kioskCheckout.deviceId, redemptionMethod: 'card' } : {}),
               orderId: created.id,
               restaurantId,
               fulfillmentType,
@@ -4305,6 +4383,10 @@ exports.createOrder = async (req, res, next) => {
             },
           });
           const creditTransactionId = creditResult.purchase?.transaction?.id || null;
+          if (card) {
+            if (!creditTransactionId) throw new AppError('Credit receipt unavailable', 503, 'credit_kiosk_receipt_unavailable');
+            await client.query('UPDATE oxsteed_credit_cards SET last_used_at = NOW() WHERE id = $1', [card.id]);
+          }
           // The debit has posted (same transaction): the order is paid,
           // for guests as much as for signed-in customers.
           await client.query(
@@ -4411,6 +4493,9 @@ exports.createOrder = async (req, res, next) => {
         cardPaymentIntentId,
       };
     }, 'food_create_order');
+    const createdOrder = await (kioskCheckout
+      ? creditCards.withPersistentPinFailures(createOrderTransaction, { requestIp: req.ip })
+      : createOrderTransaction());
 
     // Post-commit (F-18): link the order to its card PaymentIntent so
     // payment_intent.* webhooks reconcile even if this response is lost.
@@ -4509,6 +4594,9 @@ exports.createOrder = async (req, res, next) => {
       );
     }
     const statusCode = createdOrder.replayed ? 200 : 201;
+    if (kioskCheckout) {
+      return res.status(statusCode).json({ receipt: creditKiosk.receiptForOrder(order) });
+    }
     res.status(statusCode).json({
       order,
       payment,
@@ -4517,6 +4605,9 @@ exports.createOrder = async (req, res, next) => {
       runnerTask: createdOrder.runnerTask || null,
     });
   } catch (err) {
+    if (err?.code === '23505' && err.constraint === 'uq_food_orders_stripe_payment_intent') {
+      return next(new AppError('This card payment has already been used for an order', 402, 'card_payment_already_used'));
+    }
     next(err);
   }
 };

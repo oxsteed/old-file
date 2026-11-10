@@ -170,6 +170,7 @@ function Appliance({ id, role, device, preview, onForget }) {
         />
       ) : role === "kiosk" ? (
         <FoodKioskPage
+          key={state.scope}
           managed={
             device
               ? {
@@ -180,6 +181,8 @@ function Appliance({ id, role, device, preview, onForget }) {
                   cursor: state.cursor,
                   enabled: state.snapshot?.enabled !== false,
                   acceptingOrders: state.snapshot?.restaurant.acceptingOrders,
+                  creditCheckoutEnabled: state.snapshot?.creditCheckoutEnabled === true
+                    && state.status === "online",
                 }
               : null
           }

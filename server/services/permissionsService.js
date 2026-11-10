@@ -206,11 +206,33 @@ const INVALIDATION_CHANNEL = 'oxsteed:permissions:invalidate';
 let invalidationPublisher = null; // async (businessId, userId) => void
 let invalidationSubscriber = null;
 
+// F-12: a permission or membership change also re-evaluates the user's
+// live socket rooms, so a revoked member or a member whose message/order
+// permission was removed stops receiving business broadcasts immediately.
+// Lazy require: socketService requires this module.
+function refreshRealtimeRooms(businessId, userId) {
+  try {
+    const socketService = require('./socketService');
+    let p = null;
+    if (userId && typeof socketService.refreshUserBusinessRooms === 'function') {
+      p = socketService.refreshUserBusinessRooms(userId);
+    } else if (businessId && typeof socketService.refreshBusinessRooms === 'function') {
+      p = socketService.refreshBusinessRooms(businessId);
+    }
+    if (p && typeof p.catch === 'function') {
+      p.catch((err) => logger.warn('permissionsService: realtime room refresh failed', { message: err.message }));
+    }
+  } catch (err) {
+    logger.warn('permissionsService: realtime room refresh failed', { message: err.message });
+  }
+}
+
 function handleInvalidationMessage(raw) {
   try {
     const msg = JSON.parse(raw);
     if (msg && (msg.businessId || msg.userId)) {
       evictLocal(msg.businessId || null, msg.userId || null);
+      refreshRealtimeRooms(msg.businessId || null, msg.userId || null);
     }
   } catch (_) {
     // A malformed message must never crash the subscriber; ignore it.
@@ -250,6 +272,7 @@ function initInvalidationBus() {
 
 function invalidateCache(businessId, userId) {
   evictLocal(businessId, userId);
+  if (businessId || userId) refreshRealtimeRooms(businessId || null, userId || null);
   initInvalidationBus();
   if (invalidationPublisher) {
     // Fire-and-forget; the publisher swallows its own errors.

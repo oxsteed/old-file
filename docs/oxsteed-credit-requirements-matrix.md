@@ -1261,6 +1261,32 @@ statement operations or the overall Credit goal complete.
 Verification commands and final results are recorded in
 `docs/statement-account-navigation-2026-10-15.md`.
 
+## Managed kiosk Credit checkout pilot
+
+The managed display kiosk can check out a server-priced USD cart using an
+OxSteed Credit card and PIN. The order and debit commit together through the
+existing food-order and Credit ledger transaction. The cardholder owns the
+order, and the purchase is linked to that order for the existing staff refund
+flow. Receipt recovery is read-only and device- and store-scoped. The browser
+stores only a checkout reference, never the card or PIN, and holds the screen
+on an uncertain outcome until a receipt is recovered or staff investigates.
+
+The pilot is off unless `OXSTEED_CREDIT_CHECKOUT_KIOSK_ID` selects one paired
+managed kiosk assigned to a USD store. The normal Credit rail, participant,
+restaurant POS acceptance, agreement, PIN, and balance checks still apply.
+
+Verification used `bash scripts/credit-isolated-env.sh kiosk` in a dedicated
+PostgreSQL/Redis project seeded with synthetic funds. The app used the
+`88cee7dec` ARM64 image with the changed server files mounted read-only. The
+verifier covers wrong-PIN rollback, stale-price rejection, simultaneous
+submission, idempotency conflicts, receipt recovery, device and restaurant
+isolation, and the existing authorized cancellation refund. The Playwright
+screen fixture covers a lost response and receipt recovery after remount.
+
+Next action: run the exact PR artifact through the same isolated verification
+before selecting a hardware pilot. Product barcode lookup, physical scanner
+acceptance, and cash reload are separate work.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been

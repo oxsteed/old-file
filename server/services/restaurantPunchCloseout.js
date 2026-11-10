@@ -60,6 +60,21 @@ const { sendNotification } = require('./notificationService');
 
 const AUTO_CLOSE_CAP_HOURS = 12;
 const STALE_GRACE_MINUTES = 30;
+// Background-jobs audit #48: one run closes at most this many stale
+// entries and flags at most this many missing shifts. A multi-day
+// backlog of forgotten punches must not materialize every open entry
+// into memory and process them one at a time under a single lease;
+// the next hourly run picks up the rest. Both selects are oldest-first
+// with a deterministic id tiebreak, so repeated runs work through a
+// backlog instead of re-processing the same rows forever. That
+// forward progress holds for the stale select because a closed entry
+// leaves the open set (clock_out_at IS NULL). It does NOT hold for the
+// missing-punch select: notifying leaves no trace on the shift row
+// (the dedupe lives on the notification delivery_key), so on a day
+// with more than 500 missing shifts the same oldest 500 recur and
+// shifts beyond the cap are never flagged that day (see the note on
+// the missing-punch query).
+const CLOSEOUT_BATCH_LIMIT = 500;
 
 async function findManagers(db, businessId) {
   const { rows } = await db.query(
@@ -276,7 +291,12 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
   // yesterday, closes at that shift's end instead of the 12-hour
   // cap. Only when no shift exists at all does the JS fallback below
   // apply the cap. Cancelled shifts never close a punch
-  // (cancelled_at IS NULL on both subqueries).
+  // (cancelled_at IS NULL on both subqueries). The select is capped
+  // at CLOSEOUT_BATCH_LIMIT rows, oldest first with an id tiebreak
+  // (#48): repeated runs close the next-oldest batch, because a
+  // closed entry leaves the open set. No lower date bound: an old
+  // forgotten punch is still a real punch that needs closing, and the
+  // cap (not a date cutoff) is what bounds the run.
   const { rows: open } = await handle.query(
     `SELECT te.*,
             COALESCE(l.timezone, b.timezone, 'UTC') AS tz,
@@ -322,8 +342,9 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
         AND te.voided_at IS NULL
         AND ($1::int IS NULL OR te.business_id = $1)
         AND te.clock_in_at <= $2::timestamptz
-      ORDER BY te.clock_in_at ASC`,
-    [businessId, graceCutoff.toISOString()]
+      ORDER BY te.clock_in_at ASC, te.id ASC
+      LIMIT $3`,
+    [businessId, graceCutoff.toISOString(), CLOSEOUT_BATCH_LIMIT]
   );
 
   const closed = [];
@@ -437,6 +458,16 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
   // Cancelled shifts are never flagged. This is best-effort like the
   // close notifications: a failure here is recorded, never allowed
   // to fail the closeout above.
+  // Background-jobs audit #48: the select is capped at
+  // CLOSEOUT_BATCH_LIMIT rows, deterministically ordered, like the
+  // stale-entries select. Unlike that select, notifying a shift does
+  // NOT remove it from this result set (the shift row is unchanged;
+  // only the notification delivery_key dedupes the send), so on a day
+  // with more than 500 missing shifts the same oldest 500 recur every
+  // run and shifts beyond the cap are never flagged that day. The cap
+  // still bounds the run; making the select skip already-notified
+  // shifts (e.g. a NOT EXISTS on the notifications delivery_key) is
+  // a follow-up, not part of this fix.
   const missing = [];
   let missingNotified = 0;
   let missingNotifyErrors = 0;
@@ -462,8 +493,9 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
                AND te.location_id IS NOT DISTINCT FROM sh.location_id
                AND te.voided_at IS NULL
           )
-        ORDER BY sh.business_id, sh.shift_date, sh.start_time`,
-      [businessId, new Date(now).toISOString()]
+        ORDER BY sh.business_id, sh.shift_date, sh.start_time, sh.id ASC
+        LIMIT $3`,
+      [businessId, new Date(now).toISOString(), CLOSEOUT_BATCH_LIMIT]
     );
     for (const shift of unpunched) {
       const missingPunch = {
@@ -493,4 +525,4 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
   return { closed, notified, notifyErrors, missing, missingNotified, missingNotifyErrors, errors };
 }
 
-module.exports = { closeStalePunches, notifyCloseoutFailure, AUTO_CLOSE_CAP_HOURS, STALE_GRACE_MINUTES };
+module.exports = { closeStalePunches, notifyCloseoutFailure, AUTO_CLOSE_CAP_HOURS, STALE_GRACE_MINUTES, CLOSEOUT_BATCH_LIMIT };

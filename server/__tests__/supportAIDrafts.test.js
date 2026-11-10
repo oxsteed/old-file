@@ -56,15 +56,15 @@ function authUserRow() {
 
 beforeEach(() => {
   resetMocks();
-  process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
+  process.env.OLLAMA_URL = 'http://localhost:11434';
   global.fetch = jest.fn().mockResolvedValue({
     ok: true,
-    json: async () => ({ choices: [{ message: { content: 'Thanks for reaching out. We are checking this for you.' } }] }),
+    json: async () => ({ message: { content: 'Thanks for reaching out. We are checking this for you.' } }),
   });
 });
 
 afterEach(() => {
-  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.OLLAMA_URL;
   delete global.fetch;
 });
 
@@ -160,7 +160,7 @@ describe('approval-gated support AI drafts', () => {
   });
 
   test('fails closed when the AI provider is not configured', async () => {
-    delete process.env.OPENROUTER_API_KEY;
+    delete process.env.OLLAMA_URL;
     mockQuery
       .mockResolvedValueOnce({ rows: [authUserRow()] })
       .mockResolvedValueOnce({ rows: [{ id: CONVERSATION_ID, business_id: BUSINESS_ID, status: 'open' }] });

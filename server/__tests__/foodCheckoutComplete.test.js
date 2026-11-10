@@ -18,7 +18,7 @@ const stripe = require('stripe');
 
 const OWNER_ID = '00000000-0000-4000-8000-0000000000a1';
 const OTHER_ID = '00000000-0000-4000-8000-0000000000b2';
-const TOKEN_OWNER = jwt.sign({ id: OWNER_ID, email: 'owner@test.com', role: 'customer' }, process.env.JWT_SECRET);
+const TOKEN_OWNER = jwt.sign({ typ: 'access', sid: 'test-session',  id: OWNER_ID, email: 'owner@test.com', role: 'customer' }, process.env.JWT_SECRET);
 
 function buildApp() {
   const app = express();
@@ -82,7 +82,7 @@ describe('GET /orders/:orderId/checkout/complete (ITEM 23)', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: OTHER_ID, email: 'other@test.com', role: 'customer', is_active: true }] }) // optionalAuth lookup
       .mockResolvedValueOnce({ rows: [orderRow({ customer_id: OWNER_ID })] }); // order lookup
-    const otherToken = jwt.sign({ id: OTHER_ID, email: 'other@test.com', role: 'customer' }, process.env.JWT_SECRET);
+    const otherToken = jwt.sign({ typ: 'access', sid: 'test-session',  id: OTHER_ID, email: 'other@test.com', role: 'customer' }, process.env.JWT_SECRET);
 
     const res = await request(buildApp())
       .get('/api/food/orders/42/checkout/complete?session_id=cs_test_def')

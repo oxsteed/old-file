@@ -1446,6 +1446,18 @@
     }
   },
   "screens": {
+    "creditPay": "Pay with OxSteed Credit",
+    "creditScanCard": "Scan your Credit card",
+    "creditPin": "Card PIN",
+    "creditReceipt": "Credit receipt",
+    "creditChecking": "Checking Credit payment",
+    "creditPaid": "Payment confirmed",
+    "creditPaymentChanged": "Payment status has changed. Ask staff for help.",
+    "creditOrderReference": "Reference {{id}}",
+    "creditCheckReceipt": "Check receipt",
+    "creditReceiptPending": "The result is uncertain. Check the receipt before paying again. If it stays unavailable, show the reference to staff.",
+    "creditDeclined": "Credit payment was declined. Check your card and PIN or choose another payment method.",
+    "creditStorageUnavailable": "This kiosk could not save a recovery reference. Credit payment was not started.",
     "dataFreshness": "Data freshness",
     "fresh": "Caught up",
     "catchingUp": "Catch-up required",
@@ -2110,12 +2122,12 @@
         }
       },
       "ai": {
-        "name": "AI (Meta, OpenRouter, Ollama)",
-        "description": "Support chat and background AI over a fallback chain: Meta first for signed-in traffic, then OpenRouter free tier, then local Ollama.",
-        "customerSafeSummary": "When all AI providers are down, chat shows a service-unavailable message and offers human support. Anonymous traffic never spends paid tokens.",
-        "retryNote": "Fallback chain is Meta first for signed-in traffic, then OpenRouter free tier, then local Ollama. Anonymous traffic never spends Meta tokens.",
-        "budgetNote": "Meta contributor tier has lower rate limits; OpenRouter free tier and local Ollama cost nothing. No per-request budget is enforced in code.",
-        "rotationProcedure": "Rotate META_AI_API_KEY in the Meta console and OPENROUTER_API_KEY in OpenRouter; update Coolify secrets; verify support chat.",
+        "name": "AI (self-hosted Ollama)",
+        "description": "Support chat, triage, drafts and translation run on OxSteed's self-hosted Ollama server. No external AI provider is used.",
+        "customerSafeSummary": "When the AI server is down, chat shows a service-unavailable message and offers human support.",
+        "retryNote": "One provider only: the self-hosted Ollama server. Failed calls are retried, then the feature falls back to human support or manual entry.",
+        "budgetNote": "Self-hosted: no per-token cost. Capacity is limited by the Ollama server hardware.",
+        "rotationProcedure": "No API keys to rotate. Keep OLLAMA_URL on an allow-listed internal host and change the model with OLLAMA_MODEL; then verify support chat.",
         "capabilities": {
           "support_chat": {
             "label": "Support chat",
@@ -4405,7 +4417,15 @@
       "deleteAccount": "Delete Account",
       "confirmTitle": "Delete Your Account",
       "confirmDesc": "This action cannot be undone. All your data will be permanently deleted.",
-      "yesDelete": "Yes, Delete My Account"
+      "yesDelete": "Yes, Delete My Account",
+      "currentPasswordLabel": "Current password",
+      "totpCodeLabel": "Authenticator code",
+      "totpCodeHint": "Only needed if two-factor authentication is on.",
+      "reauthPasswordRequired": "Enter your current password to confirm.",
+      "reauthTotpRequired": "Enter the code from your authenticator app to confirm.",
+      "reauthInvalid": "Your password or verification code is incorrect.",
+      "reauthUnavailable": "Your account has no password yet. Use \"Forgot password\" to set one, then try again.",
+      "impersonationBlocked": "Account deletion is not available while a support agent is viewing your account."
     },
     "preferencesTab": "Preferences",
     "tabPaymentPolicies": "Payment Policies",
@@ -10777,6 +10797,10 @@
       "masters": {
         "label": "Master Switches",
         "description": "Turn an entire channel on or off. These override the individual toggles below."
+      },
+      "restaurant": {
+        "label": "Restaurant Alerts",
+        "description": "Timekeeping, temperature, and scheduled report alerts for restaurants you manage."
       }
     },
     "prefs": {
@@ -10791,6 +10815,10 @@
       "in_app_subscription": "Subscription updates",
       "in_app_new_message": "New chat messages",
       "in_app_message_mention": "When I'm mentioned in chat",
+      "in_app_staff_time_entry_system_closed": "Forgotten punches closed automatically",
+      "in_app_staff_time_entry_missing_punch": "Missing punches for scheduled shifts",
+      "in_app_restaurant_temperature_breach": "Temperature breach alerts",
+      "in_app_restaurant_scheduled_report": "Scheduled restaurant reports",
       "push_new_job_nearby": "New jobs near me",
       "push_new_bid": "New bid on my job",
       "push_bid_accepted": "My bid was accepted",

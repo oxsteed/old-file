@@ -668,19 +668,50 @@ router.get('/pay/:code/receipt', generalLimiter, async (req, res, next) => {
  *
  * The QR merchant (code owner) must be an enrolled Credit participant
  * (type=qr_merchant). Uses the shared spend adapter (surface=qr,
- * mode=debit). Supports authenticated users and guests (guest cap applies).
+ * mode=debit). Signed-in customers only (security review F-01); the code
+ * owner and their business members can never pay their own code.
  */
+// Security review F-01: a QR merchant (the code owner, or an active member
+// of a business the owner runs) must never pay their own code with Credit.
+// Self-payment turns the payer's stored value into the merchant's payable,
+// which can then be cashed out in a loop.
+async function isQrSelfPayment(payerId, ownerUserId) {
+  if (String(payerId) === String(ownerUserId)) return true;
+  const { rows } = await pool.query(
+    `SELECT 1
+       FROM business_members bm
+       JOIN businesses b ON b.id = bm.business_id
+      WHERE b.user_id = $1 AND bm.member_id = $2 AND bm.status = 'active'
+      LIMIT 1`,
+    [ownerUserId, payerId]
+  );
+  return rows.length > 0;
+}
+
 async function payQrWithCredit(req, res, next, code, { amountCents, payerEmail, clientRequestId }) {
   try {
     const { spendWithCredit } = require('../services/creditSpendAdapter');
-    // QR checkout is public; req.user is set only when the caller is signed
-    // in (no auth middleware on this route, so guests have req.user undefined).
+    // Security review F-01/F-02: Credit is spent only by a signed-in
+    // customer whose session passed the full optional-auth checks
+    // (parseAuthIdentity sets req.user only for a live, active, unrestricted
+    // session). Guests pay by card; there is no platform-funded guest spend.
     const customerId = req.user?.id || null;
+    if (!customerId) {
+      return res.status(401).json({
+        error: 'Sign in to pay with OxSteed Credit.',
+        code: 'credit_sign_in_required',
+      });
+    }
+    if (await isQrSelfPayment(customerId, code.owner_user_id)) {
+      return res.status(403).json({
+        error: 'You cannot pay your own payment code with OxSteed Credit.',
+        code: 'credit_self_payment_blocked',
+      });
+    }
 
     const result = await spendWithCredit({
       participantRef: { type: 'qr_merchant', subjectId: String(code.owner_user_id) },
       customerId,
-      guestSessionId: customerId ? null : `qr:${code.id}:${clientRequestId}`,
       amountCents,
       currency: code.currency || 'USD',
       surface: 'qr',
@@ -689,6 +720,7 @@ async function payQrWithCredit(req, res, next, code, { amountCents, payerEmail, 
       referenceId: `${code.id}:${clientRequestId}`,
       idempotencyKey: `qr-credit:${code.id}:${clientRequestId}`,
       isImpersonated: Boolean(req.isImpersonated),
+      requestIp: req.ip || null,
       metadata: { qrCode: code.code, label: code.label, payerEmail: payerEmail || null },
     });
 

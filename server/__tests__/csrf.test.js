@@ -23,12 +23,12 @@ function buildApp() {
 }
 
 function accessCookie(userId = 7) {
-  const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, { algorithm: 'HS256' });
+  const token = jwt.sign({ typ: 'access', sid: 'test-session',  id: userId }, process.env.JWT_SECRET, { algorithm: 'HS256' });
   return `oxsteed_access=${token}`;
 }
 
 function bearerToken(userId = 7) {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET, { algorithm: 'HS256' });
+  return jwt.sign({ typ: 'access', sid: 'test-session',  id: userId }, process.env.JWT_SECRET, { algorithm: 'HS256' });
 }
 
 // validateCsrfToken skips entirely when NODE_ENV === 'test', so run these
@@ -102,7 +102,7 @@ describe('CSRF boundary for cookie sessions', () => {
 
   test('POST with a cookie and an impersonation Bearer stays exempt', async () => {
     const impersonation = jwt.sign(
-      { id: 8, impersonation: true },
+      { typ: 'access', id: 8, impersonation: true, impersonated_by: 1, jti: 'imp-jti' },
       process.env.JWT_SECRET,
       { algorithm: 'HS256' },
     );

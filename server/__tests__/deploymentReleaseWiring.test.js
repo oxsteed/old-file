@@ -377,7 +377,8 @@ describe('deployment release identity wiring', () => {
     const workflow = fs.readFileSync(workflowPath, 'utf8');
 
     expect(workflow).toContain('branches: [old-files-claude]');
-    expect(workflow).toContain('uses: actions/checkout@v7');
+    // F-11: actions are pinned by commit SHA (v7.0.1).
+    expect(workflow).toMatch(/uses: actions\/checkout@[0-9a-f]{40} # v7\./);
     expect(workflow).toContain('run: node --test scripts/deploy-coolify.test.cjs');
     expect(workflow).not.toContain('run: node scripts/deploy-coolify.cjs --deploy');
     expect(workflow).not.toContain('COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}');

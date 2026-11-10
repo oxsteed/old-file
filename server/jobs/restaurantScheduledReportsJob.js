@@ -24,7 +24,10 @@ async function runRestaurantScheduledReportsJob(db = pool, options = {}) {
     // Background-jobs audit #43: the run goes through the fence's
     // handle, not the raw pool, so a worker that lost its lease cannot
     // keep building and marking deliveries.
-    result = { locked: true, ...(await runDueScheduledReports(fence.db, options)) };
+    // Background-jobs audit #50: the fence itself is passed through
+    // (not just fence.db) so the service re-asserts the lease before
+    // each schedule's build instead of once per run.
+    result = { locked: true, ...(await runDueScheduledReports(fence.db, { ...options, fence })) };
   }, 900, { throwOnError: true });
   logger.info('Restaurant scheduled reports run finished', result);
   return result;

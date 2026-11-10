@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const logger = require('./logger');
+const { safeKeyExtension } = require('./storageContentSafety');
 
 const BUCKET = process.env.AWS_S3_BUCKET || process.env.S3_BUCKET || 'oxsteed-uploads';
 const REGION = process.env.AWS_REGION || 'us-east-1';
@@ -62,14 +63,17 @@ if (ACCESS_KEY_ID && SECRET_ACCESS_KEY) {
   });
 }
 
-function generateKey(folder, originalName) {
+function generateKey(folder, originalName, buffer = null) {
   // Audit L11: normalize the folder so a caller-supplied path segment
   // (e.g. draftId) cannot smuggle ".." into the stored key. normalizeKey
   // rejects escapes; containment under the storage root is enforced by
   // localFilePath on the local backend.
   const safeFolder = normalizeKey(folder);
   if (!safeFolder) throw new Error('Invalid storage folder');
-  const ext = path.extname(originalName);
+  // Security review F-03: the extension comes from the detected type (or a
+  // benign document allow-list), never straight from the uploader's name,
+  // so a key can never end in .html/.js/.svg.
+  const ext = safeKeyExtension(originalName, buffer);
   const hash = crypto.randomBytes(16).toString('hex');
   return `${safeFolder}/${hash}${ext}`;
 }
@@ -188,7 +192,7 @@ async function uploadFile(arg1, arg2, arg3, arg4) {
     originalName = String(arg3 || 'file');
     contentType = arg4;
     buffer = arg1;
-    key = generateKey(folder, originalName);
+    key = generateKey(folder, originalName, buffer);
   } else if (typeof arg1 === 'string' && Buffer.isBuffer(arg2)) {
     key = normalizeKey(arg1);
     buffer = arg2;

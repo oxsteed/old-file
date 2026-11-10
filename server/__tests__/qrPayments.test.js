@@ -21,9 +21,12 @@ const qrPaymentsRoutes = require('../routes/qrPayments');
 const { notifyQrPayee } = require('../services/qrPaymentNotifications');
 const webhookController = require('../controllers/webhookController');
 
-function buildApp() {
+function buildApp({ user = null } = {}) {
   const app = express();
   app.use(express.json());
+  // Stands in for parseAuthIdentity, which sets req.user only for a fully
+  // verified session (security review F-02).
+  if (user) app.use((req, _res, next) => { req.user = user; next(); });
   app.use('/api/qr-payments', qrPaymentsRoutes);
   app.use((err, _req, res, _next) => res.status(err.status || 500).json({ error: err.message }));
   return app;
@@ -512,11 +515,14 @@ describe('Credit payment recording (P1-303)', () => {
   });
   afterEach(() => { delete process.env.QR_CREDIT_ENABLED; spy.mockRestore(); });
 
+  const PAYER = { id: 'payer-1' };
+
   test('a fresh credit payment is recorded and notifies the payee', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // not a member of the owner's business
       .mockResolvedValueOnce({ rows: [{ id: 'qp-9', qr_code_id: 'qr-code-1', amount_cents: 2500 }], rowCount: 1 });
-    const res = await request(buildApp())
+    const res = await request(buildApp({ user: PAYER }))
       .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
       .set('Idempotency-Key', 'qr-credit-fresh-1')
       .send({ payment_method: 'credit' });
@@ -529,13 +535,68 @@ describe('Credit payment recording (P1-303)', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
       .mockResolvedValueOnce({ rows: [{ status: 'pending', payment_method: 'card' }] });
-    const res = await request(buildApp())
+    const res = await request(buildApp({ user: PAYER }))
       .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
       .set('Idempotency-Key', 'qr-credit-replay-1')
       .send({ payment_method: 'credit' });
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('idempotency_key_conflict');
     expect(notifyQrPayee).not.toHaveBeenCalled();
+  });
+
+  // Security review F-01 (Critical) regression: unauthenticated QR Credit
+  // spend was platform-funded with the cap keyed on the caller's
+  // Idempotency-Key, and owners could pay their own code in a loop.
+  test('an anonymous caller cannot pay with Credit, whatever request id it picks', async () => {
+    for (const key of ['attacker-key-0001', 'attacker-key-0002', 'attacker-key-0003']) {
+      mockQuery.mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 });
+      const res = await request(buildApp())
+        .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+        .set('Idempotency-Key', key)
+        .send({ payment_method: 'credit' });
+      expect(res.status).toBe(401);
+      expect(res.body.code).toBe('credit_sign_in_required');
+    }
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  test('the code owner cannot pay their own code with Credit', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 });
+    const res = await request(buildApp({ user: { id: 'owner-1' } }))
+      .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'self-pay-key-0001')
+      .send({ payment_method: 'credit' });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('credit_self_payment_blocked');
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  test("a member of the owner's business cannot pay the owner's code with Credit", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ '?column?': 1 }], rowCount: 1 });
+    const res = await request(buildApp({ user: { id: 'staff-1' } }))
+      .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'self-pay-key-0002')
+      .send({ payment_method: 'credit' });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('credit_self_payment_blocked');
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  test('a signed-in payer spends from their own account (customerId bound, no guest session)', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ id: 'qp-10', qr_code_id: 'qr-code-1', amount_cents: 2500 }], rowCount: 1 });
+    await request(buildApp({ user: PAYER }))
+      .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-credit-own-1')
+      .send({ payment_method: 'credit' })
+      .expect(200);
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'payer-1' }));
+    expect(spy.mock.calls[0][0]).not.toHaveProperty('guestSessionId');
   });
 });

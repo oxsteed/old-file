@@ -101,7 +101,10 @@ describe('Item 14: scheduled-report claim / retry', () => {
     expect(sqls.filter((s) => s.includes('INSERT INTO restaurant_scheduled_report_deliveries'))).toHaveLength(1);
     // last_business_date advances only on success: the failed date
     // stays due.
-    expect(sqls.join('\n')).not.toContain('last_business_date');
+    // Only an UPDATE may advance it; the due SELECT reads it since
+    // #50 (due predicate in SQL), so scope the check to UPDATEs.
+    const updates = sqls.filter((s) => s.trimStart().startsWith('UPDATE'));
+    expect(updates.join('\n')).not.toContain('last_business_date');
   });
 
   test('a failed date is retried on the next run while a sent date is never re-sent', async () => {
@@ -172,7 +175,10 @@ describe('Background-jobs audit #41: {success:false} sends are failed deliveries
     expect(sqls.join('\n')).not.toContain("status = 'sent'");
     // last_business_date advances only on success: the failed date
     // stays due and is retried on the next run.
-    expect(sqls.join('\n')).not.toContain('last_business_date');
+    // Only an UPDATE may advance it; the due SELECT reads it since
+    // #50 (due predicate in SQL), so scope the check to UPDATEs.
+    const updates = sqls.filter((s) => s.trimStart().startsWith('UPDATE'));
+    expect(updates.join('\n')).not.toContain('last_business_date');
   });
 
   test('a partial failure counts only the delivered recipients and records them on the failed row', async () => {
@@ -194,7 +200,10 @@ describe('Background-jobs audit #41: {success:false} sends are failed deliveries
     expect(failureCall[1][2]).toBe(1);
     const sqls = mockQuery.mock.calls.map(([sql]) => String(sql));
     expect(sqls.join('\n')).not.toContain("status = 'sent'");
-    expect(sqls.join('\n')).not.toContain('last_business_date');
+    // last_business_date advances only on success; only an UPDATE may
+    // advance it, and the due SELECT reads it since #50.
+    const updates = sqls.filter((s) => s.trimStart().startsWith('UPDATE'));
+    expect(updates.join('\n')).not.toContain('last_business_date');
   });
 
   test('an email send returning {success:false} fails the delivery the same way', async () => {

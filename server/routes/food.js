@@ -5,7 +5,7 @@ const router = express.Router();
 // F-20: merchant writes on a restaurant (menu, tax, promotions, stores) are audited.
 router.use(require('../middleware/restaurantRequestAudit').foodMerchantRequestAudit);
 const { requireRestaurantAccess, scopeExempt } = require('../middleware/scopeGates');
-const { authenticate, optionalAuth } = require('../middleware/auth');
+const { authenticate, optionalAuth, authenticateIfPresent } = require('../middleware/auth');
 const ctrl = require('../controllers/foodController');
 const walletCtrl = require('../controllers/foodWalletController');
 const disputeCtrl = require('../controllers/foodCreditDisputeController');
@@ -230,7 +230,7 @@ router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', 
 // admin checkout restrictions like the other payment-intent routes.
 router.post('/card-payment/intent', authenticate, checkRestrictions('checkout'), paymentsLimiter, ctrl.createCardPaymentIntent);
 router.get('/payment-methods', authenticate, ctrl.listSavedPaymentMethods);
-router.post('/restaurants/:restaurantId/orders', optionalAuth, creditPurchaseLimiter, scopeExempt('public-storefront'), ctrl.createOrder);
+router.post('/restaurants/:restaurantId/orders', authenticateIfPresent, creditPurchaseLimiter, scopeExempt('public-storefront'), ctrl.createOrder);
 
 // Merchant order operations (kitchen feed, status flow, in-store payment).
 router.get('/restaurants/:restaurantId/orders', authenticate, requireRestaurantAccess(), ctrl.listRestaurantOrders);

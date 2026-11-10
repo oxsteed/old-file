@@ -1,45 +1,31 @@
 /**
- * Speech-to-text transcription via OpenRouter.
+ * Server-side speech-to-text fallback.
  *
- * ⚠️  STATUS: Template for future enhancement
- * This module is not yet integrated into the speech-to-text flow.
- * The current implementation uses browser Web Speech API (free, fast, works now).
+ * STATUS: not available. The client uses the browser Web Speech API.
  *
- * PLANNED: Replace with a proper audio transcription service (Whisper, AssemblyAI, etc.)
- * when OpenRouter adds audio transcription support via a dedicated endpoint.
- *
- * This file is preserved as a reference implementation for when audio transcription
- * backend support is added.
+ * Security review 2026-11-10 F-04: voice notes are personal data, so a
+ * server-side transcriber must run on OxSteed's own infrastructure (for
+ * example a self-hosted Whisper model next to the Ollama server). Sending
+ * audio to an external transcription or AI API is not allowed, so there is
+ * deliberately no provider key here.
  */
 
 const logger = require('./logger');
-
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
+const { AppError } = require('../middleware/errorHandler');
 
 /**
- * TODO: Implement audio transcription using a proper service.
- *
- * This is a placeholder for future enhancement. Currently:
- * 1. Web Speech API handles transcription in the browser
- * 2. Desktop fallback can be added via Whisper API / AssemblyAI / similar
- *
  * @param {Buffer} audioBuffer - Audio data
  * @param {string} languageHint - Language code hint (en, es, fr, ht, etc)
  * @returns {Promise<{ transcript: string, confidence: number, language: string }>}
- *
- * @throws {Error} Not yet implemented
+ * @throws {AppError} 501 transcription_unavailable until a self-hosted
+ *   transcriber is deployed.
  */
 async function transcribeAudio(audioBuffer, languageHint = 'en') {
-  logger.warn('transcribeAudio called but not yet implemented', {
+  logger.warn('transcribeAudio called but no self-hosted transcriber is deployed', {
     audioSize: audioBuffer?.length,
     language: languageHint,
   });
-
-  throw new Error(
-    'Audio transcription fallback is not yet implemented. ' +
-    'Current implementation uses Web Speech API in the browser. ' +
-    'To add backend transcription, integrate with Whisper API or AssemblyAI.'
-  );
+  throw new AppError('Server-side transcription is not available. Use voice input in your browser.', 501, 'transcription_unavailable');
 }
 
 module.exports = { transcribeAudio };

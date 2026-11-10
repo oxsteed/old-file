@@ -475,6 +475,14 @@ export default function SettingsPage() {
   const [deleteError, setDeleteError] = useState('');
   const [deleteActiveJobs, setDeleteActiveJobs] = useState([]);
   const [deletePending, setDeletePending] = useState(false);
+  // Security review F-08: deletion needs the current password (and the
+  // authenticator code when 2FA is on), not just a live session.
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteTotpCode, setDeleteTotpCode] = useState('');
+  const resetDeleteForm = () => {
+    setDeleteConfirmText(''); setDeleteError(''); setDeleteActiveJobs([]);
+    setDeletePassword(''); setDeleteTotpCode('');
+  };
 
   const deleteAccount = async () => {
     if (deleteConfirmText !== 'DELETE MY ACCOUNT') {
@@ -486,7 +494,11 @@ export default function SettingsPage() {
     setDeletePending(true);
     try {
       await api.delete('/privacy/delete-account', {
-        data: { confirmation: 'DELETE MY ACCOUNT' },
+        data: {
+          confirmation: 'DELETE MY ACCOUNT',
+          currentPassword: deletePassword,
+          ...(deleteTotpCode.trim() ? { totpCode: deleteTotpCode.trim() } : {}),
+        },
       });
       toast.success(t('settings.accountDeleted'));
       logout();
@@ -500,6 +512,16 @@ export default function SettingsPage() {
         setDeleteError(t('settings.accountDeleteHasBalance'));
       } else if (serverErr?.code === 'subscription_cancel_failed') {
         setDeleteError(t('settings.accountDeleteSubscriptionRetry'));
+      } else if (serverErr?.code === 'reauth_password_required') {
+        setDeleteError(t('settings.danger.reauthPasswordRequired'));
+      } else if (serverErr?.code === 'reauth_totp_required') {
+        setDeleteError(t('settings.danger.reauthTotpRequired'));
+      } else if (serverErr?.code === 'reauth_invalid') {
+        setDeleteError(t('settings.danger.reauthInvalid'));
+      } else if (serverErr?.code === 'reauth_unavailable') {
+        setDeleteError(t('settings.danger.reauthUnavailable'));
+      } else if (serverErr?.code === 'impersonation_blocked') {
+        setDeleteError(t('settings.danger.impersonationBlocked'));
       } else {
         setDeleteError(serverErr?.error || t('settings.accountDeleteFailed'));
       }
@@ -1344,7 +1366,7 @@ export default function SettingsPage() {
       <p className="sp-card-subtitle">{t('settings.danger.subtitle')}</p>
 
       {!showDelete ? (
-        <button onClick={() => { setShowDelete(true); setDeleteConfirmText(''); setDeleteError(''); setDeleteActiveJobs([]); }} className="sp-btn sp-btn-danger" data-track="ui.9d994c4cb4.30">
+        <button onClick={() => { setShowDelete(true); resetDeleteForm(); }} className="sp-btn sp-btn-danger" data-track="ui.9d994c4cb4.30">
           {t('settings.danger.deleteAccount')}
         </button>
       ) : (
@@ -1395,6 +1417,41 @@ export default function SettingsPage() {
             />
           </div>
 
+          {/* Re-authentication (security review F-08) */}
+          <div className="mb-4">
+            <label className="sp-label" htmlFor="delete-account-password">
+              {t('settings.danger.currentPasswordLabel')}
+            </label>
+            <input
+              id="delete-account-password"
+              className="sp-input"
+              type="password"
+              dir="auto"
+              value={deletePassword}
+              onChange={e => { setDeletePassword(e.target.value); setDeleteError(''); }}
+              autoComplete="current-password"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="sp-label" htmlFor="delete-account-totp">
+              {t('settings.danger.totpCodeLabel')}
+            </label>
+            <input
+              id="delete-account-totp"
+              className="sp-input"
+              inputMode="numeric"
+              dir="ltr"
+              maxLength={10}
+              value={deleteTotpCode}
+              onChange={e => { setDeleteTotpCode(e.target.value); setDeleteError(''); }}
+              autoComplete="one-time-code"
+              aria-describedby="delete-account-totp-hint"
+            />
+            <p id="delete-account-totp-hint" className="text-xs mt-1 opacity-75">
+              {t('settings.danger.totpCodeHint')}
+            </p>
+          </div>
+
           <div className="flex gap-3">
             <button
               onClick={deleteAccount}
@@ -1405,7 +1462,7 @@ export default function SettingsPage() {
               {deletePending ? 'Deleting…' : t('settings.danger.yesDelete')}
             </button>
             <button
-              onClick={() => { setShowDelete(false); setDeleteConfirmText(''); setDeleteError(''); setDeleteActiveJobs([]); }}
+              onClick={() => { setShowDelete(false); resetDeleteForm(); }}
               className="sp-btn sp-btn-ghost" data-track="ui.9d994c4cb4.32"
             >
               {t('common.cancel')}

@@ -76,7 +76,7 @@ beforeEach(() => {
 describe('didit duplicate API gate', () => {
   test("duplicate status returns DIDIT_DUPLICATE_IDENTITY with locale keys and recovery steps", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [userRow()] });
-    const token = jwt.sign({ id: 7 }, process.env.JWT_SECRET, { algorithm: 'HS256' });
+    const token = jwt.sign({ typ: 'access', sid: 'test-session',  id: 7 }, process.env.JWT_SECRET, { algorithm: 'HS256' });
 
     const res = await request(buildApp())
       .get('/protected')
@@ -98,7 +98,7 @@ describe('didit duplicate API gate', () => {
 
   test('non-duplicate unverified status keeps the generic DIDIT_REQUIRED body', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [userRow({ didit_status: 'pending' })] });
-    const token = jwt.sign({ id: 7 }, process.env.JWT_SECRET, { algorithm: 'HS256' });
+    const token = jwt.sign({ typ: 'access', sid: 'test-session',  id: 7 }, process.env.JWT_SECRET, { algorithm: 'HS256' });
 
     const res = await request(buildApp())
       .get('/protected')

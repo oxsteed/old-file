@@ -28,32 +28,28 @@ const { errorHandler } = require('../middleware/errorHandler');
 
 const USER = '00000000-0000-4000-8000-0000000000f1';
 const REPLY = '44444444-4444-4444-8444-444444444444';
-const LOCALE_ENV = ['OPENROUTER_CHAT_MODEL', 'OPENROUTER_SUPPORT_MODEL', 'OPENROUTER_CHAT_MAX_TOKENS',
-  ...providers.SUPPORT_CHAT_LOCALES.map((l) => `OPENROUTER_CHAT_MODEL_${l.toUpperCase()}`)];
+const LOCALE_ENV = ['OLLAMA_MODEL', 'SUPPORT_CHAT_MAX_TOKENS',
+  ...providers.SUPPORT_CHAT_LOCALES.map((l) => `OLLAMA_MODEL_${l.toUpperCase()}`)];
 
 const flush = () => new Promise((r) => setImmediate(r));
 
 // Any provider call that a test did not mock fails loudly: the eval set must
-// never reach a live provider.
+// never reach a live provider, and the only provider is the local Ollama.
 function providerMock(replyFor) {
   return jest.fn(async (url, init) => {
-    if (!String(url).startsWith('https://openrouter.ai/')) throw new Error(`unexpected network call: ${url}`);
+    if (!String(url).startsWith('http://localhost:11434/')) throw new Error(`unexpected network call: ${url}`);
     const body = JSON.parse(init.body);
-    return { ok: true, json: async () => ({ choices: [{ message: { content: replyFor(body) } }] }) };
+    return { ok: true, json: async () => ({ message: { content: replyFor(body) } }) };
   });
 }
 
 beforeEach(() => {
-  // The OpenRouter spend guard keeps an in-memory daily budget when Redis
-  // is absent; mocked replies carry no usage.cost, so reservations would
-  // accumulate across cases and trip the cap. Each case starts at zero.
-  require('../services/openRouterSpendGuard')._resetLocal();
   resetMocks();
   jest.clearAllMocks();
   snap._resetSnapshotCacheForTests();
   knowledge._resetKnowledgeCacheForTests();
   for (const k of LOCALE_ENV) delete process.env[k];
-  process.env.OPENROUTER_API_KEY = 'k';
+  process.env.OLLAMA_URL = 'http://localhost:11434';
 });
 afterEach(() => { delete global.fetch; });
 
@@ -86,8 +82,8 @@ describe('item 5: reply log and feedback', () => {
     expect(userId).toBeNull();
     expect(page).toBe('/orders/:id');
     expect(locale).toBe('es');
-    expect(provider).toBe('openrouter');
-    expect(model).toBe('openrouter/free');
+    expect(provider).toBe('ollama');
+    expect(model).toBe('qwen2.5:3b');
     expect(revision).toBe(GUIDE_REVISION);
     expect(cached).toBe(false);
     expect(suggested).toBe(false);
@@ -234,11 +230,11 @@ describe('item 6: knowledge retrieval', () => {
 });
 
 describe('item 7: locale quality', () => {
-  test('per-locale model env wins, then the shared model, then the free router', () => {
-    expect(providers.supportChatModelForLocale('ht', {})).toBe('openrouter/free');
-    expect(providers.supportChatModelForLocale('ht', { OPENROUTER_CHAT_MODEL: 'm/base' })).toBe('m/base');
-    expect(providers.supportChatModelForLocale('ht', { OPENROUTER_CHAT_MODEL: 'm/base', OPENROUTER_CHAT_MODEL_HT: 'm/ht' })).toBe('m/ht');
-    expect(providers.supportChatModelForLocale('xx', { OPENROUTER_CHAT_MODEL_EN: 'm/en' })).toBe('m/en');
+  test('per-locale model env wins, then the shared model, then the default local model', () => {
+    expect(providers.supportChatModelForLocale('ht', {})).toBe('qwen2.5:3b');
+    expect(providers.supportChatModelForLocale('ht', { OLLAMA_MODEL: 'm/base' })).toBe('m/base');
+    expect(providers.supportChatModelForLocale('ht', { OLLAMA_MODEL: 'm/base', OLLAMA_MODEL_HT: 'm/ht' })).toBe('m/ht');
+    expect(providers.supportChatModelForLocale('xx', { OLLAMA_MODEL_EN: 'm/en' })).toBe('m/en');
   });
 
   test('max_tokens is higher than the old 400 and scales for longer-script locales, clamped', () => {
@@ -246,15 +242,15 @@ describe('item 7: locale quality', () => {
     expect(en).toBe(700);
     expect(providers.supportChatMaxTokens('ar', {})).toBeGreaterThan(providers.supportChatMaxTokens('es', {}));
     expect(providers.supportChatMaxTokens('ht', {})).toBeGreaterThan(en);
-    expect(providers.supportChatMaxTokens('en', { OPENROUTER_CHAT_MAX_TOKENS: '99999' })).toBe(1500);
-    expect(providers.supportChatMaxTokens('en', { OPENROUTER_CHAT_MAX_TOKENS: '10' })).toBe(200);
+    expect(providers.supportChatMaxTokens('en', { SUPPORT_CHAT_MAX_TOKENS: '99999' })).toBe(1500);
+    expect(providers.supportChatMaxTokens('en', { SUPPORT_CHAT_MAX_TOKENS: '10' })).toBe(200);
   });
 
   const { cases } = require('./fixtures/supportChatLocaleEval.json');
   const LANG = { es: 'Spanish', fr: 'French', ht: 'Haitian Creole', ar: 'Arabic' };
 
   test.each(cases.map((c) => [c.id, c]))('eval %s', async (_id, c) => {
-    for (const loc of providers.SUPPORT_CHAT_LOCALES) process.env[`OPENROUTER_CHAT_MODEL_${loc.toUpperCase()}`] = `eval/${loc}`;
+    for (const loc of providers.SUPPORT_CHAT_LOCALES) process.env[`OLLAMA_MODEL_${loc.toUpperCase()}`] = `eval/${loc}`;
     mockQuery.mockImplementation(async () => ({ rows: [] }));
     global.fetch = providerMock(() => c.modelReply);
     const { res, next } = await runChat({ body: { messages: [{ role: 'user', content: c.question }], language: c.locale } });
@@ -262,7 +258,7 @@ describe('item 7: locale quality', () => {
     const sent = JSON.parse(global.fetch.mock.calls[0][1].body);
     const system = sent.messages[0].content;
     expect(sent.model).toBe(`eval/${c.locale}`);
-    expect(sent.max_tokens).toBe(providers.supportChatMaxTokens(c.locale, {}));
+    expect(sent.options.num_predict).toBe(providers.supportChatMaxTokens(c.locale, {}));
     if (LANG[c.locale]) expect(system).toContain(`respond entirely in ${LANG[c.locale]}`);
     else expect(system).not.toMatch(/Language Requirement/);
     if (c.expectRoute) expect(system).toContain(`| ${c.expectRoute}>>>`);

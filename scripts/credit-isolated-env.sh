@@ -22,7 +22,7 @@ compose() {
   if [ "${OXSTEED_MEDIA_TEST_MODE:-false}" = true ]; then
     media_files=(--file "$ROOT_DIR/docker-compose.media-test.yml")
   fi
-  docker --context colima compose --env-file "$STATE_FILE" --project-name "$CREDIT_TEST_PROJECT" --file "$COMPOSE_FILE" "${media_files[@]}" "$@"
+  docker --context colima compose --env-file "$STATE_FILE" --project-name "$CREDIT_TEST_PROJECT" --file "$COMPOSE_FILE" ${media_files[@]+"${media_files[@]}"} "$@"
 }
 
 create_state() {
@@ -315,6 +315,12 @@ case "${1:-}" in
   test|smoke) test_environment ;;
   media-test) media_test ;;
   accounting) accounting ;;
+  kiosk)
+    require_docker
+    load_state
+    wait_ready "$(base_url)"
+    compose exec -T app node /app/server/scripts/credit-isolated-kiosk.js
+    ;;
   races) races ;;
   queue-recovery) queue_recovery ;;
   provider) provider ;;
@@ -326,7 +332,7 @@ case "${1:-}" in
   reset) reset ;;
   down|remove) down ;;
   *)
-    printf 'Usage: %s {start|seed|test|accounting|races|queue-recovery|provider|failure-injection|performance|catalog|catalog-performance|failures|reset|down}\n' "${BASH_SOURCE[0]}"
+    printf 'Usage: %s {start|seed|test|accounting|kiosk|races|queue-recovery|provider|failure-injection|performance|catalog|catalog-performance|failures|reset|down}\n' "${BASH_SOURCE[0]}"
     exit 2
     ;;
 esac

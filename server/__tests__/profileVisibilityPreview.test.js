@@ -15,7 +15,7 @@ const food = require('../controllers/foodController');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { errorHandler } = require('../middleware/errorHandler');
 const jwt = require('jsonwebtoken');
-const signToken = payload => jwt.sign(payload, process.env.JWT_SECRET);
+const signToken = payload => jwt.sign({ typ: 'access', sid: 'test-session', ...payload }, process.env.JWT_SECRET);
 const ID = '00000000-0000-4000-8000-000000000123';
 
 function response() {

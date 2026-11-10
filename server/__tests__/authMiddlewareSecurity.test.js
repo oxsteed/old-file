@@ -24,7 +24,7 @@ beforeEach(() => {
 describe('auth middleware token boundaries', () => {
   test('authenticate rejects refresh tokens as API bearer tokens', async () => {
     const refreshToken = jwt.sign(
-      { id: 1, type: 'refresh' },
+      {  id: 1, type: 'refresh' },
       process.env.JWT_SECRET,
       { algorithm: 'HS256' }
     );
@@ -40,7 +40,7 @@ describe('auth middleware token boundaries', () => {
 
   test('authenticate rejects MFA tokens as API bearer tokens', async () => {
     const mfaToken = jwt.sign(
-      { id: 1, isMfaToken: true },
+      {  id: 1, isMfaToken: true },
       process.env.JWT_SECRET,
       { algorithm: 'HS256' }
     );
@@ -56,7 +56,7 @@ describe('auth middleware token boundaries', () => {
 
   test('optionalAuth ignores revoked tokens instead of attaching a user', async () => {
     const accessToken = jwt.sign(
-      { id: 1, email: 'test@example.com', role: 'customer' },
+      { typ: 'access', sid: 'test-session',  id: 1, email: 'test@example.com', role: 'customer' },
       process.env.JWT_SECRET,
       { algorithm: 'HS256' }
     );
@@ -73,7 +73,7 @@ describe('auth middleware token boundaries', () => {
 
   test('authenticate applies user revocation markers to impersonation tokens', async () => {
     const impersonationToken = jwt.sign(
-      { id: 7, impersonation: true, impersonated_by: 99, jti: 'impersonation-1' },
+      { typ: 'access', sid: 'test-session',  id: 7, impersonation: true, impersonated_by: 99, jti: 'impersonation-1' },
       process.env.JWT_SECRET,
       { algorithm: 'HS256' }
     );
@@ -92,7 +92,7 @@ describe('auth middleware token boundaries', () => {
     // Review P3-14-F07: an admin password change / logout-everywhere after
     // the session started must end active impersonations too.
     const impersonationToken = jwt.sign(
-      { id: 7, impersonation: true, impersonated_by: 99, jti: 'impersonation-2' },
+      { typ: 'access', sid: 'test-session',  id: 7, impersonation: true, impersonated_by: 99, jti: 'impersonation-2' },
       process.env.JWT_SECRET,
       { algorithm: 'HS256' }
     );

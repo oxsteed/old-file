@@ -19,7 +19,7 @@ const reviewRoutes = require('../routes/reviews');
 
 const CLIENT_ID = 1;
 const HELPER_ID = 2;
-const TOKEN_CLIENT = jwt.sign({ id: CLIENT_ID, email: 'c@test.com', role: 'customer' }, process.env.JWT_SECRET);
+const TOKEN_CLIENT = jwt.sign({ typ: 'access', sid: 'test-session',  id: CLIENT_ID, email: 'c@test.com', role: 'customer' }, process.env.JWT_SECRET);
 
 const MOCK_CLIENT = {
   id: CLIENT_ID, first_name: 'Alice', last_name: 'Smith', email: 'c@test.com',

@@ -29,7 +29,7 @@ test('screen control, managed workflow, offline durability, isolation and respon
  if(url.endsWith('/enabled')){window.enabled=body.enabled;return {data:{enabled:window.enabled}};}
  if(url.endsWith('/pairing-codes'))return {data:{pairingCode:'SYNTH123'}};
  if(url.endsWith('/heartbeat'))return {data:{configChanged:(window.cfgVersion||1)>Number(body.configVersion)}};if(url.endsWith('/runtime-config'))return {data:{device:{id:7,mode:'kiosk',location_id:null,config_version:window.cfgVersion||1,config:{screenRole:'kiosk'}}}};
- if(url.endsWith('/snapshot')||url.endsWith('/screen-snapshot'))return {data:{enabled:window.enabled,cursor:window.rev,deviceConfigVersion:window.cfgVersion||1,restaurant:{name:'Synthetic restaurant',acceptingOrders:window.accepting!==false},board:{restaurant:{display_name:'Synthetic restaurant'},preparing:window.orders.filter(o=>o.status!=='ready').map(o=>o.queue_number),ready:window.orders.filter(o=>o.status==='ready').map(o=>o.queue_number)},orders:structuredClone(window.orders),hasMore:false}};
+ if(url.endsWith('/snapshot')||url.endsWith('/screen-snapshot'))return {data:{enabled:window.enabled,creditCheckoutEnabled:window.creditEnabled===true,cursor:window.rev,deviceConfigVersion:window.cfgVersion||1,restaurant:{name:'Synthetic restaurant',acceptingOrders:window.accepting!==false},board:{restaurant:{display_name:'Synthetic restaurant'},preparing:window.orders.filter(o=>o.status!=='ready').map(o=>o.queue_number),ready:window.orders.filter(o=>o.status==='ready').map(o=>o.queue_number)},orders:structuredClone(window.orders),hasMore:false}};
  if(url.endsWith('/changes')||url.endsWith('/screen-changes'))return {data:{cursor:window.rev,events:[{revision:window.rev}],hasMore:false}};
  if(url.endsWith('/action')){const o=window.orders[0];if(url.includes('screen-items')){o.items[0].kitchenStatus=body.action==='start'?'preparing':'ready';o.items[0].screenRevision++;}else{if(body.action==='ready_for_check')o.kitchen_stage='quality_check';if(body.action==='finish_check'){o.status='ready';o.kitchen_stage='ready';}if(body.action==='hand_off')window.orders=[];o.screen_revision++;}window.rev++;return {data:{}};}
  if(url.endsWith('/offline-tickets'))return {data:{id:body.id,status:'pending'}};
@@ -62,6 +62,47 @@ test('screen control, managed workflow, offline durability, isolation and respon
  await page.evaluate(()=>{window.pair('kiosk');window.render('/restaurants/screens/2/kiosk');});await page.locator('.fd-kiosk-start').waitFor();await page.evaluate(()=>{window.accepting=false;window.wake();});await page.getByText('Ordering is paused',{exact:true}).waitFor();await page.evaluate(()=>{window.accepting=true;window.wake();});await page.getByText('Touch to start your order',{exact:true}).waitFor();await page.locator('.fd-kiosk-start').click();await page.getByRole('button',{name:/Eat in/}).click();await page.evaluate(()=>{window.cfgVersion=2;window.wake();});await page.getByText('Configuration will apply after the current guest session',{exact:false}).waitFor();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('oxsteed:screen-device:2')).configVersion),1);await page.getByRole('button',{name:'Start over',exact:true}).click();await page.waitForFunction(()=>JSON.parse(localStorage.getItem('oxsteed:screen-device:2')).configVersion===2);await page.locator('.fd-kiosk-start').click();await page.getByRole('button',{name:/Eat in/}).click();await page.locator('.fd-kiosk-item').click();await page.getByRole('button',{name:'Add synthetic meal',exact:true}).click();await page.locator('.fd-cartbar button').click();await page.getByLabel('Name for the order (optional)').fill('Previous synthetic guest');await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'kiosk review fits mobile');
  await context.setOffline(true);await page.getByRole('button',{name:'Place order',exact:true}).click();await page.getByText(/Local ticket /).first().waitFor();await context.setOffline(false);await page.getByRole('button',{name:'Start over',exact:true}).click();await page.locator('.fd-kiosk-start').waitFor();await page.waitForFunction(()=>window.calls.some(c=>c.url?.endsWith('/offline-tickets')));assert.equal(await page.getByText(/Confirmed #/).count(),0,'background recovery never shows an earlier guest confirmation');
  const recovered=await page.evaluate(()=>window.calls.find(c=>c.url?.endsWith('/offline-tickets')).body);assert.ok(recovered.id);assert.equal(recovered.payload.paymentMode,'pay_at_counter');
+
+ // A paid Credit attempt whose response is lost is recovered by reading the
+ // receipt, even after the screen remounts. No credentials or debit are replayed.
+ await page.evaluate(() => {
+   window.creditEnabled = true;
+   window.creditPosts = 0;
+   const originalRequest = window.request;
+   window.request = async (method, url, body, options) => {
+     if (method === 'post' && url.endsWith('/screen-credit-orders')) {
+       window.creditPosts++;
+       window.creditAttempt = options.headers['Idempotency-Key'];
+       if (body.credential !== 'synthetic-scanned-credit-card' || body.pin !== '6294') throw Error('incorrect fixture credentials');
+       throw Error('simulated lost response after commit');
+     }
+     if (method === 'get' && url.endsWith(`/screen-credit-orders/${window.creditAttempt}`)) {
+       return { data: { receipt: { orderId: '303', queueNumber: 30, amountCents: 1000, currencyCode: 'USD', paymentStatus: 'paid' } } };
+     }
+     return originalRequest(method, url, body, options);
+   };
+   window.pair('kiosk');
+   window.render('/restaurants/screens/2/kiosk');
+ });
+ await page.getByText('Touch to start your order',{exact:true}).click();
+ await page.getByRole('button',{name:/Eat in/}).click();
+ await page.locator('.fd-kiosk-item').click();
+ await page.getByRole('button',{name:'Add synthetic meal',exact:true}).click();
+ await page.getByRole('button',{name:'Review order',exact:true}).click();
+ await page.getByLabel('Scan your Credit card').fill('synthetic-scanned-credit-card');
+ await page.getByLabel('Scan your Credit card').press('Enter');
+ await page.getByLabel('Card PIN').fill('6294');
+ await page.getByRole('button',{name:'Pay with OxSteed Credit'}).click();
+ await page.getByRole('button',{name:'Check receipt'}).waitFor();
+ assert.deepEqual(await page.evaluate(() => Object.values(sessionStorage)), [await page.evaluate(() => window.creditAttempt)]);
+ assert.equal(await page.getByRole('button',{name:'Place order',exact:true}).count(),0);
+ await page.evaluate(() => window.render('/restaurants/screens/2/kiosk'));
+ await page.getByRole('button',{name:'Check receipt'}).click();
+ await page.getByText('Payment confirmed',{exact:true}).waitFor();
+ assert.equal(await page.evaluate(() => window.creditPosts),1);
+ assert.deepEqual(await page.evaluate(() => Object.values(sessionStorage)),[]);
+ await page.getByRole('button',{name:'Start over',exact:true}).click();
+ await page.getByText('Touch to start your order',{exact:true}).waitFor();
 
  // Legacy URLs also preserve offline work as unpaid drafts, without an anonymous automatic production replay.
  await page.evaluate(()=>window.render('/restaurants/kiosk/2'));await page.locator('.fd-kiosk-start').click();await page.getByRole('button',{name:/Eat in/}).click();await page.locator('.fd-kiosk-item').click();await page.getByRole('button',{name:'Add synthetic meal',exact:true}).click();await page.locator('.fd-cartbar button').click();await page.getByRole('button',{name:'Place order',exact:true}).waitFor();await context.setOffline(true);await page.getByRole('button',{name:'Place order',exact:true}).click();await page.getByText(/Local ticket /).first().waitFor();const legacyAttempts=await page.evaluate(()=>window.calls.filter(c=>c.name==='placeFoodOrder').length);await context.setOffline(false);await page.waitForTimeout(200);assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.name==='placeFoodOrder').length),legacyAttempts);assert.equal((await page.evaluate(()=>window.storage.listOperations('public-kiosk:2')))[0].state,'pending');

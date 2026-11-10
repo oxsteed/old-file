@@ -255,8 +255,6 @@ async function mirrorMessage(args) {
           conversation_id: businessConversationId,
           message_id: messageId,
           sender_type: senderType,
-          sender_name: senderName,
-          content: String(content).slice(0, 280),
           created_at: new Date().toISOString(),
         });
       }

@@ -922,10 +922,27 @@ async function emitBookingEvent({ booking, event, actorId = null }) {
           socketService.broadcastToBusinessCalendar(booking.business_id, 'booking:new', payload);
         }
       }
+      // F-12: the member fan-out reaches only members who can see the whole
+      // business calendar, and carries identifiers only (the card holds
+      // customer details); they refetch through the calendar API.
       const memberIds = await listBusinessMemberUserIds(booking.business_id);
+      const idPayload = {
+        bookingId: payload.bookingId,
+        status: payload.status,
+        event,
+        actorId,
+        conversationId: payload.conversationId,
+        businessId: payload.businessId,
+      };
       for (const mid of memberIds) {
         if (notified.has(String(mid))) continue;
-        emitToUserRooms(mid, event, payload);
+        const allowed = typeof socketService.userHasBusinessPermission === 'function'
+          ? await socketService.userHasBusinessPermission(
+            booking.business_id, mid, ['calendar.view_all', 'calendar.manage_all'],
+          )
+          : false;
+        if (!allowed) continue;
+        emitToUserRooms(mid, event, idPayload);
         notified.add(String(mid));
       }
     }

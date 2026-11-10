@@ -26,6 +26,18 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
+const { withFencedJobLock } = require('./jobLockingService');
+
+// Oct 30 item 29: the 15-minute interval used to fire with no in-process
+// guard and no cross-replica lock. The phase-1/2/3 selects use
+// FOR UPDATE SKIP LOCKED, but the surrounding multi-step sweep (select,
+// per-row update, notify) was not fenced, so two replicas could still
+// interleave phases. The running flag (same shape as customer360Alerts /
+// metricThresholdAlerts) skips an overlapping tick in this process; the
+// fenced lock (TTL matches the 15-minute cadence) skips a concurrent
+// pass on another replica. The row-level SKIP LOCKED claims stay as
+// defence in depth.
+const JOB_NAME = 'business-appointment-no-show-sweeper';
 
 const DEFAULT_NO_SHOW_GRACE_HOURS = 2;
 
@@ -157,16 +169,31 @@ async function sweepNoShows() {
 
 // Run every 15 minutes to keep no-show / stale-pending capacity hygiene.
 function startBusinessAppointmentNoShowSweeper() {
-  const interval = setInterval(async () => {
-    try {
+  let stopped = false;
+  let running = null;
+  const tick = () => {
+    if (stopped || running) return;
+    running = withFencedJobLock(JOB_NAME, async () => {
       await sweepNoShows();
-    } catch (err) {
-      logger.error('Business appointment no-show sweeper failed', { error: err.message });
-    }
-  }, 15 * 60 * 1000);
+    }, 900)
+      .catch((err) => {
+        logger.error('Business appointment no-show sweeper failed', { error: err.message });
+      })
+      .finally(() => {
+        running = null;
+      });
+  };
+  const interval = setInterval(tick, 15 * 60 * 1000);
+  interval.unref?.();
 
   logger.info('Business appointment no-show sweeper started');
-  return { stop: () => clearInterval(interval) };
+  return {
+    stop: () => {
+      stopped = true;
+      clearInterval(interval);
+      return running;
+    },
+  };
 }
 
-module.exports = { startBusinessAppointmentNoShowSweeper, sweepNoShows };
+module.exports = { startBusinessAppointmentNoShowSweeper, sweepNoShows, JOB_NAME };

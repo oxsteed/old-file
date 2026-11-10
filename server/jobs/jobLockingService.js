@@ -4,6 +4,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const incidentStore = require('../services/incidentStore');
 const { withDbBudget, DbBudgetExhaustedError } = require('../utils/dbBudgets');
 const os = require('os');
 
@@ -18,6 +19,26 @@ class LeaseLostError extends Error {
     this.name = 'LeaseLostError';
     this.code = 'LEASE_LOST';
     this.jobName = jobName;
+  }
+}
+
+/**
+ * Thrown when the lock store itself fails while acquiring a job lock
+ * (background-jobs audit, Oct 30 item 30(d)).
+ *
+ * A lock-acquisition error is NOT contention: the lock state is unknown,
+ * so the caller must fail closed (never run the handler) and must log /
+ * count it distinctly from "another instance holds the lock". The message
+ * embeds the underlying store error so existing substring checks keep
+ * matching.
+ */
+class JobLockAcquisitionError extends Error {
+  constructor(jobName, cause) {
+    super(`Job lock acquisition failed for "${jobName}": ${cause?.message || cause}`);
+    this.name = 'JobLockAcquisitionError';
+    this.code = 'LOCK_ACQUISITION_ERROR';
+    this.jobName = jobName;
+    this.cause = cause;
   }
 }
 
@@ -107,8 +128,20 @@ function createFence(jobName, lockValue) {
 /**
  * Distributed lock for cron jobs
  * Ensures only one instance of a scheduled job runs at a time
+ *
+ * Tri-state acquisition outcome (background-jobs audit, Oct 30 item
+ * 30(d), STILL LIVE at 51ccc1453): acquireJobLock used to return null
+ * both when the lock was held (contention) and when the DB query threw,
+ * so a DB outage read as contention and a skipped run was invisible.
+ *   - { outcome: 'acquired', lockValue } — this worker holds the lease.
+ *   - { outcome: 'contended', lockValue: null } — another instance holds
+ *     a live lease; skipping is the correct, quiet outcome.
+ *   - { outcome: 'error', lockValue: null, error } — the lock store
+ *     itself failed. The lease state is UNKNOWN: the caller must fail
+ *     closed (never treat this as a free lock) and must surface it
+ *     distinctly from contention.
  */
-async function acquireJobLock(jobName, ttlSeconds = 300, { throwOnError = false } = {}) {
+async function acquireJobLockState(jobName, ttlSeconds = 300) {
   const lockId = `job_lock:${jobName}`;
   const lockValue = `${os.hostname()}-${process.pid}-${Date.now()}`;
 
@@ -128,16 +161,27 @@ async function acquireJobLock(jobName, ttlSeconds = 300, { throwOnError = false 
 
     if (rows.length > 0) {
       logger.info(`Acquired lock: ${jobName}`);
-      return lockValue;
+      return { outcome: 'acquired', lockValue };
     }
 
     logger.warn(`Failed to acquire lock: ${jobName} (already running)`);
-    return null;
+    return { outcome: 'contended', lockValue: null };
   } catch (err) {
-    logger.error('Lock acquisition failed', { jobName, error: err.message });
-    if (throwOnError) throw err;
-    return null;
+    logger.error('Lock acquisition error', { jobName, error: err.message });
+    return { outcome: 'error', lockValue: null, error: err };
   }
+}
+
+async function acquireJobLock(jobName, ttlSeconds = 300, { throwOnError = false } = {}) {
+  const state = await acquireJobLockState(jobName, ttlSeconds);
+  if (state.outcome === 'acquired') return state.lockValue;
+  if (state.outcome === 'error' && throwOnError) {
+    throw new JobLockAcquisitionError(jobName, state.error);
+  }
+  // Contention, or an acquisition error without throwOnError: fail closed
+  // with no lock in both cases. Callers that need the distinction should
+  // use acquireJobLockState (or throwOnError) instead of reading null.
+  return null;
 }
 
 async function releaseJobLock(jobName, lockValue) {
@@ -196,19 +240,39 @@ async function refreshJobLock(jobName, lockValue, ttlSeconds = 300) {
  * `fence.fencedTransaction(work)` for money-critical sections so the lease
  * is re-verified inside the write transaction.
  *
- * Outcomes: { skipped: true } when another instance holds the lock,
- * { fenced: true } when the handler aborted after lease loss, otherwise the
- * handler's return value (or { completed: true }).
+ * Outcomes: { skipped: true, lockSkipped: true } when another instance
+ * holds the lock (the lockSkipped marker distinguishes a lock skip from
+ * a worker that returns { skipped: true } itself, e.g. a disabled flag
+ * or an idle outbox — the runner must only count lock skips toward a
+ * skipped streak), { skipped: true, lockError: true } when the lock
+ * store itself failed (30(d): fail closed, handler never runs, and the
+ * outcome is distinct from contention), { fenced: true } when the
+ * handler aborted after lease loss, otherwise the handler's return
+ * value (or { completed: true }).
  */
 async function withFencedJobLock(jobName, handler, ttlSeconds = 300, { throwOnLockError = false, throwOnError = false } = {}) {
-  const lockValue = await acquireJobLock(jobName, ttlSeconds, {
-    throwOnError: throwOnLockError || throwOnError,
-  });
+  const acquisition = await acquireJobLockState(jobName, ttlSeconds);
 
-  if (!lockValue) {
-    logger.warn(`Skipping ${jobName} - another instance already running`);
-    return { skipped: true };
+  if (acquisition.outcome === 'error') {
+    if (throwOnLockError || throwOnError) {
+      throw new JobLockAcquisitionError(jobName, acquisition.error);
+    }
+    // Fail closed without a lock, and say so: a lock-store failure is
+    // not contention, and returning a bare { skipped: true } hid DB
+    // outages as "another instance already running" (30(d)).
+    logger.warn(`Skipping ${jobName} - lock acquisition failed`, {
+      jobName,
+      error: acquisition.error.message,
+    });
+    return { skipped: true, lockError: true };
   }
+
+  if (acquisition.outcome !== 'acquired') {
+    logger.warn(`Skipping ${jobName} - another instance already running`);
+    return { skipped: true, lockSkipped: true };
+  }
+
+  const lockValue = acquisition.lockValue;
 
   const fence = createFence(jobName, lockValue);
 
@@ -246,6 +310,20 @@ async function withFencedJobLock(jobName, handler, ttlSeconds = 300, { throwOnLo
   } catch (err) {
     if (err instanceof LeaseLostError) {
       logger.warn(`Job ${jobName} fenced after lease loss; remaining work aborted`, { jobName });
+      // Background-jobs audit #47: a fenced abort used to be warn-only,
+      // so a worker abandoning half its pass was invisible. Record a
+      // deduped incident (one open row per job; repeats refresh
+      // occurrence_count / last_seen_at instead of spamming rows) so the
+      // abort surfaces on the operator incident list. recordIncident
+      // never throws, so the fenced outcome is unaffected if the
+      // incident write itself fails.
+      await incidentStore.recordIncident({
+        type: 'scheduled_worker_fenced',
+        severity: 'warning',
+        message: `Job ${jobName} aborted after losing its lease; remaining work was not completed`,
+        dedupeKey: `${jobName}:fenced`,
+        details: { jobName },
+      });
       return { fenced: true };
     }
     if (err instanceof DbBudgetExhaustedError) {
@@ -277,8 +355,10 @@ async function withJobLock(jobName, handler, ttlSeconds = 300, { throwOnLockErro
 
 module.exports = {
   LeaseLostError,
+  JobLockAcquisitionError,
   createFence,
   acquireJobLock,
+  acquireJobLockState,
   refreshJobLock,
   refreshJobLockState,
   releaseJobLock,

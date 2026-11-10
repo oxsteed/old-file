@@ -34,7 +34,7 @@ describe('worker topology', () => {
     const { runScheduledWorkerOnce } = require('../workers/scheduledWorkerSchedule');
     const log = { info: jest.fn(), error: jest.fn() };
     await runScheduledWorkerOnce(['demo', async () => { throw new Error('boom'); }, 60000, {}], { log });
-    expect(lock).toHaveBeenCalledWith('scheduled-worker:demo', expect.any(Function), 60);
+    expect(lock).toHaveBeenCalledWith('scheduled-worker:demo', expect.any(Function), 60, { throwOnLockError: true });
     expect(log.error).toHaveBeenCalledWith('Scheduled worker failed', expect.objectContaining({ worker: 'demo' }));
     jest.dontMock('../jobs/jobLockingService');
   });

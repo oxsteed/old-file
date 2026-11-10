@@ -33,7 +33,7 @@ const HELPER = {
   didit_status: 'verified', didit_verified_at: new Date(), didit_enforcement_required: false,
   onboarding_completed: true, w9_completed: true,
 };
-const TOKEN = jwt.sign({ id: 7, email: 'h@test.com', role: 'helper' }, process.env.JWT_SECRET);
+const TOKEN = jwt.sign({ typ: 'access', sid: 'test-session',  id: 7, email: 'h@test.com', role: 'helper' }, process.env.JWT_SECRET);
 const auth = r => r.set('Authorization', `Bearer ${TOKEN}`);
 
 const CONNECT_ROW = {

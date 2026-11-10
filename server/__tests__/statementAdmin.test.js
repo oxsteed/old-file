@@ -67,7 +67,7 @@ const scenario = {
 };
 
 function bearer(id, role = 'admin') {
-  return `Bearer ${jwt.sign({ id, role }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
+  return `Bearer ${jwt.sign({ typ: 'access', sid: 'test-session',  id, role }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
 }
 
 function grantRows(permission) {

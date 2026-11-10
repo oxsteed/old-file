@@ -1446,6 +1446,18 @@
     }
   },
   "screens": {
+    "creditPay": "Payer avec OxSteed Credit",
+    "creditScanCard": "Scannez votre carte Credit",
+    "creditPin": "Code PIN de la carte",
+    "creditReceipt": "Reçu Credit",
+    "creditChecking": "Vérification du paiement Credit",
+    "creditPaid": "Paiement confirmé",
+    "creditPaymentChanged": "Le statut du paiement a changé. Demandez de l’aide au personnel.",
+    "creditOrderReference": "Référence {{id}}",
+    "creditCheckReceipt": "Consulter le reçu",
+    "creditReceiptPending": "Le résultat reste incertain. Consultez le reçu avant de payer à nouveau. S’il reste indisponible, montrez la référence au personnel.",
+    "creditDeclined": "Le paiement Credit a été refusé. Vérifiez votre carte et votre code PIN ou choisissez un autre moyen de paiement.",
+    "creditStorageUnavailable": "La borne n’a pas pu enregistrer une référence de récupération. Le paiement Credit n’a pas été lancé.",
     "dataFreshness": "Fraîcheur des données",
     "fresh": "À jour",
     "catchingUp": "Rattrapage nécessaire",
@@ -2110,12 +2122,12 @@
         }
       },
       "ai": {
-        "name": "IA (Meta, OpenRouter, Ollama)",
-        "description": "Chat d'assistance et IA en arrière-plan avec chaîne de secours : Meta d'abord pour le trafic connecté, puis l'offre gratuite d'OpenRouter, puis Ollama en local.",
-        "customerSafeSummary": "Quand tous les fournisseurs d'IA sont en panne, le chat affiche un message de service indisponible et propose une assistance humaine. Le trafic anonyme ne dépense jamais de jetons payants.",
-        "retryNote": "La chaîne de secours est Meta d'abord pour le trafic connecté, puis OpenRouter gratuit, puis Ollama en local. Le trafic anonyme ne dépense jamais de jetons Meta.",
-        "budgetNote": "L'offre contributeur de Meta a des limites plus basses ; l'offre gratuite d'OpenRouter et Ollama en local ne coûtent rien. Aucun budget par requête n'est appliqué dans le code.",
-        "rotationProcedure": "Faites pivoter META_AI_API_KEY dans la console Meta et OPENROUTER_API_KEY dans OpenRouter ; mettez à jour les secrets Coolify ; vérifiez le chat d'assistance.",
+        "name": "IA (Ollama auto-hébergé)",
+        "description": "Le chat d'assistance, le tri, les brouillons et la traduction s'exécutent sur le serveur Ollama auto-hébergé d'OxSteed. Aucun fournisseur d'IA externe n'est utilisé.",
+        "customerSafeSummary": "Quand le serveur d'IA est indisponible, le chat affiche un message de service indisponible et propose une assistance humaine.",
+        "retryNote": "Un seul fournisseur : le serveur Ollama auto-hébergé. Les appels en échec sont relancés, puis la fonction bascule vers l'assistance humaine ou la saisie manuelle.",
+        "budgetNote": "Auto-hébergé : aucun coût par jeton. La capacité dépend du matériel du serveur Ollama.",
+        "rotationProcedure": "Aucune clé d'API à renouveler. Gardez OLLAMA_URL sur un hôte interne autorisé et changez le modèle avec OLLAMA_MODEL ; vérifiez ensuite le chat d'assistance.",
         "capabilities": {
           "support_chat": {
             "label": "Chat d'assistance",
@@ -4406,7 +4418,15 @@
       "deleteAccount": "Supprimer le Compte",
       "confirmTitle": "Supprimer Votre Compte",
       "confirmDesc": "Cette action ne peut pas être annulée. Toutes vos données seront définitivement supprimées.",
-      "yesDelete": "Oui, Supprimer Mon Compte"
+      "yesDelete": "Oui, Supprimer Mon Compte",
+      "currentPasswordLabel": "Mot de passe actuel",
+      "totpCodeLabel": "Code d'authentification",
+      "totpCodeHint": "Nécessaire uniquement si la double authentification est activée.",
+      "reauthPasswordRequired": "Saisissez votre mot de passe actuel pour confirmer.",
+      "reauthTotpRequired": "Saisissez le code de votre application d'authentification pour confirmer.",
+      "reauthInvalid": "Votre mot de passe ou code de vérification est incorrect.",
+      "reauthUnavailable": "Votre compte n'a pas encore de mot de passe. Utilisez « Mot de passe oublié » pour en créer un, puis réessayez.",
+      "impersonationBlocked": "La suppression du compte n'est pas disponible pendant qu'un agent du support consulte votre compte."
     },
     "tabPaymentPolicies": "Politiques de paiement",
     "accountDeleteHasBalance": "Vous avez encore un solde, une retenue ou un versement en attente. Retirez ou utilisez votre solde restant et attendez la fin des versements en attente avant de supprimer votre compte, ou contactez support@oxsteed.com.",
@@ -10777,6 +10797,10 @@
       "masters": {
         "label": "Interrupteurs principaux",
         "description": "Activez ou désactivez un canal entier. Ils ont priorité sur les interrupteurs individuels ci-dessous."
+      },
+      "restaurant": {
+        "label": "Alertes du restaurant",
+        "description": "Alertes de pointage, de température et de rapports programmés pour les restaurants que vous gérez."
       }
     },
     "prefs": {
@@ -10791,6 +10815,10 @@
       "in_app_subscription": "Mises à jour de l'abonnement",
       "in_app_new_message": "Nouveaux messages de chat",
       "in_app_message_mention": "Quand je suis mentionné dans le chat",
+      "in_app_staff_time_entry_system_closed": "Pointages oubliés fermés automatiquement",
+      "in_app_staff_time_entry_missing_punch": "Pointages manquants pour les quarts planifiés",
+      "in_app_restaurant_temperature_breach": "Alertes de dépassement de température",
+      "in_app_restaurant_scheduled_report": "Rapports programmés du restaurant",
       "push_new_job_nearby": "Nouvelle mission à proximité",
       "push_new_bid": "Nouvelle offre reçue",
       "push_bid_accepted": "Offre acceptée",

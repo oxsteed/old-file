@@ -1299,6 +1299,18 @@
     }
   },
   "screens": {
+    "creditPay": "الدفع باستخدام OxSteed Credit",
+    "creditScanCard": "امسح بطاقة Credit الخاصة بك",
+    "creditPin": "الرقم السري للبطاقة",
+    "creditReceipt": "إيصال Credit",
+    "creditChecking": "جارٍ التحقق من دفعة Credit",
+    "creditPaid": "تم تأكيد الدفع",
+    "creditPaymentChanged": "تغيّرت حالة الدفع. اطلب المساعدة من الموظفين.",
+    "creditOrderReference": "المرجع {{id}}",
+    "creditCheckReceipt": "تحقق من الإيصال",
+    "creditReceiptPending": "نتيجة الدفع غير مؤكدة. تحقق من الإيصال قبل الدفع مرة أخرى. إذا ظل غير متاح، اعرض المرجع على الموظفين.",
+    "creditDeclined": "رُفضت دفعة Credit. تحقق من بطاقتك ورقمها السري أو اختر طريقة دفع أخرى.",
+    "creditStorageUnavailable": "تعذّر على الكشك حفظ مرجع الاسترداد. لم يبدأ الدفع باستخدام Credit.",
     "dataFreshness": "حداثة البيانات",
     "fresh": "محدّث",
     "catchingUp": "يلزم استكمال المزامنة",

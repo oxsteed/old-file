@@ -234,6 +234,8 @@ describe('GET /api/statements/center route', () => {
 
   const app = express();
   app.use('/api', require('../routes/statementCenter'));
+  app.use('/api', require('../routes/statementDisputeMessages'));
+  app.get('/api/restaurants/901/devices/1/screen-snapshot', (_req, res) => res.sendStatus(204));
   app.use((err, _req, res, _next) => res.status(err.statusCode || 500).json({ code: err.code }));
 
   const user = {
@@ -256,12 +258,16 @@ describe('GET /api/statements/center route', () => {
   });
 
   function bearer(claims = {}) {
-    return `Bearer ${jwt.sign({ id: CUSTOMER, role: 'customer', ...claims }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
+    return `Bearer ${jwt.sign({ typ: 'access', sid: 'test-session',  id: CUSTOMER, role: 'customer', ...claims }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
   }
 
   test('anonymous requests are rejected and the service is not called', async () => {
     await request(app).get('/api/statements/center').expect(401);
     expect(mockedGetStatementCenter).not.toHaveBeenCalled();
+  });
+
+  test('statement authentication leaves neighboring paired-device routes reachable', async () => {
+    await request(app).get('/api/restaurants/901/devices/1/screen-snapshot').expect(204);
   });
 
   test('refresh tokens are rejected', async () => {

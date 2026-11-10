@@ -9,6 +9,7 @@ on:
     branches: [old-files-claude]
   pull_request:
     branches: [old-files-claude]
+  workflow_dispatch:
 
 jobs:
   client-build:
@@ -19,10 +20,9 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
 
@@ -39,7 +39,7 @@ jobs:
         run: npm run build:ci
 
       - name: Share the validated client build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ci-client-dist
           path: client/dist
@@ -57,17 +57,17 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
 
       - name: Download this run's client build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: ci-client-dist
           path: client/dist
@@ -119,7 +119,7 @@ jobs:
         run: node scripts/growth-policy-manifest.cjs --check
 
       - name: Install Chrome for browser regression tests
-        uses: browser-actions/setup-chrome@v2
+        uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
         with:
           chrome-version: stable
 
@@ -139,6 +139,42 @@ jobs:
         working-directory: client
         run: node --test scripts/pwaInstalledMatrix.installed-check.cjs
 
+  # F-11: the authenticated admin matrix is the only job that receives an
+  # admin login. It never runs for pull_request events (PR code and its
+  # dependencies' install scripts must not see the credential); it runs on
+  # pushes to old-files-claude or a manual dispatch, behind the e2e-admin
+  # environment (configure required reviewers and keep the secrets there).
+  # Use a dedicated least-privilege, non-production test admin, with a TOTP
+  # secret rather than a static 2FA code.
+  admin-authenticated:
+    name: Authenticated admin browser matrix
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: client-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: e2e-admin
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      - name: Install client dependencies (no install scripts)
+        working-directory: client
+        run: npm ci --ignore-scripts
+
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
+        with:
+          chrome-version: stable
+
       - name: Authenticated admin browser matrix
         working-directory: client
         env:
@@ -146,6 +182,7 @@ jobs:
           OXSTEED_E2E_EMAIL: ${{ secrets.OXSTEED_E2E_EMAIL }}
           OXSTEED_E2E_PASSWORD: ${{ secrets.OXSTEED_E2E_PASSWORD }}
           OXSTEED_E2E_SIGNATURE_NAME: ${{ secrets.OXSTEED_E2E_SIGNATURE_NAME }}
+          OXSTEED_E2E_TOTP_SECRET: ${{ secrets.OXSTEED_E2E_TOTP_SECRET }}
           OXSTEED_E2E_2FA_CODE: ${{ secrets.OXSTEED_E2E_2FA_CODE }}
         run: npm run test:admin-authenticated
 
@@ -187,17 +224,17 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
 
       - name: Download this run's client build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: ci-client-dist
           path: client/dist
@@ -207,7 +244,7 @@ jobs:
         run: npm ci
 
       - name: Install Chrome for browser regression tests
-        uses: browser-actions/setup-chrome@v2
+        uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
         with:
           chrome-version: stable
 
@@ -450,7 +487,10 @@ jobs:
       - name: Active job status checks (Jest + optional pg_enum)
         working-directory: server
         env:
-          DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+          # F-11: the live database URL is withheld from pull_request runs
+          # (PR code would otherwise run against it); live verification runs
+          # on pushes and manual dispatches.
+          DATABASE_URL: ${{ github.event_name != 'pull_request' && secrets.CI_DATABASE_URL || '' }}
           NODE_ENV: test
         run: |
           npm run test:active-job-statuses
@@ -485,10 +525,9 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
 
@@ -536,10 +575,9 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
 
@@ -657,10 +695,9 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
 
@@ -691,10 +728,9 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
 

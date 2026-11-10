@@ -16,8 +16,8 @@ const policy = require('../services/jobStatusPolicy');
 const OWNER_ID = '11111111-1111-4111-8111-111111111111';
 const OTHER_ID = '22222222-2222-4222-8222-222222222222';
 const JOB_ID = '33333333-3333-4333-8333-333333333333';
-const TOKEN_OWNER = jwt.sign({ id: OWNER_ID, email: 'o@test.com', role: 'customer' }, process.env.JWT_SECRET);
-const TOKEN_OTHER = jwt.sign({ id: OTHER_ID, email: 'x@test.com', role: 'customer' }, process.env.JWT_SECRET);
+const TOKEN_OWNER = jwt.sign({ typ: 'access', sid: 'test-session',  id: OWNER_ID, email: 'o@test.com', role: 'customer' }, process.env.JWT_SECRET);
+const TOKEN_OTHER = jwt.sign({ typ: 'access', sid: 'test-session',  id: OTHER_ID, email: 'x@test.com', role: 'customer' }, process.env.JWT_SECRET);
 
 const user = (id) => ({
   id, first_name: 'A', last_name: 'B', email: 'o@test.com', role: 'customer', email_verified: true, is_active: true,

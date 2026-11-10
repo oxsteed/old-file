@@ -31,11 +31,10 @@ const { stableStringify } = require('./auditAnchorService');
 const PACK_TYPES = Object.freeze(['msb_call_report', 'safeguarding_attestation', 'complaint_log', 'aml_summary', 'large_transactions', 'dormancy_escheat']);
 const MAX_ROWS = 20000;
 
+// F-15: the shared hardened helper; plain numbers stay numeric.
 function csvCell(value) {
   if (value === null || value === undefined) return '';
-  const s = value instanceof Date ? value.toISOString() : String(value);
-  const safe = /^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s) ? `'${s}` : s;
-  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+  return require('../../utils/csv').csvCell(value, { allowNumeric: true });
 }
 
 function toCsv(columns, rows) {

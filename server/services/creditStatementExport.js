@@ -55,12 +55,8 @@ function renderStatementPdfInWorker(statement, { language = 'en', signal } = {})
   });
 }
 
-function csvText(value) {
-  let text = String(value ?? '').replace(/\u0000/g, '');
-  const candidate = text.replace(/^[\s\uFEFF\u200E\u200F\u202A-\u202E\u2066-\u2069]+/u, '');
-  if (/^[=+\-@]/.test(candidate) || /^[\t\r\n]/.test(text)) text = `'${text}`;
-  return `"${text.replace(/"/g,'""')}"`;
-}
+// F-15: one hardened implementation for every export.
+const csvText = require('../utils/csv').csvQuotedCell;
 
 function rowDescriptor(row) {
   return JSON.stringify({ ordinal:Number(row.ordinal),id:String(row.id),transactionId:String(row.transactionId||row.id),

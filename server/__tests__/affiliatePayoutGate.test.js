@@ -77,7 +77,7 @@ describe('affiliatePayouts router gate (real router)', () => {
   }
 
   function token() {
-    return jwt.sign({ id: 'user-123' }, process.env.JWT_SECRET, { algorithm: 'HS256' });
+    return jwt.sign({ typ: 'access', sid: 'test-session',  id: 'user-123' }, process.env.JWT_SECRET, { algorithm: 'HS256' });
   }
 
   test('AFFILIATE_ENABLED=false returns 503 feature_disabled at the router gate', async () => {

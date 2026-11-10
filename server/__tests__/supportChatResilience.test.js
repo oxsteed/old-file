@@ -48,11 +48,11 @@ test('the support chat route limits after optionalAuth', () => {
 });
 
 describe('provider timeout', () => {
-  afterEach(() => { delete process.env.OPENROUTER_TIMEOUT_MS; delete global.fetch; });
+  afterEach(() => { delete process.env.OLLAMA_TIMEOUT_MS; delete global.fetch; });
 
-  test('OpenRouter calls carry an AbortSignal timeout', async () => {
-    process.env.OPENROUTER_API_KEY = 'k';
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: 'hi' } }] }) });
+  test('local AI calls carry an AbortSignal timeout', async () => {
+    process.env.OLLAMA_URL = 'http://localhost:11434';
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ message: { content: 'hi' } }) });
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
     await chatController.chatMessage({ body: { messages: [{ role: 'user', content: 'hello' }] } }, res, jest.fn());
     const opts = global.fetch.mock.calls[0][1];
@@ -61,7 +61,7 @@ describe('provider timeout', () => {
   });
 
   test('a timed-out provider returns a 502 instead of hanging', async () => {
-    process.env.OPENROUTER_API_KEY = 'k';
+    process.env.OLLAMA_URL = 'http://localhost:11434';
     global.fetch = jest.fn().mockRejectedValue(Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' }));
     const next = jest.fn();
     await chatController.chatMessage({ body: { messages: [{ role: 'user', content: 'hello' }] } }, { json: jest.fn() }, next);
@@ -69,12 +69,13 @@ describe('provider timeout', () => {
   });
 
   test('timeout is configurable and clamped', () => {
-    expect(chatController._providerTimeoutMs()).toBe(25000);
-    process.env.OPENROUTER_TIMEOUT_MS = '1000';
-    expect(chatController._providerTimeoutMs()).toBe(5000);
-    process.env.OPENROUTER_TIMEOUT_MS = '999999';
-    expect(chatController._providerTimeoutMs()).toBe(60000);
-    process.env.OPENROUTER_TIMEOUT_MS = '15000';
-    expect(chatController._providerTimeoutMs()).toBe(15000);
+    const { timeoutMs } = require('../services/localAiChat');
+    expect(timeoutMs()).toBe(60000);
+    process.env.OLLAMA_TIMEOUT_MS = '1000';
+    expect(timeoutMs()).toBe(5000);
+    process.env.OLLAMA_TIMEOUT_MS = '999999';
+    expect(timeoutMs()).toBe(120000);
+    process.env.OLLAMA_TIMEOUT_MS = '15000';
+    expect(timeoutMs()).toBe(15000);
   });
 });

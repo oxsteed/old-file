@@ -141,6 +141,10 @@ export default function NotificationPreferences() {
     in_app_dispute_update:   t('notifications.prefs.in_app_dispute_update'),
     in_app_subscription:     t('notifications.prefs.in_app_subscription'),
     in_app_new_message:      t('notifications.prefs.in_app_new_message'),
+    in_app_staff_time_entry_system_closed: t('notifications.prefs.in_app_staff_time_entry_system_closed'),
+    in_app_staff_time_entry_missing_punch: t('notifications.prefs.in_app_staff_time_entry_missing_punch'),
+    in_app_restaurant_temperature_breach: t('notifications.prefs.in_app_restaurant_temperature_breach'),
+    in_app_restaurant_scheduled_report: t('notifications.prefs.in_app_restaurant_scheduled_report'),
     push_new_bid:            t('notifications.prefs.push_new_bid'),
     push_bid_accepted:       t('notifications.prefs.push_bid_accepted'),
     push_payment_released:   t('notifications.prefs.push_payment_released'),
@@ -194,6 +198,17 @@ export default function NotificationPreferences() {
         'email_dispute_update',
         'email_weekly_summary',
         'email_new_message',
+      ],
+    },
+    {
+      key: 'restaurant',
+      title: t('notifications.groups.restaurant.label'),
+      description: t('notifications.groups.restaurant.description'),
+      keys: [
+        'in_app_staff_time_entry_system_closed',
+        'in_app_staff_time_entry_missing_punch',
+        'in_app_restaurant_temperature_breach',
+        'in_app_restaurant_scheduled_report',
       ],
     },
   ], [t]);

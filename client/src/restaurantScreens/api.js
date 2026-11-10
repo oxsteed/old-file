@@ -129,3 +129,15 @@ export const placeDeviceOrder = (id, device, payload) =>
       },
     })
     .then((r) => r.data);
+
+export const placeDeviceCreditOrder = (id, device, attemptId, payload) =>
+  api.post(`${base(id, device)}/screen-credit-orders`, payload, {
+    ...deviceOptions(device),
+    skipSessionRefresh: true,
+    headers: { ...deviceOptions(device).headers, "Idempotency-Key": attemptId },
+  }).then((r) => r.data.receipt);
+
+export const getDeviceCreditReceipt = (id, device, attemptId) =>
+  api.get(`${base(id, device)}/screen-credit-orders/${encodeURIComponent(attemptId)}`,
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data.receipt);

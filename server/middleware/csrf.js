@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
+const { tryVerifyAccessToken } = require('../utils/accessToken');
 const logger = require('../utils/logger');
 
 // CSRF token middleware for protecting against Cross-Site Request Forgery attacks
@@ -166,9 +166,12 @@ async function validateToken(userId, token, sid) {
 // parseAuthIdentity from the verified access token); a token-less request
 // (legacy pre-scoping token) falls back to the per-user key.
 async function attachCsrfToken(req, res, next) {
-  if (!req.user?.id) return next();
+  // F-02: the CSRF identity comes from parseAuthIdentity's signature-verified
+  // access token (req.csrfIdentity), never from a bare req.user.
+  const csrfUserId = req.csrfIdentity?.id ?? req.user?.id;
+  if (!csrfUserId) return next();
   try {
-    const token = await getOrGenerateToken(req.user.id, req.csrfSid || null);
+    const token = await getOrGenerateToken(csrfUserId, req.csrfSid || null);
     res.set('X-CSRF-Token', token);
     req.csrfToken = token;
   } catch (err) {
@@ -193,12 +196,9 @@ function bearerImpersonates(req) {
   if (!header?.startsWith('Bearer ')) return false;
   const token = header.slice('Bearer '.length).trim();
   if (!token) return false;
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-    return Boolean(decoded && decoded.impersonation === true);
-  } catch {
-    return false;
-  }
+  // F-16: only a real (allow-listed) impersonation access token exempts.
+  const decoded = tryVerifyAccessToken(token, process.env.JWT_SECRET);
+  return Boolean(decoded && decoded.impersonation === true);
 }
 
 // Validate CSRF token on all state-changing requests.
@@ -223,7 +223,10 @@ async function validateCsrfToken(req, res, next) {
   }
 
   // Unauthenticated requests have no session token to validate against.
-  if (!req.user?.id) return next();
+  // F-02: the identity is the signature-verified access token's (set even
+  // when the DB-backed verification could not run), so CSRF fails closed.
+  const csrfUserId = req.csrfIdentity?.id ?? req.user?.id;
+  if (!csrfUserId) return next();
 
   const token = req.headers['x-csrf-token'] || req.body?._csrf;
 
@@ -235,7 +238,7 @@ async function validateCsrfToken(req, res, next) {
   }
 
   try {
-    const valid = await validateToken(req.user.id, token, req.csrfSid || null);
+    const valid = await validateToken(csrfUserId, token, req.csrfSid || null);
     if (!valid) {
       return res.status(403).json({
         error: 'CSRF token invalid',

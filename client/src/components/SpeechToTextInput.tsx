@@ -9,7 +9,8 @@
  * - Language context from user preferences
  *
  * Note: Uses Web Speech API (free, fast, browser-native).
- * OpenRouter transcription fallback is planned for future enhancement.
+ * A server-side transcription fallback is planned; it must run on self-hosted
+ * infrastructure only (security review F-04).
  */
 
 import React, { useRef, useState, useCallback } from 'react';
@@ -200,7 +201,7 @@ export default function SpeechToTextInput({
             confidence={confidence}
             transcript={transcript}
             isImproving={false}
-            onRequestImprovement={undefined} // OpenRouter not yet integrated
+            onRequestImprovement={undefined} // no server-side transcriber yet (self-hosted only)
           />
 
           {/* Editable transcript */}

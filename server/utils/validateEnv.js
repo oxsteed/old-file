@@ -17,6 +17,8 @@ const REQUIRED = [
 ];
 
 // Missing these disables the corresponding feature, not the entire API.
+const RETIRED_AI_KEYS = ['OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'META_AI_API_KEY'];
+
 const OPTIONAL = [
   ['SENTRY_DSN',               'Server error monitoring unavailable; Credit production activation disabled'],
   ['SECURITY_ALERT_EMAIL',     'Security incident email alerts use the default recipient'],
@@ -37,8 +39,7 @@ const OPTIONAL = [
   ['TELEMATICS_MOTIVE_WEBHOOK_SECRET', 'Motive telematics webhooks disabled'],
   ['TELEMATICS_GEOTAB_WEBHOOK_SECRET', 'Geotab telematics webhooks disabled'],
   ['TELEMATICS_VERIZON_CONNECT_WEBHOOK_SECRET', 'Verizon Connect telematics webhooks disabled'],
-  ['OPENAI_API_KEY',           'AI support chat disabled unless META_AI_API_KEY, OPENROUTER_API_KEY, or OLLAMA_URL is set'],
-  ['META_AI_API_KEY',          'Meta AI chat provider disabled; OpenRouter fallback used when configured'],
+  ['OLLAMA_URL',               'AI support chat, triage, drafts and AI translation disabled (self-hosted Ollama is the only AI provider)'],
   ['GOOGLE_MAPS_API_KEY',      'Geocoding / distance features disabled'],
   ['STRIPE_PUBLISHABLE_KEY', 'Marketplace card checkout and mobile payment setup unavailable'],
   ['STRIPE_CONNECT_WEBHOOK_SECRET', 'Connected-account webhook reconciliation unavailable'],
@@ -154,6 +155,14 @@ module.exports = function validateEnv() {
     process.exit(1);
     return;
   }
+
+  // Security review 2026-11-10 F-04: external AI providers were removed. A
+  // leftover key is ignored, but say so loudly so nobody assumes it is used.
+  RETIRED_AI_KEYS.forEach((key) => {
+    if (String(process.env[key] || '').trim()) {
+      logger.warn('Retired external AI provider key is set and ignored (self-hosted Ollama only)', { key });
+    }
+  });
 
   OPTIONAL.forEach(([key, note]) => {
     if (!process.env[key]) {

@@ -204,6 +204,37 @@ async function getTranslationById(translationId) {
   return rows[0] || null;
 }
 
+// F-18: owner-scoped read for the public API. The translations table is a
+// shared cache, so a row is returned only to a signed-in user who has a
+// translation request for the same cache key. Guests receive their result
+// inline from POST /api/translate and cannot look rows up by id.
+async function getTranslationForRequester(translationId, requesterUserId) {
+  if (!requesterUserId) return null;
+  const { rows } = await pool.query(
+    `SELECT t.id,
+            t.translated_text AS "translatedText",
+            t.normalized_source_text AS "normalizedSourceText",
+            t.source_language_code AS "sourceLanguage",
+            t.target_language_code AS "targetLanguage",
+            t.quality_score AS "qualityScore",
+            t.provider,
+            t.model,
+            t.review_status AS "reviewStatus",
+            t.metadata,
+            t.created_at AS "createdAt"
+       FROM translations t
+      WHERE t.id = $1
+        AND EXISTS (
+          SELECT 1 FROM translation_requests r
+           WHERE r.cache_key = t.cache_key
+             AND r.requester_user_id = $2
+        )
+      LIMIT 1`,
+    [translationId, requesterUserId]
+  );
+  return rows[0] || null;
+}
+
 async function listTranslationHistory({ requesterUserId, limit = 25, offset = 0 }) {
   const safeLimit = Math.min(Math.max(Number(limit) || 25, 1), 100);
   const safeOffset = Math.max(Number(offset) || 0, 0);
@@ -346,10 +377,19 @@ async function updateTranslationJobProgress(jobId, {
   );
 }
 
-async function getTranslationJobById(jobId, requesterUserId = null) {
+// `scope: 'requester'` (the public API) binds the read to the caller: a
+// signed-in user sees only their own jobs and a guest only guest-created
+// (requester-less) jobs, never another user's (F-18). Internal callers that
+// omit the scope keep the unscoped lookup.
+async function getTranslationJobById(jobId, requesterUserId = null, { scope = null } = {}) {
   const params = [jobId];
-  const userClause = requesterUserId ? 'AND requester_user_id = $2' : '';
-  if (requesterUserId) params.push(requesterUserId);
+  let userClause = '';
+  if (requesterUserId) {
+    userClause = 'AND requester_user_id = $2';
+    params.push(requesterUserId);
+  } else if (scope === 'requester') {
+    userClause = 'AND requester_user_id IS NULL';
+  }
 
   const { rows } = await pool.query(
     `SELECT id,
@@ -380,6 +420,7 @@ async function getTranslationJobById(jobId, requesterUserId = null) {
 }
 
 module.exports = {
+  getTranslationForRequester,
   createTranslationRequest,
   completeTranslationRequest,
   failTranslationRequest,

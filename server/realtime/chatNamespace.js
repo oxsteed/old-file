@@ -6,6 +6,7 @@ const tokenRevocationService = require('../services/tokenRevocationService');
 const { validateBeforeHandler } = require('../utils/socketAuthValidator');
 const { logAdminAction } = require('../services/auditService');
 const { resolveSocketAccessToken } = require('../utils/accessCookie');
+const { isAccessTokenPayload } = require('../utils/accessToken');
 
 // Logistics roles admitted to the operations workspace (mirrors
 // server/middleware/requireInternalLogisticsWorkspace.js). Holders with an
@@ -152,7 +153,8 @@ function createChatAuthenticator({ pool, jwtSecret, allowedOrigins } = {}) {
     try {
       // M22: pin the algorithm. H9: reject MFA/refresh tokens outright.
       const decoded = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] });
-      if (decoded.isMfaToken || decoded.type === 'refresh') {
+      // F-16: allow-list - only real access tokens open a socket.
+      if (!isAccessTokenPayload(decoded)) {
         return next(new Error('Invalid chat token'));
       }
       // H9: consult the revocation store, mirroring /support's authenticate().
@@ -162,8 +164,15 @@ function createChatAuthenticator({ pool, jwtSecret, allowedOrigins } = {}) {
       if (await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat)) {
         return next(new Error('Token has been revoked'));
       }
+      // F-02/F-16: an impersonation token opens a socket only while its
+      // session is live (same DB + admin-revocation checks as authenticate).
+      if (decoded.impersonation) {
+        const check = await require('../middleware/auth').verifyImpersonationSession(token, decoded)
+          .catch(() => ({ valid: false }));
+        if (!check.valid) return next(new Error('Impersonation session has ended'));
+      }
       const { rows } = await pool.query(
-        'SELECT is_active, role, logistics_role, COALESCE(is_suspended, FALSE) AS is_suspended, suspended_until FROM users WHERE id = $1 AND deleted_at IS NULL',
+        'SELECT is_active, role, logistics_role, COALESCE(is_suspended, FALSE) AS is_suspended, suspended_until, COALESCE(is_restricted, FALSE) AS is_restricted FROM users WHERE id = $1 AND deleted_at IS NULL',
         [decoded.id]
       );
       if (!rows[0]?.is_active) return next(new Error('Account suspended'));
@@ -174,6 +183,7 @@ function createChatAuthenticator({ pool, jwtSecret, allowedOrigins } = {}) {
         const suspensionActive = !rows[0].suspended_until || new Date(rows[0].suspended_until) > new Date();
         if (suspensionActive) return next(new Error('Account suspended'));
       }
+      if (rows[0].is_restricted) return next(new Error('Account restricted'));
 
       socket.userId = decoded.id;
       socket.userRole = rows[0].role;
@@ -370,6 +380,15 @@ function bindChatNamespace(namespace, { pool, socketService, logger, auditLog = 
       const businessId = payload?.businessId;
       const conversationId = payload?.conversationId;
       if (!businessId || !conversationId) return;
+      // F-12: typing relays only for a conversation the sender can see,
+      // and only to members who can see it (view_all, team, assignee).
+      if (typeof socketService.canSeeBusinessConversation === 'function') {
+        if (!(await socketService.canSeeBusinessConversation(businessId, userId, conversationId))) return;
+        await socketService.broadcastToBusinessInbox(
+          businessId, event, { businessId, conversationId, userId }, null, { exceptSocketId: socket.id },
+        );
+        return;
+      }
       if (!(await socketService.validateBusinessRoomAccess(businessId, userId))) return;
       socket.to(`business_${businessId}_inbox`).emit(event, {
         businessId,
@@ -396,6 +415,11 @@ function bindChatNamespace(namespace, { pool, socketService, logger, auditLog = 
     socketService.trackConnect(userId, socket.id);
     logger.debug('Socket connected', { userId, role: socket.userRole, socketId: socket.id });
 
+    // F-12: rooms are re-evaluated periodically so a permission change
+    // that missed the invalidation bus still closes within the interval.
+    if (typeof socketService.scheduleBusinessRoomRevalidation === 'function') {
+      socketService.scheduleBusinessRoomRevalidation(socket, userId);
+    }
     socketService.joinBusinessRooms(socket, userId).then((businessIds) => {
       if (businessIds?.length) {
         logger.debug('Socket joined business workspace rooms', {
