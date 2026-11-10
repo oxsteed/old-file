@@ -17,6 +17,9 @@
 
 'use strict';
 
+const { redactPiiInString, isFinancialKey } = require('./piiRedaction');
+const { redactPath } = require('./sensitiveUrl');
+
 const IS_PROD = process.env.NODE_ENV === 'production';
 
 // ANSI color codes (dev only)
@@ -41,6 +44,9 @@ const MIN_LEVEL = LEVELS[process.env.LOG_LEVEL] ?? (IS_PROD ? LEVELS.info : LEVE
  */
 function sanitizeMeta(obj) {
   if (obj === null || obj === undefined) return obj;
+  // Security review F-05: emails, phone numbers and card/account-length
+  // digit runs are masked in every logged string.
+  if (typeof obj === 'string') return redactPiiInString(obj);
   if (typeof obj !== 'object') return obj;
   if (obj instanceof Date) return obj;
 
@@ -65,10 +71,12 @@ function sanitizeMeta(obj) {
   const sanitized = {};
   for (const [key, value] of Object.entries(obj)) {
     const keyLower = key.toLowerCase();
-    if (keyLower === 'pin' || sensitiveKeys.some(sensitive => keyLower.includes(sensitive))) {
+    if (keyLower === 'pin' || isFinancialKey(keyLower) || sensitiveKeys.some(sensitive => keyLower.includes(sensitive))) {
       sanitized[key] = '[REDACTED]';
     } else if (typeof value === 'object' && value !== null && !(value instanceof Date)) {
       sanitized[key] = sanitizeMeta(value);
+    } else if (typeof value === 'string') {
+      sanitized[key] = redactPiiInString(value);
     } else {
       sanitized[key] = value;
     }
@@ -82,7 +90,7 @@ function sanitizeMeta(obj) {
 function serializeError(err) {
   if (!err || typeof err !== 'object') return err;
   return {
-    message: err.message,
+    message: redactPiiInString(err.message),
     name:    err.name,
     stack:   IS_PROD ? undefined : err.stack,
     code:    err.code,
@@ -94,6 +102,7 @@ function log(level, message, meta) {
   if (level < MIN_LEVEL) return;
 
   const ts = new Date().toISOString();
+  message = typeof message === 'string' ? redactPiiInString(message) : message;
 
   if (IS_PROD) {
     // Structured JSON for log aggregation
@@ -109,7 +118,7 @@ function log(level, message, meta) {
         // FIX #7: Sanitize meta to prevent credential leakage
         Object.assign(entry, sanitizeMeta(meta));
       } else {
-        entry.meta = meta;
+        entry.meta = sanitizeMeta(meta);
       }
     }
     // Use stdout for info/debug, stderr for warn/error
@@ -125,12 +134,12 @@ function log(level, message, meta) {
         line += `\n  ${C.red}${meta.stack || meta.message}${C.reset}`;
       } else if (meta && typeof meta === 'object') {
         try {
-          line += `  ${C.gray}${JSON.stringify(meta)}${C.reset}`;
+          line += `  ${C.gray}${JSON.stringify(sanitizeMeta(meta))}${C.reset}`;
         } catch {
           line += `  [unstringifiable object]`;
         }
       } else {
-        line += `  ${C.gray}${meta}${C.reset}`;
+        line += `  ${C.gray}${sanitizeMeta(meta)}${C.reset}`;
       }
     }
     const stream = level >= LEVELS.warn ? process.stderr : process.stdout;
@@ -156,7 +165,10 @@ const logger = {
         const level = res.statusCode >= 500 ? LEVELS.error
                     : res.statusCode >= 400 ? LEVELS.warn
                     : LEVELS.info;
-        log(level, `${req.method} ${req.path}`, {
+        // Security review F-05: capability tokens in the path (invoice,
+        // tracking, unsubscribe, offer links...) and query strings are
+        // never logged.
+        log(level, `${req.method} ${redactPath(req.originalUrl || req.path)}`, {
           status: res.statusCode,
           ms,
           ip: req.ip,
@@ -169,3 +181,4 @@ const logger = {
 };
 
 module.exports = logger;
+module.exports._sanitizeMeta = sanitizeMeta;
