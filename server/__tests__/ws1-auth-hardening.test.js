@@ -83,7 +83,7 @@ describe('H8a/H9/M22 chatNamespace authenticator', () => {
   }
 
   const sign = (payload, alg = 'HS256') =>
-    jwt.sign(payload, JWT_SECRET, { algorithm: alg, expiresIn: '1h' });
+    jwt.sign({ typ: 'access', sid: 'test-session', ...payload }, JWT_SECRET, { algorithm: alg, expiresIn: '1h' });
 
   test('H8a: token in handshake.query is rejected (auth payload only)', async () => {
     const { auth } = authFor();
@@ -336,7 +336,7 @@ describe('H11/M22 twoFactorController.validate2FA', () => {
   });
 
   test('M22: MFA token with "none" algorithm is rejected', async () => {
-    const noneToken = jwt.sign({ id: 'u1', isMfaToken: true }, '', { algorithm: 'none' });
+    const noneToken = jwt.sign({  id: 'u1', isMfaToken: true }, '', { algorithm: 'none' });
     const next = jest.fn();
     await twoFactor.validate2FA({ body: { mfaToken: noneToken, token: '123456' } }, mockRes(), next);
     expect(next.mock.calls[0][0].status).toBe(401);

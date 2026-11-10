@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { isDiditIdentitySatisfied } = require('../utils/diditGate');
 const { getEffectiveTier, hasProAccess } = require('../utils/trial');
+const { ACCESS_TOKEN_TYPE, verifyAccessToken, isAccessTokenPayload } = require('../utils/accessToken');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
@@ -30,7 +31,8 @@ function generateTokens(user, extraClaims = {}) {
   // where the sid lives.
   const sid = extraClaims.sid || crypto.randomUUID();
   const accessToken = jwt.sign(
-    { id: user.id, email: user.email, role: user.role, ...extraClaims, sid },
+    // F-16: `typ` is set last so no caller-supplied claim can override it.
+    { id: user.id, email: user.email, role: user.role, ...extraClaims, sid, typ: ACCESS_TOKEN_TYPE },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN, algorithm: 'HS256' }
   );
@@ -168,7 +170,7 @@ async function authenticate(req, res, next) {
       // privilege escalation in either case: an attacker holding only a
       // forged bearer and the victim's cookie could already authenticate
       // with the cookie alone.
-      const bearerDecoded = jwt.verify(bearerToken, JWT_SECRET, { algorithms: ['HS256'] });
+      const bearerDecoded = verifyAccessToken(bearerToken, JWT_SECRET);
       // Pentest fix: minted impersonation tokens carry `impersonation: true`
       // (see superAdminController exchange); the old `isImpersonated` claim
       // name never appears on a minted token, so this precedence check
@@ -189,12 +191,18 @@ async function authenticate(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 
-    // Reject MFA tokens - they can only be used on the 2FA endpoint
+    // F-16: allow-list. Only a real access token (typ 'access' with a
+    // session id, or a minted impersonation token) reaches the API. MFA,
+    // refresh, passkey-challenge, internal-access and guest tokens share
+    // the signing secret and are all refused here.
     if (decoded.isMfaToken) {
       return res.status(401).json({ error: 'MFA token cannot be used for API access' });
     }
     if (decoded.type === 'refresh') {
       return res.status(401).json({ error: 'Refresh token cannot be used for API access' });
+    }
+    if (!isAccessTokenPayload(decoded)) {
+      return res.status(401).json({ error: 'Invalid token', code: 'invalid_token_type' });
     }
 
     // Impersonation tokens: skip the standard revocation check (they are
@@ -258,7 +266,7 @@ async function authenticate(req, res, next) {
        LEFT JOIN businesses b ON b.user_id = u.id AND b.is_primary = TRUE
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id
        LEFT JOIN connect_accounts ca ON ca.user_id = u.id
-       WHERE u.id = $1`,
+       WHERE u.id = $1 AND u.deleted_at IS NULL`,
       [decoded.id]
     );
 
@@ -460,140 +468,202 @@ async function requireActiveSubscription(req, res, next) {
   }
 }
 
+function readAccessCookie(req) {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(/(?:^|;\s*)oxsteed_access=([^;]+)/);
+  if (!match) return null;
+  try { return decodeURIComponent(match[1]); } catch { return match[1]; }
+}
+
+function readBearer(req) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return null;
+  return header.split(' ')[1] || null;
+}
+
+// Same precedence as authenticate: a verified impersonation bearer wins over
+// the access cookie; otherwise the cookie, then the bearer.
+function selectRequestToken(req) {
+  const cookieToken = readAccessCookie(req);
+  const bearerToken = readBearer(req);
+  if (bearerToken && cookieToken) {
+    try {
+      if (verifyAccessToken(bearerToken, JWT_SECRET).impersonation === true) {
+        return { token: bearerToken, fromCookie: false };
+      }
+    } catch { /* fall through to the cookie */ }
+  }
+  if (cookieToken) return { token: cookieToken, fromCookie: true };
+  if (bearerToken) return { token: bearerToken, fromCookie: false };
+  return { token: null, fromCookie: false };
+}
+
+function clearRequestIdentity(req) {
+  delete req.user;
+  delete req.isImpersonated;
+  delete req.impersonatedBy;
+  delete req.impersonationJti;
+  req.isAdmin = false;
+  req.isSuperAdmin = false;
+}
+
 /**
- * Optional authentication middleware
- * Tries to authenticate via Bearer token, but continues without req.user if token is missing/invalid
- * Allows endpoints to serve both authenticated and unauthenticated requests
+ * Security review F-02: the shared verification for every non-rejecting
+ * identity path (optionalAuth and the global parseAuthIdentity). It runs the
+ * same checks as authenticate (access-token allow-list, revocation, full
+ * impersonation-session verification, account existence, deleted, inactive,
+ * suspended and restricted) and returns the verified user, or null when the
+ * request must be treated as a guest. The Didit gate stays in authenticate
+ * only (see the deliberate exception below).
+ */
+async function resolveOptionalIdentity(req, token) {
+  let decoded;
+  try {
+    decoded = verifyAccessToken(token, JWT_SECRET);
+  } catch {
+    return null;
+  }
+  let impersonation = null;
+  if (decoded.impersonation) {
+    const check = await verifyImpersonationSession(token, decoded).catch(() => ({ valid: false }));
+    if (!check.valid) return null;
+    impersonation = { impersonatedBy: decoded.impersonated_by || null, jti: decoded.jti || null };
+  } else {
+    const tokenId = crypto.createHash('sha256').update(token).digest('hex');
+    const isRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat);
+    if (isRevoked) return null;
+  }
+
+  const { rows } = await pool.query(
+    `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active,
+            u.default_mode, u.logistics_role, u.preferred_language,
+            COALESCE(u.is_suspended, FALSE) AS is_suspended, u.suspended_until,
+            COALESCE(u.is_restricted, FALSE) AS is_restricted
+       FROM users u WHERE u.id = $1 AND u.deleted_at IS NULL`,
+    [decoded.id]
+  );
+  const user = rows[0];
+  if (!user || !user.is_active) return null;
+  // Audit fix (P2-1-F05): suspended users get unauthenticated treatment on
+  // public GETs too; otherwise a suspended account keeps owner-gated views
+  // and authenticated behavior on optional-auth routes.
+  const suspensionActive = user.is_suspended
+    && (!user.suspended_until || new Date(user.suspended_until) > new Date());
+  if (suspensionActive) return null;
+  // Pentest fix: mirror authenticate's restriction gate (P2-1-F04). A
+  // restricted account gets unauthenticated treatment on optional-auth
+  // routes too, except the auth/support paths where authenticate itself
+  // leaves the gate open so the user can sign out or appeal.
+  // NOTE (deliberate exception, not an oversight): the Didit identity
+  // gate is NOT applied here. optionalAuth routes are guest-capable by
+  // design, so Didit-gating a signed-in user would only downgrade them
+  // to the guest treatment guests already receive, while breaking
+  // pre-verification support/chat onboarding flows that rely on
+  // optional auth. Didit enforcement lives in authenticate for
+  // protected routes; money-moving routes enforce their own identity
+  // gates (Credit rail, payouts) on top.
+  const optionalPath = `${req.baseUrl || ''}${req.path || ''}` || req.originalUrl?.split('?')[0] || '';
+  const restrictionExempt = optionalPath.startsWith('/api/auth/') || optionalPath.startsWith('/api/support/');
+  if (user.is_restricted && !restrictionExempt) return null;
+  user.internal_access_route = decoded.internalAccessRoute || null;
+  user.internal_access_id = decoded.internalAccessId || null;
+  return { user, decoded, impersonation };
+}
+
+function applyIdentity(req, identity) {
+  req.user = identity.user;
+  req.isAdmin = ['admin', 'super_admin'].includes(identity.user.role);
+  req.isSuperAdmin = identity.user.role === 'super_admin';
+  if (identity.impersonation) {
+    // Pentest fix: the impersonation flags are only set AFTER the session
+    // check passes, so a failed check never leaves a stale flag behind.
+    req.isImpersonated = true;
+    req.impersonatedBy = identity.impersonation.impersonatedBy;
+    req.impersonationJti = identity.impersonation.jti;
+  }
+}
+
+/**
+ * Optional authentication middleware.
+ * With no token the request continues as a guest. With a token, the request
+ * is authenticated only if the token passes every check authenticate runs;
+ * otherwise ANY identity set earlier in the chain is cleared (F-02), so a
+ * revoked, suspended, restricted, deleted or ended-impersonation token can
+ * never act as its user on a guest-capable route.
  */
 const optionalAuth = async (req, res, next) => {
-  // Audit fix: also check the oxsteed_access cookie, not just Bearer.
-  let token = null;
-  const cookieHeader = req.headers.cookie;
-  if (cookieHeader) {
-    const match = cookieHeader.match(/(?:^|;\s*)oxsteed_access=([^;]+)/);
-    if (match) {
-      try { token = decodeURIComponent(match[1]); } catch { token = match[1]; }
-    }
-  }
-  if (!token) {
-    const header = req.headers.authorization;
-    if (header?.startsWith('Bearer ')) {
-      token = header.split(' ')[1];
-    }
-  }
+  const { token } = selectRequestToken(req);
+  clearRequestIdentity(req);
   if (!token) return next();
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
-    if (decoded.isMfaToken || decoded.type === 'refresh') return next();
-
-    if (decoded.impersonation) {
-      // Ended impersonation sessions must not authenticate, even optionally.
-      // Audit fix (finding 36): mirror authenticate's DB + admin-revocation
-      // checks here. In optional-auth semantics a failed check means "stay
-      // unauthenticated" rather than a 401.
-      // Pentest fix: the impersonation flags are only set AFTER the check
-      // passes. Setting them first left a stale `req.isImpersonated = true`
-      // on a request with no req.user whenever the check failed, so a
-      // handler trusting the flag alone misread an unauthenticated request
-      // as impersonated.
-      const check = await verifyImpersonationSession(token, decoded).catch(() => ({ valid: false }));
-      if (!check.valid) return next();
-      req.isImpersonated = true;
-      req.impersonatedBy = decoded.impersonated_by || null;
-    } else {
-      const tokenId = crypto.createHash('sha256').update(token).digest('hex');
-      const isRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat);
-      if (isRevoked) return next();
-    }
-
-    const { rows } = await pool.query(
-        `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active,
-                u.default_mode, u.logistics_role, u.preferred_language,
-                COALESCE(u.is_suspended, FALSE) AS is_suspended, u.suspended_until,
-                COALESCE(u.is_restricted, FALSE) AS is_restricted
-         FROM users u WHERE u.id = $1`,
-      [decoded.id]
-    );
-    const user = rows[0];
-    // Audit fix (P2-1-F05): suspended users get unauthenticated treatment on
-    // public GETs too; otherwise a suspended account keeps owner-gated views
-    // and authenticated behavior on optional-auth routes.
-    const suspensionActive = user?.is_suspended
-      && (!user.suspended_until || new Date(user.suspended_until) > new Date());
-    // Pentest fix: mirror authenticate's restriction gate (P2-1-F04). A
-    // restricted account gets unauthenticated treatment on optional-auth
-    // routes too, except the auth/support paths where authenticate itself
-    // leaves the gate open so the user can sign out or appeal.
-    // NOTE (deliberate exception, not an oversight): the Didit identity
-    // gate is NOT applied here. optionalAuth routes are guest-capable by
-    // design, so Didit-gating a signed-in user would only downgrade them
-    // to the guest treatment guests already receive, while breaking
-    // pre-verification support/chat onboarding flows that rely on
-    // optional auth. Didit enforcement lives in authenticate for
-    // protected routes; if that changes, this middleware must change too.
-    const optionalPath = `${req.baseUrl || ''}${req.path || ''}` || req.originalUrl?.split('?')[0] || '';
-    const restrictionExempt = optionalPath.startsWith('/api/auth/') || optionalPath.startsWith('/api/support/');
-    if (user?.is_restricted && !restrictionExempt) return next();
-    if (user && user.is_active && !suspensionActive) {
-      user.internal_access_route = decoded.internalAccessRoute || null;
-      user.internal_access_id = decoded.internalAccessId || null;
-      req.user = user;
-      req.isAdmin = ['admin', 'super_admin'].includes(user.role);
-      req.isSuperAdmin = user.role === 'super_admin';
-    }
+    const identity = await resolveOptionalIdentity(req, token);
+    if (identity) applyIdentity(req, identity);
   } catch {
-    // Expired, invalid, or DB error - continue as unauthenticated
+    // Revocation-store or DB failure: continue as unauthenticated.
+    clearRequestIdentity(req);
   }
-  next();
+  return next();
 };
 
-// Pentest fix: non-rejecting identity parse for the global CSRF boundary.
-// The CSRF middleware runs before route-level authenticate, so it used to
-// see no req.user at all and skipped validation for every cookie session
-// (the file's own comment admitted the gap). This middleware runs first and
-// establishes ONLY the user id from a signature-valid access token, so
-// attachCsrfToken can issue a token and validateCsrfToken can check one.
-// It never rejects, never touches the database, never enforces suspension,
-// restriction, or Didit gates, and never sets admin flags: route-level
-// authenticate still owns all of that and replaces req.user with the full
-// record. MFA and refresh tokens are skipped exactly like authenticate
-// skips them for API access. req.csrfCookieSession records whether the
-// identity came from the ambient cookie, for any caller that needs to
-// distinguish cookie sessions from Bearer-only clients.
-function parseAuthIdentity(req, res, next) {
+/**
+ * Money-moving guest-capable routes: a guest (no token) continues as a guest,
+ * but a presented session must fully authenticate. A revoked, suspended,
+ * restricted or ended-impersonation session is refused (401/403) instead of
+ * being silently downgraded to a guest that could still spend.
+ */
+function authenticateIfPresent(req, res, next) {
+  const { token } = selectRequestToken(req);
+  clearRequestIdentity(req);
+  if (!token) return next();
+  let decoded = null;
+  try { decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }); } catch { decoded = null; }
+  // An expired or foreign-signature cookie is a stale browser artefact, not
+  // a session: treat it as absent so guests are not locked out.
+  if (!decoded) return next();
+  return authenticate(req, res, next);
+}
+
+// Global identity parse for the CSRF boundary. It runs before route-level
+// middleware on every request. Security review F-02: it used to set a bare
+// `req.user = { id }` from any signature-valid token, which routes without
+// authenticate then trusted. Now:
+//   - req.csrfIdentity / req.csrfSid / req.csrfCookieSession carry the
+//     signature-verified ACCESS token identity for CSRF only (cheap, no DB,
+//     so the CSRF check stays fail-closed even when the DB is unavailable);
+//   - req.user is set only after the full optional-auth verification
+//     (revocation, impersonation session, active, not deleted, suspended or
+//     restricted), so every route sees either a verified user or a guest.
+// Route-level authenticate still owns the Didit gate and replaces req.user
+// with the full record.
+async function parseAuthIdentity(req, res, next) {
+  clearRequestIdentity(req);
+  delete req.csrfIdentity;
+  req.csrfSid = null;
+  req.csrfCookieSession = false;
+  const { token, fromCookie } = selectRequestToken(req);
+  if (!token) return next();
+  let decoded;
   try {
-    let token = null;
-    let fromCookie = false;
-    const cookieHeader = req.headers.cookie;
-    if (cookieHeader) {
-      const match = cookieHeader.match(/(?:^|;\s*)oxsteed_access=([^;]+)/);
-      if (match) {
-        try { token = decodeURIComponent(match[1]); } catch { token = match[1]; }
-        fromCookie = true;
-      }
-    }
-    if (!token) {
-      const header = req.headers.authorization;
-      if (header?.startsWith('Bearer ')) token = header.split(' ')[1];
-    }
-    if (!token) return next();
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
-    if (decoded.isMfaToken || decoded.type === 'refresh') return next();
-    req.user = { id: decoded.id };
-    // Session-scoped CSRF: expose the access token's session id on a
-    // field authenticate does NOT replace (it replaces req.user with the
-    // full DB record), so the CSRF middleware and the logout handler can
-    // bind to the presented session even after authenticate runs.
-    // Tokens minted before session scoping carry no sid: req.csrfSid stays
-    // null and CSRF falls back to the legacy per-user key until refresh
-    // mints a sid (bounded by the 15-minute access-token lifetime).
-    req.csrfSid = decoded.sid || null;
-    req.csrfCookieSession = fromCookie;
+    decoded = verifyAccessToken(token, JWT_SECRET);
   } catch {
-    // Expired, malformed, or wrong-signature token: unauthenticated for
-    // CSRF purposes. Route authenticate will still reject it downstream.
+    // Expired, malformed, wrong-signature or non-access token:
+    // unauthenticated for CSRF purposes. authenticate still rejects it.
+    return next();
   }
-  next();
+  req.csrfIdentity = { id: decoded.id };
+  // Session-scoped CSRF: expose the access token's session id on a field
+  // authenticate does NOT replace, so the CSRF middleware and the logout
+  // handler can bind to the presented session even after authenticate runs.
+  req.csrfSid = decoded.sid || null;
+  req.csrfCookieSession = fromCookie;
+  try {
+    const identity = await resolveOptionalIdentity(req, token);
+    if (identity) applyIdentity(req, identity);
+  } catch {
+    clearRequestIdentity(req);
+  }
+  return next();
 }
 
 module.exports = {
@@ -602,6 +672,9 @@ module.exports = {
   requireAuth: authenticate,
   parseAuthIdentity,
   optionalAuth,
+  authenticateIfPresent,
+  resolveOptionalIdentity,
+  verifyImpersonationSession,
   requireRole,
   requireTier,
   requireActiveSubscription,

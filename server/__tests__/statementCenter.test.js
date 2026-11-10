@@ -258,7 +258,7 @@ describe('GET /api/statements/center route', () => {
   });
 
   function bearer(claims = {}) {
-    return `Bearer ${jwt.sign({ id: CUSTOMER, role: 'customer', ...claims }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
+    return `Bearer ${jwt.sign({ typ: 'access', sid: 'test-session',  id: CUSTOMER, role: 'customer', ...claims }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
   }
 
   test('anonymous requests are rejected and the service is not called', async () => {

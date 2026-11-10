@@ -9,8 +9,8 @@ const quoteRoutes = require('../routes/helperQuotes');
 
 const CUSTOMER_ID = 1;
 const HELPER_ID = 2;
-const CUSTOMER_TOKEN = jwt.sign({ id: CUSTOMER_ID, email: 'c@test.com', role: 'customer' }, process.env.JWT_SECRET);
-const HELPER_TOKEN = jwt.sign({ id: HELPER_ID, email: 'h@test.com', role: 'helper' }, process.env.JWT_SECRET);
+const CUSTOMER_TOKEN = jwt.sign({ typ: 'access', sid: 'test-session',  id: CUSTOMER_ID, email: 'c@test.com', role: 'customer' }, process.env.JWT_SECRET);
+const HELPER_TOKEN = jwt.sign({ typ: 'access', sid: 'test-session',  id: HELPER_ID, email: 'h@test.com', role: 'helper' }, process.env.JWT_SECRET);
 
 const CUSTOMER = {
   id: CUSTOMER_ID,

@@ -17,7 +17,7 @@ function buildApp() {
 }
 
 function signToken(payload) {
-  return jwt.sign(payload, process.env.JWT_SECRET, { algorithm: 'HS256' });
+  return jwt.sign({ typ: 'access', sid: 'test-session', ...payload }, process.env.JWT_SECRET, { algorithm: 'HS256' });
 }
 
 beforeEach(() => {

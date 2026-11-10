@@ -11,6 +11,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { resolveSocketAccessToken } = require('../utils/accessCookie');
+const { isAccessTokenPayload } = require('../utils/accessToken');
 const runtimeState = require('../services/runtimeState');
 
 const REALTIME_INSTANCE = Symbol.for('oxsteed.realtime.instance');
@@ -154,17 +155,25 @@ function createRealtimeServer({
       if (!token) return next(new Error('Authentication required'));
       try {
         const decoded = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] });
-        if (decoded.isMfaToken || decoded.type === 'refresh') {
+        // F-16: allow-list - only real access tokens open a socket.
+        if (!isAccessTokenPayload(decoded)) {
           return next(new Error('Invalid support token'));
         }
         const tokenId = crypto.createHash('sha256').update(token).digest('hex');
         if (await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat)) {
           return next(new Error('Token has been revoked'));
         }
+        if (decoded.impersonation) {
+          const check = await require('../middleware/auth').verifyImpersonationSession(token, decoded)
+            .catch(() => ({ valid: false }));
+          if (!check.valid) return next(new Error('Impersonation session has ended'));
+        }
         const { rows } = await pool.query(
           'SELECT id, role, is_active FROM users WHERE id = $1 AND deleted_at IS NULL',
           [decoded.id]
         );
+        // Suspended and restricted accounts keep support access (appeals),
+        // matching authenticate's /api/support exemption.
         if (!rows[0]?.is_active) return next(new Error('Account suspended'));
         socket.userId = decoded.id;
         socket.userRole = rows[0].role;

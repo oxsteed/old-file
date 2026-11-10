@@ -18,7 +18,7 @@ const jwt     = require('jsonwebtoken');
 const bidRoutes = require('../routes/bids');
 
 const HELPER_ID   = 2;
-const TOKEN_HELPER = jwt.sign({ id: HELPER_ID, email: 'h@test.com', role: 'helper' }, process.env.JWT_SECRET);
+const TOKEN_HELPER = jwt.sign({ typ: 'access', sid: 'test-session',  id: HELPER_ID, email: 'h@test.com', role: 'helper' }, process.env.JWT_SECRET);
 
 const MOCK_HELPER = {
   id: HELPER_ID, first_name: 'Bob', last_name: 'Fix', email: 'h@test.com',

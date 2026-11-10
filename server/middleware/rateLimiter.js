@@ -1,6 +1,7 @@
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const { tryVerifyAccessToken } = require('../utils/accessToken');
 const logger = require('../utils/logger');
 const pool = require('../db');
 
@@ -54,13 +55,9 @@ function getVerifiedBearerUserId(req) {
   const header = req.headers.authorization;
   let userId = null;
   if (typeof header === 'string' && header.startsWith('Bearer ')) {
-    try {
-      const decoded = jwt.verify(header.slice('Bearer '.length), process.env.JWT_SECRET, { algorithms: ['HS256'] });
-      if (decoded && decoded.id != null) userId = decoded.id;
-    } catch {
-      // Expired, malformed, or wrongly-signed token - treat as anonymous.
-      userId = null;
-    }
+    // F-16: only allow-listed access tokens earn a per-user budget.
+    const decoded = tryVerifyAccessToken(header.slice('Bearer '.length), process.env.JWT_SECRET);
+    userId = decoded ? decoded.id : null;
   }
   req._verifiedBearer = userId;
   return userId;
@@ -84,21 +81,19 @@ function getVerifiedAuthUserId(req) {
   const bearerToken = typeof header === 'string' && header.startsWith('Bearer ')
     ? header.slice('Bearer '.length) : null;
   // Decode only selects the token; the selected token is verified below.
+  // Decode only selects the token; the selected token is verified below, so
+  // a forged impersonation bearer selects itself and then stays anonymous.
   let useBearer = false;
   if (bearerToken) {
-    try { useBearer = !!jwt.decode(bearerToken)?.isImpersonated; } catch { /* malformed token */ }
+    try { useBearer = jwt.decode(bearerToken)?.impersonation === true; } catch { /* malformed token */ }
   }
   const token = useBearer ? bearerToken : cookieToken || bearerToken;
   let userId = null;
   if (token) {
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-      if (decoded && decoded.id != null && !decoded.isMfaToken && decoded.type !== 'refresh') {
-        userId = decoded.id;
-      }
-    } catch {
-      // Expired, malformed, wrongly signed, MFA and refresh tokens stay anonymous.
-    }
+    // F-16: expired, malformed, wrongly signed and every non-access token
+    // (MFA, refresh, passkey challenge, internal access) stay anonymous.
+    const decoded = tryVerifyAccessToken(token, process.env.JWT_SECRET);
+    if (decoded) userId = decoded.id;
   }
   req._verifiedAuthUser = userId;
   return userId;

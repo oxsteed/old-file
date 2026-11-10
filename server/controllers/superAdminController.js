@@ -3854,6 +3854,7 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
 
 const crypto = require('crypto');
 const jwt    = require('jsonwebtoken');
+const { ACCESS_TOKEN_TYPE } = require('../utils/accessToken');
 
 /**
  * POST /admin/users/:userId/impersonate
@@ -3971,7 +3972,8 @@ exports.exchangeImpersonationCode = async (req, res) => {
     if (!trows.length) return res.status(404).json({ error: 'User not found.' });
     const target = trows[0];
     const impersonationToken = jwt.sign(
-      { id: target.id, email: target.email, role: target.role, impersonation: true, impersonated_by: adminId, jti: rows[0].token_jti },
+      // F-16: impersonation tokens are access tokens (allow-listed by typ).
+      { id: target.id, email: target.email, role: target.role, impersonation: true, impersonated_by: adminId, jti: rows[0].token_jti, typ: ACCESS_TOKEN_TYPE },
       process.env.JWT_SECRET, { expiresIn: '30m', algorithm: 'HS256' }
     );
     res.json({ impersonationToken, userId: target.id });

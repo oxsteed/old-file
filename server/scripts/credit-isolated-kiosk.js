@@ -118,7 +118,7 @@ async function run() {
   assert.equal(JSON.stringify(sale.metadata).includes(credential), false);
   assert.equal(Object.hasOwn(sale.metadata, 'pin'), false);
 
-  const ownerToken = jwt.sign({ id: owner, role: 'helper' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+  const ownerToken = jwt.sign({ id: owner, role: 'helper', typ: 'access', sid: 'isolated-kiosk' }, process.env.JWT_SECRET, { expiresIn: '5m' });
   await request(`/api/food/restaurants/901/orders/${receipt.orderId}/status`, {
     method: 'PATCH', headers: { Authorization: `Bearer ${ownerToken}`, 'Idempotency-Key': randomUUID() },
     body: { status: 'cancelled', reason: 'Synthetic kiosk refund' }, expected: 200,

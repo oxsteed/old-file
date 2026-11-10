@@ -30,7 +30,7 @@ describe('Media sessions and target access', () => {
     const app = express();
     app.use('/api/media', require('../routes/media'));
     let req = request(app).get('/api/media/posts/post-1');
-    const token = jwt.sign({ id: viewer.id }, process.env.JWT_SECRET);
+    const token = jwt.sign({ typ: 'access', sid: 'test-session',  id: viewer.id }, process.env.JWT_SECRET);
     if (session === 'cookie') req = req.set('Cookie', `oxsteed_access=${token}`);
     if (session === 'bearer') req = req.set('Authorization', `Bearer ${token}`);
     const result = await req;

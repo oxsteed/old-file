@@ -17,7 +17,7 @@ async function main() {
   const base = 'http://127.0.0.1:5000/api';
   const postIds = [];
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'media-isolated-'));
-  const headers = user => user ? { authorization: `Bearer ${jwt.sign({ id: user, role: 'helper' },
+  const headers = user => user ? { authorization: `Bearer ${jwt.sign({ id: user, role: 'helper', typ: 'access', sid: 'isolated-media' },
     process.env.JWT_SECRET, { expiresIn: '10m', algorithm: 'HS256' })}` } : {};
   async function api(route, user, body, method = 'GET') {
     const form = body instanceof FormData;

@@ -3,6 +3,7 @@ const crypto          = require('crypto');
 const db              = require('../db');
 const logger          = require('../utils/logger');
 const tokenRevocationService = require('../services/tokenRevocationService');
+const { isAccessTokenPayload } = require('../utils/accessToken');
 
 function rejectWrongTokenType(decoded, res) {
   if (decoded?.isMfaToken) {
@@ -11,6 +12,14 @@ function rejectWrongTokenType(decoded, res) {
   }
   if (decoded?.type === 'refresh') {
     res.status(401).json({ error: 'Refresh token cannot be used for admin access.' });
+    return true;
+  }
+  // Security review F-16: allow-list. Only a real access token (typ
+  // 'access' with a session id, or a minted impersonation token) may reach
+  // an admin route; passkey-challenge, internal-access and any future
+  // token kind signed with the same secret are refused.
+  if (!isAccessTokenPayload(decoded)) {
+    res.status(401).json({ error: 'Invalid or expired token.' });
     return true;
   }
   return false;

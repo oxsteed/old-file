@@ -14,6 +14,7 @@ const db = require('../db');
 const { challengeFromResponse } = require('../utils/webauthnChallenge');
 const { assertLoginAgreement, recordLoginAgreement } = require('../services/loginAgreementService');
 const { generateTokens } = require('../middleware/auth');
+const { PASSKEY_LOGIN_AUDIENCE, PASSKEY_LOGIN_TOKEN_TYPE } = require('../utils/accessToken');
 const { issueSessionCsrf } = require('../middleware/csrf');
 const { formatAuthUser } = require('./authController');
 
@@ -48,8 +49,13 @@ function safePasskey(row) {
 function parsePasskeyToken(token) {
   if (!token || typeof token !== 'string' || !JWT_SECRET) return null;
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
-    return decoded?.isPasskeyToken ? decoded : null;
+    // F-16: the challenge token has its own type and audience, so it can
+    // never be mistaken for (or replace) an access token.
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      algorithms: ['HS256'],
+      audience: PASSKEY_LOGIN_AUDIENCE,
+    });
+    return decoded?.isPasskeyToken === true && decoded.typ === PASSKEY_LOGIN_TOKEN_TYPE ? decoded : null;
   } catch {
     return null;
   }
@@ -239,10 +245,14 @@ async function authenticationOptions(req, res, next) {
       timeout: 60_000,
     });
     await saveChallenge(user.id, 'authentication', options.challenge);
+    // Security review F-16: this token is issued BEFORE any WebAuthn
+    // assertion, so it must never work as a login. It carries a dedicated
+    // type and audience; every API/admin/socket verifier admits only
+    // `typ: 'access'` tokens, and only verifyAuthentication accepts this one.
     const token = jwt.sign(
-      { id: user.id, isPasskeyToken: true },
+      { id: user.id, isPasskeyToken: true, typ: PASSKEY_LOGIN_TOKEN_TYPE },
       JWT_SECRET,
-      { expiresIn: '5m' }
+      { expiresIn: '5m', algorithm: 'HS256', audience: PASSKEY_LOGIN_AUDIENCE }
     );
     return res.json({ options, token });
   } catch (err) { return next(err); }

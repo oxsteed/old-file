@@ -9,8 +9,8 @@
  *   - force-logout invalidates every token for the user;
  *   - refresh preserves the sid, so rotation never invalidates the
  *     client's token (the full login-refresh-logout cycle works);
- *   - pre-scoping tokens without a sid keep validating against the
- *     legacy per-user key until their first refresh mints a sid.
+ *   - tokens without a sid are not access tokens (security review F-16)
+ *     and establish no CSRF identity at all.
  * Follows the ws1 harness style: real handlers/middleware with
  * SQL-pattern mocks, plus supertest for the middleware boundary (with a
  * live env, since validateCsrfToken skips entirely under NODE_ENV=test).
@@ -53,7 +53,7 @@ function mockRes() {
 
 function accessCookie(userId, sid) {
   const token = jwt.sign(
-    sid ? { id: userId, sid } : { id: userId },
+    sid ? { id: userId, sid, typ: 'access' } : { id: userId, typ: 'access' },
     JWT_SECRET,
     { algorithm: 'HS256' }
   );
@@ -101,15 +101,15 @@ describe('generateTokens mints a session id', () => {
 });
 
 describe('parseAuthIdentity exposes the session id', () => {
-  test('sid from a verified token lands on req.csrfSid; sid-less tokens give null', async () => {
+  test('sid from a verified token lands on req.csrfSid; sid-less tokens give no identity', async () => {
     const app = express();
     app.use(express.json());
     app.use(parseAuthIdentity);
-    app.get('/who', (req, res) => res.json({ id: req.user?.id || null, csrfSid: req.csrfSid || null }));
+    app.get('/who', (req, res) => res.json({ id: req.csrfIdentity?.id || null, csrfSid: req.csrfSid || null }));
     const withSid = await request(app).get('/who').set('Cookie', accessCookie(9, 'sid-probe'));
     expect(withSid.body).toEqual({ id: 9, csrfSid: 'sid-probe' });
     const withoutSid = await request(app).get('/who').set('Cookie', accessCookie(9));
-    expect(withoutSid.body).toEqual({ id: 9, csrfSid: null });
+    expect(withoutSid.body).toEqual({ id: null, csrfSid: null });
   });
 });
 
@@ -141,18 +141,13 @@ describe('session binding at the middleware boundary', () => {
     });
   });
 
-  test('legacy sid-less tokens still validate against the per-user key only', async () => {
+  test('sid-less tokens are not access tokens: no CSRF token is issued for them (F-16)', async () => {
     await withLiveEnv(async () => {
       const app = buildApp();
       const legacy = await request(app).get('/ping').set('Cookie', accessCookie(12));
-      const legacyToken = legacy.headers['x-csrf-token'];
-      expect(legacyToken).toBeTruthy();
-      const ok = await request(app).post('/mutate')
-        .set('Cookie', accessCookie(12))
-        .set('X-CSRF-Token', legacyToken)
-        .send({});
-      expect(ok.status).toBe(200);
-      // The legacy token must NOT validate once the request carries a sid.
+      expect(legacy.headers['x-csrf-token']).toBeUndefined();
+      // A per-user (sid-less) CSRF token never validates for a sid session.
+      const legacyToken = await getOrGenerateToken(12, null);
       const scoped = await request(app).post('/mutate')
         .set('Cookie', accessCookie(12, 'sid-C'))
         .set('X-CSRF-Token', legacyToken)

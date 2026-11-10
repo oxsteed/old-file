@@ -38,7 +38,7 @@ const businessModerationController = require('../controllers/businessModerationC
 const { unpublishBusinessIfIncomplete } = require('../controllers/businessController');
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const sign = (payload) => jwt.sign(payload, JWT_SECRET, { algorithm: 'HS256', expiresIn: '1h' });
+const sign = (payload) => jwt.sign({ typ: 'access', sid: 'test-session', ...payload }, JWT_SECRET, { algorithm: 'HS256', expiresIn: '1h' });
 
 beforeEach(() => {
   resetMocks();

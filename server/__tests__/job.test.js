@@ -22,8 +22,8 @@ const jwt     = require('jsonwebtoken');
 
 const jobRoutes = require('../routes/jobs');
 
-const TOKEN_CUSTOMER = jwt.sign({ id: 1, email: 'c@test.com', role: 'customer' }, process.env.JWT_SECRET);
-const TOKEN_HELPER   = jwt.sign({ id: 2, email: 'h@test.com', role: 'helper'   }, process.env.JWT_SECRET);
+const TOKEN_CUSTOMER = jwt.sign({ typ: 'access', sid: 'test-session',  id: 1, email: 'c@test.com', role: 'customer' }, process.env.JWT_SECRET);
+const TOKEN_HELPER   = jwt.sign({ typ: 'access', sid: 'test-session',  id: 2, email: 'h@test.com', role: 'helper'   }, process.env.JWT_SECRET);
 
 const stripe = require('stripe')();
 

@@ -33,7 +33,7 @@ function routeHasMiddleware(router, method, routePath, name) {
 }
 
 function bearer(claims) {
-  return `Bearer ${jwt.sign({ id: 'admin-1', ...claims }, SECRET, { algorithm: 'HS256' })}`;
+  return `Bearer ${jwt.sign({ typ: 'access', sid: 'test-session',  id: 'admin-1', ...claims }, SECRET, { algorithm: 'HS256' })}`;
 }
 
 function mockRes() {
