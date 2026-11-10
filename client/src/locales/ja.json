@@ -2644,7 +2644,15 @@
       "deleteAccount": "アカウントを削除",
       "confirmTitle": "アカウントを削除",
       "confirmDesc": "この操作は取り消せません。すべてのデータが完全に削除されます。",
-      "yesDelete": "はい、アカウントを削除する"
+      "yesDelete": "はい、アカウントを削除する",
+      "currentPasswordLabel": "現在のパスワード",
+      "totpCodeLabel": "認証コード",
+      "totpCodeHint": "2段階認証が有効な場合のみ必要です。",
+      "reauthPasswordRequired": "確認のため現在のパスワードを入力してください。",
+      "reauthTotpRequired": "確認のため認証アプリのコードを入力してください。",
+      "reauthInvalid": "パスワードまたは確認コードが正しくありません。",
+      "reauthUnavailable": "アカウントにはまだパスワードがありません。「パスワードをお忘れですか」で設定してから、もう一度お試しください。",
+      "impersonationBlocked": "サポート担当者がアカウントを表示している間は、アカウントを削除できません。"
     },
     "preferencesTab": "設定",
     "tabPaymentPolicies": "支払いポリシー",

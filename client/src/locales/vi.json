@@ -2644,7 +2644,15 @@
       "deleteAccount": "Xóa tài khoản",
       "confirmTitle": "Xóa tài khoản của bạn",
       "confirmDesc": "Hành động này không thể hoàn tác. Tất cả dữ liệu của bạn sẽ bị xóa vĩnh viễn.",
-      "yesDelete": "Có, xóa tài khoản của tôi"
+      "yesDelete": "Có, xóa tài khoản của tôi",
+      "currentPasswordLabel": "Mật khẩu hiện tại",
+      "totpCodeLabel": "Mã xác thực",
+      "totpCodeHint": "Chỉ cần khi đã bật xác thực hai yếu tố.",
+      "reauthPasswordRequired": "Nhập mật khẩu hiện tại để xác nhận.",
+      "reauthTotpRequired": "Nhập mã từ ứng dụng xác thực để xác nhận.",
+      "reauthInvalid": "Mật khẩu hoặc mã xác minh không đúng.",
+      "reauthUnavailable": "Tài khoản của bạn chưa có mật khẩu. Dùng \"Quên mật khẩu\" để đặt mật khẩu rồi thử lại.",
+      "impersonationBlocked": "Không thể xóa tài khoản khi nhân viên hỗ trợ đang xem tài khoản của bạn."
     },
     "preferencesTab": "Tùy chọn",
     "tabPaymentPolicies": "Chính sách thanh toán",

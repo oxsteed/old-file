@@ -2644,7 +2644,15 @@
       "deleteAccount": "Konto löschen",
       "confirmTitle": "Ihr Konto löschen",
       "confirmDesc": "Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre Daten werden dauerhaft gelöscht.",
-      "yesDelete": "Ja, mein Konto löschen"
+      "yesDelete": "Ja, mein Konto löschen",
+      "currentPasswordLabel": "Aktuelles Passwort",
+      "totpCodeLabel": "Authentifizierungscode",
+      "totpCodeHint": "Nur erforderlich, wenn die Zwei-Faktor-Authentifizierung aktiviert ist.",
+      "reauthPasswordRequired": "Geben Sie zur Bestätigung Ihr aktuelles Passwort ein.",
+      "reauthTotpRequired": "Geben Sie zur Bestätigung den Code aus Ihrer Authentifizierungs-App ein.",
+      "reauthInvalid": "Ihr Passwort oder Bestätigungscode ist falsch.",
+      "reauthUnavailable": "Ihr Konto hat noch kein Passwort. Legen Sie über „Passwort vergessen“ eines fest und versuchen Sie es erneut.",
+      "impersonationBlocked": "Das Konto kann nicht gelöscht werden, während ein Support-Mitarbeiter es ansieht."
     },
     "preferencesTab": "Präferenzen",
     "tabPaymentPolicies": "Zahlungsrichtlinien",

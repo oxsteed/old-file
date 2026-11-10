@@ -4418,7 +4418,15 @@
       "deleteAccount": "Supprimer le Compte",
       "confirmTitle": "Supprimer Votre Compte",
       "confirmDesc": "Cette action ne peut pas être annulée. Toutes vos données seront définitivement supprimées.",
-      "yesDelete": "Oui, Supprimer Mon Compte"
+      "yesDelete": "Oui, Supprimer Mon Compte",
+      "currentPasswordLabel": "Mot de passe actuel",
+      "totpCodeLabel": "Code d'authentification",
+      "totpCodeHint": "Nécessaire uniquement si la double authentification est activée.",
+      "reauthPasswordRequired": "Saisissez votre mot de passe actuel pour confirmer.",
+      "reauthTotpRequired": "Saisissez le code de votre application d'authentification pour confirmer.",
+      "reauthInvalid": "Votre mot de passe ou code de vérification est incorrect.",
+      "reauthUnavailable": "Votre compte n'a pas encore de mot de passe. Utilisez « Mot de passe oublié » pour en créer un, puis réessayez.",
+      "impersonationBlocked": "La suppression du compte n'est pas disponible pendant qu'un agent du support consulte votre compte."
     },
     "tabPaymentPolicies": "Politiques de paiement",
     "accountDeleteHasBalance": "Vous avez encore un solde, une retenue ou un versement en attente. Retirez ou utilisez votre solde restant et attendez la fin des versements en attente avant de supprimer votre compte, ou contactez support@oxsteed.com.",

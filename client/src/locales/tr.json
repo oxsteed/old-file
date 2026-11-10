@@ -2644,7 +2644,15 @@
       "deleteAccount": "Hesabı Sil",
       "confirmTitle": "Hesabınızı Silin",
       "confirmDesc": "Bu işlem geri alınamaz. Tüm verileriniz kalıcı olarak silinir.",
-      "yesDelete": "Evet, Hesabımı Sil"
+      "yesDelete": "Evet, Hesabımı Sil",
+      "currentPasswordLabel": "Mevcut şifre",
+      "totpCodeLabel": "Doğrulayıcı kodu",
+      "totpCodeHint": "Yalnızca iki adımlı doğrulama açıksa gereklidir.",
+      "reauthPasswordRequired": "Onaylamak için mevcut şifrenizi girin.",
+      "reauthTotpRequired": "Onaylamak için doğrulayıcı uygulamanızdaki kodu girin.",
+      "reauthInvalid": "Şifreniz veya doğrulama kodunuz hatalı.",
+      "reauthUnavailable": "Hesabınızın henüz bir şifresi yok. \"Şifremi unuttum\" ile bir şifre belirleyin ve tekrar deneyin.",
+      "impersonationBlocked": "Bir destek temsilcisi hesabınızı görüntülerken hesap silinemez."
     },
     "preferencesTab": "Tercihler",
     "tabPaymentPolicies": "Ödeme Politikaları",

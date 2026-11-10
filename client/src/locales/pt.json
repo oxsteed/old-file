@@ -2644,7 +2644,15 @@
       "deleteAccount": "Excluir conta",
       "confirmTitle": "Exclua sua conta",
       "confirmDesc": "Esta ação não pode ser desfeita. Todos os seus dados serão excluídos permanentemente.",
-      "yesDelete": "Sim, excluir minha conta"
+      "yesDelete": "Sim, excluir minha conta",
+      "currentPasswordLabel": "Senha atual",
+      "totpCodeLabel": "Código do autenticador",
+      "totpCodeHint": "Necessário apenas se a autenticação em dois fatores estiver ativada.",
+      "reauthPasswordRequired": "Digite sua senha atual para confirmar.",
+      "reauthTotpRequired": "Digite o código do seu app autenticador para confirmar.",
+      "reauthInvalid": "Sua senha ou código de verificação está incorreto.",
+      "reauthUnavailable": "Sua conta ainda não tem senha. Use \"Esqueci minha senha\" para criar uma e tente novamente.",
+      "impersonationBlocked": "Não é possível excluir a conta enquanto um agente de suporte a está visualizando."
     },
     "preferencesTab": "Preferências",
     "tabPaymentPolicies": "Políticas de Pagamento",

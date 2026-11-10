@@ -4605,7 +4605,15 @@
       "deleteAccount": "Efase Kont",
       "confirmTitle": "Efase Kont Ou",
       "confirmDesc": "Aksyon sa a pa ka defè. Tout done ou yo ap efase definitif",
-      "yesDelete": "Wi, Efase Kont Mwen"
+      "yesDelete": "Wi, Efase Kont Mwen",
+      "currentPasswordLabel": "Modpas aktyèl",
+      "totpCodeLabel": "Kòd otantifikatè",
+      "totpCodeHint": "Ou bezwen li sèlman si otantifikasyon de etap aktive.",
+      "reauthPasswordRequired": "Antre modpas aktyèl ou pou konfime.",
+      "reauthTotpRequired": "Antre kòd ki nan aplikasyon otantifikatè ou pou konfime.",
+      "reauthInvalid": "Modpas ou oswa kòd verifikasyon an pa kòrèk.",
+      "reauthUnavailable": "Kont ou poko gen modpas. Sèvi ak \"Mwen bliye modpas mwen\" pou kreye youn, epi eseye ankò.",
+      "impersonationBlocked": "Ou pa ka efase kont lan pandan yon ajan sipò ap gade kont ou."
     },
     "tabPaymentPolicies": "Règleman peman",
     "accountDeleteHasBalance": "Ou toujou gen yon balans, yon kenbe oswa yon peman ki an atant. Retire oswa itilize rès balans ou epi kite peman ki an atant yo fini anvan ou efase kont ou, oswa kontakte support@oxsteed.com.",

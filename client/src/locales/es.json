@@ -4418,7 +4418,15 @@
       "deleteAccount": "Eliminar Cuenta",
       "confirmTitle": "Eliminar Tu Cuenta",
       "confirmDesc": "Esta acción no se puede deshacer. Todos tus datos serán eliminados permanentemente.",
-      "yesDelete": "Sí, Eliminar Mi Cuenta"
+      "yesDelete": "Sí, Eliminar Mi Cuenta",
+      "currentPasswordLabel": "Contraseña actual",
+      "totpCodeLabel": "Código del autenticador",
+      "totpCodeHint": "Solo es necesario si la autenticación en dos pasos está activada.",
+      "reauthPasswordRequired": "Ingresa tu contraseña actual para confirmar.",
+      "reauthTotpRequired": "Ingresa el código de tu app de autenticación para confirmar.",
+      "reauthInvalid": "Tu contraseña o código de verificación es incorrecto.",
+      "reauthUnavailable": "Tu cuenta aún no tiene contraseña. Usa \"Olvidé mi contraseña\" para crear una y vuelve a intentarlo.",
+      "impersonationBlocked": "No se puede eliminar la cuenta mientras un agente de soporte la está viendo."
     },
     "tabPaymentPolicies": "Políticas de pago",
     "accountDeleteHasBalance": "Todavía tienes un saldo, una retención o un pago pendiente. Retira o usa tu saldo restante y espera a que terminen los pagos pendientes antes de eliminar tu cuenta, o escribe a support@oxsteed.com.",

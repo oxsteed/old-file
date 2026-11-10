@@ -4417,7 +4417,15 @@
       "deleteAccount": "حذف الحساب",
       "confirmTitle": "احذف حسابك",
       "confirmDesc": "لا يمكن التراجع عن هذا الإجراء. سيتم حذف جميع بياناتك نهائيًا.",
-      "yesDelete": "نعم، حذف حسابي"
+      "yesDelete": "نعم، حذف حسابي",
+      "currentPasswordLabel": "كلمة المرور الحالية",
+      "totpCodeLabel": "رمز تطبيق المصادقة",
+      "totpCodeHint": "مطلوب فقط إذا كانت المصادقة الثنائية مفعّلة.",
+      "reauthPasswordRequired": "أدخل كلمة المرور الحالية للتأكيد.",
+      "reauthTotpRequired": "أدخل الرمز من تطبيق المصادقة للتأكيد.",
+      "reauthInvalid": "كلمة المرور أو رمز التحقق غير صحيح.",
+      "reauthUnavailable": "لا توجد كلمة مرور لحسابك بعد. استخدم \"نسيت كلمة المرور\" لإنشاء واحدة ثم حاول مرة أخرى.",
+      "impersonationBlocked": "لا يمكن حذف الحساب أثناء اطلاع أحد موظفي الدعم على حسابك."
     },
     "preferencesTab": "التفضيلات",
     "tabPaymentPolicies": "سياسات الدفع",

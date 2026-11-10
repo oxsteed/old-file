@@ -2644,7 +2644,15 @@
       "deleteAccount": "删除账户",
       "confirmTitle": "删除你的账户",
       "confirmDesc": "此操作无法撤销。你的所有数据将被永久删除。",
-      "yesDelete": "是，删除我的账户"
+      "yesDelete": "是，删除我的账户",
+      "currentPasswordLabel": "当前密码",
+      "totpCodeLabel": "验证器代码",
+      "totpCodeHint": "仅在启用双重验证时需要。",
+      "reauthPasswordRequired": "请输入当前密码以确认。",
+      "reauthTotpRequired": "请输入验证器应用中的代码以确认。",
+      "reauthInvalid": "密码或验证码不正确。",
+      "reauthUnavailable": "您的账户尚未设置密码。请使用“忘记密码”设置密码后重试。",
+      "impersonationBlocked": "客服人员查看您的账户期间无法删除账户。"
     },
     "preferencesTab": "偏好",
     "tabPaymentPolicies": "付款政策",

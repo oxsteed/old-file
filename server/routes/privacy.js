@@ -7,6 +7,7 @@ const pool = require('../db');
 const { columnExists, userIdEq, ACTIVE_JOB_STATUS_SQL_IN } = require('../utils/schemaProbe');
 const { authenticate } = require('../middleware/auth');
 const { strictLimiter } = require('../middleware/rateLimiter');
+const { requireSensitiveReauth } = require('../middleware/requireSensitiveReauth');
 const logger = require('../utils/logger');
 const { sendOTPEmail } = require('../utils/email');
 const tokenRevocationService = require('../services/tokenRevocationService');
@@ -522,7 +523,10 @@ router.get('/export', authenticate, async (req, res) => {
 // - was_banned_at_deletion is recorded so re-registration can be blocked
 // - Reviews and dispute history are intentionally retained (user cannot delete-to-escape)
 // - No 30-day recovery window for self-deletes (admin deletions have one)
-router.delete('/delete-account', strictLimiter, authenticate, async (req, res) => {
+// Security review F-08: deletion is irreversible, so it is refused for
+// impersonated sessions and needs the current password (and the TOTP code
+// when 2FA is on), not just a live session.
+router.delete('/delete-account', strictLimiter, authenticate, requireSensitiveReauth, async (req, res) => {
   try {
     const userId = req.user.id;
     const { confirmation } = req.body;

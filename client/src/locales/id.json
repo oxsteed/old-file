@@ -2644,7 +2644,15 @@
       "deleteAccount": "Hapus Akun",
       "confirmTitle": "Hapus Akun Anda",
       "confirmDesc": "Tindakan ini tidak dapat dibatalkan. Semua data Anda akan dihapus secara permanen.",
-      "yesDelete": "Ya, Hapus Akun Saya"
+      "yesDelete": "Ya, Hapus Akun Saya",
+      "currentPasswordLabel": "Kata sandi saat ini",
+      "totpCodeLabel": "Kode autentikator",
+      "totpCodeHint": "Hanya diperlukan jika autentikasi dua faktor aktif.",
+      "reauthPasswordRequired": "Masukkan kata sandi saat ini untuk mengonfirmasi.",
+      "reauthTotpRequired": "Masukkan kode dari aplikasi autentikator untuk mengonfirmasi.",
+      "reauthInvalid": "Kata sandi atau kode verifikasi salah.",
+      "reauthUnavailable": "Akun Anda belum memiliki kata sandi. Gunakan \"Lupa kata sandi\" untuk membuatnya, lalu coba lagi.",
+      "impersonationBlocked": "Akun tidak dapat dihapus saat agen dukungan sedang melihat akun Anda."
     },
     "preferencesTab": "Preferensi",
     "tabPaymentPolicies": "Kebijakan Pembayaran",

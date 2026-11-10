@@ -2532,7 +2532,15 @@
       "deleteAccount": "Futa Akaunti",
       "confirmTitle": "Futa Akaunti Yako",
       "confirmDesc": "Kitendo hiki hakiwezi kutenduliwa. Data yako yote itafutwa kabisa.",
-      "yesDelete": "Ndiyo, Futa Akaunti Yangu"
+      "yesDelete": "Ndiyo, Futa Akaunti Yangu",
+      "currentPasswordLabel": "Nenosiri la sasa",
+      "totpCodeLabel": "Msimbo wa kithibitishaji",
+      "totpCodeHint": "Unahitajika tu ikiwa uthibitishaji wa hatua mbili umewashwa.",
+      "reauthPasswordRequired": "Weka nenosiri lako la sasa ili kuthibitisha.",
+      "reauthTotpRequired": "Weka msimbo kutoka programu yako ya kithibitishaji ili kuthibitisha.",
+      "reauthInvalid": "Nenosiri au msimbo wa uthibitishaji si sahihi.",
+      "reauthUnavailable": "Akaunti yako bado haina nenosiri. Tumia \"Umesahau nenosiri\" kuweka moja, kisha ujaribu tena.",
+      "impersonationBlocked": "Huwezi kufuta akaunti wakati wakala wa usaidizi anaitazama."
     },
     "preferencesTab": "Mapendeleo",
     "tabPaymentPolicies": "Sera za Malipo",

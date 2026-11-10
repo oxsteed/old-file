@@ -2644,7 +2644,15 @@
       "deleteAccount": "계정 삭제",
       "confirmTitle": "계정 삭제",
       "confirmDesc": "이 작업은 되돌릴 수 없습니다. 모든 데이터가 영구적으로 삭제됩니다.",
-      "yesDelete": "예, 내 계정 삭제"
+      "yesDelete": "예, 내 계정 삭제",
+      "currentPasswordLabel": "현재 비밀번호",
+      "totpCodeLabel": "인증 코드",
+      "totpCodeHint": "2단계 인증이 켜져 있는 경우에만 필요합니다.",
+      "reauthPasswordRequired": "확인을 위해 현재 비밀번호를 입력하세요.",
+      "reauthTotpRequired": "확인을 위해 인증 앱의 코드를 입력하세요.",
+      "reauthInvalid": "비밀번호 또는 인증 코드가 올바르지 않습니다.",
+      "reauthUnavailable": "계정에 아직 비밀번호가 없습니다. \"비밀번호 찾기\"로 비밀번호를 설정한 후 다시 시도하세요.",
+      "impersonationBlocked": "지원 담당자가 계정을 보고 있는 동안에는 계정을 삭제할 수 없습니다."
     },
     "preferencesTab": "환경설정",
     "tabPaymentPolicies": "결제 정책",

@@ -4417,7 +4417,15 @@
       "deleteAccount": "Delete Account",
       "confirmTitle": "Delete Your Account",
       "confirmDesc": "This action cannot be undone. All your data will be permanently deleted.",
-      "yesDelete": "Yes, Delete My Account"
+      "yesDelete": "Yes, Delete My Account",
+      "currentPasswordLabel": "Current password",
+      "totpCodeLabel": "Authenticator code",
+      "totpCodeHint": "Only needed if two-factor authentication is on.",
+      "reauthPasswordRequired": "Enter your current password to confirm.",
+      "reauthTotpRequired": "Enter the code from your authenticator app to confirm.",
+      "reauthInvalid": "Your password or verification code is incorrect.",
+      "reauthUnavailable": "Your account has no password yet. Use \"Forgot password\" to set one, then try again.",
+      "impersonationBlocked": "Account deletion is not available while a support agent is viewing your account."
     },
     "preferencesTab": "Preferences",
     "tabPaymentPolicies": "Payment Policies",

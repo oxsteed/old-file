@@ -2644,7 +2644,15 @@
       "deleteAccount": "Elimina account",
       "confirmTitle": "Elimini il tuo account",
       "confirmDesc": "Questa azione non può essere annullata. Tutti i tuoi dati saranno eliminati definitivamente.",
-      "yesDelete": "Sì, elimina il mio account"
+      "yesDelete": "Sì, elimina il mio account",
+      "currentPasswordLabel": "Password attuale",
+      "totpCodeLabel": "Codice di autenticazione",
+      "totpCodeHint": "Necessario solo se l'autenticazione a due fattori è attiva.",
+      "reauthPasswordRequired": "Inserisci la password attuale per confermare.",
+      "reauthTotpRequired": "Inserisci il codice dell'app di autenticazione per confermare.",
+      "reauthInvalid": "La password o il codice di verifica non sono corretti.",
+      "reauthUnavailable": "Il tuo account non ha ancora una password. Usa \"Password dimenticata\" per impostarne una e riprova.",
+      "impersonationBlocked": "Non è possibile eliminare l'account mentre un operatore dell'assistenza lo sta visualizzando."
     },
     "preferencesTab": "Preferenze",
     "tabPaymentPolicies": "Normative sui pagamenti",
