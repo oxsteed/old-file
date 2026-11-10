@@ -43,7 +43,7 @@ async function user(role = 'customer') {
     VALUES ($1,$2,'synthetic-unusable','Synthetic','Statement',$3,TRUE,TRUE,NOW(), 'verified','2026-01-01')`, [id, `${id}@example.invalid`, role]);
   return { id, role };
 }
-function token(actor) { return jwt.sign({ id: actor.id, role: actor.role }, process.env.JWT_SECRET); }
+function token(actor) { return jwt.sign({ id: actor.id, role: actor.role, typ: 'access' }, process.env.JWT_SECRET); }
 function headers(actor) { return { Authorization: `Bearer ${token(actor)}` }; }
 async function business(owner) {
   return (await pool.query("INSERT INTO businesses(user_id,business_name,created_at) VALUES ($1,'Synthetic statement entity','2026-01-01') RETURNING id", [owner.id])).rows[0].id;

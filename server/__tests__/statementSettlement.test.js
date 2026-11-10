@@ -245,7 +245,7 @@ async function createRestaurantPayout({ restaurantId, currency = 'USD', cents, s
 }
 
 function signToken(userId) {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET, { algorithm: 'HS256' });
+  return jwt.sign({ id: userId, typ: 'access' }, process.env.JWT_SECRET, { algorithm: 'HS256' });
 }
 
 function buildApp() {

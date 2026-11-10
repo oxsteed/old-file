@@ -245,11 +245,11 @@ async function drainClaimableJobs() {
 }
 
 function adminBearer(userId) {
-  return `Bearer ${jwt.sign({ id: userId, role: 'admin' }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
+  return `Bearer ${jwt.sign({ id: userId, role: 'admin', typ: 'access' }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
 }
 
 function customerBearer(userId) {
-  return `Bearer ${jwt.sign({ id: userId, role: 'customer' }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
+  return `Bearer ${jwt.sign({ id: userId, role: 'customer', typ: 'access' }, process.env.JWT_SECRET, { algorithm: 'HS256' })}`;
 }
 
 function buildAdminApp() {
