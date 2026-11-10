@@ -112,10 +112,11 @@ and [container builder limits](https://docs.docker.com/build/builders/drivers/do
 The installed Coolify controller was also inspected to verify that the image
 buildpack invokes rolling promotion without its source build method.
 
-The release workflow uses the same v7 checkout as repository CI. The legacy
-unconfigured `old-file-v3` gitlink makes v4 checkout with immediate credential
-cleanup fail before any image builds. The fresh hosted runner and `.git`
-Docker-context exclusion keep checkout credentials outside the image.
+The release workflow uses the same v7 checkout as repository CI. Legacy
+gitlinks without a `.gitmodules` entry previously caused checkout with
+immediate credential cleanup to fail. The authenticated browser job exercises
+that checkout path with `persist-credentials: false`. The fresh hosted runner
+and `.git` Docker-context exclusion keep checkout credentials outside the image.
 
 The installed Docker containerd image store reports an index digest as image ID,
 while classic Docker reports a configuration digest. Promotion accepts only
