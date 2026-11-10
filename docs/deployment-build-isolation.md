@@ -99,6 +99,53 @@ verification. A release that needs a different server or schema records
 replacement. Keep this gate until a rolling worker target has demonstrated
 standby startup, single ownership, and safe recovery of a failed candidate.
 
+### Staged worker handoff
+
+The host can verify and activate a private replacement from the same verified
+image receipt as the web release. The candidate boots with
+`OXSTEED_MANAGED_WORKER=true`, verifies schema read-only, and reports
+`combined-standby` until the host activates it. The worker keeps its PostgreSQL
+ownership session through the drain. The serving web observes both private
+worker endpoints and waits within its existing probe budget when it sees a
+healthy standby. Only the active owner satisfies delegated readiness.
+
+Production staging requires a successful full backup restore and a rehearsal
+of the exact reviewed migration delta. Keep the scanner and its storage in
+place. Before retiring the legacy Compose app, move or verify backup evidence
+delivery against the new worker topology and rehearse the web recovery path.
+The legacy reconciler and emergency web recovery still discover the legacy
+Compose resource.
+
+1. Configure the web resource to observe the incumbent and the chosen standby
+   alias using `BACKGROUND_READINESS_URL` and
+   `BACKGROUND_READINESS_FALLBACK_URL`. For the initial transition the incumbent
+   is `http://app:5000/ready`. The updated schema bridge image carries the
+   handoff-aware observation code and the serving release's browser assets.
+   Follow the pinned schema bridge procedure before starting a worker that
+   requires the new schema.
+2. Stage the exact verified image on the private production network with one
+   of the `oxsteed-worker-a` and `oxsteed-worker-b` aliases and the matching
+   `com.oxsteed.worker-slot` label. Use the existing deployment secret store,
+   scanner, and the exact upload and asset mounts. The private container
+   requires port 5000 internally, no host port, no public routes, the image
+   digest in `IMAGE_DIGEST`, and writable container storage under `/run`.
+3. Run `node scripts/handoff-worker.cjs --check <incumbent-id> <candidate-id> <image-run>`
+   with full Docker IDs. It verifies the receipt, schema, runtime dependencies,
+   shared mounts, web protocol and both private endpoints. With continuous
+   public probes running, repeat with `--apply`. The command shares the release
+   observer's lock. It retains the stopped incumbent for rollback and restarts
+   it if activation fails. After the first successful handoff, configure web
+   to observe both private worker slots before the next worker release.
+4. The observer discovers the active worker and may promote the exact verified
+   web release once its worker gate passes. Verify the public release and
+   worker identity independently and record all sampled HTTP failures.
+
+On November 10 the isolated worker rehearsal used real PostgreSQL advisory
+sessions with synthetic workers and loopback web probes. The incumbent drained
+before replacement activation. A separate activation failure restored the
+incumbent. All 156 sampled HTTP requests passed across the two scenarios.
+This exercised ownership and observation with synthetic job work.
+
 In the November 3 host rehearsal, the candidate-side checker ran in a
 disposable networkless Colima container. With the live image's migration
 catalog it accepted the production markers. With the default-branch catalog

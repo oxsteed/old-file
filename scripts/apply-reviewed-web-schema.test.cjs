@@ -38,3 +38,30 @@ test('reviewed additions and markers share one bounded transaction; dry runs and
     await assert.rejects(applyReviewedSchema(opts), /source changed/);
   } finally { fs.rmSync(migrationsDir, { recursive: true, force: true }); }
 });
+
+test('explicitly reviewed outer transaction wrappers do not commit separately from the marker', async () => {
+  const migrationsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wrapped-schema-'));
+  const filename = '20261110005800_wrapped.sql';
+  const statement = 'ALTER TABLE example ADD COLUMN extra text;';
+  const source = `-- Reviewed fixture\nBEGIN;\n${statement}\nCOMMIT;\n`;
+  const hash = crypto.createHash('sha256').update(source).digest('hex');
+  fs.writeFileSync(path.join(migrationsDir, filename), source);
+  const calls = [];
+  const client = { release() {}, async query(sql, params) {
+    calls.push([sql.trim(), params]);
+    return { rows: sql.includes('pg_try_advisory') ? [{ locked: true }] : [] };
+  } };
+  const plan = { migrations: { [filename]: hash } };
+  const options = { pool: { connect: async () => client }, migrationsDir, plan, apply: true };
+  try {
+    await assert.rejects(applyReviewedSchema(options), /controls its own transaction/);
+    assert.equal(calls.length, 0);
+    const result = await applyReviewedSchema({ ...options, plan: { ...plan, transactionWrapped: [filename] } });
+    assert.deepEqual(result.applied, [filename]);
+    assert.equal(calls.filter(([sql]) => sql === 'COMMIT').length, 1);
+    const sqlIndex = calls.findIndex(([sql]) => sql === statement);
+    const markerIndex = calls.findIndex(([sql]) => sql.startsWith('INSERT INTO _migrations'));
+    assert.ok(sqlIndex > 0 && markerIndex > sqlIndex);
+    assert.deepEqual(calls[markerIndex][1], [filename, hash]);
+  } finally { fs.rmSync(migrationsDir, { recursive: true, force: true }); }
+});

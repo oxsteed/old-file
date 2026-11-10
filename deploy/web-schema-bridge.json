@@ -1,13 +1,20 @@
 {
   "version": 1,
-  "baseCommit": "73e7777314bbed5e0ad92f2bd3e8d8d43861a03c",
-  "baseImage": "ghcr.io/oxsteed/old-file-web@sha256:217aa1e87ddb3897a2cb6cc21619c67f8c976f6fbfc65eb246f014cf97d8bf81",
+  "baseCommit": "88cee7dec7be2d4dd229847f69b2ee11a558f0e6",
+  "baseImage": "ghcr.io/oxsteed/old-file-web@sha256:0db0f510e5ff7c69f3dd027dc25554da0a27908b3506b8e39bb4dccb3384fdb2",
   "sourceHashes": {
     "services/readinessService.js": "3541a0d2ca8446c9aeea7cff028b9b697917c29fd7f5b94957358e64a0ac20ad",
     "services/webSchemaPreflight.js": "df57ab139679e78323dd7802092baf42001343ec4646a94291a276e1264b371a"
   },
   "migrations": {
-    "20261109231751_stripe_chargebacks_payment_intent_index.sql": "c21b498f46babe1c83a6c33437500e2a74eb0175fda054461e08088ef8d39991",
-    "20261109231752_payout_transactions_completed_at.sql": "43c1dd3fd8e73916bde007f7ccb7b7a8ceeaa79582e8bd4576eff216504798b3"
-  }
+    "20261110005800_restaurant_alert_notification_preferences.sql": "7d528e84fb50924b8e8741037004c49a2d55497f3b4d7dc3e2eadce7c584824f",
+    "20261110104200_retire_credit_single_admin_break_glass.sql": "dddb2374fd01b3ba35f164bb75202a2eaf64e210490f06a3c8b066c539748dca",
+    "20261110104300_food_orders_unique_payment_intent.sql": "fa7c3978a2783e43441a46e24d142cb81afae453b1dcd3bc481130b198e4daa9",
+    "20261110150000_careers_marketplace.sql": "52b0cbb8e1d1d18381eec8320f645dd59ec5feee8bbbf093da815ee1c2e3efc5"
+  },
+  "workerBaseCommit": "2f988901a80f8f7ec0951e54d1ea5a4bebc2e787",
+  "transactionWrapped": [
+    "20261110005800_restaurant_alert_notification_preferences.sql",
+    "20261110104200_retire_credit_single_admin_break_glass.sql"
+  ]
 }

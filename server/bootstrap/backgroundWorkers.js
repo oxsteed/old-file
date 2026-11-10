@@ -91,21 +91,38 @@ const { dedicatedWorkerProcess } = require('../utils/workerTopology');
 const { withFencedJobLock } = require('../jobs/jobLockingService');
 const runtimeState = require('../services/runtimeState');
 const { WorkerOwnership } = require('./workerOwnership');
+const { existsSync } = require('node:fs');
+const { WORKER_ACTIVATION_FILE } = require('../utils/runtimeRole');
 
 class BackgroundWorkers {
-  constructor({ log = logger, pool, onOwnerAcquired } = {}) {
+  constructor({ log = logger, pool, onOwnerAcquired, managed = false } = {}) {
     this.log = log;
     this.started = false;
     this.owned = false;
     this.onOwnerAcquired = onOwnerAcquired;
-    this.ownership = pool ? new WorkerOwnership({ pool, log }) : null;
+    this.ownership = pool ? new WorkerOwnership({
+      pool, log, mayAcquire: () => !managed || existsSync(WORKER_ACTIVATION_FILE),
+    }) : null;
     this.cronTaskIds = new Set();
     this.handles = [];
+    this.cronRuns = new Map();
   }
 
   captureCronTasks(existingTaskIds) {
     for (const taskId of cron.getTasks().keys()) {
-      if (!existingTaskIds.has(taskId)) this.cronTaskIds.add(taskId);
+      if (existingTaskIds.has(taskId) || this.cronTaskIds.has(taskId)) continue;
+      this.cronTaskIds.add(taskId);
+      const task = cron.getTask(taskId);
+      task?.on?.('execution:started', ({ execution }) => {
+        if (execution) this.cronRuns.set(execution.id, Promise.withResolvers());
+      });
+      const finish = ({ execution }) => {
+        if (!execution) return;
+        this.cronRuns.get(execution.id)?.resolve();
+        this.cronRuns.delete(execution.id);
+      };
+      task?.on?.('execution:finished', finish);
+      task?.on?.('execution:failed', finish);
     }
   }
 
@@ -148,8 +165,13 @@ class BackgroundWorkers {
     if (this.started) throw new Error('Background workers have already been started');
     this.started = true;
     if (this.ownership) {
-      return this.ownership.start({ onAcquired: () => this.startOwned() }).then(mode => {
-        if (!this.owned) runtimeState.update({ workersReady: true, workerMode: mode });
+      return this.ownership.start({ onAcquired: async () => {
+        try { this.startOwned(); } catch (error) {
+          await this.stopOwned();
+          throw error;
+        }
+      } }).then(mode => {
+        if (!this.owned && !this.ownership.stopping) runtimeState.update({ workersReady: true, workerMode: mode });
         return this;
       });
     }
@@ -368,7 +390,7 @@ class BackgroundWorkers {
       // Capture tasks created before the failure so rollback owns and stops
       // every partial worker registration.
       this.captureCronTasks(existingTaskIds);
-      void this.stopOwned();
+      if (!this.ownership) void this.stopOwned();
       this.started = false;
       throw err;
     }
@@ -395,13 +417,13 @@ class BackgroundWorkers {
     this.cronTaskIds.clear();
     this.handles = [];
     this.owned = false;
-    return Promise.allSettled(draining);
+    return Promise.allSettled([...draining, ...Array.from(this.cronRuns.values(), run => run.promise)]);
   }
 
   async stop() {
     if (!this.started && !this.ownership?.started) return;
-    await this.stopOwned();
-    await this.ownership?.stop();
+    if (this.ownership) await this.ownership.stop(() => this.stopOwned());
+    else await this.stopOwned();
     this.started = false;
     runtimeState.update({ workersReady: false, workerMode: 'combined' });
   }
