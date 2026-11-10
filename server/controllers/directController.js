@@ -2865,11 +2865,11 @@ exports.sendAdminTestEmail = async (req, res) => {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #f97316;">OxSteed email test</div>
-          <h1 style="margin: 12px 0 0; font-size: 28px; line-height: 1.2; color: #0f172a;">${subject}</h1>
-          <p style="margin: 20px 0 0; font-size: 16px; line-height: 1.7; color: #334155;">${message}</p>
+          <h1 style="margin: 12px 0 0; font-size: 28px; line-height: 1.2; color: #0f172a;">${escapeHtml(subject)}</h1>
+          <p style="margin: 20px 0 0; font-size: 16px; line-height: 1.7; color: #334155; white-space: pre-wrap;">${escapeHtml(message)}</p>
           <div style="margin-top: 24px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 16px; background: #f8fafc;">
             <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Sent by</div>
-            <div style="margin-top: 6px; font-size: 15px; color: #0f172a;">${senderName}</div>
+            <div style="margin-top: 6px; font-size: 15px; color: #0f172a;">${escapeHtml(senderName)}</div>
             <div style="margin-top: 8px; font-size: 13px; color: #64748b;">${timestamp}</div>
           </div>
         </div>

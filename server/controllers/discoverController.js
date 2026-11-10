@@ -7,6 +7,7 @@
 const crypto = require('crypto');
 const pool = require('../db');
 const logger = require('../utils/logger');
+const escapeHtml = require('../utils/escapeHtml');
 const { sendEmail } = require('../utils/email');
 const { hashIP } = require('../utils/encryption');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
@@ -155,6 +156,23 @@ function alertFingerprint(userId, query, radius, lat, lng) {
 /**
  * Run unified discover search. Returns { results: DiscoverResult[] }.
  */
+
+// F-19: saved-search digest HTML. Every value is escaped; result URLs must
+// be app-relative paths ("/..."), anything else is dropped to plain text.
+function digestHtml(alert, results) {
+  const base = process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
+  const items = results.slice(0, 12).map((r) => {
+    const url = typeof r.url === 'string' && /^\/(?!\/)/.test(r.url) ? `${base}${r.url}` : null;
+    const title = escapeHtml(String(r.title ?? ''));
+    const type = escapeHtml(String(r.type ?? ''));
+    const link = url ? `<a href="${escapeHtml(url)}">${title}</a>` : title;
+    return `<li>${link} <small>(${type})</small></li>`;
+  }).join('');
+  return `<p>Hi ${escapeHtml(String(alert.first_name ?? ''))},</p>`
+    + `<p>Updates for your saved search <strong>${escapeHtml(String(alert.query ?? ''))}</strong>`
+    + ` (≈${escapeHtml(String(alert.radius_miles ?? ''))} mi).</p><ul>${items}</ul>`;
+}
+
 async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS, resultType = null, locality = {} }) {
   const terms = expandSearchTerms(query);
   const patterns = buildPatterns(terms.length ? terms : [normalizeQuery(query).toLowerCase()].filter(Boolean));
@@ -916,10 +934,9 @@ Open OxSteed to see more: ${process.env.APP_URL || process.env.CLIENT_URL || 'ht
         // retry a provider-level no-op.
         idempotencyKey: `discover-digest:${a.id}:${contentSignature}`,
         text,
-        html: `<p>Hi ${a.first_name},</p><p>Updates for your saved search <strong>${a.query}</strong> (≈${a.radius_miles} mi).</p><ul>${results
-          .slice(0, 12)
-          .map((r) => `<li><a href="${process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com'}${r.url}">${r.title}</a> <small>(${r.type})</small></li>`)
-          .join('')}</ul>`,
+        // F-19: every interpolated value is HTML-escaped (listing titles come
+        // from other users), and links are limited to app-relative paths.
+        html: digestHtml(a, results),
       });
 
       if (!mail.success) continue;
@@ -944,6 +961,7 @@ Open OxSteed to see more: ${process.env.APP_URL || process.env.CLIENT_URL || 'ht
 };
 
 module.exports = {
+  _digestHtml: digestHtml,
   discoverSearch: exports.discoverSearch,
   discoverPopular: exports.discoverPopular,
   listDiscoverAlerts: exports.listDiscoverAlerts,
