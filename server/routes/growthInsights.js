@@ -921,10 +921,8 @@ router.post(
       },
       "growth_prospect_export",
     );
-    const cell = (v) => {
-      const s = v === null || v === undefined ? "" : Array.isArray(v) ? v.join(";") : String(v);
-      return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
-    };
+    // F-15: shared hardened CSV helper.
+    const cell = (v) => require("../utils/csv").csvQuotedCell(Array.isArray(v) ? v.join(";") : v);
     const header = ["id", "business_name", "country", "region", "postal_code", "category_code", "entity_type",
       channel === "phone" ? "contact_phone" : "contact_email", "website", "source", "license_ref", "license_version",
       "outreach_law", "outreach_requirements"];
@@ -1473,11 +1471,8 @@ router.get(
       },
       "growth_conversions_export",
     );
-    const cell = (v) => {
-      const s = v === null || v === undefined ? "" : String(v);
-      // Formula-safe CSV, matching the query builder export convention.
-      return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
-    };
+    // F-15: shared hardened CSV helper.
+    const cell = (v) => require("../utils/csv").csvQuotedCell(v);
     const header = [
       "id",
       "partner_code",

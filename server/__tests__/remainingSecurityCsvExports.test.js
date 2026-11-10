@@ -71,7 +71,8 @@ beforeEach(() => {
 describe('csvCell trigger coverage', () => {
   test('neutralizes tab and CR leads in addition to =, +, -, @', () => {
     expect(csvCell('\tformula')).toBe("'\tformula");
-    expect(csvCell('\rformula')).toBe("'\rformula");
+    // A raw CR inside a cell is also quoted (RFC 4180) so it cannot split rows.
+    expect(csvCell('\rformula')).toBe("\"'\rformula\"");
     expect(csvCell('=formula')).toBe("'=formula");
     expect(csvCell('+formula')).toBe("'+formula");
     expect(csvCell('-formula')).toBe("'-formula");
@@ -114,7 +115,7 @@ describe('business launch export', () => {
     expect(res.headers['Content-Type']).toMatch(/text\/csv/);
     const lines = res.sent.split('\r\n');
     expect(lines[0]).toBe('Name,Email,Phone,Package,Country,State,Urgency,Status,Submitted');
-    expect(lines[1]).toBe("'=John +Doe,'@evil,'\t555,'-pkg,'@XX,'\rCA,'=high,pending,2026-10-30");
+    expect(lines[1]).toBe("'=John +Doe,'@evil,'\t555,'-pkg,'@XX,\"'\rCA\",'=high,pending,2026-10-30");
   });
 });
 
@@ -136,6 +137,49 @@ describe('profile visibility export', () => {
     const lines = res.sent.trim().split('\r\n');
     expect(lines[0]).toBe('Type,Name,Detail,Visibility,Owner status,Reason');
     expect(lines[1]).toBe("helper,'=Marie,'+detail,Hidden,Listed,'@reason");
-    expect(lines[2]).toBe("business,'\ttab,'\rCR,Visible,Unlisted,'-dash");
+    expect(lines[2]).toBe("business,'\ttab,\"'\rCR\",Visible,Unlisted,'-dash");
   });
 });
+
+describe('F-15 hidden formula leads', () => {
+  const { csvCell, csvQuotedCell, neutralizeCsvText } = require('../utils/csv');
+
+  test.each([
+    [' =HYPERLINK("http://x")'],
+    ['\uFEFF=cmd|calc'],
+    ['\u202E=cmd|calc'],
+    ['\u200B+1'],
+    ['\u2066@SUM(A1)'],
+    ['\uFF1D1+1'],
+  ])('neutralizes %j', (value) => {
+    expect(neutralizeCsvText(value).startsWith("'")).toBe(true);
+  });
+
+  test('drops NUL bytes and JSON-encodes objects', () => {
+    expect(csvCell('a\u0000b')).toBe('ab');
+    expect(csvQuotedCell({ a: 1 })).toBe('"{""a"":1}"');
+  });
+
+  test('allowNumeric keeps plain negative numbers numeric', () => {
+    expect(csvCell('-42.10', { allowNumeric: true })).toBe('-42.10');
+    expect(csvCell('-1+1', { allowNumeric: true })).toBe("'-1+1");
+  });
+
+  test('every hand-rolled export helper is gone', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const files = [
+      'controllers/oxsteedCreditController.js', 'controllers/oxsteedCreditPartnerController.js',
+      'controllers/superAdminController.js', 'routes/growthInsights.js', 'routes/privacy.js',
+      'routes/support.js', 'services/oxsteedCreditService.js', 'services/creditStatementPdf.js',
+      'routes/settlementStatementArchive.js', 'services/creditStatementExport.js',
+      'services/customer360Workspace.js', 'services/creditCompliance/reportPackService.js',
+      'services/creditCompliance/safeguardingService.js', 'services/creditBankPayoutService.js',
+    ];
+    for (const f of files) {
+      const src = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+      expect(src).not.toMatch(/\[=\+\\-@[^\]]*\]\/\.test\(/);
+    }
+  });
+});
+

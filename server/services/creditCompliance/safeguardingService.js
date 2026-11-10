@@ -177,10 +177,9 @@ async function runDailyReconciliation({ runDate = new Date().toISOString().slice
   return results;
 }
 
+// F-15: the shared hardened helper.
 function csvCell(value) {
-  let s = value === null || value === undefined ? '' : String(value);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  return require('../../utils/csv').csvCell(value);
 }
 
 async function exportReconciliations({ from, to }) {

@@ -226,14 +226,8 @@ function utcDate(value, language, includeTime = false) {
   }).format(date(value)) + (includeTime ? ' UTC' : '');
 }
 
-function csvCell(value) {
-  let string = String(value ?? '').replace(/\u0000/g, '');
-  // Formula triggers can hide behind whitespace, BOM, or Unicode direction
-  // controls. Quote alone does not stop a spreadsheet executing a formula.
-  const candidate = string.replace(/^[\s\uFEFF\u200E\u200F\u202A-\u202E\u2066-\u2069]+/u, '');
-  if (/^[=+\-@]/.test(candidate) || /^[\t\r\n]/.test(string)) string = `'${string}`;
-  return `"${string.replace(/"/g, '""')}"`;
-}
+// F-15: one hardened implementation for every export.
+const csvCell = require('../utils/csv').csvQuotedCell;
 
 function renderStatementCsv(statement, { language = 'en' } = {}) {
   const s = normalize(statement);

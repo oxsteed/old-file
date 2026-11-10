@@ -57,16 +57,9 @@ const EXPORT_CSV_COLUMNS = {
   notifications: ['id', 'type', 'title', 'body', 'is_read', 'created_at'],
 };
 
-function csvCell(value) {
-  const raw = value === null || value === undefined
-    ? ''
-    : typeof value === 'object'
-      ? JSON.stringify(value)
-      : String(value);
-  // Prevent spreadsheet formula execution when user-generated text is opened.
-  const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
-  return `"${safe.replace(/"/g, '""')}"`;
-}
+// F-15: the shared hardened helper (objects are JSON-encoded; formula
+// triggers behind whitespace/BOM/bidi controls are neutralized).
+const csvCell = require('../utils/csv').csvQuotedCell;
 
 function rowsToCsv(rows, columns) {
   const lines = [columns.map(csvCell).join(',')];

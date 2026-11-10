@@ -43,13 +43,10 @@ function parseRevenueCurrency(query) {
   return { currency };
 }
 
+// F-15: the shared hardened helper keeps exported values inert in
+// spreadsheet software (hidden-lead and control-character aware).
 function revenueCsvEscape(val) {
-  if (val === null || val === undefined) return '';
-  let s = String(val);
-  // Keep exported values inert when opened in spreadsheet software.
-  if (/^[=+\-@]/.test(s)) s = `'${s}`;
-  if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
+  return require('../utils/csv').csvCell(val);
 }
 
 const BOOLEAN_SETTING_KEYS = new Set([
@@ -2838,14 +2835,8 @@ exports.exportData = async (req, res) => {
     if (!queries[type]) return res.status(400).json({ error: 'Invalid or unavailable export type.' });
     const { rows } = await db.query(queries[type].sql, queries[type].params);
     if (!rows.length) return res.json({ data: [], csv: '' });
-    const csvCell = (val) => {
-      if (val === null || val === undefined) return '';
-      let str = String(val);
-      // Prevent spreadsheet formula execution when an exported value starts
-      // with a formula-capable character.
-      if (/^[=+\-@]/.test(str)) str = `'${str}`;
-      return `"${str.replace(/"/g, '""')}"`;
-    };
+    // F-15: shared hardened helper; null stays an empty unquoted cell.
+    const csvCell = (val) => (val === null || val === undefined ? '' : require('../utils/csv').csvQuotedCell(val));
     const headers = Object.keys(rows[0]).map(csvCell).join(',');
     const csvRows = rows.map(row => Object.values(row).map(csvCell).join(','));
     await logAdminAction({

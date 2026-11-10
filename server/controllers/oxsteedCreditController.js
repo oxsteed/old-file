@@ -123,11 +123,8 @@ const MEDIA_CREATOR_DISPUTE_REFERENCE_TYPES = Object.freeze([
   'media_post_boost',
 ]);
 
-function csvCell(value) {
-  const raw = value === null || value === undefined ? '' : String(value);
-  const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
-  return `"${safe.replace(/"/g, '""')}"`;
-}
+// F-15: the shared hardened helper (hidden-lead and control-character aware).
+const csvCell = require('../utils/csv').csvQuotedCell;
 
 function parseUuid(value, fieldName) {
   const normalized = normalizeString(value, 80);

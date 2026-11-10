@@ -3802,11 +3802,8 @@ async function getCustomerCreditAccountDetails(customerId, { currencyCode = CRED
   };
 }
 
-function csvCell(value) {
-  const normalized = value === null || value === undefined ? '' : String(value);
-  const safe = /^[=+\-@]/.test(normalized) ? `'${normalized}` : normalized;
-  return `"${safe.replace(/"/g, '""')}"`;
-}
+// F-15: the shared hardened helper.
+const csvCell = require('../utils/csv').csvQuotedCell;
 
 function customerCreditStatementCsv(statement) {
   const headers = ['Date', 'Transaction ID', 'Type', 'Description', 'Restaurant', 'Order ID', 'Direction', 'Amount (cents)', 'Currency', 'Balance after (cents)', 'Reference'];
