@@ -11,11 +11,12 @@ const { withTransaction } = require('../../utils/transaction');
 const checkrProvider = require('../../services/careers/providers/checkr');
 const eorProvider = require('../../services/careers/providers/eor');
 const billingProvider = require('../../services/careers/providers/billing');
-const { checkrConfig, eorConfig, billingConfig } = require('../../services/careers/providers/config');
+const { checkrConfig, eorConfig, billingConfig, plansConfig } = require('../../services/careers/providers/config');
 const checks = require('../../services/careers/backgroundChecks');
 const offers = require('../../services/careers/offers');
 const onboarding = require('../../services/careers/onboardingRun');
 const billing = require('../../services/careers/billing');
+const plans = require('../../services/careers/marketplace/plans');
 
 function rawBody(req) {
   if (Buffer.isBuffer(req.body)) return req.body;
@@ -67,14 +68,29 @@ exports.eor = async (req, res) => {
 };
 
 exports.stripe = async (req, res) => {
-  if (!billingConfig().configured || !billingConfig().webhookSecret) return res.status(503).json({ error: 'Not configured', code: 'provider_not_configured' });
+  // One signed endpoint serves boosts/hiring events (CAREERS_BILLING_ENABLED)
+  // and employer plans (CAREERS_PLANS_ENABLED); each stays off on its own.
+  const boosts = billingConfig();
+  const subs = plansConfig();
+  if (!(boosts.configured || subs.configured) || !(boosts.webhookSecret || subs.webhookSecret)) {
+    return res.status(503).json({ error: 'Not configured', code: 'provider_not_configured' });
+  }
   let event;
   try {
-    event = billingProvider.constructEvent(rawBody(req), req.get('Stripe-Signature'));
+    event = boosts.configured
+      ? billingProvider.constructEvent(rawBody(req), req.get('Stripe-Signature'))
+      // eslint-disable-next-line global-require
+      : require('stripe')(subs.stripeKey).webhooks.constructEvent(rawBody(req), req.get('Stripe-Signature'), subs.webhookSecret);
   } catch {
     return res.status(401).json({ error: 'Invalid signature' });
   }
   try {
+    if (plans.isPlanEvent(event)) {
+      if (!subs.configured) return res.json({ received: true, ignored: true });
+      const result = await withTransaction(pool, (c) => plans.applyStripeEvent(c, event), 'career_plan_webhook');
+      return res.json({ received: true, ignored: Boolean(result.ignored), duplicate: Boolean(result.duplicate) });
+    }
+    if (!boosts.configured) return res.json({ received: true, ignored: true });
     const result = await withTransaction(pool, (c) => billing.applyStripeEvent(c, event), 'career_stripe_webhook');
     return res.json({ received: true, ignored: Boolean(result.ignored) });
   } catch (err) {

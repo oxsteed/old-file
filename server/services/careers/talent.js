@@ -136,6 +136,26 @@ async function assertSearchAllowed(db, access) {
   if (lock) throw new AppError('Worker search is paused for this business pending review', 423, 'talent_search_locked');
 }
 
+/** The business's own search point: service lat/lng, else its postal centroid. */
+async function businessPoint(db, businessId) {
+  const { rows: [b] } = await db.query(
+    `SELECT b.service_lat, b.service_lng, gc.lat AS c_lat, gc.lng AS c_lng
+       FROM businesses b
+       LEFT JOIN LATERAL (
+         SELECT lat, lng FROM geo_postal_centroids g
+          WHERE b.address_zip IS NOT NULL AND g.postal_code = upper(replace(b.address_zip, ' ', ''))
+            AND (b.address_country IS NULL OR g.country = upper(left(b.address_country, 2)))
+          LIMIT 1
+       ) gc ON TRUE
+      WHERE b.id = $1`,
+    [businessId]
+  );
+  if (!b) return null;
+  if (b.service_lat != null && b.service_lng != null) return { id: null, latitude: Number(b.service_lat), longitude: Number(b.service_lng) };
+  if (b.c_lat != null) return { id: null, latitude: Number(b.c_lat), longitude: Number(b.c_lng) };
+  return null;
+}
+
 /**
  * GET /employer/talent/search: area (radius around one of the business's
  * stores) and skill only. Ordered by distance, then recent activity —
@@ -144,20 +164,33 @@ async function assertSearchAllowed(db, access) {
 async function searchWorkers(db, { access, viewer, query }) {
   await assertSearchAllowed(db, access);
   const errors = new FieldErrors();
-  const locationId = Number(query.near_location);
-  if (!Number.isInteger(locationId) || locationId <= 0) errors.add('near_location', 'Pick one of your stores');
+  // Any verified business can search (docs/careers/marketplace.md §13):
+  // around one of its stores, or around the business's own service point
+  // or postal code when it has no stores.
+  const nearBusiness = query.near_location === 'business' || query.near === 'business';
+  const locationId = nearBusiness ? null : Number(query.near_location);
+  if (!nearBusiness && (!Number.isInteger(locationId) || locationId <= 0)) errors.add('near_location', 'Pick one of your stores or your business location');
   const radius = query.radius_km == null || query.radius_km === '' ? 25 : Number(query.radius_km);
   if (!Number.isFinite(radius) || radius < 1 || radius > SEARCH_MAX_RADIUS_KM) errors.add('radius_km', `Between 1 and ${SEARCH_MAX_RADIUS_KM} km`);
   const skills = codeList(query.skill, 10);
   errors.throwIfAny();
-  const { rows: [store] } = await db.query(
-    `SELECT l.id, l.latitude, l.longitude FROM restaurant_locations l
-       JOIN food_restaurants fr ON fr.id = l.restaurant_id
-      WHERE l.id = $1 AND fr.business_id = $2`,
-    [locationId, access.businessId]
-  );
-  if (!store) throw new AppError('Store not found', 404, 'not_found');
-  if (!locationsInScope(access, [locationId])) throw new AppError('That store is outside your hiring scope', 403, 'location_scope_forbidden');
+  let store;
+  if (nearBusiness) {
+    if (!(access.isOwner || ['business', 'brand', 'agency'].includes(access.scope?.mode))) {
+      throw new AppError('That location is outside your hiring scope', 403, 'location_scope_forbidden');
+    }
+    store = await businessPoint(db, access.businessId);
+    if (!store) throw new AppError('Validation failed', 400, 'validation_failed', { near_location: 'Add your business address or service area first' });
+  } else {
+    ({ rows: [store] } = await db.query(
+      `SELECT l.id, l.latitude, l.longitude FROM restaurant_locations l
+         JOIN food_restaurants fr ON fr.id = l.restaurant_id
+        WHERE l.id = $1 AND fr.business_id = $2`,
+      [locationId, access.businessId]
+    ));
+    if (!store) throw new AppError('Store not found', 404, 'not_found');
+    if (!locationsInScope(access, [locationId])) throw new AppError('That store is outside your hiring scope', 403, 'location_scope_forbidden');
+  }
   if (store.latitude == null || store.longitude == null) {
     throw new AppError('Validation failed', 400, 'validation_failed', { near_location: 'This store has no map location yet' });
   }
@@ -182,10 +215,11 @@ async function searchWorkers(db, { access, viewer, query }) {
   if (usage.searches >= SEARCHES_PER_10_MIN) throw new AppError('Too many searches. Try again in a few minutes.', 429, 'talent_search_rate_limited');
 
   const page = Math.max(0, Number(query.page) || 0);
-  const params = [access.businessId, store.longitude, store.latitude, radius * 1000, skills, SEARCH_PAGE + 1, page * SEARCH_PAGE];
+  const params = [access.businessId, store.longitude, store.latitude, radius * 1000, skills, SEARCH_PAGE + 1, page * SEARCH_PAGE,
+    query.available_now === 'true' || query.available_now === true];
   const { rows } = await db.query(
     `SELECT p.user_id, u.first_name, u.last_name, p.headline, p.skill_codes, p.desired_roles, p.desired_employment,
-            p.languages, p.last_active_at,
+            p.languages, p.last_active_at, p.available_now_until, p.show_online_status,
             ST_Distance(gc.geog, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography) AS distance_m
        FROM career_profiles p
        JOIN career_profile_share_current sc ON sc.user_id = p.user_id AND sc.visibility = 'searchable'
@@ -201,6 +235,7 @@ async function searchWorkers(db, { access, viewer, query }) {
                          WHERE f.user_id = p.user_id AND f.fact_type IN ('certificate','badge','training_completed')
                            AND COALESCE(f.value->>'code', f.category) = ANY($5::text[])
                            AND NOT (f.fact_type = ANY(COALESCE(sc.hidden_fact_types, '{}')))))
+        AND (NOT $8::boolean OR (p.show_online_status AND p.available_now_until > NOW()))
       ORDER BY distance_m ASC, p.last_active_at DESC NULLS LAST, p.user_id
       LIMIT $6 OFFSET $7`,
     params
@@ -220,6 +255,8 @@ async function searchWorkers(db, { access, viewer, query }) {
       languages: r.languages || [],
       // Rounded so search never pinpoints anyone.
       distance_km: Math.max(1, Math.round(Number(r.distance_m) / 1000)),
+      // Opt-in "available now" (marketplace §15); no live presence tracking.
+      available_now: Boolean(r.show_online_status && r.available_now_until && new Date(r.available_now_until) > new Date()),
       facts,
     });
   }
@@ -327,6 +364,7 @@ async function declineInvitation(db, { invitationId, userId }) {
 }
 
 module.exports = {
+  businessPoint,
   BUSINESS_DAILY_CAP,
   WORKER_MONTHLY_CAP,
   INVITATION_TTL_DAYS,

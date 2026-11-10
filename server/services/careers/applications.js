@@ -101,6 +101,9 @@ async function applyAsUser(db, { opening, user, body, req }) {
   const eeo = body.eeo && typeof body.eeo === 'object' ? body.eeo : null;
   if (eeo && opening.country_code !== 'US') errors.add('eeo', 'The voluntary EEO form is only offered on US openings');
   errors.throwIfAny();
+  // Screener questions (docs/careers/marketplace.md §7) are validated before
+  // anything is written; the outcome is stored after the insert.
+  const screen = await screeners().evaluateAnswers(db, opening.id, body.screener_answers);
 
   const { rows: [account] } = await db.query(
     'SELECT id, email, first_name, last_name, phone, preferred_language FROM users WHERE id = $1',
@@ -165,14 +168,25 @@ async function applyAsUser(db, { opening, user, body, req }) {
     params: { openingTitle: opening.title, employerName: employerName(opening) },
     deliveryKey: `career_app_received:${application.id}`,
   });
+  const screenResult = await screeners().applyOutcome(db, { application, opening, screen });
+  if (screen.answers && bool(body.save_screener_defaults)) {
+    await screeners().saveDefaults(db, user.id, screen.answers.filter((a) => a.preset_code));
+  }
   await notifyHiringTeam(db, opening, {
     type: 'career_new_applicant',
     params: { openingTitle: opening.title, applicantNumber },
     actionUrl: opening.employer_type === 'platform' ? '/admin/careers' : `/business/${opening.business_id}/careers`,
     deliveryKey: `career_new_applicant:${application.id}`,
   });
-  return { ...application, share_event_id: event.id, invitation_id: invitationId };
+  return {
+    ...application, share_event_id: event.id, invitation_id: invitationId,
+    ...(screenResult.autoRejected ? { stage: 'rejected', rejection_reason_code: 'requirements_not_met' } : {}),
+  };
 }
+
+// Lazy to avoid a require cycle (screeners -> applications for recordEvent).
+// eslint-disable-next-line global-require
+function screeners() { return require('./marketplace/screeners'); }
 
 // ── Guest apply (Q3) ─────────────────────────────────────────────────────────
 
@@ -204,6 +218,7 @@ async function startGuestApplication(db, { opening, body, ipHash, sendEmail }) {
   if (body.eeo) throw new AppError('Validation failed', 400, 'validation_failed', { eeo: 'Create an account to fill in the voluntary EEO form' });
   const { errors, email, firstName, lastName, value } = guestDetails(body, opening);
   errors.throwIfAny();
+  const screen = await screeners().evaluateAnswers(db, opening.id, body.screener_answers);
   const { rows: [counts] } = await db.query(
     `SELECT
        (SELECT COUNT(*)::int FROM career_guest_apply_requests WHERE lower(email) = $1 AND created_at > NOW() - INTERVAL '24 hours') AS by_email,
@@ -214,7 +229,10 @@ async function startGuestApplication(db, { opening, body, ipHash, sendEmail }) {
     throw new AppError('Too many guest applications today. Try again tomorrow or create an account.', 429, 'guest_rate_limited');
   }
   const token = crypto.randomBytes(32).toString('base64url');
-  const payload = { first_name: firstName, last_name: lastName, phone: text(body.phone, 40) || null, city: text(body.city, 120) || null, ...value };
+  const payload = {
+    first_name: firstName, last_name: lastName, phone: text(body.phone, 40) || null, city: text(body.city, 120) || null, ...value,
+    screener: screen.answers ? screen : null,
+  };
   const locale = normalizeLocale(body.locale);
   await db.query(
     `INSERT INTO career_guest_apply_requests (opening_id, email, token_hash, ip_hash, payload, locale, expires_at)
@@ -265,6 +283,16 @@ async function confirmGuestApplication(db, { opening, token }) {
     params: { openingTitle: opening.title, employerName: employerName(opening) },
     deliveryKey: `career_app_received:${application.id}`,
   });
+  // Re-check against the current questions; answers captured at start are
+  // used only if the question set has not changed since.
+  if (p.screener?.answers) {
+    let screen;
+    try {
+      const raw = Object.fromEntries(p.screener.answers.map((a) => [a.question_id, a.answer]));
+      screen = await screeners().evaluateAnswers(db, opening.id, raw);
+    } catch { screen = null; }
+    if (screen) await screeners().applyOutcome(db, { application, opening, screen });
+  }
   await notifyHiringTeam(db, opening, {
     type: 'career_new_applicant',
     params: { openingTitle: opening.title, applicantNumber },
@@ -380,7 +408,7 @@ const ROLE_SELECT = `
   o.employer_model AS opening_employer_model, o.required_credentials, o.preferred_credentials,
   o.required_languages, o.sponsorship_available, o.country_code AS opening_country, o.region AS opening_region,
   o.city AS opening_city, o.path_stage, o.job_role_code AS opening_job_role, o.created_by AS opening_created_by,
-  o.id AS opening_row_id,
+  o.id AS opening_row_id, o.posted_by_agency_id AS opening_agency_id, o.screener_auto_reject,
   CASE WHEN o.employer_type = 'platform' THEN 'OxSteed' ELSE b.business_name END AS employer_name
 `;
 
@@ -402,6 +430,7 @@ function openingView(app) {
   return {
     id: app.opening_id, employer_type: app.employer_type, business_id: app.business_id, team_role: app.opening_team_role,
     location_ids: app.opening_location_ids, created_by: app.opening_created_by, title: app.opening_title,
+    posted_by_agency_id: app.opening_agency_id || null,
   };
 }
 
@@ -410,7 +439,7 @@ function openingView(app) {
 function applicationInScope(access, app) {
   if (!access || access.kind === 'platform' || access.isOwner) return true;
   const mode = access.scope?.mode;
-  if (mode === 'business' || mode === 'brand') return true;
+  if (mode === 'business' || mode === 'brand' || mode === 'agency') return true;
   const preferred = (app.preferred_location_ids || []).map(Number);
   const allowed = new Set(access.scope.locationIds || []);
   if (!preferred.length) return locationsInScope(access, app.opening_location_ids || []);
@@ -452,6 +481,7 @@ function presentForEmployer(app, { checklist = null, interviews = [], offers = [
     added_by_applicant: app.profile_snapshot?.added_by_you || null,
     checklist,
     rejection_reason_code: app.rejection_reason_code,
+    screener_passed: app.screener_passed ?? null,
     created_at: app.created_at,
     updated_at: app.updated_at,
     interviews,
@@ -544,17 +574,24 @@ function formatWhen(date, timezone, locale) {
   }
 }
 
-async function scheduleInterview(db, { app, actor, body, slot = null }) {
+async function scheduleInterview(db, { app, actor, body, slot = null, extra = {} }) {
   if (!ACTIVE_STAGES.includes(app.stage) || app.stage === 'offer') throw new AppError('Interviews can only be booked for active applications', 409, 'invalid_transition');
   // A group slot from a hiring event fixes the time, length and zone.
   const v = parseInterview(slot ? {
     ...body, scheduled_at: slot.starts_at, timezone: slot.timezone, duration_minutes: slot.duration_minutes, mode: body.mode || 'onsite',
   } : body, app);
+  if (extra.locationOverride) v.location = extra.locationOverride;
   const uid = `career-interview-${crypto.randomUUID()}@oxsteed.com`;
+  // `extra` carries marketplace scheduling fields (docs/careers/marketplace.md
+  // §6): the interviewer, the proposal the candidate booked, an in-house
+  // video room key, an SMS reminder opt-in and the interview it replaces.
   const { rows: [interview] } = await db.query(
-    `INSERT INTO career_interviews (application_id, scheduled_at, timezone, mode, location, notes, created_by, duration_minutes, ics_uid, group_slot_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-    [app.id, v.when.toISOString(), v.timezone, v.mode, v.location, v.notes, actor.id, v.duration, uid, slot ? slot.id : null]
+    `INSERT INTO career_interviews (application_id, scheduled_at, timezone, mode, location, notes, created_by, duration_minutes, ics_uid, group_slot_id,
+                                    interviewer_user_id, proposal_id, video_room_key, sms_reminder, rescheduled_from_id, candidate_confirmed_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, CASE WHEN $16::boolean THEN NOW() END) RETURNING *`,
+    [app.id, v.when.toISOString(), v.timezone, v.mode, v.location, v.notes, actor.id, v.duration, uid, slot ? slot.id : null,
+      extra.interviewerUserId || null, extra.proposalId || null, extra.videoRoomKey || null, Boolean(extra.smsReminder),
+      extra.rescheduledFromId || null, Boolean(extra.candidateConfirmed)]
   );
   if (['received', 'screening'].includes(app.stage)) {
     await db.query(`UPDATE career_applications SET stage = 'interview', updated_at = NOW() WHERE id = $1`, [app.id]);
@@ -614,5 +651,7 @@ module.exports = {
   changeStage,
   scheduleInterview,
   cancelInterview,
+  parseInterview,
+  formatWhen,
   sha256,
 };

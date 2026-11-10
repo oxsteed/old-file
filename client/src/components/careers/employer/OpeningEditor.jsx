@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import ScreenersEditor from '../marketplace/ScreenersEditor';
+import { EXPERIENCE_LEVELS, INDUSTRIES } from '../../../features/careers/marketplaceModel';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import CountrySelect from '../../CountrySelect';
@@ -257,6 +259,27 @@ export default function OpeningEditor({ ctx, openingId, locations = [], onSaved,
           </Field>
         </div>
       </fieldset>
+
+      <fieldset className="ox-careers-section">
+        <legend>{t('careers.mk.openingExtras.title')}</legend>
+        <div className="ox-careers-form-grid">
+          <Field label={t('careers.mk.search.industry')} htmlFor="o-industry" error={errors.industry}>
+            <select id="o-industry" value={form.industry || ''} onChange={(e) => set('industry')(e.target.value)}>
+              <option value="">{t('careers.common.none')}</option>
+              {INDUSTRIES.map((x) => <option key={x} value={x}>{t(`careers.mk.industry.${x}`)}</option>)}
+            </select>
+          </Field>
+          <Field label={t('careers.mk.search.experience')} htmlFor="o-experience" error={errors.experience_level}>
+            <select id="o-experience" value={form.experience_level || ''} onChange={(e) => set('experience_level')(e.target.value)}>
+              <option value="">{t('careers.common.none')}</option>
+              {EXPERIENCE_LEVELS.map((x) => <option key={x} value={x}>{t(`careers.mk.experience.${x}`)}</option>)}
+            </select>
+          </Field>
+        </div>
+        <Check id="o-sameday" label={t('careers.mk.openingExtras.sameDay')} checked={Boolean(form.same_day_hire)} onChange={set('same_day_hire')} />
+        <Check id="o-urgent" label={t('careers.mk.openingExtras.urgent')} checked={Boolean(form.urgently_hiring)} onChange={set('urgently_hiring')} />
+      </fieldset>
+      {openingId ? <ScreenersEditor openingId={openingId} /> : <p className="ox-careers-subtle">{t('careers.mk.screener.saveFirst')}</p>}
 
       <ComplianceBox result={compliance} />
       <ErrorNotice error={failure} />

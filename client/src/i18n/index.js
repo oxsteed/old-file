@@ -157,6 +157,7 @@ const localeLoaders = {
     import('../locales/generated/ru-1.json'),
     import('../locales/generated/ru-2.json'),
     import('../locales/generated/ru-3.json'),
+    import('../locales/generated/ru-4.json'),
     optionalLocaleModule(import('./locales/ru/common.json')),
     optionalLocaleModule(import('./locales/ru/translator.json')),
     optionalLocaleModule(import('./locales/ru/credit.json')),
@@ -211,6 +212,7 @@ const localeLoaders = {
     import('../locales/generated/bn-2.json'),
     import('../locales/generated/bn-3.json'),
     import('../locales/generated/bn-4.json'),
+    import('../locales/generated/bn-5.json'),
     optionalLocaleModule(import('./locales/bn/common.json')),
     optionalLocaleModule(import('./locales/bn/translator.json')),
     optionalLocaleModule(import('./locales/bn/credit.json')),
@@ -251,7 +253,7 @@ const localeLoaders = {
   ]),
 };
 
-const localeLegacyShardCounts = { es: 4, fr: 4, ar: 4, hi: 5, vi: 4, ru: 4, ja: 4, ur: 4, bn: 5, th: 5 };
+const localeLegacyShardCounts = { es: 4, fr: 4, ar: 4, hi: 5, vi: 4, ru: 5, ja: 4, ur: 4, bn: 6, th: 5 };
 
 const legalLocaleLoaders = {
   en: () => Promise.all([

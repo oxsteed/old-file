@@ -7,6 +7,7 @@ const { validateBeforeHandler } = require('../utils/socketAuthValidator');
 const { logAdminAction } = require('../services/auditService');
 const { resolveSocketAccessToken } = require('../utils/accessCookie');
 const { isAccessTokenPayload } = require('../utils/accessToken');
+const { bindCareersInterviewRoom } = require('./careersInterviewRoom');
 
 // Logistics roles admitted to the operations workspace (mirrors
 // server/middleware/requireInternalLogisticsWorkspace.js). Holders with an
@@ -408,6 +409,9 @@ function bindChatNamespace(namespace, { pool, socketService, logger, auditLog = 
         logger.warn('business typing stop failed', { userId, error: err?.message });
       });
     });
+
+    // Careers interview room signalling (admission checked per join).
+    bindCareersInterviewRoom(namespace, socket, { pool, logger });
 
     // Audit fix: helpers no longer auto-join the guest chat waiting room.
     // The broadcast there included PII. Helpers join explicitly when they

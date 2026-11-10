@@ -10,9 +10,13 @@ import InvitationsTab from '../components/careers/worker/InvitationsTab';
 import ProfileTab from '../components/careers/worker/ProfileTab';
 import PrivacyTab from '../components/careers/worker/PrivacyTab';
 import GrowthTab from '../components/careers/worker/GrowthTab';
+import TrackerTab from '../components/careers/marketplace/TrackerTab';
+import AlertsTab from '../components/careers/marketplace/AlertsTab';
+import ResumeBuilderTab from '../components/careers/marketplace/ResumeBuilderTab';
+import CareerSettingsTab from '../components/careers/marketplace/CareerSettingsTab';
 import '../styles/CareerSystem.css';
 
-const TABS = ['applications', 'jobs', 'invitations', 'profile', 'privacy'];
+const TABS = ['applications', 'tracker', 'alerts', 'jobs', 'invitations', 'profile', 'resume', 'settings', 'privacy'];
 
 /** "My careers": applications, offers, invitations, profile and privacy. */
 export default function MyCareerApplicationsPage() {
@@ -48,6 +52,10 @@ export default function MyCareerApplicationsPage() {
         {tab === 'jobs' ? <GrowthTab onEditProfile={() => setTab('profile')} /> : null}
         {tab === 'invitations' ? <InvitationsTab /> : null}
         {tab === 'profile' ? <ProfileTab previewBusinesses={businesses} /> : null}
+        {tab === 'tracker' ? <TrackerTab /> : null}
+        {tab === 'alerts' ? <AlertsTab /> : null}
+        {tab === 'resume' ? <ResumeBuilderTab /> : null}
+        {tab === 'settings' ? <CareerSettingsTab /> : null}
         {tab === 'privacy' ? <PrivacyTab /> : null}
       </div>
     </PageShell>

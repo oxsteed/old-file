@@ -174,6 +174,71 @@ const careerNotifications = {
     title: L('AI ranking turned off in {scope}', 'Clasificación con IA desactivada en {scope}', 'Classement IA désactivé dans {scope}', 'Klasman IA etenn nan {scope}', 'أُوقف الترتيب بالذكاء الاصطناعي في {scope}'),
     body: L('The impact ratio fell to {ratio}, below the 0.8 limit. A person must review before it can be turned back on.', 'La proporción de impacto bajó a {ratio}, por debajo del límite de 0.8. Una persona debe revisarlo antes de reactivarla.', 'Le ratio d\'impact est tombé à {ratio}, sous la limite de 0,8. Une personne doit l\'examiner avant de le réactiver.', 'Rapò enpak la desann a {ratio}, anba limit 0.8 la. Yon moun dwe revize l anvan yo limen l ankò.', 'انخفضت نسبة التأثير إلى {ratio} وهي أقل من حد 0.8. يجب أن يراجعها شخص قبل إعادة التشغيل.'),
   },
+  // ── Marketplace (docs/careers/marketplace.md) ─────────────────────────────
+  career_job_alert: {
+    title: L('{count} new jobs for "{alertName}"', '{count} empleos nuevos para "{alertName}"', '{count} nouvelles offres pour « {alertName} »', '{count} nouvo travay pou "{alertName}"', '{count} وظائف جديدة لتنبيه "{alertName}"'),
+    body: L('Including {firstTitle} at {employerName}. Open Careers to see them all.', 'Incluye {firstTitle} en {employerName}. Abre Empleos para verlos todos.', 'Dont {firstTitle} chez {employerName}. Ouvrez Carrières pour toutes les voir.', 'Pami yo {firstTitle} nan {employerName}. Louvri Karyè pou wè yo tout.', 'منها {firstTitle} لدى {employerName}. افتح الوظائف لعرضها كلها.'),
+  },
+  career_followed_employer_opening: {
+    title: L('{employerName} posted a new job', '{employerName} publicó un empleo nuevo', '{employerName} a publié une nouvelle offre', '{employerName} afiche yon nouvo travay', 'نشر {employerName} وظيفة جديدة'),
+    body: L('{openingTitle} is open now. You follow {employerName} on OxSteed Careers.', '{openingTitle} ya está abierto. Sigues a {employerName} en Empleos de OxSteed.', '{openingTitle} est ouvert. Vous suivez {employerName} sur OxSteed Carrières.', '{openingTitle} louvri kounye a. Ou swiv {employerName} sou OxSteed Karyè.', 'وظيفة {openingTitle} متاحة الآن. أنت تتابع {employerName} على وظائف OxSteed.'),
+  },
+  career_message_from_employer: {
+    title: L('New message from {employerName}', 'Nuevo mensaje de {employerName}', 'Nouveau message de {employerName}', 'Nouvo mesaj nan men {employerName}', 'رسالة جديدة من {employerName}'),
+    body: L('About your application for {openingTitle}. Open OxSteed to read and reply.', 'Sobre tu solicitud para {openingTitle}. Abre OxSteed para leer y responder.', 'Au sujet de votre candidature pour {openingTitle}. Ouvrez OxSteed pour lire et répondre.', 'Konsènan aplikasyon ou pou {openingTitle}. Louvri OxSteed pou li epi reponn.', 'بخصوص طلبك لوظيفة {openingTitle}. افتح OxSteed للقراءة والرد.'),
+  },
+  career_message_from_candidate: {
+    title: L('New message from applicant {applicantLabel}', 'Nuevo mensaje del candidato {applicantLabel}', 'Nouveau message du candidat {applicantLabel}', 'Nouvo mesaj nan men kandida {applicantLabel}', 'رسالة جديدة من المتقدّم {applicantLabel}'),
+    body: L('About {openingTitle}. Open the applicant to read and reply.', 'Sobre {openingTitle}. Abre la solicitud para leer y responder.', 'Au sujet de {openingTitle}. Ouvrez la candidature pour lire et répondre.', 'Konsènan {openingTitle}. Louvri aplikasyon an pou li epi reponn.', 'بخصوص {openingTitle}. افتح الطلب للقراءة والرد.'),
+  },
+  career_interview_proposed: {
+    title: L('Pick an interview time for {openingTitle}', 'Elige un horario de entrevista para {openingTitle}', 'Choisissez un créneau d\'entretien pour {openingTitle}', 'Chwazi yon lè entèvyou pou {openingTitle}', 'اختر موعد المقابلة لوظيفة {openingTitle}'),
+    body: L('{employerName} offered {count} times. Book the one that works for you before they expire.', '{employerName} ofreció {count} horarios. Reserva el que te convenga antes de que venzan.', '{employerName} propose {count} créneaux. Réservez celui qui vous convient avant leur expiration.', '{employerName} ofri {count} lè. Rezève sa ki bon pou ou anvan yo ekspire.', 'عرض {employerName} {count} مواعيد. احجز الموعد المناسب قبل انتهاء صلاحيتها.'),
+  },
+  career_interview_reschedule_proposed: {
+    title: L('New interview times for {openingTitle}', 'Nuevos horarios de entrevista para {openingTitle}', 'Nouveaux créneaux d\'entretien pour {openingTitle}', 'Nouvo lè entèvyou pou {openingTitle}', 'مواعيد مقابلة جديدة لوظيفة {openingTitle}'),
+    body: L('{employerName} offered {count} new times. Booking one replaces your current interview.', '{employerName} ofreció {count} horarios nuevos. Reservar uno reemplaza tu entrevista actual.', '{employerName} propose {count} nouveaux créneaux. En réserver un remplace votre entretien actuel.', '{employerName} ofri {count} nouvo lè. Si ou rezève youn, li ranplase entèvyou ou genyen an.', 'عرض {employerName} {count} مواعيد جديدة. حجز أحدها يحل محل مقابلتك الحالية.'),
+  },
+  career_interview_booked: {
+    title: L('Interview booked: {openingTitle}', 'Entrevista reservada: {openingTitle}', 'Entretien réservé : {openingTitle}', 'Entèvyou rezève: {openingTitle}', 'تم حجز مقابلة: {openingTitle}'),
+    body: L('Applicant {applicantLabel} booked {when} ({timezone}). The calendar invite is attached.', 'El candidato {applicantLabel} reservó {when} ({timezone}). La invitación de calendario está adjunta.', 'Le candidat {applicantLabel} a réservé {when} ({timezone}). L\'invitation d\'agenda est jointe.', 'Kandida {applicantLabel} rezève {when} ({timezone}). Envitasyon kalandriye a tache.', 'حجز المتقدّم {applicantLabel} موعد {when} ({timezone}). دعوة التقويم مرفقة.'),
+  },
+  career_interview_times_declined: {
+    title: L('Applicant {applicantLabel} needs other times', 'El candidato {applicantLabel} necesita otros horarios', 'Le candidat {applicantLabel} demande d\'autres créneaux', 'Kandida {applicantLabel} bezwen lòt lè', 'يحتاج المتقدّم {applicantLabel} إلى مواعيد أخرى'),
+    body: L('None of the offered times work for {openingTitle}. Send new times from the applicant page.', 'Ninguno de los horarios sirve para {openingTitle}. Envía nuevos horarios desde la solicitud.', 'Aucun créneau ne convient pour {openingTitle}. Envoyez-en de nouveaux depuis la candidature.', 'Okenn nan lè yo pa bon pou {openingTitle}. Voye nouvo lè nan paj aplikasyon an.', 'لا يناسب أي من المواعيد وظيفة {openingTitle}. أرسل مواعيد جديدة من صفحة الطلب.'),
+  },
+  career_interview_reschedule_requested: {
+    title: L('Reschedule requested: {openingTitle}', 'Cambio de horario solicitado: {openingTitle}', 'Report demandé : {openingTitle}', 'Yo mande chanje lè: {openingTitle}', 'طُلب تغيير الموعد: {openingTitle}'),
+    body: L('Applicant {applicantLabel} asked to move the interview. Pick a new time or send new options.', 'El candidato {applicantLabel} pidió mover la entrevista. Elige otro horario o envía opciones.', 'Le candidat {applicantLabel} demande à déplacer l\'entretien. Choisissez un autre horaire ou proposez des créneaux.', 'Kandida {applicantLabel} mande deplase entèvyou a. Chwazi yon lòt lè oswa voye lòt opsyon.', 'طلب المتقدّم {applicantLabel} نقل المقابلة. اختر موعدًا جديدًا أو أرسل خيارات.'),
+  },
+  career_interview_rescheduled: {
+    title: L('Your interview for {openingTitle} moved', 'Tu entrevista para {openingTitle} cambió', 'Votre entretien pour {openingTitle} a été déplacé', 'Entèvyou ou pou {openingTitle} chanje lè', 'تغيّر موعد مقابلتك لوظيفة {openingTitle}'),
+    body: L('{employerName} moved it to {when} ({timezone}). The updated calendar invite is attached; please confirm.', '{employerName} la movió a {when} ({timezone}). La invitación actualizada está adjunta; confírmala.', '{employerName} l\'a déplacé au {when} ({timezone}). L\'invitation mise à jour est jointe ; merci de confirmer.', '{employerName} mete l pou {when} ({timezone}). Envitasyon ki ajou a tache; tanpri konfime.', 'نقله {employerName} إلى {when} ({timezone}). دعوة التقويم المحدّثة مرفقة؛ يُرجى التأكيد.'),
+  },
+  career_interview_reminder: {
+    title: L('Interview reminder: {openingTitle}', 'Recordatorio de entrevista: {openingTitle}', 'Rappel d\'entretien : {openingTitle}', 'Rapèl entèvyou: {openingTitle}', 'تذكير بالمقابلة: {openingTitle}'),
+    body: L('With {employerName} on {when} ({timezone}). Our interview tips can help you prepare.', 'Con {employerName} el {when} ({timezone}). Nuestros consejos pueden ayudarte a prepararte.', 'Avec {employerName} le {when} ({timezone}). Nos conseils d\'entretien peuvent vous aider.', 'Ak {employerName} {when} ({timezone}). Konsèy entèvyou nou yo ka ede w prepare.', 'مع {employerName} في {when} ({timezone}). يمكن لنصائح المقابلة مساعدتك على الاستعداد.'),
+  },
+  career_interview_reminder_team: {
+    title: L('Interview reminder: {openingTitle}', 'Recordatorio de entrevista: {openingTitle}', 'Rappel d\'entretien : {openingTitle}', 'Rapèl entèvyou: {openingTitle}', 'تذكير بالمقابلة: {openingTitle}'),
+    body: L('Applicant {applicantLabel} on {when} ({timezone}).', 'Candidato {applicantLabel} el {when} ({timezone}).', 'Candidat {applicantLabel} le {when} ({timezone}).', 'Kandida {applicantLabel} {when} ({timezone}).', 'المتقدّم {applicantLabel} في {when} ({timezone}).'),
+  },
+  career_candidate_alert: {
+    title: L('{count} new candidates for "{alertName}"', '{count} candidatos nuevos para "{alertName}"', '{count} nouveaux candidats pour « {alertName} »', '{count} nouvo kandida pou "{alertName}"', '{count} مرشحين جدد لتنبيه "{alertName}"'),
+    body: L('People who opted in to be found now match this alert. Open talent search to see them.', 'Personas que aceptaron ser encontradas coinciden ahora con esta alerta. Abre la búsqueda de talento para verlas.', 'Des personnes ayant accepté d\'être trouvées correspondent à cette alerte. Ouvrez la recherche de talents pour les voir.', 'Moun ki dakò yo jwenn yo koresponn ak alèt sa a kounye a. Louvri rechèch talan pou wè yo.', 'أشخاص وافقوا على الظهور في البحث يطابقون هذا التنبيه الآن. افتح البحث عن المواهب لعرضهم.'),
+  },
+  career_agency_link_requested: {
+    title: L('{agencyName} wants to recruit for you', '{agencyName} quiere reclutar para ti', '{agencyName} souhaite recruter pour vous', '{agencyName} vle rekrite pou ou', 'تريد {agencyName} التوظيف لصالحك'),
+    body: L('Review the permissions they asked for and approve or decline in Careers settings.', 'Revisa los permisos solicitados y apruébalos o recházalos en la configuración de Empleos.', 'Vérifiez les autorisations demandées puis acceptez ou refusez dans les réglages Carrières.', 'Revize pèmisyon yo mande yo epi apwouve oswa refize nan paramèt Karyè.', 'راجع الصلاحيات المطلوبة ثم وافق أو ارفض من إعدادات الوظائف.'),
+  },
+  career_agency_link_approved: {
+    title: L('{clientName} approved your agency', '{clientName} aprobó tu agencia', '{clientName} a approuvé votre agence', '{clientName} apwouve ajans ou', 'وافق {clientName} على وكالتك'),
+    body: L('You can now recruit for {clientName} with the permissions they approved.', 'Ya puedes reclutar para {clientName} con los permisos aprobados.', 'Vous pouvez maintenant recruter pour {clientName} avec les autorisations approuvées.', 'Kounye a ou ka rekrite pou {clientName} ak pèmisyon yo apwouve yo.', 'يمكنك الآن التوظيف لصالح {clientName} بالصلاحيات التي وافق عليها.'),
+  },
+  career_agency_link_declined: {
+    title: L('{clientName} declined your agency request', '{clientName} rechazó la solicitud de tu agencia', '{clientName} a refusé la demande de votre agence', '{clientName} refize demann ajans ou', 'رفض {clientName} طلب وكالتك'),
+    body: L('Contact them directly if you think this was a mistake.', 'Contáctalos directamente si crees que fue un error.', 'Contactez-les directement si vous pensez qu\'il s\'agit d\'une erreur.', 'Kontakte yo dirèkteman si ou panse se te yon erè.', 'تواصل معهم مباشرة إذا كنت تعتقد أن ذلك خطأ.'),
+  },
 };
 
 module.exports = {

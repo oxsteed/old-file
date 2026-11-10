@@ -952,7 +952,33 @@ const careersTalentLimiter = rateLimit({
   message: { error: 'Too many searches. Please try again later.', code: 'careers_talent_rate_limited' },
 });
 
+// Careers marketplace (docs/careers/marketplace.md): messaging, public
+// reports/reviews/Q&A, metric beacons and calendar OAuth starts.
+function careersLimiter(prefix, windowMs, max, code, error) {
+  return rateLimit({
+    ...createStoreOption(`rl:${prefix}:`),
+    windowMs,
+    max,
+    keyGenerator: (req) => (req.user?.id ? `user:${req.user.id}` : `ip:${req.ip}`),
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error, code },
+  });
+}
+const careersMessageLimiter = careersLimiter('careers_msg', 10 * 60 * 1000, 40, 'careers_message_rate_limited', 'You are sending messages too quickly. Please wait a few minutes.');
+const careersReportLimiter = careersLimiter('careers_report', 60 * 60 * 1000, 20, 'careers_report_rate_limited', 'Too many reports. Please try again later.');
+const careersContentLimiter = careersLimiter('careers_content', 24 * 60 * 60 * 1000, 20, 'careers_content_rate_limited', 'You have posted a lot today. Please try again tomorrow.');
+const careersEventLimiter = careersLimiter('careers_event', 60 * 1000, 120, 'careers_event_rate_limited', 'Too many requests.');
+const careersOauthLimiter = careersLimiter('careers_oauth', 60 * 60 * 1000, 20, 'careers_oauth_rate_limited', 'Too many calendar connection attempts. Please try again later.');
+const careersAlertLimiter = careersLimiter('careers_alert', 60 * 60 * 1000, 60, 'careers_alert_rate_limited', 'Too many changes. Please try again later.');
+
 module.exports = {
+  careersMessageLimiter,
+  careersReportLimiter,
+  careersContentLimiter,
+  careersEventLimiter,
+  careersOauthLimiter,
+  careersAlertLimiter,
   careersApplyLimiter,
   careersGuestLimiter,
   careersTalentLimiter,

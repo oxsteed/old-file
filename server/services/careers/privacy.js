@@ -16,7 +16,7 @@ async function exportData(conn, userId) {
             a.retention_until, a.applicant_email, a.first_name, a.last_name, a.phone, a.city, a.country_code, a.languages,
             a.cover_letter, a.resume_url, a.authorized_to_work, a.needs_sponsorship, a.preferred_location_ids,
             a.profile_snapshot, a.rejection_reason_code, a.rejection_requirement, a.rejection_fact_type,
-            a.accommodation_requested, a.ai_notice_shown, a.is_guest
+            a.accommodation_requested, a.ai_notice_shown, a.is_guest, a.screener_answers, a.screener_passed, a.employer_viewed_at
        FROM career_applications a JOIN career_openings o ON o.id = a.opening_id
       WHERE a.user_id = $1 ORDER BY a.created_at`
   );
@@ -52,6 +52,35 @@ async function exportData(conn, userId) {
       background_checks: await q('SELECT application_id, provider, package, status, consent_at, completed_at, created_at FROM career_background_checks WHERE user_id = $1'),
       onboarding_runs: await q('SELECT id, application_id, business_id, status, created_at, finished_at FROM career_onboarding_runs WHERE user_id = $1'),
       employer_of_record: await q('SELECT business_id, partner, partner_worker_ref, status, started_at, ended_at FROM career_eor_assignments WHERE user_id = $1'),
+      // Marketplace (docs/careers/marketplace.md §11).
+      saved_jobs: await q('SELECT opening_id, status, created_at, updated_at FROM career_saved_jobs WHERE user_id = $1'),
+      followed_employers: await q('SELECT business_id, is_platform, created_at FROM career_employer_follows WHERE user_id = $1'),
+      job_alerts: await q('SELECT name, criteria, frequency, channels, paused, created_at, last_sent_at FROM career_job_alerts WHERE user_id = $1'),
+      messages: await byApp(
+        `SELECT t.application_id, m.sender_side, CASE WHEN m.hidden_at IS NULL THEN m.body END AS body, m.created_at
+           FROM career_messages m JOIN career_message_threads t ON t.id = m.thread_id
+          WHERE t.application_id = ANY($1::bigint[]) ORDER BY m.id`
+      ),
+      interview_proposals: await byApp(
+        `SELECT p.application_id, p.mode, p.duration_minutes, p.timezone, p.status, p.candidate_message, p.expires_at,
+                (SELECT json_agg(s.starts_at ORDER BY s.starts_at) FROM career_interview_proposal_slots s WHERE s.proposal_id = p.id) AS slots
+           FROM career_interview_proposals p WHERE p.application_id = ANY($1::bigint[])`
+      ),
+      work_history: await q('SELECT employer_name, title, city, start_month, end_month, is_current, description, source FROM career_profile_work_history WHERE user_id = $1'),
+      education: await q('SELECT school, credential, field_of_study, start_year, end_year, source FROM career_profile_education WHERE user_id = $1'),
+      licenses: await q('SELECT name, issuer, region, issued_on, expires_on, source FROM career_profile_licenses WHERE user_id = $1'),
+      screener_defaults: await q('SELECT preset_code, answer, updated_at FROM career_profile_screener_defaults WHERE user_id = $1'),
+      company_reviews: await q(
+        `SELECT business_id, relationship, job_title, overall, work_life, pay_benefits, security_advancement, management, culture,
+                headline, pros, cons, status, created_at FROM career_company_reviews WHERE author_user_id = $1`
+      ),
+      company_questions: await q('SELECT business_id, body, status, created_at FROM career_company_questions WHERE author_user_id = $1'),
+      company_answers: await q('SELECT question_id, body, status, created_at FROM career_company_answers WHERE author_user_id = $1'),
+      salary_reports: await q('SELECT business_id, job_title, pay_amount, pay_period, currency_code, created_at FROM career_salary_reports WHERE author_user_id = $1'),
+      opening_reports: await q('SELECT opening_id, reason, created_at FROM career_opening_reports WHERE reporter_user_id = $1'),
+      calendar_connections: await q('SELECT provider, connected_at, last_used_at FROM career_calendar_connections WHERE user_id = $1'),
+      interview_availability: await q('SELECT business_id, is_platform, weekday, start_minute, end_minute, timezone FROM career_interview_availability WHERE user_id = $1'),
+      referral_code: (await q('SELECT code, created_at, disabled_at FROM career_referral_codes WHERE user_id = $1'))[0] || null,
     },
   };
 }
@@ -109,6 +138,27 @@ async function erase(conn, userId) {
   await conn.query('DELETE FROM career_fact_disputes WHERE user_id = $1', [userId]);
   await conn.query('DELETE FROM career_invitations WHERE user_id = $1', [userId]);
   await conn.query('DELETE FROM career_profiles WHERE user_id = $1', [userId]);
+  // Marketplace data (docs/careers/marketplace.md §11). The user's own
+  // content is deleted; business records keep only an unlinked trace.
+  for (const table of [
+    'career_saved_jobs', 'career_employer_follows', 'career_job_alerts', 'career_profile_screener_defaults',
+    'career_profile_work_history', 'career_profile_education', 'career_profile_licenses',
+    'career_calendar_connections', 'career_calendar_oauth_states', 'career_interview_availability',
+    'career_talent_shortlist_members', 'career_candidate_alert_hits',
+  ]) {
+    await conn.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]);
+  }
+  await conn.query('DELETE FROM career_company_reviews WHERE author_user_id = $1', [userId]);
+  await conn.query('DELETE FROM career_company_answers WHERE author_user_id = $1', [userId]);
+  await conn.query('DELETE FROM career_company_questions WHERE author_user_id = $1', [userId]);
+  await conn.query('DELETE FROM career_salary_reports WHERE author_user_id = $1', [userId]);
+  await conn.query('DELETE FROM career_company_review_reports WHERE reporter_user_id = $1', [userId]);
+  await conn.query('UPDATE career_opening_reports SET reporter_user_id = NULL, reporter_ip_hash = NULL WHERE reporter_user_id = $1', [userId]);
+  await conn.query('UPDATE career_message_reports SET reporter_user_id = NULL WHERE reporter_user_id = $1', [userId]);
+  // Messages left in applications kept for retention lose the account link.
+  await conn.query('UPDATE career_messages SET sender_user_id = NULL WHERE sender_user_id = $1', [userId]);
+  // Referral ledger rows are accounting records: the code is disabled, not deleted.
+  await conn.query('UPDATE career_referral_codes SET disabled_at = COALESCE(disabled_at, NOW()) WHERE user_id = $1', [userId]);
   // Background-check rows follow the application's retention: status
   // only, unlinked from the account. The report itself stays at Checkr.
   await conn.query('UPDATE career_background_checks SET user_id = NULL, invitation_url = NULL WHERE user_id = $1', [userId]);

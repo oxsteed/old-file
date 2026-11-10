@@ -10,6 +10,8 @@ const applications = require('../../services/careers/applications');
 const { sendCareerEmail } = require('../../services/careers/notify');
 const { jobsForYou, credentialCodes, haversineKm } = require('../../services/careers/matching');
 const { factsForViewer } = require('../../services/careers/profileFacts');
+const screeners = require('../../services/careers/marketplace/screeners');
+const employers = require('../../services/careers/marketplace/employers');
 
 // Strip internal fields from public payloads.
 function publicOpening(o) {
@@ -38,16 +40,39 @@ async function withLocations(opening) {
   return { ...opening, locations: rows };
 }
 
+// Marketplace extras on the job page (docs/careers/marketplace.md §2–§7):
+// screener questions (never the expected answers), whether the signed-in
+// viewer saved the job or follows the employer, and the employer's
+// response-speed badge.
+async function withMarketplace(opening, user) {
+  const [questions, viewer, speed] = await Promise.all([
+    screeners.listQuestions(pool, opening.id, { forCandidate: true }),
+    user ? pool.query(
+      `SELECT EXISTS (SELECT 1 FROM career_saved_jobs s WHERE s.user_id = $1 AND s.opening_id = $2 AND s.status = 'saved') AS saved,
+              EXISTS (SELECT 1 FROM career_employer_follows f WHERE f.user_id = $1
+                        AND ((f.is_platform AND $3::int IS NULL) OR f.business_id = $3::int)) AS following`,
+      [user.id, opening.id, opening.business_id || null]
+    ).then((r) => r.rows[0]) : Promise.resolve(null),
+    opening.business_id ? employers.responseSpeed(pool, opening.business_id) : Promise.resolve(null),
+  ]);
+  return {
+    ...opening,
+    screener_questions: questions,
+    viewer: viewer ? { saved: viewer.saved, following: viewer.following } : null,
+    response_speed: speed,
+  };
+}
+
 exports.getOpening = handle(async (req, res) => {
   const opening = await openings.getPublic(pool, { id: req.params.id });
   if (!opening) throw new AppError('Opening not found', 404, 'not_found');
-  res.json({ opening: await withLocations(publicOpening(opening)) });
+  res.json({ opening: await withMarketplace(await withLocations(publicOpening(opening)), req.user) });
 });
 
 exports.getOpeningBySlug = handle(async (req, res) => {
   const opening = await openings.getPublic(pool, { employerSlug: req.params.employerSlug, slug: req.params.slug });
   if (!opening) throw new AppError('Opening not found', 404, 'not_found');
-  res.json({ opening: await withLocations(publicOpening(opening)) });
+  res.json({ opening: await withMarketplace(await withLocations(publicOpening(opening)), req.user) });
 });
 
 /**

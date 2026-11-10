@@ -84,7 +84,7 @@ export const EMPTY_OPENING = Object.freeze({
   team_role: 'employee', job_role_code: '', location_ids: [], employer_model: 'direct', allow_guest_applications: false,
   hide_identity_until_offer: false, ai_ranking_enabled: false, background_check_required: false, background_check_package: '',
   background_check_reason: '', required_credentials: '', preferred_credentials: '', required_languages: '',
-  applications_close_at: '', is_internal: false, status: 'draft', min_age: 18, min_age_reason: '',
+  applications_close_at: '', is_internal: false, status: 'draft', industry: '', experience_level: '', same_day_hire: false, urgently_hiring: false, min_age: 18, min_age_reason: '',
 });
 
 /** Opening row → editable form values. */
@@ -114,6 +114,8 @@ export function formToOpeningPayload(form, { employerType = 'business' } = {}) {
     postal_code: form.postal_code || null,
     region: form.region || null,
     min_age: Number(form.min_age) || 18,
+    industry: form.industry || null,
+    experience_level: form.experience_level || null,
     min_age_reason: Number(form.min_age) > 18 ? form.min_age_reason || null : null,
   };
   if (!payload.background_check_required) {

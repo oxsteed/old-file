@@ -26,6 +26,7 @@ const { rankApplicants, checklistFor } = require('../../services/careers/ranking
 const { factsForViewer } = require('../../services/careers/profileFacts');
 const { logAccess } = require('../../services/careers/shareLedger');
 const { extractOpeningRequirements } = require('../../services/careers/extract');
+const aiMatch = require('../../services/careers/marketplace/aiMatch');
 const storage = require('../../utils/storage');
 
 const PLATFORM = 'platform';
@@ -107,7 +108,7 @@ async function maybeExtract(opening, actorId) {
 exports.createOpening = handle(async (req, res) => {
   const user = requireUser(req);
   const platform = isPlatformRequest(req);
-  const access = platform ? await platformAccess(req) : await businessAccess(req);
+  const access = platform ? await platformAccess(req) : await businessAccess(req, { agencyPermission: 'post_openings' });
   const businessId = platform ? null : access.businessId;
   const result = await tx(async (c) => {
     const saved = await openingsSvc.saveOpening(c, {
@@ -198,7 +199,9 @@ exports.getApplication = handle(async (req, res) => {
     pool.query('SELECT * FROM career_offers WHERE application_id = $1 ORDER BY id DESC', [app.id]),
   ]);
   const opening = (await pool.query('SELECT * FROM career_openings WHERE id = $1', [app.opening_id])).rows[0];
-  const card = applications.presentForEmployer(app, { checklist: checklistFor(opening, app), interviews, offers: offerRows, events });
+  // The room key is a capability secret; the team only needs to know a room exists.
+  const safeInterviews = interviews.map(({ video_room_key: roomKey, ...i }) => ({ ...i, has_video_room: Boolean(roomKey) }));
+  const card = applications.presentForEmployer(app, { checklist: checklistFor(opening, app), interviews: safeInterviews, offers: offerRows, events });
   // Employer-only facts (rehire eligibility from this business's records,
   // and the status of a check this business ordered), §9.1.
   if (app.user_id && access.kind === 'business') {
@@ -208,6 +211,11 @@ exports.getApplication = handle(async (req, res) => {
   }
   const { rows: [run] } = await pool.query('SELECT id, status FROM career_onboarding_runs WHERE application_id = $1', [app.id]);
   card.onboarding_run = run || null;
+  // "Application viewed" for the candidate's tracker (docs/careers/marketplace.md §3).
+  await pool.query('UPDATE career_applications SET employer_viewed_at = NOW() WHERE id = $1 AND employer_viewed_at IS NULL', [app.id]);
+  card.screener_answers = app.screener_answers || null;
+  card.screener_passed = app.screener_passed;
+  card.ai_match = await aiMatch.matchForEmployer(pool, app.id);
   res.json({ application: card });
 });
 
@@ -324,7 +332,7 @@ exports.talent = handle(async (req, res) => {
 
 exports.talentSearch = handle(async (req, res) => {
   const user = requireUser(req);
-  const access = await businessAccess(req);
+  const access = await businessAccess(req, { agencyPermission: 'source_talent' });
   res.json(await tx((c) => talent.searchWorkers(c, { access, viewer: user, query: req.query || {} }), 'career_talent_search'));
 });
 

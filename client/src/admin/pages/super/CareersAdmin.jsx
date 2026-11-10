@@ -6,9 +6,10 @@ import ModerationPanel from '../../../components/careers/admin/ModerationPanel';
 import DisputesPanel from '../../../components/careers/admin/DisputesPanel';
 import RankingPanel from '../../../components/careers/admin/RankingPanel';
 import { EorPanel, PayRulesPanel, RetentionPanel } from '../../../components/careers/admin/RulesPanel';
+import { ContentAdmin, ReferralsAdmin, ReportsAdmin } from '../../../components/careers/admin/MarketplaceAdmin';
 import '../../../styles/CareerSystem.css';
 
-const TABS = ['hiring', 'moderation', 'disputes', 'ranking', 'eor', 'retention', 'payRules'];
+const TABS = ['hiring', 'moderation', 'reports', 'content', 'disputes', 'ranking', 'eor', 'retention', 'payRules', 'referrals'];
 
 /**
  * OxSteed careers admin. Hiring uses the manage_hiring grant; moderation,
@@ -23,11 +24,14 @@ export default function CareersAdmin() {
       <Tabs tabs={TABS.map((id) => ({ id, label: t(`careers.admin.tabs.${id}`) }))} active={tab} onChange={setTab} label={t('careers.admin.title')} />
       {tab === 'hiring' ? <HiringPipelineBoard employerType="platform" /> : null}
       {tab === 'moderation' ? <ModerationPanel /> : null}
+      {tab === 'reports' ? <ReportsAdmin /> : null}
+      {tab === 'content' ? <ContentAdmin /> : null}
       {tab === 'disputes' ? <DisputesPanel /> : null}
       {tab === 'ranking' ? <RankingPanel /> : null}
       {tab === 'eor' ? <EorPanel /> : null}
       {tab === 'retention' ? <RetentionPanel /> : null}
       {tab === 'payRules' ? <PayRulesPanel /> : null}
+      {tab === 'referrals' ? <ReferralsAdmin /> : null}
     </div>
   );
 }

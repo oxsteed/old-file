@@ -6,10 +6,14 @@ import PageShell from '../components/PageShell';
 import JsonLd, { buildBreadcrumbList } from '../components/JsonLd';
 import { useAuth } from '../context/AuthContext';
 import {
-  applyToCareerOpening, confirmGuestApplication, getCareerFacts, getPublicCareerOpening, startGuestApplication,
+  applyToCareerOpening, confirmGuestApplication, getCareerFacts, getPublicCareerOpening, getScreenerDefaults, startGuestApplication,
+  trackCareerEvent,
 } from '../api/careers';
 import { Check, ErrorNotice, Field, Loading, LoadError, Notice, YesNo, useCareerErrors, useLoad } from '../components/careers/ui';
 import EeoForm from '../components/careers/EeoForm';
+import OpeningActions from '../components/careers/marketplace/OpeningActions';
+import ScreenerFields from '../components/careers/marketplace/ScreenerFields';
+import { missingScreenerAnswers, screenerPayload } from '../features/careers/marketplaceModel';
 import {
   applicationPayload, fieldErrorsFrom, formatDate, formatPayRange, localizedOpening,
 } from '../features/careers/careersModel';
@@ -48,6 +52,23 @@ function ApplyPanel({ opening, user }) {
   const [result, setResult] = useState(null);
   const [failure, setFailure] = useState(null);
   const [sending, setSending] = useState(false);
+  const [screenAnswers, setScreenAnswers] = useState({});
+  const [saveDefaults, setSaveDefaults] = useState(true);
+  const questions = opening.screener_questions || [];
+  // Pre-fill preset questions from the worker's saved answers.
+  useEffect(() => {
+    if (!user || !questions.length) return;
+    let live = true;
+    getScreenerDefaults().then((d) => {
+      if (!live) return;
+      const filled = {};
+      for (const q of questions) if (q.preset_code && d[q.preset_code] !== undefined) filled[q.id] = d[q.preset_code];
+      setScreenAnswers((cur) => ({ ...filled, ...cur }));
+    }).catch(() => {});
+    return () => { live = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, opening.id]);
+  const [started, setStarted] = useState(false);
   const facts = useLoad(() => (user ? getCareerFacts() : Promise.resolve({ facts: [] })), [user?.id]);
   const shareable = (facts.data?.facts || []).filter((f) => !f.hidden);
   const set = (k) => (v) => setForm((prev) => ({ ...prev, [k]: v }));
@@ -81,10 +102,15 @@ function ApplyPanel({ opening, user }) {
       if (!guest.email.trim()) local.email = t('careers.apply.required');
       if (!guest.age_attested) local.age_attested = t('careers.guest.ageRequired');
     }
+    for (const qid of missingScreenerAnswers(questions, screenAnswers)) local[`screener_answers.${qid}`] = t('careers.apply.answerRequired');
     if (Object.keys(local).length) { setErrors(local); return; }
     setSending(true);
     try {
       const body = applicationPayload(form, opening);
+      if (questions.length) {
+        body.screener_answers = screenerPayload(questions, screenAnswers);
+        if (user) body.save_screener_defaults = saveDefaults;
+      }
       if (user) {
         await applyToCareerOpening(opening.id, body);
         setResult('account');
@@ -103,7 +129,7 @@ function ApplyPanel({ opening, user }) {
   };
 
   return (
-    <form className="ox-careers-panel" onSubmit={submit} noValidate data-track="ui.b1e094aef2.1">
+    <form className="ox-careers-panel" onSubmit={submit} noValidate data-track="ui.b1e094aef2.1" onFocus={() => { if (!started) { setStarted(true); trackCareerEvent(opening.id, 'apply_start'); } }}>
       <h2>{t('careers.apply.title')}</h2>
       {!user ? (
         <>
@@ -165,6 +191,8 @@ function ApplyPanel({ opening, user }) {
           })}
         </fieldset>
       ) : null}
+      <ScreenerFields questions={questions} answers={screenAnswers} onChange={setScreenAnswers} errors={errors} />
+      {user && questions.some((q) => q.preset_code) ? <Check id="apply-save-defaults" label={t('careers.mk.screener.saveDefaults')} checked={saveDefaults} onChange={setSaveDefaults} /> : null}
       <Check id="apply-accommodation" label={t('careers.apply.accommodation')} checked={form.accommodation_requested} onChange={set('accommodation_requested')} />
       {user && opening.country_code === 'US' ? <EeoForm value={form.eeo} onChange={set('eeo')} /> : null}
       {opening.ai_ranking_enabled ? <Notice>{t('careers.apply.aiNotice')}</Notice> : null}
@@ -247,6 +275,7 @@ export default function CareerOpeningPage() {
               {opening.employer_model === 'oxsteed_eor' ? <span className="ox-careers-chip">{t('careers.eorBadge')}</span> : null}
               {opening.applications_close_at ? <span className="ox-careers-chip warn">{t('careers.closesOn', { date: formatDate(opening.applications_close_at, i18n.language) })}</span> : null}
             </div>
+            <OpeningActions opening={opening} user={user} />
             {opening.is_translated ? <p className="ox-careers-subtle">{t('careers.machineTranslated')}</p> : null}
             {opening.employer_model === 'oxsteed_eor' ? <Notice>{t('careers.eorExplainer')}</Notice> : null}
             {opening.schedule_summary ? (

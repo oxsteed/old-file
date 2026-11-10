@@ -106,6 +106,45 @@ const LOCALES = Object.freeze(['en', 'es', 'fr', 'ht', 'ar', 'zh', 'ko', 'sw', '
 const EU_COUNTRIES = Object.freeze(['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU',
   'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE']);
 
+// Marketplace facets (docs/careers/marketplace.md §2).
+const INDUSTRIES = Object.freeze([
+  'food_service', 'hospitality', 'retail', 'healthcare', 'construction', 'skilled_trades', 'transportation',
+  'warehouse_logistics', 'cleaning_facilities', 'manufacturing', 'education', 'technology', 'finance',
+  'professional_services', 'beauty_wellness', 'security', 'agriculture', 'nonprofit', 'government', 'other',
+]);
+const EXPERIENCE_LEVELS = Object.freeze(['no_experience', 'internship', 'entry', 'mid', 'senior', 'manager', 'executive']);
+const POSTED_WITHIN_DAYS = Object.freeze([1, 3, 7, 14, 30]);
+const SEARCH_SORTS = Object.freeze(['newest', 'oldest', 'pay_high', 'pay_low', 'relevance', 'distance']);
+const PAGE_SIZES = Object.freeze([10, 20, 50]);
+
+// Indeed-style pre-made screener questions. Only these may be deal-breakers:
+// each has a fixed, lawful answer shape the server can check.
+const SCREENER_PRESETS = Object.freeze({
+  work_authorization: { answer_type: 'yes_no' },
+  min_age_18: { answer_type: 'yes_no' },
+  drivers_license: { answer_type: 'yes_no' },
+  reliable_transport: { answer_type: 'yes_no' },
+  commute: { answer_type: 'yes_no' },
+  relocate: { answer_type: 'yes_no' },
+  shift_availability: { answer_type: 'choice', choices: ['mornings', 'afternoons', 'evenings', 'overnight', 'weekends'] },
+  years_experience: { answer_type: 'number' },
+  certification: { answer_type: 'yes_no' },
+  language: { answer_type: 'yes_no' },
+  education: { answer_type: 'choice', choices: ['none', 'high_school', 'vocational', 'associate', 'bachelor', 'master', 'doctorate'] },
+  lift_weight: { answer_type: 'yes_no' },
+  start_date: { answer_type: 'yes_no' },
+});
+const EDUCATION_ORDER = Object.freeze(['none', 'high_school', 'vocational', 'associate', 'bachelor', 'master', 'doctorate']);
+
+const OPENING_REPORT_REASONS = Object.freeze(['scam', 'asks_for_payment', 'discriminatory', 'misleading_pay', 'fake_employer', 'offensive', 'not_a_job', 'other']);
+const MESSAGE_REPORT_REASONS = Object.freeze(['harassment', 'scam', 'discrimination', 'spam', 'asks_for_payment', 'other']);
+const REVIEW_REPORT_REASONS = Object.freeze(['false_information', 'discriminatory', 'harassment', 'private_information', 'spam', 'conflict_of_interest', 'other']);
+const REVIEW_CATEGORIES = Object.freeze(['work_life', 'pay_benefits', 'security_advancement', 'management', 'culture']);
+const PLANS = Object.freeze(['starter', 'growth', 'pro']);
+const AGENCY_PERMISSIONS = Object.freeze(['post_openings', 'manage_pipeline', 'source_talent']);
+const ALERT_FREQUENCIES = Object.freeze(['instant', 'daily', 'weekly']);
+const ALERT_CHANNELS = Object.freeze(['email', 'in_app', 'push', 'sms']);
+
 function slugify(value) {
   const base = String(value || '')
     .normalize('NFKD')
@@ -145,6 +184,20 @@ function getCareerCatalog() {
     invitationReasons: INVITATION_REASONS,
     eeoOptions: EEO_OPTIONS,
     locales: LOCALES,
+    industries: INDUSTRIES,
+    experienceLevels: EXPERIENCE_LEVELS,
+    postedWithinDays: POSTED_WITHIN_DAYS,
+    searchSorts: SEARCH_SORTS,
+    pageSizes: PAGE_SIZES,
+    screenerPresets: SCREENER_PRESETS,
+    openingReportReasons: OPENING_REPORT_REASONS,
+    messageReportReasons: MESSAGE_REPORT_REASONS,
+    reviewReportReasons: REVIEW_REPORT_REASONS,
+    reviewCategories: REVIEW_CATEGORIES,
+    plans: PLANS,
+    agencyPermissions: AGENCY_PERMISSIONS,
+    alertFrequencies: ALERT_FREQUENCIES,
+    alertChannels: ALERT_CHANNELS,
   };
 }
 
@@ -177,6 +230,21 @@ module.exports = {
   EEO_OPTIONS,
   LOCALES,
   EU_COUNTRIES,
+  INDUSTRIES,
+  EXPERIENCE_LEVELS,
+  POSTED_WITHIN_DAYS,
+  SEARCH_SORTS,
+  PAGE_SIZES,
+  SCREENER_PRESETS,
+  EDUCATION_ORDER,
+  OPENING_REPORT_REASONS,
+  MESSAGE_REPORT_REASONS,
+  REVIEW_REPORT_REASONS,
+  REVIEW_CATEGORIES,
+  PLANS,
+  AGENCY_PERMISSIONS,
+  ALERT_FREQUENCIES,
+  ALERT_CHANNELS,
   slugify,
   getCareerCatalog,
 };

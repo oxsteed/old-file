@@ -93,7 +93,7 @@
     "test:profile-visibility-localization": "node --test scripts/profileVisibilityLocalization.test.mjs",
     "test:i18n-bootstrap": "node --test scripts/i18nBootstrap.test.mjs scripts/adminLocaleNamespaces.test.mjs",
     "test:admin-marketplace-refund-idempotency": "node --test scripts/adminMarketplaceRefundIdempotency.test.mjs",
-    "test:careers": "node --test src/features/careers/careersModel.test.mjs",
+    "test:careers": "node --test src/features/careers/careersModel.test.mjs src/features/careers/marketplaceModel.test.mjs",
     "test:no-duplicate-json-keys": "node scripts/noDuplicateJsonKeys.test.mjs",
     "test:admin-operations-browser": "node --test scripts/adminOperations.browser-check.cjs",
     "test:admin-authenticated": "node --test scripts/adminAuthenticated.browser-check.cjs",
