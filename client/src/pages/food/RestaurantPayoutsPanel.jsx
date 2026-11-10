@@ -20,6 +20,7 @@ function WalletPayoutsSection({ restaurantId, t, f }) {
   const [amount, setAmount] = useState('');
   const [requesting, setRequesting] = useState(false);
   const sequence = useRef(0);
+  const submitLock = useRef(false);
   const load = useCallback(async (offset = 0) => {
     const request = ++sequence.current;
     setLoading(true); setError(false);
@@ -36,18 +37,25 @@ function WalletPayoutsSection({ restaurantId, t, f }) {
   const cents = parseCreditMajorAmount(amount, balance?.currencyCode || 'USD');
   const valid = balance?.processorEnabled !== false && Number.isSafeInteger(cents) && cents > 0 && cents >= Number(balance?.minPayoutCents || 0) && cents <= Number(balance?.balanceCents || 0);
   const submitRequest = async () => {
-    if (!valid || requesting) return;
-    // Finding 46: confirm the payout request with its amount and
-    // currency before it enters the admin review queue.
-    if (!window.confirm(t('food.merchant.payouts.requestConfirm', { amount: formatFoodMoney(cents, balance?.currencyCode || 'USD') }))) return;
-    setRequesting(true);
+    // Hold the lock before confirm(): requesting is React state and
+    // only flips after the dialog returns, so a second submit (a
+    // double-click, or Playwright retrying the click after the first
+    // confirm) could otherwise open a second native confirm.
+    if (!valid || requesting || submitLock.current) return;
+    submitLock.current = true;
     try {
-      const key = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      await requestWalletPayout(restaurantId, { amountCents: cents }, key);
-      toast.success(t('food.merchant.payouts.requestSubmitted', 'Payout requested. An admin will review it.'));
-      setAmount(''); setPayoutsOffset(0); await load(0);
-    } catch (err) { toast.error(apiErrorMessage(err, t('food.merchant.payouts.requestError', 'Could not request the payout.'))); }
-    finally { setRequesting(false); }
+      // Finding 46: confirm the payout request with its amount and
+      // currency before it enters the admin review queue.
+      if (!window.confirm(t('food.merchant.payouts.requestConfirm', { amount: formatFoodMoney(cents, balance?.currencyCode || 'USD') }))) return;
+      setRequesting(true);
+      try {
+        const key = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await requestWalletPayout(restaurantId, { amountCents: cents }, key);
+        toast.success(t('food.merchant.payouts.requestSubmitted', 'Payout requested. An admin will review it.'));
+        setAmount(''); setPayoutsOffset(0); await load(0);
+      } catch (err) { toast.error(apiErrorMessage(err, t('food.merchant.payouts.requestError', 'Could not request the payout.'))); }
+      finally { setRequesting(false); }
+    } finally { submitLock.current = false; }
   };
   return <section className="fd-wallet-payouts" aria-label={t('food.merchant.payouts.walletTitle', 'Wallet earnings')}>
     <h3>{t('food.merchant.payouts.walletTitle', 'Wallet earnings')}</h3><p className="fd-card-meta">{f('walletHint')}</p>
