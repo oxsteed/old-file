@@ -1955,7 +1955,9 @@ function promotionAuditSnapshot(promotion) {
 
 function emitRestaurantOrder(businessId, event, payload) {
   try {
-    if (businessId) socketService.broadcastToBusinessInbox(businessId, event, payload);
+    // F-12: orders room (order/kitchen/POS permission); the socket layer
+    // reduces the payload to identifiers, clients refetch over REST.
+    if (businessId) socketService.broadcastToBusinessOrders(businessId, event, payload);
   } catch (_) {
     // Socket delivery is best-effort; API writes are authoritative.
   }

@@ -1152,7 +1152,8 @@ function appModuleFlags(restaurant, role, permissions = []) {
 
 function broadcastRestaurant(restaurant, event, payload) {
   try {
-    socketService.broadcastToBusinessInbox(restaurant.business_id, event, payload);
+    // F-12: orders room, identifiers only (see socketService.idOnly).
+    socketService.broadcastToBusinessOrders(restaurant.business_id, event, { restaurant_id: restaurant.id, ...(payload || {}) });
     if (payload?.order) {
       socketService.broadcastToRestaurantDisplay(restaurant.id, 'food:display:changed', {
         restaurantId: String(restaurant.id),

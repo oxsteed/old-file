@@ -996,8 +996,6 @@ const sendMessage = async (req, res, next) => {
         conversation_id: conversationId,
         message_id: messagePayload.id,
         sender_id: req.user.id,
-        sender_name: senderName,
-        content: String(messagePayload.content || content).slice(0, 280),
         created_at: messagePayload.created_at || new Date().toISOString(),
       });
     }

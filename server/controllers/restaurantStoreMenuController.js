@@ -80,7 +80,7 @@ exports.update = async (req, res, next) => {
         previous_available: menu.applyOverride({ ...item, store_override: before }).is_available,
         next_available: effective.is_available } };
     }, 'restaurant_store_menu_update');
-    try { sockets.broadcastToBusinessInbox(restaurant.business_id, 'food:menu:availability', result); } catch { /* polling recovers */ }
+    try { sockets.broadcastToBusinessOrders(restaurant.business_id, 'food:menu:availability', { restaurant_id: restaurant.id, ...result.event }); } catch { /* polling recovers */ }
     res.json(result);
   } catch (error) { next(error); }
 };

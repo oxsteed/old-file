@@ -305,7 +305,12 @@ async function recordLostDisputeFinancials(dispute, accountId) {
 function emitFoodOrderUpdate(order) {
   if (!order) return;
   try {
-    socketService.broadcastToBusinessInbox(order.business_id, 'food:order:updated', { order });
+    // F-12: orders room (order/kitchen/POS permission), identifiers only.
+    socketService.broadcastToBusinessOrders(order.business_id, 'food:order:updated', {
+      order_id: order.id,
+      restaurant_id: order.restaurant_id ?? null,
+      status: order.status || null,
+    });
     socketService.broadcastToRestaurantDisplay(order.restaurant_id, 'food:display:changed', {
       restaurantId: String(order.restaurant_id),
       queueNumber: order.queue_number != null ? order.queue_number : null,

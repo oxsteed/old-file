@@ -378,8 +378,6 @@ async function sendMessage(req, res, next) {
         conversation_id: conversationId,
         message_id: message.id,
         sender_id: req.user.id,
-        sender_name: message.sender_name || null,
-        content: normalizedContent.slice(0, 280),
         created_at: message.created_at || new Date().toISOString(),
       });
 

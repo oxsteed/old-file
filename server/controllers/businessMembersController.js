@@ -372,6 +372,10 @@ async function revokeMember(req, res) {
 
     if (!outcome) return res.status(404).json({ error: 'Member not found' });
 
+    // F-12: drop cached permissions and evict the revoked member's live
+    // sockets from this business's realtime rooms.
+    if (member.member_id) permissionsService.invalidateCache(biz.id, member.member_id);
+
     return res.json({ ok: true, offboarding: outcome });
   } catch (err) {
     if (err.code === 'location_scope_forbidden') return res.status(403).json({ error: err.message, code: err.code });
@@ -761,6 +765,8 @@ async function acceptInvitation(req, res) {
       after_state: { status: 'active', role: record.role },
       business_id: record.business_id,
     });
+    // F-12: join the new member's live sockets to the rooms their role allows.
+    permissionsService.invalidateCache(record.business_id, req.user.id);
     return res.json({ ok: true, member: record });
   } catch (err) {
     logger.error('acceptInvitation error', { err: err.message });

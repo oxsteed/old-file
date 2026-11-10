@@ -380,6 +380,15 @@ function bindChatNamespace(namespace, { pool, socketService, logger, auditLog = 
       const businessId = payload?.businessId;
       const conversationId = payload?.conversationId;
       if (!businessId || !conversationId) return;
+      // F-12: typing relays only for a conversation the sender can see,
+      // and only to members who can see it (view_all, team, assignee).
+      if (typeof socketService.canSeeBusinessConversation === 'function') {
+        if (!(await socketService.canSeeBusinessConversation(businessId, userId, conversationId))) return;
+        await socketService.broadcastToBusinessInbox(
+          businessId, event, { businessId, conversationId, userId }, null, { exceptSocketId: socket.id },
+        );
+        return;
+      }
       if (!(await socketService.validateBusinessRoomAccess(businessId, userId))) return;
       socket.to(`business_${businessId}_inbox`).emit(event, {
         businessId,
@@ -406,6 +415,11 @@ function bindChatNamespace(namespace, { pool, socketService, logger, auditLog = 
     socketService.trackConnect(userId, socket.id);
     logger.debug('Socket connected', { userId, role: socket.userRole, socketId: socket.id });
 
+    // F-12: rooms are re-evaluated periodically so a permission change
+    // that missed the invalidation bus still closes within the interval.
+    if (typeof socketService.scheduleBusinessRoomRevalidation === 'function') {
+      socketService.scheduleBusinessRoomRevalidation(socket, userId);
+    }
     socketService.joinBusinessRooms(socket, userId).then((businessIds) => {
       if (businessIds?.length) {
         logger.debug('Socket joined business workspace rooms', {

@@ -20,9 +20,15 @@ const { sendError, sendSuccess } = require('../utils/apiError');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const socketService = require('../services/socketService');
 
-function broadcast(businessId, event, payload) {
+// F-12: claim changes go to view_all holders plus the previous and the new
+// assignee (the only assigned-only members who can see the conversation
+// before or after the change). Identifiers only.
+function broadcast(businessId, event, payload, previousAssignee = null) {
   try {
-    socketService.broadcastToBusinessInbox(businessId, event, payload);
+    socketService.broadcastToBusinessInbox(businessId, event, payload, {
+      assignedUserId: payload.assigned_to_user_id || null,
+      extraUserIds: previousAssignee ? [previousAssignee] : [],
+    });
   } catch { /* non-fatal */ }
 }
 
@@ -88,7 +94,7 @@ exports.claimConversation = async function claimConversation(req, res, next) {
       conversation_id: conversationId,
       assigned_to_user_id: userId,
       at: new Date().toISOString(),
-    });
+    }, conv.assigned_to_user_id);
 
     return sendSuccess(res, { conversation_id: conversationId, assigned_to_user_id: userId });
   } catch (err) {
@@ -149,7 +155,7 @@ exports.releaseConversation = async function releaseConversation(req, res, next)
       conversation_id: conversationId,
       assigned_to_user_id: null,
       at: new Date().toISOString(),
-    });
+    }, conv.assigned_to_user_id);
 
     return sendSuccess(res, { conversation_id: conversationId, assigned_to_user_id: null });
   } catch (err) {
@@ -228,7 +234,7 @@ exports.reassignConversation = async function reassignConversation(req, res, nex
       conversation_id: conversationId,
       assigned_to_user_id: newAssignee,
       at: new Date().toISOString(),
-    });
+    }, conv.assigned_to_user_id);
 
     return sendSuccess(res, { conversation_id: conversationId, assigned_to_user_id: newAssignee });
   } catch (err) {
