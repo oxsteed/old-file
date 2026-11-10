@@ -88,6 +88,7 @@ const { processSupportFollowUpReminders } = require('../services/supportFollowUp
 const { processBusinessInvoicePaymentReminders } = require('../services/businessInvoicePaymentReminderWorker');
 const { recoverStaleSupportChannelDeliveries } = require('../services/supportChannelDeliveryRecovery');
 const { dedicatedWorkerProcess } = require('../utils/workerTopology');
+const { withFencedJobLock } = require('../jobs/jobLockingService');
 const runtimeState = require('../services/runtimeState');
 const { WorkerOwnership } = require('./workerOwnership');
 
@@ -106,6 +107,41 @@ class BackgroundWorkers {
     for (const taskId of cron.getTasks().keys()) {
       if (!existingTaskIds.has(taskId)) this.cronTaskIds.add(taskId);
     }
+  }
+
+  // Background-jobs audit, Oct 30 item 18: every inline cron in this file
+  // used to be a bare cron.schedule call, so a second API replica (or a
+  // slow tick overlapping the next one) ran the same sweep concurrently
+  // with only warn/error logging as protection. Each cron now runs under
+  // its own distinct fenced job lock (cron_job_locks row); a tick that
+  // cannot acquire its lock is skipped instead of double-running, and a
+  // lease lost mid-run fences the rest of that tick. The handler bodies
+  // keep their own logging; this catch only covers lock/budget failures
+  // from withFencedJobLock itself so a tick never becomes an unhandled
+  // rejection. TTLs are matched to cadence: 60s for the sub-minute
+  // sweeps (a crashed run must not lock out the next minute's ticks for
+  // five minutes), 300s for the 15-minute/daily sweeps, 900s for the
+  // slow retention cleanups. Whether multi-replica API deployment is
+  // real is Emile's call (carried question); the fencing applies
+  // regardless. The translation poll cron below is NOT routed through
+  // here: item 28 owns its gating (dedicatedWorkerProcess) and its
+  // claim is already atomic.
+  //
+  // Contract: every handler MUST return the promise of its work (or be
+  // async). A fire-and-forget body that drops its promise resolves the
+  // wrapper immediately, so withFencedJobLock would release the lock
+  // while the service is still running and the next tick could
+  // double-run it. The concurrency test pins this: while one tick's
+  // processWaiting is still pending, a second tick must be skipped.
+  scheduleFencedCron(expression, jobName, handler, { timezone, ttlSeconds = 300 } = {}) {
+    const options = timezone ? { timezone } : undefined;
+    return cron.schedule(expression, () => {
+      withFencedJobLock(jobName, async () => {
+        await handler();
+      }, ttlSeconds).catch((error) => {
+        this.log.warn(`Fenced cron ${jobName} failed`, { error: error.message });
+      });
+    }, options);
   }
 
   start() {
@@ -199,62 +235,53 @@ class BackgroundWorkers {
       startProfileVisibilityNotificationRetryJob();
       startReferralRewardRetryJob();
       // Growth Center link analytics retention (daily, 03:17 UTC).
-      cron.schedule('0 17 3 * * *', () => {
+      this.scheduleFencedCron('0 17 3 * * *', 'promotion-link-prune', () =>
         require('../analytics/promotionLinkAnalytics').prunePromotionLinkEvents(require('../db')).catch((error) => {
           this.log.warn('Promotion link analytics retention failed', { error: error.message });
-        });
-      }, { timezone: 'UTC' });
+        }), { timezone: 'UTC' });
       // Decision 3: signed-in account links for non-consent visits expire
       // after the 7-day attribution window (hourly, at :41).
-      cron.schedule('0 41 * * * *', () => {
+      this.scheduleFencedCron('0 41 * * * *', 'promotion-account-link-expiry', () =>
         require('../analytics/promotionLinkAnalytics').clearExpiredAccountLinks(require('../db')).catch((error) => {
           this.log.warn('Promotion account-link expiry failed', { error: error.message });
-        });
-      }, { timezone: 'UTC' });
+        }), { timezone: 'UTC' });
 
-      cron.schedule('*/10 * * * * *', () => {
+      this.scheduleFencedCron('*/10 * * * * *', 'support-waiting', () =>
         require('../services/supportWaitService').processWaiting().catch((error) => {
           this.log.error('Support waiting worker failed', { error: error.message });
-        });
-      });
+        }), { ttlSeconds: 60 });
 
-      cron.schedule('25 * * * * *', () => {
+      this.scheduleFencedCron('25 * * * * *', 'support-sla-monitor', () =>
         runSupportSlaMonitor().catch((error) => {
           this.log.error('Support SLA monitor failed', { error: error.message });
-        });
-      });
+        }), { ttlSeconds: 60 });
 
-      cron.schedule('35 * * * * *', () => {
+      this.scheduleFencedCron('35 * * * * *', 'support-email-outbox', () =>
         processSupportEmailOutbox().catch((error) => {
           this.log.warn('Support email outbox worker failed', { error: error.message });
-        });
-      });
+        }), { ttlSeconds: 60 });
 
-      cron.schedule('40 * * * * *', () => {
+      this.scheduleFencedCron('40 * * * * *', 'support-channel-delivery-recovery', () =>
         recoverStaleSupportChannelDeliveries().catch((error) => {
           this.log.warn('Support channel delivery recovery failed', { error: error.message });
-        });
-      });
+        }), { ttlSeconds: 60 });
 
-      cron.schedule('45 * * * * *', () => {
+      this.scheduleFencedCron('45 * * * * *', 'support-follow-up-reminders', () =>
         processSupportFollowUpReminders().catch((error) => {
           this.log.warn('Support follow-up reminder worker failed', { error: error.message });
-        });
-      });
+        }), { ttlSeconds: 60 });
 
-      cron.schedule('50 * * * * *', () => {
+      this.scheduleFencedCron('50 * * * * *', 'restaurant-inventory-reservation-release', () =>
         releaseExpiredInventoryReservations().catch((error) => {
           this.log.warn('Restaurant inventory reservation cleanup failed', { error: error.message });
-        });
-      });
+        }), { ttlSeconds: 60 });
 
-      cron.schedule('15 * * * * *', () => {
+      this.scheduleFencedCron('15 * * * * *', 'restaurant-wallet-operation-cleanup', () =>
         cleanupExpiredWalletOperations().catch((error) => {
           this.log.warn('Restaurant credit expiry cleanup failed', { error: error.message });
-        });
-      });
+        }), { ttlSeconds: 60 });
 
-      cron.schedule('*/15 * * * *', async () => {
+      this.scheduleFencedCron('*/15 * * * *', 'booking-maintenance-sweep', async () => {
         try {
           await bookingController.expirePendingBookingRequests();
           await bookingController.releaseStaleAcceptedBookings();
@@ -268,35 +295,34 @@ class BackgroundWorkers {
         }
       });
 
-      cron.schedule(cleanupOldMessagesJob.cronExpression, async () => {
+      this.scheduleFencedCron(cleanupOldMessagesJob.cronExpression, 'support-message-cleanup', async () => {
         try {
           const result = await cleanupOldMessagesJob.handler();
           this.log.info('Support message cleanup job completed', result);
         } catch (err) {
           this.log.error('Support message cleanup job failed', { error: err.message });
         }
-      });
+      }, { ttlSeconds: 900 });
 
-      cron.schedule(guestChatRetention.cronExpression, async () => {
+      this.scheduleFencedCron(guestChatRetention.cronExpression, 'guest-chat-retention-cleanup', async () => {
         try {
           await guestChatRetention.cleanupGuestChatRetention();
         } catch (err) {
           this.log.error('Guest chat retention cleanup failed', { error: err.message });
         }
-      });
+      }, { ttlSeconds: 900 });
 
       // The active support conversation table uses a separate, lock-protected
       // retention worker. Keep the legacy message cleanup above for old data.
-      cron.schedule('15 2 * * *', async () => {
+      this.scheduleFencedCron('15 2 * * *', 'support-conversation-retention-cleanup', async () => {
         const result = await cleanupExpiredSupportMessages();
         if (!result.success) this.log.error('Support conversation retention job failed', result);
-      });
+      }, { ttlSeconds: 900 });
 
-      cron.schedule('5 3 * * *', () => {
+      this.scheduleFencedCron('5 3 * * *', 'business-invoice-payment-reminders', () =>
         processBusinessInvoicePaymentReminders().catch((error) => {
           this.log.warn('Business invoice payment reminder job failed', { error: error.message });
-        });
-      });
+        }));
 
       // Background-jobs audit, Oct 30 item 28 (cadence residual): the
       // API cron and the dedicated worker used to poll concurrently at

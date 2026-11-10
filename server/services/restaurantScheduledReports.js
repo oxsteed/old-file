@@ -27,8 +27,14 @@
 
 const PENDING_STALE_MINUTES = 60;
 
+// Background-jobs audit #50: at most this many schedules per run.
+// The cap applies to the DUE set (see the SELECT in
+// runDueScheduledReports), not to the enabled set.
+const MAX_SCHEDULES_PER_RUN = 100;
+
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { LeaseLostError } = require('../jobs/jobLockingService');
 const { formatMinorUnits } = require('../utils/currencyPrecision');
 const { sendNotification } = require('./notificationService');
 const { sendEmail } = require('../utils/email');
@@ -348,16 +354,57 @@ async function markDeliveryFailed(db, { deliveryId, error, recipientCount = null
 // Run every due schedule once. `now` is injectable for tests. The
 // business date is yesterday in the restaurant's own timezone: the
 // report covers a finished day, never a day still in service.
-async function runDueScheduledReports(db = pool, { now = new Date() } = {}) {
+// `fence` is the fenced-job fence (the job passes it through); the
+// lease is re-asserted before each schedule's build (see the loop).
+//
+// Background-jobs audit #50: the run is capped at
+// MAX_SCHEDULES_PER_RUN schedules, and the cap applies to the DUE
+// set, not the enabled set: the due predicate (the same business-date
+// rule the loop below applies in JS) lives in the SELECT, so LIMIT
+// always means that many due schedules. A plain LIMIT on the enabled
+// select would not make progress: a successful build advances
+// last_business_date, so the next run would re-select the same first
+// 100 rows (now not due) and every schedule past id 100 would starve
+// forever. Here a built schedule drops out of the due set, so the
+// next run selects the next due batch. The JS isDue check below stays
+// as a second gate in case the two ever disagree. Residual: a schedule
+// whose build keeps failing stays due and keeps occupying a slot, so
+// 100 persistently failing schedules can still head-of-line block the
+// rest; that is bounded to genuinely failing schedules, not to every
+// schedule past the cap. A restaurant with an unknown timezone falls
+// back to UTC for the due computation (mirroring the JS fallback in
+// the loop) instead of failing the whole select.
+async function runDueScheduledReports(db = pool, { now = new Date(), fence = null } = {}) {
   const { rows: schedules } = await db.query(
     `SELECT sr.*, r.business_id, r.timezone, r.currency_code
        FROM restaurant_scheduled_reports sr
        JOIN food_restaurants r ON r.id = sr.restaurant_id
+      CROSS JOIN LATERAL (
+        SELECT ((($1::timestamptz AT TIME ZONE
+          CASE WHEN EXISTS (SELECT 1 FROM pg_timezone_names WHERE name = r.timezone)
+               THEN r.timezone ELSE 'UTC' END)::date - 1)) AS business_date
+      ) AS bd
       WHERE sr.enabled = TRUE
-      ORDER BY sr.id`
+        AND (sr.last_business_date IS NULL
+             OR (sr.frequency = 'weekly' AND sr.last_business_date <= bd.business_date - 7)
+             OR (sr.frequency <> 'weekly' AND sr.last_business_date < bd.business_date))
+      ORDER BY sr.id
+      LIMIT $2`,
+    [now, MAX_SCHEDULES_PER_RUN]
   );
   const result = { due: 0, sent: 0, skipped: 0, failed: 0, errors: [] };
   for (const schedule of schedules) {
+    // Background-jobs audit #50: re-assert the lease before each
+    // schedule's build, not just once per run. This sits outside the
+    // per-schedule try/catch on purpose: a LeaseLostError must abort
+    // the run (the job converts it to { fenced: true }) instead of
+    // being recorded as one failed schedule while the run keeps
+    // building through the raw pool. The build itself (daily close /
+    // labor / digests) reads through the raw pool, so the assert
+    // guards the boundary between schedules, not a lease lost
+    // mid-build; closing that residual needs the builders to take
+    // fence.db, which is out of this finding's scope.
+    if (fence) fence.assertActive();
     const timezone = schedule.timezone || 'UTC';
     let businessDate;
     try {
@@ -365,7 +412,19 @@ async function runDueScheduledReports(db = pool, { now = new Date() } = {}) {
     } catch {
       businessDate = shiftDateString(new Date().toISOString().slice(0, 10), -1);
     }
-    const lastRun = schedule.last_business_date ? String(schedule.last_business_date).slice(0, 10) : null;
+    // The row's last_business_date arrives from pg as a Date object
+    // for a DATE column, not as a 'YYYY-MM-DD' string: String(date)
+    // is 'Thu Oct 29 2026 ...', so a plain String(...).slice(0, 10)
+    // is 'Thu Oct 29', which never compares due against an ISO
+    // business date. That silently vetoed every repeat build (a daily
+    // schedule last built 2026-11-05 was never due again, and a weekly
+    // schedule never reached its boundary day). Normalize Date objects
+    // through toISOString() so the comparison sees the calendar date.
+    const lastRun = schedule.last_business_date == null
+      ? null
+      : (schedule.last_business_date instanceof Date
+        ? schedule.last_business_date.toISOString().slice(0, 10)
+        : String(schedule.last_business_date).slice(0, 10));
     const isDue = schedule.frequency === 'weekly'
       ? (lastRun == null || lastRun <= shiftDateString(businessDate, -7))
       : (lastRun == null || lastRun < businessDate);
@@ -413,6 +472,12 @@ async function runDueScheduledReports(db = pool, { now = new Date() } = {}) {
       );
       result.sent += 1;
     } catch (err) {
+      // Background-jobs audit #50: a lost lease detected by a fenced
+      // query inside the try (the claim, the delivery ledger, the
+      // marker update) aborts the run too. Only ordinary build /
+      // delivery throws count as one failed schedule; per-schedule
+      // isolation is preserved for those.
+      if (err instanceof LeaseLostError) throw err;
       result.failed += 1;
       result.errors.push({ schedule_id: Number(schedule.id), error: err.message });
       logger.error('Scheduled restaurant report failed', { scheduleId: schedule.id, error: err.message });
@@ -443,6 +508,7 @@ module.exports = {
   markDeliverySent,
   markDeliveryFailed,
   PENDING_STALE_MINUTES,
+  MAX_SCHEDULES_PER_RUN,
   runDueScheduledReports,
   localDateString,
   shiftDateString,

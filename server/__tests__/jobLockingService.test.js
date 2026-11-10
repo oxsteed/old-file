@@ -1,7 +1,15 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { acquireJobLock, refreshJobLock, refreshJobLockState, withJobLock } = require('../jobs/jobLockingService');
+const {
+  acquireJobLock,
+  acquireJobLockState,
+  JobLockAcquisitionError,
+  refreshJobLock,
+  refreshJobLockState,
+  withFencedJobLock,
+  withJobLock,
+} = require('../jobs/jobLockingService');
 
 beforeEach(() => resetMocks());
 
@@ -64,6 +72,90 @@ test('releases the lease and surfaces handler failures to the worker caller', as
   await expect(withJobLock('test-job', handler, 60)).rejects.toThrow('database unavailable');
 
   expect(mockQuery.mock.calls[1][0]).toMatch(/DELETE FROM cron_job_locks/);
+});
+
+describe('Oct 30 item 30(d): lock-acquisition errors are not contention', () => {
+  test('acquireJobLockState distinguishes acquired, contended, and error', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ lock_id: 'job_lock:test-job' }] });
+    await expect(acquireJobLockState('test-job', 120))
+      .resolves.toMatchObject({ outcome: 'acquired' });
+
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await expect(acquireJobLockState('test-job', 120))
+      .resolves.toEqual({ outcome: 'contended', lockValue: null });
+
+    mockQuery.mockRejectedValueOnce(new Error('db down'));
+    const errored = await acquireJobLockState('test-job', 120);
+    expect(errored.outcome).toBe('error');
+    expect(errored.lockValue).toBeNull();
+    expect(errored.error).toBeInstanceOf(Error);
+    expect(errored.error.message).toBe('db down');
+  });
+
+  test('acquireJobLock keeps its null contract but surfaces errors distinctly when asked', async () => {
+    // Contention: null, as before.
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await expect(acquireJobLock('test-job', 120)).resolves.toBeNull();
+    // Store error without throwOnError: still null (fail closed, no lock).
+    mockQuery.mockRejectedValueOnce(new Error('db down'));
+    await expect(acquireJobLock('test-job', 120)).resolves.toBeNull();
+    // Store error with throwOnError: a distinct typed error, not null.
+    mockQuery.mockRejectedValueOnce(new Error('db down'));
+    await expect(acquireJobLock('test-job', 120, { throwOnError: true }))
+      .rejects.toThrow(JobLockAcquisitionError);
+    mockQuery.mockRejectedValueOnce(new Error('db down'));
+    await expect(acquireJobLock('test-job', 120, { throwOnError: true }))
+      .rejects.toThrow('db down');
+  });
+
+  test('withFencedJobLock returns a distinct lockError outcome instead of a bare skip', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('db down'));
+    const handler = jest.fn();
+
+    const result = await withFencedJobLock('test-job', handler, 60);
+
+    expect(result).toEqual({ skipped: true, lockError: true });
+    expect(handler).not.toHaveBeenCalled(); // fail closed: no lock, no run
+  });
+
+  test('withFencedJobLock marks contention skips distinctly from lock errors', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const handler = jest.fn();
+
+    const result = await withFencedJobLock('test-job', handler, 60);
+
+    expect(result).toEqual({ skipped: true, lockSkipped: true });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  test('withFencedJobLock throws a JobLockAcquisitionError on lock-store failure when asked', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('db down'));
+
+    await expect(withFencedJobLock('test-job', jest.fn(), 60, { throwOnLockError: true }))
+      .rejects.toThrow(JobLockAcquisitionError);
+  });
+});
+
+describe('finding #47: a fenced abort records a deduped incident', () => {
+  test('a fenced handler abort writes one incident_log row for the job', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (sql.includes('INSERT INTO cron_job_locks')) return { rows: [{ lock_id: 'job_lock:test-job' }] };
+      if (sql.includes('DELETE FROM cron_job_locks')) return { rows: [] };
+      return { rows: [{ ok: 1 }] };
+    });
+
+    const result = await withFencedJobLock('test-job', async (fence) => {
+      fence._onLeaseLost();
+      fence.assertActive(); // eslint-disable-line no-unused-expressions
+    }, 300);
+
+    expect(result).toEqual({ fenced: true });
+    const incidentInserts = mockQuery.mock.calls.filter(([sql]) =>
+      String(sql).includes('INSERT INTO incident_log'));
+    expect(incidentInserts).toHaveLength(1);
+    expect(incidentInserts[0][1][0]).toBe('scheduled_worker_fenced');
+    expect(incidentInserts[0][1][4]).toBe('test-job:fenced');
+  });
 });
 
 describe('Oct 30 item 6: a renewal error is not lease loss', () => {

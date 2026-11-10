@@ -123,6 +123,72 @@ describe('P2-8-F03 friendly toggle aliases', () => {
   });
 });
 
+describe('Background-jobs audit #51 restaurant alert toggles', () => {
+  const RESTAURANT_TYPES = [
+    ['staff_time_entry_system_closed', 'in_app_staff_time_entry_system_closed'],
+    ['staff_time_entry_missing_punch', 'in_app_staff_time_entry_missing_punch'],
+    ['restaurant_temperature_breach', 'in_app_restaurant_temperature_breach'],
+    ['restaurant_scheduled_report', 'in_app_restaurant_scheduled_report'],
+  ];
+
+  test.each(RESTAURANT_TYPES)(
+    '%s: turning its toggle off suppresses the in-app row',
+    async (type, toggleKey) => {
+      mockPrefs({ [toggleKey]: false });
+      await sendNotification({ userId: 'u1', type, title: 't', body: 'b' });
+      expect(insertCalls()).toHaveLength(0);
+    }
+  );
+
+  test.each(RESTAURANT_TYPES)(
+    '%s: toggle left on keeps the in-app row',
+    async (type) => {
+      mockPrefs({});
+      await sendNotification({ userId: 'u1', type, title: 't', body: 'b' });
+      expect(insertCalls()).toHaveLength(1);
+    }
+  );
+
+  test('the missing-punch toggle also suppresses push for that type', async () => {
+    mockPrefs({ in_app_staff_time_entry_missing_punch: false });
+    await sendNotification({
+      userId: 'u1', type: 'staff_time_entry_missing_punch', title: 't', body: 'b',
+      pushToken: 'ExponentPushToken[x]',
+    });
+    expect(mockSendExpo).not.toHaveBeenCalled();
+    expect(webPushService.sendToUser).not.toHaveBeenCalled();
+    expect(mobilePushService.sendToUser).not.toHaveBeenCalled();
+  });
+
+  test('updatePreferences accepts all four restaurant toggles', async () => {
+    const { updatePreferences } = require('../controllers/notificationController');
+    const next = jest.fn();
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+    db.query.mockResolvedValue({ rows: [{ user_id: 'u1' }] });
+    await updatePreferences(
+      {
+        user: { id: 'u1' },
+        body: {
+          in_app_staff_time_entry_system_closed: false,
+          in_app_staff_time_entry_missing_punch: true,
+          in_app_restaurant_temperature_breach: false,
+          in_app_restaurant_scheduled_report: false,
+        },
+      },
+      res,
+      next
+    );
+    expect(next).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalled();
+    const update = db.query.mock.calls.find(([sql]) => /UPDATE|INSERT INTO notification_preferences/.test(String(sql)));
+    expect(update).toBeDefined();
+    expect(update[0]).toContain('in_app_staff_time_entry_system_closed');
+    expect(update[0]).toContain('in_app_staff_time_entry_missing_punch');
+    expect(update[0]).toContain('in_app_restaurant_temperature_breach');
+    expect(update[0]).toContain('in_app_restaurant_scheduled_report');
+  });
+});
+
 describe('P2-8-F04 email_frequency honored by the realtime path', () => {
   function digestQueueCalls() {
     return db.query.mock.calls.filter(([sql]) => String(sql).includes('INSERT INTO email_digest_queue'));

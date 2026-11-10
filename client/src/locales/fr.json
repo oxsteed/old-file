@@ -10777,6 +10777,10 @@
       "masters": {
         "label": "Interrupteurs principaux",
         "description": "Activez ou désactivez un canal entier. Ils ont priorité sur les interrupteurs individuels ci-dessous."
+      },
+      "restaurant": {
+        "label": "Alertes du restaurant",
+        "description": "Alertes de pointage, de température et de rapports programmés pour les restaurants que vous gérez."
       }
     },
     "prefs": {
@@ -10791,6 +10795,10 @@
       "in_app_subscription": "Mises à jour de l'abonnement",
       "in_app_new_message": "Nouveaux messages de chat",
       "in_app_message_mention": "Quand je suis mentionné dans le chat",
+      "in_app_staff_time_entry_system_closed": "Pointages oubliés fermés automatiquement",
+      "in_app_staff_time_entry_missing_punch": "Pointages manquants pour les quarts planifiés",
+      "in_app_restaurant_temperature_breach": "Alertes de dépassement de température",
+      "in_app_restaurant_scheduled_report": "Rapports programmés du restaurant",
       "push_new_job_nearby": "Nouvelle mission à proximité",
       "push_new_bid": "Nouvelle offre reçue",
       "push_bid_accepted": "Offre acceptée",

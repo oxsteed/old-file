@@ -25,14 +25,34 @@ const PREF_ALIASES = {
     subscription_renewed: ['in_app_subscription'],
     subscription_cancelled: ['in_app_subscription'],
     subscription_past_due: ['in_app_subscription'],
+    // Background-jobs audit #51: the restaurant alert types below use
+    // their canonical key as the UI toggle key (e.g. a manager turns off
+    // in_app_staff_time_entry_missing_punch itself), so the in_app entry
+    // restates the canonical check. The push/email entries below are the
+    // load-bearing half: they let that single toggle gate every channel
+    // the alert actually uses (push fires for these types; email does not
+    // today, but the alias keeps the toggle effective if email eligibility
+    // is ever added).
+    staff_time_entry_system_closed: ['in_app_staff_time_entry_system_closed'],
+    staff_time_entry_missing_punch: ['in_app_staff_time_entry_missing_punch'],
+    restaurant_temperature_breach: ['in_app_restaurant_temperature_breach'],
+    restaurant_scheduled_report: ['in_app_restaurant_scheduled_report'],
   },
   push: {
     bid_received: ['push_new_bid'],
+    staff_time_entry_system_closed: ['in_app_staff_time_entry_system_closed'],
+    staff_time_entry_missing_punch: ['in_app_staff_time_entry_missing_punch'],
+    restaurant_temperature_breach: ['in_app_restaurant_temperature_breach'],
+    restaurant_scheduled_report: ['in_app_restaurant_scheduled_report'],
   },
   email: {
     subscription_renewed: ['email_subscription'],
     subscription_cancelled: ['email_subscription'],
     subscription_past_due: ['email_subscription'],
+    staff_time_entry_system_closed: ['in_app_staff_time_entry_system_closed'],
+    staff_time_entry_missing_punch: ['in_app_staff_time_entry_missing_punch'],
+    restaurant_temperature_breach: ['in_app_restaurant_temperature_breach'],
+    restaurant_scheduled_report: ['in_app_restaurant_scheduled_report'],
   },
 };
 

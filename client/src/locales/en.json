@@ -10777,6 +10777,10 @@
       "masters": {
         "label": "Master Switches",
         "description": "Turn an entire channel on or off. These override the individual toggles below."
+      },
+      "restaurant": {
+        "label": "Restaurant Alerts",
+        "description": "Timekeeping, temperature, and scheduled report alerts for restaurants you manage."
       }
     },
     "prefs": {
@@ -10791,6 +10795,10 @@
       "in_app_subscription": "Subscription updates",
       "in_app_new_message": "New chat messages",
       "in_app_message_mention": "When I'm mentioned in chat",
+      "in_app_staff_time_entry_system_closed": "Forgotten punches closed automatically",
+      "in_app_staff_time_entry_missing_punch": "Missing punches for scheduled shifts",
+      "in_app_restaurant_temperature_breach": "Temperature breach alerts",
+      "in_app_restaurant_scheduled_report": "Scheduled restaurant reports",
       "push_new_job_nearby": "New jobs near me",
       "push_new_bid": "New bid on my job",
       "push_bid_accepted": "My bid was accepted",

@@ -10777,6 +10777,10 @@
       "masters": {
         "label": "Interruptores principales",
         "description": "Activa o desactiva un canal completo. Tienen prioridad sobre los interruptores individuales."
+      },
+      "restaurant": {
+        "label": "Alertas del restaurante",
+        "description": "Alertas de control horario, temperatura e informes programados para los restaurantes que gestionas."
       }
     },
     "prefs": {
@@ -10791,6 +10795,10 @@
       "in_app_subscription": "Actualizaciones de suscripción",
       "in_app_new_message": "Nuevos mensajes de chat",
       "in_app_message_mention": "Cuando se me mencione en el chat",
+      "in_app_staff_time_entry_system_closed": "Fichajes olvidados cerrados automáticamente",
+      "in_app_staff_time_entry_missing_punch": "Fichajes faltantes en turnos programados",
+      "in_app_restaurant_temperature_breach": "Alertas de temperatura fuera de rango",
+      "in_app_restaurant_scheduled_report": "Informes programados del restaurante",
       "push_new_job_nearby": "Nuevo trabajo cercano",
       "push_new_bid": "Nueva oferta recibida",
       "push_bid_accepted": "Oferta aceptada",

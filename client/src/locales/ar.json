@@ -10777,6 +10777,10 @@
       "masters": {
         "label": "المفاتيح الرئيسية",
         "description": "قم بتشغيل قناة كاملة أو إيقافها. لها الأولوية على المفاتيح الفردية أدناه."
+      },
+      "restaurant": {
+        "label": "تنبيهات المطعم",
+        "description": "تنبيهات الحضور ودرجة الحرارة والتقارير المجدولة للمطاعم التي تديرها."
       }
     },
     "prefs": {
@@ -10791,6 +10795,10 @@
       "in_app_subscription": "تحديثات الاشتراك",
       "in_app_new_message": "رسائل دردشة جديدة",
       "in_app_message_mention": "عندما يتم ذكري في الدردشة",
+      "in_app_staff_time_entry_system_closed": "إغلاق بصمات الوقت المنسية تلقائيًا",
+      "in_app_staff_time_entry_missing_punch": "بصمات الوقت المفقودة للورديات المجدولة",
+      "in_app_restaurant_temperature_breach": "تنبيهات تجاوز درجة الحرارة",
+      "in_app_restaurant_scheduled_report": "تقارير المطعم المجدولة",
       "push_new_job_nearby": "وظائف جديدة بالقرب مني",
       "push_new_bid": "عرض جديد على وظيفتي",
       "push_bid_accepted": "تم قبول عرضي",
