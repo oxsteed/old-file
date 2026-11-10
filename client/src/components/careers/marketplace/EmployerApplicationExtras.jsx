@@ -109,7 +109,7 @@ function ProposeTimes({ app, timezone, rescheduleOf = null, onDone }) {
           <legend>{g.label}</legend>
           {g.slots.map((s) => (
             <label key={s.iso} className={`ox-careers-slot${picked.includes(s.iso) ? ' active' : ''}`}>
-              <input type="checkbox" checked={picked.includes(s.iso)} onChange={() => toggle(s.iso)} />
+              <input type="checkbox" checked={picked.includes(s.iso)} onChange={() => toggle(s.iso)} data-track="ui.8bfcb7c832.1" />
               <span>{s.label}</span>
             </label>
           ))}
@@ -127,7 +127,7 @@ function ProposeTimes({ app, timezone, rescheduleOf = null, onDone }) {
           } catch (err) { toast.error(errorText(err)); }
         }}
         >{picked.length ? t('careers.mk.interviews.sendPicked', { count: picked.length }) : t('careers.mk.interviews.sendAll')}</ActionButton>
-        <button type="button" className="ox-careers-btn" onClick={() => onDone(false)}>{t('careers.common.cancel')}</button>
+        <button type="button" className="ox-careers-btn" onClick={() => onDone(false)} data-track="ui.8bfcb7c832.2">{t('careers.common.cancel')}</button>
       </div>
     </div>
   );
@@ -152,7 +152,7 @@ function Notes({ app, interview }) {
       <form onSubmit={async (e) => {
         e.preventDefault();
         try { await addInterviewNote(app.id, interview.id, { note: f.note || undefined, rating: f.rating || undefined, recommendation: f.recommendation || undefined }); setF({ note: '', rating: '', recommendation: '' }); notes.reload(); } catch (err) { toast.error(errorText(err)); }
-      }}
+      }} data-track="ui.8bfcb7c832.3"
       >
         <div className="ox-careers-form-grid">
           <Field label={t('careers.mk.notes.rating')} htmlFor={`nt-r-${interview.id}`}>
@@ -169,7 +169,7 @@ function Notes({ app, interview }) {
           </Field>
         </div>
         <Field label={t('careers.mk.notes.note')} htmlFor={`nt-n-${interview.id}`}><textarea id={`nt-n-${interview.id}`} rows={3} maxLength={4000} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
-        <button type="submit" className="ox-careers-btn" disabled={!f.note.trim() && !f.rating && !f.recommendation}>{t('careers.mk.notes.add')}</button>
+        <button type="submit" className="ox-careers-btn" disabled={!f.note.trim() && !f.rating && !f.recommendation} data-track="ui.8bfcb7c832.4">{t('careers.mk.notes.add')}</button>
       </form>
     </div>
   );
@@ -183,10 +183,10 @@ function Reschedule({ app, interview, onDone }) {
     <form className="ox-careers-actions" onSubmit={async (e) => {
       e.preventDefault();
       try { await rescheduleTeamInterview(app.id, interview.id, { scheduled_at: new Date(when).toISOString() }); toast.success(t('careers.mk.interviews.rescheduled')); onDone(true); } catch (err) { toast.error(errorText(err)); }
-    }}
+    }} data-track="ui.8bfcb7c832.5"
     >
       <Field label={t('careers.mk.interviews.newTime')} htmlFor={`rs-${interview.id}`}><input id={`rs-${interview.id}`} type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} /></Field>
-      <button type="submit" className="ox-careers-btn" disabled={!when}>{t('careers.mk.interviews.reschedule')}</button>
+      <button type="submit" className="ox-careers-btn" disabled={!when} data-track="ui.8bfcb7c832.6">{t('careers.mk.interviews.reschedule')}</button>
     </form>
   );
 }
@@ -222,9 +222,9 @@ export default function EmployerApplicationExtras({ app, opening, timezone, onCh
             <div className="ox-careers-actions">
               <ActionButton onClick={() => downloadVia(api, teamInterviewIcsUrl(app.id, i.id), 'interview.ics')}>{t('careers.mk.interviews.addToCalendar')}</ActionButton>
               {i.has_video_room ? <Link className="ox-careers-btn" to={`/careers/interview-room/${i.id}?application=${app.id}&side=team`}>{t('careers.mk.interviews.joinVideo')}</Link> : null}
-              <button type="button" className="ox-careers-btn" onClick={() => setPanel(`notes:${i.id}`)}>{t('careers.mk.notes.title')}</button>
-              <button type="button" className="ox-careers-btn" onClick={() => setPanel(`resched:${i.id}`)}>{t('careers.mk.interviews.reschedule')}</button>
-              {!app.is_guest ? <button type="button" className="ox-careers-btn" onClick={() => setPanel(`repropose:${i.id}`)}>{t('careers.mk.interviews.offerNewTimes')}</button> : null}
+              <button type="button" className="ox-careers-btn" onClick={() => setPanel(`notes:${i.id}`)} data-track="ui.8bfcb7c832.7">{t('careers.mk.notes.title')}</button>
+              <button type="button" className="ox-careers-btn" onClick={() => setPanel(`resched:${i.id}`)} data-track="ui.8bfcb7c832.8">{t('careers.mk.interviews.reschedule')}</button>
+              {!app.is_guest ? <button type="button" className="ox-careers-btn" onClick={() => setPanel(`repropose:${i.id}`)} data-track="ui.8bfcb7c832.9">{t('careers.mk.interviews.offerNewTimes')}</button> : null}
             </div>
             {panel === `notes:${i.id}` ? <Notes app={app} interview={i} /> : null}
             {panel === `resched:${i.id}` ? <Reschedule app={app} interview={i} onDone={done} /> : null}
@@ -233,7 +233,7 @@ export default function EmployerApplicationExtras({ app, opening, timezone, onCh
         ))}
         {!active.length && !openProposal ? <Empty>{t('careers.mk.interviews.noneTeam')}</Empty> : null}
         {!app.is_guest && ['received', 'screening', 'interview'].includes(app.stage) && panel !== 'propose' ? (
-          <button type="button" className="ox-careers-btn" onClick={() => setPanel('propose')}>{t('careers.mk.interviews.letPick')}</button>
+          <button type="button" className="ox-careers-btn" onClick={() => setPanel('propose')} data-track="ui.8bfcb7c832.10">{t('careers.mk.interviews.letPick')}</button>
         ) : null}
         {panel === 'propose' ? <ProposeTimes app={app} timezone={timezone} onDone={done} /> : null}
       </div>

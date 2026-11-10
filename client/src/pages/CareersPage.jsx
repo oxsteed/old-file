@@ -97,7 +97,7 @@ export default function CareersPage() {
         <form
           className="ox-careers-filters"
           role="search"
-          onSubmit={(e) => { e.preventDefault(); search(); }}
+          onSubmit={(e) => { e.preventDefault(); search(); }} data-track="ui.22e920e77f.1"
         >
           <input aria-label={t('careers.searchPlaceholder')} value={filters.q} onChange={(e) => set('q')(e.target.value)} placeholder={t('careers.searchPlaceholder')} />
           <CountrySelect value={filters.country} onChange={set('country')} />
@@ -127,8 +127,8 @@ export default function CareersPage() {
           <select aria-label={t('careers.mk.search.sort')} value={filters.sort} onChange={(e) => { const next = { ...filters, sort: e.target.value }; setFilters(next); search(next); }}>
             {SEARCH_SORTS.map((s) => <option key={s} value={s}>{t(`careers.mk.search.sorts.${s}`)}</option>)}
           </select>
-          <button type="button" className="ox-careers-btn" aria-expanded={more} onClick={() => setMore((v) => !v)}>{more ? t('careers.mk.search.fewer') : t('careers.mk.search.more')}</button>
-          <button type="submit" className="ox-careers-btn primary">{t('careers.filters.search')}</button>
+          <button type="button" className="ox-careers-btn" aria-expanded={more} onClick={() => setMore((v) => !v)} data-track="ui.22e920e77f.2">{more ? t('careers.mk.search.fewer') : t('careers.mk.search.more')}</button>
+          <button type="submit" className="ox-careers-btn primary" data-track="ui.22e920e77f.3">{t('careers.filters.search')}</button>
           {more ? (
             <div className="ox-careers-form-grid">
               <select aria-label={t('careers.mk.search.industry')} value={filters.industry} onChange={(e) => set('industry')(e.target.value)}>
@@ -152,11 +152,11 @@ export default function CareersPage() {
               </select>
               {['same_day', 'urgent', 'sponsorship'].map((k) => (
                 <label key={k} className="ox-careers-check">
-                  <input type="checkbox" checked={filters[k]} onChange={(e) => set(k)(e.target.checked)} />
+                  <input type="checkbox" checked={filters[k]} onChange={(e) => set(k)(e.target.checked)} data-track="ui.22e920e77f.4" />
                   <span>{t(`careers.mk.search.flags.${k}`)}</span>
                 </label>
               ))}
-              <button type="button" className="ox-careers-btn" onClick={() => { setFilters(blank); search(blank); }}>{t('careers.mk.search.clear')}</button>
+              <button type="button" className="ox-careers-btn" onClick={() => { setFilters(blank); search(blank); }} data-track="ui.22e920e77f.5">{t('careers.mk.search.clear')}</button>
             </div>
           ) : null}
         </form>
@@ -165,7 +165,7 @@ export default function CareersPage() {
           <p className="ox-careers-subtle" aria-live="polite">{loading ? '' : t('careers.mk.search.results', { count: paging.total })}</p>
           {Object.keys(criteria).length ? (
             user
-              ? <button type="button" className="ox-careers-btn" onClick={saveAlert}>{t('careers.mk.alerts.saveSearch')}</button>
+              ? <button type="button" className="ox-careers-btn" onClick={saveAlert} data-track="ui.22e920e77f.6">{t('careers.mk.alerts.saveSearch')}</button>
               : <Link className="ox-careers-btn" to={`/login?next=${encodeURIComponent('/careers')}`}>{t('careers.mk.alerts.saveSearch')}</Link>
           ) : null}
         </div>
@@ -184,11 +184,11 @@ export default function CareersPage() {
         )}
         {paging.pages > 1 ? (
           <nav className="ox-careers-actions ox-careers-pager" aria-label={t('careers.mk.search.pages')}>
-            <button type="button" className="ox-careers-btn" disabled={page <= 1 || loading} onClick={() => goTo(page - 1)}>{t('careers.mk.search.prev')}</button>
+            <button type="button" className="ox-careers-btn" disabled={page <= 1 || loading} onClick={() => goTo(page - 1)} data-track="ui.22e920e77f.7">{t('careers.mk.search.prev')}</button>
             {pageList(page, paging.pages).map((n, i) => (n === '…'
               ? <span key={`gap${i}`} aria-hidden="true">…</span>
-              : <button key={n} type="button" className={`ox-careers-btn${n === page ? ' primary' : ''}`} aria-current={n === page ? 'page' : undefined} disabled={loading} onClick={() => goTo(n)}>{n}</button>))}
-            <button type="button" className="ox-careers-btn" disabled={page >= paging.pages || loading} onClick={() => goTo(page + 1)}>{t('careers.mk.search.next')}</button>
+              : <button key={n} type="button" className={`ox-careers-btn${n === page ? ' primary' : ''}`} aria-current={n === page ? 'page' : undefined} disabled={loading} onClick={() => goTo(n)} data-track="ui.22e920e77f.8">{n}</button>))}
+            <button type="button" className="ox-careers-btn" disabled={page >= paging.pages || loading} onClick={() => goTo(page + 1)} data-track="ui.22e920e77f.9">{t('careers.mk.search.next')}</button>
           </nav>
         ) : null}
       </div>

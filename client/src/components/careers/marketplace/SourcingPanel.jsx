@@ -22,7 +22,7 @@ export function ShortlistAdd({ businessId, userId }) {
       </select>
       <button type="button" className="ox-careers-btn" disabled={!target} onClick={async () => {
         try { await addShortlistMember(businessId, target, { user_id: userId }); toast.success(t('careers.mk.sourcing.added')); } catch (err) { toast.error(errorText(err)); }
-      }}
+      }} data-track="ui.67012854dd.1"
       >{t('careers.mk.sourcing.add')}</button>
     </div>
   );
@@ -79,7 +79,7 @@ export default function SourcingPanel({ ctx, openings = [], locations = [] }) {
             });
             setForm((f) => ({ ...f, name: '' })); alerts.reload(); toast.success(t('careers.mk.alerts.created'));
           } catch (err) { toast.error(errorText(err)); }
-        }}
+        }} data-track="ui.67012854dd.2"
         >
           <div className="ox-careers-form-grid">
             <Field label={t('careers.mk.alerts.name')} htmlFor="ca-name"><input id="ca-name" maxLength={80} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></Field>
@@ -103,7 +103,7 @@ export default function SourcingPanel({ ctx, openings = [], locations = [] }) {
             </Field>
           </div>
           <Check id="ca-now" label={t('careers.mk.sourcing.onlyAvailable')} checked={form.available_now} onChange={(v) => setForm((f) => ({ ...f, available_now: v }))} />
-          <button type="submit" className="ox-careers-btn primary" disabled={!form.name.trim()}>{t('careers.mk.alerts.create')}</button>
+          <button type="submit" className="ox-careers-btn primary" disabled={!form.name.trim()} data-track="ui.67012854dd.3">{t('careers.mk.alerts.create')}</button>
         </form>
       </section>
       <section className="ox-careers-section">
@@ -112,7 +112,7 @@ export default function SourcingPanel({ ctx, openings = [], locations = [] }) {
         {(lists.data || []).map((s) => (
           <article key={s.id} className="ox-careers-app">
             <div className="ox-careers-row">
-              <button type="button" className="ox-careers-link" aria-expanded={open === s.id} onClick={() => setOpen(open === s.id ? null : s.id)}>{s.name} ({s.members})</button>
+              <button type="button" className="ox-careers-link" aria-expanded={open === s.id} onClick={() => setOpen(open === s.id ? null : s.id)} data-track="ui.67012854dd.4">{s.name} ({s.members})</button>
               <ActionButton danger confirm={t('careers.mk.sourcing.deleteConfirm')} onClick={async () => { await deleteShortlist(ctx.businessId, s.id); lists.reload(); }}>{t('careers.mk.resume.delete')}</ActionButton>
             </div>
             {open === s.id ? <Members businessId={ctx.businessId} shortlist={s} /> : null}
@@ -121,10 +121,10 @@ export default function SourcingPanel({ ctx, openings = [], locations = [] }) {
         <form className="ox-careers-actions" onSubmit={async (e) => {
           e.preventDefault();
           try { await createShortlist(ctx.businessId, { name: listName }); setListName(''); lists.reload(); } catch (err) { toast.error(errorText(err)); }
-        }}
+        }} data-track="ui.67012854dd.5"
         >
           <input aria-label={t('careers.mk.sourcing.newShortlist')} placeholder={t('careers.mk.sourcing.newShortlist')} maxLength={80} value={listName} onChange={(e) => setListName(e.target.value)} />
-          <button type="submit" className="ox-careers-btn" disabled={!listName.trim()}>{t('careers.mk.sourcing.create')}</button>
+          <button type="submit" className="ox-careers-btn" disabled={!listName.trim()} data-track="ui.67012854dd.6">{t('careers.mk.sourcing.create')}</button>
         </form>
       </section>
     </div>

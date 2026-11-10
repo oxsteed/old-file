@@ -19,7 +19,7 @@ export default function CareerInterviewTipsPage() {
         <p className="ox-careers-lead">{t('careers.mk.tips.lead')}</p>
         <nav aria-label={t('careers.mk.tips.contents')}>
           <ul className="ox-careers-list">
-            {INTERVIEW_TIP_SECTIONS.map((s) => <li key={s}><a href={`#tips-${s}`}>{t(`careers.mk.tips.sections.${s}.title`)}</a></li>)}
+            {INTERVIEW_TIP_SECTIONS.map((s) => <li key={s}><a href={`#tips-${s}`} data-track="ui.335246ab7f.1">{t(`careers.mk.tips.sections.${s}.title`)}</a></li>)}
           </ul>
         </nav>
         {INTERVIEW_TIP_SECTIONS.map((s) => (

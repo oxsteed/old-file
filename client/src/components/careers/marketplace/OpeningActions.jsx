@@ -52,7 +52,7 @@ export default function OpeningActions({ opening, user }) {
             {saved ? t('careers.mk.actions.unsave') : t('careers.mk.actions.save')}
           </ActionButton>
         ) : <Link className="ox-careers-btn" to={loginNext}>{t('careers.mk.actions.save')}</Link>}
-        <button type="button" className="ox-careers-btn" onClick={share}>{t('careers.mk.actions.share')}</button>
+        <button type="button" className="ox-careers-btn" onClick={share} data-track="ui.22a0b7c54e.1">{t('careers.mk.actions.share')}</button>
         {user ? (
           <ActionButton onClick={async () => {
             if (following) { await unfollowCareerEmployer(employerKey); setFollowing(false); } else { await followCareerEmployer(employerKey); setFollowing(true); toast.success(t('careers.mk.actions.followToast', { name: opening.employer_name })); }
@@ -62,7 +62,7 @@ export default function OpeningActions({ opening, user }) {
           </ActionButton>
         ) : null}
         <Link className="ox-careers-btn" to={`/careers/employers/${encodeURIComponent(employerSlug)}`}>{t('careers.mk.actions.companyPage')}</Link>
-        <button type="button" className="ox-careers-btn danger" onClick={() => setReporting((v) => !v)}>{t('careers.mk.actions.report')}</button>
+        <button type="button" className="ox-careers-btn danger" onClick={() => setReporting((v) => !v)} data-track="ui.22a0b7c54e.2">{t('careers.mk.actions.report')}</button>
       </div>
       {reporting ? (
         <ReportForm

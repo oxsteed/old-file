@@ -84,7 +84,7 @@ export default function ScreenersEditor({ openingId }) {
         <div key={q.key} className="ox-careers-app">
           <div className="ox-careers-row">
             <strong>{q.kind === 'preset' ? t(`careers.mk.screener.preset.${q.preset_code}`) : t('careers.mk.screener.custom')}</strong>
-            <button type="button" className="ox-careers-btn" onClick={() => setQuestions((qs) => qs.filter((_, j) => j !== i))}>{t('careers.mk.scheduling.remove')}</button>
+            <button type="button" className="ox-careers-btn" onClick={() => setQuestions((qs) => qs.filter((_, j) => j !== i))} data-track="ui.d380d56764.1">{t('careers.mk.scheduling.remove')}</button>
           </div>
           {q.kind === 'preset' ? (
             <>
@@ -125,12 +125,12 @@ export default function ScreenersEditor({ openingId }) {
             <option value="">{t('careers.mk.screener.addPreset')}</option>
             {Object.keys(SCREENER_PRESETS).filter((c) => !used.has(c)).map((c) => <option key={c} value={c}>{t(`careers.mk.screener.preset.${c}`)}</option>)}
           </select>
-          <button type="button" className="ox-careers-btn" onClick={() => setQuestions((qs) => [...qs, { key: `n${Date.now()}`, kind: 'custom', prompt: '', answer_type: 'yes_no', required: true }])}>{t('careers.mk.screener.addCustom')}</button>
+          <button type="button" className="ox-careers-btn" onClick={() => setQuestions((qs) => [...qs, { key: `n${Date.now()}`, kind: 'custom', prompt: '', answer_type: 'yes_no', required: true }])} data-track="ui.d380d56764.2">{t('careers.mk.screener.addCustom')}</button>
         </div>
       ) : null}
       <Check id="sq-auto" label={t('careers.mk.screener.autoReject')} checked={autoReject} onChange={setAutoReject} />
       {autoReject ? <Notice>{t('careers.mk.screener.autoRejectHint')}</Notice> : null}
-      <button type="button" className="ox-careers-btn primary" onClick={save}>{t('careers.mk.screener.save')}</button>
+      <button type="button" className="ox-careers-btn primary" onClick={save} data-track="ui.d380d56764.3">{t('careers.mk.screener.save')}</button>
     </fieldset>
   );
 }

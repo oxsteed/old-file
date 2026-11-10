@@ -34,7 +34,7 @@ function ProposalPicker({ applicationId, proposal, onBooked }) {
           <legend>{g.label}</legend>
           {g.slots.map((s) => (
             <label key={s.iso} className={`ox-careers-slot${chosen === s.iso ? ' active' : ''}`}>
-              <input type="radio" name={`slot-${proposal.id}`} value={s.iso} checked={chosen === s.iso} onChange={() => setChosen(s.iso)} />
+              <input type="radio" name={`slot-${proposal.id}`} value={s.iso} checked={chosen === s.iso} onChange={() => setChosen(s.iso)} data-track="ui.0d14eadf8d.1" />
               <span>{s.label}</span>
             </label>
           ))}
@@ -47,18 +47,18 @@ function ProposalPicker({ applicationId, proposal, onBooked }) {
           }
         }}
         >{t('careers.mk.interviews.book')}</ActionButton>
-        <button type="button" className="ox-careers-btn" onClick={() => setDeclining((v) => !v)}>{t('careers.mk.interviews.noneWork')}</button>
+        <button type="button" className="ox-careers-btn" onClick={() => setDeclining((v) => !v)} data-track="ui.0d14eadf8d.2">{t('careers.mk.interviews.noneWork')}</button>
       </div>
       {declining ? (
         <form className="ox-careers-panel" onSubmit={async (e) => {
           e.preventDefault();
           try { await declineInterviewProposal(applicationId, proposal.id, note); toast.success(t('careers.mk.interviews.declinedSent')); onBooked(); } catch (err) { toast.error(errorText(err)); }
-        }}
+        }} data-track="ui.0d14eadf8d.3"
         >
           <Field label={t('careers.mk.interviews.whatWorks')} htmlFor={`decline-${proposal.id}`}>
             <textarea id={`decline-${proposal.id}`} rows={2} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
-          <button type="submit" className="ox-careers-btn">{t('careers.mk.interviews.askOther')}</button>
+          <button type="submit" className="ox-careers-btn" data-track="ui.0d14eadf8d.4">{t('careers.mk.interviews.askOther')}</button>
         </form>
       ) : null}
     </div>
@@ -86,7 +86,7 @@ export default function CandidateInterviews({ application, onChanged }) {
             {!next.confirmed ? <ActionButton primary onClick={async () => { await confirmMyInterview(application.id, next.id); refresh(); }}>{t('careers.mk.interviews.confirm')}</ActionButton> : null}
             <ActionButton onClick={() => downloadVia(api, myInterviewIcsUrl(application.id, next.id), 'interview.ics')}>{t('careers.mk.interviews.addToCalendar')}</ActionButton>
             {next.has_room ? <Link className="ox-careers-btn" to={`/careers/interview-room/${next.id}?application=${application.id}`}>{t('careers.mk.interviews.joinVideo')}</Link> : null}
-            <button type="button" className="ox-careers-btn" onClick={() => setAsking((v) => !v)}>{t('careers.mk.interviews.reschedule')}</button>
+            <button type="button" className="ox-careers-btn" onClick={() => setAsking((v) => !v)} data-track="ui.0d14eadf8d.5">{t('careers.mk.interviews.reschedule')}</button>
           </div>
           {asking ? (
             <form className="ox-careers-panel" onSubmit={async (e) => {
@@ -94,12 +94,12 @@ export default function CandidateInterviews({ application, onChanged }) {
               await requestInterviewReschedule(application.id, next.id, reason);
               toast.success(t('careers.mk.interviews.rescheduleSent'));
               setAsking(false); refresh();
-            }}
+            }} data-track="ui.0d14eadf8d.6"
             >
               <Field label={t('careers.mk.interviews.rescheduleWhy')} htmlFor={`rs-${next.id}`}>
                 <textarea id={`rs-${next.id}`} rows={2} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
               </Field>
-              <button type="submit" className="ox-careers-btn">{t('careers.mk.interviews.rescheduleSend')}</button>
+              <button type="submit" className="ox-careers-btn" data-track="ui.0d14eadf8d.7">{t('careers.mk.interviews.rescheduleSend')}</button>
             </form>
           ) : null}
         </div>

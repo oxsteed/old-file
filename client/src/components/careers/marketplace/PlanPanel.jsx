@@ -60,10 +60,10 @@ export default function PlanPanel({ ctx }) {
         <form className="ox-careers-actions" onSubmit={async (e) => {
           e.preventDefault();
           try { await applyReferralCode(ctx.businessId, code.trim()); toast.success(t('careers.mk.plan.referralApplied')); } catch (err) { toast.error(errorText(err)); }
-        }}
+        }} data-track="ui.fc9133a3f3.1"
         >
           <Field label={t('careers.mk.plan.referralCode')} htmlFor="plan-ref"><input id="plan-ref" dir="ltr" maxLength={20} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} /></Field>
-          <button type="submit" className="ox-careers-btn" disabled={code.trim().length < 4}>{t('careers.mk.plan.applyCode')}</button>
+          <button type="submit" className="ox-careers-btn" disabled={code.trim().length < 4} data-track="ui.fc9133a3f3.2">{t('careers.mk.plan.applyCode')}</button>
         </form>
       </section>
     </div>

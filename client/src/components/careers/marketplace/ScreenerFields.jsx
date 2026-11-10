@@ -36,7 +36,7 @@ export default function ScreenerFields({ questions = [], answers, onChange, erro
                 <legend>{text}</legend>
                 {q.choices.map((c) => (
                   <label key={c} className="ox-careers-check">
-                    <input type="checkbox" checked={value.includes(c)} onChange={(e) => set(q.id)(e.target.checked ? [...value, c] : value.filter((x) => x !== c))} />
+                    <input type="checkbox" checked={value.includes(c)} onChange={(e) => set(q.id)(e.target.checked ? [...value, c] : value.filter((x) => x !== c))} data-track="ui.935202daab.1" />
                     <span>{t(`careers.mk.screener.choice.${c}`)}</span>
                   </label>
                 ))}

@@ -49,7 +49,7 @@ export default function AlertsTab() {
             </div>
           </article>
         ))}
-        <form className="ox-careers-panel" onSubmit={submit}>
+        <form className="ox-careers-panel" onSubmit={submit} data-track="ui.4cfaf93be4.1">
           <h3>{t('careers.mk.alerts.new')}</h3>
           <div className="ox-careers-form-grid">
             <Field label={t('careers.mk.alerts.name')} htmlFor="alert-name"><input id="alert-name" maxLength={80} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></Field>
@@ -65,12 +65,12 @@ export default function AlertsTab() {
             <legend>{t('careers.mk.alerts.channels')}</legend>
             {ALERT_CHANNELS.map((c) => (
               <label key={c} className="ox-careers-check">
-                <input type="checkbox" disabled={c === 'in_app'} checked={form.channels.includes(c)} onChange={(e) => setForm((f) => ({ ...f, channels: e.target.checked ? [...f.channels, c] : f.channels.filter((x) => x !== c) }))} />
+                <input type="checkbox" disabled={c === 'in_app'} checked={form.channels.includes(c)} onChange={(e) => setForm((f) => ({ ...f, channels: e.target.checked ? [...f.channels, c] : f.channels.filter((x) => x !== c) }))} data-track="ui.4cfaf93be4.2" />
                 <span>{t(`careers.mk.alerts.channel.${c}`)}</span>
               </label>
             ))}
           </fieldset>
-          <button type="submit" className="ox-careers-btn primary" disabled={!form.q.trim() && !form.near.trim()}>{t('careers.mk.alerts.create')}</button>
+          <button type="submit" className="ox-careers-btn primary" disabled={!form.q.trim() && !form.near.trim()} data-track="ui.4cfaf93be4.3">{t('careers.mk.alerts.create')}</button>
         </form>
       </section>
       <section className="ox-careers-section">

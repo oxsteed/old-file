@@ -49,10 +49,10 @@ export default function TrackerTab() {
               <StageChip stage={a.stage} />
             </div>
             <div className="ox-careers-actions">
-              <button type="button" className="ox-careers-btn" aria-expanded={open === `${a.id}:messages`} onClick={() => toggle(`${a.id}:messages`)}>
+              <button type="button" className="ox-careers-btn" aria-expanded={open === `${a.id}:messages`} onClick={() => toggle(`${a.id}:messages`)} data-track="ui.e3d622107e.1">
                 {t('careers.mk.messages.open')}{a.unread_messages ? ` (${a.unread_messages})` : ''}
               </button>
-              <button type="button" className="ox-careers-btn" aria-expanded={open === `${a.id}:interviews`} onClick={() => toggle(`${a.id}:interviews`)}>
+              <button type="button" className="ox-careers-btn" aria-expanded={open === `${a.id}:interviews`} onClick={() => toggle(`${a.id}:interviews`)} data-track="ui.e3d622107e.2">
                 {t('careers.mk.interviews.title')}{a.open_proposals ? ` (${a.open_proposals})` : ''}
               </button>
             </div>

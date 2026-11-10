@@ -30,7 +30,7 @@ function ReviewForm({ slug, onDone }) {
         toast.success(r.review?.status === 'pending' ? t('careers.mk.reviews.pending') : t('careers.mk.reviews.thanks'));
         onDone();
       } catch (err) { setErrors(err?.response?.data?.fields || {}); toast.error(errorText(err)); }
-    }}
+    }} data-track="ui.20fe092b14.1"
     >
       <h3>{t('careers.mk.reviews.write')}</h3>
       <p className="ox-careers-subtle">{t('careers.mk.reviews.rules')}</p>
@@ -41,7 +41,7 @@ function ReviewForm({ slug, onDone }) {
       <Field label={`${t('careers.mk.reviews.headline')} *`} htmlFor="rv-headline" error={errors.headline}><input id="rv-headline" maxLength={140} value={f.headline} onChange={(e) => set('headline')(e.target.value)} /></Field>
       <Field label={t('careers.mk.reviews.pros')} htmlFor="rv-pros" error={errors.pros}><textarea id="rv-pros" rows={3} maxLength={2000} value={f.pros} onChange={(e) => set('pros')(e.target.value)} /></Field>
       <Field label={t('careers.mk.reviews.cons')} htmlFor="rv-cons"><textarea id="rv-cons" rows={3} maxLength={2000} value={f.cons} onChange={(e) => set('cons')(e.target.value)} /></Field>
-      <button type="submit" className="ox-careers-btn primary" disabled={!f.overall}>{t('careers.mk.reviews.submit')}</button>
+      <button type="submit" className="ox-careers-btn primary" disabled={!f.overall} data-track="ui.20fe092b14.2">{t('careers.mk.reviews.submit')}</button>
     </form>
   );
 }
@@ -55,7 +55,7 @@ function SalaryForm({ slug, onDone }) {
     <form className="ox-careers-panel" onSubmit={async (e) => {
       e.preventDefault(); setErrors({});
       try { await submitEmployerSalary(slug, f); toast.success(t('careers.mk.salaries.thanks')); onDone(); } catch (err) { setErrors(err?.response?.data?.fields || {}); toast.error(errorText(err)); }
-    }}
+    }} data-track="ui.20fe092b14.3"
     >
       <h3>{t('careers.mk.salaries.share')}</h3>
       <p className="ox-careers-subtle">{t('careers.mk.salaries.shareHint')}</p>
@@ -65,7 +65,7 @@ function SalaryForm({ slug, onDone }) {
         <Field label={t('careers.mk.search.payPeriod')} htmlFor="sr-period"><select id="sr-period" value={f.pay_period} onChange={(e) => setF((x) => ({ ...x, pay_period: e.target.value }))}>{PAY_PERIODS.map((p) => <option key={p} value={p}>{t(`careers.period.${p}`)}</option>)}</select></Field>
         <Field label={t('careers.mk.salaries.currency')} htmlFor="sr-cur" error={errors.currency_code}><input id="sr-cur" maxLength={3} dir="ltr" value={f.currency_code} onChange={(e) => setF((x) => ({ ...x, currency_code: e.target.value.toUpperCase() }))} /></Field>
       </div>
-      <button type="submit" className="ox-careers-btn primary">{t('careers.mk.salaries.submit')}</button>
+      <button type="submit" className="ox-careers-btn primary" data-track="ui.20fe092b14.4">{t('careers.mk.salaries.submit')}</button>
     </form>
   );
 }
@@ -91,7 +91,7 @@ function Reviews({ slug, user }) {
         <select aria-label={t('careers.mk.search.sort')} value={sort} onChange={(e) => setSort(e.target.value)}>
           {['newest', 'highest', 'lowest'].map((s) => <option key={s} value={s}>{t(`careers.mk.reviews.sorts.${s}`)}</option>)}
         </select>
-        {user ? <button type="button" className="ox-careers-btn" onClick={() => setWriting((v) => !v)}>{t('careers.mk.reviews.write')}</button> : <Link className="ox-careers-btn" to={`/login?next=${encodeURIComponent(`/careers/employers/${slug}`)}`}>{t('careers.mk.reviews.write')}</Link>}
+        {user ? <button type="button" className="ox-careers-btn" onClick={() => setWriting((v) => !v)} data-track="ui.20fe092b14.5">{t('careers.mk.reviews.write')}</button> : <Link className="ox-careers-btn" to={`/login?next=${encodeURIComponent(`/careers/employers/${slug}`)}`}>{t('careers.mk.reviews.write')}</Link>}
       </div>
       {writing ? <ReviewForm slug={slug} onDone={() => { setWriting(false); data.reload(); }} /> : null}
       {data.loading && !data.data ? <Loading /> : null}
@@ -104,7 +104,7 @@ function Reviews({ slug, user }) {
           {r.pros ? <p className="ox-careers-prose"><strong>{t('careers.mk.reviews.pros')}:</strong> {r.pros}</p> : null}
           {r.cons ? <p className="ox-careers-prose"><strong>{t('careers.mk.reviews.cons')}:</strong> {r.cons}</p> : null}
           {r.employer_response ? <Notice><strong>{t('careers.mk.reviews.employerResponse')}:</strong> {r.employer_response}</Notice> : null}
-          {user ? <button type="button" className="ox-careers-link" onClick={() => setReporting(r.id)}>{t('careers.mk.actions.report')}</button> : null}
+          {user ? <button type="button" className="ox-careers-link" onClick={() => setReporting(r.id)} data-track="ui.20fe092b14.6">{t('careers.mk.actions.report')}</button> : null}
           {reporting === r.id ? (
             <ReportForm idPrefix={`rv-${r.id}`} reasons={REVIEW_REPORT_REASONS} reasonKey="careers.mk.report.reviewReasons" onCancel={() => setReporting(null)} onSubmit={async ({ reason }) => { await reportEmployerReview(r.id, reason); setReporting(null); }} />
           ) : null}
@@ -127,10 +127,10 @@ function Questions({ slug, user }) {
         <form className="ox-careers-panel" onSubmit={async (e) => {
           e.preventDefault();
           try { await askEmployerQuestion(slug, { body: ask }); setAsk(''); toast.success(t('careers.mk.qa.asked')); data.reload(); } catch (err) { toast.error(errorText(err)); }
-        }}
+        }} data-track="ui.20fe092b14.7"
         >
           <Field label={t('careers.mk.qa.ask')} htmlFor="qa-ask"><textarea id="qa-ask" rows={2} maxLength={500} value={ask} onChange={(e) => setAsk(e.target.value)} /></Field>
-          <button type="submit" className="ox-careers-btn primary" disabled={ask.trim().length < 10}>{t('careers.mk.qa.post')}</button>
+          <button type="submit" className="ox-careers-btn primary" disabled={ask.trim().length < 10} data-track="ui.20fe092b14.8">{t('careers.mk.qa.post')}</button>
         </form>
       ) : null}
       {data.data && !data.data.questions.length ? <Empty>{t('careers.mk.qa.none')}</Empty> : null}
@@ -142,12 +142,12 @@ function Questions({ slug, user }) {
             <form onSubmit={async (e) => {
               e.preventDefault();
               try { await answerEmployerQuestion(slug, q.id, { body: answers[q.id] }); setAnswers((x) => ({ ...x, [q.id]: '' })); data.reload(); } catch (err) { toast.error(errorText(err)); }
-            }}
+            }} data-track="ui.20fe092b14.9"
             >
               <label className="ox-careers-field" htmlFor={`qa-${q.id}`}><span>{t('careers.mk.qa.answer')}</span>
                 <textarea id={`qa-${q.id}`} rows={2} maxLength={1500} value={answers[q.id] || ''} onChange={(e) => setAnswers((x) => ({ ...x, [q.id]: e.target.value }))} />
               </label>
-              <button type="submit" className="ox-careers-btn" disabled={!(answers[q.id] || '').trim()}>{t('careers.mk.qa.reply')}</button>
+              <button type="submit" className="ox-careers-btn" disabled={!(answers[q.id] || '').trim()} data-track="ui.20fe092b14.10">{t('careers.mk.qa.reply')}</button>
             </form>
           ) : null}
         </article>
@@ -202,7 +202,7 @@ export default function CareerEmployerPage() {
               {e.following ? t('careers.mk.actions.unfollow') : t('careers.mk.actions.follow')}
             </ActionButton>
           ) : <Link className="ox-careers-btn primary" to={`/login?next=${encodeURIComponent(`/careers/employers/${slug}`)}`}>{t('careers.mk.actions.follow')}</Link>}
-          {!e.is_platform && user ? <button type="button" className="ox-careers-btn" onClick={() => setSharing((v) => !v)}>{t('careers.mk.salaries.share')}</button> : null}
+          {!e.is_platform && user ? <button type="button" className="ox-careers-btn" onClick={() => setSharing((v) => !v)} data-track="ui.20fe092b14.11">{t('careers.mk.salaries.share')}</button> : null}
         </div>
         {sharing ? <SalaryForm slug={slug} onDone={() => { setSharing(false); page.reload(); }} /> : null}
         <Tabs label={e.name} active={tab} onChange={setTab} tabs={tabs.map((id) => ({ id, label: t(`careers.mk.employers.tabs.${id}`) }))} />
@@ -216,10 +216,10 @@ export default function CareerEmployerPage() {
             {e.about ? <p className="ox-careers-prose">{e.about}</p> : <Empty>{t('careers.mk.employers.noAbout')}</Empty>}
             {e.why_join ? <><h2>{t('careers.mk.employers.whyJoin')}</h2><p className="ox-careers-prose">{e.why_join}</p></> : null}
             <ul className="ox-careers-list">
-              {e.website ? <li><a href={e.website} rel="noopener noreferrer nofollow" target="_blank" dir="ltr">{e.website}</a></li> : null}
-              {e.phone ? <li><a href={`tel:${e.phone}`} dir="ltr">{e.phone}</a></li> : null}
+              {e.website ? <li><a href={e.website} rel="noopener noreferrer nofollow" target="_blank" dir="ltr" data-track="ui.20fe092b14.12">{e.website}</a></li> : null}
+              {e.phone ? <li><a href={`tel:${e.phone}`} dir="ltr" data-track="ui.20fe092b14.13">{e.phone}</a></li> : null}
               {e.address ? <li>{e.address}</li> : null}
-              {e.map ? <li><a href={`https://www.openstreetmap.org/?mlat=${e.map.lat}&mlon=${e.map.lng}#map=15/${e.map.lat}/${e.map.lng}`} rel="noopener noreferrer" target="_blank">{t('careers.mk.employers.viewMap')}</a></li> : null}
+              {e.map ? <li><a href={`https://www.openstreetmap.org/?mlat=${e.map.lat}&mlon=${e.map.lng}#map=15/${e.map.lat}/${e.map.lng}`} rel="noopener noreferrer" target="_blank" data-track="ui.20fe092b14.14">{t('careers.mk.employers.viewMap')}</a></li> : null}
             </ul>
           </section>
         ) : null}

@@ -51,14 +51,14 @@ export default function SchedulingPanel({ ctx }) {
             </select>
             <input type="time" aria-label={t('careers.mk.scheduling.from')} value={minutesToTime(w.start_minute)} onChange={(e) => setRow(i, { start_minute: timeToMinutes(e.target.value) })} />
             <input type="time" aria-label={t('careers.mk.scheduling.to')} value={minutesToTime(w.end_minute)} onChange={(e) => setRow(i, { end_minute: timeToMinutes(e.target.value) })} />
-            <button type="button" className="ox-careers-btn" onClick={() => setWindows((list) => list.filter((_, j) => j !== i))}>{t('careers.mk.scheduling.remove')}</button>
+            <button type="button" className="ox-careers-btn" onClick={() => setWindows((list) => list.filter((_, j) => j !== i))} data-track="ui.6f065456f8.1">{t('careers.mk.scheduling.remove')}</button>
             {rowErrors[i] ? <p className="ox-careers-error" role="alert">{t(`careers.mk.scheduling.rowError.${rowErrors[i]}`)}</p> : null}
           </div>
         ))}
         <div className="ox-careers-actions">
-          <button type="button" className="ox-careers-btn" onClick={() => setWindows((list) => [...list, { weekday: 1, start_minute: 540, end_minute: 1020 }])}>{t('careers.mk.scheduling.addWindow')}</button>
-          <button type="button" className="ox-careers-btn" onClick={() => setWindows([1, 2, 3, 4, 5].map((d) => ({ weekday: d, start_minute: 540, end_minute: 1020 })))}>{t('careers.mk.scheduling.weekdays')}</button>
-          <button type="button" className="ox-careers-btn primary" onClick={save}>{t('careers.mk.common.save')}</button>
+          <button type="button" className="ox-careers-btn" onClick={() => setWindows((list) => [...list, { weekday: 1, start_minute: 540, end_minute: 1020 }])} data-track="ui.6f065456f8.2">{t('careers.mk.scheduling.addWindow')}</button>
+          <button type="button" className="ox-careers-btn" onClick={() => setWindows([1, 2, 3, 4, 5].map((d) => ({ weekday: d, start_minute: 540, end_minute: 1020 })))} data-track="ui.6f065456f8.3">{t('careers.mk.scheduling.weekdays')}</button>
+          <button type="button" className="ox-careers-btn primary" onClick={save} data-track="ui.6f065456f8.4">{t('careers.mk.common.save')}</button>
         </div>
       </section>
       <section className="ox-careers-section">

@@ -54,13 +54,13 @@ export default function AgencyPanel({ ctx }) {
       <form className="ox-careers-panel" onSubmit={async (e) => {
         e.preventDefault();
         try { await requestAgencyLink(ctx.businessId, { client_business_id: Number(clientId), permissions: perms }); setClientId(''); toast.success(t('careers.mk.agency.requested')); data.reload(); } catch (err) { toast.error(errorText(err)); }
-      }}
+      }} data-track="ui.c709772d48.1"
       >
         <h3>{t('careers.mk.agency.requestTitle')}</h3>
         <p className="ox-careers-subtle">{t('careers.mk.agency.requestHint')}</p>
         <Field label={t('careers.mk.agency.clientId')} htmlFor="agency-client"><input id="agency-client" inputMode="numeric" dir="ltr" value={clientId} onChange={(e) => setClientId(e.target.value.replace(/\D/g, ''))} /></Field>
         {permToggles(perms, setPerms, 'req')}
-        <button type="submit" className="ox-careers-btn primary" disabled={!clientId || !perms.length}>{t('careers.mk.agency.request')}</button>
+        <button type="submit" className="ox-careers-btn primary" disabled={!clientId || !perms.length} data-track="ui.c709772d48.2">{t('careers.mk.agency.request')}</button>
       </form>
     </div>
   );

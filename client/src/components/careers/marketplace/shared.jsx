@@ -37,7 +37,7 @@ export function ReportForm({ reasons, reasonKey, onSubmit, onCancel, idPrefix })
         if (!reason) return;
         setBusy(true);
         try { await onSubmit({ reason, details }); toast.success(t('careers.mk.report.thanks')); } catch (err) { toast.error(errorText(err)); } finally { setBusy(false); }
-      }}
+      }} data-track="ui.9e37e5830c.1"
     >
       <Field label={t('careers.mk.report.reason')} htmlFor={`${idPrefix}-reason`}>
         <select id={`${idPrefix}-reason`} value={reason} onChange={(e) => setReason(e.target.value)} required>
@@ -49,8 +49,8 @@ export function ReportForm({ reasons, reasonKey, onSubmit, onCancel, idPrefix })
         <textarea id={`${idPrefix}-details`} rows={3} maxLength={1000} value={details} onChange={(e) => setDetails(e.target.value)} />
       </Field>
       <div className="ox-careers-actions">
-        <button type="submit" className="ox-careers-btn danger" disabled={busy || !reason}>{t('careers.mk.report.send')}</button>
-        <button type="button" className="ox-careers-btn" onClick={onCancel}>{t('careers.common.cancel')}</button>
+        <button type="submit" className="ox-careers-btn danger" disabled={busy || !reason} data-track="ui.9e37e5830c.2">{t('careers.mk.report.send')}</button>
+        <button type="button" className="ox-careers-btn" onClick={onCancel} data-track="ui.9e37e5830c.3">{t('careers.common.cancel')}</button>
       </div>
     </form>
   );
@@ -71,7 +71,7 @@ export function StarInput({ name, label, value, onChange, required }) {
       <legend>{label}{required ? ' *' : ''}</legend>
       {[1, 2, 3, 4, 5].map((n) => (
         <label key={n} className="ox-careers-check">
-          <input type="radio" name={name} checked={Number(value) === n} onChange={() => onChange(n)} />
+          <input type="radio" name={name} checked={Number(value) === n} onChange={() => onChange(n)} data-track="ui.9e37e5830c.4" />
           <span aria-label={t('careers.mk.reviews.starsLabel', { value: n })}>{n}★</span>
         </label>
       ))}

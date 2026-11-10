@@ -33,7 +33,7 @@ function EntryForm({ kind, initial = {}, onSave, onCancel }) {
         setErrors(fields);
         toast.error(errorText(err));
       } finally { setBusy(false); }
-    }}
+    }} data-track="ui.1e6a1cedf2.1"
     >
       <div className="ox-careers-form-grid">
         {FIELDS[kind].map(([key, type, required]) => {
@@ -52,8 +52,8 @@ function EntryForm({ kind, initial = {}, onSave, onCancel }) {
         })}
       </div>
       <div className="ox-careers-actions">
-        <button type="submit" className="ox-careers-btn primary" disabled={busy}>{t('careers.mk.common.save')}</button>
-        <button type="button" className="ox-careers-btn" onClick={onCancel}>{t('careers.common.cancel')}</button>
+        <button type="submit" className="ox-careers-btn primary" disabled={busy} data-track="ui.1e6a1cedf2.2">{t('careers.mk.common.save')}</button>
+        <button type="button" className="ox-careers-btn" onClick={onCancel} data-track="ui.1e6a1cedf2.3">{t('careers.common.cancel')}</button>
       </div>
     </form>
   );
@@ -103,7 +103,7 @@ export default function ResumeBuilderTab() {
         <section key={kind} className="ox-careers-section">
           <div className="ox-careers-row">
             <h2>{t(`careers.mk.resume.${kind}`)}</h2>
-            <button type="button" className="ox-careers-btn" onClick={() => setEditing(`${kind}:new`)}>{t('careers.mk.resume.add')}</button>
+            <button type="button" className="ox-careers-btn" onClick={() => setEditing(`${kind}:new`)} data-track="ui.1e6a1cedf2.4">{t('careers.mk.resume.add')}</button>
           </div>
           {editing === `${kind}:new` ? (
             <EntryForm kind={kind} onCancel={() => setEditing(null)} onSave={async (f) => { await addProfileEntry(kind, f); setEditing(null); data.reload(); }} />
@@ -119,7 +119,7 @@ export default function ResumeBuilderTab() {
                 {e.source === 'resume_parse' ? <span className="ox-careers-chip">{t('careers.mk.resume.fromImport')}</span> : null}
               </div>
               <div className="ox-careers-actions">
-                <button type="button" className="ox-careers-btn" onClick={() => setEditing(`${kind}:${e.id}`)}>{t('careers.mk.common.edit')}</button>
+                <button type="button" className="ox-careers-btn" onClick={() => setEditing(`${kind}:${e.id}`)} data-track="ui.1e6a1cedf2.5">{t('careers.mk.common.edit')}</button>
                 <ActionButton danger confirm={t('careers.mk.resume.deleteConfirm')} onClick={async () => { await deleteProfileEntry(kind, e.id); data.reload(); }}>{t('careers.mk.resume.delete')}</ActionButton>
               </div>
             </div>
@@ -146,7 +146,7 @@ export default function ResumeBuilderTab() {
             {parsed.skills?.length ? <p className="ox-careers-subtle">{t('careers.mk.resume.skillsFound', { skills: parsed.skills.join(', ') })}</p> : null}
             <div className="ox-careers-actions">
               <ActionButton primary onClick={importKept}>{t('careers.mk.resume.importSelected')}</ActionButton>
-              <button type="button" className="ox-careers-btn" onClick={() => setParsed(null)}>{t('careers.common.cancel')}</button>
+              <button type="button" className="ox-careers-btn" onClick={() => setParsed(null)} data-track="ui.1e6a1cedf2.6">{t('careers.common.cancel')}</button>
             </div>
           </div>
         ) : null}

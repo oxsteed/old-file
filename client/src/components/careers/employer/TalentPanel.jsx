@@ -134,7 +134,7 @@ export default function TalentPanel({ ctx, openings, locations }) {
             {[5, 10, 25, 50].map((r) => <option key={r} value={r}>{t('careers.filters.withinKm', { km: r })}</option>)}
           </select>
           <input aria-label={t('careers.talent.skill')} placeholder={t('careers.talent.skill')} value={q.skill} onChange={(e) => setQ({ ...q, skill: e.target.value })} />
-          <label className="ox-careers-check"><input type="checkbox" checked={q.available_now} onChange={(e) => setQ({ ...q, available_now: e.target.checked })} /><span>{t('careers.mk.sourcing.onlyAvailable')}</span></label>
+          <label className="ox-careers-check"><input type="checkbox" checked={q.available_now} onChange={(e) => setQ({ ...q, available_now: e.target.checked })} data-track="ui.62ffc06a2d.7" /><span>{t('careers.mk.sourcing.onlyAvailable')}</span></label>
           <button type="submit" className="ox-careers-btn primary" disabled={!q.near_location || search.loading} data-track="ui.62ffc06a2d.5">{t('careers.filters.search')}</button>
         </form>
         <ErrorNotice error={search.error} />

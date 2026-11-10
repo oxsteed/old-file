@@ -24,7 +24,7 @@ export default function TeamInboxPanel({ ctx }) {
         {(inbox.data || []).map((th) => (
           <article key={th.thread_id} className="ox-careers-app">
             <div className="ox-careers-row">
-              <button type="button" className="ox-careers-link" aria-expanded={open === th.application_id} onClick={() => setOpen(open === th.application_id ? null : th.application_id)}>
+              <button type="button" className="ox-careers-link" aria-expanded={open === th.application_id} onClick={() => setOpen(open === th.application_id ? null : th.application_id)} data-track="ui.79b890ef17.1">
                 {th.opening_title}{th.applicant_number ? ` · #${th.applicant_number}` : ''}
               </button>
               {th.unread ? <span className="ox-careers-chip warn">{t('careers.mk.inbox.unread', { count: th.unread })}</span> : null}
@@ -41,7 +41,7 @@ export default function TeamInboxPanel({ ctx }) {
           <div key={x.id} className="ox-careers-row ox-careers-app">
             <div><strong>{x.name}</strong><p className="ox-careers-subtle">{x.body}</p></div>
             <div className="ox-careers-actions">
-              <button type="button" className="ox-careers-btn" onClick={() => setTpl({ id: x.id, name: x.name, body: x.body })}>{t('careers.mk.common.edit')}</button>
+              <button type="button" className="ox-careers-btn" onClick={() => setTpl({ id: x.id, name: x.name, body: x.body })} data-track="ui.79b890ef17.2">{t('careers.mk.common.edit')}</button>
               <ActionButton danger onClick={async () => { await deleteMessageTemplate(ctx, x.id); templates.reload(); }}>{t('careers.mk.resume.delete')}</ActionButton>
             </div>
           </div>
@@ -49,15 +49,15 @@ export default function TeamInboxPanel({ ctx }) {
         <form className="ox-careers-panel" onSubmit={async (e) => {
           e.preventDefault();
           try { await saveMessageTemplate(ctx, { name: tpl.name, body: tpl.body }, tpl.id); setTpl({ id: null, name: '', body: '' }); templates.reload(); toast.success(t('careers.mk.templates.saved')); } catch (err) { toast.error(errorText(err)); }
-        }}
+        }} data-track="ui.79b890ef17.3"
         >
           <Field label={t('careers.mk.templates.name')} htmlFor="tpl-name"><input id="tpl-name" maxLength={80} value={tpl.name} onChange={(e) => setTpl((x) => ({ ...x, name: e.target.value }))} /></Field>
           <Field label={t('careers.mk.templates.body')} htmlFor="tpl-body" hint={t('careers.mk.templates.placeholders')}>
             <textarea id="tpl-body" rows={4} maxLength={2000} value={tpl.body} onChange={(e) => setTpl((x) => ({ ...x, body: e.target.value }))} />
           </Field>
           <div className="ox-careers-actions">
-            <button type="submit" className="ox-careers-btn primary" disabled={!tpl.name.trim() || !tpl.body.trim()}>{tpl.id ? t('careers.mk.common.save') : t('careers.mk.templates.add')}</button>
-            {tpl.id ? <button type="button" className="ox-careers-btn" onClick={() => setTpl({ id: null, name: '', body: '' })}>{t('careers.common.cancel')}</button> : null}
+            <button type="submit" className="ox-careers-btn primary" disabled={!tpl.name.trim() || !tpl.body.trim()} data-track="ui.79b890ef17.4">{tpl.id ? t('careers.mk.common.save') : t('careers.mk.templates.add')}</button>
+            {tpl.id ? <button type="button" className="ox-careers-btn" onClick={() => setTpl({ id: null, name: '', body: '' })} data-track="ui.79b890ef17.5">{t('careers.common.cancel')}</button> : null}
           </div>
         </form>
       </section>

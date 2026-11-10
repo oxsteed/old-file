@@ -69,7 +69,7 @@ export default function MessageThread({ applicationId, side = 'candidate', ctx =
             </p>
             {m.hidden ? <p className="ox-careers-subtle">{t('careers.mk.messages.hidden')}</p> : <p className="ox-careers-prose">{m.body}</p>}
             {m.contact_warning ? <Notice tone="warn">{t('careers.mk.messages.contactWarning')}</Notice> : null}
-            {!m.mine && !m.hidden ? <button type="button" className="ox-careers-link" onClick={() => setReporting(m.id)}>{t('careers.mk.actions.report')}</button> : null}
+            {!m.mine && !m.hidden ? <button type="button" className="ox-careers-link" onClick={() => setReporting(m.id)} data-track-private>{t('careers.mk.actions.report')}</button> : null}
             {reporting === m.id ? (
               <ReportForm
                 idPrefix={`msg-${m.id}`}
@@ -85,7 +85,7 @@ export default function MessageThread({ applicationId, side = 'candidate', ctx =
           </li>
         ))}
       </ol>
-      <form className="ox-careers-panel" onSubmit={send}>
+      <form className="ox-careers-panel" onSubmit={send} data-track-private>
         {employer && (templates.data || []).length ? (
           <label className="ox-careers-field" htmlFor={`tpl-${applicationId}`}>
             <span>{t('careers.mk.templates.use')}</span>
@@ -101,7 +101,7 @@ export default function MessageThread({ applicationId, side = 'candidate', ctx =
         </label>
         <p className="ox-careers-subtle">{t('careers.mk.messages.safety')}</p>
         <div className="ox-careers-actions">
-          <button type="submit" className="ox-careers-btn primary" disabled={sending || (!body.trim() && !templateId)}>{t('careers.mk.messages.send')}</button>
+          <button type="submit" className="ox-careers-btn primary" disabled={sending || (!body.trim() && !templateId)} data-track-private>{t('careers.mk.messages.send')}</button>
         </div>
       </form>
     </section>

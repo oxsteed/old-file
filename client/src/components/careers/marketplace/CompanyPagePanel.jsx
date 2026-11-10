@@ -34,7 +34,7 @@ export default function CompanyPagePanel({ ctx }) {
       <form className="ox-careers-panel" onSubmit={async (e) => {
         e.preventDefault();
         try { profile.setData(await updateCompanyPage(ctx.businessId, { about: f.about, why_join: f.why_join, show_phone: f.show_phone, show_map: f.show_map, same_day_hiring: f.same_day_hiring })); toast.success(t('careers.mk.settings.saved')); } catch (err) { toast.error(errorText(err)); }
-      }}
+      }} data-track="ui.09feefa35a.1"
       >
         <div className="ox-careers-row">
           <h3>{t('careers.mk.company.title')}</h3>
@@ -45,7 +45,7 @@ export default function CompanyPagePanel({ ctx }) {
         <Check id="cp-phone" label={t('careers.mk.company.showPhone')} checked={f.show_phone} onChange={(v) => setF((x) => ({ ...x, show_phone: v }))} />
         <Check id="cp-map" label={t('careers.mk.company.showMap')} checked={f.show_map} onChange={(v) => setF((x) => ({ ...x, show_map: v }))} />
         <Check id="cp-sameday" label={t('careers.mk.company.sameDay')} checked={f.same_day_hiring} onChange={(v) => setF((x) => ({ ...x, same_day_hiring: v }))} />
-        <button type="submit" className="ox-careers-btn primary">{t('careers.mk.common.save')}</button>
+        <button type="submit" className="ox-careers-btn primary" data-track="ui.09feefa35a.2">{t('careers.mk.common.save')}</button>
       </form>
       <section className="ox-careers-section">
         <h3>{t('careers.mk.employers.tabs.reviews')}</h3>
@@ -58,7 +58,7 @@ export default function CompanyPagePanel({ ctx }) {
                 <label className="ox-careers-field" htmlFor={`cp-r-${r.id}`}><span>{t('careers.mk.company.respond')}</span>
                   <textarea id={`cp-r-${r.id}`} rows={2} maxLength={2000} value={replies[`r${r.id}`] || ''} onChange={(e) => setReplies((x) => ({ ...x, [`r${r.id}`]: e.target.value }))} />
                 </label>
-                <button type="button" className="ox-careers-btn" disabled={!(replies[`r${r.id}`] || '').trim()} onClick={() => reply('review', r.id)}>{t('careers.mk.qa.reply')}</button>
+                <button type="button" className="ox-careers-btn" disabled={!(replies[`r${r.id}`] || '').trim()} onClick={() => reply('review', r.id)} data-track="ui.09feefa35a.3">{t('careers.mk.qa.reply')}</button>
               </div>
             )}
           </article>
@@ -74,7 +74,7 @@ export default function CompanyPagePanel({ ctx }) {
             <label className="ox-careers-field" htmlFor={`cp-q-${q.id}`}><span>{t('careers.mk.qa.answer')}</span>
               <textarea id={`cp-q-${q.id}`} rows={2} maxLength={1500} value={replies[`q${q.id}`] || ''} onChange={(e) => setReplies((x) => ({ ...x, [`q${q.id}`]: e.target.value }))} />
             </label>
-            <button type="button" className="ox-careers-btn" disabled={!(replies[`q${q.id}`] || '').trim()} onClick={() => reply('question', q.id)}>{t('careers.mk.qa.reply')}</button>
+            <button type="button" className="ox-careers-btn" disabled={!(replies[`q${q.id}`] || '').trim()} onClick={() => reply('question', q.id)} data-track="ui.09feefa35a.4">{t('careers.mk.qa.reply')}</button>
           </article>
         ))}
       </section>
