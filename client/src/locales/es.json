@@ -1446,6 +1446,18 @@
     }
   },
   "screens": {
+    "creditPay": "Pagar con OxSteed Credit",
+    "creditScanCard": "Escanea tu tarjeta Credit",
+    "creditPin": "PIN de la tarjeta",
+    "creditReceipt": "Recibo de Credit",
+    "creditChecking": "Verificando el pago con Credit",
+    "creditPaid": "Pago confirmado",
+    "creditPaymentChanged": "El estado del pago cambió. Pide ayuda al personal.",
+    "creditOrderReference": "Referencia {{id}}",
+    "creditCheckReceipt": "Consultar recibo",
+    "creditReceiptPending": "El resultado aún no se conoce. Consulta el recibo antes de volver a pagar. Si sigue sin aparecer, muestra la referencia al personal.",
+    "creditDeclined": "El pago con Credit fue rechazado. Revisa tu tarjeta y tu PIN o elige otra forma de pago.",
+    "creditStorageUnavailable": "El quiosco no pudo guardar una referencia de recuperación. El pago con Credit no se inició.",
     "dataFreshness": "Actualización de datos",
     "fresh": "Actualizado",
     "catchingUp": "Necesita sincronizar",

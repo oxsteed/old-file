@@ -40,6 +40,7 @@ const SURFACE_MODES = Object.freeze({
   food_online: 'debit',
   chat: 'debit',
   card_kiosk: 'debit',
+  card_kiosk_order: 'debit',
   pos: 'hold',
   jobs: 'hold',
   direct: 'debit',
@@ -243,7 +244,10 @@ async function spendWithCreditInTransaction(client, args) {
   // 5. Resolve participant → partner. The resolved participant id is
   // threaded into the purchase so the agreement lookup can gate on the
   // exact enrolled participant (not just the restaurant participant).
-  const { partnerId, participant } = await resolveSpendParticipant(client, participantRef, normalizedSurface);
+  // A card presented for a food order uses the restaurant's existing
+  // in-store acceptance policy. Keep amount-only redemptions separate.
+  const participantSurface = normalizedSurface === 'card_kiosk_order' ? 'food_pos' : normalizedSurface;
+  const { partnerId, participant } = await resolveSpendParticipant(client, participantRef, participantSurface);
 
   // 6. Rail + freeze gates (fail closed).
   await creditService.assertCreditRailEnabled(client);
@@ -334,7 +338,7 @@ async function spendWithCreditInTransaction(client, args) {
     customerId: effectiveCustomerId,
     partnerId,
     participantId: participant?.id || null,
-    surface: normalizedSurface,
+    surface: participantSurface,
     amountCents: amount,
     currencyCode,
     idempotencyKey: key,

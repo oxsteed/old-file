@@ -911,6 +911,9 @@ module.exports = {
   listCustomerCards,
   adminListCards,
   redeemCardAtPartner,
+  resolveCardIdentityByCredential,
+  resolveCardByCredential,
+  withPersistentPinFailures,
   cashOutWithCardInTransaction,
   cashOutWithCard,
   // Exported for tests / reuse.

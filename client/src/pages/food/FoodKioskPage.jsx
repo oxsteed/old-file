@@ -12,7 +12,7 @@ import {
   quoteFoodOrder,
 } from "../../api/food";
 import { isFoodNetworkFailure } from "../../api/foodOfflineQueue";
-import { placeDeviceOrder } from "../../restaurantScreens/api";
+import { getDeviceCreditReceipt, placeDeviceCreditOrder, placeDeviceOrder } from "../../restaurantScreens/api";
 import {
   getCache,
   putCache,
@@ -35,6 +35,15 @@ import FoodOrderConfirmation from "./FoodOrderConfirmation";
 import "../../styles/FoodPages.css";
 
 const RESET_AFTER_MS = 60000;
+const CREDIT_DECLINES = new Set([
+  "credit_kiosk_disabled", "credit_kiosk_card_required", "credit_kiosk_quote_required",
+  "credit_kiosk_currency_unsupported", "credit_card_not_found", "credit_card_pin_incorrect",
+  "credit_card_pin_locked", "credit_card_frozen", "credit_card_inactive", "credit_card_expired",
+  "credit_card_customer_inactive", "credit_card_pin_not_set",
+  "credit_insufficient_funds", "insufficient_credit_balance", "screen_price_conflict",
+  "credit_rail_suspended", "credit_rail_frozen", "credit_surface_not_allowed",
+  "credit_partner_not_eligible", "validation_failed",
+]);
 
 // Fixed-position overlays shared by every kiosk step screen.
 function KioskOverlays({ rootRef, offline }) {
@@ -54,6 +63,18 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
   const { t: screenT } = useTranslation("common");
   const f = (key, args) => screenT(`screens.${key}`, args);
   const storageScope = managed?.scope || `public-kiosk:${restaurantId}`;
+  const storeLocationId = managed?.device?.locationId || null;
+  const creditStorageKey = managed?.device && !managed.captureOnly && !preview
+    ? `${storageScope}:credit-attempt`
+    : null;
+  const [creditAttempt, setCreditAttempt] = useState(() => {
+    try { return creditStorageKey ? sessionStorage.getItem(creditStorageKey) : null; }
+    catch { return null; }
+  });
+  const [creditReceipt, setCreditReceipt] = useState(null);
+  const [creditError, setCreditError] = useState(null);
+  const creditBusy = useRef(false);
+  const counterBusy = useRef(false);
   const clientIdRef = useRef(null);
   const sessionRef = useRef(0);
   const [quoted, setQuoted] = useState(null);
@@ -87,7 +108,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
   useEffect(() => {
     if (step !== "start") return;
     let live = true;
-    getFoodRestaurant(restaurantId)
+    getFoodRestaurant(restaurantId, storeLocationId ? { locationId: storeLocationId } : {})
       .then((next) => {
         if (live) setData(next);
         putCache(`${storageScope}:menu`, next).catch(() => {});
@@ -99,19 +120,19 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
     return () => {
       live = false;
     };
-  }, [restaurantId, managed?.cursor, step === "start"]);
+  }, [restaurantId, storeLocationId, managed?.cursor, step === "start"]);
   useEffect(() => {
-    managed?.sessionIdle?.(step === "start");
-  }, [step, managed?.sessionIdle]);
+    managed?.sessionIdle?.(step === "start" && !creditAttempt && !creditReceipt);
+  }, [step, managed?.sessionIdle, creditAttempt, creditReceipt]);
   // Menu refresh: steady poll while healthy, exponential backoff while
   // failing. The kiosk keeps showing its cached menu (last-known state) and
   // the offline banner appears when the feed is unreachable.
   const pollMenu = useCallback(
     () =>
-      getFoodRestaurant(restaurantId).then((next) => {
+      getFoodRestaurant(restaurantId, storeLocationId ? { locationId: storeLocationId } : {}).then((next) => {
         setData(next);
       }),
-    [restaurantId],
+    [restaurantId, storeLocationId],
   );
   const { offline } = useDisplayPoller(pollMenu, {
     intervalMs: 5000,
@@ -139,6 +160,8 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
     setOrderError(false);
     setOfflineSaved(false);
     setActiveItem(null);
+    setCreditReceipt(null);
+    setCreditError(null);
   };
 
   useEffect(
@@ -149,7 +172,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
     [],
   );
   useEffect(() => {
-    if (step === "start" || placing) return;
+    if ((step === "start" && !creditReceipt) || placing || creditAttempt) return;
     const reset = () => {
       clearTimeout(resetTimer.current);
       resetTimer.current = setTimeout(resetAll, RESET_AFTER_MS);
@@ -162,7 +185,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
       window.removeEventListener("pointerdown", reset);
       window.removeEventListener("keydown", reset);
     };
-  }, [step, placing]);
+  }, [step, placing, creditAttempt, creditReceipt]);
 
   const currency = data?.restaurant?.currency_code || "USD";
   const total = useMemo(
@@ -191,6 +214,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
     setQuoted(null);
     const payload = {
       orderSource: "kiosk",
+      ...(storeLocationId ? { locationId: storeLocationId } : {}),
       fulfillmentType: fulfillment,
       paymentMode: "pay_at_counter",
       items: cart.map((line) => ({
@@ -214,11 +238,82 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
     return () => {
       live = false;
     };
-  }, [!!managed, step, cart, fulfillment, restaurantId, total]);
+  }, [!!managed, step, cart, fulfillment, restaurantId, storeLocationId, total]);
+
+  const clearCreditAttempt = () => {
+    try { sessionStorage.removeItem(creditStorageKey); } catch { /* A reload can look up the same receipt again. */ }
+    setCreditAttempt(null);
+  };
+
+  const showCreditReceipt = (receipt) => {
+    if (!receipt?.orderId || !Number.isSafeInteger(receipt.amountCents)) throw new Error("Invalid Credit receipt");
+    clearCreditAttempt();
+    setCreditReceipt(receipt);
+  };
+
+  const payWithCredit = async (event) => {
+    event.preventDefault();
+    if (creditBusy.current || counterBusy.current || creditAttempt || placing || orderingPaused || managed?.enabled === false
+      || !creditStorageKey || !managed?.creditCheckoutEnabled || quoted?.estimated
+      || !Number.isSafeInteger(quoted?.totalCents) || quoted.totalCents <= 0
+      || !Array.isArray(quoted.menuFingerprint) || !navigator.onLine) return;
+    const fields = new FormData(event.currentTarget);
+    event.currentTarget.reset();
+    const attemptId = crypto.randomUUID();
+    try { sessionStorage.setItem(creditStorageKey, attemptId); }
+    catch { setCreditError("creditStorageUnavailable"); return; }
+    creditBusy.current = true;
+    setPlacing(true);
+    setCreditAttempt(attemptId);
+    setCreditError(null);
+    try {
+      const receipt = await placeDeviceCreditOrder(restaurantId, managed.device, attemptId, {
+        credential: fields.get("credential"),
+        pin: fields.get("pin"),
+        expectedTotalCents: quoted.totalCents,
+        menuFingerprint: quoted.menuFingerprint,
+        fulfillmentType: fulfillment,
+        items: cart.map(({ menuItemId, quantity, modifierIds, specialInstructions }) => ({
+          menuItemId, quantity, modifierIds, specialInstructions,
+        })),
+      });
+      showCreditReceipt(receipt);
+    } catch (error) {
+      const code = error.response?.data?.code;
+      if (CREDIT_DECLINES.has(code)) {
+        clearCreditAttempt();
+        if (code === "screen_price_conflict") {
+          setQuoted(null);
+          setStep("menu");
+        }
+        setCreditError(code === "screen_price_conflict" ? "priceConflict" : "creditDeclined");
+      }
+    } finally {
+      creditBusy.current = false;
+      setPlacing(false);
+    }
+  };
+
+  const recoverCreditReceipt = async () => {
+    if (creditBusy.current || !creditAttempt || !creditStorageKey) return;
+    creditBusy.current = true;
+    setPlacing(true);
+    setCreditError(null);
+    try {
+      showCreditReceipt(await getDeviceCreditReceipt(restaurantId, managed.device, creditAttempt));
+    } catch {
+      setCreditError("creditReceiptPending");
+    } finally {
+      creditBusy.current = false;
+      setPlacing(false);
+    }
+  };
 
   const submit = async () => {
-    if (preview || placing || orderingPaused || managed?.enabled === false)
+    if (preview || placing || creditBusy.current || counterBusy.current || creditAttempt
+        || orderingPaused || managed?.enabled === false)
       return;
+    counterBusy.current = true;
     const session = sessionRef.current;
     setPlacing(true);
     setOrderError(false);
@@ -306,9 +401,40 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
         if (session === sessionRef.current) setOrderError(true);
       }
     } finally {
+      counterBusy.current = false;
       if (session === sessionRef.current) setPlacing(false);
     }
   };
+
+  if (creditAttempt || creditReceipt) {
+    return (
+      <div className="fd-screen" ref={rootRef}>
+        <KioskOverlays rootRef={rootRef} offline={offline} />
+        <section className="fd-kiosk-start" aria-live="polite">
+          <h1>{f(creditReceipt ? "creditReceipt" : "creditChecking")}</h1>
+          {creditReceipt ? (
+            <>
+              <p>{t("food.order.yourNumber")}</p>
+              <div className="fd-queue-big">#{creditReceipt.queueNumber}</div>
+              <p>{f(creditReceipt.paymentStatus === "paid" ? "creditPaid" : "creditPaymentChanged")}</p>
+              <p>{t("food.order.total")}: <strong>{formatFoodMoney(creditReceipt.amountCents, creditReceipt.currencyCode)}</strong></p>
+              <p>{f("creditOrderReference", { id: creditReceipt.orderId })}</p>
+              <button className="fd-btn" type="button" onClick={resetAll}>{t("food.kiosk.startOver")}</button>
+            </>
+          ) : (
+            <>
+              <p>{f("creditReceiptPending")}</p>
+              <p>{f("creditOrderReference", { id: creditAttempt })}</p>
+              <button className="fd-btn" type="button" disabled={placing} onClick={recoverCreditReceipt}>
+                {f("creditCheckReceipt")}
+              </button>
+              {creditError && <p role="status">{f(creditError)}</p>}
+            </>
+          )}
+        </section>
+      </div>
+    );
+  }
 
   if (step === "offline") {
     return (
@@ -450,6 +576,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
       </div>
 
       <div className="fd-kiosk-body">
+        {creditError && <p role="alert">{f(creditError)}</p>}
         {step === "menu" && (
           <>
             {sections.map((section) => (
@@ -593,6 +720,24 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
                 {placing ? t("food.order.placing") : t("food.order.placeOrder")}
               </button>
             </div>
+            {creditStorageKey && managed.creditCheckoutEnabled && quoted?.totalCents > 0 && !quoted.estimated && (
+              <form className="fd-field" onSubmit={payWithCredit} autoComplete="off">
+                <label htmlFor="fd-kiosk-credit-card">{f("creditScanCard")}</label>
+                <input id="fd-kiosk-credit-card" name="credential" type="password" maxLength={200} required autoComplete="off"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      event.currentTarget.form.elements.namedItem("pin").focus();
+                    }
+                  }} />
+                <label htmlFor="fd-kiosk-credit-pin">{f("creditPin")}</label>
+                <input id="fd-kiosk-credit-pin" name="pin" type="password" inputMode="numeric"
+                  pattern="[0-9]{4,8}" maxLength={8} required autoComplete="off" />
+                <button className="fd-btn" type="submit" disabled={placing || orderingPaused}>
+                  {f("creditPay")}
+                </button>
+              </form>
+            )}
           </div>
         )}
       </div>

@@ -74,6 +74,31 @@ const baseArgs = {
 };
 
 describe('surface/mode matrix', () => {
+  test('card checkout for a food order debits only under the existing food POS permission', async () => {
+    const client = participantClient();
+    const args = { ...baseArgs, surface: 'card_kiosk_order' };
+    await expect(adapter.spendWithCreditInTransaction(client, args))
+      .rejects.toMatchObject({ code: 'credit_surface_not_allowed' });
+    participantService.resolveParticipant.mockResolvedValue(
+      mockResolvedParticipant({ participant: { allowed_surfaces: ['food_pos'] } }),
+    );
+    const purchase = jest.spyOn(creditService, 'purchaseWithCreditInTransaction').mockResolvedValue({ transaction: { id: 'sale' } });
+    const rail = jest.spyOn(creditService, 'assertCreditRailEnabled').mockResolvedValue(undefined);
+    try {
+      await expect(adapter.spendWithCreditInTransaction(client, args)).resolves.toMatchObject({ mode: 'debit' });
+      expect(purchase).toHaveBeenCalledWith(client, expect.objectContaining({
+        surface: 'food_pos',
+        referenceType: 'food_order',
+        metadata: expect.objectContaining({ creditSpendSurface: 'card_kiosk_order' }),
+      }));
+      await expect(adapter.spendWithCreditInTransaction(client, { ...args, surface: 'card_kiosk' }))
+        .rejects.toMatchObject({ code: 'credit_surface_not_allowed' });
+    } finally {
+      purchase.mockRestore();
+      rail.mockRestore();
+    }
+  });
+
   test('debit surfaces accept debit (explicit)', async () => {
     const client = legacyClient();
     const purchase = { transaction: { id: 'tx-1' }, replayed: false };

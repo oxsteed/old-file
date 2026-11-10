@@ -37,7 +37,7 @@ const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const enforceUploadQuota = require('../middleware/uploadQuota');
-const { authenticatedLimiter, strictLimiter, generalLimiter, staffPinAttemptLimiter, kitchenFeedLimiter } = require('../middleware/rateLimiter');
+const { authenticatedLimiter, strictLimiter, generalLimiter, staffPinAttemptLimiter, kitchenFeedLimiter, creditMutationLimiter } = require('../middleware/rateLimiter');
 const compliance = require('../controllers/restaurantComplianceController');
 const media = require('../controllers/restaurantMediaController');
 const { requireKitchenDeviceOrStaff } = require('../controllers/restaurantDisplayController');
@@ -67,6 +67,8 @@ router.get('/:restaurantId/accounting/:provider/oauth/callback',strictLimiter,as
 
 // Managed appliances authenticate with their scoped device credential.
 router.post('/:restaurantId/devices/:deviceId/screen-orders', strictLimiter, scopeExempt('device-credential'), screens.createOrder);
+router.post('/:restaurantId/devices/:deviceId/screen-credit-orders', creditMutationLimiter, scopeExempt('device-credential'), screens.createCreditOrder);
+router.get('/:restaurantId/devices/:deviceId/screen-credit-orders/:attemptId', scopeExempt('device-credential'), screens.creditOrderReceipt);
 router.get('/:restaurantId/devices/:deviceId/screen-snapshot', scopeExempt('device-credential'), screens.snapshot);
 router.get('/:restaurantId/devices/:deviceId/screen-changes', scopeExempt('device-credential'), screens.changes);
 router.post('/:restaurantId/devices/:deviceId/offline-tickets', strictLimiter, scopeExempt('device-credential'), screens.importTicket);

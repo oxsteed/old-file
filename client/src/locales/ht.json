@@ -1446,6 +1446,18 @@
     }
   },
   "screens": {
+    "creditPay": "Peye ak OxSteed Credit",
+    "creditScanCard": "Eskane kat Credit ou",
+    "creditPin": "Kòd PIN kat la",
+    "creditReceipt": "Resi Credit",
+    "creditChecking": "N ap verifye peman Credit la",
+    "creditPaid": "Peman konfime",
+    "creditPaymentChanged": "Eta peman an chanje. Mande anplwaye yo èd.",
+    "creditOrderReference": "Referans {{id}}",
+    "creditCheckReceipt": "Tcheke resi a",
+    "creditReceiptPending": "Rezilta a poko klè. Tcheke resi a anvan ou peye ankò. Si li toujou pa disponib, montre anplwaye yo referans lan.",
+    "creditDeclined": "Peman Credit la pa pase. Verifye kat ou ak kòd PIN ou, oswa chwazi yon lòt fason pou peye.",
+    "creditStorageUnavailable": "Kyòs la pa t ka anrejistre referans pou rekipere peman an. Peman Credit la pa t kòmanse.",
     "dataFreshness": "Frekans done yo",
     "fresh": "Ajou",
     "catchingUp": "Bezwen mete ajou",
