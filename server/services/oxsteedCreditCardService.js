@@ -613,11 +613,15 @@ async function resolveCardByCredential(client, rawCredential) {
   const normalized = normalizeString(rawCredential, 200);
   if (!normalized) throw new AppError('A card credential is required', 400, 'credit_card_credential_required');
   const { rows } = await client.query(
-    `SELECT c.*, owner.is_active AS owner_is_active
+    `SELECT c.*,
+            (owner.is_active = TRUE AND owner.deleted_at IS NULL) AS owner_is_active,
+            (COALESCE(owner.is_suspended, FALSE)
+              AND (owner.suspended_until IS NULL OR owner.suspended_until > NOW())) AS owner_is_suspended,
+            COALESCE(owner.is_restricted, FALSE) AS owner_is_restricted
        FROM oxsteed_credit_cards c
        JOIN users owner ON owner.id = c.customer_id
       WHERE c.credential_hash = $1
-      FOR UPDATE`,
+      FOR UPDATE OF c`,
     [sha256Hex(normalized)]
   );
   const card = rows[0];
@@ -625,6 +629,11 @@ async function resolveCardByCredential(client, rawCredential) {
   // The kiosk has no customer session, so this is the one spend flow where
   // the card lookup must enforce the customer status gate itself.
   if (!card.owner_is_active) throw new AppError('This card belongs to a deactivated customer account', 403, 'credit_card_customer_inactive');
+  // Kiosk review: a suspended or restricted account cannot spend through a
+  // session (authenticate/optionalAuth refuse it), so its card cannot either.
+  if (card.owner_is_suspended || card.owner_is_restricted) {
+    throw new AppError('This card belongs to an account that cannot make payments right now', 403, 'credit_card_customer_blocked');
+  }
   if (card.status === 'frozen') throw new AppError('This card is frozen', 409, 'credit_card_frozen');
   if (card.status !== 'active') throw new AppError('This card is not active', 409, 'credit_card_inactive');
   if (card.expires_at && new Date(card.expires_at).getTime() < Date.now()) {

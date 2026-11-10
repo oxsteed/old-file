@@ -68,7 +68,7 @@ router.get('/:restaurantId/accounting/:provider/oauth/callback',strictLimiter,as
 // Managed appliances authenticate with their scoped device credential.
 router.post('/:restaurantId/devices/:deviceId/screen-orders', strictLimiter, scopeExempt('device-credential'), screens.createOrder);
 router.post('/:restaurantId/devices/:deviceId/screen-credit-orders', creditMutationLimiter, scopeExempt('device-credential'), screens.createCreditOrder);
-router.get('/:restaurantId/devices/:deviceId/screen-credit-orders/:attemptId', scopeExempt('device-credential'), screens.creditOrderReceipt);
+router.get('/:restaurantId/devices/:deviceId/screen-credit-orders/:attemptId', generalLimiter, scopeExempt('device-credential'), screens.creditOrderReceipt);
 router.get('/:restaurantId/devices/:deviceId/screen-snapshot', scopeExempt('device-credential'), screens.snapshot);
 router.get('/:restaurantId/devices/:deviceId/screen-changes', scopeExempt('device-credential'), screens.changes);
 router.post('/:restaurantId/devices/:deviceId/offline-tickets', strictLimiter, scopeExempt('device-credential'), screens.importTicket);
