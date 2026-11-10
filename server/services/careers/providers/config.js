@@ -56,4 +56,87 @@ function extractionConfig() {
   return { enabled: flag('CAREERS_AI_EXTRACTION_ENABLED') };
 }
 
-module.exports = { checkrConfig, eorConfig, billingConfig, rankingConfig, extractionConfig, flag, value };
+// Marketplace features (docs/careers/marketplace.md). Each defaults to off.
+function intValue(name, fallback, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
+  const n = Number.parseInt(value(name), 10);
+  return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
+}
+
+function plansConfig() {
+  return {
+    enabled: flag('CAREERS_PLANS_ENABLED'),
+    stripeKey: value('STRIPE_SECRET_KEY'),
+    webhookSecret: value('CAREERS_STRIPE_WEBHOOK_SECRET'),
+    trialDays: intValue('CAREERS_PLAN_TRIAL_DAYS', 14, { min: 0, max: 60 }),
+    priceIds: {
+      starter: value('CAREERS_STRIPE_PRICE_PLAN_STARTER'),
+      growth: value('CAREERS_STRIPE_PRICE_PLAN_GROWTH'),
+      pro: value('CAREERS_STRIPE_PRICE_PLAN_PRO'),
+    },
+    get configured() { return this.enabled && Boolean(this.stripeKey && this.webhookSecret); },
+  };
+}
+
+function referralsConfig() {
+  return {
+    enabled: flag('CAREERS_REFERRALS_ENABLED'),
+    rateBps: intValue('CAREERS_REFERRAL_RATE_BPS', 1500, { min: 0, max: 5000 }),
+    months: intValue('CAREERS_REFERRAL_MONTHS', 6, { min: 1, max: 24 }),
+  };
+}
+
+function calendarConfig(provider) {
+  if (provider === 'google') {
+    return {
+      provider,
+      enabled: flag('CAREERS_CALENDAR_GOOGLE_ENABLED'),
+      clientId: value('CAREERS_GOOGLE_CLIENT_ID'),
+      clientSecret: value('CAREERS_GOOGLE_CLIENT_SECRET'),
+      get configured() { return this.enabled && Boolean(this.clientId && this.clientSecret); },
+    };
+  }
+  if (provider === 'microsoft') {
+    return {
+      provider,
+      enabled: flag('CAREERS_CALENDAR_MICROSOFT_ENABLED'),
+      clientId: value('CAREERS_MICROSOFT_CLIENT_ID'),
+      clientSecret: value('CAREERS_MICROSOFT_CLIENT_SECRET'),
+      tenant: value('CAREERS_MICROSOFT_TENANT') || 'common',
+      get configured() { return this.enabled && Boolean(this.clientId && this.clientSecret); },
+    };
+  }
+  return { provider, enabled: false, configured: false };
+}
+
+function videoConfig() {
+  let iceServers = [];
+  try {
+    const raw = value('CAREERS_WEBRTC_ICE_SERVERS');
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) {
+      iceServers = parsed
+        .filter((s) => s && (typeof s.urls === 'string' || Array.isArray(s.urls)))
+        .map((s) => ({ urls: s.urls, ...(s.username ? { username: String(s.username) } : {}), ...(s.credential ? { credential: String(s.credential) } : {}) }))
+        .slice(0, 6);
+    }
+  } catch { iceServers = []; }
+  return { enabled: flag('CAREERS_VIDEO_ROOM_ENABLED'), iceServers };
+}
+
+function smsConfig() {
+  return { enabled: flag('CAREERS_SMS_ENABLED') };
+}
+
+function resumeParseConfig() {
+  return { enabled: flag('CAREERS_AI_RESUME_PARSE_ENABLED') };
+}
+
+function matchConfig() {
+  return { enabled: flag('CAREERS_AI_MATCH_ENABLED') };
+}
+
+module.exports = {
+  checkrConfig, eorConfig, billingConfig, rankingConfig, extractionConfig,
+  plansConfig, referralsConfig, calendarConfig, videoConfig, smsConfig, resumeParseConfig, matchConfig,
+  flag, value, intValue,
+};

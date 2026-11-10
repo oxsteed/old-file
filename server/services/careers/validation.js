@@ -17,6 +17,8 @@ const {
   OPENING_WORK_AUTHORIZATION,
   EMPLOYMENT_TYPES,
   LOCALES,
+  INDUSTRIES,
+  EXPERIENCE_LEVELS,
 } = require('../careerCatalog');
 
 const MAX_PAY = 100_000_000; // 100M in major units: anything above is a typo.
@@ -245,6 +247,17 @@ function parseOpening(body = {}, { existing = null, employerType = 'business' } 
       .filter(([loc, v]) => LOCALES.includes(loc) && v && typeof v === 'object')
       .map(([loc, v]) => [loc, { title: text(v.title, 160), description: text(v.description, 20000) }]))
     : {};
+
+  // Marketplace facets and badges (docs/careers/marketplace.md §2).
+  const industry = pick('industry', null);
+  if (industry != null && industry !== '' && !INDUSTRIES.includes(industry)) errors.add('industry', 'Unsupported industry');
+  out.industry = INDUSTRIES.includes(industry) ? industry : null;
+  const level = pick('experience_level', null);
+  if (level != null && level !== '' && !EXPERIENCE_LEVELS.includes(level)) errors.add('experience_level', 'Unsupported experience level');
+  out.experience_level = EXPERIENCE_LEVELS.includes(level) ? level : null;
+  out.same_day_hire = bool(pick('same_day_hire', false));
+  out.urgently_hiring = bool(pick('urgently_hiring', false));
+  out.screener_auto_reject = bool(pick('screener_auto_reject', false));
 
   out.postal_code = optionalText(body.postal_code, 20);
   return { value: out, errors };
