@@ -17,9 +17,9 @@ router.post('/skip', authenticate, skipVerification);
 
 // NOTE: The live Didit webhook is webhookController.diditWebhook, mounted at
 // /api/webhooks/didit (routes/webhook.js) and /api/didit/webhook (index.js)
-// with express.raw() for HMAC verification. diditController.handleWebhook is
-// a legacy handler that is not mounted anywhere; both share the entity
-// linking in services/diditEntityLink.js.
+// with express.raw() for HMAC verification. (F-09: the legacy unmounted
+// diditController.handleWebhook was removed.) Entity linking lives in
+// services/diditEntityLink.js.
 // P3-5-F15: the two live routes are one handler, not two code paths. Double
 // delivery (one hit per route, or a provider retry) is deduped on
 // webhook_event_receipts(provider='didit', event_id) with an in-flight guard

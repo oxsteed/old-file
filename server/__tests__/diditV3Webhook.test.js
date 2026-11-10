@@ -334,3 +334,61 @@ describe('Didit v3 webhook unhappy paths', () => {
     );
   });
 });
+
+describe('F-09 Didit signature downgrade protection', () => {
+  function simpleSig(body) {
+    const canonical = [body.timestamp || '', body.session_id || '', body.status || '', body.webhook_type || ''].join(':');
+    return crypto.createHmac('sha256', process.env.DIDIT_WEBHOOK_SECRET).update(canonical, 'utf8').digest('hex');
+  }
+  function basePayload() {
+    const ts = Math.floor(Date.now() / 1000);
+    return {
+      event_id: 'didit-downgrade', session_id: 'didit-downgrade-session', status: 'Approved',
+      webhook_type: 'status.updated', timestamp: ts, created_at: ts, metadata: { test_webhook: true },
+    };
+  }
+
+  afterEach(() => { delete process.env.DIDIT_ALLOW_SIMPLE_SIGNATURE; });
+
+  test('a bad V2 signature is not rescued by a valid simple signature', async () => {
+    const payload = basePayload();
+    const res = await request(buildApp())
+      .post('/api/webhooks/didit')
+      .set('content-type', 'application/json')
+      .set('x-timestamp', String(payload.timestamp))
+      .set('x-signature-v2', 'ab'.repeat(32))
+      .set('x-signature-simple', simpleSig(payload))
+      .send(JSON.stringify(payload));
+    expect(res.status).toBe(401);
+  });
+
+  test('a simple-only signature is refused by default (it does not cover the body)', async () => {
+    const payload = basePayload();
+    // Tampered decision data the simple signature does not cover.
+    payload.identity_hash = 'attacker-chosen';
+    const res = await request(buildApp())
+      .post('/api/webhooks/didit')
+      .set('content-type', 'application/json')
+      .set('x-timestamp', String(payload.timestamp))
+      .set('x-signature-simple', simpleSig(payload))
+      .send(JSON.stringify(payload));
+    expect(res.status).toBe(401);
+  });
+
+  test('a simple-only signature is accepted only when explicitly enabled', async () => {
+    process.env.DIDIT_ALLOW_SIMPLE_SIGNATURE = 'true';
+    const payload = basePayload();
+    const res = await request(buildApp())
+      .post('/api/webhooks/didit')
+      .set('content-type', 'application/json')
+      .set('x-timestamp', String(payload.timestamp))
+      .set('x-didit-test-webhook', 'true')
+      .set('x-signature-simple', simpleSig(payload))
+      .send(JSON.stringify(payload));
+    expect(res.status).toBe(200);
+  });
+
+  test('the legacy diditController webhook handler is gone', () => {
+    expect(require('../controllers/diditController').handleWebhook).toBeUndefined();
+  });
+});

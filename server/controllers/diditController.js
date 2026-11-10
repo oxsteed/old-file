@@ -1,13 +1,10 @@
 const { withTransaction } = require('../utils/transaction');
 const { encrypt, decrypt } = require('../utils/encryption');
 // server/controllers/diditController.js
-// Handles Didit identity verification callbacks and deduplication.
+// Didit identity verification: session creation, status and skip.
 
-const crypto = require('crypto');
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { getOrMintEntityId, grantLink } = require('../lib/entityIds');
-const { upsertDiditVerification, linkVerificationToEntity } = require('../services/diditEntityLink');
 
 const DIDIT_API_URL = 'https://verification.didit.me/v3/session/';
 const DEFAULT_DIDIT_WORKFLOW_ID = '3d74f89a-8a9a-4a0a-a401-1501baaf2b7d';
@@ -174,157 +171,11 @@ async function createSession(req, res) {
 }
 
 // ── Didit webhook callback ───────────────────────────────
-// Didit POSTs here when verification completes (or fails).
-// This is the enforcement point for one-person-one-account.
-async function handleWebhook(req, res) {
-  try {
-    const webhookSecret = process.env.DIDIT_WEBHOOK_SECRET;
-    if (!webhookSecret) {
-      logger.error('DIDIT_WEBHOOK_SECRET is not configured');
-      return res.status(500).json({ error: 'Webhook secret not configured' });
-    }
+// F-09: the legacy unmounted handleWebhook (plain HMAC, no timestamp window,
+// no event dedupe) was removed. The only Didit webhook handler is
+// webhookController.diditWebhook, mounted at /api/webhooks/didit and the
+// /api/didit/webhook alias.
 
-    const signature = req.headers['x-webhook-signature'] || req.headers['x-signature'];
-    if (!signature) {
-      return res.status(401).json({ error: 'Missing webhook signature' });
-    }
-
-    const rawBody = req.body; // Buffer from express.raw()
-    const expectedSig = crypto
-      .createHmac('sha256', webhookSecret)
-      .update(rawBody)
-      .digest('hex');
-
-    const expectedBuf = Buffer.from(expectedSig, 'utf8');
-    const incomingBuf = Buffer.from(signature, 'utf8');
-    if (expectedBuf.length !== incomingBuf.length || !crypto.timingSafeEqual(expectedBuf, incomingBuf)) {
-      return res.status(401).json({ error: 'Invalid webhook signature' });
-    }
-
-    const {
-      session_id,
-      status,          // 'approved' | 'declined' | 'review'
-      identity_hash,   // unique biometric/document fingerprint from Didit
-    } = JSON.parse(rawBody.toString());
-
-    if (!session_id) {
-      return res.status(400).json({ error: 'Missing session_id' });
-    }
-
-    // Find the user with this session
-    const { rows: [user] } = await pool.query(
-      `SELECT id, didit_status FROM users WHERE didit_session_id = $1`,
-      [session_id]
-    );
-
-    if (!user) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
-
-    // Verification failed on Didit's side
-    if (status !== 'approved') {
-      await pool.query(
-        `UPDATE users SET didit_status = 'failed' WHERE id = $1`,
-        [user.id]
-      );
-      // review -> still in progress at the provider; anything else -> failed
-      await linkVerificationToEntity(user.id, {
-        sessionId: session_id,
-        identityHash: identity_hash || null,
-        status: status === 'review' ? 'processing' : 'failed',
-      });
-      return res.json({ ok: true, status: 'failed' });
-    }
-
-    // ─── ONE PERSON, ONE ACCOUNT CHECK ───────────────────
-    // If this identity_hash already exists on a different user,
-    // this person already has an account.
-    if (identity_hash) {
-      const { rows: existing } = await pool.query(
-        `SELECT id, email FROM users WHERE didit_identity_hash = $1 AND id != $2`,
-        [identity_hash, user.id]
-      );
-
-      if (existing.length > 0) {
-        await pool.query(
-          `UPDATE users SET didit_status = 'duplicate' WHERE id = $1`,
-          [user.id]
-        );
-        // Anchor the duplicate to both entity IDs and link them on the graph
-        // so one person resolves to one canonical identity. Best-effort: the
-        // webhook response must still succeed if linking fails.
-        try {
-          const newPublicId = await getOrMintEntityId(pool, 'person', user.id);
-          const canonicalPublicId = await getOrMintEntityId(pool, 'person', existing[0].id);
-          await upsertDiditVerification({
-            userId: user.id,
-            personPublicId: newPublicId,
-            sessionId: session_id,
-            identityHash: identity_hash,
-            status: 'duplicate',
-          });
-          await grantLink(pool, {
-            subjectId: newPublicId,
-            objectId: canonicalPublicId,
-            relation: 'duplicate_of',
-          });
-        } catch (linkErr) {
-          logger.error('Didit duplicate linking failed (best-effort)', { userId: user.id, err: linkErr.message });
-        }
-        return res.json({
-          ok: false,
-          status: 'duplicate',
-          error: 'This identity is already linked to an existing account. Please sign in instead.',
-          existing_email_hint: maskEmail(existing[0].email),
-        });
-      }
-    }
-
-    // ─── VERIFICATION APPROVED, IDENTITY IS UNIQUE ───────
-    // Review P2-7-F11: a Didit approval must reconcile all three identity
-    // models at once (mirrors superAdmin verifyUser): didit_status plus the
-    // legacy gate columns id_verified/identity_verified, so readers of any
-    // model agree. Background columns are intentionally untouched here;
-    // Didit verifies identity, not background checks.
-    await pool.query(
-      `UPDATE users
-       SET didit_identity_hash = $1,
-           didit_status = 'verified',
-           didit_verified_at = NOW(),
-           is_verified = TRUE,
-           id_verified = TRUE,
-           identity_verified = TRUE,
-           updated_at = NOW()
-       WHERE id = $2`,
-      [identity_hash, user.id]
-    );
-
-    // Anchor to the entity ID and flip the helper trust badge in one flow.
-    const personPublicId = await linkVerificationToEntity(user.id, {
-      sessionId: session_id,
-      identityHash: identity_hash,
-      status: 'verified',
-    });
-    if (personPublicId) {
-      try {
-        await pool.query(
-          `UPDATE helper_profiles SET is_identity_verified = TRUE, updated_at = NOW() WHERE user_id = $1`,
-          [user.id]
-        );
-      } catch (badgeErr) {
-        logger.error('Didit helper badge update failed (best-effort)', { userId: user.id, err: badgeErr.message });
-      }
-    }
-
-    return res.json({ ok: true, status: 'verified' });
-
-  } catch (err) {
-    logger.error('Didit webhook error:', { err: err });
-    return res.status(500).json({ error: 'Webhook processing failed' });
-  }
-}
-
-// ── Check verification status (polled by frontend) ───────
 async function getStatus(req, res) {
   try {
     const userId = req.user.id;
@@ -401,4 +252,4 @@ function maskEmail(email) {
   return local.slice(0, 2) + '***@' + domain;
 }
 
-module.exports = { createSession, handleWebhook, getStatus, skipVerification };
+module.exports = { createSession, getStatus, skipVerification };

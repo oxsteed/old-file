@@ -2000,17 +2000,21 @@ exports.diditWebhook = async (req, res, next) => {
   let isValid = false;
   let method = null;
 
+  // F-09: no downgrade. When Didit sends X-Signature-V2 (it always does
+  // for current webhooks) only V2 is accepted; a failing V2 never falls
+  // back to a weaker scheme. The "simple" signature covers only four fields
+  // (not event_id, decision or identity data), so it is refused whenever a
+  // full-body signature is present, and accepted on its own only when
+  // DIDIT_ALLOW_SIMPLE_SIGNATURE=true is set explicitly.
   if (signatureV2) {
     isValid = verifySignatureV2(body, signatureV2, timestamp, secret);
     if (isValid) method = 'v2';
-  }
-  if (!isValid && signatureSimple) {
-    isValid = verifySignatureSimple(body, signatureSimple, timestamp, secret);
-    if (isValid) method = 'simple';
-  }
-  if (!isValid && signatureOriginal) {
+  } else if (signatureOriginal) {
     isValid = verifySignatureOriginal(rawBody, signatureOriginal, timestamp, secret);
     if (isValid) method = 'original';
+  } else if (signatureSimple && process.env.DIDIT_ALLOW_SIMPLE_SIGNATURE === 'true') {
+    isValid = verifySignatureSimple(body, signatureSimple, timestamp, secret);
+    if (isValid) method = 'simple';
   }
 
     if (!isValid) {
