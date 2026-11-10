@@ -1283,9 +1283,21 @@ submission, idempotency conflicts, receipt recovery, device and restaurant
 isolation, and the existing authorized cancellation refund. The Playwright
 screen fixture covers a lost response and receipt recovery after remount.
 
-Next action: run the exact PR artifact through the same isolated verification
-before selecting a hardware pilot. Product barcode lookup, physical scanner
-acceptance, and cash reload are separate work.
+On 2026-11-10, the same `seed` and `kiosk` commands passed on the exact
+merged ARM64 image for `1ae78e38d` from GitHub Actions run `42832798102`
+(`sha256:83573b46073b8386125e8f4e376bc6efe9c2922a84cc0a880c7b4902e68f837f`).
+All 1,085 migrations applied in the disposable database. The verifier passed
+the checkout, retry, receipt and refund scenarios above with synthetic funds.
+Three focused Jest suites passed 38 tests, and the managed-screen Chrome
+fixture passed. The disposable containers and volumes were removed afterward.
+
+Production readiness still identified `88cee7dec`. The release controller
+reported `worker_release_requires_rolling_target` against the healthy combined
+worker release `2f988901a`. The next action is to rehearse a rolling worker
+target and review the candidate's schema delta through the release process.
+After a verified rollout, select one eligible paired kiosk and validate its
+hardware before enabling the pilot. Product barcode lookup and cash reload
+remain separate work.
 
 ## Completion Gate
 
