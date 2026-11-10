@@ -608,20 +608,45 @@ const optionalAuth = async (req, res, next) => {
 
 /**
  * Money-moving guest-capable routes: a guest (no token) continues as a guest,
- * but a presented session must fully authenticate. A revoked, suspended,
- * restricted or ended-impersonation session is refused (401/403) instead of
- * being silently downgraded to a guest that could still spend.
+ * but a presented session must pass every optional-auth check. A revoked,
+ * suspended, restricted, deleted, non-access or ended-impersonation session
+ * is refused with 401 instead of being silently downgraded to a guest, so
+ * the caller signs in again rather than acting anonymously by accident.
+ * Like optionalAuth it does not apply the Didit gate (guest-capable routes
+ * keep their own payment-level identity checks).
  */
-function authenticateIfPresent(req, res, next) {
+async function authenticateIfPresent(req, res, next) {
   const { token } = selectRequestToken(req);
   clearRequestIdentity(req);
   if (!token) return next();
-  let decoded = null;
-  try { decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }); } catch { decoded = null; }
-  // An expired or foreign-signature cookie is a stale browser artefact, not
-  // a session: treat it as absent so guests are not locked out.
-  if (!decoded) return next();
-  return authenticate(req, res, next);
+  try {
+    jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+  } catch {
+    // An expired or foreign-signature cookie is a stale browser artefact,
+    // not a session: treat it as absent so guests are not locked out.
+    return next();
+  }
+  let identity = null;
+  try {
+    identity = await resolveOptionalIdentity(req, token);
+  } catch (err) {
+    if (err?.code === 'token_revocation_unavailable') {
+      return res.status(503).json({
+        error: 'Authentication temporarily unavailable',
+        code: 'token_revocation_unavailable',
+        retryable: true,
+      });
+    }
+    identity = null;
+  }
+  if (!identity) {
+    return res.status(401).json({
+      error: 'Your session is no longer valid. Sign in again.',
+      code: 'session_invalid',
+    });
+  }
+  applyIdentity(req, identity);
+  return next();
 }
 
 // Global identity parse for the CSRF boundary. It runs before route-level

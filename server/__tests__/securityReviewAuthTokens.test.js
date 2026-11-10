@@ -255,10 +255,21 @@ describe('F-02: optional identity runs the full checks and never leaves a bare u
     expect(res.status).toBe(401);
   });
 
-  test('authenticateIfPresent refuses a suspended session', async () => {
+  test('authenticateIfPresent refuses suspended sessions and non-access tokens', async () => {
     mockQuery.mockResolvedValue({ rows: [activeUserRow({ role: 'customer', is_suspended: true })] });
     const res = await request(app(authenticateIfPresent)).post('/spend').set('Authorization', `Bearer ${token()}`);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('session_invalid');
+    const passkey = await issuePasskeyOptionsToken();
+    const res2 = await request(app(authenticateIfPresent)).post('/spend').set('Authorization', `Bearer ${passkey}`);
+    expect(res2.status).toBe(401);
+  });
+
+  test('authenticateIfPresent keeps a live session (and its impersonation flag)', async () => {
+    mockQuery.mockResolvedValue({ rows: [activeUserRow({ role: 'customer', didit_status: 'pending' })] });
+    const res = await request(app(authenticateIfPresent)).post('/spend').set('Authorization', `Bearer ${token()}`);
+    expect(res.status).toBe(200);
+    expect(res.body.userId).toBe(VICTIM);
   });
 
   test('authenticateIfPresent lets a real guest (no token, or an expired cookie) through', async () => {

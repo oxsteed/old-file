@@ -3286,12 +3286,15 @@ exports.createOrder = async (req, res, next) => {
     if(req.restaurantDevice&&req.screenLocationId===undefined)req.screenLocationId=req.restaurantDevice.location_id||null;
     const requestedOrderLocationId = storeMenu.pinnedLocation(req.body.locationId ?? req.body.location_id, req.screenLocationId);
     const isGuest = !sessionCustomerId;
-    // Locked decision #1: guest Credit allowed with risk limits (enforced in
-    // the spend adapter). Guests may also pay at the restaurant/counter, or
-    // use restaurant_credit on kiosk orders created as requires_payment for
-    // later POS QR redemption (no wallet is debited at order creation).
+    // Guests may pay at the restaurant/counter, or use restaurant_credit on
+    // kiosk orders created as requires_payment for later POS QR redemption
+    // (no wallet is debited at order creation). Security review F-01: guest
+    // OxSteed Credit (platform-funded, capped on a client-chosen session id)
+    // is retired; Credit is spent only by a signed-in customer or by the
+    // paired kiosk's card + PIN checkout, which debits the card owner.
     // All other payment modes still require sign-in.
-    const guestAllowedModes = ['oxsteed_credit', 'pay_at_restaurant', 'pay_at_counter', 'restaurant_credit'];
+    const guestAllowedModes = ['pay_at_restaurant', 'pay_at_counter', 'restaurant_credit'];
+    if (kioskCheckout) guestAllowedModes.push('oxsteed_credit');
     if (isGuest && !guestAllowedModes.includes(paymentContract.canonical)) {
       throw new AppError('Sign in to complete your order', 401, 'authentication_required');
     }
@@ -4311,10 +4314,9 @@ exports.createOrder = async (req, res, next) => {
           if (card) await creditCards.verifyCardPin(client, card, kioskCheckout.pin);
           const creditResult = await spendWithCreditInTransaction(client, {
             participantRef: { type: 'restaurant', subjectId: restaurantId },
-            customerId: card?.customer_id || req.user?.id || null,
-            guestSessionId: !card && !req.user?.id
-              ? (req.body.guestSessionId || req.body.guest_session_id || req.get('X-Guest-Session') || `food-guest:${created.id}`)
-              : null,
+            // F-01: always a real customer (the session user or the
+            // verified card's owner); the adapter refuses anything else.
+            customerId: card?.customer_id || orderCustomerId || null,
             amountCents: total,
             currency: normalizeCurrency(restaurant.currency_code),
             surface: card ? 'card_kiosk_order' : 'food_online',
