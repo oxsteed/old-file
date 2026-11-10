@@ -108,7 +108,58 @@ function announceUpdate(worker) {
   if (waitingWorker === worker) return;
   if (trySilentUpdate(worker)) return;
   waitingWorker = worker;
+  watchQuietMoments();
   updateListeners.forEach(listener => listener(worker));
+}
+
+// True when any visible field holds text the user typed and has not saved.
+export function hasUnsavedInput(root = typeof document === 'undefined' ? null : document) {
+  if (!root?.querySelectorAll) return false;
+  return Array.from(root.querySelectorAll('input, textarea, select')).some((el) => {
+    if (el.disabled || el.readOnly) return false;
+    const type = (el.type || '').toLowerCase();
+    if (['hidden', 'submit', 'button', 'reset', 'image', 'file', 'password', 'search'].includes(type)) return false;
+    if (type === 'checkbox' || type === 'radio') return el.checked !== el.defaultChecked;
+    if (el.tagName === 'SELECT') return Array.from(el.options || []).some(o => o.selected !== o.defaultSelected);
+    return (el.value || '') !== (el.defaultValue || '');
+  });
+}
+
+function canApplyQuietly(pathname) {
+  return Boolean(waitingWorker)
+    && !appUpdatesDeferred()
+    && !isUpdateSensitivePath(pathname)
+    && !isSilentUpdateSensitivePath(pathname)
+    && !hasUnsavedInput();
+}
+
+/**
+ * Apply a waiting update without asking, at moments the reload is invisible:
+ * the next in-app navigation (the new page loads fresh instead of rendering
+ * in place) or when the tab is hidden. Guarded workflows, sensitive paths and
+ * pages with unsaved input keep the visible notice instead.
+ */
+let quietWatchInstalled = false;
+function watchQuietMoments() {
+  if (quietWatchInstalled || typeof window === 'undefined' || typeof document === 'undefined') return;
+  quietWatchInstalled = true;
+  try { installQuietWatch(); } catch { /* The visible notice still works. */ }
+}
+
+function installQuietWatch() {
+  const history = window.history;
+  if (history && typeof history.pushState === 'function') {
+    const originalPush = history.pushState.bind(history);
+    history.pushState = function pushStateWithUpdate(...args) {
+      const result = originalPush(...args);
+      if (canApplyQuietly(window.location.pathname)) applyWorkerUpdate();
+      return result;
+    };
+  }
+  if (typeof document.addEventListener !== 'function') return;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && canApplyQuietly(window.location.pathname)) applyWorkerUpdate();
+  });
 }
 
 export function applyWorkerUpdate() {
