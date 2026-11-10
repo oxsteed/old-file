@@ -199,7 +199,9 @@ exports.getApplication = handle(async (req, res) => {
     pool.query('SELECT * FROM career_offers WHERE application_id = $1 ORDER BY id DESC', [app.id]),
   ]);
   const opening = (await pool.query('SELECT * FROM career_openings WHERE id = $1', [app.opening_id])).rows[0];
-  const card = applications.presentForEmployer(app, { checklist: checklistFor(opening, app), interviews, offers: offerRows, events });
+  // The room key is a capability secret; the team only needs to know a room exists.
+  const safeInterviews = interviews.map(({ video_room_key: roomKey, ...i }) => ({ ...i, has_video_room: Boolean(roomKey) }));
+  const card = applications.presentForEmployer(app, { checklist: checklistFor(opening, app), interviews: safeInterviews, offers: offerRows, events });
   // Employer-only facts (rehire eligibility from this business's records,
   // and the status of a check this business ordered), §9.1.
   if (app.user_id && access.kind === 'business') {

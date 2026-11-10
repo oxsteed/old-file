@@ -56,7 +56,7 @@ function redirectUri(provider) {
 
 function safeReturnTo(value) {
   const s = String(value || '');
-  return /^\/(?!\/)[A-Za-z0-9/_\-?=&.%]*$/.test(s) && s.length <= 300 ? s : '/careers/employer';
+  return /^\/(?!\/)[A-Za-z0-9/_\-?=&.%]*$/.test(s) && s.length <= 300 ? s : '/dashboard';
 }
 
 const sha = (v) => crypto.createHash('sha256').update(String(v)).digest('hex');
@@ -130,12 +130,12 @@ async function postForm(url, form) {
 
 /** OAuth redirect target. Returns the in-app path to send the browser to. */
 async function finishConnect(db, { provider, state, code, error }) {
-  if (!PROVIDERS.includes(provider)) return '/careers/employer?calendar=error';
+  if (!PROVIDERS.includes(provider)) return '/dashboard?calendar=error';
   const { rows: [grant] } = await db.query(
     `DELETE FROM career_calendar_oauth_states WHERE state_hash = $1 AND provider = $2 RETURNING *`,
     [sha(state || ''), provider]
   );
-  if (!grant) return '/careers/employer?calendar=error';
+  if (!grant) return '/dashboard?calendar=error';
   const back = (result) => `${grant.return_to}${grant.return_to.includes('?') ? '&' : '?'}calendar=${result}`;
   if (error || !code || new Date(grant.expires_at) < new Date()) return back('cancelled');
   const cfg = calendarConfig(provider);

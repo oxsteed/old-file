@@ -109,8 +109,8 @@ async function startCheckout(db, { access, actor, plan, referralCode = null, str
       metadata: { careers_kind: 'plan', business_id: String(access.businessId), plan },
     },
     metadata: { careers_kind: 'plan', business_id: String(access.businessId), plan },
-    success_url: appUrl(`/business/${access.businessId}/careers?tab=plan&checkout=success`),
-    cancel_url: appUrl(`/business/${access.businessId}/careers?tab=plan&checkout=cancelled`),
+    success_url: appUrl(`/business/${access.businessId}/workspace/hiring?hire_tab=plan&checkout=success`),
+    cancel_url: appUrl(`/business/${access.businessId}/workspace/hiring?hire_tab=plan&checkout=cancelled`),
   }, { idempotencyKey: `careers-plan-${access.businessId}-${plan}-${Math.floor(Date.now() / 600000)}` });
   await db.query(
     `INSERT INTO career_employer_subscriptions (business_id, plan, status, checkout_session_id, created_by)
@@ -131,7 +131,7 @@ async function portal(db, { access, stripe = null }) {
   const client = stripe || stripeClient();
   const session = await client.billingPortal.sessions.create({
     customer: sub.stripe_customer_id,
-    return_url: appUrl(`/business/${access.businessId}/careers?tab=plan`),
+    return_url: appUrl(`/business/${access.businessId}/workspace/hiring?hire_tab=plan`),
   });
   return { portal_url: session.url };
 }

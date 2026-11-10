@@ -9,17 +9,29 @@ import TalentPanel from './employer/TalentPanel';
 import SettingsPanel from './employer/SettingsPanel';
 import PaidPanel from './employer/PaidPanel';
 import ReportsPanel from './employer/ReportsPanel';
+import TeamInboxPanel from './marketplace/TeamInboxPanel';
+import SchedulingPanel from './marketplace/SchedulingPanel';
+import AnalyticsPanel from './marketplace/AnalyticsPanel';
+import SourcingPanel from './marketplace/SourcingPanel';
+import CompanyPagePanel from './marketplace/CompanyPagePanel';
+import PlanPanel from './marketplace/PlanPanel';
+import AgencyPanel from './marketplace/AgencyPanel';
 import '../../styles/CareerSystem.css';
 
 /**
  * Employer hiring workspace. employerType="business" (Business Hub) or
  * "platform" (OxSteed HR in admin; same endpoints with employer=platform).
  */
+const HIRE_TABS = ['openings', 'pipeline', 'inbox', 'scheduling', 'analytics', 'talent', 'sourcing', 'company', 'paid', 'plan', 'agencies', 'reports', 'settings'];
+
 export default function HiringPipelineBoard({ employerType = 'business', businessId = null }) {
   const { t, i18n } = useTranslation();
   const ctx = useMemo(() => ({ employerType, businessId }), [employerType, businessId]);
   const platform = employerType === 'platform';
-  const [tab, setTab] = useState('openings');
+  const [tab, setTab] = useState(() => {
+    const wanted = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('hire_tab') : null;
+    return HIRE_TABS.includes(wanted) ? wanted : 'openings';
+  });
   const [editing, setEditing] = useState(null); // null | 'new' | id
   const [pipelineFor, setPipelineFor] = useState(null);
   const list = useLoad(() => listEmployerOpenings(ctx), [employerType, businessId]);
@@ -33,9 +45,16 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
   const tabs = [
     { id: 'openings', label: t('careers.employer.tabs.openings') },
     { id: 'pipeline', label: t('careers.employer.tabs.pipeline'), badge: attention || null },
+    { id: 'inbox', label: t('careers.mk.employerTabs.inbox') },
+    { id: 'scheduling', label: t('careers.mk.employerTabs.scheduling') },
+    { id: 'analytics', label: t('careers.mk.employerTabs.analytics') },
     ...(platform ? [] : [
       { id: 'talent', label: t('careers.employer.tabs.talent') },
+      { id: 'sourcing', label: t('careers.mk.employerTabs.sourcing') },
+      { id: 'company', label: t('careers.mk.employerTabs.company') },
       { id: 'paid', label: t('careers.employer.tabs.paid') },
+      { id: 'plan', label: t('careers.mk.employerTabs.plan') },
+      { id: 'agencies', label: t('careers.mk.employerTabs.agencies') },
       { id: 'reports', label: t('careers.employer.tabs.reports') },
       { id: 'settings', label: t('careers.employer.tabs.settings') },
     ]),
@@ -103,6 +122,13 @@ export default function HiringPipelineBoard({ employerType = 'business', busines
       ) : null}
       {tab === 'talent' ? <TalentPanel ctx={ctx} openings={openings} locations={locations} /> : null}
       {tab === 'paid' ? <PaidPanel ctx={ctx} openings={openings} locations={locations} billing={settings.data?.providers?.billing} /> : null}
+      {tab === 'inbox' ? <TeamInboxPanel ctx={ctx} /> : null}
+      {tab === 'scheduling' ? <SchedulingPanel ctx={ctx} /> : null}
+      {tab === 'analytics' ? <AnalyticsPanel ctx={ctx} /> : null}
+      {tab === 'sourcing' ? <SourcingPanel ctx={ctx} openings={openings} locations={locations} /> : null}
+      {tab === 'company' ? <CompanyPagePanel ctx={ctx} /> : null}
+      {tab === 'plan' ? <PlanPanel ctx={ctx} /> : null}
+      {tab === 'agencies' ? <AgencyPanel ctx={ctx} /> : null}
       {tab === 'reports' ? <ReportsPanel ctx={ctx} /> : null}
       {tab === 'settings' ? <SettingsPanel ctx={ctx} /> : null}
     </div>

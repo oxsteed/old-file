@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { listTalentYouKnow, searchTalent, sendCareerInvitation } from '../../../api/careers';
+import { ShortlistAdd } from '../marketplace/SourcingPanel';
 import { INVITATION_REASONS, factValueText, formatDate } from '../../../features/careers/careersModel';
 import { Check, Empty, ErrorNotice, Field, Loading, LoadError, Notice, useLoad } from '../ui';
 
@@ -63,6 +64,7 @@ function PersonCard({ ctx, person, source, openings, onUsage }) {
       <div className="ox-careers-row">
         <strong>{person.display_name || t('careers.talent.member')}</strong>
         {person.distance_km != null ? <span className="ox-careers-chip">{t('careers.talent.distance', { km: person.distance_km })}</span> : null}
+        {person.available_now ? <span className="ox-careers-chip ok">{t('careers.mk.badges.availableNow')}</span> : null}
       </div>
       {person.headline ? <p>{person.headline}</p> : null}
       {person.history ? (
@@ -76,6 +78,7 @@ function PersonCard({ ctx, person, source, openings, onUsage }) {
         {(person.facts || []).map((f, i) => <span key={`${f.fact_type}-${i}`} className="ox-careers-chip">{t(`careers.facts.${f.fact_type}`)} {factValueText(f, i18n.language)}</span>)}
         {(person.skill_codes || []).slice(0, 6).map((s) => <span key={s} className="ox-careers-chip">{s}</span>)}
       </div>
+      {ctx.businessId ? <ShortlistAdd businessId={ctx.businessId} userId={person.user_id} /> : null}
       {inviting ? (
         <InviteForm ctx={ctx} person={person} source={source} openings={openings} onDone={(usage) => { setInviting(false); if (usage) onUsage(usage); }} />
       ) : (
@@ -90,7 +93,7 @@ export default function TalentPanel({ ctx, openings, locations }) {
   const open = openings.filter((o) => o.status === 'open');
   const known = useLoad(() => listTalentYouKnow(ctx.businessId), [ctx.businessId]);
   const [usage, setUsage] = useState(null);
-  const [q, setQ] = useState({ near_location: locations[0]?.id || '', radius_km: 25, skill: '' });
+  const [q, setQ] = useState({ near_location: locations[0]?.id || 'business', radius_km: 25, skill: '', available_now: false });
   const [search, setSearch] = useState({ data: null, error: null, loading: false, page: 0 });
   const u = usage || search.data?.usage || known.data?.usage;
 
@@ -124,15 +127,16 @@ export default function TalentPanel({ ctx, openings, locations }) {
         <p className="ox-careers-subtle">{t('careers.talent.searchIntro')}</p>
         <form className="ox-careers-filters" onSubmit={(e) => { e.preventDefault(); runSearch(0); }} data-track="ui.62ffc06a2d.4">
           <select aria-label={t('careers.talent.nearStore')} value={q.near_location} onChange={(e) => setQ({ ...q, near_location: e.target.value })}>
+            <option value="business">{t('careers.mk.sourcing.businessLocation')}</option>
             {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
           <select aria-label={t('careers.filters.radius')} value={q.radius_km} onChange={(e) => setQ({ ...q, radius_km: Number(e.target.value) })}>
             {[5, 10, 25, 50].map((r) => <option key={r} value={r}>{t('careers.filters.withinKm', { km: r })}</option>)}
           </select>
           <input aria-label={t('careers.talent.skill')} placeholder={t('careers.talent.skill')} value={q.skill} onChange={(e) => setQ({ ...q, skill: e.target.value })} />
+          <label className="ox-careers-check"><input type="checkbox" checked={q.available_now} onChange={(e) => setQ({ ...q, available_now: e.target.checked })} /><span>{t('careers.mk.sourcing.onlyAvailable')}</span></label>
           <button type="submit" className="ox-careers-btn primary" disabled={!q.near_location || search.loading} data-track="ui.62ffc06a2d.5">{t('careers.filters.search')}</button>
         </form>
-        {!locations.length ? <p className="ox-careers-subtle">{t('careers.employer.noStores')}</p> : null}
         <ErrorNotice error={search.error} />
         {search.loading ? <Loading /> : null}
         {search.data && !search.data.results?.length ? <Empty>{t('careers.talent.noResults')}</Empty> : null}

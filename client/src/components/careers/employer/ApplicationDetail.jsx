@@ -11,6 +11,7 @@ import {
 } from '../../../features/careers/careersModel';
 import { ActionButton, Check, ErrorNotice, Field, Loading, LoadError, Notice, StageChip, useLoad } from '../ui';
 import EmployerOnboarding from './EmployerOnboarding';
+import EmployerApplicationExtras from '../marketplace/EmployerApplicationExtras';
 
 function RejectForm({ app, onDone }) {
   const { t } = useTranslation();
@@ -281,6 +282,8 @@ export default function ApplicationDetail({ applicationId, opening, locations = 
           ))}
         </div>
       ) : null}
+
+      <EmployerApplicationExtras app={app} opening={opening} timezone={tz} onChanged={() => { reload(); onChanged?.(); }} />
 
       {(app.offers || []).length ? (
         <div className="ox-careers-section">
