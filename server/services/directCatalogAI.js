@@ -1,11 +1,11 @@
 'use strict';
-const { guardedFetch } = require('./openRouterSpendGuard');
+const localAi = require('./localAiChat');
 
 const { LOCALES, ICONS, LIFECYCLE_STATUSES } = require('./directCatalogService');
 
 const ALLOWED_ENTITIES = ['category', 'service', 'tool'];
 const MAX_PROMPT_LENGTH = 4000;
-const PROVIDER_TIMEOUT_MS = Number.parseInt(process.env.DIRECT_CATALOG_AI_TIMEOUT_MS || '15000', 10);
+const PROVIDER_TIMEOUT_MS = Number.parseInt(process.env.DIRECT_CATALOG_AI_TIMEOUT_MS || '60000', 10);
 
 function parseJson(raw) {
   const text = String(raw || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
@@ -19,23 +19,21 @@ function validateDraft(value) {
   return { entity: draft.entity, fields: draft.fields, summary: String(draft.summary || '').slice(0, 500) };
 }
 
-async function callProvider(baseUrl, apiKey, model, messages) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
-  try {
-    const response = await guardedFetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages, temperature: 0.1, max_tokens: 1800, response_format: { type: 'json_object' } }),
-      signal: controller.signal,
-    });
-    const body = await response.text();
-    if (!response.ok) throw Object.assign(new Error(`AI provider returned HTTP ${response.status}`), { statusCode: response.status >= 500 ? 502 : 400 });
-    const parsed = JSON.parse(body);
-    return parseJson(parsed?.choices?.[0]?.message?.content);
-  } finally {
-    clearTimeout(timeout);
+// Security review 2026-11-10 F-04: drafts are generated on the self-hosted
+// Ollama server only.
+async function callProvider(messages) {
+  const result = await localAi.fetchLocalAiChat(messages, {
+    model: String(process.env.DIRECT_CATALOG_OLLAMA_MODEL || '').trim() || undefined,
+    temperature: 0.1,
+    maxTokens: 1800,
+    format: 'json',
+    timeoutMs: PROVIDER_TIMEOUT_MS,
+  });
+  if (!result.ok) {
+    const status = /^HTTP 4\d\d/.test(result.error || '') ? 400 : 502;
+    throw Object.assign(new Error(`AI provider failed: ${result.error}`), { statusCode: status });
   }
+  return parseJson(result.reply);
 }
 
 async function createDraft(prompt) {
@@ -55,16 +53,20 @@ async function createDraft(prompt) {
     'Return {"entity":"service|category|tool","summary":"...","fields":{...}}.',
   ].join('\n');
   const messages = [{ role: 'system', content: system }, { role: 'user', content: cleanPrompt }];
-  const attempts = [];
-  if (process.env.OPENROUTER_API_KEY) attempts.push(() => callProvider(process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1', process.env.OPENROUTER_API_KEY, process.env.OPENROUTER_TRANSLATION_MODEL || 'openai/gpt-4o-mini', messages));
-  if (process.env.OPENAI_API_KEY) attempts.push(() => callProvider(process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1', process.env.OPENAI_API_KEY, process.env.OPENAI_TRANSLATION_MODEL || 'gpt-4o-mini', messages));
-  if (!attempts.length) throw Object.assign(new Error('Direct catalog AI is not configured. Use manual entry or configure an AI provider key on the server.'), { statusCode: 503 });
-
-  let lastError;
-  for (const attempt of attempts) {
-    try { return validateDraft(await attempt()); } catch (error) { lastError = error; }
+  if (!localAi.isLocalAiConfigured()) {
+    throw Object.assign(new Error('Direct catalog AI is not configured. Use manual entry or configure the self-hosted AI server (OLLAMA_URL).'), { statusCode: 503 });
   }
-  throw Object.assign(new Error(lastError?.message || 'AI draft failed validation'), { statusCode: 502 });
+  let draft;
+  try {
+    draft = await callProvider(messages);
+  } catch (error) {
+    throw Object.assign(new Error(error?.message || 'AI draft failed'), { statusCode: error?.statusCode || 502 });
+  }
+  try {
+    return validateDraft(draft);
+  } catch (error) {
+    throw Object.assign(new Error(error?.message || 'AI draft failed validation'), { statusCode: 502 });
+  }
 }
 
 module.exports = { createDraft, MAX_PROMPT_LENGTH };

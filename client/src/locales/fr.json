@@ -2122,12 +2122,12 @@
         }
       },
       "ai": {
-        "name": "IA (Meta, OpenRouter, Ollama)",
-        "description": "Chat d'assistance et IA en arrière-plan avec chaîne de secours : Meta d'abord pour le trafic connecté, puis l'offre gratuite d'OpenRouter, puis Ollama en local.",
-        "customerSafeSummary": "Quand tous les fournisseurs d'IA sont en panne, le chat affiche un message de service indisponible et propose une assistance humaine. Le trafic anonyme ne dépense jamais de jetons payants.",
-        "retryNote": "La chaîne de secours est Meta d'abord pour le trafic connecté, puis OpenRouter gratuit, puis Ollama en local. Le trafic anonyme ne dépense jamais de jetons Meta.",
-        "budgetNote": "L'offre contributeur de Meta a des limites plus basses ; l'offre gratuite d'OpenRouter et Ollama en local ne coûtent rien. Aucun budget par requête n'est appliqué dans le code.",
-        "rotationProcedure": "Faites pivoter META_AI_API_KEY dans la console Meta et OPENROUTER_API_KEY dans OpenRouter ; mettez à jour les secrets Coolify ; vérifiez le chat d'assistance.",
+        "name": "IA (Ollama auto-hébergé)",
+        "description": "Le chat d'assistance, le tri, les brouillons et la traduction s'exécutent sur le serveur Ollama auto-hébergé d'OxSteed. Aucun fournisseur d'IA externe n'est utilisé.",
+        "customerSafeSummary": "Quand le serveur d'IA est indisponible, le chat affiche un message de service indisponible et propose une assistance humaine.",
+        "retryNote": "Un seul fournisseur : le serveur Ollama auto-hébergé. Les appels en échec sont relancés, puis la fonction bascule vers l'assistance humaine ou la saisie manuelle.",
+        "budgetNote": "Auto-hébergé : aucun coût par jeton. La capacité dépend du matériel du serveur Ollama.",
+        "rotationProcedure": "Aucune clé d'API à renouveler. Gardez OLLAMA_URL sur un hôte interne autorisé et changez le modèle avec OLLAMA_MODEL ; vérifiez ensuite le chat d'assistance.",
         "capabilities": {
           "support_chat": {
             "label": "Chat d'assistance",

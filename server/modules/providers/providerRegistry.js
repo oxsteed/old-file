@@ -1,7 +1,6 @@
 const logger = require('../../utils/logger');
 const libreTranslateProvider = require('./libreTranslateProvider');
-const openRouterProvider = require('./openRouterProvider');
-const openAIProvider = require('./openAIProvider');
+const ollamaProvider = require('./ollamaProvider');
 
 /**
  * Provider registry with explicit fallback chain.
@@ -10,11 +9,13 @@ const openAIProvider = require('./openAIProvider');
  *   1. Caller can pass `providerId` explicitly (used by tests and admin retries).
  *   2. TRANSLATION_PRIMARY_PROVIDER env var picks the head of the chain.
  *   3. TRANSLATION_PROVIDER (legacy) is honored as a single-provider override.
- *   4. Default chain is: openrouter -> openai -> libretranslate.
+ *   4. Default chain is: ollama -> libretranslate.
+ *
+ * Security review 2026-11-10 F-04: both providers are self-hosted. The
+ * OpenRouter and OpenAI adapters were removed, so no message text reaches an
+ * external AI service; legacy env values naming them are ignored.
  *
  * Any provider that isn't configured (env var missing) is silently skipped.
- * This means a deploy that only has OPENROUTER_API_KEY runs OpenRouter-only,
- * and a deploy with no AI keys but a LibreTranslate URL still works.
  *
  * Fallback behavior — `translateWithFallback(input)` walks the chain in order.
  * It only falls back on errors that have a `code` in the FALLBACK_TRIGGERS set
@@ -24,12 +25,11 @@ const openAIProvider = require('./openAIProvider');
  */
 
 const ALL_PROVIDERS = {
-  openrouter: openRouterProvider,
-  openai: openAIProvider,
+  ollama: ollamaProvider,
   libretranslate: libreTranslateProvider,
 };
 
-const DEFAULT_CHAIN = ['openrouter', 'openai', 'libretranslate'];
+const DEFAULT_CHAIN = ['ollama', 'libretranslate'];
 
 const FALLBACK_TRIGGERS = new Set([
   'PROVIDER_NOT_CONFIGURED',

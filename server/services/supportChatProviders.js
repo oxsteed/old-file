@@ -2,10 +2,11 @@
 
 /**
  * Provider configuration for the AI chat paths in chatController
- * (support chat, profile chat, financial advisor). The chain is
- * OpenRouter -> Ollama; Meta and OpenAI are not used (see 73b35845).
+ * (support chat, profile chat, financial advisor). Security review
+ * 2026-11-10 F-04: the only provider is the self-hosted Ollama server
+ * (services/localAiChat.js); no conversation leaves OxSteed infrastructure.
  * featureCapabilities uses the same rules so the `aiSupport` capability is
- * on exactly when at least one provider in that chain can answer.
+ * on exactly when Ollama is configured.
  */
 
 // Ollama hosts the server may call. Anything else is ignored to prevent SSRF
@@ -45,19 +46,15 @@ function resolveOllamaUrl(raw, log = null) {
   }
 }
 
-function isOpenRouterConfigured(env = process.env) {
-  return typeof env.OPENROUTER_API_KEY === 'string' && env.OPENROUTER_API_KEY.trim().length > 0;
-}
-
-/** True when at least one provider the chat chain actually calls is usable. */
+/** True when the self-hosted model server the chat paths call is usable. */
 function isSupportChatProviderConfigured(env = process.env) {
-  return isOpenRouterConfigured(env) || Boolean(resolveOllamaUrl(env.OLLAMA_URL));
+  return Boolean(resolveOllamaUrl(env.OLLAMA_URL));
 }
 
 // ── Per-locale quality settings for the AI support chat (item 7) ─────────
 
 const SUPPORT_CHAT_LOCALES = Object.freeze(['en', 'es', 'fr', 'ht', 'ar']);
-const DEFAULT_SUPPORT_CHAT_MODEL = 'openrouter/free';
+const DEFAULT_SUPPORT_CHAT_MODEL = 'qwen2.5:3b';
 // Spanish/French/Haitian Creole/Arabic replies need more tokens than English
 // for the same content (longer words, non-Latin script), so they get more
 // headroom instead of being cut off mid-step.
@@ -71,22 +68,21 @@ function supportLocale(language) {
 }
 
 /**
- * OpenRouter model for a support-chat locale. OPENROUTER_CHAT_MODEL_<LOCALE>
- * (e.g. OPENROUTER_CHAT_MODEL_HT) wins, then OPENROUTER_CHAT_MODEL, then
- * OPENROUTER_SUPPORT_MODEL, then the free router. Read per call so an ops
- * change needs no code change.
+ * Ollama model for a support-chat locale. OLLAMA_MODEL_<LOCALE> (e.g.
+ * OLLAMA_MODEL_HT) wins, then OLLAMA_MODEL, then the default. Read per call
+ * so an ops change needs no code change.
  */
 function supportChatModelForLocale(language, env = process.env) {
   const loc = supportLocale(language);
-  const perLocale = env[`OPENROUTER_CHAT_MODEL_${loc.toUpperCase()}`];
-  const pick = [perLocale, env.OPENROUTER_CHAT_MODEL, env.OPENROUTER_SUPPORT_MODEL]
+  const perLocale = env[`OLLAMA_MODEL_${loc.toUpperCase()}`];
+  const pick = [perLocale, env.OLLAMA_MODEL]
     .find((v) => typeof v === 'string' && v.trim());
   return pick ? pick.trim() : DEFAULT_SUPPORT_CHAT_MODEL;
 }
 
-/** max_tokens for a support-chat locale (OPENROUTER_CHAT_MAX_TOKENS base). */
+/** Token budget for a support-chat locale (SUPPORT_CHAT_MAX_TOKENS base). */
 function supportChatMaxTokens(language, env = process.env) {
-  const raw = Number(env.OPENROUTER_CHAT_MAX_TOKENS);
+  const raw = Number(env.SUPPORT_CHAT_MAX_TOKENS);
   const base = Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_SUPPORT_MAX_TOKENS;
   const scaled = Math.round(base * (LOCALE_TOKEN_FACTOR[supportLocale(language)] || 1));
   return Math.min(MAX_MAX_TOKENS, Math.max(MIN_MAX_TOKENS, scaled));
@@ -99,6 +95,5 @@ module.exports = {
   supportChatMaxTokens,
   OLLAMA_ALLOWED_HOSTS,
   resolveOllamaUrl,
-  isOpenRouterConfigured,
   isSupportChatProviderConfigured,
 };

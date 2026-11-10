@@ -22,8 +22,8 @@ function getPublicCapabilities() {
     backgroundChecks: capability(
       present('CHECKR_API_KEY') && present('CHECKR_WEBHOOK_SECRET')
     ),
-    // The AI support chat calls OpenRouter -> Ollama only (Meta and OpenAI
-    // were removed), so it is available exactly when one of those can answer.
+    // The AI support chat calls the self-hosted Ollama server only (security
+    // review F-04), so it is available exactly when Ollama is configured.
     // An OLLAMA_URL the chat would reject (non-allowlisted host) does not count.
     aiSupport: capability(isSupportChatProviderConfigured()),
     geocoding: capability(present('GOOGLE_MAPS_API_KEY')),

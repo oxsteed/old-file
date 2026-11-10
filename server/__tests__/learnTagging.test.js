@@ -16,15 +16,15 @@ const realFetch = global.fetch;
 
 beforeEach(() => {
   resetMocks();
-  delete process.env.OPENROUTER_API_KEY;
-  delete process.env.OPENROUTER_MODEL;
+  delete process.env.OLLAMA_URL;
+  delete process.env.LEARN_TAGGING_OLLAMA_MODEL;
   global.fetch = jest.fn();
 });
 
 afterEach(() => {
   global.fetch = realFetch;
-  delete process.env.OPENROUTER_API_KEY;
-  delete process.env.OPENROUTER_MODEL;
+  delete process.env.OLLAMA_URL;
+  delete process.env.LEARN_TAGGING_OLLAMA_MODEL;
 });
 
 const aiPayload = {
@@ -37,7 +37,7 @@ const okFetch = (payload) =>
   global.fetch.mockResolvedValue({
     ok: true,
     status: 200,
-    json: async () => ({ choices: [{ message: { content: JSON.stringify(payload) } }] }),
+    json: async () => ({ message: { content: JSON.stringify(payload) } }),
   });
 
 /** Route DB queries by SQL text for the happy-path test. */
@@ -67,7 +67,7 @@ describe('tagGuideWithAI', () => {
   });
 
   test('skips when the guide does not exist', async () => {
-    process.env.OPENROUTER_API_KEY = 'k';
+    process.env.OLLAMA_URL = 'http://localhost:11434';
     mockQuery.mockResolvedValueOnce({ rows: [] });
     const res = await tagGuideWithAI('nope');
     expect(res).toEqual({ skipped: 'guide-not-found' });
@@ -75,19 +75,19 @@ describe('tagGuideWithAI', () => {
   });
 
   test('handles malformed model JSON without throwing', async () => {
-    process.env.OPENROUTER_API_KEY = 'k';
+    process.env.OLLAMA_URL = 'http://localhost:11434';
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'g1', title: 'T', category: 'plumbing', intro: '' }] });
     global.fetch.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ choices: [{ message: { content: 'not json at all' } }] }),
+      json: async () => ({ message: { content: 'not json at all' } }),
     });
     const res = await tagGuideWithAI('g1');
     expect(res).toEqual({ skipped: 'bad-json' });
   });
 
   test('handles HTTP 429 as rate-limited', async () => {
-    process.env.OPENROUTER_API_KEY = 'k';
+    process.env.OLLAMA_URL = 'http://localhost:11434';
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'g1', title: 'T', category: 'plumbing', intro: '' }] });
     global.fetch.mockResolvedValue({ ok: false, status: 429, json: async () => ({}) });
     const res = await tagGuideWithAI('g1');
@@ -95,7 +95,7 @@ describe('tagGuideWithAI', () => {
   });
 
   test('handles request timeout without throwing', async () => {
-    process.env.OPENROUTER_API_KEY = 'k';
+    process.env.OLLAMA_URL = 'http://localhost:11434';
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'g1', title: 'T', category: 'plumbing', intro: '' }] });
     global.fetch.mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' }));
     const res = await tagGuideWithAI('g1');
@@ -103,7 +103,7 @@ describe('tagGuideWithAI', () => {
   });
 
   test('happy path writes tool, material, and service suggestions with matches', async () => {
-    process.env.OPENROUTER_API_KEY = 'k';
+    process.env.OLLAMA_URL = 'http://localhost:11434';
     okFetch(aiPayload);
     mockTaggingDb();
 
@@ -135,7 +135,7 @@ describe('tagGuideWithAI', () => {
   });
 
   test('dedupe: ON CONFLICT DO NOTHING means re-tags create nothing new', async () => {
-    process.env.OPENROUTER_API_KEY = 'k';
+    process.env.OLLAMA_URL = 'http://localhost:11434';
     okFetch({ tools: [{ name: 'Wrench' }], materials: [], service: null });
     mockQuery.mockImplementation(async (text) => {
       if (text.includes('FROM learn_guides')) {
@@ -151,7 +151,7 @@ describe('tagGuideWithAI', () => {
   });
 
   test('never leaks the API key in logs or errors', async () => {
-    process.env.OPENROUTER_API_KEY = 'sk-or-v1-super-secret';
+    process.env.OLLAMA_URL = 'http://localhost:11434';
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'g1', title: 'T', category: 'plumbing', intro: '' }] });
     global.fetch.mockRejectedValue(new Error('boom'));
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});

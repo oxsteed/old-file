@@ -252,13 +252,12 @@ test("assistant sends only permitted aggregate counts and statuses to self-hoste
   // Policy: Customer 360 AI runs on self-hosted Ollama only. OpenRouter and
   // the Meta Model API must never be called from this path.
   const ai = require("../services/customer360Ai");
-  const openRouter = require("../services/openRouterChat");
-  const metaProvider = require("../services/metaChatProvider");
   const generate = jest
     .spyOn(ai, "generate")
     .mockResolvedValue({ output: { summary: "Review the source.", citations: ["jobs"] }, model: "m", digest: "d".repeat(64), promptHash: "h", promptVersion: "c360-ai-v1" });
-  const routerChat = jest.spyOn(openRouter, "fetchOpenRouterChat");
-  const metaChat = jest.spyOn(metaProvider, "fetchMetaChat");
+  // Security review F-04: no external AI client module exists any more; the
+  // only network path would be fetch, and the mocked generate() means none.
+  const networkCall = jest.spyOn(global, "fetch").mockRejectedValue(new Error("unexpected network call"));
   const snapshot = jest.spyOn(service, "workspace").mockResolvedValue({
     generatedAt: new Date().toISOString(),
     sections: {
@@ -296,8 +295,7 @@ test("assistant sends only permitted aggregate counts and statuses to self-hoste
     expect(payload).not.toMatch(
       /Sensitive person|private@example|balance_cents|9007199254740993/,
     );
-    expect(routerChat).not.toHaveBeenCalled();
-    expect(metaChat).not.toHaveBeenCalled();
+    expect(networkCall).not.toHaveBeenCalled();
     // Provider configuration must not leak to the client.
     const body = res.json.mock.calls[0][0];
     expect(body).toMatchObject({ mode: "next_step", requiresReview: true });
@@ -311,8 +309,7 @@ test("assistant sends only permitted aggregate counts and statuses to self-hoste
   } finally {
     snapshot.mockRestore();
     generate.mockRestore();
-    routerChat.mockRestore();
-    metaChat.mockRestore();
+    networkCall.mockRestore();
   }
 });
 

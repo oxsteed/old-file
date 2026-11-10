@@ -331,15 +331,22 @@ describe('Direct catalog', () => {
     ]);
   });
 
-  test('falls back to manual entry when no AI provider key is configured', async () => {
-    const openRouterKey = process.env.OPENROUTER_API_KEY;
-    const openAIKey = process.env.OPENAI_API_KEY;
-    delete process.env.OPENROUTER_API_KEY;
-    delete process.env.OPENAI_API_KEY;
-    await expect(createDraft('Add a service')).rejects.toMatchObject({ statusCode: 503 });
-    if (openRouterKey === undefined) delete process.env.OPENROUTER_API_KEY;
-    else process.env.OPENROUTER_API_KEY = openRouterKey;
-    if (openAIKey === undefined) delete process.env.OPENAI_API_KEY;
-    else process.env.OPENAI_API_KEY = openAIKey;
+  test('falls back to manual entry when the self-hosted AI server is not configured', async () => {
+    const ollamaUrl = process.env.OLLAMA_URL;
+    delete process.env.OLLAMA_URL;
+    // Security review F-04: an external key alone never enables AI drafts.
+    process.env.OPENROUTER_API_KEY = 'ignored';
+    process.env.OPENAI_API_KEY = 'ignored';
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    try {
+      await expect(createDraft('Add a service')).rejects.toMatchObject({ statusCode: 503 });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      delete process.env.OPENROUTER_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+      if (ollamaUrl === undefined) delete process.env.OLLAMA_URL;
+      else process.env.OLLAMA_URL = ollamaUrl;
+    }
   });
 });

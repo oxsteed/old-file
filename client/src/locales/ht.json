@@ -2122,12 +2122,12 @@
         }
       },
       "ai": {
-        "name": "IA (Meta, OpenRouter, Ollama)",
-        "description": "Chat sipò ak IA an aryè-plan sou yon chenn sekou: Meta an premye pou trafik konekte, apre nivo gratis OpenRouter, apre Ollama lokal.",
-        "customerSafeSummary": "Lè tout founisè IA yo pàn, chat la montre yon mesaj sèvis-pa-disponib epi li ofri sipò imen. Trafik anonim pa janm depanse jeton peye.",
-        "retryNote": "Chenn sekou a se Meta an premye pou trafik konekte, apre OpenRouter gratis, apre Ollama lokal. Trafik anonim pa janm depanse jeton Meta.",
-        "budgetNote": "Nivo kontribitè Meta a gen limit pi ba; nivo gratis OpenRouter ak Ollama lokal pa koute anyen. Kòd la pa aplike bidjè pa demann.",
-        "rotationProcedure": "Wote META_AI_API_KEY nan konsòl Meta ak OPENROUTER_API_KEY nan OpenRouter; mete ajou sekrè Coolify yo; verifye chat sipò a.",
+        "name": "IA (Ollama ki sou pwòp sèvè nou)",
+        "description": "Chat sipò, triyaj, bouyon ak tradiksyon mache sou sèvè Ollama OxSteed jere li menm. Nou pa sèvi ak okenn founisè IA deyò.",
+        "customerSafeSummary": "Lè sèvè IA a pa mache, chat la montre yon mesaj sèvis pa disponib epi li ofri sipò moun.",
+        "retryNote": "Yon sèl founisè: sèvè Ollama nou jere a. Apèl ki echwe yo reeseye, apre sa fonksyon an pase bay sipò moun oswa antre manyèl.",
+        "budgetNote": "Sou pwòp sèvè nou: pa gen frè pou chak token. Kapasite a depann de materyèl sèvè Ollama a.",
+        "rotationProcedure": "Pa gen kle API pou chanje. Kenbe OLLAMA_URL sou yon sèvè entèn ki otorize epi chanje modèl la ak OLLAMA_MODEL; apre sa verifye chat sipò a.",
         "capabilities": {
           "support_chat": {
             "label": "Chat sipò",

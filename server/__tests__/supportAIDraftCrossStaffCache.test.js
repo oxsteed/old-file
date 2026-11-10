@@ -44,12 +44,12 @@ function authUserRow(staffId) {
 
 beforeEach(() => {
   resetMocks();
-  process.env.OPENROUTER_API_KEY = 'synthetic-test-key';
+  process.env.OLLAMA_URL = 'http://localhost:11434';
   global.fetch = jest.fn();
 });
 
 afterEach(() => {
-  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.OLLAMA_URL;
   delete global.fetch;
 });
 

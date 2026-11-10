@@ -2122,12 +2122,12 @@
         }
       },
       "ai": {
-        "name": "IA (Meta, OpenRouter, Ollama)",
-        "description": "Chat de soporte e IA en segundo plano con cadena de respaldo: Meta primero para el tráfico autenticado, luego el nivel gratuito de OpenRouter y después Ollama local.",
-        "customerSafeSummary": "Cuando todos los proveedores de IA fallan, el chat muestra un mensaje de servicio no disponible y ofrece soporte humano. El tráfico anónimo nunca gasta tokens de pago.",
-        "retryNote": "La cadena de respaldo es Meta primero para el tráfico autenticado, luego OpenRouter gratuito y después Ollama local. El tráfico anónimo nunca gasta tokens de Meta.",
-        "budgetNote": "El nivel de contribuidor de Meta tiene límites más bajos; el nivel gratuito de OpenRouter y Ollama local no cuestan nada. El código no aplica presupuesto por solicitud.",
-        "rotationProcedure": "Rote META_AI_API_KEY en la consola de Meta y OPENROUTER_API_KEY en OpenRouter; actualice los secretos de Coolify; verifique el chat de soporte.",
+        "name": "IA (Ollama autoalojado)",
+        "description": "El chat de soporte, la clasificación, los borradores y la traducción se ejecutan en el servidor Ollama autoalojado de OxSteed. No se usa ningún proveedor de IA externo.",
+        "customerSafeSummary": "Cuando el servidor de IA no está disponible, el chat muestra un mensaje de servicio no disponible y ofrece soporte humano.",
+        "retryNote": "Un solo proveedor: el servidor Ollama autoalojado. Las llamadas fallidas se reintentan y luego la función pasa a soporte humano o entrada manual.",
+        "budgetNote": "Autoalojado: sin costo por token. La capacidad depende del hardware del servidor Ollama.",
+        "rotationProcedure": "No hay claves de API que rotar. Mantén OLLAMA_URL en un host interno permitido y cambia el modelo con OLLAMA_MODEL; luego verifica el chat de soporte.",
         "capabilities": {
           "support_chat": {
             "label": "Chat de soporte",

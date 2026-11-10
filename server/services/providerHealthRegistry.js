@@ -35,6 +35,7 @@ const net = require('net');
 const logger = require('../utils/logger');
 const { createTtlCache } = require('../utils/processState');
 const { createCircuitBreaker } = require('../utils/providerCircuitBreaker');
+const { resolveOllamaUrl } = require('./supportChatProviders');
 
 const PROBE_TIMEOUT_MS = 6000;
 const PROBE_CACHE_TTL_MS = 60_000;
@@ -180,53 +181,24 @@ async function probeMessaging() {
   return { status: worst, latencyMs: Date.now() - started, detail: parts.join('; ') };
 }
 
+// Security review 2026-11-10 F-04: the self-hosted Ollama server is the only
+// AI provider, so it is the only thing this probe checks.
 async function probeAi() {
   const started = Date.now();
-  const parts = [];
-
-  // Primary: Meta Model API — /v1/models is a cheap auth check, no tokens spent.
-  if (process.env.META_AI_API_KEY) {
-    const base = String(process.env.META_AI_BASE_URL || 'https://api.meta.ai/v1').replace(/\/$/, '');
-    try {
-      const res = await httpProbe(`${base}/models`, {
-        headers: { Authorization: `Bearer ${process.env.META_AI_API_KEY}` },
-      });
-      if (res.ok) {
-        parts.push(`meta: reachable (${res.latencyMs}ms)`);
-      } else {
-        parts.push(`meta: HTTP ${res.status}`);
-      }
-      return { status: res.ok ? 'ok' : 'degraded', latencyMs: Date.now() - started, detail: parts.join('; ') };
-    } catch (err) {
-      parts.push(`meta: unreachable (${err.message})`);
-    }
-  } else {
-    parts.push('meta: META_AI_API_KEY not set');
+  const base = resolveOllamaUrl(process.env.OLLAMA_URL);
+  if (!base) {
+    return { status: 'down', latencyMs: Date.now() - started, detail: 'ollama: OLLAMA_URL not set or not an allow-listed host' };
   }
-
-  // Fallbacks: OpenRouter (config-only), Ollama (local ping).
-  if (process.env.OPENROUTER_API_KEY) {
-    parts.push('openrouter: key configured (fallback chain intact)');
+  try {
+    const res = await httpProbe(`${new URL(base).origin}/api/tags`, { timeoutMs: 4000 });
+    return {
+      status: res.ok ? 'ok' : 'degraded',
+      latencyMs: Date.now() - started,
+      detail: res.ok ? `ollama: reachable (${res.latencyMs}ms)` : `ollama: HTTP ${res.status}`,
+    };
+  } catch (err) {
+    return { status: 'down', latencyMs: Date.now() - started, detail: `ollama: unreachable (${err.message})` };
   }
-  if (process.env.OLLAMA_URL) {
-    try {
-      const url = new URL(process.env.OLLAMA_URL);
-      const res = await httpProbe(`${url.origin}/api/tags`, { timeoutMs: 4000 });
-      parts.push(res.ok ? 'ollama: reachable' : `ollama: HTTP ${res.status}`);
-      if (res.ok) {
-        return { status: 'degraded', latencyMs: Date.now() - started, detail: `${parts.join('; ')} (primary down, local fallback up)` };
-      }
-    } catch (err) {
-      parts.push(`ollama: unreachable (${err.message})`);
-    }
-  }
-
-  const anyFallback = Boolean(process.env.OPENROUTER_API_KEY || process.env.OLLAMA_URL);
-  return {
-    status: anyFallback ? 'degraded' : 'down',
-    latencyMs: Date.now() - started,
-    detail: parts.join('; '),
-  };
 }
 
 async function probeScanning() {
@@ -400,11 +372,11 @@ const PROVIDERS = Object.freeze([
   }),
   Object.freeze({
     id: 'ai',
-    name: 'AI (Meta, OpenRouter, Ollama)',
+    name: 'AI (self-hosted Ollama)',
     category: 'ai',
     owner: 'AI platform on-call',
     alertChannel: 'incident email + Slack #ops-ai',
-    dependencies: ['META_AI_API_KEY', 'META_AI_MODEL', 'OPENROUTER_API_KEY', 'OLLAMA_URL'],
+    dependencies: ['OLLAMA_URL', 'OLLAMA_MODEL'],
     capabilities: Object.freeze([
       { id: 'support_chat', failureMode: 'degraded', labelKey: 'adminProviderHealth.providers.ai.capabilities.support_chat.label', customerSafeKey: 'adminProviderHealth.providers.ai.capabilities.support_chat.customerSafe' },
       { id: 'guide_help', failureMode: 'fail_open', labelKey: 'adminProviderHealth.providers.ai.capabilities.guide_help.label', customerSafeKey: 'adminProviderHealth.providers.ai.capabilities.guide_help.customerSafe' },

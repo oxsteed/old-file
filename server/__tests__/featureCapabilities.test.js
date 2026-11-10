@@ -3,7 +3,8 @@
 // Regression test: the Ask AI buttons on the Learn page dispatch an event that
 // only the AI support chat widget handles, and that widget is only mounted
 // when the `aiSupport` capability is available. The capability must reflect
-// exactly the providers the chat fallback chain calls (OpenRouter -> Ollama).
+// exactly the provider the chat calls: the self-hosted Ollama server only
+// (security review 2026-11-10 F-04).
 // AI support chat review bug #6: OPENAI_API_KEY or META_AI_API_KEY alone used
 // to turn the widget on even though every message then failed with a 502.
 
@@ -36,12 +37,6 @@ describe('aiSupport capability follows the chat provider chain', () => {
     expect(caps.aiSupport.status).toBe('unavailable');
   });
 
-  test('available with only OPENROUTER_API_KEY set', () => {
-    process.env.OPENROUTER_API_KEY = 'test-value';
-    const caps = getPublicCapabilities();
-    expect(caps.aiSupport.available).toBe(true);
-    expect(caps.aiSupport.status).toBe('available');
-  });
 
   test.each([
     ['http://localhost:11434'],
@@ -55,7 +50,8 @@ describe('aiSupport capability follows the chat provider chain', () => {
   test.each([
     ['OPENAI_API_KEY'],
     ['META_AI_API_KEY'],
-  ])('unavailable with only %s set (not in the chat chain)', (key) => {
+    ['OPENROUTER_API_KEY'],
+  ])('unavailable with only %s set (external AI is never used)', (key) => {
     process.env[key] = 'test-value';
     expect(getPublicCapabilities().aiSupport.available).toBe(false);
   });
@@ -78,7 +74,9 @@ describe('aiSupport capability follows the chat provider chain', () => {
 
 test('the chat controller and capability share one Ollama validator', () => {
   const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'controllers', 'chatController.js'), 'utf8');
-  expect(src).toMatch(/resolveOllamaUrl\(process\.env\.OLLAMA_URL, logger\)/);
+  const client = require('fs').readFileSync(require('path').join(__dirname, '..', 'services', 'localAiChat.js'), 'utf8');
+  expect(src).toMatch(/require\('\.\.\/services\/localAiChat'\)/);
+  expect(client).toMatch(/resolveOllamaUrl\(env\.OLLAMA_URL\)/);
   expect(src).not.toMatch(/allowMeta/);
   expect(resolveOllamaUrl('http://127.0.0.1:11434')).toBe('http://127.0.0.1:11434');
 });

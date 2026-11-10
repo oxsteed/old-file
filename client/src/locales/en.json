@@ -2122,12 +2122,12 @@
         }
       },
       "ai": {
-        "name": "AI (Meta, OpenRouter, Ollama)",
-        "description": "Support chat and background AI over a fallback chain: Meta first for signed-in traffic, then OpenRouter free tier, then local Ollama.",
-        "customerSafeSummary": "When all AI providers are down, chat shows a service-unavailable message and offers human support. Anonymous traffic never spends paid tokens.",
-        "retryNote": "Fallback chain is Meta first for signed-in traffic, then OpenRouter free tier, then local Ollama. Anonymous traffic never spends Meta tokens.",
-        "budgetNote": "Meta contributor tier has lower rate limits; OpenRouter free tier and local Ollama cost nothing. No per-request budget is enforced in code.",
-        "rotationProcedure": "Rotate META_AI_API_KEY in the Meta console and OPENROUTER_API_KEY in OpenRouter; update Coolify secrets; verify support chat.",
+        "name": "AI (self-hosted Ollama)",
+        "description": "Support chat, triage, drafts and translation run on OxSteed's self-hosted Ollama server. No external AI provider is used.",
+        "customerSafeSummary": "When the AI server is down, chat shows a service-unavailable message and offers human support.",
+        "retryNote": "One provider only: the self-hosted Ollama server. Failed calls are retried, then the feature falls back to human support or manual entry.",
+        "budgetNote": "Self-hosted: no per-token cost. Capacity is limited by the Ollama server hardware.",
+        "rotationProcedure": "No API keys to rotate. Keep OLLAMA_URL on an allow-listed internal host and change the model with OLLAMA_MODEL; then verify support chat.",
         "capabilities": {
           "support_chat": {
             "label": "Support chat",

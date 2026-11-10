@@ -1,6 +1,6 @@
 'use strict';
 const triageCache = require('../utils/singleFlightCache').createSingleFlightCache();
-const { guardedFetch } = require('./openRouterSpendGuard');
+const localAi = require('./localAiChat');
 
 const ALLOWED_CATEGORIES = new Set([
   'account',
@@ -23,26 +23,18 @@ const ALLOWED_SKILLS = new Set([
   'technical',
 ]);
 const MAX_MESSAGE_LENGTH = 5000;
-const TIMEOUT_MS = Math.max(500, Math.min(5000, Number(process.env.SUPPORT_AI_TIMEOUT_MS) || 2500));
+// Self-hosted model: allow a little more time than a hosted API, still bounded
+// so triage never holds the ticket request open.
+const TIMEOUT_MS = Math.max(500, Math.min(15000, Number(process.env.SUPPORT_AI_TIMEOUT_MS) || 5000));
 
+// Security review 2026-11-10 F-04: triage runs on the self-hosted Ollama
+// server only. Support messages carry PII and must not reach external AI.
 function providerConfig() {
-  if (process.env.OPENROUTER_API_KEY) {
-    return {
-      baseUrl: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
-      apiKey: process.env.OPENROUTER_API_KEY,
-      model: process.env.OPENROUTER_SUPPORT_MODEL || process.env.OPENROUTER_TRANSLATION_MODEL || 'openrouter/free',
-      provider: 'openrouter',
-    };
-  }
-  if (process.env.OPENAI_API_KEY) {
-    return {
-      baseUrl: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
-      apiKey: process.env.OPENAI_API_KEY,
-      model: process.env.OPENAI_SUPPORT_MODEL || process.env.OPENAI_TRANSLATION_MODEL || 'gpt-4o-mini',
-      provider: 'openai',
-    };
-  }
-  return null;
+  if (!localAi.isLocalAiConfigured()) return null;
+  return {
+    model: String(process.env.SUPPORT_TRIAGE_OLLAMA_MODEL || '').trim() || localAi.localAiModel(),
+    provider: 'ollama',
+  };
 }
 
 function fallback(category, reason = 'provider_unavailable') {
@@ -93,31 +85,15 @@ function validateResult(value, requestedCategory) {
 }
 
 async function callProvider(config, messages) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const response = await guardedFetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages,
-        temperature: 0,
-        max_tokens: 500,
-        response_format: { type: 'json_object' },
-      }),
-      signal: controller.signal,
-    });
-    const body = await response.text();
-    if (!response.ok) throw new Error(`AI provider returned HTTP ${response.status}`);
-    const parsed = JSON.parse(body);
-    return parseJson(parsed?.choices?.[0]?.message?.content);
-  } finally {
-    clearTimeout(timer);
-  }
+  const result = await localAi.fetchLocalAiChat(messages, {
+    model: config.model,
+    temperature: 0,
+    maxTokens: 500,
+    format: 'json',
+    timeoutMs: TIMEOUT_MS,
+  });
+  if (!result.ok) throw new Error(`AI provider failed: ${result.error}`);
+  return parseJson(result.reply);
 }
 
 async function analyze({ message, category }) {

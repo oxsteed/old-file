@@ -242,12 +242,12 @@
         }
       },
       "ai": {
-        "name": "AI (Meta, OpenRouter, Ollama)",
-        "description": "Inaauni gumzo na usuli wa AI juu ya msururu wa kurudi nyuma: Meta kwanza kwa trafiki iliyoingia, kisha kiwango cha bure cha OpenRouter, kisha Ollama wa karibu.",
-        "customerSafeSummary": "Wakati watoa huduma wote wa AI wako chini, gumzo huonyesha ujumbe usiopatikana wa huduma na hutoa usaidizi wa kibinadamu. Trafiki isiyojulikana haitumii tokeni zilizolipwa.",
-        "retryNote": "Msururu wa kurudi nyuma ni Meta ya kwanza kwa trafiki iliyoingia, kisha kiwango cha bure cha OpenRouter, kisha Ollama ya karibu. Trafiki isiyojulikana haitumii tokeni za Meta.",
-        "budgetNote": "Kiwango cha wachangiaji wa Meta kina viwango vya chini vya viwango; Kiwango cha bure cha OpenRouter na Ollama wa ndani haugharimu chochote. Hakuna bajeti ya kila ombi inayotekelezwa kwa kanuni.",
-        "rotationProcedure": "Zungusha META_AI_API_KEY kwenye dashibodi ya Meta na OPENROUTER_API_KEY katika OpenRouter; sasisha siri za Coolify; thibitisha gumzo la usaidizi.",
+        "name": "AI (Ollama inayojiendesha wenyewe)",
+        "description": "Gumzo la usaidizi, upangaji, rasimu na tafsiri vinaendeshwa kwenye seva ya Ollama ya OxSteed inayojiendesha yenyewe. Hakuna mtoa huduma wa AI wa nje anayetumika.",
+        "customerSafeSummary": "Seva ya AI ikiwa haifanyi kazi, gumzo huonyesha ujumbe wa huduma kutopatikana na hutoa usaidizi wa binadamu.",
+        "retryNote": "Mtoa huduma mmoja tu: seva ya Ollama inayojiendesha yenyewe. Simu zilizoshindwa hurudiwa, kisha kipengele huhamia usaidizi wa binadamu au uingizaji wa mkono.",
+        "budgetNote": "Inajiendesha yenyewe: hakuna gharama kwa kila tokeni. Uwezo unategemea vifaa vya seva ya Ollama.",
+        "rotationProcedure": "Hakuna funguo za API za kubadilisha. Weka OLLAMA_URL kwenye seva ya ndani iliyoruhusiwa na ubadilishe modeli kwa OLLAMA_MODEL; kisha thibitisha gumzo la usaidizi.",
         "capabilities": {
           "support_chat": {
             "label": "Gumzo la usaidizi",

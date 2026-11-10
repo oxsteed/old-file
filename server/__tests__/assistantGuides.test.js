@@ -20,19 +20,12 @@ const redis = require('../utils/redis');
 
 const resDouble = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() });
 beforeEach(() => {
-  // The OpenRouter spend guard keeps an in-memory daily budget when Redis
-  // is absent; mocked replies carry no usage.cost, so reservations would
-  // accumulate across cases and trip the cap. Each case starts at zero.
-  require('../services/openRouterSpendGuard')._resetLocal();
   resetMocks(); jest.clearAllMocks();
   redis.get.mockResolvedValue(null); redis.setex.mockResolvedValue('OK');
-  // The shared Redis mock is the spend guard's budget store: accept the
-  // reservation (RESERVE/SETTLE scripts return 1) so the provider path runs.
-  redis.eval = jest.fn().mockResolvedValue(1);
-  process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
+  process.env.OLLAMA_URL = 'http://localhost:11434';
   global.fetch = jest.fn().mockResolvedValue({
     ok: true,
-    json: async () => ({ choices: [{ message: { content: 'Synthetic response' } }] }),
+    json: async () => ({ message: { content: 'Synthetic response' } }),
   });
 });
 
@@ -122,12 +115,12 @@ test.each(['en', 'es', 'fr', 'ht', 'ar'])('support draft %s retains human review
   expect(prompt).toContain('Business-specific policy is unknown unless supplied');
 });
 
-test('business support provider receives the actionable guide via OpenRouter', async () => {
+test('business support provider receives the actionable guide via self-hosted Ollama', async () => {
   const drafts = require('../controllers/aiChatbotController');
   const oldFetch = global.fetch;
-  const oldKey = process.env.OPENROUTER_API_KEY;
-  process.env.OPENROUTER_API_KEY = 'synthetic-test-only';
-  global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: 'Synthetic draft' } }] }) }));
+  const oldKey = process.env.OLLAMA_URL;
+  process.env.OLLAMA_URL = 'http://localhost:11434';
+  global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ message: { content: 'Synthetic draft' } }) }));
   mockQuery.mockImplementation(async sql => {
     if (sql.includes('SELECT * FROM support_conversations')) return { rows: [{ id: 'c1', business_id: '1', status: 'open' }] };
     // c94983de: the draft is generated under a row lock on the conversation.
@@ -145,8 +138,8 @@ test('business support provider receives the actionable guide via OpenRouter', a
     expect(prompt).toContain('The draft has not been sent');
   } finally {
     global.fetch = oldFetch;
-    if (oldKey === undefined) delete process.env.OPENROUTER_API_KEY;
-    else process.env.OPENROUTER_API_KEY = oldKey;
+    if (oldKey === undefined) delete process.env.OLLAMA_URL;
+    else process.env.OLLAMA_URL = oldKey;
   }
 });
 
@@ -154,10 +147,10 @@ test('catalog provider guide uses current lifecycle/icons and produces a nonpubl
   const { createDraft } = require('../services/directCatalogAI');
   const { parseEntity, ICONS, LIFECYCLE_STATUSES } = require('../services/directCatalogService');
   const oldFetch = global.fetch;
-  const oldKey = process.env.OPENROUTER_API_KEY;
-  process.env.OPENROUTER_API_KEY = 'synthetic-test-only';
+  const oldKey = process.env.OLLAMA_URL;
+  process.env.OLLAMA_URL = 'http://localhost:11434';
   const draft = { entity: 'category', fields: { nameI18n: { en: 'Test category' }, lifecycleStatus: 'planned', isActive: true, isPublished: false } };
-  global.fetch = jest.fn(async () => ({ ok: true, text: async () => JSON.stringify({ choices: [{ message: { content: JSON.stringify(draft) } }] }) }));
+  global.fetch = jest.fn(async () => ({ ok: true, text: async () => JSON.stringify({ message: { content: JSON.stringify(draft) } }) }));
   try {
     const result = await createDraft('Draft a test category for review');
     const prompt = JSON.parse(global.fetch.mock.calls[0][1].body).messages[0].content;
@@ -167,7 +160,7 @@ test('catalog provider guide uses current lifecycle/icons and produces a nonpubl
     expect(parseEntity(result.entity, result.fields)).toMatchObject({ lifecycleStatus: 'planned', isPublished: false });
   } finally {
     global.fetch = oldFetch;
-    if (oldKey === undefined) delete process.env.OPENROUTER_API_KEY;
-    else process.env.OPENROUTER_API_KEY = oldKey;
+    if (oldKey === undefined) delete process.env.OLLAMA_URL;
+    else process.env.OLLAMA_URL = oldKey;
   }
 });

@@ -353,12 +353,12 @@
         }
       },
       "ai": {
-        "name": "IA (Meta, OpenRouter, Ollama)",
-        "description": "Supporta chat e intelligenza artificiale in background su una catena di fallback: prima Meta per il traffico registrato, poi il livello gratuito di OpenRouter, quindi Ollama locale.",
-        "customerSafeSummary": "Quando tutti i fornitori di intelligenza artificiale sono inattivi, la chat mostra un messaggio di servizio non disponibile e offre supporto umano. Il traffico anonimo non spende mai token a pagamento.",
-        "retryNote": "La catena di fallback è Meta prima per il traffico connesso, poi il livello gratuito di OpenRouter, quindi Ollama locale. Il traffico anonimo non spende mai Meta token.",
-        "budgetNote": "Il livello di meta collaboratore ha limiti di frequenza inferiori; Il livello gratuito di OpenRouter e Ollama locale non costano nulla. Nel codice non viene applicato alcun budget per richiesta.",
-        "rotationProcedure": "Ruoti META_AI_API_KEY nella console Meta e OPENROUTER_API_KEY in OpenRouter; aggiornare i segreti di Coolify; verificare la chat di supporto.",
+        "name": "IA (Ollama self-hosted)",
+        "description": "Chat di assistenza, smistamento, bozze e traduzione girano sul server Ollama self-hosted di OxSteed. Non viene usato alcun fornitore di IA esterno.",
+        "customerSafeSummary": "Quando il server IA non è disponibile, la chat mostra un messaggio di servizio non disponibile e offre assistenza umana.",
+        "retryNote": "Un solo fornitore: il server Ollama self-hosted. Le chiamate non riuscite vengono ritentate, poi la funzione passa all'assistenza umana o all'inserimento manuale.",
+        "budgetNote": "Self-hosted: nessun costo per token. La capacità dipende dall'hardware del server Ollama.",
+        "rotationProcedure": "Nessuna chiave API da ruotare. Mantieni OLLAMA_URL su un host interno consentito e cambia il modello con OLLAMA_MODEL; poi verifica la chat di assistenza.",
         "capabilities": {
           "support_chat": {
             "label": "Chatta di supporto",

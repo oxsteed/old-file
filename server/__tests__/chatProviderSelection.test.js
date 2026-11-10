@@ -23,11 +23,11 @@ function responseDouble() {
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
-  process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
+  process.env.OLLAMA_URL = 'http://localhost:11434';
   // OpenRouter success response.
   global.fetch = jest.fn().mockResolvedValue({
     ok: true,
-    json: async () => ({ choices: [{ message: { content: 'openrouter reply' } }] }),
+    json: async () => ({ message: { content: 'openrouter reply' } }),
   });
 });
 
@@ -43,7 +43,7 @@ describe('anonymous chat provider selection', () => {
     await chatController.chatMessage(req, res, jest.fn());
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://openrouter.ai/api/v1/chat/completions',
+      'http://localhost:11434/api/chat',
       expect.objectContaining({ method: 'POST' })
     );
     expect(res.json).toHaveBeenCalledWith(
@@ -61,7 +61,7 @@ describe('anonymous chat provider selection', () => {
     await chatController.chatMessage(req, res, jest.fn());
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://openrouter.ai/api/v1/chat/completions',
+      'http://localhost:11434/api/chat',
       expect.objectContaining({ method: 'POST' })
     );
     expect(res.json).toHaveBeenCalledWith(
@@ -110,7 +110,7 @@ describe('handoff_suggested heuristic', () => {
   test('is true when the model marks the reply as needing a person', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ choices: [{ message: { content: 'I cannot change that order from here.\n[[handoff]]' } }] }),
+      json: async () => ({ message: { content: 'I cannot change that order from here.\n[[handoff]]' } }),
     });
     const req = { body: { messages: [{ role: 'user', content: 'Change my order address' }] } };
     const res = responseDouble();

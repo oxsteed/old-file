@@ -1,4 +1,4 @@
-const { guardedFetch } = require('../services/openRouterSpendGuard');
+const localAi = require('../services/localAiChat');
 const { supportDraftPrompt } = require('../services/assistantGuide');
 const pool = require('../db');
 const { query } = pool;
@@ -368,63 +368,27 @@ async function suggestResponses(req, res) {
   }
 }
 
-async function callOpenRouter(content, language) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY not configured');
-  }
-
-  const systemPrompt = supportDraftPrompt(language);
-
-  try {
-    const response = await guardedFetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://oxsteed.com',
-        'X-Title': 'OxSteed Support'
-      },
-      body: JSON.stringify({
-        model: process.env.OPENROUTER_CHAT_MODEL
-          || process.env.OPENROUTER_SUPPORT_MODEL
-          || 'openrouter/free',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: content }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenRouter API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const generated = data?.choices?.[0]?.message?.content;
-    if (typeof generated !== 'string' || !generated.trim() || generated.trim().length > 5000) {
-      throw new Error('OpenRouter returned an invalid response');
-    }
-    const normalized = generated.trim();
-    if (/<\/?[a-z][^>]*>/i.test(normalized)) {
-      throw new Error('OpenRouter returned unsupported markup');
-    }
-    return normalized;
-  } catch (err) {
-    logger.error('OpenRouter API call failed', { error: err.message });
-    throw err;
-  }
-}
-
 /**
- * Support-draft provider: OpenRouter only. Returns { text, model } so the
- * draft row records which provider actually generated it.
+ * Support-draft provider. Security review 2026-11-10 F-04: support messages
+ * go to the self-hosted Ollama server only. Returns { text, model } so the
+ * draft row records which provider generated it.
  */
 async function callAiSupportDraft(content, language) {
-  const text = await callOpenRouter(content, language);
-  return { text, model: 'openrouter' };
+  if (!localAi.isLocalAiConfigured()) {
+    throw new Error('Self-hosted AI (OLLAMA_URL) not configured');
+  }
+  const result = await localAi.fetchLocalAiChat([
+    { role: 'system', content: supportDraftPrompt(language) },
+    { role: 'user', content },
+  ], { temperature: 0.7, maxTokens: 500 });
+  if (!result.ok) {
+    logger.error('Support draft AI call failed', { error: result.error });
+    throw new Error(`AI provider error: ${result.error}`);
+  }
+  const normalized = result.reply.trim();
+  if (!normalized || normalized.length > 5000) throw new Error('AI returned an invalid response');
+  if (/<\/?[a-z][^>]*>/i.test(normalized)) throw new Error('AI returned unsupported markup');
+  return { text: normalized, model: 'ollama' };
 }
 
 module.exports = {

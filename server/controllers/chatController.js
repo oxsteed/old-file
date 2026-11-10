@@ -14,7 +14,7 @@ const bookingLifecycle = require('../services/bookingRequestLifecycle');
 const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
 const { buildProfileAiFailurePayload } = require('../services/profileChatRouting');
 const { withTransaction } = require('../utils/transaction');
-const openRouter = require('../services/openRouterChat');
+const localAi = require('../services/localAiChat');
 const { canEditProfile } = require('../utils/businessOwnership');
 const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
 const { getSupportAccountSnapshot, formatSnapshotForAI, invalidateSupportSnapshot } = require('../services/supportAccountSnapshot');
@@ -27,7 +27,7 @@ const { enqueueConversationMessageNotifications } = require('../services/message
 const redis = require('../utils/redis');
 const { getCachedGuideReply, setCachedGuideReply } = require('../services/guideHelpCache');
 const { MAX_IMAGE_BASE64_CHARS } = require('../constants/supportChatLimits');
-const { resolveOllamaUrl, supportChatModelForLocale, supportChatMaxTokens } = require('../services/supportChatProviders');
+const { supportChatModelForLocale, supportChatMaxTokens } = require('../services/supportChatProviders');
 const supportChatFeedback = require('../services/supportChatFeedback');
 const supportKnowledge = require('../services/supportKnowledge');
 const supportChatActions = require('../services/supportChatActions');
@@ -70,107 +70,34 @@ function getLanguageInstruction(code) {
   return `\n\n## Language Requirement\nThe user has selected ${name} as their preferred language. You MUST respond entirely in ${name} for all your replies, regardless of what language the user writes in. Only switch languages if the user explicitly asks you to.`;
 }
 
-// Validate OLLAMA_URL at startup to prevent SSRF via misconfigured env.
-const OLLAMA_URL = resolveOllamaUrl(process.env.OLLAMA_URL, logger);
-
-const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
-
-// Per-call provider timeout (ms). OPENROUTER_TIMEOUT_MS overrides; clamped
-// to 5–60 s so a typo cannot disable the guard or stall requests forever.
-const DEFAULT_PROVIDER_TIMEOUT_MS = 25_000;
-function providerTimeoutMs() {
-  const raw = Number(process.env.OPENROUTER_TIMEOUT_MS);
-  if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_PROVIDER_TIMEOUT_MS;
-  return Math.min(60_000, Math.max(5_000, Math.round(raw)));
-}
-const OPENROUTER_CHAT_MODEL = process.env.OPENROUTER_CHAT_MODEL
-  || process.env.OPENROUTER_SUPPORT_MODEL
-  || 'openrouter/free';
-
-// Vision-capable model used only when the user attaches an image (gap #3).
-const OPENROUTER_VISION_MODEL = process.env.OPENROUTER_VISION_MODEL
-  || 'google/gemma-3-27b-it:free';
-
 /**
- * Try OpenRouter (OpenAI-compatible chat completions). Requires OPENROUTER_API_KEY.
- */
-async function fetchOpenRouterChat(model, messages, maxTokens = 400) {
-  return openRouter.fetchOpenRouterChat(model, messages, { maxTokens });
-}
-
-/**
- * Try local Ollama /api/chat. Skipped when OLLAMA_URL is empty (SSRF-safe validation).
- */
-async function fetchOllamaChat(messages, options) {
-  if (!OLLAMA_URL) {
-    return { ok: false, error: 'OLLAMA_URL not configured' };
-  }
-  const model = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
-  const res = await fetch(`${OLLAMA_URL}/api/chat`, {
-    signal: AbortSignal.timeout(providerTimeoutMs()),
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      messages,
-      stream: false,
-      options,
-    }),
-  });
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    return { ok: false, error: `HTTP ${res.status}: ${errText.slice(0, 500)}` };
-  }
-  const data = await res.json();
-  const reply = (data.message?.content || '').trim();
-  if (!reply) {
-    return { ok: false, error: 'empty assistant content' };
-  }
-  return { ok: true, reply };
-}
-
-/**
- * Multi-provider fallback: OpenRouter → Ollama. These are the only providers
- * the chat paths call; services/supportChatProviders mirrors this chain for
- * the `aiSupport` capability.
- * @param {Array<{role:string,content:string}>} messages - full message list including system
+ * Security review 2026-11-10 F-04: the chat paths call only the self-hosted
+ * Ollama server (services/localAiChat.js). There is no external provider
+ * and no fallback to one, so conversations, images and account snapshots
+ * stay on OxSteed infrastructure.
+ * @param {Array<{role:string,content:string|Array}>} messages - full message list including system
  * @param {object} ollamaOptions - passed to Ollama `options` (temperature, num_predict, etc.)
  * @param {string} logTag - prefix for structured logs e.g. '[Chat]' or '[ProfileChat]'
- * @param {object} options - { openRouterModel } overrides the OpenRouter model (vision turns)
+ * @param {object} options - { model } overrides the model (per-locale model)
  */
 async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
-  const openRouterModel = options.openRouterModel || OPENROUTER_CHAT_MODEL;
-  const ollamaModel = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
-  const attempts = [
-    {
-      name: `OpenRouter (${openRouterModel})`,
-      provider: 'openrouter',
-      model: openRouterModel,
-      run: () => fetchOpenRouterChat(openRouterModel, messages, options.maxTokens || 400),
-    },
-    {
-      name: `Ollama (${ollamaModel})`,
-      provider: 'ollama',
-      model: ollamaModel,
-      run: () => fetchOllamaChat(messages, ollamaOptions),
-      skip: () => !OLLAMA_URL,
-    },
-  ];
-
-  for (const step of attempts) {
-    if (await step.skip?.()) continue;
-    try {
-      const result = await step.run();
-      if (result.ok) {
-        logger.info(`${logTag} AI provider succeeded`, { provider: step.name });
-        return { ok: true, reply: result.reply, provider: step.provider, model: step.model };
-      }
-      logger.warn(`${logTag} AI provider failed`, { provider: step.name, error: result.error });
-    } catch (err) {
-      logger.warn(`${logTag} AI provider failed`, { provider: step.name, error: err.message });
-    }
+  if (!localAi.isLocalAiConfigured()) {
+    logger.warn(`${logTag} AI provider not configured`, { provider: 'ollama' });
+    return { ok: false };
   }
-
+  try {
+    const result = await localAi.fetchLocalAiChat(messages, {
+      model: options.model,
+      options: ollamaOptions,
+    });
+    if (result.ok) {
+      logger.info(`${logTag} AI provider succeeded`, { provider: 'ollama', model: result.model });
+      return { ok: true, reply: result.reply, provider: 'ollama', model: result.model };
+    }
+    logger.warn(`${logTag} AI provider failed`, { provider: 'ollama', error: result.error });
+  } catch (err) {
+    logger.warn(`${logTag} AI provider failed`, { provider: 'ollama', error: err.message });
+  }
   return { ok: false };
 }
 
@@ -482,11 +409,10 @@ exports.chatMessage = async (req, res, next) => {
         repeat_penalty: 1.1,
       },
       '[Chat]',
-      // Item 7: per-locale model (OPENROUTER_CHAT_MODEL_<LOCALE>) and a
-      // locale-aware max_tokens. Vision turns use the vision-capable model.
+      // Item 7: per-locale model (OLLAMA_MODEL_<LOCALE>). Vision turns use
+      // OLLAMA_VISION_MODEL (chosen inside localAiChat when an image is attached).
       {
-        openRouterModel: visionImageUrl ? OPENROUTER_VISION_MODEL : supportChatModelForLocale(language),
-        maxTokens: supportChatMaxTokens(language),
+        model: visionImageUrl ? localAi.localAiModel(process.env, { vision: true }) : supportChatModelForLocale(language),
       }
     );
 
@@ -1899,7 +1825,8 @@ exports.claimGuestProfileChatSessions = async (req, res, next) => {
 
 /**
  * POST /api/chat/transcribe
- * Transcribe audio using OpenRouter when Web Speech API confidence is low.
+ * Server-side transcription fallback for when Web Speech API confidence is
+ * low. Not available yet: it must run on self-hosted infrastructure only.
  * Requires authentication.
  * Request body: multipart field `audio`, or JSON { audio_data: base64, language: 'en' }
  * Response: { transcript, confidence, language }
@@ -2515,6 +2442,5 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
 exports.createAiBookingFromAction = createAiBookingFromAction;
 exports._shouldSuggestHandoff = shouldSuggestHandoff;
 exports._handoffReason = handoffReason;
-exports._providerTimeoutMs = providerTimeoutMs;
 exports._extractHandoffMarker = extractHandoffMarker;
 exports._businessIdFromPath = businessIdFromPath;

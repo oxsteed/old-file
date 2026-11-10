@@ -1,25 +1,25 @@
 'use strict';
 const crypto = require('crypto');
 const tagCache = require('../utils/singleFlightCache').createSingleFlightCache({ ttlMs: 0 });
-const { guardedFetch } = require('./openRouterSpendGuard');
+const localAi = require('./localAiChat');
 
 /**
- * services/learnTagging.js — OpenRouter-assisted marketplace tagging for Learn guides.
+ * services/learnTagging.js — AI-assisted marketplace tagging for Learn guides.
  *
- * tagGuideWithAI(guideId) sends a guide's title/intro to OpenRouter and stores
+ * tagGuideWithAI(guideId) sends a guide's title/intro to the self-hosted
+ * Ollama server (security review F-04: no external AI) and stores
  * tool / material / service suggestions in learn_guide_ai_suggestions for
  * admin review. It NEVER throws: every failure mode (missing key, timeout,
  * 429, bad JSON, DB unavailable) resolves to { skipped: <reason> } so
  * publishing can never break because of AI.
  *
- * The API key lives server-side only (OPENROUTER_API_KEY env) and is never
- * logged.
+ * Configured with OLLAMA_URL (allow-listed hosts only) and optionally
+ * LEARN_TAGGING_OLLAMA_MODEL.
  */
 
 const pool = require('../db');
 
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const REQUEST_TIMEOUT_MS = 25_000;
+const REQUEST_TIMEOUT_MS = 60_000;
 const MAX_ITEMS = 8;
 
 const LEARN_CATEGORIES = [
@@ -31,8 +31,8 @@ const LEARN_CATEGORIES = [
 
 function getConfig() {
   return {
-    key: process.env.OPENROUTER_API_KEY || '',
-    model: process.env.OPENROUTER_MODEL || 'openrouter/free',
+    configured: localAi.isLocalAiConfigured(),
+    model: String(process.env.LEARN_TAGGING_OLLAMA_MODEL || '').trim() || localAi.localAiModel(),
   };
 }
 
@@ -165,8 +165,8 @@ async function tagGuideWithAI(guideId) {
 }
 async function tagGuideOnce(guideId) {
   try {
-    const { key, model } = getConfig();
-    if (!key) return { skipped: 'no-key' };
+    const { configured, model } = getConfig();
+    if (!configured) return { skipped: 'no-key' };
 
     let guide;
     try {
@@ -182,45 +182,20 @@ async function tagGuideOnce(guideId) {
     const contentHash = crypto.createHash('sha256').update(JSON.stringify([model, guide.title, guide.category, guide.intro || ''])).digest('hex');
     if (contentHash === guide.ai_tagging_content_hash) return { skipped: 'unchanged' };
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    let res;
-    try {
-      res = await guardedFetch(OPENROUTER_URL, {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${key}`,
-          'HTTP-Referer': 'https://oxsteed.com',
-          'X-Title': 'OxSteed Learn',
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: 'You output strict JSON only.' },
-            { role: 'user', content: buildPrompt(guide) },
-          ],
-          temperature: 0.2,
-          max_tokens: 1200,
-        }),
-      });
-    } catch (err) {
-      return { skipped: err && err.name === 'AbortError' ? 'timeout' : 'network-error' };
-    } finally {
-      clearTimeout(timer);
+    const result = await localAi.fetchLocalAiChat([
+      { role: 'system', content: 'You output strict JSON only.' },
+      { role: 'user', content: buildPrompt(guide) },
+    ], { model, temperature: 0.2, maxTokens: 1200, format: 'json', timeoutMs: REQUEST_TIMEOUT_MS });
+    if (!result.ok) {
+      const err = String(result.error || '');
+      if (err === 'provider timeout') return { skipped: 'timeout' };
+      if (/^HTTP 429/.test(err)) return { skipped: 'rate-limited' };
+      const http = err.match(/^HTTP (\d{3})/);
+      if (http) return { skipped: `http-${http[1]}` };
+      if (err === 'empty assistant content') return { skipped: 'bad-json' };
+      return { skipped: 'network-error' };
     }
-
-    if (res.status === 429) return { skipped: 'rate-limited' };
-    if (!res.ok) return { skipped: `http-${res.status}` };
-
-    let payload;
-    try {
-      payload = await res.json();
-    } catch {
-      return { skipped: 'bad-json' };
-    }
-    const content = payload?.choices?.[0]?.message?.content;
+    const content = result.reply;
     const parsed = extractJson(content);
     if (!parsed) return { skipped: 'bad-json' };
 

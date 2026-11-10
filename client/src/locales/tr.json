@@ -353,12 +353,12 @@
         }
       },
       "ai": {
-        "name": "YZ (Meta, OpenRouter, Ollama)",
-        "description": "Destek sohbeti ve arka plan YZ'si, yedekleme zinciri üzerinden: giriş yapmış trafik için önce Meta, ardından OpenRouter ücretsiz katmanı, ardından yerel Ollama.",
-        "customerSafeSummary": "Tüm YZ sağlayıcıları kapandığında sohbet hizmet kullanılamıyor mesajı gösterir ve insan desteği sunar. Anonim trafik asla ücretli token harcamaz.",
-        "retryNote": "Yedekleme zinciri: giriş yapmış trafik için önce Meta, ardından OpenRouter ücretsiz katmanı, ardından yerel Ollama. Anonim trafik asla Meta token'ı harcamaz.",
-        "budgetNote": "Meta katılımcı katmanının oran sınırları daha düşüktür; OpenRouter ücretsiz katmanı ve yerel Ollama ücretsizdir. Kodda istek başına bütçe uygulanmaz.",
-        "rotationProcedure": "META_AI_API_KEY anahtarını Meta konsolunda ve OPENROUTER_API_KEY anahtarını OpenRouter'da döndürün; Coolify gizli anahtarlarını güncelleyin; destek sohbetini doğrulayın.",
+        "name": "Yapay zekâ (kendi sunucumuzdaki Ollama)",
+        "description": "Destek sohbeti, önceliklendirme, taslaklar ve çeviri OxSteed'in kendi Ollama sunucusunda çalışır. Harici bir yapay zekâ sağlayıcısı kullanılmaz.",
+        "customerSafeSummary": "Yapay zekâ sunucusu çalışmadığında sohbet, hizmetin kullanılamadığını bildiren bir mesaj gösterir ve insan desteği sunar.",
+        "retryNote": "Tek sağlayıcı: kendi Ollama sunucumuz. Başarısız çağrılar yeniden denenir, ardından özellik insan desteğine veya elle girişe geçer.",
+        "budgetNote": "Kendi sunucumuz: token başına maliyet yok. Kapasite Ollama sunucusunun donanımıyla sınırlıdır.",
+        "rotationProcedure": "Döndürülecek API anahtarı yok. OLLAMA_URL'yi izin verilen bir iç sunucuda tutun ve modeli OLLAMA_MODEL ile değiştirin; ardından destek sohbetini doğrulayın.",
         "capabilities": {
           "support_chat": {
             "label": "Destek sohbeti",
