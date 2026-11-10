@@ -4111,6 +4111,40 @@ exports.createOrder = async (req, res, next) => {
           };
         }
       }
+      if (cardPaymentIntentId) {
+        // Security review F-13: one succeeded card PaymentIntent pays for
+        // exactly one order. The "already used" probe above runs before this
+        // lock, so N parallel submissions of the same intent all passed it
+        // during the Stripe retrieve window. Re-check under the restaurant
+        // lock (every creator for this restaurant serializes here, and the
+        // intent's destination is this restaurant), lock the intent's own
+        // record, and require that the intent was minted by this checkout
+        // flow for this restaurant and, when it was minted for a signed-in
+        // customer, for this same customer. The partial unique index
+        // uq_food_orders_stripe_payment_intent is the database backstop.
+        const { rows: [intentRecord] } = await client.query(
+          `SELECT id, customer_id
+             FROM food_card_payment_intents
+            WHERE restaurant_id = $1 AND stripe_payment_intent_id = $2
+            ORDER BY id
+            LIMIT 1
+            FOR UPDATE`,
+          [restaurantId, cardPaymentIntentId]
+        );
+        if (!intentRecord) {
+          throw new AppError('The card payment was not started for this restaurant', 402, 'card_payment_not_recognized');
+        }
+        if (intentRecord.customer_id && String(intentRecord.customer_id) !== String(orderCustomerId || '')) {
+          throw new AppError('The card payment belongs to a different customer', 402, 'card_payment_customer_mismatch');
+        }
+        const { rows: lockedUse } = await client.query(
+          `SELECT id FROM food_orders WHERE stripe_payment_intent_id = $1 LIMIT 1`,
+          [cardPaymentIntentId]
+        );
+        if (lockedUse[0]) {
+          throw new AppError('This card payment has already been used for an order', 402, 'card_payment_already_used');
+        }
+      }
       const queueNumber = await nextQueueNumber(client, restaurantId, orderTimezone, new Date(), orderLocationId);
 
       // F-33: the promised time includes the automatic load extension.
@@ -4569,6 +4603,9 @@ exports.createOrder = async (req, res, next) => {
       runnerTask: createdOrder.runnerTask || null,
     });
   } catch (err) {
+    if (err?.code === '23505' && err.constraint === 'uq_food_orders_stripe_payment_intent') {
+      return next(new AppError('This card payment has already been used for an order', 402, 'card_payment_already_used'));
+    }
     next(err);
   }
 };
