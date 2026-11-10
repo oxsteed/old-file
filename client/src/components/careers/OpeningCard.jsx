@@ -14,6 +14,8 @@ export default function OpeningCard({ opening, promoted = false, match = null })
           {o.employer_verified ? ` · ${t('careers.verifiedEmployer')}` : ''}
         </p>
         {promoted ? <span className="ox-careers-chip warn">{t('careers.promoted')}</span> : null}
+        {o.same_day_hire ? <span className="ox-careers-chip ok">{t('careers.mk.badges.sameDay')}</span> : null}
+        {o.urgently_hiring ? <span className="ox-careers-chip warn">{t('careers.mk.badges.urgent')}</span> : null}
       </div>
       <h2 className="ox-careers-card-title">{o.title}</h2>
       <div className="ox-careers-meta">
@@ -22,6 +24,7 @@ export default function OpeningCard({ opening, promoted = false, match = null })
         {o.path_stage ? <span className="ox-careers-chip">{t(`careers.path.${o.path_stage}`)}</span> : null}
         <span className="ox-careers-chip">{o.city || o.country_code || t('careers.remoteWorldwide')}</span>
         {o.employer_model === 'oxsteed_eor' ? <span className="ox-careers-chip">{t('careers.eorBadge')}</span> : null}
+        {o.via_agency ? <span className="ox-careers-chip">{t('careers.mk.badges.viaAgency')}</span> : null}
       </div>
       {match?.reasons?.length ? (
         <p className="ox-careers-subtle">{match.reasons.map((r) => t(`careers.match.${r}`)).join(' · ')}</p>

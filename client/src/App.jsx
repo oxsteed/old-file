@@ -71,6 +71,11 @@ const AboutPage = lazyWithRetry(() => import('./pages/about'));
 const CareersPage = lazyWithRetry(routeLoaders.careers, { name: 'careers' });
 const CareerOpeningPage = lazyWithRetry(() => import('./pages/CareerOpeningPage'));
 const MyCareerApplicationsPage = lazyWithRetry(() => import('./pages/MyCareerApplicationsPage'));
+const CareerEmployersPage = lazyWithRetry(() => import('./pages/CareerEmployersPage'));
+const CareerEmployerPage = lazyWithRetry(() => import('./pages/CareerEmployerPage'));
+const CareerSalariesPage = lazyWithRetry(() => import('./pages/CareerSalariesPage'));
+const CareerInterviewTipsPage = lazyWithRetry(() => import('./pages/CareerInterviewTipsPage'));
+const CareerInterviewRoomPage = lazyWithRetry(() => import('./pages/CareerInterviewRoomPage'));
 const ForgotPasswordPage = lazyWithRetry(() => import('./pages/ForgotPassword'));
 const ResetPasswordPage = lazyWithRetry(() => import('./pages/ResetPassword'));
 const TwoFactorSetup = lazyWithRetry(() => import('./pages/Settings/TwoFactorSetup'));
@@ -507,6 +512,11 @@ export default function App() {
                     <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
                     <Route path="/careers"                 element={<Guarded><CareersPage /></Guarded>} />
                     <Route path="/careers/me"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><MyCareerApplicationsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/careers/employers"       element={<Guarded><CareerEmployersPage /></Guarded>} />
+                    <Route path="/careers/employers/:slug" element={<Guarded><CareerEmployerPage /></Guarded>} />
+                    <Route path="/careers/salaries"        element={<Guarded><CareerSalariesPage /></Guarded>} />
+                    <Route path="/careers/interview-tips"  element={<Guarded><CareerInterviewTipsPage /></Guarded>} />
+                    <Route path="/careers/interview-room/:id" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CareerInterviewRoomPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/careers/:id"             element={<Guarded><CareerOpeningPage /></Guarded>} />
                     <Route path="/careers/:id/confirm"     element={<Guarded><CareerOpeningPage /></Guarded>} />
                     <Route path="/business/:businessId/careers" element={<Guarded><CareersPage /></Guarded>} />
