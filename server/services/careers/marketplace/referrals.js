@@ -56,6 +56,7 @@ async function summary(db, userId) {
   );
   const cfg = referralsConfig();
   return {
+    enabled: cfg.enabled,
     code: code.code,
     active: !code.disabled_at,
     rate_bps: cfg.rateBps,
