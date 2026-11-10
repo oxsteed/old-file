@@ -290,24 +290,59 @@ describe('H10 authController lockout and cooldowns', () => {
     expect(next.mock.calls[0][0].status).toBe(429);
   });
 
-  test('requestOTP: active OTP lockout is not cleared by re-request', async () => {
+  test('requestOTP: active OTP lockout is not cleared by re-request (uniform response)', async () => {
     mockQuery.mockResolvedValue({
       rows: [{ id: 'u1', preferred_language: 'en', otp_locked_until: new Date(Date.now() + 60000), otp_last_sent_at: null }],
     });
     const res = mockRes();
     await auth.requestOTP({ body: { email: 'u@x.com' } }, res);
-    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ message: 'OTP sent' });
     expect(mockQuery).toHaveBeenCalledTimes(1); // no UPDATE issued
   });
 
-  test('requestOTP: 60s send cooldown enforced', async () => {
+  test('requestOTP: 60s send cooldown enforced without revealing the account', async () => {
     mockQuery.mockResolvedValue({
       rows: [{ id: 'u1', preferred_language: 'en', otp_locked_until: null, otp_last_sent_at: new Date(Date.now() - 30000) }],
     });
     const res = mockRes();
     await auth.requestOTP({ body: { email: 'u@x.com' } }, res);
-    expect(res.status).toHaveBeenCalledWith(429);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ retryAfterMs: expect.any(Number) }));
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ message: 'OTP sent' });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  test('F-07: a caller-supplied phone is never an OTP destination', async () => {
+    const { sendOTPSMS } = require('../utils/sms');
+    sendOTPSMS.mockClear();
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'u1', preferred_language: 'en', otp_locked_until: null, otp_last_sent_at: null, phone: null, phone_verified: false }],
+    }).mockResolvedValue({ rows: [] });
+    const res = mockRes();
+    await auth.requestOTP({ body: { email: 'victim@x.com', phone: '+15550001111' } }, res);
+    expect(sendOTPSMS).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ message: 'OTP sent' });
+  });
+
+  test('F-07: SMS goes only to the verified phone on file', async () => {
+    const { sendOTPSMS } = require('../utils/sms');
+    sendOTPSMS.mockClear();
+    sendOTPSMS.mockResolvedValue({ success: true });
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'u1', preferred_language: 'en', otp_locked_until: null, otp_last_sent_at: null, phone: '+15557778888', phone_verified: true }],
+    }).mockResolvedValue({ rows: [] });
+    const res = mockRes();
+    await auth.requestOTP({ body: { email: 'u@x.com', phone: '+15550001111' } }, res);
+    expect(sendOTPSMS).toHaveBeenCalledWith('+15557778888', expect.any(String));
+    expect(res.json).toHaveBeenCalledWith({ message: 'OTP sent' });
+  });
+
+  test('F-07: unknown account gets the same response', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    const res = mockRes();
+    await auth.requestOTP({ body: { email: 'nobody@x.com' } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ message: 'OTP sent' });
   });
 });
 

@@ -783,51 +783,54 @@ async function loginWith2FA(req, res, next) {
 }
 
 async function requestOTP(req, res) {
+  // F-07: every outcome returns the same 200 body, so the endpoint does not
+  // reveal whether an account exists, is locked or is cooling down. The
+  // code is delivered only to contact points already on the account: the
+  // email address, or — when SMS is requested — the account's own
+  // verified phone. A caller-supplied phone number is never a destination.
+  const uniform = () => res.json({ message: 'OTP sent' });
   try {
-    const { email, phone } = req.body;
-    // Verify user exists before generating or sending anything.
-    // Return the same response regardless to avoid email enumeration.
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const wantsSms = req.body?.channel === 'sms' || Boolean(req.body?.phone);
+    if (!email) return uniform();
     const { rows: userRows } = await pool.query(
-      'SELECT id, preferred_language, otp_locked_until, otp_last_sent_at FROM users WHERE email = $1',
-      [email.toLowerCase()]
+      `SELECT id, preferred_language, otp_locked_until, otp_last_sent_at, phone, phone_verified
+         FROM users WHERE email = $1`,
+      [email]
     );
+    const pending = userRows[0];
+    if (!pending) return uniform();
+    // H10: never clear an active OTP lockout via re-request.
+    if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
+      return uniform();
+    }
+    // H10: per-account send cooldown (60s) to stop OTP email/SMS bombing.
+    if (pending.otp_last_sent_at
+        && Date.now() - new Date(pending.otp_last_sent_at).getTime() < OTP_RESEND_COOLDOWN_MS) {
+      return uniform();
+    }
+    const smsTarget = wantsSms && pending.phone_verified === true && pending.phone ? pending.phone : null;
+    if (wantsSms && !smsTarget) {
+      logger.info('OTP SMS requested without a verified phone on file; sending by email', { userId: pending.id });
+    }
     const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    if (userRows[0]) {
-      const pending = userRows[0];
-      // H10: never clear an active OTP lockout via re-request. The 3-strikes
-      // lockout from verifyOTP cannot be bypassed by asking for a new code.
-      if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
-        return res.status(429).json({
-          error: 'Too many failed attempts. Please try again later.',
-          lockUntil: pending.otp_locked_until,
-        });
-      }
-      // H10: per-account send cooldown (60s) to stop OTP email/SMS bombing.
-      if (pending.otp_last_sent_at
-          && Date.now() - new Date(pending.otp_last_sent_at).getTime() < OTP_RESEND_COOLDOWN_MS) {
-        return res.status(429).json({
-          error: 'Please wait before requesting another code.',
-          retryAfterMs: OTP_RESEND_COOLDOWN_MS - (Date.now() - new Date(pending.otp_last_sent_at).getTime()),
-        });
-      }
-      const hashedOtp = hashOtp(otp);
-      await pool.query(
-        `UPDATE users
-            SET otp_code = $1, otp_expires_at = $2, otp_attempts = 0,
-                otp_locked_until = NULL
-          WHERE email = $3`,
-        [hashedOtp, expiresAt, email.toLowerCase()]
-      );
-      const delivery = phone
-        ? await sendOTPSMS(phone, otp)
-        : await sendOTPEmail(email, otp, userRows[0].preferred_language);
-      if (!delivery || delivery.success === false) {
-        return res.status(503).json({ error: 'Unable to send OTP. Please try again.', code: 'otp_send_failed' });
-      }
-      await pool.query('UPDATE users SET otp_last_sent_at = NOW() WHERE email = $1', [email.toLowerCase()]);
+    await pool.query(
+      `UPDATE users
+          SET otp_code = $1, otp_expires_at = $2, otp_attempts = 0,
+              otp_locked_until = NULL
+        WHERE id = $3`,
+      [hashOtp(otp), expiresAt, pending.id]
+    );
+    const delivery = smsTarget
+      ? await sendOTPSMS(smsTarget, otp)
+      : await sendOTPEmail(email, otp, pending.preferred_language);
+    if (!delivery || delivery.success === false) {
+      logger.warn('OTP delivery failed', { userId: pending.id, channel: smsTarget ? 'sms' : 'email' });
+      return uniform();
     }
-    res.json({ message: 'OTP sent' });
+    await pool.query('UPDATE users SET otp_last_sent_at = NOW() WHERE id = $1', [pending.id]);
+    return uniform();
   } catch (err) {
     logger.error('OTP error', { err });
     res.status(500).json({ error: 'Failed to send OTP' });
