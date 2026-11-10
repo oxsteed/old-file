@@ -11,6 +11,11 @@
 //   careerFacts          nightly       recompute profile facts from records
 //   careerFairness       monthly       impact-ratio check (auto-off < 0.8),
 //                                      quarterly adverse-impact reports
+//   careerJobAlerts      every 15 min  saved-search alerts (daily/weekly/
+//                                      instant), new openings for followers
+//   careerInterviewSweep every 10 min  interview reminders, expire proposals
+//   careerCandidateAlerts hourly       new matching candidates for employers
+//   careerMetricPrune    nightly       drop day-old view de-duplication marks
 
 const pool = require('../db');
 const logger = require('../utils/logger');
@@ -22,6 +27,9 @@ const billing = require('../services/careers/billing');
 const retention = require('../services/careers/retention');
 const { computeFacts } = require('../services/careers/profileFacts');
 const fairness = require('../services/careers/fairness');
+const seeker = require('../services/careers/marketplace/seeker');
+const scheduling = require('../services/careers/marketplace/scheduling');
+const candidates = require('../services/careers/marketplace/candidates');
 
 const SCHEDULES = {
   offerExpiry: '0 */15 * * * *',
@@ -30,6 +38,10 @@ const SCHEDULES = {
   retention: '0 15 3 * * *',
   facts: '0 40 3 * * *',
   fairness: '0 0 4 1 * *',
+  jobAlerts: '0 7,22,37,52 * * * *',
+  interviewSweep: '0 */10 * * * *',
+  candidateAlerts: '0 25 * * * *',
+  metricPrune: '0 50 3 * * *',
 };
 
 async function locked(name, ttl, fn) {
@@ -102,6 +114,22 @@ async function runFairness(now = new Date()) {
   });
 }
 
+// Marketplace sweeps (docs/careers/marketplace.md). Every send carries an
+// idempotent delivery key, so a re-run after a crash never double-notifies.
+const runJobAlerts = () => locked('career-job-alerts', 900, async () => ({
+  alerts: await seeker.runDueAlerts(pool),
+  followers: await seeker.notifyFollowers(pool),
+}));
+
+const runInterviewSweep = () => locked('career-interview-sweep', 600, async () => ({
+  expired: await scheduling.expireProposals(pool),
+  reminders: await scheduling.sendReminders(pool),
+}));
+
+const runCandidateAlerts = () => locked('career-candidate-alerts', 1800, () => candidates.runCandidateAlerts(pool));
+
+const runMetricPrune = () => locked('career-metric-prune', 600, () => seeker.pruneMetricMarks(pool));
+
 const JOBS = [
   ['offerExpiry', runOfferExpiry],
   ['onboardingResume', runOnboardingResume],
@@ -109,6 +137,10 @@ const JOBS = [
   ['retention', runRetention],
   ['facts', runFacts],
   ['fairness', runFairness],
+  ['jobAlerts', runJobAlerts],
+  ['interviewSweep', runInterviewSweep],
+  ['candidateAlerts', runCandidateAlerts],
+  ['metricPrune', runMetricPrune],
 ];
 
 function startCareersJobs() {
@@ -135,6 +167,10 @@ module.exports = {
   runRetention,
   runFacts,
   runFairness,
+  runJobAlerts,
+  runInterviewSweep,
+  runCandidateAlerts,
+  runMetricPrune,
   previousMonth,
   previousQuarter,
 };

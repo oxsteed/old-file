@@ -9,7 +9,7 @@ const { withTransaction } = require('../../utils/transaction');
 const { logBusinessAction } = require('../../services/businessAuditLog');
 const { logAdminAction } = require('../../services/auditService');
 const {
-  assertCanManageOpening, requireHiringAccess, canManagePlatformHiring,
+  assertCanManageOpening, requireHiringAccess, canManagePlatformHiring, resolveAgencyAccess,
 } = require('../../services/careers/access');
 const { loadApplicationForEmployer, applicationInScope, openingView } = require('../../services/careers/applications');
 
@@ -36,10 +36,20 @@ function businessIdFrom(req) {
 }
 
 /** Hiring access for a business-level employer route (no record yet). */
-async function businessAccess(req, { requireHire = true } = {}) {
+async function businessAccess(req, { requireHire = true, agencyPermission = null } = {}) {
   const user = requireUser(req);
-  const access = await requireHiringAccess(user, businessIdFrom(req));
-  return { kind: 'business', ...access, requireHire };
+  const businessId = businessIdFrom(req);
+  try {
+    const access = await requireHiringAccess(user, businessId);
+    return { kind: 'business', ...access, requireHire };
+  } catch (err) {
+    // A linked staffing agency acting for this client (marketplace §12).
+    if (!agencyPermission) throw err;
+    const agencyId = Number(req.query.agency_business_id ?? req.body?.agency_business_id);
+    const agency = await resolveAgencyAccess(user, businessId, agencyPermission, { agencyBusinessId: Number.isInteger(agencyId) && agencyId > 0 ? agencyId : null });
+    if (!agency) throw err;
+    return { kind: 'business', ...agency, requireHire };
+  }
 }
 
 async function loadOpeningRow(db, id, { lock = false } = {}) {
@@ -87,8 +97,18 @@ async function audit(req, access, { action, targetType, targetId, after = null, 
   await logBusinessAction(req, {
     business_id: businessId || access?.businessId,
     actor_role: access?.role,
-    action, target_type: targetType, target_id: targetId, before_state: before, after_state: after, metadata, client,
+    action, target_type: targetType, target_id: targetId, before_state: before, after_state: after,
+    metadata: access?.agencyBusinessId ? { ...(metadata || {}), via_agency_business_id: access.agencyBusinessId } : metadata, client,
   });
+  // Agency actions are recorded in the agency's own log as well.
+  if (access?.agencyBusinessId) {
+    await logBusinessAction(req, {
+      business_id: access.agencyBusinessId,
+      actor_role: 'agency',
+      action, target_type: targetType, target_id: targetId, before_state: before, after_state: after,
+      metadata: { ...(metadata || {}), client_business_id: businessId || access.businessId }, client,
+    });
+  }
 }
 
 module.exports = {
