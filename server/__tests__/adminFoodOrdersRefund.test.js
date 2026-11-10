@@ -112,6 +112,33 @@ describe('admin refundFoodOrder (audit fixes)', () => {
     expect(seen.sql.some((s) => /INSERT INTO admin_audit_log/.test(s))).toBe(false);
   });
 
+  test('F-14: a second equal partial refund uses a new provider key and is booked once', async () => {
+    mockDbForOrder(makeOrder({ payment_status: 'partially_refunded', metadata: { admin_refunded_cents: 400, refunded_cents: 400, admin_refund_ids: ['98'] } }));
+    refundWalletDebitForReference.mockResolvedValue({
+      refunded: true, entry: { id: 99 }, account: { id: 5 }, amountCents: 400, cumulativeRefundedCents: 800,
+    });
+    const { req, res } = makeReqRes(7, { amount_cents: 400, reason: 'second partial' });
+    await refundFoodOrder(req, res);
+    expect(res.statusCode).toBe(200);
+    expect(refundWalletDebitForReference.mock.calls[0][1].correlationId).toBe('admin-food-refund:7:400:400');
+    const updateCall = mockQuery.mock.calls.find(([q]) => /^UPDATE food_orders/.test(q));
+    const meta = JSON.parse(updateCall[1][1]);
+    expect(meta.admin_refunded_cents).toBe(800);
+    expect(meta.admin_refund_ids).toEqual(['98', '99']);
+  });
+
+  test('F-14: a provider replay of an already-recorded refund is not booked again', async () => {
+    const seen = mockDbForOrder(makeOrder({ payment_status: 'partially_refunded', metadata: { admin_refunded_cents: 400, refunded_cents: 400, admin_refund_ids: ['99'] } }));
+    refundWalletDebitForReference.mockResolvedValue({
+      refunded: true, entry: { id: 99 }, account: { id: 5 }, amountCents: 400, cumulativeRefundedCents: 400,
+    });
+    const { req, res } = makeReqRes(7, { amount_cents: 400, reason: 'replayed' });
+    await refundFoodOrder(req, res);
+    expect(res.statusCode).toBe(409);
+    expect(res.body.code).toBe('food_refund_replayed');
+    expect(seen.sql.some((q) => /^UPDATE food_orders/.test(q))).toBe(false);
+  });
+
   test('ADM-029/030: partial wallet refund honors the amount; key has no admin id; row locked', async () => {
     const seen = mockDbForOrder(makeOrder());
     refundWalletDebitForReference.mockResolvedValue({
@@ -127,9 +154,10 @@ describe('admin refundFoodOrder (audit fixes)', () => {
       expect.anything(),
       expect.objectContaining({ amountCents: 400 })
     );
-    // ADM-030: idempotency key is per (order, amount), not per admin.
+    // ADM-030: idempotency key is per (order, already-refunded, amount), not
+    // per admin (F-14 added the already-refunded total).
     const correlationId = refundWalletDebitForReference.mock.calls[0][1].correlationId;
-    expect(correlationId).toBe('admin-food-refund:7:400');
+    expect(correlationId).toBe('admin-food-refund:7:0:400');
     expect(correlationId).not.toContain(ADMIN_ID);
     // ADM-031: the order row is locked inside the transaction.
     expect(seen.sql.some((s) => /FOR UPDATE/.test(s))).toBe(true);
