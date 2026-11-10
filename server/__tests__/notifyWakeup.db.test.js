@@ -6,7 +6,7 @@
 // the migration's AFTER INSERT trigger; this test covers the LISTEN half
 // with an explicit pg_notify, which is exactly what the trigger issues.
 jest.unmock('pg');
-const { subscribe, stop } = require('../utils/notifyWakeup');
+const { subscribe, stop, getStatus } = require('../utils/notifyWakeup');
 
 const url = process.env.DATABASE_URL || process.env.STATEMENT_TEST_DATABASE_URL || '';
 const hasDb = url.includes('credit_statement_test');
@@ -56,5 +56,34 @@ describeDb('notify wakeup against Postgres', () => {
     await pool.query(`SELECT pg_notify('oxsteed_screen_events', '')`);
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  test('the last unsubscribe ends the dedicated LISTEN client', async () => {
+    const saved = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = url;
+    try {
+      const unsub = subscribe('oxsteed_screen_events', jest.fn());
+      const openDeadline = Date.now() + 10000;
+      while (!getStatus().connected && Date.now() < openDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect(getStatus()).toMatchObject({
+        connected: true,
+        channels: ['oxsteed_screen_events'],
+      });
+      unsub();
+      const closeDeadline = Date.now() + 10000;
+      while ((getStatus().connected || getStatus().connecting) && Date.now() < closeDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect(getStatus()).toEqual({
+        connected: false,
+        connecting: false,
+        channels: [],
+      });
+    } finally {
+      if (saved === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = saved;
+    }
   });
 });
