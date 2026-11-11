@@ -54,6 +54,7 @@ function platformJobPaymentsEnabled() {
 
 // Create a new job (wizard publish)
 exports.createJob = async (req, res, next) => {
+  const uploadedMediaKeys = [];
   try {
     const {
       title, description,
@@ -128,11 +129,13 @@ exports.createJob = async (req, res, next) => {
       const storedKeys = uploads
         .filter(r => r.status === 'fulfilled' && r.value)
         .map(r => r.value);
+      uploadedMediaKeys.push(...storedKeys);
       const failed = uploads.length - storedKeys.length;
       if (failed > 0) {
         // Do not publish a job with a partial media set. Remove any objects
         // that did upload before returning a retryable, explicit error.
         await Promise.allSettled(storedKeys.map((key) => deleteFile(key)));
+        uploadedMediaKeys.length = 0;
         throw new AppError(
           'One or more job media files could not be uploaded. Please retry.',
           502,
@@ -269,6 +272,9 @@ exports.createJob = async (req, res, next) => {
     }
     return inserted;
     }, 'create_job');
+    // The committed job row now owns these media objects. Keep them even if a
+    // later best-effort notification or response step fails.
+    uploadedMediaKeys.length = 0;
 
     // Exact GPS coordinates never leave the server - see services/jobSerializer.
     const safeJob = serializeJob(rows[0], { role: 'owner' });
@@ -312,6 +318,7 @@ exports.createJob = async (req, res, next) => {
       notify_count: matchResult.notified || 0,
     });
   } catch (err) {
+    await Promise.allSettled(uploadedMediaKeys.map((key) => deleteFile(key)));
     // Log full error details for debugging job creation failures
     logger.error('[createJob] Error inserting job', {
       userId: req.user?.id,
