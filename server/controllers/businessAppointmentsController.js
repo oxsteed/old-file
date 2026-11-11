@@ -248,21 +248,7 @@ async function createAppointment(req, res, next) {
 
     let appointmentBasePriceCents;
     let appointmentFinalPriceCents;
-    if (!req.staffCreated && bv) {
-      const serviceBasePrice = Number(bv.service?.base_price_cents);
-      if (!Number.isSafeInteger(serviceBasePrice) || serviceBasePrice < 0) {
-        return next(new AppError('Service price is unavailable', 503, 'service_price_unavailable'));
-      }
-      const priced = await priceServiceBooking({
-        businessId,
-        serviceId: service_id,
-        basePriceCents: serviceBasePrice,
-        customerId: req.user?.id || customer_id || null,
-        atTimeIso: start_time,
-      });
-      appointmentBasePriceCents = Number(priced.basePriceCents);
-      appointmentFinalPriceCents = Number(priced.adjustedPriceCents);
-    } else {
+    if (req.staffCreated || !bv) {
       const suppliedPrice = Number(base_price_cents);
       if (!Number.isSafeInteger(suppliedPrice) || suppliedPrice < 0) {
         return next(new AppError('Price must be a non-negative whole number of cents', 400, 'invalid_price'));
@@ -296,6 +282,25 @@ async function createAppointment(req, res, next) {
       }
       if (serviceResult.rows[0].is_active === false) {
         throw new AppError('Service is inactive', 409, 'service_inactive');
+      }
+
+      // Price only after the service row is locked. The middleware snapshot
+      // can be stale if the catalog changed between validation and insert;
+      // the locked row is the authoritative source for the appointment.
+      if (!req.staffCreated && bv) {
+        const lockedBasePrice = Number(serviceResult.rows[0].base_price_cents ?? bv.service?.base_price_cents);
+        if (!Number.isSafeInteger(lockedBasePrice) || lockedBasePrice < 0) {
+          throw new AppError('Service price is unavailable', 503, 'service_price_unavailable');
+        }
+        const priced = await priceServiceBooking({
+          businessId,
+          serviceId: service_id,
+          basePriceCents: lockedBasePrice,
+          customerId: req.user?.id || customer_id || null,
+          atTimeIso: start_time,
+        });
+        appointmentBasePriceCents = Number(priced.basePriceCents);
+        appointmentFinalPriceCents = Number(priced.adjustedPriceCents);
       }
 
       // Conflict / capacity / staff double-booking / blocked-time guards.

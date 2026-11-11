@@ -424,7 +424,7 @@ describe('P3-8-F15: createAppointment uses req.bookingValidation', () => {
       if (s.includes('FROM business_services') && s.includes('FOR UPDATE')) {
         // The service id must come from bookingValidation, not the body.
         expect(params[0]).toBe('svc-bv');
-        return { rows: [{ id: 'svc-bv', business_id: 7, deleted_at: null, is_active: true, max_capacity: 1 }] };
+        return { rows: [{ id: 'svc-bv', business_id: 7, deleted_at: null, is_active: true, max_capacity: 1, base_price_cents: 7000 }] };
       }
       if (s.includes('FROM business_appointments') && s.includes('COUNT(*)')) return { rows: [{ n: 0 }] };
       if (s.includes('INSERT INTO business_appointments')) {
@@ -457,8 +457,10 @@ describe('P3-8-F15: createAppointment uses req.bookingValidation', () => {
     expect(inserted[2]).toBe('staff-bv');
     expect(new Date(inserted[8]).toISOString()).toBe(new Date(bvStart).toISOString());
     expect(new Date(inserted[9]).toISOString()).toBe(new Date(bvEnd).toISOString());
-    expect(inserted[10]).toBe(5000);
-    expect(inserted[11]).toBe(5000);
+    // The locked service catalog price wins over both the stale middleware
+    // snapshot and the caller-supplied body amount.
+    expect(inserted[10]).toBe(7000);
+    expect(inserted[11]).toBe(7000);
   });
 });
 
