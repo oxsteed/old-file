@@ -5,11 +5,17 @@
 
 jest.mock('../services/shipmentService', () => ({
   getShipment: jest.fn(),
+  addDocument: jest.fn(),
 }));
+jest.mock('../utils/storage', () => {
+  const actual = jest.requireActual('../utils/storage');
+  return { ...actual, uploadFile: jest.fn(), deleteFile: jest.fn() };
+});
 
 const express = require('express');
 const request = require('supertest');
 const shipmentService = require('../services/shipmentService');
+const storage = require('../utils/storage');
 const shipCtrl = require('../controllers/logisticsShipmentsController');
 
 jest.mock('../middleware/auth', () => ({
@@ -37,6 +43,25 @@ const shipment = (docs) => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  storage.deleteFile.mockResolvedValue(undefined);
+});
+
+test('removes the uploaded shipment document when persistence fails', async () => {
+  storage.uploadFile.mockResolvedValue('logistics/shipment-docs/7/123-bol.pdf');
+  shipmentService.addDocument.mockRejectedValue(new Error('document insert unavailable'));
+  const next = jest.fn();
+  const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+  await shipCtrl.uploadDocument({
+    params: { id: '7' },
+    body: { doc_type: 'bill_of_lading' },
+    file: { originalname: 'bol.pdf', buffer: Buffer.from('pdf'), mimetype: 'application/pdf' },
+    user: { id: 'user-1' },
+  }, res, next);
+
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'document insert unavailable' }));
+  expect(storage.deleteFile).toHaveBeenCalledWith(expect.stringMatching(/^logistics\/shipment-docs\/7\/\d+-bol\.pdf$/));
+  expect(res.status).not.toHaveBeenCalled();
 });
 
 test('mints a signed download URL for a document on a visible shipment', async () => {
