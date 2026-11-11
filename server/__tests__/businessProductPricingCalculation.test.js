@@ -26,6 +26,7 @@ beforeEach(() => {
 });
 
 test('public product pricing uses the shared cents engine while preserving the dollar API contract', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ business_id: 7, owner_id: 'owner-1' }] });
   pricingEngine.calculatePrice.mockResolvedValueOnce({
     basePriceCents: 1250,
     adjustedPriceCents: 1000,
@@ -56,7 +57,7 @@ test('public product pricing uses the shared cents engine while preserving the d
       appliedRules: [{ ruleId: 'rule-1', type: 'volume', adjustment: { kind: 'multiplier', value: 0.8 } }],
     },
   });
-  expect(mockQuery).not.toHaveBeenCalled();
+  expect(mockQuery).toHaveBeenCalledTimes(1);
 });
 
 test('public product pricing rejects fractional or non-positive quantities before pricing', async () => {
@@ -65,5 +66,16 @@ test('public product pricing rejects fractional or non-positive quantities befor
     .send({ productId: 'product-1', quantity: 0.5 });
 
   expect(res.status).toBe(400);
+  expect(pricingEngine.calculatePrice).not.toHaveBeenCalled();
+});
+
+test('public product pricing rejects a business that is not publicly visible', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+
+  const res = await request(buildApp())
+    .post('/api/businesses/7/product-pricing/calculate')
+    .send({ productId: 'product-1', quantity: 2 });
+
+  expect(res.status).toBe(404);
   expect(pricingEngine.calculatePrice).not.toHaveBeenCalled();
 });

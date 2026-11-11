@@ -71,7 +71,9 @@ async function _loadServiceBasePrice(businessId, serviceId) {
 
 async function _loadProductBasePrice(businessId, productId) {
   const { rows } = await pool.query(
-    `SELECT price_cents FROM business_products WHERE id = $1 AND business_id = $2`,
+    `SELECT price_cents FROM business_products
+      WHERE id = $1 AND business_id = $2
+        AND is_active = TRUE AND deleted_at IS NULL`,
     [productId, businessId]
   );
   return rows[0] ? Number(rows[0].price_cents) : null;

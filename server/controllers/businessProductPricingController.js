@@ -21,6 +21,7 @@ const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const pricingEngine = require('../services/pricingEngine');
+const { resolvePublicBusinessOwner } = require('../services/businessPublicOwner');
 
 // ── List pricing rules ────────────────────────────────────────────────────────
 async function listPricingRules(req, res, next) {
@@ -217,6 +218,9 @@ async function calculatePrice(req, res, next) {
     if (!Number.isSafeInteger(numericQuantity) || numericQuantity < 1) {
       throw new AppError('Quantity must be a positive integer', 400, 'validation_failed');
     }
+    if (!await resolvePublicBusinessOwner(businessId)) {
+      throw new AppError('Business not found', 404, 'not_found');
+    }
 
     const result = await pricingEngine.calculatePrice({
       businessId,
@@ -292,6 +296,9 @@ async function setBulkPricingTiers(req, res, next) {
 async function getBulkPricingTiers(req, res, next) {
   try {
     const { businessId, productId } = req.params;
+    if (!await resolvePublicBusinessOwner(businessId)) {
+      throw new AppError('Business not found', 404, 'not_found');
+    }
 
     const productCheck = await pool.query(
       'SELECT id FROM business_products WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL',
