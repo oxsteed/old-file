@@ -965,30 +965,46 @@ exports.toggleUserBan = async (req, res) => {
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
     if (['admin','super_admin'].includes(before[0].role)) return res.status(403).json({ error: 'Cannot ban admin accounts.' });
     const newStatus = !before[0].is_active;
-    const { rows: updateRows } = await db.query(
-      `UPDATE users SET is_active = $1, updated_at = NOW()
-       WHERE id::text = $3 AND is_active = $2 RETURNING id`,
-      [newStatus, before[0].is_active, String(userId)],
-    );
+
+    // A ban must revoke existing tokens before the state change. If revocation
+    // is unavailable, fail closed instead of committing a ban that still has
+    // live sessions and returning a misleading success response.
+    if (!newStatus) {
+      await tokenRevocationService.revokeAllUserTokens(String(userId));
+    }
+
+    const { rows: updateRows } = await withTransaction(db, async (client) => {
+      const result = await client.query(
+        `UPDATE users SET is_active = $1, updated_at = NOW()
+         WHERE id::text = $3 AND is_active = $2 RETURNING id`,
+        [newStatus, before[0].is_active, String(userId)],
+      );
+      if (result.rows.length === 0) return result;
+      await logAdminAction({
+        client,
+        adminId,
+        action: newStatus ? 'user_unbanned' : 'user_banned',
+        targetType: 'user',
+        targetId: userId,
+        description: reason || null,
+        before: { is_active: before[0].is_active },
+        after: { is_active: newStatus },
+        req,
+      });
+      return result;
+    }, newStatus ? 'admin_unban_user' : 'admin_ban_user');
     if (updateRows.length === 0) {
       return res.status(409).json({ error: 'User status changed during ban operation - concurrent modification detected.' });
     }
-    try { await logAdminAction({ adminId, action: newStatus ? 'user_unbanned' : 'user_banned', targetType: 'user', targetId: userId, description: reason || null, before: { is_active: before[0].is_active }, after: { is_active: newStatus }, req }); } catch(e) {}
+    if (newStatus) {
+      try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) { logger.warn('toggleUserBan: reinstate after unban failed', { userId, err: e.message }); }
+    }
     try { await sendNotification({
       userId,
       type: newStatus ? 'account_restored' : 'account_banned',
       action_url: newStatus ? '/login' : null,
       data: { reason: reason || null },
     }); } catch (e) {}
-    if (newStatus) {
-      try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) { logger.warn('toggleUserBan: reinstate after unban failed', { userId, err: e.message }); }
-    }
-    // ADM-109: banning must invalidate issued tokens. Without this, pre-ban
-    // tokens stay cryptographically valid and resume working on unban.
-    if (!newStatus) {
-      try { await tokenRevocationService.revokeAllUserTokens(String(userId)); }
-      catch (e) { logger.warn('toggleUserBan: token revocation failed', { userId, err: e.message }); }
-    }
     // Kick any live WebSocket session immediately so the user can't keep browsing
     if (!newStatus) socketService.broadcastToUser(userId, 'force_logout', { reason: 'account_banned' });
     res.json({ message: `User ${newStatus ? 'unbanned' : 'banned'} successfully.`, is_active: newStatus });
