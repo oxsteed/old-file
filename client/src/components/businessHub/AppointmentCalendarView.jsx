@@ -68,7 +68,8 @@ export function AppointmentCalendarView({ businessId, initialFilter = 'all', cur
   const loadServices = async () => {
     try {
       const response = await api.get(`/businesses/${businessId}/services`);
-      setServices(Array.isArray(response.data) ? response.data : []);
+      const rows = Array.isArray(response.data) ? response.data : [];
+      setServices(rows.filter((service) => service?.is_active !== false && service?.allow_online_booking !== false));
     } catch (error) {
       setServices([]);
     }

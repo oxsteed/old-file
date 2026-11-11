@@ -65,6 +65,7 @@ describe('hub services + calendar error sources', () => {
     expect(res.body[0].name).toBe('Haircut');
     expect(mockQuery.mock.calls[1][0]).toMatch(/duration_minutes/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/base_price_cents/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/allow_online_booking/);
   });
 
   test('GET services?all=true without access is 403, not a missing-helper crash', async () => {

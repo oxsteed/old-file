@@ -74,7 +74,8 @@ export default function BookingCalendar({
       .then(({ data }) => {
         if (!active) return;
         const rows = data?.data ?? data;
-        const next = Array.isArray(rows) ? rows : [];
+        const next = (Array.isArray(rows) ? rows : [])
+          .filter((service) => service?.is_active !== false && service?.allow_online_booking !== false);
         setServices(next);
         if (!initialServiceName && !restoredNameRef.current && next[0]) {
           onDraftChange({ serviceId: String(next[0].id), serviceName: next[0].name || '' });

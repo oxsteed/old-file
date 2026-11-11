@@ -61,6 +61,7 @@ function coerceServiceFields(body = {}) {
 
 const SERVICE_SELECT = `id, name, description, price, price_unit, duration, popular, category, sort_order, is_active,
          duration_minutes, base_price_cents, max_capacity, min_notice_hours, cancellation_policy_hours,
+         allow_online_booking,
          created_at, updated_at`;
 
 // ─── Public visibility gate ────────────────────────────────────────────────
