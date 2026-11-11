@@ -386,6 +386,97 @@ async function applyFoodOrderPaymentState(client, {
   return order;
 }
 
+// Marketplace orders can be completed by the signed webhook even when the
+// customer never returns to the browser. Keep that path as strict as the
+// browser confirmation path: a metadata order id alone is not evidence that
+// this PaymentIntent belongs to the local transaction or has the right value.
+async function applyMarketplaceOrderPaymentState(client, { orderId, paymentIntent }) {
+  if (!orderId || !paymentIntent?.id) return null;
+  const { rows } = await client.query(
+    `SELECT mo.id, mo.status, mo.customer_id, mo.cart_id,
+            mt.id AS transaction_id, mt.payment_intent_id,
+            mt.amount_cents, mt.currency AS transaction_currency
+       FROM marketplace_orders mo
+       JOIN marketplace_transactions mt ON mt.order_id = mo.id
+      WHERE mo.id = $1 AND mt.payment_intent_id = $2
+      FOR UPDATE OF mo, mt`,
+    [orderId, paymentIntent.id]
+  );
+  const order = rows[0];
+  if (!order) {
+    throw new AppError(
+      'The Stripe marketplace payment is not linked to this order',
+      409,
+      'marketplace_payment_verification_failed',
+    );
+  }
+
+  const expectedAmountCents = Number(order.amount_cents);
+  const receivedAmountCents = Number(paymentIntent.amount_received ?? paymentIntent.amount);
+  const expectedCurrency = String(order.transaction_currency || '').toLowerCase();
+  const receivedCurrency = String(paymentIntent.currency || '').toLowerCase();
+  const metadataOrderId = String(paymentIntent.metadata?.orderId || paymentIntent.metadata?.order_id || '');
+  const metadataUserId = String(paymentIntent.metadata?.userId || paymentIntent.metadata?.user_id || '');
+  if (!Number.isSafeInteger(expectedAmountCents)
+      || expectedAmountCents <= 0
+      || !Number.isSafeInteger(receivedAmountCents)
+      || receivedAmountCents !== expectedAmountCents
+      || !expectedCurrency
+      || receivedCurrency !== expectedCurrency
+      || metadataOrderId !== String(order.id)
+      || (metadataUserId && metadataUserId !== String(order.customer_id))) {
+    logger.error('[Stripe] marketplace payment evidence mismatch; order NOT marked paid', {
+      orderId: order.id,
+      paymentIntentId: paymentIntent.id,
+      expectedAmountCents,
+      receivedAmountCents,
+      expectedCurrency,
+      receivedCurrency,
+      metadataOrderId,
+      metadataUserId,
+    });
+    throw new AppError(
+      'The Stripe marketplace payment does not match the order transaction',
+      409,
+      'marketplace_payment_verification_failed',
+    );
+  }
+
+  // Never resurrect a refunded order on a late/replayed success event. A
+  // settled paid row is idempotent and still gets its transaction watermark.
+  if (order.status === 'refunded' || order.status === 'cancelled' || order.status === 'completed') {
+    logger.warn('[Stripe] marketplace payment succeeded for terminal order; ignored', {
+      orderId: order.id,
+      paymentIntentId: paymentIntent.id,
+      status: order.status,
+    });
+    return order;
+  }
+
+  const { rows: updatedRows } = await client.query(
+    `UPDATE marketplace_orders
+        SET status = 'paid', updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND status IS DISTINCT FROM 'refunded'
+      RETURNING *`,
+    [order.id]
+  );
+  await client.query(
+    `UPDATE marketplace_transactions
+        SET status = 'succeeded', updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
+      WHERE order_id = $1 AND payment_intent_id = $2`,
+    [order.id, paymentIntent.id]
+  );
+  if (updatedRows[0] && order.status !== 'paid') {
+    const { emitDomainEvent, commerceEventProps } = require('../growth/emit');
+    await emitDomainEvent(client, 'marketplace.order_paid', commerceEventProps({
+      id: order.id,
+      amount_minor: expectedAmountCents,
+      currency: expectedCurrency.toUpperCase(),
+    }), { userId: order.customer_id });
+  }
+  return updatedRows[0] || order;
+}
+
 async function syncBusinessStripeAccountState(account) {
   const accountId = account?.id;
   if (!accountId) return;
@@ -1478,18 +1569,16 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             }).catch(e => logger.warn('Failed to send payment receipt notification', { error: e.message }));
           }
         } else if (orderId) {
-          // Marketplace order payment succeeded
-          await db.query(
-            `UPDATE marketplace_orders SET status = $1, updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
-             WHERE id = $2`,
-            ['paid', orderId]
-          );
-          await db.query(
-            `UPDATE marketplace_transactions SET status = $1, updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
-             WHERE payment_intent_id = $2`,
-            ['succeeded', pi.id]
-          );
-          logger.info(`[Stripe] PaymentIntent ${pi.id} succeeded - order ${orderId} marked as paid`);
+          // Marketplace order payment succeeded. The webhook is authoritative
+          // when the browser never calls confirmPayment, so verify the local
+          // transaction and provider evidence before moving either row.
+          const marketplaceOrder = await withTransaction(db, (client) => applyMarketplaceOrderPaymentState(client, {
+            orderId,
+            paymentIntent: pi,
+          }));
+          if (marketplaceOrder) {
+            logger.info(`[Stripe] PaymentIntent ${pi.id} succeeded - order ${orderId} marked as paid`);
+          }
         }
         await withTransaction(db, (client) => applyStripePaymentIntent(client, pi, event.account || null));
         break;

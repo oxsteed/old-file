@@ -580,6 +580,49 @@ describe('payment_intent.succeeded', () => {
     expect(res.status).toBe(200);
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(true);
   });
+
+  test('marks a marketplace order paid only when the stored transaction matches', async () => {
+    const event = {
+      type: 'payment_intent.succeeded',
+      data: { object: {
+        id: 'pi_market_999', amount: 2400, amount_received: 2400, currency: 'usd',
+        metadata: { orderId: '91', userId: 'customer-91' },
+      } },
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{
+        id: 91, status: 'pending', customer_id: 'customer-91', cart_id: 'cart-91',
+        transaction_id: 12, payment_intent_id: 'pi_market_999', amount_cents: 2400,
+        transaction_currency: 'usd',
+      }] })
+      .mockResolvedValueOnce({ rows: [{ id: 91, status: 'paid' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE marketplace_orders/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE marketplace_transactions/.test(sql))).toBe(true);
+  });
+
+  test('does not mark a marketplace order paid when Stripe evidence mismatches', async () => {
+    const event = {
+      type: 'payment_intent.succeeded',
+      data: { object: {
+        id: 'pi_market_bad', amount: 2399, amount_received: 2399, currency: 'eur',
+        metadata: { orderId: '91', userId: 'customer-91' },
+      } },
+    };
+    mockQuery.mockResolvedValueOnce({ rows: [{
+      id: 91, status: 'pending', customer_id: 'customer-91', cart_id: 'cart-91',
+      transaction_id: 12, payment_intent_id: 'pi_market_bad', amount_cents: 2400,
+      transaction_currency: 'usd',
+    }] });
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(500);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE marketplace_orders/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE marketplace_transactions/.test(sql))).toBe(false);
+  });
 });
 
 describe('payment_intent.payment_failed', () => {
