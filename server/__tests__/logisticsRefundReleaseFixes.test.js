@@ -107,8 +107,11 @@ function makeFakeDb() {
     }
     // Propose path: row lock on the payment attempt serializes the
     // check+insert against concurrent proposals on the same attempt.
-    if (/FROM logistics_payment_attempts WHERE id::text = \$1 FOR UPDATE/i.test(s)) {
-      return { rows: [{ id: params[0] }] };
+    if (/FROM logistics_payment_attempts\s+WHERE id::text = \$1\s+FOR UPDATE/i.test(s)) {
+      return { rows: [{
+        id: params[0], amount_cents: 10000, currency: 'USD',
+        stripe_payment_intent_id: 'pi_1',
+      }] };
     }
     // Confirmation path: match our case by the Stripe refund id.
     if (/FROM logistics_refund_cases WHERE stripe_refund_id = \$1 FOR UPDATE/i.test(s)) {
@@ -371,6 +374,7 @@ describe('Fix 3 — pending Stripe refunds complete via confirmation', () => {
 
     const result = await svc.confirmStripeRefund(ports, {
       stripeRefundId: 're_pend_1', status: 'succeeded', stripeEventId: 'evt_1',
+      evidence: { amount: 4000, currency: 'usd', payment_intent: 'pi_1' },
     });
     expect(result).toMatchObject({ matched: true, outcome: 'confirmed' });
     expect(db.cases[0].status).toBe('processed');
@@ -383,7 +387,10 @@ describe('Fix 3 — pending Stripe refunds complete via confirmation', () => {
     const ports = bindDb(makePorts({ stripeResult: { id: 're_pend_1', status: 'pending' } }), query);
     await pendingCase(ports);
 
-    const first = await svc.confirmStripeRefund(ports, { stripeRefundId: 're_pend_1', status: 'succeeded' });
+    const first = await svc.confirmStripeRefund(ports, {
+      stripeRefundId: 're_pend_1', status: 'succeeded',
+      evidence: { amount: 4000, currency: 'usd', payment_intent: 'pi_1' },
+    });
     expect(first.outcome).toBe('confirmed');
     const second = await svc.confirmStripeRefund(ports, { stripeRefundId: 're_pend_1', status: 'succeeded' });
     expect(second).toMatchObject({ matched: true, outcome: 'already_processed' });
@@ -409,7 +416,10 @@ describe('Fix 3 — pending Stripe refunds complete via confirmation', () => {
     await pendingCase(ports);
     const pendingNotifies = notifyEvents(ports).filter((e) => e === 'refund_pending').length;
 
-    const result = await svc.confirmStripeRefund(ports, { stripeRefundId: 're_pend_1', status: 'pending' });
+    const result = await svc.confirmStripeRefund(ports, {
+      stripeRefundId: 're_pend_1', status: 'pending',
+      evidence: { amount: 4000, currency: 'usd', payment_intent: 'pi_1' },
+    });
     expect(result).toMatchObject({ matched: true, outcome: 'still_pending' });
     expect(db.cases[0].status).toBe('executing');
     expect(notifyEvents(ports).filter((e) => e === 'refund_pending')).toHaveLength(pendingNotifies);
@@ -422,7 +432,10 @@ describe('Fix 3 — pending Stripe refunds complete via confirmation', () => {
     const ports = bindDb(makePorts({ stripeResult: { id: 're_pend_1', status: 'pending' } }), query);
     await pendingCase(ports);
 
-    const result = await svc.confirmStripeRefund(ports, { stripeRefundId: 're_pend_1', status: 'failed' });
+    const result = await svc.confirmStripeRefund(ports, {
+      stripeRefundId: 're_pend_1', status: 'failed',
+      evidence: { amount: 4000, currency: 'usd', payment_intent: 'pi_1' },
+    });
     expect(result).toMatchObject({ matched: true, outcome: 'marked_failed' });
     expect(db.cases[0].status).toBe('failed');
     expect(db.recon.some((r) => r.reason.includes('failed'))).toBe(true);
@@ -547,9 +560,7 @@ describe('Fix 3 — webhook confirmation end to end (handleStripeEvent)', () => 
   }
 
   test('refund.updated confirms a pending case to processed (fallback attempt resolution)', async () => {
-    seedPendingRefundFlow();
-    // No payment_intent on the refund object: the handler must resolve the
-    // attempt through our refund case instead of the payment-intent link.
+    const { attempt } = seedPendingRefundFlow();
     const result = await paymentsService.handleStripeEvent({
       id: 'evt_ru_1',
       type: 'refund.updated',
@@ -558,6 +569,9 @@ describe('Fix 3 — webhook confirmation end to end (handleStripeEvent)', () => 
           id: 're_pend_1',
           object: 'refund',
           status: 'succeeded',
+          amount: 10000,
+          currency: 'usd',
+          payment_intent: attempt.stripe_payment_intent_id,
           metadata: { refund_case_id: '1' },
         },
       },
@@ -573,12 +587,32 @@ describe('Fix 3 — webhook confirmation end to end (handleStripeEvent)', () => 
     });
   });
 
-  test('a duplicate confirmation webhook is skipped before any state change', async () => {
+  test('refund.updated with mismatched provider evidence stays executing', async () => {
     seedPendingRefundFlow();
+    const result = await paymentsService.handleStripeEvent({
+      id: 'evt_ru_bad_evidence',
+      type: 'refund.updated',
+      data: { object: {
+        id: 're_pend_1', object: 'refund', status: 'succeeded',
+        amount: 9999, currency: 'eur', payment_intent: 'pi_other',
+      } },
+    });
+
+    expect(result).toMatchObject({ handled: true, outcome: 'refund_verification_failed' });
+    expect(store.refundCases[0].status).toBe('executing');
+    expect(store.refundDecisions.some((d) => d.action === 'confirm_verification_failed')).toBe(true);
+    expect(mockSendNotification).not.toHaveBeenCalled();
+  });
+
+  test('a duplicate confirmation webhook is skipped before any state change', async () => {
+    const { attempt } = seedPendingRefundFlow();
     const event = {
       id: 'evt_ru_dup',
       type: 'refund.updated',
-      data: { object: { id: 're_pend_1', object: 'refund', status: 'succeeded' } },
+      data: { object: {
+        id: 're_pend_1', object: 'refund', status: 'succeeded',
+        amount: 10000, currency: 'usd', payment_intent: attempt.stripe_payment_intent_id,
+      } },
     };
     const first = await paymentsService.handleStripeEvent(event);
     expect(first.outcome).toBe('refund_confirmed');
@@ -604,7 +638,10 @@ describe('Fix 3 — webhook confirmation end to end (handleStripeEvent)', () => 
           payment_intent: attempt.stripe_payment_intent_id,
           amount_refunded: 10000,
           currency: 'usd',
-          refunds: { data: [{ id: 're_pend_2', status: 'succeeded', metadata: {} }] },
+          refunds: { data: [{
+            id: 're_pend_2', status: 'succeeded', amount: 10000,
+            currency: 'usd', payment_intent: attempt.stripe_payment_intent_id, metadata: {},
+          }] },
         },
       },
     });
@@ -627,7 +664,10 @@ describe('Fix 3 — webhook confirmation end to end (handleStripeEvent)', () => 
           payment_intent: 'pi_test_1',
           amount_refunded: 10000,
           currency: 'usd',
-          refunds: { data: [{ id: 're_pend_1', status: 'pending', metadata: {} }] },
+          refunds: { data: [{
+            id: 're_pend_1', status: 'pending', amount: 10000,
+            currency: 'usd', payment_intent: 'pi_test_1', metadata: {},
+          }] },
         },
       },
     });

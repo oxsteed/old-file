@@ -1303,11 +1303,24 @@ async function confirmMatchingRefundCase(client, event, attempt) {
   // is the Refund itself. Index statuses by refund id when available.
   const obj = (event && event.data && event.data.object) || {};
   const statusById = {};
+  const evidenceById = {};
+  const addEvidence = (refund) => {
+    if (!refund || typeof refund !== 'object' || !refund.id) return;
+    evidenceById[refund.id] = {
+      ...refund,
+      // Charge refund list entries normally carry these fields, but retain
+      // the parent charge values when Stripe omits them from the expansion.
+      payment_intent: refund.payment_intent || obj.payment_intent || null,
+      currency: refund.currency || obj.currency || null,
+    };
+  };
   if (event.type === 'refund.updated' && obj.id) {
     statusById[obj.id] = obj.status || null;
+    addEvidence(obj);
   } else if (obj.refunds && Array.isArray(obj.refunds.data)) {
     for (const r of obj.refunds.data) {
       if (r && r.id) statusById[r.id] = r.status || null;
+      addEvidence(r);
     }
   }
   const refundService = require('./logisticsRefundService');
@@ -1321,6 +1334,7 @@ async function confirmMatchingRefundCase(client, event, attempt) {
       stripeRefundId: refundId,
       status: statusById[refundId] || null,
       stripeEventId: event.id,
+      evidence: evidenceById[refundId] || null,
     });
     if (!result.matched) continue;
     const outcome = `refund_${result.outcome}`;
