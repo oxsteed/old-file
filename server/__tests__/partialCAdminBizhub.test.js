@@ -199,6 +199,18 @@ describe('P2-1-F13 suspend revokes user tokens', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ didit_enforcement_required: true }));
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_didit_enforcement' }));
   });
+
+  test('superAdminController.verifyUser audits platform verification atomically', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'u9', role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'u9' }], rowCount: 1 });
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { userId: 'u9' }, body: { field: 'is_identity_verified' }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.verifyUser(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/confirmed/i) }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_verified' }));
+  });
 });
 
 // ─── P2-1-F08 / P2-1-F12: moderation audit fail-closed ───────────────────────

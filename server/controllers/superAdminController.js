@@ -1038,61 +1038,57 @@ exports.verifyUser = async (req, res) => {
     }
 
     const isHelperRole = ['helper', 'helper_pro', 'broker'].includes(targets[0].role);
-
-    if (field === 'is_identity_verified') {
-      const { rows: idVerifyRows } = await db.query(
-        `UPDATE users SET
-           didit_status = 'verified',
-           is_verified = TRUE,
-           identity_verified = TRUE,
-           id_verified = TRUE,
-           didit_verified_at = COALESCE(didit_verified_at, NOW()),
-           didit_enforcement_required = FALSE,
-           updated_at = NOW()
-         WHERE id = $1 RETURNING id`,
-        [userId]
-      );
-      if (idVerifyRows.length === 0) {
-        return res.status(409).json({ error: 'User state changed during verification - operation may have been concurrent.' });
-      }
-      if (isHelperRole && (await tableExists('helper_profiles'))) {
-        await db.query(
-          `INSERT INTO helper_profiles (user_id, is_identity_verified, tier, is_listed, created_at, updated_at)
-           VALUES ($1, TRUE, 'tier1', FALSE, NOW(), NOW())
-           ON CONFLICT (user_id) DO UPDATE SET
-             is_identity_verified = TRUE,
-             updated_at = NOW()`,
+    const hasHelperProfiles = isHelperRole && await tableExists('helper_profiles');
+    const { rows: verificationRows } = await withTransaction(db, async (client) => {
+      let result;
+      if (field === 'is_identity_verified') {
+        result = await client.query(
+          `UPDATE users SET
+             didit_status = 'verified',
+             is_verified = TRUE,
+             identity_verified = TRUE,
+             id_verified = TRUE,
+             didit_verified_at = COALESCE(didit_verified_at, NOW()),
+             didit_enforcement_required = FALSE,
+             updated_at = NOW()
+           WHERE id = $1 RETURNING id`,
           [userId]
         );
-      }
-    } else if (field === 'is_background_checked') {
-      const { rows: bgCheckRows } = await db.query(
-        `UPDATE users SET
-           background_check_status = 'passed',
-           background_check_passed = TRUE,
-           background_check_passed_at = COALESCE(background_check_passed_at, NOW()),
-           background_check_expiry = COALESCE(background_check_expiry, NOW() + INTERVAL '1 year'),
-           updated_at = NOW()
-         WHERE id = $1 RETURNING id`,
-        [userId]
-      );
-      if (bgCheckRows.length === 0) {
-        return res.status(409).json({ error: 'User state changed during verification - operation may have been concurrent.' });
-      }
-      if (isHelperRole && (await tableExists('helper_profiles'))) {
-        await db.query(
-          `INSERT INTO helper_profiles (user_id, is_background_checked, tier, is_listed, created_at, updated_at)
-           VALUES ($1, TRUE, 'tier1', FALSE, NOW(), NOW())
-           ON CONFLICT (user_id) DO UPDATE SET
-             is_background_checked = TRUE,
-             updated_at = NOW()`,
+        if (result.rows.length && hasHelperProfiles) {
+          await client.query(
+            `INSERT INTO helper_profiles (user_id, is_identity_verified, tier, is_listed, created_at, updated_at)
+             VALUES ($1, TRUE, 'tier1', FALSE, NOW(), NOW())
+             ON CONFLICT (user_id) DO UPDATE SET
+               is_identity_verified = TRUE,
+               updated_at = NOW()`,
+            [userId]
+          );
+        }
+      } else {
+        result = await client.query(
+          `UPDATE users SET
+             background_check_status = 'passed',
+             background_check_passed = TRUE,
+             background_check_passed_at = COALESCE(background_check_passed_at, NOW()),
+             background_check_expiry = COALESCE(background_check_expiry, NOW() + INTERVAL '1 year'),
+             updated_at = NOW()
+           WHERE id = $1 RETURNING id`,
           [userId]
         );
+        if (result.rows.length && hasHelperProfiles) {
+          await client.query(
+            `INSERT INTO helper_profiles (user_id, is_background_checked, tier, is_listed, created_at, updated_at)
+             VALUES ($1, TRUE, 'tier1', FALSE, NOW(), NOW())
+             ON CONFLICT (user_id) DO UPDATE SET
+               is_background_checked = TRUE,
+               updated_at = NOW()`,
+            [userId]
+          );
+        }
       }
-    }
-
-    try {
+      if (!result.rows.length) return result;
       await logAdminAction({
+        client,
         adminId,
         action: 'user_verified',
         targetType: 'user',
@@ -1100,7 +1096,11 @@ exports.verifyUser = async (req, res) => {
         description: `Super-admin confirmed ${field}`,
         req,
       });
-    } catch (e) { /* non-fatal */ }
+      return result;
+    }, 'admin_verify_user');
+    if (verificationRows.length === 0) {
+      return res.status(409).json({ error: 'User state changed during verification - operation may have been concurrent.' });
+    }
 
     res.json({ message: `${field} confirmed successfully.` });
   } catch (err) {
