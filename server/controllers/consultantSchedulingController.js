@@ -356,7 +356,8 @@ exports.bookTimeSlot = async (req, res) => {
 
     // Resolve session + owner via JOIN - consulting_sessions_scheduled does not have customer_id
     const { rows: sessions } = await db.query(
-      `SELECT css.id, css.session_id, cs.user_id, cs.email, cs.first_name
+      `SELECT css.id, css.session_id, css.consultant_assigned_id,
+              cs.user_id, cs.email, cs.first_name
        FROM consulting_sessions_scheduled css
        JOIN consulting_sessions cs ON css.session_id = cs.id
        WHERE css.id = $1`,
@@ -373,6 +374,16 @@ exports.bookTimeSlot = async (req, res) => {
     const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'super_admin');
     if (!isAdmin && (!req.user || session.user_id !== req.user.id)) {
       return res.status(403).json({ error: 'Not authorized for this session' });
+    }
+
+    // The consultant is selected when the pending scheduled row is created.
+    // Do not let a customer replace that assignment at the final booking
+    // step: availability and payment are both scoped to the assigned
+    // consultant, so accepting a different client-supplied id would move the
+    // appointment across accounts without re-running the intake contract.
+    if (!isAdmin && session.consultant_assigned_id
+      && String(session.consultant_assigned_id) !== String(consultantId)) {
+      return res.status(409).json({ error: 'Consultant does not match the assigned consultant' });
     }
 
     // Platform-approval gate: an unapproved consultant cannot have a paid

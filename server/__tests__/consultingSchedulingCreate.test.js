@@ -154,4 +154,30 @@ describe('placeholder row unblocks the rest of the chain', () => {
     // the next test's mock queue.
     await new Promise((resolve) => setImmediate(resolve));
   });
+
+  test('customer cannot move a scheduled session to another consultant', async () => {
+    const future = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+    mockQuery.mockResolvedValueOnce({ rows: [{
+      id: 99,
+      session_id: 1,
+      consultant_assigned_id: CONSULTANT_ID,
+      user_id: OWNER_ID,
+      email: 'owner@example.com',
+      first_name: 'Owner',
+    }] });
+    const r = res();
+    await schedulingCtrl.bookTimeSlot(
+      { params: { sessionId: '99' }, user: { id: OWNER_ID, role: 'customer' },
+        body: {
+          consultantId: OTHER_ID,
+          date: future,
+          startTime: '10:00',
+          durationMinutes: 120,
+        } },
+      r,
+    );
+    expect(r.statusCode).toBe(409);
+    expect(r.body).toEqual({ error: 'Consultant does not match the assigned consultant' });
+    expect(mockQuery.mock.calls).toHaveLength(1);
+  });
 });
