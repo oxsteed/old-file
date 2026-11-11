@@ -516,6 +516,13 @@ async function processNextTransfer() {
       transferPayload({ ...payout, id: payout.payout_id }),
       { idempotencyKey: payoutTransferIdempotencyKey(payout.payout_id) }
     );
+    // Stripe can return a malformed object from an adapter or an upstream
+    // contract regression without rejecting the request. Do not acknowledge
+    // the outbox or mark the payout as provider-created unless there is a
+    // durable transfer identity for webhook reconciliation.
+    if (!transfer || typeof transfer.id !== 'string' || !transfer.id.trim()) {
+      throw new AppError('Stripe payout transfer did not return an id', 503, 'payout_transfer_reference_missing');
+    }
     await withTransaction(pool, async (client) => {
       await client.query(
         `UPDATE restaurant_payouts

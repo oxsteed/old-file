@@ -339,6 +339,46 @@ test('worker creates Stripe transfer only for a journaled outbox item', async ()
   );
 });
 
+test('worker retries when Stripe returns no durable transfer id', async () => {
+  const payout = {
+    id: 'payout-1',
+    payout_id: 'payout-1',
+    restaurant_id: 42,
+    currency_code: 'USD',
+    amount_cents: 2000,
+    stripe_account_id: 'acct_test123',
+    payout_status: 'approved',
+    ledger_transaction_id: TXN_UUID,
+    attempts: 1,
+    lease_token: 'lease-1',
+  };
+  const claimClient = { query: jest.fn(), release: jest.fn() };
+  claimClient.query
+    .mockResolvedValueOnce({ rows: [payout] })
+    .mockResolvedValueOnce({ rows: [{ ...payout, status: 'processing', lease_token: 'lease-1' }] });
+  const persistClient = { query: jest.fn().mockResolvedValue({ rows: [] }), release: jest.fn() };
+  withTransaction.mockImplementation(async (transactionPool, operation, label) =>
+    operation(label === 'restaurant_payout_outbox_claim' ? claimClient : persistClient));
+  pool.query.mockImplementation(async (sql) => {
+    if (sql.includes('SELECT funds_settled FROM restaurant_payouts')) return { rows: [{ funds_settled: false }] };
+    if (sql.includes('FROM restaurant_connect_accounts')) return { rows: [{ stripe_account_id: 'acct_test123' }] };
+    return { rows: [] };
+  });
+  stripeFactory.__instance.transfers.create.mockResolvedValueOnce({});
+
+  const result = await service.processNextTransfer();
+
+  expect(result).toMatchObject({ processed: true, payoutId: 'payout-1', attention: false });
+  expect(persistClient.query).toHaveBeenCalledWith(
+    expect.stringContaining('SET status = $3'),
+    expect.arrayContaining(['payout-1', 'lease-1', 'pending']),
+  );
+  expect(persistClient.query).not.toHaveBeenCalledWith(
+    expect.stringContaining("SET status = 'processing', stripe_transfer_id"),
+    expect.anything(),
+  );
+});
+
 test('worker withholds the transfer when the double-pay guard query fails (fail closed)', async () => {
   const payout = {
     id: 'payout-1',
