@@ -170,7 +170,12 @@ async function getActiveCode(code) {
             u.first_name, u.last_name
        FROM qr_payment_codes c
        JOIN users u ON u.id = c.owner_user_id
-      WHERE c.code = $1 AND c.is_active = TRUE`,
+      WHERE c.code = $1
+        AND c.is_active = TRUE
+        AND u.deleted_at IS NULL
+        AND u.is_active = TRUE
+        AND u.email_verified = TRUE
+        AND u.onboarding_completed = TRUE`,
     [code]
   );
   return rows[0] || null;

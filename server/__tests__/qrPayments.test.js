@@ -161,6 +161,10 @@ describe('GET /api/qr-payments/pay/:code', () => {
     expect(res.body.user_id).toBeUndefined();
     expect(res.body.email).toBeUndefined();
     expect(res.body.stripe_account_id).toBeUndefined();
+    const [sql] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/u\.deleted_at IS NULL/);
+    expect(sql).toMatch(/u\.email_verified = TRUE/);
+    expect(sql).toMatch(/u\.onboarding_completed = TRUE/);
   });
 });
 
