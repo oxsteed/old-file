@@ -30,19 +30,31 @@ function storage() {
   const rows = new Map();
   let nextId = 1;
   mockQuery.mockImplementation(async (sql, values) => {
-    if (sql.startsWith('SELECT id, details')) return { rows: rows.has(values[0]) ? [rows.get(values[0])] : [] };
+    if (sql.startsWith('SELECT id, backup_id')) {
+      return {
+        rows: [...rows.values()]
+          .filter(row => row.backup_id === values[0])
+          .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || b.id - a.id)
+          .slice(0, 2),
+      };
+    }
     if (sql.startsWith('SELECT details') || sql.startsWith('SELECT success')) return { rows: rows.has(values[0]) ? [rows.get(values[0])] : [] };
     if (sql.startsWith('UPDATE backup_log')) {
       const existing = [...rows.values()].find(row => row.id === values[0]);
       if (existing) {
-        existing.success = values[1];
-        existing.details = JSON.parse(values[2]);
-        existing.created_at = values[3];
+        if (values.length === 3) {
+          existing.backup_id = values[1];
+          existing.details = { ...existing.details, legacyBackupId: values[2] };
+        } else {
+          existing.success = values[1];
+          existing.details = JSON.parse(values[2]);
+          existing.created_at = values[3];
+        }
       }
       return { rows: [] };
     }
     if (sql.startsWith('INSERT INTO backup_log')) {
-      rows.set(values[0], { id: nextId++, success: values[1], details: JSON.parse(values[2]), created_at: values[3] });
+      rows.set(values[0], { id: nextId++, backup_id: values[0], success: values[1], details: JSON.parse(values[2]), created_at: values[3] });
       return { rows: [{ backup_id: values[0] }] };
     }
     return { rows: [] };
@@ -66,17 +78,17 @@ test('older observation cannot regress deletion or upload evidence', async () =>
 test('refreshes the newest row when legacy duplicate evidence exists', async () => {
   const rows = storage();
   await monitor.ingestCoolifyReport(report());
-  const duplicate = { ...rows.get('coolify:execution-1'), id: 99,
+  const duplicate = { ...rows.get('coolify:execution-1'), id: 99, backup_id: 'coolify:execution-1',
     details: { ...rows.get('coolify:execution-1').details, observedAt: '2026-09-30T11:58:00.000Z' } };
-  rows.set('coolify:execution-1:legacy-duplicate', duplicate);
-  rows.set('coolify:execution-1', duplicate);
+  rows.set('legacy-row', duplicate);
 
   const refreshed = report();
   refreshed.observedAt = '2026-09-30T11:59:30.000Z';
   await monitor.ingestCoolifyReport(refreshed);
 
-  expect(rows.get('coolify:execution-1').id).toBe(99);
-  expect(rows.get('coolify:execution-1').details.observedAt).toBe('2026-09-30T11:59:30.000Z');
+  expect(rows.get('legacy-row').id).toBe(99);
+  expect(rows.get('coolify:execution-1').backup_id).toBe('coolify:execution-1:legacy:1');
+  expect(rows.get('legacy-row').details.observedAt).toBe('2026-09-30T11:59:30.000Z');
   expect(mockQuery.mock.calls.some(([sql]) => sql.startsWith('UPDATE backup_log'))).toBe(true);
 });
 test('same observation with contradictory evidence rolls back', async () => {
