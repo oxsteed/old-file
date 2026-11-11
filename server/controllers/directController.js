@@ -523,56 +523,65 @@ async function loadLookupChallengeByToken(challengeToken) {
 }
 
 async function createLookupChallenge(request, zipCode) {
-  // Per-quote cooldown: if a code was sent in the last 60 seconds, reject
-  // to prevent email flooding. The audit flagged this as a spam vector.
-  const { rows: [recent] } = await db.query(
-    `SELECT id FROM direct_quote_lookup_challenges
-      WHERE quote_request_id = $1
-        AND created_at > NOW() - INTERVAL '60 seconds'
-      LIMIT 1`,
-    [request.id]
-  );
-  if (recent) {
-    const err = new Error('A code was just sent. Please wait before requesting another.');
-    err.statusCode = 429;
-    err.code = 'cooldown';
-    throw err;
-  }
+  return withTransaction(db, async (client) => {
+    // Serialize issuance per quote so two concurrent requests cannot both
+    // observe an empty cooldown window and send multiple active codes.
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+      [`direct-quote-lookup:${request.id}`]
+    );
 
-  const challengeToken = generateChallengeToken();
-  const code = generateLookupCode();
-  const codeHash = hashLookupCode(challengeToken, code);
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    // Per-quote cooldown: if a code was sent in the last 60 seconds, reject
+    // to prevent email flooding. The lock makes this check race-free.
+    const { rows: [recent] } = await client.query(
+      `SELECT id FROM direct_quote_lookup_challenges
+        WHERE quote_request_id = $1
+          AND created_at > NOW() - INTERVAL '60 seconds'
+        LIMIT 1`,
+      [request.id]
+    );
+    if (recent) {
+      const err = new Error('A code was just sent. Please wait before requesting another.');
+      err.statusCode = 429;
+      err.code = 'cooldown';
+      throw err;
+    }
 
-  await db.query(
-    `UPDATE direct_quote_lookup_challenges
-        SET code_expires_at = NOW() - INTERVAL '1 second',
-            updated_at = NOW()
-      WHERE quote_request_id = $1
-        AND verified_at IS NULL
-        AND code_expires_at > NOW()`,
-    [request.id]
-  );
+    const challengeToken = generateChallengeToken();
+    const code = generateLookupCode();
+    const codeHash = hashLookupCode(challengeToken, code);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
-  const result = await db.query(
-    `INSERT INTO direct_quote_lookup_challenges
-       (quote_request_id, challenge_token, code_hash, zip_code, email_address, code_expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING *`,
-    [
-      request.id,
-      challengeToken,
-      codeHash,
-      zipCode,
-      request.email,
-      expiresAt,
-    ]
-  );
+    await client.query(
+      `UPDATE direct_quote_lookup_challenges
+          SET code_expires_at = NOW() - INTERVAL '1 second',
+              updated_at = NOW()
+        WHERE quote_request_id = $1
+          AND verified_at IS NULL
+          AND code_expires_at > NOW()`,
+      [request.id]
+    );
 
-  return {
-    challenge: result.rows[0] || null,
-    code,
-  };
+    const result = await client.query(
+      `INSERT INTO direct_quote_lookup_challenges
+         (quote_request_id, challenge_token, code_hash, zip_code, email_address, code_expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        request.id,
+        challengeToken,
+        codeHash,
+        zipCode,
+        request.email,
+        expiresAt,
+      ]
+    );
+
+    return {
+      challenge: result.rows[0] || null,
+      code,
+    };
+  }, 'direct_lookup_challenge');
 }
 
 // Review P3-844/P3-849: the lookup code is the only way the requester opens

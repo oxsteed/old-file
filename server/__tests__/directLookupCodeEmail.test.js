@@ -56,6 +56,7 @@ test('lookup code email uses the branded template with a text part', async () =>
   expect(typeof args.text).toBe('string');
   expect(args.text.length).toBeGreaterThan(50);
   expect(args.text).toMatch(/verification code/i);
+  expect(mockQuery.mock.calls.some(([sql]) => sql.includes('pg_advisory_xact_lock'))).toBe(true);
 });
 
 test('email delivery failure answers 503 instead of silently dropping the code', async () => {
