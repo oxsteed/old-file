@@ -114,6 +114,17 @@ describe('business integrations controls', () => {
     expect(res.body.webhooks_enabled).toBe(true);
   });
 
+  test('surfaces a business-status database failure instead of reporting disconnected integrations', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockRejectedValueOnce(new Error('database unavailable'));
+
+    const res = await request(buildApp()).get('/api/businesses/12/integrations');
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Internal server error');
+  });
+
   test('regenerates and persists a real API key', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{
