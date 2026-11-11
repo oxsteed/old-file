@@ -140,6 +140,20 @@ describe('ADM-109: ban/reactivate revoke tokens', () => {
     await superCtrl.toggleUserBan(adminReq({ params: { userId: 'u1' }, body: {} }), res);
     expect(revokeAllUserTokens).not.toHaveBeenCalled();
   });
+  test('explicit desired state never reverses a concurrent suspension', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ is_active: false, role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'u1' }] });
+    const res = mockRes();
+    await superCtrl.toggleUserBan(
+      adminReq({ params: { userId: 'u1' }, body: { is_active: false, reason: 'bulk suspend' } }),
+      res,
+    );
+    expect(revokeAllUserTokens).toHaveBeenCalledWith('u1');
+    const updateCall = mockQuery.mock.calls.find(([sql]) => /UPDATE users SET is_active/i.test(sql));
+    expect(updateCall[1][0]).toBe(false);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ is_active: false }));
+  });
 });
 
 describe('ADM-140: updateUserProfile normalizes email', () => {
