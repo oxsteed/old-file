@@ -1897,58 +1897,48 @@ async function resetPassword(req, res) {
       throw err;
     }
 
-    const { rows } = await pool.query(
-      `UPDATE users
-       SET password_hash = $1,
-           reset_token = NULL,
-           reset_token_expires = NULL,
-           updated_at = NOW()
-       WHERE id = $3
-         AND reset_token = $2
-         AND reset_token_expires > NOW()
-       RETURNING id`,
-      [passwordHash, presentedTokenHash, resetUsers[0].id]
-    );
+    const { rows } = await withTransaction(pool, async (client) => {
+      const result = await client.query(
+        `UPDATE users
+         SET password_hash = $1,
+             reset_token = NULL,
+             reset_token_expires = NULL,
+             updated_at = NOW()
+         WHERE id = $3
+           AND reset_token = $2
+           AND reset_token_expires > NOW()
+         RETURNING id`,
+        [passwordHash, presentedTokenHash, resetUsers[0].id]
+      );
+      if (!result.rows.length) return result;
+
+      // Password, refresh sessions, passkeys, and planted TOTP state must
+      // commit together or roll back together.
+      await client.query('UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1', [result.rows[0].id]);
+      await client.query(
+        'UPDATE user_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
+        [result.rows[0].id]
+      );
+      await client.query(
+        'UPDATE admin_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
+        [result.rows[0].id]
+      );
+      await client.query(
+        `UPDATE users
+            SET totp_secret = NULL,
+                totp_enabled = false,
+                totp_verified_at = NULL,
+                backup_codes = NULL,
+                updated_at = NOW()
+          WHERE id = $1`,
+        [result.rows[0].id]
+      );
+      return result;
+    }, 'password_reset');
 
     if (rows.length === 0) {
       return res.status(400).json({ error: 'Reset link is invalid or expired.' });
     }
-
-    // Audit fix: also invalidate all sessions. Revoking JWTs alone leaves
-    // refresh tokens in the sessions table that can mint new access tokens.
-    await pool.query('UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1', [rows[0].id]);
-
-    // Security: a password reset must also revoke passkeys. Otherwise an
-    // attacker who planted a passkey (via stolen session/impersonation)
-    // retains access after the victim resets their password.
-    await pool.query(
-      'UPDATE user_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
-      [rows[0].id]
-    );
-
-    // Audit fix (finding 5): admin passkeys are a standalone admin login
-    // credential (passkeyController). A planted admin passkey must not
-    // survive a password reset either.
-    await pool.query(
-      'UPDATE admin_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
-      [rows[0].id]
-    );
-
-    // Audit fix (finding 7): a planted TOTP (enrolled via stolen session)
-    // must not survive a password reset. Clear the secret, the enabled
-    // flag and the backup codes so the account holder re-enrolls 2FA on
-    // next login (login returns requiresTwoFactorSetup when an admin has
-    // no TOTP enrolled).
-    await pool.query(
-      `UPDATE users
-          SET totp_secret = NULL,
-              totp_enabled = false,
-              totp_verified_at = NULL,
-              backup_codes = NULL,
-              updated_at = NOW()
-        WHERE id = $1`,
-      [rows[0].id]
-    );
 
     // FIX #10 & #11: Audit log password reset
     const { ipAddress, userAgent } = extractRequestDetails(req);
