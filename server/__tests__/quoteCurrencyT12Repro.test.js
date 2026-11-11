@@ -48,7 +48,9 @@ describe('T12-F02: quote currency preserved on unrelated edits', () => {
 
   test('explicit currency change is written after validation', async () => {
     const updated = { id: 42, status: 'quoted', quote_currency_code: 'EUR', quote_amount_cents: 5000 };
-    mockQuery.mockResolvedValueOnce({ rows: [updated] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ payment_status: 'unpaid', quote_currency_code: 'USD', quote_amount_cents: 5000 }] })
+      .mockResolvedValueOnce({ rows: [updated] });
 
     const res = makeRes();
     await controller.updateQuoteRequestAdmin(
@@ -60,7 +62,7 @@ describe('T12-F02: quote currency preserved on unrelated edits', () => {
       res
     );
 
-    const params = mockQuery.mock.calls[0][1];
+    const params = mockQuery.mock.calls[1][1];
     expect(params[3]).toBe('EUR');
   });
 
