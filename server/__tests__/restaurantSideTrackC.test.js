@@ -359,6 +359,22 @@ describe('finding 4: support-resolution approval amount discipline', () => {
     expect(verifyStepupChallenge).not.toHaveBeenCalled();
   });
 
+  test('an explicit zero is not replaced by a contradictory snake_case amount', async () => {
+    routeApproveQueries();
+    const res = await request(adminSupportApp())
+      .post('/cases/42/approve-resolution')
+      .send({
+        resolution: 'refund',
+        amountCents: 0,
+        amount_cents: 1500,
+        stepupChallengeId: 'ch-1',
+        stepupCode: '123456',
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('invalid_resolution_amount');
+    expect(verifyStepupChallenge).not.toHaveBeenCalled();
+  });
+
   test('an above-threshold amount queues via dual approval instead of applying', async () => {
     routeApproveQueries();
     requestMoneyMovementApproval.mockResolvedValueOnce({

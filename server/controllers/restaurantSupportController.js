@@ -1103,7 +1103,7 @@ exports.restaurantOfferResolution = async (req, res, next) => {
     const caseId = parsePositiveInt(req.params.caseId);
     const resolution = normalizeEnum(req.body.resolution || req.body.finalResolution || req.body.final_resolution, RESOLUTIONS, null);
     if (!resolution) throw new AppError('Validation failed', 400, 'validation_failed', { resolution: 'Supported resolution is required' });
-    const amount = cents(req.body.amountCents || req.body.amount_cents || req.body.resolutionAmountCents);
+    const amount = cents(req.body.amountCents ?? req.body.amount_cents ?? req.body.resolutionAmountCents);
     const result = await withTransaction(pool, async (client) => {
       const { supportCase } = await assertCaseRestaurant(client, caseId, restaurantId, req.user.id, { manage: true });
       if (['payment_sensitive', 'fraud_sensitive'].includes(supportCase.severity) || supportCase.issue_type === 'payment_problem') {
@@ -1563,7 +1563,7 @@ exports.issueApproveResolutionStepupChallenge = async (req, res, next) => {
     const caseId = parsePositiveInt(req.params.caseId);
     const resolution = normalizeEnum(req.body.resolution || req.body.finalResolution || req.body.final_resolution, RESOLUTIONS, null);
     if (!resolution) throw new AppError('Validation failed', 400, 'validation_failed', { resolution: 'Supported resolution is required' });
-    const amount = cents(req.body.amountCents || req.body.amount_cents || req.body.approvedRefundAmountCents);
+    const amount = cents(req.body.amountCents ?? req.body.amount_cents ?? req.body.approvedRefundAmountCents);
     const supportCase = await loadCase(pool, caseId);
     if (!supportCase) throw new AppError('Support case not found', 404, 'case_not_found');
     await validateSupportResolutionAmount(pool, supportCase, resolution, amount);
@@ -1582,7 +1582,7 @@ exports.adminApproveResolution = async (req, res, next) => {
     const caseId = parsePositiveInt(req.params.caseId);
     const resolution = normalizeEnum(req.body.resolution || req.body.finalResolution || req.body.final_resolution, RESOLUTIONS, null);
     if (!resolution) throw new AppError('Validation failed', 400, 'validation_failed', { resolution: 'Supported resolution is required' });
-    const amount = cents(req.body.amountCents || req.body.amount_cents || req.body.approvedRefundAmountCents);
+    const amount = cents(req.body.amountCents ?? req.body.amount_cents ?? req.body.approvedRefundAmountCents);
     const supportCase = await loadCase(pool, caseId);
     if (!supportCase) throw new AppError('Support case not found', 404, 'case_not_found');
     // Amount validation runs BEFORE any step-up is verified, so a bad
