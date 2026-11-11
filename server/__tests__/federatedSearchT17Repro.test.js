@@ -101,4 +101,31 @@ describe('T17-F01: federated search scopes entity types by grant', () => {
     expect(String(messageCall[0])).toContain('c.customer_id = $5');
     expect(messageCall[1]).toEqual(['%customer%', 10, 0, false, 'admin-1']);
   });
+
+  test('failed source queries are reported as unavailable instead of zero matches', async () => {
+    mockQuery.mockImplementation(async (text) => {
+      const sql = String(text);
+      if (sql.includes('admin_permission_grants')) {
+        return { rows: [{ permission: 'manage_operations' }] };
+      }
+      if (sql.includes('FROM jobs')) {
+        throw new Error('jobs source unavailable');
+>>>>>>> origin/codex/admin-search-source-health
+      }
+      return { rows: [] };
+    });
+
+    const req = {
+      query: { q: 'broken', types: 'jobs' },
+      user: { id: 'admin-1', role: 'admin' },
+      headers: {},
+    };
+    const res = makeRes();
+    await controller.search(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      source_status: expect.objectContaining({ jobs: 'unavailable' }),
+      totals: expect.objectContaining({ jobs: 0 }),
+    }));
+  });
 });

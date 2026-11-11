@@ -324,11 +324,11 @@ exports.search = async (req, res) => {
 
     // ── Extract rows + totals ─────────────────────────────────────────────────
     function extract(settled) {
-      if (settled.status !== 'fulfilled') return { rows: [], total: 0 };
+      if (settled.status !== 'fulfilled') return { rows: [], total: 0, available: false };
       const rows = settled.value.rows;
       const total = rows.length > 0 ? parseInt(rows[0].total_count || 0) : 0;
       // Strip the window function column before sending to client
-      return { rows: rows.map(({ total_count, ...r }) => r), total };
+      return { rows: rows.map(({ total_count, ...r }) => r), total, available: true };
     }
 
     const users         = extract(usersRes);
@@ -356,6 +356,16 @@ exports.search = async (req, res) => {
       reviews:        reviews.total,
       bids:           bids.total,
     };
+    const sourceStatus = {
+      users: users.available ? 'ok' : 'unavailable',
+      jobs: jobs.available ? 'ok' : 'unavailable',
+      messages: messages.available ? 'ok' : 'unavailable',
+      disputes: disputes.available ? 'ok' : 'unavailable',
+      payments: payments.available ? 'ok' : 'unavailable',
+      support_tickets: support.available ? 'ok' : 'unavailable',
+      reviews: reviews.available ? 'ok' : 'unavailable',
+      bids: bids.available ? 'ok' : 'unavailable',
+    };
 
     // ── Log the search (non-blocking) ─────────────────────────────────────────
     const rawIpAddress = req.ip || req.headers['x-forwarded-for'] || 'unknown';
@@ -371,6 +381,7 @@ exports.search = async (req, res) => {
       entity_types: requestedTypes,
       total:        totalCount,
       totals,
+      source_status: sourceStatus,
       page,
       limit,
       results: {

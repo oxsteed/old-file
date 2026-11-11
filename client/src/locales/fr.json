@@ -35840,6 +35840,7 @@
     "typeReviews": "Avis",
     "typeBids": "Offres",
     "searchFailed": "La recherche a échoué.",
+    "sourcesUnavailable": "Certaines sources sont indisponibles : {{sources}}. Les résultats peuvent être incomplets.",
     "title": "Recherche",
     "description": "Recherchez parmi les utilisateurs, emplois, messages, litiges, paiements, tickets de support, avis et offres. Toutes les recherches sont enregistrées.",
     "searchPlaceholder": "Rechercher utilisateurs, emplois, litiges, paiements…",
