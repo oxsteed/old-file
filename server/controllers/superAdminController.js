@@ -4363,18 +4363,40 @@ exports.restrictUser = async (req, res) => {
       return res.status(403).json({ error: 'Cannot restrict another admin account.' });
     }
 
-    await db.query(
-      `UPDATE users
-       SET is_restricted      = TRUE,
-           restriction_reason = $1,
-           restricted_by      = $2,
-           updated_at         = NOW()
-       WHERE id = $3`,
-      [reason.trim(), adminId, userId]
-    );
-
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_restricted', notes: reason.trim(), ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
-    await logAdminAction({ adminId, action: 'user_restricted', targetType: 'user', targetId: userId, description: reason.trim(), req });
+    await withTransaction(db, async (client) => {
+      const { rowCount } = await client.query(
+        `UPDATE users
+         SET is_restricted      = TRUE,
+             restriction_reason = $1,
+             restricted_by      = $2,
+             updated_at         = NOW()
+         WHERE id = $3`,
+        [reason.trim(), adminId, userId]
+      );
+      if (rowCount === 0) {
+        const err = new Error('User disappeared during restriction.');
+        err.code = 'user_state_changed';
+        throw err;
+      }
+      await logUserAction({
+        client,
+        adminId,
+        targetUserId: userId,
+        actionType: 'account_restricted',
+        notes: reason.trim(),
+        ipAddress: req.ip,
+        impersonatedBy: req.impersonatedBy || null,
+      });
+      await logAdminAction({
+        client,
+        adminId,
+        action: 'user_restricted',
+        targetType: 'user',
+        targetId: userId,
+        description: reason.trim(),
+        req,
+      });
+    }, 'admin_restrict_user');
 
     await notifyUserAccountEvent(userId, {
       type: 'account_restricted',
