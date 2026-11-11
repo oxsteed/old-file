@@ -37,6 +37,12 @@ beforeEach(() => resetMocks());
 describe('support follow-up reminder routes', () => {
   const futureDueAt = () => new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
+  test('reminder assignees exclude soft-deleted users', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('../controllers/supportFollowUpReminderController'), 'utf8');
+    expect(src).toMatch(/SELECT id FROM users WHERE id = \$1 AND is_active = TRUE AND deleted_at IS NULL/);
+  });
+
   test('rejects a reminder due date in the past without loading the database', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [authRow()] });
     const res = await request(buildApp())
