@@ -828,7 +828,9 @@ exports.archiveAdminCatalogEntity = async (req, res) => {
   try {
     const entity = catalogEntityName(req.params.entity);
     if (!entity) return res.status(400).json({ error: 'Unsupported catalog entity' });
-    await removeEntity(entity, req.params.id, req.user?.id);
+    await removeEntity(entity, req.params.id, req.user?.id, {
+      cascadePauseChildren: req.body?.cascadePauseChildren === true,
+    });
     return res.json({ success: true, catalog: await getAdminCatalog() });
   } catch (err) {
     return res.status(err.statusCode || 500).json({ error: err.message || 'Failed to archive catalog record' });

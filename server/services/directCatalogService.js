@@ -812,7 +812,7 @@ async function saveEntity(entity, body, actorUserId, id = null) {
   }
 }
 
-async function removeEntity(entity, id, actorUserId) {
+async function removeEntity(entity, id, actorUserId, options = {}) {
   const table = entity === 'category' ? 'direct_catalog_categories' : entity === 'service' ? 'direct_catalog_services' : 'direct_catalog_tools';
   const client = await db.connect();
   try {
@@ -820,6 +820,33 @@ async function removeEntity(entity, id, actorUserId) {
     const existing = await client.query(`SELECT lifecycle_status FROM ${table} WHERE id = $1`, [id]);
     if (!existing.rows[0]) throw Object.assign(new Error('Catalog record not found'), { statusCode: 404 });
     const previousStatus = legacyLifecycle(existing.rows[0]);
+    if (entity === 'category') {
+      const children = await client.query(
+        `SELECT id, lifecycle_status
+           FROM direct_catalog_services
+          WHERE category_id = $1
+            AND lifecycle_status IN ('live', 'paused', 'coming_soon')`,
+        [id]
+      );
+      const liveChildren = children.rows.filter((row) => row.lifecycle_status === 'live');
+      if (liveChildren.length && !options.cascadePauseChildren) {
+        throw Object.assign(
+          new Error(`Cannot retire category while ${liveChildren.length} live service(s) remain. Pass cascadePauseChildren to pause children and retire.`),
+          { statusCode: 400, code: 'category_has_live_children' }
+        );
+      }
+      if (options.cascadePauseChildren && children.rows.length) {
+        await client.query(
+          `UPDATE direct_catalog_services
+              SET lifecycle_status = 'paused',
+                  paused_at = CURRENT_TIMESTAMP,
+                  updated_at = CURRENT_TIMESTAMP
+            WHERE category_id = $1
+              AND lifecycle_status IN ('live', 'coming_soon')`,
+          [id]
+        );
+      }
+    }
     const result = await client.query(`UPDATE ${table} SET is_active = FALSE, is_published = FALSE, lifecycle_status = 'retired', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id`, [id]);
     if (!result.rows[0]) throw Object.assign(new Error('Catalog record not found'), { statusCode: 404 });
     await audit(actorUserId, 'archive', entity, result.rows[0].id, {}, client);
