@@ -164,6 +164,13 @@ describe('F03 service blocked times', () => {
 
 // ── F02: manager invite no longer 404s; owner_id is the business owner ───────
 describe('F02 manager invite', () => {
+  test('invite and rehire target lookups exclude deleted or inactive users', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('../controllers/businessMembersController'), 'utf8');
+    expect(src).toContain('FROM users WHERE LOWER(email) = $1 AND is_active = TRUE AND deleted_at IS NULL');
+    expect((src.match(/is_active = TRUE AND deleted_at IS NULL/g) || []).length).toBeGreaterThanOrEqual(3);
+  });
+
   test('a manager can invite (201) and the row is scoped to the business owner', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // no existing account
