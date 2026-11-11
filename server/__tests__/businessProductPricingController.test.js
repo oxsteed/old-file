@@ -17,6 +17,7 @@ function buildApp() {
   app.post('/api/businesses/:businessId/product-pricing/rules', ctrl.createPricingRule);
   app.put('/api/businesses/:businessId/product-pricing/rules/:ruleId', ctrl.updatePricingRule);
   app.post('/api/businesses/:businessId/products/:productId/bulk-pricing', ctrl.setBulkPricingTiers);
+  app.get('/api/businesses/:businessId/products/:productId/bulk-pricing', ctrl.getBulkPricingTiers);
   app.use(errorHandler);
   return app;
 }
@@ -104,5 +105,17 @@ describe('business product pricing controller wiring', () => {
     expect(mockQuery.mock.calls[0][0]).toMatch(/FROM business_products/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/DELETE FROM product_bulk_tiers/);
     expect(mockQuery.mock.calls[2][0]).toMatch(/INSERT INTO product_bulk_tiers/);
+  });
+
+  test('public bulk pricing excludes inactive products', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ business_id: 12, owner_id: 'owner-1' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp()).get('/api/businesses/12/products/product-1/bulk-pricing');
+
+    expect(res.status).toBe(404);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/is_active = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/deleted_at IS NULL/);
   });
 });

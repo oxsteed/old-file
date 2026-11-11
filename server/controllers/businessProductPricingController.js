@@ -269,7 +269,7 @@ async function setBulkPricingTiers(req, res, next) {
       throw new AppError('Tiers array required', 400, 'validation_failed');
 
     const productCheck = await pool.query(
-      'SELECT id FROM business_products WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL',
+      'SELECT id FROM business_products WHERE id = $1 AND business_id = $2 AND is_active = TRUE AND deleted_at IS NULL',
       [productId, businessId]
     );
     if (!productCheck.rows.length) throw new AppError('Product not found', 404, 'not_found');
@@ -301,7 +301,7 @@ async function getBulkPricingTiers(req, res, next) {
     }
 
     const productCheck = await pool.query(
-      'SELECT id FROM business_products WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL',
+      'SELECT id FROM business_products WHERE id = $1 AND business_id = $2 AND is_active = TRUE AND deleted_at IS NULL',
       [productId, businessId]
     );
     if (!productCheck.rows.length) throw new AppError('Product not found', 404, 'not_found');
