@@ -28,6 +28,7 @@ function buildApp(user = OWNER) {
   app.post('/api/businesses/:businessId/services', content.createBusinessService);
   app.get('/api/businesses/:businessId/appointments', appointments.listAppointments);
   app.get('/api/businesses/:businessId/waitlist', waitlist.listWaitlist);
+  app.post('/api/businesses/:businessId/waitlist', waitlist.addToWaitlist);
   app.get('/api/businesses/:businessId/ops-services', services.listServices);
   app.get('/api/businesses/:businessId/services/:serviceId/slots', calendar.getServiceSlots);
   app.use(errorHandler);
@@ -169,6 +170,47 @@ describe('hub services + calendar error sources', () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     const res = await request(buildApp()).get('/api/businesses/1/services/8/slots');
     expect(res.status).toBe(404);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  test('public waitlist intake rejects an unavailable business before queueing a customer', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp())
+      .post('/api/businesses/1/waitlist')
+      .send({ service_id: 8, preferred_date: '2026-09-22' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('not_found');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const sql = mockQuery.mock.calls[0][0];
+    expect(sql).toMatch(/JOIN businesses b ON b\.id = bs\.business_id/);
+    expect(sql).toMatch(/owner\.email_verified AS owner_email_verified/);
+    expect(sql).toMatch(/owner\.onboarding_completed AS owner_onboarding_completed/);
+    expect(mockQuery.mock.calls.some(([query]) => query.startsWith('INSERT INTO appointment_waitlist'))).toBe(false);
+  });
+
+  test('public waitlist intake rejects inactive services before queueing a customer', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{
+      id: 8,
+      is_active: false,
+      allow_online_booking: true,
+      business_is_active: true,
+      is_listed: true,
+      is_hidden_by_admin: false,
+      setup_status: 'active',
+      business_kind: 'service',
+      business_deleted_at: null,
+      owner_deleted_at: null,
+      owner_is_active: true,
+      owner_email_verified: true,
+      owner_onboarding_completed: true,
+    }] });
+    const res = await request(buildApp())
+      .post('/api/businesses/1/waitlist')
+      .send({ service_id: 8, preferred_date: '2026-09-22' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('service_not_bookable');
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 

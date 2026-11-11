@@ -83,10 +83,36 @@ exports.addToWaitlist = async (req, res, next) => {
     if (!service_id) return res.status(400).json({ error: 'Service is required', code: 'validation_failed' });
 
     const service = await pool.query(
-      'SELECT id FROM business_services WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL',
+      `SELECT bs.id, bs.is_active, bs.allow_online_booking,
+              b.is_active AS business_is_active, b.is_listed, b.is_hidden_by_admin,
+              b.setup_status, b.business_kind, b.deleted_at AS business_deleted_at,
+              owner.deleted_at AS owner_deleted_at, owner.is_active AS owner_is_active,
+              owner.email_verified AS owner_email_verified,
+              owner.onboarding_completed AS owner_onboarding_completed
+         FROM business_services bs
+         JOIN businesses b ON b.id = bs.business_id
+         JOIN users owner ON owner.id = b.user_id
+        WHERE bs.id = $1
+          AND bs.business_id = $2
+          AND bs.deleted_at IS NULL`,
       [service_id, businessId]
     );
-    if (!service.rows.length) return res.status(404).json({ error: 'Service not found', code: 'not_found' });
+    const serviceRow = service.rows[0];
+    if (!serviceRow || serviceRow.business_deleted_at
+      || serviceRow.business_is_active !== true
+      || serviceRow.is_listed !== true
+      || serviceRow.is_hidden_by_admin === true
+      || serviceRow.setup_status !== 'active'
+      || serviceRow.business_kind !== 'service'
+      || serviceRow.owner_deleted_at
+      || serviceRow.owner_is_active !== true
+      || serviceRow.owner_email_verified !== true
+      || serviceRow.owner_onboarding_completed !== true) {
+      return res.status(404).json({ error: 'Business not found', code: 'not_found' });
+    }
+    if (serviceRow.is_active !== true || serviceRow.allow_online_booking === false) {
+      return res.status(409).json({ error: 'Service is not accepting waitlist requests', code: 'service_not_bookable' });
+    }
 
     const posRow = await pool.query(
       'SELECT COALESCE(MAX(position_in_queue),0)+1 AS next_pos FROM appointment_waitlist WHERE service_id=$1 AND status=\'waiting\'',
