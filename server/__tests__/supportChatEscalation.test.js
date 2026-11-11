@@ -18,6 +18,9 @@ jest.mock('../services/socketService', () => ({
   broadcastToAdmins: jest.fn(),
   broadcastToUser: jest.fn(),
 }));
+jest.mock('../middleware/adminAuth', () => ({
+  hasGlobalGrant: jest.fn().mockResolvedValue(true),
+}));
 
 const { sendEmail } = require('../utils/email');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
@@ -54,7 +57,7 @@ function routeQueries({ replayRow = null, insertTicket = true } = {}) {
       return { rows: replayRow ? [replayRow] : [] };
     }
     if (/INSERT INTO support_messages/.test(sql)) return { rows: [{ id: 'm-1' }] };
-    if (/FROM users WHERE role IN/.test(sql)) return { rows: [{ email: 'admin@example.com', first_name: 'Ad' }] };
+    if (/FROM users/.test(sql) && /role IN/.test(sql)) return { rows: [{ id: 'admin-1', role: 'admin', email: 'admin@example.com', first_name: 'Ad' }] };
     return { rows: [] };
   });
   return calls;

@@ -18,6 +18,7 @@ const { transitionTicket } = require('../services/supportTicketLifecycleService'
 const { ticketEmail } = require('../utils/supportTicketEmail');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 const { MAX_IMAGE_BASE64_CHARS } = require('../constants/supportChatLimits');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 const HANDOFF_IMAGE_RE = /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/;
 
@@ -77,9 +78,20 @@ async function fetchTicketRow(ticketId) {
   async function emailAdminsNewTicket(ticket) {
     try {
       const { rows: admins } = await db.query(
-        `SELECT email, first_name FROM users WHERE role IN ('admin', 'super_admin') AND email IS NOT NULL`
+        `SELECT id, email, first_name, role
+           FROM users
+          WHERE role IN ('admin', 'super_admin')
+            AND is_active = TRUE
+            AND deleted_at IS NULL
+            AND email IS NOT NULL`
       );
-      await Promise.all(admins.map((admin) =>
+      const supportAdmins = [];
+      for (const admin of admins) {
+        if (admin.role === 'super_admin' || await hasGlobalGrant(admin.id, 'manage_support')) {
+          supportAdmins.push(admin);
+        }
+      }
+      await Promise.all(supportAdmins.map((admin) =>
         sendEmail({
           to: admin.email,
           subject: `[Ticket #${ticket.ticket_number}] New support ticket opened`,
