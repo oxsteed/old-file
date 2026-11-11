@@ -60,6 +60,7 @@ describe('admin phone verification', () => {
     expect(insertCall[0]).toContain('admin_phone_verification_challenges');
     expect(insertCall[1][3]).toMatch(/^[a-f0-9]{64}$/);
     expect(insertCall[1][3]).not.toMatch(/^\d{6}$/);
+    expect(mockQuery.mock.calls[0][0]).toContain('deleted_at IS NULL');
   });
 
   test('verifies an active admin challenge and marks the user phone verified', async () => {
