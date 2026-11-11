@@ -7,6 +7,7 @@ const {
   parseEntity,
   saveEntity,
   bulkTransition,
+  removeEntity,
   catalogReviewIssues,
   buildCatalogReviewSummary,
 } = require('../services/directCatalogService');
@@ -118,6 +119,20 @@ describe('Direct catalog', () => {
       message: 'A reason is required for lifecycle transitions',
     });
     expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('blocks category archive while live services remain', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ lifecycle_status: 'live' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 'svc-1', lifecycle_status: 'live' }], rowCount: 1 });
+
+    await expect(removeEntity('category', 'cat-1', 'admin-1')).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'category_has_live_children',
+    });
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE direct_catalog_categories/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => sql === 'ROLLBACK')).toBe(true);
   });
 
   test('public catalog output excludes admin flags and localizes records', async () => {
