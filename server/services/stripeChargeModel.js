@@ -78,7 +78,13 @@ async function releaseIntent(stripe, { intentId, model, stripeAccount, idempoten
   if (!intentId) return false;
   if (model === 'platform_hold') {
     if (typeof stripe.refunds?.create !== 'function') return false;
-    await stripe.refunds.create({ payment_intent: intentId, reason: 'requested_by_customer' }, { idempotencyKey });
+    const refund = await stripe.refunds.create(
+      { payment_intent: intentId, reason: 'requested_by_customer' },
+      { idempotencyKey },
+    );
+    if (!refund || typeof refund.id !== 'string' || !refund.id.trim()) {
+      throw new Error('Stripe platform-hold refund did not return a refund id');
+    }
     return true;
   }
   if (typeof stripe.paymentIntents?.cancel !== 'function') return false;
