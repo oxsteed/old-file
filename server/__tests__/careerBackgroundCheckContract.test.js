@@ -36,8 +36,11 @@ test('does not persist an invited check when Checkr omits the candidate handoff 
 });
 
 test('background-check invitations require HTTPS URLs', () => {
-  expect(checks.requireInvitationUrl({ invitationUrl: 'https://candidate.checkr.com/invite/1' })).toBe('https://candidate.checkr.com/invite/1');
-  expect(() => checks.requireInvitationUrl({ invitationUrl: 'http://candidate.checkr.com/invite/1' })).toThrow();
-  expect(() => checks.requireInvitationUrl({ invitationUrl: null })).toThrow();
+  expect(checks.requireInvitation({ candidateId: 'cand-1', invitationId: 'invite-1', invitationUrl: 'https://candidate.checkr.com/invite/1' })).toEqual({
+    candidateId: 'cand-1', invitationId: 'invite-1', invitationUrl: 'https://candidate.checkr.com/invite/1',
+  });
+  expect(() => checks.requireInvitation({ candidateId: 'cand-1', invitationId: 'invite-1', invitationUrl: 'http://candidate.checkr.com/invite/1' })).toThrow();
+  expect(() => checks.requireInvitation({ candidateId: 'cand-1', invitationUrl: 'https://candidate.checkr.com/invite/1' })).toThrow();
+  expect(() => checks.requireInvitation({ invitationId: 'invite-1', invitationUrl: 'https://candidate.checkr.com/invite/1' })).toThrow();
 });
 
