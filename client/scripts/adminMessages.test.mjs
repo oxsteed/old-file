@@ -19,3 +19,9 @@ test('admin messages uses localized and accessible controls', () => {
   assert.doesNotMatch(source, />Admin Messages</);
   assert.doesNotMatch(source, /placeholder="Search by name or email/);
 });
+
+test('super-admin conversation rows preserve conversation identity when opening threads', () => {
+  assert.match(source, /loadThread\(conv\.user_id, conv\.id\)/);
+  assert.match(source, /conversationId=\$\{encodeURIComponent\(conversationId\)\}/);
+  assert.match(source, /selected\.conversation_id/);
+});

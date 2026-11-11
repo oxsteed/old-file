@@ -61,3 +61,39 @@ test('getThread does not issue a read acknowledgement for an empty page', async 
   expect(res.status).not.toHaveBeenCalledWith(500);
   expect(mockQuery.mock.calls.some(([sql]) => sql.startsWith('UPDATE messages'))).toBe(false);
 });
+
+test('getThread opens the exact listed conversation for a super-admin', async () => {
+  const conversationId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const target = { id: 'user-2', first_name: 'Other', last_name: 'User', email: 'other@example.test', role: 'helper' };
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.includes('JOIN users a ON a.id = c.customer_id')) return { rows: [{ conversation_id: conversationId, user_id: target.id, ...target }] };
+    if (sql.includes('FROM messages m')) return { rows: [] };
+    if (sql.includes('COUNT(*) FROM messages')) return { rows: [{ count: '0' }] };
+    return { rows: [], rowCount: 0 };
+  });
+
+  const res = makeRes();
+  await controller.getThread({
+    user: { id: 'super-admin-1', role: 'super_admin' },
+    params: { userId: 'user-2' },
+    query: { conversationId },
+  }, res);
+
+  expect(res.status).not.toHaveBeenCalledWith(404);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ conversation_id: conversationId, user: target }));
+  const conversationCall = mockQuery.mock.calls.find(([sql]) => sql.includes('JOIN users a ON a.id = c.customer_id'));
+  expect(conversationCall[1]).toEqual([conversationId, true, 'super-admin-1']);
+  expect(mockQuery.mock.calls.some(([sql]) => sql.includes('WHERE id::text = $1'))).toBe(false);
+});
+
+test('getThread rejects malformed conversation identity before querying', async () => {
+  const res = makeRes();
+  await controller.getThread({
+    user: { id: 'super-admin-1', role: 'super_admin' },
+    params: { userId: 'user-2' },
+    query: { conversationId: 'not-a-uuid' },
+  }, res);
+
+  expect(res.status).toHaveBeenCalledWith(400);
+  expect(mockQuery).not.toHaveBeenCalled();
+});

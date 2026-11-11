@@ -101,7 +101,7 @@ export default function AdminMessages() {
   // slower earlier request can never clobber a newer thread.
   const threadRequestRef = useRef({ controller: null, seq: 0 });
 
-  const loadThread = async (userId) => {
+  const loadThread = async (userId, conversationId = null) => {
     const prev = threadRequestRef.current;
     prev.controller?.abort();
     const controller = new AbortController();
@@ -110,7 +110,8 @@ export default function AdminMessages() {
     setThreadLoading(true);
     setThreadError(false);
     try {
-      const { data } = await adminApi(`/messages/conversations/${userId}`, { signal: controller.signal });
+      const query = conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : '';
+      const { data } = await adminApi(`/messages/conversations/${userId}${query}`, { signal: controller.signal });
       if (threadRequestRef.current.seq !== seq) return; // stale
       setThread(data.messages || []);
     } catch {
@@ -126,7 +127,7 @@ export default function AdminMessages() {
 
   const openThread = (conv) => {
     setSelected({ userId: conv.user_id, user: conv, conversation_id: conv.id });
-    loadThread(conv.user_id);
+    loadThread(conv.user_id, conv.id);
     // Mark as read in the list
     setConversations(prev => prev.map(c =>
       c.id === conv.id ? { ...c, unread_count: 0 } : c
@@ -234,7 +235,7 @@ export default function AdminMessages() {
       last_message_at: null,
       unread_count: 0,
     };
-    setSelected({ userId: targetUser.id, user: fakeConv });
+    setSelected({ userId: targetUser.id, user: fakeConv, conversation_id: null });
     loadThread(targetUser.id);
     setTimeout(() => inputRef.current?.focus(), 100);
   };
@@ -354,7 +355,7 @@ export default function AdminMessages() {
               {threadLoading && <p className="text-center text-sm text-gray-500" role="status">{t('adminMessages.loading')}</p>}
               {!threadLoading && threadError && (
                 <div className="max-w-md mx-auto">
-                  <AdminErrorState onRetry={() => selected && loadThread(selected.userId)} />
+                  <AdminErrorState onRetry={() => selected && loadThread(selected.userId, selected.conversation_id)} />
                 </div>
               )}
               {!threadLoading && !threadError && thread.length === 0 && (

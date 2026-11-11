@@ -105,43 +105,77 @@ exports.listConversations = async (req, res) => {
 /**
  * GET /api/admin/messages/conversations/:userId
  * Returns the full message thread between the current admin and a specific user.
- * Creates the conversation if it doesn't exist yet.
+ * Super-admin list rows may supply ?conversationId=... to open the exact
+ * conversation owned by another admin instead of resolving the current
+ * admin's parallel thread with that user.
  */
 exports.getThread = async (req, res) => {
   try {
     const adminId  = req.user.id;
+    const isSuper  = req.user.role === 'super_admin';
     const { userId } = req.params;
+    const requestedConversationId = String(req.query.conversationId || '').trim();
     const { limit = 50, offset = 0 } = req.query;
     const limitN  = Math.min(Math.max(1, parseInt(limit, 10) || 50), 200);
     const offsetN = Math.min(1_000_000, Math.max(0, parseInt(offset, 10) || 0));
 
-    // Verify target user (must not be soft-deleted — reinstate first if scheduled for deletion)
-    const { rows: targetRows } = await db.query(
-      `SELECT id, first_name, last_name, email, role FROM users
-       WHERE id::text = $1 AND deleted_at IS NULL`,
-      [String(userId)]
-    );
-    if (!targetRows.length) return res.status(404).json({ error: 'User not found.' });
+    let targetRows;
+    let conversationId;
+    if (requestedConversationId) {
+      if (!UUID_RE.test(requestedConversationId)) {
+        return res.status(400).json({ error: 'conversationId must be a valid UUID.' });
+      }
+      // Resolve the selected row by conversation identity. A super-admin may
+      // inspect another admin's thread; regular admins remain owner-scoped.
+      const { rows } = await db.query(
+        `SELECT c.id AS conversation_id, u.id AS user_id, u.first_name, u.last_name, u.email, u.role
+           FROM conversations c
+           JOIN users a ON a.id = c.customer_id AND a.role IN ('admin','super_admin')
+           JOIN users u ON u.id = c.helper_id AND u.deleted_at IS NULL
+          WHERE c.id = $1
+            AND c.job_id IS NULL
+            AND ($2 OR c.customer_id = $3)
+          LIMIT 1`,
+        [requestedConversationId, isSuper, adminId]
+      );
+      if (!rows.length) return res.status(404).json({ error: 'Conversation not found.' });
+      conversationId = rows[0].conversation_id;
+      targetRows = [{
+        id: rows[0].user_id,
+        first_name: rows[0].first_name,
+        last_name: rows[0].last_name,
+        email: rows[0].email,
+        role: rows[0].role,
+      }];
+    } else {
+      // Verify target user (must not be soft-deleted — reinstate first if scheduled for deletion)
+      const result = await db.query(
+        `SELECT id, first_name, last_name, email, role FROM users
+         WHERE id::text = $1 AND deleted_at IS NULL`,
+        [String(userId)]
+      );
+      targetRows = result.rows;
+      if (!targetRows.length) return res.status(404).json({ error: 'User not found.' });
 
-    // Find conversation (admin is customer_id, user is helper_id, job_id IS NULL)
-    const { rows: convRows } = await db.query(
-      `SELECT id FROM conversations
-       WHERE job_id IS NULL AND customer_id = $1 AND helper_id = $2
-       LIMIT 1`,
-      [adminId, userId]
-    );
+      // Find conversation (admin is customer_id, user is helper_id, job_id IS NULL)
+      const { rows: convRows } = await db.query(
+        `SELECT id FROM conversations
+         WHERE job_id IS NULL AND customer_id = $1 AND helper_id = $2
+         LIMIT 1`,
+        [adminId, userId]
+      );
 
-    if (!convRows.length) {
-      // No conversation yet - return empty thread with user info
-      return res.json({
-        conversation_id: null,
-        user:            targetRows[0],
-        messages:        [],
-        total:           0,
-      });
+      if (!convRows.length) {
+        // No conversation yet - return empty thread with user info
+        return res.json({
+          conversation_id: null,
+          user:            targetRows[0],
+          messages:        [],
+          total:           0,
+        });
+      }
+      conversationId = convRows[0].id;
     }
-
-    const conversationId = convRows[0].id;
 
     const { rows: msgs } = await db.query(
       `SELECT m.id, m.sender_id, m.content, m.message_type, m.is_read,
