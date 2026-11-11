@@ -443,7 +443,11 @@ describe('H12 checkout idempotency', () => {
         return {
           rows: [{
             id: 42, customer_id: 'u1', payment_status: 'requires_payment',
-            metadata: { paymentMode: 'pay_now', checkoutSessionId: 'cs_existing' },
+            metadata: {
+              paymentMode: 'pay_now',
+              checkoutSessionId: 'cs_existing',
+              stripeCheckout: { checkoutUrl: 'https://checkout.stripe.com/pay/cs_existing' },
+            },
           }],
           rowCount: 1,
         };
@@ -460,6 +464,7 @@ describe('H12 checkout idempotency', () => {
     expect(res.status).toBe(200);
     expect(res.body.replayed).toBe(true);
     expect(res.body.payment.checkoutSessionId).toBe('cs_existing');
+    expect(res.body.payment.checkoutUrl).toBe('https://checkout.stripe.com/pay/cs_existing');
     expect(stripeMock.checkout.sessions.create).not.toHaveBeenCalled();
   });
 });

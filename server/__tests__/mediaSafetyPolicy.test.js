@@ -17,6 +17,7 @@ jest.mock('../services/fileScanService', () => ({ scanBuffer: jest.fn() }));
 jest.mock('../services/videoTranscodeWorker', () => ({
   ffmpegAvailable: jest.fn(() => true), probeDimensions: jest.fn(async () => ({ width: 640, height: 480 })),
   transcodeOriginal: jest.fn(), sanitizeError: jest.fn((message) => message),
+  requireStorageKey: jest.fn((key) => key),
 }));
 const pool = require('../db');
 const storage = require('../utils/storage');
