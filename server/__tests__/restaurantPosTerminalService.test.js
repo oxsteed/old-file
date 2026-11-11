@@ -30,6 +30,7 @@ beforeEach(() => {
   resetMocks();
   stripeMock.paymentIntents.create.mockReset();
   stripeMock.paymentIntents.create.mockResolvedValue({ id: 'pi_terminal_1', status: 'requires_payment_method' });
+  stripeMock.paymentIntents.cancel = jest.fn().mockResolvedValue({ id: 'pi_terminal_1', status: 'canceled' });
   stripeMock.terminal.connectionTokens.create.mockReset();
   stripeMock.terminal.connectionTokens.create.mockResolvedValue({ secret: 'pst_test_secret' });
   delete process.env.FOOD_CARD_FEE_BPS;
@@ -117,6 +118,13 @@ describe('restaurantPosTerminalService.createPaymentIntent (F-06)', () => {
       restaurantId: RESTAURANT_ID,
     })).rejects.toMatchObject({ code: 'restaurant_connect_account_missing' });
     expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('restaurantPosTerminalService.cancelPaymentIntent', () => {
+  test('cancels an orphaned Terminal intent through Stripe', async () => {
+    await posTerminal.cancelPaymentIntent('pi_orphaned');
+    expect(stripeMock.paymentIntents.cancel).toHaveBeenCalledWith('pi_orphaned');
   });
 });
 

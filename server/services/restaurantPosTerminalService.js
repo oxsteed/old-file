@@ -98,6 +98,13 @@ async function createPaymentIntent({ amountCents, currency, metadata, idempotenc
   );
 }
 
+async function cancelPaymentIntent(paymentIntentId) {
+  if (!paymentIntentId) return null;
+  const client = requireStripe();
+  if (typeof client.paymentIntents?.cancel !== 'function') return null;
+  return client.paymentIntents.cancel(paymentIntentId);
+}
+
 async function capturePaymentIntent(paymentIntentId, idempotencyKey, accountId = null) {
   const client = requireStripe();
   const current = accountId ? await client.paymentIntents.retrieve(paymentIntentId,{}, {stripeAccount:accountId}) : await client.paymentIntents.retrieve(paymentIntentId);
@@ -132,6 +139,7 @@ module.exports = {
   retrieveConnectedIntent: (id,accountId)=>requireStripe().paymentIntents.retrieve(id,{expand:['latest_charge']},{stripeAccount:accountId,timeout:15000,maxNetworkRetries:0}),
   createConnectionToken,
   createPaymentIntent,
+  cancelPaymentIntent,
   capturePaymentIntent,
   createRefund,
   resolveRestaurantConnectAccount,
