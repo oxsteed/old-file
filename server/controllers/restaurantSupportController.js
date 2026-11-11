@@ -517,7 +517,7 @@ exports.createCase = async (req, res, next) => {
           countryCode,
           currencyCode,
           requestedResolution,
-          cents(req.body.requestedRefundAmountCents || req.body.requested_refund_amount_cents),
+          cents(req.body.requestedRefundAmountCents ?? req.body.requested_refund_amount_cents),
           requestedResolution && requestedResolution.includes('refund') ? 'requested' : 'not_requested',
           requestedResolution === 'store_credit' ? 'offered' : 'not_requested',
           JSON.stringify(orderSnapshot),
