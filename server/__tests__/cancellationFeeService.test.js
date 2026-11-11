@@ -116,3 +116,21 @@ test('marks collected when the helper transfer succeeds', async () => {
   expect(params[3]).toBe('collected');
   expect(params[4]).toBeNull();
 });
+
+test('fails closed when Stripe omits the charge identity', async () => {
+  mockFeeCollectionQueries();
+  stripeMock.paymentIntents.create.mockResolvedValueOnce({ id: null, latest_charge: null });
+
+  await collectCancellationFee({
+    feeRecordId: 45,
+    customerId: CUSTOMER_ID,
+    helperId: HELPER_ID,
+    feeTotalCents: 1000,
+    feeToHelper: 500,
+  });
+
+  expect(stripeMock.transfers.create).not.toHaveBeenCalled();
+  const update = mockQuery.mock.calls.find(([sql]) => /status\s*=\s*'failed'/.test(String(sql)));
+  expect(update).toBeTruthy();
+  expect(update[1]).toEqual(['Stripe returned an unusable cancellation-fee charge response', 45]);
+});
