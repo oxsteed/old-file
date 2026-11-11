@@ -129,6 +129,9 @@ describe('P2-1-F13 suspend revokes user tokens', () => {
     // catches their failures internally only if they throw synchronously.
     await superAdminController.suspendUser(req, res).catch(() => {});
     expect(tokenRevocationService.revokeAllUserTokens).toHaveBeenCalledWith('u9');
+    const suspendUpdate = mockQuery.mock.calls.find(([sql]) => /UPDATE users/.test(sql) && /is_suspended\s*=\s*TRUE/.test(sql));
+    expect(suspendUpdate?.[0]).toMatch(/suspension_reason\s*=\s*\$2/);
+    expect(suspendUpdate?.[0]).toMatch(/suspended_reason\s*=\s*\$2/);
   });
 });
 

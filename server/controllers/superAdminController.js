@@ -4287,6 +4287,7 @@ exports.suspendUser = async (req, res) => {
            is_active    = FALSE,
            suspended_until   = $1,
            suspension_reason = $2,
+           suspended_reason  = $2,
            suspended_by      = $3,
            updated_at        = NOW()
        WHERE id = $4`,
@@ -4425,6 +4426,7 @@ exports.reactivateUser = async (req, res) => {
        SET is_suspended      = FALSE,
            suspended_until   = NULL,
            suspension_reason = NULL,
+           suspended_reason  = NULL,
            suspended_by      = NULL,
            is_restricted     = FALSE,
            restriction_reason= NULL,
