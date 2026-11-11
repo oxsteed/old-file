@@ -46,3 +46,31 @@ test('service rule creation writes the deployed schema and scopes the service to
   expect(mockQuery.mock.calls[1][1]).toEqual([7, 'time', 10, 'time pricing rule', 'user-1', '11']);
   expect(mockQuery.mock.calls[2][0]).toMatch(/service_price_time_rules/);
 });
+
+test('the builder default priority is normalized to the valid highest priority', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 'rule-1' }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const res = await request(buildApp())
+    .post('/api/businesses/7/pricing/service/11/rules')
+    .send({ rule_type: 'time', time: { price_multiplier: 1.2 } });
+
+  expect(res.status).toBe(201);
+  expect(mockQuery.mock.calls[1][1][2]).toBe(1);
+});
+
+test('a service outside the business returns not found instead of an internal error', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const res = await request(buildApp())
+    .post('/api/businesses/7/pricing/service/999/rules')
+    .send({ rule_type: 'time', time: { price_multiplier: 1.2 } });
+
+  expect(res.status).toBe(404);
+});

@@ -18,7 +18,8 @@ const DAY_NAMES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 const DEFAULT_FORM = {
   rule_type: 'time',
-  priority: 0,
+  // service_price_rules enforces priorities from 1 through 1000.
+  priority: 1,
   time:     { day_of_week: 1, start_time: '18:00', end_time: '22:00', is_peak: true,  price_multiplier: 1.5,  fixed_modifier_cents: 0 },
   demand:   { availability_threshold_percent: 50, surge_multiplier: 1.25 },
   volume:   { min_quantity: 2, max_quantity: null, period: 'order', price_multiplier: 0.9, fixed_modifier_cents: 0 },

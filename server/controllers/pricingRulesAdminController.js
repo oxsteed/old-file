@@ -87,6 +87,16 @@ exports.createServiceRule = async function createServiceRule(req, res, next) {
     if (!rule_type) fields.rule_type = 'rule_type required';
     if (rule_type && !SERVICE_RULE_TYPES.has(rule_type)) fields.rule_type = `must be one of ${Array.from(SERVICE_RULE_TYPES).join(',')}`;
 
+    // The original builder submitted 0 as its default priority, while the
+    // deployed table enforces 1..1000. Preserve that UI meaning as the
+    // highest priority valid value, and reject every other invalid value
+    // before the transaction reaches PostgreSQL.
+    const requestedPriority = Number(priority);
+    const rulePriority = requestedPriority === 0 ? 1 : requestedPriority;
+    if (!Number.isInteger(rulePriority) || rulePriority < 1 || rulePriority > 1000) {
+      fields.priority = 'must be an integer from 1 to 1000';
+    }
+
     // Multiplier sanity bounds: reject negative/NaN, cap absurd positives at 100x.
     // (num() would silently coerce garbage to the default; validate instead.)
     const vm = (v, dflt, name) => {
@@ -114,11 +124,12 @@ exports.createServiceRule = async function createServiceRule(req, res, next) {
            FROM business_services s
           WHERE s.id = $6 AND s.business_id = $1
          RETURNING id`,
-        [businessId, rule_type, num(priority, 0), `${rule_type} pricing rule`, req.user.id, serviceId]
+        [businessId, rule_type, rulePriority, `${rule_type} pricing rule`, req.user.id, serviceId]
       );
       if (!r.rows[0]) {
         const error = new Error('Service not found for business');
-        error.status = 404;
+        error.statusCode = 404;
+        error.code = 'not_found';
         throw error;
       }
       const ruleId = r.rows[0].id;
