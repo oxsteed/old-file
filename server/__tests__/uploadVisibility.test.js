@@ -41,6 +41,7 @@ jest.mock('../utils/storage', () => {
     ...actual,
     uploadFile: jest.fn(),
     getSignedDownloadUrl: jest.fn(),
+    deleteFile: jest.fn(),
   };
 });
 jest.mock('../db', () => ({
@@ -74,6 +75,7 @@ function mockStoredUpload(key) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  storage.deleteFile.mockResolvedValue(undefined);
 });
 
 describe('upload route visibility (default-deny public)', () => {
@@ -157,6 +159,17 @@ describe('upload route visibility (default-deny public)', () => {
     expect(res.body.visibility).toBe('private');
     expect(storage.getSignedDownloadUrl).toHaveBeenCalled();
   });
+
+  test('deletes the object when signing the private URL fails', async () => {
+    const key = 'user-uploads/user-123/images/general/signing-failure.jpg';
+    storage.uploadFile.mockResolvedValue(key);
+    storage.getSignedDownloadUrl.mockRejectedValue(new Error('signing failed'));
+
+    const res = await request(buildApp()).post('/api/upload').set('x-purpose', 'general');
+
+    expect(res.status).toBe(503);
+    expect(storage.deleteFile).toHaveBeenCalledWith(key);
+  });
 });
 
 describe('POST /api/upload/profile-photo (review P3-6-F06)', () => {
@@ -210,6 +223,30 @@ describe('POST /api/upload/profile-photo (review P3-6-F06)', () => {
 
     expect(res.status).toBe(400);
     expect(storage.uploadFile).not.toHaveBeenCalled();
+  });
+
+  test('deletes the object when profile photo persistence fails', async () => {
+    const key = 'public-uploads/profile-photo/user-123/images/db-failure.jpg';
+    storage.uploadFile.mockResolvedValue(key);
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ profile_photo_url: null }] })
+      .mockRejectedValueOnce(new Error('users update unavailable'));
+
+    const res = await request(buildApp()).post('/api/upload/profile-photo');
+
+    expect(res.status).toBe(500);
+    expect(res.body.code).toBe('profile_photo_save_failed');
+    expect(storage.deleteFile).toHaveBeenCalledWith(key);
+  });
+
+  test('does not fail a saved profile photo when replacement cleanup enqueue fails', async () => {
+    mockProfilePhotoUpload('public-uploads/profile-photo/user-123/images/queue-failure.jpg');
+    enqueueStorageDeletion.mockRejectedValue(new Error('cleanup queue unavailable'));
+
+    const res = await request(buildApp()).post('/api/upload/profile-photo');
+
+    expect(res.status).toBe(201);
+    expect(storage.deleteFile).not.toHaveBeenCalled();
   });
 });
 
