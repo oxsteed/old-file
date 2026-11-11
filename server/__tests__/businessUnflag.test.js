@@ -27,8 +27,10 @@ describe('P2-1-F08: unflagBusiness resolves the review queue', () => {
   test('clears the flag and writes an audit row', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'b1', business_name: 'Acme', admin_review_reason: 'suspicious menu' }] })
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [{ id: 'b1' }] }) // UPDATE
-      .mockResolvedValueOnce({ rows: [] }); // logAdminAction
+      .mockResolvedValueOnce({ rows: [] }) // logAdminAction
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
     const res = makeRes();
     await controller.unflagBusiness({ params: { id: 'b1' }, user: { id: 'a1' } }, res);

@@ -143,14 +143,18 @@ describe('business moderation audit fail-closed', () => {
   }
 
   test('flagBusiness returns 503 when the audit write fails', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: '5', business_name: 'B' }] });
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // UPDATE
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: '5', business_name: 'B' }] }) // SELECT
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: '5' }] }) // UPDATE
+      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
     logAdminAction.mockRejectedValueOnce(new Error('audit down'));
     const req = { params: { id: '5' }, body: { reason: 'spam' }, user: { id: 'admin1' }, ip: '1.1.1.1' };
     const res = mockRes();
     await businessModerationController.flagBusiness(req, res);
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'audit_unavailable' }));
+    expect(logAdminAction.mock.calls[0][0].client).toBeDefined();
   });
 
   test('updateAdminNotes returns 503 when the audit write fails', async () => {

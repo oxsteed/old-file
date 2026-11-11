@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
 const { suspendRestaurantsForBusiness } = require('../services/restaurantTombstoneService');
 const { parseBoundedPagination } = require('../utils/pagination');
+const { withTransaction } = require('../utils/transaction');
 
 // ADM-225: all paginated list endpoints clamp ?limit= server-side (max 100)
 // so a request like ?limit=1000000 can no longer pull unbounded result sets.
@@ -460,30 +461,46 @@ exports.flagBusiness = async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Business not found.' });
 
-    await db.query(
-      `UPDATE businesses
-          SET admin_review_reason = $2, admin_reviewed_at = NOW(), updated_at = NOW()
-        WHERE id = $1`,
-      [id, reason.trim().slice(0, 2000)],
-    );
-
-    try {
-      await logAdminAction({
-        adminId: req.user.id,
-        action: 'business_flagged_for_review',
-        targetType: 'business',
-        targetId: String(id),
-        description: reason,
-        req,
-      });
-    } catch (e) {
-      logger.error('business flag audit failed', { businessId: id, error: e.message });
-      return res.status(503).json({ error: 'Business flagged, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
-    }
+    await withTransaction(db, async (client) => {
+      const updateResult = await client.query(
+        `UPDATE businesses
+            SET admin_review_reason = $2, admin_reviewed_at = NOW(), updated_at = NOW()
+          WHERE id = $1
+          RETURNING id`,
+        [id, reason.trim().slice(0, 2000)],
+      );
+      if (updateResult.rowCount === 0) {
+        const err = new Error('Business was deleted during flag update.');
+        err.code = 'business_state_changed';
+        throw err;
+      }
+      try {
+        await logAdminAction({
+          client,
+          adminId: req.user.id,
+          action: 'business_flagged_for_review',
+          targetType: 'business',
+          targetId: String(id),
+          description: reason,
+          req,
+        });
+      } catch (auditError) {
+        const err = new Error('Business flag audit failed.');
+        err.code = 'audit_unavailable';
+        err.cause = auditError;
+        throw err;
+      }
+    }, 'business_flag_for_review');
 
     res.json({ message: 'Business flagged for review.' });
   } catch (err) {
     logger.error('flagBusiness error', { err, businessId: req.params?.id, adminId: req.user?.id });
+    if (err.code === 'audit_unavailable') {
+      return res.status(503).json({ error: 'Business was not flagged because the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+    }
+    if (err.code === 'business_state_changed') {
+      return res.status(409).json({ error: 'Business was deleted during update. Please try again.' });
+    }
     res.status(500).json({ error: 'Failed to flag business.' });
   }
 };
@@ -501,30 +518,46 @@ exports.unflagBusiness = async (req, res) => {
     }
     const previousReason = String(rows[0].admin_review_reason).slice(0, 500);
 
-    await db.query(
-      `UPDATE businesses
-          SET admin_review_reason = NULL, admin_reviewed_at = NULL, updated_at = NOW()
-        WHERE id = $1`,
-      [id],
-    );
-
-    try {
-      await logAdminAction({
-        adminId: req.user.id,
-        action: 'business_flag_cleared',
-        targetType: 'business',
-        targetId: String(id),
-        description: `Review flag cleared (was: ${previousReason})`,
-        req,
-      });
-    } catch (e) {
-      logger.error('business unflag audit failed', { businessId: id, error: e.message });
-      return res.status(503).json({ error: 'Flag cleared, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
-    }
+    await withTransaction(db, async (client) => {
+      const updateResult = await client.query(
+        `UPDATE businesses
+            SET admin_review_reason = NULL, admin_reviewed_at = NULL, updated_at = NOW()
+          WHERE id = $1
+          RETURNING id`,
+        [id],
+      );
+      if (updateResult.rowCount === 0) {
+        const err = new Error('Business was deleted during unflag update.');
+        err.code = 'business_state_changed';
+        throw err;
+      }
+      try {
+        await logAdminAction({
+          client,
+          adminId: req.user.id,
+          action: 'business_flag_cleared',
+          targetType: 'business',
+          targetId: String(id),
+          description: `Review flag cleared (was: ${previousReason})`,
+          req,
+        });
+      } catch (auditError) {
+        const err = new Error('Business unflag audit failed.');
+        err.code = 'audit_unavailable';
+        err.cause = auditError;
+        throw err;
+      }
+    }, 'business_unflag');
 
     res.json({ message: 'Review flag cleared.' });
   } catch (err) {
     logger.error('unflagBusiness error', { err, businessId: req.params?.id, adminId: req.user?.id });
+    if (err.code === 'audit_unavailable') {
+      return res.status(503).json({ error: 'Business was not unflagged because the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+    }
+    if (err.code === 'business_state_changed') {
+      return res.status(409).json({ error: 'Business was deleted during update. Please try again.' });
+    }
     res.status(500).json({ error: 'Failed to clear review flag.' });
   }
 };
