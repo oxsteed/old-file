@@ -64,14 +64,40 @@ exports.getStaff = async (req, res) => {
            FROM admin_passkeys p
           WHERE p.user_id = u.id AND p.revoked_at IS NULL) AS passkey_count,
         (SELECT COALESCE(
-           json_agg(DISTINCT perm ORDER BY perm),
+           json_agg(DISTINCT scoped.permission ORDER BY scoped.permission),
            '[]'::json
          )
-           FROM admin_permission_grants g,
-                jsonb_array_elements_text(g.permissions) AS perm
-          WHERE g.grantee_id = u.id
-            AND g.revoked_at IS NULL
-            AND g.expires_at > NOW()) AS grant_scopes
+           FROM (
+             SELECT perm AS permission
+               FROM admin_permission_grants g,
+                    jsonb_array_elements_text(g.permissions) AS perm
+              WHERE g.grantee_id = u.id
+                AND g.revoked_at IS NULL
+                AND g.expires_at > NOW()
+             UNION
+             SELECT delegated.scope AS permission
+               FROM delegation_grants d
+               JOIN users grantor ON grantor.id = d.grantor_admin_id
+               CROSS JOIN LATERAL unnest(d.scopes) AS delegated(scope)
+              WHERE d.grantee_admin_id = u.id
+                AND d.status = 'active'
+                AND d.expires_at > NOW()
+                AND grantor.is_active = TRUE
+                AND grantor.deleted_at IS NULL
+                AND grantor.role IN ('admin', 'super_admin')
+                AND (
+                  grantor.role = 'super_admin'
+                  OR EXISTS (
+                    SELECT 1
+                      FROM admin_permission_grants grantor_grant
+                     WHERE grantor_grant.grantee_id = d.grantor_admin_id
+                       AND grantor_grant.permissions ? delegated.scope
+                       AND grantor_grant.revoked_at IS NULL
+                       AND grantor_grant.expires_at > NOW()
+                       AND grantor_grant.region_id IS NULL
+                  )
+                )
+           ) scoped) AS grant_scopes
       FROM users u
       WHERE u.role IN ('admin', 'super_admin')
       ORDER BY
