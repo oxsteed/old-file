@@ -715,6 +715,9 @@ async function resolveVaultFile(req, folder) {
   if (req.file?.buffer?.length) {
     const { uploadFile } = require('../utils/storage');
     const storageKey = await uploadFile(req.file.buffer, `private/work-agreements/${folder}`, req.file.originalname, req.file.mimetype);
+    if (!storageKey) {
+      throw new AppError('File storage is temporarily unavailable.', 503, 'storage_unavailable');
+    }
     return { storageKey, fileUrl: null, contentType: req.file.mimetype || null, originalName: req.file.originalname };
   }
   const fileUrl = normalizeSafeHttpsUrl(req.body?.fileUrl);
@@ -772,6 +775,9 @@ exports.addEvidence = async (req, res) => {
       const { deleteFile } = require('../utils/storage');
       await deleteFile(uploadedKey).catch(() => {});
     }
+    if (err instanceof AppError) {
+      return res.status(err.status || 500).json({ error: err.message, code: err.code });
+    }
     logger.error('work agreement evidence error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not add evidence.' });
   }
@@ -819,6 +825,9 @@ exports.addDocument = async (req, res) => {
     if (uploadedKey) {
       const { deleteFile } = require('../utils/storage');
       await deleteFile(uploadedKey).catch(() => {});
+    }
+    if (err instanceof AppError) {
+      return res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
     logger.error('work agreement document error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not add document.' });

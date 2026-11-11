@@ -95,4 +95,31 @@ describe('dispute evidence and detail contracts', () => {
     expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO dispute_evidence/.test(sql))).toHaveLength(1);
     expect(mockQuery.mock.calls.find(([sql]) => /INSERT INTO dispute_evidence/.test(sql))[1]).toContain(REQUEST_ID);
   });
+
+  test('missing upload storage key fails before inserting private evidence', async () => {
+    const next = jest.fn();
+    const dispute = {
+      id: DISPUTE_ID,
+      opened_by: USER_ID,
+      status: 'open',
+      client_id: USER_ID,
+      assigned_helper_id: null,
+    };
+    mockQuery.mockResolvedValueOnce({ rows: [dispute] });
+    const { uploadFile } = require('../utils/storage');
+    uploadFile.mockResolvedValue(null);
+
+    await disputeController.submitEvidence({
+      user: { id: USER_ID, role: 'customer' },
+      params: { disputeId: DISPUTE_ID },
+      body: {},
+      files: [{ buffer: Buffer.from('evidence'), originalname: 'proof.pdf', mimetype: 'application/pdf' }],
+    }, {}, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
+      status: 503,
+      code: 'storage_unavailable',
+    }));
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
 });

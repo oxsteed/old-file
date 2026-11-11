@@ -74,6 +74,40 @@ test('failed document persistence removes the uploaded private object', async ()
   expect(storage.deleteFile).toHaveBeenCalledWith(key);
 });
 
+test('missing evidence storage key fails before inserting a broken vault row', async () => {
+  storage.uploadFile.mockResolvedValue(null);
+  mockQuery.mockResolvedValueOnce({ rows: [agreement] });
+
+  const res = response();
+  await controller.addEvidence({
+    params: { id: AGREEMENT_ID },
+    user: { id: HELPER_ID },
+    body: { type: 'before_photo', description: 'Before' },
+    file: { buffer: Buffer.from('image'), originalname: 'before.jpg', mimetype: 'image/jpeg' },
+  }, res);
+
+  expect(res.status).toHaveBeenCalledWith(503);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'storage_unavailable' }));
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+});
+
+test('missing document storage key fails before inserting a broken vault row', async () => {
+  storage.uploadFile.mockResolvedValue(null);
+  mockQuery.mockResolvedValueOnce({ rows: [agreement] });
+
+  const res = response();
+  await controller.addDocument({
+    params: { id: AGREEMENT_ID },
+    user: { id: HELPER_ID },
+    body: { fileName: 'terms.pdf' },
+    file: { buffer: Buffer.from('pdf'), originalname: 'terms.pdf', mimetype: 'application/pdf' },
+  }, res);
+
+  expect(res.status).toHaveBeenCalledWith(503);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'storage_unavailable' }));
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+});
+
 test('document filename validation happens before uploading', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [agreement] });
   const res = response();
