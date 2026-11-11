@@ -154,6 +154,48 @@ describe('booking checkout promo', () => {
     expect(sqls).not.toContain('COMMIT');
   });
 
+  test('fails closed and cancels a newly created intent without a client secret', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_bk_missing_secret', status: 'canceled' });
+    const previousCancel = stripe.__mockInstance.paymentIntents.cancel;
+    stripe.__mockInstance.paymentIntents.cancel = cancel;
+    stripe.__mockInstance.paymentIntents.create.mockResolvedValue({ id: 'pi_bk_missing_secret', client_secret: null });
+    mockQuery.mockImplementation(dispatcher([
+      [/FROM booking_requests/i, { rows: [booking] }],
+      [/FOR UPDATE/, { rows: [booking] }],
+    ]));
+    const next = jest.fn();
+    try {
+      await mobileCtrl.createBookingPaymentIntent({ params: { bookingId: 'b1' },
+        body: { amountCents: 5000, paymentRequirement: 'deposit' }, user: { id: 1 } }, { json: jest.fn() }, next);
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'booking_payment_intent_unavailable' }));
+      expect(cancel).toHaveBeenCalledWith('pi_bk_missing_secret');
+      expect(mockQuery.mock.calls.map(([sql]) => String(sql))).toContain('ROLLBACK');
+      expect(mockQuery.mock.calls.map(([sql]) => String(sql))).not.toContain('COMMIT');
+    } finally {
+      if (previousCancel) stripe.__mockInstance.paymentIntents.cancel = previousCancel;
+      else delete stripe.__mockInstance.paymentIntents.cancel;
+    }
+  });
+
+  test('rejects an existing booking intent replay without a client secret', async () => {
+    const replayBooking = { ...booking, stripe_payment_intent_id: 'pi_bk_existing', payment_status: 'requires_payment' };
+    stripe.__mockInstance.paymentIntents.retrieve.mockResolvedValue({
+      id: 'pi_bk_existing', amount: 5000, status: 'requires_action', client_secret: null,
+    });
+    mockQuery.mockImplementation(dispatcher([
+      [/FROM booking_requests/i, { rows: [replayBooking] }],
+      [/FOR UPDATE/, { rows: [replayBooking] }],
+    ]));
+    const next = jest.fn();
+    await mobileCtrl.createBookingPaymentIntent({ params: { bookingId: 'b1' },
+      body: { amountCents: 5000, paymentRequirement: 'deposit' }, user: { id: 1 } }, { json: jest.fn() }, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'booking_payment_intent_unavailable' }));
+    expect(stripe.__mockInstance.paymentIntents.create).not.toHaveBeenCalled();
+    expect(mockQuery.mock.calls.map(([sql]) => String(sql))).toContain('ROLLBACK');
+    expect(mockQuery.mock.calls.map(([sql]) => String(sql))).not.toContain('COMMIT');
+  });
+
   test('cancels a created intent when booking persistence fails', async () => {
     const cancel = jest.fn().mockResolvedValue({ id: 'pi_bk_orphan', status: 'canceled' });
     const previousCancel = stripe.__mockInstance.paymentIntents.cancel;

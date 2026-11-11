@@ -34,6 +34,19 @@ function normalizeString(value, maxLength) {
   return trimmed.slice(0, maxLength);
 }
 
+function requireBookingPaymentIntent(intent) {
+  const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
+  const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
+  if (!id || !clientSecret) {
+    throw new AppError(
+      'Booking payment is temporarily unavailable',
+      503,
+      'booking_payment_intent_unavailable'
+    );
+  }
+  return { id, clientSecret };
+}
+
 async function safeQuery(sql, params = [], fallback = []) {
   try {
     const { rows } = await pool.query(sql, params);
@@ -660,6 +673,7 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
       // leave an older client holding a second payable intent.
       if (locked.stripe_payment_intent_id && ['requires_payment', 'processing'].includes(locked.payment_status)) {
         const existingIntent = await stripe.paymentIntents.retrieve(locked.stripe_payment_intent_id);
+        const existingHandoff = requireBookingPaymentIntent(existingIntent);
         const existingAmountCents = Number(existingIntent.amount);
         if (existingAmountCents === chargeCents
           && String(locked.payment_requirement || 'deposit') === paymentRequirement
@@ -670,8 +684,8 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
             success: true,
             data: {
               bookingId: booking.id,
-              clientSecret: existingIntent.client_secret,
-              paymentIntentId: existingIntent.id,
+              clientSecret: existingHandoff.clientSecret,
+              paymentIntentId: existingHandoff.id,
               amountCents: existingAmountCents,
               grossAmountCents: amountCents,
               promoDiscountCents,
@@ -700,8 +714,9 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
           promo_redemption_id: promo ? String(promo.redemption.id) : '',
         },
       });
+      const createdHandoff = requireBookingPaymentIntent(createdPaymentIntent);
       if (promo) {
-        await promoRedemption.attachProviderReference(client, promo.redemption.id, createdPaymentIntent.id);
+        await promoRedemption.attachProviderReference(client, promo.redemption.id, createdHandoff.id);
       }
 
       await client.query(
@@ -714,7 +729,7 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
                 promo_discount_cents = $6,
                 updated_at = CURRENT_TIMESTAMP
           WHERE id = $4`,
-        [paymentRequirement, chargeCents, createdPaymentIntent.id, booking.id, amountCents, promoDiscountCents]
+        [paymentRequirement, chargeCents, createdHandoff.id, booking.id, amountCents, promoDiscountCents]
       );
       await client.query('COMMIT');
       committed = true;
@@ -723,8 +738,8 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
         success: true,
         data: {
           bookingId: booking.id,
-          clientSecret: createdPaymentIntent.client_secret,
-          paymentIntentId: createdPaymentIntent.id,
+          clientSecret: createdHandoff.clientSecret,
+          paymentIntentId: createdHandoff.id,
           amountCents: chargeCents,
           grossAmountCents: amountCents,
           promoDiscountCents,
