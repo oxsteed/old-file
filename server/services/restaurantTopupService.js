@@ -122,6 +122,30 @@ function restaurantTopupRequiresStepup(amountCents) {
   return Number(amountCents) >= RESTAURANT_TOPUP_STEPUP_THRESHOLD_CENTS;
 }
 
+async function markRestaurantTopupFailed(topupId) {
+  await pool.query(
+    `UPDATE restaurant_topups
+        SET status = 'failed', updated_at = NOW()
+      WHERE id = $1 AND status = 'pending'`,
+    [topupId]
+  );
+}
+
+async function failInvalidRestaurantStripeIntent({ topup, intent, stripe }) {
+  const providerId = typeof intent?.id === 'string' && intent.id.trim()
+    ? intent.id.trim()
+    : (typeof topup?.stripe_payment_intent_id === 'string' ? topup.stripe_payment_intent_id.trim() : '');
+  if (providerId && typeof stripe?.paymentIntents?.cancel === 'function') {
+    await stripe.paymentIntents.cancel(providerId).catch((cancelError) => logger.warn('[restaurant-topup] Failed to cancel unusable PaymentIntent', {
+      topupId: String(topup.id),
+      paymentIntentId: providerId,
+      error: cancelError.message,
+    }));
+  }
+  await markRestaurantTopupFailed(topup.id);
+  throw new AppError('Stripe payment initiation returned an unusable session', 502, 'restaurant_topup_stripe_failed');
+}
+
 // ── Eligibility ─────────────────────────────────────────────────────────────
 
 async function getRestaurantRow(client, restaurantId) {
@@ -413,7 +437,11 @@ async function ensureRestaurantStripeIntent({ topup, amount, currency, getStripe
   const stripe = getStripe();
   if (topup.stripe_payment_intent_id) {
     const existing = await stripe.paymentIntents.retrieve(topup.stripe_payment_intent_id);
-    return existing.client_secret || null;
+    if (typeof existing?.id !== 'string' || !existing.id.trim()
+      || typeof existing?.client_secret !== 'string' || !existing.client_secret.trim()) {
+      return failInvalidRestaurantStripeIntent({ topup, intent: existing, stripe });
+    }
+    return existing.client_secret.trim();
   }
   let intent;
   try {
@@ -439,13 +467,17 @@ async function ensureRestaurantStripeIntent({ topup, amount, currency, getStripe
     );
     throw new AppError('Stripe payment initiation failed', 502, 'restaurant_topup_stripe_failed');
   }
+  if (typeof intent?.id !== 'string' || !intent.id.trim()
+    || typeof intent?.client_secret !== 'string' || !intent.client_secret.trim()) {
+    return failInvalidRestaurantStripeIntent({ topup, intent, stripe });
+  }
   await pool.query(
     `UPDATE restaurant_topups
         SET stripe_payment_intent_id = $2, updated_at = NOW()
       WHERE id = $1 AND stripe_payment_intent_id IS NULL`,
-    [topup.id, intent.id]
+    [topup.id, intent.id.trim()]
   );
-  return intent.client_secret || null;
+  return intent.client_secret.trim();
 }
 
 async function getTopupById(topupId) {

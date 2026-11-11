@@ -88,6 +88,21 @@ async function markTopupFailed(topupId) {
   );
 }
 
+async function failInvalidStripeIntent({ topup, intent, stripe }) {
+  const providerId = typeof intent?.id === 'string' && intent.id.trim()
+    ? intent.id.trim()
+    : (typeof topup?.stripe_payment_intent_id === 'string' ? topup.stripe_payment_intent_id.trim() : '');
+  if (providerId && typeof stripe?.paymentIntents?.cancel === 'function') {
+    await stripe.paymentIntents.cancel(providerId).catch((cancelError) => logger.warn('[oxsteed-credit] Failed to cancel unusable top-up PaymentIntent', {
+      topupId: String(topup.id),
+      paymentIntentId: providerId,
+      error: cancelError.message,
+    }));
+  }
+  await markTopupFailed(topup.id);
+  throw new AppError('Stripe payment initiation returned an unusable session', 502, 'credit_topup_stripe_failed');
+}
+
 // Phase 8: best-effort server-side cancellation of the Stripe PaymentIntent
 // backing a pending top-up. A failed top-up is revivable via createTopup and
 // the same Stripe object stays confirmable, so a late confirmation could
@@ -223,7 +238,11 @@ async function ensureStripeIntent({ topup, amount, currency, getStripe }) {
   const stripe = getStripe();
   if (topup.stripe_payment_intent_id) {
     const existing = await stripe.paymentIntents.retrieve(topup.stripe_payment_intent_id);
-    return existing.client_secret || null;
+    if (typeof existing?.id !== 'string' || !existing.id.trim()
+      || typeof existing?.client_secret !== 'string' || !existing.client_secret.trim()) {
+      return failInvalidStripeIntent({ topup, intent: existing, stripe });
+    }
+    return existing.client_secret.trim();
   }
   let intent;
   try {
@@ -244,13 +263,17 @@ async function ensureStripeIntent({ topup, amount, currency, getStripe }) {
     await markTopupFailed(topup.id);
     throw new AppError('Stripe payment initiation failed', 502, 'credit_topup_stripe_failed');
   }
+  if (typeof intent?.id !== 'string' || !intent.id.trim()
+    || typeof intent?.client_secret !== 'string' || !intent.client_secret.trim()) {
+    return failInvalidStripeIntent({ topup, intent, stripe });
+  }
   await pool.query(
     `UPDATE oxsteed_credit_topups
         SET stripe_payment_intent_id = $2, updated_at = NOW()
       WHERE id = $1 AND stripe_payment_intent_id IS NULL`,
-    [topup.id, intent.id]
+    [topup.id, intent.id.trim()]
   );
-  return intent.client_secret || null;
+  return intent.client_secret.trim();
 }
 
 async function createTopup({ customerId, amountCents, currencyCode, idempotencyKey, getStripe = defaultGetStripe }) {

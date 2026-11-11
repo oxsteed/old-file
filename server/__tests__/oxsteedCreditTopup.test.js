@@ -287,6 +287,50 @@ describe('createTopup Stripe intent', () => {
     expect(fakeStripe.paymentIntents.retrieve).toHaveBeenCalledWith('pi_existing');
   });
 
+  test('fails and cancels a newly created intent when Stripe omits the secret', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_missing_secret', status: 'canceled' });
+    const fakeStripe = makeFakeStripe({
+      create: jest.fn().mockResolvedValue({ id: 'pi_missing_secret', client_secret: null }),
+      cancel,
+    });
+    stubQueries([
+      ...railEnabledHandlers(true),
+      { match: 'INSERT INTO oxsteed_credit_topups', rows: [{ ...baseTopupRow }] },
+      { match: "SET status = 'failed'", rows: [] },
+    ]);
+
+    await expect(topupService.createTopup({
+      customerId: CUSTOMER_ID, amountCents: 5000, currencyCode: 'USD', idempotencyKey: 'idem-key-1',
+      getStripe: () => fakeStripe,
+    })).rejects.toMatchObject({ code: 'credit_topup_stripe_failed', statusCode: 502 });
+    expect(cancel).toHaveBeenCalledWith('pi_missing_secret');
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('SET stripe_payment_intent_id'))).toBe(false);
+  });
+
+  test('fails and cancels a replay when Stripe omits the existing secret', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_existing_missing_secret', status: 'canceled' });
+    const fakeStripe = makeFakeStripe({
+      retrieve: jest.fn().mockResolvedValue({ id: 'pi_existing_missing_secret', client_secret: null }),
+      cancel,
+    });
+    stubQueries([
+      ...railEnabledHandlers(true),
+      { match: 'INSERT INTO oxsteed_credit_topups', rows: [] },
+      {
+        match: 'SELECT * FROM oxsteed_credit_topups WHERE idempotency_key',
+        rows: [{ ...baseTopupRow, stripe_payment_intent_id: 'pi_existing_missing_secret' }],
+      },
+      { match: "SET status = 'failed'", rows: [] },
+    ]);
+
+    await expect(topupService.createTopup({
+      customerId: CUSTOMER_ID, amountCents: 5000, currencyCode: 'USD', idempotencyKey: 'idem-key-1',
+      getStripe: () => fakeStripe,
+    })).rejects.toMatchObject({ code: 'credit_topup_stripe_failed', statusCode: 502 });
+    expect(cancel).toHaveBeenCalledWith('pi_existing_missing_secret');
+    expect(fakeStripe.paymentIntents.create).not.toHaveBeenCalled();
+  });
+
   test('409s when the idempotency key is reused with different parameters', async () => {
     stubQueries([
       ...railEnabledHandlers(true),
