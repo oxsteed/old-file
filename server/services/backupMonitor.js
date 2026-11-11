@@ -87,15 +87,29 @@ class BackupMonitor {
     // historical evidence or attempting an insert that trips the corrupted
     // uniqueness state.
     const { rows } = await client.query(
-      `SELECT id, details, success
+      `SELECT id, backup_id, details, success
          FROM backup_log
         WHERE backup_id = $1
         ORDER BY created_at DESC NULLS LAST, id DESC
-        LIMIT 1
         FOR UPDATE`,
       [event.backupId],
     );
     const previous = rows[0];
+    // A restored legacy database can contain duplicate backup_id rows even
+    // though the current unique index rejects new duplicates. Archive every
+    // older copy under a stable, still-queryable key before refreshing the
+    // canonical row. This preserves the evidence instead of deleting it and
+    // lets the unique index enforce correctness again.
+    for (const legacy of rows.slice(1)) {
+      const archivedId = `${legacy.backup_id}:legacy:${legacy.id}`;
+      await client.query(
+        `UPDATE backup_log
+            SET backup_id = $2,
+                details = details || jsonb_build_object('legacyBackupId', $3)
+          WHERE id = $1`,
+        [legacy.id, archivedId, legacy.backup_id],
+      );
+    }
     if (previous) {
       const oldTime = previous.details?.observedAt || previous.details?.completedAt;
       const newTime = event.details.observedAt || event.details.completedAt;
