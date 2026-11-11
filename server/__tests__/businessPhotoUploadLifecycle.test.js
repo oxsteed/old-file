@@ -21,6 +21,7 @@ jest.mock('../utils/storage', () => {
 jest.mock('../services/storageCleanupService', () => ({ enqueueStorageDeletion: jest.fn() }));
 
 const storage = require('../utils/storage');
+const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 const controller = require('../controllers/businessController');
 
 function response() {
@@ -32,6 +33,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   storage.deleteFile.mockResolvedValue(undefined);
   storage.getPublicUrl.mockImplementation((key) => `/api/storage/public/${key}`);
+  enqueueStorageDeletion.mockResolvedValue(true);
 });
 
 test('failed business media persistence removes every newly uploaded object', async () => {
@@ -72,4 +74,24 @@ test('successful business media persistence keeps newly uploaded objects', async
 
   expect(res.json).toHaveBeenCalled();
   expect(storage.deleteFile).not.toHaveBeenCalled();
+});
+
+test('keeps newly live media when replacement cleanup enqueue fails', async () => {
+  storage.uploadFile.mockResolvedValue('business-covers/new-cover.png');
+  enqueueStorageDeletion.mockRejectedValue(new Error('cleanup queue unavailable'));
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ logo_url: null, cover_photo_url: '/api/storage/public/business-covers/old-cover.png' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'business-1', cover_photo_url: '/api/storage/public/business-covers/new-cover.png' }] });
+
+  const res = response();
+  const next = jest.fn();
+  await controller.uploadBusinessPhotos({
+    params: { id: 'business-1' },
+    user: { id: 'owner-1' },
+    files: { cover: [{ buffer: Buffer.from('cover'), originalname: 'cover.png', mimetype: 'image/png', size: 5 }] },
+  }, res, next);
+
+  expect(next).not.toHaveBeenCalled();
+  expect(res.json).toHaveBeenCalled();
+  expect(storage.deleteFile).not.toHaveBeenCalledWith('business-covers/new-cover.png');
 });

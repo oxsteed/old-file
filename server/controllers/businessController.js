@@ -883,7 +883,7 @@ async function persistBusinessMediaFallback(req, businessId, kind, file) {
 }
 
 async function storeBusinessPhoto(req, businessId, kind, file) {
-  const { uploadFile, getPublicUrl } = require('../utils/storage');
+  const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
   try {
     const key = await uploadFile(
       file.buffer,
@@ -891,7 +891,21 @@ async function storeBusinessPhoto(req, businessId, kind, file) {
       file.originalname,
       file.mimetype
     );
-    if (key) return { key, url: getPublicUrl(key) };
+    if (key) {
+      try {
+        return { key, url: getPublicUrl(key) };
+      } catch (urlError) {
+        await deleteFile(key).catch((cleanupError) => {
+          logger.warn('Business photo cleanup failed after URL generation error', {
+            businessId,
+            kind,
+            key,
+            error: cleanupError.message,
+          });
+        });
+        throw urlError;
+      }
+    }
   } catch (storageError) {
     logger.error('Object storage upload failed; using database media fallback', {
       businessId,
@@ -958,16 +972,28 @@ async function uploadBusinessPhotos(req, res, next) {
       values
     );
 
+    // The business row now owns the newly uploaded objects. Old-object
+    // cleanup below is best effort and must never cause this request to delete
+    // the new live media.
+    uploadedKeys.length = 0;
+
     if (existingMedia) {
       if (updates.logo_url && existingMedia.logo_url && existingMedia.logo_url !== updates.logo_url) {
-        await enqueueStorageDeletion(existingMedia.logo_url, 'business_logo_replaced');
+        try {
+          await enqueueStorageDeletion(existingMedia.logo_url, 'business_logo_replaced');
+        } catch (queueError) {
+          logger.warn('Business logo replacement cleanup enqueue failed', { businessId: id, error: queueError.message });
+        }
       }
       if (updates.cover_photo_url && existingMedia.cover_photo_url && existingMedia.cover_photo_url !== updates.cover_photo_url) {
-        await enqueueStorageDeletion(existingMedia.cover_photo_url, 'business_cover_replaced');
+        try {
+          await enqueueStorageDeletion(existingMedia.cover_photo_url, 'business_cover_replaced');
+        } catch (queueError) {
+          logger.warn('Business cover replacement cleanup enqueue failed', { businessId: id, error: queueError.message });
+        }
       }
     }
 
-    uploadedKeys.length = 0;
     return res.json({ business: updated, ...updates });
   } catch (err) {
     await Promise.allSettled(uploadedKeys.map((key) => deleteFile(key)));
