@@ -144,6 +144,7 @@ function validLinkCountSql(viewerParam = null) {
        JOIN businesses b ON b.id = po.organizer_business_id
         AND b.deleted_at IS NULL AND b.is_active = TRUE
        WHERE po.id::text = l.target_id AND po.status IN ('open', 'pledging')
+         AND po.approval_state = 'approved'
          AND ${activeMediaOwnerSql('po.organizer_user_id', 'logistics_link_owner')}${blocked('po.organizer_user_id')}
          AND ${activeMediaOwnerSql('b.user_id', 'logistics_business_link_owner')}${blocked('b.user_id')}
     ))
@@ -516,6 +517,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
          JOIN businesses b ON b.id = po.organizer_business_id
           AND b.deleted_at IS NULL AND b.is_active = TRUE
         WHERE po.id = $1 AND po.status IN ('open', 'pledging')
+          AND po.approval_state = 'approved'
           AND ${activeMediaOwnerSql('po.organizer_user_id', 'logistics_target_owner')}
           ${linkViewerBlockPredicate('po.organizer_user_id')}
           AND ${activeMediaOwnerSql('b.user_id', 'logistics_business_target_owner')}
@@ -2983,7 +2985,9 @@ async function searchMediaEntities(req, res) {
            FROM pooled_orders po
            JOIN businesses b ON b.id = po.organizer_business_id
             AND b.deleted_at IS NULL AND b.is_active = TRUE
-          WHERE po.status IN ('open', 'pledging') AND po.title ILIKE $1
+          WHERE po.status IN ('open', 'pledging')
+            AND po.approval_state = 'approved'
+            AND po.title ILIKE $1
             AND ${activeMediaOwnerSql('po.organizer_user_id', 'logistics_search_owner')}
             AND ${activeMediaOwnerSql('b.user_id', 'logistics_business_search_owner')}
             ${linkViewerBlockPredicate('po.organizer_user_id', '$3')}

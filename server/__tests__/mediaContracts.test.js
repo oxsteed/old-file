@@ -519,6 +519,7 @@ describe('OxSteed Media launch contracts', () => {
       }
       if (sql.includes('FROM pooled_orders po')) {
         expect(sql).toContain('JOIN businesses b');
+        expect(sql).toContain("po.approval_state = 'approved'");
         expect(sql).toContain('logistics_business_target_owner.is_active = TRUE');
         expect(sql).toContain('user_blocks');
         return { rows: [] };
