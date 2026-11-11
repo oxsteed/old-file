@@ -2020,15 +2020,16 @@ exports.uploadPaymentProof = async (req, res, next) => {
       });
     }
     const signedUrl = await getSignedDownloadUrl(uploadedKey, 900);
+    if (!signedUrl) throw new Error('Signed payment proof URL unavailable');
     return res.status(201).json({
       attachment: {
-        url: signedUrl || '',
+        url: signedUrl,
         key: uploadedKey,
         name: req.file.originalname || null,
         type: req.file.mimetype,
         sizeBytes: req.file.size,
       },
-      downloadExpiresInSeconds: signedUrl ? 900 : 0,
+      downloadExpiresInSeconds: 900,
     });
   } catch (err) {
     if (uploadedKey) await deleteFile(uploadedKey).catch(() => {});

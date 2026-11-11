@@ -217,6 +217,26 @@ describe('main app protected payment request records', () => {
     expect(mockDeleteFile).toHaveBeenCalledWith(key);
   });
 
+  test('removes a payment proof when signing returns no URL', async () => {
+    const key = 'main-app-payment-proofs/501/00000000-0000-4000-8000-000000000111/missing-url.png';
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 501 }] });
+    mockUploadFile.mockResolvedValueOnce(key);
+    mockGetSignedDownloadUrl.mockResolvedValueOnce(null);
+
+    const req = {
+      params: { requestId: '501' },
+      user: { id: '00000000-0000-4000-8000-000000000111' },
+      file: { buffer: Buffer.from('proof'), originalname: 'missing-url.png', mimetype: 'image/png', size: 5 },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.uploadPaymentProof(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'Signed payment proof URL unavailable' }));
+    expect(mockDeleteFile).toHaveBeenCalledWith(key);
+  });
+
   test('records payment requests without creating charges or settlement', async () => {
     // Decision 9: the payee's business (7) is derived server-side first.
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 7 }] });
