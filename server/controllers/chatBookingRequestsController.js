@@ -27,6 +27,8 @@ const { enqueueConversationMessageNotifications } = require('../services/message
 const { withTransaction } = require('../utils/transaction');
 const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
 
+const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
+
 function bad(res, status, error, code = 'error', extra = {}) {
   return res.status(status).json({ error, code, ...extra });
 }
@@ -645,6 +647,17 @@ exports.createChatBookingRequest = async (req, res, next) => {
     }
     if (!helperId) {
       return bad(res, 400, 'Could not resolve helper for booking', 'validation_failed');
+    }
+    if (!businessId) {
+      const { rows: [helper] } = await pool.query(
+        'SELECT id, role, is_active FROM users WHERE id = $1 AND deleted_at IS NULL',
+        [helperId],
+      );
+      if (!helper) return bad(res, 404, 'Helper not found', 'HELPER_NOT_FOUND');
+      if (!helper.is_active) return bad(res, 400, 'Helper is not accepting bookings', 'HELPER_INACTIVE');
+      if (!HELPER_ROLES.includes(helper.role)) {
+        return bad(res, 400, 'User is not accepting bookings', 'INVALID_HELPER');
+      }
     }
     // Review P1-204: customers can't book a helper who switched booking off
     // (the provider can still schedule on the customer's behalf).

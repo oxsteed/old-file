@@ -15,6 +15,7 @@ const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
 const DEFAULT_CONFIRMATION_HOURS = 24;
 const MIN_CONFIRMATION_HOURS = 1;
 const MAX_CONFIRMATION_HOURS = 168;
+const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
 const WEEKDAY_INDEX = {
   sunday: 0,
   monday: 1,
@@ -208,11 +209,12 @@ exports.createBookingRequest = async (req, res) => {
     }
 
     const helperResult = await pool.query(
-      `SELECT u.id, u.is_active, COALESCE(hp.is_hidden_by_admin, FALSE) AS is_hidden_by_admin,
+      `SELECT u.id, u.role, u.is_active, u.deleted_at,
+              COALESCE(hp.is_hidden_by_admin, FALSE) AS is_hidden_by_admin,
               COALESCE(hp.allow_booking, TRUE) AS allow_booking
          FROM users u
          LEFT JOIN helper_profiles hp ON hp.user_id = u.id
-        WHERE u.id = $1`,
+        WHERE u.id = $1 AND u.deleted_at IS NULL`,
       [helperId]
     );
     if (helperResult.rows.length === 0) {
@@ -220,6 +222,9 @@ exports.createBookingRequest = async (req, res) => {
     }
     if (!helperResult.rows[0].is_active || helperResult.rows[0].is_hidden_by_admin) {
       return sendError(res, 400, 'Helper is not accepting bookings', 'HELPER_INACTIVE');
+    }
+    if (!business && !HELPER_ROLES.includes(helperResult.rows[0].role)) {
+      return sendError(res, 400, 'User is not accepting bookings', 'INVALID_HELPER');
     }
     // Review P1-204: the helper's "allow booking" privacy switch is enforced
     // (business bookings follow the business's own listing state instead).
@@ -1021,7 +1026,7 @@ exports.listRecurringBookings = async (req, res) => {
               NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS helper_name,
               u.profile_photo_url AS helper_avatar_url
          FROM recurring_booking_subscriptions r
-         JOIN users u ON u.id = r.helper_id
+         JOIN users u ON u.id = r.helper_id AND u.deleted_at IS NULL
         WHERE r.customer_id = $1
         ORDER BY
           CASE r.status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 ELSE 2 END,
@@ -1049,7 +1054,7 @@ exports.createRecurringBooking = async (req, res) => {
     if (Object.keys(errors).length) return sendValidationError(res, errors);
 
     const helperResult = await pool.query(
-      `SELECT id, is_active, role FROM users WHERE id = $1`,
+      `SELECT id, is_active, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [helper_id]
     );
     const helper = helperResult.rows[0];

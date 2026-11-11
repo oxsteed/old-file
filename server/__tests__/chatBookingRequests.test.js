@@ -116,6 +116,13 @@ describe('chatBookingRequests service', () => {
 });
 
 describe('inbox schedule create helpers', () => {
+  test('chat scheduling validates the direct helper account lifecycle', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('../controllers/chatBookingRequestsController'), 'utf8');
+    expect(src).toMatch(/SELECT id, role, is_active FROM users WHERE id = \$1 AND deleted_at IS NULL/);
+    expect(src).toMatch(/const HELPER_ROLES = \['helper', 'helper_pro', 'broker'\]/);
+  });
+
   test('inbox schedule create marker', () => {
     const marker = buildBookingRequestMarker({
       id: 'inbox-1',
