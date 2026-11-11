@@ -63,14 +63,21 @@ async function getPayRun(req, res, next) {
       'SELECT * FROM restaurant_pay_run_lines WHERE pay_run_id = $1 ORDER BY id',
       [payRunId]
     );
-    const { rows: payoutLinks } = await pool.query(
-      `SELECT l.*, p.status AS payout_status, p.amount_cents AS payout_amount_cents,
-              p.currency_code AS payout_currency_code, p.completed_at AS payout_completed_at
-         FROM restaurant_pay_run_payout_links l
-         JOIN restaurant_payouts p ON p.id = l.restaurant_payout_id
-        WHERE l.pay_run_id = $1 ORDER BY l.id`,
-      [payRunId]
-    ).catch(() => ({ rows: [] }));
+    let payoutLinks = [];
+    try {
+      ({ rows: payoutLinks } = await pool.query(
+        `SELECT l.*, p.status AS payout_status, p.amount_cents AS payout_amount_cents,
+                p.currency_code AS payout_currency_code, p.completed_at AS payout_completed_at
+           FROM restaurant_pay_run_payout_links l
+           JOIN restaurant_payouts p ON p.id = l.restaurant_payout_id
+          WHERE l.pay_run_id = $1 ORDER BY l.id`,
+        [payRunId]
+      ));
+    } catch (err) {
+      // This linkage was additive; keep the old-deployment fallback only for
+      // a missing table. A live query failure must not erase payout evidence.
+      if (err.code !== '42P01') throw err;
+    }
     // Nov 3 audit item 2: count only links in the restaurant's currency.
     const runCurrency = run.restaurant_currency_code
       ? String(run.restaurant_currency_code).toUpperCase() : null;
