@@ -1,11 +1,13 @@
 // Support Agents Controller
 // Manages agent lifecycle: hiring, onboarding, status changes, availability tracking
 
-const { query } = require('../db');
+const pool = require('../db');
+const { query } = pool;
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 const { supportScopeSatisfies } = require('../middleware/scopeGates');
+const { withTransaction } = require('../utils/transaction');
 
 async function canManageBusiness(req, businessId) {
   // Route gate (requireSupportBusinessAccess) already granted this level.
@@ -157,24 +159,31 @@ async function hireAgent(req, res) {
       return sendError(res, 400, 'User is already an agent');
     }
 
-    const agentResult = await query(
-      `INSERT INTO support_agents
-       (employer_id, business_id, user_id, hire_date, status, role)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 'active', 'agent')
-       RETURNING *`,
-      [employerId, businessId, app.user_id]
-    );
+    const hiredAgent = await withTransaction(pool, async (client) => {
+      // Hiring is one lifecycle transition. If the application update fails
+      // after the insert, the person would be an active agent with a pending
+      // application and could be hired twice.
+      const agentResult = await client.query(
+        `INSERT INTO support_agents
+         (employer_id, business_id, user_id, hire_date, status, role)
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 'active', 'agent')
+         RETURNING *`,
+        [employerId, businessId, app.user_id]
+      );
 
-    await query(
-      `UPDATE agent_applications
-       SET status = 'hired', reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [req.user.id, applicationId]
-    );
+      await client.query(
+        `UPDATE agent_applications
+         SET status = 'hired', reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP
+         WHERE id = $2`,
+        [req.user.id, applicationId]
+      );
 
-    logger.info('Agent hired', { agentId: agentResult.rows[0].id, userId: app.user_id });
+      return agentResult.rows[0];
+    }, 'hire_support_agent');
 
-    res.json({ success: true, data: agentResult.rows[0] });
+    logger.info('Agent hired', { agentId: hiredAgent.id, userId: app.user_id });
+
+    res.json({ success: true, data: hiredAgent });
   } catch (err) {
     logger.error('hireAgent error', { error: err.message });
     sendError(res, 500, 'Failed to hire agent');
@@ -237,22 +246,27 @@ async function setAgentAvailability(req, res) {
 
     if (!(await canManageAgent(req, agent))) return sendError(res, 403, 'Access denied');
 
-    const result = await query(
-      `UPDATE support_agents SET is_available = $1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2 AND ($3 IS NULL OR business_id = $3) RETURNING *`,
-      [isAvailable, agentId, req.params.businessId || null]
-    );
-
     const status = isAvailable ? 'available' : 'offline';
-    await query(
-      `INSERT INTO agent_availability_log (agent_id, status, reason)
-       VALUES ($1, $2, $3)`,
-      [agentId, status, reason ? String(reason).trim() : null]
-    );
+    const updatedAgent = await withTransaction(pool, async (client) => {
+      const result = await client.query(
+        `UPDATE support_agents SET is_available = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2 AND ($3 IS NULL OR business_id = $3) RETURNING *`,
+        [isAvailable, agentId, req.params.businessId || null]
+      );
+      if (!result.rows.length) return null;
+
+      await client.query(
+        `INSERT INTO agent_availability_log (agent_id, status, reason)
+         VALUES ($1, $2, $3)`,
+        [agentId, status, reason ? String(reason).trim() : null]
+      );
+      return result.rows[0];
+    }, 'set_support_agent_availability');
+    if (!updatedAgent) return sendError(res, 404, 'Agent not found');
 
     logger.info('Agent availability changed', { agentId, isAvailable });
 
-    res.json({ success: true, data: result.rows[0] });
+    res.json({ success: true, data: updatedAgent });
   } catch (err) {
     logger.error('setAgentAvailability error', { error: err.message });
     sendError(res, 500, 'Failed to set availability');
