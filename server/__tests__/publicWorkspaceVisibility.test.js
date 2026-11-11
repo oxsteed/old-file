@@ -5,6 +5,7 @@ const pool = require('../db');
 const property = require('../controllers/propertyOperationsController');
 const trades = require('../controllers/tradesOperationsController');
 const professional = require('../controllers/professionalOperationsController');
+const creative = require('../controllers/creativeOperationsController');
 
 beforeEach(() => resetMocks());
 
@@ -30,6 +31,7 @@ describe('public business workspaces only resolve live public businesses', () =>
     ['property', property.getPublicWorkspace, 'property_operation_settings'],
     ['trades', trades.getPublicWorkspace, 'trades_operation_settings'],
     ['professional', professional.getPublicWorkspace, 'professional_operation_settings'],
+    ['creative', creative.getPublicWorkspace, 'creative_operation_settings'],
   ])('%s workspace applies the public business visibility contract', async (_name, handler, settingsTable) => {
     const client = installWorkspaceClient(settingsTable);
     const req = { params: { businessId: '7' } };
@@ -52,6 +54,7 @@ describe('public business workspaces only resolve live public businesses', () =>
   test.each([
     ['trades', trades.createDiagnosticRequest],
     ['professional', professional.createEngagementRequest],
+    ['creative', creative.createIntakeRequest],
   ])('%s anonymous intake uses the public business visibility contract', async (_name, handler) => {
     mockQuery.mockResolvedValue({ rows: [] });
     const req = { params: { businessId: '7' }, body: {} };
