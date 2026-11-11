@@ -4725,30 +4725,37 @@ exports.updateUserProfile = async (req, res) => {
     setClauses.push(`updated_at = NOW()`);
     const vals = [...Object.values(updates), userId];
 
-    await db.query(
-      `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${vals.length}`,
-      vals
-    );
-
-    // Log each changed field
-    for (const field of Object.keys(updates)) {
-      const oldVal = String(before[0][field] ?? '');
-      const newVal = String(updates[field] ?? '');
-      if (oldVal !== newVal) {
-        await logUserAction({
-          adminId,
-          targetUserId: userId,
-          actionType:  'edit_profile_field',
-          fieldName:    field,
-          oldValue:     field === 'email' ? '[REDACTED]' : oldVal,
-          newValue:     field === 'email' ? '[REDACTED]' : newVal,
-          ipAddress:    req.ip,
-          impersonatedBy: req.impersonatedBy || null,
-        });
+    await withTransaction(db, async (client) => {
+      const result = await client.query(
+        `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${vals.length} RETURNING id`,
+        vals
+      );
+      if (!result.rows.length) {
+        const err = new Error('User disappeared during profile update.');
+        err.code = 'user_state_changed';
+        throw err;
       }
-    }
 
-    await logAdminAction({ adminId, action: 'user_profile_updated', targetType: 'user', targetId: userId, req });
+      // Log every changed field in the same transaction as the profile write.
+      for (const field of Object.keys(updates)) {
+        const oldVal = String(before[0][field] ?? '');
+        const newVal = String(updates[field] ?? '');
+        if (oldVal !== newVal) {
+          await logUserAction({
+            client,
+            adminId,
+            targetUserId: userId,
+            actionType:  'edit_profile_field',
+            fieldName:    field,
+            oldValue:     field === 'email' ? '[REDACTED]' : oldVal,
+            newValue:     field === 'email' ? '[REDACTED]' : newVal,
+            ipAddress:    req.ip,
+            impersonatedBy: req.impersonatedBy || null,
+          });
+        }
+      }
+      await logAdminAction({ client, adminId, action: 'user_profile_updated', targetType: 'user', targetId: userId, req });
+    }, 'admin_update_user_profile');
 
     res.json({ message: 'Profile updated successfully.', updated: Object.keys(updates) });
   } catch (err) {

@@ -156,6 +156,7 @@ describe('ADM-140: updateUserProfile normalizes email', () => {
     const dupCall = mockQuery.mock.calls[0];
     expect(dupCall[0]).toMatch(/LOWER\(email\)/);
     expect(dupCall[1][0]).toBe('foo@x.com');
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_profile_updated' }));
   });
 });
 
