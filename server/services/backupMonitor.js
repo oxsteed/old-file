@@ -105,7 +105,7 @@ class BackupMonitor {
       await client.query(
         `UPDATE backup_log
             SET backup_id = $2,
-                details = details || jsonb_build_object('legacyBackupId', $3)
+                details = details || jsonb_build_object('legacyBackupId', $3::text)
           WHERE id = $1`,
         [legacy.id, archivedId, legacy.backup_id],
       );
