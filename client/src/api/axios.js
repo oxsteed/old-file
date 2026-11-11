@@ -4,6 +4,7 @@ import { existingPromotionVisitorId, isPromotionConversionRequest } from '../uti
 import { currentAuthEpoch, advanceAuthEpoch, assertCurrentAuthEpoch, startsAuthSessionTransition } from './authSessionEpoch';
 import { withCrossTabRefreshLock } from './authRefreshCoordinator';
 import { readSessionStorage } from '../utils/sessionStorage';
+import { readLocalStorage } from '../utils/localStorage';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -16,9 +17,7 @@ const api = axios.create({
 });
 
 function getPreferredLanguage() {
-  const stored = typeof localStorage !== 'undefined'
-    ? localStorage.getItem('oxs:language')
-    : null;
+  const stored = readLocalStorage('oxs:language');
   if (stored) return stored.trim().toLowerCase().split(/[-_]/)[0] || 'en';
 
   const browserLanguage = typeof navigator !== 'undefined' ? navigator.language : 'en';
