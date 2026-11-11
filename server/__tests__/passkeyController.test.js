@@ -101,6 +101,7 @@ describe('admin passkey controls', () => {
     const adminLookup = mockQuery.mock.calls[0][0];
     expect(adminLookup).toContain('FROM users');
     expect(adminLookup).toContain("role IN ('admin', 'super_admin')");
+    expect(adminLookup).toContain('deleted_at IS NULL');
     expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('admin_users'))).toBe(false);
     const insert = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO admin_passkeys'))?.[0];
     expect(insert).toBeTruthy();
