@@ -33,6 +33,14 @@ beforeEach(() => {
 });
 
 describe('auth login contract', () => {
+  test('login, MFA completion, and refresh exclude soft-deleted accounts', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('../controllers/authController'), 'utf8');
+    expect(src).toMatch(/WHERE u\.email = \$1 AND u\.deleted_at IS NULL/);
+    expect(src).toMatch(/FROM users WHERE id = \$1 AND deleted_at IS NULL/);
+    expect((src.match(/deleted_at IS NULL/g) || []).length).toBeGreaterThanOrEqual(4);
+  });
+
   test('rejects login without termsAgreed for non-admin users', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ role: 'customer' }] });
 

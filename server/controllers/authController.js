@@ -343,7 +343,7 @@ async function login(req, res, next) {
               ca.onboarding_complete AS connect_onboarding_complete
        FROM users u
        LEFT JOIN connect_accounts ca ON ca.user_id = u.id
-       WHERE u.email = $1`,
+      WHERE u.email = $1 AND u.deleted_at IS NULL`,
       [normalizedEmail]
     );
     if (!rows[0]) {
@@ -640,7 +640,7 @@ async function loginWith2FA(req, res, next) {
     }
 
     const { rows } = await pool.query(
-      'SELECT id, email, role, is_active, totp_secret, totp_enabled, backup_codes FROM users WHERE id = $1',
+      'SELECT id, email, role, is_active, totp_secret, totp_enabled, backup_codes FROM users WHERE id = $1 AND deleted_at IS NULL',
       [userId]
     );
     if (!rows[0] || !rows[0].totp_enabled) {
@@ -1093,7 +1093,7 @@ async function refreshToken(req, res, next) {
               COALESCE(is_suspended, FALSE) AS is_suspended,
               suspended_until,
               COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
-       FROM users WHERE id = $1`,
+       FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [sessionRows[0].user_id]
     );
     if (!userRows[0]) {
