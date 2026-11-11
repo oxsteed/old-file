@@ -53,6 +53,7 @@ test('public reservation requests are future-bounded, contact-required, and idem
   const startsAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
   const endsAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
   mockQuery.mockImplementation(async (sql) => {
+    if (sql.startsWith('SELECT fr.id')) return { rows: [{ id: 3 }] };
     if (sql.startsWith('SELECT * FROM restaurant_tables')) return { rows: [{ id: 11, restaurant_id: 3, location_id: 7, capacity: 4, status: 'active' }] };
     if (sql.startsWith('SELECT id, restaurant_id, name, status')) return { rows: [location] };
     if (sql.startsWith('SELECT * FROM restaurant_reservations')) return { rows: [] };
@@ -64,11 +65,32 @@ test('public reservation requests are future-bounded, contact-required, and idem
     .send({ locationId: 7, guestName: 'Guest', guestEmail: 'guest@example.test', partySize: 3, startsAt, endsAt });
   expect(response.status).toBe(201);
   expect(response.body).toMatchObject({ idempotent: false, reservation: { id: 44, status: 'pending', source: 'public' } });
+  const visibilitySql = mockQuery.mock.calls.find(([sql]) => sql.startsWith('SELECT fr.id'))[0];
+  expect(visibilitySql).toMatch(/fr\.discovery_status = 'visible'/);
+  expect(visibilitySql).toMatch(/b\.is_active = TRUE/);
+  expect(visibilitySql).toMatch(/owner\.email_verified = TRUE/);
+  expect(visibilitySql).toMatch(/owner\.onboarding_completed = TRUE/);
   const noContact = await request(app()).post('/3/reservations/request')
     .set('Idempotency-Key', 'public-2')
     .send({ locationId: 7, guestName: 'Guest', partySize: 2, startsAt, endsAt });
   expect(noContact.status).toBe(400);
   expect(noContact.body.code).toBe('contact_required');
+});
+
+test('public reservation requests reject restaurants outside the publication contract', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.startsWith('SELECT fr.id')) return { rows: [] };
+    return { rows: [] };
+  });
+  const startsAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const endsAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+  const response = await request(app()).post('/3/reservations/request')
+    .set('Idempotency-Key', 'hidden-restaurant')
+    .send({ guestName: 'Guest', guestEmail: 'guest@example.test', partySize: 2, startsAt, endsAt });
+
+  expect(response.status).toBe(404);
+  expect(response.body.code).toBe('restaurant_not_found');
+  expect(mockQuery.mock.calls.some(([sql]) => sql.startsWith('INSERT INTO restaurant_reservations'))).toBe(false);
 });
 
 test('table position updates stay tenant-scoped for the floor plan', async () => {

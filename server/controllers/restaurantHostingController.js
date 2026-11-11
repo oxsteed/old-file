@@ -106,6 +106,50 @@ async function resolveLocation(
   return result.rows[0];
 }
 
+async function assertPublicRestaurant(client, restaurantId) {
+  const { rows } = await client.query(
+    `SELECT fr.id
+       FROM food_restaurants fr
+       JOIN businesses b ON b.id = fr.business_id
+       JOIN users owner ON owner.id = b.user_id
+      WHERE fr.id = $1
+        AND fr.status IN ('active', 'paused')
+        AND fr.discovery_status = 'visible'
+        AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
+        AND b.is_active = TRUE
+        AND b.is_listed = TRUE
+        AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+        AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
+        AND b.deleted_at IS NULL
+        AND owner.deleted_at IS NULL
+        AND owner.is_active = TRUE
+        AND owner.email_verified = TRUE
+        AND owner.onboarding_completed = TRUE`,
+    [restaurantId],
+  );
+  if (!rows[0]) {
+    throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  }
+}
+
+async function resolvePublicLocation(client, restaurantId, requested) {
+  const locationId = requested == null ? null : positiveId(requested, 'location');
+  const { rows } = await client.query(
+    `SELECT id, restaurant_id, name, status, timezone
+       FROM restaurant_locations
+      WHERE restaurant_id = $1
+        AND status = 'active'
+        AND ($2::bigint IS NULL AND is_primary = TRUE OR id = $2)
+      ORDER BY is_primary DESC, id ASC
+      LIMIT 1`,
+    [restaurantId, locationId],
+  );
+  if (!rows[0]) {
+    throw new AppError('Location not found', 404, 'location_not_found');
+  }
+  return rows[0];
+}
+
 function normalizePosition(value) {
   if (
     !value ||
@@ -273,11 +317,12 @@ exports.createPublicReservationRequest = async (req, res, next) => {
     const result = await withTransaction(
       pool,
       async (client) => {
+        await assertPublicRestaurant(client, restaurantId);
         await client.query(
           "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
           [`reservation:${restaurantId}:${input.idempotencyKey}`],
         );
-        const location = await resolveLocation(
+        const location = await resolvePublicLocation(
           client,
           restaurantId,
           req.body?.locationId,
