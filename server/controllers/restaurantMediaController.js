@@ -726,8 +726,10 @@ exports.postRestaurantMediaPhoto = async (req, res, next) => {
     let media;
     try {
       const storageKey = await uploadFile(cleanBuffer, PHOTO_STORAGE_FOLDER, `photo.${ext}`, mime);
+      if (!storageKey) throw new AppError('Photo storage is unavailable', 503, 'media_storage_unavailable');
       storedKeys.push(storageKey);
       const thumbnailKey = await uploadFile(thumbBuffer, PHOTO_STORAGE_FOLDER, `thumb.${ext}`, mime);
+      if (!thumbnailKey) throw new AppError('Photo thumbnail storage is unavailable', 503, 'media_storage_unavailable');
       storedKeys.push(thumbnailKey);
 
       const renditions = JSON.stringify([{

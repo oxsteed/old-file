@@ -235,6 +235,20 @@ describe('stripExif', () => {
 // ── POST photo-uploads: happy path ───────────────────────────────────────────
 
 describe('postRestaurantMediaPhoto', () => {
+  test('storage returning no key fails before the media row is inserted', async () => {
+    mockSuccessfulPhotoPost();
+    storage.uploadFile.mockResolvedValueOnce(null);
+
+    const res = await request(buildApp())
+      .post('/api/restaurants/42/media/photo-uploads')
+      .attach('file', await jpegWithGpsExif(), 'photo.jpg');
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('media_storage_unavailable');
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO restaurant_media'))).toBe(false);
+    expect(storage.deleteFile).not.toHaveBeenCalled();
+  });
+
   test('stores stripped original + thumbnail and snapshots dishes in-transaction', async () => {
     const dishRows = [{ id: 10, name: 'Ramen', price_cents: 1250, currency_code: 'USD' }];
     mockSuccessfulPhotoPost({ dishRows, dishIds: [10] });

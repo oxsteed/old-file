@@ -168,8 +168,10 @@ async function uploadPhoto(req, res) {
     let committed = false;
     try {
       const storageKey = await uploadFile(cleanBuffer, 'media/photos', `photo.${ext}`, detected.mime);
+      if (!storageKey) throw new AppError('Photo storage is unavailable', 503, 'media_storage_unavailable');
       storedKeys.push(storageKey);
       const thumbnailKey = await uploadFile(thumbnail.data, 'media/photos', 'thumb.jpg', 'image/jpeg');
+      if (!thumbnailKey) throw new AppError('Photo thumbnail storage is unavailable', 503, 'media_storage_unavailable');
       storedKeys.push(thumbnailKey);
       const result = await attachments.attach({ postId, userId: req.user.id, replace: replaceRequested(req), replaceAssetId: replaceAssetId(req),
         asset: { asset_type: 'image', provider: 'upload', storage_key: storageKey, thumbnail_key: thumbnailKey,
@@ -247,6 +249,7 @@ async function videoUpload(req, res) {
     }
 
     storedKey = await uploadFile(fileBuffer, 'media/videos', `original${path.extname(req.file.originalname || '') || '.bin'}`, detected.mime);
+    if (!storedKey) throw new AppError('Video storage is unavailable', 503, 'media_storage_unavailable');
     const result = await attachments.attach({ postId: post_id, userId, replace: replaceRequested(req), replaceAssetId: replaceAssetId(req),
       asset: { asset_type: 'video', provider: 'upload', storage_key: storedKey,
         processing_status: 'quarantine', csam_status: 'pending', content_sha256: digest(fileBuffer) } });
@@ -343,6 +346,7 @@ async function uploadCaption(req, res) {
     const { rows: targets } = await pool.query('SELECT asset_type, caption_storage_key FROM media_post_assets WHERE id = $1 AND post_id = $2', [req.params.assetId, req.params.postId]);
     if (targets[0]?.asset_type !== 'video') return res.status(400).json({ error: 'Captions require an uploaded video attachment.', code: 'media_caption_video_required' });
     storageKey = await uploadFile(req.file.buffer, 'media/captions', 'captions.vtt', 'text/vtt');
+    if (!storageKey) throw new AppError('Caption storage is unavailable', 503, 'media_storage_unavailable');
     const asset = await attachments.updateMetadata({
       postId: req.params.postId, assetId: req.params.assetId, userId: req.user.id,
       altText: typeof req.body?.alt_text === 'string' ? req.body.alt_text.trim().slice(0, 1000) : undefined,

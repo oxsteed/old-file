@@ -179,6 +179,21 @@ describe('POST video-uploads', () => {
     uploadSpy.mockRestore();
   });
 
+  test('storage returning no key fails before any media row is created', async () => {
+    mockUploadDb();
+    const uploadSpy = jest.spyOn(storage, 'uploadFile').mockResolvedValue(null);
+
+    const app = buildApp({ user: { id: 'uploader-no-storage' } });
+    const res = await request(app)
+      .post('/api/restaurants/42/media/video-uploads')
+      .attach('file', tinyMp4Buffer(), { filename: 'clip.mp4', contentType: 'video/mp4' });
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('media_storage_unavailable');
+    expect(capturedInserts.some((entry) => entry.sql.includes('INSERT INTO restaurant_media'))).toBe(false);
+    uploadSpy.mockRestore();
+  });
+
   test('dish snapshot validation mirrors link posts (cap 10, must belong)', async () => {
     mockUploadDb();
     const app = buildApp({ user: { id: 'uploader-dish' } });

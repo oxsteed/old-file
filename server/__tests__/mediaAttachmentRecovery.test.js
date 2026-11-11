@@ -43,6 +43,26 @@ test('a thumbnail-storage failure cleans up the already-stored original', async 
   expect(storage.deleteFile).toHaveBeenCalledWith('original.jpg');
   expect(pool.connect).not.toHaveBeenCalled();
 });
+test('a missing original storage key fails before persistence', async () => {
+  storage.uploadFile.mockReset().mockResolvedValueOnce(null);
+
+  const result = await send();
+
+  expect(result.status).toBe(503);
+  expect(result.body.code).toBe('media_storage_unavailable');
+  expect(pool.connect).not.toHaveBeenCalled();
+  expect(storage.deleteFile).not.toHaveBeenCalled();
+});
+test('a missing thumbnail storage key cleans up the original', async () => {
+  storage.uploadFile.mockReset().mockResolvedValueOnce('original.jpg').mockResolvedValueOnce(null);
+
+  const result = await send();
+
+  expect(result.status).toBe(503);
+  expect(result.body.code).toBe('media_storage_unavailable');
+  expect(pool.connect).not.toHaveBeenCalled();
+  expect(storage.deleteFile).toHaveBeenCalledWith('original.jpg');
+});
 test('URL-signing failure after persistence preserves committed files for retry', async () => {
   storage.getSignedDownloadUrl.mockRejectedValueOnce(new Error('Signing unavailable'));
   expect((await send()).status).toBe(500);

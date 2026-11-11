@@ -334,6 +334,7 @@ async function postVideoUpload(req, res, next) {
       fileBuffer, 'restaurant-media/videos',
       `original${safeExt(req.file.originalname)}`, detected.mime
     );
+    if (!storedKey) throw new AppError('Video storage is unavailable', 503, 'media_storage_unavailable');
 
     const client = await pool.connect();
     try {
