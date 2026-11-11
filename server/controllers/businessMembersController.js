@@ -198,7 +198,7 @@ async function inviteMember(req, res) {
       // Look up the invitee
       const userRes = await client.query(
         `SELECT id, first_name, last_name, email
-           FROM users WHERE LOWER(email) = $1 AND is_active = TRUE`,
+           FROM users WHERE LOWER(email) = $1 AND is_active = TRUE AND deleted_at IS NULL`,
         [normalizedEmail]
       );
       const found = userRes.rows[0] || null;
@@ -566,8 +566,8 @@ async function rehireMember(req, res) {
 
     const { rows: [user] } = await pool.query(
       userId
-        ? `SELECT id, email, first_name, last_name FROM users WHERE id = $1`
-        : `SELECT id, email, first_name, last_name FROM users WHERE LOWER(email) = $1`,
+        ? `SELECT id, email, first_name, last_name FROM users WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`
+        : `SELECT id, email, first_name, last_name FROM users WHERE LOWER(email) = $1 AND is_active = TRUE AND deleted_at IS NULL`,
       [userId || email]
     );
     if (!user) return res.status(404).json({ error: 'User not found' });
