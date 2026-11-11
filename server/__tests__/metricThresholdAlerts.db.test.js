@@ -133,6 +133,7 @@ describeDb('metric threshold alert evaluator', () => {
       is_active BOOLEAN NOT NULL DEFAULT true,
       is_banned BOOLEAN NOT NULL DEFAULT false,
       is_suspended BOOLEAN NOT NULL DEFAULT false,
+      deleted_at TIMESTAMPTZ,
       email TEXT, first_name TEXT,
       preferred_language TEXT NOT NULL DEFAULT 'en',
       phone TEXT)`);

@@ -107,6 +107,6 @@ describe('recurring booking account lifecycle guards', () => {
   });
 
   test('does not create subscriptions for soft-deleted helpers', () => {
-    expect(src).toMatch(/SELECT id, is_active, role FROM users WHERE id = \$1 AND deleted_at IS NULL/);
+    expect(src).toMatch(/SELECT id, is_active, (?:deleted_at, )?role FROM users WHERE id = \$1 AND deleted_at IS NULL/);
   });
 });
