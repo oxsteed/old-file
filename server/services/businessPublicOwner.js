@@ -34,7 +34,8 @@ async function resolvePublicBusinessOwner(businessId, db = pool) {
         AND b.business_kind = 'service'
         AND u.deleted_at IS NULL
         AND u.is_active = TRUE
-        AND u.email_verified = TRUE`,
+        AND u.email_verified = TRUE
+        AND u.onboarding_completed = TRUE`,
     [id]
   );
   if (!rows[0]) return null;
