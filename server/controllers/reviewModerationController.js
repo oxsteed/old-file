@@ -9,6 +9,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { sendNotification } = require('../services/notificationService');
 const { getClientRequestId } = require('../utils/idempotency');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 const REPORT_REASONS = Object.freeze({
   FALSE_REVIEW: 'false_review',
@@ -179,11 +180,22 @@ exports.reportReview = async (req, res, next) => {
     // Notify admins
     try {
       const { rows: adminRows } = await pool.query(
-        `SELECT id FROM users WHERE role IN ('admin', 'super_admin') AND is_active = true LIMIT 5`
+        `SELECT id, role FROM users
+          WHERE role IN ('admin', 'super_admin')
+            AND is_active = true
+            AND deleted_at IS NULL`
       );
+      // Keep notification recipients aligned with the route's
+      // `moderate_content` gate. Delegated moderators must receive reports;
+      // limiting this to the first few admin rows silently drops them.
+      const moderatorRows = (await Promise.all(adminRows.map(async (admin) => (
+        admin.role === 'super_admin' || await hasGlobalGrant(admin.id, 'moderate_content')
+          ? admin
+          : null
+      )))).filter(Boolean);
 
       await Promise.allSettled(
-        adminRows.map(admin =>
+        moderatorRows.map(admin =>
           sendNotification({
             userId: admin.id,
             type: 'review_reported',
