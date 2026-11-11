@@ -83,6 +83,12 @@ test('client and server launch catalogs stay in lockstep', async () => {
   assert.deepEqual(clientKeys, serverKeys);
 });
 
+test('bootstrap launch visibility requests bypass browser caches', async () => {
+  const source = await import('node:fs/promises');
+  const mainSource = await source.readFile(new URL('../src/main.jsx', import.meta.url), 'utf8');
+  assert.match(mainSource, /fetch\('\/api\/launch-visibility', \{ credentials: 'same-origin', cache: 'no-store' \}\)/);
+});
+
 // Review P3-7-F14: /orders/:id must reach the router's canonical redirect
 // (/food/orders/:id), not bounce to /orders via the launch gate.
 test('order detail paths are not rewritten to the order list', () => {

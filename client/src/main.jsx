@@ -98,7 +98,7 @@ warmServiceWorkerAssets();
 // and the server-side launch gates stay fail-closed regardless.
 async function fetchServerLaunchVisibility() {
   try {
-    const res = await fetch('/api/launch-visibility', { credentials: 'same-origin' });
+    const res = await fetch('/api/launch-visibility', { credentials: 'same-origin', cache: 'no-store' });
     if (!res.ok) return;
     applyServerLaunchVisibility(await res.json());
   } catch {

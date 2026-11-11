@@ -514,6 +514,7 @@ app.get('/health', (req, res) => {
 app.get('/api/launch-visibility', (req, res) => {
   const { envFlagEnabled } = require('./middleware/featureFlags');
   const { getServerLaunchVisibility } = require('./middleware/launchGate');
+  res.set('Cache-Control', 'no-store');
   res.json({
     media: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', true),
     launches: getServerLaunchVisibility(),

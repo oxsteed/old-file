@@ -385,5 +385,6 @@ describe('P3-7-F09: server exposes launch state', () => {
     const src = readSource('index.js');
     expect(src).toMatch(/app\.get\('\/api\/launch-visibility'/);
     expect(src).toMatch(/envFlagEnabled\('OXSTEED_MEDIA_LAUNCHED', true\)/);
+    expect(src).toMatch(/res\.set\('Cache-Control', 'no-store'\)/);
   });
 });
