@@ -4,6 +4,7 @@ const socketService = require('../services/socketService');
 const { enqueueMessageNotification, enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 const { withTransaction } = require('../utils/transaction');
 const { maskEmail } = require('../utils/directQuote');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 function getClientRequestId(req) {
   const value = req.get?.('Idempotency-Key')
@@ -82,14 +83,20 @@ async function handleLiveAdminChat(req, res, userId, visitorName, visitorEmail, 
     // super_admin, then regular admin. Falls back to ticket escalation when
     // no admin socket is connected.
     const { rows: admins } = await pool.query(
-      `SELECT u.id FROM users u
+      `SELECT u.id, u.role FROM users u
        WHERE u.role IN ('super_admin', 'admin')
        AND u.is_active = TRUE
        AND u.deleted_at IS NULL
        ORDER BY u.role = 'super_admin' DESC, u.id ASC
        LIMIT 100`
     );
-    const admin = admins.find((candidate) => socketService.isOnline(candidate.id)) || null;
+    const supportAdmins = [];
+    for (const candidate of admins) {
+      if (candidate.role === 'super_admin' || await hasGlobalGrant(candidate.id, 'manage_support')) {
+        supportAdmins.push(candidate);
+      }
+    }
+    const admin = supportAdmins.find((candidate) => socketService.isOnline(candidate.id)) || null;
 
     if (!admin) {
       // No online admin found, escalate to ticket
