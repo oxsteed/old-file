@@ -297,6 +297,10 @@ describe('business category long-term wiring', () => {
     expect(res.headers['content-type']).toMatch(/^image\/webp/);
     expect(res.headers.etag).toBe('"abc123"');
     expect(res.body).toEqual(content);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/JOIN users u ON u\.id = b\.user_id/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/b\.is_listed = TRUE/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/u\.email_verified = TRUE/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/u\.onboarding_completed = TRUE/);
   });
 
   test('loads an unpublished draft business for the owner after create', async () => {
