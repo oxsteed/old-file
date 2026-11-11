@@ -95,6 +95,7 @@
     "test:admin-moderation-actions": "node --test scripts/adminModerationActions.test.mjs",
     "test:admin-reports": "node --test scripts/adminReports.test.mjs",
     "test:admin-support-analytics": "node scripts/adminSupportAnalytics.test.mjs",
+    "test:admin-support-reply-idempotency": "node --test scripts/adminSupportReplyIdempotency.test.mjs",
     "test:admin-accessibility-contracts": "node --test scripts/adminAccessibilityContracts.test.mjs",
     "test:admin-logistics-localization": "node --test scripts/adminLogisticsLocalization.test.mjs",
     "test:profile-visibility-localization": "node --test scripts/profileVisibilityLocalization.test.mjs",

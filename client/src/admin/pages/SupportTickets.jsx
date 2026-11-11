@@ -255,6 +255,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
   const [sending, setSending] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
   const messagesEndRef = useRef(null);
+  const pendingReplyRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -295,12 +296,22 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
     event.preventDefault();
     if (!reply.trim()) return;
     setSending(true);
+    const content = reply.trim();
+    const pending = pendingReplyRef.current;
+    const clientMessageId = pending
+      && pending.content === content
+      && pending.isInternal === isInternal
+      ? pending.clientMessageId
+      : crypto.randomUUID();
+    pendingReplyRef.current = { content, isInternal, clientMessageId };
     try {
       await adminApi.post(`/admin/support/tickets/${ticketId}/reply`, {
-        content: reply.trim(),
+        content,
         is_internal: isInternal,
+        client_message_id: clientMessageId,
       });
       setReply('');
+      pendingReplyRef.current = null;
       await load();
       onUpdated();
     } catch (err) {
