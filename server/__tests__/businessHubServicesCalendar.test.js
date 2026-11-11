@@ -246,6 +246,38 @@ describe('hub services + calendar error sources', () => {
     expect(mockQuery.mock.calls[3][0]).toMatch(/INSERT INTO appointment_waitlist/);
   });
 
+  test('duplicate customer waitlist requests return a conflict instead of a server error', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{
+        id: 8,
+        is_active: true,
+        allow_online_booking: true,
+        business_is_active: true,
+        is_listed: true,
+        is_hidden_by_admin: false,
+        setup_status: 'active',
+        business_kind: 'service',
+        business_deleted_at: null,
+        owner_deleted_at: null,
+        owner_is_active: true,
+        owner_email_verified: true,
+        owner_onboarding_completed: true,
+      }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ next_pos: 4 }] })
+      .mockRejectedValueOnce(Object.assign(new Error('duplicate waitlist'), {
+        code: '23505',
+        constraint: 'idx_appointment_waitlist_unique_waiting',
+      }));
+
+    const res = await request(buildApp())
+      .post('/api/businesses/1/waitlist')
+      .send({ service_id: 8, preferred_date: '2026-09-22' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('already_waitlisted');
+  });
+
   test('appointment list failures return AppError instead of crashing the constructor', async () => {
     mockQuery.mockRejectedValueOnce(new Error('relation "business_appointments" does not exist'));
     const res = await request(buildApp()).get('/api/businesses/1/appointments');

@@ -154,7 +154,12 @@ exports.addToWaitlist = async (req, res, next) => {
       customer_email: null,
       service_name: null,
     }));
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err?.code === '23505' && err?.constraint === 'idx_appointment_waitlist_unique_waiting') {
+      return res.status(409).json({ error: 'You are already on this service waitlist', code: 'already_waitlisted' });
+    }
+    next(err);
+  }
 };
 
 exports.updateWaitlistEntry = async (req, res, next) => {
