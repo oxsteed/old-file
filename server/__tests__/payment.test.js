@@ -194,6 +194,30 @@ describe('POST /api/payments/intent', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO payments/.test(sql))).toBe(false);
   });
 
+  test('retires a pending replay when the existing intent has no client secret', async () => {
+    stripe.accounts.retrieve.mockResolvedValueOnce({
+      id: 'acct_x', charges_enabled: true, payouts_enabled: true, details_submitted: true,
+    });
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce({ id: 'pi_replay_bad', status: 'requires_payment_method', client_secret: null });
+    stripe.paymentIntents.cancel = jest.fn().mockResolvedValueOnce({ id: 'pi_replay_bad', status: 'canceled' });
+    mockPaymentAuth(
+      { rows: [{ id: 13, client_id: 1, job_value: 100, assigned_helper_id: 2, title: 'Job' }] },
+      { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, onboarding_complete: true }] },
+      { rowCount: 0 },
+      { rows: [] },
+      { rows: [{ balance_cents: 0 }] },
+      { rows: [{ id: 7, status: 'pending', stripe_payment_intent_id: 'pi_replay_bad', stripe_account_id: 'acct_x', charge_model: 'direct' }] },
+      { rows: [] },
+    );
+
+    const res = await auth(request(buildApp()).post('/api/payments/intent').send({ job_id: 13 }));
+    expect(res.status).toBe(502);
+    expect(res.body.code).toBe('payment_intent_unavailable');
+    expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith('pi_replay_bad', expect.objectContaining({ stripeAccount: 'acct_x' }));
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE payments SET status = 'failed'/.test(sql))).toBe(true);
+    expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
+  });
+
   test('P2-6-F09: referral discount is funded by the platform fee, not the helper', async () => {
     stripe.accounts.retrieve.mockResolvedValueOnce({
       id: 'acct_x', charges_enabled: true, payouts_enabled: true, details_submitted: true,

@@ -420,23 +420,25 @@ exports.createPaymentIntent = async (req, res, next) => {
       // Check for existing payment to prevent duplicates (idempotency).
       // We must return the actual `client_secret` from Stripe — not the PaymentIntent
       // ID — because the frontend uses it to confirm the card on the client.
-      const existingPayment = await client.query('SELECT id, stripe_payment_intent_id, stripe_account_id, charge_model FROM payments WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'authorized', 'pending']);
+      const existingPayment = await client.query('SELECT id, status, stripe_payment_intent_id, stripe_account_id, charge_model FROM payments WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'authorized', 'pending']);
       if (existingPayment.rows[0]) {
+        const existingRow = existingPayment.rows[0];
         try {
-          const existingPi = await stripe.paymentIntents.retrieve(existingPayment.rows[0].stripe_payment_intent_id,
-            chargeModel.requestOptions(existingPayment.rows[0]));
+          const existingPi = await stripe.paymentIntents.retrieve(existingRow.stripe_payment_intent_id,
+            chargeModel.requestOptions(existingRow));
           // Only reuse PIs that are still in a confirmable state. Anything past
           // `requires_capture` (or terminal) means the customer already paid;
           // returning that secret would let them re-pay an authorized intent.
           const reusableStatuses = ['requires_payment_method', 'requires_confirmation', 'requires_action'];
           if (reusableStatuses.includes(existingPi.status)) {
+            const usable = requireUsablePaymentIntent(existingPi);
             return {
               replay: true,
               statusCode: 200,
               body: {
-                client_secret: existingPi.client_secret,
-                payment_intent_id: existingPi.id,
-                stripe_account_id: chargeModel.modelOf(existingPayment.rows[0]) === 'direct' ? existingPayment.rows[0].stripe_account_id : null,
+                client_secret: usable.clientSecret,
+                payment_intent_id: usable.id,
+                stripe_account_id: chargeModel.modelOf(existingRow) === 'direct' ? existingRow.stripe_account_id : null,
                 message: 'Existing payment intent returned'
               }
             };
@@ -453,9 +455,23 @@ exports.createPaymentIntent = async (req, res, next) => {
             }
           };
         } catch (retrieveErr) {
+          if (retrieveErr.code === 'payment_intent_unavailable' && existingRow.status === 'pending') {
+            if (typeof stripe?.paymentIntents?.cancel === 'function') {
+              await stripe.paymentIntents.cancel(existingRow.stripe_payment_intent_id, chargeModel.requestOptions(existingRow)).catch((cancelErr) => logger.warn('Failed to cancel unusable existing payment intent', {
+                paymentIntentId: existingRow.stripe_payment_intent_id,
+                error: cancelErr.message,
+              }));
+            }
+            await client.query(
+              `UPDATE payments SET status = 'failed', payment_hold_status = 'none', updated_at = NOW()
+                WHERE id = $1 AND status = 'pending'`,
+              [existingRow.id],
+            );
+            throw retrieveErr;
+          }
           logger.error('Failed to retrieve existing PaymentIntent during idempotency check', {
             jobId: job_id,
-            paymentIntentId: existingPayment.rows[0].stripe_payment_intent_id,
+            paymentIntentId: existingRow.stripe_payment_intent_id,
             error: retrieveErr.message
           });
           throw new AppError('We could not verify the existing payment attempt. Please try again shortly.', 503, 'payment_verification_unavailable');
