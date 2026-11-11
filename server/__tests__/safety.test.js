@@ -9,7 +9,7 @@ jest.mock('../services/notificationService', () => ({
 }));
 
 const { sendNotification } = require('../services/notificationService');
-const { sendSOS } = require('../controllers/safetyController');
+const { sendSOS, listSOS } = require('../controllers/safetyController');
 const { errorHandler } = require('../middleware/errorHandler');
 
 function buildApp(user = { id: 'user-1' }) {
@@ -96,4 +96,18 @@ describe('safety SOS endpoint', () => {
       }),
     }));
   });
+});
+
+test('admin SOS history does not hide incidents when its read fails', async () => {
+  mockQuery.mockRejectedValue(new Error('database connection lost'));
+  const req = {};
+  const res = {
+    json: jest.fn(),
+  };
+  const next = jest.fn();
+
+  await listSOS(req, res, next);
+
+  expect(res.json).not.toHaveBeenCalled();
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'database connection lost' }));
 });
