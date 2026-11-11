@@ -20,6 +20,12 @@ beforeEach(() => {
 });
 
 describe('delegated admin permission scope', () => {
+  test('grant creation excludes soft-deleted admin grantees', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('../controllers/adminPermissionController'), 'utf8');
+    expect(src).toMatch(/WHERE id = \$1 AND is_active = true AND deleted_at IS NULL/);
+  });
+
   test('does not treat a regional grant as platform-wide access', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 10, region_id: 4 }] });
 
