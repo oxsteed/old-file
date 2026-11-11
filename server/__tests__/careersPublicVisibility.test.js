@@ -1,6 +1,8 @@
 'use strict';
 
 const { listPublic, getPublic } = require('../services/careers/openings');
+const employers = require('../services/careers/marketplace/employers');
+const seeker = require('../services/careers/marketplace/seeker');
 
 function dbWith(rows = []) {
   const calls = [];
@@ -34,4 +36,16 @@ test('public career detail applies the same live business gate', async () => {
   expect(sql).toMatch(/b\.is_listed = TRUE/);
   expect(sql).toMatch(/u\.is_active = TRUE/);
   expect(sql).toMatch(/u\.onboarding_completed = TRUE/);
+});
+
+test('career employer and impression queries provide the owner alias used by the public gate', async () => {
+  const db = dbWith([{ total: 0 }]);
+  await employers.directory(db, { q: 'Acme' });
+  expect(db.calls[0].sql).toMatch(/LEFT JOIN users u ON u\.id = b\.user_id/);
+  expect(db.calls[0].sql).toMatch(/u\.email_verified = TRUE/);
+
+  db.calls.length = 0;
+  await seeker.trackImpressions(db, [42], 'viewer-hash');
+  expect(db.calls[0].sql).toMatch(/LEFT JOIN users u ON u\.id = b\.user_id/);
+  expect(db.calls[0].sql).toMatch(/u\.onboarding_completed = TRUE/);
 });

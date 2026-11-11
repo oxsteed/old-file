@@ -92,8 +92,8 @@ ddescribe('careers (real database)', () => {
   async function newUser(label, { role = 'customer', adult = true, didit = false } = {}) {
     const id = crypto.randomUUID();
     await pool.query(
-      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, didit_status, didit_verified_at)
-       VALUES ($1, $2, 'x', $3, 'Fixture', $4, TRUE, TRUE, $5, $6)`,
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, onboarding_completed, is_active, didit_status, didit_verified_at)
+       VALUES ($1, $2, 'x', $3, 'Fixture', $4, TRUE, TRUE, TRUE, $5, $6)`,
       [id, `careers-${label}-${id}@example.invalid`, label, role, didit ? 'verified' : null, didit ? new Date() : null]
     );
     if (adult) await pool.query('INSERT INTO growth_subject_eligibility (user_id, adult_confirmed, verification_method, verified_at) VALUES ($1, TRUE, $2, NOW())', [id, 'provider']);

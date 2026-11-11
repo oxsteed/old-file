@@ -89,8 +89,8 @@ ddescribe('careers marketplace (real database)', () => {
   async function newUser(label, { role = 'customer', ageDays = 30 } = {}) {
     const id = crypto.randomUUID();
     await pool.query(
-      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, created_at)
-       VALUES ($1, $2, 'x', $3, 'Fixture', $4, TRUE, TRUE, NOW() - make_interval(days => $5::int))`,
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, onboarding_completed, is_active, created_at)
+       VALUES ($1, $2, 'x', $3, 'Fixture', $4, TRUE, TRUE, TRUE, NOW() - make_interval(days => $5::int))`,
       [id, `mk-${label}-${id}@example.invalid`, label, role, ageDays]
     );
     await pool.query('INSERT INTO growth_subject_eligibility (user_id, adult_confirmed, verification_method, verified_at) VALUES ($1, TRUE, $2, NOW())', [id, 'provider']);
