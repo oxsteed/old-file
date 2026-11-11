@@ -264,11 +264,11 @@ jobs:
           if command -v ffmpeg >/dev/null 2>&1; then
             ffmpeg -version | head -n 1
           else
-            sudo env DEBIAN_FRONTEND=noninteractive apt-get update \
+            timeout --signal=TERM 8m sudo env DEBIAN_FRONTEND=noninteractive apt-get update \
               -o Acquire::Retries=3 \
               -o Acquire::http::Timeout=30 \
               -o Acquire::https::Timeout=30
-            sudo env DEBIAN_FRONTEND=noninteractive apt-get install \
+            timeout --signal=TERM 8m sudo env DEBIAN_FRONTEND=noninteractive apt-get install \
               -o Acquire::Retries=3 \
               --no-install-recommends -y ffmpeg
           fi
