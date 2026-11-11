@@ -238,6 +238,19 @@ describe('ADM-011: consultant BIGINT id goes into consultant_id, not UUID consul
 
     expect(res.status).toHaveBeenCalledWith(400);
   });
+
+  test('available consultant picker excludes stale user identities', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const res = makeRes();
+    await consultingController.getAvailableConsultants({ query: {} }, res);
+
+    const sql = mockQuery.mock.calls[0][0];
+    expect(sql).toContain("c.status = 'active'");
+    expect(sql).toContain('u.deleted_at IS NULL');
+    expect(sql).toContain('u.email_verified = TRUE');
+    expect(sql).toContain('u.onboarding_completed = TRUE');
+    expect(res.json).toHaveBeenCalledWith([]);
+  });
 });
 
 describe('ADM-012/ADM-013: complete/no-show update consulting_sessions.status', () => {

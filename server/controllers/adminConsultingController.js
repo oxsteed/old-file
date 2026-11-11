@@ -84,7 +84,18 @@ exports.getConsultingRequests = async (req, res) => {
 exports.assignConsultantToRequest = async (req, res) => {
   const { session_id, consultant_id } = req.body;
   try {
-    const consultant = await db.query('SELECT * FROM consultants WHERE id = $1', [consultant_id]);
+    const consultant = await db.query(
+      `SELECT c.*
+         FROM consultants c
+         JOIN users u ON u.id = c.user_id
+        WHERE c.id = $1
+          AND c.status = 'active'
+          AND u.deleted_at IS NULL
+          AND u.is_active = TRUE
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE`,
+      [consultant_id]
+    );
     if (!consultant.rows.length) return res.status(404).json({ error: 'Consultant not found' });
 
     const result = await db.query(
@@ -126,9 +137,13 @@ exports.getAvailableConsultants = async (req, res) => {
     let query = `SELECT c.*, u.first_name, u.last_name, u.email,
                  COUNT(cs.id) as active_sessions
                  FROM consultants c
-                 LEFT JOIN users u ON c.user_id = u.id
+                 JOIN users u ON c.user_id = u.id
                  LEFT JOIN consulting_sessions cs ON c.id = cs.consultant_id AND cs.status IN ('pending', 'scheduled')
-                 WHERE c.status = 'active'`;
+                 WHERE c.status = 'active'
+                   AND u.deleted_at IS NULL
+                   AND u.is_active = TRUE
+                   AND u.email_verified = TRUE
+                   AND u.onboarding_completed = TRUE`;
     const params = [];
 
     if (role) {
@@ -549,7 +564,18 @@ exports.createSessionManually = async (req, res) => {
     // BIGINT consulting_sessions.consultant_id column, not the UUID
     // consultant_assigned_id).
     if (consultant_id) {
-      const consultantRow = await db.query('SELECT id FROM consultants WHERE id = $1', [consultant_id]);
+      const consultantRow = await db.query(
+        `SELECT c.id
+           FROM consultants c
+           JOIN users u ON u.id = c.user_id
+          WHERE c.id = $1
+            AND c.status = 'active'
+            AND u.deleted_at IS NULL
+            AND u.is_active = TRUE
+            AND u.email_verified = TRUE
+            AND u.onboarding_completed = TRUE`,
+        [consultant_id]
+      );
       if (!consultantRow.rows.length) {
         return res.status(400).json({ error: 'Invalid consultant_id: no such consultant.' });
       }
@@ -617,7 +643,18 @@ exports.updateRequestStatusById = async (req, res) => {
     // ADM-011: body consultant_id is the consultants-table BIGINT id — it must
     // go into the BIGINT consultant_id column, not the UUID consultant_assigned_id.
     if (consultant_id) {
-      const consultantRow = await db.query('SELECT id, user_id FROM consultants WHERE id = $1', [consultant_id]);
+      const consultantRow = await db.query(
+        `SELECT c.id, c.user_id
+           FROM consultants c
+           JOIN users u ON u.id = c.user_id
+          WHERE c.id = $1
+            AND c.status = 'active'
+            AND u.deleted_at IS NULL
+            AND u.is_active = TRUE
+            AND u.email_verified = TRUE
+            AND u.onboarding_completed = TRUE`,
+        [consultant_id]
+      );
       if (!consultantRow.rows.length) {
         return res.status(400).json({ error: 'Invalid consultant_id: no such consultant.' });
       }
