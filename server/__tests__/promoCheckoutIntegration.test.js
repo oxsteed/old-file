@@ -126,6 +126,29 @@ describe('booking checkout promo', () => {
     expect(sqls).toContain('ROLLBACK');
     expect(sqls).not.toContain('COMMIT');
   });
+
+  test('cancels a created intent when booking persistence fails', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_bk_orphan', status: 'canceled' });
+    const previousCancel = stripe.__mockInstance.paymentIntents.cancel;
+    stripe.__mockInstance.paymentIntents.cancel = cancel;
+    stripe.__mockInstance.paymentIntents.create.mockResolvedValue({ id: 'pi_bk_orphan', client_secret: 'cs_orphan' });
+    mockQuery.mockImplementation(dispatcher([
+      [/FROM booking_requests/i, { rows: [booking] }],
+      [/FOR UPDATE/, { rows: [booking] }],
+      [/SET payment_requirement =/, () => { throw new Error('booking write unavailable'); }],
+    ]));
+    const next = jest.fn();
+    try {
+      await mobileCtrl.createBookingPaymentIntent({ params: { bookingId: 'b1' },
+        body: { amountCents: 5000, paymentRequirement: 'deposit' }, user: { id: 1 } }, { json: jest.fn() }, next);
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'booking write unavailable' }));
+      expect(cancel).toHaveBeenCalledWith('pi_bk_orphan');
+      expect(mockQuery.mock.calls.map(([sql]) => String(sql))).toContain('ROLLBACK');
+    } finally {
+      if (previousCancel) stripe.__mockInstance.paymentIntents.cancel = previousCancel;
+      else delete stripe.__mockInstance.paymentIntents.cancel;
+    }
+  });
 });
 
 describe('food checkout platform codes', () => {

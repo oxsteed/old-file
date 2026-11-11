@@ -18,6 +18,7 @@ const {
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const countriesUtil = require('../utils/countries');
 const modeRoleUtil = require('../utils/modeRole');
+const logger = require('../utils/logger');
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
@@ -611,6 +612,7 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
     const promoCode = normalizeString(req.body.promoCode || req.body.promo_code, 64);
     const client = await pool.connect();
     let committed = false;
+    let createdPaymentIntent = null;
     try {
       await client.query('BEGIN');
       const { rows: [locked] } = await client.query(
@@ -683,7 +685,7 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
         }
       }
 
-      const paymentIntent = await stripe.paymentIntents.create({
+      createdPaymentIntent = await stripe.paymentIntents.create({
         amount: chargeCents,
         currency: 'usd',
         receipt_email: req.user.email || undefined,
@@ -699,7 +701,7 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
         },
       });
       if (promo) {
-        await promoRedemption.attachProviderReference(client, promo.redemption.id, paymentIntent.id);
+        await promoRedemption.attachProviderReference(client, promo.redemption.id, createdPaymentIntent.id);
       }
 
       await client.query(
@@ -712,7 +714,7 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
                 promo_discount_cents = $6,
                 updated_at = CURRENT_TIMESTAMP
           WHERE id = $4`,
-        [paymentRequirement, chargeCents, paymentIntent.id, booking.id, amountCents, promoDiscountCents]
+        [paymentRequirement, chargeCents, createdPaymentIntent.id, booking.id, amountCents, promoDiscountCents]
       );
       await client.query('COMMIT');
       committed = true;
@@ -721,8 +723,8 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
         success: true,
         data: {
           bookingId: booking.id,
-          clientSecret: paymentIntent.client_secret,
-          paymentIntentId: paymentIntent.id,
+          clientSecret: createdPaymentIntent.client_secret,
+          paymentIntentId: createdPaymentIntent.id,
           amountCents: chargeCents,
           grossAmountCents: amountCents,
           promoDiscountCents,
@@ -733,6 +735,17 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
       });
     } finally {
       if (!committed) await client.query('ROLLBACK').catch(() => {});
+      if (!committed && createdPaymentIntent?.id && typeof stripe.paymentIntents.cancel === 'function') {
+        try {
+          await stripe.paymentIntents.cancel(createdPaymentIntent.id);
+        } catch (cancelError) {
+          logger.error('Failed to cancel orphaned mobile booking PaymentIntent', {
+            bookingId: booking.id,
+            paymentIntentId: createdPaymentIntent.id,
+            error: cancelError.message,
+          });
+        }
+      }
       client.release();
     }
   } catch (err) {
