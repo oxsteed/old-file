@@ -4,6 +4,7 @@ const socketService = require('../services/socketService');
 const { enqueueMessageNotification, enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 const { withTransaction } = require('../utils/transaction');
 const { maskEmail } = require('../utils/directQuote');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 function getClientRequestId(req) {
   const value = req.get?.('Idempotency-Key')
@@ -317,9 +318,20 @@ async function sendTicketEscalationEmails({ ticketNumber, visitorName, visitorEm
     });
 
     const { rows: admins } = await pool.query(
-      `SELECT email, first_name FROM users WHERE role IN ('admin', 'super_admin') AND email IS NOT NULL`
+      `SELECT id, email, first_name, role
+         FROM users
+        WHERE role IN ('admin', 'super_admin')
+          AND is_active = TRUE
+          AND deleted_at IS NULL
+          AND email IS NOT NULL`
     );
-    await Promise.all(admins.map((admin) =>
+    const supportAdmins = [];
+    for (const admin of admins) {
+      if (admin.role === 'super_admin' || await hasGlobalGrant(admin.id, 'manage_support')) {
+        supportAdmins.push(admin);
+      }
+    }
+    await Promise.all(supportAdmins.map((admin) =>
       emailService.sendEmail({
         to: admin.email,
         subject: `[Ticket #${ticketNumber}] New support ticket opened`,
