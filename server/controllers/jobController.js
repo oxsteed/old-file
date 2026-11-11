@@ -406,6 +406,7 @@ exports.getJobs = async (req, res, next) => {
       `u.email_verified = TRUE`,
       `u.onboarding_completed = TRUE`,
       `j.deleted_at IS NULL`,
+      `(j.expires_at IS NULL OR j.expires_at > NOW())`,
     ];
     let params = [];
     let paramIdx = 1;
