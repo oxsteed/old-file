@@ -3808,68 +3808,69 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
 
     const bcrypt = require('bcrypt');
     const passwordHash = await bcrypt.hash(password, 12);
-    await db.query(
-      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
-      [passwordHash, userId],
-    );
+    await withTransaction(db, async (client) => {
+      const { rowCount } = await client.query(
+        'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+        [passwordHash, userId],
+      );
+      if (rowCount === 0) {
+        const err = new Error('User disappeared during password reset.');
+        err.code = 'user_state_changed';
+        throw err;
+      }
 
-    await db.query(
-      `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
-      [String(userId)],
-    );
+      await client.query(
+        `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
+        [String(userId)],
+      );
+      // A credential rotation revokes both passkey tables. Admin passkeys are
+      // a standalone admin login credential and must not survive the reset.
+      await client.query(
+        `UPDATE user_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
+        [String(userId)],
+      );
+      await client.query(
+        `UPDATE admin_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
+        [String(userId)],
+      );
+      // A planted TOTP must not survive a super-admin password reset.
+      await client.query(
+        `UPDATE users
+            SET totp_secret = NULL,
+                totp_enabled = false,
+                totp_verified_at = NULL,
+                backup_codes = NULL,
+                updated_at = NOW()
+          WHERE id = $1`,
+        [userId],
+      );
 
-    // Audit fix (finding 5): a credential rotation must revoke both passkey
-    // tables. Admin passkeys are a standalone admin login credential
-    // (passkeyController); a planted passkey must not survive a password
-    // reset by a super-admin.
-    await db.query(
-      `UPDATE user_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
-      [String(userId)],
-    );
-    await db.query(
-      `UPDATE admin_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
-      [String(userId)],
-    );
-
-    // Audit fix (finding 7): a planted TOTP (enrolled via stolen session)
-    // must not survive a super-admin password reset. Clear the secret, the
-    // enabled flag and the backup codes so the account holder re-enrolls 2FA.
-    await db.query(
-      `UPDATE users
-          SET totp_secret = NULL,
-              totp_enabled = false,
-              totp_verified_at = NULL,
-              backup_codes = NULL,
-              updated_at = NOW()
-        WHERE id = $1`,
-      [userId],
-    );
+      await logUserAction({
+        client,
+        adminId: req.user.id,
+        targetUserId: userId,
+        actionType: 'edit_password',
+        fieldName: 'password',
+        oldValue: '[REDACTED]',
+        newValue: '[HASHED]',
+        ipAddress: req.ip || null,
+        notes: targetIsAdmin ? `Admin password reset reason: ${trimmedReason}` : null,
+        impersonatedBy: req.impersonatedBy || null,
+      });
+      await logAdminAction({
+        client,
+        adminId: req.user.id,
+        action: 'super_admin_set_password',
+        targetType: 'user',
+        targetId: userId,
+        description: targetIsAdmin
+          ? `Password set by super admin for fellow admin ${rows[0].email} (${rows[0].role}). Reason: ${trimmedReason}`
+          : `Password set by super admin for ${rows[0].email}`,
+        req,
+      });
+    }, 'admin_password_reset');
 
     socketService.disconnectUserSockets(userId);
-
-    await logUserAction({
-      adminId: req.user.id,
-      targetUserId: userId,
-      actionType: 'edit_password',
-      fieldName: 'password',
-      oldValue: '[REDACTED]',
-      newValue: '[HASHED]',
-      ipAddress: req.ip || null,
-      // ADM-142: record why a fellow admin's credentials were rotated.
-      notes: targetIsAdmin ? `Admin password reset reason: ${trimmedReason}` : null,
-      impersonatedBy: req.impersonatedBy || null,
-    });
-
-    await logAdminAction({
-      adminId: req.user.id,
-      action: 'super_admin_set_password',
-      targetType: 'user',
-      targetId: userId,
-      description: targetIsAdmin
-        ? `Password set by super admin for fellow admin ${rows[0].email} (${rows[0].role}). Reason: ${trimmedReason}`
-        : `Password set by super admin for ${rows[0].email}`,
-      req,
-    });
 
     res.json({
       message:

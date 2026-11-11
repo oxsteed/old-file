@@ -295,10 +295,12 @@ describe('ADM-142: setUserPasswordBySuperAdmin target-role guard', () => {
     expect(revokeAllUserTokens).toHaveBeenCalledWith(TARGET);
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
       action: 'super_admin_set_password',
+      client: expect.any(Object),
       description: expect.stringContaining('Compromised credentials reported by the admin'),
     }));
     expect(logUserAction).toHaveBeenCalledWith(expect.objectContaining({
       actionType: 'edit_password',
+      client: expect.any(Object),
       notes: expect.stringContaining('Compromised credentials reported by the admin'),
     }));
   });
