@@ -24,6 +24,7 @@ const pool = require('../db');
 const {
   createStaffSession,
   resolveStaffSession,
+  resolveActingStaff,
   validateStaffPinForRestaurant,
 } = require('../services/restaurantStaffIdentityService');
 const {
@@ -105,6 +106,42 @@ describe('auth-audit item 9: unbound sessions get a shorter TTL', () => {
     const session = await resolveStaffSession(req, 7);
     expect(session).toBeTruthy();
     expect(session.device_id).toBeNull();
+  });
+});
+
+describe('device-bound staff identity', () => {
+  test('device location lookup failures do not become an unscoped session', async () => {
+    const token = 'device-token';
+    const now = new Date();
+    pool.query.mockImplementation((sql) => {
+      if (sql.includes('FROM restaurant_staff_sessions')) {
+        return Promise.resolve({ rows: [{
+          id: 8,
+          token_hash: sessionTokenHash(token),
+          restaurant_id: 7,
+          device_id: 31,
+          staff_user_id: null,
+          ended_at: null,
+          expires_at: new Date(now.getTime() + 5 * 60 * 1000),
+          last_activity_at: now,
+          created_at: now,
+          metadata: {},
+        }] });
+      }
+      if (sql.includes('FROM restaurant_app_devices')) {
+        return Promise.reject(new Error('database connection lost'));
+      }
+      throw new Error(`unexpected query: ${sql.slice(0, 80)}`);
+    });
+
+    const req = {
+      get: (header) => (header === 'X-Staff-Session' ? token : undefined),
+      body: {},
+      restaurantDevice: { id: 31 },
+    };
+    await expect(resolveActingStaff(req, 7)).rejects.toMatchObject({
+      message: 'database connection lost',
+    });
   });
 });
 

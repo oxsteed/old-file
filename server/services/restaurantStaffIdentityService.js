@@ -520,8 +520,11 @@ async function resolveActingStaff(req, restaurantId) {
     const { rows: [device] } = await pool.query(
       'SELECT location_id FROM restaurant_app_devices WHERE id = $1',
       [session.device_id]
-    ).catch(() => ({ rows: [] }));
-    locationId = device?.location_id == null ? null : Number(device.location_id);
+    );
+    if (!device || device.location_id == null) {
+      throw new AppError('Staff device location is unavailable', 503, 'staff_device_location_unavailable');
+    }
+    locationId = Number(device.location_id);
   }
   return {
     sessionId: session.id,
