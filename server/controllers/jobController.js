@@ -400,7 +400,7 @@ exports.getJobs = async (req, res, next) => {
     const page  = Math.max(1, parseInt(req.query.page)  || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     const offset = (page - 1) * limit;
-    let conditions = [`u.is_active = true`, `j.deleted_at IS NULL`];
+    let conditions = [`u.is_active = true`, `u.deleted_at IS NULL`, `j.deleted_at IS NULL`];
     let params = [];
     let paramIdx = 1;
 

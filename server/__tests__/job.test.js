@@ -84,6 +84,7 @@ describe('GET /api/jobs', () => {
     const res = await request(buildApp()).get('/api/jobs');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('jobs');
+    expect(mockQuery.mock.calls[0][0]).toMatch(/u\.deleted_at IS NULL/);
   });
 });
 
