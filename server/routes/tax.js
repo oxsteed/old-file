@@ -26,7 +26,7 @@ router.get('/summary', authenticate, async (req, res, next) => {
       WHERE j.assigned_helper_id = $1
         AND p.status = 'completed'
         AND EXTRACT(YEAR FROM p.created_at) = $2
-    `, [userId, year]).catch(() => ({ rows: [{ gross_cents: 0, job_count: 0 }] }));
+    `, [userId, year]);
 
     // Business revenue (as business owner)
     const businessRow = await pool.query(`
@@ -37,7 +37,7 @@ router.get('/summary', authenticate, async (req, res, next) => {
       WHERE b.user_id = $1
         AND bi.status = 'paid'
         AND EXTRACT(YEAR FROM bi.created_at) = $2
-    `, [userId, year]).catch(() => ({ rows: [{ revenue_cents: 0, invoice_count: 0 }] }));
+    `, [userId, year]);
 
     // Business expenses
     const expenseRow = await pool.query(`
@@ -47,7 +47,7 @@ router.get('/summary', authenticate, async (req, res, next) => {
       JOIN businesses b ON b.id = be.business_id
       WHERE b.user_id = $1
         AND EXTRACT(YEAR FROM be.expense_date) = $2
-    `, [userId, year]).catch(() => ({ rows: [{ total_expense_cents: 0, expense_count: 0 }] }));
+    `, [userId, year]);
 
     // Expense breakdown by category
     const categoryRow = await pool.query(`
@@ -60,7 +60,7 @@ router.get('/summary', authenticate, async (req, res, next) => {
         AND EXTRACT(YEAR FROM be.expense_date) = $2
       GROUP BY be.category
       ORDER BY total_cents DESC
-    `, [userId, year]).catch(() => ({ rows: [] }));
+    `, [userId, year]);
 
     const grossCents   = parseInt(earningsRow.rows[0].gross_cents)  || 0;
     const revenueCents = parseInt(businessRow.rows[0].revenue_cents) || 0;
@@ -90,6 +90,7 @@ router.get('/summary', authenticate, async (req, res, next) => {
       disclaimer: 'This summary is for informational purposes only and does not constitute tax advice. Consult a tax professional.',
     });
   } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'Tax reporting tables are not yet migrated.' });
     next(err);
   }
 });
@@ -111,14 +112,14 @@ router.get('/expenses', authenticate, async (req, res, next) => {
         AND EXTRACT(YEAR FROM be.expense_date) = $2
       ORDER BY be.expense_date DESC
       LIMIT $3 OFFSET $4
-    `, [userId, year, limit, offset]).catch(() => ({ rows: [] }));
+    `, [userId, year, limit, offset]);
 
     const total = await pool.query(`
       SELECT COUNT(*) AS cnt
       FROM business_expenses be
       JOIN businesses b ON b.id = be.business_id
       WHERE b.user_id = $1 AND EXTRACT(YEAR FROM be.expense_date) = $2
-    `, [userId, year]).catch(() => ({ rows: [{ cnt: 0 }] }));
+    `, [userId, year]);
 
     res.json({
       year,
@@ -126,6 +127,7 @@ router.get('/expenses', authenticate, async (req, res, next) => {
       total: parseInt(total.rows[0].cnt) || 0,
     });
   } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'Tax reporting tables are not yet migrated.' });
     next(err);
   }
 });
@@ -152,7 +154,7 @@ router.get('/1099-preview', authenticate, async (req, res, next) => {
         AND EXTRACT(YEAR FROM p.created_at) = $2
       GROUP BY u.id, u.first_name, u.last_name, u.email, b.name
       ORDER BY total_paid_cents DESC
-    `, [userId, year]).catch(() => ({ rows: [] }));
+    `, [userId, year]);
 
     res.json({
       year,
@@ -167,6 +169,7 @@ router.get('/1099-preview', authenticate, async (req, res, next) => {
       disclaimer: 'For informational purposes only. Consult a tax professional.',
     });
   } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'Tax reporting tables are not yet migrated.' });
     next(err);
   }
 });
