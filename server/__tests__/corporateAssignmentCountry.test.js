@@ -39,6 +39,12 @@ function mockRes() {
 describe('assignment country_code validation', () => {
   beforeEach(() => jest.clearAllMocks());
 
+  test('createAssignment excludes soft-deleted target users', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('../controllers/corporateRolesController'), 'utf8');
+    expect(src).toMatch(/SELECT id, role, is_active FROM users WHERE id = \$1 AND deleted_at IS NULL/);
+  });
+
   test('createAssignment rejects a malformed country code', async () => {
     const req = {
       body: { user_id: 'u-1', title_id: 1, country_code: 'USA' },
@@ -70,7 +76,7 @@ describe('assignment country_code validation', () => {
     const client = {
       query: jest.fn()
         .mockResolvedValueOnce() // BEGIN
-        .mockResolvedValueOnce({ rows: [{ id: 'u-1', role: 'employee', is_active: true }] }) // user
+        .mockResolvedValueOnce({ rows: [{ id: 'u-1', role: 'employee', is_active: true, deleted_at: null }] }) // user
         .mockResolvedValueOnce({ rows: [{ id: 1, department_id: 5, code: 'mgr', name: 'Manager', seniority_level: 4, is_csuite: false, is_active: true }] }) // title
         .mockResolvedValueOnce({ rows: [{ id: 1 }] }) // INSERT
         .mockResolvedValueOnce(), // COMMIT
