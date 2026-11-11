@@ -70,6 +70,8 @@ exports.download = async(req,res,next)=>{
       WHERE dp.id=$1 AND dj.id=$2 AND dp.verification_status='verified'
       AND (dj.customer_user_id=$3 OR dj.helper_user_id=$3 OR dj.internal_driver_user_id=$3)`,[req.params.proofId,req.params.id,req.user.id]);
     if(!rows[0]?.object_key) throw new AppError('Proof not found',404,'delivery_not_found');
-    res.setHeader('Cache-Control','no-store'); res.json({url:await getSignedDownloadUrl(rows[0].object_key,120)});
+    const url = await getSignedDownloadUrl(rows[0].object_key,120);
+    if (!url) throw new AppError('Proof download is temporarily unavailable',503,'storage_unavailable');
+    res.setHeader('Cache-Control','no-store'); res.json({url});
   }catch(error){next(error);}
 };
