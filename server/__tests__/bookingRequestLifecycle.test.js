@@ -435,7 +435,6 @@ describe('bookingRequestLifecycle', () => {
       { rows: [service] }, // pre-accept service resolution (name match)
       { rows: [{ ...booking, status: 'accepted', accepted_at: new Date().toISOString() }] }, // UPDATE accept
       { rows: [] }, // create: business overlap check
-      { rows: [service] }, // create: service resolution
       { rows: [] }, // create: customer lookup
       { rows: [{ id: 'ba-1', status: 'confirmed' }] }, // INSERT business_appointments
       { rows: [] }, // link business_appointment_id
