@@ -4,6 +4,8 @@ const {
   recordWalletCreditPaymentForOrder,
   recordWalletCreditRefundForOrder,
   applyStripePaymentIntent,
+  applyStripeRefund,
+  applyStripeChargeRefund,
 } = require('../services/restaurantPosPaymentLedgerService');
 
 function existingPayment(overrides = {}) {
@@ -128,5 +130,62 @@ describe('restaurant POS Stripe payment verification', () => {
     await expect(applyStripePaymentIntent(client, {
       id: 'pi_pos_1', status: 'succeeded', amount_received: 1200, currency: 'usd',
     }, 'acct_other')).rejects.toMatchObject({ code: 'pos_payment_verification_failed' });
+  });
+});
+
+describe('restaurant POS Stripe refund verification', () => {
+  test('rejects a refund whose amount or payment intent does not match', async () => {
+    const client = {
+      query: jest.fn().mockImplementation(async (sql) => {
+        if (/SELECT p\.\*, fo\.currency_code/.test(sql)) {
+          return { rows: [{
+            id: 902,
+            food_order_id: 44,
+            amount_cents: 300,
+            order_currency: 'USD',
+            metadata: { originalPaymentId: 901 },
+          }] };
+        }
+        if (/SELECT id, provider_payment_intent_id/.test(sql)) {
+          return { rows: [{ id: 901, provider_payment_intent_id: 'pi_expected', provider_account_id: null }] };
+        }
+        return { rows: [] };
+      }),
+    };
+
+    await expect(applyStripeRefund(client, {
+      id: 're_pos_1',
+      amount: 250,
+      currency: 'eur',
+      payment_intent: 'pi_other',
+      status: 'succeeded',
+      metadata: { pos_refund_payment_id: '902' },
+    })).rejects.toMatchObject({ code: 'pos_refund_verification_failed' });
+    expect(client.query.mock.calls.some(([sql]) => /SET status =/.test(sql))).toBe(false);
+  });
+
+  test('rejects a charge refund whose amount, currency, or connected account does not match', async () => {
+    const client = {
+      query: jest.fn().mockImplementation(async (sql) => {
+        if (/SELECT p\.\*, fo\.currency_code/.test(sql)) {
+          return { rows: [{
+            id: 901,
+            food_order_id: 44,
+            amount_cents: 1000,
+            provider_account_id: 'acct_expected',
+            order_currency: 'USD',
+          }] };
+        }
+        return { rows: [] };
+      }),
+    };
+
+    await expect(applyStripeChargeRefund(client, {
+      id: 'ch_pos_1',
+      payment_intent: 'pi_pos_1',
+      amount_refunded: 1100,
+      currency: 'eur',
+    }, 'acct_other')).rejects.toMatchObject({ code: 'pos_refund_verification_failed' });
+    expect(client.query.mock.calls.some(([sql]) => /INSERT INTO restaurant_pos_payments/.test(sql))).toBe(false);
   });
 });

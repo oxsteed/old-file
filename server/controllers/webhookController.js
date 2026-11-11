@@ -1664,7 +1664,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
       case 'refund.updated':
       case 'refund.failed': {
         const refund = event.data.object;
-        await withTransaction(db, (client) => applyStripeRefund(client, refund));
+        await withTransaction(db, (client) => applyStripeRefund(client, refund, event.account || null));
         break;
       }
 
@@ -1687,7 +1687,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             });
           });
         }
-        await withTransaction(db, (client) => applyStripeChargeRefund(client, charge));
+        await withTransaction(db, (client) => applyStripeChargeRefund(client, charge, event.account || null));
         break;
       }
 
