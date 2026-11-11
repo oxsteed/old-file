@@ -27,6 +27,14 @@ const ENTITLEMENTS = Object.freeze({
 const UNLIMITED = Object.freeze({ candidate_alerts: 100, shortlists: 100, talent_invites_per_month: 2000, analytics_export: true, agency_clients: 50 });
 const LIVE = ['trialing', 'active', 'past_due'];
 
+function requireHostedUrl(session, code) {
+  const url = typeof session?.url === 'string' ? session.url.trim() : '';
+  if (!/^https:\/\//i.test(url)) {
+    throw new AppError('Billing handoff is temporarily unavailable', 503, code);
+  }
+  return url;
+}
+
 function stripeClient() {
   const cfg = plansConfig();
   if (!cfg.configured) throw featureOff('plans');
@@ -112,6 +120,7 @@ async function startCheckout(db, { access, actor, plan, referralCode = null, str
     success_url: appUrl(`/business/${access.businessId}/workspace/hiring?hire_tab=plan&checkout=success`),
     cancel_url: appUrl(`/business/${access.businessId}/workspace/hiring?hire_tab=plan&checkout=cancelled`),
   }, { idempotencyKey: `careers-plan-${access.businessId}-${plan}-${Math.floor(Date.now() / 600000)}` });
+  const checkoutUrl = requireHostedUrl(session, 'career_plan_checkout_unavailable');
   await db.query(
     `INSERT INTO career_employer_subscriptions (business_id, plan, status, checkout_session_id, created_by)
      VALUES ($1, $2, 'checkout_pending', $3, $4)
@@ -120,7 +129,7 @@ async function startCheckout(db, { access, actor, plan, referralCode = null, str
        updated_at = NOW()`,
     [access.businessId, plan, session.id, actor.id]
   );
-  return { checkout_url: session.url };
+  return { checkout_url: checkoutUrl };
 }
 
 async function portal(db, { access, stripe = null }) {
@@ -133,7 +142,7 @@ async function portal(db, { access, stripe = null }) {
     customer: sub.stripe_customer_id,
     return_url: appUrl(`/business/${access.businessId}/workspace/hiring?hire_tab=plan`),
   });
-  return { portal_url: session.url };
+  return { portal_url: requireHostedUrl(session, 'career_plan_portal_unavailable') };
 }
 
 function planForPrice(priceId) {
@@ -225,4 +234,5 @@ module.exports = {
   isPlanEvent,
   applyStripeEvent,
   planForPrice,
+  requireHostedUrl,
 };
