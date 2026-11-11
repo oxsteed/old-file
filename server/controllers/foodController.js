@@ -2964,6 +2964,7 @@ exports.quoteOrder = async (req, res, next) => {
               rca.payouts_enabled AS business_stripe_payouts_enabled
          FROM food_restaurants fr
          LEFT JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
          LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
         WHERE fr.id = $1
           AND fr.status = 'active'
@@ -2973,7 +2974,11 @@ exports.quoteOrder = async (req, res, next) => {
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') = 'active'
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-          AND b.deleted_at IS NULL`,
+          AND b.deleted_at IS NULL
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE`,
       [restaurantId, selectedLocationId]
     );
     const restaurant = restaurants[0];
@@ -3491,6 +3496,7 @@ exports.createOrder = async (req, res, next) => {
                 rca.payouts_enabled AS business_stripe_payouts_enabled
            FROM food_restaurants fr
            LEFT JOIN businesses b ON b.id = fr.business_id
+           JOIN users owner ON owner.id = b.user_id
            LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
           WHERE fr.id = $1
             AND fr.status = 'active'
@@ -3500,7 +3506,11 @@ exports.createOrder = async (req, res, next) => {
             AND b.is_listed = TRUE
             AND COALESCE(b.setup_status, 'active') = 'active'
             AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-            AND b.deleted_at IS NULL`,
+            AND b.deleted_at IS NULL
+            AND owner.deleted_at IS NULL
+            AND owner.is_active = TRUE
+            AND owner.email_verified = TRUE
+            AND owner.onboarding_completed = TRUE`,
         [restaurantId]
       );
       const restaurant = restaurants[0];
@@ -4751,6 +4761,7 @@ exports.createCardPaymentIntent = async (req, res, next) => {
               rca.payouts_enabled AS business_stripe_payouts_enabled
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
          LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
         WHERE fr.id = $1
           AND fr.status = 'active'
@@ -4760,7 +4771,11 @@ exports.createCardPaymentIntent = async (req, res, next) => {
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') = 'active'
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-          AND b.deleted_at IS NULL`,
+          AND b.deleted_at IS NULL
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE`,
       [restaurantId]
     );
     const restaurant = restaurants[0];
@@ -6973,6 +6988,7 @@ exports.getQueueBoard = async (req, res, next) => {
       `SELECT fr.id, fr.display_name, fr.logo_url, fr.settings
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
         WHERE fr.id = $1
           AND fr.status IN ('active','paused')
                     AND fr.discovery_status = 'visible'
@@ -6981,7 +6997,11 @@ exports.getQueueBoard = async (req, res, next) => {
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-          AND b.deleted_at IS NULL`,
+          AND b.deleted_at IS NULL
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE`,
       [restaurantId]
     );
     if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -7885,6 +7905,7 @@ exports.listRestaurantReviews = async (req, res, next) => {
     const { rows: [restaurant] } = await pool.query(
       `SELECT fr.id FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
         WHERE fr.id = $1
           AND fr.status IN ('active', 'paused')
           AND fr.discovery_status = 'visible'
@@ -7893,7 +7914,11 @@ exports.listRestaurantReviews = async (req, res, next) => {
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-          AND b.deleted_at IS NULL`,
+          AND b.deleted_at IS NULL
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE`,
       [restaurantId]
     );
     if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -8202,6 +8227,7 @@ exports.listRestaurantPromotions = async (req, res, next) => {
            FROM food_restaurant_promotions p
            JOIN food_restaurants fr ON fr.id = p.restaurant_id
            JOIN businesses b ON b.id = fr.business_id
+           JOIN users owner ON owner.id = b.user_id
           WHERE p.restaurant_id = $1
             AND fr.status IN ('active', 'paused')
                       AND fr.discovery_status = 'visible'
@@ -8211,6 +8237,10 @@ exports.listRestaurantPromotions = async (req, res, next) => {
             AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
             AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
             AND b.deleted_at IS NULL
+            AND owner.deleted_at IS NULL
+            AND owner.is_active = TRUE
+            AND owner.email_verified = TRUE
+            AND owner.onboarding_completed = TRUE
             AND p.is_active = TRUE
             AND (p.valid_from IS NULL OR p.valid_from <= CURRENT_DATE)
             AND (p.valid_until IS NULL OR p.valid_until >= CURRENT_DATE)
@@ -8657,6 +8687,7 @@ exports.listRestaurantLocations = async (req, res, next) => {
         `SELECT fr.id
            FROM food_restaurants fr
            JOIN businesses b ON b.id = fr.business_id
+           JOIN users owner ON owner.id = b.user_id
           WHERE fr.id = $1
             AND fr.status = 'active'
                       AND fr.discovery_status = 'visible'
@@ -8665,7 +8696,11 @@ exports.listRestaurantLocations = async (req, res, next) => {
             AND b.is_listed = TRUE
             AND COALESCE(b.setup_status, 'active') = 'active'
             AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-            AND b.deleted_at IS NULL`,
+            AND b.deleted_at IS NULL
+            AND owner.deleted_at IS NULL
+            AND owner.is_active = TRUE
+            AND owner.email_verified = TRUE
+            AND owner.onboarding_completed = TRUE`,
         [restaurantId]
       );
       if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -8977,10 +9012,15 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
       `SELECT fr.id, fr.business_id, fr.owner_user_id, fr.display_name, fr.status
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
         WHERE fr.id = $1
           AND fr.status IN ('active', 'paused', 'draft')
           AND b.is_active = TRUE
           AND b.deleted_at IS NULL
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE
           -- H5: admin-hidden restaurants are not contactable.
           AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE`,
       [restaurantId]

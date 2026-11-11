@@ -17,6 +17,7 @@ function buildApp() {
   app.get('/api/food/restaurants/:restaurantId', food.getRestaurant);
   app.get('/api/food/restaurants/:restaurantId/queue-board', food.getQueueBoard);
   app.get('/api/food/restaurants/:restaurantId/promotions', food.listRestaurantPromotions);
+  app.get('/api/food/restaurants/:restaurantId/reviews', food.listRestaurantReviews);
   app.get('/api/food/restaurants/:restaurantId/locations', food.listRestaurantLocations);
   app.get('/api/food/restaurants/:restaurantId/kiosk-config', kiosk.getPublicKioskConfig);
   app.get('/api/restaurants/:restaurantId/display/queue-board', appFlow.getPublicDisplayQueueBoard);
@@ -98,6 +99,45 @@ describe('public restaurant visibility', () => {
     const sql = findPublicationGuardSql();
     expectPublicPublicationGuard(sql);
     expect(sql).toMatch(/JOIN users owner ON owner\.id = b\.user_id/);
+    expect(sql).toMatch(/owner\.email_verified = TRUE/);
+    expect(sql).toMatch(/owner\.onboarding_completed = TRUE/);
+  });
+
+  test('public kiosk config applies the owner lifecycle guard', async () => {
+    const res = await request(buildApp()).get('/api/food/restaurants/3/kiosk-config');
+
+    expect(res.status).toBe(404);
+    const sql = findPublicationGuardSql();
+    expectPublicPublicationGuard(sql);
+    expect(sql).toMatch(/JOIN users owner ON owner\.id = b\.user_id/);
+    expect(sql).toMatch(/owner\.is_active = TRUE/);
+    expect(sql).toMatch(/owner\.email_verified = TRUE/);
+    expect(sql).toMatch(/owner\.onboarding_completed = TRUE/);
+  });
+
+  test('public display queue applies the owner lifecycle guard', async () => {
+    const res = await request(buildApp()).get('/api/restaurants/3/display/queue-board');
+
+    expect(res.status).toBe(404);
+    const sql = findPublicationGuardSql();
+    expectPublicPublicationGuard(sql);
+    expect(sql).toMatch(/JOIN users owner ON owner\.id = b\.user_id/);
+    expect(sql).toMatch(/owner\.is_active = TRUE/);
+    expect(sql).toMatch(/owner\.email_verified = TRUE/);
+    expect(sql).toMatch(/owner\.onboarding_completed = TRUE/);
+  });
+
+  test.each([
+    '/api/food/restaurants/3/reviews',
+    '/api/food/restaurants/3/locations',
+  ])('%s applies the owner lifecycle guard', async (path) => {
+    const res = await request(buildApp()).get(path);
+
+    expect(res.status).toBe(404);
+    const sql = findPublicationGuardSql();
+    expectPublicPublicationGuard(sql);
+    expect(sql).toMatch(/JOIN users owner ON owner\.id = b\.user_id/);
+    expect(sql).toMatch(/owner\.is_active = TRUE/);
     expect(sql).toMatch(/owner\.email_verified = TRUE/);
     expect(sql).toMatch(/owner\.onboarding_completed = TRUE/);
   });

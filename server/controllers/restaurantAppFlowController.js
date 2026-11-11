@@ -3068,12 +3068,18 @@ async function buildQueueBoardPayload(restaurantId, device = null, { publicOnly 
         AND fr.discovery_status = 'visible'
         AND b.is_listed = TRUE
         AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
-        AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'`
+        AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
+        AND owner.deleted_at IS NULL
+        AND owner.is_active = TRUE
+        AND owner.email_verified = TRUE
+        AND owner.onboarding_completed = TRUE`
     : '';
+  const publicOwnerJoin = publicOnly ? 'JOIN users owner ON owner.id = b.user_id' : '';
   const { rows: restaurants } = await pool.query(
     `SELECT fr.id, fr.display_name, fr.logo_url, fr.timezone, fr.kitchen_display_enabled
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
+       ${publicOwnerJoin}
       WHERE fr.id = $1
         AND fr.status IN ('active','paused')
         AND b.is_active = TRUE

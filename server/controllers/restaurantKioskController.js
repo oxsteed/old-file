@@ -67,6 +67,7 @@ exports.getPublicKioskConfig = async (req, res, next) => {
       SELECT fr.id
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
         WHERE fr.id = $1
           AND fr.status IN ('active', 'paused')
           AND fr.discovery_status = 'visible'
@@ -75,18 +76,27 @@ exports.getPublicKioskConfig = async (req, res, next) => {
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-          AND b.deleted_at IS NULL`;
+          AND b.deleted_at IS NULL
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE`;
     const baselineSql = `
       SELECT fr.id
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
         WHERE fr.id = $1
           AND fr.status IN ('active', 'paused')
           AND b.is_active = TRUE
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-          AND b.deleted_at IS NULL`;
+          AND b.deleted_at IS NULL
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE`;
     let restaurants;
     try {
       ({ rows: restaurants } = await pool.query(visibilitySql, [restaurantId]));

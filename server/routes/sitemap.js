@@ -174,6 +174,7 @@ router.get('/', async (_req, res) => {
       `SELECT fr.id, fr.updated_at
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
         WHERE fr.status IN ('active', 'paused')
           AND fr.discovery_status = 'visible'
           AND b.is_active = TRUE
@@ -181,6 +182,10 @@ router.get('/', async (_req, res) => {
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE
           AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
         ORDER BY fr.updated_at DESC NULLS LAST
         LIMIT 2000`,

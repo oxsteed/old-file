@@ -43,6 +43,9 @@ describe('public sitemap coverage', () => {
     expect(mockQuery.mock.calls[1][0]).toMatch(/b\.is_listed = TRUE/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/b\.setup_status = 'active'/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/u\.onboarding_completed = TRUE/);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/JOIN users owner ON owner\.id = b\.user_id/);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/owner\.email_verified = TRUE/);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/owner\.onboarding_completed = TRUE/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/FROM tool_rentals/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/t\.is_available = TRUE/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/NOT t\.moderation_hold/);
