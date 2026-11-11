@@ -66,6 +66,12 @@ beforeEach(() => {
   mockSendExpo.mockResolvedValue([{ status: 'ok' }]);
 });
 
+test('notification recipients exclude soft-deleted users', () => {
+  const fs = require('fs');
+  const src = fs.readFileSync(require.resolve('../services/notificationService'), 'utf8');
+  expect(src).toMatch(/WHERE u\.id = \$1\s+AND u\.deleted_at IS NULL/);
+});
+
 test('an email-only metric alert creates no in-app row and sends no push', async () => {
   mockPrefs({});
   sendEmail.mockResolvedValue({ success: true });
