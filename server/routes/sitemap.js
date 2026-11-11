@@ -197,6 +197,7 @@ router.get('/', async (_req, res) => {
         WHERE po.status IN ('open', 'pledging', 'deposit_phase', 'locked',
                             'placed', 'in_transit', 'receiving',
                             'distributing', 'completed')
+         AND po.approval_state = 'approved'
         ORDER BY po.updated_at DESC NULLS LAST
         LIMIT 2000`,
     );

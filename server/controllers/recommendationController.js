@@ -550,6 +550,7 @@ async function buildRecommendations(userId, userRole) {
       `SELECT id, title, category
        FROM pooled_orders
        WHERE status = 'open'
+         AND approval_state = 'approved'
          AND category = ANY($1::text[])
        ORDER BY created_at DESC
        LIMIT 3`,

@@ -43,6 +43,7 @@ describe('public sitemap coverage', () => {
     expect(mockQuery.mock.calls[4][0]).toMatch(/t\.is_available = TRUE/);
     expect(mockQuery.mock.calls[5][0]).toMatch(/FROM pooled_orders/);
     expect(mockQuery.mock.calls[5][0]).toMatch(/po\.status IN/);
+    expect(mockQuery.mock.calls[5][0]).toMatch(/po\.approval_state = 'approved'/);
   });
 
   test('includes careers, media, and only published career openings (learn excluded: noindex)', async () => {
