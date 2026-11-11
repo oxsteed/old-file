@@ -175,6 +175,17 @@ describe('P2-1-F13 suspend revokes user tokens', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ is_active: false }));
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'admin_account_disabled' }));
   });
+
+  test('superAdminController.reactivateUser audits the account reset in the same unit of work', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'u9', email: 'u9@example.com', first_name: 'A' }], rowCount: 1 });
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { userId: 'u9' }, body: { notes: 'appeal approved' }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.reactivateUser(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/reactivated/i) }));
+    expect(logUserAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), actionType: 'account_reactivated' }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_reactivated' }));
+  });
 });
 
 // ─── P2-1-F08 / P2-1-F12: moderation audit fail-closed ───────────────────────

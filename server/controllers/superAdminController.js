@@ -4518,32 +4518,51 @@ exports.reactivateUser = async (req, res) => {
     const { userId } = req.params;
     const { notes = '' } = req.body;
 
-    const { rows } = await db.query(
-      `UPDATE users
-       SET is_suspended      = FALSE,
-           suspended_until   = NULL,
-           suspension_reason = NULL,
-           suspended_reason  = NULL,
-           suspended_by      = NULL,
-           is_restricted     = FALSE,
-           restriction_reason= NULL,
-           restricted_by     = NULL,
-           is_active         = TRUE,
-           is_banned         = FALSE,
-           ban_reason        = NULL,
-           updated_at        = NOW()
-       WHERE id::text = $1
-       RETURNING id, email, first_name`,
-      [String(userId)]
-    );
+    const { rows } = await withTransaction(db, async (client) => {
+      const result = await client.query(
+        `UPDATE users
+         SET is_suspended      = FALSE,
+             suspended_until   = NULL,
+             suspension_reason = NULL,
+             suspended_reason  = NULL,
+             suspended_by      = NULL,
+             is_restricted     = FALSE,
+             restriction_reason= NULL,
+             restricted_by     = NULL,
+             is_active         = TRUE,
+             is_banned         = FALSE,
+             ban_reason        = NULL,
+             updated_at        = NOW()
+         WHERE id::text = $1
+         RETURNING id, email, first_name`,
+        [String(userId)]
+      );
+      if (!result.rows.length) return result;
+      await logUserAction({
+        client,
+        adminId,
+        targetUserId: userId,
+        actionType: 'account_reactivated',
+        notes: notes.trim() || null,
+        ipAddress: req.ip,
+        impersonatedBy: req.impersonatedBy || null,
+      });
+      await logAdminAction({
+        client,
+        adminId,
+        action: 'user_reactivated',
+        targetType: 'user',
+        targetId: userId,
+        description: notes.trim() || 'Account reactivated by admin',
+        req,
+      });
+      return result;
+    }, 'admin_reactivate_user');
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
 
     try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) {
       logger.warn('reactivateUser: reinstate failed', { userId, err: e.message });
     }
-
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_reactivated', notes: notes.trim() || null, ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
-    await logAdminAction({ adminId, action: 'user_reactivated', targetType: 'user', targetId: userId, description: notes.trim() || 'Account reactivated by admin', req });
 
     // ADM-109: reactivation must not resurrect pre-ban tokens. Revoke so the
     // user starts with a clean session on next login.
