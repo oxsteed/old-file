@@ -319,6 +319,24 @@ async function attachStripeIntent(client, attempt) {
     });
     throw new AppError(`Card payment could not be started: ${err.message || 'processor error'}`, 502, 'processor_error');
   }
+  const providerId = typeof intent?.id === 'string' ? intent.id.trim() : '';
+  const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
+  if (!providerId || !clientSecret) {
+    if (providerId && typeof stripe?.paymentIntents?.cancel === 'function') {
+      await stripe.paymentIntents.cancel(providerId).catch((cancelError) => logger.warn('[logistics-payments] Failed to cancel unusable PaymentIntent', {
+        attemptId: attempt.id,
+        paymentIntentId: providerId,
+        error: cancelError.message,
+      }));
+    }
+    await client.query(
+      `UPDATE logistics_payment_attempts
+          SET status = 'failed', failure_code = $2, failure_message = $3, updated_at = NOW()
+        WHERE id = $1`,
+      [attempt.id, 'processor_response_invalid', 'Stripe returned an unusable payment session']
+    );
+    throw new AppError('Stripe returned an unusable payment session', 502, 'processor_response_invalid');
+  }
   // Persist the client secret: an interrupted checkout (browser closed
   // after intent creation, before card confirmation) recovers by replaying
   // the attempt, and the replay response returns this stored secret. The
@@ -329,9 +347,48 @@ async function attachStripeIntent(client, attempt) {
             status = 'processing', updated_at = NOW()
       WHERE id = $1
       RETURNING *`,
-    [attempt.id, intent.id, intent.client_secret || null]
+    [attempt.id, providerId, clientSecret]
   );
-  return { attempt: rows[0], clientSecret: intent.client_secret || null };
+  return { attempt: rows[0], clientSecret };
+}
+
+async function requirePersistedStripeSecret(client, attempt) {
+  if (attempt?.method !== 'stripe' || !['pending', 'processing'].includes(attempt.status)) {
+    return attempt?.method === 'stripe' ? attempt.stripe_client_secret || null : null;
+  }
+  const providerId = typeof attempt.stripe_payment_intent_id === 'string'
+    ? attempt.stripe_payment_intent_id.trim()
+    : '';
+  const clientSecret = typeof attempt.stripe_client_secret === 'string'
+    ? attempt.stripe_client_secret.trim()
+    : '';
+  if (!providerId) {
+    throw new AppError(
+      'Payment processor unavailable; retry with the same idempotency key',
+      502,
+      'processor_unavailable'
+    );
+  }
+  if (clientSecret) return clientSecret;
+  try {
+    const stripe = getStripe();
+    if (typeof stripe?.paymentIntents?.cancel === 'function') {
+      await stripe.paymentIntents.cancel(providerId);
+    }
+  } catch (cancelError) {
+    logger.warn('[logistics-payments] Failed to cancel persisted unusable PaymentIntent', {
+      attemptId: attempt.id,
+      paymentIntentId: providerId,
+      error: cancelError.message,
+    });
+  }
+  await client.query(
+    `UPDATE logistics_payment_attempts
+        SET status = 'failed', failure_code = $2, failure_message = $3, updated_at = NOW()
+      WHERE id = $1`,
+    [attempt.id, 'processor_response_invalid', 'Stripe returned an unusable payment session']
+  );
+  throw new AppError('Stripe returned an unusable payment session', 502, 'processor_response_invalid');
 }
 
 /**
@@ -373,7 +430,8 @@ async function createPaymentAttempt(userId, input) {
         if(result.creationError)return result;
         return {attempt:publicAttempt(result.attempt),clientSecret:result.clientSecret,idempotentReplay:true,credit:null};
       }
-      return {attempt:publicAttempt(keyed), clientSecret:keyed.method==='stripe'?keyed.stripe_client_secret:null,
+      const replaySecret = await requirePersistedStripeSecret(client, keyed);
+      return {attempt:publicAttempt(keyed), clientSecret:replaySecret,
         idempotentReplay:true,credit:null};
       }
     }
@@ -386,7 +444,7 @@ async function createPaymentAttempt(userId, input) {
       const prior=reserved[0];
       if (String(prior.buyer_user_id)!==String(userId) || prior.method!==input.method || prior.method!=='stripe')
         throw new AppError('Resume the existing payment before changing payment method',409,'payment_in_progress');
-      const result=prior.stripe_payment_intent_id?{attempt:prior,clientSecret:prior.stripe_client_secret}:
+      const result=prior.stripe_payment_intent_id?{attempt:prior,clientSecret:await requirePersistedStripeSecret(client, prior)}:
         await startCardAttempt(client,prior);
       if(result.creationError)return result;
       return {attempt:publicAttempt(result.attempt),clientSecret:result.clientSecret,idempotentReplay:true,credit:null};
@@ -451,9 +509,7 @@ async function createPaymentAttempt(userId, input) {
       // Return the persisted client secret so an interrupted checkout can
       // resume card confirmation with stripe.js. Never expose it for
       // credit-method attempts (there is no secret to resume with).
-      const replaySecret = attempt.method === 'stripe'
-        ? (attempt.stripe_client_secret || null)
-        : null;
+      const replaySecret = await requirePersistedStripeSecret(client, attempt);
       return { attempt: publicAttempt(attempt), idempotentReplay: true, clientSecret: replaySecret, credit: null };
     }
 

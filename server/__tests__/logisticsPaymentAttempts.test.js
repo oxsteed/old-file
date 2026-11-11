@@ -736,4 +736,19 @@ describe('service-level guards', () => {
     expect(store.attempts[0].status).toBe('failed');
     expect(store.attempts[0].failure_code).toBe('card_declined');
   });
+
+  test('malformed Stripe intent responses fail the attempt instead of persisting a null secret', async () => {
+    seedPoFlow();
+    stripeInstance.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_missing_secret', client_secret: null });
+    await expect(paymentsService.createPaymentAttempt(BUYER, {
+      idempotencyKey: newKey(),
+      subjectType: 'purchase_order',
+      purchaseOrderId: 101,
+      installment: 'deposit',
+      method: 'stripe',
+    })).rejects.toMatchObject({ code: 'processor_response_invalid' });
+    expect(store.attempts[0].status).toBe('failed');
+    expect(store.attempts[0].stripe_payment_intent_id).toBeNull();
+    expect(store.attempts[0].failure_code).toBe('processor_response_invalid');
+  });
 });
