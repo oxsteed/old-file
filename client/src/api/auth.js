@@ -6,6 +6,7 @@ import { isTransientRefreshFailure } from './authRefreshPolicy';
 import { clearSupportChatStorage } from '../lib/supportChatStorage';
 import { advanceAuthEpoch, currentAuthEpoch, isCurrentAuthEpoch, assertCurrentAuthEpoch, isCredentialRequest } from './authSessionEpoch';
 import { broadcastAuthSession } from './authSessionSync';
+import { readSessionStorage } from '../utils/sessionStorage';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -68,7 +69,7 @@ export function getAccessToken() {
   // The access token lives in the httpOnly cookie and is not readable from
   // JS. Returns the impersonation token when one is active, else null.
   // Kept for API compatibility.
-  return sessionStorage.getItem('oxs:impersonation_token');
+  return readSessionStorage('oxs:impersonation_token');
 }
 
 // Returns a locally stored refresh token if one exists (pre-migration

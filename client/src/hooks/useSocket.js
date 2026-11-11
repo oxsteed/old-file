@@ -2,6 +2,7 @@ import useAppResume from './useAppResume';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth }                                  from './useAuth';
 import { realtimeNamespaceUrl }                     from '../lib/realtime';
+import { readSessionStorage }                        from '../utils/sessionStorage';
 
 // PWA startup budget (2026-11-05): socket.io-client is ~27KB and was
 // statically imported through the Navbar's notification hooks, so it rode
@@ -104,7 +105,7 @@ export const useSocket = () => {
     loadSocketClient()
       .then((io) => {
         if (cancelled || socketInstance) return;
-        const impersonationToken = sessionStorage.getItem('oxs:impersonation_token');
+        const impersonationToken = readSessionStorage('oxs:impersonation_token');
         socketInstance = io(
           realtimeNamespaceUrl('chat'),
           {
@@ -149,7 +150,7 @@ export const useSocket = () => {
         // Refresh the impersonation token before each reconnect attempt, if any.
         // The normal session re-authenticates via the httpOnly cookie.
         socketInstance.io.on('reconnect_attempt', () => {
-          const impersonationToken = sessionStorage.getItem('oxs:impersonation_token');
+          const impersonationToken = readSessionStorage('oxs:impersonation_token');
           if (socketInstance) {
             socketInstance.auth = impersonationToken ? { token: impersonationToken } : {};
           }

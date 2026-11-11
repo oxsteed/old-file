@@ -1,3 +1,5 @@
+import { readSessionStorage } from '../utils/sessionStorage';
+
 /**
  * Token validation helper for API calls
  * Ensures token exists before making authenticated requests
@@ -30,9 +32,7 @@ export function validateToken() {
   // a stored user instead, which indicates an active session. The actual
   // token validation happens server-side via the cookie.
   const user = localStorage.getItem('user');
-  const impersonationToken = typeof sessionStorage !== 'undefined'
-    ? sessionStorage.getItem('oxs:impersonation_token')
-    : null;
+  const impersonationToken = readSessionStorage('oxs:impersonation_token');
   if (!user && !impersonationToken) {
     throw new NoTokenError();
   }

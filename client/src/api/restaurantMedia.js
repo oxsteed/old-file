@@ -6,6 +6,7 @@
 
 import api from './axios';
 import { uploadMediaWithProgress, UPLOAD_ENDPOINTS } from '../utils/restaurantMediaUpload';
+import { readSessionStorage } from '../utils/sessionStorage';
 
 const API_BASE = api.defaults?.baseURL || '/api';
 
@@ -13,8 +14,7 @@ const API_BASE = api.defaults?.baseURL || '/api';
 // authenticated (impersonation sessions included). The normal session
 // authenticates via the httpOnly cookie (withCredentials on the XHR).
 const uploadAuthHeaders = () => {
-  if (typeof sessionStorage === 'undefined') return {};
-  const token = sessionStorage.getItem('oxs:impersonation_token');
+  const token = readSessionStorage('oxs:impersonation_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 

@@ -3,6 +3,7 @@ import { getCsrfToken } from './csrfToken';
 import { existingPromotionVisitorId, isPromotionConversionRequest } from '../utils/promotionVisitor';
 import { currentAuthEpoch, advanceAuthEpoch, assertCurrentAuthEpoch, startsAuthSessionTransition } from './authSessionEpoch';
 import { withCrossTabRefreshLock } from './authRefreshCoordinator';
+import { readSessionStorage } from '../utils/sessionStorage';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -67,7 +68,7 @@ api.interceptors.request.use((config) => {
       return adapter(request);
     });
   }
-  const token = sessionStorage.getItem('oxs:impersonation_token');
+  const token = readSessionStorage('oxs:impersonation_token');
 
   // Only add Authorization header for impersonation; the normal session
   // authenticates via the httpOnly cookie.
