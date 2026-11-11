@@ -372,7 +372,7 @@ async function browseTools(req, res) {
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
          LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
-        ${where}
+        ${where} AND u.is_active = TRUE AND u.deleted_at IS NULL
         ORDER BY ${orderBy}
         LIMIT $${idx} OFFSET $${idx + 1}`,
       params
