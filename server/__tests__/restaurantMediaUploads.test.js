@@ -307,6 +307,20 @@ describe('postRestaurantMediaPhoto', () => {
     expect(res.body.media.thumbnail_url).toContain('sig=');
   });
 
+  test('does not report success when a committed photo cannot be downloaded', async () => {
+    mockSuccessfulPhotoPost();
+    storage.getSignedDownloadUrl.mockImplementationOnce(async () => null);
+
+    const res = await request(buildApp())
+      .post('/api/restaurants/42/media/photo-uploads')
+      .attach('file', await jpegWithGpsExif(), 'photo.jpg');
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('media_storage_unavailable');
+    expect(mockQuery.mock.calls.some(([sql]) => sql === 'COMMIT')).toBe(true);
+    expect(storage.deleteFile).not.toHaveBeenCalled();
+  });
+
   test('rejects a missing file', async () => {
     const res = await request(buildApp())
       .post('/api/restaurants/42/media/photo-uploads')

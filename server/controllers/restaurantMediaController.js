@@ -776,10 +776,19 @@ exports.postRestaurantMediaPhoto = async (req, res, next) => {
       throw err;
     }
 
-    const [url, thumbnailUrl] = await Promise.all([
-      getSignedDownloadUrl(media.storage_key),
-      getSignedDownloadUrl(media.thumbnail_key),
-    ]);
+    let url;
+    let thumbnailUrl;
+    try {
+      [url, thumbnailUrl] = await Promise.all([
+        getSignedDownloadUrl(media.storage_key),
+        getSignedDownloadUrl(media.thumbnail_key),
+      ]);
+    } catch {
+      throw new AppError('Photo download is temporarily unavailable', 503, 'media_storage_unavailable');
+    }
+    if (!url || !thumbnailUrl) {
+      throw new AppError('Photo download is temporarily unavailable', 503, 'media_storage_unavailable');
+    }
     return res.status(201).json({
       success: true,
       media: {
