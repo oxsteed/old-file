@@ -73,6 +73,8 @@ describe('public restaurant visibility', () => {
     expect(res.status).toBe(200);
     expect(res.body[responseKey]).toEqual([]);
     expectActiveBusinessGuard(findPublicationGuardSql());
+    expect(findPublicationGuardSql()).toMatch(/JOIN users owner ON owner\.id = b\.user_id/);
+    expect(findPublicationGuardSql()).toMatch(/owner\.onboarding_completed = TRUE/);
   });
 
   test.each([

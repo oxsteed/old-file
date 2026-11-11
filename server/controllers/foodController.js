@@ -2261,6 +2261,7 @@ exports.listMarkets = async (req, res, next) => {
               COUNT(*)::int AS restaurant_count
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
         WHERE fr.status = 'active'
           AND fr.discovery_status = 'visible'
           AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
@@ -2269,6 +2270,10 @@ exports.listMarkets = async (req, res, next) => {
           AND COALESCE(b.setup_status, 'active') = 'active'
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE
           AND NULLIF(trim(fr.address_city), '') IS NOT NULL
           AND NULLIF(trim(fr.address_country), '') IS NOT NULL
         GROUP BY fr.address_country, fr.address_city
@@ -2402,12 +2407,17 @@ exports.listRestaurants = async (req, res, next) => {
               ${distanceSelect}
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
         WHERE ${filters.join(' AND ')}
           AND b.is_active = TRUE
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') = 'active'
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE
         ORDER BY ${orderBy}
         LIMIT $${params.push(limit)} OFFSET $${params.push(offset)}`,
       params
@@ -2479,12 +2489,17 @@ exports.listRestaurants = async (req, res, next) => {
                 ${distanceSelect}
            FROM food_restaurants fr
            JOIN businesses b ON b.id = fr.business_id
+           JOIN users owner ON owner.id = b.user_id
           WHERE ${filters.join(' AND ')}
             AND b.is_active = TRUE
             AND b.is_listed = TRUE
             AND COALESCE(b.setup_status, 'active') = 'active'
             AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
             AND b.deleted_at IS NULL
+            AND owner.deleted_at IS NULL
+            AND owner.is_active = TRUE
+            AND owner.email_verified = TRUE
+            AND owner.onboarding_completed = TRUE
           ORDER BY ${orderBy}
           LIMIT $${params.push(limit)} OFFSET $${params.push(offset)}`,
         params
