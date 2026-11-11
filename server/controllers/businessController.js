@@ -10,6 +10,7 @@ const countriesUtil = require('../utils/countries');
 const { AppError } = require('../middleware/errorHandler');
 const { validateMediaUrl } = require('../utils/mediaUrlValidation');
 const { enqueueStorageDeletion } = require('../services/storageCleanupService');
+const { deleteFile } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const { invalidateHelperContext } = require('../services/helperContext');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
@@ -890,7 +891,7 @@ async function storeBusinessPhoto(req, businessId, kind, file) {
       file.originalname,
       file.mimetype
     );
-    if (key) return getPublicUrl(key);
+    if (key) return { key, url: getPublicUrl(key) };
   } catch (storageError) {
     logger.error('Object storage upload failed; using database media fallback', {
       businessId,
@@ -898,10 +899,11 @@ async function storeBusinessPhoto(req, businessId, kind, file) {
       error: storageError.message,
     });
   }
-  return persistBusinessMediaFallback(req, businessId, kind, file);
+  return { key: null, url: await persistBusinessMediaFallback(req, businessId, kind, file) };
 }
 
 async function uploadBusinessPhotos(req, res, next) {
+  const uploadedKeys = [];
   try {
     const { id } = req.params;
 
@@ -916,14 +918,18 @@ async function uploadBusinessPhotos(req, res, next) {
       const file = req.files.logo[0];
       if (!allowed.includes(file.mimetype))
         throw new AppError('Logo must be a JPG, PNG, WebP, or GIF', 400, 'invalid_format');
-      updates.logo_url = await storeBusinessPhoto(req, id, 'logo', file);
+      const stored = await storeBusinessPhoto(req, id, 'logo', file);
+      updates.logo_url = stored.url;
+      if (stored.key) uploadedKeys.push(stored.key);
     }
 
     if (req.files?.cover?.[0]) {
       const file = req.files.cover[0];
       if (!allowed.includes(file.mimetype))
         throw new AppError('Cover photo must be a JPG, PNG, WebP, or GIF', 400, 'invalid_format');
-      updates.cover_photo_url = await storeBusinessPhoto(req, id, 'cover', file);
+      const stored = await storeBusinessPhoto(req, id, 'cover', file);
+      updates.cover_photo_url = stored.url;
+      if (stored.key) uploadedKeys.push(stored.key);
     }
 
     if (Object.keys(updates).length === 0)
@@ -961,8 +967,10 @@ async function uploadBusinessPhotos(req, res, next) {
       }
     }
 
+    uploadedKeys.length = 0;
     return res.json({ business: updated, ...updates });
   } catch (err) {
+    await Promise.allSettled(uploadedKeys.map((key) => deleteFile(key)));
     next(err);
   }
 }
