@@ -182,6 +182,11 @@ async function resolveCheckerStepupAmountCents(queryable, action) {
   const payload = action.payload || {};
   const direct = parseAmount(payload.amountCents ?? payload.amount_cents);
   if (direct !== null && direct > 0) return direct;
+  // Currency-quote actions carry their amount under the conversion-specific
+  // field. Keep checker challenge issuance and approval bound to the same
+  // source amount as the pending-action audit/threshold resolver.
+  const quoteSource = parseAmount(payload.sourceAmountMinorUnits ?? payload.source_amount_minor_units);
+  if (quoteSource !== null && quoteSource > 0) return quoteSource;
   const settlementId = payload.settlementId || payload.settlement_id;
   if (settlementId) {
     const { rows } = await queryable.query(
