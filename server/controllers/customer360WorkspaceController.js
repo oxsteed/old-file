@@ -1,6 +1,7 @@
 "use strict";
 const db = require("../db");
 const service = require("../services/customer360Workspace");
+const { hasGlobalGrant } = require("../middleware/adminAuth");
 const { withTransaction } = require("../utils/transaction");
 const { logAdminAction } = require("../services/auditService");
 const AppError = require("../utils/appError");
@@ -148,10 +149,12 @@ exports.updateTask = async (req, res, next) => {
         const {
           rows: [admin],
         } = await client.query(
-          "SELECT id FROM users WHERE id=$1 AND role IN ('admin','super_admin') AND is_active=true",
+          "SELECT id, role FROM users WHERE id=$1 AND role IN ('admin','super_admin') AND is_active=true AND deleted_at IS NULL",
           [assignee],
         );
-        if (!admin) fail("Assignee must be an active admin");
+        if (!admin || (admin.role !== "super_admin" && !(await hasGlobalGrant(admin.id, "manage_users")))) {
+          fail("Assignee must be an authorized active admin");
+        }
         const {
           rows: [after],
         } = await client.query(
