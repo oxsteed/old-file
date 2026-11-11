@@ -3,7 +3,8 @@ const crypto = require('crypto');
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const scanner = require('../services/fileScanService');
-const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
+const logger = require('../utils/logger');
 const { idempotencyKey, pinDigest, recordActivity } = require('../services/localDeliveryIntegrity');
 
 exports.uploadGuard = async (req,res,next) => {
@@ -22,18 +23,28 @@ exports.uploadGuard = async (req,res,next) => {
 };
 exports.upload = async (req,res,next) => {
   let client;
+  let objectKey = null;
   try {
     if (!req.file || !['image/jpeg','image/png','image/webp','application/pdf'].includes(req.file.mimetype) || req.file.size<=0 || req.file.size>10485760) throw new AppError('Select an image or signed PDF under 10 MB',400,'delivery_proof_upload_required');
     client=await pool.connect(); await client.query('BEGIN');
     const {rows}=await client.query("SELECT * FROM delivery_jobs WHERE id=$1 AND status IN ('in_transit','failed') AND (helper_user_id=$2 OR internal_driver_user_id=$2) FOR UPDATE",[req.params.id,req.user.id]);
     const job=rows[0];
     if (!job || !['photo','signature'].includes(job.proof_preference) || (job.proof_preference==='photo' && !req.file.mimetype.startsWith('image/'))) throw new AppError('Proof upload is unavailable',409,'delivery_proof_mismatch');
-    const objectKey=await uploadFile(req.file.buffer,`delivery-private/${job.id}/${req.user.id}`,req.file.originalname,req.file.mimetype);
+    objectKey=await uploadFile(req.file.buffer,`delivery-private/${job.id}/${req.user.id}`,req.file.originalname,req.file.mimetype);
     if (!objectKey) throw new AppError('Storage unavailable',503,'storage_unavailable');
     const result=await client.query("INSERT INTO delivery_proof_uploads(delivery_job_id,owner_user_id,object_key,content_type,size_bytes,sha256,scan_status) VALUES($1,$2,$3,$4,$5,$6,'clean') RETURNING id",[job.id,req.user.id,objectKey,req.file.mimetype,req.file.size,crypto.createHash('sha256').update(req.file.buffer).digest('hex')]);
     await client.query('COMMIT');
     res.status(201).json({success:true,uploadId:result.rows[0].id});
-  } catch(error) { if(client) await client.query('ROLLBACK').catch(()=>{}); next(error); }
+  } catch(error) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    if (objectKey) {
+      await deleteFile(objectKey).catch((cleanupError) => logger.warn('Failed to remove orphaned delivery proof upload', {
+        objectKey,
+        error: cleanupError.message,
+      }));
+    }
+    next(error);
+  }
   finally {client?.release();}
 };
 exports.rotatePin = async (req,res,next) => {
