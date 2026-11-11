@@ -531,7 +531,7 @@ async function createLookupChallenge(request, zipCode) {
         AND created_at > NOW() - INTERVAL '60 seconds'
       LIMIT 1`,
     [request.id]
-  ).catch(() => ({ rows: [] }));
+  );
   if (recent) {
     const err = new Error('A code was just sent. Please wait before requesting another.');
     err.statusCode = 429;
@@ -552,7 +552,7 @@ async function createLookupChallenge(request, zipCode) {
         AND verified_at IS NULL
         AND code_expires_at > NOW()`,
     [request.id]
-  ).catch(() => {});
+  );
 
   const result = await db.query(
     `INSERT INTO direct_quote_lookup_challenges
