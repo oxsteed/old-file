@@ -2507,7 +2507,7 @@ async function getPublicProfile(req, res) {
     const { rows: [listed] } = await pool.query(
       `SELECT is_listed FROM helper_profiles WHERE user_id = $1`,
       [id]
-    ).catch(() => ({ rows: [] }));
+    );
     if (listed && listed.is_listed === false) {
       return res.status(404).json({ error: 'User not found' });
     }
