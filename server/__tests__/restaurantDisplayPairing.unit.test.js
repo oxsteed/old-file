@@ -35,8 +35,22 @@ describe('display pairing helpers', () => {
   });
 
   test('generatePairingCode is unique across a batch', () => {
+    let sequence = 0;
+    const deterministicBytes = (length) => {
+      // Encode a monotonically increasing base-31 value in each generated
+      // code. This keeps the uniqueness assertion deterministic instead of
+      // making CI depend on the small probability of a random collision.
+      let value = sequence++;
+      const bytes = Buffer.alloc(length);
+      for (let index = length - 1; index >= 0; index -= 1) {
+        bytes[index] = value % CODE_ALPHABET.length;
+        value = Math.floor(value / CODE_ALPHABET.length);
+      }
+      return bytes;
+    };
     const codes = new Set();
-    for (let i = 0; i < 2000; i += 1) codes.add(generatePairingCode());
+    for (let i = 0; i < 2000; i += 1)
+      codes.add(generatePairingCode(deterministicBytes));
     expect(codes.size).toBe(2000);
   });
 

@@ -70,8 +70,12 @@ for (const profile of profiles)
           : route.abort(),
       );
       try {
-        await page.goto(fixture.origin + '/post-job');
-        await page.getByRole('textbox', { name: /Job Title/i }).waitFor();
+        await page.goto(fixture.origin + '/post-job', {
+          waitUntil: 'domcontentloaded',
+        });
+        await page
+          .getByRole('textbox', { name: /Job Title/i })
+          .waitFor({ timeout: 60000 });
         const reject = page.getByRole('button', {
           name: 'Reject All',
           exact: true,
@@ -201,8 +205,13 @@ for (const profile of profiles)
           ).searchParams.get('share');
         });
         assert.match(sharedId, /^[a-f0-9-]{36}$/);
-        await page.goto(fixture.origin + '/post-job?share=' + sharedId);
-        await title.waitFor();
+        await page.goto(fixture.origin + '/post-job?share=' + sharedId, {
+          waitUntil: 'domcontentloaded',
+        });
+        // WebKit can take longer to expose the form after a service-worker
+        // navigation; keep the installed-mode test from failing on a
+        // transient 30-second locator timeout.
+        await title.waitFor({ timeout: 60000 });
         await page.waitForFunction(
           () => document.querySelectorAll('.pjw-preview-grid img').length === 1,
         );
