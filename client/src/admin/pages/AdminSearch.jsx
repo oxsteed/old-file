@@ -9,6 +9,8 @@ import {
 import adminApi from '../../lib/adminApi';
 import AdminErrorState from '../lib/AdminErrorState';
 import { adminDate } from '../lib/formatters';
+import { useAuth } from '../../hooks/useAuth';
+import { useMyScopes } from '../lib/GrantGuard';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
 import '../lib/suggestDropdownAdmin.css';
 
@@ -373,6 +375,17 @@ const ALL_TYPES = [
   'disputes', 'payments', 'support_tickets', 'reviews', 'bids',
 ];
 
+const TYPE_GRANTS = {
+  users: 'manage_users',
+  jobs: 'manage_operations',
+  messages: 'manage_support',
+  disputes: 'manage_disputes',
+  payments: 'view_financials',
+  support_tickets: 'manage_support',
+  reviews: 'moderate_content',
+  bids: 'moderate_content',
+};
+
 const getTypeMeta = (t) => ({
   users:           { icon: User,          label: t('adminSearch.typeUsers'),           color: 'text-blue-400'   },
   jobs:            { icon: Briefcase,     label: t('adminSearch.typeJobs'),            color: 'text-green-400'  },
@@ -397,6 +410,8 @@ const RESULT_COMPONENT = {
 
 export default function AdminSearch() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const { loading: scopesLoading, scopes } = useMyScopes();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query,   setQuery]   = useState(searchParams.get('q') || '');
@@ -404,7 +419,13 @@ export default function AdminSearch() {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
-  const [types,   setTypes]   = useState([...ALL_TYPES]);
+  const [types,   setTypes]   = useState([]);
+  const allowedTypes = useMemo(() => {
+    if (user?.role === 'super_admin') return ALL_TYPES;
+    if (scopesLoading) return [];
+    return ALL_TYPES.filter(type => scopes.includes(TYPE_GRANTS[type]));
+  }, [scopes, scopesLoading, user?.role]);
+  const searchReady = !scopesLoading && allowedTypes.length > 0;
   // Per-type page state
   const [pages, setPages]     = useState(
     Object.fromEntries(ALL_TYPES.map(t => [t, 1]))
@@ -502,18 +523,26 @@ export default function AdminSearch() {
     const q = searchParams.get('q') || '';
     setInput(q);
     setQuery(q);
-    if (q.trim().length >= 2) {
+    if (searchReady && q.trim().length >= 2) {
       const freshPages = Object.fromEntries(ALL_TYPES.map(t => [t, 1]));
       setPages(freshPages);
       doSearch(q, types, freshPages);
     }
     initialMountRef.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, searchReady]);
+
+  useEffect(() => {
+    if (scopesLoading) return;
+    setTypes(prev => {
+      const retained = prev.filter(type => allowedTypes.includes(type));
+      return retained.length ? retained : allowedTypes;
+    });
+  }, [allowedTypes, scopesLoading]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (input.trim().length < 2) return;
+    if (!searchReady || input.trim().length < 2) return;
     // A pending debounced keystroke must not fire a second search after this one.
     if (liveSearchTimerRef.current) clearTimeout(liveSearchTimerRef.current);
     // Reset pages on new query
@@ -638,10 +667,10 @@ export default function AdminSearch() {
 
   // Re-run when types change (after mount)
   useEffect(() => {
-    if (initialMountRef.current) return;
+    if (initialMountRef.current || !searchReady || !types.length) return;
     if (query.trim().length >= 2) doSearch(query, types, pages);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [types]);
+  }, [types, searchReady]);
 
   const handlePageChange = useCallback((type, newPage) => {
     const updated = { ...pages, [type]: newPage };
@@ -675,7 +704,7 @@ export default function AdminSearch() {
         </div>
         <button
           type="submit"
-          disabled={loading || input.trim().length < 2}
+          disabled={loading || !searchReady || input.trim().length < 2}
           className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {t('adminSearch.submit')}
@@ -684,7 +713,7 @@ export default function AdminSearch() {
 
       {/* Type filters */}
       <div className="flex gap-2 mb-6 flex-wrap">
-        {ALL_TYPES.map(t => {
+        {allowedTypes.map(t => {
           const { icon: Icon, label } = TYPE_META[t];
           const active = types.includes(t);
           return (
@@ -731,7 +760,7 @@ export default function AdminSearch() {
             {t('adminSearch.resultsFor', { count: results.total, query: results.query })}
           </p>
 
-          {ALL_TYPES.filter(t => types.includes(t)).map(t => {
+          {allowedTypes.filter(t => types.includes(t)).map(t => {
             const { icon: Icon, label, color } = TYPE_META[t];
             const rows  = results.results?.[t] || [];
             const total = results.totals?.[t]  || rows.length;
