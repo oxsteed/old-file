@@ -33,6 +33,9 @@ beforeEach(() => {
   stripeMock.paymentIntents.cancel = jest.fn().mockResolvedValue({ id: 'pi_terminal_1', status: 'canceled' });
   stripeMock.terminal.connectionTokens.create.mockReset();
   stripeMock.terminal.connectionTokens.create.mockResolvedValue({ secret: 'pst_test_secret' });
+  stripeMock.paymentIntents.retrieve.mockReset();
+  stripeMock.paymentIntents.capture.mockReset();
+  stripeMock.refunds.create.mockReset();
   delete process.env.FOOD_CARD_FEE_BPS;
 });
 
@@ -125,6 +128,29 @@ describe('restaurantPosTerminalService.cancelPaymentIntent', () => {
   test('cancels an orphaned Terminal intent through Stripe', async () => {
     await posTerminal.cancelPaymentIntent('pi_orphaned');
     expect(stripeMock.paymentIntents.cancel).toHaveBeenCalledWith('pi_orphaned');
+  });
+});
+
+describe('restaurantPosTerminalService provider handoff verification', () => {
+  test('capture rejects a response for a different PaymentIntent', async () => {
+    stripeMock.paymentIntents.retrieve.mockResolvedValueOnce({ id: 'pi_terminal_1', status: 'requires_capture' });
+    stripeMock.paymentIntents.capture.mockResolvedValueOnce({ id: 'pi_other', status: 'succeeded' });
+    await expect(posTerminal.capturePaymentIntent('pi_terminal_1', 'pos-capture:test'))
+      .rejects.toMatchObject({ code: 'payment_capture_verification_failed' });
+  });
+
+  test('refund rejects a response without the requested provider identity', async () => {
+    stripeMock.refunds.create.mockResolvedValueOnce({ status: 'succeeded', amount: 2500 });
+    await expect(posTerminal.createRefund({
+      paymentIntentId: 'pi_terminal_1', amountCents: 2500, metadata: {}, idempotencyKey: 'pos-refund:test',
+    })).rejects.toMatchObject({ code: 'payment_refund_verification_failed' });
+  });
+
+  test('refund returns a normalized verified provider result', async () => {
+    stripeMock.refunds.create.mockResolvedValueOnce({ id: 're_terminal', status: 'succeeded', amount: 2500 });
+    await expect(posTerminal.createRefund({
+      paymentIntentId: 'pi_terminal_1', amountCents: 2500, metadata: {}, idempotencyKey: 'pos-refund:test',
+    })).resolves.toMatchObject({ id: 're_terminal', status: 'succeeded', amount: 2500 });
   });
 });
 
