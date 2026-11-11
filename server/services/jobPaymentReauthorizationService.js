@@ -168,10 +168,10 @@ async function cancelIntentQuietly(intentId, stripeAccount, idempotencyKey, mode
   }
 }
 
-function usableIntent(intent) {
+function usableIntent(intent, expectedId = null) {
   const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
   const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
-  if (!id || !clientSecret) {
+  if (!id || !clientSecret || (expectedId && id !== String(expectedId))) {
     throw new AppError('Stripe returned an unusable reauthorization payment session', 502, 'payment_reauthorization_intent_unavailable');
   }
   return { id, clientSecret };
@@ -298,22 +298,37 @@ async function startCardReauthorization({ jobId, user }) {
     );
     const open = openRows[0];
     if (open) {
+      let openRetired = false;
       const fresh = new Date(open.expires_at) > new Date();
       if (fresh && cents(open.amount_cents) === target && String(open.payment_id) === String(payment.id)) {
         const intent = await stripe.paymentIntents.retrieve(open.stripe_payment_intent_id, chargeModel.requestOptions(open));
         if (CONFIRMABLE.has(intent.status)) {
-          return { result: { status: 'requires_confirmation', attempt: view(open), client_secret: intent.client_secret, payment_intent_id: intent.id, stripe_account_id: open.stripe_account_id } };
+          try {
+            const usable = usableIntent(intent, open.stripe_payment_intent_id);
+            return { result: { status: 'requires_confirmation', attempt: view(open), client_secret: usable.clientSecret, payment_intent_id: usable.id, stripe_account_id: open.stripe_account_id } };
+          } catch (err) {
+            await client.query(
+              `UPDATE job_payment_reauthorizations
+                  SET status = 'canceled', failure_code = 'provider_response_invalid', updated_at = NOW()
+                WHERE id = $1 AND status = 'pending'`,
+              [open.id]
+            );
+            await cancelIntentQuietly(open.stripe_payment_intent_id, open.stripe_account_id, `job-payment-reauth-cancel:${open.id}`, chargeModel.modelOf(open));
+            openRetired = true;
+          }
         }
         if (chargeModel.isFunded(intent, chargeModel.modelOf(open))) {
           const finalized = await finalizeAuthorizedInTransaction(client, open, intent, { job, payment });
           return { result: { status: 'authorized', attempt: view(finalized.attempt) }, cancelAfter: finalized.cancelAfter };
         }
       }
-      await client.query(
-        `UPDATE job_payment_reauthorizations SET status = $2, failure_code = $3, updated_at = NOW() WHERE id = $1`,
-        [open.id, fresh ? 'canceled' : 'expired', fresh ? 'superseded' : 'expired']
-      );
-      await cancelIntentQuietly(open.stripe_payment_intent_id, open.stripe_account_id, `job-payment-reauth-cancel:${open.id}`, chargeModel.modelOf(open) === 'platform_hold' ? 'destination' : chargeModel.modelOf(open));
+      if (!openRetired) {
+        await client.query(
+          `UPDATE job_payment_reauthorizations SET status = $2, failure_code = $3, updated_at = NOW() WHERE id = $1`,
+          [open.id, fresh ? 'canceled' : 'expired', fresh ? 'superseded' : 'expired']
+        );
+        await cancelIntentQuietly(open.stripe_payment_intent_id, open.stripe_account_id, `job-payment-reauth-cancel:${open.id}`, chargeModel.modelOf(open) === 'platform_hold' ? 'destination' : chargeModel.modelOf(open));
+      }
     }
 
     const attempt = await nextAttemptNumber(client, jobId);

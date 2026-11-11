@@ -125,6 +125,31 @@ describe('replacement authorization provider handoff', () => {
     );
     expect(calls.some((call) => /INSERT INTO job_payment_reauthorizations/.test(call.sql))).toBe(false);
   });
+
+  test('retires an open attempt that cannot provide a usable client secret', async () => {
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce({ id: 'pi_open', status: 'requires_payment_method', client_secret: null });
+    stripe.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_new', client_secret: 'cs_new' });
+    const calls = routeQueries(mockQuery, [
+      [/SELECT \* FROM jobs WHERE id = \$1 FOR UPDATE/, { rows: [baseJob({ paymentAdjustmentRequired: 'reauthorization_required' })] }],
+      [/FROM payments WHERE job_id/, { rows: [{
+        id: 9, status: 'authorized', amount: '180.00', currency: 'usd', metadata: { authorized_amount_cents: 18000 },
+        capture_amount_cents: 20500, pending_increase_cents: 2500, stripe_payment_intent_id: 'pi_original',
+        stripe_account_id: 'acct', client_id: 'cust-1', assigned_helper_id: 'help-1',
+      }] }],
+      [/FROM job_payment_reauthorizations WHERE job_id = \$1 AND status = 'pending'/, { rows: [{
+        id: 7, job_id: JOB_ID, payment_id: 9, amount_cents: 20500, status: 'pending', expires_at: new Date(Date.now() + 3600000),
+        stripe_payment_intent_id: 'pi_open', stripe_account_id: 'acct', charge_model: 'direct',
+      }] }],
+      [/SET status = 'canceled', failure_code = 'provider_response_invalid'/, { rows: [] }],
+      [/COALESCE\(MAX\(attempt\)/, { rows: [{ n: 2 }] }],
+      [/INSERT INTO job_payment_reauthorizations/, { rows: [{ id: 8, method: 'card', kind: 'replacement', status: 'pending', amount_cents: 20500 }] }],
+    ]);
+
+    const result = await reauth.startCardReauthorization({ jobId: JOB_ID, user: CUSTOMER });
+    expect(result).toMatchObject({ status: 'requires_confirmation', client_secret: 'cs_new', payment_intent_id: 'pi_new' });
+    expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith('pi_open', {}, expect.objectContaining({ stripeAccount: 'acct' }));
+    expect(calls.some((call) => /provider_response_invalid/.test(call.sql))).toBe(true);
+  });
 });
 
 describe('OxSteed Credit collateral', () => {
