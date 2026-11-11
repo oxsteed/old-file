@@ -12,6 +12,8 @@
  */
 
 const { mockQuery, resetMocks } = require('./setup');
+const mockHasGlobalGrant = jest.fn();
+const mockSendNotification = jest.fn().mockResolvedValue({});
 
 jest.mock('../middleware/auth', () => ({
   authenticate: (req, res, next) => {
@@ -40,6 +42,10 @@ jest.mock('../middleware/adminAuth', () => ({
     next();
   },
   requirePermission: () => (req, res, next) => next(),
+  hasGlobalGrant: (...args) => mockHasGlobalGrant(...args),
+}));
+jest.mock('../services/notificationService', () => ({
+  sendNotification: (...args) => mockSendNotification(...args),
 }));
 jest.mock('../middleware/regionAuth', () => ({
   loadAssignedRegions: (req, res, next) => next(),
@@ -84,6 +90,7 @@ let app;
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
+  mockHasGlobalGrant.mockResolvedValue(false);
   app = buildApp();
 });
 
@@ -303,6 +310,34 @@ describe('ADM-046: approved appeals lift restrictions', () => {
       .send({ decision: 'denied' })
       .expect(200);
     expect(mockQuery.mock.calls.some((c) => /UPDATE user_restrictions/.test(c[0]))).toBe(false);
+  });
+});
+
+describe('dispute grant connectivity: enforcement appeal notifications', () => {
+  test('notifies only admins authorized to manage disputes', async () => {
+    mockHasGlobalGrant.mockImplementation(async (id, permission) => id === ADMIN_2 && permission === 'manage_disputes');
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 42, action_type: 'restriction', reason: 'Too many cancellations' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 9, enforcement_id: 42, user_id: 'user-1', status: 'pending' }] })
+      .mockResolvedValueOnce({ rows: [
+        { id: ADMIN_1, role: 'admin' },
+        { id: ADMIN_2, role: 'admin' },
+        { id: 'super-admin', role: 'super_admin' },
+      ] });
+
+    await request(app)
+      .post('/api/enforcement-policy/appeals')
+      .set({ 'x-test-user': 'user-1', 'x-test-role': 'customer' })
+      .send({ enforcementId: 42, appealText: 'This restriction is incorrect because the cancellation was caused by an emergency.' })
+      .expect(201);
+
+    expect(mockSendNotification.mock.calls.map(([payload]) => payload.userId)).toEqual([
+      ADMIN_2,
+      'super-admin',
+    ]);
+    expect(mockHasGlobalGrant).toHaveBeenCalledWith(ADMIN_1, 'manage_disputes');
+    expect(mockHasGlobalGrant).toHaveBeenCalledWith(ADMIN_2, 'manage_disputes');
   });
 });
 
