@@ -184,6 +184,38 @@ describe('card payment intent', () => {
     expect(stripeMock.paymentIntents.create).toHaveBeenCalledTimes(1);
   });
 
+  test('fails closed and cancels when a new food card intent has no client secret', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_bad', status: 'canceled' });
+    stripeMock.paymentIntents.cancel = cancel;
+    stripeMock.paymentIntents.create.mockResolvedValue({ id: 'pi_bad', client_secret: null });
+
+    const res = await request(buildFoodApp())
+      .post('/api/food/card-payment/intent')
+      .send({ restaurantId: 1, amountCents: 2500, currency: 'USD', idempotencyKey: 'key-bad' });
+
+    expect(res.status).toBe(502);
+    expect(res.body.code).toBe('card_payment_intent_unavailable');
+    expect(cancel).toHaveBeenCalledWith('pi_bad');
+    expect(intentStore).toHaveLength(0);
+  });
+
+  test('retires a replay row when Stripe omits its client secret', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_replay_bad', status: 'canceled' });
+    stripeMock.paymentIntents.cancel = cancel;
+    intentStore.push({ restaurant_id: 1, customer_id: null, idempotency_key: 'key-replay-bad', stripe_payment_intent_id: 'pi_replay_bad', amount_cents: 2500, currency_code: 'USD', status: 'created' });
+    stripeMock.paymentIntents.retrieve.mockResolvedValueOnce({ id: 'pi_replay_bad', status: 'requires_payment_method', client_secret: null });
+
+    const res = await request(buildFoodApp())
+      .post('/api/food/card-payment/intent')
+      .send({ restaurantId: 1, amountCents: 2500, currency: 'USD', idempotencyKey: 'key-replay-bad' });
+
+    expect(res.status).toBe(502);
+    expect(res.body.code).toBe('card_payment_intent_unavailable');
+    expect(cancel).toHaveBeenCalledWith('pi_replay_bad');
+    expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_card_payment_intents SET status = 'failed'/.test(sql))).toBe(true);
+  });
+
   test('returns 400 when the restaurant cannot accept charges', async () => {
     mockQuery.mockImplementation(async (sql) => {
       if (/FROM food_restaurants/.test(sql)) {

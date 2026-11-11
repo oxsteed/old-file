@@ -150,6 +150,23 @@ const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
   : null;
 
+function usableFoodPaymentIntent(intent) {
+  const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
+  const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
+  if (!id || !clientSecret) {
+    throw new AppError('The card payment session is unavailable', 502, 'card_payment_intent_unavailable');
+  }
+  return { id, clientSecret };
+}
+
+async function cancelFoodPaymentIntentQuietly(intentId) {
+  if (!intentId || typeof stripe?.paymentIntents?.cancel !== 'function') return;
+  await stripe.paymentIntents.cancel(intentId).catch((err) => logger.warn('Failed to cancel unusable food card intent', {
+    paymentIntentId: intentId,
+    error: err.message,
+  }));
+}
+
 // F-11: a scheduled order becomes kitchen work at scheduled_for minus the
 // restaurant's prep lead (prep_time_min; 30 minutes when unset). Shared by
 // the merchant kitchen feed branches in listRestaurantOrders.
@@ -4650,6 +4667,8 @@ exports.createOrder = async (req, res, next) => {
 };
 
 exports.createCardPaymentIntent = async (req, res, next) => {
+  let createdPaymentIntent = null;
+  let intentPersisted = false;
   try {
     const restaurantId = parsePositiveInt(req.body.restaurantId || req.body.restaurant_id);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -4741,9 +4760,21 @@ exports.createCardPaymentIntent = async (req, res, next) => {
       } catch (err) {
         throw new AppError('The previous card payment could not be retrieved', 502, 'card_payment_intent_unavailable');
       }
+      let usable;
+      try {
+        usable = usableFoodPaymentIntent(reusedIntent);
+      } catch (err) {
+        await cancelFoodPaymentIntentQuietly(existing.stripe_payment_intent_id);
+        await pool.query(
+          `UPDATE food_card_payment_intents SET status = 'failed', updated_at = NOW()
+            WHERE restaurant_id = $1 AND idempotency_key = $2`,
+          [restaurantId, idempotencyKey],
+        );
+        throw err;
+      }
       return res.json({
-        clientSecret: reusedIntent.client_secret,
-        paymentIntentId: reusedIntent.id,
+        clientSecret: usable.clientSecret,
+        paymentIntentId: usable.id,
       });
     }
 
@@ -4808,9 +4839,9 @@ exports.createCardPaymentIntent = async (req, res, next) => {
       if (err instanceof AppError) throw err;
       throw new AppError('The card payment could not be started', 502, 'card_payment_intent_failed');
     }
-    if (!paymentIntent?.id || !paymentIntent?.client_secret) {
-      throw new AppError('The card payment could not be started', 502, 'card_payment_intent_failed');
-    }
+    createdPaymentIntent = paymentIntent;
+    const usable = usableFoodPaymentIntent(paymentIntent);
+    createdPaymentIntent = { ...paymentIntent, id: usable.id, client_secret: usable.clientSecret };
     // Record the intent before returning the secret. ON CONFLICT covers the
     // race where two requests create the same deterministic Stripe intent;
     // the row is re-read so the response always reflects the stored record.
@@ -4824,31 +4855,34 @@ exports.createCardPaymentIntent = async (req, res, next) => {
         restaurantId,
         req.user?.id || null,
         idempotencyKey,
-        paymentIntent.id,
+        createdPaymentIntent.id,
         amountCents,
         currency,
       ]
     );
+    intentPersisted = true;
     const { rows: storedIntents } = await pool.query(
       `SELECT stripe_payment_intent_id
          FROM food_card_payment_intents
         WHERE restaurant_id = $1 AND idempotency_key = $2`,
       [restaurantId, idempotencyKey]
     );
-    const storedIntentId = storedIntents[0]?.stripe_payment_intent_id || paymentIntent.id;
-    let responseIntent = paymentIntent;
-    if (storedIntentId !== paymentIntent.id) {
+    const storedIntentId = storedIntents[0]?.stripe_payment_intent_id || createdPaymentIntent.id;
+    let responseIntent = createdPaymentIntent;
+    if (storedIntentId !== createdPaymentIntent.id) {
       try {
         responseIntent = await stripe.paymentIntents.retrieve(storedIntentId);
       } catch (err) {
         throw new AppError('The card payment could not be retrieved', 502, 'card_payment_intent_unavailable');
       }
     }
+    const responseUsable = usableFoodPaymentIntent(responseIntent);
     res.status(201).json({
-      clientSecret: responseIntent.client_secret,
-      paymentIntentId: responseIntent.id,
+      clientSecret: responseUsable.clientSecret,
+      paymentIntentId: responseUsable.id,
     });
   } catch (err) {
+    if (createdPaymentIntent?.id && !intentPersisted) await cancelFoodPaymentIntentQuietly(createdPaymentIntent.id);
     next(err);
   }
 };
