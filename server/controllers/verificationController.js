@@ -12,6 +12,15 @@ const { tNotif } = require('../utils/i18n');
 
 const CHECKR_API = 'https://api.checkr.com/v1';
 
+function requireIdentitySession(session) {
+  const id = typeof session?.id === 'string' ? session.id.trim() : '';
+  const url = typeof session?.url === 'string' ? session.url.trim() : '';
+  if (!id || !/^https:\/\//i.test(url)) {
+    throw new AppError('Identity verification is temporarily unavailable', 503, 'identity_verification_unavailable');
+  }
+  return { id, url };
+}
+
 // === CHECKR BACKGROUND CHECK ===
 
 // Initiate background check
@@ -258,14 +267,16 @@ exports.createIdentitySession = async (req, res, next) => {
       return_url: `${process.env.APP_URL}/settings?identity=complete`,
     });
 
+    const identitySession = requireIdentitySession(session);
+
     await db.query(
       `INSERT INTO identity_verifications (user_id, stripe_verification_session_id, status)
        VALUES ($1, $2, 'requires_input')
        ON CONFLICT (stripe_verification_session_id) DO NOTHING`,
-      [userId, session.id]
+      [userId, identitySession.id]
     );
 
-    res.json({ url: session.url, sessionId: session.id });
+    res.json({ url: identitySession.url, sessionId: identitySession.id });
   } catch (err) {
     logger.error('Stripe identity session creation failed', {
       userId: req.user?.id,
@@ -273,6 +284,10 @@ exports.createIdentitySession = async (req, res, next) => {
       code: err?.code,
       message: err?.message,
     });
+
+    if (err instanceof AppError && err.code === 'identity_verification_unavailable') {
+      return next(err);
+    }
 
     const rawMessage = `${err?.message || ''} ${err?.raw?.message || ''}`.toLowerCase();
     const missingPermission =
@@ -479,3 +494,5 @@ exports.recalculateBadges = async (userId) => {
     );
   }
 };
+
+exports._requireIdentitySession = requireIdentitySession;
