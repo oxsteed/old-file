@@ -91,22 +91,35 @@ test('fails closed and cancels the order when Stripe omits the client secret', a
 });
 
 test('rejects a reusable marketplace payment row without a client secret', async () => {
-  mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: 'cart-1' }] }) // cart
-    .mockResolvedValueOnce({ rows: [{
-      product_id: 'product-1', price_cents: 2500, quantity: 1, quantity_available: 3,
-      affiliate_url: null, business_product_id: null, source_business_id: null,
-    }] }) // items
-    .mockResolvedValueOnce({ rows: [] }) // advisory lock
-    .mockResolvedValueOnce({ rows: [{ id: 79, payment_intent_id: 'pi-replay', client_secret: null }] }); // reusable order
+  const cancel = jest.fn().mockResolvedValue({ id: 'pi-replay', status: 'canceled' });
+  const previousCancel = stripeMock.paymentIntents.cancel;
+  stripeMock.paymentIntents.cancel = cancel;
+  try {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'cart-1' }] }) // cart
+      .mockResolvedValueOnce({ rows: [{
+        product_id: 'product-1', price_cents: 2500, quantity: 1, quantity_available: 3,
+        affiliate_url: null, business_product_id: null, source_business_id: null,
+      }] }) // items
+      .mockResolvedValueOnce({ rows: [] }) // advisory lock
+      .mockResolvedValueOnce({ rows: [{ id: 79, payment_intent_id: 'pi-replay', client_secret: null }] }) // reusable order
+      .mockResolvedValueOnce({ rows: [] }) // retire transaction
+      .mockResolvedValueOnce({ rows: [] }); // cancel local order
 
-  const response = res();
-  await controller.createPaymentIntent({
-    user: { id: 'customer-1' },
-    body: { cartId: 'cart-1', email: 'customer@example.com' },
-  }, response);
+    const response = res();
+    await controller.createPaymentIntent({
+      user: { id: 'customer-1' },
+      body: { cartId: 'cart-1', email: 'customer@example.com' },
+    }, response);
 
-  expect(response.statusCode).toBe(503);
-  expect(response.body).toEqual(expect.objectContaining({ code: 'payment_intent_unavailable' }));
-  expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(503);
+    expect(response.body).toEqual(expect.objectContaining({ code: 'payment_intent_unavailable' }));
+    expect(cancel).toHaveBeenCalledWith('pi-replay');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE marketplace_transactions/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE marketplace_orders/.test(sql))).toBe(true);
+    expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+  } finally {
+    if (previousCancel) stripeMock.paymentIntents.cancel = previousCancel;
+    else delete stripeMock.paymentIntents.cancel;
+  }
 });

@@ -195,6 +195,25 @@ async function createPaymentIntent(req, res) {
     });
     if (reuse) {
       if (!reuse.payment_intent_id || !reuse.client_secret) {
+        if (reuse.payment_intent_id && typeof stripe?.paymentIntents?.cancel === 'function') {
+          await stripe.paymentIntents.cancel(reuse.payment_intent_id).catch((cancelError) => logger.warn('Failed to cancel unusable marketplace replay intent', {
+            paymentIntentId: reuse.payment_intent_id,
+            error: cancelError.message,
+          }));
+        }
+        await pool.query(
+          `UPDATE marketplace_transactions
+              SET status = 'canceled', updated_at = CURRENT_TIMESTAMP
+            WHERE order_id = $1 AND payment_intent_id = $2
+              AND status IN ('requires_payment_method', 'requires_confirmation', 'requires_action')`,
+          [reuse.id, reuse.payment_intent_id],
+        );
+        await pool.query(
+          `UPDATE marketplace_orders
+              SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1 AND status = 'pending'`,
+          [reuse.id],
+        );
         return sendError(
           res,
           503,
