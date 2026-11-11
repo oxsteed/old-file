@@ -80,7 +80,21 @@ class BackupMonitor {
     } finally { client.release(); }
   }
   async _upsert(client, event, outcomes = []) {
-    const { rows } = await client.query('SELECT details, success FROM backup_log WHERE backup_id = $1 FOR UPDATE', [event.backupId]);
+    // Select a canonical row by primary key instead of relying on the
+    // backup_id unique index. Restored databases can contain legacy duplicate
+    // evidence rows even though the current schema declares that index
+    // unique; updating the newest row lets ingestion recover without deleting
+    // historical evidence or attempting an insert that trips the corrupted
+    // uniqueness state.
+    const { rows } = await client.query(
+      `SELECT id, details, success
+         FROM backup_log
+        WHERE backup_id = $1
+        ORDER BY created_at DESC NULLS LAST, id DESC
+        LIMIT 1
+        FOR UPDATE`,
+      [event.backupId],
+    );
     const previous = rows[0];
     if (previous) {
       const oldTime = previous.details?.observedAt || previous.details?.completedAt;
@@ -93,12 +107,23 @@ class BackupMonitor {
         throw new Error('Conflicting evidence for the same observation');
       }
     }
-    await client.query(
-      `INSERT INTO backup_log (backup_id, success, details, created_at)
-       VALUES ($1, $2, $3::jsonb, $4::timestamptz AT TIME ZONE 'UTC')
-       ON CONFLICT (backup_id) DO UPDATE SET success = EXCLUDED.success,
-         details = EXCLUDED.details, created_at = EXCLUDED.created_at`,
-      [event.backupId, event.success, JSON.stringify(event.details), event.timestamp]);
+    if (previous) {
+      await client.query(
+        `UPDATE backup_log
+            SET success = $2, details = $3::jsonb,
+                created_at = $4::timestamptz AT TIME ZONE 'UTC'
+          WHERE id = $1`,
+        [previous.id, event.success, JSON.stringify(event.details), event.timestamp],
+      );
+    } else {
+      await client.query(
+        `INSERT INTO backup_log (backup_id, success, details, created_at)
+         VALUES ($1, $2, $3::jsonb, $4::timestamptz AT TIME ZONE 'UTC')
+         ON CONFLICT (backup_id) DO UPDATE SET success = EXCLUDED.success,
+           details = EXCLUDED.details, created_at = EXCLUDED.created_at`,
+        [event.backupId, event.success, JSON.stringify(event.details), event.timestamp],
+      );
+    }
     if (!previous || previous.success !== event.success || previous.details?.state !== event.details.state) {
       if (event.details.eventType === 'backup' && !['running', 'pending'].includes(event.details.state)
         || event.details.eventType === 'backup_source' && !event.success) outcomes.push(event);

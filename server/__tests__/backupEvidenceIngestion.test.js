@@ -28,10 +28,21 @@ afterEach(() => clock.mockRestore());
 // Stateful persistence mock: SQL equality and rollback failures remain covered explicitly.
 function storage() {
   const rows = new Map();
+  let nextId = 1;
   mockQuery.mockImplementation(async (sql, values) => {
+    if (sql.startsWith('SELECT id, details')) return { rows: rows.has(values[0]) ? [rows.get(values[0])] : [] };
     if (sql.startsWith('SELECT details') || sql.startsWith('SELECT success')) return { rows: rows.has(values[0]) ? [rows.get(values[0])] : [] };
+    if (sql.startsWith('UPDATE backup_log')) {
+      const existing = [...rows.values()].find(row => row.id === values[0]);
+      if (existing) {
+        existing.success = values[1];
+        existing.details = JSON.parse(values[2]);
+        existing.created_at = values[3];
+      }
+      return { rows: [] };
+    }
     if (sql.startsWith('INSERT INTO backup_log')) {
-      rows.set(values[0], { success: values[1], details: JSON.parse(values[2]), created_at: values[3] });
+      rows.set(values[0], { id: nextId++, success: values[1], details: JSON.parse(values[2]), created_at: values[3] });
       return { rows: [{ backup_id: values[0] }] };
     }
     return { rows: [] };
@@ -51,6 +62,22 @@ test('older observation cannot regress deletion or upload evidence', async () =>
   await monitor.ingestCoolifyReport(newer); await monitor.ingestCoolifyReport(report());
   expect(rows.get('coolify:execution-1').details.offsite).toBe(false);
   expect(rows.get(SOURCE_ID).details.observedAt).toBe(newer.observedAt);
+});
+test('refreshes the newest row when legacy duplicate evidence exists', async () => {
+  const rows = storage();
+  await monitor.ingestCoolifyReport(report());
+  const duplicate = { ...rows.get('coolify:execution-1'), id: 99,
+    details: { ...rows.get('coolify:execution-1').details, observedAt: '2026-09-30T11:58:00.000Z' } };
+  rows.set('coolify:execution-1:legacy-duplicate', duplicate);
+  rows.set('coolify:execution-1', duplicate);
+
+  const refreshed = report();
+  refreshed.observedAt = '2026-09-30T11:59:30.000Z';
+  await monitor.ingestCoolifyReport(refreshed);
+
+  expect(rows.get('coolify:execution-1').id).toBe(99);
+  expect(rows.get('coolify:execution-1').details.observedAt).toBe('2026-09-30T11:59:30.000Z');
+  expect(mockQuery.mock.calls.some(([sql]) => sql.startsWith('UPDATE backup_log'))).toBe(true);
 });
 test('same observation with contradictory evidence rolls back', async () => {
   storage(); await monitor.ingestCoolifyReport(report());
