@@ -35,3 +35,13 @@ test('conversation inbox exposes server pagination instead of silently capping a
   assert.match(source, /adminMessages\.showingCount/);
   assert.match(source, /new Map\(previous\.map/);
 });
+
+test('admin message sends keep a stable retry identity and failed draft', () => {
+  assert.match(source, /createMessageRequestId/);
+  assert.match(source, /'Idempotency-Key': clientMessageId/);
+  assert.match(source, /data:\s*\{ content, clientMessageId \}/);
+  assert.match(source, /pendingSendRef\.current/);
+  assert.match(source, /setMessage\(current => current \|\| content\)/);
+  assert.match(source, /send_error/);
+  assert.doesNotMatch(source, /setThread\(prev => prev\.filter\(m => m\.id === optimisticId\)\)/);
+});
