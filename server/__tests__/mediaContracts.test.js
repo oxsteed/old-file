@@ -421,6 +421,7 @@ describe('OxSteed Media launch contracts', () => {
     const res = resMock();
     await media.searchMediaEntities({ query: { type: 'tool_rental', q: 'saw' } }, res);
     expect(pool.query.mock.calls[0][0]).toMatch(/tool_rentals/);
+    expect(pool.query.mock.calls[0][0]).toMatch(/NOT tr\.moderation_hold/);
     expect(res.json).toHaveBeenCalledWith({
       entities: [{ target_id: '12', name: 'Cordless saw', price_snapshot_cents: 2500, link_type: 'tool_rental', label: 'Cordless saw' }],
     });
