@@ -129,9 +129,13 @@ and token cannot be read back from GitHub, so their exact stale target is unknow
 Do not treat a green build or an already-healthy website as proof this webhook is
 fixed.
 
-## Actions deployment configuration
+## Historical Actions deployment path (retired)
 
-The workflow uses two GitHub Actions secrets:
+The following Actions-controlled deployment path is retained as historical
+context only. It is not part of the current production workflow and must not
+be re-enabled alongside Coolify's native push deployment.
+
+The former workflow used two GitHub Actions secrets:
 
 - `COOLIFY_WEBHOOK_URL`: the reachable HTTPS URL for the live instance, with path
   `/api/v1/deploy?uuid=<application-uuid>`. Use the application's webhook URL, not
@@ -158,10 +162,11 @@ when Coolify finishes the workflow's commit. Failed/cancelled deployments, bad
 credentials, wrong targets, and timeouts remain explicit failures. Requests do
 not follow redirects with credentials and errors omit server response bodies.
 
-The existing public readiness, API health, and catalog checks run after successful
-deployment completion. The production deployment job serializes Actions runs.
+Those checks belonged to the retired Actions deployment job. Current releases
+are verified from the Coolify deployment record and the public `/ready` release
+identity after the native webhook rollout completes.
 
-## Complete the integration
+## Historical completion checklist
 
 1. Confirm the live application, team, branch, and approved API access route.
 2. Create the restricted token and replace the two Actions secrets with the live
@@ -172,8 +177,9 @@ deployment completion. The production deployment job serializes Actions runs.
 4. Run a controlled deployment after CI passes; verify the queued deployment,
    commit identity, `/ready`, and the public site before calling the repair done.
 
-The repository changes do not rotate credentials, disable the current automatic
-deployment, or change the default branch. Those integration changes remain pending.
+This checklist is historical. The current repository configuration already uses
+Coolify as the deployment owner; do not create a second Actions deployment
+controller or reintroduce the retired web resource.
 
 ## Repository verification for this repair
 
