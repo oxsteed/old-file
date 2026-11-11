@@ -21,6 +21,7 @@
 const pool   = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/apiError');
+const { liftExpiredSuspension } = require('../utils/suspension');
 
 /**
  * Returns Express middleware that checks whether the authenticated user
@@ -64,11 +65,15 @@ function checkRestrictions(restrictionType) {
               suspendedUntil: u.suspended_until || null
             });
           }
-          // Suspension expired — clear it (non-blocking)
-          pool.query(
-            `UPDATE users SET is_suspended=false, suspended_until=NULL, suspended_reason=NULL WHERE id=$1`,
-            [req.user.id]
-          ).catch(() => {});
+          // Suspension expired — clear both suspension and active flags.
+          // Admin suspensions set is_active=false, so clearing only
+          // is_suspended would leave the account permanently deactivated.
+          try {
+            await liftExpiredSuspension(pool, { id: req.user.id, ...u });
+          } catch (err) {
+            logger.error('Expired restriction suspension lift failed', { userId: req.user.id, error: err.message });
+            return res.status(503).json({ success: false, error: 'Authentication temporarily unavailable', code: 'suspension_state_unavailable', retryable: true });
+          }
         }
       }
 

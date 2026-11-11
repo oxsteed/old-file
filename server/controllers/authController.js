@@ -33,6 +33,7 @@ const { recordLoginAgreement } = require('../services/loginAgreementService'); /
 const modeRoleUtil = require('../utils/modeRole');
 const { readDeviceFingerprint } = require('../utils/deviceFingerprint'); // Review P2-6-F12
 const { normalizeStoredPublicUrl } = require('../utils/storage');
+const { liftExpiredSuspension } = require('../utils/suspension');
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -325,6 +326,8 @@ async function login(req, res, next) {
     const { rows } = await pool.query(
       `SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.password_hash, u.role, u.is_active,
               u.email_verified, u.is_verified,
+              COALESCE(u.is_suspended, FALSE) AS is_suspended,
+              u.suspended_until,
               u.onboarding_status, u.onboarding_completed,
               u.contact_completed, u.profile_completed,
               u.tier_selected, u.w9_completed, u.terms_accepted,
@@ -353,6 +356,14 @@ async function login(req, res, next) {
     // Return the same generic 401 as for an unknown email or wrong
     // password. The 429 lockout below is kept: lockout behavior is
     // standard and does not identify the account state.
+    if (user.is_suspended && user.suspended_until && new Date(user.suspended_until) <= new Date()) {
+      try {
+        await liftExpiredSuspension(pool, user);
+      } catch (err) {
+        logger.error('Expired login suspension lift failed', { userId: user.id, error: err.message });
+        throw new AppError('Authentication temporarily unavailable', 503, 'suspension_state_unavailable');
+      }
+    }
     if (!user.is_active) {
       throw new AppError('Invalid email or password', 401, 'auth_failed');
     }
@@ -1093,6 +1104,9 @@ async function refreshToken(req, res, next) {
     // has been deactivated or while an active suspension is in effect. Keep
     // the default values permissive for older test fixtures and installations
     // that do not return the optional account-state columns.
+    if (user.is_suspended && user.suspended_until && new Date(user.suspended_until) <= new Date()) {
+      await liftExpiredSuspension(pool, user);
+    }
     if (user.is_active === false) {
       throw new AppError('Your account is inactive. Please contact support.', 403, 'account_inactive');
     }
