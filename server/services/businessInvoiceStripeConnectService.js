@@ -22,6 +22,24 @@ function normalizeAccountId(value) {
   return id || null;
 }
 
+function usablePaymentIntent(intent) {
+  const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
+  const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
+  if (!id || !clientSecret) {
+    throw new AppError('Stripe returned an unusable invoice payment session', 502, 'invoice_payment_intent_unavailable');
+  }
+  return { id, clientSecret };
+}
+
+async function cancelPaymentIntentQuietly(intentId) {
+  if (!intentId || typeof stripe?.paymentIntents?.cancel !== 'function') return;
+  try {
+    await stripe.paymentIntents.cancel(intentId);
+  } catch {
+    // The intent may already be canceled, captured, or otherwise uncancelable.
+  }
+}
+
 function connectReady({ accountId, chargesEnabled, accountStatus }) {
   const status = String(accountStatus || '').toLowerCase();
   if (status === 'restricted' || status === 'rejected') return false;
@@ -354,7 +372,8 @@ async function createOrReuseInvoicePaymentIntent({
       const sameDestination = dest === connect.accountId;
       const sameAmount = Number(existing.amount) === balanceCents;
       const reusable = !['succeeded', 'canceled'].includes(existing.status);
-      if (reusable && sameDestination && sameAmount) {
+      const hasClientSecret = typeof existing.client_secret === 'string' && existing.client_secret.trim();
+      if (reusable && sameDestination && sameAmount && existing.id && hasClientSecret) {
         return {
           paymentIntent: existing,
           connect,
@@ -383,20 +402,30 @@ async function createOrReuseInvoicePaymentIntent({
     idempotencyKey: key,
   });
 
-  const paymentIntent = await stripe.paymentIntents.create(params, {
-    idempotencyKey: `business-invoice-pi:${invoice.id}:${key}`,
-  });
-
-  await pool.query(
-    `UPDATE business_invoices
-        SET stripe_payment_intent_id = $2,
-            stripe_connect_account_id = $3,
-            updated_at = NOW()
-      WHERE id = $1`,
-    [invoice.id, paymentIntent.id, connect.accountId],
-  );
-
-  return { paymentIntent, connect, balanceCents, reused: false };
+  let paymentIntent = null;
+  try {
+    paymentIntent = await stripe.paymentIntents.create(params, {
+      idempotencyKey: `business-invoice-pi:${invoice.id}:${key}`,
+    });
+    const usable = usablePaymentIntent(paymentIntent);
+    const { rows } = await pool.query(
+      `UPDATE business_invoices
+          SET stripe_payment_intent_id = $2,
+              stripe_connect_account_id = $3,
+              updated_at = NOW()
+        WHERE id = $1
+        RETURNING id`,
+      [invoice.id, usable.id, connect.accountId],
+    );
+    if (!rows[0]) throw new Error('Invoice was not linked to its payment intent');
+    paymentIntent = { ...paymentIntent, id: usable.id, client_secret: usable.clientSecret };
+    return { paymentIntent, connect, balanceCents, reused: false };
+  } catch (err) {
+    if (paymentIntent?.id) {
+      await cancelPaymentIntentQuietly(paymentIntent.id);
+    }
+    throw err;
+  }
 }
 
 module.exports = {

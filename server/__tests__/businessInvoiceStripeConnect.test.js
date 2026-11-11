@@ -8,11 +8,15 @@ const {
   assertPaymentIntentMatchesInvoice,
   evaluateInvoiceCardEligibility,
   applyInvoiceCardPayment,
+  createOrReuseInvoicePaymentIntent,
 } = require('../services/businessInvoiceStripeConnectService');
+const stripe = require('stripe').__mockInstance;
 
 beforeEach(() => {
   resetMocks();
   delete process.env.BUSINESS_INVOICE_STRIPE_CONNECT_ENABLED;
+  stripe.paymentIntents.create.mockReset();
+  stripe.paymentIntents.cancel = jest.fn().mockResolvedValue({ status: 'canceled' });
 });
 
 describe('business invoice Stripe Connect', () => {
@@ -141,5 +145,23 @@ describe('business invoice Stripe Connect', () => {
     expect(updated.status).toBe('paid');
     const updateCall = mockQuery.mock.calls[1];
     expect(updateCall[1][0]).toBe(100);
+  });
+
+  test('fails closed and cancels when Stripe returns an unusable invoice intent', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{
+        stripe_account_id: 'acct_invoice', charges_enabled: true, payouts_enabled: true, onboarding_complete: true,
+      }] })
+      .mockResolvedValueOnce({ rows: [] }); // invoice link is never reached
+    stripe.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_invoice_missing_secret', client_secret: null });
+
+    await expect(createOrReuseInvoicePaymentIntent({
+      invoice: { id: 12, user_id: 'issuer', status: 'sent', total: '25.00', amount_paid: '0', currency_code: 'USD' },
+      payerUserId: 'payer-1',
+      idempotencyKey: 'invoice-key-1',
+    })).rejects.toMatchObject({ code: 'invoice_payment_intent_unavailable', statusCode: 502 });
+
+    expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith('pi_invoice_missing_secret');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE business_invoices/.test(sql))).toBe(false);
   });
 });
