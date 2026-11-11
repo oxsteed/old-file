@@ -117,7 +117,7 @@ exports.getAvailabilityBlocks = async (req, res, next) => {
     const profile = listed[0];
     if (!profile
         || profile.is_active === false
-        || profile.email_verified === false
+        || profile.email_verified !== true
         || profile.deleted_at
         || profile.is_listed === false
         || profile.is_hidden_by_admin === true) {

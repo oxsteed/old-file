@@ -37,6 +37,7 @@ describe('public helper availability visibility', () => {
     const { res, next } = await invoke({
       id: HELPER_ID,
       is_active: true,
+      email_verified: true,
       deleted_at: null,
       is_listed: true,
       is_hidden_by_admin: true,
@@ -50,6 +51,7 @@ describe('public helper availability visibility', () => {
     const { res, next } = await invoke({
       id: HELPER_ID,
       is_active: true,
+      email_verified: true,
       deleted_at: null,
       is_listed: true,
       is_hidden_by_admin: false,
