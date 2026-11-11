@@ -255,7 +255,7 @@ export function BusinessServicesTab({ businessId }) {
               <input
                 type="checkbox"
                 checked={formData.allow_online_booking}
-                onChange={(e) => setFormData({ ...formData, allow_online_booking: e.target.checked })}
+                onChange={(e) => setFormData({ ...formData, allow_online_booking: e.target.checked })} data-track="ui.b1627ffe61.7"
               />{' '}
               {t('businessServices.fieldOnlineBooking')}
             </label>

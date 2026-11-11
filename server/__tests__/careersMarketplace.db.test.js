@@ -162,11 +162,11 @@ ddescribe('careers marketplace (real database)', () => {
     ids.admin = await newUser('admin', { role: 'super_admin' });
     ids.admin2 = await newUser('admin2', { role: 'super_admin' });
     const { rows: [mk] } = await pool.query(
-      `INSERT INTO businesses (user_id, business_name, is_business_verified, profile_slug) VALUES ($1, 'Market Grill', TRUE, $2) RETURNING id`,
+      `INSERT INTO businesses (user_id, business_name, is_business_verified, is_active, is_listed, setup_status, business_kind, profile_slug) VALUES ($1, 'Market Grill', TRUE, TRUE, TRUE, 'active', 'restaurant', $2) RETURNING id`,
       [ids.owner, `market-grill-${crypto.randomUUID().slice(0, 8)}`]
     );
     ids.biz = Number(mk.id);
-    ({ rows: [{ id: ids.agency }] } = await pool.query(`INSERT INTO businesses (user_id, business_name, is_business_verified) VALUES ($1, 'Staffing Pros', TRUE) RETURNING id`, [ids.agencyOwner]));
+    ({ rows: [{ id: ids.agency }] } = await pool.query(`INSERT INTO businesses (user_id, business_name, is_business_verified, is_active, is_listed, setup_status, business_kind) VALUES ($1, 'Staffing Pros', TRUE, TRUE, TRUE, 'active', 'service') RETURNING id`, [ids.agencyOwner]));
     ids.agency = Number(ids.agency);
     ({ rows: [{ id: ids.restaurant }] } = await pool.query(`INSERT INTO food_restaurants (business_id, owner_user_id, display_name) VALUES ($1, $2, 'Market Grill') RETURNING id`, [ids.biz, ids.owner]));
     ({ rows: [{ id: ids.loc1 }] } = await pool.query(`INSERT INTO restaurant_locations (restaurant_id, name) VALUES ($1, 'Downtown') RETURNING id`, [ids.restaurant]));

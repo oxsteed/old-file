@@ -440,8 +440,30 @@ async function saveOpening(db, { access, user, body, existing = null, employerTy
   }
   // K6: only verified businesses publish.
   if (requested === 'open' && employerType === 'business') {
-    const { rows: [biz] } = await db.query('SELECT is_business_verified FROM businesses WHERE id = $1', [businessId]);
+    const { rows: [biz] } = await db.query(
+      `SELECT b.is_business_verified, b.deleted_at, b.is_active, b.is_listed,
+              b.is_hidden_by_admin, b.setup_status,
+              u.deleted_at AS owner_deleted_at, u.is_active AS owner_is_active,
+              u.email_verified AS owner_email_verified,
+              u.onboarding_completed AS owner_onboarding_completed
+         FROM businesses b
+         LEFT JOIN users u ON u.id = b.user_id
+        WHERE b.id = $1`,
+      [businessId]
+    );
     if (!biz?.is_business_verified) throw new AppError('Verify your business before publishing openings', 403, 'business_not_verified');
+    const publiclyReady = biz.deleted_at == null
+      && biz.is_active === true
+      && biz.is_listed === true
+      && biz.is_hidden_by_admin !== true
+      && (biz.setup_status ?? 'active') === 'active'
+      && biz.owner_deleted_at == null
+      && biz.owner_is_active === true
+      && biz.owner_email_verified === true
+      && biz.owner_onboarding_completed === true;
+    if (!publiclyReady) {
+      throw new AppError('Complete your business setup before publishing openings', 403, 'business_not_public');
+    }
   }
 
   const slugSource = value.title;
