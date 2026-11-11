@@ -360,8 +360,24 @@ export default function SuperDashboard() {
         </section>
       )}
 
+      {!isSuper && (
+        <section>
+          <SectionHeading>{t('superDashboard.jobsActivity')}</SectionHeading>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard label={t('superDashboard.statOpenJobs')} value={s?.open_jobs ?? null} icon={Briefcase} color="text-yellow-600 dark:text-yellow-400" href="/admin/jobs?status=published" />
+            <StatCard label={t('superDashboard.statActiveJobs')} value={s?.active_jobs ?? null} icon={Activity} color="text-orange-600 dark:text-orange-400" href="/admin/jobs?status=in_progress" />
+            <StatCard label={t('superDashboard.statPendingReports')} value={s?.pending_reports ?? null} icon={Flag} color="text-yellow-600 dark:text-yellow-400" href="/admin/reports" />
+            <StatCard label={t('superDashboard.statOpenDisputes')} value={s?.open_disputes ?? null} icon={AlertTriangle} color="text-red-600 dark:text-red-400" href="/admin/disputes" />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+            <StatCard label={t('superDashboard.statNewUsers', { period: '7d' })} value={s?.new_users_7d ?? null} icon={TrendingUp} color="text-emerald-600 dark:text-emerald-400" />
+            <StatCard label={t('superDashboard.statNewJobs', { period: '7d' })} value={s?.new_jobs_7d ?? null} icon={Briefcase} color="text-blue-600 dark:text-blue-400" />
+          </div>
+        </section>
+      )}
+
       {/* ── User health ─────────────────────────────────────────────────── */}
-      <section>
+      {isSuper && (<section>
         <SectionHeading>{t('superDashboard.usersSection')}</SectionHeading>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard label={t('superDashboard.statTotalUsers')}    value={s?.total_users     ?? null} icon={Users}     color="text-blue-600 dark:text-blue-400" />
@@ -383,10 +399,10 @@ export default function SuperDashboard() {
           <StatCard label={t('superDashboard.statUnverifiedHelpers')}  value={s?.unverified_helpers ?? null} icon={UserCheck} color="text-yellow-600 dark:text-yellow-400" href="/admin/users?role=helper&verified=false" />
           <StatCard label={t('superDashboard.statSuspendedBanned')}  value={s?.suspended_users    ?? null} icon={UserX}   color="text-red-600 dark:text-red-400" href="/admin/users?status=banned" />
         </div>
-      </section>
+      </section>)}
 
       {/* ── Jobs & Activity ─────────────────────────────────────────────── */}
-      <section>
+      {isSuper && (<section>
         <SectionHeading>{t('superDashboard.jobsActivity')}</SectionHeading>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard label={t('superDashboard.statOpenJobs')}     value={s?.open_jobs      ?? null} icon={Briefcase} color="text-yellow-600 dark:text-yellow-400" href="/admin/jobs?status=published" />
@@ -408,10 +424,10 @@ export default function SuperDashboard() {
           <StatCard label={t('superDashboard.statAvgBids')}   value={s?.avg_bids_per_job != null ? String(s.avg_bids_per_job) : null} icon={BarChart2}  color="text-indigo-600 dark:text-indigo-400" />
           <StatCard label={t('superDashboard.statCompletionRate')} value={s?.completion_rate  ?? null} format="percent" href={analyticsEvidenceHref('job_completion_rate_pct', period)}                                    icon={TrendingUp} color="text-emerald-600 dark:text-emerald-400" />
         </div>
-      </section>
+      </section>)}
 
       {/* ── Support & Moderation ────────────────────────────────────────── */}
-      <section>
+      {isSuper && (<section>
         <SectionHeading>{t('superDashboard.supportModeration')}</SectionHeading>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard label={t('superDashboard.statOpenTickets')} value={s?.open_support_tickets ?? null} icon={MessageSquare} color="text-indigo-600 dark:text-indigo-400" href="/admin/support" />
@@ -419,7 +435,7 @@ export default function SuperDashboard() {
           <StatCard label={t('superDashboard.statActiveSubs')}  value={s?.active_subscriptions ?? null} icon={CreditCard}    color="text-purple-600 dark:text-purple-400" />
           <StatCard label={t('superDashboard.statPendingPayouts')}   value={s?.pending_payouts ? Math.round(s.pending_payouts) * 100 : null} format="currency" icon={DollarSign} color="text-orange-600 dark:text-orange-400" />
         </div>
-      </section>
+      </section>)}
 
       {/* ── Platform health ─────────────────────────────────────────────── */}
       {isSuper && (
