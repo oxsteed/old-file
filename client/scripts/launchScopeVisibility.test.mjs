@@ -61,6 +61,14 @@ test('Vortex defaults on when the optional build variable is absent', () => {
   assert.equal(LAUNCH_DEFAULTS.vortexWorkspaceEntry, true);
 });
 
+test('Vortex build-flag parsing documents the server-compatible false values', async () => {
+  const source = await import('node:fs/promises');
+  const launchScope = await source.readFile(new URL('../src/utils/launchScope.js', import.meta.url), 'utf8');
+  for (const value of ['0', 'false', 'no', 'n', 'off']) {
+    assert.match(launchScope, new RegExp(`['\"]${value}['\"]`));
+  }
+});
+
 // Review P3-7-F14: /orders/:id must reach the router's canonical redirect
 // (/food/orders/:id), not bounce to /orders via the launch gate.
 test('order detail paths are not rewritten to the order list', () => {

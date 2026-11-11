@@ -1,7 +1,8 @@
 // The server defaults VORTEX_ENABLED on. Keep the client fail-open when the
 // optional boot visibility request is unavailable so a missing build-time
 // variable cannot hide a live API surface.
-const VORTEX_CLIENT_ENABLED = String(import.meta.env?.VITE_VORTEX_ENABLED ?? '').trim().toLowerCase() !== 'false';
+const VORTEX_BUILD_FLAG = String(import.meta.env?.VITE_VORTEX_ENABLED ?? '').trim().toLowerCase();
+const VORTEX_CLIENT_ENABLED = !['0', 'false', 'no', 'n', 'off'].includes(VORTEX_BUILD_FLAG);
 
 // Central launch-scope policy.
 //
