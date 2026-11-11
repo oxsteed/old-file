@@ -73,6 +73,8 @@ async function getCheckoutSession(req, res) {
 }
 
 async function createPaymentIntent(req, res) {
+  let order = null;
+  let paymentIntent = null;
   try {
     validateStripe();
     const { cartId, email, shippingAddress, discountCode } = req.body;
@@ -191,7 +193,7 @@ async function createPaymentIntent(req, res) {
     }
 
     // Create order and payment intent in transaction
-    const order = await withTransaction(pool, async (client) => {
+    order = await withTransaction(pool, async (client) => {
       // Create order
       const orderResult = await client.query(
         `INSERT INTO marketplace_orders
@@ -217,7 +219,7 @@ async function createPaymentIntent(req, res) {
     });
 
     // Create Stripe PaymentIntent
-    const paymentIntent = await stripe.paymentIntents.create({
+    paymentIntent = await stripe.paymentIntents.create({
       amount: total,
       currency: 'usd',
       receipt_email: email,
@@ -248,6 +250,32 @@ async function createPaymentIntent(req, res) {
       }
     });
   } catch (error) {
+    // The order is created before Stripe because the deterministic idempotency
+    // key is derived from its id. If Stripe succeeds but recording the local
+    // transaction fails, compensate the external intent and close the local
+    // order so retries cannot strand a chargeable, ownerless payment.
+    if (paymentIntent?.id && typeof stripe?.paymentIntents?.cancel === 'function') {
+      try {
+        await stripe.paymentIntents.cancel(paymentIntent.id);
+      } catch (cancelError) {
+        logger.error('Failed to cancel orphaned marketplace PaymentIntent', {
+          orderId: order?.id,
+          paymentIntentId: paymentIntent.id,
+          error: cancelError.message,
+        });
+      }
+    }
+    if (order?.id) {
+      await pool.query(
+        `UPDATE marketplace_orders
+            SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1 AND status = 'pending'`,
+        [order.id]
+      ).catch((cancelError) => logger.error('Failed to cancel marketplace order after checkout error', {
+        orderId: order.id,
+        error: cancelError.message,
+      }));
+    }
     logger.error('Error creating payment intent', { error });
     sendError(res, 500, 'Failed to create payment intent');
   }
