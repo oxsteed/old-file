@@ -143,16 +143,9 @@ exports.getThread = async (req, res) => {
 
     const conversationId = convRows[0].id;
 
-    // Mark unread messages as read
-    await db.query(
-      `UPDATE messages SET is_read = TRUE, updated_at = NOW()
-       WHERE conversation_id = $1 AND sender_id != $2 AND is_read = FALSE`,
-      [conversationId, adminId]
-    );
-
     const { rows: msgs } = await db.query(
       `SELECT m.id, m.sender_id, m.content, m.message_type, m.is_read,
-              m.created_at, m.updated_at,
+              m.created_at, m.updated_at, m.read_at,
               u.first_name AS sender_first_name, u.last_name AS sender_last_name,
               u.role AS sender_role
        FROM messages m
@@ -162,6 +155,23 @@ exports.getThread = async (req, res) => {
        LIMIT $2 OFFSET $3`,
       [conversationId, limitN, offsetN]
     );
+
+    // A paginated thread must acknowledge only the messages that were
+    // actually delivered. Marking the whole conversation read here loses
+    // unread state for pages the operator has not viewed yet. read_at is the
+    // durable acknowledgement and updated_at preserves the existing message
+    // timestamp contract.
+    const visibleMessageIds = msgs.map((message) => message.id).filter(Boolean);
+    if (visibleMessageIds.length) {
+      await db.query(
+        `UPDATE messages
+            SET is_read = TRUE, read_at = COALESCE(read_at, NOW()), updated_at = NOW()
+          WHERE id = ANY($1::uuid[])
+            AND sender_id != $2
+            AND is_read = FALSE`,
+        [visibleMessageIds, adminId]
+      );
+    }
 
     const { rows: countRows } = await db.query(
       `SELECT COUNT(*) FROM messages WHERE conversation_id = $1`,
