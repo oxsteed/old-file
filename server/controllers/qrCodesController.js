@@ -65,6 +65,18 @@ function sendQrExportError(res, error, fallbackMessage = 'Unable to process QR e
   });
 }
 
+function requireQrExportCheckout(session) {
+  const id = typeof session?.id === 'string' ? session.id.trim() : '';
+  const url = typeof session?.url === 'string' ? session.url.trim() : '';
+  if (!id || !/^https:\/\//i.test(url)) {
+    const error = new Error('QR export checkout is temporarily unavailable');
+    error.statusCode = 503;
+    error.code = 'qr_export_checkout_unavailable';
+    throw error;
+  }
+  return { ...session, id, url };
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // CREATE - Generate and save a new QR code
 // ────────────────────────────────────────────────────────────────────────────
@@ -562,17 +574,19 @@ exports.createQrExportCheckout = async (req, res) => {
       try {
         const session = await stripe.checkout.sessions.retrieve(existing.rows[0].stripe_checkout_session_id);
         if (session.status === 'open') {
+          const checkout = requireQrExportCheckout(session);
           return res.json({
             success: true,
             data: {
-              url: session.url,
-              sessionId: session.id,
+              url: checkout.url,
+              sessionId: checkout.id,
               amountCents: QR_EXPORT_PRICE_CENTS,
               currency: QR_EXPORT_CURRENCY,
             },
           });
         }
       } catch (err) {
+        if (err?.code === 'qr_export_checkout_unavailable') throw err;
         logger.warn('qrCodesController.createQrExportCheckout: stale checkout session', {
           userId,
           qrKey,
@@ -581,7 +595,7 @@ exports.createQrExportCheckout = async (req, res) => {
       }
     }
 
-    const session = await stripe.checkout.sessions.create(
+    const session = requireQrExportCheckout(await stripe.checkout.sessions.create(
       {
         mode: 'payment',
         payment_method_types: ['card'],
@@ -609,7 +623,7 @@ exports.createQrExportCheckout = async (req, res) => {
       // Reuse the first attempt while it is open, but allow a fresh Stripe
       // session after an expired or cancelled attempt.
       { idempotencyKey: `qr-export:${userId}:${qrKey}:${existing.rows[0]?.stripe_checkout_session_id || 'new'}` }
-    );
+    ));
 
     await db.query(
       `INSERT INTO qr_export_purchases
