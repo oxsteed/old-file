@@ -10,7 +10,7 @@ const { getClientRequestId } = require('../utils/idempotency');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
 const { sendNotification } = require('../services/notificationService');
-const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { ensureLegacyConversationLink } = require('../services/businessConversationSync');
 
 function senderNameSql(alias = 'u') {
@@ -399,6 +399,7 @@ async function sendMessage(req, res, next) {
 }
 
 async function uploadAttachment(req, res, next) {
+  let uploadedKey = null;
   try {
     const { businessId, conversationId } = req.params;
     await assertBusinessAccess(req, businessId);
@@ -418,10 +419,15 @@ async function uploadAttachment(req, res, next) {
     }
 
     const { buffer, originalname, mimetype, size } = req.file;
-    const key = await uploadFile(buffer, 'business-message-attachments', originalname, mimetype);
-    const url = await getSignedDownloadUrl(key, 3600);
+    uploadedKey = await uploadFile(buffer, 'business-message-attachments', originalname, mimetype);
+    if (!uploadedKey) return next(new AppError('File storage unavailable', 503, 'storage_unavailable'));
+    const url = await getSignedDownloadUrl(uploadedKey, 3600);
+    if (!url) throw new AppError('File storage unavailable', 503, 'storage_unavailable');
+    const key = uploadedKey;
+    uploadedKey = null;
     return res.json({ url, key, name: originalname, size, mimeType: mimetype });
   } catch (error) {
+    if (uploadedKey) await deleteFile(uploadedKey).catch(() => {});
     if (error instanceof AppError) return next(error);
     logger.error('Error uploading business message attachment', {
       error: error.message,
