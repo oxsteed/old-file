@@ -9,6 +9,7 @@ jest.mock('../db', () => ({ query: jest.fn() }));
 jest.mock('../utils/storage', () => ({
   uploadFile: jest.fn(),
   getPublicUrl: jest.fn(),
+  deleteFile: jest.fn(),
 }));
 jest.mock('../utils/logger', () => ({
   info: jest.fn(),
@@ -87,4 +88,19 @@ test('successful storage upload persists the public URL, never a data: URL', asy
       expect(String(p || '')).not.toMatch(/^data:/);
     }
   }
+});
+
+test('failed profile persistence removes the newly uploaded object', async () => {
+  storage.uploadFile.mockResolvedValue('helper-covers/cover.jpg');
+  storage.getPublicUrl.mockReturnValue('https://cdn.example.com/helper-covers/cover.jpg');
+  storage.deleteFile.mockResolvedValue(undefined);
+  pool.query
+    .mockResolvedValueOnce({ rows: [{ cover_image_url: null }] })
+    .mockRejectedValueOnce(new Error('profile update unavailable'));
+
+  const res = mockRes();
+  await controller.uploadCoverImage(mockReq(), res);
+
+  expect(res.status).toHaveBeenCalledWith(500);
+  expect(storage.deleteFile).toHaveBeenCalledWith('helper-covers/cover.jpg');
 });
