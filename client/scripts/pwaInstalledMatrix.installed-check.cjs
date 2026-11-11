@@ -32,8 +32,11 @@ const profiles = [
     },
   },
 ];
-for (const profile of profiles)
-  test(
+for (const profile of profiles) {
+  const register = profile.engine === webkit && process.env.PWA_WEBKIT_AVAILABLE !== 'true'
+    ? test.skip
+    : test;
+  register(
     `installed-mode recovery matrix: ${profile.name}`,
     { timeout: 120000 },
     async () => {
@@ -293,3 +296,4 @@ for (const profile of profiles)
       }
     },
   );
+}

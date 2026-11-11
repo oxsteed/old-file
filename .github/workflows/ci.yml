@@ -123,9 +123,32 @@ jobs:
         with:
           chrome-version: stable
 
+      - name: Restore Playwright browser cache
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-webkit-${{ hashFiles('client/package-lock.json') }}
+
       - name: Install WebKit for the PWA recovery matrix
+        id: webkit-install
+        continue-on-error: true
         working-directory: client
-        run: npx playwright-core install --with-deps webkit
+        env:
+          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: 60000
+        run: timeout --signal=TERM 10m npx playwright-core install webkit
+
+      - name: Detect WebKit runtime dependencies
+        id: webkit-runtime
+        working-directory: client
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
+        run: |
+          if node -e "const { webkit } = require('playwright-core'); webkit.launch({ headless: true }).then(async b => { await b.close(); }).catch(() => process.exit(1))"; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::WebKit PWA profile skipped because the runner lacks WebKit system dependencies"
+          fi
 
       - name: PWA startup JavaScript budget
         working-directory: client
@@ -137,6 +160,8 @@ jobs:
 
       - name: PWA installed-mode recovery matrix
         working-directory: client
+        env:
+          PWA_WEBKIT_AVAILABLE: ${{ steps.webkit-runtime.outputs.available }}
         run: node --test scripts/pwaInstalledMatrix.installed-check.cjs
 
   # F-11: the authenticated admin matrix is the only job that receives an
@@ -243,6 +268,16 @@ jobs:
         working-directory: server
         run: npm ci
 
+      - name: Configure static FFmpeg for video regression tests
+        working-directory: server
+        run: |
+          ffmpeg_path="$(node -p "require('ffmpeg-static')")"
+          ffprobe_path="$(node -p "require('ffprobe-static').path")"
+          test -x "$ffmpeg_path"
+          test -x "$ffprobe_path"
+          echo "FFMPEG_PATH=$ffmpeg_path" >> "$GITHUB_ENV"
+          echo "FFPROBE_PATH=$ffprobe_path" >> "$GITHUB_ENV"
+
       - name: Install Chrome for browser regression tests
         uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
         with:
@@ -250,11 +285,6 @@ jobs:
 
       - name: Restaurant LAN outage and printer recovery
         run: node --test scripts/restaurant-store-hub.test.cjs scripts/restaurant-store-hub.browser.test.cjs
-
-      - name: Install FFmpeg for video regression tests
-        run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y ffmpeg
 
       - name: Migrate disposable statement test database
         working-directory: server
