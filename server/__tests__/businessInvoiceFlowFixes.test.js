@@ -24,6 +24,13 @@ function mockNext() {
 beforeEach(() => resetMocks());
 
 describe('business invoice flow fixes', () => {
+  test('invoice delivery excludes soft-deleted internal recipients', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('../controllers/businessInvoiceController'), 'utf8');
+    expect(src).toMatch(/SELECT id FROM users WHERE email = \$1 AND is_active = TRUE AND deleted_at IS NULL/);
+    expect((src.match(/SELECT id FROM users WHERE email = \$1 AND is_active = TRUE AND deleted_at IS NULL/g) || []).length).toBe(2);
+  });
+
   test('resolvePaymentDelta accumulates partial payments', () => {
     expect(resolvePaymentDelta('10', 100, 0)).toEqual({ value: 10 });
     expect(resolvePaymentDelta('15', 100, 10)).toEqual({ value: 15 });

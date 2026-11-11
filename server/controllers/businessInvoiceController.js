@@ -411,7 +411,7 @@ async function sendInvoice(req, res) {
     let isInternalUser = false;
     if (inv.client_email) {
       const { rows: [user] } = await client.query(
-        'SELECT id FROM users WHERE email = $1 AND is_active = TRUE',
+        'SELECT id FROM users WHERE email = $1 AND is_active = TRUE AND deleted_at IS NULL',
         [inv.client_email.toLowerCase()]
       );
 
@@ -738,7 +738,7 @@ async function sendHelperInvoice(req, res) {
     let isInternalUser = false;
     if (inv.client_email) {
       const { rows: [user] } = await client.query(
-        'SELECT id FROM users WHERE email = $1 AND is_active = TRUE',
+        'SELECT id FROM users WHERE email = $1 AND is_active = TRUE AND deleted_at IS NULL',
         [inv.client_email.toLowerCase()]
       );
 
