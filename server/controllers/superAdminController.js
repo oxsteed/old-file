@@ -4281,24 +4281,47 @@ exports.suspendUser = async (req, res) => {
     // account.
     await tokenRevocationService.revokeAllUserTokens(userId);
 
-    await db.query(
-      `UPDATE users
-       SET is_suspended = TRUE,
-           is_active    = FALSE,
-           suspended_until   = $1,
-           suspension_reason = $2,
-           suspended_reason  = $2,
-           suspended_by      = $3,
-           updated_at        = NOW()
-       WHERE id = $4`,
-      [suspendedUntil, reason.trim(), adminId, userId]
-    );
+    await withTransaction(db, async (client) => {
+      const { rowCount } = await client.query(
+        `UPDATE users
+         SET is_suspended = TRUE,
+             is_active    = FALSE,
+             suspended_until   = $1,
+             suspension_reason = $2,
+             suspended_reason  = $2,
+             suspended_by      = $3,
+             updated_at        = NOW()
+         WHERE id = $4`,
+        [suspendedUntil, reason.trim(), adminId, userId]
+      );
+      if (rowCount === 0) {
+        const err = new Error('User disappeared during suspension.');
+        err.code = 'user_state_changed';
+        throw err;
+      }
+
+      await logUserAction({
+        client,
+        adminId,
+        targetUserId: userId,
+        actionType: 'account_suspended',
+        notes: reason.trim(),
+        ipAddress: req.ip,
+        impersonatedBy: req.impersonatedBy || null,
+      });
+      await logAdminAction({
+        client,
+        adminId,
+        action: 'user_suspended',
+        targetType: 'user',
+        targetId: userId,
+        description: reason.trim(),
+        req,
+      });
+    }, 'admin_suspend_user');
 
     // Force-logout the user
     try { socketService.disconnectUserSockets(userId); } catch (_) {}
-
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_suspended', notes: reason.trim(), ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
-    await logAdminAction({ adminId, action: 'user_suspended', targetType: 'user', targetId: userId, description: reason.trim(), req });
 
     const untilText = suspendedUntil
       ? ` Your suspension is set to lift on ${suspendedUntil.toISOString()} (UTC), unless an administrator changes it.`

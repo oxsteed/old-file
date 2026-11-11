@@ -25,12 +25,13 @@ const tokenRevocationService = require('../services/tokenRevocationService');
 
 jest.mock('../services/auditService', () => ({
   logAdminAction: jest.fn(),
+  logUserAction: jest.fn(),
 }));
 jest.mock('../utils/businessOwnership', () => ({
   canAccessBusiness: jest.fn().mockResolvedValue(true),
 }));
 
-const { logAdminAction } = require('../services/auditService');
+const { logAdminAction, logUserAction } = require('../services/auditService');
 const { optionalAuth } = require('../middleware/auth');
 const { createChatAuthenticator } = require('../realtime/chatNamespace');
 const businessContentController = require('../controllers/businessContentController');
@@ -43,6 +44,7 @@ const sign = (payload) => jwt.sign({ typ: 'access', sid: 'test-session', ...payl
 beforeEach(() => {
   resetMocks();
   logAdminAction.mockReset();
+  logUserAction.mockReset();
   tokenRevocationService.isRevoked.mockResolvedValue(false);
   tokenRevocationService.revokeAllUserTokens.mockResolvedValue(undefined);
 });
@@ -132,6 +134,8 @@ describe('P2-1-F13 suspend revokes user tokens', () => {
     const suspendUpdate = mockQuery.mock.calls.find(([sql]) => /UPDATE users/.test(sql) && /is_suspended\s*=\s*TRUE/.test(sql));
     expect(suspendUpdate?.[0]).toMatch(/suspension_reason\s*=\s*\$2/);
     expect(suspendUpdate?.[0]).toMatch(/suspended_reason\s*=\s*\$2/);
+    expect(logUserAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object) }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object) }));
   });
 });
 
