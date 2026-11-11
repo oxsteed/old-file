@@ -6,6 +6,7 @@
  */
 
 const pool = require('../db');
+const { priceServiceBooking } = require('./checkoutPricing');
 const logger = require('../utils/logger');
 const socketService = require('./socketService');
 const bookingDeposits = require('./bookingDepositService');
@@ -674,7 +675,14 @@ async function confirmOrCreateBusinessAppointment(booking, helperId, { db = pool
     // accepted booking invisible to the business calendar.
     throw businessServiceMissingError();
   }
-  const priceCents = Number.isFinite(Number(service.base_price_cents)) ? Number(service.base_price_cents) : 0;
+  const basePriceCents = Number.isFinite(Number(service.base_price_cents)) ? Number(service.base_price_cents) : 0;
+  const priced = await priceServiceBooking({
+    businessId: booking.business_id,
+    serviceId: service.id,
+    basePriceCents,
+    customerId: booking.customer_id || null,
+    atTimeIso: slot.startDate.toISOString(),
+  });
 
   let customerName = booking.customer_name || null;
   let customerEmail = null;
@@ -720,8 +728,8 @@ async function confirmOrCreateBusinessAppointment(booking, helperId, { db = pool
       notes || null,
       slot.startDate,
       slot.endDate,
-      priceCents,
-      priceCents,
+      Number(priced.basePriceCents),
+      Number(priced.adjustedPriceCents),
     ],
   );
   const appt = rows[0];
