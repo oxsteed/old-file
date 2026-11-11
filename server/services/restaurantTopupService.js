@@ -593,7 +593,7 @@ async function getUserTopup({ userId, restaurantId, topupId }) {
 // credit's deterministic idempotency key plus the FOR UPDATE row lock make
 // duplicate webhooks converge on a single credit. NEVER credits on
 // failed/canceled.
-async function completeRestaurantTopupFromWebhook({ paymentIntentId }) {
+async function completeRestaurantTopupFromWebhook({ paymentIntentId, providerEvidence = null }) {
   let creditError = null;
   let topupId = null;
   const result = await withTransaction(pool, async (client) => {
@@ -607,6 +607,25 @@ async function completeRestaurantTopupFromWebhook({ paymentIntentId }) {
     if (topup.status === 'succeeded') return { outcome: 'duplicate', topupId };
     if (topup.status !== 'pending' && topup.status !== 'requires_attention') {
       return { outcome: 'ignored', reason: `status_${topup.status}`, topupId };
+    }
+
+    const currency = normalizeCurrency(topup.currency);
+    assertSupportedCreditCurrency(currency);
+    const amount = Number(topup.amount_cents);
+    if (providerEvidence) {
+      const providerAmount = Number(providerEvidence.amountCents);
+      const providerCurrency = typeof providerEvidence.currency === 'string'
+        ? providerEvidence.currency.toLowerCase()
+        : '';
+      if (!Number.isSafeInteger(providerAmount)
+          || providerAmount !== amount
+          || providerCurrency !== currency.toLowerCase()) {
+        throw new AppError(
+          'Stripe restaurant top-up does not match the local top-up record',
+          409,
+          'restaurant_topup_verification_failed',
+        );
+      }
     }
 
     // Eligibility re-check at credit time: an admin may have suspended the
@@ -642,10 +661,6 @@ async function completeRestaurantTopupFromWebhook({ paymentIntentId }) {
       });
       return { outcome: 'blocked_ineligible', topupId };
     }
-
-    const currency = normalizeCurrency(topup.currency);
-    assertSupportedCreditCurrency(currency);
-    const amount = Number(topup.amount_cents);
 
     // TOPUP_FEE_BPS = 0: no fee is taken. The wallet is credited the full
     // amount the customer paid. If the founder ever sets a fee, the fee
@@ -757,7 +772,13 @@ async function applyRestaurantTopupWebhookEvent({ type, object }) {
   switch (type) {
     case 'payment_intent.succeeded': {
       if (!metadata.restaurant_topup_id) return false;
-      await completeRestaurantTopupFromWebhook({ paymentIntentId: object.id });
+      await completeRestaurantTopupFromWebhook({
+        paymentIntentId: object.id,
+        providerEvidence: {
+          amountCents: object.amount_received ?? object.amount,
+          currency: object.currency,
+        },
+      });
       return true;
     }
     case 'payment_intent.payment_failed':

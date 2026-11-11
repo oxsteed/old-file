@@ -484,7 +484,10 @@ describe('completeCreditTopupFromWebhook', () => {
     stubQueries(completionHandlers());
     const handled = await topupService.applyCreditTopupWebhookEvent({
       type: 'payment_intent.succeeded',
-      object: { id: 'pi_topup_1', metadata: { oxsteed_credit_topup_id: TOPUP_ID } },
+      object: {
+        id: 'pi_topup_1', amount: 5000, currency: 'usd',
+        metadata: { oxsteed_credit_topup_id: TOPUP_ID },
+      },
     });
 
     expect(handled).toBe(true);
@@ -500,6 +503,21 @@ describe('completeCreditTopupFromWebhook', () => {
       action_url: '/oxsteed-credit',
       idempotencyKey: `credit-topup-receipt:${TOPUP_ID}`,
     });
+  });
+
+  test('webhook amount or currency mismatch cannot credit the wallet', async () => {
+    stubQueries([{
+      match: 'FROM oxsteed_credit_topups WHERE stripe_payment_intent_id',
+      rows: [{ ...baseTopupRow, stripe_payment_intent_id: 'pi_topup_1' }],
+    }]);
+    await expect(topupService.applyCreditTopupWebhookEvent({
+      type: 'payment_intent.succeeded',
+      object: {
+        id: 'pi_topup_1', amount: 4999, currency: 'eur',
+        metadata: { oxsteed_credit_topup_id: TOPUP_ID },
+      },
+    })).rejects.toMatchObject({ code: 'credit_topup_verification_failed' });
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO oxsteed_credit_transaction_entries'))).toBe(false);
   });
 });
 

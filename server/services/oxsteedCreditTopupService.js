@@ -349,7 +349,7 @@ async function getCustomerTopup({ customerId, topupId }) {
 // critical incident after commit, and rethrows so Stripe redelivers and the
 // journal post is retried (the deterministic journal idempotency key makes
 // the retry safe).
-async function completeCreditTopupFromWebhook({ paymentIntentId }) {
+async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidence = null }) {
   let journalError = null;
   let topupId = null;
   const result = await withTransaction(pool, async (client) => {
@@ -389,14 +389,30 @@ async function completeCreditTopupFromWebhook({ paymentIntentId }) {
       return { outcome: 'expired', topupId };
     }
 
+    const amount = Number(topup.amount_cents);
+    const currency = assertSupportedCreditCurrency(topup.currency_code);
+    if (providerEvidence) {
+      const providerAmount = Number(providerEvidence.amountCents);
+      const providerCurrency = typeof providerEvidence.currency === 'string'
+        ? providerEvidence.currency.toLowerCase()
+        : '';
+      if (!Number.isSafeInteger(providerAmount)
+          || providerAmount !== amount
+          || providerCurrency !== currency.toLowerCase()) {
+        throw new AppError(
+          'Stripe Credit top-up does not match the local top-up record',
+          409,
+          'credit_topup_verification_failed',
+        );
+      }
+    }
+
     // Webhook-driven completion of an already-initiated external event:
     // keep the rail-enabled gate but bypass the operator freeze, so
     // in-flight money that Stripe already moved keeps resolving. Blocking
     // this path would manufacture the missing-in-ledger condition the
     // external reconciliation exists to catch.
     await assertCreditRailEnabled(client, { bypassFreeze: true });
-    const amount = Number(topup.amount_cents);
-    const currency = assertSupportedCreditCurrency(topup.currency_code);
     await assertIssuanceCapacity(client, amount, currency, topup.customer_id);
     const wallet = await ensureAccount(client, {
       accountType: 'customer_wallet', customerId: topup.customer_id, currencyCode: currency,
@@ -520,7 +536,13 @@ async function applyCreditTopupWebhookEvent({ type, object }) {
   switch (type) {
     case 'payment_intent.succeeded': {
       if (!metadata.oxsteed_credit_topup_id) return false;
-      const result = await completeCreditTopupFromWebhook({ paymentIntentId: object.id });
+      const result = await completeCreditTopupFromWebhook({
+        paymentIntentId: object.id,
+        providerEvidence: {
+          amountCents: object.amount_received ?? object.amount,
+          currency: object.currency,
+        },
+      });
       if (result.outcome === 'completed' && result.customerId) {
         try {
           await sendNotification({

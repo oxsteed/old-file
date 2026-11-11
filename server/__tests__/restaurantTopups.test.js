@@ -832,7 +832,10 @@ describe('admin restaurant top-up endpoints', () => {
 describe('restaurant top-up webhook handling', () => {
   const succeededEvent = (intentId = 'pi_test_1') => ({
     type: 'payment_intent.succeeded',
-    object: { id: intentId, metadata: { restaurant_topup_id: TOPUP_ID } },
+    object: {
+      id: intentId, amount: 5000, currency: 'usd',
+      metadata: { restaurant_topup_id: TOPUP_ID },
+    },
   });
 
   function happyPathQueries({ topupStatus = 'pending', balanceCents = 0 } = {}) {
@@ -890,6 +893,19 @@ describe('restaurant top-up webhook handling', () => {
     const topupUpdate = mockQuery.mock.calls.find(([sql]) =>
       String(sql).includes('UPDATE restaurant_topups') && String(sql).includes("'succeeded'"));
     expect(topupUpdate).toBeDefined();
+  });
+
+  test('S1 provider amount or currency mismatch cannot credit the food wallet', async () => {
+    const topup = baseTopupRow({ status: 'pending', stripe_payment_intent_id: 'pi_test_1' });
+    mockQuery.mockResolvedValueOnce({ rows: [topup] });
+    await expect(topupService.applyRestaurantTopupWebhookEvent({
+      type: 'payment_intent.succeeded',
+      object: {
+        id: 'pi_test_1', amount: 4999, currency: 'eur',
+        metadata: { restaurant_topup_id: TOPUP_ID },
+      },
+    })).rejects.toMatchObject({ code: 'restaurant_topup_verification_failed' });
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes('food_customer_wallet_ledger'))).toBe(false);
   });
 
   test('S4 duplicate webhook: a succeeded top-up is never credited twice', async () => {
