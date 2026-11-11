@@ -211,7 +211,12 @@ async function deletePricingRule(req, res, next) {
 async function calculatePrice(req, res, next) {
   try {
     const { businessId } = req.params;
-    const { productId, quantity = 1, customerId } = req.body;
+    const { productId, quantity = 1, customerId: requestedCustomerId } = req.body;
+    // Product pricing is public, so never trust a caller-supplied customer id
+    // for segment pricing. Bind only to the authenticated session's own user.
+    const customerId = req.user?.id && (!requestedCustomerId || String(requestedCustomerId) === String(req.user.id))
+      ? req.user.id
+      : null;
 
     if (!productId) throw new AppError('Product ID required', 400, 'validation_failed');
     const numericQuantity = Number(quantity);
