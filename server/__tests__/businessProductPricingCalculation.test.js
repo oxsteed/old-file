@@ -15,6 +15,12 @@ const controller = require('../controllers/businessProductPricingController');
 function buildApp() {
   const app = express();
   app.use(express.json());
+  // Public pricing may use segment rules only for the authenticated session;
+  // the controller must ignore a spoofed customer id from the request body.
+  app.use((req, _res, next) => {
+    req.user = { id: 'user-1' };
+    next();
+  });
   app.post('/api/businesses/:businessId/product-pricing/calculate', controller.calculatePrice);
   app.use(errorHandler);
   return app;

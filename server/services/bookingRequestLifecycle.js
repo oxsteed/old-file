@@ -651,7 +651,7 @@ async function resolveBusinessService(booking, db, { forUpdate = false } = {}) {
  * business's own calendar (status confirmed, staff assigned to the accepting
  * owner), never a row in the owner's personal appointments table.
  */
-async function confirmOrCreateBusinessAppointment(booking, helperId, { db = pool } = {}) {
+async function confirmOrCreateBusinessAppointment(booking, helperId, { db = pool, service: resolvedService = null } = {}) {
   if (booking.business_appointment_id) {
     const { rows } = await db.query(
       `UPDATE business_appointments
@@ -669,7 +669,11 @@ async function confirmOrCreateBusinessAppointment(booking, helperId, { db = pool
   // Guarded: overlap against the same store the slot engine reads.
   await checkBusinessSlotFree(booking.business_id, slot.startDate, slot.endDate, db);
 
-  const service = await resolveBusinessService(booking, db, { forUpdate: true });
+  // Accept already-locked service rows from the acceptance transaction. This
+  // keeps the status flip, pricing, and appointment insert on one catalog
+  // version instead of resolving the service twice with two potentially
+  // different rows.
+  const service = resolvedService || await resolveBusinessService(booking, db, { forUpdate: true });
   if (!service) {
     // business_appointments.service_id is NOT NULL: there is no safe way to
     // accept without a service, so fail the accept instead of leaving an
@@ -1042,6 +1046,7 @@ async function acceptBookingRequest({ booking, actorId, actorType = 'helper', ap
       // conflicts with itself. Business bookings also resolve their service
       // up front: without an active service no business appointment can be
       // created (service_id is NOT NULL), so the accept must fail here.
+      let lockedService = null;
       if (current.business_id) {
         await checkBusinessSlotFree(
           current.business_id,
@@ -1050,8 +1055,8 @@ async function acceptBookingRequest({ booking, actorId, actorType = 'helper', ap
           client,
           current.business_appointment_id,
         );
-        const service = await resolveBusinessService(current, client);
-        if (!service) throw businessServiceMissingError();
+        lockedService = await resolveBusinessService(current, client, { forUpdate: true });
+        if (!lockedService) throw businessServiceMissingError();
       } else {
         await checkHelperSlotFree(
           current.helper_id,
@@ -1091,6 +1096,7 @@ async function acceptBookingRequest({ booking, actorId, actorType = 'helper', ap
       const appointment = await confirmOrCreateAppointment(updated, updated.helper_id, {
         source: appointmentSource,
         db: client,
+        service: lockedService,
       });
       if (!appointment?.id) {
         const err = new Error('The appointment could not be created for this booking. Please try accepting again.');

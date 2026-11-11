@@ -205,8 +205,10 @@ describeDatabase('media discovery and integrations', () => {
       const owner = await createUser('localBusiness', { verified: true });
       await pool.query('UPDATE users SET email_verified = TRUE, onboarding_completed = TRUE WHERE id = $1', [owner]);
       const { rows } = await pool.query(
-        `INSERT INTO businesses (user_id,business_name,is_active,is_business_verified,address_city,address_state)
-         VALUES ($1,$2,TRUE,TRUE,'Springfield','IL'),($1,$3,TRUE,TRUE,'Shelbyville','IL') RETURNING id`,
+        `INSERT INTO businesses (user_id,business_name,is_active,is_listed,is_business_verified,
+                                business_kind,setup_status,address_city,address_state)
+         VALUES ($1,$2,TRUE,TRUE,TRUE,'service','active','Springfield','IL'),
+                ($1,$3,TRUE,TRUE,TRUE,'service','active','Shelbyville','IL') RETURNING id`,
         [owner, `Local business ${tag}`, `Distant business ${tag}`]);
       try {
         for (const endpoint of ['/discover/popular', `/discover?q=${tag}`]) {
@@ -413,8 +415,9 @@ describeDatabase('media discovery and integrations', () => {
 
     beforeAll(async () => {
       const { rows: biz } = await pool.query(
-        `INSERT INTO businesses (user_id, business_name, is_active, is_business_verified)
-         VALUES ($1, $2, TRUE, TRUE) RETURNING id`,
+        `INSERT INTO businesses (user_id, business_name, is_active, is_listed,
+                                is_business_verified, business_kind, setup_status)
+         VALUES ($1, $2, TRUE, TRUE, TRUE, 'service', 'active') RETURNING id`,
         [users.carol, `Disc Biz ${tag}`]
       );
       businessId = biz[0].id;
