@@ -106,6 +106,8 @@ describe('mobile public browse API', () => {
     expect(res.body.data.helpers[0].display_name).toBe('Test Helper');
     expect(mockQuery.mock.calls.some(([sql]) => /fr\.discovery_status = 'visible'/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /fmi\.publication_status = 'published'/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.filter(([sql]) => /food_restaurants/.test(sql)).every(([sql]) => /owner\.deleted_at IS NULL/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.filter(([sql]) => /food_restaurants/.test(sql)).every(([sql]) => /owner\.onboarding_completed = TRUE/.test(sql))).toBe(true);
     const jobsSql = mockQuery.mock.calls.find(([sql]) => /FROM jobs j/.test(sql))[0];
     expect(jobsSql).toMatch(/u\.deleted_at IS NULL/);
     expect(jobsSql).toMatch(/u\.email_verified = TRUE/);

@@ -221,6 +221,7 @@ async function getPublicMarkets() {
             COUNT(*)::int AS restaurant_count
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
+       JOIN users owner ON owner.id = b.user_id
       WHERE fr.status = 'active'
         AND fr.discovery_status = 'visible'
         AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
@@ -230,6 +231,10 @@ async function getPublicMarkets() {
         AND COALESCE(b.setup_status, 'active') = 'active'
         AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
         AND b.deleted_at IS NULL
+        AND owner.deleted_at IS NULL
+        AND owner.is_active = TRUE
+        AND owner.email_verified = TRUE
+        AND owner.onboarding_completed = TRUE
         AND COALESCE(fr.accepts_online_orders, TRUE) = TRUE
         AND NULLIF(trim(fr.address_city), '') IS NOT NULL
         AND NULLIF(trim(fr.address_country), '') IS NOT NULL
@@ -263,6 +268,10 @@ async function getPublicRestaurants(filters) {
     `COALESCE(b.setup_status, 'active') = 'active'`,
     `COALESCE(b.business_kind, 'restaurant') = 'restaurant'`,
     `b.deleted_at IS NULL`,
+    `owner.deleted_at IS NULL`,
+    `owner.is_active = TRUE`,
+    `owner.email_verified = TRUE`,
+    `owner.onboarding_completed = TRUE`,
   ];
   if (filters.city) {
     params.push(`%${filters.city}%`);
@@ -287,6 +296,7 @@ async function getPublicRestaurants(filters) {
             fr.timezone, fr.is_verified
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
+       JOIN users owner ON owner.id = b.user_id
       WHERE ${where.join(' AND ')}
       ORDER BY fr.is_verified DESC NULLS LAST, fr.display_name ASC
       LIMIT $${params.length}`,
@@ -306,6 +316,10 @@ async function getPublicMenuHighlights(filters) {
     `COALESCE(b.setup_status, 'active') = 'active'`,
     `COALESCE(b.business_kind, 'restaurant') = 'restaurant'`,
     `b.deleted_at IS NULL`,
+    `owner.deleted_at IS NULL`,
+    `owner.is_active = TRUE`,
+    `owner.email_verified = TRUE`,
+    `owner.onboarding_completed = TRUE`,
     `fmi.is_available = TRUE`,
     `fmi.publication_status = 'published'`,
     `fmi.archived_at IS NULL`,
@@ -330,6 +344,7 @@ async function getPublicMenuHighlights(filters) {
        FROM food_menu_items fmi
        JOIN food_restaurants fr ON fr.id = fmi.restaurant_id
        JOIN businesses b ON b.id = fr.business_id
+       JOIN users owner ON owner.id = b.user_id
       WHERE ${where.join(' AND ')}
       ORDER BY COALESCE(fmi.sort_order, 9999), fmi.name ASC
       LIMIT $${params.length}`,
