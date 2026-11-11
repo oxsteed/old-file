@@ -3,6 +3,7 @@
 const {
   recordWalletCreditPaymentForOrder,
   recordWalletCreditRefundForOrder,
+  applyStripePaymentIntent,
 } = require('../services/restaurantPosPaymentLedgerService');
 
 function existingPayment(overrides = {}) {
@@ -84,5 +85,48 @@ describe('restaurant POS wallet payment idempotency', () => {
     })).rejects.toMatchObject({ code: 'pos_payment_idempotency_conflict', status: 409 });
 
     expect(client.query).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('restaurant POS Stripe payment verification', () => {
+  function paymentRow(overrides = {}) {
+    return {
+      id: 901,
+      food_order_id: 44,
+      amount_cents: 1200,
+      payment_type: 'card',
+      provider: 'stripe_terminal',
+      provider_payment_intent_id: 'pi_pos_1',
+      provider_account_id: null,
+      order_currency: 'USD',
+      ...overrides,
+    };
+  }
+
+  test('rejects a succeeded intent with a mismatched amount or currency', async () => {
+    const client = {
+      query: jest.fn().mockImplementation(async (sql) => {
+        if (/SELECT p\.\*, fo\.currency_code/.test(sql)) return { rows: [paymentRow()] };
+        return { rows: [] };
+      }),
+    };
+
+    await expect(applyStripePaymentIntent(client, {
+      id: 'pi_pos_1', status: 'succeeded', amount_received: 1100, currency: 'eur',
+    })).rejects.toMatchObject({ code: 'pos_payment_verification_failed' });
+    expect(client.query.mock.calls.some(([sql]) => /SET status =/.test(sql))).toBe(false);
+  });
+
+  test('requires a connected account when the POS row records one', async () => {
+    const client = {
+      query: jest.fn().mockImplementation(async (sql) => {
+        if (/SELECT p\.\*, fo\.currency_code/.test(sql)) return { rows: [paymentRow({ provider_account_id: 'acct_expected' })] };
+        return { rows: [] };
+      }),
+    };
+
+    await expect(applyStripePaymentIntent(client, {
+      id: 'pi_pos_1', status: 'succeeded', amount_received: 1200, currency: 'usd',
+    }, 'acct_other')).rejects.toMatchObject({ code: 'pos_payment_verification_failed' });
   });
 });

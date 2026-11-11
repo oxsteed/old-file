@@ -371,13 +371,34 @@ async function recordWalletCreditRefundForOrder(client, {
   return { payment: payment || null, ...reconciliation, skipped: false };
 }
 
-async function applyStripePaymentIntent(client, intent) {
+async function applyStripePaymentIntent(client, intent, providerAccountId = null) {
   if (!intent?.id) return null;
   const status = intent.status === 'succeeded'
     ? 'captured'
     : intent.status === 'canceled' || (intent.status === 'requires_payment_method' && intent.last_payment_error)
       ? 'failed'
       : 'pending';
+  const { rows: [existingPayment] } = await client.query(
+    `SELECT p.*, fo.currency_code AS order_currency
+       FROM restaurant_pos_payments p
+       JOIN food_orders fo ON fo.id = p.food_order_id
+      WHERE p.provider = 'stripe_terminal'
+        AND p.provider_payment_intent_id = $1
+        AND p.payment_type = 'card'
+      FOR UPDATE`,
+    [intent.id]
+  );
+  if (!existingPayment) return null;
+  const providerAmount = Number(intent.amount_received ?? intent.amount);
+  const providerCurrency = typeof intent.currency === 'string' ? intent.currency.toLowerCase() : '';
+  const expectedCurrency = String(existingPayment.order_currency || '').toLowerCase();
+  if (!Number.isSafeInteger(providerAmount)
+      || providerAmount !== Number(existingPayment.amount_cents)
+      || !providerCurrency
+      || providerCurrency !== expectedCurrency
+      || (existingPayment.provider_account_id && providerAccountId !== existingPayment.provider_account_id)) {
+    throw new AppError('Stripe POS payment does not match the local payment record', 409, 'pos_payment_verification_failed');
+  }
   const { rows: [payment] } = await client.query(
     `UPDATE restaurant_pos_payments
         SET status = CASE WHEN status = 'captured' THEN status ELSE $1 END,
@@ -385,16 +406,14 @@ async function applyStripePaymentIntent(client, intent) {
             note = CASE WHEN $1 = 'failed' THEN COALESCE($3, note) ELSE note END,
             metadata = metadata || $4::jsonb,
             updated_at = NOW()
-      WHERE provider = 'stripe_terminal'
-        AND provider_payment_intent_id = $5
-        AND payment_type = 'card'
+      WHERE id = $5
       RETURNING *`,
     [
       status,
       typeof intent.latest_charge === 'string' ? intent.latest_charge : null,
       intent.last_payment_error?.message || intent.cancellation_reason || null,
       JSON.stringify({ stripeStatus: intent.status }),
-      intent.id,
+      existingPayment.id,
     ]
   );
   if (!payment) return null;

@@ -1290,7 +1290,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             }
             logger.info(`[Stripe] PaymentIntent ${pi.id} authorized - job ${jobId} funds held`);
           }
-          await applyStripePaymentIntent(client, pi);
+          await applyStripePaymentIntent(client, pi, event.account || null);
         });
         break;
       }
@@ -1491,7 +1491,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           );
           logger.info(`[Stripe] PaymentIntent ${pi.id} succeeded - order ${orderId} marked as paid`);
         }
-        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
+        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi, event.account || null));
         break;
       }
 
@@ -1597,7 +1597,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             }).catch(e => logger.warn('Failed to send payment failed notification to customer', { error: e.message }));
           }
         }
-        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
+        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi, event.account || null));
         break;
       }
 
@@ -1628,7 +1628,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         const pi = event.data.object;
         if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
         if (await paymentRailWebhooks.applyTipIntent(event.type, pi)) break;
-        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
+        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi, event.account || null));
         // Audit fix: clear job escrow on cancel, same as payment_failed.
         // Otherwise the job stays in escrow with no payment behind it.
         const jobId = pi.metadata?.job_id;

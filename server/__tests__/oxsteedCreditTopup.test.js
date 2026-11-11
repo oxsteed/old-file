@@ -702,10 +702,20 @@ describe('webhook branches', () => {
 
   test('a non-top-up payment_intent.succeeded still runs the existing flows', async () => {
     const applySpy = jest.spyOn(topupService, 'applyCreditTopupWebhookEvent').mockResolvedValue(false);
-    stubQueries(receiptHandlers(90, 'evt_plain_pi'));
+    stubQueries([
+      ...receiptHandlers(90, 'evt_plain_pi').slice(0, 2),
+      { match: 'SELECT p.*, fo.currency_code', rows: [{
+        id: 7,
+        food_order_id: 44,
+        amount_cents: 1000,
+        provider_account_id: null,
+        order_currency: 'USD',
+      }] },
+      ...receiptHandlers(90, 'evt_plain_pi').slice(2),
+    ]);
     const res = await sendStripeEvent(buildWebhookApp(), {
       id: 'evt_plain_pi', type: 'payment_intent.succeeded', created: 1700000000,
-      data: { object: { id: 'pi_plain', status: 'succeeded', metadata: {} } },
+      data: { object: { id: 'pi_plain', status: 'succeeded', amount_received: 1000, currency: 'usd', metadata: {} } },
     });
     expect(res.status).toBe(200);
     expect(applySpy).toHaveBeenCalledWith({
