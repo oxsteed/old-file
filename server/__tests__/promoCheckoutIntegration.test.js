@@ -83,6 +83,33 @@ describe('job checkout promo', () => {
     expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'promo_user_limit_reached' }));
     expect(stripe.__mockInstance.paymentIntents.create).not.toHaveBeenCalled();
   });
+
+  test('cancels a created intent when the payment transaction rolls back', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_job_orphan', status: 'canceled' });
+    const previousCancel = stripe.__mockInstance.paymentIntents.cancel;
+    stripe.__mockInstance.paymentIntents.cancel = cancel;
+    stripe.__mockInstance.accounts.retrieve.mockResolvedValue({
+      charges_enabled: true, payouts_enabled: true, details_submitted: true, requirements: { currently_due: [] },
+    });
+    stripe.__mockInstance.paymentIntents.create.mockResolvedValue({ id: 'pi_job_orphan', client_secret: 'cs_job_orphan' });
+    mockQuery.mockImplementation(dispatcher([
+      [/FROM jobs/i, { rows: [{ id: 10, client_id: 1, job_value: 100, assigned_helper_id: 2 }] }],
+      [/connect_accounts/i, { rows: [{ user_id: 2, stripe_account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, onboarding_complete: true }] }],
+      [/balance_cents/i, { rows: [{ balance_cents: '0' }] }],
+      [/attempt_count/, { rows: [{ attempt_count: 0 }] }],
+      [/INSERT INTO payments/i, () => { throw new Error('payments write unavailable'); }],
+    ]));
+    const next = jest.fn();
+    try {
+      await paymentCtrl.createPaymentIntent({ body: { job_id: 10 }, user: { id: 1, email: 'c@test.com' } },
+        { json: jest.fn(), status: jest.fn().mockReturnThis() }, next);
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'payments write unavailable' }));
+      expect(cancel).toHaveBeenCalledWith('pi_job_orphan', expect.anything());
+    } finally {
+      if (previousCancel) stripe.__mockInstance.paymentIntents.cancel = previousCancel;
+      else delete stripe.__mockInstance.paymentIntents.cancel;
+    }
+  });
 });
 
 describe('booking checkout promo', () => {

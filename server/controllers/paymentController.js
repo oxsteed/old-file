@@ -307,6 +307,8 @@ exports.getConnectStatus = async (req, res, next) => {
  *   6. On capture, helper gets paid and OxSteed receives its application_fee.
  */
 exports.createPaymentIntent = async (req, res, next) => {
+  let createdPaymentIntent = null;
+  let createdPaymentIntentOptions;
   try {
     const {
       job_id
@@ -513,7 +515,8 @@ exports.createPaymentIntent = async (req, res, next) => {
       // this on the PaymentIntent itself so it works independently of our
       // in-app notification delivery.
       if (req.user.email) built.params.receipt_email = req.user.email;
-      const paymentIntent = await stripe.paymentIntents.create(built.params, {
+      createdPaymentIntentOptions = built.options;
+      createdPaymentIntent = await stripe.paymentIntents.create(built.params, {
         ...built.options,
         idempotencyKey: paymentIdempotencyKey
       });
@@ -526,7 +529,7 @@ exports.createPaymentIntent = async (req, res, next) => {
              amount, platform_fee, status, payment_hold_status, stripe_account_id, metadata,
              currency, charge_model, destination_account_id, fee_country)
            VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'pending', $7, $8::jsonb, $9, $10, $11, $12)
-           RETURNING id`, [job_id, req.user.id, job.rows[0].assigned_helper_id, paymentIntent.id, jobValueCents / minorScale, discount.applicationFeeCents / minorScale,
+           RETURNING id`, [job_id, req.user.id, job.rows[0].assigned_helper_id, createdPaymentIntent.id, jobValueCents / minorScale, discount.applicationFeeCents / minorScale,
           plan.model === 'direct' ? freshConnect.stripe_account_id : null, JSON.stringify({
           discounted_amount_cents: jobValueCents,
           raw_job_value_cents: rawJobValueCents,
@@ -547,14 +550,14 @@ exports.createPaymentIntent = async (req, res, next) => {
         if (insertErr.code !== '23505') throw insertErr;
         const existingIntent = await client.query(`SELECT id FROM payments
             WHERE stripe_payment_intent_id = $1
-            LIMIT 1`, [paymentIntent.id]);
+            LIMIT 1`, [createdPaymentIntent.id]);
         if (!existingIntent.rows[0]) throw insertErr;
         return {
           replay: true,
           statusCode: 200,
           body: {
-            client_secret: paymentIntent.client_secret,
-            payment_intent_id: paymentIntent.id,
+            client_secret: createdPaymentIntent.client_secret,
+            payment_intent_id: createdPaymentIntent.id,
             message: 'Existing payment intent returned'
           }
         };
@@ -564,7 +567,7 @@ exports.createPaymentIntent = async (req, res, next) => {
       }
 
       if (promoReservation) {
-        await promoRedemption.attachProviderReference(client, promoReservation.redemption.id, paymentIntent.id);
+        await promoRedemption.attachProviderReference(client, promoReservation.redemption.id, createdPaymentIntent.id);
       }
       // Review P2-571: reserve the credit now, under the same advisory lock
       // that read the balance, so concurrent intents cannot spend it twice.
@@ -574,7 +577,7 @@ exports.createPaymentIntent = async (req, res, next) => {
         paymentId: insertRows[0].id,
         amountCents: appliedCreditCents,
         jobId: job_id,
-        paymentIntentId: paymentIntent.id,
+        paymentIntentId: createdPaymentIntent.id,
       });
 
       // Tier-3 escrow opt-in, deterministic: mark the job's transaction_mode
@@ -605,14 +608,14 @@ exports.createPaymentIntent = async (req, res, next) => {
           amount_cents: jobValueCents,
           currency: plan.currency,
           charge_model: plan.model,
-          stripe_payment_intent_id: paymentIntent.id,
+          stripe_payment_intent_id: createdPaymentIntent.id,
           applied_credit_cents: appliedCreditCents,
           transaction_mode: 'guided_protected',
         },
       });
       return {
         replay: false,
-        paymentIntent,
+        paymentIntent: createdPaymentIntent,
         appliedCreditCents,
         jobValueCents,
         promoDiscountCents,
@@ -640,6 +643,17 @@ exports.createPaymentIntent = async (req, res, next) => {
       gross_amount_cents: rawJobValueCents
     });
   } catch (err) {
+    if (createdPaymentIntent?.id && typeof stripe?.paymentIntents?.cancel === 'function') {
+      try {
+        await stripe.paymentIntents.cancel(createdPaymentIntent.id, createdPaymentIntentOptions);
+      } catch (cancelError) {
+        logger.error('Failed to cancel orphaned Tier-3 PaymentIntent', {
+          jobId: req.body?.job_id,
+          paymentIntentId: createdPaymentIntent.id,
+          error: cancelError.message,
+        });
+      }
+    }
     next(err);
   }
 };
