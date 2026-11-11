@@ -403,6 +403,19 @@ exports.bookTimeSlot = async (req, res) => {
       return res.status(409).json({ error: 'Consultant does not match the assigned consultant' });
     }
 
+    // Do not pin paid bookings to an inactive or soft-deleted consultant.
+    // Availability rows can outlive the user lifecycle, so checking the
+    // consultant identity here keeps the scheduling and account systems in
+    // sync at the final write boundary.
+    const { rows: activeConsultantRows } = await db.query(
+      `SELECT id FROM users
+       WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`,
+      [consultantId]
+    );
+    if (activeConsultantRows.length === 0) {
+      return res.status(404).json({ error: 'Consultant not found' });
+    }
+
     // Platform-approval gate: an unapproved consultant cannot have a paid
     // booking pinned to their calendar. We check the *consultant* (not the
     // caller) — they're the one who needs OxSteed sign-off. Admins bypass.
@@ -485,7 +498,8 @@ exports.bookTimeSlot = async (req, res) => {
     setImmediate(async () => {
       try {
         const consultant = await db.query(
-          `SELECT first_name, last_name FROM users WHERE id = $1`,
+          `SELECT first_name, last_name FROM users
+           WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`,
           [consultantId]
         );
 
