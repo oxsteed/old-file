@@ -145,6 +145,20 @@ async function settleTerminalBooking(bookingId, reason = 'booking_ended') {
       if (!refund || typeof refund.id !== 'string' || !refund.id.trim()) {
         throw new Error('Stripe booking refund did not return a refund id');
       }
+      const expectedAmount = Number(booking.payment_amount_cents);
+      const providerAmount = Number(refund.amount);
+      const providerCurrency = typeof refund.currency === 'string' ? refund.currency.toLowerCase() : '';
+      const providerPaymentIntentId = typeof refund.payment_intent === 'string'
+        ? refund.payment_intent
+        : refund.payment_intent?.id || null;
+      if (!Number.isSafeInteger(expectedAmount)
+          || expectedAmount <= 0
+          || !Number.isSafeInteger(providerAmount)
+          || providerAmount !== expectedAmount
+          || providerCurrency !== 'usd'
+          || providerPaymentIntentId !== booking.stripe_payment_intent_id) {
+        throw new Error('Stripe booking refund did not match the stored payment');
+      }
       await db.query(
         `UPDATE booking_requests
             SET payment_status = 'refunded', refunded_at = COALESCE(refunded_at, NOW()),
