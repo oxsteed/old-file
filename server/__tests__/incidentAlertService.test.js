@@ -9,12 +9,16 @@ jest.mock('../services/incidentStore', () => ({
   recordIncident: jest.fn(),
   listIncidents: jest.fn(),
 }));
+jest.mock('../middleware/adminAuth', () => ({
+  hasGlobalGrant: jest.fn(),
+}));
 jest.mock('../utils/email', () => ({
   sendSecurityAlertEmail: jest.fn().mockResolvedValue({ success: true }),
 }));
 
 const incidentAlertService = require('../services/incidentAlertService');
 const incidentStore = require('../services/incidentStore');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 afterAll(() => {
   if (incidentAlertService.monitorTimer) clearInterval(incidentAlertService.monitorTimer);
@@ -134,6 +138,25 @@ describe('incident alert dispatch', () => {
       expect.any(String),
       'HIGH_ERROR_RATE',
       expect.stringContaining('topErrorEndpoints')
+    );
+  });
+
+  test('delivers critical alerts to delegated operations admins', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'delegated-admin', role: 'admin', email: 'delegate@example.com' }] });
+    hasGlobalGrant.mockResolvedValueOnce(true);
+
+    await incidentAlertService._emailAlert({
+      type: 'BACKUP_FAILURE',
+      severity: 'critical',
+      message: 'Backup is late',
+      timestamp: '2026-09-26T00:00:00.000Z',
+    });
+
+    expect(hasGlobalGrant).toHaveBeenCalledWith('delegated-admin', 'manage_operations');
+    expect(require('../utils/email').sendSecurityAlertEmail).toHaveBeenCalledWith(
+      'delegate@example.com',
+      'BACKUP_FAILURE',
+      expect.any(String),
     );
   });
 });
