@@ -578,6 +578,9 @@ async function queryPopularRestaurants(limit) {
        ) promo ON TRUE
       WHERE fr.status = 'active'
         AND b.is_active = TRUE
+        AND b.is_listed = TRUE
+        AND COALESCE(b.setup_status, 'active') = 'active'
+        AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
         AND b.deleted_at IS NULL
         AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
         AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
