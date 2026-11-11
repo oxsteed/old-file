@@ -440,6 +440,7 @@ describe('P3-8-F14: rescheduled_by_type reflects the actor', () => {
     expect(res.status).toBe(200);
     const params = installBaseRouter.lastRescheduleParams;
     expect(params[params.length - 1]).toBe('business');
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM business_appointment_reminders'))).toBe(true);
   });
 });
 

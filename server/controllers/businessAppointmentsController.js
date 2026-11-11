@@ -726,6 +726,12 @@ async function rescheduleAppointment(req, res, next) {
         [appointmentId, orig.start_time, orig.end_time, new_start_time, new_end_time, req.user.id, rescheduledByType]
       );
 
+      // Keep reminder delivery connected to the appointment window. Replace
+      // only unsent reminders inside the same transaction so a failed
+      // reminder write rolls the reschedule back instead of leaving stale
+      // notifications pointing at the old time.
+      await replaceReminderSchedule(client, appointmentId, new_start_time);
+
       return updateResult.rows[0];
     });
 
@@ -914,7 +920,7 @@ async function recordAppointmentPayment(req, res, next) {
 }
 
 // Helper functions
-async function setupReminderSchedule(appointmentId, startTime) {
+async function scheduleReminderRows(db, appointmentId, startTime) {
   // Set up reminders for 24h, 2h, and same-day
   const reminders = [
     { hours_before: 24, type: 'reminder_24h' },
@@ -926,13 +932,26 @@ async function setupReminderSchedule(appointmentId, startTime) {
     const scheduledAt = new Date(startTime);
     scheduledAt.setHours(scheduledAt.getHours() - reminder.hours_before);
 
-    await pool.query(
+    await db.query(
       `INSERT INTO business_appointment_reminders
        (appointment_id, reminder_type, scheduled_at, hours_before)
        VALUES ($1, 'email', $2, $3)`,
       [appointmentId, scheduledAt.toISOString(), reminder.hours_before]
     );
   }
+}
+
+async function setupReminderSchedule(appointmentId, startTime) {
+  await scheduleReminderRows(pool, appointmentId, startTime);
+}
+
+async function replaceReminderSchedule(db, appointmentId, startTime) {
+  await db.query(
+    `DELETE FROM business_appointment_reminders
+      WHERE appointment_id = $1 AND sent_at IS NULL`,
+    [appointmentId]
+  );
+  await scheduleReminderRows(db, appointmentId, startTime);
 }
 
 async function notifyAppointmentParticipants(appointment, notificationType) {
