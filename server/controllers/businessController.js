@@ -371,10 +371,16 @@ async function loadSectionVisibility(businessId, db = pool) {
       SECTION_VISIBILITY_FLAGS.map((flag) => [flag, flags[flag] !== false])
     );
   } catch (err) {
-    logger.warn('business section visibility unavailable, defaulting to visible', {
-      err: err.message,
-    });
-    return { ...DEFAULT_SECTION_VISIBILITY };
+    const missingColumn = err?.code === '42703'
+      || /column .* does not exist/i.test(String(err?.message || ''));
+    if (missingColumn) {
+      logger.warn('business section visibility columns unavailable; defaulting to visible', {
+        err: err.message,
+        code: err.code,
+      });
+      return { ...DEFAULT_SECTION_VISIBILITY };
+    }
+    throw err;
   }
 }
 
@@ -1593,4 +1599,5 @@ module.exports = {
   loadBusinessSetupReadiness,
   unpublishBusinessIfIncomplete,
   maybeUnpublishBusinessIfIncomplete,
+  loadSectionVisibility,
 };
