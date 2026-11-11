@@ -2,6 +2,7 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 const controller = require('../controllers/skillBasedRoutingController');
+const supportEmployerService = require('../services/supportEmployerService');
 
 const USER_ID = '00000000-0000-4000-8000-000000000993';
 
@@ -21,6 +22,7 @@ function requestFor(role = 'support_agent') {
 }
 
 beforeEach(() => resetMocks());
+afterEach(() => jest.restoreAllMocks());
 
 describe('skill-based routing business boundaries', () => {
   test('blocks an unrelated support agent before employer lookup', async () => {
@@ -52,6 +54,21 @@ describe('skill-based routing business boundaries', () => {
     await controller.routeBySkills(req, res);
 
     expect(res.status).toHaveBeenCalledWith(404);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO conversation_assignments/.test(sql))).toBe(false);
+  });
+
+  test('returns a conflict when another router claims the conversation first', async () => {
+    jest.spyOn(supportEmployerService, 'employerIdsForConversationBusiness').mockResolvedValue(['employer-1']);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-7', business_id: '42', agent_id: null, status: 'waiting_for_agent' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'agent-7' }] })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    const req = requestFor('super_admin');
+    const res = response();
+
+    await controller.routeBySkills(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO conversation_assignments/.test(sql))).toBe(false);
   });
 

@@ -1,11 +1,13 @@
 // Queue Controller
 // Manages support queue: FIFO routing, queue status, next available agent routing
 
-const { query } = require('../db');
+const pool = require('../db');
+const { query } = pool;
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 const { supportScopeSatisfies } = require('../middleware/scopeGates');
+const { withTransaction } = require('../utils/transaction');
 
 async function canManageBusiness(req, businessId) {
   // Route gate (requireSupportBusinessAccess) already granted this level.
@@ -192,30 +194,46 @@ async function routeNextConversation(req, res) {
 
     const agent = agents.rows[0];
 
-    // Assign conversation to agent
-    const assignment = await query(
-      `INSERT INTO conversation_assignments
-       (conversation_id, agent_id, business_id, assignment_type, claimed_at, status)
-       VALUES ($1, $2, $3, 'auto', CURRENT_TIMESTAMP, 'active')
-       RETURNING *`,
-      [conversation_id, agent.id, businessId]
-    );
+    const assignment = await withTransaction(pool, async (client) => {
+      // Assignment, conversation ownership, and queue visibility must move
+      // together. Otherwise a failed second write leaves the router and the
+      // support UI disagreeing about who owns the conversation.
+      const claimed = await client.query(
+        `UPDATE support_conversations
+         SET agent_id = $1, status = 'in_progress', assigned_at = CURRENT_TIMESTAMP
+         WHERE id = $2 AND business_id = $3 AND agent_id IS NULL
+           AND status NOT IN ('resolved', 'closed', 'merged', 'pending_verification')
+         RETURNING id`,
+        [agent.id, conversation_id, businessId]
+      );
+      if (!claimed.rowCount) {
+        const error = new Error('CONVERSATION_ALREADY_ASSIGNED');
+        error.code = 'CONVERSATION_ALREADY_ASSIGNED';
+        throw error;
+      }
 
-    // Update conversation
-    await query(
-      `UPDATE support_conversations
-       SET agent_id = $1, status = 'in_progress', assigned_at = CURRENT_TIMESTAMP
-       WHERE id = $2 AND business_id = $3`,
-      [agent.id, conversation_id, businessId]
-    );
+      const created = await client.query(
+        `INSERT INTO conversation_assignments
+         (conversation_id, agent_id, business_id, assignment_type, claimed_at, status)
+         VALUES ($1, $2, $3, 'auto', CURRENT_TIMESTAMP, 'active')
+         RETURNING *`,
+        [conversation_id, agent.id, businessId]
+      );
 
-    // Update queue
-    await query(
-      `UPDATE support_queue
-       SET status = 'assigned', routed_to_agent_id = $1, claimed_at = CURRENT_TIMESTAMP
-       WHERE conversation_id = $2 AND business_id = $3`,
-      [agent.id, conversation_id, businessId]
-    );
+      const queueUpdate = await client.query(
+        `UPDATE support_queue
+         SET status = 'assigned', routed_to_agent_id = $1, claimed_at = CURRENT_TIMESTAMP
+         WHERE conversation_id = $2 AND business_id = $3`,
+        [agent.id, conversation_id, businessId]
+      );
+      if (!queueUpdate.rowCount) {
+        const error = new Error('QUEUE_ITEM_NOT_FOUND');
+        error.code = 'QUEUE_ITEM_NOT_FOUND';
+        throw error;
+      }
+
+      return created.rows[0];
+    });
 
     logger.info('Conversation routed to agent', {
       conversationId: conversation_id,
@@ -225,11 +243,17 @@ async function routeNextConversation(req, res) {
     res.json({
       success: true,
       data: {
-        assignment: assignment.rows[0],
+        assignment,
         agent: agent
       }
     });
   } catch (err) {
+    if (err.code === 'CONVERSATION_ALREADY_ASSIGNED') {
+      return sendError(res, 409, 'Conversation already assigned');
+    }
+    if (err.code === 'QUEUE_ITEM_NOT_FOUND') {
+      return sendError(res, 409, 'Queue item is no longer available');
+    }
     logger.error('routeNextConversation error', { error: err.message });
     sendError(res, 500, 'Failed to route conversation');
   }
