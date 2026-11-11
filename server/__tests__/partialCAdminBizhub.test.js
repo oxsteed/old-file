@@ -211,6 +211,18 @@ describe('P2-1-F13 suspend revokes user tokens', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/confirmed/i) }));
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_verified' }));
   });
+
+  test('superAdminController.forceLogout fails closed when token revocation is unavailable', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'u9', email: 'u9@example.com', role: 'customer' }] });
+    tokenRevocationService.revokeAllUserTokens.mockRejectedValueOnce(Object.assign(new Error('revocation down'), { code: 'token_revocation_unavailable' }));
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { userId: 'u9' }, body: { reason: 'compromise' }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.forceLogout(req, res);
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'token_revocation_unavailable' }));
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE sessions/.test(sql))).toBe(false);
+  });
 });
 
 // ─── P2-1-F08 / P2-1-F12: moderation audit fail-closed ───────────────────────

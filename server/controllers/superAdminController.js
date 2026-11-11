@@ -3493,17 +3493,45 @@ exports.forceLogout = async (req, res) => {
     const { reason } = req.body;
     const { rows } = await db.query('SELECT id, email, role FROM users WHERE id = $1', [userId]);
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
-    await db.query(
-      `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
-      [String(userId)],
-    );
-    // Audit fix: also revoke all JWTs and disconnect sockets. Clearing
-    // sessions alone leaves valid tokens usable until they expire.
+
+    // Revoke JWTs before changing database state. A revocation-store outage
+    // must fail closed rather than report a force logout while bearer tokens
+    // remain valid.
     try {
       await tokenRevocationService.revokeAllUserTokens(String(userId));
     } catch (revokeErr) {
-      logger.warn('forceLogout: token revocation failed', { userId, error: revokeErr.message });
+      logger.error('forceLogout: token revocation failed', { userId, error: revokeErr.message });
+      return res.status(503).json({
+        error: 'Force logout is temporarily unavailable. Please retry.',
+        code: 'token_revocation_unavailable',
+        retryable: true,
+      });
     }
+
+    await withTransaction(db, async (client) => {
+      await client.query(
+        `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
+        [String(userId)],
+      );
+      // Passkeys are standalone login credentials and must be revoked too.
+      await client.query(
+        `UPDATE user_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
+        [String(userId)],
+      );
+      await client.query(
+        `UPDATE admin_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
+        [String(userId)],
+      );
+      await logAdminAction({
+        client,
+        adminId: req.user.id,
+        action: 'force_logout',
+        targetType: 'user',
+        targetId: userId,
+        description: reason || 'Sessions invalidated by super admin',
+        req,
+      });
+    }, 'admin_force_logout');
 
     // Session-scoped CSRF: force-logout terminates every session, so
     // it invalidates every CSRF key for the user (all session keys plus
@@ -3516,17 +3544,6 @@ exports.forceLogout = async (req, res) => {
       logger.warn('forceLogout: CSRF invalidation failed', { userId, error: csrfErr.message });
     }
 
-    // Audit fix (finding 5): passkeys are standalone login credentials that
-    // survive session/token revocation. A planted user or admin passkey must
-    // not survive a force logout.
-    await db.query(
-      `UPDATE user_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
-      [String(userId)],
-    );
-    await db.query(
-      `UPDATE admin_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
-      [String(userId)],
-    );
     try {
       const { io } = require('../bootstrap/realtime');
       if (io) {
@@ -3541,14 +3558,6 @@ exports.forceLogout = async (req, res) => {
     } catch (socketErr) {
       logger.warn('forceLogout: socket disconnect failed', { userId, error: socketErr.message });
     }
-    await logAdminAction({
-      adminId: req.user.id,
-      action: 'force_logout',
-      targetType: 'user',
-      targetId: userId,
-      description: reason || 'Sessions invalidated by super admin',
-      req,
-    });
     res.json({ message: `All sessions for ${rows[0].email} have been invalidated.` });
   } catch (err) {
     logger.error('forceLogout error', { err });
