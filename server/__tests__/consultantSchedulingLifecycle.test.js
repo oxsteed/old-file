@@ -28,6 +28,23 @@ test('public availability rejects inactive, unverified, or non-consultant users 
   expect(mockQuery.mock.calls).toHaveLength(1);
 });
 
+test('public availability still filters booked slots after the consultant gate', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 'consultant-9' }] })
+    .mockResolvedValueOnce({ rows: [{ slot_start: '09:00', slot_end: '10:00', is_available: true }] })
+    .mockResolvedValueOnce({ rows: [] });
+  const res = mockRes();
+  await controller.getAvailableSlots(
+    { params: { consultantId: 'consultant-9' }, query: { date: '2026-11-20' } },
+    res,
+  );
+
+  expect(res.json).toHaveBeenCalledWith([
+    { slot_start: '09:00', slot_end: '10:00', is_available: true },
+  ]);
+  expect(mockQuery.mock.calls).toHaveLength(3);
+});
+
 test('rejects scheduling against an inactive or soft-deleted consultant', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 7, user_id: 'customer-1', consultant_assigned_id: null }] })
