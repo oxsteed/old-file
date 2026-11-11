@@ -42,6 +42,7 @@ function buildApp() {
   const app = express();
   app.use(express.json());
   app.use('/api/helper-quotes', quoteRoutes);
+  app.use((err, _req, res, _next) => res.status(500).json({ error: err.message }));
   return app;
 }
 
@@ -100,5 +101,18 @@ describe('PATCH /api/helper-quotes/:id/status', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.error).toMatch(/cannot update/i);
+  });
+
+  test('surfaces quote-list database failures instead of returning an empty list', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [HELPER] })
+      .mockRejectedValueOnce(new Error('database unavailable'));
+
+    const res = await helperAuth(
+      request(buildApp()).get('/api/helper-quotes/sent')
+    );
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('database unavailable');
   });
 });

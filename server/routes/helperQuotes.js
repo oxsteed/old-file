@@ -87,10 +87,13 @@ router.get('/sent', authenticate, async (req, res, next) => {
       WHERE hq.helper_id = $1
       ORDER BY hq.created_at DESC
       LIMIT $2 OFFSET $3
-    `, [helperId, limit, offset]).catch(() => ({ rows: [] }));
+    `, [helperId, limit, offset]);
 
     res.json({ quotes: rows.rows, limit, offset });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'helper_quotes table not yet migrated.' });
+    next(err);
+  }
 });
 
 // ── List quotes received for a job (client only) ─────────────────────────────
@@ -100,8 +103,7 @@ router.get('/job/:jobId', authenticate, async (req, res, next) => {
 
   try {
     // Verify requester is the job owner or the helper who sent the quote
-    const job = await pool.query('SELECT client_id FROM jobs WHERE id = $1', [jobId])
-      .catch(() => ({ rows: [] }));
+    const job = await pool.query('SELECT client_id FROM jobs WHERE id = $1', [jobId]);
     if (!job.rows[0]) return res.status(404).json({ error: 'Job not found' });
 
     const isClient = job.rows[0].client_id === userId;
@@ -116,10 +118,13 @@ router.get('/job/:jobId', authenticate, async (req, res, next) => {
       WHERE hq.job_id = $1
         AND ($2 OR hq.helper_id = $3)
       ORDER BY hq.total_cents ASC
-    `, [jobId, isClient, userId]).catch(() => ({ rows: [] }));
+    `, [jobId, isClient, userId]);
 
     res.json({ quotes: rows.rows });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'helper_quotes table not yet migrated.' });
+    next(err);
+  }
 });
 
 // ── Get single quote ─────────────────────────────────────────────────────────
@@ -136,11 +141,14 @@ router.get('/:id', authenticate, async (req, res, next) => {
       LEFT JOIN helper_profiles hp ON hp.user_id = hq.helper_id
       WHERE hq.id = $1
         AND (hq.helper_id = $2 OR j.client_id = $2)
-    `, [req.params.id, userId]).catch(() => ({ rows: [] }));
+    `, [req.params.id, userId]);
 
     if (!row.rows[0]) return res.status(404).json({ error: 'Quote not found' });
     res.json(row.rows[0]);
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'helper_quotes table not yet migrated.' });
+    next(err);
+  }
 });
 
 // ── Accept or decline a quote (client) ───────────────────────────────────────
@@ -157,7 +165,7 @@ router.patch('/:id/status', authenticate, async (req, res, next) => {
       SELECT hq.id FROM helper_quotes hq
       JOIN jobs j ON j.id = hq.job_id
       WHERE hq.id = $1 AND j.client_id = $2 AND hq.status = 'sent'
-    `, [req.params.id, userId]).catch(() => ({ rows: [] }));
+    `, [req.params.id, userId]);
 
     if (!check.rows[0])
       return res.status(403).json({ error: 'Cannot update this quote' });
@@ -172,7 +180,10 @@ router.patch('/:id/status', authenticate, async (req, res, next) => {
     // then assigns through the normal bid acceptance.
     const bidId = status === 'accepted' ? await bidFromAcceptedQuote(updated.rows[0]) : null;
     res.json({ ...updated.rows[0], bid_id: bidId, next_step: bidId ? 'accept_bid' : null });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'helper_quotes table not yet migrated.' });
+    next(err);
+  }
 });
 
 // ── Withdraw a quote (helper) ─────────────────────────────────────────────────
@@ -183,11 +194,14 @@ router.delete('/:id', authenticate, async (req, res, next) => {
       UPDATE helper_quotes SET status = 'withdrawn', updated_at = NOW()
       WHERE id = $1 AND helper_id = $2 AND status IN ('draft', 'sent')
       RETURNING id
-    `, [req.params.id, userId]).catch(() => ({ rows: [] }));
+    `, [req.params.id, userId]);
 
     if (!result.rows[0]) return res.status(404).json({ error: 'Quote not found or already finalised' });
     res.json({ ok: true });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'helper_quotes table not yet migrated.' });
+    next(err);
+  }
 });
 
 module.exports = router;
