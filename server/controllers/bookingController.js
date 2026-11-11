@@ -1023,6 +1023,8 @@ exports.listRecurringBookings = async (req, res) => {
          FROM recurring_booking_subscriptions r
          JOIN users u ON u.id = r.helper_id
         WHERE r.customer_id = $1
+          AND u.is_active = TRUE
+          AND u.deleted_at IS NULL
         ORDER BY
           CASE r.status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 ELSE 2 END,
           r.next_date NULLS LAST,
@@ -1049,11 +1051,13 @@ exports.createRecurringBooking = async (req, res) => {
     if (Object.keys(errors).length) return sendValidationError(res, errors);
 
     const helperResult = await pool.query(
-      `SELECT id, is_active, role FROM users WHERE id = $1`,
+      `SELECT id, is_active, deleted_at, role FROM users WHERE id = $1`,
       [helper_id]
     );
     const helper = helperResult.rows[0];
-    if (!helper || !helper.is_active) return sendError(res, 404, 'Helper not found', 'HELPER_NOT_FOUND');
+    if (!helper || !helper.is_active || helper.deleted_at) {
+      return sendError(res, 404, 'Helper not found', 'HELPER_NOT_FOUND');
+    }
     if (!['helper', 'helper_pro', 'broker'].includes(helper.role)) {
       return sendError(res, 400, 'User is not accepting recurring services', 'INVALID_HELPER');
     }
