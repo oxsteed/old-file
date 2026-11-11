@@ -252,6 +252,18 @@ describe('P2-1-F13 suspend revokes user tokens', () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'job_flag' }));
   });
+
+  test('superAdminController.updateUserName keeps the audit with the name mutation', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Old', last_name: 'Name', role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'u9' }], rowCount: 1 });
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { userId: 'u9' }, body: { first_name: 'New', last_name: 'Name' }, user: { id: 'admin1', role: 'admin' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.updateUserName(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/updated/i) }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_name_changed' }));
+  });
 });
 
 // ─── P2-1-F08 / P2-1-F12: moderation audit fail-closed ───────────────────────

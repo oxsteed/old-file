@@ -1185,11 +1185,34 @@ exports.updateUserName = async (req, res) => {
     if (['admin', 'super_admin'].includes(before[0].role) && req.user?.role !== 'super_admin') {
       return res.status(403).json({ error: 'Cannot modify admin accounts.' });
     }
-    const { rows: updateRows } = await db.query('UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3 RETURNING id', [trimFirst, trimLast, userId]);
-    if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'User not found during update - concurrent deletion detected.' });
+    try {
+      await withTransaction(db, async (client) => {
+        const result = await client.query(
+          'UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3 RETURNING id',
+          [trimFirst, trimLast, userId]
+        );
+        if (!result.rows.length) {
+          const err = new Error('User not found during update - concurrent deletion detected.');
+          err.code = 'user_state_changed';
+          throw err;
+        }
+        await logAdminAction({
+          client,
+          adminId,
+          action: 'user_name_changed',
+          targetType: 'user',
+          targetId: userId,
+          before: { first_name: before[0].first_name, last_name: before[0].last_name },
+          after: { first_name: trimFirst, last_name: trimLast },
+          req,
+        });
+      }, 'admin_update_user_name');
+    } catch (err) {
+      if (err.code === 'user_state_changed') {
+        return res.status(409).json({ error: err.message });
+      }
+      throw err;
     }
-    try { await logAdminAction({ adminId, action: 'user_name_changed', targetType: 'user', targetId: userId, before: { first_name: before[0].first_name, last_name: before[0].last_name }, after: { first_name: trimFirst, last_name: trimLast }, req }); } catch(e) {}
     res.json({ message: 'User name updated successfully.' });
   } catch (err) { logger.error('updateUserName error', { err }); res.status(500).json({ error: 'Failed to update name.' }); }
 };
