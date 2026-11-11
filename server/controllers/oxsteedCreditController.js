@@ -168,7 +168,12 @@ async function requestMoneyMovement(req, actionType, payload) {
   // Auth audit item 6: bind to the payload amount when the intent
   // carries one (loads, adjustments, refunds); intents without a single
   // amount keep the legacy unbound challenge.
-  const makerPayloadAmount = Number(payload?.amountCents ?? payload?.amount_cents);
+  const makerPayloadAmount = Number(
+    payload?.amountCents
+      ?? payload?.amount_cents
+      ?? payload?.sourceAmountMinorUnits
+      ?? payload?.source_amount_minor_units,
+  );
   await verifyStepupChallenge({
     challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
     actorUserId: req.user?.id || null,

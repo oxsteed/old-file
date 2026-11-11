@@ -114,6 +114,32 @@ test('admin currency quote preserves explicit zero over the snake_case aliases',
   }));
 });
 
+test('currency quote maker step-up binds to the source amount', async () => {
+  await controller.createAdminCurrencyQuote(
+    makeReq({
+      sourceCurrencyCode: 'USD',
+      targetCurrencyCode: 'EUR',
+      sourceAmountMinorUnits: 2500,
+      targetAmountMinorUnits: 2500,
+      rateNumerator: '1',
+      rateDenominator: '1',
+      provider: 'test-provider',
+      providerQuoteReference: 'test-reference-2',
+      customerId: '11111111-1111-4111-8111-111111111111',
+      reason: 'maker binding regression',
+      stepupChallengeId: 'challenge-1',
+      stepupCode: '123456',
+    }, { 'Idempotency-Key': 'quote-2' }),
+    makeRes(),
+    jest.fn(),
+  );
+
+  expect(verifyStepupChallenge).toHaveBeenCalledWith(expect.objectContaining({
+    actionType: 'pending_action_request',
+    expectedAmountCents: 2500,
+  }));
+});
+
 test('partner funding preserves explicit zero over the snake_case alias', async () => {
   const req = makeReq(
     {
