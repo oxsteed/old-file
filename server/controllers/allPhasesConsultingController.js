@@ -290,7 +290,34 @@ exports.purchasePackage = async (req, res) => {
       currency: 'usd',
       metadata: { consulting_purchase_id: String(purchaseId), userId: String(req.user.id), packageId: String(packageId) },
     }, { idempotencyKey: `consulting-purchase-${purchaseId}` });
-    await db.query('UPDATE consulting_purchases SET payment_intent_id = $2, updated_at = NOW() WHERE id = $1', [purchaseId, pi.id]);
+    try {
+      const linked = await db.query(
+        `UPDATE consulting_purchases
+         SET payment_intent_id = $2, updated_at = NOW()
+         WHERE id = $1 AND payment_intent_id IS NULL
+         RETURNING id`,
+        [purchaseId, pi.id]
+      );
+      if (!linked.rows[0]) {
+        throw new Error('Consulting purchase was not linked to its payment intent');
+      }
+    } catch (linkError) {
+      // Do not leave a chargeable Stripe intent with no database owner. The
+      // idempotency key protects retries, while cancellation compensates for
+      // a database failure after Stripe has already accepted the create.
+      if (pi.id && typeof stripe.paymentIntents.cancel === 'function') {
+        try {
+          await stripe.paymentIntents.cancel(pi.id);
+        } catch (cancelError) {
+          logger.error('Failed to cancel orphaned consulting PaymentIntent', {
+            purchaseId,
+            paymentIntentId: pi.id,
+            error: cancelError.message,
+          });
+        }
+      }
+      throw linkError;
+    }
     return res.status(201).json({ purchaseId, clientSecret: pi.client_secret, amountCents: amount });
   } catch (err) {
     logger.error('purchasePackage error', { error: err.message });

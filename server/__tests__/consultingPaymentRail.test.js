@@ -98,7 +98,7 @@ describe('purchasePackage (P3-1071)', () => {
       .mockResolvedValueOnce({ rows: [{ id: 2, price_cents: 50000, name: 'Foundation' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 11 }] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [{ id: 11 }] });
     stripeMock.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_9', client_secret: 'sec' });
     const r = res();
     await phasesCtrl.purchasePackage({ user: { id: 'u1' }, body: { packageId: 2 } }, r);
@@ -106,6 +106,27 @@ describe('purchasePackage (P3-1071)', () => {
     expect(r.body).toMatchObject({ purchaseId: 11, clientSecret: 'sec', amountCents: 50000 });
     expect(stripeMock.paymentIntents.create.mock.calls[0][0].metadata.consulting_purchase_id).toBe('11');
     expect(mockQuery.mock.calls[2][0]).toMatch(/'pending'/);
+  });
+
+  test('cancels the PaymentIntent when the database cannot link it', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_9', status: 'canceled' });
+    const previousCancel = stripeMock.paymentIntents.cancel;
+    stripeMock.paymentIntents.cancel = cancel;
+    try {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ id: 2, price_cents: 50000, name: 'Foundation' }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ id: 11 }] })
+        .mockResolvedValueOnce({ rows: [] });
+      stripeMock.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_9', client_secret: 'sec' });
+      const r = res();
+      await phasesCtrl.purchasePackage({ user: { id: 'u1' }, body: { packageId: 2 } }, r);
+      expect(r.statusCode).toBe(500);
+      expect(cancel).toHaveBeenCalledWith('pi_9');
+    } finally {
+      if (previousCancel) stripeMock.paymentIntents.cancel = previousCancel;
+      else delete stripeMock.paymentIntents.cancel;
+    }
   });
 });
 
