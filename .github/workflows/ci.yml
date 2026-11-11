@@ -266,6 +266,7 @@ jobs:
           else
             if ! timeout --signal=TERM --kill-after=30s 2m sudo env DEBIAN_FRONTEND=noninteractive apt-get install \
               -o Acquire::Retries=2 \
+              -o DPkg::Lock::Timeout=30 \
               --no-install-recommends -y ffmpeg; then
               timeout --signal=TERM --kill-after=30s 5m sudo env DEBIAN_FRONTEND=noninteractive apt-get update \
                 -o Acquire::Retries=2 \
@@ -273,6 +274,7 @@ jobs:
                 -o Acquire::https::Timeout=20
               timeout --signal=TERM --kill-after=30s 5m sudo env DEBIAN_FRONTEND=noninteractive apt-get install \
                 -o Acquire::Retries=2 \
+                -o DPkg::Lock::Timeout=30 \
                 --no-install-recommends -y ffmpeg
             fi
           fi
