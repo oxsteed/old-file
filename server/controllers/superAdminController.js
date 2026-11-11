@@ -903,33 +903,29 @@ exports.setUserDiditEnforcement = async (req, res) => {
       return res.status(403).json({ error: 'Cannot change Didit policy for admin accounts.' });
     }
 
-    const { rows: updateRows } = await db.query(
-      `UPDATE users SET
-         didit_enforcement_required = $2,
-         didit_status = CASE
-           WHEN $2 = TRUE AND didit_status = 'skipped' THEN 'pending'
-           ELSE didit_status
-         END,
-         updated_at = NOW()
-       WHERE id = $1 AND didit_enforcement_required IS DISTINCT FROM $2 RETURNING id`,
-      [userId, required]
-    );
-    if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'Didit enforcement status unchanged - operation may have been concurrent.' });
-    }
+    const { rows: updateRows } = await withTransaction(db, async (client) => {
+      const result = await client.query(
+        `UPDATE users SET
+           didit_enforcement_required = $2,
+           didit_status = CASE
+             WHEN $2 = TRUE AND didit_status = 'skipped' THEN 'pending'
+             ELSE didit_status
+           END,
+           updated_at = NOW()
+         WHERE id = $1 AND didit_enforcement_required IS DISTINCT FROM $2 RETURNING id`,
+        [userId, required]
+      );
+      if (!result.rows.length) return result;
 
-    if (required) {
-      try {
-        await db.query(
+      if (required) {
+        await client.query(
           `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
           [String(userId)],
         );
-        socketService.broadcastToUser(userId, 'force_logout', { reason: 'didit_enforcement_required' });
-      } catch (e) { /* non-fatal */ }
-    }
+      }
 
-    try {
       await logAdminAction({
+        client,
         adminId,
         action: 'user_didit_enforcement',
         targetType: 'user',
@@ -939,7 +935,15 @@ exports.setUserDiditEnforcement = async (req, res) => {
         after: { didit_enforcement_required: required },
         req,
       });
-    } catch (e) { /* non-fatal */ }
+      return result;
+    }, required ? 'admin_require_didit' : 'admin_relax_didit');
+    if (updateRows.length === 0) {
+      return res.status(409).json({ error: 'Didit enforcement status unchanged - operation may have been concurrent.' });
+    }
+
+    if (required) {
+      socketService.broadcastToUser(userId, 'force_logout', { reason: 'didit_enforcement_required' });
+    }
 
     return res.json({
       message: required

@@ -186,6 +186,19 @@ describe('P2-1-F13 suspend revokes user tokens', () => {
     expect(logUserAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), actionType: 'account_reactivated' }));
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_reactivated' }));
   });
+
+  test('superAdminController.setUserDiditEnforcement revokes sessions with the policy audit', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'u9', role: 'customer', didit_enforcement_required: false, didit_status: 'skipped' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'u9' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // sessions
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { userId: 'u9' }, body: { required: true }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.setUserDiditEnforcement(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ didit_enforcement_required: true }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_didit_enforcement' }));
+  });
 });
 
 // ─── P2-1-F08 / P2-1-F12: moderation audit fail-closed ───────────────────────
