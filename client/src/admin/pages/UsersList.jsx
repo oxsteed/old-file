@@ -671,7 +671,7 @@ export default function UsersList() {
     let done = 0;
     const failed = [];
     for (const id of ids) {
-      try { await adminApi.post(`/admin/users/${id}/ban`); done++; } catch { failed.push(id); }
+      try { await adminApi.post(`/admin/users/${id}/ban`, { is_active: suspend }); done++; } catch { failed.push(id); }
     }
     setBulkBusy(false);
     setSelected(new Set(failed));

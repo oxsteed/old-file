@@ -110,7 +110,6 @@ describe('T17-F01: federated search scopes entity types by grant', () => {
       }
       if (sql.includes('FROM jobs')) {
         throw new Error('jobs source unavailable');
->>>>>>> origin/codex/admin-search-source-health
       }
       return { rows: [] };
     });
