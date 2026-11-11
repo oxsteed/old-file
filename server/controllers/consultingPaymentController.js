@@ -5,6 +5,27 @@ const { processExternalRefund } = require('../services/externalRefundService');
 const { completeConsultingPaymentFromIntent } = require('../services/consultingPaymentService');
 const { logAdminAction } = require('../services/auditService');
 
+function usablePaymentIntent(intent) {
+  const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
+  const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
+  if (!id || !clientSecret) {
+    const error = new Error('Stripe returned an unusable consulting payment session');
+    error.code = 'consulting_payment_intent_unavailable';
+    error.statusCode = 503;
+    throw error;
+  }
+  return { id, clientSecret };
+}
+
+async function cancelIntentQuietly(intentId) {
+  if (!intentId || typeof stripe?.paymentIntents?.cancel !== 'function') return;
+  try {
+    await stripe.paymentIntents.cancel(intentId);
+  } catch (err) {
+    logger.warn('Consulting payment intent cancellation failed', { intentId, error: err.message });
+  }
+}
+
 // Get available consulting packages (public, for marketing pages)
 exports.getPackages = async (req, res) => {
   try {
@@ -26,6 +47,8 @@ exports.getPackages = async (req, res) => {
 // Create payment intent for consulting session.
 // Caller must be authenticated and own the session being paid for.
 exports.createPaymentIntent = async (req, res) => {
+  let createdPaymentIntent = null;
+  let paymentPersisted = false;
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -77,7 +100,22 @@ exports.createPaymentIntent = async (req, res) => {
       if (existing.stripe_payment_intent_id) {
         const livePi = await stripe.paymentIntents.retrieve(existing.stripe_payment_intent_id);
         if (['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(livePi.status)) {
-          return res.json({ clientSecret: livePi.client_secret, payment: { id: existing.id }, resumed: true });
+          try {
+            const usable = usablePaymentIntent(livePi);
+            return res.json({ clientSecret: usable.clientSecret, payment: { id: existing.id }, resumed: true });
+          } catch (err) {
+            await cancelIntentQuietly(existing.stripe_payment_intent_id);
+            await db.query(
+              `UPDATE consulting_payments
+                  SET status = 'failed', updated_at = NOW()
+                WHERE id = $1 AND status IN ('pending', 'processing')`,
+              [existing.id],
+            ).catch((updateErr) => logger.warn('Failed to mark unusable consulting payment failed', {
+              paymentId: existing.id,
+              error: updateErr.message,
+            }));
+            return res.status(503).json({ error: 'The existing payment session is unavailable; please retry', code: err.code });
+          }
         }
       }
       return res.status(409).json({
@@ -111,7 +149,7 @@ exports.createPaymentIntent = async (req, res) => {
     // The idempotency key is deterministic per (scheduled session, package), so a
     // retried or double-submitted request replays the same PaymentIntent on
     // Stripe's side instead of creating a duplicate charge.
-    const paymentIntent = await stripe.paymentIntents.create(
+    createdPaymentIntent = await stripe.paymentIntents.create(
       {
         amount: pkg.base_price,
         currency: 'usd',
@@ -125,6 +163,8 @@ exports.createPaymentIntent = async (req, res) => {
       },
       { idempotencyKey: `consulting:${session.scheduled_id}:${pkg.id}` }
     );
+    const usable = usablePaymentIntent(createdPaymentIntent);
+    createdPaymentIntent = { ...createdPaymentIntent, id: usable.id, client_secret: usable.clientSecret };
 
     // Store payment in DB. The INSERT is the atomic guard: a partial unique
     // index on (session_scheduled_id) WHERE status IN ('pending','processing')
@@ -135,7 +175,7 @@ exports.createPaymentIntent = async (req, res) => {
        VALUES ($1, $2, $3, 'processing', $4)
        ON CONFLICT (session_scheduled_id) WHERE status IN ('pending', 'processing') DO NOTHING
        RETURNING id, session_scheduled_id, amount_cents, service_tier, status, created_at`,
-      [session.scheduled_id, pkg.base_price, pkg.service_tier, paymentIntent.id]
+      [session.scheduled_id, pkg.base_price, pkg.service_tier, createdPaymentIntent.id]
     );
 
     if (paymentRows.length === 0) {
@@ -152,6 +192,7 @@ exports.createPaymentIntent = async (req, res) => {
         paymentId: raced[0] ? raced[0].id : null,
       });
     }
+    paymentPersisted = true;
 
     // P3-11-F10: audit the real-Stripe-charge intent creation. Fail closed:
     // a dropped audit row surfaces as a 500 rather than leaving an
@@ -169,7 +210,7 @@ exports.createPaymentIntent = async (req, res) => {
           amount_cents: pkg.base_price,
           currency: 'usd',
           service_tier: pkg.service_tier,
-          stripe_payment_intent_id: paymentIntent.id,
+          stripe_payment_intent_id: createdPaymentIntent.id,
         },
         throwOnError: true,
       });
@@ -179,12 +220,16 @@ exports.createPaymentIntent = async (req, res) => {
     }
 
     res.json({
-      clientSecret: paymentIntent.client_secret,
+      clientSecret: createdPaymentIntent.client_secret,
       payment: paymentRows[0],
       package: pkg,
     });
   } catch (err) {
+    if (!paymentPersisted && createdPaymentIntent?.id) await cancelIntentQuietly(createdPaymentIntent.id);
     logger.error('Failed to create payment intent', { error: err.message });
+    if (err.code === 'consulting_payment_intent_unavailable') {
+      return res.status(503).json({ error: 'Payment session unavailable; please retry', code: err.code });
+    }
     res.status(500).json({ error: 'Failed to create payment intent' });
   }
 };

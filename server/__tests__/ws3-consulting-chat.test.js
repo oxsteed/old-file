@@ -154,6 +154,28 @@ describe('M7 - consulting createPaymentIntent', () => {
     });
     expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
   });
+
+  test('fails closed and cancels when Stripe omits the client secret', async () => {
+    queueHappyPath({ insertRows: [] });
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_missing_secret', status: 'canceled' });
+    const previousCancel = stripeMock.paymentIntents.cancel;
+    stripeMock.paymentIntents.cancel = cancel;
+    stripeMock.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_missing_secret', client_secret: null });
+
+    try {
+      const req = mockReq({ user: USER, body: { sessionId: 'sess-1', packageId: 'pkg-9' } });
+      const res = mockRes();
+      await consultingPaymentController.createPaymentIntent(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(503);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'consulting_payment_intent_unavailable' }));
+      expect(cancel).toHaveBeenCalledWith('pi_missing_secret');
+      expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO consulting_payments/.test(sql))).toBe(false);
+    } finally {
+      if (previousCancel) stripeMock.paymentIntents.cancel = previousCancel;
+      else delete stripeMock.paymentIntents.cancel;
+    }
+  });
 });
 
 describe('Review P3-1067 - resume an in-flight consulting payment', () => {
@@ -166,6 +188,30 @@ describe('Review P3-1067 - resume an in-flight consulting payment', () => {
     await consultingPaymentController.createPaymentIntent(mockReq({ user: { id: 'user-1', role: 'customer' }, body: { sessionId: 'sess-1', packageId: 'pkg-9' } }), res);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ clientSecret: 'cs_live', resumed: true }));
     expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+  });
+
+  test('fails and retires an existing payment when Stripe omits its client secret', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_live', status: 'canceled' });
+    const previousCancel = stripeMock.paymentIntents.cancel;
+    stripeMock.paymentIntents.cancel = cancel;
+    try {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ id: 'sess-1', user_id: 'user-1', scheduled_id: 'sched-1' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'pay-live', stripe_payment_intent_id: 'pi_live' }] })
+        .mockResolvedValueOnce({ rows: [] }); // retire malformed payment
+      stripeMock.paymentIntents.retrieve.mockResolvedValueOnce({ id: 'pi_live', status: 'requires_payment_method', client_secret: null });
+
+      const res = mockRes();
+      await consultingPaymentController.createPaymentIntent(mockReq({ user: USER, body: { sessionId: 'sess-1', packageId: 'pkg-9' } }), res);
+
+      expect(res.status).toHaveBeenCalledWith(503);
+      expect(cancel).toHaveBeenCalledWith('pi_live');
+      expect(mockQuery.mock.calls.some(([sql]) => /UPDATE consulting_payments/.test(sql))).toBe(true);
+      expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+    } finally {
+      if (previousCancel) stripeMock.paymentIntents.cancel = previousCancel;
+      else delete stripeMock.paymentIntents.cancel;
+    }
   });
 });
 
