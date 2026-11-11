@@ -260,7 +260,8 @@ exports.createScheduledSession = async (req, res) => {
         return res.status(409).json({ error: 'Consultant does not match the assigned consultant' });
       }
       const { rows: consultantRows } = await db.query(
-        `SELECT id FROM users WHERE id = $1`,
+        `SELECT id FROM users
+          WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`,
         [consultantId]
       );
       if (consultantRows.length === 0) {
