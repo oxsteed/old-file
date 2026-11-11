@@ -194,6 +194,37 @@ describe('ADM-011: consultant BIGINT id goes into consultant_id, not UUID consul
     expect(updateSql).not.toContain('consultant_assigned_id');
   });
 
+  test('updateRequestStatusById creates the scheduler row when admin schedules a session', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ status: 'pending', consultant_assigned_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: 42, user_id: 'consultant-user-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 5, status: 'scheduled' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 8, session_id: 5, status: 'confirmed' }] });
+
+    const res = makeRes();
+    await consultingController.updateRequestStatusById(
+      {
+        params: { id: '5' },
+        body: {
+          status: 'scheduled',
+          scheduled_at: '2026-11-20T15:30:00.000Z',
+          meeting_url: 'https://meet.example/session-5',
+          consultant_id: 42,
+        },
+        user: { id: 'admin-1' },
+      },
+      res
+    );
+
+    const mirrorSql = mockQuery.mock.calls[3][0];
+    expect(mirrorSql).toContain('INSERT INTO consulting_sessions_scheduled');
+    expect(mirrorSql).toContain('ON CONFLICT (session_id) DO UPDATE');
+    expect(mockQuery.mock.calls[3][1]).toEqual([
+      '5', '2026-11-20', '15:30:00', 'consultant-user-1',
+      'https://meet.example/session-5', 'confirmed',
+    ]);
+  });
+
   test('updateRequestStatusById 400s on unknown consultant', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ status: 'pending' }] })
