@@ -34,6 +34,14 @@ test('a paid deposit on a cancelled booking is refunded with a per-booking key',
   expect(reversal[1]).toEqual(['booking', 'b1', null, 'booking_refunded']);
 });
 
+test('a paid booking is not marked refunded when Stripe omits the refund id', async () => {
+  mockQuery.mockImplementation(async (sql) => (String(sql).startsWith('SELECT * FROM booking_requests') ? { rows: [booking()] } : { rows: [], rowCount: 1 }));
+  mockStripe.refunds.create.mockResolvedValue({ amount: 1200 });
+  await expect(svc.settleTerminalBooking('b1')).rejects.toThrow('Stripe booking refund did not return a refund id');
+  expect(mockQuery.mock.calls.some(([sql]) => /SET payment_status = 'refunded'/.test(String(sql)))).toBe(false);
+  expect(mockQuery.mock.calls.some(([sql]) => /SET refund_attempts = refund_attempts \+ 1/.test(String(sql)))).toBe(true);
+});
+
 test('an unpaid intent on an ended booking is voided', async () => {
   mockQuery.mockImplementation(async (sql) => (String(sql).startsWith('SELECT * FROM booking_requests') ? { rows: [booking({ status: 'expired', payment_status: 'requires_payment' })] } : { rows: [] }));
   mockStripe.paymentIntents.cancel.mockResolvedValue({ status: 'canceled' });

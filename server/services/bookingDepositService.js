@@ -116,6 +116,11 @@ async function settleTerminalBooking(bookingId, reason = 'booking_ended') {
         { payment_intent: booking.stripe_payment_intent_id, metadata: { booking_request_id: String(booking.id), reason } },
         { idempotencyKey: `booking-deposit:${booking.id}:refund` }
       );
+      // Do not mark the booking refunded unless the provider returned the
+      // durable refund identity used by reconciliation and notifications.
+      if (!refund || typeof refund.id !== 'string' || !refund.id.trim()) {
+        throw new Error('Stripe booking refund did not return a refund id');
+      }
       await db.query(
         `UPDATE booking_requests
             SET payment_status = 'refunded', refunded_at = COALESCE(refunded_at, NOW()),
