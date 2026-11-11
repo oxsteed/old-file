@@ -2431,6 +2431,30 @@ async function applyInstantPayoutWebhookEvent(event) {
   }
   const status = String(payout.status || '').toLowerCase();
   const localStatus = ['paid', 'failed', 'canceled', 'in_transit'].includes(status) ? status : 'pending';
+  const { rows: localRows } = await db.query(
+    `SELECT id, stripe_account_id, amount_cents, currency, status
+       FROM instant_payouts
+      WHERE stripe_payout_id = $1
+      FOR UPDATE`,
+    [stripePayoutId]
+  );
+  const localPayout = localRows[0];
+  if (!localPayout) {
+    logger.info('[webhook] payout event for unknown instant payout; ignoring', {
+      eventId: event.id, eventType: event.type, stripePayoutId, account: event.account || null,
+    });
+    return 0;
+  }
+  const providerAmount = Number(payout.amount);
+  const providerCurrency = typeof payout.currency === 'string' ? payout.currency.toLowerCase() : '';
+  const localCurrency = String(localPayout.currency || '').toLowerCase();
+  if (event.account !== localPayout.stripe_account_id
+      || !Number.isSafeInteger(providerAmount)
+      || providerAmount !== Number(localPayout.amount_cents)
+      || !providerCurrency
+      || providerCurrency !== localCurrency) {
+    throw new AppError('Stripe instant payout does not match the local payout record', 409, 'instant_payout_verification_mismatch');
+  }
   const { rowCount } = await db.query(
     `UPDATE instant_payouts
         SET status = $2,
