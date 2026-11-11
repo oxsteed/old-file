@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 const AppError = require('../utils/appError');
 const countriesUtil = require('../utils/countries');
 const { userMatchesAnyRegion } = require('../middleware/regionAuth');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 const { logAdminAction } = require('../services/auditService');
 const {
   checkInvestigationAccess,
@@ -1562,9 +1563,17 @@ exports.requestOneTruthAccess = async (req, res, next) => {
       });
     }
 
+    const approver = approverRows[0];
+    if (approver.role !== 'super_admin' && !(await hasGlobalGrant(approver.id, 'manage_users'))) {
+      return res.status(400).json({
+        error: 'Approver not found or not authorized to approve investigation access.',
+        code: 'approver_not_authorized',
+      });
+    }
+
     const grant = await requestInvestigationAccess({
       requesterId: req.user.id,
-      approverId: approverRows[0].id,
+      approverId: approver.id,
       purpose,
       scopeUserIds,
       investigationRef,
