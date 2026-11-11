@@ -158,6 +158,7 @@ function clearCardFlagSql() {
 }
 
 async function cancelIntentQuietly(intentId, stripeAccount, idempotencyKey, model = 'direct') {
+  if (!intentId) return false;
   try {
     return await chargeModel.releaseIntent(stripe, { intentId, model, stripeAccount, idempotencyKey });
   } catch (err) {
@@ -165,6 +166,15 @@ async function cancelIntentQuietly(intentId, stripeAccount, idempotencyKey, mode
     logger.warn('job_payment_reauth.cancel_intent_failed', { intentId, error: err.message });
     return false;
   }
+}
+
+function usableIntent(intent) {
+  const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
+  const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
+  if (!id || !clientSecret) {
+    throw new AppError('Stripe returned an unusable reauthorization payment session', 502, 'payment_reauthorization_intent_unavailable');
+  }
+  return { id, clientSecret };
 }
 
 function view(attempt, extra = {}) {
@@ -325,18 +335,27 @@ async function startCardReauthorization({ jobId, user }) {
         reauthorization_reason: requirement.card,
       },
     });
-    const intent = await stripe.paymentIntents.create(built.params, { ...built.options, idempotencyKey: `job-payment-reauth:${jobId}:${attempt}` });
-    const { rows } = await client.query(
-      `INSERT INTO job_payment_reauthorizations
-         (job_id, payment_id, change_order_id, requested_by, method, kind, status, attempt, amount_cents,
-          previous_authorized_cents, stripe_payment_intent_id, stripe_account_id, previous_payment_intent_id, expires_at, charge_model)
-       VALUES ($1, $2, $3, $4, 'card', 'replacement', 'pending', $5, $6, $7, $8, $9, $10,
-               NOW() + ($11::numeric * INTERVAL '1 hour'), $12)
-       RETURNING *`,
-      [jobId, payment.id, requirement.change_order_id, user.id, attempt, target, requirement.authorized_cents,
-        intent.id, model === 'direct' ? payment.stripe_account_id : null, payment.stripe_payment_intent_id, ttlHours(), model]
-    );
-    return { result: { status: 'requires_confirmation', attempt: view(rows[0]), client_secret: intent.client_secret, payment_intent_id: intent.id, stripe_account_id: model === 'direct' ? payment.stripe_account_id : null } };
+    let intent = null;
+    try {
+      intent = await stripe.paymentIntents.create(built.params, { ...built.options, idempotencyKey: `job-payment-reauth:${jobId}:${attempt}` });
+      const usable = usableIntent(intent);
+      const { rows } = await client.query(
+        `INSERT INTO job_payment_reauthorizations
+           (job_id, payment_id, change_order_id, requested_by, method, kind, status, attempt, amount_cents,
+              previous_authorized_cents, stripe_payment_intent_id, stripe_account_id, previous_payment_intent_id, expires_at, charge_model)
+         VALUES ($1, $2, $3, $4, 'card', 'replacement', 'pending', $5, $6, $7, $8, $9, $10,
+                 NOW() + ($11::numeric * INTERVAL '1 hour'), $12)
+         RETURNING *`,
+        [jobId, payment.id, requirement.change_order_id, user.id, attempt, target, requirement.authorized_cents,
+          usable.id, model === 'direct' ? payment.stripe_account_id : null, payment.stripe_payment_intent_id, ttlHours(), model]
+      );
+      return { result: { status: 'requires_confirmation', attempt: view(rows[0]), client_secret: usable.clientSecret, payment_intent_id: usable.id, stripe_account_id: model === 'direct' ? payment.stripe_account_id : null } };
+    } catch (err) {
+      if (intent?.id) {
+        await cancelIntentQuietly(intent.id, model === 'direct' ? payment.stripe_account_id : null, `job-payment-reauth-cancel:${jobId}:${attempt}`, model);
+      }
+      throw err;
+    }
   }, 'job_payment_reauth_start');
 
   if (outcome.retry) return startCardReauthorization({ jobId, user });

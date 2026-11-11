@@ -103,6 +103,30 @@ describe('unconfirmed intent is repriced in place', () => {
   });
 });
 
+describe('replacement authorization provider handoff', () => {
+  test('cancels and rejects a Stripe intent without a client secret', async () => {
+    stripe.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_reauth_missing_secret', client_secret: null });
+    const calls = routeQueries(mockQuery, [
+      [/SELECT \* FROM jobs WHERE id = \$1 FOR UPDATE/, { rows: [baseJob({ paymentAdjustmentRequired: 'reauthorization_required' })] }],
+      [/FROM payments WHERE job_id/, { rows: [{
+        id: 9, status: 'authorized', amount: '180.00', currency: 'usd', metadata: { authorized_amount_cents: 18000 },
+        capture_amount_cents: 20500, pending_increase_cents: 2500, stripe_payment_intent_id: 'pi_original',
+        stripe_account_id: 'acct', client_id: 'cust-1', assigned_helper_id: 'help-1',
+      }] }],
+      [/FROM job_payment_reauthorizations WHERE job_id = \$1 AND status = 'pending'/, { rows: [] }],
+      [/COALESCE\(MAX\(attempt\)/, { rows: [{ n: 1 }] }],
+    ]);
+
+    await expect(reauth.startCardReauthorization({ jobId: JOB_ID, user: CUSTOMER }))
+      .rejects.toMatchObject({ code: 'payment_reauthorization_intent_unavailable', statusCode: 502 });
+
+    expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith(
+      'pi_reauth_missing_secret', {}, expect.objectContaining({ stripeAccount: 'acct' })
+    );
+    expect(calls.some((call) => /INSERT INTO job_payment_reauthorizations/.test(call.sql))).toBe(false);
+  });
+});
+
 describe('OxSteed Credit collateral', () => {
   const agreement = { id: 'ag-1', job_id: JOB_ID, helper_id: 'help-1' };
   const hold = { id: 5, status: 'active', amount_cents: 18000, account_id: 1, customer_id: 'cust-1', partner_id: 3 };
