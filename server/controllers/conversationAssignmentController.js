@@ -116,6 +116,18 @@ async function claimConversation(req, res) {
         [agent.id, conversationId, conversation.business_id]
       );
 
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'support_conversation_assignment_changed',
+        targetType: 'support_conversation',
+        targetId: conversationId,
+        description: 'Support conversation claimed by agent',
+        before: { agentId: null },
+        after: { agentId: agent.id },
+        req,
+        client,
+      });
+
       return assignResult.rows[0];
     }, 'support_conversation_claim');
 
@@ -123,17 +135,6 @@ async function claimConversation(req, res) {
       conversationId,
       agentId: agent.id
     });
-    void logAdminAction({
-      adminId: req.user.id,
-      action: 'support_conversation_assignment_changed',
-      targetType: 'support_conversation',
-      targetId: conversationId,
-      description: 'Support conversation claimed by agent',
-      before: { agentId: null },
-      after: { agentId: agent.id },
-      req,
-    });
-
     broadcastAssignment(conversationId, 'agent:joined', {
       agentId: agent.id,
       message: 'A support specialist joined the conversation.',
