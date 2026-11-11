@@ -190,6 +190,10 @@ exports.reassignConversation = async function reassignConversation(req, res, nex
       `SELECT 1
          FROM businesses b
          WHERE b.id = $1
+           AND EXISTS (
+             SELECT 1 FROM users u
+             WHERE u.id = $2 AND u.is_active = TRUE AND u.deleted_at IS NULL
+           )
            AND (
              b.user_id = $2
              OR EXISTS (
