@@ -5,6 +5,21 @@ const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const logger = require('../utils/logger');
 const platformApprovalSvc = require('../services/modePlatformApprovalService');
 
+async function publicConsultantExists(consultantId) {
+  const { rows } = await db.query(
+    `SELECT u.id
+       FROM users u
+      WHERE u.id = $1
+        AND u.default_mode = 'consultant'
+        AND u.deleted_at IS NULL
+        AND u.is_active = TRUE
+        AND u.email_verified = TRUE
+        AND u.onboarding_completed = TRUE`,
+    [consultantId]
+  );
+  return rows.length > 0;
+}
+
 // Get consultant's recurring availability (day of week schedule)
 exports.getConsultantAvailability = async (req, res) => {
   try {
@@ -173,6 +188,10 @@ exports.getAvailableSlots = async (req, res) => {
 
     if (!date) {
       return res.status(400).json({ error: 'Date parameter required (YYYY-MM-DD)' });
+    }
+
+    if (!(await publicConsultantExists(consultantId))) {
+      return res.status(404).json({ error: 'Consultant not found' });
     }
 
     const { rows } = await db.query(
@@ -490,6 +509,10 @@ exports.getNextAvailableDates = async (req, res) => {
   try {
     const { consultantId } = req.params;
     const { fromDate, daysAhead = 30, durationMinutes = 60 } = req.query;
+
+    if (!(await publicConsultantExists(consultantId))) {
+      return res.status(404).json({ error: 'Consultant not found' });
+    }
 
     const startDate = fromDate ? new Date(fromDate) : new Date();
     const endDate = new Date(startDate);

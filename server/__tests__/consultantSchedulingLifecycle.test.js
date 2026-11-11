@@ -12,6 +12,22 @@ function mockRes() {
 
 beforeEach(() => resetMocks());
 
+test('public availability rejects inactive, unverified, or non-consultant users before slot generation', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+  const res = mockRes();
+  await controller.getAvailableSlots(
+    { params: { consultantId: 'consultant-9' }, query: { date: '2026-11-20' } },
+    res,
+  );
+
+  expect(res.status).toHaveBeenCalledWith(404);
+  expect(res.json).toHaveBeenCalledWith({ error: 'Consultant not found' });
+  expect(mockQuery.mock.calls[0][0]).toMatch(/default_mode = 'consultant'/);
+  expect(mockQuery.mock.calls[0][0]).toMatch(/email_verified = TRUE/);
+  expect(mockQuery.mock.calls[0][0]).toMatch(/onboarding_completed = TRUE/);
+  expect(mockQuery.mock.calls).toHaveLength(1);
+});
+
 test('rejects scheduling against an inactive or soft-deleted consultant', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 7, user_id: 'customer-1', consultant_assigned_id: null }] })
