@@ -215,29 +215,37 @@ async function routeConversation({ ticketId, customerId, businessId, category, m
   }
 
   if (response.routedTo !== 'agent') {
-    const { rows: waitingRows } = await pool.query(
-      `UPDATE support_conversations
-       SET status = 'waiting_for_agent',
-           live_wait_started_at = COALESCE(live_wait_started_at, NOW()),
-           live_wait_expires_at = COALESCE(live_wait_expires_at, NOW() + INTERVAL '5 minutes'),
-           updated_at = NOW()
-       WHERE id = $1
-       RETURNING status, agent_id, live_wait_expires_at, live_wait_ended_at`,
-      [ticketId]
-    );
-    await pool.query(
-      `INSERT INTO support_queue (business_id, conversation_id, priority, status, queued_at)
-       VALUES ($1, $2, $3, 'waiting', NOW())
-       ON CONFLICT DO NOTHING`,
-      [businessId, ticketId, priority]
-    );
+    const waitingConversation = await withTransaction(pool, async (client) => {
+      // The waiting state and its queue entry are one logical transition. If
+      // the queue insert fails after the conversation update, the next router
+      // pass would never see this ticket even though the UI says it is queued.
+      const { rows: waitingRows } = await client.query(
+        `UPDATE support_conversations
+         SET status = 'waiting_for_agent',
+             live_wait_started_at = COALESCE(live_wait_started_at, NOW()),
+             live_wait_expires_at = COALESCE(live_wait_expires_at, NOW() + INTERVAL '5 minutes'),
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING status, agent_id, live_wait_expires_at, live_wait_ended_at`,
+        [ticketId]
+      );
+      if (!waitingRows.length) {
+        const error = new Error('CONVERSATION_NOT_FOUND');
+        error.code = 'CONVERSATION_NOT_FOUND';
+        throw error;
+      }
+
+      await client.query(
+        `INSERT INTO support_queue (business_id, conversation_id, priority, status, queued_at)
+         VALUES ($1, $2, $3, 'waiting', NOW())
+         ON CONFLICT DO NOTHING`,
+        [businessId, ticketId, priority]
+      );
+
+      return waitingRows[0];
+    }, 'support_queue_waiting_transition');
     response.routedTo = 'queue';
     response.message = 'Your request is in the support queue. An agent will help you shortly.';
-    const waitingConversation = waitingRows[0] || (await pool.query(
-      `SELECT status, agent_id, live_wait_expires_at, live_wait_ended_at
-       FROM support_conversations WHERE id = $1`,
-      [ticketId]
-    )).rows[0];
     response.waiting = waitingState(waitingConversation);
   }
 
@@ -314,6 +322,9 @@ exports.connectConversation = async (req, res) => {
     response.messages = await loadConversationMessages(ticketId);
     return res.json(response);
   } catch (err) {
+    if (err.code === 'CONVERSATION_NOT_FOUND') {
+      return sendError(res, 404, 'Conversation not found');
+    }
     logger.error('Connect support conversation error', { error: err.message, userId: req.user?.id });
     return sendError(res, 500, 'Failed to connect to support');
   }
