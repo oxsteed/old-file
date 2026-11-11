@@ -71,8 +71,12 @@ const createBooking = async (req, res, next) => {
               daily_rate, deposit_amount, requires_deposit, owner_rules,
               owner_custom_terms, owner_custom_terms_hash, replacement_value,
               is_available, moderation_hold
-         FROM tool_rentals
-        WHERE id = $1`,
+         FROM tool_rentals tr
+         JOIN users owner
+           ON owner.id = tr.user_id
+          AND owner.is_active = TRUE
+          AND owner.deleted_at IS NULL
+        WHERE tr.id = $1`,
       [toolId]
     );
     if (toolResult.rows.length === 0) {
