@@ -114,4 +114,36 @@ describe('discover search routes', () => {
     expect(res.body.results[0].reviewCount).toBe(17);
     expect(res.body.results[0].matchReasons).toContain('skill');
   });
+
+  test('public discovery applies the same owner and listing gates to businesses and tools', async () => {
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+
+    const search = await request(buildApp()).get('/api/discover').query({ q: 'drill' });
+    expect(search.status).toBe(200);
+    const businessSql = mockQuery.mock.calls.find(([sql]) => sql.includes('FROM businesses b') && sql.includes('LIMIT $'))[0];
+    const toolSql = mockQuery.mock.calls.find(([sql]) => sql.includes('FROM tool_rentals t') && sql.includes('LIMIT 10'))[0];
+    expect(businessSql).toMatch(/b\.deleted_at IS NULL/);
+    expect(businessSql).toMatch(/b\.is_listed = TRUE/);
+    expect(businessSql).toMatch(/COALESCE\(b\.setup_status, 'active'\) = 'active'/);
+    expect(businessSql).toMatch(/b\.business_kind = 'service'/);
+    expect(toolSql).toMatch(/NOT t\.moderation_hold/);
+    expect(toolSql).toMatch(/u\.deleted_at IS NULL/);
+    expect(toolSql).toMatch(/u\.email_verified = TRUE/);
+    expect(toolSql).toMatch(/u\.onboarding_completed = TRUE/);
+
+    resetMocks();
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+    const popular = await request(buildApp()).get('/api/discover/popular');
+    expect(popular.status).toBe(200);
+    const popularBusinessSql = mockQuery.mock.calls.find(([sql]) => sql.includes('FROM businesses b'))[0];
+    const popularToolSql = mockQuery.mock.calls.find(([sql]) => sql.includes('FROM tool_rentals t'))[0];
+    expect(popularBusinessSql).toMatch(/b\.deleted_at IS NULL/);
+    expect(popularBusinessSql).toMatch(/b\.is_listed = TRUE/);
+    expect(popularBusinessSql).toMatch(/COALESCE\(b\.setup_status, 'active'\) = 'active'/);
+    expect(popularBusinessSql).toMatch(/b\.business_kind = 'service'/);
+    expect(popularToolSql).toMatch(/NOT t\.moderation_hold/);
+    expect(popularToolSql).toMatch(/u\.deleted_at IS NULL/);
+    expect(popularToolSql).toMatch(/u\.email_verified = TRUE/);
+    expect(popularToolSql).toMatch(/u\.onboarding_completed = TRUE/);
+  });
 });

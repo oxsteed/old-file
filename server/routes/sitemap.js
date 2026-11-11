@@ -191,8 +191,11 @@ router.get('/', async (_req, res) => {
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
         WHERE t.is_available = TRUE
+          AND NOT t.moderation_hold
           AND u.is_active = TRUE
           AND u.deleted_at IS NULL
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE
         ORDER BY t.updated_at DESC NULLS LAST
         LIMIT 5000`,
     );

@@ -45,6 +45,9 @@ describe('public sitemap coverage', () => {
     expect(mockQuery.mock.calls[1][0]).toMatch(/u\.onboarding_completed = TRUE/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/FROM tool_rentals/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/t\.is_available = TRUE/);
+    expect(mockQuery.mock.calls[4][0]).toMatch(/NOT t\.moderation_hold/);
+    expect(mockQuery.mock.calls[4][0]).toMatch(/u\.email_verified = TRUE/);
+    expect(mockQuery.mock.calls[4][0]).toMatch(/u\.onboarding_completed = TRUE/);
     expect(mockQuery.mock.calls[5][0]).toMatch(/FROM pooled_orders/);
     expect(mockQuery.mock.calls[5][0]).toMatch(/po\.status IN/);
     expect(mockQuery.mock.calls[5][0]).toMatch(/po\.approval_state = 'approved'/);
