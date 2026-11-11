@@ -44,6 +44,7 @@ async function loadAccessRecordByName(internalName) {
     FROM logistics_internal_access_credentials liac
     JOIN users u ON u.id = liac.user_id
     WHERE LOWER(liac.internal_name) = LOWER($1)
+      AND u.deleted_at IS NULL
     LIMIT 1
   `;
   const { rows } = await pool.query(sql, [internalName]);
@@ -76,7 +77,7 @@ async function loadInternalAccessUser(userId) {
   const { rows } = await pool.query(
     `SELECT id, first_name, last_name, email, role, logistics_role, is_active
      FROM users
-     WHERE id = $1
+     WHERE id = $1 AND deleted_at IS NULL
      LIMIT 1`,
     [userId]
   );
@@ -579,7 +580,7 @@ exports.loginWithInternalAccess = async (req, res, next) => {
 
     const { rows } = await pool.query(
       `SELECT
-         u.id, u.first_name, u.last_name, u.email, u.phone, u.password_hash, u.role, u.is_active,
+         u.id, u.first_name, u.last_name, u.email, u.phone, u.password_hash, u.role, u.is_active, u.deleted_at,
          u.email_verified, u.is_verified,
          u.onboarding_status, u.onboarding_completed,
          u.contact_completed, u.profile_completed,
@@ -598,6 +599,7 @@ exports.loginWithInternalAccess = async (req, res, next) => {
        JOIN logistics_internal_access_credentials liac ON liac.user_id = u.id
        WHERE u.id = $1
          AND liac.id = $2
+         AND u.deleted_at IS NULL
        LIMIT 1`,
       [decoded.userId, decoded.internalAccessId]
     );
@@ -605,7 +607,7 @@ exports.loginWithInternalAccess = async (req, res, next) => {
     const user = rows[0];
     if (
       !user ||
-      !user.is_active ||
+      !user.is_active || user.deleted_at ||
       !user.internal_access_active ||
       !(await canUseInternalAccessRoute(user, route)) ||
       (route === 'operations' && !user.operations_enabled) ||
