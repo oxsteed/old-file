@@ -2,10 +2,12 @@
 // Manages hiring process: applications, reviews, approvals, onboarding
 // Employment is scoped to support_employers (business | helper | platform); business_id on agents is conversation context when set.
 
-const { query } = require('../db');
+const pool = require('../db');
+const { query } = pool;
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
+const { withTransaction } = require('../utils/transaction');
 
 async function applyToBeAgent(req, res) {
   try {
@@ -276,23 +278,27 @@ async function approveAndHire(req, res) {
       (await supportEmployerService.getEmployerById(app.employer_id))?.business_id ||
       null;
 
-    const agentResult = await query(
-      `INSERT INTO support_agents
-       (employer_id, business_id, user_id, hire_date, status, role, department, max_concurrent_chats)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 'active', $4, $5, $6)
-       RETURNING *`,
-      [app.employer_id, contextBusinessId, app.user_id, role, department || null, parseInt(maxConcurrentChats, 10)]
-    );
+    const hiredAgent = await withTransaction(pool, async (client) => {
+      const agentResult = await client.query(
+        `INSERT INTO support_agents
+         (employer_id, business_id, user_id, hire_date, status, role, department, max_concurrent_chats)
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 'active', $4, $5, $6)
+         RETURNING *`,
+        [app.employer_id, contextBusinessId, app.user_id, role, department || null, parseInt(maxConcurrentChats, 10)]
+      );
 
-    await query(
-      `UPDATE agent_applications
-       SET status = 'hired', reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [req.user.id, applicationId]
-    );
+      await client.query(
+        `UPDATE agent_applications
+         SET status = 'hired', reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP
+         WHERE id = $2`,
+        [req.user.id, applicationId]
+      );
+
+      return agentResult.rows[0];
+    }, 'approve_and_hire_support_agent');
 
     logger.info('Agent hired from application', {
-      agentId: agentResult.rows[0].id,
+      agentId: hiredAgent.id,
       userId: app.user_id,
       applicationId,
       employerId: app.employer_id
@@ -301,7 +307,7 @@ async function approveAndHire(req, res) {
     res.json({
       success: true,
       data: {
-        agent: agentResult.rows[0],
+        agent: hiredAgent,
         application: { ...app, status: 'hired' }
       }
     });
@@ -438,50 +444,54 @@ async function onboardAgent(req, res) {
       return sendError(res, 400, 'An agent with this email already exists for this employer');
     }
 
-    let userResult = await query('SELECT id FROM users WHERE email = $1', [email]);
+    const { userId, agent } = await withTransaction(pool, async (client) => {
+      const userResult = await client.query('SELECT id FROM users WHERE email = $1 FOR UPDATE', [email]);
 
-    let userId;
-    if (userResult.rows.length) {
-      userId = userResult.rows[0].id;
-    } else {
-      const newUserResult = await query(
-        `INSERT INTO users (name, email, password_hash, role, is_active)
-         VALUES ($1, $2, $3, 'agent', true)
-         RETURNING id`,
+      let userId;
+      if (userResult.rows.length) {
+        userId = userResult.rows[0].id;
+      } else {
+        const newUserResult = await client.query(
+          `INSERT INTO users (name, email, password_hash, role, is_active)
+           VALUES ($1, $2, $3, 'agent', true)
+           RETURNING id`,
+          [
+            `${first_name} ${last_name}`,
+            email,
+            'PLACEHOLDER'
+          ]
+        );
+        userId = newUserResult.rows[0].id;
+      }
+
+      const agentResult = await client.query(
+        `INSERT INTO support_agents
+         (employer_id, business_id, user_id, hire_date, status, timezone, availability_start, availability_end, skills, languages, experience_level)
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 'active', $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
         [
-          `${first_name} ${last_name}`,
-          email,
-          'PLACEHOLDER'
+          employerId,
+          contextBusinessId,
+          userId,
+          timezone,
+          availability_start,
+          availability_end,
+          JSON.stringify(skills),
+          JSON.stringify(languages),
+          experience_level
         ]
       );
-      userId = newUserResult.rows[0].id;
-    }
 
-    const agentResult = await query(
-      `INSERT INTO support_agents
-       (employer_id, business_id, user_id, hire_date, status, timezone, availability_start, availability_end, skills, languages, experience_level)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 'active', $4, $5, $6, $7, $8, $9)
-       RETURNING *`,
-      [
-        employerId,
-        contextBusinessId,
-        userId,
-        timezone,
-        availability_start,
-        availability_end,
-        JSON.stringify(skills),
-        JSON.stringify(languages),
-        experience_level
-      ]
-    );
+      await client.query(
+        `UPDATE users SET phone = $1 WHERE id = $2`,
+        [phone || null, userId]
+      );
 
-    await query(
-      `UPDATE users SET phone = $1 WHERE id = $2`,
-      [phone || null, userId]
-    );
+      return { userId, agent: agentResult.rows[0] };
+    }, 'onboard_support_agent');
 
     logger.info('Agent onboarded successfully', {
-      agentId: agentResult.rows[0].id,
+      agentId: agent.id,
       userId,
       employerId,
       adminId: req.user.id
@@ -490,7 +500,7 @@ async function onboardAgent(req, res) {
     res.json({
       success: true,
       data: {
-        agent: agentResult.rows[0],
+        agent,
         message: 'Agent onboarded successfully'
       }
     });

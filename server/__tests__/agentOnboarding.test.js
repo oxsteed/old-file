@@ -6,6 +6,8 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const { generateTokens } = require('../middleware/auth');
 const supportRoutes = require('../routes/support');
+const controller = require('../controllers/agentOnboardingController');
+const supportEmployerService = require('../services/supportEmployerService');
 
 const USER_ID = '00000000-0000-4000-8000-000000000991';
 
@@ -45,6 +47,7 @@ function authHeader() {
 }
 
 beforeEach(() => resetMocks());
+afterEach(() => jest.restoreAllMocks());
 
 describe('support agent onboarding validation', () => {
   test('does not create an employer for a nonexistent business', async () => {
@@ -66,5 +69,27 @@ describe('support agent onboarding validation', () => {
     expect(res.status).toBe(400);
     expect(mockQuery).toHaveBeenCalledTimes(1);
     expect(mockQuery.mock.calls.some(([sql]) => /FROM businesses|INSERT INTO support_employers|INSERT INTO agent_applications/.test(sql))).toBe(false);
+  });
+
+  test('approve and hire commits the agent and application state together', async () => {
+    jest.spyOn(supportEmployerService, 'userCanManageEmployer').mockResolvedValue(true);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'app-1', employer_id: 'employer-1', business_id: 42, user_id: 'user-1', status: 'pending' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'agent-1', user_id: 'user-1' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+
+    await controller.approveAndHire({
+      params: { applicationId: 'app-1' },
+      body: { role: 'agent' },
+      user: { id: USER_ID, role: 'super_admin' },
+    }, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      data: expect.objectContaining({ agent: expect.objectContaining({ id: 'agent-1' }) }),
+    }));
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE agent_applications/.test(sql))).toBe(true);
   });
 });
