@@ -85,6 +85,8 @@ describe('GET /api/jobs', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('jobs');
     expect(mockQuery.mock.calls[0][0]).toMatch(/u\.deleted_at IS NULL/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/u\.email_verified = TRUE/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/u\.onboarding_completed = TRUE/);
   });
 });
 
