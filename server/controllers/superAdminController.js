@@ -1119,21 +1119,52 @@ exports.updateUserRole = async (req, res) => {
     if (role === 'admin' && !req.isSuper) return res.status(403).json({ error: 'Super Admin required.' });
     const { rows: before } = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
-    // Never allow demoting the sole remaining super_admin (fail closed).
-    if (before[0].role === 'super_admin' && role !== 'super_admin') {
-      const { rows: remaining } = await db.query(
-        `SELECT COUNT(*)::int AS n FROM users WHERE role = 'super_admin' AND id <> $1`,
-        [userId]
-      );
-      if (remaining[0].n === 0) {
-        return res.status(400).json({ error: 'Cannot demote the last remaining super_admin.' });
+    let updateRows;
+    try {
+      ({ rows: updateRows } = await withTransaction(db, async (client) => {
+        // Keep the last-super-admin invariant in the same transaction as the
+        // role update so concurrent demotions cannot race past the check.
+        if (before[0].role === 'super_admin' && role !== 'super_admin') {
+          const { rows: remaining } = await client.query(
+            `SELECT COUNT(*)::int AS n FROM users WHERE role = 'super_admin' AND id <> $1`,
+            [userId]
+          );
+          if (remaining[0].n === 0) {
+            const err = new Error('Cannot demote the last remaining super_admin.');
+            err.code = 'last_super_admin';
+            throw err;
+          }
+        }
+        const result = await client.query(
+          'UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 AND role = $3 RETURNING id',
+          [role, userId, before[0].role]
+        );
+        if (!result.rows.length) {
+          const err = new Error('User role changed during update.');
+          err.code = 'role_state_changed';
+          throw err;
+        }
+        await logAdminAction({
+          client,
+          adminId,
+          action: 'user_role_changed',
+          targetType: 'user',
+          targetId: userId,
+          before: { role: before[0].role },
+          after: { role },
+          req,
+        });
+        return result;
+      }, 'admin_update_user_role'));
+    } catch (err) {
+      if (err.code === 'last_super_admin') {
+        return res.status(400).json({ error: err.message });
       }
+      if (err.code === 'role_state_changed') {
+        return res.status(409).json({ error: 'User role changed during update - concurrent modification detected.' });
+      }
+      throw err;
     }
-    const { rows: updateRows } = await db.query('UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 AND role = $3 RETURNING id', [role, userId, before[0].role]);
-    if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'User role changed during update - concurrent modification detected.' });
-    }
-    try { await logAdminAction({ adminId, action: 'user_role_changed', targetType: 'user', targetId: userId, before: { role: before[0].role }, after: { role }, req }); } catch(e) {}
     res.json({ message: `User role updated to ${role}.` });
   } catch (err) { logger.error('updateUserRole error', { err }); res.status(500).json({ error: 'Failed to update role.' }); }
 };

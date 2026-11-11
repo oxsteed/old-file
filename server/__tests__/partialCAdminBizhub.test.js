@@ -223,6 +223,18 @@ describe('P2-1-F13 suspend revokes user tokens', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'token_revocation_unavailable' }));
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE sessions/.test(sql))).toBe(false);
   });
+
+  test('superAdminController.updateUserRole keeps the role audit with the mutation', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'u9' }], rowCount: 1 });
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { userId: 'u9' }, body: { role: 'helper' }, user: { id: 'admin1', role: 'admin' }, isSuper: false, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.updateUserRole(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/role updated/i) }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_role_changed' }));
+  });
 });
 
 // ─── P2-1-F08 / P2-1-F12: moderation audit fail-closed ───────────────────────
