@@ -1671,16 +1671,45 @@ async function createFoodCheckoutSession({
   }
   const stripeAccountId = normalizeString(connectedAccountId, 255);
 
+  const checkoutUrl = (value) => {
+    const normalized = normalizeString(value, 2048);
+    return normalized && /^https:\/\//i.test(normalized) ? normalized : null;
+  };
+
   // H12: never create a second Checkout Session for an order that already has
   // one. The session id is stamped on the order at creation; retries and the
   // resume endpoint replay the existing session instead of charging twice.
   const existingSessionId = normalizeString(order.metadata?.checkoutSessionId, 255);
   if (existingSessionId) {
+    let existingCheckoutUrl = checkoutUrl(
+      order.metadata?.stripeCheckout?.checkoutUrl
+        || order.metadata?.stripe_checkout?.checkoutUrl
+        || order.metadata?.checkoutUrl
+    );
+    if (!existingCheckoutUrl) {
+      try {
+        const existingSession = await stripe.checkout.sessions.retrieve(
+          existingSessionId,
+          stripeAccountId ? { stripeAccount: stripeAccountId } : undefined
+        );
+        existingCheckoutUrl = checkoutUrl(existingSession?.url);
+      } catch (err) {
+        logger.warn('Existing food checkout session could not be recovered', {
+          orderId: order.id,
+          checkoutSessionId: existingSessionId,
+          error: err?.message || 'unknown_error',
+        });
+      }
+    }
+    if (!existingCheckoutUrl) {
+      throw new AppError('Payment checkout is temporarily unavailable', 503, 'checkout_unavailable');
+    }
     return {
       order,
       payment: {
         mode: 'hosted_checkout',
         status: 'requires_payment',
+        checkoutUrl: existingCheckoutUrl,
         checkoutSessionId: existingSessionId,
         replayed: true,
       },
@@ -1743,6 +1772,12 @@ async function createFoodCheckoutSession({
     idempotencyKey: `food-order-checkout:${order.id}`,
   });
 
+  const sessionCheckoutUrl = checkoutUrl(session?.url);
+  const sessionId = normalizeString(session?.id, 255);
+  if (!sessionId || !sessionCheckoutUrl) {
+    throw new AppError('Payment checkout is temporarily unavailable', 503, 'checkout_unavailable');
+  }
+
   const { rows: [updatedOrder] } = await pool.query(
     `UPDATE food_orders
         SET payment_status = 'requires_payment',
@@ -1758,7 +1793,8 @@ async function createFoodCheckoutSession({
               to_jsonb(
                 json_build_object(
                   'connectedAccountId', $4::text,
-                  'sessionId', $2::text
+                  'sessionId', $2::text,
+                  'checkoutUrl', $5::text
                 )
               ),
               true
@@ -1768,9 +1804,10 @@ async function createFoodCheckoutSession({
       RETURNING *`,
     [
       typeof session.payment_intent === 'string' ? session.payment_intent : null,
-      session.id,
+      sessionId,
       order.id,
       stripeAccountId || null,
+      sessionCheckoutUrl,
     ]
   );
 
@@ -1779,8 +1816,8 @@ async function createFoodCheckoutSession({
     payment: {
       mode: 'hosted_checkout',
       status: 'requires_payment',
-      checkoutUrl: session.url,
-      checkoutSessionId: session.id,
+      checkoutUrl: sessionCheckoutUrl,
+      checkoutSessionId: sessionId,
       expiresAt: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
     },
   };
@@ -9279,3 +9316,4 @@ exports._refundFoodOrderStripePayment = refundFoodOrderStripePayment;
 exports._clawBackFoodLoyaltyOnRefund = clawBackFoodLoyaltyOnRefund;
 exports._earnFoodLoyaltyOnComplete = earnFoodLoyaltyOnComplete;
 exports._safeReturnUrl = safeReturnUrl;
+exports._createFoodCheckoutSession = createFoodCheckoutSession;
