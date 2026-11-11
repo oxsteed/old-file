@@ -35837,6 +35837,7 @@
     "typeReviews": "Reseñas",
     "typeBids": "Ofertas",
     "searchFailed": "La búsqueda falló.",
+    "sourcesUnavailable": "Algunas fuentes no están disponibles: {{sources}}. Los resultados pueden estar incompletos.",
     "title": "Búsqueda",
     "description": "Busca en usuarios, trabajos, mensajes, disputas, pagos, tickets de soporte, reseñas y ofertas. Todas las búsquedas se registran.",
     "searchPlaceholder": "Buscar usuarios, trabajos, disputas, pagos…",

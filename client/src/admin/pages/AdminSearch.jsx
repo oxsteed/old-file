@@ -415,6 +415,9 @@ export default function AdminSearch() {
   const searchWrapRef = useRef(null);
   const LIMIT = 10;
   const TYPE_META = getTypeMeta(t);
+  const unavailableSources = Object.entries(results?.source_status || {})
+    .filter(([, state]) => state === 'unavailable')
+    .map(([type]) => TYPE_META[type]?.label || type);
 
   // Preserve the old input's autoFocus through the typeahead wrapper.
   useEffect(() => {
@@ -730,6 +733,11 @@ export default function AdminSearch() {
           <p className="text-xs text-gray-500 mb-4">
             {t('adminSearch.resultsFor', { count: results.total, query: results.query })}
           </p>
+          {unavailableSources.length > 0 && (
+            <p className="mb-4 rounded-lg border border-yellow-700/50 bg-yellow-900/20 px-3 py-2 text-xs text-yellow-200" role="alert">
+              {t('adminSearch.sourcesUnavailable', { sources: unavailableSources.join(', ') })}
+            </p>
+          )}
 
           {ALL_TYPES.filter(t => types.includes(t)).map(t => {
             const { icon: Icon, label, color } = TYPE_META[t];

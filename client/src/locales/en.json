@@ -35837,6 +35837,7 @@
     "typeReviews": "Reviews",
     "typeBids": "Bids",
     "searchFailed": "Search failed.",
+    "sourcesUnavailable": "Some sources were unavailable: {{sources}}. Results may be incomplete.",
     "title": "Search",
     "description": "Search across users, jobs, messages, disputes, payments, support tickets, reviews, and bids. All searches are logged.",
     "searchPlaceholder": "Search users, jobs, disputes, payments…",

@@ -80,4 +80,30 @@ describe('T17-F01: federated search scopes entity types by grant', () => {
     expect(paymentQueries).toHaveLength(0);
     expect(res.json).toHaveBeenCalled();
   });
+
+  test('failed source queries are reported as unavailable instead of zero matches', async () => {
+    mockQuery.mockImplementation(async (text) => {
+      const sql = String(text);
+      if (sql.includes('admin_permission_grants')) {
+        return { rows: [{ permission: 'manage_operations' }] };
+      }
+      if (sql.includes('FROM jobs')) {
+        throw new Error('jobs source unavailable');
+      }
+      return { rows: [] };
+    });
+
+    const req = {
+      query: { q: 'broken', types: 'jobs' },
+      user: { id: 'admin-1', role: 'admin' },
+      headers: {},
+    };
+    const res = makeRes();
+    await controller.search(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      source_status: expect.objectContaining({ jobs: 'unavailable' }),
+      totals: expect.objectContaining({ jobs: 0 }),
+    }));
+  });
 });

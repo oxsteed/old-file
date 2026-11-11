@@ -35837,6 +35837,7 @@
     "typeReviews": "Revizyon",
     "typeBids": "Òf",
     "searchFailed": "Rechèch la echwe.",
+    "sourcesUnavailable": "Gen kèk sous ki pa disponib: {{sources}}. Rezilta yo ka enkonplè.",
     "title": "Rechèch",
     "description": "Chèche nan mitan itilizatè, travay, mesaj, kontestasyon, peman, tikè sipò, revizyon ak òf. Tout rechèch yo anrejistre.",
     "searchPlaceholder": "Chèche itilizatè, travay, kontestasyon, peman…",
