@@ -66,6 +66,8 @@ exports.listWaitlist = async (req, res, next) => {
        FROM appointment_waitlist w
        JOIN business_services bs ON bs.id = w.service_id
        LEFT JOIN users u ON w.customer_id = u.id
+                          AND u.is_active = TRUE
+                          AND u.deleted_at IS NULL
        ${where}
        ORDER BY w.position_in_queue ASC NULLS LAST, w.created_at ASC`,
       params

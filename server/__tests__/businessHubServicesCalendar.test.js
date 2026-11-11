@@ -139,6 +139,8 @@ describe('hub services + calendar error sources', () => {
     const sql = mockQuery.mock.calls[0][0];
     expect(sql).toMatch(/bs\.business_id = \$1/);
     expect(sql).not.toMatch(/w\.business_id/);
+    expect(sql).toMatch(/u\.is_active = TRUE/);
+    expect(sql).toMatch(/u\.deleted_at IS NULL/);
     expect(sql).not.toMatch(/display_name_preference/);
     expect(mockQuery.mock.calls[0][1]).toEqual(['1', 'offered']);
   });
