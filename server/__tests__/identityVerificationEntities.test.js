@@ -49,6 +49,12 @@ function makePublicId() {
   return `OX-P-${eight.slice(0, 4)}-${eight.slice(4)}-${computeCheckChar(eight)}`;
 }
 
+function makeTypedPublicId(typeCode) {
+  let eight = '';
+  for (let i = 0; i < 8; i++) eight += ALPHABET[Math.floor(Math.random() * 32)];
+  return `OX-${typeCode}-${eight.slice(0, 4)}-${eight.slice(4)}-${computeCheckChar(eight)}`;
+}
+
 const PERSON_ID = makePublicId();
 
 beforeEach(() => resetMocks());
@@ -86,6 +92,36 @@ describe('GET /api/entities/:publicId - identity_verified', () => {
     expect(res.status).toBe(200);
     expect(res.body.identity_verified).toBe(false);
     expect(res.body.identity_verified_at).toBeNull();
+  });
+});
+
+describe('GET /api/entities/:publicId - public business and restaurant names', () => {
+  test('requires a live listed business owner before exposing its name', async () => {
+    const businessId = makeTypedPublicId('B');
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ public_id: businessId, entity_type: 'business', entity_key: '41', created_at: new Date().toISOString() }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(entityApp()).get(`/api/entities/${businessId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.display_name).toBeUndefined();
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.is_active = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.deleted_at IS NULL/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/u\.is_active = TRUE/);
+  });
+
+  test('requires a discoverable restaurant and live owner before exposing its name', async () => {
+    const restaurantId = makeTypedPublicId('R');
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ public_id: restaurantId, entity_type: 'restaurant', entity_key: '52', created_at: new Date().toISOString() }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(entityApp()).get(`/api/entities/${restaurantId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.display_name).toBeUndefined();
+    expect(mockQuery.mock.calls[1][0]).toMatch(/fr\.discovery_status = 'visible'/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/fr\.is_hidden_by_admin/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/owner\.is_active = TRUE/);
   });
 });
 

@@ -57,7 +57,14 @@ async function summarize(client, row, req) {
 
   if (row.entity_type === 'business') {
     const { rows } = await client.query(
-      'SELECT business_name, COALESCE(is_listed, FALSE) AS is_listed FROM businesses WHERE id = $1',
+      `SELECT b.business_name, COALESCE(b.is_listed, FALSE) AS is_listed
+         FROM businesses b
+         JOIN users u ON u.id = b.user_id
+        WHERE b.id = $1
+          AND b.is_active = TRUE
+          AND b.deleted_at IS NULL
+          AND u.is_active = TRUE
+          AND u.deleted_at IS NULL`,
       [Number(row.entity_key)]
     );
     if (rows[0]?.is_listed && rows[0].business_name) base.display_name = rows[0].business_name;
@@ -66,7 +73,21 @@ async function summarize(client, row, req) {
 
   if (row.entity_type === 'restaurant') {
     const { rows } = await client.query(
-      'SELECT display_name, status FROM food_restaurants WHERE id = $1',
+      `SELECT fr.display_name, fr.status
+         FROM food_restaurants fr
+         JOIN users owner ON owner.id = fr.owner_user_id
+         LEFT JOIN businesses b ON b.id = fr.business_id
+        WHERE fr.id = $1
+          AND fr.status = 'active'
+          AND fr.discovery_status = 'visible'
+          AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
+          AND owner.is_active = TRUE
+          AND owner.deleted_at IS NULL
+          AND (fr.business_id IS NULL OR (
+            b.is_active = TRUE
+            AND b.deleted_at IS NULL
+            AND COALESCE(b.is_listed, FALSE) = TRUE
+          ))`,
       [Number(row.entity_key)]
     );
     if (rows[0]?.status === 'active' && rows[0].display_name) base.display_name = rows[0].display_name;
