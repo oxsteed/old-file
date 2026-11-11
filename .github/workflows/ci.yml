@@ -264,7 +264,7 @@ jobs:
           if command -v ffmpeg >/dev/null 2>&1; then
             ffmpeg -version | head -n 1
           else
-            if ! sudo env DEBIAN_FRONTEND=noninteractive apt-get install \
+            if ! timeout --signal=TERM --kill-after=30s 2m sudo env DEBIAN_FRONTEND=noninteractive apt-get install \
               -o Acquire::Retries=2 \
               --no-install-recommends -y ffmpeg; then
               timeout --signal=TERM --kill-after=30s 5m sudo env DEBIAN_FRONTEND=noninteractive apt-get update \
