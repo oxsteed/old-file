@@ -2446,7 +2446,7 @@ async function getLateInputsSummary(clientOrPool, { businessId, restaurantId, ru
       `SELECT input_type, COUNT(*)::int AS n FROM restaurant_pay_run_carry_forwards
         WHERE source_pay_run_id = $1 GROUP BY input_type`,
       [run.id]
-    ).catch(() => ({ rows: [] })),
+    ),
   ]);
   const summary = { ...empty, late_corrections: { count: correctionCount } };
   for (const row of carried.rows || []) {
@@ -2502,7 +2502,7 @@ async function getCorrectionHourDeltas(clientOrPool, { restaurant, sourceRun, ex
       WHERE source_pay_run_id = $1 AND input_type = 'correction_hours'
         AND target_pay_run_id <> $2`,
     [sourceRun.id, excludeTargetRunId]
-  ).catch(() => ({ rows: [] }));
+  );
   const alreadyCarried = new Map();
   for (const row of carriedRows) {
     const key = String(row.staff_user_id);
@@ -2551,7 +2551,7 @@ async function getCorrectionHourDeltas(clientOrPool, { restaurant, sourceRun, ex
          FROM business_members
         WHERE business_id = $1 AND member_id = ANY($2::uuid[]) AND status = 'active'`,
       [restaurant.business_id, deltaUserIds]
-    ).catch(() => ({ rows: [] }));
+    );
     for (const row of wageRows) {
       if (row.wage_cents != null) wagesByUser.set(String(row.member_id), Number(row.wage_cents));
     }
@@ -2603,7 +2603,7 @@ async function buildCarryForwardItems(clientOrPool, {
       ORDER BY period_to DESC, id DESC
       LIMIT 5`,
     [restaurant.id, runDateOnly(targetPeriodFrom)]
-  ).catch(() => ({ rows: [] }));
+  );
   const items = [];
   for (const source of sources) {
     // A source run only feeds a target that covers at least one of
@@ -2630,7 +2630,7 @@ async function buildCarryForwardItems(clientOrPool, {
              FROM business_members
             WHERE business_id = $1 AND member_id = $2 AND status = 'active'`,
           [businessId, row.user_id]
-        ).catch(() => ({ rows: [] }));
+        );
         if (wageRow?.wage_cents != null) {
           wage = Number(wageRow.wage_cents);
           wagesByUser.set(String(row.user_id), wage);
