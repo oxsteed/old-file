@@ -23,6 +23,18 @@ const { canActOnRole } = require('../utils/teamRanks');
 
 const VALID_ROLES = ['manager', 'representative', 'employee', 'support_agent'];
 
+// IDs cross the JSON/URL boundary as either numbers or strings.  parseInt()
+// would silently turn values such as "12.5" or "12junk" into 12, which can
+// make the client and server disagree about the selected workspace or member.
+function parsePositiveInteger(value) {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  }
+  if (typeof value !== 'string' || !/^\d+$/.test(value.trim())) return null;
+  const n = Number(value);
+  return Number.isSafeInteger(n) && n > 0 ? n : null;
+}
+
 exports.listMemberships = async (req, res, next) => {
   try {
     const { rows } = await pool.query(
@@ -105,7 +117,7 @@ exports.changeMembershipRole = async (req, res, next) => {
     if (req.businessRole !== 'owner') {
       return sendError(res, 403, 'Only the business owner can change roles.', 'owner_only');
     }
-    const mid = parseInt(req.params.membershipId, 10);
+    const mid = parsePositiveInteger(req.params.membershipId);
     const newRole = String(req.body.role || '').trim();
     if (!Number.isFinite(mid) || !VALID_ROLES.includes(newRole)) {
       return sendError(res, 400, 'Invalid role.', 'invalid_role', { allowed: VALID_ROLES });
@@ -171,7 +183,7 @@ exports.changeMembershipRole = async (req, res, next) => {
  */
 exports.setMembershipOverrides = async (req, res, next) => {
   try {
-    const mid = parseInt(req.params.membershipId, 10);
+    const mid = parsePositiveInteger(req.params.membershipId);
     if (!Number.isFinite(mid)) {
       return sendError(res, 400, 'Invalid membership id.', 'invalid_membership_id');
     }
@@ -488,12 +500,12 @@ exports.setWorkspaceContext = async (req, res, next) => {
     if (!req.user || !req.user.id) {
       return sendError(res, 401, 'Authentication required.', 'auth_required');
     }
-    const businessId = parseInt(req.body.business_id, 10);
-    const restaurantId = req.body.restaurant_id == null ? null : parseInt(req.body.restaurant_id, 10);
-    if (!Number.isFinite(businessId)) {
+    const businessId = parsePositiveInteger(req.body.business_id);
+    const restaurantId = req.body.restaurant_id == null ? null : parsePositiveInteger(req.body.restaurant_id);
+    if (businessId == null) {
       return sendError(res, 400, 'Invalid business id.', 'invalid_business_id');
     }
-    if (req.body.restaurant_id != null && !Number.isFinite(restaurantId)) {
+    if (req.body.restaurant_id != null && restaurantId == null) {
       return sendError(res, 400, 'Invalid restaurant id.', 'invalid_restaurant_id');
     }
 
