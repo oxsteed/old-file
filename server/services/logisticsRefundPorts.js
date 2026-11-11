@@ -153,6 +153,9 @@ const stripePort = {
     else throw new AppError('No Stripe charge or payment intent on the original payment.', 400, 'refund_no_stripe_reference');
 
     const refund = await stripe.refunds.create(params, { idempotencyKey });
+    if (!refund || typeof refund.id !== 'string' || !refund.id.trim()) {
+      throw new AppError('Stripe refund did not return a refund id.', 503, 'refund_provider_reference_missing');
+    }
     return { id: refund.id, status: refund.status }; // succeeded | pending | failed | canceled
   },
 };
