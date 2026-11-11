@@ -21,3 +21,8 @@ export const applyLikeToggle = (media) => {
 
 // Flag reasons accepted by the server for media flags.
 export const MEDIA_FLAG_REASONS = ['unrelated', 'spam', 'broken', 'inappropriate'];
+
+// Older deployments may not expose the private uploads endpoint yet. A 404
+// is the only response that can safely mean "feature unavailable"; auth,
+// database, and storage failures must remain visible to the caller.
+export const isMissingMediaMineEndpoint = (err) => err?.response?.status === 404;

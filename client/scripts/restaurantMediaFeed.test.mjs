@@ -8,6 +8,7 @@ import {
   dishLinkState,
   applyLikeToggle,
   MEDIA_FLAG_REASONS,
+  isMissingMediaMineEndpoint,
 } from '../src/utils/restaurantMedia.js';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -44,6 +45,13 @@ test('applyLikeToggle flips liked_by_me and adjusts the count', () => {
 
 test('flag reasons match the server contract', () => {
   assert.deepEqual([...MEDIA_FLAG_REASONS].sort(), ['broken', 'inappropriate', 'spam', 'unrelated']);
+});
+
+test('only a missing optional endpoint is treated as unavailable', () => {
+  assert.equal(isMissingMediaMineEndpoint({ response: { status: 404 } }), true);
+  assert.equal(isMissingMediaMineEndpoint({ response: { status: 401 } }), false);
+  assert.equal(isMissingMediaMineEndpoint({ response: { status: 500 } }), false);
+  assert.equal(isMissingMediaMineEndpoint({ code: 'ERR_NETWORK' }), false);
 });
 
 const leaves = (obj, prefix = '') =>

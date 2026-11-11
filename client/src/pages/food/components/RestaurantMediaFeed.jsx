@@ -369,9 +369,9 @@ export default function RestaurantMediaFeed({
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    // Best-effort: surface the signed-in user's own non-ready uploads as
-    // processing notices. The /mine endpoint is a server follow-up and may
-    // not exist yet; getMyRestaurantMedia degrades silently to null.
+    // Surface the signed-in user's own non-ready uploads as processing
+    // notices. Older deployments may return 404, but real service failures
+    // are surfaced instead of being mistaken for an empty upload list.
     if (signedIn) {
       getMyRestaurantMedia(restaurantId).then((mine) => {
         if (cancelled || !Array.isArray(mine) || mine.length === 0) return;
@@ -384,6 +384,8 @@ export default function RestaurantMediaFeed({
             return [...prev, ...pending.filter((n) => !seen.has(String(n.id)))];
           });
         }
+      }).catch(() => {
+        if (!cancelled) toast.error(t('food.restaurant.media.errors.loadFailed'));
       });
     }
     return () => { cancelled = true; };
