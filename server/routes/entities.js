@@ -63,8 +63,12 @@ async function summarize(client, row, req) {
         WHERE b.id = $1
           AND b.is_active = TRUE
           AND b.deleted_at IS NULL
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') = 'active'
           AND u.is_active = TRUE
-          AND u.deleted_at IS NULL`,
+          AND u.deleted_at IS NULL
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE`,
       [Number(row.entity_key)]
     );
     if (rows[0]?.is_listed && rows[0].business_name) base.display_name = rows[0].business_name;
@@ -83,10 +87,13 @@ async function summarize(client, row, req) {
           AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
           AND owner.is_active = TRUE
           AND owner.deleted_at IS NULL
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE
           AND (fr.business_id IS NULL OR (
             b.is_active = TRUE
             AND b.deleted_at IS NULL
             AND COALESCE(b.is_listed, FALSE) = TRUE
+            AND COALESCE(b.setup_status, 'active') = 'active'
           ))`,
       [Number(row.entity_key)]
     );

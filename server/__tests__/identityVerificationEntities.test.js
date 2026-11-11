@@ -107,7 +107,11 @@ describe('GET /api/entities/:publicId - public business and restaurant names', (
     expect(res.body.display_name).toBeUndefined();
     expect(mockQuery.mock.calls[1][0]).toMatch(/b\.is_active = TRUE/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/b\.deleted_at IS NULL/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.is_listed = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/COALESCE\(b\.setup_status, 'active'\) = 'active'/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/u\.is_active = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/u\.email_verified = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/u\.onboarding_completed = TRUE/);
   });
 
   test('requires a discoverable restaurant and live owner before exposing its name', async () => {
@@ -122,6 +126,8 @@ describe('GET /api/entities/:publicId - public business and restaurant names', (
     expect(mockQuery.mock.calls[1][0]).toMatch(/fr\.discovery_status = 'visible'/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/fr\.is_hidden_by_admin/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/owner\.is_active = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/owner\.email_verified = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/owner\.onboarding_completed = TRUE/);
   });
 });
 
