@@ -69,6 +69,20 @@ test('Vortex build-flag parsing documents the server-compatible false values', a
   }
 });
 
+test('client and server launch catalogs stay in lockstep', async () => {
+  const source = await import('node:fs/promises');
+  const clientSource = await source.readFile(new URL('../src/utils/launchScope.js', import.meta.url), 'utf8');
+  const serverSource = await source.readFile(new URL('../../server/middleware/launchGate.js', import.meta.url), 'utf8');
+  const clientBlock = clientSource.match(/export const LAUNCH_DEFAULTS = Object\.freeze\(\{([\s\S]*?)\n\}\);/u)?.[1] || '';
+  const serverBlock = serverSource.match(/const LAUNCH_KEY_ENV = Object\.freeze\(\{([\s\S]*?)\n\}\);/u)?.[1] || '';
+  const keys = (block, pattern) => [...block.matchAll(pattern)].map((match) => match[1]).sort();
+  const clientKeys = keys(clientBlock, /^\s{2}([A-Za-z0-9_]+):/gmu);
+  const serverKeys = keys(serverBlock, /^\s{2}([A-Za-z0-9_]+):\s*\[/gmu);
+  assert.ok(clientKeys.length > 0, 'client launch catalog should be discoverable');
+  assert.ok(serverKeys.length > 0, 'server launch catalog should be discoverable');
+  assert.deepEqual(clientKeys, serverKeys);
+});
+
 // Review P3-7-F14: /orders/:id must reach the router's canonical redirect
 // (/food/orders/:id), not bounce to /orders via the launch gate.
 test('order detail paths are not rewritten to the order list', () => {
