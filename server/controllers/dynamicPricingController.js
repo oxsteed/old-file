@@ -5,6 +5,7 @@ const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const pricingEngine = require('../services/pricingEngine');
+const { resolvePublicBusinessOwner } = require('../services/businessPublicOwner');
 
 // Main pricing calculation
 async function calculatePrice(req, res, next) {
@@ -14,6 +15,9 @@ async function calculatePrice(req, res, next) {
 
     if (!booking_date || !booking_time) {
       return next(new AppError('Booking date and time are required', 400));
+    }
+    if (!await resolvePublicBusinessOwner(businessId)) {
+      return next(new AppError('Business not found', 404, 'not_found'));
     }
 
     const atTime = new Date(`${booking_date}T${booking_time}:00Z`);

@@ -60,7 +60,10 @@ function withinTimeWindow(now, startStr, endStr) {
 async function _loadServiceBasePrice(businessId, serviceId) {
   const { rows } = await pool.query(
     `SELECT base_price_cents FROM business_services
-      WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL`,
+      WHERE id = $1
+        AND business_id = $2
+        AND deleted_at IS NULL
+        AND is_active = TRUE`,
     [serviceId, businessId]
   );
   return rows[0] ? Number(rows[0].base_price_cents) : null;

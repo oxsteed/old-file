@@ -7,7 +7,7 @@ beforeEach(() => resetMocks());
 
 test('service pricing reads the deployed is_enabled schema and scopes rules to the business', async () => {
   mockQuery.mockImplementation(async (sql) => {
-    if (/FROM business_services\s+WHERE id = \$1 AND business_id = \$2/i.test(sql)) {
+    if (/FROM business_services[\s\S]*WHERE id = \$1[\s\S]*business_id = \$2/i.test(sql)) {
       return { rows: [{ base_price_cents: 10000 }] };
     }
     if (/FROM service_price_rules/i.test(sql)) {
@@ -37,6 +37,8 @@ test('service pricing reads the deployed is_enabled schema and scopes rules to t
   expect(result.basePriceCents).toBe(10000);
   expect(result.adjustedPriceCents).toBe(15000);
   expect(result.applied[0]).toMatchObject({ ruleId: 'rule-1', ruleType: 'time' });
+  const serviceQuery = mockQuery.mock.calls.find(([sql]) => /FROM business_services/i.test(sql));
+  expect(serviceQuery[0]).toMatch(/is_active = TRUE/);
   const rulesQuery = mockQuery.mock.calls.find(([sql]) => /FROM service_price_rules/i.test(sql));
   expect(rulesQuery[0]).toMatch(/business_id = \$1/);
   expect(rulesQuery[0]).toMatch(/is_enabled = TRUE/);

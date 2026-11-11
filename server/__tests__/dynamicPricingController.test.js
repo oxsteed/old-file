@@ -25,6 +25,7 @@ beforeEach(() => {
 });
 
 test('service price endpoint delegates to the shared pricing engine and records its result', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ business_id: 7, owner_id: 'owner-1' }] });
   pricingEngine.calculatePrice.mockResolvedValueOnce({
     basePriceCents: 10000,
     adjustedPriceCents: 12500,
@@ -59,6 +60,7 @@ test('service price endpoint delegates to the shared pricing engine and records 
 });
 
 test('service price endpoint returns not found when the shared engine cannot resolve the service', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ business_id: 7, owner_id: 'owner-1' }] });
   pricingEngine.calculatePrice.mockResolvedValueOnce({
     error: 'service not found',
     basePriceCents: 0,
@@ -71,5 +73,17 @@ test('service price endpoint returns not found when the shared engine cannot res
     .query({ booking_date: '2026-11-10', booking_time: '09:30' });
 
   expect(res.status).toBe(404);
-  expect(mockQuery).not.toHaveBeenCalled();
+  expect(pricingEngine.calculatePrice).toHaveBeenCalled();
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO service_price_calculations'))).toBe(false);
+});
+
+test('service price endpoint rejects a business that is not publicly visible', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+
+  const res = await request(buildApp())
+    .get('/api/businesses/7/services/11/calculate-price')
+    .query({ booking_date: '2026-11-10', booking_time: '09:30' });
+
+  expect(res.status).toBe(404);
+  expect(pricingEngine.calculatePrice).not.toHaveBeenCalled();
 });
