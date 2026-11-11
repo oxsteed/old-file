@@ -194,6 +194,9 @@ describe('GET /api/qr-payments/public/user/:userId/pay-code', () => {
     // The query must only ever read active codes for that user.
     const [sql, params] = mockQuery.mock.calls[0];
     expect(sql).toMatch(/is_active = TRUE/);
+    expect(sql).toMatch(/u\.deleted_at IS NULL/);
+    expect(sql).toMatch(/u\.email_verified = TRUE/);
+    expect(sql).toMatch(/u\.onboarding_completed = TRUE/);
     expect(params[0]).toBe(USER_ID);
   });
 });
