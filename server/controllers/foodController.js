@@ -2605,6 +2605,27 @@ exports.trackCampaignClick = async (req, res) => {
   try {
     const restaurantId = Number(req.params.restaurantId);
     if (!Number.isInteger(restaurantId) || restaurantId <= 0) return;
+    const { rows: visibleRestaurants } = await pool.query(
+      `SELECT fr.id
+         FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
+        WHERE fr.id = $1
+          AND fr.status IN ('active', 'paused')
+          AND fr.discovery_status = 'visible'
+          AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
+          AND b.deleted_at IS NULL
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE`,
+      [restaurantId]
+    );
+    if (!visibleRestaurants[0]) return;
     const campaignByRestaurant = await resolveFeaturedCampaignIds(pool, [restaurantId]);
     const campaignId = campaignByRestaurant.get(restaurantId);
     if (!campaignId) return;
