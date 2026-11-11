@@ -15,7 +15,7 @@ const {
   assertPaymentIntentMatchesInvoice,
   applyInvoiceCardPayment,
 } = require('../services/businessInvoiceStripeConnectService');
-const { uploadFile, getPublicUrl } = require('../utils/storage');
+const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const countriesUtil = require('../utils/countries');
 const modeRoleUtil = require('../utils/modeRole');
 const logger = require('../utils/logger');
@@ -1480,6 +1480,7 @@ exports.unregisterPushToken = async (req, res, next) => {
 };
 
 exports.uploadHelperGallery = async (req, res, next) => {
+  let key = null;
   try {
     if (!['helper', 'helper_pro', 'broker'].includes(req.user.role)) {
       throw new AppError('Helper access required', 403, 'forbidden');
@@ -1491,7 +1492,7 @@ exports.uploadHelperGallery = async (req, res, next) => {
     }
 
     const caption = normalizeString(req.body.caption, 200);
-    const key = await uploadFile(
+    key = await uploadFile(
       req.file.buffer,
       `helper-gallery/${req.user.id}`,
       req.file.originalname,
@@ -1509,8 +1510,17 @@ exports.uploadHelperGallery = async (req, res, next) => {
       [req.user.id, url, caption]
     );
 
+    // The gallery row now owns the object. Do not delete it if a later
+    // response serialization step or middleware reports an error.
+    key = null;
     res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
+    if (key) {
+      await deleteFile(key).catch((cleanupError) => logger.warn('Failed to remove orphaned helper gallery upload', {
+        key,
+        error: cleanupError.message,
+      }));
+    }
     next(err);
   }
 };
