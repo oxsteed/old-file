@@ -223,7 +223,20 @@ exports.generateQRCode = async (req, res) => {
 
     // Validate business exists
     const businessResult = await pool.query(
-      'SELECT id, business_name, profile_slug FROM businesses WHERE id = $1 AND is_active = true',
+      `SELECT b.id, b.business_name, b.profile_slug
+         FROM businesses b
+         JOIN users u ON u.id = b.user_id
+        WHERE b.id = $1
+          AND b.deleted_at IS NULL
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+          AND b.setup_status = 'active'
+          AND b.business_kind = 'service'
+          AND u.deleted_at IS NULL
+          AND u.is_active = TRUE
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE`,
       [businessId]
     );
 
@@ -303,7 +316,20 @@ exports.generateMultiSizeQRCode = async (req, res) => {
 
     // Validate business exists
     const businessResult = await pool.query(
-      'SELECT id, business_name, profile_slug FROM businesses WHERE id = $1 AND is_active = true',
+      `SELECT b.id, b.business_name, b.profile_slug
+         FROM businesses b
+         JOIN users u ON u.id = b.user_id
+        WHERE b.id = $1
+          AND b.deleted_at IS NULL
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+          AND b.setup_status = 'active'
+          AND b.business_kind = 'service'
+          AND u.deleted_at IS NULL
+          AND u.is_active = TRUE
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE`,
       [businessId]
     );
 
@@ -354,14 +380,18 @@ exports.getBusinessProfileWithCover = async (req, res) => {
         b.description,
         u.profile_photo_url
       FROM businesses b
-      LEFT JOIN users u ON b.user_id = u.id
+      JOIN users u ON b.user_id = u.id
       WHERE b.id = $1
         AND b.deleted_at IS NULL
         AND b.is_active = TRUE
         AND b.is_listed = TRUE
         AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
         AND b.setup_status = 'active'
-        AND b.business_kind = 'service'`,
+        AND b.business_kind = 'service'
+        AND u.deleted_at IS NULL
+        AND u.is_active = TRUE
+        AND u.email_verified = TRUE
+        AND u.onboarding_completed = TRUE`,
       [businessId]
     );
 
