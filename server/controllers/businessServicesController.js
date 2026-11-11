@@ -4,12 +4,16 @@
 const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const { resolvePublicBusinessOwner } = require('../services/businessPublicOwner');
 
 // Get all services for a business
 async function listServices(req, res, next) {
   try {
     const { businessId } = req.params;
     const { include_inactive = false } = req.query;
+    if (!await resolvePublicBusinessOwner(businessId)) {
+      return res.status(404).json({ error: 'Business not found' });
+    }
 
     const query = `
       SELECT

@@ -10,6 +10,7 @@ const content = require('../controllers/businessContentController');
 const appointments = require('../controllers/businessAppointmentsController');
 const waitlist = require('../controllers/businessWaitlistController');
 const services = require('../controllers/businessServicesController');
+const calendar = require('../controllers/businessCalendarController');
 
 const OWNER = {
   id: '00000000-0000-4000-8000-000000000456',
@@ -28,6 +29,7 @@ function buildApp(user = OWNER) {
   app.get('/api/businesses/:businessId/appointments', appointments.listAppointments);
   app.get('/api/businesses/:businessId/waitlist', waitlist.listWaitlist);
   app.get('/api/businesses/:businessId/ops-services', services.listServices);
+  app.get('/api/businesses/:businessId/services/:serviceId/slots', calendar.getServiceSlots);
   app.use(errorHandler);
   return app;
 }
@@ -146,12 +148,28 @@ describe('hub services + calendar error sources', () => {
   });
 
   test('ops service staff names use first/last name instead of users.display_name', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ business_id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [] });
     const res = await request(buildApp()).get('/api/businesses/1/ops-services');
     expect(res.status).toBe(200);
-    const sql = mockQuery.mock.calls[0][0];
+    const sql = mockQuery.mock.calls[1][0];
     expect(sql).toMatch(/u\.first_name/);
     expect(sql).not.toMatch(/SELECT display_name FROM users/);
+  });
+
+  test('public service listing rejects an unlisted business before loading services', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp()).get('/api/businesses/1/ops-services');
+    expect(res.status).toBe(404);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  test('public service slots reject an unlisted business before running the slot engine', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp()).get('/api/businesses/1/services/8/slots');
+    expect(res.status).toBe(404);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 
   test('appointment list failures return AppError instead of crashing the constructor', async () => {
