@@ -7,7 +7,7 @@ const { sendEmail, sendEmailOrThrow, EmailDeliveryError } = require('../utils/em
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { withTransaction } = require('../utils/transaction');
 const { sendNotification } = require('../services/notificationService'); // Review P1-4-F05
-const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const {
   generateLookupCode,
   hashLookupCode,
@@ -877,6 +877,7 @@ exports.applyAdminCatalogAI = async (req, res) => {
 };
 
 exports.uploadDirectAsset = async (req, res) => {
+  let uploadedKey = null;
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'A file is required' });
@@ -915,18 +916,21 @@ exports.uploadDirectAsset = async (req, res) => {
       ? `direct-request-assets/${requestId}/${purpose}`
       : `direct-draft-assets/${draftId}/${purpose}`;
 
-    const key = await uploadFile(
+    uploadedKey = await uploadFile(
       req.file.buffer,
       folder,
       req.file.originalname || `${purpose}-${Date.now()}`,
       req.file.mimetype
     );
 
-    if (!key) {
+    if (!uploadedKey) {
       return res.status(503).json({ error: 'Secure file storage is not configured' });
     }
 
-    const signedUrl = await getSignedDownloadUrl(key, 900);
+    const signedUrl = await getSignedDownloadUrl(uploadedKey, 900);
+    if (!signedUrl) throw new Error('Signed direct asset URL unavailable');
+    const key = uploadedKey;
+    uploadedKey = null;
 
     return res.status(201).json({
       attachment: {
@@ -941,6 +945,7 @@ exports.uploadDirectAsset = async (req, res) => {
       },
     });
   } catch (err) {
+    if (uploadedKey) await deleteFile(uploadedKey).catch(() => {});
     logger.error('uploadDirectAsset error', { error: err.message });
     return res.status(500).json({ error: 'Failed to upload file' });
   }
