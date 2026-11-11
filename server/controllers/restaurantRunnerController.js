@@ -603,26 +603,36 @@ exports.reportIssue = async (req, res, next) => {
     const note = normalizeString(req.body.note, 2000);
     if (!note) throw new AppError('Validation failed', 400, 'validation_failed', { note: 'Issue note is required' });
 
-    const { rows: [issue] } = await pool.query(
-      `INSERT INTO restaurant_runner_issue_reports
-         (restaurant_id, task_id, severity, note, created_by)
-       VALUES ($1,$2,$3,$4,$5)
-       RETURNING *`,
-      [
-        restaurantId,
-        taskId,
-        normalizeString(req.body.severity, 40) || 'Needs follow-up',
-        note,
-        req.user.id,
-      ]
-    );
-    await pool.query(
-      `UPDATE restaurant_runner_tasks
-          SET status = 'Issue', updated_at = NOW()
-        WHERE restaurant_id = $1 AND id = $2
-          ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
-      [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
-    );
+    const issue = await withTransaction(pool, async (client) => {
+      // The issue report and the task's visible status are one runner-state
+      // transition. A failed status update must not leave an untracked issue,
+      // and a failed insert must not hide the task's problem state.
+      const { rows: [createdIssue] } = await client.query(
+        `INSERT INTO restaurant_runner_issue_reports
+           (restaurant_id, task_id, severity, note, created_by)
+         VALUES ($1,$2,$3,$4,$5)
+         RETURNING *`,
+        [
+          restaurantId,
+          taskId,
+          normalizeString(req.body.severity, 40) || 'Needs follow-up',
+          note,
+          req.user.id,
+        ]
+      );
+      const taskUpdate = await client.query(
+        `UPDATE restaurant_runner_tasks
+            SET status = 'Issue', updated_at = NOW()
+          WHERE restaurant_id = $1 AND id = $2
+            ${locationScope.mode === 'assigned' ? 'AND location_id = ANY($3::bigint[])' : ''}`,
+        [restaurantId, taskId, ...(locationScope.mode === 'assigned' ? [locationScope.location_ids] : [])]
+      );
+      if (!taskUpdate.rowCount) {
+        const error = new AppError('Runner task is no longer available', 409, 'runner_task_not_found');
+        throw error;
+      }
+      return createdIssue;
+    }, 'report_runner_issue');
     res.status(201).json({ issue });
   } catch (err) {
     next(err);

@@ -555,6 +555,9 @@ exports.submitEvidence = async (req, res, next) => {
         storageKey ? file.mimetype : file.originalname,
         storageKey ? undefined : file.mimetype,
       );
+      if (!storedKey) {
+        throw new AppError('Evidence storage is temporarily unavailable', 503, 'storage_unavailable');
+      }
       uploadedKeys.push({ key: storedKey, deterministic: Boolean(clientRequestId) });
       parts.push({
         type: evidenceTypeForFile(file),

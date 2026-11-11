@@ -16,6 +16,7 @@ const countriesUtil = require('../utils/countries');
 const logger = require('../utils/logger');
 const { ONBOARDING_COLUMNS, deriveHelperOnboarding } = require('../services/helperOnboarding');
 const { readDeviceFingerprint } = require('../utils/deviceFingerprint'); // Review P2-6-F12
+const { withTransaction } = require('../utils/transaction');
 const TERMS_IP_HASH_MAX_LEN = 45;
 const SUPPORTED_LANGUAGE_CODES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
@@ -591,30 +592,34 @@ async function saveW9(req, res) {
     }
 
     // Note: tin_verified column does not exist in this DB - omitted from INSERT
-    await pool.query(
-      `INSERT INTO w9_records
-       (user_id, legal_name, business_name, tax_classification, ssn_last4, tin_encrypted,
-        address, signature_data, signed_at, ip_address, user_agent, year_applicable)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11)`,
-      [
-        userId, legalName, businessName || null, taxClassification,
-        maskTIN(sanitizedTIN).slice(-4), encrypt(sanitizedTIN),
-        address, signatureData,
-        hashIP(req.ip || 'unknown'), req.headers['user-agent'] || '',
-        new Date().getUTCFullYear()
-      ]
-    );
+    await withTransaction(pool, async (client) => {
+      // The tax record and the user's completion flags are one compliance
+      // transition. Never expose an onboarding state that has no matching W-9.
+      await client.query(
+        `INSERT INTO w9_records
+         (user_id, legal_name, business_name, tax_classification, ssn_last4, tin_encrypted,
+          address, signature_data, signed_at, ip_address, user_agent, year_applicable)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11)`,
+        [
+          userId, legalName, businessName || null, taxClassification,
+          maskTIN(sanitizedTIN).slice(-4), encrypt(sanitizedTIN),
+          address, signatureData,
+          hashIP(req.ip || 'unknown'), req.headers['user-agent'] || '',
+          new Date().getUTCFullYear()
+        ]
+      );
 
-    await pool.query(
-      `UPDATE users
-       SET w9_completed    = TRUE,
-           w9_on_file      = TRUE,
-           tax_id_last4    = $1,
-           w9_submitted_at = NOW(),
-           updated_at      = NOW()
-       WHERE id = $2`,
-      [maskTIN(sanitizedTIN).slice(-4), userId]
-    );
+      await client.query(
+        `UPDATE users
+         SET w9_completed    = TRUE,
+             w9_on_file      = TRUE,
+             tax_id_last4    = $1,
+             w9_submitted_at = NOW(),
+             updated_at      = NOW()
+         WHERE id = $2`,
+        [maskTIN(sanitizedTIN).slice(-4), userId]
+      );
+    }, 'save_helper_w9');
 
     return res.json({ message: 'W9 saved successfully' });
   } catch (err) {

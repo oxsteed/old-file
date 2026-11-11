@@ -3,7 +3,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
-const { uploadFile, getSignedDownloadUrl, normalizeStorageKey } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, normalizeStorageKey, deleteFile } = require('../utils/storage');
 const {
   assertConversationParticipant,
   assertGuestInquiryAccess,
@@ -216,6 +216,7 @@ async function assertCanViewPop(req, pop) {
 }
 
 exports.sharePop = async (req, res, next) => {
+  let uploadedKey = null;
   try {
     const userId = req.user?.id;
     const guest = await resolveGuestFromRequest(req);
@@ -328,9 +329,9 @@ exports.sharePop = async (req, res, next) => {
       if (!ALLOWED_POP_MIMES.has(req.file.mimetype)) {
         return bad(res, 400, 'File type not allowed for proof of payment', 'invalid_file_type');
       }
-      const key = await uploadFile(req.file.buffer, uploadFolder, req.file.originalname, req.file.mimetype);
-      if (key) {
-        attachmentKey = key;
+      uploadedKey = await uploadFile(req.file.buffer, uploadFolder, req.file.originalname, req.file.mimetype);
+      if (uploadedKey) {
+        attachmentKey = uploadedKey;
         attachmentName = req.file.originalname;
         attachmentMime = req.file.mimetype;
         attachmentSize = req.file.size;
@@ -403,6 +404,17 @@ exports.sharePop = async (req, res, next) => {
         replayed = true;
       }
     }
+    if (uploadedKey) {
+      if (pop?.attachment_key === uploadedKey) {
+        // The proof row now owns the object.
+        uploadedKey = null;
+      } else if (pop) {
+        // An idempotent replay already owns the request; discard this unused
+        // upload rather than leaving an object with no database reference.
+        await deleteFile(uploadedKey).catch(() => {});
+        uploadedKey = null;
+      }
+    }
     if (!pop) throw new Error('Failed to create proof of payment');
     const marker = buildPopMarker({
       id: pop.id,
@@ -463,6 +475,7 @@ exports.sharePop = async (req, res, next) => {
       idempotent: replayed,
     });
   } catch (err) {
+    if (uploadedKey) await deleteFile(uploadedKey).catch(() => {});
     next(err);
   }
 };

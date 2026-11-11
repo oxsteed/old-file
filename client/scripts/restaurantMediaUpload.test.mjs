@@ -171,15 +171,17 @@ test('202 resolves as processing (quarantined video)', async () => {
   assert.equal(result.item.id, 'v1');
 });
 
-test('malformed JSON body on success still resolves with a null item', async () => {
+test('malformed JSON body on success rejects instead of reporting a false upload', async () => {
   const pending = uploadMediaWithProgress({ url: 'u', formData: fakeForm(), XHR: FakeXHR });
   const xhr = lastInstance();
   xhr.status = 201;
   xhr.responseText = 'not json';
   xhr.onload();
-  const result = await pending;
-  assert.equal(result.outcome, 'ready');
-  assert.equal(result.item, null);
+  await assert.rejects(pending, (err) => {
+    assert.equal(err.code, 'upload_invalid_response');
+    assert.equal(err.response.status, 201);
+    return true;
+  });
 });
 
 test('non-2xx rejects with an axios-shaped error carrying the server code', async () => {

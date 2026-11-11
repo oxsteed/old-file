@@ -10,7 +10,11 @@
  */
 
 const { mockQuery, resetMocks } = require('./setup');
-const { getBusinessPublicProfile, getAdminProfilePreview } = require('../controllers/businessController');
+const {
+  getBusinessPublicProfile,
+  getAdminProfilePreview,
+  loadSectionVisibility,
+} = require('../controllers/businessController');
 
 const BIZ_ROW = {
   id: 1,
@@ -146,5 +150,13 @@ describe('getAdminProfilePreview (admin)', () => {
     expect(payload.business.website).toBe('https://acme.example');
     expect(payload.business.owner_id).toBe('owner-uuid-1');
     expect(payload.team[0]).toEqual({ role: 'manager', first_name: 'Bob', last_name: 'Smith' });
+  });
+});
+
+describe('section visibility read failures', () => {
+  test('does not convert an unexpected database failure into visible sections', async () => {
+    resetMocks();
+    mockQuery.mockRejectedValue(new Error('database connection lost'));
+    await expect(loadSectionVisibility(1)).rejects.toThrow('database connection lost');
   });
 });

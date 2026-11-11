@@ -45,9 +45,8 @@ const MAX_MULTIPLIER = 100;
  */
 async function assertServiceRuleOwnership(ruleId, businessId, res) {
   const { rows } = await pool.query(
-    `SELECT r.id, s.business_id
+    `SELECT r.id, r.business_id
        FROM service_price_rules r
-       LEFT JOIN business_services s ON s.id = r.service_id
       WHERE r.id = $1`,
     [ruleId]
   );
@@ -80,12 +79,23 @@ function businessIdFrom(req) {
 
 exports.createServiceRule = async function createServiceRule(req, res, next) {
   try {
+    const businessId = businessIdFrom(req);
     const { serviceId } = req.params;
     const { rule_type, priority = 0, time, demand, volume, segment, seasonal } = req.body || {};
 
     const fields = {};
     if (!rule_type) fields.rule_type = 'rule_type required';
     if (rule_type && !SERVICE_RULE_TYPES.has(rule_type)) fields.rule_type = `must be one of ${Array.from(SERVICE_RULE_TYPES).join(',')}`;
+
+    // The original builder submitted 0 as its default priority, while the
+    // deployed table enforces 1..1000. Preserve that UI meaning as the
+    // highest priority valid value, and reject every other invalid value
+    // before the transaction reaches PostgreSQL.
+    const requestedPriority = Number(priority);
+    const rulePriority = requestedPriority === 0 ? 1 : requestedPriority;
+    if (!Number.isInteger(rulePriority) || rulePriority < 1 || rulePriority > 1000) {
+      fields.priority = 'must be an integer from 1 to 1000';
+    }
 
     // Multiplier sanity bounds: reject negative/NaN, cap absurd positives at 100x.
     // (num() would silently coerce garbage to the default; validate instead.)
@@ -108,10 +118,20 @@ exports.createServiceRule = async function createServiceRule(req, res, next) {
     try {
       await client.query('BEGIN');
       const r = await client.query(
-        `INSERT INTO service_price_rules (service_id, rule_type, priority, is_active)
-         VALUES ($1, $2, $3, TRUE) RETURNING id`,
-        [serviceId, rule_type, num(priority, 0)]
+        `INSERT INTO service_price_rules
+           (business_id, service_id, rule_type, priority, is_enabled, name, rule_config, created_by_id)
+         SELECT $1, s.id, $2, $3, TRUE, $4, '{}'::jsonb, $5
+           FROM business_services s
+          WHERE s.id = $6 AND s.business_id = $1
+         RETURNING id`,
+        [businessId, rule_type, rulePriority, `${rule_type} pricing rule`, req.user.id, serviceId]
       );
+      if (!r.rows[0]) {
+        const error = new Error('Service not found for business');
+        error.statusCode = 404;
+        error.code = 'not_found';
+        throw error;
+      }
       const ruleId = r.rows[0].id;
 
       if (rule_type === 'time' && time) {
@@ -126,7 +146,7 @@ exports.createServiceRule = async function createServiceRule(req, res, next) {
       } else if (rule_type === 'demand' && demand) {
         await client.query(
           `INSERT INTO service_price_demand_rules
-             (rule_id, availability_threshold_percent, surge_multiplier)
+             (rule_id, availability_threshold_percent, price_multiplier)
            VALUES ($1,$2,$3)`,
           [ruleId, num(demand.availability_threshold_percent, 80), demandMult]
         );
@@ -186,12 +206,14 @@ exports.createServiceRule = async function createServiceRule(req, res, next) {
 
 exports.listServiceRules = async function listServiceRules(req, res, next) {
   try {
+    const businessId = businessIdFrom(req);
     const { serviceId } = req.params;
     const { rows } = await pool.query(
-      `SELECT id, rule_type, priority, is_active, created_at, updated_at
-         FROM service_price_rules WHERE service_id = $1
-        ORDER BY priority DESC, created_at DESC`,
-      [serviceId]
+      `SELECT id, rule_type, priority, is_enabled AS is_active, created_at, updated_at
+         FROM service_price_rules
+        WHERE business_id = $1 AND service_id = $2
+        ORDER BY priority ASC, created_at DESC`,
+      [businessId, serviceId]
     );
     return sendSuccess(res, { rules: rows });
   } catch (err) { next(err); }
@@ -204,10 +226,11 @@ exports.toggleServiceRule = async function toggleServiceRule(req, res, next) {
     const { is_active } = req.body || {};
     if (await assertServiceRuleOwnership(ruleId, businessId, res) !== 'ok') return;
     const r = await pool.query(
-      `UPDATE service_price_rules AS r SET is_active = $1, updated_at = NOW()
+      `UPDATE service_price_rules AS r SET is_enabled = $1, updated_at = NOW()
         WHERE r.id = $2
+          AND r.business_id = $3
           AND EXISTS (SELECT 1 FROM business_services s WHERE s.id = r.service_id AND s.business_id = $3)
-        RETURNING id, is_active`,
+        RETURNING id, is_enabled AS is_active`,
       [!!is_active, ruleId, businessId]
     );
     if (!r.rows[0]) return sendError(res, 404, 'Rule not found', 'not_found');
@@ -229,6 +252,7 @@ exports.deleteServiceRule = async function deleteServiceRule(req, res, next) {
     const r = await pool.query(
       `DELETE FROM service_price_rules AS r
         WHERE r.id = $1
+          AND r.business_id = $2
           AND EXISTS (SELECT 1 FROM business_services s WHERE s.id = r.service_id AND s.business_id = $2)
         RETURNING id`,
       [ruleId, businessId]
@@ -249,22 +273,43 @@ exports.createProductRule = async function createProductRule(req, res, next) {
   try {
     const businessId = req.business && req.business.id;
     const { productId } = req.params;
-    const { rule_type, priority = 0, conditions_json = {}, pricing_adjustment = {} } = req.body || {};
+    const {
+      rule_type,
+      priority = 0,
+      name,
+      description = '',
+      conditions_json = {},
+      pricing_adjustment = {},
+    } = req.body || {};
 
     const fields = {};
     if (!rule_type) fields.rule_type = 'rule_type required';
     if (rule_type && !PRODUCT_RULE_TYPES.has(rule_type)) fields.rule_type = `must be one of ${Array.from(PRODUCT_RULE_TYPES).join(',')}`;
+    const requestedPriority = Number(priority);
+    const rulePriority = requestedPriority === 0 ? 1 : requestedPriority;
+    if (!Number.isInteger(rulePriority) || rulePriority < 1 || rulePriority > 100) {
+      fields.priority = 'must be an integer from 1 to 100';
+    }
     if (Object.keys(fields).length) return sendValidationError(res, fields);
 
     const r = await pool.query(
       `INSERT INTO product_pricing_rules
-         (business_id, product_id, rule_type, priority,
-          conditions_json, pricing_adjustment, is_active)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, TRUE)
+         (business_id, rule_name, rule_type, description, priority,
+          is_active, applies_to, applies_to_id, conditions_json, pricing_adjustment)
+       SELECT $1, $3, $4, $5, $6, TRUE, 'product', p.id, $7::jsonb, $8::jsonb
+         FROM business_products p
+        WHERE p.id = $2 AND p.business_id = $1 AND p.deleted_at IS NULL
        RETURNING id`,
-      [businessId, productId, rule_type, num(priority, 0),
+      [businessId, productId, String(name || `${rule_type} pricing rule`).trim().slice(0, 200),
+       rule_type, String(description || '').trim(), rulePriority,
        JSON.stringify(conditions_json), JSON.stringify(pricing_adjustment)]
     );
+    if (!r.rows[0]) {
+      const error = new Error('Product not found for business');
+      error.statusCode = 404;
+      error.code = 'not_found';
+      throw error;
+    }
 
     await logBusinessAction(req, {
       action: 'business.product_pricing_rule.created',
@@ -286,7 +331,8 @@ exports.listProductRules = async function listProductRules(req, res, next) {
               created_at, updated_at
          FROM product_pricing_rules
         WHERE business_id = $1
-          AND (product_id = $2 OR product_id IS NULL)
+          AND (applies_to = 'all'
+               OR (applies_to = 'product' AND applies_to_id = $2::text))
         ORDER BY priority DESC, created_at DESC`,
       [businessId, productId]
     );

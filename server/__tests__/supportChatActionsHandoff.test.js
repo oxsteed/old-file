@@ -41,6 +41,7 @@ const ACTION_ID = '22222222-2222-4222-8222-222222222222';
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
+  storage.deleteFile.mockResolvedValue(undefined);
   snap._resetSnapshotCacheForTests();
   supportChatThreads.getSupportThread.mockResolvedValue([]);
 });
@@ -312,6 +313,21 @@ describe('item 3: handoff carries page, account summary and screenshot', () => {
       expect(res.status).toBe(201);
       expect(storage.uploadFile).not.toHaveBeenCalled();
     }
+  });
+
+  test('removes a screenshot when the post-commit metadata link fails', async () => {
+    mockQuery.mockImplementation(async (sql, params) => {
+      if (/jsonb_build_object\('image_key'/.test(sql)) throw new Error('ticket metadata unavailable');
+      if (/SELECT first_name, last_name, email FROM users/.test(sql)) return { rows: [{ first_name: 'Ana', last_name: 'Ruiz', email: 'ana@example.com' }] };
+      if (/INSERT INTO support_tickets/.test(sql)) return { rows: [{ id: 't-1', ticket_number: 'OX-7', subject: params[3], priority: 'high', name: params[1], created_at: 'now' }] };
+      if (/INSERT INTO support_messages/.test(sql)) return { rows: [{ id: 'm-1' }] };
+      return { rows: [] };
+    });
+
+    const res = await request(app()).post('/chat-escalation').send({ ...base, image: PNG, clientRequestId: undefined });
+
+    expect(res.status).toBe(201);
+    expect(storage.deleteFile).toHaveBeenCalledWith('support-tickets/shot.png');
   });
 
   test('admin ticket view gets a signed screenshot link', async () => {

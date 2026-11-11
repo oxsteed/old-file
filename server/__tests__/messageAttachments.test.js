@@ -9,6 +9,7 @@ jest.mock('../utils/storage', () => {
     uploadFile: jest.fn().mockImplementation((_buffer, folder, originalname) =>
       Promise.resolve(`${folder}/${originalname || 'file'}`)),
     getSignedDownloadUrl: jest.fn().mockResolvedValue('/api/storage/files/chat-attachments/signed?exp=1&sig=test'),
+    deleteFile: jest.fn(),
     normalizeStorageKey: actual.normalizeStorageKey,
   };
 });
@@ -41,7 +42,12 @@ function buildApp() {
   return app;
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  jest.clearAllMocks();
+  storage.getSignedDownloadUrl.mockResolvedValue('/api/storage/files/chat-attachments/signed?exp=1&sig=test');
+  storage.deleteFile.mockResolvedValue(undefined);
+});
 beforeEach(() => {
   socketService.broadcastToConversation.mockClear();
   socketService.broadcastToUser.mockClear();
@@ -82,6 +88,34 @@ describe('message attachments', () => {
     );
     expect(res.body.key).toBe('chat-attachments/c-conv-1/photo.jpg');
     expect(storage.getSignedDownloadUrl).toHaveBeenCalledWith('chat-attachments/c-conv-1/photo.jpg', 3600);
+  });
+
+  test('removes the attachment when signed URL generation fails', async () => {
+    storage.getSignedDownloadUrl.mockRejectedValueOnce(new Error('signing unavailable'));
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ customer_id: 'customer-456', helper_id: 'user-123', business_id: null }],
+    });
+
+    const uploadApp = express();
+    uploadApp.use(express.json());
+    uploadApp.use((req, _res, next) => {
+      req.user = { id: 'user-123' };
+      next();
+    });
+    uploadApp.post('/api/messages/conversations/:conversationId/attachments', (req, _res, next) => {
+      req.file = {
+        buffer: Buffer.from('image bytes'),
+        originalname: 'failed.jpg',
+        mimetype: 'image/jpeg',
+        size: 11,
+      };
+      next();
+    }, messageController.uploadAttachment);
+
+    const res = await request(uploadApp).post('/api/messages/conversations/conv-1/attachments');
+
+    expect(res.status).toBe(500);
+    expect(storage.deleteFile).toHaveBeenCalledWith('chat-attachments/c-conv-1/failed.jpg');
   });
 
   test('POST /messages/conversations/:id accepts attachment-only messages', async () => {

@@ -497,18 +497,6 @@ app.get('/api/health/deep', async (req, res) => {
   res.status(statusCode).json(result);
 });
 
-// Apple App Site Association – Universal Links
-app.get('/.well-known/apple-app-site-association', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.json({
-    applinks: {
-      apps: [],
-      details: [{ appID: 'ZBRGSDRRU7.com.oxsteed.app', paths: ['*'] }]
-    },
-    webcredentials: { apps: ['ZBRGSDRRU7.com.oxsteed.app'] }
-  });
-});
-
 // Lightweight liveness endpoint for process monitors. Container traffic gates
 // use /ready so an alive-but-unprepared process never receives requests.
 app.get('/health', (req, res) => {
@@ -526,6 +514,7 @@ app.get('/health', (req, res) => {
 app.get('/api/launch-visibility', (req, res) => {
   const { envFlagEnabled } = require('./middleware/featureFlags');
   const { getServerLaunchVisibility } = require('./middleware/launchGate');
+  res.set('Cache-Control', 'no-store');
   res.json({
     media: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', true),
     launches: getServerLaunchVisibility(),
@@ -541,19 +530,9 @@ app.get('/api/health/pool', requireAdmin, (req, res) => {
 // ── MOBILE APP ASSOCIATION ───────────────────────────────────
 // Universal Links require this JSON to be served without a file extension.
 // Set APPLE_TEAM_ID in production to the Team ID from Apple Developer.
+const { getAppleAppAssociation } = require('./services/appleAppAssociation');
 app.get(['/.well-known/apple-app-site-association', '/apple-app-site-association'], (req, res) => {
-  const appleTeamId = process.env.APPLE_TEAM_ID || 'ZBRGSDRRU7';
-  res.type('application/json').send({
-    applinks: {
-      apps: [],
-      details: [
-        {
-          appID: `${appleTeamId}.com.oxsteed.app`,
-          paths: ['*'],
-        },
-      ],
-    },
-  });
+  res.type('application/json').send(getAppleAppAssociation());
 });
 
 

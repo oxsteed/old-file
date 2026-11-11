@@ -168,7 +168,14 @@ async function requestMoneyMovement(req, actionType, payload) {
   // Auth audit item 6: bind to the payload amount when the intent
   // carries one (loads, adjustments, refunds); intents without a single
   // amount keep the legacy unbound challenge.
-  const makerPayloadAmount = Number(payload?.amountCents ?? payload?.amount_cents);
+  const makerPayloadAmount = Number(
+    payload?.amountCents
+      ?? payload?.amount_cents
+      ?? payload?.compensationCents
+      ?? payload?.compensation_cents
+      ?? payload?.sourceAmountMinorUnits
+      ?? payload?.source_amount_minor_units,
+  );
   await verifyStepupChallenge({
     challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
     actorUserId: req.user?.id || null,
@@ -264,7 +271,7 @@ async function convertMyCredit(req, res, next) {
     const result = await convertCustomerCredit({
       customerId: req.user.id,
       quoteId: req.body?.quoteId || req.body?.quote_id,
-      sourceAmountMinorUnits: req.body?.sourceAmountMinorUnits || req.body?.source_amount_minor_units,
+      sourceAmountMinorUnits: req.body?.sourceAmountMinorUnits ?? req.body?.source_amount_minor_units,
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
@@ -1515,7 +1522,7 @@ async function issueAdminStepupChallenge(req, res, next) {
     // verifies against, so issue and verify agree by construction. The
     // client sends pendingActionId (ApprovalsPage); without it the legacy
     // body amount (or 1) is used, exactly as before.
-    let amountCents = req.body?.amountCents || req.body?.amount_cents || 1;
+    let amountCents = req.body?.amountCents ?? req.body?.amount_cents ?? 1;
     const pendingActionId = req.body?.pendingActionId || req.body?.pending_action_id;
     if (requestedActionType === 'pending_action_approve' && pendingActionId) {
       const { rows: actionRows } = await pool.query(
@@ -2547,7 +2554,7 @@ async function recordAdminPartnerFunding(req, res, next) {
     const result = await requestMoneyMovement(req, 'credit_partner_funding', {
       partnerId,
       currencyCode: req.body?.currencyCode || req.body?.currency_code,
-      amountCents: req.body?.amountCents || req.body?.amount_cents,
+      amountCents: req.body?.amountCents ?? req.body?.amount_cents,
       direction: req.body?.direction,
       externalReference: req.body?.externalReference || req.body?.external_reference,
       reason: req.body?.reason,
@@ -2596,8 +2603,8 @@ async function createAdminCurrencyQuote(req, res, next) {
       payload = {
         sourceCurrencyCode: req.body?.sourceCurrencyCode || req.body?.source_currency_code,
         targetCurrencyCode: req.body?.targetCurrencyCode || req.body?.target_currency_code,
-        sourceAmountMinorUnits: req.body?.sourceAmountMinorUnits || req.body?.source_amount_minor_units,
-        targetAmountMinorUnits: req.body?.targetAmountMinorUnits || req.body?.target_amount_minor_units,
+        sourceAmountMinorUnits: req.body?.sourceAmountMinorUnits ?? req.body?.source_amount_minor_units,
+        targetAmountMinorUnits: req.body?.targetAmountMinorUnits ?? req.body?.target_amount_minor_units,
         feeAmountMinorUnits: req.body?.feeAmountMinorUnits ?? req.body?.fee_amount_minor_units ?? 0,
         rateNumerator: req.body?.rateNumerator || req.body?.rate_numerator,
         rateDenominator: req.body?.rateDenominator || req.body?.rate_denominator,

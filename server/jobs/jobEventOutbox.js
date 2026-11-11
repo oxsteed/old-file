@@ -101,7 +101,7 @@ async function filterRateLimited(helperIds) {
         AND created_at >= NOW() - INTERVAL '1 hour'
       GROUP BY user_id`,
     [helperIds]
-  ).catch(() => ({ rows: [] }));
+  );
   const over = new Set(rows.filter((r) => r.n >= MAX_NOTICES_PER_HOUR).map((r) => String(r.user_id)));
   return helperIds.filter((id) => !over.has(String(id)));
 }

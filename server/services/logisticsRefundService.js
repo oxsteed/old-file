@@ -487,7 +487,12 @@ async function executeRefund(deps, { caseId, actorUserId }) {
 // are no-ops, and unknown refund ids return { matched: false } so the
 // caller can keep its external-refund reconciliation behavior.
 
-async function confirmStripeRefund(deps, { stripeRefundId, status, stripeEventId = null }) {
+async function confirmStripeRefund(deps, {
+  stripeRefundId,
+  status,
+  stripeEventId = null,
+  evidence = null,
+}) {
   checkPorts(deps);
   const { query, notifyPort } = deps;
   if (!stripeRefundId) return { matched: false };
@@ -514,6 +519,55 @@ async function confirmStripeRefund(deps, { stripeRefundId, status, stripeEventId
       metadata: { stripeRefundId: String(stripeRefundId), status: normalized, stripeEventId },
     });
     return { matched: true, caseId: kase.id, outcome: 'unexpected_state' };
+  }
+
+  // A refund id alone is not sufficient settlement evidence. The webhook
+  // object must still agree with the refund case and the original payment
+  // attempt before this case can transition or notify the buyer.
+  {
+    const providerAmount = Number(evidence?.amount);
+    const providerCurrency = typeof evidence?.currency === 'string'
+      ? evidence.currency.toLowerCase()
+      : '';
+    const providerPaymentIntentId = typeof evidence?.payment_intent === 'string'
+      ? evidence.payment_intent
+      : evidence?.payment_intent?.id || null;
+    const { rows: attempts } = await query(
+      `SELECT id, amount_cents, currency, stripe_payment_intent_id
+         FROM logistics_payment_attempts
+        WHERE id::text = $1
+        FOR UPDATE`,
+      [String(kase.original_payment_attempt_id || '')]
+    );
+    const attempt = attempts[0] || null;
+    const validEvidence = attempt
+      && Number.isSafeInteger(providerAmount)
+      && providerAmount > 0
+      && providerAmount === Number(kase.amount_cents)
+      && providerAmount <= Number(attempt.amount_cents)
+      && Number.isSafeInteger(Number(attempt.amount_cents))
+      && providerCurrency
+      && providerCurrency === String(attempt.currency || '').toLowerCase()
+      && providerPaymentIntentId
+      && providerPaymentIntentId === attempt.stripe_payment_intent_id;
+    if (!validEvidence) {
+      await decisionRow(query, {
+        caseId: kase.id,
+        actorUserId: null,
+        action: 'confirm_verification_failed',
+        reason: `Stripe refund ${stripeRefundId} did not match the stored amount, currency, or original payment intent.`,
+        metadata: {
+          stripeRefundId: String(stripeRefundId),
+          stripeEventId,
+          providerAmount: Number.isSafeInteger(providerAmount) ? providerAmount : null,
+          providerCurrency: providerCurrency || null,
+          providerPaymentIntentId,
+          expectedAmount: Number(kase.amount_cents),
+          attemptId: kase.original_payment_attempt_id || null,
+        },
+      });
+      return { matched: true, caseId: kase.id, outcome: 'verification_failed' };
+    }
   }
 
   if (normalized === 'succeeded') {

@@ -34,6 +34,7 @@ jest.mock('../services/refundNotification', () => ({
 
 const { refundWalletDebitForReference } = require('../services/foodWalletService');
 const { refundCreditForReferenceInTransaction } = require('../services/oxsteedCreditService');
+const stripeMock = require('stripe').__mockInstance;
 
 const ADMIN_ID = '00000000-0000-4000-8000-000000000999';
 const CUSTOMER_ID = '00000000-0000-4000-8000-000000000456';
@@ -84,6 +85,7 @@ beforeEach(() => {
   resetMocks();
   refundWalletDebitForReference.mockReset();
   refundCreditForReferenceInTransaction.mockReset();
+  stripeMock.refunds.create.mockReset();
 });
 
 describe('admin refundFoodOrder (audit fixes)', () => {
@@ -110,6 +112,20 @@ describe('admin refundFoodOrder (audit fixes)', () => {
     expect(res.body.code).toBe('wallet_refund_failed');
     expect(seen.sql.some((s) => /^UPDATE food_orders/.test(s))).toBe(false);
     expect(seen.sql.some((s) => /INSERT INTO admin_audit_log/.test(s))).toBe(false);
+  });
+
+  test('a Stripe refund without a durable id fails closed before order mutation', async () => {
+    const seen = mockDbForOrder(makeOrder({
+      payment_mode: 'pay_now',
+      stripe_payment_intent_id: 'pi_food_1',
+    }));
+    stripeMock.refunds.create.mockResolvedValue({ amount: 1000 });
+    const { req, res } = makeReqRes(7, { reason: 'provider response check' });
+    await refundFoodOrder(req, res);
+    expect(res.statusCode).toBe(502);
+    expect(res.body.code).toBe('stripe_refund_invalid');
+    expect(seen.sql.some((q) => /^UPDATE food_orders/.test(q))).toBe(false);
+    expect(seen.sql.some((q) => /INSERT INTO admin_audit_log/.test(q))).toBe(false);
   });
 
   test('F-14: a second equal partial refund uses a new provider key and is booked once', async () => {

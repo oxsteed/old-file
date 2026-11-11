@@ -19,8 +19,12 @@ const img = require('../controllers/businessProfileImageController');
 const VISIBLE = new Set(['1']);
 const OWNER_ID = 'owner-uuid-1';
 const OWNER_BUSINESSES = { '2': true }; // owner owns the unlisted business 2
+let sectionVisibilityError = null;
 
 function dispatch(text, params) {
+  if (text.includes('SELECT show_services AS visible') && sectionVisibilityError) {
+    return Promise.reject(sectionVisibilityError);
+  }
   // Ownership check (canEditProfile via canAccessBusiness)
   if (text.includes('AS effective_role') && text.includes('FROM businesses b')) {
     const userId = params[1];
@@ -85,6 +89,7 @@ const ownerApp = () => buildApp({ id: OWNER_ID });
 
 beforeEach(() => {
   resetMocks();
+  sectionVisibilityError = null;
   mockQuery.mockImplementation(dispatch);
 });
 
@@ -136,6 +141,12 @@ describe('public business content visibility gates', () => {
     const res = await request(ownerApp()).get('/api/businesses/2/hours');
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
+  });
+
+  test('section visibility database failures do not fail open as public content', async () => {
+    sectionVisibilityError = new Error('database connection lost');
+    const res = await request(guestApp()).get('/api/businesses/1/services');
+    expect(res.status).toBe(500);
   });
 });
 

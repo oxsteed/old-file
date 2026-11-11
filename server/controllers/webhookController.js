@@ -38,6 +38,7 @@ const jobPaymentReauth = require('../services/jobPaymentReauthorizationService')
 const paymentRailWebhooks = require('../services/paymentRails/webhooks');
 const logisticsPaymentService = require('../services/logisticsPaymentService');
 const { captureCents } = require('../services/paymentCaptureService');
+const { sendOrderConfirmationEmail, sendPaymentReceivedEmail } = require('../services/orderNotificationService');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -325,16 +326,34 @@ async function applyFoodOrderPaymentState(client, {
   orderId,
   paymentStatus,
   stripePaymentIntentId = null,
+  providerAmountCents = null,
+  providerCurrency = null,
 }) {
   if (!orderId) return null;
   // Capture the pre-update status on the transaction client so growth
   // domain events fire only on a real transition (a single payment fires
   // both checkout.session.completed and payment_intent.succeeded).
   const { rows: priorRows } = await client.query(
-    `SELECT payment_status FROM food_orders WHERE id = $1::bigint FOR UPDATE`,
+    `SELECT payment_status, total_cents, currency_code
+       FROM food_orders WHERE id = $1::bigint FOR UPDATE`,
     [orderId]
   );
   const priorPaymentStatus = priorRows[0]?.payment_status || null;
+  if (paymentStatus === 'paid') {
+    const expectedAmountCents = Number(priorRows[0]?.total_cents);
+    const receivedAmountCents = Number(providerAmountCents);
+    const expectedCurrency = String(priorRows[0]?.currency_code || '').toLowerCase();
+    const receivedCurrency = String(providerCurrency || '').toLowerCase();
+    if (!Number.isSafeInteger(expectedAmountCents) || expectedAmountCents <= 0
+        || !Number.isSafeInteger(receivedAmountCents) || receivedAmountCents !== expectedAmountCents
+        || !expectedCurrency || receivedCurrency !== expectedCurrency) {
+      throw new AppError(
+        'The Stripe food-order payment does not match the order total or currency',
+        409,
+        'food_payment_verification_failed',
+      );
+    }
+  }
   const { rows } = await client.query(
     `UPDATE food_orders
         SET payment_status = $1,
@@ -366,6 +385,100 @@ async function applyFoodOrderPaymentState(client, {
   }
   if (order) emitFoodOrderUpdate(order);
   return order;
+}
+
+// Marketplace orders can be completed by the signed webhook even when the
+// customer never returns to the browser. Keep that path as strict as the
+// browser confirmation path: a metadata order id alone is not evidence that
+// this PaymentIntent belongs to the local transaction or has the right value.
+async function applyMarketplaceOrderPaymentState(client, { orderId, paymentIntent }) {
+  if (!orderId || !paymentIntent?.id) return null;
+  const { rows } = await client.query(
+    `SELECT mo.id, mo.status, mo.customer_id, mo.cart_id,
+            mt.id AS transaction_id, mt.payment_intent_id,
+            mt.amount_cents, mt.currency AS transaction_currency
+       FROM marketplace_orders mo
+       JOIN marketplace_transactions mt ON mt.order_id = mo.id
+      WHERE mo.id = $1 AND mt.payment_intent_id = $2
+      FOR UPDATE OF mo, mt`,
+    [orderId, paymentIntent.id]
+  );
+  const order = rows[0];
+  if (!order) {
+    throw new AppError(
+      'The Stripe marketplace payment is not linked to this order',
+      409,
+      'marketplace_payment_verification_failed',
+    );
+  }
+
+  const expectedAmountCents = Number(order.amount_cents);
+  const receivedAmountCents = Number(paymentIntent.amount_received ?? paymentIntent.amount);
+  const expectedCurrency = String(order.transaction_currency || '').toLowerCase();
+  const receivedCurrency = String(paymentIntent.currency || '').toLowerCase();
+  const metadataOrderId = String(paymentIntent.metadata?.orderId || paymentIntent.metadata?.order_id || '');
+  const metadataUserId = String(paymentIntent.metadata?.userId || paymentIntent.metadata?.user_id || '');
+  if (!Number.isSafeInteger(expectedAmountCents)
+      || expectedAmountCents <= 0
+      || !Number.isSafeInteger(receivedAmountCents)
+      || receivedAmountCents !== expectedAmountCents
+      || !expectedCurrency
+      || receivedCurrency !== expectedCurrency
+      || metadataOrderId !== String(order.id)
+      || (metadataUserId && metadataUserId !== String(order.customer_id))) {
+    logger.error('[Stripe] marketplace payment evidence mismatch; order NOT marked paid', {
+      orderId: order.id,
+      paymentIntentId: paymentIntent.id,
+      expectedAmountCents,
+      receivedAmountCents,
+      expectedCurrency,
+      receivedCurrency,
+      metadataOrderId,
+      metadataUserId,
+    });
+    throw new AppError(
+      'The Stripe marketplace payment does not match the order transaction',
+      409,
+      'marketplace_payment_verification_failed',
+    );
+  }
+
+  // Never resurrect a refunded order on a late/replayed success event. A
+  // settled paid row is idempotent and still gets its transaction watermark.
+  if (order.status === 'refunded' || order.status === 'cancelled' || order.status === 'completed') {
+    logger.warn('[Stripe] marketplace payment succeeded for terminal order; ignored', {
+      orderId: order.id,
+      paymentIntentId: paymentIntent.id,
+      status: order.status,
+    });
+    return { order, transitioned: false };
+  }
+
+  const { rows: updatedRows } = await client.query(
+    `UPDATE marketplace_orders
+        SET status = 'paid', updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND status IS DISTINCT FROM 'refunded'
+      RETURNING *`,
+    [order.id]
+  );
+  await client.query(
+    `UPDATE marketplace_transactions
+        SET status = 'succeeded', updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
+      WHERE order_id = $1 AND payment_intent_id = $2`,
+    [order.id, paymentIntent.id]
+  );
+  if (updatedRows[0] && order.status !== 'paid') {
+    const { emitDomainEvent, commerceEventProps } = require('../growth/emit');
+    await emitDomainEvent(client, 'marketplace.order_paid', commerceEventProps({
+      id: order.id,
+      amount_minor: expectedAmountCents,
+      currency: expectedCurrency.toUpperCase(),
+    }), { userId: order.customer_id });
+  }
+  return {
+    order: updatedRows[0] || order,
+    transitioned: Boolean(updatedRows[0] && order.status !== 'paid'),
+  };
 }
 
 async function syncBusinessStripeAccountState(account) {
@@ -708,6 +821,8 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
               stripePaymentIntentId: typeof session.payment_intent === 'string'
                 ? session.payment_intent
                 : session.payment_intent?.id || null,
+              providerAmountCents: session.amount_total,
+              providerCurrency: session.currency,
             });
           });
           break;
@@ -1198,6 +1313,46 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         // deduction is keyed per payment so a retry cannot post it twice.
         await withTransaction(db, async (client) => {
           if (jobId) {
+            const { rows: candidateRows } = await client.query(
+              `SELECT id, payer_id, amount, currency, capture_amount_cents, metadata
+                 FROM payments
+                WHERE stripe_payment_intent_id = $1
+                FOR UPDATE`,
+              [pi.id]
+            );
+            const candidate = candidateRows[0];
+            if (candidate) {
+              const expectedMinor = captureCents(candidate.amount, candidate.capture_amount_cents, candidate.currency);
+              const receivedMinor = Number(pi.amount_capturable ?? pi.amount);
+              const currencyOk = String(pi.currency || '').toLowerCase() === String(candidate.currency || '').toLowerCase();
+              if (!currencyOk || !Number.isSafeInteger(receivedMinor) || receivedMinor !== expectedMinor) {
+                logger.error('[Stripe] authorization amount mismatch; payment NOT marked authorized', {
+                  intentId: pi.id,
+                  paymentId: candidate.id,
+                  jobId,
+                  expectedMinor,
+                  receivedMinor,
+                  paymentCurrency: candidate.currency,
+                  piCurrency: pi.currency,
+                });
+                await recordException({
+                  domain: 'payment_authorization',
+                  referenceId: `payment:${candidate.id}`,
+                  severity: 'critical',
+                  summary: 'Stripe authorized amount does not match the payments row; authorization not recorded',
+                  details: {
+                    intentId: pi.id,
+                    paymentId: candidate.id,
+                    jobId: String(jobId),
+                    expectedMinor,
+                    receivedMinor,
+                    paymentCurrency: candidate.currency,
+                    piCurrency: pi.currency,
+                  },
+                });
+                return;
+              }
+            }
             const { rows: payRows } = await client.query(
               `UPDATE payments p SET status = 'authorized', payment_hold_status = 'held',
                  authorized_at = COALESCE(p.authorized_at, NOW()),
@@ -1230,7 +1385,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             }
             logger.info(`[Stripe] PaymentIntent ${pi.id} authorized - job ${jobId} funds held`);
           }
-          await applyStripePaymentIntent(client, pi);
+          await applyStripePaymentIntent(client, pi, event.account || null);
         });
         break;
       }
@@ -1289,6 +1444,8 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
               orderId: foodOrderId,
               paymentStatus: 'paid',
               stripePaymentIntentId: pi.id,
+              providerAmountCents: pi.amount_received ?? pi.amount,
+              providerCurrency: pi.currency,
             });
           });
         } else if (jobId) {
@@ -1416,20 +1573,39 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             }).catch(e => logger.warn('Failed to send payment receipt notification', { error: e.message }));
           }
         } else if (orderId) {
-          // Marketplace order payment succeeded
-          await db.query(
-            `UPDATE marketplace_orders SET status = $1, updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
-             WHERE id = $2`,
-            ['paid', orderId]
-          );
-          await db.query(
-            `UPDATE marketplace_transactions SET status = $1, updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
-             WHERE payment_intent_id = $2`,
-            ['succeeded', pi.id]
-          );
-          logger.info(`[Stripe] PaymentIntent ${pi.id} succeeded - order ${orderId} marked as paid`);
+          // Marketplace order payment succeeded. The webhook is authoritative
+          // when the browser never calls confirmPayment, so verify the local
+          // transaction and provider evidence before moving either row.
+          const marketplaceSettlement = await withTransaction(db, (client) => applyMarketplaceOrderPaymentState(client, {
+            orderId,
+            paymentIntent: pi,
+          }));
+          if (marketplaceSettlement?.order) {
+            logger.info(`[Stripe] PaymentIntent ${pi.id} succeeded - order ${orderId} marked as paid`);
+            if (marketplaceSettlement.transitioned) {
+              const cartId = marketplaceSettlement.order.cart_id;
+              if (cartId) {
+                await db.query(
+                  'DELETE FROM shopping_cart_items WHERE cart_id = $1',
+                  [cartId],
+                ).catch((cleanupError) => logger.warn('[Stripe] failed to clear marketplace cart after payment', {
+                  orderId,
+                  cartId,
+                  error: cleanupError.message,
+                }));
+              }
+              // The webhook is the only completion path when the browser is
+              // closed during payment. Keep customer confirmation connected
+              // to that signed settlement, but never make email delivery a
+              // reason for Stripe to retry a committed payment.
+              setImmediate(async () => {
+                await sendOrderConfirmationEmail(orderId);
+                await sendPaymentReceivedEmail(orderId);
+              });
+            }
+          }
         }
-        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
+        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi, event.account || null));
         break;
       }
 
@@ -1503,7 +1679,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           const endedPayments = await withTransaction(db, async (client) => {
             const { rows: endedPayments } = await client.query(
               `UPDATE payments SET status = 'failed', payment_hold_status = 'none',
-               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status <> 'captured'
+               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status IN ('pending', 'authorized')
                RETURNING id`,
               [pi.id]
             );
@@ -1535,7 +1711,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             }).catch(e => logger.warn('Failed to send payment failed notification to customer', { error: e.message }));
           }
         }
-        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
+        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi, event.account || null));
         break;
       }
 
@@ -1566,7 +1742,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         const pi = event.data.object;
         if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
         if (await paymentRailWebhooks.applyTipIntent(event.type, pi)) break;
-        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
+        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi, event.account || null));
         // Audit fix: clear job escrow on cancel, same as payment_failed.
         // Otherwise the job stays in escrow with no payment behind it.
         const jobId = pi.metadata?.job_id;
@@ -1574,7 +1750,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           const endedPayments = await withTransaction(db, async (client) => {
             const { rows: endedPayments } = await client.query(
               `UPDATE payments SET status = 'canceled', payment_hold_status = 'none',
-               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status <> 'captured'
+               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status IN ('pending', 'authorized')
                RETURNING id`,
               [pi.id]
             );
@@ -1602,7 +1778,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
       case 'refund.updated':
       case 'refund.failed': {
         const refund = event.data.object;
-        await withTransaction(db, (client) => applyStripeRefund(client, refund));
+        await withTransaction(db, (client) => applyStripeRefund(client, refund, event.account || null));
         break;
       }
 
@@ -1612,6 +1788,11 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         const piId = stripeObjectId(charge.payment_intent);
         const refundedCents = verifiedChargeRefundTotal(charge);
         const foodOrderId = extractFoodOrderId(charge.metadata);
+        // Validate and reconcile restaurant POS refunds before any generic
+        // payment or food-order state mutation. A malformed connected-account
+        // event must not mark an order refunded before the POS ledger rejects
+        // it on amount, currency, or provider identity.
+        await withTransaction(db, (client) => applyStripeChargeRefund(client, charge, event.account || null));
         if (piId) {
           await withTransaction(db, client => applyChargeRefund(client, charge));
           logger.info(`[Stripe] Charge refunded for PaymentIntent ${piId}`);
@@ -1625,7 +1806,6 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             });
           });
         }
-        await withTransaction(db, (client) => applyStripeChargeRefund(client, charge));
         break;
       }
 
@@ -2369,6 +2549,30 @@ async function applyInstantPayoutWebhookEvent(event) {
   }
   const status = String(payout.status || '').toLowerCase();
   const localStatus = ['paid', 'failed', 'canceled', 'in_transit'].includes(status) ? status : 'pending';
+  const { rows: localRows } = await db.query(
+    `SELECT id, stripe_account_id, amount_cents, currency, status
+       FROM instant_payouts
+      WHERE stripe_payout_id = $1
+      FOR UPDATE`,
+    [stripePayoutId]
+  );
+  const localPayout = localRows[0];
+  if (!localPayout) {
+    logger.info('[webhook] payout event for unknown instant payout; ignoring', {
+      eventId: event.id, eventType: event.type, stripePayoutId, account: event.account || null,
+    });
+    return 0;
+  }
+  const providerAmount = Number(payout.amount);
+  const providerCurrency = typeof payout.currency === 'string' ? payout.currency.toLowerCase() : '';
+  const localCurrency = String(localPayout.currency || '').toLowerCase();
+  if (event.account !== localPayout.stripe_account_id
+      || !Number.isSafeInteger(providerAmount)
+      || providerAmount !== Number(localPayout.amount_cents)
+      || !providerCurrency
+      || providerCurrency !== localCurrency) {
+    throw new AppError('Stripe instant payout does not match the local payout record', 409, 'instant_payout_verification_mismatch');
+  }
   const { rowCount } = await db.query(
     `UPDATE instant_payouts
         SET status = $2,

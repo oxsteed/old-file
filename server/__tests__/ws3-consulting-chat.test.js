@@ -10,7 +10,7 @@ const { mockQuery, resetMocks } = require('./setup');
 
 jest.mock('../utils/storage', () => {
   const actual = jest.requireActual('../utils/storage');
-  return { ...actual, uploadFile: jest.fn(), getSignedDownloadUrl: jest.fn() };
+  return { ...actual, uploadFile: jest.fn(), getSignedDownloadUrl: jest.fn(), deleteFile: jest.fn() };
 });
 
 jest.mock('../services/chatThreadAccess', () => ({
@@ -62,6 +62,7 @@ const CONV = { id: 'conv-1', customer_id: 'customer-1', helper_id: 'helper-1', b
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
+  storage.deleteFile.mockResolvedValue(undefined);
   chatThreadAccess.assertConversationParticipant.mockResolvedValue(CONV);
   chatThreadAccess.resolveGuestFromRequest.mockResolvedValue(null);
   chatThreadAccess.isProviderOnConversation.mockReturnValue(true);
@@ -153,6 +154,28 @@ describe('M7 - consulting createPaymentIntent', () => {
     });
     expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
   });
+
+  test('fails closed and cancels when Stripe omits the client secret', async () => {
+    queueHappyPath({ insertRows: [] });
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_missing_secret', status: 'canceled' });
+    const previousCancel = stripeMock.paymentIntents.cancel;
+    stripeMock.paymentIntents.cancel = cancel;
+    stripeMock.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_missing_secret', client_secret: null });
+
+    try {
+      const req = mockReq({ user: USER, body: { sessionId: 'sess-1', packageId: 'pkg-9' } });
+      const res = mockRes();
+      await consultingPaymentController.createPaymentIntent(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(503);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'consulting_payment_intent_unavailable' }));
+      expect(cancel).toHaveBeenCalledWith('pi_missing_secret');
+      expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO consulting_payments/.test(sql))).toBe(false);
+    } finally {
+      if (previousCancel) stripeMock.paymentIntents.cancel = previousCancel;
+      else delete stripeMock.paymentIntents.cancel;
+    }
+  });
 });
 
 describe('Review P3-1067 - resume an in-flight consulting payment', () => {
@@ -165,6 +188,30 @@ describe('Review P3-1067 - resume an in-flight consulting payment', () => {
     await consultingPaymentController.createPaymentIntent(mockReq({ user: { id: 'user-1', role: 'customer' }, body: { sessionId: 'sess-1', packageId: 'pkg-9' } }), res);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ clientSecret: 'cs_live', resumed: true }));
     expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+  });
+
+  test('fails and retires an existing payment when Stripe omits its client secret', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_live', status: 'canceled' });
+    const previousCancel = stripeMock.paymentIntents.cancel;
+    stripeMock.paymentIntents.cancel = cancel;
+    try {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ id: 'sess-1', user_id: 'user-1', scheduled_id: 'sched-1' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'pay-live', stripe_payment_intent_id: 'pi_live' }] })
+        .mockResolvedValueOnce({ rows: [] }); // retire malformed payment
+      stripeMock.paymentIntents.retrieve.mockResolvedValueOnce({ id: 'pi_live', status: 'requires_payment_method', client_secret: null });
+
+      const res = mockRes();
+      await consultingPaymentController.createPaymentIntent(mockReq({ user: USER, body: { sessionId: 'sess-1', packageId: 'pkg-9' } }), res);
+
+      expect(res.status).toHaveBeenCalledWith(503);
+      expect(cancel).toHaveBeenCalledWith('pi_live');
+      expect(mockQuery.mock.calls.some(([sql]) => /UPDATE consulting_payments/.test(sql))).toBe(true);
+      expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+    } finally {
+      if (previousCancel) stripeMock.paymentIntents.cancel = previousCancel;
+      else delete stripeMock.paymentIntents.cancel;
+    }
   });
 });
 
@@ -270,6 +317,23 @@ describe('M15 - chat proof-of-payment attachment_key scoping', () => {
     );
     expect(res.status).toHaveBeenCalledWith(201);
     expect(mockQuery.mock.calls[0][1][13]).toBe(mintedKey);
+  });
+
+  test('sharePop removes an attachment when proof persistence fails', async () => {
+    const mintedKey = 'chat-pop/c-conv-1/fedcba9876543210fedcba9876543210.pdf';
+    storage.uploadFile.mockResolvedValue(mintedKey);
+    mockQuery.mockRejectedValue(new Error('proof insert unavailable'));
+
+    const req = mockReq({
+      user: USER,
+      body: { conversationId: 'conv-1', amount_cents: 1000 },
+      file: { buffer: Buffer.from('fake-bytes'), originalname: 'receipt.pdf', mimetype: 'image/jpeg', size: 10 },
+    });
+    const next = jest.fn();
+    await chatPopController.sharePop(req, mockRes(), next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'proof insert unavailable' }));
+    expect(storage.deleteFile).toHaveBeenCalledWith(mintedKey);
   });
 
   test('guest sessions get their own g- scope', async () => {
@@ -437,5 +501,44 @@ describe('M15 - chat agreement attachment_key scoping', () => {
     expect(badRes.json).toHaveBeenCalledWith(
       expect.objectContaining({ code: 'attachment_key_not_issued_here' })
     );
+  });
+
+  test('shareAgreement removes an attachment when agreement persistence fails', async () => {
+    const mintedKey = 'chat-agreements/c-conv-1/fedcba9876543210fedcba9876543210.pdf';
+    storage.uploadFile.mockResolvedValue(mintedKey);
+    mockQuery.mockRejectedValue(new Error('agreement insert unavailable'));
+
+    const req = mockReq({
+      user: USER,
+      body: { conversationId: 'conv-1', title: 'Scope of work', body_text: 'terms' },
+      file: { buffer: Buffer.from('fake-bytes'), originalname: 'terms.pdf', mimetype: 'application/pdf', size: 10 },
+    });
+    const next = jest.fn();
+    await chatAgreementsController.shareAgreement(req, mockRes(), next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'agreement insert unavailable' }));
+    expect(storage.deleteFile).toHaveBeenCalledWith(mintedKey);
+  });
+
+  test('reviseAgreement removes an attachment when revision persistence fails', async () => {
+    const parent = { ...agreementRow, attachment_key: 'chat-agreements/old-unscoped.pdf' };
+    const mintedKey = 'chat-agreements/c-conv-1/0123456789abcdef0123456789abcdef.pdf';
+    storage.uploadFile.mockResolvedValue(mintedKey);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [parent] }) // loadAgreement
+      .mockResolvedValueOnce({ rows: [] }) // supersede parent
+      .mockRejectedValueOnce(new Error('revision insert unavailable'));
+
+    const req = mockReq({
+      user: USER,
+      body: { title: 'Scope of work v2', body_text: 'new terms' },
+      file: { buffer: Buffer.from('fake-bytes'), originalname: 'v2.pdf', mimetype: 'application/pdf', size: 10 },
+      params: { id: 'agr-1' },
+    });
+    const next = jest.fn();
+    await chatAgreementsController.reviseAgreement(req, mockRes(), next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'revision insert unavailable' }));
+    expect(storage.deleteFile).toHaveBeenCalledWith(mintedKey);
   });
 });

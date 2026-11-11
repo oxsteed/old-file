@@ -2,7 +2,7 @@ const pool = require('../db');
 const { sendValidationError, sendError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { enqueueStorageDeletion } = require('../services/storageCleanupService');
-const { uploadFile, getPublicUrl } = require('../utils/storage');
+const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const { invalidateHelperContext } = require('../services/helperContext');
 const {
   generateQRCodeBuffer,
@@ -241,6 +241,7 @@ exports.deleteCoverImage = async (req, res) => {
  * PUT /api/helper-profile/cover-image
  */
 exports.uploadCoverImage = async (req, res) => {
+  let key = null;
   try {
     const helperId = req.user.id;
     const file = req.file;
@@ -275,11 +276,14 @@ exports.uploadCoverImage = async (req, res) => {
 
     // Upload to S3 — pass args in the correct order: (buffer, folder, originalName, contentType)
     let imageUrl = null;
-    const key = await uploadFile(file.buffer, 'helper-covers', file.originalname, file.mimetype);
+    key = await uploadFile(file.buffer, 'helper-covers', file.originalname, file.mimetype);
 
     if (key) {
       // Storage upload succeeded
       imageUrl = getPublicUrl(key);
+      if (!imageUrl) {
+        throw new Error('Helper cover public URL unavailable');
+      }
       logger.info('Image uploaded to S3', { helperId, key });
     } else {
       // PS-10: storage upload failed — fail the upload instead of storing a
@@ -311,8 +315,17 @@ exports.uploadCoverImage = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      await deleteFile(key).catch((cleanupError) => logger.warn('Failed to remove unpersisted helper cover image', {
+        helperId,
+        key,
+        error: cleanupError.message,
+      }));
+      key = null;
       return sendError(res, 404, 'Helper profile not found');
     }
+    // The helper row now owns the object. Any later best-effort sync failure
+    // must not delete a file that is referenced by the committed profile.
+    key = null;
 
     // Keep primary business profile cover in sync (public /business/:id uses businesses first)
     pool.query(
@@ -344,6 +357,12 @@ exports.uploadCoverImage = async (req, res) => {
       }
     });
   } catch (err) {
+    if (key) {
+      await deleteFile(key).catch((cleanupError) => logger.warn('Failed to remove orphaned helper cover image', {
+        key,
+        error: cleanupError.message,
+      }));
+    }
     logger.error('Error uploading cover image', { error: err.message, stack: err.stack });
     sendError(res, 500, 'Failed to upload cover image');
   }

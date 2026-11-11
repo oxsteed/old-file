@@ -211,6 +211,26 @@ describe('C5 pay_now card refund', () => {
       foodController._refundFoodOrderStripePayment({ query: mockQuery }, { order, restaurantId: 3 })
     ).rejects.toMatchObject({ status: 502, code: 'stripe_refund_failed' });
   });
+
+  test('an incomplete Stripe refund response does not write a POS refund row', async () => {
+    stripeMock.refunds.create.mockResolvedValue({ amount: 2500, charge: 'ch_1' });
+    keyed(async () => ({ rows: [], rowCount: 0 }));
+    const order = { id: 44, stripe_payment_intent_id: 'pi_44', total_cents: 2500, currency_code: 'USD', metadata: {} };
+    await expect(
+      foodController._refundFoodOrderStripePayment({ query: mockQuery }, { order, restaurantId: 3 })
+    ).rejects.toMatchObject({ status: 502, code: 'stripe_refund_invalid' });
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO restaurant_pos_payments'))).toBe(false);
+  });
+
+  test('a mismatched Stripe refund amount is rejected before ledger write', async () => {
+    stripeMock.refunds.create.mockResolvedValue({ id: 're_wrong', amount: 2400, charge: 'ch_wrong' });
+    keyed(async () => ({ rows: [], rowCount: 0 }));
+    const order = { id: 45, stripe_payment_intent_id: 'pi_45', total_cents: 2500, currency_code: 'USD', metadata: {} };
+    await expect(
+      foodController._refundFoodOrderStripePayment({ query: mockQuery }, { order, restaurantId: 3 })
+    ).rejects.toMatchObject({ status: 502, code: 'stripe_refund_invalid' });
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO restaurant_pos_payments'))).toBe(false);
+  });
 });
 
 // ── C6: wallet hold capture reference + refund fallback ──────────────────────
@@ -423,7 +443,11 @@ describe('H12 checkout idempotency', () => {
         return {
           rows: [{
             id: 42, customer_id: 'u1', payment_status: 'requires_payment',
-            metadata: { paymentMode: 'pay_now', checkoutSessionId: 'cs_existing' },
+            metadata: {
+              paymentMode: 'pay_now',
+              checkoutSessionId: 'cs_existing',
+              stripeCheckout: { checkoutUrl: 'https://checkout.stripe.com/pay/cs_existing' },
+            },
           }],
           rowCount: 1,
         };
@@ -440,6 +464,7 @@ describe('H12 checkout idempotency', () => {
     expect(res.status).toBe(200);
     expect(res.body.replayed).toBe(true);
     expect(res.body.payment.checkoutSessionId).toBe('cs_existing');
+    expect(res.body.payment.checkoutUrl).toBe('https://checkout.stripe.com/pay/cs_existing');
     expect(stripeMock.checkout.sessions.create).not.toHaveBeenCalled();
   });
 });

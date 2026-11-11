@@ -142,6 +142,45 @@ test('watermark removal checkout is fixed at one dollar and records the QR key',
   );
 });
 
+test('fails closed when Stripe returns no usable QR export checkout URL', async () => {
+  stripe.__mockInstance.checkout.sessions.create.mockResolvedValueOnce({
+    id: 'cs_qr_export_missing_url',
+    url: null,
+  });
+  mockQuery.mockImplementation(async (sql) => {
+    if (/SELECT stripe_checkout_session_id/.test(sql)) return { rows: [] };
+    return { rows: [] };
+  });
+
+  const response = await request(app)
+    .post('/api/qr-codes/export-checkout')
+    .send({ qrKey: 'd'.repeat(64), format: 'promo-png' });
+
+  expect(response.status).toBe(503);
+  expect(response.body.code).toBe('qr_export_checkout_unavailable');
+  expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO qr_export_purchases/.test(sql))).toBe(false);
+});
+
+test('rejects a pending QR export replay when Stripe no longer provides a checkout URL', async () => {
+  stripe.__mockInstance.checkout.sessions.retrieve.mockResolvedValueOnce({
+    id: 'cs_qr_export_stale',
+    status: 'open',
+    url: null,
+  });
+  mockQuery.mockResolvedValueOnce({
+    rows: [{ stripe_checkout_session_id: 'cs_qr_export_stale', status: 'pending' }],
+  });
+  const createCallsBefore = stripe.__mockInstance.checkout.sessions.create.mock.calls.length;
+
+  const response = await request(app)
+    .post('/api/qr-codes/export-checkout')
+    .send({ qrKey: 'e'.repeat(64), format: 'promo-png' });
+
+  expect(response.status).toBe(503);
+  expect(response.body.code).toBe('qr_export_checkout_unavailable');
+  expect(stripe.__mockInstance.checkout.sessions.create.mock.calls.length).toBe(createCallsBefore);
+});
+
 test('watermark removal verification rejects a payment for another user or QR key', async () => {
   stripe.__mockInstance.checkout.sessions.retrieve.mockResolvedValueOnce({
     metadata: {

@@ -61,6 +61,24 @@ describe('support agent business boundaries', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_agents/.test(sql))).toBe(false);
   });
 
+  test('records availability changes in the same transaction as the agent update', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'agent-7', employer_id: 'employer-1', user_id: 'agent-user-7' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'agent-7', is_available: false }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const req = requestFor('super_admin');
+    req.body = { isAvailable: false, reason: 'Break' };
+    const res = response();
+
+    await controller.setAgentAvailability(req, res);
+
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      data: { id: 'agent-7', is_available: false },
+    });
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO agent_availability_log/.test(sql))).toBe(true);
+  });
+
   test('rejects oversized skill names before querying an agent', async () => {
     const req = requestFor('super_admin');
     req.body = { skillName: 'x'.repeat(101) };

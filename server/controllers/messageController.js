@@ -4,7 +4,7 @@ const { broadcastGuestChatMessage } = socketService;
 const logger        = require('../utils/logger');
 const { sanitizeMessage, detectOffPlatformContact } = require('../utils/messageSanitizer');
 const contactMasking = require('../services/contactMaskingService');
-const { uploadFile, getSignedDownloadUrl, normalizeStorageKey } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, normalizeStorageKey, deleteFile } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const { verifyConversationAccess } = require('../utils/conversationAccess');
 const { AppError } = require('../middleware/errorHandler');
@@ -1849,6 +1849,7 @@ module.exports = {
  * Every stored attachment uses a short-lived private download URL.
  */
 async function uploadAttachment(req, res) {
+  let uploadedKey = null;
   try {
     const userId = req.user.id;
     const { conversationId } = req.params;
@@ -1872,9 +1873,9 @@ async function uploadAttachment(req, res) {
     if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
 
     const { buffer, originalname, mimetype, size } = req.file;
-    const key = await uploadFile(buffer, chatAttachmentFolder(conversationId), originalname, mimetype);
+    uploadedKey = await uploadFile(buffer, chatAttachmentFolder(conversationId), originalname, mimetype);
 
-    if (!key) {
+    if (!uploadedKey) {
       // S3 not configured - return a base64 data-URL fallback (dev only)
       const b64 = buffer.toString('base64');
       return res.json({
@@ -1886,10 +1887,14 @@ async function uploadAttachment(req, res) {
       });
     }
 
-    const url = await getSignedDownloadUrl(key, 3600);
+    const url = await getSignedDownloadUrl(uploadedKey, 3600);
+    if (!url) throw new Error('Signed attachment URL unavailable');
 
+    const key = uploadedKey;
+    uploadedKey = null;
     return res.json({ url, key, name: originalname, size, mimeType: mimetype });
   } catch (err) {
+    if (uploadedKey) await deleteFile(uploadedKey).catch(() => {});
     logger.error('uploadAttachment error', { err: err.message });
     return res.status(500).json({ error: 'Upload failed' });
   }

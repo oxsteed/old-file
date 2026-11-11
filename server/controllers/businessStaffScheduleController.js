@@ -2040,7 +2040,7 @@ async function recordScheduleChange(req, { businessId, before, after, changeType
            ON lm.membership_id = bm.id AND lm.restaurant_id = $2 AND lm.location_id = $3 AND lm.status = 'active'
         WHERE bm.business_id = $1 AND bm.member_id = $4 AND bm.status = 'active'`,
         [businessId, Number(before.restaurant_id) || null, Number(before.location_id) || null, before.user_id]
-      ).catch(() => ({ rows: [] }));
+      );
       const wage = wageRow?.hourly_wage_cents == null ? null : Number(wageRow.hourly_wage_cents);
       if (wage != null) premiumCents = Math.round(Number(premiumHours) * wage);
     }
@@ -2055,7 +2055,7 @@ async function recordScheduleChange(req, { businessId, before, after, changeType
            LEFT JOIN restaurant_locations l ON l.id = $2 AND l.restaurant_id = r.id
           WHERE r.id = $1`,
         [Number(before.restaurant_id) || null, Number(before.location_id) || null]
-      ).catch(() => ({ rows: [] }));
+      );
       premiumCurrency = currencyRow?.location_currency || currencyRow?.restaurant_currency || null;
     }
   }
@@ -3090,3 +3090,7 @@ exports.getScheduleForecast = async (req, res, next) => {
     return res.json({ ...forecast, currency_code: currencyCode });
   } catch (err) { return next(err); }
 };
+
+// Exported for focused integrity tests; production routes call this through
+// the shift create/update/delete handlers above.
+exports._recordScheduleChange = recordScheduleChange;

@@ -215,29 +215,37 @@ async function routeConversation({ ticketId, customerId, businessId, category, m
   }
 
   if (response.routedTo !== 'agent') {
-    const { rows: waitingRows } = await pool.query(
-      `UPDATE support_conversations
-       SET status = 'waiting_for_agent',
-           live_wait_started_at = COALESCE(live_wait_started_at, NOW()),
-           live_wait_expires_at = COALESCE(live_wait_expires_at, NOW() + INTERVAL '5 minutes'),
-           updated_at = NOW()
-       WHERE id = $1
-       RETURNING status, agent_id, live_wait_expires_at, live_wait_ended_at`,
-      [ticketId]
-    );
-    await pool.query(
-      `INSERT INTO support_queue (business_id, conversation_id, priority, status, queued_at)
-       VALUES ($1, $2, $3, 'waiting', NOW())
-       ON CONFLICT DO NOTHING`,
-      [businessId, ticketId, priority]
-    );
+    const waitingConversation = await withTransaction(pool, async (client) => {
+      // The waiting state and its queue entry are one logical transition. If
+      // the queue insert fails after the conversation update, the next router
+      // pass would never see this ticket even though the UI says it is queued.
+      const { rows: waitingRows } = await client.query(
+        `UPDATE support_conversations
+         SET status = 'waiting_for_agent',
+             live_wait_started_at = COALESCE(live_wait_started_at, NOW()),
+             live_wait_expires_at = COALESCE(live_wait_expires_at, NOW() + INTERVAL '5 minutes'),
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING status, agent_id, live_wait_expires_at, live_wait_ended_at`,
+        [ticketId]
+      );
+      if (!waitingRows.length) {
+        const error = new Error('CONVERSATION_NOT_FOUND');
+        error.code = 'CONVERSATION_NOT_FOUND';
+        throw error;
+      }
+
+      await client.query(
+        `INSERT INTO support_queue (business_id, conversation_id, priority, status, queued_at)
+         VALUES ($1, $2, $3, 'waiting', NOW())
+         ON CONFLICT DO NOTHING`,
+        [businessId, ticketId, priority]
+      );
+
+      return waitingRows[0];
+    }, 'support_queue_waiting_transition');
     response.routedTo = 'queue';
     response.message = 'Your request is in the support queue. An agent will help you shortly.';
-    const waitingConversation = waitingRows[0] || (await pool.query(
-      `SELECT status, agent_id, live_wait_expires_at, live_wait_ended_at
-       FROM support_conversations WHERE id = $1`,
-      [ticketId]
-    )).rows[0];
     response.waiting = waitingState(waitingConversation);
   }
 
@@ -314,6 +322,9 @@ exports.connectConversation = async (req, res) => {
     response.messages = await loadConversationMessages(ticketId);
     return res.json(response);
   } catch (err) {
+    if (err.code === 'CONVERSATION_NOT_FOUND') {
+      return sendError(res, 404, 'Conversation not found');
+    }
     logger.error('Connect support conversation error', { error: err.message, userId: req.user?.id });
     return sendError(res, 500, 'Failed to connect to support');
   }
@@ -456,13 +467,40 @@ exports.createConversation = async (req, res) => {
     // If routed to agent, assign immediately
     if (routing.routedTo === 'agent' && routing.agentId) {
       assignedAgentId = routing.agentId;
+      await withTransaction(pool, async (client) => {
+        // The conversation and assignment history are the same state change.
+        // Conditional ownership prevents a concurrent router from creating a
+        // second assignment for the same ticket.
+        const claimed = await client.query(
+          `UPDATE support_conversations
+           SET agent_id = $1, status = 'in_progress', assigned_at = NOW(), updated_at = NOW()
+           WHERE id = $2 AND agent_id IS NULL
+             AND status NOT IN ('resolved', 'closed', 'merged', 'pending_verification')
+           RETURNING id`,
+          [assignedAgentId, ticketId]
+        );
+        if (!claimed.rows.length) {
+          const error = new Error('CONVERSATION_ALREADY_ASSIGNED');
+          error.code = 'CONVERSATION_ALREADY_ASSIGNED';
+          throw error;
+        }
 
-      const assignQuery = `
-        UPDATE support_conversations
-        SET agent_id = $1, status = 'in_progress', assigned_at = NOW(), updated_at = NOW()
-        WHERE id = $2
-      `;
-      await pool.query(assignQuery, [assignedAgentId, ticketId]);
+        await client.query(
+          `INSERT INTO conversation_assignments
+           (conversation_id, agent_id, business_id, assignment_type, claimed_at, status)
+           VALUES ($1, $2, $3, 'auto', NOW(), 'active')`,
+          [ticketId, assignedAgentId, businessId]
+        );
+
+        // A retried/legacy ticket may already have a queue row. Keep that
+        // row's routing state aligned without requiring one to exist.
+        await client.query(
+          `UPDATE support_queue
+           SET status = 'assigned', routed_to_agent_id = $1, claimed_at = NOW()
+           WHERE conversation_id = $2 AND business_id = $3`,
+          [assignedAgentId, ticketId, businessId]
+        );
+      }, 'route_created_support_conversation_to_agent');
 
       response.assignedAgent = {
         id: routing.agent.id,
@@ -510,29 +548,34 @@ exports.createConversation = async (req, res) => {
         category: normalizedCategory,
       });
     } else if (routing.routedTo === 'queue') {
-      const { rows: waitingRows } = await pool.query(
-        `UPDATE support_conversations
-         SET status = 'waiting_for_agent',
-             live_wait_started_at = COALESCE(live_wait_started_at, NOW()),
-             live_wait_expires_at = COALESCE(live_wait_expires_at, NOW() + INTERVAL '5 minutes'),
-             updated_at = NOW()
-         WHERE id = $1
-         RETURNING status, agent_id, live_wait_expires_at, live_wait_ended_at`,
-        [ticketId]
-      );
-      await pool.query(
-        `INSERT INTO support_queue (business_id, conversation_id, priority, status, queued_at)
-         VALUES ($1, $2, $3, 'waiting', NOW())
-         ON CONFLICT DO NOTHING`,
-        [businessId, ticketId, normalizedPriority]
-      );
+      const waitingConversation = await withTransaction(pool, async (client) => {
+        const { rows: waitingRows } = await client.query(
+          `UPDATE support_conversations
+           SET status = 'waiting_for_agent',
+               live_wait_started_at = COALESCE(live_wait_started_at, NOW()),
+               live_wait_expires_at = COALESCE(live_wait_expires_at, NOW() + INTERVAL '5 minutes'),
+               updated_at = NOW()
+           WHERE id = $1 AND agent_id IS NULL
+             AND status NOT IN ('resolved', 'closed', 'merged', 'pending_verification')
+           RETURNING status, agent_id, live_wait_expires_at, live_wait_ended_at`,
+          [ticketId]
+        );
+        if (!waitingRows.length) {
+          const error = new Error('CONVERSATION_ALREADY_ASSIGNED');
+          error.code = 'CONVERSATION_ALREADY_ASSIGNED';
+          throw error;
+        }
+
+        await client.query(
+          `INSERT INTO support_queue (business_id, conversation_id, priority, status, queued_at)
+           VALUES ($1, $2, $3, 'waiting', NOW())
+           ON CONFLICT DO NOTHING`,
+          [businessId, ticketId, normalizedPriority]
+        );
+        return waitingRows[0];
+      }, 'queue_created_support_conversation');
 
       response.message = 'Your request has been queued. An agent will help you shortly.';
-      const waitingConversation = waitingRows[0] || (await pool.query(
-        `SELECT status, agent_id, live_wait_expires_at, live_wait_ended_at
-         FROM support_conversations WHERE id = $1`,
-        [ticketId]
-      )).rows[0];
       response.waiting = waitingState(waitingConversation);
 
       logger.info('Ticket queued', { ticketId, category: normalizedCategory });
@@ -553,6 +596,9 @@ exports.createConversation = async (req, res) => {
 
     res.json(response);
   } catch (err) {
+    if (err.code === 'CONVERSATION_ALREADY_ASSIGNED') {
+      return sendError(res, 409, 'Conversation was already routed');
+    }
     logger.error('Create conversation error', { error: err.message });
     sendError(res, 500, 'Failed to create support conversation');
   }

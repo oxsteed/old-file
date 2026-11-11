@@ -362,8 +362,19 @@ async function loadPartnerAllowedOrderTypes(partnerId, client = pool) {
       [partnerId],
     );
     return rows[0]?.allowed_order_types || [];
-  } catch {
-    return [];
+  } catch (err) {
+    logger.error('[chatCreditPay] partner agreement lookup failed', {
+      partnerId,
+      error: err.message,
+    });
+    // An empty allow-list means unrestricted in the agreement model. Never
+    // use that meaning when the lookup itself failed: payment must fail closed
+    // until the agreement can be read authoritatively.
+    throw new AppError(
+      'Credit partner agreement is temporarily unavailable. Please retry.',
+      503,
+      'credit_agreement_unavailable',
+    );
   }
 }
 
@@ -1315,3 +1326,4 @@ exports.refundChatCreditPayment = async (req, res, next) => {
 
 
 exports.resolveCreditPartner = resolveCreditPartner;
+exports._loadPartnerAllowedOrderTypes = loadPartnerAllowedOrderTypes;

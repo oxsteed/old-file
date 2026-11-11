@@ -277,6 +277,22 @@ describe('server launch visibility map (Nov 1 audit item 11)', () => {
     expect(launches.helperEarnings).toBe(true);
   });
 
+  test('public visibility stays aligned with the boot-snapshotted API gate', () => {
+    jest.isolateModules(() => {
+      process.env.OXSTEED_LAUNCH_TEMPLATES = 'true';
+      const { getServerLaunchVisibility, launchGate: freshGate } = require('../middleware/launchGate');
+      delete process.env.OXSTEED_LAUNCH_TEMPLATES;
+
+      expect(getServerLaunchVisibility().templates).toBe(true);
+
+      const res = mockRes();
+      const next = jest.fn();
+      freshGate()(mockReq({ baseUrl: '/api/templates', path: '/catalog' }), res, next);
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+  });
+
   test('an env-enabled templates launch unblocks its API in the gate', () => {
     jest.isolateModules(() => {
       process.env.OXSTEED_LAUNCH_TEMPLATES = 'true';

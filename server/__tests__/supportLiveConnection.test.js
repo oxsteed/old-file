@@ -487,6 +487,32 @@ describe('live support connection lifecycle', () => {
     );
   });
 
+  test('rejects and cleans an attachment when signing returns no URL', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-1', business_id: 'business-1', customer_id: 'customer-1',
+          agent_id: 'agent-1', status: 'in_progress',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ user_id: 'admin-1' }] });
+    storage.getSignedDownloadUrl.mockResolvedValueOnce(null);
+
+    const req = {
+      user: { id: 'admin-1', name: 'Ava Agent', role: 'admin' },
+      params: { conversationId: 'ticket-1' },
+      body: {},
+      file: { buffer: Buffer.from('image'), mimetype: 'image/png', originalname: 'proof.png' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+
+    expect(storage.deleteFile).toHaveBeenCalledWith('support-conversations/test-image.png');
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(WebSocketService.broadcastToTicket).not.toHaveBeenCalled();
+  });
+
   test('replays an authenticated retry without incrementing counters or rebroadcasting', async () => {
     const clientMessageId = '22222222-2222-4222-8222-222222222222';
     mockQuery

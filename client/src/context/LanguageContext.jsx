@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import i18n, { LANGUAGES, detectInitialLanguage, ensureLanguageLoaded } from '../i18n';
 import api from '../api/axios';
 import { hasExplicitLanguagePreference } from '../lib/languagePreference';
+import { readLocalStorage, writeLocalStorage } from '../utils/localStorage.js';
 
 export const LanguageContext = createContext(null);
 const SUPPORTED = new Set(LANGUAGES.map((item) => item.code));
@@ -42,13 +43,11 @@ function normalizeLanguage(code) {
 }
 
 function getStoredLanguage() {
-  if (typeof localStorage === 'undefined') return detectInitialLanguage();
-  return localStorage.getItem('oxs:language') || detectInitialLanguage();
+  return readLocalStorage('oxs:language') || detectInitialLanguage();
 }
 
 function getStoredPreferredLanguage() {
-  if (typeof localStorage === 'undefined') return null;
-  const stored = localStorage.getItem('oxs:preferred-language');
+  const stored = readLocalStorage('oxs:preferred-language');
   return stored && SUPPORTED.has(stored) ? stored : null;
 }
 
@@ -87,7 +86,7 @@ export function LanguageProvider({ children }) {
       if (event.key !== 'oxs:language') return;
       const normalizedCode = normalizeLanguage(event.newValue);
       void ensureLanguageLoaded(normalizedCode).then(() => {
-        if (localStorage.getItem('oxs:language') !== normalizedCode) return;
+        if (readLocalStorage('oxs:language') !== normalizedCode) return;
         setLanguageState(normalizedCode);
         i18n.changeLanguage(normalizedCode);
         applyDocumentLanguage(normalizedCode);
@@ -100,9 +99,9 @@ export function LanguageProvider({ children }) {
   const setLanguage = useCallback((code) => {
     const normalizedCode = normalizeLanguage(code);
     if (normalizedCode === language) return;
-    localStorage.setItem('oxs:language', normalizedCode);
+    writeLocalStorage('oxs:language', normalizedCode);
     void ensureLanguageLoaded(normalizedCode).then(() => {
-      if (localStorage.getItem('oxs:language') !== normalizedCode) return;
+      if (readLocalStorage('oxs:language') !== normalizedCode) return;
       setLanguageState(normalizedCode);
       i18n.changeLanguage(normalizedCode);
       applyDocumentLanguage(normalizedCode);
@@ -111,7 +110,7 @@ export function LanguageProvider({ children }) {
 
   const setPreferredLanguage = useCallback((code) => {
     const normalizedCode = normalizeLanguage(code);
-    localStorage.setItem('oxs:preferred-language', normalizedCode);
+    writeLocalStorage('oxs:preferred-language', normalizedCode);
     setPreferredLanguageState(normalizedCode);
     // Persist to the account when signed in; used for outbound emails.
     void api.patch('/users/me', { preferred_language: normalizedCode })
@@ -122,16 +121,16 @@ export function LanguageProvider({ children }) {
     if (!code) return;
     // A local choice is an explicit user preference; do not let the next
     // authenticated profile fetch silently overwrite it with the server copy.
-    if (hasExplicitLanguagePreference(typeof window !== 'undefined' ? window.localStorage : null)) return;
+    if (hasExplicitLanguagePreference()) return;
     const normalizedCode = normalizeLanguage(code);
     // The server's preferred_language becomes both the display language
     // (first load) and the preferred language for outbound communication.
-    localStorage.setItem('oxs:preferred-language', normalizedCode);
+    writeLocalStorage('oxs:preferred-language', normalizedCode);
     setPreferredLanguageState(normalizedCode);
     if (normalizedCode === language) return;
-    localStorage.setItem('oxs:language', normalizedCode);
+    writeLocalStorage('oxs:language', normalizedCode);
     void ensureLanguageLoaded(normalizedCode).then(() => {
-      if (localStorage.getItem('oxs:language') !== normalizedCode) return;
+      if (readLocalStorage('oxs:language') !== normalizedCode) return;
       setLanguageState(normalizedCode);
       i18n.changeLanguage(normalizedCode);
       applyDocumentLanguage(normalizedCode);

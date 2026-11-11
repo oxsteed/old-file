@@ -4,7 +4,12 @@ const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
+jest.mock('../utils/storage', () => {
+  const actual = jest.requireActual('../utils/storage');
+  return { ...actual, uploadFile: jest.fn(), getSignedDownloadUrl: jest.fn(), deleteFile: jest.fn() };
+});
 const ctrl = require('../controllers/businessMessagingController');
+const storage = require('../utils/storage');
 
 const OWNER = {
   id: '00000000-0000-4000-8000-000000000456',
@@ -28,7 +33,11 @@ function buildApp(user = OWNER) {
   return app;
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  jest.clearAllMocks();
+  storage.deleteFile.mockResolvedValue(undefined);
+});
 
 describe('business hub messaging tab', () => {
   test('lists conversations without querying business_team_members', async () => {
@@ -190,6 +199,24 @@ describe('business hub messaging tab', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('validation_failed');
+  });
+
+  test('removes an attachment when signed URL generation fails', async () => {
+    storage.uploadFile.mockResolvedValue('business-message-attachments/failed.pdf');
+    storage.getSignedDownloadUrl.mockRejectedValue(new Error('signing unavailable'));
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'conv-1' }] });
+
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+    const next = jest.fn();
+    await ctrl.uploadAttachment({
+      params: { businessId: '1', conversationId: 'conv-1' },
+      business: { id: '1' },
+      user: { id: OWNER.id },
+      file: { buffer: Buffer.from('pdf'), originalname: 'failed.pdf', mimetype: 'application/pdf', size: 3 },
+    }, res, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'Upload failed' }));
+    expect(storage.deleteFile).toHaveBeenCalledWith('business-message-attachments/failed.pdf');
   });
 
   test('includes archived conversations only when explicitly requested', async () => {

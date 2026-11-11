@@ -195,6 +195,24 @@ describe('F-02: optional identity runs the full checks and never leaves a bare u
   }
   const token = () => generateTokens({ id: VICTIM, email: 'v@x.y', role: 'customer' }).accessToken;
 
+  test('an expired timed suspension reactivates an account that was deactivated by suspendUser', async () => {
+    const a = express();
+    a.get('/probe', authenticate, (req, res) => res.json({ userId: req.user?.id || null }));
+    mockQuery
+      .mockResolvedValueOnce({ rows: [activeUserRow({
+        role: 'customer',
+        is_active: false,
+        is_suspended: true,
+        suspended_until: new Date(Date.now() - 60_000).toISOString(),
+      })] })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    const res = await request(a).get('/probe').set('Authorization', `Bearer ${token()}`);
+    expect(res.status).toBe(200);
+    expect(res.body.userId).toBe(VICTIM);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/is_suspended = FALSE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/is_active = TRUE/);
+  });
+
   test('a live session is still recognised on optional routes', async () => {
     mockQuery.mockResolvedValue({ rows: [activeUserRow({ role: 'customer' })] });
     const res = await request(app(optionalAuth)).post('/spend').set('Authorization', `Bearer ${token()}`);

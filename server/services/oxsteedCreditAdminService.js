@@ -2997,11 +2997,25 @@ async function confirmSettlementPayoutFromTransfer(stripeTransferId) {
     return failSettlementPayoutFromTransfer(normalizedTransferId, 'stripe_transfer_reversed');
   }
   const verifiedSettlementId = transfer?.metadata?.oxsteed_credit_settlement_id;
-  if (verifiedSettlementId && verifiedSettlementId !== String(settlement.id)) {
+  const transferDestination = typeof transfer?.destination === 'string'
+    ? transfer.destination
+    : transfer?.destination?.id || null;
+  const expectedDestination = settlement.payout_destination_account || null;
+  const currencyMatches = typeof transfer?.currency === 'string'
+    && transfer.currency.trim().length > 0
+    && transfer.currency.toUpperCase() === String(settlement.currency_code || '').toUpperCase();
+  const destinationMatches = !expectedDestination || transferDestination === expectedDestination;
+  if (String(verifiedSettlementId || '') !== String(settlement.id)
+      || !currencyMatches
+      || !destinationMatches) {
     throw new AppError('Stripe transfer is linked to a different settlement', 409, 'credit_settlement_payout_verification_mismatch', {
       transferId: normalizedTransferId,
       settlementId: String(settlement.id),
       transferSettlementId: verifiedSettlementId,
+      transferCurrency: transfer?.currency,
+      settlementCurrency: settlement.currency_code,
+      transferDestination,
+      settlementDestination: expectedDestination,
     });
   }
   if (Number(transfer?.amount || 0) !== Number(settlement.net_cents || 0)) {

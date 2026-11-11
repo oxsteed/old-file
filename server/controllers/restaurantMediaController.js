@@ -726,8 +726,10 @@ exports.postRestaurantMediaPhoto = async (req, res, next) => {
     let media;
     try {
       const storageKey = await uploadFile(cleanBuffer, PHOTO_STORAGE_FOLDER, `photo.${ext}`, mime);
+      if (!storageKey) throw new AppError('Photo storage is unavailable', 503, 'media_storage_unavailable');
       storedKeys.push(storageKey);
       const thumbnailKey = await uploadFile(thumbBuffer, PHOTO_STORAGE_FOLDER, `thumb.${ext}`, mime);
+      if (!thumbnailKey) throw new AppError('Photo thumbnail storage is unavailable', 503, 'media_storage_unavailable');
       storedKeys.push(thumbnailKey);
 
       const renditions = JSON.stringify([{
@@ -774,10 +776,19 @@ exports.postRestaurantMediaPhoto = async (req, res, next) => {
       throw err;
     }
 
-    const [url, thumbnailUrl] = await Promise.all([
-      getSignedDownloadUrl(media.storage_key),
-      getSignedDownloadUrl(media.thumbnail_key),
-    ]);
+    let url;
+    let thumbnailUrl;
+    try {
+      [url, thumbnailUrl] = await Promise.all([
+        getSignedDownloadUrl(media.storage_key),
+        getSignedDownloadUrl(media.thumbnail_key),
+      ]);
+    } catch {
+      throw new AppError('Photo download is temporarily unavailable', 503, 'media_storage_unavailable');
+    }
+    if (!url || !thumbnailUrl) {
+      throw new AppError('Photo download is temporarily unavailable', 503, 'media_storage_unavailable');
+    }
     return res.status(201).json({
       success: true,
       media: {

@@ -4,9 +4,11 @@ const { mockQuery, resetMocks } = require('./setup');
 jest.mock('../services/bookingSlotEngine', () => ({ computeSlots: jest.fn() }));
 const mockUploadFile = jest.fn();
 const mockGetSignedDownloadUrl = jest.fn();
+const mockDeleteFile = jest.fn();
 jest.mock('../utils/storage', () => ({
   uploadFile: (...args) => mockUploadFile(...args),
   getSignedDownloadUrl: (...args) => mockGetSignedDownloadUrl(...args),
+  deleteFile: (...args) => mockDeleteFile(...args),
 }));
 const slotEngine = require('../services/bookingSlotEngine');
 const ctrl = require('../controllers/mainAppController');
@@ -22,6 +24,7 @@ beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
   mockGetSignedDownloadUrl.mockResolvedValue('https://signed.example.com/payment-proof');
+  mockDeleteFile.mockResolvedValue(undefined);
 });
 
 describe('main app payout guardrails', () => {
@@ -192,6 +195,46 @@ describe('main app protected payment request records', () => {
       ],
     }));
     expect(next).not.toHaveBeenCalled();
+  });
+
+  test('removes a payment proof when signed URL generation fails', async () => {
+    const key = 'main-app-payment-proofs/501/00000000-0000-4000-8000-000000000111/failed.png';
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 501 }] });
+    mockUploadFile.mockResolvedValueOnce(key);
+    mockGetSignedDownloadUrl.mockRejectedValueOnce(new Error('signing unavailable'));
+
+    const req = {
+      params: { requestId: '501' },
+      user: { id: '00000000-0000-4000-8000-000000000111' },
+      file: { buffer: Buffer.from('proof'), originalname: 'failed.png', mimetype: 'image/png', size: 5 },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.uploadPaymentProof(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'signing unavailable' }));
+    expect(mockDeleteFile).toHaveBeenCalledWith(key);
+  });
+
+  test('removes a payment proof when signing returns no URL', async () => {
+    const key = 'main-app-payment-proofs/501/00000000-0000-4000-8000-000000000111/missing-url.png';
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 501 }] });
+    mockUploadFile.mockResolvedValueOnce(key);
+    mockGetSignedDownloadUrl.mockResolvedValueOnce(null);
+
+    const req = {
+      params: { requestId: '501' },
+      user: { id: '00000000-0000-4000-8000-000000000111' },
+      file: { buffer: Buffer.from('proof'), originalname: 'missing-url.png', mimetype: 'image/png', size: 5 },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.uploadPaymentProof(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'Signed payment proof URL unavailable' }));
+    expect(mockDeleteFile).toHaveBeenCalledWith(key);
   });
 
   test('records payment requests without creating charges or settlement', async () => {

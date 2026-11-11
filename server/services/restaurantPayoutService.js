@@ -73,12 +73,17 @@ function transferPayload(payout) {
 
 function providerTransferMatchesPayout(transfer, payout) {
   if (!transfer) return false;
-  const amountMatches = transfer.amount == null || Number(transfer.amount) === Number(payout.amount_cents);
-  const currencyMatches = !transfer.currency || String(transfer.currency).toUpperCase() === String(payout.currency_code).toUpperCase();
+  const amount = Number(transfer.amount);
+  const amountMatches = Number.isSafeInteger(amount) && amount === Number(payout.amount_cents);
+  const currencyMatches = typeof transfer.currency === 'string'
+    && transfer.currency.trim().length > 0
+    && String(transfer.currency).toUpperCase() === String(payout.currency_code).toUpperCase();
   const destination = typeof transfer.destination === 'string'
     ? transfer.destination
     : transfer.destination?.id;
-  const destinationMatches = !destination || destination === payout.stripe_account_id;
+  const destinationMatches = typeof destination === 'string'
+    && destination.trim().length > 0
+    && destination === payout.stripe_account_id;
   return amountMatches && currencyMatches && destinationMatches;
 }
 
@@ -516,6 +521,13 @@ async function processNextTransfer() {
       transferPayload({ ...payout, id: payout.payout_id }),
       { idempotencyKey: payoutTransferIdempotencyKey(payout.payout_id) }
     );
+    // Stripe can return a malformed object from an adapter or an upstream
+    // contract regression without rejecting the request. Do not acknowledge
+    // the outbox or mark the payout as provider-created unless there is a
+    // durable transfer identity for webhook reconciliation.
+    if (!transfer || typeof transfer.id !== 'string' || !transfer.id.trim()) {
+      throw new AppError('Stripe payout transfer did not return an id', 503, 'payout_transfer_reference_missing');
+    }
     await withTransaction(pool, async (client) => {
       await client.query(
         `UPDATE restaurant_payouts
@@ -608,12 +620,13 @@ async function applyTransferWebhookEvent({ eventType, transfer }) {
   let result = null;
   await withTransaction(pool, async (client) => {
     const { rows } = await client.query(
-      `SELECT * FROM restaurant_payouts WHERE id = $1 OR stripe_transfer_id = $2 FOR UPDATE`,
-      [payoutId, transfer.id]
+      `SELECT * FROM restaurant_payouts WHERE id = $1 FOR UPDATE`,
+      [payoutId]
     );
     const payout = rows[0];
     if (!payout) return;
-    if (!providerTransferMatchesPayout(transfer, payout)) {
+    if ((payout.stripe_transfer_id && payout.stripe_transfer_id !== transfer.id)
+        || !providerTransferMatchesPayout(transfer, payout)) {
       throw new AppError('Stripe payout transfer does not match the approved payout', 409, 'payout_transfer_mismatch');
     }
 

@@ -55,6 +55,25 @@ describe('job event outbox: worker', () => {
     expect(sendNotification).not.toHaveBeenCalled();
   });
 
+  test('rate-limit read failures retry instead of bypassing bidder throttling', async () => {
+    mockQuery.mockImplementation(async (sql, params) => {
+      if (/FROM jobs WHERE id = \$1/.test(sql)) return { rows: [JOB] };
+      if (/FROM bids b\s+WHERE b.job_id/.test(sql)) {
+        return params[1] ? { rows: [] } : { rows: [{ id: 'b1', helper_id: 'h1' }] };
+      }
+      if (/FROM notifications/.test(sql)) throw new Error('database connection lost');
+      throw new Error(`unexpected query: ${sql.slice(0, 100)}`);
+    });
+
+    await expect(outbox.handleEvent({
+      id: 1,
+      job_id: 'job-1',
+      event_type: EVENT_TYPES.MATERIAL_CHANGE,
+      payload: { changed_fields: ['budget_max_cents'] },
+    })).rejects.toThrow('database connection lost');
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
   test('failed delivery is retried with backoff, then marked failed after max attempts', async () => {
     const calls = routeQueries(mockQuery, [[/UPDATE job_event_outbox/, { rowCount: 1 }]]);
     expect(await outbox.finishJobEvent({ id: 1, attempts: 1, lease_token: 't' }, new Error('boom'))).toBe('pending');

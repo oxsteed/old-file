@@ -32,6 +32,21 @@ describe('canonical public host', () => {
     expect(res.headers.location).toBe('https://oxsteed.com/direct?lang=es');
   });
 
+  test('serves Apple association paths directly on www for native builds', async () => {
+    for (const path of [
+      '/.well-known/apple-app-site-association',
+      '/apple-app-site-association',
+    ]) {
+      const res = await request(buildApp())
+        .get(path)
+        .set('Host', 'www.oxsteed.com');
+
+      expect(res.status).toBe(200);
+      expect(res.headers.location).toBeUndefined();
+      expect(res.text).toBe('ok');
+    }
+  });
+
   test('leaves scheme enforcement to the edge proxy', async () => {
     const res = await request(buildApp())
       .get('/about?lang=fr')

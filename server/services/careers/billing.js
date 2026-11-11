@@ -28,6 +28,15 @@ function notConfigured(err) {
   return err;
 }
 
+function requireCheckoutResult(checkout) {
+  const checkoutUrl = typeof checkout?.checkoutUrl === 'string' ? checkout.checkoutUrl.trim() : '';
+  const sessionId = typeof checkout?.sessionId === 'string' ? checkout.sessionId.trim() : '';
+  if (!sessionId || !/^https:\/\//i.test(checkoutUrl)) {
+    throw new AppError('Payment checkout is temporarily unavailable', 503, 'checkout_unavailable');
+  }
+  return { ...checkout, checkoutUrl, sessionId };
+}
+
 async function createBoost(db, { access, actor, body, idempotencyKey, checkoutImpl = provider.createCheckout }) {
   const errors = new FieldErrors();
   const plan = String(body.plan || '');
@@ -63,6 +72,7 @@ async function createBoost(db, { access, actor, body, idempotencyKey, checkoutIm
   } catch (err) {
     throw notConfigured(err);
   }
+  checkout = requireCheckoutResult(checkout);
   const { rows: [updated] } = await db.query(
     `UPDATE career_boosts SET payment_ref = $2, price_cents = COALESCE($3, price_cents), currency = COALESCE(upper($4), currency)
       WHERE id = $1 RETURNING *`,
@@ -115,6 +125,7 @@ async function createHiringEvent(db, { access, actor, body, checkoutImpl = provi
   } catch (err) {
     throw notConfigured(err);
   }
+  checkout = requireCheckoutResult(checkout);
   const { rows: [updated] } = await db.query(
     `UPDATE career_hiring_events SET payment_ref = $2, price_cents = COALESCE($3, price_cents), currency = COALESCE(upper($4), currency)
       WHERE id = $1 RETURNING *`,
@@ -291,6 +302,7 @@ module.exports = {
   BOOST_PLANS,
   createBoost,
   createHiringEvent,
+  requireCheckoutResult,
   applyStripeEvent,
   sweepExpired,
   refreshPromotion,

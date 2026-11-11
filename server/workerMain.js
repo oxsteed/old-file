@@ -240,7 +240,9 @@ const shutdown = async (signal) => {
     clearInterval(timer);
   }
   trackingIntervals = [];
-  trackingInFlight.clear();
+  // Keep trackingInFlight populated until each pass settles. Clearing it here
+  // would let shutdown skip the drain loop while a worker still holds DB or
+  // queue resources.
   try { require('./services/creditCompliance/limitRules').stopLimitRuleRefresh(); } catch { /* not loaded */ }
 
   shutdownPromise = (async () => {

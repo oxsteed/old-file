@@ -97,12 +97,30 @@ exports.getAvailabilityBlocks = async (req, res, next) => {
     if (!isUuid(helper_id)) {
       throw new AppError('helper_id must be a valid UUID', 400, 'validation_failed', { helper_id: 'Must be a valid UUID' });
     }
-    // Unlisted helpers' availability is not public.
+    // Availability is public only for a live user whose helper profile is
+    // effectively listed. Keep the historical default for users that have
+    // not received a helper_profiles row yet, but never expose orphaned,
+    // deleted, inactive, or admin-hidden records.
     const { rows: listed } = await pool.query(
-      `SELECT is_listed FROM helper_profiles WHERE user_id = $1`,
+      `SELECT u.id,
+              u.is_active,
+              u.email_verified,
+              u.deleted_at,
+              COALESCE(hp.is_listed, TRUE) AS is_listed,
+              COALESCE(hp.is_hidden_by_admin, FALSE) AS is_hidden_by_admin
+         FROM users u
+         LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+        WHERE u.id = $1
+        LIMIT 1`,
       [helper_id]
     );
-    if (listed[0] && listed[0].is_listed === false) {
+    const profile = listed[0];
+    if (!profile
+        || profile.is_active === false
+        || profile.email_verified !== true
+        || profile.deleted_at
+        || profile.is_listed === false
+        || profile.is_hidden_by_admin === true) {
       throw new AppError('Helper not found', 404, 'not_found');
     }
     return queryAvailabilityBlocks(res, next, helper_id, req.query);

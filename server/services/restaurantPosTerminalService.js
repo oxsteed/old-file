@@ -98,20 +98,40 @@ async function createPaymentIntent({ amountCents, currency, metadata, idempotenc
   );
 }
 
+async function cancelPaymentIntent(paymentIntentId) {
+  if (!paymentIntentId) return null;
+  const client = requireStripe();
+  if (typeof client.paymentIntents?.cancel !== 'function') return null;
+  return client.paymentIntents.cancel(paymentIntentId);
+}
+
 async function capturePaymentIntent(paymentIntentId, idempotencyKey, accountId = null) {
   const client = requireStripe();
   const current = accountId ? await client.paymentIntents.retrieve(paymentIntentId,{}, {stripeAccount:accountId}) : await client.paymentIntents.retrieve(paymentIntentId);
-  if (current.status === 'succeeded') return current;
+  if (current.status === 'succeeded') {
+    if (current.id !== paymentIntentId) {
+      const error = new Error('Captured PaymentIntent identity could not be verified');
+      error.code = 'payment_capture_verification_failed';
+      throw error;
+    }
+    return current;
+  }
   if (current.status !== 'requires_capture') {
     const error = new Error(`PaymentIntent cannot be captured from ${current.status}`);
     error.code = 'payment_not_authorized';
     throw error;
   }
-  return client.paymentIntents.capture(paymentIntentId, {}, { idempotencyKey,...(accountId?{stripeAccount:accountId}:{}) });
+  const captured = await client.paymentIntents.capture(paymentIntentId, {}, { idempotencyKey,...(accountId?{stripeAccount:accountId}:{}) });
+  if (!captured || captured.id !== paymentIntentId) {
+    const error = new Error('Captured PaymentIntent identity could not be verified');
+    error.code = 'payment_capture_verification_failed';
+    throw error;
+  }
+  return captured;
 }
 
 async function createRefund({ paymentIntentId, amountCents, metadata, idempotencyKey, accountId = null }) {
-  return requireStripe().refunds.create(
+  const refund = await requireStripe().refunds.create(
     {
       payment_intent: paymentIntentId,
       amount: amountCents,
@@ -119,6 +139,14 @@ async function createRefund({ paymentIntentId, amountCents, metadata, idempotenc
     },
     { idempotencyKey,...(accountId?{stripeAccount:accountId}:{}) }
   );
+  const validStatuses = new Set(['pending', 'requires_action', 'succeeded', 'failed', 'canceled', 'cancelled']);
+  const refundId = typeof refund?.id === 'string' ? refund.id.trim() : '';
+  if (!refundId || Number(refund?.amount) !== Number(amountCents) || !validStatuses.has(refund?.status)) {
+    const error = new Error('Stripe Terminal refund response could not be verified');
+    error.code = 'payment_refund_verification_failed';
+    throw error;
+  }
+  return { ...refund, id: refundId };
 }
 
 module.exports = {
@@ -132,6 +160,7 @@ module.exports = {
   retrieveConnectedIntent: (id,accountId)=>requireStripe().paymentIntents.retrieve(id,{expand:['latest_charge']},{stripeAccount:accountId,timeout:15000,maxNetworkRetries:0}),
   createConnectionToken,
   createPaymentIntent,
+  cancelPaymentIntent,
   capturePaymentIntent,
   createRefund,
   resolveRestaurantConnectAccount,

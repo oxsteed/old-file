@@ -179,6 +179,21 @@ describe('POST video-uploads', () => {
     uploadSpy.mockRestore();
   });
 
+  test('storage returning no key fails before any media row is created', async () => {
+    mockUploadDb();
+    const uploadSpy = jest.spyOn(storage, 'uploadFile').mockResolvedValue(null);
+
+    const app = buildApp({ user: { id: 'uploader-no-storage' } });
+    const res = await request(app)
+      .post('/api/restaurants/42/media/video-uploads')
+      .attach('file', tinyMp4Buffer(), { filename: 'clip.mp4', contentType: 'video/mp4' });
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('media_storage_unavailable');
+    expect(capturedInserts.some((entry) => entry.sql.includes('INSERT INTO restaurant_media'))).toBe(false);
+    uploadSpy.mockRestore();
+  });
+
   test('dish snapshot validation mirrors link posts (cap 10, must belong)', async () => {
     mockUploadDb();
     const app = buildApp({ user: { id: 'uploader-dish' } });
@@ -402,6 +417,10 @@ describe('transcode worker', () => {
     id: 'job-trans-1', media_id: MEDIA_UUID, job_type: 'transcode',
     status: 'running', attempts: 1,
   };
+
+  test.each([null, '', '   ', 42])('rejects a missing storage key (%p)', (key) => {
+    expect(() => worker.requireStorageKey(key, 'Video rendition')).toThrow('Video rendition storage is unavailable');
+  });
 
   async function makeRealVideo() {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'oxsteed-vidtest-'));

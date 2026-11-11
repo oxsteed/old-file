@@ -150,6 +150,23 @@ const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
   : null;
 
+function usableFoodPaymentIntent(intent) {
+  const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
+  const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
+  if (!id || !clientSecret) {
+    throw new AppError('The card payment session is unavailable', 502, 'card_payment_intent_unavailable');
+  }
+  return { id, clientSecret };
+}
+
+async function cancelFoodPaymentIntentQuietly(intentId) {
+  if (!intentId || typeof stripe?.paymentIntents?.cancel !== 'function') return;
+  await stripe.paymentIntents.cancel(intentId).catch((err) => logger.warn('Failed to cancel unusable food card intent', {
+    paymentIntentId: intentId,
+    error: err.message,
+  }));
+}
+
 // F-11: a scheduled order becomes kitchen work at scheduled_for minus the
 // restaurant's prep lead (prep_time_min; 30 minutes when unset). Shared by
 // the merchant kitchen feed branches in listRestaurantOrders.
@@ -1671,16 +1688,45 @@ async function createFoodCheckoutSession({
   }
   const stripeAccountId = normalizeString(connectedAccountId, 255);
 
+  const checkoutUrl = (value) => {
+    const normalized = normalizeString(value, 2048);
+    return normalized && /^https:\/\//i.test(normalized) ? normalized : null;
+  };
+
   // H12: never create a second Checkout Session for an order that already has
   // one. The session id is stamped on the order at creation; retries and the
   // resume endpoint replay the existing session instead of charging twice.
   const existingSessionId = normalizeString(order.metadata?.checkoutSessionId, 255);
   if (existingSessionId) {
+    let existingCheckoutUrl = checkoutUrl(
+      order.metadata?.stripeCheckout?.checkoutUrl
+        || order.metadata?.stripe_checkout?.checkoutUrl
+        || order.metadata?.checkoutUrl
+    );
+    if (!existingCheckoutUrl) {
+      try {
+        const existingSession = await stripe.checkout.sessions.retrieve(
+          existingSessionId,
+          stripeAccountId ? { stripeAccount: stripeAccountId } : undefined
+        );
+        existingCheckoutUrl = checkoutUrl(existingSession?.url);
+      } catch (err) {
+        logger.warn('Existing food checkout session could not be recovered', {
+          orderId: order.id,
+          checkoutSessionId: existingSessionId,
+          error: err?.message || 'unknown_error',
+        });
+      }
+    }
+    if (!existingCheckoutUrl) {
+      throw new AppError('Payment checkout is temporarily unavailable', 503, 'checkout_unavailable');
+    }
     return {
       order,
       payment: {
         mode: 'hosted_checkout',
         status: 'requires_payment',
+        checkoutUrl: existingCheckoutUrl,
         checkoutSessionId: existingSessionId,
         replayed: true,
       },
@@ -1743,6 +1789,12 @@ async function createFoodCheckoutSession({
     idempotencyKey: `food-order-checkout:${order.id}`,
   });
 
+  const sessionCheckoutUrl = checkoutUrl(session?.url);
+  const sessionId = normalizeString(session?.id, 255);
+  if (!sessionId || !sessionCheckoutUrl) {
+    throw new AppError('Payment checkout is temporarily unavailable', 503, 'checkout_unavailable');
+  }
+
   const { rows: [updatedOrder] } = await pool.query(
     `UPDATE food_orders
         SET payment_status = 'requires_payment',
@@ -1758,7 +1810,8 @@ async function createFoodCheckoutSession({
               to_jsonb(
                 json_build_object(
                   'connectedAccountId', $4::text,
-                  'sessionId', $2::text
+                  'sessionId', $2::text,
+                  'checkoutUrl', $5::text
                 )
               ),
               true
@@ -1768,9 +1821,10 @@ async function createFoodCheckoutSession({
       RETURNING *`,
     [
       typeof session.payment_intent === 'string' ? session.payment_intent : null,
-      session.id,
+      sessionId,
       order.id,
       stripeAccountId || null,
+      sessionCheckoutUrl,
     ]
   );
 
@@ -1779,8 +1833,8 @@ async function createFoodCheckoutSession({
     payment: {
       mode: 'hosted_checkout',
       status: 'requires_payment',
-      checkoutUrl: session.url,
-      checkoutSessionId: session.id,
+      checkoutUrl: sessionCheckoutUrl,
+      checkoutSessionId: sessionId,
       expiresAt: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
     },
   };
@@ -1800,6 +1854,8 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
       || order.metadata?.stripe_checkout?.connectedAccountId,
     255
   );
+  const partialAmount = Number.isSafeInteger(amountCents) && amountCents > 0
+    && amountCents !== Number(order.total_cents || 0) ? amountCents : null;
   let refund;
   try {
     // Destination charges (card mode) live on the platform account: reverse
@@ -1808,8 +1864,6 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
     // Shared counter (finding 3): a partial-amount refund refunds only
     // the remainder, with its own idempotency key so a full-total replay
     // can never be returned for a partial amount (or vice versa).
-    const partialAmount = Number.isSafeInteger(amountCents) && amountCents > 0
-      && amountCents !== Number(order.total_cents || 0) ? amountCents : null;
     const refundParams = { payment_intent: order.stripe_payment_intent_id };
     if (partialAmount != null) refundParams.amount = partialAmount;
     if (destinationCharge && !connectedAccountId) {
@@ -1831,6 +1885,31 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
     });
     throw new AppError('The card refund could not be processed', 502, 'stripe_refund_failed', { orderId: order.id });
   }
+  // A provider call can resolve without throwing while still returning an
+  // incomplete or mismatched object (for example after an adapter/API
+  // regression). Never mark the order refunded or write a POS ledger row
+  // unless the external movement has a durable identity and the amount that
+  // Stripe reports is the amount this order requested.
+  const refundId = typeof refund?.id === 'string' ? refund.id.trim() : '';
+  const expectedAmountCents = partialAmount != null
+    ? partialAmount
+    : Number(order.total_cents || 0);
+  const providerAmountCents = Number(refund?.amount);
+  const providerPaymentIntentId = typeof refund?.payment_intent === 'string'
+    ? refund.payment_intent
+    : refund?.payment_intent?.id || null;
+  if (!refundId || !Number.isSafeInteger(providerAmountCents) || providerAmountCents !== expectedAmountCents
+      || (providerPaymentIntentId && providerPaymentIntentId !== order.stripe_payment_intent_id)) {
+    logger.error('Stripe refund response could not be verified for food order', {
+      orderId: order.id,
+      paymentIntentId: order.stripe_payment_intent_id,
+      refundId: refundId || null,
+      providerAmountCents: Number.isFinite(providerAmountCents) ? providerAmountCents : null,
+      expectedAmountCents,
+      providerPaymentIntentId,
+    });
+    throw new AppError('The card refund response could not be verified', 502, 'stripe_refund_invalid', { orderId: order.id });
+  }
   const chargeId = typeof refund.charge === 'string' ? refund.charge : refund.charge?.id || null;
   const { rows: posRows } = await client.query(
     `INSERT INTO restaurant_pos_payments
@@ -1848,7 +1927,7 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
       chargeId,
       `food-order-refund:${order.id}`,
       'Card refund for cancelled order',
-      JSON.stringify({ stripeRefundId: refund.id, orderStatus: status, createdByUserId }),
+      JSON.stringify({ stripeRefundId: refundId, orderStatus: status, createdByUserId }),
       order.location_id ?? null,
     ]
   );
@@ -4613,6 +4692,8 @@ exports.createOrder = async (req, res, next) => {
 };
 
 exports.createCardPaymentIntent = async (req, res, next) => {
+  let createdPaymentIntent = null;
+  let intentPersisted = false;
   try {
     const restaurantId = parsePositiveInt(req.body.restaurantId || req.body.restaurant_id);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -4704,9 +4785,21 @@ exports.createCardPaymentIntent = async (req, res, next) => {
       } catch (err) {
         throw new AppError('The previous card payment could not be retrieved', 502, 'card_payment_intent_unavailable');
       }
+      let usable;
+      try {
+        usable = usableFoodPaymentIntent(reusedIntent);
+      } catch (err) {
+        await cancelFoodPaymentIntentQuietly(existing.stripe_payment_intent_id);
+        await pool.query(
+          `UPDATE food_card_payment_intents SET status = 'failed', updated_at = NOW()
+            WHERE restaurant_id = $1 AND idempotency_key = $2`,
+          [restaurantId, idempotencyKey],
+        );
+        throw err;
+      }
       return res.json({
-        clientSecret: reusedIntent.client_secret,
-        paymentIntentId: reusedIntent.id,
+        clientSecret: usable.clientSecret,
+        paymentIntentId: usable.id,
       });
     }
 
@@ -4771,9 +4864,9 @@ exports.createCardPaymentIntent = async (req, res, next) => {
       if (err instanceof AppError) throw err;
       throw new AppError('The card payment could not be started', 502, 'card_payment_intent_failed');
     }
-    if (!paymentIntent?.id || !paymentIntent?.client_secret) {
-      throw new AppError('The card payment could not be started', 502, 'card_payment_intent_failed');
-    }
+    createdPaymentIntent = paymentIntent;
+    const usable = usableFoodPaymentIntent(paymentIntent);
+    createdPaymentIntent = { ...paymentIntent, id: usable.id, client_secret: usable.clientSecret };
     // Record the intent before returning the secret. ON CONFLICT covers the
     // race where two requests create the same deterministic Stripe intent;
     // the row is re-read so the response always reflects the stored record.
@@ -4787,31 +4880,34 @@ exports.createCardPaymentIntent = async (req, res, next) => {
         restaurantId,
         req.user?.id || null,
         idempotencyKey,
-        paymentIntent.id,
+        createdPaymentIntent.id,
         amountCents,
         currency,
       ]
     );
+    intentPersisted = true;
     const { rows: storedIntents } = await pool.query(
       `SELECT stripe_payment_intent_id
          FROM food_card_payment_intents
         WHERE restaurant_id = $1 AND idempotency_key = $2`,
       [restaurantId, idempotencyKey]
     );
-    const storedIntentId = storedIntents[0]?.stripe_payment_intent_id || paymentIntent.id;
-    let responseIntent = paymentIntent;
-    if (storedIntentId !== paymentIntent.id) {
+    const storedIntentId = storedIntents[0]?.stripe_payment_intent_id || createdPaymentIntent.id;
+    let responseIntent = createdPaymentIntent;
+    if (storedIntentId !== createdPaymentIntent.id) {
       try {
         responseIntent = await stripe.paymentIntents.retrieve(storedIntentId);
       } catch (err) {
         throw new AppError('The card payment could not be retrieved', 502, 'card_payment_intent_unavailable');
       }
     }
+    const responseUsable = usableFoodPaymentIntent(responseIntent);
     res.status(201).json({
-      clientSecret: responseIntent.client_secret,
-      paymentIntentId: responseIntent.id,
+      clientSecret: responseUsable.clientSecret,
+      paymentIntentId: responseUsable.id,
     });
   } catch (err) {
+    if (createdPaymentIntent?.id && !intentPersisted) await cancelFoodPaymentIntentQuietly(createdPaymentIntent.id);
     next(err);
   }
 };
@@ -9279,3 +9375,4 @@ exports._refundFoodOrderStripePayment = refundFoodOrderStripePayment;
 exports._clawBackFoodLoyaltyOnRefund = clawBackFoodLoyaltyOnRefund;
 exports._earnFoodLoyaltyOnComplete = earnFoodLoyaltyOnComplete;
 exports._safeReturnUrl = safeReturnUrl;
+exports._createFoodCheckoutSession = createFoodCheckoutSession;

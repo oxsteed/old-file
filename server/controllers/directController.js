@@ -7,7 +7,7 @@ const { sendEmail, sendEmailOrThrow, EmailDeliveryError } = require('../utils/em
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { withTransaction } = require('../utils/transaction');
 const { sendNotification } = require('../services/notificationService'); // Review P1-4-F05
-const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const {
   generateLookupCode,
   hashLookupCode,
@@ -523,56 +523,65 @@ async function loadLookupChallengeByToken(challengeToken) {
 }
 
 async function createLookupChallenge(request, zipCode) {
-  // Per-quote cooldown: if a code was sent in the last 60 seconds, reject
-  // to prevent email flooding. The audit flagged this as a spam vector.
-  const { rows: [recent] } = await db.query(
-    `SELECT id FROM direct_quote_lookup_challenges
-      WHERE quote_request_id = $1
-        AND created_at > NOW() - INTERVAL '60 seconds'
-      LIMIT 1`,
-    [request.id]
-  ).catch(() => ({ rows: [] }));
-  if (recent) {
-    const err = new Error('A code was just sent. Please wait before requesting another.');
-    err.statusCode = 429;
-    err.code = 'cooldown';
-    throw err;
-  }
+  return withTransaction(db, async (client) => {
+    // Serialize issuance per quote so two concurrent requests cannot both
+    // observe an empty cooldown window and send multiple active codes.
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+      [`direct-quote-lookup:${request.id}`]
+    );
 
-  const challengeToken = generateChallengeToken();
-  const code = generateLookupCode();
-  const codeHash = hashLookupCode(challengeToken, code);
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    // Per-quote cooldown: if a code was sent in the last 60 seconds, reject
+    // to prevent email flooding. The lock makes this check race-free.
+    const { rows: [recent] } = await client.query(
+      `SELECT id FROM direct_quote_lookup_challenges
+        WHERE quote_request_id = $1
+          AND created_at > NOW() - INTERVAL '60 seconds'
+        LIMIT 1`,
+      [request.id]
+    );
+    if (recent) {
+      const err = new Error('A code was just sent. Please wait before requesting another.');
+      err.statusCode = 429;
+      err.code = 'cooldown';
+      throw err;
+    }
 
-  await db.query(
-    `UPDATE direct_quote_lookup_challenges
-        SET code_expires_at = NOW() - INTERVAL '1 second',
-            updated_at = NOW()
-      WHERE quote_request_id = $1
-        AND verified_at IS NULL
-        AND code_expires_at > NOW()`,
-    [request.id]
-  ).catch(() => {});
+    const challengeToken = generateChallengeToken();
+    const code = generateLookupCode();
+    const codeHash = hashLookupCode(challengeToken, code);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
-  const result = await db.query(
-    `INSERT INTO direct_quote_lookup_challenges
-       (quote_request_id, challenge_token, code_hash, zip_code, email_address, code_expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING *`,
-    [
-      request.id,
-      challengeToken,
-      codeHash,
-      zipCode,
-      request.email,
-      expiresAt,
-    ]
-  );
+    await client.query(
+      `UPDATE direct_quote_lookup_challenges
+          SET code_expires_at = NOW() - INTERVAL '1 second',
+              updated_at = NOW()
+        WHERE quote_request_id = $1
+          AND verified_at IS NULL
+          AND code_expires_at > NOW()`,
+      [request.id]
+    );
 
-  return {
-    challenge: result.rows[0] || null,
-    code,
-  };
+    const result = await client.query(
+      `INSERT INTO direct_quote_lookup_challenges
+         (quote_request_id, challenge_token, code_hash, zip_code, email_address, code_expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        request.id,
+        challengeToken,
+        codeHash,
+        zipCode,
+        request.email,
+        expiresAt,
+      ]
+    );
+
+    return {
+      challenge: result.rows[0] || null,
+      code,
+    };
+  }, 'direct_lookup_challenge');
 }
 
 // Review P3-844/P3-849: the lookup code is the only way the requester opens
@@ -868,6 +877,7 @@ exports.applyAdminCatalogAI = async (req, res) => {
 };
 
 exports.uploadDirectAsset = async (req, res) => {
+  let uploadedKey = null;
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'A file is required' });
@@ -906,18 +916,21 @@ exports.uploadDirectAsset = async (req, res) => {
       ? `direct-request-assets/${requestId}/${purpose}`
       : `direct-draft-assets/${draftId}/${purpose}`;
 
-    const key = await uploadFile(
+    uploadedKey = await uploadFile(
       req.file.buffer,
       folder,
       req.file.originalname || `${purpose}-${Date.now()}`,
       req.file.mimetype
     );
 
-    if (!key) {
+    if (!uploadedKey) {
       return res.status(503).json({ error: 'Secure file storage is not configured' });
     }
 
-    const signedUrl = await getSignedDownloadUrl(key, 900);
+    const signedUrl = await getSignedDownloadUrl(uploadedKey, 900);
+    if (!signedUrl) throw new Error('Signed direct asset URL unavailable');
+    const key = uploadedKey;
+    uploadedKey = null;
 
     return res.status(201).json({
       attachment: {
@@ -932,6 +945,7 @@ exports.uploadDirectAsset = async (req, res) => {
       },
     });
   } catch (err) {
+    if (uploadedKey) await deleteFile(uploadedKey).catch(() => {});
     logger.error('uploadDirectAsset error', { error: err.message });
     return res.status(500).json({ error: 'Failed to upload file' });
   }

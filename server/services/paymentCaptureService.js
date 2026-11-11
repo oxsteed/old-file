@@ -353,6 +353,9 @@ async function settlePlatformHold(client, paymentRow) {
       { payment_intent: pi.id, amount: charged - finalAmount, reason: 'requested_by_customer' },
       { idempotencyKey: `payment-hold-refund:${paymentRow.id}` },
     );
+    if (!holdRefund || typeof holdRefund.id !== 'string' || !holdRefund.id.trim()) {
+      throw new Error('Stripe hold refund did not return a refund id');
+    }
     // P3-3-F07: the over-hold difference goes back to the customer; tell
     // them it was issued (in-app + email). Best-effort; the refund is settled.
     if (paymentRow.payer_id) {
@@ -381,6 +384,9 @@ async function settlePlatformHold(client, paymentRow) {
       transfer_group: pi.transfer_group || undefined,
       metadata: { payment_id: String(paymentRow.id), job_id: String(pi.metadata?.job_id || '') },
     }, { idempotencyKey: `payment-hold-transfer:${paymentRow.id}` });
+    if (!transfer || typeof transfer.id !== 'string' || !transfer.id.trim()) {
+      throw new Error('Stripe hold transfer did not return a transfer id');
+    }
     transferId = transfer.id;
   }
   await client.query(

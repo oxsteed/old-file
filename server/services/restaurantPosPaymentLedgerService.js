@@ -371,13 +371,34 @@ async function recordWalletCreditRefundForOrder(client, {
   return { payment: payment || null, ...reconciliation, skipped: false };
 }
 
-async function applyStripePaymentIntent(client, intent) {
+async function applyStripePaymentIntent(client, intent, providerAccountId = null) {
   if (!intent?.id) return null;
   const status = intent.status === 'succeeded'
     ? 'captured'
     : intent.status === 'canceled' || (intent.status === 'requires_payment_method' && intent.last_payment_error)
       ? 'failed'
       : 'pending';
+  const { rows: [existingPayment] } = await client.query(
+    `SELECT p.*, fo.currency_code AS order_currency
+       FROM restaurant_pos_payments p
+       JOIN food_orders fo ON fo.id = p.food_order_id
+      WHERE p.provider = 'stripe_terminal'
+        AND p.provider_payment_intent_id = $1
+        AND p.payment_type = 'card'
+      FOR UPDATE`,
+    [intent.id]
+  );
+  if (!existingPayment) return null;
+  const providerAmount = Number(intent.amount_received ?? intent.amount);
+  const providerCurrency = typeof intent.currency === 'string' ? intent.currency.toLowerCase() : '';
+  const expectedCurrency = String(existingPayment.order_currency || '').toLowerCase();
+  if (!Number.isSafeInteger(providerAmount)
+      || providerAmount !== Number(existingPayment.amount_cents)
+      || !providerCurrency
+      || providerCurrency !== expectedCurrency
+      || (existingPayment.provider_account_id && providerAccountId !== existingPayment.provider_account_id)) {
+    throw new AppError('Stripe POS payment does not match the local payment record', 409, 'pos_payment_verification_failed');
+  }
   const { rows: [payment] } = await client.query(
     `UPDATE restaurant_pos_payments
         SET status = CASE WHEN status = 'captured' THEN status ELSE $1 END,
@@ -385,16 +406,14 @@ async function applyStripePaymentIntent(client, intent) {
             note = CASE WHEN $1 = 'failed' THEN COALESCE($3, note) ELSE note END,
             metadata = metadata || $4::jsonb,
             updated_at = NOW()
-      WHERE provider = 'stripe_terminal'
-        AND provider_payment_intent_id = $5
-        AND payment_type = 'card'
+      WHERE id = $5
       RETURNING *`,
     [
       status,
       typeof intent.latest_charge === 'string' ? intent.latest_charge : null,
       intent.last_payment_error?.message || intent.cancellation_reason || null,
       JSON.stringify({ stripeStatus: intent.status }),
-      intent.id,
+      existingPayment.id,
     ]
   );
   if (!payment) return null;
@@ -402,7 +421,7 @@ async function applyStripePaymentIntent(client, intent) {
   return { payment, ...reconciliation };
 }
 
-async function applyStripeRefund(client, refund) {
+async function applyStripeRefund(client, refund, providerAccountId = null) {
   if (!refund?.id) return null;
   const refundPaymentId = Number.parseInt(refund.metadata?.pos_refund_payment_id, 10) || null;
   const status = refund.status === 'succeeded'
@@ -410,6 +429,58 @@ async function applyStripeRefund(client, refund) {
     : ['failed', 'canceled'].includes(refund.status)
       ? 'failed'
       : 'pending';
+  const lookup = refundPaymentId
+    ? {
+      sql: `SELECT p.*, fo.currency_code AS order_currency
+              FROM restaurant_pos_payments p
+              JOIN food_orders fo ON fo.id = p.food_order_id
+             WHERE p.payment_type = 'refund'
+               AND p.provider = 'stripe_terminal'
+               AND p.id = $1
+             FOR UPDATE`,
+      params: [refundPaymentId],
+    }
+    : {
+      sql: `SELECT p.*, fo.currency_code AS order_currency
+              FROM restaurant_pos_payments p
+              JOIN food_orders fo ON fo.id = p.food_order_id
+             WHERE p.payment_type = 'refund'
+               AND p.provider = 'stripe_terminal'
+               AND p.provider_refund_id = $1
+             FOR UPDATE`,
+      params: [refund.id],
+    };
+  const { rows: [existingRefund] } = await client.query(lookup.sql, lookup.params);
+  if (!existingRefund) return null;
+  const originalPaymentId = Number(existingRefund.metadata?.originalPaymentId || refund.metadata?.pos_payment_id) || null;
+  let originalPayment = null;
+  if (originalPaymentId) {
+    const { rows: [row] } = await client.query(
+      `SELECT id, provider_payment_intent_id, provider_account_id
+         FROM restaurant_pos_payments
+        WHERE id = $1 AND payment_type = 'card'
+        FOR UPDATE`,
+      [originalPaymentId]
+    );
+    originalPayment = row || null;
+  }
+  const providerAmount = Number(refund.amount);
+  const providerCurrency = typeof refund.currency === 'string' ? refund.currency.toLowerCase() : '';
+  const expectedCurrency = String(existingRefund.order_currency || '').toLowerCase();
+  const providerPaymentIntentId = typeof refund.payment_intent === 'string'
+    ? refund.payment_intent
+    : refund.payment_intent?.id || null;
+  if (!Number.isSafeInteger(providerAmount)
+      || providerAmount !== Number(existingRefund.amount_cents)
+      || !providerCurrency
+      || providerCurrency !== expectedCurrency
+      || (originalPaymentId && !originalPayment)
+      || (existingRefund.provider_payment_intent_id
+        && providerPaymentIntentId !== existingRefund.provider_payment_intent_id)
+      || (originalPayment && providerPaymentIntentId !== originalPayment.provider_payment_intent_id)
+      || (originalPayment?.provider_account_id && providerAccountId !== originalPayment.provider_account_id)) {
+    throw new AppError('Stripe POS refund does not match the local refund record', 409, 'pos_refund_verification_failed');
+  }
   const { rows: [payment] } = await client.query(
     `UPDATE restaurant_pos_payments
         SET status = $1,
@@ -417,14 +488,11 @@ async function applyStripeRefund(client, refund) {
             reference = $2,
             metadata = metadata || $3::jsonb,
             updated_at = NOW()
-      WHERE payment_type = 'refund'
-        AND provider = 'stripe_terminal'
-        AND (provider_refund_id = $2 OR ($4::bigint IS NOT NULL AND id = $4))
+      WHERE id = $4
       RETURNING *`,
-    [status, refund.id, JSON.stringify({ stripeStatus: refund.status }), refundPaymentId]
+    [status, refund.id, JSON.stringify({ stripeStatus: refund.status }), existingRefund.id]
   );
   if (!payment) return null;
-  const originalPaymentId = Number(payment.metadata?.originalPaymentId || refund.metadata?.pos_payment_id) || null;
   if (originalPaymentId) {
     await client.query(
       `UPDATE restaurant_pos_payments original
@@ -447,17 +515,33 @@ async function applyStripeRefund(client, refund) {
   return { payment, ...reconciliation };
 }
 
-async function applyStripeChargeRefund(client, charge) {
-  if (!charge?.payment_intent || !Number.isFinite(Number(charge.amount_refunded))) return null;
+async function applyStripeChargeRefund(client, charge, providerAccountId = null) {
+  const paymentIntentId = typeof charge?.payment_intent === 'string'
+    ? charge.payment_intent
+    : charge?.payment_intent?.id || null;
+  if (!paymentIntentId || !Number.isFinite(Number(charge.amount_refunded))) return null;
   const { rows: [original] } = await client.query(
-    `SELECT * FROM restaurant_pos_payments
-      WHERE provider = 'stripe_terminal'
-        AND provider_payment_intent_id = $1
-        AND payment_type = 'card'
+    `SELECT p.*, fo.currency_code AS order_currency
+       FROM restaurant_pos_payments p
+       JOIN food_orders fo ON fo.id = p.food_order_id
+      WHERE p.provider = 'stripe_terminal'
+        AND p.provider_payment_intent_id = $1
+        AND p.payment_type = 'card'
       FOR UPDATE`,
-    [charge.payment_intent]
+    [paymentIntentId]
   );
   if (!original) return null;
+  const refundedAmount = Number(charge.amount_refunded);
+  const providerCurrency = typeof charge.currency === 'string' ? charge.currency.toLowerCase() : '';
+  const expectedCurrency = String(original.order_currency || '').toLowerCase();
+  if (!Number.isSafeInteger(refundedAmount)
+      || refundedAmount < 0
+      || refundedAmount > Number(original.amount_cents)
+      || !providerCurrency
+      || providerCurrency !== expectedCurrency
+      || (original.provider_account_id && providerAccountId !== original.provider_account_id)) {
+    throw new AppError('Stripe POS refund does not match the local payment record', 409, 'pos_refund_verification_failed');
+  }
   const { rows: [totals] } = await client.query(
     `SELECT COALESCE(SUM(amount_cents), 0)::int AS recorded_refund_cents
        FROM restaurant_pos_payments
@@ -466,7 +550,7 @@ async function applyStripeChargeRefund(client, charge) {
         AND metadata->>'originalPaymentId' = $1::text`,
     [original.id]
   );
-  const missingCents = Math.max(0, Number(charge.amount_refunded) - Number(totals.recorded_refund_cents || 0));
+  const missingCents = Math.max(0, refundedAmount - Number(totals.recorded_refund_cents || 0));
   if (missingCents > 0) {
     await client.query(
       `INSERT INTO restaurant_pos_payments
@@ -481,9 +565,9 @@ async function applyStripeChargeRefund(client, charge) {
         original.food_order_id,
         original.shift_id,
         missingCents,
-        charge.payment_intent,
+        paymentIntentId,
         charge.id,
-        `stripe-charge-refund:${charge.id}:${charge.amount_refunded}`,
+        `stripe-charge-refund:${charge.id}:${refundedAmount}`,
         JSON.stringify({ originalPaymentId: original.id, reconciledFromWebhook: true }),
         original.location_id ?? null,
       ]
@@ -493,7 +577,7 @@ async function applyStripeChargeRefund(client, charge) {
     `UPDATE restaurant_pos_payments
         SET refunded_amount_cents = LEAST(amount_cents, $1), updated_at = NOW()
       WHERE id = $2`,
-    [Number(charge.amount_refunded), original.id]
+    [refundedAmount, original.id]
   );
   const reconciliation = await reconcilePosOrderPayment(client, original.food_order_id);
   return { payment: original, ...reconciliation };

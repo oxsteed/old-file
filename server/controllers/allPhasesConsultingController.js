@@ -1,7 +1,21 @@
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
+const { AppError } = require('../utils/apiError');
 const db = require('../db');
+
+function requireConsultingPaymentIntent(intent) {
+  const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
+  const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
+  if (!id || !clientSecret) {
+    throw new AppError(
+      'Consulting payment is temporarily unavailable',
+      503,
+      'consulting_payment_intent_unavailable'
+    );
+  }
+  return { id, clientSecret };
+}
 
 // PHASE 1: Consultant Management
 exports.createConsultant = async (req, res) => {
@@ -275,7 +289,30 @@ exports.purchasePackage = async (req, res) => {
     if (pending[0]) {
       const pi = await stripe.paymentIntents.retrieve(pending[0].payment_intent_id);
       if (['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(pi.status)) {
-        return res.json({ purchaseId: pending[0].id, clientSecret: pi.client_secret, amountCents: amount, resumed: true });
+        try {
+          const handoff = requireConsultingPaymentIntent(pi);
+          return res.json({ purchaseId: pending[0].id, clientSecret: handoff.clientSecret, amountCents: amount, resumed: true });
+        } catch (replayError) {
+          const providerId = typeof pi?.id === 'string' && pi.id.trim()
+            ? pi.id.trim()
+            : pending[0].payment_intent_id;
+          if (providerId && typeof stripe.paymentIntents.cancel === 'function') {
+            await stripe.paymentIntents.cancel(providerId).catch((cancelError) => logger.error('Failed to cancel unusable consulting PaymentIntent replay', {
+              purchaseId: pending[0].id,
+              paymentIntentId: providerId,
+              error: cancelError.message,
+            }));
+          }
+          await db.query(
+            `UPDATE consulting_purchases SET status = 'cancelled', updated_at = NOW()
+             WHERE id = $1 AND status = 'pending'`,
+            [pending[0].id]
+          ).catch((cleanupError) => logger.error('Failed to cancel consulting purchase replay', {
+            purchaseId: pending[0].id,
+            error: cleanupError.message,
+          }));
+          throw replayError;
+        }
       }
     }
 
@@ -285,15 +322,68 @@ exports.purchasePackage = async (req, res) => {
       [req.user.id, packageId, amount]
     );
     const purchaseId = created[0].id;
-    const pi = await stripe.paymentIntents.create({
-      amount,
-      currency: 'usd',
-      metadata: { consulting_purchase_id: String(purchaseId), userId: String(req.user.id), packageId: String(packageId) },
-    }, { idempotencyKey: `consulting-purchase-${purchaseId}` });
-    await db.query('UPDATE consulting_purchases SET payment_intent_id = $2, updated_at = NOW() WHERE id = $1', [purchaseId, pi.id]);
-    return res.status(201).json({ purchaseId, clientSecret: pi.client_secret, amountCents: amount });
+    let pi;
+    try {
+      pi = await stripe.paymentIntents.create({
+        amount,
+        currency: 'usd',
+        metadata: { consulting_purchase_id: String(purchaseId), userId: String(req.user.id), packageId: String(packageId) },
+      }, { idempotencyKey: `consulting-purchase-${purchaseId}` });
+    } catch (providerError) {
+      await db.query(
+        `UPDATE consulting_purchases SET status = 'cancelled', updated_at = NOW()
+         WHERE id = $1 AND status = 'pending'`,
+        [purchaseId]
+      ).catch((cleanupError) => logger.error('Failed to cancel consulting purchase after Stripe error', {
+        purchaseId,
+        error: cleanupError.message,
+      }));
+      throw providerError;
+    }
+    let handoff;
+    try {
+      handoff = requireConsultingPaymentIntent(pi);
+      const linked = await db.query(
+        `UPDATE consulting_purchases
+         SET payment_intent_id = $2, updated_at = NOW()
+         WHERE id = $1 AND payment_intent_id IS NULL
+         RETURNING id`,
+        [purchaseId, handoff.id]
+      );
+      if (!linked.rows[0]) {
+        throw new Error('Consulting purchase was not linked to its payment intent');
+      }
+    } catch (linkError) {
+      // Do not leave a chargeable Stripe intent with no database owner. The
+      // idempotency key protects retries, while cancellation compensates for
+      // a database failure after Stripe has already accepted the create.
+      if ((handoff?.id || pi?.id) && typeof stripe.paymentIntents.cancel === 'function') {
+        try {
+          await stripe.paymentIntents.cancel(handoff?.id || pi.id);
+        } catch (cancelError) {
+          logger.error('Failed to cancel orphaned consulting PaymentIntent', {
+            purchaseId,
+            paymentIntentId: handoff?.id || pi.id,
+            error: cancelError.message,
+          });
+        }
+      }
+      await db.query(
+        `UPDATE consulting_purchases SET status = 'cancelled', updated_at = NOW()
+         WHERE id = $1 AND status = 'pending'`,
+        [purchaseId]
+      ).catch((cleanupError) => logger.error('Failed to cancel consulting purchase after link error', {
+        purchaseId,
+        error: cleanupError.message,
+      }));
+      throw linkError;
+    }
+    return res.status(201).json({ purchaseId, clientSecret: handoff.clientSecret, amountCents: amount });
   } catch (err) {
     logger.error('purchasePackage error', { error: err.message });
+    if (err instanceof AppError) {
+      return res.status(err.status).json({ error: err.message, code: err.code });
+    }
     return res.status(500).json({ error: 'Failed to start purchase' });
   }
 };

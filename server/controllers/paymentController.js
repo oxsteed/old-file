@@ -59,6 +59,15 @@ function resolveAppBaseUrl() {
   }
   return 'https://oxsteed.com';
 }
+
+function requireUsablePaymentIntent(intent) {
+  const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
+  const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
+  if (!id || !clientSecret) {
+    throw new AppError('Stripe returned an unusable payment session', 502, 'payment_intent_unavailable');
+  }
+  return { id, clientSecret };
+}
 // Maps a Stripe payout status onto the instant_payouts.status CHECK values.
 function instantPayoutStatusFromStripe(stripeStatus) {
   switch (String(stripeStatus || '').toLowerCase()) {
@@ -307,6 +316,8 @@ exports.getConnectStatus = async (req, res, next) => {
  *   6. On capture, helper gets paid and OxSteed receives its application_fee.
  */
 exports.createPaymentIntent = async (req, res, next) => {
+  let createdPaymentIntent = null;
+  let createdPaymentIntentOptions;
   try {
     const {
       job_id
@@ -409,23 +420,25 @@ exports.createPaymentIntent = async (req, res, next) => {
       // Check for existing payment to prevent duplicates (idempotency).
       // We must return the actual `client_secret` from Stripe — not the PaymentIntent
       // ID — because the frontend uses it to confirm the card on the client.
-      const existingPayment = await client.query('SELECT id, stripe_payment_intent_id, stripe_account_id, charge_model FROM payments WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'authorized', 'pending']);
+      const existingPayment = await client.query('SELECT id, status, stripe_payment_intent_id, stripe_account_id, charge_model FROM payments WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'authorized', 'pending']);
       if (existingPayment.rows[0]) {
+        const existingRow = existingPayment.rows[0];
         try {
-          const existingPi = await stripe.paymentIntents.retrieve(existingPayment.rows[0].stripe_payment_intent_id,
-            chargeModel.requestOptions(existingPayment.rows[0]));
+          const existingPi = await stripe.paymentIntents.retrieve(existingRow.stripe_payment_intent_id,
+            chargeModel.requestOptions(existingRow));
           // Only reuse PIs that are still in a confirmable state. Anything past
           // `requires_capture` (or terminal) means the customer already paid;
           // returning that secret would let them re-pay an authorized intent.
           const reusableStatuses = ['requires_payment_method', 'requires_confirmation', 'requires_action'];
           if (reusableStatuses.includes(existingPi.status)) {
+            const usable = requireUsablePaymentIntent(existingPi);
             return {
               replay: true,
               statusCode: 200,
               body: {
-                client_secret: existingPi.client_secret,
-                payment_intent_id: existingPi.id,
-                stripe_account_id: chargeModel.modelOf(existingPayment.rows[0]) === 'direct' ? existingPayment.rows[0].stripe_account_id : null,
+                client_secret: usable.clientSecret,
+                payment_intent_id: usable.id,
+                stripe_account_id: chargeModel.modelOf(existingRow) === 'direct' ? existingRow.stripe_account_id : null,
                 message: 'Existing payment intent returned'
               }
             };
@@ -442,9 +455,23 @@ exports.createPaymentIntent = async (req, res, next) => {
             }
           };
         } catch (retrieveErr) {
+          if (retrieveErr.code === 'payment_intent_unavailable' && existingRow.status === 'pending') {
+            if (typeof stripe?.paymentIntents?.cancel === 'function') {
+              await stripe.paymentIntents.cancel(existingRow.stripe_payment_intent_id, chargeModel.requestOptions(existingRow)).catch((cancelErr) => logger.warn('Failed to cancel unusable existing payment intent', {
+                paymentIntentId: existingRow.stripe_payment_intent_id,
+                error: cancelErr.message,
+              }));
+            }
+            await client.query(
+              `UPDATE payments SET status = 'failed', payment_hold_status = 'none', updated_at = NOW()
+                WHERE id = $1 AND status = 'pending'`,
+              [existingRow.id],
+            );
+            throw retrieveErr;
+          }
           logger.error('Failed to retrieve existing PaymentIntent during idempotency check', {
             jobId: job_id,
-            paymentIntentId: existingPayment.rows[0].stripe_payment_intent_id,
+            paymentIntentId: existingRow.stripe_payment_intent_id,
             error: retrieveErr.message
           });
           throw new AppError('We could not verify the existing payment attempt. Please try again shortly.', 503, 'payment_verification_unavailable');
@@ -513,10 +540,17 @@ exports.createPaymentIntent = async (req, res, next) => {
       // this on the PaymentIntent itself so it works independently of our
       // in-app notification delivery.
       if (req.user.email) built.params.receipt_email = req.user.email;
-      const paymentIntent = await stripe.paymentIntents.create(built.params, {
+      createdPaymentIntentOptions = built.options;
+      createdPaymentIntent = await stripe.paymentIntents.create(built.params, {
         ...built.options,
         idempotencyKey: paymentIdempotencyKey
       });
+      const usablePaymentIntent = requireUsablePaymentIntent(createdPaymentIntent);
+      createdPaymentIntent = {
+        ...createdPaymentIntent,
+        id: usablePaymentIntent.id,
+        client_secret: usablePaymentIntent.clientSecret,
+      };
       let insertRows;
       try {
         ({
@@ -526,7 +560,7 @@ exports.createPaymentIntent = async (req, res, next) => {
              amount, platform_fee, status, payment_hold_status, stripe_account_id, metadata,
              currency, charge_model, destination_account_id, fee_country)
            VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'pending', $7, $8::jsonb, $9, $10, $11, $12)
-           RETURNING id`, [job_id, req.user.id, job.rows[0].assigned_helper_id, paymentIntent.id, jobValueCents / minorScale, discount.applicationFeeCents / minorScale,
+           RETURNING id`, [job_id, req.user.id, job.rows[0].assigned_helper_id, createdPaymentIntent.id, jobValueCents / minorScale, discount.applicationFeeCents / minorScale,
           plan.model === 'direct' ? freshConnect.stripe_account_id : null, JSON.stringify({
           discounted_amount_cents: jobValueCents,
           raw_job_value_cents: rawJobValueCents,
@@ -547,14 +581,14 @@ exports.createPaymentIntent = async (req, res, next) => {
         if (insertErr.code !== '23505') throw insertErr;
         const existingIntent = await client.query(`SELECT id FROM payments
             WHERE stripe_payment_intent_id = $1
-            LIMIT 1`, [paymentIntent.id]);
+            LIMIT 1`, [createdPaymentIntent.id]);
         if (!existingIntent.rows[0]) throw insertErr;
         return {
           replay: true,
           statusCode: 200,
           body: {
-            client_secret: paymentIntent.client_secret,
-            payment_intent_id: paymentIntent.id,
+            client_secret: createdPaymentIntent.client_secret,
+            payment_intent_id: createdPaymentIntent.id,
             message: 'Existing payment intent returned'
           }
         };
@@ -564,7 +598,7 @@ exports.createPaymentIntent = async (req, res, next) => {
       }
 
       if (promoReservation) {
-        await promoRedemption.attachProviderReference(client, promoReservation.redemption.id, paymentIntent.id);
+        await promoRedemption.attachProviderReference(client, promoReservation.redemption.id, createdPaymentIntent.id);
       }
       // Review P2-571: reserve the credit now, under the same advisory lock
       // that read the balance, so concurrent intents cannot spend it twice.
@@ -574,7 +608,7 @@ exports.createPaymentIntent = async (req, res, next) => {
         paymentId: insertRows[0].id,
         amountCents: appliedCreditCents,
         jobId: job_id,
-        paymentIntentId: paymentIntent.id,
+        paymentIntentId: createdPaymentIntent.id,
       });
 
       // Tier-3 escrow opt-in, deterministic: mark the job's transaction_mode
@@ -605,14 +639,14 @@ exports.createPaymentIntent = async (req, res, next) => {
           amount_cents: jobValueCents,
           currency: plan.currency,
           charge_model: plan.model,
-          stripe_payment_intent_id: paymentIntent.id,
+          stripe_payment_intent_id: createdPaymentIntent.id,
           applied_credit_cents: appliedCreditCents,
           transaction_mode: 'guided_protected',
         },
       });
       return {
         replay: false,
-        paymentIntent,
+        paymentIntent: createdPaymentIntent,
         appliedCreditCents,
         jobValueCents,
         promoDiscountCents,
@@ -640,6 +674,17 @@ exports.createPaymentIntent = async (req, res, next) => {
       gross_amount_cents: rawJobValueCents
     });
   } catch (err) {
+    if (createdPaymentIntent?.id && typeof stripe?.paymentIntents?.cancel === 'function') {
+      try {
+        await stripe.paymentIntents.cancel(createdPaymentIntent.id, createdPaymentIntentOptions);
+      } catch (cancelError) {
+        logger.error('Failed to cancel orphaned Tier-3 PaymentIntent', {
+          jobId: req.body?.job_id,
+          paymentIntentId: createdPaymentIntent.id,
+          error: cancelError.message,
+        });
+      }
+    }
     next(err);
   }
 };

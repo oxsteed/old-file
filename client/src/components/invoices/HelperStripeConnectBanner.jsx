@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, Wallet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import usePayments from '../../hooks/usePayments';
+import { isStripeConnectReady, needsStripeConnectContinue } from '../../utils/stripeConnectStatus';
 
 /**
  * Issuer-facing CTA: Stripe Connect is only started when the user clicks
@@ -19,7 +20,9 @@ export default function HelperStripeConnectBanner({ className = '' }) {
     try {
       setLoading(true);
       const data = await fetchConnectStatus();
-      setStatus(data || { connected: false });
+      const nextStatus = data || { connected: false };
+      setStatus(nextStatus);
+      return nextStatus;
     } catch {
       setStatus(null);
     } finally {
@@ -39,7 +42,7 @@ export default function HelperStripeConnectBanner({ className = '' }) {
     );
   }
 
-  const ready = Boolean(status?.connected && status?.charges_enabled && status?.payouts_enabled);
+  const ready = isStripeConnectReady(status);
   if (ready) {
     return (
       <p className={`invoice-helper-stripe-banner ready ${className}`.trim()}>
@@ -48,7 +51,7 @@ export default function HelperStripeConnectBanner({ className = '' }) {
     );
   }
 
-  const needsContinue = Boolean(status?.connected && (!status?.charges_enabled || !status?.payouts_enabled));
+  const needsContinue = needsStripeConnectContinue(status);
 
   const handleClick = async () => {
     setConnecting(true);
@@ -59,8 +62,14 @@ export default function HelperStripeConnectBanner({ className = '' }) {
         window.location.href = url;
         return;
       }
-      await load();
-      toast.success(t('invoices.helperStripeConnectReady', { defaultValue: 'Card payments are enabled for your invoices.' }));
+      const refreshedStatus = await load();
+      if (isStripeConnectReady(refreshedStatus)) {
+        toast.success(t('invoices.helperStripeConnectReady', { defaultValue: 'Card payments are enabled for your invoices.' }));
+      } else {
+        toast.error(t('businessHub.integrations.stripeChargesDisabled', {
+          defaultValue: 'Stripe is connected but card charges are not enabled yet. Finish requirements in Stripe to accept invoice card payments.',
+        }));
+      }
     } catch {
       toast.error(t('businessHub.integrations.toastStripeStartFail'));
     } finally {

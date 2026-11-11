@@ -6,6 +6,8 @@
 
 import api from './axios';
 import { uploadMediaWithProgress, UPLOAD_ENDPOINTS } from '../utils/restaurantMediaUpload';
+import { readSessionStorage } from '../utils/sessionStorage';
+import { isMissingMediaMineEndpoint } from '../utils/restaurantMedia';
 
 const API_BASE = api.defaults?.baseURL || '/api';
 
@@ -13,8 +15,7 @@ const API_BASE = api.defaults?.baseURL || '/api';
 // authenticated (impersonation sessions included). The normal session
 // authenticates via the httpOnly cookie (withCredentials on the XHR).
 const uploadAuthHeaders = () => {
-  if (typeof sessionStorage === 'undefined') return {};
-  const token = sessionStorage.getItem('oxs:impersonation_token');
+  const token = readSessionStorage('oxs:impersonation_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
@@ -85,15 +86,15 @@ export const retryRestaurantMediaUpload = (restaurantId, mediaId) =>
   api.post(`/restaurants/${restaurantId}/media/${mediaId}/retry`).then((r) => r.data);
 
 // GET /restaurants/:id/media/mine: the signed-in user's own uploads,
-// including non-ready ones (processing/failed). The endpoint is a
-// recommended server follow-up and may not exist yet, so a failure
-// degrades silently to null instead of throwing.
+// including non-ready ones (processing/failed). A 404 remains an optional
+// feature fallback for older deployments; other failures must reach the UI.
 export const getMyRestaurantMedia = async (restaurantId) => {
   try {
     const r = await api.get(`/restaurants/${restaurantId}/media/mine`);
     const items = r.data?.items ?? r.data?.media ?? r.data;
     return Array.isArray(items) ? items : [];
-  } catch {
-    return null;
+  } catch (err) {
+    if (isMissingMediaMineEndpoint(err)) return null;
+    throw err;
   }
 };

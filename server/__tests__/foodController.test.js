@@ -642,6 +642,38 @@ describe('food controller', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(true);
   });
 
+  test('fails closed when Stripe returns no usable checkout URL', async () => {
+    stripe.__mockInstance.checkout.sessions.create.mockResolvedValueOnce({
+      id: 'cs_missing_url',
+      url: null,
+    });
+    await expect(ctrl._createFoodCheckoutSession({
+      order: { id: 100, restaurant_id: 3, total_cents: 899, currency_code: 'USD', metadata: {} },
+      orderItems: [],
+      customerEmail: 'owner@example.com',
+      returnUrl: null,
+      connectedAccountId: 'acct_123',
+    })).rejects.toMatchObject({ status: 503, code: 'checkout_unavailable' });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('recovers a legacy checkout session that stored only its ID', async () => {
+    stripe.__mockInstance.checkout.sessions.retrieve.mockResolvedValueOnce({
+      id: 'cs_legacy',
+      url: 'https://checkout.stripe.com/pay/cs_legacy',
+    });
+    const result = await ctrl._createFoodCheckoutSession({
+      order: { id: 100, restaurant_id: 3, total_cents: 899, currency_code: 'USD', metadata: { checkoutSessionId: 'cs_legacy' } },
+      orderItems: [],
+      customerEmail: 'owner@example.com',
+      returnUrl: null,
+      connectedAccountId: 'acct_123',
+    });
+    expect(result.replayed).toBe(true);
+    expect(result.payment.checkoutUrl).toBe('https://checkout.stripe.com/pay/cs_legacy');
+    expect(stripe.__mockInstance.checkout.sessions.retrieve).toHaveBeenCalledWith('cs_legacy', { stripeAccount: 'acct_123' });
+  });
+
   test('applies discount codes to pay-at-counter orders (promotions are payment-method agnostic)', async () => {
     // Pattern-based mock (see 'creates order totals' above for rationale).
     mockQuery.mockImplementation(async (sql) => {

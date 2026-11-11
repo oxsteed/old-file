@@ -1,5 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import { readLocalStorage, writeLocalStorage } from '../utils/localStorage.js';
 
 export const LANGUAGES = [
   { code: 'en', name: 'English', nativeName: 'English', flag: '🇺🇸' },
@@ -424,15 +425,11 @@ function detectBrowserLanguage() {
 export function detectInitialLanguage() {
   const urlLanguage = detectUrlLanguage();
   if (urlLanguage) {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('oxs:language', urlLanguage);
-    }
+    writeLocalStorage('oxs:language', urlLanguage);
     return urlLanguage;
   }
-  if (typeof localStorage !== 'undefined') {
-    const storedLanguage = localStorage.getItem('oxs:language');
-    if (storedLanguage) return normalizeInitialLanguage(storedLanguage);
-  }
+  const storedLanguage = readLocalStorage('oxs:language');
+  if (storedLanguage) return normalizeInitialLanguage(storedLanguage);
   return detectBrowserLanguage();
 }
 

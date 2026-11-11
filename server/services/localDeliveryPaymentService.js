@@ -18,6 +18,15 @@ const cents = value => {
   return Number(value);
 };
 
+function checkoutUrlForSession(session, payment) {
+  if (session?.status !== 'open' || payment?.captured_at) return null;
+  const url = typeof session?.url === 'string' ? session.url.trim() : '';
+  if (!/^https:\/\//i.test(url)) {
+    fail('Delivery checkout is temporarily unavailable', 'delivery_payment_checkout_unavailable', 503);
+  }
+  return url;
+}
+
 /**
  * Controller contract (pass authenticated identities, never request-body roles):
  * createBaseCheckout({ deliveryJobId, customerUserId })
@@ -79,7 +88,7 @@ paymentsEnabled = () => /^(true|1)$/i.test(process.env.FEATURE_PAYMENTS_ENABLED 
       refunded_amount_cents: payment.refunded_amount_cents,
       receipt_url: payment.receipt_url || null,
       created_at: payment.created_at, updated_at: payment.updated_at,
-    }, checkoutUrl: session?.status === 'open' && !payment.captured_at ? session.url || null : null };
+    }, checkoutUrl: checkoutUrlForSession(session, payment) };
   }
 
   async function lockedPayment(client, paymentId, customerUserId) {
@@ -491,4 +500,4 @@ paymentsEnabled = () => /^(true|1)$/i.test(process.env.FEATURE_PAYMENTS_ENABLED 
     createExtraCheckout, syncPayment, refundPayment, handleStripeEvent };
 }
 
-module.exports = { ...createService(), createService };
+module.exports = { ...createService(), createService, checkoutUrlForSession };

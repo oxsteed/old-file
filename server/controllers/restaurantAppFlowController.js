@@ -89,6 +89,15 @@ const giftCardValue = require('../services/restaurantGiftCardService');
 // Absolute ceiling for a POS ticket tip, in cents ($500).
 const POS_TIP_ABSOLUTE_MAX_CENTS = 50000;
 
+function requireUsableTerminalIntent(intent) {
+  const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
+  const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
+  if (!id || !clientSecret) {
+    throw new AppError('Stripe returned an unusable Terminal payment session', 502, 'terminal_payment_intent_unavailable');
+  }
+  return { id, clientSecret };
+}
+
 const APP_KEYS = new Set(['manager', 'pos', 'kitchen', 'display', 'inventory', 'crew', 'runner', 'restaurant', 'credit_kiosk', 'hub', 'printer']);
 const DEFAULT_DISPLAY_DEVICE_ROLE = 'kiosk';
 const DEVICE_STATUSES = new Set(['pending', 'paired', 'disabled']);
@@ -6602,6 +6611,7 @@ exports.createPosTerminalConnectionToken = async (req, res, next) => {
 
 exports.createPosCardIntent = async (req, res, next) => {
   let reservedPayment = null;
+  let createdIntent = null;
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
@@ -6697,7 +6707,7 @@ exports.createPosCardIntent = async (req, res, next) => {
     if (reservedPayment.replayed && reservedPayment.payment.provider_payment_intent_id) {
       return res.json({ payment: reservedPayment.payment, replayed: true });
     }
-    const intent = await posTerminal.createPaymentIntent({
+    createdIntent = await posTerminal.createPaymentIntent({
       amountCents,
       currency: reservedPayment.order.currency_code,
       idempotencyKey: `pos-intent:${restaurantId}:${idempotencyKey}`,
@@ -6709,6 +6719,8 @@ exports.createPosCardIntent = async (req, res, next) => {
         payment_mode: paymentContract.canonical,
       },
     });
+    const usable = requireUsableTerminalIntent(createdIntent);
+    createdIntent = { ...createdIntent, id: usable.id, client_secret: usable.clientSecret };
     const { rows: [payment] } = await pool.query(
       `UPDATE restaurant_pos_payments
           SET status = 'pending',
@@ -6718,11 +6730,18 @@ exports.createPosCardIntent = async (req, res, next) => {
               updated_at = NOW()
         WHERE id = $3 AND restaurant_id = $4
         RETURNING *`,
-      [intent.id, JSON.stringify({ stripeStatus: intent.status }), reservedPayment.payment.id, restaurantId]
+      [createdIntent.id, JSON.stringify({ stripeStatus: createdIntent.status }), reservedPayment.payment.id, restaurantId]
     );
+    if (!payment) throw new AppError('POS payment was not linked to its payment intent', 500, 'pos_payment_link_failed');
     broadcastRestaurant(restaurant, 'food:pos:card:intent:created', { payment });
-    res.status(201).json({ payment, clientSecret: intent.client_secret, replayed: false });
+    res.status(201).json({ payment, clientSecret: createdIntent.client_secret, replayed: false });
   } catch (err) {
+    if (createdIntent?.id && !reservedPayment?.replayed) {
+      await posTerminal.cancelPaymentIntent(createdIntent.id).catch((cancelErr) => logger.warn('Failed to cancel orphaned POS Terminal intent', {
+        paymentIntentId: createdIntent.id,
+        error: cancelErr.message,
+      }));
+    }
     if (reservedPayment?.payment?.id && !reservedPayment.replayed) {
       await pool.query(
         `UPDATE restaurant_pos_payments SET status = 'failed', note = $1, updated_at = NOW() WHERE id = $2`,

@@ -20,6 +20,7 @@ function buildApp() {
   const app = express();
   app.use(express.json());
   app.use('/api/saved-searches', savedSearchesRoutes);
+  app.use((err, _req, res, _next) => res.status(500).json({ error: err.message }));
   return app;
 }
 
@@ -164,6 +165,32 @@ describe('Saved searches API', () => {
     expect(params[1]).toBe('helper');
     expect(params[2]).toBe('plumber');
     expect(JSON.parse(params[3])).toEqual({ city: 'Miami' });
+  });
+
+  test('does not report an empty list when the saved-search query fails', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUser()] })
+      .mockRejectedValueOnce(new Error('database unavailable'));
+
+    const res = await request(buildApp())
+      .get('/api/saved-searches')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('database unavailable');
+  });
+
+  test('returns not found when delete affects no saved search', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUser()] })
+      .mockResolvedValueOnce({ rowCount: 0 });
+
+    const res = await request(buildApp())
+      .delete('/api/saved-searches/missing')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Not found');
   });
 });
 

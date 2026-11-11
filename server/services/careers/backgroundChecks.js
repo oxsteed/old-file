@@ -15,6 +15,16 @@ const { notifyApplicant, notifyHiringTeam } = require('./notify');
 const CHECK_COUNTRIES = Object.freeze(['US']);
 const ACTIVE_CHECK_STATUSES = Object.freeze(['invited', 'consented', 'pending']);
 
+function requireInvitation(invitation) {
+  const candidateId = typeof invitation?.candidateId === 'string' ? invitation.candidateId.trim() : '';
+  const invitationId = typeof invitation?.invitationId === 'string' ? invitation.invitationId.trim() : '';
+  const url = typeof invitation?.invitationUrl === 'string' ? invitation.invitationUrl.trim() : '';
+  if (!candidateId || !invitationId || !/^https:\/\//i.test(url)) {
+    throw new AppError('Checkr invitation is temporarily unavailable', 503, 'background_check_invitation_unavailable');
+  }
+  return { candidateId, invitationId, invitationUrl: url };
+}
+
 function openingShape(app) {
   return { employer_type: app.employer_type, business_id: app.business_id, created_by: app.opening_created_by, location_ids: app.opening_location_ids };
 }
@@ -65,13 +75,14 @@ async function requestCheck(db, { app, actor, settings, inviteImpl = checkr.invi
     }
     throw new AppError('Checkr could not start the check. Try again.', 502, 'provider_error');
   }
+  const validatedInvitation = requireInvitation(invitation);
   const { rows: [check] } = await db.query(
     `INSERT INTO career_background_checks
        (application_id, offer_id, business_id, user_id, provider, provider_candidate_id, provider_invitation_id,
         invitation_url, package, status, requested_by)
      VALUES ($1, $2, $3, $4, 'checkr', $5, $6, $7, $8, 'invited', $9) RETURNING *`,
-    [app.id, offer.id, app.business_id, app.user_id, invitation.candidateId, invitation.invitationId,
-      invitation.invitationUrl, app.background_check_package, actor.id]
+    [app.id, offer.id, app.business_id, app.user_id, validatedInvitation.candidateId, validatedInvitation.invitationId,
+      validatedInvitation.invitationUrl, app.background_check_package, actor.id]
   );
   await recordEvent(db, { applicationId: app.id, actorId: actor.id, from: app.stage, to: app.stage, metadata: { background_check: 'invited', check_id: check.id } });
   await notifyApplicant(db, app, {
@@ -202,4 +213,5 @@ module.exports = {
   listForWorker,
   statusForApplication,
   applyWebhook,
+  requireInvitation,
 };

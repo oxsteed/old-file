@@ -715,6 +715,9 @@ async function resolveVaultFile(req, folder) {
   if (req.file?.buffer?.length) {
     const { uploadFile } = require('../utils/storage');
     const storageKey = await uploadFile(req.file.buffer, `private/work-agreements/${folder}`, req.file.originalname, req.file.mimetype);
+    if (!storageKey) {
+      throw new AppError('File storage is temporarily unavailable.', 503, 'storage_unavailable');
+    }
     return { storageKey, fileUrl: null, contentType: req.file.mimetype || null, originalName: req.file.originalname };
   }
   const fileUrl = normalizeSafeHttpsUrl(req.body?.fileUrl);
@@ -744,6 +747,7 @@ async function presentVaultRow(row) {
 
 // POST /api/work-agreements/:id/evidence — { type, fileUrl, description }.
 exports.addEvidence = async (req, res) => {
+  let uploadedKey = null;
   try {
     const agreement = await loadAgreement(req.params.id);
     if (!agreement) return res.status(404).json({ error: 'Agreement not found.' });
@@ -757,14 +761,23 @@ exports.addEvidence = async (req, res) => {
     }
     const file = await resolveVaultFile(req, 'evidence');
     if (!file) return res.status(400).json({ error: 'Upload a file or provide an https link.', code: 'invalid_file' });
+    uploadedKey = file.storageKey;
 
     const { rows: [row] } = await db.query(
       `INSERT INTO work_agreement_evidence (agreement_id, evidence_type, file_url, storage_key, content_type, description, uploaded_by)
        VALUES ($1::uuid, $2, $3, $4, $5, $6, $7::uuid) RETURNING *`,
       [agreement.id, type, file.fileUrl, file.storageKey, file.contentType, description ? String(description).slice(0, 2000) : null, req.user.id]
     );
+    uploadedKey = null;
     return res.status(201).json({ evidence: await presentVaultRow(row) });
   } catch (err) {
+    if (uploadedKey) {
+      const { deleteFile } = require('../utils/storage');
+      await deleteFile(uploadedKey).catch(() => {});
+    }
+    if (err instanceof AppError) {
+      return res.status(err.status || 500).json({ error: err.message, code: err.code });
+    }
     logger.error('work agreement evidence error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not add evidence.' });
   }
@@ -790,22 +803,32 @@ exports.listEvidence = async (req, res) => {
 
 // POST /api/work-agreements/:id/documents — { fileUrl, fileName }.
 exports.addDocument = async (req, res) => {
+  let uploadedKey = null;
   try {
     const agreement = await loadAgreement(req.params.id);
     if (!agreement) return res.status(404).json({ error: 'Agreement not found.' });
     if (!isParty(agreement, req.user.id)) return res.status(403).json({ error: 'Not a party to this agreement.' });
+    const fileName = String(req.body?.fileName || req.file?.originalname || '').trim();
+    if (!fileName || fileName.length > 255) return res.status(400).json({ error: 'fileName is required.' });
     const file = await resolveVaultFile(req, 'documents');
     if (!file) return res.status(400).json({ error: 'Upload a file or provide an https link.', code: 'invalid_file' });
-    const fileName = String(req.body?.fileName || file.originalName || '').trim();
-    if (!fileName || fileName.length > 255) return res.status(400).json({ error: 'fileName is required.' });
+    uploadedKey = file.storageKey;
 
     const { rows: [row] } = await db.query(
       `INSERT INTO work_agreement_documents (agreement_id, file_url, storage_key, content_type, file_name, uploaded_by)
        VALUES ($1::uuid, $2, $3, $4, $5, $6::uuid) RETURNING *`,
       [agreement.id, file.fileUrl, file.storageKey, file.contentType, fileName, req.user.id]
     );
+    uploadedKey = null;
     return res.status(201).json({ document: await presentVaultRow(row) });
   } catch (err) {
+    if (uploadedKey) {
+      const { deleteFile } = require('../utils/storage');
+      await deleteFile(uploadedKey).catch(() => {});
+    }
+    if (err instanceof AppError) {
+      return res.status(err.status || 500).json({ error: err.message, code: err.code });
+    }
     logger.error('work agreement document error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not add document.' });
   }

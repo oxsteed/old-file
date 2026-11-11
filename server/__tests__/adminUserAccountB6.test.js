@@ -44,6 +44,7 @@ jest.mock('../middleware/adminAuth', () => {
 });
 
 const { hasGlobalGrant } = require('../middleware/adminAuth');
+const { logAdminAction } = require('../services/auditService');
 const { revokeAllUserTokens } = require('../services/tokenRevocationService');
 const superCtrl = require('../controllers/superAdminController');
 
@@ -126,6 +127,10 @@ describe('ADM-109: ban/reactivate revoke tokens', () => {
     );
     expect(revokeAllUserTokens).toHaveBeenCalledWith('u1');
     expect(res.json).toHaveBeenCalled();
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'user_banned',
+      client: expect.any(Object),
+    }));
   });
   test('toggleUserBan does not revoke on unban (ban already revoked)', async () => {
     mockQuery
@@ -151,6 +156,7 @@ describe('ADM-140: updateUserProfile normalizes email', () => {
     const dupCall = mockQuery.mock.calls[0];
     expect(dupCall[0]).toMatch(/LOWER\(email\)/);
     expect(dupCall[1][0]).toBe('foo@x.com');
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_profile_updated' }));
   });
 });
 

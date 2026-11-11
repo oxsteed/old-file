@@ -63,6 +63,51 @@ describe('Tier-3 platform-held settlement', () => {
     })).rejects.toMatchObject({ code: 'helper_payouts_not_ready', statusCode: 409 });
     expect(stripe.transfers?.create).toBeUndefined();
   });
+
+  test('does not settle when the Stripe transfer has no durable id', async () => {
+    stripe.transfers = { create: jest.fn().mockResolvedValue({}) };
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce({
+      id: 'pi_hold', status: 'succeeded', amount_received: 10000, currency: 'usd',
+      latest_charge: 'ch_hold', metadata: { platform_fee_cents: 1000, job_id: JOB_ID },
+    });
+    routeQueries(mockQuery, [
+      [/FROM connect_accounts/, { rows: [{ payouts_enabled: true }] }],
+    ]);
+
+    await expect(settlePlatformHold({ query: mockQuery }, {
+      id: 13,
+      status: 'authorized',
+      stripe_payment_intent_id: 'pi_hold',
+      destination_account_id: 'acct_helper',
+      amount: 100,
+      currency: 'usd',
+      metadata: { platform_fee_cents: 1000 },
+    })).rejects.toThrow('Stripe hold transfer did not return a transfer id');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE payments/.test(sql))).toBe(false);
+  });
+
+  test('does not settle an over-hold when the Stripe refund has no durable id', async () => {
+    stripe.transfers = { create: jest.fn() };
+    stripe.refunds.create.mockResolvedValueOnce({});
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce({
+      id: 'pi_hold', status: 'succeeded', amount_received: 10000, currency: 'usd',
+      latest_charge: 'ch_hold', metadata: { platform_fee_cents: 1000, job_id: JOB_ID },
+    });
+    routeQueries(mockQuery, [
+      [/FROM connect_accounts/, { rows: [{ payouts_enabled: true }] }],
+    ]);
+
+    await expect(settlePlatformHold({ query: mockQuery }, {
+      id: 14,
+      status: 'authorized',
+      stripe_payment_intent_id: 'pi_hold',
+      destination_account_id: 'acct_helper',
+      amount: 80,
+      currency: 'usd',
+      metadata: { platform_fee_cents: 1000 },
+    })).rejects.toThrow('Stripe hold refund did not return a refund id');
+    expect(stripe.transfers.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('state endpoint data', () => {
@@ -100,6 +145,55 @@ describe('unconfirmed intent is repriced in place', () => {
     routeQueries(mockQuery, [[/SELECT \* FROM jobs WHERE id = \$1 FOR UPDATE/, { rows: [baseJob({})] }]]);
     await expect(reauth.startCardReauthorization({ jobId: JOB_ID, user: { id: 'help-1' } })).rejects.toMatchObject({ statusCode: 403 });
     await expect(reauth.startCardReauthorization({ jobId: JOB_ID, user: CUSTOMER })).rejects.toMatchObject({ code: 'payment_reauthorization_not_required' });
+  });
+});
+
+describe('replacement authorization provider handoff', () => {
+  test('cancels and rejects a Stripe intent without a client secret', async () => {
+    stripe.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_reauth_missing_secret', client_secret: null });
+    const calls = routeQueries(mockQuery, [
+      [/SELECT \* FROM jobs WHERE id = \$1 FOR UPDATE/, { rows: [baseJob({ paymentAdjustmentRequired: 'reauthorization_required' })] }],
+      [/FROM payments WHERE job_id/, { rows: [{
+        id: 9, status: 'authorized', amount: '180.00', currency: 'usd', metadata: { authorized_amount_cents: 18000 },
+        capture_amount_cents: 20500, pending_increase_cents: 2500, stripe_payment_intent_id: 'pi_original',
+        stripe_account_id: 'acct', client_id: 'cust-1', assigned_helper_id: 'help-1',
+      }] }],
+      [/FROM job_payment_reauthorizations WHERE job_id = \$1 AND status = 'pending'/, { rows: [] }],
+      [/COALESCE\(MAX\(attempt\)/, { rows: [{ n: 1 }] }],
+    ]);
+
+    await expect(reauth.startCardReauthorization({ jobId: JOB_ID, user: CUSTOMER }))
+      .rejects.toMatchObject({ code: 'payment_reauthorization_intent_unavailable', statusCode: 502 });
+
+    expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith(
+      'pi_reauth_missing_secret', {}, expect.objectContaining({ stripeAccount: 'acct' })
+    );
+    expect(calls.some((call) => /INSERT INTO job_payment_reauthorizations/.test(call.sql))).toBe(false);
+  });
+
+  test('retires an open attempt that cannot provide a usable client secret', async () => {
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce({ id: 'pi_open', status: 'requires_payment_method', client_secret: null });
+    stripe.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_new', client_secret: 'cs_new' });
+    const calls = routeQueries(mockQuery, [
+      [/SELECT \* FROM jobs WHERE id = \$1 FOR UPDATE/, { rows: [baseJob({ paymentAdjustmentRequired: 'reauthorization_required' })] }],
+      [/FROM payments WHERE job_id/, { rows: [{
+        id: 9, status: 'authorized', amount: '180.00', currency: 'usd', metadata: { authorized_amount_cents: 18000 },
+        capture_amount_cents: 20500, pending_increase_cents: 2500, stripe_payment_intent_id: 'pi_original',
+        stripe_account_id: 'acct', client_id: 'cust-1', assigned_helper_id: 'help-1',
+      }] }],
+      [/FROM job_payment_reauthorizations WHERE job_id = \$1 AND status = 'pending'/, { rows: [{
+        id: 7, job_id: JOB_ID, payment_id: 9, amount_cents: 20500, status: 'pending', expires_at: new Date(Date.now() + 3600000),
+        stripe_payment_intent_id: 'pi_open', stripe_account_id: 'acct', charge_model: 'direct',
+      }] }],
+      [/SET status = 'canceled', failure_code = 'provider_response_invalid'/, { rows: [] }],
+      [/COALESCE\(MAX\(attempt\)/, { rows: [{ n: 2 }] }],
+      [/INSERT INTO job_payment_reauthorizations/, { rows: [{ id: 8, method: 'card', kind: 'replacement', status: 'pending', amount_cents: 20500 }] }],
+    ]);
+
+    const result = await reauth.startCardReauthorization({ jobId: JOB_ID, user: CUSTOMER });
+    expect(result).toMatchObject({ status: 'requires_confirmation', client_secret: 'cs_new', payment_intent_id: 'pi_new' });
+    expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith('pi_open', {}, expect.objectContaining({ stripeAccount: 'acct' }));
+    expect(calls.some((call) => /provider_response_invalid/.test(call.sql))).toBe(true);
   });
 });
 

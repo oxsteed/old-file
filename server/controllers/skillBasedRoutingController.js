@@ -1,8 +1,10 @@
-const { query } = require('../db');
+const pool = require('../db');
+const { query } = pool;
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 const { supportScopeSatisfies } = require('../middleware/scopeGates');
+const { withTransaction } = require('../utils/transaction');
 
 async function canManageBusiness(req, businessId) {
   // Route gate (requireSupportBusinessAccess) already granted this level.
@@ -152,30 +154,57 @@ async function routeBySkills(req, res) {
 
     const agentId = agent.rows[0].id;
 
-    const assignment = await query(
-      `INSERT INTO conversation_assignments
-       (conversation_id, agent_id, business_id, assignment_type, claimed_at, status)
-       VALUES ($1, $2, $3, 'auto', CURRENT_TIMESTAMP, 'active')
-       RETURNING *`,
-      [conversationId, agentId, conversation.business_id]
-    );
+    const assignment = await withTransaction(pool, async (client) => {
+      // Keep skill routing consistent across the assignment, conversation,
+      // and queue tables. A partial update would make future routing and the
+      // operator view disagree about the active agent.
+      const claimed = await client.query(
+        `UPDATE support_conversations
+         SET agent_id = $1, status = $2
+         WHERE id = $3 AND business_id = $4 AND agent_id IS NULL
+           AND status NOT IN ('resolved', 'closed', 'merged', 'pending_verification')
+         RETURNING id`,
+        [agentId, 'in_progress', conversationId, businessId]
+      );
+      if (!claimed.rowCount) {
+        const error = new Error('CONVERSATION_ALREADY_ASSIGNED');
+        error.code = 'CONVERSATION_ALREADY_ASSIGNED';
+        throw error;
+      }
 
-    await query(
-      'UPDATE support_conversations SET agent_id = $1, status = $2 WHERE id = $3 AND business_id = $4',
-      [agentId, 'in_progress', conversationId, businessId]
-    );
+      const created = await client.query(
+        `INSERT INTO conversation_assignments
+         (conversation_id, agent_id, business_id, assignment_type, claimed_at, status)
+         VALUES ($1, $2, $3, 'auto', CURRENT_TIMESTAMP, 'active')
+         RETURNING *`,
+        [conversationId, agentId, conversation.business_id]
+      );
 
-    await query(
-      `UPDATE support_queue
-       SET routed_to_agent_id = $1, routing_strategy = 'skill_based', claimed_at = CURRENT_TIMESTAMP
-       WHERE conversation_id = $2`,
-      [agentId, conversationId]
-    );
+      const queueUpdate = await client.query(
+        `UPDATE support_queue
+         SET routed_to_agent_id = $1, routing_strategy = 'skill_based', claimed_at = CURRENT_TIMESTAMP
+         WHERE conversation_id = $2`,
+        [agentId, conversationId]
+      );
+      if (!queueUpdate.rowCount) {
+        const error = new Error('QUEUE_ITEM_NOT_FOUND');
+        error.code = 'QUEUE_ITEM_NOT_FOUND';
+        throw error;
+      }
+
+      return created.rows[0];
+    });
 
     logger.info('Routed by skills', { conversationId, agentId });
 
-    res.json({ success: true, data: { assignment: assignment.rows[0], agent: agent.rows[0] } });
+    res.json({ success: true, data: { assignment, agent: agent.rows[0] } });
   } catch (err) {
+    if (err.code === 'CONVERSATION_ALREADY_ASSIGNED') {
+      return sendError(res, 409, 'Conversation already assigned');
+    }
+    if (err.code === 'QUEUE_ITEM_NOT_FOUND') {
+      return sendError(res, 409, 'Queue item is no longer available');
+    }
     logger.error('routeBySkills error', { error: err.message });
     sendError(res, 500, 'Failed to route by skills');
   }

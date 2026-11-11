@@ -9,6 +9,7 @@ const tokenRevocationService = require('../services/tokenRevocationService');
 const { isDiditIdentitySatisfied } = require('../utils/diditGate');
 const { getEffectiveTier, hasProAccess } = require('../utils/trial');
 const { ACCESS_TOKEN_TYPE, verifyAccessToken, isAccessTokenPayload } = require('../utils/accessToken');
+const { liftExpiredSuspension } = require('../utils/suspension');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
@@ -274,9 +275,6 @@ async function authenticate(req, res, next) {
     if (!user) {
       return res.status(401).json({ success: false, message: 'User no longer exists' });
     }
-        if (!user.is_active) {
-      return res.status(403).json({ error: 'Account suspended' });
-    }
     const authPath = `${req.baseUrl || ''}${req.path || ''}` || req.originalUrl?.split('?')[0] || '';
     if (user.is_suspended) {
       const suspensionActive = !user.suspended_until || new Date(user.suspended_until) > new Date();
@@ -288,16 +286,16 @@ async function authenticate(req, res, next) {
         });
       }
       if (!suspensionActive) {
-        pool.query(
-          `UPDATE users SET is_suspended = false, suspended_until = NULL, suspended_reason = NULL WHERE id = $1`,
-          [user.id]
-        ).catch(() => {});
-        // Review P2-1-F03: keep the in-request user truthful too, so code
-        // downstream of authenticate sees the lifted state immediately.
-        user.is_suspended = false;
-        user.suspended_until = null;
-        user.suspended_reason = null;
+        try {
+          await liftExpiredSuspension(pool, user);
+        } catch (err) {
+          logger.error('Expired suspension lift failed', { userId: user.id, error: err.message });
+          return res.status(503).json({ error: 'Authentication temporarily unavailable', code: 'suspension_state_unavailable', retryable: true });
+        }
       }
+    }
+    if (!user.is_active) {
+      return res.status(403).json({ error: 'Account suspended' });
     }
 
     // Review P2-1-F04: the super-admin "Restrict" action was a dead flag —

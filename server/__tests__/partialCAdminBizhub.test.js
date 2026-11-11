@@ -25,12 +25,13 @@ const tokenRevocationService = require('../services/tokenRevocationService');
 
 jest.mock('../services/auditService', () => ({
   logAdminAction: jest.fn(),
+  logUserAction: jest.fn(),
 }));
 jest.mock('../utils/businessOwnership', () => ({
   canAccessBusiness: jest.fn().mockResolvedValue(true),
 }));
 
-const { logAdminAction } = require('../services/auditService');
+const { logAdminAction, logUserAction } = require('../services/auditService');
 const { optionalAuth } = require('../middleware/auth');
 const { createChatAuthenticator } = require('../realtime/chatNamespace');
 const businessContentController = require('../controllers/businessContentController');
@@ -43,6 +44,7 @@ const sign = (payload) => jwt.sign({ typ: 'access', sid: 'test-session', ...payl
 beforeEach(() => {
   resetMocks();
   logAdminAction.mockReset();
+  logUserAction.mockReset();
   tokenRevocationService.isRevoked.mockResolvedValue(false);
   tokenRevocationService.revokeAllUserTokens.mockResolvedValue(undefined);
 });
@@ -129,6 +131,138 @@ describe('P2-1-F13 suspend revokes user tokens', () => {
     // catches their failures internally only if they throw synchronously.
     await superAdminController.suspendUser(req, res).catch(() => {});
     expect(tokenRevocationService.revokeAllUserTokens).toHaveBeenCalledWith('u9');
+    const suspendUpdate = mockQuery.mock.calls.find(([sql]) => /UPDATE users/.test(sql) && /is_suspended\s*=\s*TRUE/.test(sql));
+    expect(suspendUpdate?.[0]).toMatch(/suspension_reason\s*=\s*\$2/);
+    expect(suspendUpdate?.[0]).toMatch(/suspended_reason\s*=\s*\$2/);
+    expect(logUserAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object) }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object) }));
+  });
+
+  test('superAdminController.restrictUser audits the restriction in the same unit of work', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'u9', role: 'customer' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    const req = { params: { userId: 'u9' }, body: { reason: 'policy' }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const controller = require('../controllers/superAdminController');
+    await controller.restrictUser(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/restricted/i) }));
+    expect(logUserAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), actionType: 'account_restricted' }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_restricted' }));
+  });
+
+  test('superAdminController.warnUser audits the warning in the same unit of work', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'u9', role: 'customer' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ warning_count: 2 }], rowCount: 1 });
+    const req = { params: { userId: 'u9' }, body: { reason: 'policy' }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const controller = require('../controllers/superAdminController');
+    await controller.warnUser(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ warning_count: 2 }));
+    expect(logUserAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), actionType: 'account_warned' }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_warned' }));
+  });
+
+  test('superAdminController.toggleAdminAccountStatus keeps sessions, grants, and audit atomic', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'admin2', role: 'admin', is_active: true, email: 'admin2@example.com' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'admin2' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // delegation grants
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // sessions
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { id: 'admin2' }, body: { reason: 'offboarding' }, user: { id: 'admin1', role: 'super_admin' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.toggleAdminAccountStatus(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ is_active: false }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'admin_account_disabled' }));
+  });
+
+  test('superAdminController.reactivateUser audits the account reset in the same unit of work', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'u9', email: 'u9@example.com', first_name: 'A' }], rowCount: 1 });
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { userId: 'u9' }, body: { notes: 'appeal approved' }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.reactivateUser(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/reactivated/i) }));
+    expect(logUserAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), actionType: 'account_reactivated' }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_reactivated' }));
+  });
+
+  test('superAdminController.setUserDiditEnforcement revokes sessions with the policy audit', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'u9', role: 'customer', didit_enforcement_required: false, didit_status: 'skipped' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'u9' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // sessions
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { userId: 'u9' }, body: { required: true }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.setUserDiditEnforcement(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ didit_enforcement_required: true }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_didit_enforcement' }));
+  });
+
+  test('superAdminController.verifyUser audits platform verification atomically', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'u9', role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'u9' }], rowCount: 1 });
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { userId: 'u9' }, body: { field: 'is_identity_verified' }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.verifyUser(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/confirmed/i) }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_verified' }));
+  });
+
+  test('superAdminController.forceLogout fails closed when token revocation is unavailable', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'u9', email: 'u9@example.com', role: 'customer' }] });
+    tokenRevocationService.revokeAllUserTokens.mockRejectedValueOnce(Object.assign(new Error('revocation down'), { code: 'token_revocation_unavailable' }));
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { userId: 'u9' }, body: { reason: 'compromise' }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.forceLogout(req, res);
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'token_revocation_unavailable' }));
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE sessions/.test(sql))).toBe(false);
+  });
+
+  test('superAdminController.updateUserRole keeps the role audit with the mutation', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'u9' }], rowCount: 1 });
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { userId: 'u9' }, body: { role: 'helper' }, user: { id: 'admin1', role: 'admin' }, isSuper: false, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.updateUserRole(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/role updated/i) }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_role_changed' }));
+  });
+
+  test('superAdminController.forceJobAction does not report a flag success when its audit fails', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SHOW search_path/.test(sql)) return { rows: [{ search_path: 'public' }] };
+      if (/information_schema\.tables/.test(sql)) return { rows: [{ table_name: 'jobs' }] };
+      if (/FROM jobs/.test(sql)) return { rows: [{ status: 'open', metadata: {} }] };
+      if (/UPDATE jobs SET metadata/.test(sql)) return { rows: [{ id: 'job9' }], rowCount: 1 };
+      return { rows: [] };
+    });
+    logAdminAction.mockRejectedValueOnce(new Error('audit down'));
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { jobId: 'job9' }, body: { action: 'flag', reason: 'review' }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.forceJobAction(req, res, jest.fn());
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'job_flag' }));
+  });
+
+  test('superAdminController.updateUserName keeps the audit with the name mutation', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Old', last_name: 'Name', role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'u9' }], rowCount: 1 });
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { userId: 'u9' }, body: { first_name: 'New', last_name: 'Name' }, user: { id: 'admin1', role: 'admin' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.updateUserName(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/updated/i) }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_name_changed' }));
   });
 });
 
@@ -143,14 +277,32 @@ describe('business moderation audit fail-closed', () => {
   }
 
   test('flagBusiness returns 503 when the audit write fails', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: '5', business_name: 'B' }] });
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // UPDATE
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: '5', business_name: 'B' }] }) // SELECT
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: '5' }] }) // UPDATE
+      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
     logAdminAction.mockRejectedValueOnce(new Error('audit down'));
     const req = { params: { id: '5' }, body: { reason: 'spam' }, user: { id: 'admin1' }, ip: '1.1.1.1' };
     const res = mockRes();
     await businessModerationController.flagBusiness(req, res);
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'audit_unavailable' }));
+    expect(logAdminAction.mock.calls[0][0].client).toBeDefined();
+  });
+
+  test('toggleBusiness returns 503 without committing the state when the audit write fails', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: '5', business_name: 'B', is_active: true }] }) // SELECT
+      .mockResolvedValueOnce({ rows: [{ id: '5' }], rowCount: 1 }) // UPDATE
+      .mockResolvedValueOnce({ rows: [{ id: '51' }], rowCount: 1 }); // restaurant tombstone
+    logAdminAction.mockRejectedValueOnce(new Error('audit down'));
+    const req = { params: { id: '5' }, body: { reason: 'policy' }, user: { id: 'admin1' }, ip: '1.1.1.1' };
+    const res = mockRes();
+    await businessModerationController.toggleBusiness(req, res);
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'audit_unavailable' }));
+    expect(logAdminAction.mock.calls[0][0].client).toBeDefined();
   });
 
   test('updateAdminNotes returns 503 when the audit write fails', async () => {
@@ -162,6 +314,7 @@ describe('business moderation audit fail-closed', () => {
     await businessModerationController.updateAdminNotes(req, res);
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'audit_unavailable' }));
+    expect(logAdminAction.mock.calls[0][0].client).toBeDefined();
   });
 
   test('deleteBusiness returns 503 when the audit write fails', async () => {
@@ -173,6 +326,7 @@ describe('business moderation audit fail-closed', () => {
     await businessModerationController.deleteBusiness(req, res);
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'audit_unavailable' }));
+    expect(logAdminAction.mock.calls[0][0].client).toBeDefined();
   });
 
   test('listBusinesses supports the flagged review queue', async () => {

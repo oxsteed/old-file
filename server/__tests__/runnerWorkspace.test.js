@@ -61,6 +61,16 @@ test('persists a physical restaurant only when it belongs to the authorized busi
   expect(mockQuery.mock.calls[2][1]).toEqual([USER_ID, 40, 2, 7]);
 });
 
+test('rejects lossy workspace ids before querying access', async () => {
+  const res = await request(buildApp())
+    .post('/api/me/workspace-context')
+    .send({ business_id: '40.5' });
+
+  expect(res.status).toBe(400);
+  expect(res.body.code).toBe('invalid_business_id');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
 test('keeps a paused restaurant workspace visible with truthful operating state', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{

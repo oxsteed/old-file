@@ -124,4 +124,29 @@ describe('pricingService.updatePremiumPrice Stripe sync', () => {
     );
     expect(updated.stripe_price_id).toBe('price_old');
   });
+
+  test('a zero-price free tier is accepted by the service validation', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{ id: 8, country_code: 'HT', price_cents: 0, currency_code: 'USD', stripe_price_id: null }],
+      });
+
+    const updated = await pricingService.updatePremiumPrice(
+      'HT',
+      0,
+      'USD',
+      'Free tier',
+      'admin-1',
+      'iphash'
+    );
+
+    expect(updated.price_cents).toBe(0);
+    expect(mockQuery).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('INSERT INTO pricing_overrides'),
+      ['HT', 0, 'USD', 'admin-1', null, false]
+    );
+  });
 });

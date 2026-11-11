@@ -72,7 +72,7 @@ exports.listSOS = async (req, res, next) => {
        JOIN users u ON u.id = s.user_id
        ORDER BY s.created_at DESC
        LIMIT 100`
-    ).catch(() => ({ rows: [] }));
+    );
 
     return res.json({ events: rows });
   } catch (err) {

@@ -64,6 +64,16 @@ test('a failed transfer marks the payout failed and re-queues commissions', asyn
   expect(mockQuery.mock.calls.some(([s]) => /affiliate_commissions SET status = 'pending', payout_id = NULL/.test(s))).toBe(true);
 });
 
+test('a transfer response without an id fails closed and re-queues commissions', async () => {
+  route(base);
+  mockTransfers.create.mockResolvedValue({});
+  const next = jest.fn();
+  await processPayout({ user: { id: 'admin' }, params: { payoutId: 7 } }, { json: jest.fn() }, next);
+  expect(next.mock.calls[0][0].code).toBe('stripe_error');
+  expect(mockQuery.mock.calls.some(([s]) => /SET status = 'failed'/.test(s))).toBe(true);
+  expect(mockQuery.mock.calls.some(([s]) => /affiliate_commissions SET status = 'pending', payout_id = NULL/.test(s))).toBe(true);
+});
+
 test('no payout-ready account: refuses before claiming', async () => {
   route([base[0], [/FROM connect_accounts/, { rows: [] }]]);
   const next = jest.fn();

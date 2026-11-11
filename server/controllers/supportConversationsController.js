@@ -2073,6 +2073,7 @@ async function addMessage(req, res) {
       // read (store the key, mint per authorized reader) is a follow-up:
       // read paths return the stored URL verbatim today.
       storedAttachmentUrl = await getSignedDownloadUrl(uploadedKey, 3600);
+      if (!storedAttachmentUrl) throw new Error('Signed support attachment URL unavailable');
       storedAttachmentName = req.file.originalname;
     }
 

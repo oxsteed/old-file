@@ -122,6 +122,30 @@ function restaurantTopupRequiresStepup(amountCents) {
   return Number(amountCents) >= RESTAURANT_TOPUP_STEPUP_THRESHOLD_CENTS;
 }
 
+async function markRestaurantTopupFailed(topupId) {
+  await pool.query(
+    `UPDATE restaurant_topups
+        SET status = 'failed', updated_at = NOW()
+      WHERE id = $1 AND status = 'pending'`,
+    [topupId]
+  );
+}
+
+async function failInvalidRestaurantStripeIntent({ topup, intent, stripe }) {
+  const providerId = typeof intent?.id === 'string' && intent.id.trim()
+    ? intent.id.trim()
+    : (typeof topup?.stripe_payment_intent_id === 'string' ? topup.stripe_payment_intent_id.trim() : '');
+  if (providerId && typeof stripe?.paymentIntents?.cancel === 'function') {
+    await stripe.paymentIntents.cancel(providerId).catch((cancelError) => logger.warn('[restaurant-topup] Failed to cancel unusable PaymentIntent', {
+      topupId: String(topup.id),
+      paymentIntentId: providerId,
+      error: cancelError.message,
+    }));
+  }
+  await markRestaurantTopupFailed(topup.id);
+  throw new AppError('Stripe payment initiation returned an unusable session', 502, 'restaurant_topup_stripe_failed');
+}
+
 // ── Eligibility ─────────────────────────────────────────────────────────────
 
 async function getRestaurantRow(client, restaurantId) {
@@ -413,7 +437,11 @@ async function ensureRestaurantStripeIntent({ topup, amount, currency, getStripe
   const stripe = getStripe();
   if (topup.stripe_payment_intent_id) {
     const existing = await stripe.paymentIntents.retrieve(topup.stripe_payment_intent_id);
-    return existing.client_secret || null;
+    if (typeof existing?.id !== 'string' || !existing.id.trim()
+      || typeof existing?.client_secret !== 'string' || !existing.client_secret.trim()) {
+      return failInvalidRestaurantStripeIntent({ topup, intent: existing, stripe });
+    }
+    return existing.client_secret.trim();
   }
   let intent;
   try {
@@ -439,13 +467,17 @@ async function ensureRestaurantStripeIntent({ topup, amount, currency, getStripe
     );
     throw new AppError('Stripe payment initiation failed', 502, 'restaurant_topup_stripe_failed');
   }
+  if (typeof intent?.id !== 'string' || !intent.id.trim()
+    || typeof intent?.client_secret !== 'string' || !intent.client_secret.trim()) {
+    return failInvalidRestaurantStripeIntent({ topup, intent, stripe });
+  }
   await pool.query(
     `UPDATE restaurant_topups
         SET stripe_payment_intent_id = $2, updated_at = NOW()
       WHERE id = $1 AND stripe_payment_intent_id IS NULL`,
-    [topup.id, intent.id]
+    [topup.id, intent.id.trim()]
   );
-  return intent.client_secret || null;
+  return intent.client_secret.trim();
 }
 
 async function getTopupById(topupId) {
@@ -561,7 +593,7 @@ async function getUserTopup({ userId, restaurantId, topupId }) {
 // credit's deterministic idempotency key plus the FOR UPDATE row lock make
 // duplicate webhooks converge on a single credit. NEVER credits on
 // failed/canceled.
-async function completeRestaurantTopupFromWebhook({ paymentIntentId }) {
+async function completeRestaurantTopupFromWebhook({ paymentIntentId, providerEvidence = null }) {
   let creditError = null;
   let topupId = null;
   const result = await withTransaction(pool, async (client) => {
@@ -575,6 +607,25 @@ async function completeRestaurantTopupFromWebhook({ paymentIntentId }) {
     if (topup.status === 'succeeded') return { outcome: 'duplicate', topupId };
     if (topup.status !== 'pending' && topup.status !== 'requires_attention') {
       return { outcome: 'ignored', reason: `status_${topup.status}`, topupId };
+    }
+
+    const currency = normalizeCurrency(topup.currency);
+    assertSupportedCreditCurrency(currency);
+    const amount = Number(topup.amount_cents);
+    if (providerEvidence) {
+      const providerAmount = Number(providerEvidence.amountCents);
+      const providerCurrency = typeof providerEvidence.currency === 'string'
+        ? providerEvidence.currency.toLowerCase()
+        : '';
+      if (!Number.isSafeInteger(providerAmount)
+          || providerAmount !== amount
+          || providerCurrency !== currency.toLowerCase()) {
+        throw new AppError(
+          'Stripe restaurant top-up does not match the local top-up record',
+          409,
+          'restaurant_topup_verification_failed',
+        );
+      }
     }
 
     // Eligibility re-check at credit time: an admin may have suspended the
@@ -610,10 +661,6 @@ async function completeRestaurantTopupFromWebhook({ paymentIntentId }) {
       });
       return { outcome: 'blocked_ineligible', topupId };
     }
-
-    const currency = normalizeCurrency(topup.currency);
-    assertSupportedCreditCurrency(currency);
-    const amount = Number(topup.amount_cents);
 
     // TOPUP_FEE_BPS = 0: no fee is taken. The wallet is credited the full
     // amount the customer paid. If the founder ever sets a fee, the fee
@@ -725,7 +772,13 @@ async function applyRestaurantTopupWebhookEvent({ type, object }) {
   switch (type) {
     case 'payment_intent.succeeded': {
       if (!metadata.restaurant_topup_id) return false;
-      await completeRestaurantTopupFromWebhook({ paymentIntentId: object.id });
+      await completeRestaurantTopupFromWebhook({
+        paymentIntentId: object.id,
+        providerEvidence: {
+          amountCents: object.amount_received ?? object.amount,
+          currency: object.currency,
+        },
+      });
       return true;
     }
     case 'payment_intent.payment_failed':

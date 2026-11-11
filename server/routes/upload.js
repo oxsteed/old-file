@@ -4,7 +4,7 @@ const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
-const { uploadFile, getPublicUrl, getSignedDownloadUrl } = require('../utils/storage');
+const { uploadFile, getPublicUrl, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 const logger = require('../utils/logger');
 const AppError = require('../utils/appError');
@@ -42,6 +42,7 @@ function kindForFile(file) {
 }
 
 async function handleUpload(req, res, next, kind) {
+  let key = null;
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'file is required' });
@@ -59,7 +60,7 @@ async function handleUpload(req, res, next, kind) {
       });
     }
 
-    const key = await uploadFile(
+    key = await uploadFile(
       req.file.buffer,
       uploadFolder(req, kind),
       req.file.originalname || `${kind}${path.extname(req.file.originalname || '')}`,
@@ -67,10 +68,18 @@ async function handleUpload(req, res, next, kind) {
     );
 
     if (!key) {
+      key = null;
       return res.status(503).json({ error: 'File storage is not configured' });
     }
 
     const url = await getSignedDownloadUrl(key, 3600);
+    if (!url) {
+      throw new AppError(
+        'File download URL is temporarily unavailable',
+        503,
+        'storage_unavailable'
+      );
+    }
 
     return res.status(201).json({
       url,
@@ -80,6 +89,14 @@ async function handleUpload(req, res, next, kind) {
       visibility: 'private',
     });
   } catch (error) {
+    if (key) {
+      await deleteFile(key).catch((cleanupError) => {
+        logger.warn('upload cleanup failed after persistence/signing error', {
+          key,
+          error: cleanupError.message,
+        });
+      });
+    }
     logger.error('upload route failed', { kind, error: error.message });
     next(new AppError(
       'File storage is temporarily unavailable',
@@ -96,6 +113,7 @@ async function handleUpload(req, res, next, kind) {
 // always the user's actual profile photo: there is no way to stockpile
 // permanent public URLs for arbitrary files.
 router.post('/profile-photo', upload.single('file'), validateFileUpload, async (req, res, next) => {
+  let key = null;
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'file is required' });
@@ -106,7 +124,7 @@ router.post('/profile-photo', upload.single('file'), validateFileUpload, async (
     }
 
     const userId = req.user?.id || 'unknown';
-    const key = await uploadFile(
+    key = await uploadFile(
       req.file.buffer,
       `public-uploads/profile-photo/${userId}/images`,
       req.file.originalname || `profile-photo${path.extname(req.file.originalname || '')}`,
@@ -114,6 +132,7 @@ router.post('/profile-photo', upload.single('file'), validateFileUpload, async (
     );
 
     if (!key) {
+      key = null;
       return res.status(503).json({ error: 'File storage is not configured' });
     }
 
@@ -134,22 +153,44 @@ router.post('/profile-photo', upload.single('file'), validateFileUpload, async (
       );
     } catch (dbError) {
       logger.error('profile photo persist failed', { userId, error: dbError.message });
-      return next(new AppError('Could not save the profile photo', 500, 'profile_photo_save_failed'));
+      throw new AppError('Could not save the profile photo', 500, 'profile_photo_save_failed');
     }
+    // The user row now owns the new object. Any later queue/response problem
+    // must not delete a file that is already live.
+    const responseKey = key;
+    key = null;
     if (previousUrl && previousUrl !== url) {
-      await enqueueStorageDeletion(previousUrl, 'profile_photo_replaced');
+      try {
+        await enqueueStorageDeletion(previousUrl, 'profile_photo_replaced');
+      } catch (queueError) {
+        // Replacement cleanup is best effort; it must not turn a successful
+        // profile update into a failed request.
+        logger.warn('profile photo replacement cleanup enqueue failed', {
+          userId,
+          error: queueError.message,
+        });
+      }
     }
 
     return res.status(201).json({
       url,
-      key,
+      key: responseKey,
       content_type: req.file.mimetype,
       size_bytes: req.file.size,
       visibility: 'public',
     });
   } catch (error) {
+    if (key) {
+      await deleteFile(key).catch((cleanupError) => {
+        logger.warn('profile photo cleanup failed after persistence error', {
+          userId: req.user?.id,
+          key,
+          error: cleanupError.message,
+        });
+      });
+    }
     logger.error('profile photo upload failed', { error: error.message });
-    next(new AppError(
+    next(error instanceof AppError ? error : new AppError(
       'File storage is temporarily unavailable',
       503,
       'storage_unavailable'

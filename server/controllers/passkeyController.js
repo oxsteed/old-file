@@ -15,6 +15,7 @@ const logger = require('../utils/logger');
 const { generateTokens } = require('../middleware/auth');
 const { issueSessionCsrf } = require('../middleware/csrf');
 const { logAdminAction } = require('../services/auditService');
+const { withTransaction } = require('../utils/transaction');
 
 const RP_NAME = 'OxSteed Admin';
 const RP_ID = process.env.WEBAUTHN_RP_ID || (() => {
@@ -158,16 +159,26 @@ async function verifyRegistration(req, res, next) {
     if (!verification.verified || !verification.registrationInfo) return res.status(400).json({ error: 'Passkey verification failed.' });
     const info = verification.registrationInfo;
     const credentialId = response.id;
-    await db.query(
-      `DELETE FROM admin_passkeys WHERE user_id = $1 AND credential_id = $2 AND revoked_at IS NOT NULL`,
-      [admin.id, credentialId]
-    );
-    await db.query(
-      `INSERT INTO admin_passkeys (user_id, credential_id, public_key, counter, transports, device_name)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [admin.id, credentialId, Buffer.from(info.credential.publicKey), info.credential.counter, normalizeTransports(response.response?.transports), deviceName]
-    );
-    void logAdminAction({ adminId: admin.id, action: 'admin_passkey_registered', targetType: 'admin_passkey', targetId: credentialId, description: deviceName, req });
+    await withTransaction(db, async (client) => {
+      await client.query(
+        `DELETE FROM admin_passkeys WHERE user_id = $1 AND credential_id = $2 AND revoked_at IS NOT NULL`,
+        [admin.id, credentialId]
+      );
+      await client.query(
+        `INSERT INTO admin_passkeys (user_id, credential_id, public_key, counter, transports, device_name)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [admin.id, credentialId, Buffer.from(info.credential.publicKey), info.credential.counter, normalizeTransports(response.response?.transports), deviceName]
+      );
+      await logAdminAction({
+        adminId: admin.id,
+        action: 'admin_passkey_registered',
+        targetType: 'admin_passkey',
+        targetId: credentialId,
+        description: deviceName,
+        req,
+        client,
+      });
+    }, 'register_admin_passkey');
     return res.status(201).json({ passkey: { deviceName, createdAt: new Date().toISOString() } });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'This passkey is already registered.' });
@@ -177,13 +188,24 @@ async function verifyRegistration(req, res, next) {
 
 async function revokePasskey(req, res, next) {
   try {
-    const result = await db.query(
-      `UPDATE admin_passkeys SET revoked_at = NOW()
-       WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL RETURNING id`,
-      [req.params.id, req.user.id]
-    );
-    if (!result.rows.length) return res.status(404).json({ error: 'Passkey not found.' });
-    void logAdminAction({ adminId: req.user.id, action: 'admin_passkey_revoked', targetType: 'admin_passkey', targetId: req.params.id, req });
+    const revoked = await withTransaction(db, async (client) => {
+      const result = await client.query(
+        `UPDATE admin_passkeys SET revoked_at = NOW()
+         WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL RETURNING id`,
+        [req.params.id, req.user.id]
+      );
+      if (!result.rows.length) return null;
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'admin_passkey_revoked',
+        targetType: 'admin_passkey',
+        targetId: req.params.id,
+        req,
+        client,
+      });
+      return result.rows[0];
+    }, 'revoke_admin_passkey');
+    if (!revoked) return res.status(404).json({ error: 'Passkey not found.' });
     return res.json({ revoked: true });
   } catch (err) { return next(err); }
 }
@@ -264,8 +286,20 @@ async function verifyAuthentication(req, res, next) {
     if (!verification.verified) return res.status(401).json({ error: 'Passkey verification failed.' });
     const nextCounter = Number(verification.authenticationInfo.newCounter);
     if (Number(stored.counter) > 0 && nextCounter <= Number(stored.counter)) return res.status(401).json({ error: 'Passkey counter validation failed.' });
-    await db.query(`UPDATE admin_passkeys SET counter = $1, last_used_at = NOW() WHERE id = $2`, [nextCounter, stored.id]);
-    void logAdminAction({ adminId: admin.id, action: 'admin_passkey_login', targetType: 'admin_passkey', targetId: stored.id, req });
+    await withTransaction(db, async (client) => {
+      await client.query(
+        `UPDATE admin_passkeys SET counter = $1, last_used_at = NOW() WHERE id = $2`,
+        [nextCounter, stored.id]
+      );
+      await logAdminAction({
+        adminId: admin.id,
+        action: 'admin_passkey_login',
+        targetType: 'admin_passkey',
+        targetId: stored.id,
+        req,
+        client,
+      });
+    }, 'record_admin_passkey_login');
     return issueAdminSession(admin, req, res);
   } catch (err) { return next(err); }
 }

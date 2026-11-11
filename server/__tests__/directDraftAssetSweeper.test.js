@@ -48,6 +48,7 @@ test('deletes only old unreferenced draft assets', async () => {
   expect(storage.deleteFile).toHaveBeenCalledTimes(1);
   expect(storage.deleteFile).toHaveBeenCalledWith('direct-draft-assets/d1/quote/a.jpg');
   expect(stats).toEqual({ checked: 4, deleted: 1, failed: 0 });
+  expect(mockQuery.mock.calls[0][0]).toContain("qr.metadata->'photos'");
 });
 
 test('does nothing when there are no candidates', async () => {

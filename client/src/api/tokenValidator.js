@@ -1,3 +1,6 @@
+import { readSessionStorage } from '../utils/sessionStorage';
+import { readLocalStorage, removeLocalStorage } from '../utils/localStorage';
+
 /**
  * Token validation helper for API calls
  * Ensures token exists before making authenticated requests
@@ -29,10 +32,8 @@ export function validateToken() {
   // With httpOnly cookies, JS cannot read the access token. We check for
   // a stored user instead, which indicates an active session. The actual
   // token validation happens server-side via the cookie.
-  const user = localStorage.getItem('user');
-  const impersonationToken = typeof sessionStorage !== 'undefined'
-    ? sessionStorage.getItem('oxs:impersonation_token')
-    : null;
+  const user = readLocalStorage('user');
+  const impersonationToken = readSessionStorage('oxs:impersonation_token');
   if (!user && !impersonationToken) {
     throw new NoTokenError();
   }
@@ -47,9 +48,9 @@ export function validateToken() {
  */
 export function handleAuthError(error) {
   if (error.response?.status === 401) {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    removeLocalStorage('accessToken');
+    removeLocalStorage('refreshToken');
+    removeLocalStorage('user');
     throw new SessionExpiredError(error);
   }
   throw error;

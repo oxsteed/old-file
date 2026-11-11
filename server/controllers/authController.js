@@ -33,6 +33,7 @@ const { recordLoginAgreement } = require('../services/loginAgreementService'); /
 const modeRoleUtil = require('../utils/modeRole');
 const { readDeviceFingerprint } = require('../utils/deviceFingerprint'); // Review P2-6-F12
 const { normalizeStoredPublicUrl } = require('../utils/storage');
+const { liftExpiredSuspension } = require('../utils/suspension');
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -325,6 +326,8 @@ async function login(req, res, next) {
     const { rows } = await pool.query(
       `SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.password_hash, u.role, u.is_active,
               u.email_verified, u.is_verified,
+              COALESCE(u.is_suspended, FALSE) AS is_suspended,
+              u.suspended_until,
               u.onboarding_status, u.onboarding_completed,
               u.contact_completed, u.profile_completed,
               u.tier_selected, u.w9_completed, u.terms_accepted,
@@ -353,6 +356,14 @@ async function login(req, res, next) {
     // Return the same generic 401 as for an unknown email or wrong
     // password. The 429 lockout below is kept: lockout behavior is
     // standard and does not identify the account state.
+    if (user.is_suspended && user.suspended_until && new Date(user.suspended_until) <= new Date()) {
+      try {
+        await liftExpiredSuspension(pool, user);
+      } catch (err) {
+        logger.error('Expired login suspension lift failed', { userId: user.id, error: err.message });
+        throw new AppError('Authentication temporarily unavailable', 503, 'suspension_state_unavailable');
+      }
+    }
     if (!user.is_active) {
       throw new AppError('Invalid email or password', 401, 'auth_failed');
     }
@@ -1093,6 +1104,9 @@ async function refreshToken(req, res, next) {
     // has been deactivated or while an active suspension is in effect. Keep
     // the default values permissive for older test fixtures and installations
     // that do not return the optional account-state columns.
+    if (user.is_suspended && user.suspended_until && new Date(user.suspended_until) <= new Date()) {
+      await liftExpiredSuspension(pool, user);
+    }
     if (user.is_active === false) {
       throw new AppError('Your account is inactive. Please contact support.', 403, 'account_inactive');
     }
@@ -1883,58 +1897,48 @@ async function resetPassword(req, res) {
       throw err;
     }
 
-    const { rows } = await pool.query(
-      `UPDATE users
-       SET password_hash = $1,
-           reset_token = NULL,
-           reset_token_expires = NULL,
-           updated_at = NOW()
-       WHERE id = $3
-         AND reset_token = $2
-         AND reset_token_expires > NOW()
-       RETURNING id`,
-      [passwordHash, presentedTokenHash, resetUsers[0].id]
-    );
+    const { rows } = await withTransaction(pool, async (client) => {
+      const result = await client.query(
+        `UPDATE users
+         SET password_hash = $1,
+             reset_token = NULL,
+             reset_token_expires = NULL,
+             updated_at = NOW()
+         WHERE id = $3
+           AND reset_token = $2
+           AND reset_token_expires > NOW()
+         RETURNING id`,
+        [passwordHash, presentedTokenHash, resetUsers[0].id]
+      );
+      if (!result.rows.length) return result;
+
+      // Password, refresh sessions, passkeys, and planted TOTP state must
+      // commit together or roll back together.
+      await client.query('UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1', [result.rows[0].id]);
+      await client.query(
+        'UPDATE user_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
+        [result.rows[0].id]
+      );
+      await client.query(
+        'UPDATE admin_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
+        [result.rows[0].id]
+      );
+      await client.query(
+        `UPDATE users
+            SET totp_secret = NULL,
+                totp_enabled = false,
+                totp_verified_at = NULL,
+                backup_codes = NULL,
+                updated_at = NOW()
+          WHERE id = $1`,
+        [result.rows[0].id]
+      );
+      return result;
+    }, 'password_reset');
 
     if (rows.length === 0) {
       return res.status(400).json({ error: 'Reset link is invalid or expired.' });
     }
-
-    // Audit fix: also invalidate all sessions. Revoking JWTs alone leaves
-    // refresh tokens in the sessions table that can mint new access tokens.
-    await pool.query('UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1', [rows[0].id]);
-
-    // Security: a password reset must also revoke passkeys. Otherwise an
-    // attacker who planted a passkey (via stolen session/impersonation)
-    // retains access after the victim resets their password.
-    await pool.query(
-      'UPDATE user_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
-      [rows[0].id]
-    );
-
-    // Audit fix (finding 5): admin passkeys are a standalone admin login
-    // credential (passkeyController). A planted admin passkey must not
-    // survive a password reset either.
-    await pool.query(
-      'UPDATE admin_passkeys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL',
-      [rows[0].id]
-    );
-
-    // Audit fix (finding 7): a planted TOTP (enrolled via stolen session)
-    // must not survive a password reset. Clear the secret, the enabled
-    // flag and the backup codes so the account holder re-enrolls 2FA on
-    // next login (login returns requiresTwoFactorSetup when an admin has
-    // no TOTP enrolled).
-    await pool.query(
-      `UPDATE users
-          SET totp_secret = NULL,
-              totp_enabled = false,
-              totp_verified_at = NULL,
-              backup_codes = NULL,
-              updated_at = NOW()
-        WHERE id = $1`,
-      [rows[0].id]
-    );
 
     // FIX #10 & #11: Audit log password reset
     const { ipAddress, userAgent } = extractRequestDetails(req);
@@ -2507,7 +2511,7 @@ async function getPublicProfile(req, res) {
     const { rows: [listed] } = await pool.query(
       `SELECT is_listed FROM helper_profiles WHERE user_id = $1`,
       [id]
-    ).catch(() => ({ rows: [] }));
+    );
     if (listed && listed.is_listed === false) {
       return res.status(404).json({ error: 'User not found' });
     }

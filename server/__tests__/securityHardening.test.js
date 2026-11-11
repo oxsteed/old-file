@@ -180,6 +180,33 @@ describe('security hardening boundaries', () => {
     }));
   });
 
+  test('agent routing persists an assignment history row with the conversation claim', async () => {
+    jest.spyOn(SupportRoutingService, 'routeTicket').mockResolvedValue({
+      routedTo: 'agent',
+      confidence: 0.9,
+      agentId: 'agent-1',
+      agent: { id: 'agent-1', first_name: 'Ava', last_name: 'Agent', email: 'ava@example.com' },
+    });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', created_at: '2026-09-10T12:00:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1' }] })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-1' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = responseDouble();
+    await supportRoutingController.createConversation({
+      user: { id: 'customer-1' },
+      params: { businessId: 42 },
+      body: { message: 'Need an agent', category: 'technical', priority: 'normal' },
+    }, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ticketId: 'ticket-1', routedTo: 'agent' }));
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO conversation_assignments/.test(sql))).toBe(true);
+  });
+
   test('recovers a retried routing conversation before creating another message or route', async () => {
     const clientRequestId = '44444444-4444-4444-8444-444444444444';
     mockQuery

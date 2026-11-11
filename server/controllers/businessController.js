@@ -10,6 +10,7 @@ const countriesUtil = require('../utils/countries');
 const { AppError } = require('../middleware/errorHandler');
 const { validateMediaUrl } = require('../utils/mediaUrlValidation');
 const { enqueueStorageDeletion } = require('../services/storageCleanupService');
+const { deleteFile } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const { invalidateHelperContext } = require('../services/helperContext');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
@@ -371,10 +372,16 @@ async function loadSectionVisibility(businessId, db = pool) {
       SECTION_VISIBILITY_FLAGS.map((flag) => [flag, flags[flag] !== false])
     );
   } catch (err) {
-    logger.warn('business section visibility unavailable, defaulting to visible', {
-      err: err.message,
-    });
-    return { ...DEFAULT_SECTION_VISIBILITY };
+    const missingColumn = err?.code === '42703'
+      || /column .* does not exist/i.test(String(err?.message || ''));
+    if (missingColumn) {
+      logger.warn('business section visibility columns unavailable; defaulting to visible', {
+        err: err.message,
+        code: err.code,
+      });
+      return { ...DEFAULT_SECTION_VISIBILITY };
+    }
+    throw err;
   }
 }
 
@@ -876,7 +883,7 @@ async function persistBusinessMediaFallback(req, businessId, kind, file) {
 }
 
 async function storeBusinessPhoto(req, businessId, kind, file) {
-  const { uploadFile, getPublicUrl } = require('../utils/storage');
+  const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
   try {
     const key = await uploadFile(
       file.buffer,
@@ -884,7 +891,21 @@ async function storeBusinessPhoto(req, businessId, kind, file) {
       file.originalname,
       file.mimetype
     );
-    if (key) return getPublicUrl(key);
+    if (key) {
+      try {
+        return { key, url: getPublicUrl(key) };
+      } catch (urlError) {
+        await deleteFile(key).catch((cleanupError) => {
+          logger.warn('Business photo cleanup failed after URL generation error', {
+            businessId,
+            kind,
+            key,
+            error: cleanupError.message,
+          });
+        });
+        throw urlError;
+      }
+    }
   } catch (storageError) {
     logger.error('Object storage upload failed; using database media fallback', {
       businessId,
@@ -892,10 +913,11 @@ async function storeBusinessPhoto(req, businessId, kind, file) {
       error: storageError.message,
     });
   }
-  return persistBusinessMediaFallback(req, businessId, kind, file);
+  return { key: null, url: await persistBusinessMediaFallback(req, businessId, kind, file) };
 }
 
 async function uploadBusinessPhotos(req, res, next) {
+  const uploadedKeys = [];
   try {
     const { id } = req.params;
 
@@ -910,14 +932,18 @@ async function uploadBusinessPhotos(req, res, next) {
       const file = req.files.logo[0];
       if (!allowed.includes(file.mimetype))
         throw new AppError('Logo must be a JPG, PNG, WebP, or GIF', 400, 'invalid_format');
-      updates.logo_url = await storeBusinessPhoto(req, id, 'logo', file);
+      const stored = await storeBusinessPhoto(req, id, 'logo', file);
+      updates.logo_url = stored.url;
+      if (stored.key) uploadedKeys.push(stored.key);
     }
 
     if (req.files?.cover?.[0]) {
       const file = req.files.cover[0];
       if (!allowed.includes(file.mimetype))
         throw new AppError('Cover photo must be a JPG, PNG, WebP, or GIF', 400, 'invalid_format');
-      updates.cover_photo_url = await storeBusinessPhoto(req, id, 'cover', file);
+      const stored = await storeBusinessPhoto(req, id, 'cover', file);
+      updates.cover_photo_url = stored.url;
+      if (stored.key) uploadedKeys.push(stored.key);
     }
 
     if (Object.keys(updates).length === 0)
@@ -946,17 +972,31 @@ async function uploadBusinessPhotos(req, res, next) {
       values
     );
 
+    // The business row now owns the newly uploaded objects. Old-object
+    // cleanup below is best effort and must never cause this request to delete
+    // the new live media.
+    uploadedKeys.length = 0;
+
     if (existingMedia) {
       if (updates.logo_url && existingMedia.logo_url && existingMedia.logo_url !== updates.logo_url) {
-        await enqueueStorageDeletion(existingMedia.logo_url, 'business_logo_replaced');
+        try {
+          await enqueueStorageDeletion(existingMedia.logo_url, 'business_logo_replaced');
+        } catch (queueError) {
+          logger.warn('Business logo replacement cleanup enqueue failed', { businessId: id, error: queueError.message });
+        }
       }
       if (updates.cover_photo_url && existingMedia.cover_photo_url && existingMedia.cover_photo_url !== updates.cover_photo_url) {
-        await enqueueStorageDeletion(existingMedia.cover_photo_url, 'business_cover_replaced');
+        try {
+          await enqueueStorageDeletion(existingMedia.cover_photo_url, 'business_cover_replaced');
+        } catch (queueError) {
+          logger.warn('Business cover replacement cleanup enqueue failed', { businessId: id, error: queueError.message });
+        }
       }
     }
 
     return res.json({ business: updated, ...updates });
   } catch (err) {
+    await Promise.allSettled(uploadedKeys.map((key) => deleteFile(key)));
     next(err);
   }
 }
@@ -1593,4 +1633,5 @@ module.exports = {
   loadBusinessSetupReadiness,
   unpublishBusinessIfIncomplete,
   maybeUnpublishBusinessIfIncomplete,
+  loadSectionVisibility,
 };

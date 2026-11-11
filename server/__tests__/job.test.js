@@ -11,6 +11,7 @@ jest.mock('../services/matchService', () => ({
 jest.mock('../utils/storage', () => ({
   uploadFile:   jest.fn().mockResolvedValue('jobs/test-key.jpg'),
   getPublicUrl: jest.fn(key => `https://bucket.s3.amazonaws.com/${key}`),
+  deleteFile:   jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../middleware/upload', () => ({
   array: () => (req, res, next) => { req.files = []; next(); },
@@ -26,6 +27,8 @@ const TOKEN_CUSTOMER = jwt.sign({ typ: 'access', sid: 'test-session',  id: 1, em
 const TOKEN_HELPER   = jwt.sign({ typ: 'access', sid: 'test-session',  id: 2, email: 'h@test.com', role: 'helper'   }, process.env.JWT_SECRET);
 
 const stripe = require('stripe')();
+const jobController = require('../controllers/jobController');
+const storage = require('../utils/storage');
 
 const MOCK_USER_CUSTOMER = {
   id: 1, first_name: 'Alice', last_name: 'Smith', email: 'c@test.com',
@@ -63,7 +66,11 @@ function mockAuth(user = MOCK_USER_CUSTOMER, ...extras) {
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  jest.clearAllMocks();
+  storage.deleteFile.mockResolvedValue(undefined);
+});
 
 // ── GET /api/jobs ─────────────────────────────────────────────────────────────
 describe('GET /api/jobs', () => {
@@ -107,6 +114,47 @@ describe('POST /api/jobs', () => {
     location_city: 'Austin',
     location_country: 'US',
   };
+
+  test('removes uploaded media when the job transaction fails', async () => {
+    storage.getPublicUrl.mockImplementation((key) => `https://oxsteed.com/api/storage/public/${key}`);
+    storage.uploadFile
+      .mockResolvedValueOnce('jobs/first.jpg')
+      .mockResolvedValueOnce('jobs/second.jpg');
+    routeQueries(mockQuery, [
+      [/INSERT INTO jobs/, new Error('job insert unavailable')],
+    ]);
+
+    const next = jest.fn();
+    await jobController.createJob({
+      user: MOCK_USER_CUSTOMER,
+      body: validBody,
+      files: [
+        { buffer: Buffer.from('first'), originalname: 'first.jpg', mimetype: 'image/jpeg' },
+        { buffer: Buffer.from('second'), originalname: 'second.jpg', mimetype: 'image/jpeg' },
+      ],
+    }, { status: jest.fn().mockReturnThis(), json: jest.fn() }, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'job insert unavailable' }));
+    expect(storage.deleteFile).toHaveBeenCalledWith('jobs/first.jpg');
+    expect(storage.deleteFile).toHaveBeenCalledWith('jobs/second.jpg');
+  });
+
+  test('removes uploaded media when a public URL cannot be generated', async () => {
+    storage.getPublicUrl.mockReturnValue(null);
+    storage.uploadFile.mockResolvedValueOnce('jobs/no-url.jpg');
+
+    const next = jest.fn();
+    await jobController.createJob({
+      user: MOCK_USER_CUSTOMER,
+      body: validBody,
+      files: [
+        { buffer: Buffer.from('image'), originalname: 'no-url.jpg', mimetype: 'image/jpeg' },
+      ],
+    }, { status: jest.fn().mockReturnThis(), json: jest.fn() }, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'job_media_url_unavailable' }));
+    expect(storage.deleteFile).toHaveBeenCalledWith('jobs/no-url.jpg');
+  });
 
   test('returns 422 with a localizable code when title is too short', async () => {
     mockAuth(MOCK_USER_CUSTOMER, { rows: currentConsentRows() });

@@ -15,9 +15,10 @@ const {
   assertPaymentIntentMatchesInvoice,
   applyInvoiceCardPayment,
 } = require('../services/businessInvoiceStripeConnectService');
-const { uploadFile, getPublicUrl } = require('../utils/storage');
+const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const countriesUtil = require('../utils/countries');
 const modeRoleUtil = require('../utils/modeRole');
+const logger = require('../utils/logger');
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
@@ -31,6 +32,19 @@ function normalizeString(value, maxLength) {
   const trimmed = value.trim();
   if (!trimmed) return null;
   return trimmed.slice(0, maxLength);
+}
+
+function requireBookingPaymentIntent(intent) {
+  const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
+  const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
+  if (!id || !clientSecret) {
+    throw new AppError(
+      'Booking payment is temporarily unavailable',
+      503,
+      'booking_payment_intent_unavailable'
+    );
+  }
+  return { id, clientSecret };
 }
 
 async function safeQuery(sql, params = [], fallback = []) {
@@ -611,6 +625,7 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
     const promoCode = normalizeString(req.body.promoCode || req.body.promo_code, 64);
     const client = await pool.connect();
     let committed = false;
+    let createdPaymentIntent = null;
     try {
       await client.query('BEGIN');
       const { rows: [locked] } = await client.query(
@@ -658,6 +673,7 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
       // leave an older client holding a second payable intent.
       if (locked.stripe_payment_intent_id && ['requires_payment', 'processing'].includes(locked.payment_status)) {
         const existingIntent = await stripe.paymentIntents.retrieve(locked.stripe_payment_intent_id);
+        const existingHandoff = requireBookingPaymentIntent(existingIntent);
         const existingAmountCents = Number(existingIntent.amount);
         if (existingAmountCents === chargeCents
           && String(locked.payment_requirement || 'deposit') === paymentRequirement
@@ -668,8 +684,8 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
             success: true,
             data: {
               bookingId: booking.id,
-              clientSecret: existingIntent.client_secret,
-              paymentIntentId: existingIntent.id,
+              clientSecret: existingHandoff.clientSecret,
+              paymentIntentId: existingHandoff.id,
               amountCents: existingAmountCents,
               grossAmountCents: amountCents,
               promoDiscountCents,
@@ -683,7 +699,7 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
         }
       }
 
-      const paymentIntent = await stripe.paymentIntents.create({
+      createdPaymentIntent = await stripe.paymentIntents.create({
         amount: chargeCents,
         currency: 'usd',
         receipt_email: req.user.email || undefined,
@@ -698,8 +714,9 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
           promo_redemption_id: promo ? String(promo.redemption.id) : '',
         },
       });
+      const createdHandoff = requireBookingPaymentIntent(createdPaymentIntent);
       if (promo) {
-        await promoRedemption.attachProviderReference(client, promo.redemption.id, paymentIntent.id);
+        await promoRedemption.attachProviderReference(client, promo.redemption.id, createdHandoff.id);
       }
 
       await client.query(
@@ -712,7 +729,7 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
                 promo_discount_cents = $6,
                 updated_at = CURRENT_TIMESTAMP
           WHERE id = $4`,
-        [paymentRequirement, chargeCents, paymentIntent.id, booking.id, amountCents, promoDiscountCents]
+        [paymentRequirement, chargeCents, createdHandoff.id, booking.id, amountCents, promoDiscountCents]
       );
       await client.query('COMMIT');
       committed = true;
@@ -721,8 +738,8 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
         success: true,
         data: {
           bookingId: booking.id,
-          clientSecret: paymentIntent.client_secret,
-          paymentIntentId: paymentIntent.id,
+          clientSecret: createdHandoff.clientSecret,
+          paymentIntentId: createdHandoff.id,
           amountCents: chargeCents,
           grossAmountCents: amountCents,
           promoDiscountCents,
@@ -733,6 +750,17 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
       });
     } finally {
       if (!committed) await client.query('ROLLBACK').catch(() => {});
+      if (!committed && createdPaymentIntent?.id && typeof stripe.paymentIntents.cancel === 'function') {
+        try {
+          await stripe.paymentIntents.cancel(createdPaymentIntent.id);
+        } catch (cancelError) {
+          logger.error('Failed to cancel orphaned mobile booking PaymentIntent', {
+            bookingId: booking.id,
+            paymentIntentId: createdPaymentIntent.id,
+            error: cancelError.message,
+          });
+        }
+      }
       client.release();
     }
   } catch (err) {
@@ -1467,6 +1495,7 @@ exports.unregisterPushToken = async (req, res, next) => {
 };
 
 exports.uploadHelperGallery = async (req, res, next) => {
+  let key = null;
   try {
     if (!['helper', 'helper_pro', 'broker'].includes(req.user.role)) {
       throw new AppError('Helper access required', 403, 'forbidden');
@@ -1478,7 +1507,7 @@ exports.uploadHelperGallery = async (req, res, next) => {
     }
 
     const caption = normalizeString(req.body.caption, 200);
-    const key = await uploadFile(
+    key = await uploadFile(
       req.file.buffer,
       `helper-gallery/${req.user.id}`,
       req.file.originalname,
@@ -1496,8 +1525,17 @@ exports.uploadHelperGallery = async (req, res, next) => {
       [req.user.id, url, caption]
     );
 
+    // The gallery row now owns the object. Do not delete it if a later
+    // response serialization step or middleware reports an error.
+    key = null;
     res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
+    if (key) {
+      await deleteFile(key).catch((cleanupError) => logger.warn('Failed to remove orphaned helper gallery upload', {
+        key,
+        error: cleanupError.message,
+      }));
+    }
     next(err);
   }
 };

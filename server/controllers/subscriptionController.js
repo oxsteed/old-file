@@ -18,6 +18,14 @@ function subscriptionsCreditEnabled() {
 
 let plansActiveColumn = null;
 
+function requireHostedStripeUrl(session, code = 'stripe_checkout_unavailable') {
+  const url = typeof session?.url === 'string' ? session.url.trim() : '';
+  if (!/^https:\/\//i.test(url)) {
+    throw new AppError('Payment handoff is temporarily unavailable', 503, code);
+  }
+  return url;
+}
+
 async function getPlansActiveColumn() {
   // Cache schema detection to avoid repeated catalog queries (~5-10ms each)
   if (plansActiveColumn !== null) {
@@ -230,7 +238,7 @@ exports.createCheckout = async (req, res, next) => {
       idempotencyKey: `sub-checkout:${userId}:${plan.id}:${stripePrice}:${Math.floor(Date.now() / 600000)}`,
     });
 
-    res.json({ url: session.url, sessionId: session.id });
+    res.json({ url: requireHostedStripeUrl(session), sessionId: session.id });
   } catch (err) {
     next(err);
   }
@@ -419,7 +427,7 @@ exports.createPortalSession = async (req, res, next) => {
       return_url: `${process.env.APP_URL}/settings`,
     });
 
-    res.json({ url: session.url });
+    res.json({ url: requireHostedStripeUrl(session, 'stripe_portal_unavailable') });
   } catch (err) {
     next(err);
   }
@@ -696,3 +704,5 @@ exports.adminCancelSubscription = async (req, res, next) => {
     return next(err);
   }
 };
+
+exports._requireHostedStripeUrl = requireHostedStripeUrl;

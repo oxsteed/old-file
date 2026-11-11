@@ -25,6 +25,7 @@ const jwt = require('jsonwebtoken');
 const paymentRoutes = require('../routes/payments');
 const webhookRoutes = require('../routes/webhook');
 const paymentController = require('../controllers/paymentController');
+const { applyInstantPayoutWebhookEvent } = require('../controllers/webhookController');
 const stripe = require('stripe')();
 
 const HELPER = {
@@ -177,12 +178,15 @@ describe('payout.* webhook events', () => {
     try {
       stripe.webhooks.constructEvent.mockReturnValueOnce({
         id: 'evt_po_paid', account: 'acct_x', type: 'payout.paid',
-        data: { object: { id: 'po_123', status: 'paid' } },
+        data: { object: { id: 'po_123', status: 'paid', amount: 4200, currency: 'usd' } },
       });
       let updateParams = null;
       mockQuery.mockImplementation(async (sql, params) => {
         if (/INSERT INTO webhook_event_receipts/.test(sql)) return { rows: [{ id: 55 }] };
         if (/INSERT INTO webhook_event_watermarks/.test(sql)) return { rows: [{ event_id: 'evt_po_paid' }] };
+        if (/SELECT id, stripe_account_id, amount_cents, currency, status/.test(sql)) {
+          return { rows: [{ id: 'rec-1', stripe_account_id: 'acct_x', amount_cents: 4200, currency: 'usd', status: 'requested' }] };
+        }
         if (/UPDATE instant_payouts/.test(sql)) { updateParams = params; return { rows: [{ id: 'rec-1' }], rowCount: 1 }; }
         return { rows: [], rowCount: 0 };
       });
@@ -195,6 +199,23 @@ describe('payout.* webhook events', () => {
       if (previous === undefined) delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
       else process.env.STRIPE_CONNECT_WEBHOOK_SECRET = previous;
     }
+  });
+
+  test('rejects a payout event whose provider amount or account does not match the local row', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SELECT id, stripe_account_id, amount_cents, currency, status/.test(sql)) {
+        return { rows: [{ id: 'rec-1', stripe_account_id: 'acct_x', amount_cents: 4200, currency: 'usd', status: 'requested' }] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    await expect(applyInstantPayoutWebhookEvent({
+      id: 'evt_po_mismatch',
+      account: 'acct_other',
+      type: 'payout.paid',
+      data: { object: { id: 'po_123', status: 'paid', amount: 4100, currency: 'usd' } },
+    })).rejects.toMatchObject({ code: 'instant_payout_verification_mismatch' });
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE instant_payouts/.test(sql))).toBe(false);
   });
 
   test('the connect webhook contract lists payout lifecycle events', () => {

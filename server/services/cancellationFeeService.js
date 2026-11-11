@@ -145,11 +145,15 @@ async function collectCancellationFee({ feeRecordId, customerId, helperId, feeTo
       },
     });
 
-    paymentIntentId = intent.id;
+    paymentIntentId = typeof intent?.id === 'string' ? intent.id.trim() : '';
     // The charge ID lives on the latest_charge field
     chargeId = typeof intent.latest_charge === 'string'
       ? intent.latest_charge
       : intent.latest_charge?.id;
+    chargeId = typeof chargeId === 'string' ? chargeId.trim() : '';
+    if (!paymentIntentId || !chargeId) {
+      throw new Error('Stripe returned an unusable cancellation-fee charge response');
+    }
 
     logger.info('cancellationFeeService: customer charge succeeded', {
       feeRecordId, paymentIntentId, chargeId, feeTotalCents

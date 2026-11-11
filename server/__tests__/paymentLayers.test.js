@@ -137,11 +137,18 @@ describe('Stripe charge models (decisions #1 #2 #5)', () => {
     expect(chargeModel.requestOptions({ charge_model: 'destination', stripe_account_id: 'acct_h' })).toEqual({});
   });
   test('releasing a platform hold refunds; an authorization is canceled', async () => {
-    const stripe = { refunds: { create: jest.fn().mockResolvedValue({}) }, paymentIntents: { cancel: jest.fn().mockResolvedValue({}) } };
+    const stripe = { refunds: { create: jest.fn().mockResolvedValue({ id: 're_release' }) }, paymentIntents: { cancel: jest.fn().mockResolvedValue({}) } };
     await chargeModel.releaseIntent(stripe, { intentId: 'pi_1', model: 'platform_hold', idempotencyKey: 'k' });
     expect(stripe.refunds.create).toHaveBeenCalledWith(expect.objectContaining({ payment_intent: 'pi_1' }), { idempotencyKey: 'k' });
     await chargeModel.releaseIntent(stripe, { intentId: 'pi_2', model: 'direct', stripeAccount: 'acct_h', idempotencyKey: 'k2' });
     expect(stripe.paymentIntents.cancel).toHaveBeenCalled();
+  });
+
+  test('platform-hold release fails closed when Stripe omits the refund id', async () => {
+    const stripe = { refunds: { create: jest.fn().mockResolvedValue({}) } };
+    await expect(chargeModel.releaseIntent(stripe, {
+      intentId: 'pi_missing_ref', model: 'platform_hold', idempotencyKey: 'k-missing-ref',
+    })).rejects.toThrow('Stripe platform-hold refund did not return a refund id');
   });
 });
 

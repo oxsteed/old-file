@@ -82,6 +82,23 @@ test('persists a guest image-only reply with non-null content', async () => {
   );
 });
 
+test('cleans a guest attachment when signing returns no URL', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 'ticket-1' }] });
+  storage.getSignedDownloadUrl.mockResolvedValueOnce(null);
+
+  const res = responseDouble();
+  await publicSupport.addGuestMessage({
+    params: { conversationId: 'ticket-1' },
+    guestToken: 'guest-token',
+    body: {},
+    file: { buffer: Buffer.from('image'), mimetype: 'image/png', originalname: 'proof.png' },
+  }, res);
+
+  expect(storage.deleteFile).toHaveBeenCalledWith('support-conversations/test-image.png');
+  expect(res.status).toHaveBeenCalledWith(500);
+  expect(WebSocketService.broadcastToTicket).not.toHaveBeenCalled();
+});
+
 test('returns persisted read receipts when a guest conversation is reloaded', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', status: 'open' }] })

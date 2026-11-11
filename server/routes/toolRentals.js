@@ -15,7 +15,7 @@ const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { generalLimiter, invoiceLimiter, reportLimiter, termsLimiter } = require('../middleware/rateLimiter');
 const pool    = require('../db');
-const { uploadFile, getPublicUrl } = require('../utils/storage');
+const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const toolFavoritesController = require('../controllers/toolFavoritesController');
 const toolReviewsController = require('../controllers/toolReviewsController');
@@ -204,18 +204,32 @@ async function resolveToolImageUrl(req) {
     }
 
     const key = await uploadFile(file.buffer, 'tool-rentals', file.originalname, file.mimetype);
-    if (key) return getPublicUrl(key);
+    if (key) {
+      const url = getPublicUrl(key);
+      if (!url) {
+        await deleteFile(key).catch((cleanupError) => {
+          require('../utils/logger').warn('[toolRentals] failed to clean up image without public URL', {
+            key,
+            error: cleanupError.message,
+          });
+        });
+        const err = new Error('Tool photo URL unavailable');
+        err.status = 503;
+        throw err;
+      }
+      return { url, key };
+    }
 
     if (file.size > 2 * 1024 * 1024) {
       const err = new Error('Tool photo is too large. Configure file storage or upload an image under 2MB.');
       err.status = 400;
       throw err;
     }
-    return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    return { url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`, key: null };
   }
 
   const imageUrl = cleanText(req.body.image_url, 2048, 'image_url', {});
-  if (!imageUrl) return null;
+  if (!imageUrl) return { url: null, key: null };
   try {
     new URL(imageUrl);
   } catch {
@@ -223,7 +237,7 @@ async function resolveToolImageUrl(req) {
     err.status = 400;
     throw err;
   }
-  return imageUrl;
+  return { url: imageUrl, key: null };
 }
 
 function normalizeToolPayload(body, { partial = false } = {}) {
@@ -427,13 +441,16 @@ router.delete('/payment-method', authenticate, paymentMethodController.deletePay
 
 // POST /api/tool-rentals
 router.post('/', authenticate, upload.single('image'), validateFileUpload, async (req, res) => {
+  let uploadedKey = null;
   try {
     const { payload, errors } = normalizeToolPayload(req.body);
     if (Object.keys(errors).length) {
       return res.status(400).json({ error: 'Validation failed', code: 'validation_failed', fields: errors });
     }
     const { hasImageGallery } = await getToolFields();
-    const imageUrl = hasImageGallery ? await resolveToolImageUrl(req) : null;
+    const imageResult = hasImageGallery ? await resolveToolImageUrl(req) : { url: null, key: null };
+    const imageUrl = imageResult.url;
+    uploadedKey = imageResult.key;
     const insertColumns = [
       'user_id', 'name', 'category', 'description',
       'daily_rate', 'hourly_rate', 'deposit_amount',
@@ -488,6 +505,7 @@ router.post('/', authenticate, upload.single('image'), validateFileUpload, async
       insertValues
     );
 
+    uploadedKey = null;
     res.status(201).json({ tool: result.rows[0] });
 
     // ── Fan out alerts to users with matching saved searches ────────────────
@@ -496,6 +514,14 @@ router.post('/', authenticate, upload.single('image'), validateFileUpload, async
       notifyToolSearches(result.rows[0]).catch(() => {});
     }
   } catch (err) {
+    if (uploadedKey) {
+      await deleteFile(uploadedKey).catch((cleanupError) => {
+        require('../utils/logger').warn('[toolRentals] failed to clean up uploaded image', {
+          key: uploadedKey,
+          error: cleanupError.message,
+        });
+      });
+    }
     require('../utils/logger').error('[toolRentals] create error:', err.message);
     res.status(err.status || 500).json({ error: err.status ? err.message : 'Failed to create tool listing' });
   }
@@ -503,6 +529,7 @@ router.post('/', authenticate, upload.single('image'), validateFileUpload, async
 
 // PUT /api/tool-rentals/:id
 router.put('/:id', authenticate, upload.single('image'), validateFileUpload, async (req, res) => {
+  let uploadedKey = null;
   try {
     const { id } = req.params;
 
@@ -526,7 +553,9 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
       payload.is_available = false;
     }
     const { hasImageGallery } = await getToolFields();
-    const imageUrl = hasImageGallery ? await resolveToolImageUrl(req) : null;
+    const imageResult = hasImageGallery ? await resolveToolImageUrl(req) : { url: null, key: null };
+    const imageUrl = imageResult.url;
+    uploadedKey = imageResult.key;
     const removeImage = hasImageGallery ? parseBoolean(req.body.remove_image) : false;
     const imageSetSql = hasImageGallery
       ? `image_gallery = CASE
@@ -598,8 +627,17 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
       ]
     );
 
+    uploadedKey = null;
     res.json({ tool: result.rows[0] });
   } catch (err) {
+    if (uploadedKey) {
+      await deleteFile(uploadedKey).catch((cleanupError) => {
+        require('../utils/logger').warn('[toolRentals] failed to clean up uploaded image', {
+          key: uploadedKey,
+          error: cleanupError.message,
+        });
+      });
+    }
     require('../utils/logger').error('[toolRentals] update error:', err.message);
     res.status(err.status || 500).json({ error: err.status ? err.message : 'Failed to update tool listing' });
   }

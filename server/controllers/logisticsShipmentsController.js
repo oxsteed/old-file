@@ -61,6 +61,7 @@ exports.addMilestone = async (req, res, next) => {
 };
 
 exports.uploadDocument = async (req, res, next) => {
+  let uploadedKey = null;
   try {
     const { doc_type, notes, purchase_order_id } = req.body;
     if (!doc_type || !req.file) {
@@ -72,8 +73,8 @@ exports.uploadDocument = async (req, res, next) => {
         .replace(/[^A-Za-z0-9._ -]/g, '_')
         .replace(/\.{2,}/g, '.')
         .slice(0, 160) || 'document';
-      const key = `logistics/shipment-docs/${req.params.id}/${Date.now()}-${safeFilename}`;
-      fileUrl = await storage.uploadFile(key, req.file.buffer, req.file.mimetype);
+      uploadedKey = `logistics/shipment-docs/${req.params.id}/${Date.now()}-${safeFilename}`;
+      fileUrl = await storage.uploadFile(uploadedKey, req.file.buffer, req.file.mimetype);
     }
     if (!fileUrl) return next(new AppError('File upload failed', 500, 'upload_failed'));
 
@@ -84,8 +85,16 @@ exports.uploadDocument = async (req, res, next) => {
       filename: req.file.originalname,
       notes,
     }, req.user.id);
+    // The shipment document now owns the object. Keep it if response handling
+    // fails after persistence; otherwise remove it from the failed write path.
+    uploadedKey = null;
     res.status(201).json({ success: true, data: doc });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (uploadedKey) {
+      await storage.deleteFile(uploadedKey).catch(() => {});
+    }
+    next(err);
+  }
 };
 
 // Review P3-6-F02: shipment documents were write-only (upload succeeded but

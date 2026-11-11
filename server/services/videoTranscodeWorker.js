@@ -103,6 +103,16 @@ function sanitizeError(message) {
   return text.slice(0, 500);
 }
 
+// A successful storage call must return a durable key before the worker can
+// publish a ready media row. Treat empty or non-string results as an outage so
+// callers never persist null rendition references.
+function requireStorageKey(key, label) {
+  if (typeof key !== 'string' || !key.trim()) {
+    throw new Error(`${label} storage is unavailable`);
+  }
+  return key;
+}
+
 function execFileAsync(file, args, { timeout = FFMPEG_TIMEOUT_MS } = {}) {
   return new Promise((resolve, reject) => {
     execFile(file, args, { timeout, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
@@ -391,10 +401,10 @@ async function processTranscodeJob(job) {
     const renditions = [];
     for (const out of outputs) {
       const buf = await fsp.readFile(out.path);
-      const key = await storage.uploadFile(
+      const key = requireStorageKey(await storage.uploadFile(
         buf, 'restaurant-media/renditions',
         `rendition-${out.height}p.mp4`, out.contentType
-      );
+      ), 'Video rendition');
       uploadedKeys.push(key);
       renditions.push({
         storage_key: key,
@@ -404,9 +414,9 @@ async function processTranscodeJob(job) {
       });
     }
     const posterBuf = await fsp.readFile(posterPath);
-    const thumbnailKey = await storage.uploadFile(
+    const thumbnailKey = requireStorageKey(await storage.uploadFile(
       posterBuf, 'restaurant-media/thumbnails', 'poster.jpg', 'image/jpeg'
-    );
+    ), 'Video thumbnail');
     uploadedKeys.push(thumbnailKey);
 
     await pool.query(
@@ -528,6 +538,7 @@ module.exports = {
   ffmpegAvailable,
   ffmpegPath,
   sanitizeError,
+  requireStorageKey,
   probeDimensions,
   probeDuration,
   extractPoster,

@@ -202,7 +202,7 @@ async function getIntegrations(req, res, next) {
          FROM businesses
         WHERE id = $1`,
       [businessId]
-    ).catch(() => ({ rows: [] }));
+    );
 
     const byType = {};
     for (const row of rows) {
@@ -219,7 +219,7 @@ async function getIntegrations(req, res, next) {
       `SELECT COUNT(*) AS cnt FROM business_webhooks
        WHERE business_id = $1 AND is_active = TRUE`,
       [businessId]
-    ).catch(() => ({ rows: [{ cnt: 0 }] }));
+    );
 
     const apiKey = (apiAccess.config_json && apiAccess.config_json.api_key)
       ? apiAccess.config_json.api_key
@@ -249,6 +249,7 @@ async function getIntegrations(req, res, next) {
       api_key_masked:        apiKeyMasked
     });
   } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'Business integration tables are not yet migrated.' });
     next(err);
   }
 }

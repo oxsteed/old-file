@@ -645,13 +645,21 @@ async function getPayRunWithLines(clientOrPool, restaurantId, payRunId) {
     [payRunId]
   );
   // Finding 25: payout linkage rides with the run everywhere it is read.
-  const { rows: payoutLinks } = await clientOrPool.query(
-    `SELECT l.*, p.status AS payout_status
-       FROM restaurant_pay_run_payout_links l
-       JOIN restaurant_payouts p ON p.id = l.restaurant_payout_id
-      WHERE l.pay_run_id = $1 ORDER BY l.id`,
-    [payRunId]
-  ).catch(() => ({ rows: [] }));
+  let payoutLinks = [];
+  try {
+    ({ rows: payoutLinks } = await clientOrPool.query(
+      `SELECT l.*, p.status AS payout_status
+         FROM restaurant_pay_run_payout_links l
+         JOIN restaurant_payouts p ON p.id = l.restaurant_payout_id
+        WHERE l.pay_run_id = $1 ORDER BY l.id`,
+      [payRunId]
+    ));
+  } catch (err) {
+    // Older deployments may not have the additive linkage table yet. Any
+    // other failure must reach the caller: an outage must not masquerade as
+    // an unpaid run with zero linked payouts.
+    if (err.code !== '42P01') throw err;
+  }
   // Finding 7 + Nov 3 audit items 1-2: the linked total counts
   // only links in the run's own currency (run.currency_code, the
   // snapshot taken at creation). A legacy cross-currency link must
@@ -677,11 +685,16 @@ async function getPayRunWithLines(clientOrPool, restaurantId, payRunId) {
   }, 0);
   // Phase 5: the disbursement ledger rides with the run too, with the
   // coverage summary the merchant UI and the paid flip both read.
-  const { rows: disbursements } = await clientOrPool.query(
-    `SELECT * FROM restaurant_pay_run_disbursements
-      WHERE pay_run_id = $1 ORDER BY id`,
-    [payRunId]
-  ).catch(() => ({ rows: [] }));
+  let disbursements = [];
+  try {
+    ({ rows: disbursements } = await clientOrPool.query(
+      `SELECT * FROM restaurant_pay_run_disbursements
+        WHERE pay_run_id = $1 ORDER BY id`,
+      [payRunId]
+    ));
+  } catch (err) {
+    if (err.code !== '42P01') throw err;
+  }
   const runTotalCents = (run.totals && typeof run.totals === 'object')
     ? Math.round(Number(run.totals.total_pay_cents || 0))
     : (lines || []).reduce((sum, line) => sum + (Number(line.total_pay_cents) || 0), 0);

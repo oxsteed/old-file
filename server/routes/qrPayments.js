@@ -100,6 +100,29 @@ function publicUrlMissing(res) {
   });
 }
 
+function checkoutUnavailable(res) {
+  return res.status(503).json({
+    error: 'QR checkout is temporarily unavailable. Please try again later.',
+    code: 'qr_checkout_unavailable',
+  });
+}
+
+function normalizeCheckoutSession(session) {
+  const id = typeof session?.id === 'string' ? session.id.trim() : '';
+  const url = typeof session?.url === 'string' ? session.url.trim() : '';
+  if (!id || !/^https:\/\//i.test(url)) return null;
+  return { id, url };
+}
+
+function normalizeStoredCheckout(row) {
+  const id = typeof row?.stripe_checkout_session_id === 'string'
+    ? row.stripe_checkout_session_id.trim()
+    : '';
+  const url = typeof row?.checkout_url === 'string' ? row.checkout_url.trim() : '';
+  if (!id || !/^https:\/\//i.test(url)) return null;
+  return { id, url };
+}
+
 function parseAmountCents(value) {
   if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
@@ -509,9 +532,11 @@ router.post('/pay/:code/checkout', qrCheckoutLimiter, async (req, res, next) => 
           code: 'idempotency_key_conflict',
         });
       }
+      const previousCheckout = normalizeStoredCheckout(previousAttempts[0]);
+      if (!previousCheckout) return checkoutUnavailable(res);
       return res.json({
-        url: previousAttempts[0].checkout_url || null,
-        session_id: previousAttempts[0].stripe_checkout_session_id,
+        url: previousCheckout.url,
+        session_id: previousCheckout.id,
         status: previousAttempts[0].status,
         idempotent: true,
       });
@@ -556,13 +581,16 @@ router.post('/pay/:code/checkout', qrCheckoutLimiter, async (req, res, next) => 
       }
     );
 
+    const checkout = normalizeCheckoutSession(session);
+    if (!checkout) return checkoutUnavailable(res);
+
     const { rows: inserted } = await pool.query(
       `INSERT INTO qr_payments
          (qr_code_id, stripe_checkout_session_id, amount_cents, platform_fee_cents, status, payer_email, client_request_id, checkout_url, request_fingerprint)
        VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8)
        ON CONFLICT (qr_code_id, client_request_id) DO NOTHING
        RETURNING stripe_checkout_session_id, checkout_url, status`,
-      [code.id, session.id, amountCents, fees.application_fee_cents, payerEmail, clientRequestId, session.url, requestFingerprint]
+      [code.id, checkout.id, amountCents, fees.application_fee_cents, payerEmail, clientRequestId, checkout.url, requestFingerprint]
     );
 
     if (inserted[0]) return res.json({ url: inserted[0].checkout_url, session_id: inserted[0].stripe_checkout_session_id });
@@ -585,9 +613,11 @@ router.post('/pay/:code/checkout', qrCheckoutLimiter, async (req, res, next) => 
         code: 'idempotency_key_conflict',
       });
     }
+    const racedCheckout = normalizeStoredCheckout(raced[0]);
+    if (!racedCheckout) return checkoutUnavailable(res);
     return res.json({
-      url: raced[0].checkout_url || session.url,
-      session_id: raced[0].stripe_checkout_session_id,
+      url: racedCheckout.url,
+      session_id: racedCheckout.id,
       status: raced[0].status,
       idempotent: true,
     });

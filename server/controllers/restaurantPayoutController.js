@@ -27,9 +27,15 @@ const RESTAURANT_PAYOUTS_GRANT = 'view_financials';
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function parseRestaurantId(value) {
-  const n = Number.parseInt(value, 10);
-  return Number.isInteger(n) && n > 0 ? n : null;
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  }
+  if (typeof value !== 'string' || !/^\d+$/.test(value.trim())) return null;
+  const n = Number(value);
+  return Number.isSafeInteger(n) && n > 0 ? n : null;
 }
+
+exports._parseRestaurantId = parseRestaurantId;
 
 // Identical access query to foodController.requireRestaurantAccess /
 // restaurantOpsController.requireRestaurantAccess: the caller only ever

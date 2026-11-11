@@ -489,6 +489,51 @@ describe('POST /api/restaurants/:restaurantId/topups', () => {
     );
   });
 
+  test('fails and cancels a newly created intent when Stripe omits the secret', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_missing_secret', status: 'canceled' });
+    const previousCancel = stripe.paymentIntents.cancel;
+    stripe.paymentIntents.cancel = cancel;
+    stripe.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_missing_secret', client_secret: null });
+    mockAuthed({}, ...intentQueries({}), { rows: [] });
+    try {
+      const res = await request(buildMerchantApp())
+        .post(`/api/restaurants/${RESTAURANT_ID}/topups`)
+        .set('Authorization', `Bearer ${USER_TOKEN}`)
+        .set('Idempotency-Key', 'idem-key-1')
+        .send({ amountCents: 5000 });
+      expect(res.status).toBe(502);
+      expect(res.body.code).toBe('restaurant_topup_stripe_failed');
+      expect(cancel).toHaveBeenCalledWith('pi_missing_secret');
+      expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('SET stripe_payment_intent_id'))).toBe(false);
+    } finally {
+      if (previousCancel) stripe.paymentIntents.cancel = previousCancel;
+      else delete stripe.paymentIntents.cancel;
+    }
+  });
+
+  test('fails and cancels a replay when Stripe omits the existing secret', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_existing_missing_secret', status: 'canceled' });
+    const previousCancel = stripe.paymentIntents.cancel;
+    stripe.paymentIntents.cancel = cancel;
+    const existing = { ...baseTopupRow(), stripe_payment_intent_id: 'pi_existing_missing_secret' };
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce({ id: 'pi_existing_missing_secret', client_secret: null });
+    mockAuthed({}, ...intentQueries({ inserted: false, existingRow: existing }), { rows: [] });
+    try {
+      const res = await request(buildMerchantApp())
+        .post(`/api/restaurants/${RESTAURANT_ID}/topups`)
+        .set('Authorization', `Bearer ${USER_TOKEN}`)
+        .set('Idempotency-Key', 'idem-key-1')
+        .send({ amountCents: 5000 });
+      expect(res.status).toBe(502);
+      expect(res.body.code).toBe('restaurant_topup_stripe_failed');
+      expect(cancel).toHaveBeenCalledWith('pi_existing_missing_secret');
+      expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
+    } finally {
+      if (previousCancel) stripe.paymentIntents.cancel = previousCancel;
+      else delete stripe.paymentIntents.cancel;
+    }
+  });
+
   test('replays an identical idempotency key without a second Stripe intent', async () => {
     const existing = { ...baseTopupRow(), stripe_payment_intent_id: 'pi_test_1' };
     mockAuthed(
@@ -787,7 +832,10 @@ describe('admin restaurant top-up endpoints', () => {
 describe('restaurant top-up webhook handling', () => {
   const succeededEvent = (intentId = 'pi_test_1') => ({
     type: 'payment_intent.succeeded',
-    object: { id: intentId, metadata: { restaurant_topup_id: TOPUP_ID } },
+    object: {
+      id: intentId, amount: 5000, currency: 'usd',
+      metadata: { restaurant_topup_id: TOPUP_ID },
+    },
   });
 
   function happyPathQueries({ topupStatus = 'pending', balanceCents = 0 } = {}) {
@@ -845,6 +893,19 @@ describe('restaurant top-up webhook handling', () => {
     const topupUpdate = mockQuery.mock.calls.find(([sql]) =>
       String(sql).includes('UPDATE restaurant_topups') && String(sql).includes("'succeeded'"));
     expect(topupUpdate).toBeDefined();
+  });
+
+  test('S1 provider amount or currency mismatch cannot credit the food wallet', async () => {
+    const topup = baseTopupRow({ status: 'pending', stripe_payment_intent_id: 'pi_test_1' });
+    mockQuery.mockResolvedValueOnce({ rows: [topup] });
+    await expect(topupService.applyRestaurantTopupWebhookEvent({
+      type: 'payment_intent.succeeded',
+      object: {
+        id: 'pi_test_1', amount: 4999, currency: 'eur',
+        metadata: { restaurant_topup_id: TOPUP_ID },
+      },
+    })).rejects.toMatchObject({ code: 'restaurant_topup_verification_failed' });
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes('food_customer_wallet_ledger'))).toBe(false);
   });
 
   test('S4 duplicate webhook: a succeeded top-up is never credited twice', async () => {

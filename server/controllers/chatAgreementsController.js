@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
-const { uploadFile, getSignedDownloadUrl, normalizeStorageKey } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, normalizeStorageKey, deleteFile } = require('../utils/storage');
 const {
   assertConversationParticipant,
   assertGuestInquiryAccess,
@@ -323,6 +323,7 @@ async function postAgreementMessage(ctx, content, senderName, userId, clientMess
 }
 
 exports.shareAgreement = async (req, res, next) => {
+  let uploadedKey = null;
   try {
     const userId = req.user?.id;
     if (!userId) return bad(res, 401, 'Authentication required', 'auth_required');
@@ -377,9 +378,9 @@ exports.shareAgreement = async (req, res, next) => {
       if (!ALLOWED_AGREEMENT_MIMES.has(req.file.mimetype)) {
         return bad(res, 400, 'File type not allowed for agreements', 'invalid_file_type');
       }
-      const key = await uploadFile(req.file.buffer, uploadFolder, req.file.originalname, req.file.mimetype);
-      if (!key) return bad(res, 503, 'File storage unavailable', 'storage_unavailable');
-      attachmentKey = key;
+      uploadedKey = await uploadFile(req.file.buffer, uploadFolder, req.file.originalname, req.file.mimetype);
+      if (!uploadedKey) return bad(res, 503, 'File storage unavailable', 'storage_unavailable');
+      attachmentKey = uploadedKey;
       attachmentName = req.file.originalname;
       attachmentMime = req.file.mimetype;
       attachmentSize = req.file.size;
@@ -435,6 +436,17 @@ exports.shareAgreement = async (req, res, next) => {
         replayed = true;
       }
     }
+    if (uploadedKey) {
+      if (agreement?.attachment_key === uploadedKey) {
+        // The new agreement row now owns the object.
+        uploadedKey = null;
+      } else if (agreement) {
+        // A concurrent idempotent replay won the insert; this upload was not
+        // referenced and must not remain as an orphan.
+        await deleteFile(uploadedKey).catch(() => {});
+        uploadedKey = null;
+      }
+    }
     if (!agreement) throw new Error('Failed to create agreement');
     const marker = buildAgreementMarker({
       id: agreement.id,
@@ -473,6 +485,7 @@ exports.shareAgreement = async (req, res, next) => {
       idempotent: replayed,
     });
   } catch (err) {
+    if (uploadedKey) await deleteFile(uploadedKey).catch(() => {});
     next(err);
   }
 };
@@ -653,6 +666,7 @@ exports.respondAgreement = async (req, res, next) => {
 };
 
 exports.reviseAgreement = async (req, res, next) => {
+  let uploadedKey = null;
   try {
     const userId = req.user?.id;
     if (!userId) return bad(res, 401, 'Authentication required', 'auth_required');
@@ -713,9 +727,9 @@ exports.reviseAgreement = async (req, res, next) => {
       if (!ALLOWED_AGREEMENT_MIMES.has(req.file.mimetype)) {
         return bad(res, 400, 'File type not allowed for agreements', 'invalid_file_type');
       }
-      const key = await uploadFile(req.file.buffer, uploadFolder, req.file.originalname, req.file.mimetype);
-      if (!key) return bad(res, 503, 'File storage unavailable', 'storage_unavailable');
-      attachmentKey = key;
+      uploadedKey = await uploadFile(req.file.buffer, uploadFolder, req.file.originalname, req.file.mimetype);
+      if (!uploadedKey) return bad(res, 503, 'File storage unavailable', 'storage_unavailable');
+      attachmentKey = uploadedKey;
       attachmentName = req.file.originalname;
       attachmentMime = req.file.mimetype;
       attachmentSize = req.file.size;
@@ -771,6 +785,8 @@ exports.reviseAgreement = async (req, res, next) => {
       ],
     );
     const agreement = rows[0];
+    // The new revision row now owns the uploaded attachment.
+    uploadedKey = null;
     const reShare = req.body.reshare !== false && req.body.reShare !== false;
     let message = null;
     if (reShare) {
@@ -813,6 +829,7 @@ exports.reviseAgreement = async (req, res, next) => {
       message,
     });
   } catch (err) {
+    if (uploadedKey) await deleteFile(uploadedKey).catch(() => {});
     next(err);
   }
 };

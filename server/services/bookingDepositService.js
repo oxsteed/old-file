@@ -16,6 +16,7 @@
  */
 
 const db = require('../db');
+const { AppError } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
 const { notifyRefundIssued } = require('./refundNotification');
 const promoRedemption = require('./promoRedemptionService');
@@ -45,6 +46,29 @@ async function applyBookingIntentWebhook(eventType, pi) {
   if (!isBookingIntent(pi)) return false;
   const bookingId = String(pi.metadata.booking_request_id);
   if (eventType === 'payment_intent.succeeded') {
+    const { rows: [candidate] } = await db.query(
+      `SELECT id, payment_status, payment_amount_cents, stripe_payment_intent_id
+         FROM booking_requests
+        WHERE id = $1 AND stripe_payment_intent_id = $2
+        FOR UPDATE`,
+      [bookingId, pi.id]
+    );
+    if (!candidate) return true;
+    const providerAmount = Number(pi.amount_received ?? pi.amount);
+    const expectedAmount = Number(candidate.payment_amount_cents);
+    const providerCurrency = typeof pi.currency === 'string' ? pi.currency.toLowerCase() : '';
+    if (!Number.isSafeInteger(providerAmount)
+        || providerAmount <= 0
+        || !Number.isSafeInteger(expectedAmount)
+        || expectedAmount <= 0
+        || providerAmount !== expectedAmount
+        || providerCurrency !== 'usd') {
+      throw new AppError(
+        'Stripe booking payment does not match the stored booking amount or currency',
+        409,
+        'booking_payment_verification_failed',
+      );
+    }
     const { rows: [booking] } = await db.query(
       `UPDATE booking_requests
           SET payment_status = 'paid',
@@ -54,7 +78,7 @@ async function applyBookingIntentWebhook(eventType, pi) {
         WHERE id = $1 AND stripe_payment_intent_id = $3
           AND payment_status IN ('requires_payment', 'processing', 'failed')
         RETURNING id, status`,
-      [bookingId, Number(pi.amount_received || pi.amount || 0), pi.id]
+      [bookingId, providerAmount, pi.id]
     );
     if (booking) await promoRedemption.markRedeemed(db, { surface: 'booking', providerReference: pi.id });
     // Paid after the booking already ended: refund straight away.
@@ -116,6 +140,25 @@ async function settleTerminalBooking(bookingId, reason = 'booking_ended') {
         { payment_intent: booking.stripe_payment_intent_id, metadata: { booking_request_id: String(booking.id), reason } },
         { idempotencyKey: `booking-deposit:${booking.id}:refund` }
       );
+      // Do not mark the booking refunded unless the provider returned the
+      // durable refund identity used by reconciliation and notifications.
+      if (!refund || typeof refund.id !== 'string' || !refund.id.trim()) {
+        throw new Error('Stripe booking refund did not return a refund id');
+      }
+      const expectedAmount = Number(booking.payment_amount_cents);
+      const providerAmount = Number(refund.amount);
+      const providerCurrency = typeof refund.currency === 'string' ? refund.currency.toLowerCase() : '';
+      const providerPaymentIntentId = typeof refund.payment_intent === 'string'
+        ? refund.payment_intent
+        : refund.payment_intent?.id || null;
+      if (!Number.isSafeInteger(expectedAmount)
+          || expectedAmount <= 0
+          || !Number.isSafeInteger(providerAmount)
+          || providerAmount !== expectedAmount
+          || providerCurrency !== 'usd'
+          || providerPaymentIntentId !== booking.stripe_payment_intent_id) {
+        throw new Error('Stripe booking refund did not match the stored payment');
+      }
       await db.query(
         `UPDATE booking_requests
             SET payment_status = 'refunded', refunded_at = COALESCE(refunded_at, NOW()),

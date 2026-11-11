@@ -17,12 +17,15 @@ beforeEach(() => {
 });
 
 function booking(over = {}) {
-  return { id: 'b1', status: 'cancelled', payment_status: 'paid', stripe_payment_intent_id: 'pi_b', appointment_id: null, ...over };
+  return {
+    id: 'b1', status: 'cancelled', payment_status: 'paid', stripe_payment_intent_id: 'pi_b',
+    payment_amount_cents: 1200, appointment_id: null, ...over,
+  };
 }
 
 test('a paid deposit on a cancelled booking is refunded with a per-booking key', async () => {
   mockQuery.mockImplementation(async (sql) => (String(sql).startsWith('SELECT * FROM booking_requests') ? { rows: [booking()] } : { rows: [], rowCount: 1 }));
-  mockStripe.refunds.create.mockResolvedValue({ id: 're_b' });
+  mockStripe.refunds.create.mockResolvedValue({ id: 're_b', amount: 1200, currency: 'usd', payment_intent: 'pi_b' });
   await expect(svc.settleTerminalBooking('b1')).resolves.toBe('refunded');
   expect(mockStripe.refunds.create).toHaveBeenCalledWith(
     expect.objectContaining({ payment_intent: 'pi_b' }),
@@ -32,6 +35,21 @@ test('a paid deposit on a cancelled booking is refunded with a per-booking key',
   // Decision 2: the refunded booking releases its promo redemption.
   const reversal = mockQuery.mock.calls.find(([sql]) => /UPDATE promo_redemptions SET status = 'reversed'/.test(String(sql)));
   expect(reversal[1]).toEqual(['booking', 'b1', null, 'booking_refunded']);
+});
+
+test('a paid booking is not marked refunded when Stripe omits the refund id', async () => {
+  mockQuery.mockImplementation(async (sql) => (String(sql).startsWith('SELECT * FROM booking_requests') ? { rows: [booking()] } : { rows: [], rowCount: 1 }));
+  mockStripe.refunds.create.mockResolvedValue({ amount: 1200 });
+  await expect(svc.settleTerminalBooking('b1')).rejects.toThrow('Stripe booking refund did not return a refund id');
+  expect(mockQuery.mock.calls.some(([sql]) => /SET payment_status = 'refunded'/.test(String(sql)))).toBe(false);
+  expect(mockQuery.mock.calls.some(([sql]) => /SET refund_attempts = refund_attempts \+ 1/.test(String(sql)))).toBe(true);
+});
+
+test('a paid booking is not marked refunded when Stripe refund evidence mismatches', async () => {
+  mockQuery.mockImplementation(async (sql) => (String(sql).startsWith('SELECT * FROM booking_requests') ? { rows: [booking()] } : { rows: [], rowCount: 1 }));
+  mockStripe.refunds.create.mockResolvedValue({ id: 're_bad', amount: 1100, currency: 'eur', payment_intent: 'pi_other' });
+  await expect(svc.settleTerminalBooking('b1')).rejects.toThrow('Stripe booking refund did not match the stored payment');
+  expect(mockQuery.mock.calls.some(([sql]) => /SET payment_status = 'refunded'/.test(String(sql)))).toBe(false);
 });
 
 test('an unpaid intent on an ended booking is voided', async () => {
@@ -58,34 +76,40 @@ test('active bookings are left alone', async () => {
 });
 
 test('webhook marks a booking paid even if the client never confirmed', async () => {
-  mockQuery.mockResolvedValueOnce({ rows: [{ id: 'b1', status: 'pending' }] });
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 'b1', status: 'pending', payment_amount_cents: 2000, stripe_payment_intent_id: 'pi_b' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'b1', status: 'pending' }] });
   const handled = await svc.applyBookingIntentWebhook('payment_intent.succeeded', {
-    id: 'pi_b', amount: 2000, amount_received: 2000, metadata: { booking_request_id: 'b1', source: 'mobile_booking' },
+    id: 'pi_b', amount: 2000, amount_received: 2000, currency: 'usd', metadata: { booking_request_id: 'b1', source: 'mobile_booking' },
   });
   expect(handled).toBe(true);
-  expect(String(mockQuery.mock.calls[0][0])).toMatch(/SET payment_status = 'paid'/);
+  expect(String(mockQuery.mock.calls[1][0])).toMatch(/SET payment_status = 'paid'/);
 });
 
 test('payment landing after the booking ended is refunded immediately', async () => {
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: 'b1', status: 'declined' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'b1', status: 'pending', payment_amount_cents: 2000, stripe_payment_intent_id: 'pi_b' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'b1', status: 'declined', payment_amount_cents: 2000, stripe_payment_intent_id: 'pi_b' }] })
     .mockResolvedValueOnce({ rows: [] }) // promo markRedeemed
-    .mockResolvedValueOnce({ rows: [booking({ status: 'declined' })] })
+    .mockResolvedValueOnce({ rows: [booking({ status: 'declined', payment_amount_cents: 2000, stripe_payment_intent_id: 'pi_b' })] })
     .mockResolvedValue({ rows: [] });
-  mockStripe.refunds.create.mockResolvedValue({ id: 're_late' });
+  mockStripe.refunds.create.mockResolvedValue({ id: 're_late', amount: 2000, currency: 'usd', payment_intent: 'pi_b' });
   await svc.applyBookingIntentWebhook('payment_intent.succeeded', {
-    id: 'pi_b', amount: 2000, metadata: { booking_request_id: 'b1', source: 'mobile_booking' },
+    id: 'pi_b', amount: 2000, currency: 'usd', metadata: { booking_request_id: 'b1', source: 'mobile_booking' },
   });
   expect(mockStripe.refunds.create).toHaveBeenCalled();
 });
 
 test('webhook success redeems the booking promo; a canceled intent releases it', async () => {
-  mockQuery.mockResolvedValueOnce({ rows: [{ id: 'b1', status: 'pending' }] }).mockResolvedValue({ rows: [] });
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 'b1', status: 'pending', payment_amount_cents: 1500, stripe_payment_intent_id: 'pi_b' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'b1', status: 'pending' }] })
+    .mockResolvedValue({ rows: [] });
   await svc.applyBookingIntentWebhook('payment_intent.succeeded', {
-    id: 'pi_b', amount: 1500, metadata: { booking_request_id: 'b1', source: 'mobile_booking' },
+    id: 'pi_b', amount: 1500, currency: 'usd', metadata: { booking_request_id: 'b1', source: 'mobile_booking' },
   });
-  expect(String(mockQuery.mock.calls[1][0])).toMatch(/SET status = 'redeemed'/);
-  expect(mockQuery.mock.calls[1][1]).toEqual(['booking', null, 'pi_b']);
+  expect(String(mockQuery.mock.calls[2][0])).toMatch(/SET status = 'redeemed'/);
+  expect(mockQuery.mock.calls[2][1]).toEqual(['booking', null, 'pi_b']);
 
   mockQuery.mockClear();
   await svc.applyBookingIntentWebhook('payment_intent.canceled', {
@@ -99,6 +123,17 @@ test('webhook success redeems the booking promo; a canceled intent releases it',
     id: 'pi_b', metadata: { booking_request_id: 'b1', source: 'mobile_booking' },
   });
   expect(mockQuery.mock.calls.some(([sql]) => /promo_redemptions/.test(String(sql)))).toBe(false);
+});
+
+test('webhook amount or currency mismatch cannot mark a booking paid', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'b1', payment_status: 'pending', payment_amount_cents: 2000, stripe_payment_intent_id: 'pi_b',
+  }] });
+  await expect(svc.applyBookingIntentWebhook('payment_intent.succeeded', {
+    id: 'pi_b', amount: 1999, currency: 'eur',
+    metadata: { booking_request_id: 'b1', source: 'mobile_booking' },
+  })).rejects.toMatchObject({ code: 'booking_payment_verification_failed' });
+  expect(mockQuery.mock.calls.some(([sql]) => /SET payment_status = 'paid'/.test(String(sql)))).toBe(false);
 });
 
 test('non-booking intents are not claimed', async () => {

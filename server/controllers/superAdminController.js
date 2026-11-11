@@ -13,6 +13,7 @@ const { parseBoundedPagination } = require('../utils/pagination');
 const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
 const AppError = require('../utils/appError');
 const { issueStepupChallenge, verifyStepupChallenge } = require('../services/stepupChallengeService');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
 const metricsRegistry = require('../analytics/metricsRegistry');
 
@@ -140,7 +141,7 @@ function isInternalSystemUser(user = {}) {
  * Matches any row with a scheduled deletion that is **not** an explicit self-delete
  * (`deletion_type = 'self'`). Covers `deletion_type = 'admin'`, NULL, or legacy odd values.
  */
-async function clearAdminScheduledDeletionIfPresent(userId) {
+async function clearAdminScheduledDeletionIfPresent(userId, queryRunner = db) {
   const [hasSched, hasType, hasReason, hasAdminId] = await Promise.all([
     columnExists('users', 'deletion_scheduled_at'),
     columnExists('users', 'deletion_type'),
@@ -154,7 +155,7 @@ async function clearAdminScheduledDeletionIfPresent(userId) {
   if (hasAdminId) sets.push('deletion_admin_id = NULL');
 
   const notSelf = hasType ? `AND (deletion_type IS DISTINCT FROM 'self')` : '';
-  const { rowCount } = await db.query(
+  const { rowCount } = await queryRunner.query(
     `UPDATE users SET ${sets.join(', ')}
      WHERE ${userIdEq('id')}
        AND deletion_scheduled_at IS NOT NULL
@@ -170,13 +171,13 @@ async function clearAdminScheduledDeletionIfPresent(userId) {
 }
 
 /** Clears admin-scheduled deletion state and sets the account active (never for self-deletes, never for finalized deletions). */
-async function reinstateAfterPendingAdminDeletion(userId) {
-  await clearAdminScheduledDeletionIfPresent(userId);
+async function reinstateAfterPendingAdminDeletion(userId, queryRunner = db) {
+  await clearAdminScheduledDeletionIfPresent(userId, queryRunner);
   const hasType = await columnExists('users', 'deletion_type');
   const hasFinalized = await columnExists('users', 'deletion_finalized_at');
   const notSelf = hasType ? `AND deletion_type IS DISTINCT FROM 'self'` : '';
   const notFinalized = hasFinalized ? `AND deletion_finalized_at IS NULL` : '';
-  await db.query(
+  await queryRunner.query(
     `UPDATE users SET deleted_at = NULL, is_active = TRUE, updated_at = NOW()
      WHERE id::text = $1 ${notSelf} ${notFinalized}`,
     [String(userId)],
@@ -604,6 +605,11 @@ exports.getUsers = async (req, res) => {
       sort = 'created_at', order = 'desc'
     } = req.query;
     const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
+    // User management is intentionally separate from financial visibility.
+    // Do not include payout totals for a manage_users-only admin; the route's
+    // management grant must not become an implicit view_financials grant.
+    const canViewFinancials = req.user?.role === 'super_admin'
+      || await hasGlobalGrant(req.user?.id, 'view_financials');
     const params = [];
     let paramIdx = 1;
 
@@ -691,7 +697,7 @@ exports.getUsers = async (req, res) => {
       selectCols.push("(SELECT COUNT(*) FROM jobs WHERE client_id = u.id) AS jobs_posted");
       selectCols.push("(SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = u.id AND status = 'completed') AS jobs_completed_as_helper");
     } else { selectCols.push('0 AS jobs_posted, 0 AS jobs_completed_as_helper'); }
-    if (hasPayouts) {
+    if (hasPayouts && canViewFinancials) {
       // ADM-061: backed by idx_payouts_user_status (migration 834).
       selectCols.push("(SELECT COALESCE(SUM(amount_cents),0)/100.0 FROM payouts WHERE user_id = u.id AND status = 'paid') AS earnings_total");
     } else { selectCols.push('0 AS earnings_total'); }
@@ -897,33 +903,29 @@ exports.setUserDiditEnforcement = async (req, res) => {
       return res.status(403).json({ error: 'Cannot change Didit policy for admin accounts.' });
     }
 
-    const { rows: updateRows } = await db.query(
-      `UPDATE users SET
-         didit_enforcement_required = $2,
-         didit_status = CASE
-           WHEN $2 = TRUE AND didit_status = 'skipped' THEN 'pending'
-           ELSE didit_status
-         END,
-         updated_at = NOW()
-       WHERE id = $1 AND didit_enforcement_required IS DISTINCT FROM $2 RETURNING id`,
-      [userId, required]
-    );
-    if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'Didit enforcement status unchanged - operation may have been concurrent.' });
-    }
+    const { rows: updateRows } = await withTransaction(db, async (client) => {
+      const result = await client.query(
+        `UPDATE users SET
+           didit_enforcement_required = $2,
+           didit_status = CASE
+             WHEN $2 = TRUE AND didit_status = 'skipped' THEN 'pending'
+             ELSE didit_status
+           END,
+           updated_at = NOW()
+         WHERE id = $1 AND didit_enforcement_required IS DISTINCT FROM $2 RETURNING id`,
+        [userId, required]
+      );
+      if (!result.rows.length) return result;
 
-    if (required) {
-      try {
-        await db.query(
+      if (required) {
+        await client.query(
           `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
           [String(userId)],
         );
-        socketService.broadcastToUser(userId, 'force_logout', { reason: 'didit_enforcement_required' });
-      } catch (e) { /* non-fatal */ }
-    }
+      }
 
-    try {
       await logAdminAction({
+        client,
         adminId,
         action: 'user_didit_enforcement',
         targetType: 'user',
@@ -933,7 +935,15 @@ exports.setUserDiditEnforcement = async (req, res) => {
         after: { didit_enforcement_required: required },
         req,
       });
-    } catch (e) { /* non-fatal */ }
+      return result;
+    }, required ? 'admin_require_didit' : 'admin_relax_didit');
+    if (updateRows.length === 0) {
+      return res.status(409).json({ error: 'Didit enforcement status unchanged - operation may have been concurrent.' });
+    }
+
+    if (required) {
+      socketService.broadcastToUser(userId, 'force_logout', { reason: 'didit_enforcement_required' });
+    }
 
     return res.json({
       message: required
@@ -959,30 +969,46 @@ exports.toggleUserBan = async (req, res) => {
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
     if (['admin','super_admin'].includes(before[0].role)) return res.status(403).json({ error: 'Cannot ban admin accounts.' });
     const newStatus = !before[0].is_active;
-    const { rows: updateRows } = await db.query(
-      `UPDATE users SET is_active = $1, updated_at = NOW()
-       WHERE id::text = $3 AND is_active = $2 RETURNING id`,
-      [newStatus, before[0].is_active, String(userId)],
-    );
+
+    // A ban must revoke existing tokens before the state change. If revocation
+    // is unavailable, fail closed instead of committing a ban that still has
+    // live sessions and returning a misleading success response.
+    if (!newStatus) {
+      await tokenRevocationService.revokeAllUserTokens(String(userId));
+    }
+
+    const { rows: updateRows } = await withTransaction(db, async (client) => {
+      const result = await client.query(
+        `UPDATE users SET is_active = $1, updated_at = NOW()
+         WHERE id::text = $3 AND is_active = $2 RETURNING id`,
+        [newStatus, before[0].is_active, String(userId)],
+      );
+      if (result.rows.length === 0) return result;
+      if (newStatus) {
+        await reinstateAfterPendingAdminDeletion(userId, client);
+      }
+      await logAdminAction({
+        client,
+        adminId,
+        action: newStatus ? 'user_unbanned' : 'user_banned',
+        targetType: 'user',
+        targetId: userId,
+        description: reason || null,
+        before: { is_active: before[0].is_active },
+        after: { is_active: newStatus },
+        req,
+      });
+      return result;
+    }, newStatus ? 'admin_unban_user' : 'admin_ban_user');
     if (updateRows.length === 0) {
       return res.status(409).json({ error: 'User status changed during ban operation - concurrent modification detected.' });
     }
-    try { await logAdminAction({ adminId, action: newStatus ? 'user_unbanned' : 'user_banned', targetType: 'user', targetId: userId, description: reason || null, before: { is_active: before[0].is_active }, after: { is_active: newStatus }, req }); } catch(e) {}
     try { await sendNotification({
       userId,
       type: newStatus ? 'account_restored' : 'account_banned',
       action_url: newStatus ? '/login' : null,
       data: { reason: reason || null },
     }); } catch (e) {}
-    if (newStatus) {
-      try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) { logger.warn('toggleUserBan: reinstate after unban failed', { userId, err: e.message }); }
-    }
-    // ADM-109: banning must invalidate issued tokens. Without this, pre-ban
-    // tokens stay cryptographically valid and resume working on unban.
-    if (!newStatus) {
-      try { await tokenRevocationService.revokeAllUserTokens(String(userId)); }
-      catch (e) { logger.warn('toggleUserBan: token revocation failed', { userId, err: e.message }); }
-    }
     // Kick any live WebSocket session immediately so the user can't keep browsing
     if (!newStatus) socketService.broadcastToUser(userId, 'force_logout', { reason: 'account_banned' });
     res.json({ message: `User ${newStatus ? 'unbanned' : 'banned'} successfully.`, is_active: newStatus });
@@ -1012,61 +1038,57 @@ exports.verifyUser = async (req, res) => {
     }
 
     const isHelperRole = ['helper', 'helper_pro', 'broker'].includes(targets[0].role);
-
-    if (field === 'is_identity_verified') {
-      const { rows: idVerifyRows } = await db.query(
-        `UPDATE users SET
-           didit_status = 'verified',
-           is_verified = TRUE,
-           identity_verified = TRUE,
-           id_verified = TRUE,
-           didit_verified_at = COALESCE(didit_verified_at, NOW()),
-           didit_enforcement_required = FALSE,
-           updated_at = NOW()
-         WHERE id = $1 RETURNING id`,
-        [userId]
-      );
-      if (idVerifyRows.length === 0) {
-        return res.status(409).json({ error: 'User state changed during verification - operation may have been concurrent.' });
-      }
-      if (isHelperRole && (await tableExists('helper_profiles'))) {
-        await db.query(
-          `INSERT INTO helper_profiles (user_id, is_identity_verified, tier, is_listed, created_at, updated_at)
-           VALUES ($1, TRUE, 'tier1', FALSE, NOW(), NOW())
-           ON CONFLICT (user_id) DO UPDATE SET
-             is_identity_verified = TRUE,
-             updated_at = NOW()`,
+    const hasHelperProfiles = isHelperRole && await tableExists('helper_profiles');
+    const { rows: verificationRows } = await withTransaction(db, async (client) => {
+      let result;
+      if (field === 'is_identity_verified') {
+        result = await client.query(
+          `UPDATE users SET
+             didit_status = 'verified',
+             is_verified = TRUE,
+             identity_verified = TRUE,
+             id_verified = TRUE,
+             didit_verified_at = COALESCE(didit_verified_at, NOW()),
+             didit_enforcement_required = FALSE,
+             updated_at = NOW()
+           WHERE id = $1 RETURNING id`,
           [userId]
         );
-      }
-    } else if (field === 'is_background_checked') {
-      const { rows: bgCheckRows } = await db.query(
-        `UPDATE users SET
-           background_check_status = 'passed',
-           background_check_passed = TRUE,
-           background_check_passed_at = COALESCE(background_check_passed_at, NOW()),
-           background_check_expiry = COALESCE(background_check_expiry, NOW() + INTERVAL '1 year'),
-           updated_at = NOW()
-         WHERE id = $1 RETURNING id`,
-        [userId]
-      );
-      if (bgCheckRows.length === 0) {
-        return res.status(409).json({ error: 'User state changed during verification - operation may have been concurrent.' });
-      }
-      if (isHelperRole && (await tableExists('helper_profiles'))) {
-        await db.query(
-          `INSERT INTO helper_profiles (user_id, is_background_checked, tier, is_listed, created_at, updated_at)
-           VALUES ($1, TRUE, 'tier1', FALSE, NOW(), NOW())
-           ON CONFLICT (user_id) DO UPDATE SET
-             is_background_checked = TRUE,
-             updated_at = NOW()`,
+        if (result.rows.length && hasHelperProfiles) {
+          await client.query(
+            `INSERT INTO helper_profiles (user_id, is_identity_verified, tier, is_listed, created_at, updated_at)
+             VALUES ($1, TRUE, 'tier1', FALSE, NOW(), NOW())
+             ON CONFLICT (user_id) DO UPDATE SET
+               is_identity_verified = TRUE,
+               updated_at = NOW()`,
+            [userId]
+          );
+        }
+      } else {
+        result = await client.query(
+          `UPDATE users SET
+             background_check_status = 'passed',
+             background_check_passed = TRUE,
+             background_check_passed_at = COALESCE(background_check_passed_at, NOW()),
+             background_check_expiry = COALESCE(background_check_expiry, NOW() + INTERVAL '1 year'),
+             updated_at = NOW()
+           WHERE id = $1 RETURNING id`,
           [userId]
         );
+        if (result.rows.length && hasHelperProfiles) {
+          await client.query(
+            `INSERT INTO helper_profiles (user_id, is_background_checked, tier, is_listed, created_at, updated_at)
+             VALUES ($1, TRUE, 'tier1', FALSE, NOW(), NOW())
+             ON CONFLICT (user_id) DO UPDATE SET
+               is_background_checked = TRUE,
+               updated_at = NOW()`,
+            [userId]
+          );
+        }
       }
-    }
-
-    try {
+      if (!result.rows.length) return result;
       await logAdminAction({
+        client,
         adminId,
         action: 'user_verified',
         targetType: 'user',
@@ -1074,7 +1096,11 @@ exports.verifyUser = async (req, res) => {
         description: `Super-admin confirmed ${field}`,
         req,
       });
-    } catch (e) { /* non-fatal */ }
+      return result;
+    }, 'admin_verify_user');
+    if (verificationRows.length === 0) {
+      return res.status(409).json({ error: 'User state changed during verification - operation may have been concurrent.' });
+    }
 
     res.json({ message: `${field} confirmed successfully.` });
   } catch (err) {
@@ -1093,21 +1119,52 @@ exports.updateUserRole = async (req, res) => {
     if (role === 'admin' && !req.isSuper) return res.status(403).json({ error: 'Super Admin required.' });
     const { rows: before } = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
-    // Never allow demoting the sole remaining super_admin (fail closed).
-    if (before[0].role === 'super_admin' && role !== 'super_admin') {
-      const { rows: remaining } = await db.query(
-        `SELECT COUNT(*)::int AS n FROM users WHERE role = 'super_admin' AND id <> $1`,
-        [userId]
-      );
-      if (remaining[0].n === 0) {
-        return res.status(400).json({ error: 'Cannot demote the last remaining super_admin.' });
+    let updateRows;
+    try {
+      ({ rows: updateRows } = await withTransaction(db, async (client) => {
+        // Keep the last-super-admin invariant in the same transaction as the
+        // role update so concurrent demotions cannot race past the check.
+        if (before[0].role === 'super_admin' && role !== 'super_admin') {
+          const { rows: remaining } = await client.query(
+            `SELECT COUNT(*)::int AS n FROM users WHERE role = 'super_admin' AND id <> $1`,
+            [userId]
+          );
+          if (remaining[0].n === 0) {
+            const err = new Error('Cannot demote the last remaining super_admin.');
+            err.code = 'last_super_admin';
+            throw err;
+          }
+        }
+        const result = await client.query(
+          'UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 AND role = $3 RETURNING id',
+          [role, userId, before[0].role]
+        );
+        if (!result.rows.length) {
+          const err = new Error('User role changed during update.');
+          err.code = 'role_state_changed';
+          throw err;
+        }
+        await logAdminAction({
+          client,
+          adminId,
+          action: 'user_role_changed',
+          targetType: 'user',
+          targetId: userId,
+          before: { role: before[0].role },
+          after: { role },
+          req,
+        });
+        return result;
+      }, 'admin_update_user_role'));
+    } catch (err) {
+      if (err.code === 'last_super_admin') {
+        return res.status(400).json({ error: err.message });
       }
+      if (err.code === 'role_state_changed') {
+        return res.status(409).json({ error: 'User role changed during update - concurrent modification detected.' });
+      }
+      throw err;
     }
-    const { rows: updateRows } = await db.query('UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 AND role = $3 RETURNING id', [role, userId, before[0].role]);
-    if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'User role changed during update - concurrent modification detected.' });
-    }
-    try { await logAdminAction({ adminId, action: 'user_role_changed', targetType: 'user', targetId: userId, before: { role: before[0].role }, after: { role }, req }); } catch(e) {}
     res.json({ message: `User role updated to ${role}.` });
   } catch (err) { logger.error('updateUserRole error', { err }); res.status(500).json({ error: 'Failed to update role.' }); }
 };
@@ -1128,11 +1185,34 @@ exports.updateUserName = async (req, res) => {
     if (['admin', 'super_admin'].includes(before[0].role) && req.user?.role !== 'super_admin') {
       return res.status(403).json({ error: 'Cannot modify admin accounts.' });
     }
-    const { rows: updateRows } = await db.query('UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3 RETURNING id', [trimFirst, trimLast, userId]);
-    if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'User not found during update - concurrent deletion detected.' });
+    try {
+      await withTransaction(db, async (client) => {
+        const result = await client.query(
+          'UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3 RETURNING id',
+          [trimFirst, trimLast, userId]
+        );
+        if (!result.rows.length) {
+          const err = new Error('User not found during update - concurrent deletion detected.');
+          err.code = 'user_state_changed';
+          throw err;
+        }
+        await logAdminAction({
+          client,
+          adminId,
+          action: 'user_name_changed',
+          targetType: 'user',
+          targetId: userId,
+          before: { first_name: before[0].first_name, last_name: before[0].last_name },
+          after: { first_name: trimFirst, last_name: trimLast },
+          req,
+        });
+      }, 'admin_update_user_name');
+    } catch (err) {
+      if (err.code === 'user_state_changed') {
+        return res.status(409).json({ error: err.message });
+      }
+      throw err;
     }
-    try { await logAdminAction({ adminId, action: 'user_name_changed', targetType: 'user', targetId: userId, before: { first_name: before[0].first_name, last_name: before[0].last_name }, after: { first_name: trimFirst, last_name: trimLast }, req }); } catch(e) {}
     res.json({ message: 'User name updated successfully.' });
   } catch (err) { logger.error('updateUserName error', { err }); res.status(500).json({ error: 'Failed to update name.' }); }
 };
@@ -1168,6 +1248,7 @@ exports.forceJobAction = async (req, res, next) => {
     if (!allowed.includes(action)) return res.status(400).json({ error: 'Invalid action.' });
     const { rows: jobRows } = await db.query('SELECT status, metadata FROM jobs WHERE id = $1', [jobId]);
     if (!jobRows.length) return res.status(404).json({ error: 'Job not found.' });
+    let auditInTransaction = false;
 
     if (action === 'cancel' || action === 'remove') {
       // RV1(b): admin force-cancels run through the shared cancellation
@@ -1197,26 +1278,57 @@ exports.forceJobAction = async (req, res, next) => {
       await finalizeJobCancellation(result);
     }
     if (action === 'flag') {
-      const { rows: flagRows } = await db.query(
-        `UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'true',  true), updated_at = now() WHERE id = $1 AND COALESCE(metadata->>'admin_flagged', 'false') <> 'true' RETURNING id`,
-        [jobId]
-      );
-      if (flagRows.length === 0) {
-        return res.status(409).json({ error: 'Job is already flagged or flag state changed during operation.' });
-      }
+      await withTransaction(db, async (client) => {
+        const { rows: flagRows } = await client.query(
+          `UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'true',  true), updated_at = now() WHERE id = $1 AND COALESCE(metadata->>'admin_flagged', 'false') <> 'true' RETURNING id`,
+          [jobId]
+        );
+        if (!flagRows.length) {
+          const err = new Error('Job is already flagged or flag state changed during operation.');
+          err.code = 'job_state_changed';
+          throw err;
+        }
+        await logAdminAction({
+          client,
+          adminId,
+          action: 'job_flag',
+          targetType: 'job',
+          targetId: jobId,
+          description: reason || null,
+          req,
+        });
+      }, 'admin_flag_job');
+      auditInTransaction = true;
     }
     if (action === 'unflag') {
-      const { rows: unflagRows } = await db.query(
-        `UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'false', true), updated_at = now() WHERE id = $1 AND (COALESCE(metadata,'{}')->>'admin_flagged') = 'true' RETURNING id`,
-        [jobId]
-      );
-      if (unflagRows.length === 0) {
-        return res.status(409).json({ error: 'Job is not flagged or flag state changed during operation.' });
-      }
+      await withTransaction(db, async (client) => {
+        const { rows: unflagRows } = await client.query(
+          `UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'false', true), updated_at = now() WHERE id = $1 AND (COALESCE(metadata,'{}')->>'admin_flagged') = 'true' RETURNING id`,
+          [jobId]
+        );
+        if (!unflagRows.length) {
+          const err = new Error('Job is not flagged or flag state changed during operation.');
+          err.code = 'job_state_changed';
+          throw err;
+        }
+        await logAdminAction({
+          client,
+          adminId,
+          action: 'job_unflag',
+          targetType: 'job',
+          targetId: jobId,
+          description: reason || null,
+          req,
+        });
+      }, 'admin_unflag_job');
+      auditInTransaction = true;
     }
-    try { await logAdminAction({ adminId, action: `job_${action}`, targetType: 'job', targetId: jobId, description: reason || null, req }); } catch(e) {}
+    if (!auditInTransaction) {
+      try { await logAdminAction({ adminId, action: `job_${action}`, targetType: 'job', targetId: jobId, description: reason || null, req }); } catch(e) {}
+    }
     res.json({ message: `Job ${action} successful.` });
   } catch (err) {
+    if (err?.code === 'job_state_changed') return res.status(409).json({ error: err.message });
     if (err instanceof AppError) return next(err);
     logger.error('forceJobAction error', { err });
     res.status(500).json({ error: 'Failed to perform job action.' });
@@ -3383,34 +3495,50 @@ exports.toggleAdminAccountStatus = async (req, res) => {
       return res.status(403).json({ error: 'Cannot change status of a super_admin account.' });
     }
     const newStatus = !rows[0].is_active;
-    const { rows: updateRows } = await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id', [newStatus, id, rows[0].is_active]);
-    if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'Admin status changed during update - concurrent modification detected.' });
+    try {
+      await withTransaction(db, async (client) => {
+        const result = await client.query(
+          'UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id',
+          [newStatus, id, rows[0].is_active],
+        );
+        if (!result.rows.length) {
+          const err = new Error('Admin status changed during update.');
+          err.code = 'admin_state_changed';
+          throw err;
+        }
+        if (!newStatus) {
+          await client.query(
+            `UPDATE delegation_grants SET status = 'revoked', revoked_at = NOW(),
+                    revoked_by = $2, revoke_reason = 'Grantor account disabled'
+              WHERE grantor_admin_id = $1 AND status = 'active'`,
+            [id, req.user.id]
+          );
+        }
+        // Invalidate all sessions for this admin in the same unit of work.
+        await client.query(
+          `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
+          [String(id)],
+        );
+        await logAdminAction({
+          client,
+          adminId: req.user.id,
+          action: newStatus ? 'admin_account_enabled' : 'admin_account_disabled',
+          targetType: 'user',
+          targetId: id,
+          description: reason || null,
+          before: { is_active: rows[0].is_active, email: rows[0].email },
+          after: { is_active: newStatus },
+          req,
+        });
+        return result;
+      }, newStatus ? 'admin_account_enable' : 'admin_account_disable');
+    } catch (err) {
+      if (err.code === 'admin_state_changed') {
+        return res.status(409).json({ error: 'Admin status changed during update - concurrent modification detected.' });
+      }
+      throw err;
     }
-    if (!newStatus) {
-      await db.query(
-        `UPDATE delegation_grants SET status = 'revoked', revoked_at = NOW(),
-                revoked_by = $2, revoke_reason = 'Grantor account disabled'
-          WHERE grantor_admin_id = $1 AND status = 'active'`,
-        [id, req.user.id]
-      );
-    }
-    // Invalidate all sessions for this admin and kick any live WebSocket connection
-    await db.query(
-      `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
-      [String(id)],
-    );
     if (!newStatus) socketService.broadcastToUser(id, 'force_logout', { reason: 'account_disabled' });
-    await logAdminAction({
-      adminId: req.user.id,
-      action: newStatus ? 'admin_account_enabled' : 'admin_account_disabled',
-      targetType: 'user',
-      targetId: id,
-      description: reason || null,
-      before: { is_active: rows[0].is_active, email: rows[0].email },
-      after: { is_active: newStatus },
-      req,
-    });
     res.json({ message: `Admin account ${newStatus ? 'enabled' : 'disabled'}.`, is_active: newStatus });
   } catch (err) {
     logger.error('toggleAdminAccountStatus error', { err });
@@ -3451,17 +3579,45 @@ exports.forceLogout = async (req, res) => {
     const { reason } = req.body;
     const { rows } = await db.query('SELECT id, email, role FROM users WHERE id = $1', [userId]);
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
-    await db.query(
-      `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
-      [String(userId)],
-    );
-    // Audit fix: also revoke all JWTs and disconnect sockets. Clearing
-    // sessions alone leaves valid tokens usable until they expire.
+
+    // Revoke JWTs before changing database state. A revocation-store outage
+    // must fail closed rather than report a force logout while bearer tokens
+    // remain valid.
     try {
       await tokenRevocationService.revokeAllUserTokens(String(userId));
     } catch (revokeErr) {
-      logger.warn('forceLogout: token revocation failed', { userId, error: revokeErr.message });
+      logger.error('forceLogout: token revocation failed', { userId, error: revokeErr.message });
+      return res.status(503).json({
+        error: 'Force logout is temporarily unavailable. Please retry.',
+        code: 'token_revocation_unavailable',
+        retryable: true,
+      });
     }
+
+    await withTransaction(db, async (client) => {
+      await client.query(
+        `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
+        [String(userId)],
+      );
+      // Passkeys are standalone login credentials and must be revoked too.
+      await client.query(
+        `UPDATE user_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
+        [String(userId)],
+      );
+      await client.query(
+        `UPDATE admin_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
+        [String(userId)],
+      );
+      await logAdminAction({
+        client,
+        adminId: req.user.id,
+        action: 'force_logout',
+        targetType: 'user',
+        targetId: userId,
+        description: reason || 'Sessions invalidated by super admin',
+        req,
+      });
+    }, 'admin_force_logout');
 
     // Session-scoped CSRF: force-logout terminates every session, so
     // it invalidates every CSRF key for the user (all session keys plus
@@ -3474,17 +3630,6 @@ exports.forceLogout = async (req, res) => {
       logger.warn('forceLogout: CSRF invalidation failed', { userId, error: csrfErr.message });
     }
 
-    // Audit fix (finding 5): passkeys are standalone login credentials that
-    // survive session/token revocation. A planted user or admin passkey must
-    // not survive a force logout.
-    await db.query(
-      `UPDATE user_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
-      [String(userId)],
-    );
-    await db.query(
-      `UPDATE admin_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
-      [String(userId)],
-    );
     try {
       const { io } = require('../bootstrap/realtime');
       if (io) {
@@ -3499,14 +3644,6 @@ exports.forceLogout = async (req, res) => {
     } catch (socketErr) {
       logger.warn('forceLogout: socket disconnect failed', { userId, error: socketErr.message });
     }
-    await logAdminAction({
-      adminId: req.user.id,
-      action: 'force_logout',
-      targetType: 'user',
-      targetId: userId,
-      description: reason || 'Sessions invalidated by super admin',
-      req,
-    });
     res.json({ message: `All sessions for ${rows[0].email} have been invalidated.` });
   } catch (err) {
     logger.error('forceLogout error', { err });
@@ -3766,68 +3903,69 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
 
     const bcrypt = require('bcrypt');
     const passwordHash = await bcrypt.hash(password, 12);
-    await db.query(
-      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
-      [passwordHash, userId],
-    );
+    await withTransaction(db, async (client) => {
+      const { rowCount } = await client.query(
+        'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+        [passwordHash, userId],
+      );
+      if (rowCount === 0) {
+        const err = new Error('User disappeared during password reset.');
+        err.code = 'user_state_changed';
+        throw err;
+      }
 
-    await db.query(
-      `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
-      [String(userId)],
-    );
+      await client.query(
+        `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
+        [String(userId)],
+      );
+      // A credential rotation revokes both passkey tables. Admin passkeys are
+      // a standalone admin login credential and must not survive the reset.
+      await client.query(
+        `UPDATE user_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
+        [String(userId)],
+      );
+      await client.query(
+        `UPDATE admin_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
+        [String(userId)],
+      );
+      // A planted TOTP must not survive a super-admin password reset.
+      await client.query(
+        `UPDATE users
+            SET totp_secret = NULL,
+                totp_enabled = false,
+                totp_verified_at = NULL,
+                backup_codes = NULL,
+                updated_at = NOW()
+          WHERE id = $1`,
+        [userId],
+      );
 
-    // Audit fix (finding 5): a credential rotation must revoke both passkey
-    // tables. Admin passkeys are a standalone admin login credential
-    // (passkeyController); a planted passkey must not survive a password
-    // reset by a super-admin.
-    await db.query(
-      `UPDATE user_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
-      [String(userId)],
-    );
-    await db.query(
-      `UPDATE admin_passkeys SET revoked_at = NOW() WHERE ${userIdEq('user_id')} AND revoked_at IS NULL`,
-      [String(userId)],
-    );
-
-    // Audit fix (finding 7): a planted TOTP (enrolled via stolen session)
-    // must not survive a super-admin password reset. Clear the secret, the
-    // enabled flag and the backup codes so the account holder re-enrolls 2FA.
-    await db.query(
-      `UPDATE users
-          SET totp_secret = NULL,
-              totp_enabled = false,
-              totp_verified_at = NULL,
-              backup_codes = NULL,
-              updated_at = NOW()
-        WHERE id = $1`,
-      [userId],
-    );
+      await logUserAction({
+        client,
+        adminId: req.user.id,
+        targetUserId: userId,
+        actionType: 'edit_password',
+        fieldName: 'password',
+        oldValue: '[REDACTED]',
+        newValue: '[HASHED]',
+        ipAddress: req.ip || null,
+        notes: targetIsAdmin ? `Admin password reset reason: ${trimmedReason}` : null,
+        impersonatedBy: req.impersonatedBy || null,
+      });
+      await logAdminAction({
+        client,
+        adminId: req.user.id,
+        action: 'super_admin_set_password',
+        targetType: 'user',
+        targetId: userId,
+        description: targetIsAdmin
+          ? `Password set by super admin for fellow admin ${rows[0].email} (${rows[0].role}). Reason: ${trimmedReason}`
+          : `Password set by super admin for ${rows[0].email}`,
+        req,
+      });
+    }, 'admin_password_reset');
 
     socketService.disconnectUserSockets(userId);
-
-    await logUserAction({
-      adminId: req.user.id,
-      targetUserId: userId,
-      actionType: 'edit_password',
-      fieldName: 'password',
-      oldValue: '[REDACTED]',
-      newValue: '[HASHED]',
-      ipAddress: req.ip || null,
-      // ADM-142: record why a fellow admin's credentials were rotated.
-      notes: targetIsAdmin ? `Admin password reset reason: ${trimmedReason}` : null,
-      impersonatedBy: req.impersonatedBy || null,
-    });
-
-    await logAdminAction({
-      adminId: req.user.id,
-      action: 'super_admin_set_password',
-      targetType: 'user',
-      targetId: userId,
-      description: targetIsAdmin
-        ? `Password set by super admin for fellow admin ${rows[0].email} (${rows[0].role}). Reason: ${trimmedReason}`
-        : `Password set by super admin for ${rows[0].email}`,
-      req,
-    });
 
     res.json({
       message:
@@ -4275,23 +4413,47 @@ exports.suspendUser = async (req, res) => {
     // account.
     await tokenRevocationService.revokeAllUserTokens(userId);
 
-    await db.query(
-      `UPDATE users
-       SET is_suspended = TRUE,
-           is_active    = FALSE,
-           suspended_until   = $1,
-           suspension_reason = $2,
-           suspended_by      = $3,
-           updated_at        = NOW()
-       WHERE id = $4`,
-      [suspendedUntil, reason.trim(), adminId, userId]
-    );
+    await withTransaction(db, async (client) => {
+      const { rowCount } = await client.query(
+        `UPDATE users
+         SET is_suspended = TRUE,
+             is_active    = FALSE,
+             suspended_until   = $1,
+             suspension_reason = $2,
+             suspended_reason  = $2,
+             suspended_by      = $3,
+             updated_at        = NOW()
+         WHERE id = $4`,
+        [suspendedUntil, reason.trim(), adminId, userId]
+      );
+      if (rowCount === 0) {
+        const err = new Error('User disappeared during suspension.');
+        err.code = 'user_state_changed';
+        throw err;
+      }
+
+      await logUserAction({
+        client,
+        adminId,
+        targetUserId: userId,
+        actionType: 'account_suspended',
+        notes: reason.trim(),
+        ipAddress: req.ip,
+        impersonatedBy: req.impersonatedBy || null,
+      });
+      await logAdminAction({
+        client,
+        adminId,
+        action: 'user_suspended',
+        targetType: 'user',
+        targetId: userId,
+        description: reason.trim(),
+        req,
+      });
+    }, 'admin_suspend_user');
 
     // Force-logout the user
     try { socketService.disconnectUserSockets(userId); } catch (_) {}
-
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_suspended', notes: reason.trim(), ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
-    await logAdminAction({ adminId, action: 'user_suspended', targetType: 'user', targetId: userId, description: reason.trim(), req });
 
     const untilText = suspendedUntil
       ? ` Your suspension is set to lift on ${suspendedUntil.toISOString()} (UTC), unless an administrator changes it.`
@@ -4333,18 +4495,40 @@ exports.restrictUser = async (req, res) => {
       return res.status(403).json({ error: 'Cannot restrict another admin account.' });
     }
 
-    await db.query(
-      `UPDATE users
-       SET is_restricted      = TRUE,
-           restriction_reason = $1,
-           restricted_by      = $2,
-           updated_at         = NOW()
-       WHERE id = $3`,
-      [reason.trim(), adminId, userId]
-    );
-
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_restricted', notes: reason.trim(), ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
-    await logAdminAction({ adminId, action: 'user_restricted', targetType: 'user', targetId: userId, description: reason.trim(), req });
+    await withTransaction(db, async (client) => {
+      const { rowCount } = await client.query(
+        `UPDATE users
+         SET is_restricted      = TRUE,
+             restriction_reason = $1,
+             restricted_by      = $2,
+             updated_at         = NOW()
+         WHERE id = $3`,
+        [reason.trim(), adminId, userId]
+      );
+      if (rowCount === 0) {
+        const err = new Error('User disappeared during restriction.');
+        err.code = 'user_state_changed';
+        throw err;
+      }
+      await logUserAction({
+        client,
+        adminId,
+        targetUserId: userId,
+        actionType: 'account_restricted',
+        notes: reason.trim(),
+        ipAddress: req.ip,
+        impersonatedBy: req.impersonatedBy || null,
+      });
+      await logAdminAction({
+        client,
+        adminId,
+        action: 'user_restricted',
+        targetType: 'user',
+        targetId: userId,
+        description: reason.trim(),
+        req,
+      });
+    }, 'admin_restrict_user');
 
     await notifyUserAccountEvent(userId, {
       type: 'account_restricted',
@@ -4378,11 +4562,34 @@ exports.warnUser = async (req, res) => {
       return res.status(403).json({ error: 'Cannot warn another admin account.' });
     }
 
-    const { rows } = await db.query(
-      `UPDATE users SET warning_count = COALESCE(warning_count, 0) + 1, updated_at = NOW()
-       WHERE id = $1 RETURNING warning_count, email, first_name`,
-      [userId]
-    );
+    const { rows } = await withTransaction(db, async (client) => {
+      const result = await client.query(
+        `UPDATE users SET warning_count = COALESCE(warning_count, 0) + 1, updated_at = NOW()
+         WHERE id = $1 RETURNING warning_count, email, first_name`,
+        [userId]
+      );
+      if (!result.rows.length) return result;
+
+      await logUserAction({
+        client,
+        adminId,
+        targetUserId: userId,
+        actionType: 'account_warned',
+        notes: reason.trim(),
+        ipAddress: req.ip,
+        impersonatedBy: req.impersonatedBy || null,
+      });
+      await logAdminAction({
+        client,
+        adminId,
+        action: 'user_warned',
+        targetType: 'user',
+        targetId: userId,
+        description: reason.trim(),
+        req,
+      });
+      return result;
+    }, 'admin_warn_user');
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
 
     // In-app + email (transactional) for official warnings
@@ -4393,9 +4600,6 @@ exports.warnUser = async (req, res) => {
       },
       action_url: '/support',
     });
-
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_warned', notes: reason.trim(), ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
-    await logAdminAction({ adminId, action: 'user_warned', targetType: 'user', targetId: userId, description: reason.trim(), req });
 
     res.json({ message: `Warning issued. User now has ${rows[0].warning_count} warning(s).`, warning_count: rows[0].warning_count });
   } catch (err) {
@@ -4414,31 +4618,48 @@ exports.reactivateUser = async (req, res) => {
     const { userId } = req.params;
     const { notes = '' } = req.body;
 
-    const { rows } = await db.query(
-      `UPDATE users
-       SET is_suspended      = FALSE,
-           suspended_until   = NULL,
-           suspension_reason = NULL,
-           suspended_by      = NULL,
-           is_restricted     = FALSE,
-           restriction_reason= NULL,
-           restricted_by     = NULL,
-           is_active         = TRUE,
-           is_banned         = FALSE,
-           ban_reason        = NULL,
-           updated_at        = NOW()
-       WHERE id::text = $1
-       RETURNING id, email, first_name`,
-      [String(userId)]
-    );
+    const { rows } = await withTransaction(db, async (client) => {
+      const result = await client.query(
+        `UPDATE users
+         SET is_suspended      = FALSE,
+             suspended_until   = NULL,
+             suspension_reason = NULL,
+             suspended_reason  = NULL,
+             suspended_by      = NULL,
+             is_restricted     = FALSE,
+             restriction_reason= NULL,
+             restricted_by     = NULL,
+             is_active         = TRUE,
+             is_banned         = FALSE,
+             ban_reason        = NULL,
+             updated_at        = NOW()
+         WHERE id::text = $1
+         RETURNING id, email, first_name`,
+        [String(userId)]
+      );
+      if (!result.rows.length) return result;
+      await reinstateAfterPendingAdminDeletion(userId, client);
+      await logUserAction({
+        client,
+        adminId,
+        targetUserId: userId,
+        actionType: 'account_reactivated',
+        notes: notes.trim() || null,
+        ipAddress: req.ip,
+        impersonatedBy: req.impersonatedBy || null,
+      });
+      await logAdminAction({
+        client,
+        adminId,
+        action: 'user_reactivated',
+        targetType: 'user',
+        targetId: userId,
+        description: notes.trim() || 'Account reactivated by admin',
+        req,
+      });
+      return result;
+    }, 'admin_reactivate_user');
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
-
-    try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) {
-      logger.warn('reactivateUser: reinstate failed', { userId, err: e.message });
-    }
-
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_reactivated', notes: notes.trim() || null, ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
-    await logAdminAction({ adminId, action: 'user_reactivated', targetType: 'user', targetId: userId, description: notes.trim() || 'Account reactivated by admin', req });
 
     // ADM-109: reactivation must not resurrect pre-ban tokens. Revoke so the
     // user starts with a clean session on next login.
@@ -4504,30 +4725,37 @@ exports.updateUserProfile = async (req, res) => {
     setClauses.push(`updated_at = NOW()`);
     const vals = [...Object.values(updates), userId];
 
-    await db.query(
-      `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${vals.length}`,
-      vals
-    );
-
-    // Log each changed field
-    for (const field of Object.keys(updates)) {
-      const oldVal = String(before[0][field] ?? '');
-      const newVal = String(updates[field] ?? '');
-      if (oldVal !== newVal) {
-        await logUserAction({
-          adminId,
-          targetUserId: userId,
-          actionType:  'edit_profile_field',
-          fieldName:    field,
-          oldValue:     field === 'email' ? '[REDACTED]' : oldVal,
-          newValue:     field === 'email' ? '[REDACTED]' : newVal,
-          ipAddress:    req.ip,
-          impersonatedBy: req.impersonatedBy || null,
-        });
+    await withTransaction(db, async (client) => {
+      const result = await client.query(
+        `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${vals.length} RETURNING id`,
+        vals
+      );
+      if (!result.rows.length) {
+        const err = new Error('User disappeared during profile update.');
+        err.code = 'user_state_changed';
+        throw err;
       }
-    }
 
-    await logAdminAction({ adminId, action: 'user_profile_updated', targetType: 'user', targetId: userId, req });
+      // Log every changed field in the same transaction as the profile write.
+      for (const field of Object.keys(updates)) {
+        const oldVal = String(before[0][field] ?? '');
+        const newVal = String(updates[field] ?? '');
+        if (oldVal !== newVal) {
+          await logUserAction({
+            client,
+            adminId,
+            targetUserId: userId,
+            actionType:  'edit_profile_field',
+            fieldName:    field,
+            oldValue:     field === 'email' ? '[REDACTED]' : oldVal,
+            newValue:     field === 'email' ? '[REDACTED]' : newVal,
+            ipAddress:    req.ip,
+            impersonatedBy: req.impersonatedBy || null,
+          });
+        }
+      }
+      await logAdminAction({ client, adminId, action: 'user_profile_updated', targetType: 'user', targetId: userId, req });
+    }, 'admin_update_user_profile');
 
     res.json({ message: 'Profile updated successfully.', updated: Object.keys(updates) });
   } catch (err) {

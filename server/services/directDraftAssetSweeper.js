@@ -53,16 +53,18 @@ function ttlMs() {
 
 // Every draft-asset key still referenced by a submitted quote request.
 // Attachments are stored as JSONB arrays under metadata.photoAttachments
-// (or the legacy snake_case key); only draft-prefix keys are collected.
+// (or legacy photo_attachments/photos keys); only draft-prefix keys are collected.
 async function referencedDraftKeys() {
   const { rows } = await pool.query(
     `SELECT DISTINCT elem->>'key' AS key
        FROM quote_requests qr,
             LATERAL jsonb_array_elements(
               CASE WHEN jsonb_typeof(COALESCE(qr.metadata->'photoAttachments',
-                                             qr.metadata->'photo_attachments')) = 'array'
+                                             qr.metadata->'photo_attachments',
+                                             qr.metadata->'photos')) = 'array'
                    THEN COALESCE(qr.metadata->'photoAttachments',
-                                qr.metadata->'photo_attachments')
+                                qr.metadata->'photo_attachments',
+                                qr.metadata->'photos')
                    ELSE '[]'::jsonb
               END
             ) AS elem

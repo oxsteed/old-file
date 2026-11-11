@@ -57,18 +57,49 @@ async function createTip({ jobId, user, amountMinor, idempotencyKey, isImpersona
     const rail = railOf(job);
     if (rail === 'offline') throw new AppError('Tip your helper directly for jobs paid offline', 409, 'tip_offline_rail');
     const { rows: existing } = await client.query('SELECT * FROM job_tips WHERE idempotency_key = $1', [idempotencyKey]);
-    if (existing[0]) return { replay: existing[0], job, rail };
-    const jobValue = Number(job.job_value_cents) || 0;
-    if (jobValue > 0 && amount > jobValue * MAX_TIP_SHARE) throw new AppError('The tip is larger than allowed', 400, 'validation_failed', { amount_minor: 'tip_too_large' });
-    const currency = railPolicy.settlementCurrency({ job });
-    const policy = await railPolicy.getCountryPolicy(client, railPolicy.jobCountry(job, null));
-    const cost = railPolicy.tipProcessingCost({ amountMinor: amount, rail, policy });
-    const { rows: inserted } = await client.query(
-      `INSERT INTO job_tips (job_id, customer_id, helper_id, rail, amount_minor, currency, processing_cost_minor, helper_net_minor, idempotency_key)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [job.id, user.id, job.assigned_helper_id, rail, amount, currency, cost, amount - cost, idempotencyKey]
-    );
-    const tip = inserted[0];
+    const resumable = existing[0]
+      && rail === 'stripe'
+      && ['pending', 'failed'].includes(String(existing[0].status))
+      && !existing[0].stripe_payment_intent_id;
+    if (existing[0] && !resumable) return { replay: existing[0], job, rail };
+    let stripeAccountId = null;
+    if (rail === 'stripe') {
+      const { rows: connect } = await client.query(
+        'SELECT stripe_account_id FROM connect_accounts WHERE user_id = $1',
+        [job.assigned_helper_id]
+      );
+      stripeAccountId = connect[0]?.stripe_account_id || null;
+      if (!stripeAccountId) {
+        throw new AppError('Your helper cannot receive card tips yet', 409, 'helper_account_not_ready');
+      }
+    }
+    let tip;
+    let currency;
+    let cost;
+    if (resumable) {
+      const { rows: resumed } = await client.query(
+        `UPDATE job_tips
+            SET status = 'pending', updated_at = NOW()
+          WHERE id = $1 AND stripe_payment_intent_id IS NULL
+          RETURNING *`,
+        [existing[0].id]
+      );
+      tip = resumed[0];
+      currency = tip.currency;
+      cost = Number(tip.processing_cost_minor);
+    } else {
+      const jobValue = Number(job.job_value_cents) || 0;
+      if (jobValue > 0 && amount > jobValue * MAX_TIP_SHARE) throw new AppError('The tip is larger than allowed', 400, 'validation_failed', { amount_minor: 'tip_too_large' });
+      currency = railPolicy.settlementCurrency({ job });
+      const policy = await railPolicy.getCountryPolicy(client, railPolicy.jobCountry(job, null));
+      cost = railPolicy.tipProcessingCost({ amountMinor: amount, rail, policy });
+      const { rows: inserted } = await client.query(
+        `INSERT INTO job_tips (job_id, customer_id, helper_id, rail, amount_minor, currency, processing_cost_minor, helper_net_minor, idempotency_key)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [job.id, user.id, job.assigned_helper_id, rail, amount, currency, cost, amount - cost, idempotencyKey]
+      );
+      tip = inserted[0];
+    }
     if (rail === 'credit') {
       const spend = require('../creditSpendAdapter');
       const hold = await spend.spendWithCredit({
@@ -86,7 +117,7 @@ async function createTip({ jobId, user, amountMinor, idempotencyKey, isImpersona
       );
       return { tip: done[0], job, rail, settled: true };
     }
-    return { tip, job, rail, currency, cost };
+    return { tip, job, rail, currency, cost, stripeAccountId };
   }, 'job_tip_create');
 
   if (prepared.replay) return viewTip(prepared.replay);
@@ -96,10 +127,7 @@ async function createTip({ jobId, user, amountMinor, idempotencyKey, isImpersona
   }
 
   // Stripe rail.
-  const { tip, job, currency, cost } = prepared;
-  const { rows: connect } = await pool.query('SELECT stripe_account_id FROM connect_accounts WHERE user_id = $1', [job.assigned_helper_id]);
-  const account = connect[0]?.stripe_account_id;
-  if (!account) throw new AppError('Your helper cannot receive card tips yet', 409, 'helper_account_not_ready');
+  const { tip, job, currency, cost, stripeAccountId: account } = prepared;
   const { rows: payRows } = await pool.query(
     `SELECT charge_model FROM payments WHERE job_id = $1 ORDER BY id DESC LIMIT 1`, [job.id]
   );
@@ -111,9 +139,50 @@ async function createTip({ jobId, user, amountMinor, idempotencyKey, isImpersona
   });
   built.params.capture_method = 'automatic';
   if (model === 'direct') delete built.params.application_fee_amount;
-  const intent = await stripeClient().paymentIntents.create(built.params, { ...built.options, idempotencyKey: `job-tip:${tip.id}` });
-  await pool.query('UPDATE job_tips SET stripe_payment_intent_id = $2, updated_at = NOW() WHERE id = $1', [tip.id, intent.id]);
-  return { ...viewTip({ ...tip, stripe_payment_intent_id: intent.id }), client_secret: intent.client_secret, stripe_account_id: model === 'direct' ? account : null, publishable_key: process.env.STRIPE_PUBLISHABLE_KEY || null };
+  let createdStripe = null;
+  let createdIntent = null;
+  let intentCanceled = false;
+  try {
+    createdStripe = stripeClient();
+    createdIntent = await createdStripe.paymentIntents.create(built.params, { ...built.options, idempotencyKey: `job-tip:${tip.id}` });
+    const providerId = typeof createdIntent?.id === 'string' ? createdIntent.id.trim() : '';
+    const clientSecret = typeof createdIntent?.client_secret === 'string' ? createdIntent.client_secret.trim() : '';
+    if (!providerId || !clientSecret) {
+      if (providerId && typeof createdStripe?.paymentIntents?.cancel === 'function') {
+        await createdStripe.paymentIntents.cancel(providerId).catch((cancelError) => logger.warn('tips.cancel_unusable_intent', {
+          tipId: String(tip.id),
+          paymentIntentId: providerId,
+          error: cancelError.message,
+        }));
+        intentCanceled = true;
+      }
+      throw new AppError('Stripe returned an unusable tip payment session', 502, 'tip_payment_intent_unavailable');
+    }
+    const { rows: linked } = await pool.query(
+      `UPDATE job_tips
+          SET stripe_payment_intent_id = $2, updated_at = NOW()
+        WHERE id = $1 AND stripe_payment_intent_id IS NULL
+        RETURNING id`,
+      [tip.id, providerId]
+    );
+    if (!linked[0]) throw new Error('Tip was not linked to its payment intent');
+    return { ...viewTip({ ...tip, stripe_payment_intent_id: providerId }), client_secret: clientSecret, stripe_account_id: model === 'direct' ? account : null, publishable_key: process.env.STRIPE_PUBLISHABLE_KEY || null };
+  } catch (err) {
+    if (!intentCanceled && createdIntent?.id && typeof createdStripe?.paymentIntents?.cancel === 'function') {
+      await createdStripe.paymentIntents.cancel(createdIntent.id).catch((cancelError) => logger.warn('tips.cancel_orphaned_intent', {
+        tipId: String(tip.id),
+        paymentIntentId: createdIntent.id,
+        error: cancelError.message,
+      }));
+    }
+    await pool.query(
+      `UPDATE job_tips
+          SET status = 'failed', updated_at = NOW()
+        WHERE id = $1 AND status = 'pending' AND stripe_payment_intent_id IS NULL`,
+      [tip.id]
+    ).catch((markErr) => logger.warn('tips.mark_failed', { tipId: String(tip.id), error: markErr.message }));
+    throw err;
+  }
 }
 
 function viewTip(tip) {

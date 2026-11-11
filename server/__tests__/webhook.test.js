@@ -328,13 +328,15 @@ describe('checkout.session.completed', () => {
       data: { object: {
         mode: 'payment',
         payment_status: 'paid',
+        amount_total: 1000,
+        currency: 'usd',
         payment_intent: 'pi_food_123',
         metadata: { food_order_id: '88' },
       }},
     };
 
     mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // beginWebhookEvent
+      .mockResolvedValueOnce({ rows: [{ payment_status: 'requires_payment', total_cents: 1000, currency_code: 'USD' }] }) // locked order snapshot
       .mockResolvedValueOnce({
         rows: [{
           id: 88,
@@ -343,6 +345,8 @@ describe('checkout.session.completed', () => {
           queue_number: 9,
           status: 'received',
           payment_status: 'requires_payment',
+          total_cents: 1000,
+          currency_code: 'USD',
         }],
       })
       .mockResolvedValueOnce({ rows: [] }); // mark processed
@@ -415,9 +419,20 @@ describe('payment_intent.amount_capturable_updated', () => {
   test('marks payment authorized', async () => {
     const event = {
       type: 'payment_intent.amount_capturable_updated',
-      data: { object: { id: 'pi_test', metadata: { job_id: '10' } } },
+      data: { object: {
+        id: 'pi_test',
+        amount: 8000,
+        amount_capturable: 8000,
+        currency: 'usd',
+        metadata: { job_id: '10' },
+      } },
     };
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // UPDATE payments
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SELECT id, payer_id, amount, currency, capture_amount_cents, metadata/.test(sql)) {
+        return { rows: [{ id: 1, payer_id: 'user-1', amount: '80.00', currency: 'usd', capture_amount_cents: null, metadata: {} }] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
 
     const res = await sendEvent(buildApp(), event);
     expect(res.status).toBe(200);
@@ -425,6 +440,32 @@ describe('payment_intent.amount_capturable_updated', () => {
       expect.stringContaining("status = 'authorized'"),
       expect.arrayContaining(['pi_test'])
     );
+  });
+
+  test('records an authorization mismatch without marking payment authorized', async () => {
+    const event = {
+      type: 'payment_intent.amount_capturable_updated',
+      data: { object: {
+        id: 'pi_authorization_mismatch',
+        amount: 7900,
+        amount_capturable: 7900,
+        currency: 'usd',
+        metadata: { job_id: '10' },
+      } },
+    };
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SELECT id, payer_id, amount, currency, capture_amount_cents, metadata/.test(sql)) {
+        return { rows: [{ id: 1, payer_id: 'user-1', amount: '80.00', currency: 'usd', capture_amount_cents: null, metadata: {} }] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /SET status = 'authorized'/.test(sql))).toBe(false);
+    const exceptionCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO reconciliation_exceptions/.test(sql));
+    expect(exceptionCall).toBeDefined();
+    expect(exceptionCall[1][0]).toBe('payment_authorization');
   });
 });
 
@@ -512,12 +553,15 @@ describe('payment_intent.succeeded', () => {
       type: 'payment_intent.succeeded',
       data: { object: {
         id: 'pi_food_999',
+          amount: 1000,
+          amount_received: 1000,
+          currency: 'usd',
         metadata: { food_order_id: '88' },
       } },
     };
 
     mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // beginWebhookEvent
+      .mockResolvedValueOnce({ rows: [{ payment_status: 'requires_payment', total_cents: 1000, currency_code: 'USD' }] }) // locked order snapshot
       .mockResolvedValueOnce({
         rows: [{
           id: 88,
@@ -526,6 +570,8 @@ describe('payment_intent.succeeded', () => {
           queue_number: 9,
           status: 'received',
           payment_status: 'requires_payment',
+          total_cents: 1000,
+          currency_code: 'USD',
         }],
       })
       .mockResolvedValueOnce({ rows: [] }); // mark processed
@@ -533,6 +579,50 @@ describe('payment_intent.succeeded', () => {
     const res = await sendEvent(buildApp(), event);
     expect(res.status).toBe(200);
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(true);
+  });
+
+  test('marks a marketplace order paid only when the stored transaction matches', async () => {
+    const event = {
+      type: 'payment_intent.succeeded',
+      data: { object: {
+        id: 'pi_market_999', amount: 2400, amount_received: 2400, currency: 'usd',
+        metadata: { orderId: '91', userId: 'customer-91' },
+      } },
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{
+        id: 91, status: 'pending', customer_id: 'customer-91', cart_id: 'cart-91',
+        transaction_id: 12, payment_intent_id: 'pi_market_999', amount_cents: 2400,
+        transaction_currency: 'usd',
+      }] })
+      .mockResolvedValueOnce({ rows: [{ id: 91, status: 'paid', cart_id: 'cart-91' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE marketplace_orders/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE marketplace_transactions/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /DELETE FROM shopping_cart_items/.test(sql))).toBe(true);
+  });
+
+  test('does not mark a marketplace order paid when Stripe evidence mismatches', async () => {
+    const event = {
+      type: 'payment_intent.succeeded',
+      data: { object: {
+        id: 'pi_market_bad', amount: 2399, amount_received: 2399, currency: 'eur',
+        metadata: { orderId: '91', userId: 'customer-91' },
+      } },
+    };
+    mockQuery.mockResolvedValueOnce({ rows: [{
+      id: 91, status: 'pending', customer_id: 'customer-91', cart_id: 'cart-91',
+      transaction_id: 12, payment_intent_id: 'pi_market_bad', amount_cents: 2400,
+      transaction_currency: 'usd',
+    }] });
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(500);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE marketplace_orders/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE marketplace_transactions/.test(sql))).toBe(false);
   });
 });
 
@@ -588,6 +678,38 @@ describe('payment_intent.payment_failed', () => {
       expect.stringContaining("status = 'failed'"),
       expect.arrayContaining(['pi_test'])
     );
+  });
+
+  test('does not overwrite a terminal payment on a late failure event', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/UPDATE payments SET status = 'failed'/.test(String(sql))) return { rows: [] };
+      return { rows: [] };
+    });
+    const res = await sendEvent(buildApp(), {
+      type: 'payment_intent.payment_failed',
+      data: { object: { id: 'pi_terminal', metadata: { job_id: '10' } } },
+    });
+    expect(res.status).toBe(200);
+    const update = mockQuery.mock.calls.find(([sql]) => /UPDATE payments SET status = 'failed'/.test(String(sql)));
+    expect(update[0]).toContain("status IN ('pending', 'authorized')");
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE jobs SET escrow_status = 'none'/.test(String(sql)))).toBe(false);
+  });
+});
+
+describe('payment_intent.canceled', () => {
+  test('does not overwrite a terminal payment on a late cancel event', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/UPDATE payments SET status = 'canceled'/.test(String(sql))) return { rows: [] };
+      return { rows: [] };
+    });
+    const res = await sendEvent(buildApp(), {
+      type: 'payment_intent.canceled',
+      data: { object: { id: 'pi_terminal_cancel', metadata: { job_id: '10' } } },
+    });
+    expect(res.status).toBe(200);
+    const update = mockQuery.mock.calls.find(([sql]) => /UPDATE payments SET status = 'canceled'/.test(String(sql)));
+    expect(update[0]).toContain("status IN ('pending', 'authorized')");
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE jobs SET escrow_status = 'none'/.test(String(sql)))).toBe(false);
   });
 });
 
@@ -661,6 +783,38 @@ describe('charge.refunded', () => {
 
     const res = await sendEvent(buildApp(), event);
     expect(res.status).toBe(200);
+  });
+
+  test('verifies POS refund before changing the food-order payment state', async () => {
+    const event = {
+      type: 'charge.refunded',
+      data: { object: {
+        id: 'ch_pos_mismatch',
+        payment_intent: 'pi_pos_mismatch',
+        amount: 1000,
+        amount_refunded: 1000,
+        currency: 'eur',
+        metadata: { food_order_id: '88' },
+      } },
+    };
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SELECT p\.\*, fo\.currency_code/.test(sql)) {
+        return { rows: [{
+          id: 901,
+          food_order_id: 88,
+          amount_cents: 1000,
+          provider_payment_intent_id: 'pi_pos_mismatch',
+          provider_account_id: null,
+          order_currency: 'USD',
+        }] };
+      }
+      if (/UPDATE webhook_events SET status = 'failed'/.test(sql)) return { rows: [] };
+      return { rows: [{ id: 1 }] };
+    });
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(500);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
   });
 });
 

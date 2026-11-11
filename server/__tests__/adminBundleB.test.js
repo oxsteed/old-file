@@ -295,10 +295,12 @@ describe('ADM-142: setUserPasswordBySuperAdmin target-role guard', () => {
     expect(revokeAllUserTokens).toHaveBeenCalledWith(TARGET);
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
       action: 'super_admin_set_password',
+      client: expect.any(Object),
       description: expect.stringContaining('Compromised credentials reported by the admin'),
     }));
     expect(logUserAction).toHaveBeenCalledWith(expect.objectContaining({
       actionType: 'edit_password',
+      client: expect.any(Object),
       notes: expect.stringContaining('Compromised credentials reported by the admin'),
     }));
   });
@@ -318,5 +320,18 @@ describe('ADM-142: setUserPasswordBySuperAdmin target-role guard', () => {
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
       description: 'Password set by super admin for user@example.com',
     }));
+  });
+
+  test('verifyUser keeps helper profile and platform identity in one transaction', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: TARGET, role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [{ id: TARGET }], rowCount: 1 });
+    const res = mockRes();
+    await superCtrl.verifyUser(
+      { params: { userId: TARGET }, body: { field: 'is_identity_verified' }, user: { id: CALLER }, ip: '127.0.0.1' },
+      res,
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/confirmed/i) }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ action: 'user_verified', client: expect.any(Object) }));
   });
 });

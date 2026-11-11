@@ -1,4 +1,8 @@
-const VORTEX_CLIENT_ENABLED = import.meta.env?.VITE_VORTEX_ENABLED === 'true';
+// The server defaults VORTEX_ENABLED on. Keep the client fail-open when the
+// optional boot visibility request is unavailable so a missing build-time
+// variable cannot hide a live API surface.
+const VORTEX_BUILD_FLAG = String(import.meta.env?.VITE_VORTEX_ENABLED ?? '').trim().toLowerCase();
+const VORTEX_CLIENT_ENABLED = !['0', 'false', 'no', 'n', 'off'].includes(VORTEX_BUILD_FLAG);
 
 // Central launch-scope policy.
 //
@@ -94,14 +98,8 @@ export const LAUNCH_DEFAULTS = Object.freeze({
   businessHubRoleMenu: true,
   businessHubRoleMenuWidgets: true,
   businessHubSpecializedTemplates: true,
-  // Review P3-943: TRAP, unchanged by the all-launch flip. The Vortex
-  // client keys still mirror the build-time VITE_VORTEX_ENABLED, NOT a
-  // literal true: if the client build omits VITE_VORTEX_ENABLED=true,
-  // these read false until main.jsx fetches /api/launch-visibility at
-  // boot and overrides them with the server default (now true). A
-  // failed or timed-out boot fetch therefore still hides Vortex UI even
-  // though the server APIs are launched. Set VITE_VORTEX_ENABLED=true
-  // at build time to close that gap; the server default alone does not.
+  // Vortex mirrors the server default and can still be explicitly disabled
+  // with VITE_VORTEX_ENABLED=false for a deliberately disabled build.
   businessHubVortexAccess: VORTEX_CLIENT_ENABLED,
   // Weekly self-audit 2026-11-04 item 1: consulting and franchise are real
   // launch keys, not new flags. The server gates their APIs

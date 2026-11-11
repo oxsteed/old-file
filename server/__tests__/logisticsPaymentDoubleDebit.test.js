@@ -300,6 +300,33 @@ describe('idempotent replay returns the persisted client secret', () => {
     expect(row.stripe_client_secret).toBe('secret_test_123');
   });
 
+  test('active Stripe replay fails closed when its persisted secret is missing', async () => {
+    const { po, quote } = seedPoFlow();
+    fakeDb.seedAttempt(store, {
+      buyer_user_id: BUYER,
+      subject_type: 'purchase_order',
+      purchase_order_id: po.id,
+      quote_id: quote.id,
+      installment: 'deposit',
+      amount_cents: 3000,
+      method: 'stripe',
+      status: 'processing',
+      idempotency_key: KEY_A,
+      stripe_payment_intent_id: 'pi_missing_secret',
+      stripe_client_secret: null,
+    });
+    await expect(paymentsService.createPaymentAttempt(BUYER, {
+      idempotencyKey: KEY_A,
+      subjectType: 'purchase_order',
+      purchaseOrderId: po.id,
+      installment: 'deposit',
+      method: 'stripe',
+    })).rejects.toMatchObject({ code: 'processor_response_invalid' });
+    const row = store.attempts.find((a) => a.idempotency_key === KEY_A);
+    expect(row.status).toBe('failed');
+    expect(row.failure_code).toBe('processor_response_invalid');
+  });
+
   test('credit replay returns no client secret', async () => {
     // Seed the credit attempt directly: the replay path converges on the
     // existing row before the (separately owned) credit-execution branch.

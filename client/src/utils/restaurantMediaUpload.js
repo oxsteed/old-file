@@ -132,6 +132,13 @@ export const uploadMediaWithProgress = ({ url, formData, headers = {}, onProgres
       }
       if (xhr.status === 201 || xhr.status === 202) {
         const item = body?.media || body?.item || body;
+        if (!item || typeof item !== 'object' || item.id == null || String(item.id).trim() === '') {
+          const err = new Error('upload response did not include a media item');
+          err.code = 'upload_invalid_response';
+          err.response = { data: body, status: xhr.status };
+          reject(err);
+          return;
+        }
         resolve({ status: xhr.status, outcome: uploadOutcome(xhr.status), item });
         return;
       }

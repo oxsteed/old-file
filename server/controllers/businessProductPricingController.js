@@ -20,6 +20,7 @@ const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
+const pricingEngine = require('../services/pricingEngine');
 
 // ── List pricing rules ────────────────────────────────────────────────────────
 async function listPricingRules(req, res, next) {
@@ -212,47 +213,29 @@ async function calculatePrice(req, res, next) {
     const { productId, quantity = 1, customerId } = req.body;
 
     if (!productId) throw new AppError('Product ID required', 400, 'validation_failed');
-
-    const productResult = await pool.query(
-      'SELECT price_cents, category FROM business_products WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL',
-      [productId, businessId]
-    );
-    if (!productResult.rows.length) throw new AppError('Product not found', 404, 'not_found');
-
-    const basePrice = productResult.rows[0].price_cents / 100;
-    const category  = productResult.rows[0].category;
-
-    const rulesResult = await pool.query(
-      `SELECT id, rule_type, conditions_json, pricing_adjustment
-       FROM product_pricing_rules
-       WHERE business_id = $1 AND is_active = true
-         AND (applies_to = 'all'
-              OR (applies_to = 'product'  AND applies_to_id = $2)
-              OR (applies_to = 'category' AND applies_to_id = $3))
-         AND (start_date IS NULL OR start_date <= now())
-         AND (end_date   IS NULL OR end_date   >= now())
-       ORDER BY priority ASC`,
-      [businessId, productId, category]
-    );
-
-    let finalPrice = basePrice;
-    const appliedRules = [];
-
-    for (const rule of rulesResult.rows) {
-      const adj = rule.pricing_adjustment;
-      const cond = rule.conditions_json || {};
-
-      // Volume check
-      if (rule.rule_type === 'volume' && cond.minQuantity && quantity < cond.minQuantity) continue;
-
-      if (adj.type === 'percentage')  finalPrice *= (1 - adj.value / 100);
-      else if (adj.type === 'fixed')  finalPrice  = Math.max(0, finalPrice - adj.value);
-      else if (adj.type === 'multiplier') finalPrice *= adj.value;
-
-      appliedRules.push({ ruleId: rule.id, type: rule.rule_type, adjustment: adj });
+    const numericQuantity = Number(quantity);
+    if (!Number.isSafeInteger(numericQuantity) || numericQuantity < 1) {
+      throw new AppError('Quantity must be a positive integer', 400, 'validation_failed');
     }
 
-    finalPrice = Math.max(0, finalPrice);
+    const result = await pricingEngine.calculatePrice({
+      businessId,
+      kind: 'product',
+      targetId: productId,
+      quantity: numericQuantity,
+      customerId: customerId || null,
+    });
+    if (result.error === 'product not found') {
+      throw new AppError('Product not found', 404, 'not_found');
+    }
+
+    const basePrice = result.basePriceCents / 100;
+    const finalPrice = result.adjustedPriceCents / 100;
+    const appliedRules = result.applied.map(rule => ({
+      ruleId: rule.ruleId,
+      type: rule.ruleType,
+      adjustment: { kind: rule.kind, value: rule.value },
+    }));
 
     res.json({
       success: true,
@@ -260,8 +243,8 @@ async function calculatePrice(req, res, next) {
         productId,
         basePrice,
         finalPrice:  parseFloat(finalPrice.toFixed(2)),
-        totalPrice:  parseFloat((finalPrice * quantity).toFixed(2)),
-        quantity,
+        totalPrice:  parseFloat((finalPrice * numericQuantity).toFixed(2)),
+        quantity: numericQuantity,
         savings:     parseFloat((basePrice - finalPrice).toFixed(2)),
         appliedRules,
       },

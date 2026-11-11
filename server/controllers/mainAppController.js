@@ -5,7 +5,7 @@ const { verifyPaymentRequestBusiness } = require('../services/paymentRequestBusi
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const slotEngine = require('../services/bookingSlotEngine');
 const mainAppContracts = require('../models/mainAppContractsModel');
-const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 const { isDiditVerificationFresh } = require('../utils/diditGate');
 
@@ -1968,6 +1968,7 @@ exports.createPaymentRequest = async (req, res, next) => {
 };
 
 exports.uploadPaymentProof = async (req, res, next) => {
+  let uploadedKey = null;
   try {
     const requestId = Number.parseInt(String(req.params.requestId), 10);
     if (!Number.isFinite(requestId) || requestId <= 0) {
@@ -2004,13 +2005,13 @@ exports.uploadPaymentProof = async (req, res, next) => {
       });
     }
 
-    const key = await uploadFile(
+    uploadedKey = await uploadFile(
       req.file.buffer,
       paymentProofFolder(requestId, req.user.id),
       req.file.originalname || `payment-proof-${requestId}.jpg`,
       req.file.mimetype
     );
-    if (!key) {
+    if (!uploadedKey) {
       return res.status(503).json({
         error: {
           code: 'payment_proof_storage_unavailable',
@@ -2018,18 +2019,20 @@ exports.uploadPaymentProof = async (req, res, next) => {
         },
       });
     }
-    const signedUrl = await getSignedDownloadUrl(key, 900);
+    const signedUrl = await getSignedDownloadUrl(uploadedKey, 900);
+    if (!signedUrl) throw new Error('Signed payment proof URL unavailable');
     return res.status(201).json({
       attachment: {
-        url: signedUrl || '',
-        key,
+        url: signedUrl,
+        key: uploadedKey,
         name: req.file.originalname || null,
         type: req.file.mimetype,
         sizeBytes: req.file.size,
       },
-      downloadExpiresInSeconds: signedUrl ? 900 : 0,
+      downloadExpiresInSeconds: 900,
     });
   } catch (err) {
+    if (uploadedKey) await deleteFile(uploadedKey).catch(() => {});
     next(err);
   }
 };

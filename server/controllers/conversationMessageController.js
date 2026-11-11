@@ -214,6 +214,7 @@ async function addAttachment(req, res) {
       return sendValidationError(res, { file: 'The file could not be stored' });
     }
     const normalizedAttachmentUrl = await getSignedDownloadUrl(uploadedKey, 7 * 24 * 60 * 60);
+    if (!normalizedAttachmentUrl) throw new Error('Signed support attachment URL unavailable');
 
     const storedAttachmentName = normalizedAttachmentName || 'Attachment';
     const result = await withTransaction(pool, async (client) => {

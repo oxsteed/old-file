@@ -22,6 +22,10 @@ const MAX_CACHE_ENTRIES = 5000;
 const segmentCache = new Map(); // key: `${userId}|${businessId}` -> { value, exp }
 const demandCache  = new Map(); // key: `${kind}|${businessId}|${targetId}|${dayBucket}` -> { value, exp }
 
+function isMissingSchemaError(err) {
+  return err?.code === '42P01' || err?.code === '42703';
+}
+
 function _cacheGet(map, key) {
   const e = map.get(key);
   if (!e) return null;
@@ -56,30 +60,44 @@ async function getCustomerSegment({ userId, businessId }) {
     // 1) Check customer_business_profile first (richer schema; the
     // customer_loyalty_segments table referenced here previously was never
     // created by any migration, so this read always missed).
-    const loyalty = await pool.query(
-      `SELECT loyalty_tier FROM customer_business_profile
-        WHERE business_id = $1 AND customer_id = $2
-        LIMIT 1`,
-      [businessId, userId]
-    ).catch(() => ({ rows: [] }));
+    let loyalty;
+    try {
+      loyalty = await pool.query(
+        `SELECT loyalty_tier FROM customer_business_profile
+          WHERE business_id = $1 AND customer_id = $2
+          LIMIT 1`,
+        [businessId, userId]
+      );
+    } catch (err) {
+      // Older installations may not have the optional loyalty table yet. A
+      // real database outage must not turn an existing customer into `new`.
+      if (!isMissingSchemaError(err)) throw err;
+      loyalty = { rows: [] };
+    }
     if (loyalty.rows[0] && loyalty.rows[0].loyalty_tier) {
       return _cachePut(segmentCache, key, `loyalty_tier_${loyalty.rows[0].loyalty_tier}`);
     }
 
     // 2) Count prior interactions across appointments + orders
-    const counts = await pool.query(
-      `SELECT
-         (SELECT COUNT(*)::int FROM business_appointments
-            WHERE business_id = $1 AND customer_id = $2) AS appt_count,
-         (SELECT COUNT(*)::int FROM marketplace_orders mo
-           WHERE mo.customer_id = $2
-             AND EXISTS (
-               SELECT 1 FROM marketplace_order_items oi
-                JOIN marketplace_products mp ON mp.id = oi.product_id
-               WHERE oi.order_id = mo.id AND mp.source_business_id = $1
-             )) AS order_count`,
-      [businessId, userId]
-    ).catch(() => ({ rows: [{ appt_count: 0, order_count: 0 }] }));
+    let counts;
+    try {
+      counts = await pool.query(
+        `SELECT
+           (SELECT COUNT(*)::int FROM business_appointments
+              WHERE business_id = $1 AND customer_id = $2) AS appt_count,
+           (SELECT COUNT(*)::int FROM marketplace_orders mo
+             WHERE mo.customer_id = $2
+               AND EXISTS (
+                 SELECT 1 FROM marketplace_order_items oi
+                  JOIN marketplace_products mp ON mp.id = oi.product_id
+                 WHERE oi.order_id = mo.id AND mp.source_business_id = $1
+               )) AS order_count`,
+        [businessId, userId]
+      );
+    } catch (err) {
+      if (!isMissingSchemaError(err)) throw err;
+      counts = { rows: [{ appt_count: 0, order_count: 0 }] };
+    }
 
     const total = (counts.rows[0].appt_count || 0) + (counts.rows[0].order_count || 0);
     let segment;
@@ -89,7 +107,10 @@ async function getCustomerSegment({ userId, businessId }) {
     return _cachePut(segmentCache, key, segment);
   } catch (err) {
     logger.warn('getCustomerSegment failed', { userId, businessId, err: err.message });
-    return 'new';
+    // `new` is an authoritative result, not a safe error fallback: callers
+    // may apply new-customer discounts. Unknown keeps segment-specific rules
+    // from matching while the underlying data source is unavailable.
+    return 'unknown';
   }
 }
 

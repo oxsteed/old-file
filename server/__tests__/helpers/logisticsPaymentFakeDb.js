@@ -398,6 +398,10 @@ function installRoutes(mockQuery, store) {
       const a = store.attempts.find((r) => r.id === Number(params[0]));
       return { rows: a ? [copy(a)] : [] };
     }],
+    [/from logistics_payment_attempts\s+where id::text = \$1/i, (sql, params) => {
+      const a = store.attempts.find((r) => String(r.id) === String(params[0]));
+      return { rows: a ? [copy(a)] : [] };
+    }],
     [/select \* from logistics_payment_attempts\s+where subject_type=\$1/i,(sql,p)=>({rows:store.attempts.filter(a=>a.subject_type===p[0]&&(a.purchase_order_id??null)===(p[1]??null)&&(a.participant_id??null)===(p[2]??null)&&(!p[3]||a.installment===p[3])&&['pending','processing'].includes(a.status)).map(copy)})],
     [/select method from logistics_payment_attempts/i,(sql,p)=>({rows:store.attempts.filter(a=>a.subject_type===p[0]&&(a.purchase_order_id??null)===(p[1]??null)&&(a.participant_id??null)===(p[2]??null)&&a.installment===p[3]&&a.status==='succeeded').map(copy)})],
     // Double-debit guard: already-succeeded sibling on (subject, installment).

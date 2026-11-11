@@ -56,6 +56,7 @@ test('lookup code email uses the branded template with a text part', async () =>
   expect(typeof args.text).toBe('string');
   expect(args.text.length).toBeGreaterThan(50);
   expect(args.text).toMatch(/verification code/i);
+  expect(mockQuery.mock.calls.some(([sql]) => sql.includes('pg_advisory_xact_lock'))).toBe(true);
 });
 
 test('email delivery failure answers 503 instead of silently dropping the code', async () => {
@@ -68,4 +69,22 @@ test('email delivery failure answers 503 instead of silently dropping the code',
     .send({ referenceId: 'DQ-ABC123', zipCode: '12345' });
   expect(res.status).toBe(503);
   expect(res.body.code).toBe('email_send_failed');
+});
+
+test('cooldown lookup failure blocks code issuance instead of bypassing the rate limit', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.includes('FROM quote_requests')) return { rows: [QUOTE_ROW] };
+    if (sql.includes('SELECT id FROM direct_quote_lookup_challenges')) {
+      throw new Error('database connection lost');
+    }
+    return { rows: [] };
+  });
+
+  const res = await request(app())
+    .post('/public/lookup/send-code')
+    .send({ referenceId: 'DQ-ABC123', zipCode: '12345' });
+
+  expect(res.status).toBe(500);
+  expect(emailUtil.sendEmailOrThrow).not.toHaveBeenCalled();
+  expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO direct_quote_lookup_challenges'))).toBe(false);
 });
