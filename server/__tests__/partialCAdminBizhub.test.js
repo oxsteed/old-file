@@ -157,6 +157,20 @@ describe('business moderation audit fail-closed', () => {
     expect(logAdminAction.mock.calls[0][0].client).toBeDefined();
   });
 
+  test('toggleBusiness returns 503 without committing the state when the audit write fails', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: '5', business_name: 'B', is_active: true }] }) // SELECT
+      .mockResolvedValueOnce({ rows: [{ id: '5' }], rowCount: 1 }) // UPDATE
+      .mockResolvedValueOnce({ rows: [{ id: '51' }], rowCount: 1 }); // restaurant tombstone
+    logAdminAction.mockRejectedValueOnce(new Error('audit down'));
+    const req = { params: { id: '5' }, body: { reason: 'policy' }, user: { id: 'admin1' }, ip: '1.1.1.1' };
+    const res = mockRes();
+    await businessModerationController.toggleBusiness(req, res);
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'audit_unavailable' }));
+    expect(logAdminAction.mock.calls[0][0].client).toBeDefined();
+  });
+
   test('updateAdminNotes returns 503 when the audit write fails', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: '5', admin_notes: null }] });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: '5' }] }); // UPDATE ... RETURNING
@@ -166,6 +180,7 @@ describe('business moderation audit fail-closed', () => {
     await businessModerationController.updateAdminNotes(req, res);
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'audit_unavailable' }));
+    expect(logAdminAction.mock.calls[0][0].client).toBeDefined();
   });
 
   test('deleteBusiness returns 503 when the audit write fails', async () => {
@@ -177,6 +192,7 @@ describe('business moderation audit fail-closed', () => {
     await businessModerationController.deleteBusiness(req, res);
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'audit_unavailable' }));
+    expect(logAdminAction.mock.calls[0][0].client).toBeDefined();
   });
 
   test('listBusinesses supports the flagged review queue', async () => {

@@ -99,38 +99,55 @@ exports.toggleBusiness = async (req, res) => {
     const newActive = !rows[0].is_active;
     const oldActive = rows[0].is_active;
 
-    // Update with safeguard to prevent race conditions - only update if current state matches
-    const updateResult = await db.query(
-      'UPDATE businesses SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id',
-      [newActive, id, oldActive]
-    );
-
-    if (!updateResult.rows.length) {
-      return res.status(409).json({ error: 'Business state changed during update. Please try again.' });
-    }
-
-    // Track D (finding 20): deactivating a business must not leave its
-    // restaurants live while deleting suspends them. Deactivation now
-    // suspends the business's active/paused restaurants through the same
-    // tombstone path delete uses. Reactivation deliberately does NOT
-    // restore them: a suspended restaurant stays suspended until its owner
-    // explicitly re-activates it, so nothing silently re-lists.
+    // Keep the business state, restaurant tombstones, and compliance audit in
+    // one transaction. Returning 503 after only the business update committed
+    // leaves callers with a false retry signal and an untracked state change.
     let restaurantsSuspended = [];
-    if (!newActive) {
-      restaurantsSuspended = await suspendRestaurantsForBusiness(db, id);
-    }
-
     try {
-      await logAdminAction({
-        adminId: req.user.id,
-        action: newActive ? 'business_reactivated' : 'business_deactivated',
-        targetType: 'business', targetId: String(id),
-        before: { is_active: rows[0].is_active }, after: { is_active: newActive, restaurantsSuspended: restaurantsSuspended.length },
-        description: reason || null, req,
-      });
-    } catch (e) {
-      logger.error('business moderation audit failed', { action: 'business_reactivated_or_deactivated', businessId: id, error: e.message });
-      return res.status(503).json({ error: 'Business updated, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+      await withTransaction(db, async (client) => {
+        const updateResult = await client.query(
+          'UPDATE businesses SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id',
+          [newActive, id, oldActive]
+        );
+
+        if ((typeof updateResult.rowCount === 'number' && updateResult.rowCount === 0)
+          || (typeof updateResult.rowCount !== 'number' && !updateResult.rows?.length)) {
+          const err = new Error('Business state changed during update.');
+          err.code = 'business_state_changed';
+          throw err;
+        }
+
+        // Deactivation suspends active/paused restaurants through the same
+        // tombstone path used by deletion. Reactivation deliberately does not
+        // restore them, so nothing silently re-lists.
+        if (!newActive) {
+          restaurantsSuspended = await suspendRestaurantsForBusiness(client, id);
+        }
+
+        try {
+          await logAdminAction({
+            client,
+            adminId: req.user.id,
+            action: newActive ? 'business_reactivated' : 'business_deactivated',
+            targetType: 'business', targetId: String(id),
+            before: { is_active: rows[0].is_active }, after: { is_active: newActive, restaurantsSuspended: restaurantsSuspended.length },
+            description: reason || null, req,
+          });
+        } catch (auditError) {
+          const err = new Error('Business moderation audit failed.');
+          err.code = 'audit_unavailable';
+          err.cause = auditError;
+          throw err;
+        }
+      }, newActive ? 'business_reactivate' : 'business_deactivate');
+    } catch (err) {
+      if (err.code === 'business_state_changed') {
+        return res.status(409).json({ error: 'Business state changed during update. Please try again.' });
+      }
+      if (err.code === 'audit_unavailable') {
+        return res.status(503).json({ error: 'Business was not updated because the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+      }
+      throw err;
     }
     res.json({
       message: `Business ${newActive ? 'reactivated' : 'deactivated'}.`,
@@ -579,29 +596,46 @@ exports.updateAdminNotes = async (req, res) => {
     const oldNotes = rows[0].admin_notes || null;
     const newNotes = notes && notes.trim() ? notes.trim() : null;
 
-    // Update with safeguard
-    const updateResult = await db.query(
-      'UPDATE businesses SET admin_notes = $1, updated_at = NOW() WHERE id = $2 RETURNING id',
-      [newNotes, id]
-    );
-
-    if (!updateResult.rows.length) {
-      return res.status(409).json({ error: 'Business was deleted during update. Please try again.' });
-    }
-
     try {
-      await logAdminAction({
-        adminId: req.user.id,
-        action: 'business_admin_notes_updated',
-        targetType: 'business',
-        targetId: String(id),
-        before: { admin_notes: oldNotes },
-        after: { admin_notes: newNotes },
-        req,
-      });
-    } catch (e) {
-      logger.error('business moderation audit failed', { action: 'business_admin_notes_updated', businessId: id, error: e.message });
-      return res.status(503).json({ error: 'Notes updated, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+      await withTransaction(db, async (client) => {
+        const updateResult = await client.query(
+          'UPDATE businesses SET admin_notes = $1, updated_at = NOW() WHERE id = $2 RETURNING id',
+          [newNotes, id]
+        );
+
+        if ((typeof updateResult.rowCount === 'number' && updateResult.rowCount === 0)
+          || (typeof updateResult.rowCount !== 'number' && !updateResult.rows?.length)) {
+          const err = new Error('Business was deleted during update.');
+          err.code = 'business_state_changed';
+          throw err;
+        }
+
+        try {
+          await logAdminAction({
+            client,
+            adminId: req.user.id,
+            action: 'business_admin_notes_updated',
+            targetType: 'business',
+            targetId: String(id),
+            before: { admin_notes: oldNotes },
+            after: { admin_notes: newNotes },
+            req,
+          });
+        } catch (auditError) {
+          const err = new Error('Business moderation audit failed.');
+          err.code = 'audit_unavailable';
+          err.cause = auditError;
+          throw err;
+        }
+      }, 'business_admin_notes_update');
+    } catch (err) {
+      if (err.code === 'business_state_changed') {
+        return res.status(409).json({ error: 'Business was deleted during update. Please try again.' });
+      }
+      if (err.code === 'audit_unavailable') {
+        return res.status(503).json({ error: 'Notes were not updated because the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+      }
+      throw err;
     }
 
     res.json({ message: 'Admin notes updated.', admin_notes: newNotes });
@@ -625,43 +659,53 @@ exports.deleteBusiness = async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Business not found.' });
 
-    // Soft delete - mark as inactive and set deleted_at
-    const deleteResult = await db.query(
-      'UPDATE businesses SET is_active = FALSE, deleted_at = NOW(), updated_at = NOW() WHERE id = $1 RETURNING id',
-      [id]
-    );
-
-    if (!deleteResult.rows.length) {
-      return res.status(409).json({ error: 'Business was already deleted.' });
-    }
-
-    // Ledger-safe tombstone completion: suspend the business's restaurants
-    // so managed/direct paths keyed on restaurant_id stop treating them as
-    // usable. Public reads already hide tombstoned businesses; suspension is
-    // defense-in-depth and never touches ledger rows. Best-effort: the
-    // business tombstone above is the primary guarantee.
     let suspendedRestaurants = [];
     try {
-      const { suspendRestaurantsForBusiness } = require('../services/restaurantTombstoneService');
-      suspendedRestaurants = await suspendRestaurantsForBusiness(db, id);
-    } catch (suspendErr) {
-      logger.error('business suspension failed', { action: 'business_restaurant_suspend', businessId: id, error: suspendErr.message });
-    }
+      await withTransaction(db, async (client) => {
+        const deleteResult = await client.query(
+          'UPDATE businesses SET is_active = FALSE, deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id',
+          [id]
+        );
 
-    try {
-      await logAdminAction({
-        adminId: req.user.id,
-        action: 'business_deleted',
-        targetType: 'business',
-        targetId: String(id),
-        before: { is_active: rows[0].is_active },
-        after: { is_active: false, deleted_at: new Date().toISOString() },
-        details: reason ? { reason: String(reason).slice(0, 500) } : undefined,
-        req,
-      });
-    } catch (e) {
-      logger.error('business moderation audit failed', { action: 'business_deleted', businessId: id, error: e.message });
-      return res.status(503).json({ error: 'Business deleted, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+        if ((typeof deleteResult.rowCount === 'number' && deleteResult.rowCount === 0)
+          || (typeof deleteResult.rowCount !== 'number' && !deleteResult.rows?.length)) {
+          const err = new Error('Business was already deleted.');
+          err.code = 'business_state_changed';
+          throw err;
+        }
+
+        // Keep the restaurant tombstones in the same transaction as the
+        // business delete and audit row. A partial tombstone is another
+        // connectivity gap for restaurant-id keyed managed paths.
+        suspendedRestaurants = await suspendRestaurantsForBusiness(client, id);
+
+        try {
+          await logAdminAction({
+            client,
+            adminId: req.user.id,
+            action: 'business_deleted',
+            targetType: 'business',
+            targetId: String(id),
+            before: { is_active: rows[0].is_active },
+            after: { is_active: false, deleted_at: new Date().toISOString() },
+            details: reason ? { reason: String(reason).slice(0, 500) } : undefined,
+            req,
+          });
+        } catch (auditError) {
+          const err = new Error('Business deletion audit failed.');
+          err.code = 'audit_unavailable';
+          err.cause = auditError;
+          throw err;
+        }
+      }, 'business_delete');
+    } catch (err) {
+      if (err.code === 'business_state_changed') {
+        return res.status(409).json({ error: 'Business was already deleted.' });
+      }
+      if (err.code === 'audit_unavailable') {
+        return res.status(503).json({ error: 'Business was not deleted because the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+      }
+      throw err;
     }
 
     res.json({ message: 'Business deleted (soft delete applied).', suspendedRestaurants: suspendedRestaurants.length });
