@@ -899,7 +899,7 @@ exports.generateManualInvoice = async (req, res) => {
 
     const invoiceNumber = `CONS-${Date.now()}`;
     const { rows: linkedUsers } = await db.query(
-      'SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) AND is_active = TRUE LIMIT 1',
+      'SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) AND is_active = TRUE AND deleted_at IS NULL LIMIT 1',
       [client_email]
     );
     const linkedUserId = linkedUsers[0]?.id || null;
