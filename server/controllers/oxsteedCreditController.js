@@ -264,7 +264,7 @@ async function convertMyCredit(req, res, next) {
     const result = await convertCustomerCredit({
       customerId: req.user.id,
       quoteId: req.body?.quoteId || req.body?.quote_id,
-      sourceAmountMinorUnits: req.body?.sourceAmountMinorUnits || req.body?.source_amount_minor_units,
+      sourceAmountMinorUnits: req.body?.sourceAmountMinorUnits ?? req.body?.source_amount_minor_units,
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
@@ -2547,7 +2547,7 @@ async function recordAdminPartnerFunding(req, res, next) {
     const result = await requestMoneyMovement(req, 'credit_partner_funding', {
       partnerId,
       currencyCode: req.body?.currencyCode || req.body?.currency_code,
-      amountCents: req.body?.amountCents || req.body?.amount_cents,
+      amountCents: req.body?.amountCents ?? req.body?.amount_cents,
       direction: req.body?.direction,
       externalReference: req.body?.externalReference || req.body?.external_reference,
       reason: req.body?.reason,
@@ -2596,8 +2596,8 @@ async function createAdminCurrencyQuote(req, res, next) {
       payload = {
         sourceCurrencyCode: req.body?.sourceCurrencyCode || req.body?.source_currency_code,
         targetCurrencyCode: req.body?.targetCurrencyCode || req.body?.target_currency_code,
-        sourceAmountMinorUnits: req.body?.sourceAmountMinorUnits || req.body?.source_amount_minor_units,
-        targetAmountMinorUnits: req.body?.targetAmountMinorUnits || req.body?.target_amount_minor_units,
+        sourceAmountMinorUnits: req.body?.sourceAmountMinorUnits ?? req.body?.source_amount_minor_units,
+        targetAmountMinorUnits: req.body?.targetAmountMinorUnits ?? req.body?.target_amount_minor_units,
         feeAmountMinorUnits: req.body?.feeAmountMinorUnits ?? req.body?.fee_amount_minor_units ?? 0,
         rateNumerator: req.body?.rateNumerator || req.body?.rate_numerator,
         rateDenominator: req.body?.rateDenominator || req.body?.rate_denominator,
