@@ -141,13 +141,16 @@ const LAUNCH_KEY_ENV = Object.freeze({
   vortexWorkspaceEntry: ['VORTEX_ENABLED', true],
 });
 
-// Read at call time so /api/launch-visibility always reflects the running
-// environment. The API gate below snapshots the same values at boot instead:
-// env changes need a redeploy either way.
+// Read at call time for launches that are informational-only. For launch keys
+// enforced by launchGate, return the same boot snapshot the middleware uses so
+// the client cannot be told that an API is enabled when the API still returns
+// 404. Environment changes for those gated keys require a redeploy.
 function getServerLaunchVisibility() {
   const out = {};
   for (const [key, [envKey, defaultValue]] of Object.entries(LAUNCH_KEY_ENV)) {
-    out[key] = envFlagEnabled(envKey, defaultValue);
+    out[key] = Object.hasOwn(LAUNCH_VISIBILITY, key)
+      ? LAUNCH_VISIBILITY[key]
+      : envFlagEnabled(envKey, defaultValue);
   }
   return out;
 }
