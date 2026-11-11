@@ -20,6 +20,8 @@ test('listMyGrants exposes valid delegated scopes to grant-aware admin clients',
 
   expect(mockQuery).toHaveBeenCalledTimes(2);
   expect(mockQuery.mock.calls[1][0]).toContain('delegation_grants');
+  expect(mockQuery.mock.calls[1][0]).toMatch(/unnest\(d\.scopes\)/);
+  expect(mockQuery.mock.calls[1][0]).toMatch(/grantor_scope\.permissions \? delegated_scope\.scope/);
   expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
     scopes: expect.arrayContaining(['view_search_logs', 'manage_support']),
     grants: expect.arrayContaining([expect.objectContaining({ grant_source: 'delegated' })]),
