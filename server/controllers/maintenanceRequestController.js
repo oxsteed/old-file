@@ -90,8 +90,19 @@ async function getBusinessOrThrow(businessId, requireActive = true) {
             b.is_active, b.active_template, hp.active_template AS helper_active_template,
             b.is_listed, b.is_hidden_by_admin
      FROM businesses b
+     JOIN users owner ON owner.id = b.user_id
      LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
-     WHERE b.id = $1`,
+     WHERE b.id = $1
+       AND b.deleted_at IS NULL
+       AND b.is_active = TRUE
+       AND b.is_listed = TRUE
+       AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+       AND b.setup_status = 'active'
+       AND b.business_kind = 'service'
+       AND owner.deleted_at IS NULL
+       AND owner.is_active = TRUE
+       AND owner.email_verified = TRUE
+       AND owner.onboarding_completed = TRUE`,
     [businessId]
   );
   const business = rows[0];
