@@ -163,7 +163,9 @@ exports.createGrant = async (req, res) => {
 
     // Verify grantee is an admin (not super_admin, not regular user)
     const { rows: granteeRows } = await db.query(
-      `SELECT id, role, first_name, last_name, email FROM users WHERE id = $1 AND is_active = true`,
+      `SELECT id, role, first_name, last_name, email
+         FROM users
+        WHERE id = $1 AND is_active = true AND deleted_at IS NULL`,
       [grantee_id]
     );
     if (!granteeRows.length) {
