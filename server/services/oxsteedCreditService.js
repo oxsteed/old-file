@@ -873,7 +873,7 @@ async function ensureAccount(client, { accountType, customerId = null, partnerId
          SELECT $1, $2, $3, $4, $5
           WHERE EXISTS (
             SELECT 1 FROM users
-             WHERE id = $2 AND role IN ${walletOwnerRoles} AND is_active = TRUE
+             WHERE id = $2 AND role IN ${walletOwnerRoles} AND is_active = TRUE AND deleted_at IS NULL
           )
          ON CONFLICT DO NOTHING`
     : `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, partner_id, restaurant_id, currency_code)
@@ -897,7 +897,7 @@ async function ensureAccount(client, { accountType, customerId = null, partnerId
         ? partnerId
         : accountType;
   const ownerJoin = accountType === 'customer_wallet'
-    ? `JOIN users owner ON owner.id = a.customer_id AND owner.role IN ${walletOwnerRoles} AND owner.is_active = TRUE`
+    ? `JOIN users owner ON owner.id = a.customer_id AND owner.role IN ${walletOwnerRoles} AND owner.is_active = TRUE AND owner.deleted_at IS NULL`
     : '';
   const ownerScopedTypes = ['customer_wallet', 'partner_payable', 'partner_reserve', 'restaurant_sub_bank'];
   const currencyPlaceholder = ownerScopedTypes.includes(accountType) ? '$3' : '$2';
@@ -925,7 +925,7 @@ async function findCustomerAccount(client, customerId, currencyCode = CREDIT_CUR
   const { rows } = await client.query(
     `SELECT a.*
        FROM oxsteed_credit_accounts a
-       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE
+       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE AND owner.deleted_at IS NULL
       WHERE a.account_type = 'customer_wallet' AND a.customer_id = $1 AND a.currency_code = $2
       ${forUpdate ? 'FOR UPDATE' : ''}`,
     [customerId, currency]
@@ -1627,7 +1627,7 @@ async function findSpendAgreement(client, { customerId, partnerId, participantId
        LEFT JOIN oxsteed_credit_customer_entitlements e
          ON e.agreement_id = a.id AND e.customer_id = $1
       WHERE p.id = $2
-        AND EXISTS (SELECT 1 FROM users customer WHERE customer.id = $1 AND customer.role = 'customer' AND customer.is_active = TRUE)
+        AND EXISTS (SELECT 1 FROM users customer WHERE customer.id = $1 AND customer.role = 'customer' AND customer.is_active = TRUE AND customer.deleted_at IS NULL)
         AND p.status = 'active'
         AND (p.restaurant_id IS NULL OR fr.status = 'active')
         AND a.status = 'active'
@@ -1909,7 +1909,7 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
       WHERE p.status = 'active' AND fr.status = 'active'
         AND EXISTS (
           SELECT 1 FROM users customer
-           WHERE customer.id = $1 AND customer.role = 'customer' AND customer.is_active = TRUE
+           WHERE customer.id = $1 AND customer.role = 'customer' AND customer.is_active = TRUE AND customer.deleted_at IS NULL
         )
         AND EXISTS (
           SELECT 1 FROM feature_flags ff
@@ -1988,6 +1988,7 @@ async function getCustomerCreditAccount(customerId, currencyCode = CREDIT_CURREN
        JOIN users owner ON owner.id = a.customer_id
         AND owner.role = 'customer'
         AND owner.is_active = TRUE
+        AND owner.deleted_at IS NULL
       WHERE a.account_type = 'customer_wallet'
         AND a.customer_id = $1
         AND a.currency_code = $2`,
@@ -2076,7 +2077,7 @@ async function listCustomerCreditAccounts(customerId) {
   const { rows } = await pool.query(
     `SELECT a.*
        FROM oxsteed_credit_accounts a
-       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE
+       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE AND owner.deleted_at IS NULL
       WHERE a.account_type = 'customer_wallet' AND a.customer_id = $1
       ORDER BY currency_code ASC`,
     [customerId]
@@ -2389,7 +2390,7 @@ async function transferCreditInTransaction(client, { senderCustomerId, recipient
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-transfer:${customerLockKeys.join(':')}`]);
   const recipientRoles = allowCreatorRecipient ? "('customer', 'helper', 'helper_pro', 'broker')" : "('customer')";
   const { rows: recipientRows } = await client.query(
-    `SELECT id FROM users WHERE id = $1 AND role IN ${recipientRoles} AND is_active = TRUE LIMIT 1`,
+    `SELECT id FROM users WHERE id = $1 AND role IN ${recipientRoles} AND is_active = TRUE AND deleted_at IS NULL LIMIT 1`,
     [recipientCustomerId]
   );
   if (!recipientRows[0]) throw new AppError('Recipient customer was not found', 404, 'credit_recipient_not_found');
@@ -3015,7 +3016,7 @@ async function listCustomerCreditHolds(customerId, { currencyCode = CREDIT_CURRE
         AND a.account_type = 'customer_wallet'
         AND a.customer_id = $1
         AND a.currency_code = $4
-       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE
+       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE AND owner.deleted_at IS NULL
        LEFT JOIN oxsteed_credit_partners p ON p.id = h.partner_id
        LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
       WHERE h.customer_id = $1
@@ -3461,7 +3462,7 @@ async function listCustomerCreditTransactions(customerId, { limit = 25, offset =
             fr.display_name AS restaurant_name
        FROM oxsteed_credit_transactions t
        JOIN oxsteed_credit_accounts a ON (a.id = t.debit_account_id OR a.id = t.credit_account_id)
-       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE
+       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE AND owner.deleted_at IS NULL
        LEFT JOIN oxsteed_credit_accounts da ON da.id = t.debit_account_id
        LEFT JOIN oxsteed_credit_accounts pa ON pa.id = t.credit_account_id
        LEFT JOIN oxsteed_credit_partners p
@@ -3537,7 +3538,7 @@ async function getCustomerCreditStatement(customerId, { from, to, limit = 100, o
     `WITH customer_account AS (
        SELECT a.id, a.currency_code
          FROM oxsteed_credit_accounts a
-         JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer'${requireActiveOwner ? ' AND owner.is_active = TRUE' : ''}
+         JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.deleted_at IS NULL${requireActiveOwner ? ' AND owner.is_active = TRUE' : ''}
         WHERE a.account_type = 'customer_wallet' AND a.customer_id = $1 AND a.currency_code = $6
         LIMIT 1
      ), filtered_transactions AS (
@@ -3840,7 +3841,7 @@ async function getCustomerCreditTransaction(customerId, transactionId, currencyC
             fr.display_name AS restaurant_name
        FROM oxsteed_credit_transactions t
        JOIN oxsteed_credit_accounts a ON (a.id = t.debit_account_id OR a.id = t.credit_account_id)
-       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE
+       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE AND owner.deleted_at IS NULL
        LEFT JOIN oxsteed_credit_accounts da ON da.id = t.debit_account_id
        LEFT JOIN oxsteed_credit_accounts ca ON ca.id = t.credit_account_id
        LEFT JOIN oxsteed_credit_partners p ON p.id = CASE WHEN t.debit_account_id = a.id THEN ca.partner_id ELSE da.partner_id END
