@@ -2313,7 +2313,7 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
     );
     if (!agreementRows[0]) throw new AppError('Credit agreement not found', 404, 'credit_agreement_not_found');
     if (normalizedStatus === 'active') assertEntitlementAgreementCanBeActive(agreementRows[0]);
-    const { rows: userRows } = await client.query(`SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE`, [customerId]);
+    const { rows: userRows } = await client.query(`SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE AND deleted_at IS NULL`, [customerId]);
     if (!userRows[0]) throw new AppError('Customer not found', 404, 'customer_not_found');
     requireAdministrativeActor(actorUserId, 'An identified administrator is required to manage customer Credit access', 'credit_entitlement_actor_required');
     const serializedMetadata = JSON.stringify(normalizedMetadata);
@@ -2530,7 +2530,7 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
       );
     }
     const { rows: userRows } = await client.query(
-      `SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE`,
+      `SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE AND deleted_at IS NULL`,
       [customerId]
     );
     if (!userRows[0]) throw new AppError('Customer not found', 404, 'customer_not_found');

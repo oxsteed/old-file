@@ -652,7 +652,7 @@ async function lookupTransferRecipient(req, res, next) {
     const customerId = parseUuid(req.params.customerId, 'customerId');
     const { rows: [row] } = await pool.query(
       `SELECT id, first_name, last_name FROM users
-        WHERE id = $1 AND role = 'customer' AND is_active = TRUE LIMIT 1`,
+        WHERE id = $1 AND role = 'customer' AND is_active = TRUE AND deleted_at IS NULL LIMIT 1`,
       [customerId],
     );
     if (!row) {
