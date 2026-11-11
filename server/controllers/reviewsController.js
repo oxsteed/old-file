@@ -1,6 +1,11 @@
 const pool = require('../db');
 const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const { resolvePublicBusinessOwner } = require('../services/businessPublicOwner');
+
+async function requirePublicBusiness(businessId) {
+  return resolvePublicBusinessOwner(businessId);
+}
 
 // ── Submit a review for a completed business lead ─────────────────────────────
 exports.submitReview = async (req, res) => {
@@ -100,6 +105,9 @@ exports.submitReview = async (req, res) => {
 exports.getBusinessReviews = async (req, res) => {
   try {
     const { businessId } = req.params;
+    if (!await requirePublicBusiness(businessId)) {
+      return sendError(res, 404, 'Business not found', 'not_found');
+    }
     const { page = 1, limit = 10, sortBy = 'recent' } = req.query;
 
     // Validate pagination
@@ -177,6 +185,9 @@ exports.getBusinessReviews = async (req, res) => {
 exports.getReviewStats = async (req, res) => {
   try {
     const { businessId } = req.params;
+    if (!await requirePublicBusiness(businessId)) {
+      return sendError(res, 404, 'Business not found', 'not_found');
+    }
 
     const statsRes = await pool.query(
       `SELECT
