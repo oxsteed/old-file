@@ -66,8 +66,21 @@ describe('P2-8-F21 saved helpers hide unlisted and admin-hidden helpers', () => 
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await lifeDashboard.getSavedHelpers(req, r);
     const q = mockQuery.mock.calls[0][0];
+    expect(q).toMatch(/u\.is_active = TRUE/);
+    expect(q).toMatch(/u\.deleted_at IS NULL/);
     expect(q).toMatch(/COALESCE\(hp\.is_listed, TRUE\) = TRUE/);
     expect(q).toMatch(/COALESCE\(hp\.is_hidden_by_admin, FALSE\) = FALSE/);
+  });
+
+  test('saveHelper rejects an inactive or soft-deleted helper before inserting', async () => {
+    const req = { user: { id: 'user-1' }, body: { helper_id: 'helper-9', note: 'Preferred' } };
+    const r = res();
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await lifeDashboard.saveHelper(req, r);
+    expect(mockQuery.mock.calls[0][0]).toContain('is_active = TRUE');
+    expect(mockQuery.mock.calls[0][0]).toContain('deleted_at IS NULL');
+    expect(r.status).toHaveBeenCalledWith(404);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO saved_helpers/.test(sql))).toBe(false);
   });
 });
 

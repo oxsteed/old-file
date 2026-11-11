@@ -436,14 +436,16 @@ describe('Life direct CRUD endpoints', () => {
   });
 
   test('saves a helper from the iOS Helper profile Save Helper button', async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{
-        id: 301,
-        user_id: 'user-123',
-        helper_id: 'helper-456',
-        note: null,
-      }],
-    });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 301,
+          user_id: 'user-123',
+          helper_id: 'helper-456',
+          note: null,
+        }],
+      });
 
     const res = await request(buildApp())
       .post('/api/life/saved-helpers')
@@ -451,7 +453,8 @@ describe('Life direct CRUD endpoints', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.helper_id).toBe('helper-456');
-    expect(mockQuery.mock.calls[0][1]).toEqual(['user-123', 'helper-456', null]);
+    const insertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO saved_helpers/.test(sql));
+    expect(insertCall[1]).toEqual(['user-123', 'helper-456', null]);
   });
 
   test('blocks saving yourself as a helper', async () => {
