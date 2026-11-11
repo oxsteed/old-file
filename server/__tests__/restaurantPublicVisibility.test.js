@@ -95,6 +95,9 @@ describe('public restaurant visibility', () => {
     expect(res.status).toBe(404);
     const sql = findPublicationGuardSql();
     expectPublicPublicationGuard(sql);
+    expect(sql).toMatch(/JOIN users owner ON owner\.id = b\.user_id/);
+    expect(sql).toMatch(/owner\.email_verified = TRUE/);
+    expect(sql).toMatch(/owner\.onboarding_completed = TRUE/);
   });
 
   test.each([

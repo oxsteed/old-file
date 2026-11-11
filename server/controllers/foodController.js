@@ -2621,6 +2621,7 @@ async function respondRestaurantProfile(req, res, next, adminPreview) {
               rca.charges_enabled AS business_stripe_charges_enabled
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
          LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
         WHERE fr.id = $1
           AND b.deleted_at IS NULL
@@ -2630,7 +2631,11 @@ async function respondRestaurantProfile(req, res, next, adminPreview) {
           AND b.is_active = TRUE
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
-          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'`}`,
+          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE`}`,
       [restaurantId, selectedLocationId]
     );
     const restaurant = restaurants[0];
