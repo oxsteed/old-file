@@ -100,7 +100,7 @@ exports.getTerritoryStats = async (req, res) => {
           COUNT(*) FILTER (WHERE is_identity_verified OR is_background_checked) AS verified,
           ROUND(AVG(avg_rating) FILTER (WHERE total_reviews >= 3), 2)     AS avg_rating
         FROM helper_profiles hp
-        JOIN users u ON u.id = hp.user_id
+        JOIN users u ON u.id = hp.user_id AND u.is_active = TRUE AND u.deleted_at IS NULL
         WHERE ($1::text IS NULL OR LOWER(COALESCE(hp.service_area_city,'')) = LOWER($1)
                OR LOWER(COALESCE(u.city,'')) = LOWER($1)
                OR LOWER(COALESCE(hp.location_city,'')) = LOWER($1))
@@ -246,7 +246,7 @@ exports.getTerritoryHelpers = async (req, res) => {
         COALESCE(hp.service_area_city, u.city, hp.location_city) AS city,
         COALESCE(hp.service_area_state, u.state)                  AS state
       FROM helper_profiles hp
-      JOIN users u ON u.id = hp.user_id
+      JOIN users u ON u.id = hp.user_id AND u.is_active = TRUE AND u.deleted_at IS NULL
       WHERE ($1::text IS NULL
              OR LOWER(COALESCE(hp.service_area_city,''))  = LOWER($1)
              OR LOWER(COALESCE(u.city,''))               = LOWER($1)
