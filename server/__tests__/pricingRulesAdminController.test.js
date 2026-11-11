@@ -108,6 +108,6 @@ test('product rule listing scopes to the business and the deployed applies_to re
 
   expect(res.status).toBe(200);
   expect(mockQuery.mock.calls[0][0]).toMatch(/applies_to = 'all'/);
-  expect(mockQuery.mock.calls[0][0]).toMatch(/applies_to_id = \$2::uuid/);
+  expect(mockQuery.mock.calls[0][0]).toMatch(/applies_to_id = \$2::text/);
   expect(mockQuery.mock.calls[0][0]).not.toMatch(/product_id/);
 });

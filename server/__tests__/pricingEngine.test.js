@@ -75,3 +75,32 @@ test('product pricing reads product rules through applies_to instead of the remo
   expect(rulesQuery[0]).toMatch(/applies_to/);
   expect(rulesQuery[0]).not.toMatch(/product_id/);
 });
+
+test('product pricing applies category-scoped rules from the shared evaluator', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/FROM business_products/i.test(sql)) return { rows: [{ price_cents: 2000, category: 'garden' }] };
+    if (/FROM product_pricing_rules/i.test(sql)) {
+      return {
+        rows: [{
+          id: 'rule-category',
+          rule_type: 'seasonal',
+          priority: 1,
+          conditions_json: {},
+          pricing_adjustment: { fixed_modifier_cents: -300 },
+          is_active: true,
+        }],
+      };
+    }
+    if (/FROM marketplace_products/i.test(sql)) return { rows: [] };
+    return { rows: [] };
+  });
+
+  const result = await pricingEngine.calculatePrice({
+    businessId: 7,
+    kind: 'product',
+    targetId: '11111111-1111-4111-8111-111111111111',
+  });
+
+  expect(result.adjustedPriceCents).toBe(1700);
+  expect(result.applied[0]).toMatchObject({ ruleId: 'rule-category', kind: 'modifier', value: -300 });
+});

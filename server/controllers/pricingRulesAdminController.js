@@ -332,7 +332,7 @@ exports.listProductRules = async function listProductRules(req, res, next) {
          FROM product_pricing_rules
         WHERE business_id = $1
           AND (applies_to = 'all'
-               OR (applies_to = 'product' AND applies_to_id = $2::uuid))
+               OR (applies_to = 'product' AND applies_to_id = $2::text))
         ORDER BY priority DESC, created_at DESC`,
       [businessId, productId]
     );

@@ -132,11 +132,15 @@ async function _loadServiceRules(businessId, serviceId) {
 async function _loadProductRules(businessId, productId) {
   const safe = (q, p) => pool.query(q, p).then(r => r.rows).catch(() => []);
   return safe(
-    `SELECT id, rule_type, priority, conditions_json, pricing_adjustment, is_active
-       FROM product_pricing_rules
-      WHERE business_id = $1 AND is_active = TRUE
-        AND (applies_to = 'all'
-             OR (applies_to = 'product' AND applies_to_id = $2::uuid))
+    `SELECT r.id, r.rule_type, r.priority, r.conditions_json,
+            r.pricing_adjustment, r.is_active
+       FROM product_pricing_rules r
+       JOIN business_products p
+         ON p.id = $2::uuid AND p.business_id = $1 AND p.deleted_at IS NULL
+      WHERE r.business_id = $1 AND r.is_active = TRUE
+        AND (r.applies_to = 'all'
+             OR (r.applies_to = 'product' AND r.applies_to_id = $2::text)
+             OR (r.applies_to = 'category' AND r.applies_to_id = p.category))
       ORDER BY priority DESC`,
     [businessId, productId]
   );
