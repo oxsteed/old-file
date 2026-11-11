@@ -16,6 +16,8 @@ test('W7 UI wiring', () => {
   assert.match(src('components/helperProfile/chat/AgreementCard.jsx'), /recordsRoomAgreementId/); // P1-163
   assert.match(src('pages/DirectPortalPage.jsx'), /payDirectWithCredit/); // P1-178
   assert.match(src('pages/DirectPortalPage.jsx'), /checkDirectServiceAvailability/); // P1-179
+  assert.doesNotMatch(src('pages/DirectPortalPage.jsx'), /confirmDirectProof/); // customer portal cannot call admin-only confirmation
+  assert.doesNotMatch(src('pages/DirectPortalPage.jsx'), /onClick=\{confirmProof\}/); // receipt view is read-only for customers
 });
 
 test('W7 strings exist in every locale', () => {
