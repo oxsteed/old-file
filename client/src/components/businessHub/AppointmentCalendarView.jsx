@@ -69,7 +69,9 @@ export function AppointmentCalendarView({ businessId, initialFilter = 'all', cur
     try {
       const response = await api.get(`/businesses/${businessId}/services`);
       const rows = Array.isArray(response.data) ? response.data : [];
-      setServices(rows.filter((service) => service?.is_active !== false && service?.allow_online_booking !== false));
+      // Staff can create appointments for offline-only services; only hide
+      // inactive services that the API will reject for new appointments.
+      setServices(rows.filter((service) => service?.is_active !== false));
     } catch (error) {
       setServices([]);
     }
