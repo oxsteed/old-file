@@ -264,13 +264,17 @@ jobs:
           if command -v ffmpeg >/dev/null 2>&1; then
             ffmpeg -version | head -n 1
           else
-            timeout --signal=TERM 8m sudo env DEBIAN_FRONTEND=noninteractive apt-get update \
-              -o Acquire::Retries=3 \
-              -o Acquire::http::Timeout=30 \
-              -o Acquire::https::Timeout=30
-            timeout --signal=TERM 8m sudo env DEBIAN_FRONTEND=noninteractive apt-get install \
-              -o Acquire::Retries=3 \
-              --no-install-recommends -y ffmpeg
+            if ! sudo env DEBIAN_FRONTEND=noninteractive apt-get install \
+              -o Acquire::Retries=2 \
+              --no-install-recommends -y ffmpeg; then
+              timeout --signal=TERM --kill-after=30s 5m sudo env DEBIAN_FRONTEND=noninteractive apt-get update \
+                -o Acquire::Retries=2 \
+                -o Acquire::http::Timeout=20 \
+                -o Acquire::https::Timeout=20
+              timeout --signal=TERM --kill-after=30s 5m sudo env DEBIAN_FRONTEND=noninteractive apt-get install \
+                -o Acquire::Retries=2 \
+                --no-install-recommends -y ffmpeg
+            fi
           fi
 
       - name: Migrate disposable statement test database
