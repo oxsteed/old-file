@@ -595,13 +595,14 @@ describe('payment_intent.succeeded', () => {
         transaction_id: 12, payment_intent_id: 'pi_market_999', amount_cents: 2400,
         transaction_currency: 'usd',
       }] })
-      .mockResolvedValueOnce({ rows: [{ id: 91, status: 'paid' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 91, status: 'paid', cart_id: 'cart-91' }] })
       .mockResolvedValueOnce({ rows: [] });
 
     const res = await sendEvent(buildApp(), event);
     expect(res.status).toBe(200);
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE marketplace_orders/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE marketplace_transactions/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /DELETE FROM shopping_cart_items/.test(sql))).toBe(true);
   });
 
   test('does not mark a marketplace order paid when Stripe evidence mismatches', async () => {

@@ -38,6 +38,7 @@ const jobPaymentReauth = require('../services/jobPaymentReauthorizationService')
 const paymentRailWebhooks = require('../services/paymentRails/webhooks');
 const logisticsPaymentService = require('../services/logisticsPaymentService');
 const { captureCents } = require('../services/paymentCaptureService');
+const { sendOrderConfirmationEmail, sendPaymentReceivedEmail } = require('../services/orderNotificationService');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -450,7 +451,7 @@ async function applyMarketplaceOrderPaymentState(client, { orderId, paymentInten
       paymentIntentId: paymentIntent.id,
       status: order.status,
     });
-    return order;
+    return { order, transitioned: false };
   }
 
   const { rows: updatedRows } = await client.query(
@@ -474,7 +475,10 @@ async function applyMarketplaceOrderPaymentState(client, { orderId, paymentInten
       currency: expectedCurrency.toUpperCase(),
     }), { userId: order.customer_id });
   }
-  return updatedRows[0] || order;
+  return {
+    order: updatedRows[0] || order,
+    transitioned: Boolean(updatedRows[0] && order.status !== 'paid'),
+  };
 }
 
 async function syncBusinessStripeAccountState(account) {
@@ -1572,12 +1576,33 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           // Marketplace order payment succeeded. The webhook is authoritative
           // when the browser never calls confirmPayment, so verify the local
           // transaction and provider evidence before moving either row.
-          const marketplaceOrder = await withTransaction(db, (client) => applyMarketplaceOrderPaymentState(client, {
+          const marketplaceSettlement = await withTransaction(db, (client) => applyMarketplaceOrderPaymentState(client, {
             orderId,
             paymentIntent: pi,
           }));
-          if (marketplaceOrder) {
+          if (marketplaceSettlement?.order) {
             logger.info(`[Stripe] PaymentIntent ${pi.id} succeeded - order ${orderId} marked as paid`);
+            if (marketplaceSettlement.transitioned) {
+              const cartId = marketplaceSettlement.order.cart_id;
+              if (cartId) {
+                await db.query(
+                  'DELETE FROM shopping_cart_items WHERE cart_id = $1',
+                  [cartId],
+                ).catch((cleanupError) => logger.warn('[Stripe] failed to clear marketplace cart after payment', {
+                  orderId,
+                  cartId,
+                  error: cleanupError.message,
+                }));
+              }
+              // The webhook is the only completion path when the browser is
+              // closed during payment. Keep customer confirmation connected
+              // to that signed settlement, but never make email delivery a
+              // reason for Stripe to retry a committed payment.
+              setImmediate(async () => {
+                await sendOrderConfirmationEmail(orderId);
+                await sendPaymentReceivedEmail(orderId);
+              });
+            }
           }
         }
         await withTransaction(db, (client) => applyStripePaymentIntent(client, pi, event.account || null));
