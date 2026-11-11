@@ -1,4 +1,6 @@
 import api from '../api/axios';
+import { readSessionStorage } from './sessionStorage';
+import { readLocalStorage, writeLocalStorage } from './localStorage';
 
 const TOKEN_SYNC_KEY = 'oxs:mobile_push_token_synced';
 
@@ -17,8 +19,8 @@ function isNativeApp() {
 function getAccessToken() {
   // Session presence check only; the actual token travels via the httpOnly
   // cookie. Impersonation sessions still expose their short-lived token.
-  if (sessionStorage.getItem('oxs:impersonation_token')) return 'impersonation';
-  return localStorage.getItem('user') ? 'cookie' : null;
+  if (readSessionStorage('oxs:impersonation_token')) return 'impersonation';
+  return readLocalStorage('user') ? 'cookie' : null;
 }
 
 function resolveNotificationUrl(data = {}) {
@@ -82,7 +84,7 @@ async function registerPushToken(token) {
   const accessToken = getAccessToken();
   if (!accessToken || !token?.value) return;
 
-  const lastSynced = localStorage.getItem(TOKEN_SYNC_KEY);
+  const lastSynced = readLocalStorage(TOKEN_SYNC_KEY);
   if (lastSynced === token.value) return;
 
   const device = await getDeviceInfo();
@@ -95,7 +97,7 @@ async function registerPushToken(token) {
     device,
   });
 
-  localStorage.setItem(TOKEN_SYNC_KEY, token.value);
+  writeLocalStorage(TOKEN_SYNC_KEY, token.value);
 }
 
 async function requestAndRegisterPush() {
@@ -109,20 +111,32 @@ async function requestAndRegisterPush() {
 }
 
 function installAuthTokenWatcher() {
-  const originalSetItem = localStorage.setItem.bind(localStorage);
+  let storage;
+  let originalSetItem;
+  try {
+    storage = window.localStorage;
+    if (!storage || typeof storage.setItem !== 'function') return;
+    originalSetItem = storage.setItem.bind(storage);
+  } catch {
+    return;
+  }
 
-  localStorage.setItem = (key, value) => {
+  try {
+    storage.setItem = (key, value) => {
     // A login persists the session user (the access token itself now lives
     // in an httpOnly cookie and is never written to localStorage). Only react
     // when a session starts, not on every profile refresh that rewrites it.
-    const sessionStarted = key === 'user' && !localStorage.getItem('user');
+    const sessionStarted = key === 'user' && !readLocalStorage('user');
     originalSetItem(key, value);
     if (sessionStarted || key === 'accessToken') {
       window.setTimeout(() => {
         requestAndRegisterPush().catch(() => {});
       }, 250);
     }
-  };
+    };
+  } catch {
+    // Some WebViews expose a read-only Storage implementation.
+  }
 }
 
 export function initMobileBridge() {
