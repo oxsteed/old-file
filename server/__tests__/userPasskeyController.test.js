@@ -45,6 +45,7 @@ describe('user passkey controls', () => {
     await controller.registrationOptions({ user: { id: USER_ID } }, res, jest.fn());
 
     expect(res.json).toHaveBeenCalledWith({ options: expect.objectContaining({ challenge: 'registration-challenge' }) });
+    expect(mockQuery.mock.calls[0][0]).toContain('deleted_at IS NULL');
     expect(mockQuery.mock.calls[2][0]).toContain('DELETE FROM user_passkey_challenges');
     expect(mockQuery.mock.calls[3][0]).toContain('INSERT INTO user_passkey_challenges');
   });
@@ -77,6 +78,7 @@ describe('user passkey controls', () => {
 
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({ error: 'No passkey sign-in available for this email.' });
+    expect(mockQuery.mock.calls[0][0]).toContain('deleted_at IS NULL');
   });
 
   test('revokes only the requesting user\u2019s passkey', async () => {

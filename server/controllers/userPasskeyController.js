@@ -93,7 +93,7 @@ async function getUser(userId) {
             login_locked_until, totp_enabled, terms_accepted, email_verified,
             onboarding_completed, onboarding_status, profile_completed,
             tier_selected, w9_completed, contact_completed, membership_tier
-     FROM users WHERE id = $1`,
+     FROM users WHERE id = $1 AND deleted_at IS NULL`,
     [userId]
   );
   return rows[0] || null;
@@ -225,7 +225,9 @@ async function authenticationOptions(req, res, next) {
     const email = String(req.body?.email || '').trim().toLowerCase();
     if (!email) return validationError(res, { email: 'Email is required' });
     const { rows: users } = await db.query(
-      `SELECT id, is_active FROM users WHERE LOWER(email) = $1 LIMIT 1`,
+      `SELECT id, is_active FROM users
+         WHERE LOWER(email) = $1 AND deleted_at IS NULL
+         LIMIT 1`,
       [email]
     );
     const user = users[0];
