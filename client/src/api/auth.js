@@ -7,6 +7,7 @@ import { clearSupportChatStorage } from '../lib/supportChatStorage';
 import { advanceAuthEpoch, currentAuthEpoch, isCurrentAuthEpoch, assertCurrentAuthEpoch, isCredentialRequest } from './authSessionEpoch';
 import { broadcastAuthSession } from './authSessionSync';
 import { readSessionStorage } from '../utils/sessionStorage';
+import { readLocalStorage, writeLocalStorage, removeLocalStorage } from '../utils/localStorage';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -17,7 +18,7 @@ function setStoredAccessToken(_token) {
   // login/2FA/refresh. We intentionally do NOT store it in localStorage
   // to prevent XSS theft. The cookie is sent automatically with requests.
   // Remove pre-cookie credentials after a successful session handoff.
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  removeLocalStorage(ACCESS_TOKEN_KEY);
 }
 
 // H8d: the refresh token is no longer persisted to localStorage on web. The
@@ -27,21 +28,21 @@ function setStoredAccessToken(_token) {
 function setStoredRefreshToken(_token) {
   // Never leave a legacy token shadowing the freshly rotated cookie. Reusing
   // that invalidated token would trigger the server's session-reuse protection.
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  removeLocalStorage(REFRESH_TOKEN_KEY);
 }
 
 function setStoredUser(user) {
   if (user) {
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    writeLocalStorage(USER_KEY, JSON.stringify(user));
   }
 }
 
 function clearStoredSession({ broadcast = true, reason = 'session-cleared' } = {}) {
   clearCsrfToken();
   advanceAuthEpoch();
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+  removeLocalStorage(ACCESS_TOKEN_KEY);
+  removeLocalStorage(REFRESH_TOKEN_KEY);
+  removeLocalStorage(USER_KEY);
   // Support chat history can quote balances and payouts; never leave it for
   // the next person on a shared device.
   clearSupportChatStorage();
@@ -77,11 +78,11 @@ export function getAccessToken() {
 // the refresh interceptor sends the cookie automatically via withCredentials.
 // A stored body token is a one-time fallback only for the explicit no_token code.
 export function getRefreshToken() {
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
+  return readLocalStorage(REFRESH_TOKEN_KEY);
 }
 
 export function getStoredUser() {
-  const raw = localStorage.getItem(USER_KEY);
+  const raw = readLocalStorage(USER_KEY);
   if (!raw) return null;
 
   try {
@@ -178,7 +179,7 @@ api.interceptors.response.use(
       // below authenticates via the cookie automatically (withCredentials);
       // nothing is written to localStorage (XSS vector).
       if (response.data?.user) {
-        localStorage.setItem(USER_KEY, JSON.stringify(response.data.user));
+        writeLocalStorage(USER_KEY, JSON.stringify(response.data.user));
       }
 
       // Rebuild the retry config without a stale Authorization header. The

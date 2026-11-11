@@ -26,3 +26,11 @@ export function writeLocalStorage(key, value) {
     // Preferences are progressive enhancement; callers remain usable.
   }
 }
+
+export function removeLocalStorage(key) {
+  try {
+    getStorage()?.removeItem(key);
+  } catch {
+    // Clearing optional legacy state must not break logout or refresh.
+  }
+}

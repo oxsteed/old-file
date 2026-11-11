@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readLocalStorage, writeLocalStorage } from '../src/utils/localStorage.js';
+import { readLocalStorage, writeLocalStorage, removeLocalStorage } from '../src/utils/localStorage.js';
 import { hasExplicitLanguagePreference } from '../src/lib/languagePreference.js';
 
 test('local preference access stays usable when storage is blocked', () => {
@@ -12,6 +12,7 @@ test('local preference access stays usable when storage is blocked', () => {
   try {
     assert.equal(readLocalStorage('oxs:language'), null);
     writeLocalStorage('oxs:language', 'fr');
+    removeLocalStorage('oxs:language');
     assert.equal(hasExplicitLanguagePreference(), false);
   } finally {
     if (descriptor) Object.defineProperty(globalThis, 'localStorage', descriptor);
