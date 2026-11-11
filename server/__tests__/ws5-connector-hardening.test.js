@@ -43,6 +43,18 @@ describe('H4: connector 2FA hard-block (loadConnectorUser)', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  test('excludes a soft-deleted admin key holder before role and 2FA checks', async () => {
+    Pool.mockQuery.mockResolvedValueOnce({ rows: [] });
+    const req = { apiKey: { customerId: 'u1' } };
+    const res = mockRes();
+    const next = jest.fn();
+    await loadConnectorUser(req, res, next);
+    expect(Pool.mockQuery.mock.calls[0][0]).toContain('deleted_at IS NULL');
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'connector_forbidden' }));
+    expect(next).not.toHaveBeenCalled();
+  });
+
   test('allows an admin key holder with enrolled 2FA', async () => {
     Pool.mockQuery.mockResolvedValueOnce({
       rows: [{ id: 'u1', role: 'admin', email: 'a@x.com', is_active: true, totp_enabled: true }],
