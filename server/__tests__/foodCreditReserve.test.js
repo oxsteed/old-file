@@ -168,6 +168,7 @@ beforeEach(() => {
   resetDbState();
   mockPaymentIntents.create.mockReset();
   mockPaymentIntents.retrieve.mockReset();
+  mockPaymentIntents.cancel = jest.fn();
 });
 
 describe('computeReserveFee (2.5% platform fee)', () => {
@@ -271,6 +272,44 @@ describe('createReservePurchase', () => {
     expect(result.replayed).toBe(true);
     expect(result.clientSecret).toBe('secret_1');
     expect(mockPaymentIntents.create).toHaveBeenCalledTimes(1);
+  });
+
+  test('fails and cancels a newly created intent when Stripe omits the secret', async () => {
+    const calls = [];
+    installDbMock(calls);
+    dbState.purchaseInsertRow = purchaseRow();
+    mockPaymentIntents.create.mockResolvedValue({ id: 'pi_missing_secret', client_secret: null });
+    mockPaymentIntents.cancel.mockResolvedValue({ id: 'pi_missing_secret', status: 'canceled' });
+
+    await expect(reserveService.createReservePurchase({
+      restaurantId: RESTAURANT_ID,
+      operatorUserId: OPERATOR_ID,
+      amountCents: 5000,
+      currencyCode: 'USD',
+      idempotencyKey: 'reserve-key-1',
+    })).rejects.toMatchObject({ code: 'credit_reserve_stripe_failed', status: 502 });
+    expect(mockPaymentIntents.cancel).toHaveBeenCalledWith('pi_missing_secret');
+    expect(calls.some((sql) => sql.includes('UPDATE restaurant_credit_reserve_purchases') && sql.includes("status = 'failed'"))).toBe(true);
+    expect(calls.some((sql) => sql.includes('stripe_payment_intent_id'))).toBe(false);
+  });
+
+  test('fails and cancels a replay when Stripe omits the existing secret', async () => {
+    const calls = [];
+    installDbMock(calls);
+    dbState.purchaseInsertRow = null;
+    dbState.existingPurchase = purchaseRow({ stripe_payment_intent_id: 'pi_existing_missing_secret' });
+    mockPaymentIntents.retrieve.mockResolvedValue({ id: 'pi_existing_missing_secret', client_secret: null });
+    mockPaymentIntents.cancel.mockResolvedValue({ id: 'pi_existing_missing_secret', status: 'canceled' });
+
+    await expect(reserveService.createReservePurchase({
+      restaurantId: RESTAURANT_ID,
+      operatorUserId: OPERATOR_ID,
+      amountCents: 5000,
+      currencyCode: 'USD',
+      idempotencyKey: 'reserve-key-1',
+    })).rejects.toMatchObject({ code: 'credit_reserve_stripe_failed', status: 502 });
+    expect(mockPaymentIntents.cancel).toHaveBeenCalledWith('pi_existing_missing_secret');
+    expect(mockPaymentIntents.create).not.toHaveBeenCalled();
   });
 
   test('rejects a reused idempotency key with a different amount', async () => {

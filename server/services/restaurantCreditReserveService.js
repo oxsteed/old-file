@@ -95,11 +95,39 @@ function parsePurchaseId(value) {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+async function markReservePurchaseFailed(purchaseId) {
+  await pool.query(
+    `UPDATE restaurant_credit_reserve_purchases
+        SET status = 'failed', updated_at = NOW()
+      WHERE id = $1 AND status = 'pending'`,
+    [purchaseId]
+  );
+}
+
+async function failInvalidReserveStripeIntent({ purchase, intent, stripe }) {
+  const providerId = typeof intent?.id === 'string' && intent.id.trim()
+    ? intent.id.trim()
+    : (typeof purchase?.stripe_payment_intent_id === 'string' ? purchase.stripe_payment_intent_id.trim() : '');
+  if (providerId && typeof stripe?.paymentIntents?.cancel === 'function') {
+    await stripe.paymentIntents.cancel(providerId).catch((cancelError) => logger.warn('[credit-reserve] Failed to cancel unusable PaymentIntent', {
+      purchaseId: String(purchase.id),
+      paymentIntentId: providerId,
+      error: cancelError.message,
+    }));
+  }
+  await markReservePurchaseFailed(purchase.id);
+  fail('The card payment returned an unusable session', 'credit_reserve_stripe_failed', 502);
+}
+
 async function ensurePurchaseStripeIntent({ purchase, amount, currency, getStripe }) {
   const stripe = getStripe();
   if (purchase.stripe_payment_intent_id) {
     const existing = await stripe.paymentIntents.retrieve(purchase.stripe_payment_intent_id);
-    return existing.client_secret || null;
+    if (typeof existing?.id !== 'string' || !existing.id.trim()
+      || typeof existing?.client_secret !== 'string' || !existing.client_secret.trim()) {
+      return failInvalidReserveStripeIntent({ purchase, intent: existing, stripe });
+    }
+    return existing.client_secret.trim();
   }
   let intent;
   try {
@@ -133,16 +161,17 @@ async function ensurePurchaseStripeIntent({ purchase, amount, currency, getStrip
     );
     fail('The card payment could not be started', 'credit_reserve_stripe_failed', 502);
   }
-  if (!intent?.id || !intent?.client_secret) {
-    fail('The card payment could not be started', 'credit_reserve_stripe_failed', 502);
+  if (typeof intent?.id !== 'string' || !intent.id.trim()
+    || typeof intent?.client_secret !== 'string' || !intent.client_secret.trim()) {
+    return failInvalidReserveStripeIntent({ purchase, intent, stripe });
   }
   await pool.query(
     `UPDATE restaurant_credit_reserve_purchases
         SET stripe_payment_intent_id = $2, updated_at = NOW()
       WHERE id = $1 AND stripe_payment_intent_id IS NULL`,
-    [purchase.id, intent.id]
+    [purchase.id, intent.id.trim()]
   );
-  return intent.client_secret || null;
+  return intent.client_secret.trim();
 }
 
 /**
