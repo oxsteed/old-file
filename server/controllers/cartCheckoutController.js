@@ -2,7 +2,7 @@ const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STR
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
-const { sendError, sendValidationError } = require('../utils/apiError');
+const { sendError, sendValidationError, AppError } = require('../utils/apiError');
 const { calculateTax } = require('../services/taxService');
 const { validateAndApplyDiscount, recordDiscountUsage } = require('../services/discountService');
 const { calculateShipping, isValidShippingAddress } = require('../services/shippingService');
@@ -15,6 +15,22 @@ const validateStripe = () => {
     throw new Error('STRIPE_SECRET_KEY environment variable is not configured');
   }
 };
+
+function requirePaymentIntentHandoff(paymentIntent) {
+  const id = typeof paymentIntent?.id === 'string' ? paymentIntent.id.trim() : '';
+  const clientSecret = typeof paymentIntent?.client_secret === 'string'
+    ? paymentIntent.client_secret.trim()
+    : '';
+  const status = typeof paymentIntent?.status === 'string' ? paymentIntent.status.trim() : '';
+  if (!id || !clientSecret || !status) {
+    throw new AppError(
+      'Payment processor returned an unusable payment session',
+      503,
+      'payment_intent_unavailable'
+    );
+  }
+  return { id, clientSecret, status };
+}
 
 async function getCheckoutSession(req, res) {
   try {
@@ -178,6 +194,14 @@ async function createPaymentIntent(req, res) {
       return rows[0] || null;
     });
     if (reuse) {
+      if (!reuse.payment_intent_id || !reuse.client_secret) {
+        return sendError(
+          res,
+          503,
+          'Payment processor returned an unusable payment session',
+          'payment_intent_unavailable'
+        );
+      }
       return res.json({
         success: true,
         data: {
@@ -229,21 +253,22 @@ async function createPaymentIntent(req, res) {
         userId: userId.toString()
       }
     }, { idempotencyKey: `marketplace-order-pi:${order.id}` });
+    const validatedPaymentIntent = requirePaymentIntentHandoff(paymentIntent);
 
     // Store transaction record
     await pool.query(
       `INSERT INTO marketplace_transactions
        (order_id, payment_intent_id, amount_cents, currency, status, client_secret)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [order.id, paymentIntent.id, total, 'usd', paymentIntent.status, paymentIntent.client_secret]
+      [order.id, validatedPaymentIntent.id, total, 'usd', validatedPaymentIntent.status, validatedPaymentIntent.clientSecret]
     );
 
     res.json({
       success: true,
       data: {
         orderId: order.id,
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
+        clientSecret: validatedPaymentIntent.clientSecret,
+        paymentIntentId: validatedPaymentIntent.id,
         total,
         email,
         publishableKey: process.env.STRIPE_PUBLISHABLE_KEY
@@ -277,6 +302,9 @@ async function createPaymentIntent(req, res) {
       }));
     }
     logger.error('Error creating payment intent', { error });
+    if (error instanceof AppError) {
+      return sendError(res, error.status, error.message, error.code);
+    }
     sendError(res, 500, 'Failed to create payment intent');
   }
 }
