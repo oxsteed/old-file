@@ -13,6 +13,12 @@ function mockRes() {
 beforeEach(() => resetMocks());
 
 describe('consulting invoice consistency', () => {
+  test('manual invoice linking excludes soft-deleted users', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('../controllers/adminConsultingController'), 'utf8');
+    expect(src).toContain('AND is_active = TRUE AND deleted_at IS NULL LIMIT 1');
+  });
+
   test('listInvoices coalesces customer_email from invoice row or user join', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{
