@@ -220,12 +220,18 @@ async function processTranscode(job) {
       const renditions = [];
       for (const output of outputs) {
         const buffer = await fsp.readFile(output.path);
-        const key = await storage.uploadFile(buffer, 'media/renditions', `rendition-${output.height}p.mp4`, output.contentType);
+        const key = restaurantWorker.requireStorageKey(
+          await storage.uploadFile(buffer, 'media/renditions', `rendition-${output.height}p.mp4`, output.contentType),
+          'Media rendition'
+        );
         uploaded.push(key);
         renditions.push({ storage_key: key, width: output.width, height: output.height, size_bytes: buffer.length });
       }
       const poster = await fsp.readFile(posterPath);
-      const thumbnailKey = await storage.uploadFile(poster, 'media/thumbnails', 'poster.jpg', 'image/jpeg');
+      const thumbnailKey = restaurantWorker.requireStorageKey(
+        await storage.uploadFile(poster, 'media/thumbnails', 'poster.jpg', 'image/jpeg'),
+        'Media thumbnail'
+      );
       uploaded.push(thumbnailKey);
       const completed = await pool.query(
         `UPDATE media_post_assets
@@ -306,4 +312,13 @@ function stopMediaTranscodeWorker() {
   return poller.stop().then(() => ({ stopped: true }));
 }
 
-module.exports = { startMediaTranscodeWorker, stopMediaTranscodeWorker, runOnce, runBatch, workerEnabled, pollMs, csamVendorCertified };
+module.exports = {
+  startMediaTranscodeWorker,
+  stopMediaTranscodeWorker,
+  runOnce,
+  runBatch,
+  workerEnabled,
+  pollMs,
+  csamVendorCertified,
+  processTranscode,
+};

@@ -418,6 +418,10 @@ describe('transcode worker', () => {
     status: 'running', attempts: 1,
   };
 
+  test.each([null, '', '   ', 42])('rejects a missing storage key (%p)', (key) => {
+    expect(() => worker.requireStorageKey(key, 'Video rendition')).toThrow('Video rendition storage is unavailable');
+  });
+
   async function makeRealVideo() {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'oxsteed-vidtest-'));
     const srcPath = path.join(tmpDir, 'src.mp4');
