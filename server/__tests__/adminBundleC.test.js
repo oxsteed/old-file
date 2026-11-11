@@ -324,4 +324,26 @@ describe('ADM-122: ticket inbox count query joins users for regional admins', ()
     // ...and both resolve the alias through the same join.
     expect(countSql).toContain('LEFT JOIN users u ON t.user_id = u.id');
   });
+
+  test('converts the admin inbox page contract into the SQL offset', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ total: '121' }] });
+
+    const res = makeRes();
+    await supportController.listTickets({
+      user: { role: 'admin', id: 'admin-9' },
+      query: { page: '3', limit: '50' },
+      assigned_regions: [],
+    }, res);
+
+    const listParams = mockQuery.mock.calls[0][1];
+    expect(listParams.slice(-2)).toEqual([50, 100]);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      total: 121,
+      limit: 50,
+      offset: 100,
+      page: 3,
+    }));
+  });
 });

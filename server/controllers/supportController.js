@@ -778,10 +778,19 @@ exports.listTickets = async (req, res) => {
       search   = '',
       limit    = 50,
       offset   = 0,
+      page,
     } = req.query;
 
     const limitN  = Math.min(Math.max(1, parseInt(limit)  || 50), 200);
-    const offsetN = Math.max(0, parseInt(offset) || 0);
+    // The admin inbox uses page/limit while older callers use offset/limit.
+    // Normalize both forms here so pagination controls advance the SQL window
+    // instead of silently returning the first page for every request.
+    const pageN = page !== undefined && Number.isFinite(Number(page))
+      ? Math.max(1, parseInt(page, 10) || 1)
+      : null;
+    const offsetN = pageN !== null
+      ? (pageN - 1) * limitN
+      : Math.max(0, parseInt(offset, 10) || 0);
 
     const VALID_STATUSES   = ['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'];
     const VALID_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
@@ -875,7 +884,13 @@ exports.listTickets = async (req, res) => {
       params
     );
 
-    return res.json({ tickets: rows, total: parseInt(total), limit: limitN, offset: offsetN });
+    return res.json({
+      tickets: rows,
+      total: parseInt(total),
+      limit: limitN,
+      offset: offsetN,
+      page: pageN !== null ? pageN : Math.floor(offsetN / limitN) + 1,
+    });
   } catch (err) {
     if (err && err.code === 'SCOPE_UNAVAILABLE') {
       return res.status(err.statusCode || 503).json({
