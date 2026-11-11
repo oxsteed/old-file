@@ -1225,6 +1225,7 @@ exports.forceJobAction = async (req, res, next) => {
     if (!allowed.includes(action)) return res.status(400).json({ error: 'Invalid action.' });
     const { rows: jobRows } = await db.query('SELECT status, metadata FROM jobs WHERE id = $1', [jobId]);
     if (!jobRows.length) return res.status(404).json({ error: 'Job not found.' });
+    let auditInTransaction = false;
 
     if (action === 'cancel' || action === 'remove') {
       // RV1(b): admin force-cancels run through the shared cancellation
@@ -1254,26 +1255,57 @@ exports.forceJobAction = async (req, res, next) => {
       await finalizeJobCancellation(result);
     }
     if (action === 'flag') {
-      const { rows: flagRows } = await db.query(
-        `UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'true',  true), updated_at = now() WHERE id = $1 AND COALESCE(metadata->>'admin_flagged', 'false') <> 'true' RETURNING id`,
-        [jobId]
-      );
-      if (flagRows.length === 0) {
-        return res.status(409).json({ error: 'Job is already flagged or flag state changed during operation.' });
-      }
+      await withTransaction(db, async (client) => {
+        const { rows: flagRows } = await client.query(
+          `UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'true',  true), updated_at = now() WHERE id = $1 AND COALESCE(metadata->>'admin_flagged', 'false') <> 'true' RETURNING id`,
+          [jobId]
+        );
+        if (!flagRows.length) {
+          const err = new Error('Job is already flagged or flag state changed during operation.');
+          err.code = 'job_state_changed';
+          throw err;
+        }
+        await logAdminAction({
+          client,
+          adminId,
+          action: 'job_flag',
+          targetType: 'job',
+          targetId: jobId,
+          description: reason || null,
+          req,
+        });
+      }, 'admin_flag_job');
+      auditInTransaction = true;
     }
     if (action === 'unflag') {
-      const { rows: unflagRows } = await db.query(
-        `UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'false', true), updated_at = now() WHERE id = $1 AND (COALESCE(metadata,'{}')->>'admin_flagged') = 'true' RETURNING id`,
-        [jobId]
-      );
-      if (unflagRows.length === 0) {
-        return res.status(409).json({ error: 'Job is not flagged or flag state changed during operation.' });
-      }
+      await withTransaction(db, async (client) => {
+        const { rows: unflagRows } = await client.query(
+          `UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'false', true), updated_at = now() WHERE id = $1 AND (COALESCE(metadata,'{}')->>'admin_flagged') = 'true' RETURNING id`,
+          [jobId]
+        );
+        if (!unflagRows.length) {
+          const err = new Error('Job is not flagged or flag state changed during operation.');
+          err.code = 'job_state_changed';
+          throw err;
+        }
+        await logAdminAction({
+          client,
+          adminId,
+          action: 'job_unflag',
+          targetType: 'job',
+          targetId: jobId,
+          description: reason || null,
+          req,
+        });
+      }, 'admin_unflag_job');
+      auditInTransaction = true;
     }
-    try { await logAdminAction({ adminId, action: `job_${action}`, targetType: 'job', targetId: jobId, description: reason || null, req }); } catch(e) {}
+    if (!auditInTransaction) {
+      try { await logAdminAction({ adminId, action: `job_${action}`, targetType: 'job', targetId: jobId, description: reason || null, req }); } catch(e) {}
+    }
     res.json({ message: `Job ${action} successful.` });
   } catch (err) {
+    if (err?.code === 'job_state_changed') return res.status(409).json({ error: err.message });
     if (err instanceof AppError) return next(err);
     logger.error('forceJobAction error', { err });
     res.status(500).json({ error: 'Failed to perform job action.' });

@@ -235,6 +235,23 @@ describe('P2-1-F13 suspend revokes user tokens', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringMatching(/role updated/i) }));
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_role_changed' }));
   });
+
+  test('superAdminController.forceJobAction does not report a flag success when its audit fails', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SHOW search_path/.test(sql)) return { rows: [{ search_path: 'public' }] };
+      if (/information_schema\.tables/.test(sql)) return { rows: [{ table_name: 'jobs' }] };
+      if (/FROM jobs/.test(sql)) return { rows: [{ status: 'open', metadata: {} }] };
+      if (/UPDATE jobs SET metadata/.test(sql)) return { rows: [{ id: 'job9' }], rowCount: 1 };
+      return { rows: [] };
+    });
+    logAdminAction.mockRejectedValueOnce(new Error('audit down'));
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { jobId: 'job9' }, body: { action: 'flag', reason: 'review' }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.forceJobAction(req, res, jest.fn());
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'job_flag' }));
+  });
 });
 
 // ─── P2-1-F08 / P2-1-F12: moderation audit fail-closed ───────────────────────
