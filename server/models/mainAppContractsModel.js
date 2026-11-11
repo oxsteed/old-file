@@ -387,7 +387,19 @@ async function listPublicServicePackages({ businessId, serviceId, limit }) {
             COALESCE(p.sort_order, 0) AS sort_order,
             p.is_active, p.created_at, p.updated_at
        FROM business_service_packages p
+       JOIN businesses b ON b.id = p.business_id
+       JOIN users owner ON owner.id = b.user_id
        ${where}
+         AND b.deleted_at IS NULL
+         AND b.is_active = TRUE
+         AND b.is_listed = TRUE
+         AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+         AND b.setup_status = 'active'
+         AND b.business_kind = 'service'
+         AND owner.deleted_at IS NULL
+         AND owner.is_active = TRUE
+         AND owner.email_verified = TRUE
+         AND owner.onboarding_completed = TRUE
       ORDER BY COALESCE(p.sort_order, 0), p.price_cents, p.name
       LIMIT $${params.length}`,
     params
