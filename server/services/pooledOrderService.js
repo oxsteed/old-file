@@ -172,7 +172,10 @@ async function listPooledOrders({
   // Phase 1 public visibility: guests must only see published/approved
   // campaigns. Drafts are organizer-owned working copies until staff approve
   // publication (Phase 2 approval workflow).
-  if (excludeDrafts)   { conditions.push(`po.status <> 'draft'`); }
+  if (excludeDrafts) {
+    conditions.push(`po.status <> 'draft'`);
+    conditions.push(`po.approval_state = 'approved'`);
+  }
   if (search) {
     // Literal ILIKE match on title/description. Escape LIKE wildcards so a
     // query such as "100%" cannot act as a wildcard.
