@@ -2,7 +2,7 @@ const pool = require('../db');
 const { AppError, sendValidationError, sendError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { enqueueStorageDeletion } = require('../services/storageCleanupService');
-const { uploadFile, getPublicUrl } = require('../utils/storage');
+const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const {
   generateBusinessProfileQRCode,
   generateBusinessQRCodeSizes,
@@ -41,6 +41,7 @@ async function resolveBusinessSlug(businessId) {
  * PUT /api/business-profile/cover-image
  */
 exports.uploadCoverImage = async (req, res) => {
+  let storageKey = null;
   try {
     const userId = req.user.id;
     const file = req.file;
@@ -86,7 +87,7 @@ exports.uploadCoverImage = async (req, res) => {
     });
 
     // Upload to storage and persist a public URL for the business profile
-    const storageKey = await uploadFile(
+    storageKey = await uploadFile(
       file.buffer,
       'business-covers',
       `business-${businessId}-${Date.now()}-${file.originalname}`,
@@ -120,6 +121,12 @@ exports.uploadCoverImage = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      await deleteFile(storageKey).catch((cleanupError) => logger.warn('Failed to remove unpersisted business cover image', {
+        businessId,
+        storageKey,
+        error: cleanupError.message,
+      }));
+      storageKey = null;
       return sendError(res, 404, 'Business not found');
     }
 
@@ -136,6 +143,12 @@ exports.uploadCoverImage = async (req, res) => {
       }
     });
   } catch (err) {
+    if (storageKey) {
+      await deleteFile(storageKey).catch((cleanupError) => logger.warn('Failed to remove orphaned business cover image', {
+        storageKey,
+        error: cleanupError.message,
+      }));
+    }
     logger.error('Error uploading business cover image', { error: err.message, stack: err.stack });
     sendError(res, 500, 'Failed to upload cover image');
   }
