@@ -126,8 +126,21 @@ async function fetchOpenRestaurantsNear(lat, lng, radiusMiles, now = new Date())
             fr.operating_hours, fr.timezone, fr.temporarily_closed_until,
             fr.is_accepting_orders_now
      FROM food_restaurants fr
-     WHERE fr.discovery_status = 'visible'
+     JOIN businesses b ON b.id = fr.business_id
+     JOIN users owner ON owner.id = b.user_id
+     WHERE fr.status = 'active'
+       AND fr.discovery_status = 'visible'
        AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
+       AND b.is_active = TRUE
+       AND b.is_listed = TRUE
+       AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+       AND COALESCE(b.setup_status, 'active') = 'active'
+       AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
+       AND b.deleted_at IS NULL
+       AND owner.deleted_at IS NULL
+       AND owner.is_active = TRUE
+       AND owner.email_verified = TRUE
+       AND owner.onboarding_completed = TRUE
        AND fr.latitude IS NOT NULL AND fr.longitude IS NOT NULL
        AND 3958.8 * acos(
              GREATEST(-1.0, LEAST(1.0,
