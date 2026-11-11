@@ -502,6 +502,12 @@ async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = f
         // no pre-deploy dash-key transfer is re-created under this key.
         idempotencyKey: `affiliate-payout:${payoutId}`,
       });
+      // A successful provider call is not enough to settle the payout: the
+      // transfer id is the durable key used by reconciliation and audit
+      // records. Fail through the normal compensation path if it is absent.
+      if (!transfer || typeof transfer.id !== 'string' || !transfer.id.trim()) {
+        throw new Error('Stripe transfer response did not include a transfer id');
+      }
     } catch (stripeError) {
       logger.error('Affiliate transfer failed', { payoutId, error: stripeError.message });
       // Terminal failure: re-queue the commissions so a new payout can pick them up.
