@@ -328,13 +328,15 @@ describe('checkout.session.completed', () => {
       data: { object: {
         mode: 'payment',
         payment_status: 'paid',
+        amount_total: 1000,
+        currency: 'usd',
         payment_intent: 'pi_food_123',
         metadata: { food_order_id: '88' },
       }},
     };
 
     mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // beginWebhookEvent
+      .mockResolvedValueOnce({ rows: [{ payment_status: 'requires_payment', total_cents: 1000, currency_code: 'USD' }] }) // locked order snapshot
       .mockResolvedValueOnce({
         rows: [{
           id: 88,
@@ -343,6 +345,8 @@ describe('checkout.session.completed', () => {
           queue_number: 9,
           status: 'received',
           payment_status: 'requires_payment',
+          total_cents: 1000,
+          currency_code: 'USD',
         }],
       })
       .mockResolvedValueOnce({ rows: [] }); // mark processed
@@ -512,12 +516,15 @@ describe('payment_intent.succeeded', () => {
       type: 'payment_intent.succeeded',
       data: { object: {
         id: 'pi_food_999',
+          amount: 1000,
+          amount_received: 1000,
+          currency: 'usd',
         metadata: { food_order_id: '88' },
       } },
     };
 
     mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // beginWebhookEvent
+      .mockResolvedValueOnce({ rows: [{ payment_status: 'requires_payment', total_cents: 1000, currency_code: 'USD' }] }) // locked order snapshot
       .mockResolvedValueOnce({
         rows: [{
           id: 88,
@@ -526,6 +533,8 @@ describe('payment_intent.succeeded', () => {
           queue_number: 9,
           status: 'received',
           payment_status: 'requires_payment',
+          total_cents: 1000,
+          currency_code: 'USD',
         }],
       })
       .mockResolvedValueOnce({ rows: [] }); // mark processed

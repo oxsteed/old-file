@@ -325,16 +325,34 @@ async function applyFoodOrderPaymentState(client, {
   orderId,
   paymentStatus,
   stripePaymentIntentId = null,
+  providerAmountCents = null,
+  providerCurrency = null,
 }) {
   if (!orderId) return null;
   // Capture the pre-update status on the transaction client so growth
   // domain events fire only on a real transition (a single payment fires
   // both checkout.session.completed and payment_intent.succeeded).
   const { rows: priorRows } = await client.query(
-    `SELECT payment_status FROM food_orders WHERE id = $1::bigint FOR UPDATE`,
+    `SELECT payment_status, total_cents, currency_code
+       FROM food_orders WHERE id = $1::bigint FOR UPDATE`,
     [orderId]
   );
   const priorPaymentStatus = priorRows[0]?.payment_status || null;
+  if (paymentStatus === 'paid') {
+    const expectedAmountCents = Number(priorRows[0]?.total_cents);
+    const receivedAmountCents = Number(providerAmountCents);
+    const expectedCurrency = String(priorRows[0]?.currency_code || '').toLowerCase();
+    const receivedCurrency = String(providerCurrency || '').toLowerCase();
+    if (!Number.isSafeInteger(expectedAmountCents) || expectedAmountCents <= 0
+        || !Number.isSafeInteger(receivedAmountCents) || receivedAmountCents !== expectedAmountCents
+        || !expectedCurrency || receivedCurrency !== expectedCurrency) {
+      throw new AppError(
+        'The Stripe food-order payment does not match the order total or currency',
+        409,
+        'food_payment_verification_failed',
+      );
+    }
+  }
   const { rows } = await client.query(
     `UPDATE food_orders
         SET payment_status = $1,
@@ -708,6 +726,8 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
               stripePaymentIntentId: typeof session.payment_intent === 'string'
                 ? session.payment_intent
                 : session.payment_intent?.id || null,
+              providerAmountCents: session.amount_total,
+              providerCurrency: session.currency,
             });
           });
           break;
@@ -1289,6 +1309,8 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
               orderId: foodOrderId,
               paymentStatus: 'paid',
               stripePaymentIntentId: pi.id,
+              providerAmountCents: pi.amount_received ?? pi.amount,
+              providerCurrency: pi.currency,
             });
           });
         } else if (jobId) {

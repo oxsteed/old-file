@@ -602,6 +602,9 @@ describe('card payment webhook', () => {
       data: {
         object: {
           id: 'pi_test_1',
+          amount: 1000,
+          amount_received: 1000,
+          currency: 'usd',
           metadata: { food_order_id: '42', restaurant_id: '1' },
         },
       },
@@ -617,6 +620,9 @@ describe('card payment webhook', () => {
           rows: [{ id: 42, business_id: 5, restaurant_id: 1, payment_status: 'paid' }],
           rowCount: 1,
         };
+      }
+      if (/SELECT payment_status, total_cents, currency_code/.test(sql)) {
+        return { rows: [{ payment_status: 'requires_payment', total_cents: 1000, currency_code: 'USD' }], rowCount: 1 };
       }
       return { rows: [], rowCount: 0 };
     });
@@ -634,6 +640,43 @@ describe('card payment webhook', () => {
     expect(orderUpdates[0][1]).toEqual(['paid', 'pi_test_1', 42]);
   });
 
+  test('payment_intent.succeeded rejects a food order amount mismatch', async () => {
+    const event = {
+      id: 'evt_food_amount_mismatch',
+      type: 'payment_intent.succeeded',
+      created: Math.floor(Date.now() / 1000),
+      data: {
+        object: {
+          id: 'pi_food_mismatch',
+          amount: 900,
+          amount_received: 900,
+          currency: 'usd',
+          metadata: { food_order_id: '42', restaurant_id: '1' },
+        },
+      },
+    };
+    stripeMock.webhooks.constructEvent.mockReturnValue(event);
+    mockQuery.mockImplementation(async (sql) => {
+      if (/INSERT INTO webhook_event_receipts/.test(sql)) return { rows: [{ id: 9 }], rowCount: 1 };
+      if (/INSERT INTO webhook_event_watermarks/.test(sql)) return { rows: [{ event_id: event.id }], rowCount: 1 };
+      if (/SELECT payment_status, total_cents, currency_code/.test(sql)) {
+        return { rows: [{ payment_status: 'requires_payment', total_cents: 1000, currency_code: 'USD' }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildWebhookApp())
+      .post('/api/webhooks/stripe')
+      .set('stripe-signature', 'sig_food_amount_mismatch')
+      .send({});
+
+    // A provider mismatch must remain retryable and unacknowledged so Stripe
+    // does not treat a failed reconciliation as successfully delivered.
+    expect(res.status).toBe(500);
+    expect(res.body.code).toBe('webhook_processing_error');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
+  });
+
   test('payment_intent.succeeded reconciles via intent id when metadata lacks the order id', async () => {
     const event = {
       id: 'evt_test_2',
@@ -642,6 +685,9 @@ describe('card payment webhook', () => {
       data: {
         object: {
           id: 'pi_test_9',
+          amount: 1000,
+          amount_received: 1000,
+          currency: 'usd',
           metadata: { food_card_payment: 'true', restaurant_id: '1' },
         },
       },
@@ -661,6 +707,9 @@ describe('card payment webhook', () => {
           rows: [{ id: 77, business_id: 5, restaurant_id: 1, payment_status: 'paid' }],
           rowCount: 1,
         };
+      }
+      if (/SELECT payment_status, total_cents, currency_code/.test(sql)) {
+        return { rows: [{ payment_status: 'requires_payment', total_cents: 1000, currency_code: 'USD' }], rowCount: 1 };
       }
       return { rows: [], rowCount: 0 };
     });
