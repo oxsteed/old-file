@@ -104,6 +104,7 @@ exports.getAvailabilityBlocks = async (req, res, next) => {
     const { rows: listed } = await pool.query(
       `SELECT u.id,
               u.is_active,
+              u.email_verified,
               u.deleted_at,
               COALESCE(hp.is_listed, TRUE) AS is_listed,
               COALESCE(hp.is_hidden_by_admin, FALSE) AS is_hidden_by_admin
@@ -116,6 +117,7 @@ exports.getAvailabilityBlocks = async (req, res, next) => {
     const profile = listed[0];
     if (!profile
         || profile.is_active === false
+        || profile.email_verified === false
         || profile.deleted_at
         || profile.is_listed === false
         || profile.is_hidden_by_admin === true) {
