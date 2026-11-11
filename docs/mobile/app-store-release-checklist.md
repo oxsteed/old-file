@@ -18,7 +18,9 @@
 ## Native Capabilities
 
 - Push Notifications enabled in Apple Developer portal and Xcode.
-- Associated Domains enabled with `applinks:oxsteed.com`.
+- Associated Domains enabled with `applinks:oxsteed.com` and
+  `applinks:www.oxsteed.com`; both hosts serve the Apple association file
+  directly (without a canonical-host redirect).
 - Production server has `APPLE_TEAM_ID=ZBRGSDRRU7` set so `/.well-known/apple-app-site-association` serves the real app ID.
 - Production server has `APNS_ENV=production`, `APNS_TEAM_ID`, `APNS_KEY_ID`, and APNs private key secret configured for iOS push.
 - Firebase Cloud Messaging API v1 is enabled; Firebase service account secrets are only needed for Firebase-issued/Android tokens.
