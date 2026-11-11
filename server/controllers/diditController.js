@@ -1,5 +1,6 @@
 const { withTransaction } = require('../utils/transaction');
 const { encrypt, decrypt } = require('../utils/encryption');
+const { AppError } = require('../middleware/errorHandler');
 // server/controllers/diditController.js
 // Didit identity verification: session creation, status and skip.
 
@@ -36,6 +37,16 @@ function diditAlreadyVerified(existing) {
     didit_verified_at: existing.didit_verified_at,
     didit_enforcement_required: true,
   })));
+}
+
+function requireDiditPayload(data) {
+  const sessionId = typeof data?.session_id === 'string' ? data.session_id.trim() : '';
+  const sessionToken = typeof data?.session_token === 'string' ? data.session_token.trim() : '';
+  const verificationUrl = typeof data?.url === 'string' ? data.url.trim() : '';
+  if (!sessionId || !sessionToken || !/^https:\/\//i.test(verificationUrl)) {
+    throw new AppError('Identity verification is temporarily unavailable', 503, 'didit_session_unavailable');
+  }
+  return { sessionId, sessionToken, verificationUrl };
 }
 // Reuse an open session only when its saved payload (URL/token) is
 // present. Sessions created before migration 99988, or whose payload
@@ -123,8 +134,7 @@ async function createSession(req, res) {
       return res.status(502).json({ error: 'Failed to create Didit session' });
     }
     const diditData = await diditResponse.json();
-    const sessionId = diditData.session_id;
-    if (typeof sessionId !== 'string' || !sessionId) throw new Error('didit_session_response_invalid');
+    const { sessionId, sessionToken, verificationUrl } = requireDiditPayload(diditData);
 
     // Phase 2: store under the row lock, re-checking everything a
     // concurrent mint may have changed while the provider call ran.
@@ -151,21 +161,24 @@ async function createSession(req, res) {
       }
       await client.query(
         `UPDATE users SET didit_session_id = $1, didit_status = 'pending', didit_session_payload_ciphertext=$3 WHERE id = $2`,
-        [sessionId, userId, encrypt(JSON.stringify({ verificationUrl: diditData.url, verification_url: diditData.url, sessionToken: diditData.session_token, session_token: diditData.session_token }))]
+        [sessionId, userId, encrypt(JSON.stringify({ verificationUrl, verification_url: verificationUrl, sessionToken, session_token: sessionToken }))]
       );
       await client.query(`INSERT INTO didit_session_mints(user_id, session_id) VALUES ($1, $2)`, [userId, sessionId]);
       return { statusCode: 200, body: {
         sessionId,
-        sessionToken: diditData.session_token,
-        verificationUrl: diditData.url,
+        sessionToken,
+        verificationUrl,
         session_id: sessionId,
-        session_token: diditData.session_token,
-        verification_url: diditData.url,
+        session_token: sessionToken,
+        verification_url: verificationUrl,
       } };
     }, 'didit_session_store');
     return res.status(result.statusCode).json(result.body);
   } catch (err) {
     logger.error('Didit createSession error:', { err: err });
+    if (err instanceof AppError && err.code === 'didit_session_unavailable') {
+      return res.status(503).json({ error: 'verification_unavailable', code: err.code });
+    }
     return res.status(500).json({ error: 'Failed to create verification session' });
   }
 }
@@ -252,4 +265,4 @@ function maskEmail(email) {
   return local.slice(0, 2) + '***@' + domain;
 }
 
-module.exports = { createSession, getStatus, skipVerification };
+module.exports = { createSession, getStatus, skipVerification, requireDiditPayload };
