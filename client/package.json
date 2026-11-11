@@ -75,6 +75,7 @@
     "test:admin-providers": "node --test scripts/admin-providers.test.mjs",
     "test:admin-route-contracts": "node --test scripts/adminRouteContracts.test.mjs",
     "test:admin-search-grant-scope": "node --test scripts/adminSearchGrantScope.test.mjs",
+    "test:admin-search-scope": "node --test scripts/adminSearchScope.test.mjs",
     "test:provider-health-page": "node --test scripts/providerHealthPage.test.mjs",
     "test:stripe-connect-banner": "node --test scripts/stripeConnectBanner.test.mjs",
     "test:admin-grant-guard": "node --test scripts/adminGrantGuard.test.mjs",
