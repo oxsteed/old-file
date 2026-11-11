@@ -190,6 +190,7 @@ describe('bookTimeSlot payment gate (P3-1069)', () => {
     const future = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
     mq.mockImplementation(async (sql) => {
       if (/FROM consulting_sessions_scheduled css\s+JOIN consulting_sessions/.test(sql)) return { rows: [{ id: 3, session_id: 1, user_id: 'u1' }] };
+      if (/SELECT id FROM users\s+WHERE id = \$1 AND is_active = TRUE AND deleted_at IS NULL/.test(sql)) return { rows: [{ id: 'c1' }] };
       return { rows: [] };
     });
     const r = res();
