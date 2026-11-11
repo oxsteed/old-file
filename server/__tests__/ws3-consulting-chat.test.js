@@ -10,7 +10,7 @@ const { mockQuery, resetMocks } = require('./setup');
 
 jest.mock('../utils/storage', () => {
   const actual = jest.requireActual('../utils/storage');
-  return { ...actual, uploadFile: jest.fn(), getSignedDownloadUrl: jest.fn() };
+  return { ...actual, uploadFile: jest.fn(), getSignedDownloadUrl: jest.fn(), deleteFile: jest.fn() };
 });
 
 jest.mock('../services/chatThreadAccess', () => ({
@@ -62,6 +62,7 @@ const CONV = { id: 'conv-1', customer_id: 'customer-1', helper_id: 'helper-1', b
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
+  storage.deleteFile.mockResolvedValue(undefined);
   chatThreadAccess.assertConversationParticipant.mockResolvedValue(CONV);
   chatThreadAccess.resolveGuestFromRequest.mockResolvedValue(null);
   chatThreadAccess.isProviderOnConversation.mockReturnValue(true);
@@ -437,5 +438,44 @@ describe('M15 - chat agreement attachment_key scoping', () => {
     expect(badRes.json).toHaveBeenCalledWith(
       expect.objectContaining({ code: 'attachment_key_not_issued_here' })
     );
+  });
+
+  test('shareAgreement removes an attachment when agreement persistence fails', async () => {
+    const mintedKey = 'chat-agreements/c-conv-1/fedcba9876543210fedcba9876543210.pdf';
+    storage.uploadFile.mockResolvedValue(mintedKey);
+    mockQuery.mockRejectedValue(new Error('agreement insert unavailable'));
+
+    const req = mockReq({
+      user: USER,
+      body: { conversationId: 'conv-1', title: 'Scope of work', body_text: 'terms' },
+      file: { buffer: Buffer.from('fake-bytes'), originalname: 'terms.pdf', mimetype: 'application/pdf', size: 10 },
+    });
+    const next = jest.fn();
+    await chatAgreementsController.shareAgreement(req, mockRes(), next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'agreement insert unavailable' }));
+    expect(storage.deleteFile).toHaveBeenCalledWith(mintedKey);
+  });
+
+  test('reviseAgreement removes an attachment when revision persistence fails', async () => {
+    const parent = { ...agreementRow, attachment_key: 'chat-agreements/old-unscoped.pdf' };
+    const mintedKey = 'chat-agreements/c-conv-1/0123456789abcdef0123456789abcdef.pdf';
+    storage.uploadFile.mockResolvedValue(mintedKey);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [parent] }) // loadAgreement
+      .mockResolvedValueOnce({ rows: [] }) // supersede parent
+      .mockRejectedValueOnce(new Error('revision insert unavailable'));
+
+    const req = mockReq({
+      user: USER,
+      body: { title: 'Scope of work v2', body_text: 'new terms' },
+      file: { buffer: Buffer.from('fake-bytes'), originalname: 'v2.pdf', mimetype: 'application/pdf', size: 10 },
+      params: { id: 'agr-1' },
+    });
+    const next = jest.fn();
+    await chatAgreementsController.reviseAgreement(req, mockRes(), next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'revision insert unavailable' }));
+    expect(storage.deleteFile).toHaveBeenCalledWith(mintedKey);
   });
 });
