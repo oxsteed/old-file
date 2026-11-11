@@ -149,6 +149,18 @@ describe('P2-1-F13 suspend revokes user tokens', () => {
     expect(logUserAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), actionType: 'account_restricted' }));
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_restricted' }));
   });
+
+  test('superAdminController.warnUser audits the warning in the same unit of work', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'u9', role: 'customer' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ warning_count: 2 }], rowCount: 1 });
+    const req = { params: { userId: 'u9' }, body: { reason: 'policy' }, user: { id: 'admin1' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const controller = require('../controllers/superAdminController');
+    await controller.warnUser(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ warning_count: 2 }));
+    expect(logUserAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), actionType: 'account_warned' }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_warned' }));
+  });
 });
 
 // ─── P2-1-F08 / P2-1-F12: moderation audit fail-closed ───────────────────────

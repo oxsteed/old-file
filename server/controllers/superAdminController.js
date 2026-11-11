@@ -4430,11 +4430,34 @@ exports.warnUser = async (req, res) => {
       return res.status(403).json({ error: 'Cannot warn another admin account.' });
     }
 
-    const { rows } = await db.query(
-      `UPDATE users SET warning_count = COALESCE(warning_count, 0) + 1, updated_at = NOW()
-       WHERE id = $1 RETURNING warning_count, email, first_name`,
-      [userId]
-    );
+    const { rows } = await withTransaction(db, async (client) => {
+      const result = await client.query(
+        `UPDATE users SET warning_count = COALESCE(warning_count, 0) + 1, updated_at = NOW()
+         WHERE id = $1 RETURNING warning_count, email, first_name`,
+        [userId]
+      );
+      if (!result.rows.length) return result;
+
+      await logUserAction({
+        client,
+        adminId,
+        targetUserId: userId,
+        actionType: 'account_warned',
+        notes: reason.trim(),
+        ipAddress: req.ip,
+        impersonatedBy: req.impersonatedBy || null,
+      });
+      await logAdminAction({
+        client,
+        adminId,
+        action: 'user_warned',
+        targetType: 'user',
+        targetId: userId,
+        description: reason.trim(),
+        req,
+      });
+      return result;
+    }, 'admin_warn_user');
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
 
     // In-app + email (transactional) for official warnings
@@ -4445,9 +4468,6 @@ exports.warnUser = async (req, res) => {
       },
       action_url: '/support',
     });
-
-    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_warned', notes: reason.trim(), ipAddress: req.ip, impersonatedBy: req.impersonatedBy || null });
-    await logAdminAction({ adminId, action: 'user_warned', targetType: 'user', targetId: userId, description: reason.trim(), req });
 
     res.json({ message: `Warning issued. User now has ${rows[0].warning_count} warning(s).`, warning_count: rows[0].warning_count });
   } catch (err) {
