@@ -58,11 +58,26 @@ function computeRebookRecommendedAt(templateSlug) {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 }
 
-async function getBusinessOrThrow(businessId) {
+async function getBusinessOrThrow(businessId, { publicOnly = false } = {}) {
   const { rows } = await pool.query(
-    `SELECT id, business_name, active_template, is_active
-     FROM businesses
-     WHERE id = $1`,
+    publicOnly
+      ? `SELECT b.id, b.business_name, b.active_template, b.is_active
+           FROM businesses b
+           JOIN users owner ON owner.id = b.user_id
+          WHERE b.id = $1
+            AND b.deleted_at IS NULL
+            AND b.is_active = TRUE
+            AND b.is_listed = TRUE
+            AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+            AND b.setup_status = 'active'
+            AND b.business_kind = 'service'
+            AND owner.deleted_at IS NULL
+            AND owner.is_active = TRUE
+            AND owner.email_verified = TRUE
+            AND owner.onboarding_completed = TRUE`
+      : `SELECT id, business_name, active_template, is_active
+           FROM businesses
+          WHERE id = $1`,
     [businessId]
   );
   const business = rows[0];
@@ -181,7 +196,7 @@ async function loadWorkspace(client, businessId) {
 
 exports.getPublicWorkspace = async (req, res, next) => {
   try {
-    const business = await getBusinessOrThrow(req.params.businessId);
+    const business = await getBusinessOrThrow(req.params.businessId, { publicOnly: true });
     const client = await pool.connect();
     try {
       const workspace = await loadWorkspace(client, business.id);
@@ -289,7 +304,7 @@ exports.updateSettings = async (req, res, next) => {
 
 exports.createIntakeRequest = async (req, res, next) => {
   try {
-    const business = await getBusinessOrThrow(req.params.businessId);
+    const business = await getBusinessOrThrow(req.params.businessId, { publicOnly: true });
     const desiredService = trimString(req.body.desired_service || req.body.desiredService, 180);
     if (!desiredService) throw new AppError('Desired service is required', 400, 'validation_failed');
 
