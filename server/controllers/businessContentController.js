@@ -106,9 +106,21 @@ async function isSectionHidden(client, businessId, section) {
     );
     return rows[0]?.visible === false;
   } catch (err) {
-    // Column missing on an unmigrated database: treat as visible.
-    logger.warn('business section visibility lookup failed', { section, err: err.message });
-    return false;
+    // Older databases may not have the optional section columns yet. Only
+    // that known schema-compatibility case may default to visible. A real
+    // database failure must not silently publish a section whose visibility
+    // could not be checked.
+    const missingColumn = err?.code === '42703'
+      || /column .* does not exist/i.test(String(err?.message || ''));
+    if (missingColumn) {
+      logger.warn('business section visibility column missing; using visible default', {
+        section,
+        err: err.message,
+        code: err.code,
+      });
+      return false;
+    }
+    throw err;
   }
 }
 
