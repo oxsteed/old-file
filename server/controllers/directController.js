@@ -2775,6 +2775,8 @@ exports.getTeam = async (_req, res) => {
       `SELECT id, first_name, last_name, email, role, default_mode, created_at
          FROM users
         WHERE role IN ('admin', 'super_admin')
+          AND is_active = true
+          AND deleted_at IS NULL
         ORDER BY created_at ASC`
     );
     return res.json({
