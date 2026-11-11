@@ -50,7 +50,7 @@ module.exports = async function enforceBookingRules(req, res, next) {
 
     // 1) Service exists, is bookable, and matches the business
     const svcRes = await pool.query(
-      `SELECT id, business_id, duration_minutes, max_capacity, min_notice_hours,
+      `SELECT id, business_id, duration_minutes, base_price_cents, max_capacity, min_notice_hours,
               is_active, allow_online_booking, deleted_at
          FROM business_services
         WHERE id = $1 AND business_id = $2`,

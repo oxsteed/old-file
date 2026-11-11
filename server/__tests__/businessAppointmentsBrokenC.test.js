@@ -425,7 +425,7 @@ describe('P3-8-F15: createAppointment uses req.bookingValidation', () => {
     const bvStart = futureIso(50);
     const bvEnd = futureIso(51);
     const res = await request(buildAppWithValidation(OWNER, {
-      service: { id: 'svc-bv' },
+      service: { id: 'svc-bv', base_price_cents: 5000 },
       startTimeIso: bvStart,
       endTimeIso: bvEnd,
       staffId: 'staff-bv',
@@ -443,6 +443,8 @@ describe('P3-8-F15: createAppointment uses req.bookingValidation', () => {
     expect(inserted[2]).toBe('staff-bv');
     expect(new Date(inserted[8]).toISOString()).toBe(new Date(bvStart).toISOString());
     expect(new Date(inserted[9]).toISOString()).toBe(new Date(bvEnd).toISOString());
+    expect(inserted[10]).toBe(5000);
+    expect(inserted[11]).toBe(5000);
   });
 });
 

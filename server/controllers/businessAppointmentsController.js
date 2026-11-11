@@ -4,6 +4,7 @@ const { calendarScopeClause } = require('../middleware/requireBusinessCalendarAc
 const { attributePromotionConversion } = require('../analytics/promotionAttribution');
 
 const pool = require('../db');
+const { priceServiceBooking } = require('../services/checkoutPricing');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
@@ -236,12 +237,38 @@ async function createAppointment(req, res, next) {
     const start_time = bv?.startTimeIso ?? req.body.start_time;
     const end_time = bv?.endTimeIso ?? req.body.end_time;
 
-    // Validate required fields
-    if (!service_id || !start_time || !end_time || base_price_cents === undefined) {
-      return next(new AppError('Service, start time, end time, and price are required', 400));
+    // Public requests get their price from the server-side service catalog;
+    // only the authorized staff-created walk-in path may supply an override.
+    if (!service_id || !start_time || !end_time || (req.staffCreated && base_price_cents === undefined)) {
+      return next(new AppError('Service, start time, and end time are required', 400));
     }
     if (new Date(end_time) <= new Date(start_time)) {
       return next(new AppError('End time must be after start time', 400));
+    }
+
+    let appointmentBasePriceCents;
+    let appointmentFinalPriceCents;
+    if (!req.staffCreated && bv) {
+      const serviceBasePrice = Number(bv.service?.base_price_cents);
+      if (!Number.isSafeInteger(serviceBasePrice) || serviceBasePrice < 0) {
+        return next(new AppError('Service price is unavailable', 503, 'service_price_unavailable'));
+      }
+      const priced = await priceServiceBooking({
+        businessId,
+        serviceId: service_id,
+        basePriceCents: serviceBasePrice,
+        customerId: req.user?.id || customer_id || null,
+        atTimeIso: start_time,
+      });
+      appointmentBasePriceCents = Number(priced.basePriceCents);
+      appointmentFinalPriceCents = Number(priced.adjustedPriceCents);
+    } else {
+      const suppliedPrice = Number(base_price_cents);
+      if (!Number.isSafeInteger(suppliedPrice) || suppliedPrice < 0) {
+        return next(new AppError('Price must be a non-negative whole number of cents', 400, 'invalid_price'));
+      }
+      appointmentBasePriceCents = suppliedPrice;
+      appointmentFinalPriceCents = suppliedPrice;
     }
 
     // P3-8-F10: staff-created (walk-in) appointments record the customer
@@ -289,7 +316,7 @@ async function createAppointment(req, res, next) {
          RETURNING *`,
         [businessId, service_id, staff_id || null, effectiveCustomerId, customer_name || null,
          customer_email || null, customer_phone || null, customer_notes || null,
-         start_time, end_time, base_price_cents, base_price_cents]
+         start_time, end_time, appointmentBasePriceCents, appointmentFinalPriceCents]
       );
       if (!req.staffCreated && effectiveCustomerId) {
         const { emitDomainEvent, serviceEventProps } = require('../growth/emit');

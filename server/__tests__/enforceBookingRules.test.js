@@ -41,6 +41,7 @@ function baseDb({ service = {}, business = {} } = {}) {
           id: 9,
           business_id: 2,
           duration_minutes: 60,
+          base_price_cents: 5000,
           max_capacity: 1,
           min_notice_hours: 0,
           is_active: true,
