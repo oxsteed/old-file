@@ -419,9 +419,20 @@ describe('payment_intent.amount_capturable_updated', () => {
   test('marks payment authorized', async () => {
     const event = {
       type: 'payment_intent.amount_capturable_updated',
-      data: { object: { id: 'pi_test', metadata: { job_id: '10' } } },
+      data: { object: {
+        id: 'pi_test',
+        amount: 8000,
+        amount_capturable: 8000,
+        currency: 'usd',
+        metadata: { job_id: '10' },
+      } },
     };
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // UPDATE payments
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SELECT id, payer_id, amount, currency, capture_amount_cents, metadata/.test(sql)) {
+        return { rows: [{ id: 1, payer_id: 'user-1', amount: '80.00', currency: 'usd', capture_amount_cents: null, metadata: {} }] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
 
     const res = await sendEvent(buildApp(), event);
     expect(res.status).toBe(200);
@@ -429,6 +440,32 @@ describe('payment_intent.amount_capturable_updated', () => {
       expect.stringContaining("status = 'authorized'"),
       expect.arrayContaining(['pi_test'])
     );
+  });
+
+  test('records an authorization mismatch without marking payment authorized', async () => {
+    const event = {
+      type: 'payment_intent.amount_capturable_updated',
+      data: { object: {
+        id: 'pi_authorization_mismatch',
+        amount: 7900,
+        amount_capturable: 7900,
+        currency: 'usd',
+        metadata: { job_id: '10' },
+      } },
+    };
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SELECT id, payer_id, amount, currency, capture_amount_cents, metadata/.test(sql)) {
+        return { rows: [{ id: 1, payer_id: 'user-1', amount: '80.00', currency: 'usd', capture_amount_cents: null, metadata: {} }] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /SET status = 'authorized'/.test(sql))).toBe(false);
+    const exceptionCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO reconciliation_exceptions/.test(sql));
+    expect(exceptionCall).toBeDefined();
+    expect(exceptionCall[1][0]).toBe('payment_authorization');
   });
 });
 

@@ -1218,6 +1218,46 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         // deduction is keyed per payment so a retry cannot post it twice.
         await withTransaction(db, async (client) => {
           if (jobId) {
+            const { rows: candidateRows } = await client.query(
+              `SELECT id, payer_id, amount, currency, capture_amount_cents, metadata
+                 FROM payments
+                WHERE stripe_payment_intent_id = $1
+                FOR UPDATE`,
+              [pi.id]
+            );
+            const candidate = candidateRows[0];
+            if (candidate) {
+              const expectedMinor = captureCents(candidate.amount, candidate.capture_amount_cents, candidate.currency);
+              const receivedMinor = Number(pi.amount_capturable ?? pi.amount);
+              const currencyOk = String(pi.currency || '').toLowerCase() === String(candidate.currency || '').toLowerCase();
+              if (!currencyOk || !Number.isSafeInteger(receivedMinor) || receivedMinor !== expectedMinor) {
+                logger.error('[Stripe] authorization amount mismatch; payment NOT marked authorized', {
+                  intentId: pi.id,
+                  paymentId: candidate.id,
+                  jobId,
+                  expectedMinor,
+                  receivedMinor,
+                  paymentCurrency: candidate.currency,
+                  piCurrency: pi.currency,
+                });
+                await recordException({
+                  domain: 'payment_authorization',
+                  referenceId: `payment:${candidate.id}`,
+                  severity: 'critical',
+                  summary: 'Stripe authorized amount does not match the payments row; authorization not recorded',
+                  details: {
+                    intentId: pi.id,
+                    paymentId: candidate.id,
+                    jobId: String(jobId),
+                    expectedMinor,
+                    receivedMinor,
+                    paymentCurrency: candidate.currency,
+                    piCurrency: pi.currency,
+                  },
+                });
+                return;
+              }
+            }
             const { rows: payRows } = await client.query(
               `UPDATE payments p SET status = 'authorized', payment_hold_status = 'held',
                  authorized_at = COALESCE(p.authorized_at, NOW()),
