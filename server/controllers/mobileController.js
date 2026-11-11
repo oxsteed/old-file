@@ -339,7 +339,15 @@ async function getPublicMenuHighlights(filters) {
 
 async function getPublicJobs(filters) {
   const params = [];
-  const where = [`u.is_active = TRUE`, `j.deleted_at IS NULL`, `j.status IN ('published', 'matched')`];
+  const where = [
+    `u.deleted_at IS NULL`,
+    `u.is_active = TRUE`,
+    `u.email_verified = TRUE`,
+    `u.onboarding_completed = TRUE`,
+    `j.deleted_at IS NULL`,
+    `j.status IN ('published', 'matched')`,
+    `(j.expires_at IS NULL OR j.expires_at > NOW())`,
+  ];
   if (filters.city) {
     params.push(`%${filters.city}%`);
     where.push(`j.location_city ILIKE $${params.length}`);
@@ -381,7 +389,7 @@ async function getPublicHelpers(filters) {
     `u.email_verified = TRUE`,
     `u.onboarding_completed = TRUE`,
     `u.role IN ('helper', 'helper_pro', 'broker')`,
-    `COALESCE(hp.is_listed, TRUE) = TRUE`,
+    `hp.is_listed IS TRUE`,
     `COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
   ];
   if (filters.city) {
