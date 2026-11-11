@@ -63,6 +63,51 @@ describe('Tier-3 platform-held settlement', () => {
     })).rejects.toMatchObject({ code: 'helper_payouts_not_ready', statusCode: 409 });
     expect(stripe.transfers?.create).toBeUndefined();
   });
+
+  test('does not settle when the Stripe transfer has no durable id', async () => {
+    stripe.transfers = { create: jest.fn().mockResolvedValue({}) };
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce({
+      id: 'pi_hold', status: 'succeeded', amount_received: 10000, currency: 'usd',
+      latest_charge: 'ch_hold', metadata: { platform_fee_cents: 1000, job_id: JOB_ID },
+    });
+    routeQueries(mockQuery, [
+      [/FROM connect_accounts/, { rows: [{ payouts_enabled: true }] }],
+    ]);
+
+    await expect(settlePlatformHold({ query: mockQuery }, {
+      id: 13,
+      status: 'authorized',
+      stripe_payment_intent_id: 'pi_hold',
+      destination_account_id: 'acct_helper',
+      amount: 100,
+      currency: 'usd',
+      metadata: { platform_fee_cents: 1000 },
+    })).rejects.toThrow('Stripe hold transfer did not return a transfer id');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE payments/.test(sql))).toBe(false);
+  });
+
+  test('does not settle an over-hold when the Stripe refund has no durable id', async () => {
+    stripe.transfers = { create: jest.fn() };
+    stripe.refunds.create.mockResolvedValueOnce({});
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce({
+      id: 'pi_hold', status: 'succeeded', amount_received: 10000, currency: 'usd',
+      latest_charge: 'ch_hold', metadata: { platform_fee_cents: 1000, job_id: JOB_ID },
+    });
+    routeQueries(mockQuery, [
+      [/FROM connect_accounts/, { rows: [{ payouts_enabled: true }] }],
+    ]);
+
+    await expect(settlePlatformHold({ query: mockQuery }, {
+      id: 14,
+      status: 'authorized',
+      stripe_payment_intent_id: 'pi_hold',
+      destination_account_id: 'acct_helper',
+      amount: 80,
+      currency: 'usd',
+      metadata: { platform_fee_cents: 1000 },
+    })).rejects.toThrow('Stripe hold refund did not return a refund id');
+    expect(stripe.transfers.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('state endpoint data', () => {
