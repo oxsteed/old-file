@@ -199,17 +199,19 @@ async function checkScheduleAgreementGate(pool, { conversationId, guestSessionId
     params.push(guestSessionId);
     where = 'guest_session_id = $1';
   }
-  const { rows } = await pool
-    .query(
-      `SELECT id, title, status, required_before_schedule, superseded_at
-         FROM chat_agreements
-        WHERE ${where}
-          AND required_before_schedule = TRUE
-          AND superseded_at IS NULL
-          AND status <> 'superseded'`,
-      params,
-    )
-    .catch(() => ({ rows: [] }));
+  // A required-agreement lookup is a scheduling authorization check. Do not
+  // turn a database outage into an empty blocker list, which would allow a
+  // booking to bypass an agreement gate. Callers already route thrown errors
+  // through their normal 5xx handling.
+  const { rows } = await pool.query(
+    `SELECT id, title, status, required_before_schedule, superseded_at
+       FROM chat_agreements
+      WHERE ${where}
+        AND required_before_schedule = TRUE
+        AND superseded_at IS NULL
+        AND status <> 'superseded'`,
+    params,
+  );
   return scheduleBlockedByAgreements(rows);
 }
 
