@@ -140,6 +140,23 @@ test('currency quote maker step-up binds to the source amount', async () => {
   }));
 });
 
+test('dispute compensation maker step-up binds to the compensation amount', async () => {
+  const req = makeReq({
+    status: 'resolved_customer',
+    compensationCents: 3200,
+    reason: 'compensation binding regression',
+    stepupChallengeId: 'challenge-1',
+    stepupCode: '123456',
+  }, { 'Idempotency-Key': 'dispute-1' });
+  req.params.disputeId = '11111111-1111-4111-8111-111111111111';
+  await controller.resolveAdminDispute(req, makeRes(), jest.fn());
+
+  expect(verifyStepupChallenge).toHaveBeenCalledWith(expect.objectContaining({
+    actionType: 'pending_action_request',
+    expectedAmountCents: 3200,
+  }));
+});
+
 test('partner funding preserves explicit zero over the snake_case alias', async () => {
   const req = makeReq(
     {

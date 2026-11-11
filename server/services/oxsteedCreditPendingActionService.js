@@ -182,6 +182,8 @@ async function resolveCheckerStepupAmountCents(queryable, action) {
   const payload = action.payload || {};
   const direct = parseAmount(payload.amountCents ?? payload.amount_cents);
   if (direct !== null && direct > 0) return direct;
+  const compensation = parseAmount(payload.compensationCents ?? payload.compensation_cents);
+  if (compensation !== null && compensation > 0) return compensation;
   // Currency-quote actions carry their amount under the conversion-specific
   // field. Keep checker challenge issuance and approval bound to the same
   // source amount as the pending-action audit/threshold resolver.

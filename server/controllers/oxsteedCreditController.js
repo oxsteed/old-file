@@ -171,6 +171,8 @@ async function requestMoneyMovement(req, actionType, payload) {
   const makerPayloadAmount = Number(
     payload?.amountCents
       ?? payload?.amount_cents
+      ?? payload?.compensationCents
+      ?? payload?.compensation_cents
       ?? payload?.sourceAmountMinorUnits
       ?? payload?.source_amount_minor_units,
   );
