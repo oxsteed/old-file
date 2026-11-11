@@ -161,6 +161,20 @@ describe('P2-1-F13 suspend revokes user tokens', () => {
     expect(logUserAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), actionType: 'account_warned' }));
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'user_warned' }));
   });
+
+  test('superAdminController.toggleAdminAccountStatus keeps sessions, grants, and audit atomic', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'admin2', role: 'admin', is_active: true, email: 'admin2@example.com' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'admin2' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // delegation grants
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // sessions
+    const controller = require('../controllers/superAdminController');
+    const req = { params: { id: 'admin2' }, body: { reason: 'offboarding' }, user: { id: 'admin1', role: 'super_admin' }, ip: '1.2.3.4' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.toggleAdminAccountStatus(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ is_active: false }));
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client: expect.any(Object), action: 'admin_account_disabled' }));
+  });
 });
 
 // ─── P2-1-F08 / P2-1-F12: moderation audit fail-closed ───────────────────────

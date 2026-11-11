@@ -3405,34 +3405,50 @@ exports.toggleAdminAccountStatus = async (req, res) => {
       return res.status(403).json({ error: 'Cannot change status of a super_admin account.' });
     }
     const newStatus = !rows[0].is_active;
-    const { rows: updateRows } = await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id', [newStatus, id, rows[0].is_active]);
-    if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'Admin status changed during update - concurrent modification detected.' });
+    try {
+      await withTransaction(db, async (client) => {
+        const result = await client.query(
+          'UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id',
+          [newStatus, id, rows[0].is_active],
+        );
+        if (!result.rows.length) {
+          const err = new Error('Admin status changed during update.');
+          err.code = 'admin_state_changed';
+          throw err;
+        }
+        if (!newStatus) {
+          await client.query(
+            `UPDATE delegation_grants SET status = 'revoked', revoked_at = NOW(),
+                    revoked_by = $2, revoke_reason = 'Grantor account disabled'
+              WHERE grantor_admin_id = $1 AND status = 'active'`,
+            [id, req.user.id]
+          );
+        }
+        // Invalidate all sessions for this admin in the same unit of work.
+        await client.query(
+          `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
+          [String(id)],
+        );
+        await logAdminAction({
+          client,
+          adminId: req.user.id,
+          action: newStatus ? 'admin_account_enabled' : 'admin_account_disabled',
+          targetType: 'user',
+          targetId: id,
+          description: reason || null,
+          before: { is_active: rows[0].is_active, email: rows[0].email },
+          after: { is_active: newStatus },
+          req,
+        });
+        return result;
+      }, newStatus ? 'admin_account_enable' : 'admin_account_disable');
+    } catch (err) {
+      if (err.code === 'admin_state_changed') {
+        return res.status(409).json({ error: 'Admin status changed during update - concurrent modification detected.' });
+      }
+      throw err;
     }
-    if (!newStatus) {
-      await db.query(
-        `UPDATE delegation_grants SET status = 'revoked', revoked_at = NOW(),
-                revoked_by = $2, revoke_reason = 'Grantor account disabled'
-          WHERE grantor_admin_id = $1 AND status = 'active'`,
-        [id, req.user.id]
-      );
-    }
-    // Invalidate all sessions for this admin and kick any live WebSocket connection
-    await db.query(
-      `UPDATE sessions SET is_valid = false, is_revoked = true WHERE ${userIdEq('user_id')}`,
-      [String(id)],
-    );
     if (!newStatus) socketService.broadcastToUser(id, 'force_logout', { reason: 'account_disabled' });
-    await logAdminAction({
-      adminId: req.user.id,
-      action: newStatus ? 'admin_account_enabled' : 'admin_account_disabled',
-      targetType: 'user',
-      targetId: id,
-      description: reason || null,
-      before: { is_active: rows[0].is_active, email: rows[0].email },
-      after: { is_active: newStatus },
-      req,
-    });
     res.json({ message: `Admin account ${newStatus ? 'enabled' : 'disabled'}.`, is_active: newStatus });
   } catch (err) {
     logger.error('toggleAdminAccountStatus error', { err });
