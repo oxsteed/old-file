@@ -288,12 +288,40 @@ describe('F07 quote/create eligibility parity', () => {
 
 // ── F08: customer slots subtract blocked times ────────────────────────────────
 describe('F08 slot endpoint honors blocked times', () => {
-  test('getBusinessAvailableSlots queries business_service_blocked_times', async () => {
+  function slotsApp() {
     const app = express();
     app.use(express.json());
     app.use((req, _res, next) => { req.user = OWNER; next(); });
     app.get('/api/bookings/business/:businessId/available-slots', booking.getBusinessAvailableSlots);
     app.use(errorHandler);
+    return app;
+  }
+
+  test('404s a business that is not in the public live state', async () => {
+    const app = slotsApp();
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app).get('/api/bookings/business/7/available-slots?date=2026-10-20');
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('BUSINESS_NOT_FOUND');
+  });
+
+  test('404s a deleted or inactive service instead of falling back to business hours', async () => {
+    const app = slotsApp();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] }) // live business
+      .mockResolvedValueOnce({ rows: [{ schedule_configured: true }] })
+      .mockResolvedValueOnce({ rows: [{ start_time: '09:00:00', end_time: '17:00:00' }] })
+      .mockResolvedValueOnce({ rows: [] }); // service rejected by live query
+
+    const res = await request(app).get('/api/bookings/business/7/available-slots?date=2026-10-20&serviceId=9');
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('SERVICE_NOT_FOUND');
+    expect(mockQuery.mock.calls).toHaveLength(4);
+  });
+
+  test('getBusinessAvailableSlots queries business_service_blocked_times', async () => {
+    const app = slotsApp();
 
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 7, is_active: true, is_listed: true, is_hidden_by_admin: false }] })
@@ -311,6 +339,10 @@ describe('F08 slot endpoint honors blocked times', () => {
     const noonSlot = slots.find((s) => s.startTime === '12:00');
     expect(noonSlot).toBeTruthy();
     expect(noonSlot.available).toBe(false);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/b\.deleted_at IS NULL/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/owner\.onboarding_completed = TRUE/);
+    expect(mockQuery.mock.calls.find(([sql]) => /FROM business_services/.test(sql))[0])
+      .toMatch(/COALESCE\(allow_online_booking, TRUE\) = TRUE/);
   });
 });
 

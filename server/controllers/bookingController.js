@@ -865,15 +865,24 @@ exports.getBusinessAvailableSlots = async (req, res) => {
     if (Number.isNaN(dateObj.getTime())) return sendValidationError(res, { date: 'Invalid date' });
 
     const businessResult = await pool.query(
-      `SELECT id, is_active, is_listed, is_hidden_by_admin FROM businesses
-        WHERE id = $1 AND business_kind = 'service'`,
+      `SELECT b.id, b.is_active, b.is_listed, b.is_hidden_by_admin
+         FROM businesses b
+         JOIN users owner ON owner.id = b.user_id
+        WHERE b.id = $1
+          AND b.deleted_at IS NULL
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+          AND b.setup_status = 'active'
+          AND b.business_kind = 'service'
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE`,
       [businessId]
     );
     const business = businessResult.rows[0];
     if (!business) return sendError(res, 404, 'Business not found', 'BUSINESS_NOT_FOUND');
-    if (!business.is_active || business.is_listed === false || business.is_hidden_by_admin) {
-      return sendError(res, 400, 'Business is not accepting bookings', 'BUSINESS_INACTIVE');
-    }
 
     const scheduleResult = await pool.query(
       `SELECT (
@@ -927,9 +936,16 @@ exports.getBusinessAvailableSlots = async (req, res) => {
       const serviceResult = await pool.query(
         `SELECT duration_minutes, duration
            FROM business_services
-          WHERE id = $1 AND business_id = $2 AND is_active = TRUE`,
+          WHERE id = $1
+            AND business_id = $2
+            AND is_active = TRUE
+            AND COALESCE(allow_online_booking, TRUE) = TRUE
+            AND deleted_at IS NULL`,
         [String(serviceId), businessId]
       );
+      if (!serviceResult.rows[0]) {
+        return sendError(res, 404, 'Service not found', 'SERVICE_NOT_FOUND');
+      }
       if (serviceResult.rows[0]) {
         const service = serviceResult.rows[0];
         const parsed = Number.parseInt(service.duration_minutes || service.duration, 10);
