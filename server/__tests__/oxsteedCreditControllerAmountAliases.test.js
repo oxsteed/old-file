@@ -25,7 +25,7 @@ jest.mock('../services/oxsteedCreditCurrencyConversionService', () => ({
 jest.mock('../services/fxRateProvider', () => ({ getFxQuote: jest.fn() }));
 
 const controller = require('../controllers/oxsteedCreditController');
-const { verifyStepupChallenge } = require('../services/stepupChallengeService');
+const { issueStepupChallenge, verifyStepupChallenge } = require('../services/stepupChallengeService');
 const { requestPendingAction } = require('../services/oxsteedCreditPendingActionService');
 const { convertCustomerCredit } = require('../services/oxsteedCreditCurrencyConversionService');
 
@@ -50,9 +50,14 @@ function makeRes() {
 beforeEach(() => {
   resetMocks();
   verifyStepupChallenge.mockClear();
+  issueStepupChallenge.mockClear();
   requestPendingAction.mockClear();
   convertCustomerCredit.mockClear();
   verifyStepupChallenge.mockResolvedValue({ verified: true });
+  issueStepupChallenge.mockResolvedValue({
+    challenge: { id: 'challenge-1', actionType: 'pending_action_request', amountCents: 0, currencyCode: 'USD', expiresAt: 'future' },
+    delivery: 'totp',
+  });
   requestPendingAction.mockResolvedValue({
     executed: false,
     pendingAction: { id: 'pending-1', status: 'pending' },
@@ -131,4 +136,19 @@ test('partner funding preserves explicit zero over the snake_case alias', async 
   expect(requestPendingAction).toHaveBeenCalledWith(expect.objectContaining({
     payload: expect.objectContaining({ amountCents: 0 }),
   }));
+});
+
+test('step-up issuance preserves explicit zero over the snake_case alias', async () => {
+  await controller.issueAdminStepupChallenge(
+    makeReq({
+      actionType: 'pending_action_request',
+      amountCents: 0,
+      amount_cents: 100,
+      currencyCode: 'USD',
+    }),
+    makeRes(),
+    jest.fn(),
+  );
+
+  expect(issueStepupChallenge).toHaveBeenCalledWith(expect.objectContaining({ amountCents: 0 }));
 });

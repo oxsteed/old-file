@@ -1515,7 +1515,7 @@ async function issueAdminStepupChallenge(req, res, next) {
     // verifies against, so issue and verify agree by construction. The
     // client sends pendingActionId (ApprovalsPage); without it the legacy
     // body amount (or 1) is used, exactly as before.
-    let amountCents = req.body?.amountCents || req.body?.amount_cents || 1;
+    let amountCents = req.body?.amountCents ?? req.body?.amount_cents ?? 1;
     const pendingActionId = req.body?.pendingActionId || req.body?.pending_action_id;
     if (requestedActionType === 'pending_action_approve' && pendingActionId) {
       const { rows: actionRows } = await pool.query(
