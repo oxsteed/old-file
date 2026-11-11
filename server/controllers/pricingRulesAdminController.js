@@ -45,9 +45,8 @@ const MAX_MULTIPLIER = 100;
  */
 async function assertServiceRuleOwnership(ruleId, businessId, res) {
   const { rows } = await pool.query(
-    `SELECT r.id, s.business_id
+    `SELECT r.id, r.business_id
        FROM service_price_rules r
-       LEFT JOIN business_services s ON s.id = r.service_id
       WHERE r.id = $1`,
     [ruleId]
   );
@@ -80,6 +79,7 @@ function businessIdFrom(req) {
 
 exports.createServiceRule = async function createServiceRule(req, res, next) {
   try {
+    const businessId = businessIdFrom(req);
     const { serviceId } = req.params;
     const { rule_type, priority = 0, time, demand, volume, segment, seasonal } = req.body || {};
 
@@ -108,10 +108,19 @@ exports.createServiceRule = async function createServiceRule(req, res, next) {
     try {
       await client.query('BEGIN');
       const r = await client.query(
-        `INSERT INTO service_price_rules (service_id, rule_type, priority, is_active)
-         VALUES ($1, $2, $3, TRUE) RETURNING id`,
-        [serviceId, rule_type, num(priority, 0)]
+        `INSERT INTO service_price_rules
+           (business_id, service_id, rule_type, priority, is_enabled, name, rule_config, created_by_id)
+         SELECT $1, s.id, $2, $3, TRUE, $4, '{}'::jsonb, $5
+           FROM business_services s
+          WHERE s.id = $6 AND s.business_id = $1
+         RETURNING id`,
+        [businessId, rule_type, num(priority, 0), `${rule_type} pricing rule`, req.user.id, serviceId]
       );
+      if (!r.rows[0]) {
+        const error = new Error('Service not found for business');
+        error.status = 404;
+        throw error;
+      }
       const ruleId = r.rows[0].id;
 
       if (rule_type === 'time' && time) {
@@ -126,7 +135,7 @@ exports.createServiceRule = async function createServiceRule(req, res, next) {
       } else if (rule_type === 'demand' && demand) {
         await client.query(
           `INSERT INTO service_price_demand_rules
-             (rule_id, availability_threshold_percent, surge_multiplier)
+             (rule_id, availability_threshold_percent, price_multiplier)
            VALUES ($1,$2,$3)`,
           [ruleId, num(demand.availability_threshold_percent, 80), demandMult]
         );
@@ -186,12 +195,14 @@ exports.createServiceRule = async function createServiceRule(req, res, next) {
 
 exports.listServiceRules = async function listServiceRules(req, res, next) {
   try {
+    const businessId = businessIdFrom(req);
     const { serviceId } = req.params;
     const { rows } = await pool.query(
-      `SELECT id, rule_type, priority, is_active, created_at, updated_at
-         FROM service_price_rules WHERE service_id = $1
-        ORDER BY priority DESC, created_at DESC`,
-      [serviceId]
+      `SELECT id, rule_type, priority, is_enabled AS is_active, created_at, updated_at
+         FROM service_price_rules
+        WHERE business_id = $1 AND service_id = $2
+        ORDER BY priority ASC, created_at DESC`,
+      [businessId, serviceId]
     );
     return sendSuccess(res, { rules: rows });
   } catch (err) { next(err); }
@@ -204,10 +215,11 @@ exports.toggleServiceRule = async function toggleServiceRule(req, res, next) {
     const { is_active } = req.body || {};
     if (await assertServiceRuleOwnership(ruleId, businessId, res) !== 'ok') return;
     const r = await pool.query(
-      `UPDATE service_price_rules AS r SET is_active = $1, updated_at = NOW()
+      `UPDATE service_price_rules AS r SET is_enabled = $1, updated_at = NOW()
         WHERE r.id = $2
+          AND r.business_id = $3
           AND EXISTS (SELECT 1 FROM business_services s WHERE s.id = r.service_id AND s.business_id = $3)
-        RETURNING id, is_active`,
+        RETURNING id, is_enabled AS is_active`,
       [!!is_active, ruleId, businessId]
     );
     if (!r.rows[0]) return sendError(res, 404, 'Rule not found', 'not_found');
@@ -229,6 +241,7 @@ exports.deleteServiceRule = async function deleteServiceRule(req, res, next) {
     const r = await pool.query(
       `DELETE FROM service_price_rules AS r
         WHERE r.id = $1
+          AND r.business_id = $2
           AND EXISTS (SELECT 1 FROM business_services s WHERE s.id = r.service_id AND s.business_id = $2)
         RETURNING id`,
       [ruleId, businessId]

@@ -4,6 +4,7 @@
 const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const pricingEngine = require('../services/pricingEngine');
 
 // Main pricing calculation
 async function calculatePrice(req, res, next) {
@@ -15,120 +16,42 @@ async function calculatePrice(req, res, next) {
       return next(new AppError('Booking date and time are required', 400));
     }
 
-    // Get service
-    const serviceResult = await pool.query(
-      'SELECT * FROM business_services WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL',
-      [serviceId, businessId]
-    );
+    const atTime = new Date(`${booking_date}T${booking_time}:00Z`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(booking_date)) ||
+        !/^\d{2}:\d{2}$/.test(String(booking_time)) ||
+        Number.isNaN(atTime.getTime())) {
+      return next(new AppError('Booking date and time are invalid', 400));
+    }
+    const atTimeIso = atTime.toISOString();
+    const result = await pricingEngine.calculatePrice({
+      businessId,
+      kind: 'service',
+      targetId: serviceId,
+      quantity,
+      customerId: customer_id || null,
+      atTimeIso,
+    });
 
-    if (!serviceResult.rows.length) {
+    if (result.error === 'service not found') {
       return next(new AppError('Service not found', 404));
     }
 
-    const service = serviceResult.rows[0];
-    let finalPrice = service.base_price_cents;
-    const appliedRules = [];
-    const calculation = { base_price: service.base_price_cents, modifiers: [] };
-
-    // 1. Get all active pricing rules for this service, ordered by priority
-    const rulesResult = await pool.query(
-      `SELECT * FROM service_price_rules
-       WHERE business_id = $1 AND (service_id = $2 OR service_id IS NULL)
-       AND is_enabled = true
-       AND rule_type IN ('time', 'demand', 'volume', 'segment', 'seasonal')
-       ORDER BY priority ASC`,
-      [businessId, serviceId]
-    );
-
-    // 2. Apply time-based pricing
-    const timeRules = rulesResult.rows.filter(r => r.rule_type === 'time');
-    for (const rule of timeRules) {
-      const timeModifier = await applyTimePricing(rule, booking_date, booking_time);
-      if (timeModifier) {
-        finalPrice = applyPriceModifier(finalPrice, timeModifier);
-        calculation.modifiers.push({ type: 'time', ...timeModifier });
-        appliedRules.push(rule.id);
-      }
-    }
-
-    // 3. Apply demand-based pricing (surge)
-    const demandRules = rulesResult.rows.filter(r => r.rule_type === 'demand');
-    for (const rule of demandRules) {
-      const demandModifier = await applyDemandPricing(serviceId, booking_date, booking_time, rule);
-      if (demandModifier) {
-        finalPrice = applyPriceModifier(finalPrice, demandModifier);
-        calculation.modifiers.push({ type: 'demand', ...demandModifier });
-        appliedRules.push(rule.id);
-      }
-    }
-
-    // 4. Apply volume-based pricing
-    const volumeRules = rulesResult.rows.filter(r => r.rule_type === 'volume');
-    for (const rule of volumeRules) {
-      const volumeModifier = await applyVolumePricing(customer_id, serviceId, quantity, rule);
-      if (volumeModifier) {
-        finalPrice = applyPriceModifier(finalPrice, volumeModifier);
-        calculation.modifiers.push({ type: 'volume', ...volumeModifier });
-        appliedRules.push(rule.id);
-      }
-    }
-
-    // 5. Apply customer segment pricing (loyalty)
-    const segmentRules = rulesResult.rows.filter(r => r.rule_type === 'segment');
-    if (customer_id) {
-      for (const rule of segmentRules) {
-        const segmentModifier = await applyCustomerSegmentPricing(customer_id, serviceId, rule);
-        if (segmentModifier) {
-          finalPrice = applyPriceModifier(finalPrice, segmentModifier);
-          calculation.modifiers.push({ type: 'segment', ...segmentModifier });
-          appliedRules.push(rule.id);
-        }
-      }
-    }
-
-    // 6. Apply seasonal pricing (highest priority)
-    const seasonalRules = rulesResult.rows.filter(r => r.rule_type === 'seasonal');
-    for (const rule of seasonalRules) {
-      const seasonalPrice = await applySeasonalPricing(rule, booking_date);
-      if (seasonalPrice !== null) {
-        finalPrice = seasonalPrice;
-        calculation.modifiers.push({ type: 'seasonal', price: seasonalPrice });
-        appliedRules.push(rule.id);
-        break; // Seasonal overrides all
-      }
-    }
-
-    // Apply price constraints (min/max)
-    const constraints = await pool.query(
-      'SELECT * FROM service_price_constraints WHERE service_id = $1',
-      [serviceId]
-    );
-
-    if (constraints.rows.length > 0) {
-      const constraint = constraints.rows[0];
-      if (constraint.min_price_cents && finalPrice < constraint.min_price_cents) {
-        finalPrice = constraint.min_price_cents;
-        calculation.constrained = true;
-      }
-      if (constraint.max_price_cents && finalPrice > constraint.max_price_cents) {
-        finalPrice = constraint.max_price_cents;
-        calculation.constrained = true;
-      }
-    }
-
-    // Log calculation
+    const appliedRules = result.applied
+      .map(rule => rule.ruleId)
+      .filter(Boolean);
     await pool.query(
       `INSERT INTO service_price_calculations
        (service_id, customer_id, booking_date, booking_time, base_price_cents, final_price_cents, calculation_details, applied_rules)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [serviceId, customer_id || null, booking_date, booking_time, service.base_price_cents, finalPrice, JSON.stringify(calculation), appliedRules]
+      [serviceId, customer_id || null, booking_date, booking_time,
+       result.basePriceCents, result.adjustedPriceCents, JSON.stringify(result), appliedRules]
     );
 
     res.json({
-      base_price_cents: service.base_price_cents,
-      final_price_cents: finalPrice,
-      price_difference_cents: finalPrice - service.base_price_cents,
-      modifiers: calculation.modifiers,
+      base_price_cents: result.basePriceCents,
+      final_price_cents: result.adjustedPriceCents,
+      price_difference_cents: result.adjustedPriceCents - result.basePriceCents,
+      modifiers: result.applied,
       applied_rules: appliedRules
     });
   } catch (error) {
@@ -247,148 +170,6 @@ async function deletePricingRule(req, res, next) {
     logger.error('Error deleting pricing rule', { error });
     next(new AppError('Failed to delete pricing rule', 500));
   }
-}
-
-// Helper functions for different pricing strategies
-
-async function applyTimePricing(rule, bookingDate, bookingTime) {
-  const timeRulesResult = await pool.query(
-    'SELECT * FROM service_price_time_rules WHERE rule_id = $1',
-    [rule.id]
-  );
-
-  const dateObj = new Date(bookingDate);
-  const dayOfWeek = dateObj.getUTCDay();
-
-  for (const timeRule of timeRulesResult.rows) {
-    if (timeRule.day_of_week !== null && timeRule.day_of_week !== dayOfWeek) continue;
-    if (timeRule.start_time && timeRule.end_time) {
-      if (bookingTime >= timeRule.start_time && bookingTime <= timeRule.end_time) {
-        return {
-          multiplier: timeRule.price_multiplier,
-          modifier: timeRule.price_modifier_cents,
-          description: timeRule.description
-        };
-      }
-    }
-  }
-
-  return null;
-}
-
-async function applyDemandPricing(serviceId, bookingDate, bookingTime, rule) {
-  // Calculate availability percentage
-  const appointmentsResult = await pool.query(
-    `SELECT COUNT(*) FROM business_appointments
-     WHERE service_id = $1 AND DATE(start_time) = $2 AND status != 'cancelled'`,
-    [serviceId, bookingDate]
-  );
-
-  const availabilityPercent = 50; // Simplified - calculate real availability
-
-  const demandRulesResult = await pool.query(
-    'SELECT * FROM service_price_demand_rules WHERE rule_id = $1',
-    [rule.id]
-  );
-
-  for (const demandRule of demandRulesResult.rows) {
-    if (availabilityPercent <= demandRule.availability_threshold_percent) {
-      return {
-        multiplier: demandRule.price_multiplier,
-        modifier: demandRule.price_modifier_cents,
-        description: demandRule.description
-      };
-    }
-  }
-
-  return null;
-}
-
-async function applyVolumePricing(customerId, serviceId, quantity, rule) {
-  const volumeRulesResult = await pool.query(
-    'SELECT * FROM service_price_volume_rules WHERE rule_id = $1 ORDER BY min_quantity DESC',
-    [rule.id]
-  );
-
-  for (const volRule of volumeRulesResult.rows) {
-    if (quantity >= volRule.min_quantity && (!volRule.max_quantity || quantity <= volRule.max_quantity)) {
-      return {
-        multiplier: volRule.price_multiplier,
-        modifier: volRule.price_modifier_cents,
-        description: volRule.description
-      };
-    }
-  }
-
-  return null;
-}
-
-async function applyCustomerSegmentPricing(customerId, serviceId, rule) {
-  const segmentRulesResult = await pool.query(
-    'SELECT * FROM service_price_customer_segment_rules WHERE rule_id = $1',
-    [rule.id]
-  );
-
-  // Check customer loyalty tier/segment
-  const customerResult = await pool.query(
-    'SELECT * FROM customer_business_profile WHERE customer_id = $1',
-    [customerId]
-  );
-
-  if (!customerResult.rows.length) return null;
-
-  const customer = customerResult.rows[0];
-
-  for (const segRule of segmentRulesResult.rows) {
-    if (segRule.segment_type === 'returning' && customer.lifetime_bookings > 0) {
-      return {
-        multiplier: segRule.price_multiplier,
-        modifier: segRule.price_modifier_cents,
-        description: segRule.description
-      };
-    }
-    if (segRule.segment_type === 'loyalty_tier' && customer.loyalty_tier === segRule.segment_name) {
-      return {
-        multiplier: segRule.price_multiplier,
-        modifier: segRule.price_modifier_cents,
-        description: segRule.description
-      };
-    }
-  }
-
-  return null;
-}
-
-async function applySeasonalPricing(rule, bookingDate) {
-  const seasonalRulesResult = await pool.query(
-    'SELECT * FROM service_price_seasonal_rules WHERE rule_id = $1',
-    [rule.id]
-  );
-
-  const dateObj = new Date(bookingDate);
-
-  for (const seasonalRule of seasonalRulesResult.rows) {
-    const startDate = new Date(seasonalRule.start_date);
-    const endDate = new Date(seasonalRule.end_date);
-
-    if (dateObj >= startDate && dateObj <= endDate) {
-      if (seasonalRule.fixed_price_cents) {
-        return seasonalRule.fixed_price_cents;
-      }
-    }
-  }
-
-  return null;
-}
-
-function applyPriceModifier(basePrice, modifier) {
-  if (modifier.multiplier) {
-    return Math.round(basePrice * modifier.multiplier);
-  }
-  if (modifier.modifier) {
-    return basePrice + modifier.modifier;
-  }
-  return basePrice;
 }
 
 module.exports = {

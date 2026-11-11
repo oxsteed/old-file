@@ -59,7 +59,8 @@ function withinTimeWindow(now, startStr, endStr) {
 
 async function _loadServiceBasePrice(businessId, serviceId) {
   const { rows } = await pool.query(
-    `SELECT base_price_cents FROM business_services WHERE id = $1 AND business_id = $2`,
+    `SELECT base_price_cents FROM business_services
+      WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL`,
     [serviceId, businessId]
   );
   return rows[0] ? Number(rows[0].base_price_cents) : null;
@@ -84,18 +85,19 @@ async function _loadServiceConstraints(serviceId) {
   } catch { return null; }
 }
 
-async function _loadServiceRules(serviceId) {
+async function _loadServiceRules(businessId, serviceId) {
   // Load rule tree. Each query is wrapped because some envs may not have
   // these tables yet (the schema lives in migration 222).
   const safe = (q, p) => pool.query(q, p).then(r => r.rows).catch(() => []);
   const [rules, timeRules, demandRules, volumeRules, segRules, seasonalRules] = await Promise.all([
-    safe(`SELECT id, rule_type, priority, is_active FROM service_price_rules
-           WHERE service_id = $1 AND is_active = TRUE
-           ORDER BY priority DESC`, [serviceId]),
+    safe(`SELECT id, rule_type, priority, is_enabled AS is_active FROM service_price_rules
+           WHERE business_id = $1 AND (service_id = $2 OR service_id IS NULL)
+             AND is_enabled = TRUE
+           ORDER BY priority ASC`, [businessId, serviceId]),
     safe(`SELECT rule_id, day_of_week, start_time, end_time, is_peak,
                  price_multiplier, fixed_modifier_cents
             FROM service_price_time_rules`, []),
-    safe(`SELECT rule_id, availability_threshold_percent, surge_multiplier
+    safe(`SELECT rule_id, availability_threshold_percent, price_multiplier AS surge_multiplier
             FROM service_price_demand_rules`, []),
     safe(`SELECT rule_id, min_quantity, max_quantity, period,
                  price_multiplier, fixed_modifier_cents
@@ -165,7 +167,7 @@ async function priceService(args) {
   }
 
   const [tree, constraints, segment, demand] = await Promise.all([
-    _loadServiceRules(serviceId),
+    _loadServiceRules(businessId, serviceId),
     _loadServiceConstraints(serviceId),
     args.customerId ? getCustomerSegment({ userId: args.customerId, businessId }) : Promise.resolve('new'),
     computeDemandSignal({ kind: 'service', businessId, targetId: serviceId, atTimeIso: toIso(at) }),
