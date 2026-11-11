@@ -92,7 +92,7 @@ exports.requireAdmin = async (req, res, next) => {
 
     const { rows } = await db.query(
       `SELECT id, role, is_active, first_name, last_name, email, COALESCE(totp_enabled, FALSE) AS totp_enabled
-       FROM users WHERE id = $1`,
+       FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [decoded.id]
     );
 
@@ -140,7 +140,7 @@ exports.requireSuperAdmin = async (req, res, next) => {
 
     const { rows } = await db.query(
       `SELECT id, role, is_active, first_name, last_name, email, COALESCE(totp_enabled, FALSE) AS totp_enabled
-       FROM users WHERE id = $1`,
+       FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [decoded.id]
     );
 
@@ -230,7 +230,7 @@ exports.hasGlobalGrant = hasGlobalGrant;
  */
 async function adminTotpEnabled(userId) {
   const { rows } = await db.query(
-    'SELECT COALESCE(totp_enabled, FALSE) AS totp_enabled FROM users WHERE id = $1',
+    'SELECT COALESCE(totp_enabled, FALSE) AS totp_enabled FROM users WHERE id = $1 AND deleted_at IS NULL',
     [userId]
   );
   return rows.length > 0 && rows[0].totp_enabled === true;

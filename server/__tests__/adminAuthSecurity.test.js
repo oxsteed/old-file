@@ -26,6 +26,12 @@ beforeEach(() => {
 });
 
 describe('admin auth middleware security boundaries', () => {
+  test('all admin identity lookups exclude soft-deleted accounts', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('../middleware/adminAuth'), 'utf8');
+    expect((src.match(/FROM users WHERE id = \$1 AND deleted_at IS NULL/g) || []).length).toBe(3);
+  });
+
   test('rejects refresh tokens before admin lookup', async () => {
     const refreshToken = signToken({ id: 1, type: 'refresh' });
 
