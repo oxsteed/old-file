@@ -273,6 +273,23 @@ describe('M15 - chat proof-of-payment attachment_key scoping', () => {
     expect(mockQuery.mock.calls[0][1][13]).toBe(mintedKey);
   });
 
+  test('sharePop removes an attachment when proof persistence fails', async () => {
+    const mintedKey = 'chat-pop/c-conv-1/fedcba9876543210fedcba9876543210.pdf';
+    storage.uploadFile.mockResolvedValue(mintedKey);
+    mockQuery.mockRejectedValue(new Error('proof insert unavailable'));
+
+    const req = mockReq({
+      user: USER,
+      body: { conversationId: 'conv-1', amount_cents: 1000 },
+      file: { buffer: Buffer.from('fake-bytes'), originalname: 'receipt.pdf', mimetype: 'image/jpeg', size: 10 },
+    });
+    const next = jest.fn();
+    await chatPopController.sharePop(req, mockRes(), next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'proof insert unavailable' }));
+    expect(storage.deleteFile).toHaveBeenCalledWith(mintedKey);
+  });
+
   test('guest sessions get their own g- scope', async () => {
     const scopedKey = 'chat-pop/g-guest-9/abcdef1234567890abcdef1234567890.pdf';
     chatThreadAccess.resolveGuestFromRequest.mockResolvedValue({
