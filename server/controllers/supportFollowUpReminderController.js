@@ -97,7 +97,10 @@ async function createReminder(req, res) {
     if (!access.conversation) return sendError(res, 404, 'Conversation not found');
     if (!access.allowed) return sendError(res, 403, 'Access denied');
     if (assignedTo) {
-      const assignee = await db.query('SELECT id FROM users WHERE id = $1 AND is_active = TRUE', [assignedTo]);
+      const assignee = await db.query(
+        'SELECT id FROM users WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL',
+        [assignedTo],
+      );
       if (!assignee.rows.length) return sendValidationError(res, { assignedTo: 'Active assignee not found' });
     }
 
