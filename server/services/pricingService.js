@@ -120,7 +120,7 @@ async function updatePremiumPrice(
     throw new Error('Invalid country code');
   }
 
-  if (!priceCents || priceCents < 0) {
+  if (!Number.isSafeInteger(priceCents) || priceCents < 0) {
     throw new Error('Invalid price');
   }
 
