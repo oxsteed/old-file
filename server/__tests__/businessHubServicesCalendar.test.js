@@ -214,6 +214,38 @@ describe('hub services + calendar error sources', () => {
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 
+  test('waitlist position allocation is serialized per service', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{
+        id: 8,
+        is_active: true,
+        allow_online_booking: true,
+        business_is_active: true,
+        is_listed: true,
+        is_hidden_by_admin: false,
+        setup_status: 'active',
+        business_kind: 'service',
+        business_deleted_at: null,
+        owner_deleted_at: null,
+        owner_is_active: true,
+        owner_email_verified: true,
+        owner_onboarding_completed: true,
+      }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ next_pos: 4 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'wl-2', position_in_queue: 4, status: 'waiting', preferred_time_start: '09:00:00', preferred_time_end: '11:00:00' }] });
+
+    const res = await request(buildApp())
+      .post('/api/businesses/1/waitlist')
+      .send({ service_id: 8, preferred_date: '2026-09-22', preferred_time_range: '09:00-11:00' });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ id: 'wl-2', position: 4, preferred_time_range: '09:00–11:00' });
+    expect(mockQuery.mock.calls[1][0]).toMatch(/pg_advisory_xact_lock/);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/MAX\(position_in_queue\)/);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/INSERT INTO appointment_waitlist/);
+  });
+
   test('appointment list failures return AppError instead of crashing the constructor', async () => {
     mockQuery.mockRejectedValueOnce(new Error('relation "business_appointments" does not exist'));
     const res = await request(buildApp()).get('/api/businesses/1/appointments');

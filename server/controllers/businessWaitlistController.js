@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { withTransaction } = require('../utils/transaction');
 
 const UI_TO_DB_STATUS = {
   waiting: 'waiting',
@@ -114,11 +115,6 @@ exports.addToWaitlist = async (req, res, next) => {
       return res.status(409).json({ error: 'Service is not accepting waitlist requests', code: 'service_not_bookable' });
     }
 
-    const posRow = await pool.query(
-      'SELECT COALESCE(MAX(position_in_queue),0)+1 AS next_pos FROM appointment_waitlist WHERE service_id=$1 AND status=\'waiting\'',
-      [service_id]
-    );
-
     let preferredTimeStart = null;
     let preferredTimeEnd = null;
     if (typeof preferred_time_range === 'string' && preferred_time_range.includes('–')) {
@@ -131,14 +127,28 @@ exports.addToWaitlist = async (req, res, next) => {
       preferredTimeEnd = end || null;
     }
 
-    const row = await pool.query(
-      `INSERT INTO appointment_waitlist
-         (service_id, customer_id, preferred_date_start, preferred_time_start, preferred_time_end, position_in_queue, status)
-       VALUES ($1,$2,$3,$4,$5,$6,'waiting') RETURNING *`,
-      [service_id, req.user.id, preferred_date || null, preferredTimeStart, preferredTimeEnd, posRow.rows[0].next_pos]
-    );
+    const row = await withTransaction(pool, async (client) => {
+      // Serialize queue-position allocation per service. Without a shared
+      // lock, concurrent customers can observe the same MAX(position) and
+      // enter the waitlist with duplicate positions.
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+        [`business-waitlist:${service_id}`],
+      );
+      const posRow = await client.query(
+        'SELECT COALESCE(MAX(position_in_queue),0)+1 AS next_pos FROM appointment_waitlist WHERE service_id=$1 AND status=\'waiting\'',
+        [service_id]
+      );
+      const insert = await client.query(
+        `INSERT INTO appointment_waitlist
+           (service_id, customer_id, preferred_date_start, preferred_time_start, preferred_time_end, position_in_queue, status)
+         VALUES ($1,$2,$3,$4,$5,$6,'waiting') RETURNING *`,
+        [service_id, req.user.id, preferred_date || null, preferredTimeStart, preferredTimeEnd, posRow.rows[0].next_pos]
+      );
+      return insert.rows[0];
+    }, 'business_waitlist_add');
     res.status(201).json(mapWaitlistRow({
-      ...row.rows[0],
+      ...row,
       business_id: Number(businessId),
       customer_name: null,
       customer_email: null,
