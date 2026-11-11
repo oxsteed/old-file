@@ -869,6 +869,10 @@ async function recordAppointmentPayment(req, res, next) {
       if (['cancelled', 'no_show'].includes(current.status)) {
         throw new AppError(`Cannot record payment for a ${current.status} appointment`, 409, 'invalid_status_transition');
       }
+      const dueCents = Number(current.final_price_cents);
+      if (!Number.isSafeInteger(dueCents) || amount_cents !== dueCents) {
+        throw new AppError('Payment amount must match the appointment total', 409, 'payment_amount_mismatch');
+      }
       const result = await client.query(
         `UPDATE business_appointments
          SET payment_status = 'paid', updated_at = NOW()

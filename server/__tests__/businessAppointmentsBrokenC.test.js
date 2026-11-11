@@ -240,6 +240,20 @@ describe('P3-8-F05: late-cancel fee enforcement', () => {
     expect(res.body.code).toBe('invalid_payment_transition');
   });
 
+  test('recordAppointmentPayment rejects an amount below the appointment total', async () => {
+    const current = {
+      id: 'a1', business_id: 7, service_id: 'svc-1', staff_id: null,
+      status: 'confirmed', payment_status: 'pending', final_price_cents: 5000,
+    };
+    installBaseRouter({ current });
+    const res = await request(buildApp())
+      .post('/api/businesses/7/appointments/a1/record-payment')
+      .send({ amount_cents: 100, payment_method: 'cash' });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('payment_amount_mismatch');
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes("SET payment_status = 'paid'"))).toBe(false);
+  });
+
   test('create surfaces requires_payment_upfront', async () => {
     const current = null;
     installBaseRouter({ current });
