@@ -203,66 +203,69 @@ async function assignToAgent(req, res) {
       return sendError(res, 400, 'Agent at max capacity');
     }
 
-    // Unassign previous agent if any
-    if (conversation.agent_id) {
-      await query(
-        `UPDATE conversation_assignments
-         SET status = 'completed', released_at = CURRENT_TIMESTAMP
-         WHERE conversation_id = $1 AND business_id = $2 AND status = 'active'`,
-        [conversationId, conversation.business_id]
+    const assignment = await withTransaction(pool, async (client) => {
+      // Keep the assignment row, conversation state, queue state, queue event,
+      // and compliance audit record in one commit. A partial write here would
+      // make the support UI and routing worker disagree about ownership.
+      if (conversation.agent_id) {
+        await client.query(
+          `UPDATE conversation_assignments
+           SET status = 'completed', released_at = CURRENT_TIMESTAMP
+           WHERE conversation_id = $1 AND business_id = $2 AND status = 'active'`,
+          [conversationId, conversation.business_id]
+        );
+      }
+
+      const assignResult = await client.query(
+        `INSERT INTO conversation_assignments
+         (conversation_id, agent_id, business_id, assigned_by, assignment_type, claimed_at, status)
+         VALUES ($1, $2, $3, $4, 'manual', CURRENT_TIMESTAMP, 'active')
+         RETURNING *`,
+        [conversationId, agentId, conversation.business_id, req.user.id]
       );
-    }
 
-    // Assign to new agent
-    const assignResult = await query(
-      `INSERT INTO conversation_assignments
-       (conversation_id, agent_id, business_id, assigned_by, assignment_type, claimed_at, status)
-       VALUES ($1, $2, $3, $4, 'manual', CURRENT_TIMESTAMP, 'active')
-       RETURNING *`,
-      [conversationId, agentId, conversation.business_id, req.user.id]
-    );
+      await client.query(
+        `UPDATE support_conversations
+         SET agent_id = $1, status = 'in_progress', assigned_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2 AND business_id = $3`,
+        [agentId, conversationId, conversation.business_id]
+      );
 
-    // Update conversation
-    await query(
-      `UPDATE support_conversations
-       SET agent_id = $1, status = 'in_progress', assigned_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2 AND business_id = $3`,
-      [agentId, conversationId, conversation.business_id]
-    );
+      await client.query(
+        `UPDATE support_queue
+         SET routed_to_agent_id = $1, routing_strategy = 'manual'
+         WHERE conversation_id = $2`,
+        [agentId, conversationId]
+      );
 
-    // Update queue
-    await query(
-      `UPDATE support_queue
-       SET routed_to_agent_id = $1, routing_strategy = 'manual'
-       WHERE conversation_id = $2`,
-      [agentId, conversationId]
-    );
+      await client.query(
+        `INSERT INTO queue_events
+         (queue_id, business_id, conversation_id, event_type, to_agent_id, event_reason)
+         SELECT id, business_id, $2, 'routed', $1, 'Manually assigned by admin'
+         FROM support_queue WHERE conversation_id = $2 AND business_id = $3`,
+        [agentId, conversationId, conversation.business_id]
+      );
 
-    // Log event
-    await query(
-      `INSERT INTO queue_events
-       (queue_id, business_id, conversation_id, event_type, to_agent_id, event_reason)
-       SELECT id, business_id, $2, 'routed', $1, 'Manually assigned by admin'
-       FROM support_queue WHERE conversation_id = $2 AND business_id = $3`,
-      [agentId, conversationId, conversation.business_id]
-    );
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'support_conversation_assignment_changed',
+        targetType: 'support_conversation',
+        targetId: conversationId,
+        description: 'Support conversation assigned to agent',
+        before: { agentId: conversation.agent_id || null },
+        after: { agentId },
+        req,
+        client,
+      });
+
+      return assignResult.rows[0];
+    });
 
     logger.info('Conversation assigned to agent', {
       conversationId,
       agentId,
       assignedBy: req.user.id
     });
-    void logAdminAction({
-      adminId: req.user.id,
-      action: 'support_conversation_assignment_changed',
-      targetType: 'support_conversation',
-      targetId: conversationId,
-      description: 'Support conversation assigned to agent',
-      before: { agentId: conversation.agent_id || null },
-      after: { agentId },
-      req,
-    });
-
     WebSocketService.notifyAgent(agentId, 'ticket:new-assignment', {
       ticketId: conversationId,
       conversationId,
@@ -272,7 +275,7 @@ async function assignToAgent(req, res) {
       message: 'A support specialist joined the conversation.',
     });
 
-    res.json({ success: true, data: assignResult.rows[0] });
+    res.json({ success: true, data: assignment });
   } catch (err) {
     logger.error('assignToAgent error', { error: err.message });
     sendError(res, 500, 'Failed to assign conversation');
@@ -331,57 +334,61 @@ async function reassignAgent(req, res) {
       return sendError(res, 400, 'New agent at max capacity');
     }
 
-    // Release from current agent
-    await query(
-      `UPDATE conversation_assignments
-       SET status = 'completed', released_at = CURRENT_TIMESTAMP,
-           duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - claimed_at))::INTEGER
-         WHERE conversation_id = $1 AND business_id = $2 AND status = 'active'`,
-      [conversationId, conversation.business_id]
-    );
+    const assignment = await withTransaction(pool, async (client) => {
+      // Reassignment spans two assignment records plus the conversation and
+      // queue event. Keep the audit row in the same transaction so a failed
+      // downstream write cannot leave the UI showing the wrong agent.
+      await client.query(
+        `UPDATE conversation_assignments
+         SET status = 'completed', released_at = CURRENT_TIMESTAMP,
+             duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - claimed_at))::INTEGER
+           WHERE conversation_id = $1 AND business_id = $2 AND status = 'active'`,
+        [conversationId, conversation.business_id]
+      );
 
-    // Assign to new agent
-    const assignResult = await query(
-      `INSERT INTO conversation_assignments
-       (conversation_id, agent_id, business_id, assigned_by, assignment_type, claimed_at, status)
-       VALUES ($1, $2, $3, $4, 'manual', CURRENT_TIMESTAMP, 'active')
-       RETURNING *`,
-      [conversationId, newAgentId, conversation.business_id, req.user.id]
-    );
+      const assignResult = await client.query(
+        `INSERT INTO conversation_assignments
+         (conversation_id, agent_id, business_id, assigned_by, assignment_type, claimed_at, status)
+         VALUES ($1, $2, $3, $4, 'manual', CURRENT_TIMESTAMP, 'active')
+         RETURNING *`,
+        [conversationId, newAgentId, conversation.business_id, req.user.id]
+      );
 
-    // Update conversation
-    await query(
-      `UPDATE support_conversations
-       SET agent_id = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2 AND business_id = $3`,
-      [newAgentId, conversationId, conversation.business_id]
-    );
+      await client.query(
+        `UPDATE support_conversations
+         SET agent_id = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2 AND business_id = $3`,
+        [newAgentId, conversationId, conversation.business_id]
+      );
 
-    // Log event
-    await query(
-      `INSERT INTO queue_events
-       (queue_id, business_id, conversation_id, event_type, from_agent_id, to_agent_id, event_reason)
-       SELECT id, business_id, $2, 'reassigned', $3, $1, $4
-       FROM support_queue WHERE conversation_id = $2 AND business_id = $5`,
-      [newAgentId, conversationId, conversation.agent_id, reason || null, conversation.business_id]
-    );
+      await client.query(
+        `INSERT INTO queue_events
+         (queue_id, business_id, conversation_id, event_type, from_agent_id, to_agent_id, event_reason)
+         SELECT id, business_id, $2, 'reassigned', $3, $1, $4
+         FROM support_queue WHERE conversation_id = $2 AND business_id = $5`,
+        [newAgentId, conversationId, conversation.agent_id, reason || null, conversation.business_id]
+      );
+
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'support_conversation_assignment_changed',
+        targetType: 'support_conversation',
+        targetId: conversationId,
+        description: 'Support conversation reassigned to another agent',
+        before: { agentId: conversation.agent_id },
+        after: { agentId: newAgentId },
+        req,
+        client,
+      });
+
+      return assignResult.rows[0];
+    });
 
     logger.info('Conversation reassigned', {
       conversationId,
       fromAgentId: conversation.agent_id,
       toAgentId: newAgentId
     });
-    void logAdminAction({
-      adminId: req.user.id,
-      action: 'support_conversation_assignment_changed',
-      targetType: 'support_conversation',
-      targetId: conversationId,
-      description: 'Support conversation reassigned to another agent',
-      before: { agentId: conversation.agent_id },
-      after: { agentId: newAgentId },
-      req,
-    });
-
     WebSocketService.notifyAgent(newAgentId, 'ticket:new-assignment', {
       ticketId: conversationId,
       conversationId,
@@ -391,7 +398,7 @@ async function reassignAgent(req, res) {
       agentId: newAgentId,
     });
 
-    res.json({ success: true, data: assignResult.rows[0] });
+    res.json({ success: true, data: assignment });
   } catch (err) {
     logger.error('reassignAgent error', { error: err.message });
     sendError(res, 500, 'Failed to reassign conversation');
@@ -434,66 +441,69 @@ async function releaseConversation(req, res) {
       return sendError(res, 409, 'Closed conversations cannot be assigned');
     }
 
-    // Complete assignment
-    const assignment = await query(
-      `UPDATE conversation_assignments
-       SET status = 'released', released_at = CURRENT_TIMESTAMP,
-           duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - claimed_at))::INTEGER
-       WHERE conversation_id = $1 AND business_id = $2 AND status = 'active'
-       RETURNING *`,
-      [conversationId, conversation.business_id]
-    );
-
-    // Put back in queue (but not back to waiting state if already resolved)
-    if (!isTerminalConversationStatus(conversation.status)) {
-      await query(
-        `UPDATE support_conversations
-         SET agent_id = NULL,
-             status = 'waiting_for_agent',
-             live_wait_started_at = CURRENT_TIMESTAMP,
-             live_wait_expires_at = CURRENT_TIMESTAMP + INTERVAL '5 minutes',
-             live_wait_ended_at = NULL,
-             founder_alert_sent_at = NULL,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1 AND business_id = $2`,
+    const assignment = await withTransaction(pool, async (client) => {
+      const released = await client.query(
+        `UPDATE conversation_assignments
+         SET status = 'released', released_at = CURRENT_TIMESTAMP,
+             duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - claimed_at))::INTEGER
+         WHERE conversation_id = $1 AND business_id = $2 AND status = 'active'
+         RETURNING *`,
         [conversationId, conversation.business_id]
       );
 
-      await query(
-        `UPDATE support_queue
-         SET status = 'waiting', routed_to_agent_id = NULL, removed_at = NULL
-         WHERE conversation_id = $1 AND business_id = $2`,
-        [conversationId, conversation.business_id]
+      // Put back in queue (but not back to waiting state if already resolved).
+      if (!isTerminalConversationStatus(conversation.status)) {
+        await client.query(
+          `UPDATE support_conversations
+           SET agent_id = NULL,
+               status = 'waiting_for_agent',
+               live_wait_started_at = CURRENT_TIMESTAMP,
+               live_wait_expires_at = CURRENT_TIMESTAMP + INTERVAL '5 minutes',
+               live_wait_ended_at = NULL,
+               founder_alert_sent_at = NULL,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1 AND business_id = $2`,
+          [conversationId, conversation.business_id]
+        );
+
+        await client.query(
+          `UPDATE support_queue
+           SET status = 'waiting', routed_to_agent_id = NULL, removed_at = NULL
+           WHERE conversation_id = $1 AND business_id = $2`,
+          [conversationId, conversation.business_id]
+        );
+      }
+
+      await client.query(
+        `INSERT INTO queue_events
+         (queue_id, business_id, conversation_id, event_type, from_agent_id, event_reason)
+         SELECT id, business_id, $2, 'released', $1, $3
+         FROM support_queue WHERE conversation_id = $2 AND business_id = $4`,
+        [conversation.agent_id, conversationId, reason || null, conversation.business_id]
       );
-    }
 
-    // Log event
-    await query(
-      `INSERT INTO queue_events
-       (queue_id, business_id, conversation_id, event_type, from_agent_id, event_reason)
-       SELECT id, business_id, $2, 'released', $1, $3
-       FROM support_queue WHERE conversation_id = $2 AND business_id = $4`,
-      [conversation.agent_id, conversationId, reason || null, conversation.business_id]
-    );
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'support_conversation_assignment_changed',
+        targetType: 'support_conversation',
+        targetId: conversationId,
+        description: 'Support conversation released back to the queue',
+        before: { agentId: conversation.agent_id || null },
+        after: { agentId: null },
+        req,
+        client,
+      });
 
-    logger.info('Conversation released', { conversationId });
-    void logAdminAction({
-      adminId: req.user.id,
-      action: 'support_conversation_assignment_changed',
-      targetType: 'support_conversation',
-      targetId: conversationId,
-      description: 'Support conversation released back to the queue',
-      before: { agentId: conversation.agent_id || null },
-      after: { agentId: null },
-      req,
+      return released.rows[0];
     });
 
+    logger.info('Conversation released', { conversationId });
     broadcastAssignment(conversationId, 'agent:left', {
       previousAgentId: conversation.agent_id,
       message: 'This conversation returned to the support queue.',
     });
 
-    res.json({ success: true, data: assignment.rows[0] });
+    res.json({ success: true, data: assignment });
   } catch (err) {
     logger.error('releaseConversation error', { error: err.message });
     sendError(res, 500, 'Failed to release conversation');
