@@ -58,6 +58,17 @@ async function createTip({ jobId, user, amountMinor, idempotencyKey, isImpersona
     if (rail === 'offline') throw new AppError('Tip your helper directly for jobs paid offline', 409, 'tip_offline_rail');
     const { rows: existing } = await client.query('SELECT * FROM job_tips WHERE idempotency_key = $1', [idempotencyKey]);
     if (existing[0]) return { replay: existing[0], job, rail };
+    let stripeAccountId = null;
+    if (rail === 'stripe') {
+      const { rows: connect } = await client.query(
+        'SELECT stripe_account_id FROM connect_accounts WHERE user_id = $1',
+        [job.assigned_helper_id]
+      );
+      stripeAccountId = connect[0]?.stripe_account_id || null;
+      if (!stripeAccountId) {
+        throw new AppError('Your helper cannot receive card tips yet', 409, 'helper_account_not_ready');
+      }
+    }
     const jobValue = Number(job.job_value_cents) || 0;
     if (jobValue > 0 && amount > jobValue * MAX_TIP_SHARE) throw new AppError('The tip is larger than allowed', 400, 'validation_failed', { amount_minor: 'tip_too_large' });
     const currency = railPolicy.settlementCurrency({ job });
@@ -86,7 +97,7 @@ async function createTip({ jobId, user, amountMinor, idempotencyKey, isImpersona
       );
       return { tip: done[0], job, rail, settled: true };
     }
-    return { tip, job, rail, currency, cost };
+    return { tip, job, rail, currency, cost, stripeAccountId };
   }, 'job_tip_create');
 
   if (prepared.replay) return viewTip(prepared.replay);
@@ -96,10 +107,7 @@ async function createTip({ jobId, user, amountMinor, idempotencyKey, isImpersona
   }
 
   // Stripe rail.
-  const { tip, job, currency, cost } = prepared;
-  const { rows: connect } = await pool.query('SELECT stripe_account_id FROM connect_accounts WHERE user_id = $1', [job.assigned_helper_id]);
-  const account = connect[0]?.stripe_account_id;
-  if (!account) throw new AppError('Your helper cannot receive card tips yet', 409, 'helper_account_not_ready');
+  const { tip, job, currency, cost, stripeAccountId: account } = prepared;
   const { rows: payRows } = await pool.query(
     `SELECT charge_model FROM payments WHERE job_id = $1 ORDER BY id DESC LIMIT 1`, [job.id]
   );
