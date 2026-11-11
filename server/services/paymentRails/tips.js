@@ -139,19 +139,42 @@ async function createTip({ jobId, user, amountMinor, idempotencyKey, isImpersona
   });
   built.params.capture_method = 'automatic';
   if (model === 'direct') delete built.params.application_fee_amount;
+  let createdStripe = null;
+  let createdIntent = null;
+  let intentCanceled = false;
   try {
-    const stripe = stripeClient();
-    const intent = await stripe.paymentIntents.create(built.params, { ...built.options, idempotencyKey: `job-tip:${tip.id}` });
+    createdStripe = stripeClient();
+    createdIntent = await createdStripe.paymentIntents.create(built.params, { ...built.options, idempotencyKey: `job-tip:${tip.id}` });
+    const providerId = typeof createdIntent?.id === 'string' ? createdIntent.id.trim() : '';
+    const clientSecret = typeof createdIntent?.client_secret === 'string' ? createdIntent.client_secret.trim() : '';
+    if (!providerId || !clientSecret) {
+      if (providerId && typeof createdStripe?.paymentIntents?.cancel === 'function') {
+        await createdStripe.paymentIntents.cancel(providerId).catch((cancelError) => logger.warn('tips.cancel_unusable_intent', {
+          tipId: String(tip.id),
+          paymentIntentId: providerId,
+          error: cancelError.message,
+        }));
+        intentCanceled = true;
+      }
+      throw new AppError('Stripe returned an unusable tip payment session', 502, 'tip_payment_intent_unavailable');
+    }
     const { rows: linked } = await pool.query(
       `UPDATE job_tips
           SET stripe_payment_intent_id = $2, updated_at = NOW()
         WHERE id = $1 AND stripe_payment_intent_id IS NULL
         RETURNING id`,
-      [tip.id, intent.id]
+      [tip.id, providerId]
     );
     if (!linked[0]) throw new Error('Tip was not linked to its payment intent');
-    return { ...viewTip({ ...tip, stripe_payment_intent_id: intent.id }), client_secret: intent.client_secret, stripe_account_id: model === 'direct' ? account : null, publishable_key: process.env.STRIPE_PUBLISHABLE_KEY || null };
+    return { ...viewTip({ ...tip, stripe_payment_intent_id: providerId }), client_secret: clientSecret, stripe_account_id: model === 'direct' ? account : null, publishable_key: process.env.STRIPE_PUBLISHABLE_KEY || null };
   } catch (err) {
+    if (!intentCanceled && createdIntent?.id && typeof createdStripe?.paymentIntents?.cancel === 'function') {
+      await createdStripe.paymentIntents.cancel(createdIntent.id).catch((cancelError) => logger.warn('tips.cancel_orphaned_intent', {
+        tipId: String(tip.id),
+        paymentIntentId: createdIntent.id,
+        error: cancelError.message,
+      }));
+    }
     await pool.query(
       `UPDATE job_tips
           SET status = 'failed', updated_at = NOW()
