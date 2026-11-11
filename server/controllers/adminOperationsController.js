@@ -1,5 +1,6 @@
 const db = require('../db');
 const logger = require('../utils/logger');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 // This controller is intentionally read-only. It gives operators one bounded
 // view of existing authoritative records; it does not create a second status
@@ -68,17 +69,7 @@ async function countTable(table, where = null, params = []) {
 async function permissionGranted(req, permission) {
   if (req.isSuper) return true;
   try {
-    const { rows } = await db.query(
-      `SELECT 1, region_id FROM admin_permission_grants
-        WHERE grantee_id = $1
-          AND permissions ? $2
-          AND region_id IS NULL
-          AND expires_at > NOW()
-          AND revoked_at IS NULL
-        LIMIT 1`,
-      [req.user?.id, permission],
-    );
-    return rows.some((row) => row.region_id == null);
+    return await hasGlobalGrant(req.user?.id, permission);
   } catch (error) {
     logger.warn('Admin operations permission check unavailable', { permission, error: error.message });
     return false;
