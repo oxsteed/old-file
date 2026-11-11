@@ -73,6 +73,13 @@ async function handleUpload(req, res, next, kind) {
     }
 
     const url = await getSignedDownloadUrl(key, 3600);
+    if (!url) {
+      throw new AppError(
+        'File download URL is temporarily unavailable',
+        503,
+        'storage_unavailable'
+      );
+    }
 
     return res.status(201).json({
       url,

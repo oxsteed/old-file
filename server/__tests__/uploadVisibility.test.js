@@ -170,6 +170,19 @@ describe('upload route visibility (default-deny public)', () => {
     expect(res.status).toBe(503);
     expect(storage.deleteFile).toHaveBeenCalledWith(key);
   });
+
+  test('rejects a null private URL and deletes the object', async () => {
+    const key = 'user-uploads/user-123/images/general/null-url.jpg';
+    storage.uploadFile.mockResolvedValue(key);
+    storage.getSignedDownloadUrl.mockResolvedValue(null);
+
+    const res = await request(buildApp()).post('/api/upload').set('x-purpose', 'general');
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('storage_unavailable');
+    expect(res.body.error).toMatch(/storage/i);
+    expect(storage.deleteFile).toHaveBeenCalledWith(key);
+  });
 });
 
 describe('POST /api/upload/profile-photo (review P3-6-F06)', () => {
