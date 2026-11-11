@@ -19902,6 +19902,7 @@
     "fieldPrice": "মূল মূল্য",
     "fieldCapacity": "সর্বোচ্চ ধারণক্ষমতা",
     "fieldNotice": "ন্যূনতম নোটিশ (ঘণ্টা)",
+    "fieldOnlineBooking": "Available for online booking",
     "fieldBuffer": "অ্যাপয়েন্টমেন্টের মধ্যে বাফার (মিনিট)",
     "bufferHint": "প্রতিটি অ্যাপয়েন্টমেন্টের আগে ও পরে ব্লক করা থাকে যাতে বুকিং কখনো মিলে না যায়।",
     "bufferPrefix": "বাফার:",

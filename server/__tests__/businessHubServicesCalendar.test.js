@@ -26,6 +26,7 @@ function buildApp(user = OWNER) {
   });
   app.get('/api/businesses/:businessId/services', content.getBusinessServices);
   app.post('/api/businesses/:businessId/services', content.createBusinessService);
+  app.put('/api/businesses/:businessId/services/:serviceId', content.updateBusinessService);
   app.get('/api/businesses/:businessId/appointments', appointments.listAppointments);
   app.get('/api/businesses/:businessId/waitlist', waitlist.listWaitlist);
   app.post('/api/businesses/:businessId/waitlist', waitlist.addToWaitlist);
@@ -84,14 +85,30 @@ describe('hub services + calendar error sources', () => {
 
     const res = await request(buildApp())
       .post('/api/businesses/1/services')
-      .send({ name: 'Color', duration_minutes: 90, base_price_cents: 8000 });
+      .send({ name: 'Color', duration_minutes: 90, base_price_cents: 8000, allow_online_booking: false });
 
     expect(res.status).toBe(201);
     const insertSql = mockQuery.mock.calls[1][0];
     const insertParams = mockQuery.mock.calls[1][1];
     expect(insertSql).toMatch(/duration_minutes/);
     expect(insertSql).toMatch(/base_price_cents/);
-    expect(insertParams).toEqual(expect.arrayContaining(['Color', 80, 90, 8000]));
+    expect(insertSql).toMatch(/allow_online_booking/);
+    expect(insertParams).toEqual(expect.arrayContaining(['Color', 80, 90, 8000, false]));
+  });
+
+  test('PUT services persists the explicit online-booking switch', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1, effective_role: 'owner', owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 12, allow_online_booking: false }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .put('/api/businesses/1/services/12')
+      .send({ allow_online_booking: false });
+
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/allow_online_booking = COALESCE\(\$14/);
+    expect(mockQuery.mock.calls[1][1]).toEqual(expect.arrayContaining([false, '12', '1']));
   });
 
   test('appointment list accepts camelCase date filters from the calendar tab', async () => {

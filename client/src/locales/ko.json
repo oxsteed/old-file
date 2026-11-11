@@ -19902,6 +19902,7 @@
     "fieldPrice": "기본 가격",
     "fieldCapacity": "최대 용량",
     "fieldNotice": "최소 통지 시간(시간)",
+    "fieldOnlineBooking": "Available for online booking",
     "fieldBuffer": "예약 간 버퍼 (분)",
     "bufferHint": "예약이 겹치지 않도록 각 예약 전후로 차단됩니다.",
     "bufferPrefix": "버퍼:",

@@ -19902,6 +19902,7 @@
     "fieldPrice": "Giá cơ bản",
     "fieldCapacity": "Sức chứa tối đa",
     "fieldNotice": "Thông báo tối thiểu (giờ)",
+    "fieldOnlineBooking": "Available for online booking",
     "fieldBuffer": "Khoảng đệm giữa các lịch hẹn (phút)",
     "bufferHint": "Chặn trước và sau mỗi lịch hẹn để các lịch đặt không bao giờ chạm nhau.",
     "bufferPrefix": "Thời gian đệm:",

@@ -22318,6 +22318,7 @@
     "fieldPrice": "Pri baz",
     "fieldCapacity": "Kapasite maksimòm",
     "fieldNotice": "Avètisman minimòm (èdtan)",
+    "fieldOnlineBooking": "Disponib pou rezèvasyon sou entènèt",
     "fieldBuffer": "Marge ant randevou yo (minit)",
     "bufferHint": "Bloke anvan ak apre chak randevou pou rezervasyon yo pa janm kole.",
     "bufferPrefix": "Marge:",

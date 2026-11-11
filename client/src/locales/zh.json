@@ -19902,6 +19902,7 @@
     "fieldPrice": "基价",
     "fieldCapacity": "最大容量",
     "fieldNotice": "最短通知时间（小时）",
+    "fieldOnlineBooking": "Available for online booking",
     "fieldBuffer": "预约间隔缓冲（分钟）",
     "bufferHint": "每个预约前后都会预留缓冲时间，确保预约之间不会衔接过紧。",
     "bufferPrefix": "缓冲：",

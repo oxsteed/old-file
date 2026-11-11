@@ -19902,6 +19902,7 @@
     "fieldPrice": "Harga dasar",
     "fieldCapacity": "Kapasitas maks",
     "fieldNotice": "Pemberitahuan minimum (jam)",
+    "fieldOnlineBooking": "Available for online booking",
     "fieldBuffer": "Buffer antar janji temu (menit)",
     "bufferHint": "Diblokir sebelum dan sesudah setiap janji temu agar pemesanan tidak pernah bersentuhan.",
     "bufferPrefix": "Buffer:",

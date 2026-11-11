@@ -22318,6 +22318,7 @@
     "fieldPrice": "Precio base",
     "fieldCapacity": "Capacidad máxima",
     "fieldNotice": "Aviso mínimo (horas)",
+    "fieldOnlineBooking": "Disponible para reservas en línea",
     "fieldBuffer": "Margen entre citas (minutos)",
     "bufferHint": "Se bloquea antes y después de cada cita para que las reservas nunca se toquen.",
     "bufferPrefix": "Margen:",

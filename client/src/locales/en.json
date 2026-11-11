@@ -22318,6 +22318,7 @@
     "fieldPrice": "Base price",
     "fieldCapacity": "Max capacity",
     "fieldNotice": "Minimum notice (hours)",
+    "fieldOnlineBooking": "Available for online booking",
     "fieldBuffer": "Buffer between appointments (minutes)",
     "bufferHint": "Blocked before and after each appointment so bookings never touch.",
     "bufferPrefix": "Buffer:",
