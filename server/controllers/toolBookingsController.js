@@ -2,6 +2,7 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const bookingEmailService = require('../services/bookingEmailService');
+const { parseDateOnlyUTC } = require('../utils/dateOnly');
 
 const TOOL_RENTAL_AGREEMENT_VERSION = 'peer-rental-v1';
 
@@ -54,9 +55,9 @@ const createBooking = async (req, res, next) => {
     }
     if (Object.keys(fields).length) throw new AppError('Validation failed', 400, 'validation_failed', fields);
 
-    const start = new Date(`${startDate}T00:00:00Z`);
-    const end = new Date(`${endDate}T00:00:00Z`);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    const start = parseDateOnlyUTC(startDate);
+    const end = parseDateOnlyUTC(endDate);
+    if (!start || !end) {
       throw new AppError('Invalid date', 400, 'validation_failed', { startDate: 'Invalid date', endDate: 'Invalid date' });
     }
 
