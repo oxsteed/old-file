@@ -216,6 +216,7 @@ router.get('/', async (_req, res) => {
       `SELECT o.id, o.updated_at
          FROM career_openings o
          LEFT JOIN businesses b ON b.id = o.business_id
+         LEFT JOIN users u ON u.id = b.user_id
         WHERE o.status = 'open'
           AND o.moderation_status = 'ok'
           AND o.is_internal = FALSE
@@ -223,7 +224,15 @@ router.get('/', async (_req, res) => {
           AND (COALESCE(o.applications_close_at, o.closes_at) IS NULL
                OR COALESCE(o.applications_close_at, o.closes_at) >= NOW())
           AND (o.employer_type = 'platform'
-               OR (b.deleted_at IS NULL AND b.is_active = TRUE))
+               OR (b.deleted_at IS NULL
+                   AND b.is_active = TRUE
+                   AND b.is_listed = TRUE
+                   AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+                   AND COALESCE(b.setup_status, 'active') = 'active'
+                   AND u.deleted_at IS NULL
+                   AND u.is_active = TRUE
+                   AND u.email_verified = TRUE
+                   AND u.onboarding_completed = TRUE))
         ORDER BY o.updated_at DESC NULLS LAST
         LIMIT 2000`,
     );
@@ -235,6 +244,7 @@ router.get('/', async (_req, res) => {
       `SELECT o.business_id AS id, MAX(o.updated_at) AS updated_at
          FROM career_openings o
          LEFT JOIN businesses b ON b.id = o.business_id
+         LEFT JOIN users u ON u.id = b.user_id
         WHERE o.business_id IS NOT NULL
           AND o.status = 'open'
           AND o.moderation_status = 'ok'
@@ -242,7 +252,15 @@ router.get('/', async (_req, res) => {
           AND (o.opens_at IS NULL OR o.opens_at <= NOW())
           AND (COALESCE(o.applications_close_at, o.closes_at) IS NULL
                OR COALESCE(o.applications_close_at, o.closes_at) >= NOW())
-          AND b.deleted_at IS NULL AND b.is_active = TRUE
+          AND b.deleted_at IS NULL
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+          AND COALESCE(b.setup_status, 'active') = 'active'
+          AND u.deleted_at IS NULL
+          AND u.is_active = TRUE
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE
         GROUP BY o.business_id
         ORDER BY MAX(o.updated_at) DESC NULLS LAST
         LIMIT 2000`,

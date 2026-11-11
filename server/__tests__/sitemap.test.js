@@ -92,6 +92,8 @@ describe('public sitemap coverage', () => {
     expect(careersSql).toMatch(/o\.status = 'open'/);
     expect(careersSql).toMatch(/o\.moderation_status = 'ok'/);
     expect(careersSql).toMatch(/o\.is_internal = FALSE/);
+    expect(careersSql).toMatch(/b\.is_listed = TRUE/);
+    expect(careersSql).toMatch(/u\.onboarding_completed = TRUE/);
     // Well-formed XML: every opened url element is closed.
     expect((res.text.match(/<url>/g) || []).length).toBe((res.text.match(/<\/url>/g) || []).length);
     expect((res.text.match(/<url>/g) || []).length).toBeGreaterThan(0);
