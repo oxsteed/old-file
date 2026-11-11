@@ -13,6 +13,7 @@ const { parseBoundedPagination } = require('../utils/pagination');
 const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
 const AppError = require('../utils/appError');
 const { issueStepupChallenge, verifyStepupChallenge } = require('../services/stepupChallengeService');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
 const metricsRegistry = require('../analytics/metricsRegistry');
 
@@ -604,6 +605,11 @@ exports.getUsers = async (req, res) => {
       sort = 'created_at', order = 'desc'
     } = req.query;
     const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
+    // User management is intentionally separate from financial visibility.
+    // Do not include payout totals for a manage_users-only admin; the route's
+    // management grant must not become an implicit view_financials grant.
+    const canViewFinancials = req.user?.role === 'super_admin'
+      || await hasGlobalGrant(req.user?.id, 'view_financials');
     const params = [];
     let paramIdx = 1;
 
@@ -691,7 +697,7 @@ exports.getUsers = async (req, res) => {
       selectCols.push("(SELECT COUNT(*) FROM jobs WHERE client_id = u.id) AS jobs_posted");
       selectCols.push("(SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = u.id AND status = 'completed') AS jobs_completed_as_helper");
     } else { selectCols.push('0 AS jobs_posted, 0 AS jobs_completed_as_helper'); }
-    if (hasPayouts) {
+    if (hasPayouts && canViewFinancials) {
       // ADM-061: backed by idx_payouts_user_status (migration 834).
       selectCols.push("(SELECT COALESCE(SUM(amount_cents),0)/100.0 FROM payouts WHERE user_id = u.id AND status = 'paid') AS earnings_total");
     } else { selectCols.push('0 AS earnings_total'); }
