@@ -157,9 +157,22 @@ exports.search = async (req, res) => {
             FROM messages m
             JOIN users s ON s.id = m.sender_id
             WHERE m.content ILIKE $1
+              -- A support grant is not a blanket read of every private
+              -- message. Regular admins remain limited to conversations they
+              -- own; only super-admins may search the full admin inbox.
+              AND (
+                $4
+                OR EXISTS (
+                  SELECT 1
+                    FROM conversations c
+                   WHERE c.id = m.conversation_id
+                     AND c.job_id IS NULL
+                     AND c.customer_id = $5
+                )
+              )
             ORDER BY m.created_at DESC
             LIMIT $2 OFFSET $3
-          `, [ilike, limit, offset])
+          `, [ilike, limit, offset, isSuper, adminId])
         : Promise.resolve({ rows: [] }),
 
       // ── Disputes ───────────────────────────────────────────────────────────
