@@ -244,6 +244,71 @@ describe('withdrawal approval', () => {
   });
 });
 
+describe('withdrawal transfer confirmation', () => {
+  function transferWithdrawal(overrides = {}) {
+    return {
+      id: 'wd-confirm-1',
+      customer_id: CUSTOMER_ID,
+      amount_cents: 5000,
+      fee_cents: 75,
+      net_cents: 4925,
+      currency_code: 'USD',
+      destination_account_ref: 'acct_1',
+      status: 'processing',
+      reviewed_by: ADMIN_ID,
+      ...overrides,
+    };
+  }
+
+  function queueTransferConfirmation(row) {
+    stubQueries([
+      { match: 'FROM feature_flags', rows: [{ is_enabled: true }] },
+      { match: 'FROM oxsteed_credit_rail_freezes', rows: [] },
+      { match: 'FROM oxsteed_credit_withdrawals WHERE stripe_transfer_id', rows: [row] },
+      { match: 'UPDATE oxsteed_credit_withdrawals', rows: [{ ...row, status: 'paid' }] },
+    ]);
+  }
+
+  test('marks a withdrawal paid only for a matching transfer', async () => {
+    queueTransferConfirmation(transferWithdrawal());
+    const getStripe = jest.fn(() => ({
+      transfers: {
+        retrieve: jest.fn().mockResolvedValue({
+          id: 'tr_withdrawal_1',
+          amount: 4925,
+          currency: 'usd',
+          destination: 'acct_1',
+          reversed: false,
+          metadata: { oxsteed_credit_withdrawal_id: 'wd-confirm-1' },
+        }),
+      },
+    }));
+
+    await expect(withdrawalService.confirmWithdrawalFromTransfer('tr_withdrawal_1', { getStripe }))
+      .resolves.toMatchObject({ outcome: 'paid', withdrawalId: 'wd-confirm-1' });
+  });
+
+  test('rejects a withdrawal transfer with mismatched currency or destination', async () => {
+    queueTransferConfirmation(transferWithdrawal());
+    const getStripe = jest.fn(() => ({
+      transfers: {
+        retrieve: jest.fn().mockResolvedValue({
+          id: 'tr_withdrawal_1',
+          amount: 4925,
+          currency: 'eur',
+          destination: 'acct_other',
+          reversed: false,
+          metadata: { oxsteed_credit_withdrawal_id: 'wd-confirm-1' },
+        }),
+      },
+    }));
+
+    await expect(withdrawalService.confirmWithdrawalFromTransfer('tr_withdrawal_1', { getStripe }))
+      .rejects.toMatchObject({ code: 'credit_withdrawal_transfer_mismatch' });
+    expect(mockQuery.mock.calls.some(([sql]) => /SET status = 'paid'/.test(sql))).toBe(false);
+  });
+});
+
 describe('customer transfers', () => {
   test('a sanctions hit on the RECIPIENT blocks the transfer', async () => {
     sanctionsService.assertSanctionsClear

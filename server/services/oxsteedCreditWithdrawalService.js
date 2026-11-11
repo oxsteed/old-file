@@ -629,7 +629,17 @@ async function confirmWithdrawalFromTransfer(transferId, { getStripe = defaultGe
     if (String(transfer.metadata?.oxsteed_credit_withdrawal_id || '') !== String(withdrawal.id)) {
       fail('Stripe transfer metadata does not match this withdrawal', 'credit_withdrawal_transfer_mismatch', 409);
     }
-    if (Number(transfer.amount) !== Number(withdrawal.net_cents)) {
+    const transferCurrency = typeof transfer.currency === 'string' ? transfer.currency.toUpperCase() : '';
+    const withdrawalCurrency = String(withdrawal.currency_code || '').toUpperCase();
+    const transferDestination = typeof transfer.destination === 'string'
+      ? transfer.destination
+      : transfer.destination?.id || null;
+    if (String(transfer.id || '') !== String(transferId)
+        || !Number.isSafeInteger(Number(transfer.amount))
+        || Number(transfer.amount) !== Number(withdrawal.net_cents)
+        || !transferCurrency
+        || transferCurrency !== withdrawalCurrency
+        || (withdrawal.destination_account_ref && transferDestination !== withdrawal.destination_account_ref)) {
       fail('Stripe transfer amount does not match the withdrawal net amount', 'credit_withdrawal_transfer_mismatch', 409);
     }
 
