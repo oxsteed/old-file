@@ -85,3 +85,16 @@ test('deletes a newly uploaded image when listing update fails', async () => {
   expect(res.status).toBe(500);
   expect(storage.deleteFile).toHaveBeenCalledWith('tool-rentals/drill.jpg');
 });
+
+test('deletes a newly uploaded image when public URL generation returns null', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ column_name: 'image_gallery' }] });
+  storage.getPublicUrl.mockReturnValue(null);
+
+  const res = await request(buildApp())
+    .post('/api/tool-rentals')
+    .set('x-test-file', '1')
+    .send(validListing);
+
+  expect(res.status).toBe(503);
+  expect(storage.deleteFile).toHaveBeenCalledWith('tool-rentals/drill.jpg');
+});

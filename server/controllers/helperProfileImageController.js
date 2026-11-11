@@ -281,6 +281,9 @@ exports.uploadCoverImage = async (req, res) => {
     if (key) {
       // Storage upload succeeded
       imageUrl = getPublicUrl(key);
+      if (!imageUrl) {
+        throw new Error('Helper cover public URL unavailable');
+      }
       logger.info('Image uploaded to S3', { helperId, key });
     } else {
       // PS-10: storage upload failed — fail the upload instead of storing a

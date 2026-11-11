@@ -104,3 +104,19 @@ test('failed profile persistence removes the newly uploaded object', async () =>
   expect(res.status).toHaveBeenCalledWith(500);
   expect(storage.deleteFile).toHaveBeenCalledWith('helper-covers/cover.jpg');
 });
+
+test('public URL generation failure removes the newly uploaded object', async () => {
+  storage.uploadFile.mockResolvedValue('helper-covers/no-url.jpg');
+  storage.getPublicUrl.mockReturnValue(null);
+  storage.deleteFile.mockResolvedValue(undefined);
+
+  const res = mockRes();
+  await controller.uploadCoverImage({
+    ...mockReq(),
+    file: { ...mockReq().file, originalname: 'no-url.jpg' },
+  }, res);
+
+  expect(res.status).toHaveBeenCalledWith(500);
+  expect(storage.deleteFile).toHaveBeenCalledWith('helper-covers/no-url.jpg');
+  expect(pool.query).not.toHaveBeenCalled();
+});

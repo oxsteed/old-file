@@ -47,3 +47,20 @@ test('deletes a newly uploaded cover when the business update fails', async () =
   expect(res.status).toHaveBeenCalledWith(500);
   expect(mockDeleteFile).toHaveBeenCalledWith('business-covers/business-1/new.jpg');
 });
+
+test('deletes a newly uploaded cover when public URL generation returns null', async () => {
+  mockUploadFile.mockResolvedValueOnce('business-covers/business-1/no-url.jpg');
+  mockGetPublicUrl.mockReturnValueOnce(null);
+  mockDeleteFile.mockResolvedValueOnce(undefined);
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+
+  const res = response();
+  await controller.uploadCoverImage({
+    user: { id: 'owner-1' },
+    file: { buffer: Buffer.from('cover'), mimetype: 'image/jpeg', size: 5, originalname: 'no-url.jpg' },
+  }, res);
+
+  expect(res.status).toHaveBeenCalledWith(500);
+  expect(mockDeleteFile).toHaveBeenCalledWith('business-covers/business-1/no-url.jpg');
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+});

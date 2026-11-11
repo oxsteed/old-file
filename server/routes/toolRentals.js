@@ -204,7 +204,21 @@ async function resolveToolImageUrl(req) {
     }
 
     const key = await uploadFile(file.buffer, 'tool-rentals', file.originalname, file.mimetype);
-    if (key) return { url: getPublicUrl(key), key };
+    if (key) {
+      const url = getPublicUrl(key);
+      if (!url) {
+        await deleteFile(key).catch((cleanupError) => {
+          require('../utils/logger').warn('[toolRentals] failed to clean up image without public URL', {
+            key,
+            error: cleanupError.message,
+          });
+        });
+        const err = new Error('Tool photo URL unavailable');
+        err.status = 503;
+        throw err;
+      }
+      return { url, key };
+    }
 
     if (file.size > 2 * 1024 * 1024) {
       const err = new Error('Tool photo is too large. Configure file storage or upload an image under 2MB.');

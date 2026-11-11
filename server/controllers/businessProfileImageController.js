@@ -96,6 +96,14 @@ exports.uploadCoverImage = async (req, res) => {
     const imageUrl = storageKey ? getPublicUrl(storageKey) : null;
 
     if (!imageUrl) {
+      if (storageKey) {
+        await deleteFile(storageKey).catch((cleanupError) => logger.warn('Failed to remove business cover without public URL', {
+          businessId,
+          storageKey,
+          error: cleanupError.message,
+        }));
+        storageKey = null;
+      }
       return sendError(res, 500, 'Failed to upload image to storage');
     }
 
