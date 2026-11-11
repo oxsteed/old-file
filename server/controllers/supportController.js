@@ -565,16 +565,23 @@ exports.createChatEscalation = async (req, res, next) => {
     // The screenshot is stored after commit (a replay never re-uploads it)
     // and linked from the ticket metadata; staff get a signed URL.
     if (image) {
+      let imageKey = null;
       try {
         const { uploadFile } = require('../utils/storage');
-        const key = await uploadFile(image.buffer, 'support-tickets', image.filename, image.mime);
+        imageKey = await uploadFile(image.buffer, 'support-tickets', image.filename, image.mime);
+        if (!imageKey) throw new Error('Screenshot storage unavailable');
         await db.query(
           `UPDATE support_tickets
               SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('image_key', $2::text, 'image_mime', $3::text)
             WHERE id = $1`,
-          [ticket.id, key, image.mime]
+          [ticket.id, imageKey, image.mime]
         );
+        imageKey = null;
       } catch (err) {
+        if (imageKey) {
+          const { deleteFile } = require('../utils/storage');
+          await deleteFile(imageKey).catch(() => {});
+        }
         logger.warn('chat handoff image upload failed', { err: err.message, ticketId: ticket.id });
       }
     }
