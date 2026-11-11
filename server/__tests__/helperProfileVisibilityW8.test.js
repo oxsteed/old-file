@@ -56,4 +56,13 @@ describe('directory and profile visibility SQL (P1-203, P1-205, P1-206)', () => 
     expect(src).toMatch(/services: \(adminPreview \|\| h\.show_services\) \? services : \[\]/);
     expect(src).toMatch(/faqs:\s+\(adminPreview \|\| h\.show_faqs\) \? faqs : \[\]/);
   });
+  test('dynamic public helper endpoints share the owner lifecycle gate', () => {
+    expect((src.match(/u\.is_active = TRUE/g) || []).length).toBeGreaterThanOrEqual(6);
+    expect((src.match(/u\.onboarding_completed = TRUE/g) || []).length).toBeGreaterThanOrEqual(7);
+    const availabilitySrc = require('fs').readFileSync(require.resolve('../controllers/helperAvailabilityController'), 'utf8');
+    expect(availabilitySrc).toMatch(/u\.is_active = TRUE/);
+    expect(availabilitySrc).toMatch(/u\.email_verified = TRUE/);
+    expect(availabilitySrc).toMatch(/u\.onboarding_completed = TRUE/);
+    expect(availabilitySrc).toMatch(/hp\.is_listed IS TRUE/);
+  });
 });

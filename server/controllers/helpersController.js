@@ -1096,7 +1096,11 @@ async function getHelperStatus(req, res, next) {
     const { rows: [hp] } = await pool.query(
       `SELECT hp.is_available_now FROM helper_profiles hp
        JOIN users u ON u.id = hp.user_id
-       WHERE hp.user_id = $1 AND u.deleted_at IS NULL
+       WHERE hp.user_id = $1
+         AND u.deleted_at IS NULL
+         AND u.is_active = TRUE
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
          AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
@@ -1129,7 +1133,9 @@ async function getHelperAvailability(req, res, next) {
        JOIN users u ON u.id = hp.user_id
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
+         AND u.is_active = TRUE
          AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
          AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
@@ -1201,7 +1207,9 @@ async function getHelperAvailabilitySummary(req, res, next) {
          JOIN users u ON u.id = hp.user_id
         WHERE hp.user_id = $1
           AND u.deleted_at IS NULL
+          AND u.is_active = TRUE
           AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE
           AND hp.is_listed IS TRUE
           AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
@@ -1238,7 +1246,9 @@ async function getHelperPricing(req, res, next) {
        JOIN users u ON u.id = hp.user_id
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
+         AND u.is_active = TRUE
          AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
          AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
@@ -1287,7 +1297,9 @@ async function getHelperSlots(req, res, next) {
        JOIN users u ON u.id = hp.user_id
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
+         AND u.is_active = TRUE
          AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
          AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
