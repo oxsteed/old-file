@@ -330,8 +330,17 @@ async function createAppointment(req, res, next) {
       return appointmentResult.rows[0];
     });
 
-    // Set up reminders
-    await setupReminderSchedule(appointment.id, start_time);
+    // Reminder delivery is post-commit side effect. Do not report a booking
+    // failure after the appointment is already durable; clients would retry
+    // and create duplicates. The reminder worker can repair the missing rows.
+    try {
+      await setupReminderSchedule(appointment.id, start_time);
+    } catch (error) {
+      logger.error('Appointment reminder setup failed after commit', {
+        appointmentId: appointment.id,
+        error,
+      });
+    }
     await notifyAppointmentParticipants(appointment, 'appointment_created');
 
     // P3-8-F05: require_payment_upfront was dead config; surface it on the

@@ -283,6 +283,35 @@ describe('P3-8-F05: late-cancel fee enforcement', () => {
     expect(res.status).toBe(201);
     expect(res.body.requires_payment_upfront).toBe(true);
   });
+
+  test('reminder setup failure does not turn a committed appointment into a retryable 500', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      const s = String(sql);
+      if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') return { rows: [] };
+      if (s.includes('pg_advisory_xact_lock')) return { rows: [] };
+      if (s.includes('FROM business_services') && s.includes('FOR UPDATE')) {
+        return { rows: [{ id: 'svc-1', business_id: 7, deleted_at: null, is_active: true, max_capacity: 1 }] };
+      }
+      if (s.includes('FROM business_appointments') && s.includes('COUNT(*)')) return { rows: [{ n: 0 }] };
+      if (s.includes('INSERT INTO business_appointments')) {
+        return { rows: [{ id: 'new-reminder-failure', service_id: 'svc-1', status: 'pending', payment_status: 'pending' }] };
+      }
+      if (s.includes('FROM business_booking_rules')) return { rows: [{ require_payment_upfront: false }] };
+      if (s.includes('INSERT INTO business_appointment_reminders')) throw new Error('reminder store unavailable');
+      if (s.includes('SELECT ba.customer_id')) return { rows: [] };
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildApp()).post('/api/businesses/7/appointments').send({
+      service_id: 'svc-1',
+      start_time: futureIso(48),
+      end_time: futureIso(49),
+      base_price_cents: 5000,
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe('new-reminder-failure');
+  });
 });
 
 describe('P3-8-F07: staff reassignment', () => {
