@@ -1396,7 +1396,8 @@ async function respondBusinessProfile(req, res, adminPreview) {
          AND b.setup_status = 'active'
          AND b.business_kind = 'service'
          AND u.is_active = TRUE
-         AND u.email_verified = TRUE`}`,
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE`}`,
       [bizId]
     );
 

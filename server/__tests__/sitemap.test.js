@@ -39,6 +39,10 @@ describe('public sitemap coverage', () => {
     expect(res.text).toContain('<loc>https://oxsteed.com/tool-rentals/41</loc>');
     expect(res.text).toContain('hreflang="es" href="https://oxsteed.com/tool-rentals/41?lang=es"');
     expect(res.text).toContain('<loc>https://oxsteed.com/logistics/campaigns/52</loc>');
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.deleted_at IS NULL/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.is_listed = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.setup_status = 'active'/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/u\.onboarding_completed = TRUE/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/FROM tool_rentals/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/t\.is_available = TRUE/);
     expect(mockQuery.mock.calls[5][0]).toMatch(/FROM pooled_orders/);
