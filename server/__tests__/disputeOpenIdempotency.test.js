@@ -5,6 +5,11 @@ const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 
+const mockHasGlobalGrant = jest.fn();
+jest.mock('../middleware/adminAuth', () => ({
+  hasGlobalGrant: (...args) => mockHasGlobalGrant(...args),
+}));
+
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue(undefined),
 }));
@@ -38,10 +43,51 @@ function buildApp() {
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
+  mockHasGlobalGrant.mockResolvedValue(false);
   createLinkedSupportTicket.mockResolvedValue({
     id: '00000000-0000-4000-8000-000000000999',
     ticket_number: 'SUP-100',
   });
+});
+
+test('dispute-opened alerts only reach dispute-authorized admins', async () => {
+  const dispute = {
+    id: 91,
+    job_id: JOB_ID,
+    status: 'open',
+    support_ticket_id: '00000000-0000-4000-8000-000000000999',
+  };
+  mockHasGlobalGrant.mockImplementation(async (id, permission) => id === 'delegated-admin' && permission === 'manage_disputes');
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: JOB_ID, title: 'Kitchen repair' }] })
+    .mockResolvedValueOnce({ rows: [{ first_name: 'Test', last_name: 'Customer', email: 'customer@example.com' }] })
+    .mockResolvedValueOnce({ rows: [{ id: JOB_ID, title: 'Kitchen repair' }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [dispute] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [
+      { id: 'blocked-admin', role: 'admin' },
+      { id: 'delegated-admin', role: 'admin' },
+      { id: 'super-admin', role: 'super_admin' },
+    ] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const response = await request(buildApp())
+    .post(`/api/disputes/jobs/${JOB_ID}`)
+    .set('Idempotency-Key', REQUEST_ID)
+    .send({ reason: 'work_not_completed', description: 'The agreed work was not completed.' });
+
+  expect(response.status).toBe(201);
+  const { sendNotification } = require('../services/notificationService');
+  expect(sendNotification.mock.calls.map(([payload]) => payload.userId)).toEqual([
+    'delegated-admin',
+    'super-admin',
+  ]);
+  expect(mockHasGlobalGrant).toHaveBeenCalledWith('blocked-admin', 'manage_disputes');
+  expect(mockHasGlobalGrant).toHaveBeenCalledWith('delegated-admin', 'manage_disputes');
 });
 
 describe('job dispute creation idempotency', () => {
@@ -100,7 +146,7 @@ describe('job dispute creation idempotency', () => {
     expect(createLinkedSupportTicket.mock.calls[0][1]).toEqual(expect.objectContaining({
       clientRequestId: REQUEST_ID,
     }));
-    expect(mockQuery.mock.calls.filter(([sql]) => /SELECT id FROM users WHERE role IN/.test(sql))).toHaveLength(1);
+    expect(mockQuery.mock.calls.filter(([sql]) => /SELECT id, role FROM users/.test(sql))).toHaveLength(1);
   });
 });
 

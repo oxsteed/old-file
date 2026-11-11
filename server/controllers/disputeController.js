@@ -8,6 +8,7 @@ const { AppError }          = require('../middleware/errorHandler');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { getClientRequestId } = require('../utils/idempotency');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 const DISPUTE_STATUSES = Object.freeze({
   OPEN: 'open',
@@ -333,10 +334,20 @@ exports.openDispute = async (req, res, next) => {
       // Notify admins AFTER successful dispute creation (outside transaction)
       try {
         const { rows: adminRows } = await db.query(
-          `SELECT id FROM users WHERE role IN ('admin', 'super_admin') AND is_active = true`
+          `SELECT id, role FROM users
+             WHERE role IN ('admin', 'super_admin')
+               AND is_active = true
+               AND deleted_at IS NULL`
         );
+        const eligibleAdminRows = (await Promise.all(
+          adminRows.map(async (admin) => (
+            admin.role === 'super_admin' || await hasGlobalGrant(admin.id, 'manage_disputes')
+              ? admin
+              : null
+          ))
+        )).filter(Boolean);
         await Promise.allSettled(
-          adminRows.map(admin =>
+          eligibleAdminRows.map(admin =>
             sendNotification({
               userId: admin.id,
               type: 'dispute_opened',
