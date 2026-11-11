@@ -708,6 +708,38 @@ describe('charge.refunded', () => {
     const res = await sendEvent(buildApp(), event);
     expect(res.status).toBe(200);
   });
+
+  test('verifies POS refund before changing the food-order payment state', async () => {
+    const event = {
+      type: 'charge.refunded',
+      data: { object: {
+        id: 'ch_pos_mismatch',
+        payment_intent: 'pi_pos_mismatch',
+        amount: 1000,
+        amount_refunded: 1000,
+        currency: 'eur',
+        metadata: { food_order_id: '88' },
+      } },
+    };
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SELECT p\.\*, fo\.currency_code/.test(sql)) {
+        return { rows: [{
+          id: 901,
+          food_order_id: 88,
+          amount_cents: 1000,
+          provider_payment_intent_id: 'pi_pos_mismatch',
+          provider_account_id: null,
+          order_currency: 'USD',
+        }] };
+      }
+      if (/UPDATE webhook_events SET status = 'failed'/.test(sql)) return { rows: [] };
+      return { rows: [{ id: 1 }] };
+    });
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(500);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
+  });
 });
 
 describe('Stripe webhook failure recovery', () => {

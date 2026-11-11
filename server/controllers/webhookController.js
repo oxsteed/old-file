@@ -1674,6 +1674,11 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         const piId = stripeObjectId(charge.payment_intent);
         const refundedCents = verifiedChargeRefundTotal(charge);
         const foodOrderId = extractFoodOrderId(charge.metadata);
+        // Validate and reconcile restaurant POS refunds before any generic
+        // payment or food-order state mutation. A malformed connected-account
+        // event must not mark an order refunded before the POS ledger rejects
+        // it on amount, currency, or provider identity.
+        await withTransaction(db, (client) => applyStripeChargeRefund(client, charge, event.account || null));
         if (piId) {
           await withTransaction(db, client => applyChargeRefund(client, charge));
           logger.info(`[Stripe] Charge refunded for PaymentIntent ${piId}`);
@@ -1687,7 +1692,6 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             });
           });
         }
-        await withTransaction(db, (client) => applyStripeChargeRefund(client, charge, event.account || null));
         break;
       }
 
