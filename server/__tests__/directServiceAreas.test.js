@@ -147,6 +147,19 @@ describe('Direct service areas', () => {
     expect(mockQuery.mock.calls[2][0]).toMatch(/UPDATE direct_service_areas/);
   });
 
+  test.each([
+    ['latitude above 90', { anchorLat: 90.001, anchorLng: -83.78 }],
+    ['longitude below -180', { anchorLat: 39.95, anchorLng: -180.001 }],
+  ])('rejects %s instead of creating unreachable coverage', async (_label, coordinates) => {
+    await expect(createServiceArea({
+      label: 'Invalid area',
+      anchorZip: '45503',
+      ...coordinates,
+      radiusMiles: 10,
+    })).rejects.toMatchObject({ code: 'validation_failed', statusCode: 400 });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
   test('distance helper returns the expected Springfield to Columbus distance', () => {
     const miles = distanceMiles(
       { lat: 39.9528, lng: -83.7804 },
