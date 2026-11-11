@@ -183,8 +183,9 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
       // Card payment: Stripe refund.
       const connectedAccountId = order.metadata?.stripeCheckout?.connectedAccountId
         || order.metadata?.stripe_checkout?.connectedAccountId;
+      let refund;
       try {
-        const refund = await stripe.refunds.create(
+        refund = await stripe.refunds.create(
           {
             payment_intent: order.stripe_payment_intent_id,
             amount: refundAmount,
@@ -194,11 +195,23 @@ async function executeFoodOrderRefund(client, { req, orderId, requestedAmount, r
             idempotencyKey,
           }
         );
-        refundResult = { provider: 'stripe', refund_id: refund.id, amount: refund.amount };
       } catch (refundErr) {
         logger.error('Admin Stripe refund failed', { orderId, error: refundErr.message });
         throw refundError(502, { error: 'Stripe refund failed', code: 'stripe_refund_failed' });
       }
+      const refundId = typeof refund?.id === 'string' ? refund.id.trim() : '';
+      const refundAmountCents = Number(refund?.amount);
+      const providerPaymentIntentId = typeof refund?.payment_intent === 'string'
+        ? refund.payment_intent
+        : refund?.payment_intent?.id || null;
+      if (!refundId || !Number.isSafeInteger(refundAmountCents) || refundAmountCents !== refundAmount
+          || (providerPaymentIntentId && providerPaymentIntentId !== order.stripe_payment_intent_id)) {
+        throw refundError(502, {
+          error: 'Stripe refund response could not be verified',
+          code: 'stripe_refund_invalid',
+        });
+      }
+      refundResult = { provider: 'stripe', refund_id: refundId, amount: refundAmountCents };
     } else {
       const mode = normalizeAdminRefundMode(order.payment_mode);
       if (mode === 'restaurant_credit' && order.customer_id) {
