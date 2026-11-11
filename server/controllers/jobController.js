@@ -144,6 +144,13 @@ exports.createJob = async (req, res, next) => {
         );
       }
       mediaArr = storedKeys.map((key) => getPublicUrl(key));
+      if (mediaArr.some((url) => !url)) {
+        throw new AppError(
+          'One or more job media files could not be made available. Please retry.',
+          503,
+          'job_media_url_unavailable'
+        );
+      }
     } else if (media_urls) {
       try {
         mediaArr = typeof media_urls === 'string'

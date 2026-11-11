@@ -139,6 +139,23 @@ describe('POST /api/jobs', () => {
     expect(storage.deleteFile).toHaveBeenCalledWith('jobs/second.jpg');
   });
 
+  test('removes uploaded media when a public URL cannot be generated', async () => {
+    storage.getPublicUrl.mockReturnValue(null);
+    storage.uploadFile.mockResolvedValueOnce('jobs/no-url.jpg');
+
+    const next = jest.fn();
+    await jobController.createJob({
+      user: MOCK_USER_CUSTOMER,
+      body: validBody,
+      files: [
+        { buffer: Buffer.from('image'), originalname: 'no-url.jpg', mimetype: 'image/jpeg' },
+      ],
+    }, { status: jest.fn().mockReturnThis(), json: jest.fn() }, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'job_media_url_unavailable' }));
+    expect(storage.deleteFile).toHaveBeenCalledWith('jobs/no-url.jpg');
+  });
+
   test('returns 422 with a localizable code when title is too short', async () => {
     mockAuth(MOCK_USER_CUSTOMER, { rows: currentConsentRows() });
     const res = await auth(

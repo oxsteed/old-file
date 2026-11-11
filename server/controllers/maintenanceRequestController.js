@@ -568,6 +568,13 @@ exports.convertToJob = async (req, res, next) => {
         publishedKeys.push(destKey);
       }
       publishedUrls = publishedKeys.map((key) => getPublicUrl(key));
+      if (publishedUrls.some((url) => !url)) {
+        throw new AppError(
+          'Maintenance request photos could not be published. Please retry.',
+          503,
+          'maintenance_media_url_unavailable'
+        );
+      }
       if (publishedUrls.length) {
         const { rows: [withMedia] } = await client.query(
           `UPDATE jobs SET media_urls = $1 WHERE id = $2 RETURNING *`,
