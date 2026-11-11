@@ -171,6 +171,29 @@ describe('POST /api/payments/intent', () => {
     expect(stripe.paymentIntents.create.mock.calls[0][0].receipt_email).toBe('c@test.com');
   });
 
+  test('fails closed and cancels when Stripe returns an unusable payment intent', async () => {
+    stripe.accounts.retrieve.mockResolvedValueOnce({
+      id: 'acct_x', charges_enabled: true, payouts_enabled: true, details_submitted: true,
+    });
+    stripe.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_missing_secret', client_secret: null });
+    stripe.paymentIntents.cancel = jest.fn().mockResolvedValueOnce({ id: 'pi_missing_secret', status: 'canceled' });
+    mockPaymentAuth(
+      { rows: [{ id: 12, client_id: 1, job_value: 100, assigned_helper_id: 2, title: 'Job' }] },
+      { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, onboarding_complete: true }] },
+      { rowCount: 0 },
+      { rows: [] },
+      { rows: [{ balance_cents: 0 }] },
+      { rows: [] },
+      { rows: [{ attempt_count: 0 }] },
+    );
+
+    const res = await auth(request(buildApp()).post('/api/payments/intent').send({ job_id: 12 }));
+    expect(res.status).toBe(502);
+    expect(res.body.code).toBe('payment_intent_unavailable');
+    expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith('pi_missing_secret', expect.anything());
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO payments/.test(sql))).toBe(false);
+  });
+
   test('P2-6-F09: referral discount is funded by the platform fee, not the helper', async () => {
     stripe.accounts.retrieve.mockResolvedValueOnce({
       id: 'acct_x', charges_enabled: true, payouts_enabled: true, details_submitted: true,

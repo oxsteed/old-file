@@ -59,6 +59,15 @@ function resolveAppBaseUrl() {
   }
   return 'https://oxsteed.com';
 }
+
+function requireUsablePaymentIntent(intent) {
+  const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
+  const clientSecret = typeof intent?.client_secret === 'string' ? intent.client_secret.trim() : '';
+  if (!id || !clientSecret) {
+    throw new AppError('Stripe returned an unusable payment session', 502, 'payment_intent_unavailable');
+  }
+  return { id, clientSecret };
+}
 // Maps a Stripe payout status onto the instant_payouts.status CHECK values.
 function instantPayoutStatusFromStripe(stripeStatus) {
   switch (String(stripeStatus || '').toLowerCase()) {
@@ -520,6 +529,12 @@ exports.createPaymentIntent = async (req, res, next) => {
         ...built.options,
         idempotencyKey: paymentIdempotencyKey
       });
+      const usablePaymentIntent = requireUsablePaymentIntent(createdPaymentIntent);
+      createdPaymentIntent = {
+        ...createdPaymentIntent,
+        id: usablePaymentIntent.id,
+        client_secret: usablePaymentIntent.clientSecret,
+      };
       let insertRows;
       try {
         ({
