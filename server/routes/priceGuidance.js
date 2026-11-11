@@ -54,7 +54,16 @@ function computeStats(values) {
 }
 
 async function fetchHelperRates(db, category, state) {
-  const conditions = ['hp.hourly_rate_min IS NOT NULL'];
+  const conditions = [
+    'hp.hourly_rate_min IS NOT NULL',
+    'u.deleted_at IS NULL',
+    'u.is_active = TRUE',
+    'u.email_verified = TRUE',
+    'u.onboarding_completed = TRUE',
+    "u.role IN ('helper', 'helper_pro', 'broker')",
+    'COALESCE(hp.is_listed, TRUE) = TRUE',
+    'COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE',
+  ];
   const params = [];
   if (category) {
     params.push(`%${category}%`);
@@ -70,6 +79,7 @@ async function fetchHelperRates(db, category, state) {
   const { rows } = await db.query(
     `SELECT (COALESCE(hp.hourly_rate_min, 0) + COALESCE(hp.hourly_rate_max, hp.hourly_rate_min, 0)) / 2 AS rate
        FROM helper_profiles hp
+       JOIN users u ON u.id = hp.user_id
       WHERE ${conditions.join(' AND ')}
       LIMIT ${MAX_ROWS}`,
     params
@@ -78,7 +88,17 @@ async function fetchHelperRates(db, category, state) {
 }
 
 async function fetchJobBudgets(db, category, state) {
-  const conditions = ['j.budget_min IS NOT NULL', 'j.budget_max IS NULL'];
+  const conditions = [
+    'j.budget_min IS NOT NULL',
+    'j.budget_max IS NULL',
+    'j.deleted_at IS NULL',
+    "j.status IN ('published', 'matched')",
+    '(j.expires_at IS NULL OR j.expires_at > NOW())',
+    'u.deleted_at IS NULL',
+    'u.is_active = TRUE',
+    'u.email_verified = TRUE',
+    'u.onboarding_completed = TRUE',
+  ];
   const params = [];
   if (category) {
     params.push(`%${category}%`);
@@ -91,6 +111,7 @@ async function fetchJobBudgets(db, category, state) {
   const { rows } = await db.query(
     `SELECT j.budget_min AS rate
        FROM jobs j
+       JOIN users u ON u.id = j.client_id
       WHERE ${conditions.join(' AND ')}
       LIMIT ${MAX_ROWS}`,
     params

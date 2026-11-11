@@ -123,6 +123,10 @@ describe('priceGuidance computeGuidance', () => {
     const [sql] = db.query.mock.calls[0];
     expect(sql).toMatch(/budget_max IS NULL/);
     expect(sql).toMatch(/category_name ILIKE/);
+    expect(sql).toMatch(/j\.deleted_at IS NULL/);
+    expect(sql).toMatch(/j\.status IN \('published', 'matched'\)/);
+    expect(sql).toMatch(/u\.email_verified = TRUE/);
+    expect(sql).toMatch(/u\.onboarding_completed = TRUE/);
   });
 
   it('helpers query uses the rate midpoint and category join', async () => {
@@ -132,6 +136,9 @@ describe('priceGuidance computeGuidance', () => {
     expect(sql).toMatch(/helper_profiles/);
     expect(sql).toMatch(/helper_skills/);
     expect(sql).toMatch(/hourly_rate_min/);
+    expect(sql).toMatch(/u\.deleted_at IS NULL/);
+    expect(sql).toMatch(/COALESCE\(hp\.is_listed, TRUE\) = TRUE/);
+    expect(sql).toMatch(/COALESCE\(hp\.is_hidden_by_admin, FALSE\) = FALSE/);
   });
 });
 
