@@ -1,8 +1,12 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
+jest.mock('../middleware/adminAuth', () => ({
+  hasGlobalGrant: jest.fn().mockResolvedValue(true),
+}));
 const supportChatController = require('../controllers/supportChatController');
 const socketService = require('../services/socketService');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 function responseDouble() {
   return {
@@ -14,6 +18,8 @@ function responseDouble() {
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
+  hasGlobalGrant.mockReset();
+  hasGlobalGrant.mockResolvedValue(true);
   socketService.getSocketCount = jest.fn().mockResolvedValue(1);
   socketService.broadcastToAdmins = jest.fn();
 });
@@ -218,6 +224,31 @@ describe('legacy support chat compatibility', () => {
       ticketNumber: 1001,
     }));
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO conversations/.test(sql))).toBe(false);
+  });
+
+  test('escalation emails exclude admins without manage_support', async () => {
+    const emailService = require('../utils/email');
+    socketService.getSocketCount = jest.fn().mockResolvedValue(0);
+    hasGlobalGrant.mockImplementation(async (id) => id === 'admin-authorized');
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-2', ticket_number: 1002 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'support-message-2' }] })
+      .mockResolvedValueOnce({ rows: [
+        { id: 'admin-blocked', role: 'admin', email: 'blocked@example.com', first_name: 'Blocked' },
+        { id: 'admin-authorized', role: 'admin', email: 'authorized@example.com', first_name: 'Authorized' },
+      ] });
+
+    const req = {
+      body: { message: 'Need help', visitorName: 'Cust', visitorEmail: 'c2@example.com' },
+    };
+    const res = responseDouble();
+
+    await supportChatController.initiateSupportChat(req, res);
+    await new Promise((resolve) => setImmediate(resolve));
+    const recipients = emailService.sendEmail.mock.calls.map(([payload]) => payload.to);
+    expect(recipients).toContain('support@oxsteed.com');
+    expect(recipients).toContain('authorized@example.com');
+    expect(recipients).not.toContain('blocked@example.com');
   });
 
   test('admin-status returns a boolean, never the exact online count', async () => {
