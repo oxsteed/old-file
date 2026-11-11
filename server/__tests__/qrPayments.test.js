@@ -278,6 +278,43 @@ describe('POST /api/qr-payments/pay/:code/checkout', () => {
     );
   });
 
+  test('fails closed when Stripe returns an unusable checkout session', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [CONNECT_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    mockStripe.checkout.sessions.create.mockResolvedValueOnce({ id: 'cs_missing_url', url: null });
+
+    const res = await request(buildApp())
+      .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-missing-url-1')
+      .send({ payer_email: 'payer@example.com' });
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('qr_checkout_unavailable');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO qr_payments/.test(sql))).toBe(false);
+  });
+
+  test('fails closed when an existing checkout row has no usable URL', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [CONNECT_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{
+        stripe_checkout_session_id: 'cs_missing_url',
+        checkout_url: null,
+        status: 'pending',
+      }], rowCount: 1 });
+
+    const res = await request(buildApp())
+      .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-missing-url-replay')
+      .send({ payer_email: 'payer@example.com' });
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('qr_checkout_unavailable');
+    expect(mockStripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
   test('replays a previously recorded checkout without calling Stripe again', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 })
