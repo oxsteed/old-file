@@ -314,6 +314,7 @@ async function addGuestMessage(req, res) {
     if (req.file) {
       uploadedKey = await uploadFile(req.file.buffer, 'support-conversations', req.file.originalname, req.file.mimetype);
       attachmentUrl = await getSignedDownloadUrl(uploadedKey, 7 * 24 * 60 * 60);
+      if (!attachmentUrl) throw new Error('Signed support attachment URL unavailable');
       attachmentName = req.file.originalname;
     }
     // The message content column is non-nullable; represent an image-only
