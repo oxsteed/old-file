@@ -48,9 +48,12 @@ router.get('/', authenticate, async (req, res, next) => {
     const rows = await pool.query(
       'SELECT * FROM saved_searches WHERE user_id = $1 ORDER BY created_at DESC',
       [req.user.id]
-    ).catch(() => ({ rows: [] }));
+    );
     res.json({ searches: rows.rows });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'saved_searches table not yet migrated.' });
+    next(err);
+  }
 });
 
 // ── Create saved search ───────────────────────────────────────────────────────
@@ -151,22 +154,29 @@ router.put('/:id', authenticate, async (req, res, next) => {
       max_budget   ? parseInt(max_budget)   : null,
       notify !== undefined ? notify : null,
       req.params.id, req.user.id,
-    ]).catch(() => ({ rows: [] }));
+    ]);
 
     if (!row.rows[0]) return res.status(404).json({ error: 'Not found' });
     res.json(row.rows[0]);
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'saved_searches table not yet migrated.' });
+    next(err);
+  }
 });
 
 // ── Delete saved search ───────────────────────────────────────────────────────
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
-    await pool.query(
+    const result = await pool.query(
       'DELETE FROM saved_searches WHERE id = $1 AND user_id = $2',
       [req.params.id, req.user.id]
-    ).catch(() => {});
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Not found' });
     res.json({ ok: true });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err.code === '42P01') return res.status(503).json({ error: 'saved_searches table not yet migrated.' });
+    next(err);
+  }
 });
 
 // ── Alert dedupe ──────────────────────────────────────────────────────────────
