@@ -141,7 +141,7 @@ function isInternalSystemUser(user = {}) {
  * Matches any row with a scheduled deletion that is **not** an explicit self-delete
  * (`deletion_type = 'self'`). Covers `deletion_type = 'admin'`, NULL, or legacy odd values.
  */
-async function clearAdminScheduledDeletionIfPresent(userId) {
+async function clearAdminScheduledDeletionIfPresent(userId, queryRunner = db) {
   const [hasSched, hasType, hasReason, hasAdminId] = await Promise.all([
     columnExists('users', 'deletion_scheduled_at'),
     columnExists('users', 'deletion_type'),
@@ -155,7 +155,7 @@ async function clearAdminScheduledDeletionIfPresent(userId) {
   if (hasAdminId) sets.push('deletion_admin_id = NULL');
 
   const notSelf = hasType ? `AND (deletion_type IS DISTINCT FROM 'self')` : '';
-  const { rowCount } = await db.query(
+  const { rowCount } = await queryRunner.query(
     `UPDATE users SET ${sets.join(', ')}
      WHERE ${userIdEq('id')}
        AND deletion_scheduled_at IS NOT NULL
@@ -171,13 +171,13 @@ async function clearAdminScheduledDeletionIfPresent(userId) {
 }
 
 /** Clears admin-scheduled deletion state and sets the account active (never for self-deletes, never for finalized deletions). */
-async function reinstateAfterPendingAdminDeletion(userId) {
-  await clearAdminScheduledDeletionIfPresent(userId);
+async function reinstateAfterPendingAdminDeletion(userId, queryRunner = db) {
+  await clearAdminScheduledDeletionIfPresent(userId, queryRunner);
   const hasType = await columnExists('users', 'deletion_type');
   const hasFinalized = await columnExists('users', 'deletion_finalized_at');
   const notSelf = hasType ? `AND deletion_type IS DISTINCT FROM 'self'` : '';
   const notFinalized = hasFinalized ? `AND deletion_finalized_at IS NULL` : '';
-  await db.query(
+  await queryRunner.query(
     `UPDATE users SET deleted_at = NULL, is_active = TRUE, updated_at = NOW()
      WHERE id::text = $1 ${notSelf} ${notFinalized}`,
     [String(userId)],
@@ -984,6 +984,9 @@ exports.toggleUserBan = async (req, res) => {
         [newStatus, before[0].is_active, String(userId)],
       );
       if (result.rows.length === 0) return result;
+      if (newStatus) {
+        await reinstateAfterPendingAdminDeletion(userId, client);
+      }
       await logAdminAction({
         client,
         adminId,
@@ -999,9 +1002,6 @@ exports.toggleUserBan = async (req, res) => {
     }, newStatus ? 'admin_unban_user' : 'admin_ban_user');
     if (updateRows.length === 0) {
       return res.status(409).json({ error: 'User status changed during ban operation - concurrent modification detected.' });
-    }
-    if (newStatus) {
-      try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) { logger.warn('toggleUserBan: reinstate after unban failed', { userId, err: e.message }); }
     }
     try { await sendNotification({
       userId,
@@ -4542,6 +4542,7 @@ exports.reactivateUser = async (req, res) => {
         [String(userId)]
       );
       if (!result.rows.length) return result;
+      await reinstateAfterPendingAdminDeletion(userId, client);
       await logUserAction({
         client,
         adminId,
@@ -4563,10 +4564,6 @@ exports.reactivateUser = async (req, res) => {
       return result;
     }, 'admin_reactivate_user');
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
-
-    try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) {
-      logger.warn('reactivateUser: reinstate failed', { userId, err: e.message });
-    }
 
     // ADM-109: reactivation must not resurrect pre-ban tokens. Revoke so the
     // user starts with a clean session on next login.
