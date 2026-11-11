@@ -45,6 +45,37 @@ test('public availability still filters booked slots after the consultant gate',
   expect(mockQuery.mock.calls).toHaveLength(3);
 });
 
+test('consultant management availability is private to the consultant or an admin', async () => {
+  const res = mockRes();
+  await controller.getConsultantAvailability(
+    { params: { consultantId: 'consultant-9' }, user: { id: 'customer-1', role: 'customer' } },
+    res,
+  );
+
+  expect(res.status).toHaveBeenCalledWith(403);
+  expect(res.json).toHaveBeenCalledWith({ error: 'Not authorized' });
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('consultant owner can read availability and blocked dates', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 1, day_of_week: 1 }] })
+    .mockResolvedValueOnce({ rows: [{ id: 2, blocked_date: '2026-11-20' }] });
+  const res = mockRes();
+  const req = {
+    params: { consultantId: 'consultant-9' },
+    query: {},
+    user: { id: 'consultant-9', role: 'consultant' },
+  };
+
+  await controller.getConsultantAvailability(req, res);
+  await controller.getBlockedDates(req, res);
+
+  expect(res.json).toHaveBeenNthCalledWith(1, [{ id: 1, day_of_week: 1 }]);
+  expect(res.json).toHaveBeenNthCalledWith(2, [{ id: 2, blocked_date: '2026-11-20' }]);
+  expect(mockQuery).toHaveBeenCalledTimes(2);
+});
+
 test('rejects scheduling against an inactive or soft-deleted consultant', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 7, user_id: 'customer-1', consultant_assigned_id: null }] })

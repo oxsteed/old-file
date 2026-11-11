@@ -20,10 +20,21 @@ async function publicConsultantExists(consultantId) {
   return rows.length > 0;
 }
 
+function canManageConsultant(req, consultantId) {
+  if (!req?.user) return false;
+  const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+  return isAdmin || String(req.user.id) === String(consultantId);
+}
+
 // Get consultant's recurring availability (day of week schedule)
 exports.getConsultantAvailability = async (req, res) => {
   try {
     const { consultantId } = req.params;
+
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    if (!canManageConsultant(req, consultantId)) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
 
     const { rows } = await db.query(
       `SELECT id, day_of_week, start_time, end_time, is_active
@@ -85,6 +96,12 @@ exports.setAvailability = async (req, res) => {
 exports.getBlockedDates = async (req, res) => {
   try {
     const { consultantId } = req.params;
+
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    if (!canManageConsultant(req, consultantId)) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
     const { startDate, endDate } = req.query;
 
     let query = `SELECT id, blocked_date, reason
