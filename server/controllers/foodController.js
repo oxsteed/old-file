@@ -1854,6 +1854,8 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
       || order.metadata?.stripe_checkout?.connectedAccountId,
     255
   );
+  const partialAmount = Number.isSafeInteger(amountCents) && amountCents > 0
+    && amountCents !== Number(order.total_cents || 0) ? amountCents : null;
   let refund;
   try {
     // Destination charges (card mode) live on the platform account: reverse
@@ -1862,8 +1864,6 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
     // Shared counter (finding 3): a partial-amount refund refunds only
     // the remainder, with its own idempotency key so a full-total replay
     // can never be returned for a partial amount (or vice versa).
-    const partialAmount = Number.isSafeInteger(amountCents) && amountCents > 0
-      && amountCents !== Number(order.total_cents || 0) ? amountCents : null;
     const refundParams = { payment_intent: order.stripe_payment_intent_id };
     if (partialAmount != null) refundParams.amount = partialAmount;
     if (destinationCharge && !connectedAccountId) {
@@ -1885,6 +1885,31 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
     });
     throw new AppError('The card refund could not be processed', 502, 'stripe_refund_failed', { orderId: order.id });
   }
+  // A provider call can resolve without throwing while still returning an
+  // incomplete or mismatched object (for example after an adapter/API
+  // regression). Never mark the order refunded or write a POS ledger row
+  // unless the external movement has a durable identity and the amount that
+  // Stripe reports is the amount this order requested.
+  const refundId = typeof refund?.id === 'string' ? refund.id.trim() : '';
+  const expectedAmountCents = partialAmount != null
+    ? partialAmount
+    : Number(order.total_cents || 0);
+  const providerAmountCents = Number(refund?.amount);
+  const providerPaymentIntentId = typeof refund?.payment_intent === 'string'
+    ? refund.payment_intent
+    : refund?.payment_intent?.id || null;
+  if (!refundId || !Number.isSafeInteger(providerAmountCents) || providerAmountCents !== expectedAmountCents
+      || (providerPaymentIntentId && providerPaymentIntentId !== order.stripe_payment_intent_id)) {
+    logger.error('Stripe refund response could not be verified for food order', {
+      orderId: order.id,
+      paymentIntentId: order.stripe_payment_intent_id,
+      refundId: refundId || null,
+      providerAmountCents: Number.isFinite(providerAmountCents) ? providerAmountCents : null,
+      expectedAmountCents,
+      providerPaymentIntentId,
+    });
+    throw new AppError('The card refund response could not be verified', 502, 'stripe_refund_invalid', { orderId: order.id });
+  }
   const chargeId = typeof refund.charge === 'string' ? refund.charge : refund.charge?.id || null;
   const { rows: posRows } = await client.query(
     `INSERT INTO restaurant_pos_payments
@@ -1902,7 +1927,7 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
       chargeId,
       `food-order-refund:${order.id}`,
       'Card refund for cancelled order',
-      JSON.stringify({ stripeRefundId: refund.id, orderStatus: status, createdByUserId }),
+      JSON.stringify({ stripeRefundId: refundId, orderStatus: status, createdByUserId }),
       order.location_id ?? null,
     ]
   );
