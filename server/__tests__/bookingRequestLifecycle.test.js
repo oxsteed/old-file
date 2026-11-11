@@ -453,6 +453,8 @@ describe('bookingRequestLifecycle', () => {
     expect(result.appointment.id).toBe('ba-1');
     const businessInsert = pool.query.mock.calls.find((c) => /INSERT INTO business_appointments/.test(c[0]));
     expect(businessInsert[1]).toEqual(expect.arrayContaining([5000, 5500]));
+    const serviceResolution = pool.query.mock.calls.find((c) => /SELECT id, name, base_price_cents/.test(c[0]) && /FOR UPDATE/.test(c[0]));
+    expect(serviceResolution).toBeTruthy();
     const businessInserts = pool.query.mock.calls.filter((c) =>
       /INSERT INTO business_appointments/.test(c[0]),
     );

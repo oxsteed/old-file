@@ -619,13 +619,14 @@ async function confirmOrCreateHelperAppointment(booking, helperId, { source = 'b
  * leaving an accepted booking invisible to the business calendar
  * (business_appointments.service_id is NOT NULL).
  */
-async function resolveBusinessService(booking, db) {
+async function resolveBusinessService(booking, db, { forUpdate = false } = {}) {
   const idText = String(booking.service_id || '').trim();
+  const lockClause = forUpdate ? ' FOR UPDATE' : '';
   if (idText) {
     const { rows } = await db.query(
       `SELECT id, name, base_price_cents
          FROM business_services
-        WHERE id::text = $1 AND business_id = $2 AND is_active = TRUE`,
+        WHERE id::text = $1 AND business_id = $2 AND is_active = TRUE${lockClause}`,
       [idText, booking.business_id],
     );
     if (rows[0]) return rows[0];
@@ -637,7 +638,7 @@ async function resolveBusinessService(booking, db) {
          FROM business_services
         WHERE business_id = $1 AND is_active = TRUE AND LOWER(name) = LOWER($2)
         ORDER BY id
-        LIMIT 1`,
+        LIMIT 1${lockClause}`,
       [booking.business_id, name],
     );
     if (rows[0]) return rows[0];
@@ -668,7 +669,7 @@ async function confirmOrCreateBusinessAppointment(booking, helperId, { db = pool
   // Guarded: overlap against the same store the slot engine reads.
   await checkBusinessSlotFree(booking.business_id, slot.startDate, slot.endDate, db);
 
-  const service = await resolveBusinessService(booking, db);
+  const service = await resolveBusinessService(booking, db, { forUpdate: true });
   if (!service) {
     // business_appointments.service_id is NOT NULL: there is no safe way to
     // accept without a service, so fail the accept instead of leaving an
