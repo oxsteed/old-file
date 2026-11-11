@@ -63,7 +63,20 @@ exports.createLead = async (req, res) => {
 
     // Verify business exists
     const bizRes = await client.query(
-      `SELECT id, user_id FROM businesses WHERE id = $1 AND is_active = TRUE`,
+      `SELECT b.id, b.user_id
+         FROM businesses b
+         JOIN users owner ON owner.id = b.user_id
+        WHERE b.id = $1
+          AND b.deleted_at IS NULL
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+          AND b.setup_status = 'active'
+          AND b.business_kind = 'service'
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE`,
       [businessId]
     );
     if (!bizRes.rows[0]) return sendError(res, 404, 'Business not found');
@@ -73,7 +86,10 @@ exports.createLead = async (req, res) => {
     // Validate all service IDs belong to this business
     const svcRes = await client.query(
       `SELECT COUNT(*) as cnt FROM business_services
-       WHERE business_id = $1 AND id = ANY($2) AND is_active = TRUE`,
+       WHERE business_id = $1
+         AND id = ANY($2)
+         AND is_active = TRUE
+         AND deleted_at IS NULL`,
       [businessId, validServiceIds]
     );
     if (parseInt(svcRes.rows[0].cnt, 10) !== validServiceIds.length) {
