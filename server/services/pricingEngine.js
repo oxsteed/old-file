@@ -134,8 +134,9 @@ async function _loadProductRules(businessId, productId) {
   return safe(
     `SELECT id, rule_type, priority, conditions_json, pricing_adjustment, is_active
        FROM product_pricing_rules
-      WHERE business_id = $1 AND (product_id = $2 OR product_id IS NULL)
-        AND is_active = TRUE
+      WHERE business_id = $1 AND is_active = TRUE
+        AND (applies_to = 'all'
+             OR (applies_to = 'product' AND applies_to_id = $2::uuid))
       ORDER BY priority DESC`,
     [businessId, productId]
   );

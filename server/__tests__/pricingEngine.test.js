@@ -42,3 +42,36 @@ test('service pricing reads the deployed is_enabled schema and scopes rules to t
   expect(rulesQuery[0]).toMatch(/is_enabled = TRUE/);
   expect(rulesQuery[1]).toEqual([7, 11]);
 });
+
+test('product pricing reads product rules through applies_to instead of the removed product_id column', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/FROM business_products/i.test(sql)) return { rows: [{ price_cents: 1250 }] };
+    if (/FROM product_pricing_rules/i.test(sql)) {
+      return {
+        rows: [{
+          id: 'rule-1',
+          rule_type: 'promotion',
+          priority: 1,
+          conditions_json: { min_quantity: 2 },
+          pricing_adjustment: { percent_off: 20 },
+          is_active: true,
+        }],
+      };
+    }
+    if (/FROM marketplace_products/i.test(sql)) return { rows: [] };
+    return { rows: [] };
+  });
+
+  const result = await pricingEngine.calculatePrice({
+    businessId: 7,
+    kind: 'product',
+    targetId: '11111111-1111-4111-8111-111111111111',
+    quantity: 2,
+  });
+
+  expect(result.basePriceCents).toBe(1250);
+  expect(result.adjustedPriceCents).toBe(1000);
+  const rulesQuery = mockQuery.mock.calls.find(([sql]) => /FROM product_pricing_rules/i.test(sql));
+  expect(rulesQuery[0]).toMatch(/applies_to/);
+  expect(rulesQuery[0]).not.toMatch(/product_id/);
+});

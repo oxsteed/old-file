@@ -20,6 +20,8 @@ function buildApp() {
     next();
   });
   app.post('/api/businesses/:businessId/pricing/service/:serviceId/rules', controller.createServiceRule);
+  app.post('/api/businesses/:businessId/pricing/product/:productId/rules', controller.createProductRule);
+  app.get('/api/businesses/:businessId/pricing/product/:productId/rules', controller.listProductRules);
   app.use(errorHandler);
   return app;
 }
@@ -73,4 +75,39 @@ test('a service outside the business returns not found instead of an internal er
     .send({ rule_type: 'time', time: { price_multiplier: 1.2 } });
 
   expect(res.status).toBe(404);
+});
+
+test('product rule creation writes applies_to fields from the deployed product schema', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 'rule-product-1' }] });
+
+  const res = await request(buildApp())
+    .post('/api/businesses/7/pricing/product/11111111-1111-4111-8111-111111111111/rules')
+    .send({ rule_type: 'volume', conditions_json: { min_quantity: 3 }, pricing_adjustment: { percent_off: 10 } });
+
+  expect(res.status).toBe(201);
+  expect(mockQuery.mock.calls[0][0]).toMatch(/rule_name, rule_type, description, priority/);
+  expect(mockQuery.mock.calls[0][0]).toMatch(/applies_to, applies_to_id/);
+  expect(mockQuery.mock.calls[0][0]).not.toMatch(/product_id/);
+  expect(mockQuery.mock.calls[0][1]).toEqual([
+    7,
+    '11111111-1111-4111-8111-111111111111',
+    'volume pricing rule',
+    'volume',
+    '',
+    1,
+    JSON.stringify({ min_quantity: 3 }),
+    JSON.stringify({ percent_off: 10 }),
+  ]);
+});
+
+test('product rule listing scopes to the business and the deployed applies_to relation', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+
+  const res = await request(buildApp())
+    .get('/api/businesses/7/pricing/product/11111111-1111-4111-8111-111111111111/rules');
+
+  expect(res.status).toBe(200);
+  expect(mockQuery.mock.calls[0][0]).toMatch(/applies_to = 'all'/);
+  expect(mockQuery.mock.calls[0][0]).toMatch(/applies_to_id = \$2::uuid/);
+  expect(mockQuery.mock.calls[0][0]).not.toMatch(/product_id/);
 });

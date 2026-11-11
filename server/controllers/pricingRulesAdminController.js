@@ -273,22 +273,43 @@ exports.createProductRule = async function createProductRule(req, res, next) {
   try {
     const businessId = req.business && req.business.id;
     const { productId } = req.params;
-    const { rule_type, priority = 0, conditions_json = {}, pricing_adjustment = {} } = req.body || {};
+    const {
+      rule_type,
+      priority = 0,
+      name,
+      description = '',
+      conditions_json = {},
+      pricing_adjustment = {},
+    } = req.body || {};
 
     const fields = {};
     if (!rule_type) fields.rule_type = 'rule_type required';
     if (rule_type && !PRODUCT_RULE_TYPES.has(rule_type)) fields.rule_type = `must be one of ${Array.from(PRODUCT_RULE_TYPES).join(',')}`;
+    const requestedPriority = Number(priority);
+    const rulePriority = requestedPriority === 0 ? 1 : requestedPriority;
+    if (!Number.isInteger(rulePriority) || rulePriority < 1 || rulePriority > 100) {
+      fields.priority = 'must be an integer from 1 to 100';
+    }
     if (Object.keys(fields).length) return sendValidationError(res, fields);
 
     const r = await pool.query(
       `INSERT INTO product_pricing_rules
-         (business_id, product_id, rule_type, priority,
-          conditions_json, pricing_adjustment, is_active)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, TRUE)
+         (business_id, rule_name, rule_type, description, priority,
+          is_active, applies_to, applies_to_id, conditions_json, pricing_adjustment)
+       SELECT $1, $3, $4, $5, $6, TRUE, 'product', p.id, $7::jsonb, $8::jsonb
+         FROM business_products p
+        WHERE p.id = $2 AND p.business_id = $1 AND p.deleted_at IS NULL
        RETURNING id`,
-      [businessId, productId, rule_type, num(priority, 0),
+      [businessId, productId, String(name || `${rule_type} pricing rule`).trim().slice(0, 200),
+       rule_type, String(description || '').trim(), rulePriority,
        JSON.stringify(conditions_json), JSON.stringify(pricing_adjustment)]
     );
+    if (!r.rows[0]) {
+      const error = new Error('Product not found for business');
+      error.statusCode = 404;
+      error.code = 'not_found';
+      throw error;
+    }
 
     await logBusinessAction(req, {
       action: 'business.product_pricing_rule.created',
@@ -310,7 +331,8 @@ exports.listProductRules = async function listProductRules(req, res, next) {
               created_at, updated_at
          FROM product_pricing_rules
         WHERE business_id = $1
-          AND (product_id = $2 OR product_id IS NULL)
+          AND (applies_to = 'all'
+               OR (applies_to = 'product' AND applies_to_id = $2::uuid))
         ORDER BY priority DESC, created_at DESC`,
       [businessId, productId]
     );
