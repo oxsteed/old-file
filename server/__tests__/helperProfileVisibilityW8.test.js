@@ -49,6 +49,7 @@ describe('directory and profile visibility SQL (P1-203, P1-205, P1-206)', () => 
   test('directory lists all helper roles and skips admin-hidden businesses', () => {
     expect(src).toMatch(/u\.role = ANY\(\$1::user_role\[\]\)/);
     expect(src).toMatch(/\['helper', 'helper_pro', 'broker'\]/);
+    expect(src).toMatch(/u\.onboarding_completed = TRUE/);
     expect(src).toMatch(/COALESCE\(b\.is_hidden_by_admin, FALSE\) = FALSE/);
   });
   test('hidden helper sections are withheld by the API', () => {

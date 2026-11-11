@@ -542,6 +542,7 @@ async function listHelpers(req, res, next) {
         'u.deleted_at IS NULL',
         'u.is_active = TRUE',
         'u.email_verified = TRUE',
+        'u.onboarding_completed = TRUE',
       ];
       const bizParams = [];
       let bIdx = 1;
