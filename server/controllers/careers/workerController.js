@@ -66,7 +66,9 @@ exports.downloadResume = handle(async (req, res) => {
   const user = requireUser(req);
   const { rows: [p] } = await pool.query('SELECT resume_storage_key FROM career_profiles WHERE user_id = $1', [user.id]);
   if (!p?.resume_storage_key) throw new AppError('No résumé uploaded', 404, 'not_found');
-  res.json({ url: await storage.getSignedDownloadUrl(p.resume_storage_key, 300), expires_in: 300 });
+  const url = await storage.getSignedDownloadUrl(p.resume_storage_key, 300);
+  if (!url) throw new AppError('Résumé download is temporarily unavailable', 503, 'storage_unavailable');
+  res.json({ url, expires_in: 300 });
 });
 
 exports.deleteResume = handle(async (req, res) => {
