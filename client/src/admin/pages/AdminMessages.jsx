@@ -8,6 +8,7 @@ import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import { useTranslation } from 'react-i18next';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
+import { createMessageRequestId } from '../../lib/messageRequestId';
 import '../lib/suggestDropdownAdmin.css';
 
 const adminApi = (path, opts) => api(path.startsWith('/api') ? path : `/admin${path}`, opts);
@@ -64,6 +65,7 @@ export default function AdminMessages() {
   const [showNewModal,  setShowNewModal]  = useState(false);
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
+  const pendingSendRef = useRef(null);
 
   // Debounce the conversation search so keystrokes don't fan out requests.
   useEffect(() => {
@@ -153,10 +155,20 @@ export default function AdminMessages() {
     e?.preventDefault();
     if (!selected || !message.trim() || sending) return;
     const content = message.trim();
+    const conversationKey = selected.conversation_id || `user:${selected.userId}`;
+    const pending = pendingSendRef.current;
+    const clientMessageId = pending
+      && pending.conversationKey === conversationKey
+      && pending.content === content
+      ? pending.clientMessageId
+      : createMessageRequestId();
+    pendingSendRef.current = { clientMessageId, conversationKey, content };
+    const optimisticId = `opt-${clientMessageId}`;
     setMessage('');
     setSending(true);
     const optimistic = {
-      id:              `opt-${Date.now()}`,
+      id:              optimisticId,
+      client_message_id: clientMessageId,
       sender_id:       user.id,
       content,
       message_type:    'system',
@@ -165,20 +177,28 @@ export default function AdminMessages() {
       sender_last_name:  user.last_name,
       sender_role:       user.role,
     };
-    setThread(prev => [...prev, optimistic]);
+    setThread(prev => prev.some(m => m.id === optimisticId)
+      ? prev.map(m => m.id === optimisticId ? { ...m, send_error: false } : m)
+      : [...prev, optimistic]);
     try {
       const { data } = await adminApi(`/messages/conversations/${selected.userId}/send`, {
         method: 'POST',
-        data:   { content },
+        headers: { 'Idempotency-Key': clientMessageId },
+        data:   { content, clientMessageId },
       });
+      pendingSendRef.current = null;
       setThread(prev => prev.map(m =>
-        m.id === optimistic.id ? { ...optimistic, id: data.message_id, created_at: data.created_at } : m
+        m.id === optimisticId ? { ...optimistic, id: data.message_id, created_at: data.created_at } : m
       ));
       reloadConversations();
     } catch (err) {
-      // Roll back the optimistic bubble AND surface the failure: previously
-      // the message vanished silently with no indication it never sent.
-      setThread(prev => prev.filter(m => m.id !== optimistic.id));
+      // Keep the failed bubble and editable draft. Retrying unchanged content
+      // reuses the same client ID, so a response timeout cannot duplicate a
+      // message that the server already committed.
+      setMessage(current => current || content);
+      setThread(prev => prev.map(m =>
+        m.id === optimisticId ? { ...m, send_error: true } : m
+      ));
       toast.error(err?.response?.data?.error || t('adminMessages.sendFailed', { defaultValue: 'Message failed to send. Please try again.' }));
     } finally {
       setSending(false);
@@ -376,6 +396,11 @@ export default function AdminMessages() {
                         </p>
                       )}
                       <p className="whitespace-pre-wrap">{msg.content}</p>
+                      {msg.send_error && (
+                        <p className="mt-1 text-[10px] text-red-200" role="status">
+                          {t('adminMessages.sendFailed', { defaultValue: 'Message failed to send. Please try again.' })}
+                        </p>
+                      )}
                       <p className={`text-[10px] mt-1 ${isAdmin ? 'text-orange-200/70' : 'text-gray-500'}`}>
                         {formatTime(msg.created_at, i18n.resolvedLanguage || i18n.language, t)}
                         {isAdmin && (

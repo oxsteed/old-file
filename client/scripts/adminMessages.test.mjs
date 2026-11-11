@@ -25,3 +25,13 @@ test('super-admin conversation rows preserve conversation identity when opening 
   assert.match(source, /conversationId=\$\{encodeURIComponent\(conversationId\)\}/);
   assert.match(source, /selected\.conversation_id/);
 });
+
+test('admin message sends keep a stable retry identity and failed draft', () => {
+  assert.match(source, /createMessageRequestId/);
+  assert.match(source, /'Idempotency-Key': clientMessageId/);
+  assert.match(source, /data:\s*\{ content, clientMessageId \}/);
+  assert.match(source, /pendingSendRef\.current/);
+  assert.match(source, /setMessage\(current => current \|\| content\)/);
+  assert.match(source, /send_error/);
+  assert.doesNotMatch(source, /setThread\(prev => prev\.filter\(m => m\.id === optimisticId\)\)/);
+});
