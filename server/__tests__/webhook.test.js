@@ -679,6 +679,38 @@ describe('payment_intent.payment_failed', () => {
       expect.arrayContaining(['pi_test'])
     );
   });
+
+  test('does not overwrite a terminal payment on a late failure event', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/UPDATE payments SET status = 'failed'/.test(String(sql))) return { rows: [] };
+      return { rows: [] };
+    });
+    const res = await sendEvent(buildApp(), {
+      type: 'payment_intent.payment_failed',
+      data: { object: { id: 'pi_terminal', metadata: { job_id: '10' } } },
+    });
+    expect(res.status).toBe(200);
+    const update = mockQuery.mock.calls.find(([sql]) => /UPDATE payments SET status = 'failed'/.test(String(sql)));
+    expect(update[0]).toContain("status IN ('pending', 'authorized')");
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE jobs SET escrow_status = 'none'/.test(String(sql)))).toBe(false);
+  });
+});
+
+describe('payment_intent.canceled', () => {
+  test('does not overwrite a terminal payment on a late cancel event', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/UPDATE payments SET status = 'canceled'/.test(String(sql))) return { rows: [] };
+      return { rows: [] };
+    });
+    const res = await sendEvent(buildApp(), {
+      type: 'payment_intent.canceled',
+      data: { object: { id: 'pi_terminal_cancel', metadata: { job_id: '10' } } },
+    });
+    expect(res.status).toBe(200);
+    const update = mockQuery.mock.calls.find(([sql]) => /UPDATE payments SET status = 'canceled'/.test(String(sql)));
+    expect(update[0]).toContain("status IN ('pending', 'authorized')");
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE jobs SET escrow_status = 'none'/.test(String(sql)))).toBe(false);
+  });
 });
 
 describe('account.updated', () => {

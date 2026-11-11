@@ -1679,7 +1679,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           const endedPayments = await withTransaction(db, async (client) => {
             const { rows: endedPayments } = await client.query(
               `UPDATE payments SET status = 'failed', payment_hold_status = 'none',
-               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status <> 'captured'
+               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status IN ('pending', 'authorized')
                RETURNING id`,
               [pi.id]
             );
@@ -1750,7 +1750,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           const endedPayments = await withTransaction(db, async (client) => {
             const { rows: endedPayments } = await client.query(
               `UPDATE payments SET status = 'canceled', payment_hold_status = 'none',
-               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status <> 'captured'
+               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status IN ('pending', 'authorized')
                RETURNING id`,
               [pi.id]
             );
