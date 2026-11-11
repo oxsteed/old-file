@@ -72,11 +72,12 @@ async function target(req) {
   const {
     rows: [user],
   } = await db.query(
-    `SELECT ${ONBOARDING_COLUMNS}, didit_enforcement_required, didit_verified_at, is_active, is_suspended, is_restricted, w9_completed, (lower(email) LIKE '%@oxsteed.internal') AS is_internal, membership_tier, last_login_at FROM users WHERE id=$1::uuid`,
+    `SELECT ${ONBOARDING_COLUMNS}, didit_enforcement_required, didit_verified_at, is_active, is_suspended, is_restricted, w9_completed, deleted_at, (lower(email) LIKE '%@oxsteed.internal') AS is_internal, membership_tier, last_login_at FROM users WHERE id=$1::uuid`,
     [id],
   );
   if (
     !user ||
+    user.deleted_at ||
     id.toLowerCase() === "00000000-0000-4000-8000-000000000001" ||
     user.is_internal
   )
