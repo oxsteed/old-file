@@ -319,6 +319,23 @@ describe('confirmSettlementPayoutFromTransfer', () => {
     expect(err.code).toBe('credit_settlement_payout_verification_mismatch');
   });
 
+  test('throws when the transfer destination does not match the recorded payout account', async () => {
+    initiatedSettlement();
+    settlementRow = { ...settlementRow, payout_destination_account: 'acct_expected' };
+    stripeInstance.transfers.retrieve.mockResolvedValue({
+      id: TRANSFER_ID,
+      amount: 5000,
+      currency: 'usd',
+      destination: 'acct_other',
+      reversed: false,
+      metadata: { oxsteed_credit_settlement_id: SETTLEMENT_ID },
+    });
+
+    const err = await confirmSettlementPayoutFromTransfer(TRANSFER_ID).catch((e) => e);
+    expect(err.code).toBe('credit_settlement_payout_verification_mismatch');
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes("payout_status = 'paid'"))).toBe(false);
+  });
+
   test('a reversed transfer sets payout_status failed and raises a critical incident', async () => {
     initiatedSettlement();
     stripeInstance.transfers.retrieve.mockResolvedValue({ id: TRANSFER_ID, amount: 5000, currency: 'usd', reversed: true, metadata: { oxsteed_credit_settlement_id: SETTLEMENT_ID } });
