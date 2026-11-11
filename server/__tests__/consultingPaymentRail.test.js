@@ -128,6 +128,57 @@ describe('purchasePackage (P3-1071)', () => {
       else delete stripeMock.paymentIntents.cancel;
     }
   });
+
+  test('fails closed and cancels the purchase when Stripe omits the client secret', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_missing_secret', status: 'canceled' });
+    const previousCancel = stripeMock.paymentIntents.cancel;
+    stripeMock.paymentIntents.cancel = cancel;
+    try {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ id: 2, price_cents: 50000, name: 'Foundation' }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ id: 12 }] });
+      stripeMock.paymentIntents.create.mockResolvedValueOnce({ id: 'pi_missing_secret', client_secret: null });
+
+      const r = res();
+      await phasesCtrl.purchasePackage({ user: { id: 'u1' }, body: { packageId: 2 } }, r);
+
+      expect(r.statusCode).toBe(503);
+      expect(r.body).toEqual(expect.objectContaining({ code: 'consulting_payment_intent_unavailable' }));
+      expect(cancel).toHaveBeenCalledWith('pi_missing_secret');
+      expect(mockQuery.mock.calls.some(([sql]) => /SET status = 'cancelled'/.test(sql))).toBe(true);
+    } finally {
+      if (previousCancel) stripeMock.paymentIntents.cancel = previousCancel;
+      else delete stripeMock.paymentIntents.cancel;
+    }
+  });
+
+  test('cancels and rejects a pending replay when Stripe omits the client secret', async () => {
+    const cancel = jest.fn().mockResolvedValue({ id: 'pi_replay_missing_secret', status: 'canceled' });
+    const previousCancel = stripeMock.paymentIntents.cancel;
+    stripeMock.paymentIntents.cancel = cancel;
+    try {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ id: 2, price_cents: 50000, name: 'Foundation' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 13, payment_intent_id: 'pi_replay_missing_secret' }] });
+      stripeMock.paymentIntents.retrieve.mockResolvedValueOnce({
+        id: 'pi_replay_missing_secret',
+        status: 'requires_payment_method',
+        client_secret: null,
+      });
+
+      const r = res();
+      await phasesCtrl.purchasePackage({ user: { id: 'u1' }, body: { packageId: 2 } }, r);
+
+      expect(r.statusCode).toBe(503);
+      expect(r.body).toEqual(expect.objectContaining({ code: 'consulting_payment_intent_unavailable' }));
+      expect(cancel).toHaveBeenCalledWith('pi_replay_missing_secret');
+      expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+    } finally {
+      if (previousCancel) stripeMock.paymentIntents.cancel = previousCancel;
+      else delete stripeMock.paymentIntents.cancel;
+    }
+  });
 });
 
 describe('bookTimeSlot payment gate (P3-1069)', () => {
