@@ -5,6 +5,7 @@ const { requireSupportBusinessAccess, scopeExempt } = require('../middleware/sco
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 
 const { requireAuth, optionalAuth } = require('../middleware/auth');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 const supportAgentsController = require('../controllers/supportAgentsController');
 const supportTicketController = require('../controllers/supportController');
 const agentShiftsController = require('../controllers/agentShiftsController');
@@ -296,14 +297,9 @@ router.get('/conversations', async (req, res, next) => {
     const isSuper = req.user.role === 'super_admin';
     let hasSupportGrant = isSuper;
     if (!hasSupportGrant && req.user.role === 'admin') {
-      const { rows } = await db.query(
-        `SELECT 1 FROM admin_permission_grants
-         WHERE grantee_id = $1 AND permissions ? 'manage_support'
-           AND expires_at > NOW() AND revoked_at IS NULL AND region_id IS NULL
-         LIMIT 1`,
-        [req.user.id]
-      );
-      hasSupportGrant = rows.length > 0;
+      // Keep this non-admin router in parity with requirePermission: support
+      // access includes only a validated global direct or delegated grant.
+      hasSupportGrant = await hasGlobalGrant(req.user.id, 'manage_support');
     }
     const isPlatformAdmin = hasSupportGrant;
     const platformAgent = isPlatformAdmin
