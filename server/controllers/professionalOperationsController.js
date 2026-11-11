@@ -258,7 +258,7 @@ exports.updateSettings = async (req, res, next) => {
 
 exports.createEngagementRequest = async (req, res, next) => {
   try {
-    const business = await getBusinessOrThrow(req.params.businessId);
+    const business = await getBusinessOrThrow(req.params.businessId, { publicOnly: !req.user });
     const serviceNeed = trimString(req.body.service_need || req.body.serviceNeed, 180);
     if (!serviceNeed) throw new AppError('Service need is required', 400, 'validation_failed');
 

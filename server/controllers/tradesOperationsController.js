@@ -291,7 +291,7 @@ exports.updateSettings = async (req, res, next) => {
 
 exports.createDiagnosticRequest = async (req, res, next) => {
   try {
-    const business = await getBusinessOrThrow(req.params.businessId);
+    const business = await getBusinessOrThrow(req.params.businessId, { publicOnly: !req.user });
     const title = trimString(req.body.title, 200);
     const description = trimString(req.body.description, 4000);
     const issueType = trimString(req.body.issue_type || req.body.issueType, 120);

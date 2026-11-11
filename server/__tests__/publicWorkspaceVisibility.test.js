@@ -48,4 +48,23 @@ describe('public business workspaces only resolve live public businesses', () =>
     expect(businessQuery).toMatch(/u\.is_active = TRUE/);
     expect(client.release).toHaveBeenCalled();
   });
+
+  test.each([
+    ['trades', trades.createDiagnosticRequest],
+    ['professional', professional.createEngagementRequest],
+  ])('%s anonymous intake uses the public business visibility contract', async (_name, handler) => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    const req = { params: { businessId: '7' }, body: {} };
+    const res = response();
+    const next = jest.fn();
+
+    await handler(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'not_found' }));
+    const businessQuery = mockQuery.mock.calls[0][0];
+    expect(businessQuery).toMatch(/b\.deleted_at IS NULL/);
+    expect(businessQuery).toMatch(/b\.is_listed = TRUE/);
+    expect(businessQuery).toMatch(/b\.business_kind = 'service'/);
+    expect(res.json).not.toHaveBeenCalled();
+  });
 });
