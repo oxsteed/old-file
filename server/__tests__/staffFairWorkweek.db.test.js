@@ -32,6 +32,11 @@ function app(userId, role) {
   return a;
 }
 const isoDay = (offsetDays) => new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+const futureWeekday = (offsetDays) => {
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
 
 ddescribe('minor profiles and schedule changes', () => {
   let owner, employee, businessId, restaurantId, locationId;
@@ -61,7 +66,7 @@ ddescribe('minor profiles and schedule changes', () => {
   });
 
   test('publishing a minor shift outside the permitted window is blocked (findings 51 + 30)', async () => {
-    const day = isoDay(30);
+    const day = futureWeekday(30);
     const { rows: [draft] } = await pool.query(`INSERT INTO business_staff_shifts(business_id,user_id,shift_date,start_time,end_time,restaurant_id,location_id) VALUES($1,$2,$3,'06:00','20:30',$4,$5) RETURNING id`, [businessId, employee, day, restaurantId, locationId]);
     const res = await request(app(owner, 'owner')).post(`/b/${businessId}/staff/shifts/publish`).send({ restaurant_id: restaurantId });
     // Findings 51 + 30: the under-16 work window is a blocking violation,
