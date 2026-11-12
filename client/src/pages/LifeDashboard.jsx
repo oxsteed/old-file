@@ -247,8 +247,8 @@ export default function LifeDashboard() {
     const safeGet = (url) => api.get(url).then(r => ({ ok: true, data: r.data })).catch(() => ({ ok: false, data: null }));
     Promise.all([
       safeGet('/life/pulse?window=1m'),
-      safeGet('/planned-needs?status=active'),
-      safeGet('/planned-needs/projection?days=90'),
+      safeGet('/planned-needs?status=planned,funding,activating_soon'),
+      safeGet('/planned-needs/projection?window=3m'),
       safeGet('/planned-needs/suggestions'),
       safeGet('/life/summary'),
       safeGet('/life/expenses?limit=5'),

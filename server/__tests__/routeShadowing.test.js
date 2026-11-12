@@ -49,6 +49,15 @@ describe('static routes are registered before parameter routes', () => {
     expect(getPm).toBeLessThan(availability);
     expect(deletePm).toBeLessThan(deleteById);
   });
+
+  test('planned needs: static projection route is registered', () => {
+    const router = require('../routes/plannedNeeds');
+    const projection = routeIndex(router, 'GET', '/projection');
+    const list = routeIndex(router, 'GET', '/');
+    expect(projection).toBeGreaterThanOrEqual(0);
+    expect(list).toBeGreaterThanOrEqual(0);
+    expect(projection).toBeLessThan(list);
+  });
 });
 
 describe('all route files register without undefined handlers', () => {
