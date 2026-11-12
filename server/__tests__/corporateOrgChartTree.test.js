@@ -79,7 +79,8 @@ describe('getOrgChart titles tree (migration 884)', () => {
       .mockResolvedValueOnce({ rows: [] });
 
     const req = { query: { country: 'rw' }, user: { id: 'u-admin', role: 'admin' } };
-    await getOrgChart(req, res = mockRes(), (e) => { throw e; });
+    const res = mockRes();
+    await getOrgChart(req, res, (e) => { throw e; });
 
     const titleQuery = pool.query.mock.calls[1];
     expect(titleQuery[1]).toEqual(['RW']);

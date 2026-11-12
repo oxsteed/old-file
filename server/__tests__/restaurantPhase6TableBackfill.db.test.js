@@ -66,6 +66,14 @@ ddescribe('Phase 6: table_id backfill', () => {
   let otherRestaurantLocationId;
   let tableId;
   let otherLocationTableId;
+  let businessIdRaw;
+  let restaurantIdRaw;
+  let otherRestaurantIdRaw;
+  let locationIdRaw;
+  let otherLocationIdRaw;
+  let otherRestaurantLocationIdRaw;
+  let tableIdRaw;
+  let otherLocationTableIdRaw;
   const orderIds = [];
 
   beforeAll(async () => {
