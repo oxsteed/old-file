@@ -1,0 +1,10 @@
+{
+  "name": "deepmerge",
+  "version": "4.3.2-oxsteed.1",
+  "description": "Deep merge with prototype-pollution key protection",
+  "main": "index.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14"
+  }
+}
