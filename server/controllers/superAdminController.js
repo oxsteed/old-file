@@ -961,6 +961,10 @@ exports.toggleUserBan = async (req, res) => {
   try {
     const { userId } = req.params;
     const { reason } = req.body;
+    // Single-user callers may retain the legacy toggle behavior, but bulk
+    // actions must send an explicit desired state so a stale list cannot
+    // accidentally reverse another operator's newer decision.
+    const requestedActive = typeof req.body?.is_active === 'boolean' ? req.body.is_active : null;
     const adminId = req.user.id;
     const { rows: before } = await db.query(
       `SELECT is_active, role FROM users WHERE id::text = $1`,
@@ -968,7 +972,7 @@ exports.toggleUserBan = async (req, res) => {
     );
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
     if (['admin','super_admin'].includes(before[0].role)) return res.status(403).json({ error: 'Cannot ban admin accounts.' });
-    const newStatus = !before[0].is_active;
+    const newStatus = requestedActive === null ? !before[0].is_active : requestedActive;
 
     // A ban must revoke existing tokens before the state change. If revocation
     // is unavailable, fail closed instead of committing a ban that still has

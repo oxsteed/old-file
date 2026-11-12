@@ -92,8 +92,8 @@ ddescribe('careers (real database)', () => {
   async function newUser(label, { role = 'customer', adult = true, didit = false } = {}) {
     const id = crypto.randomUUID();
     await pool.query(
-      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, didit_status, didit_verified_at)
-       VALUES ($1, $2, 'x', $3, 'Fixture', $4, TRUE, TRUE, $5, $6)`,
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, onboarding_completed, is_active, didit_status, didit_verified_at)
+       VALUES ($1, $2, 'x', $3, 'Fixture', $4, TRUE, TRUE, TRUE, $5, $6)`,
       [id, `careers-${label}-${id}@example.invalid`, label, role, didit ? 'verified' : null, didit ? new Date() : null]
     );
     if (adult) await pool.query('INSERT INTO growth_subject_eligibility (user_id, adult_confirmed, verification_method, verified_at) VALUES ($1, TRUE, $2, NOW())', [id, 'provider']);
@@ -170,8 +170,8 @@ ddescribe('careers (real database)', () => {
     ids.admin = await newUser('admin', { role: 'admin' });
     ids.superAdmin = await newUser('super', { role: 'super_admin' });
 
-    ({ rows: [{ id: ids.biz }] } = await pool.query(`INSERT INTO businesses (user_id, business_name, is_business_verified) VALUES ($1, 'Careers Grill', TRUE) RETURNING id`, [ids.owner]));
-    ({ rows: [{ id: ids.biz2 }] } = await pool.query(`INSERT INTO businesses (user_id, business_name, is_business_verified) VALUES ($1, 'Other Cafe', TRUE) RETURNING id`, [ids.owner2]));
+    ({ rows: [{ id: ids.biz }] } = await pool.query(`INSERT INTO businesses (user_id, business_name, is_business_verified, is_active, is_listed, setup_status, business_kind) VALUES ($1, 'Careers Grill', TRUE, TRUE, TRUE, 'active', 'restaurant') RETURNING id`, [ids.owner]));
+    ({ rows: [{ id: ids.biz2 }] } = await pool.query(`INSERT INTO businesses (user_id, business_name, is_business_verified, is_active, is_listed, setup_status, business_kind) VALUES ($1, 'Other Cafe', TRUE, TRUE, TRUE, 'active', 'restaurant') RETURNING id`, [ids.owner2]));
     ({ rows: [{ id: ids.restaurant }] } = await pool.query(`INSERT INTO food_restaurants (business_id, owner_user_id, display_name) VALUES ($1, $2, 'Careers Grill') RETURNING id`, [ids.biz, ids.owner]));
     ({ rows: [{ id: ids.region }] } = await pool.query(`INSERT INTO restaurant_regions (restaurant_id, code, name) VALUES ($1, 'S', 'South') RETURNING id`, [ids.restaurant]));
     ({ rows: [{ id: ids.loc1 }] } = await pool.query(`INSERT INTO restaurant_locations (restaurant_id, name, region_id) VALUES ($1, 'Downtown', $2) RETURNING id`, [ids.restaurant, ids.region]));
@@ -199,6 +199,14 @@ ddescribe('careers (real database)', () => {
     await pool.query('UPDATE businesses SET is_business_verified = TRUE WHERE id = $1', [ids.biz]);
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('business_not_verified');
+  });
+
+  test('businesses that are not publicly ready cannot publish hidden openings', async () => {
+    await pool.query("UPDATE businesses SET setup_status = 'draft' WHERE id = $1", [ids.biz]);
+    const res = await as(ids.owner).post('/api/careers/employer/openings', openingBody({ title: 'Hidden opening' }));
+    await pool.query("UPDATE businesses SET setup_status = 'active' WHERE id = $1", [ids.biz]);
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('business_not_public');
   });
 
   test('pay range is required on every opening', async () => {

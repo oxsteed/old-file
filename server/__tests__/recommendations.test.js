@@ -57,4 +57,34 @@ describe('recommendations', () => {
       21,
     ]);
   });
+
+  test('helper logistics recommendations only use approved campaigns', async () => {
+    const queries = [];
+    mockQuery.mockImplementation((sql) => {
+      const text = String(sql);
+      queries.push(text);
+      if (text.includes('FROM bids b JOIN jobs j')) {
+        return Promise.resolve({ rows: [{ category_name: 'Plumbing' }] });
+      }
+      if (text.includes('FROM recommendation_dismissals')) {
+        return Promise.resolve({ rows: [] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      req.user = { id: 'helper-123', role: 'helper' };
+      next();
+    });
+    app.get('/api/recommendations', recommendationController.getRecommendations);
+
+    const res = await request(app).get('/api/recommendations');
+
+    expect(res.status).toBe(200);
+    const campaignQuery = queries.find((text) => text.includes('FROM pooled_orders'));
+    expect(campaignQuery).toMatch(/status = 'open'/);
+    expect(campaignQuery).toMatch(/approval_state = 'approved'/);
+  });
 });

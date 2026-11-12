@@ -4,6 +4,7 @@ const { calendarScopeClause } = require('../middleware/requireBusinessCalendarAc
 const { attributePromotionConversion } = require('../analytics/promotionAttribution');
 
 const pool = require('../db');
+const { priceServiceBooking } = require('../services/checkoutPricing');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
@@ -236,12 +237,24 @@ async function createAppointment(req, res, next) {
     const start_time = bv?.startTimeIso ?? req.body.start_time;
     const end_time = bv?.endTimeIso ?? req.body.end_time;
 
-    // Validate required fields
-    if (!service_id || !start_time || !end_time || base_price_cents === undefined) {
-      return next(new AppError('Service, start time, end time, and price are required', 400));
+    // Public requests get their price from the server-side service catalog;
+    // only the authorized staff-created walk-in path may supply an override.
+    if (!service_id || !start_time || !end_time || (req.staffCreated && base_price_cents === undefined)) {
+      return next(new AppError('Service, start time, and end time are required', 400));
     }
     if (new Date(end_time) <= new Date(start_time)) {
       return next(new AppError('End time must be after start time', 400));
+    }
+
+    let appointmentBasePriceCents;
+    let appointmentFinalPriceCents;
+    if (req.staffCreated || !bv) {
+      const suppliedPrice = Number(base_price_cents);
+      if (!Number.isSafeInteger(suppliedPrice) || suppliedPrice < 0) {
+        return next(new AppError('Price must be a non-negative whole number of cents', 400, 'invalid_price'));
+      }
+      appointmentBasePriceCents = suppliedPrice;
+      appointmentFinalPriceCents = suppliedPrice;
     }
 
     // P3-8-F10: staff-created (walk-in) appointments record the customer
@@ -271,6 +284,25 @@ async function createAppointment(req, res, next) {
         throw new AppError('Service is inactive', 409, 'service_inactive');
       }
 
+      // Price only after the service row is locked. The middleware snapshot
+      // can be stale if the catalog changed between validation and insert;
+      // the locked row is the authoritative source for the appointment.
+      if (!req.staffCreated && bv) {
+        const lockedBasePrice = Number(serviceResult.rows[0].base_price_cents ?? bv.service?.base_price_cents);
+        if (!Number.isSafeInteger(lockedBasePrice) || lockedBasePrice < 0) {
+          throw new AppError('Service price is unavailable', 503, 'service_price_unavailable');
+        }
+        const priced = await priceServiceBooking({
+          businessId,
+          serviceId: service_id,
+          basePriceCents: lockedBasePrice,
+          customerId: req.user?.id || customer_id || null,
+          atTimeIso: start_time,
+        });
+        appointmentBasePriceCents = Number(priced.basePriceCents);
+        appointmentFinalPriceCents = Number(priced.adjustedPriceCents);
+      }
+
       // Conflict / capacity / staff double-booking / blocked-time guards.
       await assertAppointmentWindowFree(client, {
         businessId,
@@ -289,7 +321,7 @@ async function createAppointment(req, res, next) {
          RETURNING *`,
         [businessId, service_id, staff_id || null, effectiveCustomerId, customer_name || null,
          customer_email || null, customer_phone || null, customer_notes || null,
-         start_time, end_time, base_price_cents, base_price_cents]
+         start_time, end_time, appointmentBasePriceCents, appointmentFinalPriceCents]
       );
       if (!req.staffCreated && effectiveCustomerId) {
         const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
@@ -298,8 +330,17 @@ async function createAppointment(req, res, next) {
       return appointmentResult.rows[0];
     });
 
-    // Set up reminders
-    await setupReminderSchedule(appointment.id, start_time);
+    // Reminder delivery is post-commit side effect. Do not report a booking
+    // failure after the appointment is already durable; clients would retry
+    // and create duplicates. The reminder worker can repair the missing rows.
+    try {
+      await setupReminderSchedule(appointment.id, start_time);
+    } catch (error) {
+      logger.error('Appointment reminder setup failed after commit', {
+        appointmentId: appointment.id,
+        error,
+      });
+    }
     await notifyAppointmentParticipants(appointment, 'appointment_created');
 
     // P3-8-F05: require_payment_upfront was dead config; surface it on the
@@ -685,6 +726,12 @@ async function rescheduleAppointment(req, res, next) {
         [appointmentId, orig.start_time, orig.end_time, new_start_time, new_end_time, req.user.id, rescheduledByType]
       );
 
+      // Keep reminder delivery connected to the appointment window. Replace
+      // only unsent reminders inside the same transaction so a failed
+      // reminder write rolls the reschedule back instead of leaving stale
+      // notifications pointing at the old time.
+      await replaceReminderSchedule(client, appointmentId, new_start_time);
+
       return updateResult.rows[0];
     });
 
@@ -842,6 +889,10 @@ async function recordAppointmentPayment(req, res, next) {
       if (['cancelled', 'no_show'].includes(current.status)) {
         throw new AppError(`Cannot record payment for a ${current.status} appointment`, 409, 'invalid_status_transition');
       }
+      const dueCents = Number(current.final_price_cents);
+      if (!Number.isSafeInteger(dueCents) || amount_cents !== dueCents) {
+        throw new AppError('Payment amount must match the appointment total', 409, 'payment_amount_mismatch');
+      }
       const result = await client.query(
         `UPDATE business_appointments
          SET payment_status = 'paid', updated_at = NOW()
@@ -869,7 +920,7 @@ async function recordAppointmentPayment(req, res, next) {
 }
 
 // Helper functions
-async function setupReminderSchedule(appointmentId, startTime) {
+async function scheduleReminderRows(db, appointmentId, startTime) {
   // Set up reminders for 24h, 2h, and same-day
   const reminders = [
     { hours_before: 24, type: 'reminder_24h' },
@@ -881,13 +932,26 @@ async function setupReminderSchedule(appointmentId, startTime) {
     const scheduledAt = new Date(startTime);
     scheduledAt.setHours(scheduledAt.getHours() - reminder.hours_before);
 
-    await pool.query(
+    await db.query(
       `INSERT INTO business_appointment_reminders
        (appointment_id, reminder_type, scheduled_at, hours_before)
        VALUES ($1, 'email', $2, $3)`,
       [appointmentId, scheduledAt.toISOString(), reminder.hours_before]
     );
   }
+}
+
+async function setupReminderSchedule(appointmentId, startTime) {
+  await scheduleReminderRows(pool, appointmentId, startTime);
+}
+
+async function replaceReminderSchedule(db, appointmentId, startTime) {
+  await db.query(
+    `DELETE FROM business_appointment_reminders
+      WHERE appointment_id = $1 AND sent_at IS NULL`,
+    [appointmentId]
+  );
+  await scheduleReminderRows(db, appointmentId, startTime);
 }
 
 async function notifyAppointmentParticipants(appointment, notificationType) {

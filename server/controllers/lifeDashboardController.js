@@ -2,6 +2,25 @@ const db     = require('../db');
 const logger = require('../utils/logger');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
+// Home tasks denormalize display names through vehicle/home foreign keys.
+// Validate those references against the current user before every write so a
+// caller cannot attach another user's private vehicle or address to a task.
+async function ensureOwnedTaskReferences(userId, vehicleId, homeId) {
+  const references = [
+    { id: vehicleId, table: 'user_vehicles', label: 'vehicle' },
+    { id: homeId, table: 'user_homes', label: 'home' },
+  ];
+  for (const reference of references) {
+    if (reference.id === undefined || reference.id === null || reference.id === '') continue;
+    const { rows } = await db.query(
+      `SELECT 1 FROM ${reference.table} WHERE id = $1 AND user_id = $2 LIMIT 1`,
+      [reference.id, userId]
+    );
+    if (!rows.length) return `${reference.label}_not_found`;
+  }
+  return null;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // EXPENSES
 // ═══════════════════════════════════════════════════════════════════════════
@@ -626,6 +645,8 @@ exports.getSavedHelpers = async (req, res) => {
       LEFT JOIN helper_profiles hp ON hp.user_id = sh.helper_id
       LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
       WHERE sh.user_id = $1
+        AND u.is_active = TRUE
+        AND u.deleted_at IS NULL
         -- Never surface helpers who unlisted themselves or were hidden by an admin.
         AND COALESCE(hp.is_listed, TRUE) = TRUE
         AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE
@@ -658,6 +679,16 @@ exports.saveHelper = async (req, res) => {
 
     if (!helper_id) return res.status(400).json({ error: 'helper_id is required.' });
     if (helper_id === userId) return res.status(400).json({ error: 'Cannot save yourself.' });
+
+    const { rows: helperRows } = await db.query(
+      `SELECT 1 FROM users
+        WHERE id = $1 AND role = 'helper' AND is_active = TRUE AND deleted_at IS NULL
+        LIMIT 1`,
+      [helper_id]
+    );
+    if (!helperRows.length) {
+      return res.status(404).json({ error: 'Helper not found.' });
+    }
 
     const { rows } = await db.query(`
       INSERT INTO saved_helpers (user_id, helper_id, note)
@@ -751,6 +782,10 @@ exports.createHomeTask = async (req, res) => {
     } = req.body;
 
     if (!title) return res.status(400).json({ error: 'Title is required.' });
+    const referenceError = await ensureOwnedTaskReferences(userId, vehicle_id, home_id);
+    if (referenceError) {
+      return res.status(400).json({ error: 'The selected vehicle or home does not belong to this account.', code: referenceError });
+    }
     const allowedSections = ['home', 'personal_care', 'car_care'];
     const safeSection = allowedSections.includes(section) ? section : 'home';
 
@@ -798,6 +833,11 @@ exports.updateHomeTask = async (req, res) => {
     const effectiveRecurrenceDays = safeFrequency
       ? FREQUENCY_DAYS[safeFrequency]
       : recurrence_days;
+
+    const referenceError = await ensureOwnedTaskReferences(userId, vehicle_id, home_id);
+    if (referenceError) {
+      return res.status(400).json({ error: 'The selected vehicle or home does not belong to this account.', code: referenceError });
+    }
 
     const { rows } = await db.query(`
       UPDATE home_tasks

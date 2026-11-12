@@ -506,6 +506,7 @@ async function updateFranchiseApplication(req, res) {
   const values = [];
   const touchedColumns = new Set();
   let idx = 1;
+  const ownerUserId = body.owner_user_id !== undefined ? asTrimmed(body.owner_user_id) : undefined;
 
   const addUpdate = (column, value) => {
     if (touchedColumns.has(column)) return;
@@ -563,7 +564,6 @@ async function updateFranchiseApplication(req, res) {
   }
 
   const stringFields = [
-    'owner_user_id',
     'linked_consulting_request_id',
     'first_name',
     'last_name',
@@ -583,6 +583,13 @@ async function updateFranchiseApplication(req, res) {
     'hq_recommendation',
     'risk_notes',
   ];
+
+  if (ownerUserId !== undefined) {
+    if (!ownerUserId) {
+      return res.status(400).json({ error: 'owner_user_id must identify an active account.' });
+    }
+    addUpdate('owner_user_id', ownerUserId);
+  }
 
   for (const field of stringFields) {
     if (body[field] !== undefined) {
@@ -613,6 +620,21 @@ async function updateFranchiseApplication(req, res) {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
+
+      if (ownerUserId !== undefined) {
+        const ownerResult = await client.query(
+          `SELECT id FROM users
+            WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`,
+          [ownerUserId]
+        );
+        if (!ownerResult.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: 'owner_user_id must identify an active, non-deleted account.',
+            code: 'franchise_owner_unavailable',
+          });
+        }
+      }
 
       const before = await client.query('SELECT status FROM franchise_applications WHERE id = $1', [applicationId]);
       if (!before.rows.length) {
@@ -1140,6 +1162,19 @@ async function activateFranchiseStore(req, res) {
       if (!application.owner_user_id) {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Assign an owner_user_id before activating the store.' });
+      }
+
+      const ownerResult = await client.query(
+        `SELECT id FROM users
+          WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`,
+        [application.owner_user_id]
+      );
+      if (!ownerResult.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'The franchise owner account is inactive or deleted.',
+          code: 'franchise_owner_unavailable',
+        });
       }
 
       if (application.status !== 'approved') {

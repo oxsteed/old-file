@@ -3,10 +3,18 @@
 const mockUploadFile = jest.fn();
 const mockGetPublicUrl = jest.fn();
 const mockDeleteFile = jest.fn();
+const mockGenerateBusinessProfileQRCode = jest.fn();
+const mockGenerateBusinessQRCodeSizes = jest.fn();
+const mockBuildBusinessProfileURL = jest.fn(() => 'https://oxsteed.example/businesses/public/1');
 jest.mock('../utils/storage', () => ({
   uploadFile: mockUploadFile,
   getPublicUrl: mockGetPublicUrl,
   deleteFile: mockDeleteFile,
+}));
+jest.mock('../utils/businessQRCodeGenerator', () => ({
+  generateBusinessProfileQRCode: mockGenerateBusinessProfileQRCode,
+  generateBusinessQRCodeSizes: mockGenerateBusinessQRCodeSizes,
+  buildBusinessProfileURL: mockBuildBusinessProfileURL,
 }));
 
 require('./setup');
@@ -26,6 +34,31 @@ beforeEach(() => {
   mockUploadFile.mockReset();
   mockGetPublicUrl.mockReset();
   mockDeleteFile.mockReset();
+  mockGenerateBusinessProfileQRCode.mockReset();
+  mockGenerateBusinessQRCodeSizes.mockReset();
+  mockBuildBusinessProfileURL.mockClear();
+});
+
+test('public QR generation rejects a business outside the canonical public gate', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+  const res = response();
+  await controller.generateQRCode({ params: { businessId: '1' }, query: {} }, res);
+
+  expect(res.status).toHaveBeenCalledWith(404);
+  expect(mockGenerateBusinessProfileQRCode).not.toHaveBeenCalled();
+  expect(mockQuery.mock.calls[0][0]).toMatch(/u\.email_verified = TRUE/);
+  expect(mockQuery.mock.calls[0][0]).toMatch(/u\.onboarding_completed = TRUE/);
+});
+
+test('multi-size public QR generation rejects a hidden business before generating assets', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+  const res = response();
+  await controller.generateMultiSizeQRCode({ params: { businessId: '1' } }, res);
+
+  expect(res.status).toHaveBeenCalledWith(404);
+  expect(mockGenerateBusinessQRCodeSizes).not.toHaveBeenCalled();
+  expect(mockQuery.mock.calls[0][0]).toMatch(/b\.deleted_at IS NULL/);
+  expect(mockQuery.mock.calls[0][0]).toMatch(/b\.setup_status = 'active'/);
 });
 
 test('deletes a newly uploaded cover when the business update fails', async () => {

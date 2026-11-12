@@ -133,6 +133,10 @@ test("delegated staff cannot inspect admin targets or internal users", async () 
   db.query.mockResolvedValueOnce({ rows: [{ ...user, is_internal: true }] });
   await expect(service.target(req())).rejects.toMatchObject({ status: 404 });
 });
+test("deleted customers are not available to Customer 360 workspace routes", async () => {
+  db.query.mockResolvedValueOnce({ rows: [{ ...user, deleted_at: "2026-11-01T00:00:00.000Z" }] });
+  await expect(service.target(req())).rejects.toMatchObject({ status: 404 });
+});
 test("CSV formulas are neutralized and quotes escaped", () => {
   expect(service.csvCell('=HYPERLINK("danger")')).toBe(
     '"\'=HYPERLINK(""danger"")"',

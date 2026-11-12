@@ -240,6 +240,20 @@ describe('P3-8-F05: late-cancel fee enforcement', () => {
     expect(res.body.code).toBe('invalid_payment_transition');
   });
 
+  test('recordAppointmentPayment rejects an amount below the appointment total', async () => {
+    const current = {
+      id: 'a1', business_id: 7, service_id: 'svc-1', staff_id: null,
+      status: 'confirmed', payment_status: 'pending', final_price_cents: 5000,
+    };
+    installBaseRouter({ current });
+    const res = await request(buildApp())
+      .post('/api/businesses/7/appointments/a1/record-payment')
+      .send({ amount_cents: 100, payment_method: 'cash' });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('payment_amount_mismatch');
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes("SET payment_status = 'paid'"))).toBe(false);
+  });
+
   test('create surfaces requires_payment_upfront', async () => {
     const current = null;
     installBaseRouter({ current });
@@ -268,6 +282,35 @@ describe('P3-8-F05: late-cancel fee enforcement', () => {
     });
     expect(res.status).toBe(201);
     expect(res.body.requires_payment_upfront).toBe(true);
+  });
+
+  test('reminder setup failure does not turn a committed appointment into a retryable 500', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      const s = String(sql);
+      if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') return { rows: [] };
+      if (s.includes('pg_advisory_xact_lock')) return { rows: [] };
+      if (s.includes('FROM business_services') && s.includes('FOR UPDATE')) {
+        return { rows: [{ id: 'svc-1', business_id: 7, deleted_at: null, is_active: true, max_capacity: 1 }] };
+      }
+      if (s.includes('FROM business_appointments') && s.includes('COUNT(*)')) return { rows: [{ n: 0 }] };
+      if (s.includes('INSERT INTO business_appointments')) {
+        return { rows: [{ id: 'new-reminder-failure', service_id: 'svc-1', status: 'pending', payment_status: 'pending' }] };
+      }
+      if (s.includes('FROM business_booking_rules')) return { rows: [{ require_payment_upfront: false }] };
+      if (s.includes('INSERT INTO business_appointment_reminders')) throw new Error('reminder store unavailable');
+      if (s.includes('SELECT ba.customer_id')) return { rows: [] };
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildApp()).post('/api/businesses/7/appointments').send({
+      service_id: 'svc-1',
+      start_time: futureIso(48),
+      end_time: futureIso(49),
+      base_price_cents: 5000,
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe('new-reminder-failure');
   });
 });
 
@@ -397,6 +440,7 @@ describe('P3-8-F14: rescheduled_by_type reflects the actor', () => {
     expect(res.status).toBe(200);
     const params = installBaseRouter.lastRescheduleParams;
     expect(params[params.length - 1]).toBe('business');
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM business_appointment_reminders'))).toBe(true);
   });
 });
 
@@ -410,7 +454,7 @@ describe('P3-8-F15: createAppointment uses req.bookingValidation', () => {
       if (s.includes('FROM business_services') && s.includes('FOR UPDATE')) {
         // The service id must come from bookingValidation, not the body.
         expect(params[0]).toBe('svc-bv');
-        return { rows: [{ id: 'svc-bv', business_id: 7, deleted_at: null, is_active: true, max_capacity: 1 }] };
+        return { rows: [{ id: 'svc-bv', business_id: 7, deleted_at: null, is_active: true, max_capacity: 1, base_price_cents: 7000 }] };
       }
       if (s.includes('FROM business_appointments') && s.includes('COUNT(*)')) return { rows: [{ n: 0 }] };
       if (s.includes('INSERT INTO business_appointments')) {
@@ -425,7 +469,7 @@ describe('P3-8-F15: createAppointment uses req.bookingValidation', () => {
     const bvStart = futureIso(50);
     const bvEnd = futureIso(51);
     const res = await request(buildAppWithValidation(OWNER, {
-      service: { id: 'svc-bv' },
+      service: { id: 'svc-bv', base_price_cents: 5000 },
       startTimeIso: bvStart,
       endTimeIso: bvEnd,
       staffId: 'staff-bv',
@@ -443,6 +487,10 @@ describe('P3-8-F15: createAppointment uses req.bookingValidation', () => {
     expect(inserted[2]).toBe('staff-bv');
     expect(new Date(inserted[8]).toISOString()).toBe(new Date(bvStart).toISOString());
     expect(new Date(inserted[9]).toISOString()).toBe(new Date(bvEnd).toISOString());
+    // The locked service catalog price wins over both the stale middleware
+    // snapshot and the caller-supplied body amount.
+    expect(inserted[10]).toBe(7000);
+    expect(inserted[11]).toBe(7000);
   });
 });
 

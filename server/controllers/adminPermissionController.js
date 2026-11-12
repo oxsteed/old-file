@@ -49,7 +49,7 @@ exports.PERMISSION_SCOPES = PERMISSION_SCOPES;
 
 exports.listMyGrants = async (req, res) => {
   try {
-    const { rows } = await db.query(`
+    const { rows: directRows } = await db.query(`
       SELECT
         g.id,
         g.permissions,
@@ -65,8 +65,58 @@ exports.listMyGrants = async (req, res) => {
       LIMIT 50
     `, [req.user.id]);
 
-    const scopes = [...new Set(rows.flatMap(g => g.permissions || []))];
-    res.json({ grants: rows, scopes });
+    // Keep the client-side grant view aligned with requirePermission: a
+    // delegated scope is usable only when its grantor is an active admin and
+    // either a super-admin or holds the same global direct scope.
+    const { rows: delegatedRows } = await db.query(`
+      SELECT
+        d.id,
+        ARRAY(
+          SELECT delegated_scope.scope
+          FROM unnest(d.scopes) AS delegated_scope(scope)
+          WHERE grantor.role = 'super_admin'
+             OR EXISTS (
+               SELECT 1
+               FROM admin_permission_grants grantor_scope
+               WHERE grantor_scope.grantee_id = d.grantor_admin_id
+                 AND grantor_scope.permissions ? delegated_scope.scope
+                 AND grantor_scope.expires_at > NOW()
+                 AND grantor_scope.revoked_at IS NULL
+                 AND grantor_scope.region_id IS NULL
+             )
+        ) AS permissions,
+        d.expires_at,
+        d.reason AS notes,
+        d.created_at,
+        NULL::uuid AS region_id,
+        'delegated' AS grant_source
+      FROM delegation_grants d
+      JOIN users grantor ON grantor.id = d.grantor_admin_id
+      WHERE d.grantee_admin_id = $1
+        AND d.status = 'active'
+        AND d.expires_at > NOW()
+        AND grantor.is_active = TRUE
+        AND grantor.deleted_at IS NULL
+        AND grantor.role IN ('admin', 'super_admin')
+        AND (
+          grantor.role = 'super_admin'
+          OR EXISTS (
+            SELECT 1
+            FROM admin_permission_grants grantor_grant
+            WHERE grantor_grant.grantee_id = d.grantor_admin_id
+              AND grantor_grant.permissions ?| d.scopes
+              AND grantor_grant.expires_at > NOW()
+              AND grantor_grant.revoked_at IS NULL
+              AND grantor_grant.region_id IS NULL
+          )
+        )
+      ORDER BY d.created_at DESC
+      LIMIT 50
+    `, [req.user.id]);
+
+    const grants = [...directRows, ...delegatedRows];
+    const scopes = [...new Set(grants.flatMap(g => g.permissions || []))];
+    res.json({ grants, scopes });
   } catch (err) {
     logger.error('listMyGrants error:', { err: err });
     res.status(500).json({ error: 'Failed to fetch your permission grants.' });
@@ -163,7 +213,9 @@ exports.createGrant = async (req, res) => {
 
     // Verify grantee is an admin (not super_admin, not regular user)
     const { rows: granteeRows } = await db.query(
-      `SELECT id, role, first_name, last_name, email FROM users WHERE id = $1 AND is_active = true`,
+      `SELECT id, role, first_name, last_name, email
+         FROM users
+        WHERE id = $1 AND is_active = true AND deleted_at IS NULL`,
       [grantee_id]
     );
     if (!granteeRows.length) {

@@ -373,6 +373,10 @@ async function browseTools(req, res) {
          JOIN users u ON u.id = t.user_id
          LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
         ${where}
+          AND u.is_active = TRUE
+          AND u.deleted_at IS NULL
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE
         ORDER BY ${orderBy}
         LIMIT $${idx} OFFSET $${idx + 1}`,
       params
@@ -403,7 +407,12 @@ router.get('/public/:id', async (req, res) => {
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
          LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
-        WHERE t.id = $1 AND t.is_available = TRUE AND u.is_active = TRUE${holdFilter}`,
+        WHERE t.id = $1
+          AND t.is_available = TRUE
+          AND u.is_active = TRUE
+          AND u.deleted_at IS NULL
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE${holdFilter}`,
       [id],
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tool not found' });

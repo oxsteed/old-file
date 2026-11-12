@@ -15,6 +15,7 @@ const { calendarScopeClause } = require('../middleware/requireBusinessCalendarAc
 const pool   = require('../db');
 const logger = require('../utils/logger');
 const { sendError, sendSuccess } = require('../utils/apiError');
+const { resolvePublicBusinessOwner } = require('../services/businessPublicOwner');
 const {
   canAccessBusinessTeam,
   canManageBusinessFinance,
@@ -460,6 +461,9 @@ exports.getServiceSlots = async function getServiceSlots(req, res, next) {
     const businessId = _parseInt10(req.params.businessId);
     const serviceId  = _parseInt10(req.params.serviceId);
     if (!businessId || !serviceId) return sendError(res, 400, 'Invalid id', 'invalid_params');
+    if (!await resolvePublicBusinessOwner(businessId)) {
+      return sendError(res, 404, 'Business not found', 'not_found');
+    }
 
     const now = new Date();
     const defaultEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);

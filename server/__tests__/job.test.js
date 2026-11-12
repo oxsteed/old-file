@@ -84,6 +84,10 @@ describe('GET /api/jobs', () => {
     const res = await request(buildApp()).get('/api/jobs');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('jobs');
+    expect(mockQuery.mock.calls[0][0]).toMatch(/u\.deleted_at IS NULL/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/u\.email_verified = TRUE/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/u\.onboarding_completed = TRUE/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/j\.expires_at IS NULL OR j\.expires_at > NOW/);
   });
 });
 

@@ -7,6 +7,7 @@ const logger = require('../utils/logger');
 const metricsService = require('./metricsService');
 const { sendSecurityAlertEmail } = require('../utils/email');
 const incidentStore = require('./incidentStore');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 function formatIncidentDetails(incident, maxLength = 12000) {
   const lines = [
@@ -177,16 +178,22 @@ class IncidentAlertService {
   async _emailAlert(incident) {
     if (incident.severity !== 'critical') return;
 
-    const { rows } = await pool.query(`SELECT u.email FROM users u
+    const { rows } = await pool.query(`SELECT u.id, u.email, u.role FROM users u
       LEFT JOIN admin_notification_prefs p ON p.admin_id=u.id
       WHERE u.role IN ('admin','super_admin') AND u.is_active=TRUE AND u.deleted_at IS NULL
-        AND (u.role='super_admin' OR EXISTS (SELECT 1 FROM admin_permission_grants g
-          WHERE g.grantee_id=u.id AND g.permissions ? 'manage_operations' AND g.region_id IS NULL
-            AND g.expires_at>NOW() AND g.revoked_at IS NULL))
         AND COALESCE(p.notify_incidents,TRUE) AND COALESCE(p.email_notifications,TRUE)
         AND (p.incident_types IS NULL OR '*'=ANY(p.incident_types) OR $1=ANY(p.incident_types))
       ORDER BY u.id`, [incident.type]);
-    const recipients = [...new Set(rows.map(r => r.email).filter(Boolean))];
+    const authorizedRows = await Promise.all(rows.map(async (row) => {
+      if (row.role === 'super_admin') return row;
+      try {
+        return await hasGlobalGrant(row.id, 'manage_operations') ? row : null;
+      } catch (error) {
+        logger.warn('Incident recipient grant lookup unavailable', { adminId: row.id, error: error.message });
+        return null;
+      }
+    }));
+    const recipients = [...new Set(authorizedRows.map(row => row?.email).filter(Boolean))];
     if (!recipients.length) recipients.push(process.env.SECURITY_ALERT_EMAIL || 'security@oxsteed.com');
     const results = await Promise.allSettled(recipients.map(address =>
       sendSecurityAlertEmail(address, incident.type, formatIncidentDetails(incident))));

@@ -19902,6 +19902,7 @@
     "fieldPrice": "Preço base",
     "fieldCapacity": "Capacidade máx.",
     "fieldNotice": "Aviso mínimo (horas)",
+    "fieldOnlineBooking": "Available for online booking",
     "fieldBuffer": "Intervalo entre agendamentos (minutos)",
     "bufferHint": "Bloqueado antes e depois de cada agendamento para que as reservas nunca se encostem.",
     "bufferPrefix": "Intervalo:",

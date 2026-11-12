@@ -2,6 +2,7 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const bookingEmailService = require('../services/bookingEmailService');
+const { parseDateOnlyUTC } = require('../utils/dateOnly');
 
 const TOOL_RENTAL_AGREEMENT_VERSION = 'peer-rental-v1';
 
@@ -54,9 +55,9 @@ const createBooking = async (req, res, next) => {
     }
     if (Object.keys(fields).length) throw new AppError('Validation failed', 400, 'validation_failed', fields);
 
-    const start = new Date(`${startDate}T00:00:00Z`);
-    const end = new Date(`${endDate}T00:00:00Z`);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    const start = parseDateOnlyUTC(startDate);
+    const end = parseDateOnlyUTC(endDate);
+    if (!start || !end) {
       throw new AppError('Invalid date', 400, 'validation_failed', { startDate: 'Invalid date', endDate: 'Invalid date' });
     }
 
@@ -70,8 +71,12 @@ const createBooking = async (req, res, next) => {
               daily_rate, deposit_amount, requires_deposit, owner_rules,
               owner_custom_terms, owner_custom_terms_hash, replacement_value,
               is_available, moderation_hold
-         FROM tool_rentals
-        WHERE id = $1`,
+         FROM tool_rentals tr
+         JOIN users owner
+           ON owner.id = tr.user_id
+          AND owner.is_active = TRUE
+          AND owner.deleted_at IS NULL
+        WHERE tr.id = $1`,
       [toolId]
     );
     if (toolResult.rows.length === 0) {

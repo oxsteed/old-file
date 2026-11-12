@@ -6,22 +6,35 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const ctrl = require('../controllers/businessProductPricingController');
 
-function buildApp() {
+jest.mock('../services/pricingEngine', () => ({
+  calculatePrice: jest.fn(),
+}));
+
+const pricingEngine = require('../services/pricingEngine');
+
+function buildApp(user = { id: 'manager-123' }) {
   const app = express();
   app.use(express.json());
-  app.use((req, _res, next) => {
-    req.user = { id: 'manager-123' };
-    next();
-  });
+  if (user) {
+    app.use((req, _res, next) => {
+      req.user = user;
+      next();
+    });
+  }
   app.get('/api/businesses/:businessId/product-pricing/rules', ctrl.listPricingRules);
   app.post('/api/businesses/:businessId/product-pricing/rules', ctrl.createPricingRule);
   app.put('/api/businesses/:businessId/product-pricing/rules/:ruleId', ctrl.updatePricingRule);
   app.post('/api/businesses/:businessId/products/:productId/bulk-pricing', ctrl.setBulkPricingTiers);
+  app.get('/api/businesses/:businessId/products/:productId/bulk-pricing', ctrl.getBulkPricingTiers);
+  app.post('/api/businesses/:businessId/product-pricing/calculate', ctrl.calculatePrice);
   app.use(errorHandler);
   return app;
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  pricingEngine.calculatePrice.mockReset();
+});
 
 describe('business product pricing controller wiring', () => {
   test('lists pricing rules without re-checking owner-only access after route authorization', async () => {
@@ -104,5 +117,49 @@ describe('business product pricing controller wiring', () => {
     expect(mockQuery.mock.calls[0][0]).toMatch(/FROM business_products/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/DELETE FROM product_bulk_tiers/);
     expect(mockQuery.mock.calls[2][0]).toMatch(/INSERT INTO product_bulk_tiers/);
+  });
+
+  test('public bulk pricing excludes inactive products', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ business_id: 12, owner_id: 'owner-1' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp()).get('/api/businesses/12/products/product-1/bulk-pricing');
+
+    expect(res.status).toBe(404);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/is_active = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/deleted_at IS NULL/);
+  });
+
+  test('public product pricing ignores an arbitrary customer id', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ business_id: 7, owner_id: 'owner-1' }] });
+    pricingEngine.calculatePrice.mockResolvedValueOnce({
+      basePriceCents: 1000,
+      adjustedPriceCents: 900,
+      applied: [],
+    });
+
+    const res = await request(buildApp())
+      .post('/api/businesses/7/product-pricing/calculate')
+      .send({ productId: 'product-1', quantity: 2, customerId: 'other-user' });
+
+    expect(res.status).toBe(200);
+    expect(pricingEngine.calculatePrice).toHaveBeenCalledWith(expect.objectContaining({ customerId: null }));
+  });
+
+  test('authenticated product pricing uses only the session customer', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ business_id: 7, owner_id: 'owner-1' }] });
+    pricingEngine.calculatePrice.mockResolvedValueOnce({
+      basePriceCents: 1000,
+      adjustedPriceCents: 1000,
+      applied: [],
+    });
+
+    const res = await request(buildApp({ id: 'user-1' }))
+      .post('/api/businesses/7/product-pricing/calculate')
+      .send({ productId: 'product-1', customerId: 'other-user' });
+
+    expect(res.status).toBe(200);
+    expect(pricingEngine.calculatePrice).toHaveBeenCalledWith(expect.objectContaining({ customerId: null }));
   });
 });

@@ -42,7 +42,17 @@ const PUBLIC_FILTER = `
   AND o.is_internal = FALSE
   AND (o.opens_at IS NULL OR o.opens_at <= NOW())
   AND (COALESCE(o.applications_close_at, o.closes_at) IS NULL OR COALESCE(o.applications_close_at, o.closes_at) >= NOW())
-  AND (o.employer_type = 'platform' OR (b.deleted_at IS NULL AND b.is_active = TRUE))
+  AND (o.employer_type = 'platform' OR (
+    b.deleted_at IS NULL
+    AND b.is_active = TRUE
+    AND b.is_listed = TRUE
+    AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+    AND COALESCE(b.setup_status, 'active') = 'active'
+    AND u.deleted_at IS NULL
+    AND u.is_active = TRUE
+    AND u.email_verified = TRUE
+    AND u.onboarding_completed = TRUE
+  ))
 `;
 
 function encodeCursor(row) {
@@ -174,7 +184,11 @@ async function listPublicPaged(db, query, centroid) {
   const sort = SEARCH_SORTS.includes(query.sort) ? query.sort : 'newest';
   const order = sortClause(sort, { centroidParams, q: qIndex || null });
   const { rows: [{ total }] } = await db.query(
-    `SELECT COUNT(*)::int AS total FROM career_openings o LEFT JOIN businesses b ON b.id = o.business_id WHERE ${where.join(' AND ')}`,
+    `SELECT COUNT(*)::int AS total
+       FROM career_openings o
+       LEFT JOIN businesses b ON b.id = o.business_id
+       LEFT JOIN users u ON u.id = b.user_id
+      WHERE ${where.join(' AND ')}`,
     params
   );
   const pageParams = [...params, pageSize, (page - 1) * pageSize];
@@ -182,6 +196,7 @@ async function listPublicPaged(db, query, centroid) {
     `SELECT ${PUBLIC_COLUMNS}
        FROM career_openings o
        LEFT JOIN businesses b ON b.id = o.business_id
+       LEFT JOIN users u ON u.id = b.user_id
       WHERE ${where.join(' AND ')}
       ORDER BY ${order}
       LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
@@ -190,7 +205,10 @@ async function listPublicPaged(db, query, centroid) {
   let promoted = [];
   if (page === 1) {
     const { rows: promo } = await db.query(
-      `SELECT ${PUBLIC_COLUMNS} FROM career_openings o LEFT JOIN businesses b ON b.id = o.business_id
+      `SELECT ${PUBLIC_COLUMNS}
+         FROM career_openings o
+         LEFT JOIN businesses b ON b.id = o.business_id
+         LEFT JOIN users u ON u.id = b.user_id
         WHERE ${where.join(' AND ')} AND o.promoted_until > NOW()
         ORDER BY o.promoted_until DESC, o.id DESC LIMIT 3`,
       params
@@ -233,6 +251,7 @@ async function listPublic(db, query = {}) {
     `SELECT ${PUBLIC_COLUMNS}, COALESCE(o.published_at, o.created_at) AS sort_at
        FROM career_openings o
        LEFT JOIN businesses b ON b.id = o.business_id
+       LEFT JOIN users u ON u.id = b.user_id
       WHERE ${organicWhere.join(' AND ')}
       ORDER BY COALESCE(o.published_at, o.created_at) DESC, o.id DESC
       LIMIT $${organicParams.length}`,
@@ -247,6 +266,7 @@ async function listPublic(db, query = {}) {
       `SELECT ${PUBLIC_COLUMNS}
          FROM career_openings o
          LEFT JOIN businesses b ON b.id = o.business_id
+         LEFT JOIN users u ON u.id = b.user_id
         WHERE ${where.join(' AND ')} AND o.promoted_until > NOW()
         ORDER BY o.promoted_until DESC, o.id DESC
         LIMIT 3`,
@@ -283,8 +303,19 @@ async function getPublic(db, { id = null, employerSlug = null, slug = null, incl
     `SELECT ${PUBLIC_COLUMNS}, (${PUBLIC_FILTER}) AS is_accepting
        FROM career_openings o
        LEFT JOIN businesses b ON b.id = o.business_id
+       LEFT JOIN users u ON u.id = b.user_id
       WHERE ${match}
-        AND (o.employer_type = 'platform' OR (b.deleted_at IS NULL AND b.is_active = TRUE))
+        AND (o.employer_type = 'platform' OR (
+          b.deleted_at IS NULL
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+          AND COALESCE(b.setup_status, 'active') = 'active'
+          AND u.deleted_at IS NULL
+          AND u.is_active = TRUE
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE
+        ))
         AND o.moderation_status <> 'removed' AND o.is_internal = FALSE
       LIMIT 1`,
     params
@@ -409,8 +440,30 @@ async function saveOpening(db, { access, user, body, existing = null, employerTy
   }
   // K6: only verified businesses publish.
   if (requested === 'open' && employerType === 'business') {
-    const { rows: [biz] } = await db.query('SELECT is_business_verified FROM businesses WHERE id = $1', [businessId]);
+    const { rows: [biz] } = await db.query(
+      `SELECT b.is_business_verified, b.deleted_at, b.is_active, b.is_listed,
+              b.is_hidden_by_admin, b.setup_status,
+              u.deleted_at AS owner_deleted_at, u.is_active AS owner_is_active,
+              u.email_verified AS owner_email_verified,
+              u.onboarding_completed AS owner_onboarding_completed
+         FROM businesses b
+         LEFT JOIN users u ON u.id = b.user_id
+        WHERE b.id = $1`,
+      [businessId]
+    );
     if (!biz?.is_business_verified) throw new AppError('Verify your business before publishing openings', 403, 'business_not_verified');
+    const publiclyReady = biz.deleted_at == null
+      && biz.is_active === true
+      && biz.is_listed === true
+      && biz.is_hidden_by_admin !== true
+      && (biz.setup_status ?? 'active') === 'active'
+      && biz.owner_deleted_at == null
+      && biz.owner_is_active === true
+      && biz.owner_email_verified === true
+      && biz.owner_onboarding_completed === true;
+    if (!publiclyReady) {
+      throw new AppError('Complete your business setup before publishing openings', 403, 'business_not_public');
+    }
   }
 
   const slugSource = value.title;

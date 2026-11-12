@@ -19902,6 +19902,7 @@
     "fieldPrice": "Taban fiyat",
     "fieldCapacity": "Maks. kapasite",
     "fieldNotice": "Minimum önceden bildirim (saat)",
+    "fieldOnlineBooking": "Available for online booking",
     "fieldBuffer": "Randevular arası tampon süre (dakika)",
     "bufferHint": "Her randevunun öncesi ve sonrası bloklanır, böylece rezervasyonlar asla çakışmaz.",
     "bufferPrefix": "Tampon süre:",

@@ -18,6 +18,9 @@ function columnsFor(table) {
   if (table === 'delivery_event_deliveries') return ['status'];
   if (table === 'business_integrations') return ['is_connected', 'is_enabled'];
   if (table === 'webhook_delivery_log') return ['completed_at', 'next_retry_at'];
+  if (table === 'admin_audit_log') return ['created_at'];
+  if (table === 'feature_flags') return ['is_enabled'];
+  if (table === 'platform_settings') return ['key'];
   return [];
 }
 
@@ -101,4 +104,27 @@ test('does not expose global operational sections from a regional grant', async 
   expect(sections.payments).toEqual(expect.objectContaining({ available: false, reason: 'permission_required' }));
   expect(sections.integrations).toEqual(expect.objectContaining({ available: false, reason: 'permission_required' }));
   expect(sections.changeControl).toEqual(expect.objectContaining({ available: false, reason: 'permission_required' }));
+});
+
+test('honors a validated delegated global grant for restricted sections', async () => {
+  mockQuery.mockImplementation(async (sql, params = []) => {
+    const text = String(sql);
+    if (text.includes('delegation_grants')) {
+      return { rows: [{ id: 22, region_id: null, grant_source: 'delegated' }] };
+    }
+    if (text.includes('information_schema.columns')) {
+      return { rows: columnsFor(params[0]).map((column_name) => ({ column_name })) };
+    }
+    if (text.includes('GROUP BY')) return { rows: [{ status: 'open', count: '1' }] };
+    if (text.includes('COUNT(*)')) return { rows: [{ count: '1' }] };
+    return { rows: [] };
+  });
+
+  const res = responseDouble();
+  await controller.getOverview({ isSuper: false, user: { id: 'delegated-admin' } }, res);
+
+  const { sections } = res.json.mock.calls[0][0];
+  expect(sections.payments).toEqual(expect.objectContaining({ available: true }));
+  expect(sections.integrations).toEqual(expect.objectContaining({ available: true }));
+  expect(sections.changeControl).toEqual(expect.objectContaining({ available: true }));
 });

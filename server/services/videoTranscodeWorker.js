@@ -141,7 +141,25 @@ async function probeDimensions(filePath) {
     } catch { /* fall through */ }
     return null;
   };
-  return (await probe(filePath)) || null;
+  const probed = await probe(filePath);
+  if (probed) return probed;
+
+  // Some minimal CI/runtime images provide ffmpeg but not a compatible
+  // ffprobe binary. FFmpeg still prints the decoded stream dimensions while
+  // inspecting the input, so use that output before falling back to 16:9.
+  try {
+    const { stderr } = await new Promise((resolve) => {
+      execFile(ffmpegPath(), ['-hide_banner', '-i', filePath, '-f', 'null', '-'], {
+        timeout: 30000,
+        maxBuffer: 16 * 1024 * 1024,
+      }, (_error, stdout, errorOutput) => resolve({ stdout, stderr: errorOutput }));
+    });
+    const match = String(stderr || '').match(/Video:.*?\b(\d{2,5})x(\d{2,5})\b/);
+    const w = Number(match?.[1]);
+    const h = Number(match?.[2]);
+    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) return { w, h };
+  } catch { /* fall through to the documented 16:9 fallback */ }
+  return null;
 }
 
 async function probeDuration(filePath) {

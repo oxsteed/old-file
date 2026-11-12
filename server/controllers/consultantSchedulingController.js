@@ -5,10 +5,36 @@ const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const logger = require('../utils/logger');
 const platformApprovalSvc = require('../services/modePlatformApprovalService');
 
+async function publicConsultantExists(consultantId) {
+  const { rows } = await db.query(
+    `SELECT u.id
+       FROM users u
+      WHERE u.id = $1
+        AND u.default_mode = 'consultant'
+        AND u.deleted_at IS NULL
+        AND u.is_active = TRUE
+        AND u.email_verified = TRUE
+        AND u.onboarding_completed = TRUE`,
+    [consultantId]
+  );
+  return rows.length > 0;
+}
+
+function canManageConsultant(req, consultantId) {
+  if (!req?.user) return false;
+  const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+  return isAdmin || String(req.user.id) === String(consultantId);
+}
+
 // Get consultant's recurring availability (day of week schedule)
 exports.getConsultantAvailability = async (req, res) => {
   try {
     const { consultantId } = req.params;
+
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    if (!canManageConsultant(req, consultantId)) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
 
     const { rows } = await db.query(
       `SELECT id, day_of_week, start_time, end_time, is_active
@@ -70,6 +96,12 @@ exports.setAvailability = async (req, res) => {
 exports.getBlockedDates = async (req, res) => {
   try {
     const { consultantId } = req.params;
+
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    if (!canManageConsultant(req, consultantId)) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
     const { startDate, endDate } = req.query;
 
     let query = `SELECT id, blocked_date, reason
@@ -175,6 +207,10 @@ exports.getAvailableSlots = async (req, res) => {
       return res.status(400).json({ error: 'Date parameter required (YYYY-MM-DD)' });
     }
 
+    if (!(await publicConsultantExists(consultantId))) {
+      return res.status(404).json({ error: 'Consultant not found' });
+    }
+
     const { rows } = await db.query(
       `SELECT slot_start, slot_end, is_available
        FROM get_consultant_available_slots($1, $2, $3)`,
@@ -260,7 +296,8 @@ exports.createScheduledSession = async (req, res) => {
         return res.status(409).json({ error: 'Consultant does not match the assigned consultant' });
       }
       const { rows: consultantRows } = await db.query(
-        `SELECT id FROM users WHERE id = $1`,
+        `SELECT id FROM users
+          WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`,
         [consultantId]
       );
       if (consultantRows.length === 0) {
@@ -336,7 +373,8 @@ exports.bookTimeSlot = async (req, res) => {
 
     // Resolve session + owner via JOIN - consulting_sessions_scheduled does not have customer_id
     const { rows: sessions } = await db.query(
-      `SELECT css.id, css.session_id, cs.user_id, cs.email, cs.first_name
+      `SELECT css.id, css.session_id, css.consultant_assigned_id,
+              cs.user_id, cs.email, cs.first_name
        FROM consulting_sessions_scheduled css
        JOIN consulting_sessions cs ON css.session_id = cs.id
        WHERE css.id = $1`,
@@ -353,6 +391,29 @@ exports.bookTimeSlot = async (req, res) => {
     const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'super_admin');
     if (!isAdmin && (!req.user || session.user_id !== req.user.id)) {
       return res.status(403).json({ error: 'Not authorized for this session' });
+    }
+
+    // The consultant is selected when the pending scheduled row is created.
+    // Do not let a customer replace that assignment at the final booking
+    // step: availability and payment are both scoped to the assigned
+    // consultant, so accepting a different client-supplied id would move the
+    // appointment across accounts without re-running the intake contract.
+    if (!isAdmin && session.consultant_assigned_id
+      && String(session.consultant_assigned_id) !== String(consultantId)) {
+      return res.status(409).json({ error: 'Consultant does not match the assigned consultant' });
+    }
+
+    // Do not pin paid bookings to an inactive or soft-deleted consultant.
+    // Availability rows can outlive the user lifecycle, so checking the
+    // consultant identity here keeps the scheduling and account systems in
+    // sync at the final write boundary.
+    const { rows: activeConsultantRows } = await db.query(
+      `SELECT id FROM users
+       WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`,
+      [consultantId]
+    );
+    if (activeConsultantRows.length === 0) {
+      return res.status(404).json({ error: 'Consultant not found' });
     }
 
     // Platform-approval gate: an unapproved consultant cannot have a paid
@@ -437,7 +498,8 @@ exports.bookTimeSlot = async (req, res) => {
     setImmediate(async () => {
       try {
         const consultant = await db.query(
-          `SELECT first_name, last_name FROM users WHERE id = $1`,
+          `SELECT first_name, last_name FROM users
+           WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`,
           [consultantId]
         );
 
@@ -489,6 +551,10 @@ exports.getNextAvailableDates = async (req, res) => {
   try {
     const { consultantId } = req.params;
     const { fromDate, daysAhead = 30, durationMinutes = 60 } = req.query;
+
+    if (!(await publicConsultantExists(consultantId))) {
+      return res.status(404).json({ error: 'Consultant not found' });
+    }
 
     const startDate = fromDate ? new Date(fromDate) : new Date();
     const endDate = new Date(startDate);

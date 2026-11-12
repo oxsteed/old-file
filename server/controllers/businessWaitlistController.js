@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { withTransaction } = require('../utils/transaction');
 
 const UI_TO_DB_STATUS = {
   waiting: 'waiting',
@@ -66,6 +67,8 @@ exports.listWaitlist = async (req, res, next) => {
        FROM appointment_waitlist w
        JOIN business_services bs ON bs.id = w.service_id
        LEFT JOIN users u ON w.customer_id = u.id
+                          AND u.is_active = TRUE
+                          AND u.deleted_at IS NULL
        ${where}
        ORDER BY w.position_in_queue ASC NULLS LAST, w.created_at ASC`,
       params
@@ -81,15 +84,36 @@ exports.addToWaitlist = async (req, res, next) => {
     if (!service_id) return res.status(400).json({ error: 'Service is required', code: 'validation_failed' });
 
     const service = await pool.query(
-      'SELECT id FROM business_services WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL',
+      `SELECT bs.id, bs.is_active, bs.allow_online_booking,
+              b.is_active AS business_is_active, b.is_listed, b.is_hidden_by_admin,
+              b.setup_status, b.business_kind, b.deleted_at AS business_deleted_at,
+              owner.deleted_at AS owner_deleted_at, owner.is_active AS owner_is_active,
+              owner.email_verified AS owner_email_verified,
+              owner.onboarding_completed AS owner_onboarding_completed
+         FROM business_services bs
+         JOIN businesses b ON b.id = bs.business_id
+         JOIN users owner ON owner.id = b.user_id
+        WHERE bs.id = $1
+          AND bs.business_id = $2
+          AND bs.deleted_at IS NULL`,
       [service_id, businessId]
     );
-    if (!service.rows.length) return res.status(404).json({ error: 'Service not found', code: 'not_found' });
-
-    const posRow = await pool.query(
-      'SELECT COALESCE(MAX(position_in_queue),0)+1 AS next_pos FROM appointment_waitlist WHERE service_id=$1 AND status=\'waiting\'',
-      [service_id]
-    );
+    const serviceRow = service.rows[0];
+    if (!serviceRow || serviceRow.business_deleted_at
+      || serviceRow.business_is_active !== true
+      || serviceRow.is_listed !== true
+      || serviceRow.is_hidden_by_admin === true
+      || serviceRow.setup_status !== 'active'
+      || serviceRow.business_kind !== 'service'
+      || serviceRow.owner_deleted_at
+      || serviceRow.owner_is_active !== true
+      || serviceRow.owner_email_verified !== true
+      || serviceRow.owner_onboarding_completed !== true) {
+      return res.status(404).json({ error: 'Business not found', code: 'not_found' });
+    }
+    if (serviceRow.is_active !== true || serviceRow.allow_online_booking === false) {
+      return res.status(409).json({ error: 'Service is not accepting waitlist requests', code: 'service_not_bookable' });
+    }
 
     let preferredTimeStart = null;
     let preferredTimeEnd = null;
@@ -103,20 +127,39 @@ exports.addToWaitlist = async (req, res, next) => {
       preferredTimeEnd = end || null;
     }
 
-    const row = await pool.query(
-      `INSERT INTO appointment_waitlist
-         (service_id, customer_id, preferred_date_start, preferred_time_start, preferred_time_end, position_in_queue, status)
-       VALUES ($1,$2,$3,$4,$5,$6,'waiting') RETURNING *`,
-      [service_id, req.user.id, preferred_date || null, preferredTimeStart, preferredTimeEnd, posRow.rows[0].next_pos]
-    );
+    const row = await withTransaction(pool, async (client) => {
+      // Serialize queue-position allocation per service. Without a shared
+      // lock, concurrent customers can observe the same MAX(position) and
+      // enter the waitlist with duplicate positions.
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+        [`business-waitlist:${service_id}`],
+      );
+      const posRow = await client.query(
+        'SELECT COALESCE(MAX(position_in_queue),0)+1 AS next_pos FROM appointment_waitlist WHERE service_id=$1 AND status=\'waiting\'',
+        [service_id]
+      );
+      const insert = await client.query(
+        `INSERT INTO appointment_waitlist
+           (service_id, customer_id, preferred_date_start, preferred_time_start, preferred_time_end, position_in_queue, status)
+         VALUES ($1,$2,$3,$4,$5,$6,'waiting') RETURNING *`,
+        [service_id, req.user.id, preferred_date || null, preferredTimeStart, preferredTimeEnd, posRow.rows[0].next_pos]
+      );
+      return insert.rows[0];
+    }, 'business_waitlist_add');
     res.status(201).json(mapWaitlistRow({
-      ...row.rows[0],
+      ...row,
       business_id: Number(businessId),
       customer_name: null,
       customer_email: null,
       service_name: null,
     }));
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err?.code === '23505' && err?.constraint === 'idx_appointment_waitlist_unique_waiting') {
+      return res.status(409).json({ error: 'You are already on this service waitlist', code: 'already_waitlisted' });
+    }
+    next(err);
+  }
 };
 
 exports.updateWaitlistEntry = async (req, res, next) => {

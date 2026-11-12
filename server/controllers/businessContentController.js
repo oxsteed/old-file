@@ -56,11 +56,15 @@ function coerceServiceFields(body = {}) {
     max_capacity: parsePositiveInt(body.max_capacity),
     min_notice_hours: parseNonNegativeInt(body.min_notice_hours),
     cancellation_policy_hours: parseNonNegativeInt(body.cancellation_policy_hours),
+    allow_online_booking: typeof body.allow_online_booking === 'boolean'
+      ? body.allow_online_booking
+      : undefined,
   };
 }
 
 const SERVICE_SELECT = `id, name, description, price, price_unit, duration, popular, category, sort_order, is_active,
          duration_minutes, base_price_cents, max_capacity, min_notice_hours, cancellation_policy_hours,
+         allow_online_booking,
          created_at, updated_at`;
 
 // ─── Public visibility gate ────────────────────────────────────────────────
@@ -204,9 +208,9 @@ exports.createBusinessService = async (req, res) => {
         `INSERT INTO business_services (
             business_id, name, description, price, price_unit, duration, popular, category,
             duration_minutes, base_price_cents, max_capacity, min_notice_hours,
-            cancellation_policy_hours, created_by_id
+            cancellation_policy_hours, allow_online_booking, created_by_id
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          RETURNING *`,
         [
           parseInt(businessId, 10),
@@ -222,6 +226,7 @@ exports.createBusinessService = async (req, res) => {
           fields.max_capacity || 1,
           fields.min_notice_hours != null ? fields.min_notice_hours : 24,
           fields.cancellation_policy_hours != null ? fields.cancellation_policy_hours : 24,
+          fields.allow_online_booking !== undefined ? fields.allow_online_booking : true,
           req.user?.id || null,
         ]
       );
@@ -262,8 +267,9 @@ exports.updateBusinessService = async (req, res) => {
              max_capacity = COALESCE($11, max_capacity),
              min_notice_hours = COALESCE($12, min_notice_hours),
              cancellation_policy_hours = COALESCE($13, cancellation_policy_hours),
+             allow_online_booking = COALESCE($14, allow_online_booking),
              updated_at = NOW()
-         WHERE id = $14 AND business_id = $15 AND deleted_at IS NULL
+         WHERE id = $15 AND business_id = $16 AND deleted_at IS NULL
          RETURNING *`,
         [
           fields.name || null,
@@ -279,6 +285,7 @@ exports.updateBusinessService = async (req, res) => {
           fields.max_capacity,
           fields.min_notice_hours,
           fields.cancellation_policy_hours,
+          fields.allow_online_booking,
           serviceId,
           businessId,
         ]

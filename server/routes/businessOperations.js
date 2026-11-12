@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { scopeExempt } = require('../middleware/scopeGates');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const { requireBusinessCalendarAccess } = require('../middleware/requireBusinessCalendarAccess');
 const { requireBusinessMessageAccess } = require('../middleware/requireBusinessMessageAccess');
@@ -65,7 +65,7 @@ router.post('/:businessId/appointments/:appointmentId/record-payment',    requir
 router.post('/:businessId/appointments/:appointmentId/notes',              requireAuth, requireBusinessAccess({ minRole: 'any' }), requireBusinessCalendarAccess('manage'),     businessAppointmentsController.addAppointmentNote);
 
 // ── DYNAMIC PRICING ROUTES ────────────────────────────────────
-router.get   ('/:businessId/services/:serviceId/calculate-price',                                                                       scopeExempt('public-storefront'), dynamicPricingController.calculatePrice);
+router.get   ('/:businessId/services/:serviceId/calculate-price',                                                                       optionalAuth, scopeExempt('public-storefront'), dynamicPricingController.calculatePrice);
 router.post  ('/:businessId/pricing-rules',                                requireAuth, requireBusinessAccess({ minRole: 'manager' }), dynamicPricingController.createPricingRule);
 router.get   ('/:businessId/pricing-rules',                                requireAuth, requireBusinessAccess({ minRole: 'any' }),     dynamicPricingController.listPricingRules);
 router.get   ('/:businessId/services/:serviceId/pricing-rules',            requireAuth, requireBusinessAccess({ minRole: 'any' }),     dynamicPricingController.listPricingRules);

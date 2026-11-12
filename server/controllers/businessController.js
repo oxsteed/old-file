@@ -1012,8 +1012,17 @@ async function getBusinessMediaAsset(req, res, next) {
       `SELECT a.content_type, a.content, a.size_bytes, a.sha256, a.updated_at
          FROM business_media_assets a
          JOIN businesses b ON b.id = a.business_id
+         JOIN users u ON u.id = b.user_id
         WHERE a.id = $1
-          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE`,
+          AND b.deleted_at IS NULL
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+          AND b.setup_status = 'active'
+          AND u.deleted_at IS NULL
+          AND u.is_active = TRUE
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE`,
       [assetId]
     );
     if (!asset) throw new AppError('Media not found', 404, 'not_found');
@@ -1396,7 +1405,8 @@ async function respondBusinessProfile(req, res, adminPreview) {
          AND b.setup_status = 'active'
          AND b.business_kind = 'service'
          AND u.is_active = TRUE
-         AND u.email_verified = TRUE`}`,
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE`}`,
       [bizId]
     );
 

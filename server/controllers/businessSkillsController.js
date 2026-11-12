@@ -4,15 +4,31 @@ const logger = require('../utils/logger');
 const { canManageBusinessFinance } = require('../utils/businessOwnership');
 const { businessScopeSatisfies } = require('../middleware/scopeGates');
 
+const PUBLIC_BUSINESS_VISIBILITY = `
+      FROM businesses b
+      JOIN users u ON u.id = b.user_id
+     WHERE b.id = $1
+       AND b.deleted_at IS NULL
+       AND b.is_active = TRUE
+       AND b.is_listed = TRUE
+       AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+       AND COALESCE(b.setup_status, 'active') = 'active'
+       AND b.business_kind = 'service'
+       AND u.deleted_at IS NULL
+       AND u.is_active = TRUE
+       AND u.email_verified = TRUE
+       AND u.onboarding_completed = TRUE`;
+
 // ── List business's required skills ──────────────────────────────────────────
 exports.listBusinessSkills = async (req, res) => {
   try {
     const { businessId } = req.params;
     const { page = 1, limit = 50 } = req.query;
 
-    // Verify business exists
+    // Public skills are part of the business profile contract; do not expose
+    // requirements for drafts, hidden businesses, or unavailable owners.
     const bizRes = await pool.query(
-      'SELECT id FROM businesses WHERE id = $1',
+      `SELECT b.id${PUBLIC_BUSINESS_VISIBILITY}`,
       [businessId]
     );
     if (!bizRes.rows[0]) {
@@ -313,9 +329,9 @@ exports.searchSkillsForBusiness = async (req, res) => {
     const { businessId } = req.params;
     const { q = '', limit = 20 } = req.query;
 
-    // Verify business exists
+    // Search is public as well, so use the same visibility gate as the list.
     const bizRes = await pool.query(
-      'SELECT id FROM businesses WHERE id = $1',
+      `SELECT b.id${PUBLIC_BUSINESS_VISIBILITY}`,
       [businessId]
     );
     if (!bizRes.rows[0]) {

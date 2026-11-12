@@ -170,7 +170,12 @@ async function getActiveCode(code) {
             u.first_name, u.last_name
        FROM qr_payment_codes c
        JOIN users u ON u.id = c.owner_user_id
-      WHERE c.code = $1 AND c.is_active = TRUE`,
+      WHERE c.code = $1
+        AND c.is_active = TRUE
+        AND u.deleted_at IS NULL
+        AND u.is_active = TRUE
+        AND u.email_verified = TRUE
+        AND u.onboarding_completed = TRUE`,
     [code]
   );
   return rows[0] || null;
@@ -375,8 +380,14 @@ router.get('/public/user/:userId/pay-code', strictLimiter, async (req, res, next
     }
     const { rows } = await pool.query(
       `SELECT code, label
-         FROM qr_payment_codes
-        WHERE owner_user_id = $1 AND is_active = TRUE
+         FROM qr_payment_codes q
+         JOIN users u ON u.id = q.owner_user_id
+        WHERE q.owner_user_id = $1
+          AND q.is_active = TRUE
+          AND u.deleted_at IS NULL
+          AND u.is_active = TRUE
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE
         ORDER BY created_at DESC
         LIMIT 1`,
       [userId]

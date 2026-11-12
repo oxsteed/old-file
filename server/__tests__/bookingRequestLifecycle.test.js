@@ -23,6 +23,9 @@ jest.mock('../services/helperAvailabilityService', () => ({
   isSlotFree: jest.fn(),
   getHelperTimeZone: jest.fn().mockResolvedValue(null),
 }));
+jest.mock('../services/checkoutPricing', () => ({
+  priceServiceBooking: jest.fn().mockResolvedValue({ basePriceCents: 5000, adjustedPriceCents: 5500 }),
+}));
 
 const pool = require('../db');
 const socketService = require('../services/socketService');
@@ -432,7 +435,6 @@ describe('bookingRequestLifecycle', () => {
       { rows: [service] }, // pre-accept service resolution (name match)
       { rows: [{ ...booking, status: 'accepted', accepted_at: new Date().toISOString() }] }, // UPDATE accept
       { rows: [] }, // create: business overlap check
-      { rows: [service] }, // create: service resolution
       { rows: [] }, // create: customer lookup
       { rows: [{ id: 'ba-1', status: 'confirmed' }] }, // INSERT business_appointments
       { rows: [] }, // link business_appointment_id
@@ -448,6 +450,10 @@ describe('bookingRequestLifecycle', () => {
     expect(result.booking.status).toBe('accepted');
     expect(result.booking.business_appointment_id).toBe('ba-1');
     expect(result.appointment.id).toBe('ba-1');
+    const businessInsert = pool.query.mock.calls.find((c) => /INSERT INTO business_appointments/.test(c[0]));
+    expect(businessInsert[1]).toEqual(expect.arrayContaining([5000, 5500]));
+    const serviceResolution = pool.query.mock.calls.find((c) => /SELECT id, name, base_price_cents/.test(c[0]) && /FOR UPDATE/.test(c[0]));
+    expect(serviceResolution).toBeTruthy();
     const businessInserts = pool.query.mock.calls.filter((c) =>
       /INSERT INTO business_appointments/.test(c[0]),
     );

@@ -312,7 +312,9 @@ async function notifyFollowers(db, { sinceMinutes = 60 } = {}) {
   const { rows } = await db.query(
     `SELECT o.id, o.title, o.business_id, o.employer_type,
             CASE WHEN o.employer_type = 'platform' THEN 'OxSteed' ELSE b.business_name END AS employer_name
-       FROM career_openings o LEFT JOIN businesses b ON b.id = o.business_id
+       FROM career_openings o
+       LEFT JOIN businesses b ON b.id = o.business_id
+       LEFT JOIN users u ON u.id = b.user_id
       WHERE ${openings.PUBLIC_FILTER} AND o.published_at >= NOW() - ($1::int * INTERVAL '1 minute')
       ORDER BY o.published_at ASC LIMIT 200`,
     [sinceMinutes]
@@ -469,6 +471,7 @@ async function trackImpressions(db, openingIds, viewer) {
        SELECT o.id, CURRENT_DATE, 'impression', $2
          FROM career_openings o
          LEFT JOIN businesses b ON b.id = o.business_id
+         LEFT JOIN users u ON u.id = b.user_id
         WHERE o.id = ANY($1::bigint[]) AND ${openings.PUBLIC_FILTER}
         ORDER BY o.id
        ON CONFLICT DO NOTHING

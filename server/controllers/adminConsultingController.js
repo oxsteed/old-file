@@ -84,7 +84,18 @@ exports.getConsultingRequests = async (req, res) => {
 exports.assignConsultantToRequest = async (req, res) => {
   const { session_id, consultant_id } = req.body;
   try {
-    const consultant = await db.query('SELECT * FROM consultants WHERE id = $1', [consultant_id]);
+    const consultant = await db.query(
+      `SELECT c.*
+         FROM consultants c
+         JOIN users u ON u.id = c.user_id
+        WHERE c.id = $1
+          AND c.status = 'active'
+          AND u.deleted_at IS NULL
+          AND u.is_active = TRUE
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE`,
+      [consultant_id]
+    );
     if (!consultant.rows.length) return res.status(404).json({ error: 'Consultant not found' });
 
     const result = await db.query(
@@ -126,9 +137,13 @@ exports.getAvailableConsultants = async (req, res) => {
     let query = `SELECT c.*, u.first_name, u.last_name, u.email,
                  COUNT(cs.id) as active_sessions
                  FROM consultants c
-                 LEFT JOIN users u ON c.user_id = u.id
+                 JOIN users u ON c.user_id = u.id
                  LEFT JOIN consulting_sessions cs ON c.id = cs.consultant_id AND cs.status IN ('pending', 'scheduled')
-                 WHERE c.status = 'active'`;
+                 WHERE c.status = 'active'
+                   AND u.deleted_at IS NULL
+                   AND u.is_active = TRUE
+                   AND u.email_verified = TRUE
+                   AND u.onboarding_completed = TRUE`;
     const params = [];
 
     if (role) {
@@ -549,7 +564,18 @@ exports.createSessionManually = async (req, res) => {
     // BIGINT consulting_sessions.consultant_id column, not the UUID
     // consultant_assigned_id).
     if (consultant_id) {
-      const consultantRow = await db.query('SELECT id FROM consultants WHERE id = $1', [consultant_id]);
+      const consultantRow = await db.query(
+        `SELECT c.id
+           FROM consultants c
+           JOIN users u ON u.id = c.user_id
+          WHERE c.id = $1
+            AND c.status = 'active'
+            AND u.deleted_at IS NULL
+            AND u.is_active = TRUE
+            AND u.email_verified = TRUE
+            AND u.onboarding_completed = TRUE`,
+        [consultant_id]
+      );
       if (!consultantRow.rows.length) {
         return res.status(400).json({ error: 'Invalid consultant_id: no such consultant.' });
       }
@@ -595,11 +621,18 @@ exports.updateRequestStatusById = async (req, res) => {
   }
 
   try {
-    const { rows: existing } = await db.query('SELECT status FROM consulting_sessions WHERE id = $1', [id]);
+    const { rows: existing } = await db.query(
+      'SELECT status, consultant_assigned_id FROM consulting_sessions WHERE id = $1',
+      [id]
+    );
     if (!existing.length) {
       return res.status(404).json({ error: 'Request not found' });
     }
     const previousStatus = existing[0].status;
+    const scheduledDate = scheduled_at ? new Date(scheduled_at) : null;
+    if (scheduled_at && Number.isNaN(scheduledDate.getTime())) {
+      return res.status(400).json({ error: 'scheduled_at must be a valid date' });
+    }
 
     const updates = ['status = $1', 'updated_at = NOW()'];
     const values = [status];
@@ -610,11 +643,25 @@ exports.updateRequestStatusById = async (req, res) => {
     // ADM-011: body consultant_id is the consultants-table BIGINT id — it must
     // go into the BIGINT consultant_id column, not the UUID consultant_assigned_id.
     if (consultant_id) {
-      const consultantRow = await db.query('SELECT id FROM consultants WHERE id = $1', [consultant_id]);
+      const consultantRow = await db.query(
+        `SELECT c.id, c.user_id
+           FROM consultants c
+           JOIN users u ON u.id = c.user_id
+          WHERE c.id = $1
+            AND c.status = 'active'
+            AND u.deleted_at IS NULL
+            AND u.is_active = TRUE
+            AND u.email_verified = TRUE
+            AND u.onboarding_completed = TRUE`,
+        [consultant_id]
+      );
       if (!consultantRow.rows.length) {
         return res.status(400).json({ error: 'Invalid consultant_id: no such consultant.' });
       }
       updates.push(`consultant_id = $${idx++}`); values.push(consultant_id);
+      // consulting_sessions keeps the legacy BIGINT consultant_id while the
+      // scheduler mirror uses the assigned consultant's UUID.
+      existing[0].consultant_assigned_id = consultantRow.rows[0].user_id || null;
     }
 
     values.push(id);
@@ -625,6 +672,36 @@ exports.updateRequestStatusById = async (req, res) => {
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Request not found' });
+    }
+
+    // Keep the scheduler's canonical child row connected to the admin
+    // workflow. Without this upsert, the admin UI reports a scheduled
+    // session but availability, payment, reminders, and book-slot all see
+    // no schedulable record.
+    if (scheduled_at) {
+      const scheduledDateIso = scheduledDate.toISOString();
+      await db.query(
+        `INSERT INTO consulting_sessions_scheduled
+           (session_id, scheduled_date, scheduled_time, duration_minutes,
+            consultant_assigned_id, meeting_url, status)
+         VALUES ($1, $2::date, $3::time, 120, $4, $5, $6)
+         ON CONFLICT (session_id) DO UPDATE SET
+           scheduled_date = EXCLUDED.scheduled_date,
+           scheduled_time = EXCLUDED.scheduled_time,
+           duration_minutes = EXCLUDED.duration_minutes,
+           consultant_assigned_id = EXCLUDED.consultant_assigned_id,
+           meeting_url = EXCLUDED.meeting_url,
+           status = EXCLUDED.status,
+           updated_at = NOW()`,
+        [
+          id,
+          scheduledDateIso.slice(0, 10),
+          scheduledDateIso.slice(11, 19),
+          existing[0].consultant_assigned_id || null,
+          meeting_url === undefined ? null : meeting_url,
+          status === 'cancelled' ? 'cancelled' : 'confirmed',
+        ]
+      );
     }
 
     try {
@@ -822,7 +899,7 @@ exports.generateManualInvoice = async (req, res) => {
 
     const invoiceNumber = `CONS-${Date.now()}`;
     const { rows: linkedUsers } = await db.query(
-      'SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) AND is_active = TRUE LIMIT 1',
+      'SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) AND is_active = TRUE AND deleted_at IS NULL LIMIT 1',
       [client_email]
     );
     const linkedUserId = linkedUsers[0]?.id || null;

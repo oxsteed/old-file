@@ -40,7 +40,7 @@ async function issueChallenge({ userId, adminId, reason, req }) {
     `SELECT id, role, is_active,
             COALESCE(NULLIF(phone_number, ''), NULLIF(phone, '')) AS phone_number
        FROM users
-      WHERE id = $1`,
+      WHERE id = $1 AND deleted_at IS NULL`,
     [userId]
   );
   if (!targetResult.rows.length) {

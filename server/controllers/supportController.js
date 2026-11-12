@@ -18,6 +18,7 @@ const { transitionTicket } = require('../services/supportTicketLifecycleService'
 const { ticketEmail } = require('../utils/supportTicketEmail');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 const { MAX_IMAGE_BASE64_CHARS } = require('../constants/supportChatLimits');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 const HANDOFF_IMAGE_RE = /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/;
 
@@ -77,9 +78,20 @@ async function fetchTicketRow(ticketId) {
   async function emailAdminsNewTicket(ticket) {
     try {
       const { rows: admins } = await db.query(
-        `SELECT email, first_name FROM users WHERE role IN ('admin', 'super_admin') AND email IS NOT NULL`
+        `SELECT id, email, first_name, role
+           FROM users
+          WHERE role IN ('admin', 'super_admin')
+            AND is_active = TRUE
+            AND deleted_at IS NULL
+            AND email IS NOT NULL`
       );
-      await Promise.all(admins.map((admin) =>
+      const supportAdmins = [];
+      for (const admin of admins) {
+        if (admin.role === 'super_admin' || await hasGlobalGrant(admin.id, 'manage_support')) {
+          supportAdmins.push(admin);
+        }
+      }
+      await Promise.all(supportAdmins.map((admin) =>
         sendEmail({
           to: admin.email,
           subject: `[Ticket #${ticket.ticket_number}] New support ticket opened`,
@@ -778,10 +790,19 @@ exports.listTickets = async (req, res) => {
       search   = '',
       limit    = 50,
       offset   = 0,
+      page,
     } = req.query;
 
     const limitN  = Math.min(Math.max(1, parseInt(limit)  || 50), 200);
-    const offsetN = Math.max(0, parseInt(offset) || 0);
+    // The admin inbox uses page/limit while older callers use offset/limit.
+    // Normalize both forms here so pagination controls advance the SQL window
+    // instead of silently returning the first page for every request.
+    const pageN = page !== undefined && Number.isFinite(Number(page))
+      ? Math.max(1, parseInt(page, 10) || 1)
+      : null;
+    const offsetN = pageN !== null
+      ? (pageN - 1) * limitN
+      : Math.max(0, parseInt(offset, 10) || 0);
 
     const VALID_STATUSES   = ['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'];
     const VALID_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
@@ -875,7 +896,13 @@ exports.listTickets = async (req, res) => {
       params
     );
 
-    return res.json({ tickets: rows, total: parseInt(total), limit: limitN, offset: offsetN });
+    return res.json({
+      tickets: rows,
+      total: parseInt(total),
+      limit: limitN,
+      offset: offsetN,
+      page: pageN !== null ? pageN : Math.floor(offsetN / limitN) + 1,
+    });
   } catch (err) {
     if (err && err.code === 'SCOPE_UNAVAILABLE') {
       return res.status(err.statusCode || 503).json({

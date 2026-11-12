@@ -232,8 +232,11 @@ function normalizeServiceAreaInput(body = {}, existing = {}) {
   const radiusMiles = Number(body.radiusMiles ?? body.radius_miles ?? existing.radius_miles);
   const notesValue = body.notes ?? existing.notes ?? null;
 
-  if (!label || !anchorZip || !Number.isFinite(anchorLat) || !Number.isFinite(anchorLng) || !Number.isFinite(radiusMiles) || radiusMiles <= 0) {
-    const err = new Error('label, anchorZip, anchorLat, anchorLng, and radiusMiles are required');
+  const coordinatesInRange = anchorLat >= -90 && anchorLat <= 90
+    && anchorLng >= -180 && anchorLng <= 180;
+  if (!label || !anchorZip || !Number.isFinite(anchorLat) || !Number.isFinite(anchorLng)
+    || !coordinatesInRange || !Number.isFinite(radiusMiles) || radiusMiles <= 0) {
+    const err = new Error('label, anchorZip, anchorLat, anchorLng, and radiusMiles are required; coordinates must be within latitude -90..90 and longitude -180..180');
     err.statusCode = 400;
     err.code = 'validation_failed';
     throw err;

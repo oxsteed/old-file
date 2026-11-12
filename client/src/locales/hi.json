@@ -19902,6 +19902,7 @@
     "fieldPrice": "मूल मूल्य",
     "fieldCapacity": "अधिकतम क्षमता",
     "fieldNotice": "न्यूनतम सूचना (घंटे)",
+    "fieldOnlineBooking": "Available for online booking",
     "fieldBuffer": "अपॉइंटमेंट के बीच बफ़र (मिनट)",
     "bufferHint": "हर अपॉइंटमेंट से पहले और बाद में समय ब्लॉक किया गया ताकि बुकिंग आपस में न टकराएं।",
     "bufferPrefix": "बफ़र:",

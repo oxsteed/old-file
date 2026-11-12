@@ -309,7 +309,7 @@ describe('item 9: POST /admin/users/:userId/impersonate route wiring', () => {
       expect(res.body.code).toBe('fresh_auth_required');
       // The controller never ran: no target lookup, no impersonation log row.
       const targetLookups = mockQuery.mock.calls.filter(([sql]) =>
-        String(sql).includes('deleted_at IS NULL'));
+        /SELECT id, first_name, last_name, email, role, is_active, is_suspended/.test(String(sql)));
       expect(targetLookups).toHaveLength(0);
     });
 

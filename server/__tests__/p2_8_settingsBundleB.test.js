@@ -4,6 +4,15 @@
 // Focused regression tests: F16, F17, F18, F19, F20, F21, F22, F24.
 const { mockQuery, resetMocks } = require('./setup');
 
+jest.mock('../middleware/adminAuth', () => ({
+  hasGlobalGrant: jest.fn(),
+}));
+const { hasGlobalGrant } = require('../middleware/adminAuth');
+jest.mock('../services/notificationService', () => ({
+  sendNotification: jest.fn().mockResolvedValue({ success: true }),
+}));
+const { sendNotification } = require('../services/notificationService');
+
 const reviewsController = require('../controllers/reviewsController');
 const reviewController = require('../controllers/reviewController');
 const reviewModeration = require('../controllers/reviewModerationController');
@@ -16,7 +25,12 @@ function res() {
   return { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  hasGlobalGrant.mockReset();
+  hasGlobalGrant.mockResolvedValue(false);
+  sendNotification.mockClear();
+});
 
 describe('P2-8-F16 business review notification uses real columns', () => {
   test('submitReview inserts into notifications (user_id, type, title, body, data)', async () => {
@@ -66,8 +80,21 @@ describe('P2-8-F21 saved helpers hide unlisted and admin-hidden helpers', () => 
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await lifeDashboard.getSavedHelpers(req, r);
     const q = mockQuery.mock.calls[0][0];
+    expect(q).toMatch(/u\.is_active = TRUE/);
+    expect(q).toMatch(/u\.deleted_at IS NULL/);
     expect(q).toMatch(/COALESCE\(hp\.is_listed, TRUE\) = TRUE/);
     expect(q).toMatch(/COALESCE\(hp\.is_hidden_by_admin, FALSE\) = FALSE/);
+  });
+
+  test('saveHelper rejects an inactive or soft-deleted helper before inserting', async () => {
+    const req = { user: { id: 'user-1' }, body: { helper_id: 'helper-9', note: 'Preferred' } };
+    const r = res();
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await lifeDashboard.saveHelper(req, r);
+    expect(mockQuery.mock.calls[0][0]).toContain('is_active = TRUE');
+    expect(mockQuery.mock.calls[0][0]).toContain('deleted_at IS NULL');
+    expect(r.status).toHaveBeenCalledWith(404);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO saved_helpers/.test(sql))).toBe(false);
   });
 });
 
@@ -126,6 +153,31 @@ describe('P2-8-F24 tool favorite existence check', () => {
 });
 
 describe('P2-8-F18 polymorphic review reporting', () => {
+  test('notifies delegated moderators instead of truncating to the first five admins', async () => {
+    const req = {
+      params: { reviewId: '55' },
+      body: { reason: 'spam', description: 'This is clearly spam content here', reviewType: 'business' },
+      user: { id: 'reporter-1' },
+      headers: {},
+    };
+    const r = res();
+    const next = jest.fn();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 55, reviewer_id: 'author-2' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 7, review_type: 'business', business_review_id: 55 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'delegated-admin', role: 'admin' }] });
+    hasGlobalGrant.mockResolvedValueOnce(true);
+
+    await reviewModeration.reportReview(req, r, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(hasGlobalGrant).toHaveBeenCalledWith('delegated-admin', 'moderate_content');
+    expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: 'delegated-admin', type: 'review_reported' }));
+    expect(r.status).toHaveBeenCalledWith(201);
+  });
+
   test('reportReview routes business reviews to business_reviews and business_review_id', async () => {
     const req = {
       params: { reviewId: '55' },

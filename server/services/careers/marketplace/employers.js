@@ -24,14 +24,27 @@ const REVIEW_HIDE_REPORTS = 3;
 const ACCOUNT_MIN_AGE_DAYS = 7;
 
 const EMPLOYER_SLUG_SQL = `COALESCE(b.profile_slug::text, 'b-' || b.id::text)`;
-const LISTED_BUSINESS = `b.deleted_at IS NULL AND b.is_active = TRUE AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE`;
+const LISTED_BUSINESS = `b.deleted_at IS NULL
+  AND b.is_active = TRUE
+  AND b.is_listed = TRUE
+  AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+  AND COALESCE(b.setup_status, 'active') = 'active'
+  AND u.deleted_at IS NULL
+  AND u.is_active = TRUE
+  AND u.email_verified = TRUE
+  AND u.onboarding_completed = TRUE`;
 
 async function resolveBusinessBySlug(db, slug) {
   const s = String(slug || '').toLowerCase().slice(0, 120);
   if (!s) return null;
   const m = /^b-(\d+)$/.exec(s);
   const { rows: [b] } = await db.query(
-    `SELECT b.id FROM businesses b WHERE ${LISTED_BUSINESS} AND (lower(b.profile_slug::text) = $1 OR b.id = $2) LIMIT 1`,
+    `SELECT b.id
+       FROM businesses b
+       LEFT JOIN users u ON u.id = b.user_id
+      WHERE ${LISTED_BUSINESS}
+        AND (lower(b.profile_slug::text) = $1 OR b.id = $2)
+      LIMIT 1`,
     [s, m ? Number(m[1]) : -1]
   );
   return b ? Number(b.id) : null;
@@ -57,6 +70,7 @@ async function directory(db, query = {}) {
   const sort = query.sort === 'name' ? 'b.business_name ASC' : query.sort === 'rating' ? 'rating DESC NULLS LAST, open_jobs DESC' : 'open_jobs DESC, b.business_name ASC';
   const base = `
     FROM businesses b
+    LEFT JOIN users u ON u.id = b.user_id
     LEFT JOIN career_employer_profiles ep ON ep.business_id = b.id
     LEFT JOIN LATERAL (
       SELECT COUNT(*)::int AS open_jobs FROM career_openings o
@@ -163,7 +177,10 @@ async function publicEmployerPage(db, slug, { viewerId = null } = {}) {
   if (!isPlatform && !businessId) throw notFound('Employer not found');
   if (isPlatform) {
     const { rows: [{ open_jobs: openJobs }] } = await db.query(
-      `SELECT COUNT(*)::int AS open_jobs FROM career_openings o LEFT JOIN businesses b ON b.id = o.business_id
+      `SELECT COUNT(*)::int AS open_jobs
+         FROM career_openings o
+         LEFT JOIN businesses b ON b.id = o.business_id
+         LEFT JOIN users u ON u.id = b.user_id
         WHERE o.employer_type = 'platform' AND ${PUBLIC_FILTER}`
     );
     const following = viewerId ? (await db.query('SELECT 1 FROM career_employer_follows WHERE user_id = $1 AND is_platform', [viewerId])).rowCount > 0 : false;
@@ -177,13 +194,18 @@ async function publicEmployerPage(db, slug, { viewerId = null } = {}) {
             b.service_lat, b.service_lng, COALESCE(b.is_business_verified, FALSE) AS verified,
             b.response_rate, ep.about, ep.why_join, COALESCE(ep.show_phone, FALSE) AS show_phone,
             COALESCE(ep.show_map, FALSE) AS show_map, COALESCE(ep.same_day_hiring, FALSE) AS same_day_hiring
-       FROM businesses b LEFT JOIN career_employer_profiles ep ON ep.business_id = b.id
+       FROM businesses b
+       LEFT JOIN users u ON u.id = b.user_id
+       LEFT JOIN career_employer_profiles ep ON ep.business_id = b.id
       WHERE b.id = $1 AND ${LISTED_BUSINESS}`,
     [businessId]
   );
   if (!b) throw notFound('Employer not found');
   const { rows: [counts] } = await db.query(
-    `SELECT (SELECT COUNT(*)::int FROM career_openings o LEFT JOIN businesses b ON b.id = o.business_id
+    `SELECT (SELECT COUNT(*)::int
+              FROM career_openings o
+              LEFT JOIN businesses b ON b.id = o.business_id
+              LEFT JOIN users u ON u.id = b.user_id
               WHERE o.business_id = $1 AND ${PUBLIC_FILTER}) AS open_jobs,
             (SELECT COUNT(*)::int FROM career_employer_follows f WHERE f.business_id = $1) AS followers`,
     [businessId]

@@ -39,10 +39,21 @@ describe('public sitemap coverage', () => {
     expect(res.text).toContain('<loc>https://oxsteed.com/tool-rentals/41</loc>');
     expect(res.text).toContain('hreflang="es" href="https://oxsteed.com/tool-rentals/41?lang=es"');
     expect(res.text).toContain('<loc>https://oxsteed.com/logistics/campaigns/52</loc>');
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.deleted_at IS NULL/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.is_listed = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.setup_status = 'active'/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/u\.onboarding_completed = TRUE/);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/JOIN users owner ON owner\.id = b\.user_id/);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/owner\.email_verified = TRUE/);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/owner\.onboarding_completed = TRUE/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/FROM tool_rentals/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/t\.is_available = TRUE/);
+    expect(mockQuery.mock.calls[4][0]).toMatch(/NOT t\.moderation_hold/);
+    expect(mockQuery.mock.calls[4][0]).toMatch(/u\.email_verified = TRUE/);
+    expect(mockQuery.mock.calls[4][0]).toMatch(/u\.onboarding_completed = TRUE/);
     expect(mockQuery.mock.calls[5][0]).toMatch(/FROM pooled_orders/);
     expect(mockQuery.mock.calls[5][0]).toMatch(/po\.status IN/);
+    expect(mockQuery.mock.calls[5][0]).toMatch(/po\.approval_state = 'approved'/);
   });
 
   test('includes careers, media, and only published career openings (learn excluded: noindex)', async () => {
@@ -87,6 +98,8 @@ describe('public sitemap coverage', () => {
     expect(careersSql).toMatch(/o\.status = 'open'/);
     expect(careersSql).toMatch(/o\.moderation_status = 'ok'/);
     expect(careersSql).toMatch(/o\.is_internal = FALSE/);
+    expect(careersSql).toMatch(/b\.is_listed = TRUE/);
+    expect(careersSql).toMatch(/u\.onboarding_completed = TRUE/);
     // Well-formed XML: every opened url element is closed.
     expect((res.text.match(/<url>/g) || []).length).toBe((res.text.match(/<\/url>/g) || []).length);
     expect((res.text.match(/<url>/g) || []).length).toBeGreaterThan(0);

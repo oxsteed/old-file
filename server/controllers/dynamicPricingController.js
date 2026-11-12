@@ -5,15 +5,26 @@ const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const pricingEngine = require('../services/pricingEngine');
+const { resolvePublicBusinessOwner } = require('../services/businessPublicOwner');
 
 // Main pricing calculation
 async function calculatePrice(req, res, next) {
   try {
     const { businessId, serviceId } = req.params;
     const { booking_date, booking_time, customer_id, quantity = 1 } = req.query;
+    // Public pricing is guest-capable, but a caller must never be able to
+    // attribute a calculation to an arbitrary customer. Only bind a customer
+    // when the request is authenticated as that exact user; guests and
+    // mismatched ids remain anonymous.
+    const customerId = req.user?.id && (!customer_id || String(customer_id) === String(req.user.id))
+      ? req.user.id
+      : null;
 
     if (!booking_date || !booking_time) {
       return next(new AppError('Booking date and time are required', 400));
+    }
+    if (!await resolvePublicBusinessOwner(businessId)) {
+      return next(new AppError('Business not found', 404, 'not_found'));
     }
 
     const atTime = new Date(`${booking_date}T${booking_time}:00Z`);
@@ -28,7 +39,7 @@ async function calculatePrice(req, res, next) {
       kind: 'service',
       targetId: serviceId,
       quantity,
-      customerId: customer_id || null,
+      customerId,
       atTimeIso,
     });
 
@@ -43,7 +54,7 @@ async function calculatePrice(req, res, next) {
       `INSERT INTO service_price_calculations
        (service_id, customer_id, booking_date, booking_time, base_price_cents, final_price_cents, calculation_details, applied_rules)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [serviceId, customer_id || null, booking_date, booking_time,
+      [serviceId, customerId, booking_date, booking_time,
        result.basePriceCents, result.adjustedPriceCents, JSON.stringify(result), appliedRules]
     );
 

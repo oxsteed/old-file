@@ -93,6 +93,22 @@ describe('POST /scheduling/sessions (createScheduledSession)', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO consulting_sessions_scheduled/.test(sql))).toBe(false);
   });
 
+  test('rejects an inactive or soft-deleted consultant before creating the payment placeholder', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [SESSION_ROW] })
+      .mockResolvedValueOnce({ rows: [] });
+    const r = res();
+    await schedulingCtrl.createScheduledSession(
+      { user: { id: OWNER_ID, role: 'customer' }, body: { consultingSessionId: 1, consultantId: CONSULTANT_ID } },
+      r,
+    );
+    expect(r.statusCode).toBe(404);
+    expect(r.body).toEqual({ error: 'Consultant not found' });
+    expect(mockQuery.mock.calls[1][0]).toContain('is_active = TRUE');
+    expect(mockQuery.mock.calls[1][0]).toContain('deleted_at IS NULL');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO consulting_sessions_scheduled/.test(sql))).toBe(false);
+  });
+
   test('400 for a malformed preferredDate, and no row is created', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [SESSION_ROW] })
@@ -133,6 +149,7 @@ describe('placeholder row unblocks the rest of the chain', () => {
         return { rows: [{ id: 99, session_id: 1, user_id: OWNER_ID, email: 'owner@example.com', first_name: 'Owner' }] };
       }
       if (/FROM consulting_payments\s+WHERE session_scheduled_id/.test(sql)) return { rows: [{ 1: 1 }] };
+      if (/SELECT id FROM users\s+WHERE id = \$1 AND is_active = TRUE AND deleted_at IS NULL/.test(sql)) return { rows: [{ id: CONSULTANT_ID }] };
       if (/FROM get_consultant_available_slots/.test(sql)) return { rows: [{ 1: 1 }] };
       if (/UPDATE consulting_sessions_scheduled css_target/.test(sql)) {
         return { rows: [{ id: 99, session_id: 1, scheduled_date: future, scheduled_time: '10:00', status: 'confirmed' }] };
@@ -153,5 +170,48 @@ describe('placeholder row unblocks the rest of the chain', () => {
     // Drain the fire-and-forget confirmation email so it cannot leak into
     // the next test's mock queue.
     await new Promise((resolve) => setImmediate(resolve));
+  });
+
+  test('customer cannot move a scheduled session to another consultant', async () => {
+    const future = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+    mockQuery.mockResolvedValueOnce({ rows: [{
+      id: 99,
+      session_id: 1,
+      consultant_assigned_id: CONSULTANT_ID,
+      user_id: OWNER_ID,
+      email: 'owner@example.com',
+      first_name: 'Owner',
+    }] });
+    const r = res();
+    await schedulingCtrl.bookTimeSlot(
+      { params: { sessionId: '99' }, user: { id: OWNER_ID, role: 'customer' },
+        body: {
+          consultantId: OTHER_ID,
+          date: future,
+          startTime: '10:00',
+          durationMinutes: 120,
+        } },
+      r,
+    );
+    expect(r.statusCode).toBe(409);
+    expect(r.body).toEqual({ error: 'Consultant does not match the assigned consultant' });
+    expect(mockQuery.mock.calls).toHaveLength(1);
+  });
+
+  test('book-slot rejects an inactive or soft-deleted consultant before payment or availability checks', async () => {
+    const future = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 99, session_id: 1, user_id: OWNER_ID, email: 'owner@example.com', first_name: 'Owner' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const r = res();
+    await schedulingCtrl.bookTimeSlot(
+      { params: { sessionId: '99' }, user: { id: OWNER_ID, role: 'customer' },
+        body: { consultantId: CONSULTANT_ID, date: future, startTime: '10:00', durationMinutes: 120 } },
+      r,
+    );
+    expect(r.statusCode).toBe(404);
+    expect(r.body).toEqual({ error: 'Consultant not found' });
+    expect(mockQuery.mock.calls[1][0]).toContain('deleted_at IS NULL');
+    expect(mockQuery.mock.calls.some(([sql]) => /FROM consulting_payments/.test(sql))).toBe(false);
   });
 });

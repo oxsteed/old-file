@@ -828,7 +828,9 @@ exports.archiveAdminCatalogEntity = async (req, res) => {
   try {
     const entity = catalogEntityName(req.params.entity);
     if (!entity) return res.status(400).json({ error: 'Unsupported catalog entity' });
-    await removeEntity(entity, req.params.id, req.user?.id);
+    await removeEntity(entity, req.params.id, req.user?.id, {
+      cascadePauseChildren: req.body?.cascadePauseChildren === true,
+    });
     return res.json({ success: true, catalog: await getAdminCatalog() });
   } catch (err) {
     return res.status(err.statusCode || 500).json({ error: err.message || 'Failed to archive catalog record' });
@@ -2775,6 +2777,8 @@ exports.getTeam = async (_req, res) => {
       `SELECT id, first_name, last_name, email, role, default_mode, created_at
          FROM users
         WHERE role IN ('admin', 'super_admin')
+          AND is_active = true
+          AND deleted_at IS NULL
         ORDER BY created_at ASC`
     );
     return res.json({

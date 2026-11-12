@@ -657,8 +657,8 @@ async function resolveCardIdentityByCredential(client, rawCredential) {
 }
 
 async function assertCardOwnerIsActive(client, customerId) {
-  const { rows } = await client.query(`SELECT is_active FROM users WHERE id = $1`, [customerId]);
-  if (!rows[0] || rows[0].is_active !== true) {
+  const { rows } = await client.query(`SELECT is_active, deleted_at FROM users WHERE id = $1`, [customerId]);
+  if (!rows[0] || rows[0].is_active !== true || rows[0].deleted_at) {
     throw new AppError('This card belongs to a deactivated customer account', 403, 'credit_card_customer_inactive');
   }
 }

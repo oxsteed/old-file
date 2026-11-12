@@ -15,6 +15,7 @@ const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
 const DEFAULT_CONFIRMATION_HOURS = 24;
 const MIN_CONFIRMATION_HOURS = 1;
 const MAX_CONFIRMATION_HOURS = 168;
+const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
 const WEEKDAY_INDEX = {
   sunday: 0,
   monday: 1,
@@ -208,11 +209,12 @@ exports.createBookingRequest = async (req, res) => {
     }
 
     const helperResult = await pool.query(
-      `SELECT u.id, u.is_active, COALESCE(hp.is_hidden_by_admin, FALSE) AS is_hidden_by_admin,
+      `SELECT u.id, u.role, u.is_active, u.deleted_at,
+              COALESCE(hp.is_hidden_by_admin, FALSE) AS is_hidden_by_admin,
               COALESCE(hp.allow_booking, TRUE) AS allow_booking
          FROM users u
          LEFT JOIN helper_profiles hp ON hp.user_id = u.id
-        WHERE u.id = $1`,
+        WHERE u.id = $1 AND u.deleted_at IS NULL`,
       [helperId]
     );
     if (helperResult.rows.length === 0) {
@@ -220,6 +222,9 @@ exports.createBookingRequest = async (req, res) => {
     }
     if (!helperResult.rows[0].is_active || helperResult.rows[0].is_hidden_by_admin) {
       return sendError(res, 400, 'Helper is not accepting bookings', 'HELPER_INACTIVE');
+    }
+    if (!business && !HELPER_ROLES.includes(helperResult.rows[0].role)) {
+      return sendError(res, 400, 'User is not accepting bookings', 'INVALID_HELPER');
     }
     // Review P1-204: the helper's "allow booking" privacy switch is enforced
     // (business bookings follow the business's own listing state instead).
@@ -865,15 +870,24 @@ exports.getBusinessAvailableSlots = async (req, res) => {
     if (Number.isNaN(dateObj.getTime())) return sendValidationError(res, { date: 'Invalid date' });
 
     const businessResult = await pool.query(
-      `SELECT id, is_active, is_listed, is_hidden_by_admin FROM businesses
-        WHERE id = $1 AND business_kind = 'service'`,
+      `SELECT b.id, b.is_active, b.is_listed, b.is_hidden_by_admin
+         FROM businesses b
+         JOIN users owner ON owner.id = b.user_id
+        WHERE b.id = $1
+          AND b.deleted_at IS NULL
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+          AND b.setup_status = 'active'
+          AND b.business_kind = 'service'
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE`,
       [businessId]
     );
     const business = businessResult.rows[0];
     if (!business) return sendError(res, 404, 'Business not found', 'BUSINESS_NOT_FOUND');
-    if (!business.is_active || business.is_listed === false || business.is_hidden_by_admin) {
-      return sendError(res, 400, 'Business is not accepting bookings', 'BUSINESS_INACTIVE');
-    }
 
     const scheduleResult = await pool.query(
       `SELECT (
@@ -927,9 +941,16 @@ exports.getBusinessAvailableSlots = async (req, res) => {
       const serviceResult = await pool.query(
         `SELECT duration_minutes, duration
            FROM business_services
-          WHERE id = $1 AND business_id = $2 AND is_active = TRUE`,
+          WHERE id = $1
+            AND business_id = $2
+            AND is_active = TRUE
+            AND COALESCE(allow_online_booking, TRUE) = TRUE
+            AND deleted_at IS NULL`,
         [String(serviceId), businessId]
       );
+      if (!serviceResult.rows[0]) {
+        return sendError(res, 404, 'Service not found', 'SERVICE_NOT_FOUND');
+      }
       if (serviceResult.rows[0]) {
         const service = serviceResult.rows[0];
         const parsed = Number.parseInt(service.duration_minutes || service.duration, 10);
@@ -1021,8 +1042,10 @@ exports.listRecurringBookings = async (req, res) => {
               NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS helper_name,
               u.profile_photo_url AS helper_avatar_url
          FROM recurring_booking_subscriptions r
-         JOIN users u ON u.id = r.helper_id
+         JOIN users u ON u.id = r.helper_id AND u.deleted_at IS NULL
         WHERE r.customer_id = $1
+          AND u.is_active = TRUE
+          AND u.deleted_at IS NULL
         ORDER BY
           CASE r.status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 ELSE 2 END,
           r.next_date NULLS LAST,
@@ -1049,11 +1072,13 @@ exports.createRecurringBooking = async (req, res) => {
     if (Object.keys(errors).length) return sendValidationError(res, errors);
 
     const helperResult = await pool.query(
-      `SELECT id, is_active, role FROM users WHERE id = $1`,
+      `SELECT id, is_active, deleted_at, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [helper_id]
     );
     const helper = helperResult.rows[0];
-    if (!helper || !helper.is_active) return sendError(res, 404, 'Helper not found', 'HELPER_NOT_FOUND');
+    if (!helper || !helper.is_active || helper.deleted_at) {
+      return sendError(res, 404, 'Helper not found', 'HELPER_NOT_FOUND');
+    }
     if (!['helper', 'helper_pro', 'broker'].includes(helper.role)) {
       return sendError(res, 400, 'User is not accepting recurring services', 'INVALID_HELPER');
     }

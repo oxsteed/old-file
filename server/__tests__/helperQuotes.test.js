@@ -103,6 +103,22 @@ describe('PATCH /api/helper-quotes/:id/status', () => {
     expect(res.body.error).toMatch(/cannot update/i);
   });
 
+  test('does not accept a quote from an inactive or soft-deleted helper', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [CUSTOMER] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await customerAuth(
+      request(buildApp()).patch('/api/helper-quotes/9/status').send({ status: 'accepted' })
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/cannot update/i);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/helper\.is_active = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/helper\.deleted_at IS NULL/);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE helper_quotes/.test(sql))).toBe(false);
+  });
+
   test('surfaces quote-list database failures instead of returning an empty list', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [HELPER] })

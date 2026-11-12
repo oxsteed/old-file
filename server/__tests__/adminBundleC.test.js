@@ -194,6 +194,37 @@ describe('ADM-011: consultant BIGINT id goes into consultant_id, not UUID consul
     expect(updateSql).not.toContain('consultant_assigned_id');
   });
 
+  test('updateRequestStatusById creates the scheduler row when admin schedules a session', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ status: 'pending', consultant_assigned_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: 42, user_id: 'consultant-user-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 5, status: 'scheduled' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 8, session_id: 5, status: 'confirmed' }] });
+
+    const res = makeRes();
+    await consultingController.updateRequestStatusById(
+      {
+        params: { id: '5' },
+        body: {
+          status: 'scheduled',
+          scheduled_at: '2026-11-20T15:30:00.000Z',
+          meeting_url: 'https://meet.example/session-5',
+          consultant_id: 42,
+        },
+        user: { id: 'admin-1' },
+      },
+      res
+    );
+
+    const mirrorSql = mockQuery.mock.calls[3][0];
+    expect(mirrorSql).toContain('INSERT INTO consulting_sessions_scheduled');
+    expect(mirrorSql).toContain('ON CONFLICT (session_id) DO UPDATE');
+    expect(mockQuery.mock.calls[3][1]).toEqual([
+      '5', '2026-11-20', '15:30:00', 'consultant-user-1',
+      'https://meet.example/session-5', 'confirmed',
+    ]);
+  });
+
   test('updateRequestStatusById 400s on unknown consultant', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ status: 'pending' }] })
@@ -206,6 +237,19 @@ describe('ADM-011: consultant BIGINT id goes into consultant_id, not UUID consul
     );
 
     expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('available consultant picker excludes stale user identities', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const res = makeRes();
+    await consultingController.getAvailableConsultants({ query: {} }, res);
+
+    const sql = mockQuery.mock.calls[0][0];
+    expect(sql).toContain("c.status = 'active'");
+    expect(sql).toContain('u.deleted_at IS NULL');
+    expect(sql).toContain('u.email_verified = TRUE');
+    expect(sql).toContain('u.onboarding_completed = TRUE');
+    expect(res.json).toHaveBeenCalledWith([]);
   });
 });
 
@@ -323,5 +367,27 @@ describe('ADM-122: ticket inbox count query joins users for regional admins', ()
     expect(countSql).toContain('u.zip_code');
     // ...and both resolve the alias through the same join.
     expect(countSql).toContain('LEFT JOIN users u ON t.user_id = u.id');
+  });
+
+  test('converts the admin inbox page contract into the SQL offset', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ total: '121' }] });
+
+    const res = makeRes();
+    await supportController.listTickets({
+      user: { role: 'admin', id: 'admin-9' },
+      query: { page: '3', limit: '50' },
+      assigned_regions: [],
+    }, res);
+
+    const listParams = mockQuery.mock.calls[0][1];
+    expect(listParams.slice(-2)).toEqual([50, 100]);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      total: 121,
+      limit: 50,
+      offset: 100,
+      page: 3,
+    }));
   });
 });

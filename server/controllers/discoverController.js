@@ -388,7 +388,11 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
        FROM businesses b
        JOIN users u ON u.id = b.user_id AND u.is_active = TRUE
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
-       WHERE b.is_active = TRUE
+       WHERE b.deleted_at IS NULL
+         AND b.is_active = TRUE
+         AND b.is_listed = TRUE
+         AND COALESCE(b.setup_status, 'active') = 'active'
+         AND b.business_kind = 'service'
          AND u.deleted_at IS NULL
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
@@ -437,6 +441,10 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
        FROM tool_rentals t
        JOIN users u ON u.id = t.user_id AND u.is_active = TRUE
        WHERE t.is_available = TRUE
+         AND NOT t.moderation_hold
+         AND u.deleted_at IS NULL
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
          AND (
            LOWER(t.name) LIKE ANY($1::text[])
            OR LOWER(COALESCE(t.description, '')) LIKE ANY($1::text[])
@@ -736,7 +744,12 @@ exports.discoverPopular = async (req, res) => {
     const { rows: tools } = await pool.query(
       `SELECT t.id, t.name AS title, t.category AS subtitle, t.created_at
        FROM tool_rentals t JOIN users u ON u.id = t.user_id
-       WHERE t.is_available AND u.is_active
+       WHERE t.is_available
+         AND NOT t.moderation_hold
+         AND u.is_active
+         AND u.deleted_at IS NULL
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
        ORDER BY t.created_at DESC LIMIT 5`,
     );
     for (const t of tools) {
@@ -777,7 +790,11 @@ exports.discoverPopular = async (req, res) => {
        FROM businesses b
        JOIN users u ON u.id = b.user_id AND u.is_active AND u.deleted_at IS NULL
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
-       WHERE b.is_active
+       WHERE b.deleted_at IS NULL
+         AND b.is_active
+         AND b.is_listed = TRUE
+         AND COALESCE(b.setup_status, 'active') = 'active'
+         AND b.business_kind = 'service'
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
          AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)

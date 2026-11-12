@@ -21,6 +21,7 @@ const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const pricingEngine = require('../services/pricingEngine');
+const { resolvePublicBusinessOwner } = require('../services/businessPublicOwner');
 
 // ── List pricing rules ────────────────────────────────────────────────────────
 async function listPricingRules(req, res, next) {
@@ -210,12 +211,20 @@ async function deletePricingRule(req, res, next) {
 async function calculatePrice(req, res, next) {
   try {
     const { businessId } = req.params;
-    const { productId, quantity = 1, customerId } = req.body;
+    const { productId, quantity = 1, customerId: requestedCustomerId } = req.body;
+    // Product pricing is public, so never trust a caller-supplied customer id
+    // for segment pricing. Bind only to the authenticated session's own user.
+    const customerId = req.user?.id && (!requestedCustomerId || String(requestedCustomerId) === String(req.user.id))
+      ? req.user.id
+      : null;
 
     if (!productId) throw new AppError('Product ID required', 400, 'validation_failed');
     const numericQuantity = Number(quantity);
     if (!Number.isSafeInteger(numericQuantity) || numericQuantity < 1) {
       throw new AppError('Quantity must be a positive integer', 400, 'validation_failed');
+    }
+    if (!await resolvePublicBusinessOwner(businessId)) {
+      throw new AppError('Business not found', 404, 'not_found');
     }
 
     const result = await pricingEngine.calculatePrice({
@@ -265,7 +274,7 @@ async function setBulkPricingTiers(req, res, next) {
       throw new AppError('Tiers array required', 400, 'validation_failed');
 
     const productCheck = await pool.query(
-      'SELECT id FROM business_products WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL',
+      'SELECT id FROM business_products WHERE id = $1 AND business_id = $2 AND is_active = TRUE AND deleted_at IS NULL',
       [productId, businessId]
     );
     if (!productCheck.rows.length) throw new AppError('Product not found', 404, 'not_found');
@@ -292,9 +301,12 @@ async function setBulkPricingTiers(req, res, next) {
 async function getBulkPricingTiers(req, res, next) {
   try {
     const { businessId, productId } = req.params;
+    if (!await resolvePublicBusinessOwner(businessId)) {
+      throw new AppError('Business not found', 404, 'not_found');
+    }
 
     const productCheck = await pool.query(
-      'SELECT id FROM business_products WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL',
+      'SELECT id FROM business_products WHERE id = $1 AND business_id = $2 AND is_active = TRUE AND deleted_at IS NULL',
       [productId, businessId]
     );
     if (!productCheck.rows.length) throw new AppError('Product not found', 404, 'not_found');

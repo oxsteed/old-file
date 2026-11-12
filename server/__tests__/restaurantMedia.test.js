@@ -163,6 +163,9 @@ describe('postRestaurantMedia', () => {
     expect(res.status).toBe(201);
     expect(res.body.media.provider).toBe('youtube');
     expect(res.body.media.external_video_id).toBe('dQw4w9WgXcQ');
+    expect(mockQuery.mock.calls[0][0]).toMatch(/JOIN users owner ON owner\.id = b\.user_id/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/owner\.email_verified = TRUE/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/owner\.onboarding_completed = TRUE/);
     const insertCall = mockQuery.mock.calls.find(
       (c) => c[0].includes('INSERT INTO restaurant_media') && !c[0].includes('restaurant_media_items')
     );

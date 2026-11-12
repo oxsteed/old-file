@@ -228,6 +228,23 @@ describe('admin updateQuoteRequestAdmin audit guards', () => {
     expect(mockQuery.mock.calls.find(([query]) => query.startsWith('UPDATE quote_requests'))).toBeFalsy();
   });
 
+  test('blocks quote currency changes after payment is confirmed', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ payment_status: 'confirmed', quote_amount_cents: 5000, quote_currency_code: 'USD' }],
+    });
+
+    const res = response();
+    await updateQuoteRequestAdmin({
+      params: { id: 'request-1' },
+      body: { status: 'reviewing', quote_currency_code: 'EUR' },
+      user: { id: 'admin-1' },
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'invalid_currency_transition' }));
+    expect(mockQuery.mock.calls.find(([query]) => query.startsWith('UPDATE quote_requests'))).toBeFalsy();
+  });
+
   test('allows a quote amount update while payment is still unpaid', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ payment_status: 'unpaid', quote_amount_cents: 5000 }] }) // guard SELECT

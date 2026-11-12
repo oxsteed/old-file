@@ -301,6 +301,7 @@ exports.getModerationQueue = async (req, res) => {
       SELECT
         j.id, j.title, j.description, j.status,
         j.created_at, j.media_urls,
+        (j.metadata->>'admin_flagged') = 'true' AS admin_flagged,
         c.name AS category_name,
         u.first_name || ' ' || u.last_name AS client_name,
         u.email AS client_email,

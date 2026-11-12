@@ -4,6 +4,7 @@ import { X, Calendar, DollarSign, ShieldAlert } from 'lucide-react';
 import { toolRentalsApi } from '../api/toolRentals';
 import toast from 'react-hot-toast';
 import './BookingModal.css';
+import { toolRentalDatesOverlap } from '../utils/toolRentalDates';
 
 interface BookingModalProps {
   tool: {
@@ -97,12 +98,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
     }
 
     // Check for calendar conflicts
-    const checkDate = new Date(startDate);
-    const endCheckDate = new Date(endDate);
     for (const booking of bookedDates) {
-      const bookStart = new Date(booking.start_date);
-      const bookEnd = new Date(booking.end_date);
-      if (checkDate < bookEnd && endCheckDate > bookStart) {
+      if (toolRentalDatesOverlap(startDate, endDate, booking.start_date, booking.end_date)) {
         toast.error(t('toolRentals.dateConflict'));
         return;
       }

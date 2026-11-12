@@ -41,11 +41,13 @@ exports.getSessionActionItems = async (req, res) => {
       return res.status(403).json({ error: 'Not authorized for this session' });
     }
 
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    const visibilityClause = isAdmin ? '' : ' AND client_visible = TRUE';
     const { rows } = await db.query(
       `SELECT id, session_id, title, description, due_date, priority, assigned_to_type,
               client_visible, status, created_at, updated_at
        FROM consulting_action_items
-       WHERE session_id = $1
+       WHERE session_id = $1${visibilityClause}
        ORDER BY priority DESC, due_date ASC NULLS LAST`,
       [sessionId]
     );

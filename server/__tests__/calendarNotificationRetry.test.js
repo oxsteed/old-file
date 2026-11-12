@@ -36,4 +36,7 @@ test('scheduler query includes retryable failed rows', async () => {
 
   expect(mockQuery.mock.calls[0][0]).toContain("cn.status IN ('pending', 'failed')");
   expect(mockQuery.mock.calls[0][0]).toContain('cn.attempts < 5');
+  expect(mockQuery.mock.calls[0][0]).toMatch(/JOIN users recipient\s+ON recipient\.id = cn\.user_id/);
+  expect(mockQuery.mock.calls[0][0]).toMatch(/recipient\.is_active = TRUE/);
+  expect(mockQuery.mock.calls[0][0]).toMatch(/recipient\.deleted_at IS NULL/);
 });

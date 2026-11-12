@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { logAdminAction } = require('../services/auditService');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 /**
  * Public endpoint: Get enforcement policy thresholds
@@ -245,15 +246,24 @@ exports.submitAppeal = async (req, res, next) => {
     // Notify admins
     try {
       const { rows: adminRows } = await pool.query(`
-        SELECT id FROM users
-        WHERE role IN ('admin', 'super_admin') AND is_active = true
+        SELECT id, role FROM users
+        WHERE role IN ('admin', 'super_admin')
+          AND is_active = true
+          AND deleted_at IS NULL
         LIMIT 5
       `);
+      const eligibleAdminRows = (await Promise.all(
+        adminRows.map(async (admin) => (
+          admin.role === 'super_admin' || await hasGlobalGrant(admin.id, 'manage_disputes')
+            ? admin
+            : null
+        ))
+      )).filter(Boolean);
 
       const { sendNotification } = require('../services/notificationService');
 
       await Promise.allSettled(
-        adminRows.map(admin =>
+        eligibleAdminRows.map(admin =>
           sendNotification({
             userId: admin.id,
             type: 'enforcement_appeal_submitted',

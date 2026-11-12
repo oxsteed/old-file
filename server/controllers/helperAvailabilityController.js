@@ -288,7 +288,12 @@ exports.getAvailableSlots = async (req, res, next) => {
       `SELECT 1 FROM helper_profiles hp
        JOIN users u ON u.id = hp.user_id
        WHERE hp.user_id = $1
+         AND u.is_active = TRUE
          AND u.deleted_at IS NULL
+         AND u.is_active = TRUE
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
+         AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [helperId]
     );

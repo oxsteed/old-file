@@ -36,7 +36,7 @@ async function loadConnectorUser(req, res, next) {
     }
     const { rows } = await db.query(
       `SELECT id, role, email, is_active, COALESCE(totp_enabled, FALSE) AS totp_enabled
-         FROM users WHERE id = $1`,
+         FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [customerId]
     );
     const user = rows[0];

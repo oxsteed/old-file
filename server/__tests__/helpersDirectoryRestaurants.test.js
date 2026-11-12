@@ -58,6 +58,10 @@ describe('fetchOpenRestaurantsNear', () => {
     const [sql, params] = mockQuery.mock.calls[0];
     expect(sql).toContain("fr.discovery_status = 'visible'");
     expect(sql).toContain('COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE');
+    expect(sql).toContain('b.is_listed = TRUE');
+    expect(sql).toContain("COALESCE(b.setup_status, 'active') = 'active'");
+    expect(sql).toContain('owner.email_verified = TRUE');
+    expect(sql).toContain('owner.onboarding_completed = TRUE');
     expect(params).toEqual([39.96, -83.0, 60]);
   });
 

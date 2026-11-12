@@ -25,3 +25,23 @@ test('super-admin conversation rows preserve conversation identity when opening 
   assert.match(source, /conversationId=\$\{encodeURIComponent\(conversationId\)\}/);
   assert.match(source, /selected\.conversation_id/);
 });
+
+test('conversation inbox exposes server pagination instead of silently capping at 100 rows', () => {
+  assert.match(source, /limit=100&offset=\$\{listOffset\}/);
+  assert.match(source, /total: Number\(data\.total \|\| 0\)/);
+  assert.match(source, /offset: Number\(data\.offset \|\| 0\)/);
+  assert.match(source, /setListOffset\(\(offset\) => offset \+ listPageSize\)/);
+  assert.match(source, /adminMessages\.loadMore/);
+  assert.match(source, /adminMessages\.showingCount/);
+  assert.match(source, /new Map\(previous\.map/);
+});
+
+test('admin message sends keep a stable retry identity and failed draft', () => {
+  assert.match(source, /createMessageRequestId/);
+  assert.match(source, /'Idempotency-Key': clientMessageId/);
+  assert.match(source, /data:\s*\{ content, clientMessageId \}/);
+  assert.match(source, /pendingSendRef\.current/);
+  assert.match(source, /setMessage\(current => current \|\| content\)/);
+  assert.match(source, /send_error/);
+  assert.doesNotMatch(source, /setThread\(prev => prev\.filter\(m => m\.id === optimisticId\)\)/);
+});

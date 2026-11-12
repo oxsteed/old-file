@@ -43,6 +43,9 @@ exports.getPendingNotifications = async (req, res, next) => {
               other.profile_photo_url AS other_avatar
          FROM calendar_notifications cn
          JOIN appointments a ON cn.appointment_id = a.id
+         JOIN users recipient ON recipient.id = cn.user_id
+                                    AND recipient.is_active = TRUE
+                                    AND recipient.deleted_at IS NULL
          LEFT JOIN users other ON other.id = CASE
               WHEN cn.user_id = a.customer_id THEN a.helper_id
               ELSE a.customer_id
@@ -169,6 +172,9 @@ exports.processReminderNotifications = async () => {
               np.timezone
          FROM calendar_notifications cn
          JOIN appointments a   ON a.id = cn.appointment_id
+         JOIN users recipient  ON recipient.id = cn.user_id
+                              AND recipient.is_active = TRUE
+                              AND recipient.deleted_at IS NULL
          LEFT JOIN users cust  ON cust.id = a.customer_id
          LEFT JOIN users hlp   ON hlp.id  = a.helper_id
          LEFT JOIN notification_preferences np ON np.user_id = cn.user_id

@@ -154,6 +154,9 @@ describe('restaurant message conversation creation', () => {
 
     expect(first.status).toBe(201);
     expect(first.body.conversationId).toBe('conv-1');
+    expect(mockQuery.mock.calls[0][0]).toMatch(/JOIN users owner ON owner\.id = b\.user_id/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/owner\.email_verified = TRUE/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/owner\.onboarding_completed = TRUE/);
 
     // The inserted legacy thread has the customer, the restaurant owner, and
     // the business as participants.

@@ -1,8 +1,12 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
+jest.mock('../middleware/adminAuth', () => ({
+  hasGlobalGrant: jest.fn().mockResolvedValue(true),
+}));
 const supportChatController = require('../controllers/supportChatController');
 const socketService = require('../services/socketService');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 function responseDouble() {
   return {
@@ -14,6 +18,8 @@ function responseDouble() {
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
+  hasGlobalGrant.mockReset();
+  hasGlobalGrant.mockResolvedValue(true);
   socketService.getSocketCount = jest.fn().mockResolvedValue(1);
   socketService.broadcastToAdmins = jest.fn();
 });
@@ -194,6 +200,34 @@ describe('legacy support chat compatibility', () => {
     expect(insertCall[1][1]).toBe('admin-online');
   });
 
+  test('does not assign live support chat to an online admin without manage_support', async () => {
+    socketService.getSocketCount = jest.fn().mockResolvedValue(2);
+    socketService.isOnline = jest.fn().mockReturnValue(true);
+    hasGlobalGrant.mockImplementation(async (id) => id === 'admin-authorized');
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [
+        { id: 'admin-unauthorized', role: 'admin' },
+        { id: 'admin-authorized', role: 'admin' },
+      ] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conv-2' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-2' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'user-2' },
+      body: { message: 'Need account help', visitorName: 'Cust', visitorEmail: 'c2@example.com' },
+    };
+    const res = responseDouble();
+
+    await supportChatController.initiateSupportChat(req, res);
+
+    expect(hasGlobalGrant).toHaveBeenCalledWith('admin-unauthorized', 'manage_support');
+    expect(hasGlobalGrant).toHaveBeenCalledWith('admin-authorized', 'manage_support');
+    const insertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO conversations/.test(sql));
+    expect(insertCall[1][1]).toBe('admin-authorized');
+  });
+
   test('falls back to ticket escalation when no admin is actually online', async () => {
     socketService.getSocketCount = jest.fn().mockResolvedValue(1);
     socketService.isOnline = jest.fn().mockReturnValue(false);
@@ -218,6 +252,31 @@ describe('legacy support chat compatibility', () => {
       ticketNumber: 1001,
     }));
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO conversations/.test(sql))).toBe(false);
+  });
+
+  test('escalation emails exclude admins without manage_support', async () => {
+    const emailService = require('../utils/email');
+    socketService.getSocketCount = jest.fn().mockResolvedValue(0);
+    hasGlobalGrant.mockImplementation(async (id) => id === 'admin-authorized');
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-2', ticket_number: 1002 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'support-message-2' }] })
+      .mockResolvedValueOnce({ rows: [
+        { id: 'admin-blocked', role: 'admin', email: 'blocked@example.com', first_name: 'Blocked' },
+        { id: 'admin-authorized', role: 'admin', email: 'authorized@example.com', first_name: 'Authorized' },
+      ] });
+
+    const req = {
+      body: { message: 'Need help', visitorName: 'Cust', visitorEmail: 'c2@example.com' },
+    };
+    const res = responseDouble();
+
+    await supportChatController.initiateSupportChat(req, res);
+    await new Promise((resolve) => setImmediate(resolve));
+    const recipients = emailService.sendEmail.mock.calls.map(([payload]) => payload.to);
+    expect(recipients).toContain('support@oxsteed.com');
+    expect(recipients).toContain('authorized@example.com');
+    expect(recipients).not.toContain('blocked@example.com');
   });
 
   test('admin-status returns a boolean, never the exact online count', async () => {

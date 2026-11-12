@@ -112,6 +112,12 @@ describe('main app home dashboard contract', () => {
     expect(res.body.popularRestaurants[0].hasLocation).toBe(true);
     expect(mockQuery.mock.calls[1][0]).toMatch(/JOIN businesses b ON b\.id = fr\.business_id/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/b\.is_active = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.is_listed = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.setup_status, 'active'/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.business_kind, 'restaurant'/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/JOIN users owner ON owner\.id = b\.user_id/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/owner\.email_verified = TRUE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/owner\.onboarding_completed = TRUE/);
     // P1-315: lapsed placements neither rank first nor report isFeatured.
     expect(mockQuery.mock.calls[1][0]).toMatch(/ORDER BY \(COALESCE\(fr\.is_featured, FALSE\) AND \(fr\.featured_until IS NULL OR fr\.featured_until > NOW\(\)\)\) DESC/);
   });

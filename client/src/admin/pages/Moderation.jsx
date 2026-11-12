@@ -155,14 +155,16 @@ export default function Moderation() {
                     </div>
                   ) : canTakeAction ? (
                   <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => setDialog({ item, action: 'unflag' })}
-                      disabled={!!acting}
-                      title={t('admin.moderation.dismissTitle', { defaultValue: 'Dismiss - remove admin flag' })}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
-                    >
-                      <CheckCircle size={14} /> {t('admin.moderation.dismiss', { defaultValue: 'Dismiss' })}
-                    </button>
+                    {item.admin_flagged && (
+                      <button
+                        onClick={() => setDialog({ item, action: 'unflag' })}
+                        disabled={!!acting}
+                        title={t('admin.moderation.dismissTitle', { defaultValue: 'Dismiss - remove admin flag' })}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
+                      >
+                        <CheckCircle size={14} /> {t('admin.moderation.dismiss', { defaultValue: 'Dismiss' })}
+                      </button>
+                    )}
                     <button
                       onClick={() => setDialog({ item, action: 'flag' })}
                       disabled={!!acting}

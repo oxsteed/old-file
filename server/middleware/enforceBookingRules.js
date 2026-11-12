@@ -50,7 +50,7 @@ module.exports = async function enforceBookingRules(req, res, next) {
 
     // 1) Service exists, is bookable, and matches the business
     const svcRes = await pool.query(
-      `SELECT id, business_id, duration_minutes, max_capacity, min_notice_hours,
+      `SELECT id, business_id, duration_minutes, base_price_cents, max_capacity, min_notice_hours,
               is_active, allow_online_booking, deleted_at
          FROM business_services
         WHERE id = $1 AND business_id = $2`,
@@ -66,16 +66,34 @@ module.exports = async function enforceBookingRules(req, res, next) {
       return sendError(res, 403, 'This service is not taking online bookings right now', 'booking_disabled');
     }
 
-    // 1b) The business itself must be listed and active; a deactivated or
-    // hidden business cannot take new appointments.
+    // 1b) The business itself must be publicly live; a deactivated, hidden,
+    // incomplete, deleted, or non-service business cannot take new
+    // appointments. The owner checks keep this write path aligned with the
+    // public business resolver used by browse/intake surfaces.
     const bizRes = await pool.query(
-      `SELECT id, is_active, is_listed, is_hidden_by_admin
-         FROM businesses WHERE id = $1`,
+      `SELECT b.id, b.is_active, b.is_listed, b.is_hidden_by_admin,
+              b.deleted_at, b.setup_status, b.business_kind,
+              owner.deleted_at AS owner_deleted_at,
+              owner.is_active AS owner_is_active,
+              owner.email_verified AS owner_email_verified,
+              owner.onboarding_completed AS owner_onboarding_completed
+         FROM businesses b
+         JOIN users owner ON owner.id = b.user_id
+        WHERE b.id = $1`,
       [businessId]
     );
     const biz = bizRes.rows[0];
     if (!biz) return sendError(res, 404, 'Business not found', 'business_not_found');
-    if (biz.is_active === false || biz.is_listed === false || biz.is_hidden_by_admin === true) {
+    if (biz.deleted_at
+      || biz.is_active !== true
+      || biz.is_listed !== true
+      || biz.is_hidden_by_admin === true
+      || biz.setup_status !== 'active'
+      || biz.business_kind !== 'service'
+      || biz.owner_deleted_at
+      || biz.owner_is_active !== true
+      || biz.owner_email_verified !== true
+      || biz.owner_onboarding_completed !== true) {
       return sendError(res, 403, 'This business is not taking bookings right now', 'business_not_bookable');
     }
 

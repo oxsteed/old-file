@@ -98,6 +98,8 @@ describe('GET /staff', () => {
     expect(sql).toMatch(/LIMIT 200/);
     expect(sql).toMatch(/admin_passkeys/);
     expect(sql).toMatch(/admin_permission_grants/);
+    expect(sql).toMatch(/delegation_grants/);
+    expect(sql).toMatch(/grantor_grant\.permissions \? delegated\.scope/);
   });
 
   test('fails closed with 500 when the roster query errors', async () => {

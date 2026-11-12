@@ -815,9 +815,9 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
     // Security (audit finding #26): payment/amount transition guards. The
     // COALESCE-based update above must not silently allow money/status
     // regressions, so the current row is checked before any change.
-    if (paymentStatus || quoteAmountCents !== null) {
+    if (paymentStatus || quoteAmountCents !== null || quoteCurrencyCode !== null) {
       const currentPayment = await db.query(
-        `SELECT payment_status, quote_amount_cents
+        `SELECT payment_status, quote_amount_cents, quote_currency_code
            FROM quote_requests
           WHERE id = $1
           LIMIT 1`,
@@ -847,6 +847,15 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
         return res.status(400).json({
           error: 'The quote amount cannot change after payment is confirmed',
           code: 'invalid_amount_transition',
+        });
+      }
+      const currentCurrency = currentPayment.rows[0].quote_currency_code
+        ? String(currentPayment.rows[0].quote_currency_code).toUpperCase()
+        : null;
+      if (quoteCurrencyCode !== null && effectivePaymentStatus === 'confirmed' && quoteCurrencyCode !== currentCurrency) {
+        return res.status(400).json({
+          error: 'The quote currency cannot change after payment is confirmed',
+          code: 'invalid_currency_transition',
         });
       }
     }

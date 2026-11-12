@@ -23,6 +23,7 @@ function normaliseService(s) {
     max_capacity: s.max_capacity ?? 1,
     min_notice_hours: s.min_notice_hours ?? 24,
     cancellation_policy_hours: s.cancellation_policy_hours ?? 24,
+    allow_online_booking: s.allow_online_booking !== false,
     is_active: s.is_active !== false, // default true if missing
     staff_count: s.staff_count ?? 0,
   };
@@ -43,6 +44,7 @@ export function BusinessServicesTab({ businessId }) {
     max_capacity: 1,
     min_notice_hours: 24,
     cancellation_policy_hours: 24,
+    allow_online_booking: true,
     preparation_minutes: 0
   });
 
@@ -97,6 +99,7 @@ export function BusinessServicesTab({ businessId }) {
         max_capacity: 1,
         min_notice_hours: 24,
         cancellation_policy_hours: 24,
+        allow_online_booking: true,
         preparation_minutes: 0
       });
       loadServices();
@@ -129,6 +132,7 @@ export function BusinessServicesTab({ businessId }) {
       max_capacity: service.max_capacity,
       min_notice_hours: service.min_notice_hours,
       cancellation_policy_hours: service.cancellation_policy_hours,
+      allow_online_booking: service.allow_online_booking !== false,
       preparation_minutes: service.preparation_minutes ?? 0
     });
     setShowForm(true);
@@ -145,6 +149,7 @@ export function BusinessServicesTab({ businessId }) {
       max_capacity: 1,
       min_notice_hours: 24,
       cancellation_policy_hours: 24,
+      allow_online_booking: true,
       preparation_minutes: 0
     });
     setShowForm(true);
@@ -244,6 +249,16 @@ export function BusinessServicesTab({ businessId }) {
               />
               <small>{t('businessServices.bufferHint')}</small>
             </div>
+          </div>
+          <div className="bst-form-group">
+            <label>
+              <input
+                type="checkbox"
+                checked={formData.allow_online_booking}
+                onChange={(e) => setFormData({ ...formData, allow_online_booking: e.target.checked })} data-track="ui.b1627ffe61.7"
+              />{' '}
+              {t('businessServices.fieldOnlineBooking')}
+            </label>
           </div>
           <div className="bst-form-buttons">
             <button onClick={() => setShowForm(false)} className="bst-btn-cancel" data-track="ui.b1627ffe61.2">{t('businessServices.btnCancel')}</button>

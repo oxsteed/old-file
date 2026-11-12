@@ -566,6 +566,7 @@ async function queryPopularRestaurants(limit) {
             promo.title AS promo_title
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
+       JOIN users owner ON owner.id = b.user_id
        LEFT JOIN LATERAL (
          SELECT p.title
            FROM food_restaurant_promotions p
@@ -578,7 +579,14 @@ async function queryPopularRestaurants(limit) {
        ) promo ON TRUE
       WHERE fr.status = 'active'
         AND b.is_active = TRUE
+        AND b.is_listed = TRUE
+        AND COALESCE(b.setup_status, 'active') = 'active'
+        AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
         AND b.deleted_at IS NULL
+        AND owner.deleted_at IS NULL
+        AND owner.is_active = TRUE
+        AND owner.email_verified = TRUE
+        AND owner.onboarding_completed = TRUE
         AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
         AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
         AND COALESCE(fr.discovery_status, 'visible') = 'visible'

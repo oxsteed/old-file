@@ -133,6 +133,7 @@ function validLinkCountSql(viewerParam = null) {
     (l.link_type = 'tool_rental' AND EXISTS (
       SELECT 1 FROM tool_rentals tr
        WHERE tr.id::text = l.target_id AND tr.is_available = TRUE
+         AND NOT tr.moderation_hold
          AND ${activeMediaOwnerSql('tr.user_id', 'rental_link_owner')}${blocked('tr.user_id')}
     )) OR
     (l.link_type = 'direct_catalog' AND EXISTS (
@@ -144,6 +145,7 @@ function validLinkCountSql(viewerParam = null) {
        JOIN businesses b ON b.id = po.organizer_business_id
         AND b.deleted_at IS NULL AND b.is_active = TRUE
        WHERE po.id::text = l.target_id AND po.status IN ('open', 'pledging')
+         AND po.approval_state = 'approved'
          AND ${activeMediaOwnerSql('po.organizer_user_id', 'logistics_link_owner')}${blocked('po.organizer_user_id')}
          AND ${activeMediaOwnerSql('b.user_id', 'logistics_business_link_owner')}${blocked('b.user_id')}
     ))
@@ -495,6 +497,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
               'USD'::char(3) AS currency_code
          FROM tool_rentals tr
         WHERE tr.id = $1 AND tr.is_available = TRUE
+          AND NOT tr.moderation_hold
           AND ${activeMediaOwnerSql('tr.user_id', 'rental_target_owner')}
           ${linkViewerBlockPredicate('tr.user_id')}`, [targetId, viewerUserId]
     );
@@ -516,6 +519,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
          JOIN businesses b ON b.id = po.organizer_business_id
           AND b.deleted_at IS NULL AND b.is_active = TRUE
         WHERE po.id = $1 AND po.status IN ('open', 'pledging')
+          AND po.approval_state = 'approved'
           AND ${activeMediaOwnerSql('po.organizer_user_id', 'logistics_target_owner')}
           ${linkViewerBlockPredicate('po.organizer_user_id')}
           AND ${activeMediaOwnerSql('b.user_id', 'logistics_business_target_owner')}
@@ -2960,7 +2964,9 @@ async function searchMediaEntities(req, res) {
                 ROUND(COALESCE(daily_rate, hourly_rate) * 100)::int AS price_snapshot_cents,
                 'USD'::char(3) AS currency_code, NULL::text AS thumbnail_url
            FROM tool_rentals tr
-          WHERE tr.is_available = TRUE AND tr.name ILIKE $1
+          WHERE tr.is_available = TRUE
+            AND NOT tr.moderation_hold
+            AND tr.name ILIKE $1
             AND ${activeMediaOwnerSql('tr.user_id', 'rental_search_owner')}
             ${linkViewerBlockPredicate('tr.user_id', '$3')}
           ORDER BY tr.name LIMIT $2`, [like, limit, viewerUserId]
@@ -2983,7 +2989,9 @@ async function searchMediaEntities(req, res) {
            FROM pooled_orders po
            JOIN businesses b ON b.id = po.organizer_business_id
             AND b.deleted_at IS NULL AND b.is_active = TRUE
-          WHERE po.status IN ('open', 'pledging') AND po.title ILIKE $1
+          WHERE po.status IN ('open', 'pledging')
+            AND po.approval_state = 'approved'
+            AND po.title ILIKE $1
             AND ${activeMediaOwnerSql('po.organizer_user_id', 'logistics_search_owner')}
             AND ${activeMediaOwnerSql('b.user_id', 'logistics_business_search_owner')}
             ${linkViewerBlockPredicate('po.organizer_user_id', '$3')}

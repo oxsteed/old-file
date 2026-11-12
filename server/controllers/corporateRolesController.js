@@ -437,7 +437,7 @@ exports.createAssignment = async (req, res, next) => {
     // Verify target user exists AND is internal staff (corporate titles are
     // for internal staff only).
     const userRes = await client.query(
-      'SELECT id, role, is_active FROM users WHERE id = $1',
+      'SELECT id, role, is_active FROM users WHERE id = $1 AND deleted_at IS NULL',
       [user_id]
     );
     if (!userRes.rows.length) {

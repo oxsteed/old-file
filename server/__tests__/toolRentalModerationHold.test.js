@@ -120,5 +120,9 @@ describe('tool rental moderation hold', () => {
     const browseCall = mockQuery.mock.calls.find(([sql]) => /FROM tool_rentals t/i.test(sql));
     expect(browseCall).toBeTruthy();
     expect(browseCall[0]).toMatch(/AND NOT t\.moderation_hold/);
+    expect(browseCall[0]).toMatch(/u\.is_active = TRUE/);
+    expect(browseCall[0]).toMatch(/u\.deleted_at IS NULL/);
+    expect(browseCall[0]).toMatch(/u\.email_verified = TRUE/);
+    expect(browseCall[0]).toMatch(/u\.onboarding_completed = TRUE/);
   });
 });

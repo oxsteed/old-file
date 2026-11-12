@@ -14,7 +14,6 @@ import AddressAutocomplete from '../components/AddressAutocomplete';
 import {
   acceptDirectRequest,
   changeDirectRequest,
-  confirmDirectProof,
   payDirectWithCredit,
   checkDirectServiceAvailability,
   deleteDirectLocation,
@@ -1598,7 +1597,10 @@ function DirectCasePage({ mode }) {
       case 'book': return { title: t('directPortal.case.headers.book.title', { defaultValue: 'Schedule your visit' }), subtitle: t('directPortal.case.headers.book.subtitle', { defaultValue: 'Pick a time window and confirm the service address.' }) };
       case 'job': return { title: t('directPortal.case.headers.job.title', { defaultValue: 'Job status' }), subtitle: t('directPortal.case.headers.job.subtitle', { defaultValue: 'Track the request from quote to completion.' }) };
       case 'proof': return { title: t('directPortal.case.headers.proof.title', { defaultValue: 'Payment proof' }), subtitle: t('directPortal.case.headers.proof.subtitle', { defaultValue: 'Upload a receipt or reference so the payment stays attached.' }) };
-      case 'receipt': return { title: t('directPortal.case.headers.receipt.title', { defaultValue: 'Receipt confirmation' }), subtitle: t('directPortal.case.headers.receipt.subtitle', { defaultValue: 'Confirm that the proof has been received and tied to history.' }) };
+      // Payment confirmation is an operations action. Customers can inspect
+      // or update their proof here, while staff confirm it in the admin
+      // portal through the manage_operations-gated endpoint.
+      case 'receipt': return { title: t('directPortal.case.headers.proof.title', { defaultValue: 'Payment proof' }), subtitle: t('directPortal.case.headers.proof.subtitle', { defaultValue: 'Upload a receipt or reference so the payment stays attached.' }) };
       case 'change': return { title: t('directPortal.case.headers.change.title', { defaultValue: 'Cancel or reschedule' }), subtitle: t('directPortal.case.headers.change.subtitle', { defaultValue: 'Adjust the plan without restarting the entire flow.' }) };
       default: return { title: t('directPortal.common.directRequest', { defaultValue: 'Direct request' }), subtitle: t('directPortal.case.headers.default.subtitle', { defaultValue: 'Review and manage this case.' }) };
     }
@@ -1734,21 +1736,6 @@ function DirectCasePage({ mode }) {
     }
   };
 
-  const confirmProof = async () => {
-    if (!id) return;
-    setActionBusy(true);
-    try {
-      const { request: updated } = await confirmDirectProof(id, { note: t('directPortal.case.messages.receiptConfirmNote', { defaultValue: 'Confirmed from Direct portal.' }) });
-      setRequest(updated);
-      toast.success(t('directPortal.case.messages.receiptConfirmed', { defaultValue: 'Receipt confirmed.' }));
-      navigate(`/direct/history`);
-    } catch (error) {
-      toast.error(error?.response?.data?.error || t('directPortal.case.errors.confirmReceipt', { defaultValue: 'Could not confirm receipt.' }));
-    } finally {
-      setActionBusy(false);
-    }
-  };
-
   const locationOptions = Array.isArray(locationData.locations) ? locationData.locations : [];
 
   const title = header.title;
@@ -1822,9 +1809,6 @@ function DirectCasePage({ mode }) {
                 {mode === 'proof' && (
                   <button type="button" onClick={submitProof} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.24">{t('directPortal.case.actions.submitProof', { defaultValue: 'Submit proof' })}</button>
                 )}
-                {mode === 'receipt' && (
-                  <button type="button" onClick={confirmProof} disabled={actionBusy} className="rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.25">{t('directPortal.case.actions.confirmReceipt', { defaultValue: 'Confirm receipt' })}</button>
-                )}
                 {mode === 'change' && (
                   <>
                     <button type="button" onClick={() => saveChange('reschedule')} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" data-track="ui.274fdc7e8e.26">{t('directPortal.case.actions.reschedule', { defaultValue: 'Reschedule' })}</button>
@@ -1897,10 +1881,10 @@ function DirectCasePage({ mode }) {
                   {t('directPortal.case.fields.proofReceived', { defaultValue: 'Proof received' })}: <strong className="text-white">{request.proofReceivedAt ? formatDateTime(request.proofReceivedAt, i18n.resolvedLanguage) : t('directPortal.case.notYet', { defaultValue: 'Not yet' })}</strong>
                   <br />
                   {t('directPortal.thanks.referenceLabel', { defaultValue: 'Reference' })}: <strong className="text-white">{request.paymentReference || '—'}</strong>
+                  <p className="mt-3 text-slate-400">{t('directPortal.case.currentStatusSuffix', { defaultValue: 'We’ll keep the record in history as OxSteed reviews the payment proof.' })}</p>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <Link to={`/direct/payments/${id}/proof`} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.case.actions.openProofUpload', { defaultValue: 'Open proof upload' })}</Link>
-                  <button type="button" onClick={confirmProof} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white" data-track="ui.274fdc7e8e.30">{t('directPortal.case.actions.confirmReceipt', { defaultValue: 'Confirm receipt' })}</button>
                 </div>
               </div>
             )}

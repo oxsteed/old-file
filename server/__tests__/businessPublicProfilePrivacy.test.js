@@ -113,6 +113,8 @@ describe('getBusinessPublicProfile (public)', () => {
     // Public-safe fields still present
     expect(payload.business.business_name).toBe('Acme Services');
     expect(payload.business.profileUrl).toBe('/businesses/public/1');
+    const profileQuery = mockQuery.mock.calls.find(([sql]) => sql.includes('owner_first_name'))[0];
+    expect(profileQuery).toMatch(/u\.onboarding_completed = TRUE/);
   });
 
   test('team rows carry roles only, no member names', async () => {

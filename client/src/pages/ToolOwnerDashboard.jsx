@@ -20,6 +20,7 @@ import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
+import { deriveToolOwnerStats, upcomingToolOwnerHandoffs } from '../utils/toolOwnerDashboard';
 import {
   Wrench, Package, Clock, DollarSign, Star, TrendingUp,
   CheckCircle2, AlertCircle, Plus, ArrowRight,
@@ -28,13 +29,6 @@ import {
 function fmtCurrency(cents, currency = 'USD') {
   if (cents == null || isNaN(cents)) return '—';
   return new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 }).format(cents / 100);
-}
-
-function withinNextDays(iso, days) {
-  if (!iso) return false;
-  const d = new Date(iso).getTime();
-  const now = Date.now();
-  return d >= now && d <= now + days * 24 * 60 * 60 * 1000;
 }
 
 function StatTile({ icon, label, value, hint, accent = false }) {
@@ -80,40 +74,13 @@ export default function ToolOwnerDashboard() {
     return () => { cancelled = true; };
   }, []);
 
-  const stats = useMemo(() => {
-    const activeListings = listings.filter(l => l.is_active !== false).length;
-    const pending = bookings.filter(b => b.status === 'pending' || b.status === 'requested').length;
-    // Pickups/returns in the next 7 days
-    const upcomingPickups = bookings.filter(b => b.status === 'confirmed' && withinNextDays(b.start_date || b.start_at, 7)).length;
-    const upcomingReturns = bookings.filter(b => b.status === 'in_progress' && withinNextDays(b.end_date || b.end_at, 7)).length;
-    // Last 30 days completed bookings → estimated earnings in cents.
-    // P3-12-F11: booking rows carry total_price (DECIMAL), not amount_cents
-    // or total_amount. Payments are collected off-platform, so this is an
-    // estimate from booking totals, not a payout record.
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const earnings30 = bookings
-      .filter(b => (b.status === 'completed' || b.status === 'paid') && new Date(b.completed_at || b.end_date || b.created_at).getTime() >= thirtyDaysAgo)
-      .reduce((sum, b) => sum + Math.round((Number(b.total_price) || 0) * 100), 0);
-    // Avg rating across listings (server side calc on each tool row)
-    const rated = listings.filter(l => l.avg_rating != null && l.review_count > 0);
-    const avgRating = rated.length === 0
-      ? null
-      : (rated.reduce((s, l) => s + (Number(l.avg_rating) || 0) * (Number(l.review_count) || 0), 0) /
-         rated.reduce((s, l) => s + (Number(l.review_count) || 0), 0));
-    return { activeListings, pending, upcomingPickups, upcomingReturns, earnings30, avgRating };
-  }, [listings, bookings]);
+  const stats = useMemo(() => deriveToolOwnerStats(listings, bookings), [listings, bookings]);
 
   const pendingRequests = useMemo(
     () => bookings.filter(b => b.status === 'pending' || b.status === 'requested').slice(0, 5),
     [bookings],
   );
-  const upcomingHandoffs = useMemo(() => {
-    return bookings
-      .filter(b => (b.status === 'confirmed' && withinNextDays(b.start_date || b.start_at, 7))
-                || (b.status === 'in_progress' && withinNextDays(b.end_date || b.end_at, 7)))
-      .sort((a, b) => new Date(a.start_date || a.start_at) - new Date(b.start_date || b.start_at))
-      .slice(0, 6);
-  }, [bookings]);
+  const upcomingHandoffs = useMemo(() => upcomingToolOwnerHandoffs(bookings), [bookings]);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg, #030712)', color: 'var(--color-text, #f3f4f6)' }}>

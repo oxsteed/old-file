@@ -84,6 +84,8 @@ router.get('/sent', authenticate, async (req, res, next) => {
       FROM helper_quotes hq
       JOIN jobs j  ON j.id = hq.job_id
       JOIN users u ON u.id = j.client_id
+                  AND u.is_active = TRUE
+                  AND u.deleted_at IS NULL
       WHERE hq.helper_id = $1
       ORDER BY hq.created_at DESC
       LIMIT $2 OFFSET $3
@@ -114,6 +116,8 @@ router.get('/job/:jobId', authenticate, async (req, res, next) => {
              hp.avg_rating AS average_rating
       FROM helper_quotes hq
       JOIN users u ON u.id = hq.helper_id
+                   AND u.is_active = TRUE
+                   AND u.deleted_at IS NULL
       LEFT JOIN helper_profiles hp ON hp.user_id = hq.helper_id
       WHERE hq.job_id = $1
         AND ($2 OR hq.helper_id = $3)
@@ -138,6 +142,8 @@ router.get('/:id', authenticate, async (req, res, next) => {
       FROM helper_quotes hq
       JOIN jobs j  ON j.id = hq.job_id
       JOIN users u ON u.id = hq.helper_id
+                   AND u.is_active = TRUE
+                   AND u.deleted_at IS NULL
       LEFT JOIN helper_profiles hp ON hp.user_id = hq.helper_id
       WHERE hq.id = $1
         AND (hq.helper_id = $2 OR j.client_id = $2)
@@ -164,6 +170,9 @@ router.patch('/:id/status', authenticate, async (req, res, next) => {
     const check = await pool.query(`
       SELECT hq.id FROM helper_quotes hq
       JOIN jobs j ON j.id = hq.job_id
+      JOIN users helper ON helper.id = hq.helper_id
+                       AND helper.is_active = TRUE
+                       AND helper.deleted_at IS NULL
       WHERE hq.id = $1 AND j.client_id = $2 AND hq.status = 'sent'
     `, [req.params.id, userId]);
 

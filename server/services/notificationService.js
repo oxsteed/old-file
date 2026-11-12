@@ -115,6 +115,7 @@ exports.sendNotification = async ({
       FROM users u
       LEFT JOIN notification_preferences np ON np.user_id = u.id
       WHERE u.id = $1
+        AND u.deleted_at IS NULL
     `, [userId]);
     if (!prefRows.length) return { success: false, reason: 'user_not_found' };
 

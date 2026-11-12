@@ -8,6 +8,7 @@ import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import { useTranslation } from 'react-i18next';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
+import { createMessageRequestId } from '../../lib/messageRequestId';
 import '../lib/suggestDropdownAdmin.css';
 
 const adminApi = (path, opts) => api(path.startsWith('/api') ? path : `/admin${path}`, opts);
@@ -37,6 +38,9 @@ export default function AdminMessages() {
   const [sending,       setSending]       = useState(false);
   const [searchInput,   setSearchInput]   = useState('');
   const [listQuery,     setListQuery]     = useState('');
+  const [listOffset,    setListOffset]    = useState(0);
+  const [listPageSize,  setListPageSize]  = useState(100);
+  const [conversationTotal, setConversationTotal] = useState(0);
 
   // Deep link target captured once on mount: Customer 360 links land here
   // with ?conversation=<id> (the conversations.id from the shared
@@ -64,12 +68,21 @@ export default function AdminMessages() {
   const [showNewModal,  setShowNewModal]  = useState(false);
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
+  const pendingSendRef = useRef(null);
 
   // Debounce the conversation search so keystrokes don't fan out requests.
   useEffect(() => {
     const timer = setTimeout(() => setListQuery(searchInput), 300);
     return () => clearTimeout(timer);
   }, [searchInput]);
+
+  // A new search always starts at the first page and discards rows from the
+  // previous query before the replacement response arrives.
+  useEffect(() => {
+    setListOffset(0);
+    setConversations([]);
+    setConversationTotal(0);
+  }, [listQuery]);
 
   // Conversation list: abortable, sequence-guarded, with a real error state.
   const {
@@ -78,24 +91,46 @@ export default function AdminMessages() {
     loading: listLoading,
     reload: reloadConversations,
   } = useAbortableFetch(async (signal) => {
-    const { data } = await adminApi(`/messages/conversations?q=${encodeURIComponent(listQuery)}&limit=100`, { signal });
-    return data.conversations || [];
-  }, [listQuery]);
+    const { data } = await adminApi(
+      `/messages/conversations?q=${encodeURIComponent(listQuery)}&limit=100&offset=${listOffset}`,
+      { signal },
+    );
+    return {
+      rows: data.conversations || [],
+      total: Number(data.total || 0),
+      offset: Number(data.offset || 0),
+      limit: Number(data.limit || 100),
+    };
+  }, [listQuery, listOffset]);
 
   useEffect(() => {
-    if (conversationsData) setConversations(conversationsData);
+    if (!conversationsData) return;
+    const rows = conversationsData.rows || [];
+    setConversationTotal(conversationsData.total);
+    setListPageSize(conversationsData.limit || 100);
+    setConversations((previous) => {
+      if (conversationsData.offset === 0) return rows;
+      const merged = new Map(previous.map((conversation) => [conversation.id ?? conversation.user_id, conversation]));
+      rows.forEach((conversation) => merged.set(conversation.id ?? conversation.user_id, conversation));
+      return Array.from(merged.values());
+    });
   }, [conversationsData]);
 
   useEffect(() => {
     if (!socket) return;
-    const handler = () => reloadConversations();
+    const handler = () => {
+      // Realtime updates must refresh the first page so newly active threads
+      // are visible and a later page is not appended a second time.
+      if (listOffset === 0) reloadConversations();
+      else setListOffset(0);
+    };
     socket.on('admin:message', handler);
     socket.on('message:new',   handler);
     return () => {
       socket.off('admin:message', handler);
       socket.off('message:new',   handler);
     };
-  }, [socket, reloadConversations]);
+  }, [socket, reloadConversations, listOffset]);
 
   // Thread loading: abort in-flight fetches and ignore stale responses so a
   // slower earlier request can never clobber a newer thread.
@@ -138,8 +173,8 @@ export default function AdminMessages() {
   // conversation list has loaded, open the matching thread. If the id is
   // not in the loaded page the page simply stays on the list.
   useEffect(() => {
-    if (deepLinkConsumed || !deepLinkConversationId || !conversationsData) return;
-    const conv = conversationsData.find((c) => String(c.id) === String(deepLinkConversationId));
+    if (deepLinkConsumed || !deepLinkConversationId || !conversationsData?.rows) return;
+    const conv = conversationsData.rows.find((c) => String(c.id) === String(deepLinkConversationId));
     if (conv) openThread(conv);
     setDeepLinkConsumed(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -153,10 +188,20 @@ export default function AdminMessages() {
     e?.preventDefault();
     if (!selected || !message.trim() || sending) return;
     const content = message.trim();
+    const conversationKey = selected.conversation_id || `user:${selected.userId}`;
+    const pending = pendingSendRef.current;
+    const clientMessageId = pending
+      && pending.conversationKey === conversationKey
+      && pending.content === content
+      ? pending.clientMessageId
+      : createMessageRequestId();
+    pendingSendRef.current = { clientMessageId, conversationKey, content };
+    const optimisticId = `opt-${clientMessageId}`;
     setMessage('');
     setSending(true);
     const optimistic = {
-      id:              `opt-${Date.now()}`,
+      id:              optimisticId,
+      client_message_id: clientMessageId,
       sender_id:       user.id,
       content,
       message_type:    'system',
@@ -165,20 +210,29 @@ export default function AdminMessages() {
       sender_last_name:  user.last_name,
       sender_role:       user.role,
     };
-    setThread(prev => [...prev, optimistic]);
+    setThread(prev => prev.some(m => m.id === optimisticId)
+      ? prev.map(m => m.id === optimisticId ? { ...m, send_error: false } : m)
+      : [...prev, optimistic]);
     try {
       const { data } = await adminApi(`/messages/conversations/${selected.userId}/send`, {
         method: 'POST',
-        data:   { content },
+        headers: { 'Idempotency-Key': clientMessageId },
+        data:   { content, clientMessageId },
       });
+      pendingSendRef.current = null;
       setThread(prev => prev.map(m =>
-        m.id === optimistic.id ? { ...optimistic, id: data.message_id, created_at: data.created_at } : m
+        m.id === optimisticId ? { ...optimistic, id: data.message_id, created_at: data.created_at } : m
       ));
-      reloadConversations();
+      if (listOffset === 0) reloadConversations();
+      else setListOffset(0);
     } catch (err) {
-      // Roll back the optimistic bubble AND surface the failure: previously
-      // the message vanished silently with no indication it never sent.
-      setThread(prev => prev.filter(m => m.id !== optimistic.id));
+      // Keep the failed bubble and editable draft. Retrying unchanged content
+      // reuses the same client ID, so a response timeout cannot duplicate a
+      // message that the server already committed.
+      setMessage(current => current || content);
+      setThread(prev => prev.map(m =>
+        m.id === optimisticId ? { ...m, send_error: true } : m
+      ));
       toast.error(err?.response?.data?.error || t('adminMessages.sendFailed', { defaultValue: 'Message failed to send. Please try again.' }));
     } finally {
       setSending(false);
@@ -265,6 +319,11 @@ export default function AdminMessages() {
             ariaLabel={t('adminMessages.searchPlaceholder')}
             className="sd-admin-dark"
           />
+          {conversationTotal > 0 && (
+            <p className="mt-1 px-1 text-[11px] text-gray-500" aria-live="polite">
+              {t('adminMessages.showingCount', { count: conversations.length, total: conversationTotal })}
+            </p>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto">
           {listLoading && (
@@ -311,6 +370,15 @@ export default function AdminMessages() {
               )}
             </button>
           ))}
+          {!listLoading && !listError && conversations.length < conversationTotal && (
+            <button
+              type="button"
+              onClick={() => setListOffset((offset) => offset + listPageSize)}
+              className="w-full px-4 py-3 text-sm text-orange-600 dark:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            >
+              {t('adminMessages.loadMore')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -376,6 +444,11 @@ export default function AdminMessages() {
                         </p>
                       )}
                       <p className="whitespace-pre-wrap">{msg.content}</p>
+                      {msg.send_error && (
+                        <p className="mt-1 text-[10px] text-red-200" role="status">
+                          {t('adminMessages.sendFailed', { defaultValue: 'Message failed to send. Please try again.' })}
+                        </p>
+                      )}
                       <p className={`text-[10px] mt-1 ${isAdmin ? 'text-orange-200/70' : 'text-gray-500'}`}>
                         {formatTime(msg.created_at, i18n.resolvedLanguage || i18n.language, t)}
                         {isAdmin && (

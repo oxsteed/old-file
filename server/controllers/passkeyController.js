@@ -83,7 +83,8 @@ async function consumeChallenge(userId, purpose, challenge) {
 async function getAdmin(userId) {
   const { rows } = await db.query(
     `SELECT id, first_name, last_name, email, role, is_active, totp_enabled
-     FROM users WHERE id = $1 AND role IN ('admin', 'super_admin')`,
+     FROM users WHERE id = $1 AND role IN ('admin', 'super_admin')
+       AND deleted_at IS NULL`,
     [userId]
   );
   return rows[0] || null;

@@ -138,13 +138,19 @@ router.get('/', async (_req, res) => {
     const { rows: businesses } = await pool.query(
       `SELECT b.id, b.updated_at, b.profile_slug
        FROM businesses b
-       JOIN users u ON u.id = b.user_id AND u.deleted_at IS NULL AND u.is_active = TRUE
+       JOIN users u ON u.id = b.user_id
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
-       WHERE b.is_active = TRUE
+       WHERE b.deleted_at IS NULL
+         AND b.is_active = TRUE
+         AND b.is_listed = TRUE
+         AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+         AND b.setup_status = 'active'
+         AND b.business_kind = 'service'
+         AND u.deleted_at IS NULL
+         AND u.is_active = TRUE
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
          AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)
-         AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
        ORDER BY b.updated_at DESC NULLS LAST
       LIMIT 2000`,
     );
@@ -168,6 +174,7 @@ router.get('/', async (_req, res) => {
       `SELECT fr.id, fr.updated_at
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         JOIN users owner ON owner.id = b.user_id
         WHERE fr.status IN ('active', 'paused')
           AND fr.discovery_status = 'visible'
           AND b.is_active = TRUE
@@ -175,6 +182,10 @@ router.get('/', async (_req, res) => {
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL
+          AND owner.deleted_at IS NULL
+          AND owner.is_active = TRUE
+          AND owner.email_verified = TRUE
+          AND owner.onboarding_completed = TRUE
           AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
         ORDER BY fr.updated_at DESC NULLS LAST
         LIMIT 2000`,
@@ -185,8 +196,11 @@ router.get('/', async (_req, res) => {
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
         WHERE t.is_available = TRUE
+          AND NOT t.moderation_hold
           AND u.is_active = TRUE
           AND u.deleted_at IS NULL
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE
         ORDER BY t.updated_at DESC NULLS LAST
         LIMIT 5000`,
     );
@@ -197,6 +211,7 @@ router.get('/', async (_req, res) => {
         WHERE po.status IN ('open', 'pledging', 'deposit_phase', 'locked',
                             'placed', 'in_transit', 'receiving',
                             'distributing', 'completed')
+         AND po.approval_state = 'approved'
         ORDER BY po.updated_at DESC NULLS LAST
         LIMIT 2000`,
     );
@@ -209,6 +224,7 @@ router.get('/', async (_req, res) => {
       `SELECT o.id, o.updated_at
          FROM career_openings o
          LEFT JOIN businesses b ON b.id = o.business_id
+         LEFT JOIN users u ON u.id = b.user_id
         WHERE o.status = 'open'
           AND o.moderation_status = 'ok'
           AND o.is_internal = FALSE
@@ -216,7 +232,15 @@ router.get('/', async (_req, res) => {
           AND (COALESCE(o.applications_close_at, o.closes_at) IS NULL
                OR COALESCE(o.applications_close_at, o.closes_at) >= NOW())
           AND (o.employer_type = 'platform'
-               OR (b.deleted_at IS NULL AND b.is_active = TRUE))
+               OR (b.deleted_at IS NULL
+                   AND b.is_active = TRUE
+                   AND b.is_listed = TRUE
+                   AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+                   AND COALESCE(b.setup_status, 'active') = 'active'
+                   AND u.deleted_at IS NULL
+                   AND u.is_active = TRUE
+                   AND u.email_verified = TRUE
+                   AND u.onboarding_completed = TRUE))
         ORDER BY o.updated_at DESC NULLS LAST
         LIMIT 2000`,
     );
@@ -228,6 +252,7 @@ router.get('/', async (_req, res) => {
       `SELECT o.business_id AS id, MAX(o.updated_at) AS updated_at
          FROM career_openings o
          LEFT JOIN businesses b ON b.id = o.business_id
+         LEFT JOIN users u ON u.id = b.user_id
         WHERE o.business_id IS NOT NULL
           AND o.status = 'open'
           AND o.moderation_status = 'ok'
@@ -235,7 +260,15 @@ router.get('/', async (_req, res) => {
           AND (o.opens_at IS NULL OR o.opens_at <= NOW())
           AND (COALESCE(o.applications_close_at, o.closes_at) IS NULL
                OR COALESCE(o.applications_close_at, o.closes_at) >= NOW())
-          AND b.deleted_at IS NULL AND b.is_active = TRUE
+          AND b.deleted_at IS NULL
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
+          AND COALESCE(b.setup_status, 'active') = 'active'
+          AND u.deleted_at IS NULL
+          AND u.is_active = TRUE
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE
         GROUP BY o.business_id
         ORDER BY MAX(o.updated_at) DESC NULLS LAST
         LIMIT 2000`,

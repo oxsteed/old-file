@@ -19902,6 +19902,7 @@
     "fieldPrice": "ราคาฐาน",
     "fieldCapacity": "ความจุสูงสุด",
     "fieldNotice": "แจ้งล่วงหน้าขั้นต่ำ (ชั่วโมง)",
+    "fieldOnlineBooking": "Available for online booking",
     "fieldBuffer": "เวลาพักระหว่างนัดหมาย (นาที)",
     "bufferHint": "บล็อกเวลาก่อนและหลังนัดหมายแต่ละครั้งเพื่อไม่ให้การจองชนกัน",
     "bufferPrefix": "เวลาพัก:",

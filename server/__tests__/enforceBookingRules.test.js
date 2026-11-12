@@ -41,6 +41,7 @@ function baseDb({ service = {}, business = {} } = {}) {
           id: 9,
           business_id: 2,
           duration_minutes: 60,
+          base_price_cents: 5000,
           max_capacity: 1,
           min_notice_hours: 0,
           is_active: true,
@@ -53,7 +54,18 @@ function baseDb({ service = {}, business = {} } = {}) {
     if (/FROM businesses/.test(sql)) {
       return {
         rows: [{
-          id: 2, is_active: true, is_listed: true, is_hidden_by_admin: false, ...business,
+          id: 2,
+          is_active: true,
+          is_listed: true,
+          is_hidden_by_admin: false,
+          deleted_at: null,
+          setup_status: 'active',
+          business_kind: 'service',
+          owner_deleted_at: null,
+          owner_is_active: true,
+          owner_email_verified: true,
+          owner_onboarding_completed: true,
+          ...business,
         }],
       };
     }
@@ -104,6 +116,36 @@ describe('enforceBookingRules booking gates (P1-6-F03)', () => {
 
   test('403s when the business is inactive', async () => {
     baseDb({ business: { is_active: false } });
+    const req = validReq();
+    const res = mockRes();
+    const next = jest.fn();
+    await enforceBookingRules(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(403);
+    expect(res.body.code).toBe('business_not_bookable');
+  });
+
+  test('403s when the business is soft-deleted', async () => {
+    baseDb({ business: { deleted_at: new Date().toISOString() } });
+    const req = validReq();
+    const res = mockRes();
+    const next = jest.fn();
+    await enforceBookingRules(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(403);
+    expect(res.body.code).toBe('business_not_bookable');
+  });
+
+  test.each([
+    ['setup incomplete', { setup_status: 'pending' }],
+    ['non-service business', { business_kind: 'restaurant' }],
+    ['owner inactive', { owner_is_active: false }],
+    ['owner email unverified', { owner_email_verified: false }],
+    ['owner onboarding incomplete', { owner_onboarding_completed: false }],
+  ])('403s when the business is %s', async (_label, business) => {
+    baseDb({ business });
     const req = validReq();
     const res = mockRes();
     const next = jest.fn();

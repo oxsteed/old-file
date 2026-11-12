@@ -162,5 +162,8 @@ describe('business profile with cover visibility gate', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.profileUrl).toContain('/businesses/public/1');
+    const profileQuery = mockQuery.mock.calls.find(([sql]) => sql.includes('cover_image_url'))[0];
+    expect(profileQuery).toMatch(/u\.email_verified = TRUE/);
+    expect(profileQuery).toMatch(/u\.onboarding_completed = TRUE/);
   });
 });

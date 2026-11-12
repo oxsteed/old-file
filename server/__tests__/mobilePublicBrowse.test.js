@@ -106,6 +106,15 @@ describe('mobile public browse API', () => {
     expect(res.body.data.helpers[0].display_name).toBe('Test Helper');
     expect(mockQuery.mock.calls.some(([sql]) => /fr\.discovery_status = 'visible'/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /fmi\.publication_status = 'published'/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.filter(([sql]) => /food_restaurants/.test(sql)).every(([sql]) => /owner\.deleted_at IS NULL/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.filter(([sql]) => /food_restaurants/.test(sql)).every(([sql]) => /owner\.onboarding_completed = TRUE/.test(sql))).toBe(true);
+    const jobsSql = mockQuery.mock.calls.find(([sql]) => /FROM jobs j/.test(sql))[0];
+    expect(jobsSql).toMatch(/u\.deleted_at IS NULL/);
+    expect(jobsSql).toMatch(/u\.email_verified = TRUE/);
+    expect(jobsSql).toMatch(/u\.onboarding_completed = TRUE/);
+    expect(jobsSql).toMatch(/j\.expires_at IS NULL OR j\.expires_at > NOW/);
+    const helpersSql = mockQuery.mock.calls.find(([sql]) => /FROM users u/.test(sql) && /helper_profiles hp/.test(sql))[0];
+    expect(helpersSql).toMatch(/hp\.is_listed IS TRUE/);
   });
 
   test('keeps public nearby usable when optional browse tables are unavailable', async () => {
