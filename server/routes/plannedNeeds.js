@@ -4,6 +4,8 @@ const ctrl = require('../controllers/plannedNeedsController');
 
 // Projection must be declared before /:id routes to avoid param capture
 router.get('/suggestions',       authenticate, ctrl.getSuggestions);
+// Keep the static projection route before any future /:id GET route.
+router.get('/projection',        authenticate, ctrl.getProjection);
 
 // Templates (Task 9) - no auth needed for reading
 router.get('/templates',     authenticate, ctrl.getTemplates);
