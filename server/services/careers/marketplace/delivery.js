@@ -13,21 +13,36 @@ const { smsConfig } = require('../providers/config');
 
 const APP_URL = () => String(process.env.CLIENT_URL || process.env.APP_URL || 'https://oxsteed.com').replace(/\/+$/, '');
 
-async function sendPush(userId, { title, body, actionUrl }) {
+// Domain 8 #23: the send reports its actual outcome. The old code
+// swallowed every failure and the caller set push=true before the send
+// even ran, so a failed push/SMS came back reported as delivered.
+// Returns true only when at least one channel actually delivered: a
+// web-push result with a success, or a mobile send that resolved with
+// at least one sent token. A throw, an empty subscription set, or an
+// unconfigured channel counts as not delivered.
+async function sendPush(userId, { title, body, actionUrl, tag }) {
+  let sent = false;
   try {
     // eslint-disable-next-line global-require
     const { sendPushToUser } = require('../../../utils/pushNotification');
-    await sendPushToUser(userId, { title, body, url: actionUrl, tag: 'careers' });
+    const results = await sendPushToUser(userId, { title, body, url: actionUrl, tag });
+    if (Array.isArray(results) && results.some((r) => r && r.success)) sent = true;
   } catch (err) {
     logger.warn('careers push failed', { error: err.message });
   }
   try {
     // eslint-disable-next-line global-require
     const mobile = require('../../mobilePushService');
-    if (mobile.isConfigured()) await mobile.sendToUser(userId, { title, body, action_url: actionUrl, data: { careers: '1' } });
+    if (mobile.isConfigured()) {
+      const result = await mobile.sendToUser(userId, {
+        title, body, action_url: actionUrl, data: { careers: '1', tag },
+      });
+      if (!result || result.sent == null || Number(result.sent) > 0) sent = true;
+    }
   } catch (err) {
     logger.warn('careers mobile push failed', { error: err.message });
   }
+  return sent;
 }
 
 async function smsAllowed(db, userId) {
@@ -64,14 +79,17 @@ async function deliver(db, { userId, type, params = {}, actionUrl = null, delive
     const { rows: [u] } = await db.query('SELECT preferred_language FROM users WHERE id = $1', [userId]);
     text = render(type, u?.preferred_language, params);
   }
+  // Domain 8 #23: await the sends and report their actual outcomes
+  // (true only when the send resolved successfully). The per-event tag
+  // is the delivery key, so distinct alerts no longer collapse into
+  // one 'careers' notification (Nov 11 mobile-audit M3 pattern).
+  const tag = `careers:${deliveryKey || type}`;
   if (set.has('push') && text) {
-    push = true;
-    sendPush(userId, { title: text.title, body: text.body, actionUrl }).catch(() => {});
+    push = await sendPush(userId, { title: text.title, body: text.body, actionUrl, tag });
   }
   if (set.has('sms') && text && await smsAllowed(db, userId)) {
-    sms = true;
     const link = actionUrl ? ` ${APP_URL()}${actionUrl}` : '';
-    sendSms(userId, `${text.title}${link}`).catch(() => {});
+    sms = Boolean(await sendSms(userId, `${text.title}${link}`));
   }
   return { ...result, push, sms };
 }
