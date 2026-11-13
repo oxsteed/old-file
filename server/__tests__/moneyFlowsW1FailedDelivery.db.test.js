@@ -209,6 +209,14 @@ ddescribe('Money flows W1: a failed delivery stays failed and retryable', () => 
     const failedRow = await deliveryRow(manualId);
     expect(failedRow.status).toBe('failed');
     expect(await lastBusinessDate(manualId)).toBeNull();
+    // Money-flows W8: run-now has a 60s per-schedule cooldown, and the
+    // stamp is the attempt (failed or not). The failed delivery stays
+    // retryable, but the retry happens after the cooldown lapses, so
+    // move the stamp back instead of hammering the endpoint.
+    await pool.query(
+      `UPDATE restaurant_scheduled_reports SET last_run_at = NOW() - INTERVAL '61 seconds' WHERE id = $1`,
+      [manualId],
+    );
     const res2 = { json: jest.fn(), status: jest.fn().mockReturnThis() };
     const next2 = jest.fn();
     await complianceController.runScheduledReportNow(req, res2, next2);
