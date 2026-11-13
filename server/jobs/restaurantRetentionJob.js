@@ -62,6 +62,26 @@ async function anonymizePerson(db, { businessId, userId, retainUntil }) {
   return { skipped: false, ...totals };
 }
 
+// Money flows W10: record the sweep's auto-completed erasure row.
+// The partial unique index idx_erasure_requests_completed_dedupe
+// (business_id, user_id) WHERE status = 'completed' is the dedupe:
+// two overlapping sweeps can both pass the NOT EXISTS check, and the
+// loser must dedupe instead of inserting a second completed row (or
+// erroring on 23505). ON CONFLICT DO NOTHING against the partial
+// index returns no row for the loser; the caller counts only a real
+// insert. Returns { inserted: true/false }.
+async function recordAutoCompletedErasure(db, { businessId, userId, outcome } = {}) {
+  const { rows } = await db.query(
+    `INSERT INTO restaurant_erasure_requests
+       (business_id, user_id, requested_by, status, reason, completed_at, outcome)
+     VALUES ($1, $2, NULL, 'completed', 'retention_expired_auto', NOW(), $3::jsonb)
+     ON CONFLICT (business_id, user_id) WHERE status = 'completed' DO NOTHING
+     RETURNING id`,
+    [businessId, userId, JSON.stringify(outcome || {})]
+  );
+  return { inserted: rows.length > 0 };
+}
+
 async function sweep(db = pool) {
   const result = { completedRequests: 0, autoAnonymized: 0, skipped: 0, errors: [] };
   // 1. Approved erasure requests past retention.
@@ -121,13 +141,17 @@ async function sweep(db = pool) {
         retainUntil: person.retain_until,
       });
       if (outcome.skipped) { result.skipped += 1; continue; }
-      await db.query(
-        `INSERT INTO restaurant_erasure_requests
-           (business_id, user_id, requested_by, status, reason, completed_at, outcome)
-         VALUES ($1, $2, NULL, 'completed', 'retention_expired_auto', NOW(), $3::jsonb)`,
-        [person.business_id, person.user_id, JSON.stringify(outcome)]
-      );
-      result.autoAnonymized += 1;
+      // Money flows W10: the insert dedupes on the completed-rows
+      // index. A concurrent sweep that completed this person first
+      // makes this insert a no-op (inserted:false); the person is
+      // anonymized either way, so count only a real insert and
+      // record no error.
+      const { inserted } = await recordAutoCompletedErasure(db, {
+        businessId: Number(person.business_id),
+        userId: person.user_id,
+        outcome,
+      });
+      if (inserted) result.autoAnonymized += 1;
     } catch (err) {
       result.errors.push({ user_id: person.user_id, error: err.message });
       logger.error('Retention sweep auto-anonymize failed', { userId: person.user_id, error: err.message });
@@ -165,6 +189,7 @@ function startRestaurantRetentionJob() {
 module.exports = {
   startRestaurantRetentionJob,
   runRestaurantRetentionJob,
+  recordAutoCompletedErasure,
   sweep,
   cronExpression: CRON_EXPRESSION,
 };
