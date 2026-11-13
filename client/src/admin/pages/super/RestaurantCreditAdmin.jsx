@@ -429,6 +429,10 @@ function HistorySection({ title, count, children }) {
 
 function ConversionPolicySection({ restaurants }) {
   const { t } = useTranslation();
+  const { t: tCredit } = useTranslation('credit');
+  // Domain 7 #9: a conversion-policy toggle queues a pending action, so the
+  // maker proves a fresh step-up first; the dialog below collects the code.
+  const { dialog, requestDialog, resolveDialog } = useCreditDialog();
   const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
   const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -462,8 +466,20 @@ function ConversionPolicySection({ restaurants }) {
       allowRestaurantToOxsteed: allow,
     };
     try {
+      // Domain 7 #9: the maker proves a fresh step-up before the toggle
+      // queues; without the code the PUT never goes out.
+      const stepup = await requestStepupChallengeCode({
+        requestDialog,
+        setNotice,
+        setError,
+        t: tCredit,
+        actionType: 'pending_action_request',
+        description: tCredit('creditStepupConfirmDescription'),
+      });
+      if (!stepup) return;
       await adminApi.put('/admin/super/oxsteed-credit/restaurant-conversion-policies', {
         ...keyPayload,
+        ...stepup,
       }, {
         headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-restaurant-conversion-policy', keyPayload) },
       });
@@ -478,6 +494,7 @@ function ConversionPolicySection({ restaurants }) {
   };
 
   return (
+    <>
     <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
       <SectionHeader
         eyebrow={t('adminConversionPolicyEyebrow')}
@@ -538,6 +555,8 @@ function ConversionPolicySection({ restaurants }) {
         )}
       </div>
     </section>
+    <AdminActionDialog dialog={dialog} onResolve={resolveDialog} />
+    </>
   );
 }
 

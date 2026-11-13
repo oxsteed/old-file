@@ -44,13 +44,13 @@ function SectionShell({ icon: Icon, eyebrow, title, detail, action, children }) 
   </section>;
 }
 
-function StepupPrompt({ t, pending, code, setCode, onConfirm, onCancel, busy }) {
+function StepupPrompt({ t, pending, code, setCode, onConfirm, onCancel, busy, confirmLabel }) {
   return <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
     <p className="text-xs text-amber-200">{t('moneyOut.stepupPrompt')}</p>
     <p className="mt-1 font-mono text-[10px] text-gray-500">{t('moneyOut.challengeExpires', { defaultValue: 'Challenge expires' })}: {dateTime(pending.expiresAt, t)}</p>
     <div className="mt-2 flex flex-wrap items-center gap-2">
       <input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 12))} inputMode="numeric" placeholder={t('moneyOut.stepupCodePlaceholder')} className="w-44 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 font-mono text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-600 focus:border-amber-400" />
-      <button type="button" onClick={onConfirm} disabled={busy || code.length < 4} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">{t('moneyOut.confirmApprove', { defaultValue: 'Confirm approval' })}</button>
+      <button type="button" onClick={onConfirm} disabled={busy || code.length < 4} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">{confirmLabel || t('moneyOut.confirmApprove', { defaultValue: 'Confirm approval' })}</button>
       <button type="button" onClick={onCancel} disabled={busy} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('moneyOut.cancel', { defaultValue: 'Cancel' })}</button>
     </div>
   </div>;
@@ -69,6 +69,10 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
   const [notice, setNotice] = useState('');
   const [pendingApproval, setPendingApproval] = useState(null);
   const [stepupCode, setStepupCode] = useState('');
+  // Domain 7 #9: fee-schedule saves queue a pending action, so the maker
+  // proves a fresh step-up first; the challenge is held here until the
+  // code is entered.
+  const [pendingFeeSave, setPendingFeeSave] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
@@ -206,24 +210,51 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
       setError(t('moneyOut.errors.feeNumbers', { defaultValue: 'Fee values must be whole numbers of cents (max may be blank for no cap).' }));
       return;
     }
+    // Domain 7 #9: a fee-schedule save queues a pending action, so the
+    // maker proves a fresh step-up first; the PUT goes out only after the
+    // code is entered in the prompt below.
+    setSaving(true);
+    setError('');
+    try {
+      const feePayload = {
+        fixedCents, percentageBps, minFeeCents, maxFeeCents,
+        reason: 'Fee schedule updated from the admin money-out page',
+      };
+      const response = await adminApi.post('/admin/super/oxsteed-credit/stepup-challenges', {
+        actionType: 'pending_action_request',
+      });
+      setPendingFeeSave({ rowId: row.id, feePayload, challengeId: response.data?.challenge?.id, expiresAt: response.data?.challenge?.expiresAt });
+      setStepupCode('');
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('moneyOut.errors.issueChallenge', { defaultValue: 'Could not issue a verification challenge.' })));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmFeeSave = async () => {
+    if (!pendingFeeSave) return;
+    const { rowId, feePayload } = pendingFeeSave;
     setSaving(true);
     setError('');
     try {
       // ADM-017: requestPendingAction requires an Idempotency-Key; without it
       // the server 400s every attempt.
-      const feePayload = {
-        fixedCents, percentageBps, minFeeCents, maxFeeCents,
-        reason: 'Fee schedule updated from the admin money-out page',
-      };
-      const response = await adminApi.put(`/admin/super/oxsteed-credit/fee-schedule/${row.id}`, feePayload, {
-        headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-fee-schedule', { id: row.id, ...feePayload }) },
+      const response = await adminApi.put(`/admin/super/oxsteed-credit/fee-schedule/${rowId}`, {
+        ...feePayload,
+        stepupChallengeId: pendingFeeSave.challengeId,
+        stepupCode,
+      }, {
+        headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-fee-schedule', { id: rowId, ...feePayload }) },
       });
-      idempotencyKeysRef.current.clear('credit-fee-schedule', { id: row.id, ...feePayload });
+      idempotencyKeysRef.current.clear('credit-fee-schedule', { id: rowId, ...feePayload });
       // Phase 7 (gap 9): fee schedule updates now queue as pending actions
       // for a second admin instead of applying immediately; 202 means queued.
       setNotice(response.status === 202
         ? t('moneyOut.feeQueued', { defaultValue: 'Fee schedule change queued. A second admin must approve it before it takes effect.' })
         : t('moneyOut.feeSaved', { defaultValue: 'Fee schedule updated.' }));
+      setPendingFeeSave(null);
+      setStepupCode('');
       await loadFees();
     } catch (err) {
       setError(safeCreditErrorMessage(err, t('moneyOut.errors.saveFee', { defaultValue: 'Could not save the fee schedule.' })));
@@ -330,6 +361,7 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
           </tbody>
         </table>
       </div>
+      {pendingFeeSave && <StepupPrompt t={t} pending={pendingFeeSave} code={stepupCode} setCode={setStepupCode} onConfirm={confirmFeeSave} onCancel={() => { setPendingFeeSave(null); setStepupCode(''); }} busy={busy || saving} confirmLabel={t('moneyOut.save', { defaultValue: 'Save' })} />}
     </SectionShell>
 
     <SectionShell
