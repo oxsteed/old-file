@@ -34,10 +34,20 @@ export default function Anomalies({ api, copy, when, viewerKey }) {
     setKinds(a.data.kinds);
     setWatches(w.data.watches);
   };
+  // Domain 1 #13: the load is re-runnable so the error branch can offer a
+  // retry instead of relying on toggling a status filter to re-fetch.
+  const reload = async (signal) => {
+    setState("loading");
+    try {
+      await load(signal);
+      if (!signal?.aborted) setState("ready");
+    } catch {
+      if (!signal?.aborted) setState("error");
+    }
+  };
   useEffect(() => {
     const c = new AbortController();
-    setState("loading");
-    load(c.signal).then(() => !c.signal.aborted && setState("ready")).catch(() => !c.signal.aborted && setState("error"));
+    reload(c.signal);
     return () => c.abort();
   }, [api, viewerKey, statuses.join()]);
   const submit = async (e) => {
@@ -90,7 +100,12 @@ export default function Anomalies({ api, copy, when, viewerKey }) {
         ))}
       </fieldset>
       {state === "loading" && <p role="status">{copy("loading")}</p>}
-      {state === "error" && <p role="alert">{copy("loadFailed")}</p>}
+      {state === "error" && (
+        <p role="alert">
+          {copy("loadFailed")}{" "}
+          <button type="button" onClick={() => reload()}>{copy("retry")}</button>
+        </p>
+      )}
       {state === "ready" && !kinds.length && <p>{copy("anomalies.noAccess")}</p>}
       {state === "ready" && kinds.length > 0 && !rows.length && <p>{copy("anomalies.empty")}</p>}
       <ul className="c360u-events">

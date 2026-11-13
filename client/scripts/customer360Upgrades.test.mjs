@@ -107,3 +107,11 @@ test("domain 1 #5: Queues per-customer load failure offers a retry that re-runs 
   assert.match(queues, /onClick=\{\(\) => reloadMine\(\)\}/);
   assert.match(queues, /const reloadMine[\s\S]{0,400}?await loadMine\(signal\)/);
 });
+
+test("domain 1 #13: Anomalies and AnomalyQueue error states offer a retry", () => {
+  for (const f of ["Anomalies.jsx", "AnomalyQueue.jsx"]) {
+    const s = src(`admin/pages/customer360/upgrades/${f}`);
+    assert.match(s, /state === "error" && \([\s\S]{0,400}?copy\("retry"\)/, f);
+    assert.match(s, /onClick=\{\(\) => reload\(\)\}/, f);
+  }
+});
