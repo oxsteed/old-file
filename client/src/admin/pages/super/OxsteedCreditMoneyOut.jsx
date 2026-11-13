@@ -73,6 +73,10 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
   // proves a fresh step-up first; the challenge is held here until the
   // code is entered.
   const [pendingFeeSave, setPendingFeeSave] = useState(null);
+  // Domain 7 #18: rejecting a withdrawal finally denies a customer payout,
+  // so it carries the same step-up bar as approving one; the challenge is
+  // held here until the code is entered.
+  const [pendingReject, setPendingReject] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
@@ -178,11 +182,39 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
       setError(t('moneyOut.errors.rejectReasonRequired', { defaultValue: 'A reason is required to reject a withdrawal. It is recorded in the audit log.' }));
       return;
     }
+    // Domain 7 #18: rejecting finally denies a customer payout, so the
+    // maker proves a fresh amount-bound step-up first, like approve; the
+    // reject posts only after the code is entered in the prompt below.
     setSaving(true);
     setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/withdrawals/${rejectTarget.id}/reject`, { reason: rejectReason.trim() });
+      const response = await adminApi.post('/admin/super/oxsteed-credit/stepup-challenges', {
+        actionType: 'withdrawal',
+        amountCents: rejectTarget.amountCents,
+        currencyCode: rejectTarget.currencyCode,
+      });
+      setPendingReject({ withdrawalId: rejectTarget.id, challengeId: response.data?.challenge?.id, expiresAt: response.data?.challenge?.expiresAt });
+      setStepupCode('');
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('moneyOut.errors.issueChallenge', { defaultValue: 'Could not issue a verification challenge.' })));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmRejectWithdrawal = async () => {
+    if (!pendingReject || !rejectTarget) return;
+    setSaving(true);
+    setError('');
+    try {
+      await adminApi.post(`/admin/super/oxsteed-credit/withdrawals/${pendingReject.withdrawalId}/reject`, {
+        reason: rejectReason.trim(),
+        stepupChallengeId: pendingReject.challengeId,
+        stepupCode,
+      });
       setNotice(t('moneyOut.rejected', { defaultValue: 'Withdrawal rejected.' }));
+      setPendingReject(null);
+      setStepupCode('');
       setRejectTarget(null);
       setRejectReason('');
       await loadWithdrawals();
@@ -306,7 +338,7 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
                   <td className="px-3 py-3">
                     {w.status === 'requested' && <div className="flex flex-wrap gap-2">
                       <button disabled={busy || saving} onClick={() => issueApprovalChallenge(w)} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('moneyOut.approve', { defaultValue: 'Approve' })}</button>
-                      <button disabled={busy || saving} onClick={() => { setRejectTarget(w); setRejectReason(''); }} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('moneyOut.reject', { defaultValue: 'Reject' })}</button>
+                      <button disabled={busy || saving} onClick={() => { setRejectTarget(w); setRejectReason(''); setPendingReject(null); setStepupCode(''); }} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('moneyOut.reject', { defaultValue: 'Reject' })}</button>
                     </div>}
                   </td>
                 </tr>)}
@@ -320,9 +352,10 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder={t('moneyOut.rejectReasonPlaceholder', { defaultValue: 'Reason (shown in the audit log)' })} className="w-72 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-600 focus:border-red-400" />
           <button type="button" onClick={rejectWithdrawal} disabled={busy || saving} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-500 disabled:opacity-50">{t('moneyOut.confirmReject', { defaultValue: 'Confirm rejection' })}</button>
-          <button type="button" onClick={() => { setRejectTarget(null); setRejectReason(''); }} disabled={busy || saving} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('moneyOut.cancel', { defaultValue: 'Cancel' })}</button>
+          <button type="button" onClick={() => { setRejectTarget(null); setRejectReason(''); setPendingReject(null); setStepupCode(''); }} disabled={busy || saving} className="rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('moneyOut.cancel', { defaultValue: 'Cancel' })}</button>
         </div>
       </div>}
+      {pendingReject && <StepupPrompt t={t} pending={pendingReject} code={stepupCode} setCode={setStepupCode} onConfirm={confirmRejectWithdrawal} onCancel={() => { setPendingReject(null); setStepupCode(''); }} busy={busy || saving} confirmLabel={t('moneyOut.confirmReject', { defaultValue: 'Confirm rejection' })} />}
     </SectionShell>
 
     <SectionShell

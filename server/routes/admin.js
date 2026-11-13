@@ -897,8 +897,34 @@ router.post('/super/oxsteed-credit/withdrawals/:id/approve', requireSuperAdmin, 
     sendPendingActionResult(res, result, 200);
   } catch (err) { next(err); }
 });
-router.post('/super/oxsteed-credit/withdrawals/:id/reject', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.post('/super/oxsteed-credit/withdrawals/:id/reject', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
+    // Domain 7 #18: reject finally denies a customer payout, so it carries
+    // the same bar as approve on this page: rejectImpersonated plus an
+    // amount-bound maker step-up.
+    let withdrawalExpectedAmount = null;
+    try {
+      const { rows: withdrawalRows } = await require('../db').query(
+        'SELECT amount_cents FROM oxsteed_credit_withdrawals WHERE id = $1',
+        [req.params.id]
+      );
+      if (withdrawalRows.length) {
+        const n = Number(withdrawalRows[0].amount_cents);
+        if (Number.isSafeInteger(n) && n > 0) withdrawalExpectedAmount = n;
+      }
+    } catch (preReadError) {
+      // Domain 7 #19: a failed amount pre-read fails closed instead of
+      // proceeding with an unbound challenge.
+      require('../utils/logger').warn('admin.withdrawal reject stepup pre-read failed, failing closed', { withdrawalId: req.params.id, error: preReadError.message });
+      throw new AppError('Could not read the withdrawal amount for step-up binding; retry the rejection', 503, 'credit_stepup_amount_preread_failed');
+    }
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'withdrawal',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+      ...(withdrawalExpectedAmount !== null ? { expectedAmountCents: withdrawalExpectedAmount } : {}),
+    });
     const withdrawal = await oxsteedCreditWithdrawalService.rejectWithdrawal({
       withdrawalId: req.params.id,
       actorUserId: req.user?.id || null,
