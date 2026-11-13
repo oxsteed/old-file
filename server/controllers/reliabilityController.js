@@ -101,9 +101,40 @@ async function getBudgets(req, res) {
   }
 }
 
+/**
+ * GET /admin/super/reliability/fleet-workers
+ * Read-only snapshot of the scheduled fleet worker heartbeats.
+ *
+ * Domain 7 #15: getFleetWorkerHeartbeats() was exported but had no reader.
+ * The getter is required lazily so this controller does not pull the whole
+ * worker graph (learn/enforcement/statement jobs) into every importer.
+ *
+ * Honest limits, by design (see scheduledWorkerSchedule.js): the state is
+ * per-process in-memory and resets on restart. In combined mode the API
+ * process runs the scheduled workers, so this list is live; in
+ * dedicated-worker mode this process runs none and the list is empty — the
+ * worker process holds the state. Failures still surface as incidents
+ * (critical scheduled_worker_failed, warning skipped-streak), so this
+ * endpoint is visibility, not the failure signal.
+ */
+async function getFleetWorkers(req, res) {
+  try {
+    const { getFleetWorkerHeartbeats } = require('../workers/scheduledWorkerSchedule');
+    return sendSuccess(res, {
+      workers: getFleetWorkerHeartbeats(),
+      perProcess: true,
+      note: 'Fleet worker heartbeats from this process only. State is per-process in-memory and resets on restart; in dedicated-worker mode this list is empty and the worker process holds the state. Failures still raise incidents.',
+    });
+  } catch (err) {
+    logger.error('reliability.getFleetWorkers failed', { error: err.message });
+    return sendError(res, 500, 'Could not load fleet worker heartbeats.', 'fleet_workers_unavailable');
+  }
+}
+
 module.exports = {
   listReleases,
   createRelease,
   listMigrations,
   getBudgets,
+  getFleetWorkers,
 };

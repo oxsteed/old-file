@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Rocket, GitBranch, Plug, Gauge, Plus, RefreshCw, RotateCcw,
+  Rocket, GitBranch, Plug, Gauge, Activity, Plus, RefreshCw, RotateCcw,
   Send, AlertTriangle, CheckCircle, Loader2, ChevronRight,
 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
@@ -9,7 +9,7 @@ import { useAbortableFetch } from '../../../lib/useAbortableFetch';
 import AdminErrorState from '../../../lib/AdminErrorState';
 import { adminDate } from '../../../lib/formatters';
 
-const TABS = ['releases', 'migrations', 'integrations', 'budgets'];
+const TABS = ['releases', 'migrations', 'integrations', 'budgets', 'workers'];
 const QUEUE_KEYS = ['queue:payment-capture', 'queue:stripe-webhook', 'queue:notifications'];
 
 function ts(d, fallback = '-') {
@@ -511,6 +511,71 @@ function BudgetsTab() {
   );
 }
 
+// ── Workers tab ─────────────────────────────────────────────────────────────
+// Domain 7 #15: fleet worker heartbeats, read-only. The endpoint note says
+// it plainly, and so does this tab: the state is per-process and resets on
+// restart, so an empty list in dedicated-worker mode means "not this
+// process", not "no workers".
+
+function WorkersTab() {
+  const { t } = useTranslation();
+  const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
+    const { data: body } = await adminApi.get('/admin/super/reliability/fleet-workers', { signal });
+    return body || { workers: [] };
+  }, []);
+
+  const workers = data?.workers || [];
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-600 dark:text-gray-400">{t('wsReliability.workers.note')}</p>
+        <button
+          type="button"
+          onClick={reload}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
+        >
+          <RefreshCw size={15} /> {t('common.refresh')}
+        </button>
+      </div>
+      {loading && <p className="text-sm text-gray-500">{t('common.loading')}</p>}
+      {error && <AdminErrorState onRetry={reload} />}
+      {!loading && !error && workers.length === 0 && (
+        <p className="text-sm text-gray-500">{t('wsReliability.workers.empty')}</p>
+      )}
+      {!loading && !error && workers.length > 0 && (
+        <Panel>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <TableHead columns={[
+                t('wsReliability.workers.worker'),
+                t('wsReliability.workers.lastRun'),
+                t('wsReliability.workers.lastSuccess'),
+                t('wsReliability.workers.lastOutcome'),
+                t('wsReliability.workers.skips'),
+                t('wsReliability.workers.failures'),
+                t('wsReliability.workers.interval'),
+              ]} />
+              <tbody>
+                {workers.map((w) => (
+                  <tr key={w.worker} className="border-b border-gray-200 dark:border-gray-800 last:border-0">
+                    <td className="px-5 py-3 font-medium text-gray-900 dark:text-white">{w.worker}</td>
+                    <td className="px-5 py-3 text-gray-700 dark:text-gray-300">{ts(w.lastRunAt)}</td>
+                    <td className="px-5 py-3 text-gray-700 dark:text-gray-300">{ts(w.lastSuccessAt)}</td>
+                    <td className="px-5 py-3 text-gray-700 dark:text-gray-300">{w.lastOutcome || '-'}</td>
+                    <td className="px-5 py-3 text-gray-700 dark:text-gray-300">{w.consecutiveSkips ?? '-'}</td>
+                    <td className="px-5 py-3 text-gray-700 dark:text-gray-300">{w.consecutiveFailures ?? '-'}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400">{w.intervalMs != null ? `${Math.round(w.intervalMs / 1000)}s` : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
+    </div>
+  );
+}
+
 // ── page ────────────────────────────────────────────────────────────────────
 
 const TAB_META = {
@@ -518,6 +583,7 @@ const TAB_META = {
   migrations:   { icon: GitBranch, labelKey: 'wsReliability.tabs.migrations' },
   integrations: { icon: Plug,      labelKey: 'wsReliability.tabs.integrations' },
   budgets:      { icon: Gauge,     labelKey: 'wsReliability.tabs.budgets' },
+  workers:      { icon: Activity,  labelKey: 'wsReliability.tabs.workers' },
 };
 
 export default function ReliabilityPage() {
@@ -556,6 +622,7 @@ export default function ReliabilityPage() {
       {tab === 'migrations' && <MigrationsTab />}
       {tab === 'integrations' && <IntegrationsTab />}
       {tab === 'budgets' && <BudgetsTab />}
+      {tab === 'workers' && <WorkersTab />}
     </div>
   );
 }
