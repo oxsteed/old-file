@@ -988,7 +988,15 @@ async function startServer() {
   await listen();
   runtime.markListening();
   // Preserve post-listen startup, with every stop owned by the shared runtime.
-  await startWorkerOwnerExtras();
+  // Domain 1 audit item 6: only the advisory-lock owner may start the
+  // worker-owner extras here. A standby replacement boots with owned false,
+  // so it must skip this call entirely; the onOwnerAcquired hook starts the
+  // extras when (and if) it later wins the lock. startWorkerOwnerExtras()
+  // re-checks ownership itself, so this is the call-site half of the same
+  // rule. (The web role's DelegatedWorkers has no .owned flag and never
+  // starts the extras; the in-function runsBackgroundWorkers() check covers
+  // it.)
+  if (runtime.workers.owned) await startWorkerOwnerExtras();
   logger.info(`OxSteed v2 server running on port ${PORT}`, {
     env: process.env.NODE_ENV || 'development',
     realtimeNamespaces: ['/chat', '/support', '/restaurant-display'],
