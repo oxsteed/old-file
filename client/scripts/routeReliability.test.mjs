@@ -203,7 +203,11 @@ test('service worker is release-versioned and does not cache arbitrary HTML navi
   const end = sw.indexOf('// ── Web Push', start);
   const navigation = sw.slice(start, end);
   assert.doesNotMatch(navigation, /cache\.put/);
-  assert.match(navigation, /caches\.match\('\/offline\.html'\)/);
+  // M15: the handler serves the cached offline page through errorPage (which
+  // does caches.match(path)), and the trouble page with a 503 on a server 5xx.
+  assert.match(navigation, /errorPage\('\/offline\.html'/);
+  assert.match(navigation, /errorPage\('\/trouble\.html'/);
+  assert.match(navigation, /caches\.match\(path\)/);
 });
 
 function serviceWorker({ fetch: fetchImpl = async () => new Response('ok'), caches: cacheImpl = {} } = {}) {
