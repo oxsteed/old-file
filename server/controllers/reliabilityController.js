@@ -131,10 +131,69 @@ async function getFleetWorkers(req, res) {
   }
 }
 
+/**
+ * GET /admin/super/reliability/current-release
+ * Running release vs recorded release history.
+ *
+ * Domain 7 #4: a failed deploy / worker handoff had no admin-visible
+ * signal. The controller runs host-side under launchd with no DB access
+ * and its state file is not visible to the server container, so the
+ * server cannot read the controller's failure statuses directly. What it
+ * can do is surface the release identity it does know: the running
+ * release metadata (same getReleaseMetadata() behind /ready) against the
+ * last recorded release_history row and the last known-good ('deployed')
+ * row. When they differ, a deploy was recorded but never went live (or
+ * the running build is older than the last recorded deployment) — the
+ * live instance on record, where the controller reported
+ * worker_release_requires_rolling_target and the Reliability page kept
+ * showing the previous manual row as current.
+ *
+ * commit_sha in release_history is free text (it accepts short SHAs typed
+ * by hand), so the comparison is prefix-tolerant: a recorded short SHA
+ * that is a prefix of the running SHA (or vice versa) is a match.
+ */
+function shasMatch(a, b) {
+  if (!a || !b) return false;
+  const left = String(a).trim();
+  const right = String(b).trim();
+  if (!left || !right) return false;
+  return left === right || left.startsWith(right) || right.startsWith(left);
+}
+
+async function getCurrentRelease(req, res) {
+  try {
+    const { getReleaseMetadata } = require('../utils/release');
+    const current = getReleaseMetadata();
+    const { rows } = await pool.query(
+      `SELECT id, version, commit_sha, status, deployed_at, deployed_by, notes
+       FROM release_history
+       ORDER BY deployed_at DESC, id DESC
+       LIMIT 1`
+    );
+    const { rows: deployedRows } = await pool.query(
+      `SELECT id, version, commit_sha, status, deployed_at, deployed_by, notes
+       FROM release_history
+       WHERE status = 'deployed'
+       ORDER BY deployed_at DESC, id DESC
+       LIMIT 1`
+    );
+    const lastRecorded = rows[0] || null;
+    const lastKnownGood = deployedRows[0] || null;
+    const mismatch = Boolean(
+      lastKnownGood?.commit_sha && current?.gitSha && !shasMatch(lastKnownGood.commit_sha, current.gitSha)
+    );
+    return sendSuccess(res, { current, lastRecorded, lastKnownGood, mismatch });
+  } catch (err) {
+    logger.error('reliability.getCurrentRelease failed', { error: err.message });
+    return sendError(res, 500, 'Could not load the current release.', 'current_release_unavailable');
+  }
+}
+
 module.exports = {
   listReleases,
   createRelease,
   listMigrations,
   getBudgets,
   getFleetWorkers,
+  getCurrentRelease,
 };
