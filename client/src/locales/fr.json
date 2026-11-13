@@ -20749,6 +20749,7 @@
       "updated": "Mis à jour {{date}}",
       "userId": "ID utilisateur",
       "usOnly": "Les livraisons sont limitées aux adresses américaines avec un État.",
+      "notLocatable": "Nous n'avons pas pu localiser cette adresse. Vérifiez l'orthographe et réessayez.",
       "vehicleLabel": "Étiquette du véhicule",
       "vehicleType": "Type de véhicule",
       "vehicles": "Véhicules",

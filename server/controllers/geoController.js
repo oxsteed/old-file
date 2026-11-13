@@ -181,6 +181,77 @@ function fallbackMatrix(origins, destinations) {
 }
 
 /**
+ * Forward-geocode a free-text address through the configured providers
+ * (AWS SearchText first, then Google geocode). Returns a normalized place
+ * with coordinates, or null when no provider can locate the address. Used
+ * by the delivery estimate/quote path so a suggestion without coordinates
+ * (e.g. the manual parseFallback shape) does not dead-end the flow. The
+ * query text itself is never logged.
+ */
+async function geocodeAddress(query) {
+  const text = String(query || '').trim();
+  if (!text) return null;
+  const cacheKey = `geocode:${text.toLowerCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'aws', operation: 'geocode' });
+  const awsResults = await awsSuggest(text);
+  const awsPlace = (awsResults || []).find((place) => Number.isFinite(Number(place?.lat)) && Number.isFinite(Number(place?.lng)));
+  if (awsPlace) {
+    cacheSet(cacheKey, awsPlace);
+    return awsPlace;
+  }
+
+  const googleKey = googleMapsKey();
+  if (googleKey) {
+    try {
+      metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'google', operation: 'geocode' });
+      const { data } = await axios.get(GEOCODE_BASE, {
+        params: { address: text, key: googleKey },
+        timeout: 5000,
+      });
+      const r = (data.results || [])[0];
+      if (data.status === 'OK' && r?.geometry?.location && Number.isFinite(Number(r.geometry.location.lat)) && Number.isFinite(Number(r.geometry.location.lng))) {
+        const components = r.address_components || [];
+        const get = (type) => components.find(c => c.types.includes(type))?.long_name || '';
+        const getShort = (type) => components.find(c => c.types.includes(type))?.short_name || '';
+        const place = {
+          display: r.formatted_address,
+          addressLine1: [get('street_number'), get('route')].filter(Boolean).join(' '),
+          addressLine2: get('subpremise'),
+          city: get('locality') || get('sublocality') || get('neighborhood'),
+          state: getShort('administrative_area_level_1'),
+          zip: get('postal_code'),
+          country: get('country'),
+          lat: r.geometry.location.lat,
+          lng: r.geometry.location.lng,
+        };
+        cacheSet(cacheKey, place);
+        return place;
+      }
+      if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+        logger.warn('Google Maps API non-OK status', { status: data.status });
+      }
+    } catch (err) {
+      logger.warn('Google geocode failed; address could not be located', { message: err.message });
+    }
+  }
+
+  logger.warn('Geocode unavailable: no provider located the address');
+  return null;
+}
+
+function resetForTests() {
+  cache.clear();
+  nearbyCache.clear();
+  routeCache.clear();
+}
+
+module.exports.geocodeAddress = geocodeAddress;
+module.exports.resetForTests = resetForTests;
+
+/**
  * GET /api/geo/reverse?lat=39.96&lng=-82.99
  * Returns city + state for a lat/lng pair.
  * Used by the homepage search to label a browser-detected location.
@@ -266,7 +337,7 @@ exports.suggest = async (req, res) => {
     }
 
     const googleKey = googleMapsKey();
-    if (!googleKey) return res.json(parseFallback(q));
+    if (!googleKey) return res.json(fallbackSuggest(q, 'no_provider'));
 
     metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'google', operation: 'suggest' });
     const { data } = await axios.get(GEOCODE_BASE, {
@@ -281,7 +352,7 @@ exports.suggest = async (req, res) => {
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
       // Log status only - never log error_message as it may contain quota/key hints
       logger.warn('Google Maps API non-OK status', { status: data.status });
-      return res.json(parseFallback(q));
+      return res.json(fallbackSuggest(q, 'google_error'));
     }
 
     const results = (data.results || []).slice(0, 5).map(r => {
@@ -309,9 +380,24 @@ exports.suggest = async (req, res) => {
   } catch (err) {
     logger.error('Geocode suggest error', { message: err.message });
     // Graceful degradation - return manual parse
-    return res.json(parseFallback(req.query.q || ''));
+    return res.json(fallbackSuggest(req.query.q || '', 'error'));
   }
 };
+
+/**
+ * Offline fallback for /geo/suggest. The manual parse carries NO coordinates
+ * and is marked fallback: true so clients never mistake it for a geocoded
+ * suggestion: the caller must geocode the text before pricing a route. The
+ * log line + counter make a dead provider detectable instead of silent.
+ */
+function fallbackSuggest(q, reason) {
+  const parsed = parseFallback(q);
+  if (parsed.length) {
+    logger.warn('Geo suggest fell back to manual parse', { reason });
+    metricsService.incrementCounter('geo.suggest_fallback', 1, { reason });
+  }
+  return parsed;
+}
 
 /**
  * GET /api/geo/nearby?lat=39.96&lng=-82.99&radius=5000
@@ -410,33 +496,49 @@ exports.routeMatrix = async (req, res) => {
  * Offline fallback: parse common formats:
  *   "City, ST"              (US)
  *   "City, ST 45501"        (US with ZIP)
+ *   "Street, City, ST"      (US street address)
+ *   "Street, City, ST 45501"
  *   "City, ST, Country"     (international)
- *   "City, ST 45501, Country"
+ * The result carries NO coordinates and is marked fallback: true, so a
+ * client can tell it apart from a geocoded suggestion. The last two
+ * comma segments are always city + state/ZIP; anything before them is the
+ * street address. A bare "Street, City" input used to misparse the street
+ * as the city and the city as the state.
  */
 function parseFallback(q) {
-  const str   = q.trim();
+  const str = q.trim();
   // Try to extract an optional trailing country after the last comma+space
-  const parts = str.split(',').map(s => s.trim());
-  const last  = parts[parts.length - 1];
+  const parts = str.split(',').map(s => s.trim()).filter(Boolean);
+  if (parts.length < 2) return [];
+  const last = parts[parts.length - 1];
 
   // Detect if last segment looks like a country (more than 2 chars, no digits)
   const hasCountry = parts.length >= 3 && !/\d/.test(last) && last.length > 2;
-  const country    = hasCountry ? last : '';
+  const country = hasCountry ? last : '';
 
-  // Work with the non-country portion
-  const core  = hasCountry ? parts.slice(0, -1).join(', ') : str;
-  const match = core.match(/^([^,]+),\s*([A-Za-z]{2,})(?:\s+([A-Z0-9\s-]{3,10}))?/i);
-  if (!match) return [];
+  // Work with the non-country portion: last two segments are city + state.
+  const core = hasCountry ? parts.slice(0, -1) : parts;
+  if (core.length < 2) return [];
+  const stateZip = core[core.length - 1];
+  const city = core[core.length - 2];
+  const addressLine1 = core.length > 2 ? core.slice(0, -2).join(', ') : '';
+  // US state is two letters with an optional ZIP after it; anything else is
+  // kept whole as the region name.
+  const usState = stateZip.match(/^([A-Za-z]{2})(?:\s+([A-Za-z0-9][A-Za-z0-9\s-]{2,9}))?$/);
+  const state = usState ? usState[1].toUpperCase() : stateZip.toUpperCase();
+  const zip = usState ? (usState[2] || '').trim() : '';
+  if (!city || !state) return [];
 
   return [{
     display: str,
-    addressLine1: '',
+    addressLine1,
     addressLine2: '',
-    city:    match[1].trim(),
-    state:   match[2].toUpperCase(),
-    zip:     match[3]?.trim() || '',
+    city,
+    state,
+    zip,
     country,
-    lat:     null,
-    lng:     null,
+    fallback: true,
+    lat: null,
+    lng: null,
   }];
 }

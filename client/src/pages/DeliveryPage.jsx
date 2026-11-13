@@ -46,11 +46,43 @@ function emptyPlace() {
 function pointFromSuggestion(place, value) {
   return {
     address: place?.addressLine1 || place?.display || value,
+    // The full suggestion text: the server geocodes this when the
+    // suggestion carries no coordinates (manual fallback shape).
+    display: place?.display || value || '',
     city: place?.city || '',
     state: place?.state || '',
     country: String(place?.country || '').toUpperCase(),
     lat: place?.lat,
     lng: place?.lng,
+  };
+}
+
+// A stop with coordinates is validated locally; a stop with address text
+// but no coordinates goes to the server, which geocodes it before pricing.
+// Only a stop with neither text nor coordinates is a "choose a suggestion"
+// error. The server enforces the US-only rule after geocoding.
+function stopsReadyForPricing(origin, destination) {
+  return [origin, destination].every((point) => String(point?.address || point?.display || '').trim() || (point?.lat != null && point?.lng != null));
+}
+
+function stopsHaveUsCoords(origin, destination) {
+  return [origin, destination].every((point) => point?.lat == null || point?.lng == null || (point?.country === 'US' && point?.state));
+}
+
+// The server may locate stops the suggestion left coordinate-less. Carry the
+// located stops into state so the intake form and the booking send the
+// located city/state/country instead of the fallback parse.
+function mergeLocatedStop(previous, located) {
+  if (!located || located.lat == null || located.lng == null) return previous;
+  return {
+    ...previous,
+    address: located.address || previous.address,
+    display: located.display || previous.display,
+    city: located.city || previous.city,
+    state: located.state || previous.state,
+    country: located.country || previous.country,
+    lat: Number(located.lat),
+    lng: Number(located.lng),
   };
 }
 
@@ -136,11 +168,11 @@ function EstimateCard({ t, onContinue, cardRef }) {
   const getEstimate = async (event) => {
     event.preventDefault();
     setError('');
-    if ([origin, destination].some((point) => point.lat == null || point.lng == null || !Number.isFinite(Number(point.lat)) || !Number.isFinite(Number(point.lng)))) {
+    if (!stopsReadyForPricing(origin, destination)) {
       setError(t('delivery.customer.selectAddress'));
       return;
     }
-    if ([origin, destination].some((point) => point.country !== 'US' || !point.state)) {
+    if (!stopsHaveUsCoords(origin, destination)) {
       setError(t('delivery.ui.usOnly'));
       return;
     }
@@ -154,6 +186,8 @@ function EstimateCard({ t, onContinue, cardRef }) {
         serviceLevel: 'standard',
       });
       setEstimate(response.estimate);
+      if (response.estimate?.origin) setOrigin((previous) => mergeLocatedStop(previous, response.estimate.origin));
+      if (response.estimate?.destination) setDestination((previous) => mergeLocatedStop(previous, response.estimate.destination));
     } catch (requestError) {
       setEstimate(null);
       setError(deliveryError(requestError, t, 'delivery.errors.quote'));
@@ -170,11 +204,12 @@ function EstimateCard({ t, onContinue, cardRef }) {
           <span>{t('delivery.customer.pickup')}</span>
           <AddressAutocomplete
             value={originText}
-            onChange={(value) => { setOriginText(value); setOrigin(emptyPlace()); setEstimate(null); }}
+            onChange={(value) => { setOriginText(value); setOrigin({ ...emptyPlace(), address: value, display: value }); setEstimate(null); }}
             onSelect={(place) => setOrigin(pointFromSuggestion(place, originText))}
             placeholder={t('delivery.customer.pickupPlaceholder')}
             ariaLabel={t('delivery.customer.pickup')}
             inputClassName="delivery-input"
+            selectFullAddress
             required
           />
         </label>
@@ -182,11 +217,12 @@ function EstimateCard({ t, onContinue, cardRef }) {
           <span>{t('delivery.customer.dropoff')}</span>
           <AddressAutocomplete
             value={destinationText}
-            onChange={(value) => { setDestinationText(value); setDestination(emptyPlace()); setEstimate(null); }}
+            onChange={(value) => { setDestinationText(value); setDestination({ ...emptyPlace(), address: value, display: value }); setEstimate(null); }}
             onSelect={(place) => setDestination(pointFromSuggestion(place, destinationText))}
             placeholder={t('delivery.customer.dropoffPlaceholder')}
             ariaLabel={t('delivery.customer.dropoff')}
             inputClassName="delivery-input"
+            selectFullAddress
             required
           />
         </label>
@@ -456,11 +492,11 @@ function CustomerDelivery({ t, initial, onPosted }) {
     event.preventDefault();
     setError('');
     setPosted(null);
-    if ([origin, destination].some((point) => point.lat == null || point.lng == null || !Number.isFinite(Number(point.lat)) || !Number.isFinite(Number(point.lng)))) {
+    if (!stopsReadyForPricing(origin, destination)) {
       setError(t('delivery.customer.selectAddress'));
       return;
     }
-    if ([origin, destination].some((point) => point.country !== 'US' || !point.state)) {
+    if (!stopsHaveUsCoords(origin, destination)) {
       setError(t('delivery.ui.usOnly')); return;
     }
     if ([originContact, destinationContact].some((contact) => contact.phone.replace(/\D/g, '').length < 7)) {
@@ -489,7 +525,11 @@ function CustomerDelivery({ t, initial, onPosted }) {
     try {
       const requestId = clientRequestId || (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `delivery-${Date.now()}`);
       if (!clientRequestId) setClientRequestId(requestId);
-      const response = await createDelivery({ ...payload(), notes, quoteId: quote?.id, clientRequestId: requestId });
+      // Book the stops the server located when it quoted: a coordinate-less
+      // suggestion is hashed from its resolved stops, so posting the
+      // unresolved form would mismatch the quote. Any intake edit clears
+      // the quote, so the quote's stops are always the current ones.
+      const response = await createDelivery({ ...payload(), origin: quote?.origin || origin, destination: quote?.destination || destination, notes, quoteId: quote?.id, clientRequestId: requestId });
       setPosted(response.job);
       setProofPin(response.proofPin || '');
       setQuote(null);
@@ -518,11 +558,12 @@ function CustomerDelivery({ t, initial, onPosted }) {
               <span>{t('delivery.customer.pickup')}</span>
               <AddressAutocomplete
                 value={originText}
-                onChange={(value) => { setOriginText(value); setOrigin(emptyPlace()); setQuote(null); }}
+                onChange={(value) => { setOriginText(value); setOrigin({ ...emptyPlace(), address: value, display: value }); setQuote(null); }}
                 onSelect={(place) => setOrigin(pointFromSuggestion(place, originText))}
                 placeholder={t('delivery.customer.pickupPlaceholder')}
                 ariaLabel={t('delivery.customer.pickup')}
                 inputClassName="delivery-input"
+                selectFullAddress
                 suppressInitialSuggestions={Boolean(initial?.originText)}
                 required
               />
@@ -531,11 +572,12 @@ function CustomerDelivery({ t, initial, onPosted }) {
               <span>{t('delivery.customer.dropoff')}</span>
               <AddressAutocomplete
                 value={destinationText}
-                onChange={(value) => { setDestinationText(value); setDestination(emptyPlace()); setQuote(null); }}
+                onChange={(value) => { setDestinationText(value); setDestination({ ...emptyPlace(), address: value, display: value }); setQuote(null); }}
                 onSelect={(place) => setDestination(pointFromSuggestion(place, destinationText))}
                 placeholder={t('delivery.customer.dropoffPlaceholder')}
                 ariaLabel={t('delivery.customer.dropoff')}
                 inputClassName="delivery-input"
+                selectFullAddress
                 suppressInitialSuggestions={Boolean(initial?.destinationText)}
                 required
               />

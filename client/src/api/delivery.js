@@ -158,6 +158,7 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
   const code = error?.response?.data?.code || error?.response?.data?.error?.code;
   const mappings = {
     usOnly: ['delivery_country_mismatch', 'delivery_domestic_only', 'delivery_service_area_unsupported', 'delivery_scope_unsupported'],
+    notLocatable: ['delivery_address_not_locatable'],
     intakeWindows: ['delivery_window_required', 'delivery_window_invalid', 'delivery_window_order_invalid'],
     phoneInvalid: ['delivery_contacts_required'],
     dimensionsInvalid: ['delivery_dimensions_invalid'],

@@ -20749,6 +20749,7 @@
       "updated": "Updated {{date}}",
       "userId": "User ID",
       "usOnly": "Deliveries are limited to US addresses with a state.",
+      "notLocatable": "We could not locate that address. Check the spelling and try again.",
       "vehicleLabel": "Vehicle label",
       "vehicleType": "Vehicle type",
       "vehicles": "Vehicles",

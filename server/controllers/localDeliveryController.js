@@ -5,6 +5,7 @@ const {stableValue,fingerprint,idempotencyKey,customerSafeJob,operatorSafeJob,re
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const { calculateLocalDeliveryQuote } = require('../services/localDeliveryService');
+const { geocodeAddress } = require('./geoController');
 const { broadcastToUser } = require('../services/socketService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { canStatusTransition, canInternalAssign, canReleaseToMarketplace } = require('../services/localDeliveryState');
@@ -189,6 +190,41 @@ async function quoteForRequest(body) {
   return result;
 }
 
+// A stop picked from /geo/suggest may carry no coordinates: when no geo
+// provider is configured, suggest returns the manual parseFallback shape.
+// Resolve such stops server-side before pricing instead of rejecting them:
+// the full suggestion text (display) is geocoded first, falling back to the
+// composed address parts. A stop with no text at all still fails fast, and
+// an address no provider can locate fails with a plain error instead of
+// telling the customer to pick a suggestion they already picked.
+async function resolveStopCoordinates(body = {}) {
+  const resolved = { ...body };
+  for (const key of ['origin', 'destination']) {
+    const stop = place(body[key]);
+    if (stop.lat !== null && stop.lng !== null) {
+      resolved[key] = stop;
+      continue;
+    }
+    const query = String(body[key]?.display || '').trim()
+      || [stop.address, stop.city, stop.state, stop.country].filter(Boolean).join(', ');
+    if (!query) throw new AppError('Complete stop addresses are required', 400, 'delivery_addresses_required');
+    const located = await geocodeAddress(query);
+    if (!located || !Number.isFinite(Number(located.lat)) || !Number.isFinite(Number(located.lng))) {
+      throw new AppError('We could not locate that address', 400, 'delivery_address_not_locatable');
+    }
+    resolved[key] = {
+      ...stop,
+      address: located.addressLine1 || stop.address,
+      city: located.city || stop.city,
+      state: located.state || stop.state,
+      country: located.country || stop.country,
+      lat: Number(located.lat),
+      lng: Number(located.lng),
+    };
+  }
+  return resolved;
+}
+
 function broadcastDelivery(job, eventType, actorUserId) {
   if (['delivery_marketplace_released','delivery_assignment_failed'].includes(eventType)) return;
   const recipients = new Set([job.customer_user_id, job.helper_user_id, job.internal_driver_user_id].filter(Boolean));
@@ -243,17 +279,21 @@ async function loadAuthorizedJob(jobId, user) {
 exports.quote = async (req, res, next) => {
   try {
     const operational = serializeOperational(req.body);
-    const result = await quoteForRequest(req.body);
+    // Resolve coordinate-less stops before quoting, and hash the resolved
+    // body: create() hashes its own body the same way, so the quote only
+    // matches when the client posts the located stops it was quoted for.
+    const resolved = await resolveStopCoordinates(req.body);
+    const result = await quoteForRequest(resolved);
     const expiresAt = new Date(Date.now() + result.pricing.quoteTtlMinutes * 60 * 1000).toISOString();
-    const inputHash = requestHash(req.body);
+    const inputHash = requestHash(resolved);
     const { rows } = await pool.query(
       `INSERT INTO delivery_quotes
         (customer_user_id, request_hash, input_snapshot, price_snapshot, customer_total_cents, driver_payout_cents, currency, pricing_version, expires_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id, expires_at`,
-      [req.user.id, inputHash, JSON.stringify({ ...requestInput(req.body), operational, route: result.route, origin: result.origin, destination: result.destination }), JSON.stringify({ ...result.pricing, route: result.route }), result.pricing.cents.customerTotal, result.pricing.cents.driverPayout, result.pricing.currency || 'USD', 'local-delivery-v1', expiresAt],
+      [req.user.id, inputHash, JSON.stringify({ ...requestInput(resolved), operational, route: result.route, origin: result.origin, destination: result.destination }), JSON.stringify({ ...result.pricing, route: result.route }), result.pricing.cents.customerTotal, result.pricing.cents.driverPayout, result.pricing.currency || 'USD', 'local-delivery-v1', expiresAt],
     );
-    res.json({ success: true, quote: { ...result, ...operational, id: rows[0].id, requestHash: inputHash, expiresAt: rows[0].expires_at } });
+    res.json({ success: true, quote: { ...result, ...operational, id: rows[0].id, requestHash: inputHash, expiresAt: rows[0].expires_at, origin: resolved.origin, destination: resolved.destination } });
   } catch (error) {
     next(error);
   }
@@ -267,11 +307,14 @@ exports.quote = async (req, res, next) => {
 // window is required here.
 exports.estimate = async (req, res, next) => {
   try {
-    const input = requestInput(req.body);
+    const resolved = await resolveStopCoordinates(req.body);
+    const input = requestInput(resolved);
     const result = await calculateLocalDeliveryQuote(input);
     const maxMiles = Math.min(300, Math.max(1, Number(process.env.DELIVERY_MAX_ROUTE_MILES) || 150));
     if (result.route.distanceMiles > maxMiles) throw new AppError('This route exceeds the local delivery service area', 400, 'delivery_service_area_unsupported');
-    res.json({ success: true, estimate: result });
+    // Return the located stops, not just coordinates, so the client can carry
+    // the resolved city/state/country into the intake form and the booking.
+    res.json({ success: true, estimate: { ...result, origin: resolved.origin, destination: resolved.destination } });
   } catch (error) {
     next(error);
   }
