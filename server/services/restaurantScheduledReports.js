@@ -290,18 +290,25 @@ async function deliverScheduledReport(db, { schedule, payload } = {}) {
 //   - 'in_progress' / 'skipped': another run owns the date, or the
 //     claim lost a race; the caller must not send.
 // A 'failed' row is re-claimed so the date is retried. A 'pending'
-// row older than PENDING_STALE_MINUTES is a crashed run and is
-// re-claimed too, so a crash between claim and outcome cannot lose
-// the date forever; a fresh 'pending' row means a live run owns it.
+// row whose claim heartbeat (claimed_at) is older than
+// PENDING_STALE_MINUTES is a crashed run and is re-claimed too, so a
+// crash between claim and outcome cannot lose the date forever; a
+// fresh 'pending' row means a live run owns it.
+//
+// Domain 8 #19: staleness used to be keyed on created_at, which the
+// reclaim never updates, so a build+delivery taking over 60 minutes
+// had its row reclaimed mid-flight by the next run (double delivery).
+// The heartbeat is stamped on claim and refreshed on reclaim; rows
+// created before the claimed_at column existed fall back to created_at.
 async function claimScheduledReportDelivery(db, { schedule, businessDate, asOf, now = new Date() } = {}) {
   const { rows: [claimed] } = await db.query(
     `INSERT INTO restaurant_scheduled_report_deliveries
        (scheduled_report_id, business_date, report_type, as_of,
-        snapshot, locked_close, channel, status, recipient_count)
-     VALUES ($1, $2::date, $3, $4, TRUE, FALSE, $5, 'pending', 0)
+        snapshot, locked_close, channel, status, recipient_count, claimed_at)
+     VALUES ($1, $2::date, $3, $4, TRUE, FALSE, $5, 'pending', 0, $6)
      ON CONFLICT (scheduled_report_id, business_date) DO NOTHING
      RETURNING *`,
-    [schedule.id, businessDate, schedule.report_type, asOf.toISOString(), schedule.delivery_channel]
+    [schedule.id, businessDate, schedule.report_type, asOf.toISOString(), schedule.delivery_channel, new Date(now).toISOString()]
   );
   if (claimed) return { delivery: claimed, outcome: 'claimed' };
 
@@ -316,17 +323,18 @@ async function claimScheduledReportDelivery(db, { schedule, businessDate, asOf, 
   if (existing.status === 'sent') return { delivery: null, outcome: 'already_sent' };
   if (existing.status === 'failed' || existing.status === 'pending') {
     if (existing.status === 'pending') {
-      const claimedAt = existing.created_at ? new Date(existing.created_at).getTime() : NaN;
+      const heartbeat = existing.claimed_at || existing.created_at;
+      const claimedAt = heartbeat ? new Date(heartbeat).getTime() : NaN;
       const stale = Number.isNaN(claimedAt)
         || new Date(now).getTime() - claimedAt > PENDING_STALE_MINUTES * 60 * 1000;
       if (!stale) return { delivery: null, outcome: 'in_progress' };
     }
     const { rows: [reclaimed] } = await db.query(
       `UPDATE restaurant_scheduled_report_deliveries
-          SET status = 'pending', error = NULL
+          SET status = 'pending', error = NULL, claimed_at = $3
         WHERE id = $1 AND status = $2
         RETURNING *`,
-      [existing.id, existing.status]
+      [existing.id, existing.status, new Date(now).toISOString()]
     );
     if (reclaimed) return { delivery: reclaimed, outcome: existing.status === 'failed' ? 'reclaimed' : 'reclaimed_stale' };
     return { delivery: null, outcome: 'skipped' };
@@ -335,20 +343,27 @@ async function claimScheduledReportDelivery(db, { schedule, businessDate, asOf, 
 }
 
 async function markDeliverySent(db, { deliveryId, recipientCount }) {
-  await db.query(
+  // Domain 8 #19: predicated on status='pending' so a run whose row
+  // was reclaimed mid-flight cannot mark another run's delivery sent.
+  // Returns the updated row count: 0 means the row was already
+  // reclaimed/finished elsewhere, and the caller must log it instead
+  // of silently double-marking.
+  const { rowCount } = await db.query(
     `UPDATE restaurant_scheduled_report_deliveries
-        SET status = 'sent', recipient_count = $1 WHERE id = $2`,
+        SET status = 'sent', recipient_count = $1 WHERE id = $2 AND status = 'pending'`,
     [recipientCount, deliveryId]
   );
+  return rowCount;
 }
 
 async function markDeliveryFailed(db, { deliveryId, error, recipientCount = null }) {
-  await db.query(
+  const { rowCount } = await db.query(
     `UPDATE restaurant_scheduled_report_deliveries
         SET status = 'failed', error = $1,
-            recipient_count = COALESCE($3, recipient_count) WHERE id = $2`,
+            recipient_count = COALESCE($3, recipient_count) WHERE id = $2 AND status = 'pending'`,
     [String(error == null ? '' : error).slice(0, 1000), deliveryId, recipientCount]
   );
+  return rowCount;
 }
 
 // Run every due schedule once. `now` is injectable for tests. The
@@ -461,7 +476,14 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
         err.deliveryRecipientCount = outcome.delivered;
         throw err;
       }
-      await markDeliverySent(db, { deliveryId: delivery.id, recipientCount: outcome.delivered });
+      const marked = await markDeliverySent(db, { deliveryId: delivery.id, recipientCount: outcome.delivered });
+      if (!marked) {
+        // Domain 8 #19: the row was reclaimed mid-flight and another
+        // run owns the outcome now. The delivery itself already
+        // happened, so the date still advances below; the warn makes
+        // the lost mark visible instead of a silent double-mark.
+        logger.warn('Scheduled report delivery was reclaimed mid-flight; not re-marking sent', { scheduleId: schedule.id });
+      }
       // last_business_date advances only on success: a failed date
       // stays due and is retried on the next run.
       await db.query(
