@@ -55,7 +55,10 @@ html {
   --pwa-action-bottom: 1.5rem;
   bottom: calc(max(var(--pwa-action-bottom), var(--cookie-banner-height, 0px) + 0.75rem) + env(safe-area-inset-bottom, 0px));
 }
-.pwa-connection-present [data-pwa-support-launcher],
+/* Mobile/PWA M20: while the offline banner shows, the launcher stays visible
+   in a disabled state (dimmed, untappable) instead of display:none, so the
+   help entry point is still there exactly when the user is stuck. */
+.pwa-connection-present [data-pwa-support-launcher] { opacity: 0.55; pointer-events: none; }
 .pwa-keyboard-open [data-pwa-support-launcher] { display: none; }
 [data-pwa-support-launcher][data-pwa-control-overlap="true"] {
   visibility: hidden;
