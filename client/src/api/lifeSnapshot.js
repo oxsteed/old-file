@@ -45,3 +45,19 @@ export function invalidateLifeSnapshots(userId, urlPrefix) {
     snapshots.delete(key);
   }
 }
+
+// Seed one per-URL cache entry from already-fetched data (e.g. from the
+// /life/dashboard-snapshot payload) so a later fetch of that URL within
+// the TTL reuses it instead of hitting the network again. Best-effort:
+// a key that never matches a later fetch is inert, and the entry expires
+// on the same 5s TTL as a real fetch. The stored promise resolves to an
+// axios-shaped { data } response, exactly like getLifeSnapshot returns.
+export function seedLifeSnapshot(userId, url, data) {
+  const normalized = normalizeUrl(url);
+  const key = JSON.stringify([userId, normalized]);
+  snapshots.set(key, { at: Date.now(), pending: false, promise: Promise.resolve({ data }) });
+  if (snapshots.size > 50) for (const [k, v] of snapshots) {
+    if (!v.pending && k !== key) snapshots.delete(k);
+    if (snapshots.size <= 25) break;
+  }
+}

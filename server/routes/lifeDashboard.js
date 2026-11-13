@@ -18,6 +18,11 @@ router.get('/pulse', authenticate, pulseCtrl.getLifePulse);
 // ── Dashboard summary (one-shot load) ────────────────────────────────────
 router.get('/summary', authenticate, ctrl.getDashboardSummary);
 
+// ── Dashboard snapshot (one call for the Dashboard cold mount) ───────────
+// Returns every life section the cold mount needs, each with the exact
+// payload its individual endpoint returns. See getDashboardSnapshot.
+router.get('/dashboard-snapshot', authenticate, ctrl.getDashboardSnapshot);
+
 // ── Community stats ──────────────────────────────────────────────────────
 router.get('/community', authenticate, ctrl.getCommunityStats);
 

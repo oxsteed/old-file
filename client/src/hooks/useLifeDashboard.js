@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import api from '../api/axios';
-import { getLifeSnapshot, invalidateLifeSnapshots } from '../api/lifeSnapshot';
+import { getLifeSnapshot, invalidateLifeSnapshots, seedLifeSnapshot } from '../api/lifeSnapshot';
 import { useAuth } from './useAuth';
 
 export default function useLifeDashboard() {
@@ -28,6 +28,55 @@ export default function useLifeDashboard() {
       return data;
     } catch (err) {
       console.error('fetchSummary error:', err);
+    }
+  }, []);
+
+  // ── Dashboard snapshot (one call for the cold mount) ──────────────────
+  // Cost audit follow-up: the Dashboard cold mount fired 10 life fetches.
+  // GET /life/dashboard-snapshot returns every section with the exact
+  // payloads the individual endpoints return; fan them out into the same
+  // states, then seed the per-URL cache entries so a re-mount or a
+  // Dashboard -> LifeDashboard hop within 5s reuses them instead of
+  // re-firing. The snapshot itself goes through the shared 5s cache.
+  // Homes live in the Dashboard page's own state, so the caller takes
+  // data.homes from the returned payload.
+  const fetchDashboardSnapshot = useCallback(async () => {
+    try {
+      const { data } = await getLifeSnapshot(userIdRef.current, '/life/dashboard-snapshot');
+      if (!data) return null;
+      if (data.summary) setSummary(data.summary);
+      if (data.pulse) setFinancialPulse(data.pulse);
+      if (data.community) setCommunity(data.community);
+      if (data.expenses) {
+        setExpenses(data.expenses.expenses ?? []);
+        setExpenseSummary(data.expenses.summary ?? null);
+      }
+      if (data.budgets) setBudgets(data.budgets.budgets || []);
+      if (data.goals) setGoals(data.goals.goals || []);
+      if (data.homeTasks) setHomeTasks(data.homeTasks.home_tasks || []);
+      if (data.checklist) setChecklist(data.checklist.items || []);
+      if (data.savedHelpers) setSavedHelpers(data.savedHelpers.saved_helpers || []);
+      const seeds = [
+        ['/life/summary', data.summary],
+        ['/life/pulse?window=1m', data.pulse],
+        ['/life/expenses', data.expenses],
+        ['/life/budgets', data.budgets],
+        ['/life/goals', data.goals],
+        ['/life/home-tasks?completed=false&section=home', data.homeTasks],
+        ['/house/my', data.homes],
+        ['/life/checklist', data.checklist],
+        ['/life/saved-helpers', data.savedHelpers],
+      ];
+      if (data.community) {
+        seeds.push([data.community.view === 'customer' ? '/life/community?view=customer' : '/life/community', data.community]);
+      }
+      for (const [url, section] of seeds) {
+        if (section !== null && section !== undefined) seedLifeSnapshot(userIdRef.current, url, section);
+      }
+      return data;
+    } catch (err) {
+      console.error('fetchDashboardSnapshot error:', err);
+      return null;
     }
   }, []);
 
@@ -300,7 +349,7 @@ export default function useLifeDashboard() {
     loading, error,
 
     // Summary
-    summary, fetchSummary,
+    summary, fetchSummary, fetchDashboardSnapshot,
 
     // Financial Pulse (unified engine)
     financialPulse, fetchFinancialPulse,

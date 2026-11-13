@@ -7,7 +7,7 @@ import PageMeta from '../components/PageMeta';
 import toast from 'react-hot-toast';
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
-import { getLifeSnapshot, invalidateLifeSnapshots } from '../api/lifeSnapshot';
+import { invalidateLifeSnapshots } from '../api/lifeSnapshot';
 import useLifeDashboard from '../hooks/useLifeDashboard';
 import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
@@ -455,7 +455,6 @@ export default function Dashboard() {
 
   // My Properties (house lookup)
   const [homes,          setHomes]          = useState([]);
-  const [homesLoaded,    setHomesLoaded]    = useState(false);
   const [homeAddrInput,  setHomeAddrInput]  = useState('');
   const [homeLookup,     setHomeLookup]     = useState(null);   // decoded result
   const [homeLookupLoading, setHomeLookupLoading] = useState(false);
@@ -853,8 +852,10 @@ export default function Dashboard() {
       setHomes(prev => [res.data, ...prev]);
       // Cost audit 2026-11-13 item 3: /house/my is cached, so a home
       // add/delete must evict it or a /life-dashboard hop within 5s
-      // would show the pre-change list.
+      // would show the pre-change list. The dashboard snapshot carries
+      // the same homes list, so evict it too.
       invalidateLifeSnapshots(user?.id, '/house/my');
+      invalidateLifeSnapshots(user?.id, '/life/dashboard-snapshot');
       setHomeLookup(null);
       setHomeAddrInput('');
       setHomeNickname('');
@@ -869,6 +870,7 @@ export default function Dashboard() {
       await api.delete(`/house/my/${id}`);
       setHomes(prev => prev.filter(h => h.id !== id));
       invalidateLifeSnapshots(user?.id, '/house/my');
+      invalidateLifeSnapshots(user?.id, '/life/dashboard-snapshot');
       setHomeDeleteTarget(null);
       toast.success(t('dashboard.home.removed'));
     } catch { toast.error(t('dashboard.home.removeFailed')); }
@@ -911,21 +913,14 @@ export default function Dashboard() {
   useEffect(() => {
     retryLoad();
     if (SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS) {
-      life.fetchSummary();
-      life.fetchFinancialPulse('1m');
-      life.fetchCommunity(undefined, user?.role === 'customer' ? 'customer' : undefined);
-      life.fetchExpenses();
-      life.fetchBudgets();
-      life.fetchGoals();
-      life.fetchHomeTasks({ completed: 'false', section: 'home' });
-      // Cost audit 2026-11-13 item 3: /house/my goes through the shared
-      // lifeSnapshot cache so a Dashboard mount and a /life-dashboard hop
-      // within 5s pay for it once.
-      if (!homesLoaded) {
-        getLifeSnapshot(user?.id, '/house/my').then(r => { setHomes(r.data||[]); setHomesLoaded(true); }).catch(()=>{});
-      }
-      life.fetchChecklist();
-      life.fetchSavedHelpers();
+      // Cost audit follow-up: one snapshot call replaces the 10 life
+      // fetches on cold mount; the hook fans the sections out and seeds
+      // the per-URL cache so a re-mount or /life-dashboard hop within 5s
+      // stays free. Homes live in this page's state, so take them from
+      // the returned payload.
+      life.fetchDashboardSnapshot().then((data) => {
+        if (Array.isArray(data?.homes)) setHomes(data.homes);
+      }).catch(() => {});
     }
   }, []);
 
