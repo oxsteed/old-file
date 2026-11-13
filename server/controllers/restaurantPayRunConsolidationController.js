@@ -133,19 +133,30 @@ async function transition(req, res, next, action, fn) {
         consolidationId: req.params.consolidationId,
         actorUserId: req.user.id,
       });
+      // Money-flows audit R8: a void request is not a void. The
+      // maker step logs as `<action>_requested` and answers 202
+      // with the group still finalized/approved; the checker step
+      // completes it and answers 200.
+      const effectiveAction = updated.requested ? `${action}_requested` : action;
       await logBusinessAction(req, {
         business_id: accessible[0].restaurant.business_id,
         actor_role: accessible[0].restaurant.effective_role,
-        action: `restaurant.pay_run_consolidation.${action}`,
+        action: `restaurant.pay_run_consolidation.${effectiveAction}`,
         target_type: 'pay_run_consolidation',
         target_id: Number(req.params.consolidationId),
-        after_state: { status: updated.status, finalized_by: updated.finalized_by || null, approved_by: updated.approved_by || null },
+        after_state: {
+          status: updated.status,
+          finalized_by: updated.finalized_by || null,
+          approved_by: updated.approved_by || null,
+          void_requested_by: updated.void_requested_by || null,
+          void_approved_by: updated.void_approved_by || null,
+        },
         client,
         throwOnError: true,
       });
       return updated;
     }, `restaurant_pay_run_consolidation_${action}`);
-    res.json({ consolidation: consolidations.consolidationShape(row) });
+    res.status(row.requested ? 202 : 200).json({ consolidation: consolidations.consolidationShape(row) });
   } catch (error) { next(error); }
 }
 
@@ -155,5 +166,7 @@ exports.approveConsolidation = (req, res, next) =>
   transition(req, res, next, 'approved', consolidations.approveConsolidation);
 exports.voidConsolidation = (req, res, next) =>
   transition(req, res, next, 'voided', consolidations.voidConsolidation);
+exports.approveVoidConsolidation = (req, res, next) =>
+  transition(req, res, next, 'voided', consolidations.approveVoidConsolidation);
 
 exports._requireBrandPayroll = requireBrandPayroll;

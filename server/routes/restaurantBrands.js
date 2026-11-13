@@ -30,6 +30,7 @@ router.get('/:brandId/pay-runs/consolidations/:consolidationId', consolidations.
 router.post('/:brandId/pay-runs/consolidations/:consolidationId/finalize', consolidations.finalizeConsolidation);
 router.post('/:brandId/pay-runs/consolidations/:consolidationId/approve', consolidations.approveConsolidation);
 router.post('/:brandId/pay-runs/consolidations/:consolidationId/void', consolidations.voidConsolidation);
+router.post('/:brandId/pay-runs/consolidations/:consolidationId/void-approve', consolidations.approveVoidConsolidation);
 // Phase 8 Track A: brand FX policy + stored rates (brand rollups
 // convert with the brand policy; restaurant HQ rollups use the
 // restaurant policy).

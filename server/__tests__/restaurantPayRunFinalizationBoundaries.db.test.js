@@ -353,9 +353,21 @@ ddescribe('Finding 40: voiding a run in a live consolidation is blocked', () => 
     expect(blocked.err.fields).toMatchObject({ consolidation_id: Number(consolidationId) });
     expect(String(blocked.err.message)).toContain(String(consolidationId));
 
-    const voidedConsolidation = await call(
+    // Money-flows audit R8: voiding a finalized consolidation is
+    // two-step now — the maker requests (202, group still
+    // finalized), a different manager completes it.
+    const voidRequested = await call(
       consolidationController.voidConsolidation,
       mockReq({ params: { brandId: String(a.brandId), consolidationId: String(consolidationId) }, user: { id: owner } })
+    );
+    expect(voidRequested.err).toBeNull();
+    expect(voidRequested.res.statusCode).toBe(202);
+    expect(voidRequested.res.payload.consolidation.status).toBe('finalized');
+    expect(voidRequested.res.payload.consolidation.voidPending).toBe(true);
+
+    const voidedConsolidation = await call(
+      consolidationController.approveVoidConsolidation,
+      mockReq({ params: { brandId: String(a.brandId), consolidationId: String(consolidationId) }, user: { id: checker } })
     );
     expect(voidedConsolidation.err).toBeNull();
     expect(voidedConsolidation.res.payload.consolidation.status).toBe('voided');

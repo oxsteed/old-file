@@ -340,7 +340,14 @@ describeDb('Phase 8 multi-location', () => {
     const approved = await consolidations.approveConsolidation(client, { consolidationId: id, actorUserId: checkerId });
     expect(approved.status).toBe('approved');
     expect(approved.approved_by).toBe(checkerId);
-    const voided = await consolidations.voidConsolidation(client, { consolidationId: id });
+    // Money-flows audit R8: voiding an approved consolidation is
+    // two-step now — the maker requests, a different manager who
+    // also differs from the finalizer completes it.
+    const requested = await consolidations.voidConsolidation(client, { consolidationId: id, actorUserId: ownerId });
+    expect(requested.status).toBe('approved');
+    expect(requested.requested).toBe(true);
+    expect(requested.void_requested_by).toBe(ownerId);
+    const voided = await consolidations.approveVoidConsolidation(client, { consolidationId: id, actorUserId: checkerId });
     expect(voided.status).toBe('voided');
     // Members are untouched: still finalized runs.
     const { rows: [member] } = await client.query(
@@ -435,7 +442,10 @@ describeDb('Phase 8 multi-location', () => {
     await expect(consolidations.approveConsolidation(client, {
       consolidationId: id, actorUserId: checkerId,
     })).rejects.toMatchObject({ code: 'pay_run_not_approved' });
-    await consolidations.voidConsolidation(client, { consolidationId: id });
+    // Money-flows audit R8: the finalized consolidation voids
+    // two-step now.
+    await consolidations.voidConsolidation(client, { consolidationId: id, actorUserId: ownerId });
+    await consolidations.approveVoidConsolidation(client, { consolidationId: id, actorUserId: checkerId });
   });
 
   // ── Track D: staged rollouts + borrowing ───────────────────────
