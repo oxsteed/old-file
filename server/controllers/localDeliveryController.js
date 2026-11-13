@@ -268,13 +268,7 @@ exports.quote = async (req, res, next) => {
 exports.estimate = async (req, res, next) => {
   try {
     const input = requestInput(req.body);
-    const result = await calculateLocalDeliveryQuote(input).catch((error) => {
-      // calculateLocalDeliveryQuote throws a plain Error for an overweight
-      // package; surface it as a 400 with its code instead of a 500. (The
-      // quote path has the same latent 500; left alone here.)
-      if (error?.code === 'delivery_weight_exceeds_package_limit') throw new AppError(error.message, 400, error.code);
-      throw error;
-    });
+    const result = await calculateLocalDeliveryQuote(input);
     const maxMiles = Math.min(300, Math.max(1, Number(process.env.DELIVERY_MAX_ROUTE_MILES) || 150));
     if (result.route.distanceMiles > maxMiles) throw new AppError('This route exceeds the local delivery service area', 400, 'delivery_service_area_unsupported');
     res.json({ success: true, estimate: result });

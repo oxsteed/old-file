@@ -1,5 +1,6 @@
 'use strict';
 
+const AppError = require('../utils/appError');
 const geoRouteProvider = require('./geoRouteProviderService');
 const {
   calculateLocalDeliveryPrice,
@@ -63,26 +64,17 @@ async function calculateLocalDeliveryQuote(input = {}) {
   const origin = normalizePoint(input.origin);
   const destination = normalizePoint(input.destination);
   if (!origin || !destination) {
-    const error = new Error('Pickup and drop-off coordinates are required');
-    error.code = 'delivery_coordinates_required';
-    error.status = 400;
-    throw error;
+    throw new AppError('Pickup and drop-off coordinates are required', 400, 'delivery_coordinates_required');
   }
   if (!String(input.originAddress || '').trim() || !String(input.destinationAddress || '').trim()) {
-    const error = new Error('Pickup and drop-off addresses are required');
-    error.code = 'delivery_addresses_required';
-    error.status = 400;
-    throw error;
+    throw new AppError('Pickup and drop-off addresses are required', 400, 'delivery_addresses_required');
   }
 
   const packageType = normalizePackageType(input.packageType);
   const serviceLevel = normalizeServiceLevel(input.serviceLevel);
   const weightLbs = Math.max(0, Number(input.weightLbs) || 0);
   if (weightLbs > PACKAGE_TYPES[packageType].maxWeightLbs) {
-    const error = new Error(`Weight exceeds the ${packageType} package limit`);
-    error.code = 'delivery_weight_exceeds_package_limit';
-    error.status = 400;
-    throw error;
+    throw new AppError(`Weight exceeds the ${packageType} package limit`, 400, 'delivery_weight_exceeds_package_limit');
   }
 
   const route = await estimateRoute(origin, destination);
