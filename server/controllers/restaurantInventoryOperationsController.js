@@ -471,7 +471,7 @@ exports.foodCostSummary = async (req, res, next) => {
        ), theoretical AS (
          SELECT rim.inventory_item_id,
                 COALESCE(SUM(foi.quantity * rim.required_quantity * rim.conversion_factor
-                  * (100.0 / NULLIF(rim.yield_percent, 0))), 0) AS quantity
+                  * (CASE WHEN rim.yield_percent IS NULL OR rim.yield_percent = 0 THEN 1.0 ELSE 100.0 / rim.yield_percent END)), 0) AS quantity
            FROM food_orders fo
            JOIN food_order_items foi ON foi.order_id = fo.id
            JOIN restaurant_inventory_item_mappings rim
