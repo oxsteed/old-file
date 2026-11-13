@@ -376,6 +376,18 @@ exports.listScheduledReportDeliveries = async (req, res, next) => {
 // Run one schedule now for a business date (default yesterday). The
 // deliveries ledger dedupes: re-running for the same date replays
 // instead of sending twice.
+// Money-flows W8: a per-schedule cooldown on manual runs. Each run
+// rebuilds the report from live data, so hammering run-now forced a
+// full recomputation per click; the deliveries ledger dedupes per
+// (schedule, business_date) only, so varying the date bypassed it.
+// The compare-and-swap below stamps the attempt BEFORE the rebuild
+// and admits only one run per schedule per window, atomically: two
+// concurrent clicks cannot both pass the check. A failed run also
+// cools down (the stamp is the attempt, not the success), so a
+// failing build cannot be hammered either; the nightly job is
+// unaffected (it keys off last_business_date, not this stamp).
+const RUN_NOW_COOLDOWN_SECONDS = 60;
+
 exports.runScheduledReportNow = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -387,6 +399,21 @@ exports.runScheduledReportNow = async (req, res, next) => {
       [scheduleId, restaurantId]
     );
     if (!schedule) throw new AppError('Schedule not found', 404, 'schedule_not_found');
+    const { rows: [cooled] } = await pool.query(
+      `UPDATE restaurant_scheduled_reports
+          SET last_run_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND restaurant_id = $2
+          AND (last_run_at IS NULL OR last_run_at < NOW() - ($3 || ' seconds')::interval)
+        RETURNING id`,
+      [schedule.id, restaurantId, String(RUN_NOW_COOLDOWN_SECONDS)]
+    );
+    if (!cooled) {
+      throw new AppError(
+        `This schedule was just run. Wait ${RUN_NOW_COOLDOWN_SECONDS} seconds before running it again.`,
+        429,
+        'run_now_cooldown'
+      );
+    }
     const timezone = restaurant.timezone || 'UTC';
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
     const businessDate = dateParam(req.body?.businessDate ?? req.body?.business_date, 'businessDate')
