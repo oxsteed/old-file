@@ -601,14 +601,14 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
       >
         <button
           onClick={bookingAllowed ? handleBookNow : handleMessageHelper}
-          className="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-green-600/20 active:bg-green-800"
+          className="flex-1 py-3 min-h-[44px] rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-green-600/20 active:bg-green-800"
           aria-label={bookingAllowed ? t('businessProfile.bookBusinessAria') : t('helperProfile.cta.contactForPricing')} data-track="ui.62d44cb5c8.2"
         >
           {bookingAllowed ? t('businessProfile.bookNow') : t('helperProfile.cta.contactForPricing')}
         </button>
         <button
           onClick={handleOpenChat}
-          className="flex-1 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
+          className="flex-1 py-3 min-h-[44px] rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
           aria-label={t('helperProfile.cta.messageHelperAria')} data-track="ui.62d44cb5c8.3"
         >
           {t('helperProfile.cta.contactForPricing')}

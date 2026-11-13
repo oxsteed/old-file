@@ -1024,7 +1024,7 @@ export default function BusinessProfilePage() {
           <>
             <button
               onClick={handleTemplatePrimaryAction}
-              className="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-green-600/20 active:bg-green-800"
+              className="flex-1 py-3 min-h-[44px] rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-green-600/20 active:bg-green-800"
               aria-label={t('businessProfile.bookBusinessAria')} data-track="ui.333d88ed82.3"
             >
               {activeTemplate !== 'default' && templateBehavior.primaryCta
@@ -1033,7 +1033,7 @@ export default function BusinessProfilePage() {
             </button>
             <button
               onClick={handleOpenChat}
-              className="flex-1 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
+              className="flex-1 py-3 min-h-[44px] rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
               aria-label={t('businessProfile.messageBusinessAria')} data-track="ui.333d88ed82.4"
             >
               {t('helperProfile.cta.contactForPricing')}
@@ -1042,7 +1042,7 @@ export default function BusinessProfilePage() {
         ) : (
           <button
             onClick={handleOpenChat}
-            className="flex-1 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
+            className="flex-1 py-3 min-h-[44px] rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
             aria-label={t('businessProfile.messageBusinessAria')} data-track="ui.333d88ed82.5"
           >
             {t('helperProfile.cta.contactForPricing')}
