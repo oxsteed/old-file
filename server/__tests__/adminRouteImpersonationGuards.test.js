@@ -123,3 +123,52 @@ describe('Domain 6 finding 10: rejectImpersonated on the admin restaurant-suppor
     expect(routerMiddleware(adminRestaurantSupportRouter)).toContain(rejectImpersonated);
   });
 });
+
+describe('Domain 6 finding 11: rejectImpersonated on super-admin credit mutations', () => {
+  test('subscription step-up-challenge issue', () => {
+    expectGuarded(adminRouter, '/super/subscriptions/stepup-challenges');
+  });
+
+  test('external reconciliation run', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/external-reconciliation');
+  });
+
+  test('backfill requeue', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/backfill/requeue');
+  });
+
+  test('reconciliation run', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/reconciliation');
+  });
+
+  test('compliance verification decision', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/compliance/verifications/:id/decision');
+  });
+
+  test('compliance verification appeal decision', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/compliance/verifications/:id/appeal-decision');
+  });
+
+  test('compliance sanctions decision', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/compliance/sanctions/:id/decision');
+  });
+
+  test('compliance case transition', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/compliance/cases/:id/transition');
+  });
+
+  test('credit step-up-challenge issue', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/stepup-challenges');
+  });
+
+  test('withdrawal reject', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/withdrawals/:id/reject');
+  });
+
+  test('the guard runs after auth and before the limiter on external reconciliation', () => {
+    const handlers = routeHandlers(adminRouter, '/super/oxsteed-credit/external-reconciliation');
+    const guardIdx = handlers.indexOf(rejectImpersonated);
+    expect(guardIdx).toBeGreaterThan(0);
+    expect(guardIdx).toBeLessThan(handlers.length - 1);
+  });
+});

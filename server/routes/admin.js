@@ -267,7 +267,7 @@ router.post('/super/chargebacks/:id/submit', requireSuperAdmin, async (req, res,
     res.json({ chargeback: row });
   } catch (err) { next(err); }
 });
-router.post('/super/subscriptions/stepup-challenges', requireSuperAdmin, strictLimiter, require('../controllers/subscriptionController').issueAdminCancelStepupChallenge);
+router.post('/super/subscriptions/stepup-challenges', requireSuperAdmin, rejectImpersonated, strictLimiter, require('../controllers/subscriptionController').issueAdminCancelStepupChallenge);
 router.post('/super/subscriptions/:id/cancel', requireSuperAdmin, require('../controllers/subscriptionController').adminCancelSubscription);
 router.get('/super/revenue-chart',      requireSuperAdmin, superCtrl.getRevenueChart);
 router.get('/super/dashboard/activity', requireSuperAdmin, superCtrl.getDashboardActivity);
@@ -595,7 +595,7 @@ router.post('/super/oxsteed-credit/rail/unfreeze', requireSuperAdmin, rejectImpe
 // External reconciliation vs Stripe (Phase 4): run history and manual
 // triggers. Manual periods are capped at 31 days by the service.
 router.get('/super/oxsteed-credit/external-reconciliation', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditExternalReconciliationRuns);
-router.post('/super/oxsteed-credit/external-reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.runAdminCreditExternalReconciliation);
+router.post('/super/oxsteed-credit/external-reconciliation', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.runAdminCreditExternalReconciliation);
 router.get('/super/oxsteed-credit/overview', requireSuperAdmin, oxsteedCreditCtrl.getAdminOverview);
 router.post('/super/oxsteed-credit/notifications/:notificationId/retry', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.retryAdminCreditNotification);
 router.get('/super/oxsteed-credit/accounts', requireSuperAdmin, oxsteedCreditCtrl.listAdminCustomerAccounts);
@@ -738,7 +738,7 @@ router.get('/super/oxsteed-credit/backfill/parked', requireSuperAdmin, async (re
     res.json(await listParkedDualPostingBackfill(require('../db'), { limit: req.query.limit, offset: req.query.offset }));
   } catch (err) { next(err); }
 });
-router.post('/super/oxsteed-credit/backfill/requeue', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.post('/super/oxsteed-credit/backfill/requeue', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     const { requeueParkedDualPostingBackfill } = require('../services/oxsteedCreditSubBankService');
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : null;
@@ -759,14 +759,14 @@ router.post('/super/oxsteed-credit/backfill/requeue', requireSuperAdmin, creditA
     res.json(result);
   } catch (err) { next(err); }
 });
-router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);
+router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);
 // Phase 5 compliance queue: identity verifications, sanctions hits, cases.
 router.get('/super/oxsteed-credit/compliance-queue', requireSuperAdmin, oxsteedCreditCtrl.getAdminComplianceQueue);
-router.post('/super/oxsteed-credit/compliance/verifications/:id/decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceVerification);
-router.post('/super/oxsteed-credit/compliance/verifications/:id/appeal-decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceIdentityAppeal);
-router.post('/super/oxsteed-credit/compliance/sanctions/:id/decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceSanction);
-router.post('/super/oxsteed-credit/compliance/cases/:id/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminComplianceCase);
-router.post('/super/oxsteed-credit/stepup-challenges', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminStepupChallenge);
+router.post('/super/oxsteed-credit/compliance/verifications/:id/decision', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceVerification);
+router.post('/super/oxsteed-credit/compliance/verifications/:id/appeal-decision', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceIdentityAppeal);
+router.post('/super/oxsteed-credit/compliance/sanctions/:id/decision', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceSanction);
+router.post('/super/oxsteed-credit/compliance/cases/:id/transition', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminComplianceCase);
+router.post('/super/oxsteed-credit/stepup-challenges', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminStepupChallenge);
 // Phase 6 money-out: customer withdrawal queue. Approval moves money, so it
 // requires a fresh admin step-up challenge, verified before any side effect.
 router.get('/super/oxsteed-credit/withdrawals', requireSuperAdmin, async (req, res, next) => {
@@ -818,7 +818,7 @@ router.post('/super/oxsteed-credit/withdrawals/:id/approve', requireSuperAdmin, 
     sendPendingActionResult(res, result, 200);
   } catch (err) { next(err); }
 });
-router.post('/super/oxsteed-credit/withdrawals/:id/reject', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.post('/super/oxsteed-credit/withdrawals/:id/reject', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     const withdrawal = await oxsteedCreditWithdrawalService.rejectWithdrawal({
       withdrawalId: req.params.id,
