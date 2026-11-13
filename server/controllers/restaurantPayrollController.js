@@ -367,7 +367,7 @@ exports.declareCashTip = async (req, res, next) => {
       action: 'restaurant.cash_tip.declared',
       target_type: 'user',
       target_id: staffUserId,
-      after_state: { location_id: locationId, amount_cents: amountCents, business_date: String(businessDate), declaration_id: declaration.id },
+      after_state: { location_id: locationId, amount_cents: amountCents, business_date: String(businessDate), declaration_id: declaration.id, currency_code: declaration.currency_code || null },
     });
     res.status(declaration.replayed ? 200 : 201).json({ declaration, replayed: !!declaration.replayed });
   } catch (err) { next(err); }
@@ -477,7 +477,7 @@ exports.declareMyCashTip = async (req, res, next) => {
       action: 'restaurant.cash_tip.self_declared',
       target_type: 'user',
       target_id: req.user.id,
-      after_state: { location_id: locationId, amount_cents: amountCents, business_date: String(businessDate), declaration_id: declaration.id, status: 'pending' },
+      after_state: { location_id: locationId, amount_cents: amountCents, business_date: String(businessDate), declaration_id: declaration.id, status: 'pending', currency_code: declaration.currency_code || null },
     });
     res.status(declaration.replayed ? 200 : 201).json({ declaration: payroll.declarationShape(declaration), replayed: !!declaration.replayed });
   } catch (err) { next(err); }

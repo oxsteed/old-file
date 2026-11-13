@@ -303,18 +303,23 @@ async function declareCashTip(restaurantId, { staffUserId, businessDate, amountC
   // confirmed at entry; employee self-declarations arrive 'pending'
   // and stay out of pay until a manager confirms them.
   const reviewStatus = status === 'pending' || status === 'rejected' ? status : 'confirmed';
-  const declarationColumns = 'id, restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key, status, reviewed_by, reviewed_at, created_at';
+  // Domain 8 #10: record the currency the cash was handled in at
+  // entry — the declaration store's currency when it has one,
+  // otherwise the restaurant currency — so the tip buckets in its own
+  // currency instead of always the restaurant's.
+  const currencyCode = await resolveCashTipCurrency(restaurantId, locationId);
+  const declarationColumns = 'id, restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key, status, reviewed_by, reviewed_at, created_at, currency_code';
   // Background-jobs audit (finding P1): dedupe on a client-generated key
   // so a retry cannot double-declare and inflate the payroll basis. A
   // replay returns the original row instead of inserting a duplicate.
   if (key) {
     const { rows: [row] } = await pool.query(
       `INSERT INTO restaurant_declared_cash_tips
-         (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, idempotency_key, status, currency_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
        RETURNING ${declarationColumns}`,
-      [restaurantId, staffUserId, businessDate, amountCents, declaredBy || null, note || null, locationId, key, reviewStatus]
+      [restaurantId, staffUserId, businessDate, amountCents, declaredBy || null, note || null, locationId, key, reviewStatus, currencyCode]
     );
     if (row) return row;
     const { rows: [existing] } = await pool.query(
@@ -328,12 +333,28 @@ async function declareCashTip(restaurantId, { staffUserId, businessDate, amountC
   }
   const { rows: [row] } = await pool.query(
     `INSERT INTO restaurant_declared_cash_tips
-       (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       (restaurant_id, staff_user_id, business_date, amount_cents, declared_by, note, location_id, status, currency_code)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING ${declarationColumns}`,
-    [restaurantId, staffUserId, businessDate, amountCents, declaredBy || null, note || null, locationId, reviewStatus]
+    [restaurantId, staffUserId, businessDate, amountCents, declaredBy || null, note || null, locationId, reviewStatus, currencyCode]
   );
   return row;
+}
+
+// Domain 8 #10: the currency a cash tip was declared in — the store's
+// own currency when the declaration names a store, otherwise the
+// restaurant currency, with USD as the last resort for a restaurant
+// that carries no currency at all.
+async function resolveCashTipCurrency(restaurantId, locationId) {
+  const { rows: [row] } = await pool.query(
+    `SELECT l.currency_code AS location_currency, fr.currency_code AS restaurant_currency
+       FROM food_restaurants fr
+       LEFT JOIN restaurant_locations l
+         ON l.id = $2 AND l.restaurant_id = fr.id
+      WHERE fr.id = $1`,
+    [restaurantId, locationId]
+  );
+  return String(row?.location_currency || row?.restaurant_currency || 'USD').trim().toUpperCase();
 }
 
 // One employee's own declared cash tips in a period, every status:
@@ -343,7 +364,7 @@ async function listDeclaredCashTipsForUser(restaurantId, staffUserId, fromDate, 
   const { rows } = await pool.query(
     `SELECT id, restaurant_id, staff_user_id, business_date, amount_cents,
             declared_by, note, location_id, idempotency_key, status,
-            reviewed_by, reviewed_at, created_at
+            reviewed_by, reviewed_at, created_at, currency_code
        FROM restaurant_declared_cash_tips
       WHERE restaurant_id = $1 AND staff_user_id = $2
         AND business_date >= $3 AND business_date <= $4
@@ -383,7 +404,7 @@ async function reviewCashTip(restaurantId, declarationId, { status, reviewedBy }
       WHERE id = $1 AND restaurant_id = $2 AND status = 'pending'
       RETURNING id, restaurant_id, staff_user_id, business_date, amount_cents,
                 declared_by, note, location_id, idempotency_key, status,
-                reviewed_by, reviewed_at, created_at`,
+                reviewed_by, reviewed_at, created_at, currency_code`,
     [declarationId, restaurantId, next, reviewedBy || null]
   );
   return row || null;
@@ -1383,13 +1404,17 @@ async function getOrderTips(restaurantId, fromDate, toDate, timezone, locationId
 async function getDeclaredCashTips(restaurantId, fromDate, toDate, locationIds = null, userId = null) {
   // Review state (Phase 3 Track B): only CONFIRMED declarations count
   // toward tips and pay. A pending self-declaration, or a rejected one,
-  // must never inflate the payroll basis.
+  // must never inflate the payroll basis. Domain 8 #10: sums are per
+  // declaration currency, so a EUR cash tip never lands in the USD
+  // bucket; a NULL currency (a legacy row, or one written by raw SQL)
+  // is reported as NULL and the caller reads it as the restaurant
+  // currency.
   const { rows } = await pool.query(
-    `SELECT staff_user_id, COALESCE(SUM(amount_cents), 0)::int AS tips_cents
+    `SELECT staff_user_id, currency_code AS currency, COALESCE(SUM(amount_cents), 0)::int AS tips_cents
        FROM restaurant_declared_cash_tips
       WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3
         AND status = 'confirmed'${storeFilter(locationIds, 'location_id', 4)}${userFilter(userId, 'staff_user_id', locationIds === null ? 4 : 5)}
-      GROUP BY staff_user_id`,
+      GROUP BY staff_user_id, currency_code`,
     withUserId([restaurantId, fromDate, toDate], locationIds, userId)
   );
   return rows;
@@ -1434,8 +1459,10 @@ async function computeTipAllocations({ restaurant, fromDate, toDate, locationIds
   const rosterById = new Map(roster.map((m) => [m.user_id, m]));
   const restaurantCurrency = requireRestaurantCurrency(restaurant);
 
-  // Gross per currency per user; declared cash lands in the
-  // restaurant's own currency.
+  // Gross per currency per user; declared cash lands in the currency
+  // recorded on the declaration (Domain 8 #10: the store's currency at
+  // entry), never forced into the restaurant currency. A NULL currency
+  // on a legacy row reads as the restaurant currency.
   const buckets = new Map(); // currency -> { gross: Map(userId->cents), unattributed }
   const bucketFor = (currency) => {
     if (!buckets.has(currency)) buckets.set(currency, { gross: new Map(), unattributed: 0 });
@@ -1451,7 +1478,7 @@ async function computeTipAllocations({ restaurant, fromDate, toDate, locationIds
     }
   }
   for (const row of cashTips) {
-    const bucket = bucketFor(restaurantCurrency);
+    const bucket = bucketFor(String(row.currency || restaurantCurrency).trim().toUpperCase());
     const cents = Number(row.tips_cents) || 0;
     bucket.gross.set(row.staff_user_id, (bucket.gross.get(row.staff_user_id) || 0) + cents);
   }
@@ -1858,6 +1885,7 @@ function declarationShape(row) {
     amount_cents: Number(row.amount_cents),
     declared_by: row.declared_by || null,
     note: row.note || null,
+    currency_code: row.currency_code ? String(row.currency_code).toUpperCase() : null,
     location_id: row.location_id == null ? null : Number(row.location_id),
     idempotency_key: row.idempotency_key || null,
     status: row.status || 'confirmed',
@@ -2383,7 +2411,7 @@ async function getLateCashTips(clientOrPool, { restaurantId, sourceRun, excludeT
   const locationClause = scoped ? `AND (location_id IS NULL OR location_id = ANY($${params.push(ids)}::bigint[]))` : '';
   const excludeParam = params.push(excludeTargetRunId);
   const { rows } = await clientOrPool.query(
-    `SELECT id, staff_user_id, amount_cents
+    `SELECT id, staff_user_id, amount_cents, currency_code
        FROM restaurant_declared_cash_tips
       WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3
         AND status = 'confirmed'
@@ -2651,6 +2679,16 @@ async function buildCarryForwardItems(clientOrPool, {
       });
     }
     for (const row of tips) {
+      // Domain 8 #10: a late-confirmed tip only carries into a run
+      // priced in its own currency, like the premium guard above. A
+      // NULL currency on a legacy row reads as the restaurant
+      // currency. A foreign-currency tip stays uncarried until a run
+      // in its currency claims it, instead of being paid short in
+      // the wrong currency.
+      const tipCurrency = row.currency_code
+        ? String(row.currency_code).trim().toUpperCase()
+        : requireRestaurantCurrency(restaurant);
+      if (tipCurrency !== runCurrency) continue;
       items.push({
         source_pay_run_id: Number(source.id),
         input_type: 'cash_tip',
