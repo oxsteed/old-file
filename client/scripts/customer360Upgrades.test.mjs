@@ -110,3 +110,13 @@ test("domain 1 audit #4: TeamBoard load failure offers retry and keeps queue set
   assert.match(board, /queues\.setup\.listUnavailable/, "QueueSetup distinguishes a failed queue list from an empty one");
   assert.equal(typeof legacy("en").customerWorkspace.queues.setup.listUnavailable, "string", "en: queues.setup.listUnavailable");
 });
+
+test("domain 1 audit #16: TeamBoard saved-views failure is surfaced with a retry", () => {
+  const board = src("admin/pages/customer360/upgrades/TeamBoard.jsx");
+  assert.doesNotMatch(board, /loadViews\(c\.signal\)\.catch\(\(\) => \{\}\)/, "saved-views failure is no longer silently swallowed");
+  assert.match(board, /const \[viewsError, setViewsError\] = useState\(""\)/, "views load failure is tracked in state");
+  assert.match(board, /copy\("queues\.viewsLoadFailed"\)/, "views failure renders the load-failed copy");
+  assert.match(board, /\{viewsError && \(/, "views error renders in the board");
+  assert.match(board, /onClick=\{\(\) => run\(\(\) => loadViews\(\)\)\}>\{copy\("retry"\)\}<\/button>/, "views error has a retry that reloads the views");
+  assert.equal(typeof legacy("en").customerWorkspace.queues.viewsLoadFailed, "string", "en: queues.viewsLoadFailed");
+});

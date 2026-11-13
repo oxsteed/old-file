@@ -36449,7 +36449,8 @@
       "saveRename": "이름 저장",
       "updateView": "현재 필터를 이 보기에 저장",
       "viewRenamed": "보기 이름을 변경했습니다.",
-      "viewUpdated": "보기를 업데이트했습니다."
+      "viewUpdated": "보기를 업데이트했습니다.",
+      "viewsLoadFailed": "저장된 보기를 불러올 수 없습니다."
     },
     "summary": {
       "title": "고객 요약",

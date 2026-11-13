@@ -3815,7 +3815,8 @@
       "saveRename": "Hifadhi jina",
       "updateView": "Hifadhi vichujio vya sasa kwenye mwonekano huu",
       "viewRenamed": "Jina la mwonekano limebadilishwa.",
-      "viewUpdated": "Mwonekano umesasishwa."
+      "viewUpdated": "Mwonekano umesasishwa.",
+      "viewsLoadFailed": "Mionekano iliyohifadhiwa haikuweza kupakiwa."
     },
     "summaryHealth": {
       "title": "Hali ya muhtasari wa wateja",

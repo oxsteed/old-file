@@ -36477,7 +36477,8 @@
       "saveRename": "Namen speichern",
       "updateView": "Aktuelle Filter in dieser Ansicht speichern",
       "viewRenamed": "Ansicht umbenannt.",
-      "viewUpdated": "Ansicht aktualisiert."
+      "viewUpdated": "Ansicht aktualisiert.",
+      "viewsLoadFailed": "Gespeicherte Ansichten konnten nicht geladen werden."
     },
     "summary": {
       "title": "Kundenübersicht",

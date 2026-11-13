@@ -1357,7 +1357,8 @@
       "saveRename": "Anrejistre non an",
       "updateView": "Anrejistre filt aktyèl yo nan vi sa a",
       "viewRenamed": "Non vi a chanje.",
-      "viewUpdated": "Vi a mete ajou."
+      "viewUpdated": "Vi a mete ajou.",
+      "viewsLoadFailed": "Nou pa t kapab chaje vi ki te anrejistre yo."
     },
     "summary": {
       "title": "Rezime kliyan an",

@@ -3817,7 +3817,8 @@
       "saveRename": "Salva il nome",
       "updateView": "Salva i filtri attuali in questa vista",
       "viewRenamed": "Vista rinominata.",
-      "viewUpdated": "Vista aggiornata."
+      "viewUpdated": "Vista aggiornata.",
+      "viewsLoadFailed": "Impossibile caricare le viste salvate."
     },
     "summaryHealth": {
       "title": "Stato dei riepiloghi clienti",

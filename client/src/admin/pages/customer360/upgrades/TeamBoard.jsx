@@ -143,6 +143,8 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
   const [resolveFor, setResolveFor] = useState(null);
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  // Domain 1 audit #16: saved-views load failure state (was silently swallowed).
+  const [viewsError, setViewsError] = useState("");
 
   const loadBoard = async (f = filters, v = viewId, signal, cursor) => {
     const params = v ? { view: v } : { queues: f.queues.join(","), statuses: f.statuses.join(","), assignee: f.assignee, breachedOnly: f.breachedOnly, sort: f.sort };
@@ -150,11 +152,22 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
     setBoard((p) => (cursor ? { ...r.data, items: [...p.items, ...r.data.items] } : r.data));
     if (v) setFilters(r.data.filters);
   };
-  const loadViews = async (signal) => setViews((await adminApi.get(`/admin/customer360/saved-views`, { signal })).data.views);
+  // Domain 1 audit #16: surface a saved-views failure like the board failure
+  // (set an error state) instead of swallowing it, so an admin can tell a
+  // failed load from having no saved views. Never rejects; callers that
+  // awaited the old rejection keep working.
+  const loadViews = async (signal) => {
+    try {
+      setViews((await adminApi.get(`/admin/customer360/saved-views`, { signal })).data.views);
+      setViewsError("");
+    } catch (e) {
+      if (!signal?.aborted) setViewsError(e.response?.data?.code || "error");
+    }
+  };
   useEffect(() => {
     const c = new AbortController();
     loadBoard(EMPTY_FILTERS, "", c.signal).catch((e) => !c.signal.aborted && setBoard({ error: e.response?.data?.code || "error" }));
-    loadViews(c.signal).catch(() => {});
+    loadViews(c.signal);
     return () => c.abort();
   }, [viewerKey]);
 
@@ -251,6 +264,9 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
             {views.map((v) => <option key={v.id} value={v.id}>{v.name}{v.scope === "team" ? ` · ${copy("queues.team")}` : ""}{v.mine ? "" : ` · ${v.owner_name}`}</option>)}
           </select>
         </label>
+        {viewsError && (
+          <span role="alert">{copy("queues.viewsLoadFailed")} <button type="button" disabled={busy} onClick={() => run(() => loadViews())}>{copy("retry")}</button></span>
+        )}
         <fieldset>
           <legend>{copy("queues.queue")}</legend>
           {board.queues.filter((q) => q.active).map((q) => (

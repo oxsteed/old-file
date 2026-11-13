@@ -1210,7 +1210,8 @@
       "saveRename": "Enregistrer le nom",
       "updateView": "Enregistrer les filtres actuels dans cette vue",
       "viewRenamed": "Vue renommée.",
-      "viewUpdated": "Vue mise à jour."
+      "viewUpdated": "Vue mise à jour.",
+      "viewsLoadFailed": "Impossible de charger les vues enregistrées."
     },
     "summary": {
       "title": "Synthèse client",

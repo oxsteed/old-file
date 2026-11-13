@@ -36478,7 +36478,8 @@
       "saveRename": "Simpan nama",
       "updateView": "Simpan filter saat ini ke tampilan ini",
       "viewRenamed": "Nama tampilan diganti.",
-      "viewUpdated": "Tampilan diperbarui."
+      "viewUpdated": "Tampilan diperbarui.",
+      "viewsLoadFailed": "Tampilan tersimpan tidak dapat dimuat."
     },
     "summary": {
       "title": "Ringkasan pelanggan",

@@ -1357,7 +1357,8 @@
       "saveRename": "Guardar nombre",
       "updateView": "Guardar los filtros actuales en esta vista",
       "viewRenamed": "Vista renombrada.",
-      "viewUpdated": "Vista actualizada."
+      "viewUpdated": "Vista actualizada.",
+      "viewsLoadFailed": "No se pudieron cargar las vistas guardadas."
     },
     "summary": {
       "title": "Resumen del cliente",

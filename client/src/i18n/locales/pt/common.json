@@ -3817,7 +3817,8 @@
       "saveRename": "Guardar nome",
       "updateView": "Guardar os filtros atuais nesta vista",
       "viewRenamed": "Nome da vista alterado.",
-      "viewUpdated": "Vista atualizada."
+      "viewUpdated": "Vista atualizada.",
+      "viewsLoadFailed": "Não foi possível carregar as visualizações salvas."
     },
     "summaryHealth": {
       "title": "Estado dos resumos de clientes",

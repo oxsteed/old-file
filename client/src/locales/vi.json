@@ -36449,7 +36449,8 @@
       "saveRename": "Lưu tên",
       "updateView": "Lưu bộ lọc hiện tại vào chế độ xem này",
       "viewRenamed": "Đã đổi tên chế độ xem.",
-      "viewUpdated": "Đã cập nhật chế độ xem."
+      "viewUpdated": "Đã cập nhật chế độ xem.",
+      "viewsLoadFailed": "Không thể tải các chế độ xem đã lưu."
     },
     "summary": {
       "title": "Tóm tắt khách hàng",

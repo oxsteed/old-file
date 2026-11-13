@@ -36448,7 +36448,8 @@
       "saveRename": "名前を保存",
       "updateView": "現在のフィルターをこのビューに保存",
       "viewRenamed": "ビューの名前を変更しました。",
-      "viewUpdated": "ビューを更新しました。"
+      "viewUpdated": "ビューを更新しました。",
+      "viewsLoadFailed": "保存済みビューを読み込めませんでした。"
     },
     "summary": {
       "title": "顧客サマリー",

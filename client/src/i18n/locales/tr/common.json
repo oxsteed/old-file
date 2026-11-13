@@ -3817,7 +3817,8 @@
       "saveRename": "Adı kaydet",
       "updateView": "Geçerli filtreleri bu görünüme kaydet",
       "viewRenamed": "Görünüm yeniden adlandırıldı.",
-      "viewUpdated": "Görünüm güncellendi."
+      "viewUpdated": "Görünüm güncellendi.",
+      "viewsLoadFailed": "Kaydedilen görünümler yüklenemedi."
     },
     "summaryHealth": {
       "title": "Müşteri özetlerinin durumu",
