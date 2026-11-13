@@ -579,6 +579,14 @@ async function refundWalletDebitForReference(client, {
   const priorRefundedCents = Number(priorRefundRows[0]?.refunded_cents || 0);
   const priorRefundCount = Number(priorRefundRows[0]?.refund_count || 0);
 
+  // Domain 8 #7: resolve the requested amount before the replay check so a
+  // retry with the same key but a different amount/currency fails closed
+  // instead of being answered as if the new amount had been refunded.
+  const requestedCents = amountCents == null ? originalDebitCents : Math.round(Number(amountCents));
+  if (!Number.isSafeInteger(requestedCents) || requestedCents <= 0) {
+    return { refunded: false, reason: 'invalid_amount', cumulativeRefundedCents: priorRefundedCents };
+  }
+
   const { rows: replayRows } = await client.query(
     `SELECT *
        FROM food_customer_wallet_ledger
@@ -589,6 +597,17 @@ async function refundWalletDebitForReference(client, {
     [account.id, idempotencyKey]
   );
   if (replayRows[0]) {
+    assertLedgerReplayMatches(replayRows[0], {
+      entryType: 'refund',
+      amountCents: requestedCents,
+      currencyCode: normalizeCurrency(currencyCode || debitEntry.currency_code),
+      referenceType: 'food_order_refund',
+      // The entry reference id carries a `:pN` sequence assigned at write
+      // time for partial refunds, so it cannot be reconstructed on replay;
+      // the idempotency key is the replay identity, and amount/currency/
+      // type are the fields compared here.
+      referenceId: replayRows[0].reference_id,
+    });
     return {
       refunded: true,
       replayed: true,
@@ -599,10 +618,6 @@ async function refundWalletDebitForReference(client, {
     };
   }
 
-  const requestedCents = amountCents == null ? originalDebitCents : Math.round(Number(amountCents));
-  if (!Number.isSafeInteger(requestedCents) || requestedCents <= 0) {
-    return { refunded: false, reason: 'invalid_amount', cumulativeRefundedCents: priorRefundedCents };
-  }
   if (priorRefundedCents > 0 && amountCents == null) {
     // Legacy full-refund callers (kitchen, agent) keep the old single-shot
     // signal when any refund (full or partial) already exists for the order.
