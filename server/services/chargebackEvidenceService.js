@@ -17,6 +17,7 @@
 
 const db = require('../db');
 const logger = require('../utils/logger');
+const { withTransaction } = require('../utils/transaction');
 const { AppError } = require('../middleware/errorHandler');
 
 const OPEN_STATUSES = new Set(['needs_response', 'warning_needs_response']);
@@ -190,7 +191,9 @@ async function pushEvidence(chargeback, { submit, actorId = null, auto = false, 
       `UPDATE stripe_chargebacks SET attempts = attempts + 1, last_error = $2, updated_at = NOW() WHERE id = $1`,
       [chargeback.id, String(err.message || 'stripe error').slice(0, 1000)]
     );
-    throw new AppError('Stripe rejected the dispute evidence', 502, 'dispute_evidence_failed');
+    throw new AppError('Stripe rejected the dispute evidence', 502, 'dispute_evidence_failed', {
+      stripeError: String(err.message || 'stripe error').slice(0, 1000),
+    });
   }
   const { rows: [row] } = await runner.query(
     `UPDATE stripe_chargebacks
@@ -226,10 +229,32 @@ async function handleDisputeWebhook(dispute, accountId) {
 }
 
 async function submitEvidence(chargebackId, { actorId, note }) {
-  const { rows: [row] } = await db.query('SELECT * FROM stripe_chargebacks WHERE id = $1', [chargebackId]);
-  if (!row) throw new AppError('Chargeback not found', 404, 'not_found');
-  if (row.evidence_submitted_at) throw new AppError('Evidence was already submitted', 409, 'already_submitted');
-  return pushEvidence(row, { submit: true, actorId, extraText: note ? String(note).slice(0, 2000) : null });
+  // Domain 7 #10: the pre-check and the Stripe push must serialize on the
+  // row. A plain SELECT lets two concurrent submits both pass the
+  // already-submitted check and both push evidence to Stripe; taking the
+  // row lock first means the loser blocks until the winner stamps
+  // evidence_submitted_at, then sees it and fails 409. The push runs
+  // inside the same transaction (runner = the locked client) so its
+  // stamp cannot interleave with another submit.
+  try {
+    return await withTransaction(db, async (client) => {
+      const { rows: [row] } = await client.query('SELECT * FROM stripe_chargebacks WHERE id = $1 FOR UPDATE', [chargebackId]);
+      if (!row) throw new AppError('Chargeback not found', 404, 'not_found');
+      if (row.evidence_submitted_at) throw new AppError('Evidence was already submitted', 409, 'already_submitted');
+      return pushEvidence(row, { submit: true, actorId, extraText: note ? String(note).slice(0, 2000) : null }, client);
+    }, 'chargeback_evidence_submit');
+  } catch (err) {
+    if (err && err.code === 'dispute_evidence_failed') {
+      // The transaction rolled back, so pushEvidence's attempts/last_error
+      // bookkeeping inside it was lost with it. Re-apply it outside the
+      // transaction so a Stripe failure is still recorded on the row.
+      await db.query(
+        `UPDATE stripe_chargebacks SET attempts = attempts + 1, last_error = $2, updated_at = NOW() WHERE id = $1`,
+        [chargebackId, String((err.fields && err.fields.stripeError) || 'stripe error').slice(0, 1000)]
+      ).catch(() => {});
+    }
+    throw err;
+  }
 }
 
 // Track D (finding 49): offset plus a real total, so the tail of the queue

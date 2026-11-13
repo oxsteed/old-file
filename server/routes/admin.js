@@ -268,7 +268,7 @@ router.get('/super/chargebacks', requireSuperAdmin, async (req, res, next) => {
     res.json(await svc.listChargebacks({ open: req.query.all !== 'true', limit: req.query.limit, offset: req.query.offset }));
   } catch (err) { next(err); }
 });
-router.post('/super/chargebacks/:id/submit', requireSuperAdmin, async (req, res, next) => {
+router.post('/super/chargebacks/:id/submit', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     const svc = require('../services/chargebackEvidenceService');
     const { logAdminAction } = require('../services/auditService');
