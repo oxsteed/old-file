@@ -814,15 +814,18 @@ router.get('/super/oxsteed-credit/backfill/parked', requireSuperAdmin, async (re
     res.json(await listParkedDualPostingBackfill(require('../db'), { limit: req.query.limit, offset: req.query.offset }));
   } catch (err) { next(err); }
 });
-router.post('/super/oxsteed-credit/backfill/requeue', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.post('/super/oxsteed-credit/backfill/requeue', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     const { requeueParkedDualPostingBackfill } = require('../services/oxsteedCreditSubBankService');
+    // Domain 7 #17: requeue-everything requires an explicit all: true; an
+    // absent id list no longer defaults to the whole parked queue.
+    const all = req.body?.all === true;
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : null;
-    const result = await requeueParkedDualPostingBackfill(require('../db'), { ids });
+    const result = await requeueParkedDualPostingBackfill(require('../db'), { ids, all });
     // Nov 3 audit item 5: resetting parked money-ledger rows is an
     // operator action that must leave an audit trail naming the actor,
     // the scope (ids or all), and the count actually requeued.
-    const scope = ids ? ids.map(String).join(', ') : 'all';
+    const scope = all ? 'all' : ids.map(String).join(', ');
     const { logAdminAction } = require('../services/auditService');
     await logAdminAction({
       adminId: req.user?.id || null,
