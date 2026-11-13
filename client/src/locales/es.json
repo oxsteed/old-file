@@ -10779,7 +10779,8 @@
       "testSentToast": "Notificación de prueba enviada - ¡atento!",
       "deniedToast": "Permiso denegado. Permite las notificaciones en la configuración del navegador.",
       "setupHelp": "Un administrador debe configurar las notificaciones push del navegador en el servidor antes de poder habilitar este navegador.",
-      "checkAgain": "Comprobar de nuevo"
+      "checkAgain": "Comprobar de nuevo",
+      "iosInstallRequired": "En iPhone, las notificaciones del navegador solo funcionan desde la app instalada. Añade OxSteed a tu pantalla de inicio y luego activa las notificaciones aquí."
     },
     "groups": {
       "in_app": {

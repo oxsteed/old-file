@@ -10779,7 +10779,8 @@
       "testSentToast": "Test notification sent - watch for it!",
       "deniedToast": "Permission denied. Allow notifications in your browser settings.",
       "setupHelp": "An administrator must configure browser push on the server before this browser can be enabled.",
-      "checkAgain": "Check again"
+      "checkAgain": "Check again",
+      "iosInstallRequired": "On iPhone, browser push only works from the installed app. Add OxSteed to your Home Screen first, then turn push on here."
     },
     "groups": {
       "in_app": {

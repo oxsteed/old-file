@@ -2962,7 +2962,8 @@
       "testSentToast": "Notifikasyon tès voye - gade pou li !",
       "deniedToast": "Pèmisyon refize. Otorize notifikasyon nan paramèt navigatè a.",
       "setupHelp": "Yon administratè dwe konfigire notifikasyon push navigatè a sou sèvè a anvan navigatè sa a ka aktive.",
-      "checkAgain": "Tcheke ankò"
+      "checkAgain": "Tcheke ankò",
+      "iosInstallRequired": "Sou iPhone, notifikasyon navigatè yo mache sèlman nan aplikasyon ki enstale a. Mete OxSteed sou ekran lakay ou anvan, apre sa aktive notifikasyon isit la."
     },
     "groups": {
       "in_app": {

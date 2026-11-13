@@ -53,7 +53,7 @@ export function BrowserPushPanel() {
   else if (wp.isSubscribed)   statusText = t('notifications.webPush.statusOn');
 
   const disabled =
-    !wp.isSupported || !wp.serverEnabled || wp.loading || wp.permission === 'denied';
+    !wp.isSupported || !wp.serverEnabled || wp.loading || wp.permission === 'denied' || wp.needsInstallForPush;
 
   return (
     <div className="notification-settings__browser-panel">
@@ -93,6 +93,20 @@ export function BrowserPushPanel() {
             >
               {t('notifications.webPush.sendTest')}
             </button>
+          </div>
+        )}
+
+        {wp.needsInstallForPush && (
+          <div className="notification-settings__status-callout">
+            <p className="notification-settings__status-title">{t('pwa.iosTitle')}</p>
+            <p className="notification-settings__status-body">
+              {t('notifications.webPush.iosInstallRequired')}
+            </p>
+            <ol className="notification-settings__status-body">
+              <li>1. {t('pwa.iosStep1')}</li>
+              <li>2. {t('pwa.iosStep2')}</li>
+              <li>3. {t('pwa.iosStep3')}</li>
+            </ol>
           </div>
         )}
 
