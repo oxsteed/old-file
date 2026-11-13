@@ -369,8 +369,6 @@ export default function OxsteedCreditSettlementsPage() {
     try {
       const response = await adminApi.post('/admin/super/oxsteed-credit/reconciliation', {
         currencyCode: settlementForm.currencyCode || 'USD',
-        periodStart: new Date(settlementForm.periodStart).toISOString(),
-        periodEnd: new Date(settlementForm.periodEnd).toISOString(),
         reason: reconciliationReason.trim(),
       });
       const run = response.data?.run || null;

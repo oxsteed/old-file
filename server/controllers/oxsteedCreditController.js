@@ -2515,10 +2515,12 @@ async function reverseAdminSettlement(req, res, next) {
 
 async function reconcileAdminCredit(req, res, next) {
   try {
+    // Domain 7 #26: the reconciliation always covers the all-time ledger,
+    // so the request carries no period. Any period fields in the body are
+    // ignored, never validated or forwarded; the service records a
+    // server-chosen run window.
     const result = await reconcileCreditLedger({
       currencyCode: req.body?.currencyCode || req.body?.currency_code,
-      periodStart: req.body?.periodStart || req.body?.period_start,
-      periodEnd: req.body?.periodEnd || req.body?.period_end,
       actorUserId: req.user.id,
       reason: req.body?.reason,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
