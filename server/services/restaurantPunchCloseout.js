@@ -118,6 +118,13 @@ async function notifyManagers(db, businessId, closed) {
             businessName: closed.businessName || '',
           },
         },
+        // Domain 8 #24: per-entry-per-manager key, like the
+        // missing-punch path. The close commits before the notify, so
+        // without this a crash between commit and notify loses the
+        // alert permanently (the entry has left the open set and will
+        // never be re-selected); with it a retried run re-delivers the
+        // alert once instead of double-notifying.
+        idempotencyKey: `system-closed:${closed.entryId}:${managerId}`,
       });
       notified += 1;
     } catch (err) {
