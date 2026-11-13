@@ -139,6 +139,16 @@ describeDatabase('consumer protection (licence readiness §7)', () => {
     noticeSpy = jest.spyOn(notices, 'sendUserNotice').mockImplementation(async () => ({ sent: true }));
     const { rows: flag } = await pool.query(`SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled'`);
     railWasEnabled = flag[0]?.is_enabled === true;
+    // Domain 8 #4 follow-up: a bare UPDATE is a no-op when the row is
+    // absent, and several suites (affiliatePayoutCore, statementSelfService,
+    // ledgerTransactionUuid) delete this row in teardown, so the shared
+    // test database often has no row at all. Ensure it exists first, the
+    // same pattern ledgerTransactionUuid's beforeEach uses; without it the
+    // rail reads as disabled and the auto-provisional test fails with the
+    // balance unmoved. afterAll restores the seeded off state (FALSE).
+    await pool.query(
+      `INSERT INTO feature_flags (key, is_enabled) SELECT 'oxsteed_credit_enabled', TRUE WHERE NOT EXISTS (SELECT 1 FROM feature_flags WHERE key = 'oxsteed_credit_enabled')`
+    );
     await pool.query(`UPDATE feature_flags SET is_enabled = TRUE WHERE key = 'oxsteed_credit_enabled'`);
     admin1 = await createUser('super_admin', { first: 'Admin', last: 'Maker' });
     admin2 = await createUser('super_admin', { first: 'Admin', last: 'Checker' });
