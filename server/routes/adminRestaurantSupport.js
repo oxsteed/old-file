@@ -3,9 +3,10 @@
 const express = require('express');
 const router = express.Router();
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const ctrl = require('../controllers/restaurantSupportController');
 
-router.use(requireAdmin, requirePermission('manage_support'));
+router.use(requireAdmin, requirePermission('manage_support'), rejectImpersonated);
 
 router.get('/cases', ctrl.adminListCases);
 router.get('/cases/:caseId', ctrl.adminGetCase);
