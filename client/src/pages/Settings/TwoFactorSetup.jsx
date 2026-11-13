@@ -149,7 +149,7 @@ export default function TwoFactorSetup({ adminSetup = false }) {
                   autoComplete="current-password"
                 />
                 {setupPasswordError && (
-                  <p className="mt-1 text-xs" style={{ color: 'var(--color-error)' }} role="alert">{setupPasswordError}</p>
+                  <p className="mt-1 text-xs ox-text-error" role="alert">{setupPasswordError}</p>
                 )}
               </div>
               <button onClick={handleSetup} className="w-full rounded-xl bg-action px-4 py-3 font-semibold text-on-action transition hover:bg-action-hover" data-track="ui.079fe581f9.1">
