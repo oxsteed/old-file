@@ -623,6 +623,8 @@
     "none": "None"
   },
   "adminLoadOlderAuditEvents": "Load older audit events",
+  "adminShowAllAuditEvents": "Show all {{count}} audit events",
+  "adminShowFewerAuditEvents": "Show fewer audit events",
   "statusCompleted": "Completed",
   "statusCompletedWithFindings": "Completed with findings",
   "backToRestaurants": "Back to restaurants",

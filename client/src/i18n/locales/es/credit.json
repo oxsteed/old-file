@@ -623,6 +623,8 @@
     "none": "Ninguno"
   },
   "adminLoadOlderAuditEvents": "Cargar eventos de auditoría más antiguos",
+  "adminShowAllAuditEvents": "Mostrar los {{count}} eventos de auditoría",
+  "adminShowFewerAuditEvents": "Mostrar menos eventos de auditoría",
   "statusCompleted": "Completada",
   "statusCompletedWithFindings": "Completada con hallazgos",
   "backToRestaurants": "Volver a restaurantes",

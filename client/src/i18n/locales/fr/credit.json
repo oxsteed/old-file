@@ -623,6 +623,8 @@
     "none": "Aucun"
   },
   "adminLoadOlderAuditEvents": "Charger les événements d'audit plus anciens",
+  "adminShowAllAuditEvents": "Afficher les {{count}} événements d'audit",
+  "adminShowFewerAuditEvents": "Afficher moins d'événements d'audit",
   "statusCompleted": "Terminée",
   "statusCompletedWithFindings": "Terminée avec des constats",
   "backToRestaurants": "Retour aux restaurants",

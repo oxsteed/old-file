@@ -623,6 +623,8 @@
     "none": "Okenn"
   },
   "adminLoadOlderAuditEvents": "Chaje evènman odit ki pi ansyen yo",
+  "adminShowAllAuditEvents": "Montre tout {{count}} evènman odit yo",
+  "adminShowFewerAuditEvents": "Montre mwens evènman odit",
   "statusCompleted": "Konplete",
   "statusCompletedWithFindings": "Konplete avèk konsta",
   "backToRestaurants": "Retounen nan restoran yo",

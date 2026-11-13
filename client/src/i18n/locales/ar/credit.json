@@ -623,6 +623,8 @@
     "none": "لا يوجد"
   },
   "adminLoadOlderAuditEvents": "تحميل أحداث التدقيق الأقدم",
+  "adminShowAllAuditEvents": "عرض جميع أحداث التدقيق البالغ عددها {{count}}",
+  "adminShowFewerAuditEvents": "عرض أحداث تدقيق أقل",
   "statusCompleted": "مكتملة",
   "statusCompletedWithFindings": "مكتملة مع ملاحظات",
   "backToRestaurants": "العودة إلى المطاعم",
