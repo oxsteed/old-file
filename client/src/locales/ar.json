@@ -38107,7 +38107,7 @@
   "wsServiceOps.colCount": "العدد",
   "wsServiceOps.byDay": "الحجم اليومي",
   "wsServiceOps.colDay": "اليوم",
-  "wsServiceOps.safetySubtitle": "أحداث SOS الطارئة التي أنشأها المستخدمون، الأحدث أولًا. عرض أحدث 100.",
+  "wsServiceOps.safetySubtitle": "أحداث SOS الطارئة التي أنشأها المستخدمون، الأحدث أولًا.",
   "wsServiceOps.safetyGrantNote": "تتطلب قائمة SOS إذن الدعم (manage_support). حسابك لا يملكه، لذا هذه التبويبة غير متاحة.",
   "wsServiceOps.noSosEvents": "لا توجد أحداث SOS مسجلة.",
   "wsServiceOps.colUser": "المستخدم",

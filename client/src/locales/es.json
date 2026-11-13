@@ -37993,7 +37993,7 @@
   "wsServiceOps.colCount": "Cantidad",
   "wsServiceOps.byDay": "Volumen diario",
   "wsServiceOps.colDay": "Día",
-  "wsServiceOps.safetySubtitle": "Eventos SOS de emergencia creados por usuarios, los más recientes primero. Mostrando los últimos 100.",
+  "wsServiceOps.safetySubtitle": "Eventos SOS de emergencia creados por usuarios, los más recientes primero.",
   "wsServiceOps.safetyGrantNote": "La lista SOS requiere el permiso de soporte (manage_support). Tu cuenta no lo tiene, así que esta pestaña no está disponible.",
   "wsServiceOps.noSosEvents": "No hay eventos SOS registrados.",
   "wsServiceOps.colUser": "Usuario",

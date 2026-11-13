@@ -1,5 +1,6 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
+const { parsePagination } = require('../utils/boundedPagination');
 const { sendNotification } = require('../services/notificationService');
 
 // ─── POST /api/safety/sos ─────────────────────────────────────────────────────
@@ -64,17 +65,26 @@ exports.sendSOS = async (req, res, next) => {
 };
 
 // ─── GET /api/safety/sos (admin only) ────────────────────────────────────────
+// Domain 7 #29: the list used to truncate at 100 with no total or pager,
+// hiding the oldest (most overdue) events past 100 on an ops queue. It
+// now mirrors the money-approval queues: bounded limit/offset params plus
+// a COUNT(*) total. Default limit 100 preserves the previous page size.
 exports.listSOS = async (req, res, next) => {
   try {
+    const { limit, offset } = parsePagination(req.query, { defaultLimit: 100, maxLimit: 500 });
+    const { rows: totalRows } = await db.query(
+      'SELECT COUNT(*) AS total FROM safety_sos_events'
+    );
     const { rows } = await db.query(
       `SELECT s.*, u.first_name, u.last_name, u.email
        FROM safety_sos_events s
        JOIN users u ON u.id = s.user_id
        ORDER BY s.created_at DESC
-       LIMIT 100`
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
     );
 
-    return res.json({ events: rows });
+    return res.json({ events: rows, total: Number(totalRows[0]?.total || 0), limit, offset });
   } catch (err) {
     next(err);
   }

@@ -37993,7 +37993,7 @@
   "wsServiceOps.colCount": "Count",
   "wsServiceOps.byDay": "Daily volume",
   "wsServiceOps.colDay": "Day",
-  "wsServiceOps.safetySubtitle": "Emergency SOS events raised by users, newest first. Showing the latest 100.",
+  "wsServiceOps.safetySubtitle": "Emergency SOS events raised by users, newest first.",
   "wsServiceOps.safetyGrantNote": "The SOS list requires the support grant (manage_support). Your account does not have it, so this tab is unavailable.",
   "wsServiceOps.noSosEvents": "No SOS events recorded.",
   "wsServiceOps.colUser": "User",

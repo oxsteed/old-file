@@ -37993,7 +37993,7 @@
   "wsServiceOps.colCount": "Nombre",
   "wsServiceOps.byDay": "Volume quotidien",
   "wsServiceOps.colDay": "Jour",
-  "wsServiceOps.safetySubtitle": "Événements SOS d’urgence créés par les utilisateurs, les plus récents d’abord. Affichage des 100 derniers.",
+  "wsServiceOps.safetySubtitle": "Événements SOS d’urgence créés par les utilisateurs, les plus récents d’abord.",
   "wsServiceOps.safetyGrantNote": "La liste SOS requiert le droit de support (manage_support). Votre compte ne l'a pas, cet onglet est donc indisponible.",
   "wsServiceOps.noSosEvents": "Aucun événement SOS enregistré.",
   "wsServiceOps.colUser": "Utilisateur",
