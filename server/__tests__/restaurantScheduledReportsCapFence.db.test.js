@@ -220,6 +220,11 @@ ddescribe('Background-jobs audit #50: scheduled-report cap and per-schedule fenc
   test('a lease lost mid-run stops the run after the current schedule', async () => {
     const ids = await insertSchedules([{}, {}, {}]);
     const assertActive = jest.fn();
+    // Money flows W4: the run asserts twice per schedule now (before
+    // the build and after it, before the send), so the first
+    // schedule consumes two passing asserts and the lease is lost on
+    // the second schedule's pre-build assert.
+    assertActive.mockImplementationOnce(() => {});
     assertActive.mockImplementationOnce(() => {});
     assertActive.mockImplementationOnce(() => {
       throw new LeaseLostError('restaurant-scheduled-reports');
@@ -230,7 +235,7 @@ ddescribe('Background-jobs audit #50: scheduled-report cap and per-schedule fenc
     await expect(
       scheduledReports.runDueScheduledReports(pool, { now: NOW, fence }),
     ).rejects.toThrow('lease lost');
-    expect(assertActive).toHaveBeenCalledTimes(2);
+    expect(assertActive).toHaveBeenCalledTimes(3);
     // Only the first schedule was built; the second schedule's
     // assert threw before its build, and the third was never reached.
     expect(sendNotification.mock.calls.length - sentBefore).toBe(1);

@@ -55,6 +55,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { LeaseLostError } = require('../jobs/jobLockingService');
 const { computedHours } = require('./restaurantPunchHours');
 const { sendNotification } = require('./notificationService');
 
@@ -94,6 +95,11 @@ async function notifyManagers(db, businessId, closed) {
   try {
     managers = await findManagers(db, businessId);
   } catch (err) {
+    // Money flows W4: a lost lease aborts the sweep; it is not a
+    // failed notification. (findManagers runs on the fence's handle
+    // in the job path, so this is how a lease lost at the notify
+    // step surfaces.)
+    if (err instanceof LeaseLostError) throw err;
     logger.warn('Punch closeout: manager lookup failed', { businessId, error: err.message });
     return { notified, notifyErrors: notifyErrors + 1 };
   }
@@ -134,6 +140,8 @@ async function notifyMissingPunch(db, businessId, missing) {
   try {
     managers = await findManagers(db, businessId);
   } catch (err) {
+    // Money flows W4: see notifyManagers above.
+    if (err instanceof LeaseLostError) throw err;
     logger.warn('Punch closeout: manager lookup failed', { businessId, error: err.message });
     return { notified, notifyErrors: notifyErrors + 1 };
   }
@@ -432,6 +440,12 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
         };
       });
     } catch (err) {
+      // Money flows W4: a lost lease is not one failed entry. The
+      // per-entry fenced transaction refuses the close after lease
+      // loss; rethrow so the job aborts with { fenced: true }
+      // instead of walking the rest of the batch recording one
+      // spurious error per entry and returning normally.
+      if (err instanceof LeaseLostError) throw err;
       errors.push({ entryId: Number(entry.id), error: err.message });
       logger.warn('Punch closeout: failed to close entry', { entryId: entry.id, error: err.message });
       continue;
@@ -444,6 +458,10 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
         notified += result.notified;
         notifyErrors += result.notifyErrors;
       } catch (err) {
+        // Money flows W4: see the per-entry catch above — a lease
+        // lost at the notify step aborts the sweep, it is not a
+        // failed notification.
+        if (err instanceof LeaseLostError) throw err;
         notifyErrors += 1;
         logger.warn('Punch closeout: manager notification failed', { businessId: entry.business_id, entryId: entry.id, error: err.message });
       }
@@ -518,6 +536,9 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
       }
     }
   } catch (err) {
+    // Money flows W4: a lost lease aborts the sweep; it is not a
+    // failed missing-punch check.
+    if (err instanceof LeaseLostError) throw err;
     errors.push({ missingPunchCheck: true, error: err.message });
     logger.warn('Punch closeout: missing-punch check failed', { error: err.message });
   }

@@ -479,11 +479,13 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
     // per-schedule try/catch on purpose: a LeaseLostError must abort
     // the run (the job converts it to { fenced: true }) instead of
     // being recorded as one failed schedule while the run keeps
-    // building through the raw pool. The build itself (daily close /
-    // labor / digests) reads through the raw pool, so the assert
-    // guards the boundary between schedules, not a lease lost
-    // mid-build; closing that residual needs the builders to take
-    // fence.db, which is out of this finding's scope.
+    // building through the raw pool. The lease is re-asserted again
+    // after the build and before the send (Money flows W4), since
+    // the senders do not take the fence. The build itself (daily
+    // close / labor / digests) reads through the raw pool, so the
+    // asserts guard the boundaries around the build, not a lease
+    // lost mid-build; closing that residual needs the builders to
+    // take fence.db, which is out of this finding's scope.
     if (fence) fence.assertActive();
     const timezone = schedule.timezone || 'UTC';
     let businessDate;
@@ -528,6 +530,15 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
       }
       delivery = claim.delivery;
       const payload = await buildScheduledReport(db, { restaurant, schedule, businessDate, asOf });
+      // Money flows W4: re-assert the lease after the build and
+      // before the send. The build (daily close / labor / digests)
+      // can be long, and the senders below (sendNotification /
+      // sendEmail) do not take the fence: without this checkpoint a
+      // lease lost mid-build still delivered through the raw pool,
+      // and only the ledger update afterwards threw. The claim and
+      // the ledger updates go through fence.db, so they assert on
+      // their own; this checkpoint guards the send itself.
+      if (fence) fence.assertActive();
       const outcome = await deliverScheduledReport(db, { schedule, payload });
       // Background-jobs audit #41: a {success:false} recipient is a
       // failed delivery, not a partial success. Throw so the catch

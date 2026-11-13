@@ -18,7 +18,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { withFencedJobLock } = require('./jobLockingService');
+const { withFencedJobLock, LeaseLostError } = require('./jobLockingService');
 const { anonymizeFormerStaff } = require('../services/restaurantRetentionService');
 const { enqueueStorageDeletion, resolveKey } = require('../services/storageCleanupService');
 
@@ -116,6 +116,12 @@ async function sweep(db = pool) {
       );
       result.completedRequests += 1;
     } catch (err) {
+      // Money flows W4: a lost lease is not one failed person. The
+      // fence's handle refuses further writes, so rethrow instead
+      // of recording the loss as a per-person error and continuing:
+      // withFencedJobLock converts the throw into { fenced: true }
+      // and the remaining persons wait for the next weekly run.
+      if (err instanceof LeaseLostError) throw err;
       result.errors.push({ request_id: Number(request.id), error: err.message });
       logger.error('Retention sweep erasure failed', { requestId: request.id, error: err.message });
     }
@@ -153,6 +159,11 @@ async function sweep(db = pool) {
       });
       if (inserted) result.autoAnonymized += 1;
     } catch (err) {
+      // Money flows W4: see the part-1 catch above. Without the
+      // rethrow a lease lost in this pass was swallowed per person
+      // and the sweep returned normally (no { fenced: true }, no
+      // incident), while the remaining persons were never processed.
+      if (err instanceof LeaseLostError) throw err;
       result.errors.push({ user_id: person.user_id, error: err.message });
       logger.error('Retention sweep auto-anonymize failed', { userId: person.user_id, error: err.message });
     }
