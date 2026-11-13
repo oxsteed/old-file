@@ -35184,6 +35184,7 @@
       "adminActions": "Aksyon administratè yo",
       "date": "Dat",
       "empty": "Nou pa jwenn okenn evènman odit.",
+      "firstHundred": "N ap montre 100 premye evènman yo. Evènman ki pi ansyen yo pa parèt.",
       "system": "Sistèm",
       "title": "Odit"
     },
@@ -35341,6 +35342,7 @@
       "adminActions": "Aksyon administratè yo",
       "date": "Dat",
       "empty": "Nou pa jwenn okenn evènman odit.",
+      "firstHundred": "N ap montre 100 premye evènman yo. Evènman ki pi ansyen yo pa parèt.",
       "system": "Sistèm",
       "title": "Odit",
       "userActivity": "Aktivite kont lan"

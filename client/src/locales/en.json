@@ -35184,6 +35184,7 @@
       "adminActions": "Admin actions",
       "date": "Date",
       "empty": "No audit events found.",
+      "firstHundred": "Showing the first 100 events. Older events are not shown.",
       "system": "System",
       "title": "Audit trail"
     },
@@ -35341,6 +35342,7 @@
       "adminActions": "Admin actions",
       "date": "Date",
       "empty": "No audit events found.",
+      "firstHundred": "Showing the first 100 events. Older events are not shown.",
       "system": "System",
       "title": "Audit trail",
       "userActivity": "Account activity"

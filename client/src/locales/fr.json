@@ -35184,6 +35184,7 @@
       "adminActions": "Actions des administrateurs",
       "date": "Date",
       "empty": "Aucun événement d'audit trouvé.",
+      "firstHundred": "Affichage des 100 premiers événements. Les événements plus anciens ne sont pas affichés.",
       "system": "Système",
       "title": "Audit"
     },
@@ -35341,6 +35342,7 @@
       "adminActions": "Actions des administrateurs",
       "date": "Date",
       "empty": "Aucun événement d'audit trouvé.",
+      "firstHundred": "Affichage des 100 premiers événements. Les événements plus anciens ne sont pas affichés.",
       "system": "Système",
       "title": "Audit",
       "userActivity": "Activité du compte"

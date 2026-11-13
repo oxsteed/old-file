@@ -35184,6 +35184,7 @@
       "adminActions": "Acciones de administradores",
       "date": "Fecha",
       "empty": "No se encontraron eventos de auditoría.",
+      "firstHundred": "Se muestran los primeros 100 eventos. Los eventos más antiguos no se muestran.",
       "system": "Sistema",
       "title": "Auditoría"
     },
@@ -35341,6 +35342,7 @@
       "adminActions": "Acciones de administradores",
       "date": "Fecha",
       "empty": "No se encontraron eventos de auditoría.",
+      "firstHundred": "Se muestran los primeros 100 eventos. Los eventos más antiguos no se muestran.",
       "system": "Sistema",
       "title": "Auditoría",
       "userActivity": "Actividad de la cuenta"
