@@ -41415,6 +41415,8 @@
     "currency": "Show fees in",
     "loading": "Loading the terms…",
     "loadFailed": "The terms could not be loaded. Please try again in a moment.",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry",
     "pendingTitle": "Pending legal approval.",
     "pendingBody": "Some of this text is a draft that our legal team has not approved yet. It may change before OxSteed Credit is offered where you live.",
     "draftBadge": "Draft",

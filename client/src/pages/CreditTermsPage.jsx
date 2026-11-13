@@ -17,6 +17,7 @@ export default function CreditTermsPage() {
   const { t, i18n } = useTranslation();
   const [currency, setCurrency] = useState('USD');
   const [state, setState] = useState({ status: 'loading', items: [] });
+  const [retryNonce, setRetryNonce] = useState(0);
   const lang = i18n.resolvedLanguage || i18n.language || 'en';
 
   useEffect(() => {
@@ -26,7 +27,7 @@ export default function CreditTermsPage() {
       .then(({ data }) => { if (!controller.signal.aborted) setState({ status: 'ready', items: data.disclosures || [] }); })
       .catch(() => { if (!controller.signal.aborted) setState({ status: 'error', items: [] }); });
     return () => controller.abort();
-  }, [lang, currency]);
+  }, [lang, currency, retryNonce]);
 
   const pending = pendingLegalApproval(state.items);
   return (
@@ -42,7 +43,12 @@ export default function CreditTermsPage() {
           </select>
         </label>
         {state.status === 'loading' && <p role="status" className="ox-licence-copy">{t('creditTermsPage.loading')}</p>}
-        {state.status === 'error' && <p role="alert" className="ox-licence-copy">{t('creditTermsPage.loadFailed')}</p>}
+        {state.status === 'error' && (
+          <div>
+            <p role="alert" className="ox-licence-copy">{t('creditTermsPage.loadFailed')}</p>
+            <button type="button" className="ox-credit-refresh" onClick={() => setRetryNonce((n) => n + 1)}>{t('creditTermsPage.retry')}</button>
+          </div>
+        )}
         {state.status === 'ready' && pending && (
           <p role="note" data-pending-legal="true" className="ox-licence-terms mt-4">
             <strong>{t('creditTermsPage.pendingTitle')}</strong> {t('creditTermsPage.pendingBody')}
@@ -50,6 +56,7 @@ export default function CreditTermsPage() {
         )}
         {state.status === 'ready' && (
           <div className="ox-licence-body ox-licence-body--flush mt-4">
+            {state.items.length === 0 && <p role="status" className="ox-licence-copy">{t('creditTermsPage.noTerms')}</p>}
             {state.items.map((item) => (
               <section key={item.kind} className="ox-licence-terms" lang={item.language} data-kind={item.kind}>
                 <h2 className="text-base font-semibold">
