@@ -2597,11 +2597,18 @@ async function buildCarryForwardItems(clientOrPool, {
   const runCurrency = String(currency || requireRestaurantCurrency(restaurant)).trim().toUpperCase();
   const { ids: targetIds, scoped: targetScoped } = locationScopeClause(locationIds);
   const { rows: sources } = await clientOrPool.query(
+    // Money flows R11: no lookback cap. The old LIMIT 5 meant a late
+    // input from the 6th-most-recent finalized run (or older) was
+    // flagged on its source run forever and never paid, with no manual
+    // carry path. Every finalized/paid run before the target period is
+    // a source, oldest first so the oldest stranded inputs are
+    // collected first. Cost is linear in the run count: each source
+    // runs three indexed late-input lookups, and a restaurant with
+    // years of weekly runs pays that on every new run creation.
     `SELECT * FROM restaurant_pay_runs
       WHERE restaurant_id = $1 AND status IN ('finalized', 'paid')
         AND period_to < $2
-      ORDER BY period_to DESC, id DESC
-      LIMIT 5`,
+      ORDER BY period_to ASC, id ASC`,
     [restaurant.id, runDateOnly(targetPeriodFrom)]
   );
   const items = [];
