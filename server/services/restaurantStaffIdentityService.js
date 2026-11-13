@@ -148,10 +148,16 @@ async function recentPinFailures({ restaurantId, deviceId = null, staffPinId = n
 // Auth-audit item 13: a digest-miss on the device-less path records an
 // attempt with neither a device nor a PIN id, so neither the device nor
 // the PIN counter ever sees it. Count those blind guesses in a
-// per-restaurant bucket instead. There is no success-reset for this
-// bucket by construction: a successful validation always records its
-// PIN id, so a NULL/NULL success never exists; the window drain
-// releases the lock, exactly as a lockout lets its window drain.
+// per-restaurant bucket instead.
+//
+// Domain 6 finding 8: a digest-miss carries no account identity (the PIN
+// matched nothing), so the bucket cannot be scoped per account. It
+// resets on success instead: a successful device-less validation records
+// a NULL/NULL success marker (see validateStaffPinForRestaurant), and
+// failures predating the latest marker do not count, mirroring the
+// success reset the device/PIN buckets already have in
+// recentPinFailures. Five blind misses still lock the device-less path
+// for 15 minutes; a good unlock clears the bucket.
 async function recentRestaurantDigestMissFailures({ restaurantId }) {
   const { rows: [row] } = await pool.query(
     `SELECT COUNT(*)::int AS failures
@@ -160,7 +166,14 @@ async function recentRestaurantDigestMissFailures({ restaurantId }) {
         AND device_id IS NULL
         AND staff_pin_id IS NULL
         AND success = FALSE
-        AND created_at > NOW() - ($2 || ' minutes')::interval`,
+        AND created_at > NOW() - ($2 || ' minutes')::interval
+        AND created_at > COALESCE((
+          SELECT MAX(created_at) FROM restaurant_staff_pin_attempts
+           WHERE restaurant_id = $1
+             AND device_id IS NULL
+             AND staff_pin_id IS NULL
+             AND success = TRUE
+        ), 'epoch'::timestamptz)`,
     [restaurantId, String(PIN_LOCKOUT_WINDOW_MINUTES)]
   );
   return Number(row?.failures || 0);
@@ -317,6 +330,14 @@ async function validateStaffPinForRestaurant({ restaurantId, pin, deviceId = nul
     }
   }
   await recordPinAttempt({ restaurantId, deviceId, staffPinId: pinRow.id, success: true });
+  if (deviceId == null) {
+    // Domain 6 finding 8: the digest-miss bucket (NULL/NULL) has no
+    // PIN id to reset against, so a successful device-less validation
+    // records an explicit NULL/NULL success marker that clears it
+    // (see recentRestaurantDigestMissFailures). Device-bound successes
+    // do not touch the device-less bucket.
+    await recordPinAttempt({ restaurantId, deviceId: null, staffPinId: null, success: true });
+  }
   return {
     pinRow,
     staff: {
