@@ -25896,7 +25896,14 @@
         "finalized": "تم إنجاز الدمج.",
         "approved": "تمت الموافقة على الدمج.",
         "voided": "تم إلغاء الدمج.",
-        "actionError": "تعذّر تحديث الدمج."
+        "actionError": "تعذّر تحديث الدمج.",
+        "viewDetails": "عرض التفاصيل",
+        "detailTitle": "الدمج رقم {{id}}",
+        "detailError": "تعذّر تحميل الدمج.",
+        "finalizedAt": "أُنجز {{date}}",
+        "approvedAt": "تمت الموافقة {{date}}",
+        "memberRun": "دفعة الرواتب رقم {{id}}",
+        "closeDetails": "إغلاق التفاصيل"
       },
       "franchise": {
         "title": "تقرير الامتياز",

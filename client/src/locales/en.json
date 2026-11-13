@@ -26513,7 +26513,14 @@
         "finalized": "Consolidation finalized.",
         "approved": "Consolidation approved.",
         "voided": "Consolidation voided.",
-        "actionError": "Could not update the consolidation."
+        "actionError": "Could not update the consolidation.",
+        "viewDetails": "View details",
+        "detailTitle": "Consolidation #{{id}}",
+        "detailError": "Could not load the consolidation.",
+        "finalizedAt": "Finalized {{date}}",
+        "approvedAt": "Approved {{date}}",
+        "memberRun": "Pay run #{{id}}",
+        "closeDetails": "Close details"
       },
       "franchise": {
         "title": "Franchise report",

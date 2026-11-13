@@ -25881,7 +25881,14 @@
         "finalized": "Consolidación finalizada.",
         "approved": "Consolidación aprobada.",
         "voided": "Consolidación anulada.",
-        "actionError": "No se pudo actualizar la consolidación."
+        "actionError": "No se pudo actualizar la consolidación.",
+        "viewDetails": "Ver detalle",
+        "detailTitle": "Consolidación n.º {{id}}",
+        "detailError": "No se pudo cargar la consolidación.",
+        "finalizedAt": "Finalizada {{date}}",
+        "approvedAt": "Aprobada {{date}}",
+        "memberRun": "Nómina n.º {{id}}",
+        "closeDetails": "Cerrar detalle"
       },
       "franchise": {
         "title": "Informe de franquicia",

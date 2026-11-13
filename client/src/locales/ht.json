@@ -25881,7 +25881,14 @@
         "finalized": "Konsolidasyon an finalize.",
         "approved": "Konsolidasyon an apwouve.",
         "voided": "Konsolidasyon an anile.",
-        "actionError": "Pa t kapab mete konsolidasyon an ajou."
+        "actionError": "Pa t kapab mete konsolidasyon an ajou.",
+        "viewDetails": "Wè detay",
+        "detailTitle": "Konsolidasyon #{{id}}",
+        "detailError": "Pa t kapab chaje konsolidasyon an.",
+        "finalizedAt": "Finalize {{date}}",
+        "approvedAt": "Apwouve {{date}}",
+        "memberRun": "Peman #{{id}}",
+        "closeDetails": "Fèmen detay"
       },
       "franchise": {
         "title": "Rapò franchiz",

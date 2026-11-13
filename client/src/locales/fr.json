@@ -25881,7 +25881,14 @@
         "finalized": "Consolidation finalisée.",
         "approved": "Consolidation approuvée.",
         "voided": "Consolidation annulée.",
-        "actionError": "Impossible de mettre à jour la consolidation."
+        "actionError": "Impossible de mettre à jour la consolidation.",
+        "viewDetails": "Voir le détail",
+        "detailTitle": "Consolidation n° {{id}}",
+        "detailError": "Impossible de charger la consolidation.",
+        "finalizedAt": "Finalisée {{date}}",
+        "approvedAt": "Approuvée {{date}}",
+        "memberRun": "Fiche de paie n° {{id}}",
+        "closeDetails": "Fermer le détail"
       },
       "franchise": {
         "title": "Rapport de franchise",
