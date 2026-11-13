@@ -179,3 +179,14 @@ export function dismissPwaPrompt() {
   recordDismissal();
   emit({ type: 'hidden' });
 }
+
+/**
+ * Hide the prompt without recording a dismissal. Used by the auto-hide
+ * timer: a user who simply does not notice the banner in 8s has not
+ * dismissed anything, so no install chance is burned. Only an explicit
+ * "Not now" tap (dismissPwaPrompt) counts as a dismissal.
+ */
+export function hidePwaPrompt() {
+  trackEvent('pwa_prompt_outcome', { outcome: 'auto_hidden', platform: platformLabel() });
+  emit({ type: 'hidden' });
+}
