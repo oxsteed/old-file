@@ -19,6 +19,11 @@ import { SuggestDropdown } from '../../../components/SuggestDropdown';
 import '../../lib/suggestDropdownAdmin.css';
 import { formatCreditDateTime } from '../../../lib/creditDateTime';
 import { createStableIdempotencyKeyStore } from './creditIdempotency';
+import {
+  AdminActionDialog,
+  requestStepupChallengeCode,
+  useCreditDialog,
+} from './oxsteedCredit/shared';
 
 const PAGE_SIZE = 25;
 
@@ -538,6 +543,10 @@ function ConversionPolicySection({ restaurants }) {
 
 export default function RestaurantCreditAdmin() {
   const { t } = useTranslation();
+  const { t: tCredit } = useTranslation('credit');
+  // Domain 7 #2: hold release, wallet-status, and load approve/decline
+  // require a fresh admin step-up; the dialog below collects the code.
+  const { dialog, requestDialog, resolveDialog } = useCreditDialog();
   const [data, setData] = useState(null);
   const [detail, setDetail] = useState(null);
   const [selectedAccountId, setSelectedAccountId] = useState(null);
@@ -611,6 +620,27 @@ export default function RestaurantCreditAdmin() {
     setActionBusy(true);
     setActionError('');
     try {
+      // Domain 7 #2: prove a fresh step-up before the mutation posts; the
+      // money-moving actions bind the challenge to the amount on screen.
+      const stepupAction = {
+        approve: { actionType: 'restaurant_credit_load_approve', amountCents: modal.request?.amountCents, currencyCode: modal.request?.currencyCode },
+        decline: { actionType: 'restaurant_credit_load_decline', amountCents: modal.request?.amountCents, currencyCode: modal.request?.currencyCode },
+        release: { actionType: 'restaurant_credit_hold_release', amountCents: modal.hold?.amountCents, currencyCode: modal.hold?.currencyCode },
+        status: { actionType: 'restaurant_credit_wallet_status_update' },
+      }[modal.kind];
+      const stepup = await requestStepupChallengeCode({
+        requestDialog,
+        // This page has no notice banner; the step-up dialog itself is the
+        // feedback, so the issued notice is dropped.
+        setNotice: () => {},
+        setError: setActionError,
+        t: tCredit,
+        actionType: stepupAction.actionType,
+        description: tCredit('creditStepupConfirmDescription'),
+        amountCents: stepupAction.amountCents,
+        currencyCode: stepupAction.currencyCode,
+      });
+      if (!stepup) { setActionBusy(false); return; }
       let path = '';
       let body = {};
       if (modal.kind === 'approve') {
@@ -626,7 +656,7 @@ export default function RestaurantCreditAdmin() {
         path = `/admin/super/restaurant-credit/wallets/${modal.wallet.accountId}/status`;
         body = { status: modal.status, reason: modal.reason?.trim() || undefined };
       }
-      await adminApi.post(path, body);
+      await adminApi.post(path, { ...body, ...stepup });
       setModal(null);
       await refresh();
     } catch (err) {
@@ -730,6 +760,7 @@ export default function RestaurantCreditAdmin() {
       <div className="flex items-start gap-3 rounded-2xl border border-sky-500/20 bg-sky-950/20 p-4 text-sm leading-6 text-sky-200"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-sky-300" /><p><span className="font-semibold">{t('adminRestaurantCreditControlBoundary')}:</span> {t('adminRestaurantCreditControlBoundaryText')}</p></div>
 
       <ConfirmDialog modal={modal} busy={actionBusy} error={actionError} onClose={() => { if (!actionBusy) setModal(null); }} onChange={(changes) => setModal((current) => ({ ...current, ...changes }))} onConfirm={runAction} />
+      <AdminActionDialog dialog={dialog} onResolve={resolveDialog} />
     </main>
   );
 }

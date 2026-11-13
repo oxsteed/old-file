@@ -292,10 +292,73 @@ router.get('/super/restaurant-credit/overview', requireSuperAdmin, restaurantCre
 router.get('/super/restaurant-credit/wallets/:accountId', requireSuperAdmin, restaurantCreditAdminCtrl.getWalletDetail);
 // M28: restaurant-credit admin mutations carry the same limiter as their
 // OxSteed Credit siblings.
-router.post('/super/restaurant-credit/wallets/:accountId/status', requireSuperAdmin, creditAdminMutationLimiter, restaurantCreditAdminCtrl.updateWalletStatus);
-router.post('/super/restaurant-credit/holds/:holdId/release', requireSuperAdmin, creditAdminMutationLimiter, restaurantCreditAdminCtrl.releaseHold);
-router.post('/super/restaurant-credit/load-requests/:requestId/approve', requireSuperAdmin, creditAdminMutationLimiter, restaurantCreditAdminCtrl.approveLoadRequest);
-router.post('/super/restaurant-credit/load-requests/:requestId/decline', requireSuperAdmin, creditAdminMutationLimiter, restaurantCreditAdminCtrl.declineLoadRequest);
+// Domain 7 #2 (2026-11-11 admin-ops audit): these mutations unlock customer
+// funds (hold release, load approve), suspend/reactivate a wallet, or deny a
+// payout (load decline), so each requires rejectImpersonated plus a fresh
+// admin step-up, following the settlement-payout / withdrawal-approve
+// pattern. The money-moving actions bind the step-up to the row's amount.
+async function readRestaurantCreditStepupAmountCents(sql, params, label) {
+  try {
+    const { rows } = await require('../db').query(sql, params);
+    if (!rows.length) return null;
+    const n = Number(rows[0].amount_cents);
+    return Number.isSafeInteger(n) && n > 0 ? n : null;
+  } catch (preReadError) {
+    // Domain 7 #19: a failed amount pre-read fails closed instead of
+    // proceeding with an unbound challenge.
+    require('../utils/logger').warn('admin.restaurant-credit stepup pre-read failed, failing closed', { label, error: preReadError.message });
+    throw new AppError(`Could not read the ${label} amount for step-up binding; retry the action`, 503, 'credit_stepup_amount_preread_failed');
+  }
+}
+function restaurantCreditStepupFields(req) {
+  return {
+    challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+    actorUserId: req.user?.id || null,
+    code: req.body?.stepupCode || req.body?.stepup_code,
+  };
+}
+router.post('/super/restaurant-credit/wallets/:accountId/status', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    await verifyStepupChallenge({ ...restaurantCreditStepupFields(req), actionType: 'restaurant_credit_wallet_status_update' });
+    return restaurantCreditAdminCtrl.updateWalletStatus(req, res, next);
+  } catch (err) { next(err); }
+});
+router.post('/super/restaurant-credit/holds/:holdId/release', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    const expectedAmount = await readRestaurantCreditStepupAmountCents(
+      'SELECT amount_cents FROM food_customer_wallet_holds WHERE id = $1',
+      [req.params.holdId],
+      'hold',
+    );
+    await verifyStepupChallenge({
+      ...restaurantCreditStepupFields(req),
+      actionType: 'restaurant_credit_hold_release',
+      ...(expectedAmount !== null ? { expectedAmountCents: expectedAmount } : {}),
+    });
+    return restaurantCreditAdminCtrl.releaseHold(req, res, next);
+  } catch (err) { next(err); }
+});
+router.post('/super/restaurant-credit/load-requests/:requestId/approve', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    const expectedAmount = await readRestaurantCreditStepupAmountCents(
+      'SELECT amount_cents FROM food_customer_wallet_load_requests WHERE id = $1',
+      [req.params.requestId],
+      'load request',
+    );
+    await verifyStepupChallenge({
+      ...restaurantCreditStepupFields(req),
+      actionType: 'restaurant_credit_load_approve',
+      ...(expectedAmount !== null ? { expectedAmountCents: expectedAmount } : {}),
+    });
+    return restaurantCreditAdminCtrl.approveLoadRequest(req, res, next);
+  } catch (err) { next(err); }
+});
+router.post('/super/restaurant-credit/load-requests/:requestId/decline', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    await verifyStepupChallenge({ ...restaurantCreditStepupFields(req), actionType: 'restaurant_credit_load_decline' });
+    return restaurantCreditAdminCtrl.declineLoadRequest(req, res, next);
+  } catch (err) { next(err); }
+});
 
 // OxSteed Credit holds are captured only by an authorized operator. Customer
 // clients can create and release their own reservations, but never capture value.

@@ -398,7 +398,7 @@ describe('item 12: admin credit step-up is TOTP, not email OTP', () => {
   });
 
   test('all admin money and configuration action types are TOTP-only', () => {
-    expect(TOTP_STEPUP_ACTION_TYPES).toHaveLength(22);
+    expect(TOTP_STEPUP_ACTION_TYPES).toHaveLength(26);
     for (const actionType of [
       'settlement_payout',
       'withdrawal',
@@ -424,6 +424,12 @@ describe('item 12: admin credit step-up is TOTP, not email OTP', () => {
       // Domain 7 #1: payment-dispute decisions are admin actions like
       // manual refunds, so they verify against TOTP.
       'payment_dispute_decision',
+      // Domain 7 #2: restaurant-credit hold release, wallet-status update,
+      // and load-request approve/decline are admin actions, so TOTP-only.
+      'restaurant_credit_hold_release',
+      'restaurant_credit_wallet_status_update',
+      'restaurant_credit_load_approve',
+      'restaurant_credit_load_decline',
     ]) {
       expect(TOTP_STEPUP_ACTION_TYPES).toContain(actionType);
     }
