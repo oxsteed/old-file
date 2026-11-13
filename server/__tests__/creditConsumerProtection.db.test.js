@@ -273,6 +273,37 @@ describeDatabase('consumer protection (licence readiness §7)', () => {
       }
     });
 
+    test('a failed results notice is not stamped sent and retries on the next sweep (Domain 8 #4)', async () => {
+      const { customerId, transactionId } = await fundedCustomer();
+      const dispute = await openDispute(customerId, transactionId);
+      await pool.query(
+        `UPDATE oxsteed_credit_disputes SET status = 'resolved_customer', resolution = 'Credited in full', resolved_by = $2, resolved_at = NOW(), resolution_due_at = NOW() - INTERVAL '31 days' WHERE id = $1`,
+        [dispute.id, admin1]
+      );
+      noticeSpy.mockResolvedValueOnce({ sent: false, error: 'smtp down' });
+      const first = await sla.sweepResultsNotices();
+      expect(first.attempted).toBe(1);
+      expect(first.sent).toBe(0);
+      const { rows: [afterFail] } = await pool.query(
+        `SELECT results_notice_sent_at, results_notice_result FROM oxsteed_credit_disputes WHERE id = $1`,
+        [dispute.id]
+      );
+      expect(afterFail.results_notice_sent_at).toBeNull();
+      expect(afterFail.results_notice_result.sent).toBe(false);
+      // The next sweep retries the same dispute, and the resend path
+      // stamps only when the send actually succeeds.
+      const second = await sla.sweepResultsNotices();
+      expect(second.attempted).toBe(1);
+      expect(second.sent).toBe(1);
+      const { rows: [afterOk] } = await pool.query(`SELECT results_notice_sent_at FROM oxsteed_credit_disputes WHERE id = $1`, [dispute.id]);
+      expect(afterOk.results_notice_sent_at).not.toBeNull();
+      expect((await sla.sweepResultsNotices()).attempted).toBe(0);
+      // Resending an already-notified dispute is a no-op (no second send).
+      const callsBefore = noticeSpy.mock.calls.length;
+      expect(await sla.resendResultsNotice({ disputeId: dispute.id, actorUserId: admin1 })).toEqual({ sent: true, alreadySent: true });
+      expect(noticeSpy.mock.calls.length).toBe(callsBefore);
+    });
+
     test('a dispute past its final deadline opens a dispute_deadline case', async () => {
       const c = await fundedCustomer({ backdateDays: 60 });
       const d = await openDispute(c.customerId, c.transactionId);
@@ -351,6 +382,31 @@ describeDatabase('consumer protection (licence readiness §7)', () => {
       }));
       const { rows: d } = await pool.query('SELECT results_notice_sent_at FROM credit_cashout_disputes WHERE id = $1', [open.id]);
       expect(d[0].results_notice_sent_at).not.toBeNull();
+    });
+
+    test('a failed cash-out results notice is not stamped sent and retries on the next sweep (Domain 8 #4)', async () => {
+      const key = `m4cp-cd2-${crypto.randomUUID()}`;
+      const opened = await sla.openCashoutDispute({ user: { id: helperId }, cashoutId, description: 'Still nothing', idempotencyKey: key });
+      const resolved = await oversight('credit_cashout_dispute_resolve', {
+        disputeId: opened.id, outcome: 'resolved_paid_confirmed', resolution: 'The bank confirmed the first transfer arrived.',
+      });
+      expect(resolved.status).toBe('resolved_paid_confirmed');
+      noticeSpy.mockResolvedValueOnce({ sent: false, error: 'smtp down' });
+      const first = await sla.sweepCashoutDisputes(new Date());
+      expect(first.noticed).toBe(0);
+      const { rows: [afterFail] } = await pool.query(
+        `SELECT results_notice_sent_at, results_notice_result FROM credit_cashout_disputes WHERE id = $1`,
+        [opened.id]
+      );
+      expect(afterFail.results_notice_sent_at).toBeNull();
+      expect(afterFail.results_notice_result.sent).toBe(false);
+      const second = await sla.sweepCashoutDisputes(new Date());
+      expect(second.noticed).toBe(1);
+      const { rows: [afterOk] } = await pool.query('SELECT results_notice_sent_at FROM credit_cashout_disputes WHERE id = $1', [opened.id]);
+      expect(afterOk.results_notice_sent_at).not.toBeNull();
+      const callsBefore = noticeSpy.mock.calls.length;
+      expect(await sla.resendResultsNotice({ cashoutDisputeId: opened.id, actorUserId: admin1 })).toEqual({ sent: true, alreadySent: true });
+      expect(noticeSpy.mock.calls.length).toBe(callsBefore);
     });
   });
 

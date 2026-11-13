@@ -3894,6 +3894,11 @@ function formatDispute(row) {
     provisionalCreditCents: Number(row.provisional_credit_cents || 0),
     // Licence readiness (migration 20261103100000): error-resolution clocks.
     notifiedAt: row.notified_at || null,
+    // Domain 8 #4: results-notice delivery state, so the admin queue can
+    // show a failed notice and offer the resend action. sent is null
+    // when no attempt was recorded yet.
+    resultsNoticeSentAt: row.results_notice_sent_at || null,
+    resultsNoticeSent: row.results_notice_result ? row.results_notice_result.sent === true : null,
     provisionalDueAt: row.provisional_due_at || null,
     resolutionDueAt: row.resolution_due_at || null,
     extendedWindow: row.extended_window === true,
