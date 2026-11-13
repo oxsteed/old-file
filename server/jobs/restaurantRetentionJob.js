@@ -20,6 +20,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { withFencedJobLock, LeaseLostError } = require('./jobLockingService');
 const { anonymizeFormerStaff, scrubBusinessAuditLogNames } = require('../services/restaurantRetentionService');
+const { notifyErasureSubject } = require('../services/restaurantErasureNotifications');
 const { enqueueStorageDeletion, resolveKey } = require('../services/storageCleanupService');
 
 const JOB_NAME = 'restaurant-retention-sweep';
@@ -89,7 +90,10 @@ async function anonymizePerson(db, { businessId, userId, retainUntil }) {
 // loser must dedupe instead of inserting a second completed row (or
 // erroring on 23505). ON CONFLICT DO NOTHING against the partial
 // index returns no row for the loser; the caller counts only a real
-// insert. Returns { inserted: true/false }.
+// insert. Returns { inserted: true/false, id: <row id or null> }.
+// The id lets the caller notify the subject about the row it created
+// (money-flows W3); the losing sweep must not notify, since the
+// winning sweep notifies for the same completed row.
 async function recordAutoCompletedErasure(db, { businessId, userId, outcome } = {}) {
   const { rows } = await db.query(
     `INSERT INTO restaurant_erasure_requests
@@ -99,7 +103,7 @@ async function recordAutoCompletedErasure(db, { businessId, userId, outcome } = 
      RETURNING id`,
     [businessId, userId, JSON.stringify(outcome || {})]
   );
-  return { inserted: rows.length > 0 };
+  return { inserted: rows.length > 0, id: rows.length > 0 ? rows[0].id : null };
 }
 
 async function sweep(db = pool) {
@@ -134,6 +138,14 @@ async function sweep(db = pool) {
           WHERE id = $1`,
         [request.id, JSON.stringify(outcome)]
       );
+      // Money-flows W3: tell the subject the sweep completed their erasure.
+      await notifyErasureSubject(db, {
+        userId: request.user_id,
+        businessId: Number(request.business_id),
+        restaurantId: request.restaurant_id == null ? null : undefined,
+        requestId: request.id,
+        status: 'completed',
+      });
       result.completedRequests += 1;
     } catch (err) {
       // Money flows W4: a lost lease is not one failed person. The
@@ -172,12 +184,23 @@ async function sweep(db = pool) {
       // makes this insert a no-op (inserted:false); the person is
       // anonymized either way, so count only a real insert and
       // record no error.
-      const { inserted } = await recordAutoCompletedErasure(db, {
+      const { inserted, id: completedId } = await recordAutoCompletedErasure(db, {
         businessId: Number(person.business_id),
         userId: person.user_id,
         outcome,
       });
-      if (inserted) result.autoAnonymized += 1;
+      if (!inserted) continue;
+      // Money-flows W3: tell the subject the sweep erased their data.
+      // Only the winning sweep notifies; the loser already has its
+      // subject notified by the sweep that completed the person.
+      await notifyErasureSubject(db, {
+        userId: person.user_id,
+        businessId: Number(person.business_id),
+        restaurantId: null,
+        requestId: completedId,
+        status: 'completed',
+      });
+      result.autoAnonymized += 1;
     } catch (err) {
       // Money flows W4: see the part-1 catch above. Without the
       // rethrow a lease lost in this pass was swallowed per person

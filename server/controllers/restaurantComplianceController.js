@@ -20,6 +20,7 @@ const temperatureService = require('../services/restaurantTemperatureService');
 const primeCostService = require('../services/restaurantPrimeCostService');
 const scheduledReports = require('../services/restaurantScheduledReports');
 const retentionService = require('../services/restaurantRetentionService');
+const erasureNotifications = require('../services/restaurantErasureNotifications');
 const breakAttestation = require('../services/restaurantBreakAttestation');
 const payrollService = require('../services/restaurantPayrollService');
 
@@ -508,6 +509,16 @@ exports.createErasureRequest = async (req, res, next) => {
         req.user.id, body.reason == null ? null : String(body.reason).slice(0, 1000),
       ]
     );
+    // Money-flows W3: a requested erasure must surface to managers at
+    // once, or it can sit undecided indefinitely with nobody told.
+    // Best-effort: the helper never throws, so a notification failure
+    // never fails the request itself.
+    await erasureNotifications.notifyErasureManagers(pool, {
+      businessId: Number(restaurant.business_id),
+      restaurantId,
+      requestId: row.id,
+      subjectUserId: targetUserId,
+    });
     res.status(201).json({ request: row });
   } catch (err) { next(err); }
 };
@@ -548,6 +559,15 @@ exports.decideErasureRequest = async (req, res, next) => {
       [decision, req.user.id, requestId, Number(restaurant.business_id)]
     );
     if (!row) throw new AppError('Erasure request not found or already decided', 404, 'erasure_request_not_found');
+    // Money-flows W3: tell the subject the outcome of the decision.
+    await erasureNotifications.notifyErasureSubject(pool, {
+      userId: existing.user_id,
+      businessId: Number(restaurant.business_id),
+      restaurantId,
+      requestId,
+      status: 'decided',
+      decision,
+    });
     res.json({ request: row });
   } catch (err) { next(err); }
 };
@@ -621,6 +641,14 @@ exports.runErasureRequest = async (req, res, next) => {
       target_type: 'erasure_request',
       target_id: requestId,
       after_state: { user_id: request.user_id, ...storedOutcome },
+    });
+    // Money-flows W3: tell the subject the erasure completed.
+    await erasureNotifications.notifyErasureSubject(pool, {
+      userId: request.user_id,
+      businessId: Number(restaurant.business_id),
+      restaurantId: request.restaurant_id == null ? restaurantId : Number(request.restaurant_id),
+      requestId,
+      status: 'completed',
     });
     res.json({ request: completed });
   } catch (err) { next(err); }
