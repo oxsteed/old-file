@@ -13,6 +13,8 @@ export default function TwoFactorSetup({ adminSetup = false }) {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [setupData, setSetupData] = useState(null);
+  const [setupPassword, setSetupPassword] = useState('');
+  const [setupPasswordError, setSetupPasswordError] = useState('');
   const [verifyCode, setVerifyCode] = useState('');
   const [disableCode, setDisableCode] = useState('');
   const [backupCodes, setBackupCodes] = useState(null);
@@ -33,8 +35,14 @@ export default function TwoFactorSetup({ adminSetup = false }) {
   };
 
   const handleSetup = async () => {
+    if (!setupPassword) {
+      setSetupPasswordError(t('twoFactor.setupPasswordRequired'));
+      return;
+    }
     try {
-      const { data } = await twoFactorAPI.setup();
+      const { data } = await twoFactorAPI.setup(setupPassword);
+      setSetupPassword('');
+      setSetupPasswordError('');
       setSetupData(data);
       setBackupCodes(data.backupCodes);
       setStep('setup');
@@ -124,6 +132,25 @@ export default function TwoFactorSetup({ adminSetup = false }) {
                   <p className="font-medium text-content">{t('twoFactor.notEnabled')}</p>
                   <p className="text-sm text-muted">{t('twoFactor.notEnabledSub')}</p>
                 </div>
+              </div>
+              <div>
+                <label htmlFor="two-factor-setup-password" className="mb-1.5 block text-sm text-muted">
+                  {t('twoFactor.setupPasswordLabel')}
+                </label>
+                <input
+                  id="two-factor-setup-password"
+                  type="password"
+                  value={setupPassword}
+                  onChange={(e) => {
+                    setSetupPassword(e.target.value);
+                    if (setupPasswordError) setSetupPasswordError('');
+                  }}
+                  className="w-full rounded-xl border border-border bg-surface-2 px-4 py-3 text-content focus:outline-none focus:ring-2 focus:ring-primary"
+                  autoComplete="current-password"
+                />
+                {setupPasswordError && (
+                  <p className="mt-1 text-xs" style={{ color: 'var(--color-error)' }} role="alert">{setupPasswordError}</p>
+                )}
               </div>
               <button onClick={handleSetup} className="w-full rounded-xl bg-action px-4 py-3 font-semibold text-on-action transition hover:bg-action-hover" data-track="ui.079fe581f9.1">
                 {t('twoFactor.enableBtn')}

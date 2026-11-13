@@ -11825,6 +11825,8 @@
     "passkeyDeviceNameRequired": "Saisissez un nom pour cette clé d’accès.",
     "passkeyPasswordLabel": "Mot de passe actuel",
     "passkeyPasswordRequired": "Saisissez votre mot de passe actuel pour continuer.",
+    "setupPasswordLabel": "Mot de passe actuel",
+    "setupPasswordRequired": "Saisissez votre mot de passe actuel pour continuer.",
     "passkeyRegisterSubmit": "Enregistrer la clé d’accès",
     "passkeyRegisterCancel": "Annuler",
     "passkeyUnsupportedInline": "Ce navigateur ne prend pas en charge les clés d’accès. Utilisez un navigateur ou un appareil compatible pour en enregistrer une.",

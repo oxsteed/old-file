@@ -11825,6 +11825,8 @@
     "passkeyDeviceNameRequired": "أدخل اسمًا لهذا مفتاح المرور.",
     "passkeyPasswordLabel": "كلمة المرور الحالية",
     "passkeyPasswordRequired": "أدخل كلمة المرور الحالية للمتابعة.",
+    "setupPasswordLabel": "كلمة المرور الحالية",
+    "setupPasswordRequired": "أدخل كلمة المرور الحالية للمتابعة.",
     "passkeyRegisterSubmit": "تسجيل مفتاح المرور",
     "passkeyRegisterCancel": "إلغاء",
     "passkeyUnsupportedInline": "هذا المتصفح لا يدعم مفاتيح المرور. استخدم متصفحًا أو جهازًا مدعومًا لتسجيل واحد.",

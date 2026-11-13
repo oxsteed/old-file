@@ -11825,6 +11825,8 @@
     "passkeyDeviceNameRequired": "Ingresa un nombre para esta clave de acceso.",
     "passkeyPasswordLabel": "Contraseña actual",
     "passkeyPasswordRequired": "Ingresa tu contraseña actual para continuar.",
+    "setupPasswordLabel": "Contraseña actual",
+    "setupPasswordRequired": "Ingresa tu contraseña actual para continuar.",
     "passkeyRegisterSubmit": "Registrar clave de acceso",
     "passkeyRegisterCancel": "Cancelar",
     "passkeyUnsupportedInline": "Este navegador no admite claves de acceso. Usa un navegador o dispositivo compatible para registrar una.",

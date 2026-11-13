@@ -48,12 +48,24 @@ async function log2FAAction(userId, action, req, success) {
 }
 
 // POST /api/2fa/setup - Generate TOTP secret + QR code
+// Domain 6 auth finding #3: starting TOTP enrollment previously needed
+// only a stolen session, letting a session thief plant their own
+// authenticator and lock the victim out. Like passkey enrollment, setup
+// now requires the current password (bcrypt compare) before any secret
+// is generated or stored.
 async function setup2FA(req, res, next) {
   try {
     const userId = req.user.id;
-    const { rows } = await pool.query('SELECT email, totp_enabled FROM users WHERE id = $1', [userId]);
+    const { password } = req.body || {};
+    if (!password || typeof password !== 'string') {
+      throw new AppError('Current password is required to set up two-factor authentication.', 400, 'validation_failed', { password: 'Current password is required' });
+    }
+    const { rows } = await pool.query('SELECT email, totp_enabled, password_hash FROM users WHERE id = $1', [userId]);
     if (!rows[0]) {
       throw new AppError('User not found', 404, 'not_found');
+    }
+    if (!rows[0].password_hash || !(await bcrypt.compare(password, rows[0].password_hash))) {
+      throw new AppError('Current password is incorrect.', 403, 'password_incorrect');
     }
     if (rows[0].totp_enabled) {
       throw new AppError('2FA is already enabled. Disable it first to reconfigure.', 400, 'invalid_state');

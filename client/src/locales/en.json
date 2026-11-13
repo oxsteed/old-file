@@ -11825,6 +11825,8 @@
     "passkeyDeviceNameRequired": "Enter a name for this passkey.",
     "passkeyPasswordLabel": "Current password",
     "passkeyPasswordRequired": "Enter your current password to continue.",
+    "setupPasswordLabel": "Current password",
+    "setupPasswordRequired": "Enter your current password to continue.",
     "passkeyRegisterSubmit": "Register passkey",
     "passkeyRegisterCancel": "Cancel",
     "passkeyUnsupportedInline": "This browser does not support passkeys. Use a supported browser or device to register one.",

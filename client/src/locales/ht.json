@@ -11825,6 +11825,8 @@
     "passkeyDeviceNameRequired": "Antre yon non pou passkey sa a.",
     "passkeyPasswordLabel": "Modpas aktyèl",
     "passkeyPasswordRequired": "Antre modpas aktyèl ou pou kontinye.",
+    "setupPasswordLabel": "Modpas aktyèl",
+    "setupPasswordRequired": "Antre modpas aktyèl ou pou kontinye.",
     "passkeyRegisterSubmit": "Anrejistre passkey",
     "passkeyRegisterCancel": "Anile",
     "passkeyUnsupportedInline": "Navigatè sa a pa sipòte passkeys. Sèvi ak yon navigatè oswa aparèy ki sipòte yo pou anrejistre youn.",
