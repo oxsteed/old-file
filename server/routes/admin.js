@@ -97,6 +97,10 @@ router.get('/dashboard',         requireAdmin, requirePermission('manage_operati
 // availability and permission state; domain pages remain authoritative.
 router.get('/operations/overview', requireAdmin, requirePermission('manage_operations'), adminOperationsCtrl.getOverview);
 router.get('/operations/security-audit-log', requireAdmin, requirePermission('view_audit_log'), adminOperationsCtrl.getSecurityAuditLog);
+// Domain 8 #30: live fleet worker heartbeat snapshot (in-memory run
+// state from scheduledWorkerSchedule); read-only, same permission as
+// the operations overview it feeds.
+router.get('/operations/fleet-worker-heartbeats', requireAdmin, requirePermission('manage_operations'), adminOperationsCtrl.getFleetWorkerHeartbeats);
 
 // Content moderation
 router.get('/reports',           requireAdmin, requirePermission('manage_operations'), adminCtrl.getReports);

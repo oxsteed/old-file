@@ -218,6 +218,18 @@ exports.getOverview = async (req, res) => {
   });
 };
 
+// Domain 8 #30: the fleet scheduler keeps per-worker run state in
+// memory (last run/success, consecutive skips and failures) but nothing
+// exposed it, so a worker skipped in every replica surfaced only via
+// the incident after 3 consecutive skips. Read-only snapshot for the
+// Operations Overview; per-process by design, so in a multi-replica
+// deployment each replica reports only its own ticks (see the limits
+// comment in scheduledWorkerSchedule.js).
+exports.getFleetWorkerHeartbeats = async (req, res) => {
+  const { getFleetWorkerHeartbeats } = require('../workers/scheduledWorkerSchedule');
+  res.json({ heartbeats: getFleetWorkerHeartbeats(), generated_at: new Date().toISOString() });
+};
+
 // Bounded, permission-gated reader for the security audit trail. The overview
 // only exposes counts; operators need the underlying events to investigate a
 // failure without reaching into the database directly.

@@ -178,6 +178,56 @@ function SectionCard({ section, title, description, t, canLink }) {
   );
 }
 
+// Domain 8 #30: live fleet worker heartbeats from this API replica.
+// Per-process by design: each replica reports only its own ticks.
+function FleetWorkerHeartbeatsCard({ heartbeats, t }) {
+  const formatTime = (value) => (value ? new Date(value).toLocaleTimeString() : t('adminOperations.fleetWorkersNever'));
+  return (
+    <article className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 p-5 shadow-sm">
+      <div className="flex items-start gap-3">
+        <span className="rounded-xl bg-orange-500/15 p-2 text-orange-300" aria-hidden="true">
+          <Activity size={20} />
+        </span>
+        <div>
+          <h2 className="font-semibold text-gray-900 dark:text-white">{t('adminOperations.fleetWorkersTitle')}</h2>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t('adminOperations.fleetWorkersDescription')}</p>
+        </div>
+      </div>
+      {heartbeats.length === 0 ? (
+        <p className="mt-5 text-sm text-gray-600 dark:text-gray-400">{t('adminOperations.fleetWorkersEmpty')}</p>
+      ) : (
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+            <thead>
+              <tr className="text-xs uppercase tracking-wide text-gray-500">
+                <th scope="col" className="py-2 pr-3">{t('adminOperations.fleetWorkersWorker')}</th>
+                <th scope="col" className="py-2 pr-3">{t('adminOperations.fleetWorkersLastRun')}</th>
+                <th scope="col" className="py-2 pr-3">{t('adminOperations.fleetWorkersLastSuccess')}</th>
+                <th scope="col" className="py-2 pr-3">{t('adminOperations.fleetWorkersOutcome')}</th>
+                <th scope="col" className="py-2 pr-3">{t('adminOperations.fleetWorkersSkips')}</th>
+                <th scope="col" className="py-2">{t('adminOperations.fleetWorkersFailures')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {heartbeats.map((heartbeat) => (
+                <tr key={heartbeat.worker} className="border-t border-gray-200 dark:border-gray-800">
+                  <td className="py-2 pr-3 font-mono text-xs">{heartbeat.worker}</td>
+                  <td className="py-2 pr-3">{formatTime(heartbeat.lastRunAt)}</td>
+                  <td className="py-2 pr-3">{formatTime(heartbeat.lastSuccessAt)}</td>
+                  <td className="py-2 pr-3">{heartbeat.lastOutcome || '—'}</td>
+                  <td className={`py-2 pr-3 ${heartbeat.consecutiveSkips > 0 ? 'font-semibold text-amber-300' : ''}`}>{heartbeat.consecutiveSkips ?? 0}</td>
+                  <td className={`py-2 ${heartbeat.consecutiveFailures > 0 ? 'font-semibold text-red-300' : ''}`}>{heartbeat.consecutiveFailures ?? 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="mt-4 text-xs text-gray-500">{t('adminOperations.fleetWorkersNote')}</p>
+    </article>
+  );
+}
+
 export default function OperationsOverview() {
   const { t } = useTranslation();
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -187,7 +237,14 @@ export default function OperationsOverview() {
   const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
     try {
       const response = await adminApi.get('/admin/operations/overview', { signal });
-      return response.data;
+      // Domain 8 #30: fleet heartbeats ride along with the overview
+      // refresh; a heartbeat failure never hides the overview itself.
+      let heartbeats = [];
+      try {
+        const heartbeatResponse = await adminApi.get('/admin/operations/fleet-worker-heartbeats', { signal });
+        heartbeats = Array.isArray(heartbeatResponse?.data?.heartbeats) ? heartbeatResponse.data.heartbeats : [];
+      } catch { /* heartbeats stay empty; the overview is authoritative */ }
+      return { ...response.data, heartbeats };
     } catch (err) {
       if (err?.name === 'AbortError' || err?.code === 'ERR_CANCELED') throw err;
       const wrapped = new Error(err?.response?.data?.error || t('adminOperations.loadError'));
@@ -316,6 +373,9 @@ export default function OperationsOverview() {
             ))}
           </div>
         )}
+        <div className="mt-8">
+          <FleetWorkerHeartbeatsCard heartbeats={data?.heartbeats || []} t={t} />
+        </div>
         <p className="mt-8 text-xs text-gray-500">{t('adminOperations.sourceDisclaimer')}</p>
       </div>
     </section>
