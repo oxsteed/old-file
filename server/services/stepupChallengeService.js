@@ -153,8 +153,9 @@ const TOTP_STEPUP_ACTION_TYPES = Object.freeze([
   'subscription_cancel',
 ]);
 
-// TOTP codes rotate every 30 seconds (RFC 6238 time-step).
-const TOTP_TIME_STEP_SECONDS = 30;
+// Shared TOTP replay guard (Domain 6 #7): the 30-second step lives in
+// totpReplayGuard; this service no longer keeps its own counter table.
+const { consumeTotpCounter } = require('./totpReplayGuard');
 
 function getStepupPepper() {
   return process.env.OXSTEED_CREDIT_STEPUP_PEPPER || process.env.JWT_SECRET || null;
@@ -337,28 +338,16 @@ async function verifyTotpPresentation(client, { challenge, actorUserId, code }) 
     });
   }
   // Replay guard: a TOTP code stays valid for its 30-second window, so the
-  // same code could otherwise be presented against a second challenge. Each
-  // admin consumes at most one TOTP step-up per time-step; the row lock
-  // serializes concurrent verifications.
-  const counter = Math.floor(Date.now() / (TOTP_TIME_STEP_SECONDS * 1000));
-  const { rows: counterRows } = await client.query(
-    'SELECT max_counter FROM admin_totp_stepup_counters WHERE user_id = $1 FOR UPDATE',
-    [actorUserId]
-  );
-  const maxCounter = counterRows[0] ? Number(counterRows[0].max_counter) : 0;
-  if (counter <= maxCounter) {
+  // same code could otherwise be presented against a second challenge.
+  // Shared guard (Domain 6 #7): each user consumes at most one TOTP
+  // verification per time-step across every channel.
+  if (!(await consumeTotpCounter(client, actorUserId))) {
     throw new AppError(
       'This verification code was already used. Wait for a new code from your authenticator app.',
       403,
       'credit_stepup_challenge_reused'
     );
   }
-  await client.query(
-    `INSERT INTO admin_totp_stepup_counters (user_id, max_counter, updated_at)
-     VALUES ($1, $2, NOW())
-     ON CONFLICT (user_id) DO UPDATE SET max_counter = EXCLUDED.max_counter, updated_at = NOW()`,
-    [actorUserId, counter]
-  );
 }
 
 /**

@@ -70,6 +70,12 @@ exports.verifyStepUp = async (req, res, next) => {
     if (!verified) {
       return next(new AppError('Invalid verification code.', 400, 'validation_failed'));
     }
+    // Domain 6 #7: consume this step's counter so the code cannot mint a
+    // second fresh-auth event (or verify elsewhere) in the same step.
+    const { consumeTotpCounter } = require('../services/totpReplayGuard');
+    if (!(await consumeTotpCounter(pool, userId))) {
+      return next(new AppError('Invalid verification code.', 400, 'validation_failed'));
+    }
     const authHash = _internal.authHashFor(userId);
     const ipHash = hashIP(req.ip || req.headers['x-forwarded-for'] || 'unknown');
     await pool.query(

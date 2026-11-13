@@ -161,12 +161,15 @@ function installFakeDb() {
       const user = users.get(params[0]);
       return { rows: user ? [{ totp_enabled: user.totpEnabled }] : [] };
     }
-    if (sql.includes('FROM admin_totp_stepup_counters WHERE user_id')) {
-      const max = counters.get(params[0]);
-      return { rows: max == null ? [] : [{ max_counter: max }] };
-    }
-    if (sql.includes('INSERT INTO admin_totp_stepup_counters')) {
-      counters.set(params[0], params[1]);
+    // Domain 6 #7: the shared guard consumes the current step counter
+    // with one atomic upsert; it returns a row only when the counter is
+    // strictly greater than the stored max (fresh), and no row on replay.
+    if (sql.includes('INSERT INTO totp_used_counters')) {
+      const stored = counters.get(params[0]);
+      if (stored == null || params[1] > stored) {
+        counters.set(params[0], params[1]);
+        return { rows: [{ max_counter: params[1] }] };
+      }
       return { rows: [] };
     }
     throw new Error(`unexpected query in fake db: ${sql.slice(0, 120)}`);

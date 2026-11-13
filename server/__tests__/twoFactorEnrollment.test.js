@@ -22,6 +22,9 @@ test('enrollment encrypts its secret and returns hashed recovery codes after TOT
     if (sql.startsWith('UPDATE users SET totp_secret')) secret = params[0];
     if (sql.startsWith('SELECT totp_secret')) return { rows: [{ totp_secret: secret, totp_enabled: false }] };
     if (sql.startsWith('UPDATE users SET totp_enabled')) savedCodes = params[0];
+    // Domain 6 #7: the replay guard's atomic upsert returns a row when
+    // the step counter is fresh.
+    if (sql.includes('INSERT INTO totp_used_counters')) return { rows: [{ max_counter: 1 }] };
     return { rows: [] };
   });
   const req = { user: { id: 'test-user' }, body: { password: 'correct-horse-battery' }, headers: {}, ip: '127.0.0.1' };

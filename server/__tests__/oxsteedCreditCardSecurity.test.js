@@ -16,9 +16,9 @@ const cardId = '99999999-9999-4999-8999-999999999999';
 const grantId = '22222222-2222-4222-8222-222222222222';
 const args = { customerId: userId, actorUserId: userId, cardId, sessionBinding: 'synthetic-session',
   idempotencyKey: 'synthetic-operation', stepupChallengeId: grantId, stepupCode: '123456' };
-let user, card, grant, limit, previous, calls;
+let user, card, grant, limit, previous, calls, guardConsumed;
 beforeEach(() => {
-  resetMocks(); calls = [];
+  resetMocks(); calls = []; guardConsumed = false;
   bcrypt.compare.mockResolvedValue(true);
   sendOTPEmail.mockResolvedValue({ success: true });
   user = { id: userId, email: 'test@example.invalid', email_verified: true, password_hash: 'synthetic-hash', is_active: true, totp_enabled: false };
@@ -35,6 +35,13 @@ beforeEach(() => {
     if (sql.includes('SELECT * FROM oxsteed_credit_card_security_operations')) return { rows: previous };
     if (sql.includes('SELECT * FROM oxsteed_credit_card_security_challenges')) return { rows: grant ? [grant] : [] };
     if (sql.includes('INSERT INTO oxsteed_credit_card_security_challenges')) return { rows: [{ id: grantId, expires_at: new Date(Date.now() + 600000) }] };
+    // Domain 6 #7: the replay guard's atomic upsert returns a row only
+    // on the first consume of a step counter.
+    if (sql.includes('INSERT INTO totp_used_counters')) {
+      if (guardConsumed) return { rows: [] };
+      guardConsumed = true;
+      return { rows: [{ max_counter: 1 }] };
+    }
     return { rows: [] };
   });
 });
@@ -115,6 +122,15 @@ test('enrolled MFA is required before email issuance', async () => {
   user.totp_enabled = true; user.totp_secret = encrypt('SYNTHETIC'); authenticator.verify.mockReturnValue(false);
   await expect(security.issueChallenge({ ...args, action: 'unfreeze', password: 'synthetic', mfaCode: '123456' })).rejects.toMatchObject({ code: 'credit_card_security_mfa_required' });
   expect(sendOTPEmail).not.toHaveBeenCalled(); committed();
+});
+test('Domain 6 #7: an MFA code that verified once cannot issue a second challenge in the same step', async () => {
+  user.totp_enabled = true; user.totp_secret = encrypt('SYNTHETIC'); authenticator.verify.mockReturnValue(true);
+  const first = await security.issueChallenge({ ...args, action: 'unfreeze', password: 'synthetic', mfaCode: '123456' });
+  expect(first.challenge.id).toBeTruthy();
+  expect(sendOTPEmail).toHaveBeenCalledTimes(1);
+  await expect(security.issueChallenge({ ...args, action: 'unfreeze', password: 'synthetic', mfaCode: '123456' }))
+    .rejects.toMatchObject({ code: 'credit_card_security_mfa_required' });
+  expect(sendOTPEmail).toHaveBeenCalledTimes(1);
 });
 test('failed email burns challenge and never logs or returns code', async () => {
   sendOTPEmail.mockResolvedValue({ success: false });

@@ -477,6 +477,9 @@ describe('POST /api/auth/login/2fa', () => {
     mockQuery.mockImplementation(async (sql) => {
       const text = String(sql);
       if (text.includes('COUNT(*) FROM two_factor_audit_log')) return { rows: [{ count: '0' }] };
+      // Domain 6 #7: the replay guard's atomic upsert returns a row when
+      // the step counter is fresh.
+      if (text.includes('INSERT INTO totp_used_counters')) return { rows: [{ max_counter: 1 }] };
       if (text.includes('SELECT id, email, role, is_active, totp_secret')) {
         return { rows: [{
           id: 8,
@@ -526,6 +529,9 @@ describe('POST /api/auth/login/2fa', () => {
     mockQuery.mockImplementation(async (sql) => {
       const text = String(sql);
       if (text.includes('COUNT(*) FROM two_factor_audit_log')) return { rows: [{ count: '0' }] };
+      // Domain 6 #7: the replay guard's atomic upsert returns a row when
+      // the step counter is fresh.
+      if (text.includes('INSERT INTO totp_used_counters')) return { rows: [{ max_counter: 1 }] };
       if (text.includes('SELECT id, email, role, is_active, totp_secret')) {
         return { rows: [{
           id: 9,
@@ -565,6 +571,9 @@ describe('POST /api/auth/login/2fa', () => {
     mockQuery.mockImplementation(async (sql) => {
       const text = String(sql);
       if (text.includes('COUNT(*) FROM two_factor_audit_log')) return { rows: [{ count: '0' }] };
+      // Domain 6 #7: the replay guard's atomic upsert returns a row when
+      // the step counter is fresh.
+      if (text.includes('INSERT INTO totp_used_counters')) return { rows: [{ max_counter: 1 }] };
       if (text.includes('SELECT id, email, role, is_active, totp_secret')) {
         return { rows: [{
           id: 10,

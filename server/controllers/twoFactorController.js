@@ -9,6 +9,7 @@ const pool = require('../db');
 const { encrypt, decrypt, hashIP } = require('../utils/encryption');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { consumeTotpCounter } = require('../services/totpReplayGuard');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const MAX_2FA_FAILURES = 5;
@@ -125,6 +126,13 @@ async function verifySetup(req, res, next) {
       throw new AppError('Invalid verification code. Try again.', 400, 'validation_failed', { token: 'Invalid verification code' });
     }
 
+    // Domain 6 #7: consume this step's counter so the enrollment code
+    // cannot verify again at another channel in the same step.
+    if (!(await consumeTotpCounter(pool, userId))) {
+      await log2FAAction(userId, 'setup_verify_failed', req, false);
+      throw new AppError('Invalid verification code. Try again.', 400, 'validation_failed', { token: 'Invalid verification code' });
+    }
+
     // Generate backup codes
     const backupCodes = generateBackupCodes();
     const hashedCodes = await Promise.all(backupCodes.map(c => hashCode(c)));
@@ -231,6 +239,13 @@ async function validate2FA(req, res, next) {
       throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
     }
 
+    // Domain 6 #7: consume this step's counter so the code cannot verify
+    // again at another channel (e.g. login 2FA) in the same step.
+    if (!(await consumeTotpCounter(pool, userId))) {
+      await log2FAAction(userId, 'totp_verify_failed', req, false);
+      throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
+    }
+
     await log2FAAction(userId, 'totp_verify_success', req, true);
     res.json({ valid: true });
   } catch (err) {
@@ -262,6 +277,13 @@ async function disable2FA(req, res, next) {
     });
 
     if (!verified) {
+      await log2FAAction(userId, 'disable_failed', req, false);
+      throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
+    }
+
+    // Domain 6 #7: consume this step's counter so the code cannot verify
+    // again at another channel in the same step.
+    if (!(await consumeTotpCounter(pool, userId))) {
       await log2FAAction(userId, 'disable_failed', req, false);
       throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
     }
@@ -323,6 +345,13 @@ async function regenerateBackupCodes(req, res, next) {
     });
 
     if (!verified) {
+      await log2FAAction(userId, 'regenerate_backup_failed', req, false);
+      throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
+    }
+
+    // Domain 6 #7: consume this step's counter so the code cannot verify
+    // again at another channel in the same step.
+    if (!(await consumeTotpCounter(pool, userId))) {
       await log2FAAction(userId, 'regenerate_backup_failed', req, false);
       throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
     }

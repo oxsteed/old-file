@@ -78,8 +78,20 @@ async function issueChallenge(args) {
     if (limit.last_sent_at && Date.now() - new Date(limit.last_sent_at).getTime() < 60000) return failure('credit_card_security_cooldown', 429);
     if (typeof args.password !== 'string' || args.password.length > 1024 || !user.password_hash
       || !(await bcrypt.compare(args.password, user.password_hash))) return failedAttempt(client, args, 'credit_card_security_password_invalid');
-    if (user.totp_enabled && (!/^\d{6}$/.test(String(args.mfaCode || ''))
-      || !authenticator.verify({ token: String(args.mfaCode), secret: decrypt(user.totp_secret) }))) return failedAttempt(client, args, 'credit_card_security_mfa_required');
+    if (user.totp_enabled) {
+      if (!/^\d{6}$/.test(String(args.mfaCode || ''))
+        || !authenticator.verify({ token: String(args.mfaCode), secret: decrypt(user.totp_secret) })) {
+        return failedAttempt(client, args, 'credit_card_security_mfa_required');
+      }
+      // Domain 6 #7: consume this step's counter (inside this
+      // transaction, so it commits with the challenge) so the code cannot
+      // verify again at another channel in the same step. A replay counts
+      // as a failed MFA attempt, like an invalid code.
+      const { consumeTotpCounter } = require('./totpReplayGuard');
+      if (!(await consumeTotpCounter(client, args.customerId))) {
+        return failedAttempt(client, args, 'credit_card_security_mfa_required');
+      }
+    }
     await client.query(`UPDATE oxsteed_credit_card_security_challenges SET consumed_at = NOW()
       WHERE customer_id = $1 AND consumed_at IS NULL`, [args.customerId]);
     const { rows } = await client.query(`INSERT INTO oxsteed_credit_card_security_challenges

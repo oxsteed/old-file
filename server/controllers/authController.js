@@ -30,6 +30,7 @@ const { claimGuestQuoteRequestsForUser } = require('../services/quoteRequestClai
 const { invalidateGuestHistoryAccessCodesForEmail } = require('../services/guestProfileChatVerification');
 const { logSecurityEvent, extractRequestDetails } = require('../services/auditLoggerService');
 const { recordLoginAgreement } = require('../services/loginAgreementService'); // Review P1-1-F05
+const { consumeTotpCounter } = require('../services/totpReplayGuard'); // Domain 6 #7
 const modeRoleUtil = require('../utils/modeRole');
 const { readDeviceFingerprint } = require('../utils/deviceFingerprint'); // Review P2-6-F12
 const { normalizeStoredPublicUrl } = require('../utils/storage');
@@ -709,6 +710,17 @@ async function loginWith2FA(req, res, next) {
       await pool.query(
         'INSERT INTO two_factor_audit_log (user_id, action, ip_address, user_agent, success) VALUES ($1, $2, $3, $4, $5)',
         [userId, isBackupCode ? 'backup_code_failed' : 'totp_verify_failed', hashIP(req.ip), req.headers['user-agent'], false]
+      );
+      return res.status(401).json({ error: 'Invalid 2FA code' });
+    }
+    // Domain 6 #7: a TOTP code (not a single-use backup code) must not
+    // verify twice in one step at another channel. Consume this step's
+    // counter before issuing the session; a replay fails closed with the
+    // same 401 as an invalid code.
+    if (!isBackupCode && !(await consumeTotpCounter(pool, userId))) {
+      await pool.query(
+        'INSERT INTO two_factor_audit_log (user_id, action, ip_address, user_agent, success) VALUES ($1, $2, $3, $4, $5)',
+        [userId, 'totp_verify_failed', hashIP(req.ip), req.headers['user-agent'], false]
       );
       return res.status(401).json({ error: 'Invalid 2FA code' });
     }
