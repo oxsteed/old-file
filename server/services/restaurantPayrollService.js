@@ -1287,7 +1287,13 @@ const ORDER_FINANCIALS_CTE = `
                THEN GREATEST(0, pos.collected_cents - pos.refunded_cents)
              WHEN fo.payment_status = 'paid' THEN fo.total_cents
              ELSE 0
-           END::int AS net_collected_cents
+           END::int AS net_collected_cents,
+           -- Money-flows audit R10: the gross amount actually
+           -- collected, so tip math can pro-rate a partial refund
+           -- instead of paying the full tip on a half-refunded
+           -- order. 0 when the order has no recorded payments (the
+           -- payment_status fallback above applies instead).
+           COALESCE(pos.collected_cents, 0)::int AS collected_cents
       FROM food_orders fo
       LEFT JOIN LATERAL (
         SELECT COUNT(*) FILTER (
@@ -1358,6 +1364,13 @@ async function getOrderTips(restaurantId, fromDate, toDate, timezone, locationId
   // `userId` only that employee's attributed tips are read (item 55);
   // unattributed tips have no employee to attribute to and fall out
   // of the single-employee slice.
+  // Money-flows audit R10: a partial refund pro-rates the tip by
+  // net_collected / collected (refund payments carry no tip split,
+  // so the refund is assumed to include the tip proportionally).
+  // Integer division truncates, so the pro-rated tip never exceeds
+  // the kept share. Orders with no recorded payments keep the full
+  // tip (the payment_status fallback); a full refund (status
+  // 'refunded', or net_collected 0) still removes the tip entirely.
   const { rows } = await pool.query(
     `${locationIds === null ? ORDER_FINANCIALS_CTE : ORDER_FINANCIALS_CTE.replace('WHERE fo.restaurant_id = $1', 'WHERE fo.restaurant_id = $1 AND fo.location_id = ANY($5::bigint[])')}
      SELECT COALESCE(NULLIF(fo.currency_code, ''), 'USD') AS currency,
@@ -1365,7 +1378,13 @@ async function getOrderTips(restaurantId, fromDate, toDate, timezone, locationId
             -- precise attribution; the POS shift owner is the fallback
             -- for orders placed before PIN sessions existed.
             COALESCE(fo.acting_staff_user_id, s.staff_user_id) AS staff_user_id,
-            COALESCE(SUM(fo.tip_cents), 0)::int AS tips_cents
+            COALESCE(SUM(
+              CASE
+                WHEN fo.collected_cents > 0
+                  THEN (fo.tip_cents::bigint * fo.net_collected_cents / fo.collected_cents)::int
+                ELSE fo.tip_cents
+              END
+            ), 0)::int AS tips_cents
        FROM order_financials fo
        LEFT JOIN restaurant_pos_shifts s
          ON s.id = CASE WHEN fo.metadata->>'shiftId' ~ '^[0-9]+$'
