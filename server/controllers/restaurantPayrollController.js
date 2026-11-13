@@ -1449,7 +1449,7 @@ exports.approveVoidPayRun = async (req, res, next) => {
     await requirePayrollManage(restaurant, req.user.id);
     const payRunId = parsePositiveInt(req.params.payRunId);
     if (!payRunId) throw new AppError('Pay run not found', 404, 'pay_run_not_found');
-    const run = await withTransaction(pool, async (client) => {
+    const voidedResult = await withTransaction(pool, async (client) => {
       const { rows: [existing] } = await client.query(
         'SELECT * FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
         [payRunId, restaurant.id]
@@ -1482,15 +1482,37 @@ exports.approveVoidPayRun = async (req, res, next) => {
         [payRunId, req.user.id, restaurant.id]
       );
       if (!updated) throw new AppError('This pay run is already voided', 409, 'pay_run_already_voided');
-      return updated;
+      // Domain 8 #9: voiding a run releases its payout-link
+      // attribution in the same transaction. A link left behind would
+      // keep consuming the payout's attributable amount in the
+      // cross-run cap even though the voided run can never be paid or
+      // exported, stranding the money. The void is audit-logged below
+      // with the released links, so the release stays traceable
+      // after the rows are gone.
+      const { rows: released } = await client.query(
+        `DELETE FROM restaurant_pay_run_payout_links WHERE pay_run_id = $1
+         RETURNING restaurant_payout_id, amount_cents, currency_code`,
+        [payRunId]
+      );
+      return { run: updated, releasedLinks: released };
     }, 'restaurant_approve_pay_run_void');
+    const { run, releasedLinks } = voidedResult;
     await logBusinessAction(req, {
       business_id: restaurant.business_id,
       actor_role: restaurant.effective_role || null,
       action: 'restaurant.pay_run.voided',
       target_type: 'restaurant_pay_run',
       target_id: run.id,
-      after_state: { status: 'voided', void_requested_by: run.void_requested_by, void_approved_by: req.user.id },
+      after_state: {
+        status: 'voided',
+        void_requested_by: run.void_requested_by,
+        void_approved_by: req.user.id,
+        released_payout_links: releasedLinks.map((link) => ({
+          restaurant_payout_id: link.restaurant_payout_id,
+          amount_cents: Number(link.amount_cents),
+          currency_code: link.currency_code,
+        })),
+      },
     });
     res.json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.id)) });
   } catch (err) { next(err); }
@@ -1628,7 +1650,9 @@ exports.exportPayRunCsv = async (req, res, next) => {
 // cannot mark two runs paid and a mixed-currency sum cannot flip a run
 // to paid. When linked payouts cover the run's
 // total pay, the run moves to 'paid': finalized alone never again reads
-// as paid. Link rows are append-only; the payout itself is untouched.
+// as paid. Link rows are append-only except for the void release in
+// approveVoidPayRun (Domain 8 #9), which deletes a voided run's links so
+// the payout's attribution frees up; the payout itself is untouched.
 exports.linkPayRunPayout = async (req, res, next) => {
   try {
     const restaurant = await restaurantAccess(req);
@@ -1705,9 +1729,15 @@ exports.linkPayRunPayout = async (req, res, next) => {
       if (sameRunLink) {
         throw new AppError('This payout is already linked to this pay run', 409, 'pay_run_payout_already_linked');
       }
+      // Domain 8 #9: links of a voided run do not consume the
+      // payout's attribution. Void approval deletes the run's links,
+      // but runs voided before that fix keep stranded rows; excluding
+      // them here frees those payouts without a data migration.
       const { rows: [elsewhereRow] } = await client.query(
-        `SELECT COALESCE(SUM(amount_cents), 0)::int AS linked FROM restaurant_pay_run_payout_links
-          WHERE restaurant_payout_id = $1 AND currency_code = $2`,
+        `SELECT COALESCE(SUM(l.amount_cents), 0)::int AS linked
+           FROM restaurant_pay_run_payout_links l
+           JOIN restaurant_pay_runs pr ON pr.id = l.pay_run_id
+          WHERE l.restaurant_payout_id = $1 AND l.currency_code = $2 AND pr.status <> 'voided'`,
         [payoutId, payoutCurrency]
       );
       const payoutAvailable = Number(payout.amount_cents || 0) - Number(elsewhereRow?.linked || 0);
