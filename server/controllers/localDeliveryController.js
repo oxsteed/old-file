@@ -259,6 +259,30 @@ exports.quote = async (req, res, next) => {
   }
 };
 
+// Instant estimate for the signed-in delivery page. Prices the route from the
+// two stops and the size only, using the same route and pricing code as a
+// bookable quote. It writes no quote row and cannot be booked: the full
+// intake form still requests a quote with contacts, windows, and declared
+// value before posting. Pricing does not depend on the pickup window, so no
+// window is required here.
+exports.estimate = async (req, res, next) => {
+  try {
+    const input = requestInput(req.body);
+    const result = await calculateLocalDeliveryQuote(input).catch((error) => {
+      // calculateLocalDeliveryQuote throws a plain Error for an overweight
+      // package; surface it as a 400 with its code instead of a 500. (The
+      // quote path has the same latent 500; left alone here.)
+      if (error?.code === 'delivery_weight_exceeds_package_limit') throw new AppError(error.message, 400, error.code);
+      throw error;
+    });
+    const maxMiles = Math.min(300, Math.max(1, Number(process.env.DELIVERY_MAX_ROUTE_MILES) || 150));
+    if (result.route.distanceMiles > maxMiles) throw new AppError('This route exceeds the local delivery service area', 400, 'delivery_service_area_unsupported');
+    res.json({ success: true, estimate: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.create = async (req, res, next) => {
   let client;
   try {

@@ -17,6 +17,7 @@ const router = express.Router();
 router.use(authenticatedLimiter);
 
 router.post('/quote', requireAuth, controller.quote);
+router.post('/estimate', requireAuth, controller.estimate);
 router.post('/jobs', requireAuth, controller.create);
 router.get('/jobs', requireAuth, controller.list);
 router.get('/jobs/:id', requireAuth, controller.get);
