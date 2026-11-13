@@ -32,10 +32,26 @@ const PENDING_STALE_MINUTES = 60;
 // runDueScheduledReports), not to the enabled set.
 const MAX_SCHEDULES_PER_RUN = 100;
 
+// Domain 9 audit #5: at most this many recipients per schedule.
+// parseRecipients had no cap, so one 200-recipient list turned a
+// single schedule into 200 serial sends; 100 due schedules could
+// then mean 20,000 serial Resend/notification calls in one 06:05
+// run. The cap is enforced at creation (validateScheduleInput) and
+// re-applied at delivery (deliverScheduledReport) so schedules
+// created before the cap cannot blow up a run either.
+const MAX_RECIPIENTS_PER_SCHEDULE = 50;
+
+// Domain 9 audit #5: sends run in bounded parallel batches instead
+// of one-by-one. Five in flight bounds Resend/notification pressure
+// while cutting a 50-recipient delivery from 50 serial round trips
+// to about 10 batches.
+const SEND_CONCURRENCY = 5;
+
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { LeaseLostError } = require('../jobs/jobLockingService');
 const { formatMinorUnits } = require('../utils/currencyPrecision');
+const { mapBounded } = require('../utils/boundedBatch');
 const { sendNotification } = require('./notificationService');
 const { sendEmail } = require('../utils/email');
 const { computeLabor, computeExceptions } = require('./restaurantPayrollService');
@@ -59,7 +75,7 @@ function shiftDateString(dateStr, days) {
   return d.toISOString().slice(0, 10);
 }
 
-function parseRecipients(raw) {
+function parseRecipients(raw, { limit = MAX_RECIPIENTS_PER_SCHEDULE } = {}) {
   const list = Array.isArray(raw) ? raw : [];
   const users = [];
   const emails = [];
@@ -69,7 +85,18 @@ function parseRecipients(raw) {
       emails.push(entry.email);
     }
   }
-  return { users, emails };
+  // Domain 9 audit #5: cap the combined recipient list. Users are
+  // kept first, then emails up to the remainder, so a legacy
+  // over-cap schedule still delivers to a bounded first 50 instead
+  // of sending to everyone serially. Callers that need the true
+  // count (creation validation) pass limit: Infinity.
+  const total = users.length + emails.length;
+  if (total <= limit) return { users, emails, truncated: false };
+  return {
+    users: users.slice(0, limit),
+    emails: emails.slice(0, Math.max(0, limit - users.length)),
+    truncated: true,
+  };
 }
 
 function validateScheduleInput(body = {}) {
@@ -86,7 +113,16 @@ function validateScheduleInput(body = {}) {
       throw Object.assign(new Error('A brand is required for HQ and franchise digests'), { status: 400, code: 'validation_failed' });
     }
   }
-  const { users, emails } = parseRecipients(body.recipients);
+  // Domain 9 audit #5: the recipient list is capped per schedule.
+  // Parse uncapped here so the count is the true one; the cap is
+  // re-applied at delivery for schedules created before it existed.
+  const { users, emails } = parseRecipients(body.recipients, { limit: Number.POSITIVE_INFINITY });
+  if (users.length + emails.length > MAX_RECIPIENTS_PER_SCHEDULE) {
+    throw Object.assign(
+      new Error(`A scheduled report can have at most ${MAX_RECIPIENTS_PER_SCHEDULE} recipients`),
+      { status: 400, code: 'validation_failed' }
+    );
+  }
   const channel = body.deliveryChannel || 'in_app';
   if ((channel === 'in_app' || channel === 'both') && users.length === 0) {
     throw Object.assign(new Error('In-app delivery needs at least one recipient user'), { status: 400, code: 'validation_failed' });
@@ -215,7 +251,17 @@ async function buildScheduledReport(db, { restaurant, schedule, businessDate, as
 }
 
 async function deliverScheduledReport(db, { schedule, payload } = {}) {
-  const { users, emails } = parseRecipients(schedule.recipients);
+  // Domain 9 audit #5: the cap is re-applied here so a schedule
+  // created before it existed cannot send to an unbounded list.
+  // Truncation is logged, not silent: the operator can see which
+  // schedules still carry over-cap lists.
+  const { users, emails, truncated } = parseRecipients(schedule.recipients);
+  if (truncated) {
+    logger.warn('Scheduled report recipients exceed the per-schedule cap; delivering to the first recipients only', {
+      scheduleId: schedule.id,
+      cap: MAX_RECIPIENTS_PER_SCHEDULE,
+    });
+  }
   const channel = schedule.delivery_channel;
   // Background-jobs audit #41: both senders signal failure by return
   // value, not by throwing (sendNotification returns {success:false}
@@ -231,47 +277,49 @@ async function deliverScheduledReport(db, { schedule, payload } = {}) {
   let delivered = 0;
   let failed = 0;
   const errors = [];
-  if (channel === 'in_app' || channel === 'both') {
-    for (const userId of users) {
-      const result = await sendNotification({
-        userId,
-        type: 'restaurant_scheduled_report',
-        title: `Scheduled report: ${payload.report_type} (${payload.business_date})`,
-        body: `${payload.summary} Snapshot as of ${payload.as_of}; not a locked close.`,
-        data: {
-          scheduled_report_id: payload.scheduled_report_id,
-          report_type: payload.report_type,
-          business_date: payload.business_date,
-          as_of: payload.as_of,
-          snapshot: true,
-          locked_close: false,
-        },
-        action_url: '/restaurants/merchant?tab=reports',
-        idempotencyKey: `scheduled-report:${schedule.id}:${payload.business_date}:${userId}`,
+  const countResult = (recipient, resultChannel, result) => {
+    if (result?.success === false) {
+      failed += 1;
+      errors.push({
+        recipient,
+        channel: resultChannel,
+        error: result?.error || (resultChannel === 'email' ? 'Email delivery failed' : 'Notification delivery failed'),
       });
-      if (result?.success === false) {
-        failed += 1;
-        errors.push({ recipient: userId, channel: 'in_app', error: result?.error || 'Notification delivery failed' });
-      } else {
-        delivered += 1;
-      }
+    } else {
+      delivered += 1;
     }
+  };
+  if (channel === 'in_app' || channel === 'both') {
+    // Domain 9 audit #5: bounded parallel batches instead of one
+    // serial await per recipient. mapBounded keeps at most
+    // SEND_CONCURRENCY sends in flight; a slow recipient no longer
+    // holds up the rest of the list.
+    const results = await mapBounded(users, SEND_CONCURRENCY, async (userId) => sendNotification({
+      userId,
+      type: 'restaurant_scheduled_report',
+      title: `Scheduled report: ${payload.report_type} (${payload.business_date})`,
+      body: `${payload.summary} Snapshot as of ${payload.as_of}; not a locked close.`,
+      data: {
+        scheduled_report_id: payload.scheduled_report_id,
+        report_type: payload.report_type,
+        business_date: payload.business_date,
+        as_of: payload.as_of,
+        snapshot: true,
+        locked_close: false,
+      },
+      action_url: '/restaurants/merchant?tab=reports',
+      idempotencyKey: `scheduled-report:${schedule.id}:${payload.business_date}:${userId}`,
+    }));
+    results.forEach((result, index) => countResult(users[index], 'in_app', result));
   }
   if (channel === 'email' || channel === 'both') {
-    for (const email of emails) {
-      const result = await sendEmail({
-        to: email,
-        subject: `Scheduled report: ${payload.report_type} (${payload.business_date})`,
-        text: `${payload.summary}\nSnapshot as of ${payload.as_of}; not a locked close.`,
-        idempotencyKey: `scheduled-report:${schedule.id}:${payload.business_date}:${email}`,
-      });
-      if (result?.success === false) {
-        failed += 1;
-        errors.push({ recipient: email, channel: 'email', error: result?.error || 'Email delivery failed' });
-      } else {
-        delivered += 1;
-      }
-    }
+    const results = await mapBounded(emails, SEND_CONCURRENCY, async (email) => sendEmail({
+      to: email,
+      subject: `Scheduled report: ${payload.report_type} (${payload.business_date})`,
+      text: `${payload.summary}\nSnapshot as of ${payload.as_of}; not a locked close.`,
+      idempotencyKey: `scheduled-report:${schedule.id}:${payload.business_date}:${email}`,
+    }));
+    results.forEach((result, index) => countResult(emails[index], 'email', result));
   }
   return { delivered, failed, errors };
 }
@@ -509,6 +557,8 @@ module.exports = {
   markDeliveryFailed,
   PENDING_STALE_MINUTES,
   MAX_SCHEDULES_PER_RUN,
+  MAX_RECIPIENTS_PER_SCHEDULE,
+  SEND_CONCURRENCY,
   runDueScheduledReports,
   localDateString,
   shiftDateString,
