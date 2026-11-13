@@ -144,9 +144,9 @@ router.put('/businesses/:id/delete',           requireAdmin, requirePermission('
 // Track D (finding 20): admin restaurant management for food_restaurants.
 router.get('/restaurants',                      requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.listRestaurants);
 router.get('/restaurants/:id',                  requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.getRestaurant);
-router.post('/restaurants/:id/suspend',         requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.suspendRestaurant);
-router.post('/restaurants/:id/restore',         requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.restoreRestaurant);
-router.post('/restaurants/:id/verify',          requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.verifyRestaurant);
+router.post('/restaurants/:id/suspend',         requireAdmin, requirePermission('manage_users'), rejectImpersonated, adminRestaurantCtrl.suspendRestaurant);
+router.post('/restaurants/:id/restore',         requireAdmin, requirePermission('manage_users'), rejectImpersonated, adminRestaurantCtrl.restoreRestaurant);
+router.post('/restaurants/:id/verify',          requireAdmin, requirePermission('manage_users'), rejectImpersonated, adminRestaurantCtrl.verifyRestaurant);
 
 // Track D (finding 53): admin reader over business_audit_log.
 router.get('/super/business-audit',             requireAdmin, requirePermission('view_audit_log'), adminRestaurantCtrl.listBusinessAudit);

@@ -68,3 +68,26 @@ describe('finding 31: rejectImpersonated on the logistics refund step-up verify 
     expectGuarded(logisticsAdminRouter, '/refunds/stepup/verify');
   });
 });
+
+describe('Domain 6 finding 9: rejectImpersonated on restaurant suspend/restore/verify', () => {
+  test('suspend', () => {
+    expectGuarded(adminRouter, '/restaurants/:id/suspend');
+  });
+
+  test('restore', () => {
+    expectGuarded(adminRouter, '/restaurants/:id/restore');
+  });
+
+  test('verify', () => {
+    expectGuarded(adminRouter, '/restaurants/:id/verify');
+  });
+
+  test('the guard runs after auth and before the controller on suspend', () => {
+    const handlers = routeHandlers(adminRouter, '/restaurants/:id/suspend');
+    const guardIdx = handlers.indexOf(rejectImpersonated);
+    expect(guardIdx).toBeGreaterThan(0);
+    // The suspend controller is an anonymous arrow (name ''), so order by
+    // position: the guard is not the last handler; the controller runs after it.
+    expect(guardIdx).toBeLessThan(handlers.length - 1);
+  });
+});
