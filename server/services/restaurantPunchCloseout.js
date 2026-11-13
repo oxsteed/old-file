@@ -68,12 +68,15 @@ const STALE_GRACE_MINUTES = 30;
 // with a deterministic id tiebreak, so repeated runs work through a
 // backlog instead of re-processing the same rows forever. That
 // forward progress holds for the stale select because a closed entry
-// leaves the open set (clock_out_at IS NULL). It does NOT hold for the
-// missing-punch select: notifying leaves no trace on the shift row
-// (the dedupe lives on the notification delivery_key), so on a day
-// with more than 500 missing shifts the same oldest 500 recur and
-// shifts beyond the cap are never flagged that day (see the note on
-// the missing-punch query).
+// leaves the open set (clock_out_at IS NULL). Domain 8 #11: it now
+// holds for the missing-punch select too — a notified shift is
+// stamped missing_punch_notified_at on its row and the select skips
+// stamped shifts, so on a day with more than 500 missing shifts the
+// next run flags the tail instead of re-reporting the same oldest
+// 500. A shift is stamped only once at least one manager was
+// notified; a wholly failed notification leaves it unflagged for
+// the next run (the notification delivery_key still dedupes the
+// send within a run).
 const CLOSEOUT_BATCH_LIMIT = 500;
 
 async function findManagers(db, businessId) {
@@ -458,19 +461,16 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
   // Cancelled shifts are never flagged. This is best-effort like the
   // close notifications: a failure here is recorded, never allowed
   // to fail the closeout above.
-  // Background-jobs audit #48: the select is capped at
-  // CLOSEOUT_BATCH_LIMIT rows, deterministically ordered, like the
-  // stale-entries select. Unlike that select, notifying a shift does
-  // NOT remove it from this result set (the shift row is unchanged;
-  // only the notification delivery_key dedupes the send), so on a day
-  // with more than 500 missing shifts the same oldest 500 recur every
-  // run and shifts beyond the cap are never flagged that day. The cap
-  // still bounds the run; making the select skip already-notified
-  // shifts (e.g. a NOT EXISTS on the notifications delivery_key) is
-  // a follow-up, not part of this fix.
+  // Domain 8 #11: the select skips shifts already stamped
+  // missing_punch_notified_at, and each shift notified in this run
+  // is stamped right after its notification (only when at least one
+  // manager was notified). The cap still bounds the run, and
+  // repeated runs now work through a >500 backlog instead of
+  // re-reporting the same oldest 500 every hour.
   const missing = [];
   let missingNotified = 0;
   let missingNotifyErrors = 0;
+  let missingFlagged = 0;
   try {
     const { rows: unpunched } = await handle.query(
       `SELECT sh.*,
@@ -483,6 +483,7 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
          LEFT JOIN users u ON u.id = sh.user_id
         WHERE sh.published_at IS NOT NULL
           AND sh.cancelled_at IS NULL
+          AND sh.missing_punch_notified_at IS NULL
           AND ($1::int IS NULL OR sh.business_id = $1)
           AND sh.shift_date = ((($2::timestamptz AT TIME ZONE COALESCE(l.timezone, b.timezone, 'UTC'))::date - 1))
           AND NOT EXISTS (
@@ -515,6 +516,27 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
         const result = await notifyMissingPunch(handle, shift.business_id, missingPunch);
         missingNotified += result.notified;
         missingNotifyErrors += result.notifyErrors;
+        // Domain 8 #11: stamp the shift only once a manager was
+        // actually notified. A failed stamp is best-effort (logged,
+        // never fails the run): the shift stays unflagged and the
+        // next run retries it, and the notification delivery_key
+        // dedupes the re-send.
+        if (result.notified > 0) {
+          try {
+            const { rowCount } = await handle.query(
+              `UPDATE business_staff_shifts
+                  SET missing_punch_notified_at = NOW()
+                WHERE id = $1 AND missing_punch_notified_at IS NULL`,
+              [shift.id]
+            );
+            missingFlagged += rowCount;
+          } catch (stampErr) {
+            missingNotifyErrors += 1;
+            logger.warn('Punch closeout: missing-punch flag stamp failed', {
+              businessId: shift.business_id, shiftId: shift.id, error: stampErr.message,
+            });
+          }
+        }
       }
     }
   } catch (err) {
@@ -522,7 +544,7 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
     logger.warn('Punch closeout: missing-punch check failed', { error: err.message });
   }
 
-  return { closed, notified, notifyErrors, missing, missingNotified, missingNotifyErrors, errors };
+  return { closed, notified, notifyErrors, missing, missingNotified, missingNotifyErrors, missingFlagged, errors };
 }
 
 module.exports = { closeStalePunches, notifyCloseoutFailure, AUTO_CLOSE_CAP_HOURS, STALE_GRACE_MINUTES, CLOSEOUT_BATCH_LIMIT };

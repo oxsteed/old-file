@@ -212,10 +212,11 @@ ddescribe('Background-jobs audit #48: the closeout sweep is bounded per run', ()
 
     // Deterministic order: a second run reports the same 500 shifts
     // in the same order. (With notify:false nothing was notified, so
-    // re-selection is correct here. With notify:true the same 500
-    // would recur too — notifying leaves no trace on the shift row —
-    // so shifts beyond the cap are never flagged that day; see the
-    // note on the missing-punch query in restaurantPunchCloseout.js.)
+    // re-selection is correct here. With notify:true each notified
+    // shift is stamped missing_punch_notified_at — Domain 8 #11 —
+    // so the next run flags the tail instead of re-reporting the
+    // same oldest 500; see
+    // restaurantPunchCloseoutMissingPunchFlag.db.test.js.)
     const second = await closeStalePunches({ businessId: businessB, db: pool, notify: false, now: new Date() });
     expect(second.missing).toHaveLength(CLOSEOUT_BATCH_LIMIT);
     expect(second.missing.map((m) => m.shiftId))
