@@ -203,12 +203,12 @@ export default function DeliveryDetailPage() {
               </div>
             ) : <p>{t('delivery.detail.itemPhotosEmpty')}</p>}
             {isCustomer && ['posted', 'assigned'].includes(job.status) && (
-              <form onSubmit={(event) => { event.preventDefault(); if (!itemPhotoFile) return; act(async () => { await uploadDeliveryItemPhoto(id, itemPhotoFile); setItemPhotoFile(null); }, 'delivery.ui.saved', 'delivery.errors.status'); }}>
+              <form onSubmit={(event) => { event.preventDefault(); if (!itemPhotoFile) return; act(async () => { await uploadDeliveryItemPhoto(id, itemPhotoFile); setItemPhotoFile(null); }, 'delivery.ui.saved', 'delivery.errors.status'); }} data-track="ui.4c1e141977.24">
                 <label className="delivery-field">{t('delivery.detail.itemPhotoUpload')}
                   <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file && file.size > 10485760) { setItemPhotoFile(null); event.target.value = ''; setError(t('delivery.ui.fileTooLarge')); } else setItemPhotoFile(file || null); }} />
                   <small>{t('delivery.detail.itemPhotoHint')}</small>
                 </label>
-                <button type="submit" className="delivery-button delivery-button--secondary" disabled={!itemPhotoFile || busy}>{t('delivery.detail.itemPhotoUpload')}</button>
+                <button type="submit" className="delivery-button delivery-button--secondary" disabled={!itemPhotoFile || busy} data-track="ui.4c1e141977.25">{t('delivery.detail.itemPhotoUpload')}</button>
               </form>
             )}
           </div>
