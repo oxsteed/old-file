@@ -26674,6 +26674,17 @@
           "unattributed": "Aucun serveur enregistré",
           "byDaypart": "Ventes par moment de la journée"
         },
+        "breakAttestations": {
+          "title": "Attestations de pause",
+          "hint": "Déclarations de pause repas attestées par le personnel à la sortie, dernière version par entrée de pointage.",
+          "empty": "Aucune attestation de pause dans cette plage.",
+          "taken": "Pause repas prise",
+          "waived": "Exemptée",
+          "missed": "Pause repas manquée",
+          "disputed": "Contestée",
+          "waivedOnly": "Exemptées seulement",
+          "disputedOnly": "Contestées seulement"
+        },
         "scheduled": {
           "title": "Rapports planifiés",
           "snapshotNote": "Les rapports planifiés sont des instantanés horodatés à leur création, pas des clôtures verrouillées. La clôture quotidienne est recalculée à partir des commandes en direct.",

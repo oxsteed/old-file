@@ -444,6 +444,11 @@ export const linkTemperatureCorrectiveAction = (restaurantId, logId, payload) =>
 export const recordBreakAttestation = (businessId, entryId, payload) =>
   api.post(`/businesses/${businessId}/staff/time-entries/${entryId}/break-attestation`, payload).then((r) => r.data);
 
+// Domain 8 #31: list endpoint for the compliance surface (gap 17).
+// The latest attestation per time entry for the report range.
+export const listBreakAttestations = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/break-attestations`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.attestations || []);
+
 export const getPrimeCost = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/prime-cost`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);
 

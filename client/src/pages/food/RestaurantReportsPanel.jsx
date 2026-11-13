@@ -31,6 +31,7 @@ import {
   deleteScheduledReport,
   runScheduledReportNow,
   listScheduledReportDeliveries,
+  listBreakAttestations,
   getRetentionPolicies,
   setRetentionPolicy,
   listErasureRequests,
@@ -850,6 +851,8 @@ function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
   const [primeHidden, setPrimeHidden] = useState(false);
   const [schedules, setSchedules] = useState(null);
   const [deliveries, setDeliveries] = useState([]);
+  const [attestations, setAttestations] = useState(null);
+  const [attestationFilters, setAttestationFilters] = useState({ waivedOnly: false, disputedOnly: false });
   const [policies, setPolicies] = useState(null);
   const [erasureRequests, setErasureRequests] = useState([]);
   const [scheduleForm, setScheduleForm] = useState({ reportType: 'daily_close', frequency: 'daily', deliveryChannel: 'in_app', userIds: '', emails: '', brandId: '' });
@@ -886,6 +889,21 @@ function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
       .catch(() => { /* sections stay hidden on load failure */ });
   }, [restaurantId]);
   useEffect(() => { loadSchedules(); }, [loadSchedules]);
+
+  // Domain 8 #31: break attestations for the report range, latest
+  // version per time entry. A 403 hides the section like the other
+  // compliance sections; filters reload the list.
+  const loadAttestations = useCallback(() => {
+    listBreakAttestations(restaurantId, {
+      from,
+      to,
+      ...(attestationFilters.waivedOnly ? { waivedOnly: true } : {}),
+      ...(attestationFilters.disputedOnly ? { disputedOnly: true } : {}),
+    })
+      .then(setAttestations)
+      .catch((err) => { if (err?.response?.status === 403) setAttestations(null); });
+  }, [restaurantId, from, to, attestationFilters]);
+  useEffect(() => { loadAttestations(); }, [loadAttestations]);
 
   const downloadBlob = (blob, filename) => {
     const url = URL.createObjectURL(blob);
@@ -1169,6 +1187,52 @@ function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
                 ))}
               </ul>
             </>
+          )}
+        </>
+      )}
+
+      {/* ── Domain 8 #31: break attestations ── */}
+      {attestations !== null && (
+        <>
+          <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.breakAttestations.title')}</h3>
+          <p className="fd-card-meta">{t('restaurants.ops.reports.breakAttestations.hint')}</p>
+          <div className="fd-row" style={{ gap: 16, flexWrap: 'wrap' }}>
+            <label className="fd-checkbox-row">
+              <input
+                type="checkbox"
+                checked={attestationFilters.waivedOnly}
+                onChange={(e) => setAttestationFilters((f) => ({ ...f, waivedOnly: e.target.checked }))}
+              />
+              <span>{t('restaurants.ops.reports.breakAttestations.waivedOnly')}</span>
+            </label>
+            <label className="fd-checkbox-row">
+              <input
+                type="checkbox"
+                checked={attestationFilters.disputedOnly}
+                onChange={(e) => setAttestationFilters((f) => ({ ...f, disputedOnly: e.target.checked }))}
+              />
+              <span>{t('restaurants.ops.reports.breakAttestations.disputedOnly')}</span>
+            </label>
+          </div>
+          {attestations.length === 0 ? (
+            <p className="fd-card-meta">{t('restaurants.ops.reports.breakAttestations.empty')}</p>
+          ) : (
+            <div className="fd-ops-inventory-list">
+              {attestations.map((attestation) => (
+                <div key={attestation.id} className="fd-ops-inventory-row">
+                  <span>{attestation.user_name || attestation.user_id} · {String(attestation.entry_date).slice(0, 10)}</span>
+                  <span className="fd-card-meta">
+                    {attestation.waived
+                      ? t('restaurants.ops.reports.breakAttestations.waived')
+                      : attestation.meal_break_taken
+                        ? t('restaurants.ops.reports.breakAttestations.taken')
+                        : t('restaurants.ops.reports.breakAttestations.missed')}
+                    {attestation.disputed ? ` · ${t('restaurants.ops.reports.breakAttestations.disputed')}` : ''}
+                    {attestation.waiver_reason ? ` · ${attestation.waiver_reason}` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </>
       )}

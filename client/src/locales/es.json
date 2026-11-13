@@ -26674,6 +26674,17 @@
           "unattributed": "Sin mesero registrado",
           "byDaypart": "Ventas por franja horaria"
         },
+        "breakAttestations": {
+          "title": "Declaraciones de descanso",
+          "hint": "Declaraciones de descanso para comer que el personal confirmó al fichar la salida, última versión por registro de horas.",
+          "empty": "No hay declaraciones de descanso en este rango.",
+          "taken": "Descanso para comer tomado",
+          "waived": "Eximido",
+          "missed": "Descanso para comer perdido",
+          "disputed": "En disputa",
+          "waivedOnly": "Solo eximidos",
+          "disputedOnly": "Solo en disputa"
+        },
         "scheduled": {
           "title": "Informes programados",
           "snapshotNote": "Los informes programados son instantáneas con la hora de creación, no cierres bloqueados. El cierre diario se recalcula a partir de los pedidos en vivo.",

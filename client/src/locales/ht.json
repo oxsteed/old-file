@@ -26674,6 +26674,17 @@
           "unattributed": "Pa gen sèvè anrejistre",
           "byDaypart": "Vant pa moman jounen an"
         },
+        "breakAttestations": {
+          "title": "Atestasyon poz",
+          "hint": "Deklarasyon poz manje anplwaye yo te ateste lè yo te pati, dènye vèsyon pou chak antre lè.",
+          "empty": "Pa gen atestasyon poz nan entèval sa a.",
+          "taken": "Poz manje te pran",
+          "waived": "Egzanpte",
+          "missed": "Poz manje te rate",
+          "disputed": "Nan kontestasyon",
+          "waivedOnly": "Egzanpte sèlman",
+          "disputedOnly": "Nan kontestasyon sèlman"
+        },
         "scheduled": {
           "title": "Rapò pwograme",
           "snapshotNote": "Rapò pwograme yo se foto yo pran nan moman yo te fèt la, yo pa fèmen. Fèmen chak jou a yo kalkile l ankò apati kòmand yo an dirèk.",

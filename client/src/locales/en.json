@@ -26197,6 +26197,17 @@
           "unattributed": "No server recorded",
           "byDaypart": "Sales by daypart"
         },
+        "breakAttestations": {
+          "title": "Break attestations",
+          "hint": "Meal-break statements staff attested at clock-out, latest version per time entry.",
+          "empty": "No break attestations in this range.",
+          "taken": "Meal break taken",
+          "waived": "Waived",
+          "missed": "Meal break missed",
+          "disputed": "Disputed",
+          "waivedOnly": "Waived only",
+          "disputedOnly": "Disputed only"
+        },
         "scheduled": {
           "title": "Scheduled reports",
           "snapshotNote": "Scheduled reports are snapshots stamped with the time they were built, not locked closes. The daily close is re-computed from live orders.",
