@@ -80,7 +80,8 @@ test('Compliance queue tables show a loading row while loading and an error row 
   const src = read('src/admin/pages/super/oxsteedCredit/CompliancePage.jsx');
   assert.match(src, /<ComplianceQueue[\s\S]*?loading=\{loading\}[\s\S]*?error=\{queueError\}/,
     'ComplianceQueue must receive the page loading flag and queue error');
-  assert.match(src, /function ComplianceQueue\(\{\s*queue, busy, decideCompliance, loading, error\s*\}\)/);
+  assert.match(src, /function ComplianceQueue\(\{\s*queue, busy, decideCompliance,[\s\S]*?loading, error\s*\}\)/,
+    'ComplianceQueue must accept loading and error props (plus the per-list pager props from Domain 7 #12)');
   for (const emptyKey of ['adminComplianceNoVerifications', 'adminComplianceNoSanctions', 'adminComplianceNoCases']) {
     const at = src.indexOf(emptyKey);
     assert.ok(at > 0, `missing ${emptyKey}`);
