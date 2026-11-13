@@ -70,6 +70,35 @@ const SUPPORT_TOOLS = [
   { i18nKey: 'tools.audit', to: '/admin/support/audit', icon: FileText },
 ];
 
+// Domain 1 audit 2026-11-10 finding 19: both quick-routes panels render the
+// full SUPPORT_TOOLS list through this one component, so the panels cannot
+// drift back to a sliced subset.
+function SupportToolLinks({ onNavigate, className }) {
+  const { t } = useTranslation();
+  return (
+    <div className={className}>
+      {SUPPORT_TOOLS.map((item) => {
+        const Icon = item.icon;
+        return (
+          <button
+            key={item.to}
+            onClick={() => onNavigate(item.to)}
+            className="flex items-center justify-between rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 px-4 py-3 text-left transition hover:border-orange-500/40 hover:bg-white dark:hover:bg-gray-900"
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-gray-100 dark:bg-gray-800 p-2 text-gray-700 dark:text-gray-300">
+                <Icon size={14} />
+              </div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-200">{t(`adminSupportTickets.${item.i18nKey}`)}</div>
+            </div>
+            <ChevronRight size={14} className="text-gray-600" />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Badge({ map, value }) {
   const { t } = useTranslation();
   const cfg = map[value] || { i18nKey: null, color: 'bg-gray-500/15 text-gray-600 dark:text-gray-400 border-gray-500/20' };
@@ -167,26 +196,7 @@ function DetailPlaceholder({ total, unassigned, mine, onNavigate }) {
         <div className="rounded-[24px] border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-950/70 p-5">
           <div className="text-sm font-medium text-gray-900 dark:text-white">{t('adminSupportTickets.placeholder.routesTitle')}</div>
           <div className="mt-1 text-xs text-gray-500">{t('adminSupportTickets.placeholder.routesSubtitle')}</div>
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {SUPPORT_TOOLS.slice(0, 6).map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.to}
-                  onClick={() => onNavigate(item.to)}
-                  className="flex items-center justify-between rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 px-4 py-3 text-left transition hover:border-orange-500/40 hover:bg-white dark:hover:bg-gray-900"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-gray-100 dark:bg-gray-800 p-2 text-gray-700 dark:text-gray-300">
-                      <Icon size={14} />
-                    </div>
-                    <div className="text-sm font-medium text-gray-700 dark:text-gray-200">{t(`adminSupportTickets.${item.i18nKey}`)}</div>
-                  </div>
-                  <ChevronRight size={14} className="text-gray-600" />
-                </button>
-              );
-            })}
-          </div>
+          <SupportToolLinks onNavigate={onNavigate} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2" />
         </div>
       </div>
     </div>
@@ -809,26 +819,7 @@ export default function SupportTickets() {
               </div>
               <Flag size={15} className="text-gray-600" />
             </div>
-            <div className="grid grid-cols-1 gap-2">
-              {SUPPORT_TOOLS.slice(0, 6).map((item) => {
-                const Icon = item.icon;
-                return (
-                <button
-                  key={item.to}
-                  onClick={() => navigate(item.to)}
-                  className="flex items-center justify-between rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 px-4 py-3 text-left transition hover:border-orange-500/40 hover:bg-white dark:hover:bg-gray-900"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-gray-100 dark:bg-gray-800 p-2 text-gray-700 dark:text-gray-300">
-                      <Icon size={14} />
-                    </div>
-                    <div className="text-sm font-medium text-gray-700 dark:text-gray-200">{t(`adminSupportTickets.${item.i18nKey}`)}</div>
-                  </div>
-                  <ChevronRight size={14} className="text-gray-600" />
-                </button>
-                );
-              })}
-            </div>
+            <SupportToolLinks onNavigate={(to) => navigate(to)} className="grid grid-cols-1 gap-2 sm:grid-cols-2" />
           </div>
         </div>
 
