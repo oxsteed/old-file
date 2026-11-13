@@ -14,12 +14,20 @@ export default function Queues({ api, copy, when, viewerKey, isSuper }) {
   const [boardKey, setBoardKey] = useState(0);
 
   const loadMine = async (signal) => setMine((await adminApi.get(`${api}/queues`, { signal })).data);
+  // Domain 1 #5: the per-customer fetch is re-runnable so the error branch
+  // can offer a retry instead of stranding the section until a remount.
+  const reloadMine = async (signal) => {
+    setState("loading");
+    try {
+      await loadMine(signal);
+      if (!signal?.aborted) setState("ready");
+    } catch {
+      if (!signal?.aborted) setState("error");
+    }
+  };
   useEffect(() => {
     const c = new AbortController();
-    setState("loading");
-    loadMine(c.signal)
-      .then(() => !c.signal.aborted && setState("ready"))
-      .catch(() => !c.signal.aborted && setState("error"));
+    reloadMine(c.signal);
     return () => c.abort();
   }, [api, viewerKey]);
 
@@ -48,7 +56,12 @@ export default function Queues({ api, copy, when, viewerKey, isSuper }) {
       <p className="c360w-note">{copy("queues.hint")}</p>
       {notice && <p role="status">{notice}</p>}
       {state === "loading" && <p role="status">{copy("loading")}</p>}
-      {state === "error" && <p role="alert">{copy("loadFailed")}</p>}
+      {state === "error" && (
+        <p role="alert">
+          {copy("loadFailed")}{" "}
+          <button type="button" onClick={() => reloadMine()}>{copy("retry")}</button>
+        </p>
+      )}
       {mine && (
         <section aria-labelledby="c360u-q-mine">
           <h4 id="c360u-q-mine">{copy("queues.thisCustomer")}</h4>

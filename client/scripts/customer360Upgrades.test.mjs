@@ -98,3 +98,12 @@ test("gap fill 8: summary health shows the flag and every worker state with tran
   for (const s of ["healthy", "disabled", "not_started", "failing", "behind"]) assert.equal(typeof en.states[s], "string", s);
   for (const s of ["ok", "late", "failing"]) assert.equal(typeof en.workerStates[s], "string", s);
 });
+
+test("domain 1 #5: Queues per-customer load failure offers a retry that re-runs loadMine", () => {
+  const queues = src("admin/pages/customer360/upgrades/Queues.jsx");
+  // The error branch must render a retry affordance, not a bare alert.
+  assert.match(queues, /state === "error" && \([\s\S]{0,400}?copy\("retry"\)/);
+  // The retry must re-run the per-customer fetch (loadMine), not just flip state.
+  assert.match(queues, /onClick=\{\(\) => reloadMine\(\)\}/);
+  assert.match(queues, /const reloadMine[\s\S]{0,400}?await loadMine\(signal\)/);
+});
