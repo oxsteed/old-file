@@ -8,6 +8,7 @@ const LEGAL_SUBNAV_ITEMS = [
   { routeKey: 'legalComplianceMetrics', labelKey: 'adminNav.legalComplianceMetrics' },
   { routeKey: 'legalCcpaRequests', labelKey: 'adminNav.legalCcpaRequests' },
   { routeKey: 'legalCcpaErasureReview', labelKey: 'adminNav.legalCcpaErasureReview' },
+  { routeKey: 'growthErasureParked', labelKey: 'adminNav.growthErasureParked' },
 ];
 
 export default function LegalSubNav() {
