@@ -3872,6 +3872,8 @@
     "draftBadge": "草稿",
     "version": "版本 {{version}}",
     "acceptNote": "如需接受这些条款并使用 OxSteed Credit，请登录您的账户。",
-    "signIn": "登录"
+    "signIn": "登录",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

@@ -6503,6 +6503,8 @@
     "draftBadge": "Borrador",
     "version": "Versión {{version}}",
     "acceptNote": "Para aceptar estos términos y usar OxSteed Credit, inicie sesión en su cuenta.",
-    "signIn": "Iniciar sesión"
+    "signIn": "Iniciar sesión",
+    "noTerms": "Aún no se han publicado términos para esta moneda.",
+    "retry": "Reintentar"
   }
 }

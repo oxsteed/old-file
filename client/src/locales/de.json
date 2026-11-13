@@ -36807,6 +36807,8 @@
     "draftBadge": "Entwurf",
     "version": "Version {{version}}",
     "acceptNote": "Um diese Bedingungen zu akzeptieren und OxSteed Credit zu nutzen, melden Sie sich bei Ihrem Konto an.",
-    "signIn": "Anmelden"
+    "signIn": "Anmelden",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

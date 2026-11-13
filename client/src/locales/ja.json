@@ -36778,6 +36778,8 @@
     "draftBadge": "下書き",
     "version": "バージョン {{version}}",
     "acceptNote": "この規約に同意して OxSteed Credit を利用するには、アカウントにサインインしてください。",
-    "signIn": "サインイン"
+    "signIn": "サインイン",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

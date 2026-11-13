@@ -3872,6 +3872,8 @@
     "draftBadge": "খসড়া",
     "version": "সংস্করণ {{version}}",
     "acceptNote": "এই শর্তাবলি গ্রহণ করে OxSteed Credit ব্যবহার করতে আপনার অ্যাকাউন্টে সাইন ইন করুন।",
-    "signIn": "সাইন ইন"
+    "signIn": "সাইন ইন",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

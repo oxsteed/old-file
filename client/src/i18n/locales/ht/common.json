@@ -6503,6 +6503,8 @@
     "draftBadge": "Bouyon",
     "version": "Vèsyon {{version}}",
     "acceptNote": "Pou aksepte kondisyon sa yo epi itilize OxSteed Credit, konekte nan kont ou.",
-    "signIn": "Konekte"
+    "signIn": "Konekte",
+    "noTerms": "Okenn kondisyon poko pibliye pou lajan sa a.",
+    "retry": "Eseye ankò"
   }
 }

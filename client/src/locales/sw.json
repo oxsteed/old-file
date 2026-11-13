@@ -36778,6 +36778,8 @@
     "draftBadge": "Rasimu",
     "version": "Toleo {{version}}",
     "acceptNote": "Ili kukubali masharti haya na kutumia OxSteed Credit, ingia kwenye akaunti yako.",
-    "signIn": "Ingia"
+    "signIn": "Ingia",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

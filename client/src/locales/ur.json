@@ -36778,6 +36778,8 @@
     "draftBadge": "مسودہ",
     "version": "ورژن {{version}}",
     "acceptNote": "ان شرائط کو قبول کرنے اور OxSteed Credit استعمال کرنے کے لیے اپنے اکاؤنٹ میں سائن ان کریں۔",
-    "signIn": "سائن ان کریں"
+    "signIn": "سائن ان کریں",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

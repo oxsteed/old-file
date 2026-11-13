@@ -6503,6 +6503,8 @@
     "draftBadge": "Brouillon",
     "version": "Version {{version}}",
     "acceptNote": "Pour accepter ces conditions et utiliser OxSteed Credit, connectez-vous à votre compte.",
-    "signIn": "Se connecter"
+    "signIn": "Se connecter",
+    "noTerms": "Aucune condition n’a encore été publiée pour cette devise.",
+    "retry": "Réessayer"
   }
 }

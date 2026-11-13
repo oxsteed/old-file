@@ -36779,6 +36779,8 @@
     "draftBadge": "Bản nháp",
     "version": "Phiên bản {{version}}",
     "acceptNote": "Để chấp nhận các điều khoản này và sử dụng OxSteed Credit, hãy đăng nhập vào tài khoản của bạn.",
-    "signIn": "Đăng nhập"
+    "signIn": "Đăng nhập",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

@@ -36779,6 +36779,8 @@
     "draftBadge": "Rascunho",
     "version": "Versão {{version}}",
     "acceptNote": "Para aceitar estes termos e usar o OxSteed Credit, inicie sessão na sua conta.",
-    "signIn": "Iniciar sessão"
+    "signIn": "Iniciar sessão",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

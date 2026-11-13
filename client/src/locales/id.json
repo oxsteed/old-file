@@ -36808,6 +36808,8 @@
     "draftBadge": "Draf",
     "version": "Versi {{version}}",
     "acceptNote": "Untuk menyetujui ketentuan ini dan menggunakan OxSteed Credit, masuk ke akun Anda.",
-    "signIn": "Masuk"
+    "signIn": "Masuk",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

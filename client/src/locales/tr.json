@@ -36808,6 +36808,8 @@
     "draftBadge": "Taslak",
     "version": "Sürüm {{version}}",
     "acceptNote": "Bu koşulları kabul edip OxSteed Credit kullanmak için hesabınızda oturum açın.",
-    "signIn": "Oturum aç"
+    "signIn": "Oturum aç",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

@@ -36807,6 +36807,8 @@
     "draftBadge": "Черновик",
     "version": "Версия {{version}}",
     "acceptNote": "Чтобы принять эти условия и пользоваться OxSteed Credit, войдите в аккаунт.",
-    "signIn": "Войти"
+    "signIn": "Войти",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }
