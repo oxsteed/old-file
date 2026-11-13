@@ -5,6 +5,29 @@
  * reference these definitions instead of recreating paths or grants. The
  * server remains authoritative for authorization; the client contract keeps
  * direct navigation and discoverability aligned with it.
+ *
+ * Split surfaces (NOT in this manifest, by design): the main SPA owns 14
+ * more admin routes that this contract cannot cover. Every manifest path
+ * must resolve inside AdminApp and defineRoute's `relative` only strips a
+ * leading /admin/ (see client/scripts/adminRouteContracts.test.mjs), and
+ * the server allowlist only covers /admin paths
+ * (server/utils/adminSpaRoutes.js). These routes are served by the generic
+ * fallback (server/middleware/spaFallback.js) as index.html, not the admin
+ * shell:
+ * - Direct portal, behind DirectAdminRouteGate in client/src/App.jsx:
+ *   /direct/admin/dashboard, /direct/admin/inbox, /direct/admin/quotes/:id,
+ *   /direct/admin/calendar, /direct/admin/jobs/:id, /direct/admin/payments/:id,
+ *   /direct/admin/customers/:userId, /direct/admin/settings,
+ *   /direct/admin/catalog, /direct/admin/reports, /direct/admin/team,
+ *   /direct/admin/email-test (the /direct/admin root itself is the
+ *   directOps entry below).
+ * - Logistics operator workspace, behind LogisticsOperatorGuard in
+ *   client/src/App.jsx: /logistics/admin-control/login,
+ *   /logistics/admin-control.
+ * Do not add these as defineRoute entries: the manifest contract tests
+ * fail on non-/admin paths (verified 2026-11-13, Domain 1 audit item 20).
+ * If one of these routes ever moves under /admin, add it here and to the
+ * allowlist instead.
  */
 
 const defineRoute = (path, { audience = 'admin', grant = null, superOnly = false } = {}) => Object.freeze({
@@ -47,6 +70,8 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   support: defineRoute('/admin/support', { grant: 'manage_support' }),
   supportChat: defineRoute('/admin/support/chat'),
   quoteRequests: defineRoute('/admin/quote-requests', { grant: 'manage_operations' }),
+  // The /direct/admin root only; its 12 sub-routes are main-SPA surfaces,
+  // documented in the header above, not manifest entries.
   directOps: defineRoute('/direct/admin', { audience: 'direct' }),
   directServiceAreas: defineRoute('/admin/direct-service-areas', { grant: 'manage_operations' }),
   directCatalog: defineRoute('/admin/direct-catalog', { grant: 'manage_operations' }),
