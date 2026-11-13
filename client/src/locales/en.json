@@ -38361,7 +38361,7 @@
     "reviewDecision": "Review decision",
     "cancelDecision": "Cancel",
     "decideConfirmTitle": "Record this decision?",
-    "decideConfirmBody": "This will move dispute {{id}} to {{status}} and notify the filer. The decision is audited.",
+    "decideConfirmBody": "This will move dispute {{id}} to {{status}} for {{amount}} and notify the filer. The decision is audited.",
     "decidedNotice": "Decision recorded for dispute {{id}}.",
     "decideFailed": "Could not record the decision.",
     "noteRequired": "A decision note is required.",

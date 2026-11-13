@@ -38361,7 +38361,7 @@
     "reviewDecision": "Revisar decisión",
     "cancelDecision": "Cancelar",
     "decideConfirmTitle": "¿Registrar esta decisión?",
-    "decideConfirmBody": "Esto moverá la disputa {{id}} a {{status}} y notificará a quien la presentó. La decisión queda auditada.",
+    "decideConfirmBody": "Esto moverá la disputa {{id}} a {{status}} por {{amount}} y notificará a quien la presentó. La decisión queda auditada.",
     "decidedNotice": "Decisión registrada para la disputa {{id}}.",
     "decideFailed": "No se pudo registrar la decisión.",
     "noteRequired": "Se requiere una nota de decisión.",

@@ -38475,7 +38475,7 @@
     "reviewDecision": "مراجعة القرار",
     "cancelDecision": "إلغاء",
     "decideConfirmTitle": "تسجيل هذا القرار؟",
-    "decideConfirmBody": "سينقل هذا النزاع {{id}} إلى الحالة {{status}} ويشعر مقدمه. القرار مسجل في سجل التدقيق.",
+    "decideConfirmBody": "سينقل هذا النزاع {{id}} إلى الحالة {{status}} مقابل {{amount}} ويشعر مقدمه. القرار مسجل في سجل التدقيق.",
     "decidedNotice": "تم تسجيل القرار للنزاع {{id}}.",
     "decideFailed": "تعذر تسجيل القرار.",
     "noteRequired": "ملاحظة القرار مطلوبة.",

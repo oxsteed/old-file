@@ -71,9 +71,22 @@ export default function PaymentDisputes() {
     setActionError('');
   };
 
+  // Domain 7 #16: a closing decision (approved/resolved) with neither a
+  // refund reference nor a no-refund reason cannot close; surface that
+  // before the confirm dialog opens instead of after the server 400.
+  const closingNeedsRefundOrReason = (decisionStatus === 'approved' || decisionStatus === 'resolved')
+    && !refundReference.trim() && !noRefundReason.trim();
+
   const submitDecision = async () => {
     if (!selected || !decisionStatus || !note.trim()) {
       setActionError(t('adminMoneyDisputes.noteRequired'));
+      return;
+    }
+    // Domain 7 #16: pre-block a closing decision with neither a refund
+    // reference nor a no-refund reason, so the operator learns before the
+    // server 400 (and before burning a step-up challenge).
+    if (closingNeedsRefundOrReason) {
+      setActionError(t('adminMoneyDisputes.closureNeedsRefundOrReason'));
       return;
     }
     setBusyId(selected.id);
@@ -103,6 +116,14 @@ export default function PaymentDisputes() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const openConfirm = () => {
+    if (closingNeedsRefundOrReason) {
+      setActionError(t('adminMoneyDisputes.closureNeedsRefundOrReason'));
+      return;
+    }
+    setConfirmOpen(true);
   };
 
   return (
@@ -246,13 +267,13 @@ export default function PaymentDisputes() {
                         className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white"
                       />
                     </label>
-                    {(decisionStatus === 'approved' || decisionStatus === 'resolved') && !refundReference.trim() && !noRefundReason.trim() && (
+                    {closingNeedsRefundOrReason && (
                       <p className="text-sm text-amber-300">{t('adminMoneyDisputes.closureNeedsRefundOrReason')}</p>
                     )}
                     <button
                       type="button"
                       disabled={!decisionStatus || !note.trim() || busyId === dispute.id}
-                      onClick={() => setConfirmOpen(true)}
+                      onClick={openConfirm}
                       className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-orange-500 text-white disabled:opacity-50"
                     >
                       {busyId === dispute.id ? t('adminMoneyDisputes.deciding') : t('adminMoneyDisputes.reviewDecision')}
@@ -293,6 +314,7 @@ export default function PaymentDisputes() {
         message={selected ? t('adminMoneyDisputes.decideConfirmBody', {
           id: selected.id,
           status: decisionStatus ? t(`adminMoneyDisputes.status.${decisionStatus}`) : '',
+          amount: adminMoney(Number(selected.requested_refund_cents || 0) / 100, selected.currency_code || 'USD'),
         }) : ''}
         confirmLabel={t('adminMoneyDisputes.decide')}
         onConfirm={submitDecision}

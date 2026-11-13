@@ -34,3 +34,26 @@ test('payment-disputes pageInfo catalog carries the total in every supported loc
     assert.match(pageInfo, /\{\{total\}\}/, `${locale} pageInfo must interpolate {{total}}`);
   }
 });
+
+// Domain 7 #16: the decision confirm showed only id and status, never
+// the requested amount, so the confirming admin approved without
+// re-seeing what was at stake; and a closing decision with neither a
+// refund reference nor a no-refund reason only failed later with the
+// server 400. The confirm must show the amount, and the client must
+// pre-block the empty-fields case before the confirm opens.
+test('payment-dispute confirm shows the requested amount', () => {
+  assert.match(source, /amount: adminMoney\(Number\(selected\.requested_refund_cents \|\| 0\) \/ 100, selected\.currency_code \|\| 'USD'\)/);
+  assert.match(source, /decideConfirmBody', \{[\s\S]*?amount:/);
+});
+
+test('payment-dispute closing decision is pre-blocked when both refund fields are empty', () => {
+  assert.match(source, /setActionError\(t\('adminMoneyDisputes\.closureNeedsRefundOrReason'\)\)/);
+});
+
+test('payment-dispute decideConfirmBody catalog carries the amount in every supported locale', () => {
+  for (const locale of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const body = catalog(locale).adminMoneyDisputes?.decideConfirmBody;
+    assert.ok(body, `${locale} missing adminMoneyDisputes.decideConfirmBody`);
+    assert.match(body, /\{\{amount\}\}/, `${locale} decideConfirmBody must interpolate {{amount}}`);
+  }
+});

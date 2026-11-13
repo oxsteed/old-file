@@ -38361,7 +38361,7 @@
     "reviewDecision": "Revize desizyon an",
     "cancelDecision": "Anile",
     "decideConfirmTitle": "Anrejistre desizyon sa a ?",
-    "decideConfirmBody": "Sa ap deplase diskisyon {{id}} nan eta {{status}} epi notifye moun ki depoze l la. Desizyon an anrejistre nan odit la.",
+    "decideConfirmBody": "Sa ap deplase diskisyon {{id}} nan eta {{status}} pou {{amount}} epi notifye moun ki depoze l la. Desizyon an anrejistre nan odit la.",
     "decidedNotice": "Desizyon anrejistre pou diskisyon {{id}}.",
     "decideFailed": "Pa t ka anrejistre desizyon an.",
     "noteRequired": "Yon nòt desizyon obligatwa.",

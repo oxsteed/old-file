@@ -38361,7 +38361,7 @@
     "reviewDecision": "Vérifier la décision",
     "cancelDecision": "Annuler",
     "decideConfirmTitle": "Enregistrer cette décision ?",
-    "decideConfirmBody": "Cela fera passer le litige {{id}} au statut {{status}} et informera le demandeur. La décision est auditée.",
+    "decideConfirmBody": "Cela fera passer le litige {{id}} au statut {{status}} pour {{amount}} et informera le demandeur. La décision est auditée.",
     "decidedNotice": "Décision enregistrée pour le litige {{id}}.",
     "decideFailed": "Impossible d'enregistrer la décision.",
     "noteRequired": "Une note de décision est requise.",
