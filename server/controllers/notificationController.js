@@ -192,6 +192,11 @@ exports.updatePreferences = async (req, res, next) => {
       'in_app_staff_time_entry_missing_punch',
       'in_app_restaurant_temperature_breach',
       'in_app_restaurant_scheduled_report',
+      // Money-flows W3: erasure lifecycle notification types (same
+      // class as #51 / W6: new types must ship with a toggle).
+      'in_app_restaurant_erasure_requested',
+      'in_app_restaurant_erasure_decided',
+      'in_app_restaurant_erasure_completed',
       'push_new_bid','push_bid_accepted',
       'push_payment_released','push_dispute_update',
       'push_new_message',
