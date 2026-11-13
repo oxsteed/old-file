@@ -679,15 +679,14 @@ async function listAdminPayouts(req, res) {
 }
 
 // Audit fix (auth finding 15, issuance track): the maker step-up on the
-// affiliate process route needs an issue path. The generic admin issue
-// endpoint gates on ADMIN_STEPUP_ACTION_TYPES, derived from the TOTP-only
-// list, which deliberately excludes 'affiliate_payout_process' (the maker
-// step-up stays on the emailed-code method). This dedicated endpoint issues
-// it with the payout's payable amount, the same canonical figure
-// (utils/affiliatePayableCents) the process routes and the dual-approval
-// gate use, so issue and verify agree by construction. A missing payout
-// 404s; a non-positive payable amount fails closed inside
-// issueStepupChallenge.
+// affiliate process route needs an issue path. Domain 6 finding 6
+// (2026-11-13): affiliate_payout_process is a TOTP action now (the maker
+// proof was email OTP while the checker proof is TOTP), so this
+// dedicated endpoint issues a TOTP challenge with the payout's payable
+// amount, the same canonical figure (utils/affiliatePayableCents) the
+// process routes and the dual-approval gate use, so issue and verify
+// agree by construction. A missing payout 404s; a non-positive payable
+// amount fails closed inside issueStepupChallenge.
 async function issueProcessStepupChallenge(req, res, next) {
   try {
     const adminId = req.user?.id;

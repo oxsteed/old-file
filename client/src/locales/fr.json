@@ -38325,7 +38325,7 @@
     "confirmBody": "Ceci traitera {{amount}} pour cet affilié. Au-dessus du seuil de double approbation, le paiement sera mis en attente d'un second administrateur au lieu de déplacer des fonds.",
     "processedNotice": "Paiement traité.",
     "queuedNotice": "Paiement en attente de l'approbation d'un second administrateur (double approbation). Aucun fonds n'a été déplacé.",
-    "stepupPrompt": "Un code de vérification a été envoyé à votre adresse e-mail. Saisissez-le pour traiter ce paiement :",
+    "stepupPrompt": "Saisissez le code actuel de votre application d’authentification pour traiter ce paiement :",
     "stepupFailed": "Impossible d'émettre un défi de vérification.",
     "stepupRequired": "Un code de vérification est requis pour traiter le paiement.",
     "loadFailed": "Impossible de charger les paiements des affiliés.",

@@ -80,11 +80,13 @@ router.post(
 );
 
 // Audit fix (auth finding 15, issuance track): the maker step-up on the
-// process route needs an issue path. The generic admin issue endpoint
-// gates on the TOTP-only list, which deliberately excludes
-// 'affiliate_payout_process' (email method), so this dedicated endpoint
-// issues it with the payout's payable amount. Same guards as the process
-// route itself; the issued challenge verifies on the single remaining
+// process route needs an issue path. Domain 6 finding 6 (2026-11-13):
+// affiliate_payout_process is now a TOTP action (maker-email /
+// checker-TOTP asymmetry closed), so this dedicated endpoint issues a
+// TOTP challenge with the payout's payable amount; the generic admin
+// issue endpoint accepts it too, since ADMIN_STEPUP_ACTION_TYPES is
+// derived from the TOTP-only list. Same guards as the process route
+// itself; the issued challenge verifies on the single remaining
 // process route, and that route binds verification to the payout's fresh
 // payable amount, so a challenge issued at one amount cannot authorize
 // processing at another.

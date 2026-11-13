@@ -401,7 +401,7 @@ describe('item 12: admin credit step-up is TOTP, not email OTP', () => {
   });
 
   test('all admin money and configuration action types are TOTP-only', () => {
-    expect(TOTP_STEPUP_ACTION_TYPES).toHaveLength(21);
+    expect(TOTP_STEPUP_ACTION_TYPES).toHaveLength(22);
     for (const actionType of [
       'settlement_payout',
       'withdrawal',
@@ -424,6 +424,9 @@ describe('item 12: admin credit step-up is TOTP, not email OTP', () => {
       'money_movement_approve',
       'restaurant_payout_approve',
       'subscription_cancel',
+      // Domain 6 finding 6 (2026-11-13): the affiliate maker proof is
+      // TOTP now, matching the checker proof on the same flow.
+      'affiliate_payout_process',
     ]) {
       expect(TOTP_STEPUP_ACTION_TYPES).toContain(actionType);
     }

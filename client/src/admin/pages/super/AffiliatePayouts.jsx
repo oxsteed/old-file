@@ -63,10 +63,10 @@ export default function AffiliatePayouts() {
     setActionError('');
     try {
       // Auth audit item 6: the server binds the challenge to this payout's
-      // payable amount, so the issue call must name the payout. The
-      // challenge is emailed (affiliate_payout_process is not a TOTP
-      // action), so the prompt says so; the shared step-up helper's
-      // prompt names the authenticator app and would mislead here.
+      // payable amount, so the issue call must name the payout. Domain 6
+      // finding 6 (2026-11-13): affiliate_payout_process is a TOTP
+      // action, so the challenge is proven with the current code from
+      // the admin's authenticator app, not an emailed code.
       const challengeResponse = await adminApi.post(`/affiliate/${payout.id}/stepup-challenges`, {});
       const challengeId = challengeResponse.data?.challenge?.id;
       if (!challengeId) throw new Error(t('affiliatePayouts.stepupFailed'));

@@ -38325,7 +38325,7 @@
     "confirmBody": "Esto procesará {{amount}} para este afiliado. Si supera el umbral de doble aprobación, quedará en espera de un segundo administrador en lugar de mover fondos.",
     "processedNotice": "Pago procesado.",
     "queuedNotice": "Pago en espera de la aprobación de un segundo administrador (doble aprobación). No se han movido fondos.",
-    "stepupPrompt": "Se envió un código de verificación a tu correo electrónico. Escríbelo para procesar este pago:",
+    "stepupPrompt": "Introduce el código actual de tu aplicación de autenticación para procesar este pago:",
     "stepupFailed": "No se pudo emitir un desafío de verificación.",
     "stepupRequired": "Se requiere un código de verificación para procesar el pago.",
     "loadFailed": "No se pudieron cargar los pagos de afiliados.",

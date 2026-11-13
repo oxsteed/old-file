@@ -151,6 +151,14 @@ const TOTP_STEPUP_ACTION_TYPES = Object.freeze([
   // Nov 3 audit item 4: subscription cancels are admin actions, so the
   // proof is the admin's TOTP authenticator, not an emailed code.
   'subscription_cancel',
+  // Domain 6 finding 6 (2026-11-13): the affiliate maker proof was email
+  // OTP while the checker proof on the same flow is TOTP (item 4). The
+  // maker moves the money, so the maker proves with the authenticator
+  // too. No unenrolled maker is stranded: requireAdmin hard-blocks
+  // TOTP-less admin sessions (403 admin_2fa_required, redirect
+  // /admin/2fa-setup) before the route, and issuing here fails closed
+  // with credit_stepup_totp_not_enabled when TOTP is not enrolled.
+  'affiliate_payout_process',
 ]);
 
 // Shared TOTP replay guard (Domain 6 #7): the 30-second step lives in
