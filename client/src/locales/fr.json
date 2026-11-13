@@ -41422,6 +41422,8 @@
     "currency": "Afficher les frais en",
     "loading": "Chargement des conditions…",
     "loadFailed": "Impossible de charger les conditions. Réessayez dans un instant.",
+    "noTerms": "Aucune condition n’a encore été publiée pour cette devise.",
+    "retry": "Réessayer",
     "pendingTitle": "En attente de validation juridique.",
     "pendingBody": "Une partie de ce texte est un brouillon que notre équipe juridique n’a pas encore approuvé. Il peut changer avant qu’OxSteed Credit soit proposé là où vous vivez.",
     "draftBadge": "Brouillon",

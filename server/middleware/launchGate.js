@@ -90,10 +90,12 @@ const LAUNCH_KEY_ENV = Object.freeze({
   // because the affiliate API gate now defaults on too, so the map and the
   // gate agree when the env var is unset. Explicit env false still turns
   // a launch back off (envFlagEnabled honors it over the default).
-  // Note: /api/launch-visibility reads this map from env live at
-  // request time; it is NOT the boot snapshot the hard API gates use, so
-  // an env flip without a redeploy can show a launch as live that the
-  // API still blocks (or vice versa).
+  // Note: /api/launch-visibility serves the boot snapshot for the four
+  // hard-gated keys (templates, productMarketplace,
+  // specializedProfileTemplates, oxsteedMedia) via
+  // getServerLaunchVisibility, so it cannot show a launch as live that
+  // the API still blocks (or vice versa). Every other key reads env live
+  // at request time; an env flip for those takes effect without a redeploy.
   affiliateRewards: ['AFFILIATE_ENABLED', true],
   aiKnowledge: ['OXSTEED_LAUNCH_AI_KNOWLEDGE', true],
   backgroundChecks: ['OXSTEED_LAUNCH_BACKGROUND_CHECKS', true],

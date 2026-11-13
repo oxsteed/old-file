@@ -129,6 +129,8 @@
     "test:workspace-navigation-browser": "node --test scripts/workspaceNavigation.browser-check.cjs",
     "measure:workspace-navigation": "node scripts/measureWorkspaceNavigation.mjs",
     "test:credit-licence-ui": "node --test scripts/creditLicenceUi.test.mjs",
+    "test:credit-transfer-gate": "node --test scripts/creditTransferGate.test.mjs",
+    "test:credit-terms-empty-state": "node --test scripts/creditTermsEmptyState.test.mjs",
     "test:locale-shard-loaders": "node --test scripts/localeShardLoaders.test.mjs"
   },
   "dependencies": {

@@ -41422,6 +41422,8 @@
     "currency": "Mostrar comisiones en",
     "loading": "Cargando los términos…",
     "loadFailed": "No se pudieron cargar los términos. Inténtelo de nuevo en un momento.",
+    "noTerms": "Aún no se han publicado términos para esta moneda.",
+    "retry": "Reintentar",
     "pendingTitle": "Pendiente de aprobación legal.",
     "pendingBody": "Parte de este texto es un borrador que nuestro equipo legal aún no ha aprobado. Puede cambiar antes de que OxSteed Credit se ofrezca donde usted vive.",
     "draftBadge": "Borrador",

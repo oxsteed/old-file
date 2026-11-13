@@ -41422,6 +41422,8 @@
     "currency": "Montre frè yo an",
     "loading": "N ap chaje kondisyon yo…",
     "loadFailed": "Nou pa t ka chaje kondisyon yo. Tanpri eseye ankò nan yon ti moman.",
+    "noTerms": "Okenn kondisyon poko pibliye pou lajan sa a.",
+    "retry": "Eseye ankò",
     "pendingTitle": "N ap tann apwobasyon legal.",
     "pendingBody": "Gen yon pati nan tèks sa a ki se yon bouyon ekip legal nou an poko apwouve. Li ka chanje anvan OxSteed Credit disponib kote ou rete a.",
     "draftBadge": "Bouyon",
