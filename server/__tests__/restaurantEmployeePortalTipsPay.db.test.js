@@ -486,4 +486,40 @@ ddescribe('Phase 3 Track B: employee tips, pay and pay stubs', () => {
     });
     expect(allocations.currencies[0].employees.find((e) => e.user_id === fx.cook).gross_tips_cents).toBe(700);
   });
+
+  test('Domain 8 #27: manager review list shows pending declarations with staff names', async () => {
+    // Fresh pending declaration from Carl (2026-10-09). Sara's earlier
+    // 3000 was confirmed, the owner's 1500 was confirmed, and Carl's
+    // 1000 was rejected, so none of them is in the pending queue.
+    const { res, err } = await call(controller.declareMyCashTip, mockReq({
+      params: { restaurantId: String(fx.restaurantId) },
+      body: { date: '2026-10-09', amountCents: 2500, note: 'Patio jar', idempotencyKey: 'trackb-carl-review-0001' },
+      user: { id: fx.cook },
+    }));
+    expect(err).toBeNull();
+    expect(res.payload.declaration.status).toBe('pending');
+    const declarationId = res.payload.declaration.id;
+
+    // An employee without payroll.manage cannot open the review queue.
+    const denied = await call(controller.listCashTipsForReview, myReq(fx.server));
+    expect(denied.err).not.toBeNull();
+    expect(denied.err.statusCode).toBe(403);
+
+    const listed = await call(controller.listCashTipsForReview, myReq(fx.owner));
+    expect(listed.err).toBeNull();
+    expect(listed.res.payload.declarations).toHaveLength(1);
+    expect(listed.res.payload.declarations[0]).toMatchObject({
+      id: declarationId, status: 'pending', amount_cents: 2500, staff_name: 'Carl Cook',
+    });
+
+    // Confirming it through the existing review path empties the queue.
+    const confirmed = await call(controller.confirmCashTip, mockReq({
+      params: { restaurantId: String(fx.restaurantId), declarationId: String(declarationId) },
+      user: { id: fx.owner },
+    }));
+    expect(confirmed.err).toBeNull();
+    const after = await call(controller.listCashTipsForReview, myReq(fx.owner));
+    expect(after.err).toBeNull();
+    expect(after.res.payload.declarations).toHaveLength(0);
+  });
 });

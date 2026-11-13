@@ -409,6 +409,11 @@ export const getMyPayStub = (restaurantId, payRunId) =>
 export const listMyCashTips = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/tips/cash-declarations/mine`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.declarations || []);
 
+// Domain 8 #27: manager review queue — the restaurant's pending
+// self-declared cash tips, with staff names (payroll.manage).
+export const listCashTipsForReview = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/tips/cash-declarations/review`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.declarations || []);
+
 export const declareMyCashTip = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/tips/cash-declarations/mine`, payload).then((r) => r.data);
 

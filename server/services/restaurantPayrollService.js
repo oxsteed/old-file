@@ -374,6 +374,32 @@ async function listDeclaredCashTipsForUser(restaurantId, staffUserId, fromDate, 
   return rows;
 }
 
+// Domain 8 #27: the manager review queue. Pending self-declarations
+// only: confirmed/rejected rows are settled and never re-reviewed.
+// The staff display name rides along so the queue is usable without a
+// second lookup (before this the confirm/reject endpoints were
+// unreachable without guessing declaration ids).
+async function listPendingCashTipsForReview(restaurantId, fromDate, toDate) {
+  const { rows } = await pool.query(
+    `SELECT d.id, d.restaurant_id, d.staff_user_id, d.business_date, d.amount_cents,
+            d.declared_by, d.note, d.location_id, d.idempotency_key, d.status,
+            d.reviewed_by, d.reviewed_at, d.created_at,
+            -- Full name like the roster (getRoster), not
+            -- display_name_preference: that column is an enum
+            -- ('first_name' | 'full_name' | 'business_name'), so a bare
+            -- COALESCE on it renders the literal 'first_name'.
+            COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
+                     u.email) AS staff_name
+       FROM restaurant_declared_cash_tips d
+       LEFT JOIN users u ON u.id = d.staff_user_id
+      WHERE d.restaurant_id = $1 AND d.status = 'pending'
+        AND d.business_date >= $2 AND d.business_date <= $3
+      ORDER BY d.business_date DESC, d.id DESC`,
+    [restaurantId, fromDate, toDate]
+  );
+  return rows;
+}
+
 // Manager review of a self-declared cash tip. Only a pending row can
 // move; confirming puts it into pay from the next computation on,
 // rejecting keeps it out of pay forever. Returns null when the row
@@ -1889,6 +1915,8 @@ function declarationShape(row) {
     location_id: row.location_id == null ? null : Number(row.location_id),
     idempotency_key: row.idempotency_key || null,
     status: row.status || 'confirmed',
+    // Domain 8 #27: present only on the manager review queue rows.
+    staff_name: row.staff_name || null,
     reviewed_by: row.reviewed_by || null,
     reviewed_at: row.reviewed_at || null,
     created_at: row.created_at || null,
@@ -2837,6 +2865,7 @@ module.exports = {
   saveTipPoolSettings,
   declareCashTip,
   listDeclaredCashTipsForUser,
+  listPendingCashTipsForReview,
   reviewCashTip,
   declarationShape,
   getMyTips,

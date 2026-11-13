@@ -432,6 +432,20 @@ exports.listMyCashTips = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// Domain 8 #27: manager review queue for self-declared cash tips.
+// payroll.manage only (the same gate as confirm/reject): the rows are
+// the restaurant's pending declarations with staff names, so a manager
+// can reach confirm/reject without guessing declaration ids.
+exports.listCashTipsForReview = async (req, res, next) => {
+  try {
+    const restaurant = await restaurantAccess(req);
+    await requirePayrollManage(restaurant, req.user.id);
+    const { fromDate, toDate } = parseRangeOr400(req.query, restaurant);
+    const rows = await payroll.listPendingCashTipsForReview(restaurant.id, fromDate, toDate);
+    res.json({ declarations: rows.map(payroll.declarationShape) });
+  } catch (err) { next(err); }
+};
+
 // Self-declared cash tips: the declaration is the caller's own
 // (staff_user_id and declared_by both come from req.user.id), enters
 // the manager-review state as 'pending', and does NOT flow into pay
