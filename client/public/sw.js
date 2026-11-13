@@ -14,6 +14,7 @@ let assetWrites = Promise.resolve();
 // Shell assets to pre-cache on install
 const PRECACHE_URLS = [
   '/offline.html',
+  '/trouble.html',
 ];
 
 // ── Install: pre-cache shell ───────────────────────────────────────────────────
@@ -218,18 +219,37 @@ async function navigationHandler(event, request) {
     try { preloaded = await event.preloadResponse; }
     catch { /* preload unavailable; fall through to fetch */ }
     const response = preloaded || await fetch(request);
-    if (response.status >= 500) throw new Error('Navigation unavailable');
+    if (response.status >= 500) {
+      // A server error is not a connectivity problem: serve the trouble
+      // page, not the offline page (M15). A cached Response keeps its
+      // original 200 status, so the page is re-wrapped with an honest 503.
+      return await errorPage('/trouble.html',
+        'OxSteed is having trouble right now. Please try again in a little while.');
+    }
     return response;
   } catch {
     // Keep application HTML network-first so a deployment can publish a new
-    // asset manifest without an older route shell masking it.
-    let offline;
-    try { offline = await caches.match('/offline.html'); } catch { /* Cache unavailable. */ }
-    return offline || new Response('Offline. Please reconnect and try again.', {
+    // asset manifest without an older route shell masking it. A network
+    // error means the user really is offline.
+    return await errorPage('/offline.html', 'Offline. Please reconnect and try again.');
+  }
+}
+
+// Serve a cached error page re-wrapped with a 503 (its stored status is
+// 200), or a plain-text 503 when the page itself is not cached.
+async function errorPage(path, fallbackText) {
+  let page;
+  try { page = await caches.match(path); } catch { /* Cache unavailable. */ }
+  if (page) {
+    return new Response(await page.clone().text(), {
       status: 503,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
     });
   }
+  return new Response(fallbackText, {
+    status: 503,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
 }
 
 // Bounded local hand-off from the OS share sheet. Files are never uploaded
