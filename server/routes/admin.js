@@ -719,6 +719,12 @@ router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuper
 router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminAgreement);
 router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.upsertAdminEntitlement);
 router.get('/super/oxsteed-credit/entitlements.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminEntitlements);
+// Domain 7 #11: admin-side customer name lookup for the FX quote page.
+// The customer-role transfer-recipient lookup (GET /oxsteed-credit/
+// transfer-recipients/:customerId) requires the customer role and is not
+// callable from an admin session, so the same read-only resolver is wired
+// here behind requireSuperAdmin. It returns only the display name.
+router.get('/super/oxsteed-credit/customers/:customerId', requireSuperAdmin, oxsteedCreditCtrl.lookupTransferRecipient);
 router.post('/super/oxsteed-credit/customers/:customerId/loads', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.adminLoadCredit);
 router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.adminAdjustCredit);
 router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminUpdateCreditAccountStatus);

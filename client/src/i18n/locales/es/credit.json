@@ -2506,6 +2506,12 @@
     "captureError": "No se pudo capturar esta retención."
   },
   "adminCurrencyQuotes.confirmDescription": "Pon esta cotización en cola para la decisión de un segundo administrador. No se crea ninguna cotización hasta que el segundo administrador la apruebe en la cola de acciones pendientes.",
+  "adminCurrencyQuotes.customerResolved": "Cliente: {{name}}",
+  "adminCurrencyQuotes.customerNotFound": "Ningún cliente coincide con ese identificador.",
+  "adminCurrencyQuotes.customerLookupLoading": "Buscando al cliente…",
+  "adminCurrencyQuotes.customerRequiredResolved": "Resuelva el nombre del cliente antes de poner la cotización en cola.",
+  "adminCurrencyQuotes.confirmDescriptionLive": "Pon en cola una cotización para {{customer}}: {{sourceAmount}} {{sourceCurrency}} a {{targetCurrency}} al tipo de cambio vigente del mercado. No se crea ninguna cotización hasta que un segundo administrador la apruebe en la cola de acciones pendientes.",
+  "adminCurrencyQuotes.confirmDescriptionManual": "Pon en cola una cotización para {{customer}}: {{sourceAmount}} {{sourceCurrency}} a {{targetAmount}} {{targetCurrency}} al tipo {{rateNumerator}}/{{rateDenominator}} (comisión {{feeAmount}} {{sourceCurrency}}, {{provider}} {{providerReference}}). No se crea ninguna cotización hasta que un segundo administrador la apruebe en la cola de acciones pendientes.",
   "adminCurrencyQuotes.confirmTitle": "¿Poner la cotización de moneda en cola?",
   "adminCurrencyQuotes.consumedAt": "Consumida el",
   "adminCurrencyQuotes.createButton": "Poner cotización en cola para aprobación",

@@ -2506,6 +2506,12 @@
     "captureError": "Pa t kapab pran retansyon sa a."
   },
   "adminCurrencyQuotes.confirmDescription": "Mete to sa a nan kè pou desizyon yon dezyèm administratè. Okenn to pa kreye jiskaske dezyèm administratè a apwouve li nan kè aksyon k ap tann yo.",
+  "adminCurrencyQuotes.customerResolved": "Kliyan: {{name}}",
+  "adminCurrencyQuotes.customerNotFound": "Okenn kliyan pa koresponn ak idantifyan sa a.",
+  "adminCurrencyQuotes.customerLookupLoading": "N ap chèche kliyan an…",
+  "adminCurrencyQuotes.customerRequiredResolved": "Rezoud non kliyan an anvan ou mete to a nan kè.",
+  "adminCurrencyQuotes.confirmDescriptionLive": "Mete yon to nan kè pou {{customer}}: {{sourceAmount}} {{sourceCurrency}} pou {{targetCurrency}} nan to mache a k ap mache kounye a. Okenn to pa kreye jiskaske dezyèm administratè a apwouve li nan kè aksyon k ap tann yo.",
+  "adminCurrencyQuotes.confirmDescriptionManual": "Mete yon to nan kè pou {{customer}}: {{sourceAmount}} {{sourceCurrency}} pou {{targetAmount}} {{targetCurrency}} nan to {{rateNumerator}}/{{rateDenominator}} (frè {{feeAmount}} {{sourceCurrency}}, {{provider}} {{providerReference}}). Okenn to pa kreye jiskaske dezyèm administratè a apwouve li nan kè aksyon k ap tann yo.",
   "adminCurrencyQuotes.confirmTitle": "Mete to chanjman lajan an nan kè?",
   "adminCurrencyQuotes.consumedAt": "Konsome",
   "adminCurrencyQuotes.createButton": "Mete to a nan kè pou apwobasyon",

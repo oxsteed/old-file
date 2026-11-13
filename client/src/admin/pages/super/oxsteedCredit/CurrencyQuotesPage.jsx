@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../../../lib/adminApi';
+import { isValidTransferRecipientId } from '../../../../lib/transferReviewGuards';
 import { safeCreditErrorMessage } from '../../../../lib/creditErrors';
 import {
   AdminActionDialog,
@@ -22,7 +23,7 @@ import {
   DEFAULT_CURRENCY_OPTIONS,
 } from './shared';
 
-function QuoteDetail({ quote }) {
+function QuoteDetail({ quote, customerDisplayName }) {
   const { t } = useTranslation('credit');
   if (!quote) return null;
   const rateText = quote.rateNumerator && quote.rateDenominator
@@ -44,7 +45,7 @@ function QuoteDetail({ quote }) {
       <div><dt className="text-gray-600">{t('adminCurrencyQuotes.roundingMode')}</dt><dd className="mt-1 text-gray-700 dark:text-gray-300">{quote.roundingMode || t('adminCurrencyQuotes.unknownRate')}</dd></div>
       <div><dt className="text-gray-600">{t('adminCurrencyQuotes.provider')}</dt><dd className="mt-1 break-all text-gray-700 dark:text-gray-300">{quote.provider || t('adminCurrencyQuotes.unknownRate')}</dd></div>
       <div><dt className="text-gray-600">{t('adminCurrencyQuotes.providerReference')}</dt><dd className="mt-1 break-all font-mono text-[11px] text-gray-700 dark:text-gray-300">{quote.providerQuoteReference || t('adminCurrencyQuotes.unknownRate')}</dd></div>
-      <div><dt className="text-gray-600">{t('adminCurrencyQuotes.customer')}</dt><dd className="mt-1 break-all text-gray-700 dark:text-gray-300">{quote.customerId || t('adminCurrencyQuotes.unknownRate')}</dd></div>
+      <div><dt className="text-gray-600">{t('adminCurrencyQuotes.customer')}</dt><dd className="mt-1 break-all text-gray-700 dark:text-gray-300">{customerDisplayName ? `${customerDisplayName} · ${quote.customerId}` : (quote.customerId || t('adminCurrencyQuotes.unknownRate'))}</dd></div>
       <div><dt className="text-gray-600">{t('adminCurrencyQuotes.expiresAt')}</dt><dd className="mt-1 text-gray-700 dark:text-gray-300">{quote.expiresAt ? dateTime(quote.expiresAt) : t('adminCurrencyQuotes.unknownRate')}</dd></div>
       <div><dt className="text-gray-600">{t('adminCurrencyQuotes.consumedAt')}</dt><dd className="mt-1 text-gray-700 dark:text-gray-300">{quote.consumedAt ? dateTime(quote.consumedAt) : t('adminCurrencyQuotes.notConsumed')}</dd></div>
       <div><dt className="text-gray-600">{t('adminCurrencyQuotes.createdAt')}</dt><dd className="mt-1 text-gray-700 dark:text-gray-300">{quote.createdAt ? dateTime(quote.createdAt) : t('adminCurrencyQuotes.unknownRate')}</dd></div>
@@ -75,6 +76,51 @@ export default function OxsteedCreditCurrencyQuotesPage() {
   const [lookupId, setLookupId] = useState('');
   const [lookupQuote, setLookupQuote] = useState(null);
   const [lookingUp, setLookingUp] = useState(false);
+  // Domain 7 #11: resolve and show the customer display name next to the
+  // id field before the confirm enables. The customer-role transfer
+  // recipient lookup is not callable from an admin session, so this page
+  // uses the admin-side lookup (GET /admin/super/oxsteed-credit/
+  // customers/:customerId). Debounced like the transfer review lookup.
+  const [recipient, setRecipient] = useState(null);
+  const [recipientLoading, setRecipientLoading] = useState(false);
+  const [recipientError, setRecipientError] = useState('');
+  const recipientLookupTimerRef = useRef(null);
+
+  const scheduleCustomerLookup = (rawId) => {
+    if (recipientLookupTimerRef.current) clearTimeout(recipientLookupTimerRef.current);
+    const id = String(rawId || '').trim();
+    setRecipient(null);
+    setRecipientError('');
+    if (!isValidTransferRecipientId(id)) {
+      setRecipientLoading(false);
+      return;
+    }
+    setRecipientLoading(true);
+    recipientLookupTimerRef.current = setTimeout(async () => {
+      try {
+        const { data } = await adminApi.get(`/admin/super/oxsteed-credit/customers/${encodeURIComponent(id)}`);
+        const found = data?.recipient || null;
+        if (found && String(found.customerId) === id && found.displayName) {
+          setRecipient(found);
+        } else {
+          setRecipientError(t('adminCurrencyQuotes.customerNotFound'));
+        }
+      } catch (err) {
+        setRecipientError(safeCreditErrorMessage(err, t('adminCurrencyQuotes.customerNotFound')));
+      } finally {
+        setRecipientLoading(false);
+      }
+    }, 400);
+  };
+
+  useEffect(() => () => { if (recipientLookupTimerRef.current) clearTimeout(recipientLookupTimerRef.current); }, []);
+
+  const recipientOk = recipient
+    && String(recipient.customerId) === customerId.trim()
+    && Boolean(recipient.displayName);
+  const displayNameFor = (quote) => (recipient && quote?.customerId && String(recipient.customerId) === String(quote.customerId)
+    ? recipient.displayName
+    : null);
 
   useEffect(() => { setLoading(false); }, [setLoading]);
 
@@ -82,6 +128,10 @@ export default function OxsteedCreditCurrencyQuotesPage() {
     event.preventDefault();
     if (!customerId.trim()) return setError(t('adminCurrencyQuotes.customerRequired'));
     if (!reason.trim()) return setError(t('adminCurrencyQuotes.reasonRequired'));
+    // Domain 7 #11: no quote is queued for a bare id. The customer name
+    // must have resolved for the exact id entered; a wrong UUID creates a
+    // quote for the wrong customer.
+    if (!recipientOk) return setError(t('adminCurrencyQuotes.customerRequiredResolved'));
     if (sourceCurrency === targetCurrency) return setError(t('adminCurrencyQuotes.currenciesDifferent'));
     const sourceAmountMinorUnits = dollarsToCents(sourceAmount, sourceCurrency);
     if (sourceAmountMinorUnits === null) return setError(t('adminCurrencyQuotes.sourceAmountInvalid'));
@@ -120,10 +170,32 @@ export default function OxsteedCreditCurrencyQuotesPage() {
         reason: reason.trim(),
       };
     }
+    // The maker confirm shows the concrete quote terms, not generic text:
+    // the resolved customer name plus the amounts, currencies, and rate
+    // (live mode resolves the market rate server-side, so the confirm says so).
+    const confirmDescription = mode === 'live'
+      ? t('adminCurrencyQuotes.confirmDescriptionLive', {
+        customer: recipient.displayName,
+        sourceAmount,
+        sourceCurrency,
+        targetCurrency,
+      })
+      : t('adminCurrencyQuotes.confirmDescriptionManual', {
+        customer: recipient.displayName,
+        sourceAmount,
+        sourceCurrency,
+        targetAmount,
+        targetCurrency,
+        rateNumerator: rateNumerator.trim(),
+        rateDenominator: rateDenominator.trim(),
+        feeAmount: feeAmount.trim() || '0.00',
+        provider: provider.trim(),
+        providerReference: providerQuoteReference.trim(),
+      });
     const confirmed = await requestDialog({
       kind: 'confirm',
       title: t('adminCurrencyQuotes.confirmTitle'),
-      description: t('adminCurrencyQuotes.confirmDescription'),
+      description: confirmDescription,
     });
     if (!confirmed) return;
     setBusy(true); setNotice(''); setError('');
@@ -199,7 +271,10 @@ export default function OxsteedCreditCurrencyQuotesPage() {
             <p className="text-xs leading-5 text-gray-500 sm:col-span-2">{mode === 'live' ? t('adminCurrencyQuotes.useLiveRateNote') : t('adminCurrencyQuotes.manualRateNote')}</p>
             <label>
               <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminCurrencyQuotes.customer')}</span>
-              <input required value={customerId} onChange={(event) => setCustomerId(event.target.value)} placeholder={t('adminCurrencyQuotes.customerPlaceholder')} className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-600 focus:border-orange-400" />
+              <input required value={customerId} onChange={(event) => { setCustomerId(event.target.value); scheduleCustomerLookup(event.target.value); }} placeholder={t('adminCurrencyQuotes.customerPlaceholder')} className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-600 focus:border-orange-400" />
+              {recipientLoading && <span className="mt-1 block text-xs text-gray-500">{t('adminCurrencyQuotes.customerLookupLoading')}</span>}
+              {recipientError && <span role="alert" className="mt-1 block text-xs font-semibold text-red-300">{recipientError}</span>}
+              {recipientOk && <span className="mt-1 block text-xs font-semibold text-emerald-300">{t('adminCurrencyQuotes.customerResolved', { name: recipient.displayName })}</span>}
             </label>
             <label>
               <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminCurrencyQuotes.reason')}</span>
@@ -260,7 +335,7 @@ export default function OxsteedCreditCurrencyQuotesPage() {
             </div>
           </form>
           {pendingReceipt && <div className="mt-4 rounded-xl border border-sky-500/30 bg-sky-950/20 px-4 py-3 text-xs leading-5 text-sky-300">{t('adminCurrencyQuotes.pendingReceipt', { id: pendingReceipt.id || '' })} {t('adminCurrencyQuotes.pendingReceiptHint')}</div>}
-          {createdQuote && <div className="mt-4"><QuoteDetail quote={createdQuote} /></div>}
+          {createdQuote && <div className="mt-4"><QuoteDetail quote={createdQuote} customerDisplayName={displayNameFor(createdQuote)} /></div>}
         </Section>
         <Section eyebrow={t('adminCurrencyQuotes.lookupTitle')} title={t('adminCurrencyQuotes.lookupTitle')} detail={t('adminCurrencyQuotes.lookupDetail')}>
           <form onSubmit={runLookupQuote} className="mt-5 flex flex-wrap items-end gap-3">
@@ -271,7 +346,7 @@ export default function OxsteedCreditCurrencyQuotesPage() {
             <button disabled={lookingUp || busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"><Search className="h-4 w-4" /> {t('adminCurrencyQuotes.lookupButton')}</button>
           </form>
           <p className="mt-3 text-xs leading-5 text-gray-500">{t('adminCurrencyQuotes.noListNote')}</p>
-          {lookupQuote && <div className="mt-4"><QuoteDetail quote={lookupQuote} /></div>}
+          {lookupQuote && <div className="mt-4"><QuoteDetail quote={lookupQuote} customerDisplayName={displayNameFor(lookupQuote)} /></div>}
         </Section>
       </main>
     </>
