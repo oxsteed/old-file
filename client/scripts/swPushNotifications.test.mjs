@@ -153,3 +153,31 @@ test('M1: with no open tab, the push opens a new window as before', async () => 
   await clickNotification(worker, { action_url: '/orders/123' });
   assert.deepEqual(worker.openedWindows, ['/orders/123']);
 });
+
+// ── M2: notifications are tagged by notification id, not by type ──
+
+test('M2: two alerts of the same type keep separate tags when their ids differ', async () => {
+  const worker = loadWorker();
+  await push(worker, { id: 'notif-1', type: 'food_order', title: 'Order 1', body: 'Ready' });
+  await push(worker, { id: 'notif-2', type: 'food_order', title: 'Order 2', body: 'Ready' });
+  assert.equal(worker.notifications.length, 2);
+  assert.equal(worker.notifications[0].options.tag, 'notif-1');
+  assert.equal(worker.notifications[1].options.tag, 'notif-2');
+});
+
+test('M2: a growth offer without a top-level id tags by its delivery id', async () => {
+  const worker = loadWorker();
+  await push(worker, {
+    type: 'growth_offer',
+    title: 'Offer',
+    body: '50% off',
+    data: { delivery_id: '42', action_url: '/offers' },
+  });
+  assert.equal(worker.notifications[0].options.tag, '42');
+});
+
+test('M2: a payload with no id at all still falls back to its type', async () => {
+  const worker = loadWorker();
+  await push(worker, { type: 'job_matched', title: 'Match', body: 'A job matches you' });
+  assert.equal(worker.notifications[0].options.tag, 'job_matched');
+});

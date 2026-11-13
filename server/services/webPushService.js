@@ -32,6 +32,30 @@ exports.getPublicKey = () => VAPID_PUBLIC_KEY;
 // Hard caps - protects pool when fanning out to many devices.
 const MAX_FANOUT = 50;
 
+// Push TTL (seconds) by notification type. A stale alert is worse than a
+// missed one for anything time-sensitive: a "food ready", order, job,
+// booking, or message update delivered a day late misleads more than it
+// helps, so those get 1 hour. Offers stay relevant until the campaign
+// expires, but a day-old offer tap usually lands on dead inventory, so
+// they get 6 hours. Everything else (account, admin, compliance alerts)
+// keeps the 24h default: a day-late account alert is still worth reading.
+const TTL_DEFAULT_SECONDS = 60 * 60 * 24;
+const TTL_TIME_SENSITIVE_SECONDS = 60 * 60;
+const TTL_OFFER_SECONDS = 6 * 60 * 60;
+const TIME_SENSITIVE_TYPE_PREFIXES = [
+  'food_', 'job_', 'order_', 'delivery_', 'booking_', 'appointment_',
+  'bid_', 'message_', 'new_message', 'cart_', 'draft_', 'payment_',
+];
+function ttlForNotificationType(type) {
+  const t = String(type || '');
+  if (t === 'growth_offer' || t.startsWith('offer_')) return TTL_OFFER_SECONDS;
+  if (TIME_SENSITIVE_TYPE_PREFIXES.some((prefix) => t.startsWith(prefix))) {
+    return TTL_TIME_SENSITIVE_SECONDS;
+  }
+  return TTL_DEFAULT_SECONDS;
+}
+exports.ttlForNotificationType = ttlForNotificationType;
+
 /**
  * Send a payload to every active subscription belonging to a user.
  * Returns { sent, failed, deactivated }.
@@ -61,7 +85,7 @@ exports.sendToUser = async (userId, payload) => {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           body,
-          { TTL: 60 * 60 * 24 } // 24h - drop if the device is offline that long
+          { TTL: ttlForNotificationType(payload?.type) }
         );
         sent++;
         // Touch last_used_at without blocking the response.

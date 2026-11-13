@@ -191,6 +191,7 @@ async function deliver(conn, d, deps = {}) {
     );
     if (seen.yes) return skip("already_seen");
     const payload = {
+      id: `growth_offer:${d.id}`,
       title: copy.push_title,
       body: copy.push_body,
       type: "growth_offer",

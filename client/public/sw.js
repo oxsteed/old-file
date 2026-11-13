@@ -300,7 +300,12 @@ self.addEventListener('push', event => {
     body:    payload.body || '',
     icon:    '/icons/icon-192.png',
     badge:   '/icons/icon-192.png',
-    tag:     payload.type || 'oxsteed',
+    // One visible notification per notification id: tagging by type
+    // collapsed every order update / bid / offer into a single tray row.
+    // The server carries the id in payload.id (notificationService) and
+    // in payload.data.delivery_id for growth offers; only a payload with
+    // neither falls back to its type.
+    tag:     notificationTag(payload),
     renotify: true,
     data: {
       action_url: payload.action_url || '/',
@@ -315,6 +320,12 @@ self.addEventListener('push', event => {
     updatePushBadge(payload),
   ]));
 });
+
+function notificationTag(payload) {
+  const id = payload.id ?? payload.data?.delivery_id;
+  if (id !== null && id !== undefined && String(id) !== '') return String(id);
+  return payload.type || 'oxsteed';
+}
 
 async function updatePushBadge(payload) {
   const count = Number(payload.unread_count ?? payload.data?.unread_count);
