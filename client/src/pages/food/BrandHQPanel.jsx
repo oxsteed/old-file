@@ -771,7 +771,7 @@ export default function BrandHQPanel({ t, restaurant }) {
                 </li>
               ))}
             </ul>
-            <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={() => setConsolidationDetail(null)}>{t('restaurants.ops.brandHq.consolidations.closeDetails')}</button>
+            <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={() => setConsolidationDetail(null)} data-track="ui.eb078cc8b5.24">{t('restaurants.ops.brandHq.consolidations.closeDetails')}</button>
           </div>
         )}
       </div>

@@ -1201,7 +1201,7 @@ function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
               <input
                 type="checkbox"
                 checked={attestationFilters.waivedOnly}
-                onChange={(e) => setAttestationFilters((f) => ({ ...f, waivedOnly: e.target.checked }))}
+                onChange={(e) => setAttestationFilters((f) => ({ ...f, waivedOnly: e.target.checked }))} data-track="ui.e7f53817fe.16"
               />
               <span>{t('restaurants.ops.reports.breakAttestations.waivedOnly')}</span>
             </label>
@@ -1209,7 +1209,7 @@ function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
               <input
                 type="checkbox"
                 checked={attestationFilters.disputedOnly}
-                onChange={(e) => setAttestationFilters((f) => ({ ...f, disputedOnly: e.target.checked }))}
+                onChange={(e) => setAttestationFilters((f) => ({ ...f, disputedOnly: e.target.checked }))} data-track="ui.e7f53817fe.17"
               />
               <span>{t('restaurants.ops.reports.breakAttestations.disputedOnly')}</span>
             </label>
