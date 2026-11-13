@@ -38482,7 +38482,7 @@
     "deciding": "جار التسجيل...",
     "prev": "السابق",
     "next": "التالي",
-    "pageInfo": "{{count}} نزاع في هذه الصفحة",
+    "pageInfo": "{{count}} من أصل {{total}} نزاع",
     "dispute": "النزاع {{id}}",
     "unknownFiler": "مقدم غير معروف",
     "reason": "السبب: {{reason}}",

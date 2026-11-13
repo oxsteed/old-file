@@ -38368,7 +38368,7 @@
     "deciding": "Enregistrement...",
     "prev": "Précédent",
     "next": "Suivant",
-    "pageInfo": "{{count}} litiges sur cette page",
+    "pageInfo": "{{count}} sur {{total}} litiges",
     "dispute": "Litige {{id}}",
     "unknownFiler": "Demandeur inconnu",
     "reason": "Motif : {{reason}}",

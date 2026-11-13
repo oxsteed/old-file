@@ -67,3 +67,22 @@ test('routes are admin-only with the disputes grant, and closing decisions carry
   expect(src).toMatch(/'\/payment-disputes\/:id\/decision', requireAdmin, rejectImpersonated, requirePermission\('manage_disputes'\), strictLimiter, requireAdminActionStepupIf\(/);
   expect(src).toMatch(/'\/payment-disputes\/stepup-challenges', requireAdmin, rejectImpersonated, requirePermission\('manage_disputes'\), strictLimiter, issueAdminActionStepup\('payment_dispute_decision', resolveDisputeAmountCents\)/);
 });
+
+// Domain 7 #20: the list must return a total so the pager can show the
+// queue size and disable Next on the true last page.
+test('the list returns a total alongside the page', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total: 57 }] };
+    if (/FROM main_app_payment_disputes/.test(sql)) return { rows: [{ id: 1, status: 'open' }, { id: 2, status: 'open' }] };
+    return { rows: [] };
+  });
+  const r = res();
+  await ctrl.listPaymentDisputes({ query: { status: 'open', limit: '50', offset: '0' } }, r, jest.fn());
+  expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('COUNT(*)'), ['open']);
+  expect(r.json).toHaveBeenCalledWith(expect.objectContaining({
+    total: 57,
+    disputes: [{ id: 1, status: 'open' }, { id: 2, status: 'open' }],
+    limit: 50,
+    offset: 0,
+  }));
+});

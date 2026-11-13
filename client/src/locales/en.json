@@ -38368,7 +38368,7 @@
     "deciding": "Recording...",
     "prev": "Previous",
     "next": "Next",
-    "pageInfo": "{{count}} disputes on this page",
+    "pageInfo": "{{count}} of {{total}} disputes",
     "dispute": "Dispute {{id}}",
     "unknownFiler": "Unknown filer",
     "reason": "Reason: {{reason}}",

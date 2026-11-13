@@ -47,11 +47,16 @@ export default function PaymentDisputes() {
       signal,
       params: { ...(status !== 'all' ? { status } : {}), limit: PAGE_SIZE, offset },
     });
-    return { disputes: body?.disputes || [] };
+    return { disputes: body?.disputes || [], total: body?.total || 0 };
   }, [status, offset]);
 
   const disputes = data?.disputes || [];
-  const hasMore = disputes.length === PAGE_SIZE;
+  const total = data?.total || 0;
+  // Domain 7 #20: when the server reports a total, Next is enabled only
+  // while rows remain past this page, so an exact multiple of PAGE_SIZE
+  // no longer strands the operator on an empty page. Without a total
+  // (older server), fall back to the full-page heuristic.
+  const hasMore = total > 0 ? offset + disputes.length < total : disputes.length === PAGE_SIZE;
 
   useEffect(() => { setOffset(0); }, [status]);
 
@@ -260,7 +265,7 @@ export default function PaymentDisputes() {
         </div>
       )}
 
-      {!loading && !loadError && disputes.length > 0 && (
+      {!loading && !loadError && (
         <div className="flex items-center gap-3 mt-4">
           <button
             type="button"
@@ -270,7 +275,7 @@ export default function PaymentDisputes() {
           >
             {t('adminMoneyDisputes.prev')}
           </button>
-          <span className="text-gray-400 text-sm">{t('adminMoneyDisputes.pageInfo', { count: disputes.length })}</span>
+          <span className="text-gray-400 text-sm">{t('adminMoneyDisputes.pageInfo', { count: disputes.length, total })}</span>
           <button
             type="button"
             onClick={() => setOffset(offset + PAGE_SIZE)}

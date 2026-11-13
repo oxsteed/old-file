@@ -38368,7 +38368,7 @@
     "deciding": "Ap anrejistre...",
     "prev": "Anvan",
     "next": "Apre",
-    "pageInfo": "{{count}} diskisyon sou paj sa a",
+    "pageInfo": "{{count}} nan {{total}} diskisyon",
     "dispute": "Diskisyon {{id}}",
     "unknownFiler": "Moun ki depoze l la enkoni",
     "reason": "Rezon: {{reason}}",
