@@ -16,6 +16,11 @@ const { notifyApplicant, notifyHiringTeam, notifyUser } = require('./notify');
 
 const DEFAULT_EXPIRY_DAYS = 5;
 const MAX_EXPIRY_DAYS = 30;
+// Domain 9 cost audit (2026-11-13) P1: the expiry sweep materialized every
+// overdue offer in one tick (and notified serially inside one transaction)
+// after an outage. Bound each claim per tick; leftovers are picked up by
+// the next 15-minute tick.
+const SWEEP_BATCH_LIMIT = 200;
 const OFFERABLE_STAGES = Object.freeze(['received', 'screening', 'interview', 'assessment', 'offer']);
 
 function formatPay(cents, period, currency, locale = 'en') {
@@ -337,21 +342,27 @@ async function finalizeHire(db, { app, offer, actorId = null, startRun }) {
 }
 
 /** Expire overdue offers and warn 24 h ahead (§6.7; run by careerOfferExpiryJob). */
+async function loadApplicationForOffer(db, applicationId) {
+  const { rows: [app] } = await db.query(
+    `SELECT a.*, o.title AS opening_title, o.employer_type, o.business_id, o.created_by AS opening_created_by,
+            o.location_ids AS opening_location_ids, o.timezone AS opening_timezone,
+            CASE WHEN o.employer_type = 'platform' THEN 'OxSteed' ELSE b.business_name END AS employer_name
+       FROM career_applications a JOIN career_openings o ON o.id = a.opening_id LEFT JOIN businesses b ON b.id = o.business_id
+      WHERE a.id = $1`,
+    [applicationId]
+  );
+  return app || null;
+}
+
 async function sweepOffers(db) {
   const { rows: expired } = await db.query(
     `UPDATE career_offers SET status = 'expired', decided_at = NOW()
-      WHERE status = 'pending' AND expires_at <= NOW()
-      RETURNING id, application_id`
+      WHERE id IN (SELECT id FROM career_offers WHERE status = 'pending' AND expires_at <= NOW() ORDER BY expires_at LIMIT $1)
+      RETURNING id, application_id`,
+    [SWEEP_BATCH_LIMIT]
   );
   for (const o of expired) {
-    const { rows: [app] } = await db.query(
-      `SELECT a.*, o.title AS opening_title, o.employer_type, o.business_id, o.created_by AS opening_created_by,
-              o.location_ids AS opening_location_ids, o.timezone AS opening_timezone,
-              CASE WHEN o.employer_type = 'platform' THEN 'OxSteed' ELSE b.business_name END AS employer_name
-         FROM career_applications a JOIN career_openings o ON o.id = a.opening_id LEFT JOIN businesses b ON b.id = o.business_id
-        WHERE a.id = $1`,
-      [o.application_id]
-    );
+    const app = await loadApplicationForOffer(db, o.application_id);
     if (!app) continue;
     await recordEvent(db, { applicationId: app.id, actorId: null, from: app.stage, to: app.stage, metadata: { offer_id: o.id, expired: true } });
     await notifyApplicant(db, app, { type: 'career_offer_expired', params: { openingTitle: app.opening_title, employerName: app.employer_name }, deliveryKey: `career_offer_expired:${o.id}` });
@@ -359,17 +370,12 @@ async function sweepOffers(db) {
   }
   const { rows: warn } = await db.query(
     `UPDATE career_offers SET expiry_warned_at = NOW()
-      WHERE status = 'pending' AND expiry_warned_at IS NULL AND expires_at > NOW() AND expires_at <= NOW() + INTERVAL '24 hours'
-      RETURNING id, application_id, expires_at`
+      WHERE id IN (SELECT id FROM career_offers WHERE status = 'pending' AND expiry_warned_at IS NULL AND expires_at > NOW() AND expires_at <= NOW() + INTERVAL '24 hours' ORDER BY expires_at LIMIT $1)
+      RETURNING id, application_id, expires_at`,
+    [SWEEP_BATCH_LIMIT]
   );
   for (const o of warn) {
-    const { rows: [app] } = await db.query(
-      `SELECT a.*, o.title AS opening_title, o.employer_type, o.business_id, o.created_by AS opening_created_by, o.location_ids AS opening_location_ids, o.timezone AS opening_timezone,
-              CASE WHEN o.employer_type = 'platform' THEN 'OxSteed' ELSE b.business_name END AS employer_name
-         FROM career_applications a JOIN career_openings o ON o.id = a.opening_id LEFT JOIN businesses b ON b.id = o.business_id
-        WHERE a.id = $1`,
-      [o.application_id]
-    );
+    const app = await loadApplicationForOffer(db, o.application_id);
     if (!app) continue;
     const params = { openingTitle: app.opening_title, employerName: app.employer_name, expiresAt: o.expires_at, timeZone: app.opening_timezone || 'UTC' };
     await notifyApplicant(db, app, { type: 'career_offer_expiring', params, deliveryKey: `career_offer_expiring:${o.id}` });
@@ -404,6 +410,7 @@ async function offerForCandidate(db, { offerId, userId }) {
 module.exports = {
   DEFAULT_EXPIRY_DAYS,
   MAX_EXPIRY_DAYS,
+  SWEEP_BATCH_LIMIT,
   OFFERABLE_STAGES,
   formatPay,
   parseOffer,
