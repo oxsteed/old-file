@@ -40904,6 +40904,7 @@
     "idsPlaceholder": "Ids de restaurantes, separados por coma",
     "compare": "Comparar",
     "idsRequired": "Ingrese al menos un id de restaurante.",
+    "capped": "Se muestran los primeros {{count}} restaurantes. Reduzca la lista para comparar más.",
     "loadFailed": "No se pudieron cargar los informes de restaurantes.",
     "restaurant": "Restaurante",
     "orders": "Pedidos",

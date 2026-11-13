@@ -40904,6 +40904,7 @@
     "idsPlaceholder": "Id restoran, separe ak vigil",
     "compare": "Konpare",
     "idsRequired": "Antre omwen yon id restoran.",
+    "capped": "N ap montre {{count}} premye restoran yo. Diminye lis la pou konpare plis.",
     "loadFailed": "Pa t kapab chaje rapò restoran yo.",
     "restaurant": "Restoran",
     "orders": "Kòmann",
