@@ -29,6 +29,7 @@ export default function RestaurantPayRuns() {
   const [total, setTotal] = useState(0);
   const [detail, setDetail] = useState(null);
   const [detailError, setDetailError] = useState('');
+  const [detailRunId, setDetailRunId] = useState(null);
 
   const { data, loading, error: loadError, reload } = useAbortableFetch(async (signal) => {
     const { data: body } = await adminApi.get('/admin/restaurant-pay-runs', {
@@ -47,11 +48,15 @@ export default function RestaurantPayRuns() {
   const payRuns = data?.payRuns || [];
 
   const loadDetail = useCallback(async (id) => {
+    setDetailRunId(id);
     setDetailError('');
     try {
       const { data: body } = await adminApi.get(`/admin/restaurant-pay-runs/${id}`);
       setDetail(body?.payRun || null);
     } catch (err) {
+      // Domain 7 #23: clear any stale detail so the error can never render
+      // under another run's card; the error is keyed to this run below.
+      setDetail(null);
       setDetailError(err?.response?.data?.error || err.message || t('restaurantPayRuns.detailFailed'));
     }
   }, [t]);
@@ -68,7 +73,7 @@ export default function RestaurantPayRuns() {
           <button
             key={key}
             type="button"
-            onClick={() => { setStatus(key); setDetail(null); }}
+            onClick={() => { setStatus(key); setDetail(null); setDetailRunId(null); setDetailError(''); }}
             className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${status === key ? 'bg-orange-500 text-white' : 'bg-slate-800 text-gray-300 hover:bg-slate-700'}`}
           >
             {t(`restaurantPayRuns.status.${key}`)}
@@ -122,9 +127,16 @@ export default function RestaurantPayRuns() {
                     {detail?.id === run.id ? t('restaurantPayRuns.hideDetail') : t('restaurantPayRuns.showDetail')}
                   </button>
                 </div>
+                {detailRunId === run.id && detailError && (
+                  <div role="alert" className="mt-4 border-t border-slate-700 pt-4">
+                    <p className="text-red-400 text-sm">{detailError}</p>
+                    <button type="button" onClick={() => loadDetail(run.id)} className="mt-2 px-3 py-1.5 rounded-lg bg-slate-700 text-white text-sm font-semibold hover:bg-slate-600">
+                      {t('common.retry')}
+                    </button>
+                  </div>
+                )}
                 {detail?.id === run.id && (
                   <div className="mt-4 border-t border-slate-700 pt-4 space-y-2">
-                    {detailError && <p className="text-red-400 text-sm">{detailError}</p>}
                     {(detail.payoutLinks || []).length === 0 && (
                       <p className="text-gray-400 text-sm">{t('restaurantPayRuns.noLinks')}</p>
                     )}
