@@ -852,13 +852,25 @@ router.get('/super/oxsteed-credit/fee-schedule', requireSuperAdmin, async (req, 
 // Phase 6: fee schedule (gap 12). Reads are plain; updates are audited.
 // Phase 7 (gap 9): updates queue as pending actions for checker approval;
 // fee schedule changes have no amount, so they always need dual approval.
-router.put('/super/oxsteed-credit/fee-schedule/:id', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.put('/super/oxsteed-credit/fee-schedule/:id', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     // Fast 404 for the maker when the row does not exist.
     const schedule = await oxsteedCreditFeeScheduleService.listFeeSchedule();
     if (!schedule.some((row) => String(row.id) === String(req.params.id))) {
       throw new AppError('Fee schedule row was not found', 404, 'credit_fee_schedule_not_found');
     }
+    // Domain 6 finding 5 (2026-11-13): this dedicated maker route called
+    // requestPendingAction directly, bypassing the maker step-up choke
+    // point. Verify a fresh pending_action_request step-up first. Fee
+    // schedule changes carry no single amount, so the challenge is
+    // unbound (the documented agent_job_cancel exception); the checker
+    // half still requires a distinct second admin's TOTP.
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'pending_action_request',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+    });
     const result = await requestPendingAction({
       actionType: 'credit_fee_schedule_update',
       payload: {
@@ -890,7 +902,7 @@ router.get('/super/oxsteed-credit/reserve-policies', requireSuperAdmin, async (r
     res.json({ policies });
   } catch (err) { next(err); }
 });
-router.put('/super/oxsteed-credit/reserve-policies', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.put('/super/oxsteed-credit/reserve-policies', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     // Reject bad input with 400 before queueing: the checker must only ever
     // see a valid payload. The executor re-validates at execution time.
@@ -899,6 +911,16 @@ router.put('/super/oxsteed-credit/reserve-policies', requireSuperAdmin, creditAd
       currencyCode: req.body?.currencyCode ?? req.body?.currency_code,
       ratioBps: req.body?.ratioBps ?? req.body?.ratio_bps,
       floorCents: req.body?.floorCents ?? req.body?.floor_cents,
+    });
+    // Domain 6 finding 5 (2026-11-13): maker step-up, as on the
+    // fee-schedule route above. Reserve policy changes carry no single
+    // amount, so the pending_action_request challenge is unbound (the
+    // documented agent_job_cancel exception).
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'pending_action_request',
+      code: req.body?.stepupCode || req.body?.stepup_code,
     });
     const result = await requestPendingAction({
       actionType: 'credit_reserve_policy_update',
@@ -930,13 +952,23 @@ router.get('/super/oxsteed-credit/restaurant-conversion-policies', requireSuperA
     res.json({ policies });
   } catch (err) { next(err); }
 });
-router.put('/super/oxsteed-credit/restaurant-conversion-policies', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.put('/super/oxsteed-credit/restaurant-conversion-policies', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     // Reject bad input with 400 before queueing: the checker must only ever
     // see a valid payload. The executor re-validates at execution time.
     const normalized = oxsteedCreditRestaurantConversionPolicyService.validateConversionPolicyInput({
       restaurantId: req.body?.restaurantId ?? req.body?.restaurant_id,
       allowRestaurantToOxsteed: req.body?.allowRestaurantToOxsteed ?? req.body?.allow_restaurant_to_oxsteed,
+    });
+    // Domain 6 finding 5 (2026-11-13): maker step-up, as on the
+    // fee-schedule route above. Conversion policy changes carry no single
+    // amount, so the pending_action_request challenge is unbound (the
+    // documented agent_job_cancel exception).
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'pending_action_request',
+      code: req.body?.stepupCode || req.body?.stepup_code,
     });
     const result = await requestPendingAction({
       actionType: 'credit_restaurant_conversion_policy_update',

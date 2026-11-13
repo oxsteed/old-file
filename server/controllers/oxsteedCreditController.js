@@ -165,6 +165,11 @@ async function requestMoneyMovement(req, actionType, payload) {
   // challenge before queueing any money intent. Challenges are single-use,
   // so this must run exactly once per request: the generic pending-actions
   // endpoint no longer verifies on its own and relies on this call.
+  // Domain 6 finding 5 (2026-11-13): the three amount-less credit-policy
+  // PUTs in routes/admin.js (fee-schedule, reserve-policies,
+  // restaurant-conversion-policies) verify the same
+  // pending_action_request challenge in-handler instead of funneling
+  // through here; the choke point is the verification, wherever it runs.
   // Auth audit item 6: bind to the payload amount when the intent
   // carries one (loads, adjustments, refunds); intents without a single
   // amount keep the legacy unbound challenge.
