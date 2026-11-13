@@ -7,6 +7,7 @@ import PageMeta from '../components/PageMeta';
 import toast from 'react-hot-toast';
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
+import { getLifeSnapshot, invalidateLifeSnapshots } from '../api/lifeSnapshot';
 import useLifeDashboard from '../hooks/useLifeDashboard';
 import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
@@ -850,6 +851,10 @@ export default function Dashboard() {
       };
       const res = await api.post('/house/my', payload);
       setHomes(prev => [res.data, ...prev]);
+      // Cost audit 2026-11-13 item 3: /house/my is cached, so a home
+      // add/delete must evict it or a /life-dashboard hop within 5s
+      // would show the pre-change list.
+      invalidateLifeSnapshots(user?.id, '/house/my');
       setHomeLookup(null);
       setHomeAddrInput('');
       setHomeNickname('');
@@ -863,6 +868,7 @@ export default function Dashboard() {
     try {
       await api.delete(`/house/my/${id}`);
       setHomes(prev => prev.filter(h => h.id !== id));
+      invalidateLifeSnapshots(user?.id, '/house/my');
       setHomeDeleteTarget(null);
       toast.success(t('dashboard.home.removed'));
     } catch { toast.error(t('dashboard.home.removeFailed')); }
@@ -912,8 +918,11 @@ export default function Dashboard() {
       life.fetchBudgets();
       life.fetchGoals();
       life.fetchHomeTasks({ completed: 'false', section: 'home' });
+      // Cost audit 2026-11-13 item 3: /house/my goes through the shared
+      // lifeSnapshot cache so a Dashboard mount and a /life-dashboard hop
+      // within 5s pay for it once.
       if (!homesLoaded) {
-        api.get('/house/my').then(r => { setHomes(r.data||[]); setHomesLoaded(true); }).catch(()=>{});
+        getLifeSnapshot(user?.id, '/house/my').then(r => { setHomes(r.data||[]); setHomesLoaded(true); }).catch(()=>{});
       }
       life.fetchChecklist();
       life.fetchSavedHelpers();

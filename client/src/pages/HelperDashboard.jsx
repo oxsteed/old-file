@@ -7,6 +7,7 @@ import useLifeDashboard from '../hooks/useLifeDashboard';
 import BadgeDisplay from '../components/BadgeDisplay';
 import RecommendationFeed from '../components/RecommendationFeed';
 import api from '../api/axios';
+import { getLifeSnapshot, invalidateLifeSnapshots } from '../api/lifeSnapshot';
 import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import PageShell from '../components/PageShell';
@@ -1004,7 +1005,10 @@ export default function HelperDashboard() {
       fetchSavedHelpers();
       fetchHomeTasks({ completed:'false', section:'home' });
       if (!homesLoaded) {
-        api.get('/house/my').then(r => { setHomes(r.data || []); setHomesLoaded(true); }).catch(() => {});
+        // Cost audit 2026-11-13 item 3: /house/my goes through the shared
+        // lifeSnapshot cache so a Dashboard mount and a /life-dashboard hop
+        // within 5s pay for it once.
+        getLifeSnapshot(user?.id, '/house/my').then(r => { setHomes(r.data || []); setHomesLoaded(true); }).catch(() => {});
       }
     }
   }, [initialized, user, isOnboardingComplete, fetchSummary, fetchFinancialPulse, fetchCommunity, fetchExpenses, fetchBudgets, fetchGoals, fetchChecklist, fetchSavedHelpers, fetchHomeTasks, homesLoaded]);
@@ -1120,6 +1124,10 @@ export default function HelperDashboard() {
       };
       const res = await api.post('/house/my', payload);
       setHomes(prev => [res.data, ...prev]);
+      // Cost audit 2026-11-13 item 3: /house/my is cached, so a home
+      // add/delete must evict it or a /life-dashboard hop within 5s
+      // would show the pre-change list.
+      invalidateLifeSnapshots(user?.id, '/house/my');
       setHomeLookup(null);
       setHomeAddrInput('');
       setHomeNickname('');
@@ -1132,6 +1140,7 @@ export default function HelperDashboard() {
     try {
       await api.delete(`/house/my/${id}`);
       setHomes(prev => prev.filter(h => h.id !== id));
+      invalidateLifeSnapshots(user?.id, '/house/my');
       setHomeDeleteTarget(null);
       toast.success(t('helperDashboard.removed'));
     } catch { toast.error(t('helperDashboard.failedRemove')); }
