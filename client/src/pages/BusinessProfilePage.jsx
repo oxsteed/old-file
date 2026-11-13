@@ -47,6 +47,7 @@ import PublicProfileMessenger from '../components/helperProfile/chat/PublicProfi
 
 import api from '../api/axios';
 import usePromotionVisitBeacon from '../hooks/usePromotionVisitBeacon';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { getBusinessPublicProfile } from '../api/businesses';
 import { getPublicPropertyOperations } from '../api/propertyOperations';
 import { getPublicTradesOperations } from '../api/tradesOperations';
@@ -757,6 +758,10 @@ export default function BusinessProfilePage() {
   pathnameRef.current = location.pathname;
   const { t }     = useTranslation();
   const { user } = useAuth();
+  // Mobile/PWA M8: the sticky Book bar renders only below the shared 1024px
+  // breakpoint (useIsMobile), not via the lg:hidden class, so it agrees with
+  // the FAB colour and the chat fullscreen logic on tablets.
+  const isMobile = useIsMobile();
 
   const [profileData,     setProfileData]     = useState(null);
   usePromotionVisitBeacon('business', profileData?.bizId);
@@ -1009,8 +1014,9 @@ export default function BusinessProfilePage() {
   const pageChrome = (
     <>
       {/* ── Mobile sticky CTA bar ────────────────────────────────────── */}
+      {isMobile && (
       <div
-        className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-gray-900/95 backdrop-blur border-t border-gray-800 flex items-center gap-3"
+        className="fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-gray-900/95 backdrop-blur border-t border-gray-800 flex items-center gap-3"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         aria-label={t('businessProfile.quickActionsAria')}
       >
@@ -1043,6 +1049,7 @@ export default function BusinessProfilePage() {
           </button>
         )}
       </div>
+      )}
 
       <PublicProfileMessenger
         open={chatOpen}

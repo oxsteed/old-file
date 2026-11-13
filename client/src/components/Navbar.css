@@ -29,6 +29,12 @@
           .ox-navbar-container .ox-nav-mobile-controls { gap: 4px !important; }
           .ox-navbar .ox-nav-mobile-mode[title] { max-width: 5.5rem; }
         }
+        /* Mobile/PWA M8 exception: the 1360px hamburger threshold is a
+           nav-density breakpoint, not device identity. The nav collapses
+           on narrow desktop windows that still count as desktop for the
+           FAB colour, the sticky Book bar and chat fullscreen, which all
+           use the shared 1024px token (useIsMobile). Do not "fix" this
+           threshold to 1024px. */
         @media (max-width: 1360px) {
           .ox-nav-desktop { display: none !important; }
           .ox-nav-mobile-mode { display: block; font-size: 0.7rem; line-height: 1.3; font-weight: 500; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

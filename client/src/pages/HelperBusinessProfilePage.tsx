@@ -24,6 +24,7 @@ import { Flag, GraduationCap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import usePromotionVisitBeacon from '../hooks/usePromotionVisitBeacon';
+import { useIsMobile } from '../hooks/useIsMobile';
 import toast from 'react-hot-toast';
 import { recordView } from '../hooks/useRecentlyViewed';
 import { defaultProfileChatDestination } from '../components/helperProfile/chat/messengerDockState.js';
@@ -72,6 +73,10 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user } = useAuth();
+  // Mobile/PWA M8: the sticky Book bar renders only below the shared 1024px
+  // breakpoint (useIsMobile), not via the lg:hidden class, so it agrees with
+  // the FAB colour and the chat fullscreen logic on tablets.
+  const isMobile = useIsMobile();
 
   const [data, setData] = useState<HelperProfileData | null>(customerSnapshot);
   const [loadState, setLoadState] = useState<LoadingState>(customerSnapshot ? 'success' : 'idle');
@@ -588,8 +593,9 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
         env(safe-area-inset-bottom) ensures buttons aren't hidden
         behind the iPhone home indicator.
       */}
+      {isMobile && (
       <div
-        className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-t border-gray-200 dark:border-gray-800 flex items-center gap-3"
+        className="fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-t border-gray-200 dark:border-gray-800 flex items-center gap-3"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         aria-label={t('businessProfile.quickActionsAria')}
       >
@@ -608,6 +614,7 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
           {t('helperProfile.cta.contactForPricing')}
         </button>
       </div>
+      )}
 
       {!customerSnapshot && <PublicProfileMessenger
         open={chatOpen}

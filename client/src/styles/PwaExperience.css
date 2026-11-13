@@ -61,7 +61,11 @@ html {
   visibility: hidden;
   pointer-events: none;
 }
-@media (min-width: 640px) {
+/* Mobile/PWA M8: the launcher and float-cart offsets flip at the shared
+   mobile breakpoint (1024px, MOBILE_BREAKPOINT_PX in utils/mobileBreakpoint.js),
+   not 640px, so tablets get the same clearance as phones: the sticky Book bar
+   is visible below 1024px and the launcher must clear it. */
+@media (min-width: 1024px) {
   .fixed[data-pwa-support-launcher] { --pwa-support-bottom: 1.5rem; }
   .rp-float-cart[data-pwa-bottom-actions] { --pwa-action-bottom: 2rem; }
 }
