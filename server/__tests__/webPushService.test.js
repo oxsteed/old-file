@@ -47,7 +47,7 @@ function installDb(subs, initialCounts = {}) {
       counts.set(id, (counts.get(id) || 0) + 1);
       return { rows: [], rowCount: 1 };
     }
-    if (/SET active = FALSE WHERE id = \$1 AND failure_count >=/.test(sql)) {
+    if (/SET active = FALSE\s+WHERE id = \$1 AND failure_count >=/.test(sql)) {
       const threshold = params[1];
       if (active.get(id) !== false && (counts.get(id) || 0) >= threshold) {
         active.set(id, false);
@@ -107,4 +107,93 @@ test('M2: sendToUser passes the per-type TTL to the push provider', async () => 
   mockSendNotification.mockClear();
   await service.sendToUser('u1', { id: 'n3', type: 'some_admin_alert', title: 'T', body: 'B' });
   expect(mockSendNotification.mock.calls[0][2]).toEqual({ TTL: 86400 });
+});
+
+// ── M5: dead endpoints, fan-out cap, 429 abort ──
+
+function failWith(status) {
+  const err = new Error(`push failed with ${status}`);
+  err.statusCode = status;
+  return err;
+}
+
+test('M5: a 400 or 413 deactivates the subscription at once', async () => {
+  for (const status of [400, 413]) {
+    mockSendNotification.mockRejectedValueOnce(failWith(status));
+    const { active } = installDb([sub(1, 'https://push.example/1')]);
+    const result = await service.sendToUser('u1', { id: 'n1', type: 'x', title: 'T', body: 'B' });
+    expect(result.deactivated).toBe(1);
+    expect(active.get(1)).toBe(false);
+  }
+});
+
+test('M5: 404 and 410 still deactivate at once', async () => {
+  for (const status of [404, 410]) {
+    mockSendNotification.mockRejectedValueOnce(failWith(status));
+    const { active } = installDb([sub(1, 'https://push.example/1')]);
+    const result = await service.sendToUser('u1', { id: 'n1', type: 'x', title: 'T', body: 'B' });
+    expect(result.deactivated).toBe(1);
+    expect(active.get(1)).toBe(false);
+  }
+});
+
+test('M5: the fifth consecutive failure deactivates, the fourth does not', async () => {
+  mockSendNotification.mockRejectedValue(failWith(500));
+  const fifth = installDb([sub(1, 'https://push.example/1')], { 1: 4 });
+  const r5 = await service.sendToUser('u1', { id: 'n1', type: 'x', title: 'T', body: 'B' });
+  expect(r5.deactivated).toBe(1);
+  expect(fifth.active.get(1)).toBe(false);
+  expect(fifth.counts.get(1)).toBe(5);
+
+  mockSendNotification.mockRejectedValue(failWith(500));
+  const fourth = installDb([sub(1, 'https://push.example/1')], { 1: 3 });
+  const r4 = await service.sendToUser('u1', { id: 'n1', type: 'x', title: 'T', body: 'B' });
+  expect(r4.deactivated).toBe(0);
+  expect(fourth.active.get(1)).toBe(true);
+  expect(fourth.counts.get(1)).toBe(4);
+});
+
+test('M5: a successful send resets the consecutive failure count', async () => {
+  const { counts } = installDb([sub(1, 'https://push.example/1')], { 1: 3 });
+  const result = await service.sendToUser('u1', { id: 'n1', type: 'x', title: 'T', body: 'B' });
+  expect(result.sent).toBe(1);
+  await settle();
+  await settle();
+  expect(counts.get(1)).toBe(0);
+});
+
+test('M5: fan-out runs at most FANOUT_CONCURRENCY sends at once', async () => {
+  const subs = Array.from({ length: 12 }, (_, i) => sub(i + 1, `https://push.example/${i + 1}`));
+  installDb(subs);
+  let inFlight = 0;
+  let maxInFlight = 0;
+  mockSendNotification.mockImplementation(async () => {
+    inFlight += 1;
+    maxInFlight = Math.max(maxInFlight, inFlight);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    inFlight -= 1;
+  });
+  const result = await service.sendToUser('u1', { id: 'n1', type: 'x', title: 'T', body: 'B' });
+  expect(result.sent).toBe(12);
+  expect(maxInFlight).toBeLessThanOrEqual(service.FANOUT_CONCURRENCY);
+  expect(maxInFlight).toBeGreaterThan(1);
+});
+
+test('M5: a 429 aborts the remaining fan-out for that notification', async () => {
+  const subs = Array.from({ length: 12 }, (_, i) => sub(i + 1, `https://push.example/${i + 1}`));
+  const { active, counts } = installDb(subs);
+  mockSendNotification.mockImplementation(async (target) => {
+    if (target.endpoint === 'https://push.example/2') throw failWith(429);
+  });
+  const result = await service.sendToUser('u1', { id: 'n1', type: 'x', title: 'T', body: 'B' });
+  expect(result.rateLimited).toBe(true);
+  // Only the first chunk (5 sends) was attempted; the rest were not tried.
+  expect(mockSendNotification).toHaveBeenCalledTimes(5);
+  for (let i = 6; i <= 12; i += 1) {
+    expect(mockSendNotification.mock.calls.some(([t]) => t.endpoint === `https://push.example/${i}`)).toBe(false);
+    expect(active.get(i)).toBe(true);
+  }
+  // The 429 itself is a provider signal, not a dead endpoint: no deactivation.
+  expect(result.deactivated).toBe(0);
+  expect(counts.get(2) || 0).toBe(0);
 });

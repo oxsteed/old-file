@@ -3,8 +3,22 @@
  *
  * Decoupled from Expo (mobile native) and Socket.IO (in-app).
  * Sends to every active subscription a user has registered through
- * a browser, deactivating dead endpoints (HTTP 404 / 410) so the
- * subscriptions table stays clean.
+ * a browser, deactivating dead endpoints so the subscriptions table
+ * stays clean.
+ *
+ * Failure semantics (M5):
+ * - failure_count is CONSECUTIVE: a successful send resets it to 0
+ *   (here and in webPushController subscribe/rotate), so reaching
+ *   MAX_CONSECUTIVE_FAILURES means the endpoint is dead, not flaky.
+ * - 400/404/410/413 prove the subscription itself is invalid, so the
+ *   row is deactivated at once instead of waiting out that budget.
+ * - 429 is a provider-side throttle, not a dead endpoint: it does not
+ *   increment failure_count and never deactivates, but it aborts the
+ *   rest of this notification's fan-out (see below).
+ * - Fan-out runs at most FANOUT_CONCURRENCY provider requests at once,
+ *   in chunks; MAX_FANOUT bounds how many subscriptions one
+ *   notification touches, FANOUT_CONCURRENCY bounds how many of those
+ *   are attempted concurrently.
  */
 const webpush = require('web-push');
 const db      = require('../db');
@@ -31,6 +45,19 @@ exports.getPublicKey = () => VAPID_PUBLIC_KEY;
 
 // Hard caps - protects pool when fanning out to many devices.
 const MAX_FANOUT = 50;
+// Consecutive failures after which an endpoint is treated as dead. The
+// count resets to 0 on any successful send, so this is five failures in a
+// row with no success in between, not five failures over the row's life.
+const MAX_CONSECUTIVE_FAILURES = 5;
+// At most this many push-provider requests in flight at once.
+const FANOUT_CONCURRENCY = 5;
+// Statuses that prove the subscription itself is invalid, not the network:
+// deactivate at once instead of waiting out the consecutive-failure budget.
+const IMMEDIATE_DEACTIVATE_STATUSES = new Set([400, 404, 410, 413]);
+
+exports.MAX_FANOUT = MAX_FANOUT;
+exports.MAX_CONSECUTIVE_FAILURES = MAX_CONSECUTIVE_FAILURES;
+exports.FANOUT_CONCURRENCY = FANOUT_CONCURRENCY;
 
 // Push TTL (seconds) by notification type. A stale alert is worse than a
 // missed one for anything time-sensitive: a "food ready", order, job,
@@ -58,7 +85,14 @@ exports.ttlForNotificationType = ttlForNotificationType;
 
 /**
  * Send a payload to every active subscription belonging to a user.
- * Returns { sent, failed, deactivated }.
+ * Returns { sent, failed, deactivated, rateLimited }.
+ *
+ * 429 semantics: the push provider is throttling us. The remaining
+ * subscriptions in this fan-out are NOT attempted: retrying them now
+ * would deepen the throttle and burn quota. They stay active and are
+ * retried on the next notification. Only sends already attempted count
+ * as sent/failed. Sends already in flight when the 429 lands run to
+ * completion; the abort takes effect between chunks.
  */
 exports.sendToUser = async (userId, payload) => {
   if (!configured) return { sent: 0, failed: 0, deactivated: 0, skipped: true };
@@ -78,54 +112,74 @@ exports.sendToUser = async (userId, payload) => {
 
   const body = JSON.stringify(payload);
   let sent = 0, failed = 0, deactivated = 0;
+  let rateLimited = false;
 
-  await Promise.all(
-    subs.map(async (sub) => {
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          body,
-          { TTL: ttlForNotificationType(payload?.type) }
-        );
-        sent++;
-        // Touch last_used_at without blocking the response.
-        db.query(
-          `UPDATE push_subscriptions
-              SET last_used_at = now(), failure_count = 0
-            WHERE id = $1`,
-          [sub.id]
-        ).catch(() => {});
-      } catch (err) {
-        failed++;
-        const status = err.statusCode || 0;
-        // 404 / 410 = subscription expired or unsubscribed. Hard-disable.
-        if (status === 404 || status === 410) {
-          deactivated++;
-          await db.query(
+  for (let i = 0; i < subs.length && !rateLimited; i += FANOUT_CONCURRENCY) {
+    const chunk = subs.slice(i, i + FANOUT_CONCURRENCY);
+    await Promise.all(
+      chunk.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            body,
+            { TTL: ttlForNotificationType(payload?.type) }
+          );
+          sent++;
+          // Touch last_used_at without blocking the response.
+          db.query(
             `UPDATE push_subscriptions
-                SET active = FALSE,
-                    failure_count = failure_count + 1,
-                    last_failure_at = now()
+                SET last_used_at = now(), failure_count = 0
               WHERE id = $1`,
             [sub.id]
           ).catch(() => {});
-        } else {
-          await db.query(
-            `UPDATE push_subscriptions
-                SET failure_count = failure_count + 1,
-                    last_failure_at = now()
-              WHERE id = $1`,
-            [sub.id]
-          ).catch(() => {});
-          logger.warn('[WebPush] Send failed', {
-            userId, endpoint: sub.endpoint.slice(0, 60), status, error: err.message
-          });
+        } catch (err) {
+          failed++;
+          const status = err.statusCode || 0;
+          if (status === 429) {
+            // Provider throttle, not a dead endpoint: do not count it
+            // against the subscription and never deactivate on it.
+            rateLimited = true;
+            logger.warn('[WebPush] Provider throttled fan-out; aborting remaining sends', {
+              userId, endpoint: sub.endpoint.slice(0, 60), status, error: err.message
+            });
+            return;
+          }
+          if (IMMEDIATE_DEACTIVATE_STATUSES.has(status)) {
+            deactivated++;
+            await db.query(
+              `UPDATE push_subscriptions
+                  SET active = FALSE,
+                      failure_count = failure_count + 1,
+                      last_failure_at = now()
+                WHERE id = $1`,
+              [sub.id]
+            ).catch(() => {});
+          } else {
+            await db.query(
+              `UPDATE push_subscriptions
+                  SET failure_count = failure_count + 1,
+                      last_failure_at = now()
+                WHERE id = $1`,
+              [sub.id]
+            ).catch(() => {});
+            // Deactivate once the consecutive-failure budget is spent.
+            const { rowCount } = await db.query(
+              `UPDATE push_subscriptions
+                  SET active = FALSE
+                WHERE id = $1 AND failure_count >= $2`,
+              [sub.id, MAX_CONSECUTIVE_FAILURES]
+            ).catch(() => ({ rowCount: 0 }));
+            if (rowCount > 0) deactivated++;
+            logger.warn('[WebPush] Send failed', {
+              userId, endpoint: sub.endpoint.slice(0, 60), status, error: err.message
+            });
+          }
         }
-      }
-    })
-  );
+      })
+    );
+  }
 
-  return { sent, failed, deactivated };
+  return { sent, failed, deactivated, rateLimited };
 };
 
 /**
