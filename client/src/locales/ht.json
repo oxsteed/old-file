@@ -15152,6 +15152,7 @@
     "sentTo": "N ap voye yon kòd 6 chif nan {{email}}.",
     "otpPlaceholder": "kòd 6 chif",
     "sendOtp": "Voye kòd verifikasyon",
+    "resendIn": "Voye kòd la ankò nan {{seconds}} s",
     "didntReceive": "Ou pa resevwa li?",
     "verify": "Verifye imèl",
     "help": "Ou bezwen èd?"

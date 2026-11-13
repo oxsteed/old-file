@@ -15152,6 +15152,7 @@
     "sentTo": "Enviaremos un código de 6 dígitos a {{email}}.",
     "otpPlaceholder": "código de 6 dígitos",
     "sendOtp": "Enviar código de verificación",
+    "resendIn": "Reenviar el código en {{seconds}} s",
     "didntReceive": "¿No lo recibiste?",
     "verify": "Verificar correo",
     "help": "¿Necesitas ayuda?"

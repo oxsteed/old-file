@@ -2,7 +2,7 @@
 // Email verification gate for authenticated users without verified email.
 // Shown when a logged-in user has email_verified=false.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
@@ -20,12 +20,23 @@ export default function VerifyEmailPage() {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  // Resend cooldown: rapid re-taps must not re-POST /auth/otp/request
+  // (each resend is a real email cost). The button shows the countdown.
+  const RESEND_COOLDOWN_SECONDS = 60;
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return undefined;
+    const timer = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   const handleRequestOTP = async () => {
     if (!user?.email) {
       toast.error(t('errors.emailNotFound'));
       return;
     }
+    if (loading || resendCooldown > 0) return;
 
     setLoading(true);
     try {
@@ -35,6 +46,7 @@ export default function VerifyEmailPage() {
       });
       setOtpSent(true);
       setStep('verify');
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
       toast.success(t('auth.otpSent'));
     } catch (err) {
       toast.error(err.response?.data?.error || t('errors.otpRequestFailed'));
@@ -105,7 +117,7 @@ export default function VerifyEmailPage() {
 
                   <button
                     onClick={handleRequestOTP}
-                    disabled={loading}
+                    disabled={loading || resendCooldown > 0}
                     className="w-full px-4 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors" data-track="ui.36142490d2.1"
                   >
                     {loading ? (
@@ -113,6 +125,8 @@ export default function VerifyEmailPage() {
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                         {t('common.loading')}
                       </span>
+                    ) : resendCooldown > 0 ? (
+                      t('verifyEmail.resendIn', { seconds: resendCooldown })
                     ) : (
                       t('verifyEmail.sendOtp')
                     )}
@@ -122,10 +136,12 @@ export default function VerifyEmailPage() {
                     {t('verifyEmail.didntReceive')}{' '}
                     <button
                       onClick={handleRequestOTP}
-                      disabled={loading}
+                      disabled={loading || resendCooldown > 0}
                       className="text-orange-400 hover:text-orange-300 disabled:opacity-50" data-track="ui.36142490d2.2"
                     >
-                      {t('common.tryAgain')}
+                      {resendCooldown > 0
+                        ? t('verifyEmail.resendIn', { seconds: resendCooldown })
+                        : t('common.tryAgain')}
                     </button>
                   </p>
                 </div>
@@ -141,6 +157,8 @@ export default function VerifyEmailPage() {
                       onChange={(e) => setOtp(e.target.value.toUpperCase())}
                       placeholder={t('verifyEmail.otpPlaceholder')}
                       maxLength={6}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
                       className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
                       disabled={loading}
                     />

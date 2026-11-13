@@ -15328,6 +15328,7 @@
     "sentTo": "We'll send a 6-digit code to {{email}}.",
     "otpPlaceholder": "6-digit code",
     "sendOtp": "Send verification code",
+    "resendIn": "Resend code in {{seconds}}s",
     "didntReceive": "Didn't get it?",
     "verify": "Verify email",
     "help": "Need help?"
