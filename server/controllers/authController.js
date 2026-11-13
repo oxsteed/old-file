@@ -300,28 +300,6 @@ async function login(req, res, next) {
 
     const preCheckUser = await pool.query('SELECT role FROM users WHERE email = $1', [normalizedEmail]);
     const isAdminUser = preCheckUser.rows.length > 0 && ['admin', 'super_admin'].includes(preCheckUser.rows[0].role);
-    if (!isAdminUser && !termsAgreed) {
-      throw new AppError(
-        'You must agree to the Terms of Service and Privacy Policy to sign in',
-        400, 'validation_failed',
-        { termsAgreed: 'Required' }
-      );
-    }
-    if (!isAdminUser) {
-      const nameTrimmed = String(agreementName || '').trim();
-      const nameWords   = nameTrimmed.split(/\s+/).filter(Boolean);
-      const nameValid   =
-        nameTrimmed.length >= 5 &&
-        nameWords.length >= 2 &&
-        nameWords.every((w) => /^[A-Za-zÀ-ÖØ-öø-ÿ''-]+$/.test(w));
-      if (!nameValid) {
-        throw new AppError(
-          'Please enter your full name (first and last name) as your digital signature',
-          400, 'validation_failed',
-          { agreementName: 'Full name required (first and last name)' }
-        );
-      }
-    }
 
     const { rows } = await pool.query(
       `SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.password_hash, u.role, u.is_active,
@@ -412,6 +390,34 @@ async function login(req, res, next) {
         'UPDATE users SET failed_login_attempts = 0, login_locked_until = NULL WHERE id = $1',
         [user.id]
       ).catch((e) => logger.warn('Failed to reset login attempts', { userId: user.id, error: e.message }));
+    }
+
+    // Domain 6 auth finding #13: the terms-agreement branch used to run
+    // before the password check, so the error shape distinguished admin
+    // emails from others without a password (role enumeration). It now
+    // runs only after the password verifies: a wrong password returns the
+    // identical generic 401 for every role.
+    if (!isAdminUser && !termsAgreed) {
+      throw new AppError(
+        'You must agree to the Terms of Service and Privacy Policy to sign in',
+        400, 'validation_failed',
+        { termsAgreed: 'Required' }
+      );
+    }
+    if (!isAdminUser) {
+      const nameTrimmed = String(agreementName || '').trim();
+      const nameWords   = nameTrimmed.split(/\s+/).filter(Boolean);
+      const nameValid   =
+        nameTrimmed.length >= 5 &&
+        nameWords.length >= 2 &&
+        nameWords.every((w) => /^[A-Za-zÀ-ÖØ-öø-ÿ''-]+$/.test(w));
+      if (!nameValid) {
+        throw new AppError(
+          'Please enter your full name (first and last name) as your digital signature',
+          400, 'validation_failed',
+          { agreementName: 'Full name required (first and last name)' }
+        );
+      }
     }
 
     // Signature must match the name on the account (case- and whitespace-insensitive)
