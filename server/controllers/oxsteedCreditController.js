@@ -1392,6 +1392,12 @@ async function getAdminComplianceQueue(req, res, next) {
       const queue = await getComplianceQueue(client, {
         limit: req.query.limit,
         offset: req.query.offset,
+        verificationsLimit: req.query.verificationsLimit,
+        verificationsOffset: req.query.verificationsOffset,
+        sanctionsLimit: req.query.sanctionsLimit,
+        sanctionsOffset: req.query.sanctionsOffset,
+        casesLimit: req.query.casesLimit,
+        casesOffset: req.query.casesOffset,
       });
       res.json(queue);
     } finally {

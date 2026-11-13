@@ -230,15 +230,25 @@ async function findSlaBreachedCases(client, now = new Date()) {
   return rows.map(formatCase);
 }
 
-async function getComplianceQueue(client, { limit = 50, offset = 0 } = {}) {
+async function getComplianceQueue(client, { limit = 50, offset = 0, verificationsLimit, verificationsOffset, sanctionsLimit, sanctionsOffset, casesLimit, casesOffset } = {}) {
   const { listPendingVerifications } = require('./identityVerificationService');
   const { listPendingSanctionHits } = require('./sanctionsScreeningService');
   const lim = Math.min(Math.max(Number(limit) || 50, 1), 200);
   const off = Math.max(Number(offset) || 0, 0);
+  // Domain 7 #12: the three lists page independently. Each list takes its
+  // own limit/offset, falling back to the shared pair when the caller sends
+  // none, so one shared offset can no longer desync them.
+  const pageFor = (listLimit, listOffset) => ({
+    limit: Math.min(Math.max(Number(listLimit ?? lim) || lim, 1), 200),
+    offset: Math.max(Number(listOffset ?? off) || 0, 0),
+  });
+  const verificationsPage = pageFor(verificationsLimit, verificationsOffset);
+  const sanctionsPage = pageFor(sanctionsLimit, sanctionsOffset);
+  const casesPage = pageFor(casesLimit, casesOffset);
   const [verifications, sanctions, cases, counts] = await Promise.all([
-    listPendingVerifications(client, { limit: lim, offset: off }),
-    listPendingSanctionHits(client, { limit: lim, offset: off }),
-    listComplianceCases(client, { statuses: ['open', 'investigating', 'escalated'], limit: lim, offset: off }),
+    listPendingVerifications(client, verificationsPage),
+    listPendingSanctionHits(client, sanctionsPage),
+    listComplianceCases(client, { statuses: ['open', 'investigating', 'escalated'], ...casesPage }),
     // T38-F02: totals, not page lengths, so operators can navigate the full queue.
     client.query(
       `SELECT
@@ -259,7 +269,13 @@ async function getComplianceQueue(client, { limit = 50, offset = 0 } = {}) {
       openCases: Number(totals.open_cases || 0),
       slaBreachedCases: openCases.filter((c) => c.slaBreached).length,
     },
-    pagination: { limit: lim, offset: off },
+    pagination: {
+      limit: lim,
+      offset: off,
+      verifications: { ...verificationsPage, total: Number(totals.pending_verifications || 0) },
+      sanctions: { ...sanctionsPage, total: Number(totals.pending_sanctions || 0) },
+      cases: { ...casesPage, total: Number(totals.open_cases || 0) },
+    },
   };
 }
 

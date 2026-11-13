@@ -141,7 +141,15 @@ describe('T38-F02 compliance queue pagination', () => {
     expect(caseCall[1].slice(-2)).toEqual([50, 50]);
     // Counts are the full queue totals, not the 2-row page length.
     expect(queue.counts).toMatchObject({ pendingVerifications: 500, pendingSanctions: 300, openCases: 200 });
-    expect(queue.pagination).toEqual({ limit: 50, offset: 50 });
+    // Domain 7 #12: per-list pagination carries each list's own page and
+    // total alongside the shared pair.
+    expect(queue.pagination).toMatchObject({
+      limit: 50,
+      offset: 50,
+      verifications: { limit: 50, offset: 50, total: 500 },
+      sanctions: { limit: 50, offset: 50, total: 300 },
+      cases: { limit: 50, offset: 50, total: 200 },
+    });
     expect(queue.cases).toHaveLength(2);
   });
 });
