@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import adminApi from "../../../lib/adminApi";
 
@@ -145,12 +145,16 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
   const [busy, setBusy] = useState(false);
   // Domain 1 audit #16: saved-views load failure state (was silently swallowed).
   const [viewsError, setViewsError] = useState("");
+  // Domain 1 audit #21: the filters the board was last loaded with, so the
+  // debounced auto-apply can tell a real change from an already-applied set.
+  const appliedRef = useRef(EMPTY_FILTERS);
 
   const loadBoard = async (f = filters, v = viewId, signal, cursor) => {
     const params = v ? { view: v } : { queues: f.queues.join(","), statuses: f.statuses.join(","), assignee: f.assignee, breachedOnly: f.breachedOnly, sort: f.sort };
     const r = await adminApi.get(`/admin/customer360/queues`, { signal, params: cursor ? { ...params, cursor } : params });
     setBoard((p) => (cursor ? { ...r.data, items: [...p.items, ...r.data.items] } : r.data));
-    if (v) setFilters(r.data.filters);
+    if (v) { setFilters(r.data.filters); appliedRef.current = r.data.filters; }
+    else appliedRef.current = f;
   };
   // Domain 1 audit #16: surface a saved-views failure like the board failure
   // (set an error state) instead of swallowing it, so an admin can tell a
@@ -170,6 +174,21 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
     loadViews(c.signal);
     return () => c.abort();
   }, [viewerKey]);
+  // Domain 1 audit #21: manual filters (queue checkboxes, assignee, sort,
+  // breached-only) used to update local state only until Apply was clicked,
+  // while the saved-view select applied immediately, so the controls looked
+  // dead. Auto-apply them debounced (~300ms). Skipped while a saved view is
+  // active (the view select applies immediately) and whenever the filters
+  // already match the last applied set, so this never fights the Apply button
+  // (which still reloads immediately) or the view flow.
+  useEffect(() => {
+    if (!board || board.error || viewId) return;
+    if (JSON.stringify(filters) === JSON.stringify(appliedRef.current)) return;
+    const t = setTimeout(() => {
+      if (JSON.stringify(filters) !== JSON.stringify(appliedRef.current)) run(() => loadBoard(filters, ""));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [filters, viewId, board]);
 
   const run = async (fn, ok) => {
     setBusy(true);

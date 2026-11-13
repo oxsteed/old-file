@@ -120,3 +120,13 @@ test("domain 1 audit #16: TeamBoard saved-views failure is surfaced with a retry
   assert.match(board, /onClick=\{\(\) => run\(\(\) => loadViews\(\)\)\}>\{copy\("retry"\)\}<\/button>/, "views error has a retry that reloads the views");
   assert.equal(typeof legacy("en").customerWorkspace.queues.viewsLoadFailed, "string", "en: queues.viewsLoadFailed");
 });
+
+test("domain 1 audit #21: TeamBoard manual filters auto-apply debounced, Apply still works", () => {
+  const board = src("admin/pages/customer360/upgrades/TeamBoard.jsx");
+  assert.match(board, /appliedRef = useRef\(EMPTY_FILTERS\)/, "tracks the last applied filters");
+  assert.match(board, /appliedRef\.current = r\.data\.filters/, "a loaded view records its filters as applied");
+  assert.match(board, /setTimeout\(\(\) => \{[\s\S]*?loadBoard\(filters, ""\)[\s\S]*?\}, 300\)/, "manual filter changes auto-apply after a 300ms debounce");
+  assert.match(board, /if \(!board \|\| board\.error \|\| viewId\) return;/, "auto-apply skips while a saved view is active");
+  assert.match(board, /JSON\.stringify\(filters\) === JSON\.stringify\(appliedRef\.current\)/, "auto-apply skips when filters already match the applied set");
+  assert.match(board, /onClick=\{\(\) => run\(\(\) => loadBoard\(filters, ""\)\)\}>\{copy\("queues\.apply"\)\}/, "Apply still reloads immediately");
+});
