@@ -32,9 +32,9 @@ import { detectDisplayStandalone } from "../../utils/displayInstall";
 import { FoodBrand } from "./foodShared";
 import { ItemModal } from "./FoodRestaurantPage";
 import FoodOrderConfirmation from "./FoodOrderConfirmation";
+import { kioskIdleResetMs } from "../../utils/kioskIdle";
 import "../../styles/FoodPages.css";
 
-const RESET_AFTER_MS = 60000;
 const CREDIT_DECLINES = new Set([
   "credit_kiosk_disabled", "credit_kiosk_card_required", "credit_kiosk_quote_required",
   "credit_kiosk_currency_unsupported", "credit_card_not_found", "credit_card_pin_incorrect",
@@ -172,10 +172,15 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
     [],
   );
   useEffect(() => {
-    if ((step === "start" && !creditReceipt) || placing || creditAttempt) return;
+    // The payment/confirm step gets a longer window: a guest reading the
+    // quoted total or typing card + PIN must not lose the cart after 60s
+    // of stillness. creditAttempt only exists once the credit form is
+    // submitted, so it cannot exempt entry/review on its own (M17).
+    const timeoutMs = kioskIdleResetMs({ step, quoted, placing, creditAttempt, creditReceipt });
+    if (timeoutMs === null) return;
     const reset = () => {
       clearTimeout(resetTimer.current);
-      resetTimer.current = setTimeout(resetAll, RESET_AFTER_MS);
+      resetTimer.current = setTimeout(resetAll, timeoutMs);
     };
     reset();
     window.addEventListener("pointerdown", reset);
@@ -185,7 +190,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
       window.removeEventListener("pointerdown", reset);
       window.removeEventListener("keydown", reset);
     };
-  }, [step, placing, creditAttempt, creditReceipt]);
+  }, [step, placing, creditAttempt, creditReceipt, quoted]);
 
   const currency = data?.restaurant?.currency_code || "USD";
   const total = useMemo(
