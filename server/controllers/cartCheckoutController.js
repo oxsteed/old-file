@@ -69,6 +69,9 @@ async function getCheckoutSession(req, res) {
       success: true,
       data: {
         cartId,
+        // Carts are USD-only today; the currency rides with the amounts
+        // so the client never has to assume it (M19).
+        currency: 'USD',
         items: items.rows.map(i => ({
           id: i.id,
           productId: i.product_id,
@@ -289,6 +292,9 @@ async function createPaymentIntent(req, res) {
         clientSecret: validatedPaymentIntent.clientSecret,
         paymentIntentId: validatedPaymentIntent.id,
         total,
+        // The currency this intent actually charges in; the client
+        // renders amounts in it instead of assuming USD (M19).
+        currency: 'USD',
         email,
         publishableKey: process.env.STRIPE_PUBLISHABLE_KEY
       }

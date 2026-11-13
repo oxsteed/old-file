@@ -9,6 +9,8 @@ import { useAuth } from '../context/AuthContext';
 import OrderErrorBoundary from '../components/OrderErrorBoundary';
 import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
 import { createSubmitGuard } from '../utils/submitGuard';
+import { formatMoney } from '../shared/money.js';
+import { resolveCheckoutCurrency } from '../utils/checkoutCurrency';
 
 function CardPaymentForm({ cartId, intent, onPaid, onPayingChange, onCardConfirmed }) {
   const { t } = useTranslation();
@@ -71,7 +73,7 @@ function CardPaymentForm({ cartId, intent, onPaid, onPayingChange, onCardConfirm
       </div>
       {cardError && <p className="text-red-700 text-sm" role="alert">{cardError}</p>}
       <button type="submit" className="bg-primary text-white px-5 py-3 rounded-xl font-semibold hover:bg-primary-dark disabled:opacity-50" disabled={!stripe || paying} data-track="ui.137ad6cada.6">
-        {paying ? t('checkout.cardPayProcessing') : t('checkout.cardPayButton', { total: (intent.total / 100).toFixed(2) })}
+        {paying ? t('checkout.cardPayProcessing') : t('checkout.cardPayButton', { total: formatMoney(intent.total, resolveCheckoutCurrency({ intent })) })}
       </button>
     </form>
   );
@@ -189,6 +191,9 @@ function CheckoutPageContent() {
   const subtotalCents = orderDetails?.subtotal || 0;
   const taxCents = orderDetails?.tax || 0;
   const totalCents = orderDetails?.total || 0;
+  // The intent total is authoritative, so its currency wins when an
+  // intent exists; otherwise the session currency, else USD (M19).
+  const checkoutCurrency = resolveCheckoutCurrency({ intent, session: orderDetails });
 
   return (
     <>
@@ -236,21 +241,21 @@ function CheckoutPageContent() {
                       <div className="font-medium text-[var(--color-text)]">{item.name} × {item.quantity}</div>
                       {item.notes && <div className="text-sm text-[var(--color-text-muted)]">{item.notes}</div>}
                     </div>
-                    <div className="font-semibold text-[var(--color-text)]">${(item.totalPrice / 100).toFixed(2)}</div>
+                    <div className="font-semibold text-[var(--color-text)]">{formatMoney(item.totalPrice, checkoutCurrency)}</div>
                   </div>
                 ))}
                 <div className="pt-3 space-y-2">
                   <div className="flex justify-between text-[var(--color-text-muted)]">
                     <span>{t('checkout.subtotal', { defaultValue: 'Subtotal' })}</span>
-                    <span>${(subtotalCents / 100).toFixed(2)}</span>
+                    <span>{formatMoney(subtotalCents, checkoutCurrency)}</span>
                   </div>
                   <div className="flex justify-between text-[var(--color-text-muted)]">
                     <span>{t('checkout.tax', { defaultValue: 'Tax' })}</span>
-                    <span>${(taxCents / 100).toFixed(2)}</span>
+                    <span>{formatMoney(taxCents, checkoutCurrency)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold pt-2 border-t border-[var(--color-border)]">
                     <span>{t('checkout.total', { defaultValue: 'Total' })}</span>
-                    <span>${(totalCents / 100).toFixed(2)}</span>
+                    <span>{formatMoney(totalCents, checkoutCurrency)}</span>
                   </div>
                 </div>
               </div>
@@ -275,7 +280,7 @@ function CheckoutPageContent() {
             {intent && stripePromise && !cardPaid && (
               <div className="space-y-3">
                 <p className="text-sm text-[var(--color-text-muted)]">
-                  {t('checkout.cardPayIntentTotal', { total: (intent.total / 100).toFixed(2) })}
+                  {t('checkout.cardPayIntentTotal', { total: formatMoney(intent.total, checkoutCurrency) })}
                 </p>
                 <Elements stripe={stripePromise}>
                   <CardPaymentForm
@@ -358,7 +363,7 @@ function CheckoutPageContent() {
         sourceId={cartId}
         sourceLabel={orderDetails?.cartId ? `${t('checkout.cartCheckout')} · ${orderDetails.cartId}` : t('checkout.cartCheckout')}
         amountCents={totalCents}
-        currencyCode="USD"
+        currencyCode={checkoutCurrency}
         payerId={null}
         payeeId={null}
         businessId={null}
