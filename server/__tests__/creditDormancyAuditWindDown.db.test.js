@@ -176,6 +176,29 @@ describeDatabase('dormancy, audit and wind-down (licence readiness §8-§10)', (
       expect(due).toBeTruthy();
     });
 
+    test('a failed notice leaves the case pending: no escheat on schedule, retry on the next sweep', async () => {
+      const dormancy = require('../services/creditCompliance/dormancyService');
+      const holder = await fundedWallet(9999, 400);
+      notices.sendUserNotice.mockImplementationOnce(async () => ({ sent: false }));
+      await dormancy.runDormancySweep();
+      let mine = (await dormancy.listCases({ status: 'pending', limit: 1000 })).find((c) => c.account_id === String(holder.walletId));
+      expect(mine).toBeTruthy();
+      expect(mine.notice_sent).toBe(false);
+      // Past the original deadline, the case must still not escheat: the
+      // holder was never told.
+      notices.sendUserNotice.mockImplementationOnce(async () => ({ sent: false }));
+      await dormancy.runDormancySweep({ now: new Date(Date.now() + 31 * 86400000) });
+      mine = (await dormancy.listCases({ status: 'pending', limit: 1000 })).find((c) => c.account_id === String(holder.walletId));
+      expect(mine).toBeTruthy();
+      expect((await dormancy.listCases({ status: 'escheat_due', limit: 1000 })).some((c) => c.account_id === String(holder.walletId))).toBe(false);
+      // A successful retry flips it to notified with a fresh deadline.
+      await dormancy.runDormancySweep();
+      const notified = (await dormancy.listCases({ status: 'notified', limit: 1000 })).find((c) => c.account_id === String(holder.walletId));
+      expect(notified).toBeTruthy();
+      expect(notified.notice_sent).toBe(true);
+      expect((await dormancy.listCases({ limit: 1000 })).filter((c) => c.account_id === String(holder.walletId))).toHaveLength(1);
+    });
+
     test('escheat moves the balance to unclaimed property; reclaim returns it; nothing is lost', async () => {
       const before = await balance(dormant.walletId);
       const escheated = await oversight('credit_escheat_execute', { caseIds: [caseId] });

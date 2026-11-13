@@ -98,7 +98,7 @@ async function openNewCases(now) {
         AND h.last_activity_at < $1::timestamptz - make_interval(days => p.dormant_after_days)
         AND NOT EXISTS (
           SELECT 1 FROM credit_dormancy_cases c
-           WHERE c.account_id = h.account_id AND c.status IN ('notified', 'escheat_due', 'escheated')
+           WHERE c.account_id = h.account_id AND c.status IN ('pending', 'notified', 'escheat_due', 'escheated')
         )
       LIMIT ${BATCH}`,
     [now]
@@ -108,9 +108,9 @@ async function openNewCases(now) {
     const deadline = new Date(now.getTime() + Number(h.notice_period_days) * 86400000);
     const { rows: inserted } = await pool.query(
       `INSERT INTO credit_dormancy_cases
-         (account_id, holder_user_id, account_type, partner_id, country_code, currency_code, balance_minor, last_activity_at, deadline_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       ON CONFLICT (account_id) WHERE status IN ('notified', 'escheat_due', 'escheated') DO NOTHING
+         (account_id, holder_user_id, account_type, partner_id, country_code, currency_code, balance_minor, last_activity_at, deadline_at, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+       ON CONFLICT (account_id) WHERE status IN ('pending', 'notified', 'escheat_due', 'escheated') DO NOTHING
        RETURNING *`,
       [h.account_id, h.user_id, h.account_type, h.partner_id, h.country, String(h.currency_code).trim(), h.balance_cents, h.last_activity_at, deadline]
     );
@@ -123,10 +123,20 @@ async function openNewCases(now) {
       params: { amount_minor: Number(h.balance_cents), currency: String(h.currency_code).trim(), deadline: deadline.toISOString() },
       idempotencyKey: `credit-dormancy:${row.id}:notice`,
     });
-    await pool.query(
-      `UPDATE credit_dormancy_cases SET notice_sent_at = NOW(), notice_result = $2::jsonb, updated_at = NOW() WHERE id = $1`,
-      [row.id, JSON.stringify(result)]
-    );
+    // The case is 'notified' only when the notice actually went out. A
+    // failed send leaves it 'pending' so the next sweep retries it and
+    // advanceOpenCases can never escheat a holder who was never told.
+    if (result.sent === true) {
+      await pool.query(
+        `UPDATE credit_dormancy_cases SET status = 'notified', notice_sent_at = NOW(), notice_result = $2::jsonb, updated_at = NOW() WHERE id = $1`,
+        [row.id, JSON.stringify(result)]
+      );
+    } else {
+      await pool.query(
+        `UPDATE credit_dormancy_cases SET notice_result = $2::jsonb, updated_at = NOW() WHERE id = $1`,
+        [row.id, JSON.stringify(result)]
+      );
+    }
     await insertComplianceAudit(pool, {
       actionType: 'credit.dormancy.notified', customerId: h.user_id, partnerId: h.partner_id,
       resourceType: 'credit_dormancy_case', resourceId: String(row.id),
@@ -135,6 +145,50 @@ async function openNewCases(now) {
     });
   }
   return opened;
+}
+
+// Re-attempt the notice for cases whose first send failed. On success the
+// case becomes 'notified' with a fresh deadline, so the holder gets the
+// full notice window from actual delivery instead of escheating on the
+// original schedule.
+async function retryPendingCases(now) {
+  const { rows } = await pool.query(
+    `SELECT c.*, p.notice_period_days
+       FROM credit_dormancy_cases c
+       JOIN credit_dormancy_policies p ON p.country_code = c.country_code AND p.enabled = TRUE
+      WHERE c.status = 'pending' AND c.source = 'dormancy'
+      ORDER BY c.id LIMIT ${BATCH}`
+  );
+  const out = { retried: 0, sent: 0 };
+  for (const c of rows) {
+    const deadline = new Date(now.getTime() + Number(c.notice_period_days) * 86400000);
+    const result = await notices().sendUserNotice({
+      userId: c.holder_user_id,
+      key: 'dormancy_notice',
+      params: { amount_minor: Number(c.balance_minor), currency: String(c.currency_code).trim(), deadline: deadline.toISOString() },
+      idempotencyKey: `credit-dormancy:${c.id}:notice`,
+    });
+    out.retried += 1;
+    if (result.sent === true) {
+      await pool.query(
+        `UPDATE credit_dormancy_cases SET status = 'notified', notice_sent_at = NOW(), notice_result = $2::jsonb, deadline_at = $3, updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
+        [c.id, JSON.stringify(result), deadline]
+      );
+      out.sent += 1;
+      await insertComplianceAudit(pool, {
+        actionType: 'credit.dormancy.notified', customerId: c.holder_user_id, partnerId: c.partner_id,
+        resourceType: 'credit_dormancy_case', resourceId: String(c.id),
+        reason: 'Dormancy notice re-attempted after an earlier failed send',
+        afterState: { balanceMinor: Number(c.balance_minor), deadline: deadline.toISOString(), noticeSent: true },
+      });
+    } else {
+      await pool.query(
+        `UPDATE credit_dormancy_cases SET notice_result = $2::jsonb, updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
+        [c.id, JSON.stringify(result)]
+      );
+    }
+  }
+  return out;
 }
 
 async function advanceOpenCases(now) {
@@ -163,9 +217,10 @@ async function advanceOpenCases(now) {
 
 async function runDormancySweep({ now = new Date() } = {}) {
   if (!enabled()) return { skipped: 'disabled' };
+  const retried = await retryPendingCases(now);
   const opened = await openNewCases(now);
   const advanced = await advanceOpenCases(now);
-  return { opened, ...advanced };
+  return { opened, retried, ...advanced };
 }
 
 // ── Oversight executors ────────────────────────────────────────────────
@@ -410,7 +465,7 @@ async function consentErasureDisposition({ user, isImpersonated = false, request
            (account_id, holder_user_id, account_type, partner_id, country_code, currency_code, balance_minor, last_activity_at,
             source, status, deadline_at, notice_sent_at, notice_result)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'erasure', 'escheat_due', NOW(), NOW(), '{"consent":true}'::jsonb)
-         ON CONFLICT (account_id) WHERE status IN ('notified', 'escheat_due', 'escheated') DO NOTHING
+         ON CONFLICT (account_id) WHERE status IN ('pending', 'notified', 'escheat_due', 'escheated') DO NOTHING
          RETURNING *`,
         [h.account_id, user.id, h.account_type, h.partner_id, /^[A-Z]{2}$/.test(h.country) ? h.country : 'US',
           String(h.currency_code).trim(), h.balance_cents, h.last_activity_at]
@@ -459,6 +514,7 @@ module.exports = {
   enabled,
   runDormancySweep,
   openNewCases,
+  retryPendingCases,
   advanceOpenCases,
   applyPolicy,
   applyEscheat,
