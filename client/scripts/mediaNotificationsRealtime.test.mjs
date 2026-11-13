@@ -6,7 +6,7 @@ import test from 'node:test';
 const source=fs.readFileSync(new URL('../src/hooks/useNotifications.js',import.meta.url),'utf8');
 test('two Media consumers share one load and one socket lifecycle, then clean up',async()=>{
   const cleanups=[], handlers=new Map(), apiCalls=[];
-  let notifications=[{id:1,is_read:false}];
+  let notifications=[{id:1,type:'media_reply',is_read:false},{id:2,type:'new_bid',is_read:false}];
   const socket={on:(event,fn)=>handlers.set(event,fn),off:(event)=>handlers.delete(event)};
   const react={useMemo:fn=>fn(),useEffect:fn=>cleanups.push(fn()),useSyncExternalStore:(_,get)=>get()};
   const api={get:async()=>{apiCalls.push(1);return {data:{notifications}}},put:async()=>{},delete:async()=>{}};
@@ -23,6 +23,16 @@ test('two Media consumers share one load and one socket lifecycle, then clean up
   assert.equal(apiCalls.length,1);
   assert.equal(handlers.size,2);
   assert.equal(hook('media').unreadCount,1);
+  assert.equal(hook('media').notifications.length,1);
+  // Cost audit 2026-11-13 item 12: the scope-null store (Navbar /
+  // Dashboard) and the media store are one store now, so mounting the
+  // unscoped consumer must not fire a second GET /notifications, and it
+  // must see the full list while the media consumer sees only media rows.
+  hook(); hook();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(apiCalls.length,1);
+  assert.equal(hook().unreadCount,2);
+  assert.equal(hook().notifications.length,2);
   notifications=[];
   handlers.get('notification:new')();
   await new Promise(resolve=>setImmediate(resolve));

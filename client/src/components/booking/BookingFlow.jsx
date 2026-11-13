@@ -189,6 +189,10 @@ export default function BookingFlow({ helperId, helperName, businessId, business
 
     const id = bookingRequest.id;
     const tick = async () => {
+      // Cost audit 2026-11-13 P5: the 8s confirm-step poll used to run
+      // with the tab hidden. It now skips hidden tabs and refreshes once
+      // on return to visible. The terminal-state stop below is unchanged.
+      if (document.visibilityState === 'hidden') return;
       try {
         const { data } = await api.get(`/bookings/${id}`);
         if (data?.success && data.data) {
@@ -200,7 +204,9 @@ export default function BookingFlow({ helperId, helperName, businessId, business
     };
 
     const iv = setInterval(tick, 8000);
-    return () => clearInterval(iv);
+    const onVisible = () => { if (document.visibilityState === 'visible') void tick(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(iv); document.removeEventListener('visibilitychange', onVisible); };
   }, [step, bookingRequest?.id, bookingRequest?.status]);
 
   // Going back deliberately abandons the picked slot, so a later return

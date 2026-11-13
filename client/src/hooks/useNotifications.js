@@ -3,9 +3,29 @@ import api from '../api/axios';
 import { getAccountSnapshot, invalidateAccountSnapshots } from '../api/accountSnapshot';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from './useSocket';
+// Cost audit 2026-11-13 item 12 (STILL LIVE since Nov 4 #13): Navbar's
+// scope-null store and MediaShell's 'media' store used to be two separate
+// stores keyed [userId, scope], each doing its own GET /notifications on
+// mount, because the 5s coalesce in getAccountSnapshot keys on params and
+// never merged the two scopes. The stores are now keyed by userId only:
+// one fetch per user, with scope applied as a client-side filter.
+// MEDIA_NOTIFICATION_TYPES must match the server-side list in
+// server/controllers/notificationController.js. The single fetch is the
+// unscoped list (limit 100, the server max) so the media view has a wide
+// window to filter from; the media badge counts unread media rows among
+// the fetched window, which is exact in the common case and can only
+// undercount when more than 100 recent notifications precede an unread
+// media notification. markAllAsRead still passes scope to the server so
+// "mark all read" inside Media only marks media notifications read.
+const MEDIA_NOTIFICATION_TYPES = [
+  'media_reply', 'media_like', 'media_repost', 'media_quote',
+  'media_follow', 'media_creator_update',
+];
+const isMediaNotification = (n) => MEDIA_NOTIFICATION_TYPES.includes(n?.type);
+const unreadOf = (rows) => rows.filter(n => !n.is_read && !n.read_at).length;
 const stores = new Map();
-function getStore(userId, scope) {
-  const key = JSON.stringify([userId, scope]);
+function getStore(userId) {
+  const key = JSON.stringify([userId]);
   if (stores.has(key)) return stores.get(key);
   let state = { notifications: [], unreadCount: 0, loading: Boolean(userId) };
   const listeners = new Set();
@@ -18,9 +38,9 @@ function getStore(userId, scope) {
       if (store.pending) return store.pending;
       store.pending = (async () => {
         try {
-          const { data } = await getAccountSnapshot(userId, '/notifications', scope ? { scope } : undefined);
+          const { data } = await getAccountSnapshot(userId, '/notifications', { limit: 100 });
           const rows = Array.isArray(data) ? data : data?.notifications || [];
-          update({ notifications: rows, unreadCount: data?.unread_count ?? rows.filter(n => !n.is_read && !n.read_at).length, loading: false });
+          update({ notifications: rows, unreadCount: data?.unread_count ?? unreadOf(rows), loading: false });
         } catch { update({ loading: false }); }
         finally { store.pending = null; }
       })();
@@ -29,20 +49,21 @@ function getStore(userId, scope) {
     markAsRead: async id => {
       await api.put(`/notifications/${id}/read`);
       invalidateAccountSnapshots(userId);
-      for (const other of stores.values()) if (other.userId === userId) { other.read(id); void other.refresh(); }
+      store.read(id);
+      void store.refresh();
     },
     read: id => {
       const wasUnread = state.notifications.some(n => String(n.id) === String(id) && !n.is_read && !n.read_at);
       update({ notifications: state.notifications.map(n => String(n.id) === String(id) ? { ...n, is_read: true, read_at: new Date().toISOString() } : n), unreadCount: Math.max(0, state.unreadCount - Number(wasUnread)) });
     },
-    markAllAsRead: async () => {
+    markAllAsRead: async (scope) => {
       await api.put('/notifications/read-all', null, { params: scope ? { scope } : undefined });
       invalidateAccountSnapshots(userId);
-      for (const other of stores.values()) if (other.userId === userId) await other.refresh();
+      await store.refresh();
     },
     deleteNotification: async id => {
       await api.delete(`/notifications/${id}`); invalidateAccountSnapshots(userId);
-      for (const other of stores.values()) if (other.userId === userId) { other.read(id); other.remove(id); }
+      store.read(id); store.remove(id);
     },
     remove: id => update({ notifications: state.notifications.filter(n => String(n.id) !== String(id)) }),
     userId,
@@ -55,7 +76,7 @@ export default function useNotifications(scope = null) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const userId = user?.id;
-  const store = useMemo(() => getStore(userId, scope), [userId, scope]);
+  const store = useMemo(() => getStore(userId), [userId]);
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   useEffect(() => {
     if (!userId) return undefined;
@@ -76,5 +97,9 @@ export default function useNotifications(scope = null) {
     return () => { if (--store.refs === 0) store.cleanup?.(); };
   }, [store, socket, userId]);
   const safe = action => (...args) => action(...args).catch(() => {});
-  return { ...state, refresh: store.refresh, markAsRead: safe(store.markAsRead), markAllAsRead: safe(store.markAllAsRead), deleteNotification: safe(store.deleteNotification) };
+  if (scope === 'media') {
+    const mediaNotifications = state.notifications.filter(isMediaNotification);
+    return { ...state, notifications: mediaNotifications, unreadCount: unreadOf(mediaNotifications), refresh: store.refresh, markAsRead: safe(store.markAsRead), markAllAsRead: safe(() => store.markAllAsRead(scope)), deleteNotification: safe(store.deleteNotification) };
+  }
+  return { ...state, refresh: store.refresh, markAsRead: safe(store.markAsRead), markAllAsRead: safe(() => store.markAllAsRead(null)), deleteNotification: safe(store.deleteNotification) };
 }
