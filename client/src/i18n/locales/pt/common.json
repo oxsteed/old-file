@@ -3808,7 +3808,9 @@
         "key": "Chave",
         "create": "Criar fila",
         "created": "Fila criada.",
-        "saved": "Fila guardada."
+        "saved": "Fila guardada.",
+        "listUnavailable": "Não foi possível carregar a lista de filas. Você ainda pode criar uma fila abaixo.",
+        "empty": "Ainda não há filas."
       },
       "manageView": "Gerir esta vista",
       "renameView": "Mudar o nome ou partilhar",
@@ -3816,7 +3818,8 @@
       "saveRename": "Guardar nome",
       "updateView": "Guardar os filtros atuais nesta vista",
       "viewRenamed": "Nome da vista alterado.",
-      "viewUpdated": "Vista atualizada."
+      "viewUpdated": "Vista atualizada.",
+      "viewsLoadFailed": "Não foi possível carregar as visualizações salvas."
     },
     "summaryHealth": {
       "title": "Estado dos resumos de clientes",

@@ -98,3 +98,41 @@ test("gap fill 8: summary health shows the flag and every worker state with tran
   for (const s of ["healthy", "disabled", "not_started", "failing", "behind"]) assert.equal(typeof en.states[s], "string", s);
   for (const s of ["ok", "late", "failing"]) assert.equal(typeof en.workerStates[s], "string", s);
 });
+
+test("domain 1 audit #4: TeamBoard load failure offers retry and keeps queue setup reachable", () => {
+  const board = src("admin/pages/customer360/upgrades/TeamBoard.jsx");
+  const errorBranch = board.slice(board.indexOf("if (board?.error)"), board.indexOf("if (!board)"));
+  assert.ok(errorBranch.length > 0, "error branch exists");
+  assert.match(errorBranch, /<button[^>]*onClick=\{retryLoad\}[^>]*>\{copy\("retry"\)\}<\/button>/, "error branch renders a retry button");
+  assert.match(errorBranch, /<QueueSetup /, "queue setup stays reachable when the board fails");
+  assert.match(errorBranch, /queuesLoaded=\{false\}/, "error branch marks the queue list as not loaded");
+  assert.match(board, /const retryLoad = \(\) => run\(async \(\) => \{[\s\S]*?loadBoard\(EMPTY_FILTERS, "", undefined\)[\s\S]*?loadViews\(\)[\s\S]*?setBoard\(\{ error:/, "retry reloads the board and the saved views, and restores the error on failure");
+  assert.match(board, /queues\.setup\.listUnavailable/, "QueueSetup distinguishes a failed queue list from an empty one");
+  assert.equal(typeof legacy("en").customerWorkspace.queues.setup.listUnavailable, "string", "en: queues.setup.listUnavailable");
+});
+
+test("domain 1 audit #16: TeamBoard saved-views failure is surfaced with a retry", () => {
+  const board = src("admin/pages/customer360/upgrades/TeamBoard.jsx");
+  assert.doesNotMatch(board, /loadViews\(c\.signal\)\.catch\(\(\) => \{\}\)/, "saved-views failure is no longer silently swallowed");
+  assert.match(board, /const \[viewsError, setViewsError\] = useState\(""\)/, "views load failure is tracked in state");
+  assert.match(board, /copy\("queues\.viewsLoadFailed"\)/, "views failure renders the load-failed copy");
+  assert.match(board, /\{viewsError && \(/, "views error renders in the board");
+  assert.match(board, /onClick=\{\(\) => run\(\(\) => loadViews\(\)\)\}>\{copy\("retry"\)\}<\/button>/, "views error has a retry that reloads the views");
+  assert.equal(typeof legacy("en").customerWorkspace.queues.viewsLoadFailed, "string", "en: queues.viewsLoadFailed");
+});
+
+test("domain 1 audit #21: TeamBoard manual filters auto-apply debounced, Apply still works", () => {
+  const board = src("admin/pages/customer360/upgrades/TeamBoard.jsx");
+  assert.match(board, /appliedRef = useRef\(EMPTY_FILTERS\)/, "tracks the last applied filters");
+  assert.match(board, /appliedRef\.current = r\.data\.filters/, "a loaded view records its filters as applied");
+  assert.match(board, /setTimeout\(\(\) => \{[\s\S]*?loadBoard\(filters, ""\)[\s\S]*?\}, 300\)/, "manual filter changes auto-apply after a 300ms debounce");
+  assert.match(board, /if \(!board \|\| board\.error \|\| viewId\) return;/, "auto-apply skips while a saved view is active");
+  assert.match(board, /JSON\.stringify\(filters\) === JSON\.stringify\(appliedRef\.current\)/, "auto-apply skips when filters already match the applied set");
+  assert.match(board, /onClick=\{\(\) => run\(\(\) => loadBoard\(filters, ""\)\)\}>\{copy\("queues\.apply"\)\}/, "Apply still reloads immediately");
+});
+
+test("domain 1 audit #22: QueueSetup with zero queues says so instead of an empty list", () => {
+  const board = src("admin/pages/customer360/upgrades/TeamBoard.jsx");
+  assert.match(board, /queues\.length === 0 \? <p>\{copy\(queuesLoaded \? "queues\.setup\.empty" : "queues\.setup\.listUnavailable"\)\}<\/p>/, "empty queue list renders a message, distinct from a failed load");
+  assert.equal(typeof legacy("en").customerWorkspace.queues.setup.empty, "string", "en: queues.setup.empty");
+});

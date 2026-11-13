@@ -36440,7 +36440,9 @@
         "key": "Chiave",
         "create": "Crea la coda",
         "created": "Coda creata.",
-        "saved": "Coda salvata."
+        "saved": "Coda salvata.",
+        "listUnavailable": "Impossibile caricare l'elenco delle code. Puoi comunque creare una coda qui sotto.",
+        "empty": "Ancora nessuna coda."
       },
       "manageView": "Gestisci questa vista",
       "renameView": "Rinomina o condividi",
@@ -36448,7 +36450,8 @@
       "saveRename": "Salva il nome",
       "updateView": "Salva i filtri attuali in questa vista",
       "viewRenamed": "Vista rinominata.",
-      "viewUpdated": "Vista aggiornata."
+      "viewUpdated": "Vista aggiornata.",
+      "viewsLoadFailed": "Impossibile caricare le viste salvate."
     },
     "summary": {
       "title": "Riepilogo del cliente",

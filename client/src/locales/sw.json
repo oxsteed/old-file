@@ -36439,7 +36439,9 @@
         "key": "Ufunguo",
         "create": "Unda foleni",
         "created": "Foleni imeundwa.",
-        "saved": "Foleni imehifadhiwa."
+        "saved": "Foleni imehifadhiwa.",
+        "listUnavailable": "Orodha ya foleni haikuweza kupakiwa. Bado unaweza kuunda foleni hapa chini.",
+        "empty": "Hakuna foleni bado."
       },
       "manageView": "Simamia mwonekano huu",
       "renameView": "Badilisha jina au shiriki",
@@ -36447,7 +36449,8 @@
       "saveRename": "Hifadhi jina",
       "updateView": "Hifadhi vichujio vya sasa kwenye mwonekano huu",
       "viewRenamed": "Jina la mwonekano limebadilishwa.",
-      "viewUpdated": "Mwonekano umesasishwa."
+      "viewUpdated": "Mwonekano umesasishwa.",
+      "viewsLoadFailed": "Mionekano iliyohifadhiwa haikuweza kupakiwa."
     },
     "summary": {
       "title": "Muhtasari wa mteja",

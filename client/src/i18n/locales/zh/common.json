@@ -3808,7 +3808,9 @@
         "key": "键",
         "create": "创建队列",
         "created": "队列已创建。",
-        "saved": "队列已保存。"
+        "saved": "队列已保存。",
+        "listUnavailable": "无法加载队列列表。您仍可在下方创建队列。",
+        "empty": "暂无队列。"
       },
       "manageView": "管理此视图",
       "renameView": "重命名或共享",
@@ -3816,7 +3818,8 @@
       "saveRename": "保存名称",
       "updateView": "将当前筛选条件保存到此视图",
       "viewRenamed": "视图已重命名。",
-      "viewUpdated": "视图已更新。"
+      "viewUpdated": "视图已更新。",
+      "viewsLoadFailed": "无法加载已保存的视图。"
     },
     "summaryHealth": {
       "title": "客户摘要状态",

@@ -1201,7 +1201,9 @@
         "key": "Key",
         "create": "Create queue",
         "created": "Queue created.",
-        "saved": "Queue saved."
+        "saved": "Queue saved.",
+        "listUnavailable": "The queue list could not be loaded. You can still create a queue below.",
+        "empty": "No queues yet."
       },
       "manageView": "Manage this view",
       "renameView": "Rename or share",
@@ -1209,7 +1211,8 @@
       "saveRename": "Save name",
       "updateView": "Save current filters to this view",
       "viewRenamed": "View renamed.",
-      "viewUpdated": "View updated."
+      "viewUpdated": "View updated.",
+      "viewsLoadFailed": "Saved views could not be loaded."
     },
     "summary": {
       "title": "Customer summary",

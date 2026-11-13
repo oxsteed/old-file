@@ -1201,7 +1201,9 @@
         "key": "Kle",
         "create": "Kreye lis atant lan",
         "created": "Lis atant lan kreye.",
-        "saved": "Lis atant lan anrejistre."
+        "saved": "Lis atant lan anrejistre.",
+        "listUnavailable": "Nou pa t kapab chaje lis lis atant yo. Ou ka toujou kreye yon lis atant anba a.",
+        "empty": "Pa gen lis atant pou kounye a."
       },
       "manageView": "Jere vi sa a",
       "renameView": "Chanje non oswa pataje",
@@ -1209,7 +1211,8 @@
       "saveRename": "Anrejistre non an",
       "updateView": "Anrejistre filt aktyèl yo nan vi sa a",
       "viewRenamed": "Non vi a chanje.",
-      "viewUpdated": "Vi a mete ajou."
+      "viewUpdated": "Vi a mete ajou.",
+      "viewsLoadFailed": "Nou pa t kapab chaje vi ki te anrejistre yo."
     },
     "summary": {
       "title": "Rezime kliyan an",

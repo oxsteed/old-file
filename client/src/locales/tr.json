@@ -36469,7 +36469,9 @@
         "key": "Anahtar",
         "create": "Kuyruk oluştur",
         "created": "Kuyruk oluşturuldu.",
-        "saved": "Kuyruk kaydedildi."
+        "saved": "Kuyruk kaydedildi.",
+        "listUnavailable": "Kuyruk listesi yüklenemedi. Aşağıdan yine de kuyruk oluşturabilirsiniz.",
+        "empty": "Henüz kuyruk yok."
       },
       "manageView": "Bu görünümü yönet",
       "renameView": "Yeniden adlandır veya paylaş",
@@ -36477,7 +36479,8 @@
       "saveRename": "Adı kaydet",
       "updateView": "Geçerli filtreleri bu görünüme kaydet",
       "viewRenamed": "Görünüm yeniden adlandırıldı.",
-      "viewUpdated": "Görünüm güncellendi."
+      "viewUpdated": "Görünüm güncellendi.",
+      "viewsLoadFailed": "Kaydedilen görünümler yüklenemedi."
     },
     "summary": {
       "title": "Müşteri özeti",

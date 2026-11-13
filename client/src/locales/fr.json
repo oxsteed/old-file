@@ -1348,7 +1348,9 @@
         "key": "Clé",
         "create": "Créer la file",
         "created": "File créée.",
-        "saved": "File enregistrée."
+        "saved": "File enregistrée.",
+        "listUnavailable": "Impossible de charger la liste des files. Vous pouvez tout de même créer une file ci-dessous.",
+        "empty": "Aucune file pour l'instant."
       },
       "manageView": "Gérer cette vue",
       "renameView": "Renommer ou partager",
@@ -1356,7 +1358,8 @@
       "saveRename": "Enregistrer le nom",
       "updateView": "Enregistrer les filtres actuels dans cette vue",
       "viewRenamed": "Vue renommée.",
-      "viewUpdated": "Vue mise à jour."
+      "viewUpdated": "Vue mise à jour.",
+      "viewsLoadFailed": "Impossible de charger les vues enregistrées."
     },
     "summary": {
       "title": "Synthèse client",
