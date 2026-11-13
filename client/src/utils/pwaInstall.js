@@ -93,6 +93,19 @@ export function hasNativePrompt() {
   return !!deferredPrompt;
 }
 
+/**
+ * Snapshot of the install funnel for subscribers (e.g. the display
+ * install prompt). pwaInstall is the single owner of the one-shot
+ * beforeinstallprompt event; nobody else may capture it.
+ */
+export function getPwaInstallState() {
+  return {
+    hasNativePrompt: hasNativePrompt(),
+    canShowPrompt: canShowPrompt(),
+    installed: !!readState().installed,
+  };
+}
+
 export function initPwaInstall() {
   if (typeof window === 'undefined') return;
   const shortcuts = { '/food': 'food', '/oxsteed-credit': 'top_up', '/orders': 'track', '/post-job': 'post_job' };
@@ -109,6 +122,10 @@ export function initPwaInstall() {
     event.preventDefault();
     deferredPrompt = event;
     trackEvent('pwa_prompt_eligible', { platform: platformLabel() });
+    // Let subscribers (e.g. the display install prompt) know the native
+    // prompt is now available. This module is the single owner of the
+    // one-shot event; subscribers must never add their own listener.
+    emit({ type: 'eligible', native: true });
   });
 
   window.addEventListener('appinstalled', () => {
@@ -167,10 +184,12 @@ export async function promptInstall() {
     emit({ type: 'hidden' });
     return outcome;
   } catch {
+    // The stashed event was already consumed or is otherwise unusable.
+    // That is not a user dismissal: never record one here, or a prompt
+    // fired by another flow counts as a strike against this funnel.
     deferredPrompt = null;
-    recordDismissal();
     emit({ type: 'hidden' });
-    return 'dismissed';
+    return 'unavailable';
   }
 }
 
