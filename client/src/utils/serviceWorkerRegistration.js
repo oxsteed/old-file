@@ -7,37 +7,25 @@ function reloadDocument() {
 
 const RECOVERY_KEY = 'oxsteed:i18n-bootstrap-recovery';
 
-function hashFingerprint(value) {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(16);
-}
-
 /**
  * Fallback release id when no build id was injected (local builds without a
- * release env or git). Only the entry module scripts written into the served
- * HTML are fingerprinted: their hashed names change whenever any chunk they
- * import changes. Runtime-injected tags (Vite's dynamic-import
- * `<link rel="modulepreload">`, lazy CSS) are route-specific and must never
- * feed the version, or every landing route and tab registers a "new" worker.
+ * release env or git). This is deliberately a single constant, never a
+ * fingerprint of the served HTML: Vite injects route-specific modulepreload
+ * links, so a DOM fingerprint differs per landing route and tab, and main
+ * and admin then register different sw.js?v= URLs for one build, each
+ * triggering a worker update on every switch between app and admin (M14).
+ * The constant cannot break a deploy the way failing the production build
+ * would (a build from a source tarball without git or release env still
+ * has to ship); a deployment without an injected id still picks up a new
+ * worker by byte change, since the browser re-checks sw.js on navigation
+ * with updateViaCache 'none'. Production builds reliably resolve a real
+ * id: the Dockerfile and docker-compose.coolify.yml pass COMMIT_SHA /
+ * SOURCE_COMMIT / VITE_APP_VERSION into the build, and resolveBuildId in
+ * vite.config.js also falls back to git HEAD.
  */
+export const FALLBACK_RELEASE_ID = 'unversioned';
 export function getAssetReleaseId() {
-  if (typeof document === 'undefined') return 'dev';
-  const assets = Array.from(document.querySelectorAll('script[type="module"][src]'))
-    .map((element) => element.getAttribute('src') || '')
-    .map((value) => {
-      try {
-        return new URL(value, window.location.origin).pathname;
-      } catch {
-        return value;
-      }
-    })
-    .filter((value) => value.includes('/assets/'))
-    .sort();
-  return assets.length ? `assets-${hashFingerprint(assets.join('|'))}` : 'dev';
+  return FALLBACK_RELEASE_ID;
 }
 
 /**

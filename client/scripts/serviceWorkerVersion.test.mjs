@@ -44,17 +44,22 @@ test('the same build yields the same service-worker URL on every landing route',
   const mod = await freshModule();
   const urls = Object.values(routes).map((nodes) => withDom(nodes, () => mod.getServiceWorkerUrl()));
   assert.equal(new Set(urls).size, 1, urls.join(' vs '));
-  assert.match(urls[0], /^\/sw\.js\?v=assets-[0-9a-f]+$/);
+  assert.match(urls[0], /^\/sw\.js\?v=unversioned$/);
   const ids = Object.values(routes).map((nodes) => withDom(nodes, () => mod.getAssetReleaseId()));
   assert.equal(new Set(ids).size, 1);
 });
 
-test('a new entry bundle (a real deployment) changes the fallback version', async () => {
+test('the fallback version is one constant, never a per-route DOM fingerprint', async () => {
   const mod = await freshModule();
+  // M14: the old entry-script fingerprint differed per landing route, so
+  // main and admin could register different sw.js?v= URLs for one build.
+  // The fallback is now a single constant; a real deployment changes the
+  // version only through the injected build id (see the production test).
   const before = withDom(routes.home, () => mod.getServiceWorkerVersion());
   const after = withDom([element('script', { type: 'module', src: '/assets/index-Ef56Gh78.js' }), ...routes.home.slice(1)], () => mod.getServiceWorkerVersion());
-  assert.notEqual(before, after);
-  assert.equal(withDom([], () => mod.getServiceWorkerVersion()), 'dev');
+  assert.equal(before, after);
+  assert.equal(before, 'unversioned');
+  assert.equal(withDom([], () => mod.getServiceWorkerVersion()), 'unversioned');
 });
 
 test('production builds inject one build id for every entry and route', async () => {
