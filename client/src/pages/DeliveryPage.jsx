@@ -235,11 +235,11 @@ function EstimateCard({ t, onContinue, cardRef }) {
         </label>
         <label className="delivery-field">
           <span>{t('delivery.estimate.itemSize')}</span>
-          <select className="delivery-input" value={size} onChange={(event) => { setSize(event.target.value); setEstimate(null); }}>
+          <select className="delivery-input" value={size} onChange={(event) => { setSize(event.target.value); }}>
             {PACKAGE_OPTIONS.map((option) => (
               <option key={option} value={option}>
                 {estimate?.sizePrices?.[option]
-                  ? `${t(`delivery.packageTypes.${option}`)} — ${deliveryMoney(estimate.sizePrices[option].customerTotalCents, i18n.language, estimate.pricing.currency)}`
+                  ? `${t(`delivery.packageTypes.${option}`)} · ${deliveryMoney(estimate.sizePrices[option].customerTotalCents, i18n.language, estimate.pricing.currency)}`
                   : t(`delivery.packageTypes.${option}`)}
               </option>
             ))}
@@ -252,7 +252,10 @@ function EstimateCard({ t, onContinue, cardRef }) {
           <div className="delivery-estimate-result" aria-live="polite">
             <div className="delivery-estimate-total">
               <span>{t('delivery.customer.total')}</span>
-              <strong>{deliveryMoney(estimate.pricing.cents.customerTotal, i18n.language, estimate.pricing.currency)}</strong>
+              {/* The panel total follows the selected size: distance and time
+                  do not depend on size, and sizePrices holds the server price
+                  for every size on this route. The intake re-quotes anyway. */}
+              <strong>{deliveryMoney(estimate.sizePrices?.[size]?.customerTotalCents ?? estimate.pricing.cents.customerTotal, i18n.language, estimate.pricing.currency)}</strong>
             </div>
             <dl className="delivery-estimate-facts">
               <div><dt>{t('delivery.estimate.distance')}</dt><dd>{deliveryUnit(estimate.route.distanceMiles, 'mile', i18n.language)}</dd></div>
