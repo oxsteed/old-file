@@ -62,7 +62,8 @@ test('a decision note is required', async () => {
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
-test('routes are admin-only with the disputes grant', () => {
+test('routes are admin-only with the disputes grant, and closing decisions carry impersonation + limiter + step-up guards', () => {
   const src = require('fs').readFileSync(require.resolve('../routes/admin.js'), 'utf8');
-  expect(src).toMatch(/'\/payment-disputes\/:id\/decision', requireAdmin, requirePermission\('manage_disputes'\)/);
+  expect(src).toMatch(/'\/payment-disputes\/:id\/decision', requireAdmin, rejectImpersonated, requirePermission\('manage_disputes'\), strictLimiter, requireAdminActionStepupIf\(/);
+  expect(src).toMatch(/'\/payment-disputes\/stepup-challenges', requireAdmin, rejectImpersonated, requirePermission\('manage_disputes'\), strictLimiter, issueAdminActionStepup\('payment_dispute_decision', resolveDisputeAmountCents\)/);
 });

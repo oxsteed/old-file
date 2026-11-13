@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../../lib/adminApi';
+import { collectAdminActionStepup } from '../../lib/adminActionStepup';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
 import ConfirmDialog from '../../lib/ConfirmDialog';
@@ -74,11 +75,19 @@ export default function PaymentDisputes() {
     setNotice('');
     setActionError('');
     try {
+      // Domain 7 #1: closing a dispute (approved/resolved) needs a fresh
+      // step-up challenge bound to the requested refund amount, issued
+      // against this dispute. Non-closing moves need no fresh proof.
+      let stepup = {};
+      if (decisionStatus === 'approved' || decisionStatus === 'resolved') {
+        stepup = await collectAdminActionStepup(adminApi, '/admin/payment-disputes/stepup-challenges', t, { disputeId: selected.id });
+      }
       await adminApi.post(`/admin/payment-disputes/${selected.id}/decision`, {
         status: decisionStatus,
         note: note.trim(),
         ...(refundReference.trim() ? { refundReference: refundReference.trim() } : {}),
         ...(noRefundReason.trim() ? { noRefundReason: noRefundReason.trim() } : {}),
+        ...stepup,
       });
       setConfirmOpen(false);
       setSelected(null);

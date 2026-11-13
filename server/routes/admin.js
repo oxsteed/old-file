@@ -42,6 +42,7 @@ const oxsteedCreditFeeScheduleService = require('../services/oxsteedCreditFeeSch
 const oxsteedCreditReserveService = require('../services/oxsteedCreditReserveService');
 const oxsteedCreditRestaurantConversionPolicyService = require('../services/oxsteedCreditRestaurantConversionPolicyService');
 const { verifyStepupChallenge } = require('../services/stepupChallengeService');
+const { requireAdminActionStepupIf, issueAdminActionStepup, resolveDisputeAmountCents } = require('../middleware/adminActionStepup');
 const { requireFreshAuth } = require('../middleware/requireFreshAuth');
 const refundsCtrl = require('../controllers/logisticsRefundsController');
 const { AppError } = require('../middleware/errorHandler');
@@ -207,7 +208,19 @@ router.post('/planned-needs/:id/:action',            requireAdmin, requirePermis
 router.get('/payments', requireAdmin, requirePermission('view_financials'), paymentsCtrl.listPayments);
 // Review P3-821: main-app refund/payment disputes get an admin lifecycle.
 router.get('/payment-disputes', requireAdmin, requirePermission('manage_disputes'), paymentDisputeAdminCtrl.listPaymentDisputes);
-router.post('/payment-disputes/:id/decision', requireAdmin, requirePermission('manage_disputes'), paymentDisputeAdminCtrl.decidePaymentDispute);
+// Domain 7 #1: closing a dispute (approved/resolved) records a pasted
+// refund reference, so it needs a fresh step-up challenge bound to the
+// requested refund amount, plus impersonation rejection and a limiter.
+// The issue endpoint shares the decision route's auth (requireAdmin +
+// manage_disputes) rather than the super-admin credit endpoint, so any
+// admin who can decide can also prove the challenge. Non-closing moves
+// (under_review, denied) need no fresh proof.
+router.post('/payment-disputes/stepup-challenges', requireAdmin, rejectImpersonated, requirePermission('manage_disputes'), strictLimiter, issueAdminActionStepup('payment_dispute_decision', resolveDisputeAmountCents));
+router.post('/payment-disputes/:id/decision', requireAdmin, rejectImpersonated, requirePermission('manage_disputes'), strictLimiter, requireAdminActionStepupIf(
+  (req) => req.body?.status === 'approved' || req.body?.status === 'resolved',
+  'payment_dispute_decision',
+  resolveDisputeAmountCents,
+), paymentDisputeAdminCtrl.decidePaymentDispute);
 
 // Users - read + write actions (ban/unban logged; admins cannot ban other admins)
 router.get('/users',            requireAdmin, requirePermission('manage_users'), superCtrl.getUsers);
