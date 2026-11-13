@@ -14,6 +14,21 @@
  *     * super_admin_only for department/title/department-default mutations.
  *
  * super_admin bypasses every guard.
+ *
+ * Domain 6 finding 12 (2026-11-13): there is NO route-level corporate
+ * gate, by design, not by omission. A `requireCorporatePermission`
+ * middleware existed but was mounted on zero routes: no route, controller,
+ * or client surface gates a business action on a corporate permission
+ * code, so no intended mount point exists. The middleware was deleted
+ * rather than wired to a hypothetical route. Corporate permission codes
+ * are an org-chart / self-administration overlay (department defaults +
+ * per-assignment overrides, resolved by corporateRolesService for display
+ * and for the cannot-grant-what-you-do-not-hold guard below); route
+ * enforcement for this surface is `requireAdmin` +
+ * `requirePermission('manage_admin_accounts')` plus the in-controller
+ * guards above. If a future route ever needs a corporate-code gate,
+ * reintroduce a middleware for that route explicitly; do not assume one
+ * exists.
  */
 
 const pool = require('../db');
