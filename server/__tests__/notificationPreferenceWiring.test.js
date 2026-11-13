@@ -133,6 +133,8 @@ describe('Background-jobs audit #51 restaurant alert toggles', () => {
   const RESTAURANT_TYPES = [
     ['staff_time_entry_system_closed', 'in_app_staff_time_entry_system_closed'],
     ['staff_time_entry_missing_punch', 'in_app_staff_time_entry_missing_punch'],
+    // Domain 8 #25: the closeout-failure alert finally has a toggle.
+    ['staff_time_entry_closeout_failed', 'in_app_staff_time_entry_closeout_failed'],
     ['restaurant_temperature_breach', 'in_app_restaurant_temperature_breach'],
     ['restaurant_scheduled_report', 'in_app_restaurant_scheduled_report'],
   ];
@@ -166,7 +168,7 @@ describe('Background-jobs audit #51 restaurant alert toggles', () => {
     expect(mobilePushService.sendToUser).not.toHaveBeenCalled();
   });
 
-  test('updatePreferences accepts all four restaurant toggles', async () => {
+  test('updatePreferences accepts all five restaurant toggles', async () => {
     const { updatePreferences } = require('../controllers/notificationController');
     const next = jest.fn();
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
@@ -177,6 +179,7 @@ describe('Background-jobs audit #51 restaurant alert toggles', () => {
         body: {
           in_app_staff_time_entry_system_closed: false,
           in_app_staff_time_entry_missing_punch: true,
+          in_app_staff_time_entry_closeout_failed: false,
           in_app_restaurant_temperature_breach: false,
           in_app_restaurant_scheduled_report: false,
         },
@@ -190,6 +193,7 @@ describe('Background-jobs audit #51 restaurant alert toggles', () => {
     expect(update).toBeDefined();
     expect(update[0]).toContain('in_app_staff_time_entry_system_closed');
     expect(update[0]).toContain('in_app_staff_time_entry_missing_punch');
+    expect(update[0]).toContain('in_app_staff_time_entry_closeout_failed');
     expect(update[0]).toContain('in_app_restaurant_temperature_breach');
     expect(update[0]).toContain('in_app_restaurant_scheduled_report');
   });

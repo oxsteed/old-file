@@ -10817,6 +10817,7 @@
       "in_app_message_mention": "Cuando se me mencione en el chat",
       "in_app_staff_time_entry_system_closed": "Fichajes olvidados cerrados automáticamente",
       "in_app_staff_time_entry_missing_punch": "Fichajes faltantes en turnos programados",
+      "in_app_staff_time_entry_closeout_failed": "Fallos del cierre automático de fichajes",
       "in_app_restaurant_temperature_breach": "Alertas de temperatura fuera de rango",
       "in_app_restaurant_scheduled_report": "Informes programados del restaurante",
       "push_new_job_nearby": "Nuevo trabajo cercano",

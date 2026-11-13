@@ -35,6 +35,9 @@ const PREF_ALIASES = {
     // is ever added).
     staff_time_entry_system_closed: ['in_app_staff_time_entry_system_closed'],
     staff_time_entry_missing_punch: ['in_app_staff_time_entry_missing_punch'],
+    // Domain 8 #25: the closeout-failure alert had no toggle at all, so
+    // managers could not silence it while it re-alerted every hour.
+    staff_time_entry_closeout_failed: ['in_app_staff_time_entry_closeout_failed'],
     restaurant_temperature_breach: ['in_app_restaurant_temperature_breach'],
     restaurant_scheduled_report: ['in_app_restaurant_scheduled_report'],
   },
@@ -42,6 +45,7 @@ const PREF_ALIASES = {
     bid_received: ['push_new_bid'],
     staff_time_entry_system_closed: ['in_app_staff_time_entry_system_closed'],
     staff_time_entry_missing_punch: ['in_app_staff_time_entry_missing_punch'],
+    staff_time_entry_closeout_failed: ['in_app_staff_time_entry_closeout_failed'],
     restaurant_temperature_breach: ['in_app_restaurant_temperature_breach'],
     restaurant_scheduled_report: ['in_app_restaurant_scheduled_report'],
   },
@@ -51,6 +55,7 @@ const PREF_ALIASES = {
     subscription_past_due: ['email_subscription'],
     staff_time_entry_system_closed: ['in_app_staff_time_entry_system_closed'],
     staff_time_entry_missing_punch: ['in_app_staff_time_entry_missing_punch'],
+    staff_time_entry_closeout_failed: ['in_app_staff_time_entry_closeout_failed'],
     restaurant_temperature_breach: ['in_app_restaurant_temperature_breach'],
     restaurant_scheduled_report: ['in_app_restaurant_scheduled_report'],
   },

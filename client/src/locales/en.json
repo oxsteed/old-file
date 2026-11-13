@@ -10817,6 +10817,7 @@
       "in_app_message_mention": "When I'm mentioned in chat",
       "in_app_staff_time_entry_system_closed": "Forgotten punches closed automatically",
       "in_app_staff_time_entry_missing_punch": "Missing punches for scheduled shifts",
+      "in_app_staff_time_entry_closeout_failed": "Automatic punch closeout failures",
       "in_app_restaurant_temperature_breach": "Temperature breach alerts",
       "in_app_restaurant_scheduled_report": "Scheduled restaurant reports",
       "push_new_job_nearby": "New jobs near me",

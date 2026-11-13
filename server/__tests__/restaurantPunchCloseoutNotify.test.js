@@ -18,7 +18,7 @@ jest.mock('../services/notificationService', () => ({
 }));
 
 const { sendNotification } = require('../services/notificationService');
-const { closeStalePunches } = require('../services/restaurantPunchCloseout');
+const { closeStalePunches, notifyCloseoutFailure } = require('../services/restaurantPunchCloseout');
 
 const NOW = new Date('2026-11-13T12:00:00Z');
 
@@ -107,4 +107,48 @@ test('system-closed notice carries system-closed:<entryId>:<managerId> per manag
     'system-closed:101:mgr-1',
     'system-closed:101:mgr-2',
   ]);
+});
+
+// Domain 8 #25: the closeout-failure alert has no dedupe key, so every
+// failed hourly run re-alerts every manager of every business with
+// stale punches. The key is per business per day: one alert per
+// business per day no matter how many runs fail.
+describe('notifyCloseoutFailure dedupe (Domain 8 #25)', () => {
+  function makeFailureFakeDb() {
+    return {
+      query: jest.fn(async (sql) => {
+        const s = String(sql);
+        if (s.includes('GROUP BY business_id')) {
+          return { rows: [{ business_id: 7, stale_count: 3 }] };
+        }
+        if (s.includes('FROM businesses WHERE id')) {
+          return { rows: [{ user_id: 'mgr-1' }] };
+        }
+        return { rows: [] };
+      }),
+    };
+  }
+
+  test('failure alert carries closeout-failed:<businessId>:<YYYY-MM-DD>', async () => {
+    const db = makeFailureFakeDb();
+    const result = await notifyCloseoutFailure(db, { now: NOW });
+
+    expect(result.alerted).toBe(1);
+    expect(result.businesses).toEqual([7]);
+    const calls = sendNotification.mock.calls.map(([args]) => args);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].type).toBe('staff_time_entry_closeout_failed');
+    expect(calls[0].idempotencyKey).toBe('closeout-failed:7:2026-11-13');
+  });
+
+  test('a second failed run the same day reuses the same key', async () => {
+    const db = makeFailureFakeDb();
+    await notifyCloseoutFailure(db, { now: NOW });
+    sendNotification.mockClear();
+    await notifyCloseoutFailure(db, { now: new Date('2026-11-13T18:00:00Z') });
+
+    const calls = sendNotification.mock.calls.map(([args]) => args);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].idempotencyKey).toBe('closeout-failed:7:2026-11-13');
+  });
 });

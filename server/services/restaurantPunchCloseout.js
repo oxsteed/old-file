@@ -219,6 +219,10 @@ async function notifyCloseoutFailure(db, { now = new Date() } = {}) {
   let alerted = 0;
   let alertErrors = 0;
   const businesses = [];
+  // Domain 8 #25: one alert per business per day. The job retries every
+  // hour after a failed sweep, so without this key every failed run
+  // re-alerted every manager of every business with stale punches.
+  const alertDate = new Date(now).toISOString().slice(0, 10);
   for (const row of rows) {
     const businessId = Number(row.business_id);
     businesses.push(businessId);
@@ -244,6 +248,7 @@ async function notifyCloseoutFailure(db, { now = new Date() } = {}) {
               businessName: '',
             },
           },
+          idempotencyKey: `closeout-failed:${businessId}:${alertDate}`,
         });
         alerted += 1;
       } catch (err) {

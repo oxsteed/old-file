@@ -3000,6 +3000,7 @@
       "in_app_message_mention": "Lè yo menn mwen nan chat",
       "in_app_staff_time_entry_system_closed": "Pwenson bliye yo fèmen otomatikman",
       "in_app_staff_time_entry_missing_punch": "Pwenson ki manke pou orè yo pwograme",
+      "in_app_staff_time_entry_closeout_failed": "Echèk fèmti otomatik pwenson yo",
       "in_app_restaurant_temperature_breach": "Alèt tanperati ki depase limit",
       "in_app_restaurant_scheduled_report": "Rapò pwograme restoran yo",
       "push_new_job_nearby": "Nouvo travay pre ou",

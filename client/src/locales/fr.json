@@ -10817,6 +10817,7 @@
       "in_app_message_mention": "Quand je suis mentionné dans le chat",
       "in_app_staff_time_entry_system_closed": "Pointages oubliés fermés automatiquement",
       "in_app_staff_time_entry_missing_punch": "Pointages manquants pour les quarts planifiés",
+      "in_app_staff_time_entry_closeout_failed": "Échecs de la fermeture automatique des pointages",
       "in_app_restaurant_temperature_breach": "Alertes de dépassement de température",
       "in_app_restaurant_scheduled_report": "Rapports programmés du restaurant",
       "push_new_job_nearby": "Nouvelle mission à proximité",
