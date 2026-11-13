@@ -175,6 +175,17 @@ function route(payoutRow) {
       counters.set(params[0], params[1]);
       return { rows: [] };
     }
+    // Domain 6 #7: the shared guard consumes the current step counter
+    // with one atomic upsert; it returns a row only when the counter is
+    // strictly greater than the stored max (fresh), and no row on replay.
+    if (/INSERT INTO totp_used_counters/.test(t)) {
+      const stored = counters.get(params[0]);
+      if (stored == null || params[1] > stored) {
+        counters.set(params[0], params[1]);
+        return { rows: [{ max_counter: params[1] }] };
+      }
+      return { rows: [] };
+    }
     return { rows: [] };
   });
 }
