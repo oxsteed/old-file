@@ -3808,7 +3808,8 @@
         "key": "Schlüssel",
         "create": "Warteschlange anlegen",
         "created": "Warteschlange angelegt.",
-        "saved": "Warteschlange gespeichert."
+        "saved": "Warteschlange gespeichert.",
+        "listUnavailable": "Die Warteschlangenliste konnte nicht geladen werden. Sie können unten trotzdem eine Warteschlange erstellen."
       },
       "manageView": "Diese Ansicht verwalten",
       "renameView": "Umbenennen oder teilen",

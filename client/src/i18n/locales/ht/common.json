@@ -1201,7 +1201,8 @@
         "key": "Kle",
         "create": "Kreye lis atant lan",
         "created": "Lis atant lan kreye.",
-        "saved": "Lis atant lan anrejistre."
+        "saved": "Lis atant lan anrejistre.",
+        "listUnavailable": "Nou pa t kapab chaje lis lis atant yo. Ou ka toujou kreye yon lis atant anba a."
       },
       "manageView": "Jere vi sa a",
       "renameView": "Chanje non oswa pataje",

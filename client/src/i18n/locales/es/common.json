@@ -1201,7 +1201,8 @@
         "key": "Clave",
         "create": "Crear cola",
         "created": "Cola creada.",
-        "saved": "Cola guardada."
+        "saved": "Cola guardada.",
+        "listUnavailable": "No se pudo cargar la lista de colas. Aún puedes crear una cola abajo."
       },
       "manageView": "Gestionar esta vista",
       "renameView": "Renombrar o compartir",

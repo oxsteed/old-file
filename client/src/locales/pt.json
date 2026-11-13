@@ -36440,7 +36440,8 @@
         "key": "Chave",
         "create": "Criar fila",
         "created": "Fila criada.",
-        "saved": "Fila guardada."
+        "saved": "Fila guardada.",
+        "listUnavailable": "Não foi possível carregar a lista de filas. Você ainda pode criar uma fila abaixo."
       },
       "manageView": "Gerir esta vista",
       "renameView": "Mudar o nome ou partilhar",

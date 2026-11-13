@@ -36469,7 +36469,8 @@
         "key": "Anahtar",
         "create": "Kuyruk oluştur",
         "created": "Kuyruk oluşturuldu.",
-        "saved": "Kuyruk kaydedildi."
+        "saved": "Kuyruk kaydedildi.",
+        "listUnavailable": "Kuyruk listesi yüklenemedi. Aşağıdan yine de kuyruk oluşturabilirsiniz."
       },
       "manageView": "Bu görünümü yönet",
       "renameView": "Yeniden adlandır veya paylaş",

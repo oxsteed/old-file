@@ -1348,7 +1348,8 @@
         "key": "Clé",
         "create": "Créer la file",
         "created": "File créée.",
-        "saved": "File enregistrée."
+        "saved": "File enregistrée.",
+        "listUnavailable": "Impossible de charger la liste des files. Vous pouvez tout de même créer une file ci-dessous."
       },
       "manageView": "Gérer cette vue",
       "renameView": "Renommer ou partager",

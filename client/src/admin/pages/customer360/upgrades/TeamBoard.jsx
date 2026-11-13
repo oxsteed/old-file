@@ -66,7 +66,7 @@ const blankQueue = { queueKey: "", name: "", description: "", slaMinutes: "60" }
  * Feed queues (anomalies, duplicate reviews) keep their key; the server
  * checks the revision so two admins cannot overwrite each other.
  */
-export function QueueSetup({ queues, copy, busy, run, reload }) {
+export function QueueSetup({ queues, queuesLoaded = true, copy, busy, run, reload }) {
   const [draft, setDraft] = useState(blankQueue);
   const [edits, setEdits] = useState({});
   const editOf = (q) => edits[q.id] || { name: q.name, description: q.description || "", slaMinutes: String(q.sla_minutes), active: q.active };
@@ -94,6 +94,9 @@ export function QueueSetup({ queues, copy, busy, run, reload }) {
     <section aria-labelledby="c360u-q-setup" data-section="queue-setup">
       <h4 id="c360u-q-setup">{copy("queues.setup.title")}</h4>
       <p className="c360w-note">{copy("queues.setup.hint", { min: SLA_LIMITS.min, max: SLA_LIMITS.max })}</p>
+      {/* Domain 1 audit #4: when the queue list itself failed to load, say so
+          instead of rendering a bare empty list; the create form below stays usable. */}
+      {queues.length === 0 && !queuesLoaded ? <p>{copy("queues.setup.listUnavailable")}</p> : (
       <ul className="c360u-cards">
         {queues.map((q) => {
           const d = editOf(q);
@@ -112,6 +115,7 @@ export function QueueSetup({ queues, copy, busy, run, reload }) {
           );
         })}
       </ul>
+      )}
       <form className="c360u-row" onSubmit={create} aria-label={copy("queues.setup.new")}>
         <label>{copy("queues.setup.key")}<input value={draft.queueKey} dir="ltr" maxLength={40} pattern="[a-z0-9_]{2,40}" onChange={(e) => setDraft({ ...draft, queueKey: e.target.value.toLowerCase() })} /></label>
         <label>{copy("queues.setup.name")}<input value={draft.name} maxLength={80} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
@@ -172,6 +176,20 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
     setResolveFor(null);
     await Promise.all([loadBoard(), onChanged?.()]);
   }, copy(`queues.done.${action}`));
+  // Domain 1 audit #4: the board load can fail after mount too (retry, or a
+  // queue created while the board is down). Reload from scratch; on failure
+  // restore the error branch instead of stranding the page on "loading".
+  const retryLoad = () => run(async () => {
+    setFilters(EMPTY_FILTERS);
+    setViewId("");
+    setBoard(null);
+    try {
+      await loadBoard(EMPTY_FILTERS, "", undefined);
+      await loadViews();
+    } catch (e) {
+      setBoard({ error: e.response?.data?.code || "error" });
+    }
+  });
   const setF = (patch) => { setViewId(""); setRename(null); setFilters((f) => ({ ...f, ...patch })); };
   const toggle = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const current = views.find((v) => v.id === viewId) || null;
@@ -186,7 +204,21 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
     await loadViews();
   }, ok);
 
-  if (board?.error) return <section aria-labelledby={headingId}><h4 id={headingId}>{copy("queues.board")}</h4><p>{copy(board.error === "global_grant_required" ? "queues.errors.global_grant_required" : "loadFailed")}</p></section>;
+  // Domain 1 audit #4: a failed board load no longer kills queue setup. The
+  // Retry button reloads board + saved views, and QueueSetup stays rendered
+  // (queues={[]} with queuesLoaded={false}) so a super admin can still create
+  // a queue; the queue list itself comes from the same board GET, so there is
+  // no independent list endpoint to fall back to, and the create form needs no
+  // list data. A successful create reloads the board and clears this branch.
+  if (board?.error) return (
+    <section aria-labelledby={headingId}>
+      <h4 id={headingId}>{copy("queues.board")}</h4>
+      <p>{copy(board.error === "global_grant_required" ? "queues.errors.global_grant_required" : "loadFailed")}</p>
+      {notice && <p role="status">{notice}</p>}
+      <button type="button" disabled={busy} onClick={retryLoad}>{copy("retry")}</button>
+      {isSuper && <QueueSetup queues={[]} queuesLoaded={false} copy={copy} busy={busy} run={run} reload={() => loadBoard()} />}
+    </section>
+  );
   if (!board) return <section aria-labelledby={headingId}><h4 id={headingId}>{copy("queues.board")}</h4><p role="status">{copy("loading")}</p></section>;
   return (
     <section aria-labelledby={headingId}>

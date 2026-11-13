@@ -98,3 +98,15 @@ test("gap fill 8: summary health shows the flag and every worker state with tran
   for (const s of ["healthy", "disabled", "not_started", "failing", "behind"]) assert.equal(typeof en.states[s], "string", s);
   for (const s of ["ok", "late", "failing"]) assert.equal(typeof en.workerStates[s], "string", s);
 });
+
+test("domain 1 audit #4: TeamBoard load failure offers retry and keeps queue setup reachable", () => {
+  const board = src("admin/pages/customer360/upgrades/TeamBoard.jsx");
+  const errorBranch = board.slice(board.indexOf("if (board?.error)"), board.indexOf("if (!board)"));
+  assert.ok(errorBranch.length > 0, "error branch exists");
+  assert.match(errorBranch, /<button[^>]*onClick=\{retryLoad\}[^>]*>\{copy\("retry"\)\}<\/button>/, "error branch renders a retry button");
+  assert.match(errorBranch, /<QueueSetup /, "queue setup stays reachable when the board fails");
+  assert.match(errorBranch, /queuesLoaded=\{false\}/, "error branch marks the queue list as not loaded");
+  assert.match(board, /const retryLoad = \(\) => run\(async \(\) => \{[\s\S]*?loadBoard\(EMPTY_FILTERS, "", undefined\)[\s\S]*?loadViews\(\)[\s\S]*?setBoard\(\{ error:/, "retry reloads the board and the saved views, and restores the error on failure");
+  assert.match(board, /queues\.setup\.listUnavailable/, "QueueSetup distinguishes a failed queue list from an empty one");
+  assert.equal(typeof legacy("en").customerWorkspace.queues.setup.listUnavailable, "string", "en: queues.setup.listUnavailable");
+});

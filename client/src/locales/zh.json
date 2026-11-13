@@ -36440,7 +36440,8 @@
         "key": "键",
         "create": "创建队列",
         "created": "队列已创建。",
-        "saved": "队列已保存。"
+        "saved": "队列已保存。",
+        "listUnavailable": "无法加载队列列表。您仍可在下方创建队列。"
       },
       "manageView": "管理此视图",
       "renameView": "重命名或共享",

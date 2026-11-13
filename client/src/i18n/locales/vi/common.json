@@ -3808,7 +3808,8 @@
         "key": "Khóa",
         "create": "Tạo hàng đợi",
         "created": "Đã tạo hàng đợi.",
-        "saved": "Đã lưu hàng đợi."
+        "saved": "Đã lưu hàng đợi.",
+        "listUnavailable": "Không thể tải danh sách hàng đợi. Bạn vẫn có thể tạo hàng đợi bên dưới."
       },
       "manageView": "Quản lý chế độ xem này",
       "renameView": "Đổi tên hoặc chia sẻ",

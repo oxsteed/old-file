@@ -3806,7 +3806,8 @@
         "key": "Ufunguo",
         "create": "Unda foleni",
         "created": "Foleni imeundwa.",
-        "saved": "Foleni imehifadhiwa."
+        "saved": "Foleni imehifadhiwa.",
+        "listUnavailable": "Orodha ya foleni haikuweza kupakiwa. Bado unaweza kuunda foleni hapa chini."
       },
       "manageView": "Simamia mwonekano huu",
       "renameView": "Badilisha jina au shiriki",

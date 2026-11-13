@@ -36469,7 +36469,8 @@
         "key": "Kunci",
         "create": "Buat antrean",
         "created": "Antrean dibuat.",
-        "saved": "Antrean disimpan."
+        "saved": "Antrean disimpan.",
+        "listUnavailable": "Daftar antrean tidak dapat dimuat. Anda masih dapat membuat antrean di bawah."
       },
       "manageView": "Kelola tampilan ini",
       "renameView": "Ganti nama atau bagikan",
