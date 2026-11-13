@@ -3809,7 +3809,8 @@
         "create": "Warteschlange anlegen",
         "created": "Warteschlange angelegt.",
         "saved": "Warteschlange gespeichert.",
-        "listUnavailable": "Die Warteschlangenliste konnte nicht geladen werden. Sie können unten trotzdem eine Warteschlange erstellen."
+        "listUnavailable": "Die Warteschlangenliste konnte nicht geladen werden. Sie können unten trotzdem eine Warteschlange erstellen.",
+        "empty": "Noch keine Warteschlangen."
       },
       "manageView": "Diese Ansicht verwalten",
       "renameView": "Umbenennen oder teilen",

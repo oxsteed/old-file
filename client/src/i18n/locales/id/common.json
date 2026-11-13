@@ -3809,7 +3809,8 @@
         "create": "Buat antrean",
         "created": "Antrean dibuat.",
         "saved": "Antrean disimpan.",
-        "listUnavailable": "Daftar antrean tidak dapat dimuat. Anda masih dapat membuat antrean di bawah."
+        "listUnavailable": "Daftar antrean tidak dapat dimuat. Anda masih dapat membuat antrean di bawah.",
+        "empty": "Belum ada antrean."
       },
       "manageView": "Kelola tampilan ini",
       "renameView": "Ganti nama atau bagikan",

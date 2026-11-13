@@ -3809,7 +3809,8 @@
         "create": "Crea la coda",
         "created": "Coda creata.",
         "saved": "Coda salvata.",
-        "listUnavailable": "Impossibile caricare l'elenco delle code. Puoi comunque creare una coda qui sotto."
+        "listUnavailable": "Impossibile caricare l'elenco delle code. Puoi comunque creare una coda qui sotto.",
+        "empty": "Ancora nessuna coda."
       },
       "manageView": "Gestisci questa vista",
       "renameView": "Rinomina o condividi",

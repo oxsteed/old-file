@@ -94,9 +94,10 @@ export function QueueSetup({ queues, queuesLoaded = true, copy, busy, run, reloa
     <section aria-labelledby="c360u-q-setup" data-section="queue-setup">
       <h4 id="c360u-q-setup">{copy("queues.setup.title")}</h4>
       <p className="c360w-note">{copy("queues.setup.hint", { min: SLA_LIMITS.min, max: SLA_LIMITS.max })}</p>
-      {/* Domain 1 audit #4: when the queue list itself failed to load, say so
-          instead of rendering a bare empty list; the create form below stays usable. */}
-      {queues.length === 0 && !queuesLoaded ? <p>{copy("queues.setup.listUnavailable")}</p> : (
+      {/* Domain 1 audit #22: with zero queues the list area used to render an
+          empty <ul> with no message. Say so; the create form below stays the
+          action. The failed-load case (#4) keeps its own copy. */}
+      {queues.length === 0 ? <p>{copy(queuesLoaded ? "queues.setup.empty" : "queues.setup.listUnavailable")}</p> : (
       <ul className="c360u-cards">
         {queues.map((q) => {
           const d = editOf(q);

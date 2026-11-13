@@ -3809,7 +3809,8 @@
         "create": "Criar fila",
         "created": "Fila criada.",
         "saved": "Fila guardada.",
-        "listUnavailable": "Não foi possível carregar a lista de filas. Você ainda pode criar uma fila abaixo."
+        "listUnavailable": "Não foi possível carregar a lista de filas. Você ainda pode criar uma fila abaixo.",
+        "empty": "Ainda não há filas."
       },
       "manageView": "Gerir esta vista",
       "renameView": "Mudar o nome ou partilhar",

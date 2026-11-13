@@ -130,3 +130,9 @@ test("domain 1 audit #21: TeamBoard manual filters auto-apply debounced, Apply s
   assert.match(board, /JSON\.stringify\(filters\) === JSON\.stringify\(appliedRef\.current\)/, "auto-apply skips when filters already match the applied set");
   assert.match(board, /onClick=\{\(\) => run\(\(\) => loadBoard\(filters, ""\)\)\}>\{copy\("queues\.apply"\)\}/, "Apply still reloads immediately");
 });
+
+test("domain 1 audit #22: QueueSetup with zero queues says so instead of an empty list", () => {
+  const board = src("admin/pages/customer360/upgrades/TeamBoard.jsx");
+  assert.match(board, /queues\.length === 0 \? <p>\{copy\(queuesLoaded \? "queues\.setup\.empty" : "queues\.setup\.listUnavailable"\)\}<\/p>/, "empty queue list renders a message, distinct from a failed load");
+  assert.equal(typeof legacy("en").customerWorkspace.queues.setup.empty, "string", "en: queues.setup.empty");
+});

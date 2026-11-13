@@ -36470,7 +36470,8 @@
         "create": "Kuyruk oluştur",
         "created": "Kuyruk oluşturuldu.",
         "saved": "Kuyruk kaydedildi.",
-        "listUnavailable": "Kuyruk listesi yüklenemedi. Aşağıdan yine de kuyruk oluşturabilirsiniz."
+        "listUnavailable": "Kuyruk listesi yüklenemedi. Aşağıdan yine de kuyruk oluşturabilirsiniz.",
+        "empty": "Henüz kuyruk yok."
       },
       "manageView": "Bu görünümü yönet",
       "renameView": "Yeniden adlandır veya paylaş",
