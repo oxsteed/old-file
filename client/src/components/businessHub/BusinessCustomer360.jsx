@@ -105,7 +105,7 @@ export default function BusinessCustomer360({ bizId, currency }) {
             {detailState === 'error' && (
               <div>
                 <p role="alert">{copy('loadFailed')}</p>
-                <button type="button" onClick={() => selected && open(selected)}>{copy('retry')}</button>
+                <button type="button" onClick={() => selected && open(selected)} data-track="ui.31436a55e3.3">{copy('retry')}</button>
               </div>
             )}
             {detailState === 'ready' && detail && (
