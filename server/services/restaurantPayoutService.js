@@ -189,12 +189,31 @@ async function requestPayout({ restaurantId, userId, amountCents, currencyCode, 
       );
       created = existing[0];
       if (!created) throw new AppError('Payout could not be created', 500, 'payout_create_failed');
+      // Domain 8 #8: a replay must be an exact replay. Same key + a
+      // different amount or currency fails closed instead of returning the
+      // first payout as if it were the requested one.
+      const mismatches = {};
+      if (Number(created.amount_cents || 0) !== amount) {
+        mismatches.amountCents = { existing: Number(created.amount_cents || 0), requested: amount };
+      }
+      if (created.currency_code && String(created.currency_code).toUpperCase() !== currency) {
+        mismatches.currencyCode = { existing: created.currency_code, requested: currency };
+      }
+      if (Object.keys(mismatches).length) {
+        throw new AppError('Payout idempotency conflict', 409, 'payout_idempotency_conflict', {
+          payoutId: String(created.id),
+          mismatches,
+        });
+      }
     }
+    // Log the row's actual amount/currency, not the request: on a replay
+    // the requested values were never written.
     logger.info('[RestaurantPayout] requested', {
       payoutId: created.id,
       restaurantId,
-      amountCents: amount,
-      currency,
+      amountCents: Number(created.amount_cents || 0),
+      currency: created.currency_code || currency,
+      replayed: !rows[0],
     });
     return created;
   }, 'restaurant_payout_request');
