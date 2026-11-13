@@ -36353,6 +36353,7 @@
       "reason": "कारण",
       "add": "कतार में जोड़ें",
       "added": "कतार में जोड़ा गया।",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "टीम बोर्ड",
       "sla": "SLA",
       "breachedCol": "अतिदेय",

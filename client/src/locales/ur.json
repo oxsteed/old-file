@@ -36352,6 +36352,7 @@
       "reason": "وجہ",
       "add": "قطار میں شامل کریں",
       "added": "قطار میں شامل کر دیا گیا۔",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "ٹیم بورڈ",
       "sla": "SLA",
       "breachedCol": "تاخیر شدہ",

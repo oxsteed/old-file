@@ -36382,6 +36382,7 @@
       "reason": "เหตุผล",
       "add": "เพิ่มในคิว",
       "added": "เพิ่มในคิวแล้ว",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "บอร์ดของทีม",
       "sla": "SLA",
       "breachedCol": "เกินกำหนด",

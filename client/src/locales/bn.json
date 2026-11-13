@@ -36382,6 +36382,7 @@
       "reason": "কারণ",
       "add": "সারিতে যোগ করুন",
       "added": "সারিতে যোগ করা হয়েছে।",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "দলের বোর্ড",
       "sla": "SLA",
       "breachedCol": "মেয়াদোত্তীর্ণ",

@@ -123,3 +123,16 @@ test("domain 1 #15: Anomalies action form has a busy guard like AnomalyQueue", (
   assert.match(a, /setBusy\(true\)[\s\S]{0,600}?finally \{\s*setBusy\(false\);\s*\}/);
   assert.match(a, /<button type="submit" disabled=\{busy\}>/);
 });
+
+test("domain 1 #18: Queues explains an empty queue list instead of a dead add form", () => {
+  const queues = src("admin/pages/customer360/upgrades/Queues.jsx");
+  assert.match(queues, /\{!mine\.queues\.length && <p>\{copy\("queues\.noQueues"\)\}<\/p>\}/);
+  const en = legacy("en").customerWorkspace.queues;
+  assert.equal(en.noQueues, "No queues exist yet, ask a super admin to create one.");
+  for (const l of LANGS) {
+    assert.equal(typeof legacy(l).customerWorkspace.queues.noQueues, "string", `${l}: queues.noQueues`);
+  }
+  for (const l of CORE.filter((x) => x !== "en")) {
+    assert.notEqual(legacy(l).customerWorkspace.queues.noQueues, en.noQueues, `${l}: queues.noQueues untranslated`);
+  }
+});

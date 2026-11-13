@@ -36352,6 +36352,7 @@
       "reason": "Sababu",
       "add": "Ongeza kwenye foleni",
       "added": "Imeongezwa kwenye foleni.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Ubao wa timu",
       "sla": "SLA",
       "breachedCol": "Imechelewa",

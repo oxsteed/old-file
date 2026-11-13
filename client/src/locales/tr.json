@@ -36382,6 +36382,7 @@
       "reason": "Neden",
       "add": "Kuyruğa ekle",
       "added": "Kuyruğa eklendi.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Ekip panosu",
       "sla": "SLA",
       "breachedCol": "Gecikmiş",

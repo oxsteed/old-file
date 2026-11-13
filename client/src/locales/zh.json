@@ -36353,6 +36353,7 @@
       "reason": "原因",
       "add": "加入队列",
       "added": "已加入队列。",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "团队看板",
       "sla": "SLA",
       "breachedCol": "已逾期",

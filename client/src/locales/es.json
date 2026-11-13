@@ -1261,6 +1261,7 @@
       "reason": "Motivo",
       "add": "Agregar a la cola",
       "added": "Agregado a la cola.",
+      "noQueues": "Aún no hay colas. Pide a un superadministrador que cree una.",
       "board": "Tablero del equipo",
       "sla": "SLA",
       "breachedCol": "Vencidos",

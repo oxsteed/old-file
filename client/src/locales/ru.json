@@ -36381,6 +36381,7 @@
       "reason": "Причина",
       "add": "Добавить в очередь",
       "added": "Добавлено в очередь.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Доска команды",
       "sla": "SLA",
       "breachedCol": "Просрочено",

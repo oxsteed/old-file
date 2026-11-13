@@ -36381,6 +36381,7 @@
       "reason": "Grund",
       "add": "Zur Warteschlange hinzufügen",
       "added": "Zur Warteschlange hinzugefügt.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Team-Board",
       "sla": "SLA",
       "breachedCol": "Überfällig",

@@ -36353,6 +36353,7 @@
       "reason": "사유",
       "add": "대기열에 추가",
       "added": "대기열에 추가했습니다.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "팀 보드",
       "sla": "SLA",
       "breachedCol": "기한 초과",

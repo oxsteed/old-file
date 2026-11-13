@@ -36353,6 +36353,7 @@
       "reason": "Lý do",
       "add": "Thêm vào hàng đợi",
       "added": "Đã thêm vào hàng đợi.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Bảng nhóm",
       "sla": "SLA",
       "breachedCol": "Quá hạn",

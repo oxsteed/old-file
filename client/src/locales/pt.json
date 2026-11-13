@@ -36353,6 +36353,7 @@
       "reason": "Motivo",
       "add": "Adicionar à fila",
       "added": "Adicionado à fila.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Quadro da equipe",
       "sla": "SLA",
       "breachedCol": "Vencido",

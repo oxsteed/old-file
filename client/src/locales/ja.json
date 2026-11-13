@@ -36352,6 +36352,7 @@
       "reason": "理由",
       "add": "キューに追加",
       "added": "キューに追加しました。",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "チームボード",
       "sla": "SLA",
       "breachedCol": "期限超過",

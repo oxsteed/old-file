@@ -70,6 +70,10 @@ export default function Queues({ api, copy, when, viewerKey, isSuper }) {
               {mine.items.map((i) => <QueueItem key={i.id} item={i} showCustomer={false} copy={copy} when={when} busy={busy} resolveFor={resolveFor} setResolveFor={setResolveFor} act={act} />)}
             </ul>
           )}
+          {/* Domain 1 #18: with zero queues the select below holds only the
+              "choose" option and the submit stays disabled; say why instead
+              of leaving a dead form. Queue creation is super-only. */}
+          {!mine.queues.length && <p>{copy("queues.noQueues")}</p>}
           <form className="c360u-row" onSubmit={(e) => { e.preventDefault(); run(async () => { await adminApi.post(`${api}/queue-items`, add); setAdd({ queueKey: "", reason: "" }); await loadMine(); setBoardKey((k) => k + 1); }, copy("queues.added")); }}>
             <label>
               {copy("queues.queue")}

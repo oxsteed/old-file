@@ -1261,6 +1261,7 @@
       "reason": "Reason",
       "add": "Add to queue",
       "added": "Added to the queue.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Team board",
       "sla": "SLA",
       "breachedCol": "Overdue",
