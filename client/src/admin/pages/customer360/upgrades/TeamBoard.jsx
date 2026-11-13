@@ -167,6 +167,15 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
       setBusy(false);
     }
   };
+  // Nov 10 #4: a failed board load used to dead-end with only a message and
+  // no way back. Retry clears the error (back to the loading state) and
+  // re-runs the board + saved-views loads; on success the board and, for
+  // super admins, QueueSetup render again.
+  const retryBoard = () => {
+    setBoard(null);
+    loadBoard(filters, viewId).catch((e) => setBoard({ error: e.response?.data?.code || "error" }));
+    loadViews().catch(() => {});
+  };
   const act = (item, action, extra = {}) => run(async () => {
     await adminApi.post(`/admin/customer360/queue-items/${item.id}/${action}`, { revision: item.revision, ...extra });
     setResolveFor(null);
@@ -186,7 +195,7 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
     await loadViews();
   }, ok);
 
-  if (board?.error) return <section aria-labelledby={headingId}><h4 id={headingId}>{copy("queues.board")}</h4><p>{copy(board.error === "global_grant_required" ? "queues.errors.global_grant_required" : "loadFailed")}</p></section>;
+  if (board?.error) return <section aria-labelledby={headingId}><h4 id={headingId}>{copy("queues.board")}</h4><p role="alert">{copy(board.error === "global_grant_required" ? "queues.errors.global_grant_required" : "loadFailed")}</p><button type="button" onClick={retryBoard}>{copy("retry")}</button></section>;
   if (!board) return <section aria-labelledby={headingId}><h4 id={headingId}>{copy("queues.board")}</h4><p role="status">{copy("loading")}</p></section>;
   return (
     <section aria-labelledby={headingId}>
