@@ -314,7 +314,7 @@ router.post('/users/:userId/password', requireSuperAdmin, requirePasswordSetStep
 // records a 15-minute fresh-auth event; the impersonate route then requires
 // that event.
 const requireImpersonationStepUp = requireFreshAuth('impersonation_start');
-router.post('/super/stepup/verify', requireSuperAdmin, strictLimiter, refundsCtrl.verifyStepUp);
+router.post('/super/stepup/verify', requireSuperAdmin, rejectImpersonated, strictLimiter, refundsCtrl.verifyStepUp);
 router.post('/users/:userId/impersonate',     requireSuperAdmin, requireImpersonationStepUp, superCtrl.impersonateUser);
 router.post('/users/impersonate/exchange', requireSuperAdmin, superCtrl.exchangeImpersonationCode);
 router.post('/users/:userId/impersonate/end', requireSuperAdmin, superCtrl.endImpersonation);
