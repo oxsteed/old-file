@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js';
@@ -8,18 +8,28 @@ import PageMeta from '../components/PageMeta';
 import { useAuth } from '../context/AuthContext';
 import OrderErrorBoundary from '../components/OrderErrorBoundary';
 import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
+import { createSubmitGuard } from '../utils/submitGuard';
 
-function CardPaymentForm({ cartId, intent, onPaid }) {
+function CardPaymentForm({ cartId, intent, onPaid, onPayingChange, onCardConfirmed }) {
   const { t } = useTranslation();
   const stripe = useStripe();
   const elements = useElements();
   const [paying, setPaying] = useState(false);
   const [cardError, setCardError] = useState('');
+  // Synchronous guard: the Pay button disables on `paying`, but that
+  // state update is async, so a rapid double-tap could submit twice
+  // before the re-render. The ref closes that window. (The server
+  // confirm is idempotent per order, so this guards UX/retry friction,
+  // not a double charge.)
+  const submitGuardRef = useRef(null);
+  if (!submitGuardRef.current) submitGuardRef.current = createSubmitGuard();
 
   const pay = async (event) => {
     event.preventDefault();
     if (!stripe || !elements) return;
+    if (!submitGuardRef.current.tryAcquire()) return;
     setPaying(true);
+    onPayingChange?.(true);
     setCardError('');
     try {
       const card = elements.getElement(CardElement);
@@ -34,6 +44,10 @@ function CardPaymentForm({ cartId, intent, onPaid }) {
         setCardError(t('checkout.cardPayNotSucceeded'));
         return;
       }
+      // Card confirmed with the provider: from here on the user must not
+      // be able to cancel back to "start payment" while the server
+      // confirm is still in flight.
+      onCardConfirmed?.();
       // Server re-verifies the PaymentIntent (amount, currency, ownership)
       // before marking the order paid; a client-side success alone never pays.
       const response = await api.post(`/carts/${cartId}/confirm`, {
@@ -44,7 +58,9 @@ function CardPaymentForm({ cartId, intent, onPaid }) {
     } catch (error) {
       setCardError(error?.response?.data?.message || error?.response?.data?.error || error?.message || t('checkout.cardPayConfirmFailed'));
     } finally {
+      submitGuardRef.current.release();
       setPaying(false);
+      onPayingChange?.(false);
     }
   };
 
@@ -83,6 +99,8 @@ function CheckoutPageContent() {
   const [intentLoading, setIntentLoading] = useState(false);
   const [intentError, setIntentError] = useState('');
   const [cardPaid, setCardPaid] = useState(null);
+  const [cardPaying, setCardPaying] = useState(false);
+  const [cardConfirmed, setCardConfirmed] = useState(false);
   const [stripePromise, setStripePromise] = useState(null);
 
   const startCardPayment = async () => {
@@ -100,6 +118,7 @@ function CheckoutPageContent() {
       // The intent total is authoritative: shipping, discount, and dynamic
       // pricing can move it away from the session total shown above.
       setIntent(created);
+      setCardConfirmed(false);
       const publishableKey = created.publishableKey || import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
       if (!publishableKey) {
         setIntentError(t('checkout.cardPayUnavailable'));
@@ -262,18 +281,23 @@ function CheckoutPageContent() {
                   <CardPaymentForm
                     cartId={cartId}
                     intent={intent}
+                    onPayingChange={setCardPaying}
+                    onCardConfirmed={() => setCardConfirmed(true)}
                     onPaid={(data) => {
                       setCardPaid(data?.data || data || {});
                       setIntent(null);
                     }}
                   />
                 </Elements>
-                <button
-                  onClick={() => setIntent(null)}
-                  className="text-sm text-[var(--color-text-muted)] underline" data-track="ui.137ad6cada.8"
-                >
-                  {t('checkout.cardPayCancel')}
-                </button>
+                {!cardConfirmed && (
+                  <button
+                    onClick={() => setIntent(null)}
+                    disabled={cardPaying}
+                    className="text-sm text-[var(--color-text-muted)] underline disabled:opacity-50" data-track="ui.137ad6cada.8"
+                  >
+                    {t('checkout.cardPayCancel')}
+                  </button>
+                )}
               </div>
             )}
             {!intent && !intentError && (
