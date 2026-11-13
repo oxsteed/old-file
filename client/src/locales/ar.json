@@ -26584,6 +26584,11 @@
           "disburseReferencePlaceholder": "المرجع البنكي أو رقم الشيك",
           "recordDisbursement": "تسجيل الصرف",
           "disbursementRecorded": "تم تسجيل الصرف.",
+          "disbursementVoid": "إلغاء الصرف",
+          "disbursementVoided": "تم إلغاء الصرف.",
+          "unpayRequested": "تم طلب إلغاء الدفع. يجب أن يوافق عليه مدير رواتب آخر.",
+          "unpayPending": "تم طلب إلغاء الدفع. تنتظر هذه الدفعة موافقة مدير رواتب آخر على إلغاء الصرف.",
+          "unpayApprove": "الموافقة على إلغاء الدفع",
           "disburseHint": "يجب أن يساوي الصرف إجمالي بند الموظف تماما. لا تُدفع الدورة إلا عند تغطية جميع البنود.",
           "method": {
             "bank_transfer": "تحويل بنكي",

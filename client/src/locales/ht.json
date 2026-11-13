@@ -26569,6 +26569,11 @@
           "disburseReferencePlaceholder": "Referans labank oswa nimewo chèk",
           "recordDisbursement": "Anrejistre peman an",
           "disbursementRecorded": "Peman an anrejistre.",
+          "disbursementVoid": "Anile peman an",
+          "disbursementVoided": "Peman an anile.",
+          "unpayRequested": "Yo mande pou anile peman an. Yon lòt responsab pewòl dwe apwouve li.",
+          "unpayPending": "Yo mande pou anile peman an. Pewòl sa a ap tann yon lòt responsab pewòl pou apwouve anilasyon peman an.",
+          "unpayApprove": "Apwouve anilasyon peman an",
           "disburseHint": "Yon peman dwe egal total liy anplwaye a egzakteman. Peryòd la peye sèlman lè tout liy yo kouvri.",
           "method": {
             "bank_transfer": "Transfè labank",

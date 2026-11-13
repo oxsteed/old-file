@@ -26569,6 +26569,11 @@
           "disburseReferencePlaceholder": "Référence bancaire ou numéro de chèque",
           "recordDisbursement": "Enregistrer le versement",
           "disbursementRecorded": "Versement enregistré.",
+          "disbursementVoid": "Annuler le décaissement",
+          "disbursementVoided": "Décaissement annulé.",
+          "unpayRequested": "Annulation du paiement demandée. Un deuxième responsable de paie doit l'approuver.",
+          "unpayPending": "Annulation du paiement demandée. Cette paie attend qu'un deuxième responsable de paie approuve l'annulation du décaissement.",
+          "unpayApprove": "Approuver l'annulation du paiement",
           "disburseHint": "Un versement doit être exactement égal au total de la ligne de l'employé. Le cycle est payé seulement quand toutes les lignes sont couvertes.",
           "method": {
             "bank_transfer": "Virement bancaire",

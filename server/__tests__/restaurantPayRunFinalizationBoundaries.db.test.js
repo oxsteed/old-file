@@ -396,10 +396,12 @@ ddescribe('Finding 40: voiding a run in a live consolidation is blocked', () => 
 });
 
 ddescribe('Finding 9: a wrongly recorded disbursement can be reversed', () => {
-  test('voiding a disbursement un-marks the run paid, keeps the row visible, and unblocks the run void', async () => {
+  test('voiding a disbursement on a paid run needs a second manager; the run drops to finalized only on approval', async () => {
     const owner = await makeUser();
     const checker = await makeUser();
+    const approver = await makeUser();
     const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    accessByUser.set(`${approver}:${restaurantId}`, { id: restaurantId, business_id: businessId, timezone: 'America/New_York', currency_code: 'USD', effective_role: 'owner', effective_membership_id: null });
     const staff = await makeStaff(businessId, owner, 1500);
     const { run, lineId } = await makeSingleLineRun(owner, checker, restaurantId, '2026-10-01', '2026-10-15', staff, 15000);
     expect((await finalizeRun(owner, restaurantId, run.id)).err).toBeNull();
@@ -427,7 +429,9 @@ ddescribe('Finding 9: a wrongly recorded disbursement can be reversed', () => {
     );
     expect(selfVoid.err).toMatchObject({ code: 'pay_run_disbursement_self_void' });
 
-    const voided = await call(
+    // Domain 8 #6: the void is load-bearing on a paid run, so the first
+    // call only requests the un-pay (202, run stays paid, row untouched).
+    const requested = await call(
       controller.voidPayRunDisbursement,
       mockReq({
         params: { restaurantId, payRunId: run.id, disbursementId },
@@ -435,14 +439,54 @@ ddescribe('Finding 9: a wrongly recorded disbursement can be reversed', () => {
         user: { id: checker },
       })
     );
+    expect(requested.err).toBeNull();
+    expect(requested.res.statusCode).toBe(202);
+    expect(requested.res.payload.unpayRequested).toBe(true);
+    const pending = requested.res.payload.payRun;
+    expect(pending.status).toBe('paid');
+    expect(pending.unpayPending).toBe(true);
+    expect(pending.unpay_requested_disbursement_id).toBe(Number(disbursementId));
+    expect(pending.disbursements[0]).toMatchObject({ id: Number(disbursementId), status: 'recorded' });
+
+    // The recorder cannot approve undoing their own record either: the
+    // self-void guard bars them from every void call, approvals included.
+    const recorderApprove = await call(
+      controller.voidPayRunDisbursement,
+      mockReq({
+        params: { restaurantId, payRunId: run.id, disbursementId },
+        body: { reason: 'wrong reference' },
+        user: { id: owner },
+      })
+    );
+    expect(recorderApprove.err).toMatchObject({ code: 'pay_run_disbursement_self_void' });
+    const selfApprove = await call(
+      controller.voidPayRunDisbursement,
+      mockReq({
+        params: { restaurantId, payRunId: run.id, disbursementId },
+        body: { reason: 'wrong reference' },
+        user: { id: checker },
+      })
+    );
+    expect(selfApprove.err).toMatchObject({ code: 'pay_run_unpay_self_approval' });
+
+    // A third manager approves: the void lands and the run drops back.
+    const voided = await call(
+      controller.voidPayRunDisbursement,
+      mockReq({
+        params: { restaurantId, payRunId: run.id, disbursementId },
+        body: { reason: 'wrong reference' },
+        user: { id: approver },
+      })
+    );
     expect(voided.err).toBeNull();
     const afterVoid = voided.res.payload.payRun;
     expect(afterVoid.status).toBe('finalized');
+    expect(afterVoid.unpayPending).toBeFalsy();
     expect(afterVoid.disbursementCoverage).toMatchObject({ lines_covered: 0, disbursed_cents: 0, fully_covered: false });
     // The reversed row is still in the ledger, marked voided.
     expect(afterVoid.disbursements).toHaveLength(1);
     expect(afterVoid.disbursements[0]).toMatchObject({
-      id: Number(disbursementId), status: 'voided', voidedBy: checker, voidReason: 'wrong reference',
+      id: Number(disbursementId), status: 'voided', voidedBy: approver, voidReason: 'wrong reference',
     });
     expect(afterVoid.disbursements[0].voidedAt).not.toBeNull();
 
@@ -466,8 +510,8 @@ ddescribe('Finding 9: a wrongly recorded disbursement can be reversed', () => {
     expect(reRecorded.res.payload.payRun.status).toBe('paid');
     expect(reRecorded.res.payload.payRun.disbursements).toHaveLength(2);
 
-    // Void it again, then the run itself can be voided normally.
-    const reVoided = await call(
+    // Void it again (two-step), then the run itself can be voided normally.
+    const reRequested = await call(
       controller.voidPayRunDisbursement,
       mockReq({
         params: { restaurantId, payRunId: run.id, disbursementId: reRecorded.res.payload.payRun.disbursements[1].id },
@@ -475,7 +519,18 @@ ddescribe('Finding 9: a wrongly recorded disbursement can be reversed', () => {
         user: { id: checker },
       })
     );
+    expect(reRequested.err).toBeNull();
+    expect(reRequested.res.statusCode).toBe(202);
+    const reVoided = await call(
+      controller.voidPayRunDisbursement,
+      mockReq({
+        params: { restaurantId, payRunId: run.id, disbursementId: reRecorded.res.payload.payRun.disbursements[1].id },
+        body: { reason: 'reversing to void the run' },
+        user: { id: approver },
+      })
+    );
     expect(reVoided.err).toBeNull();
+    expect(reVoided.res.payload.payRun.status).toBe('finalized');
     const runVoided = await voidRun(owner, checker, restaurantId, run.id);
     expect(runVoided.err).toBeNull();
     expect(runVoided.res.payload.payRun.status).toBe('voided');
@@ -492,6 +547,126 @@ ddescribe('Finding 9: a wrongly recorded disbursement can be reversed', () => {
       mockReq({ params: { restaurantId, payRunId: run.id, disbursementId: 999999 }, user: { id: checker } })
     );
     expect(voided.err).toMatchObject({ code: 'pay_run_not_finalized' });
+  });
+});
+
+ddescribe('Domain 8 #6: a disbursement void must not single-handedly un-pay a run', () => {
+  async function makeTwoLineRun(owner, checker, restaurantId, from, to, staffUserId, totals) {
+    const run = await createRun(owner, restaurantId, from, to);
+    await pool.query('DELETE FROM restaurant_pay_run_lines WHERE pay_run_id = $1', [run.id]);
+    const lineIds = [];
+    for (const total of totals) {
+      const { rows: [line] } = await pool.query(
+        `INSERT INTO restaurant_pay_run_lines
+           (pay_run_id, staff_user_id, staff_label, regular_hours, overtime_hours,
+            hourly_wage_cents, regular_wages_cents, wages_cents,
+            gross_tips_cents, tip_out_cents, tip_in_cents, net_tips_cents, total_pay_cents)
+         VALUES ($1, $2, 'Ana', 10, 0, 1500, 15000, 15000, 0, 0, 0, 0, $3)
+         RETURNING id`,
+        [run.id, staffUserId, total]
+      );
+      lineIds.push(Number(line.id));
+    }
+    return { run, lineIds };
+  }
+
+  async function recordDisbursement(userId, restaurantId, runId, lineId, amountCents) {
+    const res = await call(
+      controller.recordPayRunDisbursement,
+      mockReq({
+        params: { restaurantId, payRunId: runId },
+        body: { payRunLineId: lineId, amountCents, method: 'bank_transfer', reference: `REF-${lineId}` },
+        user: { id: userId },
+      })
+    );
+    expect(res.err).toBeNull();
+    return res.res.payload.payRun;
+  }
+
+  async function voidDisbursement(userId, restaurantId, runId, disbursementId) {
+    return call(
+      controller.voidPayRunDisbursement,
+      mockReq({
+        params: { restaurantId, payRunId: runId, disbursementId },
+        body: { reason: 'test void' },
+        user: { id: userId },
+      })
+    );
+  }
+
+  function grantAccess(userId, businessId, restaurantId) {
+    accessByUser.set(`${userId}:${restaurantId}`, { id: restaurantId, business_id: businessId, timezone: 'America/New_York', currency_code: 'USD', effective_role: 'owner', effective_membership_id: null });
+  }
+
+  test('a void that leaves payout-link coverage intact keeps the run paid', async () => {
+    const owner = await makeUser();
+    const checker = await makeUser();
+    const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    const staff = await makeStaff(businessId, owner, 1500);
+    const { run, lineId } = await makeSingleLineRun(owner, checker, restaurantId, '2026-10-01', '2026-10-15', staff, 15000);
+    expect((await finalizeRun(owner, restaurantId, run.id)).err).toBeNull();
+    expect((await approveRun(checker, restaurantId, run.id)).err).toBeNull();
+    const paid = await recordDisbursement(owner, restaurantId, run.id, lineId, 15000);
+    expect(paid.status).toBe('paid');
+    const disbursementId = paid.disbursements[0].id;
+    // Legacy mixed state (pre-dates the one-settlement-path rule): the run
+    // also holds a payout link covering the full total.
+    const { rows: [payout] } = await pool.query(
+      `INSERT INTO restaurant_payouts (restaurant_id, currency_code, amount_cents, status, stripe_account_id, idempotency_key, requested_by)
+       VALUES ($1, 'USD', 15000, 'completed', 'acct_test', $2, $3) RETURNING id`,
+      [restaurantId, `d8n6-link-${crypto.randomUUID()}`, owner]
+    );
+    await pool.query(
+      `INSERT INTO restaurant_pay_run_payout_links (pay_run_id, restaurant_payout_id, amount_cents, currency_code, linked_by)
+       VALUES ($1, $2, 15000, 'USD', $3)`,
+      [run.id, payout.id, owner]
+    );
+    const voided = await voidDisbursement(checker, restaurantId, run.id, disbursementId);
+    expect(voided.err).toBeNull();
+    expect(voided.res.payload.payRun.status).toBe('paid');
+    expect(voided.res.payload.payRun.unpayPending).toBeFalsy();
+    expect(voided.res.payload.payRun.disbursements[0]).toMatchObject({ id: Number(disbursementId), status: 'voided' });
+  });
+
+  test('a pending un-pay request for one disbursement blocks a request for another', async () => {
+    const owner = await makeUser();
+    const checker = await makeUser();
+    const approver = await makeUser();
+    const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    grantAccess(approver, businessId, restaurantId);
+    const staff = await makeStaff(businessId, owner, 1500);
+    const { run, lineIds } = await makeTwoLineRun(owner, checker, restaurantId, '2026-10-01', '2026-10-15', staff, [15000, 10000]);
+    expect((await finalizeRun(owner, restaurantId, run.id)).err).toBeNull();
+    expect((await approveRun(checker, restaurantId, run.id)).err).toBeNull();
+    await recordDisbursement(owner, restaurantId, run.id, lineIds[0], 15000);
+    const paid = await recordDisbursement(owner, restaurantId, run.id, lineIds[1], 10000);
+    expect(paid.status).toBe('paid');
+    const [first, second] = paid.disbursements;
+    const requested = await voidDisbursement(checker, restaurantId, run.id, first.id);
+    expect(requested.err).toBeNull();
+    expect(requested.res.statusCode).toBe(202);
+    const blocked = await voidDisbursement(checker, restaurantId, run.id, second.id);
+    expect(blocked.err).toMatchObject({ code: 'pay_run_unpay_already_requested' });
+    const approved = await voidDisbursement(approver, restaurantId, run.id, first.id);
+    expect(approved.err).toBeNull();
+    expect(approved.res.payload.payRun.status).toBe('finalized');
+  });
+
+  test('voiding a disbursement of a finalized (not paid) run still completes in one step', async () => {
+    const owner = await makeUser();
+    const checker = await makeUser();
+    const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    const staff = await makeStaff(businessId, owner, 1500);
+    const { run, lineIds } = await makeTwoLineRun(owner, checker, restaurantId, '2026-10-01', '2026-10-15', staff, [15000, 10000]);
+    expect((await finalizeRun(owner, restaurantId, run.id)).err).toBeNull();
+    expect((await approveRun(checker, restaurantId, run.id)).err).toBeNull();
+    const recorded = await recordDisbursement(owner, restaurantId, run.id, lineIds[0], 15000);
+    expect(recorded.status).toBe('finalized');
+    const voided = await voidDisbursement(checker, restaurantId, run.id, recorded.disbursements[0].id);
+    expect(voided.err).toBeNull();
+    expect(voided.res.statusCode).toBe(200);
+    expect(voided.res.payload.payRun.status).toBe('finalized');
+    expect(voided.res.payload.payRun.unpayPending).toBeFalsy();
   });
 });
 

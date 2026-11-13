@@ -384,6 +384,13 @@ export const linkPayRunPayout = (restaurantId, payRunId, payload) =>
 export const recordPayRunDisbursement = (restaurantId, payRunId, payload) =>
   api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/disbursements`, payload).then((r) => r.data?.payRun);
 
+// Domain 8 #6: voiding a disbursement. Returns the full response body:
+// on a paid run a load-bearing void is two-step, so the first call
+// answers 202 with { payRun, unpayRequested: true } and the run stays
+// paid until a second manager approves it with the same call.
+export const voidPayRunDisbursement = (restaurantId, payRunId, disbursementId, payload) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/disbursements/${disbursementId}/void`, payload).then((r) => r.data);
+
 // ── Employee portal self-service (Phase 3 Track B) ────────────────────
 // Self-scoped reads: the server scopes every call by the signed-in
 // user, so these return only the caller's own tips, pay and stubs.

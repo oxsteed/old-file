@@ -26092,6 +26092,11 @@
           "disburseReferencePlaceholder": "Bank reference or check number",
           "recordDisbursement": "Record disbursement",
           "disbursementRecorded": "Disbursement recorded.",
+          "disbursementVoid": "Void disbursement",
+          "disbursementVoided": "Disbursement voided.",
+          "unpayRequested": "Un-pay requested. A second payroll manager must approve it.",
+          "unpayPending": "Un-pay requested. This run waits for a second payroll manager to approve voiding the disbursement.",
+          "unpayApprove": "Approve un-pay",
           "disburseHint": "A disbursement must equal the employee line total exactly. The run is paid only when every line is covered.",
           "method": {
             "bank_transfer": "Bank transfer",

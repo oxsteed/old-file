@@ -34,6 +34,7 @@ import {
   downloadPayRunCsv,
   linkPayRunPayout,
   recordPayRunDisbursement,
+  voidPayRunDisbursement,
 } from '../../api/restaurants';
 
 function apiErr(err, fallback) {
@@ -122,6 +123,32 @@ export function PayrollPanel({ t, restaurant, from, to }) {
       toast.success(run?.voidPending
         ? t('restaurants.ops.reports.payRuns.voidRequested')
         : t('restaurants.ops.reports.payRuns.voided'));
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.payRuns.actionError')));
+    } finally {
+      setPayRunBusy(false);
+    }
+  };
+
+  // Domain 8 #6: voiding a disbursement. On a paid run a load-bearing
+  // void is two-step, mirroring the run void: the first call records the
+  // un-pay request (202, run stays paid) and the toast says a second
+  // manager must approve it; the approve button calls the same endpoint
+  // again. A non-load-bearing void, and a void on a finalized run,
+  // complete in one step.
+  const onVoidDisbursement = async (disbursement) => {
+    if (!disbursement) return;
+    setPayRunBusy(true);
+    try {
+      const data = await voidPayRunDisbursement(restaurantId, selectedPayRun.id, disbursement.id);
+      const run = data?.payRun;
+      if (run) {
+        setSelectedPayRun(run);
+        setPayRuns((rows) => (rows || []).map((row) => (Number(row.id) === Number(run.id) ? { ...row, ...run } : row)));
+      }
+      toast.success(data?.unpayRequested || run?.unpayPending
+        ? t('restaurants.ops.reports.payRuns.unpayRequested')
+        : t('restaurants.ops.reports.payRuns.disbursementVoided'));
     } catch (err) {
       toast.error(apiErr(err, t('restaurants.ops.reports.payRuns.actionError')));
     } finally {
@@ -510,7 +537,9 @@ export function PayrollPanel({ t, restaurant, from, to }) {
                 </thead>
                 <tbody>
                   {selectedPayRun.lines.map((line) => {
-                    const disbursed = (selectedPayRun.disbursements || []).find((d) => Number(d.payRunLineId) === Number(line.id));
+                    // A voided disbursement is not a live one: the line
+                    // reads unpaid again and can be re-recorded (Finding 9).
+                    const disbursed = (selectedPayRun.disbursements || []).find((d) => Number(d.payRunLineId) === Number(line.id) && d.status === 'recorded');
                     return (
                       <tr key={line.id}>
                         <td>{line.staff_label || line.staff_user_id}</td>
@@ -521,7 +550,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
                         <td>{money(line.tip_in_cents)}</td>
                         <td>{money(line.net_tips_cents)}</td>
                         <td>{money(line.total_pay_cents)}</td>
-                        <td>{disbursed ? money(disbursed.amountCents) : '—'}</td>
+                        <td>{disbursed ? (<>{money(disbursed.amountCents)}{canManagePayRuns && (selectedPayRun.status === 'finalized' || selectedPayRun.status === 'paid') && (<button type="button" className="fd-btn fd-btn-sm" disabled={payRunBusy} onClick={() => onVoidDisbursement(disbursed)} data-track="ui.aa258f5ea1.29">{t('restaurants.ops.reports.payRuns.disbursementVoid')}</button>)}</>) : '—'}</td>
                       </tr>
                     );
                   })}
@@ -541,6 +570,9 @@ export function PayrollPanel({ t, restaurant, from, to }) {
           )}
           {canManagePayRuns && selectedPayRun.status === 'finalized' && selectedPayRun.void_requested_by && (
             <p className="fd-card-meta">{t('restaurants.ops.reports.payRuns.voidPending')}</p>
+          )}
+          {canManagePayRuns && selectedPayRun.unpayPending && (
+            <p className="fd-card-meta">{t('restaurants.ops.reports.payRuns.unpayPending')}</p>
           )}
           {canManagePayRuns && (
             <div className="fd-ops-inventory-row">
@@ -562,6 +594,12 @@ export function PayrollPanel({ t, restaurant, from, to }) {
               {selectedPayRun.status === 'finalized' && selectedPayRun.void_requested_by && (
                 <button type="button" className="fd-btn fd-btn-sm" disabled={payRunBusy} onClick={() => runPayRunAction(t('restaurants.ops.reports.payRuns.voided'), () => approveVoidPayRun(restaurantId, selectedPayRun.id))} data-track="ui.aa258f5ea1.28">{t('restaurants.ops.reports.payRuns.voidApprove')}</button>
               )}
+              {selectedPayRun.unpayPending && (() => {
+                const pending = (selectedPayRun.disbursements || []).find((d) => Number(d.id) === Number(selectedPayRun.unpay_requested_disbursement_id));
+                return pending ? (
+                  <button type="button" className="fd-btn fd-btn-sm" disabled={payRunBusy} onClick={() => onVoidDisbursement(pending)} data-track="ui.aa258f5ea1.30">{t('restaurants.ops.reports.payRuns.unpayApprove')}</button>
+                ) : null;
+              })()}
               {(selectedPayRun.status === 'draft' || (selectedPayRun.status === 'finalized' && !selectedPayRun.void_requested_by)) && (
                 <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payRunBusy} onClick={onVoidPayRun} data-track="ui.aa258f5ea1.22">{t('restaurants.ops.reports.payRuns.void')}</button>
               )}
@@ -592,7 +630,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
                   onChange={(e) => setDisbForm((f) => ({ ...f, lineId: e.target.value }))}
                 >
                   <option value="">{t('restaurants.ops.reports.payRuns.disburseSelect')}</option>
-                  {(selectedPayRun.lines || []).filter((line) => !(selectedPayRun.disbursements || []).some((d) => Number(d.payRunLineId) === Number(line.id))).map((line) => (
+                  {(selectedPayRun.lines || []).filter((line) => !(selectedPayRun.disbursements || []).some((d) => Number(d.payRunLineId) === Number(line.id) && d.status === 'recorded')).map((line) => (
                     <option key={line.id} value={line.id}>{line.staff_label || line.staff_user_id} · {money(line.total_pay_cents)}</option>
                   ))}
                 </select>

@@ -26569,6 +26569,11 @@
           "disburseReferencePlaceholder": "Referencia bancaria o número de cheque",
           "recordDisbursement": "Registrar desembolso",
           "disbursementRecorded": "Desembolso registrado.",
+          "disbursementVoid": "Anular desembolso",
+          "disbursementVoided": "Desembolso anulado.",
+          "unpayRequested": "Anulación del pago solicitada. Otro gerente de nómina debe aprobarla.",
+          "unpayPending": "Anulación del pago solicitada. Esta liquidación espera a que otro gerente de nómina apruebe la anulación del desembolso.",
+          "unpayApprove": "Aprobar anulación del pago",
           "disburseHint": "El desembolso debe ser exactamente igual al total de la línea del empleado. El ciclo se paga solo cuando todas las líneas están cubiertas.",
           "method": {
             "bank_transfer": "Transferencia bancaria",

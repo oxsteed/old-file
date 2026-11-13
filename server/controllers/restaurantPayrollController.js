@@ -767,6 +767,15 @@ function payRunShape(run) {
     void_approved_by: run.void_approved_by || null,
     void_approved_at: run.void_approved_at || null,
     voidPending: run.void_requested_by != null && run.void_approved_by == null && run.status !== 'voided',
+    // Domain 8 #6: the two-step un-pay. unpay_requested_by/at is the
+    // maker (the manager who asked to void a load-bearing disbursement
+    // of a paid run); unpayPending is true while a second manager must
+    // approve it. The disbursement id is part of the request so an
+    // approval can never void a different line's disbursement.
+    unpay_requested_by: run.unpay_requested_by || null,
+    unpay_requested_at: run.unpay_requested_at || null,
+    unpay_requested_disbursement_id: run.unpay_requested_disbursement_id == null ? null : Number(run.unpay_requested_disbursement_id),
+    unpayPending: run.unpay_requested_by != null && run.status === 'paid',
     created_at: run.created_at,
     updated_at: run.updated_at,
     payoutLinks: (run.payout_links || run.payoutLinks || []).map((link) => ({
@@ -1889,11 +1898,60 @@ exports.recordPayRunDisbursement = async (req, res, next) => {
 // Finding 9: a wrongly recorded disbursement used to block voiding
 // the run forever. Reversing it is an audit-visible correction, not
 // an edit: the row stays in the ledger with status 'voided', its line
-// reads unpaid again, and a paid run drops back to finalized so the
-// run can then be voided normally or re-disbursed correctly. Allowed
-// while the run is finalized or paid, under the same gates as
-// recording (payroll.manage + a second approver's approval), and the
-// user who recorded it cannot void it themselves.
+// reads unpaid again, and the run can then be voided normally or
+// re-disbursed correctly. Allowed while the run is finalized or paid,
+// under the same gates as recording (payroll.manage + a second
+// approver's approval), and the user who recorded it cannot void it
+// themselves.
+//
+// Domain 8 #6: two guards on top of that. First, the run only drops
+// from paid to finalized when the void is load-bearing: coverage is
+// recomputed from the remaining live disbursements *and* payout links
+// (a legacy run paid via links that also holds a stray disbursement
+// stays paid when the links still cover it). Second, a load-bearing
+// void on a paid run is two-step, mirroring the Finding 41 run void:
+// the first call records the un-pay request (202, run stays paid,
+// disbursement untouched) and a different manager, who is neither the
+// requester nor the recorder, approves it by calling the same endpoint
+// again. A void on a finalized run, and a non-load-bearing void on a
+// paid run, still complete in one step.
+
+// Domain 8 #6: is the run still fully settled without one disbursement?
+// A run is settled by exactly one path (item #3 forbids mixing for new
+// runs, but legacy runs can hold both): payout links cover it when the
+// linked amount reaches the run total, disbursements cover it when every
+// line holds a live disbursement and the amounts sum to the run total.
+// Either path alone keeps the run paid; a void that breaks both is
+// load-bearing. The link leg needs a positive run total: a zero-total
+// run can never be link-paid, so a vacuous 0 >= 0 must not count.
+async function payRunCoverageExcludingDisbursement(client, run, restaurant, excludeDisbursementId) {
+  const totals = run.totals && typeof run.totals === 'object' ? run.totals : {};
+  const totalPayCents = Math.round(Number(totals.total_pay_cents || 0));
+  const runCurrency = resolveRunCurrency(run, restaurant);
+  const { rows: lines } = await client.query(
+    'SELECT id, total_pay_cents FROM restaurant_pay_run_lines WHERE pay_run_id = $1',
+    [run.id]
+  );
+  const { rows: disbursements } = await client.query(
+    `SELECT pay_run_line_id, amount_cents FROM restaurant_pay_run_disbursements
+      WHERE pay_run_id = $1 AND status = 'recorded' AND id <> $2`,
+    [run.id, excludeDisbursementId]
+  );
+  const { rows: [linkedRow] } = await client.query(
+    `SELECT COALESCE(SUM(amount_cents), 0)::int AS linked FROM restaurant_pay_run_payout_links
+      WHERE pay_run_id = $1 AND currency_code = $2`,
+    [run.id, runCurrency]
+  );
+  const covered = new Set(disbursements.map((d) => Number(d.pay_run_line_id)));
+  const runTotal = lines.reduce((sum, l) => sum + (Number(l.total_pay_cents) || 0), 0);
+  const disbursed = disbursements.reduce((sum, d) => sum + (Number(d.amount_cents) || 0), 0);
+  const disbursementCovered = lines.length > 0
+    && lines.every((l) => covered.has(Number(l.id)))
+    && disbursed === runTotal;
+  const linkCovered = totalPayCents > 0 && Number(linkedRow?.linked || 0) >= totalPayCents;
+  return { fullyCovered: disbursementCovered || linkCovered, disbursementCovered, linkCovered };
+}
+
 exports.voidPayRunDisbursement = async (req, res, next) => {
   try {
     const restaurant = await restaurantAccess(req);
@@ -1904,7 +1962,7 @@ exports.voidPayRunDisbursement = async (req, res, next) => {
       throw new AppError('Pay-run disbursement not found', 404, 'pay_run_disbursement_not_found');
     }
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 500) || null : null;
-    const run = await withTransaction(pool, async (client) => {
+    const outcome = await withTransaction(pool, async (client) => {
       const { rows: [existing] } = await client.query(
         'SELECT * FROM restaurant_pay_runs WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
         [payRunId, restaurant.id]
@@ -1930,6 +1988,40 @@ exports.voidPayRunDisbursement = async (req, res, next) => {
           'pay_run_disbursement_self_void'
         );
       }
+      // Domain 8 #6: recompute coverage without this disbursement. A
+      // paid run drops to finalized only when the void is load-bearing.
+      const coverage = await payRunCoverageExcludingDisbursement(client, existing, restaurant, disbursementId);
+      const wouldUnpay = existing.status === 'paid' && !coverage.fullyCovered;
+      if (wouldUnpay) {
+        if (!existing.unpay_requested_by) {
+          const { rows: [requested] } = await client.query(
+            `UPDATE restaurant_pay_runs
+                SET unpay_requested_by = $2, unpay_requested_at = NOW(), unpay_requested_disbursement_id = $3, updated_at = NOW()
+              WHERE id = $1
+              RETURNING *`,
+            [payRunId, req.user.id, disbursementId]
+          );
+          return { run: requested, disbursement, unpayRequested: true, voided: false };
+        }
+        if (Number(existing.unpay_requested_disbursement_id) !== disbursementId) {
+          throw new AppError(
+            'An un-pay is already requested for a different disbursement of this pay run; resolve it first',
+            409,
+            'pay_run_unpay_already_requested'
+          );
+        }
+        if (String(existing.unpay_requested_by) === String(req.user.id)) {
+          throw new AppError(
+            'The user who requested the un-pay cannot approve it; a different payroll manager must approve',
+            409,
+            'pay_run_unpay_self_approval'
+          );
+        }
+        // (No separate recorder-approval check: the self-void guard above
+        // already bars the recorder from every void call, approvals
+        // included, so the recorder can never reach this branch.)
+        // Approval: fall through to the void below.
+      }
       const { rows: [voided] } = await client.query(
         `UPDATE restaurant_pay_run_disbursements
             SET status = 'voided', voided_by = $2, voided_at = NOW(), void_reason = $3
@@ -1937,33 +2029,49 @@ exports.voidPayRunDisbursement = async (req, res, next) => {
           RETURNING *`,
         [disbursementId, req.user.id, reason]
       );
-      // A paid run is paid only while every line is covered; with a
-      // line uncovered again it returns to finalized.
+      // The flip is computed in JS and passed as a boolean (see item #3):
+      // the run drops to finalized exactly when the void was load-bearing
+      // on a paid run. In the approval path wouldUnpay is true, so the
+      // pending request is cleared with the same update; in the immediate
+      // path it is false and any pending request for another disbursement
+      // is left untouched.
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_pay_runs
-            SET status = CASE WHEN status = 'paid' THEN 'finalized' ELSE status END,
+            SET status = CASE WHEN $2 THEN 'finalized' ELSE status END,
+                unpay_requested_by = CASE WHEN $2 THEN NULL ELSE unpay_requested_by END,
+                unpay_requested_at = CASE WHEN $2 THEN NULL ELSE unpay_requested_at END,
+                unpay_requested_disbursement_id = CASE WHEN $2 THEN NULL ELSE unpay_requested_disbursement_id END,
                 updated_at = NOW()
           WHERE id = $1
           RETURNING *`,
-        [payRunId]
+        [payRunId, wouldUnpay]
       );
-      return { run: updated, disbursement: voided };
+      return { run: updated, disbursement: voided, unpayRequested: false, voided: true, unpayApproved: wouldUnpay };
     }, 'restaurant_pay_run_disbursement_void');
     await logBusinessAction(req, {
       business_id: restaurant.business_id,
       actor_role: restaurant.effective_role || null,
-      action: 'restaurant.pay_run.disbursement_voided',
+      action: outcome.unpayRequested ? 'restaurant.pay_run.unpay_requested' : 'restaurant.pay_run.disbursement_voided',
       target_type: 'restaurant_pay_run',
-      target_id: run.run.id,
+      target_id: outcome.run.id,
       after_state: {
-        status: run.run.status,
+        status: outcome.run.status,
         disbursement_id: disbursementId,
-        pay_run_line_id: run.disbursement.pay_run_line_id,
-        amount_cents: run.disbursement.amount_cents,
-        voided_by: req.user.id,
+        pay_run_line_id: outcome.disbursement.pay_run_line_id,
+        amount_cents: outcome.disbursement.amount_cents,
+        voided_by: outcome.voided ? req.user.id : undefined,
+        unpay_requested_by: outcome.unpayRequested ? req.user.id : undefined,
+        unpay_approved: outcome.unpayApproved || false,
         reason,
       },
     });
-    res.json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, run.run.id)) });
+    if (outcome.unpayRequested) {
+      return res.status(202).json({
+        payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, outcome.run.id)),
+        unpayRequested: true,
+      });
+    }
+    res.json({ payRun: payRunShape(await getPayRunWithLines(pool, restaurant.id, outcome.run.id)) });
   } catch (err) { next(err); }
 };
+
