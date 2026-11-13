@@ -40390,6 +40390,7 @@
     "exportCsv": "Export CSV",
     "moneyHidden": "Money columns need the view_financials grant.",
     "editCampaign": "Edit campaign",
+    "manage": "Manage",
     "scheduleCampaign": "Schedule",
     "scheduledAt": "Scheduled at",
     "results": "Results",
