@@ -654,6 +654,50 @@ ddescribe('Finding 5: late inputs carry forward, and finalized runs flag them', 
     expect(run3.lines.filter((line) => line.is_carry_forward)).toHaveLength(0);
   });
 
+  test('two runs cannot claim the same correction-hours delta (NULL input_id)', async () => {
+    const service = require('../services/restaurantPayrollService');
+    const owner = await makeUser();
+    const checker = await makeUser();
+    const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    const staff = await makeStaff(businessId, owner, 2000);
+    const run1 = await createRun(owner, restaurantId, '2026-10-01', '2026-10-15');
+    const run2 = await createRun(owner, restaurantId, '2026-10-16', '2026-10-31');
+    const run3 = await createRun(owner, restaurantId, '2026-11-01', '2026-11-15');
+    const item = {
+      source_pay_run_id: Number(run1.id),
+      input_type: 'correction_hours',
+      input_id: null,
+      staff_user_id: staff,
+      amount_cents: 4000,
+      regular_hours: 2,
+      overtime_hours: 0,
+      doubletime_hours: 0,
+      hourly_wage_cents: 2000,
+      regular_wages_cents: 4000,
+      overtime_wages_cents: 0,
+      doubletime_wages_cents: 0,
+      wages_cents: 4000,
+      correction_details: { regular_hours: 2, overtime_hours: 0, doubletime_hours: 0, wages_cents: 4000 },
+    };
+    const client = await pool.connect();
+    try {
+      const first = await service.applyCarryForward(client, run2.id, [item]);
+      expect(first).toHaveLength(1);
+      // A second run built over the same period claims nothing: the
+      // delta was already paid once. Before the partial unique index
+      // the NULL input_id defeated ON CONFLICT and both claims landed.
+      const second = await service.applyCarryForward(client, run3.id, [item]);
+      expect(second).toHaveLength(0);
+    } finally {
+      client.release();
+    }
+    const { rows: [row] } = await pool.query(
+      'SELECT COUNT(*)::int AS n FROM restaurant_pay_run_carry_forwards WHERE source_pay_run_id = $1 AND input_type = $2',
+      [run1.id, 'correction_hours']
+    );
+    expect(row.n).toBe(1);
+  });
+
   test('rebuilding a draft re-derives its carry lines without duplicating them', async () => {
     const owner = await makeUser();
     const checker = await makeUser();
