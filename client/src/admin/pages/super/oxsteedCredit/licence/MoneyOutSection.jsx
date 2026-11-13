@@ -69,6 +69,7 @@ export default function MoneyOutSection() {
           </Field>
         </form>
         <LicenceTable
+          loading={instructions.loading} error={instructions.error}
           rows={instructions.data?.instructions || []}
           columns={[
             { key: 'id' },
@@ -90,6 +91,7 @@ export default function MoneyOutSection() {
       </Panel>
       <Panel title={t('adminLicence.heldTitle')} detail={t('adminLicence.heldDetail')}>
         <LicenceTable
+          loading={held.loading} error={held.error}
           rows={held.data?.cashouts || []}
           columns={[
             { key: 'id' },

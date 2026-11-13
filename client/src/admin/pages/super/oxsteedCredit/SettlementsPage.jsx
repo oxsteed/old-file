@@ -40,6 +40,8 @@ function SettlementControls({
   runReconciliation,
   reconciliation,
   settlements,
+  loading,
+  error,
   transitionSettlement,
   executeSettlementPayout,
   reverseSettlement,
@@ -101,7 +103,9 @@ function SettlementControls({
         <table className="min-w-[1080px] w-full text-left text-xs">
           <thead className="bg-gray-50/70 dark:bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminRestaurant')}</th><th className="px-3 py-3 font-medium">{t('adminSettlementPeriod')}</th><th className="px-3 py-3 font-medium">{t('adminCycle')}</th><th className="px-3 py-3 font-medium">{t('adminValueDate')}</th><th className="px-3 py-3 font-medium">{t('adminNetPayable')}</th><th className="px-3 py-3 font-medium">{t('adminSettlementStatusProvenance')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-            {!settlements.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('adminNoSettlementSnapshots')}</td></tr> : settlements.map((settlement) => <tr key={settlement.id}>
+            {loading ? <tr><td colSpan="7" role="status" className="px-3 py-10 text-center text-gray-500">{t('adminLoading')}</td></tr>
+              : error ? <tr><td colSpan="7" role="alert" className="px-3 py-10 text-center text-red-300">{error}</td></tr>
+              : !loading && !error && !settlements.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('adminNoSettlementSnapshots')}</td></tr> : settlements.map((settlement) => <tr key={settlement.id}>
               <td className="px-3 py-3 text-gray-900 dark:text-white">{settlement.restaurantName || t('adminPartnerFallback', { id: settlement.partnerId })}<p className="mt-1 text-gray-600">{t('adminGrossAmount')} {money(settlement.grossCents, settlement.currencyCode)} · {t('adminRefunds')} {money(settlement.refundCents, settlement.currencyCode)}</p></td>
               <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{dateTime(settlement.periodStart)}<br />{t('adminTo')} {dateTime(settlement.periodEnd)}</td>
               <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{settlement.cycleId ? <span title={settlement.cycleId}>{String(settlement.cycleId).slice(0, 8)}</span> : t('adminCycleManual')}</td>
@@ -468,6 +472,8 @@ export default function OxsteedCreditSettlementsPage() {
         runReconciliation={runReconciliation}
         reconciliation={reconciliation}
         settlements={settlements}
+        loading={loading}
+        error={error}
         transitionSettlement={transitionSettlement}
         executeSettlementPayout={executeSettlementPayout}
         reverseSettlement={reverseSettlement}
