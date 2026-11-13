@@ -776,7 +776,10 @@ router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSup
         if (Number.isSafeInteger(n) && n > 0) settlementExpectedAmount = n;
       }
     } catch (preReadError) {
-      require('../utils/logger').warn('admin.settlement payout stepup pre-read failed, skipping amount binding', { settlementId: req.params.settlementId, error: preReadError.message });
+      // Domain 7 #19: a failed amount pre-read fails closed instead of
+      // verifying the step-up unbound; the operator retries the payout.
+      require('../utils/logger').warn('admin.settlement payout stepup pre-read failed, failing closed', { settlementId: req.params.settlementId, error: preReadError.message });
+      throw new AppError('Could not read the settlement amount for step-up binding; retry the payout', 503, 'credit_stepup_amount_preread_failed');
     }
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
@@ -875,7 +878,10 @@ router.post('/super/oxsteed-credit/withdrawals/:id/approve', requireSuperAdmin, 
         if (Number.isSafeInteger(n) && n > 0) withdrawalExpectedAmount = n;
       }
     } catch (preReadError) {
-      require('../utils/logger').warn('admin.withdrawal approve stepup pre-read failed, skipping amount binding', { withdrawalId: req.params.id, error: preReadError.message });
+      // Domain 7 #19: a failed amount pre-read fails closed instead of
+      // verifying the step-up unbound; the operator retries the approval.
+      require('../utils/logger').warn('admin.withdrawal approve stepup pre-read failed, failing closed', { withdrawalId: req.params.id, error: preReadError.message });
+      throw new AppError('Could not read the withdrawal amount for step-up binding; retry the approval', 503, 'credit_stepup_amount_preread_failed');
     }
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
