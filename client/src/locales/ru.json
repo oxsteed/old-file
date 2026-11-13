@@ -36579,6 +36579,8 @@
     "unnamed": "Клиент без имени",
     "lastSeen": "Последняя активность {{date}}",
     "more": "Показать ещё",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Выберите клиента, чтобы увидеть его историю с этим бизнесом.",
     "scopeNote": "Показаны только собственные данные этого бизнеса.",
     "status": "Статус",

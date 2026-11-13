@@ -36579,6 +36579,8 @@
     "unnamed": "Unbenannter Kunde",
     "lastSeen": "Letzte Aktivität {{date}}",
     "more": "Mehr anzeigen",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Wählen Sie einen Kunden, um seinen Verlauf mit diesem Unternehmen zu sehen.",
     "scopeNote": "Es werden nur die eigenen Daten dieses Unternehmens angezeigt.",
     "status": "Status",

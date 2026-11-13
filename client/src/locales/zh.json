@@ -36551,6 +36551,8 @@
     "unnamed": "未命名客户",
     "lastSeen": "最近活动 {{date}}",
     "more": "显示更多",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "选择一位客户以查看其与本商家的往来记录。",
     "scopeNote": "仅显示本商家自己的记录。",
     "status": "状态",

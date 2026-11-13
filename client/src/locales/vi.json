@@ -36551,6 +36551,8 @@
     "unnamed": "Khách hàng không tên",
     "lastSeen": "Hoạt động gần nhất {{date}}",
     "more": "Xem thêm",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Chọn một khách hàng để xem lịch sử với doanh nghiệp này.",
     "scopeNote": "Chỉ hiển thị hồ sơ của chính doanh nghiệp này.",
     "status": "Trạng thái",

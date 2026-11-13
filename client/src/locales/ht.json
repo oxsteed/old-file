@@ -41179,6 +41179,8 @@
     "unnamed": "Kliyan san non",
     "lastSeen": "Dènye aktivite {{date}}",
     "more": "Montre plis",
+    "retry": "Eseye ankò",
+    "moreFailed": "Nou pa t kapab chaje plis kliyan. Eseye ankò.",
     "pick": "Chwazi yon kliyan pou wè istwa li ak biznis sa a.",
     "scopeNote": "Se sèlman dosye pwòp biznis sa a ki parèt.",
     "status": "Estati",

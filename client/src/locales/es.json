@@ -41179,6 +41179,8 @@
     "unnamed": "Cliente sin nombre",
     "lastSeen": "Última actividad {{date}}",
     "more": "Ver más",
+    "retry": "Intentar de nuevo",
+    "moreFailed": "No se pudieron cargar más clientes. Inténtalo de nuevo.",
     "pick": "Seleccione un cliente para ver su historial con este negocio.",
     "scopeNote": "Solo se muestran los registros propios de este negocio.",
     "status": "Estado",

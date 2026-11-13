@@ -36580,6 +36580,8 @@
     "unnamed": "Adsız müşteri",
     "lastSeen": "Son etkinlik {{date}}",
     "more": "Daha fazla göster",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Bu işletmeyle geçmişini görmek için bir müşteri seçin.",
     "scopeNote": "Yalnızca bu işletmenin kendi kayıtları gösterilir.",
     "status": "Durum",

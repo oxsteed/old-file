@@ -36551,6 +36551,8 @@
     "unnamed": "이름 없는 고객",
     "lastSeen": "최근 활동 {{date}}",
     "more": "더 보기",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "고객을 선택하면 이 비즈니스와의 기록을 볼 수 있습니다.",
     "scopeNote": "이 비즈니스의 자체 기록만 표시됩니다.",
     "status": "상태",

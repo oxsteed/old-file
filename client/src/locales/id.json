@@ -36580,6 +36580,8 @@
     "unnamed": "Pelanggan tanpa nama",
     "lastSeen": "Aktivitas terakhir {{date}}",
     "more": "Tampilkan lebih banyak",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Pilih pelanggan untuk melihat riwayatnya dengan bisnis ini.",
     "scopeNote": "Hanya catatan milik bisnis ini yang ditampilkan.",
     "status": "Status",

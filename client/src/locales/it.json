@@ -36551,6 +36551,8 @@
     "unnamed": "Cliente senza nome",
     "lastSeen": "Ultima attività {{date}}",
     "more": "Mostra altro",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Seleziona un cliente per vedere la sua cronologia con questa attività.",
     "scopeNote": "Sono mostrati solo i dati propri di questa attività.",
     "status": "Stato",

@@ -36580,6 +36580,8 @@
     "unnamed": "ลูกค้าไม่มีชื่อ",
     "lastSeen": "กิจกรรมล่าสุด {{date}}",
     "more": "แสดงเพิ่ม",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "เลือกลูกค้าเพื่อดูประวัติกับธุรกิจนี้",
     "scopeNote": "แสดงเฉพาะข้อมูลของธุรกิจนี้เท่านั้น",
     "status": "สถานะ",

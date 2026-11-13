@@ -41179,6 +41179,8 @@
     "unnamed": "Unnamed customer",
     "lastSeen": "Last activity {{date}}",
     "more": "Show more",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Select a customer to see their history with this business.",
     "scopeNote": "Only this business's own records are shown.",
     "status": "Status",

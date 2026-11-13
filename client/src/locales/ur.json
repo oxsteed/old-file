@@ -36550,6 +36550,8 @@
     "unnamed": "بے نام صارف",
     "lastSeen": "آخری سرگرمی {{date}}",
     "more": "مزید دکھائیں",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "اس کاروبار کے ساتھ تاریخ دیکھنے کے لیے صارف منتخب کریں۔",
     "scopeNote": "صرف اس کاروبار کے اپنے ریکارڈ دکھائے جاتے ہیں۔",
     "status": "حیثیت",

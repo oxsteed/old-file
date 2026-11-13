@@ -36551,6 +36551,8 @@
     "unnamed": "बिना नाम का ग्राहक",
     "lastSeen": "अंतिम गतिविधि {{date}}",
     "more": "और दिखाएँ",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "इस व्यवसाय के साथ इतिहास देखने के लिए ग्राहक चुनें।",
     "scopeNote": "केवल इस व्यवसाय के अपने रिकॉर्ड दिखाए जाते हैं।",
     "status": "स्थिति",

@@ -36551,6 +36551,8 @@
     "unnamed": "Cliente sem nome",
     "lastSeen": "Última atividade {{date}}",
     "more": "Mostrar mais",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Selecione um cliente para ver o histórico com este negócio.",
     "scopeNote": "Somente os registros deste negócio são mostrados.",
     "status": "Status",

@@ -36580,6 +36580,8 @@
     "unnamed": "নামহীন গ্রাহক",
     "lastSeen": "শেষ কার্যকলাপ {{date}}",
     "more": "আরও দেখান",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "এই ব্যবসার সাথে ইতিহাস দেখতে একজন গ্রাহক বেছে নিন।",
     "scopeNote": "শুধু এই ব্যবসার নিজস্ব রেকর্ড দেখানো হয়।",
     "status": "অবস্থা",
