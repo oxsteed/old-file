@@ -136,3 +136,40 @@ test("domain 1 audit #22: QueueSetup with zero queues says so instead of an empt
   assert.match(board, /queues\.length === 0 \? <p>\{copy\(queuesLoaded \? "queues\.setup\.empty" : "queues\.setup\.listUnavailable"\)\}<\/p>/, "empty queue list renders a message, distinct from a failed load");
   assert.equal(typeof legacy("en").customerWorkspace.queues.setup.empty, "string", "en: queues.setup.empty");
 });
+test("domain 1 #5: Queues per-customer load failure offers a retry that re-runs loadMine", () => {
+  const queues = src("admin/pages/customer360/upgrades/Queues.jsx");
+  // The error branch must render a retry affordance, not a bare alert.
+  assert.match(queues, /state === "error" && \([\s\S]{0,400}?copy\("retry"\)/);
+  // The retry must re-run the per-customer fetch (loadMine), not just flip state.
+  assert.match(queues, /onClick=\{\(\) => reloadMine\(\)\}/);
+  assert.match(queues, /const reloadMine[\s\S]{0,400}?await loadMine\(signal\)/);
+});
+
+test("domain 1 #13: Anomalies and AnomalyQueue error states offer a retry", () => {
+  for (const f of ["Anomalies.jsx", "AnomalyQueue.jsx"]) {
+    const s = src(`admin/pages/customer360/upgrades/${f}`);
+    assert.match(s, /state === "error" && \([\s\S]{0,400}?copy\("retry"\)/, f);
+    assert.match(s, /onClick=\{\(\) => reload\(\)\}/, f);
+  }
+});
+
+test("domain 1 #15: Anomalies action form has a busy guard like AnomalyQueue", () => {
+  const a = src("admin/pages/customer360/upgrades/Anomalies.jsx");
+  assert.match(a, /const \[busy, setBusy\] = useState\(false\)/);
+  assert.match(a, /if \(busy\) return;/);
+  assert.match(a, /setBusy\(true\)[\s\S]{0,600}?finally \{\s*setBusy\(false\);\s*\}/);
+  assert.match(a, /<button type="submit" disabled=\{busy\}>/);
+});
+
+test("domain 1 #18: Queues explains an empty queue list instead of a dead add form", () => {
+  const queues = src("admin/pages/customer360/upgrades/Queues.jsx");
+  assert.match(queues, /\{!mine\.queues\.length && <p>\{copy\("queues\.noQueues"\)\}<\/p>\}/);
+  const en = legacy("en").customerWorkspace.queues;
+  assert.equal(en.noQueues, "No queues exist yet, ask a super admin to create one.");
+  for (const l of LANGS) {
+    assert.equal(typeof legacy(l).customerWorkspace.queues.noQueues, "string", `${l}: queues.noQueues`);
+  }
+  for (const l of CORE.filter((x) => x !== "en")) {
+    assert.notEqual(legacy(l).customerWorkspace.queues.noQueues, en.noQueues, `${l}: queues.noQueues untranslated`);
+  }
+});

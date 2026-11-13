@@ -1114,6 +1114,7 @@
       "reason": "Motif",
       "add": "Ajouter à la file",
       "added": "Ajouté à la file.",
+      "noQueues": "Aucune file n'existe encore. Demandez à un super administrateur d'en créer une.",
       "board": "Tableau d’équipe",
       "sla": "SLA",
       "breachedCol": "En retard",
