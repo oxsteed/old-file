@@ -247,6 +247,13 @@ exports.createScheduledReport = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const input = scheduledReports.validateScheduleInput(req.body || {});
+    // Money flows W2: recipients must be members of the
+    // restaurant's business (or the business owner); outsiders and
+    // non-member emails are rejected before the schedule is stored.
+    await scheduledReports.validateScheduleRecipients(pool, {
+      businessId: Number(restaurant.business_id),
+      recipients: input.recipients,
+    });
     assertLocationInScope(restaurant.locationScope, input.locationId);
     // Phase 8 Track D/E: a digest's anchor restaurant must belong
     // to the digest's brand, or the digest would report on a brand
@@ -287,6 +294,13 @@ exports.updateScheduledReport = async (req, res, next) => {
     const scheduleId = parsePositiveInt(req.params.scheduleId);
     if (!scheduleId) throw new AppError('Schedule not found', 404, 'schedule_not_found');
     const input = scheduledReports.validateScheduleInput(req.body || {});
+    // Money flows W2: see createScheduledReport — membership is
+    // re-checked on every update, so an outsider cannot be added
+    // by editing an existing schedule.
+    await scheduledReports.validateScheduleRecipients(pool, {
+      businessId: Number(restaurant.business_id),
+      recipients: input.recipients,
+    });
     assertLocationInScope(restaurant.locationScope, input.locationId);
     if (input.brandId != null) {
       const brandService = require('../services/restaurantBrandService');

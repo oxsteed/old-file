@@ -32,6 +32,12 @@ const PENDING_STALE_MINUTES = 60;
 // runDueScheduledReports), not to the enabled set.
 const MAX_SCHEDULES_PER_RUN = 100;
 
+// Money flows W2 / Domain 9 audit #5: at most this many recipients
+// per schedule. One unbounded list turned a single schedule into
+// hundreds of serial sends; the cap is enforced at creation
+// (validateScheduleInput) so a schedule cannot be created over it.
+const MAX_RECIPIENTS_PER_SCHEDULE = 50;
+
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { LeaseLostError } = require('../jobs/jobLockingService');
@@ -87,6 +93,14 @@ function validateScheduleInput(body = {}) {
     }
   }
   const { users, emails } = parseRecipients(body.recipients);
+  // Money flows W2 / Domain 9 audit #5: the recipient list is
+  // capped per schedule.
+  if (users.length + emails.length > MAX_RECIPIENTS_PER_SCHEDULE) {
+    throw Object.assign(
+      new Error(`A scheduled report can have at most ${MAX_RECIPIENTS_PER_SCHEDULE} recipients`),
+      { status: 400, code: 'validation_failed' }
+    );
+  }
   const channel = body.deliveryChannel || 'in_app';
   if ((channel === 'in_app' || channel === 'both') && users.length === 0) {
     throw Object.assign(new Error('In-app delivery needs at least one recipient user'), { status: 400, code: 'validation_failed' });
@@ -102,6 +116,72 @@ function validateScheduleInput(body = {}) {
     locationId: body.locationId == null ? null : Number(body.locationId),
     brandId,
   };
+}
+
+// Money flows W2: recipient user IDs and emails are resolved
+// against business_members for the restaurant's business, and
+// outsiders are rejected. validateScheduleInput above only checks
+// shape (a non-empty string, a well-formed email); without this,
+// anyone holding analytics.view_financial could add any user ID or
+// any email address and the 06:05 job would deliver revenue and
+// labor summaries to people who never worked at the restaurant.
+//
+// A recipient user is valid when they are an ACTIVE member of the
+// business, or the business owner (businesses.user_id — the owner
+// is not necessarily a business_members row). Pending invitees and
+// revoked members are not members yet / any more, so they are
+// rejected. An email recipient is valid only when the address
+// belongs to such a user (matched case-insensitively on
+// users.email); an address with no member behind it is rejected,
+// never "verified" by sending to it. One outsider rejects the
+// whole list: a schedule is never created half-valid.
+//
+// Called from createScheduledReport / updateScheduledReport, after
+// validateScheduleInput. Delivery itself does not re-check: a
+// schedule created before this check keeps its stored recipients
+// (see the W2 report note); re-validating at send time would need
+// a membership query inside deliverScheduledReport's mock-tested
+// send loop, so the write path is the enforcement point.
+async function validateScheduleRecipients(db, { businessId, recipients } = {}) {
+  if (!db || typeof db.query !== 'function') {
+    throw Object.assign(new Error('A database handle is required to validate recipients'), { status: 500, code: 'validation_failed' });
+  }
+  if (businessId == null) {
+    throw Object.assign(new Error('A business is required to validate recipients'), { status: 400, code: 'validation_failed' });
+  }
+  const { users, emails } = parseRecipients(recipients);
+  if (users.length === 0 && emails.length === 0) return;
+  const { rows: validUsers } = await db.query(
+    `SELECT member_id AS user_id FROM business_members
+        WHERE business_id = $1 AND status = 'active' AND member_id IS NOT NULL
+      UNION
+     SELECT user_id FROM businesses WHERE id = $1`,
+    [businessId]
+  );
+  const validUserIds = new Set(validUsers.map((row) => String(row.user_id)));
+  for (const userId of users) {
+    if (!validUserIds.has(String(userId))) {
+      throw Object.assign(
+        new Error(`Recipient user ${userId} is not a member of this business`),
+        { status: 400, code: 'validation_failed' }
+      );
+    }
+  }
+  if (emails.length > 0) {
+    const { rows: validEmails } = await db.query(
+      'SELECT LOWER(email) AS email FROM users WHERE id = ANY($1::uuid[])',
+      [[...validUserIds]]
+    );
+    const validEmailSet = new Set(validEmails.map((row) => String(row.email || '').toLowerCase()));
+    for (const email of emails) {
+      if (!validEmailSet.has(String(email).toLowerCase())) {
+        throw Object.assign(
+          new Error(`Recipient email ${email} does not belong to a member of this business`),
+          { status: 400, code: 'validation_failed' }
+        );
+      }
+    }
+  }
 }
 
 function summarizeReport(reportType, report) {
@@ -500,6 +580,8 @@ module.exports = {
   FREQUENCIES,
   CHANNELS,
   validateScheduleInput,
+  validateScheduleRecipients,
+  MAX_RECIPIENTS_PER_SCHEDULE,
   parseRecipients,
   summarizeReport,
   buildScheduledReport,
