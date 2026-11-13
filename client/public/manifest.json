@@ -81,6 +81,7 @@
       "label": "Your OxSteed wallet"
     }
   ],
+  "scope": "/",
   "short_name": "OxSteed",
   "shortcuts": [
     {

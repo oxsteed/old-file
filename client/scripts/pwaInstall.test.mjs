@@ -23,6 +23,19 @@ test('manifest has identity fields for install attribution', () => {
   assert.ok(manifest.launch_handler && manifest.launch_handler.client_mode === 'focus-existing');
 });
 
+test('M11: manifest scope is explicit so a start_url change cannot narrow it', () => {
+  assert.equal(manifest.scope, '/');
+});
+
+test('Nov 10 #23: manifest theme_color matches the dark default theme', () => {
+  // The app defaults to dark (ThemeContext: no saved theme means dark),
+  // index.html declares #16213e for dark, and background_color is #16213e.
+  // The manifest is a single static value, so it aligns to the dark
+  // default; the light theme-color stays only in index.html.
+  assert.equal(manifest.theme_color, '#16213e');
+  assert.equal(manifest.background_color, '#16213e');
+});
+
 test('manifest description names all three surfaces and stays short', () => {
   assert.ok(manifest.description.length <= 324, `description too long: ${manifest.description.length}`);
   for (const word of ['helpers', 'food', 'wallet']) {
