@@ -23,6 +23,13 @@ export default function Queues({ api, copy, when, viewerKey, isSuper }) {
     return () => c.abort();
   }, [api, viewerKey]);
 
+  // Nov 10 #5: a failed load used to dead-end with only "loadFailed" and no
+  // way back. Retry re-runs the load; on success the list and add form render.
+  const retryMine = () => {
+    setState("loading");
+    loadMine().then(() => setState("ready")).catch(() => setState("error"));
+  };
+
   const run = async (fn, ok) => {
     setBusy(true);
     setNotice("");
@@ -48,7 +55,7 @@ export default function Queues({ api, copy, when, viewerKey, isSuper }) {
       <p className="c360w-note">{copy("queues.hint")}</p>
       {notice && <p role="status">{notice}</p>}
       {state === "loading" && <p role="status">{copy("loading")}</p>}
-      {state === "error" && <p role="alert">{copy("loadFailed")}</p>}
+      {state === "error" && (<><p role="alert">{copy("loadFailed")}</p><button type="button" onClick={retryMine}>{copy("retry")}</button></>)}
       {mine && (
         <section aria-labelledby="c360u-q-mine">
           <h4 id="c360u-q-mine">{copy("queues.thisCustomer")}</h4>
