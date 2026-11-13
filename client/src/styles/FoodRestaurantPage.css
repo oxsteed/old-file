@@ -117,6 +117,9 @@ html.dark .rp-root .rp-type-pill {
 
 .rp-float-cart {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  /* Mobile/PWA M18: nowrap content used to clip past the viewport edge on
+     320px screens; cap the pill to the viewport so it always fits. */
+  max-width: calc(100vw - 1rem);
   z-index: 60; animation: rp-slideUp 0.22s ease; white-space: nowrap;
 }
 
@@ -128,7 +131,10 @@ html.dark .rp-root .rp-type-pill {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
   background: var(--color-surface); border-radius: 20px 20px 0 0;
   box-shadow: 0 -8px 40px rgba(0,0,0,0.18);
-  display: flex; flex-direction: column; max-height: 92vh;
+  /* Mobile/PWA M18: height from --pwa-viewport-height (100dvh-based, kept
+     in sync by mobileViewport.js) instead of 92vh, so the sheet does not
+     jump on iOS as the URL bar collapses and expands. */
+  display: flex; flex-direction: column; max-height: calc(var(--pwa-viewport-height) * 0.92);
   animation: rp-drawerUp 0.3s cubic-bezier(0.32,0.72,0,1); overflow: hidden;
 }
 
