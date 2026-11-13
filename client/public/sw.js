@@ -323,6 +323,19 @@ async function updatePushBadge(payload) {
   catch { /* Badge permission must never suppress a push notification. */ }
 }
 
+// ── Update-sensitive paths ──────────────────────────────────────────────────
+// Duplicated from client/src/utils/appUpdateSafety.js (isUpdateSensitivePath),
+// the source of truth. sw.js is served raw from client/public and cannot
+// import client/src, so the list is mirrored here; keep the two in sync.
+// A tab on one of these paths may hold an in-progress payment, booking, or
+// POS flow, so a push tap must never navigate it away.
+function isUpdateSensitivePath(pathname = '') {
+  return /^\/(?:checkout|cart|post-job|wallet|pay|qr-payments|agreements)(?:\/|$)/.test(pathname)
+    || /(?:^|\/)(?:checkout|book)(?:\/|$)/.test(pathname)
+    || /^\/(?:restaurants|food)\/(?:merchant|pos|kitchen|queue|kiosk|screens)(?:\/|$)/.test(pathname)
+    || /^\/invoice\/p\//.test(pathname);
+}
+
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   // Decision 1: report a broadcast push open. Only the broadcast tracking
@@ -352,22 +365,36 @@ self.addEventListener('notificationclick', event => {
       type: 'window',
       includeUncontrolled: true,
     });
-
-    // Reuse an existing tab on the same origin.
+    const sameOrigin = [];
     for (const client of allClients) {
       try {
         const url = new URL(client.url);
-        if (url.origin === self.location.origin) {
-          await client.focus();
-          if ('navigate' in client) {
-            try { await client.navigate(target); } catch { /* same-tab nav blocked */ }
-          }
-          return;
-        }
+        if (url.origin === self.location.origin) sameOrigin.push({ client, url });
       } catch { /* invalid url - skip */ }
     }
 
-    // Otherwise open a new tab.
+    // 1. A tab already on the target only needs focusing; never navigate it.
+    for (const { client, url } of sameOrigin) {
+      if (url.pathname + url.search + url.hash === target) {
+        await client.focus();
+        return;
+      }
+    }
+
+    // 2. Reuse a tab that is not mid-flow. Navigating a tab on an
+    // update-sensitive path (checkout, wallet top-up, POS, ...) would
+    // abandon the payment or booking in progress there.
+    for (const { client, url } of sameOrigin) {
+      if (isUpdateSensitivePath(url.pathname)) continue;
+      await client.focus();
+      if ('navigate' in client) {
+        try { await client.navigate(target); } catch { /* same-tab nav blocked */ }
+      }
+      return;
+    }
+
+    // 3. Every open tab is mid-flow (or none exists): open a new tab
+    // instead of hijacking one.
     if (self.clients.openWindow) {
       await self.clients.openWindow(target);
     }
