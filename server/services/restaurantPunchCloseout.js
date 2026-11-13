@@ -39,7 +39,13 @@
 //     through the manager edit or the employee correction flow.
 //   - The manager is notified per closed entry. Notification failure
 //     never rolls back a close: the close is the record, the
-//     notification is best-effort.
+//     notification is best-effort. But best-effort is now recorded:
+//     every per-manager send is written to
+//     `restaurant_punch_closeout_notices` (money-flows W9) with its
+//     delivery key and outcome (sent / failed / skipped), and the
+//     next sweep retries failed/skipped rows under the same key, so
+//     a crash between the close commit and the notify no longer loses
+//     the alert silently.
 //   - A published shift from the preceding business day (per store
 //     timezone) with no time entry is flagged as a missing punch and
 //     the manager is notified once per missing shift per manager (the
@@ -88,9 +94,49 @@ async function findManagers(db, businessId) {
   return rows.map((r) => r.user_id).filter(Boolean);
 }
 
+const CLOSEOUT_NOTIFY_KEY_PREFIX = 'closeout-notify';
+
+// Money-flows W9: one ledger row per (closed entry, manager). The
+// delivery key is unique, so a retry re-sends under the same key and
+// the notifications table dedupes the in-app row instead of notifying
+// twice. The write is best-effort and never throws: a ledger failure
+// must not fail the closeout sweep itself.
+async function recordCloseoutNotice(db, { businessId, entryId, managerId, deliveryKey, status, error = null }) {
+  try {
+    await db.query(
+      `INSERT INTO restaurant_punch_closeout_notices
+         (entry_id, business_id, manager_user_id, delivery_key, status, error)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (delivery_key) DO UPDATE
+          SET status = EXCLUDED.status, error = EXCLUDED.error, updated_at = NOW()`,
+      [entryId, businessId, managerId, deliveryKey, status, error]
+    );
+  } catch (err) {
+    logger.warn('Punch closeout: could not record notice outcome', {
+      businessId, entryId, managerId, error: err.message,
+    });
+  }
+}
+
+// Classify a sendNotification result for the ledger. sendNotification
+// never throws: { success: true, notificationId } means an in-app row
+// was created; { success: true } with no notificationId means every
+// channel was suppressed (e.g. the recipient turned the type off),
+// which is a skip, not a send; { success: false } is a failure.
+function classifyCloseoutSend(result) {
+  if (!result || result.success !== true) {
+    return { status: 'failed', error: result?.error || 'notification send failed' };
+  }
+  if (result.notificationId == null) {
+    return { status: 'skipped', error: 'suppressed by recipient preference' };
+  }
+  return { status: 'sent', error: null };
+}
+
 async function notifyManagers(db, businessId, closed) {
   let notified = 0;
   let notifyErrors = 0;
+  let notifySkipped = 0;
   let managers = [];
   try {
     managers = await findManagers(db, businessId);
@@ -101,11 +147,13 @@ async function notifyManagers(db, businessId, closed) {
     // step surfaces.)
     if (err instanceof LeaseLostError) throw err;
     logger.warn('Punch closeout: manager lookup failed', { businessId, error: err.message });
-    return { notified, notifyErrors: notifyErrors + 1 };
+    return { notified, notifyErrors: notifyErrors + 1, notifySkipped };
   }
   for (const managerId of managers) {
+    const deliveryKey = `${CLOSEOUT_NOTIFY_KEY_PREFIX}:${closed.entryId}:${managerId}`;
+    let outcome;
     try {
-      await sendNotification({
+      const result = await sendNotification({
         userId: managerId,
         type: 'staff_time_entry_system_closed',
         title: 'A forgotten punch was closed automatically',
@@ -121,16 +169,129 @@ async function notifyManagers(db, businessId, closed) {
             businessName: closed.businessName || '',
           },
         },
+        // Money-flows W9: the key dedupes the in-app row across
+        // retries, so a retried alert never notifies twice.
+        idempotencyKey: deliveryKey,
       });
-      notified += 1;
+      outcome = classifyCloseoutSend(result);
     } catch (err) {
-      notifyErrors += 1;
+      outcome = { status: 'failed', error: err.message };
       logger.warn('Punch closeout: manager notification failed', {
         businessId, entryId: closed.entryId, error: err.message,
       });
     }
+    if (outcome.status === 'sent') notified += 1;
+    else if (outcome.status === 'skipped') notifySkipped += 1;
+    else notifyErrors += 1;
+    await recordCloseoutNotice(db, {
+      businessId,
+      entryId: closed.entryId,
+      managerId,
+      deliveryKey,
+      status: outcome.status,
+      error: outcome.error,
+    });
   }
-  return { notified, notifyErrors };
+  return { notified, notifyErrors, notifySkipped };
+}
+
+// Money-flows W9: retry every failed/skipped closeout notice (oldest
+// first), re-sending under its original delivery key. A missing entry
+// (voided/deleted since the close) is marked skipped, never retried
+// forever. Best-effort per row: one bad row never blocks the rest.
+// Returns the retry counts so the sweep can report them.
+async function retryCloseoutNotices(db, { businessId = null, limit = 100 } = {}) {
+  const result = { retried: 0, sent: 0, failed: 0, skipped: 0, errors: [] };
+  let rows = [];
+  try {
+    ({ rows } = await db.query(
+      `SELECT n.*,
+              te.clock_out_at AS closed_at,
+              te.entry_date AS entry_date,
+              te.user_id AS entry_user_id,
+              b.business_name AS business_name,
+              COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name) AS employee_name
+         FROM restaurant_punch_closeout_notices n
+         LEFT JOIN business_time_entries te ON te.id = n.entry_id
+         LEFT JOIN businesses b ON b.id = n.business_id
+         LEFT JOIN users u ON u.id = te.user_id
+        WHERE n.status IN ('failed', 'skipped')
+          AND ($1::int IS NULL OR n.business_id = $1)
+        ORDER BY n.attempted_at ASC, n.id ASC
+        LIMIT $2`,
+      [businessId, limit]
+    ));
+  } catch (err) {
+    logger.warn('Punch closeout: notice retry lookup failed', { error: err.message });
+    result.errors.push({ error: err.message });
+    return result;
+  }
+  for (const row of rows) {
+    result.retried += 1;
+    if (!row.closed_at) {
+      await recordCloseoutNotice(db, {
+        businessId: Number(row.business_id),
+        entryId: Number(row.entry_id),
+        managerId: row.manager_user_id,
+        deliveryKey: row.delivery_key,
+        status: 'skipped',
+        error: 'time entry no longer exists',
+      });
+      result.skipped += 1;
+      continue;
+    }
+    const closed = {
+      entryId: Number(row.entry_id),
+      userId: row.entry_user_id,
+      employeeName: row.employee_name || null,
+      businessName: row.business_name || null,
+      entryDate: row.entry_date instanceof Date
+        ? row.entry_date.toISOString().slice(0, 10)
+        : String(row.entry_date || '').slice(0, 10),
+      closedAtLabel: row.closed_at instanceof Date
+        ? row.closed_at.toISOString()
+        : String(row.closed_at),
+    };
+    let outcome;
+    try {
+      const sendResult = await sendNotification({
+        userId: row.manager_user_id,
+        type: 'staff_time_entry_system_closed',
+        title: 'A forgotten punch was closed automatically',
+        body: `${closed.employeeName || 'A team member'}'s punch from ${closed.entryDate} was closed at ${closed.closedAtLabel} and flagged as system-closed. Review it before payroll.`,
+        data: {
+          business_id: Number(row.business_id),
+          entry_id: closed.entryId,
+          user_id: closed.userId,
+          params: {
+            employeeName: closed.employeeName || 'A team member',
+            entryDate: closed.entryDate,
+            closedAt: closed.closedAtLabel,
+            businessName: closed.businessName || '',
+          },
+        },
+        idempotencyKey: row.delivery_key,
+      });
+      outcome = classifyCloseoutSend(sendResult);
+    } catch (err) {
+      outcome = { status: 'failed', error: err.message };
+      logger.warn('Punch closeout: notice retry failed', {
+        businessId: row.business_id, entryId: row.entry_id, error: err.message,
+      });
+    }
+    await recordCloseoutNotice(db, {
+      businessId: Number(row.business_id),
+      entryId: Number(row.entry_id),
+      managerId: row.manager_user_id,
+      deliveryKey: row.delivery_key,
+      status: outcome.status,
+      error: outcome.error,
+    });
+    if (outcome.status === 'sent') result.sent += 1;
+    else if (outcome.status === 'skipped') result.skipped += 1;
+    else result.failed += 1;
+  }
+  return result;
 }
 
 async function notifyMissingPunch(db, businessId, missing) {
@@ -283,6 +444,20 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
   // lost its lease cannot keep closing punches through the raw pool.
   // Without a fence (on-demand endpoint, tests) the supplied db is used.
   const handle = fence ? fence.db : db;
+  // Money-flows W9: retry last run's failed/skipped manager alerts
+  // first, so a crash between a close and its notify heals on the
+  // next sweep instead of losing the alert. Best-effort: a retry
+  // failure is logged inside retryCloseoutNotices and never fails
+  // this sweep. Skipped when notifications are off (notify=false).
+  let retriedNotices = { retried: 0, sent: 0, failed: 0, skipped: 0, errors: [] };
+  if (notify) {
+    try {
+      retriedNotices = await retryCloseoutNotices(handle, { businessId });
+    } catch (err) {
+      retriedNotices.errors.push({ error: err.message });
+      logger.warn('Punch closeout: notice retry failed', { businessId, error: err.message });
+    }
+  }
   // Open entries only; the close time is computed in SQL so the shift
   // end (a business-local wall clock) converts to an instant in the
   // store's timezone with DST handled by AT TIME ZONE. The shift used
@@ -358,6 +533,7 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
   const closed = [];
   let notified = 0;
   let notifyErrors = 0;
+  let notifySkipped = 0;
   const errors = [];
 
   for (const entry of open) {
@@ -457,6 +633,7 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
         const result = await notifyManagers(handle, entry.business_id, closedEntry);
         notified += result.notified;
         notifyErrors += result.notifyErrors;
+        notifySkipped += result.notifySkipped || 0;
       } catch (err) {
         // Money flows W4: see the per-entry catch above — a lease
         // lost at the notify step aborts the sweep, it is not a
@@ -543,7 +720,7 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
     logger.warn('Punch closeout: missing-punch check failed', { error: err.message });
   }
 
-  return { closed, notified, notifyErrors, missing, missingNotified, missingNotifyErrors, errors };
+  return { closed, notified, notifyErrors, notifySkipped, retriedNotices, missing, missingNotified, missingNotifyErrors, errors };
 }
 
-module.exports = { closeStalePunches, notifyCloseoutFailure, AUTO_CLOSE_CAP_HOURS, STALE_GRACE_MINUTES, CLOSEOUT_BATCH_LIMIT };
+module.exports = { closeStalePunches, notifyCloseoutFailure, retryCloseoutNotices, AUTO_CLOSE_CAP_HOURS, STALE_GRACE_MINUTES, CLOSEOUT_BATCH_LIMIT };
