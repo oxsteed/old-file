@@ -541,7 +541,7 @@ function CustomerDelivery({ t, initial, onPosted }) {
     deliveryWindow: windows.deliveryWindow,
     proofPreference,
     };
-  }), [contentsCategory, declaredValue, deliveryWindow, destination, destinationContact, dimensions, fragile, handlingRequirements, itemDescription, notes, origin, originContact, packageType, perishable, pieces, pickupWindow, proofPreference, serviceLevel, weightLbs]);
+  }, [contentsCategory, declaredValue, deliveryWindow, destination, destinationContact, dimensions, fragile, handlingRequirements, itemDescription, notes, origin, originContact, packageType, perishable, pieces, pickupWindow, proofPreference, serviceLevel, weightLbs]);
 
   useEffect(() => { setQuote(null); setClientRequestId(''); }, [payload]);
 
@@ -573,7 +573,6 @@ function CustomerDelivery({ t, initial, onPosted }) {
       // Keep the exact ASAP windows the quote was priced for: the booking
       // must post them unchanged or the quote hash mismatches.
       if (timing === 'asap') quotedWindowsRef.current = windows;
-      setQuote(response.quote);
       setQuote(response.quote);
       setClientRequestId('');
     } catch (requestError) {
