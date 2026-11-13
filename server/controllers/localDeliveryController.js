@@ -5,6 +5,8 @@ const {stableValue,fingerprint,idempotencyKey,customerSafeJob,operatorSafeJob,re
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const { calculateLocalDeliveryQuote } = require('../services/localDeliveryService');
+const { calculateLocalDeliveryPrice, PACKAGE_TYPES } = require('../services/localDeliveryPricing');
+const { getSignedDownloadUrl } = require('../utils/storage');
 const { geocodeAddress } = require('./geoController');
 const { broadcastToUser } = require('../services/socketService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
@@ -16,6 +18,10 @@ const HELPER_MODES = new Set([
   'business_representative', 'business_employee',
 ]);
 const PROOF_TYPES = new Set(['pin', 'signature', 'photo', 'recipient_confirmation']);
+// Representative weight priced for each size in the instant estimate. Must
+// match the client SIZE_DEFAULT_WEIGHT_LBS; the price itself depends on the
+// size surcharge, not the exact weight.
+const SIZE_DEFAULT_WEIGHT_LBS = Object.freeze({ small: 5, medium: 25, large: 75, oversized: 150 });
 const EXTRA_CATEGORIES = new Set(['waiting', 'parking_toll', 'difficult_access', 'loading_help', 'special_handling']);
 const INTERNAL_ROLES = new Set(['sourcing_operator', 'logistics_coordinator', 'warehouse_operator', 'admin', 'super_admin']);
 
@@ -57,6 +63,7 @@ function requestHash(body = {}) {
     packageType: body.packageType,
     weightLbs: Number(body.weightLbs),
     serviceLevel: body.serviceLevel,
+    itemDescription: text(body.itemDescription, 500),
     operational: serializeOperational(body),
     notes: text(body.notes,2000),
   });
@@ -312,9 +319,23 @@ exports.estimate = async (req, res, next) => {
     const result = await calculateLocalDeliveryQuote(input);
     const maxMiles = Math.min(300, Math.max(1, Number(process.env.DELIVERY_MAX_ROUTE_MILES) || 150));
     if (result.route.distanceMiles > maxMiles) throw new AppError('This route exceeds the local delivery service area', 400, 'delivery_service_area_unsupported');
+    // Per-size prices for the same route, priced server-side from the live
+    // model (never hardcoded on the client): each size is repriced with its
+    // representative weight at standard service. Price depends on the size
+    // surcharge, not the exact weight, which only has to stay under the cap.
+    const sizePrices = {};
+    for (const size of Object.keys(PACKAGE_TYPES)) {
+      const priced = calculateLocalDeliveryPrice({
+        distanceMiles: result.route.distanceMiles,
+        packageType: size,
+        weightLbs: SIZE_DEFAULT_WEIGHT_LBS[size],
+        serviceLevel: 'standard',
+      });
+      sizePrices[size] = { customerTotalCents: priced.cents.customerTotal };
+    }
     // Return the located stops, not just coordinates, so the client can carry
     // the resolved city/state/country into the intake form and the booking.
-    res.json({ success: true, estimate: { ...result, origin: resolved.origin, destination: resolved.destination } });
+    res.json({ success: true, estimate: { ...result, sizePrices, origin: resolved.origin, destination: resolved.destination } });
   } catch (error) {
     next(error);
   }
@@ -368,7 +389,7 @@ exports.create = async (req, res, next) => {
         (reference, customer_user_id, origin_address, origin_city, origin_state, origin_country,
          origin_lat, origin_lng, destination_address, destination_city, destination_state,
          destination_country, destination_lat, destination_lng, distance_miles, duration_minutes,
-         package_type, weight_lbs, service_level, notes, price_snapshot, customer_total_cents,
+         package_type, weight_lbs, service_level, notes, item_description, price_snapshot, customer_total_cents,
          driver_payout_cents, quote_expires_at, pieces, package_length_in, package_width_in,
          package_height_in, contents_category, declared_value_cents, fragile, perishable,
          hazmat_declared, origin_contact_name, origin_contact_phone, origin_contact_company,
@@ -376,14 +397,15 @@ exports.create = async (req, res, next) => {
          destination_contact_company, destination_instructions, pickup_window_start,
          pickup_window_end, delivery_window_start, delivery_window_end, handling_requirements,
          proof_preference, proof_pin_digest, quote_id, quote_version, fulfillment_source, dispatch_state, client_request_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
-               $25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,
+               $26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54)
        RETURNING *`,
       [
         jobReference, req.user.id, origin.address, origin.city, origin.state, origin.country,
         result.origin.lat, result.origin.lng, destination.address, destination.city, destination.state,
         destination.country, result.destination.lat, result.destination.lng, result.route.distanceMiles,
         result.route.durationMinutes, result.packageType, result.weightLbs, result.serviceLevel, notes,
+        text(req.body.itemDescription, 500) || null,
         JSON.stringify({ ...quote.price_snapshot, quoteId, requestHash: inputHash, origin, destination, operational }),
         quote.customer_total_cents, quote.driver_payout_cents, expiresAt,
         operational.pieces, operational.packageLengthIn, operational.packageWidthIn,
@@ -443,7 +465,7 @@ exports.get = async (req,res,next) => {
   try {
     const job=await loadAuthorizedJob(req.params.id,req.user);
     const own=String(job.customer_user_id)===String(req.user.id);
-    const [activity,proofs,extras,issues,payments,reschedules,returns]=await Promise.all([
+    const [activity,proofs,extras,issues,payments,reschedules,returns,itemPhotoRows]=await Promise.all([
       pool.query('SELECT id,event_type,payload,created_at FROM delivery_activity WHERE delivery_job_id=$1 AND customer_visible=TRUE ORDER BY created_at,id',[job.id]),
       pool.query('SELECT id,proof_type,recipient_name,verification_status,verified_at,created_at FROM delivery_proofs WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]),
       pool.query('SELECT id,category,amount_cents,notes,status,payment_status,approved_amount_cents,created_at FROM delivery_extras WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]),
@@ -451,9 +473,20 @@ exports.get = async (req,res,next) => {
       own ? pool.query('SELECT id,delivery_extra_id,amount_cents,currency,status,receipt_url,refunded_amount_cents,created_at,updated_at FROM delivery_payments WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : Promise.resolve({rows:[]}),
       pool.query('SELECT id,pickup_window_start,pickup_window_end,delivery_window_start,delivery_window_end,reason,status,reviewed_at,created_at FROM delivery_reschedule_requests WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]),
       pool.query('SELECT id,reason,status,completed_at,created_at FROM delivery_returns WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]),
+      pool.query('SELECT id,object_key,content_type,size_bytes,created_at FROM delivery_job_item_photos WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]),
     ]);
+    // Item photos are customer-uploaded pictures of the item, visible only
+    // to the job participants (loadAuthorizedJob already enforced that).
+    // Signed URLs expire; the detail page reloads them with the job.
+    const itemPhotos = await Promise.all(itemPhotoRows.rows.map(async (photo) => ({
+      id: photo.id,
+      contentType: photo.content_type,
+      sizeBytes: photo.size_bytes,
+      createdAt: photo.created_at,
+      url: await getSignedDownloadUrl(photo.object_key, 3600).catch(() => null),
+    })));
     res.set('Cache-Control','no-store');
-    res.json({success:true,job:customerSafeJob(job,req.user),activity:activity.rows,proofs:proofs.rows,extras:extras.rows,issues:issues.rows,payments:payments.rows,rescheduleRequests:reschedules.rows,returns:returns.rows});
+    res.json({success:true,job:customerSafeJob(job,req.user),activity:activity.rows,proofs:proofs.rows,extras:extras.rows,issues:issues.rows,payments:payments.rows,rescheduleRequests:reschedules.rows,returns:returns.rows,itemPhotos});
   } catch(error) {next(error);}
 };
 
@@ -748,6 +781,25 @@ exports.getDriverProfile = async (req, res, next) => {
   try {
     const { rows: [profile] } = await pool.query('SELECT * FROM delivery_driver_profiles WHERE user_id = $1', [req.user.id]);
     res.json({ success: true, profile: profile || null });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Item 12: the driver toggles their own availability flag. `available` is
+// driver-controlled (unlike ops-controlled `active`) and is deliberately NOT
+// used to gate claiming; that is a product call, not an oversight.
+exports.setDriverAvailability = async (req, res, next) => {
+  try {
+    if (typeof req.body.available !== 'boolean') {
+      throw new AppError('Availability must be true or false', 400, 'delivery_driver_availability_invalid');
+    }
+    const { rows: [profile] } = await pool.query(
+      'UPDATE delivery_driver_profiles SET available = $1, updated_at = NOW() WHERE user_id = $2 RETURNING *',
+      [req.body.available, req.user.id],
+    );
+    if (!profile) throw new AppError('Driver profile not found', 404, 'delivery_not_found');
+    res.json({ success: true, profile });
   } catch (error) {
     next(error);
   }
