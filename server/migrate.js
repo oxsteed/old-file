@@ -70,15 +70,22 @@ function listMigrationFiles(migrationsDir, through = null) {
 // client running a migration so every NOTICE/WARNING the server sends is
 // logged durably with the migration that produced it. `log` is injectable
 // so tests can capture notices without touching the real logger.
+// Returns a detach function: the runner removes the listener once the
+// migration finishes. Without this, every migration added another
+// listener to the pooled client the pool hands back, so one notice fired
+// hundreds of stale handlers (each re-logging under its own filename)
+// and the runner's log output grew past the rehearsal's 16 MB capture
+// buffer, killing the run (PR #783 CI, run 43483058186).
 function attachMigrationNoticeHandler(client, filename, log = logger) {
-  client.on('notice', (notice) => {
+  const handler = (notice) => {
     log.warn('Migration notice', {
       filename,
       severity: notice.severity || null,
       message: notice.message || String(notice),
     });
-  });
-  return client;
+  };
+  client.on('notice', handler);
+  return () => client.removeListener('notice', handler);
 }
 // Pure function so the policy is unit-testable without a database.
 //   skip  - already applied; verify the checksum below.
@@ -180,8 +187,12 @@ async function migrate({ through = null } = {}) {
       logger.info('Applying migration', { filename: file, checksum });
       const migClient = await pool.connect();
       try {
-        attachMigrationNoticeHandler(migClient, file);
-        await migClient.query(sql);
+        const detachMigrationNoticeHandler = attachMigrationNoticeHandler(migClient, file);
+        try {
+          await migClient.query(sql);
+        } finally {
+          detachMigrationNoticeHandler();
+        }
         await lockClient.query(
           `UPDATE _migrations
               SET status = 'applied', checksum = $2, applied_at = NOW(), error = NULL

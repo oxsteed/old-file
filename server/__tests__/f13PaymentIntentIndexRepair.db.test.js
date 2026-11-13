@@ -181,13 +181,21 @@ describeDatabase('F-13 PaymentIntent index repair (Domain 8 #5)', () => {
     const fakeLog = { warn: jest.fn((message, fields) => seen.push({ message, fields })) };
     await client.connect();
     try {
-      attachMigrationNoticeHandler(client, 'test-migration.sql', fakeLog);
+      const detach = attachMigrationNoticeHandler(client, 'test-migration.sql', fakeLog);
       await client.query(`DO $$ BEGIN RAISE WARNING 'F-13 probe warning'; END $$;`);
       expect(fakeLog.warn).toHaveBeenCalledWith(
         'Migration notice',
         expect.objectContaining({ filename: 'test-migration.sql', severity: 'WARNING', message: 'F-13 probe warning' })
       );
       expect(seen[0].fields.message).toBe('F-13 probe warning');
+      // Detaching must stop logging: without it, the pooled client kept
+      // every migration's handler, so one notice re-logged under hundreds
+      // of stale filenames and the rehearsal's log capture overflowed
+      // (PR #783 CI, run 43483058186).
+      detach();
+      const callsAfterDetach = fakeLog.warn.mock.calls.length;
+      await client.query(`DO $$ BEGIN RAISE WARNING 'F-13 second warning'; END $$;`);
+      expect(fakeLog.warn.mock.calls.length).toBe(callsAfterDetach);
     } finally {
       await client.end();
     }
