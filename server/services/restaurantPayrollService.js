@@ -1384,12 +1384,31 @@ async function getDeclaredCashTips(restaurantId, fromDate, toDate, locationIds =
   // Review state (Phase 3 Track B): only CONFIRMED declarations count
   // toward tips and pay. A pending self-declaration, or a rejected one,
   // must never inflate the payroll basis.
+  //
+  // Money flows R6: sums are per declaration currency, resolved at
+  // read time from the store stamped on the declaration (its currency
+  // when it has one, else the restaurant currency), so a EUR cash tip
+  // never lands in the USD bucket. This deliberately reads no
+  // currency_code column off the table: Domain 8 #10 owns that column
+  // on its own branch (migration 20261113184500), and a second ADD
+  // COLUMN here would collide at deploy if both branches merge. Both
+  // resolutions agree — that migration backfills from this same
+  // source — so this path is correct whether or not the column
+  // exists. Residual: the resolution follows the location's current
+  // currency, so a declaration predating a location re-currency would
+  // follow the new currency; the stored column (once it lands) is the
+  // declaration-time truth for that edge.
   const { rows } = await pool.query(
-    `SELECT staff_user_id, COALESCE(SUM(amount_cents), 0)::int AS tips_cents
-       FROM restaurant_declared_cash_tips
-      WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3
-        AND status = 'confirmed'${storeFilter(locationIds, 'location_id', 4)}${userFilter(userId, 'staff_user_id', locationIds === null ? 4 : 5)}
-      GROUP BY staff_user_id`,
+    `SELECT d.staff_user_id,
+            COALESCE(UPPER(NULLIF(l.currency_code, '')), UPPER(NULLIF(fr.currency_code, ''))) AS currency,
+            COALESCE(SUM(d.amount_cents), 0)::int AS tips_cents
+       FROM restaurant_declared_cash_tips d
+       LEFT JOIN restaurant_locations l
+         ON l.id = d.location_id AND l.restaurant_id = d.restaurant_id
+       LEFT JOIN food_restaurants fr ON fr.id = d.restaurant_id
+      WHERE d.restaurant_id = $1 AND d.business_date >= $2 AND d.business_date <= $3
+        AND d.status = 'confirmed'${storeFilter(locationIds, 'd.location_id', 4)}${userFilter(userId, 'd.staff_user_id', locationIds === null ? 4 : 5)}
+      GROUP BY d.staff_user_id, currency`,
     withUserId([restaurantId, fromDate, toDate], locationIds, userId)
   );
   return rows;
@@ -1434,8 +1453,13 @@ async function computeTipAllocations({ restaurant, fromDate, toDate, locationIds
   const rosterById = new Map(roster.map((m) => [m.user_id, m]));
   const restaurantCurrency = requireRestaurantCurrency(restaurant);
 
-  // Gross per currency per user; declared cash lands in the
-  // restaurant's own currency.
+  // Gross per currency per user; declared cash lands in the currency
+  // it was declared in (Money flows R6: the declaring store's
+  // currency, resolved at read time — see getDeclaredCashTips), never
+  // forced into the restaurant currency. A NULL currency (no currency
+  // on the store or the restaurant) reads as the restaurant currency
+  // here; requireRestaurantCurrency below rejects a restaurant with
+  // no currency before any bucket is paid from.
   const buckets = new Map(); // currency -> { gross: Map(userId->cents), unattributed }
   const bucketFor = (currency) => {
     if (!buckets.has(currency)) buckets.set(currency, { gross: new Map(), unattributed: 0 });
@@ -1451,7 +1475,7 @@ async function computeTipAllocations({ restaurant, fromDate, toDate, locationIds
     }
   }
   for (const row of cashTips) {
-    const bucket = bucketFor(restaurantCurrency);
+    const bucket = bucketFor(String(row.currency || restaurantCurrency).trim().toUpperCase());
     const cents = Number(row.tips_cents) || 0;
     bucket.gross.set(row.staff_user_id, (bucket.gross.get(row.staff_user_id) || 0) + cents);
   }
@@ -2380,20 +2404,24 @@ async function getLatePremiums(clientOrPool, { businessId, sourceRun, excludeTar
 async function getLateCashTips(clientOrPool, { restaurantId, sourceRun, excludeTargetRunId = -1 }) {
   const { ids, scoped } = locationScopeClause(sourceRun.location_ids);
   const params = [restaurantId, runDateOnly(sourceRun.period_from), runDateOnly(sourceRun.period_to), sourceRun.finalized_at];
-  const locationClause = scoped ? `AND (location_id IS NULL OR location_id = ANY($${params.push(ids)}::bigint[]))` : '';
+  const locationClause = scoped ? `AND (d.location_id IS NULL OR d.location_id = ANY($${params.push(ids)}::bigint[]))` : '';
   const excludeParam = params.push(excludeTargetRunId);
   const { rows } = await clientOrPool.query(
-    `SELECT id, staff_user_id, amount_cents
-       FROM restaurant_declared_cash_tips
-      WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3
-        AND status = 'confirmed'
-        AND (reviewed_at > $4 OR (reviewed_at IS NULL AND created_at > $4))
+    `SELECT d.id, d.staff_user_id, d.amount_cents,
+            COALESCE(UPPER(NULLIF(l.currency_code, '')), UPPER(NULLIF(fr.currency_code, ''))) AS currency_code
+       FROM restaurant_declared_cash_tips d
+       LEFT JOIN restaurant_locations l
+         ON l.id = d.location_id AND l.restaurant_id = d.restaurant_id
+       LEFT JOIN food_restaurants fr ON fr.id = d.restaurant_id
+      WHERE d.restaurant_id = $1 AND d.business_date >= $2 AND d.business_date <= $3
+        AND d.status = 'confirmed'
+        AND (d.reviewed_at > $4 OR (d.reviewed_at IS NULL AND d.created_at > $4))
         ${locationClause}
         AND NOT EXISTS (
           SELECT 1 FROM restaurant_pay_run_carry_forwards cf
-           WHERE cf.input_type = 'cash_tip' AND cf.input_id = restaurant_declared_cash_tips.id
+           WHERE cf.input_type = 'cash_tip' AND cf.input_id = d.id
              AND cf.target_pay_run_id <> $${excludeParam})
-      ORDER BY id`,
+      ORDER BY d.id`,
     params
   );
   return rows;
@@ -2625,6 +2653,14 @@ async function buildCarryForwardItems(clientOrPool, {
     ]);
     for (const row of premiums) {
       const storedCurrency = row.premium_currency_code ? String(row.premium_currency_code).trim().toUpperCase() : null;
+      // Money flows R6 residual: a premium stored in a foreign
+      // currency is skipped by this guard until a run is priced in
+      // its own currency. Runs are priced in exactly one currency
+      // (labor.currency, snapshotted at creation) and there is no FX
+      // conversion on a stated rate, so carrying it here would pay
+      // it short; it stays flagged in inputs_changed_since_finalization
+      // until a run in its currency claims it. Premiums priced in
+      // the run's effective currency carry normally.
       if (storedCurrency !== runCurrency) continue;
       // A premium stored as hours only is priced at the current wage;
       // fall back to the business membership when the new run's
@@ -2658,6 +2694,19 @@ async function buildCarryForwardItems(clientOrPool, {
       });
     }
     for (const row of tips) {
+      // Money flows R6: a late-confirmed tip only carries into a run
+      // priced in its own currency, like the premium guard above
+      // (its currency is resolved at read time from the declaring
+      // store — see getLateCashTips). A NULL currency (no currency on
+      // the store or the restaurant) reads as the run currency, so a
+      // tip is never stranded by a missing currency row. A
+      // foreign-currency tip stays uncarried until a run in its
+      // currency claims it, instead of being paid short in the wrong
+      // currency.
+      const tipCurrency = row.currency_code
+        ? String(row.currency_code).trim().toUpperCase()
+        : runCurrency;
+      if (tipCurrency !== runCurrency) continue;
       items.push({
         source_pay_run_id: Number(source.id),
         input_type: 'cash_tip',
