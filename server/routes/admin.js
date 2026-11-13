@@ -25,6 +25,7 @@ const moderationCtrl  = require('../controllers/moderationController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const paymentDisputeAdminCtrl = require('../controllers/paymentDisputeAdminController');
 const webhookReceiptAdminCtrl = require('../controllers/webhookReceiptAdminController');
+const franchiseRoyaltyAdminCtrl = require('../controllers/franchiseRoyaltyAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
 const adminPhoneVerificationCtrl = require('../controllers/adminPhoneVerificationController');
 const adminOperationsCtrl = require('../controllers/adminOperationsController');
@@ -253,6 +254,9 @@ router.get('/super/dashboard',          requireSuperAdmin, superCtrl.getDashboar
 router.get('/super/webhook-receipts', requireSuperAdmin, webhookReceiptAdminCtrl.list);
 router.post('/super/webhook-receipts/:id/replay', requireSuperAdmin, webhookReceiptAdminCtrl.replay);
 router.post('/super/webhook-receipts/:id/resolve', requireSuperAdmin, webhookReceiptAdminCtrl.resolve);
+// Domain 8 #13: failed franchise royalty accruals — list open,
+// parked, and resolved outbox rows for operator review.
+router.get('/super/franchise-royalty-failures', requireSuperAdmin, franchiseRoyaltyAdminCtrl.listRoyaltyFailures);
 router.get('/super/chargebacks', requireSuperAdmin, async (req, res, next) => {
   try {
     const svc = require('../services/chargebackEvidenceService');

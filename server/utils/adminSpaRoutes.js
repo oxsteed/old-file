@@ -171,6 +171,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/super/audit-log/user-actions',
   '/admin/super/one-truth',
   '/admin/super/franchises',
+  '/admin/super/franchise-royalty-failures',
   '/admin/super/careers',
   '/admin/super/country-packs',
   '/admin/super/corporate/departments',

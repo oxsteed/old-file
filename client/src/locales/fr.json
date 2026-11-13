@@ -34997,6 +34997,26 @@
     "actorUser": "Utilisateur",
     "allStatuses": "Tous les statuts"
   },
+  "adminFranchiseRoyaltyFailures": {
+    "title": "Échecs de redevances de franchise",
+    "subtitle": "Redevances de franchise en échec en attente de nouvelle tentative, ou mises en attente après des échecs répétés.",
+    "statusFilterLabel": "Statut",
+    "statusOpen": "Ouvertes",
+    "statusParked": "En attente",
+    "statusResolved": "Résolues",
+    "statusAll": "Toutes",
+    "thSource": "Source",
+    "thAmount": "Montant",
+    "thAttempts": "Tentatives",
+    "thError": "Erreur",
+    "thNextRetry": "Prochaine tentative",
+    "thParkedAt": "Mise en attente le",
+    "thCreatedAt": "Créée",
+    "noEntries": "Aucun échec de redevance dans ce statut.",
+    "pagination": "Affichage de {{from}} à {{to}} sur {{total}} entrées",
+    "previous": "Précédent",
+    "next": "Suivant"
+  },
   "adminLogisticsLanes": {
     "toastMissingFields": "code, nom, pays d'origine et pays de destination requis",
     "toastLaneUpdated": "Corridor mis à jour",

@@ -34997,6 +34997,26 @@
     "actorUser": "Itilizatè",
     "allStatuses": "Tout estati"
   },
+  "adminFranchiseRoyaltyFailures": {
+    "title": "Echèk redevans franchiz",
+    "subtitle": "Akumulasyon redevans franchiz ki echwe k ap tann yon lòt esè, oswa yo mete sou kote apre echèk repete.",
+    "statusFilterLabel": "Estati",
+    "statusOpen": "Louvri",
+    "statusParked": "Mete sou kote",
+    "statusResolved": "Rezoud",
+    "statusAll": "Tout",
+    "thSource": "Sous",
+    "thAmount": "Montan",
+    "thAttempts": "Esè",
+    "thError": "Erè",
+    "thNextRetry": "Pwochen esè",
+    "thParkedAt": "Mete sou kote le",
+    "thCreatedAt": "Kreye",
+    "noEntries": "Pa gen okenn echèk redevans nan estati sa a.",
+    "pagination": "Ap montre {{from}} rive {{to}} sou {{total}} antre",
+    "previous": "Anvan",
+    "next": "Apre"
+  },
   "adminLogisticsLanes": {
     "toastMissingFields": "kòd, non, peyi orijin ak peyi destinasyon obligatwa",
     "toastLaneUpdated": "Koulwa a mete ajou",

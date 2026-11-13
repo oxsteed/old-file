@@ -34997,6 +34997,26 @@
     "actorUser": "Usuario",
     "allStatuses": "Todos los estados"
   },
+  "adminFranchiseRoyaltyFailures": {
+    "title": "Fallos de regalías de franquicia",
+    "subtitle": "Acumulaciones de regalías de franquicia fallidas en espera de reintento, o aparcadas tras fallos repetidos.",
+    "statusFilterLabel": "Estado",
+    "statusOpen": "Abiertas",
+    "statusParked": "Aparcadas",
+    "statusResolved": "Resueltas",
+    "statusAll": "Todas",
+    "thSource": "Origen",
+    "thAmount": "Importe",
+    "thAttempts": "Intentos",
+    "thError": "Error",
+    "thNextRetry": "Próximo reintento",
+    "thParkedAt": "Aparcada el",
+    "thCreatedAt": "Creada",
+    "noEntries": "No hay fallos de regalías en este estado.",
+    "pagination": "Mostrando {{from}} a {{to}} de {{total}} entradas",
+    "previous": "Anterior",
+    "next": "Siguiente"
+  },
   "adminLogisticsLanes": {
     "toastMissingFields": "Se requieren código, nombre, país de origen y país de destino",
     "toastLaneUpdated": "Corredor actualizado",

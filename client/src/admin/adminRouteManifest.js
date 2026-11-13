@@ -194,6 +194,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   // role, analysts need an active grant, others get the request flow).
   oneTruth: defineRoute('/admin/super/one-truth', { superOnly: false }),
   franchiseHq: defineRoute('/admin/super/franchises', { superOnly: true }),
+  franchiseRoyaltyFailures: defineRoute('/admin/super/franchise-royalty-failures', { superOnly: true }),
   careers: defineRoute('/admin/super/careers', { superOnly: true }),
   countryPacks: defineRoute('/admin/super/country-packs', { superOnly: true }),
   corporateSetup: defineRoute('/admin/super/corporate/departments', { superOnly: true }),

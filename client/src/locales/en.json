@@ -34997,6 +34997,26 @@
     "actorUser": "User",
     "allStatuses": "All Statuses"
   },
+  "adminFranchiseRoyaltyFailures": {
+    "title": "Franchise Royalty Failures",
+    "subtitle": "Failed franchise royalty accruals waiting for re-drive, or parked after repeated failures.",
+    "statusFilterLabel": "Status",
+    "statusOpen": "Open",
+    "statusParked": "Parked",
+    "statusResolved": "Resolved",
+    "statusAll": "All",
+    "thSource": "Source",
+    "thAmount": "Amount",
+    "thAttempts": "Attempts",
+    "thError": "Error",
+    "thNextRetry": "Next retry",
+    "thParkedAt": "Parked at",
+    "thCreatedAt": "Created",
+    "noEntries": "No royalty failures in this status.",
+    "pagination": "Showing {{from}} to {{to}} of {{total}} entries",
+    "previous": "Previous",
+    "next": "Next"
+  },
   "adminLogisticsLanes": {
     "toastMissingFields": "code, name, origin_country, destination_country required",
     "toastLaneUpdated": "Lane updated",

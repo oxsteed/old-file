@@ -66,6 +66,7 @@ const CorporateOrgChart = lazyWithRetry(() => import('./pages/super/CorporateOrg
 const CorporateAssignments = lazyWithRetry(() => import('./pages/super/CorporateAssignments'));
 const CorporateDepartments = lazyWithRetry(() => import('./pages/super/CorporateDepartments'));
 const FranchiseHQPage = lazyWithRetry(() => import('./pages/super/FranchiseHQPage'));
+const FranchiseRoyaltyFailuresPage = lazyWithRetry(() => import('./pages/super/FranchiseRoyaltyFailuresPage'));
 const CareersAdmin = lazyWithRetry(() => import('./pages/super/CareersAdmin'));
 const RestaurantCreditAdmin = lazyWithRetry(() => import('./pages/super/RestaurantCreditAdmin'));
 const RestaurantTopupApprovals = lazyWithRetry(() => import('./pages/super/RestaurantTopupApprovals'));
@@ -558,6 +559,9 @@ export default function AdminApp() {
               permission catalogue, so there is no grant to honor. */}
           <Route path={adminRoute('franchiseHq').relative} element={
             <AdminGuard superOnly={adminRoute('franchiseHq').superOnly}><FranchiseHQPage /></AdminGuard>
+          } />
+          <Route path={adminRoute('franchiseRoyaltyFailures').relative} element={
+            <AdminGuard superOnly={adminRoute('franchiseRoyaltyFailures').superOnly}><FranchiseRoyaltyFailuresPage /></AdminGuard>
           } />
           <Route path={adminRoute('careers').relative} element={
             <AdminGuard superOnly={adminRoute('careers').superOnly}><CareersAdmin /></AdminGuard>

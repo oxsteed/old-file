@@ -35111,6 +35111,26 @@
     "actorUser": "مستخدم",
     "allStatuses": "جميع الحالات"
   },
+  "adminFranchiseRoyaltyFailures": {
+    "title": "إخفاقات رسوم امتياز الفروع",
+    "subtitle": "مبالغ رسوم الامتياز الفاشلة التي تنتظر إعادة المحاولة، أو الموقوفة بعد إخفاقات متكررة.",
+    "statusFilterLabel": "الحالة",
+    "statusOpen": "مفتوحة",
+    "statusParked": "موقوفة",
+    "statusResolved": "تمت معالجتها",
+    "statusAll": "الكل",
+    "thSource": "المصدر",
+    "thAmount": "المبلغ",
+    "thAttempts": "المحاولات",
+    "thError": "الخطأ",
+    "thNextRetry": "إعادة المحاولة التالية",
+    "thParkedAt": "أوقفت في",
+    "thCreatedAt": "أُنشئت",
+    "noEntries": "لا توجد إخفاقات رسوم في هذه الحالة.",
+    "pagination": "عرض {{from}} إلى {{to}} من {{total}} إدخال",
+    "previous": "السابق",
+    "next": "التالي"
+  },
   "adminLogisticsLanes": {
     "toastMissingFields": "الرمز والاسم وبلد المنشأ وبلد الوجهة مطلوبة",
     "toastLaneUpdated": "تم تحديث المسار",
