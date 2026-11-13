@@ -25882,6 +25882,10 @@
         "finalized": "Consolidation finalisée.",
         "approved": "Consolidation approuvée.",
         "voided": "Consolidation annulée.",
+        "voidRequested": "Annulation demandée. Un autre responsable de la paie doit l’approuver.",
+        "voidApprove": "Approuver l’annulation",
+        "voidApproved": "Consolidation annulée.",
+        "voidPending": "Annulation demandée. Cette consolidation attend l’approbation d’un autre responsable de la paie.",
         "actionError": "Impossible de mettre à jour la consolidation."
       },
       "franchise": {

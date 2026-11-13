@@ -25882,6 +25882,10 @@
         "finalized": "Consolidación finalizada.",
         "approved": "Consolidación aprobada.",
         "voided": "Consolidación anulada.",
+        "voidRequested": "Anulación solicitada. Otro gerente de nómina debe aprobarla.",
+        "voidApprove": "Aprobar anulación",
+        "voidApproved": "Consolidación anulada.",
+        "voidPending": "Anulación solicitada. Esta consolidación espera la aprobación de otro gerente de nómina.",
         "actionError": "No se pudo actualizar la consolidación."
       },
       "franchise": {

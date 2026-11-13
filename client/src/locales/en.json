@@ -26498,6 +26498,10 @@
         "finalized": "Consolidation finalized.",
         "approved": "Consolidation approved.",
         "voided": "Consolidation voided.",
+        "voidRequested": "Void requested. A second payroll manager must approve it.",
+        "voidApprove": "Approve void",
+        "voidApproved": "Consolidation voided.",
+        "voidPending": "Void requested. This consolidation waits for a second payroll manager to approve the void.",
         "actionError": "Could not update the consolidation."
       },
       "franchise": {

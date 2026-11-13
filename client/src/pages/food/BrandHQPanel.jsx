@@ -19,6 +19,7 @@ import {
   finalizePayRunConsolidation,
   approvePayRunConsolidation,
   voidPayRunConsolidation,
+  approveVoidPayRunConsolidation,
   listMenuRollouts,
   createMenuRollout,
   advanceMenuRollout,
@@ -339,10 +340,21 @@ export default function BrandHQPanel({ t, restaurant }) {
   const consolidationAction = async (consolidationId, action) => {
     setPublishing(true);
     try {
-      if (action === 'finalize') await finalizePayRunConsolidation(brandId, consolidationId);
-      if (action === 'approve') await approvePayRunConsolidation(brandId, consolidationId);
-      if (action === 'void') await voidPayRunConsolidation(brandId, consolidationId);
-      toast.success(t(`restaurants.ops.brandHq.consolidations.${action}d`));
+      // Money-flows R8: voiding a finalized/approved consolidation is
+      // two-step. The maker step answers 202 with the group still
+      // finalized/approved and voidPending true, so the toast must say
+      // "requested", not "voided", until the checker step completes it.
+      if (action === 'void') {
+        const updated = await voidPayRunConsolidation(brandId, consolidationId);
+        toast.success(t(updated?.voidPending
+          ? 'restaurants.ops.brandHq.consolidations.voidRequested'
+          : 'restaurants.ops.brandHq.consolidations.voided'));
+      } else {
+        if (action === 'finalize') await finalizePayRunConsolidation(brandId, consolidationId);
+        if (action === 'approve') await approvePayRunConsolidation(brandId, consolidationId);
+        if (action === 'voidApprove') await approveVoidPayRunConsolidation(brandId, consolidationId);
+        toast.success(t(`restaurants.ops.brandHq.consolidations.${action}d`));
+      }
       await load(brandId);
     } catch (err) {
       toast.error(apiErrorMessage(err, t('restaurants.ops.brandHq.consolidations.actionError')));
@@ -715,10 +727,18 @@ export default function BrandHQPanel({ t, restaurant }) {
                     <button type="button" className="fd-btn fd-btn-sm" disabled={publishing} onClick={() => consolidationAction(consolidation.id, 'approve')} data-track="ui.eb078cc8b5.19">{t('restaurants.ops.brandHq.consolidations.approve')}</button>
                   </>
                 )}
-                {(consolidation.status === 'draft' || consolidation.status === 'finalized') && (
+                {(consolidation.status === 'draft' || consolidation.status === 'finalized' || consolidation.status === 'approved') && !consolidation.voidPending && (
                   <>
                     {' '}
                     <button type="button" className="fd-btn fd-btn-sm" disabled={publishing} onClick={() => consolidationAction(consolidation.id, 'void')} data-track="ui.eb078cc8b5.20">{t('restaurants.ops.brandHq.consolidations.void')}</button>
+                  </>
+                )}
+                {consolidation.voidPending && (
+                  <>
+                    {' '}
+                    <span className="fd-card-meta">{t('restaurants.ops.brandHq.consolidations.voidPending')}</span>
+                    {' '}
+                    <button type="button" className="fd-btn fd-btn-sm" disabled={publishing} onClick={() => consolidationAction(consolidation.id, 'voidApprove')} data-track="ui.eb078cc8b5.21">{t('restaurants.ops.brandHq.consolidations.voidApprove')}</button>
                   </>
                 )}
               </li>

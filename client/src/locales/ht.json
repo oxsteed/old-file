@@ -25882,6 +25882,10 @@
         "finalized": "Konsolidasyon an finalize.",
         "approved": "Konsolidasyon an apwouve.",
         "voided": "Konsolidasyon an anile.",
+        "voidRequested": "Yo mande anilasyon an. Yon lòt manadjè pewòl dwe apwouve li.",
+        "voidApprove": "Apwouve anilasyon an",
+        "voidApproved": "Konsolidasyon an anile.",
+        "voidPending": "Yo mande anilasyon an. Konsolidasyon sa a ap tann yon lòt manadjè pewòl apwouve li.",
         "actionError": "Pa t kapab mete konsolidasyon an ajou."
       },
       "franchise": {
