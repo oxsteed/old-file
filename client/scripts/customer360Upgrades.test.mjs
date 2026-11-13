@@ -115,3 +115,11 @@ test("domain 1 #13: Anomalies and AnomalyQueue error states offer a retry", () =
     assert.match(s, /onClick=\{\(\) => reload\(\)\}/, f);
   }
 });
+
+test("domain 1 #15: Anomalies action form has a busy guard like AnomalyQueue", () => {
+  const a = src("admin/pages/customer360/upgrades/Anomalies.jsx");
+  assert.match(a, /const \[busy, setBusy\] = useState\(false\)/);
+  assert.match(a, /if \(busy\) return;/);
+  assert.match(a, /setBusy\(true\)[\s\S]{0,600}?finally \{\s*setBusy\(false\);\s*\}/);
+  assert.match(a, /<button type="submit" disabled=\{busy\}>/);
+});
