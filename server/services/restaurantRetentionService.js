@@ -126,6 +126,68 @@ async function setRetentionPolicy(db, {
 // The rows and their amounts stay; only the identifying label goes.
 const ANONYMIZED_STAFF_LABEL = 'Former staff';
 
+// Scrub one person's names out of the business's audit-log JSON, in
+// a single UPDATE (one pass over the business's audit rows).
+//
+// Finding 13: names inside audit-log JSON for this business. The
+// full name is replaced wherever it appears in free text; a first
+// or last name is replaced only when it stands alone as a whole
+// JSON string value (e.g. {"first_name": "Phase"}), so a shared
+// first name in another person's note is not mangled. Bare
+// first/last names inside other people's free-text audit notes are
+// the known residual (see the Phase 7 report): they are not
+// replaced, and the actor/target user_id keys stay — they are the
+// pseudonymous keys the erasure boundary keeps.
+//
+// Each needle carries its own replacement: a quoted needle
+// ("Phase") must be replaced by a quoted marker ("Former staff")
+// or the JSON text stops parsing.
+//
+// Money flows W7: the audit log is business-scoped, so this runs
+// once per business per person (called from anonymizePerson after
+// the restaurant loop), not once per restaurant inside
+// anonymizeFormerStaff. The name needles nest as REPLACE calls in
+// the same order the old per-needle passes ran, and the position()
+// predicate is the OR of every needle over every column, so the
+// same rows are scrubbed in one scan. Returns the number of audit
+// rows scrubbed.
+async function scrubBusinessAuditLogNames(db, { businessId, firstName = '', lastName = '', fullName = '' } = {}) {
+  const first = String(firstName || '').trim();
+  const last = String(lastName || '').trim();
+  const full = String(fullName || '').trim() || `${first} ${last}`.trim();
+  if (!full) return 0;
+  const needles = [[full, ANONYMIZED_STAFF_LABEL]];
+  if (first && first !== full) needles.push([`"${first}"`, `"${ANONYMIZED_STAFF_LABEL}"`]);
+  if (last && last !== full) needles.push([`"${last}"`, `"${ANONYMIZED_STAFF_LABEL}"`]);
+  const columns = ['before_state', 'after_state', 'metadata'];
+  const params = [businessId];
+  const needleParams = needles.map(([needle, replacement]) => {
+    params.push(needle, replacement);
+    return { needle: params.length - 1, replacement: params.length };
+  });
+  const scrubColumn = (column) => {
+    let expr = `${column}::text`;
+    for (const { needle, replacement } of needleParams) {
+      expr = `REPLACE(${expr}, $${needle}, $${replacement})`;
+    }
+    return `${expr}::jsonb`;
+  };
+  const positionChecks = needleParams.flatMap(({ needle }) =>
+    columns.map((column) => `position($${needle} in COALESCE(${column}::text, '')) > 0`)
+  );
+  const { rows } = await db.query(
+    `UPDATE business_audit_log
+        SET before_state = ${scrubColumn('before_state')},
+            after_state = ${scrubColumn('after_state')},
+            metadata = ${scrubColumn('metadata')}
+      WHERE business_id = $1
+        AND (${positionChecks.join(' OR ')})
+      RETURNING id`,
+    params
+  );
+  return new Set((rows || []).map((row) => Number(row.id))).size;
+}
+
 // Anonymize one former staff member's restaurant-scoped personal data.
 // `retainUntil` is the offboarding retention deadline for the person;
 // anonymization only runs once it has passed, and a missing deadline
@@ -134,7 +196,7 @@ const ANONYMIZED_STAFF_LABEL = 'Former staff';
 // history rows (time entries, pay runs, schedule versions, audit rows)
 // are counted as retained and never deleted, but identifying names on
 // them are replaced (see the pay-run / edit / audit steps below).
-async function anonymizeFormerStaff(db, { businessId, restaurantId, userId, retainUntil } = {}) {
+async function anonymizeFormerStaff(db, { businessId, restaurantId, userId, retainUntil, skipAuditScrub = false } = {}) {
   if (!businessId || !userId) throw new AppError('businessId and userId are required', 400, 'validation_failed');
   if (retainUntil && new Date(retainUntil) > new Date()) {
     return { skipped: true, reason: 'retention_not_expired', retain_until: retainUntil };
@@ -258,40 +320,15 @@ async function anonymizeFormerStaff(db, { businessId, restaurantId, userId, reta
     for (const row of scrubbed.rows || []) scrubbedEditIds.add(Number(row.id));
   }
   counts.time_entry_edits_scrubbed = scrubbedEditIds.size;
-  // Finding 13: names inside audit-log JSON for this business. The
-  // full name is replaced wherever it appears in free text; a first
-  // or last name is replaced only when it stands alone as a whole
-  // JSON string value (e.g. {"first_name": "Phase"}), so a shared
-  // first name in another person's note is not mangled. Bare
-  // first/last names inside other people's free-text audit notes are
-  // the known residual (see the Phase 7 report): they are not
-  // replaced, and the actor/target user_id keys stay — they are the
-  // pseudonymous keys the erasure boundary keeps.
-  const scrubbedAuditIds = new Set();
-  if (fullName) {
-    // Each needle carries its own replacement: a quoted needle
-    // ("Phase") must be replaced by a quoted marker ("Former staff")
-    // or the JSON text stops parsing.
-    const needles = [[fullName, ANONYMIZED_STAFF_LABEL]];
-    if (firstName && firstName !== fullName) needles.push([`"${firstName}"`, `"${ANONYMIZED_STAFF_LABEL}"`]);
-    if (lastName && lastName !== fullName) needles.push([`"${lastName}"`, `"${ANONYMIZED_STAFF_LABEL}"`]);
-    for (const [needle, replacement] of needles) {
-      const scrubbed = await db.query(
-        `UPDATE business_audit_log
-            SET before_state = replace(before_state::text, $2, $3)::jsonb,
-                after_state = replace(after_state::text, $2, $3)::jsonb,
-                metadata = replace(metadata::text, $2, $3)::jsonb
-          WHERE business_id = $1
-            AND (position($2 in COALESCE(before_state::text, '')) > 0
-              OR position($2 in COALESCE(after_state::text, '')) > 0
-              OR position($2 in COALESCE(metadata::text, '')) > 0)
-          RETURNING id`,
-        [businessId, needle, replacement]
-      );
-      for (const row of scrubbed.rows || []) scrubbedAuditIds.add(Number(row.id));
-    }
-  }
-  counts.audit_names_scrubbed = scrubbedAuditIds.size;
+  // Money flows W7: the audit-log scrub is business-scoped, so the
+  // sweep runs it once per business per person (anonymizePerson
+  // calls scrubBusinessAuditLogNames after the restaurant loop) and
+  // this per-restaurant call skips it. Direct callers (the manual
+  // erasure endpoint) still scrub here, so a single-restaurant
+  // erasure keeps the same outcome counts.
+  counts.audit_names_scrubbed = skipAuditScrub
+    ? 0
+    : await scrubBusinessAuditLogNames(db, { businessId, firstName, lastName, fullName });
   // The minor band + until date is personal data about a child; once
   // retention expires it goes. (A band that is still current — the
   // person is still a minor — is never anonymized by this job.)
@@ -327,4 +364,5 @@ module.exports = {
   getRetentionPolicies,
   setRetentionPolicy,
   anonymizeFormerStaff,
+  scrubBusinessAuditLogNames,
 };

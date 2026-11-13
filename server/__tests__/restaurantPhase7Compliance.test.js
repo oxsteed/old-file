@@ -502,7 +502,8 @@ describe('Phase 7: retention policy + anonymization (gap 21)', () => {
     // Query order: name lookup, documents, orphaned storage keys
     // (#40: soft-deleted docs with no queue row), time-entry notes,
     // pay-run labels, time-entry edits (full name, first, last),
-    // audit JSON (full name, "first", "last"), labor profile, history.
+    // audit JSON (one combined pass, Money flows W7), labor profile,
+    // history.
     mockQuery.mockResolvedValueOnce({ rows: [{ first_name: 'Phase', last_name: 'Staff' }] });
     mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rows: [] });
@@ -512,8 +513,6 @@ describe('Phase 7: retention policy + anonymization (gap 21)', () => {
     mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
     mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
     mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 31 }] });
-    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 31 }] });
-    mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
     mockQuery.mockResolvedValueOnce({ rowCount: 1 });
     mockQuery.mockResolvedValueOnce({ rows: [{ retained: 5 }] });
     const outcome = await retention.anonymizeFormerStaff(client, {
@@ -524,7 +523,8 @@ describe('Phase 7: retention policy + anonymization (gap 21)', () => {
     expect(outcome.pay_run_labels_cleared).toBe(1);
     expect(outcome.time_entry_edits_scrubbed).toBe(1);
     // The same audit row matched the full-name and the quoted
-    // first-name pass; it is one scrubbed row, not two.
+    // first-name needles; the combined pass returns it once, so it
+    // is one scrubbed row, not two.
     expect(outcome.audit_names_scrubbed).toBe(1);
     expect(outcome.labor_profile_removed).toBe(1);
     expect(outcome.history_rows_retained).toBe(5);

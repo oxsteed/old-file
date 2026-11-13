@@ -19,7 +19,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { withFencedJobLock, LeaseLostError } = require('./jobLockingService');
-const { anonymizeFormerStaff } = require('../services/restaurantRetentionService');
+const { anonymizeFormerStaff, scrubBusinessAuditLogNames } = require('../services/restaurantRetentionService');
 const { enqueueStorageDeletion, resolveKey } = require('../services/storageCleanupService');
 
 const JOB_NAME = 'restaurant-retention-sweep';
@@ -30,10 +30,14 @@ async function anonymizePerson(db, { businessId, userId, retainUntil }) {
     'SELECT id FROM food_restaurants WHERE business_id = $1 ORDER BY id',
     [businessId]
   );
-  const totals = { documents_deleted: 0, time_entry_notes_cleared: 0, labor_profile_removed: 0, history_rows_retained: 0, storage_keys_enqueued: 0 };
+  const totals = { documents_deleted: 0, time_entry_notes_cleared: 0, labor_profile_removed: 0, history_rows_retained: 0, storage_keys_enqueued: 0, audit_names_scrubbed: 0 };
   for (const restaurant of restaurants) {
     const outcome = await anonymizeFormerStaff(db, {
       businessId, restaurantId: Number(restaurant.id), userId, retainUntil,
+      // Money flows W7: the audit-log scrub is business-scoped, so
+      // it runs once below, after the restaurant loop, instead of
+      // once per restaurant inside anonymizeFormerStaff.
+      skipAuditScrub: true,
     });
     if (outcome.skipped) return { skipped: true, retain_until: outcome.retain_until };
     totals.documents_deleted += outcome.documents_deleted;
@@ -59,6 +63,22 @@ async function anonymizePerson(db, { businessId, userId, retainUntil }) {
       totals.storage_keys_enqueued += 1;
     }
   }
+  // Money flows W7: one audit-log pass per business per person. The
+  // audit log carries business_id, not restaurant_id, so scrubbing
+  // it inside the per-restaurant loop above scanned the whole
+  // business log once per restaurant. The scrub runs here, once,
+  // after every restaurant is anonymized — and only then, so a
+  // person whose erasure is skipped or throws keeps their audit
+  // names until the erasure actually completes.
+  const { rows: [person] } = await db.query(
+    'SELECT first_name, last_name FROM users WHERE id = $1',
+    [userId]
+  );
+  const firstName = String(person?.first_name || '').trim();
+  const lastName = String(person?.last_name || '').trim();
+  totals.audit_names_scrubbed = await scrubBusinessAuditLogNames(db, {
+    businessId, firstName, lastName, fullName: `${firstName} ${lastName}`.trim(),
+  });
   return { skipped: false, ...totals };
 }
 
@@ -201,6 +221,7 @@ module.exports = {
   startRestaurantRetentionJob,
   runRestaurantRetentionJob,
   recordAutoCompletedErasure,
+  anonymizePerson,
   sweep,
   cronExpression: CRON_EXPRESSION,
 };

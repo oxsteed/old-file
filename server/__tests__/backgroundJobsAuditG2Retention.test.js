@@ -12,6 +12,9 @@
 
 jest.mock('../services/restaurantRetentionService', () => ({
   anonymizeFormerStaff: jest.fn(),
+  // Money flows W7: anonymizePerson scrubs the audit log once per
+  // business after the restaurant loop.
+  scrubBusinessAuditLogNames: jest.fn(async () => 0),
 }));
 jest.mock('../services/storageCleanupService', () => ({
   enqueueStorageDeletion: jest.fn(async () => true),
