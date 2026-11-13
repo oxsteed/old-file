@@ -3407,6 +3407,7 @@ input[type="color"].fd-settings-color {
    attribute, which the CSP migration blocks, so new panels use these. */
 .fd-stack { margin-top: 1rem; }
 .fd-stack-sm { margin-top: 0.75rem; }
+.fd-row-gap { gap: 1rem; }
 .fd-form-row-end { gap: 0.75rem; align-items: end; }
 .fd-field-narrow { max-width: 24rem; }
 .fd-input-currency { width: 5rem; }

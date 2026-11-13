@@ -747,7 +747,7 @@ export default function BrandHQPanel({ t, restaurant }) {
           </ul>
         )}
         {consolidationDetail && (
-          <div className="fd-stack-sm" style={{ marginTop: '0.75rem' }}>
+          <div className="fd-stack-sm">
             <h5 className="fd-settings-subhead fd-settings-subhead--flush">
               {t('restaurants.ops.brandHq.consolidations.detailTitle', { id: consolidationDetail.id })}
             </h5>

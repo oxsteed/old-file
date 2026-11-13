@@ -1196,7 +1196,7 @@ function ComplianceReportsSections({ t, restaurant, from, to, currency }) {
         <>
           <h3 className="fd-ops-subhead">{t('restaurants.ops.reports.breakAttestations.title')}</h3>
           <p className="fd-card-meta">{t('restaurants.ops.reports.breakAttestations.hint')}</p>
-          <div className="fd-row" style={{ gap: 16, flexWrap: 'wrap' }}>
+          <div className="fd-row fd-row-gap">
             <label className="fd-checkbox-row">
               <input
                 type="checkbox"
