@@ -12,6 +12,7 @@ import {
   createDeliveryExtraCheckout, createDeliveryCheckout, getDelivery, reportDeliveryIssue, requestDeliveryExtra,
   requestDeliveryReschedule, requestDeliveryReturn, reviewDeliveryExtra,
   syncDeliveryExtraPayment, syncDeliveryPayment, updateDeliveryStatus, uploadDeliveryProof,
+  uploadDeliveryItemPhoto,
   obtainDeliveryPin, deliveryDate, deliveryMoney, deliveryUnit, deliveryError,
 } from '../api/delivery';
 import '../styles/DeliveryPage.css';
@@ -38,6 +39,7 @@ export default function DeliveryDetailPage() {
   const [recipientContact, setRecipientContact] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [proofFile, setProofFile] = useState(null);
+  const [itemPhotoFile, setItemPhotoFile] = useState(null);
   const [pin, setPin] = useState('');
   const [windowStart, setWindowStart] = useState('');
   const [windowEnd, setWindowEnd] = useState('');
@@ -152,7 +154,7 @@ export default function DeliveryDetailPage() {
     <Link className="delivery-button delivery-button--secondary" to="/delivery">{t('delivery.detail.back')}</Link>
   </div></PageShell>;
 
-  const { activity = [], proofs = [], extras = [], issues = [], payments = [], rescheduleRequests = [], returns = [] } = data;
+  const { activity = [], proofs = [], extras = [], issues = [], payments = [], rescheduleRequests = [], returns = [], itemPhotos = [] } = data;
   const eta = data.eta || job.eta;
   const trackable = ['assigned', 'picked_up', 'in_transit'].includes(job.status);
   const basePayment = payments.find((payment) => payment.delivery_extra_id == null);
@@ -182,6 +184,8 @@ export default function DeliveryDetailPage() {
                 <p>{job[`${stop}_contact_name`]} {job[`${stop}_contact_phone`]}</p><p>{job[`${stop}_instructions`]}</p></dd></div>)}
             <div><dt>{t('delivery.customer.total')}</dt><dd>{money(job.customer_total_cents, job.currency)}</dd></div>
             <div><dt>{t('delivery.customer.package')}</dt><dd>{label('packageTypes', job.package_type)}</dd></div>
+            {job.item_description && <div><dt>{t('delivery.detail.itemDescription')}</dt><dd>{job.item_description}</dd></div>}
+            {job.notes && <div><dt>{t('delivery.customer.notes')}</dt><dd>{job.notes}</dd></div>}
             <div><dt>{t('delivery.customer.weight')}</dt><dd>{deliveryUnit(job.weight_lbs, 'pound', i18n.language)}</dd></div>
             <div><dt>{t('delivery.operations.pieces')}</dt><dd>{new Intl.NumberFormat(i18n.language === 'ht' ? 'fr-HT' : i18n.language).format(job.pieces || 1)}</dd></div>
             <div><dt>{t('delivery.ui.eta')}</dt><dd>{eta?.available && eta.estimatedArrivalAt ? date(eta.estimatedArrivalAt) : t('delivery.ui.etaUnavailable')}
@@ -189,6 +193,25 @@ export default function DeliveryDetailPage() {
             {['pickup', 'delivery'].map((kind) => job[`${kind}_window_start`] && <div key={kind}><dt>{t(kind === 'pickup' ? 'delivery.customer.pickup' : 'delivery.customer.dropoff')}</dt><dd>{date(job[`${kind}_window_start`])} – {date(job[`${kind}_window_end`])}</dd></div>)}
           </dl>
           {isAssigned && nextStatus && <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => act(() => updateDeliveryStatus(id, nextStatus))} data-track="ui.4c1e141977.4">{t('delivery.helper.moveTo', { status: label('helper.status', nextStatus) })}</button>}
+          <div className="delivery-item-photos">
+            <h3>{t('delivery.detail.itemPhoto')}</h3>
+            {itemPhotos.filter((photo) => photo.url).length ? (
+              <div className="delivery-item-photos__grid">
+                {itemPhotos.filter((photo) => photo.url).map((photo) => (
+                  <img key={photo.id} src={photo.url} alt={t('delivery.detail.itemPhoto')} />
+                ))}
+              </div>
+            ) : <p>{t('delivery.detail.itemPhotosEmpty')}</p>}
+            {isCustomer && ['posted', 'assigned'].includes(job.status) && (
+              <form onSubmit={(event) => { event.preventDefault(); if (!itemPhotoFile) return; act(async () => { await uploadDeliveryItemPhoto(id, itemPhotoFile); setItemPhotoFile(null); }, 'delivery.ui.saved', 'delivery.errors.status'); }}>
+                <label className="delivery-field">{t('delivery.detail.itemPhotoUpload')}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file && file.size > 10485760) { setItemPhotoFile(null); event.target.value = ''; setError(t('delivery.ui.fileTooLarge')); } else setItemPhotoFile(file || null); }} />
+                  <small>{t('delivery.detail.itemPhotoHint')}</small>
+                </label>
+                <button type="submit" className="delivery-button delivery-button--secondary" disabled={!itemPhotoFile || busy}>{t('delivery.detail.itemPhotoUpload')}</button>
+              </form>
+            )}
+          </div>
           {isCustomer && active && job.proof_preference === 'pin' && <div className="delivery-proof-list"><p>{t('delivery.ui.pinHint')}</p><button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(async () => { const result = await obtainDeliveryPin(id); setPin(result.proofPin || ''); })} data-track="ui.4c1e141977.5">{t('delivery.ui.obtainPin')}</button>{pin && <p role="status"><strong>{t('delivery.detail.pin')}: <bdi>{pin}</bdi></strong></p>}</div>}
           <div className="delivery-proof-list"><h3>{t('delivery.detail.proof')}</h3>{proofs.length ? proofs.map((proof) => <p key={proof.id}>{label('proofTypes', proof.proof_type)} · {label('ui.proofStates', proof.verification_status)}</p>) : <p>{t('delivery.detail.noProof')}</p>}</div>
           {isAssigned && job.status === 'in_transit' && <form onSubmit={submitProof} className="delivery-form" data-track="ui.4c1e141977.6"><fieldset className="delivery-form-fields" disabled={busy}>

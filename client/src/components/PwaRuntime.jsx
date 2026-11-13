@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
@@ -65,9 +65,23 @@ export default function PwaRuntime() {
   }, [query]);
   const displayRoute =
     /^\/(restaurants|food)\/(kitchen|queue|kiosk|screens)\//.test(pathname);
+  // Item 13: the banner used to flash on every transient reconnect (app
+  // resume sets 'reconnecting' on each refresh, and any 5xx API response
+  // sets 'offline'). Only show it once the non-online status has persisted
+  // about 3 seconds. The connection store itself is unchanged: it still
+  // flips immediately, and a fast recovery never shows the banner at all.
+  const [sustainedOffline, setSustainedOffline] = useState(false);
+  useEffect(() => {
+    if (state.status === 'online') {
+      setSustainedOffline(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setSustainedOffline(true), 3000);
+    return () => clearTimeout(timer);
+  }, [state.status]);
   // Healthy connections need no persistent overlay. Keep the shared state
   // and resume coordinator active; show recovery controls only when needed.
-  const showConnection = !displayRoute && !modalOpen && !localRecovery && !auth.sessionRecovering && state.status !== 'online';
+  const showConnection = !displayRoute && !modalOpen && !localRecovery && !auth.sessionRecovering && sustainedOffline;
   useEffect(() => {
     document.documentElement.classList.toggle(
       'pwa-connection-present',
