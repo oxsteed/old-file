@@ -64,7 +64,22 @@ function listMigrationFiles(migrationsDir, through = null) {
   return files.slice(0, last + 1);
 }
 
-// Decides what to do with a migration file given its recorded state.
+// Domain 8 #5: a migration's RAISE WARNING used to vanish. The F-13
+// migration skipped its unique index with only a warning, and no notice
+// handler meant the skip left no record anywhere. Attach this to the
+// client running a migration so every NOTICE/WARNING the server sends is
+// logged durably with the migration that produced it. `log` is injectable
+// so tests can capture notices without touching the real logger.
+function attachMigrationNoticeHandler(client, filename, log = logger) {
+  client.on('notice', (notice) => {
+    log.warn('Migration notice', {
+      filename,
+      severity: notice.severity || null,
+      message: notice.message || String(notice),
+    });
+  });
+  return client;
+}
 // Pure function so the policy is unit-testable without a database.
 //   skip  - already applied; verify the checksum below.
 //   abort - a previous run died mid-migration ('applying'); the database may
@@ -165,6 +180,7 @@ async function migrate({ through = null } = {}) {
       logger.info('Applying migration', { filename: file, checksum });
       const migClient = await pool.connect();
       try {
+        attachMigrationNoticeHandler(migClient, file);
         await migClient.query(sql);
         await lockClient.query(
           `UPDATE _migrations
@@ -201,7 +217,7 @@ async function migrate({ through = null } = {}) {
   }
 }
 
-module.exports = { MIGRATION_LOCK_KEY, migrationChecksum, listMigrationFiles, resolveMigrationPlan, migrate };
+module.exports = { MIGRATION_LOCK_KEY, migrationChecksum, listMigrationFiles, resolveMigrationPlan, attachMigrationNoticeHandler, migrate };
 
 if (require.main === module) migrate({
   through: process.argv.length === 2 ? null
