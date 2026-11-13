@@ -1,4 +1,5 @@
 const { assertScopedLocation } = require('../services/restaurantStoreBoundary');
+const crypto = require('crypto');
 const workforce = require('../services/restaurantWorkforceScope');
 const { payrollLocation } = require('../services/restaurantPayrollLocation');
 const pool = require('../db');
@@ -1845,6 +1846,13 @@ exports.publishShifts = async (req, res, next) => {
     for (const [userId, list] of byUser) {
       list.sort((a, b) => String(a.shift_date).localeCompare(String(b.shift_date)));
       const earliest = list[0];
+      // Domain 8 #26: the notice carries a per-business per-batch key
+      // (published rows are never re-published, so a silent failed send
+      // had no second chance) and a failure is logged with the ids
+      // instead of being swallowed by an empty catch.
+      const shiftIdsHash = crypto.createHash('sha256')
+        .update(list.map((s) => String(s.id)).sort().join(','))
+        .digest('hex').slice(0, 16);
       await sendNotification({
         userId,
         type: 'crew_shift_published',
@@ -1862,7 +1870,12 @@ exports.publishShifts = async (req, res, next) => {
             startsAt: shiftStartIso(earliest),
           },
         },
-      }).catch(() => {});
+        idempotencyKey: `shift-published:${biz.id}:${shiftIdsHash}`,
+      }).catch((err) => {
+        logger.warn('Shift publish: staff notification failed', {
+          businessId: biz.id, userId, shiftIds: list.map((s) => s.id), error: err.message,
+        });
+      });
     }
 
     await logBusinessAction(req, {
@@ -2432,7 +2445,11 @@ exports.decideTimeOffRequest = async (req, res, next) => {
       before_state: { status: 'pending' },
       after_state: request,
     });
-    // Fire-and-forget: the requester hears the decision.
+    // Fire-and-forget: the requester hears the decision. Domain 8 #26:
+    // the notice carries a per-request per-decision key (a decided
+    // request is never re-decided, so a silent failed send had no
+    // second chance) and a failure is logged with the ids instead of
+    // being swallowed by an empty catch.
     sendNotification({
       userId: request.user_id,
       type: 'time_off_decided',
@@ -2447,7 +2464,12 @@ exports.decideTimeOffRequest = async (req, res, next) => {
           endDate: String(request.end_date instanceof Date ? request.end_date.toISOString() : request.end_date).slice(0, 10),
         },
       },
-    }).catch(() => {});
+      idempotencyKey: `time-off:${request.id}:${decision}`,
+    }).catch((err) => {
+      logger.warn('Time-off decision: requester notification failed', {
+        businessId: Number(businessId), requestId: request.id, decision, error: err.message,
+      });
+    });
     return res.json({
       request,
       ...(result.decrement?.decremented ? {
