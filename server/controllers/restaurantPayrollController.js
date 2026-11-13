@@ -1643,6 +1643,18 @@ exports.linkPayRunPayout = async (req, res, next) => {
       }
       // Phase 5: a finalized-but-unapproved run cannot link payouts.
       assertPayRunApprovedForRelease(existing);
+      // Domain 8 #3: one settlement path per run. Payout links and
+      // disbursements are parallel ways to mark a run paid with no
+      // cross-check, so a run carrying both could hold more settlement
+      // records than its obligation. A run with any live disbursement
+      // cannot take links, and vice versa.
+      const { rows: [disbursementRow] } = await client.query(
+        `SELECT id FROM restaurant_pay_run_disbursements WHERE pay_run_id = $1 AND status = 'recorded' LIMIT 1`,
+        [payRunId]
+      );
+      if (disbursementRow) {
+        throw new AppError('This pay run already has recorded disbursements; a run is settled either by payout links or by disbursements, not both', 409, 'pay_run_has_disbursements');
+      }
       const { rows: [payout] } = await client.query(
         'SELECT * FROM restaurant_payouts WHERE id = $1 AND restaurant_id = $2 FOR UPDATE',
         [payoutId, restaurant.id]
@@ -1704,12 +1716,16 @@ exports.linkPayRunPayout = async (req, res, next) => {
         [payRunId, payoutId, linkAmount, payoutCurrency, req.user.id, note]
       );
       const newLinked = alreadyLinked + linkAmount;
+      // The flip is computed in JS and passed as a boolean: comparing
+      // two untyped parameters ($2 >= $3) in SQL lets Postgres infer
+      // them as text, so '5000' >= '24000' flipped a run paid on a
+      // partial link. Same shape as the disbursement flip below.
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_pay_runs
-            SET status = CASE WHEN $2 >= $3 THEN 'paid' ELSE status END, updated_at = NOW()
+            SET status = CASE WHEN $2 THEN 'paid' ELSE status END, updated_at = NOW()
           WHERE id = $1
           RETURNING *`,
-        [payRunId, newLinked, totalPayCents]
+        [payRunId, newLinked >= totalPayCents]
       );
       return updated;
     }, 'restaurant_pay_run_link_payout');
@@ -1780,6 +1796,15 @@ exports.recordPayRunDisbursement = async (req, res, next) => {
       // Disbursement is a release of money: it needs the same second
       // approver as an export or payout link.
       assertPayRunApprovedForRelease(existing);
+      // Domain 8 #3: one settlement path per run (see linkPayRunPayout).
+      // A run with any linked payout cannot take disbursements.
+      const { rows: [linkRow] } = await client.query(
+        `SELECT id FROM restaurant_pay_run_payout_links WHERE pay_run_id = $1 LIMIT 1`,
+        [payRunId]
+      );
+      if (linkRow) {
+        throw new AppError('This pay run already has linked payouts; a run is settled either by payout links or by disbursements, not both', 409, 'pay_run_has_payout_links');
+      }
       const { rows: [line] } = await client.query(
         'SELECT * FROM restaurant_pay_run_lines WHERE id = $1 AND pay_run_id = $2 FOR UPDATE',
         [payRunLineId, payRunId]
