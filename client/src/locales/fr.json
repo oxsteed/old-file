@@ -40390,6 +40390,7 @@
     "exportCsv": "Exporter CSV",
     "moneyHidden": "Les colonnes monétaires exigent le droit view_financials.",
     "editCampaign": "Modifier la campagne",
+    "manage": "Gérer",
     "scheduleCampaign": "Planifier",
     "scheduledAt": "Planifiée pour",
     "results": "Résultats",

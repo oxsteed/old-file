@@ -412,6 +412,12 @@ export default function GrowthInsights({ section = 'overview' }) {
           {section === 'segments' && row.version}
           {section === 'campaigns' && (
             <div className="flex flex-wrap gap-2">
+              <Link
+                to={`/admin/growth/campaigns/${row.id}`}
+                className={button}
+              >
+                {label('manage')}
+              </Link>
               {['draft', 'changes_requested'].includes(row.status) && (
                 <button
                   className={button}
