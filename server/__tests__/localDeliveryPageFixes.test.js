@@ -205,3 +205,112 @@ describe('item-photo upload (item 8)', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('claiming stays ungated on availability (item 1)', () => {
+  // Availability gates the open-jobs FEED only. The server claim path reads
+  // approved/active from the profile and never consults `available`, so an
+  // offline driver can still claim. The mock below fails loudly if any
+  // claim query ever mentions the availability flag.
+  function buildClaimApp() {
+    const app = express();
+    app.use((req, _res, next) => { req.user = { id: USER_ID, default_mode: 'helper' }; next(); });
+    app.post('/delivery/jobs/:id/claim', express.json(), localDelivery.claim);
+    app.use(errorHandler);
+    return app;
+  }
+
+  function mockClientForClaim(available) {
+    const now = Date.now();
+    const iso = (ms) => new Date(now + ms).toISOString();
+    const jobRow = {
+      id: 7,
+      customer_user_id: '00000000-0000-4000-8000-000000000999',
+      status: 'posted',
+      dispatch_state: 'marketplace_posted',
+      fulfillment_source: 'marketplace',
+      helper_user_id: null,
+      internal_driver_user_id: null,
+      vehicle_id: null,
+      picked_up_at: null,
+      delivered_at: null,
+      returned_at: null,
+      metadata: {},
+      pieces: 1,
+      weight_lbs: 5,
+      pickup_window_start: iso(3600000),
+      pickup_window_end: iso(5400000),
+      delivery_window_end: iso(10800000),
+      exception_code: null,
+      handling_requirements: {},
+    };
+    const capacityRow = {
+      active: true,
+      approved: true,
+      insurance_acknowledged: true,
+      insurance_expires_at: null,
+      max_pieces: 5,
+      max_payload_lbs: 100,
+      cargo_length_in: 24,
+      cargo_width_in: 24,
+      cargo_height_in: 24,
+      equipment: {},
+      service_area: null,
+      availability: null,
+      available_from: null,
+      available_until: null,
+    };
+    const client = {
+      release: jest.fn(),
+      // The response job is customer-sanitized (helper_user_id stripped), so
+      // the assignment itself is proven from the UPDATE args, not the body.
+      captured: { updateArgs: null },
+      query: jest.fn(async (sql, args) => {
+        if (/available/i.test(sql)) throw new Error('claim path must not consult the driver availability flag');
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'SAVEPOINT delivery_action' || sql === 'RELEASE SAVEPOINT delivery_action') return { rows: [] };
+        if (sql.includes('SELECT approved, active FROM delivery_driver_profiles')) return { rows: [{ approved: true, active: true, available }] };
+        if (sql.includes('SELECT * FROM delivery_driver_profiles')) return { rows: [capacityRow] };
+        if (sql.includes('SELECT * FROM delivery_jobs WHERE id')) return { rows: [jobRow] };
+        if (sql.includes('SELECT id FROM delivery_jobs WHERE id')) return { rows: [{ id: 7 }] };
+        if (sql.includes('SELECT request_hash')) return { rows: [] };
+        if (sql.includes('FROM delivery_payments')) return { rows: [{ captured_at: iso(-60000), status: 'paid' }] };
+        if (sql.includes('FROM delivery_returns') || sql.includes('FROM delivery_issues')) return { rows: [] };
+        if (sql.includes('pg_advisory_xact_lock')) return { rows: [] };
+        if (sql.includes('FROM delivery_assignment_reservations WHERE status')) return { rows: [] };
+        if (sql.includes('FROM delivery_jobs j WHERE')) return { rows: [] };
+        if (sql.includes('UPDATE delivery_assignment_reservations') || sql.includes('INSERT INTO delivery_assignment_reservations')) return { rows: [] };
+        if (sql.includes('UPDATE delivery_jobs SET helper_user_id')) { client.captured.updateArgs = args; return { rows: [{ ...jobRow, status: 'assigned', helper_user_id: USER_ID }] }; }
+        if (sql.includes('INSERT INTO delivery_dispatch_attempts')) return { rows: [] };
+        if (sql.includes('INSERT INTO delivery_activity')) return { rows: [] };
+        if (sql.includes('INSERT INTO delivery_events')) return { rows: [{ id: 1 }] };
+        if (sql.includes('INSERT INTO delivery_event_deliveries')) return { rows: [] };
+        if (sql.includes('INSERT INTO delivery_action_idempotency')) return { rows: [] };
+        throw new Error(`unexpected claim SQL: ${sql}`);
+      }),
+    };
+    return client;
+  }
+
+  const app = buildClaimApp();
+
+  afterEach(() => jest.clearAllMocks());
+
+  test('offline driver (available false) can still claim a posted job', async () => {
+    const client = mockClientForClaim(false);
+    pool.connect.mockResolvedValue(client);
+    const res = await request(app).post('/delivery/jobs/7/claim').send({ clientRequestId: 'claim-offline-0001' });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.job.status).toBe('assigned');
+    expect(client.captured.updateArgs).toEqual([USER_ID, 7]);
+  });
+
+  test('online driver (available true) claims the same way', async () => {
+    const client = mockClientForClaim(true);
+    pool.connect.mockResolvedValue(client);
+    const res = await request(app).post('/delivery/jobs/7/claim').send({ clientRequestId: 'claim-online-0001' });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.job.status).toBe('assigned');
+    expect(client.captured.updateArgs).toEqual([USER_ID, 7]);
+  });
+});

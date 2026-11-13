@@ -788,7 +788,8 @@ exports.getDriverProfile = async (req, res, next) => {
 
 // Item 12: the driver toggles their own availability flag. `available` is
 // driver-controlled (unlike ops-controlled `active`) and is deliberately NOT
-// used to gate claiming; that is a product call, not an oversight.
+// used to gate claiming; that is a product call, not an oversight. It gates
+// only the client-side open-jobs feed: offline drivers see no open offers.
 exports.setDriverAvailability = async (req, res, next) => {
   try {
     if (typeof req.body.available !== 'boolean') {

@@ -21,6 +21,7 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { useAuth } from '../context/AuthContext';
 import { canAccessOperationsWorkspace } from '../utils/logisticsWorkspaces';
+import { selectOpenJobs } from '../utils/deliveryDriverJobs';
 import {
   claimDeliveryJob,
   createDelivery,
@@ -967,7 +968,11 @@ function HelperDelivery({ t }) {
     try { await updateDeliveryStatus(id, status, proof); await loadJobs(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
   };
 
-  const openJobs = useMemo(() => helperMode ? jobs.filter((job) => job.status === 'posted' && job.marketplace_available === true && String(job.customer_user_id) !== String(user?.id)) : [], [jobs, helperMode, user?.id]);
+  // Availability gates the open-jobs FEED only: an offline driver sees no
+  // open jobs. Claiming itself stays ungated (canClaim and the server claim
+  // path never read `available`).
+  const isOnline = driverProfile?.available === true;
+  const openJobs = useMemo(() => selectOpenJobs(jobs, { helperMode, available: isOnline, userId: user?.id }), [jobs, helperMode, isOnline, user?.id]);
   const myJobs = useMemo(() => jobs.filter((job) => job.is_assigned_operator === true || String(job.customer_user_id) === String(user?.id)), [jobs, user?.id]);
   const isDriver = helperMode || internalDriver;
   const payoutTotals = useMemo(() => {
@@ -1046,7 +1051,7 @@ function HelperDelivery({ t }) {
               </section>
             </>
           )}
-          {helperMode && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
+          {helperMode && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{driverProfile?.approved === true && !isOnline ? <p className="delivery-empty-copy">{t('delivery.driver.offlineNote')}</p> : openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
           <section><div className="delivery-section-title"><h3>{t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}</h3><span>{myJobs.length}</span></div>{myJobs.length ? <div className="delivery-job-grid">{myJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={isDriver && job.is_assigned_operator === true} onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t('delivery.ui.noDeliveries')}</p>}</section>
         </>
       )}
