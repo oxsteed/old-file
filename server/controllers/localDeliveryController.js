@@ -197,6 +197,22 @@ async function quoteForRequest(body) {
   return result;
 }
 
+// Domain 9 item 2: the request hash was computed but never looked up, so
+// every identical re-price inserted a duplicate delivery_quotes row. A live
+// quote is one that is unexpired, unaccepted, and not yet attached to a job;
+// only such a row may be reused, so a consumed quote can never be booked
+// twice through a replayed quote id.
+async function findLiveQuote(userId, inputHash) {
+  const { rows } = await pool.query(
+    `SELECT id, expires_at FROM delivery_quotes
+      WHERE customer_user_id = $1 AND request_hash = $2
+        AND expires_at > NOW() AND delivery_job_id IS NULL AND accepted_at IS NULL
+      ORDER BY created_at DESC LIMIT 1`,
+    [userId, inputHash],
+  );
+  return rows[0] || null;
+}
+
 // A stop picked from /geo/suggest may carry no coordinates: when no geo
 // provider is configured, suggest returns the manual parseFallback shape.
 // Resolve such stops server-side before pricing instead of rejecting them:
@@ -293,14 +309,28 @@ exports.quote = async (req, res, next) => {
     const result = await quoteForRequest(resolved);
     const expiresAt = new Date(Date.now() + result.pricing.quoteTtlMinutes * 60 * 1000).toISOString();
     const inputHash = requestHash(resolved);
-    const { rows } = await pool.query(
-      `INSERT INTO delivery_quotes
-        (customer_user_id, request_hash, input_snapshot, price_snapshot, customer_total_cents, driver_payout_cents, currency, pricing_version, expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id, expires_at`,
-      [req.user.id, inputHash, JSON.stringify({ ...requestInput(resolved), operational, route: result.route, origin: result.origin, destination: result.destination }), JSON.stringify({ ...result.pricing, route: result.route }), result.pricing.cents.customerTotal, result.pricing.cents.driverPayout, result.pricing.currency || 'USD', 'local-delivery-v1', expiresAt],
-    );
-    res.json({ success: true, quote: { ...result, ...operational, id: rows[0].id, requestHash: inputHash, expiresAt: rows[0].expires_at, origin: resolved.origin, destination: resolved.destination } });
+    // Reuse a live quote for identical details instead of inserting a
+    // duplicate row on every re-price. The INSERT carries the same
+    // NOT EXISTS guard so two concurrent identical requests still land one
+    // row; the loser re-reads the winner.
+    let quoteRow = await findLiveQuote(req.user.id, inputHash);
+    if (!quoteRow) {
+      const { rows } = await pool.query(
+        `INSERT INTO delivery_quotes
+          (customer_user_id, request_hash, input_snapshot, price_snapshot, customer_total_cents, driver_payout_cents, currency, pricing_version, expires_at)
+         SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9
+          WHERE NOT EXISTS (
+            SELECT 1 FROM delivery_quotes
+             WHERE customer_user_id = $1 AND request_hash = $2
+               AND expires_at > NOW() AND delivery_job_id IS NULL AND accepted_at IS NULL
+          )
+         RETURNING id, expires_at`,
+        [req.user.id, inputHash, JSON.stringify({ ...requestInput(resolved), operational, route: result.route, origin: result.origin, destination: result.destination }), JSON.stringify({ ...result.pricing, route: result.route }), result.pricing.cents.customerTotal, result.pricing.cents.driverPayout, result.pricing.currency || 'USD', 'local-delivery-v1', expiresAt],
+      );
+      quoteRow = rows[0] || await findLiveQuote(req.user.id, inputHash);
+    }
+    if (!quoteRow) throw new Error('Delivery quote could not be saved');
+    res.json({ success: true, quote: { ...result, ...operational, id: quoteRow.id, requestHash: inputHash, expiresAt: quoteRow.expires_at, origin: resolved.origin, destination: resolved.destination } });
   } catch (error) {
     next(error);
   }

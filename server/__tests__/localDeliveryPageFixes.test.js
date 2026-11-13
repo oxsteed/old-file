@@ -91,6 +91,9 @@ describe('quote carries phones and item description (item 8)', () => {
   beforeEach(() => {
     insertedArgs = null;
     pool.query.mockImplementation(async (sql, args) => {
+      // No live quote exists yet in this fixture, so the dedupe SELECT
+      // finds nothing and the INSERT runs; the mock answers both shapes.
+      if (/^\s*SELECT/i.test(sql) && String(sql).includes('FROM delivery_quotes')) return { rows: [] };
       if (String(sql).includes('INSERT INTO delivery_quotes')) insertedArgs = args;
       return { rows: [{ id: 99, expires_at: new Date(Date.now() + 15 * 60000).toISOString() }] };
     });

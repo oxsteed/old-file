@@ -187,14 +187,59 @@ function fallbackMatrix(origins, destinations) {
  * by the delivery estimate/quote path so a suggestion without coordinates
  * (e.g. the manual parseFallback shape) does not dead-end the flow. The
  * query text itself is never logged.
+ *
+ * Domain 9 item 2, geocode step: successful lookups already cache 24h, but
+ * concurrent identical submits each paid for the same lookup, and an
+ * unlocatable address was re-geocoded on every submit. In-flight dedupe
+ * shares one lookup between concurrent callers; a short negative cache
+ * stops re-paying for an address no provider can locate. The negative TTL
+ * is deliberately short (60s) so a recovering provider is retried quickly.
  */
+const geocodeInflight = new Map();
+const negativeGeocodeCache = new Map();
+const NEGATIVE_GEOCODE_TTL_MS = 60 * 1000;
+
+function negativeGeocodeGet(key) {
+  const entry = negativeGeocodeCache.get(key);
+  if (!entry) return false;
+  if (Date.now() - entry.ts > NEGATIVE_GEOCODE_TTL_MS) {
+    negativeGeocodeCache.delete(key);
+    return false;
+  }
+  return true;
+}
+
+function negativeGeocodeSet(key) {
+  negativeGeocodeCache.set(key, { ts: Date.now() });
+  if (negativeGeocodeCache.size > 250) {
+    negativeGeocodeCache.delete(negativeGeocodeCache.keys().next().value);
+  }
+}
+
 async function geocodeAddress(query) {
   const text = String(query || '').trim();
   if (!text) return null;
   const cacheKey = `geocode:${text.toLowerCase()}`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
+  if (negativeGeocodeGet(cacheKey)) return null;
+  const inFlight = geocodeInflight.get(cacheKey);
+  if (inFlight) return inFlight;
+  const lookup = (async () => {
+    const located = await lookupGeocode(text);
+    if (!located) negativeGeocodeSet(cacheKey);
+    return located;
+  })();
+  geocodeInflight.set(cacheKey, lookup);
+  try {
+    return await lookup;
+  } finally {
+    geocodeInflight.delete(cacheKey);
+  }
+}
 
+async function lookupGeocode(text) {
+  const cacheKey = `geocode:${text.toLowerCase()}`;
   metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'aws', operation: 'geocode' });
   const awsResults = await awsSuggest(text);
   const awsPlace = (awsResults || []).find((place) => Number.isFinite(Number(place?.lat)) && Number.isFinite(Number(place?.lng)));
@@ -246,6 +291,8 @@ function resetForTests() {
   cache.clear();
   nearbyCache.clear();
   routeCache.clear();
+  geocodeInflight.clear();
+  negativeGeocodeCache.clear();
 }
 
 module.exports.geocodeAddress = geocodeAddress;
