@@ -2575,6 +2575,8 @@
     "intro": "Protección al consumidor, salida de dinero, cumplimiento, inactividad, revisiones de acceso, informes al regulador, anclaje de auditoría y cierre ordenado.",
     "twoAdminNote": "Cada cambio aquí necesita la aprobación de un segundo administrador.",
     "loadFailed": "No se pudo cargar esta sección.",
+    "loading": "Cargando…",
+    "retry": "Reintentar",
     "actionFailed": "La acción falló.",
     "empty": "No hay nada que mostrar.",
     "requested": "Enviado para aprobación de un segundo administrador.",

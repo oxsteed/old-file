@@ -54,6 +54,9 @@ export default function ReportsSection() {
           <ActionButton type="submit" tone="primary" disabled={action.busy || !form.packType}>{t('adminLicence.generate')}</ActionButton>
         </form>
         <LicenceTable
+          loading={packs.loading}
+          error={packs.error}
+          onRetry={packs.reload}
           rows={packs.data?.packs || []}
           columns={[
             { key: 'pack_type', label: 'type', render: (v) => t(`adminLicence.pack.${v}`, { defaultValue: v }) },
@@ -78,6 +81,9 @@ export default function ReportsSection() {
         )}
       >
         <LicenceTable
+          loading={anchors.loading}
+          error={anchors.error}
+          onRetry={anchors.reload}
           rows={anchors.data?.anchors || []}
           columns={[
             { key: 'anchor_date', label: 'date' },

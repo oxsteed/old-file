@@ -79,6 +79,9 @@ export default function OversightSection() {
         )}
       >
         <LicenceTable
+          loading={list.loading}
+          error={list.error}
+          onRetry={list.reload}
           rows={list.data?.pendingActions || []}
           columns={[
             { key: 'actionType', label: 'type', render: (v) => <span title={v}>{actionTypeLabel(t, v)}</span> },

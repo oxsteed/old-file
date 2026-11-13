@@ -39,6 +39,9 @@ export default function FxLimitsSection() {
       <Notices notice={action.notice} error={action.error || rates.error || limits.error} />
       <Panel title={t('adminLicence.fxTitle')} detail={t('adminLicence.fxDetail')} actions={<ActionButton disabled={action.busy} onClick={refresh}>{t('adminLicence.refresh')}</ActionButton>}>
         <LicenceTable
+          loading={rates.loading}
+          error={rates.error}
+          onRetry={rates.reload}
           rows={rates.data?.rates || []}
           columns={[
             { key: 'source' }, { key: 'base_currency', label: 'currency' }, { key: 'quote_currency', label: 'quoteCurrency' },
@@ -65,6 +68,9 @@ export default function FxLimitsSection() {
       </Panel>
       <Panel title={t('adminLicence.limitsTitle')} detail={t('adminLicence.limitsDetail')}>
         <LicenceTable
+          loading={limits.loading}
+          error={limits.error}
+          onRetry={limits.reload}
           rows={limits.data?.rules || []}
           columns={[
             { key: 'limitKey', label: 'name' }, { key: 'scope', label: 'type' }, { key: 'scopeCode', label: 'reference' },
@@ -73,10 +79,16 @@ export default function FxLimitsSection() {
           ]}
         />
         <LicenceTable
+          loading={limits.loading}
+          error={limits.error}
+          onRetry={limits.reload}
           rows={(limits.data?.keys || []).map((key) => ({ id: key, name: key, usd: defaults[key], currency: 'USD' }))}
           columns={[{ key: 'name' }, { key: 'usd', label: 'defaultUsd', kind: 'money' }]}
         />
         <LicenceTable
+          loading={limits.loading}
+          error={limits.error}
+          onRetry={limits.reload}
           rows={(limits.data?.referenceRates || []).map((r) => ({ ...r, id: r.currencyCode }))}
           columns={[{ key: 'currencyCode', label: 'currency' }, { key: 'unitsPerUsd', label: 'rate' }, { key: 'source' }, { key: 'asOf', label: 'date' }]}
         />

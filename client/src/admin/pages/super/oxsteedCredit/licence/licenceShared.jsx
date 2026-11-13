@@ -132,9 +132,25 @@ export function cellValue(value, column, row) {
 /**
  * A table with translated column headings (adminLicence.col.*). Cells are
  * text only: identifiers and codes render LTR inside RTL layouts.
+ *
+ * Loading and error are distinct from empty (Nov 10 #1): while the first
+ * fetch is in flight, or when it failed, the table must not claim "Nothing
+ * to show". Rows already on screen survive a background reload; only a first
+ * load with no rows yet shows the loading/error states. This follows the
+ * AdminLegalAcceptancesPage pattern (loading only when there is nothing yet,
+ * AdminErrorState with onRetry on failure).
  */
-export function LicenceTable({ rows, columns, actions, empty }) {
+export function LicenceTable({ rows, columns, actions, empty, loading, error, onRetry }) {
   const { t } = useTranslation('credit');
+  if (loading && (!rows || rows.length === 0)) return <p role="status" className="text-sm text-gray-500">{t('adminLicence.loading')}</p>;
+  if (error && (!rows || rows.length === 0)) {
+    return (
+      <div className="space-y-2">
+        <p role="alert" className="text-sm text-red-600 dark:text-red-300">{error}</p>
+        {onRetry && <ActionButton onClick={onRetry}>{t('adminLicence.retry')}</ActionButton>}
+      </div>
+    );
+  }
   if (!rows || rows.length === 0) return <p className="text-sm text-gray-500">{empty || t('adminLicence.empty')}</p>;
   return (
     <div className="overflow-x-auto">

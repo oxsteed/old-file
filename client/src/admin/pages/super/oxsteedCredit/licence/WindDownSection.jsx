@@ -61,6 +61,9 @@ export default function WindDownSection() {
           </div>
         )}
         <LicenceTable
+          loading={status.loading}
+          error={status.error}
+          onRetry={status.reload}
           rows={(status.data?.byStatus || []).map((r) => ({ ...r, id: `${r.status}-${r.currency}` }))}
           columns={[
             { key: 'status' }, { key: 'currency' }, { key: 'holders' },
@@ -72,6 +75,9 @@ export default function WindDownSection() {
       {holdersFor && <Holders planId={holdersFor} />}
       <Panel title={t('adminLicence.redeemableTitle')} detail={t('adminLicence.redeemableDetail')}>
         <LicenceTable
+          loading={status.loading}
+          error={status.error}
+          onRetry={status.reload}
           rows={(status.data?.redeemable?.totals || []).map((r) => ({ ...r, id: `${r.account_type}-${r.currency}` }))}
           columns={[
             { key: 'account_type', label: 'type' }, { key: 'currency' }, { key: 'holders' },
@@ -112,6 +118,9 @@ function Holders({ planId }) {
       )}
     >
       <LicenceTable
+        loading={holders.loading}
+        error={holders.error}
+        onRetry={holders.reload}
         rows={rows}
         columns={[
           { key: 'account_type', label: 'type' }, { key: 'status' },

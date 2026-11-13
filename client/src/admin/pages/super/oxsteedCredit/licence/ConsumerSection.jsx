@@ -51,6 +51,9 @@ export default function ConsumerSection() {
         actions={<ActionButton disabled={action.busy} onClick={sweep}>{t('adminLicence.runSweep')}</ActionButton>}
       >
         <LicenceTable
+          loading={clocks.loading}
+          error={clocks.error}
+          onRetry={clocks.reload}
           rows={clocks.data?.disputes || []}
           columns={[
             { key: 'dispute_type', label: 'type' },
@@ -66,6 +69,9 @@ export default function ConsumerSection() {
       </Panel>
       <Panel title={t('adminLicence.cashoutDisputesTitle')} detail={t('adminLicence.cashoutDisputesDetail')}>
         <LicenceTable
+          loading={cashoutDisputes.loading}
+          error={cashoutDisputes.error}
+          onRetry={cashoutDisputes.reload}
           rows={cashoutDisputes.data?.disputes || []}
           columns={[
             { key: 'cashout_id', label: 'reference' },
@@ -83,6 +89,9 @@ export default function ConsumerSection() {
       </Panel>
       <Panel title={t('adminLicence.disclosuresTitle')} detail={t('adminLicence.disclosuresDetail')}>
         <LicenceTable
+          loading={disclosures.loading}
+          error={disclosures.error}
+          onRetry={disclosures.reload}
           rows={disclosures.data?.versions || []}
           columns={[
             { key: 'disclosure_kind', label: 'type' },
@@ -97,12 +106,18 @@ export default function ConsumerSection() {
       </Panel>
       <Panel title={t('adminLicence.wageTitle')} detail={wage.data?.required ? t('adminLicence.wageRequired') : t('adminLicence.wageOptional')}>
         <LicenceTable
+          loading={wage.loading}
+          error={wage.error}
+          onRetry={wage.reload}
           rows={Object.entries(counts).map(([status, count]) => ({ id: status, status, count }))}
           columns={[{ key: 'status' }, { key: 'count' }]}
         />
       </Panel>
       <Panel title={t('adminLicence.holidaysTitle')} detail={t('adminLicence.holidaysDetail')}>
         <LicenceTable
+          loading={holidays.loading}
+          error={holidays.error}
+          onRetry={holidays.reload}
           rows={(holidays.data?.holidays || []).map((h) => ({ ...h, id: `${h.country_code}-${h.date}` }))}
           columns={[{ key: 'country_code', label: 'country' }, { key: 'date' }, { key: 'name' }]}
         />
