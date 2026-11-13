@@ -389,8 +389,15 @@ exports.laborRollupCsv = async (req, res, next) => {
   try {
     const { anchor, accessible, range, locationScope } = await loadLaborRollupScope(req);
     let rollup;
+    // Domain 8 #28: the CSV serves the same cached rollup as the JSON
+    // endpoint, so it carries the same freshness markers — as leading
+    // `# key=value` comment lines, so the data rows stay byte-identical
+    // and a manager filing the file can still tell it is up to 15
+    // minutes old. Assigned-scope reads are never cached.
+    let freshness;
     if (locationScope.mode === 'assigned') {
       rollup = await buildLaborRollup(pool, anchor, accessible, range);
+      freshness = { is_cached: false, computed_at: new Date().toISOString(), stale_after_seconds: null };
     } else {
       const cached = await rollupCache.getCachedRollup(pool, {
         restaurantId: anchor.id,
@@ -401,8 +408,14 @@ exports.laborRollupCsv = async (req, res, next) => {
         compute: () => buildLaborRollup(pool, anchor, accessible, range),
       });
       rollup = cached.payload;
+      freshness = { is_cached: cached.is_cached, computed_at: cached.computed_at, stale_after_seconds: cached.stale_after_seconds };
     }
-    const lines = [[
+    const lines = [
+      `# computed_at=${freshness.computed_at}`,
+      `# is_cached=${freshness.is_cached}`,
+      `# stale_after_seconds=${freshness.stale_after_seconds ?? ''}`,
+    ];
+    lines.push([
       'from_date', 'to_date', 'location_id', 'location_name', 'currency',
       'total_hours', 'scheduled_hours', 'overtime_hours', 'labor_cost_cents',
       'revenue_cents', 'labor_percent', 'sales_per_labor_hour_cents',
@@ -412,7 +425,7 @@ exports.laborRollupCsv = async (req, res, next) => {
       // no stored rate covers the store currency as of the rate date.
       'converted_currency', 'converted_rate_date',
       'labor_cost_converted_cents', 'revenue_converted_cents',
-    ].join(',')];
+    ].join(','));
     for (const store of rollup.stores) {
       lines.push([
         rollup.scope.from, rollup.scope.to, store.location_id,
