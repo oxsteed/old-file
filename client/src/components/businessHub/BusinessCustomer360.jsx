@@ -102,7 +102,12 @@ export default function BusinessCustomer360({ bizId, currency }) {
           <div className="bc360-detail" aria-live="polite">
             {detailState === 'idle' && <p className="bc360-muted">{copy('pick')}</p>}
             {detailState === 'loading' && <p role="status">{copy('loading')}</p>}
-            {detailState === 'error' && <p role="alert">{copy('loadFailed')}</p>}
+            {detailState === 'error' && (
+              <div>
+                <p role="alert">{copy('loadFailed')}</p>
+                <button type="button" onClick={() => selected && open(selected)}>{copy('retry')}</button>
+              </div>
+            )}
             {detailState === 'ready' && detail && (
               <article data-panel="business-customer360">
                 <h3><bdi>{detail.customer.name || copy('unnamed')}</bdi></h3>

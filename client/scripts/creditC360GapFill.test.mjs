@@ -146,3 +146,9 @@ test("domain 1 #9: BusinessCustomer360 paging failure keeps the list and shows a
     assert.notEqual(legacy(l).businessCustomer360.retry, legacy("en").businessCustomer360.retry, `${l}: retry untranslated`);
   }
 });
+
+test("domain 1 #17: BusinessCustomer360 detail-pane error offers a retry", () => {
+  const ui = read(client, "components/businessHub/BusinessCustomer360.jsx");
+  assert.match(ui, /detailState === 'error' && \([\s\S]{0,400}?copy\('retry'\)/);
+  assert.match(ui, /onClick=\{\(\) => selected && open\(selected\)\}/);
+});
