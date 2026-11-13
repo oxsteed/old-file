@@ -1,11 +1,12 @@
 'use strict';
 
+const AppError = require('../utils/appError');
+
 // Launch pricing for simple point-to-point delivery. Keep this model small and
 // transparent until OxSteed has enough completed trips to calibrate by market.
 // Values are intentionally centralized so operators can tune them without
 // changing the delivery workflow or payment records.
-const PRICING_VERSION = 'local-delivery-v1';
-const DEFAULTS = Object.freeze({
+const PRICING_VERSION = 'local-delivery-v1';const DEFAULTS = Object.freeze({
   minimumFareCents: 1500,
   baseFareCents: 900,
   includedMiles: 5,
@@ -76,11 +77,7 @@ function calculateLocalDeliveryPrice({
   const weight = Math.max(0, finiteNumber(weightLbs));
 
   if (weight > packageRule.maxWeightLbs) {
-    const error = new Error(`Weight exceeds the ${normalizedPackage} package limit`);
-    error.code = 'delivery_weight_exceeds_package_limit';
-    error.status = 400;
-    error.maxWeightLbs = packageRule.maxWeightLbs;
-    throw error;
+    throw new AppError(`Weight exceeds the ${normalizedPackage} package limit`, 400, 'delivery_weight_exceeds_package_limit', { maxWeightLbs: packageRule.maxWeightLbs });
   }
 
   const extraMiles = Math.max(0, miles - finiteNumber(config.includedMiles, DEFAULTS.includedMiles));

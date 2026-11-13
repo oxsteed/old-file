@@ -38,6 +38,7 @@ interface Props {
   maxLength?: number;
   minChars?: number;
   querySuffix?: string;
+  suppressInitialSuggestions?: boolean;
 }
 
 export default function AddressAutocomplete({
@@ -61,6 +62,7 @@ export default function AddressAutocomplete({
   maxLength,
   minChars = 2,
   querySuffix = '',
+  suppressInitialSuggestions = false,
 }: Props) {
   const { t } = useTranslation();
   const resolvedPlaceholder = placeholder || t('common.addressPlaceholder', { defaultValue: 'Start typing an address' });
@@ -73,11 +75,21 @@ export default function AddressAutocomplete({
   const requestId = useRef(0);
   const closeTimer = useRef<number | null>(null);
   const skipNextQuery = useRef(false);
+  // One-shot: a prefilled value (e.g. carried over from the estimate card)
+  // must not pop its suggestion menu open on mount. Typing afterwards
+  // queries normally.
+  const skipInitialQuery = useRef(suppressInitialSuggestions);
 
   useEffect(() => {
     const query = [value.trim(), querySuffix.trim()].filter(Boolean).join(', ');
     if (skipNextQuery.current) {
       skipNextQuery.current = false;
+      setSuggestions([]);
+      setOpen(false);
+      return undefined;
+    }
+    if (skipInitialQuery.current) {
+      skipInitialQuery.current = false;
       setSuggestions([]);
       setOpen(false);
       return undefined;

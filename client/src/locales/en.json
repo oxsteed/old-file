@@ -20589,6 +20589,37 @@
     "title": "Move it from A to B.",
     "subtitle": "Get a clear estimate, post the delivery, and follow the handoff from pickup to drop-off.",
     "heroBadge": "Pickup to drop-off",
+    "hero": {
+      "subtitle": "Get an instant estimate, post your delivery, and track it from pickup to drop-off.",
+      "stepsLabel": "How delivery works",
+      "step1": "Post",
+      "step2": "Driver claims",
+      "step3": "Track handoff"
+    },
+    "estimate": {
+      "title": "Get an instant estimate",
+      "itemSize": "Item size",
+      "defaults": "Standard service · {{weight}} default weight.",
+      "get": "Get estimate",
+      "line": "Est: {{total}}, about {{duration}}",
+      "continue": "Continue to book"
+    },
+    "tabs": {
+      "driving": "Driving"
+    },
+    "myDeliveries": {
+      "active": "Active",
+      "completed": "Completed",
+      "emptyActive": "No active deliveries yet.",
+      "emptyCompleted": "No completed deliveries yet.",
+      "bookFirst": "Book your first delivery"
+    },
+    "routePreview": {
+      "title": "Route preview",
+      "label": "Schematic route from pickup to drop-off",
+      "driver": "Driver",
+      "schematic": "Schematic, not to scale"
+    },
     "pricingNote": "Pricing uses a minimum fare, included distance, package size, service speed, and a clear platform fee.",
     "customer": {
       "title": "Book a delivery",

@@ -20589,6 +20589,37 @@
     "title": "Déplacez-le de A à B.",
     "subtitle": "Obtenez une estimation claire, publiez la livraison et suivez le trajet du retrait à la remise.",
     "heroBadge": "Du retrait à la remise",
+    "hero": {
+      "subtitle": "Obtenez une estimation instantanée, publiez votre livraison et suivez-la du retrait à la remise.",
+      "stepsLabel": "Comment fonctionne la livraison",
+      "step1": "Publier",
+      "step2": "Le chauffeur accepte",
+      "step3": "Suivre la remise"
+    },
+    "estimate": {
+      "title": "Obtenir une estimation instantanée",
+      "itemSize": "Taille de l'article",
+      "defaults": "Service standard · {{weight}} de poids par défaut.",
+      "get": "Obtenir une estimation",
+      "line": "Est. : {{total}}, environ {{duration}}",
+      "continue": "Continuer la réservation"
+    },
+    "tabs": {
+      "driving": "Conduite"
+    },
+    "myDeliveries": {
+      "active": "Actives",
+      "completed": "Terminées",
+      "emptyActive": "Aucune livraison active pour le moment.",
+      "emptyCompleted": "Aucune livraison terminée pour le moment.",
+      "bookFirst": "Réservez votre première livraison"
+    },
+    "routePreview": {
+      "title": "Aperçu de l'itinéraire",
+      "label": "Itinéraire schématique du retrait à la remise",
+      "driver": "Chauffeur",
+      "schematic": "Schéma, sans échelle"
+    },
     "pricingNote": "Le prix tient compte d’un minimum, de la distance incluse, de la taille du colis, de la vitesse et de frais de plateforme clairs.",
     "customer": {
       "title": "Réserver une livraison",

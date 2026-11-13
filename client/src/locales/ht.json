@@ -20589,6 +20589,37 @@
     "title": "Deplase l soti A pou ale B.",
     "subtitle": "Jwenn yon estimasyon klè, poste livrezon an, epi swiv li soti lè yo pran l jouk yo remèt li.",
     "heroBadge": "Soti nan ranmase pou rive remèt",
+    "hero": {
+      "subtitle": "Jwenn yon estimasyon enstantane, poste livrezon ou a, epi swiv li depi lè yo pran l rive lè yo remèt li.",
+      "stepsLabel": "Kijan livrezon an fonksyone",
+      "step1": "Poste",
+      "step2": "Chofè a pran l",
+      "step3": "Swiv remiz la"
+    },
+    "estimate": {
+      "title": "Jwenn yon estimasyon enstantane",
+      "itemSize": "Gwosè atik la",
+      "defaults": "Sèvis estanda · {{weight}} pwa pa defo.",
+      "get": "Jwenn estimasyon",
+      "line": "Est.: {{total}}, anviwon {{duration}}",
+      "continue": "Kontinye pou rezève"
+    },
+    "tabs": {
+      "driving": "Kondwi"
+    },
+    "myDeliveries": {
+      "active": "Aktif",
+      "completed": "Konplete",
+      "emptyActive": "Pa gen livrezon aktif pou kounye a.",
+      "emptyCompleted": "Pa gen livrezon ki konplete pou kounye a.",
+      "bookFirst": "Rezève premye livrezon ou a"
+    },
+    "routePreview": {
+      "title": "Apèsi wout la",
+      "label": "Wout eskemantik depi lè yo pran l rive lè yo remèt li",
+      "driver": "Chofè",
+      "schematic": "Eskema, san echèl"
+    },
     "pricingNote": "Pri a sèvi ak yon minimòm, distans ki ladan l, gwosè pakè a, vitès sèvis la ak yon frè platfòm ki klè.",
     "customer": {
       "title": "Rezève yon livrezon",

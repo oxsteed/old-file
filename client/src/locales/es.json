@@ -20589,6 +20589,37 @@
     "title": "Muévelo de A a B.",
     "subtitle": "Obtén un estimado claro, publica la entrega y sigue el recorrido desde la recogida hasta la entrega.",
     "heroBadge": "Recogida a entrega",
+    "hero": {
+      "subtitle": "Obtén una estimación instantánea, publica tu entrega y sigue el trayecto desde la recogida hasta la entrega.",
+      "stepsLabel": "Cómo funciona la entrega",
+      "step1": "Publicar",
+      "step2": "El conductor acepta",
+      "step3": "Sigue la entrega"
+    },
+    "estimate": {
+      "title": "Obtén una estimación instantánea",
+      "itemSize": "Tamaño del artículo",
+      "defaults": "Servicio estándar · {{weight}} de peso predeterminado.",
+      "get": "Obtener estimación",
+      "line": "Est.: {{total}}, unos {{duration}}",
+      "continue": "Continuar con la reserva"
+    },
+    "tabs": {
+      "driving": "Conduciendo"
+    },
+    "myDeliveries": {
+      "active": "Activas",
+      "completed": "Completadas",
+      "emptyActive": "No tienes entregas activas todavía.",
+      "emptyCompleted": "No tienes entregas completadas todavía.",
+      "bookFirst": "Reserva tu primera entrega"
+    },
+    "routePreview": {
+      "title": "Vista previa de la ruta",
+      "label": "Ruta esquemática desde la recogida hasta la entrega",
+      "driver": "Conductor",
+      "schematic": "Esquema, no a escala"
+    },
     "pricingNote": "El precio usa una tarifa mínima, distancia incluida, tamaño del paquete, rapidez del servicio y una tarifa de plataforma clara.",
     "customer": {
       "title": "Solicitar una entrega",

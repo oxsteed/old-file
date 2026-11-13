@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -6,12 +6,15 @@ import {
   CheckCircle2,
   Clock3,
   DollarSign,
+  LifeBuoy,
   Loader2,
   MapPin,
   Package,
   RefreshCw,
+  Route,
   ShieldCheck,
   Truck,
+  Upload,
 } from 'lucide-react';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import PageMeta from '../components/PageMeta';
@@ -21,6 +24,8 @@ import { canAccessOperationsWorkspace } from '../utils/logisticsWorkspaces';
 import {
   claimDeliveryJob,
   createDelivery,
+  estimateDelivery,
+  getCustomerTrackingState,
   listDeliveryJobs,
   quoteDelivery,
   updateDeliveryStatus,
@@ -106,15 +111,303 @@ function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
   );
 }
 
-function CustomerDelivery({ t }) {
+// Instant estimate defaults: the item size maps to a representative weight and
+// standard service, shown next to the size choice so the number is honest.
+// The price itself depends on distance and size, not on the exact weight,
+// which only has to stay under the size cap.
+const SIZE_DEFAULT_WEIGHT_LBS = { small: 5, medium: 25, large: 75, oversized: 150 };
+const TERMINAL_DELIVERY_STATUSES = ['delivered', 'cancelled', 'returned'];
+
+// The mockup's "Get an instant estimate" card: two stops and an item size
+// only. It prices the live route through POST /delivery/estimate, which
+// creates no quote row. Booking still goes through the full intake form and
+// its bookable quote.
+function EstimateCard({ t, onContinue, cardRef }) {
   const { i18n } = useTranslation();
-  const currency = (cents, code) => deliveryMoney(cents, i18n.language, code);
   const [origin, setOrigin] = useState(emptyPlace);
   const [destination, setDestination] = useState(emptyPlace);
   const [originText, setOriginText] = useState('');
   const [destinationText, setDestinationText] = useState('');
-  const [packageType, setPackageType] = useState('small');
-  const [weightLbs, setWeightLbs] = useState('5');
+  const [size, setSize] = useState('small');
+  const [estimate, setEstimate] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const getEstimate = async (event) => {
+    event.preventDefault();
+    setError('');
+    if ([origin, destination].some((point) => point.lat == null || point.lng == null || !Number.isFinite(Number(point.lat)) || !Number.isFinite(Number(point.lng)))) {
+      setError(t('delivery.customer.selectAddress'));
+      return;
+    }
+    if ([origin, destination].some((point) => point.country !== 'US' || !point.state)) {
+      setError(t('delivery.ui.usOnly'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await estimateDelivery({
+        origin,
+        destination,
+        packageType: size,
+        weightLbs: SIZE_DEFAULT_WEIGHT_LBS[size],
+        serviceLevel: 'standard',
+      });
+      setEstimate(response.estimate);
+    } catch (requestError) {
+      setEstimate(null);
+      setError(deliveryError(requestError, t, 'delivery.errors.quote'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="delivery-estimate-card" ref={cardRef} aria-labelledby="delivery-estimate-title">
+      <h2 id="delivery-estimate-title">{t('delivery.estimate.title')}</h2>
+      <form onSubmit={getEstimate} className="delivery-form">
+        <label className="delivery-field">
+          <span>{t('delivery.customer.pickup')}</span>
+          <AddressAutocomplete
+            value={originText}
+            onChange={(value) => { setOriginText(value); setOrigin(emptyPlace()); setEstimate(null); }}
+            onSelect={(place) => setOrigin(pointFromSuggestion(place, originText))}
+            placeholder={t('delivery.customer.pickupPlaceholder')}
+            ariaLabel={t('delivery.customer.pickup')}
+            inputClassName="delivery-input"
+            required
+          />
+        </label>
+        <label className="delivery-field">
+          <span>{t('delivery.customer.dropoff')}</span>
+          <AddressAutocomplete
+            value={destinationText}
+            onChange={(value) => { setDestinationText(value); setDestination(emptyPlace()); setEstimate(null); }}
+            onSelect={(place) => setDestination(pointFromSuggestion(place, destinationText))}
+            placeholder={t('delivery.customer.dropoffPlaceholder')}
+            ariaLabel={t('delivery.customer.dropoff')}
+            inputClassName="delivery-input"
+            required
+          />
+        </label>
+        <label className="delivery-field">
+          <span>{t('delivery.estimate.itemSize')}</span>
+          <select className="delivery-input" value={size} onChange={(event) => { setSize(event.target.value); setEstimate(null); }}>
+            {PACKAGE_OPTIONS.map((option) => <option key={option} value={option}>{t(`delivery.packageTypes.${option}`)}</option>)}
+          </select>
+        </label>
+        <p className="delivery-estimate-defaults">
+          {t('delivery.estimate.defaults', { weight: deliveryUnit(SIZE_DEFAULT_WEIGHT_LBS[size], 'pound', i18n.language) })}
+        </p>
+        {estimate ? (
+          <p className="delivery-estimate-line" aria-live="polite">
+            {t('delivery.estimate.line', {
+              total: deliveryMoney(estimate.pricing.cents.customerTotal, i18n.language, estimate.pricing.currency),
+              duration: deliveryUnit(estimate.route.durationMinutes, 'minute', i18n.language),
+            })}
+          </p>
+        ) : (
+          <p className="delivery-estimate-hint">{t('delivery.customer.quoteHint')}</p>
+        )}
+        {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
+        <button type="submit" className="delivery-button delivery-button--primary delivery-button--wide" disabled={busy}>
+          {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <DollarSign size={17} aria-hidden="true" />}
+          {t('delivery.estimate.get')}
+        </button>
+        {estimate && (
+          <button
+            type="button"
+            className="delivery-button delivery-button--secondary delivery-button--wide"
+            onClick={() => onContinue({ origin, destination, originText, destinationText, packageType: size, weightLbs: String(SIZE_DEFAULT_WEIGHT_LBS[size]) })}
+          >
+            {t('delivery.estimate.continue')}
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        )}
+      </form>
+    </section>
+  );
+}
+
+// Route preview drawn from the job's real origin/destination coordinates: a
+// stylized street grid with a route line and A/B pins. No map library, no
+// placeholder coordinates. When the driver is live, the approximate driver
+// position from the customer tracking state is shown as a marker.
+function RoutePreview({ job, t }) {
+  const gradientId = useId();
+  const [driverPoint, setDriverPoint] = useState(null);
+  const trackable = ['assigned', 'picked_up', 'in_transit', 'approaching'].includes(job.status);
+
+  useEffect(() => {
+    if (!trackable) return undefined;
+    let cancelled = false;
+    getCustomerTrackingState(job.id)
+      .then((response) => { if (!cancelled) setDriverPoint(response.state?.approximateArea || null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [job.id, trackable]);
+
+  const origin = { lat: Number(job.origin_lat), lng: Number(job.origin_lng) };
+  const destination = { lat: Number(job.destination_lat), lng: Number(job.destination_lng) };
+  if (![origin.lat, origin.lng, destination.lat, destination.lng].every(Number.isFinite)) return null;
+
+  const width = 320;
+  const height = 180;
+  const pad = 36;
+  const midLat = (origin.lat + destination.lat) / 2;
+  const midLng = (origin.lng + destination.lng) / 2;
+  const kx = Math.cos((midLat * Math.PI) / 180);
+  const rawOrigin = { x: (origin.lng - midLng) * kx, y: -(origin.lat - midLat) };
+  const rawDestination = { x: (destination.lng - midLng) * kx, y: -(destination.lat - midLat) };
+  const spanX = Math.max(Math.abs(rawOrigin.x - rawDestination.x), 1e-6);
+  const spanY = Math.max(Math.abs(rawOrigin.y - rawDestination.y), 1e-6);
+  const scale = Math.min((width - pad * 2) / spanX, (height - pad * 2) / spanY);
+  const centerX = (rawOrigin.x + rawDestination.x) / 2;
+  const centerY = (rawOrigin.y + rawDestination.y) / 2;
+  const project = (lat, lng) => ({
+    x: width / 2 + ((lng - midLng) * kx - centerX) * scale,
+    y: height / 2 + (-(lat - midLat) - centerY) * scale,
+  });
+  const a = project(origin.lat, origin.lng);
+  const bRaw = project(destination.lat, destination.lng);
+  // Separate coincident stops so both pins stay visible.
+  const sameStop = Math.hypot(a.x - bRaw.x, a.y - bRaw.y) < 26;
+  const b = sameStop ? { x: Math.min(bRaw.x + 30, width - pad), y: Math.max(bRaw.y - 22, pad) } : bRaw;
+  const bend = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - 16 };
+  const driver = driverPoint && Number.isFinite(Number(driverPoint.approxLat)) && Number.isFinite(Number(driverPoint.approxLng))
+    ? project(Number(driverPoint.approxLat), Number(driverPoint.approxLng))
+    : null;
+
+  return (
+    <figure className="delivery-route-preview">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t('delivery.routePreview.label')}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#fb923c" />
+            <stop offset="100%" stopColor="#60a5fa" />
+          </linearGradient>
+        </defs>
+        <rect width={width} height={height} className="delivery-route-preview__base" />
+        <g className="delivery-route-preview__streets" aria-hidden="true">
+          {[0.2, 0.4, 0.6, 0.8].map((fraction) => (
+            <line key={`v${fraction}`} x1={width * fraction} y1="0" x2={width * fraction} y2={height} />
+          ))}
+          {[0.25, 0.5, 0.75].map((fraction) => (
+            <line key={`h${fraction}`} x1="0" y1={height * fraction} x2={width} y2={height * fraction} />
+          ))}
+          <line x1="0" y1={height} x2={width} y2="0" />
+          <line x1="0" y1={height * 0.8} x2={width} y2={height * 0.2} />
+        </g>
+        <path d={`M ${a.x} ${a.y} Q ${bend.x} ${bend.y} ${b.x} ${b.y}`} fill="none" stroke={`url(#${gradientId})`} strokeWidth="4" strokeLinecap="round" />
+        {driver && (
+          <g>
+            <circle cx={driver.x} cy={driver.y} r="10" className="delivery-route-preview__driver-ring" />
+            <circle cx={driver.x} cy={driver.y} r="5" className="delivery-route-preview__driver" />
+            <title>{t('delivery.routePreview.driver')}</title>
+          </g>
+        )}
+        <g>
+          <circle cx={a.x} cy={a.y} r="11" className="delivery-route-preview__pin-a" />
+          <text x={a.x} y={a.y + 4} textAnchor="middle" className="delivery-route-preview__pin-label">A</text>
+        </g>
+        <g>
+          <circle cx={b.x} cy={b.y} r="11" className="delivery-route-preview__pin-b" />
+          <text x={b.x} y={b.y + 4} textAnchor="middle" className="delivery-route-preview__pin-label">B</text>
+        </g>
+      </svg>
+      <figcaption>
+        <span>{t('delivery.routePreview.title')}</span>
+        <small>{t('delivery.routePreview.schematic')}</small>
+      </figcaption>
+    </figure>
+  );
+}
+
+// "My deliveries" from the mockup: the signed-in customer's own jobs with
+// Active / Completed tabs, the empty state, and a route preview per active
+// job. Completed means delivered, cancelled, or returned.
+function MyDeliveries({ t, refreshKey, onBook }) {
+  const { user } = useAuth();
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [tab, setTab] = useState('active');
+  const [busyId, setBusyId] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await listDeliveryJobs();
+      setJobs((response.jobs || []).filter((job) => String(job.customer_user_id) === String(user?.id)));
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.load'));
+    } finally {
+      setLoading(false);
+    }
+  }, [t, user?.id]);
+
+  useEffect(() => { load(); }, [load, refreshKey]);
+
+  const move = async (id, status) => {
+    setBusyId(String(id));
+    setError('');
+    try { await updateDeliveryStatus(id, status); await load(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
+  };
+
+  const activeJobs = useMemo(() => jobs.filter((job) => !TERMINAL_DELIVERY_STATUSES.includes(job.status)), [jobs]);
+  const completedJobs = useMemo(() => jobs.filter((job) => TERMINAL_DELIVERY_STATUSES.includes(job.status)), [jobs]);
+  const shown = tab === 'active' ? activeJobs : completedJobs;
+
+  return (
+    <section className="delivery-my" aria-labelledby="delivery-my-title">
+      <div className="delivery-my__heading">
+        <h2 id="delivery-my-title">{t('delivery.helper.myDeliveries')}</h2>
+        <div className="delivery-my__tabs" role="tablist" aria-label={t('delivery.helper.myDeliveries')}>
+          <button type="button" role="tab" aria-selected={tab === 'active'} className={tab === 'active' ? 'is-active' : ''} onClick={() => setTab('active')}>
+            {t('delivery.myDeliveries.active')}
+          </button>
+          <button type="button" role="tab" aria-selected={tab === 'completed'} className={tab === 'completed' ? 'is-active' : ''} onClick={() => setTab('completed')}>
+            {t('delivery.myDeliveries.completed')}
+          </button>
+        </div>
+      </div>
+      {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
+      {loading ? (
+        <div className="delivery-loading"><Loader2 className="delivery-spin" size={24} aria-hidden="true" />{t('delivery.helper.loading')}</div>
+      ) : shown.length === 0 ? (
+        <div className="delivery-my__empty">
+          <div className="delivery-my__van" aria-hidden="true"><Truck size={46} /></div>
+          <p>{t(tab === 'active' ? 'delivery.myDeliveries.emptyActive' : 'delivery.myDeliveries.emptyCompleted')}</p>
+          {tab === 'active' && (
+            <button type="button" className="delivery-button delivery-button--outline" onClick={onBook}>
+              {t('delivery.myDeliveries.bookFirst')}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="delivery-my__jobs">
+          {shown.map((job) => (
+            <div key={job.id} className="delivery-my__job">
+              <DeliveryCard job={job} helper={false} onClaim={() => {}} onStatus={move} busyId={busyId} t={t} />
+              {tab === 'active' && <RoutePreview job={job} t={t} />}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CustomerDelivery({ t, initial, onPosted }) {
+  const { i18n } = useTranslation();
+  const currency = (cents, code) => deliveryMoney(cents, i18n.language, code);
+  const [origin, setOrigin] = useState(initial?.origin || emptyPlace);
+  const [destination, setDestination] = useState(initial?.destination || emptyPlace);
+  const [originText, setOriginText] = useState(initial?.originText || '');
+  const [destinationText, setDestinationText] = useState(initial?.destinationText || '');
+  const [packageType, setPackageType] = useState(initial?.packageType || 'small');
+  const [weightLbs, setWeightLbs] = useState(initial?.weightLbs || '5');
   const [serviceLevel, setServiceLevel] = useState('standard');
   const [notes, setNotes] = useState('');
   const [pieces, setPieces] = useState('1');
@@ -200,6 +493,7 @@ function CustomerDelivery({ t }) {
       setPosted(response.job);
       setProofPin(response.proofPin || '');
       setQuote(null);
+      onPosted?.();
     } catch (requestError) {
       setError(deliveryError(requestError, t, 'delivery.errors.create'));
     } finally {
@@ -229,6 +523,7 @@ function CustomerDelivery({ t }) {
                 placeholder={t('delivery.customer.pickupPlaceholder')}
                 ariaLabel={t('delivery.customer.pickup')}
                 inputClassName="delivery-input"
+                suppressInitialSuggestions={Boolean(initial?.originText)}
                 required
               />
             </label>
@@ -241,6 +536,7 @@ function CustomerDelivery({ t }) {
                 placeholder={t('delivery.customer.dropoffPlaceholder')}
                 ariaLabel={t('delivery.customer.dropoff')}
                 inputClassName="delivery-input"
+                suppressInitialSuggestions={Boolean(initial?.destinationText)}
                 required
               />
             </label>
@@ -551,28 +847,79 @@ function HelperDelivery({ t }) {
 export default function DeliveryPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const [booking, setBooking] = useState(false);
+  const [view, setView] = useState('book');
+  const [showFullForm, setShowFullForm] = useState(false);
+  const [prefill, setPrefill] = useState(null);
+  const [postedVersion, setPostedVersion] = useState(0);
+  const estimateRef = useRef(null);
+  const formRef = useRef(null);
   const operations = canAccessOperationsWorkspace(user);
   const operationsRole = ['admin', 'super_admin'].includes(user?.role) || ['sourcing_operator', 'logistics_coordinator', 'warehouse_operator'].includes(user?.logistics_role);
+
+  useEffect(() => {
+    if (showFullForm) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [showFullForm]);
+
+  const scrollToEstimate = () => {
+    estimateRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    estimateRef.current?.querySelector('input')?.focus({ preventScroll: true });
+  };
 
   return (
     <PageShell>
       <PageMeta title={t('delivery.metaTitle')} description={t('delivery.metaDescription')} />
       <div className="delivery-page" dir={i18n.dir()}>
-        <header className="delivery-hero">
-          <div>
-            <span className="delivery-eyebrow">{t('delivery.eyebrow')}</span>
-            <h1>{t('delivery.title')}</h1>
-            <p>{t('delivery.subtitle')}</p>
-          </div>
-          <div className="delivery-hero__badge"><Truck size={24} aria-hidden="true" /><span>{t('delivery.heroBadge')}</span></div>
-        </header>
         <nav className="delivery-workspace-tabs" aria-label={t('delivery.title')}>
-          <button type="button" className="delivery-button delivery-button--secondary" aria-pressed={booking} onClick={() => setBooking(true)}>{t('delivery.customer.title')}</button>
-          <button type="button" className="delivery-button delivery-button--secondary" aria-pressed={!booking} onClick={() => setBooking(false)}>{t('delivery.helper.myDeliveries')}</button>
+          <button type="button" className="delivery-button delivery-button--secondary" aria-pressed={view === 'book'} onClick={() => setView('book')}>{t('delivery.customer.title')}</button>
+          <button type="button" className="delivery-button delivery-button--secondary" aria-pressed={view === 'driving'} onClick={() => setView('driving')}>{t('delivery.tabs.driving')}</button>
           {operationsRole && <Link className="delivery-button delivery-button--secondary" to={operations ? '/delivery/operations' : '/logistics/login?mode=operations&next=%2Fdelivery%2Foperations'}>{t(operations ? 'delivery.dispatch.metaTitle' : 'delivery.ui.operationsLogin')}</Link>}
         </nav>
-        {booking ? <CustomerDelivery t={t} /> : <HelperDelivery t={t} />}
+        {view === 'book' ? (
+          <>
+            <header className="delivery-hero delivery-hero--redesign">
+              <div className="delivery-hero__copy">
+                <span className="delivery-eyebrow">{t('delivery.eyebrow')}</span>
+                <h1>{t('delivery.title')}</h1>
+                <p>{t('delivery.hero.subtitle')}</p>
+                <ol className="delivery-steps" aria-label={t('delivery.hero.stepsLabel')}>
+                  <li>
+                    <span className="delivery-steps__number">1</span>
+                    <span>{t('delivery.hero.step1')}</span>
+                    <Upload size={18} aria-hidden="true" />
+                  </li>
+                  <li>
+                    <span className="delivery-steps__number">2</span>
+                    <span>{t('delivery.hero.step2')}</span>
+                    <LifeBuoy size={18} aria-hidden="true" />
+                  </li>
+                  <li>
+                    <span className="delivery-steps__number">3</span>
+                    <span>{t('delivery.hero.step3')}</span>
+                    <Route size={18} aria-hidden="true" />
+                  </li>
+                </ol>
+              </div>
+              <EstimateCard
+                t={t}
+                cardRef={estimateRef}
+                onContinue={(nextPrefill) => { setPrefill({ ...nextPrefill, key: Date.now() }); setShowFullForm(true); }}
+              />
+            </header>
+            {showFullForm && (
+              <div ref={formRef} className="delivery-booking-form">
+                <CustomerDelivery
+                  key={prefill?.key || 'default'}
+                  t={t}
+                  initial={prefill}
+                  onPosted={() => setPostedVersion((version) => version + 1)}
+                />
+              </div>
+            )}
+            <MyDeliveries t={t} refreshKey={postedVersion} onBook={scrollToEstimate} />
+          </>
+        ) : (
+          <HelperDelivery t={t} />
+        )}
       </div>
     </PageShell>
   );
