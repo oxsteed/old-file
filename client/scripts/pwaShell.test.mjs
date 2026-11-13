@@ -4,10 +4,11 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const root = new URL('../', import.meta.url),
   source = fs.readFileSync(new URL('public/sw.js', root), 'utf8');
-function worker(fetch = async () => new Response('asset')) {
+function worker(fetch = async () => new Response('asset'), { failPrecache = [] } = {}) {
   const listeners = {},
     stored = new Map(),
-    writes = [];
+    writes = [],
+    added = [];
   let skips = 0;
   const bucket = {
     match: async (req) => stored.get(typeof req === 'string' ? new URL(req, 'https://oxsteed.test').href : req.url)?.clone(),
@@ -17,7 +18,12 @@ function worker(fetch = async () => new Response('asset')) {
     },
     keys: async () => [...stored.keys()].map(url=>new Request(url)),
     delete: async req => stored.delete(req.url),
-    addAll: async (urls) => assert.deepEqual([...urls], ['/offline.html', '/trouble.html']),
+    add: async (url) => {
+      added.push(url);
+      if (failPrecache.includes(url)) throw Error(`precache failed: ${url}`);
+      stored.set(new URL(url, 'https://oxsteed.test').href, new Response('page'));
+    },
+    addAll: async (urls) => { for (const url of urls) await bucket.add(url); },
   };
   const metadata = new Map();
   const metaBucket = { match: async req=>metadata.get(req.url)?.clone(), put: async(req,res)=>metadata.set(req.url,res.clone()), keys: async()=>[...metadata.keys()].map(url=>new Request(url)), delete:async req=>metadata.delete(req.url) };
@@ -47,6 +53,7 @@ function worker(fetch = async () => new Response('asset')) {
     context,
     stored,
     writes,
+    added,
     get skips() {
       return skips;
     },
@@ -115,12 +122,23 @@ test('installation waits for an explicit page update message', async () => {
   w.listeners.install({ waitUntil: (p) => (complete = p) });
   await complete;
   assert.equal(w.skips, 0);
+  assert.deepEqual(w.added, ['/offline.html', '/trouble.html']);
   w.listeners.message({
     data: { type: 'SKIP_WAITING' },
     waitUntil: (p) => (complete = p),
   });
   await complete;
   assert.equal(w.skips, 1);
+});
+test('Nov 10 #14: install still succeeds when one precache entry fails', async () => {
+  const w = worker(undefined, { failPrecache: ['/offline.html'] });
+  let complete;
+  w.listeners.install({ waitUntil: (p) => (complete = p) });
+  await complete;
+  // Both pages were attempted; the surviving one is cached, so the worker
+  // still has an error page instead of no worker at all.
+  assert.deepEqual(w.added, ['/offline.html', '/trouble.html']);
+  assert.equal(w.stored.has('https://oxsteed.test/trouble.html'), true);
 });
 test('API remains network-only and private uploads remain unintercepted', async () => {
   const w = worker(async () => {

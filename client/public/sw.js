@@ -18,10 +18,22 @@ const PRECACHE_URLS = [
 ];
 
 // ── Install: pre-cache shell ───────────────────────────────────────────────────
+// Each page is cached on its own and failures are contained: a failed
+// /offline.html precache used to reject the whole install (cache.addAll is
+// atomic), leaving no offline fallback at all. Install now succeeds with a
+// degraded cache and logs which pages missed.
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      .then(cache => cache.addAll(PRECACHE_URLS))
+      .then(cache => Promise.allSettled(PRECACHE_URLS.map(url => cache.add(url))))
+      .then(results => {
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.warn(`[SW] precache failed for ${PRECACHE_URLS[index]}; install continues with a degraded cache.`);
+          }
+        });
+      })
+      .catch(() => { /* Cache storage unavailable; install still succeeds. */ })
   );
 });
 
