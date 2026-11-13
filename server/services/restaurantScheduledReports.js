@@ -32,6 +32,13 @@ const PENDING_STALE_MINUTES = 60;
 // runDueScheduledReports), not to the enabled set.
 const MAX_SCHEDULES_PER_RUN = 100;
 
+// Domain 8 #22: a schedule whose build keeps failing stays due and
+// would occupy a run slot forever, so 100 failing schedules could
+// head-of-line block the rest. Schedules at or above this many
+// consecutive failures are skipped by the due select until one
+// succeeds again (a success resets the counter to 0).
+const CONSECUTIVE_FAILURES_SKIP_THRESHOLD = 5;
+
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { LeaseLostError } = require('../jobs/jobLockingService');
@@ -382,11 +389,11 @@ async function markDeliveryFailed(db, { deliveryId, error, recipientCount = null
 // 100 rows (now not due) and every schedule past id 100 would starve
 // forever. Here a built schedule drops out of the due set, so the
 // next run selects the next due batch. The JS isDue check below stays
-// as a second gate in case the two ever disagree. Residual: a schedule
-// whose build keeps failing stays due and keeps occupying a slot, so
-// 100 persistently failing schedules can still head-of-line block the
-// rest; that is bounded to genuinely failing schedules, not to every
-// schedule past the cap. A restaurant with an unknown timezone falls
+// as a second gate in case the two ever disagree. Domain 8 #22: a
+// schedule at/above CONSECUTIVE_FAILURES_SKIP_THRESHOLD consecutive
+// failures is skipped by the due select as well, so persistently
+// failing schedules cannot head-of-line block the rest; a success
+// resets the counter. A restaurant with an unknown timezone falls
 // back to UTC for the due computation (mirroring the JS fallback in
 // the loop) instead of failing the whole select.
 async function runDueScheduledReports(db = pool, { now = new Date(), fence = null } = {}) {
@@ -400,12 +407,13 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
                THEN r.timezone ELSE 'UTC' END)::date - 1)) AS business_date
       ) AS bd
       WHERE sr.enabled = TRUE
+        AND sr.consecutive_failures < $3
         AND (sr.last_business_date IS NULL
              OR (sr.frequency = 'weekly' AND sr.last_business_date <= bd.business_date - 7)
              OR (sr.frequency <> 'weekly' AND sr.last_business_date < bd.business_date))
       ORDER BY sr.id
       LIMIT $2`,
-    [now, MAX_SCHEDULES_PER_RUN]
+    [now, MAX_SCHEDULES_PER_RUN, CONSECUTIVE_FAILURES_SKIP_THRESHOLD]
   );
   const result = { due: 0, sent: 0, skipped: 0, failed: 0, errors: [] };
   for (const schedule of schedules) {
@@ -485,10 +493,13 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
         logger.warn('Scheduled report delivery was reclaimed mid-flight; not re-marking sent', { scheduleId: schedule.id });
       }
       // last_business_date advances only on success: a failed date
-      // stays due and is retried on the next run.
+      // stays due and is retried on the next run. Domain 8 #22: a
+      // success also resets the consecutive-failure counter, so a
+      // recovered schedule is due again.
       await db.query(
         `UPDATE restaurant_scheduled_reports
-            SET last_run_at = NOW(), last_business_date = $2::date, updated_at = NOW()
+            SET last_run_at = NOW(), last_business_date = $2::date, updated_at = NOW(),
+                consecutive_failures = 0
           WHERE id = $1`,
         [schedule.id, businessDate]
       );
@@ -503,6 +514,17 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
       result.failed += 1;
       result.errors.push({ schedule_id: Number(schedule.id), error: err.message });
       logger.error('Scheduled restaurant report failed', { scheduleId: schedule.id, error: err.message });
+      // Domain 8 #22: count the failure toward the skip threshold.
+      // Best-effort: a counter-write failure must not mask the
+      // build/delivery error or break the run.
+      try {
+        await db.query(
+          `UPDATE restaurant_scheduled_reports
+              SET consecutive_failures = consecutive_failures + 1, updated_at = NOW()
+            WHERE id = $1`,
+          [schedule.id]
+        );
+      } catch { /* the counter is best-effort; the error above is the record */ }
       // Record the failure on the claimed row (no second INSERT: the
       // dedupe key already belongs to the claim). If the claim itself
       // threw there is no row to mark; last_business_date is untouched
@@ -531,6 +553,7 @@ module.exports = {
   markDeliveryFailed,
   PENDING_STALE_MINUTES,
   MAX_SCHEDULES_PER_RUN,
+  CONSECUTIVE_FAILURES_SKIP_THRESHOLD,
   runDueScheduledReports,
   localDateString,
   shiftDateString,
