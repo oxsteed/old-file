@@ -77,4 +77,40 @@ describe('direct calendar reminders', () => {
     expect(updateSql).toContain("status = 'failed'");
     expect(updateSql).not.toContain("status = 'sent'");
   });
+
+  test('both recipients of one request are delivered in the same bounded batch (cost audit 2026-11-13 item 15)', async () => {
+    const scheduled = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    let deliverySeq = 0;
+    db.query.mockImplementation(async (sql) => {
+      if (String(sql).includes('FROM quote_requests')) {
+        return { rows: [{
+          id: 46,
+          first_name: 'Jo',
+          email: 'customer@example.com',
+          service_category: 'Plumbing',
+          service_location: 'On file',
+          scheduled_start_at: scheduled,
+          assignee_email: 'helper@example.com',
+        }] };
+      }
+      if (String(sql).includes('INSERT INTO direct_calendar_reminder_deliveries')) {
+        deliverySeq += 1;
+        return { rows: [{ id: 100 + deliverySeq }] };
+      }
+      return { rows: [] };
+    });
+    sendEmail.mockResolvedValue({ success: true });
+
+    await expect(processDirectCalendarReminders()).resolves.toEqual({ sent: 2, failed: 0 });
+
+    const recipients = sendEmail.mock.calls.map(([arg]) => arg.to).sort();
+    expect(recipients).toEqual(['customer@example.com', 'helper@example.com']);
+    const keys = sendEmail.mock.calls.map(([arg]) => arg.idempotencyKey).sort();
+    expect(keys).toEqual([
+      'direct-calendar-reminder:46:24_hour:customer@example.com',
+      'direct-calendar-reminder:46:24_hour:helper@example.com',
+    ]);
+    const sentMarks = db.query.mock.calls.filter(([sql]) => String(sql).includes("status = 'sent'"));
+    expect(sentMarks).toHaveLength(2);
+  });
 });
