@@ -38444,7 +38444,15 @@
     "resultPaymentMethod": "Metòd peman:",
     "stepupPrompt": "Antre kòd verifikasyon ki nan aplikasyon otantifikatè w la pou konfime anilasyon sa a.",
     "stepupRequired": "Yon kòd verifikasyon obligatwa pou anile yon abònman.",
-    "stepupFailed": "Pa t ka kòmanse verifikasyon pou anilasyon sa a."
+    "stepupFailed": "Pa t ka kòmanse verifikasyon pou anilasyon sa a.",
+    "previewTitle": "Apèsi abònman an",
+    "previewLoading": "N ap chèche abònman an…",
+    "previewFailed": "Nou pa jwenn abònman sa a. Verifye idantifyan an epi eseye ankò.",
+    "previewPlan": "Plan:",
+    "previewAmount": "Montan:",
+    "previewStripeCustomer": "Kliyan Stripe:",
+    "previewUnknown": "Pa anrejistre",
+    "previewRequired": "Chèche abònman an anvan pou konfime sib anilasyon an."
   },
   "statementOps": {
     "title": "Operasyon relve yo",

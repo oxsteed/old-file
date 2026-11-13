@@ -38444,7 +38444,15 @@
     "resultPaymentMethod": "Payment method:",
     "stepupPrompt": "Enter the verification code from your authenticator app to confirm this cancellation.",
     "stepupRequired": "A verification code is required to cancel a subscription.",
-    "stepupFailed": "Could not start verification for this cancellation."
+    "stepupFailed": "Could not start verification for this cancellation.",
+    "previewTitle": "Subscription preview",
+    "previewLoading": "Looking up subscription…",
+    "previewFailed": "Could not find that subscription. Check the id and try again.",
+    "previewPlan": "Plan:",
+    "previewAmount": "Amount:",
+    "previewStripeCustomer": "Stripe customer:",
+    "previewUnknown": "Not recorded",
+    "previewRequired": "Look up the subscription first so the cancellation target is confirmed."
   },
   "statementOps": {
     "title": "Statement operations",

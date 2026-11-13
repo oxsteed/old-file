@@ -38444,7 +38444,15 @@
     "resultPaymentMethod": "Método de pago:",
     "stepupPrompt": "Escribe el código de verificación de tu aplicación de autenticación para confirmar esta cancelación.",
     "stepupRequired": "Se requiere un código de verificación para cancelar una suscripción.",
-    "stepupFailed": "No se pudo iniciar la verificación de esta cancelación."
+    "stepupFailed": "No se pudo iniciar la verificación de esta cancelación.",
+    "previewTitle": "Vista previa de la suscripción",
+    "previewLoading": "Buscando la suscripción…",
+    "previewFailed": "No se encontró esa suscripción. Verifique el identificador e inténtelo de nuevo.",
+    "previewPlan": "Plan:",
+    "previewAmount": "Importe:",
+    "previewStripeCustomer": "Cliente de Stripe:",
+    "previewUnknown": "No registrado",
+    "previewRequired": "Busque primero la suscripción para confirmar el objetivo de la cancelación."
   },
   "statementOps": {
     "title": "Operaciones de estados de cuenta",

@@ -280,6 +280,7 @@ router.post('/super/chargebacks/:id/submit', requireSuperAdmin, rejectImpersonat
     res.json({ chargeback: row });
   } catch (err) { next(err); }
 });
+router.get('/super/subscriptions/:id', requireSuperAdmin, require('../controllers/subscriptionController').getAdminSubscription);
 router.post('/super/subscriptions/stepup-challenges', requireSuperAdmin, strictLimiter, require('../controllers/subscriptionController').issueAdminCancelStepupChallenge);
 router.post('/super/subscriptions/:id/cancel', requireSuperAdmin, require('../controllers/subscriptionController').adminCancelSubscription);
 router.get('/super/revenue-chart',      requireSuperAdmin, superCtrl.getRevenueChart);

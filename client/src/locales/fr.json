@@ -38444,7 +38444,15 @@
     "resultPaymentMethod": "Moyen de paiement :",
     "stepupPrompt": "Saisissez le code de vérification de votre application d'authentification pour confirmer cette annulation.",
     "stepupRequired": "Un code de vérification est requis pour annuler un abonnement.",
-    "stepupFailed": "Impossible de lancer la vérification de cette annulation."
+    "stepupFailed": "Impossible de lancer la vérification de cette annulation.",
+    "previewTitle": "Aperçu de l'abonnement",
+    "previewLoading": "Recherche de l'abonnement…",
+    "previewFailed": "Cet abonnement est introuvable. Vérifiez l'identifiant et réessayez.",
+    "previewPlan": "Formule :",
+    "previewAmount": "Montant :",
+    "previewStripeCustomer": "Client Stripe :",
+    "previewUnknown": "Non enregistré",
+    "previewRequired": "Recherchez d'abord l'abonnement pour confirmer la cible de l'annulation."
   },
   "statementOps": {
     "title": "Operations des releves",

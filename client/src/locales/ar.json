@@ -38558,7 +38558,15 @@
     "resultPaymentMethod": "طريقة الدفع:",
     "stepupPrompt": "أدخل رمز التحقق من تطبيق المصادقة لديك لتأكيد هذا الإلغاء.",
     "stepupRequired": "رمز التحقق مطلوب لإلغاء الاشتراك.",
-    "stepupFailed": "تعذّر بدء التحقق لهذا الإلغاء."
+    "stepupFailed": "تعذّر بدء التحقق لهذا الإلغاء.",
+    "previewTitle": "معاينة الاشتراك",
+    "previewLoading": "جارٍ البحث عن الاشتراك…",
+    "previewFailed": "تعذّر العثور على هذا الاشتراك. تحقق من المعرّف وحاول مجددًا.",
+    "previewPlan": "الخطة:",
+    "previewAmount": "المبلغ:",
+    "previewStripeCustomer": "عميل Stripe:",
+    "previewUnknown": "غير مسجّل",
+    "previewRequired": "ابحث عن الاشتراك أولًا لتأكيد هدف الإلغاء."
   },
   "statementOps": {
     "title": "عمليات الكشوفات",

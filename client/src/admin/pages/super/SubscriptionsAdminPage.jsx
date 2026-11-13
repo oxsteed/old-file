@@ -3,6 +3,47 @@ import { useTranslation } from 'react-i18next';
 import adminApi from '../../../lib/adminApi';
 import ConfirmDialog from '../../lib/ConfirmDialog';
 
+function formatPreviewAmount(preview, unknown) {
+  if (preview?.amountCents == null) return unknown;
+  const currency = String(preview.currency || 'USD').toUpperCase();
+  const amount = (Number(preview.amountCents) / 100).toFixed(2);
+  return preview.interval ? `${amount} ${currency} / ${preview.interval}` : `${amount} ${currency}`;
+}
+
+function SubscriptionPreview({ preview, t }) {
+  if (!preview) return null;
+  return (
+    <dl className="mt-4 space-y-1 rounded-xl border border-slate-700 bg-slate-900 p-4 text-sm text-gray-300">
+      <div>
+        <dt className="inline text-gray-500">{t('adminSubscriptions.resultId')} </dt>
+        <dd className="inline font-mono">{String(preview.id)}</dd>
+      </div>
+      <div>
+        <dt className="inline text-gray-500">{t('adminSubscriptions.resultUser')} </dt>
+        <dd className="inline">{preview.userDisplayName || t('adminSubscriptions.previewUnknown')}{preview.userEmail ? ` (${preview.userEmail})` : ''}</dd>
+      </div>
+      <div>
+        <dt className="inline text-gray-500">{t('adminSubscriptions.previewPlan')} </dt>
+        <dd className="inline">{preview.planName || t('adminSubscriptions.previewUnknown')}</dd>
+      </div>
+      <div>
+        <dt className="inline text-gray-500">{t('adminSubscriptions.resultStatus')} </dt>
+        <dd className="inline">{String(preview.status || '')}</dd>
+      </div>
+      <div>
+        <dt className="inline text-gray-500">{t('adminSubscriptions.previewAmount')} </dt>
+        <dd className="inline">{formatPreviewAmount(preview, t('adminSubscriptions.previewUnknown'))}</dd>
+      </div>
+      {preview.stripeCustomerId && (
+        <div>
+          <dt className="inline text-gray-500">{t('adminSubscriptions.previewStripeCustomer')} </dt>
+          <dd className="inline font-mono">{String(preview.stripeCustomerId)}</dd>
+        </div>
+      )}
+    </dl>
+  );
+}
+
 export default function SubscriptionsAdminPage() {
   const { t } = useTranslation();
   const [subscriptionId, setSubscriptionId] = useState('');
@@ -11,8 +52,50 @@ export default function SubscriptionsAdminPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [result, setResult] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState('');
 
-  const openConfirm = (event) => {
+  // Domain 7 #6: never confirm blind. The subscription is looked up and
+  // previewed (user, plan, status, amount) before the confirm can proceed,
+  // and the confirm stays disabled until a preview for the exact id entered
+  // has loaded. A transposed id that matches a different subscription shows
+  // that subscription's owner, so the admin can catch it.
+  const lookupSubscription = async (id) => {
+    const normalizedId = String(id || '').trim();
+    if (!normalizedId) {
+      setPreview(null);
+      setPreviewError('');
+      return null;
+    }
+    setPreview(null);
+    setPreviewError('');
+    setPreviewLoading(true);
+    try {
+      const { data: body } = await adminApi.get(`/admin/super/subscriptions/${encodeURIComponent(normalizedId)}`);
+      const found = body?.subscription || null;
+      if (!found || String(found.id) !== normalizedId) {
+        setPreview(null);
+        setPreviewError(t('adminSubscriptions.previewFailed'));
+        return null;
+      }
+      setPreview(found);
+      return found;
+    } catch (err) {
+      setPreview(null);
+      const serverMessage = err?.response?.data?.error?.message
+        || err?.response?.data?.message
+        || err?.response?.data?.error;
+      setPreviewError(typeof serverMessage === 'string' && serverMessage
+        ? serverMessage
+        : t('adminSubscriptions.previewFailed'));
+      return null;
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const openConfirm = async (event) => {
     event.preventDefault();
     setError('');
     setNotice('');
@@ -20,11 +103,20 @@ export default function SubscriptionsAdminPage() {
       setError(t('adminSubscriptions.idRequired'));
       return;
     }
+    const found = preview && String(preview.id) === subscriptionId.trim()
+      ? preview
+      : await lookupSubscription(subscriptionId.trim());
+    if (!found) return;
     setConfirmOpen(true);
   };
 
   const cancelSubscription = async (reason) => {
     const id = subscriptionId.trim();
+    // Defense in depth (clawback pattern): no step-up is issued without a
+    // loaded preview for this exact id, even if the dialog state is bypassed.
+    if (!preview || String(preview.id) !== id) {
+      throw new Error(t('adminSubscriptions.previewRequired'));
+    }
     setBusy(true);
     setError('');
     setNotice('');
@@ -52,18 +144,24 @@ export default function SubscriptionsAdminPage() {
       const serverMessage = err?.response?.data?.error?.message
         || err?.response?.data?.message
         || err?.response?.data?.error;
-      setError(typeof serverMessage === 'string' && serverMessage
+      // A thrown Error without a server response (e.g. the preview guard
+      // above) already carries the message to show; axios failures fall back
+      // to the generic text instead of the axios status line.
+      const message = typeof serverMessage === 'string' && serverMessage
         ? serverMessage
-        : t('adminSubscriptions.failed'));
+        : (!err?.response && typeof err?.message === 'string' && err.message
+          ? err.message
+          : t('adminSubscriptions.failed'));
+      setError(message);
       // Throw an Error carrying only the string message so the confirm
       // dialog can render it; the raw axios error may carry an object.
-      throw new Error(typeof serverMessage === 'string' && serverMessage
-        ? serverMessage
-        : t('adminSubscriptions.failed'));
+      throw new Error(message);
     } finally {
       setBusy(false);
     }
   };
+
+  const previewMatchesId = preview && String(preview.id) === subscriptionId.trim();
 
   return (
     <div className="p-6">
@@ -96,14 +194,29 @@ export default function SubscriptionsAdminPage() {
           <input
             type="text"
             value={subscriptionId}
-            onChange={(event) => setSubscriptionId(event.target.value)}
+            onChange={(event) => { setSubscriptionId(event.target.value); setPreview(null); setPreviewError(''); }}
+            onBlur={() => { if (subscriptionId.trim() && !previewMatchesId) lookupSubscription(subscriptionId.trim()); }}
             placeholder={t('adminSubscriptions.idPlaceholder')}
             className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"
           />
         </label>
+        {previewLoading && (
+          <p role="status" className="text-sm text-gray-400">{t('adminSubscriptions.previewLoading')}</p>
+        )}
+        {previewError && (
+          <p role="alert" className="text-sm text-red-300">{previewError}</p>
+        )}
+        {preview && (
+          <div>
+            <h2 className="text-white font-semibold">
+              {t('adminSubscriptions.previewTitle')}
+            </h2>
+            <SubscriptionPreview preview={preview} t={t} />
+          </div>
+        )}
         <button
           type="submit"
-          disabled={busy}
+          disabled={busy || previewLoading}
           className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
         >
           {t('adminSubscriptions.reviewButton')}
@@ -141,13 +254,19 @@ export default function SubscriptionsAdminPage() {
       <ConfirmDialog
         open={confirmOpen}
         title={t('adminSubscriptions.confirmTitle')}
-        message={t('adminSubscriptions.confirmMessage', { id: subscriptionId.trim() })}
+        message={(
+          <>
+            <p>{t('adminSubscriptions.confirmMessage', { id: subscriptionId.trim() })}</p>
+            <SubscriptionPreview preview={previewMatchesId ? preview : null} t={t} />
+          </>
+        )}
         confirmLabel={t('adminSubscriptions.confirmLabel')}
         cancelLabel={t('adminSubscriptions.cancelLabel')}
         danger
         requireReason
         reasonLabel={t('adminSubscriptions.reasonLabel')}
         reasonPlaceholder={t('adminSubscriptions.reasonPlaceholder')}
+        confirmDisabled={!previewMatchesId || previewLoading}
         onConfirm={cancelSubscription}
         onClose={() => { if (!busy) setConfirmOpen(false); }}
       />
