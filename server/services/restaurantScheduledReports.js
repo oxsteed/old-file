@@ -22,8 +22,12 @@
 // mid-send is never recorded 'sent', and a failed date stays due
 // (last_business_date advances only on success) so the next run
 // retries it. A second run for the same business day replays instead
-// of re-sending. Each schedule is isolated: one failing schedule
-// never blocks the others.
+// of re-sending. The per-recipient ledger
+// (restaurant_scheduled_report_recipient_deliveries) records the
+// outcome per recipient, so a retry sends only to recipients whose
+// last outcome was not 'sent' instead of redoing the whole list; the
+// senders' idempotency keys still dedupe the send itself. Each
+// schedule is isolated: one failing schedule never blocks the others.
 
 const PENDING_STALE_MINUTES = 60;
 
@@ -250,7 +254,7 @@ async function buildScheduledReport(db, { restaurant, schedule, businessDate, as
   };
 }
 
-async function deliverScheduledReport(db, { schedule, payload } = {}) {
+async function deliverScheduledReport(db, { schedule, payload, deliveryId = null } = {}) {
   // Domain 9 audit #5: the cap is re-applied here so a schedule
   // created before it existed cannot send to an unbounded list.
   // Truncation is logged, not silent: the operator can see which
@@ -263,6 +267,22 @@ async function deliverScheduledReport(db, { schedule, payload } = {}) {
     });
   }
   const channel = schedule.delivery_channel;
+  // Per-recipient ledger: when a delivery row is claimed (deliveryId),
+  // recipients already recorded 'sent' for this delivery are skipped,
+  // so a retry sends only to failed / never-attempted recipients. The
+  // senders' idempotency keys still dedupe the send itself. Without a
+  // deliveryId (direct callers, unit tests) the ledger is skipped and
+  // every recipient is attempted, as before.
+  const useLedger = deliveryId != null && db != null;
+  let alreadyDelivered = 0;
+  let pendingUsers = users;
+  let pendingEmails = emails;
+  if (useLedger) {
+    const sent = await loadDeliveredRecipients(db, deliveryId);
+    pendingUsers = users.filter((userId) => !sent.has(`user:in_app:${userId}`));
+    pendingEmails = emails.filter((email) => !sent.has(`email:email:${email}`));
+    alreadyDelivered = (users.length - pendingUsers.length) + (emails.length - pendingEmails.length);
+  }
   // Background-jobs audit #41: both senders signal failure by return
   // value, not by throwing (sendNotification returns {success:false}
   // on any error; sendEmail returns {success:false} on an unconfigured
@@ -277,24 +297,32 @@ async function deliverScheduledReport(db, { schedule, payload } = {}) {
   let delivered = 0;
   let failed = 0;
   const errors = [];
-  const countResult = (recipient, resultChannel, result) => {
-    if (result?.success === false) {
+  const outcomes = [];
+  const countResult = (recipient, recipientType, resultChannel, result) => {
+    const failedResult = result?.success === false;
+    const error = failedResult
+      ? (result?.error || (resultChannel === 'email' ? 'Email delivery failed' : 'Notification delivery failed'))
+      : null;
+    if (failedResult) {
       failed += 1;
-      errors.push({
-        recipient,
-        channel: resultChannel,
-        error: result?.error || (resultChannel === 'email' ? 'Email delivery failed' : 'Notification delivery failed'),
-      });
+      errors.push({ recipient, channel: resultChannel, error });
     } else {
       delivered += 1;
     }
+    outcomes.push({
+      recipientType,
+      recipient,
+      channel: resultChannel,
+      status: failedResult ? 'failed' : 'sent',
+      error,
+    });
   };
   if (channel === 'in_app' || channel === 'both') {
     // Domain 9 audit #5: bounded parallel batches instead of one
     // serial await per recipient. mapBounded keeps at most
     // SEND_CONCURRENCY sends in flight; a slow recipient no longer
     // holds up the rest of the list.
-    const results = await mapBounded(users, SEND_CONCURRENCY, async (userId) => sendNotification({
+    const results = await mapBounded(pendingUsers, SEND_CONCURRENCY, async (userId) => sendNotification({
       userId,
       type: 'restaurant_scheduled_report',
       title: `Scheduled report: ${payload.report_type} (${payload.business_date})`,
@@ -310,18 +338,64 @@ async function deliverScheduledReport(db, { schedule, payload } = {}) {
       action_url: '/restaurants/merchant?tab=reports',
       idempotencyKey: `scheduled-report:${schedule.id}:${payload.business_date}:${userId}`,
     }));
-    results.forEach((result, index) => countResult(users[index], 'in_app', result));
+    results.forEach((result, index) => countResult(pendingUsers[index], 'user', 'in_app', result));
+    if (useLedger) {
+      await recordRecipientOutcomes(db, {
+        deliveryId, schedule, businessDate: payload.business_date,
+        outcomes: outcomes.filter((outcome) => outcome.channel === 'in_app'),
+      });
+    }
   }
   if (channel === 'email' || channel === 'both') {
-    const results = await mapBounded(emails, SEND_CONCURRENCY, async (email) => sendEmail({
+    const results = await mapBounded(pendingEmails, SEND_CONCURRENCY, async (email) => sendEmail({
       to: email,
       subject: `Scheduled report: ${payload.report_type} (${payload.business_date})`,
       text: `${payload.summary}\nSnapshot as of ${payload.as_of}; not a locked close.`,
       idempotencyKey: `scheduled-report:${schedule.id}:${payload.business_date}:${email}`,
     }));
-    results.forEach((result, index) => countResult(emails[index], 'email', result));
+    results.forEach((result, index) => countResult(pendingEmails[index], 'email', 'email', result));
+    if (useLedger) {
+      await recordRecipientOutcomes(db, {
+        deliveryId, schedule, businessDate: payload.business_date,
+        outcomes: outcomes.filter((outcome) => outcome.channel === 'email'),
+      });
+    }
   }
-  return { delivered, failed, errors };
+  return { delivered, failed, errors, alreadyDelivered };
+}
+
+// Per-recipient delivery ledger: the outcome of every attempted
+// recipient for one delivery row, so a retry skips recipients already
+// recorded 'sent' instead of re-sending to the whole list. The ledger
+// is keyed on the claimed delivery row, which is stable across
+// re-claims of the same schedule and business date.
+async function loadDeliveredRecipients(db, deliveryId) {
+  const { rows } = await db.query(
+    `SELECT recipient_type, recipient, channel, status
+       FROM restaurant_scheduled_report_recipient_deliveries
+      WHERE delivery_id = $1`,
+    [deliveryId]
+  );
+  const sent = new Set();
+  for (const row of rows) {
+    if (row.status === 'sent') sent.add(`${row.recipient_type}:${row.channel}:${row.recipient}`);
+  }
+  return sent;
+}
+
+async function recordRecipientOutcomes(db, { deliveryId, schedule, businessDate, outcomes }) {
+  for (const outcome of outcomes) {
+    await db.query(
+      `INSERT INTO restaurant_scheduled_report_recipient_deliveries
+         (delivery_id, scheduled_report_id, business_date, recipient_type, recipient, channel, status, error, attempts)
+       VALUES ($1, $2, $3::date, $4, $5, $6, $7, $8, 1)
+       ON CONFLICT (delivery_id, recipient_type, recipient, channel) DO UPDATE
+         SET status = EXCLUDED.status, error = EXCLUDED.error,
+             attempts = restaurant_scheduled_report_recipient_deliveries.attempts + 1,
+             updated_at = NOW()`,
+      [deliveryId, schedule.id, businessDate, outcome.recipientType, outcome.recipient, outcome.channel, outcome.status, outcome.error || null]
+    );
+  }
 }
 
 // Claim the delivery row for one schedule and business date, so the
@@ -496,20 +570,21 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
       }
       delivery = claim.delivery;
       const payload = await buildScheduledReport(db, { restaurant, schedule, businessDate, asOf });
-      const outcome = await deliverScheduledReport(db, { schedule, payload });
+      const outcome = await deliverScheduledReport(db, { schedule, payload, deliveryId: delivery.id });
       // Background-jobs audit #41: a {success:false} recipient is a
       // failed delivery, not a partial success. Throw so the catch
       // below marks the claimed row 'failed' (keeping the delivered
-      // count) and the date stays due for retry; the retry dedupes
-      // recipients who already received it via the idempotency keys.
+      // count) and the date stays due for retry; the retry sends only
+      // to the failed recipients (per-recipient ledger) while the
+      // idempotency keys dedupe recipients who already received it.
       if (outcome.failed > 0) {
         const err = new Error(
           `Scheduled report delivery failed for ${outcome.failed} of ${outcome.delivered + outcome.failed} recipient(s): ${outcome.errors.map((e) => e.error).join('; ')}`
         );
-        err.deliveryRecipientCount = outcome.delivered;
+        err.deliveryRecipientCount = outcome.delivered + (outcome.alreadyDelivered || 0);
         throw err;
       }
-      await markDeliverySent(db, { deliveryId: delivery.id, recipientCount: outcome.delivered });
+      await markDeliverySent(db, { deliveryId: delivery.id, recipientCount: outcome.delivered + (outcome.alreadyDelivered || 0) });
       // last_business_date advances only on success: a failed date
       // stays due and is retried on the next run.
       await db.query(
@@ -552,6 +627,8 @@ module.exports = {
   summarizeReport,
   buildScheduledReport,
   deliverScheduledReport,
+  loadDeliveredRecipients,
+  recordRecipientOutcomes,
   claimScheduledReportDelivery,
   markDeliverySent,
   markDeliveryFailed,
