@@ -1,6 +1,8 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
+const pulseCtrl = require('./lifePulseController');
+const houseCtrl = require('./houseController');
 
 // Home tasks denormalize display names through vehicle/home foreign keys.
 // Validate those references against the current user before every write so a
@@ -1781,6 +1783,67 @@ exports.getDashboardSummary = async (req, res) => {
   } catch (err) {
     logger.error('getDashboardSummary error', { message: err.message });
     res.status(500).json({ error: 'Failed to load dashboard summary.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DASHBOARD SNAPSHOT (one call for the Dashboard cold mount)
+// ═══════════════════════════════════════════════════════════════════════════
+// Cost audit follow-up: the Dashboard cold mount fired 10 separate life
+// fetches (summary, pulse, community, expenses, budgets, goals,
+// home-tasks, /house/my, checklist, saved-helpers). This endpoint runs the
+// exact same handlers in-process and returns each section's payload
+// verbatim, so the client pays one request for all of them with no
+// behavior change. A failed section degrades to null (like Dashboard's
+// Promise.allSettled retryLoad) instead of failing the whole snapshot.
+function captureSection(handler, req) {
+  return new Promise((resolve) => {
+    const res = {
+      status(code) { this.statusCode = code; return this; },
+      json(payload) { resolve({ status: this.statusCode || 200, body: payload }); },
+    };
+    Promise.resolve()
+      .then(() => handler(req, res))
+      .catch((err) => resolve({ status: 500, body: { error: err?.message || 'Failed to load section.' } }));
+  });
+}
+
+exports.getDashboardSnapshot = async (req, res) => {
+  try {
+    const user = req.user;
+    const sectionReq = (query = {}) => ({ user, query });
+    const [summary, pulse, community, expenses, budgets, goals, homeTasks, homes, checklist, savedHelpers] =
+      await Promise.allSettled([
+        captureSection(exports.getDashboardSummary, sectionReq()),
+        captureSection(pulseCtrl.getLifePulse, sectionReq({ window: req.query.window || '1m' })),
+        captureSection(exports.getCommunityStats, sectionReq({
+          ...(req.query.zip ? { zip: req.query.zip } : {}),
+          ...(user.role === 'customer' ? { view: 'customer' } : {}),
+        })),
+        captureSection(exports.getExpenses, sectionReq()),
+        captureSection(exports.getBudgets, sectionReq()),
+        captureSection(exports.getGoals, sectionReq()),
+        captureSection(exports.getHomeTasks, sectionReq({ completed: 'false', section: 'home' })),
+        captureSection(houseCtrl.listMyHomes, sectionReq()),
+        captureSection(exports.getChecklist, sectionReq()),
+        captureSection(exports.getSavedHelpers, sectionReq()),
+      ]);
+    const pick = (result) => (result.status === 'fulfilled' && result.value.status === 200 ? result.value.body : null);
+    res.json({
+      summary: pick(summary),
+      pulse: pick(pulse),
+      community: pick(community),
+      expenses: pick(expenses),
+      budgets: pick(budgets),
+      goals: pick(goals),
+      homeTasks: pick(homeTasks),
+      homes: pick(homes),
+      checklist: pick(checklist),
+      savedHelpers: pick(savedHelpers),
+    });
+  } catch (err) {
+    logger.error('getDashboardSnapshot error', { message: err.message });
+    res.status(500).json({ error: 'Failed to load dashboard snapshot.' });
   }
 };
 

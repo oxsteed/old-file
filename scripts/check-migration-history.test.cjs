@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { violations } = require('./check-migration-history.cjs');
+const { violations, pgConstraintGuardViolations } = require('./check-migration-history.cjs');
 const base = new Map([['server/migrations/99987_existing.sql', 'original']]);
 test('rejects edits, removals, duplicate numbers and backwards-sorting additions', () => {
   assert.match(violations(base, new Map()).join(), /changed or removed/);
@@ -34,6 +34,38 @@ test('ClickHouse migrations keep their letter-prefixed text order', () => {
   const ch = new Map([['server/migrations-clickhouse/C002_activity_events.sql', 'x']]);
   assert.deepEqual(violations(ch, new Map([...ch, ['server/migrations-clickhouse/C003_next.sql', 'n']])), []);
   assert.ok(violations(ch, new Map([...ch, ['server/migrations-clickhouse/C001_old.sql', 'n']])).length);
+});
+
+test('new migrations must scope pg_constraint guards with conrelid or connamespace', () => {
+  const file = 'server/migrations/20261113120000_x.sql';
+  const unscoped = `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='x_fk') THEN
+      ALTER TABLE t ADD CONSTRAINT x_fk FOREIGN KEY (a) REFERENCES o(id);
+    END IF;
+  END $$;`;
+  assert.match(pgConstraintGuardViolations(new Map([[file, unscoped]])).join(), /unscoped pg_constraint guard/);
+  const scopedRelid = unscoped.replace("WHERE conname='x_fk'", "WHERE conname='x_fk' AND conrelid = 't'::regclass");
+  assert.deepEqual(pgConstraintGuardViolations(new Map([[file, scopedRelid]])), []);
+  const scopedJoin = `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class t ON t.oid = c.conrelid WHERE c.conname='x_fk') THEN
+      ALTER TABLE t ADD CONSTRAINT x_fk FOREIGN KEY (a) REFERENCES o(id);
+    END IF;
+  END $$;`;
+  assert.deepEqual(pgConstraintGuardViolations(new Map([[file, scopedJoin]])), []);
+  const scopedNamespace = unscoped.replace("WHERE conname='x_fk'", "WHERE conname='x_fk' AND connamespace = 'public'::regnamespace");
+  assert.deepEqual(pgConstraintGuardViolations(new Map([[file, scopedNamespace]])), []);
+  // A comment mentioning pg_constraint does not trip the check.
+  assert.deepEqual(pgConstraintGuardViolations(new Map([[file, '-- see pg_constraint docs\nSELECT 1;']])), []);
+  // Two guards in one DO block: one scoped guard does not mask an unscoped one.
+  const mixed = `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='a_fk' AND conrelid = 't'::regclass) THEN
+      ALTER TABLE t ADD CONSTRAINT a_fk FOREIGN KEY (a) REFERENCES o(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='b_fk') THEN
+      ALTER TABLE t ADD CONSTRAINT b_fk FOREIGN KEY (b) REFERENCES o(id);
+    END IF;
+  END $$;`;
+  assert.match(pgConstraintGuardViolations(new Map([[file, mixed]])).join(), /unscoped pg_constraint guard/);
 });
 
 test('allows only both byte-identical PR #699 renames from the failed baseline', () => {

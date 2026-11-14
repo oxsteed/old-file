@@ -231,18 +231,19 @@ async function anonymizeFormerStaff(db, { businessId, restaurantId, userId, reta
   // Staff documents: the file goes through the storage cleanup queue
   // (same path as a document delete) and the row is hard-deleted — a
   // permit or certificate is personal data, not wage history.
-  const { rows: docs } = await db.query(
-    `SELECT id, storage_key FROM restaurant_staff_documents
-      WHERE restaurant_id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+  // Domain 9 (2026-11-13) item 4: one UPDATE ... RETURNING instead
+  // of a per-row UPDATE loop; same rows, same keys, one round trip.
+  const { rows: deletedDocs } = await db.query(
+    `UPDATE restaurant_staff_documents SET deleted_at = NOW()
+      WHERE restaurant_id = $1 AND user_id = $2 AND deleted_at IS NULL
+      RETURNING id, storage_key`,
     [restaurantId, userId]
   );
   const storageKeysToDelete = [];
-  for (const doc of docs) {
-    await db.query(
-      `UPDATE restaurant_staff_documents SET deleted_at = NOW() WHERE id = $1`,
-      [doc.id]
-    );
+  const justDeletedDocIds = [];
+  for (const doc of deletedDocs) {
     counts.documents_deleted += 1;
+    justDeletedDocIds.push(Number(doc.id));
     // File deletion runs through the storage cleanup queue in the
     // caller; the keys travel in the return value, never in a stored
     // outcome row.
@@ -257,15 +258,22 @@ async function anonymizeFormerStaff(db, { businessId, restaurantId, userId, reta
   // already-deleted queue row means the file is handled. These keys
   // are returned for enqueueing but do NOT count as
   // documents_deleted again.
+  // Domain 9 item 4: documents soft-deleted by THIS call are
+  // excluded below (their keys are already in the list above); the
+  // old code re-collected them here, so every key was returned twice
+  // and enqueued twice. A retry is a fresh call with an empty
+  // exclusion list, so recovery of a previous attempt's keys is
+  // unaffected.
   const { rows: orphaned } = await db.query(
     `SELECT storage_key FROM restaurant_staff_documents
       WHERE restaurant_id = $1 AND user_id = $2 AND deleted_at IS NOT NULL
         AND storage_key IS NOT NULL
+        AND id <> ALL($3::bigint[])
         AND NOT EXISTS (
           SELECT 1 FROM storage_deletion_queue q
            WHERE q.storage_key = restaurant_staff_documents.storage_key
         )`,
-    [restaurantId, userId]
+    [restaurantId, userId, justDeletedDocIds]
   );
   for (const row of orphaned) {
     if (row.storage_key) storageKeysToDelete.push(row.storage_key);
@@ -300,35 +308,90 @@ async function anonymizeFormerStaff(db, { businessId, restaurantId, userId, reta
   // Only their own entries are touched, so the name parts are
   // replaced literally here. Counts distinct rows scrubbed across
   // the passes (a row naming them twice is one row).
+  // Domain 9 (2026-11-13) item 4: one combined pass instead of one
+  // UPDATE per name part. The name parts nest as REPLACE calls in
+  // longest-first order (the same order the per-part passes ran),
+  // and the position() predicate is the OR of every part over every
+  // column, so the same rows are scrubbed and the person's own
+  // entries are scanned once instead of once per name part.
   const scrubbedEditIds = new Set();
-  for (const part of nameParts) {
+  if (nameParts.length > 0) {
+    const labelParam = 3 + nameParts.length;
+    const scrubColumn = (column) => {
+      let expr = column;
+      nameParts.forEach((_, i) => { expr = `REPLACE(${expr}, $${3 + i}, $${labelParam})`; });
+      return expr;
+    };
+    const positionChecks = nameParts.flatMap((_, i) =>
+      ['reason', 'old_value', 'new_value'].map(
+        (column) => `position($${3 + i} in COALESCE(${column}, '')) > 0`
+      )
+    );
     const scrubbed = await db.query(
       `UPDATE business_time_entry_edits
-          SET reason = REPLACE(reason, $3, $4),
-              old_value = REPLACE(old_value, $3, $4),
-              new_value = REPLACE(new_value, $3, $4)
+          SET reason = ${scrubColumn('reason')},
+              old_value = ${scrubColumn('old_value')},
+              new_value = ${scrubColumn('new_value')}
         WHERE entry_id IN (
           SELECT id FROM business_time_entries
            WHERE business_id = $1 AND user_id = $2
         )
-          AND (position($3 in COALESCE(reason, '')) > 0
-            OR position($3 in COALESCE(old_value, '')) > 0
-            OR position($3 in COALESCE(new_value, '')) > 0)
+          AND (${positionChecks.join(' OR ')})
         RETURNING id`,
-      [businessId, userId, part, ANONYMIZED_STAFF_LABEL]
+      [businessId, userId, ...nameParts, ANONYMIZED_STAFF_LABEL]
     );
     for (const row of scrubbed.rows || []) scrubbedEditIds.add(Number(row.id));
   }
   counts.time_entry_edits_scrubbed = scrubbedEditIds.size;
-  // Money flows W7: the audit-log scrub is business-scoped, so the
-  // sweep runs it once per business per person (anonymizePerson
-  // calls scrubBusinessAuditLogNames after the restaurant loop) and
-  // this per-restaurant call skips it. Direct callers (the manual
-  // erasure endpoint) still scrub here, so a single-restaurant
-  // erasure keeps the same outcome counts.
-  counts.audit_names_scrubbed = skipAuditScrub
-    ? 0
-    : await scrubBusinessAuditLogNames(db, { businessId, firstName, lastName, fullName });
+  // Finding 13: names inside audit-log JSON for this business. The
+  // full name is replaced wherever it appears in free text; a first
+  // or last name is replaced only when it stands alone as a whole
+  // JSON string value (e.g. {"first_name": "Phase"}), so a shared
+  // first name in another person's note is not mangled. Bare
+  // first/last names inside other people's free-text audit notes are
+  // the known residual (see the Phase 7 report): they are not
+  // replaced, and the actor/target user_id keys stay — they are the
+  // pseudonymous keys the erasure boundary keeps.
+  // Domain 9 (2026-11-13) item 4: one combined REPLACE pass instead
+  // of one UPDATE per name needle. position() on a ::text cast
+  // defeats any index, so each pass scanned every audit row for the
+  // business; the needles now nest in a single UPDATE (same order
+  // and same replacements as the per-needle passes), so the business's
+  // audit log is scanned once per person instead of up to three
+  // times. Restricting the WHERE to actor/target rows was rejected:
+  // the full name can appear in rows where this person is neither
+  // actor nor target, and those rows must still be scrubbed.
+  const scrubbedAuditIds = new Set();
+  if (fullName) {
+    // Each needle carries its own replacement: a quoted needle
+    // ("Phase") must be replaced by a quoted marker ("Former staff")
+    // or the JSON text stops parsing.
+    const needles = [[fullName, ANONYMIZED_STAFF_LABEL]];
+    if (firstName && firstName !== fullName) needles.push([`"${firstName}"`, `"${ANONYMIZED_STAFF_LABEL}"`]);
+    if (lastName && lastName !== fullName) needles.push([`"${lastName}"`, `"${ANONYMIZED_STAFF_LABEL}"`]);
+    const scrubJsonColumn = (column) => {
+      let expr = `${column}::text`;
+      needles.forEach((_, i) => { expr = `replace(${expr}, $${2 + i}, $${2 + needles.length + i})`; });
+      return `${expr}::jsonb`;
+    };
+    const positionChecks = needles.flatMap((_, i) =>
+      ['before_state', 'after_state', 'metadata'].map(
+        (column) => `position($${2 + i} in COALESCE(${column}::text, '')) > 0`
+      )
+    );
+    const scrubbed = await db.query(
+      `UPDATE business_audit_log
+          SET before_state = ${scrubJsonColumn('before_state')},
+              after_state = ${scrubJsonColumn('after_state')},
+              metadata = ${scrubJsonColumn('metadata')}
+        WHERE business_id = $1
+          AND (${positionChecks.join(' OR ')})
+        RETURNING id`,
+      [businessId, ...needles.map(([needle]) => needle), ...needles.map(([, replacement]) => replacement)]
+    );
+    for (const row of scrubbed.rows || []) scrubbedAuditIds.add(Number(row.id));
+  }
+  counts.audit_names_scrubbed = scrubbedAuditIds.size;
   // The minor band + until date is personal data about a child; once
   // retention expires it goes. (A band that is still current — the
   // person is still a minor — is never anonymized by this job.)

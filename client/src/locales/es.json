@@ -20602,10 +20602,13 @@
     "estimate": {
       "title": "Obtén una estimación instantánea",
       "itemSize": "Tamaño del artículo",
-      "defaults": "Servicio estándar · {{weight}} de peso predeterminado.",
+      "defaults": "Servicio estándar. Precio calculado con {{weight}}; este tamaño admite hasta {{cap}}.",
       "get": "Obtener estimación",
       "line": "Est.: {{total}}, unos {{duration}}",
-      "continue": "Continuar con la reserva"
+      "continue": "Continuar con la reserva",
+      "distance": "Distancia",
+      "routeTime": "Tiempo de ruta",
+      "sizePrices": "Precio por tamaño"
     },
     "tabs": {
       "driving": "Conduciendo"
@@ -20624,6 +20627,26 @@
       "schematic": "Esquema, no a escala"
     },
     "pricingNote": "El precio usa una tarifa mínima, distancia incluida, tamaño del paquete, rapidez del servicio y una tarifa de plataforma clara.",
+    "pricing": {
+      "title": "Cómo funciona el precio",
+      "base": "Tarifa base $9.00, incluidas las primeras 5 millas.",
+      "extraMile": "$1.75 por cada milla después de las primeras 5.",
+      "minimum": "Tarifa mínima $15.00.",
+      "platformFee": "Comisión de la plataforma: 12% del subtotal, mínimo $2.99.",
+      "driverShare": "Los conductores reciben el 80% del subtotal, mínimo $12.00.",
+      "size": "Recargos por tamaño: Pequeño $0, Mediano $5.00, Grande $12.00, Extragrande $25.00.",
+      "weight": "El precio depende del tamaño del paquete, no del peso exacto. El peso solo debe mantenerse por debajo del límite del tamaño."
+    },
+    "howItWorks": {
+      "step1": "Publica tu entrega con recogida, entrega y detalles del artículo.",
+      "step2": "Un conductor aprobado cercano la acepta.",
+      "step3": "Sigue la recogida, el tránsito y la entrega, y confirma con la prueba que elegiste."
+    },
+    "proofInfo": {
+      "title": "Prueba de entrega",
+      "body": "Cada entrega se confirma con el método de prueba que elijas: PIN, firma, foto o confirmación del destinatario.",
+      "declaredValue": "El valor declarado hasta $10,000 se registra para el envío. No es una cobertura de seguro."
+    },
     "customer": {
       "title": "Solicitar una entrega",
       "body": "Indica dónde comienza, adónde va y qué tan rápido debe llegar.",
@@ -20634,8 +20657,14 @@
       "package": "Tamaño del paquete",
       "weight": "Peso (lb)",
       "serviceLevel": "Velocidad",
-      "notes": "Notas de entrega",
+      "notes": "Notas para tu conductor",
       "notesPlaceholder": "Instrucciones de acceso, puntos de referencia o manejo especial",
+      "itemDescription": "¿Qué es el artículo?",
+      "itemDescriptionPlaceholder": "Describe el artículo para que el conductor sepa qué esperar",
+      "timingTitle": "¿Cuándo debemos recogerlo?",
+      "timingAsap": "Lo antes posible",
+      "timingScheduled": "Programar para más tarde",
+      "asapNote": "La recogida comienza en unos 15 minutos, con una ventana de 2 horas.",
       "getQuote": "Obtener cotización",
       "post": "Publicar entrega",
       "quoteTitle": "Tu precio estimado",
@@ -20752,6 +20781,7 @@
       "updated": "Actualizado {{date}}",
       "userId": "ID de usuario",
       "usOnly": "Las entregas están limitadas a direcciones de EE. UU. con estado.",
+      "notLocatable": "No pudimos ubicar esa dirección. Revisa la ortografía e inténtalo de nuevo.",
       "vehicleLabel": "Etiqueta del vehículo",
       "vehicleType": "Tipo de vehículo",
       "vehicles": "Vehículos",
@@ -20946,7 +20976,12 @@
         "rejected": "Rechazado",
         "captured": "Pagado",
         "failed": "Pago fallido"
-      }
+      },
+      "itemDescription": "Artículo",
+      "itemPhoto": "Foto del artículo",
+      "itemPhotoUpload": "Añade una foto del artículo",
+      "itemPhotoHint": "JPG, PNG o WebP, hasta 10 MB. Visible para ti y el conductor asignado.",
+      "itemPhotosEmpty": "Aún no hay foto del artículo."
     },
     "events": {
       "delivery_posted": "Solicitud de entrega publicada",
@@ -21367,7 +21402,19 @@
       "submitting": "Enviando...",
       "verified": "Conductor verificado",
       "pendingTitle": "Aprobación pendiente",
-      "pendingBody": "Tu perfil de conductor fue enviado. Operaciones lo revisará pronto y podrás aceptar entregas cuando sea aprobado."
+      "pendingBody": "Tu perfil de conductor fue enviado. Operaciones lo revisará pronto y podrás aceptar entregas cuando sea aprobado.",
+      "workTitle": "Entregas que aceptas",
+      "workBody": "Entregas abiertas que puedes aceptar y las que ya aceptaste.",
+      "myClaimed": "Entregas que aceptaste",
+      "availability": "Disponible para entregas",
+      "availabilityNote": "Cuando está desactivado, las entregas disponibles se ocultan hasta que vuelvas a conectarte.",
+      "offlineNote": "Conéctate para ver las entregas disponibles.",
+      "earningsTitle": "Tus ganancias",
+      "earningsPaid": "Pagado",
+      "earningsPending": "Pendiente",
+      "earningsVoided": "Anulado",
+      "earningsEmpty": "Aún no hay pagos.",
+      "helperModeHint": "Para registrarte como conductor primero necesitas el modo ayudante. Cambia al modo ayudante en ajustes y vuelve aquí para registrarte."
     }
   },
   "aboutPage": {

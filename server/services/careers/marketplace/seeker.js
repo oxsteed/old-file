@@ -6,18 +6,27 @@
 // this job", and the per-opening funnel metrics employers see.
 
 const { AppError } = require('../../../middleware/errorHandler');
+const logger = require('../../../utils/logger');
 const { FieldErrors, text, bool } = require('../validation');
 const {
   INDUSTRIES, EXPERIENCE_LEVELS, PATH_STAGES, WORKPLACE_TYPES, DEPARTMENTS, COMPENSATION_PERIODS,
   ALERT_FREQUENCIES, ALERT_CHANNELS, OPENING_REPORT_REASONS,
 } = require('../../careerCatalog');
 const openings = require('../openings');
-const { deliver } = require('./delivery');
+const { deliver, deliverBatch, drainCareerEmailOutbox } = require('./delivery');
 const { requireId, notFound, cleanUserText } = require('./common');
 
 const MAX_ALERTS = 20;
 const MAX_SAVED = 500;
 const ALERT_BATCH = 10;
+// Domain 9 items 1 + 8: per-tick bounds for the two 15-minute sweeps.
+// The follower cap is per opening per tick (a popular employer with 200
+// openings can still queue 200 x 200 in one tick, but the durable cursor
+// in career_follow_notify_progress resumes the next tick instead of
+// re-running the same window). The alert cap is per tick across all
+// alerts; last_checked_at ordering makes the remainder self-pacing.
+const FOLLOWERS_PER_OPENING_PER_TICK = 200;
+const ALERTS_PER_TICK = 100;
 const AUTO_FLAG_REPORTS = 3;
 const MAX_IMPRESSIONS_PER_BATCH = 60;
 const MAX_BIGINT_ID = 9223372036854775807n;
@@ -261,54 +270,110 @@ const DUE_SQL = `
  * Run due alerts: new public openings (published since the last check)
  * that match the saved search and were not sent before. One notice per
  * alert run, idempotent by delivery key; nothing is sent when nothing new.
+ * Batched (Domain 9 item 8): alerts sharing one criteria set share a
+ * single listPublic search, the already-delivered check and the delivery
+ * insert run once for all pairs, and the last_checked_at / last_sent_at
+ * stamps are one UPDATE each. At most ALERTS_PER_TICK alerts per tick,
+ * oldest-checked first, so a backlog self-paces across ticks.
  */
-async function runDueAlerts(db, { limit = 500, now = new Date() } = {}) {
+async function runDueAlerts(db, { limit = ALERTS_PER_TICK, now = new Date() } = {}) {
+  const cap = Math.min(Math.max(Number(limit) || ALERTS_PER_TICK, 1), 500);
   const { rows: due } = await db.query(
     `SELECT a.* FROM career_job_alerts a
        JOIN users u ON u.id = a.user_id AND u.deleted_at IS NULL AND u.is_active = TRUE
       WHERE ${DUE_SQL}
       ORDER BY a.last_checked_at ASC LIMIT $1`,
-    [limit]
+    [cap]
   );
-  let sent = 0;
+  if (!due.length) return { checked: 0, sent: 0 };
+  const byCriteria = new Map();
   for (const alert of due) {
-    const since = new Date(alert.last_checked_at);
-    const result = await openings.listPublic(db, { ...alert.criteria, limit: 50 });
-    const fresh = (result.openings || []).filter((o) => new Date(o.published_at || o.created_at) > since);
-    let newOnes = [];
-    if (fresh.length) {
-      const { rows: already } = await db.query(
-        'SELECT opening_id FROM career_job_alert_deliveries WHERE alert_id = $1 AND opening_id = ANY($2::bigint[])',
-        [alert.id, fresh.map((o) => o.id)]
-      );
-      const seen = new Set(already.map((r) => Number(r.opening_id)));
-      newOnes = fresh.filter((o) => !seen.has(Number(o.id))).slice(0, ALERT_BATCH);
+    const key = JSON.stringify(alert.criteria || {});
+    if (!byCriteria.has(key)) byCriteria.set(key, { criteria: alert.criteria || {}, alerts: [] });
+    byCriteria.get(key).alerts.push(alert);
+  }
+  const freshByAlert = new Map();
+  for (const { criteria, alerts } of byCriteria.values()) {
+    const result = await openings.listPublic(db, { ...criteria, limit: 50 });
+    const found = result.openings || [];
+    for (const alert of alerts) {
+      const since = new Date(alert.last_checked_at);
+      freshByAlert.set(alert.id, found.filter((o) => new Date(o.published_at || o.created_at) > since));
     }
-    if (newOnes.length) {
-      await db.query(
-        `INSERT INTO career_job_alert_deliveries (alert_id, opening_id)
-         SELECT $1, x FROM unnest($2::bigint[]) AS x ON CONFLICT DO NOTHING`,
-        [alert.id, newOnes.map((o) => o.id)]
-      );
-      const first = newOnes[0];
-      await deliver(db, {
-        userId: alert.user_id,
-        type: 'career_job_alert',
-        params: { alertName: alert.name, count: newOnes.length, firstTitle: first.title, employerName: first.employer_name },
-        actionUrl: newOnes.length === 1 ? `/careers/${first.id}` : `/careers?alert=${alert.id}`,
-        deliveryKey: `career_job_alert:${alert.id}:${newOnes.map((o) => o.id).sort((a, b) => a - b).join('-')}`,
-        channels: alert.channels,
-      });
-      await db.query('UPDATE career_job_alerts SET last_sent_at = $2 WHERE id = $1', [alert.id, now]);
-      sent += 1;
-    }
-    await db.query('UPDATE career_job_alerts SET last_checked_at = $2 WHERE id = $1', [alert.id, now]);
+  }
+  const pairs = [];
+  for (const alert of due) {
+    for (const o of freshByAlert.get(alert.id) || []) pairs.push([alert.id, o.id]);
+  }
+  const seen = new Set();
+  if (pairs.length) {
+    const { rows: already } = await db.query(
+      'SELECT alert_id, opening_id FROM career_job_alert_deliveries WHERE alert_id = ANY($1::bigint[]) AND opening_id = ANY($2::bigint[])',
+      [due.map((a) => a.id), [...new Set(pairs.map((p) => p[1]))]]
+    );
+    for (const r of already) seen.add(`${r.alert_id}:${r.opening_id}`);
+  }
+  const newByAlert = new Map();
+  const insertPairs = [];
+  for (const alert of due) {
+    const newOnes = (freshByAlert.get(alert.id) || [])
+      .filter((o) => !seen.has(`${alert.id}:${o.id}`)).slice(0, ALERT_BATCH);
+    newByAlert.set(alert.id, newOnes);
+    for (const o of newOnes) insertPairs.push([alert.id, o.id]);
+  }
+  if (insertPairs.length) {
+    await db.query(
+      `INSERT INTO career_job_alert_deliveries (alert_id, opening_id)
+       SELECT a, o FROM unnest($1::bigint[], $2::bigint[]) AS t(a, o) ON CONFLICT DO NOTHING`,
+      [insertPairs.map((p) => p[0]), insertPairs.map((p) => p[1])]
+    );
+  }
+  let sent = 0;
+  const sentIds = [];
+  for (const alert of due) {
+    const newOnes = newByAlert.get(alert.id);
+    if (!newOnes.length) continue;
+    const first = newOnes[0];
+    await deliver(db, {
+      userId: alert.user_id,
+      type: 'career_job_alert',
+      params: { alertName: alert.name, count: newOnes.length, firstTitle: first.title, employerName: first.employer_name },
+      actionUrl: newOnes.length === 1 ? `/careers/${first.id}` : `/careers?alert=${alert.id}`,
+      deliveryKey: `career_job_alert:${alert.id}:${newOnes.map((o) => o.id).sort((a, b) => a - b).join('-')}`,
+      channels: alert.channels,
+    });
+    sentIds.push(alert.id);
+    sent += 1;
+  }
+  await db.query('UPDATE career_job_alerts SET last_checked_at = $2 WHERE id = ANY($1::bigint[])', [due.map((a) => a.id), now]);
+  if (sentIds.length) {
+    await db.query('UPDATE career_job_alerts SET last_sent_at = $2 WHERE id = ANY($1::bigint[])', [sentIds, now]);
   }
   return { checked: due.length, sent };
 }
 
-/** Followers hear about each new public opening once (idempotent key). */
-async function notifyFollowers(db, { sinceMinutes = 60 } = {}) {
+/**
+ * Followers hear about each new public opening once (idempotent key).
+ * Bounded (Domain 9 item 1): at most FOLLOWERS_PER_OPENING_PER_TICK
+ * followers per opening per tick, resumed from a DURABLE per-opening
+ * cursor (career_follow_notify_progress) so a tick that overruns its
+ * lock picks up where the last one stopped instead of re-running the
+ * same window. Completed openings are skipped; cursors for openings
+ * that aged out of the window are pruned. Delivery is batched: one
+ * multi-row in-app insert per page, and email goes to the durable
+ * career_email_outbox, drained in bounded batches at the end of the tick.
+ * A follower who follows after an opening completed still finds it via
+ * search and job alerts; an opening with more followers than the tick
+ * can reach inside its 60-minute window is delivered only as far as the
+ * ticks get, which is the intended cost bound.
+ */
+async function notifyFollowers(db, { sinceMinutes = 60, followersPerOpening = FOLLOWERS_PER_OPENING_PER_TICK } = {}) {
+  const cap = Math.min(Math.max(Number(followersPerOpening) || FOLLOWERS_PER_OPENING_PER_TICK, 1), 5000);
+  await db.query(
+    `DELETE FROM career_follow_notify_progress p USING career_openings o
+      WHERE p.opening_id = o.id AND o.published_at < NOW() - ($1::int * INTERVAL '1 minute')`,
+    [sinceMinutes]
+  );
   const { rows } = await db.query(
     `SELECT o.id, o.title, o.business_id, o.employer_type,
             CASE WHEN o.employer_type = 'platform' THEN 'OxSteed' ELSE b.business_name END AS employer_name
@@ -320,28 +385,74 @@ async function notifyFollowers(db, { sinceMinutes = 60 } = {}) {
     [sinceMinutes]
   );
   let notified = 0;
+  let resumed = 0;
+  let completed = 0;
   for (const o of rows) {
+    const { rows: [progress] } = await db.query(
+      'SELECT last_user_id, completed_at FROM career_follow_notify_progress WHERE opening_id = $1',
+      [o.id]
+    );
+    if (progress?.completed_at) continue;
+    if (progress?.last_user_id) resumed += 1;
     const { rows: followers } = await db.query(
-      `SELECT f.user_id FROM career_employer_follows f
+      `SELECT f.user_id, u.email, u.preferred_language FROM career_employer_follows f
          JOIN users u ON u.id = f.user_id AND u.deleted_at IS NULL AND u.is_active = TRUE
         WHERE f.notify = TRUE AND (($1::text = 'platform' AND f.is_platform) OR (f.business_id = $2))
           AND NOT EXISTS (SELECT 1 FROM career_profile_mutes m WHERE m.user_id = f.user_id AND m.business_id = $2)
-        LIMIT 5000`,
-      [o.employer_type, o.business_id]
+          AND ($3::uuid IS NULL OR f.user_id > $3)
+        ORDER BY f.user_id ASC LIMIT $4`,
+      [o.employer_type, o.business_id, progress?.last_user_id || null, cap]
     );
-    for (const f of followers) {
-      const r = await deliver(db, {
-        userId: f.user_id,
-        type: 'career_followed_employer_opening',
-        params: { employerName: o.employer_name, openingTitle: o.title },
-        actionUrl: `/careers/${o.id}`,
-        deliveryKey: `career_follow_opening:${o.id}:${f.user_id}`,
-        channels: ['in_app', 'email', 'push'],
-      });
-      if (r.inserted) notified += 1;
+    if (!followers.length) {
+      await db.query(
+        `INSERT INTO career_follow_notify_progress (opening_id, last_user_id, completed_at, updated_at)
+         VALUES ($1, $2, NOW(), NOW())
+         ON CONFLICT (opening_id) DO UPDATE SET completed_at = NOW(), updated_at = NOW()`,
+        [o.id, progress?.last_user_id || null]
+      );
+      completed += 1;
+      continue;
+    }
+    // The cursor advances only after this page delivered: a crash or
+    // throw mid-page re-runs the same page next tick, and the delivery
+    // keys make the re-run a no-op for already-notified followers.
+    const { inserted } = await deliverBatch(db, {
+      type: 'career_followed_employer_opening',
+      params: { employerName: o.employer_name, openingTitle: o.title },
+      actionUrl: `/careers/${o.id}`,
+      keyFor: (userId) => `career_follow_opening:${o.id}:${userId}`,
+      channels: ['in_app', 'email', 'push'],
+      recipients: followers.map((f) => ({ userId: f.user_id, email: f.email, preferredLanguage: f.preferred_language })),
+    });
+    notified += inserted.length;
+    const lastUserId = followers[followers.length - 1].user_id;
+    if (followers.length < cap) {
+      await db.query(
+        `INSERT INTO career_follow_notify_progress (opening_id, last_user_id, completed_at, updated_at)
+         VALUES ($1, $2, NOW(), NOW())
+         ON CONFLICT (opening_id) DO UPDATE SET last_user_id = EXCLUDED.last_user_id, completed_at = NOW(), updated_at = NOW()`,
+        [o.id, lastUserId]
+      );
+      completed += 1;
+    } else {
+      await db.query(
+        `INSERT INTO career_follow_notify_progress (opening_id, last_user_id, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (opening_id) DO UPDATE SET last_user_id = EXCLUDED.last_user_id, completed_at = NULL, updated_at = NOW()`,
+        [o.id, lastUserId]
+      );
     }
   }
-  return { openings: rows.length, notified };
+  let emailed = 0;
+  try {
+    const drained = await drainCareerEmailOutbox(db);
+    emailed = drained.sent;
+  } catch (err) {
+    // Rows stay pending for the next tick; the in-app notifications
+    // already delivered are not lost.
+    logger.warn('careers email outbox drain failed', { error: err.message });
+  }
+  return { openings: rows.length, notified, resumed, completed, emailed };
 }
 
 // ── Report this job ─────────────────────────────────────────────────────────
@@ -492,6 +603,8 @@ async function pruneMetricMarks(db) {
 module.exports = {
   MAX_ALERTS,
   AUTO_FLAG_REPORTS,
+  FOLLOWERS_PER_OPENING_PER_TICK,
+  ALERTS_PER_TICK,
   bumpMetric,
   saveJob,
   unsaveJob,

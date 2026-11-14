@@ -20602,10 +20602,13 @@
     "estimate": {
       "title": "Jwenn yon estimasyon enstantane",
       "itemSize": "Gwosè atik la",
-      "defaults": "Sèvis estanda · {{weight}} pwa pa defo.",
+      "defaults": "Sèvis estanda. Pri a kalkile pou {{weight}}; gwosè sa a pran jiska {{cap}}.",
       "get": "Jwenn estimasyon",
       "line": "Est.: {{total}}, anviwon {{duration}}",
-      "continue": "Kontinye pou rezève"
+      "continue": "Kontinye pou rezève",
+      "distance": "Distans",
+      "routeTime": "Tan wout la",
+      "sizePrices": "Pri pa gwosè"
     },
     "tabs": {
       "driving": "Kondwi"
@@ -20624,6 +20627,26 @@
       "schematic": "Eskema, san echèl"
     },
     "pricingNote": "Pri a sèvi ak yon minimòm, distans ki ladan l, gwosè pakè a, vitès sèvis la ak yon frè platfòm ki klè.",
+    "pricing": {
+      "title": "Kijan pri a mache",
+      "base": "Pri debaz $9.00, ki gen ladan 5 premye mil yo.",
+      "extraMile": "$1.75 pou chak mil apre 5 premye yo.",
+      "minimum": "Pri minimòm $15.00.",
+      "platformFee": "Frè platfòm 12% sou total livrezon an, omwen $2.99.",
+      "driverShare": "Chofè yo resevwa 80% sou total livrezon an, omwen $12.00.",
+      "size": "Siplis pa gwosè: Ti $0, Mwayen $5.00, Gwo $12.00, Trè gwo $25.00.",
+      "weight": "Pri a depann de gwosè pake a, pa pwa egzak la. Pwa a jis dwe rete anba limit gwosè a."
+    },
+    "howItWorks": {
+      "step1": "Pibliye livrezon ou ak kote pou pran l, kote pou depoze l, ak detay atik la.",
+      "step2": "Yon chofè apwouve ki toupre pran l.",
+      "step3": "Swiv lè yo pran l, lè l an wout, ak lè yo remèt li, epi konfime livrezon an ak prèv ou te chwazi a."
+    },
+    "proofInfo": {
+      "title": "Prèv livrezon",
+      "body": "Chak livrezon konfime ak metòd prèv ou chwazi a: PIN, siyati, foto, oswa konfimasyon moun ki resevwa l.",
+      "declaredValue": "Valè yo deklare jiska $10,000 anrejistre pou chajman an. Se pa yon asirans."
+    },
     "customer": {
       "title": "Rezève yon livrezon",
       "body": "Di nou kote li kòmanse, kote li prale ak ki vitès li dwe rive.",
@@ -20634,8 +20657,14 @@
       "package": "Gwosè pakè",
       "weight": "Pwa (lb)",
       "serviceLevel": "Vitès",
-      "notes": "Nòt livrezon",
+      "notes": "Nòt pou chofè ou",
       "notesPlaceholder": "Enstriksyon pou antre, siy espesyal oswa manyen espesyal",
+      "itemDescription": "Kisa atik la ye?",
+      "itemDescriptionPlaceholder": "Dekri atik la pou chofè a konnen kisa pou l atann",
+      "timingTitle": "Kilè pou nou vin pran l?",
+      "timingAsap": "Pi vit posib",
+      "timingScheduled": "Pwograme pou pita",
+      "asapNote": "Yo kòmanse pran l nan apepre 15 minit, ak yon fenèt 2 èdtan.",
       "getQuote": "Jwenn pri",
       "post": "Poste livrezon",
       "quoteTitle": "Pri ou estime",
@@ -20752,6 +20781,7 @@
       "updated": "Mete ajou {{date}}",
       "userId": "ID itilizatè",
       "usOnly": "Livrezon yo limite nan adrès Etazini ki gen yon eta.",
+      "notLocatable": "Nou pa t kapab jwenn adrès sa a. Tcheke òtograf la epi eseye ankò.",
       "vehicleLabel": "Etikèt machin",
       "vehicleType": "Kalite machin",
       "vehicles": "Machin",
@@ -20946,7 +20976,12 @@
         "rejected": "Refize",
         "captured": "Peye",
         "failed": "Peman echwe"
-      }
+      },
+      "itemDescription": "Atik",
+      "itemPhoto": "Foto atik la",
+      "itemPhotoUpload": "Ajoute yon foto atik la",
+      "itemPhotoHint": "JPG, PNG, oswa WebP, jiska 10 MB. Ou menm ak chofè yo asiyen an ka wè l.",
+      "itemPhotosEmpty": "Poko gen foto atik."
     },
     "events": {
       "delivery_posted": "Demann livrezon poste",
@@ -21367,7 +21402,19 @@
       "submitting": "Ap voye...",
       "verified": "Chofè verifye",
       "pendingTitle": "Apwobasyon an atant",
-      "pendingBody": "Pwofil chofè w la te voye. Operasyon yo pral verifye li byento, epi w ap ka pran livrezon lè li apwouve."
+      "pendingBody": "Pwofil chofè w la te voye. Operasyon yo pral verifye li byento, epi w ap ka pran livrezon lè li apwouve.",
+      "workTitle": "Livrezon ou pran yo",
+      "workBody": "Livrezon ouvè ou ka pran yo, ak sa ou te deja pran yo.",
+      "myClaimed": "Livrezon ou te pran yo",
+      "availability": "Disponib pou livrezon",
+      "availabilityNote": "Lè li etenn, livrezon ki disponib yo kache jiskaske ou tounen online.",
+      "offlineNote": "Mete ou online pou wè livrezon ki disponib yo.",
+      "earningsTitle": "Lajan ou fè",
+      "earningsPaid": "Peye",
+      "earningsPending": "An atant",
+      "earningsVoided": "Anile",
+      "earningsEmpty": "Poko gen peman.",
+      "helperModeHint": "Pou w enskri kòm chofè, ou bezwen mòd èd la anvan. Chanje pou mòd èd nan paramèt yo, epi tounen isit la pou w enskri."
     }
   },
   "aboutPage": {

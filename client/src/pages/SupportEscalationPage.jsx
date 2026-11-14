@@ -123,9 +123,17 @@ function PublicGuestSupport({ t, handoff }) {
 
   useEffect(() => {
     if (!token || !conversationId) return undefined;
-    const poll = window.setInterval(() => load().catch(() => {}), 5000);
-    return () => { window.clearInterval(poll); };
-  }, [token, conversationId, load]);
+    // Cost audit 2026-11-13 P5: the 5s guest-chat poll used to run with
+    // the tab hidden. It now skips hidden tabs, refreshes once on return
+    // to visible, and stops at a terminal status (the socket still
+    // delivers live updates while the conversation is open).
+    if (['resolved', 'closed'].includes(conversationStatus)) return undefined;
+    const tick = () => { if (document.visibilityState !== 'hidden') load().catch(() => {}); };
+    const poll = window.setInterval(tick, 5000);
+    const onVisible = () => { if (document.visibilityState === 'visible') load().catch(() => {}); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { window.clearInterval(poll); document.removeEventListener('visibilitychange', onVisible); };
+  }, [token, conversationId, load, conversationStatus]);
 
   useEffect(() => {
     if (!token || !conversationId) return undefined;
@@ -749,8 +757,13 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
       }
     };
     retryLiveRouting();
-    const timer = window.setInterval(retryLiveRouting, 5_000);
-    return () => { active = false; window.clearInterval(timer); };
+    // Cost audit 2026-11-13 P5: the 5s live-routing retry used to run
+    // with the tab hidden. It now skips hidden tabs and retries once on
+    // return to visible (retryLiveRouting is guarded against overlap).
+    const timer = window.setInterval(() => { if (document.visibilityState !== 'hidden') retryLiveRouting(); }, 5_000);
+    const onVisible = () => { if (document.visibilityState === 'visible') retryLiveRouting(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { active = false; window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
   }, [connectionState, phase, user.id]);
 
   useEffect(() => {
@@ -768,6 +781,10 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
 
   useEffect(() => {
     if (!ticketId) return undefined;
+    // Cost audit 2026-11-13 P5: the 10s conversation sync used to run
+    // with the tab hidden and after resolution. It now skips hidden tabs,
+    // refreshes once on return to visible, and stops at a terminal status.
+    if (['resolved', 'closed'].includes(conversationStatus)) return undefined;
 
     let active = true;
     const syncConversation = async () => {
@@ -803,12 +820,15 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
       }
     };
 
-    const intervalId = window.setInterval(syncConversation, 10000);
+    const intervalId = window.setInterval(() => { if (document.visibilityState !== 'hidden') syncConversation(); }, 10000);
+    const onVisible = () => { if (document.visibilityState === 'visible') syncConversation(); };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       active = false;
       window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [ticketId]);
+  }, [ticketId, conversationStatus]);
 
   useEffect(() => {
     if (stickToBottomRef.current) {

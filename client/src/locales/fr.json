@@ -20602,10 +20602,13 @@
     "estimate": {
       "title": "Obtenir une estimation instantanée",
       "itemSize": "Taille de l'article",
-      "defaults": "Service standard · {{weight}} de poids par défaut.",
+      "defaults": "Service standard. Tarif calculé pour {{weight}} ; cette taille accepte jusqu’à {{cap}}.",
       "get": "Obtenir une estimation",
       "line": "Est. : {{total}}, environ {{duration}}",
-      "continue": "Continuer la réservation"
+      "continue": "Continuer la réservation",
+      "distance": "Distance",
+      "routeTime": "Durée du trajet",
+      "sizePrices": "Prix par taille"
     },
     "tabs": {
       "driving": "Conduite"
@@ -20624,6 +20627,26 @@
       "schematic": "Schéma, sans échelle"
     },
     "pricingNote": "Le prix tient compte d’un minimum, de la distance incluse, de la taille du colis, de la vitesse et de frais de plateforme clairs.",
+    "pricing": {
+      "title": "Comment fonctionne le tarif",
+      "base": "Tarif de base 9,00 $, incluant les 5 premiers miles.",
+      "extraMile": "1,75 $ pour chaque mile après les 5 premiers.",
+      "minimum": "Tarif minimum 15,00 $.",
+      "platformFee": "Frais de plateforme : 12 % du sous-total, minimum 2,99 $.",
+      "driverShare": "Les chauffeurs reçoivent 80 % du sous-total, minimum 12,00 $.",
+      "size": "Suppléments par taille : Petit 0 $, Moyen 5,00 $, Grand 12,00 $, Très grand 25,00 $.",
+      "weight": "Le prix dépend de la taille du colis, pas du poids exact. Le poids doit simplement rester sous la limite de la taille."
+    },
+    "howItWorks": {
+      "step1": "Publiez votre livraison avec le lieu de collecte, de dépôt et les détails de l’article.",
+      "step2": "Un chauffeur agréé à proximité la prend en charge.",
+      "step3": "Suivez la collecte, le transport et la remise, et confirmez la livraison avec la preuve choisie."
+    },
+    "proofInfo": {
+      "title": "Preuve de livraison",
+      "body": "Chaque livraison est confirmée avec la méthode de preuve choisie : code PIN, signature, photo ou confirmation du destinataire.",
+      "declaredValue": "La valeur déclarée jusqu’à 10 000 $ est enregistrée pour l’envoi. Ce n’est pas une couverture d’assurance."
+    },
     "customer": {
       "title": "Réserver une livraison",
       "body": "Indiquez le point de départ, la destination et le délai souhaité.",
@@ -20634,8 +20657,14 @@
       "package": "Taille du colis",
       "weight": "Poids (lb)",
       "serviceLevel": "Vitesse",
-      "notes": "Notes de livraison",
+      "notes": "Notes pour votre chauffeur",
       "notesPlaceholder": "Instructions d’accès, repères ou précautions",
+      "itemDescription": "Quel est l’article ?",
+      "itemDescriptionPlaceholder": "Décrivez l’article pour que le chauffeur sache à quoi s’attendre",
+      "timingTitle": "Quand devons-nous venir le chercher ?",
+      "timingAsap": "Dès que possible",
+      "timingScheduled": "Planifier pour plus tard",
+      "asapNote": "La collecte commence dans environ 15 minutes, avec une fenêtre de 2 heures.",
       "getQuote": "Obtenir un devis",
       "post": "Publier la livraison",
       "quoteTitle": "Votre prix estimé",
@@ -20752,6 +20781,7 @@
       "updated": "Mis à jour {{date}}",
       "userId": "ID utilisateur",
       "usOnly": "Les livraisons sont limitées aux adresses américaines avec un État.",
+      "notLocatable": "Nous n'avons pas pu localiser cette adresse. Vérifiez l'orthographe et réessayez.",
       "vehicleLabel": "Étiquette du véhicule",
       "vehicleType": "Type de véhicule",
       "vehicles": "Véhicules",
@@ -20946,7 +20976,12 @@
         "rejected": "Refusé",
         "captured": "Payé",
         "failed": "Paiement échoué"
-      }
+      },
+      "itemDescription": "Article",
+      "itemPhoto": "Photo de l’article",
+      "itemPhotoUpload": "Ajouter une photo de l’article",
+      "itemPhotoHint": "JPG, PNG ou WebP, jusqu’à 10 Mo. Visible par vous et le chauffeur assigné.",
+      "itemPhotosEmpty": "Aucune photo de l’article pour l’instant."
     },
     "events": {
       "delivery_posted": "Demande de livraison publiée",
@@ -21367,7 +21402,19 @@
       "submitting": "Envoi en cours...",
       "verified": "Conducteur vérifié",
       "pendingTitle": "Approbation en attente",
-      "pendingBody": "Votre profil de conducteur a été envoyé. Les opérations l'examineront bientôt et vous pourrez accepter des livraisons une fois approuvé."
+      "pendingBody": "Votre profil de conducteur a été envoyé. Les opérations l'examineront bientôt et vous pourrez accepter des livraisons une fois approuvé.",
+      "workTitle": "Livraisons que vous prenez",
+      "workBody": "Les livraisons ouvertes que vous pouvez prendre, et celles déjà prises.",
+      "myClaimed": "Livraisons que vous avez prises",
+      "availability": "Disponible pour les livraisons",
+      "availabilityNote": "Quand c'est désactivé, les livraisons disponibles sont masquées jusqu'à votre retour en ligne.",
+      "offlineNote": "Repassez en ligne pour voir les livraisons disponibles.",
+      "earningsTitle": "Vos gains",
+      "earningsPaid": "Payé",
+      "earningsPending": "En attente",
+      "earningsVoided": "Annulé",
+      "earningsEmpty": "Aucun paiement pour l’instant.",
+      "helperModeHint": "L’inscription comme chauffeur nécessite d’abord le mode aide. Passez en mode aide dans les réglages, puis revenez ici pour vous inscrire."
     }
   },
   "aboutPage": {

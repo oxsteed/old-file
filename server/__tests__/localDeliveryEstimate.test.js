@@ -42,13 +42,13 @@ test('prices a short standard small delivery at the minimum fare', async () => {
   expect(res.body.estimate.id).toBeUndefined();
 });
 
-test('rejects an estimate without complete stop coordinates', async () => {
+test('a coordinate-less stop with address text is geocoded, and fails plainly when no provider can locate it', async () => {
   const res = await request(buildApp())
     .post('/delivery/estimate')
     .send({ origin: { ...ORIGIN, lat: null }, destination: DESTINATION, packageType: 'small', weightLbs: 5, serviceLevel: 'standard' });
 
   expect(res.status).toBe(400);
-  expect(res.body.code).toBe('delivery_addresses_required');
+  expect(res.body.code).toBe('delivery_address_not_locatable');
 });
 
 test('rejects a weight above the size cap', async () => {

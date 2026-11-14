@@ -46,6 +46,119 @@ async function insertSets(conn, table, thirdColumn, map, day) {
 // 03:00 UTC gate (past days hold complete data); the tracking hard-off
 // gate still applies. Triggered by POST /api/admin/growth/rollups/rerun
 // and the Growth Insights overview page.
+// Cost audit 2026-11-13 item 9: the block used to build gate contexts
+// twice per 250-row block (once for every subject, once for the eligible
+// subset inside the transaction). Build once outside and reuse the
+// contexts here. The reuse is safe because the advisory shared locks
+// taken above serialize withdrawals/erasure that start after them, and
+// runtimePolicy with lockPolicy re-reads the global policy under FOR
+// SHARE, so the only gap is inputs that changed before the locks were
+// taken; one batched re-read covers those, and only users whose inputs
+// moved get a fresh contexts() build (usually none).
+//
+// The revalidation must stay exact: every input decide() reads is
+// compared (global enabled/rollout, user row, consent grants, resolved
+// jurisdiction). The consent derivation below mirrors gate.js
+// (gate.contexts skips a granted consent whose text version is not the
+// rollout's, except sale_share_optout); if that rule ever changes,
+// update deriveConsents with it, or a changed consent could be missed.
+function sortDeep(value) {
+  if (Array.isArray(value)) return value.map(sortDeep);
+  if (value && typeof value === "object") {
+    if (value instanceof Date) return value.toISOString();
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([k, v]) => [k, sortDeep(v)]),
+    );
+  }
+  return value;
+}
+const sameJson = (a, b) =>
+  JSON.stringify(sortDeep(a ?? null)) === JSON.stringify(sortDeep(b ?? null));
+function deriveConsents(triples, policyVersion) {
+  const out = {};
+  for (const [purpose, granted, version] of triples || []) {
+    if (granted && purpose !== "sale_share_optout" && version !== policyVersion)
+      continue;
+    out[purpose] = granted;
+  }
+  return out;
+}
+async function refreshContexts(conn, eligible, outer) {
+  const eligibleUserIds = [
+    ...new Set(eligible.map(({ subject }) => subject.user_id)),
+  ];
+  const policy = await gate.runtimePolicy(conn, { lockPolicy: true });
+  const skeys = eligibleUserIds.map((id) =>
+    require("../growth/identity").key("subject", id),
+  );
+  const { rows } = await conn.query(
+    `-- growth_rollup_freshness
+     WITH m(id, skey) AS (SELECT * FROM unnest($1::uuid[], $2::char(64)[]))
+     SELECT u.id, u.role, u.is_active, u.is_banned, u.deleted_at, u.is_suspended,
+       u.country, u.country_confirmed, u.city, u.state, u.zip_code, u.preferred_language, u.created_at,
+       e.adult_confirmed, e.is_internal,
+       COALESCE((SELECT jsonb_agg(jsonb_build_array(c.purpose, c.granted, h.consent_text_version))
+         FROM tracking_consent_current c JOIN tracking_consents h ON h.id = c.consent_id
+         WHERE c.subject_key = m.skey), '[]'::jsonb) AS consents
+     FROM users u JOIN m ON m.id = u.id
+     LEFT JOIN growth_subject_eligibility e ON e.user_id = u.id`,
+    [eligibleUserIds, skeys],
+  );
+  const freshById = new Map(rows.map((r) => [r.id, r]));
+  const changed = [];
+  for (const id of eligibleUserIds) {
+    const ctx = outer.get(id);
+    if (!ctx) {
+      changed.push(id);
+      continue;
+    }
+    if (ctx.enabled !== policy.enabled) {
+      changed.push(id);
+      continue;
+    }
+    if (!sameJson(ctx.rollout, policy.rollout)) {
+      changed.push(id);
+      continue;
+    }
+    const fresh = freshById.get(id);
+    if (!fresh && !ctx.user) continue;
+    if (!fresh || !ctx.user) {
+      changed.push(id);
+      continue;
+    }
+    const { consents, ...userRow } = fresh;
+    if (!sameJson(userRow, ctx.user)) {
+      changed.push(id);
+      continue;
+    }
+    if (
+      !sameJson(
+        deriveConsents(consents, policy.rollout?.policy_version),
+        ctx.consents,
+      )
+    ) {
+      changed.push(id);
+      continue;
+    }
+    if (
+      !sameJson(
+        gate.resolveJurisdiction(ctx.trustedSignals, policy.rules),
+        ctx.jurisdiction,
+      )
+    ) {
+      changed.push(id);
+      continue;
+    }
+  }
+  if (!changed.length) return outer;
+  const rebuilt = await gate.contexts(changed, { db: conn });
+  const merged = new Map(outer);
+  for (const [id, ctx] of rebuilt) merged.set(id, ctx);
+  return merged;
+}
+
 async function run({ day: requestedDay, force = false } = {}) {
   const today = new Date().toISOString().slice(0, 10);
   let day = requestedDay;
@@ -140,14 +253,10 @@ async function run({ day: requestedDay, force = false } = {}) {
               // Sorted shared locks preserve withdrawal/erasure serialization.
               const keys=[...new Set(eligible.map(({row})=>require('../growth/identity').consentLock(row.subject_key)))].sort();
               await conn.query('SELECT pg_advisory_xact_lock_shared(hashtextextended(k,0)) FROM unnest($1::text[]) AS locks(k) ORDER BY k',[keys]);
-              // Cost audit 2026-11-04 item 6: the inner context build used
-              // to rebuild contexts for every subject in the block, even
-              // though the transaction below only reads contexts for
-              // ELIGIBLE rows. Build only those users' contexts (the
-              // lockPolicy build is still needed for withdrawal/erasure
-              // serialization, so it cannot be dropped entirely).
-              const eligibleUserIds=[...new Set(eligible.map(({subject})=>subject.user_id))];
-              const fresh=await gate.contexts(eligibleUserIds,{db:conn,lockPolicy:true});
+              // Cost audit 2026-11-13 item 9: reuse the outer contexts
+              // (revalidated in-transaction by refreshContexts) instead
+              // of rebuilding them for the eligible subset.
+              const fresh=await refreshContexts(conn, eligible, contexts);
               const writes=new Map();
               for(let i=0;i<eligible.length;i++){
                 const {row,subject}=eligible[i], node=nodeByJob.get(row.entity_id), ctx=fresh.get(subject.user_id);
