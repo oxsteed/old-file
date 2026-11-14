@@ -296,7 +296,22 @@ describe('POST /api/auth/register/start', () => {
 // ── POST /api/auth/login ──────────────────────────────────────────────────────
 describe('POST /api/auth/login', () => {
   test('returns 400 when termsAgreed is missing for non-admin users', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ role: 'customer' }] });
+    // Domain 6 #13: the terms check now runs after password verification,
+    // so the mock must carry a password that verifies; the 400 still fires
+    // for a correct password without terms.
+    const passwordHash = await bcrypt.hash('SecurePass123!', 4);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 1,
+        first_name: 'Jane',
+        last_name: 'Doe',
+        email: 'user@example.com',
+        password_hash: passwordHash,
+        is_active: true,
+        totp_enabled: false,
+        role: 'customer',
+      }] });
 
     const res = await request(buildApp())
       .post('/api/auth/login')
@@ -305,6 +320,41 @@ describe('POST /api/auth/login', () => {
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('validation_failed');
     expect(res.body.fields?.termsAgreed).toBeTruthy();
+  });
+
+  test('Domain 6 #13: wrong password returns the identical 401 for admin and non-admin emails', async () => {
+    // Repro for the role-enumeration leak: before the fix, a non-admin
+    // email without termsAgreed got a 400 terms error before the password
+    // was ever checked, while an admin email got the generic 401. Both
+    // must now be indistinguishable without a valid password.
+    const attempt = async (role) => {
+      resetMocks();
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ role }] })
+        .mockResolvedValueOnce({ rows: [{
+          id: 1,
+          first_name: 'Jane',
+          last_name: 'Doe',
+          email: 'user@example.com',
+          password_hash: '$2b$12$invalid_hash_that_never_matches',
+          is_active: true,
+          totp_enabled: false,
+          role,
+        }] });
+      return request(buildApp())
+        .post('/api/auth/login')
+        .send({ email: 'user@example.com', password: 'WrongPassword!' });
+    };
+
+    const customerRes = await attempt('customer');
+    const adminRes = await attempt('admin');
+    expect(customerRes.status).toBe(401);
+    expect(adminRes.status).toBe(401);
+    // The error handler stamps a per-response timestamp; everything else
+    // (message, code, status) must be identical.
+    const { timestamp: _ct, ...customerBody } = customerRes.body;
+    const { timestamp: _at, ...adminBody } = adminRes.body;
+    expect(customerBody).toEqual(adminBody);
   });
 
   test('returns 400 when fields are missing', async () => {
@@ -427,6 +477,9 @@ describe('POST /api/auth/login/2fa', () => {
     mockQuery.mockImplementation(async (sql) => {
       const text = String(sql);
       if (text.includes('COUNT(*) FROM two_factor_audit_log')) return { rows: [{ count: '0' }] };
+      // Domain 6 #7: the replay guard's atomic upsert returns a row when
+      // the step counter is fresh.
+      if (text.includes('INSERT INTO totp_used_counters')) return { rows: [{ max_counter: 1 }] };
       if (text.includes('SELECT id, email, role, is_active, totp_secret')) {
         return { rows: [{
           id: 8,
@@ -476,6 +529,9 @@ describe('POST /api/auth/login/2fa', () => {
     mockQuery.mockImplementation(async (sql) => {
       const text = String(sql);
       if (text.includes('COUNT(*) FROM two_factor_audit_log')) return { rows: [{ count: '0' }] };
+      // Domain 6 #7: the replay guard's atomic upsert returns a row when
+      // the step counter is fresh.
+      if (text.includes('INSERT INTO totp_used_counters')) return { rows: [{ max_counter: 1 }] };
       if (text.includes('SELECT id, email, role, is_active, totp_secret')) {
         return { rows: [{
           id: 9,
@@ -515,6 +571,9 @@ describe('POST /api/auth/login/2fa', () => {
     mockQuery.mockImplementation(async (sql) => {
       const text = String(sql);
       if (text.includes('COUNT(*) FROM two_factor_audit_log')) return { rows: [{ count: '0' }] };
+      // Domain 6 #7: the replay guard's atomic upsert returns a row when
+      // the step counter is fresh.
+      if (text.includes('INSERT INTO totp_used_counters')) return { rows: [{ max_counter: 1 }] };
       if (text.includes('SELECT id, email, role, is_active, totp_secret')) {
         return { rows: [{
           id: 10,

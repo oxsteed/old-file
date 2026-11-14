@@ -190,6 +190,10 @@ exports.updatePreferences = async (req, res, next) => {
       // prefAllows in notificationService.js).
       'in_app_staff_time_entry_system_closed',
       'in_app_staff_time_entry_missing_punch',
+      // Domain 8 #25: closeout-failure alert toggle (migration
+      // 20261113183500); previously absent, so managers could not
+      // silence the hourly closeout-failure alert.
+      'in_app_staff_time_entry_closeout_failed',
       'in_app_restaurant_temperature_breach',
       'in_app_restaurant_scheduled_report',
       // Money-flows W3: erasure lifecycle notification types (same

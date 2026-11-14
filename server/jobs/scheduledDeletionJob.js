@@ -115,7 +115,14 @@ async function hasCreditRecords(client, userId, tables) {
   if (tables.includes('oxsteed_credit_partner_ledgers')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_partner_ledgers WHERE created_by = $1)');
   if (tables.includes('oxsteed_credit_settlements')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_settlements WHERE created_by = $1 OR approved_by = $1)');
   if (tables.includes('oxsteed_credit_settlement_reversals')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_settlement_reversals WHERE actor_user_id = $1)');
-  if (tables.includes('oxsteed_credit_audit_events')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_audit_events WHERE actor_user_id = $1)');
+  // Domain 8 #15: audit events reference a user as customer_id too, and
+  // that column is ON DELETE SET NULL (migration 421) against the 55000
+  // immutability trigger (migration 467), so a customer_id-only user must
+  // take the anonymize path instead of reaching the raw DELETE FROM users
+  // that raises 55000. partner_id is NOT added: it is a BIGINT FK to
+  // oxsteed_credit_partners, not a user id; partner ownership is already
+  // caught by the oxsteed_credit_partners created_by predicate above.
+  if (tables.includes('oxsteed_credit_audit_events')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_audit_events WHERE actor_user_id = $1 OR customer_id = $1)');
   if (tables.includes('oxsteed_credit_notification_outbox')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_notification_outbox WHERE user_id = $1)');
   if (tables.includes('food_customer_wallet_accounts')) predicates.push('EXISTS (SELECT 1 FROM food_customer_wallet_accounts WHERE customer_id = $1)');
   if (tables.includes('food_customer_wallet_ledger')) predicates.push('EXISTS (SELECT 1 FROM food_customer_wallet_ledger WHERE customer_id = $1 OR created_by_user_id = $1)');
@@ -509,4 +516,4 @@ function startScheduledDeletionJob() {
   logger.info('scheduledDeletionJob: registered (daily at 03:00 UTC)');
 }
 
-module.exports = { startScheduledDeletionJob, hardDeleteExpiredAccounts, cleanupExpiredSessionData, hardDeleteUser, hasGrowthRows };
+module.exports = { startScheduledDeletionJob, hardDeleteExpiredAccounts, cleanupExpiredSessionData, hardDeleteUser, hasGrowthRows, hasCreditRecords };

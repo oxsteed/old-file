@@ -36353,6 +36353,7 @@
       "reason": "Lý do",
       "add": "Thêm vào hàng đợi",
       "added": "Đã thêm vào hàng đợi.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Bảng nhóm",
       "sla": "SLA",
       "breachedCol": "Quá hạn",
@@ -36440,7 +36441,9 @@
         "key": "Khóa",
         "create": "Tạo hàng đợi",
         "created": "Đã tạo hàng đợi.",
-        "saved": "Đã lưu hàng đợi."
+        "saved": "Đã lưu hàng đợi.",
+        "listUnavailable": "Không thể tải danh sách hàng đợi. Bạn vẫn có thể tạo hàng đợi bên dưới.",
+        "empty": "Chưa có hàng đợi nào."
       },
       "manageView": "Quản lý chế độ xem này",
       "renameView": "Đổi tên hoặc chia sẻ",
@@ -36448,7 +36451,8 @@
       "saveRename": "Lưu tên",
       "updateView": "Lưu bộ lọc hiện tại vào chế độ xem này",
       "viewRenamed": "Đã đổi tên chế độ xem.",
-      "viewUpdated": "Đã cập nhật chế độ xem."
+      "viewUpdated": "Đã cập nhật chế độ xem.",
+      "viewsLoadFailed": "Không thể tải các chế độ xem đã lưu."
     },
     "summary": {
       "title": "Tóm tắt khách hàng",
@@ -36551,6 +36555,8 @@
     "unnamed": "Khách hàng không tên",
     "lastSeen": "Hoạt động gần nhất {{date}}",
     "more": "Xem thêm",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Chọn một khách hàng để xem lịch sử với doanh nghiệp này.",
     "scopeNote": "Chỉ hiển thị hồ sơ của chính doanh nghiệp này.",
     "status": "Trạng thái",
@@ -36773,6 +36779,8 @@
     "draftBadge": "Bản nháp",
     "version": "Phiên bản {{version}}",
     "acceptNote": "Để chấp nhận các điều khoản này và sử dụng OxSteed Credit, hãy đăng nhập vào tài khoản của bạn.",
-    "signIn": "Đăng nhập"
+    "signIn": "Đăng nhập",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

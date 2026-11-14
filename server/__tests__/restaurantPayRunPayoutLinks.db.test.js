@@ -257,6 +257,43 @@ ddescribe('finding 25: pay-run payout linkage', () => {
     expect(exported.err).toMatchObject({ code: 'pay_run_voided' });
   });
 
+  test('Domain 8 #9: voiding a partially linked run releases the payout attribution', async () => {
+    const runA = await makeFinalizedRun(F.restaurantId, F.owner, 10000, F.checker);
+    const payoutId = await makeCompletedPayout(F.restaurantId, F.owner, 6000);
+    const linked = await linkPayout(F.restaurantId, runA, payoutId, F.owner);
+    expect(linked.err).toBeNull();
+    expect(linked.res.payload.payRun.status).toBe('finalized');
+    expect(linked.res.payload.payRun.linkedPayoutCents).toBe(6000);
+
+    const requested = await call(
+      controller.voidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runA }, user: { id: F.owner } })
+    );
+    expect(requested.err).toBeNull();
+    const voided = await call(
+      controller.approveVoidPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runA }, user: { id: F.checker } })
+    );
+    expect(voided.err).toBeNull();
+    expect(voided.res.payload.payRun.status).toBe('voided');
+    expect(voided.res.payload.payRun.linkedPayoutCents).toBe(0);
+    expect(voided.res.payload.payRun.payoutLinks).toHaveLength(0);
+
+    const { rows: links } = await pool.query(
+      'SELECT id FROM restaurant_pay_run_payout_links WHERE pay_run_id = $1',
+      [runA]
+    );
+    expect(links).toHaveLength(0);
+
+    // The same payout can now fund a second run: its $6,000 is
+    // attributable again instead of stranded on the voided run.
+    const runB = await makeFinalizedRun(F.restaurantId, F.owner, 6000, F.checker);
+    const relinked = await linkPayout(F.restaurantId, runB, payoutId, F.owner);
+    expect(relinked.err).toBeNull();
+    expect(relinked.res.payload.payRun.status).toBe('paid');
+    expect(relinked.res.payload.payRun.linkedPayoutCents).toBe(6000);
+  });
+
   test('Nov 3 item 1: one completed payout cannot mark two pay runs paid', async () => {
     const runA = await makeFinalizedRun(F.restaurantId, F.owner, 5000, F.checker);
     const runB = await makeFinalizedRun(F.restaurantId, F.owner, 5000, F.checker);

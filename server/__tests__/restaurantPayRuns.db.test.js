@@ -599,6 +599,119 @@ ddescribe('F-22 pay-run records', () => {
     expect(voided.err).toMatchObject({ code: 'pay_run_has_disbursements' });
   });
 
+  test('Domain 8 #3: a run is settled by payout links or by disbursements, never both', async () => {
+    // Direction 1: a partial link first, then a disbursement must fail.
+    const created = await call(
+      controller.createPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId }, body: period(), user: { id: F.owner } })
+    );
+    expect(created.err).toBeNull();
+    const runId = created.res.payload.payRun.id;
+    const { rows: lines } = await pool.query(
+      `INSERT INTO restaurant_pay_run_lines
+         (pay_run_id, staff_user_id, staff_label, regular_hours,
+          hourly_wage_cents, wages_cents, gross_tips_cents, net_tips_cents, total_pay_cents)
+       VALUES ($1, $2, 'Ana', 10, 1500, 15000, 0, 0, 15000),
+              ($1, $3, 'Ben', 5, 1800, 9000, 0, 0, 9000)
+       RETURNING id, total_pay_cents`,
+      [runId, F.owner, F.checker]
+    );
+    await call(
+      controller.finalizePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.owner } })
+    );
+    await call(
+      controller.approvePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId }, user: { id: F.checker } })
+    );
+    const payoutId = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO restaurant_payouts
+         (id, restaurant_id, currency_code, amount_cents, status, stripe_account_id, idempotency_key, requested_by, completed_at)
+       VALUES ($1, $2, 'USD', 5000, 'completed', 'acct_test_link', $3, $4, NOW())`,
+      [payoutId, F.restaurantId, `link-${payoutId}`, F.owner]
+    );
+    const linked = await call(
+      controller.linkPayRunPayout,
+      mockReq({
+        params: { restaurantId: F.restaurantId, payRunId: runId },
+        body: { payoutId },
+        user: { id: F.owner },
+      })
+    );
+    expect(linked.err).toBeNull();
+    // A $5,000 link against a $24,000 total leaves the run finalized.
+    // (Before the flip fix, the untyped $2 >= $3 comparison in SQL
+    // inferred both sides as text, so '5000' >= '24000' flipped the
+    // run paid on a partial link.)
+    expect(linked.res.payload.payRun.status).toBe('finalized');
+    // Before the fix this disbursement landed and the run could then
+    // flip paid carrying $5,000 linked plus $24,000 disbursed against
+    // a $24,000 obligation.
+    const disbursed = await call(
+      controller.recordPayRunDisbursement,
+      mockReq({
+        params: { restaurantId: F.restaurantId, payRunId: runId },
+        body: { payRunLineId: lines[0].id, amountCents: 15000, method: 'bank_transfer' },
+        user: { id: F.owner },
+      })
+    );
+    expect(disbursed.err).toMatchObject({ code: 'pay_run_has_payout_links' });
+    const { rows: [stillFinalized] } = await pool.query(
+      'SELECT status FROM restaurant_pay_runs WHERE id = $1', [runId]
+    );
+    expect(stillFinalized.status).toBe('finalized');
+
+    // Direction 2: a disbursement first, then a link must fail.
+    const created2 = await call(
+      controller.createPayRun,
+      mockReq({ params: { restaurantId: F.restaurantId }, body: period(), user: { id: F.owner } })
+    );
+    expect(created2.err).toBeNull();
+    const runId2 = created2.res.payload.payRun.id;
+    const { rows: lines2 } = await pool.query(
+      `INSERT INTO restaurant_pay_run_lines
+         (pay_run_id, staff_user_id, staff_label, regular_hours,
+          hourly_wage_cents, wages_cents, gross_tips_cents, net_tips_cents, total_pay_cents)
+       VALUES ($1, $2, 'Ana', 10, 1500, 15000, 0, 0, 15000)
+       RETURNING id`,
+      [runId2, F.owner]
+    );
+    await call(
+      controller.finalizePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId2 }, user: { id: F.owner } })
+    );
+    await call(
+      controller.approvePayRun,
+      mockReq({ params: { restaurantId: F.restaurantId, payRunId: runId2 }, user: { id: F.checker } })
+    );
+    const recorded = await call(
+      controller.recordPayRunDisbursement,
+      mockReq({
+        params: { restaurantId: F.restaurantId, payRunId: runId2 },
+        body: { payRunLineId: lines2[0].id, amountCents: 15000, method: 'cash' },
+        user: { id: F.owner },
+      })
+    );
+    expect(recorded.err).toBeNull();
+    const payoutId2 = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO restaurant_payouts
+         (id, restaurant_id, currency_code, amount_cents, status, stripe_account_id, idempotency_key, requested_by, completed_at)
+       VALUES ($1, $2, 'USD', 15000, 'completed', 'acct_test_link', $3, $4, NOW())`,
+      [payoutId2, F.restaurantId, `link-${payoutId2}`, F.owner]
+    );
+    const linked2 = await call(
+      controller.linkPayRunPayout,
+      mockReq({
+        params: { restaurantId: F.restaurantId, payRunId: runId2 },
+        body: { payoutId: payoutId2 },
+        user: { id: F.owner },
+      })
+    );
+    expect(linked2.err).toMatchObject({ code: 'pay_run_has_disbursements' });
+  });
+
   test('pay-run actions are audited', async () => {
     expect(await auditCount(F.businessId, 'restaurant.pay_run.created')).toBeGreaterThan(0);
     expect(await auditCount(F.businessId, 'restaurant.pay_run.finalized')).toBeGreaterThan(0);

@@ -17,6 +17,27 @@ test('purges old read notifications with a bounded retention window', async () =
   delete process.env.NOTIFICATION_RETENTION_DAYS;
 });
 
+describe('Domain 8 #15: hasCreditRecords audit-events predicate', () => {
+  const { hasCreditRecords } = require('../jobs/scheduledDeletionJob');
+  const CUSTOMER_ONLY = '33333333-3333-4333-8333-333333333333';
+
+  test('the audit-events predicate matches customer_id as well as actor_user_id', async () => {
+    mockQuery.mockResolvedValue({ rows: [{ has_credit_records: false }] });
+    await expect(
+      hasCreditRecords({ query: mockQuery }, CUSTOMER_ONLY, ['oxsteed_credit_audit_events'])
+    ).resolves.toBe(false);
+    const sql = String(mockQuery.mock.calls[0][0]);
+    expect(sql).toContain('FROM oxsteed_credit_audit_events WHERE actor_user_id = $1 OR customer_id = $1');
+    expect(mockQuery.mock.calls[0][1]).toEqual([CUSTOMER_ONLY]);
+  });
+
+  test('partner_id is not in the predicate: it is a partner id, not a user id', async () => {
+    mockQuery.mockResolvedValue({ rows: [{ has_credit_records: false }] });
+    await hasCreditRecords({ query: mockQuery }, CUSTOMER_ONLY, ['oxsteed_credit_audit_events']);
+    expect(String(mockQuery.mock.calls[0][0])).not.toContain('partner_id');
+  });
+});
+
 test('anonymizes users with OxSteed Credit records instead of deleting financial identity', async () => {
   const user = {
     id: '11111111-1111-4111-8111-111111111111',

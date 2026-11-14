@@ -36353,6 +36353,7 @@
       "reason": "Motivo",
       "add": "Adicionar à fila",
       "added": "Adicionado à fila.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Quadro da equipe",
       "sla": "SLA",
       "breachedCol": "Vencido",
@@ -36440,7 +36441,9 @@
         "key": "Chave",
         "create": "Criar fila",
         "created": "Fila criada.",
-        "saved": "Fila guardada."
+        "saved": "Fila guardada.",
+        "listUnavailable": "Não foi possível carregar a lista de filas. Você ainda pode criar uma fila abaixo.",
+        "empty": "Ainda não há filas."
       },
       "manageView": "Gerir esta vista",
       "renameView": "Mudar o nome ou partilhar",
@@ -36448,7 +36451,8 @@
       "saveRename": "Guardar nome",
       "updateView": "Guardar os filtros atuais nesta vista",
       "viewRenamed": "Nome da vista alterado.",
-      "viewUpdated": "Vista atualizada."
+      "viewUpdated": "Vista atualizada.",
+      "viewsLoadFailed": "Não foi possível carregar as visualizações salvas."
     },
     "summary": {
       "title": "Resumo do cliente",
@@ -36551,6 +36555,8 @@
     "unnamed": "Cliente sem nome",
     "lastSeen": "Última atividade {{date}}",
     "more": "Mostrar mais",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Selecione um cliente para ver o histórico com este negócio.",
     "scopeNote": "Somente os registros deste negócio são mostrados.",
     "status": "Status",
@@ -36773,6 +36779,8 @@
     "draftBadge": "Rascunho",
     "version": "Versão {{version}}",
     "acceptNote": "Para aceitar estes termos e usar o OxSteed Credit, inicie sessão na sua conta.",
-    "signIn": "Iniciar sessão"
+    "signIn": "Iniciar sessão",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

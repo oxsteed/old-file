@@ -143,6 +143,7 @@ export default function NotificationPreferences() {
     in_app_new_message:      t('notifications.prefs.in_app_new_message'),
     in_app_staff_time_entry_system_closed: t('notifications.prefs.in_app_staff_time_entry_system_closed'),
     in_app_staff_time_entry_missing_punch: t('notifications.prefs.in_app_staff_time_entry_missing_punch'),
+    in_app_staff_time_entry_closeout_failed: t('notifications.prefs.in_app_staff_time_entry_closeout_failed'),
     in_app_restaurant_temperature_breach: t('notifications.prefs.in_app_restaurant_temperature_breach'),
     in_app_restaurant_scheduled_report: t('notifications.prefs.in_app_restaurant_scheduled_report'),
     in_app_restaurant_erasure_requested: t('notifications.prefs.in_app_restaurant_erasure_requested'),
@@ -210,6 +211,7 @@ export default function NotificationPreferences() {
       keys: [
         'in_app_staff_time_entry_system_closed',
         'in_app_staff_time_entry_missing_punch',
+        'in_app_staff_time_entry_closeout_failed',
         'in_app_restaurant_temperature_breach',
         'in_app_restaurant_scheduled_report',
         'in_app_restaurant_erasure_requested',

@@ -1114,6 +1114,7 @@
       "reason": "Motivo",
       "add": "Agregar a la cola",
       "added": "Agregado a la cola.",
+      "noQueues": "Aún no hay colas. Pide a un superadministrador que cree una.",
       "board": "Tablero del equipo",
       "sla": "SLA",
       "breachedCol": "Vencidos",
@@ -1201,7 +1202,9 @@
         "key": "Clave",
         "create": "Crear cola",
         "created": "Cola creada.",
-        "saved": "Cola guardada."
+        "saved": "Cola guardada.",
+        "listUnavailable": "No se pudo cargar la lista de colas. Aún puedes crear una cola abajo.",
+        "empty": "Aún no hay colas."
       },
       "manageView": "Gestionar esta vista",
       "renameView": "Renombrar o compartir",
@@ -1209,7 +1212,8 @@
       "saveRename": "Guardar nombre",
       "updateView": "Guardar los filtros actuales en esta vista",
       "viewRenamed": "Vista renombrada.",
-      "viewUpdated": "Vista actualizada."
+      "viewUpdated": "Vista actualizada.",
+      "viewsLoadFailed": "No se pudieron cargar las vistas guardadas."
     },
     "summary": {
       "title": "Resumen del cliente",
@@ -6499,6 +6503,8 @@
     "draftBadge": "Borrador",
     "version": "Versión {{version}}",
     "acceptNote": "Para aceptar estos términos y usar OxSteed Credit, inicie sesión en su cuenta.",
-    "signIn": "Iniciar sesión"
+    "signIn": "Iniciar sesión",
+    "noTerms": "Aún no se han publicado términos para esta moneda.",
+    "retry": "Reintentar"
   }
 }

@@ -3808,7 +3808,9 @@
         "key": "Schlüssel",
         "create": "Warteschlange anlegen",
         "created": "Warteschlange angelegt.",
-        "saved": "Warteschlange gespeichert."
+        "saved": "Warteschlange gespeichert.",
+        "listUnavailable": "Die Warteschlangenliste konnte nicht geladen werden. Sie können unten trotzdem eine Warteschlange erstellen.",
+        "empty": "Noch keine Warteschlangen."
       },
       "manageView": "Diese Ansicht verwalten",
       "renameView": "Umbenennen oder teilen",
@@ -3816,7 +3818,8 @@
       "saveRename": "Namen speichern",
       "updateView": "Aktuelle Filter in dieser Ansicht speichern",
       "viewRenamed": "Ansicht umbenannt.",
-      "viewUpdated": "Ansicht aktualisiert."
+      "viewUpdated": "Ansicht aktualisiert.",
+      "viewsLoadFailed": "Gespeicherte Ansichten konnten nicht geladen werden."
     },
     "summaryHealth": {
       "title": "Zustand der Kundenzusammenfassungen",
@@ -3869,6 +3872,8 @@
     "draftBadge": "Entwurf",
     "version": "Version {{version}}",
     "acceptNote": "Um diese Bedingungen zu akzeptieren und OxSteed Credit zu nutzen, melden Sie sich bei Ihrem Konto an.",
-    "signIn": "Anmelden"
+    "signIn": "Anmelden",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

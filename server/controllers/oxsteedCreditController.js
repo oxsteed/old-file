@@ -165,6 +165,11 @@ async function requestMoneyMovement(req, actionType, payload) {
   // challenge before queueing any money intent. Challenges are single-use,
   // so this must run exactly once per request: the generic pending-actions
   // endpoint no longer verifies on its own and relies on this call.
+  // Domain 6 finding 5 (2026-11-13): the three amount-less credit-policy
+  // PUTs in routes/admin.js (fee-schedule, reserve-policies,
+  // restaurant-conversion-policies) verify the same
+  // pending_action_request challenge in-handler instead of funneling
+  // through here; the choke point is the verification, wherever it runs.
   // Auth audit item 6: bind to the payload amount when the intent
   // carries one (loads, adjustments, refunds); intents without a single
   // amount keep the legacy unbound challenge.
@@ -971,6 +976,36 @@ async function issueAdminProvisionalCredit(req, res, next) {
       reason: req.body?.reason,
     });
     sendMoneyMovementResult(res, result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /admin/super/oxsteed-credit/disputes/:disputeId/resend-results-notice
+ * Domain 8 #4: the results notice used to be stamped sent even when the
+ * email failed, with no resend path. A super admin re-sends it here; the
+ * service stamps only on success and the sweep retries the rest.
+ */
+async function resendAdminDisputeResultsNotice(req, res, next) {
+  try {
+    const disputeId = parseUuid(req.params.disputeId, 'disputeId');
+    const { resendResultsNotice } = require('../services/creditCompliance/disputeSlaService');
+    res.json(await resendResultsNotice({ disputeId, actorUserId: req.user.id }));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /admin/super/oxsteed-credit/cashout-disputes/:cashoutDisputeId/resend-results-notice
+ * Same resend for helper cash-out disputes.
+ */
+async function resendAdminCashoutDisputeResultsNotice(req, res, next) {
+  try {
+    const cashoutDisputeId = parsePositiveInt(req.params.cashoutDisputeId, 'cashoutDisputeId');
+    const { resendResultsNotice } = require('../services/creditCompliance/disputeSlaService');
+    res.json(await resendResultsNotice({ cashoutDisputeId, actorUserId: req.user.id }));
   } catch (error) {
     next(error);
   }
@@ -2748,6 +2783,8 @@ module.exports = {
   listAdminDisputes,
   downloadAdminCreditDisputes,
   resolveAdminDispute,
+  resendAdminDisputeResultsNotice,
+  resendAdminCashoutDisputeResultsNotice,
   issueAdminProvisionalCredit,
   requestAdminPendingAction,
   decideAdminPendingAction,

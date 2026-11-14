@@ -86,6 +86,7 @@ describeDb('franchise territory royalty service', () => {
       attempts INTEGER NOT NULL DEFAULT 0,
       next_retry_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       resolved_at TIMESTAMPTZ,
+      parked_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);

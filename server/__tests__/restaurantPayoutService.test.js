@@ -157,6 +157,7 @@ test('idempotent request returns the existing payout', async () => {
     restaurant_id: 42,
     status: 'requested',
     amount_cents: 2000,
+    currency_code: 'USD',
   };
   mockClient({ payout: 'conflict' });
   // Second query (the fallback select) returns the existing row.
@@ -187,6 +188,62 @@ test('idempotent request returns the existing payout', async () => {
     idempotencyKey: 'key-1',
   });
   expect(payout.id).toBe('payout-9');
+});
+
+// Domain 8 #8: drives requestPayout through the ON CONFLICT replay path —
+// the insert returns no row and the fallback select returns `existing`.
+function mockReplayRequest(existing) {
+  mockClient({ payout: 'conflict' });
+  const { withTransaction: wt } = require('../utils/transaction');
+  wt.mockReset();
+  const c = { query: jest.fn(), release: jest.fn() };
+  c.query.mockImplementation(async (sql) => {
+    if (sql.includes('FROM food_restaurants')) return { rows: [RESTAURANT] };
+    if (sql.includes('INSERT INTO restaurant_payouts')) return { rows: [] };
+    if (sql.includes('SELECT * FROM restaurant_payouts WHERE restaurant_id')) {
+      return { rows: [existing] };
+    }
+    return { rows: [] };
+  });
+  wt.mockImplementationOnce(async (transactionPool, operation) => {
+    expect(transactionPool).toBe(pool);
+    return operation(c);
+  });
+  subBankService.ensureRestaurantSubBankAccount.mockResolvedValue({ id: 100, balance_cents: 5000 });
+}
+
+test('idempotent request with a different amount is rejected', async () => {
+  mockReplayRequest({
+    id: 'payout-9',
+    restaurant_id: 42,
+    status: 'requested',
+    amount_cents: 2000,
+    currency_code: 'USD',
+  });
+  await expect(service.requestPayout({
+    restaurantId: 42,
+    userId: 'user-1',
+    amountCents: 3000,
+    currencyCode: 'USD',
+    idempotencyKey: 'key-1',
+  })).rejects.toMatchObject({ code: 'payout_idempotency_conflict', status: 409 });
+});
+
+test('idempotent request with a different currency is rejected', async () => {
+  mockReplayRequest({
+    id: 'payout-9',
+    restaurant_id: 42,
+    status: 'requested',
+    amount_cents: 2000,
+    currency_code: 'USD',
+  });
+  await expect(service.requestPayout({
+    restaurantId: 42,
+    userId: 'user-1',
+    amountCents: 2000,
+    currencyCode: 'EUR',
+    idempotencyKey: 'key-1',
+  })).rejects.toMatchObject({ code: 'payout_idempotency_conflict', status: 409 });
 });
 
 test('approve journals and queues the transfer without calling Stripe in the transaction', async () => {

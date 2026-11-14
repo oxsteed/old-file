@@ -36353,6 +36353,7 @@
       "reason": "कारण",
       "add": "कतार में जोड़ें",
       "added": "कतार में जोड़ा गया।",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "टीम बोर्ड",
       "sla": "SLA",
       "breachedCol": "अतिदेय",
@@ -36440,7 +36441,9 @@
         "key": "कुंजी",
         "create": "कतार बनाएँ",
         "created": "कतार बन गई।",
-        "saved": "कतार सहेजी गई।"
+        "saved": "कतार सहेजी गई।",
+        "listUnavailable": "कतार सूची लोड नहीं हो सकी। आप नीचे से फिर भी कतार बना सकते हैं।",
+        "empty": "अभी तक कोई कतार नहीं है।"
       },
       "manageView": "इस दृश्य को प्रबंधित करें",
       "renameView": "नाम बदलें या साझा करें",
@@ -36448,7 +36451,8 @@
       "saveRename": "नाम सहेजें",
       "updateView": "मौजूदा फ़िल्टर इस दृश्य में सहेजें",
       "viewRenamed": "दृश्य का नाम बदला गया।",
-      "viewUpdated": "दृश्य अपडेट किया गया।"
+      "viewUpdated": "दृश्य अपडेट किया गया।",
+      "viewsLoadFailed": "सहेजे गए दृश्य लोड नहीं हो सके।"
     },
     "summary": {
       "title": "ग्राहक सारांश",
@@ -36551,6 +36555,8 @@
     "unnamed": "बिना नाम का ग्राहक",
     "lastSeen": "अंतिम गतिविधि {{date}}",
     "more": "और दिखाएँ",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "इस व्यवसाय के साथ इतिहास देखने के लिए ग्राहक चुनें।",
     "scopeNote": "केवल इस व्यवसाय के अपने रिकॉर्ड दिखाए जाते हैं।",
     "status": "स्थिति",
@@ -36773,6 +36779,8 @@
     "draftBadge": "मसौदा",
     "version": "संस्करण {{version}}",
     "acceptNote": "इन शर्तों को स्वीकार करने और OxSteed Credit का उपयोग करने के लिए अपने खाते में साइन इन करें।",
-    "signIn": "साइन इन करें"
+    "signIn": "साइन इन करें",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

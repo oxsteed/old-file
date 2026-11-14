@@ -28,11 +28,21 @@ export default function AnomalyQueue({ copy, when }) {
     setKinds(r.data.kinds);
     setNext(r.data.nextBefore);
   };
-  useEffect(() => {
-    const c = new AbortController();
+  // Domain 1 #13: the load is re-runnable so the error branch can offer a
+  // retry instead of relying on toggling the status filter to re-fetch.
+  const reload = async (signal) => {
     setState("loading");
     setPending(null);
-    load({ signal: c.signal }).then(() => !c.signal.aborted && setState("ready")).catch(() => !c.signal.aborted && setState("error"));
+    try {
+      await load({ signal });
+      if (!signal?.aborted) setState("ready");
+    } catch {
+      if (!signal?.aborted) setState("error");
+    }
+  };
+  useEffect(() => {
+    const c = new AbortController();
+    reload(c.signal);
     return () => c.abort();
   }, [status]);
 
@@ -81,7 +91,12 @@ export default function AnomalyQueue({ copy, when }) {
         </select>
       </label>
       {state === "loading" && <p role="status">{copy("loading")}</p>}
-      {state === "error" && <p role="alert">{copy("loadFailed")}</p>}
+      {state === "error" && (
+        <p role="alert">
+          {copy("loadFailed")}{" "}
+          <button type="button" onClick={() => reload()}>{copy("retry")}</button>
+        </p>
+      )}
       {state === "ready" && !kinds.length && <p>{copy("anomalies.noAccess")}</p>}
       {state === "ready" && kinds.length > 0 && !rows.length && <p>{copy("anomalies.empty")}</p>}
       <ul className="c360u-events">

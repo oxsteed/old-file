@@ -384,6 +384,13 @@ export const linkPayRunPayout = (restaurantId, payRunId, payload) =>
 export const recordPayRunDisbursement = (restaurantId, payRunId, payload) =>
   api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/disbursements`, payload).then((r) => r.data?.payRun);
 
+// Domain 8 #6: voiding a disbursement. Returns the full response body:
+// on a paid run a load-bearing void is two-step, so the first call
+// answers 202 with { payRun, unpayRequested: true } and the run stays
+// paid until a second manager approves it with the same call.
+export const voidPayRunDisbursement = (restaurantId, payRunId, disbursementId, payload) =>
+  api.post(`/restaurants/${restaurantId}/pay-runs/${payRunId}/disbursements/${disbursementId}/void`, payload).then((r) => r.data);
+
 // ── Employee portal self-service (Phase 3 Track B) ────────────────────
 // Self-scoped reads: the server scopes every call by the signed-in
 // user, so these return only the caller's own tips, pay and stubs.
@@ -401,6 +408,11 @@ export const getMyPayStub = (restaurantId, payRunId) =>
 
 export const listMyCashTips = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/tips/cash-declarations/mine`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.declarations || []);
+
+// Domain 8 #27: manager review queue — the restaurant's pending
+// self-declared cash tips, with staff names (payroll.manage).
+export const listCashTipsForReview = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/tips/cash-declarations/review`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.declarations || []);
 
 export const declareMyCashTip = (restaurantId, payload) =>
   api.post(`/restaurants/${restaurantId}/tips/cash-declarations/mine`, payload).then((r) => r.data);
@@ -436,6 +448,11 @@ export const linkTemperatureCorrectiveAction = (restaurantId, logId, payload) =>
 // sends the attestation inside the clock-out call itself (business-scoped).
 export const recordBreakAttestation = (businessId, entryId, payload) =>
   api.post(`/businesses/${businessId}/staff/time-entries/${entryId}/break-attestation`, payload).then((r) => r.data);
+
+// Domain 8 #31: list endpoint for the compliance surface (gap 17).
+// The latest attestation per time entry for the report range.
+export const listBreakAttestations = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/break-attestations`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data?.attestations || []);
 
 export const getPrimeCost = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/reports/prime-cost`, { params, timeout: PANEL_LOAD_TIMEOUT_MS }).then((r) => r.data);

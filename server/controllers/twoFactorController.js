@@ -9,6 +9,7 @@ const pool = require('../db');
 const { encrypt, decrypt, hashIP } = require('../utils/encryption');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { consumeTotpCounter } = require('../services/totpReplayGuard');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const MAX_2FA_FAILURES = 5;
@@ -48,12 +49,24 @@ async function log2FAAction(userId, action, req, success) {
 }
 
 // POST /api/2fa/setup - Generate TOTP secret + QR code
+// Domain 6 auth finding #3: starting TOTP enrollment previously needed
+// only a stolen session, letting a session thief plant their own
+// authenticator and lock the victim out. Like passkey enrollment, setup
+// now requires the current password (bcrypt compare) before any secret
+// is generated or stored.
 async function setup2FA(req, res, next) {
   try {
     const userId = req.user.id;
-    const { rows } = await pool.query('SELECT email, totp_enabled FROM users WHERE id = $1', [userId]);
+    const { password } = req.body || {};
+    if (!password || typeof password !== 'string') {
+      throw new AppError('Current password is required to set up two-factor authentication.', 400, 'validation_failed', { password: 'Current password is required' });
+    }
+    const { rows } = await pool.query('SELECT email, totp_enabled, password_hash FROM users WHERE id = $1', [userId]);
     if (!rows[0]) {
       throw new AppError('User not found', 404, 'not_found');
+    }
+    if (!rows[0].password_hash || !(await bcrypt.compare(password, rows[0].password_hash))) {
+      throw new AppError('Current password is incorrect.', 403, 'password_incorrect');
     }
     if (rows[0].totp_enabled) {
       throw new AppError('2FA is already enabled. Disable it first to reconfigure.', 400, 'invalid_state');
@@ -109,6 +122,13 @@ async function verifySetup(req, res, next) {
     });
 
     if (!verified) {
+      await log2FAAction(userId, 'setup_verify_failed', req, false);
+      throw new AppError('Invalid verification code. Try again.', 400, 'validation_failed', { token: 'Invalid verification code' });
+    }
+
+    // Domain 6 #7: consume this step's counter so the enrollment code
+    // cannot verify again at another channel in the same step.
+    if (!(await consumeTotpCounter(pool, userId))) {
       await log2FAAction(userId, 'setup_verify_failed', req, false);
       throw new AppError('Invalid verification code. Try again.', 400, 'validation_failed', { token: 'Invalid verification code' });
     }
@@ -219,6 +239,13 @@ async function validate2FA(req, res, next) {
       throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
     }
 
+    // Domain 6 #7: consume this step's counter so the code cannot verify
+    // again at another channel (e.g. login 2FA) in the same step.
+    if (!(await consumeTotpCounter(pool, userId))) {
+      await log2FAAction(userId, 'totp_verify_failed', req, false);
+      throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
+    }
+
     await log2FAAction(userId, 'totp_verify_success', req, true);
     res.json({ valid: true });
   } catch (err) {
@@ -250,6 +277,13 @@ async function disable2FA(req, res, next) {
     });
 
     if (!verified) {
+      await log2FAAction(userId, 'disable_failed', req, false);
+      throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
+    }
+
+    // Domain 6 #7: consume this step's counter so the code cannot verify
+    // again at another channel in the same step.
+    if (!(await consumeTotpCounter(pool, userId))) {
       await log2FAAction(userId, 'disable_failed', req, false);
       throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
     }
@@ -311,6 +345,13 @@ async function regenerateBackupCodes(req, res, next) {
     });
 
     if (!verified) {
+      await log2FAAction(userId, 'regenerate_backup_failed', req, false);
+      throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
+    }
+
+    // Domain 6 #7: consume this step's counter so the code cannot verify
+    // again at another channel in the same step.
+    if (!(await consumeTotpCounter(pool, userId))) {
       await log2FAAction(userId, 'regenerate_backup_failed', req, false);
       throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
     }

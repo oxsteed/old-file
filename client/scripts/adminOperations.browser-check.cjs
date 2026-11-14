@@ -94,7 +94,7 @@ test('admin operations command center renders, respects grants, and recovers fro
     assert.equal(await page.locator('code').filter({ hasText: 'delivery_jobs' }).count(), 1);
     assert.equal(await page.getByText('adminOperations.correlationId').count(), 15);
     assert.equal(await page.locator('[role="alert"]').count(), 0);
-    assert.equal(await page.locator('article').count(), 15);
+    assert.equal(await page.locator('article').count(), 16);
 
     await page.evaluate(() => { window.adminOperationsMode = 'error'; });
     await page.getByRole('button', { name: 'adminOperations.refresh' }).click();

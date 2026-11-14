@@ -25,6 +25,9 @@ export default function Anomalies({ api, copy, when, viewerKey }) {
   const [reason, setReason] = useState("");
   const [until, setUntil] = useState("");
   const [notice, setNotice] = useState("");
+  // Domain 1 #15: busy guard mirroring AnomalyQueue, so a double-click on
+  // the action submit cannot double-POST the same snooze/acknowledge/resolve.
+  const [busy, setBusy] = useState(false);
   const load = async (signal) => {
     const [a, w] = await Promise.all([
       adminApi.get(`${api}/anomalies`, { signal, params: { status: statuses.join(",") } }),
@@ -34,14 +37,26 @@ export default function Anomalies({ api, copy, when, viewerKey }) {
     setKinds(a.data.kinds);
     setWatches(w.data.watches);
   };
+  // Domain 1 #13: the load is re-runnable so the error branch can offer a
+  // retry instead of relying on toggling a status filter to re-fetch.
+  const reload = async (signal) => {
+    setState("loading");
+    try {
+      await load(signal);
+      if (!signal?.aborted) setState("ready");
+    } catch {
+      if (!signal?.aborted) setState("error");
+    }
+  };
   useEffect(() => {
     const c = new AbortController();
-    setState("loading");
-    load(c.signal).then(() => !c.signal.aborted && setState("ready")).catch(() => !c.signal.aborted && setState("error"));
+    reload(c.signal);
     return () => c.abort();
   }, [api, viewerKey, statuses.join()]);
   const submit = async (e) => {
     e.preventDefault();
+    if (busy) return;
+    setBusy(true);
     setNotice("");
     try {
       await adminApi.post(`${api}/anomalies/${pending.anomaly.id}/${pending.action}`, {
@@ -56,6 +71,8 @@ export default function Anomalies({ api, copy, when, viewerKey }) {
       await load();
     } catch (err) {
       setNotice(copy(err.response?.data?.code === "revision_conflict" ? "conflict" : "actionFailed"));
+    } finally {
+      setBusy(false);
     }
   };
   const watch = async (source, enabled) => {
@@ -90,7 +107,12 @@ export default function Anomalies({ api, copy, when, viewerKey }) {
         ))}
       </fieldset>
       {state === "loading" && <p role="status">{copy("loading")}</p>}
-      {state === "error" && <p role="alert">{copy("loadFailed")}</p>}
+      {state === "error" && (
+        <p role="alert">
+          {copy("loadFailed")}{" "}
+          <button type="button" onClick={() => reload()}>{copy("retry")}</button>
+        </p>
+      )}
       {state === "ready" && !kinds.length && <p>{copy("anomalies.noAccess")}</p>}
       {state === "ready" && kinds.length > 0 && !rows.length && <p>{copy("anomalies.empty")}</p>}
       <ul className="c360u-events">
@@ -105,7 +127,7 @@ export default function Anomalies({ api, copy, when, viewerKey }) {
             <Evidence a={a} copy={copy} />
             <div className="c360u-row">
               {ACTIONS[a.status].map((action) => (
-                <button key={action} type="button" onClick={() => { setPending({ anomaly: a, action }); setReason(""); }}>
+                <button key={action} type="button" disabled={busy} onClick={() => { setPending({ anomaly: a, action }); setReason(""); }}>
                   {copy(`anomalies.actions.${action}`)}
                 </button>
               ))}
@@ -123,7 +145,7 @@ export default function Anomalies({ api, copy, when, viewerKey }) {
                   <textarea required minLength={3} maxLength={500} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
                 </label>
                 <div className="c360u-row">
-                  <button type="submit">{copy(`anomalies.actions.${pending.action}`)}</button>
+                  <button type="submit" disabled={busy}>{copy(`anomalies.actions.${pending.action}`)}</button>
                   <button type="button" onClick={() => setPending(null)}>{copy("anomalies.cancel")}</button>
                 </div>
               </form>

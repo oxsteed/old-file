@@ -180,7 +180,11 @@ async function notifyManagers(db, businessId, closed, managerCache = null) {
           },
         },
         // Money-flows W9: the key dedupes the in-app row across
-        // retries, so a retried alert never notifies twice.
+        // retries, so a retried alert never notifies twice. It is
+        // the ledger delivery key, so a retried run re-delivers the
+        // alert once instead of double-notifying (Domain 8 #24: the
+        // close commits before the notify, so without this a crash
+        // between commit and notify loses the alert permanently).
         idempotencyKey: deliveryKey,
       });
       outcome = classifyCloseoutSend(result);
@@ -388,6 +392,10 @@ async function notifyCloseoutFailure(db, { now = new Date() } = {}) {
   let alerted = 0;
   let alertErrors = 0;
   const businesses = [];
+  // Domain 8 #25: one alert per business per day. The job retries every
+  // hour after a failed sweep, so without this key every failed run
+  // re-alerted every manager of every business with stale punches.
+  const alertDate = new Date(now).toISOString().slice(0, 10);
   for (const row of rows) {
     const businessId = Number(row.business_id);
     businesses.push(businessId);
@@ -413,6 +421,7 @@ async function notifyCloseoutFailure(db, { now = new Date() } = {}) {
               businessName: '',
             },
           },
+          idempotencyKey: `closeout-failed:${businessId}:${alertDate}`,
         });
         alerted += 1;
       } catch (err) {
@@ -684,6 +693,7 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
   const missing = [];
   let missingNotified = 0;
   let missingNotifyErrors = 0;
+  let missingFlagged = 0;
   try {
     const { rows: unpunched } = await handle.query(
       `SELECT sh.*,
@@ -696,6 +706,7 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
          LEFT JOIN users u ON u.id = sh.user_id
         WHERE sh.published_at IS NOT NULL
           AND sh.cancelled_at IS NULL
+          AND sh.missing_punch_notified_at IS NULL
           AND ($1::int IS NULL OR sh.business_id = $1)
           AND sh.shift_date = ((($2::timestamptz AT TIME ZONE COALESCE(l.timezone, b.timezone, 'UTC'))::date - 1))
           AND NOT EXISTS (
@@ -732,6 +743,27 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
         const result = await notifyMissingPunch(handle, shift.business_id, missingPunch, managerCache);
         missingNotified += result.notified;
         missingNotifyErrors += result.notifyErrors;
+        // Domain 8 #11: stamp the shift only once a manager was
+        // actually notified. A failed stamp is best-effort (logged,
+        // never fails the run): the shift stays unflagged and the
+        // next run retries it, and the notification delivery_key
+        // dedupes the re-send.
+        if (result.notified > 0) {
+          try {
+            const { rowCount } = await handle.query(
+              `UPDATE business_staff_shifts
+                  SET missing_punch_notified_at = NOW()
+                WHERE id = $1 AND missing_punch_notified_at IS NULL`,
+              [shift.id]
+            );
+            missingFlagged += rowCount;
+          } catch (stampErr) {
+            missingNotifyErrors += 1;
+            logger.warn('Punch closeout: missing-punch flag stamp failed', {
+              businessId: shift.business_id, shiftId: shift.id, error: stampErr.message,
+            });
+          }
+        }
       }
     }
   } catch (err) {
@@ -742,7 +774,7 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
     logger.warn('Punch closeout: missing-punch check failed', { error: err.message });
   }
 
-  return { closed, notified, notifyErrors, notifySkipped, retriedNotices, missing, missingNotified, missingNotifyErrors, errors };
+  return { closed, notified, notifyErrors, notifySkipped, retriedNotices, missing, missingNotified, missingNotifyErrors, missingFlagged, errors };
 }
 
 module.exports = { closeStalePunches, notifyCloseoutFailure, retryCloseoutNotices, AUTO_CLOSE_CAP_HOURS, STALE_GRACE_MINUTES, CLOSEOUT_BATCH_LIMIT };

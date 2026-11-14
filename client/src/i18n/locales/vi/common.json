@@ -3808,7 +3808,9 @@
         "key": "Khóa",
         "create": "Tạo hàng đợi",
         "created": "Đã tạo hàng đợi.",
-        "saved": "Đã lưu hàng đợi."
+        "saved": "Đã lưu hàng đợi.",
+        "listUnavailable": "Không thể tải danh sách hàng đợi. Bạn vẫn có thể tạo hàng đợi bên dưới.",
+        "empty": "Chưa có hàng đợi nào."
       },
       "manageView": "Quản lý chế độ xem này",
       "renameView": "Đổi tên hoặc chia sẻ",
@@ -3816,7 +3818,8 @@
       "saveRename": "Lưu tên",
       "updateView": "Lưu bộ lọc hiện tại vào chế độ xem này",
       "viewRenamed": "Đã đổi tên chế độ xem.",
-      "viewUpdated": "Đã cập nhật chế độ xem."
+      "viewUpdated": "Đã cập nhật chế độ xem.",
+      "viewsLoadFailed": "Không thể tải các chế độ xem đã lưu."
     },
     "summaryHealth": {
       "title": "Tình trạng tóm tắt khách hàng",
@@ -3869,6 +3872,8 @@
     "draftBadge": "Bản nháp",
     "version": "Phiên bản {{version}}",
     "acceptNote": "Để chấp nhận các điều khoản này và sử dụng OxSteed Credit, hãy đăng nhập vào tài khoản của bạn.",
-    "signIn": "Đăng nhập"
+    "signIn": "Đăng nhập",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

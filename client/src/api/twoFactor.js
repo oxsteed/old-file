@@ -7,7 +7,10 @@ export const twoFactorAPI = {
   getStatus: () => api.get('/2fa/status'),
 
   // Initiate TOTP setup - returns QR code and secret
-  setup: () => api.post('/2fa/setup'),
+  // Domain 6 #3: setup requires the current password (server verifies it
+  // with bcrypt before issuing a secret), so a stolen session alone
+  // cannot plant an authenticator.
+  setup: (password) => api.post('/2fa/setup', { password }),
 
   // Verify TOTP setup with code from authenticator app
   verifySetup: (token) => api.post('/2fa/verify-setup', { token }),

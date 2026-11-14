@@ -447,6 +447,38 @@ router.get('/ccpa-erasure-review', authenticate, requireAdmin, requirePermission
   } catch (err) { next(err); }
 });
 
+// Domain 8 #17: parked growth-erasure review queue. The worker parks a
+// batch after repeated verification failures; the rows leave the
+// worker's selection until an operator resets them to pending. Same
+// review pattern as /ccpa-erasure-review above.
+router.get('/growth-erasure-parked', authenticate, requireAdmin, requirePermission('manage_operations'), async (req, res, next) => {
+  try {
+    const { listParked } = require('../services/growthErasureParkedService');
+    res.json(await listParked(db, { limit: req.query.limit, offset: req.query.offset }));
+  } catch (err) { next(err); }
+});
+
+router.post('/growth-erasure-parked/:id/reset', authenticate, requireAdmin, requirePermission('manage_operations'), async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isSafeInteger(id) || id <= 0) return res.status(404).json({ error: 'Parked erasure not found' });
+    const { resetParked } = require('../services/growthErasureParkedService');
+    const result = await resetParked(db, { id });
+    if (!result) return res.status(404).json({ error: 'Parked erasure not found' });
+    await logAdminAction({
+      adminId: req.user?.id,
+      action: 'growth_erasure_parked_reset',
+      targetType: 'growth_erasure_queue',
+      targetBigint: id,
+      description: `Parked growth erasure ${id} reset to pending`,
+      before: result.before,
+      after: result.row,
+      req,
+    });
+    res.json({ row: result.row });
+  } catch (err) { next(err); }
+});
+
 router.get('/ccpa-requests',
   authenticate,
   requireAdmin, requirePermission('manage_operations'),

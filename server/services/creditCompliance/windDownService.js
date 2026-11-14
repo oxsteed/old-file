@@ -314,14 +314,14 @@ async function applyMarkUnclaimed({ client, payload, actorUserId, requestedBy })
          (account_id, holder_user_id, account_type, partner_id, country_code, currency_code, balance_minor, source, status, deadline_at,
           notice_sent_at, notice_result)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'wind_down', 'escheat_due', NOW(), $8, $9::jsonb)
-       ON CONFLICT (account_id) WHERE status IN ('notified', 'escheat_due', 'escheated') DO NOTHING
+       ON CONFLICT (account_id) WHERE status IN ('pending', 'notified', 'escheat_due', 'escheated') DO NOTHING
        RETURNING id`,
       [h.account_id, h.holder_user_id, h.account_type, h.partner_id, country, h.currency_code, account.balance_cents, h.notice_sent_at, JSON.stringify(h.notice_result || {})]
     );
     let caseId = inserted[0]?.id || null;
     if (!caseId) {
       const { rows: open } = await client.query(
-        `SELECT id FROM credit_dormancy_cases WHERE account_id = $1 AND status IN ('notified', 'escheat_due', 'escheated')`, [h.account_id]
+        `SELECT id FROM credit_dormancy_cases WHERE account_id = $1 AND status IN ('pending', 'notified', 'escheat_due', 'escheated')`, [h.account_id]
       );
       caseId = open[0]?.id || null;
     }

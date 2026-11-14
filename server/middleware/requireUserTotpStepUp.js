@@ -60,6 +60,15 @@ async function requireUserTotpStepUp(req, res, next) {
         code: 'totp_stepup_invalid',
       });
     }
+    // Domain 6 #7: consume this step's counter so the code cannot verify
+    // again at another channel in the same step.
+    const { consumeTotpCounter } = require('../services/totpReplayGuard');
+    if (!(await consumeTotpCounter(pool, userId))) {
+      return res.status(403).json({
+        error: 'Invalid TOTP code.',
+        code: 'totp_stepup_invalid',
+      });
+    }
     return next();
   } catch (err) {
     return res.status(500).json({ error: 'Step-up check failed' });

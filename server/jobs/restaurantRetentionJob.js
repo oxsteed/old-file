@@ -117,7 +117,7 @@ async function recordAutoCompletedErasure(db, { businessId, userId, outcome } = 
 }
 
 async function sweep(db = pool) {
-  const result = { completedRequests: 0, autoAnonymized: 0, skipped: 0, errors: [], hitBatchLimit: false };
+  const result = { completedRequests: 0, autoAnonymized: 0, skipped: 0, errors: [], hitBatchLimit: false, incidentId: null };
   // 1. Approved erasure requests past retention.
   // Domain 9 item 4: LIMIT + FOR UPDATE SKIP LOCKED claim (see the
   // constant above). The latest retain_until rides along in the
@@ -241,6 +241,25 @@ async function sweep(db = pool) {
       if (err instanceof LeaseLostError) throw err;
       result.errors.push({ user_id: person.user_id, error: err.message });
       logger.error('Retention sweep auto-anonymize failed', { userId: person.user_id, error: err.message });
+    }
+  }
+  // Domain 8 #12: per-person failures used to surface only as log
+  // lines. Raise one deduped incident per day naming the failures so
+  // an operator sees them. Incident bookkeeping must never fail the
+  // sweep itself.
+  if (result.errors.length > 0) {
+    try {
+      const { recordIncident } = require('../services/incidentStore');
+      const recorded = await recordIncident({
+        type: 'restaurant_retention_sweep_errors',
+        severity: 'high',
+        message: `Restaurant retention sweep failed for ${result.errors.length} person(s); they stay due for the next run`,
+        dedupeKey: `restaurant-retention-sweep-errors:${new Date().toISOString().slice(0, 10)}`,
+        details: { errorCount: result.errors.length, errors: result.errors.slice(0, 5) },
+      });
+      result.incidentId = recorded?.incident?.id ?? null;
+    } catch (incidentErr) {
+      logger.error('Retention sweep incident could not be recorded', { error: incidentErr.message });
     }
   }
   // A full batch means more due rows remain for the next weekly run;

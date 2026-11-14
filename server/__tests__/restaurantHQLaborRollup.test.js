@@ -27,6 +27,17 @@ beforeEach(() => {
   pool.query.mockResolvedValue({ rows: [{ id: 1, display_name: 'Downtown' }, { id: 2, display_name: 'Airport' }] });
 });
 
+function runCsv(query = {}) {
+  return new Promise((resolve, reject) => {
+    const req = { params: { restaurantId: '7' }, query: { from: '2026-10-01', to: '2026-10-07', ...query }, user: { id: 'u' } };
+    const res = {
+      setHeader: jest.fn(),
+      send: (body) => resolve({ status: 200, body }),
+    };
+    hq.laborRollupCsv(req, res, (err) => (err ? resolve({ status: err.statusCode || 500, body: { code: err.code } }) : reject(new Error('no response'))));
+  });
+}
+
 test('per-store hours, overtime and cost with currency-safe totals', async () => {
   jest.spyOn(payroll, 'computeLabor').mockImplementation(async ({ locationIds }) => (locationIds[0] === 1
     ? { total_hours: 30, scheduled_hours: 28, overtime_hours: 0, labor_cost_cents: 45000, revenue_cents: 150000, labor_percent: 30, currency: 'USD', employees: [{}], missing_wage_user_ids: [] }
@@ -44,6 +55,27 @@ test('mixed currencies never produce a summed money total', async () => {
   jest.spyOn(payroll, 'computeLabor').mockImplementation(async ({ locationIds }) => ({ total_hours: 10, overtime_hours: 1, labor_cost_cents: 1000, revenue_cents: 5000, currency: locationIds[0] === 1 ? 'USD' : 'CAD', employees: [], missing_wage_user_ids: [] }));
   const { body } = await run();
   expect(body.totals).toMatchObject({ overtime_hours: 2, labor_cost_cents: null, labor_percent: null, currency: null });
+});
+
+// Domain 8 #28: the CSV export serves the same 15-minute cached rollup
+// as the JSON endpoint but carried no freshness marker, so a manager
+// filing the file could not tell it was up to 15 minutes old.
+test('CSV export carries the same freshness markers as the JSON rollup', async () => {
+  jest.spyOn(payroll, 'computeLabor').mockImplementation(async ({ locationIds }) => (locationIds[0] === 1
+    ? { total_hours: 30, scheduled_hours: 28, overtime_hours: 0, labor_cost_cents: 45000, revenue_cents: 150000, labor_percent: 30, currency: 'USD', employees: [{}], missing_wage_user_ids: [] }
+    : { total_hours: 25, scheduled_hours: 20, overtime_hours: 5, labor_cost_cents: 40000, revenue_cents: 100000, labor_percent: 40, currency: 'USD', employees: [{}, {}], missing_wage_user_ids: ['x'] }));
+  const { status, body } = await runCsv();
+  expect(status).toBe(200);
+  const lines = body.split('\n');
+  expect(lines[0]).toMatch(/^# computed_at=\S+/);
+  expect(lines[1]).toBe('# is_cached=false');
+  expect(lines[2]).toBe('# stale_after_seconds=900');
+  // Data rows are byte-identical to before: the header is next, then
+  // one row per store plus the totals row.
+  expect(lines[3]).toMatch(/^from_date,to_date,location_id,location_name,currency,/);
+  expect(lines[4]).toContain('Downtown');
+  expect(lines[5]).toContain('Airport');
+  expect(lines[6]).toContain('TOTAL');
 });
 
 test('payroll.view is required and assigned managers only see their stores', async () => {

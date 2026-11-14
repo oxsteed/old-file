@@ -36382,6 +36382,7 @@
       "reason": "Neden",
       "add": "Kuyruğa ekle",
       "added": "Kuyruğa eklendi.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Ekip panosu",
       "sla": "SLA",
       "breachedCol": "Gecikmiş",
@@ -36469,7 +36470,9 @@
         "key": "Anahtar",
         "create": "Kuyruk oluştur",
         "created": "Kuyruk oluşturuldu.",
-        "saved": "Kuyruk kaydedildi."
+        "saved": "Kuyruk kaydedildi.",
+        "listUnavailable": "Kuyruk listesi yüklenemedi. Aşağıdan yine de kuyruk oluşturabilirsiniz.",
+        "empty": "Henüz kuyruk yok."
       },
       "manageView": "Bu görünümü yönet",
       "renameView": "Yeniden adlandır veya paylaş",
@@ -36477,7 +36480,8 @@
       "saveRename": "Adı kaydet",
       "updateView": "Geçerli filtreleri bu görünüme kaydet",
       "viewRenamed": "Görünüm yeniden adlandırıldı.",
-      "viewUpdated": "Görünüm güncellendi."
+      "viewUpdated": "Görünüm güncellendi.",
+      "viewsLoadFailed": "Kaydedilen görünümler yüklenemedi."
     },
     "summary": {
       "title": "Müşteri özeti",
@@ -36580,6 +36584,8 @@
     "unnamed": "Adsız müşteri",
     "lastSeen": "Son etkinlik {{date}}",
     "more": "Daha fazla göster",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Bu işletmeyle geçmişini görmek için bir müşteri seçin.",
     "scopeNote": "Yalnızca bu işletmenin kendi kayıtları gösterilir.",
     "status": "Durum",
@@ -36802,6 +36808,8 @@
     "draftBadge": "Taslak",
     "version": "Sürüm {{version}}",
     "acceptNote": "Bu koşulları kabul edip OxSteed Credit kullanmak için hesabınızda oturum açın.",
-    "signIn": "Oturum aç"
+    "signIn": "Oturum aç",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

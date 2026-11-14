@@ -183,9 +183,149 @@ async function addTippedOrder(restaurantId, businessId, staffUserId, currency, t
   );
 }
 
+async function makeLocation(restaurantId, currencyCode) {
+  const { rows: [loc] } = await pool.query(
+    `INSERT INTO restaurant_locations (restaurant_id, name, currency_code, is_primary, status)
+     VALUES ($1, $2, $3, FALSE, 'active') RETURNING id`,
+    [restaurantId, `Store ${currencyCode}`, currencyCode]
+  );
+  return Number(loc.id);
+}
+
+async function assignToLocation(businessId, restaurantId, locationId, userId) {
+  const { rows: [m] } = await pool.query(
+    'SELECT id FROM business_members WHERE business_id = $1 AND member_id = $2',
+    [businessId, userId]
+  );
+  await pool.query(
+    `INSERT INTO restaurant_location_memberships (restaurant_id, location_id, membership_id, status)
+     VALUES ($1, $2, $3, 'active')`,
+    [restaurantId, locationId, m.id]
+  );
+  return Number(m.id);
+}
+
+async function makeStoreManager(businessId, restaurantId, locationId, ownerId) {
+  const userId = await makeUser();
+  const { rows: [m] } = await pool.query(
+    `INSERT INTO business_members (business_id, owner_id, member_id, role, invite_email, status, hourly_wage_cents)
+     VALUES ($1, $2, $3, 'manager', $4, 'active', 2000) RETURNING id`,
+    [businessId, ownerId, userId, `manager-${userId.slice(0, 8)}@example.invalid`]
+  );
+  await pool.query(
+    `INSERT INTO restaurant_location_memberships (restaurant_id, location_id, membership_id, status)
+     VALUES ($1, $2, $3, 'active')`,
+    [restaurantId, locationId, m.id]
+  );
+  await pool.query(
+    `INSERT INTO membership_permission_overrides (membership_id, permission_id, effect)
+     SELECT $1, id, 'allow' FROM team_permissions WHERE code = ANY($2::text[])`,
+    [m.id, ['payroll.manage', 'payroll.view']]
+  );
+  accessByUser.set(`${userId}:${restaurantId}`, {
+    id: restaurantId, business_id: businessId, timezone: 'America/New_York', currency_code: 'USD',
+    effective_role: 'manager', effective_membership_id: Number(m.id),
+  });
+  return userId;
+}
+
 function restaurantRow(businessId, restaurantId) {
   return { id: restaurantId, business_id: businessId, currency_code: 'USD', timezone: 'America/New_York' };
 }
+
+ddescribe('Domain 8 #10: declared cash tips carry their own currency', () => {
+  test('a cash tip declared at a EUR store buckets EUR and the EUR run finalizes', async () => {
+    const owner = await makeUser();
+    const checker = await makeUser();
+    const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    const eurLocation = await makeLocation(restaurantId, 'EUR');
+    const manager = await makeStoreManager(businessId, restaurantId, eurLocation, owner);
+    const staff = await makeStaff(businessId, owner, 2000);
+    await assignToLocation(businessId, restaurantId, eurLocation, staff);
+
+    // Entry records the store currency, not the restaurant currency.
+    const declared = await call(
+      controller.declareCashTip,
+      mockReq({
+        params: { restaurantId },
+        body: { staffUserId: staff, date: '2026-10-06', amountCents: 1250, locationId: eurLocation },
+        user: { id: manager },
+      })
+    );
+    expect(declared.err).toBeNull();
+    expect(declared.res.payload.declaration.currency_code).toBe('EUR');
+
+    // Bucketing follows the declaration currency.
+    const allocations = await payrollService.computeTipAllocations({
+      restaurant: restaurantRow(businessId, restaurantId),
+      fromDate: '2026-10-01',
+      toDate: '2026-10-15',
+      locationIds: [eurLocation],
+    });
+    const byCurrency = new Map(allocations.currencies.map((b) => [b.currency, b]));
+    expect(byCurrency.get('EUR')).toMatchObject({ total_tips_cents: 1250 });
+    expect(byCurrency.has('USD')).toBe(false);
+
+    // The single-store EUR run anchors EUR, so finalize succeeds.
+    const run = await createRun(manager, restaurantId, '2026-10-01', '2026-10-15');
+    expect(run.currencyCode).toBe('EUR');
+    expect(run.locationIds).toEqual([eurLocation]);
+    const finalized = await finalizeRun(manager, restaurantId, run.id);
+    expect(finalized.err).toBeNull();
+    expect(finalized.res.payload.payRun.status).toBe('finalized');
+  });
+
+  test('mixed-currency declared tips bucket separately; an all-store USD run still fails closed on the EUR tip', async () => {
+    const owner = await makeUser();
+    const checker = await makeUser();
+    const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    const eurLocation = await makeLocation(restaurantId, 'EUR');
+    const manager = await makeStoreManager(businessId, restaurantId, eurLocation, owner);
+    const staff = await makeStaff(businessId, owner, 2000);
+    await assignToLocation(businessId, restaurantId, eurLocation, staff);
+
+    // A tip declared at the EUR store records EUR; one with no store
+    // records the restaurant currency.
+    const eurTip = await payrollService.declareCashTip(restaurantId, {
+      staffUserId: staff,
+      businessDate: '2026-10-06',
+      amountCents: 1250,
+      declaredBy: owner,
+      locationId: eurLocation,
+    });
+    expect(eurTip.currency_code).toBe('EUR');
+    const usdTip = await payrollService.declareCashTip(restaurantId, {
+      staffUserId: staff,
+      businessDate: '2026-10-07',
+      amountCents: 500,
+      declaredBy: owner,
+      locationId: null,
+    });
+    expect(usdTip.currency_code).toBe('USD');
+
+    // Unscoped bucketing keeps the two currencies apart.
+    const allocations = await payrollService.computeTipAllocations({
+      restaurant: restaurantRow(businessId, restaurantId),
+      fromDate: '2026-10-01',
+      toDate: '2026-10-15',
+      locationIds: null,
+    });
+    const byCurrency = new Map(allocations.currencies.map((b) => [b.currency, b]));
+    expect(byCurrency.get('EUR')).toMatchObject({ total_tips_cents: 1250 });
+    expect(byCurrency.get('USD')).toMatchObject({ total_tips_cents: 500 });
+
+    // The all-store run anchors USD, so the in-scope EUR tip still
+    // fails finalize closed with the foreign currency named.
+    const run = await createRun(owner, restaurantId, '2026-10-01', '2026-10-15');
+    expect(run.currencyCode).toBe('USD');
+    const blocked = await finalizeRun(owner, restaurantId, run.id);
+    expect(blocked.err).toMatchObject({ code: 'pay_run_finalize_multi_currency_tips' });
+    expect(blocked.err.fields).toMatchObject({
+      anchored_currency: 'USD',
+      currencies: [{ currency: 'EUR', total_tips_cents: 1250 }],
+    });
+  });
+});
 
 ddescribe('Item 18: multi-currency tips stay visible and block finalize', () => {
   test('labor carries non-primary tip buckets; flat totals stay anchored-currency only', async () => {

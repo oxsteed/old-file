@@ -1,18 +1,24 @@
 'use strict';
 
 // Ledger-safe deletion (recommendation track 10): the food_customer_wallet_ledger
-// no-delete / no-update rules are append-only by design. A hard DELETE of a
-// user or restaurant with any ledger history fails schema-wide because the
-// ON DELETE actions on the append-only tables are rewritten to NOTHING and
-// the referential-integrity check then fails. Since migration
-// 20261103091426 dropped the ledger FKs themselves (088b pattern), the
-// failing constraint named by that check is now the append-only operator
-// audit events table's SET NULL / CASCADE action, not the ledger FK; the
-// guarantee is unchanged: the delete fails and the ledger rows survive.
-// The ledger-safe completion is anonymization (users) and suspension
-// (restaurants), never removal. These tests run against the
-// disposable credit_statement_test database only, use synthetic rows, and
-// never hard-delete anything in cleanup.
+// no-delete / no-update rules are append-only by design. The ledger rows
+// themselves never block a delete: migration 20261103091426 dropped the
+// ledger FKs (088b pattern), so a hard DELETE of a user or restaurant with
+// ledger history succeeds at the schema level and the ledger rows survive
+// with their historical ids — they are never cascade-deleted. Before
+// Domain 8 #16 the delete failed schema-wide anyway, because the
+// append-only operator audit events table's SET NULL actions were rewritten
+// to NOTHING by its own rules and the referential-integrity check then
+// failed; #16 dropped those four FKs, so the operator-audit table no
+// longer blocks the delete either. The ledger-safe completion is still
+// anonymization (users) and suspension (restaurants), never removal — but
+// the schema no longer fails the delete, it preserves the history. The
+// user test below deletes inside a scratch transaction that transiently
+// drops the remaining sibling rule-guarded FKs to users (partner funding
+// actor, payment-request actor, helper history — other Domain 8 items'
+// scope, rolled back, so concurrent transactions never observe the drop).
+// These tests run against the disposable credit_statement_test database
+// only and use synthetic rows.
 
 jest.unmock('pg');
 const { disposableDatabaseOptIn } = require('./helpers/statementTestDatabase');
@@ -137,44 +143,66 @@ describeDatabase('append-only ledger delete block', () => {
     expect(await ledgerRow(ledgerId)).toBeTruthy();
   });
 
-  test('hard DELETE of a user with ledger history fails schema-wide', async () => {
+  // Domain 8 #16: the operator-audit SET NULL FKs no longer block this
+  // delete, and the ledger FKs were already dropped by 91426, so the hard
+  // delete succeeds and the ledger row survives with its historical ids.
+  // The remaining sibling rule-guarded FKs to users are dropped only
+  // inside this transaction and rolled back (see file header).
+  test('hard DELETE of a user with ledger history succeeds and the ledger row survives with historical ids', async () => {
     const owner = await makeUser({ emailPrefix: 'ledger-owner' });
     const businessId = await makeBusiness(owner.id);
     const restaurantId = await makeRestaurant(businessId, owner.id);
     const customer = await makeUser({ emailPrefix: 'ledger-cust' });
-    await makeWalletWithLedger(restaurantId, customer.id);
+    const { ledgerId } = await makeWalletWithLedger(restaurantId, customer.id);
+    const before = await ledgerRow(ledgerId);
+    expect(before).toBeTruthy();
 
-    let caught = null;
+    const client = await pool.connect();
     try {
-      await pool.query(`DELETE FROM users WHERE id = $1`, [customer.id]);
-    } catch (err) {
-      caught = err;
+      await client.query('BEGIN');
+      await client.query(`ALTER TABLE food_customer_wallet_operator_audit_events DROP CONSTRAINT IF EXISTS food_customer_wallet_operator_audit_events_customer_id_fkey`);
+      await client.query(`ALTER TABLE food_customer_wallet_operator_audit_events DROP CONSTRAINT IF EXISTS food_customer_wallet_operator_audit_event_operator_user_id_fkey`);
+      await client.query(`ALTER TABLE oxsteed_credit_partner_funding_records DROP CONSTRAINT IF EXISTS oxsteed_credit_partner_funding_records_actor_user_id_fkey`);
+      await client.query(`ALTER TABLE main_app_payment_request_events DROP CONSTRAINT IF EXISTS main_app_payment_request_events_actor_user_id_fkey`);
+      await client.query(`ALTER TABLE helper_payment_policy_history DROP CONSTRAINT IF EXISTS helper_payment_policy_history_helper_id_fkey`);
+      await client.query(`DELETE FROM users WHERE id = $1`, [customer.id]);
+      const { rows: gone } = await client.query(`SELECT 1 AS gone FROM users WHERE id = $1`, [customer.id]);
+      expect(gone.length).toBe(0);
+      const { rows: [kept] } = await client.query(`SELECT * FROM food_customer_wallet_ledger WHERE id = $1`, [ledgerId]);
+      expect(kept).toBeTruthy();
+      expect(kept).toEqual(before);
+      await client.query('ROLLBACK');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
     }
-    expect(caught).toBeTruthy();
-    expect(caught.code).toBe('XX000');
-    expect(caught.message).toMatch(/food_customer_wallet_operator_audit_events_customer_id_fkey/);
-    const { rows } = await pool.query(`SELECT COUNT(*)::int AS n FROM users WHERE id = $1`, [customer.id]);
-    expect(rows[0].n).toBe(1);
+    // The rollback restored the fixture user and ledger row; the
+    // assertions inside the transaction proved the delete succeeds and
+    // the ledger row is kept byte-identical.
+    expect(await ledgerRow(ledgerId)).toEqual(before);
   });
 
-  test('hard DELETE of a restaurant with ledger history fails schema-wide', async () => {
+  // Domain 8 #16: same as the user test — the operator-audit
+  // wallet_account_id FK no longer blocks the restaurant delete, and the
+  // ledger FKs were already dropped by 91426, so the delete succeeds and
+  // the ledger row survives with its historical ids.
+  test('hard DELETE of a restaurant with ledger history succeeds and the ledger row survives with historical ids', async () => {
     const owner = await makeUser({ emailPrefix: 'ledger-owner' });
     const businessId = await makeBusiness(owner.id);
     const restaurantId = await makeRestaurant(businessId, owner.id);
     const customer = await makeUser({ emailPrefix: 'ledger-cust' });
-    await makeWalletWithLedger(restaurantId, customer.id);
+    const { ledgerId } = await makeWalletWithLedger(restaurantId, customer.id);
+    const before = await ledgerRow(ledgerId);
+    expect(before).toBeTruthy();
 
-    let caught = null;
-    try {
-      await pool.query(`DELETE FROM food_restaurants WHERE id = $1`, [restaurantId]);
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeTruthy();
-    expect(caught.code).toBe('XX000');
-    expect(caught.message).toMatch(/food_customer_wallet_operator_audit_even_wallet_account_id_fkey/);
-    const { rows } = await pool.query(`SELECT COUNT(*)::int AS n FROM food_restaurants WHERE id = $1`, [restaurantId]);
-    expect(rows[0].n).toBe(1);
+    await pool.query(`DELETE FROM food_restaurants WHERE id = $1`, [restaurantId]);
+    const { rows: gone } = await pool.query(`SELECT 1 AS gone FROM food_restaurants WHERE id = $1`, [restaurantId]);
+    expect(gone.length).toBe(0);
+    const after = await ledgerRow(ledgerId);
+    expect(after).toBeTruthy();
+    expect(after).toEqual(before);
   });
 
   test('finalize anonymizes a due schedule, closes the wallet, keeps ledger bytes identical', async () => {

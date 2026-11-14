@@ -16,6 +16,7 @@ import {
   listBrandPayRuns,
   listPayRunConsolidations,
   createPayRunConsolidation,
+  getPayRunConsolidation,
   finalizePayRunConsolidation,
   approvePayRunConsolidation,
   voidPayRunConsolidation,
@@ -78,6 +79,9 @@ export default function BrandHQPanel({ t, restaurant }) {
   const [brandPayRuns, setBrandPayRuns] = useState([]);
   const [consolidations, setConsolidations] = useState([]);
   const [selectedRunIds, setSelectedRunIds] = useState([]);
+  // Domain 8 #32: consolidation detail opened from the list below.
+  const [consolidationDetail, setConsolidationDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [franchiseReport, setFranchiseReport] = useState(null);
   const [franchiseError, setFranchiseError] = useState('');
   // Item 44: explicit store-to-agreement mappings + the operator's
@@ -360,6 +364,21 @@ export default function BrandHQPanel({ t, restaurant }) {
       toast.error(apiErrorMessage(err, t('restaurants.ops.brandHq.consolidations.actionError')));
     } finally {
       setPublishing(false);
+    }
+  };
+
+  // Domain 8 #32: detail view for one consolidation, fetched from the
+  // detail endpoint (member pay runs + per-currency and converted
+  // totals). The list alone shows only the period, status and member
+  // count; the detail is what a payroll manager files and reconciles.
+  const viewConsolidation = async (consolidationId) => {
+    setDetailLoading(true);
+    try {
+      setConsolidationDetail(await getPayRunConsolidation(brandId, consolidationId));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('restaurants.ops.brandHq.consolidations.detailError')));
+    } finally {
+      setDetailLoading(false);
     }
   };
 
@@ -715,6 +734,8 @@ export default function BrandHQPanel({ t, restaurant }) {
                 {consolidation.totals?.converted?.convertedTotalCents != null && (
                   <> · {money(consolidation.totals.converted.convertedTotalCents, consolidation.totals.converted.reportingCurrency)}</>
                 )}
+                {' '}
+                <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={detailLoading} onClick={() => viewConsolidation(consolidation.id)} data-track="ui.eb078cc8b5.21">{t('restaurants.ops.brandHq.consolidations.viewDetails')}</button>
                 {consolidation.status === 'draft' && (
                   <>
                     {' '}
@@ -744,6 +765,34 @@ export default function BrandHQPanel({ t, restaurant }) {
               </li>
             ))}
           </ul>
+        )}
+        {consolidationDetail && (
+          <div className="fd-stack-sm">
+            <h5 className="fd-settings-subhead fd-settings-subhead--flush">
+              {t('restaurants.ops.brandHq.consolidations.detailTitle', { id: consolidationDetail.id })}
+            </h5>
+            <p className="fd-card-meta">
+              {consolidationDetail.periodFrom} → {consolidationDetail.periodTo} · {consolidationDetail.status}
+              {consolidationDetail.finalizedAt ? ` · ${t('restaurants.ops.brandHq.consolidations.finalizedAt', { date: String(consolidationDetail.finalizedAt).slice(0, 10) })}` : ''}
+              {consolidationDetail.approvedAt ? ` · ${t('restaurants.ops.brandHq.consolidations.approvedAt', { date: String(consolidationDetail.approvedAt).slice(0, 10) })}` : ''}
+            </p>
+            {(consolidationDetail.totals?.perCurrency || []).length > 0 && (
+              <p className="fd-card-meta">
+                {(consolidationDetail.totals.perCurrency).map((entry) => `${money(entry.totalPayCents, entry.currencyCode)}`).join(' · ')}
+                {consolidationDetail.totals?.converted?.convertedTotalCents != null && (
+                  <> · {money(consolidationDetail.totals.converted.convertedTotalCents, consolidationDetail.totals.converted.reportingCurrency)}</>
+                )}
+              </p>
+            )}
+            <ul className="fd-card-meta fd-stack-sm">
+              {(consolidationDetail.members || []).map((member) => (
+                <li key={member.payRunId}>
+                  {t('restaurants.ops.brandHq.consolidations.memberRun', { id: member.payRunId })} · {member.periodFrom} → {member.periodTo} · {member.status || '—'} · {money(member.totals?.total_pay_cents, member.currencyCode)}
+                </li>
+              ))}
+            </ul>
+            <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" onClick={() => setConsolidationDetail(null)} data-track="ui.eb078cc8b5.24">{t('restaurants.ops.brandHq.consolidations.closeDetails')}</button>
+          </div>
         )}
       </div>
 

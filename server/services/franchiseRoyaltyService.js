@@ -36,6 +36,18 @@
 const logger = require('../utils/logger');
 const locationAgreements = require('./restaurantFranchiseLocationAgreementService');
 
+// Domain 8 #13: a permanently failing source was retried hourly
+// forever (attempts unbounded, backoff capped at one day) with no
+// visibility. After this many failed re-drive attempts the row is
+// parked: it leaves the re-drive selection, a high incident names
+// it, and the admin list surfaces it for operator review. Ten
+// attempts at hourly retries span roughly a day of backoff — long
+// enough to ride out a transient outage, short enough that a
+// permanently broken source stops churning. (The growth-erasure
+// park pattern uses 3, but that worker retries on a much tighter
+// loop; 10 fits the hourly royalty cadence.)
+const MAX_ROYALTY_FAILURE_ATTEMPTS = 10;
+
 /**
  * Find the single franchise agreement that owns a territory point.
  * Territory points only: revenue with no store (a job location, a
@@ -268,16 +280,20 @@ async function recordRoyaltyFailure(client, { sourceType, sourceId, agreementId,
 // A source that accrues (or already accrued, or no longer matches a
 // launched agreement) resolves; a source that still fails backs off
 // exponentially (10m, 20m, 40m, ... capped at one day) and stays
-// open for the next run.
+// open for the next run. Domain 8 #13: after
+// MAX_ROYALTY_FAILURE_ATTEMPTS failed attempts the row is parked
+// (parked_at set): it leaves the re-drive selection, a high
+// incident names it, and the admin list surfaces it. A parked row
+// is never retried again until an operator clears it.
 async function retryFailedRoyalties(client, { limit = 100 } = {}) {
   const bounded = Math.max(1, Math.min(Number(limit) || 100, 500));
   const { rows: failures } = await client.query(
     `SELECT * FROM franchise_royalty_failures
-      WHERE resolved_at IS NULL AND next_retry_at <= NOW()
+      WHERE resolved_at IS NULL AND parked_at IS NULL AND next_retry_at <= NOW()
       ORDER BY next_retry_at, id LIMIT $1`,
     [bounded]
   );
-  const result = { attempted: 0, resolved: 0, failed: 0, errors: [] };
+  const result = { attempted: 0, resolved: 0, failed: 0, parked: 0, errors: [] };
   for (const failure of failures) {
     result.attempted += 1;
     try {
@@ -304,21 +320,93 @@ async function retryFailedRoyalties(client, { limit = 100 } = {}) {
       // attempt count and the next retry time.
       const attempts = Number(failure.attempts || 0) + 1;
       const backoffMinutes = Math.min(1440, 5 * 2 ** attempts);
-      await client.query(
-        `UPDATE franchise_royalty_failures
-            SET attempts = $2, error = $3,
-                next_retry_at = NOW() + ($4::int * INTERVAL '1 minute'),
-                updated_at = NOW()
-          WHERE id = $1`,
-        [failure.id, attempts, String(err.message || err).slice(0, 2000), backoffMinutes]
-      ).catch(() => {});
+      if (attempts >= MAX_ROYALTY_FAILURE_ATTEMPTS) {
+        await client.query(
+          `UPDATE franchise_royalty_failures
+              SET attempts = $2, error = $3, parked_at = NOW(),
+                  next_retry_at = NOW() + ($4::int * INTERVAL '1 minute'),
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [failure.id, attempts, String(err.message || err).slice(0, 2000), backoffMinutes]
+        ).catch(() => {});
+        result.parked += 1;
+        // A parked royalty is invisible until someone queries the
+        // table directly; raise a deduped high incident naming the
+        // source instead. Incident bookkeeping must never fail the
+        // re-drive itself.
+        try {
+          const { recordIncident } = require('./incidentStore');
+          await recordIncident({
+            type: 'franchise_royalty_failure_parked',
+            severity: 'high',
+            message: `Franchise royalty for ${failure.source_type} ${failure.source_id} failed ${attempts} times and was parked; it will not be retried until an operator reviews it`,
+            dedupeKey: `franchise-royalty-parked:${failure.source_type}:${failure.source_id}`,
+            details: {
+              source_type: failure.source_type,
+              source_id: failure.source_id,
+              agreement_id: failure.agreement_id,
+              amount_cents: Number(failure.amount_cents),
+              attempts,
+              error: String(err.message || err).slice(0, 500),
+            },
+          });
+        } catch (incidentErr) {
+          logger.warn('[franchise] Failed to record parked-royalty incident', {
+            sourceType: failure.source_type, sourceId: failure.source_id, error: incidentErr.message,
+          });
+        }
+      } else {
+        await client.query(
+          `UPDATE franchise_royalty_failures
+              SET attempts = $2, error = $3,
+                  next_retry_at = NOW() + ($4::int * INTERVAL '1 minute'),
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [failure.id, attempts, String(err.message || err).slice(0, 2000), backoffMinutes]
+        ).catch(() => {});
+      }
     }
   }
   return result;
+}
+
+// Domain 8 #13: admin list for the royalty-failure outbox, backing
+// GET /api/admin/super/franchise-royalty-failures. Status filters:
+// 'open' (unresolved, unparked), 'parked', 'resolved', 'all'.
+async function listRoyaltyFailures(client, { status = 'open', limit = 50, offset = 0 } = {}) {
+  const boundedLimit = Math.max(1, Math.min(Number(limit) || 50, 100));
+  const boundedOffset = Math.max(0, Number(offset) || 0);
+  const statusClause = {
+    open: 'resolved_at IS NULL AND parked_at IS NULL',
+    parked: 'parked_at IS NOT NULL AND resolved_at IS NULL',
+    resolved: 'resolved_at IS NOT NULL',
+    all: 'TRUE',
+  }[status];
+  if (!statusClause) {
+    const err = new Error(`Unknown royalty failure status: ${status}`);
+    err.code = 'invalid_status';
+    throw err;
+  }
+  const { rows: [{ total }] } = await client.query(
+    `SELECT COUNT(*)::int AS total FROM franchise_royalty_failures WHERE ${statusClause}`
+  );
+  const { rows: failures } = await client.query(
+    `SELECT id, source_type, source_id, agreement_id, amount_cents,
+            location_id, city, region, description, error, attempts,
+            next_retry_at, resolved_at, parked_at, created_at, updated_at
+       FROM franchise_royalty_failures
+      WHERE ${statusClause}
+      ORDER BY created_at DESC, id DESC
+      LIMIT $1 OFFSET $2`,
+    [boundedLimit, boundedOffset]
+  );
+  return { failures, total, limit: boundedLimit, offset: boundedOffset, status };
 }
 
 module.exports = {
   findTerritoryAgreement,
   accrueTerritoryRoyalty,
   retryFailedRoyalties,
+  listRoyaltyFailures,
+  MAX_ROYALTY_FAILURE_ATTEMPTS,
 };

@@ -106,11 +106,18 @@ async function run() {
           );
           // Same pattern as the unconfigured half above: a high incident
           // names the parked batch instead of log-only hourly retries.
+          // Domain 8 #17: the details name the rows to reset (ids and
+          // subject keys), so the operator review queue can act on the
+          // batch without guessing from the queue.
           await require('../services/incidentStore').recordIncident({
             type: 'growth_erasure_verification_parked', severity: 'high',
             message: 'Growth erasure verification failed repeatedly; rows parked for operator review',
             dedupeKey: 'growth:erasure:verification-parked',
-            details: { count: rows.length, table: verificationFailed, attempts },
+            details: {
+              count: rows.length, table: verificationFailed, attempts,
+              rowIds: rows.map((r) => Number(r.id)),
+              subjectKeys: [...new Set(rows.map((r) => r.subject_key))],
+            },
           });
           return { completed: 0, parked: rows.length, verificationAttempts: attempts };
         }

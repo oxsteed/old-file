@@ -25,6 +25,7 @@ const moderationCtrl  = require('../controllers/moderationController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const paymentDisputeAdminCtrl = require('../controllers/paymentDisputeAdminController');
 const webhookReceiptAdminCtrl = require('../controllers/webhookReceiptAdminController');
+const franchiseRoyaltyAdminCtrl = require('../controllers/franchiseRoyaltyAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
 const adminPhoneVerificationCtrl = require('../controllers/adminPhoneVerificationController');
 const adminOperationsCtrl = require('../controllers/adminOperationsController');
@@ -98,6 +99,10 @@ router.get('/dashboard',         requireAdmin, requirePermission('manage_operati
 // availability and permission state; domain pages remain authoritative.
 router.get('/operations/overview', requireAdmin, requirePermission('manage_operations'), adminOperationsCtrl.getOverview);
 router.get('/operations/security-audit-log', requireAdmin, requirePermission('view_audit_log'), adminOperationsCtrl.getSecurityAuditLog);
+// Domain 8 #30: live fleet worker heartbeat snapshot (in-memory run
+// state from scheduledWorkerSchedule); read-only, same permission as
+// the operations overview it feeds.
+router.get('/operations/fleet-worker-heartbeats', requireAdmin, requirePermission('manage_operations'), adminOperationsCtrl.getFleetWorkerHeartbeats);
 
 // Content moderation
 router.get('/reports',           requireAdmin, requirePermission('manage_operations'), adminCtrl.getReports);
@@ -145,9 +150,9 @@ router.put('/businesses/:id/delete',           requireAdmin, requirePermission('
 // Track D (finding 20): admin restaurant management for food_restaurants.
 router.get('/restaurants',                      requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.listRestaurants);
 router.get('/restaurants/:id',                  requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.getRestaurant);
-router.post('/restaurants/:id/suspend',         requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.suspendRestaurant);
-router.post('/restaurants/:id/restore',         requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.restoreRestaurant);
-router.post('/restaurants/:id/verify',          requireAdmin, requirePermission('manage_users'), adminRestaurantCtrl.verifyRestaurant);
+router.post('/restaurants/:id/suspend',         requireAdmin, requirePermission('manage_users'), rejectImpersonated, adminRestaurantCtrl.suspendRestaurant);
+router.post('/restaurants/:id/restore',         requireAdmin, requirePermission('manage_users'), rejectImpersonated, adminRestaurantCtrl.restoreRestaurant);
+router.post('/restaurants/:id/verify',          requireAdmin, requirePermission('manage_users'), rejectImpersonated, adminRestaurantCtrl.verifyRestaurant);
 
 // Track D (finding 53): admin reader over business_audit_log.
 router.get('/super/business-audit',             requireAdmin, requirePermission('view_audit_log'), adminRestaurantCtrl.listBusinessAudit);
@@ -262,6 +267,9 @@ router.get('/super/dashboard',          requireSuperAdmin, superCtrl.getDashboar
 router.get('/super/webhook-receipts', requireSuperAdmin, webhookReceiptAdminCtrl.list);
 router.post('/super/webhook-receipts/:id/replay', requireSuperAdmin, webhookReceiptAdminCtrl.replay);
 router.post('/super/webhook-receipts/:id/resolve', requireSuperAdmin, webhookReceiptAdminCtrl.resolve);
+// Domain 8 #13: failed franchise royalty accruals — list open,
+// parked, and resolved outbox rows for operator review.
+router.get('/super/franchise-royalty-failures', requireSuperAdmin, franchiseRoyaltyAdminCtrl.listRoyaltyFailures);
 router.get('/super/chargebacks', requireSuperAdmin, async (req, res, next) => {
   try {
     const svc = require('../services/chargebackEvidenceService');
@@ -281,7 +289,7 @@ router.post('/super/chargebacks/:id/submit', requireSuperAdmin, rejectImpersonat
   } catch (err) { next(err); }
 });
 router.get('/super/subscriptions/:id', requireSuperAdmin, require('../controllers/subscriptionController').getAdminSubscription);
-router.post('/super/subscriptions/stepup-challenges', requireSuperAdmin, strictLimiter, require('../controllers/subscriptionController').issueAdminCancelStepupChallenge);
+router.post('/super/subscriptions/stepup-challenges', requireSuperAdmin, rejectImpersonated, strictLimiter, require('../controllers/subscriptionController').issueAdminCancelStepupChallenge);
 router.post('/super/subscriptions/:id/cancel', requireSuperAdmin, require('../controllers/subscriptionController').adminCancelSubscription);
 router.get('/super/revenue-chart',      requireSuperAdmin, superCtrl.getRevenueChart);
 router.get('/super/dashboard/activity', requireSuperAdmin, superCtrl.getDashboardActivity);
@@ -391,7 +399,7 @@ router.post('/users/:userId/password', requireSuperAdmin, requirePasswordSetStep
 // records a 15-minute fresh-auth event; the impersonate route then requires
 // that event.
 const requireImpersonationStepUp = requireFreshAuth('impersonation_start');
-router.post('/super/stepup/verify', requireSuperAdmin, strictLimiter, refundsCtrl.verifyStepUp);
+router.post('/super/stepup/verify', requireSuperAdmin, rejectImpersonated, strictLimiter, refundsCtrl.verifyStepUp);
 router.post('/users/:userId/impersonate',     requireSuperAdmin, requireImpersonationStepUp, superCtrl.impersonateUser);
 router.post('/users/impersonate/exchange', requireSuperAdmin, superCtrl.exchangeImpersonationCode);
 router.post('/users/:userId/impersonate/end', requireSuperAdmin, superCtrl.endImpersonation);
@@ -672,7 +680,7 @@ router.post('/super/oxsteed-credit/rail/unfreeze', requireSuperAdmin, rejectImpe
 // External reconciliation vs Stripe (Phase 4): run history and manual
 // triggers. Manual periods are capped at 31 days by the service.
 router.get('/super/oxsteed-credit/external-reconciliation', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditExternalReconciliationRuns);
-router.post('/super/oxsteed-credit/external-reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.runAdminCreditExternalReconciliation);
+router.post('/super/oxsteed-credit/external-reconciliation', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.runAdminCreditExternalReconciliation);
 router.get('/super/oxsteed-credit/overview', requireSuperAdmin, oxsteedCreditCtrl.getAdminOverview);
 router.post('/super/oxsteed-credit/notifications/:notificationId/retry', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.retryAdminCreditNotification);
 router.get('/super/oxsteed-credit/accounts', requireSuperAdmin, oxsteedCreditCtrl.listAdminCustomerAccounts);
@@ -731,6 +739,8 @@ router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAd
 router.get('/super/oxsteed-credit/disputes', requireSuperAdmin, oxsteedCreditCtrl.listAdminDisputes);
 router.get('/super/oxsteed-credit/disputes.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditDisputes);
 router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resolveAdminDispute);
+router.post('/super/oxsteed-credit/disputes/:disputeId/resend-results-notice', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resendAdminDisputeResultsNotice);
+router.post('/super/oxsteed-credit/cashout-disputes/:cashoutDisputeId/resend-results-notice', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resendAdminCashoutDisputeResultsNotice);
 router.post('/super/oxsteed-credit/disputes/:disputeId/provisional-credit', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminProvisionalCredit);
 router.get('/super/oxsteed-credit/audit-events', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditAuditEvents);
 router.get('/super/oxsteed-credit/audit-events.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditAuditEvents);
@@ -848,14 +858,14 @@ router.post('/super/oxsteed-credit/backfill/requeue', requireSuperAdmin, rejectI
     res.json(result);
   } catch (err) { next(err); }
 });
-router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);
+router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);
 // Phase 5 compliance queue: identity verifications, sanctions hits, cases.
 router.get('/super/oxsteed-credit/compliance-queue', requireSuperAdmin, oxsteedCreditCtrl.getAdminComplianceQueue);
-router.post('/super/oxsteed-credit/compliance/verifications/:id/decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceVerification);
-router.post('/super/oxsteed-credit/compliance/verifications/:id/appeal-decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceIdentityAppeal);
-router.post('/super/oxsteed-credit/compliance/sanctions/:id/decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceSanction);
-router.post('/super/oxsteed-credit/compliance/cases/:id/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminComplianceCase);
-router.post('/super/oxsteed-credit/stepup-challenges', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminStepupChallenge);
+router.post('/super/oxsteed-credit/compliance/verifications/:id/decision', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceVerification);
+router.post('/super/oxsteed-credit/compliance/verifications/:id/appeal-decision', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceIdentityAppeal);
+router.post('/super/oxsteed-credit/compliance/sanctions/:id/decision', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceSanction);
+router.post('/super/oxsteed-credit/compliance/cases/:id/transition', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminComplianceCase);
+router.post('/super/oxsteed-credit/stepup-challenges', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminStepupChallenge);
 // Phase 6 money-out: customer withdrawal queue. Approval moves money, so it
 // requires a fresh admin step-up challenge, verified before any side effect.
 router.get('/super/oxsteed-credit/withdrawals', requireSuperAdmin, async (req, res, next) => {
@@ -977,8 +987,12 @@ router.put('/super/oxsteed-credit/fee-schedule/:id', requireSuperAdmin, rejectIm
     if (!schedule.some((row) => String(row.id) === String(req.params.id))) {
       throw new AppError('Fee schedule row was not found', 404, 'credit_fee_schedule_not_found');
     }
-    // Domain 7 #9: the maker proves a fresh step-up before queueing, the
-    // same choke point requestMoneyMovement enforces for money movements.
+    // Domain 6 finding 5 (2026-11-13): this dedicated maker route called
+    // requestPendingAction directly, bypassing the maker step-up choke
+    // point. Verify a fresh pending_action_request step-up first. Fee
+    // schedule changes carry no single amount, so the challenge is
+    // unbound (the documented agent_job_cancel exception); the checker
+    // half still requires a distinct second admin's TOTP.
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
       actorUserId: req.user?.id || null,
@@ -1026,8 +1040,10 @@ router.put('/super/oxsteed-credit/reserve-policies', requireSuperAdmin, rejectIm
       ratioBps: req.body?.ratioBps ?? req.body?.ratio_bps,
       floorCents: req.body?.floorCents ?? req.body?.floor_cents,
     });
-    // Domain 7 #9: the maker proves a fresh step-up before queueing, the
-    // same choke point requestMoneyMovement enforces for money movements.
+    // Domain 6 finding 5 (2026-11-13): maker step-up, as on the
+    // fee-schedule route above. Reserve policy changes carry no single
+    // amount, so the pending_action_request challenge is unbound (the
+    // documented agent_job_cancel exception).
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
       actorUserId: req.user?.id || null,
@@ -1072,8 +1088,10 @@ router.put('/super/oxsteed-credit/restaurant-conversion-policies', requireSuperA
       restaurantId: req.body?.restaurantId ?? req.body?.restaurant_id,
       allowRestaurantToOxsteed: req.body?.allowRestaurantToOxsteed ?? req.body?.allow_restaurant_to_oxsteed,
     });
-    // Domain 7 #9: the maker proves a fresh step-up before queueing, the
-    // same choke point requestMoneyMovement enforces for money movements.
+    // Domain 6 finding 5 (2026-11-13): maker step-up, as on the
+    // fee-schedule route above. Conversion policy changes carry no single
+    // amount, so the pending_action_request challenge is unbound (the
+    // documented agent_job_cancel exception).
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
       actorUserId: req.user?.id || null,

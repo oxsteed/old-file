@@ -238,15 +238,101 @@ async function sweepResultsNotices() {
       params: { reference: String(d.id).slice(0, 8), outcome_key: d.status, explanation: String(d.resolution || '').slice(0, 1500) },
       idempotencyKey: `credit-dispute:${d.id}:results`,
     });
-    // Recorded even when the email failed (evidence of the attempt); a
-    // failed send is retried by support from the admin dispute view.
-    await pool.query(
-      `UPDATE oxsteed_credit_disputes SET results_notice_sent_at = NOW(), results_notice_result = $2::jsonb WHERE id = $1 AND results_notice_sent_at IS NULL`,
-      [d.id, JSON.stringify(result)]
-    );
-    if (result.sent) sent += 1;
+    // The stamp means the holder was actually told. A failed send
+    // records the attempt (results_notice_result) but leaves the stamp
+    // empty, so the next sweep retries it instead of the dispute
+    // reading as notified forever.
+    if (result.sent === true) {
+      await pool.query(
+        `UPDATE oxsteed_credit_disputes SET results_notice_sent_at = NOW(), results_notice_result = $2::jsonb WHERE id = $1 AND results_notice_sent_at IS NULL`,
+        [d.id, JSON.stringify(result)]
+      );
+      sent += 1;
+    } else {
+      await pool.query(
+        `UPDATE oxsteed_credit_disputes SET results_notice_result = $2::jsonb WHERE id = $1 AND results_notice_sent_at IS NULL`,
+        [d.id, JSON.stringify(result)]
+      );
+    }
   }
   return { attempted: rows.length, sent };
+}
+
+// Admin resend for a results notice that failed (or was never attempted
+// inside the sweep's 30-day window). Reuses the sweep's idempotency key
+// so a double-click cannot send twice, and stamps only on success.
+async function resendResultsNotice({ disputeId = null, cashoutDisputeId = null, actorUserId = null } = {}) {
+  const noticesService = notices();
+  if (disputeId) {
+    const { rows: [d] } = await pool.query(
+      `SELECT id, customer_id, status, resolution, results_notice_sent_at FROM oxsteed_credit_disputes WHERE id = $1`,
+      [disputeId]
+    );
+    if (!d) throw new AppError('Credit dispute not found', 404, 'credit_dispute_not_found');
+    if (!TERMINAL.includes(d.status)) {
+      throw new AppError('Only a resolved or rejected dispute has a results notice to resend', 409, 'credit_dispute_results_notice_not_applicable');
+    }
+    if (d.results_notice_sent_at) return { sent: true, alreadySent: true };
+    const result = await noticesService.sendUserNotice({
+      userId: d.customer_id,
+      key: 'dispute_results',
+      params: { reference: String(d.id).slice(0, 8), outcome_key: d.status, explanation: String(d.resolution || '').slice(0, 1500) },
+      idempotencyKey: `credit-dispute:${d.id}:results`,
+    });
+    if (result.sent === true) {
+      await pool.query(
+        `UPDATE oxsteed_credit_disputes SET results_notice_sent_at = NOW(), results_notice_result = $2::jsonb WHERE id = $1 AND results_notice_sent_at IS NULL`,
+        [d.id, JSON.stringify(result)]
+      );
+    } else {
+      await pool.query(
+        `UPDATE oxsteed_credit_disputes SET results_notice_result = $2::jsonb WHERE id = $1 AND results_notice_sent_at IS NULL`,
+        [d.id, JSON.stringify(result)]
+      );
+    }
+    await insertComplianceAudit(pool, {
+      actionType: 'credit.dispute.results_notice_resent', actorUserId, customerId: d.customer_id,
+      resourceType: 'credit_dispute', resourceId: String(d.id),
+      reason: 'Results notice re-sent by an administrator after a failed send',
+      afterState: { noticeSent: result.sent === true },
+    });
+    return { sent: result.sent === true };
+  }
+  if (cashoutDisputeId) {
+    const { rows: [d] } = await pool.query(
+      `SELECT id, user_id, status, resolution, results_notice_sent_at FROM credit_cashout_disputes WHERE id = $1`,
+      [cashoutDisputeId]
+    );
+    if (!d) throw new AppError('Cash-out dispute not found', 404, 'credit_cashout_dispute_not_found');
+    if (!CASHOUT_DISPUTE_OUTCOMES.includes(d.status)) {
+      throw new AppError('Only a resolved or rejected cash-out dispute has a results notice to resend', 409, 'credit_dispute_results_notice_not_applicable');
+    }
+    if (d.results_notice_sent_at) return { sent: true, alreadySent: true };
+    const result = await noticesService.sendUserNotice({
+      userId: d.user_id, key: 'dispute_results',
+      params: { reference: `C${d.id}`, outcome_key: d.status, explanation: String(d.resolution || '').slice(0, 1500) },
+      idempotencyKey: `credit-cashout-dispute:${d.id}:results`,
+    });
+    if (result.sent === true) {
+      await pool.query(
+        `UPDATE credit_cashout_disputes SET results_notice_sent_at = NOW(), results_notice_result = $2::jsonb WHERE id = $1 AND results_notice_sent_at IS NULL`,
+        [d.id, JSON.stringify(result)]
+      );
+    } else {
+      await pool.query(
+        `UPDATE credit_cashout_disputes SET results_notice_result = $2::jsonb WHERE id = $1 AND results_notice_sent_at IS NULL`,
+        [d.id, JSON.stringify(result)]
+      );
+    }
+    await insertComplianceAudit(pool, {
+      actionType: 'credit.dispute.results_notice_resent', actorUserId, customerId: d.user_id,
+      resourceType: 'credit_cashout_dispute', resourceId: String(d.id),
+      reason: 'Results notice re-sent by an administrator after a failed send',
+      afterState: { noticeSent: result.sent === true },
+    });
+    return { sent: result.sent === true };
+  }
+  throw new AppError('A dispute id is required', 400, 'credit_dispute_id_required');
 }
 
 async function reverseProvisional(disputeId) {
@@ -365,18 +451,29 @@ async function sweepCashoutDisputes(now) {
     `SELECT id, user_id, status, resolution FROM credit_cashout_disputes
       WHERE status IN ('resolved_paid_confirmed', 'resolved_reissued', 'rejected') AND results_notice_sent_at IS NULL LIMIT ${BATCH}`
   );
+  let sent = 0;
   for (const d of closed) {
     const result = await notices().sendUserNotice({
       userId: d.user_id, key: 'dispute_results',
       params: { reference: `C${d.id}`, outcome_key: d.status, explanation: String(d.resolution || '').slice(0, 1500) },
       idempotencyKey: `credit-cashout-dispute:${d.id}:results`,
     });
-    await pool.query(
-      `UPDATE credit_cashout_disputes SET results_notice_sent_at = NOW(), results_notice_result = $2::jsonb WHERE id = $1`,
-      [d.id, JSON.stringify(result)]
-    );
+    // Same rule as the credit-dispute sweep: the stamp means the holder
+    // was actually told; a failed send stays eligible for the next run.
+    if (result.sent === true) {
+      await pool.query(
+        `UPDATE credit_cashout_disputes SET results_notice_sent_at = NOW(), results_notice_result = $2::jsonb WHERE id = $1 AND results_notice_sent_at IS NULL`,
+        [d.id, JSON.stringify(result)]
+      );
+      sent += 1;
+    } else {
+      await pool.query(
+        `UPDATE credit_cashout_disputes SET results_notice_result = $2::jsonb WHERE id = $1 AND results_notice_sent_at IS NULL`,
+        [d.id, JSON.stringify(result)]
+      );
+    }
   }
-  return { breached: late.length, noticed: closed.length };
+  return { breached: late.length, noticed: sent };
 }
 
 async function runSlaSweep({ now = new Date() } = {}) {
@@ -624,6 +721,7 @@ module.exports = {
   sweepProvisionalDue,
   sweepFinalDeadline,
   sweepResultsNotices,
+  resendResultsNotice,
   sweepProvisionalReversals,
   sweepCashoutDisputes,
   autoIssueProvisional,

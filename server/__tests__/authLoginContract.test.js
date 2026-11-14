@@ -42,7 +42,22 @@ describe('auth login contract', () => {
   });
 
   test('rejects login without termsAgreed for non-admin users', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ role: 'customer' }] });
+    // Domain 6 #13: the terms check now runs after password verification,
+    // so the mock must carry a password that verifies.
+    const bcrypt = require('bcrypt');
+    const passwordHash = await bcrypt.hash('SecurePass123!', 4);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 1,
+        first_name: 'Jane',
+        last_name: 'Doe',
+        email: 'user@example.com',
+        password_hash: passwordHash,
+        is_active: true,
+        totp_enabled: false,
+        role: 'customer',
+      }] });
 
     const res = await request(buildApp())
       .post('/api/auth/login')
