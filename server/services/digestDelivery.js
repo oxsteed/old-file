@@ -99,6 +99,7 @@ async function deliverDigestEmail(queryable, {
   subject,
   text,
   html,
+  headers,
   deliveryKey,
   skipWhenPrefFalse = [],
 }) {
@@ -133,6 +134,7 @@ async function deliverDigestEmail(queryable, {
       subject,
       ...(html ? { html } : {}),
       ...(text ? { text } : {}),
+      ...(headers ? { headers } : {}),
       ...(deliveryKey ? { idempotencyKey: deliveryKey } : {}),
     });
   } catch (err) {
