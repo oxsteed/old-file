@@ -49,10 +49,14 @@ export default function DisplayFleetPanel({ t, restaurant }) {
 
   // Load on mount and re-poll every 30s while mounted so the
   // connection status does not go stale as displays heartbeat.
+  // Cost audit 2026-11-13 P5: the poll used to run with the tab hidden.
+  // It now skips hidden tabs and reloads once on return to visible.
   useEffect(() => {
     load();
-    const id = setInterval(load, 30000);
-    return () => clearInterval(id);
+    const id = setInterval(() => { if (document.visibilityState !== 'hidden') load(); }, 30000);
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVisible); };
   }, [load]);
 
   const pair = async (e) => {

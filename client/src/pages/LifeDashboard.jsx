@@ -28,7 +28,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
-import api from '../api/axios';
+import { getLifeSnapshot } from '../api/lifeSnapshot';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
@@ -244,7 +244,13 @@ export default function LifeDashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    const safeGet = (url) => api.get(url).then(r => ({ ok: true, data: r.data })).catch(() => ({ ok: false, data: null }));
+    // Cost audit 2026-11-13 item 3: the /life/* and /house/my fetches go
+    // through the shared lifeSnapshot cache, so a Dashboard mount followed
+    // by this page within 5s reuses the pulse, summary, goals, and homes
+    // responses instead of re-firing them. Other endpoints here
+    // (planned-needs, vehicles) are not fetched by Dashboard and still
+    // hit the network.
+    const safeGet = (url) => getLifeSnapshot(user?.id, url).then(r => ({ ok: true, data: r.data })).catch(() => ({ ok: false, data: null }));
     Promise.all([
       safeGet('/life/pulse?window=1m'),
       safeGet('/planned-needs?status=planned,funding,activating_soon'),

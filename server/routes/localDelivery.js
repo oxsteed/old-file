@@ -6,6 +6,7 @@ const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { requireInternalLogisticsWorkspace } = require('../middleware/requireInternalLogisticsWorkspace');
 const controller = require('../controllers/localDeliveryController');
 const proofController = require('../controllers/localDeliveryProofController');
+const itemPhotoController = require('../controllers/localDeliveryItemPhotoController');
 const trackingOpsController = require('../controllers/deliveryTrackingOpsController');
 const trackingLinkController = require('../controllers/deliveryTrackingLinkController');
 const upload = require('../middleware/upload');
@@ -24,12 +25,19 @@ router.get('/jobs/:id', requireAuth, controller.get);
 // Review P2-7-F07: checkout surfaces honor admin checkout restrictions.
 router.post('/jobs/:id/checkout', strictLimiter, requireAuth, rejectImpersonated, checkRestrictions('checkout'), controller.createBaseCheckout);
 router.post('/jobs/:id/proof-upload', requireAuth, rejectImpersonated, proofController.uploadGuard, upload.single('image'), validateFileUpload, proofController.upload);
+// Item photos: customer-uploaded pictures of the item, after posting and
+// before pickup. Separate from the proof-photo path (see
+// localDeliveryItemPhotoController).
+router.post('/jobs/:id/item-photo', requireAuth, rejectImpersonated, itemPhotoController.uploadGuard, upload.single('image'), validateFileUpload, itemPhotoController.upload);
+router.get('/jobs/:id/item-photos', requireAuth, itemPhotoController.list);
 router.post('/jobs/:id/proof-pin', requireAuth, rejectImpersonated, proofController.rotatePin);
 router.get('/jobs/:id/proofs/:proofId', requireAuth, proofController.download);
 router.post('/jobs/:id/claim', requireAuth, rejectImpersonated, controller.claim);
 // P2-4-F10: self-serve driver onboarding (profile starts pending ops approval).
 router.post('/driver-profile', requireAuth, rejectImpersonated, controller.selfServeDriverOnboarding);
 router.get('/driver-profile', requireAuth, controller.getDriverProfile);
+// Item 12: the driver toggles their own availability flag.
+router.patch('/driver-profile/availability', requireAuth, rejectImpersonated, controller.setDriverAvailability);
 // P2-4-F04: driver payout lifecycle (accrue on delivery; ops approves/pays).
 router.get('/driver-payouts', requireAuth, controller.listDriverPayouts);
 router.patch('/jobs/:id/status', requireAuth, rejectImpersonated, controller.updateStatus);

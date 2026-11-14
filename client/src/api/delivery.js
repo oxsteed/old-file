@@ -44,6 +44,12 @@ export const syncDeliveryExtraPayment = (id) => mutate('post', `/delivery/extras
 export const requestDeliveryReschedule = (id, payload) => mutate('post', `/delivery/jobs/${id}/reschedule-requests`, payload);
 export const requestDeliveryReturn = (id, payload) => mutate('post', `/delivery/jobs/${id}/return-requests`, payload);
 export const obtainDeliveryPin = (id) => mutate('post', `/delivery/jobs/${id}/proof-pin`);
+export const uploadDeliveryItemPhoto = (id, file) => {
+  const form = new FormData();
+  form.append('image', file);
+  return mutate('post', `/delivery/jobs/${id}/item-photo`, form, { name: file.name, size: file.size, lastModified: file.lastModified });
+};
+export const listDeliveryItemPhotos = (id) => api.get(`/delivery/jobs/${id}/item-photos`).then((response) => response.data);
 export const uploadDeliveryProof = (id, file, proofType) => {
   const form = new FormData();
   form.append('image', file);
@@ -64,6 +70,7 @@ export const listTrackingDevices = () => api.get('/delivery/tracking/devices').t
 export const registerTrackingDevice = (payload) => mutate('post', '/delivery/tracking/devices', payload);
 // ── P2-4-F10: self-serve driver onboarding (profile starts pending ops approval) ──
 export const getDriverProfile = () => api.get('/delivery/driver-profile').then((response) => response.data);
+export const setDriverAvailability = (available) => api.patch('/delivery/driver-profile/availability', { available }).then((response) => response.data);
 export const registerDriverProfile = (payload) => mutate('post', '/delivery/driver-profile', payload);
 export const grantTrackingConsent = (id, payload) => mutate('post', `/delivery/jobs/${id}/tracking/consent`, payload);
 export const revokeTrackingConsent = (id, reason = null) => api.delete(`/delivery/jobs/${id}/tracking/consent`, { data: { reason } }).then((response) => response.data);
@@ -158,6 +165,7 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
   const code = error?.response?.data?.code || error?.response?.data?.error?.code;
   const mappings = {
     usOnly: ['delivery_country_mismatch', 'delivery_domestic_only', 'delivery_service_area_unsupported', 'delivery_scope_unsupported'],
+    notLocatable: ['delivery_address_not_locatable'],
     intakeWindows: ['delivery_window_required', 'delivery_window_invalid', 'delivery_window_order_invalid'],
     phoneInvalid: ['delivery_contacts_required'],
     dimensionsInvalid: ['delivery_dimensions_invalid'],

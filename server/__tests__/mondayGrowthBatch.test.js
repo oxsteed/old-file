@@ -1,7 +1,7 @@
 'use strict';
 const {mockQuery,resetMocks}=require('./setup');
 jest.mock('../jobs/jobLockingService',()=>({withFencedJobLock:async(_name,fn)=>fn({db:require('../db'),assertActive(){},fencedTransaction:async fn=>fn(require('../db'))})}));
-jest.mock('../growth/gate',()=>({contexts:jest.fn(),allow:jest.fn(async ctx=>({allowed:ctx.allowed,context:ctx}))}));
+jest.mock('../growth/gate',()=>({contexts:jest.fn(),allow:jest.fn(async ctx=>({allowed:ctx.allowed,context:ctx})),runtimePolicy:jest.fn(async()=>({enabled:true,rollout:{policy_version:1},rules:[]})),resolveJurisdiction:jest.fn(()=> 'US')}));
 jest.mock('../growth/geo/resolve',()=>({resolveBatch:jest.fn(async()=>[11,12])}));
 jest.mock('../growth/propensity',()=>({computeAll:jest.fn(async()=>({users:0}))}));
 jest.mock('../growth/rollups/domain',()=>({...jest.requireActual('../growth/rollups/domain'),collectDomainDay:jest.fn(async()=>({sources:{}}))}));
@@ -11,8 +11,8 @@ const ch=require('../growth/clickhouse');
 const {run}=require('../jobs/growthNightlyRollups');
 test('nightly batches eligibility and locks, then rechecks consent before writing profiles',async()=>{
  resetMocks();jest.useFakeTimers().setSystemTime(Date.parse('2026-10-26T04:00:00Z'));
- const old={off:process.env.GROWTH_TRACKING_HARD_OFF,ch:process.env.GROWTH_CLICKHOUSE_URL};
- process.env.GROWTH_TRACKING_HARD_OFF='false';process.env.GROWTH_CLICKHOUSE_URL='http://synthetic.test';
+ const old={off:process.env.GROWTH_TRACKING_HARD_OFF,ch:process.env.GROWTH_CLICKHOUSE_URL,pep:process.env.GROWTH_SUBJECT_PEPPER};
+ process.env.GROWTH_TRACKING_HARD_OFF='false';process.env.GROWTH_CLICKHOUSE_URL='http://synthetic.test';process.env.GROWTH_SUBJECT_PEPPER='test-pepper-0123456789abcdef0123456789';
  const ids=['00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000002'];
  const subjects=ids.map((user_id,i)=>({user_id,subject_key:String(i+1).repeat(64)}));
  const contexts=new Map(ids.map(id=>[id,{allowed:true,consents:{},user:{id,country_confirmed:true,country:'US',zip_code:'12345'}}]));
@@ -29,7 +29,8 @@ test('nightly batches eligibility and locks, then rechecks consent before writin
  try{
    await run();
    expect(gate.contexts).toHaveBeenCalledTimes(2);
-   expect(gate.contexts.mock.calls[1][1]).toMatchObject({lockPolicy:true});
+   expect(gate.contexts.mock.calls[1][0]).toEqual(expect.arrayContaining(ids));
+   expect(gate.contexts.mock.calls[1][1]).toMatchObject({db:expect.anything()});
    expect(mockQuery.mock.calls.filter(([sql])=>sql.includes('FROM growth_subject_eligibility'))).toHaveLength(1);
    const writes=mockQuery.mock.calls.find(([sql])=>sql.includes('INSERT INTO user_interest_profiles'));
    expect(writes[1]).toContain(ids[0]);expect(writes[1]).not.toContain(ids[1]);
@@ -37,6 +38,7 @@ test('nightly batches eligibility and locks, then rechecks consent before writin
  }finally{
    if(old.off===undefined)delete process.env.GROWTH_TRACKING_HARD_OFF;else process.env.GROWTH_TRACKING_HARD_OFF=old.off;
    if(old.ch===undefined)delete process.env.GROWTH_CLICKHOUSE_URL;else process.env.GROWTH_CLICKHOUSE_URL=old.ch;
+   if(old.pep===undefined)delete process.env.GROWTH_SUBJECT_PEPPER;else process.env.GROWTH_SUBJECT_PEPPER=old.pep;
    jest.useRealTimers();
  }
 });
