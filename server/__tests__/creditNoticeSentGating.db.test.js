@@ -345,4 +345,55 @@ describeDatabase('credit notice sent-gating (notifications audit items 1, 8, 45,
       expect(rows[0].n).toBe(1);
     });
   });
+
+  describe('item 47: cash-out settle() checks the settlement-notify result', () => {
+    const { sendNotification } = require('../services/notificationService');
+
+    beforeEach(() => {
+      sendNotification.mockReset();
+    });
+
+    async function openCashoutRow(userId) {
+      const { rows: [row] } = await pool.query(
+        `INSERT INTO credit_cashout_requests
+           (user_id, credit_partner_id, country_code, partner_name, amount_minor, currency, destination_ref, status, available_at,
+            idempotency_key, partner_idempotency_key)
+         VALUES ($1, 1, 'HT', 'oxsteed_bank_payout', 25000, 'HTG', 'dest', 'submitted', NOW(), $2, $2) RETURNING *`,
+        [userId, `m4ns-cashout-${crypto.randomUUID()}`]
+      );
+      return row;
+    }
+
+    test('a failed settlement notice records an incident instead of a warn-only log', async () => {
+      const userId = await createUser('helper', { country: 'HT' });
+      const row = await openCashoutRow(userId);
+      sendNotification.mockResolvedValue({ success: false, error: 'resend down' });
+      const cashout = require('../services/creditCashoutService');
+      const status = await cashout.settle(row, { status: 'failed', failureCode: 'partner_failed' });
+      expect(status).toBe('failed');
+      expect(warnSpy).toHaveBeenCalledWith(
+        'cashout.notify_failed',
+        expect.objectContaining({ cashoutId: String(row.id), status: 'failed' })
+      );
+      const { rows } = await pool.query(
+        'SELECT type, severity FROM incident_log WHERE dedupe_key = $1',
+        [`credit-cashout-notify:${row.id}:failed`]
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toEqual({ type: 'credit_cashout_settlement_notice_failed', severity: 'high' });
+    });
+
+    test('a delivered settlement notice records no incident', async () => {
+      const userId = await createUser('helper', { country: 'HT' });
+      const row = await openCashoutRow(userId);
+      sendNotification.mockResolvedValue({ success: true, notificationId: 'cashout-notice' });
+      const cashout = require('../services/creditCashoutService');
+      expect(await cashout.settle(row, { status: 'failed', failureCode: 'partner_failed' })).toBe('failed');
+      const { rows } = await pool.query(
+        'SELECT 1 FROM incident_log WHERE dedupe_key = $1',
+        [`credit-cashout-notify:${row.id}:failed`]
+      );
+      expect(rows).toHaveLength(0);
+    });
+  });
 });

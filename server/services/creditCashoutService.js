@@ -391,8 +391,45 @@ async function settleInTransaction(client, cashoutId, outcome, { leaseToken = nu
 
 async function settle(row, outcome, options = {}) {
   const status = await withTransaction(pool, (client) => settleInTransaction(client, row.id, outcome, options), 'credit_cashout_settle');
-  if (status === 'paid' || status === 'failed') await notify(row, status).catch((err) => logger.warn('cashout.notify_failed', { error: err.message }));
+  if (status === 'paid' || status === 'failed') await notifySettlement(row, status);
   return status;
+}
+
+/**
+ * Notifications audit item 47: the settlement notice is money news (paid
+ * or failed), so a failed send must be recorded, not warn-logged and
+ * forgotten. Shared by settle() and rejectHeldCashout() so the check
+ * lives in one place. sendNotification never throws: a failed delivery
+ * comes back as { success: false }, which the old `.catch` never saw.
+ * The in-app row is already persisted by sendNotification before its
+ * email leg, so the holder still has a trace; the incident is the
+ * operator-side record (dedupe key keeps a stuck provider to one row).
+ * No immediate retry: a failed provider is retried by the operator from
+ * the incident, and the delivery key makes any later resend idempotent.
+ */
+async function notifySettlement(row, status) {
+  let result = null;
+  try {
+    result = await notify(row, status);
+  } catch (err) {
+    logger.warn('cashout.notify_failed', { cashoutId: String(row.id), status, error: err.message });
+    return null;
+  }
+  if (result && result.success !== true) {
+    logger.warn('cashout.notify_failed', { cashoutId: String(row.id), status, error: result.error || 'send_failed' });
+    try {
+      await require('./incidentStore').recordIncident({
+        type: 'credit_cashout_settlement_notice_failed',
+        severity: 'high',
+        message: `Cash-out ${row.id} settled as ${status} but the holder notice failed`,
+        dedupeKey: `credit-cashout-notify:${row.id}:${status}`,
+        details: { cashoutId: String(row.id), userId: String(row.user_id), status, error: result.error || 'send_failed' },
+      });
+    } catch (incidentError) {
+      logger.warn('cashout.notify_incident_failed', { cashoutId: String(row.id), status, error: incidentError.message });
+    }
+  }
+  return result;
 }
 
 async function notify(row, status) {
@@ -585,7 +622,7 @@ async function rejectHeldCashout({ cashoutId, actorUserId, reason, requestIp = n
     });
     return updated[0];
   }, 'credit_cashout_reject');
-  await notify(row, 'failed').catch((err) => logger.warn('cashout.notify_failed', { error: err.message }));
+  await notifySettlement(row, 'failed');
   return view(row);
 }
 
