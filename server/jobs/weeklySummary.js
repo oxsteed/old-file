@@ -61,6 +61,26 @@ const startWeeklySummaryJob = () => {
                        p.released_at, p.captured_at, p.updated_at, p.created_at
                      ) >= date_trunc('month', CURRENT_DATE)
             ), 0) AS earnings_mtd,
+            -- Item 15: helper_payout spans currencies (payments.currency)
+            -- but the display rendered one USD total. Group MTD earnings
+            -- by currency so each group formats in its own currency.
+            -- earnings_mtd is retained for the data payload only; the
+            -- rendered body uses earnings_by_currency.
+            COALESCE((
+              SELECT json_agg(row_to_json(g))
+                FROM (
+                  SELECT COALESCE(p.currency, 'USD') AS currency,
+                         SUM(COALESCE(p.helper_payout, 0)) AS total
+                    FROM payments p
+                   WHERE p.payee_id = u.id
+                     AND p.status = 'captured'
+                     AND COALESCE(
+                           CASE WHEN p.payment_hold_status = 'released' THEN p.released_at ELSE p.captured_at END,
+                           p.released_at, p.captured_at, p.updated_at, p.created_at
+                         ) >= date_trunc('month', CURRENT_DATE)
+                   GROUP BY COALESCE(p.currency, 'USD')
+                ) g
+            ), '[]'::json) AS earnings_by_currency,
             hp.completed_jobs_count AS completed_jobs,
             (SELECT COUNT(*) FROM bids b
              JOIN jobs j ON b.job_id = j.id
@@ -129,12 +149,32 @@ const startWeeklySummaryJob = () => {
 function buildWeeklySummaryNotification(helper, language = FALLBACK_LANGUAGE) {
   const lang = normalizeLanguage(language);
   const copy = WEEKLY_SUMMARY_COPY[lang] || WEEKLY_SUMMARY_COPY[FALLBACK_LANGUAGE];
-  const earnings = formatMoney(helper.earnings_mtd || 0, lang);
+  const earnings = formatEarnings(helper, lang);
   const activeBids = formatNumber(helper.active_bids || 0, lang);
   return {
     title: copy.title,
     body: interpolate(copy.body, { earnings, activeBids }),
   };
+}
+
+// Item 15: render each currency group in its own currency. A single
+// group renders as before (bare formatted amount); multiple groups carry
+// their ISO code so colliding symbols stay unambiguous.
+function formatEarnings(helper, language) {
+  const groups = Array.isArray(helper.earnings_by_currency)
+    ? helper.earnings_by_currency.filter((g) => g && g.currency)
+    : [];
+  if (groups.length === 1) {
+    return formatMoney(groups[0].total, language, groups[0].currency);
+  }
+  if (groups.length > 1) {
+    return groups
+      .slice()
+      .sort((a, b) => String(a.currency).localeCompare(String(b.currency)))
+      .map((g) => `${formatMoney(g.total, language, g.currency)} ${String(g.currency).toUpperCase()}`)
+      .join(' · ');
+  }
+  return formatMoney(helper.earnings_mtd || 0, language);
 }
 
 function normalizeLanguage(language) {
@@ -145,12 +185,20 @@ function normalizeLanguage(language) {
   return SUPPORTED_LANGUAGES.has(normalized) ? normalized : FALLBACK_LANGUAGE;
 }
 
-function formatMoney(value, language) {
+function formatMoney(value, language, currency = 'USD') {
   const amount = Number.parseFloat(value || 0);
-  return new Intl.NumberFormat(language, {
-    style: 'currency',
-    currency: 'USD',
-  }).format(Number.isFinite(amount) ? amount : 0);
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  const code = String(currency || 'USD').toUpperCase();
+  try {
+    return new Intl.NumberFormat(language, {
+      style: 'currency',
+      currency: code,
+    }).format(safeAmount);
+  } catch {
+    // Unknown currency code in payments.currency: never fail the whole
+    // summary over formatting; render the amount with the raw code.
+    return `${new Intl.NumberFormat(language).format(safeAmount)} ${code}`;
+  }
 }
 
 function formatNumber(value, language) {

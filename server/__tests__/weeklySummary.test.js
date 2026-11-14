@@ -7,7 +7,7 @@ jest.mock('../utils/logger', () => ({ error: jest.fn(), info: jest.fn(), warn: j
 
 const cron = require('node-cron');
 const db = require('../db');
-const { startWeeklySummaryJob } = require('../jobs/weeklySummary');
+const { startWeeklySummaryJob, buildWeeklySummaryNotification } = require('../jobs/weeklySummary');
 
 describe('weekly summary job', () => {
   beforeEach(() => {
@@ -46,5 +46,48 @@ describe('weekly summary job', () => {
     const summaryQuery = db.query.mock.calls[0][0];
     expect(summaryQuery).toContain('LEFT JOIN notification_preferences np ON np.user_id = u.id');
     expect(summaryQuery).toContain('COALESCE(np.email_weekly_summary, true)');
+  });
+
+  test('earnings are grouped by payment currency, not summed into one USD total', async () => {
+    // Item 15: the query summed helper_payout across currencies while
+    // formatMoney hardcoded USD, so a EUR payout rendered as dollars.
+    db.query.mockResolvedValueOnce({ rows: [] });
+    startWeeklySummaryJob();
+
+    const scheduledCallback = cron.schedule.mock.calls[0][1];
+    await scheduledCallback();
+
+    const summaryQuery = db.query.mock.calls[0][0];
+    expect(summaryQuery).toContain('earnings_by_currency');
+    expect(summaryQuery).toContain('GROUP BY');
+    expect(summaryQuery).toContain('p.currency');
+  });
+
+  test('renders each currency group in its own currency', () => {
+    const multi = buildWeeklySummaryNotification({
+      earnings_by_currency: [
+        { currency: 'EUR', total: 85 },
+        { currency: 'USD', total: 1250 },
+      ],
+      active_bids: 2,
+    }, 'en');
+    // Both amounts keep their own currency; the codes disambiguate
+    // symbols that collide across currencies (e.g. $ is not only USD).
+    expect(multi.body).toContain('€85.00 EUR');
+    expect(multi.body).toContain('$1,250.00 USD');
+    expect(multi.body).not.toContain('$1,335.00');
+
+    const single = buildWeeklySummaryNotification({
+      earnings_by_currency: [{ currency: 'EUR', total: 85 }],
+      earnings_mtd: 85,
+      active_bids: 0,
+    }, 'en');
+    expect(single.body).toContain('€85.00');
+    expect(single.body).not.toContain('$85.00');
+  });
+
+  test('falls back to the USD total when no currency groups are present', () => {
+    const legacy = buildWeeklySummaryNotification({ earnings_mtd: 40, active_bids: 1 }, 'en');
+    expect(legacy.body).toContain('$40.00');
   });
 });
