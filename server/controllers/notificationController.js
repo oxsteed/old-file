@@ -157,11 +157,16 @@ exports.getPreferences = async (req, res, next) => {
     `, [userId]);
 
     const { rows } = await db.query(
-      `SELECT * FROM notification_preferences WHERE user_id = $1`,
+      `SELECT np.*,
+              -- Item 12: the user's per-type opt-outs ride this same query
+              -- so the settings UI gets them with the preferences in one call.
+              (SELECT COALESCE(json_agg(json_build_object('type', notification_type, 'channel', channel)), '[]'::json)
+                 FROM notification_type_opt_outs WHERE user_id = np.user_id) AS type_opt_outs
+         FROM notification_preferences np WHERE user_id = $1`,
       [userId]
     );
 
-    res.json({ preferences: rows[0] });
+    res.json({ preferences: rows[0], type_opt_outs: rows[0]?.type_opt_outs || [] });
   } catch (err) {
     next(err);
   }
@@ -181,6 +186,12 @@ exports.updatePreferences = async (req, res, next) => {
     // existing rows are untouched; the UI no longer offers them.
     const allowed = [
       'push_notifications','sms_notifications',
+      // Item 12: in-app master toggle (gated in prefAllows).
+      'in_app_notifications',
+      // Item 33: media-creator update toggle (was a phantom column).
+      'in_app_media_creator_update',
+      // Item 52: support-reply SMS toggle (column existed, never offered).
+      'sms_support_replies',
       'in_app_new_bid','in_app_bid_accepted','in_app_job_started',
       'in_app_job_completed','in_app_payment_released',
       'in_app_new_review','in_app_dispute_update','in_app_subscription',
@@ -237,3 +248,71 @@ exports.updatePreferences = async (req, res, next) => {
 // It wrote p256dh='legacy' rows that webPushService explicitly excludes, so
 // no sender ever read them. Live paths are POST /mobile/push-token and
 // POST /notifications/webpush/subscribe.
+// ─── PER-TYPE OPT-OUTS (item 12) ─────────────────────────────
+// One prefs API surface: the settings UI lists types from
+// getNotificationTypes and reads/writes opt-outs here. A row means opted
+// OUT of that type+channel; absence means ON (new types default ON).
+const { NOTIFICATION_TYPES } = require('../utils/notificationTypeCatalog');
+
+const OPT_OUT_CHANNELS = new Set(['in_app', 'push', 'email']);
+const OPT_OUT_TYPE_RE = /^[A-Za-z0-9_:]{1,100}$/;
+
+exports.getNotificationTypes = async (req, res, next) => {
+  try {
+    res.json({ types: NOTIFICATION_TYPES });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getTypeOptOuts = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { rows } = await db.query(
+      `SELECT notification_type AS type, channel, created_at
+         FROM notification_type_opt_outs
+        WHERE user_id = $1
+        ORDER BY notification_type, channel`,
+      [userId]
+    );
+    res.json({ opt_outs: rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.setTypeOptOut = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { type, channel, optedOut } = req.body || {};
+
+    if (typeof type !== 'string' || !OPT_OUT_TYPE_RE.test(type)) {
+      throw new AppError('Invalid notification type', 400, 'validation_failed', { type: 'Must be a notification type key' });
+    }
+    if (!OPT_OUT_CHANNELS.has(channel)) {
+      throw new AppError('Invalid channel', 400, 'validation_failed', { channel: 'Must be in_app, push or email' });
+    }
+    if (typeof optedOut !== 'boolean') {
+      throw new AppError('Invalid optedOut', 400, 'validation_failed', { optedOut: 'Must be a boolean' });
+    }
+
+    if (optedOut) {
+      await db.query(
+        `INSERT INTO notification_type_opt_outs (user_id, notification_type, channel)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, notification_type, channel) DO NOTHING`,
+        [userId, type, channel]
+      );
+    } else {
+      await db.query(
+        `DELETE FROM notification_type_opt_outs
+          WHERE user_id = $1 AND notification_type = $2 AND channel = $3`,
+        [userId, type, channel]
+      );
+    }
+
+    res.json({ message: 'Type preference updated.', type, channel, optedOut });
+  } catch (err) {
+    next(err);
+  }
+};

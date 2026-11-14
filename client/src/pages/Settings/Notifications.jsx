@@ -6,14 +6,14 @@ import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
-import { BrowserPushPanel, EmailPreferencesPanel, SettingsToggle, PreferenceSection } from '../../components/NotificationPreferences';
+import { BrowserPushPanel, EmailPreferencesPanel, SettingsToggle, PreferenceSection, TypeOptOutPanel } from '../../components/NotificationPreferences';
 import OfferPreferencesPanel from '../../growth/OfferPreferencesPanel';
 
 // Master toggles gate whole channels: push_notifications covers every push
 // channel (Expo, Web Push, native), sms_notifications covers all SMS.
 // Removed (review P2-8-F03): in_app_message_mention, push_message_mention
 // (no mention events exist) and push_new_job_nearby (no nearby-job events).
-const MASTER_PREFS = ['push_notifications', 'sms_notifications'];
+const MASTER_PREFS = ['in_app_notifications', 'push_notifications', 'sms_notifications'];
 
 const PREF_GROUPS = [
   {
@@ -321,6 +321,8 @@ export default function NotificationSettings() {
               ))}
             </div>
           )}
+
+          <TypeOptOutPanel />
         </div>
       </main>
 

@@ -10846,7 +10846,13 @@
       "push_notifications": "Notifications push",
       "push_notificationsDesc": "Toutes les alertes push sur tous les appareils (application et navigateur).",
       "sms_notifications": "Notifications par SMS",
-      "sms_notificationsDesc": "Messages texte à votre numéro de téléphone vérifié."
+      "sms_notificationsDesc": "Messages texte à votre numéro de téléphone vérifié.",
+      "in_app_notifications": "Notifications dans l'app",
+      "in_app_notificationsDesc": "Désactive toutes les notifications dans l'app. Les notifications push et les e-mails ne sont pas affectés.",
+      "in_app_media_creator_update": "Mises à jour du créateur de médias",
+      "in_app_media_creator_updateDesc": "Mises à jour sur votre contenu de créateur de médias",
+      "sms_support_replies": "SMS de réponse du support",
+      "sms_support_repliesDesc": "SMS lorsque le support répond à votre demande"
     },
     "quietHours": {
       "title": "Heures de silence",
@@ -10875,7 +10881,60 @@
       "unsubscribedToast": "Vous êtes désabonné de tous les e-mails",
       "failedLoad": "Impossible de charger les préférences e-mail",
       "failedAction": "Cela n'a pas fonctionné. Veuillez réessayer."
-    }
+    },
+    "typeGroups": {
+      "work": {
+        "label": "Emplois et réservations",
+        "description": "Travail réservé, offres, quarts et horaires."
+      },
+      "payments": {
+        "label": "Paiements et versements",
+        "description": "Argent entrant et sortant, remboursements et abonnements."
+      },
+      "orders": {
+        "label": "Commandes et livraisons",
+        "description": "Commandes de nourriture, livraisons et rappels de panier."
+      },
+      "appointments": {
+        "label": "Rendez-vous",
+        "description": "Confirmations et rappels de rendez-vous."
+      },
+      "messages": {
+        "label": "Messages",
+        "description": "Messages de chat."
+      },
+      "media": {
+        "label": "Médias",
+        "description": "Publications, abonnements et mises à jour de créateur."
+      },
+      "restaurant": {
+        "label": "Restaurant",
+        "description": "Opérations et alertes du restaurant."
+      },
+      "credit": {
+        "label": "Crédit et conformité",
+        "description": "Avis d'identité de crédit, sanctions et conformité."
+      },
+      "support": {
+        "label": "Support et litiges",
+        "description": "Tickets de support, litiges, avis et garanties."
+      },
+      "account": {
+        "label": "Compte",
+        "description": "Changements de compte, vérifications et adhésion."
+      },
+      "other": {
+        "label": "Autres",
+        "description": "Tout le reste."
+      }
+    },
+    "typeOptOuts": {
+      "title": "Types de notification",
+      "description": "Désactivez des types précis de notifications. Tout ce que vous laissez activé reste activé.",
+      "inApp": "Dans l'app",
+      "push": "Push",
+      "email": "E-mail",
+      "failedLoad": "Impossible de charger les types de notification"
     }
   },
   "plannedNeeds": {

@@ -65,9 +65,28 @@ const PREF_ALIASES = {
 // A channel is allowed for a type when neither the canonical pref key nor
 // any of its UI aliases is explicitly false. Absent columns/keys default to
 // allowed (opt-out semantics, matching the existing `!== false` convention).
-function prefAllows(prefs, channel, type) {
+//
+// Item 12 (one gate for every future type): this is the ONLY place that
+// decides whether a type may use a channel. Two additions ride it:
+//   * the in_app_notifications master toggle gates the whole in-app channel;
+//   * a row in notification_type_opt_outs opts the user OUT of that
+//     type+channel. The rows ride the prefs query as prefs.type_opt_outs
+//     (a json_agg in the same SELECT, so this costs zero extra queries);
+//     an explicit typeOptOuts argument overrides for callers that already
+//     fetched them. A type with no row is ON: new types default ON, never
+//     silently off.
+function prefAllows(prefs, channel, type, typeOptOuts) {
+  if (channel === 'in_app' && prefs.in_app_notifications === false) return false;
   const key = `${channel}_${String(type).replace(':', '_')}`;
   if (prefs[key] === false) return false;
+  const optOuts = typeOptOuts !== undefined ? typeOptOuts : prefs.type_opt_outs;
+  if (Array.isArray(optOuts)) {
+    for (const row of optOuts) {
+      if (row && row.type === String(type) && row.channel === channel) return false;
+    }
+  } else if (optOuts instanceof Set) {
+    if (optOuts.has(`${String(type)}|${channel}`)) return false;
+  }
   const aliases = (PREF_ALIASES[channel] || {})[type] || [];
   return aliases.every((alias) => prefs[alias] !== false);
 }
@@ -211,7 +230,11 @@ exports.sendNotification = async ({
     // Get user prefs
     const { rows: prefRows } = await db.query(`
       SELECT np.*, u.email, u.first_name, u.is_banned,
-             u.preferred_language
+             u.preferred_language,
+             -- Item 12: per-type opt-outs ride this same query (json_agg), so
+             -- prefAllows checks them with zero extra round-trips.
+             (SELECT COALESCE(json_agg(json_build_object('type', notification_type, 'channel', channel)), '[]'::json)
+                FROM notification_type_opt_outs WHERE user_id = u.id) AS type_opt_outs
       FROM users u
       LEFT JOIN notification_preferences np ON np.user_id = u.id
       WHERE u.id = $1

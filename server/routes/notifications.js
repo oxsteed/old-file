@@ -20,6 +20,11 @@ router.put('/preferences',       authenticate, notifCtrl.updatePreferences);
 // Item 34: POST /push-token deleted (see notificationController.js) — it
 // wrote legacy rows no sender reads. Live paths: /mobile/push-token,
 // /notifications/webpush/subscribe.
+// Item 12: per-type opt-outs ride the same prefs API surface. These must
+// stay above the /:id routes below or Express would match them as ids.
+router.get('/preferences/types',         authenticate, notifCtrl.getNotificationTypes);
+router.get('/preferences/type-opt-outs', authenticate, notifCtrl.getTypeOptOuts);
+router.put('/preferences/type-opt-outs', authenticate, notifCtrl.setTypeOptOut);
 
 // ─── Web Push (W3C Push API + VAPID) ─────────────────────────
 // Public - needed before the browser can call pushManager.subscribe()
