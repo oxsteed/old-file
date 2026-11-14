@@ -143,11 +143,17 @@ async function runCustomerReengagement() {
             });
           }
 
-          // Record that we sent this nudge so we don't double-send
+          // Record that we sent this nudge so we don't double-send.
+          // Item 2: the 7-day guard above skips users with a recent
+          // reengagement_log row, but the trigger (last completed job)
+          // does not change until the user completes another job, so a
+          // bare ON CONFLICT DO NOTHING left sent_at stale and the guard
+          // passed every day after week one. Refresh sent_at on conflict
+          // so the 7-day window restarts on every send.
           await db.query(
             `INSERT INTO reengagement_log (user_id, sent_at, trigger_job_id)
              VALUES ($1, NOW(), $2)
-             ON CONFLICT DO NOTHING`,
+             ON CONFLICT (user_id, trigger_job_id) DO UPDATE SET sent_at = NOW()`,
             [c.id, c.last_job_id]
           );
 
