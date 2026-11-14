@@ -170,6 +170,7 @@ exports.processReminderNotifications = async () => {
               np.reminder_same_day_channels,
               np.quiet_hours_start,
               np.quiet_hours_end,
+              np.quiet_hours_enabled,
               np.timezone
          FROM calendar_notifications cn
          JOIN appointments a   ON a.id = cn.appointment_id
@@ -236,12 +237,16 @@ async function dispatchNotification(row) {
     reminder_24h_channels,
     reminder_2h_channels,
     reminder_same_day_channels,
-    quiet_hours_start, quiet_hours_end, timezone,
+    quiet_hours_start, quiet_hours_end, quiet_hours_enabled, timezone,
   } = row;
 
   // Quiet hours - return without sending; we leave status as 'pending' so the
   // notification fires on the next cron tick after the quiet window ends.
-  if (quiet_hours_start && quiet_hours_end) {
+  // Item 14: unified on the quiet_hours_enabled flag (same flag as the
+  // central notificationService gate and the settings toggle). Times set
+  // with the flag off mean the user has a window configured but not
+  // enabled, so reminders send normally.
+  if (quiet_hours_enabled && quiet_hours_start && quiet_hours_end) {
     if (isInQuietHours(timezone || 'UTC', quiet_hours_start, quiet_hours_end)) {
       logger.debug('Calendar notification deferred - quiet hours', {
         notification_id, user_id, timezone,
@@ -372,11 +377,11 @@ async function dispatchNotification(row) {
 
   await pool.query(
     `UPDATE calendar_notifications
-        SET status        = $1,
-            sent_at       = CASE WHEN $1 = 'sent' THEN now() ELSE sent_at END,
+        SET status        = $1::text,
+            sent_at       = CASE WHEN $1::text = 'sent' THEN now() ELSE sent_at END,
             error_message = $2,
             next_attempt_at = CASE
-              WHEN $1 = 'failed' THEN NOW() + LEAST(60, POWER(2, GREATEST(attempts - 1, 0))) * INTERVAL '1 minute'
+              WHEN $1::text = 'failed' THEN NOW() + LEAST(60, POWER(2, GREATEST(attempts - 1, 0))) * INTERVAL '1 minute'
               ELSE NULL
             END
       WHERE id = $3`,

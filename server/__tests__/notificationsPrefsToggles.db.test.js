@@ -416,12 +416,12 @@ ddescribe('Track C preference toggles (DB)', () => {
   });
 
   describe('item 14 — calendar quiet hours unify on the enabled flag', () => {
-    async function makeDueReminder(userId, helperId) {
+    async function makeDueReminder(userId, helperId, startHours = 2) {
       const { rows: appts } = await pool.query(
         `INSERT INTO appointments (customer_id, helper_id, service_description, scheduled_start_time, scheduled_end_time, status)
-         VALUES ($1, $2, 'Test service', NOW() + INTERVAL '2 hours', NOW() + INTERVAL '3 hours', 'confirmed')
+         VALUES ($1, $2, 'Test service', NOW() + ($3 || ' hours')::interval, NOW() + (($3::int + 1) || ' hours')::interval, 'confirmed')
          RETURNING id`,
-        [userId, helperId]
+        [userId, helperId, startHours]
       );
       const appointmentId = appts[0].id;
       appointmentIds.push(appointmentId);
@@ -449,7 +449,7 @@ ddescribe('Track C preference toggles (DB)', () => {
       expect(offRows[0].status).toBe('sent');
 
       await setPrefs(customer.id, { quiet_hours_enabled: true });
-      const idOn = await makeDueReminder(customer.id, helper.id);
+      const idOn = await makeDueReminder(customer.id, helper.id, 5);
       await calCtrl.processReminderNotifications();
       const { rows: onRows } = await pool.query(
         'SELECT status FROM calendar_notifications WHERE id = $1', [idOn]
