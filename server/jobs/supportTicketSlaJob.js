@@ -253,13 +253,15 @@ async function runSupportTicketSlaJob(dbClient) {
 
 function startSupportTicketSlaJob() {
   const cron = require('node-cron');
+  // Item 31: pin the timezone explicitly (America/New_York, the repo
+  // convention for ET jobs) instead of running on host-local time.
   cron.schedule(CRON_EXPRESSION, async () => {
     try {
       await runSupportTicketSlaJob();
     } catch (err) {
       logger.error('Support ticket SLA cron error', { error: err.message });
     }
-  });
+  }, { timezone: 'America/New_York' });
   logger.info('Support ticket SLA job scheduled', { cron: CRON_EXPRESSION });
 }
 

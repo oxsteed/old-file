@@ -17,8 +17,10 @@ jest.mock('../services/supportNotificationService', () => ({
 jest.mock('../jobs/jobLockingService', () => ({
   withFencedJobLock: jest.fn(),
 }));
+jest.mock('node-cron', () => ({ schedule: jest.fn() }));
 
-const { sweepSupportTicketSla, runSupportTicketSlaJob } = require('../jobs/supportTicketSlaJob');
+const { sweepSupportTicketSla, runSupportTicketSlaJob, startSupportTicketSlaJob, cronExpression } = require('../jobs/supportTicketSlaJob');
+const cron = require('node-cron');
 const { broadcastToAdmins } = require('../services/socketService');
 const { notifySupportStaff, resolveSupportStaffIds } = require('../services/supportNotificationService');
 const { withFencedJobLock } = require('../jobs/jobLockingService');
@@ -144,6 +146,16 @@ test('runSupportTicketSlaJob skips the sweep when another instance holds the loc
 
   expect(result).toEqual({ escalated: 0, reescalated: 0, skipped: true });
   expect(db.query).not.toHaveBeenCalled();
+});
+
+test('startSupportTicketSlaJob pins the timezone explicitly (item 31)', () => {
+  startSupportTicketSlaJob();
+
+  expect(cron.schedule).toHaveBeenCalledWith(
+    cronExpression,
+    expect.any(Function),
+    { timezone: 'America/New_York' },
+  );
 });
 
 test('a failed breach notification does not stamp the re-escalation round', async () => {
