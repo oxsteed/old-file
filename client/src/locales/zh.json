@@ -36353,6 +36353,7 @@
       "reason": "原因",
       "add": "加入队列",
       "added": "已加入队列。",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "团队看板",
       "sla": "SLA",
       "breachedCol": "已逾期",
@@ -36440,7 +36441,9 @@
         "key": "键",
         "create": "创建队列",
         "created": "队列已创建。",
-        "saved": "队列已保存。"
+        "saved": "队列已保存。",
+        "listUnavailable": "无法加载队列列表。您仍可在下方创建队列。",
+        "empty": "暂无队列。"
       },
       "manageView": "管理此视图",
       "renameView": "重命名或共享",
@@ -36448,7 +36451,8 @@
       "saveRename": "保存名称",
       "updateView": "将当前筛选条件保存到此视图",
       "viewRenamed": "视图已重命名。",
-      "viewUpdated": "视图已更新。"
+      "viewUpdated": "视图已更新。",
+      "viewsLoadFailed": "无法加载已保存的视图。"
     },
     "summary": {
       "title": "客户摘要",
@@ -36551,6 +36555,8 @@
     "unnamed": "未命名客户",
     "lastSeen": "最近活动 {{date}}",
     "more": "显示更多",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "选择一位客户以查看其与本商家的往来记录。",
     "scopeNote": "仅显示本商家自己的记录。",
     "status": "状态",
@@ -36773,6 +36779,8 @@
     "draftBadge": "草稿",
     "version": "版本 {{version}}",
     "acceptNote": "如需接受这些条款并使用 OxSteed Credit，请登录您的账户。",
-    "signIn": "登录"
+    "signIn": "登录",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

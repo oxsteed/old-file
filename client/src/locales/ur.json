@@ -36352,6 +36352,7 @@
       "reason": "وجہ",
       "add": "قطار میں شامل کریں",
       "added": "قطار میں شامل کر دیا گیا۔",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "ٹیم بورڈ",
       "sla": "SLA",
       "breachedCol": "تاخیر شدہ",
@@ -36439,7 +36440,9 @@
         "key": "کلید",
         "create": "قطار بنائیں",
         "created": "قطار بن گئی۔",
-        "saved": "قطار محفوظ ہو گئی۔"
+        "saved": "قطار محفوظ ہو گئی۔",
+        "listUnavailable": "قطاروں کی فہرست لوڈ نہیں ہو سکی۔ آپ نیچے سے پھر بھی قطار بنا سکتے ہیں۔",
+        "empty": "ابھی تک کوئی قطار نہیں ہے۔"
       },
       "manageView": "اس منظر کا نظم کریں",
       "renameView": "نام بدلیں یا شیئر کریں",
@@ -36447,7 +36450,8 @@
       "saveRename": "نام محفوظ کریں",
       "updateView": "موجودہ فلٹر اس منظر میں محفوظ کریں",
       "viewRenamed": "منظر کا نام بدل گیا۔",
-      "viewUpdated": "منظر اپ ڈیٹ ہو گیا۔"
+      "viewUpdated": "منظر اپ ڈیٹ ہو گیا۔",
+      "viewsLoadFailed": "محفوظ شدہ ویوز لوڈ نہیں ہو سکے۔"
     },
     "summary": {
       "title": "کسٹمر کا خلاصہ",
@@ -36550,6 +36554,8 @@
     "unnamed": "بے نام صارف",
     "lastSeen": "آخری سرگرمی {{date}}",
     "more": "مزید دکھائیں",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "اس کاروبار کے ساتھ تاریخ دیکھنے کے لیے صارف منتخب کریں۔",
     "scopeNote": "صرف اس کاروبار کے اپنے ریکارڈ دکھائے جاتے ہیں۔",
     "status": "حیثیت",
@@ -36772,6 +36778,8 @@
     "draftBadge": "مسودہ",
     "version": "ورژن {{version}}",
     "acceptNote": "ان شرائط کو قبول کرنے اور OxSteed Credit استعمال کرنے کے لیے اپنے اکاؤنٹ میں سائن ان کریں۔",
-    "signIn": "سائن ان کریں"
+    "signIn": "سائن ان کریں",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

@@ -128,3 +128,27 @@ test("new admin copy is logical-direction safe (no physical left/right)", () => 
   }
   assert.doesNotMatch(read(client, "pages/CreditTermsPage.jsx"), /\b(ml|mr|pl|pr|left|right)-\d|text-(left|right)\b|marginLeft|marginRight|paddingLeft|paddingRight/);
 });
+
+test("domain 1 #9: BusinessCustomer360 paging failure keeps the list and shows an inline notice", () => {
+  const ui = read(client, "components/businessHub/BusinessCustomer360.jsx");
+  // A failed "Load more" must not flip the whole page to its error branch.
+  assert.doesNotMatch(ui, /load\(list\.nextCursor\)\.catch\(\(\) => setState\('error'\)\)/);
+  assert.match(ui, /load\(list\.nextCursor\)\.catch\(\(\) => setMoreError\(true\)\)/);
+  assert.match(ui, /\{moreError && <p role="alert">\{copy\('moreFailed'\)\}<\/p>\}/);
+  // The new copy exists in every legacy locale and is translated in the core four.
+  const legacyLangs = fs.readdirSync(new URL("locales/", client)).filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5));
+  for (const l of legacyLangs) {
+    assert.equal(typeof legacy(l).businessCustomer360.moreFailed, "string", `${l}: businessCustomer360.moreFailed`);
+    assert.equal(typeof legacy(l).businessCustomer360.retry, "string", `${l}: businessCustomer360.retry`);
+  }
+  for (const l of CORE) {
+    assert.notEqual(legacy(l).businessCustomer360.moreFailed, legacy("en").businessCustomer360.moreFailed, `${l}: moreFailed untranslated`);
+    assert.notEqual(legacy(l).businessCustomer360.retry, legacy("en").businessCustomer360.retry, `${l}: retry untranslated`);
+  }
+});
+
+test("domain 1 #17: BusinessCustomer360 detail-pane error offers a retry", () => {
+  const ui = read(client, "components/businessHub/BusinessCustomer360.jsx");
+  assert.match(ui, /detailState === 'error' && \([\s\S]{0,400}?copy\('retry'\)/);
+  assert.match(ui, /onClick=\{\(\) => selected && open\(selected\)\}/);
+});

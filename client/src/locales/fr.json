@@ -1261,6 +1261,7 @@
       "reason": "Motif",
       "add": "Ajouter à la file",
       "added": "Ajouté à la file.",
+      "noQueues": "Aucune file n'existe encore. Demandez à un super administrateur d'en créer une.",
       "board": "Tableau d’équipe",
       "sla": "SLA",
       "breachedCol": "En retard",
@@ -1348,7 +1349,9 @@
         "key": "Clé",
         "create": "Créer la file",
         "created": "File créée.",
-        "saved": "File enregistrée."
+        "saved": "File enregistrée.",
+        "listUnavailable": "Impossible de charger la liste des files. Vous pouvez tout de même créer une file ci-dessous.",
+        "empty": "Aucune file pour l'instant."
       },
       "manageView": "Gérer cette vue",
       "renameView": "Renommer ou partager",
@@ -1356,7 +1359,8 @@
       "saveRename": "Enregistrer le nom",
       "updateView": "Enregistrer les filtres actuels dans cette vue",
       "viewRenamed": "Vue renommée.",
-      "viewUpdated": "Vue mise à jour."
+      "viewUpdated": "Vue mise à jour.",
+      "viewsLoadFailed": "Impossible de charger les vues enregistrées."
     },
     "summary": {
       "title": "Synthèse client",
@@ -40465,6 +40469,7 @@
     "exportCsv": "Exporter CSV",
     "moneyHidden": "Les colonnes monétaires exigent le droit view_financials.",
     "editCampaign": "Modifier la campagne",
+    "manage": "Gérer",
     "scheduleCampaign": "Planifier",
     "scheduledAt": "Planifiée pour",
     "results": "Résultats",
@@ -41255,6 +41260,8 @@
     "unnamed": "Client sans nom",
     "lastSeen": "Dernière activité {{date}}",
     "more": "Afficher plus",
+    "retry": "Réessayer",
+    "moreFailed": "Impossible de charger plus de clients. Réessayez.",
     "pick": "Sélectionnez un client pour voir son historique avec cette entreprise.",
     "scopeNote": "Seuls les dossiers propres à cette entreprise sont affichés.",
     "status": "Statut",
@@ -41491,6 +41498,8 @@
     "currency": "Afficher les frais en",
     "loading": "Chargement des conditions…",
     "loadFailed": "Impossible de charger les conditions. Réessayez dans un instant.",
+    "noTerms": "Aucune condition n’a encore été publiée pour cette devise.",
+    "retry": "Réessayer",
     "pendingTitle": "En attente de validation juridique.",
     "pendingBody": "Une partie de ce texte est un brouillon que notre équipe juridique n’a pas encore approuvé. Il peut changer avant qu’OxSteed Credit soit proposé là où vous vivez.",
     "draftBadge": "Brouillon",

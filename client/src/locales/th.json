@@ -36382,6 +36382,7 @@
       "reason": "เหตุผล",
       "add": "เพิ่มในคิว",
       "added": "เพิ่มในคิวแล้ว",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "บอร์ดของทีม",
       "sla": "SLA",
       "breachedCol": "เกินกำหนด",
@@ -36469,7 +36470,9 @@
         "key": "คีย์",
         "create": "สร้างคิว",
         "created": "สร้างคิวแล้ว",
-        "saved": "บันทึกคิวแล้ว"
+        "saved": "บันทึกคิวแล้ว",
+        "listUnavailable": "ไม่สามารถโหลดรายการคิวได้ คุณยังสามารถสร้างคิวด้านล่างได้",
+        "empty": "ยังไม่มีคิว"
       },
       "manageView": "จัดการมุมมองนี้",
       "renameView": "เปลี่ยนชื่อหรือแชร์",
@@ -36477,7 +36480,8 @@
       "saveRename": "บันทึกชื่อ",
       "updateView": "บันทึกตัวกรองปัจจุบันลงในมุมมองนี้",
       "viewRenamed": "เปลี่ยนชื่อมุมมองแล้ว",
-      "viewUpdated": "อัปเดตมุมมองแล้ว"
+      "viewUpdated": "อัปเดตมุมมองแล้ว",
+      "viewsLoadFailed": "ไม่สามารถโหลดมุมมองที่บันทึกไว้ได้"
     },
     "summary": {
       "title": "สรุปลูกค้า",
@@ -36580,6 +36584,8 @@
     "unnamed": "ลูกค้าไม่มีชื่อ",
     "lastSeen": "กิจกรรมล่าสุด {{date}}",
     "more": "แสดงเพิ่ม",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "เลือกลูกค้าเพื่อดูประวัติกับธุรกิจนี้",
     "scopeNote": "แสดงเฉพาะข้อมูลของธุรกิจนี้เท่านั้น",
     "status": "สถานะ",
@@ -36802,6 +36808,8 @@
     "draftBadge": "ฉบับร่าง",
     "version": "เวอร์ชัน {{version}}",
     "acceptNote": "หากต้องการยอมรับข้อกำหนดและใช้ OxSteed Credit โปรดลงชื่อเข้าใช้บัญชีของคุณ",
-    "signIn": "ลงชื่อเข้าใช้"
+    "signIn": "ลงชื่อเข้าใช้",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

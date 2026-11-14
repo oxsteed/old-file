@@ -36382,6 +36382,7 @@
       "reason": "কারণ",
       "add": "সারিতে যোগ করুন",
       "added": "সারিতে যোগ করা হয়েছে।",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "দলের বোর্ড",
       "sla": "SLA",
       "breachedCol": "মেয়াদোত্তীর্ণ",
@@ -36469,7 +36470,9 @@
         "key": "কী",
         "create": "সারি তৈরি করুন",
         "created": "সারি তৈরি হয়েছে।",
-        "saved": "সারি সংরক্ষিত হয়েছে।"
+        "saved": "সারি সংরক্ষিত হয়েছে।",
+        "listUnavailable": "সারির তালিকা লোড করা যায়নি। আপনি নিচে থেকে তবুও একটি সারি তৈরি করতে পারেন।",
+        "empty": "এখনও কোনো সারি নেই।"
       },
       "manageView": "এই ভিউ পরিচালনা করুন",
       "renameView": "নাম বদলান বা শেয়ার করুন",
@@ -36477,7 +36480,8 @@
       "saveRename": "নাম সংরক্ষণ করুন",
       "updateView": "বর্তমান ফিল্টার এই ভিউতে সংরক্ষণ করুন",
       "viewRenamed": "ভিউয়ের নাম বদলানো হয়েছে।",
-      "viewUpdated": "ভিউ হালনাগাদ হয়েছে।"
+      "viewUpdated": "ভিউ হালনাগাদ হয়েছে।",
+      "viewsLoadFailed": "সংরক্ষিত ভিউ লোড করা যায়নি।"
     },
     "summary": {
       "title": "গ্রাহক সারসংক্ষেপ",
@@ -36580,6 +36584,8 @@
     "unnamed": "নামহীন গ্রাহক",
     "lastSeen": "শেষ কার্যকলাপ {{date}}",
     "more": "আরও দেখান",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "এই ব্যবসার সাথে ইতিহাস দেখতে একজন গ্রাহক বেছে নিন।",
     "scopeNote": "শুধু এই ব্যবসার নিজস্ব রেকর্ড দেখানো হয়।",
     "status": "অবস্থা",
@@ -36802,6 +36808,8 @@
     "draftBadge": "খসড়া",
     "version": "সংস্করণ {{version}}",
     "acceptNote": "এই শর্তাবলি গ্রহণ করে OxSteed Credit ব্যবহার করতে আপনার অ্যাকাউন্টে সাইন ইন করুন।",
-    "signIn": "সাইন ইন"
+    "signIn": "সাইন ইন",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

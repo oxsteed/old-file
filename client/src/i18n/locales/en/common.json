@@ -1114,6 +1114,7 @@
       "reason": "Reason",
       "add": "Add to queue",
       "added": "Added to the queue.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Team board",
       "sla": "SLA",
       "breachedCol": "Overdue",
@@ -1201,7 +1202,9 @@
         "key": "Key",
         "create": "Create queue",
         "created": "Queue created.",
-        "saved": "Queue saved."
+        "saved": "Queue saved.",
+        "listUnavailable": "The queue list could not be loaded. You can still create a queue below.",
+        "empty": "No queues yet."
       },
       "manageView": "Manage this view",
       "renameView": "Rename or share",
@@ -1209,7 +1212,8 @@
       "saveRename": "Save name",
       "updateView": "Save current filters to this view",
       "viewRenamed": "View renamed.",
-      "viewUpdated": "View updated."
+      "viewUpdated": "View updated.",
+      "viewsLoadFailed": "Saved views could not be loaded."
     },
     "summary": {
       "title": "Customer summary",
@@ -6499,6 +6503,8 @@
     "draftBadge": "Draft",
     "version": "Version {{version}}",
     "acceptNote": "To accept these terms and use OxSteed Credit, sign in to your account.",
-    "signIn": "Sign in"
+    "signIn": "Sign in",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }
