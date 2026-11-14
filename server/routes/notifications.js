@@ -32,7 +32,7 @@ router.post('/webpush/subscribe',     authenticate, webPushCtrl.subscribe);
 router.post('/webpush/rotate',        strictLimiter, webPushCtrl.rotate);
 router.delete('/webpush/subscribe',   authenticate, webPushCtrl.unsubscribe);
 router.get('/webpush/devices',        authenticate, webPushCtrl.listDevices);
-router.post('/webpush/test',          authenticate, webPushCtrl.sendTest);
+router.post('/webpush/test',          authenticate, strictLimiter, webPushCtrl.sendTest);
 
 router.get('/:id', authenticate, notifCtrl.getNotification);
 router.post('/:id/read', authenticate, (req, res, next) => {
