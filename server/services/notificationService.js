@@ -327,6 +327,8 @@ exports.sendNotification = async ({
       // Direct booking notifications
       'booking_request_new', 'booking_accepted', 'booking_declined',
       'booking_cancelled', 'booking_auto_released',
+      // Consulting: the assigned consultant learns a session was scheduled.
+      'consulting_session_scheduled',
       // Agreement/job lifecycle notices respect the participant's email choices.
       'warranty_claim_filed', 'warranty_claim_updated', 'job_started',
       // Weekly helper summary: gated by the email_weekly_summary toggle

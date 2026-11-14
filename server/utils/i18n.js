@@ -762,6 +762,22 @@ const T = {
       ar: 'لقد انتهت صلاحية طلب حجز أو تم تحريره تلقائيًا.',
     },
   },
+  consulting_session_scheduled: {
+    title: {
+      en: 'New consulting session scheduled',
+      fr: 'Nouvelle séance de consultation planifiée',
+      es: 'Nueva sesión de consultoría programada',
+      ht: 'Nouvo sesyon konsiltasyon pwograme',
+      ar: 'تمت جدولة جلسة استشارية جديدة',
+    },
+    body: {
+      en: 'A client scheduled a consulting session with you. Open your contractor dashboard to see the details and prepare.',
+      fr: 'Un client a planifié une séance de consultation avec vous. Ouvrez votre tableau de bord pour voir les détails et vous préparer.',
+      es: 'Un cliente programó una sesión de consultoría contigo. Abre tu panel para ver los detalles y prepararte.',
+      ht: 'Yon kliyan pwograme yon sesyon konsiltasyon avè ou. Louvri tablodbò ou pou wè detay yo epi prepare ou.',
+      ar: 'جدول عميل جلسة استشارية معك. افتح لوحة التحكم لعرض التفاصيل والاستعداد.',
+    },
+  },
   appointment_requested: {
     title: {
       en: 'New appointment request',
@@ -1121,6 +1137,13 @@ const EMAIL_TEMPLATES = {
       es: 'Ver reservas',
       ht: 'Gade randevou yo',
       ar: 'عرض الحجوزات',
+    },
+    consulting_session_scheduled: {
+      en: 'View Sessions',
+      fr: 'Voir les séances',
+      es: 'Ver sesiones',
+      ht: 'Gade sesyon yo',
+      ar: 'عرض الجلسات',
     },
   booking_auto_released: {
     title: {
