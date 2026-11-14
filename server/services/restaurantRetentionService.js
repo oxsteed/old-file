@@ -361,8 +361,14 @@ async function anonymizeFormerStaff(db, { businessId, restaurantId, userId, reta
   // times. Restricting the WHERE to actor/target rows was rejected:
   // the full name can appear in rows where this person is neither
   // actor nor target, and those rows must still be scrubbed.
+  // Money flows W7: the audit-log scrub is business-scoped, so the
+  // sweep runs it once per business per person (anonymizePerson
+  // calls scrubBusinessAuditLogNames after the restaurant loop) and
+  // this per-restaurant call skips it when skipAuditScrub is set.
+  // Direct callers (the manual erasure endpoint) still scrub here,
+  // so a single-restaurant erasure keeps the same outcome counts.
   const scrubbedAuditIds = new Set();
-  if (fullName) {
+  if (fullName && !skipAuditScrub) {
     // Each needle carries its own replacement: a quoted needle
     // ("Phase") must be replaced by a quoted marker ("Former staff")
     // or the JSON text stops parsing.
