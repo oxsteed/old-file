@@ -28,6 +28,7 @@ const PREF_GROUPS = [
       'in_app_dispute_update',
       'in_app_subscription',
       'in_app_new_message',
+      'in_app_media_creator_update',
     ],
   },
   {
