@@ -59,7 +59,14 @@ async function optional(modulePath, fnName) {
   try {
     mod = require(modulePath);
   } catch (error) {
-    if (error.code === 'MODULE_NOT_FOUND') return { skipped: 'not_installed' };
+    if (error.code === 'MODULE_NOT_FOUND') {
+      // Notifications audit item 7 follow-up: the skip used to be silent,
+      // so a deleted or renamed module left the job green while nothing
+      // ran. Warn so the hole cannot silently reopen (runTask still
+      // raises a high-severity incident for compliance-critical skips).
+      logger.warn('credit_oversight.module_missing', { module: modulePath, fn: fnName, error: error.message });
+      return { skipped: 'not_installed' };
+    }
     throw error;
   }
   return mod[fnName]();

@@ -64,4 +64,20 @@ describe('licence oversight critical-task skip (Oct 30 item 12)', () => {
     const incident = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO incident_log'));
     expect(incident).toBeFalsy();
   });
+
+  test('optional() warns when a compliance module is missing instead of skipping silently', async () => {
+    const logger = require('../utils/logger');
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    try {
+      const { optional } = require('../jobs/creditLicenceOversight');
+      await expect(optional('../services/creditCompliance/noSuchModule', 'runSweep'))
+        .resolves.toEqual({ skipped: 'not_installed' });
+      expect(warnSpy).toHaveBeenCalledWith(
+        'credit_oversight.module_missing',
+        expect.objectContaining({ module: '../services/creditCompliance/noSuchModule', fn: 'runSweep' })
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
 });
