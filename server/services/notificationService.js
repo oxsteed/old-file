@@ -1,4 +1,5 @@
 const db                = require('../db');
+const crypto            = require('crypto');
 const logger            = require('../utils/logger');
 const { broadcastToUser } = require('./socketService');
 const { sendEmail }     = require('../utils/email');  // Resend - single email system
@@ -75,6 +76,100 @@ function redactPushToken(token) {
   if (!token || typeof token !== 'string') return null;
   if (token.length <= 12) return '[redacted]';
   return `${token.slice(0, 6)}...${token.slice(-4)}`;
+}
+
+// ─── Item 26: boundary idempotency derivation ────────────────────
+// One shared derivation, used by every sendNotification caller: when the
+// caller passes no idempotencyKey, the boundary derives a deterministic
+// one so a retry replays instead of duplicating in-app, push, and email.
+// It must NEVER dedupe genuinely distinct events, so the key is built
+// from (type, recipient, entity id, payload hash):
+//   * Entity-id path: data carries a stable entity id (booking, order,
+//     invoice, ...). The key binds type + recipient + that id + a hash of
+//     the payload, so the same event retried with the identical payload
+//     replays, while a different payload for the same entity (a genuinely
+//     new event, e.g. a second status change) gets a different key.
+//   * Payload-only path: no entity id exists. The key binds type +
+//     recipient + payload hash + a 15-minute bucket, so an immediate retry
+//     replays while an identical-looking event an hour later still
+//     delivers. The bucket is the deliberate trade-off: without an entity
+//     id there is no way to tell a retry from a repeat, so the window is
+//     kept short (retries are normally immediate).
+// Actor/recipient ids (userId, customerId, helperId, ...) are NOT entity
+// ids: keying on them would collapse distinct events for one person.
+// Volatile payload fields (timestamps, nonces, per-request ids) are
+// excluded from the hash, or every retry would hash differently.
+const ENTITY_ID_FIELDS = [
+  'id', 'entityId', 'entity_id',
+  'bookingId', 'booking_id', 'subscriptionId', 'subscription_id',
+  'orderId', 'order_id', 'invoiceId', 'invoice_id',
+  'leadId', 'lead_id', 'quoteId', 'quote_id', 'reviewId', 'review_id',
+  'appointmentId', 'appointment_id', 'jobId', 'job_id',
+  'messageId', 'message_id', 'conversationId', 'conversation_id',
+  'sosEventId', 'sos_event_id', 'ticketId', 'ticket_id',
+  'paymentId', 'payment_id', 'disputeId', 'dispute_id',
+  'reference_id', 'referenceId', 'profileId', 'profile_id',
+  'businessId', 'business_id', 'broadcastId', 'broadcast_id',
+];
+const ACTOR_ID_FIELDS = new Set([
+  'userId', 'user_id', 'recipientId', 'recipient_id',
+  'customerId', 'customer_id', 'helperId', 'helper_id',
+  'senderId', 'sender_id', 'actorId', 'actor_id', 'adminId', 'admin_id',
+]);
+const VOLATILE_PAYLOAD_KEYS = new Set([
+  'createdAt', 'created_at', 'updatedAt', 'updated_at',
+  'timestamp', 'sentAt', 'sent_at', 'nonce', 'requestId', 'request_id',
+]);
+const PAYLOAD_BUCKET_MS = 15 * 60 * 1000;
+
+function stableStringify(value, seen = new Set()) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (seen.has(value)) return '"[circular]"';
+  seen.add(value);
+  if (Array.isArray(value)) return `[${value.map((v) => stableStringify(v, seen)).join(',')}]`;
+  const keys = Object.keys(value).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k], seen)}`).join(',')}}`;
+}
+
+function payloadWithoutVolatile(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return data || {};
+  const out = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (VOLATILE_PAYLOAD_KEYS.has(key)) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function findEntityId(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  for (const field of ENTITY_ID_FIELDS) {
+    const value = data[field];
+    if ((typeof value === 'string' && value.trim()) || typeof value === 'number') {
+      return { field, value: String(value) };
+    }
+  }
+  for (const field of Object.keys(data).sort()) {
+    if (ACTOR_ID_FIELDS.has(field)) continue;
+    if (!/(_id|Id)$/.test(field)) continue;
+    const value = data[field];
+    if ((typeof value === 'string' && value.trim()) || typeof value === 'number') {
+      return { field, value: String(value) };
+    }
+  }
+  return null;
+}
+
+function deriveIdempotencyKey({ type, userId, title, body, data, now = Date.now() } = {}) {
+  const payloadHash = crypto.createHash('sha256')
+    .update(stableStringify({ title: title || '', body: body || '', data: payloadWithoutVolatile(data) }))
+    .digest('hex')
+    .slice(0, 16);
+  const entity = findEntityId(data);
+  const base = `auto:${String(type || '')}:${String(userId || '')}`;
+  if (entity) return `${base}:${entity.field}:${entity.value}:${payloadHash}`.slice(0, 255);
+  const bucket = Math.floor(Number(now || Date.now()) / PAYLOAD_BUCKET_MS);
+  return `${base}:payload:${payloadHash}:${bucket}`.slice(0, 255);
 }
 
 // ─── MASTER SEND FUNCTION ─────────────────────────────────────
@@ -159,7 +254,10 @@ exports.sendNotification = async ({
       : (body || translationBody);
     const deliveryKey = idempotencyKey
       ? String(idempotencyKey).trim().slice(0, 255)
-      : null;
+      // Item 26: keyless callers used to insert a fresh row (and re-fire
+      // push/email) on every retry. Derive a deterministic key at the
+      // boundary instead; see deriveIdempotencyKey above.
+      : deriveIdempotencyKey({ type, userId, title: finalTitle, body: finalBody, data });
 
     // ── Quiet-hours gate (blocks push only, in-app and email still proceed) ──
     // quiet_hours_start / quiet_hours_end are stored as Postgres TIME (HH:MM:SS).
@@ -733,3 +831,4 @@ function isWithinQuietHours(startTime, endTime, enabled, timezone = 'UTC') {
   }
 }
 exports.isMoneyCriticalEmailType = isMoneyCriticalEmailType;
+exports.deriveIdempotencyKey = deriveIdempotencyKey;

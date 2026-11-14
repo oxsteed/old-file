@@ -270,12 +270,21 @@ describe('P2-8-F04 email_frequency honored by the realtime path', () => {
     expect(queued[0][1][5]).toBe('email-only-digest');
   });
 
-  test('email-only delivery without a delivery key falls back to realtime instead of dropping', async () => {
+  // Item 26: the boundary now always derives a delivery key, so the
+  // old keyless fallback to realtime no longer exists: a weekly-frequency
+  // email-only send is queued for the digest (deduped by the derived
+  // key) instead of being sent immediately. The email is still not
+  // dropped — it just honours the user's digest frequency.
+  test('email-only delivery without a caller key queues for the digest on the derived key', async () => {
     mockPrefs({ email_frequency: 'weekly' });
-    await sendNotification({ userId: 'u1', type: 'metric_threshold_alert', body: 'Threshold crossed',
+    const result = await sendNotification({ userId: 'u1', type: 'metric_threshold_alert', body: 'Threshold crossed',
       emailChannel: true, inAppChannel: false, pushChannel: false });
-    expect(digestQueueCalls()).toHaveLength(0);
-    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const queued = digestQueueCalls();
+    expect(queued).toHaveLength(1);
+    expect(queued[0][1][1]).toBe('weekly');
+    expect(String(queued[0][1][5])).toMatch(/^auto:metric_threshold_alert:u1:payload:/);
+    expect(result.delivered).toEqual({ inApp: false, push: false, email: false, emailQueued: true });
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   test('real-time (default) sends email immediately and queues nothing', async () => {
