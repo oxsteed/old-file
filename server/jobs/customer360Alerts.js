@@ -16,8 +16,15 @@ const tickCap = () => Math.max(1, Number(process.env.CUSTOMER360_ALERT_TICK_CAP)
 function newBudget() {
   return { remaining: tickCap(), overflowByAdmin: new Map() };
 }
-function noteOverflow(budget, adminId, count = 1) {
-  budget.overflowByAdmin.set(adminId, (budget.overflowByAdmin.get(adminId) || 0) + count);
+// Notifications audit item 55: overflow used to be a bare count, so the
+// digest could say nothing about what it stood for. Keep the first few
+// overflowed records per admin (bounded) so the digest names them.
+const MAX_DIGEST_TOP = 5;
+function noteOverflow(budget, adminId, detail = null) {
+  const entry = budget.overflowByAdmin.get(adminId) || { count: 0, top: [] };
+  entry.count += 1;
+  if (detail && entry.top.length < MAX_DIGEST_TOP) entry.top.push(detail);
+  budget.overflowByAdmin.set(adminId, entry);
 }
 // Platform-wide anomaly watch (customer_id IS NULL): one notification per
 // bundled anomaly and status, never per repeat detection.
@@ -35,7 +42,7 @@ async function evaluatePlatformAnomalyRule(rule, def, budget = null) {
   let sent = 0;
   for (const row of rows) {
     if (budget && budget.remaining <= 0) {
-      noteOverflow(budget, rule.admin_id);
+      noteOverflow(budget, rule.admin_id, { customer_id: row.customer_id, source: rule.source, kind: row.kind, status: row.status });
       continue;
     }
     const result = await sendNotification({
@@ -89,7 +96,7 @@ async function evaluateCustomer360Alerts() {
       );
       for (const row of rows) {
         if (budget.remaining <= 0) {
-          noteOverflow(budget, rule.admin_id);
+          noteOverflow(budget, rule.admin_id, { customer_id: rule.customer_id, source: rule.source, status: row.status });
           continue;
         }
         const result = await sendNotification({
@@ -126,19 +133,30 @@ async function evaluateCustomer360Alerts() {
   // One digest per admin for everything the cap held back this tick. The
   // minute-bucketed key keeps it to one digest per admin per tick while a
   // storm lasts, instead of one notification per held-back anomaly.
+  // Notifications audit item 55: the digest used to carry an empty body,
+  // no link, and data of only {overflow, digest:true}. It now names the
+  // held-back count and the top overflowed records, and links to the
+  // anomalies workspace.
   let digested = 0;
   for (const [adminId, overflow] of budget.overflowByAdmin) {
+    const count = overflow.count;
+    const top = overflow.top || [];
+    const topText = top
+      .map((t) => [t.kind || t.status, t.customer_id ? `customer ${t.customer_id}` : null, t.source].filter(Boolean).join(' '))
+      .join('; ');
+    const body = `${count} anomal${count === 1 ? 'y was' : 'ies were'} held back by the per-tick cap${topText ? `. Top: ${topText}` : ''}. They will be retried on the next tick.`;
     const result = await sendNotification({
       userId: adminId,
       type: "customer360_attention",
       title: "Customer 360 anomaly digest",
-      body: "",
-      data: { overflow, digest: true },
+      body,
+      action_url: "/admin/customer360/anomalies",
+      data: { overflow: count, digest: true, top },
       idempotencyKey: `customer360-digest:${adminId}:${Math.floor(Date.now() / 60000)}`,
     });
     if (result?.success) digested++;
   }
-  return { sent, digested, overflow: [...budget.overflowByAdmin.values()].reduce((a, b) => a + b, 0) };
+  return { sent, digested, overflow: [...budget.overflowByAdmin.values()].reduce((a, b) => a + b.count, 0) };
 }
 function startCustomer360Alerts() {
   if (process.env.CUSTOMER360_ALERTS_ENABLED === "false") return { stop() {} };
