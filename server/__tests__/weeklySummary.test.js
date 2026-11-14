@@ -104,4 +104,43 @@ describe('weekly summary job', () => {
 
     expect(withFencedJobLock).toHaveBeenCalledWith('weekly-summary', expect.any(Function), 1800);
   });
+
+  // Item 19: `sent` must count actual reach, not the send call. A result
+  // whose delivered breakdown shows no channel reached counts as failed.
+  test('counts sent only when a channel actually delivered', async () => {
+    const { sendNotification } = require('../services/notificationService');
+    const logger = require('../utils/logger');
+    const helper = {
+      id: 'helper-1', first_name: 'Casey', email: 'casey@example.invalid',
+      earnings_mtd: 0, completed_jobs: 0, active_bids: 0, open_jobs_posted: 0,
+      email_weekly_summary: true, preferred_language: 'en',
+    };
+    db.query
+      .mockResolvedValueOnce({ rows: [helper] })
+      .mockResolvedValue({ rows: [] });
+    sendNotification.mockResolvedValue({
+      success: true, notificationId: 'notif-1',
+      delivered: { inApp: false, push: false, email: false, emailQueued: false },
+    });
+    startWeeklySummaryJob();
+    await cron.schedule.mock.calls[0][1]();
+    expect(logger.info).toHaveBeenCalledWith('Weekly summaries complete', { sent: 0, failed: 1, total: 1 });
+
+    // NB: no jest.clearAllMocks() here — it would wipe the node-cron mock
+    // call history this test reads the second callback from.
+    db.query.mockClear();
+    logger.info.mockClear();
+    logger.warn.mockClear();
+    logger.error.mockClear();
+    db.query
+      .mockResolvedValueOnce({ rows: [helper] })
+      .mockResolvedValue({ rows: [] });
+    sendNotification.mockResolvedValue({
+      success: true, notificationId: 'notif-1',
+      delivered: { inApp: true, push: false, email: false, emailQueued: false },
+    });
+    startWeeklySummaryJob();
+    await cron.schedule.mock.calls[1][1]();
+    expect(logger.info).toHaveBeenCalledWith('Weekly summaries complete', { sent: 1, failed: 0, total: 1 });
+  });
 });

@@ -110,7 +110,7 @@ exports.sendNotification = async ({
         [userId]
       );
       if ((promoRows[0]?.n || 0) >= 2) {
-        return { success: false, reason: 'promo_cap' };
+        return { success: false, reason: 'promo_cap', delivered: { inApp: false, push: false, email: false, emailQueued: false } };
       }
     }
     // Get user prefs
@@ -122,7 +122,7 @@ exports.sendNotification = async ({
       WHERE u.id = $1
         AND u.deleted_at IS NULL
     `, [userId]);
-    if (!prefRows.length) return { success: false, reason: 'user_not_found' };
+    if (!prefRows.length) return { success: false, reason: 'user_not_found', delivered: { inApp: false, push: false, email: false, emailQueued: false } };
 
     const prefs     = prefRows[0];
     const userEmail = prefs.email;
@@ -480,15 +480,23 @@ exports.sendNotification = async ({
       const emailFailed = delivery?.success !== true
         && !(delivery?.code === 'email_not_configured' && process.env.NODE_ENV !== 'production');
       if (emailFailed) {
-        return { success: false, error: delivery?.error || 'Email delivery failed', notificationId: notifId };
+        return { success: false, error: delivery?.error || 'Email delivery failed', notificationId: notifId,
+          delivered: { inApp: notifId != null, push: pushDelivered, email: false, emailQueued } };
       }
     }
+    // Item 19: `success` historically meant "the call did not throw" — it
+    // was true even when no row existed (in-app opted out) and push/email
+    // never fired. Keep `success` as the accepted/persisted signal so
+    // outbox retry loops do not spin on opted-out users, and report the
+    // actual reach in `delivered` so callers can count real delivery.
+    // inApp is true when a row was inserted or an existing deduped row was
+    // resolved; push/email are true only on a provider acknowledgement.
     return { success: true, notificationId: notifId,
-      ...(type === 'metric_threshold_alert' ? { delivered: !!notifId || pushDelivered || emailDelivered || emailQueued } : {}) };
+      delivered: { inApp: notificationRow != null, push: pushDelivered, email: emailDelivered, emailQueued } };
   } catch (err) {
     logger.error('Send notification failed', { userId, type, error: err.message });
     // Never throw - notification failure should never block business logic
-    return { success: false, error: err.message };
+    return { success: false, error: err.message, delivered: { inApp: false, push: false, email: false, emailQueued: false } };
   }
 };
 

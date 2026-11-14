@@ -256,7 +256,10 @@ describe('P2-8-F04 email_frequency honored by the realtime path', () => {
     mockPrefs({ email_frequency: 'daily' });
     const result = await sendNotification({ userId: 'u1', type: 'metric_threshold_alert', body: 'Threshold crossed',
       emailChannel: true, inAppChannel: false, pushChannel: false, idempotencyKey: 'email-only-digest' });
-    expect(result).toMatchObject({ success: true, delivered: true });
+    // Item 19: `delivered` is now a per-channel breakdown instead of the
+    // old metric-alert boolean; the digest-queued email is reported as
+    // emailQueued, not as a realtime email.
+    expect(result).toMatchObject({ success: true, delivered: { inApp: false, push: false, email: false, emailQueued: true } });
     expect(sendEmail).not.toHaveBeenCalled();
     expect(insertCalls()).toHaveLength(0);
     const queued = digestQueueCalls();

@@ -25,7 +25,15 @@ async function notifySOS(event, { escalation = false, db = pool, notify = sendNo
     data: { lat: event.lat, lng: event.lng, userId: event.user_id, sosEventId: event.id, type: 'safety_sos' },
     action_url: `/admin/users/${event.user_id}`,
   })));
-  const delivered = results.filter(r => r.status === 'fulfilled' && r.value?.success === true).length;
+  // Item 19: count only a push/email acknowledgement as delivered. An
+  // in-app row alone does not reach an operator who is not looking at the
+  // centre, and `success` is true even when no row exists. A notify
+  // implementation that returns no delivered breakdown (older injected
+  // senders) falls back to `success` so existing callers keep working.
+  const delivered = results.filter(r => r.status === 'fulfilled'
+    && (r.value?.delivered
+      ? (r.value.delivered.push === true || r.value.delivered.email === true)
+      : r.value?.success === true)).length;
   if (!delivered || escalation) await recordIncident({
     type: 'safety_sos_unacknowledged', severity: 'critical', dedupeKey: `safety-sos:${event.id}`,
     message: `SOS event ${event.id} needs operator acknowledgment`, details: { sosEventId: event.id, delivered },

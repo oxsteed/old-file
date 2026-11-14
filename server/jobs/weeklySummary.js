@@ -129,7 +129,7 @@ async function runWeeklySummaryPass() {
       await mapBounded(helpers, 5, async (helper) => {
         try {
           const summaryCopy = buildWeeklySummaryNotification(helper, helper.preferred_language);
-          await sendNotification({
+          const result = await sendNotification({
             userId: helper.id,
             type:   'weekly_summary',
             title:  summaryCopy.title,
@@ -143,7 +143,19 @@ async function runWeeklySummaryPass() {
             action_url: '/dashboard',
             idempotencyKey: `weekly-summary:${helper.id}:${weekKey}`,
           });
-          sent++;
+          // Item 19: count only actual reach. sendNotification's
+          // `success` stays true even when no row exists (in-app opted
+          // out) and no other channel fired, so count on the delivered
+          // breakdown; a result without one (older injected senders in
+          // tests) falls back to `success`.
+          const reached = result?.delivered
+            ? Boolean(result.delivered.inApp || result.delivered.push || result.delivered.email || result.delivered.emailQueued)
+            : result?.success === true;
+          if (reached) sent++;
+          else {
+            failed++;
+            logger.warn('Weekly summary reached no channel for helper', { helperId: helper.id });
+          }
         } catch (helperErr) {
           failed++;
           logger.error('Weekly summary failed for helper', {
