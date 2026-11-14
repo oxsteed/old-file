@@ -50,7 +50,10 @@ describe('support attachment upload-only enforcement', () => {
   test('support conversation addMessage rejects a pasted attachmentUrl', async () => {
     const ctrl = require('../controllers/supportConversationsController');
     db.query.mockImplementation(async (sql) => {
-      if (String(sql).includes('FROM support_conversations WHERE id')) {
+      // Notifications audit item 44 rewrote the lookup as a JOIN
+      // (FROM support_conversations sc ... WHERE sc.id = $1), so match the
+      // table rather than the old bare-SELECT text.
+      if (String(sql).includes('FROM support_conversations')) {
         return {
           rows: [{
             id: 'conv-1',

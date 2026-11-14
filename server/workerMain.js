@@ -30,7 +30,7 @@ const {
   processNotification,
 } = require('./workers/paymentWorker');
 const { pollTranslationJobs } = require('./modules/jobs/translationJobWorker');
-const { SCHEDULED_WORKERS, runScheduledWorkerOnce } = require('./workers/scheduledWorkerSchedule');
+const { SCHEDULED_WORKERS, runScheduledWorkerOnce, scheduleEntryTimer } = require('./workers/scheduledWorkerSchedule');
 
 // Map queue to processor function
 const processors = {
@@ -162,22 +162,23 @@ const pollQueue = async (queueKey) => {
 };
 
 /**
- * Schedule a delivery tracking worker on a fixed interval, following the same
- * setInterval pattern as the translation worker. A per-worker in-flight guard
- * prevents overlapping runs when a pass takes longer than its interval.
+ * Schedule a delivery tracking worker, following the same pattern as the
+ * translation worker. A per-worker in-flight guard prevents overlapping
+ * runs when a pass takes longer than its interval. Cron entries (item 30:
+ * the email digests) run on their wall-clock cron via the shared
+ * scheduleEntryTimer helper, not a boot-relative interval.
  */
 const trackingInFlight = new Set();
 
 const scheduleTrackingWorker = (name, workerFn, intervalMs, options) => {
-  const timer = setInterval(() => {
+  const handle = scheduleEntryTimer([name, workerFn, intervalMs, options], () => {
     if (stopping || trackingInFlight.has(name)) return;
     trackingInFlight.add(name);
     Promise.resolve()
       .then(() => runScheduledWorkerOnce([name, workerFn, intervalMs, options], { log: logger }))
       .finally(() => trackingInFlight.delete(name));
-  }, intervalMs);
-  timer.unref?.();
-  trackingIntervals.push(timer);
+  });
+  trackingIntervals.push(handle);
 };
 
 // Shared with the API process (bootstrap/backgroundWorkers.js); see
@@ -236,8 +237,9 @@ const shutdown = async (signal) => {
     clearInterval(translationInterval);
     translationInterval = null;
   }
-  for (const timer of trackingIntervals) {
-    clearInterval(timer);
+  for (const handle of trackingIntervals) {
+    if (typeof handle?.stop === 'function') handle.stop();
+    else clearInterval(handle);
   }
   trackingIntervals = [];
   // Keep trackingInFlight populated until each pass settles. Clearing it here

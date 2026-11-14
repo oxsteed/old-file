@@ -87,7 +87,11 @@ test('disables an unregistered Expo token in the current mobile token registry',
     pushToken: 'ExponentPushToken[test-token]',
   });
   // Keep the failure details visible if the service's non-throwing guard trips.
-  expect(result).toEqual({ success: true, notificationId: 'notification-2' });
+  // Item 19: the return now carries the delivered breakdown (in-app row
+  // persisted; Expo ticket errored so push did not ack; email not attempted
+  // for this type in this mock setup).
+  expect(result).toEqual({ success: true, notificationId: 'notification-2',
+    delivered: { inApp: true, push: false, email: false, emailQueued: false } });
 
   const cleanupCall = db.query.mock.calls.find(([sql]) => sql.includes('disabled_at = NOW()'));
   expect(cleanupCall).toBeDefined();
@@ -110,7 +114,10 @@ test('reuses an existing delivery-keyed notification without broadcasting twice'
     idempotencyKey: 'message:message-1:customer-1',
   });
 
-  expect(result).toEqual({ success: true, notificationId: 'notification-existing' });
+  // Item 19: the deduped row is reported as in-app delivered, and its
+  // stored is_push_sent=true carries into the push leg (no re-fire).
+  expect(result).toEqual({ success: true, notificationId: 'notification-existing',
+    delivered: { inApp: true, push: true, email: false, emailQueued: false } });
   expect(db.query.mock.calls[1][0]).toContain('delivery_key');
   expect(db.query.mock.calls[2][0]).toContain('WHERE delivery_key = $1');
   expect(require('../services/socketService').broadcastToUser).not.toHaveBeenCalled();
@@ -166,6 +173,26 @@ describe('W11 warranty and job-start delivery', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'w11-optout-notice' }] });
     expect(await sendNotification({ userId: 'participant', type, idempotencyKey: `w11-optout:${type}` })).toMatchObject({ success: true });
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('cash-out settlement email (notifications audit item 20)', () => {
+  test.each([
+    ['credit_cashout_paid', 'Your cash-out was paid'],
+    ['credit_cashout_failed', 'Your cash-out failed'],
+  ])('%s reaches email', async (type, title) => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ ...prefs, email: 'helper@example.invalid' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'cashout-notice' }] });
+    const result = await sendNotification({
+      userId: 'helper-1', type, title, body: 'Cash-out of $25.00 settled.',
+      action_url: '/wallet', idempotencyKey: `credit-cashout:test:${type}`,
+    });
+    expect(result.success).toBe(true);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({
+      subject: title, idempotencyKey: `credit-cashout:test:${type}`,
+    }));
+    expect(db.query.mock.calls.some(([sql]) => sql.includes('SET is_email_sent = true'))).toBe(true);
   });
 });
 

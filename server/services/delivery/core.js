@@ -170,25 +170,35 @@ async function sendInApp(
 async function sendPush(userId, payload, deps = {}) {
   const web = deps.webPush || require("../webPushService");
   const mobile = deps.mobilePush || require("../mobilePushService");
-  const results = await Promise.allSettled([
-    web.sendToUser(userId, payload),
-    mobile.sendToUser(userId, {
+  const out = { sent: 0, failed: 0 };
+  // Item 13 (one shared gate, not per-leg copies): the web leg runs only
+  // when web push is enabled for this recipient (webPushEnabled === false
+  // skips it without touching the mobile leg), and fan-out is
+  // first-success-wins like the main sendNotification path — a web ack
+  // ends the send, so one event never pushes to both the browser and the
+  // native app. The mobile leg runs only when the web leg reached nobody.
+  if (deps.webPushEnabled !== false) {
+    try {
+      const result = await web.sendToUser(userId, payload);
+      out.sent += Number(result?.sent || 0);
+      out.failed += Number(result?.failed || 0);
+      if (out.sent > 0) return out;
+    } catch {
+      out.failed++;
+    }
+  }
+  try {
+    const result = await mobile.sendToUser(userId, {
       title: payload.title,
       body: payload.body,
       data: payload.data,
-    }),
-  ]);
-  return results.reduce(
-    (out, result) => {
-      if (result.status === "rejected") out.failed++;
-      else {
-        out.sent += Number(result.value?.sent || 0);
-        out.failed += Number(result.value?.failed || 0);
-      }
-      return out;
-    },
-    { sent: 0, failed: 0 },
-  );
+    });
+    out.sent += Number(result?.sent || 0);
+    out.failed += Number(result?.failed || 0);
+  } catch {
+    out.failed++;
+  }
+  return out;
 }
 module.exports = {
   retrySeconds,

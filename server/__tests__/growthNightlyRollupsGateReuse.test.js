@@ -83,6 +83,15 @@ jest.mock('../growth/gate', () => ({
     allowed: ctx?.consents?.activity_offers !== false,
     context: ctx,
   })),
+  // Notifications audit item 40: the rollup decides once per user per
+  // block through the batch API; allow() must not be awaited per row.
+  allowMany: jest.fn((contexts) => {
+    const out = new Map();
+    for (const [id, ctx] of contexts) {
+      out.set(id, { allowed: ctx?.consents?.activity_offers !== false, context: ctx });
+    }
+    return out;
+  }),
   runtimePolicy: jest.fn(async () => ({ enabled: true, rollout: ROLLOUT, rules: RULES })),
   resolveJurisdiction: jest.fn(() => JURISDICTION),
 }));
@@ -163,6 +172,10 @@ test('unchanged inputs reuse the outer contexts: one contexts build per block', 
   expect(result.profiles).toBe(1);
   expect(gate.contexts).toHaveBeenCalledTimes(1);
   expect(gate.contexts).toHaveBeenCalledWith(['user-a', 'user-b'], expect.objectContaining({ db: expect.anything() }));
+  // Item 40: gate decisions come from the batch API (once per block), not
+  // from a per-row allow() await.
+  expect(gate.allow).not.toHaveBeenCalled();
+  expect(gate.allowMany).toHaveBeenCalled();
   expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO user_interest_profiles'))).toBe(true);
 });
 
@@ -172,5 +185,9 @@ test('a consent withdrawn between build and write triggers a rebuild and the row
   expect(result.profiles).toBe(0);
   expect(gate.contexts).toHaveBeenCalledTimes(2);
   expect(gate.contexts).toHaveBeenNthCalledWith(2, ['user-a'], expect.objectContaining({ db: expect.anything() }));
+  // Item 40: the in-transaction revalidation also decides via the batch
+  // API; the withdrawn consent still denies the row.
+  expect(gate.allow).not.toHaveBeenCalled();
+  expect(gate.allowMany).toHaveBeenCalled();
   expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO user_interest_profiles'))).toBe(false);
 });

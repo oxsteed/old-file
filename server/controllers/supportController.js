@@ -16,7 +16,7 @@ const { userMatchesAnyRegion } = require('../middleware/regionAuth');
 const escapeHtml = require('../utils/escapeHtml');
 const { transitionTicket } = require('../services/supportTicketLifecycleService');
 const { ticketEmail } = require('../utils/supportTicketEmail');
-const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
+const { scheduleSupportMessageNotifications, SUPPORT_STAFF_ALERT_LIMIT } = require('../services/supportNotificationService');
 const { MAX_IMAGE_BASE64_CHARS } = require('../constants/supportChatLimits');
 const { hasGlobalGrant } = require('../middleware/adminAuth');
 
@@ -74,16 +74,25 @@ async function fetchTicketRow(ticketId) {
   return rows[0] || null;
 }
 
-  /** Email every admin/super_admin whenever a ticket is opened */
+  /** Email on-call/support admins whenever a ticket is opened (item 10).
+   *  Active/deleted filters were already present; the residual gaps were
+   *  the missing preference check and the unbounded fan-out. Admins who
+   *  turned off admin email (admin_notification_prefs.email_notifications)
+   *  are skipped, and the send is capped at SUPPORT_STAFF_ALERT_LIMIT,
+   *  the same cap as the in-app leg. */
   async function emailAdminsNewTicket(ticket) {
     try {
       const { rows: admins } = await db.query(
-        `SELECT id, email, first_name, role
-           FROM users
-          WHERE role IN ('admin', 'super_admin')
-            AND is_active = TRUE
-            AND deleted_at IS NULL
-            AND email IS NOT NULL`
+        `SELECT u.id, u.email, u.first_name, u.role
+           FROM users u
+           LEFT JOIN admin_notification_prefs p ON p.admin_id = u.id
+          WHERE u.role IN ('admin', 'super_admin')
+            AND u.is_active = TRUE
+            AND u.deleted_at IS NULL
+            AND u.email IS NOT NULL
+            AND COALESCE(p.email_notifications, TRUE)
+          LIMIT $1`,
+        [SUPPORT_STAFF_ALERT_LIMIT]
       );
       const supportAdmins = [];
       for (const admin of admins) {
@@ -182,16 +191,11 @@ async function announceNewSupportTicket({ ticket, userId, name, email, messageId
         </div>`,
   }).catch(() => { /* non-fatal */ });
 
-  // Real-time broadcast to all admin sockets
-  notifyAdmins('support:new_ticket', {
-    ticket_id:     ticket.id,
-    ticket_number: ticket.ticket_number,
-    subject:       ticket.subject,
-    name:          ticket.name,
-    priority:      ticket.priority,
-    created_at:    ticket.created_at,
-  });
-  // Email every admin/super_admin about the new ticket
+  // Item 10: the all-admin socket broadcast is dropped. The in-app leg
+  // above already pushes a realtime 'notification:new' event to each
+  // scoped recipient, and the admin ticket list reloads off that event,
+  // so the broadcast was a duplicate channel to every admin socket.
+  // Email every on-call/support admin about the new ticket
   emailAdminsNewTicket(ticket).catch(() => { /* logged internally */ });
 
   logger.info('Support ticket created', {

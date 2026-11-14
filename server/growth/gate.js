@@ -218,8 +218,38 @@ async function allow(input, purpose = "activity", options = {}) {
     return denied("gate_unavailable");
   }
 }
+// Batch gate decisions for already-built contexts (notifications audit
+// item 40). decide() is pure, so a block that built its contexts once can
+// decide once per user instead of awaiting allow() per row. Decisions are
+// cached by the writer's decisionKey pattern (growth/ingest/writer.js):
+// identical decision inputs share one verdict, so a user with many rows
+// in one block is decided once.
+function decisionKey(ctx) {
+  return JSON.stringify([
+    ctx?.user?.id ?? null,
+    ctx?.trustedSignals ?? null,
+    ctx?.consents ?? null,
+    ctx?.jurisdiction?.code ?? null,
+  ]);
+}
+function allowMany(contexts, purpose = "activity", options = {}) {
+  const byId = contexts instanceof Map ? contexts : new Map(contexts);
+  const cache = new Map();
+  const out = new Map();
+  for (const [id, ctx] of byId) {
+    if (!ctx) {
+      out.set(id, { ...denied("context_missing"), context: ctx });
+      continue;
+    }
+    const key = decisionKey(ctx);
+    if (!cache.has(key)) cache.set(key, decide(ctx, purpose, Date.now(), process.env, options));
+    out.set(id, { ...cache.get(key), context: ctx });
+  }
+  return out;
+}
 module.exports = {
   allow,
+  allowMany,
   context,
   contexts,
   runtimePolicy,

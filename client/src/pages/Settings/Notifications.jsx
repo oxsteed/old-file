@@ -6,14 +6,14 @@ import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
-import { BrowserPushPanel } from '../../components/NotificationPreferences';
+import { BrowserPushPanel, EmailPreferencesPanel, SettingsToggle, PreferenceSection, TypeOptOutPanel } from '../../components/NotificationPreferences';
 import OfferPreferencesPanel from '../../growth/OfferPreferencesPanel';
 
 // Master toggles gate whole channels: push_notifications covers every push
 // channel (Expo, Web Push, native), sms_notifications covers all SMS.
 // Removed (review P2-8-F03): in_app_message_mention, push_message_mention
 // (no mention events exist) and push_new_job_nearby (no nearby-job events).
-const MASTER_PREFS = ['push_notifications', 'sms_notifications'];
+const MASTER_PREFS = ['in_app_notifications', 'push_notifications', 'sms_notifications'];
 
 const PREF_GROUPS = [
   {
@@ -28,6 +28,7 @@ const PREF_GROUPS = [
       'in_app_dispute_update',
       'in_app_subscription',
       'in_app_new_message',
+      'in_app_media_creator_update',
     ],
   },
   {
@@ -38,6 +39,12 @@ const PREF_GROUPS = [
       'push_payment_released',
       'push_dispute_update',
       'push_new_message',
+    ],
+  },
+  {
+    key: 'sms',
+    prefs: [
+      'sms_support_replies',
     ],
   },
   {
@@ -52,22 +59,6 @@ const PREF_GROUPS = [
     ],
   },
 ];
-
-function Toggle({ checked, onChange, disabled, ariaLabel }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`notification-settings__toggle ${checked ? 'is-on' : 'is-off'}`} data-track="ui.1a983f2bdd.1"
-    >
-      <span className="notification-settings__toggle-thumb" />
-    </button>
-  );
-}
 
 // P2-8-F07: the calendar notification-preferences endpoint (channel arrays +
 // quiet hours) previously had no client UI. This panel wires the quiet-hours
@@ -122,11 +113,10 @@ function QuietHoursPanel() {
   };
 
   return (
-    <div className="notification-settings__preference-list rounded-2xl mb-6">
-      <div className="px-6 py-4 border-b" style={{ borderBottomColor: 'var(--color-border)' }}>
-        <h2 className="notification-settings__section-title">{t('notifications.quietHours.title')}</h2>
-        <p className="notification-settings__muted text-xs mt-0.5">{t('notifications.quietHours.description')}</p>
-      </div>
+    <PreferenceSection
+      title={t('notifications.quietHours.title')}
+      description={t('notifications.quietHours.description')}
+    >
       {loading ? (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full" />
@@ -140,7 +130,7 @@ function QuietHoursPanel() {
               </label>
               <p className="notification-settings__muted text-xs mt-0.5">{t('notifications.quietHours.enabledDesc')}</p>
             </div>
-            <Toggle
+            <SettingsToggle
               checked={enabled}
               onChange={handleToggle}
               disabled={saving}
@@ -178,7 +168,7 @@ function QuietHoursPanel() {
           </div>
         </div>
       )}
-    </div>
+    </PreferenceSection>
   );
 }
 
@@ -261,16 +251,16 @@ export default function NotificationSettings() {
 
           <OfferPreferencesPanel />
 
+          <EmailPreferencesPanel />
+
           <QuietHoursPanel />
 
           {/* Master channel toggles */}
           {!loading && (
-            <div className="notification-settings__preference-list rounded-2xl mb-6">
-              <div className="px-6 py-4 border-b" style={{ borderBottomColor: 'var(--color-border)' }}>
-                <h2 className="notification-settings__section-title">{t('notifications.groups.masters.label')}</h2>
-                <p className="notification-settings__muted text-xs mt-0.5">{t('notifications.groups.masters.description')}</p>
-              </div>
-              <div>
+            <PreferenceSection
+              title={t('notifications.groups.masters.label')}
+              description={t('notifications.groups.masters.description')}
+            >
                 {MASTER_PREFS.map((prefKey, idx) => {
                   const enabled = prefs?.[prefKey] ?? true;
                   return (
@@ -287,7 +277,7 @@ export default function NotificationSettings() {
                         </label>
                         <p className="notification-settings__muted text-xs mt-0.5">{t(`notifications.prefs.${prefKey}Desc`)}</p>
                       </div>
-                      <Toggle
+                      <SettingsToggle
                         checked={enabled}
                         onChange={(val) => handleToggle(prefKey, val)}
                         disabled={saving}
@@ -296,8 +286,7 @@ export default function NotificationSettings() {
                     </div>
                   );
                 })}
-              </div>
-            </div>
+            </PreferenceSection>
           )}
 
           {/* Content */}
@@ -308,18 +297,11 @@ export default function NotificationSettings() {
           ) : (
             <div className="space-y-6">
               {PREF_GROUPS.map((group) => (
-                <div
+                <PreferenceSection
                   key={group.key}
-                  className="notification-settings__preference-list rounded-2xl"
+                  title={t(`notifications.groups.${group.key}.label`)}
+                  description={t(`notifications.groups.${group.key}.description`)}
                 >
-                  {/* Group header */}
-                  <div className="px-6 py-4 border-b" style={{ borderBottomColor: 'var(--color-border)' }}>
-                    <h2 className="notification-settings__section-title">{t(`notifications.groups.${group.key}.label`)}</h2>
-                    <p className="notification-settings__muted text-xs mt-0.5">{t(`notifications.groups.${group.key}.description`)}</p>
-                  </div>
-
-                  {/* Pref rows */}
-                  <div>
                     {group.prefs.map((prefKey, idx) => {
                       const enabled = prefs?.[prefKey] ?? true;
                       return (
@@ -333,7 +315,7 @@ export default function NotificationSettings() {
                           >
                             {t(`notifications.prefs.${prefKey}`)}
                           </label>
-                          <Toggle
+                          <SettingsToggle
                             checked={enabled}
                             onChange={(val) => handleToggle(prefKey, val)}
                             disabled={saving}
@@ -342,11 +324,12 @@ export default function NotificationSettings() {
                         </div>
                       );
                     })}
-                  </div>
-                </div>
+                </PreferenceSection>
               ))}
             </div>
           )}
+
+          <TypeOptOutPanel />
         </div>
       </main>
 

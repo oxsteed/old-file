@@ -10803,6 +10803,10 @@
         "label": "Master Switches",
         "description": "Turn an entire channel on or off. These override the individual toggles below."
       },
+      "sms": {
+        "label": "Text Messages",
+        "description": "SMS alerts sent to your phone."
+      },
       "restaurant": {
         "label": "Restaurant Alerts",
         "description": "Timekeeping, temperature, and scheduled report alerts for restaurants you manage."
@@ -10846,7 +10850,13 @@
       "push_notifications": "Push notifications",
       "push_notificationsDesc": "All push alerts on every device (app and browser).",
       "sms_notifications": "SMS notifications",
-      "sms_notificationsDesc": "Text messages to your verified phone number."
+      "sms_notificationsDesc": "Text messages to your verified phone number.",
+      "in_app_notifications": "In-app notifications",
+      "in_app_notificationsDesc": "Turn off all in-app notifications. Push and email are not affected.",
+      "in_app_media_creator_update": "Media creator updates",
+      "in_app_media_creator_updateDesc": "Updates about your media creator content",
+      "sms_support_replies": "Support reply texts",
+      "sms_support_repliesDesc": "Text messages when support replies to your request"
     },
     "quietHours": {
       "title": "Quiet hours",
@@ -10861,6 +10871,74 @@
       "saved": "Quiet hours updated",
       "failedLoad": "Could not load quiet hours settings",
       "failedSave": "Could not save quiet hours settings"
+    },
+    "emailPrefs": {
+      "title": "Email preferences",
+      "description": "Choose which emails you receive. Account and security emails are always sent.",
+      "unsubscribedTitle": "You unsubscribed from all emails",
+      "unsubscribedBody": "You will not receive optional emails. Saving your other preferences will not re-subscribe you.",
+      "resubscribe": "Re-subscribe to all emails",
+      "resubscribedToast": "You have been re-subscribed to all emails",
+      "subscribedTitle": "You receive optional emails",
+      "subscribedBody": "Unsubscribing stops all optional emails. Account and security emails are still sent.",
+      "unsubscribeAll": "Unsubscribe from all emails",
+      "unsubscribedToast": "You have been unsubscribed from all emails",
+      "failedLoad": "Failed to load email preferences",
+      "failedAction": "That did not work. Please try again."
+    },
+    "typeGroups": {
+      "work": {
+        "label": "Jobs and bookings",
+        "description": "Booked work, bids, shifts and schedules."
+      },
+      "payments": {
+        "label": "Payments and payouts",
+        "description": "Money in and out, refunds and subscriptions."
+      },
+      "orders": {
+        "label": "Orders and delivery",
+        "description": "Food orders, deliveries and cart reminders."
+      },
+      "appointments": {
+        "label": "Appointments",
+        "description": "Appointment confirmations and reminders."
+      },
+      "messages": {
+        "label": "Messages",
+        "description": "Chat messages."
+      },
+      "media": {
+        "label": "Media",
+        "description": "Posts, follows and creator updates."
+      },
+      "restaurant": {
+        "label": "Restaurant",
+        "description": "Restaurant operations and alerts."
+      },
+      "credit": {
+        "label": "Credit and compliance",
+        "description": "Credit identity, sanctions and enforcement notices."
+      },
+      "support": {
+        "label": "Support and disputes",
+        "description": "Support tickets, disputes, reviews and warranties."
+      },
+      "account": {
+        "label": "Account",
+        "description": "Account changes, checks and membership."
+      },
+      "other": {
+        "label": "Other",
+        "description": "Everything else."
+      }
+    },
+    "typeOptOuts": {
+      "title": "Notification types",
+      "description": "Turn off specific kinds of notifications. Anything you leave on stays on.",
+      "inApp": "In-app",
+      "push": "Push",
+      "email": "Email",
+      "failedLoad": "Could not load notification types"
     }
   },
   "plannedNeeds": {

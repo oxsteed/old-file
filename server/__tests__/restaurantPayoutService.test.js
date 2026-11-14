@@ -703,3 +703,114 @@ test('background-jobs audit #38: reconciliation never resurrects an attention-pa
   expect(outboxInsert[0]).not.toContain("'pending'");
   expect(outboxInsert[0]).not.toContain('attention');
 });
+
+// ── Notifications audit item 3: payout_failed must fire on the two silent
+// failure paths (insufficient balance at approve time; Stripe transfer
+// retries exhausted). Reproduction: both paths left the owner uninformed.
+test('approve notifies the owner with payout_failed when the balance is insufficient', async () => {
+  const payout = {
+    id: 'payout-1',
+    restaurant_id: 42,
+    currency_code: 'USD',
+    amount_cents: 2000,
+    status: 'requested',
+    stripe_account_id: 'acct_test123',
+  };
+  mockClient({ payout, balanceCents: 1000 });
+  pool.query.mockResolvedValue({ rows: [{ user_id: 'owner-1' }] });
+
+  await expect(service.approvePayout({
+    payoutId: 'payout-1',
+    adminUserId: 'admin-1',
+    reviewNote: 'approve attempt',
+  })).rejects.toMatchObject({ code: 'payout_insufficient_balance' });
+
+  expect(sendNotification).toHaveBeenCalledTimes(1);
+  expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+    userId: 'owner-1',
+    type: 'payout_failed',
+  }));
+  expect(sendNotification.mock.calls[0][0].data).toMatchObject({
+    payout_id: 'payout-1',
+    amount_cents: 2000,
+  });
+});
+
+test('transfer retries exhausted notifies the owner with payout_failed', async () => {
+  const outboxRow = {
+    id: 'outbox-1',
+    payout_id: 'payout-1',
+    lease_token: null,
+    attempts: 12,
+    restaurant_id: 42,
+    currency_code: 'USD',
+    amount_cents: 2000,
+    stripe_account_id: 'acct_test123',
+    ledger_transaction_id: TXN_UUID,
+    payout_status: 'approved',
+    stripe_transfer_id: null,
+  };
+  const client = { query: jest.fn(), release: jest.fn() };
+  client.query.mockImplementation(async (sql) => {
+    if (sql.includes('FROM restaurant_payout_outbox o')) return { rows: [outboxRow] };
+    if (sql.includes('UPDATE restaurant_payout_outbox') && sql.includes('RETURNING *')) {
+      return { rows: [{ ...outboxRow, attempts: 13, lease_token: 'lease-1', status: 'processing' }] };
+    }
+    return { rows: [] };
+  });
+  withTransaction.mockImplementation(async (_transactionPool, operation) => operation(client));
+  pool.query.mockImplementation(async (sql) => {
+    if (sql.includes('SELECT funds_settled FROM restaurant_payouts')) return { rows: [{ funds_settled: false }] };
+    if (sql.includes('FROM restaurant_connect_accounts')) return { rows: [{ stripe_account_id: 'acct_test123' }] };
+    if (sql.includes('FROM food_restaurants')) return { rows: [{ user_id: 'owner-1' }] };
+    return { rows: [] };
+  });
+  stripeFactory.__instance.transfers.create.mockRejectedValue(new Error('Stripe down'));
+
+  const result = await service.processNextTransfer();
+
+  expect(result).toMatchObject({ processed: true, payoutId: 'payout-1', attention: true });
+  expect(sendNotification).toHaveBeenCalledTimes(1);
+  expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+    userId: 'owner-1',
+    type: 'payout_failed',
+  }));
+  expect(sendNotification.mock.calls[0][0].data).toMatchObject({ payout_id: 'payout-1' });
+});
+
+test('a retriable transfer failure (attempts left) does not send payout_failed', async () => {
+  const outboxRow = {
+    id: 'outbox-1',
+    payout_id: 'payout-1',
+    lease_token: null,
+    attempts: 1,
+    restaurant_id: 42,
+    currency_code: 'USD',
+    amount_cents: 2000,
+    stripe_account_id: 'acct_test123',
+    ledger_transaction_id: TXN_UUID,
+    payout_status: 'approved',
+    stripe_transfer_id: null,
+  };
+  const client = { query: jest.fn(), release: jest.fn() };
+  client.query.mockImplementation(async (sql) => {
+    if (sql.includes('FROM restaurant_payout_outbox o')) return { rows: [outboxRow] };
+    if (sql.includes('UPDATE restaurant_payout_outbox') && sql.includes('RETURNING *')) {
+      return { rows: [{ ...outboxRow, attempts: 2, lease_token: 'lease-1', status: 'processing' }] };
+    }
+    return { rows: [] };
+  });
+  withTransaction.mockImplementation(async (_transactionPool, operation) => operation(client));
+  pool.query.mockImplementation(async (sql) => {
+    if (sql.includes('SELECT funds_settled FROM restaurant_payouts')) return { rows: [{ funds_settled: false }] };
+    if (sql.includes('FROM restaurant_connect_accounts')) return { rows: [{ stripe_account_id: 'acct_test123' }] };
+    if (sql.includes('FROM food_restaurants')) return { rows: [{ user_id: 'owner-1' }] };
+    return { rows: [] };
+  });
+  stripeFactory.__instance.transfers.create.mockRejectedValue(new Error('Stripe down'));
+
+  const result = await service.processNextTransfer();
+
+  expect(result).toMatchObject({ processed: true, payoutId: 'payout-1', attention: false });
+  expect(sendNotification).not.toHaveBeenCalled();
+});

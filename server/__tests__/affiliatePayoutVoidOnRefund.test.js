@@ -45,7 +45,8 @@ describe('voidClaimedCommissionsForRefund', () => {
     expect(summary).toEqual({
       voidedCount: 1,
       voidedCents: '500',
-      payouts: [{ payoutId: 9, voidedCents: '500', voidedCount: 1 }],
+      payouts: [{ payoutId: 9, programId: 3, voidedCents: '500', voidedCount: 1 }],
+      orderId: 77,
     });
     const payoutUpdate = client.calls.find((c) => PAYOUT_UPDATE.test(c.text));
     expect(payoutUpdate.params).toEqual([9, '500', 1]);
@@ -75,7 +76,7 @@ describe('voidClaimedCommissionsForRefund', () => {
   test('processing payout is untouched: transfer in flight owns that window', async () => {
     const client = fakeClient([[LOCK_SELECT, { rows: [] }]]);
     const summary = await voidClaimedCommissionsForRefund(client, 77);
-    expect(summary).toEqual({ voidedCount: 0, voidedCents: 0, payouts: [] });
+    expect(summary).toEqual({ voidedCount: 0, voidedCents: 0, payouts: [], orderId: 77 });
     expect(client.calls.filter((c) => VOID_UPDATE.test(c.text))).toHaveLength(0);
     expect(client.calls.filter((c) => PAYOUT_UPDATE.test(c.text))).toHaveLength(0);
   });
@@ -93,7 +94,7 @@ describe('voidClaimedCommissionsForRefund', () => {
       [VOID_UPDATE, { rows: [] }],
     ]);
     const summary = await voidClaimedCommissionsForRefund(client, 77);
-    expect(summary).toEqual({ voidedCount: 0, voidedCents: 0, payouts: [] });
+    expect(summary).toEqual({ voidedCount: 0, voidedCents: 0, payouts: [], orderId: 77 });
     expect(client.calls.filter((c) => PAYOUT_UPDATE.test(c.text))).toHaveLength(0);
     expect(client.calls.filter((c) => PROGRAM_UPDATE.test(c.text))).toHaveLength(0);
   });

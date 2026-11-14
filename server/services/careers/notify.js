@@ -72,6 +72,50 @@ async function sendCareerEmail({ to, lang, type, params, actionUrl, deliveryKey,
 }
 
 /**
+ * Notifications audit item 6: careers email used to bypass every
+ * preference (the user row was read without notification_preferences)
+ * and failures were swallowed with .catch(() => {}). The central
+ * preference check is honoured here at minimum for the master email
+ * toggle and the global unsubscribe; a missing prefs row means allowed
+ * (opt-out semantics, matching notificationService.prefAllows). A prefs
+ * lookup failure fails closed for email only: the in-app row is still
+ * written, the hiring action never blocks on mail.
+ */
+async function careerEmailAllowed(db, userId) {
+  if (!userId) return false;
+  const runner = db || pool;
+  try {
+    const { rows: [prefs] } = await runner.query(
+      `SELECT email_notifications, unsubscribe_all
+         FROM notification_preferences WHERE user_id = $1`,
+      [userId]
+    );
+    if (!prefs) return true;
+    if (prefs.unsubscribe_all === true) return false;
+    if (prefs.email_notifications === false) return false;
+    return true;
+  } catch (err) {
+    logger.warn('careers email preference check failed; skipping email', { userId, error: err.message });
+    return false;
+  }
+}
+
+// Fire-and-forget email that never fails the hiring action, but never
+// swallows the outcome either: a failed send is logged instead of
+// disappearing into .catch(() => {}).
+function sendCareerEmailLogged(args) {
+  return sendCareerEmail(args).then((result) => {
+    if (!result?.success) {
+      logger.warn('careers email failed', { type: args.type, error: result?.error || 'unknown' });
+    }
+    return result;
+  }).catch((err) => {
+    logger.warn('careers email failed', { type: args.type, error: err.message });
+    return { success: false, error: err.message };
+  });
+}
+
+/**
  * In-app + email to an account holder. Returns { inserted } so callers and
  * tests can tell a fresh send from an idempotent replay.
  */
@@ -79,7 +123,11 @@ async function notifyUser(db, { userId, type, params = {}, actionUrl = null, del
   if (!userId) return { inserted: false };
   const runner = db || pool;
   const { rows: [user] } = await runner.query(
-    'SELECT id, email, preferred_language FROM users WHERE id = $1',
+    `SELECT u.id, u.email, u.preferred_language,
+            np.email_notifications, np.unsubscribe_all
+       FROM users u
+       LEFT JOIN notification_preferences np ON np.user_id = u.id
+      WHERE u.id = $1`,
     [userId]
   );
   if (!user) return { inserted: false };
@@ -92,9 +140,15 @@ async function notifyUser(db, { userId, type, params = {}, actionUrl = null, del
   );
   const inserted = rowCount > 0;
   if (inserted && email && user.email) {
+    // Notifications audit item 6: honour the master email toggle and the
+    // global unsubscribe (the prefs row rides along in the user query
+    // above, so no second lookup is needed). The in-app row is the hiring
+    // record and is written regardless; only the email leg is gated.
     // Fire and forget: an email outage never fails the hiring action.
-    sendCareerEmail({ to: user.email, lang: language, type, params, actionUrl, deliveryKey, attachments })
-      .catch(() => {});
+    const allowed = user.email_notifications !== false && user.unsubscribe_all !== true;
+    if (allowed) {
+      sendCareerEmailLogged({ to: user.email, lang: language, type, params, actionUrl, deliveryKey, attachments });
+    }
   }
   return { inserted };
 }
@@ -143,8 +197,9 @@ async function notifyApplicant(db, application, { type, params = {}, actionUrl =
     return notifyUser(db, { userId: application.user_id, type, params, actionUrl, deliveryKey, attachments });
   }
   if (application.applicant_email && !application.anonymized_at) {
-    sendCareerEmail({ to: application.applicant_email, lang: application.locale, type, params, actionUrl, deliveryKey, attachments })
-      .catch(() => {});
+    // Guest applicants have no account and no prefs row, so there is
+    // nothing to honour; a failed send is still logged, not swallowed.
+    sendCareerEmailLogged({ to: application.applicant_email, lang: application.locale, type, params, actionUrl, deliveryKey, attachments });
     return { inserted: true, emailOnly: true };
   }
   return { inserted: false };
@@ -155,6 +210,7 @@ module.exports = {
   emailHtml,
   render,
   sendCareerEmail,
+  careerEmailAllowed,
   notifyUser,
   hiringTeamRecipients,
   notifyHiringTeam,

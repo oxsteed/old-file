@@ -11,6 +11,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { withFencedJobLock } = require('./jobLockingService');
+const { sendNotification } = require('../services/notificationService');
 
 const JOB_NAME = 'staff-invite-expiry';
 const CRON_EXPRESSION = '0 45 2 * * *'; // nightly, 02:45 server time
@@ -37,17 +38,23 @@ async function sweep(db) {
         'SELECT business_name FROM businesses WHERE id = $1',
         [invite.business_id]
       );
-      await db.query(
-        `INSERT INTO notifications (user_id, type, title, body, data)
-         VALUES ($1, 'business_invite_expired', $2, $3, $4)`,
-        [
-          invite.member_id,
-          'Invitation expired',
-          `Your invitation to join "${biz?.business_name || 'the business'}" as a ${invite.role} has expired. Ask them to send a new one.`,
-          JSON.stringify({ business_id: invite.business_id, invite_id: invite.id, role: invite.role }),
-        ]
-      );
-      notified += 1;
+      // Item 11: through sendNotification, not a direct INSERT — the
+      // direct row bypassed preferences/push/email/socket. Count the
+      // invite as notified only when a channel actually reached the
+      // user (item 19); an opted-out invitee is a skip, not an error.
+      const result = await sendNotification({
+        userId: invite.member_id,
+        type: 'business_invite_expired',
+        title: 'Invitation expired',
+        body: `Your invitation to join "${biz?.business_name || 'the business'}" as a ${invite.role} has expired. Ask them to send a new one.`,
+        data: { business_id: invite.business_id, invite_id: invite.id, role: invite.role },
+        idempotencyKey: `business-invite-expired:${invite.id}`,
+      });
+      const reached = result?.delivered
+        ? Boolean(result.delivered.inApp || result.delivered.push || result.delivered.email || result.delivered.emailQueued)
+        : result?.success === true;
+      if (reached) notified += 1;
+      else logger.info('Invite expiry notification reached no channel (opted out)', { inviteId: invite.id });
     } catch (err) {
       notifyErrors += 1;
       logger.warn('Invite expiry notification failed', { inviteId: invite.id, error: err.message });

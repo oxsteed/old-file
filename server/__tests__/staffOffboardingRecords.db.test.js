@@ -40,6 +40,10 @@ jest.unmock('../db');
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue({ success: true }),
   sendBulkNotification: jest.fn().mockResolvedValue(undefined),
+  // Notifications audit item 11: insertNotification (businessMembersController)
+  // derives the delivery key via deriveIdempotencyKey. The send legs stay
+  // mocked, but the key derivation is pure, so use the real one.
+  deriveIdempotencyKey: jest.requireActual('../services/notificationService').deriveIdempotencyKey,
 }));
 
 const db = require('../db');

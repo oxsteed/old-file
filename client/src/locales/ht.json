@@ -2986,6 +2986,10 @@
         "label": "Bouton prensipal yo",
         "description": "Limonen oswa etenn yon kanal antye. Yo gen priyorite sou bouton endividyèl yo anba a."
       },
+      "sms": {
+        "label": "Mesaj tèks",
+        "description": "Alèt SMS yo voye nan telefòn ou."
+      },
       "restaurant": {
         "label": "Alèt restoran",
         "description": "Alèt pou kontwòl lè, tanperati, ak rapò pwograme pou restoran ou jere yo."
@@ -3029,7 +3033,13 @@
       "push_notifications": "Notifikasyon push",
       "push_notificationsDesc": "Tout alèt push sou tout aparèy (aplikasyon ak navigatè).",
       "sms_notifications": "Notifikasyon pa SMS",
-      "sms_notificationsDesc": "Mesaj tèks sou nimewo telefòn verifye ou a."
+      "sms_notificationsDesc": "Mesaj tèks sou nimewo telefòn verifye ou a.",
+      "in_app_notifications": "Notifikasyon nan aplikasyon an",
+      "in_app_notificationsDesc": "Etenn tout notifikasyon nan aplikasyon an. Notifikasyon push ak imèl yo pa afekte.",
+      "in_app_media_creator_update": "Mizajou kreyatè medya",
+      "in_app_media_creator_updateDesc": "Mizajou sou kontni kreyatè medya ou",
+      "sms_support_replies": "Tèks repons sipò",
+      "sms_support_repliesDesc": "Mesaj tèks lè sipò reponn demann ou"
     },
     "quietHours": {
       "title": "Le silans",
@@ -3044,6 +3054,74 @@
       "saved": "Le silans lan mete ajou",
       "failedLoad": "Pa t kapab chaje paramat le silans yo",
       "failedSave": "Pa t kapab anrejistre paramat le silans yo"
+    },
+    "emailPrefs": {
+      "title": "Preferans imèl",
+      "description": "Chwazi ki imèl ou resevwa. Imèl kont ak sekirite yo toujou voye.",
+      "unsubscribedTitle": "Ou dezabòne nan tout imèl",
+      "unsubscribedBody": "Ou pap resevwa imèl opsyonèl. Sove lòt preferans ou yo pap re-abòne ou.",
+      "resubscribe": "Re-abòne nan tout imèl",
+      "resubscribedToast": "Ou re-abòne nan tout imèl",
+      "subscribedTitle": "Ou resevwa imèl opsyonèl",
+      "subscribedBody": "Dezabòne sispann tout imèl opsyonèl. Imèl kont ak sekirite yo toujou voye.",
+      "unsubscribeAll": "Dezabòne nan tout imèl",
+      "unsubscribedToast": "Ou dezabòne nan tout imèl",
+      "failedLoad": "Pa t kapab chaje preferans imèl",
+      "failedAction": "Sa pa t mache. Tanpri eseye ankò."
+    },
+    "typeGroups": {
+      "work": {
+        "label": "Travay ak rezervasyon",
+        "description": "Travay rezève, òf, chif ak orè."
+      },
+      "payments": {
+        "label": "Peman ak retrè",
+        "description": "Lajan k ap antre ak sòti, ranbousman ak abònman."
+      },
+      "orders": {
+        "label": "Kòmand ak livrezon",
+        "description": "Kòmand manje, livrezon ak rapèl kabwa."
+      },
+      "appointments": {
+        "label": "Randevou",
+        "description": "Konfimasyon ak rapèl randevou."
+      },
+      "messages": {
+        "label": "Mesaj",
+        "description": "Mesaj chat."
+      },
+      "media": {
+        "label": "Medya",
+        "description": "Piblikasyon, swivi ak mizajou kreyatè."
+      },
+      "restaurant": {
+        "label": "Restoran",
+        "description": "Operasyon ak alèt restoran."
+      },
+      "credit": {
+        "label": "Kredi ak konfòmite",
+        "description": "Avi idantite kredi, sanksyon ak konfòmite."
+      },
+      "support": {
+        "label": "Sipò ak diskisyon",
+        "description": "Tikè sipò, diskisyon, revizyon ak garanti."
+      },
+      "account": {
+        "label": "Kont",
+        "description": "Chanjman kont, verifikasyon ak manm."
+      },
+      "other": {
+        "label": "Lòt",
+        "description": "Tout rès la."
+      }
+    },
+    "typeOptOuts": {
+      "title": "Kalite notifikasyon",
+      "description": "Etenn kalite notifikasyon espesifik. Tout sa ou kite limen rete limen.",
+      "inApp": "Nan aplikasyon an",
+      "push": "Push",
+      "email": "Imèl",
+      "failedLoad": "Pa t kapab chaje kalite notifikasyon yo"
     }
   },
   "jobs": {

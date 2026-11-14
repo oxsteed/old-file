@@ -111,9 +111,13 @@ async function processNotificationRetries() {
 
 function startProfileVisibilityNotificationRetryJob() {
   const cron = require('node-cron');
+  // Item 29: run inside the fenced job lock like the outbox jobs, so
+  // overlapping ticks on two replicas cannot run the same retry sweep
+  // concurrently.
+  const { withFencedJobLock } = require('./jobLockingService');
   cron.schedule(CRON_EXPRESSION, async () => {
     try {
-      await processNotificationRetries();
+      await withFencedJobLock('profile-visibility-notification-retry', () => processNotificationRetries());
     } catch (err) {
       logger.error('Profile visibility notification retry cron error', { error: err.message });
     }

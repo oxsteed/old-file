@@ -211,6 +211,12 @@ async function loadContext(db, delivery) {
             biz.business_name, u.preferred_language,
             np.unsubscribe_all, np.unsubscribed_from_bulk_emails, np.marketing_emails, np.email_notifications,
             np.push_notifications, np.web_push_enabled,
+            -- Item 13: the whole prefs row as JSON, so the in-app leg can
+            -- honour a per-type in_app_business_broadcast opt-out when
+            -- that column exists, without a dynamic-column query (no
+            -- migration adds the column in this batch; absent reads as
+            -- undefined and defaults to allowed).
+            row_to_json(np) AS prefs_json,
             EXISTS (SELECT 1 FROM business_broadcast_suppressions s WHERE s.business_id = r.business_id
                      AND ((r.email IS NOT NULL AND s.email = r.email) OR (r.user_id IS NOT NULL AND s.user_id = r.user_id))) AS suppressed
        FROM business_broadcast_recipients r
@@ -269,17 +275,28 @@ async function deliverOne(db, delivery, deps = {}) {
     if (ctx.suppressed) return complete(db, delivery, { status: 'skipped', skip_reason: 'unsubscribed' });
 
     if (delivery.channel === 'in_app') {
+      // Item 13: the in-app leg used to ignore every preference (only
+      // recipient removal and per-business suppression were checked).
+      // Honour the global unsubscribe and the per-type broadcast opt-out;
+      // the per-business suppression above still applies first.
+      if (ctx.unsubscribe_all === true || ctx.prefs_json?.in_app_business_broadcast === false) {
+        return complete(db, delivery, { status: 'skipped', skip_reason: 'broadcast_opted_out' });
+      }
       const notificationId = await sendInApp(db, ctx, delivery);
       return complete(db, delivery, { status: 'sent', notification_id: notificationId, sent_at: true, last_error: null });
     }
 
     if (delivery.channel === 'push') {
-      if (ctx.push_notifications === false || ctx.web_push_enabled === false) {
+      // Item 13: gate broadcast push on push_notifications only (plus the
+      // global unsubscribe, matching the email leg). web_push_enabled is
+      // a web-only toggle: it now gates just the web leg inside
+      // delivery/core sendPush instead of killing mobile push too.
+      if (ctx.push_notifications === false || ctx.unsubscribe_all === true) {
         return complete(db, delivery, { status: 'skipped', skip_reason: 'push_opted_out' });
       }
       const payload = { title: ctx.subject, body: String(ctx.message).slice(0, 240), type: 'business_broadcast',
         data: { broadcast_id: String(ctx.broadcast_id), track_url: trackingUrl(`p/${encodeURIComponent(ctx.tracking_token)}`) } };
-      const {sent,failed}=await require('./delivery/core').sendPush(ctx.user_id,payload,{webPush,mobilePush});
+      const {sent,failed}=await require('./delivery/core').sendPush(ctx.user_id,payload,{webPush,mobilePush,webPushEnabled:ctx.web_push_enabled});
       if (sent > 0) return complete(db, delivery, { status: 'sent', devices_sent: sent, sent_at: true, last_error: null });
       if (failed === 0) return complete(db, delivery, { status: 'skipped', skip_reason: 'no_push_device' });
       return complete(db, delivery, retryFields(delivery, 'push providers rejected every device'));

@@ -2,6 +2,7 @@ const db = require('../db');
 const { isScheduledSessionPaid } = require('../services/consultingPaymentService');
 const { sendEmailOrThrow } = require('../utils/email');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
+const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
 const platformApprovalSvc = require('../services/modePlatformApprovalService');
 
@@ -333,6 +334,31 @@ exports.createScheduledSession = async (req, res) => {
                  consultant_assigned_id, meeting_link, timezone, status`,
       [consultingSessionId, consultantId || session.consultant_assigned_id || null]
     );
+
+    // Notifications audit item 53: the assigned consultant was never told
+    // a session was scheduled. Notify through the shared sendNotification
+    // path (in-app row + email leg via emailTypes) once the row is
+    // durable; a notify failure is logged and never fails the 201. The
+    // already-scheduled early return above does not notify, so a retried
+    // click cannot double-notify.
+    const scheduled = rows[0];
+    if (scheduled?.consultant_assigned_id) {
+      try {
+        await sendNotification({
+          userId: scheduled.consultant_assigned_id,
+          type: 'consulting_session_scheduled',
+          data: {
+            session_id: consultingSessionId,
+            scheduled_session_id: scheduled.id,
+            consultant_id: scheduled.consultant_assigned_id,
+          },
+          action_url: '/consulting/contractor-dashboard',
+          idempotencyKey: `consulting-session-scheduled:${consultingSessionId}`,
+        });
+      } catch (err) {
+        logger.warn('Failed to notify consultant of scheduled session', { error: err.message, sessionId: consultingSessionId });
+      }
+    }
 
     res.status(201).json(rows[0]);
   } catch (err) {

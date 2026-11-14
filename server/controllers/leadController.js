@@ -2,6 +2,23 @@ const pool = require('../db');
 const { sendError, sendSuccess } = require('../utils/apiError');
 const { businessScopeSatisfies } = require('../middleware/scopeGates');
 const logger = require('../utils/logger');
+const { sendNotification } = require('../services/notificationService');
+
+// Item 11: lead notifications used to be direct INSERTs inside the lead
+// transaction, bypassing preferences/push/email/socket. Each handler now
+// captures its notification and flushes it through sendNotification after
+// COMMIT (a notify failure is non-critical and never fails the request).
+async function flushPendingNotification(pending, context) {
+  if (!pending) return;
+  try {
+    const result = await sendNotification(pending);
+    if (result?.success === false) {
+      logger.warn('Lead notification not delivered', { ...context, error: result.error || result.reason });
+    }
+  } catch (err) {
+    logger.warn('Lead notification failed', { ...context, error: err.message });
+  }
+}
 
 // ── Helper: Check if user can access business leads (owner, manager, or representative) ──
 async function canAccessBusinessLeads(userId, businessId) {
@@ -108,18 +125,19 @@ exports.createLead = async (req, res) => {
 
       const lead = result.rows[0];
 
-      // Create notification for business owner (non-critical failure)
-      try {
-        await client.query(
-          `INSERT INTO notifications (user_id, type, title, body, data)
-           VALUES ($1, 'lead_received', 'New Service Request', $2, $3)`,
-          [bizOwnerId, `New lead request from customer: ${lead.lead_number}`, JSON.stringify({ reference_id: lead.id, reference_type: 'business_lead' })]
-        );
-      } catch (notifErr) {
-        logger.warn('Failed to create lead notification', { leadId: lead.id, error: notifErr.message });
-      }
+      // Capture the owner notification for post-COMMIT sendNotification
+      // (non-critical failure) — see flushPendingNotification above.
+      const pendingNotification = {
+        userId: bizOwnerId,
+        type: 'lead_received',
+        title: 'New Service Request',
+        body: `New lead request from customer: ${lead.lead_number}`,
+        data: { reference_id: lead.id, reference_type: 'business_lead' },
+        idempotencyKey: `lead-received:${lead.id}`,
+      };
 
       await client.query('COMMIT');
+      await flushPendingNotification(pendingNotification, { leadId: lead.id });
       sendSuccess(res, lead, 'Lead created successfully', 201);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -385,18 +403,18 @@ exports.submitQuote = async (req, res) => {
         [leadId]
       );
 
-      // Create notification for customer (non-critical failure)
-      try {
-        await client.query(
-          `INSERT INTO notifications (user_id, type, title, body, data)
-           VALUES ($1, 'quote_received', 'New Quote Received', $2, $3)`,
-          [lead.customer_id, `Quote ${quote.quote_number} for your service request`, JSON.stringify({ reference_id: quote.id, reference_type: 'lead_quote' })]
-        );
-      } catch (notifErr) {
-        logger.warn('Failed to create quote notification', { quoteId: quote.id, error: notifErr.message });
-      }
+      // Capture the customer notification for post-COMMIT sendNotification.
+      const pendingNotification = {
+        userId: lead.customer_id,
+        type: 'quote_received',
+        title: 'New Quote Received',
+        body: `Quote ${quote.quote_number} for your service request`,
+        data: { reference_id: quote.id, reference_type: 'lead_quote' },
+        idempotencyKey: `quote-received:${quote.id}`,
+      };
 
       await client.query('COMMIT');
+      await flushPendingNotification(pendingNotification, { quoteId: quote.id });
       sendSuccess(res, quote, 'Quote submitted successfully', 201);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -473,7 +491,8 @@ exports.acceptQuote = async (req, res) => {
         logger.warn('Failed to reject competing quotes', { leadId: quote.lead_id, error: rejectErr.message });
       }
 
-      // Notify business owner (non-critical failure)
+      // Notify business owner (non-critical failure, post-COMMIT).
+      let pendingNotification = null;
       try {
         const bizOwnerRes = await client.query(
           `SELECT user_id FROM businesses WHERE id = $1`,
@@ -481,17 +500,21 @@ exports.acceptQuote = async (req, res) => {
         );
 
         if (bizOwnerRes.rows[0]) {
-          await client.query(
-            `INSERT INTO notifications (user_id, type, title, body, data)
-             VALUES ($1, 'lead_accepted', 'Quote Accepted', $2, $3)`,
-            [bizOwnerRes.rows[0].user_id, `Your quote ${quote.quote_number} has been accepted!`, JSON.stringify({ reference_id: quoteId, reference_type: 'lead_quote' })]
-          );
+          pendingNotification = {
+            userId: bizOwnerRes.rows[0].user_id,
+            type: 'lead_accepted',
+            title: 'Quote Accepted',
+            body: `Your quote ${quote.quote_number} has been accepted!`,
+            data: { reference_id: quoteId, reference_type: 'lead_quote' },
+            idempotencyKey: `quote-accepted:${quoteId}`,
+          };
         }
       } catch (notifErr) {
-        logger.warn('Failed to create quote acceptance notification', { quoteId, error: notifErr.message });
+        logger.warn('Failed to prepare quote acceptance notification', { quoteId, error: notifErr.message });
       }
 
       await client.query('COMMIT');
+      await flushPendingNotification(pendingNotification, { quoteId });
       sendSuccess(res, updatedQuote.rows[0], 'Quote accepted successfully');
     } catch (err) {
       await client.query('ROLLBACK');
@@ -539,18 +562,18 @@ exports.rejectLead = async (req, res) => {
         [leadId]
       );
 
-      // Notify customer (non-critical failure)
-      try {
-        await client.query(
-          `INSERT INTO notifications (user_id, type, title, body, data)
-           VALUES ($1, 'lead_rejected', 'Request Update', 'Your service request was not accepted', $2)`,
-          [lead.customer_id, JSON.stringify({ reference_id: leadId, reference_type: 'business_lead' })]
-        );
-      } catch (notifErr) {
-        logger.warn('Failed to create lead rejection notification', { leadId, error: notifErr.message });
-      }
+      // Capture the customer notification for post-COMMIT sendNotification.
+      const pendingNotification = {
+        userId: lead.customer_id,
+        type: 'lead_rejected',
+        title: 'Request Update',
+        body: 'Your service request was not accepted',
+        data: { reference_id: leadId, reference_type: 'business_lead' },
+        idempotencyKey: `lead-rejected:${leadId}`,
+      };
 
       await client.query('COMMIT');
+      await flushPendingNotification(pendingNotification, { leadId });
       sendSuccess(res, result.rows[0], 'Lead rejected');
     } catch (err) {
       await client.query('ROLLBACK');

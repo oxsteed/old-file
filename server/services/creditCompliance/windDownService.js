@@ -40,6 +40,7 @@
  */
 
 const pool = require('../../db');
+const logger = require('../../utils/logger');
 const { AppError } = require('../../middleware/errorHandler');
 const { insertComplianceAudit } = require('./audit');
 
@@ -282,11 +283,18 @@ async function settleRedemptionInstruction(client, row, outcome) {
   });
   if (holder.holder_user_id) {
     const { rows: [dest] } = await client.query('SELECT account_last4 FROM credit_payout_destinations WHERE id = $1', [row.destination_id]);
-    await require('./notices').sendUserNotice({
+    // Notifications audit item 45: record the delivery result instead of
+    // discarding it. The money has already moved, so this is a
+    // confirmatory notice; a failed send warns (the in-app row
+    // sendUserNotice inserts is the fallback copy).
+    const notice = await require('./notices').sendUserNotice({
       userId: holder.holder_user_id, key: 'wind_down_redemption_sent',
       params: { amount_minor: Number(row.amount_minor), currency, last4: dest?.account_last4 || '' },
       idempotencyKey: `credit-wind-down-redemption:${row.id}:notice`,
     });
+    if (notice.sent !== true) {
+      logger.warn('credit_wind_down.redemption_notice_failed', { holderId: String(holder.id), planId: String(holder.plan_id), error: notice.error || 'send_failed' });
+    }
   }
 }
 

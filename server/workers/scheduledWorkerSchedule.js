@@ -3,9 +3,30 @@
 // Interval workers shared by workerMain.js (dedicated worker process) and the
 // API's BackgroundWorkers (when no dedicated worker is deployed). Each run is
 // wrapped in a fenced job lock, so several replicas never run the same pass.
+const cron = require('node-cron');
 const logger = require('../utils/logger');
 const { withFencedJobLock } = require('../jobs/jobLockingService');
 const incidentStore = require('../services/incidentStore');
+
+/**
+ * Item 30: start a schedule entry's timer. Entries whose options carry
+ * { cron, timezone } run on a wall-clock cron (node-cron resolves the
+ * expression in that timezone, DST included) instead of a boot-relative
+ * setInterval; every other entry keeps its interval. Both runners
+ * (startScheduledWorkers here and workerMain's tracking loop) use this
+ * one helper, so a cron entry cannot drift in one process while the
+ * other stays aligned. Returns a { stop() } handle either way.
+ */
+function scheduleEntryTimer(entry, trigger) {
+  const [, , intervalMs, options] = entry;
+  if (options?.cron) {
+    const task = cron.schedule(options.cron, trigger, { timezone: options.timezone || 'UTC' });
+    return { stop() { task.stop(); } };
+  }
+  const timer = setInterval(trigger, intervalMs);
+  timer.unref?.();
+  return { stop() { clearInterval(timer); } };
+}
 
 function buildSchedule() {
   const {
@@ -80,11 +101,16 @@ function buildSchedule() {
     // Bound passkey challenge tables even when no new challenge is saved.
     ['cleanupExpiredPasskeyChallenges', cleanupExpiredChallenges, 15 * 60 * 1000, { limit: 1000 }],
     // Deliver queued notification digests through the shared email provider.
-    ['emailDigestDaily', () => processEmailDigest('daily'), 24 * 60 * 60 * 1000, {}],
-    ['emailDigestWeekly', () => {
-      if (new Date().getUTCDay() !== 1) return Promise.resolve({ skipped: true, reason: 'not_monday' });
-      return processEmailDigest('weekly');
-    }, 24 * 60 * 60 * 1000, {}],
+    // Item 30: wall-clock cron, daily 8am ET and Mondays 8am ET — the same
+    // wall-clock shape as the weekly summary (Monday 8am ET). The entries
+    // used to run on a 24h setInterval from boot, so a restart reset the
+    // timer and delivery drifted up to ~24h, and the weekly Monday check
+    // used UTC day, landing on a different day than the ET weekly summary.
+    // intervalMs is kept for the fence TTL / heartbeat only.
+    ['emailDigestDaily', () => processEmailDigest('daily'), 24 * 60 * 60 * 1000,
+      { cron: '0 8 * * *', timezone: 'America/New_York' }],
+    ['emailDigestWeekly', () => processEmailDigest('weekly'), 24 * 60 * 60 * 1000,
+      { cron: '0 8 * * 1', timezone: 'America/New_York' }],
     // Phase 6 (restaurant credit protection): migrate remaining customer
     // balances to OxSteed Credit once a revoked restaurant's 30-day grace
     // period ends. Hourly; each run is fenced and the worker is idempotent.
@@ -377,8 +403,7 @@ function startScheduledWorkers({ log = logger, schedule = SCHEDULED_WORKERS } = 
         });
       inFlight.set(name, run);
     };
-    const timer = setInterval(trigger, intervalMs);
-    timer.unref?.();
+    const timer = scheduleEntryTimer(entry, trigger);
     timers.push(timer);
     // Cost audit 2026-11-04 item 7: an entry with a notifyChannel also
     // wakes on Postgres NOTIFY (transactional, so only committed rows
@@ -397,7 +422,7 @@ function startScheduledWorkers({ log = logger, schedule = SCHEDULED_WORKERS } = 
     stop() {
       if (stopPromise) return stopPromise;
       stopped = true;
-      for (const t of timers) clearInterval(t);
+      for (const t of timers) t.stop();
       timers.length = 0;
       for (const unsub of unsubscribes) {
         try {
@@ -418,6 +443,7 @@ function startScheduledWorkers({ log = logger, schedule = SCHEDULED_WORKERS } = 
 module.exports = {
   SCHEDULED_WORKERS,
   startScheduledWorkers,
+  scheduleEntryTimer,
   runScheduledWorkerOnce,
   lockTtlSeconds,
   SKIPPED_STREAK_ALERT_THRESHOLD,

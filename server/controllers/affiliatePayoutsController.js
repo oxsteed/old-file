@@ -10,6 +10,7 @@ const { assertSanctionsClear } = require('../services/sanctionsScreeningService'
 const { assertCreditRailEnabled } = require('../services/oxsteedCreditService');
 const { affiliatePayableCents } = require('../utils/affiliatePayableCents');
 const { issueStepupChallenge } = require('../services/stepupChallengeService');
+const { sendNotification } = require('../services/notificationService');
 
 async function getAffiliateProgram(req, res) {
   try {
@@ -586,6 +587,31 @@ async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = f
     }, 'affiliate_payout_completed');
 
     logger.info('Affiliate payout transferred', { payoutId, transferId: transfer.id });
+    // Notifications audit item 54: the affiliate was never told a payout
+    // was processed. Notify through the shared sendNotification path
+    // (in-app row + email leg via emailTypes) once the settlement is
+    // durable; a notify failure is logged and never fails the payout.
+    // This sits in runAffiliatePayout (not processPayout) so the
+    // dual-approval executor path notifies too. A null settle (the row
+    // left 'processing' concurrently) notifies nobody: nothing settled.
+    if (updated) {
+      try {
+        await sendNotification({
+          userId: payout.owner_id,
+          type: 'affiliate_payout_processed',
+          data: {
+            payout_id: payoutId,
+            amount_cents: amountCents,
+            transfer_id: transfer.id,
+            params: { payoutId },
+          },
+          action_url: '/affiliate',
+          idempotencyKey: `affiliate-payout:processed:${payoutId}`,
+        });
+      } catch (err) {
+        logger.warn('Failed to notify affiliate of processed payout', { payoutId, error: err.message });
+      }
+    }
     return updated;
   } catch (error) {
     // Fail closed: logAdminAction inside the settle transaction already

@@ -174,6 +174,14 @@ const careerNotifications = {
     title: L('AI ranking turned off in {scope}', 'Clasificación con IA desactivada en {scope}', 'Classement IA désactivé dans {scope}', 'Klasman IA etenn nan {scope}', 'أُوقف الترتيب بالذكاء الاصطناعي في {scope}'),
     body: L('The impact ratio fell to {ratio}, below the 0.8 limit. A person must review before it can be turned back on.', 'La proporción de impacto bajó a {ratio}, por debajo del límite de 0.8. Una persona debe revisarlo antes de reactivarla.', 'Le ratio d\'impact est tombé à {ratio}, sous la limite de 0,8. Une personne doit l\'examiner avant de le réactiver.', 'Rapò enpak la desann a {ratio}, anba limit 0.8 la. Yon moun dwe revize l anvan yo limen l ankò.', 'انخفضت نسبة التأثير إلى {ratio} وهي أقل من حد 0.8. يجب أن يراجعها شخص قبل إعادة التشغيل.'),
   },
+  career_ranking_reviewed: {
+    title: L('AI ranking block reviewed: {scope}', 'Bloqueo de clasificación con IA revisado: {scope}', 'Blocage du classement IA examiné : {scope}', 'Blokaj klasman IA revize: {scope}', 'تمت مراجعة حظر الترتيب بالذكاء الاصطناعي: {scope}'),
+    body: L('An admin reviewed the AI ranking block for {scope} (impact ratio {ratio}). Open the fairness reports to see the decision.', 'Un administrador revisó el bloqueo de clasificación con IA para {scope} (proporción de impacto {ratio}). Abre los informes de equidad para ver la decisión.', 'Un administrateur a examiné le blocage du classement IA pour {scope} (ratio d\'impact {ratio}). Ouvrez les rapports d\'équité pour voir la décision.', 'Yon administratè revize blokaj klasman IA pou {scope} (rapò enpak {ratio}). Louvri rapò ekite yo pou wè desizyon an.', 'راجع مسؤول حظر الترتيب بالذكاء الاصطناعي لـ {scope} (نسبة التأثير {ratio}). افتح تقارير العدالة لعرض القرار.'),
+  },
+  career_fairness_quarterly_digest: {
+    title: L('Quarterly fairness reports ready', 'Informes trimestrales de equidad listos', 'Rapports trimestriels d\'équité prêts', 'Rapò ekite trimès yo pare', 'تقارير العدالة الفصلية جاهزة'),
+    body: L('{count} fairness reports were generated for {period}. Open the fairness reports to review them.', 'Se generaron {count} informes de equidad para {period}. Abre los informes de equidad para revisarlos.', '{count} rapports d\'équité ont été générés pour {period}. Ouvrez les rapports d\'équité pour les examiner.', '{count} rapò ekite yo te pwodui pou {period}. Louvri rapò ekite yo pou revize yo.', 'تم إنشاء {count} تقارير عدالة للفترة {period}. افتح تقارير العدالة لمراجعتها.'),
+  },
   // ── Marketplace (docs/careers/marketplace.md) ─────────────────────────────
   career_job_alert: {
     title: L('{count} new jobs for "{alertName}"', '{count} empleos nuevos para "{alertName}"', '{count} nouvelles offres pour « {alertName} »', '{count} nouvo travay pou "{alertName}"', '{count} وظائف جديدة لتنبيه "{alertName}"'),

@@ -688,10 +688,23 @@ export default function SupportTickets() {
   };
   useEffect(() => {
     if (!socket) return undefined;
-    const events = ['support:new_ticket', 'support:ticket_updated', 'support:ticket_claimed', 'support:user_reply'];
+    const events = ['support:ticket_updated', 'support:ticket_claimed', 'support:user_reply'];
     const handler = () => loadTickets();
     events.forEach((eventName) => socket.on(eventName, handler));
     return () => events.forEach((eventName) => socket.off(eventName, handler));
+  }, [socket, loadTickets]);
+
+  // Item 10: the all-admin 'support:new_ticket' socket broadcast was
+  // dropped as a duplicate channel. The scoped in-app notification still
+  // emits 'notification:new' to each recipient, so the list reloads off
+  // that surviving leg when the notification carries a new ticket.
+  useEffect(() => {
+    if (!socket) return undefined;
+    const handler = (payload) => {
+      if (payload?.type === 'new_message' && payload?.data?.supportTicketId) loadTickets();
+    };
+    socket.on('notification:new', handler);
+    return () => socket.off('notification:new', handler);
   }, [socket, loadTickets]);
 
   const openTicket = (ticket) => {

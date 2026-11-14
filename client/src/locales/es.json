@@ -10803,6 +10803,10 @@
         "label": "Interruptores principales",
         "description": "Activa o desactiva un canal completo. Tienen prioridad sobre los interruptores individuales."
       },
+      "sms": {
+        "label": "Mensajes de texto",
+        "description": "Alertas SMS enviadas a tu teléfono."
+      },
       "restaurant": {
         "label": "Alertas del restaurante",
         "description": "Alertas de control horario, temperatura e informes programados para los restaurantes que gestionas."
@@ -10846,7 +10850,13 @@
       "push_notifications": "Notificaciones push",
       "push_notificationsDesc": "Todas las alertas push en todos los dispositivos (aplicación y navegador).",
       "sms_notifications": "Notificaciones por SMS",
-      "sms_notificationsDesc": "Mensajes de texto a tu número de teléfono verificado."
+      "sms_notificationsDesc": "Mensajes de texto a tu número de teléfono verificado.",
+      "in_app_notifications": "Notificaciones en la app",
+      "in_app_notificationsDesc": "Desactiva todas las notificaciones en la app. Las push y los correos no se ven afectados.",
+      "in_app_media_creator_update": "Actualizaciones de creador de medios",
+      "in_app_media_creator_updateDesc": "Actualizaciones sobre tu contenido de creador de medios",
+      "sms_support_replies": "Mensajes de respuesta de soporte",
+      "sms_support_repliesDesc": "Mensajes de texto cuando soporte responde a tu solicitud"
     },
     "quietHours": {
       "title": "Horas de silencio",
@@ -10861,6 +10871,74 @@
       "saved": "Horas de silencio actualizadas",
       "failedLoad": "No se pudo cargar la configuracion de horas de silencio",
       "failedSave": "No se pudo guardar la configuracion de horas de silencio"
+    },
+    "emailPrefs": {
+      "title": "Preferencias de correo electrónico",
+      "description": "Elige qué correos recibes. Los correos de cuenta y seguridad siempre se envían.",
+      "unsubscribedTitle": "Te diste de baja de todos los correos",
+      "unsubscribedBody": "No recibirás correos opcionales. Guardar tus otras preferencias no volverá a suscribirte.",
+      "resubscribe": "Volver a suscribirme a todos los correos",
+      "resubscribedToast": "Te has suscrito de nuevo a todos los correos",
+      "subscribedTitle": "Recibes correos opcionales",
+      "subscribedBody": "Darte de baja detiene todos los correos opcionales. Los correos de cuenta y seguridad se siguen enviando.",
+      "unsubscribeAll": "Darme de baja de todos los correos",
+      "unsubscribedToast": "Te has dado de baja de todos los correos",
+      "failedLoad": "No se pudieron cargar las preferencias de correo",
+      "failedAction": "No funcionó. Inténtalo de nuevo."
+    },
+    "typeGroups": {
+      "work": {
+        "label": "Trabajos y reservas",
+        "description": "Trabajo reservado, ofertas, turnos y horarios."
+      },
+      "payments": {
+        "label": "Pagos y retiros",
+        "description": "Dinero entrante y saliente, reembolsos y suscripciones."
+      },
+      "orders": {
+        "label": "Pedidos y entregas",
+        "description": "Pedidos de comida, entregas y recordatorios del carrito."
+      },
+      "appointments": {
+        "label": "Citas",
+        "description": "Confirmaciones y recordatorios de citas."
+      },
+      "messages": {
+        "label": "Mensajes",
+        "description": "Mensajes de chat."
+      },
+      "media": {
+        "label": "Medios",
+        "description": "Publicaciones, seguimientos y actualizaciones de creador."
+      },
+      "restaurant": {
+        "label": "Restaurante",
+        "description": "Operaciones y alertas del restaurante."
+      },
+      "credit": {
+        "label": "Crédito y cumplimiento",
+        "description": "Avisos de identidad de crédito, sanciones y cumplimiento."
+      },
+      "support": {
+        "label": "Soporte y disputas",
+        "description": "Tickets de soporte, disputas, reseñas y garantías."
+      },
+      "account": {
+        "label": "Cuenta",
+        "description": "Cambios de cuenta, verificaciones y membresía."
+      },
+      "other": {
+        "label": "Otros",
+        "description": "Todo lo demás."
+      }
+    },
+    "typeOptOuts": {
+      "title": "Tipos de notificación",
+      "description": "Desactiva tipos específicos de notificaciones. Todo lo que dejes activado seguirá activado.",
+      "inApp": "En la app",
+      "push": "Push",
+      "email": "Correo",
+      "failedLoad": "No se pudieron cargar los tipos de notificación"
     }
   },
   "plannedNeeds": {

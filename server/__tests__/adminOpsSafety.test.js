@@ -22,6 +22,27 @@ test('no available operator raises a durable critical incident', async () => {
   mockQuery.mockResolvedValue({ rows: [] }); await notifySOS({ id: 2, user_id: 'customer' });
   expect(recordIncident).toHaveBeenCalledWith(expect.objectContaining({ dedupeKey: 'safety-sos:2', severity: 'critical' }));
 });
+test('item 19: an in-app-only SOS ack does not count as delivered', async () => {
+  mockQuery.mockResolvedValue({ rows: [{ id: 'oncall', on_call: true }] });
+  sendNotification.mockResolvedValueOnce({
+    success: true, notificationId: 'notif-1',
+    delivered: { inApp: true, push: false, email: false, emailQueued: false },
+  });
+  await notifySOS({ id: 3, user_id: 'customer' });
+  expect(sendNotification).toHaveBeenCalledTimes(1);
+  // Nobody was actually reached by push or email, so the unacknowledged
+  // incident must still be raised even though the in-app row persisted.
+  expect(recordIncident).toHaveBeenCalledWith(expect.objectContaining({ dedupeKey: 'safety-sos:3' }));
+});
+test('item 19: a push acknowledgement counts as delivered and raises nothing', async () => {
+  mockQuery.mockResolvedValue({ rows: [{ id: 'oncall', on_call: true }] });
+  sendNotification.mockResolvedValueOnce({
+    success: true, notificationId: 'notif-1',
+    delivered: { inApp: true, push: true, email: false, emailQueued: false },
+  });
+  await notifySOS({ id: 4, user_id: 'customer' });
+  expect(recordIncident).not.toHaveBeenCalled();
+});
 test('escalation excludes acknowledged events and atomically claims a bounded batch', async () => {
   mockQuery.mockResolvedValue({ rows: [] }); await escalateUnacknowledgedSOS({ limit: 1000 });
   expect(mockQuery.mock.calls[0][0]).toContain('acknowledged_at IS NULL');

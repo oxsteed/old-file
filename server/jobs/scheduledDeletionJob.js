@@ -505,14 +505,16 @@ async function hardDeleteUser(user, { throwOnError = false } = {}) {
 }
 
 function startScheduledDeletionJob() {
-  // Run daily at 3:00 AM UTC
+  // Run daily at 3:00 AM UTC. The timezone is explicit: node-cron would
+  // otherwise follow the host's local timezone while the comment above
+  // promises UTC (notifications audit item 31).
   cron.schedule('0 3 * * *', async () => {
     try {
       await hardDeleteExpiredAccounts();
     } catch (err) {
       logger.error('scheduledDeletionJob: unhandled error', { error: err.message });
     }
-  });
+  }, { timezone: 'UTC' });
   logger.info('scheduledDeletionJob: registered (daily at 03:00 UTC)');
 }
 

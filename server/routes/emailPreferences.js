@@ -12,6 +12,11 @@ router.put('/', requireAuth, emailPreferencesController.updateEmailPreferences);
 // Unsubscribe from all emails (authenticated)
 router.post('/unsubscribe-all', requireAuth, emailPreferencesController.unsubscribeFromAll);
 
+// Explicit re-subscribe to all emails (authenticated, item 5). The only
+// ordinary path that clears unsubscribe_all; saving other email
+// preferences never does.
+router.post('/resubscribe-all', requireAuth, emailPreferencesController.resubscribeAll);
+
 // RFC 8058 one-click unsubscribe (no auth; token in query string or body)
 router.post('/unsubscribe-one-click', emailPreferencesController.unsubscribeOneClick);
 
