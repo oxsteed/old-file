@@ -300,6 +300,9 @@ exports.sendNotification = async ({
       'new_message',
       'payout_deposited', 'payout_requested', 'payout_approved', 'payout_rejected', 'account_banned',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
+      // Notifications audit item 20: cash-out settlement mail (paid/failed)
+      // never sent because neither type was in this allow-list.
+      'credit_cashout_failed', 'credit_cashout_paid',
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',
       'credit_sanctions_cleared', 'credit_sanctions_confirmed',

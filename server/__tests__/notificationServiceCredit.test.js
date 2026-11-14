@@ -169,6 +169,26 @@ describe('W11 warranty and job-start delivery', () => {
   });
 });
 
+describe('cash-out settlement email (notifications audit item 20)', () => {
+  test.each([
+    ['credit_cashout_paid', 'Your cash-out was paid'],
+    ['credit_cashout_failed', 'Your cash-out failed'],
+  ])('%s reaches email', async (type, title) => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ ...prefs, email: 'helper@example.invalid' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'cashout-notice' }] });
+    const result = await sendNotification({
+      userId: 'helper-1', type, title, body: 'Cash-out of $25.00 settled.',
+      action_url: '/wallet', idempotencyKey: `credit-cashout:test:${type}`,
+    });
+    expect(result.success).toBe(true);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({
+      subject: title, idempotencyKey: `credit-cashout:test:${type}`,
+    }));
+    expect(db.query.mock.calls.some(([sql]) => sql.includes('SET is_email_sent = true'))).toBe(true);
+  });
+});
+
 describe('W11 Learn review alert delivery', () => {
   const types = ['learn_video_review_received', 'learn_video_review_overdue'];
   test.each(['en', 'es', 'fr', 'ht', 'ar'].flatMap(lang => types.map(type => [lang, type])))(
