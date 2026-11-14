@@ -62,11 +62,14 @@ function mockPrefsAndRow(prefsOverrides = {}, row = { id: 'notif-1' }) {
 }
 
 describe('item 19: delivered breakdown', () => {
+  // Item 19 test type: a synthetic type that is in no email allow-list,
+  // so the send is in-app-only. (weekly_summary used to serve here, but
+  // item 9 added it to emailTypes, so it emails now.)
   test('in-app-only send reports inApp:true and every other channel false', async () => {
     mockPrefsAndRow();
     const result = await sendNotification({
       userId: 'customer-1',
-      type: 'weekly_summary',
+      type: 'item19_in_app_only',
       title: 'Weekly summary',
       body: 'This week: $0 earned MTD',
       idempotencyKey: 'item19:in-app-only',
@@ -78,18 +81,18 @@ describe('item 19: delivered breakdown', () => {
   test('success:true with in-app opted out reports inApp:false and no row id', async () => {
     // Audit sharpening: success:true is returned even when no row exists at
     // all because inAppEnabled is false. The breakdown must say so.
-    mockPrefsAndRow({ in_app_weekly_summary: false }, null);
+    mockPrefsAndRow({ in_app_item19_in_app_only: false }, null);
     // No row: the INSERT returns no rows and there is no delivery key
     // collision to resolve, so sendNotification throws inside and the
     // catch-all returns success:false. Use a keyed dedupe-free path by
     // letting the insert return nothing and no existing row.
     db.query.mockReset();
     db.query
-      .mockResolvedValueOnce({ rows: [{ ...basePrefs, in_app_weekly_summary: false }] })
+      .mockResolvedValueOnce({ rows: [{ ...basePrefs, in_app_item19_in_app_only: false }] })
       .mockResolvedValue({ rows: [], rowCount: 0 });
     const result = await sendNotification({
       userId: 'customer-1',
-      type: 'weekly_summary',
+      type: 'item19_in_app_only',
       title: 'Weekly summary',
       body: 'This week: $0 earned MTD',
       idempotencyKey: 'item19:in-app-off',
