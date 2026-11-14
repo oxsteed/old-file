@@ -12,8 +12,11 @@ function entries(env = process.env) {
       [
         "growthActivityWriter",
         () => require("./ingest/writer").run(),
-        10000,
-        {},
+        60 * 1000,
+        // Cost audit 2026-11-13 item 11: wake on the stream insert
+        // (queue.enqueue notifies oxsteed_activity_ingest); the 60s
+        // interval is the safety sweep, matching the relay.
+        { notifyChannel: "oxsteed_activity_ingest" },
       ],
       [
         "growthRollups",
@@ -68,8 +71,11 @@ function entries(env = process.env) {
       [
         "growthPolicyNotice",
         () => require("../jobs/policyNoticeDelivery").run(),
-        30000,
-        {},
+        60 * 1000,
+        // Cost audit 2026-11-13 item 11: wake when a campaign starts
+        // sending (policy_notice_campaigns_notify trigger); the 60s
+        // interval is the safety sweep.
+        { notifyChannel: "oxsteed_policy_notice" },
       ],
       [
         "growthRollout",

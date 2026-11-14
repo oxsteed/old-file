@@ -62,6 +62,26 @@ const ENTRIES = [
     rationale: 'Route/matrix cache: 30s TTL, size-capped, Redis shared layer. Backing store is the geo provider.',
   },
   {
+    file: 'controllers/geoController.js', name: 'geocodeInflight',
+    classification: 'ephemeral', shared: 'none',
+    rationale: 'In-flight dedupe for concurrent identical geocode lookups (Domain 9 item 2). Holds only promises for requests already in flight; entries are deleted on settle and die with the process.',
+  },
+  {
+    file: 'controllers/geoController.js', name: 'negativeGeocodeCache',
+    classification: 'cache', shared: 'none',
+    rationale: 'Negative geocode cache: 60s TTL (Domain 9 item 2). Only unlocatable addresses are cached, so a recovering provider is retried after the TTL; backing store is the geo provider.',
+  },
+  {
+    file: 'services/geoRouteProviderService.js', name: 'routeCache',
+    classification: 'cache', shared: 'none',
+    rationale: 'Delivery route cache: 5min TTL, 250-entry cap (Domain 9 item 2). Backing store is the AWS route provider; staleness is bounded by the TTL and pricing depends on distance, which does not move minute to minute.',
+  },
+  {
+    file: 'services/geoRouteProviderService.js', name: 'routeInflight',
+    classification: 'ephemeral', shared: 'none',
+    rationale: 'In-flight dedupe for concurrent identical route calculations (Domain 9 item 2). Holds only promises for requests already in flight; entries are deleted on settle and die with the process.',
+  },
+  {
     file: 'controllers/helpersController.js', name: 'directoryCache',
     classification: 'cache', shared: 'redis',
     rationale: 'Helper directory cache: 30s TTL, 250-entry cap, Redis shared layer (directory:v1:). Backing store is PostgreSQL.',

@@ -25,6 +25,7 @@
 
 const db = require('../db');
 const logger = require('../utils/logger');
+const { mapBounded } = require('../utils/boundedBatch');
 const { sendNotification } = require('../services/notificationService');
 const { withFencedJobLock } = require('./jobLockingService');
 
@@ -41,33 +42,64 @@ const JOB_NAME = 'business-appointment-no-show-sweeper';
 
 const DEFAULT_NO_SHOW_GRACE_HOURS = 2;
 
-async function notifyNoShowMarked(appointment) {
+// Cost audit 2026-11-13 item 15: the old per-appointment notify did one
+// recipient lookup + up to two sendNotification calls per marked row
+// (about 800 queries + 400 notifications per 15-min tick at the 200 cap).
+// The batch form does one recipient lookup for all marked rows, then sends
+// in bounded parallel batches. Notify stays best-effort: a failed send is
+// logged and the sweep continues, exactly as before.
+async function notifyNoShowMarkedBatch(marked) {
+  if (!marked.length) return 0;
+  let recipientsByAppointment;
   try {
     const { rows } = await db.query(
-      `SELECT ba.customer_id, b.user_id AS business_owner_id
+      `SELECT ba.id, ba.customer_id, b.user_id AS business_owner_id
          FROM business_appointments ba
          JOIN businesses b ON b.id = ba.business_id
-        WHERE ba.id = $1`,
-      [appointment.id]
+        WHERE ba.id = ANY($1::bigint[])`,
+      [marked.map((row) => row.id)]
     );
-    const recipientIds = [...new Set(
-      rows.flatMap((row) => [row.customer_id, row.business_owner_id]).filter(Boolean).map(String)
-    )];
-    await Promise.allSettled(recipientIds.map((userId) => sendNotification({
-      userId,
-      type: 'appointment_no_show',
-      title: 'Appointment marked as no-show',
-      body: 'An appointment was marked as no-show because its scheduled time passed.',
-      data: {
-        appointment_id: String(appointment.id),
-        business_id: String(appointment.business_id || ''),
-      },
-      action_url: `/businesses/${appointment.business_id}/calendar`,
-      idempotencyKey: `business-appointment:${appointment.id}:no_show:${appointment.no_show_marked_at || 'auto'}`,
-    })));
+    recipientsByAppointment = new Map();
+    for (const row of rows) {
+      const list = recipientsByAppointment.get(String(row.id)) || [];
+      for (const userId of [row.customer_id, row.business_owner_id]) {
+        if (userId && !list.includes(String(userId))) list.push(String(userId));
+      }
+      recipientsByAppointment.set(String(row.id), list);
+    }
   } catch (err) {
-    logger.warn('No-show notification failed', { appointmentId: appointment.id, error: err.message });
+    for (const appointment of marked) {
+      logger.warn('No-show notification failed', { appointmentId: appointment.id, error: err.message });
+    }
+    return 0;
   }
+  const tasks = [];
+  for (const appointment of marked) {
+    for (const userId of recipientsByAppointment.get(String(appointment.id)) || []) {
+      tasks.push({ appointment, userId });
+    }
+  }
+  let notified = 0;
+  await mapBounded(tasks, 5, async ({ appointment, userId }) => {
+    try {
+      await sendNotification({
+        userId,
+        type: 'appointment_no_show',
+        title: 'Appointment marked as no-show',
+        body: 'An appointment was marked as no-show because its scheduled time passed.',
+        data: {
+          appointment_id: String(appointment.id),
+          business_id: String(appointment.business_id || ''),
+        },
+        action_url: `/businesses/${appointment.business_id}/calendar`,
+        idempotencyKey: `business-appointment:${appointment.id}:no_show:${appointment.no_show_marked_at || 'auto'}`,
+      });
+      notified++;
+    } catch (err) {
+      logger.warn('No-show notification failed', { appointmentId: appointment.id, error: err.message });
+    }
+  });
+  return notified;
 }
 
 async function sweepNoShows() {
@@ -76,32 +108,36 @@ async function sweepNoShows() {
   let expiredPending = 0;
 
   // Phase 1: confirmed appointments past the grace window -> no_show.
-  // Lock rows (FOR UPDATE SKIP LOCKED) so concurrent workers cannot
-  // double-process the same appointment.
-  const { rows: stale } = await db.query(
-    `SELECT ba.id, ba.business_id
-       FROM business_appointments ba
-       LEFT JOIN business_booking_rules r ON r.business_id = ba.business_id
-      WHERE ba.status = 'confirmed'
-        AND ba.end_time < NOW() - make_interval(hours => GREATEST(COALESCE(NULLIF(r.auto_cancel_no_show_hours, 0), $1), 0))
-      ORDER BY ba.end_time ASC
-      LIMIT 200
-      FOR UPDATE OF ba SKIP LOCKED`,
+  // Cost audit 2026-11-13 item 15: the old select + per-row UPDATE +
+  // per-row notify ran about 800 queries + 400 notifications per 15-min
+  // tick at the 200 cap. The claim CTE takes the same FOR UPDATE SKIP
+  // LOCKED claim (oldest first, LIMIT 200) and the single set-based
+  // UPDATE...RETURNING marks them all at once; the status guard stays so
+  // a row that changed hands between claim and update is not touched.
+  // The claiming CTE and the UPDATE run in one statement, so the claim
+  // cannot leak to a concurrent worker the way a separate SELECT could.
+  const { rows: markedRows } = await db.query(
+    `WITH claimed AS (
+       SELECT ba.id
+         FROM business_appointments ba
+         LEFT JOIN business_booking_rules r ON r.business_id = ba.business_id
+        WHERE ba.status = 'confirmed'
+          AND ba.end_time < NOW() - make_interval(hours => GREATEST(COALESCE(NULLIF(r.auto_cancel_no_show_hours, 0), $1), 0))
+        ORDER BY ba.end_time ASC
+        LIMIT 200
+        FOR UPDATE OF ba SKIP LOCKED
+     )
+     UPDATE business_appointments
+        SET status = 'no_show', no_show_marked_at = NOW(), updated_at = NOW()
+       FROM claimed
+      WHERE business_appointments.id = claimed.id
+        AND business_appointments.status = 'confirmed'
+      RETURNING business_appointments.id, business_appointments.business_id,
+        business_appointments.no_show_marked_at`,
     [DEFAULT_NO_SHOW_GRACE_HOURS]
   );
-  for (const row of stale) {
-    const { rows: updated } = await db.query(
-      `UPDATE business_appointments
-          SET status = 'no_show', no_show_marked_at = NOW(), updated_at = NOW()
-        WHERE id = $1 AND status = 'confirmed'
-        RETURNING id, business_id, no_show_marked_at`,
-      [row.id]
-    );
-    if (updated.length) {
-      marked++;
-      await notifyNoShowMarked(updated[0]);
-    }
-  }
+  marked = markedRows.length;
+  await notifyNoShowMarkedBatch(markedRows);
 
   // Phase 2: no_show appointments older than the business's configured
   // auto-cancel window -> system-cancelled. Only when the business opted in

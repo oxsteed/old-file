@@ -25,6 +25,16 @@ const { enqueueStorageDeletion, resolveKey } = require('../services/storageClean
 const JOB_NAME = 'restaurant-retention-sweep';
 const CRON_EXPRESSION = '0 30 3 * * 0'; // weekly, Sunday 03:30 server time
 
+// Domain 9 (2026-11-13) item 4: the sweep used to claim every due row
+// with no LIMIT and no lock, so a bulk offboarding or a long-unrun
+// weekly run processed thousands of people serially under one 900s
+// fence lease; a lease loss mid-run abandoned the rest to next Sunday.
+// Each part now takes at most this many rows per run (the next weekly
+// run picks up the rest), claimed FOR UPDATE SKIP LOCKED so a
+// concurrent sweep cannot double-process the same row. Same 200-row
+// claim shape as the no-show sweeper.
+const RETENTION_SWEEP_BATCH_LIMIT = 200;
+
 async function anonymizePerson(db, { businessId, userId, retainUntil }) {
   const { rows: restaurants } = await db.query(
     'SELECT id FROM food_restaurants WHERE business_id = $1 ORDER BY id',
@@ -63,29 +73,36 @@ async function anonymizePerson(db, { businessId, userId, retainUntil }) {
 }
 
 async function sweep(db = pool) {
-  const result = { completedRequests: 0, autoAnonymized: 0, skipped: 0, errors: [] };
+  const result = { completedRequests: 0, autoAnonymized: 0, skipped: 0, errors: [], hitBatchLimit: false };
   // 1. Approved erasure requests past retention.
+  // Domain 9 item 4: LIMIT + FOR UPDATE SKIP LOCKED claim (see the
+  // constant above). The latest retain_until rides along in the
+  // select now; the old per-request SELECT was an N+1 on top of the
+  // unbounded scan.
   const { rows: dueRequests } = await db.query(
-    `SELECT er.* FROM restaurant_erasure_requests er
+    `SELECT er.*,
+            (SELECT o.retain_until
+               FROM staff_offboarding_records o
+              WHERE o.business_id = er.business_id AND o.user_id = er.user_id
+              ORDER BY o.created_at DESC, o.id DESC LIMIT 1) AS retain_until
+       FROM restaurant_erasure_requests er
       WHERE er.status = 'approved'
         AND EXISTS (
           SELECT 1 FROM staff_offboarding_records o
            WHERE o.business_id = er.business_id AND o.user_id = er.user_id
              AND o.retain_until < CURRENT_DATE
         )
-      ORDER BY er.requested_at`
+      ORDER BY er.requested_at
+      LIMIT $1
+      FOR UPDATE OF er SKIP LOCKED`,
+    [RETENTION_SWEEP_BATCH_LIMIT]
   );
   for (const request of dueRequests) {
     try {
-      const { rows: [offboarding] } = await db.query(
-        `SELECT retain_until FROM staff_offboarding_records
-          WHERE business_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 1`,
-        [request.business_id, request.user_id]
-      );
       const outcome = await anonymizePerson(db, {
         businessId: Number(request.business_id),
         userId: request.user_id,
-        retainUntil: offboarding?.retain_until || null,
+        retainUntil: request.retain_until || null,
       });
       if (outcome.skipped) { result.skipped += 1; continue; }
       await db.query(
@@ -101,17 +118,32 @@ async function sweep(db = pool) {
     }
   }
   // 2. Offboarded staff past retention with no completed erasure yet.
+  // Domain 9 item 4: LIMIT + FOR UPDATE SKIP LOCKED claim, same as
+  // part 1. PostgreSQL forbids FOR UPDATE with DISTINCT, so the
+  // old DISTINCT ON (latest record per person) is expressed as "no
+  // newer offboarding record exists", with a (created_at, id)
+  // tiebreak so the latest record is picked deterministically; the
+  // pick is the same latest record DISTINCT ON returned, only the
+  // tie is now decided by id instead of arbitrarily.
   const { rows: dueStaff } = await db.query(
-    `SELECT DISTINCT ON (o.business_id, o.user_id)
-            o.business_id, o.user_id, o.retain_until
+    `SELECT o.business_id, o.user_id, o.retain_until
        FROM staff_offboarding_records o
       WHERE o.retain_until < CURRENT_DATE
+        AND NOT EXISTS (
+          SELECT 1 FROM staff_offboarding_records o2
+           WHERE o2.business_id = o.business_id AND o2.user_id = o.user_id
+             AND (o2.created_at > o.created_at
+                  OR (o2.created_at = o.created_at AND o2.id > o.id))
+        )
         AND NOT EXISTS (
           SELECT 1 FROM restaurant_erasure_requests er
            WHERE er.business_id = o.business_id AND er.user_id = o.user_id
              AND er.status = 'completed'
         )
-      ORDER BY o.business_id, o.user_id, o.created_at DESC`
+      ORDER BY o.business_id, o.user_id
+      LIMIT $1
+      FOR UPDATE OF o SKIP LOCKED`,
+    [RETENTION_SWEEP_BATCH_LIMIT]
   );
   for (const person of dueStaff) {
     try {
@@ -133,6 +165,10 @@ async function sweep(db = pool) {
       logger.error('Retention sweep auto-anonymize failed', { userId: person.user_id, error: err.message });
     }
   }
+  // A full batch means more due rows remain for the next weekly run;
+  // the log line carries it so a backlog is visible, not silent.
+  result.hitBatchLimit =
+    dueRequests.length >= RETENTION_SWEEP_BATCH_LIMIT || dueStaff.length >= RETENTION_SWEEP_BATCH_LIMIT;
   return result;
 }
 
@@ -167,4 +203,5 @@ module.exports = {
   runRestaurantRetentionJob,
   sweep,
   cronExpression: CRON_EXPRESSION,
+  RETENTION_SWEEP_BATCH_LIMIT,
 };

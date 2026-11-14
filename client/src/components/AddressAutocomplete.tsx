@@ -39,6 +39,11 @@ interface Props {
   minChars?: number;
   querySuffix?: string;
   suppressInitialSuggestions?: boolean;
+  // Delivery stops need the full formatted address in the field after a
+  // pick: the default (street line, else city) shortens a fallback
+  // suggestion to just the street and drops the city and ZIP. Other
+  // consumers keep the default because they fill city/state separately.
+  selectFullAddress?: boolean;
 }
 
 export default function AddressAutocomplete({
@@ -63,6 +68,7 @@ export default function AddressAutocomplete({
   minChars = 2,
   querySuffix = '',
   suppressInitialSuggestions = false,
+  selectFullAddress = false,
 }: Props) {
   const { t } = useTranslation();
   const resolvedPlaceholder = placeholder || t('common.addressPlaceholder', { defaultValue: 'Start typing an address' });
@@ -130,7 +136,7 @@ export default function AddressAutocomplete({
   const selectSuggestion = (place: AddressSuggestion) => {
     if (closeTimer.current) window.clearTimeout(closeTimer.current);
     skipNextQuery.current = true;
-    onChange(place.addressLine1 || place.city || place.display);
+    onChange(selectFullAddress && place.display ? place.display : (place.addressLine1 || place.city || place.display));
     onSelect?.(place);
     setSuggestions([]);
     setOpen(false);

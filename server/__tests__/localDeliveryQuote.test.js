@@ -54,11 +54,38 @@ function payload(overrides = {}) {
   };
 }
 
+let liveQuoteHash;
+let insertCount;
+
 beforeEach(() => {
-  pool.query.mockResolvedValue({
-    rows: [{ id: 99, expires_at: new Date(Date.now() + 15 * 60000).toISOString() }],
+  // Stateful stand-in for delivery_quotes: a SELECT on request_hash finds
+  // the row only when an identical quote was already inserted, and each
+  // INSERT mints a new id. This is what lets the dedupe tests below tell a
+  // reused quote apart from a duplicate row.
+  liveQuoteHash = null;
+  insertCount = 0;
+  pool.query.mockImplementation(async (sql, params) => {
+    if (/^\s*SELECT/i.test(sql) && sql.includes('FROM delivery_quotes')) {
+      return {
+        rows: params?.[1] && params[1] === liveQuoteHash
+          ? [{ id: 99, expires_at: new Date(Date.now() + 15 * 60000).toISOString() }]
+          : [],
+      };
+    }
+    if (/^\s*INSERT INTO delivery_quotes/i.test(sql)) {
+      liveQuoteHash = params?.[1];
+      insertCount += 1;
+      return {
+        rows: [{ id: 98 + insertCount, expires_at: new Date(Date.now() + 15 * 60000).toISOString() }],
+      };
+    }
+    return { rows: [] };
   });
 });
+
+function insertCalls() {
+  return pool.query.mock.calls.filter(([sql]) => /^\s*INSERT INTO delivery_quotes/i.test(sql));
+}
 
 afterEach(() => {
   jest.clearAllMocks();
@@ -82,4 +109,42 @@ test('prices a valid short standard small delivery', async () => {
   expect(res.body.success).toBe(true);
   expect(res.body.quote.id).toBe(99);
   expect(res.body.quote.pricing.cents.customerTotal).toBe(1799);
+});
+
+// Domain 9 item 2: the request hash was computed but never looked up, so an
+// identical re-price inserted a duplicate delivery_quotes row every time.
+// A second identical quote must reuse the live row instead.
+test('a second identical quote reuses the live quote instead of inserting a duplicate row', async () => {
+  // One body object for both requests: the hash covers the pickup/delivery
+  // windows, and a fresh payload() per request would move them.
+  const body = payload();
+  const first = await request(buildApp())
+    .post('/delivery/quote')
+    .send(body);
+  expect(first.status).toBe(200);
+  expect(first.body.quote.id).toBe(99);
+
+  const second = await request(buildApp())
+    .post('/delivery/quote')
+    .send(body);
+  expect(second.status).toBe(200);
+  expect(second.body.success).toBe(true);
+  expect(second.body.quote.id).toBe(99);
+  expect(second.body.quote.requestHash).toBe(first.body.quote.requestHash);
+  expect(insertCalls()).toHaveLength(1);
+});
+
+test('a changed quote still inserts a new row', async () => {
+  const first = await request(buildApp())
+    .post('/delivery/quote')
+    .send(payload());
+  expect(first.status).toBe(200);
+  expect(first.body.quote.id).toBe(99);
+
+  const second = await request(buildApp())
+    .post('/delivery/quote')
+    .send(payload({ weightLbs: 10 }));
+  expect(second.status).toBe(200);
+  expect(second.body.quote.id).toBe(100);
+  expect(insertCalls()).toHaveLength(2);
 });

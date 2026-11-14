@@ -46,6 +46,20 @@ async function enqueue(envelopes, { domain = false } = {}) {
       if (domain) throw new Error("growth_queue_full");
     }
   }
+  // Cost audit 2026-11-13 item 11: the growth writer drains this stream
+  // on a 10s poll; wake it the moment entries land instead. Best-effort
+  // and never fatal: analytics must not break ingestion, and the 60s
+  // safety sweep covers a missed wakeup. The notify rides a separate
+  // pooled connection, so it fires even when enqueue runs inside a
+  // Postgres transaction (the stream entries are durable the moment the
+  // XADD succeeds, independent of that transaction's outcome).
+  if (accepted > 0) {
+    try {
+      await require("../db").query(
+        "SELECT pg_notify('oxsteed_activity_ingest', '')",
+      );
+    } catch {}
+  }
   return { accepted, dropped };
 }
 async function close() {
