@@ -161,12 +161,15 @@ function installFakeDb() {
       const user = users.get(params[0]);
       return { rows: user ? [{ totp_enabled: user.totpEnabled }] : [] };
     }
-    if (sql.includes('FROM admin_totp_stepup_counters WHERE user_id')) {
-      const max = counters.get(params[0]);
-      return { rows: max == null ? [] : [{ max_counter: max }] };
-    }
-    if (sql.includes('INSERT INTO admin_totp_stepup_counters')) {
-      counters.set(params[0], params[1]);
+    // Domain 6 #7: the shared guard consumes the current step counter
+    // with one atomic upsert; it returns a row only when the counter is
+    // strictly greater than the stored max (fresh), and no row on replay.
+    if (sql.includes('INSERT INTO totp_used_counters')) {
+      const stored = counters.get(params[0]);
+      if (stored == null || params[1] > stored) {
+        counters.set(params[0], params[1]);
+        return { rows: [{ max_counter: params[1] }] };
+      }
       return { rows: [] };
     }
     throw new Error(`unexpected query in fake db: ${sql.slice(0, 120)}`);
@@ -398,7 +401,7 @@ describe('item 12: admin credit step-up is TOTP, not email OTP', () => {
   });
 
   test('all admin money and configuration action types are TOTP-only', () => {
-    expect(TOTP_STEPUP_ACTION_TYPES).toHaveLength(26);
+    expect(TOTP_STEPUP_ACTION_TYPES).toHaveLength(27);
     for (const actionType of [
       'settlement_payout',
       'withdrawal',
@@ -421,6 +424,9 @@ describe('item 12: admin credit step-up is TOTP, not email OTP', () => {
       'money_movement_approve',
       'restaurant_payout_approve',
       'subscription_cancel',
+      // Domain 6 finding 6 (2026-11-13): the affiliate maker proof is
+      // TOTP now, matching the checker proof on the same flow.
+      'affiliate_payout_process',
       // Domain 7 #1: payment-dispute decisions are admin actions like
       // manual refunds, so they verify against TOTP.
       'payment_dispute_decision',

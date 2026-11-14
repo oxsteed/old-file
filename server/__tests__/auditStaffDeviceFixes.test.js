@@ -13,12 +13,16 @@
  * Item 14: device-token expiry is required; the NULL-means-immortal arm
  * is dropped from both app-device predicates. Display-pairing expiry
  * arms are deliberately untouched (different credential, out of scope).
+ * Domain 6 finding 8: the item-13 digest-miss bucket gains a success
+ * reset, so a successful device-less PIN entry clears the bucket instead
+ * of 5 blind guesses locking every device-less terminal restaurant-wide.
  *
  * No DB needed: the service pool and the credential clients are mocked.
  */
 
 jest.mock('../db', () => ({ query: jest.fn() }));
 
+const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const pool = require('../db');
 const {
@@ -227,6 +231,128 @@ describe('auth-audit item 13: device-less digest-miss lockout', () => {
     );
     expect(bucketSelects).toHaveLength(0);
     expect(inserts).toEqual([[7, 9, null, false]]);
+  });
+});
+
+describe('auth-audit Domain 6 finding 8: device-less digest-miss bucket resets on success', () => {
+  // Domain 6 finding 8 (2026-11-09 audit): the item-13 digest-miss bucket
+  // is per-restaurant NULL/NULL with no success reset, so 5 blind guesses
+  // lock ALL device-less PIN entry restaurant-wide for 15 minutes. A
+  // digest-miss carries no account identity (the PIN matched nothing), so
+  // per-account scoping is impossible; the fix is a success reset: a
+  // successful device-less PIN entry records a NULL/NULL success marker,
+  // and the bucket counts only failures after the latest such marker
+  // (mirroring the success-reset the device/PIN buckets already have in
+  // recentPinFailures). The 5-failure lockout itself is unchanged.
+  let pinHash;
+  let attempts;
+  let inserts;
+  let seq;
+
+  function maxSuccessSeq() {
+    let max = -1;
+    for (const row of attempts) {
+      if (row.deviceId === null && row.staffPinId === null && row.success === true) {
+        max = Math.max(max, row.seq);
+      }
+    }
+    return max;
+  }
+
+  beforeEach(async () => {
+    pinHash = await bcrypt.hash('1234', 4);
+    attempts = [];
+    inserts = [];
+    seq = 0;
+    pool.query.mockReset();
+    pool.query.mockImplementation((sql, params = []) => {
+      if (sql.startsWith('INSERT INTO restaurant_staff_pin_attempts')) {
+        seq += 1;
+        attempts.push({
+          deviceId: params[1],
+          staffPinId: params[2],
+          success: params[3],
+          seq,
+        });
+        inserts.push(params);
+        return Promise.resolve({ rows: [] });
+      }
+      if (sql.includes('COUNT(*)') && sql.includes('staff_pin_id IS NULL')) {
+        // Digest-miss bucket. The mock applies the success reset only
+        // when the executed SQL carries the reset clause (a subquery on
+        // the latest NULL/NULL success), so the test fails against the
+        // pre-fix query and passes against the fixed one.
+        const resetAt = sql.includes('success = TRUE') ? maxSuccessSeq() : -1;
+        const failures = attempts.filter(
+          (row) =>
+            row.deviceId === null &&
+            row.staffPinId === null &&
+            row.success === false &&
+            row.seq > resetAt
+        ).length;
+        return Promise.resolve({ rows: [{ failures }] });
+      }
+      if (sql.includes('COUNT(*)') && sql.includes('staff_pin_id = $2')) {
+        const pinId = params[1];
+        let resetAt = -1;
+        for (const row of attempts) {
+          if (row.staffPinId === pinId && row.success === true) resetAt = Math.max(resetAt, row.seq);
+        }
+        const failures = attempts.filter(
+          (row) => row.staffPinId === pinId && row.success === false && row.seq > resetAt
+        ).length;
+        return Promise.resolve({ rows: [{ failures }] });
+      }
+      if (sql.includes('COUNT(*)') && sql.includes('device_id = $2')) {
+        return Promise.resolve({ rows: [{ failures: 0 }] });
+      }
+      if (sql.includes('pin_digest IS NULL')) {
+        // Legacy bcrypt-scan path: the only legacy row owns PIN 1234.
+        return Promise.resolve({
+          rows: [{ id: 11, staff_user_id: null, staff_label: 'Counter', role_label: null, pin_hash: pinHash }],
+        });
+      }
+      if (sql.includes('pin_digest')) return Promise.resolve({ rows: [] });
+      if (sql.startsWith('UPDATE restaurant_staff_pins SET pin_digest')) {
+        return Promise.resolve({ rows: [] });
+      }
+      throw new Error(`unexpected query: ${sql.slice(0, 80)}`);
+    });
+  });
+
+  test('a successful device-less PIN entry resets the digest-miss bucket', async () => {
+    for (let i = 0; i < 4; i += 1) {
+      await expect(
+        validateStaffPinForRestaurant({ restaurantId: 7, pin: '0000', deviceId: null })
+      ).rejects.toMatchObject({ code: 'invalid_pin' });
+    }
+    const ok = await validateStaffPinForRestaurant({ restaurantId: 7, pin: '1234', deviceId: null });
+    expect(ok.pinRow.id).toBe(11);
+    // The success records a NULL/NULL success marker alongside the
+    // PIN-scoped success row, so the bucket can reset.
+    expect(inserts).toContainEqual([7, null, null, true]);
+    // Four more blind misses after the success must NOT lock: pre-fix the
+    // second one already 429s because the bucket still holds 5+ failures.
+    for (let i = 0; i < 4; i += 1) {
+      await expect(
+        validateStaffPinForRestaurant({ restaurantId: 7, pin: '0000', deviceId: null })
+      ).rejects.toMatchObject({ code: 'invalid_pin' });
+    }
+    // The correct PIN still works with 4 post-reset failures banked.
+    const okAgain = await validateStaffPinForRestaurant({ restaurantId: 7, pin: '1234', deviceId: null });
+    expect(okAgain.pinRow.id).toBe(11);
+  });
+
+  test('the 5-failure lockout still fires after the reset', async () => {
+    await validateStaffPinForRestaurant({ restaurantId: 7, pin: '1234', deviceId: null });
+    for (let i = 0; i < 5; i += 1) {
+      await expect(
+        validateStaffPinForRestaurant({ restaurantId: 7, pin: '0000', deviceId: null })
+      ).rejects.toMatchObject({ code: 'invalid_pin' });
+    }
+    await expect(
+      validateStaffPinForRestaurant({ restaurantId: 7, pin: '0000', deviceId: null })
+    ).rejects.toMatchObject({ code: 'pin_locked' });
   });
 });
 

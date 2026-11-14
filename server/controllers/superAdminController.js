@@ -1148,6 +1148,41 @@ exports.updateUserRole = async (req, res) => {
           err.code = 'role_state_changed';
           throw err;
         }
+        // Domain 6 finding 4 (2026-11-13): a demotion (admin/super_admin
+        // to a non-admin role) must revoke the user's direct permission
+        // grants and delegation rows, or they silently resurrect on
+        // re-promotion with no fresh grant decision. The lookup layer
+        // fails closed while demoted, but the rows must not stay live.
+        // Promotion and admin-to-admin role changes revoke nothing.
+        const isDemotion = ['admin', 'super_admin'].includes(before[0].role)
+          && !['admin', 'super_admin'].includes(role);
+        let revokedDirectGrants = 0;
+        let revokedDelegations = 0;
+        if (isDemotion) {
+          ({ rowCount: revokedDirectGrants } = await client.query(
+            `UPDATE admin_permission_grants
+                SET revoked_at = NOW(), revoked_by = $2
+              WHERE grantee_id = $1 AND revoked_at IS NULL`,
+            [userId, adminId]
+          ));
+          // Delegations in both directions: as grantor their delegated
+          // authority dies with their standing (mirrors the disable path
+          // and the 99983 trigger, which only fires on is_active), and as
+          // grantee their received delegations die too.
+          const { rowCount: asGrantor } = await client.query(
+            `UPDATE delegation_grants SET status = 'revoked', revoked_at = NOW(),
+                    revoked_by = $2, revoke_reason = 'Grantor demoted from admin role'
+              WHERE grantor_admin_id = $1 AND status = 'active'`,
+            [userId, adminId]
+          );
+          const { rowCount: asGrantee } = await client.query(
+            `UPDATE delegation_grants SET status = 'revoked', revoked_at = NOW(),
+                    revoked_by = $2, revoke_reason = 'Grantee demoted from admin role'
+              WHERE grantee_admin_id = $1 AND status = 'active'`,
+            [userId, adminId]
+          );
+          revokedDelegations = asGrantor + asGrantee;
+        }
         await logAdminAction({
           client,
           adminId,
@@ -1158,6 +1193,19 @@ exports.updateUserRole = async (req, res) => {
           after: { role },
           req,
         });
+        if (isDemotion && (revokedDirectGrants > 0 || revokedDelegations > 0)) {
+          await logAdminAction({
+            client,
+            adminId,
+            action: 'admin_grants_revoked_on_role_demotion',
+            targetType: 'user',
+            targetId: userId,
+            description: `Role demoted from ${before[0].role} to ${role}: revoked ${revokedDirectGrants} direct grant(s) and ${revokedDelegations} delegation(s) so they cannot resurrect on re-promotion.`,
+            before: { role: before[0].role },
+            after: { role, revokedDirectGrants, revokedDelegations },
+            req,
+          });
+        }
         return result;
       }, 'admin_update_user_role'));
     } catch (err) {

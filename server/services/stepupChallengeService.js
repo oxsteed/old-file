@@ -164,6 +164,14 @@ const TOTP_STEPUP_ACTION_TYPES = Object.freeze([
   // Nov 3 audit item 4: subscription cancels are admin actions, so the
   // proof is the admin's TOTP authenticator, not an emailed code.
   'subscription_cancel',
+  // Domain 6 finding 6 (2026-11-13): the affiliate maker proof was email
+  // OTP while the checker proof on the same flow is TOTP (item 4). The
+  // maker moves the money, so the maker proves with the authenticator
+  // too. No unenrolled maker is stranded: requireAdmin hard-blocks
+  // TOTP-less admin sessions (403 admin_2fa_required, redirect
+  // /admin/2fa-setup) before the route, and issuing here fails closed
+  // with credit_stepup_totp_not_enabled when TOTP is not enrolled.
+  'affiliate_payout_process',
   // Domain 7 #1 (2026-11-11 admin-ops audit): dispute decisions are admin
   // actions like manual refunds, so the proof is the admin's TOTP
   // authenticator, not an emailed code.
@@ -177,8 +185,9 @@ const TOTP_STEPUP_ACTION_TYPES = Object.freeze([
   'restaurant_credit_load_decline',
 ]);
 
-// TOTP codes rotate every 30 seconds (RFC 6238 time-step).
-const TOTP_TIME_STEP_SECONDS = 30;
+// Shared TOTP replay guard (Domain 6 #7): the 30-second step lives in
+// totpReplayGuard; this service no longer keeps its own counter table.
+const { consumeTotpCounter } = require('./totpReplayGuard');
 
 function getStepupPepper() {
   return process.env.OXSTEED_CREDIT_STEPUP_PEPPER || process.env.JWT_SECRET || null;
@@ -361,28 +370,16 @@ async function verifyTotpPresentation(client, { challenge, actorUserId, code }) 
     });
   }
   // Replay guard: a TOTP code stays valid for its 30-second window, so the
-  // same code could otherwise be presented against a second challenge. Each
-  // admin consumes at most one TOTP step-up per time-step; the row lock
-  // serializes concurrent verifications.
-  const counter = Math.floor(Date.now() / (TOTP_TIME_STEP_SECONDS * 1000));
-  const { rows: counterRows } = await client.query(
-    'SELECT max_counter FROM admin_totp_stepup_counters WHERE user_id = $1 FOR UPDATE',
-    [actorUserId]
-  );
-  const maxCounter = counterRows[0] ? Number(counterRows[0].max_counter) : 0;
-  if (counter <= maxCounter) {
+  // same code could otherwise be presented against a second challenge.
+  // Shared guard (Domain 6 #7): each user consumes at most one TOTP
+  // verification per time-step across every channel.
+  if (!(await consumeTotpCounter(client, actorUserId))) {
     throw new AppError(
       'This verification code was already used. Wait for a new code from your authenticator app.',
       403,
       'credit_stepup_challenge_reused'
     );
   }
-  await client.query(
-    `INSERT INTO admin_totp_stepup_counters (user_id, max_counter, updated_at)
-     VALUES ($1, $2, NOW())
-     ON CONFLICT (user_id) DO UPDATE SET max_counter = EXCLUDED.max_counter, updated_at = NOW()`,
-    [actorUserId, counter]
-  );
 }
 
 /**

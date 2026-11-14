@@ -21,6 +21,7 @@
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const adminRouter = require('../routes/admin');
 const logisticsAdminRouter = require('../routes/logisticsAdmin');
+const adminRestaurantSupportRouter = require('../routes/adminRestaurantSupport');
 
 function routeHandlers(router, path) {
   const matches = [];
@@ -39,6 +40,16 @@ function expectGuarded(router, path) {
   const handlers = routeHandlers(router, path);
   expect(handlers.length).toBeGreaterThan(0);
   expect(handlers).toContain(rejectImpersonated);
+}
+
+// Middleware mounted via router.use(...) lives on stack layers with no
+// .route; collect those functions so a router-level guard can be asserted.
+function routerMiddleware(router) {
+  const fns = [];
+  for (const layer of router.stack || []) {
+    if (!layer.route && typeof layer.handle === 'function') fns.push(layer.handle);
+  }
+  return fns;
 }
 
 describe('finding 28: rejectImpersonated on credit money routes', () => {
@@ -66,5 +77,98 @@ describe('finding 28: rejectImpersonated on credit money routes', () => {
 describe('finding 31: rejectImpersonated on the logistics refund step-up verify route', () => {
   test('refunds step-up verify', () => {
     expectGuarded(logisticsAdminRouter, '/refunds/stepup/verify');
+  });
+});
+
+describe('Domain 6 finding 9: rejectImpersonated on restaurant suspend/restore/verify', () => {
+  test('suspend', () => {
+    expectGuarded(adminRouter, '/restaurants/:id/suspend');
+  });
+
+  test('restore', () => {
+    expectGuarded(adminRouter, '/restaurants/:id/restore');
+  });
+
+  test('verify', () => {
+    expectGuarded(adminRouter, '/restaurants/:id/verify');
+  });
+
+  test('the guard runs after auth and before the controller on suspend', () => {
+    const handlers = routeHandlers(adminRouter, '/restaurants/:id/suspend');
+    const guardIdx = handlers.indexOf(rejectImpersonated);
+    expect(guardIdx).toBeGreaterThan(0);
+    // The suspend controller is an anonymous arrow (name ''), so order by
+    // position: the guard is not the last handler; the controller runs after it.
+    expect(guardIdx).toBeLessThan(handlers.length - 1);
+  });
+});
+
+describe('Domain 6 finding 10: rejectImpersonated on the admin restaurant-support router', () => {
+  test('router-level middleware rejects impersonated sessions', () => {
+    expect(routerMiddleware(adminRestaurantSupportRouter)).toContain(rejectImpersonated);
+  });
+
+  test('the guard runs after requireAdmin in the router middleware chain', () => {
+    const fns = routerMiddleware(adminRestaurantSupportRouter);
+    const guardIdx = fns.indexOf(rejectImpersonated);
+    expect(guardIdx).toBeGreaterThan(0);
+  });
+
+  test('every mutation route on the router inherits the guard', () => {
+    // The guard is mounted once via router.use, so each route's own stack
+    // is unchanged; assert the router-level chain covers the mutation
+    // paths by checking they exist on the router at all.
+    const paths = routeHandlers(adminRestaurantSupportRouter, '/cases/:caseId/close');
+    expect(paths.length).toBeGreaterThan(0);
+    expect(routerMiddleware(adminRestaurantSupportRouter)).toContain(rejectImpersonated);
+  });
+});
+
+describe('Domain 6 finding 11: rejectImpersonated on super-admin credit mutations', () => {
+  test('subscription step-up-challenge issue', () => {
+    expectGuarded(adminRouter, '/super/subscriptions/stepup-challenges');
+  });
+
+  test('external reconciliation run', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/external-reconciliation');
+  });
+
+  test('backfill requeue', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/backfill/requeue');
+  });
+
+  test('reconciliation run', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/reconciliation');
+  });
+
+  test('compliance verification decision', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/compliance/verifications/:id/decision');
+  });
+
+  test('compliance verification appeal decision', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/compliance/verifications/:id/appeal-decision');
+  });
+
+  test('compliance sanctions decision', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/compliance/sanctions/:id/decision');
+  });
+
+  test('compliance case transition', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/compliance/cases/:id/transition');
+  });
+
+  test('credit step-up-challenge issue', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/stepup-challenges');
+  });
+
+  test('withdrawal reject', () => {
+    expectGuarded(adminRouter, '/super/oxsteed-credit/withdrawals/:id/reject');
+  });
+
+  test('the guard runs after auth and before the limiter on external reconciliation', () => {
+    const handlers = routeHandlers(adminRouter, '/super/oxsteed-credit/external-reconciliation');
+    const guardIdx = handlers.indexOf(rejectImpersonated);
+    expect(guardIdx).toBeGreaterThan(0);
+    expect(guardIdx).toBeLessThan(handlers.length - 1);
   });
 });

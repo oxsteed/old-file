@@ -1,11 +1,12 @@
 'use strict';
 
 // Audit fix (auth finding 15, issuance track): the maker step-up on both
-// affiliate process routes needs an issue path. The generic admin issue
-// endpoint gates on ADMIN_STEPUP_ACTION_TYPES (derived from the TOTP-only
-// list), which deliberately excludes 'affiliate_payout_process', so the
+// affiliate process routes needs an issue path. Domain 6 finding 6
+// (2026-11-13): affiliate_payout_process is a TOTP action, so the
 // dedicated POST /:payoutId/stepup-challenges endpoint on the affiliate
-// router issues it with the payout's payable amount.
+// router issues it with the payout's payable amount (the generic admin
+// issue endpoint accepts it too, since ADMIN_STEPUP_ACTION_TYPES is
+// derived from the TOTP-only list).
 const { mockQuery, resetMocks } = require('./setup');
 
 const mockIssue = jest.fn();
@@ -33,7 +34,7 @@ beforeEach(() => {
   mockIssue.mockReset();
   mockIssue.mockImplementation(async (args) => ({
     challenge: { id: 'ch_1', actionType: args.actionType, amountCents: args.amountCents, currencyCode: args.currencyCode, expiresAt: new Date().toISOString() },
-    delivery: 'email',
+    delivery: 'totp',
   }));
 });
 
@@ -53,7 +54,7 @@ test('issues with the payable amount: net wins when present', async () => {
   expect(r.status).toHaveBeenCalledWith(201);
   expect(r.json).toHaveBeenCalledWith({
     challenge: expect.objectContaining({ id: 'ch_1', actionType: 'affiliate_payout_process', amountCents: 1200, currencyCode: 'USD' }),
-    delivery: 'email',
+    delivery: 'totp',
   });
 });
 

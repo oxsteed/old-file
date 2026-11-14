@@ -97,6 +97,12 @@ async function approve(conn, campaign, user, totp, checklist) {
     })
   )
     throw new Error("growth_stepup_invalid");
+  // Domain 6 #7: consume this step's counter so the code cannot approve a
+  // second campaign (or verify elsewhere) in the same step. A replay
+  // surfaces as the existing growth_stepup_replayed error, identical to
+  // the proof-hash replay below.
+  if (!(await require("./totpReplayGuard").consumeTotpCounter(conn, user.id)))
+    throw new Error("growth_stepup_replayed");
   const proof = require("./identity").key("approval", `${user.id}:${totp}`);
   await conn.query("DELETE FROM growth_approval_proofs WHERE expires_at<NOW()");
   const { rowCount } = await conn.query(

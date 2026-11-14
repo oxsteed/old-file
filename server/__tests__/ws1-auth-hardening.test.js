@@ -344,6 +344,26 @@ describe('H10 authController lockout and cooldowns', () => {
     expect(res.status).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith({ message: 'OTP sent' });
   });
+
+  test('F-07 (Domain 6 #1): channel sms + caller-supplied phone never texts that phone', async () => {
+    // Regression test for the Domain 6 auth finding #1: requestOTP must
+    // deliver only to contact points already on the account. The `phone`
+    // body variant is covered above; this covers the `channel: 'sms'`
+    // trigger with an unverified phone on file, which must fall back to
+    // the account email instead of texting the caller-supplied number.
+    const { sendOTPSMS } = require('../utils/sms');
+    const { sendOTPEmail } = require('../utils/email');
+    sendOTPSMS.mockClear();
+    sendOTPEmail.mockClear();
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'u1', preferred_language: 'en', otp_locked_until: null, otp_last_sent_at: null, phone: '+15557778888', phone_verified: false }],
+    });
+    const res = mockRes();
+    await auth.requestOTP({ body: { email: 'victim@x.com', channel: 'sms', phone: '+15550001111' } }, res);
+    expect(sendOTPSMS).not.toHaveBeenCalled();
+    expect(sendOTPEmail).toHaveBeenCalledWith('victim@x.com', expect.any(String), 'en');
+    expect(res.json).toHaveBeenCalledWith({ message: 'OTP sent' });
+  });
 });
 
 // ─── H11 / M22: twoFactorController.validate2FA ──────────────────────────────
