@@ -207,16 +207,28 @@ async function sendSMSIfOptedIn(userId, messageBody, notificationType, orderId =
       return false;
     }
 
-    if (orderId != null) {
+    const isOrderSms = orderId != null;
+    if (isOrderSms) {
+      // Item 32: the budget is per event type (2 per type per order per
+      // day), so a cancellation/refund SMS is never crowded out by two
+      // earlier lifecycle sends for the same order.
       const budget = await pool.query(`INSERT INTO order_sms_budgets(user_id,order_key,day,reserved)
         VALUES($1,$2,CURRENT_DATE,1) ON CONFLICT(user_id,order_key,day)
         DO UPDATE SET reserved=order_sms_budgets.reserved+1 WHERE order_sms_budgets.reserved<2 RETURNING reserved`,
-        [userId,String(orderId)]);
-      if (!budget.rows.length) return false;
+        [userId, `${String(orderId)}:${notificationType}`]);
+      if (!budget.rows.length) {
+        logger.warn('Order SMS budget exhausted', { userId, orderId, notificationType });
+        return false;
+      }
       // Retain reservations on an uncertain send outcome; never retry past cap.
     }
-    // Send SMS via Twilio
-    const result = await sendTwilioSMS(phone_number, messageBody);
+    // Item 32: order SMS must use the configured provider. sendTwilioSMS
+    // returns a mock_sid when Twilio is unconfigured, which made callers
+    // believe an SMS was sent; sendConfiguredSMS throws instead, and the
+    // outer handler reports the failure honestly.
+    const result = isOrderSms
+      ? await sendConfiguredSMS(phone_number, messageBody)
+      : await sendTwilioSMS(phone_number, messageBody);
 
     // Audit fix (ITEM 9): do not store the full SMS body. Log the SHA-256 hash
     // and a 20-char redacted preview only; message_body is hard-coded to the
