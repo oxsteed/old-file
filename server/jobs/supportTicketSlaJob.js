@@ -17,6 +17,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { withFencedJobLock } = require('./jobLockingService');
 const { resolveSupportStaffIds, notifySupportStaff } = require('../services/supportNotificationService');
 
 const JOB_NAME = 'support-ticket-sla';
@@ -235,7 +236,15 @@ async function sweepSupportTicketSla(db) {
 
 async function runSupportTicketSlaJob(dbClient) {
   const db = dbClient || pool;
-  const result = await sweepSupportTicketSla(db);
+  // Item 29: the sweep runs under the fenced job lock (300s TTL for the
+  // 15-minute cadence), like the outbox jobs, so two replicas never run
+  // the same escalation pass concurrently. A tick that cannot acquire
+  // the lock is skipped instead of double-escalating.
+  const result = await withFencedJobLock(JOB_NAME, async () => sweepSupportTicketSla(db), 300);
+  if (result?.skipped) {
+    logger.info('Support ticket SLA sweep skipped (another instance holds the lock)', { job: JOB_NAME });
+    return { escalated: 0, reescalated: 0, skipped: true };
+  }
   if (result.escalated > 0 || result.reescalated > 0) {
     logger.info('Support ticket SLA sweep completed', { ...result, job: JOB_NAME });
   }

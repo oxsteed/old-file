@@ -14,15 +14,20 @@ jest.mock('../services/supportNotificationService', () => ({
   resolveSupportStaffIds: jest.fn().mockResolvedValue(['admin-1', 'admin-2']),
   notifySupportStaff: jest.fn().mockResolvedValue({ notified: 2, failed: 0, recipients: 2 }),
 }));
+jest.mock('../jobs/jobLockingService', () => ({
+  withFencedJobLock: jest.fn(),
+}));
 
-const { sweepSupportTicketSla } = require('../jobs/supportTicketSlaJob');
+const { sweepSupportTicketSla, runSupportTicketSlaJob } = require('../jobs/supportTicketSlaJob');
 const { broadcastToAdmins } = require('../services/socketService');
 const { notifySupportStaff, resolveSupportStaffIds } = require('../services/supportNotificationService');
+const { withFencedJobLock } = require('../jobs/jobLockingService');
 
 beforeEach(() => {
   jest.clearAllMocks();
   resolveSupportStaffIds.mockResolvedValue(['admin-1', 'admin-2']);
   notifySupportStaff.mockResolvedValue({ notified: 2, failed: 0, recipients: 2 });
+  withFencedJobLock.mockReset();
 });
 
 function stubDb({ first = [], reescalation = [] } = {}) {
@@ -119,6 +124,26 @@ test('does not stamp the round when staff resolution itself fails', async () => 
 
   expect(result).toEqual(expect.objectContaining({ reescalated: 0 }));
   expect(calls.some((sql) => /UPDATE/i.test(sql) && /sla_last_reescalated_at/.test(sql))).toBe(false);
+});
+
+test('runSupportTicketSlaJob runs the sweep under the fenced job lock (item 29)', async () => {
+  withFencedJobLock.mockImplementation(async (_name, handler) => handler());
+  const { db } = stubDb({ first: [FIRST_TICKET] });
+
+  const result = await runSupportTicketSlaJob(db);
+
+  expect(withFencedJobLock).toHaveBeenCalledWith('support-ticket-sla', expect.any(Function), 300);
+  expect(result).toEqual(expect.objectContaining({ escalated: 1, reescalated: 0 }));
+});
+
+test('runSupportTicketSlaJob skips the sweep when another instance holds the lock', async () => {
+  withFencedJobLock.mockResolvedValue({ skipped: true, lockSkipped: true });
+  const { db } = stubDb({ first: [FIRST_TICKET] });
+
+  const result = await runSupportTicketSlaJob(db);
+
+  expect(result).toEqual({ escalated: 0, reescalated: 0, skipped: true });
+  expect(db.query).not.toHaveBeenCalled();
 });
 
 test('a failed breach notification does not stamp the re-escalation round', async () => {
