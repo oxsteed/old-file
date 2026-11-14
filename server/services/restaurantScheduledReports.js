@@ -638,6 +638,15 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
       }
       delivery = claim.delivery;
       const payload = await buildScheduledReport(db, { restaurant, schedule, businessDate, asOf });
+      // Money flows W4: re-assert the lease after the build and
+      // before the send. The build (daily close / labor / digests)
+      // can be long, and the senders below (sendNotification /
+      // sendEmail) do not take the fence: without this checkpoint a
+      // lease lost mid-build still delivered through the raw pool,
+      // and only the ledger update afterwards threw. The claim and
+      // the ledger updates go through fence.db, so they assert on
+      // their own; this checkpoint guards the send itself.
+      if (fence) fence.assertActive();
       const outcome = await deliverScheduledReport(db, { schedule, payload, deliveryId: delivery.id });
       // Background-jobs audit #41: a {success:false} recipient is a
       // failed delivery, not a partial success. Throw so the catch
