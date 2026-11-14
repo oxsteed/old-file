@@ -8,6 +8,7 @@ const logger        = require('../utils/logger');
 const crypto        = require('crypto');
 const redis         = require('../utils/redis');
 const metricsService = require('../services/metricsService');
+const { sendNotification } = require('../services/notificationService');
 const { AppError }  = require('../middleware/errorHandler');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const availabilityService = require('../services/helperAvailabilityService');
@@ -1549,15 +1550,26 @@ async function removeCredential(req, res, next) {
         [id, credential_type, removal_reason, notes || null, req.user.id],
       );
 
-      // Create in-app notification for helper
+      // Item 11: capture for post-COMMIT sendNotification — a direct
+      // INSERT bypassed preferences/push/email/socket, and the credential
+      // type travels in data (the old related_entity_* columns are
+      // preserved there so the notification centre still shows it).
       const notificationMessage = `Your ${credential_type} was removed because: ${removal_reason.replace(/_/g, ' ')}`;
-      await client.query(
-        `INSERT INTO notifications (user_id, type, title, body, related_entity_type, related_entity_id)
-         VALUES ($1, 'credential_removed', 'Credential Removed', $2, 'credential', $3)`,
-        [id, notificationMessage, credential_type],
-      );
+      const pendingNotification = {
+        userId: id,
+        type: 'credential_removed',
+        title: 'Credential Removed',
+        body: notificationMessage,
+        data: { credential_type, removal_reason, related_entity_type: 'credential', related_entity_id: credential_type },
+        idempotencyKey: `credential-removed:${id}:${credential_type}:${removal_reason}`,
+      };
 
       await client.query('COMMIT');
+      try {
+        await sendNotification(pendingNotification);
+      } catch (notifyErr) {
+        logger.warn('Credential removal notification failed (non-critical)', { helperId: id, error: notifyErr.message });
+      }
     } catch (txErr) {
       await client.query('ROLLBACK');
       throw txErr;

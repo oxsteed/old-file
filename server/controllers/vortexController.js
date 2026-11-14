@@ -5,6 +5,7 @@
 const crypto = require('crypto');
 const pool   = require('../db');
 const logger = require('../utils/logger');
+const { sendNotification } = require('../services/notificationService');
 
 // P1-b: token failures return the same generic 404 as access codes — never
 // leak whether a token exists, is expired, was used, or was revoked.
@@ -295,24 +296,23 @@ async function redeemToken(req, res) {
       return res.status(409).json({ error: 'A membership already exists - the token was not consumed' });
     }
 
-    // 6. Notify the business owner
-    // (notifications columns are body/data — the old message/metadata
-    // insert threw and rolled back the whole redemption, S-01.)
-    await client.query(
-      `INSERT INTO notifications (user_id, type, title, body, data)
-       VALUES ($1, 'vortex_redeemed', $2, $3, $4)`,
-      [
-        record.owner_id,
-        `${req.user.first_name || 'Someone'} joined "${record.business_name}"`,
-        `${req.user.first_name || 'A new member'} ${req.user.last_name || ''} has joined "${record.business_name}" as a ${record.role} via Vortex.`,
-        JSON.stringify({
-          business_id: record.business_id,
-          business_name: record.business_name,
-          member_id: req.user.id,
-          role: record.role,
-        }),
-      ]
-    );
+    // 6. Notify the business owner — captured for post-COMMIT
+    // sendNotification. (The old direct INSERT sat inside this
+    // transaction, bypassed every preference, and a failure here used to
+    // roll back the whole redemption, S-01.)
+    const pendingNotification = {
+      userId: record.owner_id,
+      type: 'vortex_redeemed',
+      title: `${req.user.first_name || 'Someone'} joined "${record.business_name}"`,
+      body: `${req.user.first_name || 'A new member'} ${req.user.last_name || ''} has joined "${record.business_name}" as a ${record.role} via Vortex.`,
+      data: {
+        business_id: record.business_id,
+        business_name: record.business_name,
+        member_id: req.user.id,
+        role: record.role,
+      },
+      idempotencyKey: `vortex-redeemed:${record.business_id}:${req.user.id}:${insertRes.rows[0]?.id || 'membership'}`,
+    };
 
     // Member roles (manager/representative) are not schema enum values;
     // the grant itself is a business role addition.
@@ -320,6 +320,11 @@ async function redeemToken(req, res) {
 
     await client.query('COMMIT');
     // ── End transaction ───────────────────────────────────────────────────────
+    try {
+      await sendNotification(pendingNotification);
+    } catch (notifyErr) {
+      logger.warn('Vortex redemption notification failed (non-critical)', { error: notifyErr.message });
+    }
 
     return res.json({
       ok: true,

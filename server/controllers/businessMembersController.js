@@ -85,11 +85,47 @@ async function localizedNotificationText(client, { userId, type, title, body, da
 
 async function insertNotification(client, { userId, type, title, body, data }) {
   const text = await localizedNotificationText(client, { userId, type, title, body, data });
-  await client.query(
-    `INSERT INTO notifications (user_id, type, title, body, data)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [userId, type, text.title, text.body, JSON.stringify(data || {})]
+  // Item 11: this shared helper used to INSERT unconditionally, bypassing
+  // every preference. It stays in-transaction (S-01: the membership change
+  // and its notification commit or roll back together), but now honours
+  // the per-type in-app opt-out and dedupes on a deterministic delivery
+  // key, so a retried handler cannot notify twice. Push/email legs are
+  // not added here — the row renders in the notification centre via the
+  // list API; a post-commit sendNotification would need all five call
+  // sites restructured around withTransaction.
+  const prefKey = `in_app_${String(type).replace(':', '_')}`;
+  // SELECT np.* (never a dynamic column name): the per-type column may
+  // not exist yet, and a failed query inside this transaction would abort
+  // the whole membership change. An absent key reads as undefined and
+  // defaults to allowed, matching sendNotification's prefAllows. The
+  // check runs under a savepoint so a prefs-table failure can never fail
+  // the membership change itself — it just falls through to insert.
+  try {
+    await client.query('SAVEPOINT notif_pref_check');
+    const { rows: [prefs] } = await client.query(
+      `SELECT np.* FROM notification_preferences np WHERE np.user_id = $1`,
+      [userId]
+    );
+    await client.query('RELEASE SAVEPOINT notif_pref_check');
+    if (prefs && prefs[prefKey] === false) return null;
+  } catch {
+    await client.query('ROLLBACK TO SAVEPOINT notif_pref_check').catch(() => {});
+  }
+  const { deriveIdempotencyKey } = require('../services/notificationService');
+  const deliveryKey = deriveIdempotencyKey({ type, userId, title: text.title, body: text.body, data });
+  const { rows } = await client.query(
+    `INSERT INTO notifications (user_id, type, title, body, data, delivery_key)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (delivery_key) WHERE delivery_key IS NOT NULL DO NOTHING
+     RETURNING id`,
+    [userId, type, text.title, text.body, JSON.stringify(data || {}), deliveryKey]
   );
+  if (rows[0]) return rows[0].id;
+  const { rows: existing } = await client.query(
+    `SELECT id FROM notifications WHERE delivery_key = $1 LIMIT 1`,
+    [deliveryKey]
+  );
+  return existing[0]?.id || null;
 }
 
 // ── GET /api/businesses/:id/members ──────────────────────────────────────────
