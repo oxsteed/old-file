@@ -1,6 +1,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendEmail, sendEmailBatch } = require('../utils/email');
+const { purgeStaleDigestQueueRows, recordDigestDeliveryAttempt } = require('../services/digestDelivery');
 const { mapBounded } = require('../utils/boundedBatch');
 const crypto = require('crypto');
 const { maskEmail } = require('../utils/directQuote');
@@ -71,6 +72,11 @@ async function processEmailDigest(digestType = 'daily') {
   try {
     logger.info(`Starting ${digestType} email digest batch`, { digestType });
 
+    // Item 28: drop rows that can never deliver again (deleted /
+    // unsubscribed users, dead letters past retention) before deriving
+    // the watermark, so the backlog stops growing selection work.
+    await purgeStaleDigestQueueRows(pool);
+
     const { rows: [watermark] } = await pool.query('SELECT MAX(id) AS id FROM email_digest_queue');
     if (!watermark?.id) return { processed: 0, failed: 0 };
     let cursor = null, processed = 0, failed = 0;
@@ -79,6 +85,7 @@ async function processEmailDigest(digestType = 'daily') {
         SELECT DISTINCT edq.user_id FROM email_digest_queue edq
         JOIN notification_preferences np ON np.user_id=edq.user_id
         WHERE edq.sent_at IS NULL AND edq.id<=$3
+          AND edq.dead_lettered_at IS NULL
           AND np.email_frequency=$1 AND np.unsubscribe_all=FALSE AND np.email_notifications=TRUE
           AND ($2::uuid IS NULL OR edq.user_id>$2)
         ORDER BY edq.user_id LIMIT 100`, [digestType, cursor, watermark.id]);
@@ -92,12 +99,19 @@ async function processEmailDigest(digestType = 'daily') {
       const batch = prepared.filter(item => item && item.message);
       if (batch.length) {
         const identity = crypto.createHash('sha256').update(JSON.stringify(batch.map(item=>item.queueIds))).digest('hex');
+        const ids = batch.flatMap(item=>item.queueIds);
         try {
           await sendEmailBatch(batch.map(item=>item.message), { idempotencyKey: `digest:${digestType}:${identity}` });
-          const ids = batch.flatMap(item=>item.queueIds);
           await pool.query('UPDATE email_digest_queue SET sent_at=CURRENT_TIMESTAMP WHERE id=ANY($1) AND sent_at IS NULL', [ids]);
           processed += batch.length;
-        } catch { failed += batch.length; logger.warn('Digest batch outcome unconfirmed', { count: batch.length }); }
+        } catch {
+          failed += batch.length;
+          // Item 28: an unconfirmed batch outcome is a failed attempt,
+          // not a send — count it toward the dead-letter threshold and
+          // never mark the rows sent.
+          await recordDigestDeliveryAttempt(pool, ids, false);
+          logger.warn('Digest batch outcome unconfirmed', { count: batch.length });
+        }
       }
       cursor = users[users.length - 1].user_id;
     }
@@ -177,9 +191,13 @@ async function processSingleUserDigest(userId, digestType, { prepareOnly = false
       const { idempotencyKey, ...batchMessage } = message;
       return { message: batchMessage, queueIds: notifications.map(n=>n.id) };
     }
+    const queueIds = notifications.map(n => n.id);
     const delivery = await sendEmail(message);
     if (!delivery?.success) {
       logger.warn('Email digest delivery failed', { userId, digestType, error: delivery?.error || 'provider unavailable' });
+      // Item 28: count the failed attempt toward the dead-letter
+      // threshold; the rows stay unsent for retry.
+      await recordDigestDeliveryAttempt(pool, queueIds, false);
       return false;
     }
 
@@ -192,7 +210,6 @@ async function processSingleUserDigest(userId, digestType, { prepareOnly = false
     });
 
     // Mark as sent
-    const queueIds = notifications.map(n => n.id);
     if (queueIds.length > 0) {
       await pool.query(`
         UPDATE email_digest_queue

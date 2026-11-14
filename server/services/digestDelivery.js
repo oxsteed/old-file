@@ -32,6 +32,11 @@
 const { sendEmail } = require('../utils/email');
 const logger = require('../utils/logger');
 
+// Rows that fail this many consecutive delivery attempts are
+// dead-lettered: excluded from selection and purged after retention.
+const DIGEST_MAX_ATTEMPTS = 3;
+const DIGEST_DEAD_LETTER_RETENTION_DAYS = 30;
+
 /**
  * Pure decision over a loaded recipient. `skipWhenPrefFalse` names extra
  * per-type preference keys that must not be false (e.g. marketing_emails
@@ -148,8 +153,63 @@ async function deliverDigestEmail(queryable, {
   return { delivered: false, queued: false, reason: 'delivery_failed', error: delivery?.error || 'provider unavailable' };
 }
 
+/**
+ * Item 28: purge digest queue rows that can never be delivered again —
+ * the user was deleted, unsubscribed from all email, or turned email
+ * notifications off — plus dead-lettered rows past retention. Returns
+ * the number of rows removed.
+ */
+async function purgeStaleDigestQueueRows(queryable) {
+  const { rowCount } = await queryable.query(
+    `DELETE FROM email_digest_queue edq
+      WHERE (edq.dead_lettered_at IS NOT NULL
+             AND edq.dead_lettered_at < NOW() - ($1::text || ' days')::interval)
+         OR EXISTS (SELECT 1 FROM users u
+                     WHERE u.id = edq.user_id AND u.deleted_at IS NOT NULL)
+         OR EXISTS (SELECT 1 FROM notification_preferences np
+                     WHERE np.user_id = edq.user_id
+                       AND (np.unsubscribe_all = TRUE OR np.email_notifications = FALSE))`,
+    [String(DIGEST_DEAD_LETTER_RETENTION_DAYS)]
+  );
+  if (rowCount) logger.info('[digestDelivery] purged stale digest queue rows', { purged: rowCount });
+  return rowCount || 0;
+}
+
+/** Item 28/50: drop one user's undelivered digest rows (deleted user, or
+ *  a per-user lookup miss). Returns the number of rows removed. */
+async function purgeUserDigestQueueRows(queryable, userId) {
+  const { rowCount } = await queryable.query(
+    'DELETE FROM email_digest_queue WHERE user_id = $1 AND sent_at IS NULL',
+    [userId]
+  );
+  return rowCount || 0;
+}
+
+/**
+ * Item 28: record one delivery attempt over queued rows. A success is a
+ * no-op here (the caller marks sent_at); a failure increments
+ * attempt_count and dead-letters rows that reach DIGEST_MAX_ATTEMPTS
+ * consecutive failures. Never marks rows sent.
+ */
+async function recordDigestDeliveryAttempt(queryable, queueIds, succeeded) {
+  if (!queueIds || !queueIds.length || succeeded) return 0;
+  const { rowCount } = await queryable.query(
+    `UPDATE email_digest_queue
+        SET attempt_count = attempt_count + 1,
+            dead_lettered_at = CASE WHEN attempt_count + 1 >= $2 THEN NOW() ELSE dead_lettered_at END
+      WHERE id = ANY($1) AND sent_at IS NULL AND dead_lettered_at IS NULL`,
+    [queueIds, DIGEST_MAX_ATTEMPTS]
+  );
+  return rowCount || 0;
+}
+
 module.exports = {
+  DIGEST_MAX_ATTEMPTS,
+  DIGEST_DEAD_LETTER_RETENTION_DAYS,
   decideEmailDelivery,
   loadDigestRecipient,
   deliverDigestEmail,
+  purgeStaleDigestQueueRows,
+  purgeUserDigestQueueRows,
+  recordDigestDeliveryAttempt,
 };
