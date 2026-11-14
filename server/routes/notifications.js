@@ -16,7 +16,10 @@ router.put('/read-all',          authenticate, (req, res, next) => {
 });
 router.get('/preferences',       authenticate, notifCtrl.getPreferences);
 router.put('/preferences',       authenticate, notifCtrl.updatePreferences);
-router.post('/push-token',       authenticate, notifCtrl.registerPushToken);
+
+// Item 34: POST /push-token deleted (see notificationController.js) — it
+// wrote legacy rows no sender reads. Live paths: /mobile/push-token,
+// /notifications/webpush/subscribe.
 
 // ─── Web Push (W3C Push API + VAPID) ─────────────────────────
 // Public - needed before the browser can call pushManager.subscribe()

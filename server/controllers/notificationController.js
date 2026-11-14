@@ -233,28 +233,7 @@ exports.updatePreferences = async (req, res, next) => {
   }
 };
 
-// ─── REGISTER PUSH TOKEN ──────────────────────────────────────
-exports.registerPushToken = async (req, res, next) => {
-  try {
-    const userId = req.user.id;
-    const { token } = req.body;
-
-    const fields = {};
-    if (!token) fields.token = 'Push token required';
-    if (Object.keys(fields).length) {
-      throw new AppError('Validation failed', 400, 'validation_failed', fields);
-    }
-
-    await db.query(
-      `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, user_agent)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (endpoint) DO UPDATE
-       SET user_id = $1, p256dh = $3, auth = $4, user_agent = $5, last_used_at = now()`,
-      [userId, token, 'legacy', 'legacy', req.headers['user-agent'] || null]
-    );
-
-    return res.json({ success: true, message: 'Push token registered.' });
-  } catch (err) {
-    next(err);
-  }
-};
+// Item 34: the duplicate POST /notifications/push-token endpoint is deleted.
+// It wrote p256dh='legacy' rows that webPushService explicitly excludes, so
+// no sender ever read them. Live paths are POST /mobile/push-token and
+// POST /notifications/webpush/subscribe.
