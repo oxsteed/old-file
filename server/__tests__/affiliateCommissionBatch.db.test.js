@@ -163,4 +163,84 @@ dbDescribe('affiliate auto-confirm never confirms refunded orders', () => {
     expect(byId[String(cleanCommissionId)]).toBe('confirmed');
     expect(byId[String(wonChargebackCommissionId)]).toBe('confirmed');
   });
+
+  test('a NULL-rate program is flagged once and never re-selected (cost audit 2026-11-13 item 15)', async () => {
+    const nullTag = crypto.randomBytes(8).toString('hex');
+    const nullCustomerId = crypto.randomUUID();
+    const nullHelperId = crypto.randomUUID();
+    let nullProgramId;
+    let nullOrderId;
+    let nullProductId;
+    let nullCartId;
+    try {
+      for (const [id, label, role] of [[nullCustomerId, 'customer', 'customer'], [nullHelperId, 'helper', 'helper']]) {
+        await pool.query(
+          `INSERT INTO users(id, email, password_hash, first_name, last_name, role, email_verified, is_active)
+           VALUES ($1, $2, 'synthetic-fixture', 'Synthetic', $3, $4, true, true)`,
+          [id, `${label}-nullrate-${nullTag}@example.test`, label, role]
+        );
+      }
+      const { rows: [prod] } = await pool.query(
+        `INSERT INTO marketplace_products(name, affiliate_url) VALUES ($1, $2) RETURNING id`,
+        [`Synthetic null-rate product ${nullTag}`, `https://example.com/item-${nullTag}`]
+      );
+      nullProductId = prod.id;
+      const { rows: [cart] } = await pool.query(
+        `INSERT INTO shopping_carts(helper_id) VALUES ($1) RETURNING id`,
+        [nullHelperId]
+      );
+      nullCartId = cart.id;
+      const { rows: [prog] } = await pool.query(
+        `INSERT INTO affiliate_programs(helper_id, program_type, commission_rate, status)
+         VALUES ($1, 'custom', NULL, 'active') RETURNING id`,
+        [nullHelperId]
+      );
+      nullProgramId = prog.id;
+      const { rows: [ord] } = await pool.query(
+        `INSERT INTO marketplace_orders(customer_id, cart_id, total_cents, subtotal_cents, status, completed_at)
+         VALUES ($1, $2, 10000, 10000, 'paid', NOW()) RETURNING id`,
+        [nullCustomerId, nullCartId]
+      );
+      nullOrderId = ord.id;
+      await pool.query(
+        `INSERT INTO marketplace_order_items(order_id, product_id, quantity, unit_price_cents, total_price_cents)
+         VALUES ($1, $2, 1, 10000, 10000)`,
+        [nullOrderId, nullProductId]
+      );
+
+      await runAffiliateCommissionBatch();
+      const { rows: [afterFirst] } = await pool.query(
+        `SELECT commission_rate_missing_at FROM affiliate_programs WHERE id = $1`, [nullProgramId]
+      );
+      expect(afterFirst.commission_rate_missing_at).not.toBeNull();
+      const firstMarker = afterFirst.commission_rate_missing_at;
+      let { rows: commissions } = await pool.query(
+        `SELECT id FROM affiliate_commissions WHERE order_id = $1`, [nullOrderId]
+      );
+      expect(commissions).toHaveLength(0);
+
+      await runAffiliateCommissionBatch();
+      const { rows: [afterSecond] } = await pool.query(
+        `SELECT commission_rate_missing_at FROM affiliate_programs WHERE id = $1`, [nullProgramId]
+      );
+      // The second run never re-selects the row, so the marker is untouched.
+      expect(new Date(afterSecond.commission_rate_missing_at).getTime()).toBe(new Date(firstMarker).getTime());
+      ({ rows: commissions } = await pool.query(
+        `SELECT id FROM affiliate_commissions WHERE order_id = $1`, [nullOrderId]
+      ));
+      expect(commissions).toHaveLength(0);
+      // Exactly one deduped incident for the program, recorded on the first run.
+      const { rows: incidents } = await pool.query(
+        `SELECT id FROM incident_log WHERE dedupe_key = $1`, [`affiliate-program-null-rate:${nullProgramId}`]
+      );
+      expect(incidents).toHaveLength(1);
+    } finally {
+      if (nullOrderId) await pool.query(`DELETE FROM marketplace_order_items WHERE order_id = $1`, [nullOrderId]);
+      if (nullOrderId) await pool.query(`DELETE FROM marketplace_orders WHERE id = $1`, [nullOrderId]);
+      if (nullProgramId) await pool.query(`DELETE FROM affiliate_programs WHERE id = $1`, [nullProgramId]);
+      if (nullCartId) await pool.query(`DELETE FROM shopping_carts WHERE id = $1`, [nullCartId]);
+      if (nullProductId) await pool.query(`DELETE FROM marketplace_products WHERE id = $1`, [nullProductId]);
+      if (nullProgramId) await pool.query(`DELETE FROM incident_log WHERE dedupe_key = $1`, [`affiliate-program-null-rate:${nullProgramId}`]);
+    }
+  });
 });

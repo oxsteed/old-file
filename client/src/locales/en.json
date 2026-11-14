@@ -20603,10 +20603,13 @@
     "estimate": {
       "title": "Get an instant estimate",
       "itemSize": "Item size",
-      "defaults": "Standard service · {{weight}} default weight.",
+      "defaults": "Standard service. Priced at {{weight}}; this size holds up to {{cap}}.",
       "get": "Get estimate",
       "line": "Est: {{total}}, about {{duration}}",
-      "continue": "Continue to book"
+      "continue": "Continue to book",
+      "distance": "Distance",
+      "routeTime": "Route time",
+      "sizePrices": "Price by size"
     },
     "tabs": {
       "driving": "Driving"
@@ -20625,6 +20628,26 @@
       "schematic": "Schematic, not to scale"
     },
     "pricingNote": "Pricing uses a minimum fare, included distance, package size, service speed, and a clear platform fee.",
+    "pricing": {
+      "title": "How pricing works",
+      "base": "Base fare $9.00, including the first 5 miles.",
+      "extraMile": "$1.75 for each mile after the first 5.",
+      "minimum": "Minimum fare $15.00.",
+      "platformFee": "Platform fee 12% of the delivery subtotal, at least $2.99.",
+      "driverShare": "Drivers receive 80% of the delivery subtotal, at least $12.00.",
+      "size": "Size surcharges: Small $0, Medium $5.00, Large $12.00, Oversized $25.00.",
+      "weight": "Price depends on package size, not exact weight. Weight only has to stay under the size limit."
+    },
+    "howItWorks": {
+      "step1": "Post your delivery with pickup, drop-off, and item details.",
+      "step2": "A nearby approved driver claims it.",
+      "step3": "Follow pickup, transit, and handoff, and confirm delivery with your chosen proof."
+    },
+    "proofInfo": {
+      "title": "Proof of delivery",
+      "body": "Every delivery is confirmed with the proof method you choose: PIN, signature, photo, or recipient confirmation.",
+      "declaredValue": "Declared value up to $10,000 is recorded for the shipment. It is not insurance coverage."
+    },
     "customer": {
       "title": "Book a delivery",
       "body": "Tell us where it starts, where it is going, and how quickly it needs to arrive.",
@@ -20635,8 +20658,14 @@
       "package": "Package size",
       "weight": "Weight (lb)",
       "serviceLevel": "Speed",
-      "notes": "Delivery notes",
+      "notes": "Notes for your driver",
       "notesPlaceholder": "Access instructions, landmarks, or special handling",
+      "itemDescription": "What is the item?",
+      "itemDescriptionPlaceholder": "Describe the item so the driver knows what to expect",
+      "timingTitle": "When should we pick it up?",
+      "timingAsap": "As soon as possible",
+      "timingScheduled": "Schedule for later",
+      "asapNote": "Pickup starts in about 15 minutes, with a 2-hour pickup window.",
       "getQuote": "Get a quote",
       "post": "Post delivery",
       "quoteTitle": "Your estimated price",
@@ -20753,6 +20782,7 @@
       "updated": "Updated {{date}}",
       "userId": "User ID",
       "usOnly": "Deliveries are limited to US addresses with a state.",
+      "notLocatable": "We could not locate that address. Check the spelling and try again.",
       "vehicleLabel": "Vehicle label",
       "vehicleType": "Vehicle type",
       "vehicles": "Vehicles",
@@ -20947,7 +20977,12 @@
         "rejected": "Declined",
         "captured": "Paid",
         "failed": "Payment failed"
-      }
+      },
+      "itemDescription": "Item",
+      "itemPhoto": "Item photo",
+      "itemPhotoUpload": "Add a photo of the item",
+      "itemPhotoHint": "JPG, PNG, or WebP, up to 10 MB. Visible to you and the assigned driver.",
+      "itemPhotosEmpty": "No item photo yet."
     },
     "events": {
       "delivery_posted": "Delivery request posted",
@@ -21368,7 +21403,19 @@
       "submitting": "Submitting...",
       "verified": "Driver verified",
       "pendingTitle": "Approval pending",
-      "pendingBody": "Your driver profile was submitted. Operations will review it shortly, and you can claim deliveries once it is approved."
+      "pendingBody": "Your driver profile was submitted. Operations will review it shortly, and you can claim deliveries once it is approved.",
+      "workTitle": "Deliveries you claim",
+      "workBody": "Open deliveries you can claim, and the ones you already claimed.",
+      "myClaimed": "Deliveries you claimed",
+      "availability": "Available for deliveries",
+      "availabilityNote": "When this is off, open deliveries are hidden until you go back online.",
+      "offlineNote": "Go online to see open deliveries.",
+      "earningsTitle": "Your earnings",
+      "earningsPaid": "Paid",
+      "earningsPending": "Pending",
+      "earningsVoided": "Voided",
+      "earningsEmpty": "No payouts yet.",
+      "helperModeHint": "Driver sign-up needs helper mode first. Switch to helper mode in settings, then come back here to register."
     }
   },
   "aboutPage": {

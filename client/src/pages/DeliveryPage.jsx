@@ -21,6 +21,7 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { useAuth } from '../context/AuthContext';
 import { canAccessOperationsWorkspace } from '../utils/logisticsWorkspaces';
+import { selectOpenJobs } from '../utils/deliveryDriverJobs';
 import {
   claimDeliveryJob,
   createDelivery,
@@ -31,6 +32,8 @@ import {
   updateDeliveryStatus,
   getDriverProfile,
   registerDriverProfile,
+  listMyDriverPayouts,
+  setDriverAvailability,
   deliveryMoney, deliveryUnit, deliveryError,
 } from '../api/delivery';
 import '../styles/DeliveryPage.css';
@@ -46,11 +49,43 @@ function emptyPlace() {
 function pointFromSuggestion(place, value) {
   return {
     address: place?.addressLine1 || place?.display || value,
+    // The full suggestion text: the server geocodes this when the
+    // suggestion carries no coordinates (manual fallback shape).
+    display: place?.display || value || '',
     city: place?.city || '',
     state: place?.state || '',
     country: String(place?.country || '').toUpperCase(),
     lat: place?.lat,
     lng: place?.lng,
+  };
+}
+
+// A stop with coordinates is validated locally; a stop with address text
+// but no coordinates goes to the server, which geocodes it before pricing.
+// Only a stop with neither text nor coordinates is a "choose a suggestion"
+// error. The server enforces the US-only rule after geocoding.
+function stopsReadyForPricing(origin, destination) {
+  return [origin, destination].every((point) => String(point?.address || point?.display || '').trim() || (point?.lat != null && point?.lng != null));
+}
+
+function stopsHaveUsCoords(origin, destination) {
+  return [origin, destination].every((point) => point?.lat == null || point?.lng == null || (point?.country === 'US' && point?.state));
+}
+
+// The server may locate stops the suggestion left coordinate-less. Carry the
+// located stops into state so the intake form and the booking send the
+// located city/state/country instead of the fallback parse.
+function mergeLocatedStop(previous, located) {
+  if (!located || located.lat == null || located.lng == null) return previous;
+  return {
+    ...previous,
+    address: located.address || previous.address,
+    display: located.display || previous.display,
+    city: located.city || previous.city,
+    state: located.state || previous.state,
+    country: located.country || previous.country,
+    lat: Number(located.lat),
+    lng: Number(located.lng),
   };
 }
 
@@ -87,6 +122,7 @@ function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
         <span><Package size={15} aria-hidden="true" />{t(`delivery.packageTypes.${job.package_type}`, { defaultValue: job.package_type })}</span>
         <span><Clock3 size={15} aria-hidden="true" />{t(`delivery.serviceLevels.${job.service_level}`, { defaultValue: job.service_level })}</span>
       </div>
+      {job.item_description && <p className="delivery-job-card__item">{job.item_description}</p>}
       <div className="delivery-job-card__footer">
         <div>
           <small>{helper ? t('delivery.helper.payout') : t('delivery.customer.total')}</small>
@@ -116,6 +152,10 @@ function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
 // The price itself depends on distance and size, not on the exact weight,
 // which only has to stay under the size cap.
 const SIZE_DEFAULT_WEIGHT_LBS = { small: 5, medium: 25, large: 75, oversized: 150 };
+// Size caps in pounds. Mirrors server PACKAGE_TYPES and the locale
+// packageTypes labels ("up to 25 lb"); prices never come from here, only
+// from the estimate response's server-computed sizePrices.
+const PACKAGE_CAPS_LBS = { small: 25, medium: 75, large: 150, oversized: 300 };
 const TERMINAL_DELIVERY_STATUSES = ['delivered', 'cancelled', 'returned'];
 
 // The mockup's "Get an instant estimate" card: two stops and an item size
@@ -136,11 +176,11 @@ function EstimateCard({ t, onContinue, cardRef }) {
   const getEstimate = async (event) => {
     event.preventDefault();
     setError('');
-    if ([origin, destination].some((point) => point.lat == null || point.lng == null || !Number.isFinite(Number(point.lat)) || !Number.isFinite(Number(point.lng)))) {
+    if (!stopsReadyForPricing(origin, destination)) {
       setError(t('delivery.customer.selectAddress'));
       return;
     }
-    if ([origin, destination].some((point) => point.country !== 'US' || !point.state)) {
+    if (!stopsHaveUsCoords(origin, destination)) {
       setError(t('delivery.ui.usOnly'));
       return;
     }
@@ -154,6 +194,8 @@ function EstimateCard({ t, onContinue, cardRef }) {
         serviceLevel: 'standard',
       });
       setEstimate(response.estimate);
+      if (response.estimate?.origin) setOrigin((previous) => mergeLocatedStop(previous, response.estimate.origin));
+      if (response.estimate?.destination) setDestination((previous) => mergeLocatedStop(previous, response.estimate.destination));
     } catch (requestError) {
       setEstimate(null);
       setError(deliveryError(requestError, t, 'delivery.errors.quote'));
@@ -170,11 +212,12 @@ function EstimateCard({ t, onContinue, cardRef }) {
           <span>{t('delivery.customer.pickup')}</span>
           <AddressAutocomplete
             value={originText}
-            onChange={(value) => { setOriginText(value); setOrigin(emptyPlace()); setEstimate(null); }}
+            onChange={(value) => { setOriginText(value); setOrigin({ ...emptyPlace(), address: value, display: value }); setEstimate(null); }}
             onSelect={(place) => setOrigin(pointFromSuggestion(place, originText))}
             placeholder={t('delivery.customer.pickupPlaceholder')}
             ariaLabel={t('delivery.customer.pickup')}
             inputClassName="delivery-input"
+            selectFullAddress
             required
           />
         </label>
@@ -182,30 +225,45 @@ function EstimateCard({ t, onContinue, cardRef }) {
           <span>{t('delivery.customer.dropoff')}</span>
           <AddressAutocomplete
             value={destinationText}
-            onChange={(value) => { setDestinationText(value); setDestination(emptyPlace()); setEstimate(null); }}
+            onChange={(value) => { setDestinationText(value); setDestination({ ...emptyPlace(), address: value, display: value }); setEstimate(null); }}
             onSelect={(place) => setDestination(pointFromSuggestion(place, destinationText))}
             placeholder={t('delivery.customer.dropoffPlaceholder')}
             ariaLabel={t('delivery.customer.dropoff')}
             inputClassName="delivery-input"
+            selectFullAddress
             required
           />
         </label>
         <label className="delivery-field">
           <span>{t('delivery.estimate.itemSize')}</span>
-          <select className="delivery-input" value={size} onChange={(event) => { setSize(event.target.value); setEstimate(null); }}>
-            {PACKAGE_OPTIONS.map((option) => <option key={option} value={option}>{t(`delivery.packageTypes.${option}`)}</option>)}
+          <select className="delivery-input" value={size} onChange={(event) => { setSize(event.target.value); }}>
+            {PACKAGE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {estimate?.sizePrices?.[option]
+                  ? `${t(`delivery.packageTypes.${option}`)} · ${deliveryMoney(estimate.sizePrices[option].customerTotalCents, i18n.language, estimate.pricing.currency)}`
+                  : t(`delivery.packageTypes.${option}`)}
+              </option>
+            ))}
           </select>
         </label>
         <p className="delivery-estimate-defaults">
-          {t('delivery.estimate.defaults', { weight: deliveryUnit(SIZE_DEFAULT_WEIGHT_LBS[size], 'pound', i18n.language) })}
+          {t('delivery.estimate.defaults', { weight: deliveryUnit(SIZE_DEFAULT_WEIGHT_LBS[size], 'pound', i18n.language), cap: deliveryUnit(PACKAGE_CAPS_LBS[size], 'pound', i18n.language) })}
         </p>
         {estimate ? (
-          <p className="delivery-estimate-line" aria-live="polite">
-            {t('delivery.estimate.line', {
-              total: deliveryMoney(estimate.pricing.cents.customerTotal, i18n.language, estimate.pricing.currency),
-              duration: deliveryUnit(estimate.route.durationMinutes, 'minute', i18n.language),
-            })}
-          </p>
+          <div className="delivery-estimate-result" aria-live="polite">
+            <div className="delivery-estimate-total">
+              <span>{t('delivery.customer.total')}</span>
+              {/* The panel total follows the selected size: distance and time
+                  do not depend on size, and sizePrices holds the server price
+                  for every size on this route. The intake re-quotes anyway. */}
+              <strong>{deliveryMoney(estimate.sizePrices?.[size]?.customerTotalCents ?? estimate.pricing.cents.customerTotal, i18n.language, estimate.pricing.currency)}</strong>
+            </div>
+            <dl className="delivery-estimate-facts">
+              <div><dt>{t('delivery.estimate.distance')}</dt><dd>{deliveryUnit(estimate.route.distanceMiles, 'mile', i18n.language)}</dd></div>
+              <div><dt>{t('delivery.estimate.routeTime')}</dt><dd>{deliveryUnit(estimate.route.durationMinutes, 'minute', i18n.language)}</dd></div>
+            </dl>
+            <RoutePreview origin={estimate.origin} destination={estimate.destination} t={t} />
+          </div>
         ) : (
           <p className="delivery-estimate-hint">{t('delivery.customer.quoteHint')}</p>
         )}
@@ -229,14 +287,17 @@ function EstimateCard({ t, onContinue, cardRef }) {
   );
 }
 
-// Route preview drawn from the job's real origin/destination coordinates: a
-// stylized street grid with a route line and A/B pins. No map library, no
-// placeholder coordinates. When the driver is live, the approximate driver
-// position from the customer tracking state is shown as a marker.
-function RoutePreview({ job, t }) {
+// Route preview drawn from real origin/destination coordinates: a stylized
+// street grid with a route line and A/B pins. No map library, no placeholder
+// coordinates. It takes either a job (with origin_lat/lng fields, plus live
+// driver tracking when the job is trackable) or plain origin/destination
+// points, so the instant-estimate panel can reuse it with the estimate's
+// located stops. When the driver is live, the approximate driver position
+// from the customer tracking state is shown as a marker.
+function RoutePreview({ job, origin: originPoint, destination: destinationPoint, t }) {
   const gradientId = useId();
   const [driverPoint, setDriverPoint] = useState(null);
-  const trackable = ['assigned', 'picked_up', 'in_transit', 'approaching'].includes(job.status);
+  const trackable = Boolean(job) && ['assigned', 'picked_up', 'in_transit', 'approaching'].includes(job.status);
 
   useEffect(() => {
     if (!trackable) return undefined;
@@ -245,10 +306,14 @@ function RoutePreview({ job, t }) {
       .then((response) => { if (!cancelled) setDriverPoint(response.state?.approximateArea || null); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [job.id, trackable]);
+  }, [job?.id, trackable]);
 
-  const origin = { lat: Number(job.origin_lat), lng: Number(job.origin_lng) };
-  const destination = { lat: Number(job.destination_lat), lng: Number(job.destination_lng) };
+  const origin = job
+    ? { lat: Number(job.origin_lat), lng: Number(job.origin_lng) }
+    : { lat: Number(originPoint?.lat), lng: Number(originPoint?.lng) };
+  const destination = job
+    ? { lat: Number(job.destination_lat), lng: Number(job.destination_lng) }
+    : { lat: Number(destinationPoint?.lat), lng: Number(destinationPoint?.lng) };
   if (![origin.lat, origin.lng, destination.lat, destination.lng].every(Number.isFinite)) return null;
 
   const width = 320;
@@ -399,6 +464,21 @@ function MyDeliveries({ t, refreshKey, onBook }) {
   );
 }
 
+// ASAP windows: pickup starts about 15 minutes out with a 2-hour pickup
+// window, and the drop-off window starts when pickup ends. Must satisfy
+// normalizeOperational (both windows required, pickup end <= delivery start)
+// and quoteForRequest (future pickup start).
+function computeAsapWindows(now = Date.now()) {
+  const pickupStart = new Date(now + 15 * 60000);
+  const pickupEnd = new Date(pickupStart.getTime() + 2 * 3600000);
+  const deliveryStart = pickupEnd;
+  const deliveryEnd = new Date(deliveryStart.getTime() + 2 * 3600000);
+  return {
+    pickupWindow: { start: pickupStart.toISOString(), end: pickupEnd.toISOString() },
+    deliveryWindow: { start: deliveryStart.toISOString(), end: deliveryEnd.toISOString() },
+  };
+}
+
 function CustomerDelivery({ t, initial, onPosted }) {
   const { i18n } = useTranslation();
   const currency = (cents, code) => deliveryMoney(cents, i18n.language, code);
@@ -409,6 +489,10 @@ function CustomerDelivery({ t, initial, onPosted }) {
   const [packageType, setPackageType] = useState(initial?.packageType || 'small');
   const [weightLbs, setWeightLbs] = useState(initial?.weightLbs || '5');
   const [serviceLevel, setServiceLevel] = useState('standard');
+  // What the item is. Separate from the driver notes below: the notes feed
+  // the pickup/drop-off contact instructions, this names the item itself.
+  // It is stored on the job and shown to the assigned driver.
+  const [itemDescription, setItemDescription] = useState('');
   const [notes, setNotes] = useState('');
   const [pieces, setPieces] = useState('1');
   const [dimensions, setDimensions] = useState({ lengthIn: '', widthIn: '', heightIn: '' });
@@ -421,6 +505,12 @@ function CustomerDelivery({ t, initial, onPosted }) {
   const [destinationContact, setDestinationContact] = useState({ name: '', phone: '', instructions: '' });
   const [pickupWindow, setPickupWindow] = useState({ start: '', end: '' });
   const [deliveryWindow, setDeliveryWindow] = useState({ start: '', end: '' });
+  // ASAP or scheduled: ASAP picks up in about 15 minutes with a 2-hour
+  // pickup window, and the drop-off window follows the pickup window. The
+  // windows are computed once at quote time and kept in a ref so the booking
+  // posts the exact windows it was quoted for (the quote hash covers them).
+  const [timing, setTiming] = useState('scheduled');
+  const quotedWindowsRef = useRef(null);
   const [proofPreference, setProofPreference] = useState('recipient_confirmation');
   const [quote, setQuote] = useState(null);
   const [posted, setPosted] = useState(null);
@@ -429,12 +519,18 @@ function CustomerDelivery({ t, initial, onPosted }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const payload = useCallback(() => ({
+  const payload = useCallback((windowsOverride) => {
+    const windows = windowsOverride || {
+      pickupWindow: { start: pickupWindow.start ? new Date(pickupWindow.start).toISOString() : undefined, end: pickupWindow.end ? new Date(pickupWindow.end).toISOString() : undefined },
+      deliveryWindow: { start: deliveryWindow.start ? new Date(deliveryWindow.start).toISOString() : undefined, end: deliveryWindow.end ? new Date(deliveryWindow.end).toISOString() : undefined },
+    };
+    return {
     origin,
     destination,
     packageType,
     weightLbs: Number(weightLbs),
     serviceLevel,
+    itemDescription: itemDescription || undefined,
     notes,
     pieces: Number(pieces),
     dimensions: Object.fromEntries(Object.entries(dimensions).map(([key, value]) => [key, value ? Number(value) : undefined])),
@@ -445,10 +541,11 @@ function CustomerDelivery({ t, initial, onPosted }) {
     handlingRequirements,
     originContact,
     destinationContact,
-    pickupWindow: { start: pickupWindow.start ? new Date(pickupWindow.start).toISOString() : undefined, end: pickupWindow.end ? new Date(pickupWindow.end).toISOString() : undefined },
-    deliveryWindow: { start: deliveryWindow.start ? new Date(deliveryWindow.start).toISOString() : undefined, end: deliveryWindow.end ? new Date(deliveryWindow.end).toISOString() : undefined },
+    pickupWindow: windows.pickupWindow,
+    deliveryWindow: windows.deliveryWindow,
     proofPreference,
-  }), [contentsCategory, declaredValue, deliveryWindow, destination, destinationContact, dimensions, fragile, handlingRequirements, notes, origin, originContact, packageType, perishable, pieces, pickupWindow, proofPreference, serviceLevel, weightLbs]);
+    };
+  }, [contentsCategory, declaredValue, deliveryWindow, destination, destinationContact, dimensions, fragile, handlingRequirements, itemDescription, notes, origin, originContact, packageType, perishable, pieces, pickupWindow, proofPreference, serviceLevel, weightLbs]);
 
   useEffect(() => { setQuote(null); setClientRequestId(''); }, [payload]);
 
@@ -456,23 +553,30 @@ function CustomerDelivery({ t, initial, onPosted }) {
     event.preventDefault();
     setError('');
     setPosted(null);
-    if ([origin, destination].some((point) => point.lat == null || point.lng == null || !Number.isFinite(Number(point.lat)) || !Number.isFinite(Number(point.lng)))) {
+    if (!stopsReadyForPricing(origin, destination)) {
       setError(t('delivery.customer.selectAddress'));
       return;
     }
-    if ([origin, destination].some((point) => point.country !== 'US' || !point.state)) {
+    if (!stopsHaveUsCoords(origin, destination)) {
       setError(t('delivery.ui.usOnly')); return;
     }
     if ([originContact, destinationContact].some((contact) => contact.phone.replace(/\D/g, '').length < 7)) {
       setError(t('delivery.ui.phoneInvalid')); return;
     }
-    const times = [pickupWindow.start, pickupWindow.end, deliveryWindow.start, deliveryWindow.end].map((value) => new Date(value).getTime());
+    const windows = timing === 'asap' ? computeAsapWindows() : {
+      pickupWindow: { start: pickupWindow.start ? new Date(pickupWindow.start).toISOString() : undefined, end: pickupWindow.end ? new Date(pickupWindow.end).toISOString() : undefined },
+      deliveryWindow: { start: deliveryWindow.start ? new Date(deliveryWindow.start).toISOString() : undefined, end: deliveryWindow.end ? new Date(deliveryWindow.end).toISOString() : undefined },
+    };
+    const times = [windows.pickupWindow.start, windows.pickupWindow.end, windows.deliveryWindow.start, windows.deliveryWindow.end].map((value) => new Date(value).getTime());
     if (times.some((value) => !Number.isFinite(value)) || times[0] <= Date.now() || times[0] >= times[1] || times[1] > times[2] || times[2] >= times[3]) {
       setError(t('delivery.ui.intakeWindows')); return;
     }
     setBusy(true);
     try {
-      const response = await quoteDelivery(payload());
+      const response = await quoteDelivery(payload(windows));
+      // Keep the exact ASAP windows the quote was priced for: the booking
+      // must post them unchanged or the quote hash mismatches.
+      if (timing === 'asap') quotedWindowsRef.current = windows;
       setQuote(response.quote);
       setClientRequestId('');
     } catch (requestError) {
@@ -489,7 +593,12 @@ function CustomerDelivery({ t, initial, onPosted }) {
     try {
       const requestId = clientRequestId || (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `delivery-${Date.now()}`);
       if (!clientRequestId) setClientRequestId(requestId);
-      const response = await createDelivery({ ...payload(), notes, quoteId: quote?.id, clientRequestId: requestId });
+      // Book the stops the server located when it quoted: a coordinate-less
+      // suggestion is hashed from its resolved stops, so posting the
+      // unresolved form would mismatch the quote. Any intake edit clears
+      // the quote, so the quote's stops are always the current ones. ASAP
+      // bookings likewise post the exact windows the quote was priced for.
+      const response = await createDelivery({ ...payload(timing === 'asap' ? quotedWindowsRef.current : undefined), origin: quote?.origin || origin, destination: quote?.destination || destination, notes, quoteId: quote?.id, clientRequestId: requestId });
       setPosted(response.job);
       setProofPin(response.proofPin || '');
       setQuote(null);
@@ -518,11 +627,12 @@ function CustomerDelivery({ t, initial, onPosted }) {
               <span>{t('delivery.customer.pickup')}</span>
               <AddressAutocomplete
                 value={originText}
-                onChange={(value) => { setOriginText(value); setOrigin(emptyPlace()); setQuote(null); }}
+                onChange={(value) => { setOriginText(value); setOrigin({ ...emptyPlace(), address: value, display: value }); setQuote(null); }}
                 onSelect={(place) => setOrigin(pointFromSuggestion(place, originText))}
                 placeholder={t('delivery.customer.pickupPlaceholder')}
                 ariaLabel={t('delivery.customer.pickup')}
                 inputClassName="delivery-input"
+                selectFullAddress
                 suppressInitialSuggestions={Boolean(initial?.originText)}
                 required
               />
@@ -531,11 +641,12 @@ function CustomerDelivery({ t, initial, onPosted }) {
               <span>{t('delivery.customer.dropoff')}</span>
               <AddressAutocomplete
                 value={destinationText}
-                onChange={(value) => { setDestinationText(value); setDestination(emptyPlace()); setQuote(null); }}
+                onChange={(value) => { setDestinationText(value); setDestination({ ...emptyPlace(), address: value, display: value }); setQuote(null); }}
                 onSelect={(place) => setDestination(pointFromSuggestion(place, destinationText))}
                 placeholder={t('delivery.customer.dropoffPlaceholder')}
                 ariaLabel={t('delivery.customer.dropoff')}
                 inputClassName="delivery-input"
+                selectFullAddress
                 suppressInitialSuggestions={Boolean(initial?.destinationText)}
                 required
               />
@@ -559,6 +670,11 @@ function CustomerDelivery({ t, initial, onPosted }) {
               </select>
             </label>
           </div>
+          <label className="delivery-field">
+            <span>{t('delivery.customer.itemDescription')}</span>
+            <input className="delivery-input" value={itemDescription} maxLength={500} onChange={(event) => { setItemDescription(event.target.value); setQuote(null); }} placeholder={t('delivery.customer.itemDescriptionPlaceholder')} />
+          </label>
+          <p className="delivery-estimate-defaults">{t('delivery.pricing.weight')}</p>
           <div className="delivery-options-grid">
             <label className="delivery-field"><span>{t('delivery.operations.pieces')}</span><input className="delivery-input" type="number" min="1" max="1000" step="1" required value={pieces} onChange={(event) => { setPieces(event.target.value); setQuote(null); }} /></label>
             <label className="delivery-field"><span>{t('delivery.operations.contents')}</span><select className="delivery-input" value={contentsCategory} onChange={(event) => { setContentsCategory(event.target.value); setQuote(null); }}>{CONTENTS.map((category) => <option key={category} value={category}>{t(`delivery.ui.contents.${category}`)}</option>)}</select></label>
@@ -573,12 +689,22 @@ function CustomerDelivery({ t, initial, onPosted }) {
             <label className="delivery-field"><span>{t('delivery.operations.dropoffContact')}</span><input className="delivery-input" required value={destinationContact.name} onChange={(event) => setDestinationContact((previous) => ({ ...previous, name: event.target.value }))} /></label>
             <label className="delivery-field"><span>{t('delivery.operations.dropoffPhone')}</span><input className="delivery-input" type="tel" required value={destinationContact.phone} onChange={(event) => setDestinationContact((previous) => ({ ...previous, phone: event.target.value }))} /></label>
           </div>
+          <fieldset className="delivery-fieldset">
+            <legend>{t('delivery.customer.timingTitle')}</legend>
+            <div className="delivery-checkbox-row">
+              <label><input type="radio" name="delivery-timing" checked={timing === 'asap'} onChange={() => { setTiming('asap'); setQuote(null); }} /> {t('delivery.customer.timingAsap')}</label>
+              <label><input type="radio" name="delivery-timing" checked={timing === 'scheduled'} onChange={() => { setTiming('scheduled'); setQuote(null); }} /> {t('delivery.customer.timingScheduled')}</label>
+            </div>
+            {timing === 'asap' && <p className="delivery-estimate-defaults">{t('delivery.customer.asapNote')}</p>}
+          </fieldset>
+          {timing === 'scheduled' && (
           <div className="delivery-options-grid">
             <label className="delivery-field"><span>{t('delivery.operations.pickupWindowStart')}</span><input className="delivery-input" type="datetime-local" required value={pickupWindow.start} onChange={(event) => setPickupWindow((previous) => ({ ...previous, start: event.target.value }))} /></label>
             <label className="delivery-field"><span>{t('delivery.operations.pickupWindowEnd')}</span><input className="delivery-input" type="datetime-local" required value={pickupWindow.end} onChange={(event) => setPickupWindow((previous) => ({ ...previous, end: event.target.value }))} /></label>
             <label className="delivery-field"><span>{t('delivery.operations.dropoffWindowStart')}</span><input className="delivery-input" type="datetime-local" required value={deliveryWindow.start} onChange={(event) => setDeliveryWindow((previous) => ({ ...previous, start: event.target.value }))} /></label>
             <label className="delivery-field"><span>{t('delivery.operations.dropoffWindowEnd')}</span><input className="delivery-input" type="datetime-local" required value={deliveryWindow.end} onChange={(event) => setDeliveryWindow((previous) => ({ ...previous, end: event.target.value }))} /></label>
           </div>
+          )}
           <div className="delivery-options-grid delivery-checkbox-row">
             <label><input type="checkbox" checked={fragile} onChange={(event) => setFragile(event.target.checked)} /> {t('delivery.operations.fragile')}</label>
             <label><input type="checkbox" checked={perishable} onChange={(event) => setPerishable(event.target.checked)} /> {t('delivery.operations.perishable')}</label>
@@ -645,7 +771,7 @@ const DRIVER_VEHICLE_TYPES = ['car', 'van', 'pickup', 'box_truck', 'cargo_bike']
 // P2-4-F10: self-serve driver onboarding. Helpers without an ops-provisioned
 // driver profile register their own capability profile here; the profile is
 // created pending operations approval, and claiming stays gated until then.
-function DriverOnboarding({ t, profile, onRegistered }) {
+function DriverOnboarding({ t, profile, onRegistered, canRegister = true }) {
   const [form, setForm] = useState({
     vehicleType: 'car',
     maxPayloadLbs: '',
@@ -664,6 +790,12 @@ function DriverOnboarding({ t, profile, onRegistered }) {
 
   const submit = async (event) => {
     event.preventDefault();
+    // Self-serve onboarding requires helper mode server-side; the form is
+    // shown to non-helpers with a hint instead of a dead-end 403.
+    if (!canRegister) {
+      setError(t('delivery.driver.helperModeHint'));
+      return;
+    }
     if (!form.insuranceAcknowledged) {
       setError(t('delivery.driver.insuranceRequired'));
       return;
@@ -708,6 +840,8 @@ function DriverOnboarding({ t, profile, onRegistered }) {
         <div><h2>{t('delivery.driver.title')}</h2><p>{t('delivery.driver.body')}</p></div>
       </div>
       <form className="delivery-form" onSubmit={submit}>
+        {!canRegister && <p className="delivery-alert delivery-alert--error" role="alert">{t('delivery.driver.helperModeHint')}</p>}
+        <fieldset className="delivery-form-fields" disabled={!canRegister}>
         <div className="delivery-options-grid">
           <label className="delivery-field">{t('delivery.ui.vehicleType')}
             <select className="delivery-input" value={form.vehicleType} onChange={(event) => set('vehicleType', event.target.value)}>
@@ -744,6 +878,7 @@ function DriverOnboarding({ t, profile, onRegistered }) {
           {submitting ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <Truck size={17} aria-hidden="true" />}
           {submitting ? t('delivery.driver.submitting') : t('delivery.driver.submit')}
         </button>
+        </fieldset>
       </form>
     </section>
   );
@@ -751,7 +886,14 @@ function DriverOnboarding({ t, profile, onRegistered }) {
 
 function HelperDelivery({ t }) {
   const { user } = useAuth();
-  const [marketplaceHelper, setMarketplaceHelper] = useState(false);
+  const { i18n } = useTranslation();
+  // helperMode is the server's helper flag (default_mode in HELPER_MODES or
+  // role helper). It drives the open list: approved internal drivers in
+  // helper mode see open deliveries too (item 11 drops the old client-side
+  // internalDriver exclusion). Pure internal drivers (helperMode false) do
+  // not receive marketplace jobs from GET /delivery/jobs server-side.
+  const [helperMode, setHelperMode] = useState(false);
+  const [internalDriver, setInternalDriver] = useState(false);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
@@ -760,6 +902,8 @@ function HelperDelivery({ t }) {
   // approves a profile (self-serve registration below).
   const [driverProfile, setDriverProfile] = useState(null);
   const [onboardingForced, setOnboardingForced] = useState(false);
+  const [payouts, setPayouts] = useState(null);
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const onboardingRef = useRef(null);
 
   const loadDriverProfile = useCallback(async () => {
@@ -779,7 +923,8 @@ function HelperDelivery({ t }) {
     try {
       const response = await listDeliveryJobs();
       setJobs(response.jobs || []);
-      setMarketplaceHelper(response.helper === true && response.internalDriver !== true);
+      setHelperMode(response.helper === true);
+      setInternalDriver(response.internalDriver === true);
     } catch (requestError) {
       setError(deliveryError(requestError, t, 'delivery.errors.load'));
     } finally {
@@ -788,6 +933,17 @@ function HelperDelivery({ t }) {
   }, [t]);
 
   useEffect(() => { loadJobs(); }, [loadJobs]);
+
+  // Earnings summary (item 12): totals by payout status, aggregated
+  // client-side from the driver's own payout rows. No new queries.
+  useEffect(() => {
+    if (!helperMode && !internalDriver) return;
+    let cancelled = false;
+    listMyDriverPayouts()
+      .then((response) => { if (!cancelled) setPayouts(response.payouts || []); })
+      .catch(() => { if (!cancelled) setPayouts([]); });
+    return () => { cancelled = true; };
+  }, [helperMode, internalDriver]);
 
   const claim = async (id) => {
     setBusyId(String(id));
@@ -812,19 +968,47 @@ function HelperDelivery({ t }) {
     try { await updateDeliveryStatus(id, status, proof); await loadJobs(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
   };
 
-  const openJobs = useMemo(() => marketplaceHelper ? jobs.filter((job) => job.status === 'posted' && job.marketplace_available === true && String(job.customer_user_id) !== String(user?.id)) : [], [jobs, marketplaceHelper, user?.id]);
+  // Availability gates the open-jobs FEED only: an offline driver sees no
+  // open jobs. Claiming itself stays ungated (canClaim and the server claim
+  // path never read `available`).
+  const isOnline = driverProfile?.available === true;
+  const openJobs = useMemo(() => selectOpenJobs(jobs, { helperMode, available: isOnline, userId: user?.id }), [jobs, helperMode, isOnline, user?.id]);
   const myJobs = useMemo(() => jobs.filter((job) => job.is_assigned_operator === true || String(job.customer_user_id) === String(user?.id)), [jobs, user?.id]);
+  const isDriver = helperMode || internalDriver;
+  const payoutTotals = useMemo(() => {
+    const totals = { paid: 0, pending: 0, voided: 0 };
+    for (const payout of payouts || []) {
+      const cents = Number(payout.payout_cents) || 0;
+      if (payout.status === 'paid') totals.paid += cents;
+      else if (payout.status === 'voided') totals.voided += cents;
+      else totals.pending += cents;
+    }
+    return totals;
+  }, [payouts]);
+
+  const toggleAvailability = async (checked) => {
+    setAvailabilityBusy(true);
+    setError('');
+    try {
+      const response = await setDriverAvailability(checked);
+      setDriverProfile(response.profile || null);
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.status'));
+    } finally {
+      setAvailabilityBusy(false);
+    }
+  };
 
   return (
     <div className="delivery-helper-workspace">
       <div className="delivery-helper-toolbar">
-        <div><h2>{t(marketplaceHelper ? 'delivery.helper.title' : 'delivery.helper.myDeliveries')}</h2><p>{t(marketplaceHelper ? 'delivery.helper.body' : 'delivery.ui.workspaceHint')}</p></div>
+        <div><h2>{t(isDriver ? 'delivery.driver.workTitle' : 'delivery.driver.title')}</h2><p>{t(isDriver ? 'delivery.driver.workBody' : 'delivery.driver.body')}</p></div>
         <button type="button" className="delivery-button delivery-button--secondary" onClick={loadJobs} disabled={loading}><RefreshCw size={16} className={loading ? 'delivery-spin' : ''} aria-hidden="true" />{t('delivery.helper.refresh')}</button>
       </div>
       {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
       {loading ? <div className="delivery-loading"><Loader2 className="delivery-spin" size={24} aria-hidden="true" />{t('delivery.helper.loading')}</div> : (
         <>
-          {marketplaceHelper && (driverProfile?.approved !== true || onboardingForced) && (
+          {helperMode && (driverProfile?.approved !== true || onboardingForced) && (
             <div ref={onboardingRef}>
               <DriverOnboarding
                 t={t}
@@ -833,14 +1017,102 @@ function HelperDelivery({ t }) {
               />
             </div>
           )}
-          {marketplaceHelper && driverProfile?.approved === true && !onboardingForced && (
-            <p className="delivery-onboard-badge"><ShieldCheck size={15} aria-hidden="true" />{t('delivery.driver.verified')}</p>
+          {!helperMode && driverProfile?.approved !== true && (
+            <div ref={onboardingRef}>
+              <DriverOnboarding
+                t={t}
+                profile={null}
+                canRegister={false}
+                onRegistered={(profile) => { setDriverProfile(profile); setOnboardingForced(false); }}
+              />
+            </div>
           )}
-          {marketplaceHelper && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
-          <section><div className="delivery-section-title"><h3>{t('delivery.helper.myDeliveries')}</h3><span>{myJobs.length}</span></div>{myJobs.length ? <div className="delivery-job-grid">{myJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={marketplaceHelper && job.is_assigned_operator === true} onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t('delivery.ui.noDeliveries')}</p>}</section>
+          {isDriver && driverProfile?.approved === true && !onboardingForced && (
+            <>
+              <p className="delivery-onboard-badge"><ShieldCheck size={15} aria-hidden="true" />{t('delivery.driver.verified')}</p>
+              <label className="delivery-check delivery-availability">
+                <input type="checkbox" checked={driverProfile.available === true} disabled={availabilityBusy} onChange={(event) => toggleAvailability(event.target.checked)} />
+                <span>{t('delivery.driver.availability')}</span>
+              </label>
+              <p className="delivery-estimate-defaults">{t('delivery.driver.availabilityNote')}</p>
+              <section className="delivery-earnings" aria-labelledby="delivery-earnings-title">
+                <h3 id="delivery-earnings-title">{t('delivery.driver.earningsTitle')}</h3>
+                {payouts === null ? (
+                  <p className="delivery-estimate-defaults">{t('delivery.helper.loading')}</p>
+                ) : payouts.length === 0 ? (
+                  <p className="delivery-estimate-defaults">{t('delivery.driver.earningsEmpty')}</p>
+                ) : (
+                  <dl>
+                    <div><dt>{t('delivery.driver.earningsPaid')}</dt><dd>{deliveryMoney(payoutTotals.paid, i18n.language)}</dd></div>
+                    <div><dt>{t('delivery.driver.earningsPending')}</dt><dd>{deliveryMoney(payoutTotals.pending, i18n.language)}</dd></div>
+                    <div><dt>{t('delivery.driver.earningsVoided')}</dt><dd>{deliveryMoney(payoutTotals.voided, i18n.language)}</dd></div>
+                  </dl>
+                )}
+              </section>
+            </>
+          )}
+          {helperMode && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{driverProfile?.approved === true && !isOnline ? <p className="delivery-empty-copy">{t('delivery.driver.offlineNote')}</p> : openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
+          <section><div className="delivery-section-title"><h3>{t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}</h3><span>{myJobs.length}</span></div>{myJobs.length ? <div className="delivery-job-grid">{myJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={isDriver && job.is_assigned_operator === true} onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t('delivery.ui.noDeliveries')}</p>}</section>
         </>
       )}
     </div>
+  );
+}
+
+// Trust and pricing info (item 10): only the real pricing model, the
+// landing-page FAQ reused verbatim, and proof-of-delivery copy for what the
+// product actually offers. No insurance claims anywhere: declared value is
+// recorded only, and there is no coverage product in delivery code. Each of
+// the 1-2-3 steps gets its one-line explanation here, next to its label.
+function DeliveryInfo({ t }) {
+  const steps = [
+    { label: t('delivery.hero.step1'), detail: t('delivery.howItWorks.step1') },
+    { label: t('delivery.hero.step2'), detail: t('delivery.howItWorks.step2') },
+    { label: t('delivery.hero.step3'), detail: t('delivery.howItWorks.step3') },
+  ];
+  return (
+    <section className="delivery-info" aria-labelledby="delivery-info-pricing">
+      <div className="delivery-info__block">
+        <h2 id="delivery-info-pricing">{t('delivery.pricing.title')}</h2>
+        <ul>
+          {['base', 'extraMile', 'minimum', 'platformFee', 'driverShare', 'size', 'weight'].map((key) => (
+            <li key={key}>{t(`delivery.pricing.${key}`)}</li>
+          ))}
+        </ul>
+      </div>
+      <div className="delivery-info__block">
+        <h2>{t('delivery.hero.stepsLabel')}</h2>
+        <ol className="delivery-info__steps">
+          {steps.map((step, index) => (
+            <li key={step.label}>
+              <strong>{index + 1}. {step.label}</strong>
+              <span>{step.detail}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="delivery-info__block">
+        <h2>{t('delivery.proofInfo.title')}</h2>
+        <p>{t('delivery.proofInfo.body')}</p>
+        <ul>
+          {['pin', 'signature', 'photo', 'recipient_confirmation'].map((type) => (
+            <li key={type}>{t(`delivery.proofTypes.${type}`)}</li>
+          ))}
+        </ul>
+        <p>{t('delivery.proofInfo.declaredValue')}</p>
+      </div>
+      <div className="delivery-info__block">
+        <h2>{t('deliveryLanding.faqTitle')}</h2>
+        <dl className="delivery-info__faq">
+          {[1, 2, 3, 4].map((number) => (
+            <div key={number}>
+              <dt>{t(`deliveryLanding.faq${number}Q`)}</dt>
+              <dd>{t(`deliveryLanding.faq${number}A`)}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
   );
 }
 
@@ -915,6 +1187,7 @@ export default function DeliveryPage() {
                 />
               </div>
             )}
+            <DeliveryInfo t={t} />
             <MyDeliveries t={t} refreshKey={postedVersion} onBook={scrollToEstimate} />
           </>
         ) : (

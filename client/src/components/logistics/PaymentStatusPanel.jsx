@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getPaymentAttempt } from '../../api/logistics';
@@ -6,6 +6,7 @@ import { formatCreditMinorUnits } from '../../lib/creditCurrency';
 import '../../styles/logistics/LogisticsCheckout.css';
 
 const POLL_INTERVAL_MS = 4000;
+const POLL_MAX_INTERVAL_MS = 15000;
 
 /**
  * PaymentStatusPanel - shows one payment attempt's lifecycle (Phase 3).
@@ -33,7 +34,6 @@ export default function PaymentStatusPanel({ attempt: initialAttempt, poll = tru
   const [attempt, setAttempt] = useState(initialAttempt);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState(null);
-  const timerRef = useRef(null);
 
   useEffect(() => { setAttempt(initialAttempt); }, [initialAttempt]);
 
@@ -56,10 +56,43 @@ export default function PaymentStatusPanel({ attempt: initialAttempt, poll = tru
 
   const isTerminal = (a) => ['succeeded', 'failed', 'canceled','superseded'].includes(a?.status);
 
+  // Cost audit 2026-11-13 P4: the 4s poll used to run ungated until a
+  // terminal status, ~15 req/min per open checkout, even with the tab
+  // hidden. It now backs off 4s -> 8s -> 15s (capped), skips hidden tabs,
+  // and refreshes immediately on return to visible. It still stops at a
+  // terminal status, and the manual Refresh button is unaffected.
   useEffect(() => {
     if (!poll || !attempt?.id || isTerminal(attempt)) return undefined;
-    timerRef.current = setInterval(() => { refresh(); }, POLL_INTERVAL_MS);
-  return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    let stopped = false;
+    let timer = null;
+    let inFlight = false;
+    let delay = POLL_INTERVAL_MS;
+    const tick = async () => {
+      if (stopped || inFlight) return;
+      if (document.visibilityState === 'hidden') {
+        timer = setTimeout(tick, delay);
+        return;
+      }
+      inFlight = true;
+      let next = null;
+      try { next = await refresh(); } finally { inFlight = false; }
+      if (stopped) return;
+      if (next && isTerminal(next)) return;
+      delay = Math.min(delay * 2, POLL_MAX_INTERVAL_MS);
+      timer = setTimeout(tick, delay);
+    };
+    const onVisible = () => {
+      if (stopped || inFlight || document.visibilityState !== 'visible') return;
+      if (timer) { clearTimeout(timer); timer = null; }
+      void tick();
+    };
+    timer = setTimeout(tick, POLL_INTERVAL_MS);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [poll, attempt?.id, attempt?.status, refresh]);
 
   if (!attempt) return null;

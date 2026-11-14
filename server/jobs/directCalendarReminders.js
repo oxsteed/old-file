@@ -2,6 +2,7 @@
 
 const db = require('../db');
 const logger = require('../utils/logger');
+const { mapBounded } = require('../utils/boundedBatch');
 const { sendEmail } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
@@ -43,6 +44,49 @@ async function claimDelivery(requestId, reminderType, recipientEmail) {
   return rows[0]?.id || null;
 }
 
+async function deliverDirectCalendarReminder(request, reminderType, recipient) {
+  const deliveryId = await claimDelivery(request.id, reminderType, recipient);
+  if (!deliveryId) return null;
+  try {
+    const when = new Date(request.scheduled_start_at).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });
+    const lead = reminderType === '24_hour' ? 'tomorrow' : 'in about 2 hours';
+    const safeService = escapeHtml(request.service_category || 'Direct service');
+    const safeWhen = escapeHtml(when);
+    const safeLocation = escapeHtml(request.service_location || 'On file');
+    const safeRequestId = escapeHtml(request.id);
+    const bodyText = `Your OxSteed Direct service is scheduled ${lead}.\nService: ${request.service_category || 'Direct service'}\nWhen: ${when}\nLocation: ${request.service_location || 'On file'}\nReference: #${request.id}`;
+    const rendered = renderOxSteedEmail({
+      language: 'en',
+      eyebrow: 'OXSTEED DIRECT',
+      title: 'Scheduled service reminder',
+      intro: `Hi ${request.first_name || 'there'},`,
+      bodyText,
+      bodyHtml: `<p>Your OxSteed Direct service is scheduled ${lead}.</p><p><strong>Service:</strong> ${safeService}<br /><strong>When:</strong> ${safeWhen}<br /><strong>Location:</strong> ${safeLocation}</p><p>Reference: #${safeRequestId}</p>`,
+      footerText: 'OxSteed - local trades marketplace',
+    });
+    // Review P3-844: sendEmail reports delivery failure as { success: false }
+    // without throwing. Only mark 'sent' on a confirmed delivery; anything
+    // else throws into the failure path below so the reminder is retried.
+    const delivery = await sendEmail({
+      to: recipient,
+      subject: `OxSteed Direct reminder: ${request.service_category || 'scheduled service'}`,
+      text: rendered.text,
+      html: rendered.html,
+      idempotencyKey: `direct-calendar-reminder:${request.id}:${reminderType}:${recipient}`,
+    });
+    if (delivery?.success !== true) {
+      throw new Error(delivery?.error || 'email send failed');
+    }
+    await db.query('UPDATE direct_calendar_reminder_deliveries SET status = \'sent\', sent_at = NOW(), updated_at = NOW() WHERE id = $1', [deliveryId]);
+    return 'sent';
+  } catch (err) {
+    await db.query('UPDATE direct_calendar_reminder_deliveries SET status = \'failed\', last_error = $2, updated_at = NOW() WHERE id = $1', [deliveryId, String(err.message || 'send failed').slice(0, 500)]);
+    // Review P3-852: mask the recipient address in logs (PII).
+    logger.error('Direct calendar reminder delivery failed', { requestId: request.id, recipient: maskEmail(recipient), error: err.message });
+    return 'failed';
+  }
+}
+
 async function processDirectCalendarReminders() {
   const { rows: requests } = await db.query(
     `SELECT quote_requests.id, quote_requests.first_name, quote_requests.email,
@@ -59,55 +103,27 @@ async function processDirectCalendarReminders() {
       ORDER BY quote_requests.scheduled_start_at ASC
       LIMIT 200`
   );
-  let sent = 0;
-  let failed = 0;
+  // Cost audit 2026-11-13 item 15: the old serial per-request loop sent up
+  // to 400 emails one at a time per 5-min tick (LIMIT 200 x up to 2
+  // recipients each). The claim-then-send-then-mark sequence per recipient
+  // is unchanged; the deliveries now run in bounded parallel batches of 5
+  // so one slow provider call cannot stall the rest of the tick.
+  const tasks = [];
   for (const request of requests) {
     const reminderType = reminderTypeFor(request.scheduled_start_at);
     if (!reminderType) continue;
     const recipients = Array.from(new Set([request.email, request.assignee_email].filter(Boolean).map((email) => String(email).trim().toLowerCase())));
     for (const recipient of recipients) {
-      const deliveryId = await claimDelivery(request.id, reminderType, recipient);
-      if (!deliveryId) continue;
-      try {
-        const when = new Date(request.scheduled_start_at).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });
-        const lead = reminderType === '24_hour' ? 'tomorrow' : 'in about 2 hours';
-        const safeService = escapeHtml(request.service_category || 'Direct service');
-        const safeWhen = escapeHtml(when);
-        const safeLocation = escapeHtml(request.service_location || 'On file');
-        const safeRequestId = escapeHtml(request.id);
-        const bodyText = `Your OxSteed Direct service is scheduled ${lead}.\nService: ${request.service_category || 'Direct service'}\nWhen: ${when}\nLocation: ${request.service_location || 'On file'}\nReference: #${request.id}`;
-        const rendered = renderOxSteedEmail({
-          language: 'en',
-          eyebrow: 'OXSTEED DIRECT',
-          title: 'Scheduled service reminder',
-          intro: `Hi ${request.first_name || 'there'},`,
-          bodyText,
-          bodyHtml: `<p>Your OxSteed Direct service is scheduled ${lead}.</p><p><strong>Service:</strong> ${safeService}<br /><strong>When:</strong> ${safeWhen}<br /><strong>Location:</strong> ${safeLocation}</p><p>Reference: #${safeRequestId}</p>`,
-          footerText: 'OxSteed - local trades marketplace',
-        });
-        // Review P3-844: sendEmail reports delivery failure as { success: false }
-        // without throwing. Only mark 'sent' on a confirmed delivery; anything
-        // else throws into the failure path below so the reminder is retried.
-        const delivery = await sendEmail({
-          to: recipient,
-          subject: `OxSteed Direct reminder: ${request.service_category || 'scheduled service'}`,
-          text: rendered.text,
-          html: rendered.html,
-          idempotencyKey: `direct-calendar-reminder:${request.id}:${reminderType}:${recipient}`,
-        });
-        if (delivery?.success !== true) {
-          throw new Error(delivery?.error || 'email send failed');
-        }
-        await db.query('UPDATE direct_calendar_reminder_deliveries SET status = \'sent\', sent_at = NOW(), updated_at = NOW() WHERE id = $1', [deliveryId]);
-        sent++;
-      } catch (err) {
-        failed++;
-        await db.query('UPDATE direct_calendar_reminder_deliveries SET status = \'failed\', last_error = $2, updated_at = NOW() WHERE id = $1', [deliveryId, String(err.message || 'send failed').slice(0, 500)]);
-        // Review P3-852: mask the recipient address in logs (PII).
-        logger.error('Direct calendar reminder delivery failed', { requestId: request.id, recipient: maskEmail(recipient), error: err.message });
-      }
+      tasks.push({ request, reminderType, recipient });
     }
   }
+  let sent = 0;
+  let failed = 0;
+  await mapBounded(tasks, 5, async ({ request, reminderType, recipient }) => {
+    const outcome = await deliverDirectCalendarReminder(request, reminderType, recipient);
+    if (outcome === 'sent') sent++;
+    else if (outcome === 'failed') failed++;
+  });
   return { sent, failed };
 }
 
