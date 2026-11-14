@@ -35,6 +35,14 @@ test('notice sent-gating tests require an explicit disposable database opt-in', 
   expect(database === '' || database.includes('/credit_statement_test')).toBe(true);
 });
 
+test('dead dispute templates are gone (audit item 25)', () => {
+  const noticesModule = require('../services/creditCompliance/notices');
+  expect(noticesModule.NOTICES).not.toHaveProperty('dispute_received');
+  expect(noticesModule.NOTICES).not.toHaveProperty('dispute_resolved');
+  expect(() => noticesModule.renderNotice('dispute_received', 'en', {})).toThrow('Unknown Credit notice');
+  expect(() => noticesModule.renderNotice('dispute_resolved', 'en', {})).toThrow('Unknown Credit notice');
+});
+
 describeDatabase('credit notice sent-gating (notifications audit items 1, 8, 45, 47)', () => {
   let pool;
   let notices;

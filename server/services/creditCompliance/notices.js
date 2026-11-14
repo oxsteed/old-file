@@ -61,26 +61,12 @@ const T = Object.freeze({
     ht: ['Tanpri konfime idantite ou ankò', 'Pou kontinye itilize retrè ak balans ki pi wo, tanpri konfime idantite ou ankò nan aplikasyon OxSteed la. Jiskaske ou fè sa, retrè yo kanpe. Balans ou an sekirite.'],
     ar: ['يرجى تأكيد هويتك مرة أخرى', 'لمواصلة استخدام السحب والأرصدة الأعلى، يرجى تأكيد هويتك مرة أخرى في تطبيق OxSteed. حتى ذلك الحين، تتوقف عمليات السحب مؤقتًا. رصيدك في أمان.'],
   },
-  dispute_received: {
-    en: ['We received your report', 'We received your report about a Credit transaction ({reference}). We will finish our investigation by {deadline}. If we need longer, we will put the disputed amount back in your balance while we keep investigating.'],
-    es: ['Recibimos tu reporte', 'Recibimos tu reporte sobre una transacción de Crédito ({reference}). Terminaremos la investigación a más tardar el {deadline}. Si necesitamos más tiempo, devolveremos el monto en disputa a tu saldo mientras seguimos investigando.'],
-    fr: ['Nous avons reçu votre signalement', 'Nous avons reçu votre signalement concernant une opération en Crédit ({reference}). Nous terminerons notre enquête au plus tard le {deadline}. S’il nous faut plus de temps, nous recréditerons le montant contesté sur votre solde pendant la suite de l’enquête.'],
-    ht: ['Nou resevwa rapò ou a', 'Nou resevwa rapò ou sou yon tranzaksyon Kredi ({reference}). N ap fini envestigasyon an anvan {deadline}. Si nou bezwen plis tan, n ap remèt montan ki an diskisyon an nan balans ou pandan n ap kontinye envestige.'],
-    ar: ['استلمنا بلاغك', 'استلمنا بلاغك بشأن معاملة رصيد ({reference}). سننهي التحقيق بحلول {deadline}. إذا احتجنا وقتًا أطول، فسنعيد المبلغ المتنازع عليه إلى رصيدك أثناء استمرار التحقيق.'],
-  },
   dispute_provisional_credit: {
     en: ['Provisional credit added', 'While we finish investigating your report ({reference}), we added {amount} to your balance. You can use it now. We will tell you the final result by {deadline}.'],
     es: ['Crédito provisional agregado', 'Mientras terminamos de investigar tu reporte ({reference}), agregamos {amount} a tu saldo. Puedes usarlo ahora. Te diremos el resultado final a más tardar el {deadline}.'],
     fr: ['Crédit provisoire ajouté', 'Pendant que nous terminons l’enquête sur votre signalement ({reference}), nous avons ajouté {amount} à votre solde. Vous pouvez l’utiliser dès maintenant. Nous vous communiquerons le résultat final au plus tard le {deadline}.'],
     ht: ['Nou ajoute yon kredi pwovizwa', 'Pandan n ap fini envestige rapò ou a ({reference}), nou ajoute {amount} nan balans ou. Ou ka itilize l kounye a. N ap di ou rezilta final la anvan {deadline}.'],
     ar: ['تمت إضافة رصيد مؤقت', 'أثناء إنهاء التحقيق في بلاغك ({reference})، أضفنا {amount} إلى رصيدك. يمكنك استخدامه الآن. سنبلغك بالنتيجة النهائية بحلول {deadline}.'],
-  },
-  dispute_resolved: {
-    en: ['Your report is resolved', 'We finished investigating your report ({reference}). Open the OxSteed app to see the result and an explanation. You can ask for the documents we relied on.'],
-    es: ['Tu reporte está resuelto', 'Terminamos de investigar tu reporte ({reference}). Abre la app de OxSteed para ver el resultado y la explicación. Puedes pedir los documentos en los que nos basamos.'],
-    fr: ['Votre signalement est traité', 'Nous avons terminé l’enquête sur votre signalement ({reference}). Ouvrez l’application OxSteed pour voir le résultat et son explication. Vous pouvez demander les documents sur lesquels nous nous sommes appuyés.'],
-    ht: ['Rapò ou a rezoud', 'Nou fini envestige rapò ou a ({reference}). Louvri aplikasyon OxSteed la pou wè rezilta a ak yon esplikasyon. Ou ka mande dokiman nou te itilize yo.'],
-    ar: ['تمت معالجة بلاغك', 'أنهينا التحقيق في بلاغك ({reference}). افتح تطبيق OxSteed لرؤية النتيجة والشرح. يمكنك طلب المستندات التي اعتمدنا عليها.'],
   },
   dormancy_notice: {
     en: ['Your OxSteed Credit balance is inactive', 'Your OxSteed Credit balance of {amount} has had no activity for a long time. To keep it, sign in and use it, or ask to have it paid out, before {deadline}. After that date, the law may require us to send it to the unclaimed property office, where you can still claim it.'],
