@@ -9,16 +9,36 @@ const COPY = {
  ht: ['Alèt SOS', 'SOS: konfimasyon an anreta', 'Revize evènman SOS {{id}} itilizatè {{user}} a.'],
  ar: ['تنبيه SOS', 'SOS: تأخر الإقرار', 'راجع تنبيه SOS رقم {{id}} من المستخدم {{user}}.'],
 };
+// Item 18: bounded SOS fan-out. At most this many admins are ever fetched
+// for one event, and each send (first or escalation tier) notifies at most
+// one tier of this size.
+const SOS_RECIPIENT_POOL_MAX = 50;
+const SOS_TIER_SIZE = 5;
 
 async function notifySOS(event, { escalation = false, db = pool, notify = sendNotification } = {}) {
+  // Item 18: fan-out is bounded. The recipient pool is capped at the
+  // query (on-call first, then the rest by id), the first send goes to
+  // the on-call admins only (one fallback tier of the pool when nobody
+  // is on call), and each escalation notifies exactly one further tier:
+  // escalation N notifies tier N of the same stable ordering, wrapping
+  // to tier 0 only after every admin has had a turn, so an admin is
+  // never re-notified while un-notified admins remain.
   const { rows } = await db.query(`SELECT u.id,u.preferred_language, COALESCE(p.safety_on_call,FALSE) AS on_call
     FROM users u LEFT JOIN admin_notification_prefs p ON p.admin_id=u.id
     WHERE u.role IN ('admin','super_admin') AND u.is_active=TRUE AND u.deleted_at IS NULL
       AND (u.role='super_admin' OR EXISTS (SELECT 1 FROM admin_permission_grants g
         WHERE g.grantee_id=u.id AND g.permissions ? 'manage_support' AND g.region_id IS NULL AND g.revoked_at IS NULL AND g.expires_at>NOW()))
-    ORDER BY COALESCE(p.safety_on_call,FALSE) DESC, u.id`);
+    ORDER BY COALESCE(p.safety_on_call,FALSE) DESC, u.id
+    LIMIT $1`, [SOS_RECIPIENT_POOL_MAX]);
   const onCall = rows.filter(r => r.on_call);
-  const recipients = !escalation && onCall.length ? onCall : rows;
+  let recipients;
+  if (!escalation) {
+    recipients = onCall.length ? onCall.slice(0, SOS_TIER_SIZE) : rows.slice(0, SOS_TIER_SIZE);
+  } else {
+    const tierCount = Math.max(1, Math.ceil(rows.length / SOS_TIER_SIZE));
+    const tierIndex = (Math.max(1, Number(event.escalation_count) || 1)) % tierCount;
+    recipients = rows.slice(tierIndex * SOS_TIER_SIZE, (tierIndex + 1) * SOS_TIER_SIZE);
+  }
   const results = await Promise.allSettled(recipients.map(admin => notify({
     userId: admin.id, type: 'safety_sos', title: (COPY[admin.preferred_language] || COPY.en)[escalation ? 1 : 0],
     body: (COPY[admin.preferred_language] || COPY.en)[2].replace('{{id}}', String(event.id)).replace('{{user}}', String(event.user_id)),
