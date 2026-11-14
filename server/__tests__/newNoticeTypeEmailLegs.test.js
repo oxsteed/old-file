@@ -57,3 +57,22 @@ test('consulting_session_scheduled reaches email (item 53)', async () => {
   expect(result.success).toBe(true);
   expect(sendEmail).toHaveBeenCalledTimes(1);
 });
+
+test.each(['affiliate_payout_processed', 'affiliate_payout_voided'])(
+  '%s reaches email (item 54)',
+  async (type) => {
+    mockPrefs();
+    const result = await sendNotification({
+      userId: 'owner-1',
+      type,
+      data: { payout_id: 7, params: { payoutId: 7, voidedCount: 1 } },
+      action_url: '/affiliate',
+      emailChannel: true,
+      inAppChannel: false,
+      pushChannel: false,
+      idempotencyKey: `email-leg:${type}:7`,
+    });
+    expect(result.success).toBe(true);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  },
+);

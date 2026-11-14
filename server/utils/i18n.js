@@ -7,6 +7,38 @@ const T = {
   ...require('./disputeNotificationTemplates').disputeNotifications,
   // Analytics platform, Phase 2 Item 9: metric threshold alert titles.
   ...require('./metricAlertNotificationCopy').metricAlertNotifications,
+  affiliate_payout_processed: {
+    title: {
+      en: 'Affiliate payout #{payoutId} processed',
+      fr: 'Paiement d’affiliation nº {payoutId} traité',
+      es: 'Pago de afiliado n.º {payoutId} procesado',
+      ht: 'Peman afilye #{payoutId} trete',
+      ar: 'تمت معالجة دفعة الشريك رقم {payoutId}',
+    },
+    body: {
+      en: 'Your affiliate payout was processed and sent to your Stripe account. Open your affiliate dashboard to see the details.',
+      fr: 'Votre paiement d’affiliation a été traité et envoyé sur votre compte Stripe. Ouvrez votre tableau de bord d’affiliation pour voir les détails.',
+      es: 'Tu pago de afiliado se procesó y se envió a tu cuenta de Stripe. Abre tu panel de afiliado para ver los detalles.',
+      ht: 'Peman afilye ou an trete epi yo voye l sou kont Stripe ou. Louvri tablodbò afilye ou pou wè detay yo.',
+      ar: 'تمت معالجة دفعتك كشريك وإرسالها إلى حسابك في Stripe. افتح لوحة تحكم الشريك لعرض التفاصيل.',
+    },
+  },
+  affiliate_payout_voided: {
+    title: {
+      en: 'Affiliate payout #{payoutId} adjusted',
+      fr: 'Paiement d’affiliation nº {payoutId} ajusté',
+      es: 'Pago de afiliado n.º {payoutId} ajustado',
+      ht: 'Peman afilye #{payoutId} ajiste',
+      ar: 'تم تعديل دفعة الشريك رقم {payoutId}',
+    },
+    body: {
+      en: 'A refund voided {voidedCount} commission(s) in your affiliate payout. Open your affiliate dashboard to see the updated total.',
+      fr: 'Un remboursement a annulé {voidedCount} commission(s) de votre paiement d’affiliation. Ouvrez votre tableau de bord d’affiliation pour voir le total mis à jour.',
+      es: 'Un reembolso anuló {voidedCount} comisión(es) de tu pago de afiliado. Abre tu panel de afiliado para ver el total actualizado.',
+      ht: 'Yon ranbousman anile {voidedCount} komisyon nan peman afilye ou. Louvri tablodbò afilye ou pou wè total ki ajou a.',
+      ar: 'ألغى استرداد {voidedCount} عمولة من دفعتك كشريك. افتح لوحة تحكم الشريك لعرض الإجمالي المحدّث.',
+    },
+  },
   media_follow: {
     title: {
       en: 'New Media follower',
@@ -990,6 +1022,20 @@ const T = {
 
 const EMAIL_TEMPLATES = {
   button_text: {
+    affiliate_payout_processed: {
+      en: 'View Earnings',
+      fr: 'Voir les gains',
+      es: 'Ver ganancias',
+      ht: 'Gade benefis',
+      ar: 'عرض الأرباح',
+    },
+    affiliate_payout_voided: {
+      en: 'View Earnings',
+      fr: 'Voir les gains',
+      es: 'Ver ganancias',
+      ht: 'Gade benefis',
+      ar: 'عرض الأرباح',
+    },
     bid_accepted: {
       en: 'View Job',
       fr: 'Voir l\'offre',

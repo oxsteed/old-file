@@ -1,6 +1,8 @@
 'use strict';
 
+const pool = require('../db');
 const logger = require('../utils/logger');
+const { sendNotification } = require('../services/notificationService');
 
 /**
  * Decision Q3 (2026-10-31): a refund landing between payout calculation
@@ -41,7 +43,7 @@ async function voidClaimedCommissionsForRefund(client, orderId) {
     [orderId]
   );
   if (!locked.rows.length) {
-    return { voidedCount: 0, voidedCents: 0, payouts: [] };
+    return { voidedCount: 0, voidedCents: 0, payouts: [], orderId };
   }
 
   const voided = await client.query(
@@ -56,7 +58,7 @@ async function voidClaimedCommissionsForRefund(client, orderId) {
     [orderId]
   );
   if (!voided.rows.length) {
-    return { voidedCount: 0, voidedCents: 0, payouts: [] };
+    return { voidedCount: 0, voidedCents: 0, payouts: [], orderId };
   }
 
   // Group by payout (an order's commissions can span payouts in theory).
@@ -96,7 +98,7 @@ async function voidClaimedCommissionsForRefund(client, orderId) {
         WHERE id = $1`,
       [entry.programId, sum]
     );
-    payouts.push({ payoutId: entry.payoutId, voidedCents: sum, voidedCount: entry.count });
+    payouts.push({ payoutId: entry.payoutId, programId: entry.programId, voidedCents: sum, voidedCount: entry.count });
   }
 
   const totalCents = [...byPayout.values()].reduce((acc, e) => acc + e.cents, 0n).toString();
@@ -106,7 +108,63 @@ async function voidClaimedCommissionsForRefund(client, orderId) {
     voidedCents: totalCents,
     payoutIds: payouts.map((p) => String(p.payoutId)),
   });
-  return { voidedCount: voided.rows.length, voidedCents: totalCents, payouts };
+  return { voidedCount: voided.rows.length, voidedCents: totalCents, payouts, orderId };
 }
 
-module.exports = { voidClaimedCommissionsForRefund };
+/**
+ * Notifications audit item 54: a refund-void notified nobody. Call this
+ * AFTER the refund settlement transaction commits (never inside it: a
+ * rolled-back void must not produce a "voided" notice). One notice per
+ * affected payout, through the shared sendNotification path (in-app row +
+ * email leg via emailTypes); a notify failure is logged, never fatal.
+ * The idempotency key is per (payout, order), so a reconciled replay
+ * cannot double-notify.
+ */
+async function notifyVoidedAffiliates(voidResult) {
+  const payouts = voidResult?.payouts || [];
+  if (!payouts.length) return { notified: 0 };
+  let notified = 0;
+  for (const payout of payouts) {
+    try {
+      const { rows: [program] } = await pool.query(
+        'SELECT helper_id FROM affiliate_programs WHERE id = $1',
+        [payout.programId || null]
+      );
+      // The voided rows carry affiliate_program_id; fall back to the
+      // payout's program when the caller did not include it.
+      let ownerId = program?.helper_id || null;
+      if (!ownerId && payout.payoutId != null) {
+        const { rows: [row] } = await pool.query(
+          `SELECT aprg.helper_id FROM affiliate_payouts ap
+             JOIN affiliate_programs aprg ON ap.affiliate_program_id = aprg.id
+            WHERE ap.id = $1`,
+          [payout.payoutId]
+        );
+        ownerId = row?.helper_id || null;
+      }
+      if (!ownerId) {
+        logger.warn('Affiliate void notice skipped: no program owner', { payoutId: payout.payoutId });
+        continue;
+      }
+      await sendNotification({
+        userId: ownerId,
+        type: 'affiliate_payout_voided',
+        data: {
+          payout_id: payout.payoutId,
+          voided_cents: Number(payout.voidedCents) || 0,
+          voided_count: payout.voidedCount,
+          order_id: voidResult.orderId,
+          params: { payoutId: payout.payoutId, voidedCount: payout.voidedCount },
+        },
+        action_url: '/affiliate',
+        idempotencyKey: `affiliate-payout:voided:${payout.payoutId}:${voidResult.orderId}`,
+      });
+      notified += 1;
+    } catch (err) {
+      logger.warn('Failed to notify affiliate of voided payout', { payoutId: payout.payoutId, error: err.message });
+    }
+  }
+  return { notified };
+}
+
+module.exports = { voidClaimedCommissionsForRefund, notifyVoidedAffiliates };

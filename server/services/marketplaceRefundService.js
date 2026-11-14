@@ -199,6 +199,9 @@ async function settleRefund(reservation, providerRefund) {
         RETURNING *`,
       [reservation.order.id, fullRefund, refund.reason]
     );
+    // Notifications audit item 54: the void result rides out of the
+    // settlement so the affiliate can be notified after commit.
+    let affiliateVoid = null;
     if (fullRefund) {
       // Decision Q3 (2026-10-31): a full refund landing after payout
       // calculation but before transfer voids the claimed commission and
@@ -206,7 +209,7 @@ async function settleRefund(reservation, providerRefund) {
       // refunds never reach this branch; their commissions are handled by
       // the pro-rate track, not voided in full.
       const { voidClaimedCommissionsForRefund } = require('./affiliatePayoutVoidOnRefund');
-      await voidClaimedCommissionsForRefund(client, reservation.order.id);
+      affiliateVoid = await voidClaimedCommissionsForRefund(client, reservation.order.id);
     }
     await client.query(
       `INSERT INTO order_action_log (order_id, action_type, action_details, performed_by)
@@ -218,8 +221,20 @@ async function settleRefund(reservation, providerRefund) {
         reason: refund.reason,
       }), refund.actor_user_id || null]
     );
-    return { refund: updatedRefund.rows[0], transaction: updatedTransaction.rows[0], order: updatedOrder.rows[0], replay: false };
+    return { refund: updatedRefund.rows[0], transaction: updatedTransaction.rows[0], order: updatedOrder.rows[0], replay: false, affiliateVoid };
   }, 'marketplace_refund_settlement');
+}
+
+async function notifyAffiliateVoid(result) {
+  // Notifications audit item 54: the refund-void notice fires only after
+  // the settlement commits, from the same post-commit spot as the refund
+  // notice. Replays notify nobody (the void already happened).
+  if (!result?.affiliateVoid?.payouts?.length || result.replay) return;
+  const { notifyVoidedAffiliates } = require('./affiliatePayoutVoidOnRefund');
+  await notifyVoidedAffiliates(result.affiliateVoid).catch((err) => logger.warn('[marketplaceRefund] affiliate void notification failed', {
+    orderId: result?.order?.id,
+    error: err.message,
+  }));
 }
 
 async function notifyMarketplaceRefundSucceeded(result) {
@@ -286,6 +301,7 @@ async function processMarketplaceRefund({ orderId, requestedAmountCents, fullRef
   }
   const result = await settleRefund(reservation, providerRefund);
   await notifyMarketplaceRefundSucceeded(result);
+  await notifyAffiliateVoid(result);
   return result;
 }
 
@@ -309,6 +325,7 @@ async function reconcileMarketplaceRefundReservation(reservation) {
   }
   const result = await settleRefund(reservation, providerRefund);
   await notifyMarketplaceRefundSucceeded(result);
+  await notifyAffiliateVoid(result);
   return result;
 }
 

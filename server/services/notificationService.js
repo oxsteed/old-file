@@ -291,6 +291,9 @@ exports.sendNotification = async ({
     // Respect global unsubscribe: if user opted out of all, skip non-transactional.
     const unsubscribedAll = !!prefs.unsubscribe_all;
     const emailTypes = [
+      // Affiliate payouts (notifications audit item 54): the affiliate
+      // learns a payout was processed or voided by a refund.
+      'affiliate_payout_processed', 'affiliate_payout_voided',
       'bid_accepted', 'payment_released', 'payment_receipt', 'food_order_ready', 'subscription_renewed',
       'subscription_cancelled', 'subscription_past_due',
       'dispute_update', 'dispute_opened', 'dispute_opened_against', 'dispute_under_review', 'dispute_resolved',
