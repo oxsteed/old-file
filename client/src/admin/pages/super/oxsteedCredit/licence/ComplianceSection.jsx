@@ -96,6 +96,7 @@ export default function ComplianceSection() {
       <Notices notice={action.notice} error={action.error || sources.error || custom.error || safeguarding.error || kyc.error || sar.error} />
       <Panel title={t('adminLicence.sourcesTitle')} detail={sources.data?.staleRequired?.length ? t('adminLicence.sourcesStale', { count: sources.data.staleRequired.length }) : t('adminLicence.sourcesFresh')}>
         <LicenceTable
+          loading={sources.loading} error={sources.error}
           rows={sources.data?.sources || []}
           columns={[
             { key: 'display_name', label: 'name' },
@@ -120,6 +121,7 @@ export default function ComplianceSection() {
       </Panel>
       <Panel title={t('adminLicence.customTitle')} detail={t('adminLicence.customDetail')}>
         <LicenceTable
+          loading={custom.loading} error={custom.error}
           rows={(custom.data?.entries || []).filter((e) => !e.removed_at)}
           columns={[
             { key: 'primary_name', label: 'name' }, { key: 'entry_type', label: 'type' }, { key: 'countries', label: 'country' },
@@ -134,6 +136,7 @@ export default function ComplianceSection() {
         actions={<ActionButton disabled={action.busy} onClick={reconcile}>{t('adminLicence.reconcile')}</ActionButton>}
       >
         <LicenceTable
+          loading={safeguarding.loading} error={safeguarding.error}
           rows={safeguarding.data?.accounts || []}
           columns={[
             { key: 'label', label: 'name' }, { key: 'institution_name', label: 'authority' }, { key: 'account_reference_masked', label: 'reference' },
@@ -142,6 +145,7 @@ export default function ComplianceSection() {
           empty={t('adminLicence.noSafeguardingAccounts')}
         />
         <LicenceTable
+          loading={safeguarding.loading} error={safeguarding.error}
           rows={safeguarding.data?.latest || []}
           columns={[
             { key: 'run_date', label: 'date', kind: 'date' }, { key: 'currency_code', label: 'currency' }, { key: 'status' },
@@ -158,6 +162,7 @@ export default function ComplianceSection() {
       </Panel>
       <Panel title={t('adminLicence.kycTitle')} detail={t('adminLicence.kycDetail')}>
         <LicenceTable
+          loading={kyc.loading} error={kyc.error}
           rows={kyc.data?.requirements || []}
           columns={[
             { key: 'email', label: 'user' }, { key: 'trigger', label: 'type' }, { key: 'required_tier', label: 'tier' },
@@ -168,6 +173,7 @@ export default function ComplianceSection() {
       </Panel>
       <Panel title={t('adminLicence.sarTitle')} detail={t('adminLicence.sarDetail')} actions={<ActionButton disabled={action.busy} onClick={newSar}>{t('adminLicence.newSar')}</ActionButton>}>
         <LicenceTable
+          loading={sar.loading} error={sar.error}
           rows={sar.data?.reports || []}
           columns={[
             { key: 'status' }, { key: 'regulator', label: 'authority' }, { key: 'narrative', label: 'reason' },

@@ -11,6 +11,8 @@ import { adminMoney } from '../lib/formatters';
 // compare restaurant performance and verify merchant-reported numbers with
 // the same endpoints merchants see. The merchant report surfaces themselves
 // are a separate track and are not rebuilt here.
+const MAX_COMPARE_IDS = 20;
+
 export default function RestaurantAnalytics() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -22,14 +24,22 @@ export default function RestaurantAnalytics() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [detailError, setDetailError] = useState('');
+  const [capNotice, setCapNotice] = useState('');
 
   const load = async (event) => {
     event?.preventDefault();
-    const ids = idsInput.split(',').map((value) => Number.parseInt(value.trim(), 10)).filter((value) => Number.isInteger(value) && value > 0);
-    if (!ids.length) {
+    // Domain 7 #22: dedupe first, then cap at 20 so one paste cannot fire
+    // hundreds of parallel report requests; say so on screen.
+    const parsed = idsInput.split(',').map((value) => Number.parseInt(value.trim(), 10)).filter((value) => Number.isInteger(value) && value > 0);
+    const uniqueIds = [...new Set(parsed)];
+    if (!uniqueIds.length) {
       setLoadError(t('adminRestaurantAnalytics.idsRequired'));
       return;
     }
+    const ids = uniqueIds.slice(0, MAX_COMPARE_IDS);
+    setCapNotice(uniqueIds.length > MAX_COMPARE_IDS
+      ? t('adminRestaurantAnalytics.capped', { count: MAX_COMPARE_IDS })
+      : '');
     setLoading(true);
     setLoadError('');
     setRows([]);
@@ -87,6 +97,7 @@ export default function RestaurantAnalytics() {
 
       {loading && <p className="text-gray-400">{t('common.loading')}</p>}
       {loadError && !loading && <AdminErrorState message={loadError} onRetry={load} />}
+      {capNotice && !loading && <p role="status" className="mb-4 text-sm text-amber-300">{capNotice}</p>}
       {!loading && rows.length > 0 && (
         <div className="overflow-x-auto rounded-xl border border-slate-800">
           <table className="min-w-[720px] w-full text-left text-sm">

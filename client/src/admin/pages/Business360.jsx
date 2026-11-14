@@ -808,6 +808,9 @@ export default function Business360() {
               ))}
             </div>
           )}
+          {adminAudit.length === 100 && (
+            <p className="mt-3 text-xs text-gray-500">{t(`${NS}.audit.firstHundred`)}</p>
+          )}
         </Section>
       )}
     </div>
