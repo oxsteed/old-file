@@ -7,7 +7,7 @@
  * W6): the three erasure lifecycle notification types
  * (restaurant_erasure_requested / _decided / _completed) must ship with
  * per-type preference toggles. The toggle columns
- * (in_app_restaurant_erasure_*, migration 20261113231000) gate the
+ * (in_app_restaurant_erasure_*, migration 20261114020300) gate the
  * in-app channel through prefAllows in notificationService.js, the keys
  * are whitelisted in notificationController.updatePreferences, and the
  * settings UI offers them in the Restaurant Alerts section.
