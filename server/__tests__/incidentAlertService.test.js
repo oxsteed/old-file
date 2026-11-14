@@ -193,4 +193,60 @@ describe('incident alert dispatch', () => {
       expect.any(String),
     );
   });
+
+  // Item 49: when every channel fails, the lease-clear used to re-arm a
+  // flat 5-minute lease forever, so the sweeper re-sent the same alert
+  // on every expiry. The lease must back off from the claim time, and
+  // a persistently failing channel must escalate to the error log.
+  function failingChannels() {
+    return [
+      async () => false,
+      async () => { throw new Error('provider down'); },
+    ];
+  }
+
+  function leaseClearCall() {
+    return mockQuery.mock.calls.find(([sql]) => String(sql).includes('dispatch_lease_until=CASE'));
+  }
+
+  function dispatchIncident(claimedMinutesAgo) {
+    incidentAlertService.alertChannels = failingChannels();
+    return incidentAlertService.dispatchRecordedIncident({
+      id: 5,
+      type: 'BACKUP_FAILURE',
+      severity: 'critical',
+      message: 'Backup is late',
+      notification_claimed_at: claimedMinutesAgo == null
+        ? null
+        : new Date(Date.now() - claimedMinutesAgo * 60 * 1000).toISOString(),
+    });
+  }
+
+  test('item 49: a first dispatch failure re-arms a short 5-minute lease', async () => {
+    const result = await dispatchIncident(null);
+    expect(result.dispatched).toBe(false);
+    expect(leaseClearCall()[1]).toEqual([5, expect.any(String), false, '5']);
+  });
+
+  test('item 49: the lease backs off as the claim ages', async () => {
+    const result = await dispatchIncident(12);
+    expect(result.dispatched).toBe(false);
+    expect(leaseClearCall()[1]).toEqual([5, expect.any(String), false, '20']);
+  });
+
+  test('item 49: the lease caps at 4 hours and a persistently failing channel escalates', async () => {
+    const logger = require('../utils/logger');
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
+    try {
+      const result = await dispatchIncident(40);
+      expect(result.dispatched).toBe(false);
+      expect(leaseClearCall()[1]).toEqual([5, expect.any(String), false, '240']);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('persistently failing'),
+        expect.objectContaining({ type: 'BACKUP_FAILURE' })
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
 });

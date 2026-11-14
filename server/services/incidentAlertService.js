@@ -11,6 +11,24 @@ const incidentStore = require('./incidentStore');
 const DISPATCHABLE_SEVERITIES = incidentStore.DISPATCHABLE_SEVERITIES || ['critical', 'high'];
 const { hasGlobalGrant } = require('../middleware/adminAuth');
 
+// Item 49 (one shared backoff helper for the incident dispatch path): when
+// every channel fails, the next lease grows from the time since the
+// incident claimed its notification window — 5 minutes, doubling every
+// 5 minutes of age, capped at 4 hours — instead of a flat 5-minute lease
+// that re-sent the same alert forever. No retry-count column exists (no
+// migrations), so the claim timestamp is the only durable clock.
+const INCIDENT_DISPATCH_BASE_LEASE_MINUTES = 5;
+const INCIDENT_DISPATCH_MAX_LEASE_MINUTES = 240;
+
+function nextIncidentDispatchLeaseMinutes(claimedAt, now = new Date()) {
+  const elapsedMs = Math.max(0, now - new Date(claimedAt || now));
+  const windows = Math.floor(elapsedMs / (INCIDENT_DISPATCH_BASE_LEASE_MINUTES * 60 * 1000));
+  return Math.min(
+    INCIDENT_DISPATCH_BASE_LEASE_MINUTES * (2 ** windows),
+    INCIDENT_DISPATCH_MAX_LEASE_MINUTES
+  );
+}
+
 function formatIncidentDetails(incident, maxLength = 12000) {
   const lines = [
     `Message: ${incident.message}`,
@@ -142,12 +160,30 @@ class IncidentAlertService {
     for (const result of settled) if (result.status === 'rejected') {
       logger.error('Incident alert channel failed', { type: incident.type, error: result.reason?.message });
     }
-    if (leaseToken) await pool.query(`UPDATE incident_log SET
-      last_notified_at=CASE WHEN $3 THEN NOW() ELSE last_notified_at END,
-      notification_count=notification_count+CASE WHEN $3 THEN 1 ELSE 0 END,
-      dispatch_lease_token=NULL,
-      dispatch_lease_until=CASE WHEN $3 THEN NULL ELSE NOW()+INTERVAL '5 minutes' END
-      WHERE id=$1 AND dispatch_lease_token=$2`, [incident.id, leaseToken, dispatched]);
+    if (leaseToken) {
+      // Item 49: a failed dispatch re-arms a growing lease (backoff from
+      // the claim time), and once the lease is at its cap the channel
+      // itself is persistently failing, so escalate to the error log
+      // instead of silently re-trying every few minutes forever.
+      const leaseMinutes = dispatched
+        ? 0
+        : nextIncidentDispatchLeaseMinutes(incident.notification_claimed_at);
+      if (!dispatched && leaseMinutes >= INCIDENT_DISPATCH_MAX_LEASE_MINUTES) {
+        logger.error('Incident alert channel persistently failing', {
+          type: incident.type,
+          severity: incident.severity,
+          incidentId: incident.id,
+          claimedAt: incident.notification_claimed_at,
+          leaseMinutes,
+        });
+      }
+      await pool.query(`UPDATE incident_log SET
+        last_notified_at=CASE WHEN $3 THEN NOW() ELSE last_notified_at END,
+        notification_count=notification_count+CASE WHEN $3 THEN 1 ELSE 0 END,
+        dispatch_lease_token=NULL,
+        dispatch_lease_until=CASE WHEN $3 THEN NULL ELSE NOW()+($4::text || ' minutes')::interval END
+        WHERE id=$1 AND dispatch_lease_token=$2`, [incident.id, leaseToken, dispatched, String(leaseMinutes)]);
+    }
     return { dispatched, channels: settled.map(r => r.status) };
   }
 
@@ -293,3 +329,5 @@ class IncidentAlertService {
 }
 
 module.exports = new IncidentAlertService();
+module.exports.nextIncidentDispatchLeaseMinutes = nextIncidentDispatchLeaseMinutes;
+module.exports.INCIDENT_DISPATCH_MAX_LEASE_MINUTES = INCIDENT_DISPATCH_MAX_LEASE_MINUTES;
