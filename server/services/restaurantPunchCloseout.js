@@ -104,6 +104,45 @@ async function findManagers(db, businessId, cache = null) {
   return managers;
 }
 
+const CLOSEOUT_NOTIFY_KEY_PREFIX = 'closeout-notify';
+
+// Money-flows W9: one ledger row per (closed entry, manager). The
+// delivery key is unique, so a retry re-sends under the same key and
+// the notifications table dedupes the in-app row instead of notifying
+// twice. The write is best-effort and never throws: a ledger failure
+// must not fail the closeout sweep itself.
+async function recordCloseoutNotice(db, { businessId, entryId, managerId, deliveryKey, status, error = null }) {
+  try {
+    await db.query(
+      `INSERT INTO restaurant_punch_closeout_notices
+         (entry_id, business_id, manager_user_id, delivery_key, status, error)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (delivery_key) DO UPDATE
+          SET status = EXCLUDED.status, error = EXCLUDED.error, updated_at = NOW()`,
+      [entryId, businessId, managerId, deliveryKey, status, error]
+    );
+  } catch (err) {
+    logger.warn('Punch closeout: could not record notice outcome', {
+      businessId, entryId, managerId, error: err.message,
+    });
+  }
+}
+
+// Classify a sendNotification result for the ledger. sendNotification
+// never throws: { success: true, notificationId } means an in-app row
+// was created; { success: true } with no notificationId means every
+// channel was suppressed (e.g. the recipient turned the type off),
+// which is a skip, not a send; { success: false } is a failure.
+function classifyCloseoutSend(result) {
+  if (!result || result.success !== true) {
+    return { status: 'failed', error: result?.error || 'notification send failed' };
+  }
+  if (result.notificationId == null) {
+    return { status: 'skipped', error: 'suppressed by recipient preference' };
+  }
+  return { status: 'sent', error: null };
+}
+
 async function notifyManagers(db, businessId, closed, managerCache = null) {
   let notified = 0;
   let notifyErrors = 0;
