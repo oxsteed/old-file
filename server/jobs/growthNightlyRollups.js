@@ -220,11 +220,14 @@ async function run({ day: requestedDay, force = false } = {}) {
             const bySubject = new Map(subjects.map(row=>[row.subject_key,row]));
             const ids = [...new Set(subjects.map(row=>row.user_id))];
             const contexts = await gate.contexts(ids,{db:fence.db});
+            // Notifications audit item 40: decide once per user per
+            // block (batch API) instead of awaiting gate.allow per row.
+            const decisions = gate.allowMany(contexts, 'activity_offers');
             const eligible = [];
             for (const row of rows) {
               const subject=bySubject.get(row.subject_key);
               const ctx=subject && contexts.get(subject.user_id);
-              if (!ctx || !(await gate.allow(ctx,'activity_offers')).allowed) continue;
+              if (!ctx || !decisions.get(subject.user_id)?.allowed) continue;
               eligible.push({row,subject,ctx});
             }
             if (!eligible.length) continue;
@@ -257,10 +260,15 @@ async function run({ day: requestedDay, force = false } = {}) {
               // (revalidated in-transaction by refreshContexts) instead
               // of rebuilding them for the eligible subset.
               const fresh=await refreshContexts(conn, eligible, contexts);
+              // Notifications audit item 40: same batch decision for the
+              // revalidated in-transaction contexts; a consent withdrawn
+              // between build and write still denies here because the
+              // refreshed context carries the new consents.
+              const freshDecisions = gate.allowMany(fresh, 'activity_offers');
               const writes=new Map();
               for(let i=0;i<eligible.length;i++){
                 const {row,subject}=eligible[i], node=nodeByJob.get(row.entity_id), ctx=fresh.get(subject.user_id);
-                if(!node || !ctx || !(await gate.allow(ctx,'activity_offers')).allowed) continue;
+                if(!node || !ctx || !freshDecisions.get(subject.user_id)?.allowed) continue;
                 const profilePostal=postals[i]||null;
                 const score=Math.min(1,0.5+Math.log2(Number(row.events)+1)/10);
                 const key=JSON.stringify([subject.user_id,node]);
