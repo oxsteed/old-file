@@ -127,3 +127,38 @@ test('a failed single-user send records a delivery attempt', async () => {
   const attemptCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('attempt_count'));
   expect(attemptCalls).toHaveLength(1);
 });
+
+test('batch selection joins users and excludes soft-deleted users', async () => {
+  // Item 50: the outer query joined only notification_preferences and
+  // never joined users, so a soft-deleted user whose prefs row survived
+  // was still selected and emailed.
+  const email = require('../utils/email');
+  email.sendEmailBatch = jest.fn(async (messages) => messages.map((_, i) => ({ id: String(i) })));
+  let processEmailDigest;
+  jest.isolateModules(() => { ({ processEmailDigest } = require('../jobs/emailDigestBatch')); });
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.includes('DELETE FROM email_digest_queue')) return { rows: [], rowCount: 0 };
+    if (sql.includes('MAX(id)')) return { rows: [{ id: 2000 }] };
+    if (sql.includes('SELECT DISTINCT edq.user_id')) return { rows: [] };
+    return { rows: [] };
+  });
+  await processEmailDigest('daily');
+  const selectCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('SELECT DISTINCT edq.user_id'));
+  expect(selectCalls).toHaveLength(1);
+  expect(selectCalls[0][0]).toContain('JOIN users');
+  expect(selectCalls[0][0]).toContain('deleted_at IS NULL');
+});
+
+test('per-user lookup misses purge the user rows instead of rescanning them', async () => {
+  // Item 50: the per-user lookup had no deleted_at filter, and a lookup
+  // miss returned false while the rows stayed queued forever. The rows
+  // are purged (not marked sent: nothing was delivered).
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+
+  await expect(processSingleUserDigest('user-1', 'daily')).resolves.toBe(false);
+  expect(sendEmail).not.toHaveBeenCalled();
+  const purgeCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('DELETE FROM email_digest_queue'));
+  expect(purgeCalls).toHaveLength(1);
+  expect(purgeCalls[0][1]).toEqual(['user-1']);
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('SET sent_at = CURRENT_TIMESTAMP'))).toBe(false);
+});

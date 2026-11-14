@@ -1,7 +1,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendEmail, sendEmailBatch } = require('../utils/email');
-const { purgeStaleDigestQueueRows, recordDigestDeliveryAttempt } = require('../services/digestDelivery');
+const { purgeStaleDigestQueueRows, purgeUserDigestQueueRows, recordDigestDeliveryAttempt } = require('../services/digestDelivery');
 const { mapBounded } = require('../utils/boundedBatch');
 const crypto = require('crypto');
 const { maskEmail } = require('../utils/directQuote');
@@ -84,6 +84,9 @@ async function processEmailDigest(digestType = 'daily') {
       const { rows: users } = await pool.query(`
         SELECT DISTINCT edq.user_id FROM email_digest_queue edq
         JOIN notification_preferences np ON np.user_id=edq.user_id
+        -- Item 50: the outer query never joined users, so a soft-deleted
+        -- user whose prefs row survived was still selected and emailed.
+        JOIN users u ON u.id = edq.user_id AND u.deleted_at IS NULL
         WHERE edq.sent_at IS NULL AND edq.id<=$3
           AND edq.dead_lettered_at IS NULL
           AND np.email_frequency=$1 AND np.unsubscribe_all=FALSE AND np.email_notifications=TRUE
@@ -135,12 +138,16 @@ async function processSingleUserDigest(userId, digestType, { prepareOnly = false
   try {
     // Get user email
     const userResult = await pool.query(
-      'SELECT email, first_name, preferred_language FROM users WHERE id = $1',
+      'SELECT email, first_name, preferred_language FROM users WHERE id = $1 AND deleted_at IS NULL',
       [userId]
     );
 
     if (!userResult.rows.length) {
       logger.warn('User not found for digest', { userId });
+      // Item 50: a deleted (or missing) user must not leave rows queued
+      // forever. Purge them — do NOT mark them sent, nothing was
+      // delivered (fail closed).
+      await purgeUserDigestQueueRows(pool, userId);
       return false;
     }
 
