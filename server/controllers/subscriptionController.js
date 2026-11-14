@@ -635,6 +635,76 @@ exports.issueAdminCancelStepupChallenge = async (req, res, next) => {
   }
 };
 
+// GET /api/admin/super/subscriptions/:id — resolve one subscription for
+// the admin cancel preview (Domain 7 #6). Returns the user, plan, status,
+// and amount from the local record, resolving the Stripe subscription to
+// its live customer when one exists. Read-only; the cancel itself still
+// requires a fresh step-up. A Stripe outage must not hide the local
+// record, so a failed live retrieve falls back to the stored customer.
+exports.getAdminSubscription = async (req, res, next) => {
+  try {
+    const subscriptionId = String(req.params.id || '').trim();
+    if (!subscriptionId) throw new AppError('Subscription id is required', 400, 'validation_failed');
+    const { rows: [sub] } = await db.query(
+      `SELECT s.id, s.user_id, s.status, s.payment_method,
+              s.stripe_subscription_id, s.stripe_customer_id,
+              s.current_period_start, s.current_period_end,
+              p.name AS plan_name, p.slug AS plan_slug,
+              p.amount_cents AS plan_amount_cents, p.currency AS plan_currency,
+              p.interval AS plan_interval,
+              u.first_name, u.last_name, u.email
+         FROM subscriptions s
+         LEFT JOIN plans p ON p.id = s.plan_id
+         LEFT JOIN users u ON u.id = s.user_id
+        WHERE s.id = $1`,
+      [subscriptionId]
+    );
+    if (!sub) throw new AppError('Subscription not found', 404, 'not_found');
+    let stripeCustomerId = sub.stripe_customer_id || null;
+    let stripeStatus = null;
+    let stripeUnavailable = false;
+    if (sub.stripe_subscription_id) {
+      try {
+        const live = await stripe.subscriptions.retrieve(sub.stripe_subscription_id);
+        if (live) {
+          stripeCustomerId = typeof live.customer === 'string'
+            ? live.customer
+            : (live.customer?.id || stripeCustomerId);
+          stripeStatus = live.status || null;
+        }
+      } catch (stripeErr) {
+        // resource_missing: the Stripe record is gone; report the local row
+        // as-is. Any other Stripe failure is flagged, not fatal.
+        if (stripeErr?.code !== 'resource_missing') stripeUnavailable = true;
+      }
+    }
+    const displayName = [sub.first_name, sub.last_name].filter(Boolean).join(' ').trim() || null;
+    return res.json({
+      subscription: {
+        id: sub.id,
+        userId: sub.user_id,
+        userDisplayName: displayName,
+        userEmail: sub.email || null,
+        planName: sub.plan_name || null,
+        planSlug: sub.plan_slug || null,
+        amountCents: sub.plan_amount_cents ?? null,
+        currency: sub.plan_currency || null,
+        interval: sub.plan_interval || null,
+        status: sub.status,
+        paymentMethod: sub.payment_method,
+        stripeSubscriptionId: sub.stripe_subscription_id || null,
+        stripeCustomerId,
+        stripeStatus,
+        stripeUnavailable,
+        currentPeriodStart: sub.current_period_start || null,
+        currentPeriodEnd: sub.current_period_end || null,
+      },
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 // POST /api/admin/subscriptions/:id/cancel — super-admin cancel for any
 // subscription (review P2-569). Credit subscriptions end immediately (no
 // further renewal); Stripe subscriptions are cancelled at Stripe first.

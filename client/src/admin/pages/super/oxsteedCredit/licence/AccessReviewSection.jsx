@@ -32,6 +32,7 @@ export default function AccessReviewSection() {
         actions={<ActionButton disabled={action.busy} onClick={ensure}>{t('adminLicence.ensureReview')}</ActionButton>}
       >
         <LicenceTable
+          loading={reviews.loading} error={reviews.error}
           rows={reviews.data?.reviews || []}
           columns={[
             { key: 'period_label', label: 'period' },
@@ -74,6 +75,7 @@ function ReviewItems({ reviewId, action, requestDialog, onChanged }) {
   return (
     <Panel title={t('adminLicence.reviewItemsTitle', { period: review.data?.review?.period_label || '' })}>
       <LicenceTable
+          loading={review.loading} error={review.error}
         rows={review.data?.items || []}
         columns={[
           { key: 'subject_type', label: 'type' },

@@ -21,5 +21,7 @@ router.get('/releases', reliabilityController.listReleases);
 router.post('/releases', reliabilityController.createRelease);
 router.get('/migrations', reliabilityController.listMigrations);
 router.get('/budgets', reliabilityController.getBudgets);
+router.get('/fleet-workers', reliabilityController.getFleetWorkers);
+router.get('/current-release', reliabilityController.getCurrentRelease);
 
 module.exports = router;

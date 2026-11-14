@@ -8,6 +8,7 @@ import {
 import adminApi from '../../../lib/adminApi';
 import { adminRoute } from '../../../adminRouteManifest';
 import { useAbortableFetch } from '../../../lib/useAbortableFetch';
+import AuditQueuePager from '../../../lib/AuditQueuePager';
 import AdminErrorState from '../../../lib/AdminErrorState';
 import { adminDate } from '../../../lib/formatters';
 import useDestructiveConfirm from '../../../hooks/useDestructiveConfirm';
@@ -215,11 +216,17 @@ function CapacityTab({ t }) {
   );
 }
 
-// ── Safety tab (existing admin SOS endpoint, no new API) ─────────────────────
+// ── Safety tab ──────────────────────────────────────────────────────────────
+// Domain 7 #29: the SOS list used to truncate at 100 with no total, so the
+// oldest (most overdue) events were unreachable. It now pages through the
+// endpoint's total with the shared AuditQueuePager.
+
+const SOS_PAGE_SIZE = 100;
 
 function SafetyTab({ t }) {
   const [ackBusy, setAckBusy] = useState(null);
   const [ackError, setAckError] = useState('');
+  const [offset, setOffset] = useState(0);
   async function acknowledge(event) {
     setAckBusy(event.id); setAckError('');
     try { await adminApi.post(`/safety/sos/${event.id}/acknowledge`); reload(); }
@@ -227,9 +234,12 @@ function SafetyTab({ t }) {
     finally { setAckBusy(null); }
   }
   const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
-    const { data: payload } = await adminApi.get('/safety/sos', { signal });
-    return payload?.events || [];
-  }, []);
+    const { data: payload } = await adminApi.get('/safety/sos', {
+      params: { limit: SOS_PAGE_SIZE, offset },
+      signal,
+    });
+    return payload || { events: [], total: 0 };
+  }, [offset]);
 
   if (loading) {
     return (
@@ -252,12 +262,13 @@ function SafetyTab({ t }) {
   }
   if (error) return <AdminErrorState message={error?.message} onRetry={reload} />;
 
-  const events = data || [];
+  const events = data?.events || [];
+  const total = data?.total ?? 0;
   return (
     <div className="space-y-4">
       {ackError && <p role="alert" className="text-red-500">{ackError}</p>}
       <p className="text-sm text-gray-600 dark:text-gray-400">
-        {t('wsServiceOps.safetySubtitle', 'Emergency SOS events raised by users, newest first. Showing the latest 100.')}
+        {t('wsServiceOps.safetySubtitle')}
       </p>
       {events.length === 0 ? (
         <p className="text-sm text-gray-500">{t('wsServiceOps.noSosEvents', 'No SOS events recorded.')}</p>
@@ -298,6 +309,7 @@ function SafetyTab({ t }) {
           </table>
         </div>
       )}
+      <AuditQueuePager offset={offset} limit={SOS_PAGE_SIZE} total={total} busy={loading} onChange={setOffset} />
     </div>
   );
 }

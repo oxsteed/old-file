@@ -912,7 +912,13 @@ exports.runDiscoverDigestTick = async ({ fence, limit = 100 } = {}) => {
   for (const a of alerts) {
     fence?.assertActive();
     try {
-      await digestDb.query('UPDATE discover_search_alerts SET last_checked_at=NOW() WHERE id=$1', [a.id]);
+      // Domain 7 #27: last_checked_at used to be stamped BEFORE the search
+      // and send, so a failed send left the row un-due for 24h (the
+      // due-only filter above) with the signature unchanged — the mail was
+      // only delayed, but up to a day. Stamp only after a completed check:
+      // first signature store, unchanged signature, or successful send.
+      // A failed send (or a thrown search) stamps nothing, so the row
+      // stays due and the next tick retries it.
       const { results, contentSignature } = await runDiscoverSearch({
         query: a.query,
         lat: a.lat,
@@ -922,12 +928,18 @@ exports.runDiscoverDigestTick = async ({ fence, limit = 100 } = {}) => {
       if (!contentSignature) continue;
       if (!a.last_signature) {
         await digestDb.query(
-          `UPDATE discover_search_alerts SET last_signature = $2 WHERE id = $1`,
+          `UPDATE discover_search_alerts SET last_signature = $2, last_checked_at = NOW() WHERE id = $1`,
           [a.id, contentSignature],
         );
         continue;
       }
-      if (a.last_signature === contentSignature) continue;
+      if (a.last_signature === contentSignature) {
+        await digestDb.query(
+          'UPDATE discover_search_alerts SET last_checked_at = NOW() WHERE id = $1',
+          [a.id],
+        );
+        continue;
+      }
 
       const lines = results.slice(0, 12).map((r) => `• ${r.title} (${r.type}) - ${r.url}`);
       const subject = `OxSteed: new matches for "${a.query}"`;
@@ -959,7 +971,7 @@ Open OxSteed to see more: ${process.env.APP_URL || process.env.CLIENT_URL || 'ht
       if (!mail.success) continue;
 
       await digestDb.query(
-        `UPDATE discover_search_alerts SET last_signature = $2, last_sent_at = NOW() WHERE id = $1`,
+        `UPDATE discover_search_alerts SET last_signature = $2, last_sent_at = NOW(), last_checked_at = NOW() WHERE id = $1`,
         [a.id, contentSignature],
       );
       // Global marketing caps (growth spec 17.2): the Discover digest is a
