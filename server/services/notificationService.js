@@ -335,6 +335,10 @@ exports.sendNotification = async ({
       // (the job additionally gates on admin_notification_prefs).
       'metric_threshold_alert',
       'restaurant_loyalty_campaign',
+      // Support SLA breach and follow-up-due alerts (item 21): offline
+      // agents only learn about these by email.
+      'support_follow_up_due',
+      'support_sla_breach',
     ];
     // Transactional: always attempt email when we have an address (cannot opt out of
     // security-relevant account notices via marketing-style toggles).

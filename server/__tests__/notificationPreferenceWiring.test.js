@@ -129,6 +129,23 @@ describe('P2-8-F03 friendly toggle aliases', () => {
   });
 });
 
+describe('Item 21 support SLA / follow-up email eligibility', () => {
+  test.each(['support_sla_breach', 'support_follow_up_due'])(
+    '%s reaches email so offline agents learn about it',
+    async (type) => {
+      mockPrefs({});
+      sendEmail.mockResolvedValue({ success: true });
+      const result = await sendNotification({
+        userId: 'u1', type, title: 't', body: 'b',
+        idempotencyKey: `item21-email-${type}`,
+      });
+      expect(result.success).toBe(true);
+      expect(sendEmail).toHaveBeenCalledTimes(1);
+      expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'user@example.com' }));
+    },
+  );
+});
+
 describe('Background-jobs audit #51 restaurant alert toggles', () => {
   const RESTAURANT_TYPES = [
     ['staff_time_entry_system_closed', 'in_app_staff_time_entry_system_closed'],

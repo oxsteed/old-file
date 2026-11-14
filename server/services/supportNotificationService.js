@@ -70,10 +70,16 @@ async function notifySupportStaff({
   data = {},
   action_url = '/support/agent',
   idempotencyKeyPrefix,
+  // Callers that fan out over many entities (e.g. the SLA sweeper) pass
+  // pre-resolved recipientIds so staff are resolved once per sweep,
+  // not once per entity. Otherwise the helper resolves them itself.
+  recipientIds = null,
   dbClient = db,
 }) {
-  const recipientIds = await resolveSupportStaffIds(dbClient);
-  const results = await Promise.allSettled(recipientIds.map((userId) => sendNotification({
+  const resolvedIds = recipientIds == null
+    ? await resolveSupportStaffIds(dbClient)
+    : normalizeRecipientIds(recipientIds, null);
+  const results = await Promise.allSettled(resolvedIds.map((userId) => sendNotification({
     userId,
     type,
     title,
@@ -89,7 +95,7 @@ async function notifySupportStaff({
   if (failed > 0) {
     logger.warn('Support staff notification fan-out had failures', { type, notified, failed });
   }
-  return { notified, failed, recipients: recipientIds.length };
+  return { notified, failed, recipients: resolvedIds.length };
 }
 
 /**
