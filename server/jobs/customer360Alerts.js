@@ -145,7 +145,15 @@ function startCustomer360Alerts() {
   let stopped = false,
     running = null;
   const tick = () => {
-    if (stopped || running) return;
+    if (stopped) return;
+    if (running) {
+      // Notifications audit item 39: an overrun tick used to return
+      // silently, so a stalled evaluation was invisible. Log the skip
+      // (the in-process guard stays: the fence in item 29 covers the
+      // cross-replica case, this covers the overlap inside one process).
+      logger.warn('Customer 360 alerts tick skipped: previous tick still running');
+      return;
+    }
     running = evaluateCustomer360Alerts()
       .catch((error) =>
         logger.warn("Customer 360 alerts will retry", { code: error.code }),

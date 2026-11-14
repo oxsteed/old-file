@@ -309,6 +309,10 @@ exports.sendNotification = async ({
       'credit_identity_verification_expired', 'credit_identity_verification_expiring',
       'credit_identity_verification_appeal_submitted', 'credit_identity_verification_appeal_approved',
       'credit_identity_verification_appeal_rejected',
+      // Customer 360 attention alerts (notifications audit item 39):
+      // the per-tick overflow digest and per-anomaly notices are admin
+      // notices, not marketing, so they email when the admin allows it.
+      'customer360_attention',
       // Monthly statement issuance: generic authenticated-link email, no
       // amounts or attachments. Respects the user's email preference toggle.
       'statement_ready',
