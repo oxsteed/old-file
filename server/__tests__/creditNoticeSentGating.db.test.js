@@ -286,4 +286,63 @@ describeDatabase('credit notice sent-gating (notifications audit items 1, 8, 45,
       );
     });
   });
+
+  describe('item 8/56: sendUserNotice inserts an in-app row on every call', () => {
+    const { sendEmail } = require('../utils/email');
+
+    beforeEach(() => {
+      sendEmail.mockReset();
+    });
+
+    test('a failed email still leaves a visible in-app row', async () => {
+      const userId = await createUser('customer');
+      sendEmail.mockResolvedValue({ success: false, error: 'resend down' });
+      const result = await notices.sendUserNotice({
+        userId, key: 'reverification_required', params: {}, idempotencyKey: `m4ns-notice-${crypto.randomUUID()}`,
+      });
+      expect(result.sent).toBe(false);
+      expect(result.inApp).toBe(true);
+      expect(result.notificationId).toBeTruthy();
+      // The notification list API shape: title/body/action_url must render,
+      // so the row cannot show up blank in the centre or on /activity.
+      const { rows } = await pool.query(
+        `SELECT id, type, title, body, data, COALESCE(action_url, data->>'action_url') AS action_url, is_read, created_at
+           FROM notifications WHERE user_id = $1 ORDER BY id DESC LIMIT 1`,
+        [userId]
+      );
+      expect(rows).toHaveLength(1);
+      expect(String(rows[0].id)).toBe(result.notificationId);
+      expect(rows[0].type).toBe('credit_notice');
+      expect(rows[0].title).toBe('Please confirm your identity again');
+      expect(rows[0].body).toContain('confirm your identity again');
+      expect(rows[0].data.notice_key).toBe('reverification_required');
+      expect(rows[0].data.email_sent).toBe(false);
+      expect(rows[0].data.email_error).toBe('resend down');
+      expect(rows[0].action_url).toBe('/wallet');
+      expect(rows[0].is_read).toBe(false);
+    });
+
+    test('a sent email records email_sent=true on the same row', async () => {
+      const userId = await createUser('customer');
+      sendEmail.mockResolvedValue({ success: true, id: 'msg-1' });
+      const result = await notices.sendUserNotice({
+        userId, key: 'reverification_required', params: {}, idempotencyKey: `m4ns-notice-${crypto.randomUUID()}`,
+      });
+      expect(result.sent).toBe(true);
+      const { rows } = await pool.query('SELECT data, is_email_sent FROM notifications WHERE id = $1', [result.notificationId]);
+      expect(rows[0].data.email_sent).toBe(true);
+      expect(rows[0].is_email_sent).toBe(true);
+    });
+
+    test('retrying with the same idempotency key does not duplicate the row', async () => {
+      const userId = await createUser('customer');
+      sendEmail.mockResolvedValue({ success: true, id: 'msg-2' });
+      const key = `m4ns-notice-${crypto.randomUUID()}`;
+      const first = await notices.sendUserNotice({ userId, key: 'reverification_required', params: {}, idempotencyKey: key });
+      const second = await notices.sendUserNotice({ userId, key: 'reverification_required', params: {}, idempotencyKey: key });
+      expect(second.notificationId).toBe(first.notificationId);
+      const { rows } = await pool.query('SELECT count(*)::int AS n FROM notifications WHERE delivery_key = $1', [`credit-notice:${key}`]);
+      expect(rows[0].n).toBe(1);
+    });
+  });
 });
