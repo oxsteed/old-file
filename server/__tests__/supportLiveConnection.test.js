@@ -402,6 +402,63 @@ describe('live support connection lifecycle', () => {
     expect(email.sendEmail.mock.calls[0][0].html).toContain('I can help with that.');
   });
 
+  test('sends the agent-reply email to a guest conversation guest_email', async () => {
+    // Item 44 repro: guest conversations have customer_id NULL, so the
+    // agent-reply email must resolve the recipient from guest_email.
+    // The mocked row is what the fixed load query returns (COALESCE of the
+    // account email and guest_email); the SQL assertion below is what
+    // proves the load actually resolves it instead of a bare SELECT *.
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-guest',
+          business_id: 'business-1',
+          customer_id: null,
+          guest_email: 'guest@example.com',
+          guest_name: 'Guest User',
+          customer_email: 'guest@example.com',
+          customer_name: 'Guest User',
+          customer_email_notifications: true,
+          agent_id: 'agent-1',
+          status: 'in_progress',
+          subject: 'Refund question',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ user_id: 'admin-1' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'message-guest-1',
+          content: 'Your refund is on its way.',
+          message_type: 'text',
+          created_at: '2026-08-13T00:02:00.000Z',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'admin-1', name: 'Ava Agent', role: 'admin' },
+      params: { conversationId: 'ticket-guest' },
+      body: { content: 'Your refund is on its way.' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const loadSql = mockQuery.mock.calls[0][0];
+    expect(loadSql).toContain('guest_email');
+    expect(loadSql).toContain('customer_email');
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    // The reply row is stored, so it renders in the guest conversation view.
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_messages/.test(sql))).toBe(true);
+    expect(email.sendEmail).toHaveBeenCalledWith(expect.objectContaining({
+      to: 'guest@example.com',
+      subject: 'OxSteed Support: Refund question',
+      idempotencyKey: 'support-reply-message-guest-1',
+    }));
+    expect(email.sendEmail.mock.calls[0][0].html).toContain('Your refund is on its way.');
+  });
+
   test('treats the multipart legacy fields as a public agent reply when requested', async () => {
     mockQuery
       .mockResolvedValueOnce({

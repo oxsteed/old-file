@@ -2007,9 +2007,21 @@ async function addMessage(req, res) {
       return sendValidationError(res, { messageType: 'Must be text or image' });
     }
 
-    // Get conversation
+    // Get conversation. Resolve the recipient email the same way the
+    // status-change path does: an account email when the customer is
+    // signed in, otherwise the guest_email. A bare SELECT * leaves
+    // customer_email undefined for guests (customer_id NULL), which made
+    // the agent-reply email guard return silently and guests got zero
+    // email (item 44).
     const convResult = await query(
-      'SELECT * FROM support_conversations WHERE id = $1',
+      `SELECT sc.*, COALESCE(u.email, sc.guest_email) AS customer_email,
+              COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
+                u.email, sc.guest_name, 'Customer') AS customer_name,
+              COALESCE(np.email_notifications, TRUE) AS customer_email_notifications
+       FROM support_conversations sc
+       LEFT JOIN users u ON u.id = sc.customer_id
+       LEFT JOIN notification_preferences np ON np.user_id = sc.customer_id
+       WHERE sc.id = $1`,
       [conversationId]
     );
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
