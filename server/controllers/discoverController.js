@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const escapeHtml = require('../utils/escapeHtml');
-const { sendEmail } = require('../utils/email');
+const { loadDigestRecipient, decideEmailDelivery, deliverDigestEmail } = require('../services/digestDelivery');
 const { hashIP } = require('../utils/encryption');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
@@ -912,6 +912,24 @@ exports.runDiscoverDigestTick = async ({ fence, limit = 100 } = {}) => {
   for (const a of alerts) {
     fence?.assertActive();
     try {
+      // Item 16: the digest used to mail via direct sendEmail with no
+      // notification_preferences check, so unsubscribed / email-off /
+      // frequency-off users were mailed anyway. Route through the shared
+      // digestDelivery helper BEFORE the search: a prefs skip is a
+      // completed check (stamp last_checked_at so the row sleeps a day
+      // instead of crowding every 10-minute tick); the signature is
+      // untouched, so re-subscribing resumes delivery on the next due
+      // tick. (The last_checked_at half of item 16 was already fixed by
+      // Domain 7 #27: a failed send stamps nothing and stays due.)
+      const recipient = await loadDigestRecipient(digestDb, a.user_id);
+      const preDecision = decideEmailDelivery(recipient);
+      if (preDecision.action === 'skip') {
+        await digestDb.query(
+          'UPDATE discover_search_alerts SET last_checked_at = NOW() WHERE id = $1',
+          [a.id],
+        );
+        continue;
+      }
       // Domain 7 #27: last_checked_at used to be stamped BEFORE the search
       // and send, so a failed send left the row un-due for 24h (the
       // due-only filter above) with the signature unchanged — the mail was
@@ -954,26 +972,39 @@ Open OxSteed to see more: ${process.env.APP_URL || process.env.CLIENT_URL || 'ht
 - OxSteed`;
 
       fence?.assertActive();
-      const mail = await sendEmail({
-        to: a.email,
+      // Item 16: deliver through the shared digestDelivery helper so
+      // daily/weekly-frequency users are queued for the digest batch
+      // instead of mailed immediately. The content-signature dedupe above
+      // only skips when the last run persisted its signature. If the send
+      // succeeded but the UPDATE below failed, the next tick would resend;
+      // the key makes that retry a provider-level no-op.
+      const delivery = await deliverDigestEmail(digestDb, {
+        userId: a.user_id,
+        recipient,
+        type: 'discover_digest',
         subject,
-        // The content-signature dedupe above only skips when the last run
-        // persisted its signature. If the send succeeded but the UPDATE
-        // below failed, the next tick would resend; the key makes that
-        // retry a provider-level no-op.
-        idempotencyKey: `discover-digest:${a.id}:${contentSignature}`,
         text,
         // F-19: every interpolated value is HTML-escaped (listing titles come
         // from other users), and links are limited to app-relative paths.
         html: digestHtml(a, results),
+        deliveryKey: `discover-digest:${a.id}:${contentSignature}`,
       });
 
-      if (!mail.success) continue;
+      if (!delivery.delivered && !delivery.queued) continue;
 
-      await digestDb.query(
-        `UPDATE discover_search_alerts SET last_signature = $2, last_sent_at = NOW(), last_checked_at = NOW() WHERE id = $1`,
-        [a.id, contentSignature],
-      );
+      if (delivery.queued) {
+        // Delegated to the digest batch: advance the signature so the
+        // change is not re-queued, but do NOT claim it was sent.
+        await digestDb.query(
+          `UPDATE discover_search_alerts SET last_signature = $2, last_checked_at = NOW() WHERE id = $1`,
+          [a.id, contentSignature],
+        );
+      } else {
+        await digestDb.query(
+          `UPDATE discover_search_alerts SET last_signature = $2, last_sent_at = NOW(), last_checked_at = NOW() WHERE id = $1`,
+          [a.id, contentSignature],
+        );
+      }
       // Global marketing caps (growth spec 17.2): the Discover digest is a
       // platform marketing send and counts toward the same per-person caps.
       await require('../growth/marketingLog').recordMarketingContact(digestDb, {
