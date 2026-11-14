@@ -156,4 +156,33 @@ describe('affiliate null-rate skip (Oct 30 item 17)', () => {
     expect(incident).toBeTruthy();
     expect(incident[1][0]).toBe('affiliate_program_missing_commission_rate');
   });
+
+  test('a NULL-rate skip persists a marker on the program (cost audit 2026-11-13 item 15)', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (String(sql).includes('FROM marketplace_order_items')) {
+        return { rows: [{
+          order_id: 'ord-1', item_id: 'it-1', sale_amount: '10000', sale_currency: 'USD',
+          helper_user_id: 'helper-1', affiliate_program_id: 'prog-1', commission_rate: null,
+        }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    await runAffiliateCommissionBatch();
+    const marker = mockQuery.mock.calls.find(
+      ([sql, params]) => String(sql).includes('UPDATE affiliate_programs')
+        && String(sql).includes('commission_rate_missing_at')
+        && Array.isArray(params) && params.includes('prog-1')
+    );
+    expect(marker).toBeTruthy();
+    expect(String(marker[0])).toMatch(/commission_rate IS NULL/);
+    expect(String(marker[0])).toMatch(/commission_rate_missing_at IS NULL/);
+  });
+
+  test('the selection excludes programs already flagged as missing a rate', async () => {
+    await runAffiliateCommissionBatch();
+    const select = mockQuery.mock.calls.find(([sql]) => String(sql).includes('FROM marketplace_order_items'));
+    expect(select).toBeTruthy();
+    expect(String(select[0])).toMatch(/commission_rate_missing_at IS NOT NULL/);
+    expect(String(select[0])).toMatch(/ap_flagged\.commission_rate IS NULL/);
+  });
 });

@@ -17,6 +17,18 @@ verification evidence in the relevant document under `docs/`.
   New files must be named `YYYYMMDDHHMMSS_name.sql` (UTC timestamp) and sort
   after the newest file on the default branch. CI checks immutability, unused
   prefixes, timestamp names and append order.
+- New migrations must scope every `pg_constraint` guard to the table (and
+  schema) it checks: match `conrelid` (for example
+  `conrelid = 'table'::regclass` or a `JOIN pg_class ... ON ... conrelid`)
+  or `connamespace` in addition to `conname`. An unscoped
+  `WHERE conname='...'` guard sees a same-named constraint in any schema
+  and silently skips adding the FK/unique/check in the target schema
+  (migration 994: `cash_tips_restaurant_location_fk` was skipped in test
+  schemas because `public` already had the name). Enforced for new
+  migrations only by `scripts/check-migration-history.cjs`, which runs in CI
+  under "Immutable migration history and filename order"; the pre-existing
+  unscoped guards are grandfathered and are never rewritten, because applied
+  migrations are byte-immutable.
 - `docs/archive/`: historical notes and retired root-level code. Do not import
   it, execute its SQL, or treat old status/test-count claims as current evidence.
 - Preserve existing uncommitted changes and unrelated work.

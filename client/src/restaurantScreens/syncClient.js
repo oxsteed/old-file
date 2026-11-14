@@ -146,9 +146,16 @@ export function createScreenSync({
       }
     }
   }
-  const wake = () => refresh();
+  // Cost audit 2026-11-13 P3: the 5s wake used to poll screenChanges /
+  // screenSnapshot around the clock, even with the tab hidden. The wake
+  // (interval and socket) is now visibility-gated, and returning to a
+  // visible tab refreshes immediately so a hidden screen catches up in
+  // one delta read instead of polling while hidden.
+  const wake = () => { if (document.visibilityState !== 'hidden') refresh(); };
   const off = subscribe(restaurantId, wake);
   timer = setInterval(wake, 5000);
+  const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+  document.addEventListener('visibilitychange', onVisible);
   window.addEventListener("online", wake);
   window.addEventListener("offline", wake);
   refresh(true);
@@ -159,6 +166,7 @@ export function createScreenSync({
       controller?.abort();
       clearInterval(timer);
       off();
+      document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener("online", wake);
       window.removeEventListener("offline", wake);
     },

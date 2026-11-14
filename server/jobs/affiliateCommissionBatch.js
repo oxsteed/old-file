@@ -104,6 +104,16 @@ async function runAffiliateCommissionBatch() {
           WHERE ac.order_id = oi.order_id AND ac.product_id = oi.product_id
             AND ac.status <> 'void'
         )
+        -- Cost audit 2026-11-13 item 15: a program flagged as missing its
+        -- rate (commission_rate_missing_at set) is never re-selected while
+        -- the rate is still NULL; setting a rate re-enables it without any
+        -- marker cleanup, so the predicate checks both columns.
+        AND NOT EXISTS (
+          SELECT 1 FROM affiliate_programs ap_flagged
+          WHERE ap_flagged.id = ap.id
+            AND ap_flagged.commission_rate IS NULL
+            AND ap_flagged.commission_rate_missing_at IS NOT NULL
+        )
       ORDER BY mo.created_at DESC
       LIMIT 1000
     `);
@@ -116,11 +126,26 @@ async function runAffiliateCommissionBatch() {
         // commissionCentsForSale on every nightly run, logging forever
         // with no incident while the NOT EXISTS check kept re-selecting
         // the row. Skip it with a deduped incident per program instead.
+        // Cost audit 2026-11-13 item 15: persist the skip as a marker on
+        // the program row so the next run never selects it again while
+        // the rate is still NULL (the select above excludes flagged
+        // programs). The marker is only set while the rate is NULL, so
+        // an admin setting a rate re-enables the program even with a
+        // stale marker timestamp.
         if (row.affiliate_program_id && row.commission_rate == null) {
           logger.warn('Skipping commission for affiliate program with no rate', {
             orderId: row.order_id,
             affiliateProgramId: row.affiliate_program_id,
           });
+          try {
+            await pool.query(
+              `UPDATE affiliate_programs SET commission_rate_missing_at = NOW(), updated_at = NOW()
+                WHERE id = $1 AND commission_rate IS NULL AND commission_rate_missing_at IS NULL`,
+              [row.affiliate_program_id]
+            );
+          } catch (markerError) {
+            logger.error('Affiliate null-rate skip marker could not be recorded', { error: markerError.message });
+          }
           try {
             await require('../services/incidentStore').recordIncident({
               type: 'affiliate_program_missing_commission_rate',

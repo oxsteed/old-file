@@ -11,19 +11,44 @@ beforeEach(() => { resetMocks(); mockSendNotification.mockClear(); });
 describe('sweepNoShows (P3-8-F03)', () => {
   test('marks stale confirmed appointments no_show and notifies participants', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 'appt-1', business_id: 7 }] }) // phase 1 select
-      .mockResolvedValueOnce({ rows: [{ id: 'appt-1', business_id: 7, no_show_marked_at: new Date().toISOString() }] }) // phase 1 update
-      .mockResolvedValueOnce({ rows: [{ customer_id: 'cust-1', business_owner_id: 'owner-1' }] }) // notify lookup
+      .mockResolvedValueOnce({ rows: [{ id: 'appt-1', business_id: 7, no_show_marked_at: new Date().toISOString() }] }) // phase 1 set-based update
+      .mockResolvedValueOnce({ rows: [{ id: 'appt-1', customer_id: 'cust-1', business_owner_id: 'owner-1' }] }) // batched notify lookup
       .mockResolvedValueOnce({ rows: [] }) // phase 2 select
       .mockResolvedValueOnce({ rows: [] }); // phase 3 select
     const result = await sweepNoShows();
     expect(result).toMatchObject({ marked: 1, autoCancelled: 0, expiredPending: 0 });
-    const updateCall = mockQuery.mock.calls[1];
+    const updateCall = mockQuery.mock.calls[0];
     expect(updateCall[0]).toMatch(/SET status = 'no_show', no_show_marked_at = NOW\(\)/);
-    expect(updateCall[1]).toEqual(['appt-1']);
+    expect(updateCall[0]).toMatch(/FOR UPDATE OF ba SKIP LOCKED/);
+    expect(updateCall[0]).toMatch(/LIMIT 200/);
+    expect(updateCall[1]).toEqual([2]);
+    const lookupCall = mockQuery.mock.calls[1];
+    expect(lookupCall[0]).toMatch(/ba\.id = ANY\(\$1::bigint\[\]\)/);
     const notified = mockSendNotification.mock.calls.map(([arg]) => arg.userId).sort();
     expect(notified).toEqual(['cust-1', 'owner-1']);
     expect(mockSendNotification.mock.calls[0][0].type).toBe('appointment_no_show');
+  });
+
+  test('phase 1 marks many rows with one update and one recipient lookup (cost audit 2026-11-13 item 15)', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [
+        { id: 'appt-1', business_id: 7, no_show_marked_at: new Date().toISOString() },
+        { id: 'appt-2', business_id: 8, no_show_marked_at: new Date().toISOString() },
+      ] }) // phase 1 set-based update
+      .mockResolvedValueOnce({ rows: [
+        { id: 'appt-1', customer_id: 'cust-1', business_owner_id: 'owner-1' },
+        { id: 'appt-2', customer_id: 'cust-2', business_owner_id: 'owner-2' },
+      ] }) // batched notify lookup
+      .mockResolvedValueOnce({ rows: [] }) // phase 2 select
+      .mockResolvedValueOnce({ rows: [] }); // phase 3 select
+    const result = await sweepNoShows();
+    expect(result).toMatchObject({ marked: 2, autoCancelled: 0, expiredPending: 0 });
+    const updates = mockQuery.mock.calls.filter(([sql]) => /UPDATE business_appointments/.test(sql) && /no_show/.test(sql));
+    expect(updates).toHaveLength(1);
+    const lookups = mockQuery.mock.calls.filter(([sql]) => /business_owner_id/.test(sql));
+    expect(lookups).toHaveLength(1);
+    const notified = mockSendNotification.mock.calls.map(([arg]) => `${arg.data.appointment_id}:${arg.userId}`).sort();
+    expect(notified).toEqual(['appt-1:cust-1', 'appt-1:owner-1', 'appt-2:cust-2', 'appt-2:owner-2']);
   });
 
   test('phase 1 only touches confirmed rows (pending is phase 3)', async () => {

@@ -29,14 +29,14 @@ function makeDb({ restaurants, dueRequests = [] }) {
   const db = {
     query: jest.fn(async (sql, params = []) => {
       queries.push(String(sql));
-      // Part 2 (auto-anonymize) mentions retain_until AND embeds a
-      // restaurant_erasure_requests subquery, so match its DISTINCT
-      // ON before either of those branches.
-      if (sql.includes('DISTINCT ON')) return { rows: [] };
-      if (sql.includes('FROM restaurant_erasure_requests er')) return { rows: dueRequests };
-      if (sql.includes('FROM staff_offboarding_records') && sql.includes('retain_until')) {
-        return { rows: [{ retain_until: '2020-01-01' }] };
-      }
+      // The due-staff select claims FOR UPDATE OF o SKIP LOCKED and
+      // embeds the erasure subquery, so match it before the erasure
+      // branch below (both mention restaurant_erasure_requests).
+      if (sql.includes('FOR UPDATE OF o SKIP LOCKED')) return { rows: [] };
+      // The due-requests select carries the latest retain_until in
+      // the row itself (Domain 9 item 4); there is no per-request
+      // retain_until lookup any more.
+      if (sql.includes('SELECT er.*')) return { rows: dueRequests };
       if (sql.includes('FROM food_restaurants WHERE business_id')) return { rows: restaurants };
       return { rows: [] };
     }),
@@ -45,7 +45,7 @@ function makeDb({ restaurants, dueRequests = [] }) {
 }
 
 function dueRequest(overrides = {}) {
-  return { id: 5, business_id: 42, user_id: USER_ID, ...overrides };
+  return { id: 5, business_id: 42, user_id: USER_ID, retain_until: '2020-01-01', ...overrides };
 }
 
 beforeEach(() => {
@@ -120,5 +120,58 @@ describe('Background-jobs audit #40: retention storage keys survive a mid-person
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].error).toContain('Failed to queue storage deletion');
     expect(queries.join('\n')).not.toContain("SET status = 'completed'");
+  });
+});
+
+describe('Domain 9 (2026-11-13) item 4: the retention sweep is bounded and claims its rows', () => {
+  test('both due selects carry LIMIT 200 + FOR UPDATE SKIP LOCKED, and no per-request retain_until lookup runs', async () => {
+    const { db, queries } = makeDb({
+      restaurants: [{ id: 3 }],
+      dueRequests: [dueRequest()],
+    });
+    anonymizeFormerStaff.mockResolvedValueOnce({
+      skipped: false, documents_deleted: 0, time_entry_notes_cleared: 0,
+      labor_profile_removed: 0, history_rows_retained: 0,
+      storageKeysToDelete: [],
+    });
+    const result = await sweep(db);
+    expect(result.completedRequests).toBe(1);
+    const joined = queries.join('\n');
+    expect(joined).toContain('FOR UPDATE OF er SKIP LOCKED');
+    expect(joined).toContain('FOR UPDATE OF o SKIP LOCKED');
+    expect(joined.match(/LIMIT \$1/g)).toHaveLength(2);
+    // The latest retain_until rides in the due-requests row; the old
+    // standalone per-request SELECT is gone.
+    expect(joined).not.toContain('SELECT retain_until FROM staff_offboarding_records');
+    expect(anonymizeFormerStaff).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ retainUntil: '2020-01-01' }),
+    );
+  });
+
+  test('a full 200-request batch reports hitBatchLimit so the backlog is visible', async () => {
+    const many = Array.from({ length: 200 }, (_, i) => dueRequest({ id: 100 + i }));
+    const { db } = makeDb({ restaurants: [{ id: 3 }], dueRequests: many });
+    anonymizeFormerStaff.mockResolvedValue({
+      skipped: false, documents_deleted: 0, time_entry_notes_cleared: 0,
+      labor_profile_removed: 0, history_rows_retained: 0,
+      storageKeysToDelete: [],
+    });
+    const result = await sweep(db);
+    expect(result.completedRequests).toBe(200);
+    expect(result.hitBatchLimit).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  test('a partial batch does not report hitBatchLimit', async () => {
+    const { db } = makeDb({ restaurants: [{ id: 3 }], dueRequests: [dueRequest()] });
+    anonymizeFormerStaff.mockResolvedValueOnce({
+      skipped: false, documents_deleted: 0, time_entry_notes_cleared: 0,
+      labor_profile_removed: 0, history_rows_retained: 0,
+      storageKeysToDelete: [],
+    });
+    const result = await sweep(db);
+    expect(result.completedRequests).toBe(1);
+    expect(result.hitBatchLimit).toBe(false);
   });
 });

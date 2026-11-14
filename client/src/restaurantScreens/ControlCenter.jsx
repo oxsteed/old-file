@@ -104,7 +104,17 @@ export default function ScreenControlCenter({
       if (live) load();
     };
     refresh();
-    const off = subscribeRestaurantDisplay(id, refresh),
+    // Cost audit 2026-11-13 item 15: socket-triggered refreshes used to
+    // run a full load() per event with no debounce, so a burst of display
+    // changes refetched the whole control center repeatedly. The push
+    // subscription now debounces ~500ms; the initial load and the
+    // visibility-gated 15s interval below still refresh immediately.
+    let debounceTimer = null;
+    const debouncedRefresh = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(refresh, 500);
+    };
+    const off = subscribeRestaurantDisplay(id, debouncedRefresh),
       // Cost audit 2026-11-04 item 16: the merchant page's visibility
       // gate. A hidden screen used to refetch fully every 15s; now the
       // interval tick only refreshes while the screen is visible. The
@@ -116,6 +126,7 @@ export default function ScreenControlCenter({
     return () => {
       live = false;
       sequence.current++;
+      if (debounceTimer) clearTimeout(debounceTimer);
       off();
       clearInterval(timer);
     };
