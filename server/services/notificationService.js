@@ -325,6 +325,9 @@ exports.sendNotification = async ({
       'booking_cancelled', 'booking_auto_released',
       // Agreement/job lifecycle notices respect the participant's email choices.
       'warranty_claim_filed', 'warranty_claim_updated', 'job_started',
+      // Weekly helper summary: gated by the email_weekly_summary toggle
+      // (prefAllows) and the job's own COALESCE(np.email_weekly_summary, true).
+      'weekly_summary',
       'learn_video_review_received', 'learn_video_review_overdue',
       // Logistics campaign review decisions: the organizer learns about
       // Operations approve / request-revisions / reject by email too

@@ -351,3 +351,29 @@ describe('P2-8-F03 removed dead toggles stay rejected by the API', () => {
     expect(update).toBeDefined();
   });
 });
+
+describe('weekly summary email leg (item 9)', () => {
+  test('weekly_summary sends email when email_weekly_summary is on', async () => {
+    // Item 9: the weekly summary job sent type weekly_summary via
+    // sendNotification and gated inclusion on email_weekly_summary, but
+    // weekly_summary was absent from the emailTypes allow-list, so the
+    // email leg never fired and the settings toggle was dead.
+    mockPrefs({ email_weekly_summary: true, email_notifications: true });
+    sendEmail.mockResolvedValue({ success: true });
+    const result = await sendNotification({ userId: 'u1', type: 'weekly_summary',
+      title: 'Your weekly OxSteed summary', body: 'This week: $10 earned MTD',
+      idempotencyKey: 'weekly-summary:u1:2026-W07' });
+    expect(result.success).toBe(true);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'user@example.com' }));
+  });
+
+  test('weekly_summary sends no email when email_weekly_summary is off', async () => {
+    mockPrefs({ email_weekly_summary: false, email_notifications: true });
+    sendEmail.mockResolvedValue({ success: true });
+    await sendNotification({ userId: 'u1', type: 'weekly_summary',
+      title: 'Your weekly OxSteed summary', body: 'This week: $10 earned MTD',
+      idempotencyKey: 'weekly-summary:u1:2026-W07' });
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+});
