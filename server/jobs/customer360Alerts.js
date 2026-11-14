@@ -3,6 +3,7 @@ const db = require("../db");
 const service = require("../services/customer360Workspace");
 const { sendNotification } = require("../services/notificationService");
 const logger = require("../utils/logger");
+const { withFencedJobLock } = require("./jobLockingService");
 const ANOMALY_KINDS = {
   anomaliesFinancial: ["refund_spike", "payout_failures"],
   anomaliesSecurity: ["new_country_login"],
@@ -158,6 +159,18 @@ async function evaluateCustomer360Alerts() {
   }
   return { sent, digested, overflow: [...budget.overflowByAdmin.values()].reduce((a, b) => a + b.count, 0) };
 }
+const JOB_NAME = "customer360-alerts";
+
+// Notifications audit item 29: the starter ran bare with only an
+// in-process guard, so two replicas could evaluate the same tick and
+// double-notify (the cap is per-process). Each tick now runs under the
+// fenced job lock, like the outboxes: a tick that cannot acquire the lock
+// is skipped (the lock helper logs it), and a lease lost mid-run fences
+// the rest of that tick. TTL 60s matches the 60s cadence.
+async function runCustomer360AlertsTick() {
+  return withFencedJobLock(JOB_NAME, async () => evaluateCustomer360Alerts(), 60);
+}
+
 function startCustomer360Alerts() {
   if (process.env.CUSTOMER360_ALERTS_ENABLED === "false") return { stop() {} };
   let stopped = false,
@@ -172,7 +185,7 @@ function startCustomer360Alerts() {
       logger.warn('Customer 360 alerts tick skipped: previous tick still running');
       return;
     }
-    running = evaluateCustomer360Alerts()
+    running = runCustomer360AlertsTick()
       .catch((error) =>
         logger.warn("Customer 360 alerts will retry", { code: error.code }),
       )
@@ -190,4 +203,4 @@ function startCustomer360Alerts() {
     },
   };
 }
-module.exports = { evaluateCustomer360Alerts, evaluatePlatformAnomalyRule, startCustomer360Alerts };
+module.exports = { evaluateCustomer360Alerts, evaluatePlatformAnomalyRule, startCustomer360Alerts, runCustomer360AlertsTick };
