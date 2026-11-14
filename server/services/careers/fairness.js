@@ -114,15 +114,37 @@ async function blockScope(db, { scopeType, scopeRef, ratio, reportId }) {
   return rows[0]?.id || null;
 }
 
-async function notifyAdmins(db, params, deliveryKey) {
+async function notifyAdmins(db, paramsOrOptions, deliveryKey) {
+  // Notifications audit item 24: a never-expiring grant (expires_at IS
+  // NULL) evaluated to NULL under `g.expires_at > NOW()` and was excluded
+  // from block alerts unless the user was super_admin.
   const { rows } = await db.query(
     `SELECT DISTINCT u.id FROM users u
-      LEFT JOIN admin_permission_grants g ON g.grantee_id = u.id AND g.revoked_at IS NULL AND g.expires_at > NOW()
+      LEFT JOIN admin_permission_grants g ON g.grantee_id = u.id AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > NOW())
        AND (g.permissions ? 'moderate_careers' OR g.permissions ? 'manage_hiring')
      WHERE u.role = 'super_admin' OR g.id IS NOT NULL
      LIMIT 50`
   );
-  for (const r of rows) await notifyUser(db, { userId: r.id, type: 'career_ranking_disabled', params, actionUrl: '/admin/careers/fairness', deliveryKey: `${deliveryKey}:${r.id}` });
+  const options = paramsOrOptions && typeof paramsOrOptions === 'object' && ('type' in paramsOrOptions || 'params' in paramsOrOptions)
+    ? paramsOrOptions
+    : { type: 'career_ranking_disabled', params: paramsOrOptions, deliveryKey };
+  const type = options.type || 'career_ranking_disabled';
+  const params = options.params || {};
+  const key = options.deliveryKey || deliveryKey;
+  for (const r of rows) await notifyUser(db, { userId: r.id, type, params, actionUrl: '/admin/careers/fairness', deliveryKey: `${key}:${r.id}` });
+  return rows.length;
+}
+
+// Notifications audit item 24: a reviewed block notified nobody. The
+// same admin set that got the block alert learns the outcome.
+async function notifyBlockReviewed(db, block) {
+  if (!block?.id) return 0;
+  const ratio = block.impact_ratio == null ? null : Number(block.impact_ratio).toFixed(2);
+  return notifyAdmins(db, {
+    type: 'career_ranking_reviewed',
+    params: { scope: `${block.scope_type}:${block.scope_ref}`, ratio: ratio ?? '' },
+    deliveryKey: `career_ranking_reviewed:${block.id}`,
+  });
 }
 
 /**
@@ -137,6 +159,19 @@ async function runQuarterlyReports({ db = pool, periodStart, periodEnd } = {}) {
   for (const a of apps) if (a.business_id) byBusiness.set(a.business_id, [...(byBusiness.get(a.business_id) || []), a]);
   for (const [bid, list] of byBusiness) {
     reports.push(await saveReport(db, { scopeType: 'business', scopeRef: String(bid), periodStart, periodEnd, kind: 'quarterly', metrics: metricsFor(list, eeoMap) }));
+  }
+  // Notifications audit item 24: quarterly reports used to save and
+  // notify nobody. The same admin set that gets block alerts gets one
+  // digest per quarter (keyed by the period, not by wall time). The
+  // reports are already saved; a notify failure is logged, not fatal.
+  try {
+    await notifyAdmins(db, {
+      type: 'career_fairness_quarterly_digest',
+      params: { reports: reports.length, period: `${String(periodStart).slice(0, 10)} to ${String(periodEnd).slice(0, 10)}` },
+      deliveryKey: `career_fairness_quarterly:${String(periodStart).slice(0, 10)}:${String(periodEnd).slice(0, 10)}`,
+    });
+  } catch (err) {
+    logger.warn('careers: quarterly fairness digest failed', { error: err.message });
   }
   return { reports: reports.length };
 }
@@ -184,6 +219,8 @@ module.exports = {
   impactRatios,
   metricsFor,
   lowestRatio,
+  notifyAdmins,
+  notifyBlockReviewed,
   runQuarterlyReports,
   runRankingCheck,
 };
