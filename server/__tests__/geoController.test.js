@@ -69,6 +69,22 @@ test('uses manual suggestions when both providers are unavailable', async () => 
   expect(res.json).toHaveBeenCalledWith([expect.objectContaining({ city: 'Springfield', state: 'OH', zip: '45501' })]);
 });
 
+test('manual fallback keeps a street address out of the city and marks itself unlocated', async () => {
+  geoProvider.suggest.mockResolvedValueOnce(null);
+  const res = response();
+  await controller.suggest({ query: { q: '100 S Limestone St, Springfield, OH' } }, res);
+  expect(res.json).toHaveBeenCalledWith([expect.objectContaining({
+    display: '100 S Limestone St, Springfield, OH',
+    addressLine1: '100 S Limestone St',
+    city: 'Springfield',
+    state: 'OH',
+    zip: '',
+    fallback: true,
+    lat: null,
+    lng: null,
+  })]);
+});
+
 test('returns an AWS route when enabled and a local route when unavailable', async () => {
   const req = { body: { origin: { lat: 39.9, lng: -83.8 }, destination: { lat: 39.91, lng: -83.81 } } };
   routeProvider.calculateRoute.mockResolvedValueOnce({ provider: 'aws', distanceMeters: 100, durationSeconds: 10 });

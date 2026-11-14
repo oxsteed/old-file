@@ -152,6 +152,7 @@ async function notifyApplicant(db, application, { type, params = {}, actionUrl =
 
 module.exports = {
   escapeHtml,
+  emailHtml,
   render,
   sendCareerEmail,
   notifyUser,

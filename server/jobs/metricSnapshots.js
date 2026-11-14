@@ -21,6 +21,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { mapBounded } = require('../utils/boundedBatch');
 const { metricScope } = require('../analytics/metricAccess');
 const snapshots = require('../analytics/metricSnapshots');
 const { MONEY_METRICS } = require('../analytics/financialMetrics');
@@ -43,14 +44,22 @@ async function regionalScopes(conn) {
   const byMetric = new Map(snapshots.SNAPSHOT_METRICS.map(m => [m, new Map()]));
   // Metrics whose tables have no geographic anchor never get regional series.
   const scopable = snapshots.SNAPSHOT_METRICS.filter(m => snapshots.supportsRegionalSnapshot(m));
-  for (const user of rows) {
+  // Cost audit 2026-11-13 item 15: this used to be a serial nested loop,
+  // one awaited metricScope per admin x per metric over an uncapped grantee
+  // list. metricScope's queries run on the pool (hasGlobalGrant and
+  // regionalTerritory both default to it), not on this connection, so
+  // bounding the admins across mapBounded genuinely overlaps them. The
+  // per-admin permission cache still dedupes metrics sharing a permission,
+  // and Map writes stay safe: JS runs them between awaits, never truly
+  // concurrently.
+  await mapBounded(rows, 5, async (user) => {
     const cache = new Map();
     for (const metric of scopable) {
       const scope = await metricScope(user, metric, cache);
       if (!scope || scope.unknown || scope.global || !scope.regionIds?.length) continue;
       byMetric.get(metric).set(snapshots.scopeKey(scope), scope);
     }
-  }
+  });
   return byMetric;
 }
 

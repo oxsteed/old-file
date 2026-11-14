@@ -25,18 +25,15 @@ const { enqueueStorageDeletion, resolveKey } = require('../services/storageClean
 const JOB_NAME = 'restaurant-retention-sweep';
 const CRON_EXPRESSION = '0 30 3 * * 0'; // weekly, Sunday 03:30 server time
 
-// Domain 8 #12: the sweep used to load the entire backlog with two
-// unbounded SELECTs and process it one person at a time under a
-// single 900s lease. Both due queries are now bounded to this many
-// rows per batch and paged with a last-processed (keyset) cursor, so
-// a large multi-restaurant backlog is worked through in batches
-// instead of materialized fully. Rows that fail stay due but fall
-// behind the cursor, so a failed row is retried next run, never
-// re-selected forever in this one. MAX_SWEEP_BATCHES bounds a single
-// run if the cursor ever stops advancing; the remainder waits for
-// the next weekly run.
-const SWEEP_BATCH_LIMIT = 200;
-const MAX_SWEEP_BATCHES = 500;
+// Domain 9 (2026-11-13) item 4: the sweep used to claim every due row
+// with no LIMIT and no lock, so a bulk offboarding or a long-unrun
+// weekly run processed thousands of people serially under one 900s
+// fence lease; a lease loss mid-run abandoned the rest to next Sunday.
+// Each part now takes at most this many rows per run (the next weekly
+// run picks up the rest), claimed FOR UPDATE SKIP LOCKED so a
+// concurrent sweep cannot double-process the same row. Same 200-row
+// claim shape as the no-show sweeper.
+const RETENTION_SWEEP_BATCH_LIMIT = 200;
 
 async function anonymizePerson(db, { businessId, userId, retainUntil }) {
   const { rows: restaurants } = await db.query(
@@ -75,126 +72,80 @@ async function anonymizePerson(db, { businessId, userId, retainUntil }) {
   return { skipped: false, ...totals };
 }
 
-async function sweep(db = pool, { batchLimit = SWEEP_BATCH_LIMIT } = {}) {
-  const limit = Math.max(1, Math.min(Number(batchLimit) || SWEEP_BATCH_LIMIT, 1000));
-  const result = { completedRequests: 0, autoAnonymized: 0, skipped: 0, errors: [], incidentId: null };
-  // 1. Approved erasure requests past retention, in keyset-paged
-  // batches ordered by (requested_at, id). A completed request
-  // leaves the due set; a failed one stays due but falls behind the
-  // cursor, so it is retried next run, never re-selected in this one.
-  let requestCursor = null;
-  for (let batch = 0; batch < MAX_SWEEP_BATCHES; batch += 1) {
-    const cursorClause = requestCursor
-      ? 'AND (er.requested_at, er.id) > ($1::timestamptz, $2::bigint)'
-      : '';
-    const cursorParams = requestCursor ? [requestCursor.requestedAt, requestCursor.id] : [];
-    const { rows: dueRequests } = await db.query(
-      `SELECT er.* FROM restaurant_erasure_requests er
-        WHERE er.status = 'approved'
-          AND EXISTS (
-            SELECT 1 FROM staff_offboarding_records o
-             WHERE o.business_id = er.business_id AND o.user_id = er.user_id
-               AND o.retain_until < CURRENT_DATE
-          )
-          ${cursorClause}
-        ORDER BY er.requested_at, er.id
-        LIMIT $${cursorParams.length + 1}`,
-      [...cursorParams, limit]
-    );
-    for (const request of dueRequests) {
-      try {
-        const { rows: [offboarding] } = await db.query(
-          `SELECT retain_until FROM staff_offboarding_records
-            WHERE business_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 1`,
-          [request.business_id, request.user_id]
-        );
-        const outcome = await anonymizePerson(db, {
-          businessId: Number(request.business_id),
-          userId: request.user_id,
-          retainUntil: offboarding?.retain_until || null,
-        });
-        if (outcome.skipped) { result.skipped += 1; continue; }
-        await db.query(
-          `UPDATE restaurant_erasure_requests
-              SET status = 'completed', completed_at = NOW(), outcome = $2::jsonb, updated_at = NOW()
-            WHERE id = $1`,
-          [request.id, JSON.stringify(outcome)]
-        );
-        result.completedRequests += 1;
-      } catch (err) {
-        result.errors.push({ request_id: Number(request.id), error: err.message });
-        logger.error('Retention sweep erasure failed', { requestId: request.id, error: err.message });
-      }
-    }
-    if (dueRequests.length < limit) break;
-    requestCursor = {
-      requestedAt: dueRequests[dueRequests.length - 1].requested_at,
-      id: dueRequests[dueRequests.length - 1].id,
-    };
-    if (batch === MAX_SWEEP_BATCHES - 1) {
-      logger.warn('Retention sweep hit the per-run batch cap; the remaining erasure requests wait for the next run', { batches: MAX_SWEEP_BATCHES });
+async function sweep(db = pool) {
+  const result = { completedRequests: 0, autoAnonymized: 0, skipped: 0, errors: [], hitBatchLimit: false };
+  // 1. Approved erasure requests past retention.
+  // Domain 9 item 4: LIMIT + FOR UPDATE SKIP LOCKED claim (see the
+  // constant above). The latest retain_until rides along in the
+  // select now; the old per-request SELECT was an N+1 on top of the
+  // unbounded scan.
+  const { rows: dueRequests } = await db.query(
+    `SELECT er.*,
+            (SELECT o.retain_until
+               FROM staff_offboarding_records o
+              WHERE o.business_id = er.business_id AND o.user_id = er.user_id
+              ORDER BY o.created_at DESC, o.id DESC LIMIT 1) AS retain_until
+       FROM restaurant_erasure_requests er
+      WHERE er.status = 'approved'
+        AND EXISTS (
+          SELECT 1 FROM staff_offboarding_records o
+           WHERE o.business_id = er.business_id AND o.user_id = er.user_id
+             AND o.retain_until < CURRENT_DATE
+        )
+      ORDER BY er.requested_at
+      LIMIT $1
+      FOR UPDATE OF er SKIP LOCKED`,
+    [RETENTION_SWEEP_BATCH_LIMIT]
+  );
+  for (const request of dueRequests) {
+    try {
+      const outcome = await anonymizePerson(db, {
+        businessId: Number(request.business_id),
+        userId: request.user_id,
+        retainUntil: request.retain_until || null,
+      });
+      if (outcome.skipped) { result.skipped += 1; continue; }
+      await db.query(
+        `UPDATE restaurant_erasure_requests
+            SET status = 'completed', completed_at = NOW(), outcome = $2::jsonb, updated_at = NOW()
+          WHERE id = $1`,
+        [request.id, JSON.stringify(outcome)]
+      );
+      result.completedRequests += 1;
+    } catch (err) {
+      result.errors.push({ request_id: Number(request.id), error: err.message });
+      logger.error('Retention sweep erasure failed', { requestId: request.id, error: err.message });
     }
   }
-  // 2. Offboarded staff past retention with no completed erasure yet,
-  // in keyset-paged batches ordered by (business_id, user_id). An
-  // auto-anonymized person leaves the due set (the completed erasure
-  // row just inserted excludes them); a failed one falls behind the
-  // cursor the same way as above.
-  let staffCursor = null;
-  for (let batch = 0; batch < MAX_SWEEP_BATCHES; batch += 1) {
-    const cursorClause = staffCursor
-      ? 'AND (o.business_id, o.user_id) > ($1::int, $2::uuid)'
-      : '';
-    const cursorParams = staffCursor ? [staffCursor.businessId, staffCursor.userId] : [];
-    const { rows: dueStaff } = await db.query(
-      `SELECT DISTINCT ON (o.business_id, o.user_id)
-              o.business_id, o.user_id, o.retain_until
-         FROM staff_offboarding_records o
-        WHERE o.retain_until < CURRENT_DATE
-          AND NOT EXISTS (
-            SELECT 1 FROM restaurant_erasure_requests er
-             WHERE er.business_id = o.business_id AND er.user_id = o.user_id
-               AND er.status = 'completed'
-          )
-          ${cursorClause}
-        ORDER BY o.business_id, o.user_id, o.created_at DESC
-        LIMIT $${cursorParams.length + 1}`,
-      [...cursorParams, limit]
-    );
-    for (const person of dueStaff) {
-      try {
-        const outcome = await anonymizePerson(db, {
-          businessId: Number(person.business_id),
-          userId: person.user_id,
-          retainUntil: person.retain_until,
-        });
-        if (outcome.skipped) { result.skipped += 1; continue; }
-        await db.query(
-          `INSERT INTO restaurant_erasure_requests
-             (business_id, user_id, requested_by, status, reason, completed_at, outcome)
-           VALUES ($1, $2, NULL, 'completed', 'retention_expired_auto', NOW(), $3::jsonb)`,
-          [person.business_id, person.user_id, JSON.stringify(outcome)]
-        );
-        result.autoAnonymized += 1;
-      } catch (err) {
-        result.errors.push({ user_id: person.user_id, error: err.message });
-        logger.error('Retention sweep auto-anonymize failed', { userId: person.user_id, error: err.message });
-      }
-    }
-    if (dueStaff.length < limit) break;
-    staffCursor = {
-      businessId: dueStaff[dueStaff.length - 1].business_id,
-      userId: dueStaff[dueStaff.length - 1].user_id,
-    };
-    if (batch === MAX_SWEEP_BATCHES - 1) {
-      logger.warn('Retention sweep hit the per-run batch cap; the remaining offboarded staff wait for the next run', { batches: MAX_SWEEP_BATCHES });
-    }
-  }
-  // Domain 8 #12: per-person failures used to surface only as log
-  // lines. Raise one deduped incident per day naming the failures so
-  // an operator sees them. Incident bookkeeping must never fail the
-  // sweep itself.
-  if (result.errors.length > 0) {
+  // 2. Offboarded staff past retention with no completed erasure yet.
+  // Domain 9 item 4: LIMIT + FOR UPDATE SKIP LOCKED claim, same as
+  // part 1. PostgreSQL forbids FOR UPDATE with DISTINCT, so the
+  // old DISTINCT ON (latest record per person) is expressed as "no
+  // newer offboarding record exists", with a (created_at, id)
+  // tiebreak so the latest record is picked deterministically; the
+  // pick is the same latest record DISTINCT ON returned, only the
+  // tie is now decided by id instead of arbitrarily.
+  const { rows: dueStaff } = await db.query(
+    `SELECT o.business_id, o.user_id, o.retain_until
+       FROM staff_offboarding_records o
+      WHERE o.retain_until < CURRENT_DATE
+        AND NOT EXISTS (
+          SELECT 1 FROM staff_offboarding_records o2
+           WHERE o2.business_id = o.business_id AND o2.user_id = o.user_id
+             AND (o2.created_at > o.created_at
+                  OR (o2.created_at = o.created_at AND o2.id > o.id))
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM restaurant_erasure_requests er
+           WHERE er.business_id = o.business_id AND er.user_id = o.user_id
+             AND er.status = 'completed'
+        )
+      ORDER BY o.business_id, o.user_id
+      LIMIT $1
+      FOR UPDATE OF o SKIP LOCKED`,
+    [RETENTION_SWEEP_BATCH_LIMIT]
+  );
+  for (const person of dueStaff) {
     try {
       const { recordIncident } = require('../services/incidentStore');
       const recorded = await recordIncident({
@@ -209,6 +160,10 @@ async function sweep(db = pool, { batchLimit = SWEEP_BATCH_LIMIT } = {}) {
       logger.error('Retention sweep incident could not be recorded', { error: incidentErr.message });
     }
   }
+  // A full batch means more due rows remain for the next weekly run;
+  // the log line carries it so a backlog is visible, not silent.
+  result.hitBatchLimit =
+    dueRequests.length >= RETENTION_SWEEP_BATCH_LIMIT || dueStaff.length >= RETENTION_SWEEP_BATCH_LIMIT;
   return result;
 }
 
@@ -243,6 +198,5 @@ module.exports = {
   runRestaurantRetentionJob,
   sweep,
   cronExpression: CRON_EXPRESSION,
-  SWEEP_BATCH_LIMIT,
-  MAX_SWEEP_BATCHES,
+  RETENTION_SWEEP_BATCH_LIMIT,
 };

@@ -75,6 +75,25 @@ async function invoke(handler, body = {}, params = {}, query = {}) {
       CREATE TABLE restaurant_loyalty_campaign_deliveries(id BIGINT PRIMARY KEY, campaign_id BIGINT, customer_id UUID, channel TEXT, status TEXT, attempts INTEGER, next_attempt_at TIMESTAMPTZ DEFAULT NOW(), lease_token UUID, lease_expires_at TIMESTAMPTZ, notification_id BIGINT, sent_at TIMESTAMPTZ, last_error TEXT, updated_at TIMESTAMPTZ);
     `);
     await pool.query(fs.readFileSync(path.join(__dirname, '../migrations/994_restaurant_payroll_hosting_scope.sql'), 'utf8'));
+    // Test-side only: migration 994 guards cash_tips_restaurant_location_fk
+    // with an unscoped `SELECT 1 FROM pg_constraint WHERE conname=...`
+    // check, so when that name already exists in another schema of this
+    // database (e.g. public, from an earlier run) the FK is silently skipped
+    // for this test schema and the cross-business insert below would not be
+    // rejected. Verify the FK scoped to this schema's table and add it if
+    // missing. Migration 994 itself is byte-immutable and is never edited.
+    const { rows: fkRows } = await pool.query(
+      `SELECT 1 FROM pg_constraint c
+         JOIN pg_class t ON t.oid = c.conrelid
+         JOIN pg_namespace n ON n.oid = t.relnamespace
+        WHERE c.conname = 'cash_tips_restaurant_location_fk'
+          AND n.nspname = $1 AND t.relname = 'restaurant_declared_cash_tips'`,
+      [schema],
+    );
+    if (fkRows.length === 0) {
+      await pool.query(`ALTER TABLE restaurant_declared_cash_tips ADD CONSTRAINT cash_tips_restaurant_location_fk
+        FOREIGN KEY (restaurant_id, location_id) REFERENCES restaurant_locations(restaurant_id, id)`);
+    }
   });
   beforeEach(async () => {
     scopeModel.resolveRestaurantAccess.mockResolvedValue({ ...restaurant });

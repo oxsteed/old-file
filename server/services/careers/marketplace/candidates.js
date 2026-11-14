@@ -19,6 +19,26 @@ const { cleanUserText, requireId, notFound } = require('./common');
 
 const MAX_RADIUS_KM = 100;
 
+// Domain 9 cost audit (2026-11-13) item 6: one broad alert could insert
+// 100k hits per hourly run. Cap the hits inserted per alert per run; a run
+// that hits the cap is flagged on the alert row (last_run_truncated) so the
+// dropped matches are visible instead of silent.
+const MAX_HITS_PER_ALERT_RUN = 1000;
+
+// Shared match predicate for the hits INSERT and the truncation probe
+// below. Parameters: $1 alert_id, $2 business_id, $3 longitude, $4 latitude,
+// $5 radius metres, $6 skill codes, $7 available_now only.
+const CANDIDATE_MATCH_SQL = `
+  FROM career_profiles p
+  JOIN career_profile_share_current sc ON sc.user_id = p.user_id AND sc.visibility = 'searchable'
+  JOIN users u ON u.id = p.user_id AND u.deleted_at IS NULL AND COALESCE(u.is_banned, FALSE) = FALSE
+  JOIN geo_postal_centroids gc ON gc.id = p.postal_centroid_id
+ WHERE ST_DWithin(gc.geog, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5)
+   AND NOT EXISTS (SELECT 1 FROM career_profile_mutes m WHERE m.user_id = p.user_id AND m.business_id = $2)
+   AND NOT EXISTS (SELECT 1 FROM business_members bm WHERE bm.business_id = $2 AND bm.member_id = p.user_id AND bm.status = 'active')
+   AND (cardinality($6::text[]) = 0 OR p.skill_codes && $6::text[] OR p.desired_roles && $6::text[])
+   AND (NOT $7::boolean OR p.available_now_until > NOW())`;
+
 async function parseAlert(db, access, body) {
   const name = cleanUserText(body.name, 80).text;
   if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name this alert' });
@@ -49,7 +69,7 @@ async function parseAlert(db, access, body) {
 
 async function listAlerts(db, businessId) {
   const { rows } = await db.query(
-    `SELECT a.id, a.name, a.opening_id, a.criteria, a.paused, a.last_run_at, a.created_at,
+    `SELECT a.id, a.name, a.opening_id, a.criteria, a.paused, a.last_run_at, a.last_run_truncated, a.last_run_hits, a.created_at,
             (SELECT COUNT(*)::int FROM career_candidate_alert_hits h WHERE h.alert_id = a.id) AS matched
        FROM career_candidate_alerts a WHERE a.business_id = $1 ORDER BY a.created_at DESC`,
     [businessId]
@@ -105,27 +125,35 @@ async function runCandidateAlerts(db, { limit = 200 } = {}) {
     [limit]
   );
   let notified = 0;
+  let truncated = 0;
   for (const alert of alerts) {
     const point = await pointFor(db, alert);
     const startedAt = new Date();
+    let hits = [];
+    let runTruncated = false;
     if (point) {
       const c = alert.criteria || {};
-      const { rows: hits } = await db.query(
+      const matchParams = [alert.id, alert.business_id, point.longitude, point.latitude, Number(c.radius_km || 25) * 1000, c.skills || [], Boolean(c.available_now)];
+      ({ rows: hits } = await db.query(
         `INSERT INTO career_candidate_alert_hits (alert_id, user_id)
-         SELECT $1, p.user_id
-           FROM career_profiles p
-           JOIN career_profile_share_current sc ON sc.user_id = p.user_id AND sc.visibility = 'searchable'
-           JOIN users u ON u.id = p.user_id AND u.deleted_at IS NULL AND COALESCE(u.is_banned, FALSE) = FALSE
-           JOIN geo_postal_centroids gc ON gc.id = p.postal_centroid_id
-          WHERE ST_DWithin(gc.geog, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5)
-            AND NOT EXISTS (SELECT 1 FROM career_profile_mutes m WHERE m.user_id = p.user_id AND m.business_id = $2)
-            AND NOT EXISTS (SELECT 1 FROM business_members bm WHERE bm.business_id = $2 AND bm.member_id = p.user_id AND bm.status = 'active')
-            AND (cardinality($6::text[]) = 0 OR p.skill_codes && $6::text[] OR p.desired_roles && $6::text[])
-            AND (NOT $7::boolean OR p.available_now_until > NOW())
+         SELECT $1, p.user_id ${CANDIDATE_MATCH_SQL}
+          LIMIT $8
          ON CONFLICT DO NOTHING
          RETURNING user_id`,
-        [alert.id, alert.business_id, point.longitude, point.latitude, Number(c.radius_km || 25) * 1000, c.skills || [], Boolean(c.available_now)]
-      );
+        [...matchParams, MAX_HITS_PER_ALERT_RUN]
+      ));
+      // Only a run that filled the cap can have dropped matches; probe for
+      // one more new match instead of paying a full COUNT on every run.
+      if (hits.length >= MAX_HITS_PER_ALERT_RUN) {
+        const { rows: [more] } = await db.query(
+          `SELECT 1 ${CANDIDATE_MATCH_SQL}
+            AND NOT EXISTS (SELECT 1 FROM career_candidate_alert_hits h WHERE h.alert_id = $1 AND h.user_id = p.user_id)
+           LIMIT 1`,
+          matchParams
+        );
+        runTruncated = Boolean(more);
+      }
+      if (runTruncated) truncated += 1;
       if (hits.length && alert.created_by) {
         const r = await deliver(db, {
           userId: alert.created_by,
@@ -138,9 +166,12 @@ async function runCandidateAlerts(db, { limit = 200 } = {}) {
         if (r.inserted) notified += 1;
       }
     }
-    await db.query('UPDATE career_candidate_alerts SET last_run_at = $2 WHERE id = $1', [alert.id, startedAt]);
+    await db.query(
+      'UPDATE career_candidate_alerts SET last_run_at = $2, last_run_truncated = $3, last_run_hits = $4 WHERE id = $1',
+      [alert.id, startedAt, runTruncated, hits.length]
+    );
   }
-  return { alerts: alerts.length, notified };
+  return { alerts: alerts.length, notified, truncated };
 }
 
 // ── Shortlists ──────────────────────────────────────────────────────────────
@@ -244,6 +275,7 @@ async function listMembers(db, { access, viewer, shortlistId }) {
 }
 
 module.exports = {
+  MAX_HITS_PER_ALERT_RUN,
   listAlerts,
   createAlert,
   updateAlert,

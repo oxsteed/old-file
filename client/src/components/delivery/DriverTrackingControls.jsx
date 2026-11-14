@@ -107,6 +107,9 @@ export default function DriverTrackingControls({ job, userId }) {
       navigator.geolocation.clearWatch(watchId.current);
     }
     watchId.current = null;
+    // Cost audit 2026-11-13 P6: drop the last fix when capture stops so
+    // a later resume never queues a stale pre-pause position as fresh.
+    latestFix.current = null;
     if (intervalId.current) clearInterval(intervalId.current);
     intervalId.current = null;
   }, []);
@@ -208,14 +211,39 @@ export default function DriverTrackingControls({ job, userId }) {
     })();
     const handleOnline = () => flush();
     window.addEventListener('online', handleOnline);
-    const statusTimer = setInterval(refreshStatus, STATUS_REFRESH_MS);
+    // Cost audit 2026-11-13 P6: the 30s status GET used to run with the
+    // tab hidden. It now skips hidden tabs and refreshes once on return
+    // to visible.
+    const statusTimer = setInterval(() => { if (document.visibilityState !== 'hidden') refreshStatus(); }, STATUS_REFRESH_MS);
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshStatus(); };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
       window.removeEventListener('online', handleOnline);
       clearInterval(statusTimer);
+      document.removeEventListener('visibilitychange', onVisible);
       clearCapture();
     };
   }, [jobId, userId, clearCapture, flush, refreshStatus, showError, t]);
+
+  // Cost audit 2026-11-13 P6: while tracking is active, a backgrounded
+  // tab used to keep burning high-accuracy GPS plus 4 location POSTs/min.
+  // Capture now pauses when the tab hides and resumes on visible, flushing
+  // any points queued before the tab hid so none are lost. Pause/stop
+  // still own the tracking state; this only suspends the GPS watch.
+  useEffect(() => {
+    if (trackingState !== 'active') return undefined;
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        clearCapture();
+      } else {
+        beginCapture();
+        flush();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [trackingState, beginCapture, clearCapture, flush]);
 
   const act = useCallback(async (operation, successKey) => {
     setBusy(true); setError(''); setNotice('');

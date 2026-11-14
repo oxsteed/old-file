@@ -181,12 +181,18 @@ export function usePosSync(restaurantId, enabled) {
     setCashOutboxCount(readCashOutbox(restaurantId).length);
     pollStatus();
     if (navigator.onLine) flushCashOutbox();
-    const timer = setInterval(pollStatus, 30000);
+    // Cost audit 2026-11-13 P5: the 30s status poll used to run with the
+    // tab hidden. It now skips hidden tabs and refreshes once on return
+    // to visible; the online flush is unaffected.
+    const timer = setInterval(() => { if (document.visibilityState !== 'hidden') pollStatus(); }, 30000);
     const onOnline = () => { flushOutbox(); flushCashOutbox(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') pollStatus(); };
     window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearInterval(timer);
       window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [enabled, restaurantId, pollStatus, flushOutbox, flushCashOutbox]);
 
