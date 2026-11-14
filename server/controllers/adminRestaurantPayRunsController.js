@@ -25,8 +25,13 @@ async function listPayRuns(req, res, next) {
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await pool.query(
+      // Domain 8 #21: the linked total anchors to the run's snapshot
+      // currency (pr.currency_code, falling back to totals.currency),
+      // matching restaurantPayrollController. Anchoring to the
+      // restaurant's current currency misreported older runs after a
+      // restaurant currency change.
       `SELECT pr.*, fr.display_name AS restaurant_name,
-              (SELECT COALESCE(SUM(amount_cents), 0)::int FROM restaurant_pay_run_payout_links l WHERE l.pay_run_id = pr.id AND l.currency_code = COALESCE(fr.currency_code, l.currency_code)) AS linked_payout_cents,
+              (SELECT COALESCE(SUM(amount_cents), 0)::int FROM restaurant_pay_run_payout_links l WHERE l.pay_run_id = pr.id AND (l.currency_code IS NULL OR COALESCE(pr.currency_code, pr.totals->>'currency') IS NULL OR UPPER(l.currency_code) = UPPER(COALESCE(pr.currency_code, pr.totals->>'currency')))) AS linked_payout_cents,
               (SELECT COUNT(*)::int FROM restaurant_pay_run_payout_links l WHERE l.pay_run_id = pr.id) AS payout_link_count
          FROM restaurant_pay_runs pr
          JOIN food_restaurants fr ON fr.id = pr.restaurant_id
@@ -78,9 +83,12 @@ async function getPayRun(req, res, next) {
       // a missing table. A live query failure must not erase payout evidence.
       if (err.code !== '42P01') throw err;
     }
-    // Nov 3 audit item 2: count only links in the restaurant's currency.
-    const runCurrency = run.restaurant_currency_code
-      ? String(run.restaurant_currency_code).toUpperCase() : null;
+    // Domain 8 #21: count only links in the run's snapshot currency
+    // (pr.currency_code, falling back to totals.currency), matching
+    // restaurantPayrollController. The restaurant's current currency
+    // can change after the run, so anchoring to it misreports older runs.
+    const runCurrency = (run.currency_code || run.totals?.currency)
+      ? String(run.currency_code || run.totals.currency).toUpperCase() : null;
     const linkedPayoutCents = payoutLinks.reduce((sum, link) => {
       if (runCurrency && link.currency_code && String(link.currency_code).toUpperCase() !== runCurrency) return sum;
       return sum + Number(link.amount_cents || 0);

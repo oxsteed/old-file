@@ -147,22 +147,17 @@ async function sweep(db = pool) {
   );
   for (const person of dueStaff) {
     try {
-      const outcome = await anonymizePerson(db, {
-        businessId: Number(person.business_id),
-        userId: person.user_id,
-        retainUntil: person.retain_until,
+      const { recordIncident } = require('../services/incidentStore');
+      const recorded = await recordIncident({
+        type: 'restaurant_retention_sweep_errors',
+        severity: 'high',
+        message: `Restaurant retention sweep failed for ${result.errors.length} person(s); they stay due for the next run`,
+        dedupeKey: `restaurant-retention-sweep-errors:${new Date().toISOString().slice(0, 10)}`,
+        details: { errorCount: result.errors.length, errors: result.errors.slice(0, 5) },
       });
-      if (outcome.skipped) { result.skipped += 1; continue; }
-      await db.query(
-        `INSERT INTO restaurant_erasure_requests
-           (business_id, user_id, requested_by, status, reason, completed_at, outcome)
-         VALUES ($1, $2, NULL, 'completed', 'retention_expired_auto', NOW(), $3::jsonb)`,
-        [person.business_id, person.user_id, JSON.stringify(outcome)]
-      );
-      result.autoAnonymized += 1;
-    } catch (err) {
-      result.errors.push({ user_id: person.user_id, error: err.message });
-      logger.error('Retention sweep auto-anonymize failed', { userId: person.user_id, error: err.message });
+      result.incidentId = recorded?.incident?.id ?? null;
+    } catch (incidentErr) {
+      logger.error('Retention sweep incident could not be recorded', { error: incidentErr.message });
     }
   }
   // A full batch means more due rows remain for the next weekly run;

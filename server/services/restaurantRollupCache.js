@@ -82,4 +82,23 @@ async function getCachedRollup(db, {
   };
 }
 
-module.exports = { getCachedRollup, ROLLUP_TTL_SECONDS };
+// Domain 8 #29: cached rows carry a 15-minute TTL but nothing ever
+// deleted them, so every distinct (restaurant, location, date range,
+// kind) queried left a permanent row. The nightly scheduler prunes
+// rows expired beyond a 1-hour grace period, so a read that started
+// just before expiry still sees its row; each run is bounded by LIMIT.
+async function pruneExpiredRollups(db, { limit = 1000 } = {}) {
+  const { rowCount } = await db.query(
+    `DELETE FROM restaurant_daily_rollups
+      WHERE ctid IN (
+        SELECT ctid FROM restaurant_daily_rollups
+         WHERE expires_at < NOW() - INTERVAL '1 hour'
+         ORDER BY expires_at ASC
+         LIMIT $1
+      )`,
+    [limit]
+  );
+  return { pruned: rowCount || 0 };
+}
+
+module.exports = { getCachedRollup, pruneExpiredRollups, ROLLUP_TTL_SECONDS };

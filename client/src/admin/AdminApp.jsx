@@ -66,6 +66,7 @@ const CorporateOrgChart = lazyWithRetry(() => import('./pages/super/CorporateOrg
 const CorporateAssignments = lazyWithRetry(() => import('./pages/super/CorporateAssignments'));
 const CorporateDepartments = lazyWithRetry(() => import('./pages/super/CorporateDepartments'));
 const FranchiseHQPage = lazyWithRetry(() => import('./pages/super/FranchiseHQPage'));
+const FranchiseRoyaltyFailuresPage = lazyWithRetry(() => import('./pages/super/FranchiseRoyaltyFailuresPage'));
 const CareersAdmin = lazyWithRetry(() => import('./pages/super/CareersAdmin'));
 const RestaurantCreditAdmin = lazyWithRetry(() => import('./pages/super/RestaurantCreditAdmin'));
 const RestaurantTopupApprovals = lazyWithRetry(() => import('./pages/super/RestaurantTopupApprovals'));
@@ -183,6 +184,7 @@ const AdminLegalAuditLogPage = lazyWithRetry(() => import('./pages/AdminLegalAud
 const AdminComplianceMetricsPage = lazyWithRetry(() => import('./pages/AdminComplianceMetricsPage'));
 const AdminCCPARequestsPage = lazyWithRetry(() => import('./pages/AdminCCPARequestsPage'));
 const AdminCcpaErasureReviewPage = lazyWithRetry(() => import('./pages/AdminCcpaErasureReviewPage'));
+const AdminGrowthErasureParkedPage = lazyWithRetry(() => import('./pages/AdminGrowthErasureParkedPage'));
 const AdminUserSettingsPage = lazyWithRetry(() => import('../pages/admin/AdminUserSettingsPage'));
 const AdminReportsDashboard = lazyWithRetry(() => import('./pages/AdminReportsDashboard'));
 const AdminEnforcementDashboard = lazyWithRetry(() => import('./pages/AdminEnforcementDashboard'));
@@ -369,6 +371,7 @@ export default function AdminApp() {
           <Route path={adminRoute('legalComplianceMetrics').relative} element={<AdminComplianceMetricsPage />} />
           <Route path={adminRoute('legalCcpaRequests').relative} element={<AdminCCPARequestsPage />} />
           <Route path={adminRoute('legalCcpaErasureReview').relative} element={<AdminCcpaErasureReviewPage />} />
+          <Route path={adminRoute('growthErasureParked').relative} element={<AdminGrowthErasureParkedPage />} />
 
           {/* Super admin and grant-gated routes.
               GrantGuard checks the admin's permission grants (super-admins
@@ -558,6 +561,9 @@ export default function AdminApp() {
               permission catalogue, so there is no grant to honor. */}
           <Route path={adminRoute('franchiseHq').relative} element={
             <AdminGuard superOnly={adminRoute('franchiseHq').superOnly}><FranchiseHQPage /></AdminGuard>
+          } />
+          <Route path={adminRoute('franchiseRoyaltyFailures').relative} element={
+            <AdminGuard superOnly={adminRoute('franchiseRoyaltyFailures').superOnly}><FranchiseRoyaltyFailuresPage /></AdminGuard>
           } />
           <Route path={adminRoute('careers').relative} element={
             <AdminGuard superOnly={adminRoute('careers').superOnly}><CareersAdmin /></AdminGuard>

@@ -284,6 +284,17 @@ describe('recordException', () => {
     await expect(
       recordException({ domain: 'nope', referenceId: 'x', summary: 'y' })
     ).resolves.toBeNull();
-    expect(mockQuery).not.toHaveBeenCalled();
+    // No exception row is written for an unregistered domain. Domain 8
+    // #20: the failure is still visible via an incident_log write
+    // (the old code logged a warn and nothing else), so the pool may
+    // have been called for the incident, but never for the exception.
+    const exceptionInserts = mockQuery.mock.calls.filter((call) =>
+      call[0].includes('INSERT INTO reconciliation_exceptions')
+    );
+    expect(exceptionInserts).toHaveLength(0);
+    const incidentInserts = mockQuery.mock.calls.filter((call) =>
+      call[0].includes('INSERT INTO incident_log')
+    );
+    expect(incidentInserts).toHaveLength(1);
   });
 });

@@ -85,6 +85,7 @@ function CreditDisputeQueue({
   setDisputeProvisionalDrafts,
   inspectDisputeCustomer,
   resolveDispute,
+  resendResultsNotice,
   issueProvisionalCredit,
 }) {
   const { t } = useTranslation('credit');
@@ -96,7 +97,7 @@ function CreditDisputeQueue({
   }
   const daysOpen = businessDaysOpen(dispute.openedAt);
   return <p className="mt-1"><span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gray-500/15 text-gray-600 dark:text-gray-400">{t('adminDisputeBusinessDays', { count: daysOpen })}</span></p>;
-})()}{Number(dispute.provisionalCreditCents || 0) > 0 && <p className="mt-1 text-[10px] text-sky-400">{t('adminDisputeProvisionalIssued', { amount: money(dispute.provisionalCreditCents, dispute.currencyCode || 'USD') })}</p>}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={() => resolveDispute(dispute, 'in_review')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminReview')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'resolved_customer')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminDisputeResolveCustomer')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'resolved_merchant')} className="rounded-lg bg-teal-600 px-2.5 py-2 font-semibold text-white hover:bg-teal-500 disabled:opacity-50">{t('adminDisputeResolveMerchant')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'rejected')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminReject')}</button></div>{dispute.status === 'in_review' && <div className="mt-3 rounded-lg border border-sky-500/20 bg-sky-500/5 p-2.5"><p className="text-[10px] font-semibold text-sky-300">{t('adminDisputeProvisionalTitle')}</p><div className="mt-2 flex flex-wrap items-center gap-2"><input inputMode="numeric" aria-label={t('adminDisputeProvisionalAmount')} value={disputeProvisionalDrafts[dispute.id] || ''} onChange={(event) => setDisputeProvisionalDrafts((current) => ({ ...current, [dispute.id]: event.target.value.replace(/[^\d]/g, '').slice(0, 10) }))} placeholder={t('adminDisputeProvisionalPlaceholder')} className="w-32 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-2.5 py-2 font-mono text-xs text-gray-900 dark:text-white outline-none placeholder:text-gray-600 focus:border-sky-400" /><button type="button" disabled={busy || !String(disputeProvisionalDrafts[dispute.id] || '').trim() || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => issueProvisionalCredit(dispute)} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminDisputeProvisionalIssue')}</button></div><p className="mt-1.5 text-[10px] text-gray-500">{t('adminDisputeProvisionalHint')}</p></div>}</td></tr>)}</tbody></table></div>
+})()}{Number(dispute.provisionalCreditCents || 0) > 0 && <p className="mt-1 text-[10px] text-sky-400">{t('adminDisputeProvisionalIssued', { amount: money(dispute.provisionalCreditCents, dispute.currencyCode || 'USD') })}</p>}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={() => resolveDispute(dispute, 'in_review')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminReview')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'resolved_customer')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminDisputeResolveCustomer')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'resolved_merchant')} className="rounded-lg bg-teal-600 px-2.5 py-2 font-semibold text-white hover:bg-teal-500 disabled:opacity-50">{t('adminDisputeResolveMerchant')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'rejected')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminReject')}</button></div>{['resolved', 'resolved_customer', 'resolved_merchant', 'rejected'].includes(dispute.status) && !dispute.resultsNoticeSentAt && <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5"><p className="text-[10px] font-semibold text-amber-300">{dispute.resultsNoticeSent === false ? t('adminDisputeResultsNoticeFailed') : t('adminDisputeResendResultsNotice')}</p><button type="button" disabled={busy} onClick={() => resendResultsNotice(dispute)} className="mt-2 rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">{t('adminDisputeResendResultsNotice')}</button></div>}{dispute.status === 'in_review' && <div className="mt-3 rounded-lg border border-sky-500/20 bg-sky-500/5 p-2.5"><p className="text-[10px] font-semibold text-sky-300">{t('adminDisputeProvisionalTitle')}</p><div className="mt-2 flex flex-wrap items-center gap-2"><input inputMode="numeric" aria-label={t('adminDisputeProvisionalAmount')} value={disputeProvisionalDrafts[dispute.id] || ''} onChange={(event) => setDisputeProvisionalDrafts((current) => ({ ...current, [dispute.id]: event.target.value.replace(/[^\d]/g, '').slice(0, 10) }))} placeholder={t('adminDisputeProvisionalPlaceholder')} className="w-32 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-2.5 py-2 font-mono text-xs text-gray-900 dark:text-white outline-none placeholder:text-gray-600 focus:border-sky-400" /><button type="button" disabled={busy || !String(disputeProvisionalDrafts[dispute.id] || '').trim() || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => issueProvisionalCredit(dispute)} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminDisputeProvisionalIssue')}</button></div><p className="mt-1.5 text-[10px] text-gray-500">{t('adminDisputeProvisionalHint')}</p></div>}</td></tr>)}</tbody></table></div>
   </Section>;
 }
 
@@ -272,6 +273,19 @@ export default function OxsteedCreditDisputesPage() {
       setError(safeCreditErrorMessage(err, t('adminDisputeProvisionalFailed')));
     } finally { setBusy(false); }
   };
+  const resendResultsNotice = async (dispute) => {
+    setBusy(true); setNotice(''); setError('');
+    try {
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/disputes/${dispute.id}/resend-results-notice`, {}, {
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+      });
+      if (response.data?.sent) setNotice(t('adminDisputeResultsNoticeSent'));
+      else setError(t('adminDisputeResultsNoticeResendFailed'));
+      await load({ quiet: true });
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('adminDisputeResultsNoticeResendFailed')));
+    } finally { setBusy(false); }
+  };
   const selectCustomerAccount = (account) => {
     setCustomerForm((current) => ({ ...current, customerId: account.customerId, currencyCode: account.currencyCode }));
     setAccountStatusForm((current) => ({ ...current, customerId: account.customerId, currencyCode: account.currencyCode }));
@@ -333,6 +347,7 @@ export default function OxsteedCreditDisputesPage() {
         setDisputeProvisionalDrafts={setDisputeProvisionalDrafts}
         inspectDisputeCustomer={inspectDisputeCustomer}
         resolveDispute={resolveDispute}
+        resendResultsNotice={resendResultsNotice}
         issueProvisionalCredit={issueProvisionalCredit}
       />
       {customerDetailAccount && <OxsteedCreditCustomerDetail account={customerDetailAccount} busy={busy} onClose={() => setCustomerDetailAccount(null)} />}

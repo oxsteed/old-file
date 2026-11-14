@@ -402,7 +402,8 @@ exports.runScheduledReportNow = async (req, res, next) => {
       await scheduledReports.markDeliverySent(pool, { deliveryId: claim.delivery.id, recipientCount });
       await pool.query(
         `UPDATE restaurant_scheduled_reports
-            SET last_run_at = NOW(), last_business_date = $2::date, updated_at = NOW()
+            SET last_run_at = NOW(), last_business_date = $2::date, updated_at = NOW(),
+                consecutive_failures = 0
           WHERE id = $1`,
         [schedule.id, businessDate]
       );

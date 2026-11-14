@@ -982,6 +982,36 @@ async function issueAdminProvisionalCredit(req, res, next) {
 }
 
 /**
+ * POST /admin/super/oxsteed-credit/disputes/:disputeId/resend-results-notice
+ * Domain 8 #4: the results notice used to be stamped sent even when the
+ * email failed, with no resend path. A super admin re-sends it here; the
+ * service stamps only on success and the sweep retries the rest.
+ */
+async function resendAdminDisputeResultsNotice(req, res, next) {
+  try {
+    const disputeId = parseUuid(req.params.disputeId, 'disputeId');
+    const { resendResultsNotice } = require('../services/creditCompliance/disputeSlaService');
+    res.json(await resendResultsNotice({ disputeId, actorUserId: req.user.id }));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /admin/super/oxsteed-credit/cashout-disputes/:cashoutDisputeId/resend-results-notice
+ * Same resend for helper cash-out disputes.
+ */
+async function resendAdminCashoutDisputeResultsNotice(req, res, next) {
+  try {
+    const cashoutDisputeId = parsePositiveInt(req.params.cashoutDisputeId, 'cashoutDisputeId');
+    const { resendResultsNotice } = require('../services/creditCompliance/disputeSlaService');
+    res.json(await resendResultsNotice({ cashoutDisputeId, actorUserId: req.user.id }));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * POST /admin/super/oxsteed-credit/pending-actions
  * Generic maker endpoint: queue any supported money movement for checker
  * approval. The converted money routes call requestMoneyMovement instead,
@@ -2753,6 +2783,8 @@ module.exports = {
   listAdminDisputes,
   downloadAdminCreditDisputes,
   resolveAdminDispute,
+  resendAdminDisputeResultsNotice,
+  resendAdminCashoutDisputeResultsNotice,
   issueAdminProvisionalCredit,
   requestAdminPendingAction,
   decideAdminPendingAction,

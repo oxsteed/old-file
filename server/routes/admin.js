@@ -25,6 +25,7 @@ const moderationCtrl  = require('../controllers/moderationController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const paymentDisputeAdminCtrl = require('../controllers/paymentDisputeAdminController');
 const webhookReceiptAdminCtrl = require('../controllers/webhookReceiptAdminController');
+const franchiseRoyaltyAdminCtrl = require('../controllers/franchiseRoyaltyAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
 const adminPhoneVerificationCtrl = require('../controllers/adminPhoneVerificationController');
 const adminOperationsCtrl = require('../controllers/adminOperationsController');
@@ -98,6 +99,10 @@ router.get('/dashboard',         requireAdmin, requirePermission('manage_operati
 // availability and permission state; domain pages remain authoritative.
 router.get('/operations/overview', requireAdmin, requirePermission('manage_operations'), adminOperationsCtrl.getOverview);
 router.get('/operations/security-audit-log', requireAdmin, requirePermission('view_audit_log'), adminOperationsCtrl.getSecurityAuditLog);
+// Domain 8 #30: live fleet worker heartbeat snapshot (in-memory run
+// state from scheduledWorkerSchedule); read-only, same permission as
+// the operations overview it feeds.
+router.get('/operations/fleet-worker-heartbeats', requireAdmin, requirePermission('manage_operations'), adminOperationsCtrl.getFleetWorkerHeartbeats);
 
 // Content moderation
 router.get('/reports',           requireAdmin, requirePermission('manage_operations'), adminCtrl.getReports);
@@ -262,6 +267,9 @@ router.get('/super/dashboard',          requireSuperAdmin, superCtrl.getDashboar
 router.get('/super/webhook-receipts', requireSuperAdmin, webhookReceiptAdminCtrl.list);
 router.post('/super/webhook-receipts/:id/replay', requireSuperAdmin, webhookReceiptAdminCtrl.replay);
 router.post('/super/webhook-receipts/:id/resolve', requireSuperAdmin, webhookReceiptAdminCtrl.resolve);
+// Domain 8 #13: failed franchise royalty accruals — list open,
+// parked, and resolved outbox rows for operator review.
+router.get('/super/franchise-royalty-failures', requireSuperAdmin, franchiseRoyaltyAdminCtrl.listRoyaltyFailures);
 router.get('/super/chargebacks', requireSuperAdmin, async (req, res, next) => {
   try {
     const svc = require('../services/chargebackEvidenceService');
@@ -731,6 +739,8 @@ router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAd
 router.get('/super/oxsteed-credit/disputes', requireSuperAdmin, oxsteedCreditCtrl.listAdminDisputes);
 router.get('/super/oxsteed-credit/disputes.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditDisputes);
 router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resolveAdminDispute);
+router.post('/super/oxsteed-credit/disputes/:disputeId/resend-results-notice', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resendAdminDisputeResultsNotice);
+router.post('/super/oxsteed-credit/cashout-disputes/:cashoutDisputeId/resend-results-notice', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resendAdminCashoutDisputeResultsNotice);
 router.post('/super/oxsteed-credit/disputes/:disputeId/provisional-credit', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminProvisionalCredit);
 router.get('/super/oxsteed-credit/audit-events', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditAuditEvents);
 router.get('/super/oxsteed-credit/audit-events.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditAuditEvents);

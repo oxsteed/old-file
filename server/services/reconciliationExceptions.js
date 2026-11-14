@@ -89,12 +89,40 @@ async function recordException({ domain, referenceId, severity = 'warning', summ
     );
     return rows[0].id;
   } catch (error) {
-    // Never let exception bookkeeping crash a reconciliation job.
-    logger.warn('recordException failed; swallowing', {
+    // Never let exception bookkeeping crash a reconciliation job, but
+    // never lose the finding silently either. Domain 8 #20: this used
+    // to log at warn and return null, so a domain the DB CHECK rejects
+    // (the next registry domain added without a matching migration)
+    // vanished with no trace. A failure now logs at error level and
+    // raises an incident, deduped per domain+reference so repeats
+    // surface as a growing occurrence count on one open incident.
+    // The incident write itself is best-effort: if the incident store
+    // is down, the error log above is the record.
+    logger.error('recordException failed', {
       domain,
       referenceId: referenceId != null ? String(referenceId) : null,
       error: error.message,
     });
+    try {
+      const { recordIncident } = require('./incidentStore');
+      await recordIncident({
+        type: 'reconciliation_exception_record_failed',
+        severity: 'high',
+        message: `Reconciliation exception could not be recorded (domain ${domain})`,
+        dedupeKey: `recon-exception-record-failed:${domain}:${referenceId != null ? String(referenceId) : 'unknown'}`,
+        details: {
+          domain,
+          referenceId: referenceId != null ? String(referenceId) : null,
+          error: error.message,
+        },
+      });
+    } catch (incidentError) {
+      logger.error('recordException incident failed', {
+        domain,
+        referenceId: referenceId != null ? String(referenceId) : null,
+        error: incidentError.message,
+      });
+    }
     return null;
   }
 }

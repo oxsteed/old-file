@@ -66,6 +66,7 @@ async function sweep(db = pool, fence = null) {
     missing: result.missing.length,
     missingNotified: result.missingNotified,
     missingNotifyErrors: result.missingNotifyErrors,
+    missingFlagged: result.missingFlagged,
     errors: result.errors.length,
   };
 }

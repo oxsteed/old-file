@@ -89,6 +89,14 @@ function buildSchedule() {
     // balances to OxSteed Credit once a revoked restaurant's 30-day grace
     // period ends. Hourly; each run is fenced and the worker is idempotent.
     ['processRevocationGracePeriods', processRevocationGracePeriods, 60 * 60 * 1000, { limit: 100 }],
+    // Domain 8 #29: restaurant_daily_rollups rows outlive their
+    // 15-minute TTL forever (one row per distinct date range queried).
+    // Nightly prune with a 1-hour grace so in-flight reads stay safe;
+    // each run is fenced, logged and bounded by LIMIT like the other
+    // sweeps. No migration: the expiry index already exists.
+    ['pruneExpiredRollups',
+      (options) => require('../services/restaurantRollupCache').pruneExpiredRollups(require('../db'), options),
+      24 * 60 * 60 * 1000, { limit: 1000 }],
     // Logistics funding gates: campaigns past their deposit/minimum-demand
     // deadline with insufficient funding raise staff review exceptions
     // (logistics_review_exceptions). Never auto-advances or refunds;

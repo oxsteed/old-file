@@ -166,6 +166,9 @@ suite('S-04 schedule publishing + time-off (DB)', () => {
     expect(toEmployee.length).toBe(1);
     expect(toEmployee[0][0].data.params.restaurantName).toBeTruthy();
     expect(toEmployee[0][0].data.params.shiftLabel).toContain('shifts');
+    // Domain 8 #26: the publish notice carries a per-business
+    // per-batch idempotency key (not a bare fire-and-forget send).
+    expect(toEmployee[0][0].idempotencyKey).toMatch(/^shift-published:\d+:[0-9a-f]{16}$/);
 
     const empList = await call(ctrl.listShifts, { ...asEmployee(EMPLOYEE), query: {} });
     expect(empList.res.body.some((s) => s.id === c1.res.body.id && s.published === true)).toBe(true);
@@ -210,6 +213,13 @@ suite('S-04 schedule publishing + time-off (DB)', () => {
     });
     expect(approved.res.body.request.status).toBe('approved');
     expect(sendNotification).toHaveBeenCalled();
+    // Domain 8 #26: the decision notice carries its key.
+    const decided = sendNotification.mock.calls
+      .map(([a]) => a)
+      .find((a) => a.type === 'time_off_decided');
+    expect(decided).toBeDefined();
+    expect(decided.userId).toBe(EMPLOYEE);
+    expect(decided.idempotencyKey).toBe(`time-off:${created.res.body.request.id}:approved`);
 
     // Deciding twice is a 404 (no longer pending).
     const again = await call(ctrl.decideTimeOffRequest, {
@@ -218,6 +228,38 @@ suite('S-04 schedule publishing + time-off (DB)', () => {
       body: { decision: 'denied' },
     });
     expect(again.res.statusCode).toBe(404);
+  });
+
+  test('Domain 8 #26: a failed decision notice is logged and does not fail the decision', async () => {
+    const logger = require('../utils/logger');
+    const warn = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    try {
+      const created = await call(ctrl.createTimeOffRequest, {
+        ...asEmployee(EMPLOYEE),
+        body: { request_type: 'sick', start_date: '2026-12-03', end_date: '2026-12-03' },
+      });
+      expect(created.res.statusCode).toBe(201);
+      const requestId = created.res.body.request.id;
+      sendNotification.mockClear();
+      sendNotification.mockRejectedValueOnce(new Error('push down'));
+      const decided = await call(ctrl.decideTimeOffRequest, {
+        ...asManager(MANAGER),
+        params: { businessId: String(bizId), requestId: String(requestId) },
+        body: { decision: 'denied' },
+      });
+      expect(decided.error).toBeNull();
+      expect(decided.res.body.request.status).toBe('denied');
+      // The fire-and-forget send settles after the response; flush it
+      // before asserting the failure was logged, not swallowed.
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('Time-off'),
+        expect.objectContaining({ requestId })
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   test('time-off: requester can cancel a pending request', async () => {

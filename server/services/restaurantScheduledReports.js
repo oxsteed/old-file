@@ -49,7 +49,18 @@ const MAX_RECIPIENTS_PER_SCHEDULE = 50;
 // of one-by-one. Five in flight bounds Resend/notification pressure
 // while cutting a 50-recipient delivery from 50 serial round trips
 // to about 10 batches.
+// Domain 9 audit #5: sends run in bounded parallel batches instead
+// of one-by-one. Five in flight bounds Resend/notification pressure
+// while cutting a 50-recipient delivery from 50 serial round trips
+// to about 10 batches.
 const SEND_CONCURRENCY = 5;
+
+// Domain 8 #22: a schedule that fails this many times in a row stops
+// being selected, so persistently failing schedules do not consume
+// run slots. Schedules at or above this many consecutive failures are
+// skipped by the due select until one succeeds again (a success
+// resets the counter to 0).
+const CONSECUTIVE_FAILURES_SKIP_THRESHOLD = 5;
 
 const pool = require('../db');
 const logger = require('../utils/logger');
@@ -412,18 +423,25 @@ async function recordRecipientOutcomes(db, { deliveryId, schedule, businessDate,
 //   - 'in_progress' / 'skipped': another run owns the date, or the
 //     claim lost a race; the caller must not send.
 // A 'failed' row is re-claimed so the date is retried. A 'pending'
-// row older than PENDING_STALE_MINUTES is a crashed run and is
-// re-claimed too, so a crash between claim and outcome cannot lose
-// the date forever; a fresh 'pending' row means a live run owns it.
+// row whose claim heartbeat (claimed_at) is older than
+// PENDING_STALE_MINUTES is a crashed run and is re-claimed too, so a
+// crash between claim and outcome cannot lose the date forever; a
+// fresh 'pending' row means a live run owns it.
+//
+// Domain 8 #19: staleness used to be keyed on created_at, which the
+// reclaim never updates, so a build+delivery taking over 60 minutes
+// had its row reclaimed mid-flight by the next run (double delivery).
+// The heartbeat is stamped on claim and refreshed on reclaim; rows
+// created before the claimed_at column existed fall back to created_at.
 async function claimScheduledReportDelivery(db, { schedule, businessDate, asOf, now = new Date() } = {}) {
   const { rows: [claimed] } = await db.query(
     `INSERT INTO restaurant_scheduled_report_deliveries
        (scheduled_report_id, business_date, report_type, as_of,
-        snapshot, locked_close, channel, status, recipient_count)
-     VALUES ($1, $2::date, $3, $4, TRUE, FALSE, $5, 'pending', 0)
+        snapshot, locked_close, channel, status, recipient_count, claimed_at)
+     VALUES ($1, $2::date, $3, $4, TRUE, FALSE, $5, 'pending', 0, $6)
      ON CONFLICT (scheduled_report_id, business_date) DO NOTHING
      RETURNING *`,
-    [schedule.id, businessDate, schedule.report_type, asOf.toISOString(), schedule.delivery_channel]
+    [schedule.id, businessDate, schedule.report_type, asOf.toISOString(), schedule.delivery_channel, new Date(now).toISOString()]
   );
   if (claimed) return { delivery: claimed, outcome: 'claimed' };
 
@@ -438,17 +456,18 @@ async function claimScheduledReportDelivery(db, { schedule, businessDate, asOf, 
   if (existing.status === 'sent') return { delivery: null, outcome: 'already_sent' };
   if (existing.status === 'failed' || existing.status === 'pending') {
     if (existing.status === 'pending') {
-      const claimedAt = existing.created_at ? new Date(existing.created_at).getTime() : NaN;
+      const heartbeat = existing.claimed_at || existing.created_at;
+      const claimedAt = heartbeat ? new Date(heartbeat).getTime() : NaN;
       const stale = Number.isNaN(claimedAt)
         || new Date(now).getTime() - claimedAt > PENDING_STALE_MINUTES * 60 * 1000;
       if (!stale) return { delivery: null, outcome: 'in_progress' };
     }
     const { rows: [reclaimed] } = await db.query(
       `UPDATE restaurant_scheduled_report_deliveries
-          SET status = 'pending', error = NULL
+          SET status = 'pending', error = NULL, claimed_at = $3
         WHERE id = $1 AND status = $2
         RETURNING *`,
-      [existing.id, existing.status]
+      [existing.id, existing.status, new Date(now).toISOString()]
     );
     if (reclaimed) return { delivery: reclaimed, outcome: existing.status === 'failed' ? 'reclaimed' : 'reclaimed_stale' };
     return { delivery: null, outcome: 'skipped' };
@@ -457,20 +476,27 @@ async function claimScheduledReportDelivery(db, { schedule, businessDate, asOf, 
 }
 
 async function markDeliverySent(db, { deliveryId, recipientCount }) {
-  await db.query(
+  // Domain 8 #19: predicated on status='pending' so a run whose row
+  // was reclaimed mid-flight cannot mark another run's delivery sent.
+  // Returns the updated row count: 0 means the row was already
+  // reclaimed/finished elsewhere, and the caller must log it instead
+  // of silently double-marking.
+  const { rowCount } = await db.query(
     `UPDATE restaurant_scheduled_report_deliveries
-        SET status = 'sent', recipient_count = $1 WHERE id = $2`,
+        SET status = 'sent', recipient_count = $1 WHERE id = $2 AND status = 'pending'`,
     [recipientCount, deliveryId]
   );
+  return rowCount;
 }
 
 async function markDeliveryFailed(db, { deliveryId, error, recipientCount = null }) {
-  await db.query(
+  const { rowCount } = await db.query(
     `UPDATE restaurant_scheduled_report_deliveries
         SET status = 'failed', error = $1,
-            recipient_count = COALESCE($3, recipient_count) WHERE id = $2`,
+            recipient_count = COALESCE($3, recipient_count) WHERE id = $2 AND status = 'pending'`,
     [String(error == null ? '' : error).slice(0, 1000), deliveryId, recipientCount]
   );
+  return rowCount;
 }
 
 // Run every due schedule once. `now` is injectable for tests. The
@@ -489,11 +515,11 @@ async function markDeliveryFailed(db, { deliveryId, error, recipientCount = null
 // 100 rows (now not due) and every schedule past id 100 would starve
 // forever. Here a built schedule drops out of the due set, so the
 // next run selects the next due batch. The JS isDue check below stays
-// as a second gate in case the two ever disagree. Residual: a schedule
-// whose build keeps failing stays due and keeps occupying a slot, so
-// 100 persistently failing schedules can still head-of-line block the
-// rest; that is bounded to genuinely failing schedules, not to every
-// schedule past the cap. A restaurant with an unknown timezone falls
+// as a second gate in case the two ever disagree. Domain 8 #22: a
+// schedule at/above CONSECUTIVE_FAILURES_SKIP_THRESHOLD consecutive
+// failures is skipped by the due select as well, so persistently
+// failing schedules cannot head-of-line block the rest; a success
+// resets the counter. A restaurant with an unknown timezone falls
 // back to UTC for the due computation (mirroring the JS fallback in
 // the loop) instead of failing the whole select.
 async function runDueScheduledReports(db = pool, { now = new Date(), fence = null } = {}) {
@@ -507,12 +533,13 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
                THEN r.timezone ELSE 'UTC' END)::date - 1)) AS business_date
       ) AS bd
       WHERE sr.enabled = TRUE
+        AND sr.consecutive_failures < $3
         AND (sr.last_business_date IS NULL
              OR (sr.frequency = 'weekly' AND sr.last_business_date <= bd.business_date - 7)
              OR (sr.frequency <> 'weekly' AND sr.last_business_date < bd.business_date))
       ORDER BY sr.id
       LIMIT $2`,
-    [now, MAX_SCHEDULES_PER_RUN]
+    [now, MAX_SCHEDULES_PER_RUN, CONSECUTIVE_FAILURES_SKIP_THRESHOLD]
   );
   const result = { due: 0, sent: 0, skipped: 0, failed: 0, errors: [] };
   for (const schedule of schedules) {
@@ -586,10 +613,13 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
       }
       await markDeliverySent(db, { deliveryId: delivery.id, recipientCount: outcome.delivered + (outcome.alreadyDelivered || 0) });
       // last_business_date advances only on success: a failed date
-      // stays due and is retried on the next run.
+      // stays due and is retried on the next run. Domain 8 #22: a
+      // success also resets the consecutive-failure counter, so a
+      // recovered schedule is due again.
       await db.query(
         `UPDATE restaurant_scheduled_reports
-            SET last_run_at = NOW(), last_business_date = $2::date, updated_at = NOW()
+            SET last_run_at = NOW(), last_business_date = $2::date, updated_at = NOW(),
+                consecutive_failures = 0
           WHERE id = $1`,
         [schedule.id, businessDate]
       );
@@ -604,6 +634,17 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
       result.failed += 1;
       result.errors.push({ schedule_id: Number(schedule.id), error: err.message });
       logger.error('Scheduled restaurant report failed', { scheduleId: schedule.id, error: err.message });
+      // Domain 8 #22: count the failure toward the skip threshold.
+      // Best-effort: a counter-write failure must not mask the
+      // build/delivery error or break the run.
+      try {
+        await db.query(
+          `UPDATE restaurant_scheduled_reports
+              SET consecutive_failures = consecutive_failures + 1, updated_at = NOW()
+            WHERE id = $1`,
+          [schedule.id]
+        );
+      } catch { /* the counter is best-effort; the error above is the record */ }
       // Record the failure on the claimed row (no second INSERT: the
       // dedupe key already belongs to the claim). If the claim itself
       // threw there is no row to mark; last_business_date is untouched
@@ -636,6 +677,7 @@ module.exports = {
   MAX_SCHEDULES_PER_RUN,
   MAX_RECIPIENTS_PER_SCHEDULE,
   SEND_CONCURRENCY,
+  CONSECUTIVE_FAILURES_SKIP_THRESHOLD,
   runDueScheduledReports,
   localDateString,
   shiftDateString,

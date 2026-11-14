@@ -445,6 +445,10 @@ router.get('/:restaurantId/pay/mine', requireRestaurantAccess(), payrollReports.
 router.get('/:restaurantId/pay/mine/stubs', requireRestaurantAccess(), payrollReports.listMyPayStubs);
 router.get('/:restaurantId/pay/mine/stubs/:payRunId', requireRestaurantAccess(), payrollReports.getMyPayStub);
 router.get('/:restaurantId/tips/cash-declarations/mine', requireRestaurantAccess(), payrollReports.listMyCashTips);
+// Domain 8 #27: manager review queue for pending self-declared cash
+// tips (payroll.manage). Registered before the :declarationId routes;
+// 'review' is a literal segment, not an id.
+router.get('/:restaurantId/tips/cash-declarations/review', requireRestaurantAccess(), payrollReports.listCashTipsForReview);
 router.post('/:restaurantId/tips/cash-declarations/mine', requireRestaurantAccess(), payrollReports.declareMyCashTip);
 router.post('/:restaurantId/tips/cash-declarations/:declarationId/confirm', requireRestaurantAccess(), payrollReports.confirmCashTip);
 router.post('/:restaurantId/tips/cash-declarations/:declarationId/reject', requireRestaurantAccess(), payrollReports.rejectCashTip);

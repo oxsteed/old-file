@@ -23,6 +23,9 @@ import {
   getTipPoolSettings,
   updateTipPoolSettings,
   declareCashTip,
+  listCashTipsForReview,
+  confirmCashTipDeclaration,
+  rejectCashTipDeclaration,
   listPayRuns,
   createPayRun,
   getPayRun,
@@ -34,6 +37,7 @@ import {
   downloadPayRunCsv,
   linkPayRunPayout,
   recordPayRunDisbursement,
+  voidPayRunDisbursement,
 } from '../../api/restaurants';
 
 function apiErr(err, fallback) {
@@ -69,6 +73,12 @@ export function PayrollPanel({ t, restaurant, from, to }) {
   const [rules, setRules] = useState([]);
   const [savingTips, setSavingTips] = useState(false);
   const [cashForm, setCashForm] = useState({ staffUserId: '', date: to, amount: '', note: '' });
+  // Domain 8 #27: manager review queue for pending self-declared cash
+  // tips. The employee panel shows a "pendingReview" note on these
+  // rows, but until now no manager surface could ever review them.
+  const [pendingTips, setPendingTips] = useState(null);
+  const [pendingTipsError, setPendingTipsError] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState(null);
   const [exporting, setExporting] = useState(false);
 
   // ── Pay runs (Phase 5) ──
@@ -122,6 +132,32 @@ export function PayrollPanel({ t, restaurant, from, to }) {
       toast.success(run?.voidPending
         ? t('restaurants.ops.reports.payRuns.voidRequested')
         : t('restaurants.ops.reports.payRuns.voided'));
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.payRuns.actionError')));
+    } finally {
+      setPayRunBusy(false);
+    }
+  };
+
+  // Domain 8 #6: voiding a disbursement. On a paid run a load-bearing
+  // void is two-step, mirroring the run void: the first call records the
+  // un-pay request (202, run stays paid) and the toast says a second
+  // manager must approve it; the approve button calls the same endpoint
+  // again. A non-load-bearing void, and a void on a finalized run,
+  // complete in one step.
+  const onVoidDisbursement = async (disbursement) => {
+    if (!disbursement) return;
+    setPayRunBusy(true);
+    try {
+      const data = await voidPayRunDisbursement(restaurantId, selectedPayRun.id, disbursement.id);
+      const run = data?.payRun;
+      if (run) {
+        setSelectedPayRun(run);
+        setPayRuns((rows) => (rows || []).map((row) => (Number(row.id) === Number(run.id) ? { ...row, ...run } : row)));
+      }
+      toast.success(data?.unpayRequested || run?.unpayPending
+        ? t('restaurants.ops.reports.payRuns.unpayRequested')
+        : t('restaurants.ops.reports.payRuns.disbursementVoided'));
     } catch (err) {
       toast.error(apiErr(err, t('restaurants.ops.reports.payRuns.actionError')));
     } finally {
@@ -241,6 +277,34 @@ export function PayrollPanel({ t, restaurant, from, to }) {
   }, [restaurantId, tipScope]);
 
   useEffect(() => { loadTipSettings(); }, [loadTipSettings]);
+
+  // Domain 8 #27: the pending-review queue loads with the panel (for
+  // payroll managers only) and refreshes after every review decision.
+  const loadPendingTips = useCallback(() => {
+    if (!canManageTips) { setPendingTips([]); return; }
+    setPendingTipsError(false);
+    listCashTipsForReview(restaurantId, { from, to })
+      .then((rows) => setPendingTips(rows || []))
+      .catch(() => { setPendingTipsError(true); setPendingTips([]); });
+  }, [restaurantId, from, to, canManageTips]);
+  useEffect(() => { loadPendingTips(); }, [loadPendingTips]);
+
+  const reviewCashTip = async (declaration, decision) => {
+    setReviewBusy(declaration.id);
+    try {
+      if (decision === 'confirmed') await confirmCashTipDeclaration(restaurantId, declaration.id);
+      else await rejectCashTipDeclaration(restaurantId, declaration.id);
+      toast.success(t(decision === 'confirmed'
+        ? 'restaurants.ops.reports.tipPool.reviewConfirmed'
+        : 'restaurants.ops.reports.tipPool.reviewRejected'));
+      loadPendingTips();
+      loadLabor();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.reports.tipPool.reviewError')));
+    } finally {
+      setReviewBusy(null);
+    }
+  };
 
   const onExportPayroll = async () => {
     setExporting(true);
@@ -510,7 +574,9 @@ export function PayrollPanel({ t, restaurant, from, to }) {
                 </thead>
                 <tbody>
                   {selectedPayRun.lines.map((line) => {
-                    const disbursed = (selectedPayRun.disbursements || []).find((d) => Number(d.payRunLineId) === Number(line.id));
+                    // A voided disbursement is not a live one: the line
+                    // reads unpaid again and can be re-recorded (Finding 9).
+                    const disbursed = (selectedPayRun.disbursements || []).find((d) => Number(d.payRunLineId) === Number(line.id) && d.status === 'recorded');
                     return (
                       <tr key={line.id}>
                         <td>{line.staff_label || line.staff_user_id}</td>
@@ -521,7 +587,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
                         <td>{money(line.tip_in_cents)}</td>
                         <td>{money(line.net_tips_cents)}</td>
                         <td>{money(line.total_pay_cents)}</td>
-                        <td>{disbursed ? money(disbursed.amountCents) : '—'}</td>
+                        <td>{disbursed ? (<>{money(disbursed.amountCents)}{canManagePayRuns && (selectedPayRun.status === 'finalized' || selectedPayRun.status === 'paid') && (<button type="button" className="fd-btn fd-btn-sm" disabled={payRunBusy} onClick={() => onVoidDisbursement(disbursed)} data-track="ui.aa258f5ea1.29">{t('restaurants.ops.reports.payRuns.disbursementVoid')}</button>)}</>) : '—'}</td>
                       </tr>
                     );
                   })}
@@ -541,6 +607,9 @@ export function PayrollPanel({ t, restaurant, from, to }) {
           )}
           {canManagePayRuns && selectedPayRun.status === 'finalized' && selectedPayRun.void_requested_by && (
             <p className="fd-card-meta">{t('restaurants.ops.reports.payRuns.voidPending')}</p>
+          )}
+          {canManagePayRuns && selectedPayRun.unpayPending && (
+            <p className="fd-card-meta">{t('restaurants.ops.reports.payRuns.unpayPending')}</p>
           )}
           {canManagePayRuns && (
             <div className="fd-ops-inventory-row">
@@ -562,6 +631,12 @@ export function PayrollPanel({ t, restaurant, from, to }) {
               {selectedPayRun.status === 'finalized' && selectedPayRun.void_requested_by && (
                 <button type="button" className="fd-btn fd-btn-sm" disabled={payRunBusy} onClick={() => runPayRunAction(t('restaurants.ops.reports.payRuns.voided'), () => approveVoidPayRun(restaurantId, selectedPayRun.id))} data-track="ui.aa258f5ea1.28">{t('restaurants.ops.reports.payRuns.voidApprove')}</button>
               )}
+              {selectedPayRun.unpayPending && (() => {
+                const pending = (selectedPayRun.disbursements || []).find((d) => Number(d.id) === Number(selectedPayRun.unpay_requested_disbursement_id));
+                return pending ? (
+                  <button type="button" className="fd-btn fd-btn-sm" disabled={payRunBusy} onClick={() => onVoidDisbursement(pending)} data-track="ui.aa258f5ea1.30">{t('restaurants.ops.reports.payRuns.unpayApprove')}</button>
+                ) : null;
+              })()}
               {(selectedPayRun.status === 'draft' || (selectedPayRun.status === 'finalized' && !selectedPayRun.void_requested_by)) && (
                 <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payRunBusy} onClick={onVoidPayRun} data-track="ui.aa258f5ea1.22">{t('restaurants.ops.reports.payRuns.void')}</button>
               )}
@@ -592,7 +667,7 @@ export function PayrollPanel({ t, restaurant, from, to }) {
                   onChange={(e) => setDisbForm((f) => ({ ...f, lineId: e.target.value }))}
                 >
                   <option value="">{t('restaurants.ops.reports.payRuns.disburseSelect')}</option>
-                  {(selectedPayRun.lines || []).filter((line) => !(selectedPayRun.disbursements || []).some((d) => Number(d.payRunLineId) === Number(line.id))).map((line) => (
+                  {(selectedPayRun.lines || []).filter((line) => !(selectedPayRun.disbursements || []).some((d) => Number(d.payRunLineId) === Number(line.id) && d.status === 'recorded')).map((line) => (
                     <option key={line.id} value={line.id}>{line.staff_label || line.staff_user_id} · {money(line.total_pay_cents)}</option>
                   ))}
                 </select>
@@ -722,6 +797,30 @@ export function PayrollPanel({ t, restaurant, from, to }) {
             <button type="submit" className="fd-btn fd-btn-sm" data-track="ui.aa258f5ea1.7">{t('restaurants.ops.reports.tipPool.cashAdd')}</button>
           </div>
         </form>
+      )}
+
+      {/* ── Pending cash-tip review (Domain 8 #27) ── */}
+      {canManageTips && (
+        <div className="fd-card">
+          <p className="fd-card-meta">{t('restaurants.ops.reports.tipPool.reviewTitle')}</p>
+          {pendingTipsError ? (
+            <p role="alert">{t('restaurants.ops.reports.tipPool.reviewError')} <button type="button" className="fd-btn fd-btn-sm" onClick={loadPendingTips} data-track="ui.aa258f5ea1.31">{t('restaurants.ops.shared.retry')}</button></p>
+          ) : !pendingTips ? (
+            <div className="fd-empty">{t('food.common.loading')}</div>
+          ) : pendingTips.length === 0 ? (
+            <EmptyState icon={Users} title={t('restaurants.ops.reports.tipPool.reviewEmpty')} />
+          ) : (
+            pendingTips.map((d) => (
+              <div key={d.id} className="fd-ops-inventory-row">
+                <span>{d.staff_name || d.staff_user_id}</span>
+                <span className="fd-card-meta">{d.business_date} · {money(d.amount_cents)}</span>
+                {d.note ? <span className="fd-card-meta">{d.note}</span> : null}
+                <button type="button" className="fd-btn fd-btn-sm" disabled={reviewBusy === d.id} onClick={() => reviewCashTip(d, 'confirmed')} data-track="ui.aa258f5ea1.32">{t('restaurants.ops.reports.tipPool.reviewConfirm')}</button>
+                <button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={reviewBusy === d.id} onClick={() => reviewCashTip(d, 'rejected')} data-track="ui.aa258f5ea1.33">{t('restaurants.ops.reports.tipPool.reviewReject')}</button>
+              </div>
+            ))
+          )}
+        </div>
       )}
 
       {/* ── Exceptions ── */}
