@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '../api/axios';
+import { iosNeedsInstallForPush } from '../utils/pushInstallGuard';
 
 /**
  * Self-hosted Web Push hook.
@@ -23,6 +24,8 @@ interface UseWebPushResult {
   ready: boolean;
   permission: PushPermission;
   isSubscribed: boolean;
+  /** True on iOS Safari, where web push needs the installed PWA first. */
+  needsInstallForPush: boolean;
   /** True iff the server has VAPID keys configured. */
   serverEnabled: boolean;
   loading: boolean;
@@ -139,6 +142,14 @@ export function useWebPush(): UseWebPushResult {
 
   const subscribe = useCallback(async (deviceLabel?: string): Promise<boolean> => {
     if (!isSupported) return false;
+    // iOS web push requires an installed PWA. Prompting from a plain
+    // Safari tab resolves to denial, and iOS offers no re-prompt, so one
+    // tap would permanently lose this user's push channel. Refuse here
+    // and let the UI show the install coach marks instead.
+    if (iosNeedsInstallForPush()) {
+      setError('ios_install_required');
+      return false;
+    }
     if (!publicKey) {
       setError('Push notifications are not configured on this server.');
       return false;
@@ -233,6 +244,7 @@ export function useWebPush(): UseWebPushResult {
     ready,
     permission,
     isSubscribed,
+    needsInstallForPush: iosNeedsInstallForPush(),
     serverEnabled,
     loading,
     error,

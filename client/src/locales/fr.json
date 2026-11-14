@@ -10783,7 +10783,8 @@
       "testSentToast": "Notification de test envoyée - surveillez-la !",
       "deniedToast": "Permission refusée. Autorisez les notifications dans les paramètres du navigateur.",
       "setupHelp": "Un administrateur doit configurer les notifications push du navigateur sur le serveur avant que ce navigateur puisse être activé.",
-      "checkAgain": "Vérifier à nouveau"
+      "checkAgain": "Vérifier à nouveau",
+      "iosInstallRequired": "Sur iPhone, les notifications du navigateur ne fonctionnent que depuis l'app installée. Ajoutez OxSteed à votre écran d'accueil, puis activez les notifications ici."
     },
     "groups": {
       "in_app": {
@@ -15161,6 +15162,7 @@
     "sentTo": "Nous enverrons un code à 6 chiffres à {{email}}.",
     "otpPlaceholder": "code à 6 chiffres",
     "sendOtp": "Envoyer le code de vérification",
+    "resendIn": "Renvoyer le code dans {{seconds}} s",
     "didntReceive": "Pas reçu ?",
     "verify": "Vérifier l'e-mail",
     "help": "Besoin d'aide ?"

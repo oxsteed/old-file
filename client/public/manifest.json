@@ -81,6 +81,7 @@
       "label": "Your OxSteed wallet"
     }
   ],
+  "scope": "/",
   "short_name": "OxSteed",
   "shortcuts": [
     {
@@ -133,7 +134,7 @@
     }
   ],
   "start_url": "/?utm_source=pwa_install&utm_medium=homescreen",
-  "theme_color": "#F97316",
+  "theme_color": "#16213e",
   "display_override": [
     "standalone",
     "minimal-ui"

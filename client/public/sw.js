@@ -14,13 +14,26 @@ let assetWrites = Promise.resolve();
 // Shell assets to pre-cache on install
 const PRECACHE_URLS = [
   '/offline.html',
+  '/trouble.html',
 ];
 
 // ── Install: pre-cache shell ───────────────────────────────────────────────────
+// Each page is cached on its own and failures are contained: a failed
+// /offline.html precache used to reject the whole install (cache.addAll is
+// atomic), leaving no offline fallback at all. Install now succeeds with a
+// degraded cache and logs which pages missed.
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      .then(cache => cache.addAll(PRECACHE_URLS))
+      .then(cache => Promise.allSettled(PRECACHE_URLS.map(url => cache.add(url))))
+      .then(results => {
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.warn(`[SW] precache failed for ${PRECACHE_URLS[index]}; install continues with a degraded cache.`);
+          }
+        });
+      })
+      .catch(() => { /* Cache storage unavailable; install still succeeds. */ })
   );
 });
 
@@ -218,18 +231,37 @@ async function navigationHandler(event, request) {
     try { preloaded = await event.preloadResponse; }
     catch { /* preload unavailable; fall through to fetch */ }
     const response = preloaded || await fetch(request);
-    if (response.status >= 500) throw new Error('Navigation unavailable');
+    if (response.status >= 500) {
+      // A server error is not a connectivity problem: serve the trouble
+      // page, not the offline page (M15). A cached Response keeps its
+      // original 200 status, so the page is re-wrapped with an honest 503.
+      return await errorPage('/trouble.html',
+        'OxSteed is having trouble right now. Please try again in a little while.');
+    }
     return response;
   } catch {
     // Keep application HTML network-first so a deployment can publish a new
-    // asset manifest without an older route shell masking it.
-    let offline;
-    try { offline = await caches.match('/offline.html'); } catch { /* Cache unavailable. */ }
-    return offline || new Response('Offline. Please reconnect and try again.', {
+    // asset manifest without an older route shell masking it. A network
+    // error means the user really is offline.
+    return await errorPage('/offline.html', 'Offline. Please reconnect and try again.');
+  }
+}
+
+// Serve a cached error page re-wrapped with a 503 (its stored status is
+// 200), or a plain-text 503 when the page itself is not cached.
+async function errorPage(path, fallbackText) {
+  let page;
+  try { page = await caches.match(path); } catch { /* Cache unavailable. */ }
+  if (page) {
+    return new Response(await page.clone().text(), {
       status: 503,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
     });
   }
+  return new Response(fallbackText, {
+    status: 503,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
 }
 
 // Bounded local hand-off from the OS share sheet. Files are never uploaded
@@ -300,7 +332,12 @@ self.addEventListener('push', event => {
     body:    payload.body || '',
     icon:    '/icons/icon-192.png',
     badge:   '/icons/icon-192.png',
-    tag:     payload.type || 'oxsteed',
+    // One visible notification per notification id: tagging by type
+    // collapsed every order update / bid / offer into a single tray row.
+    // The server carries the id in payload.id (notificationService) and
+    // in payload.data.delivery_id for growth offers; only a payload with
+    // neither falls back to its type.
+    tag:     notificationTag(payload),
     renotify: true,
     data: {
       action_url: payload.action_url || '/',
@@ -316,11 +353,30 @@ self.addEventListener('push', event => {
   ]));
 });
 
+function notificationTag(payload) {
+  const id = payload.id ?? payload.data?.delivery_id;
+  if (id !== null && id !== undefined && String(id) !== '') return String(id);
+  return payload.type || 'oxsteed';
+}
+
 async function updatePushBadge(payload) {
   const count = Number(payload.unread_count ?? payload.data?.unread_count);
   if (!Number.isSafeInteger(count) || count < 0 || !self.navigator?.setAppBadge) return;
   try { await self.navigator.setAppBadge(Math.min(count, 4294967295)); }
   catch { /* Badge permission must never suppress a push notification. */ }
+}
+
+// ── Update-sensitive paths ──────────────────────────────────────────────────
+// Duplicated from client/src/utils/appUpdateSafety.js (isUpdateSensitivePath),
+// the source of truth. sw.js is served raw from client/public and cannot
+// import client/src, so the list is mirrored here; keep the two in sync.
+// A tab on one of these paths may hold an in-progress payment, booking, or
+// POS flow, so a push tap must never navigate it away.
+function isUpdateSensitivePath(pathname = '') {
+  return /^\/(?:checkout|cart|post-job|wallet|pay|qr-payments|agreements)(?:\/|$)/.test(pathname)
+    || /(?:^|\/)(?:checkout|book)(?:\/|$)/.test(pathname)
+    || /^\/(?:restaurants|food)\/(?:merchant|pos|kitchen|queue|kiosk|screens)(?:\/|$)/.test(pathname)
+    || /^\/invoice\/p\//.test(pathname);
 }
 
 self.addEventListener('notificationclick', event => {
@@ -352,22 +408,36 @@ self.addEventListener('notificationclick', event => {
       type: 'window',
       includeUncontrolled: true,
     });
-
-    // Reuse an existing tab on the same origin.
+    const sameOrigin = [];
     for (const client of allClients) {
       try {
         const url = new URL(client.url);
-        if (url.origin === self.location.origin) {
-          await client.focus();
-          if ('navigate' in client) {
-            try { await client.navigate(target); } catch { /* same-tab nav blocked */ }
-          }
-          return;
-        }
+        if (url.origin === self.location.origin) sameOrigin.push({ client, url });
       } catch { /* invalid url - skip */ }
     }
 
-    // Otherwise open a new tab.
+    // 1. A tab already on the target only needs focusing; never navigate it.
+    for (const { client, url } of sameOrigin) {
+      if (url.pathname + url.search + url.hash === target) {
+        await client.focus();
+        return;
+      }
+    }
+
+    // 2. Reuse a tab that is not mid-flow. Navigating a tab on an
+    // update-sensitive path (checkout, wallet top-up, POS, ...) would
+    // abandon the payment or booking in progress there.
+    for (const { client, url } of sameOrigin) {
+      if (isUpdateSensitivePath(url.pathname)) continue;
+      await client.focus();
+      if ('navigate' in client) {
+        try { await client.navigate(target); } catch { /* same-tab nav blocked */ }
+      }
+      return;
+    }
+
+    // 3. Every open tab is mid-flow (or none exists): open a new tab
+    // instead of hijacking one.
     if (self.clients.openWindow) {
       await self.clients.openWindow(target);
     }

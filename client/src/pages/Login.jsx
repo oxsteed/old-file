@@ -357,6 +357,8 @@ export default function Login({ embedded = false, returnTo } = {}) {
                       className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border-strong)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
                       placeholder={t('login.twoFactorCodePlaceholder')}
                       autoComplete="one-time-code"
+                      inputMode="numeric"
+                      maxLength={6}
                     />
                   </div>
                   <button

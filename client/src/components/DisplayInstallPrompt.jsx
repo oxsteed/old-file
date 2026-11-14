@@ -16,13 +16,22 @@ import {
   shouldShowInstallPrompt,
   writeInstallPromptDismissed,
 } from '../utils/displayInstall';
+// Single owner for beforeinstallprompt: pwaInstall.js captures the
+// one-shot event at boot. This component only subscribes to its state
+// and fires the shared promptInstall(); it never adds its own listener
+// or stashes its own copy of the event (M12).
+import {
+  subscribePwaInstall,
+  hasNativePrompt,
+  promptInstall,
+} from '../utils/pwaInstall';
 
 export default function DisplayInstallPrompt() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [nativeAvailable, setNativeAvailable] = useState(() => hasNativePrompt());
 
   // Remember where this installed display should land on next launch.
   // Only valid display routes are persisted (saveDisplayInstallDestination
@@ -48,17 +57,26 @@ export default function DisplayInstallPrompt() {
       standalone: window.navigator?.standalone,
     });
     setVisible(false);
-    if (parsedPath && isIpadSafari(window.navigator) && shouldShowInstallPrompt({ dismissed: readInstallPromptDismissed(), standalone })) {
+    const ipad = isIpadSafari(window.navigator);
+    const dismissed = readInstallPromptDismissed();
+    const showForNative = !ipad && !standalone && !dismissed && hasNativePrompt();
+    if (parsedPath && ((ipad && shouldShowInstallPrompt({ dismissed, standalone })) || showForNative)) {
       persistDestination();
       setVisible(true);
     }
-    const onBeforeInstall = (event) => {
-      event.preventDefault();
-      setDeferredPrompt(event);
-    };
-    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    setNativeAvailable(hasNativePrompt());
+    // Subscribe to the single owner's state: the native prompt may arrive
+    // after this page mounts, and firing it here must go through the
+    // shared promptInstall() so no second holder can consume the event.
+    const unsubscribe = subscribePwaInstall((change) => {
+      setNativeAvailable(hasNativePrompt());
+      if (change.type === 'eligible' && parsedPath && !ipad && !standalone && !readInstallPromptDismissed()) {
+        persistDestination();
+        setVisible(true);
+      }
+    });
     return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      unsubscribe();
       if (manifestLink) manifestLink.href = manifestBase;
     };
   }, [pathname]);
@@ -87,17 +105,11 @@ export default function DisplayInstallPrompt() {
   }
 
   const installNow = async () => {
-    if (!deferredPrompt) return;
-    try {
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-    } catch {
-      // The browser dismissed the prompt; keep our card up.
-      return;
-    }
+    if (!nativeAvailable) return;
+    const outcome = await promptInstall();
     // Install accepted: remember the destination before the app relaunches.
-    persistDestination();
-    setDeferredPrompt(null);
+    if (outcome === 'accepted') persistDestination();
+    setNativeAvailable(hasNativePrompt());
     dismiss();
   };
 
@@ -113,14 +125,14 @@ export default function DisplayInstallPrompt() {
       </button>
       <strong className="fd-display-install-title">{t('display.install.title')}</strong>
       <p>{t('display.install.body')}</p>
-      {!deferredPrompt && (
+      {!nativeAvailable && (
         <ol className="fd-display-install-steps">
           <li>{t('display.install.stepShare')}</li>
           <li>{t('display.install.stepAdd')}</li>
         </ol>
       )}
       <div className="fd-display-install-actions">
-        {deferredPrompt && (
+        {nativeAvailable && (
           <button type="button" className="fd-btn fd-btn-sm" onClick={installNow} data-track="ui.726bd2c264.3">
             {t('display.install.installNow')}
           </button>

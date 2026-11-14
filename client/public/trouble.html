@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#16213e" />
+    <title>OxSteed is having trouble - OxSteed</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #1a1a2e;
+        color: #e2e8f0;
+        font-family: 'Inter', system-ui, sans-serif;
+        padding: 1.5rem;
+        text-align: center;
+      }
+      .card {
+        max-width: 380px;
+        width: 100%;
+      }
+      .icon {
+        font-size: 3.5rem;
+        margin-bottom: 1.25rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        color: #f8fafc;
+      }
+      p {
+        font-size: 0.95rem;
+        color: #94a3b8;
+        line-height: 1.6;
+        margin-bottom: 1.75rem;
+      }
+      button {
+        background: #F97316;
+        color: #fff;
+        border: none;
+        border-radius: 9999px;
+        padding: 0.75rem 2rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      button:hover { background: #ea6a0a; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="icon">🛠️</div>
+      <h1 id="heading">OxSteed is having trouble</h1>
+      <p id="message">OxSteed is having trouble right now. Your connection is fine, please try again in a little while.</p>
+      <button id="retry" type="button">Try again</button>
+    </div>
+    <script>
+      // Same inline-locale approach as offline.html: this page must render
+      // with no network and no app bundle, so its strings live here, not in
+      // the i18n catalogs.
+      const messages = {"en": ["OxSteed is having trouble", "OxSteed is having trouble right now. Your connection is fine, please try again in a little while.", "Try again"], "es": ["OxSteed tiene problemas", "OxSteed tiene problemas en este momento. Tu conexión está bien, inténtalo de nuevo en un rato.", "Intentar de nuevo"], "fr": ["OxSteed rencontre des difficultés", "OxSteed rencontre des difficultés en ce moment. Votre connexion fonctionne, veuillez réessayer dans un moment.", "Réessayer"], "ht": ["OxSteed gen pwoblèm", "OxSteed gen pwoblèm kounye a. Koneksyon ou bon, tanpri eseye ankò nan yon ti moman.", "Eseye ankò"], "ar": ["OxSteed يواجه مشكلة", "يواجه OxSteed مشكلة الآن. اتصالك يعمل، يرجى المحاولة مرة أخرى بعد قليل.", "إعادة المحاولة"]};
+      let language = navigator.language?.split('-')[0] || 'en';
+      try { language = (localStorage.getItem('i18nextLng') || language).split('-')[0]; } catch {}
+      const text = messages[language] || messages.en;
+      document.documentElement.lang = messages[language] ? language : 'en';
+      document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+      document.title = text[0] + ' - OxSteed';
+      document.getElementById('heading').textContent = text[0];
+      document.getElementById('message').textContent = text[1];
+      const retry = document.getElementById('retry');
+      retry.textContent = text[2];
+      retry.addEventListener('click', () => window.location.reload());
+    </script>
+  </body>
+</html>

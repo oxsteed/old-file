@@ -2587,6 +2587,8 @@
     "intro": "Protection des consommateurs, sorties d'argent, conformité, inactivité, revues d'accès, rapports au régulateur, ancrage d'audit et liquidation ordonnée.",
     "twoAdminNote": "Chaque modification ici doit être approuvée par un second administrateur.",
     "loadFailed": "Impossible de charger cette section.",
+    "loading": "Chargement…",
+    "retry": "Réessayer",
     "actionFailed": "L'action a échoué.",
     "empty": "Rien à afficher.",
     "requested": "Envoyé pour approbation par un second administrateur.",

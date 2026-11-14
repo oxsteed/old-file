@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import SpeechToTextInput from './SpeechToTextInput';
 import SupportLauncher from './SupportLauncher';
 import { useCapabilities } from '../hooks/useCapabilities';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { useAuth } from '../context/AuthContext';
 import {
   chatHistoryKey,
@@ -269,7 +270,9 @@ function AISupportWidget({ storageScope, signedIn, initialRequest }) {
   const [loading,      setLoading]      = useState(false);
   const [copied,       setCopied]       = useState(null);
   const [unread,       setUnread]       = useState(0);
-  const [isMobile,     setIsMobile]     = useState(false);
+  // Mobile/PWA M8: one shared 1024px breakpoint (useIsMobile) drives the
+  // fullscreen chat and the FAB colour; the old private <640px check is gone.
+  const isMobile = useIsMobile();
   // Gap #3: one image may ride along with the next message.
   const [pendingImage, setPendingImage] = useState(null);
   const [imageError,   setImageError]   = useState(null);
@@ -325,14 +328,6 @@ function AISupportWidget({ storageScope, signedIn, initialRequest }) {
   const guideHelpRef  = useRef(null);
   const windowFocused     = useRef(true);
   const proactiveTriggered = useRef(false);
-
-  // 6. Mobile full-screen detection
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
 
   // 9. Track window focus for notification ping
   useEffect(() => {
@@ -855,13 +850,16 @@ function markProactiveDismissed() {
 
   return (
     <>
-      {/* ── FAB ── */}
+      {/* ── FAB ──
+        Mobile/PWA M20: no bottom utilities here. The offset lives in
+        PwaExperience.css (.fixed[data-pwa-support-launcher], 5.5rem), which
+        beats any Tailwind bottom class on specificity. */}
       {(!open || !isMobile) && (
         <SupportLauncher
           yieldToPage={!open}
           onClick={() => { setOpen(true); setMinimized(false); setUnread(0); }}
           aria-label={t('supportWidget.openAssistant')}
-          className={`${isMediaPage ? 'media-support-launcher ' : ''}fixed bottom-20 end-4 sm:bottom-6 sm:end-6 z-40 flex items-center gap-2 px-3.5 py-2.5 bg-green-600 hover:bg-green-700 lg:bg-gray-900 lg:hover:bg-gray-950 text-white rounded-full shadow-md shadow-green-600/20 lg:shadow-black/30 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm`}
+          className={`${isMediaPage ? 'media-support-launcher ' : ''}fixed end-4 sm:end-6 z-40 flex items-center gap-2 px-3.5 py-3 min-h-[44px] ${isMobile ? 'bg-green-600 hover:bg-green-700 shadow-green-600/20' : 'bg-gray-900 hover:bg-gray-950 shadow-black/30'} text-white rounded-full shadow-md font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm`}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
@@ -1039,7 +1037,7 @@ function markProactiveDismissed() {
                         <>
                         {/* Bubble (an action-only reply shows just its card) */}
                         {(m.content || m.image || !m.action) && (
-                        <div className={`px-3.5 py-2.5 rounded-2xl text-sm ${
+                        <div className={`px-3.5 py-3 min-h-[44px] rounded-2xl text-sm ${
                           m.role === 'user'
                             ? 'bg-action text-on-action rounded-br-sm whitespace-pre-wrap leading-relaxed'
                             : m.isError
@@ -1392,6 +1390,9 @@ export default function SupportWidget({initialRequest}) {
   const { t } = useTranslation();
   const { isAvailable, loading } = useCapabilities();
   const { user, loading: authLoading } = useAuth();
+  // Mobile/PWA M8: the no-AI fallback FAB shares the 1024px breakpoint, so
+  // it is green below 1024px and dark above, like the main FAB.
+  const isMobile = useIsMobile();
 
   useEffect(() => { if (initialRequest && !loading && !isAvailable('aiSupport')) navigate('/support'); }, [initialRequest, loading, isAvailable, navigate]);
 
@@ -1401,7 +1402,7 @@ export default function SupportWidget({initialRequest}) {
       <SupportLauncher
         type="button"
         onClick={() => navigate('/support/escalation')}
-        className={`${isMediaPage ? 'media-support-launcher ' : ''}support-contact-fab fixed bottom-[4.75rem] lg:bottom-5 end-5 z-40 rounded-full bg-green-600 hover:bg-green-700 lg:bg-gray-900 lg:hover:bg-gray-950 px-4 py-3 text-sm font-semibold text-white shadow-xl transition`}
+        className={`${isMediaPage ? 'media-support-launcher ' : ''}support-contact-fab fixed bottom-[4.75rem] lg:bottom-5 end-5 z-40 rounded-full ${isMobile ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-900 hover:bg-gray-950'} px-4 py-3 min-h-[44px] text-sm font-semibold text-white shadow-xl transition`}
         aria-label={t('supportWidget.talkToHuman')}
       >
         {t('supportWidget.talkToHuman')}

@@ -24,6 +24,7 @@ import { Flag, GraduationCap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import usePromotionVisitBeacon from '../hooks/usePromotionVisitBeacon';
+import { useIsMobile } from '../hooks/useIsMobile';
 import toast from 'react-hot-toast';
 import { recordView } from '../hooks/useRecentlyViewed';
 import { defaultProfileChatDestination } from '../components/helperProfile/chat/messengerDockState.js';
@@ -72,6 +73,10 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user } = useAuth();
+  // Mobile/PWA M8: the sticky Book bar renders only below the shared 1024px
+  // breakpoint (useIsMobile), not via the lg:hidden class, so it agrees with
+  // the FAB colour and the chat fullscreen logic on tablets.
+  const isMobile = useIsMobile();
 
   const [data, setData] = useState<HelperProfileData | null>(customerSnapshot);
   const [loadState, setLoadState] = useState<LoadingState>(customerSnapshot ? 'success' : 'idle');
@@ -588,26 +593,28 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
         env(safe-area-inset-bottom) ensures buttons aren't hidden
         behind the iPhone home indicator.
       */}
+      {isMobile && (
       <div
-        className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-t border-gray-200 dark:border-gray-800 flex items-center gap-3"
+        className="fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-t border-gray-200 dark:border-gray-800 flex items-center gap-3"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         aria-label={t('businessProfile.quickActionsAria')}
       >
         <button
           onClick={bookingAllowed ? handleBookNow : handleMessageHelper}
-          className="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-green-600/20 active:bg-green-800"
+          className="flex-1 py-3 min-h-[44px] rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-green-600/20 active:bg-green-800"
           aria-label={bookingAllowed ? t('businessProfile.bookBusinessAria') : t('helperProfile.cta.contactForPricing')} data-track="ui.62d44cb5c8.2"
         >
           {bookingAllowed ? t('businessProfile.bookNow') : t('helperProfile.cta.contactForPricing')}
         </button>
         <button
           onClick={handleOpenChat}
-          className="flex-1 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
+          className="flex-1 py-3 min-h-[44px] rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
           aria-label={t('helperProfile.cta.messageHelperAria')} data-track="ui.62d44cb5c8.3"
         >
           {t('helperProfile.cta.contactForPricing')}
         </button>
       </div>
+      )}
 
       {!customerSnapshot && <PublicProfileMessenger
         open={chatOpen}

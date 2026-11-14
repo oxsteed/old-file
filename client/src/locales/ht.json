@@ -2966,7 +2966,8 @@
       "testSentToast": "Notifikasyon tès voye - gade pou li !",
       "deniedToast": "Pèmisyon refize. Otorize notifikasyon nan paramèt navigatè a.",
       "setupHelp": "Yon administratè dwe konfigire notifikasyon push navigatè a sou sèvè a anvan navigatè sa a ka aktive.",
-      "checkAgain": "Tcheke ankò"
+      "checkAgain": "Tcheke ankò",
+      "iosInstallRequired": "Sou iPhone, notifikasyon navigatè yo mache sèlman nan aplikasyon ki enstale a. Mete OxSteed sou ekran lakay ou anvan, apre sa aktive notifikasyon isit la."
     },
     "groups": {
       "in_app": {
@@ -15161,6 +15162,7 @@
     "sentTo": "N ap voye yon kòd 6 chif nan {{email}}.",
     "otpPlaceholder": "kòd 6 chif",
     "sendOtp": "Voye kòd verifikasyon",
+    "resendIn": "Voye kòd la ankò nan {{seconds}} s",
     "didntReceive": "Ou pa resevwa li?",
     "verify": "Verifye imèl",
     "help": "Ou bezwen èd?"

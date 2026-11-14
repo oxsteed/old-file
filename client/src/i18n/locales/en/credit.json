@@ -2587,6 +2587,8 @@
     "intro": "Consumer protection, money out, compliance, dormancy, access reviews, regulator reports, audit anchoring and wind-down.",
     "twoAdminNote": "Every change here needs a second administrator to approve it.",
     "loadFailed": "Could not load this section.",
+    "loading": "Loading…",
+    "retry": "Retry",
     "actionFailed": "The action failed.",
     "empty": "Nothing to show.",
     "requested": "Sent for approval by a second administrator.",

@@ -26,13 +26,17 @@ function licenceTableTags(source) {
 
 test('LicenceTable takes loading and error props and never shows the empty text while loading or on error', () => {
   const src = read(`${licenceDir}/licenceShared.jsx`);
-  assert.match(src, /export function LicenceTable\(\{\s*rows, columns, actions, empty, loading, error\s*\}\)/);
-  assert.match(src, /if \(loading\)/);
-  assert.match(src, /if \(error\)/);
+  // Union with Nov 10 #1: LicenceTable also takes an optional onRetry prop,
+  // and the loading/error branches only fire while no rows are on screen
+  // (rows survive a background reload). The order asserted here, loading
+  // then error then empty, is unchanged.
+  assert.match(src, /export function LicenceTable\(\{\s*rows, columns, actions, empty, loading, error(?:,\s*onRetry)?\s*\}\)/);
+  assert.match(src, /if \(loading/);
+  assert.match(src, /if \(error/);
   // The loading branch must come before the empty branch, and the empty
   // branch must only render once neither loading nor error applies.
-  const loadingAt = src.indexOf('if (loading)');
-  const errorAt = src.indexOf('if (error)');
+  const loadingAt = src.indexOf('if (loading');
+  const errorAt = src.indexOf('if (error');
   const emptyAt = src.indexOf("t('adminLicence.empty')");
   assert.ok(loadingAt > 0 && errorAt > loadingAt && emptyAt > errorAt,
     'LicenceTable must check loading, then error, then empty, in that order');

@@ -4,20 +4,26 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const root = new URL('../', import.meta.url),
   source = fs.readFileSync(new URL('public/sw.js', root), 'utf8');
-function worker(fetch = async () => new Response('asset')) {
+function worker(fetch = async () => new Response('asset'), { failPrecache = [] } = {}) {
   const listeners = {},
     stored = new Map(),
-    writes = [];
+    writes = [],
+    added = [];
   let skips = 0;
   const bucket = {
-    match: async (req) => stored.get(req.url)?.clone(),
+    match: async (req) => stored.get(typeof req === 'string' ? new URL(req, 'https://oxsteed.test').href : req.url)?.clone(),
     put: async (req, res) => {
       writes.push(req);
       stored.set(req.url, res.clone());
     },
     keys: async () => [...stored.keys()].map(url=>new Request(url)),
     delete: async req => stored.delete(req.url),
-    addAll: async (urls) => assert.deepEqual([...urls], ['/offline.html']),
+    add: async (url) => {
+      added.push(url);
+      if (failPrecache.includes(url)) throw Error(`precache failed: ${url}`);
+      stored.set(new URL(url, 'https://oxsteed.test').href, new Response('page'));
+    },
+    addAll: async (urls) => { for (const url of urls) await bucket.add(url); },
   };
   const metadata = new Map();
   const metaBucket = { match: async req=>metadata.get(req.url)?.clone(), put: async(req,res)=>metadata.set(req.url,res.clone()), keys: async()=>[...metadata.keys()].map(url=>new Request(url)), delete:async req=>metadata.delete(req.url) };
@@ -29,7 +35,7 @@ function worker(fetch = async () => new Response('asset')) {
     Promise,
     Date,
     fetch,
-    caches: { open: async name => name === 'oxsteed-assets-v2' || name.startsWith('oxsteed-static-') ? bucket : metaBucket, match: async () => undefined },
+    caches: { open: async name => name === 'oxsteed-assets-v2' || name.startsWith('oxsteed-static-') ? bucket : metaBucket, match: async (req) => bucket.match(req) },
     self: {
       location: {
         origin: 'https://oxsteed.test',
@@ -47,6 +53,7 @@ function worker(fetch = async () => new Response('asset')) {
     context,
     stored,
     writes,
+    added,
     get skips() {
       return skips;
     },
@@ -115,12 +122,23 @@ test('installation waits for an explicit page update message', async () => {
   w.listeners.install({ waitUntil: (p) => (complete = p) });
   await complete;
   assert.equal(w.skips, 0);
+  assert.deepEqual(w.added, ['/offline.html', '/trouble.html']);
   w.listeners.message({
     data: { type: 'SKIP_WAITING' },
     waitUntil: (p) => (complete = p),
   });
   await complete;
   assert.equal(w.skips, 1);
+});
+test('Nov 10 #14: install still succeeds when one precache entry fails', async () => {
+  const w = worker(undefined, { failPrecache: ['/offline.html'] });
+  let complete;
+  w.listeners.install({ waitUntil: (p) => (complete = p) });
+  await complete;
+  // Both pages were attempted; the surviving one is cached, so the worker
+  // still has an error page instead of no worker at all.
+  assert.deepEqual(w.added, ['/offline.html', '/trouble.html']);
+  assert.equal(w.stored.has('https://oxsteed.test/trouble.html'), true);
 });
 test('API remains network-only and private uploads remain unintercepted', async () => {
   const w = worker(async () => {
@@ -211,14 +229,40 @@ test('badge API rejections are contained and invalid counts clear', async () => 
   }
 });
 
-test('unavailable HTML uses the reconnect page even when the server responds 503', async () => {
+test('M15: a server 5xx serves the trouble page with a 503, not the offline page', async () => {
   const w = worker(async () => new Response('', { status: 503 }));
+  w.stored.set('https://oxsteed.test/trouble.html', new Response('<h1>OxSteed is having trouble</h1>'));
+  w.stored.set('https://oxsteed.test/offline.html', new Response('<h1>You are offline</h1>'));
   const response = await w.context.navigationHandler(
     { preloadResponse: Promise.resolve(undefined) },
     new Request('https://oxsteed.test/'),
   );
   assert.equal(response.status, 503);
-  assert.match(await response.text(), /reconnect/i);
+  const text = await response.text();
+  assert.match(text, /having trouble/i);
+  assert.doesNotMatch(text, /offline/i);
+});
+
+test('M15: a network error still serves the offline page', async () => {
+  const w = worker(async () => { throw Error('offline'); });
+  w.stored.set('https://oxsteed.test/trouble.html', new Response('<h1>OxSteed is having trouble</h1>'));
+  w.stored.set('https://oxsteed.test/offline.html', new Response('<h1>You are offline</h1>'));
+  const response = await w.context.navigationHandler(
+    { preloadResponse: Promise.resolve(undefined) },
+    new Request('https://oxsteed.test/'),
+  );
+  assert.equal(response.status, 503);
+  assert.match(await response.text(), /offline/i);
+});
+
+test('M15: a 5xx with no cached trouble page still answers 503, not 200', async () => {
+  const w = worker(async () => new Response('', { status: 500 }));
+  const response = await w.context.navigationHandler(
+    { preloadResponse: Promise.resolve(undefined) },
+    new Request('https://oxsteed.test/'),
+  );
+  assert.equal(response.status, 503);
+  assert.match(await response.text(), /having trouble/i);
 });
 
 test('a rejected badge update never prevents displaying a push notification', async () => {

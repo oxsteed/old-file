@@ -15,6 +15,7 @@ import {
   subscribePwaInstall,
   promptInstall,
   dismissPwaPrompt,
+  hidePwaPrompt,
 } from '../utils/pwaInstall';
 
 const AUTO_DISMISS_MS = 8000;
@@ -58,9 +59,11 @@ export default function PwaInstallPrompt() {
         setVisible({ native: !!change.native });
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => {
-          dismissPwaPrompt();
+          // Auto-hide only hides: never record a dismissal for a
+          // banner the user may not have noticed (M3).
+          hidePwaPrompt();
         }, AUTO_DISMISS_MS);
-      } else {
+      } else if (change.type === 'hidden' || change.type === 'installed') {
         hide();
       }
     });

@@ -60,8 +60,10 @@ export default defineConfig(({ mode }) => {
 
   return {
   define: {
-    // Empty in dev/test without a release; the client then falls back to the
-    // entry-script fingerprint from the served HTML.
+    // Empty in dev/test without a release; the client then falls back to a
+    // single constant (FALLBACK_RELEASE_ID), so main and admin always
+    // register the same worker URL. Production resolves a real id from the
+    // release env or git HEAD (see resolveBuildId).
     'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify(mode === 'production' ? resolveBuildId() : ''),
   },
   plugins: [

@@ -246,7 +246,7 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
   if (board?.error) return (
     <section aria-labelledby={headingId}>
       <h4 id={headingId}>{copy("queues.board")}</h4>
-      <p>{copy(board.error === "global_grant_required" ? "queues.errors.global_grant_required" : "loadFailed")}</p>
+      <p role="alert">{copy(board.error === "global_grant_required" ? "queues.errors.global_grant_required" : "loadFailed")}</p>
       {notice && <p role="status">{notice}</p>}
       <button type="button" disabled={busy} onClick={retryLoad}>{copy("retry")}</button>
       {isSuper && <QueueSetup queues={[]} queuesLoaded={false} copy={copy} busy={busy} run={run} reload={() => loadBoard()} />}

@@ -55,13 +55,20 @@ html {
   --pwa-action-bottom: 1.5rem;
   bottom: calc(max(var(--pwa-action-bottom), var(--cookie-banner-height, 0px) + 0.75rem) + env(safe-area-inset-bottom, 0px));
 }
-.pwa-connection-present [data-pwa-support-launcher],
+/* Mobile/PWA M20: while the offline banner shows, the launcher stays visible
+   in a disabled state (dimmed, untappable) instead of display:none, so the
+   help entry point is still there exactly when the user is stuck. */
+.pwa-connection-present [data-pwa-support-launcher] { opacity: 0.55; pointer-events: none; }
 .pwa-keyboard-open [data-pwa-support-launcher] { display: none; }
 [data-pwa-support-launcher][data-pwa-control-overlap="true"] {
   visibility: hidden;
   pointer-events: none;
 }
-@media (min-width: 640px) {
+/* Mobile/PWA M8: the launcher and float-cart offsets flip at the shared
+   mobile breakpoint (1024px, MOBILE_BREAKPOINT_PX in utils/mobileBreakpoint.js),
+   not 640px, so tablets get the same clearance as phones: the sticky Book bar
+   is visible below 1024px and the launcher must clear it. */
+@media (min-width: 1024px) {
   .fixed[data-pwa-support-launcher] { --pwa-support-bottom: 1.5rem; }
   .rp-float-cart[data-pwa-bottom-actions] { --pwa-action-bottom: 2rem; }
 }

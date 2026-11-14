@@ -1,3 +1,15 @@
+// Nov 10 #3 (STILL LIVE, PARTIAL): the transfer panel renders on
+// accountStatus === 'active' only; only the limits row is gated on
+// transfers.enabled. The whole transfer panel must be gated on
+// transfers.enabled, so a disabled transfer rail never shows a transfer form.
+//
+// Domain 1 audit finding 3 (Nov 10, 2026): the credit transfer form
+// rendered for every active account although customer transfers are off by
+// default (server 403s at submit). The form must render only when the
+// limits summary says transfers are enabled, and must not flash or crash
+// while that summary is still loading (limitSummary starts null).
+//
+// Run: node --test scripts/creditTransferGate.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -10,15 +22,28 @@ const pagePath = path.join(
 );
 const src = readFileSync(pagePath, 'utf8');
 
-// Domain 1 audit finding 3 (Nov 10, 2026): the credit transfer form
-// rendered for every active account although customer transfers are off by
-// default (server 403s at submit). The form must render only when the
-// limits summary says transfers are enabled, and must not flash or crash
-// while that summary is still loading (limitSummary starts null).
+// The transfer panel render site, extracted once for every test below.
 const transferPanel = src.match(
   /\{accountStatus === 'active' && [^}]*<section className="ox-credit-panel ox-credit-transfer-panel"/,
 );
 assert.ok(transferPanel, 'transfer panel render site not found');
+
+test('the transfer panel renders only when transfers are enabled', () => {
+  assert.match(
+    transferPanel[0],
+    /accountStatus === 'active' && limitSummary\?\.transfers\?\.enabled && <section className="ox-credit-panel ox-credit-transfer-panel"/,
+    'transfer panel is gated on transfers.enabled',
+  );
+  // No ungated render of the transfer panel left anywhere.
+  assert.doesNotMatch(
+    src,
+    /\{accountStatus === 'active' && <section className="ox-credit-panel ox-credit-transfer-panel"/,
+  );
+});
+
+test('the limits row stays gated on transfers.enabled', () => {
+  assert.match(src, /\{limitSummary\.transfers\.enabled && <><div><span>\{t\('transferAmountRemaining'\)\}/);
+});
 
 test('transfer form renders only when the limits summary enables transfers', () => {
   assert.match(

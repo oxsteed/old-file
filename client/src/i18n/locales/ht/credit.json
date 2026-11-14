@@ -2587,6 +2587,8 @@
     "intro": "Pwoteksyon kliyan, sòti lajan, konfòmite, kont ki dòmi, revizyon aksè, rapò pou regilatè, ankraj odit ak fèmti ann òd.",
     "twoAdminNote": "Chak chanjman isit la bezwen yon dezyèm administratè pou apwouve l.",
     "loadFailed": "Nou pa t ka chaje seksyon sa a.",
+    "loading": "Ap chaje…",
+    "retry": "Eseye ankò",
     "actionFailed": "Aksyon an echwe.",
     "empty": "Pa gen anyen pou montre.",
     "requested": "Voye pou yon dezyèm administratè apwouve.",

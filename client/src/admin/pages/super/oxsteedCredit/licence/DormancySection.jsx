@@ -49,14 +49,18 @@ export default function DormancySection() {
         actions={<ActionButton disabled={action.busy} onClick={sweep}>{t('adminLicence.runSweep')}</ActionButton>}
       >
         <LicenceTable
-          loading={data.loading} error={data.error}
+          loading={data.loading}
+          error={data.error}
+          onRetry={data.reload}
           rows={(summary?.byStatus || []).map((r) => ({ ...r, id: `${r.status}-${r.currency}` }))}
           columns={[{ key: 'status' }, { key: 'currency' }, { key: 'count' }, { key: 'total_minor', label: 'amount', kind: 'money' }]}
         />
       </Panel>
       <Panel title={t('adminLicence.policiesTitle')} detail={t('adminLicence.policiesDetail')}>
         <LicenceTable
-          loading={data.loading} error={data.error}
+          loading={data.loading}
+          error={data.error}
+          onRetry={data.reload}
           rows={(data.data?.policies || []).map((p) => ({ ...p, id: p.country_code }))}
           columns={[
             { key: 'country_code', label: 'country' },
@@ -83,7 +87,9 @@ export default function DormancySection() {
         )}
       >
         <LicenceTable
-          loading={data.loading} error={data.error}
+          loading={data.loading}
+          error={data.error}
+          onRetry={data.reload}
           rows={data.data?.cases || []}
           columns={[
             { key: 'select', label: 'select', render: (v, row) => row.status === 'escheated' && <input type="checkbox" aria-label={t('adminLicence.col.select')} checked={selected.includes(row.id)} onChange={() => toggle(row.id)} /> },
