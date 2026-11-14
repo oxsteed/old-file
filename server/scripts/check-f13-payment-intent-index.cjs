@@ -19,7 +19,7 @@
 //
 // Exit codes: 0 = index present and no duplicates; 1 = duplicates exist
 // (reconcile them first: refund or merge the extra orders, then re-run with
-// --create-index or deploy migration 20261113120200); 2 = index missing but
+// --create-index or deploy migration 20261114010200); 2 = index missing but
 // no duplicates (safe to create); 3 = usage / connection error.
 // Do NOT run this against production without an ops decision: the duplicate
 // list is read-only, but --create-index writes.

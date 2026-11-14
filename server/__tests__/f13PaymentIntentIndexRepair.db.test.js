@@ -2,7 +2,7 @@
 
 // Domain 8 #5 (F-13): the original PaymentIntent migration skipped its
 // unique index when duplicates existed and left only a RAISE WARNING with
-// no durable record. The follow-up migration (20261113120200) writes a
+// no durable record. The follow-up migration (20261114010200) writes a
 // dedupe-keyed open incident_log row when duplicates exist and creates the
 // index once the count is zero; migrate.js now captures migration notices.
 // This file proves both branches against the real tables, plus the notice
@@ -36,7 +36,7 @@ test('F-13 repair test requires an explicit disposable database opt-in', () => {
 describeDatabase('F-13 PaymentIntent index repair (Domain 8 #5)', () => {
   let pool;
   const migrationSql = fs.readFileSync(
-    path.join(__dirname, '..', 'migrations', '20261113120200_f13_payment_intent_index_repair.sql'),
+    path.join(__dirname, '..', 'migrations', '20261114010200_f13_payment_intent_index_repair.sql'),
     'utf8'
   );
   const intent = `pi_f13_test_${crypto.randomUUID()}`;

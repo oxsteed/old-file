@@ -49,7 +49,18 @@ const MAX_RECIPIENTS_PER_SCHEDULE = 50;
 // of one-by-one. Five in flight bounds Resend/notification pressure
 // while cutting a 50-recipient delivery from 50 serial round trips
 // to about 10 batches.
+// Domain 9 audit #5: sends run in bounded parallel batches instead
+// of one-by-one. Five in flight bounds Resend/notification pressure
+// while cutting a 50-recipient delivery from 50 serial round trips
+// to about 10 batches.
 const SEND_CONCURRENCY = 5;
+
+// Domain 8 #22: a schedule that fails this many times in a row stops
+// being selected, so persistently failing schedules do not consume
+// run slots. Schedules at or above this many consecutive failures are
+// skipped by the due select until one succeeds again (a success
+// resets the counter to 0).
+const CONSECUTIVE_FAILURES_SKIP_THRESHOLD = 5;
 
 const pool = require('../db');
 const logger = require('../utils/logger');
@@ -666,6 +677,7 @@ module.exports = {
   MAX_SCHEDULES_PER_RUN,
   MAX_RECIPIENTS_PER_SCHEDULE,
   SEND_CONCURRENCY,
+  CONSECUTIVE_FAILURES_SKIP_THRESHOLD,
   runDueScheduledReports,
   localDateString,
   shiftDateString,
