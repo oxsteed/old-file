@@ -206,6 +206,22 @@ const T = {
       ar: 'تمت الموافقة على دفعتك وهي في طريقها إليك.',
     },
   },
+  payout_failed: {
+    title: {
+      en: 'Payout failed',
+      fr: 'Paiement échoué',
+      es: 'Pago fallido',
+      ht: 'Peman an echwe',
+      ar: 'فشل الدفع',
+    },
+    body: {
+      en: 'Your payout could not be completed. Check the payout details for the reason.',
+      fr: 'Votre paiement n’a pas pu être effectué. Consultez les détails du paiement pour en connaître la raison.',
+      es: 'No se pudo completar tu pago. Revisa los detalles del pago para ver el motivo.',
+      ht: 'Peman ou an pa t ka fini. Gade detay peman an pou rezon an.',
+      ar: 'تعذّر إكمال دفعتك. تحقق من تفاصيل الدفع لمعرفة السبب.',
+    },
+  },
   payout_rejected: {
     title: {
       en: 'Payout rejected',
@@ -1051,6 +1067,13 @@ const EMAIL_TEMPLATES = {
       ar: 'عرض المدفوعات',
     },
     payout_approved: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
+    payout_failed: {
       en: 'View Payouts',
       fr: 'Voir les paiements',
       es: 'Ver pagos',
