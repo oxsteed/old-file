@@ -12,6 +12,7 @@
 // formatted with the active app locale (S-19).
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
@@ -210,6 +211,13 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
     <div className="fd-section">
       <h2>{t('food.myShift.title')}</h2>
       <p className="fd-card-meta">{t('food.myShift.subtitle')}</p>
+
+      {/* Money-flows W5: the employee portal is the staff home's own
+          surface (pay, documents, schedule); link it here, where every
+          member lands, not only in the order center. */}
+      <p>
+        <Link to={`/restaurants/${restaurantId}/portal`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openEmployeePortal')}</Link>
+      </p>
 
       {/* Announcements (S-17) */}
       <section className="fd-card fd-myshift-section" aria-label={t('food.myShift.announcements')}>

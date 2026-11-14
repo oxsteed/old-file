@@ -321,6 +321,8 @@ export const approvePayRunConsolidation = (brandId, consolidationId) =>
   api.post(`/restaurant-brands/${brandId}/pay-runs/consolidations/${consolidationId}/approve`).then((r) => r.data?.consolidation);
 export const voidPayRunConsolidation = (brandId, consolidationId) =>
   api.post(`/restaurant-brands/${brandId}/pay-runs/consolidations/${consolidationId}/void`).then((r) => r.data?.consolidation);
+export const approveVoidPayRunConsolidation = (brandId, consolidationId) =>
+  api.post(`/restaurant-brands/${brandId}/pay-runs/consolidations/${consolidationId}/void-approve`).then((r) => r.data?.consolidation);
 
 // Phase 8 Track D: staged brand menu rollout — pilot restaurants
 // first, then every remaining target, one advance per stage.

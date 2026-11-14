@@ -16,10 +16,15 @@
 // Currency: every money figure is integer minor units in the labor
 // report's effective currency (per-location currency when one store is
 // in scope, else the restaurant's), with per-currency precision —
-// never a hardcoded 100. When the period spans stores in different
-// currencies the labor totals are already nulled upstream; prime cost
-// then reports labor and food per currency instead of adding dollars
-// to gourdes (see the `currencies` block).
+// never a hardcoded 100. Sales and the order-driven theoretical cost
+// are filtered to that currency; paid orders in any other currency
+// are surfaced in `food.excluded_net_sales` (like predictability
+// premiums), never added in. Inventory unit costs and usage
+// adjustments carry no currency at all, so the actual cost is read as
+// effective-currency — the pre-existing assumption, documented here
+// because it cannot be filtered the way order sales can. A zero
+// yield counts at 100%, agreeing with restaurantFoodCostService
+// costLine (Money flows R9).
 //
 // Dayparts are hourly buckets plus conventional named ranges returned
 // in the response as `daypart_definitions`, so the ranges are data the
@@ -50,6 +55,12 @@ function daypartForHour(hour) {
 
 // Food-cost totals over a period, in integer minor units of
 // `currencyCode`. Mirrors foodCostSummary's CTEs (see the header).
+// Money flows R9: sales and the order-driven theoretical cost are
+// filtered to `currencyCode`; orders in any other currency are
+// reported in `excluded_net_sales` instead of being added in. The
+// actual cost cannot be filtered the same way — usage adjustments and
+// inventory unit costs carry no currency — so it is read as
+// effective-currency, the pre-existing assumption.
 async function computeFoodCostTotals(db, {
   restaurantId, fromDate, toDate, timezone, locationIds = null, currencyCode,
 } = {}) {
@@ -62,6 +73,13 @@ async function computeFoodCostTotals(db, {
     salesLocationFilter = ` AND fo.location_id = ANY($${params.length}::bigint[])`;
     itemLocationFilter = ` AND i.location_id = ANY($${params.length}::bigint[])`;
   }
+  // An order with no recorded currency is the restaurant's currency
+  // (migration 676 backfilled currency_code NOT NULL DEFAULT 'USD');
+  // the COALESCE only guards rows written before that column existed.
+  params.push(currencyCode);
+  const currencyParam = params.length;
+  const currencyExpr = `COALESCE(NULLIF(UPPER(fo.currency_code), ''), 'USD')`;
+  const salesCurrencyFilter = ` AND ${currencyExpr} = UPPER($${currencyParam})`;
   const { rows: [row] } = await db.query(
     `WITH sales AS (
        SELECT COALESCE(SUM(fo.total_cents), 0)::bigint AS net_sales_cents
@@ -70,10 +88,21 @@ async function computeFoodCostTotals(db, {
           AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
           AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
           AND fo.payment_status = 'paid'
+          AND fo.status NOT IN ('cancelled', 'refunded')${salesLocationFilter}${salesCurrencyFilter}
+     ), excluded_sales AS (
+       SELECT ${currencyExpr} AS currency_code,
+              COALESCE(SUM(fo.total_cents), 0)::bigint AS net_sales_cents
+         FROM food_orders fo
+        WHERE fo.restaurant_id = $1
+          AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
+          AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
+          AND fo.payment_status = 'paid'
           AND fo.status NOT IN ('cancelled', 'refunded')${salesLocationFilter}
+          AND ${currencyExpr} <> UPPER($${currencyParam})
+        GROUP BY 1
      ), theoretical AS (
        SELECT COALESCE(SUM(foi.quantity * rim.required_quantity * rim.conversion_factor
-         * (100.0 / NULLIF(rim.yield_percent, 0)) * mapped_stock.unit_cost), 0) AS cost_major
+         * (CASE WHEN rim.yield_percent IS NULL OR rim.yield_percent = 0 THEN 1.0 ELSE 100.0 / rim.yield_percent END) * mapped_stock.unit_cost), 0) AS cost_major
          FROM food_orders fo
          JOIN food_order_items foi ON foi.order_id = fo.id
          JOIN restaurant_inventory_item_mappings rim
@@ -85,7 +114,7 @@ async function computeFoodCostTotals(db, {
           AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
           AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
           AND fo.payment_status = 'paid'
-          AND fo.status NOT IN ('cancelled', 'refunded')${salesLocationFilter}
+          AND fo.status NOT IN ('cancelled', 'refunded')${salesLocationFilter}${salesCurrencyFilter}
      ), actual AS (
        SELECT COALESCE(SUM(ABS(a.quantity_delta) * i.unit_cost), 0) AS cost_major
          FROM restaurant_inventory_adjustments a
@@ -96,15 +125,26 @@ async function computeFoodCostTotals(db, {
      )
      SELECT sales.net_sales_cents,
             theoretical.cost_major AS theoretical_cost_major,
-            actual.cost_major AS actual_cost_major
+            actual.cost_major AS actual_cost_major,
+            COALESCE((SELECT json_agg(
+              json_build_object('currency_code', currency_code, 'net_sales_cents', net_sales_cents)
+              ORDER BY currency_code) FROM excluded_sales), '[]'::json) AS excluded_net_sales
        FROM sales, theoretical, actual`,
     params
   );
   const netSalesCents = Number(row?.net_sales_cents || 0);
   const theoreticalCents = Math.round(Number(row?.theoretical_cost_major || 0) * minorUnits);
   const actualCents = Math.round(Number(row?.actual_cost_major || 0) * minorUnits);
+  const excludedNetSales = (Array.isArray(row?.excluded_net_sales) ? row.excluded_net_sales : [])
+    .map((entry) => ({
+      currency_code: String(entry.currency_code || '').trim().toUpperCase(),
+      net_sales_cents: Number(entry.net_sales_cents) || 0,
+    }))
+    .filter((entry) => entry.currency_code && entry.net_sales_cents !== 0);
   return {
     net_sales_cents: netSalesCents,
+    excluded_net_sales: excludedNetSales,
+    excluded_net_sales_cents: excludedNetSales.reduce((sum, entry) => sum + entry.net_sales_cents, 0),
     theoretical_cost_cents: theoreticalCents,
     actual_cost_cents: actualCents,
     theoretical_cost_pct: netSalesCents > 0
@@ -116,13 +156,21 @@ async function computeFoodCostTotals(db, {
 }
 
 async function computeServerBreakdown(db, {
-  restaurantId, fromDate, toDate, timezone, locationIds = null,
+  restaurantId, fromDate, toDate, timezone, locationIds = null, currencyCode = null,
 } = {}) {
   const params = [restaurantId, fromDate, toDate, timezone];
   let locationFilter = '';
   if (Array.isArray(locationIds)) {
     params.push(locationIds);
     locationFilter = ` AND fo.location_id = ANY($${params.length}::bigint[])`;
+  }
+  // Money flows R9: the server sales in this report are the effective
+  // currency's sales, agreeing with food.net_sales_cents. No currency
+  // means no filter (the pre-existing mock-tested path).
+  let currencyFilter = '';
+  if (currencyCode) {
+    params.push(currencyCode);
+    currencyFilter = ` AND COALESCE(NULLIF(UPPER(fo.currency_code), ''), 'USD') = UPPER($${params.length})`;
   }
   const { rows } = await db.query(
     `SELECT COALESCE(fo.acting_staff_user_id, s.staff_user_id) AS user_id,
@@ -137,7 +185,7 @@ async function computeServerBreakdown(db, {
       WHERE fo.restaurant_id = $1
         AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
         AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
-        AND fo.status NOT IN ('cancelled', 'refunded')${locationFilter}
+        AND fo.status NOT IN ('cancelled', 'refunded')${locationFilter}${currencyFilter}
       GROUP BY COALESCE(fo.acting_staff_user_id, s.staff_user_id)
       ORDER BY net_sales_cents DESC`,
     params
@@ -161,13 +209,20 @@ async function computeServerBreakdown(db, {
 }
 
 async function computeDaypartBreakdown(db, {
-  restaurantId, fromDate, toDate, timezone, locationIds = null,
+  restaurantId, fromDate, toDate, timezone, locationIds = null, currencyCode = null,
 } = {}) {
   const params = [restaurantId, fromDate, toDate, timezone];
   let locationFilter = '';
   if (Array.isArray(locationIds)) {
     params.push(locationIds);
     locationFilter = ` AND fo.location_id = ANY($${params.length}::bigint[])`;
+  }
+  // Money flows R9: same effective-currency filter as the server
+  // breakdown, so the daypart sales agree with food.net_sales_cents.
+  let currencyFilter = '';
+  if (currencyCode) {
+    params.push(currencyCode);
+    currencyFilter = ` AND COALESCE(NULLIF(UPPER(fo.currency_code), ''), 'USD') = UPPER($${params.length})`;
   }
   const { rows } = await db.query(
     `SELECT EXTRACT(HOUR FROM fo.created_at AT TIME ZONE $4)::int AS hour,
@@ -177,7 +232,7 @@ async function computeDaypartBreakdown(db, {
       WHERE fo.restaurant_id = $1
         AND fo.created_at >= (($2::date)::timestamp AT TIME ZONE $4)
         AND fo.created_at < ((($3::date + 1))::timestamp AT TIME ZONE $4)
-        AND fo.status NOT IN ('cancelled', 'refunded')${locationFilter}
+        AND fo.status NOT IN ('cancelled', 'refunded')${locationFilter}${currencyFilter}
       GROUP BY 1 ORDER BY 1`,
     params
   );
@@ -212,20 +267,23 @@ async function computePrimeCost({ restaurant, fromDate, toDate, locationIds = nu
   const [servers, dayparts] = await Promise.all([
     computeServerBreakdown(db, {
       restaurantId: restaurant.id, fromDate, toDate,
-      timezone: labor.timezone, locationIds,
+      timezone: labor.timezone, locationIds, currencyCode: currency,
     }),
     computeDaypartBreakdown(db, {
       restaurantId: restaurant.id, fromDate, toDate,
-      timezone: labor.timezone, locationIds,
+      timezone: labor.timezone, locationIds, currencyCode: currency,
     }),
   ]);
   const revenueCents = labor.revenue_cents || 0;
   const laborCents = labor.labor_cost_cents || 0;
   const foodCents = food.actual_cost_cents || 0;
   // Money totals only add up in one currency: computeLabor already
-  // reports revenue in the effective currency, and the food totals are
-  // priced in that same currency, so the sum is sound. The per-currency
-  // revenue rows travel alongside for the multi-currency reader.
+  // reports revenue in the effective currency, sales and the
+  // order-driven theoretical cost are filtered to it (Money flows R9),
+  // and the actual cost is read as effective-currency because usage
+  // adjustments carry no currency. The per-currency revenue rows and
+  // the excluded-sales breakdown travel alongside for the
+  // multi-currency reader.
   const primeCostCents = laborCents + foodCents;
   return {
     from_date: fromDate,
@@ -245,6 +303,8 @@ async function computePrimeCost({ restaurant, fromDate, toDate, locationIds = nu
     },
     food: {
       net_sales_cents: food.net_sales_cents,
+      excluded_net_sales: food.excluded_net_sales || [],
+      excluded_net_sales_cents: food.excluded_net_sales_cents || 0,
       theoretical_cost_cents: food.theoretical_cost_cents,
       actual_cost_cents: foodCents,
       theoretical_cost_pct: food.theoretical_cost_pct,

@@ -81,7 +81,15 @@ async function computeScheduleForecast(db, {
   overtimeThresholdHours = null, overtimeMultiplierBps = null,
   workweekStartDay = 0,
   restaurantId = null,
+  locationId = null,
 }) {
+  // Money-flows audit R13: the draft-shift query is scoped to the
+  // restaurant (and location, when given) the forecast was asked
+  // for. Before this it filtered only business_id, so a
+  // restaurant-scoped forecast inflated total_hours / total_cost
+  // with every sibling restaurant's drafts. Legacy shifts with no
+  // restaurant_id are excluded from a restaurant-scoped forecast;
+  // they still appear in the unscoped business-wide forecast.
   const { rows: shifts } = await db.query(
     `SELECT s.id, s.user_id,
             s.shift_date::text AS shift_date,
@@ -105,8 +113,10 @@ async function computeScheduleForecast(db, {
              AND lm.status = 'active'
       WHERE s.business_id = $1 AND s.published_at IS NULL AND s.cancelled_at IS NULL
         AND s.shift_date >= $2::date AND s.shift_date <= $3::date
+        AND ($4::bigint IS NULL OR s.restaurant_id = $4)
+        AND ($5::bigint IS NULL OR s.location_id = $5)
       ORDER BY s.shift_date, s.start_time`,
-    [businessId, from, to]
+    [businessId, from, to, restaurantId, locationId]
   );
 
   const startDay = laborJurisdiction.workweekStartDay({ workweek_start_day: workweekStartDay });

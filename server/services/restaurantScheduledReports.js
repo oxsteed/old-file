@@ -155,6 +155,72 @@ function validateScheduleInput(body = {}) {
   };
 }
 
+// Money flows W2: recipient user IDs and emails are resolved
+// against business_members for the restaurant's business, and
+// outsiders are rejected. validateScheduleInput above only checks
+// shape (a non-empty string, a well-formed email); without this,
+// anyone holding analytics.view_financial could add any user ID or
+// any email address and the 06:05 job would deliver revenue and
+// labor summaries to people who never worked at the restaurant.
+//
+// A recipient user is valid when they are an ACTIVE member of the
+// business, or the business owner (businesses.user_id — the owner
+// is not necessarily a business_members row). Pending invitees and
+// revoked members are not members yet / any more, so they are
+// rejected. An email recipient is valid only when the address
+// belongs to such a user (matched case-insensitively on
+// users.email); an address with no member behind it is rejected,
+// never "verified" by sending to it. One outsider rejects the
+// whole list: a schedule is never created half-valid.
+//
+// Called from createScheduledReport / updateScheduledReport, after
+// validateScheduleInput. Delivery itself does not re-check: a
+// schedule created before this check keeps its stored recipients
+// (see the W2 report note); re-validating at send time would need
+// a membership query inside deliverScheduledReport's mock-tested
+// send loop, so the write path is the enforcement point.
+async function validateScheduleRecipients(db, { businessId, recipients } = {}) {
+  if (!db || typeof db.query !== 'function') {
+    throw Object.assign(new Error('A database handle is required to validate recipients'), { status: 500, code: 'validation_failed' });
+  }
+  if (businessId == null) {
+    throw Object.assign(new Error('A business is required to validate recipients'), { status: 400, code: 'validation_failed' });
+  }
+  const { users, emails } = parseRecipients(recipients);
+  if (users.length === 0 && emails.length === 0) return;
+  const { rows: validUsers } = await db.query(
+    `SELECT member_id AS user_id FROM business_members
+        WHERE business_id = $1 AND status = 'active' AND member_id IS NOT NULL
+      UNION
+     SELECT user_id FROM businesses WHERE id = $1`,
+    [businessId]
+  );
+  const validUserIds = new Set(validUsers.map((row) => String(row.user_id)));
+  for (const userId of users) {
+    if (!validUserIds.has(String(userId))) {
+      throw Object.assign(
+        new Error(`Recipient user ${userId} is not a member of this business`),
+        { status: 400, code: 'validation_failed' }
+      );
+    }
+  }
+  if (emails.length > 0) {
+    const { rows: validEmails } = await db.query(
+      'SELECT LOWER(email) AS email FROM users WHERE id = ANY($1::uuid[])',
+      [[...validUserIds]]
+    );
+    const validEmailSet = new Set(validEmails.map((row) => String(row.email || '').toLowerCase()));
+    for (const email of emails) {
+      if (!validEmailSet.has(String(email).toLowerCase())) {
+        throw Object.assign(
+          new Error(`Recipient email ${email} does not belong to a member of this business`),
+          { status: 400, code: 'validation_failed' }
+        );
+      }
+    }
+  }
+}
+
 function summarizeReport(reportType, report) {
   if (reportType === 'daily_close') {
     // Finding 22: minor units format in their own currency's
@@ -548,11 +614,13 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
     // per-schedule try/catch on purpose: a LeaseLostError must abort
     // the run (the job converts it to { fenced: true }) instead of
     // being recorded as one failed schedule while the run keeps
-    // building through the raw pool. The build itself (daily close /
-    // labor / digests) reads through the raw pool, so the assert
-    // guards the boundary between schedules, not a lease lost
-    // mid-build; closing that residual needs the builders to take
-    // fence.db, which is out of this finding's scope.
+    // building through the raw pool. The lease is re-asserted again
+    // after the build and before the send (Money flows W4), since
+    // the senders do not take the fence. The build itself (daily
+    // close / labor / digests) reads through the raw pool, so the
+    // asserts guard the boundaries around the build, not a lease
+    // lost mid-build; closing that residual needs the builders to
+    // take fence.db, which is out of this finding's scope.
     if (fence) fence.assertActive();
     const timezone = schedule.timezone || 'UTC';
     let businessDate;
@@ -597,6 +665,15 @@ async function runDueScheduledReports(db = pool, { now = new Date(), fence = nul
       }
       delivery = claim.delivery;
       const payload = await buildScheduledReport(db, { restaurant, schedule, businessDate, asOf });
+      // Money flows W4: re-assert the lease after the build and
+      // before the send. The build (daily close / labor / digests)
+      // can be long, and the senders below (sendNotification /
+      // sendEmail) do not take the fence: without this checkpoint a
+      // lease lost mid-build still delivered through the raw pool,
+      // and only the ledger update afterwards threw. The claim and
+      // the ledger updates go through fence.db, so they assert on
+      // their own; this checkpoint guards the send itself.
+      if (fence) fence.assertActive();
       const outcome = await deliverScheduledReport(db, { schedule, payload, deliveryId: delivery.id });
       // Background-jobs audit #41: a {success:false} recipient is a
       // failed delivery, not a partial success. Throw so the catch
@@ -664,6 +741,8 @@ module.exports = {
   FREQUENCIES,
   CHANNELS,
   validateScheduleInput,
+  validateScheduleRecipients,
+  MAX_RECIPIENTS_PER_SCHEDULE,
   parseRecipients,
   summarizeReport,
   buildScheduledReport,

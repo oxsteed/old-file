@@ -353,9 +353,21 @@ ddescribe('Finding 40: voiding a run in a live consolidation is blocked', () => 
     expect(blocked.err.fields).toMatchObject({ consolidation_id: Number(consolidationId) });
     expect(String(blocked.err.message)).toContain(String(consolidationId));
 
-    const voidedConsolidation = await call(
+    // Money-flows audit R8: voiding a finalized consolidation is
+    // two-step now — the maker requests (202, group still
+    // finalized), a different manager completes it.
+    const voidRequested = await call(
       consolidationController.voidConsolidation,
       mockReq({ params: { brandId: String(a.brandId), consolidationId: String(consolidationId) }, user: { id: owner } })
+    );
+    expect(voidRequested.err).toBeNull();
+    expect(voidRequested.res.statusCode).toBe(202);
+    expect(voidRequested.res.payload.consolidation.status).toBe('finalized');
+    expect(voidRequested.res.payload.consolidation.voidPending).toBe(true);
+
+    const voidedConsolidation = await call(
+      consolidationController.approveVoidConsolidation,
+      mockReq({ params: { brandId: String(a.brandId), consolidationId: String(consolidationId) }, user: { id: checker } })
     );
     expect(voidedConsolidation.err).toBeNull();
     expect(voidedConsolidation.res.payload.consolidation.status).toBe('voided');
@@ -940,6 +952,51 @@ ddescribe('Finding 5: late inputs carry forward, and finalized runs flag them', 
     // Still flagged on the source run: it was not carried.
     const stillFlagged = await getRun(owner, restaurantId, run1.id);
     expect(stillFlagged.inputsChangedSinceFinalization.has_late_inputs).toBe(true);
+  });
+
+  test('R11: a late premium from the 6th-most-recent finalized run is still carried', async () => {
+    const owner = await makeUser();
+    const checker = await makeUser();
+    const { businessId, restaurantId } = await makeRestaurant(owner, checker);
+    const staff = await makeStaff(businessId, owner, 2000);
+    // Six finalized runs; the late input belongs to the oldest one,
+    // which the old LIMIT 5 lookback never reached.
+    const periods = [
+      ['2026-01-01', '2026-01-15'],
+      ['2026-01-16', '2026-01-31'],
+      ['2026-02-01', '2026-02-15'],
+      ['2026-02-16', '2026-02-28'],
+      ['2026-03-01', '2026-03-15'],
+      ['2026-03-16', '2026-03-31'],
+    ];
+    const runs = [];
+    for (const [from, to] of periods) {
+      const run = await createRun(owner, restaurantId, from, to);
+      expect((await finalizeRun(owner, restaurantId, run.id)).err).toBeNull();
+      runs.push(run);
+    }
+    // Late premium for a shift in the oldest run's period, recorded
+    // after that run was finalized (and after the five newer runs).
+    await pool.query(
+      `INSERT INTO business_staff_schedule_changes
+         (business_id, shift_id, user_id, restaurant_id, change_type,
+          before_state, after_state, premium_due, premium_hours, premium_cents,
+          premium_currency_code, changed_by, created_at)
+       VALUES ($1, 1, $2, $3, 'edited',
+               '{"shift_date":"2026-01-05","start_time":"09:00","end_time":"17:00"}'::jsonb,
+               '{"shift_date":"2026-01-05","start_time":"10:00","end_time":"17:00"}'::jsonb,
+               TRUE, 1, 5000, 'USD', $4, NOW())`,
+      [businessId, staff, restaurantId, owner]
+    );
+    const run7 = await createRun(owner, restaurantId, '2026-04-01', '2026-04-15');
+    const carryLines = run7.lines.filter((line) => line.is_carry_forward);
+    expect(carryLines).toHaveLength(1);
+    expect(carryLines[0]).toMatchObject({
+      carried_forward_from_run_id: Number(runs[0].id),
+      carry_forward_kind: 'premium',
+      predictability_premium_cents: 5000,
+      total_pay_cents: 5000,
+    });
   });
 });
 

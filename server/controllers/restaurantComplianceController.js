@@ -20,6 +20,7 @@ const temperatureService = require('../services/restaurantTemperatureService');
 const primeCostService = require('../services/restaurantPrimeCostService');
 const scheduledReports = require('../services/restaurantScheduledReports');
 const retentionService = require('../services/restaurantRetentionService');
+const erasureNotifications = require('../services/restaurantErasureNotifications');
 const breakAttestation = require('../services/restaurantBreakAttestation');
 const payrollService = require('../services/restaurantPayrollService');
 
@@ -247,6 +248,13 @@ exports.createScheduledReport = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const input = scheduledReports.validateScheduleInput(req.body || {});
+    // Money flows W2: recipients must be members of the
+    // restaurant's business (or the business owner); outsiders and
+    // non-member emails are rejected before the schedule is stored.
+    await scheduledReports.validateScheduleRecipients(pool, {
+      businessId: Number(restaurant.business_id),
+      recipients: input.recipients,
+    });
     assertLocationInScope(restaurant.locationScope, input.locationId);
     // Phase 8 Track D/E: a digest's anchor restaurant must belong
     // to the digest's brand, or the digest would report on a brand
@@ -287,6 +295,13 @@ exports.updateScheduledReport = async (req, res, next) => {
     const scheduleId = parsePositiveInt(req.params.scheduleId);
     if (!scheduleId) throw new AppError('Schedule not found', 404, 'schedule_not_found');
     const input = scheduledReports.validateScheduleInput(req.body || {});
+    // Money flows W2: see createScheduledReport — membership is
+    // re-checked on every update, so an outsider cannot be added
+    // by editing an existing schedule.
+    await scheduledReports.validateScheduleRecipients(pool, {
+      businessId: Number(restaurant.business_id),
+      recipients: input.recipients,
+    });
     assertLocationInScope(restaurant.locationScope, input.locationId);
     if (input.brandId != null) {
       const brandService = require('../services/restaurantBrandService');
@@ -361,6 +376,18 @@ exports.listScheduledReportDeliveries = async (req, res, next) => {
 // Run one schedule now for a business date (default yesterday). The
 // deliveries ledger dedupes: re-running for the same date replays
 // instead of sending twice.
+// Money-flows W8: a per-schedule cooldown on manual runs. Each run
+// rebuilds the report from live data, so hammering run-now forced a
+// full recomputation per click; the deliveries ledger dedupes per
+// (schedule, business_date) only, so varying the date bypassed it.
+// The compare-and-swap below stamps the attempt BEFORE the rebuild
+// and admits only one run per schedule per window, atomically: two
+// concurrent clicks cannot both pass the check. A failed run also
+// cools down (the stamp is the attempt, not the success), so a
+// failing build cannot be hammered either; the nightly job is
+// unaffected (it keys off last_business_date, not this stamp).
+const RUN_NOW_COOLDOWN_SECONDS = 60;
+
 exports.runScheduledReportNow = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -372,6 +399,21 @@ exports.runScheduledReportNow = async (req, res, next) => {
       [scheduleId, restaurantId]
     );
     if (!schedule) throw new AppError('Schedule not found', 404, 'schedule_not_found');
+    const { rows: [cooled] } = await pool.query(
+      `UPDATE restaurant_scheduled_reports
+          SET last_run_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND restaurant_id = $2
+          AND (last_run_at IS NULL OR last_run_at < NOW() - ($3 || ' seconds')::interval)
+        RETURNING id`,
+      [schedule.id, restaurantId, String(RUN_NOW_COOLDOWN_SECONDS)]
+    );
+    if (!cooled) {
+      throw new AppError(
+        `This schedule was just run. Wait ${RUN_NOW_COOLDOWN_SECONDS} seconds before running it again.`,
+        429,
+        'run_now_cooldown'
+      );
+    }
     const timezone = restaurant.timezone || 'UTC';
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
     const businessDate = dateParam(req.body?.businessDate ?? req.body?.business_date, 'businessDate')
@@ -495,6 +537,16 @@ exports.createErasureRequest = async (req, res, next) => {
         req.user.id, body.reason == null ? null : String(body.reason).slice(0, 1000),
       ]
     );
+    // Money-flows W3: a requested erasure must surface to managers at
+    // once, or it can sit undecided indefinitely with nobody told.
+    // Best-effort: the helper never throws, so a notification failure
+    // never fails the request itself.
+    await erasureNotifications.notifyErasureManagers(pool, {
+      businessId: Number(restaurant.business_id),
+      restaurantId,
+      requestId: row.id,
+      subjectUserId: targetUserId,
+    });
     res.status(201).json({ request: row });
   } catch (err) { next(err); }
 };
@@ -535,6 +587,15 @@ exports.decideErasureRequest = async (req, res, next) => {
       [decision, req.user.id, requestId, Number(restaurant.business_id)]
     );
     if (!row) throw new AppError('Erasure request not found or already decided', 404, 'erasure_request_not_found');
+    // Money-flows W3: tell the subject the outcome of the decision.
+    await erasureNotifications.notifyErasureSubject(pool, {
+      userId: existing.user_id,
+      businessId: Number(restaurant.business_id),
+      restaurantId,
+      requestId,
+      status: 'decided',
+      decision,
+    });
     res.json({ request: row });
   } catch (err) { next(err); }
 };
@@ -608,6 +669,14 @@ exports.runErasureRequest = async (req, res, next) => {
       target_type: 'erasure_request',
       target_id: requestId,
       after_state: { user_id: request.user_id, ...storedOutcome },
+    });
+    // Money-flows W3: tell the subject the erasure completed.
+    await erasureNotifications.notifyErasureSubject(pool, {
+      userId: request.user_id,
+      businessId: Number(restaurant.business_id),
+      restaurantId: request.restaurant_id == null ? restaurantId : Number(request.restaurant_id),
+      requestId,
+      status: 'completed',
     });
     res.json({ request: completed });
   } catch (err) { next(err); }

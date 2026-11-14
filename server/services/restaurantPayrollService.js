@@ -1334,7 +1334,13 @@ const ORDER_FINANCIALS_CTE = `
                THEN GREATEST(0, pos.collected_cents - pos.refunded_cents)
              WHEN fo.payment_status = 'paid' THEN fo.total_cents
              ELSE 0
-           END::int AS net_collected_cents
+           END::int AS net_collected_cents,
+           -- Money-flows audit R10: the gross amount actually
+           -- collected, so tip math can pro-rate a partial refund
+           -- instead of paying the full tip on a half-refunded
+           -- order. 0 when the order has no recorded payments (the
+           -- payment_status fallback above applies instead).
+           COALESCE(pos.collected_cents, 0)::int AS collected_cents
       FROM food_orders fo
       LEFT JOIN LATERAL (
         SELECT COUNT(*) FILTER (
@@ -1405,6 +1411,13 @@ async function getOrderTips(restaurantId, fromDate, toDate, timezone, locationId
   // `userId` only that employee's attributed tips are read (item 55);
   // unattributed tips have no employee to attribute to and fall out
   // of the single-employee slice.
+  // Money-flows audit R10: a partial refund pro-rates the tip by
+  // net_collected / collected (refund payments carry no tip split,
+  // so the refund is assumed to include the tip proportionally).
+  // Integer division truncates, so the pro-rated tip never exceeds
+  // the kept share. Orders with no recorded payments keep the full
+  // tip (the payment_status fallback); a full refund (status
+  // 'refunded', or net_collected 0) still removes the tip entirely.
   const { rows } = await pool.query(
     `${locationIds === null ? ORDER_FINANCIALS_CTE : ORDER_FINANCIALS_CTE.replace('WHERE fo.restaurant_id = $1', 'WHERE fo.restaurant_id = $1 AND fo.location_id = ANY($5::bigint[])')}
      SELECT COALESCE(NULLIF(fo.currency_code, ''), 'USD') AS currency,
@@ -1412,7 +1425,13 @@ async function getOrderTips(restaurantId, fromDate, toDate, timezone, locationId
             -- precise attribution; the POS shift owner is the fallback
             -- for orders placed before PIN sessions existed.
             COALESCE(fo.acting_staff_user_id, s.staff_user_id) AS staff_user_id,
-            COALESCE(SUM(fo.tip_cents), 0)::int AS tips_cents
+            COALESCE(SUM(
+              CASE
+                WHEN fo.collected_cents > 0
+                  THEN (fo.tip_cents::bigint * fo.net_collected_cents / fo.collected_cents)::int
+                ELSE fo.tip_cents
+              END
+            ), 0)::int AS tips_cents
        FROM order_financials fo
        LEFT JOIN restaurant_pos_shifts s
          ON s.id = CASE WHEN fo.metadata->>'shiftId' ~ '^[0-9]+$'
@@ -2436,20 +2455,20 @@ async function getLatePremiums(clientOrPool, { businessId, sourceRun, excludeTar
 async function getLateCashTips(clientOrPool, { restaurantId, sourceRun, excludeTargetRunId = -1 }) {
   const { ids, scoped } = locationScopeClause(sourceRun.location_ids);
   const params = [restaurantId, runDateOnly(sourceRun.period_from), runDateOnly(sourceRun.period_to), sourceRun.finalized_at];
-  const locationClause = scoped ? `AND (location_id IS NULL OR location_id = ANY($${params.push(ids)}::bigint[]))` : '';
+  const locationClause = scoped ? `AND (d.location_id IS NULL OR d.location_id = ANY($${params.push(ids)}::bigint[]))` : '';
   const excludeParam = params.push(excludeTargetRunId);
   const { rows } = await clientOrPool.query(
-    `SELECT id, staff_user_id, amount_cents, currency_code
-       FROM restaurant_declared_cash_tips
-      WHERE restaurant_id = $1 AND business_date >= $2 AND business_date <= $3
-        AND status = 'confirmed'
-        AND (reviewed_at > $4 OR (reviewed_at IS NULL AND created_at > $4))
+    `SELECT d.id, d.staff_user_id, d.amount_cents, d.currency_code
+       FROM restaurant_declared_cash_tips d
+      WHERE d.restaurant_id = $1 AND d.business_date >= $2 AND d.business_date <= $3
+        AND d.status = 'confirmed'
+        AND (d.reviewed_at > $4 OR (d.reviewed_at IS NULL AND d.created_at > $4))
         ${locationClause}
         AND NOT EXISTS (
           SELECT 1 FROM restaurant_pay_run_carry_forwards cf
-           WHERE cf.input_type = 'cash_tip' AND cf.input_id = restaurant_declared_cash_tips.id
+           WHERE cf.input_type = 'cash_tip' AND cf.input_id = d.id
              AND cf.target_pay_run_id <> $${excludeParam})
-      ORDER BY id`,
+      ORDER BY d.id`,
     params
   );
   return rows;
@@ -2653,11 +2672,18 @@ async function buildCarryForwardItems(clientOrPool, {
   const runCurrency = String(currency || requireRestaurantCurrency(restaurant)).trim().toUpperCase();
   const { ids: targetIds, scoped: targetScoped } = locationScopeClause(locationIds);
   const { rows: sources } = await clientOrPool.query(
+    // Money flows R11: no lookback cap. The old LIMIT 5 meant a late
+    // input from the 6th-most-recent finalized run (or older) was
+    // flagged on its source run forever and never paid, with no manual
+    // carry path. Every finalized/paid run before the target period is
+    // a source, oldest first so the oldest stranded inputs are
+    // collected first. Cost is linear in the run count: each source
+    // runs three indexed late-input lookups, and a restaurant with
+    // years of weekly runs pays that on every new run creation.
     `SELECT * FROM restaurant_pay_runs
       WHERE restaurant_id = $1 AND status IN ('finalized', 'paid')
         AND period_to < $2
-      ORDER BY period_to DESC, id DESC
-      LIMIT 5`,
+      ORDER BY period_to ASC, id ASC`,
     [restaurant.id, runDateOnly(targetPeriodFrom)]
   );
   const items = [];
@@ -2674,6 +2700,14 @@ async function buildCarryForwardItems(clientOrPool, {
     ]);
     for (const row of premiums) {
       const storedCurrency = row.premium_currency_code ? String(row.premium_currency_code).trim().toUpperCase() : null;
+      // Money flows R6 residual: a premium stored in a foreign
+      // currency is skipped by this guard until a run is priced in
+      // its own currency. Runs are priced in exactly one currency
+      // (labor.currency, snapshotted at creation) and there is no FX
+      // conversion on a stated rate, so carrying it here would pay
+      // it short; it stays flagged in inputs_changed_since_finalization
+      // until a run in its currency claims it. Premiums priced in
+      // the run's effective currency carry normally.
       if (storedCurrency !== runCurrency) continue;
       // A premium stored as hours only is priced at the current wage;
       // fall back to the business membership when the new run's

@@ -40,7 +40,7 @@ async function invoke(handler, body = {}, params = {}, query = {}) {
     await pool.query(`
       CREATE TABLE users(id UUID PRIMARY KEY, first_name TEXT, last_name TEXT, email TEXT);
       CREATE TABLE businesses(id BIGINT PRIMARY KEY, user_id UUID);
-      CREATE TABLE food_restaurants(id BIGINT PRIMARY KEY, business_id BIGINT, timezone VARCHAR(80) NOT NULL DEFAULT 'UTC');
+      CREATE TABLE food_restaurants(id BIGINT PRIMARY KEY, business_id BIGINT, timezone VARCHAR(80) NOT NULL DEFAULT 'UTC', currency_code CHAR(3) NOT NULL DEFAULT 'USD');
       CREATE TABLE restaurant_locations(id BIGINT PRIMARY KEY, restaurant_id BIGINT, name TEXT, status TEXT DEFAULT 'active', timezone TEXT DEFAULT 'UTC', is_primary BOOLEAN DEFAULT FALSE, currency_code VARCHAR(3), address_country VARCHAR(2), address_state VARCHAR(80), latitude DOUBLE PRECISION, longitude DOUBLE PRECISION, UNIQUE(restaurant_id,id));
       CREATE TABLE business_members(id BIGINT PRIMARY KEY, business_id BIGINT, member_id UUID, status TEXT, role TEXT, job_role TEXT, hourly_wage_cents INTEGER, pay_rate_period TEXT, pay_rate_cents INTEGER);
       CREATE TABLE restaurant_location_memberships(id BIGINT, restaurant_id BIGINT, location_id BIGINT, membership_id BIGINT, status TEXT, role_override TEXT, pay_rate_cents INTEGER, pay_rate_period VARCHAR(10));
@@ -99,7 +99,7 @@ async function invoke(handler, body = {}, params = {}, query = {}) {
     scopeModel.resolveRestaurantAccess.mockResolvedValue({ ...restaurant });
     await pool.query(`TRUNCATE users, businesses, food_restaurants, restaurant_locations, business_members, restaurant_location_memberships, business_staff_shifts, business_time_entries, restaurant_declared_cash_tips, restaurant_tip_pool_settings, restaurant_location_tip_pool_settings, restaurant_labor_policies, restaurant_location_labor_policies, restaurant_labor_jurisdictions, business_staff_schedule_changes, food_orders, restaurant_pos_payments, restaurant_pos_shifts, restaurant_pos_drawer_events, food_loyalty_accounts, business_audit_log, restaurant_tables, restaurant_reservations, restaurant_waitlist_entries, restaurant_loyalty_campaign_deliveries, restaurant_loyalty_campaigns, restaurant_inventory_storage_areas, restaurant_inventory_suppliers, restaurant_inventory_items, restaurant_inventory_supplier_issues, restaurant_gift_card_products, restaurant_loyalty_segments CASCADE;
       INSERT INTO users VALUES ('${userA}','Store','A','a@example.test'),('${userB}','Store','B','b@example.test');
-      INSERT INTO businesses VALUES(42,'${userA}'); INSERT INTO food_restaurants VALUES(3,42),(4,43);
+      INSERT INTO businesses VALUES(42,'${userA}'); INSERT INTO food_restaurants (id, business_id) VALUES(3,42),(4,43);
       INSERT INTO restaurant_locations(id,restaurant_id,name,is_primary) VALUES(7,3,'Store A',TRUE),(9,3,'Store B',FALSE),(10,4,'Other tenant',TRUE);
       INSERT INTO business_members VALUES(8,42,'${userA}','active','employee','server',1000,NULL,NULL),(9,42,'${userB}','active','employee','server',2000,NULL,NULL);
       INSERT INTO restaurant_location_memberships VALUES(1,3,7,8,'active',NULL),(2,3,9,9,'active',NULL);

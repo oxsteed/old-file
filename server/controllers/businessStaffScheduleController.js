@@ -3075,8 +3075,21 @@ exports.getScheduleForecast = async (req, res, next) => {
     }
     // The default range is the current workweek under the
     // jurisdiction's workweek start (Sunday by default); an explicit
-    // from/to still wins.
+    // from/to still wins. Money-flows audit R13: location_id is
+    // validated (and checked against the restaurant when both are
+    // given) and forwarded, so a location-scoped request no longer
+    // silently returns the business-wide forecast.
     const locationId = location_id ? Number(location_id) : null;
+    if (location_id && !Number.isFinite(locationId)) {
+      return res.status(400).json({ error: 'location_id must be a number' });
+    }
+    if (locationId != null && restaurantId != null) {
+      const { rows: [loc] } = await pool.query(
+        'SELECT id FROM restaurant_locations WHERE id = $1 AND restaurant_id = $2',
+        [locationId, restaurantId]
+      );
+      if (!loc) return res.status(400).json({ error: 'Location does not belong to this restaurant' });
+    }
     const startDay = await resolveWorkweekStartDay({ restaurantId, locationId });
     const weekStart = laborJurisdiction.weekStartOf(todayIso(), startDay);
     const fromDate = from ? String(from) : weekStart;
@@ -3100,6 +3113,7 @@ exports.getScheduleForecast = async (req, res, next) => {
       policy,
       workweekStartDay: startDay,
       restaurantId,
+      locationId,
     });
     let currencyCode = 'USD';
     if (restaurantId) {

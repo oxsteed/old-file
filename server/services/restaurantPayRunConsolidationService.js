@@ -262,6 +262,14 @@ function consolidationShape(row) {
     finalizedAt: row.finalized_at || null,
     approvedBy: row.approved_by || null,
     approvedAt: row.approved_at || null,
+    // Money-flows audit R8: the two-step void, mirroring the
+    // pay-run void. voidPending is true while a void request waits
+    // for a second manager to complete it.
+    voidRequestedBy: row.void_requested_by || null,
+    voidRequestedAt: row.void_requested_at || null,
+    voidApprovedBy: row.void_approved_by || null,
+    voidApprovedAt: row.void_approved_at || null,
+    voidPending: row.void_requested_by != null && row.void_approved_by == null && row.status !== 'voided',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     members: (row.members || []).map((member) => (member.payRunId ? member : memberShape(member))),
@@ -370,26 +378,100 @@ async function approveConsolidation(client, { consolidationId, actorUserId }) {
   return { ...updated, members: after.members };
 }
 
-// Voiding dissolves the group; the member runs are untouched and
-// keep their own finalized status, so a voided consolidation never
-// erases payroll history.
-async function voidConsolidation(client, { consolidationId }) {
+// Money-flows audit R8: voiding is a two-step maker-checker flow,
+// mirroring the pay-run void (migration 20261107015646). A draft
+// consolidation still voids in one step, because nothing has been
+// finalized or approved yet. For a finalized or approved
+// consolidation this is the maker step: it records the void request
+// and leaves the group untouched; approveVoidConsolidation is the
+// checker step that completes it. Voiding dissolves the group; the
+// member runs are untouched and keep their own finalized status,
+// so a voided consolidation never erases payroll history.
+async function voidConsolidation(client, { consolidationId, actorUserId }) {
   const id = normalizeId(consolidationId, 'consolidation');
-  const { rows: [updated] } = await client.query(
-    `UPDATE restaurant_pay_run_consolidations
-        SET status = 'voided', updated_at = NOW()
-      WHERE id = $1 AND status <> 'voided'
-      RETURNING *`,
+  const { rows: [existing] } = await client.query(
+    'SELECT * FROM restaurant_pay_run_consolidations WHERE id = $1 FOR UPDATE',
     [id]
   );
-  if (!updated) {
-    const { rows: [existing] } = await client.query(
-      'SELECT id FROM restaurant_pay_run_consolidations WHERE id = $1',
+  if (!existing) throw new AppError('Consolidation not found', 404, 'consolidation_not_found');
+  if (existing.status === 'voided') throw new AppError('This consolidation is already voided', 409, 'consolidation_already_voided');
+  if (existing.status === 'draft') {
+    const { rows: [voided] } = await client.query(
+      `UPDATE restaurant_pay_run_consolidations
+          SET status = 'voided', updated_at = NOW()
+        WHERE id = $1 AND status = 'draft'
+        RETURNING *`,
       [id]
     );
-    if (!existing) throw new AppError('Consolidation not found', 404, 'consolidation_not_found');
-    throw new AppError('This consolidation is already voided', 409, 'consolidation_already_voided');
+    const current = await getConsolidation(client, { consolidationId: id });
+    return { ...voided, members: current.members, requested: false };
   }
+  if (existing.void_requested_by) {
+    throw new AppError(
+      'A void has already been requested for this consolidation; a different payroll manager must approve it',
+      409,
+      'consolidation_void_already_requested'
+    );
+  }
+  // Fail closed: a void request with no maker records nobody and
+  // could never be approved by a different manager.
+  if (actorUserId == null) {
+    throw new AppError('A valid actor is required to request a consolidation void', 400, 'validation_failed');
+  }
+  const { rows: [requested] } = await client.query(
+    `UPDATE restaurant_pay_run_consolidations
+        SET void_requested_by = $2, void_requested_at = NOW(), updated_at = NOW()
+      WHERE id = $1 AND status IN ('finalized', 'approved') AND void_requested_by IS NULL
+      RETURNING *`,
+    [id, actorUserId]
+  );
+  if (!requested) throw new AppError('This consolidation is already voided', 409, 'consolidation_already_voided');
+  const current = await getConsolidation(client, { consolidationId: id });
+  return { ...requested, members: current.members, requested: true };
+}
+
+// Checker step: a second payroll manager completes a pending void
+// request. The approver must differ from both the void requester
+// and the finalizer, where those are known; the DB CHECK on
+// restaurant_pay_run_consolidations is the second line of defense.
+async function approveVoidConsolidation(client, { consolidationId, actorUserId }) {
+  const id = normalizeId(consolidationId, 'consolidation');
+  const { rows: [existing] } = await client.query(
+    'SELECT * FROM restaurant_pay_run_consolidations WHERE id = $1 FOR UPDATE',
+    [id]
+  );
+  if (!existing) throw new AppError('Consolidation not found', 404, 'consolidation_not_found');
+  if (existing.status === 'voided') throw new AppError('This consolidation is already voided', 409, 'consolidation_already_voided');
+  // Fail closed: completing a void with no checker would record
+  // nobody as the approver.
+  if (actorUserId == null) {
+    throw new AppError('A valid actor is required to approve a consolidation void', 400, 'validation_failed');
+  }
+  if ((existing.status !== 'finalized' && existing.status !== 'approved') || !existing.void_requested_by) {
+    throw new AppError('No void has been requested for this consolidation; request the void first', 409, 'consolidation_void_not_requested');
+  }
+  if (String(existing.void_requested_by) === String(actorUserId)) {
+    throw new AppError(
+      'The user who requested a consolidation void cannot approve it; a different payroll manager must approve',
+      403,
+      'consolidation_void_self_approval'
+    );
+  }
+  if (existing.finalized_by != null && String(existing.finalized_by) === String(actorUserId)) {
+    throw new AppError(
+      'The user who finalized a consolidation cannot approve its void; a different payroll manager must approve',
+      403,
+      'consolidation_void_finalizer_approval'
+    );
+  }
+  const { rows: [updated] } = await client.query(
+    `UPDATE restaurant_pay_run_consolidations
+        SET status = 'voided', void_approved_by = $2, void_approved_at = NOW(), updated_at = NOW()
+      WHERE id = $1 AND status IN ('finalized', 'approved') AND void_requested_by IS NOT NULL
+      RETURNING *`,
+    [id, actorUserId]
+  );
+  if (!updated) throw new AppError('This consolidation is already voided', 409, 'consolidation_already_voided');
   const current = await getConsolidation(client, { consolidationId: id });
   return { ...updated, members: current.members };
 }
@@ -403,6 +485,7 @@ module.exports = {
   finalizeConsolidation,
   approveConsolidation,
   voidConsolidation,
+  approveVoidConsolidation,
   consolidationShape,
   memberAttribution,
 };
