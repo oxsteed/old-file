@@ -3,15 +3,18 @@ const {mockQuery,resetMocks}=require('./setup');
 jest.mock('node-cron',()=>({schedule:jest.fn()}));
 jest.mock('../services/notificationService',()=>({sendNotification:jest.fn(async()=>{})}));
 jest.mock('../growth/marketingLog',()=>({recordMarketingContact:jest.fn(async()=>{})}));
+jest.mock('../jobs/jobLockingService', () => ({ withFencedJobLock: jest.fn((_name, fn) => fn()) }));
 const cron=require('node-cron');
 const {sendNotification}=require('../services/notificationService');
 const { sendEmail } = require('../utils/email');
+const { withFencedJobLock } = require('../jobs/jobLockingService');
 const {startCustomerReengagementJob}=require('../jobs/customerReengagementJob');
 
 async function runJobWithPeople(people) {
   resetMocks();
   sendEmail.mockClear();
   sendNotification.mockClear();
+  withFencedJobLock.mockClear();
   let reads = 0;
   mockQuery.mockImplementation(async (sql) => ({
     rows: sql.includes('SELECT DISTINCT ON') ? (reads++ === 0 ? people : []) : [],
@@ -109,4 +112,11 @@ test('in-app reengagement nudge is marked promotional so the promo governor appl
   // nudge had no per-type opt-out.
   await runJobWithPeople([reengagementPerson()]);
   expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({ promotional: true }));
+});
+
+test('the daily pass runs under a fenced job lock', async () => {
+  // Item 29: the starter was called bare from backgroundWorkers with no
+  // withFencedJobLock, so two replicas ran the full scan concurrently.
+  await runJobWithPeople([reengagementPerson()]);
+  expect(withFencedJobLock).toHaveBeenCalledWith('customer-reengagement', expect.any(Function), 900);
 });

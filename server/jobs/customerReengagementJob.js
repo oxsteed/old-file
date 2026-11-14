@@ -14,6 +14,7 @@ const { mapBounded } = require('../utils/boundedBatch');
 
 const cron = require('node-cron');
 const db   = require('../db');
+const { withFencedJobLock } = require('./jobLockingService');
 const { sendNotification } = require('../services/notificationService');
 const { deliverDigestEmail } = require('../services/digestDelivery');
 const { generateUnsubscribeToken } = require('../controllers/emailPreferencesController');
@@ -223,8 +224,15 @@ async function runCustomerReengagement() {
 }
 
 function startCustomerReengagementJob() {
-  // Daily at 10:00am Eastern
-  cron.schedule('0 10 * * *', runCustomerReengagement, { timezone: 'America/New_York' });
+  // Daily at 10:00am Eastern. Item 29: fence the pass like the outboxes
+  // so two replicas never run the full scan concurrently (TTL 15 min).
+  cron.schedule('0 10 * * *', async () => {
+    try {
+      await withFencedJobLock('customer-reengagement', runCustomerReengagement, 900);
+    } catch (err) {
+      logger.error('[reengagement] Job failed', { error: err.message });
+    }
+  }, { timezone: 'America/New_York' });
   logger.info('[reengagement] Customer re-engagement job scheduled (daily 10am ET)');
 }
 

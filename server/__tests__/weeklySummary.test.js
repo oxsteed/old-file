@@ -4,9 +4,11 @@ jest.mock('node-cron', () => ({ schedule: jest.fn() }));
 jest.mock('../db', () => ({ query: jest.fn() }));
 jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn() }));
 jest.mock('../utils/logger', () => ({ error: jest.fn(), info: jest.fn(), warn: jest.fn() }));
+jest.mock('../jobs/jobLockingService', () => ({ withFencedJobLock: jest.fn((_name, fn) => fn()) }));
 
 const cron = require('node-cron');
 const db = require('../db');
+const { withFencedJobLock } = require('../jobs/jobLockingService');
 const { startWeeklySummaryJob, buildWeeklySummaryNotification } = require('../jobs/weeklySummary');
 
 describe('weekly summary job', () => {
@@ -89,5 +91,17 @@ describe('weekly summary job', () => {
   test('falls back to the USD total when no currency groups are present', () => {
     const legacy = buildWeeklySummaryNotification({ earnings_mtd: 40, active_bids: 1 }, 'en');
     expect(legacy.body).toContain('$40.00');
+  });
+
+  test('the Monday pass runs under a fenced job lock', async () => {
+    // Item 29: the starter was called bare from backgroundWorkers with no
+    // withFencedJobLock, so two replicas ran the full scan concurrently.
+    db.query.mockResolvedValueOnce({ rows: [] });
+    startWeeklySummaryJob();
+
+    const scheduledCallback = cron.schedule.mock.calls[0][1];
+    await scheduledCallback();
+
+    expect(withFencedJobLock).toHaveBeenCalledWith('weekly-summary', expect.any(Function), 1800);
   });
 });
