@@ -142,4 +142,148 @@ describeDatabase('credit notice sent-gating (notifications audit items 1, 8, 45,
       }
     });
   });
+
+  describe('item 45: wind-down redemption-paid notice', () => {
+    const CUR = 'HTG';
+    let admin1;
+    let admin2;
+    let railWasEnabled;
+    let planId;
+    let holderId;
+    let instructionId;
+
+    beforeAll(async () => {
+      const { rows: flag } = await pool.query(`SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled'`);
+      railWasEnabled = flag[0]?.is_enabled === true;
+      await pool.query(
+        `INSERT INTO feature_flags (key, is_enabled) SELECT 'oxsteed_credit_enabled', TRUE WHERE NOT EXISTS (SELECT 1 FROM feature_flags WHERE key = 'oxsteed_credit_enabled')`
+      );
+      await pool.query(`UPDATE feature_flags SET is_enabled = TRUE WHERE key = 'oxsteed_credit_enabled'`);
+      admin1 = await createUser('super_admin', { first: 'Admin', last: 'Maker' });
+      admin2 = await createUser('super_admin', { first: 'Admin', last: 'Checker' });
+    });
+
+    afterAll(async () => {
+      try {
+        if (holderId) await pool.query('DELETE FROM credit_wind_down_holders WHERE id = $1', [holderId]);
+        if (instructionId) await pool.query('DELETE FROM credit_bank_payout_instructions WHERE id = $1', [instructionId]);
+        if (planId) await pool.query('DELETE FROM credit_wind_down_plans WHERE id = $1', [planId]);
+      } catch { /* best-effort test cleanup */ }
+      await pool.query(`UPDATE feature_flags SET is_enabled = $1 WHERE key = 'oxsteed_credit_enabled'`, [railWasEnabled]);
+    });
+
+    test('a failed redemption-paid notice is recorded instead of discarded', async () => {
+      const credit = require('../services/oxsteedCreditService');
+      const helperId = await createUser('helper', { country: 'HT', lang: 'ht' });
+      const customerId = await createUser('customer', { country: 'HT' });
+      const { rows: [partner] } = await pool.query(
+        `INSERT INTO oxsteed_credit_partners (status, settlement_currency_code, created_by) VALUES ('active', 'HTG', $1) RETURNING id`,
+        [admin1]
+      );
+      const partnerId = String(partner.id);
+      const { rows: [agreement] } = await pool.query(
+        `INSERT INTO oxsteed_credit_partner_agreements (partner_id, version, status, starts_at, allowed_order_types, allowed_categories, created_by, approved_by)
+         VALUES ($1, 1, 'active', NOW() - INTERVAL '1 day', '{}', '{}', $2, $3) RETURNING id`,
+        [partnerId, admin1, admin2]
+      );
+      await pool.query(
+        `INSERT INTO credit_participants (partner_id, participant_type, user_id, status, didit_verified, didit_verified_at, allowed_surfaces)
+         VALUES ($1, 'helper', $2, 'active', TRUE, NOW(), '{jobs}')`,
+        [partnerId, helperId]
+      );
+      let payableId;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const wallet = await credit.ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: CUR });
+        const treasury = await credit.ensureAccount(client, { accountType: 'platform_treasury', currencyCode: CUR });
+        const pay = await credit.ensureAccount(client, { accountType: 'partner_payable', partnerId, currencyCode: CUR });
+        payableId = pay.id;
+        await credit.postJournalTransaction(client, {
+          transactionType: 'load', debitAccountId: treasury.id, creditAccountId: wallet.id, amountCents: 300000, currencyCode: CUR,
+          idempotencyKey: `m4ns-wd-load-${helperId}`, actorType: 'admin', actorUserId: admin1, reason: 'test funding', description: 'test funding',
+          referenceType: 'test', referenceId: helperId,
+        });
+        await credit.postJournalTransaction(client, {
+          transactionType: 'purchase', debitAccountId: wallet.id, creditAccountId: pay.id, amountCents: 250000, currencyCode: CUR, partnerId, agreementId: agreement.id,
+          idempotencyKey: `m4ns-wd-purchase-${helperId}`, actorType: 'customer', actorUserId: customerId, reason: 'test wages', referenceType: 'test', referenceId: helperId,
+        });
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+      const destinations = require('../services/creditPayoutDestinationService');
+      const dest = await destinations.addDestination({
+        user: { id: helperId },
+        input: {
+          countryCode: 'HT', currencyCode: CUR, holderName: 'Rose Test', bankName: 'Banque Test',
+          bankCode: 'BT01', accountNumber: `HT${crypto.randomInt(1e9, 9.99e9)}`, verificationMethod: 'micro_deposit',
+        },
+      });
+      await pool.query(
+        `UPDATE credit_payout_destinations SET status = 'verified', verified_at = NOW(), cooling_off_until = NOW() - INTERVAL '1 day' WHERE id = $1`,
+        [dest.id]
+      );
+      const deadline = new Date(Date.now() + 40 * 86400000).toISOString().slice(0, 10);
+      ({ rows: [{ id: planId }] } = await pool.query(
+        `INSERT INTO credit_wind_down_plans (reason, redemption_deadline, requested_by, approved_by)
+         VALUES ('Test: licence surrendered, orderly exit', $1, $2, $3) RETURNING id`,
+        [deadline, admin1, admin2]
+      ));
+      ({ rows: [{ id: instructionId }] } = await pool.query(
+        `INSERT INTO credit_bank_payout_instructions
+           (idempotency_key, purpose, destination_id, user_id, country_code, currency_code, amount_minor, payment_reference)
+         VALUES ($1, 'redemption', $2, $3, 'HT', 'HTG', 250000, 'OXSTEED WDTEST') RETURNING id`,
+        [`m4ns-wd-instruction-${crypto.randomUUID()}`, dest.id, helperId]
+      ));
+      ({ rows: [{ id: holderId }] } = await pool.query(
+        `INSERT INTO credit_wind_down_holders
+           (plan_id, account_id, account_type, holder_user_id, partner_id, currency_code, snapshot_balance_minor,
+            status, destination_id, instruction_id, attempts)
+         VALUES ($1, $2, 'partner_payable', $3, $4, 'HTG', 250000, 'instructed', $5, $6, 1) RETURNING id`,
+        [planId, payableId, helperId, partnerId, dest.id, instructionId]
+      ));
+      const { reserveFunds } = require('../services/oxsteedCreditReservationService');
+      const reserveClient = await pool.connect();
+      let reservationId;
+      try {
+        ({ reservation: { id: reservationId } } = await reserveFunds(reserveClient, {
+          accountId: payableId, reservationType: 'wind_down_redemption', referenceType: 'credit_wind_down_holder',
+          referenceId: `${holderId}:1`, amountCents: 250000,
+        }));
+      } finally {
+        reserveClient.release();
+      }
+      await pool.query('UPDATE credit_wind_down_holders SET reservation_id = $2 WHERE id = $1', [holderId, reservationId]);
+
+      const wd = require('../services/creditCompliance/windDownService');
+      const sendSpy = jest.spyOn(notices, 'sendUserNotice').mockImplementation(async (args) => (
+        args.key === 'wind_down_redemption_sent' ? { sent: false, error: 'resend down' } : { sent: true }
+      ));
+      const settleClient = await pool.connect();
+      try {
+        // The real caller (bank settlePurpose) runs this inside a
+        // transaction; the journal's debit/credit check needs both
+        // entries in the same transaction.
+        await settleClient.query('BEGIN');
+        await wd.settleRedemptionInstruction(settleClient, { id: instructionId, amount_minor: 250000, destination_id: dest.id }, 'paid');
+        await settleClient.query('COMMIT');
+      } catch (error) {
+        await settleClient.query('ROLLBACK');
+        throw error;
+      } finally {
+        settleClient.release();
+        sendSpy.mockRestore();
+      }
+      const { rows: [holder] } = await pool.query('SELECT status FROM credit_wind_down_holders WHERE id = $1', [holderId]);
+      expect(holder.status).toBe('paid');
+      expect(warnSpy).toHaveBeenCalledWith(
+        'credit_wind_down.redemption_notice_failed',
+        expect.objectContaining({ holderId: String(holderId) })
+      );
+    });
+  });
 });

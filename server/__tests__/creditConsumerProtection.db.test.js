@@ -294,6 +294,36 @@ describeDatabase('consumer protection (licence readiness §7)', () => {
       }
     });
 
+    test('a failed provisional-credit notice is recorded instead of discarded (audit item 45)', async () => {
+      process.env.OXSTEED_CREDIT_DISPUTE_AUTO_PROVISIONAL = 'true';
+      process.env.OXSTEED_CREDIT_DISPUTE_POLICY_ADMIN_ID = admin2;
+      const logger = require('../utils/logger');
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      const defaultSend = async () => ({ sent: true });
+      try {
+        const c = await fundedCustomer({ backdateDays: 60, amount: 30000 });
+        const d = await openDispute(c.customerId, c.transactionId);
+        await pool.query(`UPDATE oxsteed_credit_disputes SET provisional_due_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, [d.id]);
+        noticeSpy.mockImplementation(async (args) => (
+          String(args.idempotencyKey || '').includes(`:${d.id}:provisional-auto`)
+            ? { sent: false, error: 'resend down' }
+            : { sent: true }
+        ));
+        const out = await sla.sweepProvisionalDue(new Date());
+        expect(out.autoIssued).toBe(1);
+        expect(out.noticeFailed).toBe(1);
+        expect(warnSpy).toHaveBeenCalledWith(
+          'credit_dispute.provisional_notice_failed',
+          expect.objectContaining({ disputeId: String(d.id) })
+        );
+      } finally {
+        noticeSpy.mockImplementation(defaultSend);
+        warnSpy.mockRestore();
+        delete process.env.OXSTEED_CREDIT_DISPUTE_AUTO_PROVISIONAL;
+        delete process.env.OXSTEED_CREDIT_DISPUTE_POLICY_ADMIN_ID;
+      }
+    });
+
     test('a failed results notice is not stamped sent and retries on the next sweep (Domain 8 #4)', async () => {
       const { customerId, transactionId } = await fundedCustomer();
       const dispute = await openDispute(customerId, transactionId);
@@ -428,6 +458,23 @@ describeDatabase('consumer protection (licence readiness §7)', () => {
       const callsBefore = noticeSpy.mock.calls.length;
       expect(await sla.resendResultsNotice({ cashoutDisputeId: opened.id, actorUserId: admin1 })).toEqual({ sent: true, alreadySent: true });
       expect(noticeSpy.mock.calls.length).toBe(callsBefore);
+    });
+
+    test('a failed cash-out-dispute receipt notice is recorded instead of discarded (audit item 45)', async () => {
+      const logger = require('../utils/logger');
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      try {
+        const key = `m4cp-cd3-${crypto.randomUUID()}`;
+        noticeSpy.mockResolvedValueOnce({ sent: false, error: 'resend down' });
+        const opened = await sla.openCashoutDispute({ user: { id: helperId }, cashoutId, description: 'Still nothing again', idempotencyKey: key });
+        expect(opened.status).toBe('open');
+        expect(warnSpy).toHaveBeenCalledWith(
+          'credit_cashout_dispute.receipt_notice_failed',
+          expect.objectContaining({ disputeId: String(opened.id) })
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
   });
 
