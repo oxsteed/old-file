@@ -2232,7 +2232,10 @@ async function addMessage(req, res) {
             supportConversationId: String(conversationId),
             messageId: String(message.id),
           },
-          action_url: '/support/escalation',
+          // Item 36: the link follows the recipient, not the sender. An
+          // agent reply notifies the customer (customer page); a customer
+          // reply notifies the assigned agent (agent workspace).
+          action_url: isAgent ? '/support/escalation' : '/support/agent',
           idempotencyKey: `support-message:${conversationId}:${message.id}:${recipientId}`,
         }).catch((error) => {
           logger.warn('Support message notification failed', {
