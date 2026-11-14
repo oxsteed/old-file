@@ -36352,6 +36352,7 @@
       "reason": "理由",
       "add": "キューに追加",
       "added": "キューに追加しました。",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "チームボード",
       "sla": "SLA",
       "breachedCol": "期限超過",
@@ -36439,7 +36440,9 @@
         "key": "キー",
         "create": "キューを作成",
         "created": "キューを作成しました。",
-        "saved": "キューを保存しました。"
+        "saved": "キューを保存しました。",
+        "listUnavailable": "キューの一覧を読み込めませんでした。下からキューを作成できます。",
+        "empty": "キューはまだありません。"
       },
       "manageView": "このビューを管理",
       "renameView": "名前の変更・共有",
@@ -36447,7 +36450,8 @@
       "saveRename": "名前を保存",
       "updateView": "現在のフィルターをこのビューに保存",
       "viewRenamed": "ビューの名前を変更しました。",
-      "viewUpdated": "ビューを更新しました。"
+      "viewUpdated": "ビューを更新しました。",
+      "viewsLoadFailed": "保存済みビューを読み込めませんでした。"
     },
     "summary": {
       "title": "顧客サマリー",
@@ -36550,6 +36554,8 @@
     "unnamed": "名前のない顧客",
     "lastSeen": "最終アクティビティ {{date}}",
     "more": "さらに表示",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "顧客を選ぶと、このビジネスとの履歴が表示されます。",
     "scopeNote": "このビジネス自身の記録のみ表示されます。",
     "status": "ステータス",
@@ -36772,6 +36778,8 @@
     "draftBadge": "下書き",
     "version": "バージョン {{version}}",
     "acceptNote": "この規約に同意して OxSteed Credit を利用するには、アカウントにサインインしてください。",
-    "signIn": "サインイン"
+    "signIn": "サインイン",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

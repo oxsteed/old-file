@@ -3808,7 +3808,9 @@
         "key": "คีย์",
         "create": "สร้างคิว",
         "created": "สร้างคิวแล้ว",
-        "saved": "บันทึกคิวแล้ว"
+        "saved": "บันทึกคิวแล้ว",
+        "listUnavailable": "ไม่สามารถโหลดรายการคิวได้ คุณยังสามารถสร้างคิวด้านล่างได้",
+        "empty": "ยังไม่มีคิว"
       },
       "manageView": "จัดการมุมมองนี้",
       "renameView": "เปลี่ยนชื่อหรือแชร์",
@@ -3816,7 +3818,8 @@
       "saveRename": "บันทึกชื่อ",
       "updateView": "บันทึกตัวกรองปัจจุบันลงในมุมมองนี้",
       "viewRenamed": "เปลี่ยนชื่อมุมมองแล้ว",
-      "viewUpdated": "อัปเดตมุมมองแล้ว"
+      "viewUpdated": "อัปเดตมุมมองแล้ว",
+      "viewsLoadFailed": "ไม่สามารถโหลดมุมมองที่บันทึกไว้ได้"
     },
     "summaryHealth": {
       "title": "สถานะสรุปข้อมูลลูกค้า",
@@ -3869,6 +3872,8 @@
     "draftBadge": "ฉบับร่าง",
     "version": "เวอร์ชัน {{version}}",
     "acceptNote": "หากต้องการยอมรับข้อกำหนดและใช้ OxSteed Credit โปรดลงชื่อเข้าใช้บัญชีของคุณ",
-    "signIn": "ลงชื่อเข้าใช้"
+    "signIn": "ลงชื่อเข้าใช้",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

@@ -36381,6 +36381,7 @@
       "reason": "Причина",
       "add": "Добавить в очередь",
       "added": "Добавлено в очередь.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Доска команды",
       "sla": "SLA",
       "breachedCol": "Просрочено",
@@ -36468,7 +36469,9 @@
         "key": "Ключ",
         "create": "Создать очередь",
         "created": "Очередь создана.",
-        "saved": "Очередь сохранена."
+        "saved": "Очередь сохранена.",
+        "listUnavailable": "Не удалось загрузить список очередей. Вы всё равно можете создать очередь ниже.",
+        "empty": "Очередей пока нет."
       },
       "manageView": "Управление представлением",
       "renameView": "Переименовать или поделиться",
@@ -36476,7 +36479,8 @@
       "saveRename": "Сохранить название",
       "updateView": "Сохранить текущие фильтры в этом представлении",
       "viewRenamed": "Представление переименовано.",
-      "viewUpdated": "Представление обновлено."
+      "viewUpdated": "Представление обновлено.",
+      "viewsLoadFailed": "Не удалось загрузить сохранённые представления."
     },
     "summary": {
       "title": "Сводка по клиенту",
@@ -36579,6 +36583,8 @@
     "unnamed": "Клиент без имени",
     "lastSeen": "Последняя активность {{date}}",
     "more": "Показать ещё",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Выберите клиента, чтобы увидеть его историю с этим бизнесом.",
     "scopeNote": "Показаны только собственные данные этого бизнеса.",
     "status": "Статус",
@@ -36801,6 +36807,8 @@
     "draftBadge": "Черновик",
     "version": "Версия {{version}}",
     "acceptNote": "Чтобы принять эти условия и пользоваться OxSteed Credit, войдите в аккаунт.",
-    "signIn": "Войти"
+    "signIn": "Войти",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

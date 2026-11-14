@@ -1261,6 +1261,7 @@
       "reason": "Reason",
       "add": "Add to queue",
       "added": "Added to the queue.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Team board",
       "sla": "SLA",
       "breachedCol": "Overdue",
@@ -1348,7 +1349,9 @@
         "key": "Key",
         "create": "Create queue",
         "created": "Queue created.",
-        "saved": "Queue saved."
+        "saved": "Queue saved.",
+        "listUnavailable": "The queue list could not be loaded. You can still create a queue below.",
+        "empty": "No queues yet."
       },
       "manageView": "Manage this view",
       "renameView": "Rename or share",
@@ -1356,7 +1359,8 @@
       "saveRename": "Save name",
       "updateView": "Save current filters to this view",
       "viewRenamed": "View renamed.",
-      "viewUpdated": "View updated."
+      "viewUpdated": "View updated.",
+      "viewsLoadFailed": "Saved views could not be loaded."
     },
     "summary": {
       "title": "Customer summary",
@@ -40467,6 +40471,7 @@
     "exportCsv": "Export CSV",
     "moneyHidden": "Money columns need the view_financials grant.",
     "editCampaign": "Edit campaign",
+    "manage": "Manage",
     "scheduleCampaign": "Schedule",
     "scheduledAt": "Scheduled at",
     "results": "Results",
@@ -41257,6 +41262,8 @@
     "unnamed": "Unnamed customer",
     "lastSeen": "Last activity {{date}}",
     "more": "Show more",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Select a customer to see their history with this business.",
     "scopeNote": "Only this business's own records are shown.",
     "status": "Status",
@@ -41493,6 +41500,8 @@
     "currency": "Show fees in",
     "loading": "Loading the terms…",
     "loadFailed": "The terms could not be loaded. Please try again in a moment.",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry",
     "pendingTitle": "Pending legal approval.",
     "pendingBody": "Some of this text is a draft that our legal team has not approved yet. It may change before OxSteed Credit is offered where you live.",
     "draftBadge": "Draft",

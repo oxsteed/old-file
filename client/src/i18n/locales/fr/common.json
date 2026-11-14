@@ -1114,6 +1114,7 @@
       "reason": "Motif",
       "add": "Ajouter à la file",
       "added": "Ajouté à la file.",
+      "noQueues": "Aucune file n'existe encore. Demandez à un super administrateur d'en créer une.",
       "board": "Tableau d’équipe",
       "sla": "SLA",
       "breachedCol": "En retard",
@@ -1201,7 +1202,9 @@
         "key": "Clé",
         "create": "Créer la file",
         "created": "File créée.",
-        "saved": "File enregistrée."
+        "saved": "File enregistrée.",
+        "listUnavailable": "Impossible de charger la liste des files. Vous pouvez tout de même créer une file ci-dessous.",
+        "empty": "Aucune file pour l'instant."
       },
       "manageView": "Gérer cette vue",
       "renameView": "Renommer ou partager",
@@ -1209,7 +1212,8 @@
       "saveRename": "Enregistrer le nom",
       "updateView": "Enregistrer les filtres actuels dans cette vue",
       "viewRenamed": "Vue renommée.",
-      "viewUpdated": "Vue mise à jour."
+      "viewUpdated": "Vue mise à jour.",
+      "viewsLoadFailed": "Impossible de charger les vues enregistrées."
     },
     "summary": {
       "title": "Synthèse client",
@@ -6499,6 +6503,8 @@
     "draftBadge": "Brouillon",
     "version": "Version {{version}}",
     "acceptNote": "Pour accepter ces conditions et utiliser OxSteed Credit, connectez-vous à votre compte.",
-    "signIn": "Se connecter"
+    "signIn": "Se connecter",
+    "noTerms": "Aucune condition n’a encore été publiée pour cette devise.",
+    "retry": "Réessayer"
   }
 }

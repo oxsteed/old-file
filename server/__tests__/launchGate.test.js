@@ -293,6 +293,30 @@ describe('server launch visibility map (Nov 1 audit item 11)', () => {
     });
   });
 
+  test('boot snapshot wins when env flips the other way: visibility still reports the gate', () => {
+    // Domain 1 audit finding 10 (Nov 10, 2026): the runtime fix
+    // (0aba0ae48) serves the boot snapshot for the four hard-gated keys.
+    // This pins the reverse direction of the existing alignment test:
+    // boot with templates explicitly off, flip env on without a redeploy,
+    // and the endpoint must still report off, matching the gate's 404.
+    jest.isolateModules(() => {
+      process.env.OXSTEED_LAUNCH_TEMPLATES = 'false';
+      const { getServerLaunchVisibility, launchGate: freshGate } = require('../middleware/launchGate');
+      process.env.OXSTEED_LAUNCH_TEMPLATES = 'true';
+      process.env.OXSTEED_LAUNCH_SUBSCRIPTIONS = 'false';
+
+      expect(getServerLaunchVisibility().templates).toBe(false);
+      // Non-snapshot keys keep their live env values.
+      expect(getServerLaunchVisibility().subscriptions).toBe(false);
+
+      const res = mockRes();
+      const next = jest.fn();
+      freshGate()(mockReq({ baseUrl: '/api/templates', path: '/catalog' }), res, next);
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(next).not.toHaveBeenCalled();
+    });
+  });
+
   test('an env-enabled templates launch unblocks its API in the gate', () => {
     jest.isolateModules(() => {
       process.env.OXSTEED_LAUNCH_TEMPLATES = 'true';

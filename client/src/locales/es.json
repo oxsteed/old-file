@@ -1261,6 +1261,7 @@
       "reason": "Motivo",
       "add": "Agregar a la cola",
       "added": "Agregado a la cola.",
+      "noQueues": "Aún no hay colas. Pide a un superadministrador que cree una.",
       "board": "Tablero del equipo",
       "sla": "SLA",
       "breachedCol": "Vencidos",
@@ -1348,7 +1349,9 @@
         "key": "Clave",
         "create": "Crear cola",
         "created": "Cola creada.",
-        "saved": "Cola guardada."
+        "saved": "Cola guardada.",
+        "listUnavailable": "No se pudo cargar la lista de colas. Aún puedes crear una cola abajo.",
+        "empty": "Aún no hay colas."
       },
       "manageView": "Gestionar esta vista",
       "renameView": "Renombrar o compartir",
@@ -1356,7 +1359,8 @@
       "saveRename": "Guardar nombre",
       "updateView": "Guardar los filtros actuales en esta vista",
       "viewRenamed": "Vista renombrada.",
-      "viewUpdated": "Vista actualizada."
+      "viewUpdated": "Vista actualizada.",
+      "viewsLoadFailed": "No se pudieron cargar las vistas guardadas."
     },
     "summary": {
       "title": "Resumen del cliente",
@@ -40467,6 +40471,7 @@
     "exportCsv": "Exportar CSV",
     "moneyHidden": "Las columnas de dinero necesitan el permiso view_financials.",
     "editCampaign": "Editar campaña",
+    "manage": "Gestionar",
     "scheduleCampaign": "Programar",
     "scheduledAt": "Programada para",
     "results": "Resultados",
@@ -41257,6 +41262,8 @@
     "unnamed": "Cliente sin nombre",
     "lastSeen": "Última actividad {{date}}",
     "more": "Ver más",
+    "retry": "Intentar de nuevo",
+    "moreFailed": "No se pudieron cargar más clientes. Inténtalo de nuevo.",
     "pick": "Seleccione un cliente para ver su historial con este negocio.",
     "scopeNote": "Solo se muestran los registros propios de este negocio.",
     "status": "Estado",
@@ -41493,6 +41500,8 @@
     "currency": "Mostrar comisiones en",
     "loading": "Cargando los términos…",
     "loadFailed": "No se pudieron cargar los términos. Inténtelo de nuevo en un momento.",
+    "noTerms": "Aún no se han publicado términos para esta moneda.",
+    "retry": "Reintentar",
     "pendingTitle": "Pendiente de aprobación legal.",
     "pendingBody": "Parte de este texto es un borrador que nuestro equipo legal aún no ha aprobado. Puede cambiar antes de que OxSteed Credit se ofrezca donde usted vive.",
     "draftBadge": "Borrador",
