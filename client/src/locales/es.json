@@ -10803,6 +10803,10 @@
         "label": "Interruptores principales",
         "description": "Activa o desactiva un canal completo. Tienen prioridad sobre los interruptores individuales."
       },
+      "sms": {
+        "label": "Mensajes de texto",
+        "description": "Alertas SMS enviadas a tu teléfono."
+      },
       "restaurant": {
         "label": "Alertas del restaurante",
         "description": "Alertas de control horario, temperatura e informes programados para los restaurantes que gestionas."

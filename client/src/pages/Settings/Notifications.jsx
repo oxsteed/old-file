@@ -42,6 +42,12 @@ const PREF_GROUPS = [
     ],
   },
   {
+    key: 'sms',
+    prefs: [
+      'sms_support_replies',
+    ],
+  },
+  {
     key: 'email',
     prefs: [
       'email_bid_accepted',

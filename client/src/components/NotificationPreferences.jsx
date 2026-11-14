@@ -462,6 +462,14 @@ export default function NotificationPreferences() {
       ],
     },
     {
+      key: 'sms',
+      title: t('notifications.groups.sms.label'),
+      description: t('notifications.groups.sms.description'),
+      keys: [
+        'sms_support_replies',
+      ],
+    },
+    {
       key: 'email',
       title: t('notifications.groups.email.label'),
       description: t('notifications.groups.email.description'),

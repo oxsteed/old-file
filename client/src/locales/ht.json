@@ -2986,6 +2986,10 @@
         "label": "Bouton prensipal yo",
         "description": "Limonen oswa etenn yon kanal antye. Yo gen priyorite sou bouton endividyèl yo anba a."
       },
+      "sms": {
+        "label": "Mesaj tèks",
+        "description": "Alèt SMS yo voye nan telefòn ou."
+      },
       "restaurant": {
         "label": "Alèt restoran",
         "description": "Alèt pou kontwòl lè, tanperati, ak rapò pwograme pou restoran ou jere yo."

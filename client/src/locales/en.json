@@ -10803,6 +10803,10 @@
         "label": "Master Switches",
         "description": "Turn an entire channel on or off. These override the individual toggles below."
       },
+      "sms": {
+        "label": "Text Messages",
+        "description": "SMS alerts sent to your phone."
+      },
       "restaurant": {
         "label": "Restaurant Alerts",
         "description": "Timekeeping, temperature, and scheduled report alerts for restaurants you manage."
