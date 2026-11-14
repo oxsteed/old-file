@@ -7,6 +7,8 @@ const logger = require('../utils/logger');
 const metricsService = require('./metricsService');
 const { sendSecurityAlertEmail } = require('../utils/email');
 const incidentStore = require('./incidentStore');
+// Item 46: one shared dispatchable set with the store and the sweeper.
+const DISPATCHABLE_SEVERITIES = incidentStore.DISPATCHABLE_SEVERITIES || ['critical', 'high'];
 const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 function formatIncidentDetails(incident, maxLength = 12000) {
@@ -173,10 +175,10 @@ class IncidentAlertService {
   }
 
   /**
-   * Send critical alerts through the configured transactional email provider.
+   * Send critical and high alerts through the configured transactional email provider.
    */
   async _emailAlert(incident) {
-    if (incident.severity !== 'critical') return;
+    if (!DISPATCHABLE_SEVERITIES.includes(incident.severity)) return;
 
     const { rows } = await pool.query(`SELECT u.id, u.email, u.role FROM users u
       LEFT JOIN admin_notification_prefs p ON p.admin_id=u.id
@@ -203,10 +205,10 @@ class IncidentAlertService {
   }
 
   /**
-   * Send critical alerts to Slack without accepting arbitrary outbound URLs.
+   * Send critical and high alerts to Slack without accepting arbitrary outbound URLs.
    */
   async _slackAlert(incident) {
-    if (incident.severity !== 'critical') return;
+    if (!DISPATCHABLE_SEVERITIES.includes(incident.severity)) return;
 
     const configuredWebhook = String(process.env.SLACK_SECURITY_WEBHOOK || '').trim();
     if (!configuredWebhook) return;

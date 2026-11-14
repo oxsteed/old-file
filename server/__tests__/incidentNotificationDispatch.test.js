@@ -65,3 +65,14 @@ test('all rows failing still resolves with a failed count instead of throwing', 
   expect(alerts.dispatchRecordedIncident).toHaveBeenCalledTimes(3);
   expect(result).toEqual({ examined: 3, dispatched: 0, failed: 3 });
 });
+
+test('item 46: the sweeper selects high-severity incidents as well as critical', async () => {
+  const query = jest.fn().mockResolvedValue({ rows: [] });
+  await dispatchPendingIncidentNotifications({ db: { query } });
+
+  const [sql, params] = query.mock.calls[0];
+  expect(sql).not.toContain("severity='critical'");
+  // The severity set is passed as a bound parameter, not interpolated.
+  const severityParam = params.find((p) => Array.isArray(p));
+  expect(severityParam).toEqual(expect.arrayContaining(['critical', 'high']));
+});

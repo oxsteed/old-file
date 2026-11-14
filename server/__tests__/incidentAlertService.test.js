@@ -8,6 +8,7 @@ jest.mock('../services/metricsService', () => ({
 jest.mock('../services/incidentStore', () => ({
   recordIncident: jest.fn(),
   listIncidents: jest.fn(),
+  DISPATCHABLE_SEVERITIES: ['critical', 'high'],
 }));
 jest.mock('../middleware/adminAuth', () => ({
   hasGlobalGrant: jest.fn(),
@@ -118,6 +119,39 @@ describe('incident alert dispatch', () => {
       message: 'Backup is late',
       timestamp: '2026-09-14T22:00:00.000Z',
     })).rejects.toThrow('HTTP 503');
+  });
+
+  test('item 46: a high-severity incident reaches the email leg', async () => {
+    // One of the five recorded-but-never-dispatched high types.
+    const result = await incidentAlertService._emailAlert({
+      type: 'restaurant_gift_card_needs_review',
+      severity: 'high',
+      message: 'Gift card needs review',
+      timestamp: '2026-11-14T00:00:00.000Z',
+    });
+
+    expect(result).toBe(true);
+    const email = require('../utils/email').sendSecurityAlertEmail;
+    expect(email).toHaveBeenCalledWith(
+      expect.any(String),
+      'restaurant_gift_card_needs_review',
+      expect.any(String),
+    );
+  });
+
+  test('item 46: a high-severity incident reaches the Slack leg', async () => {
+    process.env.SLACK_SECURITY_WEBHOOK = 'https://hooks.slack.com/services/test/webhook/token';
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 200 });
+
+    const result = await incidentAlertService._slackAlert({
+      type: 'account_deletion_financial_blocker',
+      severity: 'high',
+      message: 'Account deletion blocked by finances',
+      timestamp: '2026-11-14T00:00:00.000Z',
+    });
+
+    expect(result).toBe(true);
+    expect(fetchSpy).toHaveBeenCalled();
   });
 
   test('includes diagnostic details in critical security emails', async () => {
