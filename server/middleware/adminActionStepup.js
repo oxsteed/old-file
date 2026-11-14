@@ -48,6 +48,23 @@ function requireAdminActionStepup(actionType, resolveAmountCents) {
   };
 }
 
+// Conditional variant: only actions whose request matches the predicate
+// need a fresh step-up challenge; everything else passes straight through
+// to the controller. Used where only some transitions on one route close
+// money (payment-dispute approved/resolved), while the rest (under_review,
+// denied) are review moves that need no fresh proof.
+function requireAdminActionStepupIf(predicate, actionType, resolveAmountCents) {
+  const gate = requireAdminActionStepup(actionType, resolveAmountCents);
+  return async function adminActionStepupIf(req, res, next) {
+    try {
+      if (predicate(req)) return gate(req, res, next);
+      return next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
 function issueAdminActionStepup(actionType, resolveAmountCents) {
   return async (req, res, next) => {
     try {
@@ -55,7 +72,7 @@ function issueAdminActionStepup(actionType, resolveAmountCents) {
       if (resolveAmountCents) {
         const resolved = await resolveAmountCents(req);
         if (!Number.isSafeInteger(resolved) || resolved <= 0) {
-          throw new AppError('A top-up id is required to issue this challenge', 400, 'admin_stepup_topup_required');
+          throw new AppError('An id is required to issue this challenge', 400, 'admin_stepup_id_required');
         }
         amountCents = resolved;
       }
@@ -90,4 +107,26 @@ async function resolveClawbackAmountCents(req) {
   }
 }
 
-module.exports = { requireAdminActionStepup, issueAdminActionStepup, resolveClawbackAmountCents };
+// Domain 7 #1: the payment dispute's requested refund amount. Reads the
+// dispute id from the body (challenge issue) or the route params
+// (decision verify); returns null (never throws) when the id is absent or
+// the row is missing, so the verify side skips binding and the issue side
+// fails closed with its own 400. A dispute with no positive requested
+// amount (null/0) still needs an issuable challenge to close with a
+// no-refund reason, so it binds to 1, the same unbound-equivalent amount
+// the issue side uses when no resolver is supplied.
+async function resolveDisputeAmountCents(req) {
+  const disputeId = req.body?.disputeId ?? req.body?.dispute_id ?? req.params?.id;
+  if (disputeId === undefined || disputeId === null || String(disputeId).trim() === '') return null;
+  try {
+    const pool = require('../db');
+    const { rows } = await pool.query('SELECT requested_refund_cents FROM main_app_payment_disputes WHERE id = $1', [disputeId]);
+    if (!rows.length) return null;
+    const n = Number(rows[0].requested_refund_cents);
+    return Number.isSafeInteger(n) && n > 0 ? n : 1;
+  } catch (err) {
+    return null;
+  }
+}
+
+module.exports = { requireAdminActionStepup, requireAdminActionStepupIf, issueAdminActionStepup, resolveClawbackAmountCents, resolveDisputeAmountCents };

@@ -27,6 +27,7 @@ export default function ConfirmDialog({
   requireReason = false,
   reasonLabel,
   reasonPlaceholder = '',
+  confirmDisabled = false,
   onConfirm,
   onClose,
 }) {
@@ -49,7 +50,7 @@ export default function ConfirmDialog({
   const reasonOk = !requireReason || reason.trim().length > 0;
 
   const handleConfirm = async () => {
-    if (!reasonOk || busy) return;
+    if (!reasonOk || busy || confirmDisabled) return;
     setBusy(true);
     setError(null);
     try {
@@ -171,7 +172,7 @@ export default function ConfirmDialog({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={busy || !reasonOk}
+            disabled={busy || !reasonOk || confirmDisabled}
             className={`px-4 py-2 rounded-md text-sm font-medium text-gray-900 dark:text-white disabled:opacity-50 ${
               danger ? 'bg-red-600 hover:bg-red-500' : 'bg-blue-600 hover:bg-blue-500'
             }`} data-track-private

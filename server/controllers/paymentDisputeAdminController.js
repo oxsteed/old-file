@@ -25,18 +25,28 @@ exports.listPaymentDisputes = async (req, res, next) => {
     const status = STATUSES.includes(req.query.status) ? req.query.status : null;
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 200);
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
-    const { rows } = await pool.query(
-      `SELECT d.*, u.first_name || ' ' || u.last_name AS user_name, u.email AS user_email,
-              t.ticket_number AS support_ticket_number, t.status AS support_ticket_status
-         FROM main_app_payment_disputes d
-         LEFT JOIN users u ON u.id = d.user_id
-         LEFT JOIN support_tickets t ON t.id = d.support_ticket_uuid
-        WHERE ($1::text IS NULL OR d.status = $1)
-        ORDER BY d.opened_at DESC
-        LIMIT $2 OFFSET $3`,
-      [status, limit, offset]
-    );
-    res.json({ disputes: rows, limit, offset });
+    // Domain 7 #20: return the filtered total alongside the page so the
+    // pager can show the queue size and disable Next on the true last
+    // page instead of stranding the operator on an empty page.
+    const [{ rows: countRows }, { rows }] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS total FROM main_app_payment_disputes d
+          WHERE ($1::text IS NULL OR d.status = $1)`,
+        [status]
+      ),
+      pool.query(
+        `SELECT d.*, u.first_name || ' ' || u.last_name AS user_name, u.email AS user_email,
+                t.ticket_number AS support_ticket_number, t.status AS support_ticket_status
+           FROM main_app_payment_disputes d
+           LEFT JOIN users u ON u.id = d.user_id
+           LEFT JOIN support_tickets t ON t.id = d.support_ticket_uuid
+          WHERE ($1::text IS NULL OR d.status = $1)
+          ORDER BY d.opened_at DESC
+          LIMIT $2 OFFSET $3`,
+        [status, limit, offset]
+      ),
+    ]);
+    res.json({ disputes: rows, total: countRows[0]?.total || 0, limit, offset });
   } catch (err) {
     next(err);
   }

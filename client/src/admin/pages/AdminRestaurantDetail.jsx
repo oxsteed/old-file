@@ -91,7 +91,7 @@ export default function AdminRestaurantDetail() {
               <button type="button" disabled={busy} onClick={() => setConfirm({ path: '/restore', title: t('adminRestaurantDetail.restore'), body: {}, success: 'adminRestaurantDetail.restored' })} className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-gray-200">
                 {t('adminRestaurantDetail.restore')}
               </button>
-              <button type="button" disabled={busy} onClick={() => runAction('/verify', { verified: !restaurant.is_verified }, 'adminRestaurantDetail.verifyDone')} className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-gray-200">
+              <button type="button" disabled={busy} onClick={() => setConfirm({ path: '/verify', title: t(restaurant.is_verified ? 'adminRestaurantDetail.unverify' : 'adminRestaurantDetail.verify'), body: { verified: !restaurant.is_verified }, success: 'adminRestaurantDetail.verifyDone' })} className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-gray-200">
                 {restaurant.is_verified ? t('adminRestaurantDetail.unverify') : t('adminRestaurantDetail.verify')}
               </button>
             </div>

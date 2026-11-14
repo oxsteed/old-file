@@ -1918,8 +1918,14 @@ async function reverseSettlement({ settlementId, idempotencyKey, actorUserId, re
 
 async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, periodEnd, actorUserId, reason, correlationId, requestIp }) {
   const currency = assertSupportedCreditCurrency(currencyCode);
-  const starts = parseDate(periodStart, 'periodStart', true);
-  const ends = parseDate(periodEnd, 'periodEnd', true);
+  // Domain 7 #26: the period is run bookkeeping only — the ledger query
+  // below always covers the all-time ledger, never the window. The admin
+  // endpoint no longer accepts a period, so a caller that supplies none
+  // gets a server-chosen execution-instant window for the run row. The
+  // nightly job still passes its own previous-day window.
+  const runStartedAt = new Date();
+  const starts = periodStart ? parseDate(periodStart, 'periodStart', true) : runStartedAt;
+  const ends = periodEnd ? parseDate(periodEnd, 'periodEnd', true) : new Date(runStartedAt.getTime() + 1000);
   if (ends <= starts) throw new AppError('Reconciliation period end must be after its start', 400, 'credit_reconciliation_dates_invalid');
   const normalizedReason = actorUserId ? requireAuditReason(reason) : normalizeString(reason, 1000) || 'Automated reconciliation';
   return withTransaction(pool, async (client) => {

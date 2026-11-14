@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../../lib/adminApi';
+import { collectAdminActionStepup } from '../../lib/adminActionStepup';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
 import ConfirmDialog from '../../lib/ConfirmDialog';
@@ -46,11 +47,16 @@ export default function PaymentDisputes() {
       signal,
       params: { ...(status !== 'all' ? { status } : {}), limit: PAGE_SIZE, offset },
     });
-    return { disputes: body?.disputes || [] };
+    return { disputes: body?.disputes || [], total: body?.total || 0 };
   }, [status, offset]);
 
   const disputes = data?.disputes || [];
-  const hasMore = disputes.length === PAGE_SIZE;
+  const total = data?.total || 0;
+  // Domain 7 #20: when the server reports a total, Next is enabled only
+  // while rows remain past this page, so an exact multiple of PAGE_SIZE
+  // no longer strands the operator on an empty page. Without a total
+  // (older server), fall back to the full-page heuristic.
+  const hasMore = total > 0 ? offset + disputes.length < total : disputes.length === PAGE_SIZE;
 
   useEffect(() => { setOffset(0); }, [status]);
 
@@ -65,20 +71,41 @@ export default function PaymentDisputes() {
     setActionError('');
   };
 
+  // Domain 7 #16: a closing decision (approved/resolved) with neither a
+  // refund reference nor a no-refund reason cannot close; surface that
+  // before the confirm dialog opens instead of after the server 400.
+  const closingNeedsRefundOrReason = (decisionStatus === 'approved' || decisionStatus === 'resolved')
+    && !refundReference.trim() && !noRefundReason.trim();
+
   const submitDecision = async () => {
     if (!selected || !decisionStatus || !note.trim()) {
       setActionError(t('adminMoneyDisputes.noteRequired'));
+      return;
+    }
+    // Domain 7 #16: pre-block a closing decision with neither a refund
+    // reference nor a no-refund reason, so the operator learns before the
+    // server 400 (and before burning a step-up challenge).
+    if (closingNeedsRefundOrReason) {
+      setActionError(t('adminMoneyDisputes.closureNeedsRefundOrReason'));
       return;
     }
     setBusyId(selected.id);
     setNotice('');
     setActionError('');
     try {
+      // Domain 7 #1: closing a dispute (approved/resolved) needs a fresh
+      // step-up challenge bound to the requested refund amount, issued
+      // against this dispute. Non-closing moves need no fresh proof.
+      let stepup = {};
+      if (decisionStatus === 'approved' || decisionStatus === 'resolved') {
+        stepup = await collectAdminActionStepup(adminApi, '/admin/payment-disputes/stepup-challenges', t, { disputeId: selected.id });
+      }
       await adminApi.post(`/admin/payment-disputes/${selected.id}/decision`, {
         status: decisionStatus,
         note: note.trim(),
         ...(refundReference.trim() ? { refundReference: refundReference.trim() } : {}),
         ...(noRefundReason.trim() ? { noRefundReason: noRefundReason.trim() } : {}),
+        ...stepup,
       });
       setConfirmOpen(false);
       setSelected(null);
@@ -89,6 +116,14 @@ export default function PaymentDisputes() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const openConfirm = () => {
+    if (closingNeedsRefundOrReason) {
+      setActionError(t('adminMoneyDisputes.closureNeedsRefundOrReason'));
+      return;
+    }
+    setConfirmOpen(true);
   };
 
   return (
@@ -232,13 +267,13 @@ export default function PaymentDisputes() {
                         className="mt-1 block w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white"
                       />
                     </label>
-                    {(decisionStatus === 'approved' || decisionStatus === 'resolved') && !refundReference.trim() && !noRefundReason.trim() && (
+                    {closingNeedsRefundOrReason && (
                       <p className="text-sm text-amber-300">{t('adminMoneyDisputes.closureNeedsRefundOrReason')}</p>
                     )}
                     <button
                       type="button"
                       disabled={!decisionStatus || !note.trim() || busyId === dispute.id}
-                      onClick={() => setConfirmOpen(true)}
+                      onClick={openConfirm}
                       className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-orange-500 text-white disabled:opacity-50"
                     >
                       {busyId === dispute.id ? t('adminMoneyDisputes.deciding') : t('adminMoneyDisputes.reviewDecision')}
@@ -251,7 +286,7 @@ export default function PaymentDisputes() {
         </div>
       )}
 
-      {!loading && !loadError && disputes.length > 0 && (
+      {!loading && !loadError && (
         <div className="flex items-center gap-3 mt-4">
           <button
             type="button"
@@ -261,7 +296,7 @@ export default function PaymentDisputes() {
           >
             {t('adminMoneyDisputes.prev')}
           </button>
-          <span className="text-gray-400 text-sm">{t('adminMoneyDisputes.pageInfo', { count: disputes.length })}</span>
+          <span className="text-gray-400 text-sm">{t('adminMoneyDisputes.pageInfo', { count: disputes.length, total })}</span>
           <button
             type="button"
             onClick={() => setOffset(offset + PAGE_SIZE)}
@@ -279,6 +314,7 @@ export default function PaymentDisputes() {
         message={selected ? t('adminMoneyDisputes.decideConfirmBody', {
           id: selected.id,
           status: decisionStatus ? t(`adminMoneyDisputes.status.${decisionStatus}`) : '',
+          amount: adminMoney(Number(selected.requested_refund_cents || 0) / 100, selected.currency_code || 'USD'),
         }) : ''}
         confirmLabel={t('adminMoneyDisputes.decide')}
         onConfirm={submitDecision}

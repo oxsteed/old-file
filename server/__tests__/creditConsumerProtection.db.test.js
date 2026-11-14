@@ -253,10 +253,21 @@ describeDatabase('consumer protection (licence readiness §7)', () => {
           userId: c.customerId, key: 'dispute_results', params: expect.objectContaining({ outcome_key: 'rejected' }),
         }));
         await sla.sweepProvisionalReversals(new Date());
-        ({ rows } = await pool.query('SELECT provisional_reversal_notice_at, provisional_reversal_effective_at, provisional_reversed_at FROM oxsteed_credit_disputes WHERE id = $1', [d.id]));
+        ({ rows } = await pool.query('SELECT provisional_reversal_notice_at, provisional_reversal_effective_at, provisional_reversed_at, business_calendar FROM oxsteed_credit_disputes WHERE id = $1', [d.id]));
         expect(rows[0].provisional_reversal_notice_at).not.toBeNull();
         expect(rows[0].provisional_reversed_at).toBeNull();
-        expect(new Date(rows[0].provisional_reversal_effective_at).getTime()).toBeGreaterThan(Date.now() + 6 * 86400000);
+        // 5 business days from the notice is 5 calendar days when the
+        // notice lands on a Sunday, 7 from a Friday, and exactly 6 from
+        // a Saturday, so a fixed "now + 6 days" bound fails by
+        // milliseconds on Saturdays (and by a day on Sundays). Compare
+        // against the same DB function the sweep uses, allowing 1s for
+        // the NOW() skew between the sweep's SELECT and UPDATE.
+        const { rows: [expected] } = await pool.query(
+          `SELECT credit_add_business_days($1, 5, $2) AS p`,
+          [rows[0].provisional_reversal_notice_at, rows[0].business_calendar || 'US']
+        );
+        expect(new Date(rows[0].provisional_reversal_effective_at).getTime())
+          .toBeGreaterThanOrEqual(new Date(expected.p).getTime() - 1000);
         expect(await walletBalance(c.walletId)).toBe(before + 30000);
         // Not yet effective: nothing happens.
         await sla.sweepProvisionalReversals(new Date());

@@ -82,7 +82,9 @@ export default function OxsteedCreditBackfill({ busy = false }) {
     setError('');
     setNotice('');
     try {
-      const response = await adminApi.post('/admin/super/oxsteed-credit/backfill/requeue', { ids });
+      // Domain 7 #17: requeue-everything is an explicit all: true; the
+      // server no longer defaults a missing id list to the whole queue.
+      const response = await adminApi.post('/admin/super/oxsteed-credit/backfill/requeue', { ids, all: confirmMode === 'all' });
       const requeued = response.data?.requeued ?? 0;
       setNotice(t('adminCreditBackfill.requeued', { count: requeued }));
       setConfirmMode(null);

@@ -42,7 +42,7 @@ export default function WindDownSection() {
     <div className="space-y-4">
       <Notices notice={action.notice} error={action.error || status.error} />
       <Panel title={t('adminLicence.windDownTitle')} detail={t('adminLicence.windDownDetail')}>
-        {plan ? (
+        {status.loading ? <p role="status" className="text-sm text-gray-500">{t('adminLoading')}</p> : plan ? (
           <dl className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div><dt className="text-xs text-gray-500">{t('adminLicence.col.status')}</dt><dd>{t(`adminLicence.status.${plan.status}`, { defaultValue: plan.status })}</dd></div>
             <div><dt className="text-xs text-gray-500">{t('adminLicence.col.deadline')}</dt><dd>{String(plan.redemption_deadline || '').slice(0, 10)}</dd></div>
@@ -61,6 +61,7 @@ export default function WindDownSection() {
           </div>
         )}
         <LicenceTable
+          loading={status.loading} error={status.error}
           rows={(status.data?.byStatus || []).map((r) => ({ ...r, id: `${r.status}-${r.currency}` }))}
           columns={[
             { key: 'status' }, { key: 'currency' }, { key: 'holders' },
@@ -72,6 +73,7 @@ export default function WindDownSection() {
       {holdersFor && <Holders planId={holdersFor} />}
       <Panel title={t('adminLicence.redeemableTitle')} detail={t('adminLicence.redeemableDetail')}>
         <LicenceTable
+          loading={status.loading} error={status.error}
           rows={(status.data?.redeemable?.totals || []).map((r) => ({ ...r, id: `${r.account_type}-${r.currency}` }))}
           columns={[
             { key: 'account_type', label: 'type' }, { key: 'currency' }, { key: 'holders' },
@@ -112,6 +114,7 @@ function Holders({ planId }) {
       )}
     >
       <LicenceTable
+          loading={holders.loading} error={holders.error}
         rows={rows}
         columns={[
           { key: 'account_type', label: 'type' }, { key: 'status' },
