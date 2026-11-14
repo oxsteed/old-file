@@ -5,7 +5,8 @@
 // `missing-punch:<shift>:<date>:<manager>`. The close commits before
 // the notify, so a crash between commit and notify loses the alert
 // permanently. These tests pin the key
-// `system-closed:<entryId>:<managerId>` on every manager notice, so a
+// `closeout-notify:<entryId>:<managerId>` (money-flows W9: the delivery
+// key doubles as the ledger key) on every manager notice, so a
 // retried closeout cannot double-notify and a crashed-then-retried run
 // still delivers the alert once.
 //
@@ -14,7 +15,10 @@
 // missing punches.
 
 jest.mock('../services/notificationService', () => ({
-  sendNotification: jest.fn().mockResolvedValue({ success: true }),
+  // Money-flows W9: a real sendNotification success carries
+  // notificationId (see notificationService.js:467); without it the
+  // closeout classifier counts the send as skipped, not sent.
+  sendNotification: jest.fn().mockResolvedValue({ success: true, notificationId: 1 }),
 }));
 
 const { sendNotification } = require('../services/notificationService');
@@ -104,8 +108,8 @@ test('system-closed notice carries system-closed:<entryId>:<managerId> per manag
     'staff_time_entry_system_closed',
   ]);
   expect(calls.map((c) => c.idempotencyKey).sort()).toEqual([
-    'system-closed:101:mgr-1',
-    'system-closed:101:mgr-2',
+    'closeout-notify:101:mgr-1',
+    'closeout-notify:101:mgr-2',
   ]);
 });
 
