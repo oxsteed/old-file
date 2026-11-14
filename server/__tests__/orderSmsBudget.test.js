@@ -39,6 +39,11 @@ describe('item 32: order SMS never mock-sends', () => {
     expect(result).toBe(false);
     // No SMS was sent, so no sms_logs row may claim one was.
     expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO sms_logs'))).toBe(false);
+    // Item 51: the failure is definitive (nothing was attempted), so the
+    // budget reservation must be released instead of burning a slot.
+    const releaseCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('UPDATE order_sms_budgets'));
+    expect(releaseCall).toBeDefined();
+    expect(releaseCall[1]).toEqual(['user-1', 'ord-1:order_created']);
   });
 
   test('the budget is keyed per event type, not shared across the order', async () => {

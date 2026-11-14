@@ -62,6 +62,18 @@ function isTwilioConfigured() {
   return Boolean(client && process.env.TWILIO_PHONE_NUMBER);
 }
 
+// Item 51 (shared send-failure classifier): a failure is definitive when
+// the provider answered (an HTTP status on the thrown error) or when
+// nothing was ever attempted (provider_not_configured). A transport error
+// with no status (timeout, reset, DNS) is genuinely uncertain — the
+// message may have been accepted before the socket died — so the caller
+// must keep any budget reservation it holds.
+function isDefinitiveSendFailure(error) {
+  if (!error) return false;
+  if (error.code === 'provider_not_configured') return true;
+  return typeof error.status === 'number';
+}
+
 // Send SMS if user opted in
 async function sendOrderCreatedSMS(userId, orderId, orderAmount) {
   const message = `Order #${orderId} confirmed. Total: $${(orderAmount / 100).toFixed(2)}. View: oxsteed.com/orders/${orderId}`;
@@ -208,14 +220,16 @@ async function sendSMSIfOptedIn(userId, messageBody, notificationType, orderId =
     }
 
     const isOrderSms = orderId != null;
+    let budgetOrderKey = null;
     if (isOrderSms) {
       // Item 32: the budget is per event type (2 per type per order per
       // day), so a cancellation/refund SMS is never crowded out by two
       // earlier lifecycle sends for the same order.
+      budgetOrderKey = `${String(orderId)}:${notificationType}`;
       const budget = await pool.query(`INSERT INTO order_sms_budgets(user_id,order_key,day,reserved)
         VALUES($1,$2,CURRENT_DATE,1) ON CONFLICT(user_id,order_key,day)
         DO UPDATE SET reserved=order_sms_budgets.reserved+1 WHERE order_sms_budgets.reserved<2 RETURNING reserved`,
-        [userId, `${String(orderId)}:${notificationType}`]);
+        [userId, budgetOrderKey]);
       if (!budget.rows.length) {
         logger.warn('Order SMS budget exhausted', { userId, orderId, notificationType });
         return false;
@@ -226,9 +240,30 @@ async function sendSMSIfOptedIn(userId, messageBody, notificationType, orderId =
     // returns a mock_sid when Twilio is unconfigured, which made callers
     // believe an SMS was sent; sendConfiguredSMS throws instead, and the
     // outer handler reports the failure honestly.
-    const result = isOrderSms
-      ? await sendConfiguredSMS(phone_number, messageBody)
-      : await sendTwilioSMS(phone_number, messageBody);
+    let result;
+    try {
+      result = isOrderSms
+        ? await sendConfiguredSMS(phone_number, messageBody)
+        : await sendTwilioSMS(phone_number, messageBody);
+    } catch (sendErr) {
+      // Item 51: a definitive failure must not burn a budget slot. Release
+      // the reservation when the provider rejected the send (an HTTP
+      // status, or nothing was ever attempted because the provider is
+      // unconfigured). Keep it only for genuinely uncertain outcomes —
+      // transport errors with no status, where the message may still have
+      // been accepted — so a retry cannot double-send past the cap.
+      if (budgetOrderKey && isDefinitiveSendFailure(sendErr)) {
+        await pool.query(
+          `UPDATE order_sms_budgets SET reserved = GREATEST(reserved - 1, 0)
+            WHERE user_id = $1 AND order_key = $2 AND day = CURRENT_DATE`,
+          [userId, budgetOrderKey]
+        ).catch(() => {});
+        logger.warn('Order SMS reservation released after definitive send failure', {
+          userId, orderId, notificationType, error: sendErr.message,
+        });
+      }
+      throw sendErr;
+    }
 
     // Audit fix (ITEM 9): do not store the full SMS body. Log the SHA-256 hash
     // and a 20-char redacted preview only; message_body is hard-coded to the
