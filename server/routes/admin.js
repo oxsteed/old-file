@@ -42,6 +42,7 @@ const oxsteedCreditFeeScheduleService = require('../services/oxsteedCreditFeeSch
 const oxsteedCreditReserveService = require('../services/oxsteedCreditReserveService');
 const oxsteedCreditRestaurantConversionPolicyService = require('../services/oxsteedCreditRestaurantConversionPolicyService');
 const { verifyStepupChallenge } = require('../services/stepupChallengeService');
+const { requireAdminActionStepupIf, issueAdminActionStepup, resolveDisputeAmountCents } = require('../middleware/adminActionStepup');
 const { requireFreshAuth } = require('../middleware/requireFreshAuth');
 const refundsCtrl = require('../controllers/logisticsRefundsController');
 const { AppError } = require('../middleware/errorHandler');
@@ -207,7 +208,19 @@ router.post('/planned-needs/:id/:action',            requireAdmin, requirePermis
 router.get('/payments', requireAdmin, requirePermission('view_financials'), paymentsCtrl.listPayments);
 // Review P3-821: main-app refund/payment disputes get an admin lifecycle.
 router.get('/payment-disputes', requireAdmin, requirePermission('manage_disputes'), paymentDisputeAdminCtrl.listPaymentDisputes);
-router.post('/payment-disputes/:id/decision', requireAdmin, requirePermission('manage_disputes'), paymentDisputeAdminCtrl.decidePaymentDispute);
+// Domain 7 #1: closing a dispute (approved/resolved) records a pasted
+// refund reference, so it needs a fresh step-up challenge bound to the
+// requested refund amount, plus impersonation rejection and a limiter.
+// The issue endpoint shares the decision route's auth (requireAdmin +
+// manage_disputes) rather than the super-admin credit endpoint, so any
+// admin who can decide can also prove the challenge. Non-closing moves
+// (under_review, denied) need no fresh proof.
+router.post('/payment-disputes/stepup-challenges', requireAdmin, rejectImpersonated, requirePermission('manage_disputes'), strictLimiter, issueAdminActionStepup('payment_dispute_decision', resolveDisputeAmountCents));
+router.post('/payment-disputes/:id/decision', requireAdmin, rejectImpersonated, requirePermission('manage_disputes'), strictLimiter, requireAdminActionStepupIf(
+  (req) => req.body?.status === 'approved' || req.body?.status === 'resolved',
+  'payment_dispute_decision',
+  resolveDisputeAmountCents,
+), paymentDisputeAdminCtrl.decidePaymentDispute);
 
 // Users - read + write actions (ban/unban logged; admins cannot ban other admins)
 router.get('/users',            requireAdmin, requirePermission('manage_users'), superCtrl.getUsers);
@@ -255,7 +268,7 @@ router.get('/super/chargebacks', requireSuperAdmin, async (req, res, next) => {
     res.json(await svc.listChargebacks({ open: req.query.all !== 'true', limit: req.query.limit, offset: req.query.offset }));
   } catch (err) { next(err); }
 });
-router.post('/super/chargebacks/:id/submit', requireSuperAdmin, async (req, res, next) => {
+router.post('/super/chargebacks/:id/submit', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     const svc = require('../services/chargebackEvidenceService');
     const { logAdminAction } = require('../services/auditService');
@@ -267,6 +280,7 @@ router.post('/super/chargebacks/:id/submit', requireSuperAdmin, async (req, res,
     res.json({ chargeback: row });
   } catch (err) { next(err); }
 });
+router.get('/super/subscriptions/:id', requireSuperAdmin, require('../controllers/subscriptionController').getAdminSubscription);
 router.post('/super/subscriptions/stepup-challenges', requireSuperAdmin, strictLimiter, require('../controllers/subscriptionController').issueAdminCancelStepupChallenge);
 router.post('/super/subscriptions/:id/cancel', requireSuperAdmin, require('../controllers/subscriptionController').adminCancelSubscription);
 router.get('/super/revenue-chart',      requireSuperAdmin, superCtrl.getRevenueChart);
@@ -279,10 +293,73 @@ router.get('/super/restaurant-credit/overview', requireSuperAdmin, restaurantCre
 router.get('/super/restaurant-credit/wallets/:accountId', requireSuperAdmin, restaurantCreditAdminCtrl.getWalletDetail);
 // M28: restaurant-credit admin mutations carry the same limiter as their
 // OxSteed Credit siblings.
-router.post('/super/restaurant-credit/wallets/:accountId/status', requireSuperAdmin, creditAdminMutationLimiter, restaurantCreditAdminCtrl.updateWalletStatus);
-router.post('/super/restaurant-credit/holds/:holdId/release', requireSuperAdmin, creditAdminMutationLimiter, restaurantCreditAdminCtrl.releaseHold);
-router.post('/super/restaurant-credit/load-requests/:requestId/approve', requireSuperAdmin, creditAdminMutationLimiter, restaurantCreditAdminCtrl.approveLoadRequest);
-router.post('/super/restaurant-credit/load-requests/:requestId/decline', requireSuperAdmin, creditAdminMutationLimiter, restaurantCreditAdminCtrl.declineLoadRequest);
+// Domain 7 #2 (2026-11-11 admin-ops audit): these mutations unlock customer
+// funds (hold release, load approve), suspend/reactivate a wallet, or deny a
+// payout (load decline), so each requires rejectImpersonated plus a fresh
+// admin step-up, following the settlement-payout / withdrawal-approve
+// pattern. The money-moving actions bind the step-up to the row's amount.
+async function readRestaurantCreditStepupAmountCents(sql, params, label) {
+  try {
+    const { rows } = await require('../db').query(sql, params);
+    if (!rows.length) return null;
+    const n = Number(rows[0].amount_cents);
+    return Number.isSafeInteger(n) && n > 0 ? n : null;
+  } catch (preReadError) {
+    // Domain 7 #19: a failed amount pre-read fails closed instead of
+    // proceeding with an unbound challenge.
+    require('../utils/logger').warn('admin.restaurant-credit stepup pre-read failed, failing closed', { label, error: preReadError.message });
+    throw new AppError(`Could not read the ${label} amount for step-up binding; retry the action`, 503, 'credit_stepup_amount_preread_failed');
+  }
+}
+function restaurantCreditStepupFields(req) {
+  return {
+    challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+    actorUserId: req.user?.id || null,
+    code: req.body?.stepupCode || req.body?.stepup_code,
+  };
+}
+router.post('/super/restaurant-credit/wallets/:accountId/status', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    await verifyStepupChallenge({ ...restaurantCreditStepupFields(req), actionType: 'restaurant_credit_wallet_status_update' });
+    return restaurantCreditAdminCtrl.updateWalletStatus(req, res, next);
+  } catch (err) { next(err); }
+});
+router.post('/super/restaurant-credit/holds/:holdId/release', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    const expectedAmount = await readRestaurantCreditStepupAmountCents(
+      'SELECT amount_cents FROM food_customer_wallet_holds WHERE id = $1',
+      [req.params.holdId],
+      'hold',
+    );
+    await verifyStepupChallenge({
+      ...restaurantCreditStepupFields(req),
+      actionType: 'restaurant_credit_hold_release',
+      ...(expectedAmount !== null ? { expectedAmountCents: expectedAmount } : {}),
+    });
+    return restaurantCreditAdminCtrl.releaseHold(req, res, next);
+  } catch (err) { next(err); }
+});
+router.post('/super/restaurant-credit/load-requests/:requestId/approve', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    const expectedAmount = await readRestaurantCreditStepupAmountCents(
+      'SELECT amount_cents FROM food_customer_wallet_load_requests WHERE id = $1',
+      [req.params.requestId],
+      'load request',
+    );
+    await verifyStepupChallenge({
+      ...restaurantCreditStepupFields(req),
+      actionType: 'restaurant_credit_load_approve',
+      ...(expectedAmount !== null ? { expectedAmountCents: expectedAmount } : {}),
+    });
+    return restaurantCreditAdminCtrl.approveLoadRequest(req, res, next);
+  } catch (err) { next(err); }
+});
+router.post('/super/restaurant-credit/load-requests/:requestId/decline', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    await verifyStepupChallenge({ ...restaurantCreditStepupFields(req), actionType: 'restaurant_credit_load_decline' });
+    return restaurantCreditAdminCtrl.declineLoadRequest(req, res, next);
+  } catch (err) { next(err); }
+});
 
 // OxSteed Credit holds are captured only by an authorized operator. Customer
 // clients can create and release their own reservations, but never capture value.
@@ -642,6 +719,12 @@ router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuper
 router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminAgreement);
 router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.upsertAdminEntitlement);
 router.get('/super/oxsteed-credit/entitlements.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminEntitlements);
+// Domain 7 #11: admin-side customer name lookup for the FX quote page.
+// The customer-role transfer-recipient lookup (GET /oxsteed-credit/
+// transfer-recipients/:customerId) requires the customer role and is not
+// callable from an admin session, so the same read-only resolver is wired
+// here behind requireSuperAdmin. It returns only the display name.
+router.get('/super/oxsteed-credit/customers/:customerId', requireSuperAdmin, oxsteedCreditCtrl.lookupTransferRecipient);
 router.post('/super/oxsteed-credit/customers/:customerId/loads', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.adminLoadCredit);
 router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.adminAdjustCredit);
 router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminUpdateCreditAccountStatus);
@@ -700,7 +783,10 @@ router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSup
         if (Number.isSafeInteger(n) && n > 0) settlementExpectedAmount = n;
       }
     } catch (preReadError) {
-      require('../utils/logger').warn('admin.settlement payout stepup pre-read failed, skipping amount binding', { settlementId: req.params.settlementId, error: preReadError.message });
+      // Domain 7 #19: a failed amount pre-read fails closed instead of
+      // verifying the step-up unbound; the operator retries the payout.
+      require('../utils/logger').warn('admin.settlement payout stepup pre-read failed, failing closed', { settlementId: req.params.settlementId, error: preReadError.message });
+      throw new AppError('Could not read the settlement amount for step-up binding; retry the payout', 503, 'credit_stepup_amount_preread_failed');
     }
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
@@ -738,15 +824,18 @@ router.get('/super/oxsteed-credit/backfill/parked', requireSuperAdmin, async (re
     res.json(await listParkedDualPostingBackfill(require('../db'), { limit: req.query.limit, offset: req.query.offset }));
   } catch (err) { next(err); }
 });
-router.post('/super/oxsteed-credit/backfill/requeue', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.post('/super/oxsteed-credit/backfill/requeue', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     const { requeueParkedDualPostingBackfill } = require('../services/oxsteedCreditSubBankService');
+    // Domain 7 #17: requeue-everything requires an explicit all: true; an
+    // absent id list no longer defaults to the whole parked queue.
+    const all = req.body?.all === true;
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : null;
-    const result = await requeueParkedDualPostingBackfill(require('../db'), { ids });
+    const result = await requeueParkedDualPostingBackfill(require('../db'), { ids, all });
     // Nov 3 audit item 5: resetting parked money-ledger rows is an
     // operator action that must leave an audit trail naming the actor,
     // the scope (ids or all), and the count actually requeued.
-    const scope = ids ? ids.map(String).join(', ') : 'all';
+    const scope = all ? 'all' : ids.map(String).join(', ');
     const { logAdminAction } = require('../services/auditService');
     await logAdminAction({
       adminId: req.user?.id || null,
@@ -796,7 +885,10 @@ router.post('/super/oxsteed-credit/withdrawals/:id/approve', requireSuperAdmin, 
         if (Number.isSafeInteger(n) && n > 0) withdrawalExpectedAmount = n;
       }
     } catch (preReadError) {
-      require('../utils/logger').warn('admin.withdrawal approve stepup pre-read failed, skipping amount binding', { withdrawalId: req.params.id, error: preReadError.message });
+      // Domain 7 #19: a failed amount pre-read fails closed instead of
+      // verifying the step-up unbound; the operator retries the approval.
+      require('../utils/logger').warn('admin.withdrawal approve stepup pre-read failed, failing closed', { withdrawalId: req.params.id, error: preReadError.message });
+      throw new AppError('Could not read the withdrawal amount for step-up binding; retry the approval', 503, 'credit_stepup_amount_preread_failed');
     }
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
@@ -818,8 +910,34 @@ router.post('/super/oxsteed-credit/withdrawals/:id/approve', requireSuperAdmin, 
     sendPendingActionResult(res, result, 200);
   } catch (err) { next(err); }
 });
-router.post('/super/oxsteed-credit/withdrawals/:id/reject', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.post('/super/oxsteed-credit/withdrawals/:id/reject', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
+    // Domain 7 #18: reject finally denies a customer payout, so it carries
+    // the same bar as approve on this page: rejectImpersonated plus an
+    // amount-bound maker step-up.
+    let withdrawalExpectedAmount = null;
+    try {
+      const { rows: withdrawalRows } = await require('../db').query(
+        'SELECT amount_cents FROM oxsteed_credit_withdrawals WHERE id = $1',
+        [req.params.id]
+      );
+      if (withdrawalRows.length) {
+        const n = Number(withdrawalRows[0].amount_cents);
+        if (Number.isSafeInteger(n) && n > 0) withdrawalExpectedAmount = n;
+      }
+    } catch (preReadError) {
+      // Domain 7 #19: a failed amount pre-read fails closed instead of
+      // proceeding with an unbound challenge.
+      require('../utils/logger').warn('admin.withdrawal reject stepup pre-read failed, failing closed', { withdrawalId: req.params.id, error: preReadError.message });
+      throw new AppError('Could not read the withdrawal amount for step-up binding; retry the rejection', 503, 'credit_stepup_amount_preread_failed');
+    }
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'withdrawal',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+      ...(withdrawalExpectedAmount !== null ? { expectedAmountCents: withdrawalExpectedAmount } : {}),
+    });
     const withdrawal = await oxsteedCreditWithdrawalService.rejectWithdrawal({
       withdrawalId: req.params.id,
       actorUserId: req.user?.id || null,
@@ -852,13 +970,21 @@ router.get('/super/oxsteed-credit/fee-schedule', requireSuperAdmin, async (req, 
 // Phase 6: fee schedule (gap 12). Reads are plain; updates are audited.
 // Phase 7 (gap 9): updates queue as pending actions for checker approval;
 // fee schedule changes have no amount, so they always need dual approval.
-router.put('/super/oxsteed-credit/fee-schedule/:id', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.put('/super/oxsteed-credit/fee-schedule/:id', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     // Fast 404 for the maker when the row does not exist.
     const schedule = await oxsteedCreditFeeScheduleService.listFeeSchedule();
     if (!schedule.some((row) => String(row.id) === String(req.params.id))) {
       throw new AppError('Fee schedule row was not found', 404, 'credit_fee_schedule_not_found');
     }
+    // Domain 7 #9: the maker proves a fresh step-up before queueing, the
+    // same choke point requestMoneyMovement enforces for money movements.
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'pending_action_request',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+    });
     const result = await requestPendingAction({
       actionType: 'credit_fee_schedule_update',
       payload: {
@@ -890,7 +1016,7 @@ router.get('/super/oxsteed-credit/reserve-policies', requireSuperAdmin, async (r
     res.json({ policies });
   } catch (err) { next(err); }
 });
-router.put('/super/oxsteed-credit/reserve-policies', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.put('/super/oxsteed-credit/reserve-policies', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     // Reject bad input with 400 before queueing: the checker must only ever
     // see a valid payload. The executor re-validates at execution time.
@@ -899,6 +1025,14 @@ router.put('/super/oxsteed-credit/reserve-policies', requireSuperAdmin, creditAd
       currencyCode: req.body?.currencyCode ?? req.body?.currency_code,
       ratioBps: req.body?.ratioBps ?? req.body?.ratio_bps,
       floorCents: req.body?.floorCents ?? req.body?.floor_cents,
+    });
+    // Domain 7 #9: the maker proves a fresh step-up before queueing, the
+    // same choke point requestMoneyMovement enforces for money movements.
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'pending_action_request',
+      code: req.body?.stepupCode || req.body?.stepup_code,
     });
     const result = await requestPendingAction({
       actionType: 'credit_reserve_policy_update',
@@ -930,13 +1064,21 @@ router.get('/super/oxsteed-credit/restaurant-conversion-policies', requireSuperA
     res.json({ policies });
   } catch (err) { next(err); }
 });
-router.put('/super/oxsteed-credit/restaurant-conversion-policies', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.put('/super/oxsteed-credit/restaurant-conversion-policies', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     // Reject bad input with 400 before queueing: the checker must only ever
     // see a valid payload. The executor re-validates at execution time.
     const normalized = oxsteedCreditRestaurantConversionPolicyService.validateConversionPolicyInput({
       restaurantId: req.body?.restaurantId ?? req.body?.restaurant_id,
       allowRestaurantToOxsteed: req.body?.allowRestaurantToOxsteed ?? req.body?.allow_restaurant_to_oxsteed,
+    });
+    // Domain 7 #9: the maker proves a fresh step-up before queueing, the
+    // same choke point requestMoneyMovement enforces for money movements.
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'pending_action_request',
+      code: req.body?.stepupCode || req.body?.stepup_code,
     });
     const result = await requestPendingAction({
       actionType: 'credit_restaurant_conversion_policy_update',

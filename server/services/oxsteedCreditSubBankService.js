@@ -609,13 +609,24 @@ async function listParkedDualPostingBackfill(pool, { limit = 100, offset = 0 } =
   return { rows, total: countRows[0]?.total || 0, limit: bound, offset: start };
 }
 
-/** Review P1-249: put parked rows back in the queue with fresh attempts. */
-async function requeueParkedDualPostingBackfill(pool, { ids = null } = {}) {
+/** Review P1-249: put parked rows back in the queue with fresh attempts.
+// Domain 7 #17 (2026-11-11 admin-ops audit): requeueing is scoped
+// explicitly. An id list is capped at 500 (matching the
+// message-notification outbox cap); requeueing the whole parked queue
+// requires an explicit all: true, and a call with neither ids nor all fails
+// closed instead of silently requeueing everything. */
+const BACKFILL_REQUEUE_MAX_IDS = 500;
+async function requeueParkedDualPostingBackfill(pool, { ids = null, all = false } = {}) {
   const params = [];
   let filter = '';
-  if (Array.isArray(ids) && ids.length) {
-    params.push(ids.map(String));
+  const list = Array.isArray(ids) ? ids.map(String).filter(Boolean).slice(0, BACKFILL_REQUEUE_MAX_IDS) : null;
+  if (all === true) {
+    // Explicit requeue-everything: no id filter, same as the outbox retry.
+  } else if (list && list.length) {
+    params.push(list);
     filter = ` AND id::text = ANY($1::text[])`;
+  } else {
+    throw new AppError('Pass ids or all: true', 400, 'validation_failed');
   }
   const { rowCount } = await pool.query(
     `UPDATE credit_dual_posting_backfill

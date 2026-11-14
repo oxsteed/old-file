@@ -1656,6 +1656,9 @@ export default function Customer360() {
                 ))}
               </div>
             )}
+            {activity.length === 100 && (
+              <p className="mt-3 text-xs text-gray-500">{t(`${NS}.audit.firstHundred`)}</p>
+            )}
           </Section>
           <Section
             title={t(`${NS}.audit.adminActions`)}
@@ -1678,6 +1681,9 @@ export default function Customer360() {
                   </div>
                 ))}
               </div>
+            )}
+            {adminAudit.length === 100 && (
+              <p className="mt-3 text-xs text-gray-500">{t(`${NS}.audit.firstHundred`)}</p>
             )}
           </Section>
         </div>

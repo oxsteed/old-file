@@ -132,9 +132,14 @@ export function cellValue(value, column, row) {
 /**
  * A table with translated column headings (adminLicence.col.*). Cells are
  * text only: identifiers and codes render LTR inside RTL layouts.
+ * Domain 7 #13: never show the empty text while a load is in flight or after
+ * a failed load. While loading, show a loading state; on error, show the
+ * error; the empty text renders only once loading is done with no error.
  */
-export function LicenceTable({ rows, columns, actions, empty }) {
+export function LicenceTable({ rows, columns, actions, empty, loading, error }) {
   const { t } = useTranslation('credit');
+  if (loading) return <p role="status" className="text-sm text-gray-500">{t('adminLoading')}</p>;
+  if (error) return <p role="alert" className="text-sm text-red-300">{error}</p>;
   if (!rows || rows.length === 0) return <p className="text-sm text-gray-500">{empty || t('adminLicence.empty')}</p>;
   return (
     <div className="overflow-x-auto">

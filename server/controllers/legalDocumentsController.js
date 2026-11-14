@@ -1,8 +1,10 @@
 // Legal Documents Controller - Acceptance Recording & Compliance Metrics
+const crypto = require('crypto');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { validate, rules } = require('../utils/validate');
+const { TERMS_CONFIG } = require('../constants/termsConfig');
 
 const VALID_DOCUMENT_TYPES = [
   'contractor_agreement',
@@ -32,6 +34,40 @@ const DOCUMENT_TO_CONSENT_TYPE = Object.freeze({
   terms_of_service: 'terms_of_service',
   privacy_policy: 'privacy_policy',
 });
+
+/**
+ * Domain 7 #14: recordAcceptance reactivated a revoked row but never wrote
+ * user_consents, while POST /api/consent/accept writes consents but never
+ * reactivates the acceptance row — two unsynced stores. After a terms
+ * revocation, re-accepting via the legal endpoint left TermsGate (which
+ * reads only user_consents) 403ing until the user also hit /consent/accept
+ * or logged in again.
+ *
+ * For mapped types, an acceptance now also (re-)inserts the user_consents
+ * row at the current TERMS_CONFIG version, mirroring the direct insert in
+ * recordLoginAgreement (same columns, same ip-hash). The SELECT-then-INSERT
+ * keeps it idempotent: a consent written earlier via /consent/accept is
+ * not duplicated (duplicates are harmless — the gate reads DISTINCT ON
+ * latest — but there is no reason to add them). A failure here throws like
+ * any other acceptance-write failure: a 201 with no consent row would
+ * leave the user gated despite a successful-looking re-accept.
+ */
+async function ensureConsentRow(db, { userId, consentType, ip, userAgent }) {
+  const existing = await db.query(
+    'SELECT id FROM user_consents WHERE user_id = $1 AND consent_type = $2 LIMIT 1',
+    [userId, consentType]
+  );
+  if (existing.rows.length > 0) return false;
+  const version = TERMS_CONFIG[consentType]?.version;
+  if (!version) return false;
+  const ipHash = ip ? crypto.createHash('sha256').update(String(ip)).digest('hex') : null;
+  await db.query(
+    `INSERT INTO user_consents (user_id, consent_type, version, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [userId, consentType, version, ipHash, userAgent]
+  );
+  return true;
+}
 
 /**
  * Record a legal document acceptance
@@ -80,7 +116,18 @@ async function recordAcceptance(req, res, next) {
       [userId, documentType, versionNumber]
     );
 
+    const ipAddress = req.ip || req.connection?.remoteAddress || null;
+    const userAgent = req.get('user-agent') || null;
+    const consentType = DOCUMENT_TO_CONSENT_TYPE[documentType] || null;
+
     if (existing.rows.length > 0) {
+      // Domain 7 #14: an active acceptance with no consent row (written
+      // before this sync existed, or via the other store) still gates the
+      // user out. Repair the missing consent on re-accept instead of
+      // returning a success that leaves the gate 403ing.
+      if (consentType) {
+        await ensureConsentRow(pool, { userId, consentType, ip: ipAddress, userAgent });
+      }
       logger.info('User already accepted document version', { userId, documentType, versionNumber });
       return res.json({
         success: true,
@@ -89,9 +136,6 @@ async function recordAcceptance(req, res, next) {
         acceptedAt: new Date().toISOString()
       });
     }
-
-    const ipAddress = req.ip || req.connection.remoteAddress || null;
-    const userAgent = req.get('user-agent') || null;
 
     // The (user, document_type, version_number) unique index from migration
     // 587 is not partial on deleted_at, so a revoked row still occupies the
@@ -136,6 +180,13 @@ async function recordAcceptance(req, res, next) {
     }
 
     const acceptance = result.rows[0];
+
+    // Domain 7 #14: re-accepting a mapped type also re-inserts the
+    // user_consents row, so TermsGate stops 403ing without a second
+    // /consent/accept call or a fresh login.
+    if (consentType) {
+      await ensureConsentRow(pool, { userId, consentType, ip: ipAddress, userAgent });
+    }
 
     await logAuditAction(
       'acceptance',
@@ -582,27 +633,41 @@ async function revokeAcceptance(req, res, next) {
     // carrying the same current version: deleting only the latest would
     // leave an older same-version row that still satisfies the gate, so
     // every row for this user and the mapped consent type is deleted.
-    // Unmapped document types clear nothing. The consent delete runs
-    // BEFORE the acceptance soft-delete: if the acceptance update then
-    // fails, the user is left blocked (fail closed) rather than holding a
-    // revoked-looking acceptance with live consent. The revocation itself
-    // stays visible in legal_audit_log either way.
+    // Unmapped document types clear nothing.
+    //
+    // Domain 7 #14: the consent DELETE and the acceptance UPDATE used to
+    // be separate pool queries, so a crash between them left an
+    // active-looking acceptance with no consent (fail-closed direction,
+    // but inconsistent). Both writes now run in one transaction: either
+    // both land or neither does. The audit log stays outside the
+    // transaction — it must survive even if the revoke itself fails, and
+    // its own insert already swallows errors.
     const consentType = DOCUMENT_TO_CONSENT_TYPE[acceptance.document_type] || null;
     let clearedConsents = 0;
-    if (consentType) {
-      const cleared = await pool.query(
-        'DELETE FROM user_consents WHERE user_id = $1 AND consent_type = $2',
-        [acceptance.user_id, consentType]
-      );
-      clearedConsents = cleared.rowCount || 0;
-    }
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      if (consentType) {
+        const cleared = await client.query(
+          'DELETE FROM user_consents WHERE user_id = $1 AND consent_type = $2',
+          [acceptance.user_id, consentType]
+        );
+        clearedConsents = cleared.rowCount || 0;
+      }
 
-    await pool.query(
-      `UPDATE user_legal_acceptances
-       SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1`,
-      [acceptanceId]
-    );
+      await client.query(
+        `UPDATE user_legal_acceptances
+         SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [acceptanceId]
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
 
     await logAuditAction(
       'revoked',

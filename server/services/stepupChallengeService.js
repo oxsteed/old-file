@@ -111,6 +111,19 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   // Licence readiness §5: a helper cash-out at or above the (per-currency)
   // step-up threshold needs a fresh emailed code.
   'helper_cashout',
+  // Domain 7 #1 (2026-11-11 admin-ops audit): closing a main-app payment
+  // dispute as approved/resolved records a pasted refund reference with no
+  // fresh-auth proof; the decision requires a step-up challenge bound to
+  // the requested refund amount.
+  'payment_dispute_decision',
+  // Domain 7 #2 (2026-11-11 admin-ops audit): restaurant-credit hold
+  // release, wallet-status update, and load-request approve/decline unlock
+  // customer funds or deny a payout on session auth alone; each now
+  // requires a fresh admin step-up challenge.
+  'restaurant_credit_hold_release',
+  'restaurant_credit_wallet_status_update',
+  'restaurant_credit_load_approve',
+  'restaurant_credit_load_decline',
 ]);
 
 // Auth-audit item 12 (product decision): the admin credit step-up action
@@ -151,6 +164,17 @@ const TOTP_STEPUP_ACTION_TYPES = Object.freeze([
   // Nov 3 audit item 4: subscription cancels are admin actions, so the
   // proof is the admin's TOTP authenticator, not an emailed code.
   'subscription_cancel',
+  // Domain 7 #1 (2026-11-11 admin-ops audit): dispute decisions are admin
+  // actions like manual refunds, so the proof is the admin's TOTP
+  // authenticator, not an emailed code.
+  'payment_dispute_decision',
+  // Domain 7 #2 (2026-11-11 admin-ops audit): restaurant-credit hold
+  // release, wallet-status update, and load-request approve/decline are
+  // admin actions, so the proof is the admin's TOTP authenticator.
+  'restaurant_credit_hold_release',
+  'restaurant_credit_wallet_status_update',
+  'restaurant_credit_load_approve',
+  'restaurant_credit_load_decline',
 ]);
 
 // TOTP codes rotate every 30 seconds (RFC 6238 time-step).
