@@ -9,7 +9,8 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const emailService = require('../services/emailService');
-const { sendSMS } = require('../utils/sms');
+const { sendNotification } = require('../services/notificationService');
+const { sendSMSIfOptedIn } = require('../services/smsNotificationService');
 const { broadcastToUser } = require('../services/socketService');
 const { renderAppointmentEmail, renderAppointmentSms } = require('../utils/calendarEmails');
 const { tNotif } = require('../utils/i18n');
@@ -275,7 +276,12 @@ async function dispatchNotification(row) {
   let sent = false;
   let lastError = null;
 
-  // In-app via Socket.IO
+  // In-app: persist a notifications row through sendNotification (in-app
+  // channel only) so the reminder renders in the notification centre even
+  // when the user is offline. The socket broadcast stays for realtime
+  // clients, but `sent` now depends on the persisted row, not on the
+  // fire-and-forget broadcast: an opted-out or undelivered row leaves the
+  // reminder failed so it retries instead of being marked sent.
   if (channels.includes('in_app')) {
     try {
       broadcastToUser(user_id, 'calendar:notification', {
@@ -285,7 +291,31 @@ async function dispatchNotification(row) {
         service: service_description,
         startTime: scheduled_start_time,
       });
-      sent = true;
+      const inAppResult = await sendNotification({
+        userId: user_id,
+        type: notification_type,
+        title: subjectForType(notification_type, recipientLanguage),
+        body: renderAppointmentSms(notification_type, {
+          recipientName: recipientName || '',
+          when: scheduled_start_time,
+        }, recipientLanguage).replace(/ - OxSteed$/, ''),
+        data: {
+          appointment_id,
+          notification_type,
+          otherName,
+          service: service_description,
+          startTime: scheduled_start_time,
+        },
+        idempotencyKey: `calendar-reminder:${notification_id}`,
+        inAppChannel: true,
+        pushChannel: false,
+        emailChannel: false,
+      });
+      const rowDelivered = inAppResult?.delivered
+        ? inAppResult.delivered.inApp === true
+        : inAppResult?.success === true;
+      if (rowDelivered) sent = true;
+      else lastError = `in_app: ${inAppResult?.error || inAppResult?.reason || 'not delivered'}`;
     } catch (err) {
       lastError = err.message;
     }
@@ -320,16 +350,21 @@ async function dispatchNotification(row) {
     }
   }
 
-  // SMS
+  // SMS — Item 14: through sendSMSIfOptedIn, which checks the verified
+  // number, sms_enabled, the SMS master toggle, the per-type key, the
+  // sms_opt_outs STOP list, and the 5-minute rate limit. The old sendSMS
+  // path (sendTransactionalSMS) checked none of those. Reminder types map
+  // to the sms_reminder toggle, which is the only reminder SMS column.
   if (channels.includes('sms') && recipientPhone) {
     try {
       const body = renderAppointmentSms(notification_type, {
         recipientName: recipientName || '',
         when: scheduled_start_time,
       }, recipientLanguage);
-      const result = await sendSMS(recipientPhone, body);
-      if (result && result.success) sent = true;
-      else lastError = `sms: ${result?.error || 'unknown'}`;
+      const smsType = String(notification_type).startsWith('reminder') ? 'reminder' : notification_type;
+      const smsSent = await sendSMSIfOptedIn(user_id, body, smsType);
+      if (smsSent) sent = true;
+      else lastError = 'sms: opted out, unverified, or rate-limited';
     } catch (err) {
       lastError = `sms: ${err.message}`;
     }

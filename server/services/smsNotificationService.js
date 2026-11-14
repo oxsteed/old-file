@@ -156,21 +156,41 @@ async function sendSMSIfOptedIn(userId, messageBody, notificationType, orderId =
       return false;
     }
 
-    // Check notification type preference
-    const notificationTypeField = `sms_${notificationType}`;
-    if (notificationTypeField) {
-      const prefResult = await pool.query(
-        `SELECT ${notificationTypeField} FROM notification_preferences WHERE user_id = $1`,
-        [userId]
+    // Item 14: honour the sms_opt_outs STOP list. Opt-outs are stored
+    // digits-normalized, so check both the raw digits and the E.164
+    // digits — a STOP recorded as +15551234567 must also block the same
+    // number written as (555) 123-4567, and vice versa.
+    const stopCandidates = [...new Set(
+      [normalizePhoneDigits(phone_number), normalizePhoneDigits(toE164(phone_number))].filter(Boolean)
+    )];
+    if (stopCandidates.length) {
+      const optOut = await pool.query(
+        `SELECT 1 FROM sms_opt_outs WHERE phone_number = ANY($1::text[])`,
+        [stopCandidates]
       );
-
-      if (prefResult.rows.length && prefResult.rows[0][notificationTypeField] === false) {
-        logger.debug('User has disabled this notification type', {
-          userId,
-          notificationType
-        });
+      if (optOut.rows.length) {
+        logger.info('SMS refused: recipient opted out (STOP)', { userId, notificationType });
         return false;
       }
+    }
+
+    // Check notification type preference. SELECT np.* (never a
+    // dynamic-column SELECT): the per-type column may not exist yet —
+    // calendar reminder types have no sms_* column — and a missing column
+    // would throw here and refuse every send for that type. An absent
+    // key reads as undefined and defaults to allowed.
+    const notificationTypeField = `sms_${notificationType}`;
+    const prefResult = await pool.query(
+      `SELECT np.* FROM notification_preferences np WHERE np.user_id = $1`,
+      [userId]
+    );
+
+    if (prefResult.rows.length && prefResult.rows[0][notificationTypeField] === false) {
+      logger.debug('User has disabled this notification type', {
+        userId,
+        notificationType
+      });
+      return false;
     }
 
     // Rate limit check: max 1 per order event per user
