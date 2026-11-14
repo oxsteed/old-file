@@ -274,7 +274,13 @@ async function requestCashout({ user, amountMinor, destinationId, idempotencyKey
   }, 'credit_cashout_request');
   if (result.held) {
     const notices = require('./creditCompliance/notices');
-    await notices.sendUserNotice({ userId: user.id, key: 'cashout_held_for_review', params: { amount_minor: Number(result.raw.amount_minor), currency: result.raw.currency }, idempotencyKey: `credit-cashout:${result.raw.id}:held` });
+    // Notifications audit item 1: record the delivery result instead of
+    // discarding it; a failed send warns (the in-app row sendUserNotice
+    // inserts is the fallback copy).
+    const notice = await notices.sendUserNotice({ userId: user.id, key: 'cashout_held_for_review', params: { amount_minor: Number(result.raw.amount_minor), currency: result.raw.currency }, idempotencyKey: `credit-cashout:${result.raw.id}:held` });
+    if (notice.sent !== true) {
+      logger.warn('cashout.held_notice_failed', { cashoutId: String(result.raw.id), userId: user.id, error: notice.error || 'send_failed' });
+    }
   }
   return result.row;
 }

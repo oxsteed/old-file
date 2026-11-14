@@ -206,12 +206,22 @@ async function addDestination({ user, input, isImpersonated = false, requestIp =
     return { row, created: true };
   }, 'credit_payout_destination_add');
   if (result.created) {
-    await notices.sendUserNotice({
+    // Notifications audit item 1: verification_sent_at means the holder
+    // was actually told how to verify. A failed send clears the flag (it
+    // was set when the verification instructions were created) so the
+    // record does not claim a notice went out, and warns instead of
+    // staying silent. The in-app row sendUserNotice inserts is the
+    // fallback copy the holder can still read.
+    const notice = await notices.sendUserNotice({
       userId: user.id,
       key: result.row.verification_method === 'one_time_code' ? 'destination_one_time_code' : 'destination_micro_deposit',
       params: { last4: result.row.account_last4, bank: result.row.bank_name, days: COOLING_OFF_DAYS },
       idempotencyKey: `credit-destination:${result.row.id}:verification`,
     });
+    if (notice.sent !== true) {
+      await pool.query('UPDATE credit_payout_destinations SET verification_sent_at = NULL, updated_at = NOW() WHERE id = $1', [result.row.id]);
+      logger.warn('credit_payout_destination.verification_notice_failed', { destinationId: String(result.row.id), userId: user.id, error: notice.error || 'send_failed' });
+    }
   }
   return view(result.row);
 }
@@ -301,12 +311,18 @@ async function verifyDestination({ user, destinationId, amounts = null, code = n
     return { row: verified[0], verified: true };
   }, 'credit_payout_destination_verify');
   if (outcome.verified) {
-    await notices.sendUserNotice({
+    // Notifications audit item 1: record the delivery result instead of
+    // discarding it; a failed send warns (the in-app row sendUserNotice
+    // inserts is the fallback copy).
+    const notice = await notices.sendUserNotice({
       userId: user.id,
       key: 'destination_verified',
       params: { last4: outcome.row.account_last4, date: new Date(outcome.row.cooling_off_until).toISOString() },
       idempotencyKey: `credit-destination:${outcome.row.id}:verified`,
     });
+    if (notice.sent !== true) {
+      logger.warn('credit_payout_destination.verified_notice_failed', { destinationId: String(outcome.row.id), userId: user.id, error: notice.error || 'send_failed' });
+    }
   }
   if (outcome.error) {
     throw new AppError('That does not match', 409, outcome.error, { attempts_left: Math.max(0, MAX_ATTEMPTS - Number(outcome.row.verification_attempts || 0)) });
