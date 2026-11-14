@@ -42,35 +42,45 @@ async function run() {
             ctxByKey.set(`${id}\0${key}`, ctxs.get(id));
           }
         }
+        // Cost audit 2026-11-13 item 10: the batch used to enqueue and
+        // DELETE one row at a time inside the 500-row transaction, holding
+        // row locks across 500 sequential queue round trips. Decide per
+        // row in memory, then one bulk enqueue and one bulk delete; the
+        // whole batch still commits or rolls back together, so a queue
+        // failure still purges nothing.
+        const envelopes = [];
+        const ids = [];
         for (const row of rows) {
           fence.assertActive();
           const ctx = ctxByKey.get(`${row.user_id}\0${JSON.stringify(row.trusted_signals ?? null)}`);
           const permission = await gate.allow(ctx, "activity");
           if (permission.allowed)
-            await queue.enqueue(
-              [
-                {
-                  userId: row.user_id,
-                  domain: true,
-                  trustedSignals: permission.context.trustedSignals,
-                  event: {
-                    event_id: row.event_id,
-                    name: row.event_name,
-                    schema_ver: 1,
-                    occurred_at: new Date(row.occurred_at).toISOString(),
-                    props: row.props,
-                  },
-                  surface: "server",
-                  locale: permission.context.user.preferred_language || "en",
-                  app_version: "server",
-                  session: "",
-                },
-              ],
-              { domain: true },
-            );
-          // Denied subjects are purged; a queue failure rolls back every deletion.
-          await conn.query("DELETE FROM activity_outbox WHERE id=$1", [row.id]);
+            envelopes.push({
+              userId: row.user_id,
+              domain: true,
+              trustedSignals: permission.context.trustedSignals,
+              event: {
+                event_id: row.event_id,
+                name: row.event_name,
+                schema_ver: 1,
+                occurred_at: new Date(row.occurred_at).toISOString(),
+                props: row.props,
+              },
+              surface: "server",
+              locale: permission.context.user.preferred_language || "en",
+              app_version: "server",
+              session: "",
+            });
+          // Denied subjects are purged with the rest.
+          ids.push(row.id);
         }
+        if (envelopes.length)
+          await queue.enqueue(envelopes, { domain: true });
+        if (ids.length)
+          await conn.query(
+            "DELETE FROM activity_outbox WHERE id = ANY($1::bigint[])",
+            [ids],
+          );
         return rows.length;
       }),
     120,

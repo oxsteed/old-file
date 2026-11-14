@@ -752,6 +752,98 @@ ddescribe('careers marketplace (real database)', () => {
     expect(again.notified).toBe(0);
   });
 
+  // ── Domain 9 (2026-11-13) sweep caps ────────────────────────────────────
+
+  test('P1: offer expiry sweep claims at most 200 offers per tick; leftovers go next tick', async () => {
+    const sweepOffers = require('../services/careers/offers').sweepOffers;
+    const { rows: [{ n: overdueBefore }] } = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM career_offers WHERE status = 'pending' AND expires_at <= NOW()`
+    );
+    const { rows: apps } = await pool.query(
+      `INSERT INTO career_applications (opening_id, applicant_email, first_name, last_name, stage)
+       SELECT $1, 'sweep-exp-' || g || '@example.invalid', 'Sweep', 'Expired', 'offer'
+         FROM generate_series(1, 205) g RETURNING id`,
+      [ids.opening]
+    );
+    await pool.query(
+      `INSERT INTO career_offers (application_id, title, status, expires_at)
+       SELECT id, 'Line cook', 'pending', NOW() - INTERVAL '1 day' FROM unnest($1::bigint[]) AS id`,
+      [apps.map((a) => a.id)]
+    );
+    const run = await sweepOffers(pool);
+    expect(run.expired).toBe(Math.min(overdueBefore + 205, 200));
+    const { rows: [{ n: left }] } = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM career_offers WHERE status = 'pending' AND expires_at <= NOW()`
+    );
+    expect(left).toBe(overdueBefore + 205 - run.expired);
+    // The leftovers are picked up by the next tick, not dropped.
+    const again = await sweepOffers(pool);
+    expect(again.expired).toBe(left);
+    expect(again.warned).toBe(0);
+  });
+
+  test('P1: expiry warnings are capped at 200 per tick', async () => {
+    const sweepOffers = require('../services/careers/offers').sweepOffers;
+    const { rows: [{ n: warnableBefore }] } = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM career_offers
+        WHERE status = 'pending' AND expiry_warned_at IS NULL
+          AND expires_at > NOW() AND expires_at <= NOW() + INTERVAL '24 hours'`
+    );
+    const { rows: apps } = await pool.query(
+      `INSERT INTO career_applications (opening_id, applicant_email, first_name, last_name, stage)
+       SELECT $1, 'sweep-warn-' || g || '@example.invalid', 'Sweep', 'Warning', 'offer'
+         FROM generate_series(1, 205) g RETURNING id`,
+      [ids.opening]
+    );
+    await pool.query(
+      `INSERT INTO career_offers (application_id, title, status, expires_at)
+       SELECT id, 'Line cook', 'pending', NOW() + INTERVAL '12 hours' FROM unnest($1::bigint[]) AS id`,
+      [apps.map((a) => a.id)]
+    );
+    const run = await sweepOffers(pool);
+    expect(run.expired).toBe(0);
+    expect(run.warned).toBe(Math.min(warnableBefore + 205, 200));
+    const { rows: [{ n: left }] } = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM career_offers
+        WHERE status = 'pending' AND expiry_warned_at IS NULL
+          AND expires_at > NOW() AND expires_at <= NOW() + INTERVAL '24 hours'`
+    );
+    expect(left).toBe(warnableBefore + 205 - run.warned);
+  });
+
+  test('P2: runFacts recomputes the stalest profile first (joined max, not a correlated subquery)', async () => {
+    const { runFacts } = require('../jobs/careersJobs');
+    await pool.query(
+      'INSERT INTO career_profiles (user_id) VALUES ($1), ($2) ON CONFLICT (user_id) DO NOTHING',
+      [ids.worker, ids.worker2]
+    );
+    // Every profile needs a fact row, or NULLS FIRST picks the fact-less
+    // ones ahead of the seeded stale ones.
+    await pool.query(
+      `INSERT INTO career_profile_facts (user_id, fact_type, value, source, computed_at)
+       SELECT p.user_id, 'completed_jobs', '{"count": 0}'::jsonb, 'jobs', NOW()
+         FROM career_profiles p
+        WHERE NOT EXISTS (SELECT 1 FROM career_profile_facts f WHERE f.user_id = p.user_id)`
+    );
+    await pool.query('UPDATE career_profile_facts SET computed_at = NOW() - INTERVAL \'30 days\' WHERE user_id = $1', [ids.worker2]);
+    await pool.query('UPDATE career_profile_facts SET computed_at = NOW() - INTERVAL \'1 day\' WHERE user_id = $1', [ids.worker]);
+    const run = await runFacts({ limit: 1 });
+    expect(run.locked).toBe(true);
+    expect(run.computed).toBe(1);
+    expect(run.failed).toBe(0);
+    // worker2 (30 days stale) was recomputed: computeFacts deletes the old
+    // facts first, and worker2 has no underlying records to re-derive.
+    const { rows: [{ n: staleLeft }] } = await pool.query(
+      'SELECT COUNT(*)::int AS n FROM career_profile_facts WHERE user_id = $1', [ids.worker2]
+    );
+    expect(staleLeft).toBe(0);
+    // worker (1 day stale) was not picked under limit 1.
+    const { rows: [{ n: workerLeft }] } = await pool.query(
+      'SELECT COUNT(*)::int AS n FROM career_profile_facts WHERE user_id = $1', [ids.worker]
+    );
+    expect(workerLeft).toBeGreaterThanOrEqual(1);
+  });
+
   test('analytics funnel counts the pipeline', async () => {
     const dash = await as(ids.owner).get(`${E}/analytics?business_id=${ids.biz}&days=30`);
     expect(dash.status).toBe(200);

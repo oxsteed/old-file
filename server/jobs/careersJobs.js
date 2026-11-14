@@ -66,14 +66,19 @@ const runRetention = () => locked('career-retention', 3600, () => retention.swee
 
 /**
  * Facts come only from OxSteed records (§9.1). Recompute for profiles,
- * stalest first.
+ * stalest first. Domain 9 cost audit (2026-11-13) P2: the ORDER BY used a
+ * correlated MAX(computed_at) subquery per profile; precompute the max once
+ * in a LEFT JOIN aggregate instead. Per-user transactions stay serial on
+ * purpose: one profile's failure must not roll back the other 4,999.
  */
 async function runFacts({ limit = 5000 } = {}) {
   return locked('career-facts', 3600, async () => {
     const { rows } = await pool.query(
       `SELECT p.user_id FROM career_profiles p
          JOIN users u ON u.id = p.user_id AND u.deleted_at IS NULL
-        ORDER BY (SELECT MAX(f.computed_at) FROM career_profile_facts f WHERE f.user_id = p.user_id) ASC NULLS FIRST
+         LEFT JOIN (SELECT user_id, MAX(computed_at) AS last_computed FROM career_profile_facts GROUP BY user_id) f
+           ON f.user_id = p.user_id
+        ORDER BY f.last_computed ASC NULLS FIRST
         LIMIT $1`,
       [limit]
     );

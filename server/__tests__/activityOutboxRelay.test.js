@@ -54,7 +54,7 @@ function row(id, userId, signals) {
   };
 }
 
-test('one batched contexts call covers rows sharing signals, allow per row', async () => {
+test('one bulk enqueue and one bulk delete cover the batch', async () => {
   mockClaimRows = [row(1, 'user-a', ['s1']), row(2, 'user-a', ['s1']), row(3, 'user-b', ['s1'])];
   expect(await run()).toBe(3);
   expect(gate.contexts).toHaveBeenCalledTimes(1);
@@ -63,8 +63,23 @@ test('one batched contexts call covers rows sharing signals, allow per row', asy
   expect(signals).toBeInstanceOf(Map);
   expect(signals.get('user-a')).toEqual(['s1']);
   expect(gate.allow).toHaveBeenCalledTimes(3);
-  expect(queue.enqueue).toHaveBeenCalledTimes(3);
-  expect(mockConn.query).toHaveBeenCalledTimes(4);
+  // Cost audit 2026-11-13 item 10: one enqueue call with every allowed
+  // envelope and one DELETE ... WHERE id = ANY($1) for the whole batch.
+  expect(queue.enqueue).toHaveBeenCalledTimes(1);
+  expect(queue.enqueue).toHaveBeenCalledWith(
+    expect.arrayContaining([
+      expect.objectContaining({ userId: 'user-a', event: expect.objectContaining({ event_id: 'ev-1' }) }),
+      expect.objectContaining({ userId: 'user-a', event: expect.objectContaining({ event_id: 'ev-2' }) }),
+      expect.objectContaining({ userId: 'user-b', event: expect.objectContaining({ event_id: 'ev-3' }) }),
+    ]),
+    { domain: true },
+  );
+  expect(queue.enqueue.mock.calls[0][0]).toHaveLength(3);
+  const deletes = mockConn.query.mock.calls.filter(([sql]) => sql.includes('DELETE FROM activity_outbox'));
+  expect(deletes).toHaveLength(1);
+  expect(deletes[0][0]).toContain('id = ANY($1');
+  expect(deletes[0][1]).toEqual([[1, 2, 3]]);
+  expect(mockConn.query).toHaveBeenCalledTimes(2);
 });
 
 test('a user with divergent signals gets one contexts call per signal set', async () => {
@@ -76,5 +91,30 @@ test('a user with divergent signals gets one contexts call per signal set', asyn
   expect(gate.contexts.mock.calls[0][1].trustedSignals.get('user-a')).toEqual(['s1']);
   expect(gate.contexts.mock.calls[1][1].trustedSignals.get('user-a')).toEqual(['s2']);
   expect(gate.allow).toHaveBeenCalledTimes(2);
-  expect(queue.enqueue).toHaveBeenCalledTimes(2);
+  expect(queue.enqueue).toHaveBeenCalledTimes(1);
+  expect(queue.enqueue.mock.calls[0][0]).toHaveLength(2);
+  const deletes = mockConn.query.mock.calls.filter(([sql]) => sql.includes('DELETE FROM activity_outbox'));
+  expect(deletes).toHaveLength(1);
+  expect(deletes[0][1]).toEqual([[1, 2]]);
+});
+
+test('a denied row is purged in the same bulk delete and never enqueued', async () => {
+  mockClaimRows = [row(1, 'user-a', ['s1']), row(2, 'user-b', ['s1'])];
+  gate.allow
+    .mockResolvedValueOnce({ allowed: false, context: {} })
+    .mockResolvedValueOnce({ allowed: true, context: { trustedSignals: ['s1'], user: { preferred_language: 'en' } } });
+  expect(await run()).toBe(2);
+  expect(queue.enqueue).toHaveBeenCalledTimes(1);
+  expect(queue.enqueue.mock.calls[0][0]).toHaveLength(1);
+  expect(queue.enqueue.mock.calls[0][0][0].userId).toBe('user-b');
+  const deletes = mockConn.query.mock.calls.filter(([sql]) => sql.includes('DELETE FROM activity_outbox'));
+  expect(deletes).toHaveLength(1);
+  expect(deletes[0][1]).toEqual([[1, 2]]);
+});
+
+test('a queue failure deletes nothing (the fenced transaction rolls back)', async () => {
+  mockClaimRows = [row(1, 'user-a', ['s1']), row(2, 'user-b', ['s1'])];
+  queue.enqueue.mockRejectedValueOnce(new Error('growth_queue_full'));
+  await expect(run()).rejects.toThrow('growth_queue_full');
+  expect(mockConn.query.mock.calls.filter(([sql]) => sql.includes('DELETE FROM activity_outbox'))).toHaveLength(0);
 });

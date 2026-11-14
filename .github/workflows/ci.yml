@@ -446,7 +446,7 @@ jobs:
             } finally { await db.end(); }
           })().catch((error) => { console.error(error.message); process.exitCode = 1; });
           NODE
-          npx jest --runInBand __tests__/careers.db.test.js __tests__/careersMarketplace.db.test.js
+          npx jest --runInBand __tests__/careers.db.test.js __tests__/careersMarketplace.db.test.js __tests__/careersSeekerFanout.db.test.js
 
       - name: Restaurant operational evidence PostgreSQL regressions
         working-directory: server

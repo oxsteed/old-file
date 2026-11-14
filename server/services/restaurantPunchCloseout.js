@@ -68,15 +68,23 @@ const STALE_GRACE_MINUTES = 30;
 // with a deterministic id tiebreak, so repeated runs work through a
 // backlog instead of re-processing the same rows forever. That
 // forward progress holds for the stale select because a closed entry
-// leaves the open set (clock_out_at IS NULL). It does NOT hold for the
-// missing-punch select: notifying leaves no trace on the shift row
-// (the dedupe lives on the notification delivery_key), so on a day
-// with more than 500 missing shifts the same oldest 500 recur and
-// shifts beyond the cap are never flagged that day (see the note on
-// the missing-punch query).
+// leaves the open set (clock_out_at IS NULL). It holds for the
+// missing-punch select too since the Domain 9 (2026-11-13) item 7
+// fix: the select skips shifts already notified (a NOT EXISTS on the
+// notifications delivery_key), so on a day with more than 500 missing
+// shifts each run flags the next 500 instead of the same oldest 500.
 const CLOSEOUT_BATCH_LIMIT = 500;
 
-async function findManagers(db, businessId) {
+// Domain 9 (2026-11-13) item 7(b): the manager lookup used to run
+// once per closed entry (and once per missing shift) with no cache.
+// The per-run cache maps business_id -> manager user ids for the
+// whole closeStalePunches run; findManagers fills it on first use.
+// Manager membership cannot change mid-run in a way that matters
+// here (notifications are best-effort), so a run-scoped cache is
+// safe; a fresh run rebuilds it.
+async function findManagers(db, businessId, cache = null) {
+  const key = Number(businessId);
+  if (cache && cache.has(key)) return cache.get(key);
   const { rows } = await db.query(
     `SELECT user_id FROM businesses WHERE id = $1
       UNION
@@ -84,15 +92,17 @@ async function findManagers(db, businessId) {
       WHERE business_id = $1 AND status = 'active' AND role = 'manager'`,
     [businessId]
   );
-  return rows.map((r) => r.user_id).filter(Boolean);
+  const managers = rows.map((r) => r.user_id).filter(Boolean);
+  if (cache) cache.set(key, managers);
+  return managers;
 }
 
-async function notifyManagers(db, businessId, closed) {
+async function notifyManagers(db, businessId, closed, managerCache = null) {
   let notified = 0;
   let notifyErrors = 0;
   let managers = [];
   try {
-    managers = await findManagers(db, businessId);
+    managers = await findManagers(db, businessId, managerCache);
   } catch (err) {
     logger.warn('Punch closeout: manager lookup failed', { businessId, error: err.message });
     return { notified, notifyErrors: notifyErrors + 1 };
@@ -127,12 +137,12 @@ async function notifyManagers(db, businessId, closed) {
   return { notified, notifyErrors };
 }
 
-async function notifyMissingPunch(db, businessId, missing) {
+async function notifyMissingPunch(db, businessId, missing, managerCache = null) {
   let notified = 0;
   let notifyErrors = 0;
   let managers = [];
   try {
-    managers = await findManagers(db, businessId);
+    managers = await findManagers(db, businessId, managerCache);
   } catch (err) {
     logger.warn('Punch closeout: manager lookup failed', { businessId, error: err.message });
     return { notified, notifyErrors: notifyErrors + 1 };
@@ -351,6 +361,9 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
   let notified = 0;
   let notifyErrors = 0;
   const errors = [];
+  // Domain 9 item 7(b): one manager lookup per business per run,
+  // shared by the stale-close loop below and the missing-punch loop.
+  const managerCache = new Map();
 
   for (const entry of open) {
     const clockInMs = new Date(entry.clock_in_at).getTime();
@@ -440,7 +453,7 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
     closed.push(closedEntry);
     if (notify) {
       try {
-        const result = await notifyManagers(handle, entry.business_id, closedEntry);
+        const result = await notifyManagers(handle, entry.business_id, closedEntry, managerCache);
         notified += result.notified;
         notifyErrors += result.notifyErrors;
       } catch (err) {
@@ -458,16 +471,21 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
   // Cancelled shifts are never flagged. This is best-effort like the
   // close notifications: a failure here is recorded, never allowed
   // to fail the closeout above.
-  // Background-jobs audit #48: the select is capped at
+  // Domain 9 (2026-11-13) item 7(a): the select is capped at
   // CLOSEOUT_BATCH_LIMIT rows, deterministically ordered, like the
-  // stale-entries select. Unlike that select, notifying a shift does
-  // NOT remove it from this result set (the shift row is unchanged;
-  // only the notification delivery_key dedupes the send), so on a day
-  // with more than 500 missing shifts the same oldest 500 recur every
-  // run and shifts beyond the cap are never flagged that day. The cap
-  // still bounds the run; making the select skip already-notified
-  // shifts (e.g. a NOT EXISTS on the notifications delivery_key) is
-  // a follow-up, not part of this fix.
+  // stale-entries select. Notifying a shift still leaves no trace on
+  // the shift row, but the select now skips shifts that already have
+  // a missing-punch notification (NOT EXISTS on the notifications
+  // delivery_key, `missing-punch:<shift>:<date>:%` — the same key
+  // notifyMissingPunch writes, one row per manager, so one notified
+  // manager is enough to skip the shift for every manager). On a day
+  // with more than 500 missing shifts each run now flags the next
+  // 500 instead of the same oldest 500. The LIKE prefix matches the
+  // unique delivery_key index (C collation), so the check is an
+  // index lookup per shift, not a scan. A shift whose managers could
+  // not be notified (no delivery_key row was written) is flagged
+  // again next run, same as before: the skip only trusts a recorded
+  // notification.
   const missing = [];
   let missingNotified = 0;
   let missingNotifyErrors = 0;
@@ -493,6 +511,10 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
                AND te.location_id IS NOT DISTINCT FROM sh.location_id
                AND te.voided_at IS NULL
           )
+          AND NOT EXISTS (
+            SELECT 1 FROM notifications n
+             WHERE n.delivery_key LIKE 'missing-punch:' || sh.id || ':' || sh.shift_date::text || ':%'
+          )
         ORDER BY sh.business_id, sh.shift_date, sh.start_time, sh.id ASC
         LIMIT $3`,
       [businessId, new Date(now).toISOString(), CLOSEOUT_BATCH_LIMIT]
@@ -512,7 +534,7 @@ async function closeStalePunches({ businessId = null, db = pool, fence = null, n
       };
       missing.push(missingPunch);
       if (notify) {
-        const result = await notifyMissingPunch(handle, shift.business_id, missingPunch);
+        const result = await notifyMissingPunch(handle, shift.business_id, missingPunch, managerCache);
         missingNotified += result.notified;
         missingNotifyErrors += result.notifyErrors;
       }

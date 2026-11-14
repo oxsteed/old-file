@@ -174,12 +174,19 @@ export function useScreenSync({
       }
     };
     tickRef.current = tick;
-    tick();
-    const timer = setInterval(tick, 15000);
+    // Cost audit 2026-11-13 P3: the 15s heartbeat POST used to run with
+    // only a navigator.onLine guard, 24/7 even hidden. It now skips hidden
+    // tabs and fires once on return to visible, so a backgrounded screen
+    // stops reporting until it is actually being watched.
+    if (document.visibilityState !== 'hidden') tick();
+    const timer = setInterval(() => { if (document.visibilityState !== 'hidden') tick(); }, 15000);
+    const onVisible = () => { if (document.visibilityState === 'visible') tickRef.current(); };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       live = false;
       tickRef.current = () => {};
       clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [active, restaurantId, device?.id]);
   useEffect(() => {
