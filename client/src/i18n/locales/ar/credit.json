@@ -623,6 +623,8 @@
     "none": "لا يوجد"
   },
   "adminLoadOlderAuditEvents": "تحميل أحداث التدقيق الأقدم",
+  "adminShowAllAuditEvents": "عرض جميع أحداث التدقيق البالغ عددها {{count}}",
+  "adminShowFewerAuditEvents": "عرض أحداث تدقيق أقل",
   "statusCompleted": "مكتملة",
   "statusCompletedWithFindings": "مكتملة مع ملاحظات",
   "backToRestaurants": "العودة إلى المطاعم",
@@ -2506,6 +2508,12 @@
     "captureError": "تعذر تحصيل هذا الحجز."
   },
   "adminCurrencyQuotes.confirmDescription": "ضع هذا العرض في قائمة الانتظار لقرار مسؤول ثانٍ. لا يتم إنشاء أي عرض حتى يوافق المسؤول الثاني عليه في قائمة الإجراءات المعلقة.",
+  "adminCurrencyQuotes.customerResolved": "العميل: {{name}}",
+  "adminCurrencyQuotes.customerNotFound": "لا يوجد عميل يطابق هذا المعرّف.",
+  "adminCurrencyQuotes.customerLookupLoading": "جارٍ البحث عن العميل…",
+  "adminCurrencyQuotes.customerRequiredResolved": "تحقق من اسم العميل قبل وضع عرض الأسعار في قائمة الانتظار.",
+  "adminCurrencyQuotes.confirmDescriptionLive": "ضع عرض سعر لـ {{customer}} في قائمة الانتظار: {{sourceAmount}} {{sourceCurrency}} إلى {{targetCurrency}} بسعر السوق الحالي. لا يتم إنشاء أي عرض حتى يوافق عليه مسؤول ثانٍ في قائمة الإجراءات المعلقة.",
+  "adminCurrencyQuotes.confirmDescriptionManual": "ضع عرض سعر لـ {{customer}} في قائمة الانتظار: {{sourceAmount}} {{sourceCurrency}} إلى {{targetAmount}} {{targetCurrency}} بسعر {{rateNumerator}}/{{rateDenominator}} (رسوم {{feeAmount}} {{sourceCurrency}}، {{provider}} {{providerReference}}). لا يتم إنشاء أي عرض حتى يوافق عليه مسؤول ثانٍ في قائمة الإجراءات المعلقة.",
   "adminCurrencyQuotes.confirmTitle": "وضع عرض سعر العملة في قائمة الانتظار؟",
   "adminCurrencyQuotes.consumedAt": "استهلك في",
   "adminCurrencyQuotes.createButton": "وضع العرض في قائمة الانتظار للموافقة",

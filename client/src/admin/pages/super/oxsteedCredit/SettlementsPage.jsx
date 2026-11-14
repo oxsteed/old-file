@@ -40,8 +40,11 @@ function SettlementControls({
   runReconciliation,
   reconciliation,
   settlements,
+  loading,
+  error,
   transitionSettlement,
   executeSettlementPayout,
+  reverseSettlement,
 }) {
   const { t } = useTranslation('credit');
   return <Section eyebrow="Settlement & controls" title="Partner payables and reconciliation" detail="Create a period snapshot, approve it only after review, and mark it paid only with a traceable external payment reference. The reconciliation compares every account balance to its immutable journal entries; its integrity scope is always the all-time ledger for the selected currency.">
@@ -100,14 +103,16 @@ function SettlementControls({
         <table className="min-w-[1080px] w-full text-left text-xs">
           <thead className="bg-gray-50/70 dark:bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminRestaurant')}</th><th className="px-3 py-3 font-medium">{t('adminSettlementPeriod')}</th><th className="px-3 py-3 font-medium">{t('adminCycle')}</th><th className="px-3 py-3 font-medium">{t('adminValueDate')}</th><th className="px-3 py-3 font-medium">{t('adminNetPayable')}</th><th className="px-3 py-3 font-medium">{t('adminSettlementStatusProvenance')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-            {!settlements.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('adminNoSettlementSnapshots')}</td></tr> : settlements.map((settlement) => <tr key={settlement.id}>
+            {loading ? <tr><td colSpan="7" role="status" className="px-3 py-10 text-center text-gray-500">{t('adminLoading')}</td></tr>
+              : error ? <tr><td colSpan="7" role="alert" className="px-3 py-10 text-center text-red-300">{error}</td></tr>
+              : !loading && !error && !settlements.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('adminNoSettlementSnapshots')}</td></tr> : settlements.map((settlement) => <tr key={settlement.id}>
               <td className="px-3 py-3 text-gray-900 dark:text-white">{settlement.restaurantName || t('adminPartnerFallback', { id: settlement.partnerId })}<p className="mt-1 text-gray-600">{t('adminGrossAmount')} {money(settlement.grossCents, settlement.currencyCode)} · {t('adminRefunds')} {money(settlement.refundCents, settlement.currencyCode)}</p></td>
               <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{dateTime(settlement.periodStart)}<br />{t('adminTo')} {dateTime(settlement.periodEnd)}</td>
               <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{settlement.cycleId ? <span title={settlement.cycleId}>{String(settlement.cycleId).slice(0, 8)}</span> : t('adminCycleManual')}</td>
               <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{settlement.valueDate ? dateTime(settlement.valueDate) : t('adminUnknownDate')}</td>
               <td className="px-3 py-3 font-semibold text-emerald-300">{money(settlement.netCents, settlement.currencyCode)}</td>
               <td className="px-3 py-3"><Badge status={settlement.status} /><p className="mt-1 break-all text-[10px] text-gray-600">{t('adminPayoutStatus')}: {localizeCreditStatus(settlement.payoutStatus || 'none', t)}</p><p className="mt-1 break-all text-[10px] text-gray-600">{t('adminCreatedBy')} {settlement.createdBy || t('adminSystem')}</p>{settlement.approvedBy && <p className="mt-1 break-all text-[10px] text-sky-300">{t('adminApprovedBy')} {settlement.approvedBy}</p>}</td>
-              <td className="px-3 py-3"><div className="flex flex-wrap gap-2">{settlement.status === 'pending' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'approved')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminApprove')}</button>}{settlement.status === 'approved' && !['initiated', 'paid'].includes(settlement.payoutStatus) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'paid')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminMarkPaid')}</button>}{settlement.status === 'approved' && !['initiated', 'paid'].includes(settlement.payoutStatus) && !(pendingPayoutSettlementIds || []).includes(String(settlement.id)) && <button disabled={busy} onClick={() => executeSettlementPayout(settlement)} className="rounded-lg bg-violet-600 px-2.5 py-2 font-semibold text-white hover:bg-violet-500 disabled:opacity-50">{t('adminSettlementPayout.queueButton')}</button>}{['pending', 'approved'].includes(settlement.status) && !['initiated', 'paid'].includes(settlement.payoutStatus) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'voided')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminVoid')}</button>}</div></td>
+              <td className="px-3 py-3"><div className="flex flex-wrap gap-2">{settlement.status === 'pending' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'approved')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminApprove')}</button>}{settlement.status === 'approved' && !['initiated', 'paid'].includes(settlement.payoutStatus) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'paid')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminMarkPaid')}</button>}{settlement.status === 'approved' && !['initiated', 'paid'].includes(settlement.payoutStatus) && !(pendingPayoutSettlementIds || []).includes(String(settlement.id)) && <button disabled={busy} onClick={() => executeSettlementPayout(settlement)} className="rounded-lg bg-violet-600 px-2.5 py-2 font-semibold text-white hover:bg-violet-500 disabled:opacity-50">{t('adminSettlementPayout.queueButton')}</button>}{['pending', 'approved'].includes(settlement.status) && !['initiated', 'paid'].includes(settlement.payoutStatus) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'voided')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminVoid')}</button>}{settlement.status === 'paid' && Number(settlement.netCents || 0) > 0 && <button disabled={busy} onClick={() => reverseSettlement(settlement)} className="rounded-lg border border-amber-500/40 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">{t('adminReversePayout')}</button>}</div></td>
             </tr>)}
           </tbody>
         </table>
@@ -369,8 +374,6 @@ export default function OxsteedCreditSettlementsPage() {
     try {
       const response = await adminApi.post('/admin/super/oxsteed-credit/reconciliation', {
         currencyCode: settlementForm.currencyCode || 'USD',
-        periodStart: new Date(settlementForm.periodStart).toISOString(),
-        periodEnd: new Date(settlementForm.periodEnd).toISOString(),
         reason: reconciliationReason.trim(),
       });
       const run = response.data?.run || null;
@@ -469,8 +472,11 @@ export default function OxsteedCreditSettlementsPage() {
         runReconciliation={runReconciliation}
         reconciliation={reconciliation}
         settlements={settlements}
+        loading={loading}
+        error={error}
         transitionSettlement={transitionSettlement}
         executeSettlementPayout={executeSettlementPayout}
+        reverseSettlement={reverseSettlement}
       />
       <CreditPayoutRecovery
         settlements={settlements}

@@ -89,6 +89,7 @@
     "test:helper-onboarding-truth": "node --test scripts/helperOnboardingTruth.test.mjs",
     "test:no-new-inline-styles": "node scripts/noNewInlineStyles.mjs",
     "test:admin-disputes": "node --test scripts/adminDisputes.test.mjs",
+    "test:admin-payment-disputes": "node --test scripts/adminPaymentDisputes.test.mjs",
     "test:admin-dispute-resolve": "node --test scripts/adminDisputeResolve.test.mjs",
     "test:dispute-entry": "node --test scripts/disputeEntry.test.mjs",
     "test:admin-jobs-list": "node --test scripts/adminJobsList.test.mjs",
@@ -129,6 +130,8 @@
     "test:workspace-navigation-browser": "node --test scripts/workspaceNavigation.browser-check.cjs",
     "measure:workspace-navigation": "node scripts/measureWorkspaceNavigation.mjs",
     "test:credit-licence-ui": "node --test scripts/creditLicenceUi.test.mjs",
+    "test:credit-transfer-gate": "node --test scripts/creditTransferGate.test.mjs",
+    "test:credit-terms-empty-state": "node --test scripts/creditTermsEmptyState.test.mjs",
     "test:locale-shard-loaders": "node --test scripts/localeShardLoaders.test.mjs"
   },
   "dependencies": {

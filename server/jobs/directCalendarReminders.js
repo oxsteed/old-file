@@ -17,6 +17,11 @@ const { withFencedJobLock } = require('./jobLockingService');
 // and completeFinishedDirectVisits works in bounded batches of 200.
 const JOB_NAME = 'direct-calendar-reminders';
 const COMPLETED_VISITS_BATCH_LIMIT = 200;
+// Domain 7 #30: batching bounded latency per batch, not the tick — after
+// an outage one tick consumed the whole backlog in 200-row batches while
+// holding one fenced lock. Cap total visits per tick at 1,000; the
+// remainder stays `scheduled` and the next 5-minute tick continues.
+const COMPLETED_VISITS_TOTAL_LIMIT = 1000;
 
 function reminderTypeFor(startAt) {
   const hoursUntil = (new Date(startAt).getTime() - Date.now()) / (60 * 60 * 1000);
@@ -194,6 +199,10 @@ async function completeFinishedDirectVisits() {
     } catch (err) {
       logger.error('Direct royalty accrual sweep failed (non-fatal)', { error: err.message });
     }
+    // Domain 7 #30: stop at the per-tick total cap; the remainder stays
+    // `scheduled` for the next 5-minute tick instead of running this tick
+    // indefinitely in 200-row batches.
+    if (total >= COMPLETED_VISITS_TOTAL_LIMIT) break;
     if (completedIds.length < COMPLETED_VISITS_BATCH_LIMIT) break;
   }
   return total;
@@ -237,4 +246,4 @@ function startDirectCalendarReminderJob() {
   };
 }
 
-module.exports = { processDirectCalendarReminders, completeFinishedDirectVisits, startDirectCalendarReminderJob, JOB_NAME, COMPLETED_VISITS_BATCH_LIMIT };
+module.exports = { processDirectCalendarReminders, completeFinishedDirectVisits, startDirectCalendarReminderJob, JOB_NAME, COMPLETED_VISITS_BATCH_LIMIT, COMPLETED_VISITS_TOTAL_LIMIT };

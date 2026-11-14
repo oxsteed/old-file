@@ -1392,6 +1392,12 @@ async function getAdminComplianceQueue(req, res, next) {
       const queue = await getComplianceQueue(client, {
         limit: req.query.limit,
         offset: req.query.offset,
+        verificationsLimit: req.query.verificationsLimit,
+        verificationsOffset: req.query.verificationsOffset,
+        sanctionsLimit: req.query.sanctionsLimit,
+        sanctionsOffset: req.query.sanctionsOffset,
+        casesLimit: req.query.casesLimit,
+        casesOffset: req.query.casesOffset,
       });
       res.json(queue);
     } finally {
@@ -2515,10 +2521,12 @@ async function reverseAdminSettlement(req, res, next) {
 
 async function reconcileAdminCredit(req, res, next) {
   try {
+    // Domain 7 #26: the reconciliation always covers the all-time ledger,
+    // so the request carries no period. Any period fields in the body are
+    // ignored, never validated or forwarded; the service records a
+    // server-chosen run window.
     const result = await reconcileCreditLedger({
       currencyCode: req.body?.currencyCode || req.body?.currency_code,
-      periodStart: req.body?.periodStart || req.body?.period_start,
-      periodEnd: req.body?.periodEnd || req.body?.period_end,
       actorUserId: req.user.id,
       reason: req.body?.reason,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,

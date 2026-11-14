@@ -77,9 +77,9 @@ function ReviewItems({ reviewId, action, requestDialog, onChanged }) {
   return (
     <Panel title={t('adminLicence.reviewItemsTitle', { period: review.data?.review?.period_label || '' })}>
       <LicenceTable
-        loading={review.loading}
-        error={review.error}
-        onRetry={review.reload}
+          loading={review.loading}
+          error={review.error}
+          onRetry={review.reload}
         rows={review.data?.items || []}
         columns={[
           { key: 'subject_type', label: 'type' },

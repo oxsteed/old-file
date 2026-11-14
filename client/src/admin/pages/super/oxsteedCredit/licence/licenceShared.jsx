@@ -139,6 +139,10 @@ export function cellValue(value, column, row) {
  * load with no rows yet shows the loading/error states. This follows the
  * AdminLegalAcceptancesPage pattern (loading only when there is nothing yet,
  * AdminErrorState with onRetry on failure).
+ *
+ * Domain 7 #13: never show the empty text while a load is in flight or after
+ * a failed load. While loading, show a loading state; on error, show the
+ * error; the empty text renders only once loading is done with no error.
  */
 export function LicenceTable({ rows, columns, actions, empty, loading, error, onRetry }) {
   const { t } = useTranslation('credit');

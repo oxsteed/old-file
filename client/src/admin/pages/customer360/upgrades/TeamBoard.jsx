@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import adminApi from "../../../lib/adminApi";
 
@@ -66,7 +66,7 @@ const blankQueue = { queueKey: "", name: "", description: "", slaMinutes: "60" }
  * Feed queues (anomalies, duplicate reviews) keep their key; the server
  * checks the revision so two admins cannot overwrite each other.
  */
-export function QueueSetup({ queues, copy, busy, run, reload }) {
+export function QueueSetup({ queues, queuesLoaded = true, copy, busy, run, reload }) {
   const [draft, setDraft] = useState(blankQueue);
   const [edits, setEdits] = useState({});
   const editOf = (q) => edits[q.id] || { name: q.name, description: q.description || "", slaMinutes: String(q.sla_minutes), active: q.active };
@@ -94,6 +94,10 @@ export function QueueSetup({ queues, copy, busy, run, reload }) {
     <section aria-labelledby="c360u-q-setup" data-section="queue-setup">
       <h4 id="c360u-q-setup">{copy("queues.setup.title")}</h4>
       <p className="c360w-note">{copy("queues.setup.hint", { min: SLA_LIMITS.min, max: SLA_LIMITS.max })}</p>
+      {/* Domain 1 audit #22: with zero queues the list area used to render an
+          empty <ul> with no message. Say so; the create form below stays the
+          action. The failed-load case (#4) keeps its own copy. */}
+      {queues.length === 0 ? <p>{copy(queuesLoaded ? "queues.setup.empty" : "queues.setup.listUnavailable")}</p> : (
       <ul className="c360u-cards">
         {queues.map((q) => {
           const d = editOf(q);
@@ -112,6 +116,7 @@ export function QueueSetup({ queues, copy, busy, run, reload }) {
           );
         })}
       </ul>
+      )}
       <form className="c360u-row" onSubmit={create} aria-label={copy("queues.setup.new")}>
         <label>{copy("queues.setup.key")}<input value={draft.queueKey} dir="ltr" maxLength={40} pattern="[a-z0-9_]{2,40}" onChange={(e) => setDraft({ ...draft, queueKey: e.target.value.toLowerCase() })} /></label>
         <label>{copy("queues.setup.name")}<input value={draft.name} maxLength={80} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
@@ -139,20 +144,52 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
   const [resolveFor, setResolveFor] = useState(null);
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  // Domain 1 audit #16: saved-views load failure state (was silently swallowed).
+  const [viewsError, setViewsError] = useState("");
+  // Domain 1 audit #21: the filters the board was last loaded with, so the
+  // debounced auto-apply can tell a real change from an already-applied set.
+  const appliedRef = useRef(EMPTY_FILTERS);
 
   const loadBoard = async (f = filters, v = viewId, signal, cursor) => {
     const params = v ? { view: v } : { queues: f.queues.join(","), statuses: f.statuses.join(","), assignee: f.assignee, breachedOnly: f.breachedOnly, sort: f.sort };
     const r = await adminApi.get(`/admin/customer360/queues`, { signal, params: cursor ? { ...params, cursor } : params });
     setBoard((p) => (cursor ? { ...r.data, items: [...p.items, ...r.data.items] } : r.data));
-    if (v) setFilters(r.data.filters);
+    if (v) { setFilters(r.data.filters); appliedRef.current = r.data.filters; }
+    else appliedRef.current = f;
   };
-  const loadViews = async (signal) => setViews((await adminApi.get(`/admin/customer360/saved-views`, { signal })).data.views);
+  // Domain 1 audit #16: surface a saved-views failure like the board failure
+  // (set an error state) instead of swallowing it, so an admin can tell a
+  // failed load from having no saved views. Never rejects; callers that
+  // awaited the old rejection keep working.
+  const loadViews = async (signal) => {
+    try {
+      setViews((await adminApi.get(`/admin/customer360/saved-views`, { signal })).data.views);
+      setViewsError("");
+    } catch (e) {
+      if (!signal?.aborted) setViewsError(e.response?.data?.code || "error");
+    }
+  };
   useEffect(() => {
     const c = new AbortController();
     loadBoard(EMPTY_FILTERS, "", c.signal).catch((e) => !c.signal.aborted && setBoard({ error: e.response?.data?.code || "error" }));
-    loadViews(c.signal).catch(() => {});
+    loadViews(c.signal);
     return () => c.abort();
   }, [viewerKey]);
+  // Domain 1 audit #21: manual filters (queue checkboxes, assignee, sort,
+  // breached-only) used to update local state only until Apply was clicked,
+  // while the saved-view select applied immediately, so the controls looked
+  // dead. Auto-apply them debounced (~300ms). Skipped while a saved view is
+  // active (the view select applies immediately) and whenever the filters
+  // already match the last applied set, so this never fights the Apply button
+  // (which still reloads immediately) or the view flow.
+  useEffect(() => {
+    if (!board || board.error || viewId) return;
+    if (JSON.stringify(filters) === JSON.stringify(appliedRef.current)) return;
+    const t = setTimeout(() => {
+      if (JSON.stringify(filters) !== JSON.stringify(appliedRef.current)) run(() => loadBoard(filters, ""));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [filters, viewId, board]);
 
   const run = async (fn, ok) => {
     setBusy(true);
@@ -167,20 +204,25 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
       setBusy(false);
     }
   };
-  // Nov 10 #4: a failed board load used to dead-end with only a message and
-  // no way back. Retry clears the error (back to the loading state) and
-  // re-runs the board + saved-views loads; on success the board and, for
-  // super admins, QueueSetup render again.
-  const retryBoard = () => {
-    setBoard(null);
-    loadBoard(filters, viewId).catch((e) => setBoard({ error: e.response?.data?.code || "error" }));
-    loadViews().catch(() => {});
-  };
   const act = (item, action, extra = {}) => run(async () => {
     await adminApi.post(`/admin/customer360/queue-items/${item.id}/${action}`, { revision: item.revision, ...extra });
     setResolveFor(null);
     await Promise.all([loadBoard(), onChanged?.()]);
   }, copy(`queues.done.${action}`));
+  // Domain 1 audit #4: the board load can fail after mount too (retry, or a
+  // queue created while the board is down). Reload from scratch; on failure
+  // restore the error branch instead of stranding the page on "loading".
+  const retryLoad = () => run(async () => {
+    setFilters(EMPTY_FILTERS);
+    setViewId("");
+    setBoard(null);
+    try {
+      await loadBoard(EMPTY_FILTERS, "", undefined);
+      await loadViews();
+    } catch (e) {
+      setBoard({ error: e.response?.data?.code || "error" });
+    }
+  });
   const setF = (patch) => { setViewId(""); setRename(null); setFilters((f) => ({ ...f, ...patch })); };
   const toggle = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const current = views.find((v) => v.id === viewId) || null;
@@ -195,7 +237,21 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
     await loadViews();
   }, ok);
 
-  if (board?.error) return <section aria-labelledby={headingId}><h4 id={headingId}>{copy("queues.board")}</h4><p role="alert">{copy(board.error === "global_grant_required" ? "queues.errors.global_grant_required" : "loadFailed")}</p><button type="button" onClick={retryBoard}>{copy("retry")}</button></section>;
+  // Domain 1 audit #4: a failed board load no longer kills queue setup. The
+  // Retry button reloads board + saved views, and QueueSetup stays rendered
+  // (queues={[]} with queuesLoaded={false}) so a super admin can still create
+  // a queue; the queue list itself comes from the same board GET, so there is
+  // no independent list endpoint to fall back to, and the create form needs no
+  // list data. A successful create reloads the board and clears this branch.
+  if (board?.error) return (
+    <section aria-labelledby={headingId}>
+      <h4 id={headingId}>{copy("queues.board")}</h4>
+      <p role="alert">{copy(board.error === "global_grant_required" ? "queues.errors.global_grant_required" : "loadFailed")}</p>
+      {notice && <p role="status">{notice}</p>}
+      <button type="button" disabled={busy} onClick={retryLoad}>{copy("retry")}</button>
+      {isSuper && <QueueSetup queues={[]} queuesLoaded={false} copy={copy} busy={busy} run={run} reload={() => loadBoard()} />}
+    </section>
+  );
   if (!board) return <section aria-labelledby={headingId}><h4 id={headingId}>{copy("queues.board")}</h4><p role="status">{copy("loading")}</p></section>;
   return (
     <section aria-labelledby={headingId}>
@@ -228,6 +284,9 @@ export default function TeamBoard({ copy, when, viewerKey, isSuper = false, onCh
             {views.map((v) => <option key={v.id} value={v.id}>{v.name}{v.scope === "team" ? ` · ${copy("queues.team")}` : ""}{v.mine ? "" : ` · ${v.owner_name}`}</option>)}
           </select>
         </label>
+        {viewsError && (
+          <span role="alert">{copy("queues.viewsLoadFailed")} <button type="button" disabled={busy} onClick={() => run(() => loadViews())}>{copy("retry")}</button></span>
+        )}
         <fieldset>
           <legend>{copy("queues.queue")}</legend>
           {board.queues.filter((q) => q.active).map((q) => (

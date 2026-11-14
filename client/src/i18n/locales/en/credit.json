@@ -623,6 +623,8 @@
     "none": "None"
   },
   "adminLoadOlderAuditEvents": "Load older audit events",
+  "adminShowAllAuditEvents": "Show all {{count}} audit events",
+  "adminShowFewerAuditEvents": "Show fewer audit events",
   "statusCompleted": "Completed",
   "statusCompletedWithFindings": "Completed with findings",
   "backToRestaurants": "Back to restaurants",
@@ -2506,6 +2508,12 @@
     "captureError": "Could not capture this hold."
   },
   "adminCurrencyQuotes.confirmDescription": "Queue this quote for a second admin decision. No quote is created until the second admin approves it in the Pending actions queue.",
+  "adminCurrencyQuotes.customerResolved": "Customer: {{name}}",
+  "adminCurrencyQuotes.customerNotFound": "No customer matches that id.",
+  "adminCurrencyQuotes.customerLookupLoading": "Looking up customer…",
+  "adminCurrencyQuotes.customerRequiredResolved": "Resolve the customer name before queueing the quote.",
+  "adminCurrencyQuotes.confirmDescriptionLive": "Queue a quote for {{customer}}: {{sourceAmount}} {{sourceCurrency}} to {{targetCurrency}} at the live market rate. No quote is created until a second admin approves it in the Pending actions queue.",
+  "adminCurrencyQuotes.confirmDescriptionManual": "Queue a quote for {{customer}}: {{sourceAmount}} {{sourceCurrency}} to {{targetAmount}} {{targetCurrency}} at {{rateNumerator}}/{{rateDenominator}} (fee {{feeAmount}} {{sourceCurrency}}, {{provider}} {{providerReference}}). No quote is created until a second admin approves it in the Pending actions queue.",
   "adminCurrencyQuotes.confirmTitle": "Queue currency quote?",
   "adminCurrencyQuotes.consumedAt": "Consumed at",
   "adminCurrencyQuotes.createButton": "Queue quote for approval",

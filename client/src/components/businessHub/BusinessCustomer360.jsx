@@ -30,10 +30,14 @@ export default function BusinessCustomer360({ bizId, currency }) {
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState(null);
   const [detailState, setDetailState] = useState('idle');
+  // Domain 1 #9: a failed "Load more" must not wipe the loaded list; the
+  // failure is an inline notice and the More button stays for a retry.
+  const [moreError, setMoreError] = useState(false);
   const latest = useRef(0);
 
   // Gap fill 14: keyset paging; "more" passes the server's opaque cursor.
   const load = async (cursor = null, signal) => {
+    setMoreError(false);
     const data = await listBusinessCustomers360(bizId, { search: search || undefined, cursor: cursor || undefined }, { signal });
     setList((prev) => ({ ...data, customers: cursor ? [...prev.customers, ...data.customers] : data.customers }));
   };
@@ -91,13 +95,19 @@ export default function BusinessCustomer360({ bizId, currency }) {
               </ul>
             )}
             {list.nextCursor && (
-              <button type="button" className="bct-btn ghost" onClick={() => load(list.nextCursor).catch(() => setState('error'))} data-track="ui.31436a55e3.2">{copy('more')}</button>
+              <button type="button" className="bct-btn ghost" onClick={() => load(list.nextCursor).catch(() => setMoreError(true))} data-track="ui.31436a55e3.2">{copy('more')}</button>
             )}
+            {moreError && <p role="alert">{copy('moreFailed')}</p>}
           </div>
           <div className="bc360-detail" aria-live="polite">
             {detailState === 'idle' && <p className="bc360-muted">{copy('pick')}</p>}
             {detailState === 'loading' && <p role="status">{copy('loading')}</p>}
-            {detailState === 'error' && <p role="alert">{copy('loadFailed')}</p>}
+            {detailState === 'error' && (
+              <div>
+                <p role="alert">{copy('loadFailed')}</p>
+                <button type="button" onClick={() => selected && open(selected)} data-track="ui.31436a55e3.3">{copy('retry')}</button>
+              </div>
+            )}
             {detailState === 'ready' && detail && (
               <article data-panel="business-customer360">
                 <h3><bdi>{detail.customer.name || copy('unnamed')}</bdi></h3>

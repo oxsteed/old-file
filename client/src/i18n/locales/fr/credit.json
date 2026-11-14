@@ -623,6 +623,8 @@
     "none": "Aucun"
   },
   "adminLoadOlderAuditEvents": "Charger les événements d'audit plus anciens",
+  "adminShowAllAuditEvents": "Afficher les {{count}} événements d'audit",
+  "adminShowFewerAuditEvents": "Afficher moins d'événements d'audit",
   "statusCompleted": "Terminée",
   "statusCompletedWithFindings": "Terminée avec des constats",
   "backToRestaurants": "Retour aux restaurants",
@@ -2506,6 +2508,12 @@
     "captureError": "Impossible de capturer cette retenue."
   },
   "adminCurrencyQuotes.confirmDescription": "Mettez ce cours en file pour la décision d'un second administrateur. Aucun cours n'est créé tant que le second administrateur ne l'a pas approuvé dans la file des actions en attente.",
+  "adminCurrencyQuotes.customerResolved": "Client : {{name}}",
+  "adminCurrencyQuotes.customerNotFound": "Aucun client ne correspond à cet identifiant.",
+  "adminCurrencyQuotes.customerLookupLoading": "Recherche du client…",
+  "adminCurrencyQuotes.customerRequiredResolved": "Résolvez le nom du client avant de mettre le cours en file.",
+  "adminCurrencyQuotes.confirmDescriptionLive": "Mettez en file un cours pour {{customer}} : {{sourceAmount}} {{sourceCurrency}} vers {{targetCurrency}} au taux du marché en vigueur. Aucun cours n'est créé tant que le second administrateur ne l'a pas approuvé dans la file des actions en attente.",
+  "adminCurrencyQuotes.confirmDescriptionManual": "Mettez en file un cours pour {{customer}} : {{sourceAmount}} {{sourceCurrency}} vers {{targetAmount}} {{targetCurrency}} au taux {{rateNumerator}}/{{rateDenominator}} (frais {{feeAmount}} {{sourceCurrency}}, {{provider}} {{providerReference}}). Aucun cours n'est créé tant que le second administrateur ne l'a pas approuvé dans la file des actions en attente.",
   "adminCurrencyQuotes.confirmTitle": "Mettre le cours de change en file ?",
   "adminCurrencyQuotes.consumedAt": "Consommé le",
   "adminCurrencyQuotes.createButton": "Mettre le cours en file pour approbation",

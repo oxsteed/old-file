@@ -1114,6 +1114,7 @@
       "reason": "Rezon",
       "add": "Ajoute nan fil la",
       "added": "Li ajoute nan fil la.",
+      "noQueues": "Pa gen ke ankò. Mande yon super administratè pou l kreye youn.",
       "board": "Tablo ekip la",
       "sla": "SLA",
       "breachedCol": "An reta",
@@ -1201,7 +1202,9 @@
         "key": "Kle",
         "create": "Kreye lis atant lan",
         "created": "Lis atant lan kreye.",
-        "saved": "Lis atant lan anrejistre."
+        "saved": "Lis atant lan anrejistre.",
+        "listUnavailable": "Nou pa t kapab chaje lis lis atant yo. Ou ka toujou kreye yon lis atant anba a.",
+        "empty": "Pa gen lis atant pou kounye a."
       },
       "manageView": "Jere vi sa a",
       "renameView": "Chanje non oswa pataje",
@@ -1209,7 +1212,8 @@
       "saveRename": "Anrejistre non an",
       "updateView": "Anrejistre filt aktyèl yo nan vi sa a",
       "viewRenamed": "Non vi a chanje.",
-      "viewUpdated": "Vi a mete ajou."
+      "viewUpdated": "Vi a mete ajou.",
+      "viewsLoadFailed": "Nou pa t kapab chaje vi ki te anrejistre yo."
     },
     "summary": {
       "title": "Rezime kliyan an",
@@ -6499,6 +6503,8 @@
     "draftBadge": "Bouyon",
     "version": "Vèsyon {{version}}",
     "acceptNote": "Pou aksepte kondisyon sa yo epi itilize OxSteed Credit, konekte nan kont ou.",
-    "signIn": "Konekte"
+    "signIn": "Konekte",
+    "noTerms": "Okenn kondisyon poko pibliye pou lajan sa a.",
+    "retry": "Eseye ankò"
   }
 }

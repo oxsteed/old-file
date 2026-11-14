@@ -36382,6 +36382,7 @@
       "reason": "Alasan",
       "add": "Tambahkan ke antrean",
       "added": "Ditambahkan ke antrean.",
+      "noQueues": "No queues exist yet, ask a super admin to create one.",
       "board": "Papan tim",
       "sla": "SLA",
       "breachedCol": "Terlambat",
@@ -36469,7 +36470,9 @@
         "key": "Kunci",
         "create": "Buat antrean",
         "created": "Antrean dibuat.",
-        "saved": "Antrean disimpan."
+        "saved": "Antrean disimpan.",
+        "listUnavailable": "Daftar antrean tidak dapat dimuat. Anda masih dapat membuat antrean di bawah.",
+        "empty": "Belum ada antrean."
       },
       "manageView": "Kelola tampilan ini",
       "renameView": "Ganti nama atau bagikan",
@@ -36477,7 +36480,8 @@
       "saveRename": "Simpan nama",
       "updateView": "Simpan filter saat ini ke tampilan ini",
       "viewRenamed": "Nama tampilan diganti.",
-      "viewUpdated": "Tampilan diperbarui."
+      "viewUpdated": "Tampilan diperbarui.",
+      "viewsLoadFailed": "Tampilan tersimpan tidak dapat dimuat."
     },
     "summary": {
       "title": "Ringkasan pelanggan",
@@ -36580,6 +36584,8 @@
     "unnamed": "Pelanggan tanpa nama",
     "lastSeen": "Aktivitas terakhir {{date}}",
     "more": "Tampilkan lebih banyak",
+    "retry": "Try again",
+    "moreFailed": "Could not load more customers. Try again.",
     "pick": "Pilih pelanggan untuk melihat riwayatnya dengan bisnis ini.",
     "scopeNote": "Hanya catatan milik bisnis ini yang ditampilkan.",
     "status": "Status",
@@ -36802,6 +36808,8 @@
     "draftBadge": "Draf",
     "version": "Versi {{version}}",
     "acceptNote": "Untuk menyetujui ketentuan ini dan menggunakan OxSteed Credit, masuk ke akun Anda.",
-    "signIn": "Masuk"
+    "signIn": "Masuk",
+    "noTerms": "No terms have been published for this currency yet.",
+    "retry": "Retry"
   }
 }

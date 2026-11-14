@@ -14,21 +14,22 @@ export default function Queues({ api, copy, when, viewerKey, isSuper }) {
   const [boardKey, setBoardKey] = useState(0);
 
   const loadMine = async (signal) => setMine((await adminApi.get(`${api}/queues`, { signal })).data);
+  // Domain 1 #5: the per-customer fetch is re-runnable so the error branch
+  // can offer a retry instead of stranding the section until a remount.
+  const reloadMine = async (signal) => {
+    setState("loading");
+    try {
+      await loadMine(signal);
+      if (!signal?.aborted) setState("ready");
+    } catch {
+      if (!signal?.aborted) setState("error");
+    }
+  };
   useEffect(() => {
     const c = new AbortController();
-    setState("loading");
-    loadMine(c.signal)
-      .then(() => !c.signal.aborted && setState("ready"))
-      .catch(() => !c.signal.aborted && setState("error"));
+    reloadMine(c.signal);
     return () => c.abort();
   }, [api, viewerKey]);
-
-  // Nov 10 #5: a failed load used to dead-end with only "loadFailed" and no
-  // way back. Retry re-runs the load; on success the list and add form render.
-  const retryMine = () => {
-    setState("loading");
-    loadMine().then(() => setState("ready")).catch(() => setState("error"));
-  };
 
   const run = async (fn, ok) => {
     setBusy(true);
@@ -55,7 +56,12 @@ export default function Queues({ api, copy, when, viewerKey, isSuper }) {
       <p className="c360w-note">{copy("queues.hint")}</p>
       {notice && <p role="status">{notice}</p>}
       {state === "loading" && <p role="status">{copy("loading")}</p>}
-      {state === "error" && (<><p role="alert">{copy("loadFailed")}</p><button type="button" onClick={retryMine}>{copy("retry")}</button></>)}
+      {state === "error" && (
+        <p role="alert">
+          {copy("loadFailed")}{" "}
+          <button type="button" onClick={() => reloadMine()}>{copy("retry")}</button>
+        </p>
+      )}
       {mine && (
         <section aria-labelledby="c360u-q-mine">
           <h4 id="c360u-q-mine">{copy("queues.thisCustomer")}</h4>
@@ -64,6 +70,10 @@ export default function Queues({ api, copy, when, viewerKey, isSuper }) {
               {mine.items.map((i) => <QueueItem key={i.id} item={i} showCustomer={false} copy={copy} when={when} busy={busy} resolveFor={resolveFor} setResolveFor={setResolveFor} act={act} />)}
             </ul>
           )}
+          {/* Domain 1 #18: with zero queues the select below holds only the
+              "choose" option and the submit stays disabled; say why instead
+              of leaving a dead form. Queue creation is super-only. */}
+          {!mine.queues.length && <p>{copy("queues.noQueues")}</p>}
           <form className="c360u-row" onSubmit={(e) => { e.preventDefault(); run(async () => { await adminApi.post(`${api}/queue-items`, add); setAdd({ queueKey: "", reason: "" }); await loadMine(); setBoardKey((k) => k + 1); }, copy("queues.added")); }}>
             <label>
               {copy("queues.queue")}

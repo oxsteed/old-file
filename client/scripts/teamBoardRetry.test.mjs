@@ -3,6 +3,11 @@
 // The error state must offer a retry that re-runs the load; on success the
 // board (and QueueSetup for super admins) renders again.
 //
+// Union with Domain 1 audit #4: the retry is retryLoad, which resets the
+// filters and re-runs the board + saved-views loads (restoring the error
+// branch on failure); the Nov 10 retryBoard handler is subsumed by it.
+// QueueSetup stays rendered in the error branch for super admins.
+//
 // Run: node --test scripts/teamBoardRetry.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,15 +20,18 @@ const src = (rel) => readFile(join(root, rel), 'utf8');
 
 test('the board error state offers a retry that re-runs the load', async () => {
   const board = await src('src/admin/pages/customer360/upgrades/TeamBoard.jsx');
-  // A named retry handler: clears the error (back to the loading state) and
-  // re-runs the board + saved-views loads.
-  assert.match(board, /const retryBoard = \(\) => \{[^}]*setBoard\(null\)[^}]*loadBoard\(filters, viewId\)/s);
-  assert.match(board, /loadViews\(\)\.catch\(\(\) => \{\}\)/);
-  // The error branch renders the message AND the retry button.
-  const errorBranch = board.split('if (board?.error)')[1].split('\n')[0];
+  // The retry handler: resets the filters and re-runs the board + saved-views
+  // loads, restoring the error branch on failure.
+  assert.match(board, /const retryLoad = \(\) => run\(async \(\) => \{[\s\S]*?loadBoard\(EMPTY_FILTERS, "", undefined\)[\s\S]*?loadViews\(\)[\s\S]*?setBoard\(\{ error:/);
+  // The error branch renders the message, the retry button, and QueueSetup
+  // (reachable for super admins even while the board is down).
+  const errorBranch = board.slice(board.indexOf('if (board?.error)'), board.indexOf('if (!board)'));
+  assert.ok(errorBranch.length > 0, 'error branch exists');
   assert.match(errorBranch, /role="alert"/);
-  assert.match(errorBranch, /<button type="button" onClick=\{retryBoard\}>/);
+  assert.match(errorBranch, /<button type="button"[^>]*onClick=\{retryLoad\}[^>]*>/);
   assert.match(errorBranch, /copy\("retry"\)/);
+  assert.match(errorBranch, /<QueueSetup /);
+  assert.match(errorBranch, /queuesLoaded=\{false\}/);
 });
 
 test('a successful retry renders the board and QueueSetup again', async () => {

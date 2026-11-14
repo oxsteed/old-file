@@ -16,7 +16,7 @@
  *   VALID_DOCUMENT_TYPES) and through the gate (missing consent blocks).
  */
 
-jest.mock('../db', () => ({ query: jest.fn() }));
+jest.mock('../db', () => ({ query: jest.fn(), connect: jest.fn() }));
 jest.mock('../utils/logger', () => ({
   info: jest.fn(),
   warn: jest.fn(),
@@ -44,16 +44,23 @@ beforeEach(() => {
 });
 
 function revokeReq(acceptanceRow) {
+  // Domain 7 #14: the consent DELETE and the acceptance UPDATE now run in
+  // one client transaction. The acceptance SELECT and the audit INSERT
+  // still go through pool.query; BEGIN/COMMIT and the two writes go
+  // through the checked-out client.
+  const clientQuery = jest.fn(async (sql) => {
+    const text = String(sql);
+    if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') return { rows: [] };
+    if (text.includes('DELETE FROM user_consents')) return { rows: [], rowCount: 3 };
+    if (text.includes('UPDATE user_legal_acceptances')) return { rows: [], rowCount: 1 };
+    return { rows: [], rowCount: 0 };
+  });
+  const client = { query: clientQuery, release: jest.fn() };
+  pool.connect.mockResolvedValue(client);
   pool.query.mockImplementation(async (sql) => {
     const text = String(sql);
     if (text.includes('FROM user_legal_acceptances WHERE id')) {
       return { rows: [acceptanceRow] };
-    }
-    if (text.includes('DELETE FROM user_consents')) {
-      return { rows: [], rowCount: 3 };
-    }
-    if (text.includes('UPDATE user_legal_acceptances')) {
-      return { rows: [], rowCount: 1 };
     }
     if (text.includes('INSERT INTO legal_audit_log')) {
       return { rows: [], rowCount: 1 };
@@ -66,6 +73,8 @@ function revokeReq(acceptanceRow) {
     user: { id: 'admin-1', role: 'admin' },
     ip: '1.2.3.4',
     get: () => 'test-agent',
+    __clientQuery: clientQuery,
+    __client: client,
   };
 }
 
@@ -78,9 +87,16 @@ describe('revocation clears the mapped consent', () => {
     const res = resMock();
     await controller.revokeAcceptance(req, res, nextMock());
 
-    const deleteCall = pool.query.mock.calls.find(([sql]) => String(sql).includes('DELETE FROM user_consents'));
+    const deleteCall = req.__clientQuery.mock.calls.find(([sql]) => String(sql).includes('DELETE FROM user_consents'));
     expect(deleteCall).toBeDefined();
     expect(deleteCall[1]).toEqual(['user-1', 'privacy_policy']);
+    expect(req.__clientQuery.mock.calls.map(([sql]) => String(sql))).toEqual([
+      'BEGIN',
+      expect.stringContaining('DELETE FROM user_consents'),
+      expect.stringContaining('UPDATE user_legal_acceptances'),
+      'COMMIT',
+    ]);
+    expect(req.__client.release).toHaveBeenCalled();
     expect(res.json.mock.calls[0][0]).toMatchObject({
       success: true,
       enforcement: 'consent_cleared',
@@ -97,7 +113,7 @@ describe('revocation clears the mapped consent', () => {
     const res = resMock();
     await controller.revokeAcceptance(req, res, nextMock());
 
-    const deleteCall = pool.query.mock.calls.find(([sql]) => String(sql).includes('DELETE FROM user_consents'));
+    const deleteCall = req.__clientQuery.mock.calls.find(([sql]) => String(sql).includes('DELETE FROM user_consents'));
     expect(deleteCall[1]).toEqual(['user-1', 'terms_of_service']);
     expect(res.json.mock.calls[0][0].enforcement).toBe('consent_cleared');
   });
@@ -110,7 +126,7 @@ describe('revocation clears the mapped consent', () => {
     const res = resMock();
     await controller.revokeAcceptance(req, res, nextMock());
 
-    expect(pool.query.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM user_consents'))).toBe(false);
+    expect(req.__clientQuery.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM user_consents'))).toBe(false);
     expect(res.json.mock.calls[0][0]).toMatchObject({
       success: true,
       enforcement: 'record_only',

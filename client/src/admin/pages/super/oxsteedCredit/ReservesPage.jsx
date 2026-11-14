@@ -10,15 +10,21 @@ import adminApi from '../../../../lib/adminApi';
 import { safeCreditErrorMessage } from '../../../../lib/creditErrors';
 import { createStableIdempotencyKeyStore } from '../creditIdempotency';
 import {
+  AdminActionDialog,
   CreditSubNav,
   DEFAULT_CURRENCY_OPTIONS,
   Section,
   money,
+  requestStepupChallengeCode,
+  useCreditDialog,
   useCreditPageState,
 } from './shared';
 
 function ReservePolicySection({ busy, setBusy, setNotice, setError, currencyOptions }) {
   const { t } = useTranslation('credit');
+  // Domain 7 #9: a reserve-policy update queues a pending action, so the
+  // maker proves a fresh step-up first; the dialog below collects the code.
+  const { dialog, requestDialog, resolveDialog } = useCreditDialog();
   // ADM-017: this section queues reserve-policy pending actions; the server
   // requires an Idempotency-Key on the maker endpoint.
   const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
@@ -62,7 +68,18 @@ function ReservePolicySection({ busy, setBusy, setNotice, setError, currencyOpti
         ratioBps: ratio,
         floorCents: floor,
       };
-      await adminApi.put('/admin/super/oxsteed-credit/reserve-policies', policyPayload, {
+      // Domain 7 #9: the maker proves a fresh step-up before the update
+      // queues; without the code the PUT never goes out.
+      const stepup = await requestStepupChallengeCode({
+        requestDialog,
+        setNotice,
+        setError,
+        t,
+        actionType: 'pending_action_request',
+        description: t('creditStepupConfirmDescription'),
+      });
+      if (!stepup) { setBusy(false); return; }
+      await adminApi.put('/admin/super/oxsteed-credit/reserve-policies', { ...policyPayload, ...stepup }, {
         headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-reserve-policy', policyPayload) },
       });
       idempotencyKeysRef.current.clear('credit-reserve-policy', policyPayload);
@@ -73,7 +90,8 @@ function ReservePolicySection({ busy, setBusy, setNotice, setError, currencyOpti
     } finally { setBusy(false); }
   };
 
-  return <Section eyebrow="Reserve policy" title="Reserve policies" detail="Reserve ratios and floors are per currency, with optional per-partner overrides. Changes queue for a second admin to approve in the maker-checker queue below; nothing applies until then.">
+  return (<>
+    <Section eyebrow="Reserve policy" title="Reserve policies" detail="Reserve ratios and floors are per currency, with optional per-partner overrides. Changes queue for a second admin to approve in the maker-checker queue below; nothing applies until then.">
     {loadError && <div role="alert" aria-live="assertive" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-200"><span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0" />{loadError}</span><button type="button" onClick={loadPolicies} disabled={loading || busy} className="rounded-lg border border-amber-400/30 px-3 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/10 disabled:opacity-50">{t('adminRetry')}</button></div>}
     <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
       <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-950/40 p-4">
@@ -105,7 +123,9 @@ function ReservePolicySection({ busy, setBusy, setNotice, setError, currencyOpti
       </div>
       <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800"><table className="min-w-[520px] w-full text-left text-xs"><thead className="bg-gray-50/70 dark:bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminReservePolicyScope')}</th><th className="px-3 py-3 font-medium">{t('adminReservePolicyRatioShort')}</th><th className="px-3 py-3 font-medium">{t('adminReservePolicyFloorShort')}</th><th className="px-3 py-3 font-medium">{t('adminReservePolicyCurrencyShort')}</th></tr></thead><tbody className="divide-y divide-gray-200 dark:divide-gray-800">{loading ? <tr><td colSpan="4" className="px-3 py-10 text-center text-gray-500">{t('adminLoading')}</td></tr> : !policies.length ? <tr><td colSpan="4" className="px-3 py-10 text-center text-gray-500">{t('adminReservePolicyEmpty')}</td></tr> : policies.map((policy) => <tr key={policy.id}><td className="px-3 py-3 text-gray-900 dark:text-white">{policy.partnerId ? t('adminReservePolicyPartnerScope', { partnerId: policy.partnerId }) : <span className="font-semibold text-sky-300">{t('adminReservePolicyDefaultScope')}</span>}</td><td className="px-3 py-3 text-gray-600 dark:text-gray-400">{policy.ratioBps} bps</td><td className="px-3 py-3 text-gray-600 dark:text-gray-400">{money(policy.floorCents, policy.currencyCode)}</td><td className="px-3 py-3 font-mono text-[11px] text-gray-500">{policy.currencyCode}</td></tr>)}</tbody></table></div>
     </div>
-  </Section>;
+  </Section>
+  <AdminActionDialog dialog={dialog} onResolve={resolveDialog} />
+  </>);
 }
 
 export default function OxsteedCreditReservesPage() {

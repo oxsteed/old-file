@@ -3,6 +3,10 @@
 // state must offer a retry; after a successful retry the list and add form
 // render again.
 //
+// Union with Domain 1 audit #5: the retry is reloadMine, the re-runnable
+// per-customer fetch (abort-aware); the Nov 10 retryMine handler is subsumed
+// by it. The retry button renders inside the alert.
+//
 // Run: node --test scripts/queuesRetry.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,14 +19,13 @@ const src = (rel) => readFile(join(root, rel), 'utf8');
 
 test('the Queues error state offers a retry that re-runs the load', async () => {
   const queues = await src('src/admin/pages/customer360/upgrades/Queues.jsx');
-  // A named retry handler: back to loading, re-fetch the per-customer queues,
+  // The re-runnable fetch: back to loading, re-fetch the per-customer queues,
   // ready on success, error again on failure.
-  assert.match(queues, /const retryMine = \(\) => \{[^}]*setState\("loading"\)[^}]*loadMine\(\)/s);
-  assert.match(queues, /loadMine\(\)\.then\(\(\) => setState\("ready"\)\)\.catch\(\(\) => setState\("error"\)\)/);
-  const errorLine = queues.split('state === "error"')[1].split('\n')[0];
-  assert.match(errorLine, /role="alert"/);
-  assert.match(errorLine, /<button type="button" onClick=\{retryMine\}>/);
-  assert.match(errorLine, /copy\("retry"\)/);
+  assert.match(queues, /const reloadMine = async \(signal\) => \{[\s\S]{0,400}?await loadMine\(signal\)/);
+  const errorBranch = queues.slice(queues.indexOf('state === "error"'), queues.indexOf('{mine && ('));
+  assert.match(errorBranch, /role="alert"/);
+  assert.match(errorBranch, /<button type="button" onClick=\{\(\) => reloadMine\(\)\}>/);
+  assert.match(errorBranch, /copy\("retry"\)/);
 });
 
 test('a successful retry restores the list and the add form', async () => {

@@ -93,7 +93,7 @@ export default function ComplianceSection() {
 
   return (
     <div className="space-y-4">
-      <Notices notice={action.notice} error={action.error || sources.error || safeguarding.error || kyc.error || sar.error} />
+      <Notices notice={action.notice} error={action.error || sources.error || custom.error || safeguarding.error || kyc.error || sar.error} />
       <Panel title={t('adminLicence.sourcesTitle')} detail={sources.data?.staleRequired?.length ? t('adminLicence.sourcesStale', { count: sources.data.staleRequired.length }) : t('adminLicence.sourcesFresh')}>
         <LicenceTable
           loading={sources.loading}
