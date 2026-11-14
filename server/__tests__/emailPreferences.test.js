@@ -173,3 +173,68 @@ describe('RFC 8058 one-click unsubscribe (Item 22)', () => {
     expect(updateCall[1]).toEqual(['user-123', false]);
   });
 });
+
+describe('item 5 — ordinary email-pref saves must not silently re-subscribe', () => {
+  const emailPreferencesController = require('../controllers/emailPreferencesController');
+
+  function buildRouterApp() {
+    // The existing suites mount the controllers directly: the router's
+    // requireAuth rejects the test's stubbed user. Route registration is
+    // verified statically below instead.
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      req.user = { id: 'user-123' };
+      next();
+    });
+    app.put('/api/notifications/email', emailPreferencesController.updateEmailPreferences);
+    app.post('/api/notifications/email/resubscribe-all', emailPreferencesController.resubscribeAll);
+    return app;
+  }
+
+  test('the email-preferences router registers POST /resubscribe-all', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('../routes/emailPreferences'), 'utf8');
+    expect(src).toMatch(/post\('\/resubscribe-all'[^)]*resubscribeAll/);
+  });
+
+  function mockUpdateResult(prefs) {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // INSERT ... ON CONFLICT DO NOTHING
+      .mockResolvedValueOnce({ rows: [prefs], rowCount: 1 }); // UPDATE ... RETURNING *
+  }
+
+  test('PUT does not touch unsubscribe_all: an unsubscribed user stays unsubscribed', async () => {
+    mockUpdateResult({
+      user_id: 'user-123',
+      email_notifications: true,
+      sms_notifications: true,
+      push_notifications: true,
+      marketing_emails: true,
+      email_frequency: 'daily',
+      unsubscribe_all: true,
+      email_updated_at: '2026-06-02T12:00:00.000Z',
+    });
+
+    const res = await request(buildRouterApp())
+      .put('/api/notifications/email')
+      .send({ frequency: 'daily', emailNotifications: true });
+
+    expect(res.status).toBe(200);
+    const updateCall = mockQuery.mock.calls.find(([sql]) => sql.includes('UPDATE notification_preferences'));
+    expect(updateCall[0]).not.toMatch(/unsubscribe_all/);
+    expect(res.body.data.unsubscribeAll).toBe(true);
+  });
+
+  test('POST /resubscribe-all is the only ordinary path that clears unsubscribe_all', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+    const res = await request(buildRouterApp()).post('/api/notifications/email/resubscribe-all');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    const updateCall = mockQuery.mock.calls.find(([sql]) => sql.includes('UPDATE notification_preferences'));
+    expect(updateCall[0]).toContain('unsubscribe_all = FALSE');
+    expect(updateCall[1]).toEqual(['user-123']);
+  });
+});

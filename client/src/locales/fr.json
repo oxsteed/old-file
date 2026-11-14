@@ -10861,6 +10861,21 @@
       "saved": "Heures de silence mises a jour",
       "failedLoad": "Impossible de charger les parametres des heures de silence",
       "failedSave": "Impossible d'enregistrer les parametres des heures de silence"
+    },
+    "emailPrefs": {
+      "title": "Préférences e-mail",
+      "description": "Choisissez les e-mails que vous recevez. Les e-mails de compte et de sécurité sont toujours envoyés.",
+      "unsubscribedTitle": "Vous vous êtes désabonné de tous les e-mails",
+      "unsubscribedBody": "Vous ne recevrez pas d'e-mails facultatifs. Enregistrer vos autres préférences ne vous réabonnera pas.",
+      "resubscribe": "Me réabonner à tous les e-mails",
+      "resubscribedToast": "Vous êtes de nouveau abonné à tous les e-mails",
+      "subscribedTitle": "Vous recevez les e-mails facultatifs",
+      "subscribedBody": "Vous désabonner arrête tous les e-mails facultatifs. Les e-mails de compte et de sécurité sont toujours envoyés.",
+      "unsubscribeAll": "Me désabonner de tous les e-mails",
+      "unsubscribedToast": "Vous êtes désabonné de tous les e-mails",
+      "failedLoad": "Impossible de charger les préférences e-mail",
+      "failedAction": "Cela n'a pas fonctionné. Veuillez réessayer."
+    }
     }
   },
   "plannedNeeds": {

@@ -3044,6 +3044,21 @@
       "saved": "Le silans lan mete ajou",
       "failedLoad": "Pa t kapab chaje paramat le silans yo",
       "failedSave": "Pa t kapab anrejistre paramat le silans yo"
+    },
+    "emailPrefs": {
+      "title": "Preferans imèl",
+      "description": "Chwazi ki imèl ou resevwa. Imèl kont ak sekirite yo toujou voye.",
+      "unsubscribedTitle": "Ou dezabòne nan tout imèl",
+      "unsubscribedBody": "Ou pap resevwa imèl opsyonèl. Sove lòt preferans ou yo pap re-abòne ou.",
+      "resubscribe": "Re-abòne nan tout imèl",
+      "resubscribedToast": "Ou re-abòne nan tout imèl",
+      "subscribedTitle": "Ou resevwa imèl opsyonèl",
+      "subscribedBody": "Dezabòne sispann tout imèl opsyonèl. Imèl kont ak sekirite yo toujou voye.",
+      "unsubscribeAll": "Dezabòne nan tout imèl",
+      "unsubscribedToast": "Ou dezabòne nan tout imèl",
+      "failedLoad": "Pa t kapab chaje preferans imèl",
+      "failedAction": "Sa pa t mache. Tanpri eseye ankò."
+    }
     }
   },
   "jobs": {

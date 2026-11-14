@@ -5,7 +5,13 @@ import toast from 'react-hot-toast';
 import useWebPush from '../hooks/useWebPush';
 import './NotificationPreferences.css';
 
-function Toggle({ checked, onChange, disabled, ariaLabel }) {
+// ─── Shared settings primitives (Track C) ──────────────────────────
+// Every notification toggle on the settings surfaces rides SettingsToggle
+// + PreferenceSection, and every toggle gates through the same backend
+// surface (the prefs API) and the same gate (prefAllows in
+// notificationService.js): the master toggle, per-type opt-outs,
+// quiet-hours and SMS toggles are not one-off pages or per-type cases.
+export function SettingsToggle({ checked, onChange, disabled, ariaLabel }) {
   return (
     <button
       type="button"
@@ -18,6 +24,105 @@ function Toggle({ checked, onChange, disabled, ariaLabel }) {
     >
       <span className="notification-settings__toggle-thumb" />
     </button>
+  );
+}
+
+// Section shell shared by the settings page and the panels below: header
+// (title + description) over a bordered preference list.
+export function PreferenceSection({ title, description, children }) {
+  return (
+    <div className="notification-settings__preference-list rounded-2xl mb-6">
+      <div className="px-6 py-4 border-b" style={{ borderBottomColor: 'var(--color-border)' }}>
+        <h2 className="notification-settings__section-title">{title}</h2>
+        {description ? (
+          <p className="notification-settings__muted text-xs mt-0.5">{description}</p>
+        ) : null}
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+// EmailPreferencesPanel (item 5): surfaces the unsubscribed-from-all state
+// from GET /notifications/email and offers the explicit re-subscribe action
+// (POST /notifications/email/resubscribe-all). Saving other email
+// preferences never re-subscribes; only this button clears the flag.
+export function EmailPreferencesPanel() {
+  const { t } = useTranslation();
+  const [unsubscribed, setUnsubscribed] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/notifications/email')
+      .then(r => {
+        setUnsubscribed(!!r.data?.data?.unsubscribeAll);
+        setLoading(false);
+      })
+      .catch(() => {
+        toast.error(t('notifications.emailPrefs.failedLoad'));
+        setLoading(false);
+      });
+  }, [t]);
+
+  const runAction = useCallback(async (action) => {
+    setSaving(true);
+    try {
+      if (action === 'resubscribe') {
+        await api.post('/notifications/email/resubscribe-all');
+        setUnsubscribed(false);
+        toast.success(t('notifications.emailPrefs.resubscribedToast'));
+      } else {
+        await api.post('/notifications/email/unsubscribe-all');
+        setUnsubscribed(true);
+        toast.success(t('notifications.emailPrefs.unsubscribedToast'));
+      }
+    } catch {
+      toast.error(t('notifications.emailPrefs.failedAction'));
+    } finally {
+      setSaving(false);
+    }
+  }, [t]);
+
+  if (loading) return null;
+
+  return (
+    <PreferenceSection
+      title={t('notifications.emailPrefs.title')}
+      description={t('notifications.emailPrefs.description')}
+    >
+      {unsubscribed ? (
+        <div className="notification-settings__preference-row">
+          <div>
+            <p className="notification-settings__row-title">{t('notifications.emailPrefs.unsubscribedTitle')}</p>
+            <p className="notification-settings__muted text-xs mt-0.5">{t('notifications.emailPrefs.unsubscribedBody')}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => runAction('resubscribe')}
+            disabled={saving}
+            className="notification-settings__secondary-button" data-track="ui.58eace89d8.5"
+          >
+            {t('notifications.emailPrefs.resubscribe')}
+          </button>
+        </div>
+      ) : (
+        <div className="notification-settings__preference-row">
+          <div>
+            <p className="notification-settings__row-title">{t('notifications.emailPrefs.subscribedTitle')}</p>
+            <p className="notification-settings__muted text-xs mt-0.5">{t('notifications.emailPrefs.subscribedBody')}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => runAction('unsubscribe')}
+            disabled={saving}
+            className="notification-settings__secondary-button" data-track="ui.58eace89d8.6"
+          >
+            {t('notifications.emailPrefs.unsubscribeAll')}
+          </button>
+        </div>
+      )}
+    </PreferenceSection>
   );
 }
 
@@ -75,7 +180,7 @@ export function BrowserPushPanel() {
               {statusText}
             </div>
           </div>
-          <Toggle
+          <SettingsToggle
             checked={wp.isSubscribed}
             onChange={handleToggle}
             disabled={disabled}
@@ -300,6 +405,8 @@ export default function NotificationPreferences() {
 
       <BrowserPushPanel />
 
+      <EmailPreferencesPanel />
+
       <div className="space-y-8">
         {SECTIONS.map((section, sIdx) => (
           <div key={section.key}>
@@ -314,7 +421,7 @@ export default function NotificationPreferences() {
                   className={`notification-settings__preference-row ${idx !== section.keys.length - 1 ? 'has-border' : ''}`}
                 >
                   <span className="notification-settings__row-title">{LABELS[prefKey]}</span>
-                  <Toggle
+                  <SettingsToggle
                     checked={prefs?.[prefKey] ?? true}
                     onChange={(val) => handleToggle(prefKey, val)}
                     disabled={saving}

@@ -10861,6 +10861,21 @@
       "saved": "Quiet hours updated",
       "failedLoad": "Could not load quiet hours settings",
       "failedSave": "Could not save quiet hours settings"
+    },
+    "emailPrefs": {
+      "title": "Email preferences",
+      "description": "Choose which emails you receive. Account and security emails are always sent.",
+      "unsubscribedTitle": "You unsubscribed from all emails",
+      "unsubscribedBody": "You will not receive optional emails. Saving your other preferences will not re-subscribe you.",
+      "resubscribe": "Re-subscribe to all emails",
+      "resubscribedToast": "You have been re-subscribed to all emails",
+      "subscribedTitle": "You receive optional emails",
+      "subscribedBody": "Unsubscribing stops all optional emails. Account and security emails are still sent.",
+      "unsubscribeAll": "Unsubscribe from all emails",
+      "unsubscribedToast": "You have been unsubscribed from all emails",
+      "failedLoad": "Failed to load email preferences",
+      "failedAction": "That did not work. Please try again."
+    }
     }
   },
   "plannedNeeds": {

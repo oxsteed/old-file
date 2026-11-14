@@ -10861,6 +10861,21 @@
       "saved": "Horas de silencio actualizadas",
       "failedLoad": "No se pudo cargar la configuracion de horas de silencio",
       "failedSave": "No se pudo guardar la configuracion de horas de silencio"
+    },
+    "emailPrefs": {
+      "title": "Preferencias de correo electrónico",
+      "description": "Elige qué correos recibes. Los correos de cuenta y seguridad siempre se envían.",
+      "unsubscribedTitle": "Te diste de baja de todos los correos",
+      "unsubscribedBody": "No recibirás correos opcionales. Guardar tus otras preferencias no volverá a suscribirte.",
+      "resubscribe": "Volver a suscribirme a todos los correos",
+      "resubscribedToast": "Te has suscrito de nuevo a todos los correos",
+      "subscribedTitle": "Recibes correos opcionales",
+      "subscribedBody": "Darte de baja detiene todos los correos opcionales. Los correos de cuenta y seguridad se siguen enviando.",
+      "unsubscribeAll": "Darme de baja de todos los correos",
+      "unsubscribedToast": "Te has dado de baja de todos los correos",
+      "failedLoad": "No se pudieron cargar las preferencias de correo",
+      "failedAction": "No funcionó. Inténtalo de nuevo."
+    }
     }
   },
   "plannedNeeds": {
