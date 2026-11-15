@@ -35,7 +35,12 @@ test('the overflow digest names the count, the top overflowed records, and links
   try {
     db.query
       .mockResolvedValueOnce({ rows: [rule(1)] })
+      // Item 39: the admin_notification_prefs lookup (no row = defaults
+      // ON) runs before the rule's anomaly query.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [anomaly('a1', 'c1'), anomaly('a2', 'c2'), anomaly('a3', 'c3')] })
+      .mockResolvedValueOnce({ rows: [] })
+      // Item 39: the digest re-checks admin_notification_prefs fresh.
       .mockResolvedValueOnce({ rows: [] });
     const result = await evaluateCustomer360Alerts();
     expect(result.sent).toBe(2);

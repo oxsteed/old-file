@@ -33,9 +33,15 @@ test('per-tick cap holds back overflow into one digest per admin', async () => {
   try {
     db.query
       .mockResolvedValueOnce({ rows: [rule(1), rule(2)] })
-      .mockResolvedValueOnce({ rows: [anomaly('a1', 'c1'), anomaly('a2', 'c1'), anomaly('a3', 'c1')] })
+      // Item 39: one admin_notification_prefs lookup for the shared
+      // admin (no row = defaults ON), before the anomaly queries. The
+      // per-tick cache shares the lookup across the admin's rules.
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [anomaly('a1', 'c1'), anomaly('a2', 'c1'), anomaly('a3', 'c1')] })
       .mockResolvedValueOnce({ rows: [anomaly('b1', 'c2'), anomaly('b2', 'c2'), anomaly('b3', 'c2')] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      // Item 39: the digest re-checks admin_notification_prefs fresh.
       .mockResolvedValueOnce({ rows: [] });
     const result = await evaluateCustomer360Alerts();
     expect(result.sent).toBe(4);
