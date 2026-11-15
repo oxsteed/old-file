@@ -1,7 +1,7 @@
 'use strict';
 const {mockQuery,resetMocks}=require('./setup');
 jest.mock('../jobs/jobLockingService',()=>({withFencedJobLock:async(_name,fn)=>fn({db:require('../db'),assertActive(){},fencedTransaction:async fn=>fn(require('../db'))})}));
-jest.mock('../growth/gate',()=>({contexts:jest.fn(),allow:jest.fn(async ctx=>({allowed:ctx.allowed,context:ctx})),runtimePolicy:jest.fn(async()=>({enabled:true,rollout:{policy_version:1},rules:[]})),resolveJurisdiction:jest.fn(()=> 'US')}));
+jest.mock('../growth/gate',()=>({contexts:jest.fn(),allow:jest.fn(async ctx=>({allowed:ctx.allowed,context:ctx})),allowMany:jest.fn((contexts)=>{const out=new Map();for(const [id,ctx] of contexts)out.set(id,{allowed:ctx?.allowed,context:ctx});return out;}),runtimePolicy:jest.fn(async()=>({enabled:true,rollout:{policy_version:1},rules:[]})),resolveJurisdiction:jest.fn(()=> 'US')}));
 jest.mock('../growth/geo/resolve',()=>({resolveBatch:jest.fn(async()=>[11,12])}));
 jest.mock('../growth/propensity',()=>({computeAll:jest.fn(async()=>({users:0}))}));
 jest.mock('../growth/rollups/domain',()=>({...jest.requireActual('../growth/rollups/domain'),collectDomainDay:jest.fn(async()=>({sources:{}}))}));

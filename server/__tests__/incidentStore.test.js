@@ -54,6 +54,45 @@ describe('incidentStore', () => {
     expect(mockQuery.mock.calls[1][1]).toEqual([7, incidentStore.DEFAULT_NOTIFICATION_COOLDOWN_MINUTES]);
   });
 
+  test('item 22: a warning is persisted but never claims a notification window', async () => {
+    // Warnings have no operator dispatch leg (email/Slack return early
+    // for non-critical), so claiming a window just pushes the lease +5
+    // minutes forever. The row is durable; it simply never enters the
+    // dispatch queue.
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 9, occurrence_count: 1 }] });
+
+    const result = await incidentStore.recordIncident({
+      type: 'SLOW_QUERY',
+      severity: 'warning',
+      message: 'Query is slow',
+      dedupeKey: 'SLOW_QUERY',
+    });
+
+    expect(result).toEqual({
+      persisted: true,
+      incident: { id: 9, occurrence_count: 1 },
+      notificationClaimed: false,
+    });
+    // No claim UPDATE ran at all: the upsert is the only query.
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery.mock.calls[0][0]).toContain('ON CONFLICT (dedupe_key)');
+  });
+
+  test('item 22: a high-severity incident still claims a window', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 8, occurrence_count: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 8, notification_count: 0 }] });
+
+    const result = await incidentStore.recordIncident({
+      type: 'SOME_HIGH_RISK',
+      severity: 'high',
+      message: 'High risk event',
+      dedupeKey: 'SOME_HIGH_RISK',
+    });
+
+    expect(result.notificationClaimed).toBe(true);
+  });
+
   test('caps durable incident list queries', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
 

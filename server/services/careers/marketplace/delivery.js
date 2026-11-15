@@ -24,10 +24,14 @@ const APP_URL = () => String(process.env.CLIENT_URL || process.env.APP_URL || 'h
 async function sendPush(userId, { title, body, actionUrl, tag }) {
   let sent = false;
   try {
+    // Item 34: the orphaned utils/pushNotification read nonexistent
+    // columns and no sender read its rows. Web push now goes through
+    // the live writer, which reads the real p256dh/auth columns,
+    // enforces preferences/limits, and prunes dead subscriptions.
     // eslint-disable-next-line global-require
-    const { sendPushToUser } = require('../../../utils/pushNotification');
-    const results = await sendPushToUser(userId, { title, body, url: actionUrl, tag });
-    if (Array.isArray(results) && results.some((r) => r && r.success)) sent = true;
+    const webPush = require('../../webPushService');
+    const result = await webPush.sendToUser(userId, { title, body, url: actionUrl, tag });
+    if (result && Number(result.sent) > 0) sent = true;
   } catch (err) {
     logger.warn('careers push failed', { error: err.message });
   }

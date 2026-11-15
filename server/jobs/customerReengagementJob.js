@@ -14,8 +14,9 @@ const { mapBounded } = require('../utils/boundedBatch');
 
 const cron = require('node-cron');
 const db   = require('../db');
+const { withFencedJobLock } = require('./jobLockingService');
 const { sendNotification } = require('../services/notificationService');
-const { sendEmail }        = require('../utils/email');
+const { deliverDigestEmail } = require('../services/digestDelivery');
 const { generateUnsubscribeToken } = require('../controllers/emailPreferencesController');
 const { tNotif, tNotifEmail } = require('../utils/i18n');
 const logger               = require('../utils/logger');
@@ -36,6 +37,10 @@ async function runCustomerReengagement() {
           u.first_name,
           u.email,
           u.preferred_language,
+          np.unsubscribe_all,
+          np.email_notifications,
+          np.email_frequency,
+          np.marketing_emails,
           j.id        AS last_job_id,
           j.title     AS last_job_title,
           j.completed_at
@@ -89,10 +94,14 @@ async function runCustomerReengagement() {
         const footerPrefixText = emailTranslations.footerPrefix || emailTranslationsEn.footerPrefix;
         const footerFallbackText = emailTranslations.footerFallbackText || emailTranslationsEn.footerFallbackText;
         try {
-          // In-app push notification
+          // In-app push notification. Item 27: the nudge is marketing
+          // content, so mark it promotional — the 2-per-7-days governor
+          // in sendNotification applies (previously the nudge had no
+          // per-type toggle and no governor at all).
           await sendNotification({
             userId:     c.id,
             type:       'reengagement_nudge',
+            promotional: true,
             idempotencyKey: `reengagement-nudge:${c.id}:${c.last_job_id}`,
             title:      `👋 ${reengagementTitle}`,
             body:       `${reengagementBody} ${c.last_job_title ? `("${c.last_job_title}")` : ''}`,
@@ -100,7 +109,14 @@ async function runCustomerReengagement() {
             action_url: '/post-job',
           });
 
-          // Email nudge (best-effort — don't fail the loop if email is missing)
+          // Email nudge (best-effort — don't fail the loop if email is missing).
+          // Item 27: this used to mail directly via sendEmail, bypassing
+          // email_frequency entirely. Route through the shared
+          // digestDelivery helper: frequency 'off' skips, daily/weekly
+          // queues into the digest batch, real-time sends now. The
+          // preloaded recipient carries the preferences this query
+          // already selected, so no second lookup is needed.
+          let emailHandled = false;
           if (c.email) {
             // RFC 8058 one-click unsubscribe: mint a per-recipient marketing
             // token and advertise the one-click endpoint in the headers.
@@ -109,9 +125,23 @@ async function runCustomerReengagement() {
             const oneClickUrl = oneClickToken
               ? `${APP_URL}/api/notifications/email/unsubscribe-one-click?token=${encodeURIComponent(oneClickToken)}`
               : null;
-            await sendEmail({
-              to:      c.email,
-              idempotencyKey: `reengagement-nudge-email:${c.id}:${c.last_job_id}`,
+            const emailResult = await deliverDigestEmail(db, {
+              userId: c.id,
+              recipient: {
+                userId: c.id,
+                email: c.email,
+                firstName: c.first_name,
+                preferredLanguage: c.preferred_language,
+                deletedAt: null,
+                isActive: true,
+                prefs: {
+                  unsubscribe_all: c.unsubscribe_all,
+                  email_notifications: c.email_notifications,
+                  email_frequency: c.email_frequency,
+                  marketing_emails: c.marketing_emails,
+                },
+              },
+              type: 'reengagement_nudge',
               subject: `${c.first_name}, ${reengagementTitle}`,
               ...(oneClickUrl ? {
                 headers: {
@@ -140,14 +170,23 @@ async function runCustomerReengagement() {
                 </p>
               `,
               text: `${reengagementBodyWithContext} ${ctaText}: ${APP_URL}/post-job`,
+              deliveryKey: `reengagement-nudge-email:${c.id}:${c.last_job_id}`,
+              skipWhenPrefFalse: ['marketing_emails'],
             });
+            emailHandled = emailResult.delivered || emailResult.queued;
           }
 
-          // Record that we sent this nudge so we don't double-send
+          // Record that we sent this nudge so we don't double-send.
+          // Item 2: the 7-day guard above skips users with a recent
+          // reengagement_log row, but the trigger (last completed job)
+          // does not change until the user completes another job, so a
+          // bare ON CONFLICT DO NOTHING left sent_at stale and the guard
+          // passed every day after week one. Refresh sent_at on conflict
+          // so the 7-day window restarts on every send.
           await db.query(
             `INSERT INTO reengagement_log (user_id, sent_at, trigger_job_id)
              VALUES ($1, NOW(), $2)
-             ON CONFLICT DO NOTHING`,
+             ON CONFLICT (user_id, trigger_job_id) DO UPDATE SET sent_at = NOW()`,
             [c.id, c.last_job_id]
           );
 
@@ -159,7 +198,7 @@ async function runCustomerReengagement() {
             source: 'customer_reengagement',
             channel: 'in_app',
           });
-          if (c.email)
+          if (emailHandled)
             await recordMarketingContact(db, {
               userId: c.id,
               source: 'customer_reengagement',
@@ -185,8 +224,15 @@ async function runCustomerReengagement() {
 }
 
 function startCustomerReengagementJob() {
-  // Daily at 10:00am Eastern
-  cron.schedule('0 10 * * *', runCustomerReengagement, { timezone: 'America/New_York' });
+  // Daily at 10:00am Eastern. Item 29: fence the pass like the outboxes
+  // so two replicas never run the full scan concurrently (TTL 15 min).
+  cron.schedule('0 10 * * *', async () => {
+    try {
+      await withFencedJobLock('customer-reengagement', runCustomerReengagement, 900);
+    } catch (err) {
+      logger.error('[reengagement] Job failed', { error: err.message });
+    }
+  }, { timezone: 'America/New_York' });
   logger.info('[reengagement] Customer re-engagement job scheduled (daily 10am ET)');
 }
 

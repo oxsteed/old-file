@@ -130,7 +130,8 @@ describe('P3-3-F13: realtime email failure propagates', () => {
       idempotencyKey: 'p3-3-f13:success',
     });
 
-    expect(result).toEqual({ success: true, notificationId: 'notif-1' });
+    expect(result).toEqual({ success: true, notificationId: 'notif-1',
+      delivered: { inApp: true, push: false, email: true, emailQueued: false } });
     expect(emailMarkedSent()).toBe(true);
   });
 });

@@ -17,6 +17,9 @@
 
 jest.mock('../services/restaurantRetentionService', () => ({
   anonymizeFormerStaff: jest.fn(),
+  // Money flows W7: anonymizePerson scrubs the audit log once per
+  // business after the restaurant loop.
+  scrubBusinessAuditLogNames: jest.fn(async () => 0),
 }));
 jest.mock('../services/storageCleanupService', () => ({
   enqueueStorageDeletion: jest.fn(async () => true),
@@ -46,9 +49,12 @@ function makeDb({ dueRequests = [], dueStaff = [], restaurantsByBusiness = {} })
   const db = {
     query: jest.fn(async (sql, params = []) => {
       queries.push({ sql: String(sql), params });
-      // Part 2 select mentions retain_until AND embeds an erasure
-      // subquery, so match its DISTINCT ON before either branch.
-      if (sql.includes('DISTINCT ON')) {
+      // Part 2 select claims FOR UPDATE OF o SKIP LOCKED and embeds
+      // an erasure subquery, so match it before the erasure branch
+      // below (both mention restaurant_erasure_requests). The old
+      // DISTINCT ON form is gone: the query now expresses "no newer
+      // offboarding record exists" instead.
+      if (sql.includes('FOR UPDATE OF o SKIP LOCKED')) {
         const rows = pageByCursor(dueStaff, params, (r) => [r.business_id, r.user_id]);
         return { rows };
       }
@@ -61,6 +67,12 @@ function makeDb({ dueRequests = [], dueStaff = [], restaurantsByBusiness = {} })
       }
       if (sql.includes('FROM food_restaurants WHERE business_id')) {
         return { rows: restaurantsByBusiness[params[0]] || [] };
+      }
+      // recordAutoCompletedErasure inserts the completed row and
+      // RETURNINGs its id; without a row the insert reads as a
+      // dedupe loss and the person is not counted.
+      if (sql.includes('INSERT INTO restaurant_erasure_requests')) {
+        return { rows: [{ id: 9000 + queries.length }] };
       }
       return { rows: [] };
     }),
@@ -116,7 +128,7 @@ describe('Domain 8 #12: the retention sweep bounds its queries and reports error
     expect(result.completedRequests).toBe(5);
     expect(result.errors).toEqual([]);
 
-    const dueSelects = queries.filter(({ sql }) => sql.includes('SELECT er.* FROM restaurant_erasure_requests er'));
+    const dueSelects = queries.filter(({ sql }) => sql.includes('FOR UPDATE OF er SKIP LOCKED'));
     // Three batches of at most 2, not one unbounded select.
     expect(dueSelects).toHaveLength(3);
     for (const { sql, params } of dueSelects) {
@@ -139,7 +151,7 @@ describe('Domain 8 #12: the retention sweep bounds its queries and reports error
     expect(result.autoAnonymized).toBe(3);
     expect(result.errors).toEqual([]);
 
-    const staffSelects = queries.filter(({ sql }) => sql.includes('DISTINCT ON'));
+    const staffSelects = queries.filter(({ sql }) => sql.includes('FOR UPDATE OF o SKIP LOCKED'));
     expect(staffSelects).toHaveLength(2);
     for (const { sql, params } of staffSelects) {
       expect(sql).toMatch(/LIMIT \$\d+/);

@@ -32,7 +32,11 @@ test('leaves digest rows queued when delivery fails', async () => {
     .mockResolvedValueOnce({ rows: [{ id: 4, title: 'Update', body: 'Body', created_at: new Date().toISOString() }] });
 
   await expect(processSingleUserDigest('user-1', 'daily')).resolves.toBe(false);
-  expect(mockQuery).toHaveBeenCalledTimes(2);
+  // Item 28: the failed send now also records a delivery attempt (third
+  // query) toward the dead-letter threshold; the rows stay unsent.
+  expect(mockQuery).toHaveBeenCalledTimes(3);
+  expect(mockQuery.mock.calls[2][0]).toContain('attempt_count');
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('SET sent_at = CURRENT_TIMESTAMP'))).toBe(false);
 });
 
 test('digest pagination reaches users beyond 1000 using bounded provider batches', async () => {
@@ -60,4 +64,101 @@ test('digest pagination reaches users beyond 1000 using bounded provider batches
   expect(email.sendEmailBatch).toHaveBeenCalledTimes(12);
   expect(email.sendEmailBatch.mock.calls.every(([messages])=>messages.length<=100)).toBe(true);
   expect(sendEmail).not.toHaveBeenCalled();
+});
+
+test('batch purges stale rows and never selects dead-lettered rows', async () => {
+  // Item 28: deleted/unsubscribed users' rows were rescanned forever and
+  // failing rows had no dead-letter or expiry.
+  const email = require('../utils/email');
+  email.sendEmailBatch = jest.fn(async (messages) => messages.map((_, i) => ({ id: String(i) })));
+  let processEmailDigest;
+  jest.isolateModules(() => { ({ processEmailDigest } = require('../jobs/emailDigestBatch')); });
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.includes('DELETE FROM email_digest_queue')) return { rows: [], rowCount: 2 };
+    if (sql.includes('MAX(id)')) return { rows: [{ id: 2000 }] };
+    if (sql.includes('SELECT DISTINCT edq.user_id')) return { rows: [] };
+    return { rows: [] };
+  });
+  const result = await processEmailDigest('daily');
+  expect(result).toEqual({ processed: 0, failed: 0 });
+  const purgeCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('DELETE FROM email_digest_queue'));
+  expect(purgeCalls).toHaveLength(1);
+  expect(purgeCalls[0][0]).toContain('deleted_at IS NOT NULL');
+  expect(purgeCalls[0][0]).toContain('unsubscribe_all = TRUE');
+  const selectCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('SELECT DISTINCT edq.user_id'));
+  expect(selectCalls).toHaveLength(1);
+  expect(selectCalls[0][0]).toContain('dead_lettered_at IS NULL');
+});
+
+test('a failed batch send records a delivery attempt (dead-letter path)', async () => {
+  const email = require('../utils/email');
+  email.sendEmailBatch = jest.fn(async () => { throw new Error('provider down'); });
+  let processEmailDigest;
+  jest.isolateModules(() => { ({ processEmailDigest } = require('../jobs/emailDigestBatch')); });
+  const userId = '00000000-0000-4000-8000-000000000001';
+  let distinctCalls = 0;
+  mockQuery.mockImplementation(async (sql, params = []) => {
+    if (sql.includes('DELETE FROM email_digest_queue')) return { rows: [], rowCount: 0 };
+    if (sql.includes('MAX(id)')) return { rows: [{ id: 2000 }] };
+    if (sql.includes('SELECT DISTINCT edq.user_id')) {
+      distinctCalls++;
+      return { rows: distinctCalls === 1 ? [{ user_id: userId }] : [] };
+    }
+    if (sql.includes('SELECT email, first_name')) return { rows: [{ email: 'a@example.com', first_name: 'Ana', preferred_language: 'en' }] };
+    if (sql.includes('LEFT JOIN notifications')) return { rows: [{ id: 4, title: 'Update', body: 'Body', created_at: new Date().toISOString() }] };
+    return { rows: [], rowCount: 0 };
+  });
+  const result = await processEmailDigest('daily');
+  expect(result.failed).toBe(1);
+  const attemptCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('attempt_count'));
+  expect(attemptCalls).toHaveLength(1);
+  expect(attemptCalls[0][0]).toContain('dead_lettered_at');
+  // A failed send never marks rows sent.
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('SET sent_at=CURRENT_TIMESTAMP'))).toBe(false);
+});
+
+test('a failed single-user send records a delivery attempt', async () => {
+  sendEmail.mockResolvedValueOnce({ success: false, error: 'provider down' });
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ email: 'a@example.com', first_name: 'Ana', preferred_language: 'en' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 4, title: 'Update', body: 'Body', created_at: new Date().toISOString() }] });
+
+  await expect(processSingleUserDigest('user-1', 'daily')).resolves.toBe(false);
+  const attemptCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('attempt_count'));
+  expect(attemptCalls).toHaveLength(1);
+});
+
+test('batch selection joins users and excludes soft-deleted users', async () => {
+  // Item 50: the outer query joined only notification_preferences and
+  // never joined users, so a soft-deleted user whose prefs row survived
+  // was still selected and emailed.
+  const email = require('../utils/email');
+  email.sendEmailBatch = jest.fn(async (messages) => messages.map((_, i) => ({ id: String(i) })));
+  let processEmailDigest;
+  jest.isolateModules(() => { ({ processEmailDigest } = require('../jobs/emailDigestBatch')); });
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.includes('DELETE FROM email_digest_queue')) return { rows: [], rowCount: 0 };
+    if (sql.includes('MAX(id)')) return { rows: [{ id: 2000 }] };
+    if (sql.includes('SELECT DISTINCT edq.user_id')) return { rows: [] };
+    return { rows: [] };
+  });
+  await processEmailDigest('daily');
+  const selectCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('SELECT DISTINCT edq.user_id'));
+  expect(selectCalls).toHaveLength(1);
+  expect(selectCalls[0][0]).toContain('JOIN users');
+  expect(selectCalls[0][0]).toContain('deleted_at IS NULL');
+});
+
+test('per-user lookup misses purge the user rows instead of rescanning them', async () => {
+  // Item 50: the per-user lookup had no deleted_at filter, and a lookup
+  // miss returned false while the rows stayed queued forever. The rows
+  // are purged (not marked sent: nothing was delivered).
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+
+  await expect(processSingleUserDigest('user-1', 'daily')).resolves.toBe(false);
+  expect(sendEmail).not.toHaveBeenCalled();
+  const purgeCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('DELETE FROM email_digest_queue'));
+  expect(purgeCalls).toHaveLength(1);
+  expect(purgeCalls[0][1]).toEqual(['user-1']);
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('SET sent_at = CURRENT_TIMESTAMP'))).toBe(false);
 });

@@ -30,10 +30,11 @@ const CRON_EXPRESSION = '0 30 3 * * 0'; // weekly, Sunday 03:30 server time
 // with no LIMIT and no lock, so a bulk offboarding or a long-unrun
 // weekly run processed thousands of people serially under one 900s
 // fence lease; a lease loss mid-run abandoned the rest to next Sunday.
-// Each part now takes at most this many rows per run (the next weekly
-// run picks up the rest), claimed FOR UPDATE SKIP LOCKED so a
-// concurrent sweep cannot double-process the same row. Same 200-row
-// claim shape as the no-show sweeper.
+// Each page now takes at most this many rows, claimed FOR UPDATE SKIP
+// LOCKED so a concurrent sweep cannot double-process the same row,
+// and sweep() pages through the whole backlog with a last-processed
+// cursor inside one run instead of deferring the remainder a week.
+// Same 200-row claim shape as the no-show sweeper.
 const RETENTION_SWEEP_BATCH_LIMIT = 200;
 
 async function anonymizePerson(db, { businessId, userId, retainUntil }) {
@@ -116,64 +117,88 @@ async function recordAutoCompletedErasure(db, { businessId, userId, outcome } = 
   return { inserted: rows.length > 0, id: rows.length > 0 ? rows[0].id : null };
 }
 
-async function sweep(db = pool) {
+async function sweep(db = pool, options = {}) {
+  // Domain 8 #12 (reconciled with Domain 9 item 4): the sweep pages
+  // through a backlog larger than one batch with a last-processed
+  // cursor instead of deferring the remainder to the next weekly run.
+  // Each page is still bounded by batchLimit and claimed FOR UPDATE
+  // SKIP LOCKED, and the 900s fence lease still bounds the whole
+  // run: a LeaseLostError anywhere rethrows and the remainder waits.
+  // { batchLimit } exists so tests can force small batches; production
+  // uses RETENTION_SWEEP_BATCH_LIMIT (200).
+  const batchLimit = Number.isSafeInteger(options?.batchLimit) && options.batchLimit > 0
+    ? options.batchLimit
+    : RETENTION_SWEEP_BATCH_LIMIT;
   const result = { completedRequests: 0, autoAnonymized: 0, skipped: 0, errors: [], hitBatchLimit: false, incidentId: null };
   // 1. Approved erasure requests past retention.
   // Domain 9 item 4: LIMIT + FOR UPDATE SKIP LOCKED claim (see the
   // constant above). The latest retain_until rides along in the
   // select now; the old per-request SELECT was an N+1 on top of the
-  // unbounded scan.
-  const { rows: dueRequests } = await db.query(
-    `SELECT er.*,
-            (SELECT o.retain_until
-               FROM staff_offboarding_records o
-              WHERE o.business_id = er.business_id AND o.user_id = er.user_id
-              ORDER BY o.created_at DESC, o.id DESC LIMIT 1) AS retain_until
-       FROM restaurant_erasure_requests er
-      WHERE er.status = 'approved'
-        AND EXISTS (
-          SELECT 1 FROM staff_offboarding_records o
-           WHERE o.business_id = er.business_id AND o.user_id = er.user_id
-             AND o.retain_until < CURRENT_DATE
-        )
-      ORDER BY er.requested_at
-      LIMIT $1
-      FOR UPDATE OF er SKIP LOCKED`,
-    [RETENTION_SWEEP_BATCH_LIMIT]
-  );
-  for (const request of dueRequests) {
-    try {
-      const outcome = await anonymizePerson(db, {
-        businessId: Number(request.business_id),
-        userId: request.user_id,
-        retainUntil: request.retain_until || null,
-      });
-      if (outcome.skipped) { result.skipped += 1; continue; }
-      await db.query(
-        `UPDATE restaurant_erasure_requests
+  // unbounded scan. The (requested_at, id) cursor pages through a
+  // backlog larger than one batch; requested_at is NOT NULL, so the
+  // row-value comparison never drops a row.
+  let requestCursor = null;
+  for (;;) {
+    const { rows: dueRequests } = await db.query(
+      `SELECT er.*,
+              (SELECT o.retain_until
+                 FROM staff_offboarding_records o
+                WHERE o.business_id = er.business_id AND o.user_id = er.user_id
+                ORDER BY o.created_at DESC, o.id DESC LIMIT 1) AS retain_until
+         FROM restaurant_erasure_requests er
+        WHERE er.status = 'approved'
+          AND EXISTS (
+            SELECT 1 FROM staff_offboarding_records o
+             WHERE o.business_id = er.business_id AND o.user_id = er.user_id
+               AND o.retain_until < CURRENT_DATE
+          )
+          ${requestCursor ? 'AND (er.requested_at, er.id) > ($1, $2)' : ''}
+        ORDER BY er.requested_at, er.id
+        LIMIT ${requestCursor ? '$3' : '$1'}
+        FOR UPDATE OF er SKIP LOCKED`,
+      requestCursor ? [requestCursor.requestedAt, requestCursor.id, batchLimit] : [batchLimit]
+    );
+    if (dueRequests.length === 0) break;
+    // A full page means the backlog exceeded one batch and the sweep
+    // paged; the result carries it so a backlog is visible, not silent.
+    if (dueRequests.length >= batchLimit) result.hitBatchLimit = true;
+    for (const request of dueRequests) {
+      try {
+        const outcome = await anonymizePerson(db, {
+          businessId: Number(request.business_id),
+          userId: request.user_id,
+          retainUntil: request.retain_until || null,
+        });
+        if (outcome.skipped) { result.skipped += 1; continue; }
+        await db.query(
+          `UPDATE restaurant_erasure_requests
             SET status = 'completed', completed_at = NOW(), outcome = $2::jsonb, updated_at = NOW()
           WHERE id = $1`,
-        [request.id, JSON.stringify(outcome)]
-      );
-      // Money-flows W3: tell the subject the sweep completed their erasure.
-      await notifyErasureSubject(db, {
-        userId: request.user_id,
-        businessId: Number(request.business_id),
-        restaurantId: request.restaurant_id == null ? null : undefined,
-        requestId: request.id,
-        status: 'completed',
-      });
-      result.completedRequests += 1;
-    } catch (err) {
-      // Money flows W4: a lost lease is not one failed person. The
-      // fence's handle refuses further writes, so rethrow instead
-      // of recording the loss as a per-person error and continuing:
-      // withFencedJobLock converts the throw into { fenced: true }
-      // and the remaining persons wait for the next weekly run.
-      if (err instanceof LeaseLostError) throw err;
-      result.errors.push({ request_id: Number(request.id), error: err.message });
-      logger.error('Retention sweep erasure failed', { requestId: request.id, error: err.message });
+          [request.id, JSON.stringify(outcome)]
+        );
+        // Money-flows W3: tell the subject the sweep completed their erasure.
+        await notifyErasureSubject(db, {
+          userId: request.user_id,
+          businessId: Number(request.business_id),
+          restaurantId: request.restaurant_id == null ? null : undefined,
+          requestId: request.id,
+          status: 'completed',
+        });
+        result.completedRequests += 1;
+      } catch (err) {
+        // Money flows W4: a lost lease is not one failed person. The
+        // fence's handle refuses further writes, so rethrow instead
+        // of recording the loss as a per-person error and continuing:
+        // withFencedJobLock converts the throw into { fenced: true }
+        // and the remaining persons wait for the next weekly run.
+        if (err instanceof LeaseLostError) throw err;
+        result.errors.push({ request_id: Number(request.id), error: err.message });
+        logger.error('Retention sweep erasure failed', { requestId: request.id, error: err.message });
+      }
     }
+    if (dueRequests.length < batchLimit) break;
+    const lastRequest = dueRequests[dueRequests.length - 1];
+    requestCursor = { requestedAt: lastRequest.requested_at, id: lastRequest.id };
   }
   // 2. Offboarded staff past retention with no completed erasure yet.
   // Domain 9 item 4: LIMIT + FOR UPDATE SKIP LOCKED claim, same as
@@ -183,65 +208,74 @@ async function sweep(db = pool) {
   // tiebreak so the latest record is picked deterministically; the
   // pick is the same latest record DISTINCT ON returned, only the
   // tie is now decided by id instead of arbitrarily.
-  const { rows: dueStaff } = await db.query(
-    `SELECT o.business_id, o.user_id, o.retain_until
-       FROM staff_offboarding_records o
-      WHERE o.retain_until < CURRENT_DATE
-        AND NOT EXISTS (
-          SELECT 1 FROM staff_offboarding_records o2
-           WHERE o2.business_id = o.business_id AND o2.user_id = o.user_id
-             AND (o2.created_at > o.created_at
-                  OR (o2.created_at = o.created_at AND o2.id > o.id))
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM restaurant_erasure_requests er
-           WHERE er.business_id = o.business_id AND er.user_id = o.user_id
-             AND er.status = 'completed'
-        )
-      ORDER BY o.business_id, o.user_id
-      LIMIT $1
-      FOR UPDATE OF o SKIP LOCKED`,
-    [RETENTION_SWEEP_BATCH_LIMIT]
-  );
-  for (const person of dueStaff) {
-    try {
-      const outcome = await anonymizePerson(db, {
-        businessId: Number(person.business_id),
-        userId: person.user_id,
-        retainUntil: person.retain_until,
-      });
-      if (outcome.skipped) { result.skipped += 1; continue; }
-      // Money flows W10: the insert dedupes on the completed-rows
-      // index. A concurrent sweep that completed this person first
-      // makes this insert a no-op (inserted:false); the person is
-      // anonymized either way, so count only a real insert and
-      // record no error.
-      const { inserted, id: completedId } = await recordAutoCompletedErasure(db, {
-        businessId: Number(person.business_id),
-        userId: person.user_id,
-        outcome,
-      });
-      if (!inserted) continue;
-      // Money-flows W3: tell the subject the sweep erased their data.
-      // Only the winning sweep notifies; the loser already has its
-      // subject notified by the sweep that completed the person.
-      await notifyErasureSubject(db, {
-        userId: person.user_id,
-        businessId: Number(person.business_id),
-        restaurantId: null,
-        requestId: completedId,
-        status: 'completed',
-      });
-      result.autoAnonymized += 1;
-    } catch (err) {
-      // Money flows W4: see the part-1 catch above. Without the
-      // rethrow a lease lost in this pass was swallowed per person
-      // and the sweep returned normally (no { fenced: true }, no
-      // incident), while the remaining persons were never processed.
-      if (err instanceof LeaseLostError) throw err;
-      result.errors.push({ user_id: person.user_id, error: err.message });
-      logger.error('Retention sweep auto-anonymize failed', { userId: person.user_id, error: err.message });
+  let staffCursor = null;
+  for (;;) {
+    const { rows: dueStaff } = await db.query(
+      `SELECT o.business_id, o.user_id, o.retain_until
+         FROM staff_offboarding_records o
+        WHERE o.retain_until < CURRENT_DATE
+          AND NOT EXISTS (
+            SELECT 1 FROM staff_offboarding_records o2
+             WHERE o2.business_id = o.business_id AND o2.user_id = o.user_id
+               AND (o2.created_at > o.created_at
+                    OR (o2.created_at = o.created_at AND o2.id > o.id))
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM restaurant_erasure_requests er
+             WHERE er.business_id = o.business_id AND er.user_id = o.user_id
+               AND er.status = 'completed'
+          )
+          ${staffCursor ? 'AND (o.business_id, o.user_id) > ($1, $2)' : ''}
+        ORDER BY o.business_id, o.user_id
+        LIMIT ${staffCursor ? '$3' : '$1'}
+        FOR UPDATE OF o SKIP LOCKED`,
+      staffCursor ? [staffCursor.businessId, staffCursor.userId, batchLimit] : [batchLimit]
+    );
+    if (dueStaff.length === 0) break;
+    if (dueStaff.length >= batchLimit) result.hitBatchLimit = true;
+    for (const person of dueStaff) {
+      try {
+        const outcome = await anonymizePerson(db, {
+          businessId: Number(person.business_id),
+          userId: person.user_id,
+          retainUntil: person.retain_until,
+        });
+        if (outcome.skipped) { result.skipped += 1; continue; }
+        // Money flows W10: the insert dedupes on the completed-rows
+        // index. A concurrent sweep that completed this person first
+        // makes this insert a no-op (inserted:false); the person is
+        // anonymized either way, so count only a real insert and
+        // record no error.
+        const { inserted, id: completedId } = await recordAutoCompletedErasure(db, {
+          businessId: Number(person.business_id),
+          userId: person.user_id,
+          outcome,
+        });
+        if (!inserted) continue;
+        // Money-flows W3: tell the subject the sweep erased their data.
+        // Only the winning sweep notifies; the loser already has its
+        // subject notified by the sweep that completed the person.
+        await notifyErasureSubject(db, {
+          userId: person.user_id,
+          businessId: Number(person.business_id),
+          restaurantId: null,
+          requestId: completedId,
+          status: 'completed',
+        });
+        result.autoAnonymized += 1;
+      } catch (err) {
+        // Money flows W4: see the part-1 catch above. Without the
+        // rethrow a lease lost in this pass was swallowed per person
+        // and the sweep returned normally (no { fenced: true }, no
+        // incident), while the remaining persons were never processed.
+        if (err instanceof LeaseLostError) throw err;
+        result.errors.push({ user_id: person.user_id, error: err.message });
+        logger.error('Retention sweep auto-anonymize failed', { userId: person.user_id, error: err.message });
+      }
     }
+    if (dueStaff.length < batchLimit) break;
+    const lastPerson = dueStaff[dueStaff.length - 1];
+    staffCursor = { businessId: lastPerson.business_id, userId: lastPerson.user_id };
   }
   // Domain 8 #12: per-person failures used to surface only as log
   // lines. Raise one deduped incident per day naming the failures so
@@ -262,10 +296,6 @@ async function sweep(db = pool) {
       logger.error('Retention sweep incident could not be recorded', { error: incidentErr.message });
     }
   }
-  // A full batch means more due rows remain for the next weekly run;
-  // the log line carries it so a backlog is visible, not silent.
-  result.hitBatchLimit =
-    dueRequests.length >= RETENTION_SWEEP_BATCH_LIMIT || dueStaff.length >= RETENTION_SWEEP_BATCH_LIMIT;
   return result;
 }
 
@@ -303,4 +333,7 @@ module.exports = {
   sweep,
   cronExpression: CRON_EXPRESSION,
   RETENTION_SWEEP_BATCH_LIMIT,
+  // Domain 8 #12: the public alias the batch tests (and the
+  // { batchLimit } paging contract) refer to.
+  SWEEP_BATCH_LIMIT: RETENTION_SWEEP_BATCH_LIMIT,
 };

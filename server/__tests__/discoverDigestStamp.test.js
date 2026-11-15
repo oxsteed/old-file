@@ -51,14 +51,32 @@ function alertRow(overrides = {}) {
   };
 }
 
-function fakeDigestDb(alerts) {
+function fakeDigestDb(alerts, recipientOverrides = {}) {
   const calls = [];
+  const recipient = {
+    id: 'user-1',
+    email: 'ana@example.com',
+    first_name: 'Ana',
+    preferred_language: 'en',
+    deleted_at: null,
+    is_active: true,
+    unsubscribe_all: false,
+    email_notifications: true,
+    email_frequency: 'real-time',
+    marketing_emails: true,
+    ...recipientOverrides,
+  };
   const db = {
     calls,
     query: jest.fn(async (sql, params) => {
       calls.push(String(sql));
       if (String(sql).includes('FROM discover_search_alerts a')) {
         return { rows: alerts };
+      }
+      // Shared digest helper loads the recipient + preferences before
+      // sending (item 16); answer it from the same fake.
+      if (String(sql).includes('FROM users u')) {
+        return { rows: [recipient] };
       }
       return { rows: [] };
     }),
@@ -122,4 +140,55 @@ test('a first-time alert stores the signature and stamps last_checked_at', async
   expect(sendEmail).not.toHaveBeenCalled();
   expect(stampCalls(digestDb)).toHaveLength(1);
   expect(stampCalls(digestDb)[0]).toMatch(/last_signature/);
+});
+
+test('an unsubscribed user gets no discover mail and the signature is untouched', async () => {
+  // Item 16: the digest selected alerts with no notification_preferences
+  // check and mailed via direct sendEmail, so unsubscribe_all /
+  // email_notifications off / frequency off were all ignored.
+  sendEmail.mockResolvedValue({ success: true });
+  const digestDb = fakeDigestDb([alertRow()], { unsubscribe_all: true });
+  const fence = { db: digestDb, assertActive: jest.fn() };
+
+  await runDiscoverDigestTick({ fence });
+
+  expect(sendEmail).not.toHaveBeenCalled();
+  // A prefs skip is a completed check (last_checked_at stamped so the row
+  // sleeps a day) but the signature is untouched, so re-subscribing
+  // resumes delivery on the next due tick.
+  expect(stampCalls(digestDb)).toHaveLength(1);
+  expect(stampCalls(digestDb)[0]).not.toMatch(/last_signature/);
+});
+
+test('a frequency-off user gets no discover mail', async () => {
+  sendEmail.mockResolvedValue({ success: true });
+  const digestDb = fakeDigestDb([alertRow()], { email_frequency: 'off' });
+  const fence = { db: digestDb, assertActive: jest.fn() };
+
+  await runDiscoverDigestTick({ fence });
+
+  expect(sendEmail).not.toHaveBeenCalled();
+  expect(stampCalls(digestDb)).toHaveLength(1);
+});
+
+test('a daily-frequency user is queued for the digest instead of mailed now', async () => {
+  sendEmail.mockResolvedValue({ success: true });
+  const digestDb = fakeDigestDb([alertRow()], { email_frequency: 'daily' });
+  const fence = { db: digestDb, assertActive: jest.fn() };
+
+  await runDiscoverDigestTick({ fence });
+
+  expect(sendEmail).not.toHaveBeenCalled();
+  const queueCalls = digestDb.query.mock.calls.filter(
+    ([sql]) => String(sql).includes('INSERT INTO email_digest_queue'),
+  );
+  expect(queueCalls).toHaveLength(1);
+  // digest_type is the bound $2 param, not a SQL literal.
+  expect(queueCalls[0][1][1]).toBe('daily');
+  expect(queueCalls[0][1][2]).toBe('discover_digest');
+  // Delegated to the digest batch: the signature advances so the change
+  // is not re-queued, but last_sent_at is NOT claimed (nothing sent yet).
+  expect(stampCalls(digestDb)).toHaveLength(1);
+  expect(stampCalls(digestDb)[0]).toMatch(/last_signature/);
+  expect(stampCalls(digestDb)[0]).not.toMatch(/last_sent_at/);
 });

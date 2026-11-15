@@ -8,6 +8,7 @@
 
 const { AppError } = require('../../middleware/errorHandler');
 const { handle, tx, pool, requireUser } = require('./common');
+const logger = require('../../utils/logger');
 const { logAdminAction } = require('../../services/auditService');
 const { text, bool, normalizeCountry } = require('../../services/careers/validation');
 
@@ -188,6 +189,12 @@ exports.reviewBlock = handle(async (req, res) => {
     await adminAudit(req, c, { action: 'careers.ranking_block.reviewed', targetType: 'career_ai_ranking_block', targetId: row.id, after: { scope_type: row.scope_type, scope_ref: row.scope_ref, impact_ratio: row.impact_ratio, note } });
     return row;
   }, 'career_admin_block');
+  // Notifications audit item 24: a review used to write only the audit
+  // row. The admins who got the block alert learn the outcome, after the
+  // review commits; a notify failure is logged, never a 500.
+  fairness.notifyBlockReviewed(pool, block).catch((err) => {
+    logger.warn('careers: ranking block review notice failed', { blockId: block.id, error: err.message });
+  });
   res.json({ block });
 });
 

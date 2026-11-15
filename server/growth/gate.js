@@ -218,8 +218,55 @@ async function allow(input, purpose = "activity", options = {}) {
     return denied("gate_unavailable");
   }
 }
+// Batch gate decisions for already-built contexts (notifications audit
+// item 40). decide() is pure, so a block that built its contexts once can
+// decide once per user instead of awaiting allow() per row. Decisions are
+// cached by the writer's decisionKey pattern (growth/ingest/writer.js):
+// identical decision inputs share one verdict, so a user with many rows
+// in one block is decided once.
+function decisionKey(ctx) {
+  // N13: every input decide() reads must be in the key. The old key
+  // covered only the user id, trusted signals, consents and the
+  // jurisdiction code, so two contexts for one user that differed in
+  // impersonation, GPC, eligibility, user status, rollout or the
+  // jurisdiction basis shared one cached verdict. (purpose, env and
+  // now are fixed for one allowMany call, so they are not keyed.)
+  return JSON.stringify([
+    ctx?.user?.id ?? null,
+    ctx?.user?.role ?? null,
+    ctx?.user?.is_active ?? null,
+    ctx?.user?.is_banned ?? null,
+    ctx?.user?.deleted_at ?? null,
+    ctx?.user?.is_suspended ?? null,
+    ctx?.eligibility?.adult_confirmed ?? null,
+    ctx?.eligibility?.is_internal ?? null,
+    ctx?.enabled ?? null,
+    ctx?.rollout ?? null,
+    ctx?.impersonated ?? null,
+    ctx?.gpc ?? null,
+    ctx?.trustedSignals ?? null,
+    ctx?.consents ?? null,
+    ctx?.jurisdiction ?? null,
+  ]);
+}
+function allowMany(contexts, purpose = "activity", options = {}) {
+  const byId = contexts instanceof Map ? contexts : new Map(contexts);
+  const cache = new Map();
+  const out = new Map();
+  for (const [id, ctx] of byId) {
+    if (!ctx) {
+      out.set(id, { ...denied("context_missing"), context: ctx });
+      continue;
+    }
+    const key = decisionKey(ctx);
+    if (!cache.has(key)) cache.set(key, decide(ctx, purpose, Date.now(), process.env, options));
+    out.set(id, { ...cache.get(key), context: ctx });
+  }
+  return out;
+}
 module.exports = {
   allow,
+  allowMany,
   context,
   contexts,
   runtimePolicy,

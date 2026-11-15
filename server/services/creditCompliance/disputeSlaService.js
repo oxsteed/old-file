@@ -163,7 +163,7 @@ async function sweepProvisionalDue(now) {
       LIMIT ${BATCH}`,
     [now]
   );
-  const out = { due: rows.length, autoIssued: 0, flagged: 0 };
+  const out = { due: rows.length, autoIssued: 0, flagged: 0, noticeFailed: 0 };
   for (const dispute of rows) {
     if (!autoProvisionalEnabled()) {
       await flagProvisionalDue(dispute, 'automatic provisional credit is off');
@@ -174,12 +174,22 @@ async function sweepProvisionalDue(now) {
       const result = await autoIssueProvisional(dispute.id);
       if (result.issued) {
         out.autoIssued += 1;
-        await notices().sendUserNotice({
+        // Notifications audit item 45: capture result.sent instead of
+        // discarding it. No retry flag exists for this notice:
+        // autoIssueProvisional already set provisional_overdue_flagged_at,
+        // so the sweep never re-selects the dispute. Record the failure
+        // (the in-app row sendUserNotice inserts is the holder's trace)
+        // so support can see it and resend.
+        const notice = await notices().sendUserNotice({
           userId: result.customerId,
           key: 'dispute_provisional_credit',
           params: { reference: String(dispute.id).slice(0, 8), amount_minor: result.issued, currency: result.currency, deadline: null },
           idempotencyKey: `credit-dispute:${dispute.id}:provisional-auto`,
         });
+        if (notice.sent !== true) {
+          logger.warn('credit_dispute.provisional_notice_failed', { disputeId: String(dispute.id), customerId: result.customerId, error: notice.error || 'send_failed' });
+          out.noticeFailed += 1;
+        }
       } else if (result.skipped === 'rail_disabled' || result.skipped === 'no_policy_admin') {
         await flagProvisionalDue(dispute, result.skipped === 'rail_disabled' ? 'the Credit rail is disabled' : 'no dispute policy administrator is configured');
         out.flagged += 1;
@@ -543,11 +553,18 @@ async function openCashoutDispute({ user, cashoutId, description, idempotencyKey
     return { row: { ...rows[0], amount_minor: cashout.amount_minor, currency: cashout.currency }, replayed: false };
   }, 'credit_cashout_dispute_open');
   if (!result.replayed) {
-    await notices().sendUserNotice({
+    // Notifications audit item 45: capture result.sent instead of
+    // discarding it; a failed receipt notice warns (the in-app row
+    // sendUserNotice inserts is the fallback copy, and the dispute
+    // itself stays visible in the holder's dispute list).
+    const notice = await notices().sendUserNotice({
       userId: user.id, key: 'cashout_dispute_received',
       params: { reference: `C${result.row.id}`, amount_minor: Number(result.row.amount_minor), currency: result.row.currency, deadline: new Date(result.row.resolution_due_at).toISOString() },
       idempotencyKey: `credit-cashout-dispute:${result.row.id}:received`,
     });
+    if (notice.sent !== true) {
+      logger.warn('credit_cashout_dispute.receipt_notice_failed', { disputeId: String(result.row.id), userId: user.id, error: notice.error || 'send_failed' });
+    }
   }
   return viewCashoutDispute(result.row);
 }

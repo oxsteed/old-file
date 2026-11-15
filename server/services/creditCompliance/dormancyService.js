@@ -39,6 +39,7 @@ const pool = require('../../db');
 const { AppError } = require('../../middleware/errorHandler');
 const { withTransaction } = require('../../utils/transaction');
 const { insertComplianceAudit } = require('./audit');
+const logger = require('../../utils/logger');
 
 const BATCH = 500;
 const MAX_CASES_PER_ACTION = 200;
@@ -330,11 +331,19 @@ async function applyEscheat({ client, payload, actorUserId, requestedBy }) {
   const { rows: policies } = await client.query('SELECT country_code, authority_name FROM credit_dormancy_policies');
   const authority = Object.fromEntries(policies.map((p) => [p.country_code, p.authority_name]));
   for (const r of results.filter((x) => x.status === 'escheated' && x.holderUserId)) {
-    await notices().sendUserNotice({
+    // Notifications audit N7: record the delivery result instead of
+    // discarding it. The money has already moved, so this is a
+    // confirmatory notice; a failed send warns (the in-app row
+    // sendUserNotice inserts is the fallback copy), like the wind-down
+    // redemption notice in windDownService.
+    const notice = await notices().sendUserNotice({
       userId: r.holderUserId, key: 'escheat_completed',
       params: { amount_minor: r.amountMinor, currency: r.currency, authority: authority[r.countryCode] || '' },
       idempotencyKey: `credit-escheat:${r.id}:notice`,
     });
+    if (notice.sent !== true) {
+      logger.warn('credit_dormancy.escheat_notice_failed', { caseId: String(r.id), holderUserId: r.holderUserId, error: notice.error || 'send_failed' });
+    }
   }
   return { results };
 }

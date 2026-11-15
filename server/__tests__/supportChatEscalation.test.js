@@ -10,6 +10,7 @@ const { mockQuery, resetMocks } = require('./setup');
 
 jest.mock('../services/supportNotificationService', () => ({
   scheduleSupportMessageNotifications: jest.fn(),
+  SUPPORT_STAFF_ALERT_LIMIT: 25,
 }));
 jest.mock('../controllers/customer360Controller', () => ({
   notifyWatchers: jest.fn().mockResolvedValue(undefined),
@@ -89,7 +90,10 @@ test('creates the ticket, notifies staff, emails the user and returns the ticket
   expect(messageInsert.params[5]).toBe('ht');
 
   expect(scheduleSupportMessageNotifications).toHaveBeenCalledWith(expect.objectContaining({ ticketId: 't-1', messageId: 'm-1' }));
-  expect(socketService.broadcastToAdmins).toHaveBeenCalledWith('support:new_ticket', expect.objectContaining({ ticket_number: 'OX-1042' }));
+  // Item 10: the all-admin 'support:new_ticket' socket broadcast was
+  // dropped as a duplicate channel; the scoped in-app notification above
+  // is the surviving realtime leg for staff.
+  expect(socketService.broadcastToAdmins).not.toHaveBeenCalledWith('support:new_ticket', expect.anything());
   await new Promise((r) => setImmediate(r));
   const recipients = sendEmail.mock.calls.map(([arg]) => arg.to);
   expect(recipients).toContain('ana@example.com');

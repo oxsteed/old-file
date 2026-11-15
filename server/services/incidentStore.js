@@ -7,6 +7,13 @@ const logger = require('../utils/logger');
 const MAX_LIST_LIMIT = 500;
 const DEFAULT_NOTIFICATION_COOLDOWN_MINUTES = 15;
 
+// Item 22 + 46 (one shared set, used by the store, the dispatcher, and
+// the email/Slack legs): only these severities ever reach an operator.
+// Anything else is persisted as a durable record but never claims a
+// notification window — claiming one for a warning just pushed its lease
+// +5 minutes forever while no leg would ever send it.
+const DISPATCHABLE_SEVERITIES = Object.freeze(['critical', 'high']);
+
 function incidentDedupeKey(type, severity, suppliedKey) {
   const key = String(suppliedKey || '').trim();
   if (key) return key.slice(0, 128);
@@ -55,6 +62,13 @@ async function recordIncident({ type, severity, message, details = {}, dedupeKey
     );
     const incident = result.rows[0] || null;
     if (!incident?.id) return { persisted: true, incident, notificationClaimed: false };
+
+    // Item 22: only dispatchable severities claim a notification window.
+    // A warning (or info) incident is durable but has no operator leg,
+    // so claiming would push its lease forever with nothing ever sent.
+    if (!DISPATCHABLE_SEVERITIES.includes(normalizedSeverity)) {
+      return { persisted: true, incident, notificationClaimed: false };
+    }
 
     // Claiming is conditional, so only one replica can dispatch notifications
     // during the cooldown window for a given open incident.
@@ -225,6 +239,7 @@ async function setWatermark(consumer, watermark) {
 
 module.exports = {
   DEFAULT_NOTIFICATION_COOLDOWN_MINUTES,
+  DISPATCHABLE_SEVERITIES,
   INCIDENT_STATUSES,
   incidentDedupeKey,
   recordIncident,

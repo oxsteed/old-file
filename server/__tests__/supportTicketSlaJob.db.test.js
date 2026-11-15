@@ -44,6 +44,29 @@ describeDb('support ticket SLA sweeper', () => {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
+    // Minimal staff tables so the sweep's shared staff resolution runs
+    // its real SQL (no rows: zero staff, so the round stamps without a
+    // sendNotification fan-out that would need the notifications table).
+    await db.query(`CREATE TABLE ${schema}.users (
+      id UUID PRIMARY KEY,
+      role TEXT,
+      is_active BOOLEAN,
+      deleted_at TIMESTAMPTZ,
+      email TEXT
+    )`);
+    await db.query(`CREATE TABLE ${schema}.admin_notification_prefs (
+      admin_id UUID PRIMARY KEY,
+      safety_on_call BOOLEAN NOT NULL DEFAULT FALSE,
+      email_notifications BOOLEAN NOT NULL DEFAULT TRUE
+    )`);
+    await db.query(`CREATE TABLE ${schema}.admin_permission_grants (
+      id SERIAL PRIMARY KEY,
+      grantee_id UUID,
+      permissions JSONB,
+      region_id UUID,
+      revoked_at TIMESTAMPTZ,
+      expires_at TIMESTAMPTZ
+    )`);
   });
 
   afterAll(async () => { await db.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`); await db.end(); });
@@ -90,8 +113,43 @@ describeDb('support ticket SLA sweeper', () => {
     expect(broadcastToAdmins).not.toHaveBeenCalled();
   });
 
-  test('urgent stays urgent (top of the ladder)', async () => {
-    const t = await ticket({ priority: 'urgent' });
+  test('re-escalates an unclaimed ticket after the cadence, then not again until it elapses', async () => {
+    const fiveHoursAgo = new Date(Date.now() - 5 * 3600000).toISOString();
+    const t = await ticket({ priority: 'high', escalated_at: fiveHoursAgo });
+    await db.query(
+      `UPDATE support_tickets SET metadata = $2::jsonb WHERE id = $1`,
+      [t.id, JSON.stringify({ sla_escalated_at: fiveHoursAgo, sla_escalation_count: 1 })]
+    );
+
+    const result = await sweepSupportTicketSla(db);
+    expect(result).toEqual(expect.objectContaining({ escalated: 0, reescalated: 1 }));
+    const after = await state(t.id);
+    expect(after.metadata.sla_last_reescalated_at).toBeTruthy();
+    expect(after.metadata.sla_escalation_count).toBe(2);
+    expect(broadcastToAdmins).toHaveBeenCalledTimes(1);
+
+    // Immediate re-sweep: the cadence has not elapsed, so no second alert.
+    broadcastToAdmins.mockClear();
+    const again = await sweepSupportTicketSla(db);
+    expect(again).toEqual(expect.objectContaining({ escalated: 0, reescalated: 0 }));
+    expect(broadcastToAdmins).not.toHaveBeenCalled();
+  });
+
+  test('does not re-escalate within the cadence', async () => {
+    const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
+    const t = await ticket({ priority: 'high', escalated_at: oneHourAgo });
+    await db.query(
+      `UPDATE support_tickets SET metadata = $2::jsonb WHERE id = $1`,
+      [t.id, JSON.stringify({ sla_escalated_at: oneHourAgo, sla_escalation_count: 1 })]
+    );
+
+    const result = await sweepSupportTicketSla(db);
+    expect(result).toEqual(expect.objectContaining({ escalated: 0, reescalated: 0 }));
+    expect((await state(t.id)).metadata.sla_last_reescalated_at).toBeUndefined();
+    expect(broadcastToAdmins).not.toHaveBeenCalled();
+  });
+
+  test('urgent stays urgent (top of the ladder)', async () => {    const t = await ticket({ priority: 'urgent' });
     await sweepSupportTicketSla(db);
     const after = await state(t.id);
     expect(after.priority).toBe('urgent');

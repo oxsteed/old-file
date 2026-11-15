@@ -7,10 +7,23 @@ import {
 } from '../utils/serviceWorkerRegistration';
 import { appUpdatesDeferred, subscribeUpdateSafety } from '../utils/appUpdateSafety';
 
+const DISMISSED_WORKER_KEY = 'oxsteed:pwa-update-dismissed';
+
+// Item 37: the "Later" dismissal is persisted per tab session as the
+// dismissed worker's id (its scriptURL). A reload re-prompts for the same
+// worker only if it was never dismissed; a NEW waiting worker (different
+// id) clears the dismissal so the user is prompted again.
+function readDismissedWorkerId() {
+  try { return sessionStorage.getItem(DISMISSED_WORKER_KEY); } catch { return null; }
+}
+function workerId(worker) {
+  return (worker && worker.scriptURL) || 'waiting';
+}
+
 export default function ServiceWorkerUpdateNotice() {
   const { t } = useTranslation();
   const [worker, setWorker] = useState(getWaitingWorker);
-  const [dismissedWorker, setDismissedWorker] = useState(null);
+  const [dismissedWorkerId, setDismissedWorkerId] = useState(readDismissedWorkerId);
   const [updating, setUpdating] = useState(false);
   const deferred = useSyncExternalStore(subscribeUpdateSafety, appUpdatesDeferred, appUpdatesDeferred);
   useEffect(() => {
@@ -18,7 +31,20 @@ export default function ServiceWorkerUpdateNotice() {
     setWorker(getWaitingWorker());
     return unsubscribe;
   }, []);
-  if (!worker || worker === dismissedWorker || deferred) return null;
+  // A new waiting worker clears a stale dismissal from an older worker.
+  useEffect(() => {
+    if (!worker || !dismissedWorkerId) return;
+    if (dismissedWorkerId !== workerId(worker)) {
+      try { sessionStorage.removeItem(DISMISSED_WORKER_KEY); } catch { /* dismissal is best-effort */ }
+      setDismissedWorkerId(null);
+    }
+  }, [worker, dismissedWorkerId]);
+  const handleLater = () => {
+    const id = workerId(worker);
+    try { sessionStorage.setItem(DISMISSED_WORKER_KEY, id); } catch { /* dismissal is best-effort */ }
+    setDismissedWorkerId(id);
+  };
+  if (!worker || (dismissedWorkerId && dismissedWorkerId === workerId(worker)) || deferred) return null;
   return (
     <aside
       role="status"
@@ -28,7 +54,7 @@ export default function ServiceWorkerUpdateNotice() {
       <button
         type="button"
         disabled={updating}
-        onClick={() => setDismissedWorker(worker)}
+        onClick={handleLater}
         className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium hover:bg-gray-100 disabled:opacity-60 dark:hover:bg-gray-800"
       >
         {t('pwaShell.later')}

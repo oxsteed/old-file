@@ -93,6 +93,10 @@ async function updateEmailPreferences(req, res) {
       [userId]
     );
 
+    // Item 5: this UPDATE must NOT touch unsubscribe_all. It used to set
+    // unsubscribe_all = FALSE unconditionally, so any ordinary save silently
+    // re-subscribed a user who had unsubscribed from all email. Only the
+    // explicit resubscribeAll action below clears it.
     const result = await pool.query(
       `UPDATE notification_preferences
        SET email_frequency = COALESCE($1, email_frequency),
@@ -100,8 +104,7 @@ async function updateEmailPreferences(req, res) {
            marketing_emails = COALESCE($3, marketing_emails),
            sms_notifications = COALESCE($4, sms_notifications),
            push_notifications = COALESCE($5, push_notifications),
-           email_updated_at = CURRENT_TIMESTAMP,
-           unsubscribe_all = FALSE
+           email_updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $6
        RETURNING *`,
       [frequency || null, emailNotifications, marketingEmails, smsNotifications, pushNotifications, userId]
@@ -124,12 +127,44 @@ async function updateEmailPreferences(req, res) {
         marketingEmails: prefs.marketing_emails !== false,
         smsNotifications: prefs.sms_notifications !== false,
         pushNotifications: prefs.push_notifications !== false,
+        unsubscribeAll: prefs.unsubscribe_all || false,
         lastUpdated: prefs.email_updated_at
       }
     });
   } catch (error) {
     logger.error('Error updating email preferences', { error, userId: req.user?.id });
     sendError(res, 500, 'Failed to update email preferences');
+  }
+}
+
+// Explicit re-subscribe to all emails (item 5). This is the ONLY ordinary
+// path that clears unsubscribe_all: an explicit user action, surfaced in
+// the settings UI, never a side effect of saving other preferences.
+async function resubscribeAll(req, res) {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return sendError(res, 401, 'Unauthorized');
+    }
+
+    await pool.query(
+      `UPDATE notification_preferences
+       SET unsubscribe_all = FALSE,
+           email_updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    logger.info('User re-subscribed to all emails', { userId });
+
+    res.json({
+      success: true,
+      message: 'You have been re-subscribed to all emails'
+    });
+  } catch (error) {
+    logger.error('Error re-subscribing to all emails', { error, userId: req.user?.id });
+    sendError(res, 500, 'Failed to re-subscribe to emails');
   }
 }
 
@@ -363,6 +398,7 @@ module.exports = {
   getEmailPreferences,
   updateEmailPreferences,
   unsubscribeFromAll,
+  resubscribeAll,
   generateUnsubscribeToken,
   handleUnsubscribeLink,
   confirmUnsubscribe,

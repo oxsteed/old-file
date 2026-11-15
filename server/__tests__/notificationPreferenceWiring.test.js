@@ -129,6 +129,23 @@ describe('P2-8-F03 friendly toggle aliases', () => {
   });
 });
 
+describe('Item 21 support SLA / follow-up email eligibility', () => {
+  test.each(['support_sla_breach', 'support_follow_up_due'])(
+    '%s reaches email so offline agents learn about it',
+    async (type) => {
+      mockPrefs({});
+      sendEmail.mockResolvedValue({ success: true });
+      const result = await sendNotification({
+        userId: 'u1', type, title: 't', body: 'b',
+        idempotencyKey: `item21-email-${type}`,
+      });
+      expect(result.success).toBe(true);
+      expect(sendEmail).toHaveBeenCalledTimes(1);
+      expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'user@example.com' }));
+    },
+  );
+});
+
 describe('Background-jobs audit #51 restaurant alert toggles', () => {
   const RESTAURANT_TYPES = [
     ['staff_time_entry_system_closed', 'in_app_staff_time_entry_system_closed'],
@@ -239,7 +256,10 @@ describe('P2-8-F04 email_frequency honored by the realtime path', () => {
     mockPrefs({ email_frequency: 'daily' });
     const result = await sendNotification({ userId: 'u1', type: 'metric_threshold_alert', body: 'Threshold crossed',
       emailChannel: true, inAppChannel: false, pushChannel: false, idempotencyKey: 'email-only-digest' });
-    expect(result).toMatchObject({ success: true, delivered: true });
+    // Item 19: `delivered` is now a per-channel breakdown instead of the
+    // old metric-alert boolean; the digest-queued email is reported as
+    // emailQueued, not as a realtime email.
+    expect(result).toMatchObject({ success: true, delivered: { inApp: false, push: false, email: false, emailQueued: true } });
     expect(sendEmail).not.toHaveBeenCalled();
     expect(insertCalls()).toHaveLength(0);
     const queued = digestQueueCalls();
@@ -250,12 +270,21 @@ describe('P2-8-F04 email_frequency honored by the realtime path', () => {
     expect(queued[0][1][5]).toBe('email-only-digest');
   });
 
-  test('email-only delivery without a delivery key falls back to realtime instead of dropping', async () => {
+  // Item 26: the boundary now always derives a delivery key, so the
+  // old keyless fallback to realtime no longer exists: a weekly-frequency
+  // email-only send is queued for the digest (deduped by the derived
+  // key) instead of being sent immediately. The email is still not
+  // dropped — it just honours the user's digest frequency.
+  test('email-only delivery without a caller key queues for the digest on the derived key', async () => {
     mockPrefs({ email_frequency: 'weekly' });
-    await sendNotification({ userId: 'u1', type: 'metric_threshold_alert', body: 'Threshold crossed',
+    const result = await sendNotification({ userId: 'u1', type: 'metric_threshold_alert', body: 'Threshold crossed',
       emailChannel: true, inAppChannel: false, pushChannel: false });
-    expect(digestQueueCalls()).toHaveLength(0);
-    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const queued = digestQueueCalls();
+    expect(queued).toHaveLength(1);
+    expect(queued[0][1][1]).toBe('weekly');
+    expect(String(queued[0][1][5])).toMatch(/^auto:metric_threshold_alert:u1:payload:/);
+    expect(result.delivered).toEqual({ inApp: false, push: false, email: false, emailQueued: true });
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   test('real-time (default) sends email immediately and queues nothing', async () => {
@@ -332,5 +361,31 @@ describe('P2-8-F03 removed dead toggles stay rejected by the API', () => {
     expect(res.json).toHaveBeenCalled();
     const update = db.query.mock.calls.find(([sql]) => /UPDATE|INSERT INTO notification_preferences/.test(String(sql)));
     expect(update).toBeDefined();
+  });
+});
+
+describe('weekly summary email leg (item 9)', () => {
+  test('weekly_summary sends email when email_weekly_summary is on', async () => {
+    // Item 9: the weekly summary job sent type weekly_summary via
+    // sendNotification and gated inclusion on email_weekly_summary, but
+    // weekly_summary was absent from the emailTypes allow-list, so the
+    // email leg never fired and the settings toggle was dead.
+    mockPrefs({ email_weekly_summary: true, email_notifications: true });
+    sendEmail.mockResolvedValue({ success: true });
+    const result = await sendNotification({ userId: 'u1', type: 'weekly_summary',
+      title: 'Your weekly OxSteed summary', body: 'This week: $10 earned MTD',
+      idempotencyKey: 'weekly-summary:u1:2026-W07' });
+    expect(result.success).toBe(true);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'user@example.com' }));
+  });
+
+  test('weekly_summary sends no email when email_weekly_summary is off', async () => {
+    mockPrefs({ email_weekly_summary: false, email_notifications: true });
+    sendEmail.mockResolvedValue({ success: true });
+    await sendNotification({ userId: 'u1', type: 'weekly_summary',
+      title: 'Your weekly OxSteed summary', body: 'This week: $10 earned MTD',
+      idempotencyKey: 'weekly-summary:u1:2026-W07' });
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });

@@ -19,6 +19,7 @@
  */
 
 const pool = require('../../db');
+const logger = require('../../utils/logger');
 const AppError = require('../../utils/appError');
 const { insertComplianceAudit } = require('./audit');
 
@@ -107,11 +108,20 @@ async function runPeriodicTriggers() {
     `SELECT id, user_id FROM credit_kyc_requirements WHERE status = 'open' AND notified_at IS NULL LIMIT 500`
   );
   const notices = require('./notices');
+  let notified = 0;
   for (const r of rows) {
-    await notices.sendUserNotice({ userId: r.user_id, key: 'reverification_required', params: {}, idempotencyKey: `kyc-req:${r.id}` });
-    await pool.query('UPDATE credit_kyc_requirements SET notified_at = NOW() WHERE id = $1', [r.id]);
+    // Notifications audit item 1: notified_at means the holder was actually
+    // told. A failed send must stay retryable: only stamp when result.sent
+    // is true, and warn so the failure is visible instead of silent.
+    const result = await notices.sendUserNotice({ userId: r.user_id, key: 'reverification_required', params: {}, idempotencyKey: `kyc-req:${r.id}` });
+    if (result.sent === true) {
+      await pool.query('UPDATE credit_kyc_requirements SET notified_at = NOW() WHERE id = $1', [r.id]);
+      notified += 1;
+    } else {
+      logger.warn('credit_kyc.reverification_notice_failed', { requirementId: String(r.id), userId: r.user_id, error: result.error || 'send_failed' });
+    }
   }
-  return { notified: rows.length };
+  return { notified };
 }
 
 function validateWaive(payload) {

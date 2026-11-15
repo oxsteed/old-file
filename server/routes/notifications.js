@@ -16,7 +16,15 @@ router.put('/read-all',          authenticate, (req, res, next) => {
 });
 router.get('/preferences',       authenticate, notifCtrl.getPreferences);
 router.put('/preferences',       authenticate, notifCtrl.updatePreferences);
-router.post('/push-token',       authenticate, notifCtrl.registerPushToken);
+
+// Item 34: POST /push-token deleted (see notificationController.js) — it
+// wrote legacy rows no sender reads. Live paths: /mobile/push-token,
+// /notifications/webpush/subscribe.
+// Item 12: per-type opt-outs ride the same prefs API surface. These must
+// stay above the /:id routes below or Express would match them as ids.
+router.get('/preferences/types',         authenticate, notifCtrl.getNotificationTypes);
+router.get('/preferences/type-opt-outs', authenticate, notifCtrl.getTypeOptOuts);
+router.put('/preferences/type-opt-outs', authenticate, notifCtrl.setTypeOptOut);
 
 // ─── Web Push (W3C Push API + VAPID) ─────────────────────────
 // Public - needed before the browser can call pushManager.subscribe()
@@ -29,7 +37,7 @@ router.post('/webpush/subscribe',     authenticate, webPushCtrl.subscribe);
 router.post('/webpush/rotate',        strictLimiter, webPushCtrl.rotate);
 router.delete('/webpush/subscribe',   authenticate, webPushCtrl.unsubscribe);
 router.get('/webpush/devices',        authenticate, webPushCtrl.listDevices);
-router.post('/webpush/test',          authenticate, webPushCtrl.sendTest);
+router.post('/webpush/test',          authenticate, strictLimiter, webPushCtrl.sendTest);
 
 router.get('/:id', authenticate, notifCtrl.getNotification);
 router.post('/:id/read', authenticate, (req, res, next) => {

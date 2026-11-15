@@ -210,7 +210,15 @@ async function loadContext(db, delivery) {
             b.id AS broadcast_id, b.subject, COALESCE(b.message, b.body) AS message, b.tracked_links,
             biz.business_name, u.preferred_language,
             np.unsubscribe_all, np.unsubscribed_from_bulk_emails, np.marketing_emails, np.email_notifications,
-            np.push_notifications, np.web_push_enabled,
+            np.push_notifications, np.web_push_enabled, np.in_app_notifications,
+            -- Item 13: per-type opt-outs for business_broadcast ride
+            -- along (the in_app_business_broadcast column the old check
+            -- read was never created by any migration). The in-app leg
+            -- honours them through the shared prefAllows gate, together
+            -- with the in-app master toggle.
+            COALESCE((SELECT json_agg(json_build_object('type', notification_type, 'channel', channel))
+                        FROM notification_type_opt_outs o
+                       WHERE o.user_id = r.user_id), '[]'::json) AS type_opt_outs,
             EXISTS (SELECT 1 FROM business_broadcast_suppressions s WHERE s.business_id = r.business_id
                      AND ((r.email IS NOT NULL AND s.email = r.email) OR (r.user_id IS NOT NULL AND s.user_id = r.user_id))) AS suppressed
        FROM business_broadcast_recipients r
@@ -252,10 +260,21 @@ function renderEmail(ctx) {
   return { ...rendered, unsubscribeUrl };
 }
 
-async function sendInApp(db, ctx, delivery) {
-  return require('./delivery/core').sendInApp(db,{userId:ctx.user_id,type:'business_broadcast',
-    title:String(ctx.subject).slice(0,255),body:ctx.message,url:null,deliveryKey:`business-broadcast:${delivery.id}`,
-    data:{broadcast_id:String(ctx.broadcast_id),business_id:ctx.business_id,business_name:ctx.business_name}});
+async function sendInApp(ctx, delivery, deps = {}) {
+  // Item 11: the in-app row used to be inserted directly by
+  // delivery/core sendInApp, bypassing the master toggle and the
+  // per-type opt-outs. Route through the shared sendNotification path
+  // (in-app only, same delivery key so a retry replays the same row).
+  const sendNotification = deps.sendNotification || require('./notificationService').sendNotification;
+  return sendNotification({
+    userId: ctx.user_id,
+    type: 'business_broadcast',
+    title: String(ctx.subject).slice(0, 255),
+    body: ctx.message,
+    data: { broadcast_id: String(ctx.broadcast_id), business_id: ctx.business_id, business_name: ctx.business_name },
+    idempotencyKey: `business-broadcast:${delivery.id}`,
+    inAppChannel: true, pushChannel: false, emailChannel: false,
+  });
 }
 
 /** Deliver one claimed delivery. Never throws; records the outcome. */
@@ -269,17 +288,40 @@ async function deliverOne(db, delivery, deps = {}) {
     if (ctx.suppressed) return complete(db, delivery, { status: 'skipped', skip_reason: 'unsubscribed' });
 
     if (delivery.channel === 'in_app') {
-      const notificationId = await sendInApp(db, ctx, delivery);
-      return complete(db, delivery, { status: 'sent', notification_id: notificationId, sent_at: true, last_error: null });
+      // Item 13: the in-app leg used to ignore every preference (only
+      // recipient removal and per-business suppression were checked).
+      // Honour the global unsubscribe, the in-app master toggle and the
+      // per-type broadcast opt-out (notification_type_opt_outs) through
+      // the shared prefAllows gate; the per-business suppression above
+      // still applies first. The old check read an
+      // in_app_business_broadcast column no migration ever created.
+      const { prefAllows } = require('./notificationService');
+      if (ctx.unsubscribe_all === true
+        || !prefAllows({ in_app_notifications: ctx.in_app_notifications }, 'in_app', 'business_broadcast', ctx.type_opt_outs || [])) {
+        return complete(db, delivery, { status: 'skipped', skip_reason: 'broadcast_opted_out' });
+      }
+      const result = await sendInApp(ctx, delivery, deps);
+      // Item 11: a failed central send retries with backoff (the old
+      // direct insert threw the same way); a null id means the user
+      // opted out between the pre-check and the send.
+      if (result && result.success === false) throw new Error(result.error || 'broadcast in-app notification failed');
+      if (!result || !result.notificationId) {
+        return complete(db, delivery, { status: 'skipped', skip_reason: 'broadcast_opted_out' });
+      }
+      return complete(db, delivery, { status: 'sent', notification_id: result.notificationId, sent_at: true, last_error: null });
     }
 
     if (delivery.channel === 'push') {
-      if (ctx.push_notifications === false || ctx.web_push_enabled === false) {
+      // Item 13: gate broadcast push on push_notifications only (plus the
+      // global unsubscribe, matching the email leg). web_push_enabled is
+      // a web-only toggle: it now gates just the web leg inside
+      // delivery/core sendPush instead of killing mobile push too.
+      if (ctx.push_notifications === false || ctx.unsubscribe_all === true) {
         return complete(db, delivery, { status: 'skipped', skip_reason: 'push_opted_out' });
       }
       const payload = { title: ctx.subject, body: String(ctx.message).slice(0, 240), type: 'business_broadcast',
         data: { broadcast_id: String(ctx.broadcast_id), track_url: trackingUrl(`p/${encodeURIComponent(ctx.tracking_token)}`) } };
-      const {sent,failed}=await require('./delivery/core').sendPush(ctx.user_id,payload,{webPush,mobilePush});
+      const {sent,failed}=await require('./delivery/core').sendPush(ctx.user_id,payload,{webPush,mobilePush,webPushEnabled:ctx.web_push_enabled});
       if (sent > 0) return complete(db, delivery, { status: 'sent', devices_sent: sent, sent_at: true, last_error: null });
       if (failed === 0) return complete(db, delivery, { status: 'skipped', skip_reason: 'no_push_device' });
       return complete(db, delivery, retryFields(delivery, 'push providers rejected every device'));

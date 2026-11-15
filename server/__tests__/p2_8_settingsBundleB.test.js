@@ -33,7 +33,7 @@ beforeEach(() => {
 });
 
 describe('P2-8-F16 business review notification uses real columns', () => {
-  test('submitReview inserts into notifications (user_id, type, title, body, data)', async () => {
+  test('submitReview notifies the business owner via sendNotification', async () => {
     const req = {
       params: { businessId: '7' },
       body: { leadId: 9, rating: 5, testimonial: 'Excellent work, very thorough.' },
@@ -44,15 +44,24 @@ describe('P2-8-F16 business review notification uses real columns', () => {
       .mockResolvedValueOnce({ rows: [{ id: 9, status: 'completed', completed_at: new Date(), customer_id: 'customer-1' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 42, business_id: 7 }] })
-      .mockResolvedValueOnce({ rows: [{ user_id: 'owner-1' }] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [{ user_id: 'owner-1' }] });
     await reviewsController.submitReview(req, r, jest.fn());
-    const notifCall = mockQuery.mock.calls.find((c) => /INSERT INTO notifications/.test(c[0]));
-    expect(notifCall).toBeDefined();
-    expect(notifCall[0]).toMatch(/INSERT INTO notifications \(user_id, type, title, body, data\)/);
-    expect(notifCall[0]).not.toMatch(/reference_id/);
-    const data = JSON.parse(notifCall[1][2]);
-    expect(data).toMatchObject({ reviewId: 42, referenceType: 'business_review' });
+    // Notifications audit item 11 routed the old direct INSERT INTO
+    // notifications through sendNotification: the direct insert bypassed
+    // preferences/push/email/socket. The column shape (user_id, type, title,
+    // body, data; no reference_id) is now covered at the sendNotification
+    // layer by directNotificationInserts.test.js; this test asserts the
+    // controller still notifies the owner with the same payload.
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+    const call = sendNotification.mock.calls[0][0];
+    expect(call).toMatchObject({
+      userId: 'owner-1',
+      type: 'review_received',
+      title: 'New Review',
+      body: 'New 5-star review received',
+      idempotencyKey: 'review:42',
+    });
+    expect(call.data).toMatchObject({ reviewId: 42, referenceType: 'business_review' });
     expect(r.status).toHaveBeenCalledWith(201);
   });
 });

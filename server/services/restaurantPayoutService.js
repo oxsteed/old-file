@@ -300,7 +300,12 @@ async function approvePayout({ payoutId, adminUserId, reviewNote }) {
           WHERE id = $1`,
         [payout.id, adminUserId, reviewNote || null]
       );
-      throw new AppError('Insufficient balance at execution', 409, 'payout_insufficient_balance');
+      // Notifications audit item 3: the failed status must be durable
+      // before the owner is told about it. Throwing here would roll the
+      // UPDATE back (the payout would stay 'requested' while the owner
+      // was told it failed), so return a sentinel and let the caller
+      // notify after this transaction commits, then raise.
+      return { __insufficientBalance: true, payout };
     }
 
     // Commit the liability movement before asking Stripe to move money. The
@@ -383,6 +388,15 @@ async function approvePayout({ payoutId, adminUserId, reviewNote }) {
   }, 'restaurant_payout_approve');
 
   // Review P2-3-F09: notify the owner when their payout is approved.
+  // Notifications audit item 3: an insufficient-balance failure is
+  // committed by the transaction above (sentinel return), so the owner
+  // is told only once the 'failed' status is durable.
+  if (approved?.__insufficientBalance) {
+    await notifyPayoutOwner(approved.payout, 'payout_failed', {
+      failure_reason: 'insufficient balance at execution',
+    });
+    throw new AppError('Insufficient balance at execution', 409, 'payout_insufficient_balance');
+  }
   await notifyPayoutOwner(approved, 'payout_approved');
   return approved;
 }
@@ -600,6 +614,17 @@ async function processNextTransfer() {
       attention,
       error: error.message,
     });
+    // Notifications audit item 3: retries are exhausted (outbox parked
+    // in 'attention'), so the owner is told the payout failed. Retriable
+    // failures (attention false) stay silent: the next attempt may still
+    // succeed, and a failure notice would be wrong. The outbox row's id
+    // is payout_id, not id, so normalize before notifying.
+    if (attention) {
+      await notifyPayoutOwner({ ...payout, id: payout.payout_id }, 'payout_failed', {
+        failure_reason: `stripe_transfer_attempt_failed: ${String(error.message || error).slice(0, 500)}`,
+        attempts,
+      });
+    }
     return { processed: true, payoutId: payout.payout_id, attention, error: error.message };
   }
 }

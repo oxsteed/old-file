@@ -16,6 +16,9 @@ const { pruneOldVisits } = require('../services/siteVisitService');
 const RETENTION_DAYS = Math.max(1, parseInt(process.env.SITE_VISIT_RETENTION_DAYS, 10) || 90);
 
 const startSiteVisitRetentionJob = () => {
+  // Runs daily at 3 AM UTC. The timezone is explicit: node-cron would
+  // otherwise follow the host's local timezone while the header comment
+  // promises UTC (notifications audit item 31).
   cron.schedule('0 3 * * *', async () => {
     try {
       const deleted = await pruneOldVisits(RETENTION_DAYS);
@@ -25,7 +28,7 @@ const startSiteVisitRetentionJob = () => {
     } catch (err) {
       logger.error('Site visit retention prune failed', { error: err.message });
     }
-  });
+  }, { timezone: 'UTC' });
 };
 
 module.exports = { startSiteVisitRetentionJob, RETENTION_DAYS };

@@ -4,6 +4,8 @@ const fetch = require('node-fetch');
 const db = require('../db');
 // Review P3-842: utils/pushNotification never exported sendPush, so every
 // completed report crashed the webhook after the DB writes (and Checkr retried).
+// (That util was deleted in notifications item 34; web push now goes through
+// webPushService.sendToUser.)
 const { sendNotification } = require('../services/notificationService');
 const { sendEmail } = require('../utils/email');
 const logger = require('../utils/logger');

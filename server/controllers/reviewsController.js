@@ -2,6 +2,7 @@ const pool = require('../db');
 const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { resolvePublicBusinessOwner } = require('../services/businessPublicOwner');
+const { sendNotification } = require('../services/notificationService');
 
 async function requirePublicBusiness(businessId) {
   return resolvePublicBusinessOwner(businessId);
@@ -72,7 +73,8 @@ exports.submitReview = async (req, res) => {
 
     const review = result.rows[0];
 
-    // Notify business owner (non-critical failure)
+    // Notify business owner through sendNotification (non-critical
+    // failure): a direct INSERT bypassed preferences/push/email/socket.
     try {
       const bizOwnerRes = await pool.query(
         `SELECT user_id FROM businesses WHERE id = $1`,
@@ -80,15 +82,14 @@ exports.submitReview = async (req, res) => {
       );
 
       if (bizOwnerRes.rows[0]) {
-        await pool.query(
-          `INSERT INTO notifications (user_id, type, title, body, data)
-           VALUES ($1, 'review_received', 'New Review', $2, $3)`,
-          [
-            bizOwnerRes.rows[0].user_id,
-            `New ${rating}-star review received`,
-            JSON.stringify({ reviewId: review.id, businessId, referenceType: 'business_review' }),
-          ]
-        );
+        await sendNotification({
+          userId: bizOwnerRes.rows[0].user_id,
+          type: 'review_received',
+          title: 'New Review',
+          body: `New ${rating}-star review received`,
+          data: { reviewId: review.id, businessId, referenceType: 'business_review' },
+          idempotencyKey: `review:${review.id}`,
+        });
       }
     } catch (notifErr) {
       logger.warn('Failed to create review notification', { reviewId: review.id, error: notifErr.message });

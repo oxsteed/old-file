@@ -235,6 +235,9 @@ test("watch evaluation rechecks permissions and keeps stable per-record notifica
   db.query.mockReset();
   db.query
     .mockResolvedValueOnce({ rows: [{ ...rule, role: "super_admin" }] })
+    // Item 39: the admin_notification_prefs lookup (no row = defaults
+    // ON) runs before the rule's access check and scoped query.
+    .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [user] })
     .mockResolvedValueOnce({ rows: [{ id: "job-1", status: "published" }] })
     .mockResolvedValue({ rows: [] });

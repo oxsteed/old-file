@@ -1118,6 +1118,12 @@ exports.createRecurringBooking = async (req, res) => {
       body: `${subscription.service_name} ${subscription.frequency}`,
       data: { subscriptionId: subscription.id },
       action_url: '/calendar?tab=recurring',
+      // Item 26: explicit stable key for the worst keyless site (the
+      // recurring-booking path). A retried create must not notify the
+      // helper twice; the boundary derivation would also cover it via
+      // data.subscriptionId, but the explicit key stays stable even if
+      // the payload text changes.
+      idempotencyKey: `recurring-booking:${subscription.id}`,
     }).catch((err) => logger.warn('Failed recurring booking notification', { error: err.message }));
 
     res.status(201).json({ subscription, message: 'Recurring booking created' });

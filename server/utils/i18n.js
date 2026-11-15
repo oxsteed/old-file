@@ -7,6 +7,38 @@ const T = {
   ...require('./disputeNotificationTemplates').disputeNotifications,
   // Analytics platform, Phase 2 Item 9: metric threshold alert titles.
   ...require('./metricAlertNotificationCopy').metricAlertNotifications,
+  affiliate_payout_processed: {
+    title: {
+      en: 'Affiliate payout #{payoutId} processed',
+      fr: 'Paiement d’affiliation nº {payoutId} traité',
+      es: 'Pago de afiliado n.º {payoutId} procesado',
+      ht: 'Peman afilye #{payoutId} trete',
+      ar: 'تمت معالجة دفعة الشريك رقم {payoutId}',
+    },
+    body: {
+      en: 'Your affiliate payout was processed and sent to your Stripe account. Open your affiliate dashboard to see the details.',
+      fr: 'Votre paiement d’affiliation a été traité et envoyé sur votre compte Stripe. Ouvrez votre tableau de bord d’affiliation pour voir les détails.',
+      es: 'Tu pago de afiliado se procesó y se envió a tu cuenta de Stripe. Abre tu panel de afiliado para ver los detalles.',
+      ht: 'Peman afilye ou an trete epi yo voye l sou kont Stripe ou. Louvri tablodbò afilye ou pou wè detay yo.',
+      ar: 'تمت معالجة دفعتك كشريك وإرسالها إلى حسابك في Stripe. افتح لوحة تحكم الشريك لعرض التفاصيل.',
+    },
+  },
+  affiliate_payout_voided: {
+    title: {
+      en: 'Affiliate payout #{payoutId} adjusted',
+      fr: 'Paiement d’affiliation nº {payoutId} ajusté',
+      es: 'Pago de afiliado n.º {payoutId} ajustado',
+      ht: 'Peman afilye #{payoutId} ajiste',
+      ar: 'تم تعديل دفعة الشريك رقم {payoutId}',
+    },
+    body: {
+      en: 'A refund voided {voidedCount} commission(s) in your affiliate payout. Open your affiliate dashboard to see the updated total.',
+      fr: 'Un remboursement a annulé {voidedCount} commission(s) de votre paiement d’affiliation. Ouvrez votre tableau de bord d’affiliation pour voir le total mis à jour.',
+      es: 'Un reembolso anuló {voidedCount} comisión(es) de tu pago de afiliado. Abre tu panel de afiliado para ver el total actualizado.',
+      ht: 'Yon ranbousman anile {voidedCount} komisyon nan peman afilye ou. Louvri tablodbò afilye ou pou wè total ki ajou a.',
+      ar: 'ألغى استرداد {voidedCount} عمولة من دفعتك كشريك. افتح لوحة تحكم الشريك لعرض الإجمالي المحدّث.',
+    },
+  },
   media_follow: {
     title: {
       en: 'New Media follower',
@@ -204,6 +236,22 @@ const T = {
       es: 'Tu pago fue aprobado y está en camino.',
       ht: 'Peman ou an apwouve epi li sou wout li.',
       ar: 'تمت الموافقة على دفعتك وهي في طريقها إليك.',
+    },
+  },
+  payout_failed: {
+    title: {
+      en: 'Payout failed',
+      fr: 'Paiement échoué',
+      es: 'Pago fallido',
+      ht: 'Peman an echwe',
+      ar: 'فشل الدفع',
+    },
+    body: {
+      en: 'Your payout could not be completed. Check the payout details for the reason.',
+      fr: 'Votre paiement n’a pas pu être effectué. Consultez les détails du paiement pour en connaître la raison.',
+      es: 'No se pudo completar tu pago. Revisa los detalles del pago para ver el motivo.',
+      ht: 'Peman ou an pa t ka fini. Gade detay peman an pou rezon an.',
+      ar: 'تعذّر إكمال دفعتك. تحقق من تفاصيل الدفع لمعرفة السبب.',
     },
   },
   payout_rejected: {
@@ -746,6 +794,22 @@ const T = {
       ar: 'لقد انتهت صلاحية طلب حجز أو تم تحريره تلقائيًا.',
     },
   },
+  consulting_session_scheduled: {
+    title: {
+      en: 'New consulting session scheduled',
+      fr: 'Nouvelle séance de consultation planifiée',
+      es: 'Nueva sesión de consultoría programada',
+      ht: 'Nouvo sesyon konsiltasyon pwograme',
+      ar: 'تمت جدولة جلسة استشارية جديدة',
+    },
+    body: {
+      en: 'A client scheduled a consulting session with you. Open your contractor dashboard to see the details and prepare.',
+      fr: 'Un client a planifié une séance de consultation avec vous. Ouvrez votre tableau de bord pour voir les détails et vous préparer.',
+      es: 'Un cliente programó una sesión de consultoría contigo. Abre tu panel para ver los detalles y prepararte.',
+      ht: 'Yon kliyan pwograme yon sesyon konsiltasyon avè ou. Louvri tablodbò ou pou wè detay yo epi prepare ou.',
+      ar: 'جدول عميل جلسة استشارية معك. افتح لوحة التحكم لعرض التفاصيل والاستعداد.',
+    },
+  },
   appointment_requested: {
     title: {
       en: 'New appointment request',
@@ -958,6 +1022,20 @@ const T = {
 
 const EMAIL_TEMPLATES = {
   button_text: {
+    affiliate_payout_processed: {
+      en: 'View Earnings',
+      fr: 'Voir les gains',
+      es: 'Ver ganancias',
+      ht: 'Gade benefis',
+      ar: 'عرض الأرباح',
+    },
+    affiliate_payout_voided: {
+      en: 'View Earnings',
+      fr: 'Voir les gains',
+      es: 'Ver ganancias',
+      ht: 'Gade benefis',
+      ar: 'عرض الأرباح',
+    },
     bid_accepted: {
       en: 'View Job',
       fr: 'Voir l\'offre',
@@ -1057,6 +1135,13 @@ const EMAIL_TEMPLATES = {
       ht: 'Gade peman yo',
       ar: 'عرض المدفوعات',
     },
+    payout_failed: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
     payout_rejected: {
       en: 'View Payouts',
       fr: 'Voir les paiements',
@@ -1098,6 +1183,13 @@ const EMAIL_TEMPLATES = {
       es: 'Ver reservas',
       ht: 'Gade randevou yo',
       ar: 'عرض الحجوزات',
+    },
+    consulting_session_scheduled: {
+      en: 'View Sessions',
+      fr: 'Voir les séances',
+      es: 'Ver sesiones',
+      ht: 'Gade sesyon yo',
+      ar: 'عرض الجلسات',
     },
   booking_auto_released: {
     title: {

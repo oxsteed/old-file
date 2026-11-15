@@ -44,10 +44,28 @@
 const crypto = require('crypto');
 const pool = require('../db');
 const AppError = require('../utils/appError');
+const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { insertAudit } = require('./oxsteedCreditAdminService');
 const { recordIncident } = require('./incidentStore');
 const { sendNotification } = require('./notificationService');
+
+/**
+ * Notifications audit item 38: a sanctions hit paged nobody on staff.
+ * The incident pipeline is the staff-side page (same mechanism the
+ * provider-error path already uses): it writes to incident_log and the
+ * dispatcher notifies the on-call/admin queue, never the subject. SAR
+ * silence to the subject is preserved: nothing here notifies the subject
+ * about the incident or the case. A store failure is logged, never fatal
+ * to the screening decision itself.
+ */
+async function recordStaffSanctionsIncident({ type, message, dedupeKey, details }) {
+  try {
+    await recordIncident({ type, severity: 'critical', message, dedupeKey, details });
+  } catch (err) {
+    logger.warn('sanctions staff incident failed', { type, error: err.message });
+  }
+}
 
 const SANCTIONS_PROVIDER_NAME = process.env.OXSTEED_CREDIT_SANCTIONS_PROVIDER || 'manual_review';
 const SCREENING_TTL_HOURS = Math.max(
@@ -317,6 +335,15 @@ async function assertSanctionsClear(client, { subjectType, subjectId, context = 
       idempotencyKey: `credit-sanctions:${screening.id}:review-required`,
     });
   }
+  // Notifications audit item 38: a pending hit paged nobody on staff.
+  // One incident per screening (dedupe key); repeat blocks bump the
+  // occurrence count instead of paging again.
+  await recordStaffSanctionsIncident({
+    type: 'oxsteed_credit_sanctions_hit_pending',
+    message: `Sanctions screening hit for ${subjectType} ${subjectId}; transaction blocked pending review`,
+    dedupeKey: `credit-sanctions-hit:${screening.id}`,
+    details: { subjectType, subjectId: String(subjectId), screeningId: String(screening.id) },
+  });
   throw new AppError(
     'This transaction is blocked pending sanctions review. An administrator must clear the screening first.',
     403,
@@ -419,6 +446,22 @@ async function decideSanctionsScreening({ screeningId, decision, actorUserId, re
         idempotencyKey: `credit-sanctions:${screeningId}:${decision}`,
       });
     }
+  }
+  // Notifications audit item 38: a confirmed hit opened a compliance case
+  // that paged nobody on staff. The case id rides in the incident details
+  // (staff side only); the subject hears only the decision above.
+  if (decision === 'confirm' && decided.subjectType && decided.subjectId) {
+    await recordStaffSanctionsIncident({
+      type: 'oxsteed_credit_sanctions_hit_confirmed',
+      message: `Confirmed sanctions hit for ${decided.subjectType} ${decided.subjectId}; compliance case ${result.case?.id || 'unknown'} opened`,
+      dedupeKey: `credit-sanctions-confirmed:${screeningId}`,
+      details: {
+        subjectType: decided.subjectType,
+        subjectId: String(decided.subjectId),
+        screeningId: String(screeningId),
+        caseId: result.case?.id || null,
+      },
+    });
   }
   return result;
 }

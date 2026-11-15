@@ -1,5 +1,11 @@
 'use strict';
 const {mockQuery,resetMocks}=require('./setup');
+// Item 32: order SMS no longer mock-sends when Twilio is unconfigured, so
+// the lifecycle-budget test below configures a fake provider instead of
+// relying on the removed {sid:'mock_sid'} fallback.
+jest.mock('twilio', () => jest.fn(() => ({
+  messages: { create: jest.fn().mockResolvedValue({ sid: 'SM-test', status: 'queued' }) },
+})));
 const {createSession}=require('../controllers/diditController');
 const {encrypt}=require('../utils/encryption');
 const {sendVerificationCode}=require('../services/guestProfileChatVerification');
@@ -68,6 +74,15 @@ test('a terminal gift delivery webhook routes to gift fulfillment and clears the
   expect(client.query.mock.calls[1][1].slice(0,2)).toEqual(['provider-id','delivered']);
 });
 test('parallel lifecycle SMS calls stop at the per-order allowance before sending',async()=>{
+  // Item 32: order SMS requires a configured provider; set the Twilio
+  // env vars before requiring the service so its module-level client is
+  // the fake above (restored afterwards).
+  const prevSid = process.env.TWILIO_ACCOUNT_SID;
+  const prevToken = process.env.TWILIO_AUTH_TOKEN;
+  const prevPhone = process.env.TWILIO_PHONE_NUMBER;
+  process.env.TWILIO_ACCOUNT_SID = 'AC-test';
+  process.env.TWILIO_AUTH_TOKEN = 'test-token';
+  process.env.TWILIO_PHONE_NUMBER = '+15550000000';
   const {sendOrderCreatedSMS}=require('../services/smsNotificationService');
   let reserved=0;
   mockQuery.mockImplementation(async sql=>{
@@ -79,4 +94,7 @@ test('parallel lifecycle SMS calls stop at the per-order allowance before sendin
   const results=await Promise.all(Array.from({length:5},()=>sendOrderCreatedSMS('user-1',42,1000)));
   expect(results.filter(Boolean)).toHaveLength(2);
   expect(mockQuery.mock.calls.filter(([sql])=>sql.includes('INSERT INTO sms_logs'))).toHaveLength(2);
+  if (prevSid === undefined) delete process.env.TWILIO_ACCOUNT_SID; else process.env.TWILIO_ACCOUNT_SID = prevSid;
+  if (prevToken === undefined) delete process.env.TWILIO_AUTH_TOKEN; else process.env.TWILIO_AUTH_TOKEN = prevToken;
+  if (prevPhone === undefined) delete process.env.TWILIO_PHONE_NUMBER; else process.env.TWILIO_PHONE_NUMBER = prevPhone;
 });

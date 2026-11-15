@@ -29,6 +29,15 @@ let mockScheduledRun;
 const scheduledWorkerMocks = {
   SCHEDULED_WORKERS: [['tracking-pass', jest.fn(), 1000, {}]],
   runScheduledWorkerOnce: jest.fn(() => mockScheduledRun),
+  // Item 30: workerMain schedules entries through the shared
+  // scheduleEntryTimer helper. The mock mirrors its interval leg (this
+  // entry has no cron option); the shutdown behavior under test is
+  // unchanged.
+  scheduleEntryTimer: jest.fn((entry, trigger) => {
+    const timer = setInterval(trigger, entry[2]);
+    timer.unref?.();
+    return { stop() { clearInterval(timer); } };
+  }),
 };
 
 jest.doMock('../services/paymentQueue', () => queueMocks);

@@ -13,8 +13,8 @@ jest.mock('../services/careers/notify', () => ({
 jest.mock('../services/careers/providers/config', () => ({
   smsConfig: jest.fn(() => ({ enabled: true })),
 }));
-jest.mock('../utils/pushNotification', () => ({
-  sendPushToUser: jest.fn(),
+jest.mock('../services/webPushService', () => ({
+  sendToUser: jest.fn(),
 }));
 jest.mock('../services/mobilePushService', () => ({
   isConfigured: jest.fn(() => false),
@@ -25,7 +25,7 @@ jest.mock('../services/smsNotificationService', () => ({
 }));
 
 const { notifyUser } = require('../services/careers/notify');
-const { sendPushToUser } = require('../utils/pushNotification');
+const webPush = require('../services/webPushService');
 const mobilePush = require('../services/mobilePushService');
 const { sendSMSIfOptedIn } = require('../services/smsNotificationService');
 const { deliver } = require('../services/careers/marketplace/delivery');
@@ -41,14 +41,14 @@ const db = {
 beforeEach(() => {
   jest.clearAllMocks();
   notifyUser.mockResolvedValue({ inserted: true, notificationId: 'n1' });
-  sendPushToUser.mockResolvedValue([{ id: 1, success: true }]);
+  webPush.sendToUser.mockResolvedValue({ sent: 1, failed: 0, deactivated: 0 });
   mobilePush.isConfigured.mockReturnValue(false);
   mobilePush.sendToUser.mockResolvedValue({ sent: 1, failed: 0, skipped: 0 });
   sendSMSIfOptedIn.mockResolvedValue(true);
 });
 
 test('push is false when the web push throws and mobile is not configured', async () => {
-  sendPushToUser.mockRejectedValueOnce(new Error('vapid down'));
+  webPush.sendToUser.mockRejectedValueOnce(new Error('vapid down'));
   const result = await deliver(db, {
     userId: 'u1',
     type: 'career_candidate_alert',
@@ -81,14 +81,14 @@ test('push and sms are true when both sends succeed, with a per-event tag', asyn
   });
   expect(result.push).toBe(true);
   expect(result.sms).toBe(true);
-  expect(sendPushToUser).toHaveBeenCalledWith(
+  expect(webPush.sendToUser).toHaveBeenCalledWith(
     'u1',
     expect.objectContaining({ tag: 'careers:career_cand_alert:9:2026-11-13T10' })
   );
 });
 
 test('push is true when mobile push succeeds even with no web subscription', async () => {
-  sendPushToUser.mockResolvedValueOnce([]);
+  webPush.sendToUser.mockResolvedValueOnce({ sent: 0, failed: 0, deactivated: 0 });
   mobilePush.isConfigured.mockReturnValue(true);
   const result = await deliver(db, {
     userId: 'u1',
@@ -115,6 +115,6 @@ test('a duplicate delivery key sends nothing and reports both channels false', a
   });
   expect(result.push).toBe(false);
   expect(result.sms).toBe(false);
-  expect(sendPushToUser).not.toHaveBeenCalled();
+  expect(webPush.sendToUser).not.toHaveBeenCalled();
   expect(sendSMSIfOptedIn).not.toHaveBeenCalled();
 });

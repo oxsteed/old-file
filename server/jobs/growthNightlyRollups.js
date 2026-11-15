@@ -3,6 +3,7 @@ const { withFencedJobLock } = require("./jobLockingService");
 const gate = require("../growth/gate");
 const { withTransaction } = require("../utils/transaction");
 const { mapBounded } = require("../utils/boundedBatch");
+const logger = require("../utils/logger");
 const db = require("../db");
 const {
   collectDomainDay,
@@ -172,7 +173,30 @@ async function run({ day: requestedDay, force = false } = {}) {
     return { skipped: true };
   if (requestedDay === undefined && new Date().getUTCHours() < 3)
     return { skipped: true };
-  return withFencedJobLock(
+  // Notifications audit item 40: the run row used to stay 'running'
+  // forever when anything inside the fenced callback threw (the only
+  // status update was the final one at the end), and a fenced abort
+  // ({ fenced: true } from withFencedJobLock) left it running too. The
+  // next night's sweep only heals rows older than an hour, so a stuck
+  // run also hid the day from the completion check. Track the run id
+  // outside the callback and mark the run failed on either outcome;
+  // the WHERE status='running' guard never overwrites a run that
+  // already finished complete/partial.
+  let runId = null;
+  const markRunFailed = async (error) => {
+    if (!runId) return;
+    try {
+      await db.query(
+        "UPDATE growth_rollup_runs SET status='failed',completed_at=NOW(),counts=$2 WHERE id=$1 AND status='running'",
+        [runId, { error: String(error?.code || error?.message || error || 'unknown').slice(0, 500) }],
+      );
+    } catch (markErr) {
+      logger.warn('growth_rollup_runs mark failed failed', { runId, error: markErr.message });
+    }
+  };
+  let outcome;
+  try {
+    outcome = await withFencedJobLock(
     "growth-nightly",
     async (fence) => {
       // The fenced run owns the job now; old running rows belong to lost leases.
@@ -188,6 +212,7 @@ async function run({ day: requestedDay, force = false } = {}) {
         "INSERT INTO growth_rollup_runs(day,status) VALUES($1,'running') RETURNING id",
         [day],
       );
+      runId = run.id;
       // Shared subject sets: ClickHouse job events plus Postgres domain
       // signals (growth/rollups/domain.js) land in the same maps.
       const shared = {
@@ -220,11 +245,14 @@ async function run({ day: requestedDay, force = false } = {}) {
             const bySubject = new Map(subjects.map(row=>[row.subject_key,row]));
             const ids = [...new Set(subjects.map(row=>row.user_id))];
             const contexts = await gate.contexts(ids,{db:fence.db});
+            // Notifications audit item 40: decide once per user per
+            // block (batch API) instead of awaiting gate.allow per row.
+            const decisions = gate.allowMany(contexts, 'activity_offers');
             const eligible = [];
             for (const row of rows) {
               const subject=bySubject.get(row.subject_key);
               const ctx=subject && contexts.get(subject.user_id);
-              if (!ctx || !(await gate.allow(ctx,'activity_offers')).allowed) continue;
+              if (!ctx || !decisions.get(subject.user_id)?.allowed) continue;
               eligible.push({row,subject,ctx});
             }
             if (!eligible.length) continue;
@@ -257,10 +285,15 @@ async function run({ day: requestedDay, force = false } = {}) {
               // (revalidated in-transaction by refreshContexts) instead
               // of rebuilding them for the eligible subset.
               const fresh=await refreshContexts(conn, eligible, contexts);
+              // Notifications audit item 40: same batch decision for the
+              // revalidated in-transaction contexts; a consent withdrawn
+              // between build and write still denies here because the
+              // refreshed context carries the new consents.
+              const freshDecisions = gate.allowMany(fresh, 'activity_offers');
               const writes=new Map();
               for(let i=0;i<eligible.length;i++){
                 const {row,subject}=eligible[i], node=nodeByJob.get(row.entity_id), ctx=fresh.get(subject.user_id);
-                if(!node || !ctx || !(await gate.allow(ctx,'activity_offers')).allowed) continue;
+                if(!node || !ctx || !freshDecisions.get(subject.user_id)?.allowed) continue;
                 const profilePostal=postals[i]||null;
                 const score=Math.min(1,0.5+Math.log2(Number(row.events)+1)/10);
                 const key=JSON.stringify([subject.user_id,node]);
@@ -399,6 +432,14 @@ async function run({ day: requestedDay, force = false } = {}) {
       };
     },
     3600,
-  );
+    );
+  } catch (err) {
+    await markRunFailed(err);
+    throw err;
+  }
+  if (outcome && outcome.fenced) {
+    await markRunFailed('lease_lost');
+  }
+  return outcome;
 }
 module.exports = { run };

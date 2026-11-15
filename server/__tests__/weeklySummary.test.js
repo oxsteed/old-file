@@ -4,10 +4,12 @@ jest.mock('node-cron', () => ({ schedule: jest.fn() }));
 jest.mock('../db', () => ({ query: jest.fn() }));
 jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn() }));
 jest.mock('../utils/logger', () => ({ error: jest.fn(), info: jest.fn(), warn: jest.fn() }));
+jest.mock('../jobs/jobLockingService', () => ({ withFencedJobLock: jest.fn((_name, fn) => fn()) }));
 
 const cron = require('node-cron');
 const db = require('../db');
-const { startWeeklySummaryJob } = require('../jobs/weeklySummary');
+const { withFencedJobLock } = require('../jobs/jobLockingService');
+const { startWeeklySummaryJob, buildWeeklySummaryNotification } = require('../jobs/weeklySummary');
 
 describe('weekly summary job', () => {
   beforeEach(() => {
@@ -46,5 +48,99 @@ describe('weekly summary job', () => {
     const summaryQuery = db.query.mock.calls[0][0];
     expect(summaryQuery).toContain('LEFT JOIN notification_preferences np ON np.user_id = u.id');
     expect(summaryQuery).toContain('COALESCE(np.email_weekly_summary, true)');
+  });
+
+  test('earnings are grouped by payment currency, not summed into one USD total', async () => {
+    // Item 15: the query summed helper_payout across currencies while
+    // formatMoney hardcoded USD, so a EUR payout rendered as dollars.
+    db.query.mockResolvedValueOnce({ rows: [] });
+    startWeeklySummaryJob();
+
+    const scheduledCallback = cron.schedule.mock.calls[0][1];
+    await scheduledCallback();
+
+    const summaryQuery = db.query.mock.calls[0][0];
+    expect(summaryQuery).toContain('earnings_by_currency');
+    expect(summaryQuery).toContain('GROUP BY');
+    expect(summaryQuery).toContain('p.currency');
+  });
+
+  test('renders each currency group in its own currency', () => {
+    const multi = buildWeeklySummaryNotification({
+      earnings_by_currency: [
+        { currency: 'EUR', total: 85 },
+        { currency: 'USD', total: 1250 },
+      ],
+      active_bids: 2,
+    }, 'en');
+    // Both amounts keep their own currency; the codes disambiguate
+    // symbols that collide across currencies (e.g. $ is not only USD).
+    expect(multi.body).toContain('€85.00 EUR');
+    expect(multi.body).toContain('$1,250.00 USD');
+    expect(multi.body).not.toContain('$1,335.00');
+
+    const single = buildWeeklySummaryNotification({
+      earnings_by_currency: [{ currency: 'EUR', total: 85 }],
+      earnings_mtd: 85,
+      active_bids: 0,
+    }, 'en');
+    expect(single.body).toContain('€85.00');
+    expect(single.body).not.toContain('$85.00');
+  });
+
+  test('falls back to the USD total when no currency groups are present', () => {
+    const legacy = buildWeeklySummaryNotification({ earnings_mtd: 40, active_bids: 1 }, 'en');
+    expect(legacy.body).toContain('$40.00');
+  });
+
+  test('the Monday pass runs under a fenced job lock', async () => {
+    // Item 29: the starter was called bare from backgroundWorkers with no
+    // withFencedJobLock, so two replicas ran the full scan concurrently.
+    db.query.mockResolvedValueOnce({ rows: [] });
+    startWeeklySummaryJob();
+
+    const scheduledCallback = cron.schedule.mock.calls[0][1];
+    await scheduledCallback();
+
+    expect(withFencedJobLock).toHaveBeenCalledWith('weekly-summary', expect.any(Function), 1800);
+  });
+
+  // Item 19: `sent` must count actual reach, not the send call. A result
+  // whose delivered breakdown shows no channel reached counts as failed.
+  test('counts sent only when a channel actually delivered', async () => {
+    const { sendNotification } = require('../services/notificationService');
+    const logger = require('../utils/logger');
+    const helper = {
+      id: 'helper-1', first_name: 'Casey', email: 'casey@example.invalid',
+      earnings_mtd: 0, completed_jobs: 0, active_bids: 0, open_jobs_posted: 0,
+      email_weekly_summary: true, preferred_language: 'en',
+    };
+    db.query
+      .mockResolvedValueOnce({ rows: [helper] })
+      .mockResolvedValue({ rows: [] });
+    sendNotification.mockResolvedValue({
+      success: true, notificationId: 'notif-1',
+      delivered: { inApp: false, push: false, email: false, emailQueued: false },
+    });
+    startWeeklySummaryJob();
+    await cron.schedule.mock.calls[0][1]();
+    expect(logger.info).toHaveBeenCalledWith('Weekly summaries complete', { sent: 0, failed: 1, total: 1 });
+
+    // NB: no jest.clearAllMocks() here — it would wipe the node-cron mock
+    // call history this test reads the second callback from.
+    db.query.mockClear();
+    logger.info.mockClear();
+    logger.warn.mockClear();
+    logger.error.mockClear();
+    db.query
+      .mockResolvedValueOnce({ rows: [helper] })
+      .mockResolvedValue({ rows: [] });
+    sendNotification.mockResolvedValue({
+      success: true, notificationId: 'notif-1',
+      delivered: { inApp: true, push: false, email: false, emailQueued: false },
+    });
+    startWeeklySummaryJob();
+    await cron.schedule.mock.calls[1][1]();
+    expect(logger.info).toHaveBeenCalledWith('Weekly summaries complete', { sent: 1, failed: 0, total: 1 });
   });
 });

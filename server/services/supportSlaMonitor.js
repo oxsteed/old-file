@@ -13,6 +13,12 @@ const BATCH_SIZE = 100;
 /**
  * Mark newly overdue support conversations once per interval. The advisory
  * lock keeps multiple app/worker replicas from emitting duplicate alerts.
+ *
+ * Item 48: the breach flags used to be marked in the same CTE that
+ * selected the batch, before any notification ran, so a mid-loop throw
+ * permanently lost the remaining breaches. The flags are now marked per
+ * row only after that row's notify succeeds; a failed row stays eligible
+ * for the next interval and never blocks later rows.
  */
 async function runSupportSlaMonitor() {
   const client = await pool.connect();
@@ -25,9 +31,12 @@ async function runSupportSlaMonitor() {
     if (!locked) return { locked: false, updated: 0 };
 
     const { rows } = await client.query(
-      `WITH candidates AS (
-        SELECT
+      `SELECT
           sc.id,
+          sc.business_id,
+          sc.agent_id,
+          sc.subject,
+          sc.priority,
           (
             COALESCE(sc.sla_first_response_breached, FALSE) = FALSE
             AND sc.sla_first_response_target IS NOT NULL
@@ -51,8 +60,10 @@ async function runSupportSlaMonitor() {
                 AND sc.sla_resolution_target < NOW()
               )
             )
-          ) AS resolution_breach
+          ) AS resolution_breach,
+          sa.user_id AS agent_user_id
         FROM support_conversations sc
+        LEFT JOIN support_agents sa ON sa.id = sc.agent_id
         WHERE sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
           AND (
             (
@@ -73,54 +84,68 @@ async function runSupportSlaMonitor() {
             )
           )
         ORDER BY sc.updated_at ASC
-        LIMIT ${BATCH_SIZE}
-      ), updated AS (
-        UPDATE support_conversations sc
-        SET sla_first_response_breached = CASE
-              WHEN candidates.first_response_breach THEN TRUE
-              ELSE COALESCE(sc.sla_first_response_breached, FALSE)
-            END,
-            sla_resolution_breached = CASE
-              WHEN candidates.resolution_breach THEN TRUE
-              ELSE COALESCE(sc.sla_resolution_breached, FALSE)
-            END,
-            updated_at = NOW()
-        FROM candidates
-        WHERE sc.id = candidates.id
-          AND (candidates.first_response_breach OR candidates.resolution_breach)
-        RETURNING sc.id, sc.business_id, sc.agent_id, sc.subject, sc.priority,
-                  candidates.first_response_breach, candidates.resolution_breach
-      )
-      SELECT updated.*, sa.user_id AS agent_user_id
-      FROM updated
-      LEFT JOIN support_agents sa ON sa.id = updated.agent_id`,
+        LIMIT ${BATCH_SIZE}`,
       []
     );
 
+    let marked = 0;
     for (const row of rows) {
-      const payload = {
-        conversationId: row.id,
-        businessId: row.business_id,
-        agentId: row.agent_id,
-        priority: row.priority,
-        firstResponseBreach: Boolean(row.first_response_breach),
-        resolutionBreach: Boolean(row.resolution_breach),
-      };
-      WebSocketService.broadcastToAdmins('support:sla-breached', payload);
+      try {
+        const firstResponseBreach = Boolean(row.first_response_breach);
+        const resolutionBreach = Boolean(row.resolution_breach);
+        const payload = {
+          conversationId: row.id,
+          businessId: row.business_id,
+          agentId: row.agent_id,
+          priority: row.priority,
+          firstResponseBreach,
+          resolutionBreach,
+        };
+        WebSocketService.broadcastToAdmins('support:sla-breached', payload);
 
-      if (row.agent_user_id) {
-        await sendNotification({
-          userId: row.agent_user_id,
-          type: 'support_sla_breach',
-          title: 'Support SLA breached',
-          body: `${row.first_response_breach ? 'First response' : 'Resolution'} SLA breached for ${row.subject || 'a support conversation'}.`,
-          data: { conversationId: row.id, priority: row.priority },
-          action_url: '/admin/support/chat',
+        if (row.agent_user_id) {
+          const result = await sendNotification({
+            userId: row.agent_user_id,
+            type: 'support_sla_breach',
+            title: 'Support SLA breached',
+            body: `${firstResponseBreach ? 'First response' : 'Resolution'} SLA breached for ${row.subject || 'a support conversation'}.`,
+            data: { conversationId: row.id, priority: row.priority },
+            action_url: '/admin/support/chat',
+            // The breach kind is in the key: a first-response breach now
+            // and a resolution breach later are distinct deliveries.
+            idempotencyKey: `support-sla-breach:${row.id}:fr${firstResponseBreach ? 1 : 0}:res${resolutionBreach ? 1 : 0}`,
+          });
+          // A notification that reports failure is not a delivery; the
+          // flags stay unset so the next interval retries this row.
+          if (result && result.success === false) {
+            throw new Error('Support SLA breach notification was not delivered');
+          }
+        }
+
+        await client.query(
+          `UPDATE support_conversations
+              SET sla_first_response_breached = CASE
+                    WHEN $2 THEN TRUE
+                    ELSE sla_first_response_breached
+                  END,
+                  sla_resolution_breached = CASE
+                    WHEN $3 THEN TRUE
+                    ELSE sla_resolution_breached
+                  END,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [row.id, firstResponseBreach, resolutionBreach]
+        );
+        marked += 1;
+      } catch (rowError) {
+        logger.warn('Support SLA breach notification failed for a conversation', {
+          conversationId: row.id,
+          error: rowError.message,
         });
       }
     }
 
-    return { locked: true, updated: rows.length };
+    return { locked: true, updated: marked };
   } catch (error) {
     logger.error('Support SLA monitor failed', { error: error.message });
     throw error;

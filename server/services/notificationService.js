@@ -1,4 +1,5 @@
 const db                = require('../db');
+const crypto            = require('crypto');
 const logger            = require('../utils/logger');
 const { broadcastToUser } = require('./socketService');
 const { sendEmail }     = require('../utils/email');  // Resend - single email system
@@ -64,9 +65,28 @@ const PREF_ALIASES = {
 // A channel is allowed for a type when neither the canonical pref key nor
 // any of its UI aliases is explicitly false. Absent columns/keys default to
 // allowed (opt-out semantics, matching the existing `!== false` convention).
-function prefAllows(prefs, channel, type) {
+//
+// Item 12 (one gate for every future type): this is the ONLY place that
+// decides whether a type may use a channel. Two additions ride it:
+//   * the in_app_notifications master toggle gates the whole in-app channel;
+//   * a row in notification_type_opt_outs opts the user OUT of that
+//     type+channel. The rows ride the prefs query as prefs.type_opt_outs
+//     (a json_agg in the same SELECT, so this costs zero extra queries);
+//     an explicit typeOptOuts argument overrides for callers that already
+//     fetched them. A type with no row is ON: new types default ON, never
+//     silently off.
+function prefAllows(prefs, channel, type, typeOptOuts) {
+  if (channel === 'in_app' && prefs.in_app_notifications === false) return false;
   const key = `${channel}_${String(type).replace(':', '_')}`;
   if (prefs[key] === false) return false;
+  const optOuts = typeOptOuts !== undefined ? typeOptOuts : prefs.type_opt_outs;
+  if (Array.isArray(optOuts)) {
+    for (const row of optOuts) {
+      if (row && row.type === String(type) && row.channel === channel) return false;
+    }
+  } else if (optOuts instanceof Set) {
+    if (optOuts.has(`${String(type)}|${channel}`)) return false;
+  }
   const aliases = (PREF_ALIASES[channel] || {})[type] || [];
   return aliases.every((alias) => prefs[alias] !== false);
 }
@@ -75,6 +95,151 @@ function redactPushToken(token) {
   if (!token || typeof token !== 'string') return null;
   if (token.length <= 12) return '[redacted]';
   return `${token.slice(0, 6)}...${token.slice(-4)}`;
+}
+
+// ─── Item 26: boundary idempotency derivation ────────────────────
+// One shared derivation, used by every sendNotification caller: when the
+// caller passes no idempotencyKey, the boundary derives a deterministic
+// one so a retry replays instead of duplicating in-app, push, and email.
+// It must NEVER dedupe genuinely distinct events, so the key is built
+// from (type, recipient, entity id, payload hash):
+//   * Entity-id path: data carries a stable entity id (booking, order,
+//     invoice, ...). The key binds type + recipient + that id + a hash of
+//     the payload, so the same event retried with the identical payload
+//     replays, while a different payload for the same entity (a genuinely
+//     new event, e.g. a second status change) gets a different key.
+//   * Payload-only path: no entity id exists. The key binds type +
+//     recipient + payload hash + a 15-minute bucket, so an immediate retry
+//     replays while an identical-looking event an hour later still
+//     delivers. The bucket is the deliberate trade-off: without an entity
+//     id there is no way to tell a retry from a repeat, so the window is
+//     kept short (retries are normally immediate).
+// Actor/recipient ids (userId, customerId, helperId, ...) are NOT entity
+// ids: keying on them would collapse distinct events for one person.
+// Volatile payload fields (timestamps, nonces, per-request ids) are
+// excluded from the hash, or every retry would hash differently.
+const ENTITY_ID_FIELDS = [
+  'id', 'entityId', 'entity_id',
+  'bookingId', 'booking_id', 'subscriptionId', 'subscription_id',
+  'orderId', 'order_id', 'invoiceId', 'invoice_id',
+  'leadId', 'lead_id', 'quoteId', 'quote_id', 'reviewId', 'review_id',
+  'appointmentId', 'appointment_id', 'jobId', 'job_id',
+  'messageId', 'message_id', 'conversationId', 'conversation_id',
+  'sosEventId', 'sos_event_id', 'ticketId', 'ticket_id',
+  'paymentId', 'payment_id', 'disputeId', 'dispute_id',
+  'reference_id', 'referenceId', 'profileId', 'profile_id',
+  'businessId', 'business_id', 'broadcastId', 'broadcast_id',
+];
+const ACTOR_ID_FIELDS = new Set([
+  'userId', 'user_id', 'recipientId', 'recipient_id',
+  'customerId', 'customer_id', 'helperId', 'helper_id',
+  'senderId', 'sender_id', 'actorId', 'actor_id', 'adminId', 'admin_id',
+]);
+const VOLATILE_PAYLOAD_KEYS = new Set([
+  'createdAt', 'created_at', 'updatedAt', 'updated_at',
+  'timestamp', 'sentAt', 'sent_at', 'nonce', 'requestId', 'request_id',
+]);
+const PAYLOAD_BUCKET_MS = 15 * 60 * 1000;
+
+function stableStringify(value, seen = new Set()) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (seen.has(value)) return '"[circular]"';
+  seen.add(value);
+  if (Array.isArray(value)) return `[${value.map((v) => stableStringify(v, seen)).join(',')}]`;
+  const keys = Object.keys(value).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k], seen)}`).join(',')}}`;
+}
+
+function payloadWithoutVolatile(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return data || {};
+  const out = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (VOLATILE_PAYLOAD_KEYS.has(key)) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function findEntityId(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  for (const field of ENTITY_ID_FIELDS) {
+    const value = data[field];
+    if ((typeof value === 'string' && value.trim()) || typeof value === 'number') {
+      return { field, value: String(value) };
+    }
+  }
+  for (const field of Object.keys(data).sort()) {
+    if (ACTOR_ID_FIELDS.has(field)) continue;
+    if (!/(_id|Id)$/.test(field)) continue;
+    const value = data[field];
+    if ((typeof value === 'string' && value.trim()) || typeof value === 'number') {
+      return { field, value: String(value) };
+    }
+  }
+  return null;
+}
+
+function deriveIdempotencyKey({ type, userId, title, body, data, sequence = null, now = Date.now() } = {}) {
+  const payloadHash = crypto.createHash('sha256')
+    .update(stableStringify({ title: title || '', body: body || '', data: payloadWithoutVolatile(data) }))
+    .digest('hex')
+    .slice(0, 16);
+  const entity = findEntityId(data);
+  const base = `auto:${String(type || '')}:${String(userId || '')}`;
+  // N5: a caller-supplied per-event sequence distinguishes two
+  // otherwise-identical events in the same bucket. It must be stable
+  // across retries of the SAME event and distinct per DISTINCT event.
+  // It is a dedicated parameter, NOT read from data: data.nonce /
+  // data.requestId are per-attempt values, stripped as volatile so a
+  // retry still dedupes, and folding a per-attempt value into the key
+  // would break exactly that. Callers with no sequence keep the old
+  // behaviour (identical content in one bucket still dedupes).
+  const seq = sequence == null || String(sequence).trim() === ''
+    ? '' : `:${String(sequence).trim().slice(0, 64)}`;
+  // N5: the hash sits BEFORE the entity value, so a long entity value
+  // can only truncate the value's own tail, never the hash. The old
+  // layout (value then hash) sliced the hash off long entity keys, so
+  // two events for the same entity with different payloads collapsed
+  // to one key and the second was silently deduped away.
+  if (entity) return `${base}:${entity.field}:${payloadHash}${seq}:${entity.value}`.slice(0, 255);
+  const bucket = Math.floor(Number(now || Date.now()) / PAYLOAD_BUCKET_MS);
+  return `${base}:payload:${payloadHash}:${bucket}${seq}`.slice(0, 255);
+}
+
+// ─── N2: push delivery ledger ──────────────────────────────────
+// Push was deduped only by the notifications row (is_push_sent),
+// which is created only when in-app is enabled. A retry re-fired
+// push when in-app was off, because no row existed to carry the
+// flag. The notification_push_deliveries ledger records each push
+// send by delivery key, independent of the in-app row. Both lookups
+// fail open with a warn: the ledger is a dedupe aid, and a ledger
+// outage must never block the push itself (a duplicate push on
+// retry is annoying; no push at all for everyone is worse).
+async function wasPushDelivered(deliveryKey) {
+  if (!deliveryKey) return false;
+  try {
+    const { rows } = await db.query(
+      'SELECT 1 FROM notification_push_deliveries WHERE delivery_key = $1 LIMIT 1',
+      [deliveryKey]
+    );
+    return rows.length > 0;
+  } catch (err) {
+    logger.warn('[Notification] push ledger lookup failed', { error: err.message });
+    return false;
+  }
+}
+
+async function recordPushDelivered(deliveryKey, userId, type) {
+  if (!deliveryKey) return;
+  try {
+    await db.query(
+      `INSERT INTO notification_push_deliveries (delivery_key, user_id, notification_type)
+       VALUES ($1, $2, $3) ON CONFLICT (delivery_key) DO NOTHING`,
+      [deliveryKey, userId, type]
+    );
+  } catch (err) {
+    logger.warn('[Notification] push ledger record failed', { error: err.message });
+  }
 }
 
 // ─── MASTER SEND FUNCTION ─────────────────────────────────────
@@ -87,6 +252,11 @@ exports.sendNotification = async ({
   action_url = null,
   pushToken  = null,
   idempotencyKey = null,
+  // N5: per-event sequence, forwarded to deriveIdempotencyKey. Stable
+  // across retries of the same event, distinct per distinct event;
+  // lets a caller distinguish two otherwise-identical sends in one
+  // 15-minute bucket that would otherwise share a derived key.
+  sequence = null,
   promotional = false,
   // Item 9: lets a caller suppress realtime email for this send while still
   // delivering in-app (e.g. the admin opted out of email for metric alerts).
@@ -110,19 +280,23 @@ exports.sendNotification = async ({
         [userId]
       );
       if ((promoRows[0]?.n || 0) >= 2) {
-        return { success: false, reason: 'promo_cap' };
+        return { success: false, reason: 'promo_cap', delivered: { inApp: false, push: false, email: false, emailQueued: false } };
       }
     }
     // Get user prefs
     const { rows: prefRows } = await db.query(`
       SELECT np.*, u.email, u.first_name, u.is_banned,
-             u.preferred_language
+             u.preferred_language,
+             -- Item 12: per-type opt-outs ride this same query (json_agg), so
+             -- prefAllows checks them with zero extra round-trips.
+             (SELECT COALESCE(json_agg(json_build_object('type', notification_type, 'channel', channel)), '[]'::json)
+                FROM notification_type_opt_outs WHERE user_id = u.id) AS type_opt_outs
       FROM users u
       LEFT JOIN notification_preferences np ON np.user_id = u.id
       WHERE u.id = $1
         AND u.deleted_at IS NULL
     `, [userId]);
-    if (!prefRows.length) return { success: false, reason: 'user_not_found' };
+    if (!prefRows.length) return { success: false, reason: 'user_not_found', delivered: { inApp: false, push: false, email: false, emailQueued: false } };
 
     const prefs     = prefRows[0];
     const userEmail = prefs.email;
@@ -159,7 +333,10 @@ exports.sendNotification = async ({
       : (body || translationBody);
     const deliveryKey = idempotencyKey
       ? String(idempotencyKey).trim().slice(0, 255)
-      : null;
+      // Item 26: keyless callers used to insert a fresh row (and re-fire
+      // push/email) on every retry. Derive a deterministic key at the
+      // boundary instead; see deriveIdempotencyKey above.
+      : deriveIdempotencyKey({ type, userId, title: finalTitle, body: finalBody, data, sequence });
 
     // ── Quiet-hours gate (blocks push only, in-app and email still proceed) ──
     // quiet_hours_start / quiet_hours_end are stored as Postgres TIME (HH:MM:SS).
@@ -221,9 +398,18 @@ exports.sendNotification = async ({
     // INSERT..RETURNING snapshot and never sees the UPDATEs below, so checking
     // it alone let Expo, Web Push and native push all fire for one event.
     let pushDelivered = !!notificationRow?.is_push_sent;
+    // N2: the row flag only exists when in-app is enabled. When it is
+    // not set, consult the push ledger so a retry does not re-fire push
+    // for a user with in-app off. Only when a push leg could actually
+    // run, so the common no-device path costs no extra query.
+    if (!pushDelivered && pushEnabled
+      && ((token && Expo.isExpoPushToken(token)) || webPushService.isConfigured() || mobilePushService.isConfigured())) {
+      pushDelivered = await wasPushDelivered(deliveryKey);
+    }
     if (token && pushEnabled && !pushDelivered && Expo.isExpoPushToken(token)) {
       const expoOk = await sendPushNotification(token, finalTitle, finalBody, data, notifId);
       if (expoOk) pushDelivered = true;
+      if (expoOk) await recordPushDelivered(deliveryKey, userId, type);
       if (expoOk && notifId) {
         await db.query(
           `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
@@ -248,6 +434,7 @@ exports.sendNotification = async ({
           action_url,
         });
         if (result.sent > 0) pushDelivered = true;
+        if (result.sent > 0) await recordPushDelivered(deliveryKey, userId, type);
         if (result.sent > 0 && notifId) {
           await db.query(
             `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
@@ -273,6 +460,7 @@ exports.sendNotification = async ({
           action_url,
         });
         if (result.sent > 0) pushDelivered = true;
+        if (result.sent > 0) await recordPushDelivered(deliveryKey, userId, type);
         if (result.sent > 0 && notifId) {
           await db.query(
             `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
@@ -291,6 +479,9 @@ exports.sendNotification = async ({
     // Respect global unsubscribe: if user opted out of all, skip non-transactional.
     const unsubscribedAll = !!prefs.unsubscribe_all;
     const emailTypes = [
+      // Affiliate payouts (notifications audit item 54): the affiliate
+      // learns a payout was processed or voided by a refund.
+      'affiliate_payout_processed', 'affiliate_payout_voided',
       'bid_accepted', 'payment_released', 'payment_receipt', 'food_order_ready', 'subscription_renewed',
       'subscription_cancelled', 'subscription_past_due',
       'dispute_update', 'dispute_opened', 'dispute_opened_against', 'dispute_under_review', 'dispute_resolved',
@@ -300,12 +491,19 @@ exports.sendNotification = async ({
       'new_message',
       'payout_deposited', 'payout_requested', 'payout_approved', 'payout_rejected', 'account_banned',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
+      // Notifications audit item 20: cash-out settlement mail (paid/failed)
+      // never sent because neither type was in this allow-list.
+      'credit_cashout_failed', 'credit_cashout_paid',
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',
       'credit_sanctions_cleared', 'credit_sanctions_confirmed',
       'credit_identity_verification_expired', 'credit_identity_verification_expiring',
       'credit_identity_verification_appeal_submitted', 'credit_identity_verification_appeal_approved',
       'credit_identity_verification_appeal_rejected',
+      // Customer 360 attention alerts (notifications audit item 39):
+      // the per-tick overflow digest and per-anomaly notices are admin
+      // notices, not marketing, so they email when the admin allows it.
+      'customer360_attention',
       // Monthly statement issuance: generic authenticated-link email, no
       // amounts or attachments. Respects the user's email preference toggle.
       'statement_ready',
@@ -320,8 +518,13 @@ exports.sendNotification = async ({
       // Direct booking notifications
       'booking_request_new', 'booking_accepted', 'booking_declined',
       'booking_cancelled', 'booking_auto_released',
+      // Consulting: the assigned consultant learns a session was scheduled.
+      'consulting_session_scheduled',
       // Agreement/job lifecycle notices respect the participant's email choices.
       'warranty_claim_filed', 'warranty_claim_updated', 'job_started',
+      // Weekly helper summary: gated by the email_weekly_summary toggle
+      // (prefAllows) and the job's own COALESCE(np.email_weekly_summary, true).
+      'weekly_summary',
       'learn_video_review_received', 'learn_video_review_overdue',
       // Logistics campaign review decisions: the organizer learns about
       // Operations approve / request-revisions / reject by email too
@@ -335,6 +538,10 @@ exports.sendNotification = async ({
       // (the job additionally gates on admin_notification_prefs).
       'metric_threshold_alert',
       'restaurant_loyalty_campaign',
+      // Support SLA breach and follow-up-due alerts (item 21): offline
+      // agents only learn about these by email.
+      'support_follow_up_due',
+      'support_sla_breach',
     ];
     // Transactional: always attempt email when we have an address (cannot opt out of
     // security-relevant account notices via marketing-style toggles).
@@ -461,15 +668,23 @@ exports.sendNotification = async ({
       const emailFailed = delivery?.success !== true
         && !(delivery?.code === 'email_not_configured' && process.env.NODE_ENV !== 'production');
       if (emailFailed) {
-        return { success: false, error: delivery?.error || 'Email delivery failed', notificationId: notifId };
+        return { success: false, error: delivery?.error || 'Email delivery failed', notificationId: notifId,
+          delivered: { inApp: notifId != null, push: pushDelivered, email: false, emailQueued } };
       }
     }
+    // Item 19: `success` historically meant "the call did not throw" — it
+    // was true even when no row existed (in-app opted out) and push/email
+    // never fired. Keep `success` as the accepted/persisted signal so
+    // outbox retry loops do not spin on opted-out users, and report the
+    // actual reach in `delivered` so callers can count real delivery.
+    // inApp is true when a row was inserted or an existing deduped row was
+    // resolved; push/email are true only on a provider acknowledgement.
     return { success: true, notificationId: notifId,
-      ...(type === 'metric_threshold_alert' ? { delivered: !!notifId || pushDelivered || emailDelivered || emailQueued } : {}) };
+      delivered: { inApp: notificationRow != null, push: pushDelivered, email: emailDelivered, emailQueued } };
   } catch (err) {
     logger.error('Send notification failed', { userId, type, error: err.message });
     // Never throw - notification failure should never block business logic
-    return { success: false, error: err.message };
+    return { success: false, error: err.message, delivered: { inApp: false, push: false, email: false, emailQueued: false } };
   }
 };
 
@@ -706,3 +921,5 @@ function isWithinQuietHours(startTime, endTime, enabled, timezone = 'UTC') {
   }
 }
 exports.isMoneyCriticalEmailType = isMoneyCriticalEmailType;
+exports.deriveIdempotencyKey = deriveIdempotencyKey;
+exports.prefAllows = prefAllows;

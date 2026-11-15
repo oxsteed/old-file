@@ -61,26 +61,12 @@ const T = Object.freeze({
     ht: ['Tanpri konfime idantite ou ankò', 'Pou kontinye itilize retrè ak balans ki pi wo, tanpri konfime idantite ou ankò nan aplikasyon OxSteed la. Jiskaske ou fè sa, retrè yo kanpe. Balans ou an sekirite.'],
     ar: ['يرجى تأكيد هويتك مرة أخرى', 'لمواصلة استخدام السحب والأرصدة الأعلى، يرجى تأكيد هويتك مرة أخرى في تطبيق OxSteed. حتى ذلك الحين، تتوقف عمليات السحب مؤقتًا. رصيدك في أمان.'],
   },
-  dispute_received: {
-    en: ['We received your report', 'We received your report about a Credit transaction ({reference}). We will finish our investigation by {deadline}. If we need longer, we will put the disputed amount back in your balance while we keep investigating.'],
-    es: ['Recibimos tu reporte', 'Recibimos tu reporte sobre una transacción de Crédito ({reference}). Terminaremos la investigación a más tardar el {deadline}. Si necesitamos más tiempo, devolveremos el monto en disputa a tu saldo mientras seguimos investigando.'],
-    fr: ['Nous avons reçu votre signalement', 'Nous avons reçu votre signalement concernant une opération en Crédit ({reference}). Nous terminerons notre enquête au plus tard le {deadline}. S’il nous faut plus de temps, nous recréditerons le montant contesté sur votre solde pendant la suite de l’enquête.'],
-    ht: ['Nou resevwa rapò ou a', 'Nou resevwa rapò ou sou yon tranzaksyon Kredi ({reference}). N ap fini envestigasyon an anvan {deadline}. Si nou bezwen plis tan, n ap remèt montan ki an diskisyon an nan balans ou pandan n ap kontinye envestige.'],
-    ar: ['استلمنا بلاغك', 'استلمنا بلاغك بشأن معاملة رصيد ({reference}). سننهي التحقيق بحلول {deadline}. إذا احتجنا وقتًا أطول، فسنعيد المبلغ المتنازع عليه إلى رصيدك أثناء استمرار التحقيق.'],
-  },
   dispute_provisional_credit: {
     en: ['Provisional credit added', 'While we finish investigating your report ({reference}), we added {amount} to your balance. You can use it now. We will tell you the final result by {deadline}.'],
     es: ['Crédito provisional agregado', 'Mientras terminamos de investigar tu reporte ({reference}), agregamos {amount} a tu saldo. Puedes usarlo ahora. Te diremos el resultado final a más tardar el {deadline}.'],
     fr: ['Crédit provisoire ajouté', 'Pendant que nous terminons l’enquête sur votre signalement ({reference}), nous avons ajouté {amount} à votre solde. Vous pouvez l’utiliser dès maintenant. Nous vous communiquerons le résultat final au plus tard le {deadline}.'],
     ht: ['Nou ajoute yon kredi pwovizwa', 'Pandan n ap fini envestige rapò ou a ({reference}), nou ajoute {amount} nan balans ou. Ou ka itilize l kounye a. N ap di ou rezilta final la anvan {deadline}.'],
     ar: ['تمت إضافة رصيد مؤقت', 'أثناء إنهاء التحقيق في بلاغك ({reference})، أضفنا {amount} إلى رصيدك. يمكنك استخدامه الآن. سنبلغك بالنتيجة النهائية بحلول {deadline}.'],
-  },
-  dispute_resolved: {
-    en: ['Your report is resolved', 'We finished investigating your report ({reference}). Open the OxSteed app to see the result and an explanation. You can ask for the documents we relied on.'],
-    es: ['Tu reporte está resuelto', 'Terminamos de investigar tu reporte ({reference}). Abre la app de OxSteed para ver el resultado y la explicación. Puedes pedir los documentos en los que nos basamos.'],
-    fr: ['Votre signalement est traité', 'Nous avons terminé l’enquête sur votre signalement ({reference}). Ouvrez l’application OxSteed pour voir le résultat et son explication. Vous pouvez demander les documents sur lesquels nous nous sommes appuyés.'],
-    ht: ['Rapò ou a rezoud', 'Nou fini envestige rapò ou a ({reference}). Louvri aplikasyon OxSteed la pou wè rezilta a ak yon esplikasyon. Ou ka mande dokiman nou te itilize yo.'],
-    ar: ['تمت معالجة بلاغك', 'أنهينا التحقيق في بلاغك ({reference}). افتح تطبيق OxSteed لرؤية النتيجة والشرح. يمكنك طلب المستندات التي اعتمدنا عليها.'],
   },
   dormancy_notice: {
     en: ['Your OxSteed Credit balance is inactive', 'Your OxSteed Credit balance of {amount} has had no activity for a long time. To keep it, sign in and use it, or ask to have it paid out, before {deadline}. After that date, the law may require us to send it to the unclaimed property office, where you can still claim it.'],
@@ -202,18 +188,66 @@ async function loadOverride(db, key, lang) {
  * returns { sent, lang, error? } so money flows are not blocked by email,
  * while callers that must prove delivery (dormancy, wind-down) record the
  * result.
+ *
+ * Notifications audit items 8/56: the email was the ONLY channel, so a
+ * failed send left zero user-visible trace. Every notice therefore also
+ * gets a durable in-app `notifications` row, inserted here once so every
+ * caller (present and future) inherits it instead of each site patching
+ * its own fallback. The row carries the rendered subject/body (the
+ * notification centre and /activity render title + body, and the View
+ * button from data.action_url), is deduped on the caller's idempotency
+ * key, and records the email delivery result in data + is_email_sent.
+ * The row is inserted BEFORE the email attempt so even a throw leaves
+ * the trace; the email result is merged into the row afterwards.
  */
 async function sendUserNotice({ userId, key, params = {}, idempotencyKey, db = pool }) {
   try {
     const { rows } = await db.query('SELECT id, email, preferred_language FROM users WHERE id = $1', [userId]);
     const user = rows && rows[0];
-    if (!user || !user.email) return { sent: false, error: 'no_email' };
+    if (!user) return { sent: false, error: 'no_user' };
     const lang = normalizeLang(user.preferred_language);
     const override = await loadOverride(db, key, lang);
     const notice = renderNotice(key, lang, params, override);
+    const deliveryKey = idempotencyKey ? `credit-notice:${String(idempotencyKey).trim().slice(0, 200)}` : null;
+    let notificationId = null;
+    let inApp = false;
+    try {
+      const inserted = await db.query(
+        `INSERT INTO notifications (user_id, type, title, body, data, action_url, delivery_key)
+         VALUES ($1, 'credit_notice', $2, $3, $4::jsonb, '/wallet', $5)
+         ON CONFLICT (delivery_key) WHERE delivery_key IS NOT NULL DO NOTHING
+         RETURNING id`,
+        [userId, notice.subject.slice(0, 255), notice.text,
+          JSON.stringify({ notice_key: key, action_url: '/wallet', email_sent: null, email_error: null }), deliveryKey]
+      );
+      if (inserted.rows && inserted.rows[0]) {
+        notificationId = String(inserted.rows[0].id);
+        inApp = true;
+      } else if (deliveryKey) {
+        const existing = await db.query('SELECT id FROM notifications WHERE delivery_key = $1 LIMIT 1', [deliveryKey]);
+        if (existing.rows && existing.rows[0]) {
+          notificationId = String(existing.rows[0].id);
+          inApp = true;
+        }
+      }
+    } catch (rowError) {
+      logger.warn('credit_notice.in_app_failed', { key, error: rowError.message });
+    }
+    if (!user.email) return { sent: false, error: 'no_email', inApp, notificationId };
     const { sendEmail } = require('../../utils/email');
     const result = await sendEmail({ to: user.email, subject: notice.subject, text: notice.text, html: notice.html, idempotencyKey });
-    return { sent: Boolean(result && result.success), lang, providerId: result?.id || null, error: result?.success ? null : (result?.error || 'send_failed') };
+    const sent = Boolean(result && result.success);
+    if (notificationId) {
+      try {
+        await db.query(
+          `UPDATE notifications SET data = data || $2::jsonb, is_email_sent = $3 WHERE id = $1`,
+          [notificationId, JSON.stringify({ email_sent: sent, email_error: sent ? null : (result?.error || 'send_failed') }), sent]
+        );
+      } catch (rowError) {
+        logger.warn('credit_notice.in_app_update_failed', { key, error: rowError.message });
+      }
+    }
+    return { sent, lang, providerId: result?.id || null, error: sent ? null : (result?.error || 'send_failed'), inApp, notificationId };
   } catch (error) {
     logger.warn('credit_notice.send_failed', { key, error: error.message });
     return { sent: false, error: error.message };

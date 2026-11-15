@@ -379,6 +379,9 @@ async function sendInvoice(req, res) {
   if (!access) return res.status(404).json({ error: 'Business not found' });
 
   const client = await pool.connect();
+  // Item 11: notification captured inside the transaction, sent through
+  // sendNotification only after COMMIT (see below).
+  let pendingInvoiceNotification = null;
   try {
     await client.query('BEGIN');
 
@@ -417,24 +420,26 @@ async function sendInvoice(req, res) {
 
       if (user) {
         isInternalUser = true;
-        // Create a notification for the user
-        const notificationText = `${access.business_name} has sent you an invoice for ${updatedInv.total}`;
-        await client.query(`
-          INSERT INTO notifications
-            (user_id, title, body, type, data, created_at)
-          VALUES ($1, $2, $3, $4, $5, NOW())
-        `, [
-          user.id,
-          `Invoice from ${access.business_name}`,
-          notificationText,
-          'invoice',
-          JSON.stringify({
+        // Item 11: do NOT insert the notification inside this transaction
+        // (a direct INSERT bypasses preferences/push/email/socket, and an
+        // email failure below rolls the invoice send back, which must also
+        // retract the notification). Capture it and send it through
+        // sendNotification after COMMIT; a notify failure is non-critical
+        // and must not fail the send.
+        pendingInvoiceNotification = {
+          userId: user.id,
+          type: 'invoice',
+          title: `Invoice from ${access.business_name}`,
+          body: `${access.business_name} has sent you an invoice for ${updatedInv.total}`,
+          data: {
             invoiceId: inv.id,
             businessId: access.id,
             publicToken: updatedInv.public_token,
-            actionUrl: `/invoices?invoiceId=${inv.id}`,
-          }),
-        ]);
+            action_url: `/invoices?invoiceId=${inv.id}`,
+          },
+          action_url: `/invoices?invoiceId=${inv.id}`,
+          idempotencyKey: `invoice-sent:${inv.id}:${user.id}`,
+        };
 
         logger.info('Invoice sent to internal user', {
           invoiceId: inv.id,
@@ -462,6 +467,14 @@ async function sendInvoice(req, res) {
     }
 
     await client.query('COMMIT');
+
+    if (pendingInvoiceNotification) {
+      try {
+        await sendNotification(pendingInvoiceNotification);
+      } catch (notifyErr) {
+        logger.warn('Invoice notification failed (non-critical)', { invoiceId: inv.id, error: notifyErr.message });
+      }
+    }
 
     return res.json({
       invoice: updatedInv,
@@ -707,6 +720,9 @@ async function deleteHelperInvoice(req, res) {
 // ── Send helper invoice (dual-track: internal + external) ───────────────────────
 async function sendHelperInvoice(req, res) {
   const client = await pool.connect();
+  // Item 11: notification captured inside the transaction, sent through
+  // sendNotification only after COMMIT (see below).
+  let pendingInvoiceNotification = null;
   try {
     const userId = req.user.id;
     const invoiceId = req.params.invoiceId;
@@ -756,23 +772,21 @@ async function sendHelperInvoice(req, res) {
         } else {
           const helperName = `${helper.first_name} ${helper.last_name}`;
 
-          // Create a notification for the user
-          const notificationText = `${helperName} has sent you an invoice for ${updatedInv.total}`;
-          await client.query(`
-            INSERT INTO notifications
-              (user_id, title, body, type, data, created_at)
-            VALUES ($1, $2, $3, $4, $5, NOW())
-          `, [
-            user.id,
-            `Invoice from ${helperName}`,
-            notificationText,
-            'invoice',
-            JSON.stringify({
+          // Item 11: capture for post-COMMIT sendNotification (same
+          // reason as sendInvoice above); action_url, not actionUrl.
+          pendingInvoiceNotification = {
+            userId: user.id,
+            type: 'invoice',
+            title: `Invoice from ${helperName}`,
+            body: `${helperName} has sent you an invoice for ${updatedInv.total}`,
+            data: {
               invoiceId: inv.id,
               publicToken: updatedInv.public_token,
-              actionUrl: `/invoices?invoiceId=${inv.id}`,
-            }),
-          ]);
+              action_url: `/invoices?invoiceId=${inv.id}`,
+            },
+            action_url: `/invoices?invoiceId=${inv.id}`,
+            idempotencyKey: `invoice-sent:${inv.id}:${user.id}`,
+          };
         }
 
         logger.info('Helper invoice sent to internal user', {
@@ -802,6 +816,14 @@ async function sendHelperInvoice(req, res) {
     }
 
     await client.query('COMMIT');
+
+    if (pendingInvoiceNotification) {
+      try {
+        await sendNotification(pendingInvoiceNotification);
+      } catch (notifyErr) {
+        logger.warn('Helper invoice notification failed (non-critical)', { invoiceId: inv.id, error: notifyErr.message });
+      }
+    }
 
     return res.json({
       invoice: updatedInv,

@@ -278,7 +278,10 @@ async function ingestChannelWebhook(req, res) {
               messageId: String(result.messageId),
               channel: payload.channel,
             },
-            action_url: '/support/escalation',
+            // Item 36: the recipient here is always the assigned agent,
+            // so the link points at the agent workspace, not the
+            // customer escalation page.
+            action_url: '/support/agent',
             idempotencyKey: `support-channel-message:${result.conversationId}:${result.messageId}:${agentUserId}`,
           }).catch((error) => {
             logger.warn('Support channel message notification failed', {
