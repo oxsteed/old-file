@@ -80,6 +80,9 @@ async function sendCareerEmail({ to, lang, type, params, actionUrl, deliveryKey,
  * (opt-out semantics, matching notificationService.prefAllows). A prefs
  * lookup failure fails closed for email only: the in-app row is still
  * written, the hiring action never blocks on mail.
+ *
+ * N12: this is the single rule for careers email, wired into notifyUser
+ * below instead of an inline duplicate that could drift.
  */
 async function careerEmailAllowed(db, userId) {
   if (!userId) return false;
@@ -123,10 +126,8 @@ async function notifyUser(db, { userId, type, params = {}, actionUrl = null, del
   if (!userId) return { inserted: false };
   const runner = db || pool;
   const { rows: [user] } = await runner.query(
-    `SELECT u.id, u.email, u.preferred_language,
-            np.email_notifications, np.unsubscribe_all
+    `SELECT u.id, u.email, u.preferred_language
        FROM users u
-       LEFT JOIN notification_preferences np ON np.user_id = u.id
       WHERE u.id = $1`,
     [userId]
   );
@@ -140,13 +141,13 @@ async function notifyUser(db, { userId, type, params = {}, actionUrl = null, del
   );
   const inserted = rowCount > 0;
   if (inserted && email && user.email) {
-    // Notifications audit item 6: honour the master email toggle and the
-    // global unsubscribe (the prefs row rides along in the user query
-    // above, so no second lookup is needed). The in-app row is the hiring
-    // record and is written regardless; only the email leg is gated.
-    // Fire and forget: an email outage never fails the hiring action.
-    const allowed = user.email_notifications !== false && user.unsubscribe_all !== true;
-    if (allowed) {
+    // Notifications audit item 6, N12: honour the master email toggle
+    // and the global unsubscribe through the shared careerEmailAllowed
+    // check (one rule, no inline duplicate). The in-app row is the
+    // hiring record and is written regardless; only the email leg is
+    // gated. Fire and forget: an email outage never fails the hiring
+    // action.
+    if (await careerEmailAllowed(runner, userId)) {
       sendCareerEmailLogged({ to: user.email, lang: language, type, params, actionUrl, deliveryKey, attachments });
     }
   }

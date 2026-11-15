@@ -108,6 +108,32 @@ test('notifyUser still emails when preferences allow it', async () => {
   }));
 });
 
+test('notifyUser fails closed on a prefs lookup failure (N12: shared check)', async () => {
+  // N12: notifyUser routes the email leg through careerEmailAllowed, so
+  // a prefs-table outage skips email with a log instead of failing the
+  // hiring action or sending blind. Before the wire-in, the inline check
+  // read prefs off the user row and this failure mode did not exist.
+  const db = fakeRunner({ prefs: { email_notifications: true } });
+  const baseQuery = db.query;
+  db.query = jest.fn(async (sql, params) => {
+    if (String(sql).includes('FROM notification_preferences')) throw new Error('prefs down');
+    return baseQuery(sql, params);
+  });
+  const result = await notifyUser(db, {
+    userId: 'user-1',
+    type: 'career_application_received',
+    params: { openingTitle: 'Line Cook' },
+    deliveryKey: 'test-prefs-fail',
+  });
+  await flush();
+  expect(result).toEqual({ inserted: true });
+  expect(sendEmail).not.toHaveBeenCalled();
+  expect(logger.warn).toHaveBeenCalledWith(
+    'careers email preference check failed; skipping email',
+    expect.objectContaining({ userId: 'user-1' }),
+  );
+});
+
 test('a failed careers email is logged instead of swallowed', async () => {
   sendEmail.mockResolvedValue({ success: false, error: 'Resend down' });
   const db = fakeRunner();
