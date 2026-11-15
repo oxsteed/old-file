@@ -146,7 +146,13 @@ async function notifyVoidedAffiliates(voidResult) {
         logger.warn('Affiliate void notice skipped: no program owner', { payoutId: payout.payoutId });
         continue;
       }
-      await sendNotification({
+      // Notifications audit N6: sendNotification never throws on a
+      // delivery failure; it returns { success: false }. Count only a
+      // notice that actually went out, and record an incident on
+      // failure like creditCashoutService.notifySettlement does, so a
+      // stuck provider is visible instead of silently dropping the
+      // affiliate notice while reporting it sent.
+      const result = await sendNotification({
         userId: ownerId,
         type: 'affiliate_payout_voided',
         data: {
@@ -159,7 +165,22 @@ async function notifyVoidedAffiliates(voidResult) {
         action_url: '/affiliate',
         idempotencyKey: `affiliate-payout:voided:${payout.payoutId}:${voidResult.orderId}`,
       });
-      notified += 1;
+      if (result && result.success === true) {
+        notified += 1;
+      } else {
+        logger.warn('Affiliate void notice failed', { payoutId: payout.payoutId, error: result?.error || 'send_failed' });
+        try {
+          await require('./incidentStore').recordIncident({
+            type: 'affiliate_payout_voided_notice_failed',
+            severity: 'medium',
+            message: `Affiliate void notice failed for payout ${payout.payoutId}`,
+            dedupeKey: `affiliate-void-notify:${payout.payoutId}:${voidResult.orderId}`,
+            details: { payoutId: payout.payoutId, orderId: voidResult.orderId, error: result?.error || 'send_failed' },
+          });
+        } catch (incidentError) {
+          logger.warn('Affiliate void notice incident failed', { payoutId: payout.payoutId, error: incidentError.message });
+        }
+      }
     } catch (err) {
       logger.warn('Failed to notify affiliate of voided payout', { payoutId: payout.payoutId, error: err.message });
     }

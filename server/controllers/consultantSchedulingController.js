@@ -344,7 +344,7 @@ exports.createScheduledSession = async (req, res) => {
     const scheduled = rows[0];
     if (scheduled?.consultant_assigned_id) {
       try {
-        await sendNotification({
+        const result = await sendNotification({
           userId: scheduled.consultant_assigned_id,
           type: 'consulting_session_scheduled',
           data: {
@@ -355,6 +355,25 @@ exports.createScheduledSession = async (req, res) => {
           action_url: '/consulting/contractor-dashboard',
           idempotencyKey: `consulting-session-scheduled:${consultingSessionId}`,
         });
+        // Notifications audit N6: sendNotification never throws on a
+        // delivery failure; it returns { success: false }. Check the
+        // result like creditCashoutService.notifySettlement does and
+        // record an incident so a stuck provider is visible to an
+        // operator instead of silently dropping the consultant notice.
+        if (result && result.success !== true) {
+          logger.warn('Failed to notify consultant of scheduled session', { error: result.error || 'send_failed', sessionId: consultingSessionId });
+          try {
+            await require('../services/incidentStore').recordIncident({
+              type: 'consulting_session_scheduled_notice_failed',
+              severity: 'medium',
+              message: `Consultant notice failed for scheduled session ${consultingSessionId}`,
+              dedupeKey: `consulting-session-notify:${consultingSessionId}`,
+              details: { sessionId: consultingSessionId, consultantId: scheduled.consultant_assigned_id, error: result.error || 'send_failed' },
+            });
+          } catch (incidentError) {
+            logger.warn('Failed to record consultant notice incident', { error: incidentError.message, sessionId: consultingSessionId });
+          }
+        }
       } catch (err) {
         logger.warn('Failed to notify consultant of scheduled session', { error: err.message, sessionId: consultingSessionId });
       }

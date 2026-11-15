@@ -12,9 +12,20 @@ jest.mock('../services/modePlatformApprovalService', () => ({
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue({ success: true }),
 }));
+jest.mock('../utils/logger', () => ({
+  warn: jest.fn(),
+  info: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+}));
+jest.mock('../services/incidentStore', () => ({
+  recordIncident: jest.fn().mockResolvedValue({ persisted: true }),
+}));
 
 const { mockQuery, resetMocks } = require('./setup');
 const { sendNotification } = require('../services/notificationService');
+const logger = require('../utils/logger');
+const { recordIncident } = require('../services/incidentStore');
 const schedulingCtrl = require('../controllers/consultantSchedulingController');
 const { tNotif } = require('../utils/i18n');
 
@@ -93,6 +104,32 @@ test('no consultant assigned means no consultant notice', async () => {
   );
   expect(r.statusCode).toBe(201);
   expect(sendNotification).not.toHaveBeenCalled();
+});
+
+test('a failed consultant notice is logged and recorded, and the 201 still returns (N6)', async () => {
+  // N6: sendNotification never throws on a delivery failure; it returns
+  // { success: false }. Before the fix the result was never inspected,
+  // so a failed consultant notice vanished without a trace.
+  sendNotification.mockResolvedValueOnce({ success: false, error: 'provider down' });
+  mockQuery
+    .mockResolvedValueOnce({ rows: [SESSION_ROW] })
+    .mockResolvedValueOnce({ rows: [{ id: CONSULTANT_ID }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [PLACEHOLDER_ROW] });
+  const r = res();
+  await schedulingCtrl.createScheduledSession(
+    { user: { id: OWNER_ID, role: 'customer' }, body: { consultingSessionId: 1, consultantId: CONSULTANT_ID } },
+    r,
+  );
+  expect(r.statusCode).toBe(201);
+  expect(logger.warn).toHaveBeenCalledWith(
+    'Failed to notify consultant of scheduled session',
+    expect.objectContaining({ error: 'provider down', sessionId: 1 }),
+  );
+  expect(recordIncident).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'consulting_session_scheduled_notice_failed',
+    dedupeKey: 'consulting-session-notify:1',
+  }));
 });
 
 test('the session-scheduled notice has copy in every language', () => {

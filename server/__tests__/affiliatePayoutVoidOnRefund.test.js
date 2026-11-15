@@ -8,8 +8,23 @@
 const { mockQuery, resetMocks } = require('./setup');
 
 jest.mock('stripe', () => () => ({ transfers: { create: jest.fn() } }));
+jest.mock('../services/notificationService', () => ({
+  sendNotification: jest.fn(),
+}));
+jest.mock('../services/incidentStore', () => ({
+  recordIncident: jest.fn().mockResolvedValue({ persisted: true }),
+}));
+jest.mock('../utils/logger', () => ({
+  warn: jest.fn(),
+  info: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+}));
 
-const { voidClaimedCommissionsForRefund } = require('../services/affiliatePayoutVoidOnRefund');
+const { sendNotification } = require('../services/notificationService');
+const { recordIncident } = require('../services/incidentStore');
+const logger = require('../utils/logger');
+const { voidClaimedCommissionsForRefund, notifyVoidedAffiliates } = require('../services/affiliatePayoutVoidOnRefund');
 const { settleRefund } = require('../services/marketplaceRefundService');
 
 // Fake transaction client: routes SQL to scripted results, logs every call.
@@ -110,6 +125,56 @@ describe('voidClaimedCommissionsForRefund', () => {
     const payoutUpdate = client.calls.find((c) => PAYOUT_UPDATE.test(c.text));
     expect(payoutUpdate.text).toMatch(/THEN 'failed' ELSE status END/);
     expect(payoutUpdate.text).toMatch(/all_commissions_voided_by_refund/);
+  });
+});
+
+describe('notifyVoidedAffiliates (N6)', () => {
+  beforeEach(() => {
+    resetMocks();
+    jest.clearAllMocks();
+    sendNotification.mockResolvedValue({ success: true, delivered: { inApp: true } });
+  });
+
+  function programRoute(ownerId) {
+    mockQuery.mockImplementation(async (sql) => {
+      if (String(sql).includes('FROM affiliate_programs WHERE id')) return { rows: [{ helper_id: ownerId }] };
+      return { rows: [] };
+    });
+  }
+
+  test('counts only a notice that actually went out and records an incident on failure', async () => {
+    // N6: notified += 1 ran unconditionally after the await, so a failed
+    // send was reported as delivered and left no trace.
+    programRoute('owner-1');
+    sendNotification
+      .mockResolvedValueOnce({ success: true, delivered: { inApp: true } })
+      .mockResolvedValueOnce({ success: false, error: 'provider down' });
+    const result = await notifyVoidedAffiliates({
+      orderId: 77,
+      payouts: [
+        { payoutId: 9, programId: 3, voidedCents: '500', voidedCount: 1 },
+        { payoutId: 10, programId: 3, voidedCents: '250', voidedCount: 1 },
+      ],
+    });
+    expect(result).toEqual({ notified: 1 });
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Affiliate void notice failed',
+      expect.objectContaining({ payoutId: 10, error: 'provider down' }),
+    );
+    expect(recordIncident).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'affiliate_payout_voided_notice_failed',
+      dedupeKey: 'affiliate-void-notify:10:77',
+    }));
+  });
+
+  test('a delivered void notice counts and records no incident', async () => {
+    programRoute('owner-1');
+    const result = await notifyVoidedAffiliates({
+      orderId: 77,
+      payouts: [{ payoutId: 9, programId: 3, voidedCents: '500', voidedCount: 1 }],
+    });
+    expect(result).toEqual({ notified: 1 });
+    expect(recordIncident).not.toHaveBeenCalled();
   });
 });
 
