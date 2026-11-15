@@ -47,29 +47,50 @@ function delivery(channel, id = 1) {
 }
 
 describe('item 13: broadcast in-app honours opt-outs', () => {
+  // Item 11: the in-app row is no longer inserted directly by this
+  // service, so the fakeDb can no longer see an INSERT. The in-app leg
+  // routes through sendNotification (in-app only); these tests pass a
+  // mocked sendNotification through the deps seam and assert on it.
+  const mockSend = () => jest.fn(async () => ({ success: true, notificationId: 'n1' }));
+
   test('unsubscribe_all skips the in-app leg instead of creating a row', async () => {
     const calls = [];
     const db = fakeDb({ ...baseCtx, unsubscribe_all: true }, calls);
-    const result = await svc.deliverOne(db, delivery('in_app'), {});
+    const sendNotification = mockSend();
+    const result = await svc.deliverOne(db, delivery('in_app'), { sendNotification });
     expect(result).toBe(true);
-    expect(calls.some((sql) => sql.includes('INSERT INTO notifications'))).toBe(false);
+    expect(sendNotification).not.toHaveBeenCalled();
     const completeCall = db.query.mock.calls.find(([sql]) => sql.includes('UPDATE business_broadcast_deliveries SET'));
     expect(completeCall[1]).toContain('skipped');
     expect(completeCall[1]).toContain('broadcast_opted_out');
   });
 
-  test('per-type in_app_business_broadcast=false skips the in-app leg', async () => {
+  test('a per-type business_broadcast opt-out skips the in-app leg', async () => {
     const calls = [];
-    const db = fakeDb({ ...baseCtx, prefs_json: { in_app_business_broadcast: false } }, calls);
-    await svc.deliverOne(db, delivery('in_app'), {});
-    expect(calls.some((sql) => sql.includes('INSERT INTO notifications'))).toBe(false);
+    // Item 13: the opt-out lives in notification_type_opt_outs, not in
+    // a per-type in_app_business_broadcast column (no migration ever
+    // created one), so the fixture carries the opt-out row.
+    const db = fakeDb({ ...baseCtx, type_opt_outs: [{ type: 'business_broadcast', channel: 'in_app' }] }, calls);
+    const sendNotification = mockSend();
+    await svc.deliverOne(db, delivery('in_app'), { sendNotification });
+    expect(sendNotification).not.toHaveBeenCalled();
+    const completeCall = db.query.mock.calls.find(([sql]) => sql.includes('UPDATE business_broadcast_deliveries SET'));
+    expect(completeCall[1]).toContain('skipped');
+    expect(completeCall[1]).toContain('broadcast_opted_out');
   });
 
   test('in-app still delivers when no opt-out is set', async () => {
     const calls = [];
     const db = fakeDb({ ...baseCtx }, calls);
-    await svc.deliverOne(db, delivery('in_app'), {});
-    expect(calls.some((sql) => sql.includes('INSERT INTO notifications'))).toBe(true);
+    const sendNotification = mockSend();
+    const result = await svc.deliverOne(db, delivery('in_app'), { sendNotification });
+    expect(result).toBe(true);
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+    expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-1',
+      type: 'business_broadcast',
+      idempotencyKey: 'business-broadcast:1',
+    }));
   });
 });
 

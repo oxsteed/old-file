@@ -47,7 +47,10 @@ describe('item 11: no direct notifications inserts outside shared helpers', () =
   test('businessMembers keeps exactly one INSERT, inside its shared pref-gated helper', () => {
     expect(directInsertCount('controllers/businessMembersController.js')).toBe(1);
     const src = fs.readFileSync(path.join(SERVER, 'controllers/businessMembersController.js'), 'utf8');
-    expect(src).toMatch(/in_app_\$\{type\}|in_app_.*type/);
+    // N8: the helper no longer reads the per-type column inline
+    // (in_app_${type}); it gates on the shared prefAllows (master
+    // toggle, per-type column, per-type opt-out rows, aliases).
+    expect(src).toMatch(/prefAllows\(prefs/);
   });
 
   test('invoice payloads use action_url, never camelCase actionUrl', () => {
