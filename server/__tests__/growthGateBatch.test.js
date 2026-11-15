@@ -93,3 +93,44 @@ test('allowMany denies every context for an unknown purpose', () => {
   const decisions = gate.allowMany(new Map([['user-a', ctxFor('user-a', {})]]), 'no_such_purpose');
   expect(decisions.get('user-a')).toMatchObject({ allowed: false, reason: 'unknown_purpose' });
 });
+
+test('allowMany does not share a cached verdict across contexts that differ in impersonation (N13)', () => {
+  // N13: the decision key used to cover only the user id, trusted
+  // signals, consents and jurisdiction code, so an impersonated
+  // context for a user shared the verdict of a clean context for the
+  // same user and the impersonation denial never fired.
+  const clean = ctxFor('user-a', { activity_offers: true });
+  const impersonated = { ...ctxFor('user-a', { activity_offers: true }), impersonated: true };
+  const decisions = gate.allowMany(new Map([
+    ['entry-clean', clean],
+    ['entry-impersonated', impersonated],
+  ]), 'activity_offers');
+  expect(decisions.get('entry-clean')).toMatchObject({ allowed: true });
+  expect(decisions.get('entry-impersonated')).toMatchObject({ allowed: false, reason: 'excluded_subject' });
+  // The single-input API agrees with both batch verdicts.
+  expect(gate.decide(clean, 'activity_offers').allowed).toBe(true);
+  expect(gate.decide(impersonated, 'activity_offers')).toMatchObject({ allowed: false, reason: 'excluded_subject' });
+});
+
+test('allowMany does not share a cached verdict across contexts that differ in GPC (N13)', () => {
+  const saleShareJurisdiction = { ...JURISDICTION, saleShare: true };
+  const plain = { ...ctxFor('user-a', { activity_offers: true }), jurisdiction: saleShareJurisdiction };
+  const gpc = { ...plain, gpc: true };
+  const decisions = gate.allowMany(new Map([
+    ['entry-plain', plain],
+    ['entry-gpc', gpc],
+  ]), 'activity_offers');
+  expect(decisions.get('entry-plain')).toMatchObject({ allowed: true });
+  expect(decisions.get('entry-gpc')).toMatchObject({ allowed: false, reason: 'sale_share_optout' });
+});
+
+test('allowMany still shares one verdict for identical decision inputs (N13)', () => {
+  const first = ctxFor('user-a', { activity_offers: true });
+  const second = ctxFor('user-a', { activity_offers: true });
+  const decisions = gate.allowMany(new Map([
+    ['entry-1', first],
+    ['entry-2', second],
+  ]), 'activity_offers');
+  expect(decisions.get('entry-1')).toMatchObject({ allowed: true });
+  expect(decisions.get('entry-2')).toMatchObject({ allowed: true });
+});

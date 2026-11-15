@@ -225,11 +225,28 @@ async function allow(input, purpose = "activity", options = {}) {
 // identical decision inputs share one verdict, so a user with many rows
 // in one block is decided once.
 function decisionKey(ctx) {
+  // N13: every input decide() reads must be in the key. The old key
+  // covered only the user id, trusted signals, consents and the
+  // jurisdiction code, so two contexts for one user that differed in
+  // impersonation, GPC, eligibility, user status, rollout or the
+  // jurisdiction basis shared one cached verdict. (purpose, env and
+  // now are fixed for one allowMany call, so they are not keyed.)
   return JSON.stringify([
     ctx?.user?.id ?? null,
+    ctx?.user?.role ?? null,
+    ctx?.user?.is_active ?? null,
+    ctx?.user?.is_banned ?? null,
+    ctx?.user?.deleted_at ?? null,
+    ctx?.user?.is_suspended ?? null,
+    ctx?.eligibility?.adult_confirmed ?? null,
+    ctx?.eligibility?.is_internal ?? null,
+    ctx?.enabled ?? null,
+    ctx?.rollout ?? null,
+    ctx?.impersonated ?? null,
+    ctx?.gpc ?? null,
     ctx?.trustedSignals ?? null,
     ctx?.consents ?? null,
-    ctx?.jurisdiction?.code ?? null,
+    ctx?.jurisdiction ?? null,
   ]);
 }
 function allowMany(contexts, purpose = "activity", options = {}) {
