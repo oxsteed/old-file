@@ -88,12 +88,12 @@ async function insertNotification(client, { userId, type, title, body, data }) {
   // Item 11: this shared helper used to INSERT unconditionally, bypassing
   // every preference. It stays in-transaction (S-01: the membership change
   // and its notification commit or roll back together), but now honours
-  // the per-type in-app opt-out and dedupes on a deterministic delivery
-  // key, so a retried handler cannot notify twice. Push/email legs are
-  // not added here — the row renders in the notification centre via the
-  // list API; a post-commit sendNotification would need all five call
-  // sites restructured around withTransaction.
-  const prefKey = `in_app_${String(type).replace(':', '_')}`;
+  // the shared prefAllows gate (in-app master toggle, per-type column,
+  // per-type opt-out rows, UI aliases) and dedupes on a deterministic
+  // delivery key, so a retried handler cannot notify twice. Push/email
+  // legs are not added here — the row renders in the notification
+  // centre via the list API; a post-commit sendNotification would need
+  // all five call sites restructured around withTransaction.
   // SELECT np.* (never a dynamic column name): the per-type column may
   // not exist yet, and a failed query inside this transaction would abort
   // the whole membership change. An absent key reads as undefined and
@@ -106,8 +106,17 @@ async function insertNotification(client, { userId, type, title, body, data }) {
       `SELECT np.* FROM notification_preferences np WHERE np.user_id = $1`,
       [userId]
     );
+    const { rows: optOutRows } = await client.query(
+      `SELECT notification_type AS type, channel FROM notification_type_opt_outs WHERE user_id = $1`,
+      [userId]
+    );
     await client.query('RELEASE SAVEPOINT notif_pref_check');
-    if (prefs && prefs[prefKey] === false) return null;
+    // N8: the shared prefAllows gate, not a local canonical-column
+    // check — the master toggle and per-type opt-out rows used to be
+    // ignored here, so a user who turned in-app off still got team
+    // notifications.
+    const { prefAllows } = require('../services/notificationService');
+    if (!prefAllows(prefs || {}, 'in_app', type, optOutRows)) return null;
   } catch {
     await client.query('ROLLBACK TO SAVEPOINT notif_pref_check').catch(() => {});
   }
@@ -909,4 +918,6 @@ module.exports = {
   acceptInvitation,
   declineInvitation,
   listManagedBusinesses,
+  // Test seam (N8): the shared in-transaction notification insert.
+  insertNotification,
 };
