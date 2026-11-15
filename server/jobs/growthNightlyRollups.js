@@ -3,6 +3,7 @@ const { withFencedJobLock } = require("./jobLockingService");
 const gate = require("../growth/gate");
 const { withTransaction } = require("../utils/transaction");
 const { mapBounded } = require("../utils/boundedBatch");
+const logger = require("../utils/logger");
 const db = require("../db");
 const {
   collectDomainDay,
@@ -172,7 +173,30 @@ async function run({ day: requestedDay, force = false } = {}) {
     return { skipped: true };
   if (requestedDay === undefined && new Date().getUTCHours() < 3)
     return { skipped: true };
-  return withFencedJobLock(
+  // Notifications audit item 40: the run row used to stay 'running'
+  // forever when anything inside the fenced callback threw (the only
+  // status update was the final one at the end), and a fenced abort
+  // ({ fenced: true } from withFencedJobLock) left it running too. The
+  // next night's sweep only heals rows older than an hour, so a stuck
+  // run also hid the day from the completion check. Track the run id
+  // outside the callback and mark the run failed on either outcome;
+  // the WHERE status='running' guard never overwrites a run that
+  // already finished complete/partial.
+  let runId = null;
+  const markRunFailed = async (error) => {
+    if (!runId) return;
+    try {
+      await db.query(
+        "UPDATE growth_rollup_runs SET status='failed',completed_at=NOW(),counts=$2 WHERE id=$1 AND status='running'",
+        [runId, { error: String(error?.code || error?.message || error || 'unknown').slice(0, 500) }],
+      );
+    } catch (markErr) {
+      logger.warn('growth_rollup_runs mark failed failed', { runId, error: markErr.message });
+    }
+  };
+  let outcome;
+  try {
+    outcome = await withFencedJobLock(
     "growth-nightly",
     async (fence) => {
       // The fenced run owns the job now; old running rows belong to lost leases.
@@ -188,6 +212,7 @@ async function run({ day: requestedDay, force = false } = {}) {
         "INSERT INTO growth_rollup_runs(day,status) VALUES($1,'running') RETURNING id",
         [day],
       );
+      runId = run.id;
       // Shared subject sets: ClickHouse job events plus Postgres domain
       // signals (growth/rollups/domain.js) land in the same maps.
       const shared = {
@@ -407,6 +432,14 @@ async function run({ day: requestedDay, force = false } = {}) {
       };
     },
     3600,
-  );
+    );
+  } catch (err) {
+    await markRunFailed(err);
+    throw err;
+  }
+  if (outcome && outcome.fenced) {
+    await markRunFailed('lease_lost');
+  }
+  return outcome;
 }
 module.exports = { run };
