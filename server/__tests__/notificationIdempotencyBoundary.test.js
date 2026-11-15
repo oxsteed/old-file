@@ -121,7 +121,11 @@ describe('item 26: boundary idempotency derivation', () => {
   });
 
   test('payload-only derivation (no entity id) dedupes within a bucket, not across buckets', () => {
-    const now = Date.now();
+    // Pinned mid-bucket: 12:07 UTC sits inside the 12:00-12:15 bucket,
+    // so +60s stays in it and +60min leaves it. A live Date.now() flaked
+    // when the run landed in the last minute of a bucket (CI run
+    // 43732204512: now 15:59:11 UTC, now+60s crossed into the next bucket).
+    const now = Date.UTC(2026, 10, 15, 12, 7, 0);
     const a = deriveIdempotencyKey({ type: 'reminder', userId: 'u1', data: { note: 'same' }, title: 't', body: 'b', now });
     const sameBucket = deriveIdempotencyKey({ type: 'reminder', userId: 'u1', data: { note: 'same' }, title: 't', body: 'b', now: now + 60 * 1000 });
     const laterBucket = deriveIdempotencyKey({ type: 'reminder', userId: 'u1', data: { note: 'same' }, title: 't', body: 'b', now: now + 60 * 60 * 1000 });
