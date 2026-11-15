@@ -922,7 +922,7 @@ exports.runDiscoverDigestTick = async ({ fence, limit = 100 } = {}) => {
       // tick. (The last_checked_at half of item 16 was already fixed by
       // Domain 7 #27: a failed send stamps nothing and stays due.)
       const recipient = await loadDigestRecipient(digestDb, a.user_id);
-      const preDecision = decideEmailDelivery(recipient);
+      const preDecision = decideEmailDelivery(recipient, { type: 'discover_digest' });
       if (preDecision.action === 'skip') {
         await digestDb.query(
           'UPDATE discover_search_alerts SET last_checked_at = NOW() WHERE id = $1',

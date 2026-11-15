@@ -42,14 +42,20 @@ const DIGEST_DEAD_LETTER_RETENTION_DAYS = 30;
  * per-type preference keys that must not be false (e.g. marketing_emails
  * for reengagement mail). Absent preference rows default to allowed
  * (opt-out semantics, matching prefAllows in notificationService).
+ * N1: `type` is the notification type being delivered; a per-type
+ * email opt-out in notification_type_opt_outs skips the mail, so the
+ * Settings toggle actually stops digest mail for that type.
  */
-function decideEmailDelivery(recipient, { skipWhenPrefFalse = [] } = {}) {
+function decideEmailDelivery(recipient, { skipWhenPrefFalse = [], type = null } = {}) {
   if (!recipient || !recipient.email) return { action: 'skip', reason: 'no_recipient' };
   if (recipient.deletedAt) return { action: 'skip', reason: 'user_deleted' };
   if (recipient.isActive === false) return { action: 'skip', reason: 'user_inactive' };
   const prefs = recipient.prefs || {};
   if (prefs.unsubscribe_all === true) return { action: 'skip', reason: 'unsubscribed_all' };
   if (prefs.email_notifications === false) return { action: 'skip', reason: 'email_notifications_off' };
+  if (type && Array.isArray(prefs.type_opt_outs) && prefs.type_opt_outs.includes(`${type}|email`)) {
+    return { action: 'skip', reason: `type_opted_out:${type}` };
+  }
   for (const key of skipWhenPrefFalse) {
     if (prefs[key] === false) return { action: 'skip', reason: `pref_off:${key}` };
   }
@@ -66,7 +72,10 @@ async function loadDigestRecipient(queryable, userId) {
     `SELECT u.id, u.email, u.first_name, u.preferred_language,
             u.deleted_at, u.is_active,
             np.unsubscribe_all, np.email_notifications, np.email_frequency,
-            np.marketing_emails
+            np.marketing_emails,
+            COALESCE((SELECT json_agg(notification_type || '|' || channel)
+                        FROM notification_type_opt_outs o
+                       WHERE o.user_id = u.id), '[]'::json) AS type_opt_outs
        FROM users u
        LEFT JOIN notification_preferences np ON np.user_id = u.id
       WHERE u.id = $1`,
@@ -86,6 +95,9 @@ async function loadDigestRecipient(queryable, userId) {
       email_notifications: row.email_notifications,
       email_frequency: row.email_frequency,
       marketing_emails: row.marketing_emails,
+      // N1: per-type opt-outs ride along so decideEmailDelivery can
+      // honour the Settings toggle for this type.
+      type_opt_outs: row.type_opt_outs || [],
     },
   };
 }
@@ -108,8 +120,28 @@ async function deliverDigestEmail(queryable, {
   deliveryKey,
   skipWhenPrefFalse = [],
 }) {
-  const recipient = preloadedRecipient || (await loadDigestRecipient(queryable, userId));
-  const decision = decideEmailDelivery(recipient, { skipWhenPrefFalse });
+  let recipient = preloadedRecipient || (await loadDigestRecipient(queryable, userId));
+  // N1: a preloaded recipient (the reengagement job builds prefs from
+  // its own query) carries no per-type opt-outs. Load them here so the
+  // decision below sees the same opt-outs a fresh load would; a lookup
+  // failure fails closed (no mail) like prefAllows.
+  if (recipient && recipient.prefs && recipient.prefs.type_opt_outs === undefined) {
+    try {
+      const { rows } = await queryable.query(
+        `SELECT notification_type || '|' || channel AS opt_out
+           FROM notification_type_opt_outs WHERE user_id = $1`,
+        [recipient.userId],
+      );
+      recipient = {
+        ...recipient,
+        prefs: { ...recipient.prefs, type_opt_outs: rows.map((r) => r.opt_out) },
+      };
+    } catch (err) {
+      logger.warn('[digestDelivery] type opt-out lookup failed; skipping email', { userId, type, error: err.message });
+      return { delivered: false, queued: false, reason: 'opt_out_lookup_failed', error: err.message };
+    }
+  }
+  const decision = decideEmailDelivery(recipient, { skipWhenPrefFalse, type });
   if (decision.action === 'skip') {
     logger.debug('[digestDelivery] email skipped by preference', { userId, type, reason: decision.reason });
     return { delivered: false, queued: false, reason: decision.reason };
@@ -156,8 +188,16 @@ async function deliverDigestEmail(queryable, {
 /**
  * Item 28: purge digest queue rows that can never be delivered again —
  * the user was deleted, unsubscribed from all email, or turned email
- * notifications off — plus dead-lettered rows past retention. Returns
- * the number of rows removed.
+ * notifications off — plus dead-lettered rows past retention. N10: also
+ * purge rows for users whose email frequency is 'off' (the batch only
+ * ever selects daily/weekly rows, so 'off' rows sit forever) and rows
+ * for users with no notification_preferences row at all (the batch's
+ * INNER JOIN on notification_preferences never selects them). N1: also
+ * purge rows whose notification type the user has since opted out of
+ * for email (queued before the opt-out, otherwise delivered by the
+ * batch despite the toggle); the linked-notification case covers queue
+ * rows that carry only a notification_id.
+ * Returns the number of rows removed.
  */
 async function purgeStaleDigestQueueRows(queryable) {
   const { rowCount } = await queryable.query(
@@ -168,7 +208,19 @@ async function purgeStaleDigestQueueRows(queryable) {
                      WHERE u.id = edq.user_id AND u.deleted_at IS NOT NULL)
          OR EXISTS (SELECT 1 FROM notification_preferences np
                      WHERE np.user_id = edq.user_id
-                       AND (np.unsubscribe_all = TRUE OR np.email_notifications = FALSE))`,
+                       AND (np.unsubscribe_all = TRUE OR np.email_notifications = FALSE))
+         OR EXISTS (SELECT 1 FROM notification_preferences np
+                     WHERE np.user_id = edq.user_id
+                       AND np.email_frequency = 'off')
+         OR NOT EXISTS (SELECT 1 FROM notification_preferences np
+                         WHERE np.user_id = edq.user_id)
+         OR EXISTS (SELECT 1 FROM notification_type_opt_outs o
+                     WHERE o.user_id = edq.user_id
+                       AND o.channel = 'email'
+                       AND (o.notification_type = edq.notification_type
+                            OR EXISTS (SELECT 1 FROM notifications n
+                                        WHERE n.id = edq.notification_id
+                                          AND n.type = o.notification_type)))`,
     [String(DIGEST_DEAD_LETTER_RETENTION_DAYS)]
   );
   if (rowCount) logger.info('[digestDelivery] purged stale digest queue rows', { purged: rowCount });
