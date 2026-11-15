@@ -128,4 +128,53 @@ describe('item 26: boundary idempotency derivation', () => {
     expect(a).toBe(sameBucket);
     expect(a).not.toBe(laterBucket);
   });
+
+  test('N5: a long entity value no longer truncates the payload hash off', () => {
+    // Repro: with a 300-char entity value the old layout
+    // `...:<field>:<value>:<hash>` sliced the hash off past 255 chars,
+    // so two events for the same entity with different payloads
+    // collapsed to one key and the second was silently deduped away.
+    const now = Date.now();
+    const longEntity = 'b-'.repeat(150);
+    const first = deriveIdempotencyKey({ type: 'booking_accepted', userId: 'u1', data: { bookingId: longEntity }, title: 't', body: 'first', now });
+    const second = deriveIdempotencyKey({ type: 'booking_accepted', userId: 'u1', data: { bookingId: longEntity }, title: 't', body: 'second', now });
+    expect(first).not.toBe(second);
+    expect(first.length).toBeLessThanOrEqual(255);
+    expect(second.length).toBeLessThanOrEqual(255);
+    // The hash sits before the entity value, so it survives truncation:
+    // the two keys differ in the hash segment, not only past char 255.
+    expect(first.slice(0, 60)).not.toBe(second.slice(0, 60));
+  });
+
+  test('N5: a caller-supplied sequence distinguishes identical no-entity events in one bucket', () => {
+    const now = Date.now();
+    const args = { type: 'reminder', userId: 'u1', data: { note: 'same' }, title: 't', body: 'b', now };
+    const noSequence = deriveIdempotencyKey(args);
+    const seq1 = deriveIdempotencyKey({ ...args, sequence: 'evt-1' });
+    const seq1Again = deriveIdempotencyKey({ ...args, sequence: 'evt-1' });
+    const seq2 = deriveIdempotencyKey({ ...args, sequence: 'evt-2' });
+    // Same sequence replays to the same key (a retry still dedupes);
+    // a different sequence is a different event even with identical
+    // content in the same 15-minute bucket.
+    expect(seq1).toBe(seq1Again);
+    expect(seq1).not.toBe(seq2);
+    expect(seq1).not.toBe(noSequence);
+    expect(seq2).not.toBe(noSequence);
+  });
+
+  test('N5: two identical keyless sends with different sequences both deliver', async () => {
+    const { insertKeys, insertedByKey } = installDbFake();
+    const args = {
+      userId: 'customer-1', type: 'reminder', title: 't',
+      body: 'b', data: { note: 'same' },
+    };
+    const first = await sendNotification({ ...args, sequence: 'evt-1' });
+    const second = await sendNotification({ ...args, sequence: 'evt-2' });
+    const replay = await sendNotification({ ...args, sequence: 'evt-1' });
+    expect(insertKeys[0]).not.toBe(insertKeys[1]);
+    expect(insertKeys[2]).toBe(insertKeys[0]);
+    expect(first.notificationId).not.toBe(second.notificationId);
+    expect(replay.notificationId).toBe(first.notificationId);
+    expect(insertedByKey.size).toBe(2);
+  });
 });
