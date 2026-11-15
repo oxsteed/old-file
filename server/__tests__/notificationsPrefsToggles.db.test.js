@@ -348,9 +348,236 @@ ddescribe('Track C preference toggles (DB)', () => {
       );
     });
 
-    test('catalog lists the discovered send types and every entry has a known group', async () => {
+    test('catalog stays in sync with the live sendNotification call sites (N3)', async () => {
+      // N3: the catalog is a static snapshot that drifted from the call
+      // sites (the batch's own new types had no toggle, and neither did
+      // dozens of ternary/variable/template types). This test extracts
+      // the live send types from server/ on every run and diffs them
+      // against the catalog, so a new send type without a toggle fails
+      // the suite instead of silently shipping toggle-less.
+      //
+      // How a call site is classified (first `type` in the call's own
+      // object, value taken up to its top-level comma so a ternary in a
+      // LATER property such as title/body is never mistaken for the
+      // type's own ternary):
+      //   literal `type: 'x'`                -> x must be cataloged.
+      //   ternary `type: c ? 'a' : 'b'`      -> both branches cataloged.
+      //   template `` `prefix_${v}` ``       -> the prefix family must be
+      //     listed in TEMPLATE_FAMILIES with its expansions cataloged.
+      //   concat `'prefix' + v`              -> same, as a prefix family.
+      //   variable `type: someVar` / `type,` -> the (file, name) must be
+      //     listed in VARIABLE_SITES with its expansions cataloged.
+      //   no `type` in the call at all       -> the file must be listed
+      //     in SPREAD_SITES with its expansions cataloged (the payload
+      //     object is built elsewhere in the same flow).
+      // A NEW site in any unlisted shape fails here on purpose: classify
+      // it (add the type to the catalog, or the site to the lists below
+      // with its resolution) instead of widening the extractor.
+      const fs = require('fs');
+      const path = require('path');
       const { NOTIFICATION_TYPES, NOTIFICATION_TYPE_GROUPS } = require('../utils/notificationTypeCatalog');
-      expect(NOTIFICATION_TYPES.length).toBeGreaterThanOrEqual(90);
+      const catalog = new Set(NOTIFICATION_TYPES.map((entry) => entry.type));
+
+      // Template/concat prefix families and their concrete expansions.
+      // delivery: is derived at runtime from the same source the worker
+      // uses, so adding an event there without a catalog entry fails.
+      const { DELIVERY_NOTIFICATION_EVENTS } = require('../utils/localDeliveryNotifications');
+      const TEMPLATE_FAMILIES = {
+        credit_cashout_: ['credit_cashout_paid', 'credit_cashout_failed'],
+        logistics_payment_: ['logistics_payment_succeeded', 'logistics_payment_failed'],
+        'delivery:': DELIVERY_NOTIFICATION_EVENTS.map((event) => `delivery:${event}`),
+      };
+
+      // Variable-driven send sites: the type comes from a parameter, a
+      // lookup table, or a DB column. The expansions are the types that
+      // can actually reach sendNotification through the site.
+      const VARIABLE_SITES = [
+        { file: 'analytics/regionGeoSourceSwitch.js', name: 'type', expansions: ['admin_operational_notice_region_geo_switched', 'admin_operational_notice_region_geo_rolled_back'] },
+        { file: 'controllers/bookingController.js', name: 'type', expansions: ['booking_accepted', 'booking_declined', 'booking_cancelled'] },
+        { file: 'controllers/businessAppointmentsController.js', name: 'notificationType', expansions: ['appointment_created', 'appointment_cancelled', 'appointment_rescheduled', 'appointment_staff_reassigned', 'appointment_payment_recorded', 'appointment_pending', 'appointment_confirmed', 'appointment_in_progress', 'appointment_completed', 'appointment_no_show'] },
+        { file: 'controllers/businessInvoiceController.js', name: 'type', expansions: ['business_invoice_paid', 'business_invoice_voided'] },
+        { file: 'controllers/calendarNotificationController.js', name: 'notification_type', expansions: ['appointment_requested', 'appointment_confirmed', 'appointment_cancelled', 'appointment_rescheduled', 'reminder_24h', 'reminder_2h', 'reminder_same_day'] },
+        { file: 'controllers/mediaController.js', name: 'type', expansions: ['media_reply', 'media_like', 'media_follow'] },
+        { file: 'controllers/superAdminController.js', name: 'type', expansions: ['account_deletion_scheduled', 'account_restored', 'account_suspended', 'account_restricted', 'admin_warning'] },
+        { file: 'jobs/acceptedJobExpiryJob.js', name: 'type', expansions: ['job_auto_cancel_warning', 'job_auto_cancelled'] },
+        // Outbox replay: the stored rows were enqueued by the literal
+        // call sites, so their types are already covered above.
+        { file: 'jobs/jobEventOutbox.js', name: 'send.type', expansions: [] },
+        { file: 'routes/savedSearches.js', name: 'notifType', expansions: ['job_alert', 'helper_alert', 'tool_alert'] },
+        { file: 'services/disputeNotifications.js', name: 'type', expansions: ['dispute_resolved', 'dispute_under_review', 'dispute_reopened'] },
+        { file: 'services/logisticsQuoteService.js', name: 'type', expansions: ['logistics:quote_published', 'logistics:quote_accepted'] },
+        { file: 'services/logisticsRefundPorts.js', name: 'type', expansions: ['logistics:refund_proposed', 'logistics:refund_approved', 'logistics:refund_rejected', 'logistics:refund_processed', 'logistics:refund_pending', 'logistics:refund_failed', 'logistics:refund_expired'] },
+        // sendBulkNotification fan-out: the type is the bulk caller's
+        // type (analytics/regionGeoSourceSwitch.js notifyAdmins).
+        { file: 'services/notificationService.js', name: 'type', expansions: [] },
+        { file: 'services/oxsteedCreditDisputeService.js', name: 'type', expansions: ['credit_dispute_resolved', 'credit_dispute_updated', 'credit_dispute_provisional_credit'] },
+        { file: 'services/paymentRefundService.js', name: 'type', expansions: ['refund', 'refund_failed'] },
+        { file: 'services/pooledOrderService.js', name: 'type', expansions: ['logistics_campaign_approved', 'logistics_campaign_revisions_requested', 'logistics_campaign_rejected'] },
+        { file: 'services/restaurantPayoutService.js', name: 'type', expansions: ['payout_requested', 'payout_failed', 'payout_approved', 'payout_deposited', 'payout_reversed', 'payout_rejected'] },
+        { file: 'services/supportNotificationService.js', name: 'type', expansions: ['support_sla_breach'] },
+        // Redis job-data replay: the queued payload is a full
+        // notification object produced by a sendNotification caller
+        // upstream, so the type already passed through the central
+        // path once; the worker adds no type of its own.
+        { file: 'workers/paymentWorker.js', name: 'type', expansions: [] },
+      ];
+
+      // Spread sites: sendNotification(payload) with the payload built
+      // elsewhere in the same flow. Expansions are the payload types.
+      const SPREAD_SITES = [
+        { file: 'controllers/businessAccessCodesController.js', expansions: ['vortex_approval_requested', 'vortex_member_joined'] },
+        { file: 'controllers/businessInvoiceController.js', expansions: ['invoice'] },
+        { file: 'controllers/customer360Controller.js', expansions: ['watchlist_ticket', 'watchlist_booking'] },
+        { file: 'controllers/helpersController.js', expansions: ['credential_removed'] },
+        { file: 'controllers/leadController.js', expansions: ['lead_received', 'quote_received', 'lead_accepted', 'lead_rejected'] },
+        { file: 'controllers/restaurantAppFlowController.js', expansions: ['crew_shift_published', 'crew_shift_cancelled'] },
+        { file: 'controllers/restaurantTeamCommsController.js', expansions: ['restaurant_announcement'] },
+        { file: 'controllers/vortexController.js', expansions: ['vortex_redeemed'] },
+        { file: 'services/statementAmendmentService.js', expansions: ['statement_amended'] },
+        { file: 'services/statementExportJobService.js', expansions: ['statement_ready'] },
+        { file: 'services/statementIssuanceService.js', expansions: ['statement_ready'] },
+      ];
+
+      const serverDir = path.join(__dirname, '..');
+      const concrete = new Map();
+      const prefixes = new Map();
+      const variables = [];
+      const spreads = [];
+      const unknown = [];
+
+      function walk(dir) {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          if (entry.name === 'node_modules' || entry.name === '__tests__') continue;
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) walk(full);
+          else if (entry.name.endsWith('.js')) extractTypes(full);
+        }
+      }
+
+      function extractTypeValue(afterColon) {
+        let depth = 0;
+        let quote = null;
+        let tpl = false;
+        let tplDepth = 0;
+        let end = afterColon.length;
+        for (let i = 0; i < afterColon.length; i++) {
+          const ch = afterColon[i];
+          if (quote) {
+            if (ch === '\\') { i++; continue; }
+            if (ch === quote) quote = null;
+            continue;
+          }
+          if (tpl) {
+            if (ch === '`' && tplDepth === 0) { tpl = false; continue; }
+            if (ch === '$' && afterColon[i + 1] === '{') { tplDepth++; i++; continue; }
+            if (ch === '}' && tplDepth > 0) { tplDepth--; continue; }
+            continue;
+          }
+          if (ch === "'" || ch === '"') { quote = ch; continue; }
+          if (ch === '`') { tpl = true; continue; }
+          if (ch === '(' || ch === '[' || ch === '{') { depth++; continue; }
+          if (ch === ')' || ch === ']' || ch === '}') {
+            if (depth === 0) { end = i; break; }
+            depth--;
+            continue;
+          }
+          if (ch === ',' && depth === 0) { end = i; break; }
+        }
+        return afterColon.slice(0, end).trim();
+      }
+
+      function extractTypes(file) {
+        const rel = path.relative(serverDir, file);
+        const src = fs.readFileSync(file, 'utf8');
+        const callRe = /send(?:Bulk)?Notification\(/g;
+        let m;
+        while ((m = callRe.exec(src)) !== null) {
+          // webpush.sendNotification is the web-push library, not the
+          // notification service; it carries no notification type.
+          if (src.slice(Math.max(0, m.index - 8), m.index) === 'webpush.') continue;
+          const windowText = src.slice(m.index, m.index + 1200);
+          const typeMatch = /\btype\b\s*([:,])/.exec(windowText);
+          if (!typeMatch) { spreads.push(rel); continue; }
+          if (typeMatch[1] === ',') { variables.push({ file: rel, name: 'type' }); continue; }
+          const expr = extractTypeValue(windowText.slice(typeMatch.index + typeMatch[0].length));
+          if (expr.startsWith('`')) {
+            const t = expr.match(/^`([^`$]*)\$\{/);
+            if (t) {
+              if (!prefixes.has(t[1])) prefixes.set(t[1], []);
+              prefixes.get(t[1]).push(rel);
+              continue;
+            }
+          }
+          const ternary = expr.match(/\?\s*['"]([^'"]+)['"]\s*:\s*['"]([^'"]+)['"]/);
+          if (ternary) {
+            for (const t of [ternary[1], ternary[2]]) {
+              if (!concrete.has(t)) concrete.set(t, []);
+              concrete.get(t).push(rel);
+            }
+            continue;
+          }
+          const lit = expr.match(/^['"]([^'"]+)['"]/);
+          if (lit) {
+            const after = expr.slice(lit[0].length).trim();
+            if (after.startsWith('+')) {
+              if (!prefixes.has(lit[1])) prefixes.set(lit[1], []);
+              prefixes.get(lit[1]).push(rel);
+            } else {
+              if (!concrete.has(lit[1])) concrete.set(lit[1], []);
+              concrete.get(lit[1]).push(rel);
+            }
+            continue;
+          }
+          const v = expr.match(/^([A-Za-z_$][A-Za-z0-9_$.]*)/);
+          if (v) { variables.push({ file: rel, name: v[1] }); continue; }
+          unknown.push(`${rel}: ${expr.slice(0, 80)}`);
+        }
+      }
+
+      walk(serverDir);
+
+      // 1. Every concrete type from a call site is cataloged.
+      const missing = [...concrete.keys()].filter((t) => !catalog.has(t));
+      expect(missing).toEqual([]);
+
+      // 2. Every prefix family is classified and its expansions are
+      // cataloged. An unlisted prefix means a new dynamic family.
+      const unclassifiedPrefixes = [...prefixes.keys()].filter((p) => !(p in TEMPLATE_FAMILIES));
+      expect(unclassifiedPrefixes).toEqual([]);
+      for (const [prefix, expansions] of Object.entries(TEMPLATE_FAMILIES)) {
+        if (!prefixes.has(prefix)) continue;
+        const missingExpansions = expansions.filter((t) => !catalog.has(t));
+        expect(missingExpansions).toEqual([]);
+      }
+
+      // 3. Every variable-driven site is classified and its expansions
+      // are cataloged.
+      const unclassifiedVariables = variables.filter(
+        ({ file, name }) => !VARIABLE_SITES.some((s) => s.file === file && s.name === name)
+      );
+      expect(unclassifiedVariables).toEqual([]);
+      for (const site of VARIABLE_SITES) {
+        const missingExpansions = site.expansions.filter((t) => !catalog.has(t));
+        expect(missingExpansions).toEqual([]);
+      }
+
+      // 4. Every spread site is classified and its expansions are
+      // cataloged.
+      const spreadFiles = [...new Set(spreads)];
+      const unclassifiedSpreads = spreadFiles.filter(
+        (file) => !SPREAD_SITES.some((s) => s.file === file)
+      );
+      expect(unclassifiedSpreads).toEqual([]);
+      for (const site of SPREAD_SITES) {
+        const missingExpansions = site.expansions.filter((t) => !catalog.has(t));
+        expect(missingExpansions).toEqual([]);
+      }
+
+      // 5. No site escaped classification entirely.
+      expect(unknown).toEqual([]);
+
+      // 6. Catalog hygiene (kept from the old length assertion, which
+      // this diff test replaces): no duplicates, known groups.
       const seen = new Set();
       for (const entry of NOTIFICATION_TYPES) {
         expect(NOTIFICATION_TYPE_GROUPS).toContain(entry.group);
