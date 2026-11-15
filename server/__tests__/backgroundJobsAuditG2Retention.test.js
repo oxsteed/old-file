@@ -38,8 +38,19 @@ function makeDb({ restaurants, dueRequests = [] }) {
       if (sql.includes('FOR UPDATE OF o SKIP LOCKED')) return { rows: [] };
       // The due-requests select carries the latest retain_until in
       // the row itself (Domain 9 item 4); there is no per-request
-      // retain_until lookup any more.
-      if (sql.includes('SELECT er.*')) return { rows: dueRequests };
+      // retain_until lookup any more. Domain 8 #12: the sweep pages
+      // with a (requested_at, id, limit) cursor, so the stub must
+      // honour it — returning the whole backlog on every call would
+      // page forever. These rows carry no requested_at, so the stub
+      // pages on id, the cursor's second component.
+      if (sql.includes('SELECT er.*')) {
+        const limit = Number(params[params.length - 1]);
+        const cursorId = params.length > 1 ? params[params.length - 2] : null;
+        const rows = dueRequests
+          .filter((r) => cursorId == null || r.id > cursorId)
+          .slice(0, Number.isSafeInteger(limit) && limit > 0 ? limit : dueRequests.length);
+        return { rows };
+      }
       if (sql.includes('FROM food_restaurants WHERE business_id')) return { rows: restaurants };
       return { rows: [] };
     }),
