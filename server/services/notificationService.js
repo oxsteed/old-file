@@ -179,16 +179,67 @@ function findEntityId(data) {
   return null;
 }
 
-function deriveIdempotencyKey({ type, userId, title, body, data, now = Date.now() } = {}) {
+function deriveIdempotencyKey({ type, userId, title, body, data, sequence = null, now = Date.now() } = {}) {
   const payloadHash = crypto.createHash('sha256')
     .update(stableStringify({ title: title || '', body: body || '', data: payloadWithoutVolatile(data) }))
     .digest('hex')
     .slice(0, 16);
   const entity = findEntityId(data);
   const base = `auto:${String(type || '')}:${String(userId || '')}`;
-  if (entity) return `${base}:${entity.field}:${entity.value}:${payloadHash}`.slice(0, 255);
+  // N5: a caller-supplied per-event sequence distinguishes two
+  // otherwise-identical events in the same bucket. It must be stable
+  // across retries of the SAME event and distinct per DISTINCT event.
+  // It is a dedicated parameter, NOT read from data: data.nonce /
+  // data.requestId are per-attempt values, stripped as volatile so a
+  // retry still dedupes, and folding a per-attempt value into the key
+  // would break exactly that. Callers with no sequence keep the old
+  // behaviour (identical content in one bucket still dedupes).
+  const seq = sequence == null || String(sequence).trim() === ''
+    ? '' : `:${String(sequence).trim().slice(0, 64)}`;
+  // N5: the hash sits BEFORE the entity value, so a long entity value
+  // can only truncate the value's own tail, never the hash. The old
+  // layout (value then hash) sliced the hash off long entity keys, so
+  // two events for the same entity with different payloads collapsed
+  // to one key and the second was silently deduped away.
+  if (entity) return `${base}:${entity.field}:${payloadHash}${seq}:${entity.value}`.slice(0, 255);
   const bucket = Math.floor(Number(now || Date.now()) / PAYLOAD_BUCKET_MS);
-  return `${base}:payload:${payloadHash}:${bucket}`.slice(0, 255);
+  return `${base}:payload:${payloadHash}:${bucket}${seq}`.slice(0, 255);
+}
+
+// ─── N2: push delivery ledger ──────────────────────────────────
+// Push was deduped only by the notifications row (is_push_sent),
+// which is created only when in-app is enabled. A retry re-fired
+// push when in-app was off, because no row existed to carry the
+// flag. The notification_push_deliveries ledger records each push
+// send by delivery key, independent of the in-app row. Both lookups
+// fail open with a warn: the ledger is a dedupe aid, and a ledger
+// outage must never block the push itself (a duplicate push on
+// retry is annoying; no push at all for everyone is worse).
+async function wasPushDelivered(deliveryKey) {
+  if (!deliveryKey) return false;
+  try {
+    const { rows } = await db.query(
+      'SELECT 1 FROM notification_push_deliveries WHERE delivery_key = $1 LIMIT 1',
+      [deliveryKey]
+    );
+    return rows.length > 0;
+  } catch (err) {
+    logger.warn('[Notification] push ledger lookup failed', { error: err.message });
+    return false;
+  }
+}
+
+async function recordPushDelivered(deliveryKey, userId, type) {
+  if (!deliveryKey) return;
+  try {
+    await db.query(
+      `INSERT INTO notification_push_deliveries (delivery_key, user_id, notification_type)
+       VALUES ($1, $2, $3) ON CONFLICT (delivery_key) DO NOTHING`,
+      [deliveryKey, userId, type]
+    );
+  } catch (err) {
+    logger.warn('[Notification] push ledger record failed', { error: err.message });
+  }
 }
 
 // ─── MASTER SEND FUNCTION ─────────────────────────────────────
@@ -201,6 +252,11 @@ exports.sendNotification = async ({
   action_url = null,
   pushToken  = null,
   idempotencyKey = null,
+  // N5: per-event sequence, forwarded to deriveIdempotencyKey. Stable
+  // across retries of the same event, distinct per distinct event;
+  // lets a caller distinguish two otherwise-identical sends in one
+  // 15-minute bucket that would otherwise share a derived key.
+  sequence = null,
   promotional = false,
   // Item 9: lets a caller suppress realtime email for this send while still
   // delivering in-app (e.g. the admin opted out of email for metric alerts).
@@ -280,7 +336,7 @@ exports.sendNotification = async ({
       // Item 26: keyless callers used to insert a fresh row (and re-fire
       // push/email) on every retry. Derive a deterministic key at the
       // boundary instead; see deriveIdempotencyKey above.
-      : deriveIdempotencyKey({ type, userId, title: finalTitle, body: finalBody, data });
+      : deriveIdempotencyKey({ type, userId, title: finalTitle, body: finalBody, data, sequence });
 
     // ── Quiet-hours gate (blocks push only, in-app and email still proceed) ──
     // quiet_hours_start / quiet_hours_end are stored as Postgres TIME (HH:MM:SS).
@@ -342,9 +398,18 @@ exports.sendNotification = async ({
     // INSERT..RETURNING snapshot and never sees the UPDATEs below, so checking
     // it alone let Expo, Web Push and native push all fire for one event.
     let pushDelivered = !!notificationRow?.is_push_sent;
+    // N2: the row flag only exists when in-app is enabled. When it is
+    // not set, consult the push ledger so a retry does not re-fire push
+    // for a user with in-app off. Only when a push leg could actually
+    // run, so the common no-device path costs no extra query.
+    if (!pushDelivered && pushEnabled
+      && ((token && Expo.isExpoPushToken(token)) || webPushService.isConfigured() || mobilePushService.isConfigured())) {
+      pushDelivered = await wasPushDelivered(deliveryKey);
+    }
     if (token && pushEnabled && !pushDelivered && Expo.isExpoPushToken(token)) {
       const expoOk = await sendPushNotification(token, finalTitle, finalBody, data, notifId);
       if (expoOk) pushDelivered = true;
+      if (expoOk) await recordPushDelivered(deliveryKey, userId, type);
       if (expoOk && notifId) {
         await db.query(
           `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
@@ -369,6 +434,7 @@ exports.sendNotification = async ({
           action_url,
         });
         if (result.sent > 0) pushDelivered = true;
+        if (result.sent > 0) await recordPushDelivered(deliveryKey, userId, type);
         if (result.sent > 0 && notifId) {
           await db.query(
             `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
@@ -394,6 +460,7 @@ exports.sendNotification = async ({
           action_url,
         });
         if (result.sent > 0) pushDelivered = true;
+        if (result.sent > 0) await recordPushDelivered(deliveryKey, userId, type);
         if (result.sent > 0 && notifId) {
           await db.query(
             `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
@@ -855,3 +922,4 @@ function isWithinQuietHours(startTime, endTime, enabled, timezone = 'UTC') {
 }
 exports.isMoneyCriticalEmailType = isMoneyCriticalEmailType;
 exports.deriveIdempotencyKey = deriveIdempotencyKey;
+exports.prefAllows = prefAllows;
