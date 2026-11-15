@@ -79,7 +79,10 @@ async function fetchTicketRow(ticketId) {
    *  the missing preference check and the unbounded fan-out. Admins who
    *  turned off admin email (admin_notification_prefs.email_notifications)
    *  are skipped, and the send is capped at SUPPORT_STAFF_ALERT_LIMIT,
-   *  the same cap as the in-app leg. */
+   *  the same cap as the in-app leg.
+   *  N4: the cap is applied AFTER ordering on-call staff first (the same
+   *  predicate as the in-app leg), so a busy night never spends the 25
+   *  slots on off-duty admins while the on-call admin gets no email. */
   async function emailAdminsNewTicket(ticket) {
     try {
       const { rows: admins } = await db.query(
@@ -91,6 +94,7 @@ async function fetchTicketRow(ticketId) {
             AND u.deleted_at IS NULL
             AND u.email IS NOT NULL
             AND COALESCE(p.email_notifications, TRUE)
+          ORDER BY COALESCE(p.safety_on_call, FALSE) DESC, u.id
           LIMIT $1`,
         [SUPPORT_STAFF_ALERT_LIMIT]
       );

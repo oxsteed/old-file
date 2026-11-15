@@ -59,6 +59,26 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
+const flush = async () => {
+  for (let i = 0; i < 10; i += 1) await new Promise((resolve) => setImmediate(resolve));
+};
+
+test('new-ticket email orders on-call admins first before the cap (N4)', async () => {
+  // N4: the 25-admin cap used to apply to an unordered set, so a busy
+  // night could spend every slot on off-duty admins while the on-call
+  // admin got no email. The ORDER BY must come before the LIMIT.
+  mockTicketInsert();
+
+  const res = await request(buildApp()).post('/api/support/request').send(baseBody({ category: 'billing' }));
+
+  expect(res.status).toBe(201);
+  await flush(); // emailAdminsNewTicket is fire-and-forget
+  const lookup = mockQuery.mock.calls.find(([sql]) => /FROM users u/.test(sql) && /admin_notification_prefs/.test(sql));
+  expect(lookup).toBeTruthy();
+  expect(lookup[0]).toContain('ORDER BY COALESCE(p.safety_on_call, FALSE) DESC, u.id');
+  expect(lookup[0].indexOf('ORDER BY')).toBeLessThan(lookup[0].indexOf('LIMIT'));
+});
+
 test('dispute ticket is refused when a signed agreement has no warranty claim', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: JOB_ID }] }) // job party check
