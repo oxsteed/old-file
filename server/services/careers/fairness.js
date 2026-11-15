@@ -167,7 +167,7 @@ async function runQuarterlyReports({ db = pool, periodStart, periodEnd } = {}) {
   try {
     await notifyAdmins(db, {
       type: 'career_fairness_quarterly_digest',
-      params: { reports: reports.length, period: `${String(periodStart).slice(0, 10)} to ${String(periodEnd).slice(0, 10)}` },
+      params: { count: reports.length, period: `${String(periodStart).slice(0, 10)} to ${String(periodEnd).slice(0, 10)}` },
       deliveryKey: `career_fairness_quarterly:${String(periodStart).slice(0, 10)}:${String(periodEnd).slice(0, 10)}`,
     });
   } catch (err) {

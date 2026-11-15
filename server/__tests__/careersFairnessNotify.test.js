@@ -89,7 +89,12 @@ test('runQuarterlyReports sends a fairness digest to the admin set', async () =>
   expect(notifyUser).toHaveBeenCalledWith(db, expect.objectContaining({
     type: 'career_fairness_quarterly_digest',
   }));
-  expect(notifyUser.mock.calls[0][1].params).toMatchObject({ reports: 1 });
+  expect(notifyUser.mock.calls[0][1].params).toMatchObject({ count: 1 });
+  // The template renders {count}: the params the production code passes
+  // must actually fill it, not leave the literal placeholder in the body.
+  const rendered = tNotif('career_fairness_quarterly_digest', 'en', notifyUser.mock.calls[0][1].params);
+  expect(rendered.body).toContain('1 fairness reports were generated for 2026-07-01 to 2026-09-30');
+  expect(rendered.body).not.toContain('{count}');
   expect(notifyUser.mock.calls[0][1].deliveryKey).toContain('career_fairness_quarterly:2026-07-01:2026-09-30');
 });
 
