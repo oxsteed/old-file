@@ -24,6 +24,7 @@ const svc = require('../services/broadcastDeliveryService');
 const { runBroadcastDeliveryTick } = require('../jobs/broadcastDelivery');
 
 const TABLES = ['users', 'businesses', 'business_clients', 'customer_business_profile', 'notification_preferences',
+  'notification_type_opt_outs', 'notification_push_deliveries',
   'notifications', 'business_broadcasts', 'business_broadcast_recipients', 'business_broadcast_deliveries',
   'business_broadcast_suppressions', 'business_audit_log', 'webhook_event_receipts'];
 
@@ -120,7 +121,11 @@ const TABLES = ['users', 'businesses', 'business_clients', 'customer_business_pr
     expect(anaMail.html).not.toContain('<script');
     expect(push[0].payload.data.track_url).toContain(`/p/${by(ana, 'push').tracking_token}`);
     const { rows: [note] } = await db.query(`SELECT * FROM notifications WHERE id = $1`, [by(ana, 'in_app').notification_id]);
-    expect(note).toMatchObject({ type: 'business_broadcast', is_promotional: true, title: 'Spring sale' });
+    // Item 11: the row now comes from the shared sendNotification path
+    // (in-app only), so it is not marked promotional and no longer
+    // consumes the promotional-push budget; the direct insert used to
+    // force is_promotional TRUE.
+    expect(note).toMatchObject({ type: 'business_broadcast', is_promotional: false, title: 'Spring sale' });
 
     // Tracking: in-app read, push open, email open + whitelisted click only.
     await db.query(`UPDATE notifications SET is_read = TRUE, read_at = NOW() WHERE id = $1`, [note.id]);
@@ -198,6 +203,38 @@ const TABLES = ['users', 'businesses', 'business_clients', 'customer_business_pr
   test('sms and unknown channels are refused rather than silently marked sent', async () => {
     const id = await broadcast('sms');
     await expect(queue(id)).rejects.toMatchObject({ code: 'broadcast_channel_unsupported' });
+  });
+
+  test('in-app honours the master toggle and per-type opt-outs through the shared path (items 11, 13)', async () => {
+    // Item 13: a user with in-app off and a user opted out of
+    // business_broadcast both skip with broadcast_opted_out. Item 11:
+    // the row is created by the shared sendNotification path, not a
+    // direct insert — before the fix the direct insert ignored both.
+    const offId = crypto.randomUUID();
+    const optedId = crypto.randomUUID();
+    await user(offId);
+    await user(optedId);
+    await db.query(`INSERT INTO notification_preferences(user_id, in_app_notifications) VALUES($1, FALSE)`, [offId]);
+    await db.query(`INSERT INTO notification_type_opt_outs(user_id, notification_type, channel) VALUES($1, 'business_broadcast', 'in_app')`, [optedId]);
+    await client({ customer: offId });
+    await client({ customer: optedId });
+    const id = await broadcast('in_app');
+    await queue(id);
+    await runBroadcastDeliveryTick(deps());
+    const rows = await deliveries(id);
+    const byUser = (u) => rows.find((r) => r.user_id === u && r.channel === 'in_app');
+    expect(byUser(offId)).toMatchObject({ status: 'skipped', skip_reason: 'broadcast_opted_out' });
+    expect(byUser(optedId)).toMatchObject({ status: 'skipped', skip_reason: 'broadcast_opted_out' });
+    // Neither skipped user got a notifications row from the broadcast.
+    const { rows: notes } = await db.query(
+      `SELECT id FROM notifications WHERE user_id = ANY($1::uuid[]) AND type = 'business_broadcast'`,
+      [[offId, optedId]],
+    );
+    expect(notes).toHaveLength(0);
+    // And the allowed users still got theirs through the shared path.
+    expect(byUser(ana)).toMatchObject({ status: 'sent' });
+    const { rows: [note] } = await db.query(`SELECT * FROM notifications WHERE id = $1`, [byUser(ana).notification_id]);
+    expect(note).toMatchObject({ type: 'business_broadcast', is_promotional: false });
   });
 
   describe('Resend delivery webhooks', () => {

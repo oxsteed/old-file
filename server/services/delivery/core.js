@@ -147,26 +147,6 @@ function quietWindow(timezone, now = new Date(), jitterMinutes = 0) {
   );
   return { quiet: true, nextAttemptAt: new Date(next.getTime() + jitterMs) };
 }
-async function sendInApp(
-  conn,
-  { userId, type, title, body, data, url, deliveryKey },
-) {
-  const {
-    rows: [n],
-  } = await conn.query(
-    `INSERT INTO notifications(user_id,type,title,body,data,action_url,delivery_key,is_promotional)
-    VALUES($1,$2,$3,$4,$5,$6,$7,TRUE) ON CONFLICT(delivery_key) WHERE delivery_key IS NOT NULL
-    DO NOTHING RETURNING id`,
-    [userId, type, title, body, JSON.stringify(data), url, deliveryKey],
-  );
-  if (n) return n.id;
-  const {
-    rows: [existing],
-  } = await conn.query("SELECT id FROM notifications WHERE delivery_key=$1", [
-    deliveryKey,
-  ]);
-  return existing?.id || null;
-}
 async function sendPush(userId, payload, deps = {}) {
   const web = deps.webPush || require("../webPushService");
   const mobile = deps.mobilePush || require("../mobilePushService");
@@ -208,6 +188,5 @@ module.exports = {
   quietWindow,
   resolveTimezone,
   COUNTRY_MAIN_TZ,
-  sendInApp,
   sendPush,
 };

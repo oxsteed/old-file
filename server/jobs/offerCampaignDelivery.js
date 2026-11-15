@@ -134,7 +134,17 @@ async function deliver(conn, d, deps = {}) {
   const url = `/offers/${d.id}`;
   if (d.channel === "in_app") {
     if (ctx.offer_in_app === false) return skip("in_app_disabled");
-    const notificationId = await core.sendInApp(conn, {
+    // Item 11: the in-app row used to be inserted directly by
+    // core.sendInApp, bypassing the master in-app toggle and the
+    // per-type opt-outs. Route through the shared sendNotification
+    // path (in-app only, same delivery key so a retry replays the
+    // same row). It runs on the pool, not inside this transaction: a
+    // rollback after the insert leaves a row that the delivery-key
+    // replay resolves on retry, so no duplicate is ever shown. A
+    // failed send throws and the outer catch retries with backoff;
+    // an opted-out user skips instead of being marked sent.
+    const { sendNotification } = require("../services/notificationService");
+    const result = await sendNotification({
       userId: ctx.user_id,
       type: "growth_offer",
       title: copy.title,
@@ -144,10 +154,13 @@ async function deliver(conn, d, deps = {}) {
         delivery_id: String(d.id),
         campaign_id: String(d.campaign_id),
       },
-      url,
-      deliveryKey: `growth-offer:${d.id}`,
+      action_url: url,
+      idempotencyKey: `growth-offer:${d.id}`,
+      inAppChannel: true, pushChannel: false, emailChannel: false,
     });
-    await core.finishOffer(conn, d, { status: "sent", notificationId });
+    if (result && result.success === false) throw new Error(result.error || "offer in-app notification failed");
+    if (!result || !result.notificationId) return skip("in_app_opted_out");
+    await core.finishOffer(conn, d, { status: "sent", notificationId: result.notificationId });
   } else {
     const push = await gate.allow(permission.context, "offer_push", {
       personalized: ctx.is_personalized !== false,
