@@ -45,9 +45,9 @@ describe('D2 — Helper / Business Owner open an application reviewed by an auth
   });
   test('only staff holding the review permission (or super admin) may decide', () => {
     const req = { applicant_id: 'u-1', capability: 'helper.offer_services' };
-    expect(resolver.canReview({ id: 'a', role: 'admin', permissions: ['access_requests.review'] }, req).allowed).toBe(true);
+    expect(resolver.canReview({ id: 'a', role: 'admin', permissions: ['review_access_requests'] }, req).allowed).toBe(true);
     expect(resolver.canReview({ id: 'a', role: 'admin', permissions: [] }, req)).toMatchObject({ allowed: false, reason: 'permission_required' });
-    expect(resolver.canReview({ id: 'h', role: 'helper', permissions: ['access_requests.review'] }, req).allowed).toBe(false);
+    expect(resolver.canReview({ id: 'h', role: 'helper', permissions: ['review_access_requests'] }, req).allowed).toBe(false);
     expect(resolver.canReview({ id: 's', role: 'super_admin' }, req).allowed).toBe(true);
   });
   test('public policy projection hides reviewer-only data', () => {
@@ -130,8 +130,8 @@ describe('D6 — the approver is the authority for the requested access', () => 
   });
   test('specialist domains need their own review permission', () => {
     const req = { applicant_id: 'u-1', capability: 'investor.reporting' };
-    expect(resolver.canReview({ id: 'a', role: 'admin', permissions: ['access_requests.review'] }, req).allowed).toBe(false);
-    expect(resolver.canReview({ id: 'a', role: 'admin', permissions: ['access_requests.review_investor'] }, req).allowed).toBe(true);
+    expect(resolver.canReview({ id: 'a', role: 'admin', permissions: ['review_access_requests'] }, req).allowed).toBe(false);
+    expect(resolver.canReview({ id: 'a', role: 'admin', permissions: ['review_investor_access'] }, req).allowed).toBe(true);
   });
   test('franchise operation is issued from its own pipeline, not self-service', () => {
     expect(registry.getCapability('franchise.operate').applicantMayRequest).toBe(false);

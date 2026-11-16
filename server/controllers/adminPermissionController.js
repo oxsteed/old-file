@@ -32,6 +32,9 @@ const PERMISSION_SCOPES = {
   manage_marketing:      'Manage discount codes, promotions, and campaigns',
   manage_hiring:         'Run OxSteed HR hiring in Careers: platform openings, applicants, offers, retention rules and EOR',
   moderate_careers:      'Moderate careers openings, fact disputes, fairness reports and the AI-ranking gate',
+  review_access_requests: 'Review helper, business, restaurant, consultant, tool and logistics access applications',
+  review_investor_access: 'Review investor reporting access applications',
+  review_franchise_access: 'Review franchise operation access',
 };
 
 const VALID_PERMISSIONS = Object.keys(PERMISSION_SCOPES);
