@@ -636,6 +636,19 @@ revocation and exact-head CI remain open.
 a disposable PostgreSQL database, revoke business finance read during a staged
 export, and verify the next metadata, detail, download, and rendition requests
 all re-authorize against the current standing before moving to WP-088.
+
+WP-088 is currently an evidence checkpoint rather than a source change. The
+existing dispute controller verifies job-party ownership, preserves a 30-day
+window and warranty barrier, and uses client-request idempotency for disputes,
+evidence, and messages. Agent food refunds remain admin plus
+`issue_refunds`-grant gated and reject impersonated sessions; Credit adjustment
+mutations remain admin plus `manage_financials` and durable maker-checker gated.
+`disputeOpenIdempotency.test.js`, `disputeEvidence.test.js`, `disputeW2.test.js`,
+`agentFoodRefundActions.test.js`, and `agentCreditAdjustments.test.js` pass
+locally (75 tests).
+**Exact next action (resume here):** run the populated support/refund acceptance
+with a view-only support actor, a legitimately privileged actor, and a wrong
+business/context retry; then inspect WP-089 platform staff grants and governance.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
