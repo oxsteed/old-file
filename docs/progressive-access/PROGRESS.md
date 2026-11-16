@@ -131,7 +131,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-003 | Owner intent with application failure | in progress | signup DB test; retry-from-resume pending client |
 | AC-004 | Unverified email and pending account | planned | |
 | AC-005 | OTP retry, expiry and resend | server evidence | progressiveAccessSignup.db.test.js (resend → old code fails, new code keeps intent) |
-| AC-006 | Same email and two signup entry points | planned | |
+| AC-006 | Same email and two signup entry points | server evidence (partial) | dedicated helper start closed under flag (WP-006); duplicate OTP finalize → 409 account_already_created |
 | AC-007 | Legacy mode forged on signup | implemented | progressiveAccessSignup.db.test.js (server) |
 | AC-008 | Resume application on second device | planned | |
 | AC-009 | Withdraw then reapply | server evidence (UI pending) | progressiveAccess.db.test.js |
@@ -145,14 +145,14 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-017 | Admin rejects without harming customer access | planned | |
 | AC-018 | Revoke and reinstate distinct rights | server evidence (UI pending) | progressiveAccess.db.test.js |
 | AC-019 | Fixture identity changes across tabs | planned | |
-| AC-020 | No role mutation on ordinary page navigation | planned | |
+| AC-020 | No role mutation on ordinary page navigation | server evidence (partial) | progressiveAccessModeGate.db.test.js: mode writes never raise role |
 | AC-021 | Capability refresh during unsaved editing | planned | |
 | AC-022 | Arabic approval status keyboard flow | planned | |
 | AC-023 | Feature flag unavailable at boot | planned | |
 | AC-024 | Mobile notification deep-link identity | planned | |
 | AC-025 | Provider and customer work side by side | planned | |
 | AC-026 | Verified identity with approval still pending | planned | |
-| AC-027 | Approved helper suspended or unlisted | planned | |
+| AC-027 | Approved helper suspended or unlisted | server evidence (partial) | progressiveAccessHelperEnforcement.test.js: suspended/revoked grant blocks bids and hiring under enforce |
 | AC-028 | Existing contract after new-work revoke | planned | |
 | AC-029 | Apply to create a new business | planned | |
 | AC-030 | Competing claims for an existing business | planned | |
