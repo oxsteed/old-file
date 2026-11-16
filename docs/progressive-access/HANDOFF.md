@@ -1465,6 +1465,23 @@ moderation and verification state, public/private media visibility, share links,
 and behavior after author access is revoked; then add the smallest missing
 capability-aware contract and focused tests.
 
+WP-042 is implemented on the branch. The existing Media draft and attachment
+paths already re-check post ownership, private-draft state, active user state,
+and safety processing before writes; publication also re-checks the selected
+helper, business, or restaurant actor's authoritative verification. The missing
+mutation boundary was editing an already-public represented post after that
+verification was revoked. Public represented-post edits now require a current
+verified actor, while ordinary user posts can still be edited and owners can
+still delete their own content. Focused tests passed 86/86 across the new
+progressive contract plus Media access, contracts, draft-attachment, and
+publication suites; the edited controller passes `node --check`. No populated
+browser, live moderation, or storage-provider acceptance is claimed.
+**Exact next action (resume here):** begin WP-043 Media creator marketplace
+and sharing. Audit creator gig/application ownership, deliverable visibility,
+selected publisher scope, share/repost privacy, payment/tip boundaries, and
+revocation during an active creator engagement; then add the smallest missing
+capability-aware contract and focused tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

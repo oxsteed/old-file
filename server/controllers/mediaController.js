@@ -1986,6 +1986,7 @@ async function updatePost(req, res) {
         FROM media_actors a
        WHERE p.id = $2 AND p.actor_id = a.id AND a.owner_user_id = $3
          AND p.deleted_at IS NULL AND p.visibility = 'public'
+         AND (a.actor_type = 'user' OR (${verifiedActorSql('a')}) = TRUE)
        RETURNING p.*`,
       [body, req.params.id, req.user.id]
     );
