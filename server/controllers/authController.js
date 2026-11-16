@@ -32,6 +32,8 @@ const { logSecurityEvent, extractRequestDetails } = require('../services/auditLo
 const { recordLoginAgreement } = require('../services/loginAgreementService'); // Review P1-1-F05
 const { consumeTotpCounter } = require('../services/totpReplayGuard'); // Domain 6 #7
 const modeRoleUtil = require('../utils/modeRole');
+const accessFlags = require('../services/access/flags');
+const signupIntent = require('../services/access/signupIntent');
 const { readDeviceFingerprint } = require('../utils/deviceFingerprint'); // Review P2-6-F12
 const { normalizeStoredPublicUrl } = require('../utils/storage');
 const { liftExpiredSuspension } = require('../utils/suspension');
@@ -1367,7 +1369,14 @@ async function startRegistration(req, res) {
     }
     // role written to pending_registrations.role — derived from mode so
     // existing role-based RBAC works on day one for helper-mode signups.
-    const dbRole = modePref && MODES_REQUIRING_HELPER_ROLE.has(modePref) ? 'helper' : 'customer';
+    // Progressive access (WP-001/002): with customer-first signup the choice
+    // is an intent stored apart from authority; the pending row is customer.
+    const customerFirst = accessFlags.customerFirstSignup();
+    const intentFields = customerFirst ? signupIntent.startFields(req.body) : null;
+    const dbRole = customerFirst
+      ? 'customer'
+      : (modePref && MODES_REQUIRING_HELPER_ROLE.has(modePref) ? 'helper' : 'customer');
+    const storedMode = customerFirst ? 'customer' : modePref;
     const line1 = String(addressLine1 ?? address_line1 ?? '').trim();
     const cityTrim = String(city || '').trim();
     // Country defaults to 'US' so existing US-only clients (helper signup,
@@ -1486,18 +1495,20 @@ async function startRegistration(req, res) {
       `INSERT INTO pending_registrations (
          token, email, password_hash, first_name, last_name, phone, zip_code,
          address_line1, city, state, country,
-         age_confirmed, role, referral_ref, default_mode
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         age_confirmed, role, referral_ref, default_mode, signup_intent, signup_return_to
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        ON CONFLICT (email) DO UPDATE SET
          token = $1, password_hash = $3, first_name = $4, last_name = $5, phone = $6, zip_code = $7,
          address_line1 = $8, city = $9, state = $10, country = $11,
-         age_confirmed = $12, role = $13, referral_ref = $14, default_mode = $15, updated_at = NOW(),
+         age_confirmed = $12, role = $13, referral_ref = $14, default_mode = $15,
+         signup_intent = $16, signup_return_to = $17, updated_at = NOW(),
          expires_at = NOW() + interval '30 minutes', otp_code = NULL, otp_expires_at = NULL
        RETURNING id, expires_at`,
       [
         token, normalized.email, passwordHash, normalized.firstName, normalized.lastName, formattedPhone, normalizedZip,
         normalized.addressLine1, normalized.city, normalizedState, normalized.country,
-        normalized.ageConfirmed, dbRole, normalized.ref, modePref,
+        normalized.ageConfirmed, dbRole, normalized.ref, storedMode,
+        intentFields ? intentFields.intent : null, intentFields ? intentFields.returnTo : null,
       ],
     );
     if (insertRows.length === 0) {
@@ -1631,8 +1642,11 @@ async function verifyRegistrationOTP(req, res) {
     // Carry the user's chosen mode through; derive role from it via the
     // single source of truth in modeRole.js. Falls back to 'customer'/legacy
     // role for pending rows that pre-date migration 270.
-    const pendingDefaultMode = normalizeDefaultMode(pending.default_mode);
-    const derivedRole = pendingDefaultMode
+    // Progressive access (WP-003): customer-first signup always creates a
+    // customer; the intent becomes a resumable application after commit.
+    const customerFirstFinalize = accessFlags.customerFirstSignup();
+    const pendingDefaultMode = customerFirstFinalize ? 'customer' : normalizeDefaultMode(pending.default_mode);
+    const derivedRole = customerFirstFinalize ? 'customer' : pendingDefaultMode
       ? modeRoleUtil.roleForMode(pendingDefaultMode)
       : (pending.role && ['customer', 'helper'].includes(pending.role) ? pending.role : 'customer');
     const pendingRole = derivedRole;
@@ -1654,7 +1668,7 @@ async function verifyRegistrationOTP(req, res) {
            $13,$14,$15,$16,$17,
            $18,$19,$20,
            'onboarding_complete', TRUE, TRUE, TRUE, TRUE,
-           TRUE, 'tier1', $22, pending.signup_device_fingerprint
+           TRUE, 'tier1', $22, $23
          ) RETURNING *`,
         [
           pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code,
@@ -1663,7 +1677,7 @@ async function verifyRegistrationOTP(req, res) {
           pending.age_confirmed,
           pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode,
           trial_started_at, trial_ends_at, referrerId,
-          pendingRole, pendingDefaultMode,
+          pendingRole, pendingDefaultMode, pending.signup_device_fingerprint || null,
         ]
       );
       const growthRole = ['customer', 'helper'].includes(pendingRole) ? pendingRole : 'customer';
@@ -1778,8 +1792,16 @@ async function verifyRegistrationOTP(req, res) {
     setRefreshTokenCookie(res, tokens.refreshToken);
     setAccessTokenCookie(res, tokens.accessToken);
     await issueSessionCsrf(res, user.id, tokens.sid);
-    res.status(201).json({ user: formatAuthUser(user), accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+    const accessContinuation = customerFirstFinalize ? await signupIntent.finalize(user.id, pending) : undefined;
+    res.status(201).json({
+      user: formatAuthUser(user), accessToken: tokens.accessToken, refreshToken: tokens.refreshToken,
+      ...(accessContinuation ? { access: accessContinuation } : {}),
+    });
   } catch (err) {
+    // A concurrent finalize already created this account (unique email).
+    if (err && err.code === '23505' && /email/.test(String(err.constraint || err.detail || ''))) {
+      return res.status(409).json({ error: 'This account was already created. Please sign in.', code: 'account_already_created' });
+    }
     logger.error('Verify registration OTP error', { err });
     res.status(500).json({ error: 'Verification failed', code: 'verification_failed' });
   }

@@ -47,8 +47,9 @@ function requireProjectionFlag(req, res, next) {
 // ── applicant ──────────────────────────────────────────────────────────────
 const getAccess = wrap('me.access', async (req, res) => {
   const projection = await access.getProjection(req.user.id);
+  const resume = await require('../services/access/signupIntent').pendingIntent(req.user.id);
   res.set('Cache-Control', 'private, no-store');
-  return res.json({ access: projection, flags: flags.clientFlags(req.user.id) });
+  return res.json({ access: { ...projection, signupResume: resume }, flags: flags.clientFlags(req.user.id) });
 });
 
 const getPolicy = wrap('me.policy', async (req, res) => {

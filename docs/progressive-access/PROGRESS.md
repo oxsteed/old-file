@@ -18,9 +18,9 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 
 | WP | Title | Phase | Status | Commit | Tests |
 | --- | --- | --- | --- | --- | --- |
-| WP-001 | Signup entry and intent selector | P2 | planned | | |
-| WP-002 | Registration start and pending identity | P2 | planned | | |
-| WP-003 | OTP finalization and bootstrap | P2 | planned | | |
+| WP-001 | Signup entry and intent selector | P2 | in progress | pending | server done (signupIntent field); client selector pending |
+| WP-002 | Registration start and pending identity | P2 | implemented | pending | progressiveAccessSignup.db.test.js |
+| WP-003 | OTP finalization and bootstrap | P2 | implemented | pending | progressiveAccessSignup.db.test.js |
 | WP-004 | Login and legacy mode inputs | P2 | planned | | |
 | WP-005 | Signed-in profile edit and account type removal | P2 | planned | | |
 | WP-006 | Dedicated helper registration | P2 | planned | | |
@@ -127,12 +127,12 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC | Title | Status | Evidence |
 | --- | --- | --- | --- |
 | AC-001 | Guest finds a task and signs up | planned | |
-| AC-002 | Helper intent survives OTP | planned | |
-| AC-003 | Owner intent with application failure | planned | |
+| AC-002 | Helper intent survives OTP | in progress | signup DB test; bid denial pending WP-026 |
+| AC-003 | Owner intent with application failure | in progress | signup DB test; retry-from-resume pending client |
 | AC-004 | Unverified email and pending account | planned | |
-| AC-005 | OTP retry, expiry and resend | planned | |
+| AC-005 | OTP retry, expiry and resend | planned |  |
 | AC-006 | Same email and two signup entry points | planned | |
-| AC-007 | Legacy mode forged on signup | planned | |
+| AC-007 | Legacy mode forged on signup | implemented | progressiveAccessSignup.db.test.js (server) |
 | AC-008 | Resume application on second device | planned | |
 | AC-009 | Withdraw then reapply | server evidence (UI pending) | progressiveAccess.db.test.js |
 | AC-010 | Needs information and revision history | server evidence (UI pending) | progressiveAccess.db.test.js |

@@ -124,14 +124,22 @@ Also done: outbox job (`services/access/outboxWorker.js`, started from
 `bootstrap/backgroundWorkers.js`), backfill (`services/access/backfill.js`,
 `scripts/access-backfill.js --dry-run|--apply [--resume <runId>]`).
 
+Also done: customer-first signup server side (WP-001..003) behind
+`ACCESS_CUSTOMER_FIRST_SIGNUP` — `services/access/signupIntent.js`, wired into
+`authController.startRegistration` / `verifyRegistrationOTP`; response adds
+`access.signupIntent` + `access.nextStep`; `GET /api/me/access` returns `signupResume`.
+Test: `__tests__/progressiveAccessSignup.db.test.js`.
+**Pre-existing bug fixed on the way:** `verifyRegistrationOTP` INSERT referenced
+`pending.signup_device_fingerprint` as SQL text (42P01) so every general-signup OTP
+verify 500'd on old-files-claude; now passed as `$23`.
+
 Next (in order):
-1. Customer-first signup (WP-001..WP-003) behind `ACCESS_CUSTOMER_FIRST_SIGNUP`:
-   `authController.startRegistration` stores `normalizeSignupIntent(defaultMode|intent)` in
-   `pending_registrations.signup_intent`; `verifyRegistrationOTP` creates role `customer`,
-   `default_mode` `customer`, writes `access_signup_intents`, and best-effort creates a draft
-   `access_requests` row (failure must not fail signup). Response adds `access.signupIntent`
-   and `access.nextStep`. Flag off = legacy behavior unchanged.
-2. WP-005: profile / account-type writes must not raise authority when the flag is on.
-3. Helper enforcement (WP-026) `ACCESS_HELPER_ENFORCEMENT=shadow|enforce` on bid/quote writes.
-4. Client: `client/src/api/access.js`, `useAccess` hook, `/settings/applications` page,
+1. WP-005: profile / account-type writes (`updateProfile`, `PUT /profile`, `PATCH /me`)
+   must not raise authority when `ACCESS_CUSTOMER_FIRST_SIGNUP` is on; WP-004 login ignores
+   legacy mode inputs. AC-005 (OTP resend with intent) test.
+2. Helper enforcement (WP-026) `ACCESS_HELPER_ENFORCEMENT=shadow|enforce` on bid/quote writes
+   using `accessService.can(userId,'helper.offer_services')`.
+3. Client: `client/src/api/access.js`, `useAccess` hook, signup intent selector on JoinPage
+   (send `signupIntent`, honour `access.nextStep`), `/settings/applications` page,
    admin review page in `client/src/admin/adminRouteManifest.js`, i18n in all 20 locale files.
+4. Phase 3 (WP-046..073) business/restaurant, Phase 4 (WP-074..103), Phase 5 (WP-013).
