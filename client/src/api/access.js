@@ -3,6 +3,7 @@
 // Idempotency-Key so a double click or retry after a network drop never
 // creates a second application or decision.
 import api from './axios';
+import { assertCurrentAuthEpoch, currentAuthEpoch } from './authSessionEpoch';
 
 const newKey = () => {
   try { return crypto.randomUUID(); } catch { return `${Date.now()}-${Math.random().toString(36).slice(2)}`; }
@@ -10,7 +11,18 @@ const newKey = () => {
 const withKey = (key) => ({ headers: { 'Idempotency-Key': key || newKey() } });
 
 export const accessAPI = {
-  getAccess: () => api.get('/me/access').then((r) => r.data),
+  getAccess: async (accountId) => {
+    const epoch = currentAuthEpoch();
+    const { data } = await api.get('/me/access');
+    assertCurrentAuthEpoch(epoch);
+    // A cookie can change in another tab before this tab receives its session event.
+    if (data?.accountId !== String(accountId)) {
+      const error = new Error('Access belongs to a different authentication session.');
+      error.code = 'AUTH_SESSION_CHANGED';
+      throw error;
+    }
+    return data;
+  },
   listPolicies: () => api.get('/me/access-policies').then((r) => r.data),
   getPolicy: (capability) => api.get(`/me/access-policies/${encodeURIComponent(capability)}`).then((r) => r.data),
   listRequests: (params = {}) => api.get('/me/access-requests', { params }).then((r) => r.data),

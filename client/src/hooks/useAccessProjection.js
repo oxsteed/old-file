@@ -6,27 +6,29 @@
 // reflected without a new session.
 import { useEffect, useState } from 'react';
 import { accessAPI } from '../api/access';
+import { currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
 
 export const ACCESS_CHANGED_EVENT = 'oxsteed:access-changed';
 const TTL_MS = 60_000;
-let cache = { userId: null, at: 0, value: null };
-let inflight = null;
-const listeners = new Set();
+let active = null;
 
-function load(userId, force = false) {
-  if (!force && cache.userId === userId && Date.now() - cache.at < TTL_MS) return Promise.resolve(cache.value);
-  if (!inflight) {
-    inflight = accessAPI.getAccess()
-      .then((d) => (d && d.access ? { access: d.access, flags: d.flags || {} } : null))
-      .catch(() => null)
-      .then((value) => {
-        cache = { userId, at: Date.now(), value };
-        listeners.forEach((fn) => fn(value));
-        return value;
-      })
-      .finally(() => { inflight = null; });
-  }
-  return inflight;
+function matches(record, userId, epoch) {
+  return Boolean(userId && record?.userId === userId && record.epoch === epoch);
+}
+
+function load(record, force = false) {
+  if (active !== record || !isCurrentAuthEpoch(record.epoch) || record.inflight) return;
+  if (!force && Date.now() - record.at < TTL_MS) return;
+  record.inflight = accessAPI.getAccess(record.userId)
+    .then((data) => (data?.access ? { access: data.access, flags: data.flags || {} } : null))
+    .catch(() => null)
+    .then((value) => {
+      if (active !== record || !isCurrentAuthEpoch(record.epoch)) return;
+      record.at = Date.now();
+      record.value = value;
+      record.listeners.forEach((publish) => publish(value));
+    })
+    .finally(() => { record.inflight = null; });
 }
 
 export function notifyAccessChanged() {
@@ -34,25 +36,35 @@ export function notifyAccessChanged() {
 }
 
 export default function useAccessProjection(user) {
-  const userId = user?.id || null;
-  const [value, setValue] = useState(() => (userId && cache.userId === userId ? cache.value : null));
+  const userId = user?.id == null ? null : String(user.id);
+  const epoch = currentAuthEpoch();
+  const [snapshot, setSnapshot] = useState(null);
   useEffect(() => {
-    if (!userId) { setValue(null); return undefined; }
-    let alive = true;
-    const set = (v) => { if (alive) setValue(v); };
-    listeners.add(set);
-    load(userId).then(set);
-    const refresh = () => load(userId, true);
+    if (!isCurrentAuthEpoch(epoch)) return undefined;
+    if (!userId) {
+      active = null;
+      setSnapshot(null);
+      return undefined;
+    }
+    if (!matches(active, userId, epoch)) {
+      active = { userId, epoch, at: 0, value: null, listeners: new Set(), inflight: null };
+    }
+    const record = active;
+    const publish = (value) => setSnapshot({ userId, epoch, value });
+    record.listeners.add(publish);
+    publish(record.value);
+    load(record);
+    const refresh = () => load(record, true);
     // Focus is frequent: re-read at most every 15 s; explicit changes always re-read.
-    const onFocus = () => { if (Date.now() - cache.at > 15_000) refresh(); };
+    const onFocus = () => { if (Date.now() - record.at > 15_000) refresh(); };
     window.addEventListener('focus', onFocus);
     window.addEventListener(ACCESS_CHANGED_EVENT, refresh);
     return () => {
-      alive = false;
-      listeners.delete(set);
+      record.listeners.delete(publish);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener(ACCESS_CHANGED_EVENT, refresh);
     };
-  }, [userId]);
-  return value;
+  }, [userId, epoch]);
+  if (matches(snapshot, userId, epoch)) return snapshot.value;
+  return matches(active, userId, epoch) ? active.value : null;
 }

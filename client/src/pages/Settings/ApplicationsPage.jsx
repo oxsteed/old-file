@@ -10,6 +10,8 @@ import toast from 'react-hot-toast';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { accessAPI } from '../../api/access';
+import { currentAuthEpoch, isCurrentAuthEpoch } from '../../api/authSessionEpoch';
+import { useAuth } from '../../context/AuthContext';
 import { notifyAccessChanged, ACCESS_CHANGED_EVENT } from '../../hooks/useAccessProjection';
 
 const NS = 'common';
@@ -216,6 +218,12 @@ function RequestEditor({ t, request, policy, onChanged, onClose }) {
 }
 
 export default function ApplicationsPage() {
+  const { user } = useAuth();
+  const epoch = currentAuthEpoch();
+  return user?.id == null ? null : <AccountApplications key={`${user.id}:${epoch}`} accountId={user.id} epoch={epoch} />;
+}
+
+function AccountApplications({ accountId, epoch }) {
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const [access, setAccess] = useState(null);
@@ -235,10 +243,12 @@ export default function ApplicationsPage() {
   const versionRef = useRef(null);
   const [announce, setAnnounce] = useState('');
   const load = useCallback(async (silent = false) => {
+    if (!isCurrentAuthEpoch(epoch)) return;
     if (!silent) setLoading(true);
     setLoadError(false);
     try {
-      const [a, r, p] = await Promise.all([accessAPI.getAccess(), accessAPI.listRequests({ limit: 50 }), accessAPI.listPolicies()]);
+      const [a, r, p] = await Promise.all([accessAPI.getAccess(accountId), accessAPI.listRequests({ limit: 50 }), accessAPI.listPolicies()]);
+      if (!isCurrentAuthEpoch(epoch)) return;
       const version = a.access ? JSON.stringify([a.access.personal || [], (a.access.organizations || []).map((o) => [o.id, o.role])]) : null;
       if (versionRef.current !== null && version !== versionRef.current) {
         setAnnounce(t('progressiveAccess.accessUpdated', { ns: NS }));
@@ -250,12 +260,13 @@ export default function ApplicationsPage() {
       setPolicies(p.policies || []);
       setUnavailable(false);
     } catch (err) {
+      if (!isCurrentAuthEpoch(epoch)) return;
       if (errorCode(err) === 'feature_disabled') setUnavailable(true);
       else setLoadError(true);
     } finally {
-      setLoading(false);
+      if (isCurrentAuthEpoch(epoch)) setLoading(false);
     }
-  }, [t]);
+  }, [accountId, epoch, t]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -272,12 +283,13 @@ export default function ApplicationsPage() {
     if (!openId) { setDetail(null); return; }
     let cancelled = false;
     accessAPI.getRequest(openId)
-      .then((d) => { if (!cancelled) setDetail(d); })
-      .catch(() => { if (!cancelled) { setDetail(null); setOpenId(null); } });
+      .then((d) => { if (!cancelled && isCurrentAuthEpoch(epoch)) setDetail(d); })
+      .catch(() => { if (!cancelled && isCurrentAuthEpoch(epoch)) { setDetail(null); setOpenId(null); } });
     return () => { cancelled = true; };
-  }, [openId]);
+  }, [openId, epoch]);
 
   const openRequest = (id) => {
+    if (!isCurrentAuthEpoch(epoch)) return;
     setOpenId(id);
     const next = new URLSearchParams(params);
     if (id) next.set('request', id); else next.delete('request');

@@ -121,6 +121,7 @@ ddescribe('progressive access (real database, mounted routes)', () => {
     const u = await newUser('fresh');
     const res = await as(u).get('/api/me/access');
     expect(res.status).toBe(200);
+    expect(res.body.accountId).toBe(u);
     expect(res.body.access.personal).toEqual(['customer']);
     expect(res.body.access.openRequestCount).toBe(0);
     expect(res.headers['cache-control']).toMatch(/no-store/);

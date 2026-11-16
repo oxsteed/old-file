@@ -25,7 +25,7 @@ import {
   LAUNCH_SETTINGS_TABS,
   LAUNCH_VISIBILITY,
 } from '../utils/launchScope';
-import { accessAPI } from '../api/access';
+import useAccessProjection from '../hooks/useAccessProjection';
 import '../styles/SettingsPage.css';
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
@@ -108,14 +108,7 @@ export default function SettingsPage() {
 
   // Progressive access: the Applications entry appears only when the server
   // enables applications for this account (flag or pilot allowlist).
-  const [accessRequestsOn, setAccessRequestsOn] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    accessAPI.getAccess()
-      .then((d) => { if (!cancelled) setAccessRequestsOn(!!d?.flags?.accessRequests); })
-      .catch(() => { /* feature off or offline: keep the entry hidden */ });
-    return () => { cancelled = true; };
-  }, []);
+  const accessRequestsOn = Boolean(useAccessProjection(user)?.flags?.accessRequests);
 
   const TABS = useMemo(() => [
     { key: 'profile',       label: t('settings.tabProfile'),       icon: <IconUser /> },
